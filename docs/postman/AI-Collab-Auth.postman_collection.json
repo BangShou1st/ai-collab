@@ -1,0 +1,441 @@
+{
+  "info": {
+    "_postman_id": "7f28b2d1-0f43-4d83-a92d-a0d4e339c390",
+    "name": "AI Collab - Auth Refresh Session",
+    "description": "本集合验证登录、Access Token、HttpOnly Refresh Cookie、严格轮换、登出和双设备会话。请先阅读同目录 README。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('health is UP', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().status).to.eql('UP');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/actuator/health"
+      }
+    },
+    {
+      "name": "02 Login Success",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let body;",
+              "try {",
+              "  body = pm.response.json();",
+              "} catch (error) {",
+              "  pm.expect.fail('登录成功响应必须是可解析的 JSON: ' + error.message);",
+              "}",
+              "pm.test('login succeeds, returns an access token, and sends a refresh cookie', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body).to.have.property('code', 'SUCCESS');",
+              "  pm.expect(body).to.have.property('data');",
+              "  pm.expect(body.data).to.have.property('accessToken');",
+              "  pm.expect(body.data.accessToken).to.be.a('string').and.not.empty;",
+              "  pm.expect(pm.response.headers.get('Set-Cookie')).to.include('ai_collab_refresh_token=');",
+              "});",
+              "if (body && body.data && typeof body.data.accessToken === 'string' && body.data.accessToken.length > 0) {",
+              "  pm.environment.set('accessToken', body.data.accessToken);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "{{frontendOrigin}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"owner\",\n  \"password\": \"请替换为 .env 中的 DEMO_OWNER_PASSWORD\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "03 Login Wrong Password",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('wrong credentials are rejected without user enumeration', function () {",
+              "  pm.response.to.have.status(401);",
+              "  pm.expect(pm.response.json().code).to.eql('AUTH_INVALID_CREDENTIALS');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "{{frontendOrigin}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"owner\",\n  \"password\": \"wrong-password\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "04 Login Validation Error",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('blank login fields are rejected', function () {",
+              "  pm.response.to.have.status(400);",
+              "  pm.expect(pm.response.json().code).to.eql('VALIDATION_ERROR');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "{{frontendOrigin}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"\",\n  \"password\": \"\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "05 Me Without Bearer",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('me requires an access token', function () {",
+              "  pm.response.to.have.status(401);",
+              "  pm.expect(pm.response.json().code).to.eql('AUTH_UNAUTHORIZED');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/auth/me"
+      }
+    },
+    {
+      "name": "06 Me With Bearer",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('me returns the safe user view', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().code).to.eql('SUCCESS');",
+              "  pm.expect(pm.response.json().data).to.have.property('username');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/me"
+      }
+    },
+    {
+      "name": "07 Refresh (Cookie Jar Rotates)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let body;",
+              "try {",
+              "  body = pm.response.json();",
+              "} catch (error) {",
+              "  pm.expect.fail('刷新成功响应必须是可解析的 JSON: ' + error.message);",
+              "}",
+              "pm.test('refresh rotates the cookie and returns a new access token', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body).to.have.property('code', 'SUCCESS');",
+              "  pm.expect(body).to.have.property('data');",
+              "  pm.expect(body.data).to.have.property('accessToken');",
+              "  pm.expect(body.data.accessToken).to.be.a('string').and.not.empty;",
+              "  pm.expect(pm.response.headers.get('Set-Cookie')).to.include('ai_collab_refresh_token=');",
+              "});",
+              "if (body && body.data && typeof body.data.accessToken === 'string' && body.data.accessToken.length > 0) {",
+              "  pm.environment.set('accessToken', body.data.accessToken);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "{{frontendOrigin}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/refresh"
+      }
+    },
+    {
+      "name": "08 Refresh Without Cookie",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('a different localhost host has no cookie', function () {",
+              "  pm.response.to.have.status(401);",
+              "  pm.expect(pm.response.json().code).to.eql('AUTH_UNAUTHORIZED');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "{{frontendOrigin}}"
+          }
+        ],
+        "url": "http://127.0.0.1:8080/api/v1/auth/refresh"
+      }
+    },
+    {
+      "name": "09 Logout Current Device",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('logout is idempotent and clears the browser cookie', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().code).to.eql('SUCCESS');",
+              "  pm.expect(pm.response.headers.get('Set-Cookie')).to.include('Max-Age=0');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "{{frontendOrigin}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/logout"
+      }
+    },
+    {
+      "name": "10 Refresh After Logout",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('the cleared current-device cookie cannot refresh', function () {",
+              "  pm.response.to.have.status(401);",
+              "  pm.expect(pm.response.json().code).to.eql('AUTH_UNAUTHORIZED');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "{{frontendOrigin}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/refresh"
+      }
+    },
+    {
+      "name": "11 Device A Login (localhost)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let body;",
+              "try {",
+              "  body = pm.response.json();",
+              "} catch (error) {",
+              "  pm.expect.fail('设备 A 登录响应必须是可解析的 JSON: ' + error.message);",
+              "}",
+              "pm.test('device A gets its own session and access token', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body).to.have.property('code', 'SUCCESS');",
+              "  pm.expect(body).to.have.property('data');",
+              "  pm.expect(body.data).to.have.property('accessToken');",
+              "  pm.expect(body.data.accessToken).to.be.a('string').and.not.empty;",
+              "});",
+              "if (body && body.data && typeof body.data.accessToken === 'string' && body.data.accessToken.length > 0) {",
+              "  pm.environment.set('accessToken', body.data.accessToken);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "{{frontendOrigin}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"owner\",\n  \"password\": \"请替换为 .env 中的 DEMO_OWNER_PASSWORD\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/v1/auth/login"
+      }
+    },
+    {
+      "name": "12 Device B Login (127.0.0.1)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let body;",
+              "try {",
+              "  body = pm.response.json();",
+              "} catch (error) {",
+              "  pm.expect.fail('设备 B 登录响应必须是可解析的 JSON: ' + error.message);",
+              "}",
+              "pm.test('device B gets its own session and access token', function () {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body).to.have.property('code', 'SUCCESS');",
+              "  pm.expect(body).to.have.property('data');",
+              "  pm.expect(body.data).to.have.property('accessToken');",
+              "  pm.expect(body.data.accessToken).to.be.a('string').and.not.empty;",
+              "});",
+              "if (body && body.data && typeof body.data.accessToken === 'string' && body.data.accessToken.length > 0) {",
+              "  pm.environment.set('accessToken', body.data.accessToken);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "{{frontendOrigin}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"owner\",\n  \"password\": \"请替换为 .env 中的 DEMO_OWNER_PASSWORD\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "http://127.0.0.1:8080/api/v1/auth/login"
+      }
+    }
+  ]
+}

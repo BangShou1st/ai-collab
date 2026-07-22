@@ -1,0 +1,7 @@
+flowchart LR
+    Goal[Goal and Documents] --> Generate[Structured Generation]
+    Generate --> Validate[Schema and Domain Validation]
+    Validate --> Draft[Editable Draft]
+    Draft --> Confirm[User Confirmation]
+    Confirm --> Tx[Transactional Apply]
+    Tx --> Work[Milestones Tasks Dependencies]

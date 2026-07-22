@@ -1,0 +1,10 @@
+spring:
+    application:
+        name: ai-collab-backend
+
+mybatis-plus:
+    type-handlers-package: com.shitulelv.aicollab.common.persistence
+
+security:
+    refresh-token:
+        cookie-secure: "${REFRESH_COOKIE_SECURE:true}"

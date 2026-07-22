@@ -1,0 +1,1445 @@
+openapi: 3.1.0
+info:
+  title: AI Collab API
+  version: 0.1.0
+  description: Local-first collaboration platform with RAG knowledge QA and AI task planning.
+servers:
+  - url: http://localhost:8080/api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Invitations
+  - name: Projects
+  - name: Members
+  - name: Milestones
+  - name: Tasks
+  - name: Comments
+  - name: Documents
+  - name: Knowledge
+  - name: TaskPlans
+  - name: Dashboard
+  - name: Audit
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponseEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Refresh access token using HttpOnly refresh cookie
+      responses:
+        '200':
+          description: Refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponseEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke current refresh token
+      responses:
+        '204':
+          description: Logged out
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+  /invitations/{code}:
+    get:
+      tags: [Invitations]
+      security: []
+      summary: Preview invitation
+      parameters:
+        - $ref: '#/components/parameters/InvitationCode'
+      responses:
+        '200':
+          description: Invitation preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationPreviewEnvelope'
+        '410':
+          $ref: '#/components/responses/Gone'
+  /invitations/{code}/accept:
+    post:
+      tags: [Invitations]
+      security: []
+      summary: Accept invitation and create account
+      parameters:
+        - $ref: '#/components/parameters/InvitationCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitationRequest'
+      responses:
+        '201':
+          description: Account created and invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponseEnvelope'
+  /projects:
+    get:
+      tags: [Projects]
+      summary: List current user's projects
+      responses:
+        '200':
+          description: Project list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectListEnvelope'
+    post:
+      tags: [Projects]
+      summary: Create project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectEnvelope'
+  /projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [Projects]
+      summary: Get project
+      responses:
+        '200':
+          description: Project detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Projects]
+      summary: Update project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Projects]
+      summary: Delete project; owner only
+      responses:
+        '204':
+          description: Deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /projects/{projectId}/members:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [Members]
+      summary: List members
+      responses:
+        '200':
+          description: Member list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberListEnvelope'
+  /projects/{projectId}/invitations:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [Members]
+      summary: Create invitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvitationRequest'
+      responses:
+        '201':
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationEnvelope'
+  /projects/{projectId}/members/{userId}/role:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/UserId'
+    patch:
+      tags: [Members]
+      summary: Change member role; owner only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRoleRequest'
+      responses:
+        '200':
+          description: Role changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberEnvelope'
+  /projects/{projectId}/members/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/UserId'
+    delete:
+      tags: [Members]
+      summary: Remove member; owner only
+      responses:
+        '204':
+          description: Removed
+  /projects/{projectId}/milestones:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [Milestones]
+      summary: List milestones
+      responses:
+        '200':
+          description: Milestone list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MilestoneListEnvelope'
+    post:
+      tags: [Milestones]
+      summary: Create milestone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MilestoneRequest'
+      responses:
+        '201':
+          description: Milestone created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MilestoneEnvelope'
+  /projects/{projectId}/milestones/{milestoneId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/MilestoneId'
+    patch:
+      tags: [Milestones]
+      summary: Update milestone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MilestoneRequest'
+      responses:
+        '200':
+          description: Milestone updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MilestoneEnvelope'
+    delete:
+      tags: [Milestones]
+      summary: Delete milestone
+      responses:
+        '204':
+          description: Deleted
+  /projects/{projectId}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [Tasks]
+      summary: List tasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/TaskStatus'
+        - name: assigneeId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: milestoneId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListEnvelope'
+    post:
+      tags: [Tasks]
+      summary: Create task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskEnvelope'
+  /projects/{projectId}/tasks/{taskId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [Tasks]
+      summary: Get task
+      responses:
+        '200':
+          description: Task detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskEnvelope'
+    patch:
+      tags: [Tasks]
+      summary: Update task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskEnvelope'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Tasks]
+      summary: Delete task
+      responses:
+        '204':
+          description: Deleted
+  /projects/{projectId}/tasks/{taskId}/dependencies:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+    put:
+      tags: [Tasks]
+      summary: Replace task dependencies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dependencyIds]
+              properties:
+                dependencyIds:
+                  type: array
+                  maxItems: 10
+                  uniqueItems: true
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Dependencies replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskEnvelope'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /projects/{projectId}/tasks/{taskId}/comments:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [Comments]
+      summary: List comments
+      responses:
+        '200':
+          description: Comments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentListEnvelope'
+    post:
+      tags: [Comments]
+      summary: Add comment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+      responses:
+        '201':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentEnvelope'
+  /projects/{projectId}/tasks/{taskId}/comments/{commentId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+      - $ref: '#/components/parameters/CommentId'
+    patch:
+      tags: [Comments]
+      summary: Edit own comment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+      responses:
+        '200':
+          description: Comment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentEnvelope'
+    delete:
+      tags: [Comments]
+      summary: Delete comment
+      responses:
+        '204':
+          description: Deleted
+  /projects/{projectId}/documents:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [Documents]
+      summary: List documents
+      responses:
+        '200':
+          description: Document list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentListEnvelope'
+    post:
+      tags: [Documents]
+      summary: Upload document
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                displayName:
+                  type: string
+                  maxLength: 180
+      responses:
+        '202':
+          description: Accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentEnvelope'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+  /projects/{projectId}/documents/{documentId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [Documents]
+      summary: Get document
+      responses:
+        '200':
+          description: Document detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentEnvelope'
+    delete:
+      tags: [Documents]
+      summary: Delete document and its chunks
+      responses:
+        '204':
+          description: Deleted
+  /projects/{projectId}/documents/{documentId}/download-url:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [Documents]
+      summary: Create five-minute presigned download URL
+      responses:
+        '200':
+          description: Download URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadUrlEnvelope'
+  /projects/{projectId}/documents/{documentId}/retry:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/DocumentId'
+    post:
+      tags: [Documents]
+      summary: Retry failed processing
+      responses:
+        '202':
+          description: Retry accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentEnvelope'
+  /projects/{projectId}/knowledge/sessions:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [Knowledge]
+      summary: List own sessions
+      responses:
+        '200':
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeSessionListEnvelope'
+    post:
+      tags: [Knowledge]
+      summary: Create session
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  maxLength: 120
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeSessionEnvelope'
+  /projects/{projectId}/knowledge/sessions/{sessionId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/SessionId'
+    get:
+      tags: [Knowledge]
+      summary: Get own session with messages
+      responses:
+        '200':
+          description: Session detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeSessionDetailEnvelope'
+    delete:
+      tags: [Knowledge]
+      summary: Delete own session
+      responses:
+        '204':
+          description: Deleted
+  /projects/{projectId}/knowledge/sessions/{sessionId}/questions:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/SessionId'
+    post:
+      tags: [Knowledge]
+      summary: Ask a knowledge question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KnowledgeQuestionRequest'
+      responses:
+        '200':
+          description: Answer with citations or insufficient-evidence result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeAnswerEnvelope'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  /projects/{projectId}/ai/task-plans:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [TaskPlans]
+      summary: List task plans
+      responses:
+        '200':
+          description: Task plans
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPlanListEnvelope'
+    post:
+      tags: [TaskPlans]
+      summary: Generate task plan asynchronously
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateTaskPlanRequest'
+      responses:
+        '202':
+          description: Generation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPlanEnvelope'
+  /projects/{projectId}/ai/task-plans/{planId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PlanId'
+    get:
+      tags: [TaskPlans]
+      summary: Get plan draft
+      responses:
+        '200':
+          description: Task plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPlanEnvelope'
+    delete:
+      tags: [TaskPlans]
+      summary: Delete unconfirmed plan
+      responses:
+        '204':
+          description: Deleted
+  /projects/{projectId}/ai/task-plans/{planId}/draft:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PlanId'
+    put:
+      tags: [TaskPlans]
+      summary: Replace editable plan draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPlanDraft'
+      responses:
+        '200':
+          description: Draft replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPlanEnvelope'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+  /projects/{projectId}/ai/task-plans/{planId}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PlanId'
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [TaskPlans]
+      summary: Confirm and transactionally create milestones, tasks and dependencies
+      responses:
+        '200':
+          description: Plan applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplyTaskPlanEnvelope'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+  /projects/{projectId}/dashboard:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [Dashboard]
+      summary: Project dashboard
+      responses:
+        '200':
+          description: Dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardEnvelope'
+  /projects/{projectId}/audit-logs:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [Audit]
+      summary: Audit logs; admin or owner
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Audit page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditPageEnvelope'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MilestoneId:
+      name: milestoneId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CommentId:
+      name: commentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PlanId:
+      name: planId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    InvitationCode:
+      name: code
+      in: path
+      required: true
+      schema: { type: string, minLength: 32, maxLength: 128 }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Forbidden
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Conflict:
+      description: Conflict
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Gone:
+      description: Gone
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    PayloadTooLarge:
+      description: Payload too large
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    UnsupportedMediaType:
+      description: Unsupported media type
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    TooManyRequests:
+      description: Rate limited or provider quota exhausted
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    GatewayTimeout:
+      description: Model timeout
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    UnprocessableEntity:
+      description: Structured or domain validation failed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  schemas:
+    ApiMeta:
+      type: object
+      required: [code, message, requestId, timestamp]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        requestId: { type: string, format: uuid }
+        timestamp: { type: string, format: date-time }
+    ErrorEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { type: 'null' }
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, minLength: 3, maxLength: 40 }
+        password: { type: string, minLength: 8, maxLength: 72 }
+    AcceptInvitationRequest:
+      type: object
+      required: [username, password, displayName]
+      properties:
+        username: { type: string, pattern: '^[a-zA-Z0-9_]{3,40}$' }
+        password: { type: string, minLength: 8, maxLength: 72 }
+        displayName: { type: string, minLength: 1, maxLength: 60 }
+        email: { type: string, format: email, maxLength: 120 }
+    AuthResult:
+      type: object
+      required: [accessToken, expiresInSeconds, user]
+      properties:
+        accessToken: { type: string }
+        expiresInSeconds: { type: integer, example: 7200 }
+        user: { $ref: '#/components/schemas/UserView' }
+    AuthResponseEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties:
+            data: { $ref: '#/components/schemas/AuthResult' }
+    UserView:
+      type: object
+      required: [id, username, displayName, status]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        email: { type: [string, 'null'], format: email }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+    UserEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/UserView' }
+    ProjectRole:
+      type: string
+      enum: [OWNER, ADMIN, MEMBER]
+    ProjectView:
+      type: object
+      required: [id, name, status, role, ownerId, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        ownerId: { type: string, format: uuid }
+        startDate: { type: [string, 'null'], format: date }
+        dueDate: { type: [string, 'null'], format: date }
+        status: { type: string, enum: [ACTIVE, ARCHIVED] }
+        role: { $ref: '#/components/schemas/ProjectRole' }
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateProjectRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, maxLength: 2000, default: '' }
+        startDate: { type: [string, 'null'], format: date }
+        dueDate: { type: [string, 'null'], format: date }
+    UpdateProjectRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateProjectRequest'
+        - type: object
+          required: [version]
+          properties:
+            status: { type: string, enum: [ACTIVE, ARCHIVED] }
+            version: { type: integer, minimum: 0 }
+    ProjectEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ProjectView' }
+    ProjectListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/ProjectView' }
+    MemberView:
+      type: object
+      required: [userId, username, displayName, role, joinedAt]
+      properties:
+        userId: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        role: { $ref: '#/components/schemas/ProjectRole' }
+        joinedAt: { type: string, format: date-time }
+    MemberEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/MemberView' }
+    MemberListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/MemberView' }
+    CreateInvitationRequest:
+      type: object
+      required: [role, expiresInHours]
+      properties:
+        role: { type: string, enum: [ADMIN, MEMBER] }
+        invitedEmail: { type: [string, 'null'], format: email }
+        expiresInHours: { type: integer, minimum: 1, maximum: 168, default: 72 }
+    InvitationView:
+      type: object
+      required: [id, code, projectId, role, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        projectId: { type: string, format: uuid }
+        role: { type: string, enum: [ADMIN, MEMBER] }
+        expiresAt: { type: string, format: date-time }
+    InvitationPreview:
+      type: object
+      required: [projectName, role, expiresAt]
+      properties:
+        projectName: { type: string }
+        role: { type: string, enum: [ADMIN, MEMBER] }
+        invitedEmail: { type: [string, 'null'], format: email }
+        expiresAt: { type: string, format: date-time }
+    InvitationEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/InvitationView' }
+    InvitationPreviewEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/InvitationPreview' }
+    ChangeRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, enum: [ADMIN, MEMBER] }
+    MilestoneStatus:
+      type: string
+      enum: [PLANNED, ACTIVE, COMPLETED, CANCELED]
+    MilestoneRequest:
+      type: object
+      required: [name, status, sortOrder]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, maxLength: 1000, default: '' }
+        targetDate: { type: [string, 'null'], format: date }
+        status: { $ref: '#/components/schemas/MilestoneStatus' }
+        sortOrder: { type: integer, minimum: 0 }
+        version: { type: integer, minimum: 0 }
+    MilestoneView:
+      allOf:
+        - $ref: '#/components/schemas/MilestoneRequest'
+        - type: object
+          required: [id, projectId, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            projectId: { type: string, format: uuid }
+            completionRate: { type: number, minimum: 0, maximum: 1 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    MilestoneEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/MilestoneView' }
+    MilestoneListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/MilestoneView' }
+    TaskStatus:
+      type: string
+      enum: [TODO, IN_PROGRESS, BLOCKED, DONE, CANCELED]
+    TaskPriority:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, URGENT]
+    TaskRequest:
+      type: object
+      required: [title, status, priority]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, maxLength: 4000, default: '' }
+        milestoneId: { type: [string, 'null'], format: uuid }
+        assigneeId: { type: [string, 'null'], format: uuid }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        estimateHours: { type: [number, 'null'], minimum: 0.5, maximum: 80 }
+        startDate: { type: [string, 'null'], format: date }
+        dueDate: { type: [string, 'null'], format: date }
+        dependencyIds:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        version: { type: integer, minimum: 0 }
+    TaskView:
+      allOf:
+        - $ref: '#/components/schemas/TaskRequest'
+        - type: object
+          required: [id, projectId, createdBy, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            projectId: { type: string, format: uuid }
+            createdBy: { type: string, format: uuid }
+            unfinishedDependencyCount: { type: integer, minimum: 0 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    TaskEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/TaskView' }
+    TaskListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/TaskView' }
+    CommentRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 2000 }
+    CommentView:
+      type: object
+      required: [id, taskId, authorId, authorName, content, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        taskId: { type: string, format: uuid }
+        authorId: { type: string, format: uuid }
+        authorName: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CommentEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/CommentView' }
+    CommentListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/CommentView' }
+    DocumentStatus:
+      type: string
+      enum: [UPLOADED, PARSING, INDEXING, READY, FAILED, DELETING]
+    DocumentView:
+      type: object
+      required: [id, projectId, displayName, originalFilename, mimeType, sizeBytes, status, chunkCount, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        displayName: { type: string }
+        originalFilename: { type: string }
+        mimeType: { type: string }
+        sizeBytes: { type: integer, format: int64 }
+        status: { $ref: '#/components/schemas/DocumentStatus' }
+        chunkCount: { type: integer }
+        embeddingProvider: { type: [string, 'null'] }
+        embeddingModel: { type: [string, 'null'] }
+        embeddingDimension: { type: [integer, 'null'] }
+        errorMessage: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    DocumentEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/DocumentView' }
+    DocumentListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/DocumentView' }
+    DownloadUrlEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [url, expiresAt]
+              properties:
+                url: { type: string, format: uri }
+                expiresAt: { type: string, format: date-time }
+    KnowledgeSessionView:
+      type: object
+      required: [id, projectId, title, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        title: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CitationView:
+      type: object
+      required: [documentId, filename, chunkId, quote, similarity]
+      properties:
+        documentId: { type: string, format: uuid }
+        filename: { type: string }
+        chunkId: { type: string, format: uuid }
+        heading: { type: [string, 'null'] }
+        quote: { type: string }
+        similarity: { type: number, minimum: -1, maximum: 1 }
+    KnowledgeMessageView:
+      type: object
+      required: [id, role, content, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [USER, ASSISTANT] }
+        content: { type: string }
+        insufficientEvidence: { type: boolean }
+        model: { type: [string, 'null'] }
+        citations:
+          type: array
+          items: { $ref: '#/components/schemas/CitationView' }
+        createdAt: { type: string, format: date-time }
+    KnowledgeQuestionRequest:
+      type: object
+      required: [question]
+      properties:
+        question: { type: string, minLength: 1, maxLength: 1000 }
+        documentIds:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { type: string, format: uuid }
+    KnowledgeAnswer:
+      type: object
+      required: [answer, insufficientEvidence, citations]
+      properties:
+        answer: { type: string }
+        insufficientEvidence: { type: boolean }
+        model: { type: [string, 'null'] }
+        citations:
+          type: array
+          items: { $ref: '#/components/schemas/CitationView' }
+    KnowledgeSessionEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/KnowledgeSessionView' }
+    KnowledgeSessionListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/KnowledgeSessionView' }
+    KnowledgeSessionDetailEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [session, messages]
+              properties:
+                session: { $ref: '#/components/schemas/KnowledgeSessionView' }
+                messages:
+                  type: array
+                  items: { $ref: '#/components/schemas/KnowledgeMessageView' }
+    KnowledgeAnswerEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/KnowledgeAnswer' }
+    GenerateTaskPlanRequest:
+      type: object
+      required: [goal, startDate, dueDate, maxTasks]
+      properties:
+        goal: { type: string, minLength: 20, maxLength: 2000 }
+        startDate: { type: string, format: date }
+        dueDate: { type: string, format: date }
+        maxTasks: { type: integer, minimum: 5, maximum: 50, default: 30 }
+        documentIds:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        constraints:
+          type: array
+          maxItems: 10
+          items: { type: string, maxLength: 200 }
+    TaskPlanStatus:
+      type: string
+      enum: [GENERATING, READY, CONFIRMED, FAILED, CANCELED]
+    MilestoneDraft:
+      type: object
+      required: [tempKey, name, description, sortOrder]
+      properties:
+        tempKey: { type: string, pattern: '^M[1-9][0-9]*$' }
+        name: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, maxLength: 1000 }
+        targetDate: { type: [string, 'null'], format: date }
+        sortOrder: { type: integer, minimum: 0 }
+    TaskDraft:
+      type: object
+      required: [tempKey, milestoneTempKey, title, description, priority, dependencyTempKeys, sourceDocumentIds, sortOrder]
+      properties:
+        tempKey: { type: string, pattern: '^T[1-9][0-9]*$' }
+        milestoneTempKey: { type: string, pattern: '^M[1-9][0-9]*$' }
+        title: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, maxLength: 4000 }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        estimateHours: { type: [number, 'null'], minimum: 0.5, maximum: 80 }
+        startDate: { type: [string, 'null'], format: date }
+        dueDate: { type: [string, 'null'], format: date }
+        suggestedAssigneeId: { type: [string, 'null'], format: uuid }
+        dependencyTempKeys:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items: { type: string, pattern: '^T[1-9][0-9]*$' }
+        sourceDocumentIds:
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        sortOrder: { type: integer, minimum: 0 }
+    TaskPlanDraft:
+      type: object
+      required: [summary, assumptions, risks, milestones, tasks]
+      properties:
+        summary: { type: string, maxLength: 4000 }
+        assumptions:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 300 }
+        risks:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 300 }
+        milestones:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items: { $ref: '#/components/schemas/MilestoneDraft' }
+        tasks:
+          type: array
+          minItems: 5
+          maxItems: 50
+          items: { $ref: '#/components/schemas/TaskDraft' }
+    TaskPlanView:
+      type: object
+      required: [id, projectId, goal, startDate, dueDate, maxTasks, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        goal: { type: string }
+        startDate: { type: string, format: date }
+        dueDate: { type: string, format: date }
+        maxTasks: { type: integer }
+        status: { $ref: '#/components/schemas/TaskPlanStatus' }
+        modelProvider: { type: [string, 'null'] }
+        modelName: { type: [string, 'null'] }
+        errorMessage: { type: [string, 'null'] }
+        draft: { oneOf: [{ $ref: '#/components/schemas/TaskPlanDraft' }, { type: 'null' }] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        confirmedAt: { type: [string, 'null'], format: date-time }
+    TaskPlanEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/TaskPlanView' }
+    TaskPlanListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/TaskPlanView' }
+    ApplyTaskPlanResult:
+      type: object
+      required: [planId, milestoneIds, taskIds]
+      properties:
+        planId: { type: string, format: uuid }
+        milestoneIds:
+          type: array
+          items: { type: string, format: uuid }
+        taskIds:
+          type: array
+          items: { type: string, format: uuid }
+    ApplyTaskPlanEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ApplyTaskPlanResult' }
+    DashboardView:
+      type: object
+      required: [taskCounts, completionRate, overdueCount, milestoneProgress, recentActivities]
+      properties:
+        taskCounts:
+          type: object
+          additionalProperties: { type: integer, minimum: 0 }
+        completionRate: { type: number, minimum: 0, maximum: 1 }
+        overdueCount: { type: integer, minimum: 0 }
+        milestoneProgress:
+          type: array
+          items:
+            type: object
+            required: [milestoneId, name, completionRate]
+            properties:
+              milestoneId: { type: string, format: uuid }
+              name: { type: string }
+              completionRate: { type: number, minimum: 0, maximum: 1 }
+        recentActivities:
+          type: array
+          items: { $ref: '#/components/schemas/AuditView' }
+    DashboardEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/DashboardView' }
+    AuditView:
+      type: object
+      required: [id, action, entityType, requestId, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: [string, 'null'], format: uuid }
+        userDisplayName: { type: [string, 'null'] }
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { type: [string, 'null'], format: uuid }
+        detail: { type: object, additionalProperties: true }
+        requestId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+    AuditPageEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [items, page, size, total]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/AuditView' }
+                page: { type: integer }
+                size: { type: integer }
+                total: { type: integer, format: int64 }

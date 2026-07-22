@@ -1,0 +1,44 @@
+# 本地环境变量与敏感配置
+.env
+.env.*
+!.env.example
+
+# IntelliJ IDEA
+.idea/
+**/.idea/
+*.iml
+*.iws
+*.ipr
+
+# Java / Maven
+**/target/
+*.class
+
+# Node.js / Vue
+**/node_modules/
+**/dist/
+**/.vite/
+**/coverage/
+
+# 编辑器
+.vscode/
+**/.vscode/
+.http-client/
+**/.http-client/
+
+# 日志
+*.log
+logs/
+**/logs/
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+*.swp
+*~

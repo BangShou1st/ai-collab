@@ -1,0 +1,10 @@
+flowchart LR
+    Upload --> MinIO
+    Upload --> UPLOADED
+    UPLOADED --> PARSING
+    PARSING --> INDEXING
+    INDEXING --> READY
+    PARSING --> FAILED
+    INDEXING --> FAILED
+    FAILED --> Retry
+    Retry --> PARSING

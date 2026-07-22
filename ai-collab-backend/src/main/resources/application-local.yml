@@ -1,0 +1,78 @@
+spring:
+  config:
+    import: "file:../.env[.properties]"
+
+  datasource:
+    url: "jdbc:postgresql://localhost:5432/${POSTGRES_DB:ai_collab}"
+    username: "${POSTGRES_USER:ai_collab}"
+    password: "${POSTGRES_PASSWORD}"
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      pool-name: AiCollabHikariPool
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: "${REDIS_PASSWORD}"
+      timeout: 3s
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 22MB
+
+server:
+  port: 8080
+
+storage:
+  minio:
+    endpoint: http://localhost:9000
+    access-key: "${MINIO_ROOT_USER}"
+    secret-key: "${MINIO_ROOT_PASSWORD}"
+    bucket: "${MINIO_BUCKET:ai-collab}"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    root: INFO
+    com.shitulelv.aicollab: DEBUG
+    # MyBatis 在 DEBUG 下会输出 SQL 参数；用户表参数可能包含 password_hash，必须单独关闭。
+    com.shitulelv.aicollab.user.mapper: INFO
+    # Refresh Token Mapper 的参数包含 token_hash；本地开发也不得输出完整摘要。
+    com.shitulelv.aicollab.auth.refresh.mapper: INFO
+
+security:
+  jwt:
+    secret: "${JWT_SECRET}"
+    access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:30}"
+  refresh-token:
+    token-lifetime: "${REFRESH_TOKEN_LIFETIME:14d}"
+    session-lifetime: "${REFRESH_SESSION_LIFETIME:30d}"
+    cookie-name: ai_collab_refresh_token
+    cookie-path: /api/v1/auth
+    same-site: Strict
+    cookie-secure: "${REFRESH_COOKIE_SECURE:false}"
+  cors:
+    allowed-origins: "${AUTH_ALLOWED_ORIGINS:http://localhost:5173}"
+
+demo:
+  owner:
+    username: "${DEMO_OWNER_USERNAME:owner}"
+    password: "${DEMO_OWNER_PASSWORD}"

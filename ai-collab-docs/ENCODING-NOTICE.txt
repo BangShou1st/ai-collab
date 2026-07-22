@@ -1,0 +1,8 @@
+ZIP path and filename policy
+============================
+
+1. Every directory and filename inside this ZIP uses ASCII only.
+2. Every Java package in the documentation uses ASCII lowercase names.
+3. Markdown and YAML/SQL contents are encoded as UTF-8 and may contain Chinese text.
+4. Recommended editors: IntelliJ IDEA, VS Code, or a modern UTF-8 capable text editor.
+5. Do not rename Java source directories or packages to Chinese names.
