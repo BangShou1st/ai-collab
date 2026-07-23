@@ -1,6 +1,6 @@
 # 第二阶段：Refresh Token 多设备会话
 
-本文配合 `docs/postman/` 的集合阅读，解释当前已经实现的认证闭环。它描述的是仓库现状，而不是通用模板；未实现能力在文末单列，不能据此假定系统已有全局登出、权限或前端页面。
+本文结合当前代码、浏览器验证流程和后续 Vue 认证测试页解释已经实现的认证闭环。它描述的是仓库现状，而不是通用模板；未实现能力在文末单列，不能据此假定系统已有全局登出、权限或完整前端页面。
 
 ## 1. 本阶段解决的问题
 
@@ -47,7 +47,7 @@ sequenceDiagram
     AC->>AS: login(LoginRequest)
     AS->>AS: BCrypt 校验与账号状态检查
     AS->>RTS: createSession(user)
-    RTS->>DB: 仅写入 token_hash 和 session_id
+    RTS->>DB: 写入摘要、用户、过期时间与 session 元数据，不写原文
     AS-->>AC: Access Token + Refresh 原文(内部对象)
     AC-->>C: JSON Access Token + Set-Cookie(HttpOnly)
 ```
@@ -64,7 +64,7 @@ sequenceDiagram
 
 ## 9. Access Token 的使用
 
-登录和刷新成功脚本只保存 `data.accessToken`。调用 `/me` 时附加 `Authorization: Bearer {{accessToken}}`；Cookie 不能替代该 Header。
+浏览器端或后续 Vue 认证测试页只把登录、刷新响应中的 `data.accessToken` 保存在内存。调用 `/me` 时附加 `Authorization: Bearer <accessToken>`；Cookie 不能替代该 Header。
 
 ## 10. Refresh Token 的生成与保存
 
@@ -74,15 +74,15 @@ Refresh Token 由至少 32 字节的 `SecureRandom` 生成，再以无填充 URL
 
 Cookie 名为 `ai_collab_refresh_token`，路径为 `/api/v1/auth`，带 `HttpOnly` 与 `SameSite=Strict`。本地 `Secure=false` 便于 HTTP 调试，生产环境必须启用 `Secure=true`；没有设置 Domain，避免扩大可发送范围。
 
-## 12. Cookie 与 Postman Cookie Jar
+## 12. Cookie 的浏览器验证
 
-Postman 自动处理 `Set-Cookie` 和后续匹配请求。脚本不可读取 HttpOnly Token，也不应打印、复制或保存其值；验证轮换请在 Cookies 面板观察同名条目被替换。
+浏览器会自动处理 `Set-Cookie` 并在匹配路径的后续请求中携带 Cookie。页面脚本不可读取 HttpOnly Token，也不应尝试打印、复制或持久化其值。可以通过浏览器开发者工具观察 Cookie 的名称、Path、HttpOnly、SameSite、Secure 和过期信息，并确认刷新后同名 Cookie 被替换；后续 Vue 认证测试页只负责触发登录、刷新、登出和 `/me` 请求，不读取 Refresh Token 原文。
 
 ## 13. 刷新调用链
 
 ```mermaid
 sequenceDiagram
-    participant C as 客户端/Cookie Jar
+    participant C as 浏览器/Cookie 存储
     participant SF as SecurityFilterChain
     participant ROF as RequestOriginSecurityFilter
     participant ORV as AuthRequestOriginValidator
@@ -154,7 +154,7 @@ CORS 仅限制浏览器能否读取跨域响应，不能阻止请求抵达服务
 
 ```mermaid
 sequenceDiagram
-    participant C as 客户端/Cookie Jar
+    participant C as 浏览器/Cookie 存储
     participant SF as SecurityFilterChain
     participant ROF as RequestOriginSecurityFilter
     participant ORV as AuthRequestOriginValidator
@@ -203,12 +203,12 @@ ORDER BY created_at DESC;
 
 ## 27. 双设备验证流程
 
-使用 `docs/postman/README.md`：设备 A 用 `localhost` 登录，设备 B 用 `127.0.0.1` 登录。这两个主机各有 Cookie Jar 条目，模拟两个浏览器。A 登出后，B 仍可刷新；只有提交 A 的旧轮换值才会撤销 A 的会话，绝不应误伤 B。
+使用普通浏览器窗口与无痕窗口，或两个独立浏览器，分别登录同一账号。两个隔离的浏览器 Cookie 存储会创建不同 `session_id`。窗口 A 登出后，窗口 B 仍应能够刷新；A 会话发生旧凭据重用时也只撤销 A 的轮换链，绝不应误伤 B。严格重用检测可继续由认证集成测试验证，浏览器流程重点验证多设备会话隔离、轮换和当前设备登出。
 
 ```mermaid
 sequenceDiagram
-    participant A as 设备 A (localhost)
-    participant B as 设备 B (127.0.0.1)
+    participant A as 普通窗口/浏览器 A
+    participant B as 无痕窗口/浏览器 B
     participant S as 服务端
     A->>S: 登录，创建 session A
     B->>S: 登录，创建 session B
