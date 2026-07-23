@@ -1,0 +1,188 @@
+# 数据库设计
+
+本文档描述数据库设计原则、逻辑结构和约束。数据库可执行结构的唯一事实来源是：
+
+```text
+ai-collab-backend/src/main/resources/db/migration/
+```
+
+本文档不复制任何 Flyway SQL；迁移目录中的版本化脚本决定实际可执行结构。
+
+## 1. 设计原则
+
+- 主键统一使用 UUID。
+- 业务时间统一使用 `timestamptz`。
+- 用户可见日期使用 `date`。
+- 需要直接项目隔离或检索的核心表保存 `project_id`；消息、引用、AI 草案子表和依赖表等通过非空父级外键链继承项目作用域，查询时仍必须从父表显式约束项目。`idempotency_record` 按 user、endpoint 和幂等键隔离，不属于项目表。
+- 重要更新表增加 `version` 用于乐观锁。
+- 第一版使用物理删除，删除前写入审计日志。
+- 向量列使用不固定维度的 `vector`，以兼容不同 Embedding 维度；第一版数据量小，使用精确检索。
+
+## 2. 核心表
+
+| 表 | 说明 |
+|---|---|
+| app_user | 用户账号 |
+| refresh_token | Refresh Token 摘要、设备会话、轮换链与撤销状态 |
+| project | 项目 |
+| project_member | 项目成员与角色 |
+| project_invitation | 邀请码 |
+| milestone | 里程碑 |
+| project_task | 任务 |
+| task_dependency | 前置依赖 |
+| task_comment | 任务评论 |
+| project_document | 原始文档元数据 |
+| document_chunk | 文档块、元数据和向量 |
+| knowledge_session | 问答会话 |
+| knowledge_message | 问答消息 |
+| knowledge_citation | 回答引用 |
+| ai_task_plan | AI 规划主表 |
+| ai_task_plan_milestone | 草案里程碑 |
+| ai_task_plan_task | 草案任务 |
+| ai_task_plan_dependency | 草案依赖 |
+| idempotency_record | 幂等请求与响应记录 |
+| audit_log | 审计日志 |
+| ai_call_log | 模型调用指标 |
+
+## 3. 表关系
+
+```mermaid
+erDiagram
+    APP_USER ||--o{ PROJECT : owns
+    APP_USER ||--o{ PROJECT : creates
+    APP_USER ||--o{ REFRESH_TOKEN : has_sessions
+    APP_USER ||--o{ PROJECT_MEMBER : joins
+    APP_USER o|--o{ PROJECT_MEMBER : invites
+    APP_USER ||--o{ PROJECT_INVITATION : creates
+    APP_USER o|--o{ PROJECT_INVITATION : accepts
+    APP_USER ||--o{ MILESTONE : creates
+    APP_USER ||--o{ PROJECT_TASK : creates
+    APP_USER o|--o{ PROJECT_TASK : assigned
+    APP_USER ||--o{ TASK_COMMENT : writes
+    APP_USER ||--o{ PROJECT_DOCUMENT : uploads
+    APP_USER ||--o{ KNOWLEDGE_SESSION : owns
+    APP_USER ||--o{ AI_TASK_PLAN : creates
+    APP_USER o|--o{ AI_TASK_PLAN_TASK : suggested_assignee
+    APP_USER ||--o{ IDEMPOTENCY_RECORD : submits
+    APP_USER o|--o{ AUDIT_LOG : acts
+    APP_USER o|--o{ AI_CALL_LOG : invokes
+    REFRESH_TOKEN o{--o| REFRESH_TOKEN : replaced_by
+    PROJECT ||--o{ PROJECT_MEMBER : contains
+    PROJECT ||--o{ PROJECT_INVITATION : invites
+    PROJECT ||--o{ MILESTONE : has
+    PROJECT ||--o{ PROJECT_TASK : has
+    MILESTONE o|--o{ PROJECT_TASK : groups
+    PROJECT ||--o{ TASK_COMMENT : contains
+    PROJECT_TASK ||--o{ TASK_COMMENT : receives
+    PROJECT_TASK ||--o{ TASK_DEPENDENCY : dependent_task
+    PROJECT_TASK ||--o{ TASK_DEPENDENCY : prerequisite_task
+    PROJECT ||--o{ PROJECT_DOCUMENT : stores
+    PROJECT ||--o{ DOCUMENT_CHUNK : scopes
+    PROJECT_DOCUMENT ||--o{ DOCUMENT_CHUNK : splits
+    PROJECT ||--o{ KNOWLEDGE_SESSION : has
+    KNOWLEDGE_SESSION ||--o{ KNOWLEDGE_MESSAGE : contains
+    KNOWLEDGE_MESSAGE ||--o{ KNOWLEDGE_CITATION : cites
+    DOCUMENT_CHUNK ||--o{ KNOWLEDGE_CITATION : source
+    PROJECT ||--o{ AI_TASK_PLAN : generates
+    AI_TASK_PLAN ||--o{ AI_TASK_PLAN_MILESTONE : drafts
+    AI_TASK_PLAN ||--o{ AI_TASK_PLAN_TASK : drafts
+    AI_TASK_PLAN ||--o{ AI_TASK_PLAN_DEPENDENCY : links
+    PROJECT o|--o{ AUDIT_LOG : records
+    PROJECT o|--o{ AI_CALL_LOG : measures
+```
+
+V1 中的全部 `CREATE TABLE` 已与上表逐项核对：`app_user`、`refresh_token`、`project`、`project_member`、`project_invitation`、`milestone`、`project_task`、`task_dependency`、`task_comment`、`project_document`、`document_chunk`、`knowledge_session`、`knowledge_message`、`knowledge_citation`、`ai_task_plan`、`ai_task_plan_milestone`、`ai_task_plan_task`、`ai_task_plan_dependency`、`idempotency_record`、`audit_log`、`ai_call_log`，共 21 张表，无遗漏。
+
+## 4. 关键约束
+
+### 4.1 Refresh Token 会话约束
+
+V1 创建 `refresh_token`，V2 在不复制或替代迁移 SQL 的前提下扩展为多设备会话模型：
+
+- `user_id` 引用 `app_user(id)` 并在用户删除时级联删除；`token_hash` 为唯一的 64 字符 SHA-256 摘要，数据库不保存凭据原文。
+- `session_id` 非空。每次成功登录创建新的 session，同一轮换链沿用同一 session，因此不同设备或不同登录的撤销范围相互隔离。
+- `session_expires_at` 非空，表示会话绝对期限；V2 对历史记录回填为原 `expires_at`。当前配置限制单个凭据最多 14 天、会话最多 30 天。
+- `revoke_reason` 可空，但非空时只能为 `ROTATED`、`LOGOUT`、`REUSE_DETECTED`、`EXPIRED`、`USER_UNAVAILABLE`。
+- `replaced_by_token_id` 可空，自引用 `refresh_token(id)`，记录严格轮换后的替代凭据；替代记录删除时使用 `ON DELETE SET NULL`。
+- `revoked_at` 与 `revoke_reason` 记录撤销状态。已轮换旧凭据再次出现时，应用服务撤销同一 `session_id` 下仍有效的凭据，不影响其他 session。
+- V2 增加 `refresh_token(session_id)` 和 `refresh_token(session_id, revoked_at)` 索引，用于会话锁定、轮换和按会话撤销。
+
+### 4.2 项目成员约束
+
+- `(project_id, user_id)` 唯一。
+- 一个项目必须且只能有一个 OWNER，由应用服务保证。
+- OWNER 不能被移除，也不能直接降级；必须先执行所有权转移用例。
+
+### 4.3 任务依赖约束
+
+- `(task_id, depends_on_task_id)` 唯一。
+- `task_id <> depends_on_task_id`。
+- 两个任务必须属于同一项目。
+- 更新依赖前使用 DFS 或 Kahn 算法检查环。
+
+### 4.4 文档块约束
+
+- `(document_id, chunk_no)` 唯一。
+- `metadata` 至少包含 `projectId`、`documentId`、`chunkNo`、`filename`。
+- 删除文档时先删除引用，再删除块和文档记录。
+
+### 4.5 AI 规划约束
+
+- `temp_key` 在同一 plan 内唯一。
+- 草案依赖只引用同一 plan 的 task temp key。
+- CONFIRMED 状态不可再次修改或确认。
+
+### 4.6 其他迁移约束
+
+- `app_user.username` 唯一，`email` 可空但非空时唯一；`status` 只能为 ACTIVE 或 DISABLED。`token_version` 字段已经存在，但当前认证链路尚未实现基于它使旧 Access Token 失效。
+- 项目、任务、里程碑、文档、知识消息、AI 规划和 AI 调用状态均由 V1 的 CHECK 约束限制在对应枚举值内。
+- `project`、`project_task` 和 AI 规划中的起止日期不能倒置；任务与草案任务预计工时只能为 0.5～80。
+- `project_document.size_bytes` 必须大于 0 且不超过 20 MB。
+- `idempotency_record(user_id, endpoint, idempotency_key)` 唯一。
+- `knowledge_citation(message_id, rank)` 唯一；`ai_task_plan_dependency` 禁止任务依赖自身。
+
+## 5. pgvector 检索 SQL
+
+```sql
+SELECT
+    id,
+    document_id,
+    heading,
+    content,
+    1 - (embedding <=> CAST(:queryEmbedding AS vector)) AS similarity
+FROM document_chunk
+WHERE project_id = :projectId
+  AND embedding IS NOT NULL
+ORDER BY embedding <=> CAST(:queryEmbedding AS vector)
+LIMIT :topK;
+```
+
+应用层只接收相似度不低于 `0.55` 的结果，并按文档块内容哈希去重。
+
+## 6. 索引策略
+
+- `project_member(user_id, project_id)`：查询用户项目列表。
+- `refresh_token(user_id, expires_at)`：用户 Token 清理。
+- `refresh_token(session_id)`、`refresh_token(session_id, revoked_at)`：会话轮换与撤销。
+- `project_invitation(project_id, status)`：邀请查询。
+- `milestone(project_id, sort_order)`：里程碑排序。
+- `project_task(project_id, status)`：看板与统计。
+- `project_task(project_id, assignee_id)`：个人任务。
+- `project_task(project_id, due_date)`：逾期统计。
+- `task_comment(task_id, created_at)`：评论时间线。
+- `project_document(project_id, status)`：知识库列表。
+- `document_chunk(project_id, document_id)`：项目过滤与删除。
+- `document_chunk(project_id, content_hash)`：项目内内容去重。
+- `knowledge_session(project_id, user_id, updated_at desc)`：个人会话列表。
+- `knowledge_message(session_id, created_at)`：消息时间线。
+- `ai_task_plan(project_id, created_at desc)`：规划列表。
+- `audit_log(project_id, created_at desc)`：最近活动。
+- `ai_call_log(project_id, created_at desc)`：AI 调用观测。
+
+第一版不为向量列创建 HNSW/IVFFlat。文档块达到 100,000 以上再评估近似索引。
+
+## 7. 数据保留原则
+
+- Refresh Token 到期后可定时清理。
+- AI 原始响应仅保存在 `ai_task_plan.raw_response`，知识问答不保存完整 Prompt。
+- `ai_call_log` 不记录文档原文，只记录模型、Token、耗时与状态。

@@ -1,5 +1,9 @@
 # 第一阶段：Access Token 认证闭环
 
+> **历史阶段提示**
+>
+> 本文是第一阶段的历史学习记录，只描述当时的 Access Token 最小闭环。当前仓库已经进入 Refresh Token 多设备会话阶段；当前认证状态以 [`phase-02-refresh-token-session.md`](phase-02-refresh-token-session.md) 和当前代码为准。正文中的“未实现 Refresh Token”等表述仅代表第一阶段当时的边界。
+
 ## 1. 本阶段解决了什么问题
 
 本阶段为平台建立最小身份入口：用户可以用用户名和密码登录，获得一个短期 JWT Access Token；之后携带 Token 查询自己的最新账号信息。健康检查保持匿名可访问，其他接口默认要求认证。

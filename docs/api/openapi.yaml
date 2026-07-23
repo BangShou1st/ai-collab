@@ -26,6 +26,12 @@ paths:
       tags: [Auth]
       security: []
       summary: Login
+      description: |
+        Public endpoint. Because a successful response sets the HttpOnly Refresh Cookie,
+        the request must carry exactly one allowed Origin header. If Origin is absent,
+        the server requires exactly one Referer and validates its origin. An untrusted,
+        malformed, blank, repeated, or comma-joined source returns 403 before the
+        request body reaches the controller.
       requestBody:
         required: true
         content:
@@ -34,34 +40,89 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: Logged in
+          description: Logged in; returns the Access Token and current user, and sets a new Refresh Cookie.
+          headers:
+            Set-Cookie:
+              description: >
+                ai_collab_refresh_token with Path=/api/v1/auth, HttpOnly,
+                SameSite=Strict, Secure=false for local HTTP development,
+                Secure=true by default in production, and Max-Age no longer
+                than the server-side Refresh Token expiry.
+              schema: { type: string }
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponseEnvelope'
+                $ref: '#/components/schemas/LoginResponseEnvelope'
+        '400':
+          description: Login request validation failed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /auth/refresh:
     post:
       tags: [Auth]
       security: []
       summary: Refresh access token using HttpOnly refresh cookie
+      description: |
+        Public endpoint that reads the Refresh Token only from the configured
+        HttpOnly Cookie; an Access Token is neither required nor read. The
+        request is subject to the same mandatory Origin/Referer validation as
+        login. A successful refresh strictly rotates the submitted credential
+        and sets its replacement Cookie.
       responses:
         '200':
-          description: Refreshed
+          description: Refreshed; returns only a new Access Token and rotates the Refresh Cookie.
+          headers:
+            Set-Cookie:
+              description: Replacement ai_collab_refresh_token with the configured security attributes.
+              schema: { type: string }
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponseEnvelope'
+                $ref: '#/components/schemas/AccessTokenResponseEnvelope'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /auth/logout:
     post:
       tags: [Auth]
-      summary: Revoke current refresh token
+      security: []
+      summary: Revoke the current Refresh Token session and clear its Cookie
+      description: |
+        Public and idempotent Cookie endpoint. It requires the same mandatory
+        Origin/Referer validation as login and refresh, but does not require an
+        Access Token. A missing, unknown, malformed, expired, or already revoked
+        Refresh Cookie still returns 200 and clears the browser Cookie. An
+        unexpected infrastructure failure returns 500, while the Cookie is
+        still cleared.
       responses:
-        '204':
-          description: Logged out
+        '200':
+          description: Logged out or already logged out
+          headers:
+            Set-Cookie:
+              description: >
+                Clears ai_collab_refresh_token using the configured Path,
+                HttpOnly, SameSite and Secure attributes with Max-Age=0.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoidResponseEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          description: Unexpected server or persistence failure; the Cookie is still cleared
+          headers:
+            Set-Cookie:
+              description: Clears ai_collab_refresh_token with Max-Age=0.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /auth/me:
     get:
       tags: [Auth]
@@ -73,6 +134,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /invitations/{code}:
     get:
       tags: [Invitations]
@@ -847,24 +912,28 @@ components:
   schemas:
     ApiMeta:
       type: object
-      required: [code, message, requestId, timestamp]
+      required: [code, message]
       properties:
         code: { type: string }
         message: { type: string }
-        requestId: { type: string, format: uuid }
-        timestamp: { type: string, format: date-time }
     ErrorEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
         - type: object
+          required: [data]
           properties:
             data: { type: 'null' }
     LoginRequest:
       type: object
       required: [username, password]
       properties:
-        username: { type: string, minLength: 3, maxLength: 40 }
-        password: { type: string, minLength: 8, maxLength: 72 }
+        username:
+          type: string
+          maxLength: 40
+          description: Must not be blank.
+        password:
+          type: string
+          description: Must not be blank.
     AcceptInvitationRequest:
       type: object
       required: [username, password, displayName]
@@ -878,8 +947,44 @@ components:
       required: [accessToken, expiresInSeconds, user]
       properties:
         accessToken: { type: string }
-        expiresInSeconds: { type: integer, example: 7200 }
+        expiresInSeconds: { type: integer, format: int64, example: 1800 }
         user: { $ref: '#/components/schemas/UserView' }
+    LoginResponse:
+      type: object
+      required: [accessToken, tokenType, expiresInSeconds, user]
+      properties:
+        accessToken: { type: string }
+        tokenType: { type: string, example: Bearer }
+        expiresInSeconds: { type: integer, format: int64, example: 1800 }
+        user: { $ref: '#/components/schemas/UserView' }
+    AccessTokenResponse:
+      type: object
+      required: [accessToken, tokenType, expiresInSeconds]
+      properties:
+        accessToken: { type: string }
+        tokenType: { type: string, example: Bearer }
+        expiresInSeconds: { type: integer, format: int64, example: 1800 }
+    LoginResponseEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties:
+            data: { $ref: '#/components/schemas/LoginResponse' }
+    AccessTokenResponseEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties:
+            data: { $ref: '#/components/schemas/AccessTokenResponse' }
+    VoidResponseEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties:
+            data: { type: 'null' }
     AuthResponseEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
@@ -900,6 +1005,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
         - type: object
+          required: [data]
           properties:
             data: { $ref: '#/components/schemas/UserView' }
     ProjectRole:
