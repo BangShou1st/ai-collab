@@ -14,6 +14,16 @@ public enum ErrorCode {
     AUTH_FORBIDDEN(HttpStatus.FORBIDDEN, "没有权限执行此操作"),
     USER_DISABLED(HttpStatus.FORBIDDEN, "账号已被禁用"),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "用户不存在"),
+    PROJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "项目不存在"),
+    PROJECT_ADMIN_REQUIRED(HttpStatus.FORBIDDEN, "需要项目管理员权限"),
+    PROJECT_OWNER_REQUIRED(HttpStatus.FORBIDDEN, "需要项目所有者权限"),
+    PROJECT_OWNER_CANNOT_BE_REMOVED(HttpStatus.FORBIDDEN, "项目所有者不能被降级或移除"),
+    MEMBER_ALREADY_EXISTS(HttpStatus.CONFLICT, "用户已经是项目成员"),
+    MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "项目成员不存在"),
+    INVITATION_INVALID(HttpStatus.GONE, "邀请无效"),
+    INVITATION_EXPIRED(HttpStatus.GONE, "邀请已过期"),
+    INVITATION_ALREADY_USED(HttpStatus.GONE, "邀请已被使用"),
+    VERSION_CONFLICT(HttpStatus.CONFLICT, "数据已被其他请求修改，请刷新后重试"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "系统内部错误");
 
     private final HttpStatus httpStatus;
