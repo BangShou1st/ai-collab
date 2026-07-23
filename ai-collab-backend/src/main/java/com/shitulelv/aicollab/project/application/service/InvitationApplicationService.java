@@ -1,0 +1,194 @@
+package com.shitulelv.aicollab.project.application.service;
+
+import com.shitulelv.aicollab.auth.dto.CurrentUserResponse;
+import com.shitulelv.aicollab.auth.dto.LoginResponse;
+import com.shitulelv.aicollab.auth.model.AuthenticationResult;
+import com.shitulelv.aicollab.auth.model.IssuedRefreshToken;
+import com.shitulelv.aicollab.auth.service.AccessTokenService;
+import com.shitulelv.aicollab.auth.service.RefreshTokenService;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.project.api.dto.AcceptInvitationRequest;
+import com.shitulelv.aicollab.project.api.dto.CreateInvitationRequest;
+import com.shitulelv.aicollab.project.application.view.InvitationPreview;
+import com.shitulelv.aicollab.project.application.view.InvitationView;
+import com.shitulelv.aicollab.project.domain.model.InvitationStatus;
+import com.shitulelv.aicollab.project.domain.model.ProjectRole;
+import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.project.infrastructure.entity.ProjectInvitationEntity;
+import com.shitulelv.aicollab.project.infrastructure.repository.ProjectInvitationRepository;
+import com.shitulelv.aicollab.project.infrastructure.repository.ProjectMemberRepository;
+import com.shitulelv.aicollab.project.infrastructure.repository.ProjectRepository;
+import com.shitulelv.aicollab.user.entity.UserEntity;
+import com.shitulelv.aicollab.user.model.UserStatus;
+import com.shitulelv.aicollab.user.service.UserService;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.util.Locale;
+import java.util.UUID;
+import java.util.regex.Pattern;
+
+@Service
+public class InvitationApplicationService {
+    private static final Pattern CODE_FORMAT = Pattern.compile("[A-Za-z0-9_-]{43}");
+    private static final int MAX_CODE_ATTEMPTS = 3;
+
+    private final ProjectAccessGuard accessGuard;
+    private final ProjectRepository projects;
+    private final ProjectMemberRepository members;
+    private final ProjectInvitationRepository invitations;
+    private final InvitationInsertService invitationInsertService;
+    private final InvitationCodeService codes;
+    private final UserService users;
+    private final PasswordEncoder passwordEncoder;
+    private final AccessTokenService accessTokens;
+    private final RefreshTokenService refreshTokens;
+    private final AuditService audit;
+    private final Clock clock;
+
+    public InvitationApplicationService(
+            ProjectAccessGuard accessGuard,
+            ProjectRepository projects,
+            ProjectMemberRepository members,
+            ProjectInvitationRepository invitations,
+            InvitationInsertService invitationInsertService,
+            InvitationCodeService codes,
+            UserService users,
+            PasswordEncoder passwordEncoder,
+            AccessTokenService accessTokens,
+            RefreshTokenService refreshTokens,
+            AuditService audit,
+            Clock clock) {
+        this.accessGuard = accessGuard;
+        this.projects = projects;
+        this.members = members;
+        this.invitations = invitations;
+        this.invitationInsertService = invitationInsertService;
+        this.codes = codes;
+        this.users = users;
+        this.passwordEncoder = passwordEncoder;
+        this.accessTokens = accessTokens;
+        this.refreshTokens = refreshTokens;
+        this.audit = audit;
+        this.clock = clock;
+    }
+
+    @Transactional
+    public InvitationView create(UUID projectId, CreateInvitationRequest request, UUID operatorId) {
+        accessGuard.requireAdmin(projectId, operatorId);
+        if (request.role() == ProjectRole.OWNER) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "邀请角色只能是 ADMIN 或 MEMBER");
+        }
+        OffsetDateTime expiresAt = now().plusHours(request.expiresInHours());
+        for (int attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
+            String rawCode = codes.generate();
+            ProjectInvitationEntity entity = new ProjectInvitationEntity();
+            entity.setId(UUID.randomUUID());
+            entity.setProjectId(projectId);
+            entity.setCodeHash(codes.hash(rawCode));
+            entity.setInvitedEmail(normalizeEmail(request.invitedEmail()));
+            entity.setRole(request.role());
+            entity.setStatus(InvitationStatus.PENDING);
+            entity.setExpiresAt(expiresAt);
+            entity.setCreatedBy(operatorId);
+            try {
+                invitationInsertService.insertWithSavepoint(entity);
+                audit.write(projectId, operatorId, "PROJECT_INVITATION_CREATED", "PROJECT_INVITATION", entity.getId());
+                return new InvitationView(entity.getId(), rawCode, projectId, entity.getRole(), expiresAt);
+            } catch (DataIntegrityViolationException exception) {
+                if (attempt == MAX_CODE_ATTEMPTS - 1) {
+                    throw exception;
+                }
+            }
+        }
+        throw new IllegalStateException("邀请码生成失败");
+    }
+
+    @Transactional(readOnly = true)
+    public InvitationPreview preview(String rawCode) {
+        ProjectInvitationEntity invitation = findValid(rawCode, false);
+        String projectName = projects.findNameById(invitation.getProjectId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVITATION_INVALID));
+        return new InvitationPreview(
+                projectName, invitation.getRole(), invitation.getInvitedEmail(), invitation.getExpiresAt());
+    }
+
+    @Transactional
+    public AuthenticationResult accept(String rawCode, AcceptInvitationRequest request) {
+        ProjectInvitationEntity invitation = findValid(rawCode, true);
+        String requestedEmail = normalizeEmail(request.email());
+        if (invitation.getInvitedEmail() != null
+                && requestedEmail != null
+                && !invitation.getInvitedEmail().equalsIgnoreCase(requestedEmail)) {
+            throw new BusinessException(ErrorCode.INVITATION_INVALID);
+        }
+        String effectiveEmail = requestedEmail == null ? invitation.getInvitedEmail() : requestedEmail;
+        if (users.findByUsername(request.username()).isPresent()) {
+            throw new BusinessException(ErrorCode.MEMBER_ALREADY_EXISTS, "用户名或邮箱已被使用");
+        }
+
+        UserEntity user = new UserEntity();
+        user.setId(UUID.randomUUID());
+        user.setUsername(request.username());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setDisplayName(request.displayName().trim());
+        user.setEmail(effectiveEmail);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setTokenVersion(0);
+        try {
+            users.create(user);
+            members.create(invitation.getProjectId(), user.getId(), invitation.getRole(), invitation.getCreatedBy());
+        } catch (DataIntegrityViolationException exception) {
+            throw new BusinessException(ErrorCode.MEMBER_ALREADY_EXISTS);
+        }
+        OffsetDateTime acceptedAt = now();
+        if (!invitations.markAccepted(invitation.getId(), user.getId(), acceptedAt)) {
+            throw new BusinessException(ErrorCode.INVITATION_ALREADY_USED);
+        }
+        audit.write(
+                invitation.getProjectId(), user.getId(),
+                "PROJECT_INVITATION_ACCEPTED", "PROJECT_INVITATION", invitation.getId());
+        AccessTokenService.IssuedToken accessToken = accessTokens.createAccessToken(user);
+        IssuedRefreshToken refreshToken = refreshTokens.createSession(user);
+        return new AuthenticationResult(
+                new LoginResponse(
+                        accessToken.value(), "Bearer", accessToken.expiresInSeconds(), CurrentUserResponse.from(user)),
+                refreshToken);
+    }
+
+    private ProjectInvitationEntity findValid(String rawCode, boolean lock) {
+        if (rawCode == null || !CODE_FORMAT.matcher(rawCode).matches()) {
+            throw new BusinessException(ErrorCode.INVITATION_INVALID);
+        }
+        ProjectInvitationEntity invitation = (lock
+                ? invitations.findByHashForUpdate(codes.hash(rawCode))
+                : invitations.findByHash(codes.hash(rawCode)))
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVITATION_INVALID));
+        if (invitation.getStatus() == InvitationStatus.ACCEPTED) {
+            throw new BusinessException(ErrorCode.INVITATION_ALREADY_USED);
+        }
+        if (invitation.getStatus() != InvitationStatus.PENDING) {
+            throw new BusinessException(ErrorCode.INVITATION_INVALID);
+        }
+        if (!invitation.getExpiresAt().isAfter(now())) {
+            throw new BusinessException(ErrorCode.INVITATION_EXPIRED);
+        }
+        return invitation;
+    }
+
+    private OffsetDateTime now() {
+        return OffsetDateTime.ofInstant(clock.instant(), clock.getZone());
+    }
+
+    private static String normalizeEmail(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+}
