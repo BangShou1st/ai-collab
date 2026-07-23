@@ -143,6 +143,9 @@ paths:
       tags: [Invitations]
       security: []
       summary: Preview invitation
+      description: >
+        Hashes the URL-safe invitation code with SHA-256 and performs a read-only lookup.
+        The server never returns the stored hash and does not change invitation state.
       parameters:
         - $ref: '#/components/parameters/InvitationCode'
       responses:
@@ -159,6 +162,12 @@ paths:
       tags: [Invitations]
       security: []
       summary: Accept invitation and create account
+      description: |
+        Requires exactly one trusted Origin, or one Referer when Origin is absent.
+        Locks the invitation row, creates the user and project membership, marks the
+        invitation accepted, writes the audit record, and creates the Refresh session
+        in one database transaction. The Set-Cookie header is added after that
+        transaction returns. Concurrent acceptance succeeds at most once.
       parameters:
         - $ref: '#/components/parameters/InvitationCode'
       requestBody:
@@ -170,14 +179,28 @@ paths:
       responses:
         '201':
           description: Account created and invitation accepted
+          headers:
+            Set-Cookie:
+              description: HttpOnly Refresh Cookie with the same security attributes as login.
+              schema: { type: string }
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponseEnvelope'
+                $ref: '#/components/schemas/LoginResponseEnvelope'
+        '400':
+          description: Request validation failed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
   /projects:
     get:
       tags: [Projects]
       summary: List current user's projects
+      description: Uses one membership-scoped join; it does not issue one role query per project.
       responses:
         '200':
           description: Project list
@@ -185,6 +208,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Projects]
       summary: Create project
@@ -201,12 +226,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectEnvelope'
+        '400':
+          description: Project request validation failed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /projects/{projectId}:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
     get:
       tags: [Projects]
       summary: Get project
+      description: >
+        The project and current membership are selected together. A caller who is not a
+        member receives PROJECT_NOT_FOUND, preventing project existence probing.
       responses:
         '200':
           description: Project detail
@@ -216,6 +249,8 @@ paths:
                 $ref: '#/components/schemas/ProjectEnvelope'
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     patch:
       tags: [Projects]
       summary: Update project
@@ -232,8 +267,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectEnvelope'
+        '400':
+          description: Project request validation failed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
     delete:
       tags: [Projects]
       summary: Delete project; owner only
@@ -242,6 +284,8 @@ paths:
           description: Deleted
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /projects/{projectId}/members:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -255,12 +299,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MemberListEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /projects/{projectId}/invitations:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
     post:
       tags: [Members]
       summary: Create invitation
+      description: >
+        OWNER and ADMIN only. Generates 32 random bytes with SecureRandom, returns the
+        unpadded URL-safe Base64 code once, and stores only its SHA-256 digest.
       requestBody:
         required: true
         content:
@@ -274,6 +323,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InvitationEnvelope'
+        '400':
+          description: Invitation request validation failed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /projects/{projectId}/members/{userId}/role:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -294,6 +350,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MemberEnvelope'
+        '400':
+          description: Role request validation failed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /projects/{projectId}/members/{userId}:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -304,6 +367,10 @@ paths:
       responses:
         '204':
           description: Removed
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /projects/{projectId}/milestones:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -941,7 +1008,13 @@ components:
         username: { type: string, pattern: '^[a-zA-Z0-9_]{3,40}$' }
         password: { type: string, minLength: 8, maxLength: 72 }
         displayName: { type: string, minLength: 1, maxLength: 60 }
-        email: { type: string, format: email, maxLength: 120 }
+        email:
+          type: string
+          format: email
+          maxLength: 120
+          description: >
+            Optional. When the invitation is bound to an email, an omitted value uses
+            that email and a supplied value must match it case-insensitively.
     AuthResult:
       type: object
       required: [accessToken, expiresInSeconds, user]

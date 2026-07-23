@@ -110,29 +110,45 @@ V1 创建 `refresh_token`，V2 在不复制或替代迁移 SQL 的前提下扩�
 ### 4.2 项目成员约束
 
 - `(project_id, user_id)` 唯一。
-- 一个项目必须且只能有一个 OWNER，由应用服务保证。
+- V3 新增 PostgreSQL 局部唯一索引 `uq_project_member_single_owner`：
+  `UNIQUE (project_id) WHERE role = 'OWNER'`。数据库保证同一项目**至多一个** OWNER。
+- 创建项目的应用服务在同一事务中插入 `project` 与 OWNER `project_member`，任一步失败都整体回滚，
+  从而保证新项目**至少一个** OWNER。事务保证“至少一个”与局部唯一索引保证“至多一个”结合，
+  满足每个项目必须且只能有一个 OWNER。
 - OWNER 不能被移除，也不能直接降级；必须先执行所有权转移用例。
 
-### 4.3 任务依赖约束
+### 4.3 邀请码摘要约束
+
+- V1 已将 `project_invitation.invite_code_hash` 定义为 `char(64) NOT NULL UNIQUE`，可直接保存
+  SHA-256 的 64 字符小写十六进制摘要，因此 V3 不修改邀请表。
+- 服务端使用至少 32 字节 `SecureRandom` 生成原始邀请码，再编码为无填充 URL-safe Base64。
+  原文只在创建响应中返回一次；预览和接受接口先对路径参数执行相同 SHA-256，再按
+  `invite_code_hash` 查询。
+- `ProjectInvitationEntity.codeHash` 通过 `@TableField("invite_code_hash")` 显式映射数据库列，
+  避免业务代码将持久化值误认为邀请码原文。
+- 日志、审计与异常响应不记录原始邀请码或完整摘要。接受时对邀请行使用 `SELECT ... FOR UPDATE`，
+  并发请求最多一个能够把状态从 `PENDING` 改为 `ACCEPTED`。
+
+### 4.4 任务依赖约束
 
 - `(task_id, depends_on_task_id)` 唯一。
 - `task_id <> depends_on_task_id`。
 - 两个任务必须属于同一项目。
 - 更新依赖前使用 DFS 或 Kahn 算法检查环。
 
-### 4.4 文档块约束
+### 4.5 文档块约束
 
 - `(document_id, chunk_no)` 唯一。
 - `metadata` 至少包含 `projectId`、`documentId`、`chunkNo`、`filename`。
 - 删除文档时先删除引用，再删除块和文档记录。
 
-### 4.5 AI 规划约束
+### 4.6 AI 规划约束
 
 - `temp_key` 在同一 plan 内唯一。
 - 草案依赖只引用同一 plan 的 task temp key。
 - CONFIRMED 状态不可再次修改或确认。
 
-### 4.6 其他迁移约束
+### 4.7 其他迁移约束
 
 - `app_user.username` 唯一，`email` 可空但非空时唯一；`status` 只能为 ACTIVE 或 DISABLED。`token_version` 字段已经存在，但当前认证链路尚未实现基于它使旧 Access Token 失效。
 - 项目、任务、里程碑、文档、知识消息、AI 规划和 AI 调用状态均由 V1 的 CHECK 约束限制在对应枚举值内。
@@ -162,6 +178,8 @@ LIMIT :topK;
 ## 6. 索引策略
 
 - `project_member(user_id, project_id)`：查询用户项目列表。
+- `uq_project_member_single_owner(project_id) WHERE role = 'OWNER'`：V3 局部唯一索引，
+  防止同一项目出现多个 OWNER。
 - `refresh_token(user_id, expires_at)`：用户 Token 清理。
 - `refresh_token(session_id)`、`refresh_token(session_id, revoked_at)`：会话轮换与撤销。
 - `project_invitation(project_id, status)`：邀请查询。
