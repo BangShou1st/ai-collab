@@ -117,3 +117,121 @@ h1 {
 .result-panel.compact p {
   margin: 6px 0;
 }
+
+.auth-footer {
+  margin: 18px 0 0;
+  text-align: center;
+}
+
+.workspace-page {
+  min-height: 100vh;
+  padding: 28px;
+  background: #f3f6fb;
+}
+
+.workspace-header,
+.header-actions,
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.workspace-header {
+  margin-bottom: 24px;
+}
+
+.header-actions,
+.filter-bar {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.project-grid,
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px;
+}
+
+.project-card h2,
+.settings-grid h2,
+.board-column h2 {
+  margin: 0;
+}
+
+.filter-bar {
+  margin-bottom: 18px;
+}
+
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(250px, 1fr));
+  gap: 14px;
+  overflow-x: auto;
+}
+
+.board-column {
+  min-height: 560px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #e8eef8;
+}
+
+.board-column h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.task-card {
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.task-card h3 {
+  margin: 0 0 10px;
+}
+
+.task-card p,
+.comment p {
+  color: #667085;
+  font-size: 13px;
+}
+
+.task-card .el-select {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.drawer-section {
+  margin-top: 24px;
+}
+
+.drawer-section .el-select {
+  width: 100%;
+}
+
+.comment {
+  margin: 10px 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f3f6fb;
+}
+
+.readonly-note {
+  color: #7a8499;
+}
+
+@media (max-width: 800px) {
+  .workspace-page {
+    padding: 18px;
+  }
+  .workspace-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

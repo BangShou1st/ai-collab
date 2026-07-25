@@ -53,4 +53,8 @@ public class RefreshTokenRepositoryService {
             OffsetDateTime revokedAt) {
         return refreshTokenMapper.revokeActiveTokensBySessionId(sessionId, revokeReason, revokedAt);
     }
+
+    public int revokeActiveTokensByUserId(UUID userId, OffsetDateTime revokedAt) {
+        return refreshTokenMapper.revokeActiveTokensByUserId(userId, revokedAt);
+    }
 }

@@ -134,7 +134,10 @@ V1 创建 `refresh_token`，V2 在不复制或替代迁移 SQL 的前提下扩�
 - `(task_id, depends_on_task_id)` 唯一。
 - `task_id <> depends_on_task_id`。
 - 两个任务必须属于同一项目。
-- 更新依赖前使用 DFS 或 Kahn 算法检查环。
+- 当前 `TaskApplicationService` 在一个事务中读取项目全部任务和依赖边，构造替换后的完整图，
+  通过 `TaskDependencyPolicy` 的 Kahn 拓扑排序验证无环后才删除旧边并写入新边；任一校验或写入失败会整体回滚。
+- 里程碑、任务和评论的 Mapper 查询均显式携带 `project_id`，评论还携带 `task_id`；
+  不能先按全局子资源 ID 查询再补权限判断。
 
 ### 4.5 文档块约束
 
@@ -150,7 +153,9 @@ V1 创建 `refresh_token`，V2 在不复制或替代迁移 SQL 的前提下扩�
 
 ### 4.7 其他迁移约束
 
-- `app_user.username` 唯一，`email` 可空但非空时唯一；`status` 只能为 ACTIVE 或 DISABLED。`token_version` 字段已经存在，但当前认证链路尚未实现基于它使旧 Access Token 失效。
+- `app_user.username` 唯一，`email` 可空但非空时唯一；`status` 只能为 ACTIVE 或 DISABLED。
+  修改密码会递增 `token_version` 并撤销全部 Refresh 会话，但当前 Access Token 验证尚未在线比较该字段，
+  因此旧 Access Token 仍可能存活到过期。
 - 项目、任务、里程碑、文档、知识消息、AI 规划和 AI 调用状态均由 V1 的 CHECK 约束限制在对应枚举值内。
 - `project`、`project_task` 和 AI 规划中的起止日期不能倒置；任务与草案任务预计工时只能为 0.5～80。
 - `project_document.size_bytes` 必须大于 0 且不超过 20 MB。
@@ -204,3 +209,10 @@ LIMIT :topK;
 - Refresh Token 到期后可定时清理。
 - AI 原始响应仅保存在 `ai_task_plan.raw_response`，知识问答不保存完整 Prompt。
 - `ai_call_log` 不记录文档原文，只记录模型、Token、耗时与状态。
+
+## 8. 本阶段迁移结论
+
+本阶段没有新增 Flyway 迁移。V1 已真实创建 `milestone`、`project_task`、
+`task_dependency`、`task_comment` 以及账号管理所需的 `app_user.token_version`；
+V2、V3 分别只负责 Refresh 会话扩展与单 OWNER 约束。实现直接启用这些既有结构，
+未修改 V1、V2、V3，也未创建无实际结构变化的空 V4。Flyway 脚本仍是唯一执行事实来源。

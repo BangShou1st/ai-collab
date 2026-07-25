@@ -1,8 +1,10 @@
 # 第一阶段：Access Token 认证闭环
 
-> **历史阶段提示**
+> **自动化测试历史记录提示**
 >
-> 本文是第一阶段的历史学习记录，只描述当时的 Access Token 最小闭环。当前仓库已经进入 Refresh Token 多设备会话阶段；当前认证状态以 [`phase-02-refresh-token-session.md`](phase-02-refresh-token-session.md) 和当前代码为准。正文中的“未实现 Refresh Token”等表述仅代表第一阶段当时的边界。
+> 当前仓库后续已移除自动化测试。正文中的测试类、测试命令和测试证明内容属于对应阶段的历史实现记录，
+> 不代表当前仓库仍保留这些测试文件。本文只描述当时的 Access Token 最小闭环；当前认证状态以
+> [`phase-02-refresh-token-session.md`](phase-02-refresh-token-session.md) 和当前代码为准。
 
 ## 1. 本阶段解决了什么问题
 
@@ -219,7 +221,7 @@ Spring Security 的认证入口处理 401，权限拒绝处理器处理 403。�
 8. 两个 Security 错误处理器
 9. `ApiResponse`、`ErrorCode`、`GlobalExceptionHandler`
 10. `LocalDemoUserInitializer`
-11. 对应测试类，观察每条业务约束如何被证明
+11. 结合源码审查和浏览器手工验收，核对上述业务约束
 
 ## 19. 推荐断点调试顺序
 

@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { formatSafeJson, normalizeApiError, toSafeApiResult } from '../api/api-result'
 import type { ApiResult } from '../api/types'
 import { useAuthStore } from '../stores/auth-store'
+import { authApi } from '../api/auth-api'
 
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 const form = reactive({ username: '', password: '' })
 const errorMessage = ref('')
+const registrationEnabled = ref(false)
 const lastResult = ref<ApiResult<unknown> | null>(null)
 const displayedResult = computed<ApiResult<unknown> | null>(() => {
   if (lastResult.value) return lastResult.value
@@ -18,12 +20,21 @@ const displayedResult = computed<ApiResult<unknown> | null>(() => {
 })
 const formattedData = computed(() => formatSafeJson(displayedResult.value?.data ?? null))
 
+onMounted(async () => {
+  try {
+    const policyCall = authApi.registrationPolicy?.()
+    if (policyCall) registrationEnabled.value = (await policyCall).data.enabled
+  } catch {
+    registrationEnabled.value = false
+  }
+})
+
 async function submit(): Promise<void> {
   errorMessage.value = ''
   try {
     const result = await auth.login(form.username, form.password)
     lastResult.value = toSafeApiResult(result)
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/auth-test'
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/projects'
     await router.replace(redirect)
     ElMessage.success('登录成功')
   } catch (error: unknown) {
@@ -39,8 +50,8 @@ async function submit(): Promise<void> {
       <template #header>
         <div>
           <p class="eyebrow">AI COLLAB</p>
-          <h1>登录认证测试</h1>
-          <p class="subtitle">Access Token 仅保存在当前页面内存中</p>
+          <h1>登录</h1>
+          <p class="subtitle">登录后进入项目与任务工作台</p>
         </div>
       </template>
       <el-form label-position="top" @submit.prevent="submit">
@@ -66,6 +77,9 @@ async function submit(): Promise<void> {
         >
           登录
         </el-button>
+        <p v-if="registrationEnabled" class="auth-footer">
+          还没有账号？<router-link to="/register">公开注册</router-link>
+        </p>
       </el-form>
     </el-card>
   </main>
