@@ -12,8 +12,7 @@
     "moduleDetection": "force",
     "noEmit": true,
     "strict": true,
-    "jsx": "preserve",
-    "types": ["vitest/globals"]
+    "jsx": "preserve"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
 }

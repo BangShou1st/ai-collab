@@ -1,5 +1,10 @@
 # Phase 03：Vue 认证壳与单飞刷新
 
+> **自动化测试历史记录提示**
+>
+> 当前仓库后续已移除自动化测试。正文中的测试类、测试命令和测试证明内容属于对应阶段的历史实现记录，
+> 不代表当前仓库仍保留这些测试文件。
+
 ## 1. 系统架构位置
 
 这一阶段增加 `ai-collab-frontend/`。浏览器访问 `http://localhost:5173`，Vite 将 `/api`
@@ -217,7 +222,7 @@ sequenceDiagram
 6. `views/LoginView.vue` 与 `views/AuthTestView.vue`
 7. `api/http-client.ts`
 8. `router.ts`
-9. 六份测试
+9. 浏览器 Network、路由跳转与安全存储检查
 
 推荐断点：
 
@@ -232,7 +237,7 @@ sequenceDiagram
 
 断点或浏览器控制台不要展开、复制或输出完整 Token。
 
-## 8. 测试证明了什么
+## 8. 手工验收重点
 
 - 登录成功只更新 Pinia 内存，并保存安全用户视图。
 - 密码不进入 store，Access Token 不写 localStorage/sessionStorage。
@@ -251,13 +256,16 @@ sequenceDiagram
 - 认证页显示用户 id、email 和动态登录状态，空 email 显示“未设置”。
 - 未登录用户访问 `/auth-test` 会被重定向到 `/login`。
 
-运行：
+当前验证命令：
 
 ```powershell
 cd E:\ai-collab\ai-collab-frontend
-pnpm test
+pnpm typecheck
 pnpm build
 ```
+
+随后在浏览器中验证登录、刷新恢复、退出和并发 401 操作，检查 Network 请求与安全存储。上述并发边界
+只能按选定场景手工观察，不能视为稳定的自动回归证明。
 
 ## 9. 故障排查
 
@@ -266,7 +274,6 @@ pnpm build
 - **一直跳登录页**：依次检查 refresh 是否 200、Access Token 是否写入 store、`/me` 是否 200。
 - **出现刷新风暴**：检查业务请求是否都使用集中 `http-client`，组件里不要复制 401 逻辑。
 - **出现无限 401**：检查 `_authRetried` 是否随原配置进入重试，以及 refresh 是否误用了带拦截器的客户端。
-- **构建报 `test` 不是 Vite 配置属性**：`defineConfig` 应从 `vitest/config` 导入。
 
 ## 10. 重要注释详解
 

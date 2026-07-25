@@ -76,3 +76,7 @@ demo:
   owner:
     username: "${DEMO_OWNER_USERNAME:owner}"
     password: "${DEMO_OWNER_PASSWORD}"
+
+auth:
+  public-registration:
+    enabled: "${AUTH_PUBLIC_REGISTRATION_ENABLED:true}"

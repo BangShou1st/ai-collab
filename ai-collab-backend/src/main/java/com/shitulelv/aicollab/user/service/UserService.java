@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.Optional;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -32,6 +33,15 @@ public class UserService {
         return Optional.ofNullable(userMapper.selectById(id));
     }
 
+    public Optional<UserEntity> findByEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(userMapper.selectOne(
+                new LambdaQueryWrapper<UserEntity>()
+                        .eq(UserEntity::getEmail, email.trim().toLowerCase(Locale.ROOT))));
+    }
+
     /**
      * 只更新登录时间，避免为了一个字段把内存中的整份 Entity 写回数据库。
      */
@@ -43,5 +53,21 @@ public class UserService {
 
     public void create(UserEntity user) {
         userMapper.insert(user);
+    }
+
+    public boolean updateProfile(UUID userId, String displayName, String email) {
+        return userMapper.update(null, new LambdaUpdateWrapper<UserEntity>()
+                .eq(UserEntity::getId, userId)
+                .set(UserEntity::getDisplayName, displayName)
+                .set(UserEntity::getEmail, email)
+                .set(UserEntity::getUpdatedAt, OffsetDateTime.now())) == 1;
+    }
+
+    public boolean updatePassword(UUID userId, String passwordHash) {
+        return userMapper.update(null, new LambdaUpdateWrapper<UserEntity>()
+                .eq(UserEntity::getId, userId)
+                .set(UserEntity::getPasswordHash, passwordHash)
+                .setSql("token_version = token_version + 1")
+                .set(UserEntity::getUpdatedAt, OffsetDateTime.now())) == 1;
     }
 }

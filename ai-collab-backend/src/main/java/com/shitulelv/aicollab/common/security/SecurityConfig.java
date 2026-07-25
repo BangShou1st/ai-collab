@@ -58,8 +58,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/logout",
+                                "/api/v1/auth/register",
                                 "/api/v1/invitations/{code}/accept").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/invitations/{code}").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/invitations/{code}",
+                                "/api/v1/auth/registration-policy").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions
@@ -77,7 +80,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.copyOf(corsProperties.allowedOrigins()));
         configuration.setAllowCredentials(true);
-        configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Cache-Control"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -95,6 +98,7 @@ public class SecurityConfig {
                 PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/api/v1/auth/login"),
                 PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/api/v1/auth/refresh"),
                 PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/api/v1/auth/logout"),
+                PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/api/v1/auth/register"),
                 PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/api/v1/invitations/{code}/accept"));
 
         private final AuthRequestOriginValidator originValidator;

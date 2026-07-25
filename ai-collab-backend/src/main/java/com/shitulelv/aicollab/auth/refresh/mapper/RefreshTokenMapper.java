@@ -83,4 +83,13 @@ public interface RefreshTokenMapper extends BaseMapper<RefreshTokenEntity> {
             @Param("sessionId") UUID sessionId,
             @Param("revokeReason") RefreshTokenRevokeReason revokeReason,
             @Param("revokedAt") OffsetDateTime revokedAt);
+
+    @Update("""
+            UPDATE refresh_token
+            SET revoked_at = #{revokedAt}, revoke_reason = 'LOGOUT'
+            WHERE user_id = #{userId} AND revoked_at IS NULL
+            """)
+    int revokeActiveTokensByUserId(
+            @Param("userId") UUID userId,
+            @Param("revokedAt") OffsetDateTime revokedAt);
 }

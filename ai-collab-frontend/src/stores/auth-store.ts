@@ -43,6 +43,24 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async register(payload: {
+      username: string
+      password: string
+      displayName: string
+      email: string | null
+    }): Promise<ApiResult<LoginResult>> {
+      this.authenticating = true
+      try {
+        const result = await authApi.register(payload)
+        this.accessToken = result.data.accessToken
+        this.currentUser = result.data.user
+        this.initialized = true
+        return result
+      } finally {
+        this.authenticating = false
+      }
+    },
+
     async refresh(): Promise<ApiResult<AccessTokenResult>> {
       this.refreshing = true
       try {

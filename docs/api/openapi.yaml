@@ -60,6 +60,50 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /auth/registration-policy:
+    get:
+      tags: [Auth]
+      security: []
+      summary: Read public registration policy
+      responses:
+        '200':
+          description: Current public registration switch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationPolicyEnvelope'
+  /auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Register a public account and create an authenticated session
+      description: >
+        Uses the same mandatory Origin/Referer validation, Access Token issuer,
+        Refresh session implementation and Cookie settings as login. The endpoint
+        returns REGISTRATION_DISABLED with HTTP 403 when public registration is off.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Registered; returns the login response and sets a Refresh Cookie
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponseEnvelope'
+        '400':
+          description: Registration request validation failed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /auth/refresh:
     post:
       tags: [Auth]
@@ -138,6 +182,64 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /users/me:
+    patch:
+      tags: [Auth]
+      summary: Update current user's display name and email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCurrentUserRequest'
+      responses:
+        '200':
+          description: Safe current-user view without passwordHash or tokenVersion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '400':
+          description: Profile validation failed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password and revoke every Refresh Token session
+      description: >
+        Increments token_version and revokes all Refresh sessions in one transaction.
+        Already issued Access Tokens remain usable until their own expiry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed; clears the current browser Refresh Cookie
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoidResponseEnvelope' }
+        '400':
+          description: Current password invalid, same password, or validation failed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  /auth/logout-all:
+    post:
+      tags: [Auth]
+      summary: Idempotently revoke all Refresh Token sessions for the current user
+      responses:
+        '200':
+          description: All sessions revoked; clears the current browser Refresh Cookie
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoidResponseEnvelope' }
   /invitations/{code}:
     get:
       tags: [Invitations]
@@ -392,7 +494,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/MilestoneRequest'
+              $ref: '#/components/schemas/CreateMilestoneRequest'
       responses:
         '201':
           description: Milestone created
@@ -412,7 +514,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/MilestoneRequest'
+              $ref: '#/components/schemas/UpdateMilestoneRequest'
       responses:
         '200':
           description: Milestone updated
@@ -462,7 +564,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskRequest'
+              $ref: '#/components/schemas/CreateTaskRequest'
       responses:
         '201':
           description: Task created
@@ -492,7 +594,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskRequest'
+              $ref: '#/components/schemas/UpdateTaskRequest'
       responses:
         '200':
           description: Task updated
@@ -1001,6 +1103,38 @@ components:
         password:
           type: string
           description: Must not be blank.
+    RegisterRequest:
+      type: object
+      required: [username, password, displayName]
+      properties:
+        username: { type: string, pattern: '^[A-Za-z0-9_]{3,40}$' }
+        password: { type: string, minLength: 8, maxLength: 72, writeOnly: true }
+        displayName: { type: string, minLength: 1, maxLength: 60 }
+        email: { type: [string, 'null'], format: email, maxLength: 120 }
+    RegistrationPolicy:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    RegistrationPolicyEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties:
+            data: { $ref: '#/components/schemas/RegistrationPolicy' }
+    UpdateCurrentUserRequest:
+      type: object
+      required: [displayName]
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 60 }
+        email: { type: [string, 'null'], format: email, maxLength: 120 }
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, writeOnly: true }
+        newPassword: { type: string, minLength: 8, maxLength: 72, writeOnly: true }
     AcceptInvitationRequest:
       type: object
       required: [username, password, displayName]
@@ -1196,27 +1330,34 @@ components:
     MilestoneStatus:
       type: string
       enum: [PLANNED, ACTIVE, COMPLETED, CANCELED]
-    MilestoneRequest:
+    CreateMilestoneRequest:
       type: object
-      required: [name, status, sortOrder]
+      required: [name]
       properties:
         name: { type: string, minLength: 1, maxLength: 100 }
         description: { type: string, maxLength: 1000, default: '' }
         targetDate: { type: [string, 'null'], format: date }
         status: { $ref: '#/components/schemas/MilestoneStatus' }
         sortOrder: { type: integer, minimum: 0 }
-        version: { type: integer, minimum: 0 }
-    MilestoneView:
+    UpdateMilestoneRequest:
       allOf:
-        - $ref: '#/components/schemas/MilestoneRequest'
+        - $ref: '#/components/schemas/CreateMilestoneRequest'
         - type: object
-          required: [id, projectId, createdAt, updatedAt]
+          required: [status, sortOrder, version]
           properties:
-            id: { type: string, format: uuid }
-            projectId: { type: string, format: uuid }
-            completionRate: { type: number, minimum: 0, maximum: 1 }
-            createdAt: { type: string, format: date-time }
-            updatedAt: { type: string, format: date-time }
+            version: { type: integer, minimum: 0 }
+    MilestoneView:
+      type: object
+      required: [id, projectId, name, description, status, sortOrder, version]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        targetDate: { type: [string, 'null'], format: date }
+        status: { $ref: '#/components/schemas/MilestoneStatus' }
+        sortOrder: { type: integer, minimum: 0 }
+        version: { type: integer, minimum: 0 }
     MilestoneEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
@@ -1237,9 +1378,9 @@ components:
     TaskPriority:
       type: string
       enum: [LOW, MEDIUM, HIGH, URGENT]
-    TaskRequest:
+    CreateTaskRequest:
       type: object
-      required: [title, status, priority]
+      required: [title]
       properties:
         title: { type: string, minLength: 1, maxLength: 160 }
         description: { type: string, maxLength: 4000, default: '' }
@@ -1250,24 +1391,42 @@ components:
         estimateHours: { type: [number, 'null'], minimum: 0.5, maximum: 80 }
         startDate: { type: [string, 'null'], format: date }
         dueDate: { type: [string, 'null'], format: date }
+    UpdateTaskRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateTaskRequest'
+        - type: object
+          required: [version]
+          properties:
+            version: { type: integer, minimum: 0 }
+          description: >
+            OWNER/ADMIN send the editable task fields; MEMBER may send only status and version,
+            and only for a task assigned to that member.
+    TaskView:
+      type: object
+      required:
+        [id, projectId, title, description, status, priority, version,
+         unfinishedDependencyCount, dependencyIds]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        milestoneId: { type: [string, 'null'], format: uuid }
+        milestoneName: { type: [string, 'null'] }
+        assigneeId: { type: [string, 'null'], format: uuid }
+        assigneeDisplayName: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        estimateHours: { type: [number, 'null'], minimum: 0.5, maximum: 80 }
+        startDate: { type: [string, 'null'], format: date }
+        dueDate: { type: [string, 'null'], format: date }
+        version: { type: integer, minimum: 0 }
+        unfinishedDependencyCount: { type: integer, minimum: 0 }
         dependencyIds:
           type: array
           maxItems: 10
           uniqueItems: true
           items: { type: string, format: uuid }
-        version: { type: integer, minimum: 0 }
-    TaskView:
-      allOf:
-        - $ref: '#/components/schemas/TaskRequest'
-        - type: object
-          required: [id, projectId, createdBy, createdAt, updatedAt]
-          properties:
-            id: { type: string, format: uuid }
-            projectId: { type: string, format: uuid }
-            createdBy: { type: string, format: uuid }
-            unfinishedDependencyCount: { type: integer, minimum: 0 }
-            createdAt: { type: string, format: date-time }
-            updatedAt: { type: string, format: date-time }
     TaskEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
@@ -1289,12 +1448,12 @@ components:
         content: { type: string, minLength: 1, maxLength: 2000 }
     CommentView:
       type: object
-      required: [id, taskId, authorId, authorName, content, createdAt, updatedAt]
+      required: [id, taskId, authorId, authorDisplayName, content, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         taskId: { type: string, format: uuid }
         authorId: { type: string, format: uuid }
-        authorName: { type: string }
+        authorDisplayName: { type: string }
         content: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
