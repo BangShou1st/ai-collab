@@ -298,6 +298,31 @@ paths:
           $ref: '#/components/responses/Conflict'
         '410':
           $ref: '#/components/responses/Gone'
+  /invitations/{code}/accept-current-user:
+    post:
+      tags: [Invitations]
+      summary: Accept invitation as the current user
+      description: |
+        Requires the global Bearer Access Token. It does not accept a request body,
+        create an account, issue an Access Token, create a Refresh session, or set a
+        Refresh Cookie. The user explicitly accepts after the read-only preview.
+        Existing membership is returned without changing the role or consuming the invitation.
+      parameters:
+        - $ref: '#/components/parameters/InvitationCode'
+      responses:
+        '200':
+          description: Invitation accepted or current membership confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationAcceptanceEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden, including an invitation email mismatch
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '410':
+          $ref: '#/components/responses/Gone'
   /projects:
     get:
       tags: [Projects]
@@ -1140,7 +1165,7 @@ components:
       required: [username, password, displayName]
       properties:
         username: { type: string, pattern: '^[a-zA-Z0-9_]{3,40}$' }
-        password: { type: string, minLength: 8, maxLength: 72 }
+        password: { type: string, minLength: 8, maxLength: 72, writeOnly: true }
         displayName: { type: string, minLength: 1, maxLength: 60 }
         email:
           type: string
@@ -1291,7 +1316,7 @@ components:
       required: [role, expiresInHours]
       properties:
         role: { type: string, enum: [ADMIN, MEMBER] }
-        invitedEmail: { type: [string, 'null'], format: email }
+        invitedEmail: { type: [string, 'null'], format: email, maxLength: 120 }
         expiresInHours: { type: integer, minimum: 1, maximum: 168, default: 72 }
     InvitationView:
       type: object
@@ -1304,12 +1329,21 @@ components:
         expiresAt: { type: string, format: date-time }
     InvitationPreview:
       type: object
-      required: [projectName, role, expiresAt]
+      required: [projectId, projectName, role, expiresAt]
       properties:
+        projectId: { type: string, format: uuid }
         projectName: { type: string }
         role: { type: string, enum: [ADMIN, MEMBER] }
         invitedEmail: { type: [string, 'null'], format: email }
         expiresAt: { type: string, format: date-time }
+    InvitationAcceptanceResult:
+      type: object
+      required: [projectId, projectName, role, alreadyMember]
+      properties:
+        projectId: { type: string, format: uuid }
+        projectName: { type: string }
+        role: { $ref: '#/components/schemas/ProjectRole' }
+        alreadyMember: { type: boolean }
     InvitationEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
@@ -1322,6 +1356,12 @@ components:
         - type: object
           properties:
             data: { $ref: '#/components/schemas/InvitationPreview' }
+    InvitationAcceptanceEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/InvitationAcceptanceResult' }
     ChangeRoleRequest:
       type: object
       required: [role]
@@ -1392,15 +1432,22 @@ components:
         startDate: { type: [string, 'null'], format: date }
         dueDate: { type: [string, 'null'], format: date }
     UpdateTaskRequest:
-      allOf:
-        - $ref: '#/components/schemas/CreateTaskRequest'
-        - type: object
-          required: [version]
-          properties:
-            version: { type: integer, minimum: 0 }
-          description: >
-            OWNER/ADMIN send the editable task fields; MEMBER may send only status and version,
-            and only for a task assigned to that member.
+      type: object
+      required: [version]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, maxLength: 4000 }
+        milestoneId: { type: [string, 'null'], format: uuid }
+        assigneeId: { type: [string, 'null'], format: uuid }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        estimateHours: { type: [number, 'null'], minimum: 0.5, maximum: 80 }
+        startDate: { type: [string, 'null'], format: date }
+        dueDate: { type: [string, 'null'], format: date }
+        version: { type: integer, minimum: 0 }
+      description: >
+        OWNER/ADMIN must send title, status, priority and the complete editable task snapshot.
+        MEMBER may send only status and version, and only for a task assigned to that member.
     TaskView:
       type: object
       required:

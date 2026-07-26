@@ -163,6 +163,11 @@ work/
 所有子资源查询在 SQL 中携带 `project_id`；评论查询同时携带 `task_id`。`work` 复用
 `ProjectAccessGuard`，Controller 不直接访问 Mapper，也不把前端按钮隐藏作为权限边界。
 
+同一项目的任务依赖图修改在 `TaskApplicationService.replaceDependencies` 的既有事务内串行化：
+权限校验后，Mapper 先按 `project_id` 查询项目全部任务 ID，并以 `ORDER BY id FOR UPDATE`
+按固定顺序锁定这些任务行。锁定结果同时作为完整节点集；随后才读取项目全部依赖边、构造替换后图、
+执行 Kahn 无环校验并写入新边。这样同一项目的并发依赖修改共享同一组数据库行锁，不同项目不会相互阻塞。
+
 完整系统目标中的跨模块基础设施仍保留 `ProjectAccessGuard`、`AiModelGateway`、`ObjectStorageGateway`、`VectorSearchGateway` 等原有边界。当前认证实现实际使用 `common.api.ApiResponse`、`common.exception.ErrorCode`、`BusinessException`、`GlobalExceptionHandler`，以及 `common.security` 下的 `SecurityConfig`、`JwtConfiguration`、`JwtProperties`、`RefreshTokenProperties`、`AuthRequestOriginValidator`、`RestAuthenticationEntryPoint` 和 `RestAccessDeniedHandler`；JWT 验证由 Spring Security Resource Server 完成，不声明当前存在自定义 `JwtAuthenticationFilter`。
 
 ### 4.2 模块职责
@@ -252,6 +257,10 @@ public interface TaskDependencyPolicy {
 - 确认 AI 任务规划，批量写入里程碑、任务和依赖。
 
 外部模型调用不放在数据库长事务内。
+
+依赖替换事务内的固定顺序是：校验 OWNER/ADMIN 权限、锁定项目全部任务行、校验目标任务和依赖 ID、
+读取锁定后的完整依赖图、执行 Kahn 校验、删除旧边、写入新边、重新查询任务、写审计并提交。
+锁在事务提交或回滚时由 PostgreSQL 释放；不使用 Java `synchronized`。
 
 第一版不引入消息队列。文档解析与 AI 任务规划使用 Spring `TaskExecutor` 异步执行，并将状态持久化到数据库：
 
@@ -410,7 +419,9 @@ COMMIT
 | 路由 | 页面 |
 |---|---|
 | `/login` | 登录 |
-| `/invite/:code` | 邀请预览与设置账号 |
+| `/register` | 公开注册 |
+| `/invite/:code` | 邀请预览；未登录用户可创建账号加入，已登录用户可直接加入或进入已有项目 |
+| `/account` | 个人资料、密码与登录会话设置 |
 | `/projects` | 我的项目 |
 | `/projects/:projectId/dashboard` | 项目概览 |
 | `/projects/:projectId/board` | 任务看板 |
@@ -421,9 +432,16 @@ COMMIT
 | `/projects/:projectId/members` | 成员管理 |
 | `/projects/:projectId/audit` | 操作日志 |
 
-项目布局左侧提供概览、任务、里程碑、文档、知识问答、AI 规划、成员和日志入口，顶部展示项目名、当前用户和退出入口。前端按角色隐藏入口，但后端权限是唯一可信边界。
+项目布局左侧提供概览、任务、里程碑、文档、知识问答、AI 规划、成员和日志入口，顶部展示项目名和当前用户。账号设置页提供“退出当前设备”和“全部设备退出”，分别撤销当前 Refresh 会话和账号全部 Refresh 会话。开发期 `/auth-test` 调试路由不属于正式页面，已从生产路由移除。前端按角色隐藏入口，但后端权限是唯一可信边界。
 
-- 任务看板使用五个状态列；第一版不引入拖拽库，通过任务卡菜单变更状态；支持负责人、优先级和里程碑筛选；任务卡显示标题、负责人、截止日期、优先级和依赖阻塞标记；BLOCKED 卡片显示未完成前置任务数。
+邀请页自行协调邀请预览与认证初始化，并使用互斥页面状态避免先闪出注册表单。未登录用户可以登录现有
+账号或创建新账号；已登录用户直接调用受保护的当前账号接受接口。已有成员显示数据库中的实际角色并直接
+进入项目，不用邀请角色覆盖成员角色，也不消耗邀请。登录跳转只接受可由前端路由器解析的站内单斜杠路径，
+拒绝协议相对地址、反斜杠、控制字符和外部协议。邀请码、Access Token、Refresh Token 和接受结果均不写入
+浏览器持久化存储。
+
+- 任务看板使用五个状态列；第一版不引入拖拽库，通过任务卡菜单变更状态；状态菜单只展示后端状态机允许的目标状态，但服务端仍执行最终校验；支持负责人、优先级和里程碑筛选；任务卡显示标题、负责人、截止日期、优先级和依赖阻塞标记；存在未完成前置任务时显示明确的中文阻塞说明。
+- Phase 05 普通用户界面使用简体中文，角色、状态、优先级和安全错误通过集中映射展示，不直接暴露英文枚举值或错误码。成员、邀请、任务、依赖和评论已接入正式业务页面，当前采用构建检查加手工业务验收。
 - 文档页显示文件名、类型、大小、状态、分块数、Embedding 模型、上传者、更新时间和操作；上传后每 3 秒轮询，最多 10 分钟；FAILED 显示错误摘要和重试按钮，READY 可下载和用于问答，删除需二次确认。
 - 知识问答页左侧为会话列表，右侧为消息区；回答支持 Markdown，展示文件名、标题、相似度和片段引用；点击引用打开文档信息抽屉，第一版不做 PDF 页码跳转；`insufficientEvidence=true` 必须明显展示。
 - AI 规划页分为输入、生成状态、编辑确认三步；生成失败时可以重试；草案编辑器包含里程碑表格、任务表格、依赖选择器、风险与假设、来源文档标签；前端基础校验不替代后端校验；确认按钮旁明确提示“确认后将创建正式数据，无法通过此草案再次应用”。
@@ -634,9 +652,10 @@ docker compose -f ai-collab-deploy/docker-compose.yml down -v
 | PROJECT_OWNER_CANNOT_BE_REMOVED | 409 | 不能移除所有者 |
 | MEMBER_ALREADY_EXISTS | 409 | 用户已是成员 |
 | MEMBER_NOT_FOUND | 404 | 成员不存在 |
-| INVITATION_INVALID | 400 | 邀请码无效 |
+| INVITATION_INVALID | 410 | 邀请码无效 |
 | INVITATION_EXPIRED | 410 | 邀请已过期 |
-| INVITATION_ALREADY_USED | 409 | 邀请已使用 |
+| INVITATION_ALREADY_USED | 410 | 邀请已使用 |
+| INVITATION_EMAIL_MISMATCH | 403 | 当前账号邮箱与定向邀请邮箱不匹配 |
 | TASK_NOT_FOUND | 404 | 任务不存在 |
 | TASK_INVALID_STATUS_TRANSITION | 409 | 状态转换非法 |
 | TASK_ASSIGNEE_NOT_MEMBER | 400 | 负责人不是项目成员 |

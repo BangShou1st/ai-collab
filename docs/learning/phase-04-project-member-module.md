@@ -34,10 +34,10 @@ Policy 每次从数据库读取最新成员角色；Repository/Mapper 承担持�
 | 文件组 | 职责 | 主要调用关系 |
 |---|---|---|
 | `ProjectController` | 项目、成员、邀请创建 HTTP 入口 | Controller → 三个 Application Service |
-| `InvitationController` | 匿名预览/接受，事务完成后设置 Cookie | Controller → Invitation Service → Cookie Service |
+| `InvitationController` | 匿名预览/注册接受，以及已认证账号直接接受 | Controller → Invitation Service；仅注册接受设置 Cookie |
 | `ProjectApplicationService` | CRUD、日期校验、OWNER 成员与审计事务 | Service → Guard/Repository/Audit |
 | `ProjectMemberApplicationService` | 列表、角色变更、移除、OWNER 保护 | Service → Guard/MemberRepository/Audit |
-| `InvitationApplicationService` | 生成摘要、预览、接受、账号与 Token 编排 | Service → Guard/Invitation/User/Auth/Audit |
+| `InvitationApplicationService` | 生成摘要、预览、注册接受、当前账号幂等接受 | Service → Guard/Invitation/User/Auth/Audit |
 | `InvitationInsertService` | 以 NESTED 保存点隔离邀请码唯一冲突 | Invitation Service → Insert Service → Repository |
 | `DatabaseProjectAccessGuard` | `requireMember/Admin/Owner` | Guard → project_member 数据库查询 |
 | `InvitationCodeService` | 32 字节 SecureRandom、Base64URL、SHA-256 | Invitation Service → Code Service |
@@ -81,7 +81,7 @@ sequenceDiagram
     Note over S,DB: 任一步 RuntimeException，三次写入整体回滚
 ```
 
-### 4.2 接受邀请
+### 4.2 未登录用户接受邀请并创建账号
 
 ```mermaid
 sequenceDiagram
@@ -102,13 +102,34 @@ sequenceDiagram
     C-->>C: 事务返回后添加 Set-Cookie
 ```
 
+### 4.3 已登录账号直接接受邀请
+
+```mermaid
+sequenceDiagram
+    participant C as InvitationController
+    participant S as InvitationApplicationService
+    participant DB as PostgreSQL
+    C->>S: acceptCurrentUser(rawCode, JWT subject)
+    S->>DB: SELECT invitation FOR UPDATE
+    S->>DB: SELECT 当前 ACTIVE 用户与已有成员关系
+    alt 已经是成员
+        S-->>C: 实际角色 + alreadyMember=true
+    else 不是成员
+        S->>DB: INSERT project_member ON CONFLICT DO NOTHING
+        S->>DB: CAS UPDATE invitation ACCEPTED
+        S->>DB: INSERT audit_log
+        S-->>C: 实际角色 + alreadyMember=false
+    end
+    Note over C,DB: 不创建用户、Access Token、Refresh 会话或 Cookie
+```
+
 ## 5. 事务边界
 
 以下公开方法是数据库事务边界：
 
 - `ProjectApplicationService.create/update/delete`
 - `ProjectMemberApplicationService.changeRole/remove`
-- `InvitationApplicationService.create/accept`
+- `InvitationApplicationService.create/accept/acceptCurrentUser`
 - `InvitationInsertService.insertWithSavepoint`
 
 只读列表、详情和预览使用 `@Transactional(readOnly = true)`。Cookie 不属于数据库事务：
@@ -151,7 +172,10 @@ WHERE id = :projectId AND version = :submittedVersion;
 3. SHA-256 后转 64 字符小写十六进制。
 4. 数据库只保存摘要；原文只在创建响应返回一次。
 5. 唯一冲突在 NESTED 保存点回滚，然后生成新随机码，最多尝试三次。
-6. 接受时按摘要 `SELECT ... FOR UPDATE`；并发请求串行观察最新状态，最多一次成功。
+6. 接受时按摘要 `SELECT ... FOR UPDATE`；并发请求串行观察最新状态。
+7. 当前账号接受使用 `ON CONFLICT DO NOTHING` 防止重复成员；已有成员返回数据库实际角色，不覆盖角色、
+   不消费邀请且不重复审计。
+8. 已被同一账号接受的邀请幂等返回；被其他账号接受仍返回已使用。定向邀请必须与当前账号最新邮箱匹配。
 
 ## 7. 推荐阅读顺序与断点
 
@@ -189,6 +213,7 @@ WHERE id = :projectId AND version = :submittedVersion;
 - 缺少可信 Origin 的接受请求返回 403；过期邀请返回 410。
 - 两个并发接受事务最多一个成功。
 - 接受成功创建用户、成员、Access Token、Refresh Cookie 和审计，响应没有敏感字段。
+- 已登录账号直接接受不会重新注册、签发 Token、创建 Refresh 会话或设置 Cookie；重复请求返回同一成员关系。
 
 ## 9. 故障排查
 

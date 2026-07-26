@@ -22,6 +22,7 @@ public class TaskRepository {
     public boolean update(UUID projectId, TaskEntity entity) { return mapper.updateScoped(projectId, entity) == 1; }
     public boolean delete(UUID projectId, UUID id) { return mapper.deleteScoped(projectId, id) == 1; }
     public List<UUID> listIds(UUID projectId) { return mapper.listIds(projectId); }
+    public List<UUID> lockProjectTaskIds(UUID projectId) { return mapper.lockProjectTaskIds(projectId); }
     public List<TaskDependencyEdge> listEdges(UUID projectId) { return mapper.listEdges(projectId); }
     public List<UUID> dependencyIds(UUID projectId, UUID taskId) {
         return mapper.listDependencyIds(projectId, taskId);

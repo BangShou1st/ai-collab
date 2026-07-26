@@ -28,6 +28,7 @@ public enum ErrorCode {
     INVITATION_INVALID(HttpStatus.GONE, "邀请无效"),
     INVITATION_EXPIRED(HttpStatus.GONE, "邀请已过期"),
     INVITATION_ALREADY_USED(HttpStatus.GONE, "邀请已被使用"),
+    INVITATION_EMAIL_MISMATCH(HttpStatus.FORBIDDEN, "当前账号与邀请邮箱不匹配"),
     MILESTONE_NOT_FOUND(HttpStatus.NOT_FOUND, "里程碑不存在"),
     TASK_NOT_FOUND(HttpStatus.NOT_FOUND, "任务不存在"),
     TASK_ASSIGNEE_NOT_MEMBER(HttpStatus.BAD_REQUEST, "负责人不是当前项目成员"),

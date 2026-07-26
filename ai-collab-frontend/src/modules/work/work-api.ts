@@ -44,8 +44,30 @@ export const workApi = {
       await httpClient.patch<ApiResponse<Task>>(`/projects/${projectId}/tasks/${taskId}`, payload),
     )
   },
-  async updateStatus(projectId: string, task: Task, status: TaskStatus): Promise<ApiResult<Task>> {
-    return this.updateTask(projectId, task.id, { status, version: task.version })
+  async deleteTask(projectId: string, taskId: string): Promise<void> {
+    await httpClient.delete(`/projects/${projectId}/tasks/${taskId}`)
+  },
+  async updateStatus(
+    projectId: string,
+    task: Task,
+    status: TaskStatus,
+    canManage: boolean,
+  ): Promise<ApiResult<Task>> {
+    const payload = canManage
+      ? {
+          title: task.title,
+          description: task.description,
+          milestoneId: task.milestoneId,
+          assigneeId: task.assigneeId,
+          status,
+          priority: task.priority,
+          estimateHours: task.estimateHours,
+          startDate: task.startDate,
+          dueDate: task.dueDate,
+          version: task.version,
+        }
+      : { status, version: task.version }
+    return this.updateTask(projectId, task.id, payload)
   },
   async replaceDependencies(projectId: string, taskId: string, dependencyIds: string[]): Promise<ApiResult<Task>> {
     return apiResultFromResponse(
@@ -67,5 +89,21 @@ export const workApi = {
         `/projects/${projectId}/tasks/${taskId}/comments`, { content },
       ),
     )
+  },
+  async updateComment(
+    projectId: string,
+    taskId: string,
+    commentId: string,
+    content: string,
+  ): Promise<ApiResult<TaskComment>> {
+    return apiResultFromResponse(
+      await httpClient.patch<ApiResponse<TaskComment>>(
+        `/projects/${projectId}/tasks/${taskId}/comments/${commentId}`,
+        { content },
+      ),
+    )
+  },
+  async deleteComment(projectId: string, taskId: string, commentId: string): Promise<void> {
+    await httpClient.delete(`/projects/${projectId}/tasks/${taskId}/comments/${commentId}`)
   },
 }

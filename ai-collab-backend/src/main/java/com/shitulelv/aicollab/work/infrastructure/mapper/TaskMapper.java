@@ -50,6 +50,15 @@ public interface TaskMapper extends BaseMapper<TaskEntity> {
     @Select("SELECT id FROM project_task WHERE project_id=#{projectId}")
     List<UUID> listIds(@Param("projectId") UUID projectId);
 
+    @Select("""
+            SELECT id
+            FROM project_task
+            WHERE project_id=#{projectId}
+            ORDER BY id
+            FOR UPDATE
+            """)
+    List<UUID> lockProjectTaskIds(@Param("projectId") UUID projectId);
+
     @Update("""
             UPDATE project_task SET title=#{item.title}, description=#{item.description},
               milestone_id=#{item.milestoneId}, assignee_id=#{item.assigneeId},
