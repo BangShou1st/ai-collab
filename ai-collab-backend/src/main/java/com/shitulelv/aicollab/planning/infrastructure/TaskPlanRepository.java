@@ -185,6 +185,27 @@ public class TaskPlanRepository {
     }
 
     @Transactional
+    public UUID startRepair(UUID planId, long generationSeq, UUID parentAttemptId,
+                            TaskPlanStatus expectedStatus, UUID actor) {
+        Map<String, Object> plan = jdbc.queryForMap(
+                "SELECT generation_seq,active_attempt_id,status FROM ai_task_plan WHERE id=? FOR UPDATE", planId);
+        if (((Number) plan.get("generation_seq")).longValue() != generationSeq
+                || !parentAttemptId.equals(plan.get("active_attempt_id"))
+                || !expectedStatus.name().equals(plan.get("status"))) return null;
+        finishAttempt(parentAttemptId, "FAILED", "PLANNING_MODEL_INVALID_OUTPUT");
+        UUID repair = UUID.randomUUID();
+        Integer no = jdbc.queryForObject("SELECT coalesce(max(attempt_no),0)+1 FROM ai_task_plan_attempt WHERE plan_id=?",
+                Integer.class, planId);
+        jdbc.update("""
+                INSERT INTO ai_task_plan_attempt(id,plan_id,parent_attempt_id,attempt_no,generation_seq,
+                  stage,status,repair_count,created_by,started_at)
+                VALUES (?,?,?,?,?,'REPAIR','RUNNING',1,?,now())
+                """, repair, planId, parentAttemptId, no, generationSeq, actor);
+        jdbc.update("UPDATE ai_task_plan SET active_attempt_id=?,updated_at=now() WHERE id=?", repair, planId);
+        return repair;
+    }
+
+    @Transactional
     public void finishAttempt(UUID attemptId, String status, String errorCode) {
         jdbc.update("""
                 UPDATE ai_task_plan_attempt SET status=?,error_code=?,finished_at=now(),updated_at=now()

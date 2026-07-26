@@ -94,6 +94,23 @@ class TaskPlanDomainTest {
                 .isNotEqualTo(PlanningRequestHash.confirmation(project, plan, UUID.randomUUID()));
     }
 
+    @Test
+    void validatorReportsMalformedTextAndPriorityWithoutThrowing() {
+        TaskPlanDraft malformed = new TaskPlanDraft("s", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanTask("t1", "m1", null, "O", "D", null,
+                        BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                        null, null, List.of(), List.of(), 0)), List.of());
+        ValidationContext context = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(), Set.of());
+
+        ValidationResult result = new TaskPlanDraftValidator().validate(context, malformed);
+
+        assertThat(result.errorCodes()).contains("TASK_TEXT_INVALID", "TASK_PRIORITY_INVALID");
+    }
+
     private static TaskPlanDraft draftWithTitle(String title) {
         return new TaskPlanDraft("s", List.of(), List.of(),
                 List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 10), 0, List.of())),

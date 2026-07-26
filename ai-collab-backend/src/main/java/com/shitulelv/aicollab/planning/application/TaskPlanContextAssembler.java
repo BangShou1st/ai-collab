@@ -53,7 +53,8 @@ public class TaskPlanContextAssembler {
             int length = hit.content().codePointCount(0, hit.content().length());
             if (length > remaining) break;
             sources.add(new PlanSource("S" + (sources.size() + 1), hit.documentId(),
-                    hit.originalFilename(), hit.content()));
+                    hit.originalFilename(), hit.id(), hit.heading(), hit.similarity(),
+                    hit.content(), hit.contentHash()));
             remaining -= length;
         }
         String prompt = "<PROJECT_DATA>\n" + PlanningPromptText.escapeUntrusted(
