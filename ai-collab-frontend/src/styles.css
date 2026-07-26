@@ -828,6 +828,12 @@ p {
   }
 }
 
+.planning-layout { display: grid; grid-template-columns: minmax(240px, .7fr) minmax(0, 2fr); gap: 16px; margin-top: 16px; }
+.planning-list-item { width: 100%; border: 0; border-bottom: 1px solid var(--el-border-color); background: transparent; padding: 14px; text-align: left; cursor: pointer; display: grid; gap: 6px; }
+.task-plan-row { padding: 12px; margin-top: 8px; border-left: 3px solid var(--el-color-primary-light-5); display: grid; gap: 8px; }
+.source-plan-highlight { outline: 3px solid var(--el-color-success); border-radius: 8px; }
+@media (max-width: 900px) { .planning-layout { grid-template-columns: 1fr; } }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
