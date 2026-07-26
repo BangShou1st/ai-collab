@@ -69,10 +69,14 @@ public class TaskPlanController {
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(Map.of("versionId", commands.restore(projectId, planId, versionId, userId(jwt))));
     }
-    @PostMapping("/{planId}/confirm") public ApiResponse<?> confirm(@PathVariable UUID projectId,
+    @PostMapping("/{planId}/confirm") public ResponseEntity<ApiResponse<?>> confirm(@PathVariable UUID projectId,
             @PathVariable UUID planId, @RequestHeader("Idempotency-Key") UUID key,
             @Valid @RequestBody ConfirmTaskPlanRequest request, @AuthenticationPrincipal Jwt jwt) {
-        return ApiResponse.success(confirmations.confirm(projectId, planId, request.versionId(), key, userId(jwt)));
+        Map<String, Object> result = confirmations.confirm(
+                projectId, planId, request.versionId(), key, userId(jwt));
+        ApiResponse<?> body = ApiResponse.success(result);
+        return "PROCESSING".equals(result.get("status"))
+                ? ResponseEntity.accepted().body(body) : ResponseEntity.ok(body);
     }
     @DeleteMapping("/{planId}") public ResponseEntity<Void> delete(@PathVariable UUID projectId,
             @PathVariable UUID planId, @AuthenticationPrincipal Jwt jwt) {

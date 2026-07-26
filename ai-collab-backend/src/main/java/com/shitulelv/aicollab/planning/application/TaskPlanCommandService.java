@@ -28,16 +28,20 @@ public class TaskPlanCommandService {
     private final TaskPlanGenerationOrchestrator orchestrator;
     private final TaskPlanDraftValidator validator;
     private final JdbcTemplate jdbc;
+    private final PlanningGenerationRateLimiter rateLimiter;
 
     public TaskPlanCommandService(ProjectAccessGuard access, TaskPlanRepository repository,
                                   TaskPlanGenerationOrchestrator orchestrator,
-                                  TaskPlanDraftValidator validator, JdbcTemplate jdbc) {
+                                  TaskPlanDraftValidator validator, JdbcTemplate jdbc,
+                                  PlanningGenerationRateLimiter rateLimiter) {
         this.access = access; this.repository = repository; this.orchestrator = orchestrator;
         this.validator = validator; this.jdbc = jdbc;
+        this.rateLimiter = rateLimiter;
     }
 
     public TaskPlanRecord create(UUID projectId, CreateTaskPlanRequest request, UUID actor) {
         access.requireAdmin(projectId, actor);
+        rateLimiter.check(actor);
         validateCreate(projectId, request);
         TaskPlanRecord plan = repository.create(projectId, actor, request);
         orchestrator.dispatch(plan, false);
@@ -51,6 +55,7 @@ public class TaskPlanCommandService {
 
     public TaskPlanRecord retryDetail(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
+        rateLimiter.check(actor);
         TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, true);
         orchestrator.dispatch(plan, true);
         return plan;
@@ -58,6 +63,7 @@ public class TaskPlanCommandService {
 
     public TaskPlanRecord regenerate(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
+        rateLimiter.check(actor);
         TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, false);
         orchestrator.dispatch(plan, false);
         return plan;
@@ -66,9 +72,14 @@ public class TaskPlanCommandService {
     public UUID save(UUID projectId, UUID planId, SaveTaskPlanVersionRequest request, UUID actor) {
         access.requireAdmin(projectId, actor);
         TaskPlanRecord plan = repository.require(projectId, planId);
-        ensureValid(projectId, plan, request.draft());
+        TaskPlanDraft base = repository.draft(repository.requireVersion(
+                projectId, planId, request.baseVersionId()));
+        TaskPlanDraft normalized = new TaskPlanDraft(
+                request.draft().summary(), request.draft().assumptions(), request.draft().risks(),
+                request.draft().milestones(), request.draft().tasks(), base.sources());
+        ensureValid(projectId, plan, normalized);
         return repository.appendVersion(projectId, planId, request.baseVersionId(),
-                "MANUAL_EDIT", request.baseVersionId(), request.draft(), actor);
+                "MANUAL_EDIT", request.baseVersionId(), normalized, actor);
     }
 
     public UUID restore(UUID projectId, UUID planId, UUID versionId, UUID actor) {
