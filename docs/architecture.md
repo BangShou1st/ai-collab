@@ -728,3 +728,11 @@ Knowledge Controller 只调用应用服务。应用服务先校验项目成员�
 Embedding 与 Chat HTTP 调用都发生在数据库事务外。Chat 使用独立的 `chat.*` 配置和 Spring `RestClient`，仅支持非流式 `chat/completions`；未配置时应用仍可启动，实际提问返回稳定 503。超时最多重试一次，供应商额度、超时、非法响应和其他错误分别映射到稳定业务错误。当前没有 reranker、工具调用或流式输出。
 
 模型输出只允许引用本次上下文的 `[S#]`。无有效引用或模型固定拒答时降级为证据不足；混合有效和无效引用时移除无效编号并仅保存实际使用的来源。最终持久化锁定个人会话行，在同一短事务中写入 USER、ASSISTANT、citations 并更新时间。Redis 不可用时限流退化到带惰性清理的进程内计数器，核心协作和应用启动不依赖 Redis 可用性。
+
+## 16. Phase 08 AI 任务规划
+
+`planning` 按 API、application、domain、infrastructure 分层。Controller 只处理 HTTP；`TaskPlanGenerationOrchestrator` 在独立 `planningTaskExecutor` 中调用模型；`TaskPlanOutputParser` 只解析 JSON；`TaskPlanDraftValidator` 是 AI 完整结果、人工保存、恢复和确认的统一领域入口。骨架写入 `AI_SKELETON` 后才启动细节，细节必须保持 tempKey、标题、目标和所属里程碑不变。
+
+每次异步写回同时匹配 plan、generation sequence、active attempt 和允许状态。取消会增加 sequence、清空 active attempt 并标记 cancel requested，因此无法及时中断的 HTTP 返回也只能进入 DISCARDED。超过十分钟的生成/确认由恢复任务按 `PROCESS_RESTARTED` 收尾。
+
+版本正文只插入。人工保存锁定 plan 并比较 `baseVersionId`；确认以数据库 confirmation 的项目级幂等键和 plan 唯一约束为事实来源。正式里程碑、任务、依赖和来源字段在一个事务内创建，失败后没有部分数据。Redis 仅用于成本限流加速，不参与确认正确性。

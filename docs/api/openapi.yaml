@@ -945,7 +945,7 @@ paths:
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
         '504': { $ref: '#/components/responses/GatewayTimeout' }
   /projects/{projectId}/ai/task-plans:
-    x-implementation-status: planned
+    x-implementation-status: implemented
     parameters:
       - $ref: '#/components/parameters/ProjectId'
     get:
@@ -975,7 +975,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaskPlanEnvelope'
   /projects/{projectId}/ai/task-plans/{planId}:
-    x-implementation-status: planned
+    x-implementation-status: implemented
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/PlanId'
@@ -995,14 +995,19 @@ paths:
       responses:
         '204':
           description: Deleted
-  /projects/{projectId}/ai/task-plans/{planId}/draft:
-    x-implementation-status: planned
+  /projects/{projectId}/ai/task-plans/{planId}/versions:
+    x-implementation-status: implemented
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/PlanId'
-    put:
+    get:
       tags: [TaskPlans]
-      summary: Replace editable plan draft
+      summary: List immutable plan versions
+      responses:
+        '200': { description: Immutable version summaries }
+    post:
+      tags: [TaskPlans]
+      summary: Save a MANUAL_EDIT immutable version
       requestBody:
         required: true
         content:
@@ -1010,16 +1015,53 @@ paths:
             schema:
               $ref: '#/components/schemas/TaskPlanDraft'
       responses:
-        '200':
-          description: Draft replaced
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskPlanEnvelope'
+        '200': { description: New immutable version id }
+        '409': { $ref: '#/components/responses/Conflict' }
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
+  /projects/{projectId}/ai/task-plans/{planId}/versions/{versionId}:
+    x-implementation-status: implemented
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PlanId'
+    get:
+      tags: [TaskPlans]
+      summary: Get one immutable version snapshot
+      responses:
+        '200': { description: Version and complete draft }
+  /projects/{projectId}/ai/task-plans/{planId}/versions/{versionId}/restore:
+    x-implementation-status: implemented
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PlanId'
+    post:
+      tags: [TaskPlans]
+      summary: Copy a historical version into a new RESTORED version
+      responses:
+        '200': { description: Restored immutable version id }
+  /projects/{projectId}/ai/task-plans/{planId}/cancel:
+    x-implementation-status: implemented
+    post:
+      tags: [TaskPlans]
+      summary: Cancel active generation and invalidate late results
+      responses:
+        '202': { description: Cancellation accepted }
+  /projects/{projectId}/ai/task-plans/{planId}/retry-detail:
+    x-implementation-status: implemented
+    post:
+      tags: [TaskPlans]
+      summary: Retry detail generation from the preserved skeleton
+      responses:
+        '202': { description: Detail retry accepted }
+  /projects/{projectId}/ai/task-plans/{planId}/regenerate:
+    x-implementation-status: implemented
+    post:
+      tags: [TaskPlans]
+      summary: Start a new generation sequence from immutable plan input
+      responses:
+        '202': { description: Regeneration accepted }
   /projects/{projectId}/ai/task-plans/{planId}/confirm:
-    x-implementation-status: planned
+    x-implementation-status: implemented
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/PlanId'

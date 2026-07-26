@@ -242,3 +242,9 @@ Phase 06 最终正确性修复新增最小 `V4__document_processing_attempt.sql`
 详情引用查询显式经过 `knowledge_session → knowledge_message → knowledge_citation → document_chunk → project_document`，并在 session、chunk 和 document 三处约束项目归属，避免跨项目引用。引用插入也通过相同项目链路执行 `INSERT ... SELECT`，影响行数不是 1 时整个问答短事务回滚。
 
 Embedding 和 Chat 网络调用不进入数据库事务。得到最终回答后才锁定个人 `knowledge_session` 行，重新确认会话未被删除，然后按至少 1 微秒间隔生成 USER 与 ASSISTANT 的 `created_at`，原子写入两条消息、实际使用的 citations，并把 session `updated_at` 更新为 Assistant 时间。V1 已有表、外键、唯一约束和级联删除足以实现该流程，因此 Phase 07 不新增迁移，也不修改 V1–V4。
+
+## 10. Phase 08 V5 迁移
+
+`V5__create_ai_task_planning.sql` 替换了 V1 中从未接入应用的预留规划草案表组；V1–V4 文件和 checksum 不变。新模型包含 `ai_task_plan`、不可变 `ai_task_plan_version`、逐次模型请求 `ai_task_plan_attempt` 与数据库幂等事实 `ai_task_plan_confirmation`。
+
+核心约束包括 `(plan_id, version_no)`、`(project_id, idempotency_key)`、confirmation 的 `plan_id` 唯一，以及正式数据的 `(source_plan_version_id, source_plan_*_key)` 局部唯一索引。正式 `milestone` 和 `project_task` 来源外键使用 RESTRICT，规划删除不会级联正式数据；数据库触发器拒绝删除 CONFIRMED 规划。未确认规划删除时版本与 attempt 随规划级联清理。
