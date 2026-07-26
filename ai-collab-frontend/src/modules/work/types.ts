@@ -30,6 +30,7 @@ export interface Task {
   version: number
   unfinishedDependencyCount: number
   dependencyIds: string[]
+  sourcePlanId: string | null
 }
 
 export interface TaskComment {

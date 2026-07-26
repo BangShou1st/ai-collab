@@ -10,6 +10,7 @@ import ProjectMembersView from './modules/project/ProjectMembersView.vue'
 import InvitationAcceptView from './modules/project/InvitationAcceptView.vue'
 import DocumentView from './modules/document/DocumentView.vue'
 import KnowledgeView from './modules/knowledge/KnowledgeView.vue'
+import PlanningView from './modules/planning/PlanningView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -25,6 +26,7 @@ export const router = createRouter({
     { path: '/projects/:projectId/members', component: ProjectMembersView, meta: { title: '成员管理' } },
     { path: '/projects/:projectId/documents', component: DocumentView, meta: { title: '项目文档' } },
     { path: '/projects/:projectId/knowledge', component: KnowledgeView, meta: { title: '知识问答' } },
+    { path: '/projects/:projectId/ai-planning', component: PlanningView, meta: { title: 'AI 任务规划' } },
   ],
 })
 

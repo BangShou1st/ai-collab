@@ -22,6 +22,7 @@ const priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
 const route = useRoute()
 const auth = useAuthStore()
 const projectId = route.params.projectId as string
+const highlightedSourcePlanId = computed(() => typeof route.query.sourcePlanId === 'string' ? route.query.sourcePlanId : '')
 const project = ref<Project | null>(null)
 const members = ref<ProjectMember[]>([])
 const milestones = ref<Milestone[]>([])
@@ -433,6 +434,7 @@ onMounted(load)
         </el-select>
       </label>
     </section>
+    <el-alert v-if="highlightedSourcePlanId" title="已高亮显示该 AI 规划创建的任务" type="success" show-icon />
     <section v-loading="loading" class="board-grid">
       <div v-for="status in statuses" :key="status" class="board-column">
         <h2>{{ taskStatusLabel(status) }} <el-tag round>{{ columnTasks(status).length }}</el-tag></h2>
@@ -444,6 +446,7 @@ onMounted(load)
           :opening="openingTaskId === task.id"
           :updating="updatingTaskId === task.id"
           :operation-locked="Boolean(updatingTaskId)"
+          :class="{ 'source-plan-highlight': task.sourcePlanId === highlightedSourcePlanId }"
           @open="openTask"
           @update-status="updateStatus"
         />

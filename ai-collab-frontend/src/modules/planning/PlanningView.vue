@@ -1,0 +1,114 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
+import { normalizeApiError } from '../../api/api-result'
+import PageHeader from '../../shared/PageHeader.vue'
+import { clearConfirmationKey, confirmationKey, planningApi } from './planning-api'
+import { PlanningPoller } from './planning-poller'
+import type { PlanPermissions, TaskPlan, TaskPlanDraft } from './types'
+
+const route = useRoute(), router = useRouter()
+const projectId = computed(() => String(route.params.projectId))
+const plans = ref<TaskPlan[]>([]), selected = ref<TaskPlan | null>(null)
+const permissions = ref<PlanPermissions | null>(null), draft = ref<TaskPlanDraft | null>(null)
+const versions = ref<Array<{ id: string; versionNo: number; sourceType: string }>>([])
+const selectedVersionId = ref(''), snapshot = ref(''), statusFilter = ref(''), errorMessage = ref('')
+const createVisible = ref(false), checked = ref(false)
+const form = reactive({ title: '', goal: '', constraints: '', planStartDate: '', planDueDate: '', maxTaskCount: 20 })
+const poller = new PlanningPoller()
+const dirty = computed(() => draft.value !== null && JSON.stringify(draft.value) !== snapshot.value)
+
+async function list(): Promise<TaskPlan['status'][]> {
+  plans.value = (await planningApi.list(projectId.value, statusFilter.value)).data.data
+  return plans.value.map(plan => plan.status)
+}
+async function open(plan: TaskPlan): Promise<void> {
+  if (dirty.value && !await discard()) return
+  const [detail, history] = await Promise.all([planningApi.detail(projectId.value, plan.id), planningApi.versions(projectId.value, plan.id)])
+  selected.value = detail.data.data.plan; permissions.value = detail.data.data.permissions; versions.value = history.data.data
+  if (selected.value.latestVersionId) await openVersion(selected.value.latestVersionId)
+}
+async function openVersion(id: string): Promise<void> {
+  if (!selected.value) return
+  const result = await planningApi.version(projectId.value, selected.value.id, id)
+  selectedVersionId.value = id; draft.value = structuredClone(result.data.data.draft); snapshot.value = JSON.stringify(draft.value)
+}
+async function create(): Promise<void> {
+  try { const plan = (await planningApi.create(projectId.value, form)).data.data; createVisible.value = false; await list(); await open(plan); startPolling() }
+  catch (error) { errorMessage.value = normalizeApiError(error).message }
+}
+async function action(name: 'cancel' | 'retry-detail' | 'regenerate'): Promise<void> {
+  if (!selected.value || name === 'regenerate' && dirty.value && !await discard()) return
+  await planningApi.action(projectId.value, selected.value.id, name); await refresh(); startPolling()
+}
+async function save(): Promise<void> {
+  if (!selected.value?.latestVersionId || !draft.value) return
+  try { await planningApi.save(projectId.value, selected.value.id, selected.value.latestVersionId, draft.value); await refresh() }
+  catch (error) { errorMessage.value = normalizeApiError(error).message }
+}
+async function confirm(): Promise<void> {
+  if (!selected.value?.latestVersionId || !checked.value) return
+  const versionId = selected.value.latestVersionId, key = confirmationKey(projectId.value, selected.value.id, versionId)
+  try {
+    await planningApi.confirm(projectId.value, selected.value.id, versionId, key)
+    clearConfirmationKey(projectId.value, selected.value.id, versionId)
+    await router.push({ path: `/projects/${projectId.value}/board`, query: { sourcePlanId: selected.value.id } })
+  } catch (error) { errorMessage.value = normalizeApiError(error).message }
+}
+async function refresh(): Promise<void> {
+  const id = selected.value?.id; await list(); const current = plans.value.find(plan => plan.id === id)
+  if (current && !dirty.value) await open(current)
+}
+function startPolling(): void { poller.start(async () => { const statuses = await list(); if (selected.value && !dirty.value) await refresh(); return statuses }) }
+async function discard(): Promise<boolean> { try { await ElMessageBox.confirm('未保存修改将被丢弃，是否继续？', '未保存保护'); return true } catch { return false } }
+function beforeUnload(event: BeforeUnloadEvent): void { if (dirty.value) event.preventDefault() }
+onMounted(async () => { window.addEventListener('beforeunload', beforeUnload); await list(); startPolling() })
+onBeforeUnmount(() => { poller.stop(); window.removeEventListener('beforeunload', beforeUnload) })
+</script>
+
+<template>
+  <main class="workspace-page">
+    <PageHeader eyebrow="AI 辅助" title="AI 任务规划" description="两阶段生成、不可变版本审阅与原子落地。">
+      <template #actions><el-button type="primary" @click="createVisible = true">创建规划</el-button></template>
+    </PageHeader>
+    <el-alert v-if="errorMessage" :title="errorMessage" type="error" />
+    <el-select v-model="statusFilter" clearable placeholder="全部状态" @change="list">
+      <el-option v-for="s in ['SKELETON_GENERATING','DETAIL_GENERATING','DETAIL_GENERATION_FAILED','READY','CONFIRMED','FAILED','CANCELED']" :key="s" :value="s" />
+    </el-select>
+    <section class="planning-layout">
+      <el-card>
+        <button v-for="plan in plans" :key="plan.id" class="planning-list-item" @click="open(plan)">
+          <strong>{{ plan.title }}</strong><el-tag>{{ plan.status }}</el-tag><small>{{ plan.goal }} · v{{ plan.latestVersionNo }}</small>
+        </button>
+      </el-card>
+      <el-card v-if="selected">
+        <template #header><div class="actions"><strong>{{ selected.title }}</strong>
+          <el-button v-if="permissions?.canCancel" @click="action('cancel')">取消</el-button>
+          <el-button v-if="permissions?.canRetryDetail" @click="action('retry-detail')">重试细节</el-button>
+          <el-button v-if="permissions?.canRegenerate" @click="action('regenerate')">重新生成</el-button>
+        </div></template>
+        <el-alert v-if="selected.lastErrorSummary" :title="selected.lastErrorSummary" type="warning" />
+        <el-select v-model="selectedVersionId" @change="openVersion"><el-option v-for="v in versions" :key="v.id" :label="`v${v.versionNo} ${v.sourceType}`" :value="v.id" /></el-select>
+        <template v-if="draft">
+          <el-input v-model="draft.summary" type="textarea" :readonly="!permissions?.canEdit" />
+          <el-collapse><el-collapse-item v-for="m in draft.milestones" :key="m.tempKey" :title="m.title">
+            <el-input v-model="m.title" :readonly="!permissions?.canEdit" />
+            <div v-for="task in draft.tasks.filter(t => t.milestoneTempKey === m.tempKey)" :key="task.tempKey" class="task-plan-row">
+              <el-input v-model="task.title" :readonly="!permissions?.canEdit" /><el-input v-model="task.description" type="textarea" :readonly="!permissions?.canEdit" />
+            </div>
+          </el-collapse-item></el-collapse>
+          <div class="actions"><el-button v-if="permissions?.canEdit" :disabled="!dirty" @click="save">保存新版本</el-button>
+            <template v-if="permissions?.canConfirm"><el-checkbox v-model="checked">我已检查规划</el-checkbox><el-button type="success" :disabled="!checked || dirty" @click="confirm">确认并创建任务</el-button></template>
+          </div>
+        </template>
+      </el-card>
+    </section>
+    <el-dialog v-model="createVisible" title="创建规划"><el-form label-position="top" @submit.prevent="create">
+      <el-form-item label="标题"><el-input v-model="form.title" /></el-form-item><el-form-item label="目标"><el-input v-model="form.goal" type="textarea" /></el-form-item>
+      <el-form-item label="约束"><el-input v-model="form.constraints" /></el-form-item><el-form-item label="开始"><el-date-picker v-model="form.planStartDate" value-format="YYYY-MM-DD" /></el-form-item>
+      <el-form-item label="截止"><el-date-picker v-model="form.planDueDate" value-format="YYYY-MM-DD" /></el-form-item><el-form-item label="最大任务数"><el-select v-model="form.maxTaskCount"><el-option v-for="n in [10,20,30,40]" :key="n" :value="n" /></el-select></el-form-item>
+      <el-button native-type="submit" type="primary">创建并生成</el-button>
+    </el-form></el-dialog>
+  </main>
+</template>
