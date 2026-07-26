@@ -88,6 +88,12 @@ public class ProjectApplicationService {
     @Transactional
     public void delete(UUID projectId, UUID userId) {
         accessGuard.requireOwner(projectId, userId);
+        if (!projects.lock(projectId)) {
+            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
+        }
+        if (projects.countDocuments(projectId) > 0) {
+            throw new BusinessException(ErrorCode.PROJECT_DOCUMENTS_EXIST);
+        }
         // project_id 外键使用 ON DELETE CASCADE；删除审计以 null project_id 保存，entity_id 仍标识被删项目。
         audit.write(null, userId, "PROJECT_DELETED", "PROJECT", projectId);
         if (!projects.delete(projectId)) {

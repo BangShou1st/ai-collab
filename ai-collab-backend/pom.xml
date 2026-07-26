@@ -28,6 +28,9 @@
     </scm>
     <properties>
         <java.version>21</java.version>
+        <minio.version>9.0.2</minio.version>
+        <okhttp.version>5.3.2</okhttp.version>
+        <tika.version>3.3.0</tika.version>
     </properties>
     <dependencies>
         <dependency>
@@ -82,6 +85,27 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
             <version>3.5.17</version>
+        </dependency>
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>${minio.version}</version>
+        </dependency>
+        <!-- MinIO 9 的 Maven 元数据引用多平台占位 artifact，Java 编译需显式使用 JVM 变体。 -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp-jvm</artifactId>
+            <version>${okhttp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>${tika.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-parsers-standard-package</artifactId>
+            <version>${tika.version}</version>
         </dependency>
     </dependencies>
 

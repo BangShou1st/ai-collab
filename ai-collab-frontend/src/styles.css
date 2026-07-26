@@ -674,6 +674,82 @@ p {
   border-color: #efd6d8;
 }
 
+.document-list-card .el-card__body {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.document-list-card .el-table__row {
+  cursor: pointer;
+}
+
+.document-name {
+  display: grid;
+  gap: 3px;
+}
+
+.document-name small {
+  color: var(--color-text-muted);
+}
+
+.document-dropzone {
+  display: grid;
+  width: 100%;
+  min-height: 160px;
+  place-content: center;
+  gap: 8px;
+  padding: 24px;
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-card);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-raised);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transition-duration) ease, background var(--transition-duration) ease;
+}
+
+.document-dropzone:hover,
+.document-dropzone:focus-visible,
+.document-dropzone.is-dragging {
+  border-color: var(--color-primary);
+  outline: none;
+  background: var(--color-primary-soft);
+}
+
+.document-dropzone strong {
+  color: var(--color-text);
+}
+
+.document-dropzone span {
+  font-size: 13px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.document-detail {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 14px 18px;
+  margin: 0 0 24px;
+}
+
+.document-detail dt {
+  color: var(--color-text-muted);
+}
+
+.document-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 900px) {
   .app-topbar {
     grid-template-columns: 1fr auto;

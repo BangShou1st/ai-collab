@@ -406,6 +406,10 @@ paths:
     delete:
       tags: [Projects]
       summary: Delete project; owner only
+      description: >
+        Locks the project row and refuses deletion with PROJECT_DOCUMENTS_EXIST while any
+        project_document row remains. The owner must delete every document first so MinIO
+        objects cannot be orphaned by a database cascade.
       responses:
         '204':
           description: Deleted
@@ -413,6 +417,9 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: Project still contains documents (PROJECT_DOCUMENTS_EXIST)
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
   /projects/{projectId}/members:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -729,6 +736,7 @@ paths:
     get:
       tags: [Documents]
       summary: List documents
+      description: Project members can list documents, ordered by createdAt descending. Object keys, chunk content, and vectors are never returned.
       responses:
         '200':
           description: Document list
@@ -736,9 +744,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentListEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [Documents]
       summary: Upload document
+      description: >
+        OWNER and ADMIN can upload one validated PDF, DOCX, Markdown, or TXT file.
+        Validation and the private MinIO put happen outside the database transaction.
+        A short registration transaction locks the ACTIVE project row, checks the
+        100-document limit, inserts metadata and audit, and publishes the after-commit event.
+        If registration fails, the already-written object is compensating-deleted.
       requestBody:
         required: true
         content:
@@ -760,10 +776,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '415':
           $ref: '#/components/responses/UnsupportedMediaType'
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /projects/{projectId}/documents/{documentId}:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -771,6 +792,7 @@ paths:
     get:
       tags: [Documents]
       summary: Get document
+      description: A project member can read safe metadata. Cross-project and non-member access use the same 404 response.
       responses:
         '200':
           description: Document detail
@@ -778,12 +800,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
     delete:
       tags: [Documents]
       summary: Delete document and its chunks
+      description: OWNER and ADMIN only. Deletes the private object, chunks, citations through foreign keys, and document row.
       responses:
         '204':
           description: Deleted
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /projects/{projectId}/documents/{documentId}/download-url:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -791,6 +821,7 @@ paths:
     get:
       tags: [Documents]
       summary: Create five-minute presigned download URL
+      description: Project members receive an ephemeral URL for the private bucket. DELETING documents cannot be downloaded.
       responses:
         '200':
           description: Download URL
@@ -798,6 +829,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DownloadUrlEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /projects/{projectId}/documents/{documentId}/retry:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -805,6 +840,10 @@ paths:
     post:
       tags: [Documents]
       summary: Retry failed processing
+      description: >
+        OWNER and ADMIN only. Resets the same FAILED document to UPLOADED and reuses its
+        existing private object. A new processing token is generated when the worker claims
+        the retry; an older worker cannot heartbeat, fail, replace chunks, or complete it.
       responses:
         '202':
           description: Retry accepted
@@ -812,7 +851,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DocumentEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /projects/{projectId}/knowledge/sessions:
+    x-implementation-status: planned
     parameters:
       - $ref: '#/components/parameters/ProjectId'
     get:
@@ -845,6 +890,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/KnowledgeSessionEnvelope'
   /projects/{projectId}/knowledge/sessions/{sessionId}:
+    x-implementation-status: planned
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/SessionId'
@@ -865,6 +911,7 @@ paths:
         '204':
           description: Deleted
   /projects/{projectId}/knowledge/sessions/{sessionId}/questions:
+    x-implementation-status: planned
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/SessionId'
@@ -889,6 +936,7 @@ paths:
         '504':
           $ref: '#/components/responses/GatewayTimeout'
   /projects/{projectId}/ai/task-plans:
+    x-implementation-status: planned
     parameters:
       - $ref: '#/components/parameters/ProjectId'
     get:
@@ -918,6 +966,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaskPlanEnvelope'
   /projects/{projectId}/ai/task-plans/{planId}:
+    x-implementation-status: planned
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/PlanId'
@@ -938,6 +987,7 @@ paths:
         '204':
           description: Deleted
   /projects/{projectId}/ai/task-plans/{planId}/draft:
+    x-implementation-status: planned
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/PlanId'
@@ -960,6 +1010,7 @@ paths:
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
   /projects/{projectId}/ai/task-plans/{planId}/confirm:
+    x-implementation-status: planned
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/PlanId'
@@ -1073,6 +1124,9 @@ components:
       in: query
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
   responses:
+    BadRequest:
+      description: Invalid request or file content
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     Unauthorized:
       description: Unauthorized
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
@@ -1102,6 +1156,12 @@ components:
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     UnprocessableEntity:
       description: Structured or domain validation failed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    BadGateway:
+      description: Embedding provider failed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    ServiceUnavailable:
+      description: Private object storage is unavailable
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
   schemas:
     ApiMeta:
@@ -1523,7 +1583,8 @@ components:
       enum: [UPLOADED, PARSING, INDEXING, READY, FAILED, DELETING]
     DocumentView:
       type: object
-      required: [id, projectId, displayName, originalFilename, mimeType, sizeBytes, status, chunkCount, createdAt, updatedAt]
+      description: Safe document metadata. objectKey, extracted text, chunks, vectors, credentials, and server paths are intentionally absent.
+      required: [id, projectId, displayName, originalFilename, mimeType, sizeBytes, status, chunkCount, uploadedById, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         projectId: { type: string, format: uuid }
@@ -1532,11 +1593,15 @@ components:
         mimeType: { type: string }
         sizeBytes: { type: integer, format: int64 }
         status: { $ref: '#/components/schemas/DocumentStatus' }
+        parserType: { type: [string, 'null'] }
         chunkCount: { type: integer }
         embeddingProvider: { type: [string, 'null'] }
         embeddingModel: { type: [string, 'null'] }
         embeddingDimension: { type: [integer, 'null'] }
         errorMessage: { type: [string, 'null'] }
+        uploadedById: { type: string, format: uuid }
+        uploadedByDisplayName: { type: [string, 'null'] }
+        indexedAt: { type: [string, 'null'], format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     DocumentEnvelope:

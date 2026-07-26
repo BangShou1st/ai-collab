@@ -8,6 +8,7 @@ import TaskBoardView from './modules/work/TaskBoardView.vue'
 import MilestoneView from './modules/work/MilestoneView.vue'
 import ProjectMembersView from './modules/project/ProjectMembersView.vue'
 import InvitationAcceptView from './modules/project/InvitationAcceptView.vue'
+import DocumentView from './modules/document/DocumentView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -21,6 +22,7 @@ export const router = createRouter({
     { path: '/projects/:projectId/board', component: TaskBoardView, meta: { title: '任务看板' } },
     { path: '/projects/:projectId/milestones', component: MilestoneView, meta: { title: '里程碑' } },
     { path: '/projects/:projectId/members', component: ProjectMembersView, meta: { title: '成员管理' } },
+    { path: '/projects/:projectId/documents', component: DocumentView, meta: { title: '项目文档' } },
   ],
 })
 
