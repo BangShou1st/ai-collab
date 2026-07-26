@@ -61,7 +61,7 @@ public class TaskApplicationService {
             UUID projectId, TaskStatus status, UUID assigneeId, UUID milestoneId, UUID userId) {
         access.requireMember(projectId, userId);
         return tasks.list(projectId, status, assigneeId, milestoneId).stream()
-                .map(task -> TaskView.from(task, List.of())).toList();
+                .map(this::view).toList();
     }
 
     @Transactional(readOnly = true)
@@ -144,7 +144,10 @@ public class TaskApplicationService {
     public TaskView replaceDependencies(
             UUID projectId, UUID taskId, ReplaceDependenciesRequest request, UUID userId) {
         permissions.requireAdmin(access.requireMember(projectId, userId));
-        requireTask(projectId, taskId);
+        Set<UUID> nodes = new HashSet<>(tasks.lockProjectTaskIds(projectId));
+        if (!nodes.contains(taskId)) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
         List<UUID> requested = List.copyOf(request.dependencyIds());
         if (new HashSet<>(requested).size() != requested.size()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "依赖任务不能重复");
@@ -152,7 +155,6 @@ public class TaskApplicationService {
         if (requested.contains(taskId)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "任务不能依赖自身");
         }
-        Set<UUID> nodes = new HashSet<>(tasks.listIds(projectId));
         if (!nodes.containsAll(requested)) {
             throw new BusinessException(ErrorCode.TASK_DEPENDENCY_CROSS_PROJECT);
         }
@@ -164,8 +166,9 @@ public class TaskApplicationService {
         graph.put(taskId, requested);
         dependencies.validateAcyclic(nodes, graph);
         tasks.replaceDependencies(projectId, taskId, requested);
+        TaskView refreshed = view(requireTask(projectId, taskId));
         audit.write(projectId, userId, "TASK_DEPENDENCIES_REPLACED", "TASK", taskId);
-        return view(requireTask(projectId, taskId));
+        return refreshed;
     }
 
     private TaskEntity requireTask(UUID projectId, UUID taskId) {

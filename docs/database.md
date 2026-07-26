@@ -136,6 +136,19 @@ V1 创建 `refresh_token`，V2 在不复制或替代迁移 SQL 的前提下扩�
 - 两个任务必须属于同一项目。
 - 当前 `TaskApplicationService` 在一个事务中读取项目全部任务和依赖边，构造替换后的完整图，
   通过 `TaskDependencyPolicy` 的 Kahn 拓扑排序验证无环后才删除旧边并写入新边；任一校验或写入失败会整体回滚。
+- 读取完整依赖图前先执行以下项目作用域行锁 SQL：
+
+  ```sql
+  SELECT id
+  FROM project_task
+  WHERE project_id = #{projectId}
+  ORDER BY id
+  FOR UPDATE
+  ```
+
+  SQL 返回当前项目全部任务 ID，并以固定顺序加锁。锁定结果是后续校验的完整节点集；同一项目的
+  `replaceDependencies` 因共享这组锁而串行执行，不同项目锁定不同任务行。依赖边必须在加锁后重新读取，
+  Kahn 校验、删除旧边和写入新边均处于同一事务，锁随提交或回滚释放。
 - 里程碑、任务和评论的 Mapper 查询均显式携带 `project_id`，评论还携带 `task_id`；
   不能先按全局子资源 ID 查询再补权限判断。
 
