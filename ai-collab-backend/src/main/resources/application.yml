@@ -37,6 +37,26 @@ chat:
     temperature: "${CHAT_TEMPERATURE:0.2}"
     max-output-tokens: "${CHAT_MAX_OUTPUT_TOKENS:1200}"
 
+planning:
+    enabled: "${PLANNING_ENABLED:${CHAT_ENABLED:false}}"
+    provider: "${PLANNING_PROVIDER:${CHAT_PROVIDER:openai-compatible}}"
+    base-url: "${PLANNING_BASE_URL:${CHAT_BASE_URL:}}"
+    path: "${PLANNING_PATH:${CHAT_PATH:/v1/chat/completions}}"
+    api-key: "${PLANNING_API_KEY:${CHAT_API_KEY:}}"
+    model: "${PLANNING_MODEL:${CHAT_MODEL:}}"
+    connect-timeout: "${PLANNING_CONNECT_TIMEOUT:${CHAT_CONNECT_TIMEOUT:5s}}"
+    read-timeout: "${PLANNING_READ_TIMEOUT:${CHAT_READ_TIMEOUT:120s}}"
+    temperature: "${PLANNING_TEMPERATURE:${CHAT_TEMPERATURE:0.2}}"
+    max-output-tokens: "${PLANNING_MAX_OUTPUT_TOKENS:6000}"
+    max-sources: "${PLANNING_MAX_SOURCES:12}"
+    source-codepoint-budget: "${PLANNING_SOURCE_CODEPOINT_BUDGET:16000}"
+    retrieval-threshold: "${PLANNING_RETRIEVAL_THRESHOLD:0.55}"
+    generation-limit-per-user-hour: "${PLANNING_GENERATION_LIMIT_PER_USER_HOUR:10}"
+    executor:
+        core-size: "${PLANNING_EXECUTOR_CORE_SIZE:2}"
+        max-size: "${PLANNING_EXECUTOR_MAX_SIZE:4}"
+        queue-capacity: "${PLANNING_EXECUTOR_QUEUE_CAPACITY:20}"
+
 mybatis-plus:
     type-handlers-package: com.shitulelv.aicollab.common.persistence
 
