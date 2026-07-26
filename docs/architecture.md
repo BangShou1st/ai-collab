@@ -31,6 +31,8 @@ AI Collab（中文展示名：高校竞赛 AI 项目协作平台）面向高校�
 
 ## 2. 功能范围与成功标准
 
+> 当前实现里程碑为 Phase 06。已完成文档上传、私有存储、解析、清洗、分块、向量写入、文档管理和内部检索基础；本阶段不提供知识问答会话、RAG 回答生成、引用展示或 AI 任务规划接口与页面。下列“第一版”条目中标记为后续阶段的能力是目标架构，不代表已经实现。
+
 第一版功能范围包括：
 
 - **认证与邀请**：支持可配置公开注册，`local` 默认开启、非 `local` 环境默认关闭；同时保留 OWNER 或 ADMIN 创建的邀请注册链接。当前认证实现的 JWT Access Token 默认有效期为 30 分钟；单个 Refresh Token 最多存活 14 天，会话绝对期限为 30 天，数据库只保存 Refresh Token 的 SHA-256 摘要。
@@ -38,11 +40,11 @@ AI Collab（中文展示名：高校竞赛 AI 项目协作平台）面向高校�
 - **任务协作**：任务可归属里程碑、负责人和多个前置任务；依赖关系必须是有向无环图；看板按状态展示；评论采用单层结构，不做多级回复。
 - **里程碑**：创建、修改、完成和取消里程碑；保存目标日期和排序号；统计里程碑下任务完成率。
 - **文档知识库**：支持 PDF、DOCX、Markdown 和 TXT；原文件保存在 MinIO，文本和向量保存在 PostgreSQL + pgvector。
-- **RAG 问答**：仅基于当前项目 READY 文档回答并返回引用；资料不足时明确拒答。
-- **AI 任务规划**：根据目标、时间约束和参考文档生成结构化里程碑、任务与依赖草案；用户编辑并确认后才写入正式数据。
+- **RAG 问答（后续阶段）**：仅基于当前项目 READY 文档回答并返回引用；资料不足时明确拒答。
+- **AI 任务规划（后续阶段）**：根据目标、时间约束和参考文档生成结构化里程碑、任务与依赖草案；用户编辑并确认后才写入正式数据。
 - **项目概览与审计**：按状态统计任务数量，计算完成率、逾期任务和里程碑进度，展示最近操作，记录成员、任务、文档和 AI 规划的重要变更。
 
-第一版的完成标准是：邀请、登录和项目协作主链路可用；四类文档可完成解析、分块和向量化；知识问答显示引用；AI 规划可生成、编辑和确认；环境可通过 Docker Compose 与后续 README 在其他电脑复现；默认测试套件不依赖真实大模型额度。
+Phase 06 的完成标准是：既有邀请、登录和项目协作语义不变；四类文档可完成校验、私有存储、解析、分块和向量化；角色权限、失败重试、删除及重启恢复链路可验收；后端与前端构建通过。知识问答与 AI 规划留待后续阶段。
 
 ## 3. 模块化单体架构
 
@@ -253,7 +255,7 @@ public interface TaskDependencyPolicy {
 
 - 创建项目与 OWNER 成员记录；
 - 修改任务与依赖；
-- 删除文档数据库记录与向量；MinIO 删除失败时记录补偿日志；
+- 删除文档数据库记录与向量；MinIO 删除在数据库短事务之前执行，失败时保留 DELETING 记录并返回稳定错误，供同一删除请求重试；
 - 确认 AI 任务规划，批量写入里程碑、任务和依赖。
 
 外部模型调用不放在数据库长事务内。
@@ -264,9 +266,11 @@ public interface TaskDependencyPolicy {
 
 第一版不引入消息队列。文档解析与 AI 任务规划使用 Spring `TaskExecutor` 异步执行，并将状态持久化到数据库：
 
-- 进程重启后，启动恢复任务将停留在 PARSING、INDEXING、GENERATING 超过 10 分钟的记录标记为 FAILED；
+- `DocumentProcessingListener` 的 AFTER_COMMIT 方法不使用 `@Async`，而是同步调用 `DocumentTaskDispatcher`；Dispatcher 才向有界 `documentTaskExecutor` 提交 Runnable。
+- 线程池使用 AbortPolicy，但 Dispatcher 捕获 `TaskRejectedException` 并正常返回，只记录 projectId、documentId 和安全提示。拒绝不会传播回已经提交的上传或 retry，也不会误触发 MinIO 补偿；文档保持 UPLOADED，等待恢复扫描重新领取。
+- 进程启动时及之后每批完成 30 秒后，恢复调度器重新处理 UPLOADED 记录，并只把 `processing_heartbeat_at` 超过 15 分钟且 token 仍匹配的 PARSING、INDEXING 尝试标记为 FAILED；
 - 用户可以手动重试；
-- 每个异步任务记录 `request_id` 和错误摘要。
+- 失败记录保存最长 1,000 字符的安全错误摘要；审计行各自生成 request_id，当前没有跨整个异步 attempt 关联的统一 request_id。
 
 ## 6. 文档处理与索引
 
@@ -287,25 +291,39 @@ flowchart LR
 ### 6.1 上传与解析约束
 
 - 单文件最大 20 MB；每个项目最多 100 个有效文档；文件名最大 180 字符。
+- 文件校验和 MinIO `put` 均在数据库事务外执行；随后由独立 `DocumentRegistrationService` 开启短事务，锁定 ACTIVE 项目行、检查数量上限、插入文档、写审计并发布事件。注册失败时补偿删除对象，补偿日志仅记录对象键 SHA-256 短摘要。
+- 项目删除与文档注册锁定同一 `project` 行。项目存在任意 `project_document` 时返回 `PROJECT_DOCUMENTS_EXIST`，用户必须先逐一删除文档；PostgreSQL 事务不会被描述成能够删除 MinIO 对象。
 - 允许 `.pdf`、`.docx`、`.md`、`.txt`，同时校验扩展名、MIME 和文件头。
-- MinIO 对象键为 `projects/{projectId}/documents/{documentId}/{safeFilename}`，不使用用户原始路径。
+- MinIO 对象键为 `projects/{projectId}/documents/{documentId}/source.{extension}`，不使用用户原始路径。
 - 使用 Apache Tika 统一提取文本。
-- PDF 提取段落，第一版不对扫描版 PDF 做 OCR；DOCX 保留标题和段落顺序；Markdown 保留标题层级并移除脚本和危险 HTML；TXT 按 UTF-8 读取。旧 RAG 文档将解析失败码写为 `DOC_PARSE_FAILED`，错误码目录写为 `DOCUMENT_PARSE_FAILED`；这是待确认的既有命名冲突，本次合并不改接口语义。
-- 解析超时 60 秒，最多提取 2,000,000 字符，压缩文档嵌套深度限制 10；不执行宏、脚本、外部实体、远程资源或外部链接。
+- PDF 提取文本，第一版不对扫描版 PDF 做 OCR；DOCX 通过 Tika 提取正文；Markdown 保留 `#` 标题文本；TXT 按严格 UTF-8 读取。统一失败码为 `DOCUMENT_PARSE_FAILED`。
+- Tika 正文最多提取 2,000,000 字符，TXT/Markdown 的输入字节也受对应上限约束；`EmbeddedDocumentExtractor` 明确拒绝递归附件。解析结果仅作为纯文本清洗和分块输入，不执行宏、脚本、外部实体、远程资源或外部链接。供应商解析器对所有恶意文件的覆盖仍需持续验证。
 
 ### 6.2 清洗、分块与 Embedding
 
-清洗时统一换行符，将连续空行压缩为最多两个，删除页眉页脚的高频重复行，保留标题文本，将表格转换为逐行文本而不恢复复杂版式。
+清洗时统一换行符，删除 NUL、BOM 和不可见控制字符，归一化行内空白，并将连续空行压缩为最多两个。标题及 Tika 提取出的表格纯文本会保留，但当前版本不推断或删除页眉页脚，也不恢复复杂表格版式。
 
 分块先按 Markdown/Word 标题边界切分，再按段落合并：
 
-- 目标块长度为 800 中文字符或约 600 Token；
-- 最大块长度为 1,200 中文字符；
-- 相邻块重叠 120 中文字符；
-- 小于 120 字符的孤立块与前一块合并；
+- 目标块长度约为 1,200 个 Java 字符；
+- 优先按标题、段落和句子边界切分，超长单元再按目标长度硬切；
+- 相邻块重叠约 150 个字符；
+- 每个文档最多生成 1,000 个非空块，heading 最多 300 个 Unicode code point，边界与截断不切断 UTF-16 代理对；
 - 每块保存 projectId、documentId、filename、heading、chunkNo 和 contentHash。
 
-Chat Model 与 Embedding Model 分开配置。文档索引时记录 provider、model 和 dimension。同一项目可以保留不同 Embedding 模型的历史文档，但一次查询只检索与当前模型和维度一致的文档。管理员切换 Embedding 模型后，旧文档显示 `REINDEX_REQUIRED` 操作提示，由用户手动重建。
+Chat Model 与 Embedding Model 分开配置。Phase 06 通过 Spring `RestClient` 调用 OpenAI-compatible Embeddings API，不引入完整 Spring AI。响应必须具有连续唯一 index、配置维度以及全部非空且有限的数值，NaN、Infinity 和 null 不会进入 pgvector。文档索引时记录 provider、model 和 dimension；内部查询同时过滤这三个字段，避免新查询误用旧模型向量。Phase 06 尚未提供 READY 文档重建索引按钮。
+
+### 6.3 Processing token、心跳与 ABA 防护
+
+V4 为 `project_document` 增加 `processing_token` 和 `processing_heartbeat_at`。每次 worker 从 UPLOADED 领取任务时生成新 UUID；PARSING、INDEXING 的 heartbeat、状态转换、失败记录和最终索引事务都必须同时匹配 projectId、documentId 与该 token。retry 清除旧 token，下一次领取生成新 token；delete 也会立即清除 token，因此旧 worker 即使稍后返回，也不能覆盖新尝试或写回 READY。
+
+retry 的 MinIO 对象存在性检查也在事务外完成，随后由独立短事务执行 FAILED→UPLOADED CAS、审计和事件发布。并发删除时，只有实际删除 `project_document` 一行的事务写 `DOCUMENT_DELETED`，避免重复审计。
+
+PARSING 转入 INDEXING 时立即刷新 `processing_heartbeat_at`；Embedding 每次供应商调用前及成功后继续更新 INDEXING 心跳。更新影响 0 行表示尝试已取消、删除或被替代，后续批次立即停止。最终事务先 `FOR UPDATE`，确认状态与 token，再校验块和向量数量、替换分块、按 token 标记 READY 并写 `DOCUMENT_INDEXED`。失败使用独立短事务，只有 token 条件更新成功才写 `DOCUMENT_PROCESSING_FAILED`。
+
+MinIO 下载流只在当前 worker 线程读取，最多读取 20 MB + 1 字节并关闭；解析线程只接收 byte[] 并自行创建 `ByteArrayInputStream`。`Future.cancel(true)` 是协作式中断，不是 JVM 或操作系统级强制终止；对不响应中断的解析器，真正硬隔离仍需要独立进程。
+
+内部 `DocumentSearchService.search(projectId, query, documentIds, topK)` 不暴露 HTTP。它限制 query 长度与 topK 1～20，先确认指定文档全部属于项目且 READY，再生成查询向量；SQL 同时限定 projectId、READY、可选 documentIds、provider、model、dimension，并返回原文件名和 contentHash，结果按 similarity 降序。
 
 ## 7. RAG 检索、生成与验证
 
@@ -442,7 +460,7 @@ COMMIT
 
 - 任务看板使用五个状态列；第一版不引入拖拽库，通过任务卡菜单变更状态；状态菜单只展示后端状态机允许的目标状态，但服务端仍执行最终校验；支持负责人、优先级和里程碑筛选；任务卡显示标题、负责人、截止日期、优先级和依赖阻塞标记；存在未完成前置任务时显示明确的中文阻塞说明。
 - Phase 05 普通用户界面使用简体中文，角色、状态、优先级和安全错误通过集中映射展示，不直接暴露英文枚举值或错误码。成员、邀请、任务、依赖和评论已接入正式业务页面，当前采用构建检查加手工业务验收。
-- 文档页显示文件名、类型、大小、状态、分块数、Embedding 模型、上传者、更新时间和操作；上传后每 3 秒轮询，最多 10 分钟；FAILED 显示错误摘要和重试按钮，READY 可下载和用于问答，删除需二次确认。
+- 文档页显示文件名、类型、大小、状态、分块数、Embedding 模型、上传者、更新时间和操作；存在处理中记录时，在上一次请求完成 3 秒后继续轮询，全部进入终态或离开页面后停止；FAILED 显示安全错误摘要和重试按钮，删除需二次确认。
 - 知识问答页左侧为会话列表，右侧为消息区；回答支持 Markdown，展示文件名、标题、相似度和片段引用；点击引用打开文档信息抽屉，第一版不做 PDF 页码跳转；`insufficientEvidence=true` 必须明显展示。
 - AI 规划页分为输入、生成状态、编辑确认三步；生成失败时可以重试；草案编辑器包含里程碑表格、任务表格、依赖选择器、风险与假设、来源文档标签；前端基础校验不替代后端校验；确认按钮旁明确提示“确认后将创建正式数据，无法通过此草案再次应用”。
 
@@ -536,7 +554,7 @@ rate:planning:{userId}:{yyyyMMddHH}
 rate:login:{username}
 ```
 
-审计必须记录项目创建、修改、删除；成员邀请、角色修改、移除；任务创建、状态变更、依赖修改、删除；文档上传、重试、删除；AI 规划生成、编辑、确认和失败。审计日志只允许 ADMIN 及以上角色查看，不能通过普通接口修改。
+审计必须记录项目创建、修改、删除；成员邀请、角色修改、移除；任务创建、状态变更、依赖修改、删除；文档 `DOCUMENT_UPLOADED`、`DOCUMENT_RETRY_REQUESTED`、`DOCUMENT_INDEXED`、`DOCUMENT_PROCESSING_FAILED`、`DOCUMENT_DELETED`；AI 规划生成、编辑、确认和失败。所有文档事件统一使用 `PROJECT_DOCUMENT` entityType。审计日志只允许 ADMIN 及以上角色查看，不能通过普通接口修改。
 
 ## 11. 验证与验收策略
 
@@ -601,7 +619,7 @@ curl http://localhost:8080/actuator/health
 本地故障处理约束：
 
 - PostgreSQL 缺少 vector 扩展时，确认使用 `pgvector/pgvector:pg17`，并确认 Flyway 执行 `CREATE EXTENSION IF NOT EXISTS vector;`。
-- 文档长时间停留在 PARSING 时，按 requestId 检查解析线程池；重启后停留超过 10 分钟的任务转为 FAILED，可手动重试。
+- 文档长时间停留在 PARSING/INDEXING 时检查文档线程池；应用重启后，停留超过 15 分钟的任务转为 FAILED，可手动重试，UPLOADED 记录重新参与 CAS 领取。
 - 模型额度用尽时切换默认 Chat Provider 和模型并重启后端；仅切换 Chat Model 不重建向量，切换 Embedding Model 必须重新索引。
 - Windows 环境使用支持 UTF-8 的 VS Code、IntelliJ 或现代记事本打开 Markdown；仓库目录、ZIP 文件名和 Java 包名使用 ASCII。
 
@@ -661,6 +679,7 @@ docker compose -f ai-collab-deploy/docker-compose.yml down -v
 | TASK_ASSIGNEE_NOT_MEMBER | 400 | 负责人不是项目成员 |
 | TASK_DEPENDENCY_CYCLE | 409 | 依赖形成环 |
 | TASK_DEPENDENCY_CROSS_PROJECT | 400 | 依赖任务不属于同一项目 |
+| PROJECT_DOCUMENTS_EXIST | 409 | 项目中仍有文档，必须先删除全部文档 |
 | DOCUMENT_NOT_FOUND | 404 | 文档不存在 |
 | DOCUMENT_UNSUPPORTED_TYPE | 415 | 文件类型不支持 |
 | DOCUMENT_TOO_LARGE | 413 | 文件超过 20 MB |
@@ -692,7 +711,7 @@ docker compose -f ai-collab-deploy/docker-compose.yml down -v
 | 向量库 | PostgreSQL + pgvector | 业务与向量统一，减少组件 |
 | 文件存储 | MinIO | 本地对象存储与预签名 URL |
 | 异步 | TaskExecutor + 状态表 | 不为低流量引入消息队列 |
-| AI 框架 | Spring AI | 与 Spring Boot、pgvector 和工具调用整合 |
+| Phase 06 Embedding 适配 | Spring `RestClient` | 仅调用一个 OpenAI-compatible HTTP 端点，降低额外框架兼容风险 |
 | 模型适配 | AiModelGateway | 隔离供应商 SDK，按 Chat、Planning、Embedding 分开配置 |
 | AI 写操作 | 用户确认后由应用服务执行 | 防止模型越权和误操作 |
 | 向量检索 | 第一版精确余弦检索 | 数据量小，不提前引入 HNSW/IVFFlat 或 reranker |

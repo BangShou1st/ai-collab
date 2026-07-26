@@ -69,6 +69,15 @@ public interface ProjectMapper extends BaseMapper<ProjectEntity> {
     @Select("SELECT name FROM project WHERE id = #{projectId}")
     Optional<String> findNameById(@Param("projectId") UUID projectId);
 
+    @Select("SELECT id FROM project WHERE id = #{projectId} FOR UPDATE")
+    Optional<UUID> lockById(@Param("projectId") UUID projectId);
+
+    @Select("SELECT id FROM project WHERE id = #{projectId} AND status = 'ACTIVE' FOR UPDATE")
+    Optional<UUID> lockActiveById(@Param("projectId") UUID projectId);
+
+    @Select("SELECT count(*) FROM project_document WHERE project_id = #{projectId}")
+    int countDocuments(@Param("projectId") UUID projectId);
+
     @Update("""
             UPDATE project
             SET name = #{name}, description = #{description}, start_date = #{startDate},

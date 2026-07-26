@@ -36,6 +36,15 @@ const taskPriorityLabels: Record<string, string> = {
   URGENT: '紧急',
 }
 
+const documentStatusLabels: Record<string, string> = {
+  UPLOADED: '已上传',
+  PARSING: '解析中',
+  INDEXING: '索引中',
+  READY: '可检索',
+  FAILED: '处理失败',
+  DELETING: '删除中',
+}
+
 export function roleLabel(value: string | null | undefined): string {
   return value ? roleLabels[value] ?? '未知角色' : '未知角色'
 }
@@ -58,6 +67,19 @@ export function taskStatusLabel(value: string | null | undefined): string {
 
 export function taskPriorityLabel(value: string | null | undefined): string {
   return value ? taskPriorityLabels[value] ?? '未知优先级' : '未知优先级'
+}
+
+export function documentStatusLabel(value: string | null | undefined): string {
+  return value ? documentStatusLabels[value] ?? '未知状态' : '未知状态'
+}
+
+export function documentStatusType(
+  value: string,
+): 'info' | 'warning' | 'success' | 'danger' {
+  if (value === 'READY') return 'success'
+  if (value === 'FAILED') return 'danger'
+  if (value === 'PARSING' || value === 'INDEXING' || value === 'DELETING') return 'warning'
+  return 'info'
 }
 
 export function formatDate(value: string | null | undefined): string {
