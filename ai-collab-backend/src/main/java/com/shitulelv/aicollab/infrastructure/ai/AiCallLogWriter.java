@@ -19,6 +19,7 @@ public class AiCallLogWriter {
             UUID id,
             UUID userId,
             UUID projectId,
+            String feature,
             String provider,
             String model,
             String status,
@@ -28,7 +29,7 @@ public class AiCallLogWriter {
             String errorCode,
             UUID requestId) {
         if (mapper.insert(
-                id, userId, projectId, provider, model, status, latencyMs,
+                id, userId, projectId, feature, provider, model, status, latencyMs,
                 promptTokens, completionTokens, errorCode, requestId) != 1) {
             throw new IllegalStateException("AI 调用日志写入失败");
         }

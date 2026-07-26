@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Predicate;
@@ -142,7 +144,8 @@ public class TaskPlanGenerationOrchestrator {
                                                   Predicate<TaskPlanDraft> valid) {
         String raw;
         try {
-            raw = model.generate(SYSTEM, prompt);
+            raw = model.generate(SYSTEM, prompt, feature(expectedStatus),
+                    plan.createdBy(), plan.projectId(), initialAttempt);
         } catch (BusinessException providerFailure) {
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
                     failureStatus(expectedStatus), providerFailure.getErrorCode().name());
@@ -157,12 +160,10 @@ public class TaskPlanGenerationOrchestrator {
         UUID repairAttempt = repository.startRepair(
                 plan.id(), plan.generationSeq(), initialAttempt, expectedStatus, plan.createdBy());
         if (repairAttempt == null) throw new GenerationHandledException();
-        String repairPrompt = "<UNTRUSTED_INVALID_OUTPUT>\n"
-                + PlanningPromptText.escapeUntrusted(raw)
-                + "\n</UNTRUSTED_INVALID_OUTPUT>\n错误码=PLANNING_MODEL_INVALID_OUTPUT"
-                + "\n<JSON_SCHEMA>\n" + DRAFT_SCHEMA + "\n</JSON_SCHEMA>\n只输出 JSON。";
+        String repairPrompt = repairPrompt(raw);
         try {
-            TaskPlanDraft repaired = parser.parse(model.generate(REPAIR_SYSTEM, repairPrompt));
+            TaskPlanDraft repaired = parser.parse(model.generate(REPAIR_SYSTEM, repairPrompt,
+                    "TASK_PLAN_REPAIR", plan.createdBy(), plan.projectId(), repairAttempt));
             if (!valid.test(repaired)) throw new IllegalArgumentException("DOMAIN_VALIDATION_FAILED");
             return new GeneratedDraft(repaired, repairAttempt);
         } catch (RuntimeException secondFailure) {
@@ -175,6 +176,11 @@ public class TaskPlanGenerationOrchestrator {
     private static TaskPlanStatus failureStatus(TaskPlanStatus expected) {
         return expected == TaskPlanStatus.SKELETON_GENERATING
                 ? TaskPlanStatus.FAILED : TaskPlanStatus.DETAIL_GENERATION_FAILED;
+    }
+
+    private static String feature(TaskPlanStatus status) {
+        return status == TaskPlanStatus.SKELETON_GENERATING
+                ? "TASK_PLAN_SKELETON" : "TASK_PLAN_DETAIL";
     }
 
     private boolean validSkeleton(TaskPlanRecord plan, TaskPlanDraft draft) {
@@ -233,6 +239,13 @@ public class TaskPlanGenerationOrchestrator {
         if (failure instanceof BusinessException business) return business.getErrorCode().name();
         return failure.getMessage() != null && failure.getMessage().equals("SKELETON_MUTATED")
                 ? "PLANNING_MODEL_INVALID_OUTPUT" : "PLAN_GENERATION_FAILED";
+    }
+
+    static String repairPrompt(String raw) {
+        return "<UNTRUSTED_INVALID_OUTPUT_BASE64>\n"
+                + Base64.getEncoder().encodeToString(raw.getBytes(StandardCharsets.UTF_8))
+                + "\n</UNTRUSTED_INVALID_OUTPUT_BASE64>\n错误码=PLANNING_MODEL_INVALID_OUTPUT"
+                + "\n<JSON_SCHEMA>\n" + DRAFT_SCHEMA + "\n</JSON_SCHEMA>\n只输出 JSON。";
     }
 
     private record GeneratedDraft(TaskPlanDraft draft, UUID attemptId) {}
