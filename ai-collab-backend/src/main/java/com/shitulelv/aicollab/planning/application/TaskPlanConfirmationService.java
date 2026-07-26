@@ -6,6 +6,7 @@ import com.shitulelv.aicollab.planning.domain.PlanTask;
 import com.shitulelv.aicollab.planning.domain.PlanningRequestHash;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
 import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
+import com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidator;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanVersionRecord;
@@ -26,11 +27,14 @@ public class TaskPlanConfirmationService {
     private final TaskPlanRepository repository;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transactions;
+    private final TaskPlanDraftValidator validator;
 
     public TaskPlanConfirmationService(ProjectAccessGuard access, TaskPlanRepository repository,
-                                       JdbcTemplate jdbc, PlatformTransactionManager manager) {
+                                       JdbcTemplate jdbc, PlatformTransactionManager manager,
+                                       TaskPlanDraftValidator validator) {
         this.access = access; this.repository = repository; this.jdbc = jdbc;
         this.transactions = new TransactionTemplate(manager);
+        this.validator = validator;
     }
 
     public Map<String, Object> confirm(UUID projectId, UUID planId, UUID versionId,
@@ -46,7 +50,8 @@ public class TaskPlanConfirmationService {
                 jdbc.update("UPDATE ai_task_plan SET status='READY',updated_at=now() WHERE id=? AND status='CONFIRMING'", planId);
                 jdbc.update("""
                         UPDATE ai_task_plan_confirmation SET status='FAILED',error_code='INTERNAL_ERROR',
-                          error_summary='规划落地失败，未创建部分数据',completed_at=now(),updated_at=now() WHERE id=?
+                          error_summary='规划落地失败，未创建部分数据',completed_at=now(),updated_at=now()
+                        WHERE id=? AND status='PROCESSING'
                         """, claim.id());
             });
             throw failure;
@@ -61,7 +66,9 @@ public class TaskPlanConfirmationService {
         if (!byKey.isEmpty()) {
             Map<String, Object> row = byKey.getFirst();
             if (!hash.equals(row.get("request_hash"))) throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED);
-            if ("SUCCESS".equals(row.get("status"))) return new Claim((UUID) row.get("id"), response(row));
+            if ("SUCCESS".equals(row.get("status")) || "PROCESSING".equals(row.get("status"))) {
+                return new Claim((UUID) row.get("id"), response(row));
+            }
             jdbc.update("UPDATE ai_task_plan_confirmation SET status='PROCESSING',error_code=NULL,error_summary=NULL,updated_at=now() WHERE id=?",
                     row.get("id"));
             jdbc.update("UPDATE ai_task_plan SET status='CONFIRMING',updated_at=now() WHERE id=?", planId);
@@ -86,6 +93,17 @@ public class TaskPlanConfirmationService {
         if (plan.status() != TaskPlanStatus.CONFIRMING) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
         TaskPlanVersionRecord version = repository.requireVersion(projectId, planId, versionId);
         TaskPlanDraft draft = repository.draft(version);
+        String confirmationStatus = jdbc.queryForObject("""
+                SELECT status FROM ai_task_plan_confirmation WHERE id=? AND plan_id=? FOR UPDATE
+                """, String.class, confirmation, planId);
+        if (!"PROCESSING".equals(confirmationStatus)) {
+            throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+        }
+        var validation = validator.validate(repository.validationContext(plan), draft);
+        if (!validation.valid()) {
+            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED,
+                    "规划校验失败：" + String.join(",", validation.errorCodes()));
+        }
         Map<String, UUID> milestoneIds = new LinkedHashMap<>();
         for (var milestone : draft.milestones()) {
             UUID id = UUID.randomUUID(); milestoneIds.put(milestone.tempKey(), id);

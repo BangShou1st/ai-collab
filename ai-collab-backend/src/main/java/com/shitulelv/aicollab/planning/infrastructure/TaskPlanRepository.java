@@ -107,6 +107,19 @@ public class TaskPlanRepository {
     }
 
     @Transactional
+    public UUID appendGeneratedVersion(UUID projectId, UUID planId, long generationSeq, UUID attemptId,
+                                       TaskPlanStatus expectedStatus, String type, UUID basedOn,
+                                       TaskPlanDraft draft, UUID actor) {
+        TaskPlanRecord plan = lock(projectId, planId);
+        if (plan.generationSeq() != generationSeq || !attemptId.equals(plan.activeAttemptId())
+                || plan.status() != expectedStatus) {
+            finishAttempt(attemptId, "DISCARDED", "PLAN_GENERATION_CANCELED");
+            return null;
+        }
+        return appendVersion(projectId, planId, null, type, basedOn, draft, actor);
+    }
+
+    @Transactional
     public TaskPlanRecord cancel(UUID projectId, UUID planId) {
         TaskPlanRecord plan = lock(projectId, planId);
         if (plan.status() == TaskPlanStatus.CANCELED) return plan;
@@ -180,10 +193,21 @@ public class TaskPlanRepository {
     }
 
     @Transactional
-    public void fail(UUID planId, UUID attemptId, TaskPlanStatus status, String code) {
-        finishAttempt(attemptId, "FAILED", code);
-        jdbc.update("UPDATE ai_task_plan SET status=?,last_error_code=?,last_error_summary=?,updated_at=now() WHERE id=?",
-                status.name(), code, "模型输出未通过安全校验", planId);
+    public void fail(UUID planId, long generationSeq, UUID attemptId,
+                     TaskPlanStatus expectedStatus, TaskPlanStatus status, String code) {
+        Map<String, Object> current = jdbc.queryForMap(
+                "SELECT generation_seq,active_attempt_id,status FROM ai_task_plan WHERE id=? FOR UPDATE", planId);
+        boolean active = ((Number) current.get("generation_seq")).longValue() == generationSeq
+                && attemptId.equals(current.get("active_attempt_id"))
+                && expectedStatus.name().equals(current.get("status"));
+        finishAttempt(attemptId, active ? "FAILED" : "DISCARDED",
+                active ? code : "PLAN_GENERATION_CANCELED");
+        if (!active) return;
+        jdbc.update("""
+                UPDATE ai_task_plan SET status=?,last_error_code=?,last_error_summary=?,updated_at=now()
+                WHERE id=? AND generation_seq=? AND active_attempt_id=? AND status=?
+                """, status.name(), code, "模型输出未通过安全校验", planId,
+                generationSeq, attemptId, expectedStatus.name());
     }
 
     public TaskPlanRecord lock(UUID projectId, UUID planId) {

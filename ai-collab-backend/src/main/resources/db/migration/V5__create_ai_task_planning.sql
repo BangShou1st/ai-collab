@@ -121,7 +121,7 @@ ALTER TABLE ai_task_plan
 CREATE TABLE ai_task_plan_confirmation (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id uuid NOT NULL REFERENCES project(id) ON DELETE CASCADE,
-    plan_id uuid NOT NULL REFERENCES ai_task_plan(id) ON DELETE RESTRICT,
+    plan_id uuid NOT NULL REFERENCES ai_task_plan(id) ON DELETE CASCADE,
     version_id uuid NOT NULL REFERENCES ai_task_plan_version(id) ON DELETE RESTRICT,
     idempotency_key uuid NOT NULL,
     request_hash char(64) NOT NULL,

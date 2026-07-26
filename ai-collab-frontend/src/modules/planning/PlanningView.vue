@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { normalizeApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import { clearConfirmationKey, confirmationKey, planningApi } from './planning-api'
 import { PlanningPoller } from './planning-poller'
 import type { PlanPermissions, TaskPlan, TaskPlanDraft } from './types'
+import { projectApi } from '../project/project-api'
 
 const route = useRoute(), router = useRouter()
 const projectId = computed(() => String(route.params.projectId))
@@ -15,9 +16,11 @@ const permissions = ref<PlanPermissions | null>(null), draft = ref<TaskPlanDraft
 const versions = ref<Array<{ id: string; versionNo: number; sourceType: string }>>([])
 const selectedVersionId = ref(''), snapshot = ref(''), statusFilter = ref(''), errorMessage = ref('')
 const createVisible = ref(false), checked = ref(false)
+const canCreate = ref(false), pendingConfirmation = ref<{ versionId: string; key: string } | null>(null)
 const form = reactive({ title: '', goal: '', constraints: '', planStartDate: '', planDueDate: '', maxTaskCount: 20 })
 const poller = new PlanningPoller()
 const dirty = computed(() => draft.value !== null && JSON.stringify(draft.value) !== snapshot.value)
+const editingLatest = computed(() => selectedVersionId.value === selected.value?.latestVersionId)
 
 async function list(): Promise<TaskPlan['status'][]> {
   plans.value = (await planningApi.list(projectId.value, statusFilter.value)).data.data
@@ -43,15 +46,19 @@ async function action(name: 'cancel' | 'retry-detail' | 'regenerate'): Promise<v
   await planningApi.action(projectId.value, selected.value.id, name); await refresh(); startPolling()
 }
 async function save(): Promise<void> {
-  if (!selected.value?.latestVersionId || !draft.value) return
+  if (!selected.value?.latestVersionId || !draft.value || !editingLatest.value) return
   try { await planningApi.save(projectId.value, selected.value.id, selected.value.latestVersionId, draft.value); await refresh() }
   catch (error) { errorMessage.value = normalizeApiError(error).message }
 }
 async function confirm(): Promise<void> {
-  if (!selected.value?.latestVersionId || !checked.value) return
-  const versionId = selected.value.latestVersionId, key = confirmationKey(projectId.value, selected.value.id, versionId)
+  if (!selected.value || !selectedVersionId.value || !checked.value) return
+  const versionId = selectedVersionId.value, key = confirmationKey(projectId.value, selected.value.id, versionId)
   try {
-    await planningApi.confirm(projectId.value, selected.value.id, versionId, key)
+    const result = await planningApi.confirm(projectId.value, selected.value.id, versionId, key)
+    if (result.data.data.status !== 'SUCCESS') {
+      pendingConfirmation.value = { versionId, key }; startPolling(); return
+    }
+    pendingConfirmation.value = null
     clearConfirmationKey(projectId.value, selected.value.id, versionId)
     await router.push({ path: `/projects/${projectId.value}/board`, query: { sourcePlanId: selected.value.id } })
   } catch (error) { errorMessage.value = normalizeApiError(error).message }
@@ -60,17 +67,40 @@ async function refresh(): Promise<void> {
   const id = selected.value?.id; await list(); const current = plans.value.find(plan => plan.id === id)
   if (current && !dirty.value) await open(current)
 }
-function startPolling(): void { poller.start(async () => { const statuses = await list(); if (selected.value && !dirty.value) await refresh(); return statuses }) }
+function startPolling(): void { poller.start(async () => {
+  const statuses = await list()
+  if (pendingConfirmation.value && selected.value) {
+    const pending = pendingConfirmation.value
+    const result = await planningApi.confirm(projectId.value, selected.value.id, pending.versionId, pending.key)
+    if (result.data.data.status === 'SUCCESS') {
+      clearConfirmationKey(projectId.value, selected.value.id, pending.versionId)
+      pendingConfirmation.value = null
+      await router.push({ path: `/projects/${projectId.value}/board`, query: { sourcePlanId: selected.value.id } })
+      return statuses
+    }
+  }
+  if (selected.value && !dirty.value) await refresh()
+  return statuses
+}) }
 async function discard(): Promise<boolean> { try { await ElMessageBox.confirm('未保存修改将被丢弃，是否继续？', '未保存保护'); return true } catch { return false } }
 function beforeUnload(event: BeforeUnloadEvent): void { if (dirty.value) event.preventDefault() }
-onMounted(async () => { window.addEventListener('beforeunload', beforeUnload); await list(); startPolling() })
+onMounted(async () => {
+  window.addEventListener('beforeunload', beforeUnload)
+  canCreate.value = ['OWNER', 'ADMIN'].includes((await projectApi.get(projectId.value)).data.role)
+  await list(); startPolling()
+})
 onBeforeUnmount(() => { poller.stop(); window.removeEventListener('beforeunload', beforeUnload) })
+onBeforeRouteLeave(() => !dirty.value || window.confirm('当前规划有未保存修改，确定离开吗？'))
+watch(projectId, async () => {
+  if (dirty.value && !window.confirm('当前规划有未保存修改，确定切换项目吗？')) return
+  poller.stop(); selected.value = null; draft.value = null; await list(); startPolling()
+})
 </script>
 
 <template>
   <main class="workspace-page">
     <PageHeader eyebrow="AI 辅助" title="AI 任务规划" description="两阶段生成、不可变版本审阅与原子落地。">
-      <template #actions><el-button type="primary" @click="createVisible = true">创建规划</el-button></template>
+      <template #actions><el-button v-if="canCreate" type="primary" @click="createVisible = true">创建规划</el-button></template>
     </PageHeader>
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" />
     <el-select v-model="statusFilter" clearable placeholder="全部状态" @change="list">
@@ -91,14 +121,16 @@ onBeforeUnmount(() => { poller.stop(); window.removeEventListener('beforeunload'
         <el-alert v-if="selected.lastErrorSummary" :title="selected.lastErrorSummary" type="warning" />
         <el-select v-model="selectedVersionId" @change="openVersion"><el-option v-for="v in versions" :key="v.id" :label="`v${v.versionNo} ${v.sourceType}`" :value="v.id" /></el-select>
         <template v-if="draft">
-          <el-input v-model="draft.summary" type="textarea" :readonly="!permissions?.canEdit" />
+          <el-alert v-if="!editingLatest" title="历史版本只读；可先恢复为新版本后编辑" type="info" />
+          <el-input v-model="draft.summary" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" />
           <el-collapse><el-collapse-item v-for="m in draft.milestones" :key="m.tempKey" :title="m.title">
-            <el-input v-model="m.title" :readonly="!permissions?.canEdit" />
+            <el-input v-model="m.title" :readonly="!permissions?.canEdit || !editingLatest" />
             <div v-for="task in draft.tasks.filter(t => t.milestoneTempKey === m.tempKey)" :key="task.tempKey" class="task-plan-row">
-              <el-input v-model="task.title" :readonly="!permissions?.canEdit" /><el-input v-model="task.description" type="textarea" :readonly="!permissions?.canEdit" />
+              <el-input v-model="task.title" :readonly="!permissions?.canEdit || !editingLatest" /><el-input v-model="task.description" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" />
             </div>
           </el-collapse-item></el-collapse>
-          <div class="actions"><el-button v-if="permissions?.canEdit" :disabled="!dirty" @click="save">保存新版本</el-button>
+          <div class="actions"><el-button v-if="permissions?.canEdit && editingLatest" :disabled="!dirty" @click="save">保存新版本</el-button>
+            <el-button v-if="permissions?.canRestore && !editingLatest" @click="planningApi.restore(projectId, selected.id, selectedVersionId).then(refresh)">恢复为新版本</el-button>
             <template v-if="permissions?.canConfirm"><el-checkbox v-model="checked">我已检查规划</el-checkbox><el-button type="success" :disabled="!checked || dirty" @click="confirm">确认并创建任务</el-button></template>
           </div>
         </template>
