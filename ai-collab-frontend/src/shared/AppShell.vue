@@ -64,6 +64,7 @@ async function logout(): Promise<void> {
       <router-link :to="`/projects/${projectId}/milestones`">里程碑</router-link>
       <router-link :to="`/projects/${projectId}/members`">成员管理</router-link>
       <router-link :to="`/projects/${projectId}/documents`">项目文档</router-link>
+      <router-link :to="`/projects/${projectId}/knowledge`">知识问答</router-link>
       <router-link class="project-nav-back" to="/projects">返回项目列表</router-link>
     </nav>
 
