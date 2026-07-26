@@ -111,6 +111,23 @@ class TaskPlanDomainTest {
         assertThat(result.errorCodes()).contains("TASK_TEXT_INVALID", "TASK_PRIORITY_INVALID");
     }
 
+    @Test
+    void validatorReportsNullCollectionElementsWithoutThrowing() {
+        TaskPlanDraft malformed = new TaskPlanDraft("s", List.of(), List.of(),
+                java.util.Arrays.asList((PlanMilestone) null),
+                java.util.Arrays.asList((PlanTask) null),
+                java.util.Arrays.asList((PlanSource) null));
+        ValidationContext context = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(), Set.of());
+
+        ValidationResult result = new TaskPlanDraftValidator().validate(context, malformed);
+
+        assertThat(result.errorCodes()).contains("MILESTONE_NULL", "TASK_NULL", "SOURCE_INVALID");
+        assertThat(new TaskPlanDraftValidator().validateSkeletonPreserved(malformed, malformed).valid()).isFalse();
+    }
+
     private static TaskPlanDraft draftWithTitle(String title) {
         return new TaskPlanDraft("s", List.of(), List.of(),
                 List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 10), 0, List.of())),

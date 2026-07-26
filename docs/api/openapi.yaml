@@ -988,7 +988,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskPlanEnvelope'
+                $ref: '#/components/schemas/TaskPlanDetailEnvelope'
     delete:
       tags: [TaskPlans]
       summary: Delete unconfirmed plan
@@ -1828,39 +1828,58 @@ components:
       enum: [SKELETON_GENERATING, DETAIL_GENERATING, DETAIL_GENERATION_FAILED, READY, CONFIRMING, CONFIRMED, FAILED, CANCELED]
     MilestoneDraft:
       type: object
-      required: [tempKey, name, description, sortOrder]
+      required: [tempKey, title, objective, sortOrder, sourceRefs]
       properties:
-        tempKey: { type: string, pattern: '^M[1-9][0-9]*$' }
-        name: { type: string, minLength: 1, maxLength: 100 }
-        description: { type: string, maxLength: 1000 }
+        tempKey: { type: string, minLength: 1 }
+        title: { type: string, minLength: 1, maxLength: 100 }
+        objective: { type: string, minLength: 1, maxLength: 1000 }
         targetDate: { type: [string, 'null'], format: date }
         sortOrder: { type: integer, minimum: 0 }
+        sourceRefs:
+          type: array
+          maxItems: 5
+          items: { type: string }
     TaskDraft:
       type: object
-      required: [tempKey, milestoneTempKey, title, description, priority, dependencyTempKeys, sourceDocumentIds, sortOrder]
+      required: [tempKey, milestoneTempKey, title, objective, description, priority, dependencyTempKeys, sourceRefs, sortOrder]
       properties:
-        tempKey: { type: string, pattern: '^T[1-9][0-9]*$' }
-        milestoneTempKey: { type: string, pattern: '^M[1-9][0-9]*$' }
+        tempKey: { type: string, minLength: 1 }
+        milestoneTempKey: { type: string, minLength: 1 }
         title: { type: string, minLength: 1, maxLength: 160 }
+        objective: { type: string, minLength: 1, maxLength: 1000 }
         description: { type: string, maxLength: 4000 }
         priority: { $ref: '#/components/schemas/TaskPriority' }
-        estimateHours: { type: [number, 'null'], minimum: 0.5, maximum: 80 }
+        estimatedHours: { type: [number, 'null'], minimum: 0.5, maximum: 80 }
         startDate: { type: [string, 'null'], format: date }
         dueDate: { type: [string, 'null'], format: date }
         suggestedAssigneeId: { type: [string, 'null'], format: uuid }
+        assigneeId: { type: [string, 'null'], format: uuid }
         dependencyTempKeys:
           type: array
           maxItems: 5
           uniqueItems: true
-          items: { type: string, pattern: '^T[1-9][0-9]*$' }
-        sourceDocumentIds:
+          items: { type: string }
+        sourceRefs:
           type: array
+          maxItems: 5
           uniqueItems: true
-          items: { type: string, format: uuid }
+          items: { type: string }
         sortOrder: { type: integer, minimum: 0 }
+    PlanSource:
+      type: object
+      required: [ref, documentId, documentName, quoteText]
+      properties:
+        ref: { type: string }
+        documentId: { type: string, format: uuid }
+        documentName: { type: string }
+        chunkId: { type: [string, 'null'], format: uuid }
+        heading: { type: [string, 'null'] }
+        similarity: { type: [number, 'null'] }
+        quoteText: { type: string }
+        contentHash: { type: [string, 'null'] }
     TaskPlanDraft:
       type: object
-      required: [summary, assumptions, risks, milestones, tasks]
+      required: [summary, assumptions, risks, milestones, tasks, sources]
       properties:
         summary: { type: string, maxLength: 4000 }
         assumptions:
@@ -1880,25 +1899,34 @@ components:
           type: array
           maxItems: 40
           items: { $ref: '#/components/schemas/TaskDraft' }
+        sources:
+          type: array
+          maxItems: 12
+          items: { $ref: '#/components/schemas/PlanSource' }
     TaskPlanView:
       type: object
-      required: [id, projectId, title, goal, planStartDate, planDueDate, maxTaskCount, status, createdAt, updatedAt]
+      required: [id, projectId, title, goal, constraints, planStartDate, planDueDate, maxTaskCount,
+        selectedDocumentIdsJson, status, latestVersionNo, generationSeq, createdBy, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         projectId: { type: string, format: uuid }
         title: { type: string }
         goal: { type: string }
+        constraints: { type: string }
         planStartDate: { type: string, format: date }
         planDueDate: { type: string, format: date }
         maxTaskCount: { type: integer }
         status: { $ref: '#/components/schemas/TaskPlanStatus' }
-        modelProvider: { type: [string, 'null'] }
-        modelName: { type: [string, 'null'] }
-        errorMessage: { type: [string, 'null'] }
-        draft: { oneOf: [{ $ref: '#/components/schemas/TaskPlanDraft' }, { type: 'null' }] }
+        selectedDocumentIdsJson: { type: string }
+        latestVersionNo: { type: integer }
+        latestVersionId: { type: [string, 'null'], format: uuid }
+        generationSeq: { type: integer, format: int64 }
+        activeAttemptId: { type: [string, 'null'], format: uuid }
+        createdBy: { type: string, format: uuid }
+        lastErrorCode: { type: [string, 'null'] }
+        lastErrorSummary: { type: [string, 'null'] }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-        confirmedAt: { type: [string, 'null'], format: date-time }
     TaskPlanEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
@@ -1913,17 +1941,41 @@ components:
             data:
               type: array
               items: { $ref: '#/components/schemas/TaskPlanView' }
+    TaskPlanPermissions:
+      type: object
+      required: [canEdit, canCancel, canRetryDetail, canRegenerate, canConfirm, canDelete, canRestore]
+      properties:
+        canEdit: { type: boolean }
+        canCancel: { type: boolean }
+        canRetryDetail: { type: boolean }
+        canRegenerate: { type: boolean }
+        canConfirm: { type: boolean }
+        canDelete: { type: boolean }
+        canRestore: { type: boolean }
+    TaskPlanDetailEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [plan, permissions]
+              properties:
+                plan: { $ref: '#/components/schemas/TaskPlanView' }
+                permissions: { $ref: '#/components/schemas/TaskPlanPermissions' }
     ApplyTaskPlanResult:
       type: object
-      required: [planId, milestoneIds, taskIds]
+      required: [confirmationId, status]
       properties:
-        planId: { type: string, format: uuid }
+        confirmationId: { type: string, format: uuid }
+        status: { type: string, enum: [PROCESSING, SUCCESS] }
         milestoneIds:
           type: array
           items: { type: string, format: uuid }
         taskIds:
           type: array
           items: { type: string, format: uuid }
+        dependencyCount: { type: [integer, 'null'] }
     ApplyTaskPlanEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'

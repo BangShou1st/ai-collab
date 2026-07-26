@@ -11,6 +11,7 @@ import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanVersionRecord;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.project.application.service.AuditService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -28,13 +29,15 @@ public class TaskPlanConfirmationService {
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transactions;
     private final TaskPlanDraftValidator validator;
+    private final AuditService audit;
 
     public TaskPlanConfirmationService(ProjectAccessGuard access, TaskPlanRepository repository,
                                        JdbcTemplate jdbc, PlatformTransactionManager manager,
-                                       TaskPlanDraftValidator validator) {
+                                       TaskPlanDraftValidator validator, AuditService audit) {
         this.access = access; this.repository = repository; this.jdbc = jdbc;
         this.transactions = new TransactionTemplate(manager);
         this.validator = validator;
+        this.audit = audit;
     }
 
     public Map<String, Object> confirm(UUID projectId, UUID planId, UUID versionId,
@@ -53,6 +56,7 @@ public class TaskPlanConfirmationService {
                           error_summary='规划落地失败，未创建部分数据',completed_at=now(),updated_at=now()
                         WHERE id=? AND status='PROCESSING'
                         """, claim.id());
+                audit.write(projectId, actor, "TASK_PLAN_CONFIRMATION_FAILED", "AI_TASK_PLAN", planId);
             });
             throw failure;
         }
@@ -140,16 +144,20 @@ public class TaskPlanConfirmationService {
                   created_task_ids_json=?::jsonb,created_dependency_count=?,completed_at=now(),updated_at=now()
                 WHERE id=?
                 """, idsJson(milestoneIds.values()), idsJson(taskIds.values()), dependencies, confirmation);
+        audit.write(projectId, actor, "TASK_PLAN_CONFIRMED", "AI_TASK_PLAN", planId);
         return Map.of("confirmationId", confirmation, "status", "SUCCESS",
                 "milestoneIds", List.copyOf(milestoneIds.values()), "taskIds", List.copyOf(taskIds.values()),
                 "dependencyCount", dependencies);
     }
 
     private static Map<String, Object> response(Map<String, Object> row) {
-        return Map.of("confirmationId", row.get("id"), "status", row.get("status"),
-                "milestoneIds", row.get("created_milestone_ids_json"),
-                "taskIds", row.get("created_task_ids_json"),
-                "dependencyCount", row.get("created_dependency_count"));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("confirmationId", row.get("id"));
+        response.put("status", row.get("status"));
+        response.put("milestoneIds", row.get("created_milestone_ids_json"));
+        response.put("taskIds", row.get("created_task_ids_json"));
+        response.put("dependencyCount", row.get("created_dependency_count"));
+        return response;
     }
 
     private static String idsJson(Iterable<UUID> ids) {

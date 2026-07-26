@@ -30,6 +30,10 @@ public class TaskPlanDraftValidator {
         Map<String, PlanMilestone> milestones = new HashMap<>();
         Set<String> allKeys = new HashSet<>();
         for (PlanMilestone milestone : draft.milestones()) {
+            if (milestone == null) {
+                errors.add("MILESTONE_NULL");
+                continue;
+            }
             if (blank(milestone.tempKey()) || blank(milestone.title()) || blank(milestone.objective())
                     || milestone.title().length() > 100 || milestone.objective().length() > 1000) {
                 errors.add("MILESTONE_TEXT_INVALID");
@@ -43,9 +47,16 @@ public class TaskPlanDraftValidator {
         }
         Map<String, PlanTask> tasks = new HashMap<>();
         Set<String> sourceRefs = new HashSet<>();
-        draft.sources().forEach(source -> sourceRefs.add(source.ref()));
+        for (PlanSource source : draft.sources()) {
+            if (source == null || blank(source.ref())) errors.add("SOURCE_INVALID");
+            else sourceRefs.add(source.ref());
+        }
         Set<String> normalizedTitles = new HashSet<>();
         for (PlanTask task : draft.tasks()) {
+            if (task == null) {
+                errors.add("TASK_NULL");
+                continue;
+            }
             if (blank(task.tempKey()) || blank(task.milestoneTempKey()) || blank(task.title())
                     || blank(task.objective()) || blank(task.description())
                     || task.title().length() > 160 || task.objective().length() > 1000
@@ -61,7 +72,7 @@ public class TaskPlanDraftValidator {
             }
         }
         for (PlanMilestone milestone : draft.milestones()) {
-            validateSourceRefs(milestone.sourceRefs(), sourceRefs, errors);
+            if (milestone != null) validateSourceRefs(milestone.sourceRefs(), sourceRefs, errors);
         }
         validateDependencies(tasks, errors);
         return new ValidationResult(sorted(errors), sorted(warnings));
@@ -70,6 +81,10 @@ public class TaskPlanDraftValidator {
     public ValidationResult validateSkeletonPreserved(TaskPlanDraft skeleton, TaskPlanDraft detail) {
         boolean same = skeleton.milestones().size() == detail.milestones().size()
                 && skeleton.tasks().size() == detail.tasks().size()
+                && skeleton.milestones().stream().noneMatch(java.util.Objects::isNull)
+                && detail.milestones().stream().noneMatch(java.util.Objects::isNull)
+                && skeleton.tasks().stream().noneMatch(java.util.Objects::isNull)
+                && detail.tasks().stream().noneMatch(java.util.Objects::isNull)
                 && milestoneIdentities(skeleton).equals(milestoneIdentities(detail))
                 && taskIdentities(skeleton).equals(taskIdentities(detail));
         return same ? new ValidationResult(List.of(), List.of())
@@ -106,6 +121,10 @@ public class TaskPlanDraftValidator {
     private void validateDependencies(Map<String, PlanTask> tasks, Set<String> errors) {
         for (PlanTask task : tasks.values()) {
             for (String dependency : task.dependencyTempKeys()) {
+                if (dependency == null) {
+                    errors.add("DEPENDENCY_REF_INVALID");
+                    continue;
+                }
                 if (dependency.equals(task.tempKey())) errors.add("SELF_DEPENDENCY");
                 PlanTask prerequisite = tasks.get(dependency);
                 if (prerequisite == null) {

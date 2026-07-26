@@ -14,7 +14,7 @@ public interface AiCallLogMapper {
               latency_ms, prompt_tokens, completion_tokens, error_code,
               request_id, created_at)
             VALUES(
-              #{id}, #{userId}, #{projectId}, 'KNOWLEDGE_QA', #{provider},
+              #{id}, #{userId}, #{projectId}, #{feature}, #{provider},
               #{model}, #{status}, #{latencyMs}, #{promptTokens},
               #{completionTokens}, #{errorCode}, #{requestId}, now())
             """)
@@ -22,6 +22,7 @@ public interface AiCallLogMapper {
             @Param("id") UUID id,
             @Param("userId") UUID userId,
             @Param("projectId") UUID projectId,
+            @Param("feature") String feature,
             @Param("provider") String provider,
             @Param("model") String model,
             @Param("status") String status,

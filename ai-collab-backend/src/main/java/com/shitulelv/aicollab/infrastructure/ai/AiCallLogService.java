@@ -45,7 +45,7 @@ public class AiCallLogService {
             String status, long latencyMs, Integer promptTokens,
             Integer completionTokens, String errorCode) {
         try {
-            writer.insert(UUID.randomUUID(), userId, projectId, provider, model,
+            writer.insert(UUID.randomUUID(), userId, projectId, "KNOWLEDGE_QA", provider, model,
                     status, latencyMs, promptTokens, completionTokens, errorCode, requestId);
         } catch (RuntimeException exception) {
             log.warn("AI 调用日志写入失败，requestId={}", requestId);

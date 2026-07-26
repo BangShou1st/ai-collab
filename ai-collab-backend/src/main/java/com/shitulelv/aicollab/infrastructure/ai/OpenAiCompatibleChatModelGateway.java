@@ -30,9 +30,15 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
 
     private final ChatModelProperties properties;
     private final RestClient restClient;
+    private final boolean retryTransientFailures;
 
     public OpenAiCompatibleChatModelGateway(ChatModelProperties properties) {
+        this(properties, true);
+    }
+
+    public OpenAiCompatibleChatModelGateway(ChatModelProperties properties, boolean retryTransientFailures) {
         this.properties = properties;
+        this.retryTransientFailures = retryTransientFailures;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(boundedDuration(
                 properties.connectTimeout(), DEFAULT_CONNECT_TIMEOUT, MAX_CONNECT_TIMEOUT));
@@ -74,7 +80,7 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
                 if (status == 429) {
                     throw new BusinessException(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED);
                 }
-                if (status == 408 && attempt == 0) {
+                if (status == 408 && attempt == 0 && retryTransientFailures) {
                     continue;
                 }
                 if (status == 408) {
@@ -83,7 +89,7 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
                 throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
             } catch (HttpServerErrorException exception) {
                 int status = exception.getStatusCode().value();
-                if (status == 504 && attempt == 0) {
+                if (status == 504 && attempt == 0 && retryTransientFailures) {
                     continue;
                 }
                 if (status == 504) {
@@ -92,7 +98,7 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
                 throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
             } catch (ResourceAccessException exception) {
                 if (causedByTimeout(exception)) {
-                    if (attempt == 0) {
+                    if (attempt == 0 && retryTransientFailures) {
                         continue;
                     }
                     throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
