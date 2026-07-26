@@ -27,6 +27,9 @@ public class TaskEntity {
     private OffsetDateTime completedAt;
     private Integer sortOrder;
     private UUID createdBy;
+    private UUID sourcePlanId;
+    private UUID sourcePlanVersionId;
+    private String sourcePlanTaskKey;
     private Integer version;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
@@ -62,6 +65,12 @@ public class TaskEntity {
     public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
     public UUID getCreatedBy() { return createdBy; }
     public void setCreatedBy(UUID createdBy) { this.createdBy = createdBy; }
+    public UUID getSourcePlanId() { return sourcePlanId; }
+    public void setSourcePlanId(UUID sourcePlanId) { this.sourcePlanId = sourcePlanId; }
+    public UUID getSourcePlanVersionId() { return sourcePlanVersionId; }
+    public void setSourcePlanVersionId(UUID sourcePlanVersionId) { this.sourcePlanVersionId = sourcePlanVersionId; }
+    public String getSourcePlanTaskKey() { return sourcePlanTaskKey; }
+    public void setSourcePlanTaskKey(String sourcePlanTaskKey) { this.sourcePlanTaskKey = sourcePlanTaskKey; }
     public Integer getVersion() { return version; }
     public void setVersion(Integer version) { this.version = version; }
     public OffsetDateTime getCreatedAt() { return createdAt; }

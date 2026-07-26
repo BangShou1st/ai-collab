@@ -19,6 +19,9 @@ public class MilestoneEntity {
     private MilestoneStatus status;
     private Integer sortOrder;
     private UUID createdBy;
+    private UUID sourcePlanId;
+    private UUID sourcePlanVersionId;
+    private String sourcePlanMilestoneKey;
     private Integer version;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
@@ -39,6 +42,12 @@ public class MilestoneEntity {
     public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
     public UUID getCreatedBy() { return createdBy; }
     public void setCreatedBy(UUID createdBy) { this.createdBy = createdBy; }
+    public UUID getSourcePlanId() { return sourcePlanId; }
+    public void setSourcePlanId(UUID sourcePlanId) { this.sourcePlanId = sourcePlanId; }
+    public UUID getSourcePlanVersionId() { return sourcePlanVersionId; }
+    public void setSourcePlanVersionId(UUID sourcePlanVersionId) { this.sourcePlanVersionId = sourcePlanVersionId; }
+    public String getSourcePlanMilestoneKey() { return sourcePlanMilestoneKey; }
+    public void setSourcePlanMilestoneKey(String sourcePlanMilestoneKey) { this.sourcePlanMilestoneKey = sourcePlanMilestoneKey; }
     public Integer getVersion() { return version; }
     public void setVersion(Integer version) { this.version = version; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
