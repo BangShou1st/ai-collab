@@ -56,8 +56,8 @@ public class TaskPlanConfirmationService {
                           error_summary='规划落地失败，未创建部分数据',completed_at=now(),updated_at=now()
                         WHERE id=? AND status='PROCESSING'
                         """, claim.id());
-                audit.write(projectId, actor, "TASK_PLAN_CONFIRMATION_FAILED", "AI_TASK_PLAN", planId);
             });
+            safeAudit(projectId, actor, "TASK_PLAN_CONFIRMATION_FAILED", planId);
             throw failure;
         }
     }
@@ -164,6 +164,14 @@ public class TaskPlanConfirmationService {
         StringBuilder out = new StringBuilder("["); boolean first = true;
         for (UUID id : ids) { if (!first) out.append(','); out.append('"').append(id).append('"'); first = false; }
         return out.append(']').toString();
+    }
+
+    private void safeAudit(UUID projectId, UUID actor, String action, UUID planId) {
+        try {
+            audit.write(projectId, actor, action, "AI_TASK_PLAN", planId);
+        } catch (RuntimeException ignored) {
+            // Compensation state is authoritative and must remain committed if audit storage is unavailable.
+        }
     }
     private record Claim(UUID id, Map<String, Object> replay) {}
 }

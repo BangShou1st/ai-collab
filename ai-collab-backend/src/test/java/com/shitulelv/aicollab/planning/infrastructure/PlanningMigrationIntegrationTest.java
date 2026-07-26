@@ -22,6 +22,9 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 
 @Testcontainers(disabledWithoutDocker = true)
 class PlanningMigrationIntegrationTest {
@@ -179,8 +182,11 @@ class PlanningMigrationIntegrationTest {
                 """);
         try {
             var repository = new TaskPlanRepository(jdbc, new ObjectMapper().findAndRegisterModules());
+            AuditService failingAudit = mock(AuditService.class);
+            doThrow(new IllegalStateException("injected audit failure")).when(failingAudit)
+                    .write(any(), any(), anyString(), anyString(), any());
             var service = new TaskPlanConfirmationService(adminGuard(), repository, jdbc,
-                    new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), mock(AuditService.class));
+                    new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), failingAudit);
 
             assertThatThrownBy(() -> service.confirm(project, plan, version, UUID.randomUUID(), user))
                     .isInstanceOf(Exception.class);
