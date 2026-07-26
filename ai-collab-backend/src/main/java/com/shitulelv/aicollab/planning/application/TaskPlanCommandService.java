@@ -47,7 +47,7 @@ public class TaskPlanCommandService {
         rateLimiter.check(actor);
         validateCreate(projectId, request);
         TaskPlanRecord plan = repository.create(projectId, actor, request);
-        audit.write(projectId, actor, "TASK_PLAN_CREATED", "AI_TASK_PLAN", plan.id());
+        safeAudit(projectId, actor, "TASK_PLAN_CREATED", "AI_TASK_PLAN", plan.id());
         orchestrator.dispatch(plan, false);
         return plan;
     }
@@ -55,7 +55,7 @@ public class TaskPlanCommandService {
     public TaskPlanRecord cancel(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
         TaskPlanRecord plan = repository.cancel(projectId, planId);
-        audit.write(projectId, actor, "TASK_PLAN_CANCELED", "AI_TASK_PLAN", planId);
+        safeAudit(projectId, actor, "TASK_PLAN_CANCELED", "AI_TASK_PLAN", planId);
         return plan;
     }
 
@@ -63,7 +63,7 @@ public class TaskPlanCommandService {
         access.requireAdmin(projectId, actor);
         rateLimiter.check(actor);
         TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, true);
-        audit.write(projectId, actor, "TASK_PLAN_DETAIL_RETRIED", "AI_TASK_PLAN", planId);
+        safeAudit(projectId, actor, "TASK_PLAN_DETAIL_RETRIED", "AI_TASK_PLAN", planId);
         orchestrator.dispatch(plan, true);
         return plan;
     }
@@ -72,7 +72,7 @@ public class TaskPlanCommandService {
         access.requireAdmin(projectId, actor);
         rateLimiter.check(actor);
         TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, false);
-        audit.write(projectId, actor, "TASK_PLAN_REGENERATED", "AI_TASK_PLAN", planId);
+        safeAudit(projectId, actor, "TASK_PLAN_REGENERATED", "AI_TASK_PLAN", planId);
         orchestrator.dispatch(plan, false);
         return plan;
     }
@@ -88,7 +88,7 @@ public class TaskPlanCommandService {
         ensureValid(projectId, plan, normalized);
         UUID version = repository.appendVersion(projectId, planId, request.baseVersionId(),
                 "MANUAL_EDIT", request.baseVersionId(), normalized, actor);
-        audit.write(projectId, actor, "TASK_PLAN_VERSION_SAVED", "AI_TASK_PLAN_VERSION", version);
+        safeAudit(projectId, actor, "TASK_PLAN_VERSION_SAVED", "AI_TASK_PLAN_VERSION", version);
         return version;
     }
 
@@ -100,7 +100,7 @@ public class TaskPlanCommandService {
         ensureValid(projectId, plan, draft);
         UUID restored = repository.appendVersion(projectId, planId, plan.latestVersionId(),
                 "RESTORED", versionId, draft, actor);
-        audit.write(projectId, actor, "TASK_PLAN_VERSION_RESTORED", "AI_TASK_PLAN_VERSION", restored);
+        safeAudit(projectId, actor, "TASK_PLAN_VERSION_RESTORED", "AI_TASK_PLAN_VERSION", restored);
         return restored;
     }
 
@@ -111,7 +111,7 @@ public class TaskPlanCommandService {
         if (!List.of("READY", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED")
                 .contains(plan.status().name())) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
         jdbc.update("DELETE FROM ai_task_plan WHERE id=?", planId);
-        audit.write(projectId, actor, "TASK_PLAN_DELETED", "AI_TASK_PLAN", planId);
+        safeAudit(projectId, actor, "TASK_PLAN_DELETED", "AI_TASK_PLAN", planId);
     }
 
     private void validateCreate(UUID projectId, CreateTaskPlanRequest request) {
@@ -154,5 +154,13 @@ public class TaskPlanCommandService {
         Object[] values = new Object[ids.size() + 1]; values[0] = projectId;
         for (int i = 0; i < ids.size(); i++) values[i + 1] = ids.get(i);
         return values;
+    }
+
+    private void safeAudit(UUID projectId, UUID actor, String action, String entityType, UUID entityId) {
+        try {
+            audit.write(projectId, actor, action, entityType, entityId);
+        } catch (RuntimeException ignored) {
+            // Audit storage must not strand an already committed planning state before dispatch.
+        }
     }
 }
