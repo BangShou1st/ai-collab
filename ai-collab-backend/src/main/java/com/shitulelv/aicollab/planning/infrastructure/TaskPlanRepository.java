@@ -1,0 +1,236 @@
+package com.shitulelv.aicollab.planning.infrastructure;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.planning.api.CreateTaskPlanRequest;
+import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
+import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+@Repository
+public class TaskPlanRepository {
+    private final JdbcTemplate jdbc;
+    private final ObjectMapper json;
+
+    public TaskPlanRepository(JdbcTemplate jdbc, ObjectMapper json) {
+        this.jdbc = jdbc;
+        this.json = json;
+    }
+
+    @Transactional
+    public TaskPlanRecord create(UUID projectId, UUID actor, CreateTaskPlanRequest request) {
+        UUID planId = UUID.randomUUID();
+        UUID attemptId = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO ai_task_plan(id,project_id,title,goal,constraints,plan_start_date,plan_due_date,
+                  max_task_count,selected_document_ids_json,status,active_attempt_id,created_by)
+                VALUES (?,?,?,?,?,?,?, ?,?::jsonb,'SKELETON_GENERATING',?,?)
+                """, planId, projectId, request.title().strip(), request.goal().strip(),
+                request.constraints() == null ? "" : request.constraints(),
+                request.planStartDate(), request.planDueDate(), request.maxTaskCount(),
+                write(request.documentIds() == null ? List.of() : request.documentIds()), attemptId, actor);
+        jdbc.update("""
+                INSERT INTO ai_task_plan_attempt(id,plan_id,attempt_no,generation_seq,stage,status,created_by)
+                VALUES (?,?,1,1,'SKELETON','QUEUED',?)
+                """, attemptId, planId, actor);
+        return require(projectId, planId);
+    }
+
+    public List<TaskPlanRecord> list(UUID projectId, String status, int limit, int offset) {
+        String sql = "SELECT * FROM ai_task_plan WHERE project_id=?"
+                + (status == null || status.isBlank() ? "" : " AND status=?")
+                + " ORDER BY updated_at DESC LIMIT ? OFFSET ?";
+        Object[] args = status == null || status.isBlank()
+                ? new Object[]{projectId, limit, offset} : new Object[]{projectId, status, limit, offset};
+        return jdbc.query(sql, this::plan, args);
+    }
+
+    public TaskPlanRecord require(UUID projectId, UUID planId) {
+        return jdbc.query("SELECT * FROM ai_task_plan WHERE project_id=? AND id=?", this::plan, projectId, planId)
+                .stream().findFirst().orElseThrow(() -> new BusinessException(ErrorCode.TASK_PLAN_NOT_FOUND));
+    }
+
+    public TaskPlanVersionRecord requireVersion(UUID projectId, UUID planId, UUID versionId) {
+        return jdbc.query("""
+                SELECT v.* FROM ai_task_plan_version v JOIN ai_task_plan p ON p.id=v.plan_id
+                WHERE p.project_id=? AND p.id=? AND v.id=?
+                """, this::version, projectId, planId, versionId).stream().findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_PLAN_VERSION_NOT_FOUND));
+    }
+
+    public List<TaskPlanVersionRecord> versions(UUID projectId, UUID planId) {
+        require(projectId, planId);
+        return jdbc.query("SELECT * FROM ai_task_plan_version WHERE plan_id=? ORDER BY version_no DESC",
+                this::version, planId);
+    }
+
+    @Transactional
+    public UUID appendVersion(UUID projectId, UUID planId, UUID expectedBase, String type,
+                              UUID basedOn, TaskPlanDraft draft, UUID actor) {
+        TaskPlanRecord plan = lock(projectId, planId);
+        if (plan.status() != TaskPlanStatus.READY && !type.startsWith("AI_")) stateConflict();
+        if (expectedBase != null && !expectedBase.equals(plan.latestVersionId())) {
+            throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
+        }
+        UUID id = UUID.randomUUID();
+        int next = plan.latestVersionNo() + 1;
+        jdbc.update("""
+                INSERT INTO ai_task_plan_version(id,plan_id,version_no,source_type,based_on_version_id,
+                  generation_seq,summary,assumptions_json,risks_json,milestones_json,tasks_json,sources_json,
+                  validation_result_json,created_by)
+                VALUES (?,?,?,?,?, ?,?,?::jsonb,?::jsonb,?::jsonb,?::jsonb,?::jsonb,
+                  '{"errors":[],"warnings":[]}'::jsonb,?)
+                """, id, planId, next, type, basedOn, plan.generationSeq(), draft.summary(),
+                write(draft.assumptions()), write(draft.risks()), write(draft.milestones()),
+                write(draft.tasks()), write(draft.sources()), actor);
+        jdbc.update("""
+                UPDATE ai_task_plan SET latest_version_no=?,latest_version_id=?,updated_at=now(),
+                  status=CASE WHEN ?='AI_SKELETON' THEN 'DETAIL_GENERATING'
+                              WHEN ?='AI_COMPLETE' THEN 'READY' ELSE status END
+                WHERE id=?
+                """, next, id, type, type, planId);
+        return id;
+    }
+
+    @Transactional
+    public TaskPlanRecord cancel(UUID projectId, UUID planId) {
+        TaskPlanRecord plan = lock(projectId, planId);
+        if (plan.status() == TaskPlanStatus.CANCELED) return plan;
+        if (!plan.status().isGenerating()) stateConflict();
+        jdbc.update("UPDATE ai_task_plan_attempt SET cancel_requested=true,status='CANCELED',updated_at=now() WHERE id=?",
+                plan.activeAttemptId());
+        jdbc.update("""
+                UPDATE ai_task_plan SET status='CANCELED',generation_seq=generation_seq+1,
+                  active_attempt_id=NULL,canceled_at=now(),updated_at=now() WHERE id=?
+                """, planId);
+        return require(projectId, planId);
+    }
+
+    @Transactional
+    public TaskPlanRecord startGeneration(UUID projectId, UUID planId, UUID actor, boolean detailOnly) {
+        TaskPlanRecord plan = lock(projectId, planId);
+        if (detailOnly && plan.status() != TaskPlanStatus.DETAIL_GENERATION_FAILED) stateConflict();
+        if (!detailOnly && !List.of(TaskPlanStatus.READY, TaskPlanStatus.FAILED,
+                TaskPlanStatus.DETAIL_GENERATION_FAILED, TaskPlanStatus.CANCELED).contains(plan.status())) stateConflict();
+        long sequence = detailOnly ? plan.generationSeq() : plan.generationSeq() + 1;
+        UUID attempt = UUID.randomUUID();
+        Integer no = jdbc.queryForObject("SELECT coalesce(max(attempt_no),0)+1 FROM ai_task_plan_attempt WHERE plan_id=?",
+                Integer.class, planId);
+        jdbc.update("""
+                INSERT INTO ai_task_plan_attempt(id,plan_id,attempt_no,generation_seq,stage,status,created_by)
+                VALUES (?,?,?,?,?,'QUEUED',?)
+                """, attempt, planId, no, sequence, detailOnly ? "DETAIL" : "SKELETON", actor);
+        jdbc.update("""
+                UPDATE ai_task_plan SET status=?,generation_seq=?,active_attempt_id=?,canceled_at=NULL,
+                  last_error_code=NULL,last_error_summary=NULL,updated_at=now() WHERE id=?
+                """, detailOnly ? "DETAIL_GENERATING" : "SKELETON_GENERATING", sequence, attempt, planId);
+        return require(projectId, planId);
+    }
+
+    public boolean active(UUID planId, long sequence, UUID attempt, TaskPlanStatus expected) {
+        Integer count = jdbc.queryForObject("""
+                SELECT count(*) FROM ai_task_plan p JOIN ai_task_plan_attempt a ON a.id=p.active_attempt_id
+                WHERE p.id=? AND p.generation_seq=? AND p.active_attempt_id=? AND p.status=?
+                  AND a.cancel_requested=false
+                """, Integer.class, planId, sequence, attempt, expected.name());
+        return count != null && count == 1;
+    }
+
+    @Transactional
+    public UUID startDetailAfterSkeleton(UUID projectId, UUID planId, UUID actor) {
+        TaskPlanRecord plan = lock(projectId, planId);
+        if (plan.status() != TaskPlanStatus.DETAIL_GENERATING) stateConflict();
+        UUID attempt = UUID.randomUUID();
+        Integer no = jdbc.queryForObject("SELECT coalesce(max(attempt_no),0)+1 FROM ai_task_plan_attempt WHERE plan_id=?",
+                Integer.class, planId);
+        jdbc.update("""
+                INSERT INTO ai_task_plan_attempt(id,plan_id,attempt_no,generation_seq,stage,status,created_by)
+                VALUES (?,?,?,?, 'DETAIL','QUEUED',?)
+                """, attempt, planId, no, plan.generationSeq(), actor);
+        jdbc.update("UPDATE ai_task_plan SET active_attempt_id=?,updated_at=now() WHERE id=?", attempt, planId);
+        return attempt;
+    }
+
+    @Transactional
+    public void markRunning(UUID attemptId) {
+        jdbc.update("UPDATE ai_task_plan_attempt SET status='RUNNING',started_at=now(),updated_at=now() WHERE id=?",
+                attemptId);
+    }
+
+    @Transactional
+    public void finishAttempt(UUID attemptId, String status, String errorCode) {
+        jdbc.update("""
+                UPDATE ai_task_plan_attempt SET status=?,error_code=?,finished_at=now(),updated_at=now()
+                WHERE id=?
+                """, status, errorCode, attemptId);
+    }
+
+    @Transactional
+    public void fail(UUID planId, UUID attemptId, TaskPlanStatus status, String code) {
+        finishAttempt(attemptId, "FAILED", code);
+        jdbc.update("UPDATE ai_task_plan SET status=?,last_error_code=?,last_error_summary=?,updated_at=now() WHERE id=?",
+                status.name(), code, "模型输出未通过安全校验", planId);
+    }
+
+    public TaskPlanRecord lock(UUID projectId, UUID planId) {
+        return jdbc.query("SELECT * FROM ai_task_plan WHERE project_id=? AND id=? FOR UPDATE",
+                this::plan, projectId, planId).stream().findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_PLAN_NOT_FOUND));
+    }
+
+    public TaskPlanDraft draft(TaskPlanVersionRecord v) {
+        try {
+            return new TaskPlanDraft(v.summary(),
+                    json.readValue(v.assumptionsJson(), json.getTypeFactory().constructCollectionType(List.class, String.class)),
+                    json.readValue(v.risksJson(), json.getTypeFactory().constructCollectionType(List.class, String.class)),
+                    json.readValue(v.milestonesJson(), json.getTypeFactory().constructCollectionType(List.class,
+                            com.shitulelv.aicollab.planning.domain.PlanMilestone.class)),
+                    json.readValue(v.tasksJson(), json.getTypeFactory().constructCollectionType(List.class,
+                            com.shitulelv.aicollab.planning.domain.PlanTask.class)),
+                    json.readValue(v.sourcesJson(), json.getTypeFactory().constructCollectionType(List.class,
+                            com.shitulelv.aicollab.planning.domain.PlanSource.class)));
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(ErrorCode.PLANNING_MODEL_INVALID_OUTPUT);
+        }
+    }
+
+    private TaskPlanRecord plan(ResultSet r, int n) throws SQLException {
+        return new TaskPlanRecord(r.getObject("id", UUID.class), r.getObject("project_id", UUID.class),
+                r.getString("title"), r.getString("goal"), r.getString("constraints"),
+                r.getObject("plan_start_date", java.time.LocalDate.class),
+                r.getObject("plan_due_date", java.time.LocalDate.class), r.getInt("max_task_count"),
+                r.getString("selected_document_ids_json"), TaskPlanStatus.valueOf(r.getString("status")),
+                r.getInt("latest_version_no"), r.getObject("latest_version_id", UUID.class),
+                r.getLong("generation_seq"), r.getObject("active_attempt_id", UUID.class),
+                r.getObject("created_by", UUID.class), r.getString("last_error_code"),
+                r.getString("last_error_summary"), r.getObject("created_at", java.time.OffsetDateTime.class),
+                r.getObject("updated_at", java.time.OffsetDateTime.class));
+    }
+
+    private TaskPlanVersionRecord version(ResultSet r, int n) throws SQLException {
+        return new TaskPlanVersionRecord(r.getObject("id", UUID.class), r.getObject("plan_id", UUID.class),
+                r.getInt("version_no"), r.getString("source_type"), r.getObject("based_on_version_id", UUID.class),
+                r.getLong("generation_seq"), r.getString("summary"), r.getString("assumptions_json"),
+                r.getString("risks_json"), r.getString("milestones_json"), r.getString("tasks_json"),
+                r.getString("sources_json"), r.getString("validation_result_json"),
+                r.getObject("created_by", UUID.class), r.getObject("created_at", java.time.OffsetDateTime.class));
+    }
+
+    private String write(Object value) {
+        try { return json.writeValueAsString(value); }
+        catch (JsonProcessingException exception) { throw new IllegalArgumentException("JSON serialization failed", exception); }
+    }
+
+    private static void stateConflict() { throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT); }
+}

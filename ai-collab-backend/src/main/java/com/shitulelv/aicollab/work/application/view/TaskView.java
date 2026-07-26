@@ -13,13 +13,13 @@ public record TaskView(
         UUID id, UUID projectId, String title, String description, UUID milestoneId, String milestoneName,
         UUID assigneeId, String assigneeDisplayName, TaskStatus status, TaskPriority priority,
         BigDecimal estimateHours, LocalDate startDate, LocalDate dueDate, int version,
-        int unfinishedDependencyCount, List<UUID> dependencyIds) {
+        int unfinishedDependencyCount, List<UUID> dependencyIds, UUID sourcePlanId) {
     public static TaskView from(TaskEntity entity, List<UUID> dependencyIds) {
         return new TaskView(entity.getId(), entity.getProjectId(), entity.getTitle(), entity.getDescription(),
                 entity.getMilestoneId(), entity.getMilestoneName(), entity.getAssigneeId(),
                 entity.getAssigneeDisplayName(), entity.getStatus(), entity.getPriority(),
                 entity.getEstimateHours(), entity.getStartDate(), entity.getDueDate(), entity.getVersion(),
                 entity.getUnfinishedDependencyCount() == null ? 0 : entity.getUnfinishedDependencyCount(),
-                List.copyOf(dependencyIds));
+                List.copyOf(dependencyIds), entity.getSourcePlanId());
     }
 }
