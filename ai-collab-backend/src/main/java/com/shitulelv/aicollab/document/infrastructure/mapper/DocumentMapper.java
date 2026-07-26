@@ -179,7 +179,7 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
                   #{id}
                 </foreach>
               </if>
-            ORDER BY similarity DESC
+            ORDER BY similarity DESC, c.id ASC
             LIMIT #{topK}
             </script>
             """)
@@ -202,4 +202,16 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             """)
     int countReadyDocuments(@Param("projectId") UUID projectId,
                             @Param("documentIds") List<UUID> documentIds);
+
+    @Select("""
+            <script>
+            SELECT count(*) FROM project_document
+            WHERE project_id=#{projectId} AND id IN
+            <foreach collection="documentIds" item="id" open="(" separator="," close=")">
+              #{id}
+            </foreach>
+            </script>
+            """)
+    int countDocuments(@Param("projectId") UUID projectId,
+                       @Param("documentIds") List<UUID> documentIds);
 }

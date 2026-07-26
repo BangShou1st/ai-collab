@@ -30,9 +30,13 @@ public class DocumentSearchService {
         }
         List<UUID> scopedIds = documentIds == null
                 ? List.of() : documentIds.stream().distinct().toList();
-        if (!scopedIds.isEmpty()
-                && documents.countReadyDocuments(projectId, scopedIds) != scopedIds.size()) {
-            throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
+        if (!scopedIds.isEmpty()) {
+            if (documents.countDocuments(projectId, scopedIds) != scopedIds.size()) {
+                throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
+            }
+            if (documents.countReadyDocuments(projectId, scopedIds) != scopedIds.size()) {
+                throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY);
+            }
         }
         EmbeddingBatch queryEmbedding = embeddings.embed(List.of(normalized));
         if (queryEmbedding.vectors().size() != 1) {

@@ -52,6 +52,18 @@ embedding:
   connect-timeout: "${EMBEDDING_CONNECT_TIMEOUT:5s}"
   read-timeout: "${EMBEDDING_READ_TIMEOUT:60s}"
 
+chat:
+  enabled: "${CHAT_ENABLED:false}"
+  provider: "${CHAT_PROVIDER:openai-compatible}"
+  base-url: "${CHAT_BASE_URL:}"
+  path: "${CHAT_PATH:/v1/chat/completions}"
+  api-key: "${CHAT_API_KEY:}"
+  model: "${CHAT_MODEL:}"
+  connect-timeout: "${CHAT_CONNECT_TIMEOUT:5s}"
+  read-timeout: "${CHAT_READ_TIMEOUT:60s}"
+  temperature: "${CHAT_TEMPERATURE:0.2}"
+  max-output-tokens: "${CHAT_MAX_OUTPUT_TOKENS:1200}"
+
 management:
   endpoints:
     web:
@@ -71,6 +83,7 @@ logging:
     com.shitulelv.aicollab.auth.refresh.mapper: INFO
     # 文档 Mapper 参数可能包含分块正文、metadata 和完整向量，本地环境也禁止输出。
     com.shitulelv.aicollab.document.infrastructure.mapper: INFO
+    com.shitulelv.aicollab.knowledge.infrastructure.mapper: INFO
 
 security:
   jwt:

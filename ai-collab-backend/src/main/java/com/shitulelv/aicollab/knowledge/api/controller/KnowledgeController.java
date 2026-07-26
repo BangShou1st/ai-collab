@@ -1,0 +1,88 @@
+package com.shitulelv.aicollab.knowledge.api.controller;
+
+import com.shitulelv.aicollab.common.api.ApiResponse;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.knowledge.api.dto.CreateKnowledgeSessionRequest;
+import com.shitulelv.aicollab.knowledge.api.dto.KnowledgeQuestionRequest;
+import com.shitulelv.aicollab.knowledge.application.service.KnowledgeQuestionApplicationService;
+import com.shitulelv.aicollab.knowledge.application.service.KnowledgeSessionApplicationService;
+import com.shitulelv.aicollab.knowledge.application.view.KnowledgeAnswerView;
+import com.shitulelv.aicollab.knowledge.application.view.KnowledgeSessionDetailView;
+import com.shitulelv.aicollab.knowledge.application.view.KnowledgeSessionView;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1/projects/{projectId}/knowledge/sessions")
+public class KnowledgeController {
+    private final KnowledgeSessionApplicationService sessions;
+    private final KnowledgeQuestionApplicationService questions;
+
+    public KnowledgeController(
+            KnowledgeSessionApplicationService sessions,
+            KnowledgeQuestionApplicationService questions) {
+        this.sessions = sessions;
+        this.questions = questions;
+    }
+
+    @GetMapping
+    public ApiResponse<List<KnowledgeSessionView>> list(
+            @PathVariable UUID projectId, @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(sessions.list(projectId, userId(jwt)));
+    }
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<KnowledgeSessionView>> create(
+            @PathVariable UUID projectId,
+            @RequestBody(required = false) CreateKnowledgeSessionRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.status(201)
+                .body(ApiResponse.success(sessions.create(projectId, request, userId(jwt))));
+    }
+
+    @GetMapping("/{sessionId}")
+    public ApiResponse<KnowledgeSessionDetailView> detail(
+            @PathVariable UUID projectId,
+            @PathVariable UUID sessionId,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(sessions.detail(projectId, sessionId, userId(jwt)));
+    }
+
+    @DeleteMapping("/{sessionId}")
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID projectId,
+            @PathVariable UUID sessionId,
+            @AuthenticationPrincipal Jwt jwt) {
+        sessions.delete(projectId, sessionId, userId(jwt));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{sessionId}/questions")
+    public ApiResponse<KnowledgeAnswerView> ask(
+            @PathVariable UUID projectId,
+            @PathVariable UUID sessionId,
+            @RequestBody KnowledgeQuestionRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(questions.ask(projectId, sessionId, request, userId(jwt)));
+    }
+
+    private static UUID userId(Jwt jwt) {
+        try {
+            return UUID.fromString(jwt.getSubject());
+        } catch (RuntimeException exception) {
+            throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
+        }
+    }
+}
