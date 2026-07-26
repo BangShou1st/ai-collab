@@ -234,3 +234,11 @@ LIMIT :topK;
 ## 8. Phase 06 迁移结论
 
 Phase 06 最终正确性修复新增最小 `V4__document_processing_attempt.sql`，只增加 processing token 与 heartbeat 两列，并把升级时无法安全续跑的旧处理中记录转为 FAILED。V1、V2、V3 保持不变；既有表、向量列、唯一约束和外键仍由 V1 定义。Flyway 脚本仍是唯一执行事实来源。
+
+## 9. Phase 07 问答隔离、查询与短事务
+
+`knowledge_session` 的所有读写条件都同时包含 `project_id + id + user_id`。项目 OWNER 或 ADMIN 不会因为角色而获得其他成员私人问答会话的读取或删除能力。会话列表固定按 `updated_at DESC, id DESC` 排序；消息固定按 `created_at ASC, id ASC` 排序；引用固定按 `rank ASC` 排序。
+
+详情引用查询显式经过 `knowledge_session → knowledge_message → knowledge_citation → document_chunk → project_document`，并在 session、chunk 和 document 三处约束项目归属，避免跨项目引用。引用插入也通过相同项目链路执行 `INSERT ... SELECT`，影响行数不是 1 时整个问答短事务回滚。
+
+Embedding 和 Chat 网络调用不进入数据库事务。得到最终回答后才锁定个人 `knowledge_session` 行，重新确认会话未被删除，然后按至少 1 微秒间隔生成 USER 与 ASSISTANT 的 `created_at`，原子写入两条消息、实际使用的 citations，并把 session `updated_at` 更新为 Assistant 时间。V1 已有表、外键、唯一约束和级联删除足以实现该流程，因此 Phase 07 不新增迁移，也不修改 V1–V4。

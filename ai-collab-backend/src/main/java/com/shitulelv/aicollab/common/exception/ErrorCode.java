@@ -51,6 +51,13 @@ public enum ErrorCode {
     DOCUMENT_PARSE_FAILED(HttpStatus.UNPROCESSABLE_CONTENT, "文档解析失败"),
     DOCUMENT_EMBEDDING_FAILED(HttpStatus.BAD_GATEWAY, "文档向量化失败，请检查模型配置后重试"),
     DOCUMENT_STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "文件存储服务暂时不可用"),
+    KNOWLEDGE_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "问答会话不存在"),
+    AI_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "问答请求过于频繁，请稍后再试"),
+    AI_PROVIDER_QUOTA_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "模型服务额度不足，请稍后再试"),
+    AI_PROVIDER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "模型服务尚未配置或暂时不可用"),
+    AI_MODEL_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "模型服务响应超时"),
+    AI_PROVIDER_ERROR(HttpStatus.BAD_GATEWAY, "模型服务调用失败"),
+    AI_PROVIDER_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "模型服务返回了无效响应"),
     VERSION_CONFLICT(HttpStatus.CONFLICT, "数据已被其他请求修改，请刷新后重试"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "系统内部错误");
 
