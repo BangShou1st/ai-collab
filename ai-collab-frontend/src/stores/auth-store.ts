@@ -19,6 +19,13 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    establishSession(result: LoginResult): void {
+      this.accessToken = result.accessToken
+      this.currentUser = result.user
+      this.initialized = true
+      this.initializationError = null
+    },
+
     clearAuth(): void {
       this.accessToken = null
       this.currentUser = null
@@ -33,10 +40,23 @@ export const useAuthStore = defineStore('auth', {
       this.authenticating = true
       try {
         const result = await authApi.login(username, password)
-        this.accessToken = result.data.accessToken
-        this.currentUser = result.data.user
-        this.initialized = true
-        this.initializationError = null
+        this.establishSession(result.data)
+        return result
+      } finally {
+        this.authenticating = false
+      }
+    },
+
+    async register(payload: {
+      username: string
+      password: string
+      displayName: string
+      email: string | null
+    }): Promise<ApiResult<LoginResult>> {
+      this.authenticating = true
+      try {
+        const result = await authApi.register(payload)
+        this.establishSession(result.data)
         return result
       } finally {
         this.authenticating = false
@@ -73,12 +93,10 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async logout(): Promise<ApiResult<null>> {
-      try {
-        return await authApi.logout()
-      } finally {
-        this.clearAuth()
-        this.initialized = true
-      }
+      const result = await authApi.logout()
+      this.clearAuth()
+      this.initialized = true
+      return result
     },
 
     async initialize(): Promise<void> {

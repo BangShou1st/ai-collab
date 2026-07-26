@@ -29,6 +29,17 @@ public interface ProjectMemberMapper {
             @Param("role") ProjectRole role,
             @Param("invitedBy") UUID invitedBy);
 
+    @Insert("""
+            INSERT INTO project_member(project_id, user_id, role, invited_by)
+            VALUES (#{projectId}, #{userId}, #{role}, #{invitedBy})
+            ON CONFLICT (project_id, user_id) DO NOTHING
+            """)
+    int insertMemberIfAbsent(
+            @Param("projectId") UUID projectId,
+            @Param("userId") UUID userId,
+            @Param("role") ProjectRole role,
+            @Param("invitedBy") UUID invitedBy);
+
     @Select("""
             SELECT role FROM project_member
             WHERE project_id = #{projectId} AND user_id = #{userId}

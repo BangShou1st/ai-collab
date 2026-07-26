@@ -28,3 +28,7 @@ export interface AccessTokenResult {
 export interface LoginResult extends AccessTokenResult {
   user: CurrentUser
 }
+
+export interface RegistrationPolicy {
+  enabled: boolean
+}

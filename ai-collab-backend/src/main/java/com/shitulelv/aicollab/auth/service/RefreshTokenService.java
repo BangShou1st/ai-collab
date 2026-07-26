@@ -173,6 +173,12 @@ public class RefreshTokenService {
                 current.getSessionId(), RefreshTokenRevokeReason.LOGOUT, now);
     }
 
+    @Transactional
+    public void revokeAllForUser(UUID userId) {
+        refreshTokenRepositoryService.revokeActiveTokensByUserId(
+                userId, OffsetDateTime.ofInstant(clock.instant(), clock.getZone()));
+    }
+
     private static Instant min(Instant first, Instant second) {
         return first.isBefore(second) ? first : second;
     }

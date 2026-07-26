@@ -33,7 +33,7 @@ AI Collab（中文展示名：高校竞赛 AI 项目协作平台）面向高校�
 
 第一版功能范围包括：
 
-- **认证与邀请**：不开放公共注册；OWNER 或 ADMIN 创建邀请链接；被邀请者通过邀请码设置用户名和密码。当前认证实现的 JWT Access Token 默认有效期为 30 分钟；单个 Refresh Token 最多存活 14 天，会话绝对期限为 30 天，数据库只保存 Refresh Token 的 SHA-256 摘要。
+- **认证与邀请**：支持可配置公开注册，`local` 默认开启、非 `local` 环境默认关闭；同时保留 OWNER 或 ADMIN 创建的邀请注册链接。当前认证实现的 JWT Access Token 默认有效期为 30 分钟；单个 Refresh Token 最多存活 14 天，会话绝对期限为 30 天，数据库只保存 Refresh Token 的 SHA-256 摘要。
 - **项目与成员**：创建、查看、修改、归档和删除项目；邀请成员、修改角色、移除成员。
 - **任务协作**：任务可归属里程碑、负责人和多个前置任务；依赖关系必须是有向无环图；看板按状态展示；评论采用单层结构，不做多级回复。
 - **里程碑**：创建、修改、完成和取消里程碑；保存目标日期和排序号；统计里程碑下任务完成率。
@@ -138,16 +138,35 @@ com.shitulelv.aicollab
 
 ```text
 auth/
+├── config/              PublicRegistrationProperties
 ├── controller/          AuthController
-├── dto/                 LoginRequest、LoginResponse、AccessTokenResponse、CurrentUserResponse
+├── dto/                 登录、注册、改密与安全用户响应
 ├── model/               HTTP 与服务之间的内部结果
-├── service/             登录、Access Token、Cookie 与 Refresh 会话编排
+├── service/             登录、公开注册、Access Token、Cookie 与 Refresh 会话编排
 └── refresh/
     ├── entity/          RefreshTokenEntity
     ├── mapper/          RefreshTokenMapper
     ├── model/           RefreshTokenRevokeReason
     └── service/         RefreshTokenRepositoryService
 ```
+
+当前 `work` 模块已经按四层边界实现：
+
+```text
+work/
+├── api/                 里程碑、任务、依赖、评论 Controller 与请求 DTO
+├── application/         事务用例与安全 View
+├── domain/              状态/优先级枚举、Kahn 环检测、状态机和权限策略
+└── infrastructure/      项目作用域 Entity、Mapper 与 Repository
+```
+
+所有子资源查询在 SQL 中携带 `project_id`；评论查询同时携带 `task_id`。`work` 复用
+`ProjectAccessGuard`，Controller 不直接访问 Mapper，也不把前端按钮隐藏作为权限边界。
+
+同一项目的任务依赖图修改在 `TaskApplicationService.replaceDependencies` 的既有事务内串行化：
+权限校验后，Mapper 先按 `project_id` 查询项目全部任务 ID，并以 `ORDER BY id FOR UPDATE`
+按固定顺序锁定这些任务行。锁定结果同时作为完整节点集；随后才读取项目全部依赖边、构造替换后图、
+执行 Kahn 无环校验并写入新边。这样同一项目的并发依赖修改共享同一组数据库行锁，不同项目不会相互阻塞。
 
 完整系统目标中的跨模块基础设施仍保留 `ProjectAccessGuard`、`AiModelGateway`、`ObjectStorageGateway`、`VectorSearchGateway` 等原有边界。当前认证实现实际使用 `common.api.ApiResponse`、`common.exception.ErrorCode`、`BusinessException`、`GlobalExceptionHandler`，以及 `common.security` 下的 `SecurityConfig`、`JwtConfiguration`、`JwtProperties`、`RefreshTokenProperties`、`AuthRequestOriginValidator`、`RestAuthenticationEntryPoint` 和 `RestAccessDeniedHandler`；JWT 验证由 Spring Security Resource Server 完成，不声明当前存在自定义 `JwtAuthenticationFilter`。
 
@@ -238,6 +257,10 @@ public interface TaskDependencyPolicy {
 - 确认 AI 任务规划，批量写入里程碑、任务和依赖。
 
 外部模型调用不放在数据库长事务内。
+
+依赖替换事务内的固定顺序是：校验 OWNER/ADMIN 权限、锁定项目全部任务行、校验目标任务和依赖 ID、
+读取锁定后的完整依赖图、执行 Kahn 校验、删除旧边、写入新边、重新查询任务、写审计并提交。
+锁在事务提交或回滚时由 PostgreSQL 释放；不使用 Java `synchronized`。
 
 第一版不引入消息队列。文档解析与 AI 任务规划使用 Spring `TaskExecutor` 异步执行，并将状态持久化到数据库：
 
@@ -396,7 +419,9 @@ COMMIT
 | 路由 | 页面 |
 |---|---|
 | `/login` | 登录 |
-| `/invite/:code` | 邀请预览与设置账号 |
+| `/register` | 公开注册 |
+| `/invite/:code` | 邀请预览；未登录用户可创建账号加入，已登录用户可直接加入或进入已有项目 |
+| `/account` | 个人资料、密码与登录会话设置 |
 | `/projects` | 我的项目 |
 | `/projects/:projectId/dashboard` | 项目概览 |
 | `/projects/:projectId/board` | 任务看板 |
@@ -407,9 +432,16 @@ COMMIT
 | `/projects/:projectId/members` | 成员管理 |
 | `/projects/:projectId/audit` | 操作日志 |
 
-项目布局左侧提供概览、任务、里程碑、文档、知识问答、AI 规划、成员和日志入口，顶部展示项目名、当前用户和退出入口。前端按角色隐藏入口，但后端权限是唯一可信边界。
+项目布局左侧提供概览、任务、里程碑、文档、知识问答、AI 规划、成员和日志入口，顶部展示项目名和当前用户。账号设置页提供“退出当前设备”和“全部设备退出”，分别撤销当前 Refresh 会话和账号全部 Refresh 会话。开发期 `/auth-test` 调试路由不属于正式页面，已从生产路由移除。前端按角色隐藏入口，但后端权限是唯一可信边界。
 
-- 任务看板使用五个状态列；第一版不引入拖拽库，通过任务卡菜单变更状态；支持负责人、优先级和里程碑筛选；任务卡显示标题、负责人、截止日期、优先级和依赖阻塞标记；BLOCKED 卡片显示未完成前置任务数。
+邀请页自行协调邀请预览与认证初始化，并使用互斥页面状态避免先闪出注册表单。未登录用户可以登录现有
+账号或创建新账号；已登录用户直接调用受保护的当前账号接受接口。已有成员显示数据库中的实际角色并直接
+进入项目，不用邀请角色覆盖成员角色，也不消耗邀请。登录跳转只接受可由前端路由器解析的站内单斜杠路径，
+拒绝协议相对地址、反斜杠、控制字符和外部协议。邀请码、Access Token、Refresh Token 和接受结果均不写入
+浏览器持久化存储。
+
+- 任务看板使用五个状态列；第一版不引入拖拽库，通过任务卡菜单变更状态；状态菜单只展示后端状态机允许的目标状态，但服务端仍执行最终校验；支持负责人、优先级和里程碑筛选；任务卡显示标题、负责人、截止日期、优先级和依赖阻塞标记；存在未完成前置任务时显示明确的中文阻塞说明。
+- Phase 05 普通用户界面使用简体中文，角色、状态、优先级和安全错误通过集中映射展示，不直接暴露英文枚举值或错误码。成员、邀请、任务、依赖和评论已接入正式业务页面，当前采用构建检查加手工业务验收。
 - 文档页显示文件名、类型、大小、状态、分块数、Embedding 模型、上传者、更新时间和操作；上传后每 3 秒轮询，最多 10 分钟；FAILED 显示错误摘要和重试按钮，READY 可下载和用于问答，删除需二次确认。
 - 知识问答页左侧为会话列表，右侧为消息区；回答支持 Markdown，展示文件名、标题、相似度和片段引用；点击引用打开文档信息抽屉，第一版不做 PDF 页码跳转；`insufficientEvidence=true` 必须明显展示。
 - AI 规划页分为输入、生成状态、编辑确认三步；生成失败时可以重试；草案编辑器包含里程碑表格、任务表格、依赖选择器、风险与假设、来源文档标签；前端基础校验不替代后端校验；确认按钮旁明确提示“确认后将创建正式数据，无法通过此草案再次应用”。
@@ -435,7 +467,10 @@ frontend/src/
     └── audit/
 ```
 
-每个前端模块内部可以包含 `pages`、`components`、`api.ts`、`types.ts` 和 `store.ts`。该目录树是保留的前端设计边界；当前仓库尚无前端目录，不在本次文档任务中补建。
+每个前端模块内部可以包含页面组件、API、类型和 Store。当前仓库已实现
+`src/modules/auth`、`account`、`project`、`work`，路由包括 `/register`、`/account`、
+`/projects`、`/projects/:projectId/board` 和 `/projects/:projectId/milestones`。任务看板
+使用五列和选择框更新状态，不引入拖拽库；后端仍是唯一可信权限边界。
 
 状态管理边界：
 
@@ -463,7 +498,9 @@ Axios 拦截器负责添加 Access Token、401 时串行刷新以避免刷新风
 - 所有项目接口先执行 `requireMember(projectId, userId)`，再按操作执行 `requireAdmin` 或 `requireOwner`。
 - 所有写接口必须经过角色校验，不能只依赖前端菜单隐藏。
 
-后续安全增强：数据库已有 `token_version` 字段，但当前 JWT 签发与验证链路尚未实现基于 tokenVersion 的失效策略；“修改密码后递增 tokenVersion 并使旧 Access Token 失效”仍是后续能力，不能视为当前实现。
+修改密码会递增数据库 `token_version` 并在同一事务中撤销该用户全部 Refresh 会话。
+当前 JWT 验证链路仍未按 `token_version` 在线拒绝旧 Access Token，因此已签发 Access Token
+可能继续存活到自身到期；不能声称改密会让它立即失效。
 
 ### 10.2 项目数据隔离与文件安全
 
@@ -501,53 +538,22 @@ rate:login:{username}
 
 审计必须记录项目创建、修改、删除；成员邀请、角色修改、移除；任务创建、状态变更、依赖修改、删除；文档上传、重试、删除；AI 规划生成、编辑、确认和失败。审计日志只允许 ADMIN 及以上角色查看，不能通过普通接口修改。
 
-## 11. 测试分层与 AI 评测
+## 11. 验证与验收策略
 
-测试按以下层次组织：
+当前仓库已移除自动化测试代码、测试配置和测试专用依赖。当前完成证据由以下步骤组成：
 
-- **单元测试**：项目角色策略、任务状态转换、依赖环检测、文件类型校验、文本清洗和分块、RAG 引用验证、AI 草案日期/成员/依赖校验、幂等键冲突。
-- **集成测试**：使用 `pgvector/pgvector:pg17`、Redis 7.4、MinIO Testcontainers，覆盖 Flyway、MyBatis 项目过滤、pgvector 精确检索、MinIO 操作、规划确认回滚。
-- **API 测试**：使用 MockMvc 或 WebTestClient，覆盖 401、403、跨项目资源 404、统一错误体、413 和幂等重试。
-- **前端测试**：Vitest 覆盖 Store、日期格式和依赖编辑器；Vue Test Utils 覆盖任务表单、引用卡片和草案表格；Playwright 覆盖“登录 → 项目 → 上传 → 问答 → 规划确认”主链路。
+1. 后端执行 `.\mvnw.cmd clean package -DskipTests`，确认生产源码编译和打包成功；
+2. 前端执行 `pnpm typecheck` 和 `pnpm build`，确认 TypeScript、Vue SFC 与生产构建成功；
+3. 使用 Docker Compose 启动 PostgreSQL、Redis 等基础设施，并以 `local` Profile 实际启动后端和前端；
+4. 在浏览器中手工验收注册、登录、刷新恢复、退出、项目成员、里程碑、任务依赖、状态和评论主流程；
+5. 结合浏览器 Network、服务端日志和数据库安全元数据检查请求、Cookie、安全存储、Flyway 与数据结构。
 
-默认测试使用 `FakeAiModelGateway` 返回固定 Chat、Embedding 和结构化结果，不调用真实模型。真实供应商测试标记为 `@Tag("ai-live")`，默认 Maven 测试排除，仅在本地有额度时手动运行。
+手工验收不能稳定复现 Refresh 并发，难以证明事务中途失败后的回滚，只能抽样检查跨项目隔离和环检测，
+也不能提供持续的自动回归保护。单元测试、集成测试、API/前端自动化测试、Testcontainers、覆盖率、
+性能测试与 AI 评测可作为后续可选增强，但当前均未实现，不能作为当前仓库正确性的证据。
 
-旧文档规定 RAG 评测集应建立在逻辑路径 `backend/src/test/resources/evaluation/rag-cases.jsonl`，至少 60 条：30 条可回答、15 条资料不足、10 条跨项目越权、5 条 Prompt Injection。当前仓库对应后端目录名为 `ai-collab-backend/`，且该评测文件尚未创建；本任务只保留测试设计，不创建测试资源。每条包含 caseId、projectKey、question、expectedDocument、expectedKeywords 和 answerable，例如：
-
-```json
-{
-  "caseId": "rag-001",
-  "projectKey": "competition-demo",
-  "question": "提交截止时间是什么？",
-  "expectedDocument": "competition-rule.pdf",
-  "expectedKeywords": ["2026-08-31", "截止"],
-  "answerable": true
-}
-```
-
-验收目标是 Retrieval Hit@5 ≥ 0.80、引用正确率 ≥ 0.85、无答案拒答率 ≥ 0.90、跨项目泄漏为 0、Prompt Injection 导致规则失效为 0；这些是开发目标，不是预先声称的成绩。
-
-任务规划使用 20 个固定场景，覆盖不同工期、成员不足、明确评分点、已有里程碑、不存在成员、依赖环和越界日期。目标是首次 JSON 可解析率 ≥ 0.90、一次修复后 ≥ 0.95、后端校验后依赖环为 0、未确认写入为 0、重复确认产生重复任务为 0。
-
-性能测试使用 k6 或 JMeter：20 并发用户查询任务列表 2 分钟，10 并发加载项目概览，5 并发发起使用 Fake 网关的知识问答。目标是非 AI API p95 < 500 ms、错误率 < 1%、项目列表和看板无 N+1、20 MB 上传不占满 JVM 堆。免费模型服务不稳定，因此实际 AI Provider 延迟只记录，不设置硬性 p95。
-
-旧文档给出的测试命令保持如下逻辑：
-
-```bash
-cd backend
-./mvnw clean test
-./mvnw verify -Pintegration
-
-cd ../frontend
-pnpm install
-pnpm test
-pnpm build
-pnpm exec playwright test
-```
-
-当前仓库后端目录名是 `ai-collab-backend/`，且前端目录尚未存在；这是仓库路径/实现进度与旧文档的差异，不在本次合并中通过修改代码或补建模块解决。
-
-完成证据包括 CI 测试结果、RAG 评测 CSV/Markdown、任务规划评测结果、k6/JMeter 报告和关键 Bug 排查记录。
+当前仓库后端与前端目录分别是 `ai-collab-backend/` 和 `ai-collab-frontend/`，部署目录是
+`ai-collab-deploy/`。
 
 ## 12. 本地部署拓扑
 
@@ -577,7 +583,8 @@ flowchart LR
 
 本地初始化用户仅在 `local` Profile 启用，用户名为 `demo_owner`，显示名为 `Demo Owner`，密码由 `DEMO_OWNER_PASSWORD` 提供，不在源码中写固定密码。切换 Chat Model 不需要重建向量；切换 Embedding Model 需要重新索引。
 
-旧部署文档使用逻辑目录 `deploy/`、`backend/`、`frontend/`；当前仓库中对应后端与部署目录为 `ai-collab-backend/`、`ai-collab-deploy/`，前端尚未创建。按当前已存在目录启动基础设施和后端时，命令为：
+旧部署文档使用逻辑目录 `deploy/`、`backend/`、`frontend/`；当前仓库中对应目录为
+`ai-collab-deploy/`、`ai-collab-backend/`、`ai-collab-frontend/`。启动命令为：
 
 ```bash
 docker compose -f ai-collab-deploy/docker-compose.yml up -d
@@ -589,7 +596,7 @@ cd ai-collab-backend
 curl http://localhost:8080/actuator/health
 ```
 
-前端实现存在后，仍按原设计使用 `pnpm install`、`pnpm dev` 并访问 `http://localhost:5173`。
+前端使用 `pnpm install`、`pnpm dev` 并访问 `http://localhost:5173`。
 
 本地故障处理约束：
 
@@ -645,9 +652,10 @@ docker compose -f ai-collab-deploy/docker-compose.yml down -v
 | PROJECT_OWNER_CANNOT_BE_REMOVED | 409 | 不能移除所有者 |
 | MEMBER_ALREADY_EXISTS | 409 | 用户已是成员 |
 | MEMBER_NOT_FOUND | 404 | 成员不存在 |
-| INVITATION_INVALID | 400 | 邀请码无效 |
+| INVITATION_INVALID | 410 | 邀请码无效 |
 | INVITATION_EXPIRED | 410 | 邀请已过期 |
-| INVITATION_ALREADY_USED | 409 | 邀请已使用 |
+| INVITATION_ALREADY_USED | 410 | 邀请已使用 |
+| INVITATION_EMAIL_MISMATCH | 403 | 当前账号邮箱与定向邀请邮箱不匹配 |
 | TASK_NOT_FOUND | 404 | 任务不存在 |
 | TASK_INVALID_STATUS_TRANSITION | 409 | 状态转换非法 |
 | TASK_ASSIGNEE_NOT_MEMBER | 400 | 负责人不是项目成员 |

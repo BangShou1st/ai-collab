@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.common.security;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import com.shitulelv.aicollab.auth.config.PublicRegistrationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -28,7 +29,8 @@ import java.util.UUID;
  * HMAC 编码和解码共享同一环境密钥，启动时校验长度，防止误用弱密钥。
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({JwtProperties.class, RefreshTokenProperties.class, CorsProperties.class})
+@EnableConfigurationProperties({
+        JwtProperties.class, RefreshTokenProperties.class, CorsProperties.class, PublicRegistrationProperties.class})
 public class JwtConfiguration {
 
     @Bean

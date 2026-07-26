@@ -3,19 +3,26 @@ package com.shitulelv.aicollab.project.api.controller;
 import com.shitulelv.aicollab.auth.model.AuthenticationResult;
 import com.shitulelv.aicollab.auth.service.RefreshTokenCookieService;
 import com.shitulelv.aicollab.common.api.ApiResponse;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.api.dto.AcceptInvitationRequest;
 import com.shitulelv.aicollab.project.application.service.InvitationApplicationService;
+import com.shitulelv.aicollab.project.application.view.InvitationAcceptanceView;
 import com.shitulelv.aicollab.project.application.view.InvitationPreview;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/invitations")
@@ -45,5 +52,20 @@ public class InvitationController {
                 .createCookie(result.refreshToken().value(), result.refreshToken().expiresAt())
                 .toString());
         return ResponseEntity.status(201).body(ApiResponse.success(result.loginResponse()));
+    }
+
+    @PostMapping("/{code}/accept-current-user")
+    public ApiResponse<InvitationAcceptanceView> acceptCurrentUser(
+            @PathVariable String code,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(invitations.acceptCurrentUser(code, userId(jwt)));
+    }
+
+    private static UUID userId(Jwt jwt) {
+        try {
+            return UUID.fromString(jwt.getSubject());
+        } catch (RuntimeException exception) {
+            throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
+        }
     }
 }

@@ -4,10 +4,15 @@ import com.shitulelv.aicollab.auth.dto.CurrentUserResponse;
 import com.shitulelv.aicollab.auth.dto.AccessTokenResponse;
 import com.shitulelv.aicollab.auth.dto.LoginRequest;
 import com.shitulelv.aicollab.auth.dto.LoginResponse;
+import com.shitulelv.aicollab.auth.dto.ChangePasswordRequest;
+import com.shitulelv.aicollab.auth.dto.RegisterRequest;
+import com.shitulelv.aicollab.auth.dto.RegistrationPolicyResponse;
 import com.shitulelv.aicollab.auth.model.AuthenticationResult;
 import com.shitulelv.aicollab.auth.model.RefreshResult;
 import com.shitulelv.aicollab.auth.service.AuthService;
 import com.shitulelv.aicollab.auth.service.RefreshTokenCookieService;
+import com.shitulelv.aicollab.auth.service.PublicRegistrationService;
+import com.shitulelv.aicollab.user.service.AccountService;
 import com.shitulelv.aicollab.common.api.ApiResponse;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
@@ -35,12 +40,33 @@ public class AuthController {
 
     private final AuthService authService;
     private final RefreshTokenCookieService refreshTokenCookieService;
+    private final PublicRegistrationService registrations;
+    private final AccountService accounts;
 
     public AuthController(
             AuthService authService,
-            RefreshTokenCookieService refreshTokenCookieService) {
+            RefreshTokenCookieService refreshTokenCookieService,
+            PublicRegistrationService registrations,
+            AccountService accounts) {
         this.authService = authService;
         this.refreshTokenCookieService = refreshTokenCookieService;
+        this.registrations = registrations;
+        this.accounts = accounts;
+    }
+
+    @GetMapping("/registration-policy")
+    public ApiResponse<RegistrationPolicyResponse> registrationPolicy() {
+        return ApiResponse.success(new RegistrationPolicyResponse(registrations.isEnabled()));
+    }
+
+    @PostMapping("/register")
+    public ApiResponse<LoginResponse> register(
+            @Valid @RequestBody RegisterRequest request,
+            HttpServletResponse response) {
+        AuthenticationResult result = registrations.register(request);
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookieService
+                .createCookie(result.refreshToken().value(), result.refreshToken().expiresAt()).toString());
+        return ApiResponse.success(result.loginResponse());
     }
 
     @PostMapping("/login")
@@ -100,6 +126,33 @@ public class AuthController {
         try {
             return ApiResponse.success(authService.getCurrentUser(UUID.fromString(subject)));
         } catch (IllegalArgumentException exception) {
+            throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
+        }
+    }
+
+    @PostMapping("/change-password")
+    public ApiResponse<Void> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletResponse response) {
+        accounts.changePassword(userId(jwt), request);
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookieService.clearCookie().toString());
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/logout-all")
+    public ApiResponse<Void> logoutAll(
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletResponse response) {
+        accounts.logoutAll(userId(jwt));
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookieService.clearCookie().toString());
+        return ApiResponse.success(null);
+    }
+
+    private static UUID userId(Jwt jwt) {
+        try {
+            return UUID.fromString(jwt.getSubject());
+        } catch (RuntimeException exception) {
             throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
         }
     }
