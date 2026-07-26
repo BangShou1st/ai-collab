@@ -21,6 +21,10 @@ public class ProjectMemberRepository {
         mapper.insertMember(projectId, userId, role, invitedBy);
     }
 
+    public boolean createIfAbsent(UUID projectId, UUID userId, ProjectRole role, UUID invitedBy) {
+        return mapper.insertMemberIfAbsent(projectId, userId, role, invitedBy) == 1;
+    }
+
     public Optional<ProjectRole> findRole(UUID projectId, UUID userId) {
         return mapper.findRole(projectId, userId);
     }

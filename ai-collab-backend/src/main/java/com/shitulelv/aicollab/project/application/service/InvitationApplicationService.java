@@ -10,6 +10,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.api.dto.AcceptInvitationRequest;
 import com.shitulelv.aicollab.project.api.dto.CreateInvitationRequest;
+import com.shitulelv.aicollab.project.application.view.InvitationAcceptanceView;
 import com.shitulelv.aicollab.project.application.view.InvitationPreview;
 import com.shitulelv.aicollab.project.application.view.InvitationView;
 import com.shitulelv.aicollab.project.domain.model.InvitationStatus;
@@ -26,6 +27,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -35,6 +38,7 @@ import java.util.regex.Pattern;
 
 @Service
 public class InvitationApplicationService {
+    private static final Logger log = LoggerFactory.getLogger(InvitationApplicationService.class);
     private static final Pattern CODE_FORMAT = Pattern.compile("[A-Za-z0-9_-]{43}");
     private static final int MAX_CODE_ATTEMPTS = 3;
 
@@ -115,7 +119,8 @@ public class InvitationApplicationService {
         String projectName = projects.findNameById(invitation.getProjectId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVITATION_INVALID));
         return new InvitationPreview(
-                projectName, invitation.getRole(), invitation.getInvitedEmail(), invitation.getExpiresAt());
+                invitation.getProjectId(), projectName, invitation.getRole(),
+                invitation.getInvitedEmail(), invitation.getExpiresAt());
     }
 
     @Transactional
@@ -129,7 +134,10 @@ public class InvitationApplicationService {
         }
         String effectiveEmail = requestedEmail == null ? invitation.getInvitedEmail() : requestedEmail;
         if (users.findByUsername(request.username()).isPresent()) {
-            throw new BusinessException(ErrorCode.MEMBER_ALREADY_EXISTS, "用户名或邮箱已被使用");
+            throw new BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS);
+        }
+        if (effectiveEmail != null && users.findByEmail(effectiveEmail).isPresent()) {
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
         UserEntity user = new UserEntity();
@@ -142,9 +150,13 @@ public class InvitationApplicationService {
         user.setTokenVersion(0);
         try {
             users.create(user);
+        } catch (DataIntegrityViolationException exception) {
+            throw userConflict(exception);
+        }
+        try {
             members.create(invitation.getProjectId(), user.getId(), invitation.getRole(), invitation.getCreatedBy());
         } catch (DataIntegrityViolationException exception) {
-            throw new BusinessException(ErrorCode.MEMBER_ALREADY_EXISTS);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         }
         OffsetDateTime acceptedAt = now();
         if (!invitations.markAccepted(invitation.getId(), user.getId(), acceptedAt)) {
@@ -161,10 +173,61 @@ public class InvitationApplicationService {
                 refreshToken);
     }
 
-    private ProjectInvitationEntity findValid(String rawCode, boolean lock) {
-        if (rawCode == null || !CODE_FORMAT.matcher(rawCode).matches()) {
+    @Transactional
+    public InvitationAcceptanceView acceptCurrentUser(String rawCode, UUID currentUserId) {
+        validateCode(rawCode);
+        ProjectInvitationEntity invitation = invitations.findByHashForUpdate(codes.hash(rawCode))
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVITATION_INVALID));
+        UserEntity user = users.findById(currentUserId)
+                .filter(candidate -> candidate.getStatus() == UserStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_UNAUTHORIZED));
+        String projectName = projects.findNameById(invitation.getProjectId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVITATION_INVALID));
+
+        if (invitation.getStatus() == InvitationStatus.ACCEPTED) {
+            if (!currentUserId.equals(invitation.getAcceptedBy())) {
+                throw new BusinessException(ErrorCode.INVITATION_ALREADY_USED);
+            }
+            ProjectRole role = members.findRole(invitation.getProjectId(), currentUserId)
+                    .orElseThrow(() -> invitationConsistencyError(invitation, currentUserId));
+            return acceptance(invitation, projectName, role, true);
+        }
+        if (invitation.getStatus() != InvitationStatus.PENDING) {
             throw new BusinessException(ErrorCode.INVITATION_INVALID);
         }
+        if (!invitation.getExpiresAt().isAfter(now())) {
+            throw new BusinessException(ErrorCode.INVITATION_EXPIRED);
+        }
+        if (!emailMatches(invitation.getInvitedEmail(), user.getEmail())) {
+            throw new BusinessException(ErrorCode.INVITATION_EMAIL_MISMATCH);
+        }
+
+        ProjectRole existingRole = members.findRole(invitation.getProjectId(), currentUserId).orElse(null);
+        if (existingRole != null) {
+            return acceptance(invitation, projectName, existingRole, true);
+        }
+
+        boolean created = members.createIfAbsent(
+                invitation.getProjectId(), currentUserId, invitation.getRole(), invitation.getCreatedBy());
+        if (!created) {
+            ProjectRole concurrentRole = members.findRole(invitation.getProjectId(), currentUserId)
+                    .orElseThrow(() -> invitationConsistencyError(invitation, currentUserId));
+            return acceptance(invitation, projectName, concurrentRole, true);
+        }
+
+        if (!invitations.markAccepted(invitation.getId(), currentUserId, now())) {
+            throw new BusinessException(ErrorCode.INVITATION_ALREADY_USED);
+        }
+        audit.write(
+                invitation.getProjectId(), currentUserId,
+                "PROJECT_INVITATION_ACCEPTED", "PROJECT_INVITATION", invitation.getId());
+        ProjectRole actualRole = members.findRole(invitation.getProjectId(), currentUserId)
+                .orElseThrow(() -> invitationConsistencyError(invitation, currentUserId));
+        return acceptance(invitation, projectName, actualRole, false);
+    }
+
+    private ProjectInvitationEntity findValid(String rawCode, boolean lock) {
+        validateCode(rawCode);
         ProjectInvitationEntity invitation = (lock
                 ? invitations.findByHashForUpdate(codes.hash(rawCode))
                 : invitations.findByHash(codes.hash(rawCode)))
@@ -190,5 +253,49 @@ public class InvitationApplicationService {
             return null;
         }
         return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean emailMatches(String invitedEmail, String userEmail) {
+        if (invitedEmail == null) {
+            return true;
+        }
+        String normalizedUserEmail = normalizeEmail(userEmail);
+        return normalizedUserEmail != null
+                && normalizeEmail(invitedEmail).equals(normalizedUserEmail);
+    }
+
+    private static void validateCode(String rawCode) {
+        if (rawCode == null || !CODE_FORMAT.matcher(rawCode).matches()) {
+            throw new BusinessException(ErrorCode.INVITATION_INVALID);
+        }
+    }
+
+    private InvitationAcceptanceView acceptance(
+            ProjectInvitationEntity invitation,
+            String projectName,
+            ProjectRole role,
+            boolean alreadyMember) {
+        return new InvitationAcceptanceView(
+                invitation.getProjectId(), projectName, role, alreadyMember);
+    }
+
+    private BusinessException invitationConsistencyError(
+            ProjectInvitationEntity invitation,
+            UUID currentUserId) {
+        log.error(
+                "邀请接受状态与成员关系不一致: invitationId={}, projectId={}, userId={}",
+                invitation.getId(), invitation.getProjectId(), currentUserId);
+        return new BusinessException(ErrorCode.INTERNAL_ERROR);
+    }
+
+    private static BusinessException userConflict(DataIntegrityViolationException exception) {
+        String message = exception.getMostSpecificCause().getMessage();
+        if (message != null && message.contains("app_user_username_key")) {
+            return new BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS);
+        }
+        if (message != null && message.contains("app_user_email_key")) {
+            return new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+        return new BusinessException(ErrorCode.INTERNAL_ERROR);
     }
 }
