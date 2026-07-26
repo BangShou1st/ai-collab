@@ -156,7 +156,12 @@ V1 创建 `refresh_token`，V2 在不复制或替代迁移 SQL 的前提下扩�
 
 - `(document_id, chunk_no)` 唯一。
 - `metadata` 至少包含 `projectId`、`documentId`、`chunkNo`、`filename`。
-- 删除文档时先删除引用，再删除块和文档记录。
+- `metadata` 使用 Jackson 序列化后作为参数传给 `CAST(... AS jsonb)`，文件名不参与 SQL 或 JSON 字符串拼接。
+- 实际外键 `knowledge_citation.chunk_id ON DELETE CASCADE` 会在删除 `document_chunk` 时级联清理引用；应用仍以 `project_id + document_id` 约束块删除，并在删除数据库行前先把文档 CAS 标记为 `DELETING`。
+- V4 增加可空 `processing_token uuid` 与 `processing_heartbeat_at timestamptz`。PARSING、INDEXING 的正常 worker 同时持有 token 和心跳；READY、FAILED、DELETING、UPLOADED 清空二者。迁移会把升级时遗留的 PARSING/INDEXING 安全转为 FAILED，避免无 token 的旧尝试无法恢复。
+- 异步索引最终写入前对 `project_document` 行执行 `FOR UPDATE` 并确认状态仍为 `INDEXING` 且 token 匹配，防止删除、retry 或恢复后的旧 worker 覆盖新尝试。
+- 恢复使用 `processing_heartbeat_at` 而非 `updated_at`；超时更新再次匹配 projectId、documentId、status、processingToken 和陈旧心跳，成功后清空 token。
+- 项目删除和文档注册都先锁定同一 `project` 行。删除事务统计全部 `project_document`，非零即拒绝；注册事务只锁 ACTIVE 项目并在锁内检查 100 个有效文档上限。
 
 ### 4.6 AI 规划约束
 
@@ -187,6 +192,9 @@ SELECT
 FROM document_chunk
 WHERE project_id = :projectId
   AND embedding IS NOT NULL
+  AND embedding_provider = :provider
+  AND embedding_model = :model
+  AND embedding_dimension = :dimension
 ORDER BY embedding <=> CAST(:queryEmbedding AS vector)
 LIMIT :topK;
 ```
@@ -223,9 +231,6 @@ LIMIT :topK;
 - AI 原始响应仅保存在 `ai_task_plan.raw_response`，知识问答不保存完整 Prompt。
 - `ai_call_log` 不记录文档原文，只记录模型、Token、耗时与状态。
 
-## 8. 本阶段迁移结论
+## 8. Phase 06 迁移结论
 
-本阶段没有新增 Flyway 迁移。V1 已真实创建 `milestone`、`project_task`、
-`task_dependency`、`task_comment` 以及账号管理所需的 `app_user.token_version`；
-V2、V3 分别只负责 Refresh 会话扩展与单 OWNER 约束。实现直接启用这些既有结构，
-未修改 V1、V2、V3，也未创建无实际结构变化的空 V4。Flyway 脚本仍是唯一执行事实来源。
+Phase 06 最终正确性修复新增最小 `V4__document_processing_attempt.sql`，只增加 processing token 与 heartbeat 两列，并把升级时无法安全续跑的旧处理中记录转为 FAILED。V1、V2、V3 保持不变；既有表、向量列、唯一约束和外键仍由 V1 定义。Flyway 脚本仍是唯一执行事实来源。

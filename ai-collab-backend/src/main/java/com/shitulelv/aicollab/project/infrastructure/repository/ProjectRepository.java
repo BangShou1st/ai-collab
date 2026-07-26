@@ -35,6 +35,18 @@ public class ProjectRepository {
         return mapper.findNameById(projectId);
     }
 
+    public boolean lock(UUID projectId) {
+        return mapper.lockById(projectId).isPresent();
+    }
+
+    public boolean lockActive(UUID projectId) {
+        return mapper.lockActiveById(projectId).isPresent();
+    }
+
+    public int countDocuments(UUID projectId) {
+        return mapper.countDocuments(projectId);
+    }
+
     public boolean updateWithVersion(
             UUID projectId,
             String name,
