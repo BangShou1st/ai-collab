@@ -30,6 +30,10 @@ public class TaskPlanDraftValidator {
         Map<String, PlanMilestone> milestones = new HashMap<>();
         Set<String> allKeys = new HashSet<>();
         for (PlanMilestone milestone : draft.milestones()) {
+            if (blank(milestone.tempKey()) || blank(milestone.title()) || blank(milestone.objective())
+                    || milestone.title().length() > 100 || milestone.objective().length() > 1000) {
+                errors.add("MILESTONE_TEXT_INVALID");
+            }
             if (!allKeys.add(milestone.tempKey())) errors.add("TEMP_KEY_DUPLICATE");
             milestones.put(milestone.tempKey(), milestone);
             if (outside(milestone.targetDate(), context.planStartDate(), context.planDueDate())) {
@@ -42,13 +46,19 @@ public class TaskPlanDraftValidator {
         draft.sources().forEach(source -> sourceRefs.add(source.ref()));
         Set<String> normalizedTitles = new HashSet<>();
         for (PlanTask task : draft.tasks()) {
+            if (blank(task.tempKey()) || blank(task.milestoneTempKey()) || blank(task.title())
+                    || blank(task.objective()) || blank(task.description())
+                    || task.title().length() > 160 || task.objective().length() > 1000
+                    || task.description().length() > 4000) errors.add("TASK_TEXT_INVALID");
             if (!allKeys.add(task.tempKey())) errors.add("TEMP_KEY_DUPLICATE");
             tasks.put(task.tempKey(), task);
             if (!milestones.containsKey(task.milestoneTempKey())) errors.add("MILESTONE_REF_INVALID");
             validateTask(context, task, sourceRefs, errors, warnings);
-            String normalized = task.title().trim().toLowerCase(Locale.ROOT);
-            if (!normalizedTitles.add(normalized)) warnings.add("DUPLICATE_TITLE");
-            if (context.existingTitles().contains(normalized)) warnings.add("EXISTING_TITLE_SIMILAR");
+            if (!blank(task.title())) {
+                String normalized = task.title().trim().toLowerCase(Locale.ROOT);
+                if (!normalizedTitles.add(normalized)) warnings.add("DUPLICATE_TITLE");
+                if (context.existingTitles().contains(normalized)) warnings.add("EXISTING_TITLE_SIMILAR");
+            }
         }
         for (PlanMilestone milestone : draft.milestones()) {
             validateSourceRefs(milestone.sourceRefs(), sourceRefs, errors);
@@ -80,6 +90,9 @@ public class TaskPlanDraftValidator {
                 && (task.estimatedHours().compareTo(BigDecimal.ZERO) <= 0
                 || task.estimatedHours().compareTo(BigDecimal.valueOf(80)) > 0)) {
             errors.add("ESTIMATED_HOURS_INVALID");
+        }
+        if (task.priority() == null || !Set.of("LOW", "MEDIUM", "HIGH", "URGENT").contains(task.priority())) {
+            errors.add("TASK_PRIORITY_INVALID");
         }
         if (task.suggestedAssigneeId() != null
                 && !context.projectMemberIds().contains(task.suggestedAssigneeId())
@@ -150,5 +163,9 @@ public class TaskPlanDraftValidator {
         List<String> result = new ArrayList<>(values);
         result.sort(String::compareTo);
         return result;
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
     }
 }

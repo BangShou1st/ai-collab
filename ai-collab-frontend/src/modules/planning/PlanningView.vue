@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { normalizeApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
@@ -8,6 +8,10 @@ import { clearConfirmationKey, confirmationKey, planningApi } from './planning-a
 import { PlanningPoller } from './planning-poller'
 import type { PlanPermissions, TaskPlan, TaskPlanDraft } from './types'
 import { projectApi } from '../project/project-api'
+import { documentApi } from '../document/document-api'
+import type { ProjectDocument } from '../document/types'
+import type { ProjectMember } from '../project/types'
+import { dependencyWouldCycle, removeTaskAndDependencies } from './planning-draft'
 
 const route = useRoute(), router = useRouter()
 const projectId = computed(() => String(route.params.projectId))
@@ -17,10 +21,17 @@ const versions = ref<Array<{ id: string; versionNo: number; sourceType: string }
 const selectedVersionId = ref(''), snapshot = ref(''), statusFilter = ref(''), errorMessage = ref('')
 const createVisible = ref(false), checked = ref(false)
 const canCreate = ref(false), pendingConfirmation = ref<{ versionId: string; key: string } | null>(null)
-const form = reactive({ title: '', goal: '', constraints: '', planStartDate: '', planDueDate: '', maxTaskCount: 20 })
+const documents = ref<ProjectDocument[]>([]), members = ref<ProjectMember[]>([])
+const form = reactive({ title: '', goal: '', constraints: '', planStartDate: '', planDueDate: '', maxTaskCount: 20, documentIds: [] as string[] })
 const poller = new PlanningPoller()
 const dirty = computed(() => draft.value !== null && JSON.stringify(draft.value) !== snapshot.value)
 const editingLatest = computed(() => selectedVersionId.value === selected.value?.latestVersionId)
+const confirmationSummary = computed(() => ({
+  milestones: draft.value?.milestones.length ?? 0,
+  tasks: draft.value?.tasks.length ?? 0,
+  dependencies: draft.value?.tasks.reduce((sum, task) => sum + task.dependencyTempKeys.length, 0) ?? 0,
+  unassigned: draft.value?.tasks.filter(task => !task.assigneeId).length ?? 0,
+}))
 
 async function list(): Promise<TaskPlan['status'][]> {
   plans.value = (await planningApi.list(projectId.value, statusFilter.value)).data.data
@@ -36,6 +47,10 @@ async function openVersion(id: string): Promise<void> {
   if (!selected.value) return
   const result = await planningApi.version(projectId.value, selected.value.id, id)
   selectedVersionId.value = id; draft.value = structuredClone(result.data.data.draft); snapshot.value = JSON.stringify(draft.value)
+}
+async function requestVersion(id: string): Promise<void> {
+  if (dirty.value && !await discard()) return
+  await openVersion(id)
 }
 async function create(): Promise<void> {
   try { const plan = (await planningApi.create(projectId.value, form)).data.data; createVisible.value = false; await list(); await open(plan); startPolling() }
@@ -67,6 +82,27 @@ async function refresh(): Promise<void> {
   const id = selected.value?.id; await list(); const current = plans.value.find(plan => plan.id === id)
   if (current && !dirty.value) await open(current)
 }
+function addMilestone(): void {
+  if (!draft.value || draft.value.milestones.length >= 8) return
+  const tempKey = `m-${crypto.randomUUID()}`
+  draft.value.milestones.push({ tempKey, title: '新里程碑', objective: '填写目标', targetDate: null, sortOrder: draft.value.milestones.length, sourceRefs: [] })
+}
+function addTask(milestoneTempKey: string): void {
+  if (!draft.value || draft.value.tasks.length >= selected.value!.maxTaskCount) return
+  draft.value.tasks.push({ tempKey: `t-${crypto.randomUUID()}`, milestoneTempKey, title: '新任务', objective: '填写目标', description: '填写描述',
+    priority: 'MEDIUM', estimatedHours: null, startDate: null, dueDate: null, suggestedAssigneeId: null,
+    assigneeId: null, dependencyTempKeys: [], sourceRefs: [], sortOrder: draft.value.tasks.length })
+}
+async function removeTask(tempKey: string): Promise<void> {
+  if (!draft.value) return
+  const affected = draft.value.tasks.filter(task => task.dependencyTempKeys.includes(tempKey)).length
+  if (affected && !window.confirm(`删除将同步清除 ${affected} 条依赖，是否继续？`)) return
+  draft.value = removeTaskAndDependencies(draft.value, tempKey)
+}
+function removeMilestone(tempKey: string): void {
+  if (!draft.value || draft.value.tasks.some(task => task.milestoneTempKey === tempKey)) return
+  draft.value.milestones = draft.value.milestones.filter(item => item.tempKey !== tempKey)
+}
 function startPolling(): void { poller.start(async () => {
   const statuses = await list()
   if (pendingConfirmation.value && selected.value) {
@@ -87,13 +123,18 @@ function beforeUnload(event: BeforeUnloadEvent): void { if (dirty.value) event.p
 onMounted(async () => {
   window.addEventListener('beforeunload', beforeUnload)
   canCreate.value = ['OWNER', 'ADMIN'].includes((await projectApi.get(projectId.value)).data.role)
+  documents.value = (await documentApi.list(projectId.value)).data.filter(document => document.status === 'READY')
+  members.value = (await projectApi.listMembers(projectId.value)).data
   await list(); startPolling()
 })
 onBeforeUnmount(() => { poller.stop(); window.removeEventListener('beforeunload', beforeUnload) })
 onBeforeRouteLeave(() => !dirty.value || window.confirm('当前规划有未保存修改，确定离开吗？'))
+onBeforeRouteUpdate(() => !dirty.value || window.confirm('当前规划有未保存修改，确定切换项目吗？'))
 watch(projectId, async () => {
-  if (dirty.value && !window.confirm('当前规划有未保存修改，确定切换项目吗？')) return
   poller.stop(); selected.value = null; draft.value = null; await list(); startPolling()
+  canCreate.value = ['OWNER', 'ADMIN'].includes((await projectApi.get(projectId.value)).data.role)
+  documents.value = (await documentApi.list(projectId.value)).data.filter(document => document.status === 'READY')
+  members.value = (await projectApi.listMembers(projectId.value)).data
 })
 </script>
 
@@ -119,19 +160,32 @@ watch(projectId, async () => {
           <el-button v-if="permissions?.canRegenerate" @click="action('regenerate')">重新生成</el-button>
         </div></template>
         <el-alert v-if="selected.lastErrorSummary" :title="selected.lastErrorSummary" type="warning" />
-        <el-select v-model="selectedVersionId" @change="openVersion"><el-option v-for="v in versions" :key="v.id" :label="`v${v.versionNo} ${v.sourceType}`" :value="v.id" /></el-select>
+        <el-select :model-value="selectedVersionId" @change="requestVersion"><el-option v-for="v in versions" :key="v.id" :label="`v${v.versionNo} ${v.sourceType}`" :value="v.id" /></el-select>
         <template v-if="draft">
           <el-alert v-if="!editingLatest" title="历史版本只读；可先恢复为新版本后编辑" type="info" />
-          <el-input v-model="draft.summary" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" />
+          <el-input v-model="draft.summary" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" placeholder="规划摘要" />
+          <h3>假设</h3><el-input v-for="(_, index) in draft.assumptions" :key="`a-${index}`" v-model="draft.assumptions[index]" :readonly="!editingLatest" />
+          <h3>风险</h3><el-input v-for="(_, index) in draft.risks" :key="`r-${index}`" v-model="draft.risks[index]" :readonly="!editingLatest" />
           <el-collapse><el-collapse-item v-for="m in draft.milestones" :key="m.tempKey" :title="m.title">
             <el-input v-model="m.title" :readonly="!permissions?.canEdit || !editingLatest" />
+            <el-input v-model="m.objective" type="textarea" :readonly="!editingLatest" /><el-date-picker v-model="m.targetDate" value-format="YYYY-MM-DD" :disabled="!editingLatest" />
+            <el-select v-model="m.sourceRefs" multiple :disabled="!editingLatest"><el-option v-for="source in draft.sources" :key="source.ref" :label="source.ref" :value="source.ref" /></el-select>
+            <el-button v-if="editingLatest" @click="addTask(m.tempKey)">添加任务</el-button><el-button v-if="editingLatest" type="danger" @click="removeMilestone(m.tempKey)">删除空里程碑</el-button>
             <div v-for="task in draft.tasks.filter(t => t.milestoneTempKey === m.tempKey)" :key="task.tempKey" class="task-plan-row">
               <el-input v-model="task.title" :readonly="!permissions?.canEdit || !editingLatest" /><el-input v-model="task.description" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" />
+              <el-input v-model="task.objective" :readonly="!editingLatest" /><el-select v-model="task.priority" :disabled="!editingLatest"><el-option v-for="p in ['LOW','MEDIUM','HIGH','URGENT']" :key="p" :value="p" /></el-select>
+              <el-input-number v-model="task.estimatedHours" :min="0.5" :max="80" :disabled="!editingLatest" />
+              <el-date-picker v-model="task.startDate" value-format="YYYY-MM-DD" :disabled="!editingLatest" /><el-date-picker v-model="task.dueDate" value-format="YYYY-MM-DD" :disabled="!editingLatest" />
+              <small>AI 建议负责人：{{ task.suggestedAssigneeId || '无' }}</small><el-select v-model="task.assigneeId" clearable :disabled="!editingLatest"><el-option v-for="member in members" :key="member.userId" :label="member.displayName" :value="member.userId" /></el-select>
+              <el-select v-model="task.dependencyTempKeys" multiple :disabled="!editingLatest"><el-option v-for="candidate in draft.tasks.filter(candidate => candidate.tempKey !== task.tempKey)" :key="candidate.tempKey" :label="candidate.title" :value="candidate.tempKey" :disabled="dependencyWouldCycle(draft, task.tempKey, candidate.tempKey)" /></el-select>
+              <el-select v-model="task.sourceRefs" multiple :disabled="!editingLatest"><el-option v-for="source in draft.sources" :key="source.ref" :label="source.ref" :value="source.ref" /></el-select>
+              <el-button v-if="editingLatest" type="danger" @click="removeTask(task.tempKey)">删除任务</el-button>
             </div>
           </el-collapse-item></el-collapse>
+          <el-button v-if="editingLatest" @click="addMilestone">添加里程碑</el-button>
           <div class="actions"><el-button v-if="permissions?.canEdit && editingLatest" :disabled="!dirty" @click="save">保存新版本</el-button>
             <el-button v-if="permissions?.canRestore && !editingLatest" @click="planningApi.restore(projectId, selected.id, selectedVersionId).then(refresh)">恢复为新版本</el-button>
-            <template v-if="permissions?.canConfirm"><el-checkbox v-model="checked">我已检查规划</el-checkbox><el-button type="success" :disabled="!checked || dirty" @click="confirm">确认并创建任务</el-button></template>
+            <template v-if="permissions?.canConfirm"><span>将创建 {{ confirmationSummary.milestones }} 里程碑 / {{ confirmationSummary.tasks }} 任务 / {{ confirmationSummary.dependencies }} 依赖；未分配 {{ confirmationSummary.unassigned }}</span><el-checkbox v-model="checked">我已检查规划</el-checkbox><el-button type="success" :disabled="!checked || dirty" @click="confirm">确认并创建任务</el-button></template>
           </div>
         </template>
       </el-card>
@@ -140,6 +194,7 @@ watch(projectId, async () => {
       <el-form-item label="标题"><el-input v-model="form.title" /></el-form-item><el-form-item label="目标"><el-input v-model="form.goal" type="textarea" /></el-form-item>
       <el-form-item label="约束"><el-input v-model="form.constraints" /></el-form-item><el-form-item label="开始"><el-date-picker v-model="form.planStartDate" value-format="YYYY-MM-DD" /></el-form-item>
       <el-form-item label="截止"><el-date-picker v-model="form.planDueDate" value-format="YYYY-MM-DD" /></el-form-item><el-form-item label="最大任务数"><el-select v-model="form.maxTaskCount"><el-option v-for="n in [10,20,30,40]" :key="n" :value="n" /></el-select></el-form-item>
+      <el-form-item label="READY 文档（最多 10 个）"><el-select v-model="form.documentIds" multiple :multiple-limit="10"><el-option v-for="document in documents" :key="document.id" :label="document.displayName" :value="document.id" /></el-select></el-form-item>
       <el-button native-type="submit" type="primary">创建并生成</el-button>
     </el-form></el-dialog>
   </main>

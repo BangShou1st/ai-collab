@@ -1013,7 +1013,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskPlanDraft'
+              type: object
+              required: [baseVersionId, draft]
+              properties:
+                baseVersionId: { type: string, format: uuid }
+                draft: { $ref: '#/components/schemas/TaskPlanDraft' }
       responses:
         '200': { description: New immutable version id }
         '409': { $ref: '#/components/responses/Conflict' }
@@ -1024,6 +1028,10 @@ paths:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/PlanId'
+      - name: versionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
     get:
       tags: [TaskPlans]
       summary: Get one immutable version snapshot
@@ -1034,6 +1042,10 @@ paths:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/PlanId'
+      - name: versionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
     post:
       tags: [TaskPlans]
       summary: Copy a historical version into a new RESTORED version
@@ -1041,6 +1053,9 @@ paths:
         '200': { description: Restored immutable version id }
   /projects/{projectId}/ai/task-plans/{planId}/cancel:
     x-implementation-status: implemented
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PlanId'
     post:
       tags: [TaskPlans]
       summary: Cancel active generation and invalidate late results
@@ -1048,6 +1063,9 @@ paths:
         '202': { description: Cancellation accepted }
   /projects/{projectId}/ai/task-plans/{planId}/retry-detail:
     x-implementation-status: implemented
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PlanId'
     post:
       tags: [TaskPlans]
       summary: Retry detail generation from the preserved skeleton
@@ -1055,6 +1073,9 @@ paths:
         '202': { description: Detail retry accepted }
   /projects/{projectId}/ai/task-plans/{planId}/regenerate:
     x-implementation-status: implemented
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PlanId'
     post:
       tags: [TaskPlans]
       summary: Start a new generation sequence from immutable plan input
@@ -1074,6 +1095,15 @@ paths:
     post:
       tags: [TaskPlans]
       summary: Confirm and transactionally create milestones, tasks and dependencies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [versionId]
+              properties:
+                versionId: { type: string, format: uuid }
       responses:
         '200':
           description: Plan applied
@@ -1081,6 +1111,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApplyTaskPlanEnvelope'
+        '202':
+          description: Matching confirmation is still processing; retry with the same key
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
