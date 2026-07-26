@@ -35,10 +35,22 @@ server:
 
 storage:
   minio:
-    endpoint: http://localhost:9000
-    access-key: "${MINIO_ROOT_USER}"
-    secret-key: "${MINIO_ROOT_PASSWORD}"
+    endpoint: "${MINIO_ENDPOINT:http://localhost:9000}"
+    access-key: "${MINIO_ACCESS_KEY:${MINIO_ROOT_USER}}"
+    secret-key: "${MINIO_SECRET_KEY:${MINIO_ROOT_PASSWORD}}"
     bucket: "${MINIO_BUCKET:ai-collab}"
+
+embedding:
+  enabled: "${EMBEDDING_ENABLED:false}"
+  provider: "${EMBEDDING_PROVIDER:openai-compatible}"
+  base-url: "${EMBEDDING_BASE_URL:}"
+  path: "${EMBEDDING_PATH:/v1/embeddings}"
+  api-key: "${EMBEDDING_API_KEY:}"
+  model: "${EMBEDDING_MODEL:}"
+  dimensions: "${EMBEDDING_DIMENSIONS:1536}"
+  batch-size: "${EMBEDDING_BATCH_SIZE:16}"
+  connect-timeout: "${EMBEDDING_CONNECT_TIMEOUT:5s}"
+  read-timeout: "${EMBEDDING_READ_TIMEOUT:60s}"
 
 management:
   endpoints:
@@ -57,6 +69,8 @@ logging:
     com.shitulelv.aicollab.user.mapper: INFO
     # Refresh Token Mapper 的参数包含 token_hash；本地开发也不得输出完整摘要。
     com.shitulelv.aicollab.auth.refresh.mapper: INFO
+    # 文档 Mapper 参数可能包含分块正文、metadata 和完整向量，本地环境也禁止输出。
+    com.shitulelv.aicollab.document.infrastructure.mapper: INFO
 
 security:
   jwt:
