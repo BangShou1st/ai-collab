@@ -7,6 +7,7 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.planning.api.CreateTaskPlanRequest;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
 import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
+import com.shitulelv.aicollab.planning.domain.ValidationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.HashSet;
+import java.util.Set;
 
 @Repository
 public class TaskPlanRepository {
@@ -203,6 +206,22 @@ public class TaskPlanRepository {
         } catch (JsonProcessingException exception) {
             throw new BusinessException(ErrorCode.PLANNING_MODEL_INVALID_OUTPUT);
         }
+    }
+
+    public ValidationContext validationContext(TaskPlanRecord plan) {
+        java.time.LocalDate[] projectDates = jdbc.queryForObject(
+                "SELECT start_date,due_date FROM project WHERE id=?",
+                (rs, row) -> new java.time.LocalDate[]{
+                        rs.getObject(1, java.time.LocalDate.class),
+                        rs.getObject(2, java.time.LocalDate.class)}, plan.projectId());
+        Set<UUID> members = new HashSet<>(jdbc.queryForList(
+                "SELECT user_id FROM project_member WHERE project_id=?", UUID.class, plan.projectId()));
+        Set<String> titles = new HashSet<>(jdbc.queryForList("""
+                SELECT lower(title) FROM project_task WHERE project_id=?
+                UNION SELECT lower(name) FROM milestone WHERE project_id=?
+                """, String.class, plan.projectId(), plan.projectId()));
+        return new ValidationContext(projectDates[0], projectDates[1], plan.planStartDate(),
+                plan.planDueDate(), plan.maxTaskCount(), members, titles);
     }
 
     private TaskPlanRecord plan(ResultSet r, int n) throws SQLException {

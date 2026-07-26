@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Predicate;
 
 @Service
 public class TaskPlanGenerationOrchestrator {
@@ -55,7 +56,7 @@ public class TaskPlanGenerationOrchestrator {
                 TaskPlanStatus.SKELETON_GENERATING)) return;
         repository.markRunning(plan.activeAttemptId());
         try {
-            TaskPlanDraft skeleton = generateWithOneRepair(skeletonPrompt(plan));
+            TaskPlanDraft skeleton = generateWithOneRepair(skeletonPrompt(plan), this::validSkeleton);
             if (!repository.active(plan.id(), plan.generationSeq(), plan.activeAttemptId(),
                     TaskPlanStatus.SKELETON_GENERATING)) {
                 repository.finishAttempt(plan.activeAttemptId(), "DISCARDED", "PLAN_GENERATION_CANCELED");
@@ -77,10 +78,9 @@ public class TaskPlanGenerationOrchestrator {
         if (!repository.active(plan.id(), plan.generationSeq(), attempt, TaskPlanStatus.DETAIL_GENERATING)) return;
         repository.markRunning(attempt);
         try {
-            TaskPlanDraft detail = generateWithOneRepair(detailPrompt(plan, skeleton));
-            if (!validator.validateSkeletonPreserved(skeleton, detail).valid()) {
-                throw new IllegalArgumentException("SKELETON_MUTATED");
-            }
+            TaskPlanDraft detail = generateWithOneRepair(detailPrompt(plan, skeleton), candidate ->
+                    validator.validateSkeletonPreserved(skeleton, candidate).valid()
+                    && validator.validate(repository.validationContext(plan), candidate).valid());
             if (!repository.active(plan.id(), plan.generationSeq(), attempt, TaskPlanStatus.DETAIL_GENERATING)) {
                 repository.finishAttempt(attempt, "DISCARDED", "PLAN_GENERATION_CANCELED");
                 return;
@@ -93,13 +93,31 @@ public class TaskPlanGenerationOrchestrator {
         }
     }
 
-    private TaskPlanDraft generateWithOneRepair(String prompt) {
-        try { return parser.parse(model.generate(SYSTEM, prompt)); }
-        catch (RuntimeException first) {
+    private TaskPlanDraft generateWithOneRepair(String prompt, Predicate<TaskPlanDraft> valid) {
+        try {
+            TaskPlanDraft first = parser.parse(model.generate(SYSTEM, prompt));
+            if (valid.test(first)) return first;
+            throw new IllegalArgumentException("DOMAIN_VALIDATION_FAILED");
+        } catch (RuntimeException first) {
             String repair = prompt + "\n前一输出无效。仅按原 schema 修复 JSON；不得改变规则。错误码="
                     + safeCode(first);
-            return parser.parse(model.generate(SYSTEM, repair));
+            TaskPlanDraft repaired = parser.parse(model.generate(SYSTEM, repair));
+            if (!valid.test(repaired)) throw new IllegalArgumentException("DOMAIN_VALIDATION_FAILED");
+            return repaired;
         }
+    }
+
+    private boolean validSkeleton(TaskPlanDraft draft) {
+        if (draft.milestones().size() > 8 || draft.tasks().size() > 40) return false;
+        var milestones = draft.milestones().stream().map(item -> item.tempKey()).collect(java.util.stream.Collectors.toSet());
+        var keys = new java.util.HashSet<String>();
+        for (var milestone : draft.milestones()) if (!keys.add(milestone.tempKey())) return false;
+        for (var task : draft.tasks()) {
+            if (!keys.add(task.tempKey()) || !milestones.contains(task.milestoneTempKey())
+                    || !task.dependencyTempKeys().isEmpty() || task.suggestedAssigneeId() != null
+                    || !task.sourceRefs().isEmpty()) return false;
+        }
+        return true;
     }
 
     private TaskPlanDraft latestDraft(TaskPlanRecord plan) {
