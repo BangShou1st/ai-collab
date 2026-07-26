@@ -97,4 +97,7 @@ public class DocumentRepository {
     public int countReadyDocuments(UUID projectId, List<UUID> documentIds) {
         return mapper.countReadyDocuments(projectId, documentIds);
     }
+    public int countDocuments(UUID projectId, List<UUID> documentIds) {
+        return mapper.countDocuments(projectId, documentIds);
+    }
 }

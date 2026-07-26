@@ -857,7 +857,6 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /projects/{projectId}/knowledge/sessions:
-    x-implementation-status: planned
     parameters:
       - $ref: '#/components/parameters/ProjectId'
     get:
@@ -870,6 +869,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/KnowledgeSessionListEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [Knowledge]
       summary: Create session
@@ -877,11 +879,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                title:
-                  type: string
-                  maxLength: 120
+              $ref: '#/components/schemas/CreateKnowledgeSessionRequest'
       responses:
         '201':
           description: Session created
@@ -889,8 +887,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/KnowledgeSessionEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /projects/{projectId}/knowledge/sessions/{sessionId}:
-    x-implementation-status: planned
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/SessionId'
@@ -904,14 +904,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/KnowledgeSessionDetailEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
     delete:
       tags: [Knowledge]
       summary: Delete own session
       responses:
         '204':
           description: Deleted
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /projects/{projectId}/knowledge/sessions/{sessionId}/questions:
-    x-implementation-status: planned
     parameters:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/SessionId'
@@ -931,10 +936,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/KnowledgeAnswerEnvelope'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '504':
-          $ref: '#/components/responses/GatewayTimeout'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '502': { $ref: '#/components/responses/BadGateway' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '504': { $ref: '#/components/responses/GatewayTimeout' }
   /projects/{projectId}/ai/task-plans:
     x-implementation-status: planned
     parameters:
@@ -1158,10 +1167,10 @@ components:
       description: Structured or domain validation failed
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     BadGateway:
-      description: Embedding provider failed
+      description: Embedding or Chat provider failed or returned an invalid response
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     ServiceUnavailable:
-      description: Private object storage is unavailable
+      description: Private object storage or configured Chat service is unavailable
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
   schemas:
     ApiMeta:
@@ -1638,9 +1647,15 @@ components:
         title: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    CreateKnowledgeSessionRequest:
+      type: object
+      properties:
+        title:
+          type: [string, 'null']
+          maxLength: 120
     CitationView:
       type: object
-      required: [documentId, filename, chunkId, quote, similarity]
+      required: [documentId, filename, chunkId, heading, quote, similarity, rank]
       properties:
         documentId: { type: string, format: uuid }
         filename: { type: string }
@@ -1648,9 +1663,10 @@ components:
         heading: { type: [string, 'null'] }
         quote: { type: string }
         similarity: { type: number, minimum: -1, maximum: 1 }
+        rank: { type: integer, minimum: 1 }
     KnowledgeMessageView:
       type: object
-      required: [id, role, content, createdAt]
+      required: [id, role, content, insufficientEvidence, model, citations, createdAt]
       properties:
         id: { type: string, format: uuid }
         role: { type: string, enum: [USER, ASSISTANT] }
@@ -1673,7 +1689,7 @@ components:
           items: { type: string, format: uuid }
     KnowledgeAnswer:
       type: object
-      required: [answer, insufficientEvidence, citations]
+      required: [answer, insufficientEvidence, model, citations]
       properties:
         answer: { type: string }
         insufficientEvidence: { type: boolean }
@@ -1685,12 +1701,14 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
         - type: object
+          required: [data]
           properties:
             data: { $ref: '#/components/schemas/KnowledgeSessionView' }
     KnowledgeSessionListEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
         - type: object
+          required: [data]
           properties:
             data:
               type: array
@@ -1699,6 +1717,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
         - type: object
+          required: [data]
           properties:
             data:
               type: object
@@ -1712,6 +1731,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
         - type: object
+          required: [data]
           properties:
             data: { $ref: '#/components/schemas/KnowledgeAnswer' }
     GenerateTaskPlanRequest:

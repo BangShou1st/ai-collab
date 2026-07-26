@@ -31,7 +31,7 @@ AI Collab（中文展示名：高校竞赛 AI 项目协作平台）面向高校�
 
 ## 2. 功能范围与成功标准
 
-> 当前实现里程碑为 Phase 06。已完成文档上传、私有存储、解析、清洗、分块、向量写入、文档管理和内部检索基础；本阶段不提供知识问答会话、RAG 回答生成、引用展示或 AI 任务规划接口与页面。下列“第一版”条目中标记为后续阶段的能力是目标架构，不代表已经实现。
+> 当前实现里程碑为 Phase 07。已完成文档知识库和项目知识问答 RAG 闭环，包括用户私有会话、检索上下文、证据不足拒答、非流式 Chat Model 调用、引用校验与展示。AI 任务规划仍为 planned；下列“第一版”条目中标记为后续阶段的其他能力是目标架构，不代表已经实现。
 
 第一版功能范围包括：
 
@@ -40,11 +40,11 @@ AI Collab（中文展示名：高校竞赛 AI 项目协作平台）面向高校�
 - **任务协作**：任务可归属里程碑、负责人和多个前置任务；依赖关系必须是有向无环图；看板按状态展示；评论采用单层结构，不做多级回复。
 - **里程碑**：创建、修改、完成和取消里程碑；保存目标日期和排序号；统计里程碑下任务完成率。
 - **文档知识库**：支持 PDF、DOCX、Markdown 和 TXT；原文件保存在 MinIO，文本和向量保存在 PostgreSQL + pgvector。
-- **RAG 问答（后续阶段）**：仅基于当前项目 READY 文档回答并返回引用；资料不足时明确拒答。
+- **RAG 问答**：仅基于当前项目 READY 文档回答并返回引用；资料不足时明确拒答。当前实现不使用流式输出、reranker、工具调用或开放领域知识。
 - **AI 任务规划（后续阶段）**：根据目标、时间约束和参考文档生成结构化里程碑、任务与依赖草案；用户编辑并确认后才写入正式数据。
 - **项目概览与审计**：按状态统计任务数量，计算完成率、逾期任务和里程碑进度，展示最近操作，记录成员、任务、文档和 AI 规划的重要变更。
 
-Phase 06 的完成标准是：既有邀请、登录和项目协作语义不变；四类文档可完成校验、私有存储、解析、分块和向量化；角色权限、失败重试、删除及重启恢复链路可验收；后端与前端构建通过。知识问答与 AI 规划留待后续阶段。
+Phase 07 在 Phase 06 文档能力上增加项目知识问答；会话仅对创建者可见，问题先检索再生成，实际引用与 USER/ASSISTANT 消息在短事务中原子保存。Chat Model 与 Embedding Model 使用完全分离的配置；Redis 限流不可用时退化为进程内固定窗口。AI 任务规划仍留待后续阶段。
 
 ## 3. 模块化单体架构
 
@@ -238,7 +238,7 @@ public interface TaskDependencyPolicy {
 }
 ```
 
-业务层不出现具体供应商 SDK 类型。模型配置按功能区分为 `chat.default-provider`、`planning.default-provider` 和 `embedding.provider`。聊天模型可切换；已建立索引的知识库不随意切换 Embedding 模型。
+业务层不出现具体供应商 SDK 类型。当前问答实现使用 `chat.provider` 标识 Chat 供应商，并由 OpenAI-compatible Gateway 负责协议适配；`embedding.provider` 独立标识向量供应商。`planning.default-provider` 属于后续 AI 任务规划目标配置，不代表 Phase 07 已实现。聊天模型可切换；已建立索引的知识库不随意切换 Embedding 模型。
 
 ### 4.3 DTO、SQL 与接口契约
 
@@ -336,11 +336,11 @@ RAG 只回答当前项目资料中的内容，不做开放领域问答。检索�
 5. 使用精确余弦相似度检索 Top 8；
 6. 过滤相似度低于 0.55 的块；
 7. 按内容哈希去重，最多保留 5 块；
-8. 上下文总字符数不超过 8,000。
+8. 最终序列化后的 Source 文本总长度不超过 8,000 个 Unicode code point，包含来源编号、字段标签、转义后的文件名、标题和正文。
 
 第一版不加入 reranker，也不为向量列创建 HNSW/IVFFlat 索引；文档块达到 100,000 以上或评测显示检索不足时再评估。
 
-System Prompt 必须约束模型只根据 `SOURCES` 回答，将文档内容视为不可信资料而非系统指令，每个事实使用 `[S1]`、`[S2]` 标注来源；资料不足时回答“当前项目资料不足以回答该问题”，不得推测。上下文使用明确的 `<SOURCES>` 边界。
+System Prompt 必须约束模型只根据 `SOURCES` 回答，将文档内容视为不可信资料而非系统指令，每个事实使用 `[S1]`、`[S2]` 标注来源；资料不足时回答“当前项目资料不足以回答该问题”，不得推测。上下文使用明确的 `<QUESTION>` 与 `<SOURCES>` 边界，问题、文件名、标题和正文在进入边界前转义 `&`、`<`、`>`，不能通过文档文本闭合或伪造边界。
 
 回答验证规则：
 
@@ -687,9 +687,13 @@ docker compose -f ai-collab-deploy/docker-compose.yml down -v
 | DOCUMENT_NOT_READY | 409 | 文档尚未可检索 |
 | DOCUMENT_EMBEDDING_MISMATCH | 409 | Embedding 模型或维度不匹配 |
 | KNOWLEDGE_INSUFFICIENT_EVIDENCE | 200 | 资料不足；通过响应字段表示 |
-| AI_PROVIDER_UNAVAILABLE | 502 | 模型供应商不可用 |
+| KNOWLEDGE_SESSION_NOT_FOUND | 404 | 问答会话不存在、跨项目或属于其他用户 |
+| AI_RATE_LIMIT_EXCEEDED | 429 | 当前用户每小时问答次数达到上限 |
+| AI_PROVIDER_UNAVAILABLE | 503 | Chat 未配置或模型服务不可用 |
 | AI_PROVIDER_QUOTA_EXCEEDED | 429 | 免费额度或配额耗尽 |
 | AI_MODEL_TIMEOUT | 504 | 模型调用超时 |
+| AI_PROVIDER_ERROR | 502 | 供应商返回其他 4xx/5xx 或连接失败 |
+| AI_PROVIDER_INVALID_RESPONSE | 502 | Chat 响应为空或结构非法 |
 | AI_STRUCTURED_OUTPUT_INVALID | 422 | 结构化结果无法修复 |
 | TASK_PLAN_NOT_FOUND | 404 | 规划不存在 |
 | TASK_PLAN_NOT_READY | 409 | 规划状态不允许该操作 |
@@ -716,3 +720,11 @@ docker compose -f ai-collab-deploy/docker-compose.yml down -v
 | AI 写操作 | 用户确认后由应用服务执行 | 防止模型越权和误操作 |
 | 向量检索 | 第一版精确余弦检索 | 数据量小，不提前引入 HNSW/IVFFlat 或 reranker |
 | Redis | 可降级辅助组件 | 不让缓存、限流或幂等辅助成为核心协作功能的单点 |
+
+## 15. Phase 07 知识问答运行边界
+
+Knowledge Controller 只调用应用服务。应用服务先校验项目成员、会话所有权和指定文档归属，再执行每用户每小时 30 次的固定窗口限流。检索固定取 Top 8，过滤相似度低于 0.55 的块，按 `content_hash` 去重，最多保留 5 个来源，且最终序列化后的 Source 文本合计不超过 8,000 个 Unicode code point。
+
+Embedding 与 Chat HTTP 调用都发生在数据库事务外。Chat 使用独立的 `chat.*` 配置和 Spring `RestClient`，仅支持非流式 `chat/completions`；未配置时应用仍可启动，实际提问返回稳定 503。超时最多重试一次，供应商额度、超时、非法响应和其他错误分别映射到稳定业务错误。当前没有 reranker、工具调用或流式输出。
+
+模型输出只允许引用本次上下文的 `[S#]`。无有效引用或模型固定拒答时降级为证据不足；混合有效和无效引用时移除无效编号并仅保存实际使用的来源。最终持久化锁定个人会话行，在同一短事务中写入 USER、ASSISTANT、citations 并更新时间。Redis 不可用时限流退化到带惰性清理的进程内计数器，核心协作和应用启动不依赖 Redis 可用性。
