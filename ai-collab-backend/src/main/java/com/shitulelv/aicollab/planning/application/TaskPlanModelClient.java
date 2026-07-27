@@ -30,7 +30,15 @@ public class TaskPlanModelClient {
                 resolveTemperature(), resolveMaxOutputTokens()), false);
     }
 
-    private boolean resolveEnabled() { return properties.enabled() || chatProperties.enabled(); }
+    /**
+     * H7: Explicit PLANNING_ENABLED=false → disabled.
+     * Explicit PLANNING_ENABLED=true → enabled.
+     * Missing (null) → fallback to CHAT_ENABLED.
+     */
+    private boolean resolveEnabled() {
+        if (properties.enabled() != null) return properties.enabled();
+        return chatProperties.enabled();
+    }
     private String resolveProvider() { return nonBlank(properties.provider()) ? properties.provider() : chatProperties.provider(); }
     private String resolveBaseUrl() { return nonBlank(properties.baseUrl()) ? properties.baseUrl() : chatProperties.baseUrl(); }
     private String resolvePath() { return nonBlank(properties.path()) ? properties.path() : chatProperties.path(); }
@@ -38,8 +46,10 @@ public class TaskPlanModelClient {
     private String resolveModel() { return nonBlank(properties.model()) ? properties.model() : chatProperties.model(); }
     private Duration resolveConnectTimeout() { return properties.connectTimeout() != null ? properties.connectTimeout() : chatProperties.connectTimeout(); }
     private Duration resolveReadTimeout() { return properties.readTimeout() != null ? properties.readTimeout() : chatProperties.readTimeout(); }
-    private double resolveTemperature() { return properties.temperature() > 0 ? properties.temperature() : chatProperties.temperature(); }
-    private int resolveMaxOutputTokens() { return properties.maxOutputTokens() > 0 ? properties.maxOutputTokens() : chatProperties.maxOutputTokens(); }
+    /** H7: temperature 0.0 is valid; only fallback when null. */
+    private double resolveTemperature() { return properties.temperature() != null ? properties.temperature() : chatProperties.temperature(); }
+    /** H7: maxOutputTokens 0 or negative means not set; fallback to chat. */
+    private int resolveMaxOutputTokens() { return properties.maxOutputTokens() != null && properties.maxOutputTokens() > 0 ? properties.maxOutputTokens() : chatProperties.maxOutputTokens(); }
     private static boolean nonBlank(String s) { return s != null && !s.isBlank(); }
 
     /**
