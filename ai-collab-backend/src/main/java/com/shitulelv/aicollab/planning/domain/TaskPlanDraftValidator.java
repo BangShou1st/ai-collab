@@ -27,9 +27,15 @@ public class TaskPlanDraftValidator {
             errors.add("PLAN_DATE_OUTSIDE_PROJECT");
         }
         if (draft.milestones().size() > 8) errors.add("MILESTONE_LIMIT_EXCEEDED");
+        if (draft.milestones().isEmpty()) errors.add("MILESTONE_REQUIRED");
         if (draft.tasks().size() > 40 || draft.tasks().size() > context.maxTaskCount()) {
             errors.add("TASK_LIMIT_EXCEEDED");
         }
+        if (draft.tasks().isEmpty()) errors.add("TASK_REQUIRED");
+        if (draft.summary() == null || draft.summary().isBlank()) errors.add("SUMMARY_REQUIRED");
+        if (draft.summary() != null && draft.summary().length() > 2000) errors.add("SUMMARY_TOO_LONG");
+        if (draft.assumptions() == null || draft.assumptions().size() > 20) errors.add("ASSUMPTION_LIMIT_EXCEEDED");
+        if (draft.risks() == null || draft.risks().size() > 20) errors.add("RISK_LIMIT_EXCEEDED");
 
         Map<String, PlanMilestone> milestones = new HashMap<>();
         Set<String> allKeys = new HashSet<>();
@@ -48,9 +54,11 @@ public class TaskPlanDraftValidator {
                 errors.add("MILESTONE_DATE_OUTSIDE_PLAN");
             }
             if (milestone.sourceRefs().size() > 5) errors.add("SOURCE_REF_LIMIT_EXCEEDED");
+            if (milestone.sortOrder() < 0) errors.add("SORT_ORDER_INVALID");
         }
         Map<String, PlanTask> tasks = new HashMap<>();
         Set<String> sourceRefs = new HashSet<>();
+        if (draft.sources().size() > 12) errors.add("SOURCE_LIMIT_EXCEEDED");
         for (PlanSource source : draft.sources()) {
             if (source == null || blank(source.ref())) errors.add("SOURCE_INVALID");
             else sourceRefs.add(source.ref());
@@ -121,6 +129,7 @@ public class TaskPlanDraftValidator {
         }
         if (task.assigneeId() == null) warnings.add("TASK_UNASSIGNED");
         if (task.sourceRefs().isEmpty()) warnings.add("AI_SUGGESTION_WITHOUT_SOURCE");
+        if (task.sortOrder() < 0) errors.add("SORT_ORDER_INVALID");
     }
 
     private void validateDependencies(Map<String, PlanTask> tasks, Set<String> errors) {
@@ -166,6 +175,7 @@ public class TaskPlanDraftValidator {
 
     private static void validateSourceRefs(List<String> refs, Set<String> valid, Set<String> errors) {
         if (refs.stream().anyMatch(ref -> !valid.contains(ref))) errors.add("SOURCE_REF_INVALID");
+        if (refs.stream().distinct().count() < refs.size()) errors.add("SOURCE_REF_DUPLICATE");
     }
 
     private static boolean outside(LocalDate date, LocalDate start, LocalDate due) {

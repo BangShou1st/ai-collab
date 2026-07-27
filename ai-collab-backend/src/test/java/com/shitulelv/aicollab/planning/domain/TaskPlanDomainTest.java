@@ -119,6 +119,40 @@ class TaskPlanDomainTest {
     }
 
     @Test
+    void validatorRejectsEmptyPlanAndExcessiveLimits() {
+        TaskPlanDraft empty = new TaskPlanDraft("", List.of(), List.of(), List.of(), List.of(), List.of());
+        ValidationContext context = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(MEMBER), Set.of());
+
+        ValidationResult result = new TaskPlanDraftValidator().validate(context, empty);
+
+        assertThat(result.errorCodes()).contains(
+                "MILESTONE_REQUIRED", "TASK_REQUIRED", "SUMMARY_REQUIRED");
+    }
+
+    @Test
+    void validatorRejectsSortOrderAndDuplicateSourceRefs() {
+        TaskPlanDraft draft = new TaskPlanDraft(
+                "summary", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "Milestone", "Objective",
+                        LocalDate.of(2026, 8, 10), -1, List.of("S1", "S1"))),
+                List.of(new PlanTask("t1", "m1", "Task", "Objective", "Description", "MEDIUM",
+                        BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                        null, null, List.of(), List.of(), -1)),
+                List.of(new PlanSource("S1", UUID.randomUUID(), "source", "quote")));
+        ValidationContext context = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(MEMBER), Set.of());
+
+        ValidationResult result = new TaskPlanDraftValidator().validate(context, draft);
+
+        assertThat(result.errorCodes()).contains("SORT_ORDER_INVALID", "SOURCE_REF_DUPLICATE");
+    }
+
+    @Test
     void validatorRejectsAssigneeIdInAiGeneratedDraft() {
         TaskPlanDraft draft = new TaskPlanDraft(
                 "summary", List.of("assumption"), List.of("risk"),
