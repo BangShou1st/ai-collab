@@ -248,3 +248,7 @@ Embedding 和 Chat 网络调用不进入数据库事务。得到最终回答后�
 `V5__create_ai_task_planning.sql` 替换了 V1 中从未接入应用的预留规划草案表组；V1–V4 文件和 checksum 不变。新模型包含 `ai_task_plan`、不可变 `ai_task_plan_version`、逐次模型请求 `ai_task_plan_attempt` 与数据库幂等事实 `ai_task_plan_confirmation`。
 
 核心约束包括 `(plan_id, version_no)`、`(project_id, idempotency_key)`、confirmation 的 `plan_id` 唯一，以及正式数据的 `(source_plan_version_id, source_plan_*_key)` 局部唯一索引。正式 `milestone` 和 `project_task` 来源外键使用 RESTRICT，规划删除不会级联正式数据；数据库触发器拒绝删除 CONFIRMED 规划。未确认规划删除时版本与 attempt 随规划级联清理。
+
+## 11. Phase 08 V6 修复迁移
+
+`V6__repair_phase_08_ai_task_planning.sql` 修复 confirmation 外键语义：将 `ai_task_plan_confirmation.plan_id` 外键从 `ON DELETE RESTRICT` 改为 `ON DELETE CASCADE`，确保删除未确认规划时 confirmation 记录随规划级联清理，而不是被 RESTRICT 阻止。V5 保持不可变，checksum 不变。

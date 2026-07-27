@@ -951,6 +951,12 @@ paths:
     get:
       tags: [TaskPlans]
       summary: List task plans
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/TaskPlanStatus' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
       responses:
         '200':
           description: Task plans
@@ -958,6 +964,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskPlanListEnvelope'
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [TaskPlans]
       summary: Generate task plan asynchronously
@@ -974,6 +981,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskPlanEnvelope'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503':
+          description: Planning generation queue full
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /projects/{projectId}/ai/task-plans/{planId}:
     x-implementation-status: implemented
     parameters:
@@ -995,6 +1012,9 @@ paths:
       responses:
         '204':
           description: Deleted
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /projects/{projectId}/ai/task-plans/{planId}/versions:
     x-implementation-status: implemented
     parameters:
@@ -1020,6 +1040,8 @@ paths:
                 draft: { $ref: '#/components/schemas/TaskPlanDraft' }
       responses:
         '200': { description: New immutable version id }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
@@ -1051,6 +1073,10 @@ paths:
       summary: Copy a historical version into a new RESTORED version
       responses:
         '200': { description: Restored immutable version id }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
   /projects/{projectId}/ai/task-plans/{planId}/cancel:
     x-implementation-status: implemented
     parameters:
@@ -1061,6 +1087,9 @@ paths:
       summary: Cancel active generation and invalidate late results
       responses:
         '202': { description: Cancellation accepted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /projects/{projectId}/ai/task-plans/{planId}/retry-detail:
     x-implementation-status: implemented
     parameters:
@@ -1071,6 +1100,16 @@ paths:
       summary: Retry detail generation from the preserved skeleton
       responses:
         '202': { description: Detail retry accepted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503':
+          description: Planning generation queue full
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /projects/{projectId}/ai/task-plans/{planId}/regenerate:
     x-implementation-status: implemented
     parameters:
@@ -1081,6 +1120,16 @@ paths:
       summary: Start a new generation sequence from immutable plan input
       responses:
         '202': { description: Regeneration accepted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503':
+          description: Planning generation queue full
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /projects/{projectId}/ai/task-plans/{planId}/confirm:
     x-implementation-status: implemented
     parameters:
@@ -1113,8 +1162,24 @@ paths:
                 $ref: '#/components/schemas/ApplyTaskPlanEnvelope'
         '202':
           description: Matching confirmation is still processing; retry with the same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplyTaskPlanEnvelope'
+        '400':
+          description: Missing or invalid Idempotency-Key header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: Idempotency key reused with different request, or plan not in READY state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
   /projects/{projectId}/dashboard:
@@ -1962,7 +2027,50 @@ components:
               required: [plan, permissions]
               properties:
                 plan: { $ref: '#/components/schemas/TaskPlanView' }
+                latestVersion: { $ref: '#/components/schemas/TaskPlanVersionView' }
+                activeAttempt: { $ref: '#/components/schemas/TaskPlanAttemptView' }
+                latestFailedAttempt: { $ref: '#/components/schemas/TaskPlanAttemptView' }
+                confirmation: { $ref: '#/components/schemas/TaskPlanConfirmationView' }
+                validation: { $ref: '#/components/schemas/TaskPlanValidationView' }
                 permissions: { $ref: '#/components/schemas/TaskPlanPermissions' }
+    TaskPlanVersionView:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        versionNo: { type: integer }
+        sourceType: { type: string, enum: [AI_SKELETON, AI_COMPLETE, MANUAL_EDIT, RESTORED] }
+        basedOnVersionId: { type: [string, 'null'], format: uuid }
+        createdBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+    TaskPlanAttemptView:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        stage: { type: string, enum: [SKELETON, DETAIL, REPAIR] }
+        status: { type: string, enum: [QUEUED, RUNNING, SUCCESS, FAILED, CANCELED, DISCARDED] }
+        provider: { type: [string, 'null'] }
+        model: { type: [string, 'null'] }
+        startedAt: { type: [string, 'null'], format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+        latencyMs: { type: [integer, 'null'] }
+        promptTokens: { type: [integer, 'null'] }
+        completionTokens: { type: [integer, 'null'] }
+        errorCode: { type: [string, 'null'] }
+        errorSummary: { type: [string, 'null'] }
+        createdBy: { type: string, format: uuid }
+    TaskPlanConfirmationView:
+      type: object
+      properties:
+        confirmationId: { type: string, format: uuid }
+        status: { type: string, enum: [PROCESSING, SUCCESS, FAILED] }
+        milestoneIds: { type: array, items: { type: string, format: uuid } }
+        taskIds: { type: array, items: { type: string, format: uuid } }
+        dependencyCount: { type: integer }
+    TaskPlanValidationView:
+      type: object
+      properties:
+        errors: { type: array, items: { type: string } }
+        warnings: { type: array, items: { type: string } }
     ApplyTaskPlanResult:
       type: object
       required: [confirmationId, status]
