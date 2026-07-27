@@ -67,21 +67,32 @@ public class TaskPlanCommandService {
         return plan;
     }
 
-    /** P2-4 fix: validate state before rate limiting. */
+    /** F5 fix: rate limit BEFORE state change. Invalid requests do not consume quota. */
     public TaskPlanRecord retryDetail(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
-        TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, true);
+        // Pre-check state without modifying
+        TaskPlanRecord current = repository.require(projectId, planId);
+        if (!List.of("DETAIL_GENERATION_FAILED").contains(current.status().name())) {
+            throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+        }
         rateLimiter.check(actor);
+        TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, true);
         safeAudit(projectId, actor, "TASK_PLAN_DETAIL_RETRIED", "AI_TASK_PLAN", planId);
         orchestrator.dispatch(plan, actor, true);
         return plan;
     }
 
-    /** P2-4 fix: validate state before rate limiting. */
+    /** F5 fix: rate limit BEFORE state change. Invalid requests do not consume quota. */
     public TaskPlanRecord regenerate(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
-        TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, false);
+        // Pre-check state without modifying
+        TaskPlanRecord current = repository.require(projectId, planId);
+        if (!List.of("READY", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED")
+                .contains(current.status().name())) {
+            throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+        }
         rateLimiter.check(actor);
+        TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, false);
         safeAudit(projectId, actor, "TASK_PLAN_REGENERATED", "AI_TASK_PLAN", planId);
         orchestrator.dispatch(plan, actor, false);
         return plan;

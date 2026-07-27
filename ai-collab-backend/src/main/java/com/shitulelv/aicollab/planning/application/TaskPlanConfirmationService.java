@@ -90,6 +90,14 @@ public class TaskPlanConfirmationService {
         List<Map<String, Object>> existing = jdbc.queryForList(
                 "SELECT * FROM ai_task_plan_confirmation WHERE plan_id=? AND status='SUCCESS'", planId);
         if (!existing.isEmpty()) return new Claim((UUID) existing.getFirst().get("id"), response(existing.getFirst()));
+        // F6: Check for ANY existing confirmation (FAILED/PROCESSING) with different key → stable 409
+        List<Map<String, Object>> anyExisting = jdbc.queryForList(
+                "SELECT * FROM ai_task_plan_confirmation WHERE plan_id=?", planId);
+        if (!anyExisting.isEmpty()) {
+            // There's a FAILED/PROCESSING confirmation for this plan but with a different key
+            throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED,
+                    "该规划已有确认记录，请使用原始 Idempotency-Key 重试");
+        }
         if (plan.status() != TaskPlanStatus.READY) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
         repository.requireVersion(projectId, planId, versionId);
         UUID confirmation = UUID.randomUUID();
@@ -124,7 +132,9 @@ public class TaskPlanConfirmationService {
                     INSERT INTO milestone(id,project_id,name,description,target_date,status,sort_order,created_by,
                       source_plan_id,source_plan_version_id,source_plan_milestone_key)
                     VALUES (?,?,?,?,?,'PLANNED',?,?,?,?,?)
-                    """, id, projectId, milestone.title(), milestone.objective(), milestone.targetDate(),
+                    """, id, projectId, milestone.title(),
+                    milestone.description() != null ? milestone.description() : milestone.objective(),
+                    milestone.targetDate(),
                     milestone.sortOrder(), actor, planId, versionId, milestone.tempKey());
         }
         Map<String, UUID> taskIds = new LinkedHashMap<>();
