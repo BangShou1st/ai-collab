@@ -8,6 +8,7 @@ import com.shitulelv.aicollab.planning.api.CreateTaskPlanRequest;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
 import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
 import com.shitulelv.aicollab.planning.domain.ValidationContext;
+import com.shitulelv.aicollab.planning.domain.ValidationResult;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -80,7 +81,7 @@ public class TaskPlanRepository {
 
     @Transactional
     public UUID appendVersion(UUID projectId, UUID planId, UUID expectedBase, String type,
-                              UUID basedOn, TaskPlanDraft draft, UUID actor) {
+                              UUID basedOn, TaskPlanDraft draft, UUID actor, ValidationResult validation) {
         TaskPlanRecord plan = lock(projectId, planId);
         if (plan.status() != TaskPlanStatus.READY && !type.startsWith("AI_")) stateConflict();
         if (expectedBase != null && !expectedBase.equals(plan.latestVersionId())) {
@@ -88,15 +89,18 @@ public class TaskPlanRepository {
         }
         UUID id = UUID.randomUUID();
         int next = plan.latestVersionNo() + 1;
+        String validationJson = validation != null
+                ? write(Map.of("errors", validation.errorCodes(), "warnings", validation.warningCodes()))
+                : "{\"errors\":[],\"warnings\":[]}";
         jdbc.update("""
                 INSERT INTO ai_task_plan_version(id,plan_id,version_no,source_type,based_on_version_id,
                   generation_seq,summary,assumptions_json,risks_json,milestones_json,tasks_json,sources_json,
                   validation_result_json,created_by)
                 VALUES (?,?,?,?,?, ?,?,?::jsonb,?::jsonb,?::jsonb,?::jsonb,?::jsonb,
-                  '{"errors":[],"warnings":[]}'::jsonb,?)
+                  ?::jsonb,?)
                 """, id, planId, next, type, basedOn, plan.generationSeq(), draft.summary(),
                 write(draft.assumptions()), write(draft.risks()), write(draft.milestones()),
-                write(draft.tasks()), write(draft.sources()), actor);
+                write(draft.tasks()), write(draft.sources()), validationJson, actor);
         jdbc.update("""
                 UPDATE ai_task_plan SET latest_version_no=?,latest_version_id=?,updated_at=now(),
                   status=CASE WHEN ?='AI_SKELETON' THEN 'DETAIL_GENERATING'
@@ -109,14 +113,14 @@ public class TaskPlanRepository {
     @Transactional
     public UUID appendGeneratedVersion(UUID projectId, UUID planId, long generationSeq, UUID attemptId,
                                        TaskPlanStatus expectedStatus, String type, UUID basedOn,
-                                       TaskPlanDraft draft, UUID actor) {
+                                       TaskPlanDraft draft, UUID actor, ValidationResult validation) {
         TaskPlanRecord plan = lock(projectId, planId);
         if (plan.generationSeq() != generationSeq || !attemptId.equals(plan.activeAttemptId())
                 || plan.status() != expectedStatus) {
             finishAttempt(attemptId, "DISCARDED", "PLAN_GENERATION_CANCELED");
             return null;
         }
-        return appendVersion(projectId, planId, null, type, basedOn, draft, actor);
+        return appendVersion(projectId, planId, null, type, basedOn, draft, actor, validation);
     }
 
     @Transactional
