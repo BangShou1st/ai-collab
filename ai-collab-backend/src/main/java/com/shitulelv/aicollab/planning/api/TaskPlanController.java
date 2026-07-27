@@ -97,6 +97,11 @@ public class TaskPlanController {
         return ResponseEntity.accepted().body(ApiResponse.success(
                 commands.partialRegenerate(projectId, planId, request, userId(jwt))));
     }
+
+    @GetMapping("/{planId}/events") public ApiResponse<?> events(@PathVariable UUID projectId,
+            @PathVariable UUID planId, @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(queries.events(projectId, planId, userId(jwt)));
+    }
     private static UUID userId(Jwt jwt) {
         try { return UUID.fromString(jwt.getSubject()); }
         catch (RuntimeException exception) { throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED); }

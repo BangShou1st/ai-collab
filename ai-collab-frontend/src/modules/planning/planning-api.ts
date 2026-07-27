@@ -1,6 +1,6 @@
 import { httpClient } from '../../api/http-client'
 import type { ApiResponse } from '../../api/types'
-import type { TaskPlanDetailView, TaskPlanDraft, TaskPlan } from './types'
+import type { TaskPlanDetailView, TaskPlanDraft, TaskPlan, TaskPlanEvent } from './types'
 
 const base = (projectId: string) => `/projects/${projectId}/ai/task-plans`
 
@@ -25,6 +25,10 @@ export const planningApi = {
   confirm: (projectId: string, planId: string, versionId: string, key: string) =>
     httpClient.post(`${base(projectId)}/${planId}/confirm`, { versionId }, { headers: { 'Idempotency-Key': key } }),
   remove: (projectId: string, planId: string) => httpClient.delete(`${base(projectId)}/${planId}`),
+  events: (projectId: string, planId: string) =>
+    httpClient.get<ApiResponse<TaskPlanEvent[]>>(`${base(projectId)}/${planId}/events`),
+  partialRegenerate: (projectId: string, planId: string, body: object) =>
+    httpClient.post(`${base(projectId)}/${planId}/partial-regenerate`, body),
 }
 
 export function confirmationKey(projectId: string, planId: string, versionId: string): string {

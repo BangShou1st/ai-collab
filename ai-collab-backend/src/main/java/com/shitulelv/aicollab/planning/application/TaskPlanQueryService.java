@@ -1,8 +1,12 @@
 package com.shitulelv.aicollab.planning.application;
 
+import com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRepository;
+import com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRecord;
+import com.shitulelv.aicollab.planning.infrastructure.TaskPlanIssueRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanVersionRecord;
+import com.shitulelv.aicollab.planning.domain.StructuredValidationIssue;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,9 +20,14 @@ import java.util.UUID;
 public class TaskPlanQueryService {
     private final ProjectAccessGuard access;
     private final TaskPlanRepository repository;
+    private final TaskPlanIssueRepository issueRepo;
+    private final TaskPlanEventRepository eventRepo;
     private final JdbcTemplate jdbc;
-    public TaskPlanQueryService(ProjectAccessGuard access, TaskPlanRepository repository, JdbcTemplate jdbc) {
-        this.access = access; this.repository = repository; this.jdbc = jdbc;
+    public TaskPlanQueryService(ProjectAccessGuard access, TaskPlanRepository repository,
+                                 TaskPlanIssueRepository issueRepo, TaskPlanEventRepository eventRepo,
+                                 JdbcTemplate jdbc) {
+        this.access = access; this.repository = repository;
+        this.issueRepo = issueRepo; this.eventRepo = eventRepo; this.jdbc = jdbc;
     }
     public List<TaskPlanRecord> list(UUID projectId, String status, int page, int size, UUID actor) {
         access.requireMember(projectId, actor);
@@ -136,17 +145,30 @@ public class TaskPlanQueryService {
             }
         }
 
+        // Task 11: Structured issues from issue repository
+        List<StructuredValidationIssue> structuredIssues = List.of();
+        if (plan.latestVersionId() != null) {
+            structuredIssues = issueRepo.findByVersion(planId, plan.latestVersionId());
+        }
+
+        boolean readyWithIssues = plan.status().name().equals("READY_WITH_ISSUES");
+        boolean canEdit = write && (ready || readyWithIssues);
+        boolean canPartialRegenerate = write && (ready || readyWithIssues);
+        boolean canConfirm = write && ready && structuredIssues.stream()
+                .noneMatch(i -> i.severity() != com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity.WARNING);
+
         TaskPlanPermissions permissions = new TaskPlanPermissions(
-                write && ready,
+                canEdit,
                 write && plan.status().isGenerating(),
                 write && plan.status().name().equals("DETAIL_GENERATION_FAILED"),
-                write && List.of("READY", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED").contains(plan.status().name()),
-                write && ready,
-                write && List.of("READY", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED").contains(plan.status().name()),
-                write && ready);
+                write && List.of("READY", "READY_WITH_ISSUES", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED").contains(plan.status().name()),
+                canConfirm,
+                write && List.of("READY", "READY_WITH_ISSUES", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED").contains(plan.status().name()),
+                write && (ready || readyWithIssues),
+                canPartialRegenerate);
 
         return new TaskPlanDetailView(plan, latestVersion, activeAttempt, latestFailedAttempt,
-                latestAttempt, confirmation, validation, permissions);
+                latestAttempt, confirmation, validation, permissions, structuredIssues);
     }
 
     public List<TaskPlanVersionRecord> versions(UUID projectId, UUID planId, UUID actor) {
@@ -157,6 +179,13 @@ public class TaskPlanQueryService {
         access.requireMember(projectId, actor);
         TaskPlanVersionRecord version = repository.requireVersion(projectId, planId, versionId);
         return Map.of("version", version, "draft", repository.draft(version));
+    }
+
+    /** Task 11: Events API — returns recent plan events (max 100). */
+    public List<TaskPlanEventRecord> events(UUID projectId, UUID planId, UUID actor) {
+        access.requireMember(projectId, actor);
+        repository.require(projectId, planId);
+        return eventRepo.findByPlan(planId, 100);
     }
 
     private static String str(Object v) { return v == null ? null : v.toString(); }
