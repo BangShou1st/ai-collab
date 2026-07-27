@@ -73,10 +73,14 @@ public class TaskPlanDraftValidator {
         Map<String, PlanTask> tasks = new HashMap<>();
         Set<String> sourceRefs = new HashSet<>();
         if (draft.sources().size() > 12) errors.add("SOURCE_LIMIT_EXCEEDED");
+        Set<String> sourceRefValues = new HashSet<>();
         for (PlanSource source : draft.sources()) {
             if (source == null || blank(source.ref())) errors.add("SOURCE_INVALID");
-            else if (!source.ref().matches("^S\\d{1,2}$")) errors.add("SOURCE_REF_FORMAT_INVALID");
-            else sourceRefs.add(source.ref());
+            else if (!source.ref().matches("^S([1-9]|1[0-2])$")) errors.add("SOURCE_REF_FORMAT_INVALID");
+            else {
+                if (!sourceRefValues.add(source.ref())) errors.add("SOURCE_REF_DUPLICATE");
+                sourceRefs.add(source.ref());
+            }
         }
         Set<String> normalizedTitles = new HashSet<>();
         boolean skeletonMode = (mode == ValidationMode.AI_SKELETON);
@@ -213,7 +217,7 @@ public class TaskPlanDraftValidator {
 
     private static void validateSourceRefs(List<String> refs, Set<String> valid, Set<String> errors) {
         for (String ref : refs) {
-            if (ref == null || !ref.matches("^S\\d{1,2}$")) errors.add("SOURCE_REF_FORMAT_INVALID");
+            if (ref == null || !ref.matches("^S([1-9]|1[0-2])$")) errors.add("SOURCE_REF_FORMAT_INVALID");
             else if (!valid.contains(ref)) errors.add("SOURCE_REF_INVALID");
         }
         if (refs.stream().distinct().count() < refs.size()) errors.add("SOURCE_REF_DUPLICATE");

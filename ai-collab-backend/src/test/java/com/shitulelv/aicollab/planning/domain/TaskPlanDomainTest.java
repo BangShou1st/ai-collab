@@ -210,6 +210,86 @@ class TaskPlanDomainTest {
         assertThat(result.errorCodes()).contains("SOURCE_REF_FORMAT_INVALID");
     }
 
+    // C7: Individual tests for each illegal source ref value
+    @Test
+    void validatorRejectsSourceRefS0() {
+        assertSourceRefRejected("S0");
+    }
+
+    @Test
+    void validatorRejectsSourceRefS00() {
+        assertSourceRefRejected("S00");
+    }
+
+    @Test
+    void validatorRejectsSourceRefS13() {
+        assertSourceRefRejected("S13");
+    }
+
+    @Test
+    void validatorRejectsSourceRefS99() {
+        assertSourceRefRejected("S99");
+    }
+
+    @Test
+    void validatorRejectsSourceRefX1() {
+        assertSourceRefRejected("X1");
+    }
+
+    @Test
+    void validatorAcceptsSourceRefS1ThroughS12() {
+        for (int i = 1; i <= 12; i++) {
+            TaskPlanDraft draft = new TaskPlanDraft("s", List.of(), List.of(),
+                    List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 10), 0,
+                            List.of("S" + i))),
+                    List.of(new PlanTask("t1", "m1", "T", "O", "D", "MEDIUM",
+                            BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                            null, null, List.of(), List.of("S" + i), 0)),
+                    List.of(new PlanSource("S" + i, UUID.randomUUID(), "src", "q")));
+            ValidationContext ctx = new ValidationContext(
+                    LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                    LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                    10, Set.of(MEMBER), Set.of());
+            assertThat(new TaskPlanDraftValidator().validate(ctx, draft).errorCodes())
+                    .doesNotContain("SOURCE_REF_FORMAT_INVALID");
+        }
+    }
+
+    // C7: Duplicate PlanSource.ref must be rejected
+    @Test
+    void validatorRejectsDuplicatePlanSourceRef() {
+        UUID docId = UUID.randomUUID();
+        TaskPlanDraft draft = new TaskPlanDraft("s", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 10), 0, List.of("S1"))),
+                List.of(new PlanTask("t1", "m1", "T", "O", "D", "MEDIUM",
+                        BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                        null, null, List.of(), List.of("S1"), 0)),
+                List.of(
+                        new PlanSource("S1", docId, "src", "q1"),
+                        new PlanSource("S1", docId, "src", "q2")));
+        ValidationContext ctx = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(MEMBER), Set.of());
+        assertThat(new TaskPlanDraftValidator().validate(ctx, draft).errorCodes())
+                .contains("SOURCE_REF_DUPLICATE");
+    }
+
+    private void assertSourceRefRejected(String ref) {
+        TaskPlanDraft draft = new TaskPlanDraft("s", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 10), 0, List.of(ref))),
+                List.of(new PlanTask("t1", "m1", "T", "O", "D", "MEDIUM",
+                        BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                        null, null, List.of(), List.of(), 0)),
+                List.of());
+        ValidationContext ctx = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(MEMBER), Set.of());
+        assertThat(new TaskPlanDraftValidator().validate(ctx, draft).errorCodes())
+                .contains("SOURCE_REF_FORMAT_INVALID");
+    }
+
     @Test
     void validatorRejectsAssigneeIdInAiGeneratedDraft() {
         TaskPlanDraft draft = new TaskPlanDraft(
