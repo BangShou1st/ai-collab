@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 @Service
@@ -99,11 +100,27 @@ public class TaskPlanGenerationOrchestrator {
     private final TaskPlanDraftValidator validator;
     private final ObjectMapper json;
     private final TaskPlanContextAssembler contexts;
-    // F3: Maps attemptId → Future for the single cancellable Future per generation run.
-    // When skeleton transitions to detail or repair, we re-key under the new attemptId.
-    private final ConcurrentHashMap<UUID, Future<?>> activeFutures = new ConcurrentHashMap<>();
-    // F3: Maps generationSeq → current active attemptId for cancel lookup
-    private final ConcurrentHashMap<Long, UUID> generationActiveAttempt = new ConcurrentHashMap<>();
+
+    /** C3: Composite key (planId, generationSeq) prevents cross-plan collisions. */
+    record GenerationRunKey(UUID planId, long generationSeq) {}
+
+    /** C3: Single handle per run — Future + current active attempt. */
+    static final class GenerationRunHandle {
+        private final Future<?> future;
+        private final AtomicReference<UUID> activeAttemptId;
+        GenerationRunHandle(Future<?> future, UUID attemptId) {
+            this.future = future;
+            this.activeAttemptId = new AtomicReference<>(attemptId);
+        }
+        Future<?> future() { return future; }
+        UUID activeAttemptId() { return activeAttemptId.get(); }
+        UUID swapAttemptId(UUID expected, UUID newId) {
+            return activeAttemptId.compareAndSet(expected, newId) ? expected : null;
+        }
+    }
+
+    /** C3: Maps (planId, generationSeq) → run handle. Empty at terminal states. */
+    private final ConcurrentHashMap<GenerationRunKey, GenerationRunHandle> runRegistry = new ConcurrentHashMap<>();
 
     public TaskPlanGenerationOrchestrator(
             @Qualifier("planningTaskExecutor") Executor executor, TaskPlanRepository repository,
@@ -115,7 +132,8 @@ public class TaskPlanGenerationOrchestrator {
     }
 
     /**
-     * R4+F3: FutureTask-first registration eliminates the race window.
+     * C3+R4+F3: FutureTask-first registration eliminates the race window.
+     * Uses (planId, generationSeq) composite key to prevent cross-plan collisions.
      * The FutureTask is placed in the registry BEFORE executor.execute(),
      * so cancel() always finds it. On queue reject, we clean up immediately.
      */
@@ -124,14 +142,12 @@ public class TaskPlanGenerationOrchestrator {
             runPlan(plan, actor, detailOnly);
             return null;
         });
-        activeFutures.put(plan.activeAttemptId(), futureTask);
-        generationActiveAttempt.put(plan.generationSeq(), plan.activeAttemptId());
+        GenerationRunKey key = new GenerationRunKey(plan.id(), plan.generationSeq());
+        runRegistry.put(key, new GenerationRunHandle(futureTask, plan.activeAttemptId()));
         try {
             executor.execute(futureTask);
         } catch (RejectedExecutionException rejected) {
-            activeFutures.remove(plan.activeAttemptId());
-            generationActiveAttempt.remove(plan.generationSeq());
-            // H2: Queue reject stage classification — detail stage → DETAIL_GENERATION_FAILED
+            runRegistry.remove(key);
             TaskPlanStatus failStatus = detailOnly
                     ? TaskPlanStatus.DETAIL_GENERATION_FAILED : TaskPlanStatus.FAILED;
             repository.fail(plan.id(), plan.generationSeq(), plan.activeAttemptId(), plan.status(),
@@ -145,30 +161,36 @@ public class TaskPlanGenerationOrchestrator {
             if (detailOnly) runDetail(plan, plan.activeAttemptId(), actor, latestDraft(plan));
             else runSkeleton(plan, actor);
         } finally {
-            UUID currentAttempt = generationActiveAttempt.remove(plan.generationSeq());
-            if (currentAttempt != null) activeFutures.remove(currentAttempt);
-            activeFutures.remove(plan.activeAttemptId());
+            runRegistry.remove(new GenerationRunKey(plan.id(), plan.generationSeq()));
         }
     }
 
     /**
-     * F3: Cancel by attemptId. The Future is always re-keyed under the current activeAttemptId,
-     * so cancel() finds it directly.
+     * C3+F3: Cancel by attemptId. Uses composite key to find the correct run handle.
+     * Scans all active runs to find the one with matching attemptId — plan-scoped.
      */
     public void cancelFuture(UUID attemptId) {
-        Future<?> future = activeFutures.remove(attemptId);
-        if (future != null) {
-            future.cancel(true);
-            generationActiveAttempt.values().remove(attemptId);
+        for (var entry : runRegistry.entrySet()) {
+            GenerationRunHandle handle = entry.getValue();
+            if (attemptId.equals(handle.activeAttemptId())) {
+                handle.future().cancel(true);
+                return;
+            }
         }
     }
 
-    /** F3: Re-key the running Future under a new attemptId (e.g., after repair or detail transition). */
+    /**
+     * C3+F3: Re-key the running Future under a new attemptId (e.g., after repair or detail transition).
+     * Only updates the handle's activeAttemptId — the composite key stays the same.
+     */
     private void rekeyFuture(UUID oldAttemptId, UUID newAttemptId, long generationSeq) {
-        Future<?> future = activeFutures.remove(oldAttemptId);
-        if (future != null) {
-            activeFutures.put(newAttemptId, future);
-            generationActiveAttempt.put(generationSeq, newAttemptId);
+        // Find the handle containing oldAttemptId and swap to newAttemptId
+        for (var entry : runRegistry.entrySet()) {
+            GenerationRunHandle handle = entry.getValue();
+            if (oldAttemptId.equals(handle.activeAttemptId())) {
+                handle.swapAttemptId(oldAttemptId, newAttemptId);
+                return;
+            }
         }
     }
 
