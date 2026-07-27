@@ -46,6 +46,51 @@ class TaskPlanGenerationOrchestratorTest {
         assertThat(keyA).isEqualTo(keyA2);
     }
 
+    // C6: Reject detail that is missing skeleton milestone keys
+    @Test
+    void mergeDetailRejectsMissingSkeletonMilestoneKey() {
+        com.shitulelv.aicollab.planning.domain.TaskPlanDraft skeleton = new com.shitulelv.aicollab.planning.domain.TaskPlanDraft(
+                "summary", java.util.List.of(), java.util.List.of(),
+                java.util.List.of(
+                        new com.shitulelv.aicollab.planning.domain.PlanMilestone("m1", "M1", "O", null, null, 0, java.util.List.of()),
+                        new com.shitulelv.aicollab.planning.domain.PlanMilestone("m2", "M2", "O", null, null, 1, java.util.List.of())),
+                java.util.List.of(new com.shitulelv.aicollab.planning.domain.PlanTask(
+                        "t1", "m1", "T", "O", null, null, null, null, null, null, null, java.util.List.of(), java.util.List.of(), 0)),
+                java.util.List.of());
+        // Detail only has m1, missing m2
+        com.shitulelv.aicollab.planning.domain.DetailModelOutput detail = new com.shitulelv.aicollab.planning.domain.DetailModelOutput(
+                java.util.List.of(new com.shitulelv.aicollab.planning.domain.DetailModelOutput.DetailMilestone("m1", "D", java.util.List.of())),
+                java.util.List.of(new com.shitulelv.aicollab.planning.domain.DetailModelOutput.DetailTask(
+                        "t1", "D", "HIGH", java.math.BigDecimal.ONE, null, null, null, java.util.List.of(), java.util.List.of())));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                TaskPlanGenerationOrchestrator.mergeDetailIntoSkeleton(skeleton, detail))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("DETAIL_MISSING_MILESTONE_KEY:m2");
+    }
+
+    // C6: Reject detail that is missing skeleton task keys
+    @Test
+    void mergeDetailRejectsMissingSkeletonTaskKey() {
+        com.shitulelv.aicollab.planning.domain.TaskPlanDraft skeleton = new com.shitulelv.aicollab.planning.domain.TaskPlanDraft(
+                "summary", java.util.List.of(), java.util.List.of(),
+                java.util.List.of(new com.shitulelv.aicollab.planning.domain.PlanMilestone("m1", "M", "O", null, null, 0, java.util.List.of())),
+                java.util.List.of(
+                        new com.shitulelv.aicollab.planning.domain.PlanTask("t1", "m1", "T1", "O", null, null, null, null, null, null, null, java.util.List.of(), java.util.List.of(), 0),
+                        new com.shitulelv.aicollab.planning.domain.PlanTask("t2", "m1", "T2", "O", null, null, null, null, null, null, null, java.util.List.of(), java.util.List.of(), 1)),
+                java.util.List.of());
+        // Detail only has t1, missing t2
+        com.shitulelv.aicollab.planning.domain.DetailModelOutput detail = new com.shitulelv.aicollab.planning.domain.DetailModelOutput(
+                java.util.List.of(new com.shitulelv.aicollab.planning.domain.DetailModelOutput.DetailMilestone("m1", "D", java.util.List.of())),
+                java.util.List.of(new com.shitulelv.aicollab.planning.domain.DetailModelOutput.DetailTask(
+                        "t1", "D", "HIGH", java.math.BigDecimal.ONE, null, null, null, java.util.List.of(), java.util.List.of())));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                TaskPlanGenerationOrchestrator.mergeDetailIntoSkeleton(skeleton, detail))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("DETAIL_MISSING_TASK_KEY:t2");
+    }
+
     @Test
     void mergeDetailIntoSkeletonPreservesIdentityFields() {
         com.shitulelv.aicollab.planning.domain.TaskPlanDraft skeleton = new com.shitulelv.aicollab.planning.domain.TaskPlanDraft(
