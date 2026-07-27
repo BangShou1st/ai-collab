@@ -222,7 +222,7 @@ public class TaskPlanGenerationOrchestrator {
             GeneratedDetail generated = generateDetailWithOneRepair(plan, attempt,
                     TaskPlanStatus.DETAIL_GENERATING, prompt, actor, skeleton, candidate -> {
                 TaskPlanDraft merged = mergeDetailIntoSkeleton(skeleton, candidate);
-                return validator.validate(repository.validationContext(plan), merged, true).valid();
+                return validator.validate(repository.validationContext(plan), merged, ValidationMode.COMPLETE, true).valid();
             });
             TaskPlanDraft detail = mergeDetailIntoSkeleton(skeleton, generated.detail());
             if (!repository.active(plan.id(), plan.generationSeq(), generated.attemptId(), TaskPlanStatus.DETAIL_GENERATING)) {
@@ -231,7 +231,7 @@ public class TaskPlanGenerationOrchestrator {
             }
             UUID versionId = repository.appendGeneratedVersion(plan.projectId(), plan.id(), plan.generationSeq(), generated.attemptId(),
                     TaskPlanStatus.DETAIL_GENERATING, "AI_COMPLETE", plan.latestVersionId(), detail, actor,
-                    validator.validate(repository.validationContext(plan), detail, true));
+                    validator.validate(repository.validationContext(plan), detail, ValidationMode.COMPLETE, true));
             if (versionId == null) return;
             var m = generated.metrics();
             repository.finishAttempt(generated.attemptId(), "SUCCESS", null,

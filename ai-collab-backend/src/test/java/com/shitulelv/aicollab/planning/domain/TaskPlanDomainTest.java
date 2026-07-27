@@ -225,11 +225,77 @@ class TaskPlanDomainTest {
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
                 10, Set.of(MEMBER), Set.of());
 
-        ValidationResult aiResult = new TaskPlanDraftValidator().validate(context, draft, true);
-        ValidationResult manualResult = new TaskPlanDraftValidator().validate(context, draft, false);
+        ValidationResult aiResult = new TaskPlanDraftValidator().validate(context, draft,
+                TaskPlanDraftValidator.ValidationMode.COMPLETE, true);
+        ValidationResult manualResult = new TaskPlanDraftValidator().validate(context, draft);
 
         assertThat(aiResult.errorCodes()).contains("AI_GENERATED_ASSIGNEE_NOT_ALLOWED");
         assertThat(manualResult.errorCodes()).doesNotContain("AI_GENERATED_ASSIGNEE_NOT_ALLOWED");
+    }
+
+    // C1 RED: boolean aiGenerated=true must NOT use AI_SKELETON mode for complete drafts
+    @Test
+    void aiGeneratedTrueMustStillValidateDetailFieldsInCompleteMode() {
+        // A complete AI draft with missing description should fail in COMPLETE mode
+        TaskPlanDraft draft = new TaskPlanDraft(
+                "summary", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "Milestone", "Objective", null,
+                        LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanTask("t1", "m1", "Task", "Objective", null, "MEDIUM",
+                        BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                        null, null, List.of(), List.of(), 0)),
+                List.of());
+        ValidationContext context = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(MEMBER), Set.of());
+
+        // validate(draft, COMPLETE, aiGenerated=true) should catch missing description
+        ValidationResult aiResult = new TaskPlanDraftValidator().validate(context, draft,
+                TaskPlanDraftValidator.ValidationMode.COMPLETE, true);
+        // But currently it maps to AI_SKELETON which skips description check — RED
+        // This test will FAIL until we fix the boolean overload
+        assertThat(aiResult.errorCodes()).contains("TASK_TEXT_INVALID");
+    }
+
+    @Test
+    void aiGeneratedTrueMustStillValidatePriority() {
+        TaskPlanDraft draft = new TaskPlanDraft(
+                "summary", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "Milestone", "Objective", null,
+                        LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanTask("t1", "m1", "Task", "Objective", "Description", null,
+                        BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                        null, null, List.of(), List.of(), 0)),
+                List.of());
+        ValidationContext context = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(MEMBER), Set.of());
+
+        ValidationResult aiResult = new TaskPlanDraftValidator().validate(context, draft,
+                TaskPlanDraftValidator.ValidationMode.COMPLETE, true);
+        assertThat(aiResult.errorCodes()).contains("TASK_PRIORITY_INVALID");
+    }
+
+    @Test
+    void completeModeExplicitValidationCatchesMissingDetailFields() {
+        TaskPlanDraft draft = new TaskPlanDraft(
+                "summary", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "Milestone", "Objective", null,
+                        LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanTask("t1", "m1", "Task", "Objective", null, null,
+                        BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                        null, null, List.of(), List.of(), 0)),
+                List.of());
+        ValidationContext context = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(MEMBER), Set.of());
+
+        ValidationResult result = new TaskPlanDraftValidator().validate(context, draft,
+                TaskPlanDraftValidator.ValidationMode.COMPLETE);
+        assertThat(result.errorCodes()).contains("TASK_TEXT_INVALID", "TASK_PRIORITY_INVALID");
     }
 
     @Test
