@@ -124,6 +124,10 @@ public class TaskPlanRepository {
         return appendVersion(projectId, planId, null, type, basedOn, draft, actor, validation);
     }
 
+    /**
+     * C4: Cancel returns the actual canceled attemptId from the transaction,
+     * so the caller cancels the correct Future (not a stale pre-transaction read).
+     */
     @Transactional
     public TaskPlanRecord cancel(UUID projectId, UUID planId) {
         TaskPlanRecord plan = lock(projectId, planId);
@@ -136,6 +140,22 @@ public class TaskPlanRepository {
                   active_attempt_id=NULL,canceled_at=now(),updated_at=now() WHERE id=?
                 """, planId);
         return require(projectId, planId);
+    }
+
+    /** C4: Returns the actual attemptId that was canceled in the transaction. */
+    @Transactional
+    public UUID cancelAndReturnAttemptId(UUID projectId, UUID planId) {
+        TaskPlanRecord plan = lock(projectId, planId);
+        if (plan.status() == TaskPlanStatus.CANCELED) return null;
+        if (!plan.status().isGenerating()) stateConflict();
+        UUID actualAttemptId = plan.activeAttemptId();
+        jdbc.update("UPDATE ai_task_plan_attempt SET cancel_requested=true,status='CANCELED',updated_at=now() WHERE id=?",
+                actualAttemptId);
+        jdbc.update("""
+                UPDATE ai_task_plan SET status='CANCELED',generation_seq=generation_seq+1,
+                  active_attempt_id=NULL,canceled_at=now(),updated_at=now() WHERE id=?
+                """, planId);
+        return actualAttemptId;
     }
 
     @Transactional

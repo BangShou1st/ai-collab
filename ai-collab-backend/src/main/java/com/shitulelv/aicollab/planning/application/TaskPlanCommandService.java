@@ -57,14 +57,16 @@ public class TaskPlanCommandService {
         return plan;
     }
 
+    /**
+     * C4: Use cancelAndReturnAttemptId to get the actual attemptId from the transaction,
+     * preventing stale-read race where skeleton→detail transition changes the active attempt.
+     */
     public TaskPlanRecord cancel(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
-        TaskPlanRecord beforeCancel = repository.require(projectId, planId);
-        UUID attemptId = beforeCancel.activeAttemptId();
-        TaskPlanRecord plan = repository.cancel(projectId, planId);
-        if (attemptId != null) orchestrator.cancelFuture(attemptId);
+        UUID actualAttemptId = repository.cancelAndReturnAttemptId(projectId, planId);
+        if (actualAttemptId != null) orchestrator.cancelFuture(actualAttemptId);
         safeAudit(projectId, actor, "TASK_PLAN_CANCELED", "AI_TASK_PLAN", planId);
-        return plan;
+        return repository.require(projectId, planId);
     }
 
     /** F5 fix: rate limit BEFORE state change. Invalid requests do not consume quota. */
