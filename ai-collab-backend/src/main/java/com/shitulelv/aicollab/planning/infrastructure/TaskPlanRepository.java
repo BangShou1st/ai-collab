@@ -179,9 +179,12 @@ public class TaskPlanRepository {
     }
 
     @Transactional
-    public void markRunning(UUID attemptId) {
-        jdbc.update("UPDATE ai_task_plan_attempt SET status='RUNNING',started_at=now(),updated_at=now() WHERE id=?",
-                attemptId);
+    public boolean markRunning(UUID attemptId) {
+        int updated = jdbc.update("""
+                UPDATE ai_task_plan_attempt SET status='RUNNING',started_at=now(),updated_at=now()
+                WHERE id=? AND status='QUEUED' AND cancel_requested=false
+                """, attemptId);
+        return updated == 1;
     }
 
     @Transactional

@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 import java.util.UUID;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Predicate;
 
@@ -57,6 +59,7 @@ public class TaskPlanGenerationOrchestrator {
     private final TaskPlanDraftValidator validator;
     private final ObjectMapper json;
     private final TaskPlanContextAssembler contexts;
+    private final ConcurrentHashMap<UUID, Future<?>> activeFutures = new ConcurrentHashMap<>();
 
     public TaskPlanGenerationOrchestrator(
             @Qualifier("planningTaskExecutor") Executor executor, TaskPlanRepository repository,
@@ -69,10 +72,10 @@ public class TaskPlanGenerationOrchestrator {
 
     public void dispatch(TaskPlanRecord plan, boolean detailOnly) {
         try {
-            executor.execute(() -> {
-                if (detailOnly) runDetail(plan, plan.activeAttemptId(), latestDraft(plan));
-                else runSkeleton(plan);
-            });
+            Future<?> future = executor instanceof java.util.concurrent.ExecutorService exec
+                    ? exec.submit(() -> runPlan(plan, detailOnly))
+                    : submitViaWrapper(plan, detailOnly);
+            activeFutures.put(plan.activeAttemptId(), future);
         } catch (RejectedExecutionException rejected) {
             repository.fail(plan.id(), plan.generationSeq(), plan.activeAttemptId(), plan.status(),
                     TaskPlanStatus.FAILED, "PLANNING_QUEUE_FULL");
@@ -80,10 +83,33 @@ public class TaskPlanGenerationOrchestrator {
         }
     }
 
+    private Future<?> submitViaWrapper(TaskPlanRecord plan, boolean detailOnly) {
+        java.util.concurrent.CompletableFuture<Void> cf = new java.util.concurrent.CompletableFuture<>();
+        executor.execute(() -> {
+            try { runPlan(plan, detailOnly); cf.complete(null); }
+            catch (Throwable t) { cf.completeExceptionally(t); }
+        });
+        return cf;
+    }
+
+    private void runPlan(TaskPlanRecord plan, boolean detailOnly) {
+        try {
+            if (detailOnly) runDetail(plan, plan.activeAttemptId(), latestDraft(plan));
+            else runSkeleton(plan);
+        } finally {
+            activeFutures.remove(plan.activeAttemptId());
+        }
+    }
+
+    public void cancelFuture(UUID attemptId) {
+        Future<?> future = activeFutures.remove(attemptId);
+        if (future != null) future.cancel(true);
+    }
+
     private void runSkeleton(TaskPlanRecord plan) {
         if (!repository.active(plan.id(), plan.generationSeq(), plan.activeAttemptId(),
                 TaskPlanStatus.SKELETON_GENERATING)) return;
-        repository.markRunning(plan.activeAttemptId());
+        if (!repository.markRunning(plan.activeAttemptId())) return;
         try {
             var context = contexts.assemble(plan);
             GeneratedDraft generated = generateWithOneRepair(plan, plan.activeAttemptId(),
@@ -114,7 +140,7 @@ public class TaskPlanGenerationOrchestrator {
 
     private void runDetail(TaskPlanRecord plan, UUID attempt, TaskPlanDraft skeleton) {
         if (!repository.active(plan.id(), plan.generationSeq(), attempt, TaskPlanStatus.DETAIL_GENERATING)) return;
-        repository.markRunning(attempt);
+        if (!repository.markRunning(attempt)) return;
         try {
             GeneratedDraft generated = generateWithOneRepair(plan, attempt,
                     TaskPlanStatus.DETAIL_GENERATING, detailPrompt(plan, skeleton), candidate -> {

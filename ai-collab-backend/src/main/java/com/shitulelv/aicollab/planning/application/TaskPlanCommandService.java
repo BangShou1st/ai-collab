@@ -54,7 +54,10 @@ public class TaskPlanCommandService {
 
     public TaskPlanRecord cancel(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
+        TaskPlanRecord beforeCancel = repository.require(projectId, planId);
+        UUID attemptId = beforeCancel.activeAttemptId();
         TaskPlanRecord plan = repository.cancel(projectId, planId);
+        if (attemptId != null) orchestrator.cancelFuture(attemptId);
         safeAudit(projectId, actor, "TASK_PLAN_CANCELED", "AI_TASK_PLAN", planId);
         return plan;
     }
