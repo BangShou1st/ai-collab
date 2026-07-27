@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.planning.application;
 
+import com.shitulelv.aicollab.planning.domain.StructuredValidationIssue;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 
 import java.util.List;
@@ -7,6 +8,7 @@ import java.util.List;
 /**
  * C2: Typed View for plan detail endpoint.
  * All nullable fields use explicit null instead of Map.of which rejects null values.
+ * Task 11: Added structuredIssues and canPartialRegenerate permission.
  */
 public record TaskPlanDetailView(
         TaskPlanRecord plan,
@@ -16,8 +18,13 @@ public record TaskPlanDetailView(
         TaskPlanAttemptView latestAttempt,
         TaskPlanConfirmationView confirmation,
         TaskPlanValidationView validation,
-        TaskPlanPermissions permissions
-) {}
+        TaskPlanPermissions permissions,
+        List<StructuredValidationIssue> structuredIssues
+) {
+    public TaskPlanDetailView {
+        structuredIssues = structuredIssues == null ? List.of() : List.copyOf(structuredIssues);
+    }
+}
 
 record TaskPlanVersionView(
         String id,
@@ -66,5 +73,6 @@ record TaskPlanPermissions(
         boolean canRegenerate,
         boolean canConfirm,
         boolean canDelete,
-        boolean canRestore
+        boolean canRestore,
+        boolean canPartialRegenerate
 ) {}
