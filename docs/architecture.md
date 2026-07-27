@@ -370,31 +370,51 @@ AI 任务规划根据项目目标、时间范围、成员和选定文档生成�
 
 ```mermaid
 stateDiagram-v2
-    [*] --> GENERATING
-    GENERATING --> READY
-    GENERATING --> FAILED
-    READY --> CONFIRMED
+    [*] --> SKELETON_GENERATING
+    SKELETON_GENERATING --> DETAIL_GENERATING
+    SKELETON_GENERATING --> FAILED
+    DETAIL_GENERATING --> READY
+    DETAIL_GENERATING --> DETAIL_GENERATION_FAILED
+    DETAIL_GENERATION_FAILED --> DETAIL_GENERATING
+    READY --> CONFIRMING
+    CONFIRMING --> CONFIRMED
+    CONFIRMING --> READY
     READY --> CANCELED
+    DETAIL_GENERATION_FAILED --> CANCELED
+    FAILED --> CANCELED
+    CANCELED --> SKELETON_GENERATING
+    READY --> SKELETON_GENERATING
+    FAILED --> SKELETON_GENERATING
+    DETAIL_GENERATION_FAILED --> SKELETON_GENERATING
 ```
 
-- GENERATING：异步调用模型中；
-- READY：结构化输出通过校验，可编辑；
-- CONFIRMED：已写入正式任务，不可修改；
-- FAILED：模型或校验失败，可重新生成；
-- CANCELED：用户删除未确认草案。
+- SKELETON_GENERATING：第一阶段骨架生成中；
+- DETAIL_GENERATING：第二阶段细节补全中；
+- DETAIL_GENERATION_FAILED：细节生成失败，可重试或重新生成；
+- READY：完整草案通过校验，可编辑；
+- CONFIRMING：确认落地事务执行中；
+- CONFIRMED：已写入正式任务，终态不可修改；
+- FAILED：骨架生成失败，可重新生成；
+- CANCELED：当前生成周期已取消，可通过 regenerate 开始新周期。
 
-生成命令包含 projectId、operatorId、goal、startDate、dueDate、maxTasks、documentIds 和 constraints。限制为：goal 20～2,000 字符；时间范围 1～180 天；maxTasks 5～50，默认 30；最多选择 10 个 READY 文档；约束最多 10 条，每条 200 字符。
+生成命令包含 projectId、operatorId、goal、startDate、dueDate、maxTaskCount、documentIds 和 constraints。限制为：maxTaskCount 仅允许 10、20、30、40；最多选择 10 个 READY 文档。
 
-模型上下文通过预组装数据或只读工具提供项目基本信息与日期、成员及角色、现有里程碑与未完成任务、选定文档的相关片段。所有工具内部再次校验项目权限，不返回密码和邮箱，只读且最多调用 4 次。
+模型调用在独立执行器和数据库事务外完成。骨架和细节使用同一来源快照，避免引用编号漂移。
 
 ### 8.2 结构化输出与两阶段校验
 
-结构化草案包含 summary、assumptions、risks、milestones 和 tasks。里程碑包含 tempKey、名称、描述、目标日期和排序；任务包含 tempKey、里程碑 tempKey、标题、描述、优先级、预计工时、起止日期、建议负责人、依赖 tempKey、来源文档 ID 和排序。
+三种独立数据契约在类型层面防止字段越界：
+
+- **SkeletonModelOutput**：只含 summary/assumptions/risks/milestone identity/task identity。
+- **DetailModelOutput**：只含 tempKey 关联的补充字段（description/priority/estimatedHours/dates/suggestedAssigneeId/dependencyTempKeys/sourceRefs）。
+- **ManualTaskPlanDraft**：允许管理员编辑后的完整草案，包含 assigneeId。
+
+`mergeDetailIntoSkeleton()` 按 tempKey 合并，骨架身份字段不可变。Detail 必须包含所有 skeleton 的 tempKey，缺失或额外的 key 被拒绝。
 
 JSON Schema 与业务规则：
 
-- 里程碑 1～10 个；任务 5～50 个且不超过用户 maxTasks；
-- `tempKey` 使用 M1、M2、T1、T2 格式并在草案中唯一；
+- 里程碑最多 8 个；任务最多 40 个且不超过用户 maxTaskCount；
+- `tempKey` 全局唯一；
 - 每个任务引用存在的里程碑 temp key，依赖只引用存在的任务 temp key；
 - 任务不能依赖自身，依赖图不能有环；
 - 日期位于规划范围内，任务开始日期不得晚于截止日期；
@@ -648,7 +668,7 @@ docker compose -f ai-collab-deploy/docker-compose.yml down -v
 | TaskStatus | TODO、IN_PROGRESS、BLOCKED、DONE、CANCELED |
 | TaskPriority | LOW、MEDIUM、HIGH、URGENT |
 | DocumentStatus | UPLOADED、PARSING、INDEXING、READY、FAILED、DELETING |
-| TaskPlanStatus | GENERATING、READY、CONFIRMED、FAILED、CANCELED |
+| TaskPlanStatus | SKELETON_GENERATING、DETAIL_GENERATING、DETAIL_GENERATION_FAILED、READY、CONFIRMING、CONFIRMED、FAILED、CANCELED |
 | AiCallStatus | SUCCESS、TIMEOUT、QUOTA_EXCEEDED、PROVIDER_ERROR、INVALID_OUTPUT |
 
 ### 13.2 错误码
