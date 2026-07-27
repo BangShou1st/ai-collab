@@ -26,16 +26,44 @@ class TaskPlanQueryServiceTest {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(access.requireMember(project, member)).thenReturn(ProjectRole.MEMBER);
         when(repository.require(project, planId)).thenReturn(plan(project, planId));
-        when(jdbc.queryForList(anyString(), any(Object[].class))).thenReturn(List.of());
+        lenient().when(jdbc.queryForList(anyString(), any(Object[].class))).thenReturn(List.of());
+        lenient().when(jdbc.queryForList(anyString(), (Object[]) any())).thenReturn(List.of());
         TaskPlanQueryService service = new TaskPlanQueryService(access, repository, jdbc);
 
-        Map<String, Object> detail = service.detail(project, planId, member);
+        TaskPlanDetailView detail = service.detail(project, planId, member);
 
-        @SuppressWarnings("unchecked")
-        Map<String, Boolean> permissions = (Map<String, Boolean>) detail.get("permissions");
-        assertThat(permissions.values()).containsOnly(false);
+        assertThat(detail.permissions().canEdit()).isFalse();
+        assertThat(detail.permissions().canCancel()).isFalse();
+        assertThat(detail.permissions().canConfirm()).isFalse();
         verify(repository).require(project, planId);
         verify(access).requireMember(project, member);
+    }
+
+    // C2: Verify nullable fields don't cause NPE
+    @Test
+    void detailReturnsNullFieldsGracefullyForQueuedPlan() {
+        UUID project = UUID.randomUUID(), planId = UUID.randomUUID(), member = UUID.randomUUID();
+        ProjectAccessGuard access = mock(ProjectAccessGuard.class);
+        TaskPlanRepository repository = mock(TaskPlanRepository.class);
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        when(access.requireMember(project, member)).thenReturn(ProjectRole.ADMIN);
+        when(repository.require(project, planId)).thenReturn(planWithStatus(project, planId,
+                TaskPlanStatus.SKELETON_GENERATING, UUID.randomUUID()));
+        lenient().when(jdbc.queryForList(anyString(), any(Object[].class))).thenReturn(List.of());
+        lenient().when(jdbc.queryForList(anyString(), (Object[]) any())).thenReturn(List.of());
+        TaskPlanQueryService service = new TaskPlanQueryService(access, repository, jdbc);
+
+        TaskPlanDetailView detail = service.detail(project, planId, member);
+
+        // All nullable fields should be null, not throw NPE
+        assertThat(detail.activeAttempt()).isNull();
+        assertThat(detail.latestFailedAttempt()).isNull();
+        assertThat(detail.latestAttempt()).isNull();
+        assertThat(detail.confirmation()).isNull();
+        assertThat(detail.latestVersion()).isNull();
+        assertThat(detail.validation()).isNotNull();
+        assertThat(detail.permissions().canEdit()).isFalse(); // not READY
+        assertThat(detail.permissions().canCancel()).isTrue(); // generating
     }
 
     private static TaskPlanRecord plan(UUID project, UUID id) {
@@ -43,6 +71,14 @@ class TaskPlanQueryServiceTest {
         return new TaskPlanRecord(id, project, "Plan", "Goal", "",
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), 10, "[]",
                 TaskPlanStatus.READY, 1, UUID.randomUUID(), 1, null, UUID.randomUUID(),
+                null, null, now, now);
+    }
+
+    private static TaskPlanRecord planWithStatus(UUID project, UUID id, TaskPlanStatus status, UUID attemptId) {
+        OffsetDateTime now = OffsetDateTime.now();
+        return new TaskPlanRecord(id, project, "Plan", "Goal", "",
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), 10, "[]",
+                status, 0, null, 1, attemptId, UUID.randomUUID(),
                 null, null, now, now);
     }
 }
