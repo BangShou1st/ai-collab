@@ -176,10 +176,15 @@ public class TaskPlanDraftValidator {
 
     private void validateDependencies(Map<String, PlanTask> tasks, Set<String> errors) {
         for (PlanTask task : tasks.values()) {
+            // C8: Reject duplicate dependencies within a single task
+            Set<String> seenDeps = new HashSet<>();
             for (String dependency : task.dependencyTempKeys()) {
                 if (dependency == null) {
                     errors.add("DEPENDENCY_REF_INVALID");
                     continue;
+                }
+                if (!seenDeps.add(dependency)) {
+                    errors.add("DEPENDENCY_DUPLICATE");
                 }
                 if (dependency.equals(task.tempKey())) errors.add("SELF_DEPENDENCY");
                 PlanTask prerequisite = tasks.get(dependency);
