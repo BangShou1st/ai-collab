@@ -163,10 +163,21 @@ public class TaskPlanConfirmationService {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("confirmationId", row.get("id"));
         response.put("status", row.get("status"));
-        response.put("milestoneIds", row.get("created_milestone_ids_json"));
-        response.put("taskIds", row.get("created_task_ids_json"));
+        response.put("milestoneIds", parseJsonArray(row.get("created_milestone_ids_json")));
+        response.put("taskIds", parseJsonArray(row.get("created_task_ids_json")));
         response.put("dependencyCount", row.get("created_dependency_count"));
         return response;
+    }
+
+    private static List<?> parseJsonArray(Object jsonb) {
+        if (jsonb == null) return List.of();
+        String json = jsonb.toString();
+        if (!json.startsWith("[")) return List.of();
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().readValue(json, List.class);
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     private static String idsJson(Iterable<UUID> ids) {
