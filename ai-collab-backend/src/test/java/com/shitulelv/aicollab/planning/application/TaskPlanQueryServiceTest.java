@@ -6,9 +6,11 @@ import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,9 +23,11 @@ class TaskPlanQueryServiceTest {
         UUID project = UUID.randomUUID(), planId = UUID.randomUUID(), member = UUID.randomUUID();
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         TaskPlanRepository repository = mock(TaskPlanRepository.class);
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(access.requireMember(project, member)).thenReturn(ProjectRole.MEMBER);
         when(repository.require(project, planId)).thenReturn(plan(project, planId));
-        TaskPlanQueryService service = new TaskPlanQueryService(access, repository);
+        when(jdbc.queryForList(anyString(), any(Object[].class))).thenReturn(List.of());
+        TaskPlanQueryService service = new TaskPlanQueryService(access, repository, jdbc);
 
         Map<String, Object> detail = service.detail(project, planId, member);
 
