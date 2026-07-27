@@ -114,6 +114,13 @@ public class TaskPlanConfirmationService {
         if (plan.status() != TaskPlanStatus.CONFIRMING) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
         TaskPlanVersionRecord version = repository.requireVersion(projectId, planId, versionId);
         TaskPlanDraft draft = repository.draft(version);
+        // C9: Lock member rows referenced in the draft before validation
+        java.util.Set<UUID> memberIds = new java.util.HashSet<>();
+        for (var task : draft.tasks()) {
+            if (task.suggestedAssigneeId() != null) memberIds.add(task.suggestedAssigneeId());
+            if (task.assigneeId() != null) memberIds.add(task.assigneeId());
+        }
+        repository.lockProjectMembers(projectId, memberIds);
         String confirmationStatus = jdbc.queryForObject("""
                 SELECT status FROM ai_task_plan_confirmation WHERE id=? AND plan_id=? FOR UPDATE
                 """, String.class, confirmation, planId);
