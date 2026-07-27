@@ -21,6 +21,7 @@ public enum ErrorCode {
     NEW_PASSWORD_SAME_AS_CURRENT(HttpStatus.BAD_REQUEST, "新密码不能与当前密码相同"),
     PROJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "项目不存在"),
     PROJECT_DOCUMENTS_EXIST(HttpStatus.CONFLICT, "项目中仍有文档，请先删除全部文档后再删除项目"),
+    PROJECT_CONFIRMED_PLANS_EXIST(HttpStatus.CONFLICT, "项目中仍有已确认的AI规划，无法删除"),
     PROJECT_ADMIN_REQUIRED(HttpStatus.FORBIDDEN, "需要项目管理员权限"),
     PROJECT_OWNER_REQUIRED(HttpStatus.FORBIDDEN, "需要项目所有者权限"),
     PROJECT_OWNER_CANNOT_BE_REMOVED(HttpStatus.FORBIDDEN, "项目所有者不能被降级或移除"),

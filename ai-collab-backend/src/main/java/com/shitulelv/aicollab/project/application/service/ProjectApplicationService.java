@@ -94,6 +94,10 @@ public class ProjectApplicationService {
         if (projects.countDocuments(projectId) > 0) {
             throw new BusinessException(ErrorCode.PROJECT_DOCUMENTS_EXIST);
         }
+        // H8: Check for confirmed plans before delete — stable 409 instead of database trigger error
+        if (projects.countConfirmedPlans(projectId) > 0) {
+            throw new BusinessException(ErrorCode.PROJECT_CONFIRMED_PLANS_EXIST);
+        }
         // project_id 外键使用 ON DELETE CASCADE；删除审计以 null project_id 保存，entity_id 仍标识被删项目。
         audit.write(null, userId, "PROJECT_DELETED", "PROJECT", projectId);
         if (!projects.delete(projectId)) {

@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.project.application.view.ProjectView;
 import com.shitulelv.aicollab.project.domain.model.ProjectStatus;
 import com.shitulelv.aicollab.project.infrastructure.entity.ProjectEntity;
 import com.shitulelv.aicollab.project.infrastructure.mapper.ProjectMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -14,9 +15,11 @@ import java.util.UUID;
 @Repository
 public class ProjectRepository {
     private final ProjectMapper mapper;
+    private final JdbcTemplate jdbc;
 
-    public ProjectRepository(ProjectMapper mapper) {
+    public ProjectRepository(ProjectMapper mapper, JdbcTemplate jdbc) {
         this.mapper = mapper;
+        this.jdbc = jdbc;
     }
 
     public void create(ProjectEntity entity) {
@@ -45,6 +48,13 @@ public class ProjectRepository {
 
     public int countDocuments(UUID projectId) {
         return mapper.countDocuments(projectId);
+    }
+
+    /** H8: Count confirmed plans for this project — prevents cascade delete trigger error. */
+    public int countConfirmedPlans(UUID projectId) {
+        return jdbc.queryForObject(
+                "SELECT count(*) FROM ai_task_plan WHERE project_id=? AND status='CONFIRMED'",
+                Integer.class, projectId);
     }
 
     public boolean updateWithVersion(
