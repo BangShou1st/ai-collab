@@ -31,7 +31,7 @@ AI Collab（中文展示名：高校竞赛 AI 项目协作平台）面向高校�
 
 ## 2. 功能范围与成功标准
 
-> 当前实现里程碑为 Phase 07。已完成文档知识库和项目知识问答 RAG 闭环，包括用户私有会话、检索上下文、证据不足拒答、非流式 Chat Model 调用、引用校验与展示。AI 任务规划仍为 planned；下列“第一版”条目中标记为后续阶段的其他能力是目标架构，不代表已经实现。
+> 当前实现里程碑为 Phase 08。已完成文档知识库、项目知识问答 RAG 闭环和 AI 任务规划两阶段生成与一键落地。下列”第一版”条目中已全部实现。
 
 第一版功能范围包括：
 
@@ -41,10 +41,10 @@ AI Collab（中文展示名：高校竞赛 AI 项目协作平台）面向高校�
 - **里程碑**：创建、修改、完成和取消里程碑；保存目标日期和排序号；统计里程碑下任务完成率。
 - **文档知识库**：支持 PDF、DOCX、Markdown 和 TXT；原文件保存在 MinIO，文本和向量保存在 PostgreSQL + pgvector。
 - **RAG 问答**：仅基于当前项目 READY 文档回答并返回引用；资料不足时明确拒答。当前实现不使用流式输出、reranker、工具调用或开放领域知识。
-- **AI 任务规划（后续阶段）**：根据目标、时间约束和参考文档生成结构化里程碑、任务与依赖草案；用户编辑并确认后才写入正式数据。
+- **AI 任务规划**：两阶段生成（骨架→细节），严格数据契约分离，取消/重试/重新生成，人工编辑与版本历史，数据库幂等确认与事务落地，来源追踪与看板高亮。
 - **项目概览与审计**：按状态统计任务数量，计算完成率、逾期任务和里程碑进度，展示最近操作，记录成员、任务、文档和 AI 规划的重要变更。
 
-Phase 07 在 Phase 06 文档能力上增加项目知识问答；会话仅对创建者可见，问题先检索再生成，实际引用与 USER/ASSISTANT 消息在短事务中原子保存。Chat Model 与 Embedding Model 使用完全分离的配置；Redis 限流不可用时退化为进程内固定窗口。AI 任务规划仍留待后续阶段。
+Phase 07 在 Phase 06 文档能力上增加项目知识问答；会话仅对创建者可见，问题先检索再生成，实际引用与 USER/ASSISTANT 消息在短事务中原子保存。Chat Model 与 Embedding Model 使用完全分离的配置；Redis 限流不可用时退化为进程内固定窗口。Phase 08 在此基础上增加 AI 任务规划：两阶段生成（骨架→细节），严格数据契约分离（SkeletonModelOutput / DetailModelOutput / ManualTaskPlanDraft），FutureTask-first 无窗口注册，Prompt XML 转义与不可信边界，数据库幂等确认事务，attempt 完整指标，取消/恢复/重新生成全生命周期管理。
 
 ## 3. 模块化单体架构
 
@@ -731,8 +731,35 @@ Embedding 与 Chat HTTP 调用都发生在数据库事务外。Chat 使用独立
 
 ## 16. Phase 08 AI 任务规划
 
-`planning` 按 API、application、domain、infrastructure 分层。Controller 只处理 HTTP；`TaskPlanGenerationOrchestrator` 在独立 `planningTaskExecutor` 中调用模型；`TaskPlanOutputParser` 只解析 JSON；`TaskPlanDraftValidator` 是 AI 完整结果、人工保存、恢复和确认的统一领域入口。骨架写入 `AI_SKELETON` 后才启动细节，细节必须保持 tempKey、标题、目标和所属里程碑不变。
+`planning` 按 API、application、domain、infrastructure 分层。Controller 只处理 HTTP；`TaskPlanGenerationOrchestrator` 在独立 `planningTaskExecutor` 中调用模型；`TaskPlanOutputParser` 使用阶段特定的严格 ObjectMapper（`FAIL_ON_UNKNOWN_PROPERTIES`）解析 JSON；`TaskPlanDraftValidator` 是 AI 完整结果、人工保存、恢复和确认的统一领域入口。
 
-每次异步写回同时匹配 plan、generation sequence、active attempt 和允许状态。取消会增加 sequence、清空 active attempt 并标记 cancel requested，因此无法及时中断的 HTTP 返回也只能进入 DISCARDED。超过十分钟的生成/确认由恢复任务按 `PROCESS_RESTARTED` 收尾。
+### 16.1 两阶段生成与数据契约
 
-版本正文只插入。人工保存锁定 plan 并比较 `baseVersionId`；确认以数据库 confirmation 的项目级幂等键和 plan 唯一约束为事实来源。正式里程碑、任务、依赖和来源字段在一个事务内创建，失败后没有部分数据。Redis 仅用于成本限流加速，不参与确认正确性。
+三种独立数据契约在类型层面防止字段越界：
+- `SkeletonModelOutput`：只含 summary/assumptions/risks/milestone identity/task identity，禁止 detail 字段和 assigneeId。
+- `DetailModelOutput`：只含 tempKey 关联的补充字段（description/priority/estimatedHours/dates/suggestedAssigneeId/dependencyTempKeys/sourceRefs），禁止骨架身份字段。
+- `ManualTaskPlanDraft`：允许管理员编辑后的完整草案，包含 assigneeId。
+
+骨架写入 `AI_SKELETON` 后才启动细节。`mergeDetailIntoSkeleton()` 按 tempKey 合并，骨架身份字段（title/objective/targetDate/sortOrder/summary/assumptions/risks）不可变。`validateSkeletonPreserved()` 检查所有身份字段。
+
+### 16.2 Prompt 安全边界
+
+`<SKELETON>` 只嵌入 `SkeletonIdentityOnly`（无 sources、无 quote text）。`<SOURCES>` 独立分离。`<MEMBER_CONTEXT>` 只含 userId/displayName/role，不含邮箱或敏感评价。所有不可信数据经过 XML 转义（`&` → `&amp;`、`<` → `&lt;`、`>` → `&gt;`）。Prompt 有总 Unicode code-point 预算（100,000）。
+
+### 16.3 FutureTask-first 注册
+
+`dispatch()` 先创建 `FutureTask` 放入 `activeFutures` registry，再 `executor.execute()`。取消时 `cancel(true)` 总能找到 Future。队列拒绝时立即从 registry 移除并标记 `PLANNING_QUEUE_FULL`。`markRunning()` 是 repository 级 CAS，验证 attempt.id + status=QUEUED + cancel_requested=false。
+
+### 16.4 Attempt 指标
+
+每次模型调用记录 provider、model、latencyMs、promptTokens、completionTokens 到 attempt 记录。成功、失败、取消、丢弃都写入语义一致的指标。不记录 API Key、Prompt、文档全文或原始模型响应。
+
+### 16.5 版本、校验与并发
+
+AI 骨架、AI 完整计划、人工编辑和历史恢复都产生新版本，旧版本不更新。人工保存在 `@Transactional` 中锁定 plan、校验成员、写入版本。确认以数据库 confirmation 的项目级幂等键和 plan 唯一约束为事实来源。正式里程碑、任务、依赖和来源字段在一个事务内创建，失败后没有部分数据。
+
+领域校验包括：DAG 无环、自依赖、每任务最多 5 依赖、dependency date order、source ref 格式（S1-S12）、sourceRefs 存在于快照、sortOrder 非负、tempKey 全局唯一、estimatedHours 范围、日期范围、文本长度、成员校验。warnings 包括未分配、无来源、疑似重名。
+
+### 16.6 取消、恢复与确认
+
+取消增加 sequence、清空 active attempt 并标记 cancel requested。恢复任务扫描十分钟未更新的生成/确认并以 `PROCESS_RESTARTED` 收尾。终态（READY/FAILED/DETAIL_GENERATION_FAILED/CANCELED/CONFIRMED）清理 activeAttemptId。限流顺序：认证/权限 → 参数 → 状态 → 日期 → 文档 → 业务校验 → 限流 → 调度。无效请求不消耗额度。
