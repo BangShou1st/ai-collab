@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.infrastructure.ai;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -55,6 +56,8 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
         long started = System.nanoTime();
         for (int attempt = 0; attempt < 2; attempt++) {
             try {
+                ResponseFormat responseFormat = command.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT
+                        ? new ResponseFormat("json_object") : null;
                 ChatResponse response = restClient.post()
                         .uri(join(properties.baseUrl(), properties.path()))
                         .header("Authorization", "Bearer " + properties.apiKey())
@@ -65,10 +68,12 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
                                         new ChatMessage("user", command.userPrompt())),
                                 properties.temperature(),
                                 properties.maxOutputTokens(),
-                                false))
+                                false,
+                                responseFormat))
                         .retrieve()
                         .body(ChatResponse.class);
                 String content = validateResponse(response);
+                checkFinishReason(response);
                 Usage usage = response.usage();
                 return new ChatCompletionResult(
                         content,
@@ -167,6 +172,14 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
         return first.message().content().strip();
     }
 
+    private static void checkFinishReason(ChatResponse response) {
+        if (response == null || response.choices() == null || response.choices().isEmpty()) return;
+        ChatChoice first = response.choices().getFirst();
+        if (first != null && "length".equals(first.finish_reason())) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+        }
+    }
+
     private static boolean negative(Integer value) {
         return value != null && value < 0;
     }
@@ -242,7 +255,11 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
             List<ChatMessage> messages,
             double temperature,
             int max_tokens,
-            boolean stream) {
+            boolean stream,
+            @JsonInclude(JsonInclude.Include.NON_NULL) ResponseFormat response_format) {
+    }
+
+    private record ResponseFormat(String type) {
     }
 
     private record ChatMessage(String role, String content) {
@@ -253,7 +270,7 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record ChatChoice(ChatMessage message) {
+    private record ChatChoice(ChatMessage message, String finish_reason) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

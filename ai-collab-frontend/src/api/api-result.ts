@@ -76,6 +76,7 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   PLANNING_MODEL_UNAVAILABLE: '规划模型尚未配置或暂时不可用',
   PLANNING_MODEL_TIMEOUT: '规划模型响应超时，可稍后重试',
   PLANNING_MODEL_INVALID_OUTPUT: '模型未能生成有效规划，可重新生成或重试细节',
+  PLANNING_MODEL_OUTPUT_TRUNCATED: '模型输出过长被截断，请减少最大任务数或重新生成',
   PLANNING_QUEUE_FULL: '当前规划任务较多，请稍后再试',
 }
 
