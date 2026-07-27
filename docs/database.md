@@ -37,9 +37,9 @@ ai-collab-backend/src/main/resources/db/migration/
 | knowledge_message | 问答消息 |
 | knowledge_citation | 回答引用 |
 | ai_task_plan | AI 规划主表 |
-| ai_task_plan_milestone | 草案里程碑 |
-| ai_task_plan_task | 草案任务 |
-| ai_task_plan_dependency | 草案依赖 |
+| ai_task_plan_version | 不可变版本快照 |
+| ai_task_plan_attempt | 每次模型请求记录 |
+| ai_task_plan_confirmation | 数据库幂等确认事实 |
 | idempotency_record | 幂等请求与响应记录 |
 | audit_log | 审计日志 |
 | ai_call_log | 模型调用指标 |
@@ -84,14 +84,14 @@ erDiagram
     KNOWLEDGE_MESSAGE ||--o{ KNOWLEDGE_CITATION : cites
     DOCUMENT_CHUNK ||--o{ KNOWLEDGE_CITATION : source
     PROJECT ||--o{ AI_TASK_PLAN : generates
-    AI_TASK_PLAN ||--o{ AI_TASK_PLAN_MILESTONE : drafts
-    AI_TASK_PLAN ||--o{ AI_TASK_PLAN_TASK : drafts
-    AI_TASK_PLAN ||--o{ AI_TASK_PLAN_DEPENDENCY : links
+    AI_TASK_PLAN ||--o{ AI_TASK_PLAN_VERSION : snapshots
+    AI_TASK_PLAN ||--o{ AI_TASK_PLAN_attempt : records
+    AI_TASK_PLAN ||--o| AI_TASK_PLAN_CONFIRMATION : idempotent
     PROJECT o|--o{ AUDIT_LOG : records
     PROJECT o|--o{ AI_CALL_LOG : measures
 ```
 
-V1 中的全部 `CREATE TABLE` 已与上表逐项核对：`app_user`、`refresh_token`、`project`、`project_member`、`project_invitation`、`milestone`、`project_task`、`task_dependency`、`task_comment`、`project_document`、`document_chunk`、`knowledge_session`、`knowledge_message`、`knowledge_citation`、`ai_task_plan`、`ai_task_plan_milestone`、`ai_task_plan_task`、`ai_task_plan_dependency`、`idempotency_record`、`audit_log`、`ai_call_log`，共 21 张表，无遗漏。
+V1 中的全部 `CREATE TABLE` 已与上表逐项核对：`app_user`、`refresh_token`、`project`、`project_member`、`project_invitation`、`milestone`、`project_task`、`task_dependency`、`task_comment`、`project_document`、`document_chunk`、`knowledge_session`、`knowledge_message`、`knowledge_citation`、`ai_task_plan`、`ai_task_plan_version`、`ai_task_plan_attempt`、`ai_task_plan_confirmation`、`idempotency_record`、`audit_log`、`ai_call_log`，共 21 张表，无遗漏。
 
 ## 4. 关键约束
 

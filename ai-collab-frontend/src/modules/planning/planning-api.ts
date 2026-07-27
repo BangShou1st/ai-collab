@@ -1,6 +1,6 @@
 import { httpClient } from '../../api/http-client'
 import type { ApiResponse } from '../../api/types'
-import type { PlanPermissions, TaskPlan, TaskPlanDraft } from './types'
+import type { TaskPlanDetailView, TaskPlanDraft, TaskPlan } from './types'
 
 const base = (projectId: string) => `/projects/${projectId}/ai/task-plans`
 
@@ -9,12 +9,13 @@ export const planningApi = {
     httpClient.get<ApiResponse<TaskPlan[]>>(base(projectId), { params: { status: status || undefined } }),
   create: (projectId: string, body: object) =>
     httpClient.post<ApiResponse<TaskPlan>>(base(projectId), body),
+  /** C12: Returns full typed detail view */
   detail: (projectId: string, planId: string) =>
-    httpClient.get<ApiResponse<{ plan: TaskPlan; permissions: PlanPermissions }>>(`${base(projectId)}/${planId}`),
+    httpClient.get<ApiResponse<TaskPlanDetailView>>(`${base(projectId)}/${planId}`),
   versions: (projectId: string, planId: string) =>
-    httpClient.get<ApiResponse<Array<{ id: string; versionNo: number; sourceType: string }>>>(`${base(projectId)}/${planId}/versions`),
+    httpClient.get<ApiResponse<Array<{ id: string; versionNo: number; sourceType: string; basedOnVersionId: string | null; createdBy: string; createdAt: string }>>>(`${base(projectId)}/${planId}/versions`),
   version: (projectId: string, planId: string, versionId: string) =>
-    httpClient.get<ApiResponse<{ draft: TaskPlanDraft }>>(`${base(projectId)}/${planId}/versions/${versionId}`),
+    httpClient.get<ApiResponse<{ version: { id: string; versionNo: number; sourceType: string }; draft: TaskPlanDraft }>>(`${base(projectId)}/${planId}/versions/${versionId}`),
   action: (projectId: string, planId: string, action: 'cancel' | 'retry-detail' | 'regenerate') =>
     httpClient.post(`${base(projectId)}/${planId}/${action}`),
   save: (projectId: string, planId: string, baseVersionId: string, draft: TaskPlanDraft) =>
