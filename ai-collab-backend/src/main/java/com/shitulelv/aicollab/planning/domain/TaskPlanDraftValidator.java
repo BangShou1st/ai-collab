@@ -14,11 +14,29 @@ import java.util.Set;
 
 @Component
 public class TaskPlanDraftValidator {
+
+    public enum ValidationMode {
+        /** Complete draft (AI_COMPLETE, MANUAL_EDIT, RESTORED, CONFIRM) — all fields required. */
+        COMPLETE,
+        /** AI skeleton output — only identity fields required, detail fields may be null. */
+        AI_SKELETON,
+        /** AI detail output before merge — only supplementary fields checked. */
+        AI_DETAIL
+    }
+
     public ValidationResult validate(ValidationContext context, TaskPlanDraft draft) {
-        return validate(context, draft, false);
+        return validate(context, draft, ValidationMode.COMPLETE);
     }
 
     public ValidationResult validate(ValidationContext context, TaskPlanDraft draft, boolean aiGenerated) {
+        return validate(context, draft, aiGenerated ? ValidationMode.AI_SKELETON : ValidationMode.COMPLETE, aiGenerated);
+    }
+
+    public ValidationResult validate(ValidationContext context, TaskPlanDraft draft, ValidationMode mode) {
+        return validate(context, draft, mode, false);
+    }
+
+    public ValidationResult validate(ValidationContext context, TaskPlanDraft draft, ValidationMode mode, boolean aiGenerated) {
         Set<String> errors = new HashSet<>();
         Set<String> warnings = new HashSet<>();
         if (outside(context.planStartDate(), context.projectStartDate(), context.projectDueDate())
@@ -65,20 +83,25 @@ public class TaskPlanDraftValidator {
             else sourceRefs.add(source.ref());
         }
         Set<String> normalizedTitles = new HashSet<>();
+        boolean skeletonMode = (mode == ValidationMode.AI_SKELETON);
+        boolean detailMode = (mode == ValidationMode.AI_DETAIL);
         for (PlanTask task : draft.tasks()) {
             if (task == null) {
                 errors.add("TASK_NULL");
                 continue;
             }
             if (blank(task.tempKey()) || blank(task.milestoneTempKey()) || blank(task.title())
-                    || blank(task.objective()) || blank(task.description())
-                    || task.title().length() > 160 || task.objective().length() > 1000
-                    || task.description().length() > 4000) errors.add("TASK_TEXT_INVALID");
+                    || blank(task.objective())
+                    || task.title().length() > 160 || task.objective().length() > 1000) errors.add("TASK_TEXT_INVALID");
+            // Skeleton mode: description may be null; complete mode: description required
+            if (!skeletonMode) {
+                if (blank(task.description()) || task.description().length() > 4000) errors.add("TASK_TEXT_INVALID");
+            }
             if (!allKeys.add(task.tempKey())) errors.add("TEMP_KEY_DUPLICATE");
             tasks.put(task.tempKey(), task);
             if (!milestones.containsKey(task.milestoneTempKey())) errors.add("MILESTONE_REF_INVALID");
             if (aiGenerated && task.assigneeId() != null) errors.add("AI_GENERATED_ASSIGNEE_NOT_ALLOWED");
-            validateTask(context, task, sourceRefs, errors, warnings);
+            validateTask(context, task, sourceRefs, errors, warnings, skeletonMode);
             if (!blank(task.title())) {
                 String normalized = task.title().trim().toLowerCase(Locale.ROOT);
                 if (!normalizedTitles.add(normalized)) warnings.add("DUPLICATE_TITLE");
@@ -121,30 +144,33 @@ public class TaskPlanDraftValidator {
     }
 
     private void validateTask(ValidationContext context, PlanTask task, Set<String> sourceRefs,
-                              Set<String> errors, Set<String> warnings) {
+                              Set<String> errors, Set<String> warnings, boolean skeletonMode) {
         if (task.dependencyTempKeys().size() > 5) errors.add("DEPENDENCY_LIMIT_EXCEEDED");
         if (task.sourceRefs().size() > 5) errors.add("SOURCE_REF_LIMIT_EXCEEDED");
         validateSourceRefs(task.sourceRefs(), sourceRefs, errors);
-        if (outside(task.startDate(), context.planStartDate(), context.planDueDate())
-                || outside(task.dueDate(), context.planStartDate(), context.planDueDate())
-                || task.startDate() != null && task.dueDate() != null && task.startDate().isAfter(task.dueDate())) {
-            errors.add("TASK_DATE_INVALID");
+        // Skeleton mode: skip detail-specific checks (dates, hours, priority, assignee)
+        if (!skeletonMode) {
+            if (outside(task.startDate(), context.planStartDate(), context.planDueDate())
+                    || outside(task.dueDate(), context.planStartDate(), context.planDueDate())
+                    || task.startDate() != null && task.dueDate() != null && task.startDate().isAfter(task.dueDate())) {
+                errors.add("TASK_DATE_INVALID");
+            }
+            if (task.estimatedHours() != null
+                    && (task.estimatedHours().compareTo(BigDecimal.ZERO) <= 0
+                    || task.estimatedHours().compareTo(BigDecimal.valueOf(80)) > 0)) {
+                errors.add("ESTIMATED_HOURS_INVALID");
+            }
+            if (task.priority() == null || !Set.of("LOW", "MEDIUM", "HIGH", "URGENT").contains(task.priority())) {
+                errors.add("TASK_PRIORITY_INVALID");
+            }
+            if (task.suggestedAssigneeId() != null
+                    && !context.projectMemberIds().contains(task.suggestedAssigneeId())
+                    || task.assigneeId() != null && !context.projectMemberIds().contains(task.assigneeId())) {
+                errors.add("ASSIGNEE_NOT_PROJECT_MEMBER");
+            }
+            if (task.assigneeId() == null) warnings.add("TASK_UNASSIGNED");
+            if (task.sourceRefs().isEmpty()) warnings.add("AI_SUGGESTION_WITHOUT_SOURCE");
         }
-        if (task.estimatedHours() != null
-                && (task.estimatedHours().compareTo(BigDecimal.ZERO) <= 0
-                || task.estimatedHours().compareTo(BigDecimal.valueOf(80)) > 0)) {
-            errors.add("ESTIMATED_HOURS_INVALID");
-        }
-        if (task.priority() == null || !Set.of("LOW", "MEDIUM", "HIGH", "URGENT").contains(task.priority())) {
-            errors.add("TASK_PRIORITY_INVALID");
-        }
-        if (task.suggestedAssigneeId() != null
-                && !context.projectMemberIds().contains(task.suggestedAssigneeId())
-                || task.assigneeId() != null && !context.projectMemberIds().contains(task.assigneeId())) {
-            errors.add("ASSIGNEE_NOT_PROJECT_MEMBER");
-        }
-        if (task.assigneeId() == null) warnings.add("TASK_UNASSIGNED");
-        if (task.sourceRefs().isEmpty()) warnings.add("AI_SUGGESTION_WITHOUT_SOURCE");
         if (task.sortOrder() < 0) errors.add("SORT_ORDER_INVALID");
     }
 

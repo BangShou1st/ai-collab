@@ -7,6 +7,7 @@ public record PlanMilestone(
         String tempKey,
         String title,
         String objective,
+        String description,
         LocalDate targetDate,
         int sortOrder,
         List<String> sourceRefs) {
