@@ -7,6 +7,7 @@ import com.shitulelv.aicollab.planning.api.SaveTaskPlanVersionRequest;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidator;
 import com.shitulelv.aicollab.planning.domain.ValidationContext;
+import com.shitulelv.aicollab.planning.domain.ValidationResult;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanVersionRecord;
@@ -88,9 +89,9 @@ public class TaskPlanCommandService {
         TaskPlanDraft normalized = new TaskPlanDraft(
                 request.draft().summary(), request.draft().assumptions(), request.draft().risks(),
                 request.draft().milestones(), request.draft().tasks(), base.sources());
-        ensureValid(projectId, plan, normalized);
+        var validation = ensureValid(projectId, plan, normalized);
         UUID version = repository.appendVersion(projectId, planId, request.baseVersionId(),
-                "MANUAL_EDIT", request.baseVersionId(), normalized, actor);
+                "MANUAL_EDIT", request.baseVersionId(), normalized, actor, validation);
         safeAudit(projectId, actor, "TASK_PLAN_VERSION_SAVED", "AI_TASK_PLAN_VERSION", version);
         return version;
     }
@@ -100,9 +101,9 @@ public class TaskPlanCommandService {
         TaskPlanRecord plan = repository.require(projectId, planId);
         TaskPlanVersionRecord source = repository.requireVersion(projectId, planId, versionId);
         TaskPlanDraft draft = repository.draft(source);
-        ensureValid(projectId, plan, draft);
+        var validation = ensureValid(projectId, plan, draft);
         UUID restored = repository.appendVersion(projectId, planId, plan.latestVersionId(),
-                "RESTORED", versionId, draft, actor);
+                "RESTORED", versionId, draft, actor, validation);
         safeAudit(projectId, actor, "TASK_PLAN_VERSION_RESTORED", "AI_TASK_PLAN_VERSION", restored);
         return restored;
     }
@@ -142,7 +143,7 @@ public class TaskPlanCommandService {
         }
     }
 
-    private void ensureValid(UUID projectId, TaskPlanRecord plan, TaskPlanDraft draft) {
+    private ValidationResult ensureValid(UUID projectId, TaskPlanRecord plan, TaskPlanDraft draft) {
         Set<UUID> members = new HashSet<>(jdbc.queryForList(
                 "SELECT user_id FROM project_member WHERE project_id=?", UUID.class, projectId));
         LocalDate[] projectDates = jdbc.queryForObject("SELECT start_date,due_date FROM project WHERE id=?",
@@ -151,6 +152,7 @@ public class TaskPlanCommandService {
                 plan.planStartDate(), plan.planDueDate(), plan.maxTaskCount(), members, Set.of()), draft);
         if (!result.valid()) throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED,
                 "规划校验失败：" + String.join(",", result.errorCodes()));
+        return result;
     }
 
     private static Object[] concat(UUID projectId, List<UUID> ids) {

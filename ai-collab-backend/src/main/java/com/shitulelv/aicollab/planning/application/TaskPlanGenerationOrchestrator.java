@@ -123,7 +123,8 @@ public class TaskPlanGenerationOrchestrator {
             }
             UUID skeletonVersion = repository.appendGeneratedVersion(
                     plan.projectId(), plan.id(), plan.generationSeq(), generated.attemptId(),
-                    TaskPlanStatus.SKELETON_GENERATING, "AI_SKELETON", null, skeleton, plan.createdBy());
+                    TaskPlanStatus.SKELETON_GENERATING, "AI_SKELETON", null, skeleton, plan.createdBy(),
+                    validator.validate(repository.validationContext(plan), skeleton, true));
             if (skeletonVersion == null) return;
             repository.finishAttempt(generated.attemptId(), "SUCCESS", null);
             UUID detailAttempt = repository.startDetailAfterSkeleton(plan.projectId(), plan.id(), plan.createdBy());
@@ -154,7 +155,8 @@ public class TaskPlanGenerationOrchestrator {
                 return;
             }
             UUID versionId = repository.appendGeneratedVersion(plan.projectId(), plan.id(), plan.generationSeq(), generated.attemptId(),
-                    TaskPlanStatus.DETAIL_GENERATING, "AI_COMPLETE", plan.latestVersionId(), detail, plan.createdBy());
+                    TaskPlanStatus.DETAIL_GENERATING, "AI_COMPLETE", plan.latestVersionId(), detail, plan.createdBy(),
+                    validator.validate(repository.validationContext(plan), detail, true));
             if (versionId == null) return;
             repository.finishAttempt(generated.attemptId(), "SUCCESS", null);
         } catch (GenerationHandledException handled) {
