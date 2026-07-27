@@ -15,7 +15,7 @@ describe('PlanningPoller', () => {
       .mockResolvedValueOnce(['READY'])
     const poller = new PlanningPoller()
 
-    poller.start(load)
+    poller.start({ load })
     await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1))
     await vi.advanceTimersByTimeAsync(2000)
     expect(load).toHaveBeenCalledTimes(2)
@@ -29,9 +29,9 @@ describe('PlanningPoller', () => {
     const first = vi.fn().mockResolvedValue(['SKELETON_GENERATING'])
     const second = vi.fn().mockResolvedValue(['READY'])
     const poller = new PlanningPoller()
-    poller.start(first)
+    poller.start({ load: first })
     await vi.waitFor(() => expect(first).toHaveBeenCalledTimes(1))
-    poller.start(second)
+    poller.start({ load: second })
     await vi.waitFor(() => expect(second).toHaveBeenCalledTimes(1))
     await vi.advanceTimersByTimeAsync(5000)
     expect(first).toHaveBeenCalledTimes(1)
@@ -43,7 +43,7 @@ describe('PlanningPoller', () => {
     const load = vi.fn().mockResolvedValue(['DETAIL_GENERATING'])
     const poller = new PlanningPoller()
 
-    poller.start(load)
+    poller.start({ load })
     await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1))
     // After 30s, interval should be 5s
     vi.advanceTimersByTime(30000)
@@ -62,7 +62,7 @@ describe('PlanningPoller', () => {
     const load = vi.fn().mockResolvedValue(['SKELETON_GENERATING'])
     const poller = new PlanningPoller()
 
-    poller.start(load)
+    poller.start({ load })
     await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1))
     visibility = 'hidden'
     await vi.advanceTimersByTimeAsync(5000)
@@ -76,7 +76,7 @@ describe('PlanningPoller', () => {
     const load = vi.fn().mockResolvedValue(['SKELETON_GENERATING'])
     const poller = new PlanningPoller()
 
-    poller.start(load)
+    poller.start({ load })
     await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1))
     poller.stop()
     await vi.advanceTimersByTimeAsync(10000)
@@ -91,7 +91,7 @@ describe('PlanningPoller', () => {
       .mockResolvedValueOnce(['CONFIRMED'])
     const poller = new PlanningPoller()
 
-    poller.start(load)
+    poller.start({ load })
     await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1))
     await vi.advanceTimersByTimeAsync(2000)
     expect(load).toHaveBeenCalledTimes(2)
@@ -103,7 +103,7 @@ describe('PlanningPoller', () => {
     const load = vi.fn().mockResolvedValue(['READY'])
     const poller = new PlanningPoller()
 
-    poller.start(load)
+    poller.start({ load })
     await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1))
     await vi.advanceTimersByTimeAsync(10000)
     expect(load).toHaveBeenCalledTimes(1)

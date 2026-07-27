@@ -59,7 +59,22 @@ async function create(): Promise<void> {
 }
 async function action(name: 'cancel' | 'retry-detail' | 'regenerate'): Promise<void> {
   if (!selected.value || name === 'regenerate' && dirty.value && !await discard()) return
-  await planningApi.action(projectId.value, selected.value.id, name); await refresh(); startPolling()
+  try {
+    await planningApi.action(projectId.value, selected.value.id, name)
+    await refresh()
+    startPolling()
+  } catch (error) {
+    errorMessage.value = normalizeApiError(error).message
+  }
+}
+async function restore(): Promise<void> {
+  if (!selected.value || !selectedVersionId.value) return
+  try {
+    await planningApi.restore(projectId.value, selected.value.id, selectedVersionId.value)
+    await refresh()
+  } catch (error) {
+    errorMessage.value = normalizeApiError(error).message
+  }
 }
 async function save(): Promise<void> {
   if (!selected.value?.latestVersionId || !draft.value || !editingLatest.value) return
@@ -86,7 +101,7 @@ async function refresh(): Promise<void> {
 function addMilestone(): void {
   if (!draft.value || !canEditCurrent.value || draft.value.milestones.length >= 8) return
   const tempKey = `m-${crypto.randomUUID()}`
-  draft.value.milestones.push({ tempKey, title: '新里程碑', objective: '填写目标', targetDate: null, sortOrder: draft.value.milestones.length, sourceRefs: [] })
+  draft.value.milestones.push({ tempKey, title: '新里程碑', objective: '填写目标', description: '填写描述', targetDate: null, sortOrder: draft.value.milestones.length, sourceRefs: [] })
 }
 function addTask(milestoneTempKey: string): void {
   if (!draft.value || !canEditCurrent.value || draft.value.tasks.length >= selected.value!.maxTaskCount) return
@@ -104,21 +119,28 @@ function removeMilestone(tempKey: string): void {
   if (!draft.value || !canEditCurrent.value || draft.value.tasks.some(task => task.milestoneTempKey === tempKey)) return
   draft.value.milestones = draft.value.milestones.filter(item => item.tempKey !== tempKey)
 }
-function startPolling(): void { poller.start(async () => {
-  const statuses = await list()
-  if (pendingConfirmation.value && selected.value) {
-    const pending = pendingConfirmation.value
-    const result = await planningApi.confirm(projectId.value, selected.value.id, pending.versionId, pending.key)
-    if (result.data.data.status === 'SUCCESS') {
-      clearConfirmationKey(projectId.value, selected.value.id, pending.versionId)
-      pendingConfirmation.value = null
-      await router.push({ path: `/projects/${projectId.value}/board`, query: { sourcePlanId: selected.value.id } })
+function startPolling(): void {
+  poller.start({
+    load: async () => {
+      const statuses = await list()
+      if (pendingConfirmation.value && selected.value) {
+        const pending = pendingConfirmation.value
+        const result = await planningApi.confirm(projectId.value, selected.value.id, pending.versionId, pending.key)
+        if (result.data.data.status === 'SUCCESS') {
+          clearConfirmationKey(projectId.value, selected.value.id, pending.versionId)
+          pendingConfirmation.value = null
+          await router.push({ path: `/projects/${projectId.value}/board`, query: { sourcePlanId: selected.value.id } })
+          return statuses
+        }
+      }
+      if (selected.value && !dirty.value) await refresh()
       return statuses
+    },
+    onError: (error) => {
+      console.error('Planning poller error:', error)
     }
-  }
-  if (selected.value && !dirty.value) await refresh()
-  return statuses
-}) }
+  })
+}
 async function discard(): Promise<boolean> { try { await ElMessageBox.confirm('未保存修改将被丢弃，是否继续？', '未保存保护'); return true } catch { return false } }
 function beforeUnload(event: BeforeUnloadEvent): void { if (dirty.value) event.preventDefault() }
 onMounted(async () => {
@@ -169,7 +191,8 @@ watch(projectId, async () => {
           <h3>风险</h3><el-input v-for="(_, index) in draft.risks" :key="`r-${index}`" v-model="draft.risks[index]" :readonly="!canEditCurrent" />
           <el-collapse><el-collapse-item v-for="m in draft.milestones" :key="m.tempKey" :title="m.title">
             <el-input v-model="m.title" :readonly="!permissions?.canEdit || !editingLatest" />
-            <el-input v-model="m.objective" type="textarea" :readonly="!canEditCurrent" /><el-date-picker v-model="m.targetDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" />
+            <el-input v-model="m.objective" type="textarea" :readonly="!canEditCurrent" />
+            <el-input v-model="m.description" type="textarea" :readonly="!canEditCurrent" placeholder="里程碑描述" /><el-date-picker v-model="m.targetDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" />
             <el-select v-model="m.sourceRefs" multiple :disabled="!canEditCurrent"><el-option v-for="source in draft.sources" :key="source.ref" :label="source.ref" :value="source.ref" /></el-select>
             <el-button v-if="canEditCurrent" @click="addTask(m.tempKey)">添加任务</el-button><el-button v-if="canEditCurrent" type="danger" @click="removeMilestone(m.tempKey)">删除空里程碑</el-button>
             <div v-for="task in draft.tasks.filter(t => t.milestoneTempKey === m.tempKey)" :key="task.tempKey" class="task-plan-row">
@@ -185,7 +208,7 @@ watch(projectId, async () => {
           </el-collapse-item></el-collapse>
           <el-button v-if="canEditCurrent" @click="addMilestone">添加里程碑</el-button>
           <div class="actions"><el-button v-if="permissions?.canEdit && editingLatest" :disabled="!dirty" @click="save">保存新版本</el-button>
-            <el-button v-if="permissions?.canRestore && !editingLatest" @click="planningApi.restore(projectId, selected.id, selectedVersionId).then(refresh)">恢复为新版本</el-button>
+            <el-button v-if="permissions?.canRestore && !editingLatest" @click="restore">恢复为新版本</el-button>
             <template v-if="permissions?.canConfirm"><span>将创建 {{ confirmationSummary.milestones }} 里程碑 / {{ confirmationSummary.tasks }} 任务 / {{ confirmationSummary.dependencies }} 依赖；未分配 {{ confirmationSummary.unassigned }}</span><el-checkbox v-model="checked">我已检查规划</el-checkbox><el-button type="success" :disabled="!checked || dirty" @click="confirm">确认并创建任务</el-button></template>
           </div>
         </template>

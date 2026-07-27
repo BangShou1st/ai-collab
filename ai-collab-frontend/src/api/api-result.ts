@@ -70,6 +70,13 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   USER_NOT_FOUND: '用户不存在',
   VALIDATION_ERROR: '请检查填写内容',
   INTERNAL_ERROR: '服务暂时异常，请稍后重试',
+  PLANNING_GENERATION_QUOTA_EXCEEDED: '过去 60 分钟成功生成的 AI 规划次数已达上限',
+  PLANNING_ATTEMPT_RATE_LIMITED: '操作过于频繁，请稍后再试',
+  PLANNING_PROVIDER_QUOTA_EXCEEDED: '规划模型服务额度不足，请检查供应商账户或稍后再试',
+  PLANNING_MODEL_UNAVAILABLE: '规划模型尚未配置或暂时不可用',
+  PLANNING_MODEL_TIMEOUT: '规划模型响应超时，可稍后重试',
+  PLANNING_MODEL_INVALID_OUTPUT: '模型未能生成有效规划，可重新生成或重试细节',
+  PLANNING_QUEUE_FULL: '当前规划任务较多，请稍后再试',
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
