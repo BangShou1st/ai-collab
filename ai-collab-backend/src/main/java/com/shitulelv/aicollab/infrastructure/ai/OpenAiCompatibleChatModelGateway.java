@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -32,6 +33,7 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
     private final RestClient restClient;
     private final boolean retryTransientFailures;
 
+    @Autowired
     public OpenAiCompatibleChatModelGateway(ChatModelProperties properties) {
         this(properties, true);
     }
