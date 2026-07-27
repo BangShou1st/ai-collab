@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.planning.application;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,6 +22,28 @@ class TaskPlanGenerationOrchestratorTest {
         assertThat(new String(Base64.getDecoder().decode(payload), StandardCharsets.UTF_8)).isEqualTo(injected);
         assertThat(prompt).contains("PLANNING_MODEL_INVALID_OUTPUT");
         assertThat(prompt).contains(schema);
+    }
+
+    // C3: Verify GenerationRunKey composite key prevents cross-plan collisions
+    @Test
+    void generationRunKeyCompositeKeyPreventsCrossPlanCollision() {
+        UUID planA = UUID.randomUUID();
+        UUID planB = UUID.randomUUID();
+        long sameSeq = 1L;
+
+        TaskPlanGenerationOrchestrator.GenerationRunKey keyA =
+                new TaskPlanGenerationOrchestrator.GenerationRunKey(planA, sameSeq);
+        TaskPlanGenerationOrchestrator.GenerationRunKey keyB =
+                new TaskPlanGenerationOrchestrator.GenerationRunKey(planB, sameSeq);
+
+        // Same generationSeq but different planId — must NOT collide
+        assertThat(keyA).isNotEqualTo(keyB);
+        assertThat(keyA.hashCode()).isNotEqualTo(keyB.hashCode());
+
+        // Same plan + same seq — must be equal
+        TaskPlanGenerationOrchestrator.GenerationRunKey keyA2 =
+                new TaskPlanGenerationOrchestrator.GenerationRunKey(planA, sameSeq);
+        assertThat(keyA).isEqualTo(keyA2);
     }
 
     @Test
