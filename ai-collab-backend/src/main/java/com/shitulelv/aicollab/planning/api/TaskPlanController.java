@@ -82,6 +82,12 @@ public class TaskPlanController {
             @PathVariable UUID planId, @AuthenticationPrincipal Jwt jwt) {
         commands.delete(projectId, planId, userId(jwt)); return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{planId}") public ApiResponse<?> edit(@PathVariable UUID projectId,
+            @PathVariable UUID planId, @Valid @RequestBody UpdateTaskPlanRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(commands.edit(projectId, planId, request, userId(jwt)));
+    }
     private static UUID userId(Jwt jwt) {
         try { return UUID.fromString(jwt.getSubject()); }
         catch (RuntimeException exception) { throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED); }
