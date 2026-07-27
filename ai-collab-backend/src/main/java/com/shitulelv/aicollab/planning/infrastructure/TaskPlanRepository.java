@@ -104,9 +104,10 @@ public class TaskPlanRepository {
         jdbc.update("""
                 UPDATE ai_task_plan SET latest_version_no=?,latest_version_id=?,updated_at=now(),
                   status=CASE WHEN ?='AI_SKELETON' THEN 'DETAIL_GENERATING'
-                              WHEN ?='AI_COMPLETE' THEN 'READY' ELSE status END
+                              WHEN ?='AI_COMPLETE' THEN 'READY' ELSE status END,
+                  active_attempt_id=CASE WHEN ?='AI_COMPLETE' THEN NULL ELSE active_attempt_id END
                 WHERE id=?
-                """, next, id, type, type, planId);
+                """, next, id, type, type, type, planId);
         return id;
     }
 
@@ -183,11 +184,22 @@ public class TaskPlanRepository {
     }
 
     @Transactional
-    public boolean markRunning(UUID attemptId) {
+    /**
+     * H3: Atomic CAS — matches attempt AND plan state in a single UPDATE.
+     * Prevents TOCTOU between active() and markRunning().
+     */
+    public boolean markRunning(UUID attemptId, UUID planId, long generationSeq, TaskPlanStatus expectedPlanStatus) {
         int updated = jdbc.update("""
                 UPDATE ai_task_plan_attempt SET status='RUNNING',started_at=now(),updated_at=now()
                 WHERE id=? AND status='QUEUED' AND cancel_requested=false
-                """, attemptId);
+                  AND plan_id=? AND generation_seq=? AND EXISTS (
+                    SELECT 1 FROM ai_task_plan p
+                    WHERE p.id=ai_task_plan_attempt.plan_id
+                      AND p.generation_seq=ai_task_plan_attempt.generation_seq
+                      AND p.active_attempt_id=ai_task_plan_attempt.id
+                      AND p.status=?
+                  )
+                """, attemptId, planId, generationSeq, expectedPlanStatus.name());
         return updated == 1;
     }
 
@@ -249,8 +261,10 @@ public class TaskPlanRepository {
         finishAttempt(attemptId, active ? "FAILED" : "DISCARDED",
                 active ? code : "PLAN_GENERATION_CANCELED");
         if (!active) return;
+        // H1: Clear active_attempt_id for terminal states (FAILED, DETAIL_GENERATION_FAILED)
         jdbc.update("""
-                UPDATE ai_task_plan SET status=?,last_error_code=?,last_error_summary=?,updated_at=now()
+                UPDATE ai_task_plan SET status=?,active_attempt_id=NULL,
+                  last_error_code=?,last_error_summary=?,updated_at=now()
                 WHERE id=? AND generation_seq=? AND active_attempt_id=? AND status=?
                 """, status.name(), code, "模型输出未通过安全校验", planId,
                 generationSeq, attemptId, expectedStatus.name());
