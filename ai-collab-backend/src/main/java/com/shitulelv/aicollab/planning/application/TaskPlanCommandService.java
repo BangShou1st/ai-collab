@@ -30,27 +30,32 @@ public class TaskPlanCommandService {
     private final TaskPlanGenerationOrchestrator orchestrator;
     private final TaskPlanDraftValidator validator;
     private final JdbcTemplate jdbc;
-    private final PlanningGenerationRateLimiter rateLimiter;
+    private final PlanningGenerationQuotaService quotaService;
+    private final PlanningAttemptThrottle attemptThrottle;
     private final AuditService audit;
 
     public TaskPlanCommandService(ProjectAccessGuard access, TaskPlanRepository repository,
                                   TaskPlanGenerationOrchestrator orchestrator,
                                   TaskPlanDraftValidator validator, JdbcTemplate jdbc,
-                                  PlanningGenerationRateLimiter rateLimiter, AuditService audit) {
+                                  PlanningGenerationQuotaService quotaService,
+                                  PlanningAttemptThrottle attemptThrottle, AuditService audit) {
         this.access = access; this.repository = repository; this.orchestrator = orchestrator;
         this.validator = validator; this.jdbc = jdbc;
-        this.rateLimiter = rateLimiter;
+        this.quotaService = quotaService;
+        this.attemptThrottle = attemptThrottle;
         this.audit = audit;
     }
 
     /**
      * P2-4 fix: validate before rate limiting. Invalid requests do not consume quota.
      * R7 fix: pass actor (not plan.createdBy) to orchestrator and repository.
+     * Phase 08: Use separate quota and throttle services.
      */
     public TaskPlanRecord create(UUID projectId, CreateTaskPlanRequest request, UUID actor) {
         access.requireAdmin(projectId, actor);
         validateCreate(projectId, request);
-        rateLimiter.check(actor);
+        attemptThrottle.check(actor);
+        quotaService.checkQuota(actor);
         TaskPlanRecord plan = repository.create(projectId, actor, request);
         safeAudit(projectId, actor, "TASK_PLAN_CREATED", "AI_TASK_PLAN", plan.id());
         orchestrator.dispatch(plan, actor, false);
@@ -77,7 +82,8 @@ public class TaskPlanCommandService {
         if (!List.of("DETAIL_GENERATION_FAILED").contains(current.status().name())) {
             throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
         }
-        rateLimiter.check(actor);
+        attemptThrottle.check(actor);
+        quotaService.checkQuota(actor);
         TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, true);
         safeAudit(projectId, actor, "TASK_PLAN_DETAIL_RETRIED", "AI_TASK_PLAN", planId);
         orchestrator.dispatch(plan, actor, true);
@@ -93,7 +99,8 @@ public class TaskPlanCommandService {
                 .contains(current.status().name())) {
             throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
         }
-        rateLimiter.check(actor);
+        attemptThrottle.check(actor);
+        quotaService.checkQuota(actor);
         TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, false);
         safeAudit(projectId, actor, "TASK_PLAN_REGENERATED", "AI_TASK_PLAN", planId);
         orchestrator.dispatch(plan, actor, false);
@@ -129,6 +136,11 @@ public class TaskPlanCommandService {
         TaskPlanRecord plan = repository.require(projectId, planId);
         TaskPlanVersionRecord source = repository.requireVersion(projectId, planId, versionId);
         TaskPlanDraft draft = repository.draft(source);
+
+        // Phase 08: Lock member rows referenced in the draft before validation
+        Set<UUID> memberIds = collectMemberIds(draft);
+        repository.lockProjectMembers(projectId, memberIds);
+
         var validation = ensureValid(projectId, plan, draft);
         UUID restored = repository.appendVersion(projectId, planId, plan.latestVersionId(),
                 "RESTORED", versionId, draft, actor, validation);

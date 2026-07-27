@@ -314,17 +314,36 @@ public class TaskPlanRepository {
 
     /**
      * C9: Lock project_member rows for the given user IDs to prevent removal during save/confirm.
-     * Uses ORDER BY user_id FOR SHARE to get a consistent lock order and prevent deadlocks.
+     * Uses a single parameterized query with FOR SHARE to prevent 500 errors when members are missing.
+     * Returns the actual locked member IDs for validation.
      */
     @Transactional
-    public void lockProjectMembers(UUID projectId, Set<UUID> userIds) {
-        if (userIds == null || userIds.isEmpty()) return;
-        // Sort by UUID for consistent lock ordering
-        userIds.stream().sorted().forEach(userId -> {
-            jdbc.queryForObject(
-                    "SELECT user_id FROM project_member WHERE project_id=? AND user_id=? FOR SHARE",
-                    UUID.class, projectId, userId);
-        });
+    public Set<UUID> lockProjectMembers(UUID projectId, Set<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) return Set.of();
+
+        // Build parameterized IN clause
+        String placeholders = userIds.stream().map(id -> "?").reduce((a, b) -> a + "," + b).orElse("");
+        String sql = "SELECT user_id FROM project_member WHERE project_id=? AND user_id IN (" + placeholders + ") ORDER BY user_id FOR SHARE";
+
+        // Build parameter array
+        Object[] params = new Object[userIds.size() + 1];
+        params[0] = projectId;
+        int i = 1;
+        for (UUID userId : userIds) {
+            params[i++] = userId;
+        }
+
+        Set<UUID> lockedMembers = new HashSet<>(jdbc.queryForList(sql, UUID.class, params));
+
+        // Validate all requested members were found
+        if (lockedMembers.size() != userIds.size()) {
+            Set<UUID> missing = new HashSet<>(userIds);
+            missing.removeAll(lockedMembers);
+            throw new BusinessException(ErrorCode.TASK_ASSIGNEE_NOT_MEMBER,
+                    "以下成员不是项目成员或已退出项目: " + missing);
+        }
+
+        return lockedMembers;
     }
 
     public ValidationContext validationContext(TaskPlanRecord plan) {

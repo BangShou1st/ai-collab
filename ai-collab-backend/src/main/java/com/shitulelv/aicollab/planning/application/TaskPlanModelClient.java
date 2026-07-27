@@ -69,7 +69,7 @@ public class TaskPlanModelClient {
             ErrorCode mapped = switch (failure.getErrorCode()) {
                 case AI_PROVIDER_UNAVAILABLE -> ErrorCode.PLANNING_MODEL_UNAVAILABLE;
                 case AI_MODEL_TIMEOUT -> ErrorCode.PLANNING_MODEL_TIMEOUT;
-                case AI_PROVIDER_QUOTA_EXCEEDED -> ErrorCode.PLANNING_MODEL_RATE_LIMITED;
+                case AI_PROVIDER_QUOTA_EXCEEDED -> ErrorCode.PLANNING_PROVIDER_QUOTA_EXCEEDED;
                 case AI_PROVIDER_INVALID_RESPONSE -> ErrorCode.PLANNING_MODEL_INVALID_OUTPUT;
                 default -> failure.getErrorCode();
             };
@@ -94,6 +94,7 @@ public class TaskPlanModelClient {
         return switch (code) {
             case PLANNING_MODEL_TIMEOUT -> "TIMEOUT";
             case PLANNING_MODEL_RATE_LIMITED -> "QUOTA_EXCEEDED";
+            case PLANNING_PROVIDER_QUOTA_EXCEEDED -> "PROVIDER_QUOTA_EXCEEDED";
             case PLANNING_MODEL_INVALID_OUTPUT -> "INVALID_OUTPUT";
             default -> "PROVIDER_ERROR";
         };
