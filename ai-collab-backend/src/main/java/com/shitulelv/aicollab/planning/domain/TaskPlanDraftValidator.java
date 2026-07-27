@@ -28,10 +28,6 @@ public class TaskPlanDraftValidator {
         return validate(context, draft, ValidationMode.COMPLETE);
     }
 
-    public ValidationResult validate(ValidationContext context, TaskPlanDraft draft, boolean aiGenerated) {
-        return validate(context, draft, aiGenerated ? ValidationMode.AI_SKELETON : ValidationMode.COMPLETE, aiGenerated);
-    }
-
     public ValidationResult validate(ValidationContext context, TaskPlanDraft draft, ValidationMode mode) {
         return validate(context, draft, mode, false);
     }
