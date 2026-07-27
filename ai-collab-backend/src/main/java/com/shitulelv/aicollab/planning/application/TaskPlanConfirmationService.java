@@ -73,10 +73,19 @@ public class TaskPlanConfirmationService {
             if ("SUCCESS".equals(row.get("status")) || "PROCESSING".equals(row.get("status"))) {
                 return new Claim((UUID) row.get("id"), response(row));
             }
-            jdbc.update("UPDATE ai_task_plan_confirmation SET status='PROCESSING',error_code=NULL,error_summary=NULL,updated_at=now() WHERE id=?",
-                    row.get("id"));
-            jdbc.update("UPDATE ai_task_plan SET status='CONFIRMING',updated_at=now() WHERE id=?", planId);
-            return new Claim((UUID) row.get("id"), null);
+            // FAILED retry: revalidate all preconditions
+            if ("FAILED".equals(row.get("status"))) {
+                if (plan.status() != TaskPlanStatus.READY) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+                if (!versionId.equals(row.get("version_id"))) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+                Integer activeGens = jdbc.queryForObject("""
+                        SELECT count(*) FROM ai_task_plan_attempt WHERE plan_id=? AND status IN ('QUEUED','RUNNING')
+                        """, Integer.class, planId);
+                if (activeGens != null && activeGens > 0) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+                jdbc.update("UPDATE ai_task_plan_confirmation SET status='PROCESSING',error_code=NULL,error_summary=NULL,updated_at=now() WHERE id=?",
+                        row.get("id"));
+                jdbc.update("UPDATE ai_task_plan SET status='CONFIRMING',updated_at=now() WHERE id=?", planId);
+                return new Claim((UUID) row.get("id"), null);
+            }
         }
         List<Map<String, Object>> existing = jdbc.queryForList(
                 "SELECT * FROM ai_task_plan_confirmation WHERE plan_id=? AND status='SUCCESS'", planId);
