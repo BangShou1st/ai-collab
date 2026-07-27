@@ -167,7 +167,9 @@ public class TaskPlanGenerationOrchestrator {
                     TaskPlanStatus.SKELETON_GENERATING, "AI_SKELETON", null, skeleton, actor,
                     validator.validate(repository.validationContext(plan), skeleton, true));
             if (skeletonVersion == null) return;
-            repository.finishAttempt(generated.attemptId(), "SUCCESS", null);
+            var m = generated.metrics();
+            repository.finishAttempt(generated.attemptId(), "SUCCESS", null,
+                    m.provider(), m.model(), m.latencyMs(), m.promptTokens(), m.completionTokens(), null);
             UUID detailAttempt = repository.startDetailAfterSkeleton(plan.projectId(), plan.id(), actor);
             TaskPlanRecord detailPlan = repository.require(plan.projectId(), plan.id());
             runDetail(detailPlan, detailAttempt, actor,
@@ -200,7 +202,9 @@ public class TaskPlanGenerationOrchestrator {
                     TaskPlanStatus.DETAIL_GENERATING, "AI_COMPLETE", plan.latestVersionId(), detail, actor,
                     validator.validate(repository.validationContext(plan), detail, true));
             if (versionId == null) return;
-            repository.finishAttempt(generated.attemptId(), "SUCCESS", null);
+            var m = generated.metrics();
+            repository.finishAttempt(generated.attemptId(), "SUCCESS", null,
+                    m.provider(), m.model(), m.latencyMs(), m.promptTokens(), m.completionTokens(), null);
         } catch (GenerationHandledException handled) {
             return;
         } catch (RuntimeException failure) {
@@ -221,9 +225,9 @@ public class TaskPlanGenerationOrchestrator {
                     TaskPlanStatus.FAILED, "PROMPT_BUDGET_EXCEEDED");
             throw new GenerationHandledException();
         }
-        String raw;
+        GenerationResult result;
         try {
-            raw = model.generate(SYSTEM, prompt, "TASK_PLAN_SKELETON",
+            result = model.generate(SYSTEM, prompt, "TASK_PLAN_SKELETON",
                     actor, plan.projectId(), initialAttempt);
         } catch (BusinessException providerFailure) {
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
@@ -231,23 +235,23 @@ public class TaskPlanGenerationOrchestrator {
             throw new GenerationHandledException();
         }
         try {
-            SkeletonModelOutput skeletonOut = parser.parseSkeleton(raw);
+            SkeletonModelOutput skeletonOut = parser.parseSkeleton(result.content());
             TaskPlanDraft first = toDraft(skeletonOut);
-            if (valid.test(first)) return new GeneratedSkeleton(first, initialAttempt);
+            if (valid.test(first)) return new GeneratedSkeleton(first, initialAttempt, result);
         } catch (RuntimeException invalidOutput) {
             // Parse/schema/domain failures are eligible for repair.
         }
         UUID repairAttempt = repository.startRepair(
                 plan.id(), plan.generationSeq(), initialAttempt, expectedStatus, actor);
         if (repairAttempt == null) throw new GenerationHandledException();
-        String repairPrompt = repairPrompt(raw, SKELETON_SCHEMA);
+        String repairPrompt = repairPrompt(result.content(), SKELETON_SCHEMA);
         try {
-            SkeletonModelOutput repaired = parser.parseSkeleton(
-                    model.generate(REPAIR_SYSTEM, repairPrompt, "TASK_PLAN_REPAIR",
-                            actor, plan.projectId(), repairAttempt));
+            GenerationResult repairResult = model.generate(REPAIR_SYSTEM, repairPrompt, "TASK_PLAN_REPAIR",
+                    actor, plan.projectId(), repairAttempt);
+            SkeletonModelOutput repaired = parser.parseSkeleton(repairResult.content());
             TaskPlanDraft repairedDraft = toDraft(repaired);
             if (!valid.test(repairedDraft)) throw new IllegalArgumentException("DOMAIN_VALIDATION_FAILED");
-            return new GeneratedSkeleton(repairedDraft, repairAttempt);
+            return new GeneratedSkeleton(repairedDraft, repairAttempt, repairResult);
         } catch (RuntimeException secondFailure) {
             repository.fail(plan.id(), plan.generationSeq(), repairAttempt, expectedStatus,
                     TaskPlanStatus.FAILED, safeCode(secondFailure));
@@ -268,9 +272,9 @@ public class TaskPlanGenerationOrchestrator {
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, "PROMPT_BUDGET_EXCEEDED");
             throw new GenerationHandledException();
         }
-        String raw;
+        GenerationResult result;
         try {
-            raw = model.generate(SYSTEM, prompt, "TASK_PLAN_DETAIL",
+            result = model.generate(SYSTEM, prompt, "TASK_PLAN_DETAIL",
                     actor, plan.projectId(), initialAttempt);
         } catch (BusinessException providerFailure) {
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
@@ -278,21 +282,21 @@ public class TaskPlanGenerationOrchestrator {
             throw new GenerationHandledException();
         }
         try {
-            DetailModelOutput detailOut = parser.parseDetail(raw);
-            if (valid.test(detailOut)) return new GeneratedDetail(detailOut, initialAttempt);
+            DetailModelOutput detailOut = parser.parseDetail(result.content());
+            if (valid.test(detailOut)) return new GeneratedDetail(detailOut, initialAttempt, result);
         } catch (RuntimeException invalidOutput) {
             // Parse/schema/domain failures are eligible for repair.
         }
         UUID repairAttempt = repository.startRepair(
                 plan.id(), plan.generationSeq(), initialAttempt, expectedStatus, actor);
         if (repairAttempt == null) throw new GenerationHandledException();
-        String repairPrompt = repairPrompt(raw, DETAIL_SCHEMA);
+        String repairPrompt = repairPrompt(result.content(), DETAIL_SCHEMA);
         try {
-            DetailModelOutput repaired = parser.parseDetail(
-                    model.generate(REPAIR_SYSTEM, repairPrompt, "TASK_PLAN_REPAIR",
-                            actor, plan.projectId(), repairAttempt));
+            GenerationResult repairResult = model.generate(REPAIR_SYSTEM, repairPrompt, "TASK_PLAN_REPAIR",
+                    actor, plan.projectId(), repairAttempt);
+            DetailModelOutput repaired = parser.parseDetail(repairResult.content());
             if (!valid.test(repaired)) throw new IllegalArgumentException("DOMAIN_VALIDATION_FAILED");
-            return new GeneratedDetail(repaired, repairAttempt);
+            return new GeneratedDetail(repaired, repairAttempt, repairResult);
         } catch (RuntimeException secondFailure) {
             repository.fail(plan.id(), plan.generationSeq(), repairAttempt, expectedStatus,
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, safeCode(secondFailure));
@@ -474,8 +478,8 @@ public class TaskPlanGenerationOrchestrator {
         return true;
     }
 
-    private record GeneratedSkeleton(TaskPlanDraft draft, UUID attemptId) {}
-    private record GeneratedDetail(DetailModelOutput detail, UUID attemptId) {}
+    private record GeneratedSkeleton(TaskPlanDraft draft, UUID attemptId, GenerationResult metrics) {}
+    private record GeneratedDetail(DetailModelOutput detail, UUID attemptId, GenerationResult metrics) {}
     private static final class GenerationHandledException extends RuntimeException {}
 
     /** Identity-only skeleton for prompt embedding — no sources, no detail fields. */

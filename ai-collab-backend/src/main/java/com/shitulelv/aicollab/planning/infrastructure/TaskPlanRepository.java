@@ -214,10 +214,28 @@ public class TaskPlanRepository {
 
     @Transactional
     public void finishAttempt(UUID attemptId, String status, String errorCode) {
+        finishAttempt(attemptId, status, errorCode, null, null, null, null, null, null);
+    }
+
+    /**
+     * P2-1: Persist full attempt metrics — provider, model, timing, tokens, error summary.
+     * Does not store API key, prompt, or raw model response.
+     */
+    @Transactional
+    public void finishAttempt(UUID attemptId, String status, String errorCode,
+                              String provider, String model, Long latencyMs,
+                              Integer promptTokens, Integer completionTokens,
+                              String errorSummary) {
         jdbc.update("""
-                UPDATE ai_task_plan_attempt SET status=?,error_code=?,finished_at=now(),updated_at=now()
+                UPDATE ai_task_plan_attempt SET status=?,error_code=?,error_summary=?,
+                  provider=COALESCE(?,provider), model=COALESCE(?,model),
+                  latency_ms=COALESCE(?,latency_ms),
+                  prompt_tokens=COALESCE(?,prompt_tokens),
+                  completion_tokens=COALESCE(?,completion_tokens),
+                  finished_at=now(),updated_at=now()
                 WHERE id=?
-                """, status, errorCode, attemptId);
+                """, status, errorCode, errorSummary,
+                provider, model, latencyMs, promptTokens, completionTokens, attemptId);
     }
 
     @Transactional

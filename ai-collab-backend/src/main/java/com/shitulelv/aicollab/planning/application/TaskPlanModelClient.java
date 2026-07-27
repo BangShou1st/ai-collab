@@ -41,14 +41,20 @@ public class TaskPlanModelClient {
     private double resolveTemperature() { return properties.temperature() > 0 ? properties.temperature() : chatProperties.temperature(); }
     private int resolveMaxOutputTokens() { return properties.maxOutputTokens() > 0 ? properties.maxOutputTokens() : chatProperties.maxOutputTokens(); }
     private static boolean nonBlank(String s) { return s != null && !s.isBlank(); }
-    public String generate(String system, String user, String feature,
-                           UUID actor, UUID projectId, UUID attemptId) {
+
+    /**
+     * P2-1: Returns GenerationResult with content + metrics.
+     * Metrics are also logged to AiCallLogWriter for observability.
+     */
+    public GenerationResult generate(String system, String user, String feature,
+                                     UUID actor, UUID projectId, UUID attemptId) {
         long started = System.nanoTime();
         try {
             ChatCompletionResult result = gateway.complete(new ChatCompletionCommand(system, user));
             safeLog(feature, actor, projectId, attemptId, result.provider(), result.model(),
                     "SUCCESS", result.latencyMs(), result.promptTokens(), result.completionTokens(), null);
-            return result.content();
+            return new GenerationResult(result.content(), result.provider(), result.model(),
+                    result.latencyMs(), result.promptTokens(), result.completionTokens());
         } catch (BusinessException failure) {
             ErrorCode mapped = switch (failure.getErrorCode()) {
                 case AI_PROVIDER_UNAVAILABLE -> ErrorCode.PLANNING_MODEL_UNAVAILABLE;
@@ -57,9 +63,9 @@ public class TaskPlanModelClient {
                 case AI_PROVIDER_INVALID_RESPONSE -> ErrorCode.PLANNING_MODEL_INVALID_OUTPUT;
                 default -> failure.getErrorCode();
             };
+            long latency = Math.max(0, (System.nanoTime() - started) / 1_000_000);
             safeLog(feature, actor, projectId, attemptId, safe(properties.provider()), safe(properties.model()),
-                    status(mapped), Math.max(0, (System.nanoTime() - started) / 1_000_000),
-                    null, null, mapped.name());
+                    status(mapped), latency, null, null, mapped.name());
             throw new BusinessException(mapped);
         }
     }
@@ -71,7 +77,6 @@ public class TaskPlanModelClient {
             logs.insert(UUID.randomUUID(), actor, projectId, feature, provider, model, status,
                     latency, promptTokens, completionTokens, errorCode, attemptId);
         } catch (RuntimeException ignored) {
-            // Business processing must not fail because observability storage is unavailable.
         }
     }
 
