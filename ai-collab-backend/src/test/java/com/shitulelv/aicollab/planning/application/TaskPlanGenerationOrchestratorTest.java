@@ -28,7 +28,7 @@ class TaskPlanGenerationOrchestratorTest {
         com.shitulelv.aicollab.planning.domain.TaskPlanDraft skeleton = new com.shitulelv.aicollab.planning.domain.TaskPlanDraft(
                 "summary", java.util.List.of("a1"), java.util.List.of("r1"),
                 java.util.List.of(new com.shitulelv.aicollab.planning.domain.PlanMilestone(
-                        "m1", "Title", "Objective",
+                        "m1", "Title", "Objective", null,
                         java.time.LocalDate.of(2026, 8, 10), 0, java.util.List.of())),
                 java.util.List.of(new com.shitulelv.aicollab.planning.domain.PlanTask(
                         "t1", "m1", "Task", "Obj", null, null, null, null, null,
