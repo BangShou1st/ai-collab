@@ -36,18 +36,31 @@ public class TaskPlanRepository {
     public TaskPlanRecord create(UUID projectId, UUID actor, CreateTaskPlanRequest request) {
         UUID planId = UUID.randomUUID();
         UUID attemptId = UUID.randomUUID();
+        // Step 1: Insert plan without active_attempt_id to satisfy
+        // fk_ai_task_plan_active_attempt (the attempt row does not exist yet).
         jdbc.update("""
                 INSERT INTO ai_task_plan(id,project_id,title,goal,constraints,plan_start_date,plan_due_date,
-                  max_task_count,selected_document_ids_json,status,active_attempt_id,created_by)
-                VALUES (?,?,?,?,?,?,?, ?,?::jsonb,'SKELETON_GENERATING',?,?)
+                  max_task_count,selected_document_ids_json,status,created_by)
+                VALUES (?,?,?,?,?,?,?, ?,?::jsonb,'SKELETON_GENERATING',?)
                 """, planId, projectId, request.title().strip(), request.goal().strip(),
                 request.constraints() == null ? "" : request.constraints(),
                 request.planStartDate(), request.planDueDate(), request.maxTaskCount(),
-                write(request.documentIds() == null ? List.of() : request.documentIds()), attemptId, actor);
+                write(request.documentIds() == null ? List.of() : request.documentIds()), actor);
+        // Step 2: Insert attempt — plan already exists, so attempt.plan_id FK is satisfied.
         jdbc.update("""
                 INSERT INTO ai_task_plan_attempt(id,plan_id,attempt_no,generation_seq,stage,status,created_by)
                 VALUES (?,?,1,1,'SKELETON','QUEUED',?)
                 """, attemptId, planId, actor);
+        // Step 3: Bind attempt as active — attempt now exists, so active_attempt_id FK is satisfied.
+        int updated = jdbc.update("""
+                UPDATE ai_task_plan SET active_attempt_id=?, updated_at=now()
+                WHERE id=? AND project_id=? AND active_attempt_id IS NULL
+                  AND generation_seq=1 AND status='SKELETON_GENERATING'
+                """, attemptId, planId, projectId);
+        if (updated != 1) {
+            throw new IllegalStateException(
+                    "Failed to bind active attempt: plan " + planId + " update affected " + updated + " rows");
+        }
         return require(projectId, planId);
     }
 
@@ -273,6 +286,12 @@ public class TaskPlanRepository {
     @Transactional
     public void fail(UUID planId, long generationSeq, UUID attemptId,
                      TaskPlanStatus expectedStatus, TaskPlanStatus status, String code) {
+        fail(planId, generationSeq, attemptId, expectedStatus, status, code, "模型输出未通过安全校验");
+    }
+
+    @Transactional
+    public void fail(UUID planId, long generationSeq, UUID attemptId,
+                     TaskPlanStatus expectedStatus, TaskPlanStatus status, String code, String errorSummary) {
         Map<String, Object> current = jdbc.queryForMap(
                 "SELECT generation_seq,active_attempt_id,status FROM ai_task_plan WHERE id=? FOR UPDATE", planId);
         boolean active = ((Number) current.get("generation_seq")).longValue() == generationSeq
@@ -286,7 +305,7 @@ public class TaskPlanRepository {
                 UPDATE ai_task_plan SET status=?,active_attempt_id=NULL,
                   last_error_code=?,last_error_summary=?,updated_at=now()
                 WHERE id=? AND generation_seq=? AND active_attempt_id=? AND status=?
-                """, status.name(), code, "模型输出未通过安全校验", planId,
+                """, status.name(), code, errorSummary, planId,
                 generationSeq, attemptId, expectedStatus.name());
     }
 

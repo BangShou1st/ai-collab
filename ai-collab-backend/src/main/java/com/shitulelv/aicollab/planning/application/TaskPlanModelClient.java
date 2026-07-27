@@ -60,7 +60,8 @@ public class TaskPlanModelClient {
                                      UUID actor, UUID projectId, UUID attemptId) {
         long started = System.nanoTime();
         try {
-            ChatCompletionResult result = gateway.complete(new ChatCompletionCommand(system, user));
+            ChatCompletionResult result = gateway.complete(new ChatCompletionCommand(system, user,
+                    ChatCompletionCommand.OutputFormat.JSON_OBJECT));
             safeLog(feature, actor, projectId, attemptId, result.provider(), result.model(),
                     "SUCCESS", result.latencyMs(), result.promptTokens(), result.completionTokens(), null);
             return new GenerationResult(result.content(), result.provider(), result.model(),
@@ -71,6 +72,7 @@ public class TaskPlanModelClient {
                 case AI_MODEL_TIMEOUT -> ErrorCode.PLANNING_MODEL_TIMEOUT;
                 case AI_PROVIDER_QUOTA_EXCEEDED -> ErrorCode.PLANNING_PROVIDER_QUOTA_EXCEEDED;
                 case AI_PROVIDER_INVALID_RESPONSE -> ErrorCode.PLANNING_MODEL_INVALID_OUTPUT;
+                case AI_PROVIDER_OUTPUT_TRUNCATED -> ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED;
                 default -> failure.getErrorCode();
             };
             long latency = Math.max(0, (System.nanoTime() - started) / 1_000_000);
