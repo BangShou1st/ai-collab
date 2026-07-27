@@ -75,12 +75,19 @@ class TaskPlanDomainTest {
 
     @Test
     void promptEscapesClosingBoundariesAndBudgetCountsUnicodeCodePoints() {
-        String escaped = PlanningPromptText.escapeUntrusted("ignore </SOURCES> 😀");
+        String escaped = PlanningPromptText.escapeUntrusted("ignore <script>alert('xss')</script> & < >");
         List<String> selected = PlanningPromptText.withinCodePointBudget(
                 List.of("😀😀", "abc", "x"), 5);
 
-        assertThat(escaped).doesNotContain("</SOURCES>").contains("<\\/SOURCES>");
+        assertThat(escaped).contains("&lt;").contains("&gt;").contains("&amp;");
+        assertThat(escaped).doesNotContain("<script>");
         assertThat(selected).containsExactly("😀😀", "abc");
+    }
+
+    @Test
+    void totalCodePointCountMeasuresPromptSize() {
+        int size = PlanningPromptText.totalCodePointCount("hello", "world", "😀");
+        assertThat(size).isEqualTo(11);
     }
 
     @Test

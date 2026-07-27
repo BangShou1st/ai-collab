@@ -64,4 +64,12 @@ public class TaskPlanContextAssembler {
     }
 
     public record PlanningContext(String promptText, List<PlanSource> sources) {}
+
+    public String memberContext(UUID projectId) {
+        var members = jdbc.queryForList("""
+                SELECT u.id,u.display_name,pm.role FROM project_member pm JOIN app_user u ON u.id=pm.user_id
+                WHERE pm.project_id=? ORDER BY u.id
+                """, projectId);
+        return "项目成员（仅可推荐以下成员作为负责人）：" + members;
+    }
 }
