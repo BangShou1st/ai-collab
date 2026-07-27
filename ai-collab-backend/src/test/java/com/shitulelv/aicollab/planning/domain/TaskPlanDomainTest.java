@@ -26,7 +26,7 @@ class TaskPlanDomainTest {
     void validatorRejectsCyclesUnknownSourcesAndInvalidMembers() {
         TaskPlanDraft draft = new TaskPlanDraft(
                 "summary", List.of("assumption"), List.of("risk"),
-                List.of(new PlanMilestone("m1", "Milestone", "Objective",
+                List.of(new PlanMilestone("m1", "Milestone", "Objective", null,
                         LocalDate.of(2026, 8, 10), 0, List.of("S1"))),
                 List.of(
                         task("t1", List.of("t2"), List.of("S2"), MEMBER),
@@ -47,7 +47,7 @@ class TaskPlanDomainTest {
     @Test
     void validatorRejectsDependencyDateConflictAndPlanOutsideProject() {
         TaskPlanDraft draft = new TaskPlanDraft("s", List.of(), List.of(),
-                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 20), 0, List.of())),
+                List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 20), 0, List.of())),
                 List.of(
                         task("before", List.of(), List.of(), null,
                                 LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 20)),
@@ -76,14 +76,14 @@ class TaskPlanDomainTest {
     @Test
     void detailMustPreserveSkeletonTargetDateAndSortOrder() {
         TaskPlanDraft skeleton = new TaskPlanDraft("s", List.of(), List.of(),
-                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 10), 0, List.of())),
                 List.of(new PlanTask("t1", "m1", "T", "O", "D", "MEDIUM",
                         BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
                         null, null, List.of(), List.of(), 0)),
                 List.of());
         // Detail changes targetDate and sortOrder — should be rejected
         TaskPlanDraft detail = new TaskPlanDraft("s", List.of(), List.of(),
-                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 15), 1, List.of())),
+                List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 15), 1, List.of())),
                 List.of(new PlanTask("t1", "m1", "T", "O", "D", "MEDIUM",
                         BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
                         null, null, List.of(), List.of(), 1)),
@@ -96,13 +96,13 @@ class TaskPlanDomainTest {
     @Test
     void detailPreservesSkeletonWhenOnlyDetailFieldsChange() {
         TaskPlanDraft skeleton = new TaskPlanDraft("s", List.of(), List.of(),
-                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 10), 0, List.of())),
                 List.of(new PlanTask("t1", "m1", "T", "O", null, null,
                         null, null, null, null, null, List.of(), List.of(), 0)),
                 List.of());
         // Detail only changes detail-specific fields
         TaskPlanDraft detail = new TaskPlanDraft("s", List.of(), List.of(),
-                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 10), 0, List.of())),
                 List.of(new PlanTask("t1", "m1", "T", "O", "Description", "HIGH",
                         BigDecimal.TEN, LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 5),
                         UUID.randomUUID(), null, List.of("t2"), List.of("S1"), 0)),
@@ -142,7 +142,7 @@ class TaskPlanDomainTest {
     @Test
     void validatorReportsMalformedTextAndPriorityWithoutThrowing() {
         TaskPlanDraft malformed = new TaskPlanDraft("s", List.of(), List.of(),
-                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 10), 0, List.of())),
                 List.of(new PlanTask("t1", "m1", null, "O", "D", null,
                         BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
                         null, null, List.of(), List.of(), 0)), List.of());
@@ -174,7 +174,7 @@ class TaskPlanDomainTest {
     void validatorRejectsSortOrderAndDuplicateSourceRefs() {
         TaskPlanDraft draft = new TaskPlanDraft(
                 "summary", List.of(), List.of(),
-                List.of(new PlanMilestone("m1", "Milestone", "Objective",
+                List.of(new PlanMilestone("m1", "Milestone", "Objective", null,
                         LocalDate.of(2026, 8, 10), -1, List.of("S1", "S1"))),
                 List.of(new PlanTask("t1", "m1", "Task", "Objective", "Description", "MEDIUM",
                         BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
@@ -194,7 +194,7 @@ class TaskPlanDomainTest {
     void validatorRejectsInvalidSourceRefFormat() {
         TaskPlanDraft draft = new TaskPlanDraft(
                 "summary", List.of(), List.of(),
-                List.of(new PlanMilestone("m1", "Milestone", "Objective",
+                List.of(new PlanMilestone("m1", "Milestone", "Objective", null,
                         LocalDate.of(2026, 8, 10), 0, List.of("X1", "S13"))),
                 List.of(new PlanTask("t1", "m1", "Task", "Objective", "Description", "MEDIUM",
                         BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
@@ -214,7 +214,7 @@ class TaskPlanDomainTest {
     void validatorRejectsAssigneeIdInAiGeneratedDraft() {
         TaskPlanDraft draft = new TaskPlanDraft(
                 "summary", List.of("assumption"), List.of("risk"),
-                List.of(new PlanMilestone("m1", "Milestone", "Objective",
+                List.of(new PlanMilestone("m1", "Milestone", "Objective", null,
                         LocalDate.of(2026, 8, 10), 0, List.of())),
                 List.of(new PlanTask("t1", "m1", "Task", "Objective", "Description", "MEDIUM",
                         BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
@@ -251,7 +251,7 @@ class TaskPlanDomainTest {
 
     private static TaskPlanDraft draftWithTitle(String title) {
         return new TaskPlanDraft("s", List.of(), List.of(),
-                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 10), 0, List.of())),
                 List.of(new PlanTask("t1", "m1", title, "O", "D", "MEDIUM",
                         BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
                         null, null, List.of(), List.of(), 0)),
