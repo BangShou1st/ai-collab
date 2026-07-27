@@ -28,7 +28,9 @@ class TaskPlanQueryServiceTest {
         when(repository.require(project, planId)).thenReturn(plan(project, planId));
         lenient().when(jdbc.queryForList(anyString(), any(Object[].class))).thenReturn(List.of());
         lenient().when(jdbc.queryForList(anyString(), (Object[]) any())).thenReturn(List.of());
-        TaskPlanQueryService service = new TaskPlanQueryService(access, repository, jdbc);
+        TaskPlanQueryService service = new TaskPlanQueryService(access, repository,
+                mock(com.shitulelv.aicollab.planning.infrastructure.TaskPlanIssueRepository.class),
+                mock(com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRepository.class), jdbc);
 
         TaskPlanDetailView detail = service.detail(project, planId, member);
 
@@ -51,7 +53,9 @@ class TaskPlanQueryServiceTest {
                 TaskPlanStatus.SKELETON_GENERATING, UUID.randomUUID()));
         lenient().when(jdbc.queryForList(anyString(), any(Object[].class))).thenReturn(List.of());
         lenient().when(jdbc.queryForList(anyString(), (Object[]) any())).thenReturn(List.of());
-        TaskPlanQueryService service = new TaskPlanQueryService(access, repository, jdbc);
+        TaskPlanQueryService service = new TaskPlanQueryService(access, repository,
+                mock(com.shitulelv.aicollab.planning.infrastructure.TaskPlanIssueRepository.class),
+                mock(com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRepository.class), jdbc);
 
         TaskPlanDetailView detail = service.detail(project, planId, member);
 
