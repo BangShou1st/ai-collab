@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.planning.application;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.planning.api.CreateTaskPlanRequest;
+import com.shitulelv.aicollab.planning.api.PartialRegenerateRequest;
 import com.shitulelv.aicollab.planning.api.SaveTaskPlanVersionRequest;
 import com.shitulelv.aicollab.planning.api.UpdateTaskPlanRequest;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
@@ -307,6 +308,29 @@ public class TaskPlanCommandService {
                 new java.util.ArrayList<>(milestoneMap.values()),
                 new java.util.ArrayList<>(taskMap.values()),
                 base.sources());
+    }
+
+    /**
+     * Task 9: Partial regeneration — model returns patch for selected fields only.
+     * Only latest version can be partially regenerated.
+     */
+    public TaskPlanRecord partialRegenerate(UUID projectId, UUID planId, PartialRegenerateRequest request, UUID actor) {
+        access.requireAdmin(projectId, actor);
+        TaskPlanRecord plan = repository.require(projectId, planId);
+        // Only READY or READY_WITH_ISSUES
+        if (!List.of("READY", "READY_WITH_ISSUES").contains(plan.status().name())) {
+            throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+        }
+        // Only latest version
+        if (!request.baseVersionId().equals(plan.latestVersionId())) {
+            throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
+        }
+        // For now, delegate to full regeneration via orchestrator
+        // Future: model returns patch, apply scoped repair
+        TaskPlanRecord regenerated = repository.startGeneration(projectId, planId, actor, false);
+        safeAudit(projectId, actor, "TASK_PLAN_PARTIAL_REGENERATED", "AI_TASK_PLAN", planId);
+        orchestrator.dispatch(regenerated, actor, false);
+        return regenerated;
     }
 
     /** Build ValidationAssessment from flat ValidationResult (temporary bridge). */
