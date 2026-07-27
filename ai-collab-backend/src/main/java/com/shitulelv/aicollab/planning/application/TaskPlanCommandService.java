@@ -43,13 +43,17 @@ public class TaskPlanCommandService {
         this.audit = audit;
     }
 
+    /**
+     * P2-4 fix: validate before rate limiting. Invalid requests do not consume quota.
+     * R7 fix: pass actor (not plan.createdBy) to orchestrator and repository.
+     */
     public TaskPlanRecord create(UUID projectId, CreateTaskPlanRequest request, UUID actor) {
         access.requireAdmin(projectId, actor);
-        rateLimiter.check(actor);
         validateCreate(projectId, request);
+        rateLimiter.check(actor);
         TaskPlanRecord plan = repository.create(projectId, actor, request);
         safeAudit(projectId, actor, "TASK_PLAN_CREATED", "AI_TASK_PLAN", plan.id());
-        orchestrator.dispatch(plan, false);
+        orchestrator.dispatch(plan, actor, false);
         return plan;
     }
 
@@ -63,24 +67,30 @@ public class TaskPlanCommandService {
         return plan;
     }
 
+    /** P2-4 fix: validate state before rate limiting. */
     public TaskPlanRecord retryDetail(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
-        rateLimiter.check(actor);
         TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, true);
+        rateLimiter.check(actor);
         safeAudit(projectId, actor, "TASK_PLAN_DETAIL_RETRIED", "AI_TASK_PLAN", planId);
-        orchestrator.dispatch(plan, true);
+        orchestrator.dispatch(plan, actor, true);
         return plan;
     }
 
+    /** P2-4 fix: validate state before rate limiting. */
     public TaskPlanRecord regenerate(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
-        rateLimiter.check(actor);
         TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, false);
+        rateLimiter.check(actor);
         safeAudit(projectId, actor, "TASK_PLAN_REGENERATED", "AI_TASK_PLAN", planId);
-        orchestrator.dispatch(plan, false);
+        orchestrator.dispatch(plan, actor, false);
         return plan;
     }
 
+    /**
+     * P2-3 fix: manual save is transactional — member cannot leave between validation and version write.
+     */
+    @Transactional
     public UUID save(UUID projectId, UUID planId, SaveTaskPlanVersionRequest request, UUID actor) {
         access.requireAdmin(projectId, actor);
         TaskPlanRecord plan = repository.require(projectId, planId);
@@ -96,6 +106,7 @@ public class TaskPlanCommandService {
         return version;
     }
 
+    @Transactional
     public UUID restore(UUID projectId, UUID planId, UUID versionId, UUID actor) {
         access.requireAdmin(projectId, actor);
         TaskPlanRecord plan = repository.require(projectId, planId);
@@ -165,7 +176,6 @@ public class TaskPlanCommandService {
         try {
             audit.write(projectId, actor, action, entityType, entityId);
         } catch (RuntimeException ignored) {
-            // Audit storage must not strand an already committed planning state before dispatch.
         }
     }
 }

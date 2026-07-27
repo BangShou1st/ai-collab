@@ -61,6 +61,7 @@ public class TaskPlanDraftValidator {
         if (draft.sources().size() > 12) errors.add("SOURCE_LIMIT_EXCEEDED");
         for (PlanSource source : draft.sources()) {
             if (source == null || blank(source.ref())) errors.add("SOURCE_INVALID");
+            else if (!source.ref().matches("^S\\d{1,2}$")) errors.add("SOURCE_REF_FORMAT_INVALID");
             else sourceRefs.add(source.ref());
         }
         Set<String> normalizedTitles = new HashSet<>();
@@ -91,15 +92,30 @@ public class TaskPlanDraftValidator {
         return new ValidationResult(sorted(errors), sorted(warnings));
     }
 
+    /**
+     * R1: Comprehensive skeleton preservation check.
+     * Verifies ALL skeleton fields — not just tempKey+title+objective.
+     * Milestones: tempKey, title, objective, targetDate, sortOrder, count.
+     * Tasks: tempKey, milestoneTempKey, title, objective, sortOrder, count.
+     * Top-level: summary, assumptions, risks.
+     */
     public ValidationResult validateSkeletonPreserved(TaskPlanDraft skeleton, TaskPlanDraft detail) {
-        boolean same = skeleton.milestones().size() == detail.milestones().size()
-                && skeleton.tasks().size() == detail.tasks().size()
-                && skeleton.milestones().stream().noneMatch(java.util.Objects::isNull)
-                && detail.milestones().stream().noneMatch(java.util.Objects::isNull)
-                && skeleton.tasks().stream().noneMatch(java.util.Objects::isNull)
-                && detail.tasks().stream().noneMatch(java.util.Objects::isNull)
-                && milestoneIdentities(skeleton).equals(milestoneIdentities(detail))
-                && taskIdentities(skeleton).equals(taskIdentities(detail));
+        if (skeleton.milestones().size() != detail.milestones().size()
+                || skeleton.tasks().size() != detail.tasks().size()) {
+            return new ValidationResult(List.of("SKELETON_MUTATED"), List.of());
+        }
+        if (skeleton.milestones().stream().anyMatch(java.util.Objects::isNull)
+                || detail.milestones().stream().anyMatch(java.util.Objects::isNull)
+                || skeleton.tasks().stream().anyMatch(java.util.Objects::isNull)
+                || detail.tasks().stream().anyMatch(java.util.Objects::isNull)) {
+            return new ValidationResult(List.of("SKELETON_MUTATED"), List.of());
+        }
+        // Check top-level fields
+        boolean same = java.util.Objects.equals(skeleton.summary(), detail.summary())
+                && java.util.Objects.equals(skeleton.assumptions(), detail.assumptions())
+                && java.util.Objects.equals(skeleton.risks(), detail.risks())
+                && milestoneFullIdentities(skeleton).equals(milestoneFullIdentities(detail))
+                && taskFullIdentities(skeleton).equals(taskFullIdentities(detail));
         return same ? new ValidationResult(List.of(), List.of())
                 : new ValidationResult(List.of("SKELETON_MUTATED"), List.of());
     }
@@ -174,7 +190,10 @@ public class TaskPlanDraftValidator {
     }
 
     private static void validateSourceRefs(List<String> refs, Set<String> valid, Set<String> errors) {
-        if (refs.stream().anyMatch(ref -> !valid.contains(ref))) errors.add("SOURCE_REF_INVALID");
+        for (String ref : refs) {
+            if (ref == null || !ref.matches("^S\\d{1,2}$")) errors.add("SOURCE_REF_FORMAT_INVALID");
+            else if (!valid.contains(ref)) errors.add("SOURCE_REF_INVALID");
+        }
         if (refs.stream().distinct().count() < refs.size()) errors.add("SOURCE_REF_DUPLICATE");
     }
 
@@ -182,15 +201,18 @@ public class TaskPlanDraftValidator {
         return date != null && (start != null && date.isBefore(start) || due != null && date.isAfter(due));
     }
 
-    private static List<String> milestoneIdentities(TaskPlanDraft draft) {
+    /** R1: Full identity check including targetDate and sortOrder. */
+    private static List<String> milestoneFullIdentities(TaskPlanDraft draft) {
         return draft.milestones().stream()
-                .map(item -> item.tempKey() + "\0" + item.title() + "\0" + item.objective()).toList();
+                .map(item -> item.tempKey() + "\0" + item.title() + "\0" + item.objective()
+                        + "\0" + item.targetDate() + "\0" + item.sortOrder()).toList();
     }
 
-    private static List<String> taskIdentities(TaskPlanDraft draft) {
+    /** R1: Full identity check including milestoneTempKey and sortOrder. */
+    private static List<String> taskFullIdentities(TaskPlanDraft draft) {
         return draft.tasks().stream()
                 .map(item -> item.tempKey() + "\0" + item.milestoneTempKey() + "\0"
-                        + item.title() + "\0" + item.objective()).toList();
+                        + item.title() + "\0" + item.objective() + "\0" + item.sortOrder()).toList();
     }
 
     private static List<String> sorted(Set<String> values) {

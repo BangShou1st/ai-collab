@@ -74,6 +74,44 @@ class TaskPlanDomainTest {
     }
 
     @Test
+    void detailMustPreserveSkeletonTargetDateAndSortOrder() {
+        TaskPlanDraft skeleton = new TaskPlanDraft("s", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanTask("t1", "m1", "T", "O", "D", "MEDIUM",
+                        BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                        null, null, List.of(), List.of(), 0)),
+                List.of());
+        // Detail changes targetDate and sortOrder — should be rejected
+        TaskPlanDraft detail = new TaskPlanDraft("s", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 15), 1, List.of())),
+                List.of(new PlanTask("t1", "m1", "T", "O", "D", "MEDIUM",
+                        BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                        null, null, List.of(), List.of(), 1)),
+                List.of());
+
+        assertThat(new TaskPlanDraftValidator().validateSkeletonPreserved(skeleton, detail).errorCodes())
+                .containsExactly("SKELETON_MUTATED");
+    }
+
+    @Test
+    void detailPreservesSkeletonWhenOnlyDetailFieldsChange() {
+        TaskPlanDraft skeleton = new TaskPlanDraft("s", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanTask("t1", "m1", "T", "O", null, null,
+                        null, null, null, null, null, List.of(), List.of(), 0)),
+                List.of());
+        // Detail only changes detail-specific fields
+        TaskPlanDraft detail = new TaskPlanDraft("s", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "M", "O", LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanTask("t1", "m1", "T", "O", "Description", "HIGH",
+                        BigDecimal.TEN, LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 5),
+                        UUID.randomUUID(), null, List.of("t2"), List.of("S1"), 0)),
+                List.of());
+
+        assertThat(new TaskPlanDraftValidator().validateSkeletonPreserved(skeleton, detail).valid()).isTrue();
+    }
+
+    @Test
     void promptEscapesClosingBoundariesAndBudgetCountsUnicodeCodePoints() {
         String escaped = PlanningPromptText.escapeUntrusted("ignore <script>alert('xss')</script> & < >");
         List<String> selected = PlanningPromptText.withinCodePointBudget(
@@ -150,6 +188,26 @@ class TaskPlanDomainTest {
         ValidationResult result = new TaskPlanDraftValidator().validate(context, draft);
 
         assertThat(result.errorCodes()).contains("SORT_ORDER_INVALID", "SOURCE_REF_DUPLICATE");
+    }
+
+    @Test
+    void validatorRejectsInvalidSourceRefFormat() {
+        TaskPlanDraft draft = new TaskPlanDraft(
+                "summary", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "Milestone", "Objective",
+                        LocalDate.of(2026, 8, 10), 0, List.of("X1", "S13"))),
+                List.of(new PlanTask("t1", "m1", "Task", "Objective", "Description", "MEDIUM",
+                        BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                        null, null, List.of(), List.of(), 0)),
+                List.of(new PlanSource("S1", UUID.randomUUID(), "source", "quote")));
+        ValidationContext context = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(MEMBER), Set.of());
+
+        ValidationResult result = new TaskPlanDraftValidator().validate(context, draft);
+
+        assertThat(result.errorCodes()).contains("SOURCE_REF_FORMAT_INVALID");
     }
 
     @Test
