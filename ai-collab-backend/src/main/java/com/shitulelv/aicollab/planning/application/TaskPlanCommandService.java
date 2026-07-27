@@ -101,7 +101,8 @@ public class TaskPlanCommandService {
     }
 
     /**
-     * P2-3 fix: manual save is transactional — member cannot leave between validation and version write.
+     * C9+P2-3: manual save is transactional — lock relevant member rows before validation
+     * to prevent member removal between validation and version write.
      */
     @Transactional
     public UUID save(UUID projectId, UUID planId, SaveTaskPlanVersionRequest request, UUID actor) {
@@ -112,6 +113,9 @@ public class TaskPlanCommandService {
         TaskPlanDraft normalized = new TaskPlanDraft(
                 request.draft().summary(), request.draft().assumptions(), request.draft().risks(),
                 request.draft().milestones(), request.draft().tasks(), base.sources());
+        // C9: Lock member rows referenced in the draft before validation
+        Set<UUID> memberIds = collectMemberIds(normalized);
+        repository.lockProjectMembers(projectId, memberIds);
         var validation = ensureValid(projectId, plan, normalized);
         UUID version = repository.appendVersion(projectId, planId, request.baseVersionId(),
                 "MANUAL_EDIT", request.baseVersionId(), normalized, actor, validation);
@@ -177,6 +181,16 @@ public class TaskPlanCommandService {
         if (!result.valid()) throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED,
                 "规划校验失败：" + String.join(",", result.errorCodes()));
         return result;
+    }
+
+    /** C9: Collect all member UUIDs referenced in the draft for locking. */
+    private static Set<UUID> collectMemberIds(com.shitulelv.aicollab.planning.domain.TaskPlanDraft draft) {
+        Set<UUID> ids = new HashSet<>();
+        for (var task : draft.tasks()) {
+            if (task.suggestedAssigneeId() != null) ids.add(task.suggestedAssigneeId());
+            if (task.assigneeId() != null) ids.add(task.assigneeId());
+        }
+        return ids;
     }
 
     private static Object[] concat(UUID projectId, List<UUID> ids) {

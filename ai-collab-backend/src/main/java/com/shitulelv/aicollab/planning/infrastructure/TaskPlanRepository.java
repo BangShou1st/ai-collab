@@ -312,6 +312,21 @@ public class TaskPlanRepository {
         }
     }
 
+    /**
+     * C9: Lock project_member rows for the given user IDs to prevent removal during save/confirm.
+     * Uses ORDER BY user_id FOR SHARE to get a consistent lock order and prevent deadlocks.
+     */
+    @Transactional
+    public void lockProjectMembers(UUID projectId, Set<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) return;
+        // Sort by UUID for consistent lock ordering
+        userIds.stream().sorted().forEach(userId -> {
+            jdbc.queryForObject(
+                    "SELECT user_id FROM project_member WHERE project_id=? AND user_id=? FOR SHARE",
+                    UUID.class, projectId, userId);
+        });
+    }
+
     public ValidationContext validationContext(TaskPlanRecord plan) {
         java.time.LocalDate[] projectDates = jdbc.queryForObject(
                 "SELECT start_date,due_date FROM project WHERE id=?",
