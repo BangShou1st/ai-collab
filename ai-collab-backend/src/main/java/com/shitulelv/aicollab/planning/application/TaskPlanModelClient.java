@@ -11,21 +11,36 @@ import org.springframework.stereotype.Component;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 
+import java.time.Duration;
 import java.util.UUID;
 
 @Component
 public class TaskPlanModelClient {
     private final ChatModelGateway gateway;
     private final PlanningModelProperties properties;
+    private final ChatModelProperties chatProperties;
     private final AiCallLogWriter logs;
-    public TaskPlanModelClient(PlanningModelProperties properties, AiCallLogWriter logs) {
+    public TaskPlanModelClient(PlanningModelProperties properties, ChatModelProperties chatProperties, AiCallLogWriter logs) {
         this.properties = properties;
+        this.chatProperties = chatProperties;
         this.logs = logs;
         this.gateway = new OpenAiCompatibleChatModelGateway(new ChatModelProperties(
-                properties.enabled(), properties.provider(), properties.baseUrl(), properties.path(),
-                properties.apiKey(), properties.model(), properties.connectTimeout(), properties.readTimeout(),
-                properties.temperature(), properties.maxOutputTokens()), false);
+                resolveEnabled(), resolveProvider(), resolveBaseUrl(), resolvePath(),
+                resolveApiKey(), resolveModel(), resolveConnectTimeout(), resolveReadTimeout(),
+                resolveTemperature(), resolveMaxOutputTokens()), false);
     }
+
+    private boolean resolveEnabled() { return properties.enabled() || chatProperties.enabled(); }
+    private String resolveProvider() { return nonBlank(properties.provider()) ? properties.provider() : chatProperties.provider(); }
+    private String resolveBaseUrl() { return nonBlank(properties.baseUrl()) ? properties.baseUrl() : chatProperties.baseUrl(); }
+    private String resolvePath() { return nonBlank(properties.path()) ? properties.path() : chatProperties.path(); }
+    private String resolveApiKey() { return nonBlank(properties.apiKey()) ? properties.apiKey() : chatProperties.apiKey(); }
+    private String resolveModel() { return nonBlank(properties.model()) ? properties.model() : chatProperties.model(); }
+    private Duration resolveConnectTimeout() { return properties.connectTimeout() != null ? properties.connectTimeout() : chatProperties.connectTimeout(); }
+    private Duration resolveReadTimeout() { return properties.readTimeout() != null ? properties.readTimeout() : chatProperties.readTimeout(); }
+    private double resolveTemperature() { return properties.temperature() > 0 ? properties.temperature() : chatProperties.temperature(); }
+    private int resolveMaxOutputTokens() { return properties.maxOutputTokens() > 0 ? properties.maxOutputTokens() : chatProperties.maxOutputTokens(); }
+    private static boolean nonBlank(String s) { return s != null && !s.isBlank(); }
     public String generate(String system, String user, String feature,
                            UUID actor, UUID projectId, UUID attemptId) {
         long started = System.nanoTime();
