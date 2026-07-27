@@ -11,6 +11,7 @@ import com.shitulelv.aicollab.planning.domain.PlanningPromptText;
 import com.shitulelv.aicollab.planning.domain.SkeletonModelOutput;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidator;
+import com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidator.ValidationMode;
 import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
@@ -98,8 +99,11 @@ public class TaskPlanGenerationOrchestrator {
     private final TaskPlanDraftValidator validator;
     private final ObjectMapper json;
     private final TaskPlanContextAssembler contexts;
-    // FutureTask-first registry: no registration window
+    // F3: Maps attemptId → Future for the single cancellable Future per generation run.
+    // When skeleton transitions to detail or repair, we re-key under the new attemptId.
     private final ConcurrentHashMap<UUID, Future<?>> activeFutures = new ConcurrentHashMap<>();
+    // F3: Maps generationSeq → current active attemptId for cancel lookup
+    private final ConcurrentHashMap<Long, UUID> generationActiveAttempt = new ConcurrentHashMap<>();
 
     public TaskPlanGenerationOrchestrator(
             @Qualifier("planningTaskExecutor") Executor executor, TaskPlanRepository repository,
@@ -111,7 +115,7 @@ public class TaskPlanGenerationOrchestrator {
     }
 
     /**
-     * R4 fix: FutureTask-first registration eliminates the race window.
+     * R4+F3: FutureTask-first registration eliminates the race window.
      * The FutureTask is placed in the registry BEFORE executor.execute(),
      * so cancel() always finds it. On queue reject, we clean up immediately.
      */
@@ -121,12 +125,17 @@ public class TaskPlanGenerationOrchestrator {
             return null;
         });
         activeFutures.put(plan.activeAttemptId(), futureTask);
+        generationActiveAttempt.put(plan.generationSeq(), plan.activeAttemptId());
         try {
             executor.execute(futureTask);
         } catch (RejectedExecutionException rejected) {
             activeFutures.remove(plan.activeAttemptId());
+            generationActiveAttempt.remove(plan.generationSeq());
+            // H2: Queue reject stage classification — detail stage → DETAIL_GENERATION_FAILED
+            TaskPlanStatus failStatus = detailOnly
+                    ? TaskPlanStatus.DETAIL_GENERATION_FAILED : TaskPlanStatus.FAILED;
             repository.fail(plan.id(), plan.generationSeq(), plan.activeAttemptId(), plan.status(),
-                    TaskPlanStatus.FAILED, "PLANNING_QUEUE_FULL");
+                    failStatus, "PLANNING_QUEUE_FULL");
             throw rejected;
         }
     }
@@ -136,26 +145,45 @@ public class TaskPlanGenerationOrchestrator {
             if (detailOnly) runDetail(plan, plan.activeAttemptId(), actor, latestDraft(plan));
             else runSkeleton(plan, actor);
         } finally {
+            UUID currentAttempt = generationActiveAttempt.remove(plan.generationSeq());
+            if (currentAttempt != null) activeFutures.remove(currentAttempt);
             activeFutures.remove(plan.activeAttemptId());
         }
     }
 
+    /**
+     * F3: Cancel by attemptId. The Future is always re-keyed under the current activeAttemptId,
+     * so cancel() finds it directly.
+     */
     public void cancelFuture(UUID attemptId) {
         Future<?> future = activeFutures.remove(attemptId);
-        if (future != null) future.cancel(true);
+        if (future != null) {
+            future.cancel(true);
+            generationActiveAttempt.values().remove(attemptId);
+        }
+    }
+
+    /** F3: Re-key the running Future under a new attemptId (e.g., after repair or detail transition). */
+    private void rekeyFuture(UUID oldAttemptId, UUID newAttemptId, long generationSeq) {
+        Future<?> future = activeFutures.remove(oldAttemptId);
+        if (future != null) {
+            activeFutures.put(newAttemptId, future);
+            generationActiveAttempt.put(generationSeq, newAttemptId);
+        }
     }
 
     private void runSkeleton(TaskPlanRecord plan, UUID actor) {
         if (!repository.active(plan.id(), plan.generationSeq(), plan.activeAttemptId(),
                 TaskPlanStatus.SKELETON_GENERATING)) return;
-        if (!repository.markRunning(plan.activeAttemptId())) return;
+        if (!repository.markRunning(plan.activeAttemptId(), plan.id(), plan.generationSeq(),
+                TaskPlanStatus.SKELETON_GENERATING)) return;
         try {
             var context = contexts.assemble(plan);
             // R3: Skeleton prompt uses identity-only schema, no sources in <SKELETON>
             String prompt = skeletonPrompt(plan) + "\n" + context.promptText();
             GeneratedSkeleton generated = generateSkeletonWithOneRepair(plan, plan.activeAttemptId(),
                     TaskPlanStatus.SKELETON_GENERATING, prompt, actor,
-                    draft -> validSkeleton(plan, draft) && validator.validate(repository.validationContext(plan), draft, true).valid());
+                    draft -> validSkeleton(plan, draft) && validator.validate(repository.validationContext(plan), draft, ValidationMode.AI_SKELETON).valid());
             TaskPlanDraft skeleton = withSources(generated.draft(), context.sources());
             if (!repository.active(plan.id(), plan.generationSeq(), generated.attemptId(),
                     TaskPlanStatus.SKELETON_GENERATING)) {
@@ -165,12 +193,14 @@ public class TaskPlanGenerationOrchestrator {
             UUID skeletonVersion = repository.appendGeneratedVersion(
                     plan.projectId(), plan.id(), plan.generationSeq(), generated.attemptId(),
                     TaskPlanStatus.SKELETON_GENERATING, "AI_SKELETON", null, skeleton, actor,
-                    validator.validate(repository.validationContext(plan), skeleton, true));
+                    validator.validate(repository.validationContext(plan), skeleton, ValidationMode.AI_SKELETON));
             if (skeletonVersion == null) return;
             var m = generated.metrics();
             repository.finishAttempt(generated.attemptId(), "SUCCESS", null,
                     m.provider(), m.model(), m.latencyMs(), m.promptTokens(), m.completionTokens(), null);
             UUID detailAttempt = repository.startDetailAfterSkeleton(plan.projectId(), plan.id(), actor);
+            // F3: Re-key the Future under the new detail attemptId so cancel() can find it
+            rekeyFuture(generated.attemptId(), detailAttempt, plan.generationSeq());
             TaskPlanRecord detailPlan = repository.require(plan.projectId(), plan.id());
             runDetail(detailPlan, detailAttempt, actor,
                     repository.draft(repository.requireVersion(plan.projectId(), plan.id(), skeletonVersion)));
@@ -184,7 +214,8 @@ public class TaskPlanGenerationOrchestrator {
 
     private void runDetail(TaskPlanRecord plan, UUID attempt, UUID actor, TaskPlanDraft skeleton) {
         if (!repository.active(plan.id(), plan.generationSeq(), attempt, TaskPlanStatus.DETAIL_GENERATING)) return;
-        if (!repository.markRunning(attempt)) return;
+        if (!repository.markRunning(attempt, plan.id(), plan.generationSeq(),
+                TaskPlanStatus.DETAIL_GENERATING)) return;
         try {
             // R3: Detail prompt only includes identity skeleton, not full draft
             String prompt = detailPrompt(plan, skeleton);
@@ -244,6 +275,8 @@ public class TaskPlanGenerationOrchestrator {
         UUID repairAttempt = repository.startRepair(
                 plan.id(), plan.generationSeq(), initialAttempt, expectedStatus, actor);
         if (repairAttempt == null) throw new GenerationHandledException();
+        // F3: Re-key the Future under the repair attemptId so cancel() can find it
+        rekeyFuture(initialAttempt, repairAttempt, plan.generationSeq());
         String repairPrompt = repairPrompt(result.content(), SKELETON_SCHEMA);
         try {
             GenerationResult repairResult = model.generate(REPAIR_SYSTEM, repairPrompt, "TASK_PLAN_REPAIR",
@@ -290,6 +323,8 @@ public class TaskPlanGenerationOrchestrator {
         UUID repairAttempt = repository.startRepair(
                 plan.id(), plan.generationSeq(), initialAttempt, expectedStatus, actor);
         if (repairAttempt == null) throw new GenerationHandledException();
+        // F3: Re-key the Future under the repair attemptId so cancel() can find it
+        rekeyFuture(initialAttempt, repairAttempt, plan.generationSeq());
         String repairPrompt = repairPrompt(result.content(), DETAIL_SCHEMA);
         try {
             GenerationResult repairResult = model.generate(REPAIR_SYSTEM, repairPrompt, "TASK_PLAN_REPAIR",
@@ -305,11 +340,41 @@ public class TaskPlanGenerationOrchestrator {
     }
 
     /**
-     * R1: Merge detail into skeleton by tempKey.
+     * R1+H4: Merge detail into skeleton by tempKey.
      * Skeleton fields are immutable — only detail-specific fields are merged in.
+     * H4: Strict tempKey validation — duplicate, unknown, and missing keys are rejected.
      */
     static TaskPlanDraft mergeDetailIntoSkeleton(TaskPlanDraft skeleton, DetailModelOutput detail) {
-        // Build detail maps by tempKey
+        // H4: Validate no duplicate tempKeys in detail milestones
+        var detailMilestoneKeys = new java.util.HashSet<String>();
+        for (var m : detail.milestones()) {
+            if (!detailMilestoneKeys.add(m.tempKey())) {
+                throw new IllegalArgumentException("DETAIL_DUPLICATE_MILESTONE_KEY:" + m.tempKey());
+            }
+        }
+        // H4: Validate no duplicate tempKeys in detail tasks
+        var detailTaskKeys = new java.util.HashSet<String>();
+        for (var t : detail.tasks()) {
+            if (!detailTaskKeys.add(t.tempKey())) {
+                throw new IllegalArgumentException("DETAIL_DUPLICATE_TASK_KEY:" + t.tempKey());
+            }
+        }
+        // H4: Validate all detail keys exist in skeleton, and all skeleton keys have detail
+        var skeletonMilestoneKeys = new java.util.HashSet<String>();
+        for (var sk : skeleton.milestones()) skeletonMilestoneKeys.add(sk.tempKey());
+        var skeletonTaskKeys = new java.util.HashSet<String>();
+        for (var sk : skeleton.tasks()) skeletonTaskKeys.add(sk.tempKey());
+        for (var m : detail.milestones()) {
+            if (!skeletonMilestoneKeys.contains(m.tempKey())) {
+                throw new IllegalArgumentException("DETAIL_UNKNOWN_MILESTONE_KEY:" + m.tempKey());
+            }
+        }
+        for (var t : detail.tasks()) {
+            if (!skeletonTaskKeys.contains(t.tempKey())) {
+                throw new IllegalArgumentException("DETAIL_UNKNOWN_TASK_KEY:" + t.tempKey());
+            }
+        }
+        // H4: Build detail maps by tempKey (now guaranteed unique)
         var milestoneDetails = new java.util.HashMap<String, DetailModelOutput.DetailMilestone>();
         for (var m : detail.milestones()) milestoneDetails.put(m.tempKey(), m);
         var taskDetails = new java.util.HashMap<String, DetailModelOutput.DetailTask>();
@@ -319,7 +384,9 @@ public class TaskPlanGenerationOrchestrator {
         for (PlanMilestone sk : skeleton.milestones()) {
             DetailModelOutput.DetailMilestone md = milestoneDetails.get(sk.tempKey());
             mergedMilestones.add(new PlanMilestone(
-                    sk.tempKey(), sk.title(), sk.objective(), sk.targetDate(), sk.sortOrder(),
+                    sk.tempKey(), sk.title(), sk.objective(),
+                    md != null && md.description() != null ? md.description() : sk.description(),
+                    sk.targetDate(), sk.sortOrder(),
                     md != null && md.sourceRefs() != null ? md.sourceRefs() : sk.sourceRefs()));
         }
 
@@ -351,7 +418,7 @@ public class TaskPlanGenerationOrchestrator {
 
     private static TaskPlanDraft toDraft(SkeletonModelOutput out) {
         List<PlanMilestone> milestones = out.milestones().stream()
-                .map(m -> new PlanMilestone(m.tempKey(), m.title(), m.objective(),
+                .map(m -> new PlanMilestone(m.tempKey(), m.title(), m.objective(), null,
                         m.targetDate() != null ? LocalDate.parse(m.targetDate()) : null,
                         m.sortOrder(), m.sourceRefs() != null ? m.sourceRefs() : List.of()))
                 .toList();
@@ -396,18 +463,26 @@ public class TaskPlanGenerationOrchestrator {
     private static final int MAX_PROMPT_CODEPOINTS = 100000;
 
     /**
-     * R3: Detail prompt includes:
+     * R3+F2: Detail prompt uses DETAIL_SCHEMA (not SKELETON_SCHEMA).
+     * Includes:
      * 1. Plan input (untrusted, escaped)
-     * 2. Member context (untrusted, escaped) — only userId/displayName/role
-     * 3. Identity-only skeleton (untrusted, escaped) — no sources, no quote text
-     * 4. Sources as separate section (untrusted, escaped)
+     * 2. DETAIL_SCHEMA — model returns only supplementary fields
+     * 3. Member context (untrusted, escaped) — only userId/displayName/role
+     * 4. Identity-only skeleton (untrusted, escaped) — no sources, no quote text
+     * 5. Sources as separate section (untrusted, escaped)
      * All sections are declared untrusted. No sensitive member data (email, password).
      */
     private String detailPrompt(TaskPlanRecord p, TaskPlanDraft skeleton) {
         try {
-            // Build identity-only skeleton for prompt (no sources, no detail fields)
             SkeletonIdentityOnly identityOnly = toSkeletonIdentity(skeleton);
-            return skeletonPrompt(p) + "\n"
+            return PLAN_INPUT_TAG_OPEN + "\n"
+                    + "标题=" + PlanningPromptText.escapeUntrusted(p.title()) + "\n"
+                    + "目标=" + PlanningPromptText.escapeUntrusted(p.goal()) + "\n"
+                    + "约束=" + PlanningPromptText.escapeUntrusted(p.constraints()) + "\n"
+                    + "日期=" + p.planStartDate() + ".." + p.planDueDate() + "\n"
+                    + "最多任务=" + p.maxTaskCount() + "\n"
+                    + PLAN_INPUT_TAG_CLOSE + "\n"
+                    + JSON_SCHEMA_TAG_OPEN + "\n" + DETAIL_SCHEMA + "\n" + JSON_SCHEMA_TAG_CLOSE + "\n"
                     + MEMBER_CONTEXT_TAG_OPEN + "\n"
                     + PlanningPromptText.escapeUntrusted(contexts.memberContext(p.projectId()))
                     + "\n" + MEMBER_CONTEXT_TAG_CLOSE + "\n"
