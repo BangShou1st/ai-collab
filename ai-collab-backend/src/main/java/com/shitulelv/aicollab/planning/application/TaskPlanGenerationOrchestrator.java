@@ -40,13 +40,13 @@ public class TaskPlanGenerationOrchestrator {
             "sourceRefs":{"type":"array","items":{"type":"string"}}}}},
             "tasks":{"type":"array","items":{"type":"object",
             "required":["tempKey","milestoneTempKey","title","objective","description","priority","estimatedHours",
-            "startDate","dueDate","suggestedAssigneeId","assigneeId","dependencyTempKeys","sourceRefs","sortOrder"],
+            "startDate","dueDate","suggestedAssigneeId","dependencyTempKeys","sourceRefs","sortOrder"],
             "properties":{"tempKey":{"type":"string"},"milestoneTempKey":{"type":"string"},"title":{"type":"string"},
             "objective":{"type":"string"},"description":{"type":["string","null"]},
             "priority":{"type":["string","null"],"enum":["LOW","MEDIUM","HIGH","URGENT",null]},
             "estimatedHours":{"type":["number","null"]},"startDate":{"type":["string","null"],"format":"date"},
             "dueDate":{"type":["string","null"],"format":"date"},"suggestedAssigneeId":{"type":["string","null"],"format":"uuid"},
-            "assigneeId":{"type":["string","null"],"format":"uuid"},"dependencyTempKeys":{"type":"array","items":{"type":"string"}},
+            "dependencyTempKeys":{"type":"array","items":{"type":"string"}},
             "sourceRefs":{"type":"array","items":{"type":"string"}},"sortOrder":{"type":"integer"}}}},
             "sources":{"type":"array","items":{"type":"object"}}},"additionalProperties":false}
             """;
@@ -88,7 +88,7 @@ public class TaskPlanGenerationOrchestrator {
             var context = contexts.assemble(plan);
             GeneratedDraft generated = generateWithOneRepair(plan, plan.activeAttemptId(),
                     TaskPlanStatus.SKELETON_GENERATING, skeletonPrompt(plan) + "\n" + context.promptText(),
-                    draft -> validSkeleton(plan, draft));
+                    draft -> validSkeleton(plan, draft) && validator.validate(repository.validationContext(plan), draft, true).valid());
             TaskPlanDraft skeleton = withSources(generated.draft(), context.sources());
             if (!repository.active(plan.id(), plan.generationSeq(), generated.attemptId(),
                     TaskPlanStatus.SKELETON_GENERATING)) {
@@ -120,7 +120,7 @@ public class TaskPlanGenerationOrchestrator {
                     TaskPlanStatus.DETAIL_GENERATING, detailPrompt(plan, skeleton), candidate -> {
                 TaskPlanDraft normalized = withSources(candidate, skeleton.sources());
                 return validator.validateSkeletonPreserved(skeleton, normalized).valid()
-                        && validator.validate(repository.validationContext(plan), normalized).valid();
+                        && validator.validate(repository.validationContext(plan), normalized, true).valid();
             });
             TaskPlanDraft detail = withSources(generated.draft(), skeleton.sources());
             if (!repository.active(plan.id(), plan.generationSeq(), generated.attemptId(), TaskPlanStatus.DETAIL_GENERATING)) {

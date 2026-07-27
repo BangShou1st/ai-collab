@@ -112,6 +112,28 @@ class TaskPlanDomainTest {
     }
 
     @Test
+    void validatorRejectsAssigneeIdInAiGeneratedDraft() {
+        TaskPlanDraft draft = new TaskPlanDraft(
+                "summary", List.of("assumption"), List.of("risk"),
+                List.of(new PlanMilestone("m1", "Milestone", "Objective",
+                        LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(new PlanTask("t1", "m1", "Task", "Objective", "Description", "MEDIUM",
+                        BigDecimal.ONE, LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 3),
+                        MEMBER, MEMBER, List.of(), List.of(), 0)),
+                List.of());
+        ValidationContext context = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(MEMBER), Set.of());
+
+        ValidationResult aiResult = new TaskPlanDraftValidator().validate(context, draft, true);
+        ValidationResult manualResult = new TaskPlanDraftValidator().validate(context, draft, false);
+
+        assertThat(aiResult.errorCodes()).contains("AI_GENERATED_ASSIGNEE_NOT_ALLOWED");
+        assertThat(manualResult.errorCodes()).doesNotContain("AI_GENERATED_ASSIGNEE_NOT_ALLOWED");
+    }
+
+    @Test
     void validatorReportsNullCollectionElementsWithoutThrowing() {
         TaskPlanDraft malformed = new TaskPlanDraft("s", List.of(), List.of(),
                 java.util.Arrays.asList((PlanMilestone) null),

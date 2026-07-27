@@ -15,6 +15,10 @@ import java.util.Set;
 @Component
 public class TaskPlanDraftValidator {
     public ValidationResult validate(ValidationContext context, TaskPlanDraft draft) {
+        return validate(context, draft, false);
+    }
+
+    public ValidationResult validate(ValidationContext context, TaskPlanDraft draft, boolean aiGenerated) {
         Set<String> errors = new HashSet<>();
         Set<String> warnings = new HashSet<>();
         if (outside(context.planStartDate(), context.projectStartDate(), context.projectDueDate())
@@ -64,6 +68,7 @@ public class TaskPlanDraftValidator {
             if (!allKeys.add(task.tempKey())) errors.add("TEMP_KEY_DUPLICATE");
             tasks.put(task.tempKey(), task);
             if (!milestones.containsKey(task.milestoneTempKey())) errors.add("MILESTONE_REF_INVALID");
+            if (aiGenerated && task.assigneeId() != null) errors.add("AI_GENERATED_ASSIGNEE_NOT_ALLOWED");
             validateTask(context, task, sourceRefs, errors, warnings);
             if (!blank(task.title())) {
                 String normalized = task.title().trim().toLowerCase(Locale.ROOT);
