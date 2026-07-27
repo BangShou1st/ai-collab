@@ -396,6 +396,19 @@ public class TaskPlanGenerationOrchestrator {
                 throw new IllegalArgumentException("DETAIL_UNKNOWN_TASK_KEY:" + t.tempKey());
             }
         }
+        // C6: Reject missing skeleton keys — detail must have ALL skeleton keys
+        var detailMilestoneKeySet = new java.util.HashSet<>(detailMilestoneKeys);
+        for (var sk : skeleton.milestones()) {
+            if (!detailMilestoneKeySet.contains(sk.tempKey())) {
+                throw new IllegalArgumentException("DETAIL_MISSING_MILESTONE_KEY:" + sk.tempKey());
+            }
+        }
+        var detailTaskKeySet = new java.util.HashSet<>(detailTaskKeys);
+        for (var sk : skeleton.tasks()) {
+            if (!detailTaskKeySet.contains(sk.tempKey())) {
+                throw new IllegalArgumentException("DETAIL_MISSING_TASK_KEY:" + sk.tempKey());
+            }
+        }
         // H4: Build detail maps by tempKey (now guaranteed unique)
         var milestoneDetails = new java.util.HashMap<String, DetailModelOutput.DetailMilestone>();
         for (var m : detail.milestones()) milestoneDetails.put(m.tempKey(), m);
