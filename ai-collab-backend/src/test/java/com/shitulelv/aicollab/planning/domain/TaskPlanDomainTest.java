@@ -275,6 +275,27 @@ class TaskPlanDomainTest {
                 .contains("SOURCE_REF_DUPLICATE");
     }
 
+    // C8: Duplicate dependency within a single task must be rejected
+    @Test
+    void validatorRejectsDuplicateDependency() {
+        TaskPlanDraft draft = new TaskPlanDraft("s", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 10), 0, List.of())),
+                List.of(
+                        new PlanTask("t0", "m1", "T0", "O", "D", "MEDIUM",
+                                BigDecimal.ONE, LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 2),
+                                null, null, List.of(), List.of(), 0),
+                        new PlanTask("t1", "m1", "T1", "O", "D", "MEDIUM",
+                                BigDecimal.ONE, LocalDate.of(2026, 8, 3), LocalDate.of(2026, 8, 5),
+                                null, null, List.of("t0", "t0"), List.of(), 1)),
+                List.of());
+        ValidationContext ctx = new ValidationContext(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                10, Set.of(MEMBER), Set.of());
+        assertThat(new TaskPlanDraftValidator().validate(ctx, draft).errorCodes())
+                .contains("DEPENDENCY_DUPLICATE");
+    }
+
     private void assertSourceRefRejected(String ref) {
         TaskPlanDraft draft = new TaskPlanDraft("s", List.of(), List.of(),
                 List.of(new PlanMilestone("m1", "M", "O", null, LocalDate.of(2026, 8, 10), 0, List.of(ref))),
