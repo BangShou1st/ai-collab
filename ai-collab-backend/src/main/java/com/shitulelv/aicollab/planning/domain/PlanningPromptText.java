@@ -8,9 +8,9 @@ public final class PlanningPromptText {
 
     public static String escapeUntrusted(String value) {
         if (value == null) return "";
-        return value.replace("</SOURCES>", "<\\/SOURCES>")
-                .replace("</PROJECT_DATA>", "<\\/PROJECT_DATA>")
-                .replace("</PLAN_INPUT>", "<\\/PLAN_INPUT>");
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
     }
 
     public static List<String> withinCodePointBudget(List<String> values, int budget) {
@@ -23,5 +23,13 @@ public final class PlanningPromptText {
             used += length;
         }
         return List.copyOf(selected);
+    }
+
+    public static int totalCodePointCount(String... values) {
+        int total = 0;
+        for (String value : values) {
+            if (value != null) total += value.codePointCount(0, value.length());
+        }
+        return total;
     }
 }
