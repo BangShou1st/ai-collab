@@ -238,7 +238,10 @@ async function mounted(): Promise<VueWrapper> {
         ElCheckbox: InputStub,
         ElTag: { template: '<span><slot /></span>' },
         ElCard: { template: '<section><slot name="header" /><slot /></section>' },
-        ElCollapse: { template: '<div><slot /></div>' },
+        ElCollapse: {
+          props: ['modelValue'],
+          template: '<div class="collapse-stub" :data-expanded="modelValue.join(\',\')"><slot /></div>',
+        },
         ElCollapseItem: { template: '<div><slot /></div>' },
         ElDialog: { template: '<div><slot /></div>' },
         ElForm: { template: '<form><slot /></form>' },
@@ -353,9 +356,21 @@ describe('PlanningView real component workflow', () => {
     const input = target.get('input').element as HTMLInputElement
     await wrapper.get('.issue-content').trigger('click')
     await flushPromises()
+    expect(wrapper.get('.collapse-stub').attributes('data-expanded')).toBe('m1')
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
     expect(document.activeElement).toBe(input)
     expect(wrapper.text()).toContain('实现登录')
+  })
+
+  it('successfulSaveRefreshesLatestVersionAndPermissions', async () => {
+    const wrapper = await mounted()
+    await openFirst(wrapper)
+    await wrapper.get('textarea[placeholder="规划摘要"]').setValue('保存后的新摘要')
+    await wrapper.findAll('button').find(button => button.text() === '保存新版本')!.trigger('click')
+    await flushPromises()
+    expect(mocks.save).toHaveBeenCalledOnce()
+    expect(mocks.detail).toHaveBeenCalledTimes(2)
+    expect(mocks.versions).toHaveBeenCalledTimes(2)
   })
 
   it('issueRepairChoosesCorrectMode', async () => {

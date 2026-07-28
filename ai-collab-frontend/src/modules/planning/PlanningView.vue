@@ -30,6 +30,7 @@ const plans = ref<TaskPlan[]>([]), selected = ref<TaskPlan | null>(null)
 const permissions = ref<PlanPermissions | null>(null), draft = ref<TaskPlanDraft | null>(null)
 const versions = ref<Array<{ id: string; versionNo: number; sourceType: string }>>([])
 const selectedVersionId = ref(''), snapshot = ref(''), statusFilter = ref(''), errorMessage = ref('')
+const expandedMilestones = ref<string[]>([])
 const createVisible = ref(false), checked = ref(false)
 const canCreate = ref(false), pendingConfirmation = ref<{ versionId: string; key: string } | null>(null)
 const documents = ref<ProjectDocument[]>([]), members = ref<ProjectMember[]>([])
@@ -125,7 +126,12 @@ async function restore(): Promise<void> {
 }
 async function save(): Promise<void> {
   if (!selected.value?.latestVersionId || !draft.value || !editingLatest.value) return
-  try { await planningApi.save(projectId.value, selected.value.id, selected.value.latestVersionId, selected.value.latestVersionNo, draft.value); await refresh() }
+  try {
+    await planningApi.save(projectId.value, selected.value.id, selected.value.latestVersionId,
+      selected.value.latestVersionNo, draft.value)
+    snapshot.value = JSON.stringify(draft.value)
+    await refresh()
+  }
   catch (error) { errorMessage.value = normalizeApiError(error).message }
 }
 async function repair(issue: StructuredValidationIssue, mode: PartialRepairMode | '' = ''): Promise<void> {
@@ -149,6 +155,11 @@ async function repair(issue: StructuredValidationIssue, mode: PartialRepairMode 
   }
 }
 async function locate(target: string, field: string | null): Promise<void> {
+  const milestoneTempKey = draft.value?.tasks.find(task => task.tempKey === target)?.milestoneTempKey
+    ?? draft.value?.milestones.find(milestone => milestone.tempKey === target)?.tempKey
+  if (milestoneTempKey && !expandedMilestones.value.includes(milestoneTempKey)) {
+    expandedMilestones.value = [...expandedMilestones.value, milestoneTempKey]
+  }
   await nextTick()
   const exact = document.getElementById(`planning-${target}-${field ?? 'entity'}`)
   const fallback = document.getElementById(`planning-${target}-entity`)
@@ -281,13 +292,13 @@ watch(projectId, async () => {
           @regenerate="target => { const issue = structuredIssues.find(item => item.targetTempKey === target); if (issue) repair(issue, 'REGENERATE_SELECTED_TASK_DETAILS') }"
         />
         <PlanningEventTimeline v-if="events.length > 0" :events="events" />
-        <el-select :model-value="selectedVersionId" @change="requestVersion"><el-option v-for="v in versions" :key="v.id" :label="`v${v.versionNo} ${versionSourceLabel(v.sourceType)}`" :value="v.id" /></el-select>
+        <el-select data-testid="planning-version-select" :model-value="selectedVersionId" @change="requestVersion"><el-option v-for="v in versions" :key="v.id" :label="`v${v.versionNo} ${versionSourceLabel(v.sourceType)}`" :value="v.id" /></el-select>
         <template v-if="draft">
           <el-alert v-if="!editingLatest" title="历史版本只读；可先恢复为新版本后编辑" type="info" />
           <label>规划摘要</label><el-input v-model="draft.summary" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" placeholder="规划摘要" />
           <h3>假设</h3><div v-for="(_, index) in draft.assumptions" :key="`a-${index}`"><label>假设 {{ index + 1 }}</label><el-input v-model="draft.assumptions[index]" :readonly="!canEditCurrent" /><el-button v-if="canEditCurrent" @click="draft.assumptions.splice(index, 1)">删除</el-button></div><el-button v-if="canEditCurrent" @click="addAssumption">添加假设</el-button>
           <h3>风险</h3><div v-for="(_, index) in draft.risks" :key="`r-${index}`"><label>风险 {{ index + 1 }}</label><el-input v-model="draft.risks[index]" :readonly="!canEditCurrent" /><el-button v-if="canEditCurrent" @click="draft.risks.splice(index, 1)">删除</el-button></div><el-button v-if="canEditCurrent" @click="addRisk">添加风险</el-button>
-          <el-collapse><el-collapse-item v-for="m in draft.milestones" :key="m.tempKey" :title="m.title">
+          <el-collapse v-model="expandedMilestones"><el-collapse-item v-for="m in draft.milestones" :key="m.tempKey" :name="m.tempKey" :title="m.title">
             <div :id="`planning-${m.tempKey}-entity`"><label>里程碑标题</label><el-input v-model="m.title" :readonly="!permissions?.canEdit || !editingLatest" /></div>
             <label>里程碑目标</label><el-input v-model="m.objective" type="textarea" :readonly="!canEditCurrent" />
             <label>里程碑描述</label><el-input v-model="m.description" type="textarea" :readonly="!canEditCurrent" placeholder="里程碑描述" /><label>目标日期</label><span :id="`planning-${m.tempKey}-targetDate`"><el-date-picker v-model="m.targetDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" /></span>
