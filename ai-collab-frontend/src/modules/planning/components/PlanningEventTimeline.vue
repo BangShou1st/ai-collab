@@ -1,24 +1,10 @@
 <script setup lang="ts">
 import type { TaskPlanEvent } from '../types'
+import { eventLabel, fieldLabel, issueLabel } from '../planning-labels'
 
 const props = defineProps<{
   events: TaskPlanEvent[]
 }>()
-
-const eventLabel = (type: string) => {
-  const labels: Record<string, string> = {
-    'PLAN_GENERATED': '规划已生成',
-    'PLAN_GENERATED_WITH_ISSUES': '规划已生成（含待解决问题）',
-    'TASK_PLAN_USER_EDITED': '用户编辑了规划',
-    'TASK_PLAN_PARTIAL_REGENERATED': '局部重新生成',
-    'TASK_PLAN_CANCELED': '规划生成已取消',
-    'TASK_PLAN_REGENERATED': '规划已重新生成',
-    'TASK_PLAN_CONFIRMED': '规划已确认',
-    'TASK_PLAN_CONFIRMATION_FAILED': '规划确认失败',
-    'TASK_PLAN_DELETED': '规划已删除',
-  }
-  return labels[type] || type
-}
 
 const formatTime = (ts: string | null) => {
   if (!ts) return ''
@@ -36,10 +22,10 @@ const formatTime = (ts: string | null) => {
           <span class="event-label">{{ eventLabel(event.eventType) }}</span>
           <span class="event-time">{{ formatTime(event.createdAt) }}</span>
           <div class="event-changes" v-if="event.changedFields.length > 0">
-            修改：{{ event.changedFields.join(', ') }}
+            修改：{{ event.changedFields.map(fieldLabel).join('、') }}
           </div>
           <div class="event-issues" v-if="event.issueCodes.length > 0">
-            问题：{{ event.issueCodes.join(', ') }}
+            问题：{{ event.issueCodes.map(issueLabel).join('、') }}
           </div>
         </div>
       </div>
