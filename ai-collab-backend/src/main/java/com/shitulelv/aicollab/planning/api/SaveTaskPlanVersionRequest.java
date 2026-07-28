@@ -6,4 +6,8 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.UUID;
 
-public record SaveTaskPlanVersionRequest(@NotNull UUID baseVersionId, @NotNull @Valid TaskPlanDraft draft) {}
+public record SaveTaskPlanVersionRequest(
+        @NotNull UUID baseVersionId,
+        @NotNull Integer expectedVersionNo,
+        @NotNull @Valid TaskPlanDraft draft
+) {}

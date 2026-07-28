@@ -173,20 +173,30 @@ public class TaskPlanCommandService {
     public UUID save(UUID projectId, UUID planId, SaveTaskPlanVersionRequest request, UUID actor) {
         access.requireAdmin(projectId, actor);
         TaskPlanRecord plan = repository.require(projectId, planId);
+        if (!List.of(TaskPlanStatus.READY, TaskPlanStatus.READY_WITH_ISSUES).contains(plan.status())) {
+            throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+        }
+        if (!request.baseVersionId().equals(plan.latestVersionId())
+                || request.expectedVersionNo() != plan.latestVersionNo()) {
+            throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
+        }
         TaskPlanDraft base = repository.draft(repository.requireVersion(
                 projectId, planId, request.baseVersionId()));
-        TaskPlanDraft normalized = new TaskPlanDraft(
+        TaskPlanDraft normalized = normalizer.normalize(new TaskPlanDraft(
                 request.draft().summary(), request.draft().assumptions(), request.draft().risks(),
-                request.draft().milestones(), request.draft().tasks(), base.sources());
-        // C9: Lock member rows referenced in the draft before validation
+                request.draft().milestones(), request.draft().tasks(), base.sources()));
         Set<UUID> memberIds = collectMemberIds(normalized);
         repository.lockProjectMembers(projectId, memberIds);
-        var validation = ensureValid(projectId, plan, normalized);
-        UUID version = repository.appendVersion(projectId, planId, request.baseVersionId(),
-                "MANUAL_EDIT", request.baseVersionId(), normalized, actor, validation,
-                TaskPlanStatus.READY);
-        safeAudit(projectId, actor, "TASK_PLAN_VERSION_SAVED", "AI_TASK_PLAN_VERSION", version);
-        return version;
+        ValidationAssessment assessment = ensureValidStructured(projectId, plan, normalized);
+        TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
+        TaskPlanVersionRecord committed = commitService.commitVersion(
+                plan, normalized, TaskPlanVersionSource.MANUAL_EDIT, assessment, finalStatus,
+                "TASK_PLAN_USER_EDITED", actor, request.baseVersionId());
+        if (committed == null) {
+            throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
+        }
+        safeAudit(projectId, actor, "TASK_PLAN_VERSION_SAVED", "AI_TASK_PLAN_VERSION", committed.id());
+        return committed.id();
     }
 
     @Transactional
@@ -300,7 +310,8 @@ public class TaskPlanCommandService {
             throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
         }
         // Optimistic lock: baseVersionId must match latest
-        if (!request.baseVersionId().equals(plan.latestVersionId())) {
+        if (!request.baseVersionId().equals(plan.latestVersionId())
+                || request.expectedVersionNo() != plan.latestVersionNo()) {
             throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
         }
         // Load base draft
