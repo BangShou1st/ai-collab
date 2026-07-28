@@ -7,9 +7,10 @@ package com.shitulelv.aicollab.planning.domain;
 public enum TaskPlanVersionSource {
     AI_SKELETON,
     AI_COMPLETE,
+    AI_PARTIAL,
     AI_REPAIR,
     AI_PARTIAL_REPAIR,
     AI_REGENERATED,
-    USER_EDIT,
+    MANUAL_EDIT,
     RESTORED
 }
