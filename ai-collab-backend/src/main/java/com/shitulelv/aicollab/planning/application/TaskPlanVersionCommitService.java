@@ -75,6 +75,48 @@ public class TaskPlanVersionCommitService {
     }
 
     /**
+     * Atomic commit for interactive operations (edit, restore, partial repair).
+     * Unlike {@link #commit}, this does NOT require an active generation attempt.
+     * Uses repository.appendVersion() directly with optimistic locking via expectedBase.
+     */
+    @Transactional
+    public TaskPlanVersionRecord commitVersion(
+            TaskPlanRecord plan,
+            TaskPlanDraft draft,
+            TaskPlanVersionSource source,
+            ValidationAssessment assessment,
+            TaskPlanStatus finalStatus,
+            String eventType,
+            UUID actorId,
+            UUID expectedBase) {
+
+        // 1. Append version (interactive path — no attempt guard)
+        UUID versionId = repository.appendVersion(
+                plan.projectId(), plan.id(), expectedBase,
+                source.name(), expectedBase, draft, actorId,
+                assessment != null ? assessment.toFlat() : null,
+                finalStatus);
+        if (versionId == null) return null;
+
+        // 2. Replace issues for this version
+        if (assessment != null && !assessment.issues().isEmpty()) {
+            issueRepo.replaceForVersion(plan.id(), versionId, assessment.issues());
+        }
+
+        // 3. Write event
+        TaskPlanEventRecord event = new TaskPlanEventRecord(
+                UUID.randomUUID(), plan.id(), expectedBase, versionId,
+                actorId, eventType, List.of(),
+                null, null,
+                assessment != null ? assessment.codes() : List.of(),
+                null);
+        eventRepo.append(event);
+
+        // 4. Return the created version
+        return repository.requireVersion(plan.projectId(), plan.id(), versionId);
+    }
+
+    /**
      * Append issues for an already-saved version (e.g., after re-validation).
      */
     @Transactional
