@@ -240,9 +240,10 @@ class TaskPlanProductionWiringPostgresIT {
                 .thenReturn(new GenerationResult(skeletonJson, "p", "m", 100, 50, 200));
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any()))
                 .thenReturn(new GenerationResult(detailWithConflict, "p", "m", 100, 50, 200));
-        // Repair returns same conflicting detail → still BLOCKING_EDITABLE
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any()))
-                .thenReturn(new GenerationResult(detailWithConflict, "p", "m", 100, 50, 200));
+        // Scoped patch changes nothing → the latest candidate still has BLOCKING_EDITABLE issues.
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
+                .thenReturn(new GenerationResult(
+                        "{\"milestonePatches\":[],\"taskPatches\":[]}", "p", "m", 100, 50, 200));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
@@ -359,8 +360,9 @@ class TaskPlanProductionWiringPostgresIT {
                 .thenReturn(new GenerationResult(skeletonJson, "p", "m", 100, 50, 200));
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any()))
                 .thenReturn(new GenerationResult(detailWithConflict, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any()))
-                .thenReturn(new GenerationResult(detailWithConflict, "p", "m", 100, 50, 200));
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
+                .thenReturn(new GenerationResult(
+                        "{\"milestonePatches\":[],\"taskPatches\":[]}", "p", "m", 100, 50, 200));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
