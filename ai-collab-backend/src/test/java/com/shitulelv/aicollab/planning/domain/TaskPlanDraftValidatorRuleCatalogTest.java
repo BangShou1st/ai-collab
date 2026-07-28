@@ -49,6 +49,33 @@ class TaskPlanDraftValidatorRuleCatalogTest {
                 null, null, List.of(), List.of(), 0);
     }
 
+    @Test
+    void productionAssessmentDoesNotDelegateToFlatCodeValidation() {
+        TaskPlanDraftValidator directValidator = new TaskPlanDraftValidator() {
+            @Override
+            public ValidationResult validate(
+                    ValidationContext context,
+                    TaskPlanDraft draft,
+                    ValidationMode mode,
+                    boolean aiGenerated) {
+                throw new AssertionError("structured assessment must be the production source");
+            }
+        };
+        TaskPlanDraft valid = new TaskPlanDraft(
+                "summary",
+                List.of(),
+                List.of(),
+                List.of(milestone("M1", "M1")),
+                List.of(task("T1", "M1", "Task 1")),
+                List.of());
+
+        ValidationAssessment assessment = directValidator.assess(
+                baseContext(), valid, TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
+
+        assertFalse(assessment.hasHardIssues());
+        assertFalse(assessment.hasBlockingEditableIssues());
+    }
+
     // ──────────────────────────────────────────────────────────────
     // R1: dependencyDueDateAfterDependentStartProducesStableCodeAndTarget
     // T2 depends on T1; T1.dueDate > T2.startDate → DEPENDENCY_DATE_CONFLICT

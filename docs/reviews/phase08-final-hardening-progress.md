@@ -68,3 +68,32 @@ RED 证据：
 - changedTargets 当前由安全字段路径确定性派生；统一 commit 阶段将验证事件差异语义。
 
 目标 GREEN：两个契约测试共 2 tests，0 失败。
+
+## 阶段三：生产 Validator 直接生成定位 issue
+
+RED：
+
+- 新增 `productionAssessmentDoesNotDelegateToFlatCodeValidation`。
+- RED 失败栈明确为 `assess → validate`，证明生产 assessment 依赖平面 code 后再定位。
+
+根因：
+
+- 早期兼容改造保留了旧 `validate()` 为权威入口，`assess()` 只能遍历 error/warning code，
+  再扫描整份 Draft 猜测 target 和 field；多个同 code 问题可能失去准确来源。
+
+修复：
+
+- `assess()` 在每一条领域规则命中时直接构造 `StructuredValidationIssue`。
+- dependency date issue 在检测依赖边时写入后续任务、`startDate`、前置任务和两项安全日期。
+- member、source、milestone、temp key、date、hours、priority、cycle/self/duplicate dependency
+  均在观察到无效值时携带目标字段。
+- safeDetails 只包含日期、上下限、允许值和 source ref 等白名单值。
+- 删除旧的 code→重新扫描 Draft 的 locate 路径。
+- `validate()` 现在只由 assessment 派生兼容的 `ValidationResult`。
+
+GREEN：
+
+- 规则/目录/领域目标测试：59 tests，0 失败。
+- 后端完整回归：224 tests，0 failure/error/skipped；真实 PostgreSQL 17、
+  Flyway V1～V10 与 Spring Bean 测试实际执行。
+- 生产源码中 `new StructuredValidationIssue` 仅存在于 Validator 构造点和 Repository 数据映射。
