@@ -25,6 +25,8 @@ export const planningApi = {
   confirm: (projectId: string, planId: string, versionId: string, key: string) =>
     httpClient.post(`${base(projectId)}/${planId}/confirm`, { versionId }, { headers: { 'Idempotency-Key': key } }),
   remove: (projectId: string, planId: string) => httpClient.delete(`${base(projectId)}/${planId}`),
+  edit: (projectId: string, planId: string, body: object) =>
+    httpClient.patch(`${base(projectId)}/${planId}`, body),
   events: (projectId: string, planId: string) =>
     httpClient.get<ApiResponse<TaskPlanEvent[]>>(`${base(projectId)}/${planId}/events`),
   partialRegenerate: (projectId: string, planId: string, body: object) =>
