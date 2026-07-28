@@ -6,7 +6,9 @@ import { normalizeApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import { clearConfirmationKey, confirmationKey, planningApi } from './planning-api'
 import { PlanningPoller } from './planning-poller'
-import type { PlanPermissions, TaskPlan, TaskPlanDraft } from './types'
+import type { PlanPermissions, TaskPlan, TaskPlanDraft, StructuredValidationIssue, TaskPlanEvent } from './types'
+import PlanningIssuePanel from './components/PlanningIssuePanel.vue'
+import PlanningEventTimeline from './components/PlanningEventTimeline.vue'
 import { projectApi } from '../project/project-api'
 import { documentApi } from '../document/document-api'
 import type { ProjectDocument } from '../document/types'
@@ -22,6 +24,7 @@ const selectedVersionId = ref(''), snapshot = ref(''), statusFilter = ref(''), e
 const createVisible = ref(false), checked = ref(false)
 const canCreate = ref(false), pendingConfirmation = ref<{ versionId: string; key: string } | null>(null)
 const documents = ref<ProjectDocument[]>([]), members = ref<ProjectMember[]>([])
+const structuredIssues = ref<StructuredValidationIssue[]>([]), events = ref<TaskPlanEvent[]>([])
 const form = reactive({ title: '', goal: '', constraints: '', planStartDate: '', planDueDate: '', maxTaskCount: 20, documentIds: [] as string[] })
 const poller = new PlanningPoller()
 const dirty = computed(() => draft.value !== null && JSON.stringify(draft.value) !== snapshot.value)
@@ -42,7 +45,13 @@ async function open(plan: TaskPlan): Promise<void> {
   if (dirty.value && !await discard()) return
   const [detail, history] = await Promise.all([planningApi.detail(projectId.value, plan.id), planningApi.versions(projectId.value, plan.id)])
   selected.value = detail.data.data.plan; permissions.value = detail.data.data.permissions; versions.value = history.data.data
+  structuredIssues.value = detail.data.data.structuredIssues || []
   if (selected.value.latestVersionId) await openVersion(selected.value.latestVersionId)
+  // Load events if available
+  try {
+    const eventsResult = await planningApi.events(projectId.value, plan.id)
+    events.value = eventsResult.data.data || []
+  } catch { events.value = [] }
 }
 async function openVersion(id: string): Promise<void> {
   if (!selected.value) return
@@ -57,7 +66,7 @@ async function create(): Promise<void> {
   try { const plan = (await planningApi.create(projectId.value, form)).data.data; createVisible.value = false; await list(); await open(plan); startPolling() }
   catch (error) { errorMessage.value = normalizeApiError(error).message }
 }
-async function action(name: 'cancel' | 'retry-detail' | 'regenerate'): Promise<void> {
+async function action(name: 'cancel' | 'retry-detail' | 'regenerate' | 'partial-regenerate'): Promise<void> {
   if (!selected.value || name === 'regenerate' && dirty.value && !await discard()) return
   try {
     await planningApi.action(projectId.value, selected.value.id, name)
@@ -168,7 +177,7 @@ watch(projectId, async () => {
     </PageHeader>
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" />
     <el-select v-model="statusFilter" clearable placeholder="全部状态" @change="list">
-      <el-option v-for="s in ['SKELETON_GENERATING','DETAIL_GENERATING','DETAIL_GENERATION_FAILED','READY','CONFIRMED','FAILED','CANCELED']" :key="s" :value="s" />
+      <el-option v-for="s in ['SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING','DETAIL_GENERATION_FAILED','READY','READY_WITH_ISSUES','CONFIRMED','FAILED','CANCELED']" :key="s" :value="s" />
     </el-select>
     <section class="planning-layout">
       <el-card>
@@ -181,8 +190,17 @@ watch(projectId, async () => {
           <el-button v-if="permissions?.canCancel" @click="action('cancel')">取消</el-button>
           <el-button v-if="permissions?.canRetryDetail" @click="action('retry-detail')">重试细节</el-button>
           <el-button v-if="permissions?.canRegenerate" @click="action('regenerate')">重新生成</el-button>
+          <el-button v-if="permissions?.canPartialRegenerate" @click="action('partial-regenerate')" type="warning">局部重新生成</el-button>
         </div></template>
         <el-alert v-if="selected.lastErrorSummary" :title="selected.lastErrorSummary" type="warning" />
+        <PlanningIssuePanel
+          v-if="structuredIssues.length > 0"
+          :issues="structuredIssues"
+          @locate="(target, field) => { /* TODO: scroll to field */ }"
+          @repair="action('regenerate')"
+          @edit="() => { /* TODO: enter edit mode */ }"
+        />
+        <PlanningEventTimeline v-if="events.length > 0" :events="events" />
         <el-select :model-value="selectedVersionId" @change="requestVersion"><el-option v-for="v in versions" :key="v.id" :label="`v${v.versionNo} ${v.sourceType}`" :value="v.id" /></el-select>
         <template v-if="draft">
           <el-alert v-if="!editingLatest" title="历史版本只读；可先恢复为新版本后编辑" type="info" />
