@@ -49,7 +49,8 @@ class TaskPlanEditTest {
     @BeforeEach
     void setUp() {
         service = new TaskPlanCommandService(access, repository, null, validator, jdbc,
-                null, null, null, normalizer, outcomeDecider, commitService, null, null, null, null, null);
+                null, null, null, normalizer, outcomeDecider, commitService, null, null, null, null, null,
+                new TaskPlanActionPolicy());
         lenient().when(validator.assess(any(), any(),
                         eq(TaskPlanDraftValidator.ValidationMode.COMPLETE), eq(false)))
                 .thenReturn(ValidationAssessment.empty());

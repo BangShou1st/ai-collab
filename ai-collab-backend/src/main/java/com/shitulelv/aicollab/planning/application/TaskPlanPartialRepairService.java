@@ -62,6 +62,7 @@ public class TaskPlanPartialRepairService {
     private final TaskPlanModelClient model;
     private final ObjectMapper json;
     private final Executor executor;
+    private final TaskPlanActionPolicy actionPolicy;
 
     public TaskPlanPartialRepairService(
             ProjectAccessGuard access,
@@ -78,7 +79,8 @@ public class TaskPlanPartialRepairService {
             TaskPlanRepairPatchApplier patchApplier,
             TaskPlanModelClient model,
             ObjectMapper json,
-            @Qualifier("planningTaskExecutor") Executor executor) {
+            @Qualifier("planningTaskExecutor") Executor executor,
+            TaskPlanActionPolicy actionPolicy) {
         this.access = access;
         this.repository = repository;
         this.issueRepository = issueRepository;
@@ -94,6 +96,7 @@ public class TaskPlanPartialRepairService {
         this.model = model;
         this.json = json;
         this.executor = executor;
+        this.actionPolicy = actionPolicy;
     }
 
     public TaskPlanRecord start(UUID projectId, UUID planId,
@@ -101,6 +104,7 @@ public class TaskPlanPartialRepairService {
         access.requireAdmin(projectId, actor);
         validateMode(request.mode());
         TaskPlanRecord current = repository.require(projectId, planId);
+        actionPolicy.require(current.status(), TaskPlanActionPolicy.Action.PARTIAL_REGENERATE);
         if (request.expectedVersionNo() == null
                 || !request.baseVersionId().equals(current.latestVersionId())
                 || request.expectedVersionNo() != current.latestVersionNo()) {

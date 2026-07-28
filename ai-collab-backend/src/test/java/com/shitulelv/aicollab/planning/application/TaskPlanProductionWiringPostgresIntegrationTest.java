@@ -403,7 +403,8 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 mock(com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard.class),
                 repository, orchestrator, validator, jdbc,
                 null, null, mock(com.shitulelv.aicollab.project.application.service.AuditService.class),
-                normalizer, outcomeDecider, commitService, patchParser, patchApplier, null, json, null);
+                normalizer, outcomeDecider, commitService, patchParser, patchApplier, null, json, null,
+                new TaskPlanActionPolicy());
         // Bypass access guard
         doNothing().when(mock(com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard.class))
                 .requireAdmin(projectId, userId);
@@ -1115,11 +1116,11 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         TaskPlanPartialRepairService partialRepair = new TaskPlanPartialRepairService(
                 accessGuard, repository, issueRepo, validator, jdbc, quota, throttle,
                 normalizer, outcomeDecider, commitService, patchParser, patchApplier,
-                modelClient, json, Runnable::run);
+                modelClient, json, Runnable::run, new TaskPlanActionPolicy());
 
         return new TaskPlanCommandService(accessGuard, repository, orchestrator, validator, jdbc,
                 quota, throttle, auditService, normalizer, outcomeDecider, commitService,
-                patchParser, patchApplier, modelClient, json, partialRepair);
+                patchParser, patchApplier, modelClient, json, partialRepair, new TaskPlanActionPolicy());
     }
 
     private TaskPlanDraft applyUserEditPatch(TaskPlanDraft base, UpdateTaskPlanRequest request) {
