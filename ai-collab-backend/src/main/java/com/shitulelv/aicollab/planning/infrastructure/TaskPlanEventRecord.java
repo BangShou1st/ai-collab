@@ -15,6 +15,7 @@ public record TaskPlanEventRecord(
         UUID actorId,
         String eventType,
         List<String> changedFields,
+        List<String> changedTargets,
         String beforeHash,
         String afterHash,
         List<String> issueCodes,
@@ -22,6 +23,7 @@ public record TaskPlanEventRecord(
 ) {
     public TaskPlanEventRecord {
         changedFields = changedFields == null ? List.of() : List.copyOf(changedFields);
+        changedTargets = changedTargets == null ? List.of() : List.copyOf(changedTargets);
         issueCodes = issueCodes == null ? List.of() : List.copyOf(issueCodes);
     }
 }

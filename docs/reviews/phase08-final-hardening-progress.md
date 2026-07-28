@@ -161,3 +161,25 @@ GREEN：
   原子回滚测试单独通过。
 - 后端完整回归：232 tests，0 failure/error/skipped。
 - 前端 `pnpm typecheck` 与 33 tests 通过。
+
+## 阶段六：统一完整编辑、恢复版本与事件审计
+
+RED：
+
+- `TaskPlanVersionCommitServiceTest` 证明事件原先没有持久化真实的 `changedFields` 与 `changedTargets`。
+- PostgreSQL 生产接线测试补充完整 Draft 新增/删除实体与恢复历史版本场景，要求旧版本保持不可变。
+- 新增 V11 后，迁移安全测试暴露最新版本断言仍停留在 V10。
+
+根因与修复：
+
+- 所有完整 Draft 保存与历史恢复统一经过 `TaskPlanVersionCommitService`，执行结构化校验、创建不可变新版本、刷新 issues、更新计划状态并写入事件。
+- 事件差异由提交服务对前后 Draft 做结构化比较，覆盖摘要、假设、风险、来源以及 milestone/task 的新增、删除和字段变化；不再推断目标，也不对外暴露 before/after hash。
+- V11 为事件增加非空 JSONB `changed_targets_json`；Repository、View、OpenAPI 契约同步使用持久化目标。
+- 恢复历史版本以当前 latest 作为乐观锁基线、历史版本作为 `basedOnVersionId`，创建 `RESTORED` 新版本，绝不覆盖旧版本。
+- 受限 PATCH 明确拒绝 title/goal/constraints 等元数据和实体增删；完整编辑只通过 `POST /versions`。
+- 迁移安全测试升级为验证 V1～V11 的严格顺序、全部成功及真实 JSONB 列，不是放宽断言。
+
+GREEN：
+
+- 事件、提交、生产 PostgreSQL、真实 Spring Bean 与迁移安全目标回归：32 tests，0 failure/error。
+- 后端完整回归：235 tests，0 failure/error/skipped；Testcontainers PostgreSQL 17、Flyway V1～V11 实际执行。

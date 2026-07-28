@@ -210,12 +210,16 @@ public class TaskPlanCommandService {
         Set<UUID> memberIds = collectMemberIds(draft);
         repository.lockProjectMembers(projectId, memberIds);
 
-        var validation = ensureValid(projectId, plan, draft);
-        UUID restored = repository.appendVersion(projectId, planId, plan.latestVersionId(),
-                "RESTORED", versionId, draft, actor, validation,
-                TaskPlanStatus.READY);
-        safeAudit(projectId, actor, "TASK_PLAN_VERSION_RESTORED", "AI_TASK_PLAN_VERSION", restored);
-        return restored;
+        ValidationAssessment assessment = ensureValidStructured(projectId, plan, draft);
+        TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
+        TaskPlanVersionRecord restored = commitService.commitVersion(
+                plan, draft, TaskPlanVersionSource.RESTORED, assessment, finalStatus,
+                "PLAN_VERSION_RESTORED", actor, plan.latestVersionId(), versionId);
+        if (restored == null) {
+            throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
+        }
+        safeAudit(projectId, actor, "TASK_PLAN_VERSION_RESTORED", "AI_TASK_PLAN_VERSION", restored.id());
+        return restored.id();
     }
 
     @Transactional
@@ -341,8 +345,11 @@ public class TaskPlanCommandService {
     private TaskPlanDraft applyUserPatch(TaskPlanDraft base, UpdateTaskPlanRequest request) {
         // Apply plan-level patches — reject title patch as unsupported
         String summary = base.summary();
-        if (request.title() != null && request.title().present()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "规划标题暂不支持编辑");
+        if (request.title() != null && request.title().present()
+                || request.goal() != null && request.goal().present()
+                || request.constraints() != null && request.constraints().present()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "受限 PATCH 不支持规划元数据；请使用完整 Draft 版本保存接口");
         }
         // Apply milestone patches — reject unknown targets
         var milestoneMap = new java.util.LinkedHashMap<String, com.shitulelv.aicollab.planning.domain.PlanMilestone>();

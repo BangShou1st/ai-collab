@@ -3,7 +3,6 @@ package com.shitulelv.aicollab.planning.application;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRecord;
 
 import java.time.OffsetDateTime;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,29 +24,14 @@ public record TaskPlanEventView(
     }
 
     public static TaskPlanEventView from(TaskPlanEventRecord record) {
-        return from(record, inferChangedTargets(record.changedFields()));
-    }
-
-    static TaskPlanEventView from(TaskPlanEventRecord record, List<String> changedTargets) {
         return new TaskPlanEventView(
                 record.id(),
                 record.fromVersionId(),
                 record.toVersionId(),
                 record.eventType(),
                 record.changedFields(),
-                changedTargets,
+                record.changedTargets(),
                 record.issueCodes(),
                 record.createdAt());
-    }
-
-    private static List<String> inferChangedTargets(List<String> fields) {
-        LinkedHashSet<String> targets = new LinkedHashSet<>();
-        for (String field : fields == null ? List.<String>of() : fields) {
-            String[] segments = field.split("\\.");
-            if (segments.length >= 2 && ("tasks".equals(segments[0]) || "milestones".equals(segments[0]))) {
-                targets.add(("tasks".equals(segments[0]) ? "TASK:" : "MILESTONE:") + segments[1]);
-            }
-        }
-        return List.copyOf(targets);
     }
 }

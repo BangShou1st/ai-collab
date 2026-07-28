@@ -169,11 +169,17 @@ class Phase08MigrationSafetyIntegrationTest {
         assertThat(jdbc.queryForList("""
                 SELECT version FROM flyway_schema_history
                 WHERE type <> 'SCHEMA' ORDER BY installed_rank
-                """, String.class)).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+                """, String.class)).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
         assertThat(jdbc.queryForObject("""
                 SELECT bool_and(success) FROM flyway_schema_history
                 WHERE type <> 'SCHEMA'
                 """, Boolean.class)).isTrue();
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM information_schema.columns
+                WHERE table_name = 'ai_task_plan_event'
+                  AND column_name = 'changed_targets_json'
+                  AND data_type = 'jsonb'
+                """, Integer.class)).isEqualTo(1);
         assertThat(checksum(jdbc, "5")).isEqualTo(PUBLISHED_V5_CHECKSUM);
     }
 

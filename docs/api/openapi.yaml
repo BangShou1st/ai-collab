@@ -1008,7 +1008,8 @@ paths:
                 $ref: '#/components/schemas/TaskPlanDetailEnvelope'
     patch:
       tags: [TaskPlans]
-      summary: Edit plan with PATCH semantics (atomic version + issues + event)
+      summary: Limited entity-field PATCH; full Draft editing uses POST /versions
+      description: Only existing milestone/task detail fields are patchable. Plan metadata and entity add/delete are not supported here.
       requestBody:
         required: true
         content:
