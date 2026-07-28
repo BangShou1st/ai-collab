@@ -645,16 +645,13 @@ public class TaskPlanGenerationOrchestrator {
     private String detailPrompt(TaskPlanRecord p, TaskPlanDraft skeleton) {
         try {
             SkeletonIdentityOnly identityOnly = toSkeletonIdentity(skeleton);
-            var memberIds = new java.util.HashSet<UUID>();
-            for (var task : skeleton.tasks()) {
-                if (task.suggestedAssigneeId() != null) memberIds.add(task.suggestedAssigneeId());
-            }
+            TaskPlanContextAssembler.MemberSnapshot members = contexts.memberSnapshot(p.projectId());
             var sourceRefs = new java.util.HashSet<String>();
             for (var source : skeleton.sources()) {
                 if (source.ref() != null) sourceRefs.add(source.ref());
             }
             PlanningPromptPolicy.PlanningContext ctx = new PlanningPromptPolicy.PlanningContext(
-                    p.planStartDate(), p.planDueDate(), p.maxTaskCount(), memberIds, sourceRefs);
+                    p.planStartDate(), p.planDueDate(), p.maxTaskCount(), members.memberIds(), sourceRefs);
             return PLAN_INPUT_TAG_OPEN + "\n"
                     + "标题=" + PlanningPromptText.escapeUntrusted(p.title()) + "\n"
                     + "目标=" + PlanningPromptText.escapeUntrusted(p.goal()) + "\n"
@@ -664,7 +661,7 @@ public class TaskPlanGenerationOrchestrator {
                     + PLAN_INPUT_TAG_CLOSE + "\n"
                     + JSON_SCHEMA_TAG_OPEN + "\n" + DETAIL_SCHEMA + "\n" + JSON_SCHEMA_TAG_CLOSE + "\n"
                     + MEMBER_CONTEXT_TAG_OPEN + "\n"
-                    + PlanningPromptText.escapeUntrusted(contexts.memberContext(p.projectId()))
+                    + PlanningPromptText.escapeUntrusted(members.contextText())
                     + "\n" + MEMBER_CONTEXT_TAG_CLOSE + "\n"
                     + SKELETON_TAG_OPEN + "\n"
                     + PlanningPromptText.escapeUntrusted(json.writeValueAsString(identityOnly))

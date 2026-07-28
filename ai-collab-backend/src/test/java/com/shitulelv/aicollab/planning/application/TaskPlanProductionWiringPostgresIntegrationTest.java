@@ -92,7 +92,8 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         contexts = mock(TaskPlanContextAssembler.class);
         when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
                 "<PROJECT_DATA>test</PROJECT_DATA>", List.of()));
-        when(contexts.memberContext(any())).thenReturn("项目成员（仅可推荐以下成员作为负责人）：[]");
+        when(contexts.memberSnapshot(any())).thenReturn(new TaskPlanContextAssembler.MemberSnapshot(
+                "项目成员（仅可推荐以下成员作为负责人）：[]", Set.of()));
     }
 
     // ══════════════════════════════════════════════════════════════════

@@ -97,3 +97,33 @@ GREEN：
 - 后端完整回归：224 tests，0 failure/error/skipped；真实 PostgreSQL 17、
   Flyway V1～V10 与 Spring Bean 测试实际执行。
 - 生产源码中 `new StructuredValidationIssue` 仅存在于 Validator 构造点和 Repository 数据映射。
+
+## 阶段四：生成阶段 scoped Patch Repair
+
+审计结论：
+
+- Detail 初次输出使用 `parseDetail()`；修复输出使用独立的
+  `TaskPlanRepairPatchParser` 和 `TaskPlanRepairPatchApplier`，未把 Patch 当完整 Detail 反序列化。
+- `RepairScope` 由结构化 issue 的目标和目录中的 repairable fields 生成；
+  title、objective、tempKey、sortOrder、summary、assumptions、risks 等身份字段保持锁定。
+- 修复后重新经过 normalize 和生产 Validator；仍有 HARD issue 时进入
+  `DETAIL_GENERATION_FAILED`，不会提交部分成功版本。
+- Repair attempt 会替换活动 attempt，Future registry 在 terminal path 清理。
+
+RED：
+
+- 新增 `detailPromptUsesOnlyServerProjectMembersForAssigneeWhitelist`。
+- 测试证明模型 Skeleton 中捏造的 `suggestedAssigneeId` 被错误加入 Detail 规则白名单。
+
+根因与修复：
+
+- Detail prompt 的展示成员来自数据库，但规则白名单却从 Skeleton 反推，形成两个权威来源。
+- `TaskPlanContextAssembler.memberSnapshot()` 现在用同一次服务端项目成员查询生成
+  `memberId + displayName + role` 展示上下文和 `memberIds` 白名单。
+- Orchestrator 不再读取 Skeleton 中的 assignee 值来生成许可集合。
+
+GREEN：
+
+- 生成规则、Orchestrator、Patch parser/applier 目标回归：35 tests，0 失败。
+- 后端完整回归：225 tests，0 failure/error/skipped；Testcontainers PostgreSQL 17、
+  Flyway V1～V10 和真实 Spring Bean 测试均实际执行。
