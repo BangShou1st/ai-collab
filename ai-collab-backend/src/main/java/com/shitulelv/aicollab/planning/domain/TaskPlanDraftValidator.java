@@ -116,6 +116,271 @@ public class TaskPlanDraftValidator {
     }
 
     /**
+     * Production structured validation entry point. Flat validation remains as a compatibility
+     * view for older callers, while every returned issue is located by the domain validator
+     * before it reaches persistence, repair, permissions or confirmation.
+     */
+    public ValidationAssessment assess(ValidationContext context, TaskPlanDraft draft,
+                                       ValidationMode mode, boolean aiGenerated) {
+        ValidationResult flat = validate(context, draft, mode, aiGenerated);
+        List<StructuredValidationIssue> issues = new ArrayList<>();
+        for (String code : flat.errorCodes()) {
+            issues.addAll(locate(code, context, draft));
+        }
+        for (String code : flat.warningCodes()) {
+            issues.addAll(locate(code, context, draft));
+        }
+        return new ValidationAssessment(issues);
+    }
+
+    public ValidationAssessment assess(ValidationContext context, TaskPlanDraft draft) {
+        return assess(context, draft, ValidationMode.COMPLETE, false);
+    }
+
+    private List<StructuredValidationIssue> locate(String code, ValidationContext context, TaskPlanDraft draft) {
+        ValidationIssueSeverity severity = ValidationIssueCatalog.severity(code);
+        List<StructuredValidationIssue> located = new ArrayList<>();
+        Map<String, PlanTask> tasks = new HashMap<>();
+        for (PlanTask task : draft.tasks()) {
+            if (task != null && task.tempKey() != null) tasks.put(task.tempKey(), task);
+        }
+
+        switch (code) {
+            case "DEPENDENCY_DATE_CONFLICT" -> {
+                for (PlanTask task : tasks.values()) {
+                    for (String dependencyKey : task.dependencyTempKeys()) {
+                        PlanTask dependency = tasks.get(dependencyKey);
+                        if (dependency != null && dependency.dueDate() != null && task.startDate() != null
+                                && dependency.dueDate().isAfter(task.startDate())) {
+                            located.add(issue(code, severity, "TASK", task.tempKey(), "startDate",
+                                    dependency.tempKey(), Map.of(
+                                            "dependencyDueDate", dependency.dueDate(),
+                                            "currentStartDate", task.startDate())));
+                        }
+                    }
+                }
+            }
+            case "SELF_DEPENDENCY" -> {
+                for (PlanTask task : tasks.values()) {
+                    if (task.dependencyTempKeys().contains(task.tempKey())) {
+                        located.add(issue(code, severity, "TASK", task.tempKey(),
+                                "dependencyTempKeys", task.tempKey(), Map.of()));
+                    }
+                }
+            }
+            case "DEPENDENCY_DUPLICATE" -> {
+                for (PlanTask task : tasks.values()) {
+                    Set<String> seen = new HashSet<>();
+                    for (String dependency : task.dependencyTempKeys()) {
+                        if (dependency != null && !seen.add(dependency)) {
+                            located.add(issue(code, severity, "TASK", task.tempKey(),
+                                    "dependencyTempKeys", dependency, Map.of()));
+                            break;
+                        }
+                    }
+                }
+            }
+            case "DEPENDENCY_REF_INVALID" -> {
+                for (PlanTask task : tasks.values()) {
+                    for (String dependency : task.dependencyTempKeys()) {
+                        if (dependency == null || !tasks.containsKey(dependency)) {
+                            located.add(issue(code, severity, "TASK", task.tempKey(),
+                                    "dependencyTempKeys", dependency, Map.of()));
+                        }
+                    }
+                }
+            }
+            case "DEPENDENCY_CYCLE" -> {
+                for (PlanTask task : tasks.values()) {
+                    if (isInCycle(task.tempKey(), tasks, new HashSet<>())) {
+                        located.add(issue(code, severity, "TASK", task.tempKey(),
+                                "dependencyTempKeys", null, Map.of()));
+                    }
+                }
+            }
+            case "ASSIGNEE_NOT_PROJECT_MEMBER" -> {
+                for (PlanTask task : tasks.values()) {
+                    if (task.suggestedAssigneeId() != null
+                            && !context.projectMemberIds().contains(task.suggestedAssigneeId())) {
+                        located.add(issue(code, severity, "TASK", task.tempKey(),
+                                "suggestedAssigneeId", null, Map.of()));
+                    }
+                    if (task.assigneeId() != null && !context.projectMemberIds().contains(task.assigneeId())) {
+                        located.add(issue(code, severity, "TASK", task.tempKey(),
+                                "assigneeId", null, Map.of()));
+                    }
+                }
+            }
+            case "SOURCE_REF_INVALID", "SOURCE_REF_FORMAT_INVALID", "SOURCE_REF_DUPLICATE",
+                 "SOURCE_REF_LIMIT_EXCEEDED" -> locateSourceIssues(
+                    code, severity, draft, located);
+            case "TASK_DATE_INVALID" -> {
+                for (PlanTask task : tasks.values()) {
+                    if (outside(task.startDate(), context.planStartDate(), context.planDueDate())
+                            || outside(task.dueDate(), context.planStartDate(), context.planDueDate())
+                            || task.startDate() != null && task.dueDate() != null
+                            && task.startDate().isAfter(task.dueDate())) {
+                        located.add(issue(code, severity, "TASK", task.tempKey(),
+                                outside(task.startDate(), context.planStartDate(), context.planDueDate())
+                                        ? "startDate" : "dueDate", null,
+                                dateDetails(task.startDate(), task.dueDate())));
+                    }
+                }
+            }
+            case "ESTIMATED_HOURS_INVALID" -> {
+                for (PlanTask task : tasks.values()) {
+                    if (task.estimatedHours() != null
+                            && (task.estimatedHours().compareTo(BigDecimal.ZERO) <= 0
+                            || task.estimatedHours().compareTo(BigDecimal.valueOf(80)) > 0)) {
+                        located.add(issue(code, severity, "TASK", task.tempKey(), "estimatedHours",
+                                null, Map.of("minimum", new BigDecimal("0.5"), "maximum", 80)));
+                    }
+                }
+            }
+            case "TASK_PRIORITY_INVALID" -> {
+                for (PlanTask task : tasks.values()) {
+                    if (task.priority() == null
+                            || !Set.of("LOW", "MEDIUM", "HIGH", "URGENT").contains(task.priority())) {
+                        located.add(issue(code, severity, "TASK", task.tempKey(), "priority",
+                                null, Map.of("allowedValues", List.of("LOW", "MEDIUM", "HIGH", "URGENT"))));
+                    }
+                }
+            }
+            case "MILESTONE_DATE_OUTSIDE_PLAN" -> {
+                for (PlanMilestone milestone : draft.milestones()) {
+                    if (milestone != null && outside(milestone.targetDate(),
+                            context.planStartDate(), context.planDueDate())) {
+                        located.add(issue(code, severity, "MILESTONE", milestone.tempKey(),
+                                "targetDate", null, Map.of()));
+                    }
+                }
+            }
+            case "MILESTONE_REF_INVALID" -> {
+                Set<String> milestoneKeys = new HashSet<>();
+                for (PlanMilestone milestone : draft.milestones()) {
+                    if (milestone != null) milestoneKeys.add(milestone.tempKey());
+                }
+                for (PlanTask task : tasks.values()) {
+                    if (!milestoneKeys.contains(task.milestoneTempKey())) {
+                        located.add(issue(code, severity, "TASK", task.tempKey(),
+                                "milestoneTempKey", task.milestoneTempKey(), Map.of()));
+                    }
+                }
+            }
+            case "TASK_UNASSIGNED" -> {
+                for (PlanTask task : tasks.values()) {
+                    if (task.assigneeId() == null) {
+                        located.add(issue(code, severity, "TASK", task.tempKey(),
+                                "assigneeId", null, Map.of()));
+                    }
+                }
+            }
+            case "AI_SUGGESTION_WITHOUT_SOURCE" -> {
+                for (PlanTask task : tasks.values()) {
+                    if (task.sourceRefs().isEmpty()) {
+                        located.add(issue(code, severity, "TASK", task.tempKey(),
+                                "sourceRefs", null, Map.of()));
+                    }
+                }
+            }
+            default -> {
+                String targetType = code.startsWith("TASK_") ? "TASK"
+                        : code.startsWith("MILESTONE_") ? "MILESTONE" : "PLAN";
+                located.add(issue(code, severity, targetType, null, fieldFor(code), null, Map.of()));
+            }
+        }
+        if (located.isEmpty()) {
+            located.add(issue(code, severity, "PLAN", null, fieldFor(code), null, Map.of()));
+        }
+        return located;
+    }
+
+    private static void locateSourceIssues(String code, ValidationIssueSeverity severity,
+                                           TaskPlanDraft draft, List<StructuredValidationIssue> located) {
+        Set<String> valid = new HashSet<>();
+        for (PlanSource source : draft.sources()) {
+            if (source != null && source.ref() != null) valid.add(source.ref());
+        }
+        for (PlanMilestone milestone : draft.milestones()) {
+            if (milestone != null) {
+                addSourceIssueIfNeeded(code, severity, "MILESTONE", milestone.tempKey(),
+                        milestone.sourceRefs(), valid, located);
+            }
+        }
+        for (PlanTask task : draft.tasks()) {
+            if (task != null) {
+                addSourceIssueIfNeeded(code, severity, "TASK", task.tempKey(),
+                        task.sourceRefs(), valid, located);
+            }
+        }
+    }
+
+    private static void addSourceIssueIfNeeded(String code, ValidationIssueSeverity severity,
+                                               String targetType, String targetTempKey,
+                                               List<String> refs, Set<String> valid,
+                                               List<StructuredValidationIssue> located) {
+        Set<String> seen = new HashSet<>();
+        for (String ref : refs) {
+            boolean matches = ref != null && ref.matches("^S([1-9]|1[0-2])$");
+            boolean invalid = switch (code) {
+                case "SOURCE_REF_INVALID" -> matches && !valid.contains(ref);
+                case "SOURCE_REF_FORMAT_INVALID" -> !matches;
+                case "SOURCE_REF_DUPLICATE" -> ref != null && !seen.add(ref);
+                case "SOURCE_REF_LIMIT_EXCEEDED" -> refs.size() > 5;
+                default -> false;
+            };
+            if (invalid) {
+                Map<String, Object> details = ref == null ? Map.of() : Map.of("sourceRef", ref);
+                located.add(issue(code, severity, targetType, targetTempKey,
+                        "sourceRefs", null, details));
+                if (code.equals("SOURCE_REF_LIMIT_EXCEEDED")) return;
+            }
+            if (ref != null && !code.equals("SOURCE_REF_DUPLICATE")) seen.add(ref);
+        }
+    }
+
+    private static Map<String, Object> dateDetails(LocalDate start, LocalDate due) {
+        Map<String, Object> details = new HashMap<>();
+        if (start != null) details.put("startDate", start);
+        if (due != null) details.put("dueDate", due);
+        return Map.copyOf(details);
+    }
+
+    private static boolean isInCycle(String key, Map<String, PlanTask> tasks, Set<String> path) {
+        if (!path.add(key)) return true;
+        PlanTask task = tasks.get(key);
+        if (task != null) {
+            for (String dependency : task.dependencyTempKeys()) {
+                if (tasks.containsKey(dependency) && isInCycle(dependency, tasks, new HashSet<>(path))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static String fieldFor(String code) {
+        return switch (code) {
+            case "PLAN_DATE_OUTSIDE_PROJECT" -> "dateRange";
+            case "SUMMARY_REQUIRED", "SUMMARY_TOO_LONG" -> "summary";
+            case "ASSUMPTION_LIMIT_EXCEEDED" -> "assumptions";
+            case "RISK_LIMIT_EXCEEDED" -> "risks";
+            case "TASK_LIMIT_EXCEEDED", "TASK_REQUIRED", "TASK_NULL" -> "tasks";
+            case "MILESTONE_LIMIT_EXCEEDED", "MILESTONE_REQUIRED", "MILESTONE_NULL" -> "milestones";
+            case "SKELETON_MUTATED" -> "identity";
+            default -> null;
+        };
+    }
+
+    private static StructuredValidationIssue issue(
+            String code, ValidationIssueSeverity severity, String targetType,
+            String targetTempKey, String field, String relatedTempKey,
+            Map<String, Object> safeDetails) {
+        return new StructuredValidationIssue(code, severity, targetType, targetTempKey,
+                field, relatedTempKey, safeDetails);
+    }
+
+    /**
      * R1: Comprehensive skeleton preservation check.
      * Verifies ALL skeleton fields — not just tempKey+title+objective.
      * Milestones: tempKey, title, objective, targetDate, sortOrder, count.

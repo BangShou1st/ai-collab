@@ -275,8 +275,8 @@ public class TaskPlanGenerationOrchestrator {
                 repository.finishAttempt(generated.attemptId(), "DISCARDED", "PLAN_GENERATION_CANCELED");
                 return;
             }
-            ValidationResult flatResult = validator.validate(repository.validationContext(plan), detail, ValidationMode.COMPLETE, true);
-            ValidationAssessment assessment = toAssessment(flatResult);
+            ValidationAssessment assessment = validator.assess(
+                    repository.validationContext(plan), detail, ValidationMode.COMPLETE, true);
             TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
             // AI_PARTIAL when degraded to READY_WITH_ISSUES; AI_COMPLETE when fully ready
             TaskPlanVersionSource sourceType = finalStatus == TaskPlanStatus.READY_WITH_ISSUES
@@ -698,21 +698,6 @@ public class TaskPlanGenerationOrchestrator {
     @FunctionalInterface
     interface DetailValidator {
         ValidationResult validate(DetailModelOutput candidate);
-    }
-
-    /** Convert flat ValidationResult to structured ValidationAssessment using ValidationIssueCatalog. */
-    private static ValidationAssessment toAssessment(ValidationResult flat) {
-        var issues = new java.util.ArrayList<StructuredValidationIssue>();
-        for (String code : flat.errorCodes()) {
-            var severity = com.shitulelv.aicollab.planning.domain.ValidationIssueCatalog.severityOrDefault(code);
-            issues.add(new StructuredValidationIssue(code, severity, null, null, null, null, java.util.Map.of()));
-        }
-        for (String code : flat.warningCodes()) {
-            issues.add(new StructuredValidationIssue(code,
-                    com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity.WARNING,
-                    null, null, null, null, java.util.Map.of()));
-        }
-        return new ValidationAssessment(issues);
     }
 
     /** Identity-only skeleton for prompt embedding — no sources, no detail fields. */

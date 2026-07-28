@@ -245,11 +245,12 @@ public class TaskPlanCommandService {
                 "SELECT user_id FROM project_member WHERE project_id=?", UUID.class, projectId));
         LocalDate[] projectDates = jdbc.queryForObject("SELECT start_date,due_date FROM project WHERE id=?",
                 (rs, row) -> new LocalDate[]{rs.getObject(1, LocalDate.class), rs.getObject(2, LocalDate.class)}, projectId);
-        var result = validator.validate(new ValidationContext(projectDates[0], projectDates[1],
-                plan.planStartDate(), plan.planDueDate(), plan.maxTaskCount(), members, Set.of()), draft);
-        if (!result.valid()) throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED,
-                "规划校验失败：" + String.join(",", result.errorCodes()));
-        return result;
+        ValidationAssessment assessment = validator.assess(new ValidationContext(projectDates[0], projectDates[1],
+                plan.planStartDate(), plan.planDueDate(), plan.maxTaskCount(), members, Set.of()),
+                draft, TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
+        if (!assessment.ready()) throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED,
+                "规划校验失败：" + String.join(",", assessment.errorCodes()));
+        return assessment.toFlat();
     }
 
     /** Structured validation: returns ValidationAssessment with full issue details. */
@@ -258,19 +259,10 @@ public class TaskPlanCommandService {
                 "SELECT user_id FROM project_member WHERE project_id=?", UUID.class, projectId));
         LocalDate[] projectDates = jdbc.queryForObject("SELECT start_date,due_date FROM project WHERE id=?",
                 (rs, row) -> new LocalDate[]{rs.getObject(1, LocalDate.class), rs.getObject(2, LocalDate.class)}, projectId);
-        var result = validator.validate(new ValidationContext(projectDates[0], projectDates[1],
-                plan.planStartDate(), plan.planDueDate(), plan.maxTaskCount(), members, Set.of()), draft);
-        // Convert to structured assessment with proper severity from catalog
-        var issues = new java.util.ArrayList<StructuredValidationIssue>();
-        for (String code : result.errorCodes()) {
-            var severity = ValidationIssueCatalog.severityOrDefault(code);
-            issues.add(new StructuredValidationIssue(code, severity, null, null, null, null, java.util.Map.of()));
-        }
-        for (String code : result.warningCodes()) {
-            issues.add(new StructuredValidationIssue(code, ValidationIssueSeverity.WARNING,
-                    null, null, null, null, java.util.Map.of()));
-        }
-        ValidationAssessment assessment = new ValidationAssessment(issues);
+        ValidationAssessment assessment = validator.assess(
+                new ValidationContext(projectDates[0], projectDates[1],
+                        plan.planStartDate(), plan.planDueDate(), plan.maxTaskCount(), members, Set.of()),
+                draft, TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
         if (assessment.hasHardIssues()) throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED,
                 "规划校验失败：" + String.join(",", assessment.errorCodes()));
         return assessment;
@@ -428,9 +420,10 @@ public class TaskPlanCommandService {
         // Validate
         LocalDate[] projectDates = jdbc.queryForObject("SELECT start_date,due_date FROM project WHERE id=?",
                 (rs, row) -> new LocalDate[]{rs.getObject(1, LocalDate.class), rs.getObject(2, LocalDate.class)}, projectId);
-        var validation = validator.validate(new ValidationContext(projectDates[0], projectDates[1],
-                plan.planStartDate(), plan.planDueDate(), plan.maxTaskCount(), validMembers, Set.of()), normalized);
-        ValidationAssessment assessment = toAssessment(validation);
+        ValidationAssessment assessment = validator.assess(
+                new ValidationContext(projectDates[0], projectDates[1],
+                        plan.planStartDate(), plan.planDueDate(), plan.maxTaskCount(), validMembers, Set.of()),
+                normalized, TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
         // Determine outcome
         TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
         // Atomic commit: version + issues + event + status (interactive path — no attempt)
@@ -518,20 +511,6 @@ public class TaskPlanCommandService {
                         "未知的 targetTempKey: " + key);
             }
         }
-    }
-
-    /** Convert flat ValidationResult to structured ValidationAssessment. */
-    private static ValidationAssessment toAssessment(ValidationResult flat) {
-        var issues = new java.util.ArrayList<StructuredValidationIssue>();
-        for (String code : flat.errorCodes()) {
-            var severity = ValidationIssueCatalog.severityOrDefault(code);
-            issues.add(new StructuredValidationIssue(code, severity, null, null, null, null, java.util.Map.of()));
-        }
-        for (String code : flat.warningCodes()) {
-            issues.add(new StructuredValidationIssue(code, ValidationIssueSeverity.WARNING,
-                    null, null, null, null, java.util.Map.of()));
-        }
-        return new ValidationAssessment(issues);
     }
 
     private void safeAudit(UUID projectId, UUID actor, String action, String entityType, UUID entityId) {

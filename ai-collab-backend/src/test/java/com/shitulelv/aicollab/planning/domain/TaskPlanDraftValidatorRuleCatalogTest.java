@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -71,6 +72,32 @@ class TaskPlanDraftValidatorRuleCatalogTest {
                 "Expected DEPENDENCY_DATE_CONFLICT but got: " + result.errorCodes());
     }
 
+    @Test
+    void dependencyConflictContainsTargetFieldRelatedTaskAndSafeDates() {
+        PlanTask prerequisite = new PlanTask("T1", "M1", "Task 1", "obj", "desc", "MEDIUM",
+                BigDecimal.TEN, LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 20),
+                null, null, List.of(), List.of(), 0);
+        PlanTask dependent = new PlanTask("T2", "M1", "Task 2", "obj", "desc", "MEDIUM",
+                BigDecimal.TEN, LocalDate.of(2026, 8, 15), LocalDate.of(2026, 8, 25),
+                null, null, List.of("T1"), List.of(), 1);
+
+        ValidationAssessment assessment = validator.assess(baseContext(),
+                new TaskPlanDraft("summary", List.of(), List.of(),
+                        List.of(milestone("M1", "M1")), List.of(prerequisite, dependent), List.of()),
+                TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
+
+        StructuredValidationIssue issue = assessment.issues().stream()
+                .filter(candidate -> candidate.code().equals("DEPENDENCY_DATE_CONFLICT"))
+                .findFirst().orElseThrow();
+        assertEquals("TASK", issue.targetType());
+        assertEquals("T2", issue.targetTempKey());
+        assertEquals("startDate", issue.field());
+        assertEquals("T1", issue.relatedTempKey());
+        assertEquals(Map.of(
+                "dependencyDueDate", LocalDate.of(2026, 8, 20),
+                "currentStartDate", LocalDate.of(2026, 8, 15)), issue.safeDetails());
+    }
+
     // ──────────────────────────────────────────────────────────────
     // R2: unknownMemberDoesNotBecomeAValidSuggestion
     // suggestedAssigneeId points to non-member → ASSIGNEE_NOT_PROJECT_MEMBER
@@ -89,6 +116,48 @@ class TaskPlanDraftValidatorRuleCatalogTest {
 
         assertTrue(result.errorCodes().contains("ASSIGNEE_NOT_PROJECT_MEMBER"),
                 "Expected ASSIGNEE_NOT_PROJECT_MEMBER but got: " + result.errorCodes());
+    }
+
+    @Test
+    void unknownMemberContainsTargetAndSuggestedAssigneeFieldWithoutUuidDetails() {
+        UUID unknownMember = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
+        PlanTask task = new PlanTask("T1", "M1", "Task 1", "obj", "desc", "MEDIUM",
+                BigDecimal.TEN, LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 20),
+                unknownMember, null, List.of(), List.of(), 0);
+
+        StructuredValidationIssue issue = validator.assess(baseContext(),
+                        new TaskPlanDraft("summary", List.of(), List.of(),
+                                List.of(milestone("M1", "M1")), List.of(task), List.of()),
+                        TaskPlanDraftValidator.ValidationMode.COMPLETE, false)
+                .issues().stream()
+                .filter(candidate -> candidate.code().equals("ASSIGNEE_NOT_PROJECT_MEMBER"))
+                .findFirst().orElseThrow();
+
+        assertEquals("TASK", issue.targetType());
+        assertEquals("T1", issue.targetTempKey());
+        assertEquals("suggestedAssigneeId", issue.field());
+        assertTrue(issue.safeDetails().isEmpty());
+    }
+
+    @Test
+    void invalidSourceContainsTargetAndField() {
+        PlanTask task = new PlanTask("T1", "M1", "Task 1", "obj", "desc", "MEDIUM",
+                BigDecimal.TEN, LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 20),
+                null, null, List.of(), List.of("S2"), 0);
+
+        StructuredValidationIssue issue = validator.assess(baseContext(),
+                        new TaskPlanDraft("summary", List.of(), List.of(),
+                                List.of(milestone("M1", "M1")), List.of(task),
+                                List.of(new PlanSource("S1", UUID.randomUUID(), "document", "source"))),
+                        TaskPlanDraftValidator.ValidationMode.COMPLETE, false)
+                .issues().stream()
+                .filter(candidate -> candidate.code().equals("SOURCE_REF_INVALID"))
+                .findFirst().orElseThrow();
+
+        assertEquals("TASK", issue.targetType());
+        assertEquals("T1", issue.targetTempKey());
+        assertEquals("sourceRefs", issue.field());
+        assertEquals(Map.of("sourceRef", "S2"), issue.safeDetails());
     }
 
     // ──────────────────────────────────────────────────────────────

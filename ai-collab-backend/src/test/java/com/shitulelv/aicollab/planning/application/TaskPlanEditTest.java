@@ -50,6 +50,9 @@ class TaskPlanEditTest {
     void setUp() {
         service = new TaskPlanCommandService(access, repository, null, validator, jdbc,
                 null, null, null, normalizer, outcomeDecider, commitService, null, null, null, null);
+        lenient().when(validator.assess(any(), any(),
+                        eq(TaskPlanDraftValidator.ValidationMode.COMPLETE), eq(false)))
+                .thenReturn(ValidationAssessment.empty());
     }
 
     private TaskPlanRecord readyPlan() {
@@ -90,7 +93,6 @@ class TaskPlanEditTest {
                 .thenReturn(List.of());
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
-        when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
         UUID newVersionId = UUID.randomUUID();
         when(commitService.commitVersion(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "MANUAL_EDIT", versionId, 2L,
@@ -118,7 +120,6 @@ class TaskPlanEditTest {
                 .thenReturn(List.of());
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
-        when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
         UUID newVersionId = UUID.randomUUID();
         when(commitService.commitVersion(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "MANUAL_EDIT", versionId, 2L,
@@ -170,7 +171,6 @@ class TaskPlanEditTest {
                 .thenReturn(List.of());
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
-        when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
         UUID newVersionId = UUID.randomUUID();
         when(commitService.commitVersion(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "MANUAL_EDIT", versionId, 2L,
