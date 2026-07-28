@@ -311,6 +311,34 @@ class TaskPlanDraftValidatorRuleCatalogTest {
                 "Skeleton mode should skip ESTIMATED_HOURS_INVALID");
     }
 
+    @Test
+    void estimatedHoursBelowFormalTaskMinimumIsRejected() {
+        PlanTask belowMinimum = new PlanTask(
+                "T1", "M1", "Task 1", "obj", "desc", "MEDIUM", new BigDecimal("0.49"),
+                LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 20),
+                null, null, List.of(), List.of(), 0);
+        TaskPlanDraft draft = new TaskPlanDraft("summary", List.of(), List.of(),
+                List.of(milestone("M1", "M1")), List.of(belowMinimum), List.of());
+
+        ValidationResult result = validator.validate(baseContext(), draft);
+
+        assertTrue(result.errorCodes().contains("ESTIMATED_HOURS_INVALID"));
+    }
+
+    @Test
+    void estimatedHoursAtFormalTaskMinimumIsAccepted() {
+        PlanTask minimum = new PlanTask(
+                "T1", "M1", "Task 1", "obj", "desc", "MEDIUM", new BigDecimal("0.5"),
+                LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 20),
+                null, null, List.of(), List.of(), 0);
+        TaskPlanDraft draft = new TaskPlanDraft("summary", List.of(), List.of(),
+                List.of(milestone("M1", "M1")), List.of(minimum), List.of());
+
+        ValidationResult result = validator.validate(baseContext(), draft);
+
+        assertFalse(result.errorCodes().contains("ESTIMATED_HOURS_INVALID"));
+    }
+
     // ──────────────────────────────────────────────────────────────
     // R9: aiGenerated=true rejects assigneeId on tasks
     // ──────────────────────────────────────────────────────────────

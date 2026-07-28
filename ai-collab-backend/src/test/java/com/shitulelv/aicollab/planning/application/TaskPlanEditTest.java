@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.planning.application;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.planning.api.UpdateTaskPlanRequest;
 import com.shitulelv.aicollab.planning.domain.*;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
@@ -83,6 +84,34 @@ class TaskPlanEditTest {
     private TaskPlanVersionRecord baseVersion() {
         return new TaskPlanVersionRecord(versionId, planId, 1, "AI_COMPLETE", null, 1L,
                 "summary", "[]", "[]", "[]", "[]", "[]", "{}", actorId, null);
+    }
+
+    @Test
+    void legacyPatchJacksonOmittedFieldsNormalizeToAbsent() throws Exception {
+        UpdateTaskPlanRequest request = new ObjectMapper().findAndRegisterModules().readValue("""
+                {
+                  "baseVersionId": "%s",
+                  "expectedVersionNo": 1,
+                  "milestones": [{"tempKey": "M1"}],
+                  "tasks": [{"tempKey": "T1"}]
+                }
+                """.formatted(versionId), UpdateTaskPlanRequest.class);
+
+        assertAll(
+                () -> assertFalse(request.title().present()),
+                () -> assertFalse(request.goal().present()),
+                () -> assertFalse(request.constraints().present()),
+                () -> assertFalse(request.milestones().getFirst().description().present()),
+                () -> assertFalse(request.milestones().getFirst().targetDate().present()),
+                () -> assertFalse(request.milestones().getFirst().sourceRefs().present()),
+                () -> assertFalse(request.tasks().getFirst().description().present()),
+                () -> assertFalse(request.tasks().getFirst().priority().present()),
+                () -> assertFalse(request.tasks().getFirst().estimatedHours().present()),
+                () -> assertFalse(request.tasks().getFirst().startDate().present()),
+                () -> assertFalse(request.tasks().getFirst().dueDate().present()),
+                () -> assertFalse(request.tasks().getFirst().suggestedAssigneeId().present()),
+                () -> assertFalse(request.tasks().getFirst().dependencyTempKeys().present()),
+                () -> assertFalse(request.tasks().getFirst().sourceRefs().present()));
     }
 
     @Test

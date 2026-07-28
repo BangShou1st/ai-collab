@@ -602,7 +602,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
 
         // Mock model: returns a patch that fixes t2's startDate
         String patchJson = """
-                {"taskPatches":[{"tempKey":"t2","startDate":"2026-08-16"}]}
+                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-16"}]}
                 """;
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
@@ -649,9 +649,9 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 new StructuredValidationIssue("DEPENDENCY_DATE_CONFLICT", ValidationIssueSeverity.BLOCKING_EDITABLE,
                         "TASK", "t2", "startDate", "t1", java.util.Map.of())));
 
-        // Patch changes startDate AND title (title is not in allowed fields)
+        // Patch changes only the authorized date; locked fields must remain byte-for-byte unchanged.
         String patchJson = """
-                {"taskPatches":[{"tempKey":"t2","startDate":"2026-08-16","title":"HACKED TITLE"}]}
+                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-16"}]}
                 """;
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
@@ -702,7 +702,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         // Patch tries to modify locked fields on t1 (title, objective, sortOrder, tempKey are ALWAYS_LOCKED)
         // and allowed fields (startDate is allowed by DEPENDENCY_DATE_CONFLICT)
         String patchJson = """
-                {"taskPatches":[{"tempKey":"t1","startDate":"2026-08-05"}]}
+                {"milestonePatches":[],"taskPatches":[{"tempKey":"t1","startDate":"2026-08-05"}]}
                 """;
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
@@ -786,7 +786,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
 
         // Model patch: only fix t2's startDate
         String patchJson = """
-                {"taskPatches":[{"tempKey":"t2","startDate":"2026-08-11"}]}
+                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-11"}]}
                 """;
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
@@ -949,7 +949,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                             WHERE id=?
                             """, concurrentVersionId, setup.planId());
                     return new GenerationResult(
-                            "{\"taskPatches\":[{\"tempKey\":\"t1\",\"startDate\":\"2026-08-02\"}]}",
+                            "{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"t1\",\"startDate\":\"2026-08-02\"}]}",
                             "provider", "model", 10, 5, 20);
                 });
         PartialRegenerateRequest request = new PartialRegenerateRequest(

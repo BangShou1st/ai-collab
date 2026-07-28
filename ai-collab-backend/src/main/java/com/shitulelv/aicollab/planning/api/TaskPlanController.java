@@ -84,6 +84,7 @@ public class TaskPlanController {
         commands.delete(projectId, planId, userId(jwt)); return ResponseEntity.noContent().build();
     }
 
+    @Deprecated(since = "Phase 08", forRemoval = false)
     @PatchMapping("/{planId}") public ApiResponse<?> edit(@PathVariable UUID projectId,
             @PathVariable UUID planId, @Valid @RequestBody UpdateTaskPlanRequest request,
             @AuthenticationPrincipal Jwt jwt) {

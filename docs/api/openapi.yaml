@@ -1008,8 +1008,9 @@ paths:
                 $ref: '#/components/schemas/TaskPlanDetailEnvelope'
     patch:
       tags: [TaskPlans]
+      deprecated: true
       summary: Limited entity-field PATCH; full Draft editing uses POST /versions
-      description: Only existing milestone/task detail fields are patchable. Plan metadata and entity add/delete are not supported here.
+      description: Deprecated compatibility endpoint. No production frontend caller remains; use POST /versions for full Draft editing.
       requestBody:
         required: true
         content:
@@ -2173,7 +2174,7 @@ components:
         createdAt: { type: string, format: date-time }
     UpdateTaskPlanRequest:
       type: object
-      required: [baseVersionId, expectedVersionNo, milestones, tasks]
+      required: [baseVersionId, expectedVersionNo]
       properties:
         baseVersionId: { type: string, format: uuid }
         expectedVersionNo: { type: integer }

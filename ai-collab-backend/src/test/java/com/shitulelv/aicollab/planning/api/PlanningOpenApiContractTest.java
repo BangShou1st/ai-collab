@@ -53,6 +53,8 @@ class PlanningOpenApiContractTest {
         Map<String, Object> updateRequest = (Map<String, Object>) schemas.get("UpdateTaskPlanRequest");
         assertThat((List<String>) updateRequest.get("required"))
                 .contains("baseVersionId", "expectedVersionNo");
+        assertThat((Map<String, Object>) planPath.get("patch"))
+                .containsEntry("deprecated", true);
 
         Map<String, Object> partialRequest = (Map<String, Object>) schemas.get("PartialRegenerateRequest");
         assertThat((List<String>) partialRequest.get("required"))

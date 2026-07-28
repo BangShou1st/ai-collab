@@ -11,6 +11,7 @@ import java.util.UUID;
  * Task 8: Request body for PATCH editing a plan.
  * Uses PatchValue to distinguish omitted (no modify) from null (clear).
  */
+@Deprecated(since = "Phase 08", forRemoval = false)
 public record UpdateTaskPlanRequest(
         @NotNull UUID baseVersionId,
         long expectedVersionNo,
@@ -21,6 +22,9 @@ public record UpdateTaskPlanRequest(
         List<TaskPlanRepairPatch.TaskPatch> tasks
 ) {
     public UpdateTaskPlanRequest {
+        title = title == null ? PatchValue.absent() : title;
+        goal = goal == null ? PatchValue.absent() : goal;
+        constraints = constraints == null ? PatchValue.absent() : constraints;
         milestones = milestones == null ? List.of() : List.copyOf(milestones);
         tasks = tasks == null ? List.of() : List.copyOf(tasks);
     }
