@@ -278,10 +278,13 @@ public class TaskPlanGenerationOrchestrator {
             ValidationResult flatResult = validator.validate(repository.validationContext(plan), detail, ValidationMode.COMPLETE, true);
             ValidationAssessment assessment = toAssessment(flatResult);
             TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
+            // AI_PARTIAL when degraded to READY_WITH_ISSUES; AI_COMPLETE when fully ready
+            TaskPlanVersionSource sourceType = finalStatus == TaskPlanStatus.READY_WITH_ISSUES
+                    ? TaskPlanVersionSource.AI_PARTIAL : TaskPlanVersionSource.AI_COMPLETE;
             // Re-read plan to get fresh activeAttemptId (may have changed during repair)
             TaskPlanRecord freshPlan = repository.require(plan.projectId(), plan.id());
             TaskPlanVersionRecord versionRecord = commitService.commit(freshPlan, detail,
-                    TaskPlanVersionSource.AI_COMPLETE, assessment, finalStatus,
+                    sourceType, assessment, finalStatus,
                     "PLAN_GENERATED", actor, plan.latestVersionId());
             if (versionRecord == null) return;
             var m = generated.metrics();
