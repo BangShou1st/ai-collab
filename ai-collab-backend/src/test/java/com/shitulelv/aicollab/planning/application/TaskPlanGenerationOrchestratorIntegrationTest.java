@@ -5,6 +5,8 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.planning.api.CreateTaskPlanRequest;
 import com.shitulelv.aicollab.planning.domain.*;
+import com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRepository;
+import com.shitulelv.aicollab.planning.infrastructure.TaskPlanIssueRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanVersionRecord;
@@ -48,6 +50,10 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
     static ObjectMapper json;
     static TaskPlanOutputParser parser;
     static TaskPlanDraftValidator validator;
+    static PlanningPromptPolicy promptPolicy;
+    static GenerationOutcomeDecider outcomeDecider;
+    static TaskPlanDraftNormalizer normalizer;
+    static TaskPlanVersionCommitService commitService;
 
     @BeforeAll
     static void migrate() {
@@ -60,6 +66,12 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         tx = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
         parser = new TaskPlanOutputParser(json);
         validator = new TaskPlanDraftValidator();
+        promptPolicy = new PlanningPromptPolicy();
+        outcomeDecider = new GenerationOutcomeDecider();
+        normalizer = new TaskPlanDraftNormalizer();
+        TaskPlanIssueRepository issueRepo = new TaskPlanIssueRepository(jdbc, json);
+        TaskPlanEventRepository eventRepo = new TaskPlanEventRepository(jdbc, json);
+        commitService = new TaskPlanVersionCommitService(repository, issueRepo, eventRepo);
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -103,7 +115,8 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
-                executor, repository, modelClient, parser, validator, json, contexts);
+                executor, repository, modelClient, parser, validator, json, contexts,
+                promptPolicy, outcomeDecider, normalizer, commitService);
 
         // Create plan
         CreateTaskPlanRequest request = new CreateTaskPlanRequest(
@@ -193,7 +206,8 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
-                executor, repository, modelClient, parser, validator, json, contexts);
+                executor, repository, modelClient, parser, validator, json, contexts,
+                promptPolicy, outcomeDecider, normalizer, commitService);
 
         CreateTaskPlanRequest request = new CreateTaskPlanRequest(
                 "O2 Plan", "Goal", null,
@@ -241,7 +255,8 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
-                executor, repository, modelClient, parser, validator, json, contexts);
+                executor, repository, modelClient, parser, validator, json, contexts,
+                promptPolicy, outcomeDecider, normalizer, commitService);
 
         CreateTaskPlanRequest request = new CreateTaskPlanRequest(
                 "O3 Plan", "Goal", null,
@@ -285,7 +300,8 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
-                executor, repository, modelClient, parser, validator, json, contexts);
+                executor, repository, modelClient, parser, validator, json, contexts,
+                promptPolicy, outcomeDecider, normalizer, commitService);
 
         CreateTaskPlanRequest request = new CreateTaskPlanRequest(
                 "O4 Plan", "Goal", null,

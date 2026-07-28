@@ -15,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,8 +35,11 @@ class TaskPlanEditTest {
     @Mock TaskPlanRepository repository;
     @Mock TaskPlanDraftValidator validator;
     @Mock JdbcTemplate jdbc;
+    @Mock TaskPlanVersionCommitService commitService;
 
     private TaskPlanCommandService service;
+    private final TaskPlanDraftNormalizer normalizer = new TaskPlanDraftNormalizer();
+    private final GenerationOutcomeDecider outcomeDecider = new GenerationOutcomeDecider();
 
     private final UUID projectId = UUID.randomUUID();
     private final UUID planId = UUID.randomUUID();
@@ -45,7 +49,7 @@ class TaskPlanEditTest {
     @BeforeEach
     void setUp() {
         service = new TaskPlanCommandService(access, repository, null, validator, jdbc,
-                null, null, null);
+                null, null, null, normalizer, outcomeDecider, commitService, null, null);
     }
 
     private TaskPlanRecord readyPlan() {
@@ -87,8 +91,10 @@ class TaskPlanEditTest {
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
-        when(repository.appendVersion(any(), any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(UUID.randomUUID());
+        UUID newVersionId = UUID.randomUUID();
+        when(commitService.commit(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "USER_EDIT", versionId, 2L,
+                        "summary", "[]", "[]", "[]", "[]", "[]", "{}", actorId, null));
 
         UpdateTaskPlanRequest request = new UpdateTaskPlanRequest(
                 versionId, 1, null, null, null, List.of(),
@@ -99,8 +105,8 @@ class TaskPlanEditTest {
 
         UUID result = service.edit(projectId, planId, request, actorId);
         assertNotNull(result);
-        verify(repository).appendVersion(any(), any(), any(), eq("USER_EDIT"),
-                any(), any(), any(), any());
+        verify(commitService).commit(eq(readyPlan()), any(), eq(TaskPlanVersionSource.USER_EDIT),
+                any(), any(), eq("TASK_PLAN_USER_EDITED"), eq(actorId), eq(versionId));
     }
 
     @Test
@@ -113,18 +119,19 @@ class TaskPlanEditTest {
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
-        when(repository.appendVersion(any(), any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(UUID.randomUUID());
+        UUID newVersionId = UUID.randomUUID();
+        when(commitService.commit(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "USER_EDIT", versionId, 2L,
+                        "summary", "[]", "[]", "[]", "[]", "[]", "{}", actorId, null));
 
         UpdateTaskPlanRequest request = new UpdateTaskPlanRequest(
                 versionId, 1, null, null, null, List.of(), List.of());
 
         service.edit(projectId, planId, request, actorId);
 
-        // Verify appendVersion was called with USER_EDIT type
-        verify(repository).appendVersion(
-                eq(projectId), eq(planId), eq(versionId),
-                eq("USER_EDIT"), eq(versionId), any(), eq(actorId), any());
+        // Verify commit was called with USER_EDIT source
+        verify(commitService).commit(eq(readyPlan()), any(), eq(TaskPlanVersionSource.USER_EDIT),
+                any(), any(), eq("TASK_PLAN_USER_EDITED"), eq(actorId), eq(versionId));
     }
 
     @Test
@@ -164,8 +171,10 @@ class TaskPlanEditTest {
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
-        when(repository.appendVersion(any(), any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(UUID.randomUUID());
+        UUID newVersionId = UUID.randomUUID();
+        when(commitService.commit(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "USER_EDIT", versionId, 2L,
+                        "summary", "[]", "[]", "[]", "[]", "[]", "{}", actorId, null));
 
         UpdateTaskPlanRequest request = new UpdateTaskPlanRequest(
                 versionId, 1, null, null, null, List.of(), List.of());
