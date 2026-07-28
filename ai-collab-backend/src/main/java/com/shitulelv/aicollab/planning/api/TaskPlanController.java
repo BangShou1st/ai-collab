@@ -6,6 +6,7 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.planning.application.TaskPlanCommandService;
 import com.shitulelv.aicollab.planning.application.TaskPlanConfirmationService;
 import com.shitulelv.aicollab.planning.application.TaskPlanQueryService;
+import com.shitulelv.aicollab.planning.api.PartialRegenerateRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -81,6 +82,25 @@ public class TaskPlanController {
     @DeleteMapping("/{planId}") public ResponseEntity<Void> delete(@PathVariable UUID projectId,
             @PathVariable UUID planId, @AuthenticationPrincipal Jwt jwt) {
         commands.delete(projectId, planId, userId(jwt)); return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{planId}") public ApiResponse<?> edit(@PathVariable UUID projectId,
+            @PathVariable UUID planId, @Valid @RequestBody UpdateTaskPlanRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(commands.edit(projectId, planId, request, userId(jwt)));
+    }
+
+    @PostMapping("/{planId}/partial-regenerate") public ResponseEntity<ApiResponse<?>> partialRegenerate(
+            @PathVariable UUID projectId, @PathVariable UUID planId,
+            @Valid @RequestBody PartialRegenerateRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.accepted().body(ApiResponse.success(
+                commands.partialRegenerate(projectId, planId, request, userId(jwt))));
+    }
+
+    @GetMapping("/{planId}/events") public ApiResponse<?> events(@PathVariable UUID projectId,
+            @PathVariable UUID planId, @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(queries.events(projectId, planId, userId(jwt)));
     }
     private static UUID userId(Jwt jwt) {
         try { return UUID.fromString(jwt.getSubject()); }

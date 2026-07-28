@@ -81,6 +81,7 @@ public enum ErrorCode {
     PLANNING_DOCUMENT_NOT_READY(HttpStatus.CONFLICT, "所选规划文档尚未就绪"),
     PLANNING_DOCUMENT_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "规划最多选择 10 个文档"),
     PLANNING_QUEUE_FULL(HttpStatus.SERVICE_UNAVAILABLE, "规划生成队列已满"),
+    TASK_PLAN_HAS_BLOCKING_ISSUES(HttpStatus.CONFLICT, "规划仍有需要处理的问题，解决后才能创建正式任务"),
     VERSION_CONFLICT(HttpStatus.CONFLICT, "数据已被其他请求修改，请刷新后重试"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "系统内部错误");
 

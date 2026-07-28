@@ -1130,6 +1130,97 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
+  /projects/{projectId}/ai/task-plans/{planId}:
+    x-implementation-status: implemented
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PlanId'
+    patch:
+      tags: [TaskPlans]
+      summary: Edit plan with PATCH semantics (atomic version + issues + event)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskPlanRequest'
+      responses:
+        '200':
+          description: Plan edited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Version conflict or state conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [TaskPlans]
+      summary: Delete a plan
+      responses:
+        '200': { description: Plan deleted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /projects/{projectId}/ai/task-plans/{planId}/partial-regenerate:
+    x-implementation-status: implemented
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PlanId'
+    post:
+      tags: [TaskPlans]
+      summary: Partially regenerate selected fields via scoped AI repair
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartialRegenerateRequest'
+      responses:
+        '200':
+          description: Partial regeneration completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Version conflict or state conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /projects/{projectId}/ai/task-plans/{planId}/events:
+    x-implementation-status: implemented
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/PlanId'
+    get:
+      tags: [TaskPlans]
+      summary: Get plan audit events
+      responses:
+        '200':
+          description: Events list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/TaskPlanEventView' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /projects/{projectId}/ai/task-plans/{planId}/confirm:
     x-implementation-status: implemented
     parameters:
@@ -1890,7 +1981,7 @@ components:
         constraints: { type: string, maxLength: 4000 }
     TaskPlanStatus:
       type: string
-      enum: [SKELETON_GENERATING, DETAIL_GENERATING, DETAIL_GENERATION_FAILED, READY, CONFIRMING, CONFIRMED, FAILED, CANCELED]
+      enum: [SKELETON_GENERATING, DETAIL_GENERATING, REPAIRING, DETAIL_GENERATION_FAILED, READY, READY_WITH_ISSUES, CONFIRMING, CONFIRMED, FAILED, CANCELED]
     MilestoneDraft:
       type: object
       required: [tempKey, title, objective, sortOrder, sourceRefs]
@@ -2008,7 +2099,7 @@ components:
               items: { $ref: '#/components/schemas/TaskPlanView' }
     TaskPlanPermissions:
       type: object
-      required: [canEdit, canCancel, canRetryDetail, canRegenerate, canConfirm, canDelete, canRestore]
+      required: [canEdit, canCancel, canRetryDetail, canRegenerate, canConfirm, canDelete, canRestore, canPartialRegenerate]
       properties:
         canEdit: { type: boolean }
         canCancel: { type: boolean }
@@ -2017,6 +2108,7 @@ components:
         canConfirm: { type: boolean }
         canDelete: { type: boolean }
         canRestore: { type: boolean }
+        canPartialRegenerate: { type: boolean }
     TaskPlanDetailEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
@@ -2033,6 +2125,9 @@ components:
                 confirmation: { $ref: '#/components/schemas/TaskPlanConfirmationView' }
                 validation: { $ref: '#/components/schemas/TaskPlanValidationView' }
                 permissions: { $ref: '#/components/schemas/TaskPlanPermissions' }
+                structuredIssues:
+                  type: array
+                  items: { $ref: '#/components/schemas/TaskPlanValidationIssueView' }
     TaskPlanVersionView:
       type: object
       properties:
@@ -2071,6 +2166,98 @@ components:
       properties:
         errors: { type: array, items: { type: string } }
         warnings: { type: array, items: { type: string } }
+    TaskPlanValidationIssueView:
+      type: object
+      properties:
+        code: { type: string }
+        severity: { type: string, enum: [HARD, BLOCKING_EDITABLE, WARNING] }
+        targetType: { type: [string, 'null'], enum: [PLAN, MILESTONE, TASK] }
+        targetTempKey: { type: [string, 'null'] }
+        field: { type: [string, 'null'] }
+        relatedTempKey: { type: [string, 'null'] }
+        safeDetails: { type: object, additionalProperties: true }
+    TaskPlanEventView:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        planId: { type: string, format: uuid }
+        fromVersionId: { type: [string, 'null'], format: uuid }
+        toVersionId: { type: [string, 'null'], format: uuid }
+        actorId: { type: [string, 'null'], format: uuid }
+        eventType: { type: string }
+        changedFields: { type: array, items: { type: string } }
+        issueCodes: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+    UpdateTaskPlanRequest:
+      type: object
+      required: [baseVersionId, milestones, tasks]
+      properties:
+        baseVersionId: { type: string, format: uuid }
+        expectedVersionNo: { type: integer }
+        title: { type: [object, 'null'] }
+        milestones:
+          type: array
+          items:
+            type: object
+            required: [tempKey]
+            properties:
+              tempKey: { type: string }
+              description: { $ref: '#/components/schemas/PatchString' }
+              targetDate: { $ref: '#/components/schemas/PatchString' }
+              sourceRefs: { $ref: '#/components/schemas/PatchStringList' }
+        tasks:
+          type: array
+          items:
+            type: object
+            required: [tempKey]
+            properties:
+              tempKey: { type: string }
+              description: { $ref: '#/components/schemas/PatchString' }
+              priority: { $ref: '#/components/schemas/PatchString' }
+              estimatedHours: { $ref: '#/components/schemas/PatchNumber' }
+              startDate: { $ref: '#/components/schemas/PatchString' }
+              dueDate: { $ref: '#/components/schemas/PatchString' }
+              suggestedAssigneeId: { $ref: '#/components/schemas/PatchUuid' }
+              dependencyTempKeys: { $ref: '#/components/schemas/PatchStringList' }
+              sourceRefs: { $ref: '#/components/schemas/PatchStringList' }
+    PatchString:
+      type: object
+      properties:
+        present: { type: boolean }
+        value: { type: [string, 'null'] }
+    PatchNumber:
+      type: object
+      properties:
+        present: { type: boolean }
+        value: { type: [number, 'null'] }
+    PatchUuid:
+      type: object
+      properties:
+        present: { type: boolean }
+        value: { type: [string, 'null'], format: uuid }
+    PatchStringList:
+      type: object
+      properties:
+        present: { type: boolean }
+        value: { type: [array, 'null'], items: { type: string } }
+    PartialRegenerateRequest:
+      type: object
+      required: [baseVersionId]
+      properties:
+        baseVersionId: { type: string, format: uuid }
+        targetTempKeys:
+          type: array
+          items: { type: string }
+        allowedFields:
+          type: array
+          items: { type: string }
+        lockedFields:
+          type: array
+          items: { type: string }
+        issueIds:
+          type: array
+          items: { type: string, format: uuid }
+        mode: { type: string }
     ApplyTaskPlanResult:
       type: object
       required: [confirmationId, status]

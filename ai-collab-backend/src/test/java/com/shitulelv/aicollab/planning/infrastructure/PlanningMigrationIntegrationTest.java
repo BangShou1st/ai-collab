@@ -137,8 +137,9 @@ class PlanningMigrationIntegrationTest {
         jdbc.update("UPDATE ai_task_plan SET latest_version_no=1,latest_version_id=? WHERE id=?", version, plan);
 
         var repository = new TaskPlanRepository(jdbc, new ObjectMapper().findAndRegisterModules());
+        var issueRepo = new TaskPlanIssueRepository(jdbc, new ObjectMapper().findAndRegisterModules());
         var service = new TaskPlanConfirmationService(adminGuard(), repository, jdbc,
-                new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), mock(AuditService.class));
+                new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), issueRepo, mock(AuditService.class));
         UUID firstKey = UUID.randomUUID();
 
         Map<String, Object> first = service.confirm(project, plan, version, firstKey, user);
@@ -185,8 +186,9 @@ class PlanningMigrationIntegrationTest {
             AuditService failingAudit = mock(AuditService.class);
             doThrow(new IllegalStateException("injected audit failure")).when(failingAudit)
                     .write(any(), any(), anyString(), anyString(), any());
+            var issueRepo2 = new TaskPlanIssueRepository(jdbc, new ObjectMapper().findAndRegisterModules());
             var service = new TaskPlanConfirmationService(adminGuard(), repository, jdbc,
-                    new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), failingAudit);
+                    new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), issueRepo2, failingAudit);
 
             assertThatThrownBy(() -> service.confirm(project, plan, version, UUID.randomUUID(), user))
                     .isInstanceOf(Exception.class);
