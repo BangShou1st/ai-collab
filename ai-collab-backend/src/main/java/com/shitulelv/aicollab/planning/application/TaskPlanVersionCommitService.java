@@ -53,7 +53,7 @@ public class TaskPlanVersionCommitService {
                 plan.projectId(), plan.id(), plan.generationSeq(),
                 plan.activeAttemptId(), plan.status(),
                 source.name(), fromVersionId, draft, actorId,
-                assessment.toFlat());
+                assessment.toFlat(), finalStatus);
         if (versionId == null) return null;
 
         // 2. Replace issues for this version
@@ -80,6 +80,13 @@ public class TaskPlanVersionCommitService {
     @Transactional
     public void appendIssues(UUID planId, UUID versionId, List<StructuredValidationIssue> issues) {
         issueRepo.replaceForVersion(planId, versionId, issues);
+    }
+
+    /**
+     * Find all issues for a version.
+     */
+    public List<StructuredValidationIssue> findByVersion(UUID planId, UUID versionId) {
+        return issueRepo.findByVersion(planId, versionId);
     }
 
     /**

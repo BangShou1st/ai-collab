@@ -58,7 +58,7 @@ class Phase08EditableDegradationIntegrationTest {
         patchParser = new TaskPlanRepairPatchParser(new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules());
         patchApplier = new TaskPlanRepairPatchApplier();
         commands = new TaskPlanCommandService(access, repository, orchestrator, validator, jdbc,
-                null, null, audit, normalizer, decider, commitService, patchParser, patchApplier);
+                null, null, audit, normalizer, decider, commitService, patchParser, patchApplier, null);
         queries = new TaskPlanQueryService(access, repository, issueRepo, eventRepo, jdbc);
     }
 
@@ -126,7 +126,7 @@ class Phase08EditableDegradationIntegrationTest {
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
-        when(repository.appendGeneratedVersion(any(), any(), anyLong(), any(), any(), any(), any(), any(), any(), any()))
+        when(repository.appendGeneratedVersion(any(), any(), anyLong(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(versionId);
 
         UpdateTaskPlanRequest request = new UpdateTaskPlanRequest(
@@ -215,7 +215,7 @@ class Phase08EditableDegradationIntegrationTest {
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
-        when(repository.appendGeneratedVersion(any(), any(), anyLong(), any(), any(), any(), any(), any(), any(), any()))
+        when(repository.appendGeneratedVersion(any(), any(), anyLong(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(versionId);
 
         UpdateTaskPlanRequest request = new UpdateTaskPlanRequest(

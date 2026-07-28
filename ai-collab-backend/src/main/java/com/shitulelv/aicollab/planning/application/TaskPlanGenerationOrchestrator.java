@@ -17,6 +17,8 @@ import com.shitulelv.aicollab.planning.domain.TaskPlanVersionSource;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidator.ValidationMode;
 import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
 import com.shitulelv.aicollab.planning.domain.ValidationAssessment;
+import com.shitulelv.aicollab.planning.domain.ValidationIssueCatalog;
+import com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity;
 import com.shitulelv.aicollab.planning.domain.ValidationResult;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
@@ -234,7 +236,8 @@ public class TaskPlanGenerationOrchestrator {
             UUID skeletonVersion = repository.appendGeneratedVersion(
                     plan.projectId(), plan.id(), plan.generationSeq(), generated.attemptId(),
                     TaskPlanStatus.SKELETON_GENERATING, "AI_SKELETON", null, skeleton, actor,
-                    validator.validate(repository.validationContext(plan), skeleton, ValidationMode.AI_SKELETON));
+                    validator.validate(repository.validationContext(plan), skeleton, ValidationMode.AI_SKELETON),
+                    TaskPlanStatus.DETAIL_GENERATING);
             if (skeletonVersion == null) return;
             var m = generated.metrics();
             repository.finishAttempt(generated.attemptId(), "SUCCESS", null,
@@ -275,7 +278,9 @@ public class TaskPlanGenerationOrchestrator {
             ValidationResult flatResult = validator.validate(repository.validationContext(plan), detail, ValidationMode.COMPLETE, true);
             ValidationAssessment assessment = toAssessment(flatResult);
             TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
-            TaskPlanVersionRecord versionRecord = commitService.commit(plan, detail,
+            // Re-read plan to get fresh activeAttemptId (may have changed during repair)
+            TaskPlanRecord freshPlan = repository.require(plan.projectId(), plan.id());
+            TaskPlanVersionRecord versionRecord = commitService.commit(freshPlan, detail,
                     TaskPlanVersionSource.AI_COMPLETE, assessment, finalStatus,
                     "PLAN_GENERATED", actor, plan.latestVersionId());
             if (versionRecord == null) return;
@@ -399,7 +404,16 @@ public class TaskPlanGenerationOrchestrator {
             DetailModelOutput repaired = parser.parseDetail(repairResult.content());
             ValidationResult repairValidation = valid.validate(repaired);
             if (!repairValidation.valid()) {
-                // Second failure — include validation codes in exception for safe error summary
+                // Second failure — check if original had only BLOCKING_EDITABLE issues
+                // If so, use original detail and degrade to READY_WITH_ISSUES
+                if (contractError != null && contractError.validationCodes().stream()
+                        .allMatch(code -> ValidationIssueCatalog.severityOrDefault(code)
+                                == ValidationIssueSeverity.BLOCKING_EDITABLE)) {
+                    // Return original detail with repairAttempt (initialAttempt is already FAILED)
+                    return new GeneratedDetail(
+                            parser.parseDetail(result.content()), repairAttempt, result);
+                }
+                // HARD errors remain — fail
                 throw new ModelOutputContractException("DOMAIN_VALIDATION_FAILED", null,
                         repairValidation.errorCodes());
             }
