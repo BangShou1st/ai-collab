@@ -16,6 +16,8 @@ import java.util.UUID;
  */
 @Repository
 public class TaskPlanIssueRepository {
+    public record PersistedIssue(UUID id, StructuredValidationIssue issue) {}
+
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
 
@@ -62,6 +64,40 @@ public class TaskPlanIssueRepository {
                 rs.getString("related_temp_key"),
                 parseJson(rs.getString("safe_details_json"))
         ), planId, versionId);
+    }
+
+    public List<PersistedIssue> findUnresolved(UUID planId, UUID versionId, List<UUID> issueIds) {
+        if (issueIds == null || issueIds.isEmpty()) {
+            return jdbc.query("""
+                    SELECT id,code,severity,target_type,target_temp_key,field_name,related_temp_key,safe_details_json
+                    FROM ai_task_plan_validation_issue
+                    WHERE plan_id=? AND version_id=? AND resolved=false AND severity!='WARNING'
+                    ORDER BY created_at
+                    """, this::persistedIssue, planId, versionId);
+        }
+        String placeholders = String.join(",", java.util.Collections.nCopies(issueIds.size(), "?"));
+        java.util.ArrayList<Object> args = new java.util.ArrayList<>();
+        args.add(planId);
+        args.add(versionId);
+        args.addAll(issueIds);
+        return jdbc.query("""
+                SELECT id,code,severity,target_type,target_temp_key,field_name,related_temp_key,safe_details_json
+                FROM ai_task_plan_validation_issue
+                WHERE plan_id=? AND version_id=? AND resolved=false AND severity!='WARNING'
+                  AND id IN (%s)
+                ORDER BY created_at
+                """.formatted(placeholders), this::persistedIssue, args.toArray());
+    }
+
+    private PersistedIssue persistedIssue(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
+        return new PersistedIssue(rs.getObject("id", UUID.class), new StructuredValidationIssue(
+                rs.getString("code"),
+                ValidationIssueSeverity.valueOf(rs.getString("severity")),
+                rs.getString("target_type"),
+                rs.getString("target_temp_key"),
+                rs.getString("field_name"),
+                rs.getString("related_temp_key"),
+                parseJson(rs.getString("safe_details_json"))));
     }
 
     /**

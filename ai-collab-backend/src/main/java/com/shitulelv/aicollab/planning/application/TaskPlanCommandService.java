@@ -78,6 +78,7 @@ public class TaskPlanCommandService {
     private final TaskPlanRepairPatchApplier patchApplier;
     private final TaskPlanModelClient modelClient;
     private final com.fasterxml.jackson.databind.ObjectMapper json;
+    private final TaskPlanPartialRepairService partialRepairService;
 
     public TaskPlanCommandService(ProjectAccessGuard access, TaskPlanRepository repository,
                                   TaskPlanGenerationOrchestrator orchestrator,
@@ -86,9 +87,10 @@ public class TaskPlanCommandService {
                                   PlanningAttemptThrottle attemptThrottle, AuditService audit,
                                   TaskPlanDraftNormalizer normalizer, GenerationOutcomeDecider outcomeDecider,
                                   TaskPlanVersionCommitService commitService,
-                                  TaskPlanRepairPatchParser patchParser, TaskPlanRepairPatchApplier patchApplier,
-                                  TaskPlanModelClient modelClient,
-                                  com.fasterxml.jackson.databind.ObjectMapper json) {
+                                   TaskPlanRepairPatchParser patchParser, TaskPlanRepairPatchApplier patchApplier,
+                                   TaskPlanModelClient modelClient,
+                                   com.fasterxml.jackson.databind.ObjectMapper json,
+                                   TaskPlanPartialRepairService partialRepairService) {
         this.access = access; this.repository = repository; this.orchestrator = orchestrator;
         this.validator = validator; this.jdbc = jdbc;
         this.quotaService = quotaService;
@@ -99,6 +101,7 @@ public class TaskPlanCommandService {
         this.patchParser = patchParser; this.patchApplier = patchApplier;
         this.modelClient = modelClient;
         this.json = json;
+        this.partialRepairService = partialRepairService;
     }
 
     /**
@@ -379,138 +382,8 @@ public class TaskPlanCommandService {
      * Only latest version can be partially regenerated.
      * Real implementation: builds repair scope, calls model for patch, applies patch, normalizes, validates, commits atomically.
      */
-    @Transactional
     public TaskPlanRecord partialRegenerate(UUID projectId, UUID planId, PartialRegenerateRequest request, UUID actor) {
-        access.requireAdmin(projectId, actor);
-        TaskPlanRecord plan = repository.require(projectId, planId);
-        // Only READY or READY_WITH_ISSUES
-        if (!List.of("READY", "READY_WITH_ISSUES").contains(plan.status().name())) {
-            throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
-        }
-        // Only latest version
-        if (!request.baseVersionId().equals(plan.latestVersionId())) {
-            throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
-        }
-        // Load current draft
-        TaskPlanVersionRecord baseVersion = repository.requireVersion(projectId, planId, request.baseVersionId());
-        TaskPlanDraft currentDraft = repository.draft(baseVersion);
-        // Load selected issues for repair context
-        List<StructuredValidationIssue> selectedIssues = loadSelectedIssues(planId, request.baseVersionId(),
-                request.targetTempKeys());
-        // Build repair scope from issues
-        RepairScope scope = buildRepairScope(selectedIssues, request.allowedFields(), request.lockedFields());
-        // Validate targetTempKeys exist in draft
-        validateTargetTempKeys(scope, currentDraft);
-        // Build patch-only prompt and call model
-        String patchPrompt = buildPatchPrompt(currentDraft, scope, selectedIssues);
-        GenerationResult patchResult = modelClient.generate(
-                REPAIR_SYSTEM, patchPrompt, "TASK_PLAN_REPAIR_PATCH",
-                actor, projectId, baseVersion.id());
-        // Parse patch
-        TaskPlanRepairPatch patch = patchParser.parse(patchResult.content());
-        // Collect valid members and sources for applier validation
-        Set<UUID> validMembers = new HashSet<>(jdbc.queryForList(
-                "SELECT user_id FROM project_member WHERE project_id=?", UUID.class, projectId));
-        Set<String> validSourceRefs = currentDraft.sources().stream()
-                .map(PlanSource::ref).collect(java.util.stream.Collectors.toSet());
-        // Apply patch
-        TaskPlanDraft patched = patchApplier.apply(currentDraft, patch, scope, validMembers, validSourceRefs);
-        // Normalize
-        TaskPlanDraft normalized = normalizer.normalize(patched);
-        // Validate
-        LocalDate[] projectDates = jdbc.queryForObject("SELECT start_date,due_date FROM project WHERE id=?",
-                (rs, row) -> new LocalDate[]{rs.getObject(1, LocalDate.class), rs.getObject(2, LocalDate.class)}, projectId);
-        ValidationAssessment assessment = validator.assess(
-                new ValidationContext(projectDates[0], projectDates[1],
-                        plan.planStartDate(), plan.planDueDate(), plan.maxTaskCount(), validMembers, Set.of()),
-                normalized, TaskPlanDraftValidator.ValidationMode.COMPLETE, false);
-        // Determine outcome
-        TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
-        // Atomic commit: version + issues + event + status (interactive path — no attempt)
-        TaskPlanVersionRecord versionRecord = commitService.commitVersion(plan, normalized,
-                TaskPlanVersionSource.AI_PARTIAL_REPAIR, assessment, finalStatus,
-                "PARTIAL_REPAIR", actor, request.baseVersionId());
-        if (versionRecord == null) {
-            throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
-        }
-        return repository.require(projectId, planId);
-    }
-
-    /** Load structured issues for the given version, filtered by target tempKeys. */
-    private List<StructuredValidationIssue> loadSelectedIssues(UUID planId, UUID versionId,
-                                                               List<String> targetTempKeys) {
-        List<StructuredValidationIssue> allIssues = commitService.findByVersion(planId, versionId);
-        if (targetTempKeys == null || targetTempKeys.isEmpty()) {
-            return allIssues.stream()
-                    .filter(i -> i.severity() != ValidationIssueSeverity.WARNING)
-                    .toList();
-        }
-        Set<String> targetSet = new HashSet<>(targetTempKeys);
-        return allIssues.stream()
-                .filter(i -> i.severity() != ValidationIssueSeverity.WARNING)
-                .filter(i -> i.targetTempKey() != null && targetSet.contains(i.targetTempKey()))
-                .toList();
-    }
-
-    /** Build RepairScope from structured issues, allowed fields, and locked fields. */
-    private RepairScope buildRepairScope(List<StructuredValidationIssue> issues,
-                                         Set<String> allowedFields, Set<String> lockedFields) {
-        java.util.Set<String> targetTempKeys = new java.util.HashSet<>();
-        java.util.Map<String, java.util.Set<String>> allowedFieldsMap = new java.util.HashMap<>();
-        for (StructuredValidationIssue issue : issues) {
-            if (issue.targetTempKey() != null) {
-                targetTempKeys.add(issue.targetTempKey());
-                java.util.Set<String> fields = new java.util.HashSet<>(
-                        ValidationIssueCatalog.repairableFields(issue.code()));
-                if (issue.field() != null) fields.add(issue.field());
-                allowedFieldsMap.merge(issue.targetTempKey(), fields, (a, b) -> { a.addAll(b); return a; });
-            }
-        }
-        // Add explicitly allowed fields
-        for (String field : allowedFields) {
-            for (String target : targetTempKeys) {
-                allowedFieldsMap.computeIfAbsent(target, k -> new java.util.HashSet<>()).add(field);
-            }
-        }
-        java.util.Set<String> locked = new java.util.HashSet<>(RepairScope.ALWAYS_LOCKED);
-        locked.addAll(lockedFields);
-        return new RepairScope(targetTempKeys, allowedFieldsMap, locked);
-    }
-
-    /** Build a prompt for the model to generate a scoped repair patch. */
-    private String buildPatchPrompt(TaskPlanDraft draft, RepairScope scope,
-                                     List<StructuredValidationIssue> issues) {
-        try {
-            String draftJson = json.writeValueAsString(draft);
-            String issueSummary = issues.stream()
-                    .map(i -> i.code() + " on " + i.targetTempKey() + "." + i.field())
-                    .reduce((a, b) -> a + "; " + b).orElse("none");
-            return "<UNTRUSTED_DRAFT_BASE64>\n"
-                    + java.util.Base64.getEncoder().encodeToString(
-                            draftJson.getBytes(java.nio.charset.StandardCharsets.UTF_8))
-                    + "\n</UNTRUSTED_DRAFT_BASE64>\n"
-                    + "targetTempKeys=" + scope.targetTempKeys() + "\n"
-                    + "allowedFields=" + scope.allowedFields() + "\n"
-                    + "lockedFields=" + scope.lockedFields() + "\n"
-                    + "issues=" + issueSummary + "\n"
-                    + "<JSON_SCHEMA>\n" + REPAIR_PATCH_SCHEMA + "\n</JSON_SCHEMA>\n"
-                    + "只输出 JSON。修改指定字段以修复问题，不得修改锁定字段。";
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    /** Validate that all targetTempKeys in scope exist in the draft. */
-    private void validateTargetTempKeys(RepairScope scope, TaskPlanDraft draft) {
-        Set<String> draftKeys = new HashSet<>();
-        for (var m : draft.milestones()) draftKeys.add(m.tempKey());
-        for (var t : draft.tasks()) draftKeys.add(t.tempKey());
-        for (String key : scope.targetTempKeys()) {
-            if (!draftKeys.contains(key)) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                        "未知的 targetTempKey: " + key);
-            }
-        }
+        return partialRepairService.start(projectId, planId, request, actor);
     }
 
     private void safeAudit(UUID projectId, UUID actor, String action, String entityType, UUID entityId) {

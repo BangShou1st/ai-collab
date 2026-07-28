@@ -116,6 +116,26 @@ public class TaskPlanVersionCommitService {
         return repository.requireVersion(plan.projectId(), plan.id(), versionId);
     }
 
+    @Transactional
+    public TaskPlanVersionRecord commitPartialRepair(
+            TaskPlanRecord repairingPlan,
+            TaskPlanDraft draft,
+            ValidationAssessment assessment,
+            TaskPlanStatus finalStatus,
+            UUID actorId,
+            UUID expectedBase,
+            GenerationResult metrics) {
+        TaskPlanVersionRecord version = commit(
+                repairingPlan, draft, TaskPlanVersionSource.AI_PARTIAL_REPAIR,
+                assessment, finalStatus, "PARTIAL_REPAIR", actorId, expectedBase);
+        if (version != null) {
+            repository.finishAttempt(repairingPlan.activeAttemptId(), "SUCCESS", null,
+                    metrics.provider(), metrics.model(), metrics.latencyMs(),
+                    metrics.promptTokens(), metrics.completionTokens(), null);
+        }
+        return version;
+    }
+
     /**
      * Append issues for an already-saved version (e.g., after re-validation).
      */

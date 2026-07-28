@@ -59,7 +59,7 @@ class Phase08EditableDegradationIntegrationTest {
         patchApplier = new TaskPlanRepairPatchApplier();
         commands = new TaskPlanCommandService(access, repository, orchestrator, validator, jdbc,
                 null, null, audit, normalizer, decider, commitService, patchParser, patchApplier, null,
-                new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules());
+                new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules(), null);
         queries = new TaskPlanQueryService(access, repository, issueRepo, eventRepo, jdbc);
     }
 
@@ -235,7 +235,7 @@ class Phase08EditableDegradationIntegrationTest {
         when(repository.draft(versionRecord())).thenReturn(validDraft());
 
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                versionId, List.of("T1"), Set.of("startDate"), Set.of(),
+                versionId, 1, List.of("T1"), Set.of("startDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_ALL_ISSUES);
 
         // Currently throws because real scoped repair is being integrated
