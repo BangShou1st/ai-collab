@@ -66,6 +66,15 @@ public class TaskPlanIssueRepository {
         ), planId, versionId);
     }
 
+    public List<PersistedIssue> findPersistedByVersion(UUID planId, UUID versionId) {
+        return jdbc.query("""
+                SELECT id,code,severity,target_type,target_temp_key,field_name,related_temp_key,safe_details_json
+                FROM ai_task_plan_validation_issue
+                WHERE plan_id=? AND version_id=? AND resolved=false
+                ORDER BY created_at
+                """, this::persistedIssue, planId, versionId);
+    }
+
     public List<PersistedIssue> findUnresolved(UUID planId, UUID versionId, List<UUID> issueIds) {
         if (issueIds == null || issueIds.isEmpty()) {
             return jdbc.query("""
