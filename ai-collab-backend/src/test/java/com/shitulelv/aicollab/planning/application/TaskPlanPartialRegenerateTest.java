@@ -35,6 +35,7 @@ class TaskPlanPartialRegenerateTest {
     @Mock TaskPlanGenerationOrchestrator orchestrator;
     @Mock TaskPlanIssueRepository issueRepo;
     @Mock TaskPlanEventRepository eventRepo;
+    @Mock TaskPlanPartialRepairService partialRepairService;
 
     private TaskPlanCommandService service;
     private TaskPlanVersionCommitService commitService;
@@ -50,7 +51,7 @@ class TaskPlanPartialRegenerateTest {
         service = new TaskPlanCommandService(access, repository, orchestrator, null, null,
                 null, null, null, new TaskPlanDraftNormalizer(), new GenerationOutcomeDecider(),
                 commitService, new TaskPlanRepairPatchParser(new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()),
-                new TaskPlanRepairPatchApplier(), null, null);
+                new TaskPlanRepairPatchApplier(), null, null, partialRepairService);
     }
 
     private TaskPlanRecord readyPlan() {
@@ -71,11 +72,12 @@ class TaskPlanPartialRegenerateTest {
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 10, 1), 20, "[]",
                 TaskPlanStatus.CONFIRMING, 1, versionId, 1L, null, actorId,
                 null, null, null, null);
-        when(repository.require(projectId, planId)).thenReturn(confirmingPlan);
-
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                versionId, List.of(), Set.of(), Set.of(),
+                versionId, 1, List.of(), Set.of(), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_ALL_ISSUES);
+        when(partialRepairService.start(projectId, planId, request, actorId))
+                .thenThrow(new com.shitulelv.aicollab.common.exception.BusinessException(
+                        com.shitulelv.aicollab.common.exception.ErrorCode.TASK_PLAN_STATE_CONFLICT));
 
         assertThrows(Exception.class,
                 () -> service.partialRegenerate(projectId, planId, request, actorId));
@@ -84,30 +86,31 @@ class TaskPlanPartialRegenerateTest {
     @Test
     void partialRegenerateRejectsStaleVersion() {
         UUID staleVersion = UUID.randomUUID();
-        when(repository.require(projectId, planId)).thenReturn(readyPlan());
-
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                staleVersion, List.of("T1"), Set.of("startDate"), Set.of(),
+                staleVersion, 1, List.of("T1"), Set.of("startDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_ALL_ISSUES);
+        when(partialRepairService.start(projectId, planId, request, actorId))
+                .thenThrow(new com.shitulelv.aicollab.common.exception.BusinessException(
+                        com.shitulelv.aicollab.common.exception.ErrorCode.PLAN_VERSION_CONFLICT));
 
         assertThrows(Exception.class,
                 () -> service.partialRegenerate(projectId, planId, request, actorId));
     }
 
     @Test
-    void partialRegenerateCurrentlyThrowsNotReady() {
-        when(repository.require(projectId, planId)).thenReturn(readyPlan());
-        when(repository.requireVersion(projectId, planId, versionId)).thenReturn(versionRecord());
-        when(repository.draft(versionRecord())).thenReturn(
-                new com.shitulelv.aicollab.planning.domain.TaskPlanDraft(
-                        "summary", List.of(), List.of(), List.of(), List.of(), List.of()));
-
+    void partialRegenerateDelegatesToAsynchronousRepairService() {
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                versionId, List.of("T1"), Set.of("startDate"), Set.of(),
+                versionId, 1, List.of("T1"), Set.of("startDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_ALL_ISSUES);
+        TaskPlanRecord repairing = new TaskPlanRecord(
+                planId, projectId, "title", "goal", "constraints",
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 10, 1), 20, "[]",
+                TaskPlanStatus.REPAIRING, 1, versionId, 1L, UUID.randomUUID(), actorId,
+                null, null, null, null);
+        when(partialRepairService.start(projectId, planId, request, actorId)).thenReturn(repairing);
 
-        // Currently throws because real scoped repair is being integrated
-        assertThrows(Exception.class,
-                () -> service.partialRegenerate(projectId, planId, request, actorId));
+        assertEquals(TaskPlanStatus.REPAIRING,
+                service.partialRegenerate(projectId, planId, request, actorId).status());
+        verify(partialRepairService).start(projectId, planId, request, actorId);
     }
 }

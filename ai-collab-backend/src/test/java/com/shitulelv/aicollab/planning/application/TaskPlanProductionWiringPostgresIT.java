@@ -401,7 +401,7 @@ class TaskPlanProductionWiringPostgresIT {
                 mock(com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard.class),
                 repository, orchestrator, validator, jdbc,
                 null, null, mock(com.shitulelv.aicollab.project.application.service.AuditService.class),
-                normalizer, outcomeDecider, commitService, patchParser, patchApplier, null, json);
+                normalizer, outcomeDecider, commitService, patchParser, patchApplier, null, json, null);
         // Bypass access guard
         doNothing().when(mock(com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard.class))
                 .requireAdmin(projectId, userId);
@@ -608,7 +608,7 @@ class TaskPlanProductionWiringPostgresIT {
         TaskPlanCommandService commands = createCommandService(modelClient);
 
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                setup.versionId(), List.of("t2"), Set.of("startDate"), Set.of(),
+                setup.versionId(), 1, List.of("t2"), Set.of("startDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES);
 
         commands.partialRegenerate(projectId, setup.planId(), request, userId);
@@ -657,7 +657,7 @@ class TaskPlanProductionWiringPostgresIT {
         TaskPlanCommandService commands = createCommandService(modelClient);
 
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                setup.versionId(), List.of("t2"), Set.of("startDate"), Set.of(),
+                setup.versionId(), 1, List.of("t2"), Set.of("startDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES);
 
         commands.partialRegenerate(projectId, setup.planId(), request, userId);
@@ -708,7 +708,7 @@ class TaskPlanProductionWiringPostgresIT {
         TaskPlanCommandService commands = createCommandService(modelClient);
 
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                setup.versionId(), List.of("t1"), Set.of("startDate"), Set.of(),
+                setup.versionId(), 1, List.of("t1"), Set.of("startDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_ALL_ISSUES);
 
         commands.partialRegenerate(projectId, setup.planId(), request, userId);
@@ -793,7 +793,7 @@ class TaskPlanProductionWiringPostgresIT {
 
         // Only t2's startDate is allowed; t1 is not a target
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                setup.versionId(), List.of("t2"), Set.of("startDate"), Set.of(),
+                setup.versionId(), 1, List.of("t2"), Set.of("startDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES);
 
         TaskPlanRecord result = commands.partialRegenerate(projectId, setup.planId(), request, userId);
@@ -856,9 +856,16 @@ class TaskPlanProductionWiringPostgresIT {
                 mock(com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard.class);
         com.shitulelv.aicollab.project.application.service.AuditService auditService =
                 mock(com.shitulelv.aicollab.project.application.service.AuditService.class);
+        PlanningGenerationQuotaService quota = mock(PlanningGenerationQuotaService.class);
+        PlanningAttemptThrottle throttle = mock(PlanningAttemptThrottle.class);
+        TaskPlanPartialRepairService partialRepair = new TaskPlanPartialRepairService(
+                accessGuard, repository, issueRepo, validator, jdbc, quota, throttle,
+                normalizer, outcomeDecider, commitService, patchParser, patchApplier,
+                modelClient, json, Runnable::run);
 
         return new TaskPlanCommandService(accessGuard, repository, orchestrator, validator, jdbc,
-                null, null, auditService, normalizer, outcomeDecider, commitService, patchParser, patchApplier, modelClient, json);
+                quota, throttle, auditService, normalizer, outcomeDecider, commitService,
+                patchParser, patchApplier, modelClient, json, partialRepair);
     }
 
     private TaskPlanDraft applyUserEditPatch(TaskPlanDraft base, UpdateTaskPlanRequest request) {

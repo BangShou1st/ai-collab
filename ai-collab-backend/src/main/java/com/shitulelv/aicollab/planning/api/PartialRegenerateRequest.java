@@ -12,6 +12,7 @@ import java.util.UUID;
  */
 public record PartialRegenerateRequest(
         @NotNull UUID baseVersionId,
+        @NotNull Integer expectedVersionNo,
         List<String> targetTempKeys,
         Set<String> allowedFields,
         Set<String> lockedFields,

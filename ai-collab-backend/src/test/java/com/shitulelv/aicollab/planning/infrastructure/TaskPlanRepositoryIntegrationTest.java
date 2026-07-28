@@ -175,7 +175,7 @@ class TaskPlanRepositoryIntegrationTest {
         TaskPlanCommandService service = new TaskPlanCommandService(
                 stubGuard(), repository, orchestrator,
                 null, jdbc, stubQuota(), stubThrottle(), mock(AuditService.class),
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
 
         CreateTaskPlanRequest request = validRequest();
 

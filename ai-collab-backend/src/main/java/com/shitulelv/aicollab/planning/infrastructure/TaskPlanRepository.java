@@ -24,6 +24,8 @@ import java.util.Set;
 
 @Repository
 public class TaskPlanRepository {
+    public record PartialRepairStart(TaskPlanRecord plan, UUID attemptId, TaskPlanStatus previousStatus) {}
+
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
 
@@ -261,6 +263,47 @@ public class TaskPlanRepository {
                 """, repair, planId, parentAttemptId, no, generationSeq, actor);
         jdbc.update("UPDATE ai_task_plan SET active_attempt_id=?,updated_at=now() WHERE id=?", repair, planId);
         return repair;
+    }
+
+    @Transactional
+    public PartialRepairStart startPartialRepair(UUID projectId, UUID planId, UUID baseVersionId,
+                                                  int expectedVersionNo, UUID actor) {
+        TaskPlanRecord plan = lock(projectId, planId);
+        if (plan.status() != TaskPlanStatus.READY && plan.status() != TaskPlanStatus.READY_WITH_ISSUES) {
+            stateConflict();
+        }
+        if (!baseVersionId.equals(plan.latestVersionId()) || expectedVersionNo != plan.latestVersionNo()) {
+            throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
+        }
+        UUID attempt = UUID.randomUUID();
+        Integer no = jdbc.queryForObject(
+                "SELECT coalesce(max(attempt_no),0)+1 FROM ai_task_plan_attempt WHERE plan_id=?",
+                Integer.class, planId);
+        jdbc.update("""
+                INSERT INTO ai_task_plan_attempt(id,plan_id,attempt_no,generation_seq,stage,status,created_by)
+                VALUES (?,?,?,?, 'REPAIR','QUEUED',?)
+                """, attempt, planId, no, plan.generationSeq(), actor);
+        int updated = jdbc.update("""
+                UPDATE ai_task_plan SET status='REPAIRING',active_attempt_id=?,updated_at=now()
+                WHERE id=? AND project_id=? AND latest_version_id=? AND latest_version_no=?
+                  AND status IN ('READY','READY_WITH_ISSUES')
+                """, attempt, planId, projectId, baseVersionId, expectedVersionNo);
+        if (updated != 1) throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
+        return new PartialRepairStart(require(projectId, planId), attempt, plan.status());
+    }
+
+    @Transactional
+    public void failPartialRepair(UUID projectId, UUID planId, UUID attemptId,
+                                  TaskPlanStatus previousStatus, String errorCode) {
+        TaskPlanRecord plan = lock(projectId, planId);
+        finishAttempt(attemptId, "FAILED", errorCode);
+        if (plan.status() == TaskPlanStatus.REPAIRING && attemptId.equals(plan.activeAttemptId())) {
+            jdbc.update("""
+                    UPDATE ai_task_plan SET status=?,active_attempt_id=NULL,
+                      last_error_code=?,last_error_summary='局部修复未通过安全校验',updated_at=now()
+                    WHERE id=? AND project_id=? AND status='REPAIRING' AND active_attempt_id=?
+                    """, previousStatus.name(), errorCode, planId, projectId, attemptId);
+        }
     }
 
     @Transactional
