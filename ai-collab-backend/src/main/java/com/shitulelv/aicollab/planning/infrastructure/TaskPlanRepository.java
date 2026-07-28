@@ -183,7 +183,7 @@ public class TaskPlanRepository {
     public TaskPlanRecord startGeneration(UUID projectId, UUID planId, UUID actor, boolean detailOnly) {
         TaskPlanRecord plan = lock(projectId, planId);
         if (detailOnly && plan.status() != TaskPlanStatus.DETAIL_GENERATION_FAILED) stateConflict();
-        if (!detailOnly && !List.of(TaskPlanStatus.READY, TaskPlanStatus.FAILED,
+        if (!detailOnly && !List.of(TaskPlanStatus.READY, TaskPlanStatus.READY_WITH_ISSUES, TaskPlanStatus.FAILED,
                 TaskPlanStatus.DETAIL_GENERATION_FAILED, TaskPlanStatus.CANCELED).contains(plan.status())) stateConflict();
         long sequence = detailOnly ? plan.generationSeq() : plan.generationSeq() + 1;
         UUID attempt = UUID.randomUUID();

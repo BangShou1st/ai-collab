@@ -84,7 +84,10 @@ public class TaskPlanConfirmationService {
                     throw new BusinessException(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES);
                 }
                 if (plan.status() != TaskPlanStatus.READY) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
-                if (!versionId.equals(row.get("version_id"))) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+                if (!versionId.equals(row.get("version_id"))
+                        || !versionId.equals(plan.latestVersionId())) {
+                    throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
+                }
                 // Task 10: Block confirmation while plan issues remain
                 int blockingCount = issueRepo.countUnresolvedBlocking(planId, (UUID) row.get("version_id"));
                 if (blockingCount > 0) {
@@ -116,6 +119,9 @@ public class TaskPlanConfirmationService {
             throw new BusinessException(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES);
         }
         if (plan.status() != TaskPlanStatus.READY) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+        if (!versionId.equals(plan.latestVersionId())) {
+            throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
+        }
         // Task 10: Block confirmation while plan issues remain
         if (plan.latestVersionId() != null) {
             int blockingCount = issueRepo.countUnresolvedBlocking(planId, plan.latestVersionId());
@@ -136,6 +142,9 @@ public class TaskPlanConfirmationService {
     private Map<String, Object> land(UUID projectId, UUID planId, UUID versionId, UUID confirmation, UUID actor) {
         TaskPlanRecord plan = repository.lock(projectId, planId);
         if (plan.status() != TaskPlanStatus.CONFIRMING) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+        if (!versionId.equals(plan.latestVersionId())) {
+            throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
+        }
         TaskPlanVersionRecord version = repository.requireVersion(projectId, planId, versionId);
         TaskPlanDraft draft = repository.draft(version);
         // C9: Lock member rows referenced in the draft before validation
