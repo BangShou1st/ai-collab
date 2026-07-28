@@ -229,3 +229,27 @@ GREEN：
 - `pnpm typecheck` 通过。
 - Vue Test Utils：真实 PlanningView 13 项组件测试全部通过；前端完整 6 files / 41 tests 全部通过。
 - `pnpm build` 通过；仅保留现有非阻断 chunk size 警告。
+
+## 阶段九：生产 Spring Bean + PostgreSQL 闭环
+
+RED：
+
+- 新增默认由 Surefire 执行的 `TaskPlanSpringBeanPostgresIntegrationTest`，首次目标运行暴露两处测试假设错误：
+  issue 表实际名称为 `ai_task_plan_validation_issue`，合法确认按 Draft 正确创建 2 个正式任务而非 1 个。
+- 移除非模型边界的 MinIO mock 后，Spring 上下文在 `ApplicationReadyEvent` 收到
+  `InvalidAccessKeyId`，5 项测试均因真实对象存储初始化失败。
+
+根因与修复：
+
+- 回滚注入改为作用于实际 issue 表；正式任务断言按输入 Draft 的两个任务校正，没有修改生产逻辑或放宽业务期望。
+- 测试类同时启动真实 PostgreSQL 17 与真实 MinIO Testcontainer，通过
+  `DynamicPropertySource` 注入动态端点和测试容器凭据；不再依赖本机对象存储状态。
+- 仅 `TaskPlanModelClient` 使用 `@MockitoBean`；Orchestrator、Command、Partial Repair、
+  Confirmation、Version Commit、Repositories、ObjectMapper、事务代理与 MinIO 均为生产 Spring Bean。
+
+GREEN：
+
+- 目标集成测试：5 tests，0 failure/error/skipped；真实执行 Flyway V1～V11。
+- 覆盖合法生成、降级后可编辑、手动解决、scoped 局部修复、历史版本确认冲突、
+  确认落地任务/依赖、event/issue 写失败原子回滚及并发编辑一成功一版本冲突。
+- 后端完整回归：247 tests，0 failure/error/skipped。
