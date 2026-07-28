@@ -1,7 +1,6 @@
 package com.shitulelv.aicollab.planning.application;
 
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRepository;
-import com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanIssueRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
@@ -183,10 +182,12 @@ public class TaskPlanQueryService {
     }
 
     /** Task 11: Events API — returns recent plan events (max 100). */
-    public List<TaskPlanEventRecord> events(UUID projectId, UUID planId, UUID actor) {
+    public List<TaskPlanEventView> events(UUID projectId, UUID planId, UUID actor) {
         access.requireMember(projectId, actor);
         repository.require(projectId, planId);
-        return eventRepo.findByPlan(planId, 100);
+        return eventRepo.findByPlan(planId, 100).stream()
+                .map(TaskPlanEventView::from)
+                .toList();
     }
 
     private static String str(Object v) { return v == null ? null : v.toString(); }
