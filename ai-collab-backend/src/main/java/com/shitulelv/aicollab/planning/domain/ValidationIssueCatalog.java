@@ -58,7 +58,9 @@ public final class ValidationIssueCatalog {
             Map.entry("TASK_DATE_INVALID", ValidationIssueSeverity.BLOCKING_EDITABLE),
             Map.entry("MILESTONE_DATE_OUTSIDE_PLAN", ValidationIssueSeverity.BLOCKING_EDITABLE),
             Map.entry("ESTIMATED_HOURS_INVALID", ValidationIssueSeverity.BLOCKING_EDITABLE),
-            Map.entry("TASK_PRIORITY_INVALID", ValidationIssueSeverity.BLOCKING_EDITABLE),
+            // TASK_PRIORITY_INVALID is a schema contract violation — the model output an
+            // enum value not in [LOW,MEDIUM,HIGH,URGENT]. Not user-editable; requires re-generation.
+            Map.entry("TASK_PRIORITY_INVALID", ValidationIssueSeverity.HARD),
             Map.entry("SORT_ORDER_INVALID", ValidationIssueSeverity.BLOCKING_EDITABLE),
 
             // ── WARNING: non-blocking observations ──
@@ -81,7 +83,6 @@ public final class ValidationIssueCatalog {
             Map.entry("TASK_DATE_INVALID", Set.of("startDate", "dueDate")),
             Map.entry("MILESTONE_DATE_OUTSIDE_PLAN", Set.of("targetDate")),
             Map.entry("ESTIMATED_HOURS_INVALID", Set.of("estimatedHours")),
-            Map.entry("TASK_PRIORITY_INVALID", Set.of("priority")),
             Map.entry("SORT_ORDER_INVALID", Set.of("sortOrder"))
     );
 
