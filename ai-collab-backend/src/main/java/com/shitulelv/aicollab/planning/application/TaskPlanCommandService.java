@@ -153,7 +153,7 @@ public class TaskPlanCommandService {
         access.requireAdmin(projectId, actor);
         // Pre-check state without modifying
         TaskPlanRecord current = repository.require(projectId, planId);
-        if (!List.of("READY", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED")
+        if (!List.of("READY", "READY_WITH_ISSUES", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED")
                 .contains(current.status().name())) {
             throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
         }
@@ -222,7 +222,7 @@ public class TaskPlanCommandService {
     public void delete(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
         TaskPlanRecord plan = repository.lock(projectId, planId);
-        if (!List.of("READY", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED")
+        if (!List.of("READY", "READY_WITH_ISSUES", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED")
                 .contains(plan.status().name())) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
         jdbc.update("DELETE FROM ai_task_plan WHERE id=?", planId);
         safeAudit(projectId, actor, "TASK_PLAN_DELETED", "AI_TASK_PLAN", planId);
