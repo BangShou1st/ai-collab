@@ -6,7 +6,14 @@ import { normalizeApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import { clearConfirmationKey, confirmationKey, planningApi } from './planning-api'
 import { PlanningPoller } from './planning-poller'
-import type { PlanPermissions, TaskPlan, TaskPlanDraft, StructuredValidationIssue, TaskPlanEvent } from './types'
+import type {
+  PartialRepairMode,
+  PlanPermissions,
+  TaskPlan,
+  TaskPlanDraft,
+  StructuredValidationIssue,
+  TaskPlanEvent,
+} from './types'
 import PlanningIssuePanel from './components/PlanningIssuePanel.vue'
 import PlanningEventTimeline from './components/PlanningEventTimeline.vue'
 import { projectApi } from '../project/project-api'
@@ -91,12 +98,15 @@ async function save(): Promise<void> {
   try { await planningApi.save(projectId.value, selected.value.id, selected.value.latestVersionId, selected.value.latestVersionNo, draft.value); await refresh() }
   catch (error) { errorMessage.value = normalizeApiError(error).message }
 }
-async function repair(issue: StructuredValidationIssue, mode = ''): Promise<void> {
+async function repair(issue: StructuredValidationIssue, mode: PartialRepairMode | '' = ''): Promise<void> {
   if (!selected.value?.latestVersionId || !issue.targetTempKey) return
   const dateFields = new Set(['startDate', 'dueDate', 'targetDate', 'dependencyTempKeys'])
-  const repairMode = mode || (issue.field && dateFields.has(issue.field)
+  const assignmentAndSourceFields = new Set(['suggestedAssigneeId', 'sourceRefs'])
+  const repairMode: PartialRepairMode = mode || (issue.field && dateFields.has(issue.field)
     ? 'REPAIR_DATES_AND_DEPENDENCIES'
-    : 'REGENERATE_SELECTED_TASK_DETAILS')
+    : issue.field && assignmentAndSourceFields.has(issue.field)
+      ? 'REPAIR_ASSIGNMENTS_AND_SOURCES'
+      : 'REGENERATE_SELECTED_TASK_DETAILS')
   try {
     await planningApi.partialRegenerate(projectId.value, selected.value.id, {
       baseVersionId: selected.value.latestVersionId,

@@ -111,11 +111,17 @@ public class TaskPlanPartialRepairService {
         TaskPlanDraft draft = repository.draft(baseVersion);
         List<TaskPlanIssueRepository.PersistedIssue> persisted =
                 issueRepository.findUnresolved(planId, request.baseVersionId(), request.issueIds());
-        if (!request.issueIds().isEmpty()
-                && persisted.stream().map(TaskPlanIssueRepository.PersistedIssue::id)
-                .collect(Collectors.toSet()).size() != new HashSet<>(request.issueIds()).size()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                    "issueIds 必须属于当前规划的最新版本且尚未解决");
+        if (!request.issueIds().isEmpty()) {
+            int requestedCount = new HashSet<>(request.issueIds()).size();
+            int currentUnresolvedCount = persisted.stream()
+                    .map(TaskPlanIssueRepository.PersistedIssue::id)
+                    .collect(Collectors.toSet()).size();
+            if (currentUnresolvedCount != requestedCount) {
+                if (issueRepository.countIdsForPlan(planId, request.issueIds()) == requestedCount) {
+                    throw new BusinessException(ErrorCode.PLAN_REPAIR_ISSUE_CONFLICT);
+                }
+                throw new BusinessException(ErrorCode.PLAN_REPAIR_ISSUE_INVALID);
+            }
         }
         List<StructuredValidationIssue> issues = persisted.stream()
                 .map(TaskPlanIssueRepository.PersistedIssue::issue).toList();
@@ -201,12 +207,25 @@ public class TaskPlanPartialRepairService {
 
         Map<String, Set<String>> server = new HashMap<>();
         for (StructuredValidationIssue issue : issues) {
-            if (issue.targetTempKey() == null) continue;
-            if (!requestedTargets.isEmpty() && !requestedTargets.contains(issue.targetTempKey())) continue;
+            boolean explicitlySelected = !request.issueIds().isEmpty();
+            if (issue.targetTempKey() == null
+                    || (!requestedTargets.isEmpty() && !requestedTargets.contains(issue.targetTempKey()))) {
+                if (explicitlySelected) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                            "所选 issue 的目标与 targetTempKeys 不匹配");
+                }
+                continue;
+            }
             Set<String> fields = new HashSet<>(ValidationIssueCatalog.repairableFields(issue.code()));
             fields.retainAll(modeFields(request.mode()));
-            if (!fields.isEmpty()) server.computeIfAbsent(issue.targetTempKey(), ignored -> new HashSet<>())
-                    .addAll(fields);
+            if (fields.isEmpty()) {
+                if (explicitlySelected) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                            "所选 issue code 与局部修复 mode 不匹配");
+                }
+                continue;
+            }
+            server.computeIfAbsent(issue.targetTempKey(), ignored -> new HashSet<>()).addAll(fields);
         }
         if (PartialRegenerateRequest.REGENERATE_SELECTED_TASK_DETAILS.equals(request.mode())
                 || PartialRegenerateRequest.RESCHEDULE_UNLOCKED_TASKS.equals(request.mode())) {
@@ -245,6 +264,8 @@ public class TaskPlanPartialRepairService {
             case PartialRegenerateRequest.REGENERATE_SELECTED_TASK_DETAILS ->
                     Set.of("description", "priority", "estimatedHours",
                             "suggestedAssigneeId", "sourceRefs");
+            case PartialRegenerateRequest.REPAIR_ASSIGNMENTS_AND_SOURCES ->
+                    Set.of("suggestedAssigneeId", "sourceRefs");
             case PartialRegenerateRequest.REPAIR_ALL_ISSUES,
                  PartialRegenerateRequest.APPLY_UPDATED_CONSTRAINTS ->
                     Set.of("description", "priority", "estimatedHours", "startDate", "dueDate",

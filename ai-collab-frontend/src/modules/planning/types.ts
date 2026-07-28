@@ -73,6 +73,24 @@ export interface StructuredValidationIssue {
   safeDetails: Record<string, unknown>
 }
 
+export type PartialRepairMode =
+  | 'REPAIR_DATES_AND_DEPENDENCIES'
+  | 'REGENERATE_SELECTED_TASK_DETAILS'
+  | 'REPAIR_ASSIGNMENTS_AND_SOURCES'
+  | 'REPAIR_ALL_ISSUES'
+  | 'RESCHEDULE_UNLOCKED_TASKS'
+  | 'APPLY_UPDATED_CONSTRAINTS'
+
+export interface PartialRegenerateRequest {
+  baseVersionId: string
+  expectedVersionNo: number
+  targetTempKeys: string[]
+  allowedFields: string[]
+  lockedFields: string[]
+  issueIds: string[]
+  mode: PartialRepairMode
+}
+
 export interface TaskPlanEvent {
   id: string; fromVersionId: string | null; toVersionId: string | null
   eventType: string; changedFields: string[]; changedTargets: string[]

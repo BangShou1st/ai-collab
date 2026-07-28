@@ -57,6 +57,14 @@ class PlanningOpenApiContractTest {
         Map<String, Object> partialRequest = (Map<String, Object>) schemas.get("PartialRegenerateRequest");
         assertThat((List<String>) partialRequest.get("required"))
                 .contains("baseVersionId", "expectedVersionNo", "mode");
+        Map<String, Object> partialProperties =
+                (Map<String, Object>) partialRequest.get("properties");
+        Map<String, Object> partialMode = (Map<String, Object>) partialProperties.get("mode");
+        assertThat((List<String>) partialMode.get("enum"))
+                .contains("REPAIR_DATES_AND_DEPENDENCIES",
+                        "REGENERATE_SELECTED_TASK_DETAILS",
+                        "REPAIR_ASSIGNMENTS_AND_SOURCES",
+                        "REPAIR_ALL_ISSUES");
 
         Map<String, Object> eventView = (Map<String, Object>) schemas.get("TaskPlanEventView");
         Map<String, Object> eventProperties = (Map<String, Object>) eventView.get("properties");

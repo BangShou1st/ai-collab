@@ -22,6 +22,7 @@ public record PartialRegenerateRequest(
     public static final String REPAIR_ALL_ISSUES = "REPAIR_ALL_ISSUES";
     public static final String REPAIR_DATES_AND_DEPENDENCIES = "REPAIR_DATES_AND_DEPENDENCIES";
     public static final String REGENERATE_SELECTED_TASK_DETAILS = "REGENERATE_SELECTED_TASK_DETAILS";
+    public static final String REPAIR_ASSIGNMENTS_AND_SOURCES = "REPAIR_ASSIGNMENTS_AND_SOURCES";
     public static final String RESCHEDULE_UNLOCKED_TASKS = "RESCHEDULE_UNLOCKED_TASKS";
     public static final String APPLY_UPDATED_CONSTRAINTS = "APPLY_UPDATED_CONSTRAINTS";
 

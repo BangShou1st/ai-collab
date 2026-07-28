@@ -127,3 +127,37 @@ GREEN：
 - 生成规则、Orchestrator、Patch parser/applier 目标回归：35 tests，0 失败。
 - 后端完整回归：225 tests，0 failure/error/skipped；Testcontainers PostgreSQL 17、
   Flyway V1～V10 和真实 Spring Bean 测试均实际执行。
+
+## 阶段五：异步局部 AI Repair
+
+RED：
+
+- OpenAPI mode enum 缺少 `REPAIR_ASSIGNMENTS_AND_SOURCES`。
+- 配额测试证明 `AI_REPAIR`、`AI_PARTIAL`、`AI_PARTIAL_REPAIR` 成功版本和
+  `REPAIRING` 活动 attempt 均未计数。
+- 真实 PostgreSQL 测试证明旧版本 issue 与跨 plan issue 都只返回通用
+  `VALIDATION_ERROR`；同一请求中与 mode 不匹配的选中 issue 会被静默忽略。
+
+根因与修复：
+
+- 新增并贯通 Java/OpenAPI/TypeScript 的分配与来源修复 mode；前端按字段选择日期、
+  分配来源或任务详情模式。
+- server scope 严格执行
+  `issue repairable fields ∩ mode fields ∩ client allowed fields - locked fields`；
+  显式 issueIds 的每一项都必须匹配 target 与 mode。
+- issue repository 增加 plan 范围 ID 判定：跨 plan/不存在返回
+  `PLAN_REPAIR_ISSUE_INVALID`，同 plan 旧版本或已解决返回
+  `PLAN_REPAIR_ISSUE_CONFLICT`。
+- 成功配额统计四种 AI 成功来源，活动配额包含 `REPAIRING`；局部修复继续复用
+  throttle 与 quota。
+- 模型调用后提交再次比较 `basedOn` 与数据库 latest version；并发更新时丢弃结果，
+  恢复原状态且不产生第三个版本。
+- 版本、issues、event、status、attempt 的局部修复 commit 继续位于同一事务；
+  注入 event 写失败的 PostgreSQL 测试证明全部回滚。
+
+GREEN：
+
+- 局部修复/配额/OpenAPI/生产 PostgreSQL 目标回归：41 tests，0 失败；
+  原子回滚测试单独通过。
+- 后端完整回归：232 tests，0 failure/error/skipped。
+- 前端 `pnpm typecheck` 与 33 tests 通过。
