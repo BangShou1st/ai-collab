@@ -8,6 +8,7 @@ import com.shitulelv.aicollab.planning.domain.PlanMilestone;
 import com.shitulelv.aicollab.planning.domain.PlanSource;
 import com.shitulelv.aicollab.planning.domain.PlanTask;
 import com.shitulelv.aicollab.planning.domain.PlanningPromptText;
+import com.shitulelv.aicollab.planning.domain.RepairScope;
 import com.shitulelv.aicollab.planning.domain.SkeletonModelOutput;
 import com.shitulelv.aicollab.planning.domain.StructuredValidationIssue;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
@@ -16,7 +17,9 @@ import com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidator;
 import com.shitulelv.aicollab.planning.domain.TaskPlanVersionSource;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidator.ValidationMode;
 import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
+import com.shitulelv.aicollab.planning.domain.TaskPlanRepairPatch;
 import com.shitulelv.aicollab.planning.domain.ValidationAssessment;
+import com.shitulelv.aicollab.planning.domain.ValidationContext;
 import com.shitulelv.aicollab.planning.domain.ValidationIssueCatalog;
 import com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity;
 import com.shitulelv.aicollab.planning.domain.ValidationResult;
@@ -29,7 +32,10 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -105,6 +111,25 @@ public class TaskPlanGenerationOrchestrator {
     private static final String SKELETON_TAG_CLOSE = "</SKELETON>";
     private static final String SOURCES_TAG_OPEN = "<SOURCES>";
     private static final String SOURCES_TAG_CLOSE = "</SOURCES>";
+    private static final String REPAIR_PATCH_SCHEMA = """
+            {"type":"object","required":["milestonePatches","taskPatches"],
+             "properties":{
+               "milestonePatches":{"type":"array","items":{"type":"object","required":["tempKey"],
+                 "properties":{"tempKey":{"type":"string"},"description":{"type":["string","null"]},
+                   "targetDate":{"type":["string","null"],"format":"date"},
+                   "sourceRefs":{"type":["array","null"],"items":{"type":"string"}}},
+                 "additionalProperties":false}},
+               "taskPatches":{"type":"array","items":{"type":"object","required":["tempKey"],
+                 "properties":{"tempKey":{"type":"string"},"description":{"type":["string","null"]},
+                   "priority":{"type":["string","null"]},"estimatedHours":{"type":["number","null"]},
+                   "startDate":{"type":["string","null"],"format":"date"},
+                   "dueDate":{"type":["string","null"],"format":"date"},
+                   "suggestedAssigneeId":{"type":["string","null"],"format":"uuid"},
+                   "dependencyTempKeys":{"type":["array","null"],"items":{"type":"string"}},
+                   "sourceRefs":{"type":["array","null"],"items":{"type":"string"}}},
+                 "additionalProperties":false}}},
+             "additionalProperties":false}
+            """;
 
     private final Executor executor;
     private final TaskPlanRepository repository;
@@ -117,6 +142,8 @@ public class TaskPlanGenerationOrchestrator {
     private final GenerationOutcomeDecider outcomeDecider;
     private final TaskPlanDraftNormalizer normalizer;
     private final TaskPlanVersionCommitService commitService;
+    private final TaskPlanRepairPatchParser patchParser;
+    private final TaskPlanRepairPatchApplier patchApplier;
 
     /** C3: Composite key (planId, generationSeq) prevents cross-plan collisions. */
     record GenerationRunKey(UUID planId, long generationSeq) {}
@@ -150,6 +177,8 @@ public class TaskPlanGenerationOrchestrator {
         this.contexts = contexts; this.promptPolicy = promptPolicy;
         this.outcomeDecider = outcomeDecider; this.normalizer = normalizer;
         this.commitService = commitService;
+        this.patchParser = new TaskPlanRepairPatchParser(json);
+        this.patchApplier = new TaskPlanRepairPatchApplier();
     }
 
     /**
@@ -264,23 +293,19 @@ public class TaskPlanGenerationOrchestrator {
         try {
             // R3: Detail prompt only includes identity skeleton, not full draft
             String prompt = detailPrompt(plan, skeleton);
-            GeneratedDetail generated = generateDetailWithOneRepair(plan, attempt,
-                    TaskPlanStatus.DETAIL_GENERATING, prompt, actor, skeleton, candidate -> {
-                TaskPlanDraft merged = mergeDetailIntoSkeleton(skeleton, candidate);
-                return validator.validate(repository.validationContext(plan), merged, ValidationMode.COMPLETE, true);
-            });
-            TaskPlanDraft detail = mergeDetailIntoSkeleton(skeleton, generated.detail());
-            detail = normalizer.normalize(detail);
+            GeneratedDetailOutcome generated = generateDetailWithOneRepair(
+                    plan, attempt, TaskPlanStatus.DETAIL_GENERATING, prompt, actor, skeleton);
+            TaskPlanDraft detail = generated.draft();
             if (!repository.active(plan.id(), plan.generationSeq(), generated.attemptId(), TaskPlanStatus.DETAIL_GENERATING)) {
                 repository.finishAttempt(generated.attemptId(), "DISCARDED", "PLAN_GENERATION_CANCELED");
                 return;
             }
-            ValidationAssessment assessment = validator.assess(
-                    repository.validationContext(plan), detail, ValidationMode.COMPLETE, true);
+            ValidationAssessment assessment = generated.assessment();
             TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
-            // AI_PARTIAL when degraded to READY_WITH_ISSUES; AI_COMPLETE when fully ready
+            // Preserve whether the final candidate came from a scoped repair.
             TaskPlanVersionSource sourceType = finalStatus == TaskPlanStatus.READY_WITH_ISSUES
-                    ? TaskPlanVersionSource.AI_PARTIAL : TaskPlanVersionSource.AI_COMPLETE;
+                    ? TaskPlanVersionSource.AI_PARTIAL
+                    : generated.repaired() ? TaskPlanVersionSource.AI_REPAIR : TaskPlanVersionSource.AI_COMPLETE;
             // Re-read plan to get fresh activeAttemptId (may have changed during repair)
             TaskPlanRecord freshPlan = repository.require(plan.projectId(), plan.id());
             TaskPlanVersionRecord versionRecord = commitService.commit(freshPlan, detail,
@@ -360,17 +385,15 @@ public class TaskPlanGenerationOrchestrator {
      * The model cannot output skeleton identity fields — parser rejects unknown properties.
      * S4: Domain validation errors are preserved and passed to repair prompt.
      */
-    private GeneratedDetail generateDetailWithOneRepair(TaskPlanRecord plan, UUID initialAttempt,
-                                                         TaskPlanStatus expectedStatus, String prompt,
-                                                         UUID actor, TaskPlanDraft skeleton,
-                                                         DetailValidator valid) {
+    private GeneratedDetailOutcome generateDetailWithOneRepair(TaskPlanRecord plan, UUID initialAttempt,
+                                                                TaskPlanStatus expectedStatus, String prompt,
+                                                                UUID actor, TaskPlanDraft skeleton) {
         if (PlanningPromptText.totalCodePointCount(prompt) > MAX_PROMPT_CODEPOINTS) {
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, "PROMPT_BUDGET_EXCEEDED");
             throw new GenerationHandledException();
         }
         GenerationResult result;
-        ModelOutputContractException contractError = null;
         try {
             result = model.generate(SYSTEM, prompt, "TASK_PLAN_DETAIL",
                     actor, plan.projectId(), initialAttempt);
@@ -379,53 +402,94 @@ public class TaskPlanGenerationOrchestrator {
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, providerFailure.getErrorCode().name());
             throw new GenerationHandledException();
         }
+        TaskPlanDraft candidate;
+        ValidationAssessment initialAssessment;
         try {
             DetailModelOutput detailOut = parser.parseDetail(result.content());
-            ValidationResult validation = valid.validate(detailOut);
-            if (validation.valid()) return new GeneratedDetail(detailOut, initialAttempt, result);
-            // Domain validation failed — capture error codes for repair
-            contractError = new ModelOutputContractException("DOMAIN_VALIDATION_FAILED", null,
-                    validation.errorCodes());
-        } catch (ModelOutputContractException contract) {
-            contractError = contract;
+            candidate = normalizer.normalize(mergeDetailIntoSkeleton(skeleton, detailOut));
+            initialAssessment = validator.assess(
+                    repository.validationContext(plan), candidate, ValidationMode.COMPLETE, true);
+            if (initialAssessment.ready()) {
+                return new GeneratedDetailOutcome(candidate, initialAttempt, result, initialAssessment, false);
+            }
+            if (initialAssessment.hasHardIssues()) {
+                throw new ModelOutputContractException("DOMAIN_VALIDATION_FAILED", null,
+                        initialAssessment.errorCodes());
+            }
         } catch (RuntimeException invalidOutput) {
-            // Parse/schema/domain failures are eligible for repair.
+            repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
+                    TaskPlanStatus.DETAIL_GENERATION_FAILED, safeCode(invalidOutput),
+                    safeErrorSummary("DETAIL", invalidOutput));
+            throw new GenerationHandledException();
         }
         UUID repairAttempt = repository.startRepair(
                 plan.id(), plan.generationSeq(), initialAttempt, expectedStatus, actor);
         if (repairAttempt == null) throw new GenerationHandledException();
         // F3: Re-key the Future under the repair attemptId so cancel() can find it
         rekeyFuture(initialAttempt, repairAttempt, plan.generationSeq());
-        // S4: Pass structured failure info to repair prompt — includes domain validation codes
-        String repairPrompt = repairPrompt(result.content(), DETAIL_SCHEMA, "DETAIL",
-                contractError != null ? contractError.category() : "UNKNOWN",
-                contractError != null ? contractError.jsonPath() : null,
-                contractError != null ? contractError.validationCodes() : List.of());
+        RepairScope scope = repairScope(initialAssessment);
+        if (scope.targetTempKeys().isEmpty()) {
+            repository.fail(plan.id(), plan.generationSeq(), repairAttempt, expectedStatus,
+                    TaskPlanStatus.DETAIL_GENERATION_FAILED, "DOMAIN_VALIDATION_FAILED");
+            throw new GenerationHandledException();
+        }
+        String repairPrompt = patchRepairPrompt(candidate, initialAssessment, scope);
         try {
-            GenerationResult repairResult = model.generate(REPAIR_SYSTEM, repairPrompt, "TASK_PLAN_REPAIR",
+            GenerationResult repairResult = model.generate(
+                    REPAIR_SYSTEM, repairPrompt, "TASK_PLAN_REPAIR_PATCH",
                     actor, plan.projectId(), repairAttempt);
-            DetailModelOutput repaired = parser.parseDetail(repairResult.content());
-            ValidationResult repairValidation = valid.validate(repaired);
-            if (!repairValidation.valid()) {
-                // Second failure — check if original had only BLOCKING_EDITABLE issues
-                // If so, use original detail and degrade to READY_WITH_ISSUES
-                if (contractError != null && contractError.validationCodes().stream()
-                        .allMatch(code -> ValidationIssueCatalog.severityOrDefault(code)
-                                == ValidationIssueSeverity.BLOCKING_EDITABLE)) {
-                    // Return original detail with repairAttempt (initialAttempt is already FAILED)
-                    return new GeneratedDetail(
-                            parser.parseDetail(result.content()), repairAttempt, result);
-                }
-                // HARD errors remain — fail
+            TaskPlanRepairPatch patch = patchParser.parse(repairResult.content());
+            ValidationContext context = repository.validationContext(plan);
+            Set<String> validSourceRefs = candidate.sources().stream()
+                    .map(PlanSource::ref).collect(java.util.stream.Collectors.toSet());
+            TaskPlanDraft repaired = patchApplier.apply(
+                    candidate, patch, scope, context.projectMemberIds(), validSourceRefs);
+            repaired = normalizer.normalize(repaired);
+            ValidationAssessment repairAssessment = validator.assess(
+                    context, repaired, ValidationMode.COMPLETE, true);
+            if (repairAssessment.hasHardIssues()) {
                 throw new ModelOutputContractException("DOMAIN_VALIDATION_FAILED", null,
-                        repairValidation.errorCodes());
+                        repairAssessment.errorCodes());
             }
-            return new GeneratedDetail(repaired, repairAttempt, repairResult);
+            return new GeneratedDetailOutcome(
+                    repaired, repairAttempt, repairResult, repairAssessment, true);
         } catch (RuntimeException secondFailure) {
             String summary = safeErrorSummary("DETAIL", secondFailure);
             repository.fail(plan.id(), plan.generationSeq(), repairAttempt, expectedStatus,
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, safeCode(secondFailure), summary);
             throw new GenerationHandledException();
+        }
+    }
+
+    private RepairScope repairScope(ValidationAssessment assessment) {
+        Set<String> targets = new HashSet<>();
+        Map<String, Set<String>> allowed = new HashMap<>();
+        for (StructuredValidationIssue issue : assessment.issues()) {
+            if (issue.targetTempKey() == null || issue.severity() == ValidationIssueSeverity.HARD) continue;
+            Set<String> repairable = ValidationIssueCatalog.repairableFields(issue.code());
+            if (repairable.isEmpty()) continue;
+            targets.add(issue.targetTempKey());
+            allowed.computeIfAbsent(issue.targetTempKey(), ignored -> new HashSet<>())
+                    .addAll(repairable);
+        }
+        return new RepairScope(targets, allowed, RepairScope.ALWAYS_LOCKED);
+    }
+
+    private String patchRepairPrompt(TaskPlanDraft candidate, ValidationAssessment assessment,
+                                     RepairScope scope) {
+        try {
+            return "<CURRENT_DRAFT>\n"
+                    + PlanningPromptText.escapeUntrusted(json.writeValueAsString(candidate))
+                    + "\n</CURRENT_DRAFT>\n"
+                    + promptPolicy.repairRules(assessment.issues())
+                    + "<SERVER_SCOPE>\nallowedFields=" + scope.allowedFields()
+                    + "\nlockedFields=" + scope.lockedFields()
+                    + "\n</SERVER_SCOPE>\n"
+                    + JSON_SCHEMA_TAG_OPEN + "\n" + REPAIR_PATCH_SCHEMA + "\n"
+                    + JSON_SCHEMA_TAG_CLOSE
+                    + "\n只输出 patch JSON。不得返回完整规划，不得修改非目标实体或锁定字段。";
+        } catch (JsonProcessingException impossible) {
+            throw new IllegalStateException(impossible);
         }
     }
 
@@ -691,14 +755,14 @@ public class TaskPlanGenerationOrchestrator {
     }
 
     private record GeneratedSkeleton(TaskPlanDraft draft, UUID attemptId, GenerationResult metrics) {}
-    private record GeneratedDetail(DetailModelOutput detail, UUID attemptId, GenerationResult metrics) {}
+    private record GeneratedDetailOutcome(
+            TaskPlanDraft draft,
+            UUID attemptId,
+            GenerationResult metrics,
+            ValidationAssessment assessment,
+            boolean repaired
+    ) {}
     private static final class GenerationHandledException extends RuntimeException {}
-
-    /** Functional interface that returns ValidationResult instead of boolean, preserving domain validation details. */
-    @FunctionalInterface
-    interface DetailValidator {
-        ValidationResult validate(DetailModelOutput candidate);
-    }
 
     /** Identity-only skeleton for prompt embedding — no sources, no detail fields. */
     record SkeletonIdentityOnly(
