@@ -6,6 +6,7 @@ const props = defineProps<{
   issues: StructuredValidationIssue[]
   targetNames: Record<string, string>
   repairableIssueIds: string[]
+  actionsEnabled: boolean
 }>()
 
 const emit = defineEmits<{
@@ -54,7 +55,7 @@ const formatIssue = (issue: StructuredValidationIssue) => {
           </span>
           <span class="issue-message">{{ formatIssue(issue) }}</span>
         </div>
-        <div class="issue-actions" v-if="issue.severity === 'BLOCKING_EDITABLE'">
+        <div class="issue-actions" v-if="actionsEnabled && issue.severity === 'BLOCKING_EDITABLE'">
           <button v-if="repairableIssueIds.includes(issue.id)" class="btn-sm" @click="emit('repair', issue)">AI 修复</button>
           <button class="btn-sm" @click="emit('edit', issue)">手动编辑</button>
           <button v-if="repairableIssueIds.includes(issue.id)" class="btn-sm" @click="emit('regenerate', issue.targetTempKey || '')">
