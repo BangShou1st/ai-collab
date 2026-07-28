@@ -25,7 +25,13 @@ public record TaskPlanRepairPatch(
             PatchValue<String> description,
             PatchValue<LocalDate> targetDate,
             PatchValue<List<String>> sourceRefs
-    ) {}
+    ) {
+        public MilestonePatch {
+            description = description == null ? PatchValue.absent() : description;
+            targetDate = targetDate == null ? PatchValue.absent() : targetDate;
+            sourceRefs = sourceRefs == null ? PatchValue.absent() : sourceRefs;
+        }
+    }
 
     public record TaskPatch(
             String tempKey,
@@ -37,5 +43,16 @@ public record TaskPlanRepairPatch(
             PatchValue<UUID> suggestedAssigneeId,
             PatchValue<List<String>> dependencyTempKeys,
             PatchValue<List<String>> sourceRefs
-    ) {}
+    ) {
+        public TaskPatch {
+            description = description == null ? PatchValue.absent() : description;
+            priority = priority == null ? PatchValue.absent() : priority;
+            estimatedHours = estimatedHours == null ? PatchValue.absent() : estimatedHours;
+            startDate = startDate == null ? PatchValue.absent() : startDate;
+            dueDate = dueDate == null ? PatchValue.absent() : dueDate;
+            suggestedAssigneeId = suggestedAssigneeId == null ? PatchValue.absent() : suggestedAssigneeId;
+            dependencyTempKeys = dependencyTempKeys == null ? PatchValue.absent() : dependencyTempKeys;
+            sourceRefs = sourceRefs == null ? PatchValue.absent() : sourceRefs;
+        }
+    }
 }

@@ -303,6 +303,7 @@ public class TaskPlanCommandService {
      * Task 8: Edit a plan with PATCH semantics.
      * Flow: auth → check baseVersionId → apply patch → normalize → validate → atomic commit (version + issues + status + event).
      */
+    @Deprecated(since = "Phase 08", forRemoval = false)
     @Transactional
     public UUID edit(UUID projectId, UUID planId, UpdateTaskPlanRequest request, UUID actor) {
         access.requireAdmin(projectId, actor);

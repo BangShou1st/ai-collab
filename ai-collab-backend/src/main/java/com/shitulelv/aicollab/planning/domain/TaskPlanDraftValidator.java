@@ -182,7 +182,7 @@ public class TaskPlanDraftValidator {
                             dateDetails(task.startDate(), task.dueDate()));
                 }
                 if (task.estimatedHours() != null
-                        && (task.estimatedHours().compareTo(BigDecimal.ZERO) <= 0
+                        && (task.estimatedHours().compareTo(new BigDecimal("0.5")) < 0
                         || task.estimatedHours().compareTo(BigDecimal.valueOf(80)) > 0)) {
                     add(issues, "ESTIMATED_HOURS_INVALID", "TASK", task.tempKey(),
                             "estimatedHours", null,

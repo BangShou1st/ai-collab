@@ -85,7 +85,7 @@ public class PlanningPromptPolicy {
         sb.append("- 每个 Skeleton milestone/task 必须且只能对应一个 Detail。\n");
         sb.append("- 不得输出或修改身份字段。\n");
         sb.append("- priority 只能是 LOW/MEDIUM/HIGH/URGENT。\n");
-        sb.append("- estimatedHours 非空时 > 0 且 <= 80。\n");
+        sb.append("- estimatedHours 非空时 >= 0.5 且 <= 80。\n");
         sb.append("- 日期非空时位于规划范围。\n");
         sb.append("- startDate <= dueDate。\n");
         sb.append("- 前置任务 dueDate <= 后续任务 startDate。\n");
