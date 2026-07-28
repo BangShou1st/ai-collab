@@ -112,7 +112,6 @@ onMounted(load)
     <PageHeader
       eyebrow="项目进度"
       title="里程碑"
-      description="按目标日期组织关键交付节点，保持团队节奏一致。"
       :context="project?.name"
     >
       <template #actions>

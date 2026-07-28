@@ -29,15 +29,17 @@ public class TaskPlanEventRepository {
         jdbc.update("""
                 INSERT INTO ai_task_plan_event
                 (id, plan_id, from_version_id, to_version_id, actor_id, event_type,
-                 changed_fields_json, changed_targets_json, before_hash, after_hash, issue_codes_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?::jsonb)
+                 changed_fields_json, changed_targets_json, before_hash, after_hash,
+                 issue_codes_json, comment)
+                VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?::jsonb, ?)
                 """,
                 event.id(), event.planId(), event.fromVersionId(), event.toVersionId(),
                 event.actorId(), event.eventType(),
                 writeJson(event.changedFields()),
                 writeJson(event.changedTargets()),
                 event.beforeHash(), event.afterHash(),
-                writeJson(event.issueCodes()));
+                writeJson(event.issueCodes()),
+                event.comment());
     }
 
     /**
@@ -61,6 +63,7 @@ public class TaskPlanEventRepository {
                 rs.getString("before_hash"),
                 rs.getString("after_hash"),
                 parseJsonList(rs.getString("issue_codes_json")),
+                rs.getString("comment"),
                 rs.getObject("created_at", java.time.OffsetDateTime.class)
         ), planId, limit);
     }

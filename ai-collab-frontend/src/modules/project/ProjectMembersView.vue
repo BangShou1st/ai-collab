@@ -130,7 +130,6 @@ onMounted(load)
     <PageHeader
       eyebrow="团队协作"
       title="成员管理"
-      description="查看团队成员，并按当前权限管理邀请与角色。"
       :context="project?.name"
     >
       <template #actions>

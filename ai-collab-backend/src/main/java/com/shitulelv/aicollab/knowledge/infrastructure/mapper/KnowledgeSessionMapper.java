@@ -21,6 +21,12 @@ public interface KnowledgeSessionMapper {
             """)
     int insert(KnowledgeSessionEntity entity);
 
+    @Update("""
+            UPDATE knowledge_session SET title=#{title}, updated_at=#{updatedAt}
+            WHERE id=#{id} AND project_id=#{projectId} AND user_id=#{userId}
+            """)
+    int update(KnowledgeSessionEntity entity);
+
     @Select("""
             SELECT id, project_id, user_id, title, created_at, updated_at
             FROM knowledge_session

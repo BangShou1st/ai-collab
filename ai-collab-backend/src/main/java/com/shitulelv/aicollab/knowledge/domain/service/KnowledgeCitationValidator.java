@@ -51,9 +51,6 @@ public class KnowledgeCitationValidator {
             }
         }
         matcher.appendTail(cleaned);
-        if (validRanks.isEmpty()) {
-            return insufficient(invalid, true);
-        }
 
         List<KnowledgeSource> cited = new ArrayList<>(validRanks.size());
         for (Integer rank : validRanks) {
@@ -63,6 +60,7 @@ public class KnowledgeCitationValidator {
         if (cleanedAnswer.isBlank()) {
             return insufficient(invalid, true);
         }
+        // 即使没有引用来源，也展示 AI 的回答（不判为证据不足）
         return new ValidatedKnowledgeAnswer(
                 cleanedAnswer,
                 false,

@@ -90,6 +90,10 @@ function columnTasks(status: TaskStatus): Task[] {
   return visibleTasks.value.filter(task => task.status === status)
 }
 
+function showMyTasks(): void {
+  filters.assigneeId = auth.currentUser?.id || ''
+}
+
 function taskQueryParams(): { assigneeId?: string; milestoneId?: string } {
   return {
     assigneeId: filters.assigneeId || undefined,
@@ -401,11 +405,11 @@ onMounted(load)
     <PageHeader
       eyebrow="项目执行"
       title="任务看板"
-      description="按状态推进任务，及时识别依赖阻塞与交付风险。"
       :context="project?.name"
     >
       <template #actions>
         <el-button v-if="canManage" type="primary" @click="createVisible = true">新建任务</el-button>
+        <el-button @click="showMyTasks">我的任务</el-button>
       </template>
     </PageHeader>
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />

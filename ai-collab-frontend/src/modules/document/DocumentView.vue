@@ -208,7 +208,6 @@ onUnmounted(() => {
     <PageHeader
       eyebrow="项目知识资产"
       title="项目文档"
-      description="集中管理竞赛材料，并将可提取文本转换为后续知识检索所需的向量索引。"
       :context="project?.name"
     >
       <template #actions>

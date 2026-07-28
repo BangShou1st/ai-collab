@@ -9,5 +9,6 @@ import java.util.UUID;
 public record SaveTaskPlanVersionRequest(
         @NotNull UUID baseVersionId,
         @NotNull Integer expectedVersionNo,
-        @NotNull @Valid TaskPlanDraft draft
+        @NotNull @Valid TaskPlanDraft draft,
+        String comment
 ) {}

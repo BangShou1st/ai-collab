@@ -24,8 +24,8 @@ export const planningApi = {
     httpClient.get<ApiResponse<{ version: { id: string; versionNo: number; sourceType: string }; draft: TaskPlanDraft }>>(`${base(projectId)}/${planId}/versions/${versionId}`),
   action: (projectId: string, planId: string, action: 'cancel' | 'retry-detail' | 'regenerate') =>
     httpClient.post(`${base(projectId)}/${planId}/${action}`),
-  save: (projectId: string, planId: string, baseVersionId: string, expectedVersionNo: number, draft: TaskPlanDraft) =>
-    httpClient.post(`${base(projectId)}/${planId}/versions`, { baseVersionId, expectedVersionNo, draft }),
+  save: (projectId: string, planId: string, baseVersionId: string, expectedVersionNo: number, draft: TaskPlanDraft, comment?: string) =>
+    httpClient.post(`${base(projectId)}/${planId}/versions`, { baseVersionId, expectedVersionNo, draft, comment }),
   restore: (projectId: string, planId: string, versionId: string) =>
     httpClient.post(`${base(projectId)}/${planId}/versions/${versionId}/restore`),
   confirm: (projectId: string, planId: string, versionId: string, key: string) =>

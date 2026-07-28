@@ -15,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,10 +47,9 @@ public class KnowledgeController {
     @PostMapping
     public ResponseEntity<ApiResponse<KnowledgeSessionView>> create(
             @PathVariable UUID projectId,
-            @RequestBody(required = false) CreateKnowledgeSessionRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.status(201)
-                .body(ApiResponse.success(sessions.create(projectId, request, userId(jwt))));
+                .body(ApiResponse.success(sessions.create(projectId, null, userId(jwt))));
     }
 
     @GetMapping("/{sessionId}")
@@ -58,6 +58,15 @@ public class KnowledgeController {
             @PathVariable UUID sessionId,
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(sessions.detail(projectId, sessionId, userId(jwt)));
+    }
+
+    @PatchMapping("/{sessionId}")
+    public ApiResponse<KnowledgeSessionView> rename(
+            @PathVariable UUID projectId,
+            @PathVariable UUID sessionId,
+            @RequestBody CreateKnowledgeSessionRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(sessions.rename(projectId, sessionId, request, userId(jwt)));
     }
 
     @DeleteMapping("/{sessionId}")

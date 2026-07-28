@@ -2,7 +2,7 @@
 defineProps<{
   eyebrow?: string
   title: string
-  description: string
+  description?: string
   context?: string
 }>()
 </script>
@@ -12,7 +12,7 @@ defineProps<{
     <div class="page-heading">
       <p v-if="eyebrow" class="eyebrow">{{ eyebrow }}</p>
       <h1>{{ title }}</h1>
-      <p class="subtitle">{{ description }}</p>
+      <p v-if="description" class="subtitle">{{ description }}</p>
       <p v-if="context" class="page-context">{{ context }}</p>
     </div>
     <div v-if="$slots.actions" class="page-actions">

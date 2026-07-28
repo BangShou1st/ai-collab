@@ -5,6 +5,7 @@ import com.shitulelv.aicollab.planning.infrastructure.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -72,7 +73,7 @@ public class TaskPlanVersionCommitService {
                 actorId, eventType, diff.changedFields(), diff.changedTargets(),
                 null, null,
                 assessment.codes(),
-                null);
+                null, OffsetDateTime.now());
         eventRepo.append(event);
 
         // 4. Return the created version
@@ -95,7 +96,7 @@ public class TaskPlanVersionCommitService {
             UUID actorId,
             UUID expectedBase) {
         return commitVersion(plan, draft, source, assessment, finalStatus, eventType,
-                actorId, expectedBase, expectedBase);
+                actorId, expectedBase, expectedBase, null);
     }
 
     @Transactional
@@ -109,6 +110,22 @@ public class TaskPlanVersionCommitService {
             UUID actorId,
             UUID expectedBase,
             UUID basedOnVersionId) {
+        return commitVersion(plan, draft, source, assessment, finalStatus, eventType,
+                actorId, expectedBase, basedOnVersionId, null);
+    }
+
+    @Transactional
+    public TaskPlanVersionRecord commitVersion(
+            TaskPlanRecord plan,
+            TaskPlanDraft draft,
+            TaskPlanVersionSource source,
+            ValidationAssessment assessment,
+            TaskPlanStatus finalStatus,
+            String eventType,
+            UUID actorId,
+            UUID expectedBase,
+            UUID basedOnVersionId,
+            String comment) {
 
         // 1. Append version (interactive path — no attempt guard)
         UUID versionId = repository.appendVersion(
@@ -130,6 +147,7 @@ public class TaskPlanVersionCommitService {
                 actorId, eventType, diff.changedFields(), diff.changedTargets(),
                 null, null,
                 assessment != null ? assessment.codes() : List.of(),
+                comment,
                 null);
         eventRepo.append(event);
 

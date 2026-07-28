@@ -141,7 +141,6 @@ onBeforeUnmount(clearPasswordFields)
     <PageHeader
       eyebrow="个人中心"
       title="账号设置"
-      description="分别管理个人资料、登录密码与设备会话。"
     />
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <section class="settings-grid">

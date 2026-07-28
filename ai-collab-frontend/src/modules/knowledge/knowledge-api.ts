@@ -15,11 +15,18 @@ export const knowledgeApi = {
       ),
     )
   },
-  async createSession(projectId: string, title?: string): Promise<ApiResult<KnowledgeSession>> {
+  async createSession(projectId: string): Promise<ApiResult<KnowledgeSession>> {
     return apiResultFromResponse(
       await httpClient.post<ApiResponse<KnowledgeSession>>(
         `/projects/${projectId}/knowledge/sessions`,
-        title ? { title } : {},
+      ),
+    )
+  },
+  async renameSession(projectId: string, sessionId: string, title: string): Promise<ApiResult<KnowledgeSession>> {
+    return apiResultFromResponse(
+      await httpClient.patch<ApiResponse<KnowledgeSession>>(
+        `/projects/${projectId}/knowledge/sessions/${sessionId}`,
+        { title },
       ),
     )
   },

@@ -87,6 +87,18 @@ public class KnowledgeSessionApplicationService {
         }
     }
 
+    @Transactional
+    public KnowledgeSessionView rename(
+            UUID projectId, UUID sessionId, CreateKnowledgeSessionRequest request, UUID userId) {
+        access.requireMember(projectId, userId);
+        KnowledgeSessionEntity session = requireOwn(projectId, sessionId, userId);
+        String title = normalizeTitle(request == null ? null : request.title());
+        session.setTitle(title);
+        session.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        repository.updateSession(session);
+        return KnowledgeSessionView.from(session);
+    }
+
     private KnowledgeSessionEntity requireOwn(UUID projectId, UUID sessionId, UUID userId) {
         return repository.findOwn(projectId, sessionId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.KNOWLEDGE_SESSION_NOT_FOUND));

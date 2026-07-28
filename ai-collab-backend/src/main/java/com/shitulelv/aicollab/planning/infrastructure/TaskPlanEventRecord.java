@@ -19,6 +19,7 @@ public record TaskPlanEventRecord(
         String beforeHash,
         String afterHash,
         List<String> issueCodes,
+        String comment,
         OffsetDateTime createdAt
 ) {
     public TaskPlanEventRecord {

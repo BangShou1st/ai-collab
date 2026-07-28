@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TaskPlanEvent } from '../types'
-import { eventLabel, fieldLabel, issueLabel } from '../planning-labels'
+import { eventLabel } from '../planning-labels'
 
 const props = defineProps<{
   events: TaskPlanEvent[]
@@ -9,6 +9,51 @@ const props = defineProps<{
 const formatTime = (ts: string | null) => {
   if (!ts) return ''
   return new Date(ts).toLocaleString('zh-CN')
+}
+
+const formatEventDescription = (event: TaskPlanEvent) => {
+  const { eventType, changedFields, changedTargets, issueCodes, comment } = event
+
+  // 如果有用户自定义的comment，优先显示
+  if (comment && comment.trim()) {
+    return comment.trim()
+  }
+
+  // 简化显示：根据事件类型返回简洁描述
+  if (eventType === 'PLAN_GENERATED' || eventType === 'PLAN_GENERATED_WITH_ISSUES') {
+    return 'AI 生成了规划'
+  }
+  if (eventType === 'PARTIAL_REPAIR' || eventType === 'TASK_PLAN_PARTIAL_REGENERATED') {
+    return `AI 重新生成了 ${changedTargets.length} 个任务`
+  }
+  if (eventType === 'TASK_PLAN_USER_EDITED') {
+    // 统计实际修改的字段数量（去重后）
+    const uniqueFields = new Set(changedFields.map(f => {
+      // 提取最后一个段作为字段名
+      const lastDot = f.lastIndexOf('.')
+      return lastDot === -1 ? f : f.substring(lastDot + 1)
+    }))
+    return `用户修改了 ${uniqueFields.size} 个字段`
+  }
+  if (eventType === 'TASK_PLAN_REGENERATED') {
+    return 'AI 重新生成了整个规划'
+  }
+  if (eventType === 'TASK_PLAN_CONFIRMED') {
+    return '规划已确认并创建任务'
+  }
+  if (eventType === 'TASK_PLAN_VERSION_SAVED') {
+    return '规划新版本已保存'
+  }
+
+  // 默认显示变更统计
+  if (changedFields.length > 0) {
+    const uniqueFields = new Set(changedFields.map(f => {
+      const lastDot = f.lastIndexOf('.')
+      return lastDot === -1 ? f : f.substring(lastDot + 1)
+    }))
+    return `更新了 ${uniqueFields.size} 个字段`
+  }
+  return ''
 }
 </script>
 
@@ -21,11 +66,8 @@ const formatTime = (ts: string | null) => {
         <div class="event-content">
           <span class="event-label">{{ eventLabel(event.eventType) }}</span>
           <span class="event-time">{{ formatTime(event.createdAt) }}</span>
-          <div class="event-changes" v-if="event.changedFields.length > 0">
-            修改：{{ event.changedFields.map(fieldLabel).join('、') }}
-          </div>
-          <div class="event-issues" v-if="event.issueCodes.length > 0">
-            问题：{{ event.issueCodes.map(issueLabel).join('、') }}
+          <div class="event-description" v-if="formatEventDescription(event)">
+            {{ formatEventDescription(event) }}
           </div>
         </div>
       </div>
@@ -70,7 +112,7 @@ const formatTime = (ts: string | null) => {
   font-size: 12px;
   color: #999;
 }
-.event-changes, .event-issues {
+.event-description {
   font-size: 12px;
   color: #666;
 }
