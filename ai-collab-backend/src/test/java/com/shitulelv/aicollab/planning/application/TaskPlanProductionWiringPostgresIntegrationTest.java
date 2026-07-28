@@ -843,9 +843,180 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         assertThat(events.stream().anyMatch(e -> e.eventType().equals("PARTIAL_REPAIR"))).isTrue();
     }
 
+    @Test
+    void partialRepairRejectsIssueFromOldVersionWithConflictCode() {
+        UUID userId = insertUser("old-issue");
+        UUID projectId = insertProject("Old issue project", userId);
+        insertMember(projectId, userId, "OWNER");
+        TaskPlanDraft draft = simpleDraft();
+        PlanSetup setup = insertReadyWithIssuesPlan(projectId, userId, draft, List.of(
+                new StructuredValidationIssue("TASK_DATE_INVALID", ValidationIssueSeverity.BLOCKING_EDITABLE,
+                        "TASK", "t1", "startDate", null, java.util.Map.of())));
+        UUID oldIssueId = jdbc.queryForObject("""
+                SELECT id FROM ai_task_plan_validation_issue
+                WHERE plan_id=? AND version_id=?
+                """, UUID.class, setup.planId(), setup.versionId());
+        UUID currentVersionId = repository.appendVersion(
+                projectId, setup.planId(), setup.versionId(), "MANUAL_EDIT", setup.versionId(),
+                draft, userId, new ValidationResult(List.of(), List.of()), TaskPlanStatus.READY);
+
+        PartialRegenerateRequest request = new PartialRegenerateRequest(
+                currentVersionId, 2, List.of("t1"), Set.of("startDate"), Set.of(),
+                List.of(oldIssueId), PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES);
+
+        assertThatThrownBy(() -> createCommandService(mock(TaskPlanModelClient.class))
+                .partialRegenerate(projectId, setup.planId(), request, userId))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(error -> assertThat(((BusinessException) error).getErrorCode().name())
+                        .isEqualTo("PLAN_REPAIR_ISSUE_CONFLICT"));
+    }
+
+    @Test
+    void partialRepairRejectsCrossProjectIssueWithInvalidIssueCode() {
+        UUID userId = insertUser("cross-issue");
+        UUID projectA = insertProject("Cross issue A", userId);
+        UUID projectB = insertProject("Cross issue B", userId);
+        insertMember(projectA, userId, "OWNER");
+        insertMember(projectB, userId, "OWNER");
+        TaskPlanDraft draft = simpleDraft();
+        PlanSetup planA = insertReadyWithIssuesPlan(projectA, userId, draft, List.of(
+                new StructuredValidationIssue("TASK_DATE_INVALID", ValidationIssueSeverity.BLOCKING_EDITABLE,
+                        "TASK", "t1", "startDate", null, java.util.Map.of())));
+        PlanSetup planB = insertReadyWithIssuesPlan(projectB, userId, draft, List.of(
+                new StructuredValidationIssue("TASK_DATE_INVALID", ValidationIssueSeverity.BLOCKING_EDITABLE,
+                        "TASK", "t1", "startDate", null, java.util.Map.of())));
+        UUID issueFromB = jdbc.queryForObject("""
+                SELECT id FROM ai_task_plan_validation_issue
+                WHERE plan_id=? AND version_id=?
+                """, UUID.class, planB.planId(), planB.versionId());
+        PartialRegenerateRequest request = new PartialRegenerateRequest(
+                planA.versionId(), 1, List.of("t1"), Set.of("startDate"), Set.of(),
+                List.of(issueFromB), PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES);
+
+        assertThatThrownBy(() -> createCommandService(mock(TaskPlanModelClient.class))
+                .partialRegenerate(projectA, planA.planId(), request, userId))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(error -> assertThat(((BusinessException) error).getErrorCode().name())
+                        .isEqualTo("PLAN_REPAIR_ISSUE_INVALID"));
+    }
+
+    @Test
+    void selectedIssueCodesMustAllMatchRepairMode() {
+        UUID userId = insertUser("mode-issues");
+        UUID projectId = insertProject("Mode issue project", userId);
+        insertMember(projectId, userId, "OWNER");
+        PlanSetup setup = insertReadyWithIssuesPlan(projectId, userId, simpleDraft(), List.of(
+                new StructuredValidationIssue("TASK_DATE_INVALID", ValidationIssueSeverity.BLOCKING_EDITABLE,
+                        "TASK", "t1", "startDate", null, java.util.Map.of()),
+                new StructuredValidationIssue("ASSIGNEE_NOT_PROJECT_MEMBER", ValidationIssueSeverity.BLOCKING_EDITABLE,
+                        "TASK", "t1", "suggestedAssigneeId", null, java.util.Map.of())));
+        List<UUID> issueIds = jdbc.queryForList("""
+                SELECT id FROM ai_task_plan_validation_issue
+                WHERE plan_id=? AND version_id=? ORDER BY code
+                """, UUID.class, setup.planId(), setup.versionId());
+        PartialRegenerateRequest request = new PartialRegenerateRequest(
+                setup.versionId(), 1, List.of("t1"), Set.of(), Set.of(), issueIds,
+                PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES);
+
+        assertThatThrownBy(() -> createCommandService(mock(TaskPlanModelClient.class))
+                .partialRegenerate(projectId, setup.planId(), request, userId))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(error -> assertThat(((BusinessException) error).getErrorCode())
+                        .isEqualTo(ErrorCode.VALIDATION_ERROR));
+    }
+
+    @Test
+    void staleVersionIsRejectedAfterPartialRepairModelCall() {
+        UUID userId = insertUser("stale-after-model");
+        UUID projectId = insertProject("Stale after model project", userId);
+        insertMember(projectId, userId, "OWNER");
+        PlanSetup setup = insertReadyWithIssuesPlan(projectId, userId, simpleDraft(), List.of(
+                new StructuredValidationIssue("TASK_DATE_INVALID", ValidationIssueSeverity.BLOCKING_EDITABLE,
+                        "TASK", "t1", "startDate", null, java.util.Map.of())));
+        UUID concurrentVersionId = UUID.randomUUID();
+        TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    jdbc.update("""
+                            INSERT INTO ai_task_plan_version
+                            (id,plan_id,version_no,source_type,based_on_version_id,generation_seq,created_by)
+                            VALUES (?,?,2,'MANUAL_EDIT',?,1,?)
+                            """, concurrentVersionId, setup.planId(), setup.versionId(), userId);
+                    jdbc.update("""
+                            UPDATE ai_task_plan SET latest_version_id=?,latest_version_no=2
+                            WHERE id=?
+                            """, concurrentVersionId, setup.planId());
+                    return new GenerationResult(
+                            "{\"taskPatches\":[{\"tempKey\":\"t1\",\"startDate\":\"2026-08-02\"}]}",
+                            "provider", "model", 10, 5, 20);
+                });
+        PartialRegenerateRequest request = new PartialRegenerateRequest(
+                setup.versionId(), 1, List.of("t1"), Set.of("startDate"), Set.of(),
+                List.of(), PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES);
+
+        createCommandService(modelClient)
+                .partialRegenerate(projectId, setup.planId(), request, userId);
+
+        TaskPlanRecord after = repository.require(projectId, setup.planId());
+        assertThat(after.latestVersionId()).isEqualTo(concurrentVersionId);
+        assertThat(after.latestVersionNo()).isEqualTo(2);
+        assertThat(after.status()).isEqualTo(TaskPlanStatus.READY_WITH_ISSUES);
+        assertThat(after.lastErrorCode()).isEqualTo("PLAN_VERSION_CONFLICT");
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM ai_task_plan_version WHERE plan_id=?",
+                Integer.class, setup.planId())).isEqualTo(2);
+    }
+
+    @Test
+    void partialRepairCommitRollbackIsAtomic() {
+        UUID userId = insertUser("partial-rollback");
+        UUID projectId = insertProject("Partial rollback project", userId);
+        insertMember(projectId, userId, "OWNER");
+        TaskPlanDraft draft = simpleDraft();
+        PlanSetup setup = insertReadyWithIssuesPlan(projectId, userId, draft, List.of(
+                new StructuredValidationIssue("TASK_DATE_INVALID", ValidationIssueSeverity.BLOCKING_EDITABLE,
+                        "TASK", "t1", "startDate", null, java.util.Map.of())));
+        TaskPlanRepository.PartialRepairStart started = repository.startPartialRepair(
+                projectId, setup.planId(), setup.versionId(), 1, userId);
+        assertThat(repository.markRunning(started.attemptId(), setup.planId(),
+                started.plan().generationSeq(), TaskPlanStatus.REPAIRING)).isTrue();
+        TaskPlanEventRepository brokenEvents = mock(TaskPlanEventRepository.class);
+        doThrow(new RuntimeException("EVENT_WRITE_FAILED")).when(brokenEvents).append(any());
+        TaskPlanVersionCommitService failingCommit =
+                new TaskPlanVersionCommitService(repository, issueRepo, brokenEvents);
+
+        assertThatThrownBy(() -> tx.executeWithoutResult(ignored ->
+                failingCommit.commitPartialRepair(
+                        started.plan(), draft, ValidationAssessment.empty(), TaskPlanStatus.READY,
+                        userId, setup.versionId(),
+                        new GenerationResult("{}", "provider", "model", 10, 5, 20))))
+                .isInstanceOf(RuntimeException.class);
+
+        TaskPlanRecord after = repository.require(projectId, setup.planId());
+        assertThat(after.latestVersionId()).isEqualTo(setup.versionId());
+        assertThat(after.latestVersionNo()).isEqualTo(1);
+        assertThat(after.status()).isEqualTo(TaskPlanStatus.REPAIRING);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM ai_task_plan_version WHERE plan_id=?",
+                Integer.class, setup.planId())).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT status FROM ai_task_plan_attempt WHERE id=?",
+                String.class, started.attemptId())).isEqualTo("RUNNING");
+    }
+
     // ══════════════════════════════════════════════════════════════════
     // Helpers
     // ══════════════════════════════════════════════════════════════════
+
+    private TaskPlanDraft simpleDraft() {
+        return new TaskPlanDraft("summary", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "Milestone", "Objective",
+                        "Description", LocalDate.of(2026, 8, 20), 0, List.of())),
+                List.of(new PlanTask("t1", "m1", "Task", "Objective", "Description",
+                        "MEDIUM", BigDecimal.ONE, LocalDate.of(2026, 8, 1),
+                        LocalDate.of(2026, 8, 10), null, null, List.of(), List.of(), 0)),
+                List.of());
+    }
 
     private TaskPlanCommandService createCommandService(TaskPlanModelClient modelClient) {
         ExecutorService executor = Executors.newSingleThreadExecutor();

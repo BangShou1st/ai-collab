@@ -64,6 +64,8 @@ public enum ErrorCode {
     TASK_PLAN_STATE_CONFLICT(HttpStatus.CONFLICT, "任务规划当前状态不允许此操作"),
     TASK_PLAN_VERSION_NOT_FOUND(HttpStatus.NOT_FOUND, "任务规划版本不存在"),
     PLAN_VERSION_CONFLICT(HttpStatus.CONFLICT, "规划版本已更新，请加载最新版本"),
+    PLAN_REPAIR_ISSUE_INVALID(HttpStatus.BAD_REQUEST, "局部修复问题不存在或不属于当前规划"),
+    PLAN_REPAIR_ISSUE_CONFLICT(HttpStatus.CONFLICT, "局部修复问题已过期或已解决，请加载最新版本"),
     PLAN_VALIDATION_FAILED(HttpStatus.UNPROCESSABLE_CONTENT, "规划草案未通过领域校验"),
     PLAN_GENERATION_FAILED(HttpStatus.UNPROCESSABLE_CONTENT, "规划骨架生成失败"),
     PLAN_DETAIL_GENERATION_FAILED(HttpStatus.UNPROCESSABLE_CONTENT, "规划细节生成失败"),

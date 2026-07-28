@@ -18,12 +18,11 @@ import java.util.UUID;
  *
  * 成功配额语义：
  * - 每个用户在过去 60 分钟内，成功生成并进入 READY 的 AI 规划最多 N 次
- * - 成功定义：创建 AI_COMPLETE version 并且 plan 进入 READY
+ * - 成功定义：创建 AI_COMPLETE、AI_REPAIR、AI_PARTIAL 或 AI_PARTIAL_REPAIR version
  * - 以下不计入成功配额：FAILED、DETAIL_GENERATION_FAILED、CANCELED、DISCARDED、
  *   PLANNING_QUEUE_FULL、PLANNING_MODEL_UNAVAILABLE、PLANNING_MODEL_TIMEOUT、
  *   供应商额度不足、模型输出无效、进程恢复失败
  * - 同一次生成中的 Skeleton、Detail、Repair 只算一个逻辑生成
- * - Repair 不额外计数
  * - 手工保存版本不计数
  * - Restore 不计数
  * - Confirm 不计数
@@ -54,22 +53,22 @@ public class PlanningGenerationQuotaService {
     public boolean checkQuota(UUID userId) {
         Instant windowStart = clock.instant().minus(Duration.ofHours(1));
 
-        // 查询过去 60 分钟成功生成次数（AI_COMPLETE 版本）
+        // 查询过去 60 分钟所有成功 AI 规划/修复版本
         int successCount = jdbc.queryForObject("""
                 SELECT count(*)
                 FROM ai_task_plan_version
                 WHERE created_by = ?
-                  AND source_type = 'AI_COMPLETE'
+                  AND source_type IN ('AI_COMPLETE','AI_REPAIR','AI_PARTIAL','AI_PARTIAL_REPAIR')
                   AND created_at >= ?
                 """, Integer.class, userId, java.sql.Timestamp.from(windowStart));
 
-        // 查询当前活动生成数（SKELETON_GENERATING 或 DETAIL_GENERATING）
+        // 查询当前活动生成或局部修复
         int activeCount = jdbc.queryForObject("""
                 SELECT count(*)
                 FROM ai_task_plan p
                 JOIN ai_task_plan_attempt a ON a.id = p.active_attempt_id
                 WHERE a.created_by = ?
-                  AND p.status IN ('SKELETON_GENERATING', 'DETAIL_GENERATING')
+                  AND p.status IN ('SKELETON_GENERATING', 'DETAIL_GENERATING', 'REPAIRING')
                   AND a.status IN ('QUEUED', 'RUNNING')
                 """, Integer.class, userId);
 
@@ -100,7 +99,7 @@ public class PlanningGenerationQuotaService {
                 SELECT count(*)
                 FROM ai_task_plan_version
                 WHERE created_by = ?
-                  AND source_type = 'AI_COMPLETE'
+                  AND source_type IN ('AI_COMPLETE','AI_REPAIR','AI_PARTIAL','AI_PARTIAL_REPAIR')
                   AND created_at >= ?
                 """, Integer.class, userId, java.sql.Timestamp.from(windowStart));
     }
@@ -117,7 +116,7 @@ public class PlanningGenerationQuotaService {
                 FROM ai_task_plan p
                 JOIN ai_task_plan_attempt a ON a.id = p.active_attempt_id
                 WHERE a.created_by = ?
-                  AND p.status IN ('SKELETON_GENERATING', 'DETAIL_GENERATING')
+                  AND p.status IN ('SKELETON_GENERATING', 'DETAIL_GENERATING', 'REPAIRING')
                   AND a.status IN ('QUEUED', 'RUNNING')
                 """, Integer.class, userId);
     }

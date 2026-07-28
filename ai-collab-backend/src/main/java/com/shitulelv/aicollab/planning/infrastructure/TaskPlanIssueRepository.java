@@ -98,6 +98,20 @@ public class TaskPlanIssueRepository {
                 """.formatted(placeholders), this::persistedIssue, args.toArray());
     }
 
+    public int countIdsForPlan(UUID planId, List<UUID> issueIds) {
+        if (issueIds == null || issueIds.isEmpty()) return 0;
+        List<UUID> uniqueIds = issueIds.stream().distinct().toList();
+        String placeholders = String.join(",", java.util.Collections.nCopies(uniqueIds.size(), "?"));
+        java.util.ArrayList<Object> args = new java.util.ArrayList<>();
+        args.add(planId);
+        args.addAll(uniqueIds);
+        Integer count = jdbc.queryForObject("""
+                SELECT count(*) FROM ai_task_plan_validation_issue
+                WHERE plan_id=? AND id IN (%s)
+                """.formatted(placeholders), Integer.class, args.toArray());
+        return count == null ? 0 : count;
+    }
+
     private PersistedIssue persistedIssue(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
         return new PersistedIssue(rs.getObject("id", UUID.class), new StructuredValidationIssue(
                 rs.getString("code"),

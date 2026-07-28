@@ -142,7 +142,11 @@ public class TaskPlanRepository {
             finishAttempt(attemptId, "DISCARDED", "PLAN_GENERATION_CANCELED");
             return null;
         }
-        return appendVersion(projectId, planId, null, type, basedOn, draft, actor, validation, finalStatus);
+        if (basedOn != null && !basedOn.equals(plan.latestVersionId())) {
+            finishAttempt(attemptId, "DISCARDED", "PLAN_VERSION_CONFLICT");
+            return null;
+        }
+        return appendVersion(projectId, planId, basedOn, type, basedOn, draft, actor, validation, finalStatus);
     }
 
     /**

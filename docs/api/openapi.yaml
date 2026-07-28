@@ -2242,7 +2242,7 @@ components:
           items: { type: string, format: uuid }
         mode:
           type: string
-          enum: [REPAIR_ALL_ISSUES, REPAIR_DATES_AND_DEPENDENCIES, REGENERATE_SELECTED_TASK_DETAILS, RESCHEDULE_UNLOCKED_TASKS, APPLY_UPDATED_CONSTRAINTS]
+          enum: [REPAIR_ALL_ISSUES, REPAIR_DATES_AND_DEPENDENCIES, REGENERATE_SELECTED_TASK_DETAILS, REPAIR_ASSIGNMENTS_AND_SOURCES, RESCHEDULE_UNLOCKED_TASKS, APPLY_UPDATED_CONSTRAINTS]
     ApplyTaskPlanResult:
       type: object
       required: [confirmationId, status]

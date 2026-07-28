@@ -111,6 +111,21 @@ class PlanningGenerationQuotaServiceTest {
     }
 
     @Test
+    void successfulRepairAndPartialVersionsCountTowardQuota() {
+        for (String sourceType : new String[]{"AI_REPAIR", "AI_PARTIAL", "AI_PARTIAL_REPAIR"}) {
+            UUID planId = createPlanWithStatus("READY");
+            createVersion(planId, sourceType);
+        }
+
+        PlanningGenerationQuotaService service = createService(3);
+
+        assertThatThrownBy(() -> service.checkQuota(testUserId))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.PLANNING_GENERATION_QUOTA_EXCEEDED));
+    }
+
+    @Test
     void twoSuccessfulGenerationsExceedsLimit() {
         UUID planId1 = createPlanWithStatus("READY");
         createVersion(planId1, "AI_COMPLETE");
@@ -141,6 +156,17 @@ class PlanningGenerationQuotaServiceTest {
 
         // With limit=2, 2 active generations already reach the limit
         PlanningGenerationQuotaService service = createService(2);
+
+        assertThatThrownBy(() -> service.checkQuota(testUserId))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.PLANNING_GENERATION_QUOTA_EXCEEDED));
+    }
+
+    @Test
+    void activePartialRepairOccupiesQuotaSlot() {
+        createPlanWithStatus("REPAIRING");
+        PlanningGenerationQuotaService service = createService(1);
 
         assertThatThrownBy(() -> service.checkQuota(testUserId))
                 .isInstanceOf(BusinessException.class)
@@ -292,13 +318,18 @@ class PlanningGenerationQuotaServiceTest {
                 java.time.LocalDate.now(), java.time.LocalDate.now().plusDays(30), 10);
 
         // For generating states, create an active attempt
-        if ("SKELETON_GENERATING".equals(status) || "DETAIL_GENERATING".equals(status)) {
+        if ("SKELETON_GENERATING".equals(status)
+                || "DETAIL_GENERATING".equals(status)
+                || "REPAIRING".equals(status)) {
             attemptId = UUID.randomUUID();
             jdbc.update("""
                     INSERT INTO ai_task_plan_attempt (id, plan_id, attempt_no, generation_seq, stage, status, created_by)
                     VALUES (?, ?, 1, 1, ?, 'QUEUED', ?)
                     """,
-                    attemptId, planId, "SKELETON_GENERATING".equals(status) ? "SKELETON" : "DETAIL", testUserId);
+                    attemptId, planId,
+                    "SKELETON_GENERATING".equals(status) ? "SKELETON"
+                            : "DETAIL_GENERATING".equals(status) ? "DETAIL" : "REPAIR",
+                    testUserId);
 
             // Update plan with active_attempt_id
             jdbc.update("UPDATE ai_task_plan SET active_attempt_id = ? WHERE id = ?", attemptId, planId);

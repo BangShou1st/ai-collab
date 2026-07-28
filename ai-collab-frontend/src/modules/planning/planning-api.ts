@@ -1,6 +1,12 @@
 import { httpClient } from '../../api/http-client'
 import type { ApiResponse } from '../../api/types'
-import type { TaskPlanDetailView, TaskPlanDraft, TaskPlan, TaskPlanEvent } from './types'
+import type {
+  PartialRegenerateRequest,
+  TaskPlanDetailView,
+  TaskPlanDraft,
+  TaskPlan,
+  TaskPlanEvent,
+} from './types'
 
 const base = (projectId: string) => `/projects/${projectId}/ai/task-plans`
 
@@ -29,7 +35,7 @@ export const planningApi = {
     httpClient.patch(`${base(projectId)}/${planId}`, body),
   events: (projectId: string, planId: string) =>
     httpClient.get<ApiResponse<TaskPlanEvent[]>>(`${base(projectId)}/${planId}/events`),
-  partialRegenerate: (projectId: string, planId: string, body: object) =>
+  partialRegenerate: (projectId: string, planId: string, body: PartialRegenerateRequest) =>
     httpClient.post(`${base(projectId)}/${planId}/partial-regenerate`, body),
 }
 
