@@ -1,5 +1,7 @@
 package com.shitulelv.aicollab.planning.domain;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.planning.application.TaskPlanRepairPatchParser;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -18,6 +20,8 @@ class TaskPlanRepairPatchTest {
 
     private final com.shitulelv.aicollab.planning.application.TaskPlanRepairPatchApplier applier =
             new com.shitulelv.aicollab.planning.application.TaskPlanRepairPatchApplier();
+    private final TaskPlanRepairPatchParser parser =
+            new TaskPlanRepairPatchParser(new ObjectMapper().findAndRegisterModules());
 
     private TaskPlanDraft baseDraft() {
         PlanMilestone m1 = new PlanMilestone("M1", "Milestone 1", "obj", null,
@@ -45,6 +49,68 @@ class TaskPlanRepairPatchTest {
 
     private Set<String> validSources() {
         return Set.of("S1", "S2", "S3");
+    }
+
+    @Test
+    void repairPatchRejectsWrongFieldTypes() {
+        assertAll(
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":[],"taskPatches":[{"tempKey":"T1","dependencyTempKeys":"T1"}]}
+                        """)),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":[{"tempKey":"M1","sourceRefs":[1]}],"taskPatches":[]}
+                        """)),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":[],"taskPatches":[{"tempKey":"T1","suggestedAssigneeId":1}]}
+                        """)),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":[],"taskPatches":[{"tempKey":"T1","startDate":20260801}]}
+                        """)),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":[],"taskPatches":[{"tempKey":"T1","estimatedHours":"8"}]}
+                        """)),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":[],"taskPatches":[{"tempKey":1,"description":true}]}
+                        """)));
+    }
+
+    @Test
+    void repairPatchRejectsUnknownProperties() {
+        assertAll(
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":[],"taskPatches":[],"unexpected":true}
+                        """)),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":[],"taskPatches":[{"tempKey":"T1","unexpected":true}]}
+                        """)),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":[{"tempKey":"M1","unexpected":true}],"taskPatches":[]}
+                        """)));
+    }
+
+    @Test
+    void repairPatchRejectsMissingRequiredPatchArrays() {
+        assertAll(
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"taskPatches":[]}
+                        """)),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":[]}
+                        """)),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":null,"taskPatches":[]}
+                        """)),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""
+                        {"milestonePatches":[],"taskPatches":{}}
+                        """)));
+    }
+
+    @Test
+    void repairPatchRejectsNonObjectRoot() {
+        assertAll(
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("[]")),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("null")),
+                () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("\"patch\"")));
     }
 
     // ── PatchValue tests ──
