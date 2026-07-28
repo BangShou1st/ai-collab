@@ -261,6 +261,10 @@ class TaskPlanProductionWiringPostgresIT {
         TaskPlanRecord finalPlan = repository.require(projectId, plan.id());
         assertThat(finalPlan.status()).isEqualTo(TaskPlanStatus.READY_WITH_ISSUES);
 
+        // Verify source type is AI_PARTIAL (not AI_COMPLETE) when degraded
+        TaskPlanVersionRecord latestVersion = repository.requireVersion(projectId, plan.id(), finalPlan.latestVersionId());
+        assertThat(latestVersion.sourceType()).isEqualTo("AI_PARTIAL");
+
         // Verify structured issues were persisted
         List<StructuredValidationIssue> issues = issueRepo.findByVersion(plan.id(), finalPlan.latestVersionId());
         assertThat(issues).isNotEmpty();
@@ -316,7 +320,7 @@ class TaskPlanProductionWiringPostgresIT {
         assertThat(executor.awaitTermination(15, TimeUnit.SECONDS)).isTrue();
 
         TaskPlanRecord finalPlan = repository.require(projectId, plan.id());
-        assertThat(finalPlan.status()).isEqualTo(TaskPlanStatus.FAILED);
+        assertThat(finalPlan.status()).isEqualTo(TaskPlanStatus.DETAIL_GENERATION_FAILED);
         // No AI_COMPLETE version should exist
         List<TaskPlanVersionRecord> versions = repository.versions(projectId, plan.id());
         assertThat(versions.stream().noneMatch(v -> v.sourceType().equals("AI_COMPLETE"))).isTrue();
@@ -395,7 +399,7 @@ class TaskPlanProductionWiringPostgresIT {
                 mock(com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard.class),
                 repository, orchestrator, validator, jdbc,
                 null, null, mock(com.shitulelv.aicollab.project.application.service.AuditService.class),
-                normalizer, outcomeDecider, commitService, patchParser, patchApplier, null);
+                normalizer, outcomeDecider, commitService, patchParser, patchApplier, null, json);
         // Bypass access guard
         doNothing().when(mock(com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard.class))
                 .requireAdmin(projectId, userId);
@@ -422,9 +426,9 @@ class TaskPlanProductionWiringPostgresIT {
                     p.planStartDate(), p.planDueDate(), p.maxTaskCount(), members, Set.of()), normalized);
             ValidationAssessment assessment = toAssessment(validation);
 
-            // Commit
-            TaskPlanVersionRecord vr = commitService.commit(p, normalized,
-                    TaskPlanVersionSource.USER_EDIT, assessment,
+            // Commit (interactive path — no active attempt)
+            TaskPlanVersionRecord vr = commitService.commitVersion(p, normalized,
+                    TaskPlanVersionSource.MANUAL_EDIT, assessment,
                     outcomeDecider.decideStatus(assessment),
                     "TASK_PLAN_USER_EDITED", userId, baseVersionId);
             return vr != null ? vr.id() : null;
@@ -505,8 +509,8 @@ class TaskPlanProductionWiringPostgresIT {
                     p.planStartDate(), p.planDueDate(), p.maxTaskCount(), members, Set.of()), normalized);
             ValidationAssessment assessment = toAssessment(validation);
 
-            failingCommitService.commit(p, normalized,
-                    TaskPlanVersionSource.USER_EDIT, assessment,
+            failingCommitService.commitVersion(p, normalized,
+                    TaskPlanVersionSource.MANUAL_EDIT, assessment,
                     outcomeDecider.decideStatus(assessment),
                     "TASK_PLAN_USER_EDITED", userId, versionId);
         })).isInstanceOf(RuntimeException.class);
@@ -690,10 +694,10 @@ class TaskPlanProductionWiringPostgresIT {
                 new StructuredValidationIssue("DEPENDENCY_DATE_CONFLICT", ValidationIssueSeverity.BLOCKING_EDITABLE,
                         "TASK", "t1", "startDate", null, java.util.Map.of())));
 
-        // Patch tries to modify locked fields (title, objective, sortOrder, tempKey)
+        // Patch tries to modify locked fields on t1 (title, objective, sortOrder, tempKey are ALWAYS_LOCKED)
+        // and allowed fields (startDate is allowed by DEPENDENCY_DATE_CONFLICT)
         String patchJson = """
-                {"milestonePatches":[{"tempKey":"m1","description":"New desc","targetDate":"2026-08-20"}],
-                "taskPatches":[{"tempKey":"t1","startDate":"2026-08-05"}]}
+                {"taskPatches":[{"tempKey":"t1","startDate":"2026-08-05"}]}
                 """;
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
@@ -702,7 +706,7 @@ class TaskPlanProductionWiringPostgresIT {
         TaskPlanCommandService commands = createCommandService(modelClient);
 
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                setup.versionId(), List.of("t1", "m1"), Set.of("startDate", "description", "targetDate"), Set.of(),
+                setup.versionId(), List.of("t1"), Set.of("startDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_ALL_ISSUES);
 
         commands.partialRegenerate(projectId, setup.planId(), request, userId);
@@ -711,21 +715,20 @@ class TaskPlanProductionWiringPostgresIT {
         TaskPlanDraft patchedDraft = repository.draft(repository.requireVersion(
                 projectId, setup.planId(), afterPatch.latestVersionId()));
 
-        // Verify locked fields preserved
-        PlanMilestone patchedM1 = patchedDraft.milestones().stream()
-                .filter(m -> m.tempKey().equals("m1")).findFirst().orElseThrow();
-        assertThat(patchedM1.title()).isEqualTo("Milestone Title"); // LOCKED
-        assertThat(patchedM1.objective()).isEqualTo("Milestone Obj"); // LOCKED
-        assertThat(patchedM1.sortOrder()).isEqualTo(0); // LOCKED
-        assertThat(patchedM1.description()).isEqualTo("New desc"); // ALLOWED — changed
-        assertThat(patchedM1.targetDate()).isEqualTo(LocalDate.of(2026, 8, 20)); // ALLOWED — changed
-
+        // Verify locked fields on t1 are preserved; only startDate (allowed) changed
         PlanTask patchedT1 = patchedDraft.tasks().stream()
                 .filter(t -> t.tempKey().equals("t1")).findFirst().orElseThrow();
         assertThat(patchedT1.title()).isEqualTo("Task Title"); // LOCKED
         assertThat(patchedT1.objective()).isEqualTo("Task Obj"); // LOCKED
         assertThat(patchedT1.sortOrder()).isEqualTo(0); // LOCKED
         assertThat(patchedT1.startDate()).isEqualTo(LocalDate.of(2026, 8, 5)); // ALLOWED — changed
+
+        // Milestone unchanged (not a target)
+        PlanMilestone patchedM1 = patchedDraft.milestones().stream()
+                .filter(m -> m.tempKey().equals("m1")).findFirst().orElseThrow();
+        assertThat(patchedM1.title()).isEqualTo("Milestone Title");
+        assertThat(patchedM1.description()).isEqualTo("Original milestone desc");
+        assertThat(patchedM1.targetDate()).isEqualTo(LocalDate.of(2026, 8, 15));
 
         // Top-level fields also locked
         assertThat(patchedDraft.summary()).isEqualTo("Plan Summary");
@@ -853,7 +856,7 @@ class TaskPlanProductionWiringPostgresIT {
                 mock(com.shitulelv.aicollab.project.application.service.AuditService.class);
 
         return new TaskPlanCommandService(accessGuard, repository, orchestrator, validator, jdbc,
-                null, null, auditService, normalizer, outcomeDecider, commitService, patchParser, patchApplier, modelClient);
+                null, null, auditService, normalizer, outcomeDecider, commitService, patchParser, patchApplier, modelClient, json);
     }
 
     private TaskPlanDraft applyUserEditPatch(TaskPlanDraft base, UpdateTaskPlanRequest request) {

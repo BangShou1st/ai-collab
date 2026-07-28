@@ -50,7 +50,7 @@ class TaskPlanPartialRegenerateTest {
         service = new TaskPlanCommandService(access, repository, orchestrator, null, null,
                 null, null, null, new TaskPlanDraftNormalizer(), new GenerationOutcomeDecider(),
                 commitService, new TaskPlanRepairPatchParser(new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()),
-                new TaskPlanRepairPatchApplier(), null);
+                new TaskPlanRepairPatchApplier(), null, null);
     }
 
     private TaskPlanRecord readyPlan() {
@@ -101,7 +101,6 @@ class TaskPlanPartialRegenerateTest {
         when(repository.draft(versionRecord())).thenReturn(
                 new com.shitulelv.aicollab.planning.domain.TaskPlanDraft(
                         "summary", List.of(), List.of(), List.of(), List.of(), List.of()));
-        when(commitService.countUnresolvedBlocking(planId, versionId)).thenReturn(0);
 
         PartialRegenerateRequest request = new PartialRegenerateRequest(
                 versionId, List.of("T1"), Set.of("startDate"), Set.of(),

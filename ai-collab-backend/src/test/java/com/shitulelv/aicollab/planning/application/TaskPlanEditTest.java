@@ -49,7 +49,7 @@ class TaskPlanEditTest {
     @BeforeEach
     void setUp() {
         service = new TaskPlanCommandService(access, repository, null, validator, jdbc,
-                null, null, null, normalizer, outcomeDecider, commitService, null, null, null);
+                null, null, null, normalizer, outcomeDecider, commitService, null, null, null, null);
     }
 
     private TaskPlanRecord readyPlan() {
@@ -92,8 +92,8 @@ class TaskPlanEditTest {
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
         UUID newVersionId = UUID.randomUUID();
-        when(commitService.commit(any(), any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "USER_EDIT", versionId, 2L,
+        when(commitService.commitVersion(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "MANUAL_EDIT", versionId, 2L,
                         "summary", "[]", "[]", "[]", "[]", "[]", "{}", actorId, null));
 
         UpdateTaskPlanRequest request = new UpdateTaskPlanRequest(
@@ -105,7 +105,7 @@ class TaskPlanEditTest {
 
         UUID result = service.edit(projectId, planId, request, actorId);
         assertNotNull(result);
-        verify(commitService).commit(eq(readyPlan()), any(), eq(TaskPlanVersionSource.USER_EDIT),
+        verify(commitService).commitVersion(eq(readyPlan()), any(), eq(TaskPlanVersionSource.MANUAL_EDIT),
                 any(), any(), eq("TASK_PLAN_USER_EDITED"), eq(actorId), eq(versionId));
     }
 
@@ -120,8 +120,8 @@ class TaskPlanEditTest {
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
         UUID newVersionId = UUID.randomUUID();
-        when(commitService.commit(any(), any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "USER_EDIT", versionId, 2L,
+        when(commitService.commitVersion(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "MANUAL_EDIT", versionId, 2L,
                         "summary", "[]", "[]", "[]", "[]", "[]", "{}", actorId, null));
 
         UpdateTaskPlanRequest request = new UpdateTaskPlanRequest(
@@ -129,8 +129,8 @@ class TaskPlanEditTest {
 
         service.edit(projectId, planId, request, actorId);
 
-        // Verify commit was called with USER_EDIT source
-        verify(commitService).commit(eq(readyPlan()), any(), eq(TaskPlanVersionSource.USER_EDIT),
+        // Verify commit was called with MANUAL_EDIT source
+        verify(commitService).commitVersion(eq(readyPlan()), any(), eq(TaskPlanVersionSource.MANUAL_EDIT),
                 any(), any(), eq("TASK_PLAN_USER_EDITED"), eq(actorId), eq(versionId));
     }
 
@@ -172,8 +172,8 @@ class TaskPlanEditTest {
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
         UUID newVersionId = UUID.randomUUID();
-        when(commitService.commit(any(), any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "USER_EDIT", versionId, 2L,
+        when(commitService.commitVersion(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new TaskPlanVersionRecord(newVersionId, planId, 1, "MANUAL_EDIT", versionId, 2L,
                         "summary", "[]", "[]", "[]", "[]", "[]", "{}", actorId, null));
 
         UpdateTaskPlanRequest request = new UpdateTaskPlanRequest(
