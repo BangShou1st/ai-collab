@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -65,11 +66,17 @@ public class TaskPlanContextAssembler {
 
     public record PlanningContext(String promptText, List<PlanSource> sources) {}
 
-    public String memberContext(UUID projectId) {
+    public MemberSnapshot memberSnapshot(UUID projectId) {
         var members = jdbc.queryForList("""
                 SELECT u.id,u.display_name,pm.role FROM project_member pm JOIN app_user u ON u.id=pm.user_id
                 WHERE pm.project_id=? ORDER BY u.id
                 """, projectId);
-        return "项目成员（仅可推荐以下成员作为负责人）：" + members;
+        Set<UUID> memberIds = members.stream()
+                .map(row -> row.get("id"))
+                .map(value -> value instanceof UUID id ? id : UUID.fromString(value.toString()))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        return new MemberSnapshot("项目成员（仅可推荐以下成员作为负责人）：" + members, memberIds);
     }
+
+    public record MemberSnapshot(String contextText, Set<UUID> memberIds) {}
 }

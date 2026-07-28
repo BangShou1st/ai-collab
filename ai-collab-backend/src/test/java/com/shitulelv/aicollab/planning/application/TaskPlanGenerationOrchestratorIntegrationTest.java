@@ -24,6 +24,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -111,7 +112,8 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         PlanSource serverSource = new PlanSource("S1", UUID.randomUUID(), "doc.pdf", UUID.randomUUID(), "Heading", 0.9, "quote", "hash");
         when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
                 "<PROJECT_DATA>test</PROJECT_DATA>", List.of(serverSource)));
-        when(contexts.memberContext(any())).thenReturn("成员列表");
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
@@ -202,7 +204,8 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
         when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
                 "<PROJECT_DATA>test</PROJECT_DATA>", List.of()));
-        when(contexts.memberContext(any())).thenReturn("成员列表");
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
@@ -251,7 +254,8 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
         when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
                 "<PROJECT_DATA>test</PROJECT_DATA>", List.of()));
-        when(contexts.memberContext(any())).thenReturn("成员列表");
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
@@ -296,7 +300,8 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
         when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
                 "<PROJECT_DATA>test</PROJECT_DATA>", List.of()));
-        when(contexts.memberContext(any())).thenReturn("成员列表");
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
