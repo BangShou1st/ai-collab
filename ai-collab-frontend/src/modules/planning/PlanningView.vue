@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { normalizeApiError } from '../../api/api-result'
@@ -14,6 +14,7 @@ import { documentApi } from '../document/document-api'
 import type { ProjectDocument } from '../document/types'
 import type { ProjectMember } from '../project/types'
 import { dependencyWouldCycle, removeTaskAndDependencies } from './planning-draft'
+import { planStatusLabel, priorityLabel, versionSourceLabel } from './planning-labels'
 
 const route = useRoute(), router = useRouter()
 const projectId = computed(() => String(route.params.projectId))
@@ -66,7 +67,7 @@ async function create(): Promise<void> {
   try { const plan = (await planningApi.create(projectId.value, form)).data.data; createVisible.value = false; await list(); await open(plan); startPolling() }
   catch (error) { errorMessage.value = normalizeApiError(error).message }
 }
-async function action(name: 'cancel' | 'retry-detail' | 'regenerate' | 'partial-regenerate'): Promise<void> {
+async function action(name: 'cancel' | 'retry-detail' | 'regenerate'): Promise<void> {
   if (!selected.value || name === 'regenerate' && dirty.value && !await discard()) return
   try {
     await planningApi.action(projectId.value, selected.value.id, name)
@@ -87,8 +88,46 @@ async function restore(): Promise<void> {
 }
 async function save(): Promise<void> {
   if (!selected.value?.latestVersionId || !draft.value || !editingLatest.value) return
-  try { await planningApi.save(projectId.value, selected.value.id, selected.value.latestVersionId, draft.value); await refresh() }
+  try { await planningApi.save(projectId.value, selected.value.id, selected.value.latestVersionId, selected.value.latestVersionNo, draft.value); await refresh() }
   catch (error) { errorMessage.value = normalizeApiError(error).message }
+}
+async function repair(issue: StructuredValidationIssue, mode = ''): Promise<void> {
+  if (!selected.value?.latestVersionId || !issue.targetTempKey) return
+  const dateFields = new Set(['startDate', 'dueDate', 'targetDate', 'dependencyTempKeys'])
+  const repairMode = mode || (issue.field && dateFields.has(issue.field)
+    ? 'REPAIR_DATES_AND_DEPENDENCIES'
+    : 'REGENERATE_SELECTED_TASK_DETAILS')
+  try {
+    await planningApi.partialRegenerate(projectId.value, selected.value.id, {
+      baseVersionId: selected.value.latestVersionId,
+      expectedVersionNo: selected.value.latestVersionNo,
+      issueIds: [issue.id],
+      targetTempKeys: [issue.targetTempKey],
+      allowedFields: issue.field ? [issue.field] : [],
+      lockedFields: ['tempKey', 'milestoneTempKey', 'title', 'objective', 'sortOrder'],
+      mode: repairMode,
+    })
+    await refresh()
+    startPolling()
+  } catch (error) {
+    errorMessage.value = normalizeApiError(error).message
+  }
+}
+async function locate(target: string, field: string | null): Promise<void> {
+  await nextTick()
+  const exact = document.getElementById(`planning-${target}-${field ?? 'entity'}`)
+  const fallback = document.getElementById(`planning-${target}-entity`)
+  const element = exact ?? fallback
+  element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  element?.querySelector<HTMLElement>('input,textarea,button')?.focus()
+}
+async function removePlan(): Promise<void> {
+  if (!selected.value || !await window.confirm('删除后无法恢复，确定删除该规划吗？')) return
+  try {
+    await planningApi.remove(projectId.value, selected.value.id)
+    selected.value = null; draft.value = null; structuredIssues.value = []; events.value = []
+    await list()
+  } catch (error) { errorMessage.value = normalizeApiError(error).message }
 }
 async function confirm(): Promise<void> {
   if (!selected.value || !selectedVersionId.value || !checked.value) return
@@ -128,6 +167,9 @@ function removeMilestone(tempKey: string): void {
   if (!draft.value || !canEditCurrent.value || draft.value.tasks.some(task => task.milestoneTempKey === tempKey)) return
   draft.value.milestones = draft.value.milestones.filter(item => item.tempKey !== tempKey)
 }
+function addAssumption(): void { if (draft.value && canEditCurrent.value) draft.value.assumptions.push('') }
+function addRisk(): void { if (draft.value && canEditCurrent.value) draft.value.risks.push('') }
+const memberName = (id: string | null) => members.value.find(member => member.userId === id)?.displayName ?? '无'
 function startPolling(): void {
   poller.start({
     load: async () => {
@@ -182,7 +224,7 @@ watch(projectId, async () => {
     <section class="planning-layout">
       <el-card>
         <button v-for="plan in plans" :key="plan.id" class="planning-list-item" @click="open(plan)">
-          <strong>{{ plan.title }}</strong><el-tag>{{ plan.status }}</el-tag><small>{{ plan.goal }} · v{{ plan.latestVersionNo }}</small>
+          <strong>{{ plan.title }}</strong><el-tag>{{ planStatusLabel(plan.status) }}</el-tag><small>{{ plan.goal }} · v{{ plan.latestVersionNo }}</small>
         </button>
       </el-card>
       <el-card v-if="selected">
@@ -190,44 +232,45 @@ watch(projectId, async () => {
           <el-button v-if="permissions?.canCancel" @click="action('cancel')">取消</el-button>
           <el-button v-if="permissions?.canRetryDetail" @click="action('retry-detail')">重试细节</el-button>
           <el-button v-if="permissions?.canRegenerate" @click="action('regenerate')">重新生成</el-button>
-          <el-button v-if="permissions?.canPartialRegenerate" @click="action('partial-regenerate')" type="warning">局部重新生成</el-button>
+          <el-button v-if="permissions?.canDelete" type="danger" @click="removePlan">删除规划</el-button>
         </div></template>
         <el-alert v-if="selected.lastErrorSummary" :title="selected.lastErrorSummary" type="warning" />
         <PlanningIssuePanel
           v-if="structuredIssues.length > 0"
           :issues="structuredIssues"
-          @locate="(target, field) => { /* TODO: scroll to field */ }"
-          @repair="action('regenerate')"
-          @edit="() => { /* TODO: enter edit mode */ }"
+          @locate="locate"
+          @repair="repair"
+          @edit="issue => locate(issue.targetTempKey || '', issue.field)"
+          @regenerate="target => { const issue = structuredIssues.find(item => item.targetTempKey === target); if (issue) repair(issue, 'REGENERATE_SELECTED_TASK_DETAILS') }"
         />
         <PlanningEventTimeline v-if="events.length > 0" :events="events" />
-        <el-select :model-value="selectedVersionId" @change="requestVersion"><el-option v-for="v in versions" :key="v.id" :label="`v${v.versionNo} ${v.sourceType}`" :value="v.id" /></el-select>
+        <el-select :model-value="selectedVersionId" @change="requestVersion"><el-option v-for="v in versions" :key="v.id" :label="`v${v.versionNo} ${versionSourceLabel(v.sourceType)}`" :value="v.id" /></el-select>
         <template v-if="draft">
           <el-alert v-if="!editingLatest" title="历史版本只读；可先恢复为新版本后编辑" type="info" />
-          <el-input v-model="draft.summary" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" placeholder="规划摘要" />
-          <h3>假设</h3><el-input v-for="(_, index) in draft.assumptions" :key="`a-${index}`" v-model="draft.assumptions[index]" :readonly="!canEditCurrent" />
-          <h3>风险</h3><el-input v-for="(_, index) in draft.risks" :key="`r-${index}`" v-model="draft.risks[index]" :readonly="!canEditCurrent" />
+          <label>规划摘要</label><el-input v-model="draft.summary" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" placeholder="规划摘要" />
+          <h3>假设</h3><div v-for="(_, index) in draft.assumptions" :key="`a-${index}`"><label>假设 {{ index + 1 }}</label><el-input v-model="draft.assumptions[index]" :readonly="!canEditCurrent" /><el-button v-if="canEditCurrent" @click="draft.assumptions.splice(index, 1)">删除</el-button></div><el-button v-if="canEditCurrent" @click="addAssumption">添加假设</el-button>
+          <h3>风险</h3><div v-for="(_, index) in draft.risks" :key="`r-${index}`"><label>风险 {{ index + 1 }}</label><el-input v-model="draft.risks[index]" :readonly="!canEditCurrent" /><el-button v-if="canEditCurrent" @click="draft.risks.splice(index, 1)">删除</el-button></div><el-button v-if="canEditCurrent" @click="addRisk">添加风险</el-button>
           <el-collapse><el-collapse-item v-for="m in draft.milestones" :key="m.tempKey" :title="m.title">
-            <el-input v-model="m.title" :readonly="!permissions?.canEdit || !editingLatest" />
+            <div :id="`planning-${m.tempKey}-entity`"><label>里程碑标题</label><el-input v-model="m.title" :readonly="!permissions?.canEdit || !editingLatest" /></div>
             <el-input v-model="m.objective" type="textarea" :readonly="!canEditCurrent" />
-            <el-input v-model="m.description" type="textarea" :readonly="!canEditCurrent" placeholder="里程碑描述" /><el-date-picker v-model="m.targetDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" />
-            <el-select v-model="m.sourceRefs" multiple :disabled="!canEditCurrent"><el-option v-for="source in draft.sources" :key="source.ref" :label="source.ref" :value="source.ref" /></el-select>
+            <el-input v-model="m.description" type="textarea" :readonly="!canEditCurrent" placeholder="里程碑描述" /><span :id="`planning-${m.tempKey}-targetDate`"><el-date-picker v-model="m.targetDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" /></span>
+            <el-select v-model="m.sourceRefs" multiple :disabled="!canEditCurrent"><el-option v-for="source in draft.sources" :key="source.ref" :label="source.documentName" :value="source.ref" /></el-select>
             <el-button v-if="canEditCurrent" @click="addTask(m.tempKey)">添加任务</el-button><el-button v-if="canEditCurrent" type="danger" @click="removeMilestone(m.tempKey)">删除空里程碑</el-button>
-            <div v-for="task in draft.tasks.filter(t => t.milestoneTempKey === m.tempKey)" :key="task.tempKey" class="task-plan-row">
-              <el-input v-model="task.title" :readonly="!permissions?.canEdit || !editingLatest" /><el-input v-model="task.description" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" />
-              <el-input v-model="task.objective" :readonly="!canEditCurrent" /><el-select v-model="task.priority" :disabled="!canEditCurrent"><el-option v-for="p in ['LOW','MEDIUM','HIGH','URGENT']" :key="p" :value="p" /></el-select>
+            <div v-for="task in draft.tasks.filter(t => t.milestoneTempKey === m.tempKey)" :id="`planning-${task.tempKey}-entity`" :key="task.tempKey" class="task-plan-row">
+              <label>任务标题</label><el-input v-model="task.title" :readonly="!permissions?.canEdit || !editingLatest" /><div :id="`planning-${task.tempKey}-description`"><label>任务描述</label><el-input v-model="task.description" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" /></div>
+              <el-input v-model="task.objective" :readonly="!canEditCurrent" /><span :id="`planning-${task.tempKey}-priority`"><el-select v-model="task.priority" :disabled="!canEditCurrent"><el-option v-for="p in ['LOW','MEDIUM','HIGH','URGENT']" :key="p" :label="priorityLabel(p)" :value="p" /></el-select></span>
               <el-input-number v-model="task.estimatedHours" :min="0.5" :max="80" :disabled="!canEditCurrent" />
-              <el-date-picker v-model="task.startDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" /><el-date-picker v-model="task.dueDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" />
-              <small>AI 建议负责人：{{ task.suggestedAssigneeId || '无' }}</small><el-select v-model="task.assigneeId" clearable :disabled="!canEditCurrent"><el-option v-for="member in members" :key="member.userId" :label="member.displayName" :value="member.userId" /></el-select>
+              <span :id="`planning-${task.tempKey}-startDate`"><el-date-picker v-model="task.startDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" /></span><span :id="`planning-${task.tempKey}-dueDate`"><el-date-picker v-model="task.dueDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" /></span>
+              <small>AI 建议负责人：{{ memberName(task.suggestedAssigneeId) }}</small><el-select v-model="task.assigneeId" clearable :disabled="!canEditCurrent"><el-option v-for="member in members" :key="member.userId" :label="member.displayName" :value="member.userId" /></el-select>
               <el-select v-model="task.dependencyTempKeys" multiple :disabled="!canEditCurrent"><el-option v-for="candidate in draft.tasks.filter(candidate => candidate.tempKey !== task.tempKey)" :key="candidate.tempKey" :label="candidate.title" :value="candidate.tempKey" :disabled="dependencyWouldCycle(draft, task.tempKey, candidate.tempKey)" /></el-select>
-              <el-select v-model="task.sourceRefs" multiple :disabled="!canEditCurrent"><el-option v-for="source in draft.sources" :key="source.ref" :label="source.ref" :value="source.ref" /></el-select>
+              <el-select v-model="task.sourceRefs" multiple :disabled="!canEditCurrent"><el-option v-for="source in draft.sources" :key="source.ref" :label="source.documentName" :value="source.ref" /></el-select>
               <el-button v-if="canEditCurrent" type="danger" @click="removeTask(task.tempKey)">删除任务</el-button>
             </div>
           </el-collapse-item></el-collapse>
           <el-button v-if="canEditCurrent" @click="addMilestone">添加里程碑</el-button>
           <div class="actions"><el-button v-if="permissions?.canEdit && editingLatest" :disabled="!dirty" @click="save">保存新版本</el-button>
             <el-button v-if="permissions?.canRestore && !editingLatest" @click="restore">恢复为新版本</el-button>
-            <template v-if="permissions?.canConfirm"><span>将创建 {{ confirmationSummary.milestones }} 里程碑 / {{ confirmationSummary.tasks }} 任务 / {{ confirmationSummary.dependencies }} 依赖；未分配 {{ confirmationSummary.unassigned }}</span><el-checkbox v-model="checked">我已检查规划</el-checkbox><el-button type="success" :disabled="!checked || dirty" @click="confirm">确认并创建任务</el-button></template>
+            <template v-if="permissions?.canConfirm && editingLatest"><span>将创建 {{ confirmationSummary.milestones }} 里程碑 / {{ confirmationSummary.tasks }} 任务 / {{ confirmationSummary.dependencies }} 依赖；未分配 {{ confirmationSummary.unassigned }}</span><el-checkbox v-model="checked">我已检查规划</el-checkbox><el-button type="success" :disabled="!checked || dirty" @click="confirm">确认并创建任务</el-button></template>
           </div>
         </template>
       </el-card>
@@ -236,7 +279,7 @@ watch(projectId, async () => {
       <el-form-item label="标题"><el-input v-model="form.title" /></el-form-item><el-form-item label="目标"><el-input v-model="form.goal" type="textarea" /></el-form-item>
       <el-form-item label="约束"><el-input v-model="form.constraints" /></el-form-item><el-form-item label="开始"><el-date-picker v-model="form.planStartDate" value-format="YYYY-MM-DD" /></el-form-item>
       <el-form-item label="截止"><el-date-picker v-model="form.planDueDate" value-format="YYYY-MM-DD" /></el-form-item><el-form-item label="最大任务数"><el-select v-model="form.maxTaskCount"><el-option v-for="n in [10,20,30,40]" :key="n" :value="n" /></el-select></el-form-item>
-      <el-form-item label="READY 文档（最多 10 个）"><el-select v-model="form.documentIds" multiple :multiple-limit="10"><el-option v-for="document in documents" :key="document.id" :label="document.displayName" :value="document.id" /></el-select></el-form-item>
+      <el-form-item label="可用参考文档（最多 10 个）"><el-select v-model="form.documentIds" multiple :multiple-limit="10"><el-option v-for="document in documents" :key="document.id" :label="document.displayName" :value="document.id" /></el-select></el-form-item>
       <el-button native-type="submit" type="primary">创建并生成</el-button>
     </el-form></el-dialog>
   </main>
