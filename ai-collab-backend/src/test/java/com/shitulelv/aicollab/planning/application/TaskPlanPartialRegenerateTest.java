@@ -50,7 +50,7 @@ class TaskPlanPartialRegenerateTest {
         service = new TaskPlanCommandService(access, repository, orchestrator, null, null,
                 null, null, null, new TaskPlanDraftNormalizer(), new GenerationOutcomeDecider(),
                 commitService, new TaskPlanRepairPatchParser(new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()),
-                new TaskPlanRepairPatchApplier());
+                new TaskPlanRepairPatchApplier(), null);
     }
 
     private TaskPlanRecord readyPlan() {

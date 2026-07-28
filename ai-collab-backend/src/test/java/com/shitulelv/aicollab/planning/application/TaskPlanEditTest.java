@@ -49,7 +49,7 @@ class TaskPlanEditTest {
     @BeforeEach
     void setUp() {
         service = new TaskPlanCommandService(access, repository, null, validator, jdbc,
-                null, null, null, normalizer, outcomeDecider, commitService, null, null);
+                null, null, null, normalizer, outcomeDecider, commitService, null, null, null);
     }
 
     private TaskPlanRecord readyPlan() {
