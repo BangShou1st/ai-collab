@@ -48,7 +48,7 @@ import static org.mockito.Mockito.*;
  *   Chain 4: Partial repair → only allowed fields changed
  */
 @Testcontainers(disabledWithoutDocker = true)
-class TaskPlanProductionWiringPostgresIT {
+class TaskPlanProductionWiringPostgresIntegrationTest {
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES =
