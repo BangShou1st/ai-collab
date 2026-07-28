@@ -78,6 +78,11 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   PLANNING_MODEL_INVALID_OUTPUT: '模型未能生成有效规划，可重新生成或重试细节',
   PLANNING_MODEL_OUTPUT_TRUNCATED: '模型输出过长被截断，请减少最大任务数或重新生成',
   PLANNING_QUEUE_FULL: '当前规划任务较多，请稍后再试',
+  PLAN_VERSION_CONFLICT: '规划已被其他操作更新，请刷新后重试',
+  TASK_PLAN_HAS_BLOCKING_ISSUES: '规划仍有待处理问题，暂时不能确认',
+  TASK_PLAN_STATE_CONFLICT: '当前规划状态不支持此操作，请刷新后重试',
+  PLAN_REPAIR_ISSUE_CONFLICT: '所选问题已发生变化，请刷新后重试',
+  PLAN_REPAIR_ISSUE_INVALID: '所选问题无效，请刷新后重试',
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

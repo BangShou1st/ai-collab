@@ -204,3 +204,28 @@ GREEN：
 
 - 权限/命令/确认/迁移/并发目标回归：30 tests，0 failure/error。
 - 后端完整回归：243 tests，0 failure/error/skipped。
+
+## 阶段八：前端中文界面与真实 PlanningView 交互
+
+RED：
+
+- 真实 `mount(PlanningView)` 的 13 项组件测试首次运行 7 项失败：状态筛选显示英文 enum、错误摘要暴露内部 code/path、`REPAIRING` 不继续轮询、无版本规划残留旧 Draft、问题面板只显示 tempKey、历史只读断言及恢复事件缺中文映射。
+- 其余 6 项首次即通过，保留为版本来源、优先级、scoped Repair 请求、确认限制与假设/风险编辑的回归证据。
+
+根因与修复：
+
+- 状态筛选同时绑定中文 `label` 和稳定英文 `value`，补齐 `CONFIRMING`。
+- 新增 `planningFailureLabel()`，只根据安全阶段/code 输出中文文案；未知摘要使用通用中文，不渲染原始内部内容。
+- poller 活动态加入 `REPAIRING`；局部修复完成后仍轮询到终态。
+- 打开 `latestVersionId=null` 的规划时显式清空 selectedVersionId、Draft 和 snapshot。
+- 问题面板使用 Draft 中任务/里程碑名称与中文字段，不再向用户展示 tempKey；仅为服务端支持的 issue/mode 显示 AI 操作。
+- Repair mode 改由 issue code 决定，局部修复继续发送 issueId、baseVersionId、expectedVersionNo、target、allowed/locked fields。
+- 完整补齐 TaskPlanStatus、版本来源、优先级、ValidationIssueCatalog、事件类型、安全失败阶段/code 的中文映射；未知 code 不回显。
+- 编辑表单补齐目标、日期、工时、负责人、依赖和来源的中文标签；成员与来源使用姓名/文档名。
+- 前端 409 增加规划版本冲突专用中文提示。
+
+GREEN：
+
+- `pnpm typecheck` 通过。
+- Vue Test Utils：真实 PlanningView 13 项组件测试全部通过；前端完整 6 files / 41 tests 全部通过。
+- `pnpm build` 通过；仅保留现有非阻断 chunk size 警告。

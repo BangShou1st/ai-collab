@@ -4,6 +4,8 @@ import { fieldLabel, issueLabel } from '../planning-labels'
 
 const props = defineProps<{
   issues: StructuredValidationIssue[]
+  targetNames: Record<string, string>
+  repairableIssueIds: string[]
 }>()
 
 const emit = defineEmits<{
@@ -26,8 +28,9 @@ const severityColor = (s: string) => {
 }
 
 const formatIssue = (issue: StructuredValidationIssue) => {
-  const target = issue.targetType === 'TASK' ? `任务 ${issue.targetTempKey}` :
-                 issue.targetType === 'MILESTONE' ? `里程碑 ${issue.targetTempKey}` : '规划'
+  const name = issue.targetTempKey ? props.targetNames[issue.targetTempKey] : null
+  const target = issue.targetType === 'TASK' ? `任务“${name ?? '未命名任务'}”` :
+                 issue.targetType === 'MILESTONE' ? `里程碑“${name ?? '未命名里程碑'}”` : '规划'
   const field = issue.field ? ` 的${fieldLabel(issue.field)}` : ''
   return `${target}${field}：${issueLabel(issue.code)}`
 }
@@ -52,9 +55,9 @@ const formatIssue = (issue: StructuredValidationIssue) => {
           <span class="issue-message">{{ formatIssue(issue) }}</span>
         </div>
         <div class="issue-actions" v-if="issue.severity === 'BLOCKING_EDITABLE'">
-          <button class="btn-sm" @click="emit('repair', issue)">AI 修复</button>
+          <button v-if="repairableIssueIds.includes(issue.id)" class="btn-sm" @click="emit('repair', issue)">AI 修复</button>
           <button class="btn-sm" @click="emit('edit', issue)">手动编辑</button>
-          <button class="btn-sm" @click="emit('regenerate', issue.targetTempKey || '')">
+          <button v-if="repairableIssueIds.includes(issue.id)" class="btn-sm" @click="emit('regenerate', issue.targetTempKey || '')">
             重新生成相关任务
           </button>
         </div>
