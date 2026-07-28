@@ -189,7 +189,8 @@ public class TaskPlanCommandService {
         TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
         TaskPlanVersionRecord committed = commitService.commitVersion(
                 plan, normalized, TaskPlanVersionSource.MANUAL_EDIT, assessment, finalStatus,
-                "TASK_PLAN_USER_EDITED", actor, request.baseVersionId());
+                "TASK_PLAN_USER_EDITED", actor, request.baseVersionId(), request.baseVersionId(),
+                request.comment());
         if (committed == null) {
             throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
         }

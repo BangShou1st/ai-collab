@@ -65,9 +65,6 @@ function dependencyName(dependencyId: string): string {
           已配置 {{ selected.dependencyIds.length }} 项前置任务；
           其中 {{ selected.unfinishedDependencyCount }} 项尚未完成。
         </p>
-        <p v-if="canManage" class="readonly-note">
-          保存时整体替换前置任务列表，服务端会校验项目边界与循环依赖。
-        </p>
         <el-select
           v-if="canManage"
           :model-value="selected.dependencyIds"

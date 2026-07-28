@@ -109,7 +109,7 @@ export const priorityLabel = (value: string) => priorityLabels[value] ?? '未知
 export const issueLabel = (value: string) => issueLabels[value] ?? '规划数据需要检查'
 export const eventLabel = (value: string) => eventLabels[value] ?? '规划状态已更新'
 
-export const fieldLabel = (value: string | null) => ({
+const fieldLabelMap: Record<string, string> = {
   startDate: '开始日期', dueDate: '截止日期', targetDate: '里程碑日期',
   dependencyTempKeys: '任务依赖', suggestedAssigneeId: '建议负责人',
   assigneeId: '负责人', priority: '优先级', estimatedHours: '预估工时',
@@ -117,4 +117,22 @@ export const fieldLabel = (value: string | null) => ({
   summary: '规划摘要', assumptions: '规划假设', risks: '规划风险',
   title: '标题', objective: '目标', milestoneTempKey: '所属里程碑',
   sortOrder: '排序', tasks: '任务', milestones: '里程碑', sources: '来源',
-}[value ?? ''] ?? '相关字段')
+}
+
+/**
+ * Extract the simple field name from a path like "tasks.t-xxx.startDate" → "startDate"
+ */
+function extractFieldName(path: string): string {
+  const lastDot = path.lastIndexOf('.')
+  if (lastDot === -1) return path
+  return path.substring(lastDot + 1)
+}
+
+export const fieldLabel = (value: string | null) => {
+  if (!value) return '相关字段'
+  // Try direct match first
+  if (fieldLabelMap[value]) return fieldLabelMap[value]
+  // Try extracting the last segment from dotted paths (e.g., "tasks.t-xxx.startDate" → "startDate")
+  const fieldName = extractFieldName(value)
+  return fieldLabelMap[fieldName] ?? '相关字段'
+}

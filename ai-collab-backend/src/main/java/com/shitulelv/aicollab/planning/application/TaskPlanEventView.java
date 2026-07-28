@@ -15,6 +15,7 @@ public record TaskPlanEventView(
         List<String> changedFields,
         List<String> changedTargets,
         List<String> issueCodes,
+        String comment,
         OffsetDateTime createdAt
 ) {
     public TaskPlanEventView {
@@ -32,6 +33,7 @@ public record TaskPlanEventView(
                 record.changedFields(),
                 record.changedTargets(),
                 record.issueCodes(),
+                record.comment(),
                 record.createdAt());
     }
 }

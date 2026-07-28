@@ -72,7 +72,6 @@ onMounted(load)
     <PageHeader
       eyebrow="项目中心"
       title="我的项目"
-      description="集中查看竞赛项目、团队角色与项目周期。"
     >
       <template #actions>
         <el-button type="primary" @click="dialogVisible = true">新建项目</el-button>

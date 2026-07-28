@@ -94,7 +94,7 @@ export interface PartialRegenerateRequest {
 export interface TaskPlanEvent {
   id: string; fromVersionId: string | null; toVersionId: string | null
   eventType: string; changedFields: string[]; changedTargets: string[]
-  issueCodes: string[]
+  issueCodes: string[]; comment: string | null
   createdAt: string
 }
 

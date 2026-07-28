@@ -43,3 +43,12 @@ desktop.ini
 *.swp
 *~
 .env
+
+# 测试文件（不提交到 GitHub）
+**/src/test/
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+**/tests/
+**/__tests__/

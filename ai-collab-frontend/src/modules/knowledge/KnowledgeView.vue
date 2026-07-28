@@ -36,6 +36,8 @@ const errorMessage = ref('')
 const citationDrawer = ref(false)
 const selectedCitation = ref<KnowledgeCitation | null>(null)
 const messageArea = ref<HTMLElement | null>(null)
+const editingSessionId = ref('')
+const editingSessionTitle = ref('')
 let active = true
 let projectGeneration = 0
 
@@ -44,12 +46,12 @@ const questionLength = computed(() => Array.from(question.value).length)
 const canSubmit = computed(() =>
   Boolean(selectedSessionId.value && question.value.trim())
   && !submitting.value
-  && questionLength.value <= 1000,
+  && questionLength.value <= 2000,
 )
 
 watch(question, (value) => {
   const codePoints = Array.from(value)
-  if (codePoints.length > 1000) question.value = codePoints.slice(0, 1000).join('')
+  if (codePoints.length > 2000) question.value = codePoints.slice(0, 2000).join('')
 })
 
 function markdown(content: string): string {
@@ -197,6 +199,47 @@ async function createSession(): Promise<void> {
   }
 }
 
+async function renameSession(session: KnowledgeSession, newTitle: string): Promise<void> {
+  if (!projectId.value || !newTitle.trim()) return
+  const targetProjectId = projectId.value
+  const generation = projectGeneration
+  try {
+    const result = await knowledgeApi.renameSession(targetProjectId, session.id, newTitle.trim())
+    if (!isCurrentProject(targetProjectId, generation)) return
+    // 更新本地会话列表
+    const index = sessions.value.findIndex(s => s.id === session.id)
+    if (index !== -1) {
+      sessions.value[index] = { ...sessions.value[index], title: newTitle.trim() }
+    }
+    // 如果是当前选中的会话，也更新详情
+    if (detail.value && detail.value.session.id === session.id) {
+      detail.value = { ...detail.value, session: { ...detail.value.session, title: newTitle.trim() } }
+    }
+    ElMessage.success('会话已重命名')
+  } catch (error) {
+    if (isCurrentProject(targetProjectId, generation)) {
+      errorMessage.value = normalizeApiError(error).message
+    }
+  }
+}
+
+function startEditSession(session: KnowledgeSession): void {
+  editingSessionId.value = session.id
+  editingSessionTitle.value = session.title
+}
+
+function cancelEditSession(): void {
+  editingSessionId.value = ''
+  editingSessionTitle.value = ''
+}
+
+async function saveSessionTitle(session: KnowledgeSession): Promise<void> {
+  if (editingSessionTitle.value.trim()) {
+    await renameSession(session, editingSessionTitle.value)
+  }
+  cancelEditSession()
+}
+
 async function removeSession(session: KnowledgeSession): Promise<void> {
   if (deletingId.value || submitting.value || !projectId.value) return
   const targetProjectId = projectId.value
@@ -259,6 +302,14 @@ async function submitQuestion(): Promise<void> {
       loadDetail(targetSessionId, targetProjectId, generation),
       loadSessions(targetProjectId, generation),
     ])
+
+    // 如果是第一次提问，根据问题内容自动更新会话标题
+    const currentSession = sessions.value.find(s => s.id === targetSessionId)
+    if (currentSession && currentSession.title === '新会话') {
+      // 截取问题的前20个字符作为标题
+      const newTitle = normalized.length > 20 ? normalized.substring(0, 20) + '...' : normalized
+      await renameSession(currentSession, newTitle)
+    }
   } catch (error) {
     if (isCurrentProject(targetProjectId, generation)) {
       errorMessage.value = normalizeApiError(error).message
@@ -316,7 +367,6 @@ onUnmounted(() => {
     <PageHeader
       eyebrow="项目资料检索"
       title="知识问答"
-      description="回答仅基于当前项目已完成索引的文档；资料不足时会明确拒答。"
       :context="project?.name"
     />
 
@@ -346,18 +396,38 @@ onUnmounted(() => {
             @keydown.space.prevent="selectSession(session.id)"
           >
             <span>
-              <strong>{{ session.title }}</strong>
+              <strong v-if="editingSessionId !== session.id">{{ session.title }}</strong>
+              <el-input
+                v-else
+                v-model="editingSessionTitle"
+                size="small"
+                @click.stop
+                @keyup.enter="saveSessionTitle(session)"
+                @keyup.escape="cancelEditSession"
+              />
               <small>{{ formatTime(session.updatedAt) }}</small>
             </span>
-            <el-button
-              text
-              type="danger"
-              :loading="deletingId === session.id"
-              :aria-label="`删除会话 ${session.title}`"
-              @click.stop="removeSession(session)"
-            >
-              删除
-            </el-button>
+            <div class="session-actions">
+              <el-button
+                v-if="editingSessionId !== session.id"
+                text
+                type="primary"
+                size="small"
+                :aria-label="`重命名会话 ${session.title}`"
+                @click.stop="startEditSession(session)"
+              >
+                重命名
+              </el-button>
+              <el-button
+                text
+                type="danger"
+                :loading="deletingId === session.id"
+                :aria-label="`删除会话 ${session.title}`"
+                @click.stop="removeSession(session)"
+              >
+                删除
+              </el-button>
+            </div>
           </div>
         </div>
         <el-empty v-else description="还没有问答会话">
@@ -370,7 +440,6 @@ onUnmounted(() => {
           <header class="conversation-heading">
             <div>
               <strong>{{ detail.session.title }}</strong>
-              <small>消息按服务器保存顺序展示</small>
             </div>
             <el-select
               v-model="selectedDocumentIds"
@@ -415,8 +484,8 @@ onUnmounted(() => {
               />
               <el-alert
                 v-if="message.role === 'ASSISTANT' && message.insufficientEvidence"
-                title="证据不足：当前项目资料无法支持可靠回答"
-                type="warning"
+                title="以上回答基于有限的项目资料，可能不够完整"
+                type="info"
                 :closable="false"
                 show-icon
               />
@@ -450,7 +519,7 @@ onUnmounted(() => {
             />
             <div class="composer-footer">
               <span>
-                Ctrl / ⌘ + Enter 提交；{{ questionLength }}/1000 字；已选择
+                Ctrl / ⌘ + Enter 提交；{{ questionLength }}/2000 字；已选择
                 {{ selectedDocumentIds.length }}/20 个文档
               </span>
               <el-button
@@ -484,40 +553,70 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.knowledge-page { display: grid; gap: 16px; }
+.knowledge-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 100vh;
+  overflow: hidden;
+  padding: 16px 24px;
+}
 .knowledge-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
-  min-height: calc(100vh - 250px);
+  grid-template-columns: 280px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
   border: 1px solid #e4e7ed;
   border-radius: 14px;
   overflow: hidden;
   background: #fff;
 }
-.session-panel { border-right: 1px solid #e4e7ed; background: #f8fafc; min-width: 0; }
+.session-panel {
+  border-right: 1px solid #e4e7ed;
+  background: #f8fafc;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .panel-heading, .conversation-heading, .composer-footer {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
-.panel-heading, .conversation-heading { min-height: 68px; padding: 14px 16px; border-bottom: 1px solid #e4e7ed; }
+.panel-heading, .conversation-heading { min-height: 52px; padding: 10px 14px; border-bottom: 1px solid #e4e7ed; flex-shrink: 0; }
 .panel-heading div, .conversation-heading div { display: grid; gap: 3px; }
 .panel-heading small, .conversation-heading small, .message-meta span, .composer-footer span { color: #64748b; }
-.session-list { padding: 10px; display: grid; gap: 6px; }
+.session-list { padding: 8px; display: grid; gap: 4px; overflow-y: auto; flex: 1; }
 .session-item {
   width: 100%; display: flex; align-items: center; justify-content: space-between;
-  border: 1px solid transparent; border-radius: 10px; padding: 10px 8px 10px 12px;
+  border: 1px solid transparent; border-radius: 10px; padding: 8px 8px 8px 12px;
   background: transparent; color: inherit; text-align: left; cursor: pointer;
+  box-sizing: border-box;
 }
 .session-item:hover, .session-item.active { background: #fff; border-color: #c7d2fe; }
-.session-item > span { min-width: 0; display: grid; gap: 4px; }
-.session-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.session-item small { color: #64748b; }
-.conversation-panel { min-width: 0; display: grid; grid-template-rows: auto minmax(320px, 1fr) auto; }
+.session-item > span { min-width: 0; display: grid; gap: 2px; flex: 1; overflow: hidden; }
+.session-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.session-item small { color: #64748b; font-size: 11px; }
+.session-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; flex-shrink: 0; }
+.session-item:hover .session-actions { opacity: 1; }
+.conversation-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .document-selector { width: min(420px, 48vw); }
-.message-area { overflow-y: auto; padding: 20px; display: grid; align-content: start; gap: 18px; }
-.message { max-width: min(780px, 92%); border-radius: 14px; padding: 14px 16px; }
+.message-area {
+  overflow-y: auto;
+  padding: 16px;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  flex: 1;
+}
+.message { max-width: min(780px, 92%); border-radius: 14px; padding: 12px 14px; }
 .message.user { justify-self: end; background: #eef2ff; }
 .message.assistant { justify-self: start; background: #f8fafc; border: 1px solid #e2e8f0; }
-.message-meta { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; font-size: 13px; }
+.message-meta { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; font-size: 13px; }
 .user-content { white-space: pre-wrap; margin: 0; line-height: 1.7; }
 .markdown-content { line-height: 1.72; overflow-wrap: anywhere; }
 .markdown-content :deep(pre) { overflow-x: auto; padding: 12px; border-radius: 8px; background: #111827; color: #e5e7eb; }
@@ -530,7 +629,7 @@ onUnmounted(() => {
 .citation-card:hover { border-color: #6366f1; }
 .citation-card span, .citation-card small { color: #64748b; }
 .citation-card p { margin: 2px 0 0; display: -webkit-box; overflow: hidden; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
-.question-composer { border-top: 1px solid #e4e7ed; padding: 14px 18px; display: grid; gap: 9px; }
+.question-composer { border-top: 1px solid #e4e7ed; padding: 12px 16px; display: grid; gap: 8px; flex-shrink: 0; }
 .question-composer label { font-weight: 650; }
 .composer-footer { font-size: 13px; }
 .citation-detail { display: grid; grid-template-columns: 88px 1fr; gap: 12px; }
@@ -538,7 +637,7 @@ onUnmounted(() => {
 .citation-detail dd { margin: 0; overflow-wrap: anywhere; }
 .citation-detail .quote { white-space: pre-wrap; line-height: 1.7; }
 @media (max-width: 900px) {
-  .knowledge-layout { grid-template-columns: 1fr; }
+  .knowledge-layout { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 180px); }
   .session-panel { border-right: 0; border-bottom: 1px solid #e4e7ed; max-height: 260px; overflow-y: auto; }
   .document-selector { width: 100%; }
   .conversation-heading { align-items: stretch; flex-direction: column; }

@@ -12,7 +12,7 @@ import java.util.Set;
 
 @Component
 public class KnowledgeContextBuilder {
-    public static final double MIN_SIMILARITY = 0.55d;
+    public static final double MIN_SIMILARITY = 0.15d;
     private static final int MAX_SOURCES = 5;
     private static final int MAX_PROMPT_SOURCE_CODE_POINTS = 8000;
     private static final int MAX_PROMPT_FILENAME_CODE_POINTS = 180;

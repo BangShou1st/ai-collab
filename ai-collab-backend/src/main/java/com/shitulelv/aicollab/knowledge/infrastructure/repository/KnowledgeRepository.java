@@ -33,6 +33,11 @@ public class KnowledgeRepository {
             throw new IllegalStateException("问答会话保存失败");
         }
     }
+    public void updateSession(KnowledgeSessionEntity entity) {
+        if (sessions.update(entity) != 1) {
+            throw new IllegalStateException("问答会话更新失败");
+        }
+    }
     public List<KnowledgeSessionEntity> listOwn(UUID projectId, UUID userId) {
         return sessions.listOwn(projectId, userId);
     }
