@@ -6,7 +6,6 @@ import com.shitulelv.aicollab.planning.infrastructure.TaskPlanIssueRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanVersionRecord;
-import com.shitulelv.aicollab.planning.domain.StructuredValidationIssue;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -146,9 +145,11 @@ public class TaskPlanQueryService {
         }
 
         // Task 11: Structured issues from issue repository
-        List<StructuredValidationIssue> structuredIssues = List.of();
+        List<TaskPlanValidationIssueView> structuredIssues = List.of();
         if (plan.latestVersionId() != null) {
-            structuredIssues = issueRepo.findByVersion(planId, plan.latestVersionId());
+            structuredIssues = issueRepo.findPersistedByVersion(planId, plan.latestVersionId()).stream()
+                    .map(TaskPlanValidationIssueView::from)
+                    .toList();
         }
 
         boolean readyWithIssues = plan.status().name().equals("READY_WITH_ISSUES");

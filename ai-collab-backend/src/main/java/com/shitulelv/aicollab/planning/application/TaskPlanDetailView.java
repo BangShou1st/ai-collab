@@ -1,6 +1,5 @@
 package com.shitulelv.aicollab.planning.application;
 
-import com.shitulelv.aicollab.planning.domain.StructuredValidationIssue;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 
 import java.util.List;
@@ -19,7 +18,7 @@ public record TaskPlanDetailView(
         TaskPlanConfirmationView confirmation,
         TaskPlanValidationView validation,
         TaskPlanPermissions permissions,
-        List<StructuredValidationIssue> structuredIssues
+        List<TaskPlanValidationIssueView> structuredIssues
 ) {
     public TaskPlanDetailView {
         structuredIssues = structuredIssues == null ? List.of() : List.copyOf(structuredIssues);

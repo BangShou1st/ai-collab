@@ -1006,6 +1006,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskPlanDetailEnvelope'
+    patch:
+      tags: [TaskPlans]
+      summary: Edit plan with PATCH semantics (atomic version + issues + event)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskPlanRequest'
+      responses:
+        '200': { description: Plan edited }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
     delete:
       tags: [TaskPlans]
       summary: Delete unconfirmed plan
@@ -1034,9 +1049,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [baseVersionId, draft]
+              required: [baseVersionId, expectedVersionNo, draft]
               properties:
                 baseVersionId: { type: string, format: uuid }
+                expectedVersionNo: { type: integer, minimum: 1 }
                 draft: { $ref: '#/components/schemas/TaskPlanDraft' }
       responses:
         '200': { description: New immutable version id }
@@ -1130,44 +1146,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
-  /projects/{projectId}/ai/task-plans/{planId}:
-    x-implementation-status: implemented
-    parameters:
-      - $ref: '#/components/parameters/ProjectId'
-      - $ref: '#/components/parameters/PlanId'
-    patch:
-      tags: [TaskPlans]
-      summary: Edit plan with PATCH semantics (atomic version + issues + event)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateTaskPlanRequest'
-      responses:
-        '200':
-          description: Plan edited
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409':
-          description: Version conflict or state conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-    delete:
-      tags: [TaskPlans]
-      summary: Delete a plan
-      responses:
-        '200': { description: Plan deleted }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
   /projects/{projectId}/ai/task-plans/{planId}/partial-regenerate:
     x-implementation-status: implemented
     parameters:
@@ -1183,8 +1161,8 @@ paths:
             schema:
               $ref: '#/components/schemas/PartialRegenerateRequest'
       responses:
-        '200':
-          description: Partial regeneration completed
+        '202':
+          description: Partial repair attempt accepted
           content:
             application/json:
               schema:
@@ -2122,6 +2100,7 @@ components:
                 latestVersion: { $ref: '#/components/schemas/TaskPlanVersionView' }
                 activeAttempt: { $ref: '#/components/schemas/TaskPlanAttemptView' }
                 latestFailedAttempt: { $ref: '#/components/schemas/TaskPlanAttemptView' }
+                latestAttempt: { $ref: '#/components/schemas/TaskPlanAttemptView' }
                 confirmation: { $ref: '#/components/schemas/TaskPlanConfirmationView' }
                 validation: { $ref: '#/components/schemas/TaskPlanValidationView' }
                 permissions: { $ref: '#/components/schemas/TaskPlanPermissions' }
@@ -2133,7 +2112,9 @@ components:
       properties:
         id: { type: string, format: uuid }
         versionNo: { type: integer }
-        sourceType: { type: string, enum: [AI_SKELETON, AI_COMPLETE, MANUAL_EDIT, RESTORED] }
+        sourceType:
+          type: string
+          enum: [AI_SKELETON, AI_COMPLETE, AI_PARTIAL, AI_REPAIR, AI_PARTIAL_REPAIR, AI_REGENERATED, MANUAL_EDIT, RESTORED]
         basedOnVersionId: { type: [string, 'null'], format: uuid }
         createdBy: { type: string, format: uuid }
         createdAt: { type: string, format: date-time }
@@ -2168,7 +2149,9 @@ components:
         warnings: { type: array, items: { type: string } }
     TaskPlanValidationIssueView:
       type: object
+      required: [id, code, severity]
       properties:
+        id: { type: string, format: uuid }
         code: { type: string }
         severity: { type: string, enum: [HARD, BLOCKING_EDITABLE, WARNING] }
         targetType: { type: [string, 'null'], enum: [PLAN, MILESTONE, TASK] }
@@ -2242,9 +2225,10 @@ components:
         value: { type: [array, 'null'], items: { type: string } }
     PartialRegenerateRequest:
       type: object
-      required: [baseVersionId]
+      required: [baseVersionId, expectedVersionNo, mode]
       properties:
         baseVersionId: { type: string, format: uuid }
+        expectedVersionNo: { type: integer, minimum: 1 }
         targetTempKeys:
           type: array
           items: { type: string }
@@ -2257,7 +2241,9 @@ components:
         issueIds:
           type: array
           items: { type: string, format: uuid }
-        mode: { type: string }
+        mode:
+          type: string
+          enum: [REPAIR_ALL_ISSUES, REPAIR_DATES_AND_DEPENDENCIES, REGENERATE_SELECTED_TASK_DETAILS, RESCHEDULE_UNLOCKED_TASKS, APPLY_UPDATED_CONSTRAINTS]
     ApplyTaskPlanResult:
       type: object
       required: [confirmationId, status]
