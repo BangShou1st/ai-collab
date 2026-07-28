@@ -9,12 +9,18 @@ import com.shitulelv.aicollab.planning.domain.PlanSource;
 import com.shitulelv.aicollab.planning.domain.PlanTask;
 import com.shitulelv.aicollab.planning.domain.PlanningPromptText;
 import com.shitulelv.aicollab.planning.domain.SkeletonModelOutput;
+import com.shitulelv.aicollab.planning.domain.StructuredValidationIssue;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
+import com.shitulelv.aicollab.planning.domain.TaskPlanDraftNormalizer;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidator;
+import com.shitulelv.aicollab.planning.domain.TaskPlanVersionSource;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidator.ValidationMode;
 import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
+import com.shitulelv.aicollab.planning.domain.ValidationAssessment;
+import com.shitulelv.aicollab.planning.domain.ValidationResult;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
+import com.shitulelv.aicollab.planning.infrastructure.TaskPlanVersionRecord;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +28,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -104,6 +111,10 @@ public class TaskPlanGenerationOrchestrator {
     private final TaskPlanDraftValidator validator;
     private final ObjectMapper json;
     private final TaskPlanContextAssembler contexts;
+    private final PlanningPromptPolicy promptPolicy;
+    private final GenerationOutcomeDecider outcomeDecider;
+    private final TaskPlanDraftNormalizer normalizer;
+    private final TaskPlanVersionCommitService commitService;
 
     /** C3: Composite key (planId, generationSeq) prevents cross-plan collisions. */
     record GenerationRunKey(UUID planId, long generationSeq) {}
@@ -129,10 +140,14 @@ public class TaskPlanGenerationOrchestrator {
     public TaskPlanGenerationOrchestrator(
             @Qualifier("planningTaskExecutor") Executor executor, TaskPlanRepository repository,
             TaskPlanModelClient model, TaskPlanOutputParser parser,
-            TaskPlanDraftValidator validator, ObjectMapper json, TaskPlanContextAssembler contexts) {
+            TaskPlanDraftValidator validator, ObjectMapper json, TaskPlanContextAssembler contexts,
+            PlanningPromptPolicy promptPolicy, GenerationOutcomeDecider outcomeDecider,
+            TaskPlanDraftNormalizer normalizer, TaskPlanVersionCommitService commitService) {
         this.executor = executor; this.repository = repository; this.model = model;
         this.parser = parser; this.validator = validator; this.json = json;
-        this.contexts = contexts;
+        this.contexts = contexts; this.promptPolicy = promptPolicy;
+        this.outcomeDecider = outcomeDecider; this.normalizer = normalizer;
+        this.commitService = commitService;
     }
 
     /**
@@ -249,17 +264,21 @@ public class TaskPlanGenerationOrchestrator {
             GeneratedDetail generated = generateDetailWithOneRepair(plan, attempt,
                     TaskPlanStatus.DETAIL_GENERATING, prompt, actor, skeleton, candidate -> {
                 TaskPlanDraft merged = mergeDetailIntoSkeleton(skeleton, candidate);
-                return validator.validate(repository.validationContext(plan), merged, ValidationMode.COMPLETE, true).valid();
+                return validator.validate(repository.validationContext(plan), merged, ValidationMode.COMPLETE, true);
             });
             TaskPlanDraft detail = mergeDetailIntoSkeleton(skeleton, generated.detail());
+            detail = normalizer.normalize(detail);
             if (!repository.active(plan.id(), plan.generationSeq(), generated.attemptId(), TaskPlanStatus.DETAIL_GENERATING)) {
                 repository.finishAttempt(generated.attemptId(), "DISCARDED", "PLAN_GENERATION_CANCELED");
                 return;
             }
-            UUID versionId = repository.appendGeneratedVersion(plan.projectId(), plan.id(), plan.generationSeq(), generated.attemptId(),
-                    TaskPlanStatus.DETAIL_GENERATING, "AI_COMPLETE", plan.latestVersionId(), detail, actor,
-                    validator.validate(repository.validationContext(plan), detail, ValidationMode.COMPLETE, true));
-            if (versionId == null) return;
+            ValidationResult flatResult = validator.validate(repository.validationContext(plan), detail, ValidationMode.COMPLETE, true);
+            ValidationAssessment assessment = toAssessment(flatResult);
+            TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
+            TaskPlanVersionRecord versionRecord = commitService.commit(plan, detail,
+                    TaskPlanVersionSource.AI_COMPLETE, assessment, finalStatus,
+                    "PLAN_GENERATED", actor, plan.latestVersionId());
+            if (versionRecord == null) return;
             var m = generated.metrics();
             repository.finishAttempt(generated.attemptId(), "SUCCESS", null,
                     m.provider(), m.model(), m.latencyMs(), m.promptTokens(), m.completionTokens(), null);
@@ -331,11 +350,12 @@ public class TaskPlanGenerationOrchestrator {
     /**
      * R2+R1: Generate detail using strict DetailModelOutput contract.
      * The model cannot output skeleton identity fields — parser rejects unknown properties.
+     * S4: Domain validation errors are preserved and passed to repair prompt.
      */
     private GeneratedDetail generateDetailWithOneRepair(TaskPlanRecord plan, UUID initialAttempt,
                                                          TaskPlanStatus expectedStatus, String prompt,
                                                          UUID actor, TaskPlanDraft skeleton,
-                                                         Predicate<DetailModelOutput> valid) {
+                                                         DetailValidator valid) {
         if (PlanningPromptText.totalCodePointCount(prompt) > MAX_PROMPT_CODEPOINTS) {
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, "PROMPT_BUDGET_EXCEEDED");
@@ -353,7 +373,11 @@ public class TaskPlanGenerationOrchestrator {
         }
         try {
             DetailModelOutput detailOut = parser.parseDetail(result.content());
-            if (valid.test(detailOut)) return new GeneratedDetail(detailOut, initialAttempt, result);
+            ValidationResult validation = valid.validate(detailOut);
+            if (validation.valid()) return new GeneratedDetail(detailOut, initialAttempt, result);
+            // Domain validation failed — capture error codes for repair
+            contractError = new ModelOutputContractException("DOMAIN_VALIDATION_FAILED", null,
+                    validation.errorCodes());
         } catch (ModelOutputContractException contract) {
             contractError = contract;
         } catch (RuntimeException invalidOutput) {
@@ -364,7 +388,7 @@ public class TaskPlanGenerationOrchestrator {
         if (repairAttempt == null) throw new GenerationHandledException();
         // F3: Re-key the Future under the repair attemptId so cancel() can find it
         rekeyFuture(initialAttempt, repairAttempt, plan.generationSeq());
-        // S4: Pass structured failure info to repair prompt
+        // S4: Pass structured failure info to repair prompt — includes domain validation codes
         String repairPrompt = repairPrompt(result.content(), DETAIL_SCHEMA, "DETAIL",
                 contractError != null ? contractError.category() : "UNKNOWN",
                 contractError != null ? contractError.jsonPath() : null,
@@ -373,7 +397,12 @@ public class TaskPlanGenerationOrchestrator {
             GenerationResult repairResult = model.generate(REPAIR_SYSTEM, repairPrompt, "TASK_PLAN_REPAIR",
                     actor, plan.projectId(), repairAttempt);
             DetailModelOutput repaired = parser.parseDetail(repairResult.content());
-            if (!valid.test(repaired)) throw new IllegalArgumentException("DOMAIN_VALIDATION_FAILED");
+            ValidationResult repairValidation = valid.validate(repaired);
+            if (!repairValidation.valid()) {
+                // Second failure — include validation codes in exception for safe error summary
+                throw new ModelOutputContractException("DOMAIN_VALIDATION_FAILED", null,
+                        repairValidation.errorCodes());
+            }
             return new GeneratedDetail(repaired, repairAttempt, repairResult);
         } catch (RuntimeException secondFailure) {
             String summary = safeErrorSummary("DETAIL", secondFailure);
@@ -502,8 +531,11 @@ public class TaskPlanGenerationOrchestrator {
      * R3: Skeleton prompt only contains plan input + JSON schema.
      * No sources, no member context — those are detail-only.
      * All untrusted data is XML-escaped.
+     * P4: Business rules from PlanningPromptPolicy.
      */
     private String skeletonPrompt(TaskPlanRecord p) {
+        PlanningPromptPolicy.PlanningContext ctx = new PlanningPromptPolicy.PlanningContext(
+                p.planStartDate(), p.planDueDate(), p.maxTaskCount(), Set.of(), Set.of());
         return PLAN_INPUT_TAG_OPEN + "\n"
                 + "标题=" + PlanningPromptText.escapeUntrusted(p.title()) + "\n"
                 + "目标=" + PlanningPromptText.escapeUntrusted(p.goal()) + "\n"
@@ -512,6 +544,7 @@ public class TaskPlanGenerationOrchestrator {
                 + "最多任务=" + p.maxTaskCount() + "\n"
                 + PLAN_INPUT_TAG_CLOSE + "\n"
                 + JSON_SCHEMA_TAG_OPEN + "\n" + SKELETON_SCHEMA + "\n" + JSON_SCHEMA_TAG_CLOSE + "\n"
+                + promptPolicy.skeletonRules(ctx)
                 + "生成骨架。细节字段（description, priority, estimatedHours, startDate, dueDate, suggestedAssigneeId, dependencyTempKeys）不要输出。";
     }
 
@@ -526,10 +559,21 @@ public class TaskPlanGenerationOrchestrator {
      * 4. Identity-only skeleton (untrusted, escaped) — no sources, no quote text
      * 5. Sources as separate section (untrusted, escaped)
      * All sections are declared untrusted. No sensitive member data (email, password).
+     * P4: Business rules from PlanningPromptPolicy.
      */
     private String detailPrompt(TaskPlanRecord p, TaskPlanDraft skeleton) {
         try {
             SkeletonIdentityOnly identityOnly = toSkeletonIdentity(skeleton);
+            var memberIds = new java.util.HashSet<UUID>();
+            for (var task : skeleton.tasks()) {
+                if (task.suggestedAssigneeId() != null) memberIds.add(task.suggestedAssigneeId());
+            }
+            var sourceRefs = new java.util.HashSet<String>();
+            for (var source : skeleton.sources()) {
+                if (source.ref() != null) sourceRefs.add(source.ref());
+            }
+            PlanningPromptPolicy.PlanningContext ctx = new PlanningPromptPolicy.PlanningContext(
+                    p.planStartDate(), p.planDueDate(), p.maxTaskCount(), memberIds, sourceRefs);
             return PLAN_INPUT_TAG_OPEN + "\n"
                     + "标题=" + PlanningPromptText.escapeUntrusted(p.title()) + "\n"
                     + "目标=" + PlanningPromptText.escapeUntrusted(p.goal()) + "\n"
@@ -547,6 +591,7 @@ public class TaskPlanGenerationOrchestrator {
                     + SOURCES_TAG_OPEN + "\n"
                     + PlanningPromptText.escapeUntrusted(json.writeValueAsString(skeleton.sources()))
                     + "\n" + SOURCES_TAG_CLOSE + "\n"
+                    + promptPolicy.detailRules(ctx)
                     + "补全细节。suggestedAssigneeId 只能使用 MEMBER_CONTEXT 中列出的成员 ID。"
                     + "不要修改骨架身份字段（title, objective, targetDate, sortOrder, summary, assumptions, risks）。";
         } catch (JsonProcessingException impossible) { throw new IllegalStateException(impossible); }
@@ -572,7 +617,7 @@ public class TaskPlanGenerationOrchestrator {
                 ? "PLANNING_MODEL_INVALID_OUTPUT" : "PLAN_GENERATION_FAILED";
     }
 
-    /** S4: Extract safe error summary from structured contract exception. */
+    /** S4: Extract safe error summary from structured contract exception, including domain validation codes. */
     private static String safeErrorSummary(String stage, Throwable failure) {
         if (failure instanceof ModelOutputContractException contract) {
             return contract.safeSummary(stage);
@@ -631,6 +676,27 @@ public class TaskPlanGenerationOrchestrator {
     private record GeneratedSkeleton(TaskPlanDraft draft, UUID attemptId, GenerationResult metrics) {}
     private record GeneratedDetail(DetailModelOutput detail, UUID attemptId, GenerationResult metrics) {}
     private static final class GenerationHandledException extends RuntimeException {}
+
+    /** Functional interface that returns ValidationResult instead of boolean, preserving domain validation details. */
+    @FunctionalInterface
+    interface DetailValidator {
+        ValidationResult validate(DetailModelOutput candidate);
+    }
+
+    /** Convert flat ValidationResult to structured ValidationAssessment using ValidationIssueCatalog. */
+    private static ValidationAssessment toAssessment(ValidationResult flat) {
+        var issues = new java.util.ArrayList<StructuredValidationIssue>();
+        for (String code : flat.errorCodes()) {
+            var severity = com.shitulelv.aicollab.planning.domain.ValidationIssueCatalog.severityOrDefault(code);
+            issues.add(new StructuredValidationIssue(code, severity, null, null, null, null, java.util.Map.of()));
+        }
+        for (String code : flat.warningCodes()) {
+            issues.add(new StructuredValidationIssue(code,
+                    com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity.WARNING,
+                    null, null, null, null, java.util.Map.of()));
+        }
+        return new ValidationAssessment(issues);
+    }
 
     /** Identity-only skeleton for prompt embedding — no sources, no detail fields. */
     record SkeletonIdentityOnly(

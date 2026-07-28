@@ -26,9 +26,13 @@ class ModelOutputContractException extends RuntimeException {
     String jsonPath() { return jsonPath; }
     List<String> validationCodes() { return validationCodes; }
 
-    /** Build a safe error summary for persistence (max 300 code points). */
+    /** Build a safe error summary for persistence (max 300 code points). Includes validation codes for domain failures. */
     String safeSummary(String stage) {
         String base = stage + " / " + category + (jsonPath != null ? " / " + jsonPath : "");
+        if (!validationCodes.isEmpty()) {
+            String codes = " / " + String.join(",", validationCodes);
+            base = base + codes;
+        }
         return base.codePointCount(0, Math.min(base.length(), base.codePointCount(0, base.length())))
                 > 300 ? base.substring(0, 300) : base;
     }

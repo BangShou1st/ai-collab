@@ -79,6 +79,10 @@ public class TaskPlanConfirmationService {
             }
             // FAILED retry: revalidate all preconditions
             if ("FAILED".equals(row.get("status"))) {
+                // P8: Check READY_WITH_ISSUES first for specific error message
+                if (plan.status() == TaskPlanStatus.READY_WITH_ISSUES) {
+                    throw new BusinessException(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES);
+                }
                 if (plan.status() != TaskPlanStatus.READY) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
                 if (!versionId.equals(row.get("version_id"))) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
                 // Task 10: Block confirmation while plan issues remain
@@ -106,6 +110,10 @@ public class TaskPlanConfirmationService {
             // There's a FAILED/PROCESSING confirmation for this plan but with a different key
             throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED,
                     "该规划已有确认记录，请使用原始 Idempotency-Key 重试");
+        }
+        // P8: Check READY_WITH_ISSUES first for specific error message
+        if (plan.status() == TaskPlanStatus.READY_WITH_ISSUES) {
+            throw new BusinessException(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES);
         }
         if (plan.status() != TaskPlanStatus.READY) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
         // Task 10: Block confirmation while plan issues remain
