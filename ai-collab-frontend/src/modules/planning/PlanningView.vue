@@ -51,6 +51,7 @@ const targetNames = computed<Record<string, string>>(() => Object.fromEntries([
   ...(draft.value?.tasks.map(item => [item.tempKey, item.title] as const) ?? []),
 ]))
 const failureMessage = computed(() => planningFailureLabel(selected.value?.lastErrorSummary))
+const historyReadOnlyMessage = '历史版本仅供查看，请先恢复为新版本'
 const repairableIssueIds = computed(() => structuredIssues.value
   .filter(item => repairModeForIssue(item) !== null)
   .map(item => item.id))
@@ -68,6 +69,12 @@ function repairModeForIssue(issue: StructuredValidationIssue): PartialRepairMode
   if (assignmentAndSourceCodes.has(issue.code)) return 'REPAIR_ASSIGNMENTS_AND_SOURCES'
   if (issue.code === 'ESTIMATED_HOURS_INVALID') return 'REGENERATE_SELECTED_TASK_DETAILS'
   return null
+}
+
+function requireLatestVersion(): boolean {
+  if (editingLatest.value) return true
+  errorMessage.value = historyReadOnlyMessage
+  return false
 }
 
 async function list(): Promise<TaskPlan['status'][]> {
@@ -106,7 +113,7 @@ async function create(): Promise<void> {
   catch (error) { errorMessage.value = normalizeApiError(error).message }
 }
 async function action(name: 'cancel' | 'retry-detail' | 'regenerate'): Promise<void> {
-  if (!selected.value || name === 'regenerate' && dirty.value && !await discard()) return
+  if (!selected.value || !requireLatestVersion() || name === 'regenerate' && dirty.value && !await discard()) return
   try {
     await planningApi.action(projectId.value, selected.value.id, name)
     await refresh()
@@ -135,7 +142,7 @@ async function save(): Promise<void> {
   catch (error) { errorMessage.value = normalizeApiError(error).message }
 }
 async function repair(issue: StructuredValidationIssue, mode: PartialRepairMode | '' = ''): Promise<void> {
-  if (!selected.value?.latestVersionId || !issue.targetTempKey) return
+  if (!requireLatestVersion() || !selected.value?.latestVersionId || !issue.targetTempKey) return
   const repairMode = mode || repairModeForIssue(issue)
   if (!repairMode) return
   try {
@@ -154,6 +161,15 @@ async function repair(issue: StructuredValidationIssue, mode: PartialRepairMode 
     errorMessage.value = normalizeApiError(error).message
   }
 }
+async function manualEdit(issue: StructuredValidationIssue): Promise<void> {
+  if (!requireLatestVersion()) return
+  await locate(issue.targetTempKey || '', issue.field)
+}
+async function regenerateIssue(target: string): Promise<void> {
+  if (!requireLatestVersion()) return
+  const issue = structuredIssues.value.find(item => item.targetTempKey === target)
+  if (issue) await repair(issue, 'REGENERATE_SELECTED_TASK_DETAILS')
+}
 async function locate(target: string, field: string | null): Promise<void> {
   const milestoneTempKey = draft.value?.tasks.find(task => task.tempKey === target)?.milestoneTempKey
     ?? draft.value?.milestones.find(milestone => milestone.tempKey === target)?.tempKey
@@ -168,7 +184,7 @@ async function locate(target: string, field: string | null): Promise<void> {
   element?.querySelector<HTMLElement>('input,textarea,button')?.focus()
 }
 async function removePlan(): Promise<void> {
-  if (!selected.value || !await window.confirm('删除后无法恢复，确定删除该规划吗？')) return
+  if (!selected.value || !requireLatestVersion() || !await window.confirm('删除后无法恢复，确定删除该规划吗？')) return
   try {
     await planningApi.remove(projectId.value, selected.value.id)
     selected.value = null; draft.value = null; structuredIssues.value = []; events.value = []
@@ -176,7 +192,7 @@ async function removePlan(): Promise<void> {
   } catch (error) { errorMessage.value = normalizeApiError(error).message }
 }
 async function confirm(): Promise<void> {
-  if (!selected.value || !selectedVersionId.value || !checked.value) return
+  if (!selected.value || !selectedVersionId.value || !checked.value || !requireLatestVersion()) return
   const versionId = selectedVersionId.value, key = confirmationKey(projectId.value, selected.value.id, versionId)
   try {
     const result = await planningApi.confirm(projectId.value, selected.value.id, versionId, key)
@@ -275,10 +291,10 @@ watch(projectId, async () => {
       </el-card>
       <el-card v-if="selected">
         <template #header><div class="actions"><strong>{{ selected.title }}</strong>
-          <el-button v-if="permissions?.canCancel" @click="action('cancel')">取消</el-button>
-          <el-button v-if="permissions?.canRetryDetail" @click="action('retry-detail')">重试细节</el-button>
-          <el-button v-if="permissions?.canRegenerate" @click="action('regenerate')">重新生成</el-button>
-          <el-button v-if="permissions?.canDelete" type="danger" @click="removePlan">删除规划</el-button>
+          <el-button v-if="permissions?.canCancel && editingLatest" @click="action('cancel')">取消</el-button>
+          <el-button v-if="permissions?.canRetryDetail && editingLatest" @click="action('retry-detail')">重试细节</el-button>
+          <el-button v-if="permissions?.canRegenerate && editingLatest" @click="action('regenerate')">重新生成</el-button>
+          <el-button v-if="permissions?.canDelete && editingLatest" type="danger" @click="removePlan">删除规划</el-button>
         </div></template>
         <el-alert v-if="failureMessage" :title="failureMessage" type="warning" />
         <PlanningIssuePanel
@@ -286,15 +302,16 @@ watch(projectId, async () => {
           :issues="structuredIssues"
           :target-names="targetNames"
           :repairable-issue-ids="repairableIssueIds"
+          :actions-enabled="editingLatest"
           @locate="locate"
           @repair="repair"
-          @edit="issue => locate(issue.targetTempKey || '', issue.field)"
-          @regenerate="target => { const issue = structuredIssues.find(item => item.targetTempKey === target); if (issue) repair(issue, 'REGENERATE_SELECTED_TASK_DETAILS') }"
+          @edit="manualEdit"
+          @regenerate="regenerateIssue"
         />
         <PlanningEventTimeline v-if="events.length > 0" :events="events" />
         <el-select data-testid="planning-version-select" :model-value="selectedVersionId" @change="requestVersion"><el-option v-for="v in versions" :key="v.id" :label="`v${v.versionNo} ${versionSourceLabel(v.sourceType)}`" :value="v.id" /></el-select>
         <template v-if="draft">
-          <el-alert v-if="!editingLatest" title="历史版本只读；可先恢复为新版本后编辑" type="info" />
+          <el-alert v-if="!editingLatest" :title="historyReadOnlyMessage" type="info" />
           <label>规划摘要</label><el-input v-model="draft.summary" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" placeholder="规划摘要" />
           <h3>假设</h3><div v-for="(_, index) in draft.assumptions" :key="`a-${index}`"><label>假设 {{ index + 1 }}</label><el-input v-model="draft.assumptions[index]" :readonly="!canEditCurrent" /><el-button v-if="canEditCurrent" @click="draft.assumptions.splice(index, 1)">删除</el-button></div><el-button v-if="canEditCurrent" @click="addAssumption">添加假设</el-button>
           <h3>风险</h3><div v-for="(_, index) in draft.risks" :key="`r-${index}`"><label>风险 {{ index + 1 }}</label><el-input v-model="draft.risks[index]" :readonly="!canEditCurrent" /><el-button v-if="canEditCurrent" @click="draft.risks.splice(index, 1)">删除</el-button></div><el-button v-if="canEditCurrent" @click="addRisk">添加风险</el-button>

@@ -3,6 +3,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import PlanningView from './PlanningView.vue'
+import PlanningIssuePanel from './components/PlanningIssuePanel.vue'
 import type {
   PlanPermissions,
   StructuredValidationIssue,
@@ -258,6 +259,13 @@ async function openFirst(wrapper: VueWrapper): Promise<void> {
   await flushPromises()
 }
 
+async function openHistory(wrapper: VueWrapper): Promise<void> {
+  await openFirst(wrapper)
+  const selects = wrapper.findAllComponents(SelectStub)
+  await selects[1].vm.$emit('change', 'v1')
+  await flushPromises()
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   sessionStorage.clear()
@@ -408,9 +416,58 @@ describe('PlanningView real component workflow', () => {
     const selects = wrapper.findAllComponents(SelectStub)
     await selects[1].vm.$emit('change', 'v1')
     await flushPromises()
-    expect(wrapper.text()).toContain('历史版本只读')
+    expect(wrapper.text()).toContain('历史版本仅供查看，请先恢复为新版本')
     expect(wrapper.findAll('button').some(button => button.text() === '确认并创建任务')).toBe(false)
     expect(wrapper.get('#planning-t1-description textarea').attributes('readonly')).toBeDefined()
+  })
+
+  it('historyVersionHidesLatestIssueActions', async () => {
+    mocks.detail.mockResolvedValue(response(detail(plan(), { structuredIssues: [issue()] })))
+    const wrapper = await mounted()
+    await openHistory(wrapper)
+    const buttonLabels = wrapper.findAll('button').map(button => button.text())
+    expect(buttonLabels).not.toContain('AI 修复')
+    expect(buttonLabels).not.toContain('手动编辑')
+    expect(buttonLabels).not.toContain('重新生成相关任务')
+    expect(wrapper.text()).toContain('历史版本仅供查看，请先恢复为新版本')
+    const selects = wrapper.findAllComponents(SelectStub)
+    await selects[1].vm.$emit('change', 'v2')
+    await flushPromises()
+    expect(wrapper.findAll('button').map(button => button.text())).toContain('AI 修复')
+  })
+
+  it('historyVersionCannotTriggerManualEdit', async () => {
+    mocks.detail.mockResolvedValue(response(detail(plan(), { structuredIssues: [issue()] })))
+    const wrapper = await mounted()
+    await openHistory(wrapper)
+    vi.mocked(Element.prototype.scrollIntoView).mockClear()
+    wrapper.getComponent(PlanningIssuePanel).vm.$emit('edit', issue())
+    await flushPromises()
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('历史版本仅供查看，请先恢复为新版本')
+  })
+
+  it('historyVersionCannotTriggerAiRepair', async () => {
+    mocks.detail.mockResolvedValue(response(detail(plan(), { structuredIssues: [issue()] })))
+    const wrapper = await mounted()
+    await openHistory(wrapper)
+    wrapper.getComponent(PlanningIssuePanel).vm.$emit('repair', issue())
+    await flushPromises()
+    expect(mocks.partialRegenerate).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('历史版本仅供查看，请先恢复为新版本')
+  })
+
+  it('historyVersionCanOnlyRestoreAsNewVersion', async () => {
+    mocks.detail.mockResolvedValue(response(detail(plan(), { structuredIssues: [issue()] })))
+    const wrapper = await mounted()
+    await openHistory(wrapper)
+    const mutationLabels = ['取消', '重试细节', '重新生成', '删除规划', '保存新版本', '确认并创建任务']
+    const buttonLabels = wrapper.findAll('button').map(button => button.text())
+    expect(buttonLabels).toContain('恢复为新版本')
+    mutationLabels.forEach(label => expect(buttonLabels).not.toContain(label))
+    await wrapper.findAll('button').find(button => button.text() === '恢复为新版本')!.trigger('click')
+    await flushPromises()
+    expect(mocks.restore).toHaveBeenCalledWith('project-1', 'plan-1', 'v1')
   })
 
   it('readyWithIssuesCannotConfirm', async () => {
