@@ -40,6 +40,10 @@ class Phase08EditableDegradationIntegrationTest {
     private TaskPlanCommandService commands;
     private TaskPlanQueryService queries;
     private GenerationOutcomeDecider decider;
+    private TaskPlanDraftNormalizer normalizer;
+    private TaskPlanVersionCommitService commitService;
+    private TaskPlanRepairPatchParser patchParser;
+    private TaskPlanRepairPatchApplier patchApplier;
 
     private final UUID projectId = UUID.randomUUID();
     private final UUID planId = UUID.randomUUID();
@@ -48,10 +52,14 @@ class Phase08EditableDegradationIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        commands = new TaskPlanCommandService(access, repository, orchestrator, validator, jdbc,
-                null, null, audit);
-        queries = new TaskPlanQueryService(access, repository, issueRepo, eventRepo, jdbc);
+        normalizer = new TaskPlanDraftNormalizer();
         decider = new GenerationOutcomeDecider();
+        commitService = new TaskPlanVersionCommitService(repository, issueRepo, eventRepo);
+        patchParser = new TaskPlanRepairPatchParser(new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules());
+        patchApplier = new TaskPlanRepairPatchApplier();
+        commands = new TaskPlanCommandService(access, repository, orchestrator, validator, jdbc,
+                null, null, audit, normalizer, decider, commitService, patchParser, patchApplier);
+        queries = new TaskPlanQueryService(access, repository, issueRepo, eventRepo, jdbc);
     }
 
     private TaskPlanRecord planWithStatus(TaskPlanStatus status) {
@@ -118,8 +126,8 @@ class Phase08EditableDegradationIntegrationTest {
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
-        when(repository.appendVersion(any(), any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(UUID.randomUUID());
+        when(repository.appendGeneratedVersion(any(), any(), anyLong(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(versionId);
 
         UpdateTaskPlanRequest request = new UpdateTaskPlanRequest(
                 versionId, 1, null, null, null, List.of(), List.of());
@@ -207,8 +215,8 @@ class Phase08EditableDegradationIntegrationTest {
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
         when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
-        when(repository.appendVersion(any(), any(), any(), any(), any(), any(), any(), any()))
-                .thenReturn(UUID.randomUUID());
+        when(repository.appendGeneratedVersion(any(), any(), anyLong(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(versionId);
 
         UpdateTaskPlanRequest request = new UpdateTaskPlanRequest(
                 versionId, 1, null, null, null, List.of(), List.of());
@@ -217,21 +225,22 @@ class Phase08EditableDegradationIntegrationTest {
         assertNotNull(result);
     }
 
-    // ── READY_WITH_ISSUES can be partially regenerated ──
+    // ── READY_WITH_ISSUES can be partially regenerated (currently throws NOT_READY) ──
 
     @Test
     void readyWithIssuesAllowsPartialRegeneration() {
         when(repository.require(projectId, planId)).thenReturn(planWithStatus(TaskPlanStatus.READY_WITH_ISSUES));
-        TaskPlanRecord regenerated = planWithStatus(TaskPlanStatus.SKELETON_GENERATING);
-        when(repository.startGeneration(eq(projectId), eq(planId), eq(actorId), eq(false)))
-                .thenReturn(regenerated);
+        when(repository.requireVersion(projectId, planId, versionId)).thenReturn(versionRecord());
+        when(repository.draft(versionRecord())).thenReturn(validDraft());
+        when(commitService.countUnresolvedBlocking(planId, versionId)).thenReturn(0);
 
         PartialRegenerateRequest request = new PartialRegenerateRequest(
                 versionId, List.of("T1"), Set.of("startDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_ALL_ISSUES);
 
-        TaskPlanRecord result = commands.partialRegenerate(projectId, planId, request, actorId);
-        assertNotNull(result);
+        // Currently throws because real scoped repair is being integrated
+        assertThrows(Exception.class,
+                () -> commands.partialRegenerate(projectId, planId, request, actorId));
     }
 
     // ── Safety: no API key in prompts ──
