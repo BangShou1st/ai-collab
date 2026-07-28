@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { StructuredValidationIssue } from '../types'
+import { fieldLabel, issueLabel } from '../planning-labels'
 
 const props = defineProps<{
   issues: StructuredValidationIssue[]
@@ -7,8 +8,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'locate', targetTempKey: string, field: string | null): void
-  (e: 'repair'): void
-  (e: 'edit'): void
+  (e: 'repair', issue: StructuredValidationIssue): void
+  (e: 'edit', issue: StructuredValidationIssue): void
   (e: 'regenerate', targetTempKey: string): void
 }>()
 
@@ -27,8 +28,8 @@ const severityColor = (s: string) => {
 const formatIssue = (issue: StructuredValidationIssue) => {
   const target = issue.targetType === 'TASK' ? `任务 ${issue.targetTempKey}` :
                  issue.targetType === 'MILESTONE' ? `里程碑 ${issue.targetTempKey}` : '规划'
-  const field = issue.field ? ` 的 ${issue.field}` : ''
-  return `${target}${field}：${issue.code}`
+  const field = issue.field ? ` 的${fieldLabel(issue.field)}` : ''
+  return `${target}${field}：${issueLabel(issue.code)}`
 }
 </script>
 
@@ -40,7 +41,7 @@ const formatIssue = (issue: StructuredValidationIssue) => {
     <div class="issue-list">
       <div
         v-for="issue in issues"
-        :key="issue.code + (issue.targetTempKey || '')"
+        :key="issue.id"
         class="issue-item"
         :style="{ borderLeftColor: severityColor(issue.severity) }"
       >
@@ -51,8 +52,8 @@ const formatIssue = (issue: StructuredValidationIssue) => {
           <span class="issue-message">{{ formatIssue(issue) }}</span>
         </div>
         <div class="issue-actions" v-if="issue.severity === 'BLOCKING_EDITABLE'">
-          <button class="btn-sm" @click="emit('repair')">AI 修复</button>
-          <button class="btn-sm" @click="emit('edit')">手动编辑</button>
+          <button class="btn-sm" @click="emit('repair', issue)">AI 修复</button>
+          <button class="btn-sm" @click="emit('edit', issue)">手动编辑</button>
           <button class="btn-sm" @click="emit('regenerate', issue.targetTempKey || '')">
             重新生成相关任务
           </button>

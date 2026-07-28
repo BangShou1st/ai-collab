@@ -66,6 +66,7 @@ export interface TaskPlanValidationView {
 }
 
 export interface StructuredValidationIssue {
+  id: string
   code: string; severity: 'HARD' | 'BLOCKING_EDITABLE' | 'WARNING'
   targetType: string | null; targetTempKey: string | null
   field: string | null; relatedTempKey: string | null
