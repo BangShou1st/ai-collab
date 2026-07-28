@@ -36,6 +36,7 @@ class Phase08EditableDegradationIntegrationTest {
     @Mock org.springframework.jdbc.core.JdbcTemplate jdbc;
     @Mock com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard access;
     @Mock com.shitulelv.aicollab.project.application.service.AuditService audit;
+    @Mock TaskPlanPartialRepairService partialRepairService;
 
     private TaskPlanCommandService commands;
     private TaskPlanQueryService queries;
@@ -59,7 +60,7 @@ class Phase08EditableDegradationIntegrationTest {
         patchApplier = new TaskPlanRepairPatchApplier();
         commands = new TaskPlanCommandService(access, repository, orchestrator, validator, jdbc,
                 null, null, audit, normalizer, decider, commitService, patchParser, patchApplier, null,
-                new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules(), null);
+                new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules(), partialRepairService);
         queries = new TaskPlanQueryService(access, repository, issueRepo, eventRepo, jdbc);
     }
 
@@ -126,7 +127,8 @@ class Phase08EditableDegradationIntegrationTest {
                 .thenReturn(List.of());
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
-        when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
+        when(validator.assess(any(), any(), eq(TaskPlanDraftValidator.ValidationMode.COMPLETE), eq(false)))
+                .thenReturn(ValidationAssessment.empty());
         when(repository.appendVersion(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(versionId);
 
@@ -215,7 +217,8 @@ class Phase08EditableDegradationIntegrationTest {
                 .thenReturn(List.of());
         when(jdbc.queryForObject(eq("SELECT start_date,due_date FROM project WHERE id=?"), any(org.springframework.jdbc.core.RowMapper.class), eq(projectId)))
                 .thenReturn(new LocalDate[]{LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)});
-        when(validator.validate(any(), any())).thenReturn(new ValidationResult(List.of(), List.of()));
+        when(validator.assess(any(), any(), eq(TaskPlanDraftValidator.ValidationMode.COMPLETE), eq(false)))
+                .thenReturn(ValidationAssessment.empty());
         when(repository.appendVersion(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(versionId);
 
@@ -230,17 +233,14 @@ class Phase08EditableDegradationIntegrationTest {
 
     @Test
     void readyWithIssuesAllowsPartialRegeneration() {
-        when(repository.require(projectId, planId)).thenReturn(planWithStatus(TaskPlanStatus.READY_WITH_ISSUES));
-        when(repository.requireVersion(projectId, planId, versionId)).thenReturn(versionRecord());
-        when(repository.draft(versionRecord())).thenReturn(validDraft());
-
         PartialRegenerateRequest request = new PartialRegenerateRequest(
                 versionId, 1, List.of("T1"), Set.of("startDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_ALL_ISSUES);
+        when(partialRepairService.start(projectId, planId, request, actorId))
+                .thenReturn(planWithStatus(TaskPlanStatus.REPAIRING));
 
-        // Currently throws because real scoped repair is being integrated
-        assertThrows(Exception.class,
-                () -> commands.partialRegenerate(projectId, planId, request, actorId));
+        assertEquals(TaskPlanStatus.REPAIRING,
+                commands.partialRegenerate(projectId, planId, request, actorId).status());
     }
 
     // ── Safety: no API key in prompts ──

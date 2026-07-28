@@ -148,6 +148,18 @@ class TaskPlanEditTest {
     }
 
     @Test
+    void staleExpectedVersionNumberReturns409BeforeApplyingPatch() {
+        when(repository.require(projectId, planId)).thenReturn(readyPlan());
+        UpdateTaskPlanRequest request = new UpdateTaskPlanRequest(
+                versionId, 0, null, null, null, List.of(), List.of());
+
+        assertThrows(com.shitulelv.aicollab.common.exception.BusinessException.class,
+                () -> service.edit(projectId, planId, request, actorId));
+        verify(repository, never()).draft(any());
+        verifyNoInteractions(commitService);
+    }
+
+    @Test
     void editingNonReadyPlanThrows() {
         TaskPlanRecord confirmingPlan = new TaskPlanRecord(planId, projectId, "title", "goal", "constraints",
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 10, 1), 20, "[]",
