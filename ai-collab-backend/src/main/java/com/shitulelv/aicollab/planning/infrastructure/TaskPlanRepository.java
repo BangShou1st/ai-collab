@@ -94,9 +94,13 @@ public class TaskPlanRepository {
 
     @Transactional
     public UUID appendVersion(UUID projectId, UUID planId, UUID expectedBase, String type,
-                              UUID basedOn, TaskPlanDraft draft, UUID actor, ValidationResult validation) {
+                              UUID basedOn, TaskPlanDraft draft, UUID actor, ValidationResult validation,
+                              TaskPlanStatus finalStatus) {
         TaskPlanRecord plan = lock(projectId, planId);
-        if (plan.status() != TaskPlanStatus.READY && !type.startsWith("AI_")) stateConflict();
+        // Interactive operations (MANUAL_EDIT, RESTORED, AI_PARTIAL_REPAIR) require READY or READY_WITH_ISSUES.
+        // Async generation types (AI_*) are guarded by appendGeneratedVersion's attempt/seq checks.
+        if (!type.startsWith("AI_") && plan.status() != TaskPlanStatus.READY
+                && plan.status() != TaskPlanStatus.READY_WITH_ISSUES) stateConflict();
         if (expectedBase != null && !expectedBase.equals(plan.latestVersionId())) {
             throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
         }
@@ -117,24 +121,26 @@ public class TaskPlanRepository {
         jdbc.update("""
                 UPDATE ai_task_plan SET latest_version_no=?,latest_version_id=?,updated_at=now(),
                   status=CASE WHEN ?='AI_SKELETON' THEN 'DETAIL_GENERATING'
-                              WHEN ?='AI_COMPLETE' THEN 'READY' ELSE status END,
-                  active_attempt_id=CASE WHEN ?='AI_COMPLETE' THEN NULL ELSE active_attempt_id END
+                              ELSE ? END,
+                  active_attempt_id=CASE WHEN ?='AI_SKELETON' THEN active_attempt_id
+                                          ELSE NULL END
                 WHERE id=?
-                """, next, id, type, type, type, planId);
+                """, next, id, type, finalStatus.name(), type, planId);
         return id;
     }
 
     @Transactional
     public UUID appendGeneratedVersion(UUID projectId, UUID planId, long generationSeq, UUID attemptId,
                                        TaskPlanStatus expectedStatus, String type, UUID basedOn,
-                                       TaskPlanDraft draft, UUID actor, ValidationResult validation) {
+                                       TaskPlanDraft draft, UUID actor, ValidationResult validation,
+                                       TaskPlanStatus finalStatus) {
         TaskPlanRecord plan = lock(projectId, planId);
         if (plan.generationSeq() != generationSeq || !attemptId.equals(plan.activeAttemptId())
                 || plan.status() != expectedStatus) {
             finishAttempt(attemptId, "DISCARDED", "PLAN_GENERATION_CANCELED");
             return null;
         }
-        return appendVersion(projectId, planId, null, type, basedOn, draft, actor, validation);
+        return appendVersion(projectId, planId, null, type, basedOn, draft, actor, validation, finalStatus);
     }
 
     /**

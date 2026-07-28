@@ -1,5 +1,5 @@
-export type PlanStatus = 'SKELETON_GENERATING' | 'DETAIL_GENERATING' | 'DETAIL_GENERATION_FAILED'
-  | 'READY' | 'CONFIRMING' | 'CONFIRMED' | 'FAILED' | 'CANCELED'
+export type PlanStatus = 'SKELETON_GENERATING' | 'DETAIL_GENERATING' | 'REPAIRING' | 'DETAIL_GENERATION_FAILED'
+  | 'READY' | 'READY_WITH_ISSUES' | 'CONFIRMING' | 'CONFIRMED' | 'FAILED' | 'CANCELED'
 
 export interface TaskPlan {
   id: string
@@ -20,6 +20,7 @@ export interface TaskPlan {
 export interface PlanPermissions {
   canEdit: boolean; canCancel: boolean; canRetryDetail: boolean
   canRegenerate: boolean; canConfirm: boolean; canDelete: boolean; canRestore: boolean
+  canPartialRegenerate: boolean
 }
 
 export interface PlanTaskDraft {
@@ -64,6 +65,20 @@ export interface TaskPlanValidationView {
   errors: string[]; warnings: string[]
 }
 
+export interface StructuredValidationIssue {
+  code: string; severity: 'HARD' | 'BLOCKING_EDITABLE' | 'WARNING'
+  targetType: string | null; targetTempKey: string | null
+  field: string | null; relatedTempKey: string | null
+  safeDetails: Record<string, unknown>
+}
+
+export interface TaskPlanEvent {
+  id: string; planId: string; fromVersionId: string | null; toVersionId: string | null
+  actorId: string | null; eventType: string; changedFields: string[]
+  beforeHash: string | null; afterHash: string | null; issueCodes: string[]
+  createdAt: string
+}
+
 export interface TaskPlanDetailView {
   plan: TaskPlan
   latestVersion: { id: string; versionNo: number; sourceType: string; basedOnVersionId: string | null; createdBy: string; createdAt: string } | null
@@ -73,4 +88,5 @@ export interface TaskPlanDetailView {
   confirmation: TaskPlanConfirmationView | null
   validation: TaskPlanValidationView
   permissions: PlanPermissions
+  structuredIssues: StructuredValidationIssue[]
 }

@@ -7,6 +7,7 @@ import com.shitulelv.aicollab.planning.domain.PlanningRequestHash;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
 import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidator;
+import com.shitulelv.aicollab.planning.infrastructure.TaskPlanIssueRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanVersionRecord;
@@ -29,14 +30,17 @@ public class TaskPlanConfirmationService {
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transactions;
     private final TaskPlanDraftValidator validator;
+    private final TaskPlanIssueRepository issueRepo;
     private final AuditService audit;
 
     public TaskPlanConfirmationService(ProjectAccessGuard access, TaskPlanRepository repository,
                                        JdbcTemplate jdbc, PlatformTransactionManager manager,
-                                       TaskPlanDraftValidator validator, AuditService audit) {
+                                       TaskPlanDraftValidator validator, TaskPlanIssueRepository issueRepo,
+                                       AuditService audit) {
         this.access = access; this.repository = repository; this.jdbc = jdbc;
         this.transactions = new TransactionTemplate(manager);
         this.validator = validator;
+        this.issueRepo = issueRepo;
         this.audit = audit;
     }
 
@@ -75,8 +79,17 @@ public class TaskPlanConfirmationService {
             }
             // FAILED retry: revalidate all preconditions
             if ("FAILED".equals(row.get("status"))) {
+                // P8: Check READY_WITH_ISSUES first for specific error message
+                if (plan.status() == TaskPlanStatus.READY_WITH_ISSUES) {
+                    throw new BusinessException(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES);
+                }
                 if (plan.status() != TaskPlanStatus.READY) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
                 if (!versionId.equals(row.get("version_id"))) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+                // Task 10: Block confirmation while plan issues remain
+                int blockingCount = issueRepo.countUnresolvedBlocking(planId, (UUID) row.get("version_id"));
+                if (blockingCount > 0) {
+                    throw new BusinessException(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES);
+                }
                 Integer activeGens = jdbc.queryForObject("""
                         SELECT count(*) FROM ai_task_plan_attempt WHERE plan_id=? AND status IN ('QUEUED','RUNNING')
                         """, Integer.class, planId);
@@ -98,7 +111,18 @@ public class TaskPlanConfirmationService {
             throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED,
                     "该规划已有确认记录，请使用原始 Idempotency-Key 重试");
         }
+        // P8: Check READY_WITH_ISSUES first for specific error message
+        if (plan.status() == TaskPlanStatus.READY_WITH_ISSUES) {
+            throw new BusinessException(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES);
+        }
         if (plan.status() != TaskPlanStatus.READY) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+        // Task 10: Block confirmation while plan issues remain
+        if (plan.latestVersionId() != null) {
+            int blockingCount = issueRepo.countUnresolvedBlocking(planId, plan.latestVersionId());
+            if (blockingCount > 0) {
+                throw new BusinessException(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES);
+            }
+        }
         repository.requireVersion(projectId, planId, versionId);
         UUID confirmation = UUID.randomUUID();
         jdbc.update("""
