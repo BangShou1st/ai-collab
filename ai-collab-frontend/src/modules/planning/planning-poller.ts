@@ -1,6 +1,6 @@
 import type { PlanStatus } from './types'
 
-const ACTIVE = new Set<PlanStatus>(['SKELETON_GENERATING', 'DETAIL_GENERATING', 'CONFIRMING'])
+const ACTIVE = new Set<PlanStatus>(['SKELETON_GENERATING', 'DETAIL_GENERATING', 'REPAIRING', 'CONFIRMING'])
 const RETRYABLE_ERRORS = new Set([429, 502, 503, 504])
 const STOP_ERRORS = new Set([401, 403, 404])
 

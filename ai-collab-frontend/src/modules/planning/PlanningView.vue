@@ -22,6 +22,7 @@ import type { ProjectDocument } from '../document/types'
 import type { ProjectMember } from '../project/types'
 import { dependencyWouldCycle, removeTaskAndDependencies } from './planning-draft'
 import { planStatusLabel, priorityLabel, versionSourceLabel } from './planning-labels'
+import { planningFailureLabel } from './planning-failure'
 
 const route = useRoute(), router = useRouter()
 const projectId = computed(() => String(route.params.projectId))
@@ -44,6 +45,29 @@ const confirmationSummary = computed(() => ({
   dependencies: draft.value?.tasks.reduce((sum, task) => sum + task.dependencyTempKeys.length, 0) ?? 0,
   unassigned: draft.value?.tasks.filter(task => !task.assigneeId).length ?? 0,
 }))
+const targetNames = computed<Record<string, string>>(() => Object.fromEntries([
+  ...(draft.value?.milestones.map(item => [item.tempKey, item.title] as const) ?? []),
+  ...(draft.value?.tasks.map(item => [item.tempKey, item.title] as const) ?? []),
+]))
+const failureMessage = computed(() => planningFailureLabel(selected.value?.lastErrorSummary))
+const repairableIssueIds = computed(() => structuredIssues.value
+  .filter(item => repairModeForIssue(item) !== null)
+  .map(item => item.id))
+
+function repairModeForIssue(issue: StructuredValidationIssue): PartialRepairMode | null {
+  const dateAndDependencyCodes = new Set([
+    'DEPENDENCY_DATE_CONFLICT', 'DEPENDENCY_CYCLE', 'SELF_DEPENDENCY',
+    'DEPENDENCY_DUPLICATE', 'DEPENDENCY_REF_INVALID', 'DEPENDENCY_LIMIT_EXCEEDED',
+    'TASK_DATE_INVALID', 'MILESTONE_DATE_OUTSIDE_PLAN',
+  ])
+  const assignmentAndSourceCodes = new Set([
+    'ASSIGNEE_NOT_PROJECT_MEMBER', 'SOURCE_REF_INVALID', 'SOURCE_REF_LIMIT_EXCEEDED',
+  ])
+  if (dateAndDependencyCodes.has(issue.code)) return 'REPAIR_DATES_AND_DEPENDENCIES'
+  if (assignmentAndSourceCodes.has(issue.code)) return 'REPAIR_ASSIGNMENTS_AND_SOURCES'
+  if (issue.code === 'ESTIMATED_HOURS_INVALID') return 'REGENERATE_SELECTED_TASK_DETAILS'
+  return null
+}
 
 async function list(): Promise<TaskPlan['status'][]> {
   plans.value = (await planningApi.list(projectId.value, statusFilter.value)).data.data
@@ -54,7 +78,13 @@ async function open(plan: TaskPlan): Promise<void> {
   const [detail, history] = await Promise.all([planningApi.detail(projectId.value, plan.id), planningApi.versions(projectId.value, plan.id)])
   selected.value = detail.data.data.plan; permissions.value = detail.data.data.permissions; versions.value = history.data.data
   structuredIssues.value = detail.data.data.structuredIssues || []
-  if (selected.value.latestVersionId) await openVersion(selected.value.latestVersionId)
+  if (selected.value.latestVersionId) {
+    await openVersion(selected.value.latestVersionId)
+  } else {
+    selectedVersionId.value = ''
+    draft.value = null
+    snapshot.value = ''
+  }
   // Load events if available
   try {
     const eventsResult = await planningApi.events(projectId.value, plan.id)
@@ -100,13 +130,8 @@ async function save(): Promise<void> {
 }
 async function repair(issue: StructuredValidationIssue, mode: PartialRepairMode | '' = ''): Promise<void> {
   if (!selected.value?.latestVersionId || !issue.targetTempKey) return
-  const dateFields = new Set(['startDate', 'dueDate', 'targetDate', 'dependencyTempKeys'])
-  const assignmentAndSourceFields = new Set(['suggestedAssigneeId', 'sourceRefs'])
-  const repairMode: PartialRepairMode = mode || (issue.field && dateFields.has(issue.field)
-    ? 'REPAIR_DATES_AND_DEPENDENCIES'
-    : issue.field && assignmentAndSourceFields.has(issue.field)
-      ? 'REPAIR_ASSIGNMENTS_AND_SOURCES'
-      : 'REGENERATE_SELECTED_TASK_DETAILS')
+  const repairMode = mode || repairModeForIssue(issue)
+  if (!repairMode) return
   try {
     await planningApi.partialRegenerate(projectId.value, selected.value.id, {
       baseVersionId: selected.value.latestVersionId,
@@ -229,7 +254,7 @@ watch(projectId, async () => {
     </PageHeader>
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" />
     <el-select v-model="statusFilter" clearable placeholder="全部状态" @change="list">
-      <el-option v-for="s in ['SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING','DETAIL_GENERATION_FAILED','READY','READY_WITH_ISSUES','CONFIRMED','FAILED','CANCELED']" :key="s" :value="s" />
+      <el-option v-for="s in ['SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING','DETAIL_GENERATION_FAILED','READY','READY_WITH_ISSUES','CONFIRMING','CONFIRMED','FAILED','CANCELED']" :key="s" :label="planStatusLabel(s)" :value="s" />
     </el-select>
     <section class="planning-layout">
       <el-card>
@@ -244,10 +269,12 @@ watch(projectId, async () => {
           <el-button v-if="permissions?.canRegenerate" @click="action('regenerate')">重新生成</el-button>
           <el-button v-if="permissions?.canDelete" type="danger" @click="removePlan">删除规划</el-button>
         </div></template>
-        <el-alert v-if="selected.lastErrorSummary" :title="selected.lastErrorSummary" type="warning" />
+        <el-alert v-if="failureMessage" :title="failureMessage" type="warning" />
         <PlanningIssuePanel
           v-if="structuredIssues.length > 0"
           :issues="structuredIssues"
+          :target-names="targetNames"
+          :repairable-issue-ids="repairableIssueIds"
           @locate="locate"
           @repair="repair"
           @edit="issue => locate(issue.targetTempKey || '', issue.field)"
@@ -262,18 +289,18 @@ watch(projectId, async () => {
           <h3>风险</h3><div v-for="(_, index) in draft.risks" :key="`r-${index}`"><label>风险 {{ index + 1 }}</label><el-input v-model="draft.risks[index]" :readonly="!canEditCurrent" /><el-button v-if="canEditCurrent" @click="draft.risks.splice(index, 1)">删除</el-button></div><el-button v-if="canEditCurrent" @click="addRisk">添加风险</el-button>
           <el-collapse><el-collapse-item v-for="m in draft.milestones" :key="m.tempKey" :title="m.title">
             <div :id="`planning-${m.tempKey}-entity`"><label>里程碑标题</label><el-input v-model="m.title" :readonly="!permissions?.canEdit || !editingLatest" /></div>
-            <el-input v-model="m.objective" type="textarea" :readonly="!canEditCurrent" />
-            <el-input v-model="m.description" type="textarea" :readonly="!canEditCurrent" placeholder="里程碑描述" /><span :id="`planning-${m.tempKey}-targetDate`"><el-date-picker v-model="m.targetDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" /></span>
-            <el-select v-model="m.sourceRefs" multiple :disabled="!canEditCurrent"><el-option v-for="source in draft.sources" :key="source.ref" :label="source.documentName" :value="source.ref" /></el-select>
+            <label>里程碑目标</label><el-input v-model="m.objective" type="textarea" :readonly="!canEditCurrent" />
+            <label>里程碑描述</label><el-input v-model="m.description" type="textarea" :readonly="!canEditCurrent" placeholder="里程碑描述" /><label>目标日期</label><span :id="`planning-${m.tempKey}-targetDate`"><el-date-picker v-model="m.targetDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" /></span>
+            <label>参考来源</label><el-select v-model="m.sourceRefs" multiple :disabled="!canEditCurrent"><el-option v-for="source in draft.sources" :key="source.ref" :label="source.documentName" :value="source.ref" /></el-select>
             <el-button v-if="canEditCurrent" @click="addTask(m.tempKey)">添加任务</el-button><el-button v-if="canEditCurrent" type="danger" @click="removeMilestone(m.tempKey)">删除空里程碑</el-button>
             <div v-for="task in draft.tasks.filter(t => t.milestoneTempKey === m.tempKey)" :id="`planning-${task.tempKey}-entity`" :key="task.tempKey" class="task-plan-row">
               <label>任务标题</label><el-input v-model="task.title" :readonly="!permissions?.canEdit || !editingLatest" /><div :id="`planning-${task.tempKey}-description`"><label>任务描述</label><el-input v-model="task.description" type="textarea" :readonly="!permissions?.canEdit || !editingLatest" /></div>
-              <el-input v-model="task.objective" :readonly="!canEditCurrent" /><span :id="`planning-${task.tempKey}-priority`"><el-select v-model="task.priority" :disabled="!canEditCurrent"><el-option v-for="p in ['LOW','MEDIUM','HIGH','URGENT']" :key="p" :label="priorityLabel(p)" :value="p" /></el-select></span>
-              <el-input-number v-model="task.estimatedHours" :min="0.5" :max="80" :disabled="!canEditCurrent" />
-              <span :id="`planning-${task.tempKey}-startDate`"><el-date-picker v-model="task.startDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" /></span><span :id="`planning-${task.tempKey}-dueDate`"><el-date-picker v-model="task.dueDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" /></span>
-              <small>AI 建议负责人：{{ memberName(task.suggestedAssigneeId) }}</small><el-select v-model="task.assigneeId" clearable :disabled="!canEditCurrent"><el-option v-for="member in members" :key="member.userId" :label="member.displayName" :value="member.userId" /></el-select>
-              <el-select v-model="task.dependencyTempKeys" multiple :disabled="!canEditCurrent"><el-option v-for="candidate in draft.tasks.filter(candidate => candidate.tempKey !== task.tempKey)" :key="candidate.tempKey" :label="candidate.title" :value="candidate.tempKey" :disabled="dependencyWouldCycle(draft, task.tempKey, candidate.tempKey)" /></el-select>
-              <el-select v-model="task.sourceRefs" multiple :disabled="!canEditCurrent"><el-option v-for="source in draft.sources" :key="source.ref" :label="source.documentName" :value="source.ref" /></el-select>
+              <label>任务目标</label><el-input v-model="task.objective" :readonly="!canEditCurrent" /><label>优先级</label><span :id="`planning-${task.tempKey}-priority`"><el-select v-model="task.priority" :disabled="!canEditCurrent"><el-option v-for="p in ['LOW','MEDIUM','HIGH','URGENT']" :key="p" :label="priorityLabel(p)" :value="p" /></el-select></span>
+              <label>预估工时（0.5～80 小时）</label><el-input-number v-model="task.estimatedHours" :min="0.5" :max="80" :disabled="!canEditCurrent" />
+              <label>开始日期</label><span :id="`planning-${task.tempKey}-startDate`"><el-date-picker v-model="task.startDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" /></span><label>截止日期</label><span :id="`planning-${task.tempKey}-dueDate`"><el-date-picker v-model="task.dueDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" /></span>
+              <small>AI 建议负责人：{{ memberName(task.suggestedAssigneeId) }}</small><label>负责人</label><el-select v-model="task.assigneeId" clearable :disabled="!canEditCurrent"><el-option v-for="member in members" :key="member.userId" :label="member.displayName" :value="member.userId" /></el-select>
+              <label>前置任务</label><el-select v-model="task.dependencyTempKeys" multiple :disabled="!canEditCurrent"><el-option v-for="candidate in draft.tasks.filter(candidate => candidate.tempKey !== task.tempKey)" :key="candidate.tempKey" :label="candidate.title" :value="candidate.tempKey" :disabled="dependencyWouldCycle(draft, task.tempKey, candidate.tempKey)" /></el-select>
+              <label>参考来源</label><el-select v-model="task.sourceRefs" multiple :disabled="!canEditCurrent"><el-option v-for="source in draft.sources" :key="source.ref" :label="source.documentName" :value="source.ref" /></el-select>
               <el-button v-if="canEditCurrent" type="danger" @click="removeTask(task.tempKey)">删除任务</el-button>
             </div>
           </el-collapse-item></el-collapse>
