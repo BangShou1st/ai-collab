@@ -2163,17 +2163,16 @@ components:
       type: object
       properties:
         id: { type: string, format: uuid }
-        planId: { type: string, format: uuid }
         fromVersionId: { type: [string, 'null'], format: uuid }
         toVersionId: { type: [string, 'null'], format: uuid }
-        actorId: { type: [string, 'null'], format: uuid }
         eventType: { type: string }
         changedFields: { type: array, items: { type: string } }
+        changedTargets: { type: array, items: { type: string } }
         issueCodes: { type: array, items: { type: string } }
         createdAt: { type: string, format: date-time }
     UpdateTaskPlanRequest:
       type: object
-      required: [baseVersionId, milestones, tasks]
+      required: [baseVersionId, expectedVersionNo, milestones, tasks]
       properties:
         baseVersionId: { type: string, format: uuid }
         expectedVersionNo: { type: integer }

@@ -74,9 +74,9 @@ export interface StructuredValidationIssue {
 }
 
 export interface TaskPlanEvent {
-  id: string; planId: string; fromVersionId: string | null; toVersionId: string | null
-  actorId: string | null; eventType: string; changedFields: string[]
-  beforeHash: string | null; afterHash: string | null; issueCodes: string[]
+  id: string; fromVersionId: string | null; toVersionId: string | null
+  eventType: string; changedFields: string[]; changedTargets: string[]
+  issueCodes: string[]
   createdAt: string
 }
 

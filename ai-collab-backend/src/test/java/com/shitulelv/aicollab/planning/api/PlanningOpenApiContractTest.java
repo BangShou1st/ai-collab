@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.planning.api;
 
 import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
+import com.shitulelv.aicollab.planning.domain.TaskPlanVersionSource;
 import org.junit.jupiter.api.Test;
 import org.yaml.snakeyaml.Yaml;
 
@@ -38,5 +39,30 @@ class PlanningOpenApiContractTest {
                 "/projects/{projectId}/ai/task-plans/{planId}/partial-regenerate");
         Map<String, Object> post = (Map<String, Object>) partialPath.get("post");
         assertThat((Map<String, Object>) post.get("responses")).containsKey("202");
+
+        Map<String, Object> delete = (Map<String, Object>) planPath.get("delete");
+        assertThat((Map<String, Object>) delete.get("responses")).containsKey("204");
+
+        Map<String, Object> versionView = (Map<String, Object>) schemas.get("TaskPlanVersionView");
+        Map<String, Object> versionProperties = (Map<String, Object>) versionView.get("properties");
+        Map<String, Object> sourceType = (Map<String, Object>) versionProperties.get("sourceType");
+        assertThat((List<String>) sourceType.get("enum"))
+                .containsExactlyInAnyOrder(
+                        java.util.Arrays.stream(TaskPlanVersionSource.values()).map(Enum::name).toArray(String[]::new));
+
+        Map<String, Object> updateRequest = (Map<String, Object>) schemas.get("UpdateTaskPlanRequest");
+        assertThat((List<String>) updateRequest.get("required"))
+                .contains("baseVersionId", "expectedVersionNo");
+
+        Map<String, Object> partialRequest = (Map<String, Object>) schemas.get("PartialRegenerateRequest");
+        assertThat((List<String>) partialRequest.get("required"))
+                .contains("baseVersionId", "expectedVersionNo", "mode");
+
+        Map<String, Object> eventView = (Map<String, Object>) schemas.get("TaskPlanEventView");
+        Map<String, Object> eventProperties = (Map<String, Object>) eventView.get("properties");
+        assertThat(eventProperties)
+                .containsKeys("id", "fromVersionId", "toVersionId", "eventType",
+                        "changedFields", "changedTargets", "issueCodes", "createdAt")
+                .doesNotContainKeys("actorId", "beforeHash", "afterHash");
     }
 }
