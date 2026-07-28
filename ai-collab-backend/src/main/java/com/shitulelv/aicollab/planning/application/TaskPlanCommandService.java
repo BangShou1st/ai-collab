@@ -77,6 +77,7 @@ public class TaskPlanCommandService {
     private final TaskPlanRepairPatchParser patchParser;
     private final TaskPlanRepairPatchApplier patchApplier;
     private final TaskPlanModelClient modelClient;
+    private final com.fasterxml.jackson.databind.ObjectMapper json;
 
     public TaskPlanCommandService(ProjectAccessGuard access, TaskPlanRepository repository,
                                   TaskPlanGenerationOrchestrator orchestrator,
@@ -86,7 +87,8 @@ public class TaskPlanCommandService {
                                   TaskPlanDraftNormalizer normalizer, GenerationOutcomeDecider outcomeDecider,
                                   TaskPlanVersionCommitService commitService,
                                   TaskPlanRepairPatchParser patchParser, TaskPlanRepairPatchApplier patchApplier,
-                                  TaskPlanModelClient modelClient) {
+                                  TaskPlanModelClient modelClient,
+                                  com.fasterxml.jackson.databind.ObjectMapper json) {
         this.access = access; this.repository = repository; this.orchestrator = orchestrator;
         this.validator = validator; this.jdbc = jdbc;
         this.quotaService = quotaService;
@@ -96,6 +98,7 @@ public class TaskPlanCommandService {
         this.commitService = commitService;
         this.patchParser = patchParser; this.patchApplier = patchApplier;
         this.modelClient = modelClient;
+        this.json = json;
     }
 
     /**
@@ -319,9 +322,9 @@ public class TaskPlanCommandService {
         ValidationAssessment assessment = ensureValidStructured(projectId, plan, normalized);
         // Determine outcome
         TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
-        // Atomic commit: version + issues + event + status
-        TaskPlanVersionRecord versionRecord = commitService.commit(plan, normalized,
-                TaskPlanVersionSource.USER_EDIT, assessment, finalStatus,
+        // Atomic commit: version + issues + event + status (interactive path — no attempt)
+        TaskPlanVersionRecord versionRecord = commitService.commitVersion(plan, normalized,
+                TaskPlanVersionSource.MANUAL_EDIT, assessment, finalStatus,
                 "TASK_PLAN_USER_EDITED", actor, request.baseVersionId());
         if (versionRecord == null) {
             throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
@@ -430,8 +433,8 @@ public class TaskPlanCommandService {
         ValidationAssessment assessment = toAssessment(validation);
         // Determine outcome
         TaskPlanStatus finalStatus = outcomeDecider.decideStatus(assessment);
-        // Atomic commit: version + issues + event + status
-        TaskPlanVersionRecord versionRecord = commitService.commit(plan, normalized,
+        // Atomic commit: version + issues + event + status (interactive path — no attempt)
+        TaskPlanVersionRecord versionRecord = commitService.commitVersion(plan, normalized,
                 TaskPlanVersionSource.AI_PARTIAL_REPAIR, assessment, finalStatus,
                 "PARTIAL_REPAIR", actor, request.baseVersionId());
         if (versionRecord == null) {
@@ -485,8 +488,7 @@ public class TaskPlanCommandService {
     private String buildPatchPrompt(TaskPlanDraft draft, RepairScope scope,
                                      List<StructuredValidationIssue> issues) {
         try {
-            String draftJson = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
-                    .writeValueAsString(draft);
+            String draftJson = json.writeValueAsString(draft);
             String issueSummary = issues.stream()
                     .map(i -> i.code() + " on " + i.targetTempKey() + "." + i.field())
                     .reduce((a, b) -> a + "; " + b).orElse("none");
