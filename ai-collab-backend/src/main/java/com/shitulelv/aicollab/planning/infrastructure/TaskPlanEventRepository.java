@@ -29,12 +29,13 @@ public class TaskPlanEventRepository {
         jdbc.update("""
                 INSERT INTO ai_task_plan_event
                 (id, plan_id, from_version_id, to_version_id, actor_id, event_type,
-                 changed_fields_json, before_hash, after_hash, issue_codes_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb)
+                 changed_fields_json, changed_targets_json, before_hash, after_hash, issue_codes_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?::jsonb)
                 """,
                 event.id(), event.planId(), event.fromVersionId(), event.toVersionId(),
                 event.actorId(), event.eventType(),
                 writeJson(event.changedFields()),
+                writeJson(event.changedTargets()),
                 event.beforeHash(), event.afterHash(),
                 writeJson(event.issueCodes()));
     }
@@ -56,6 +57,7 @@ public class TaskPlanEventRepository {
                 rs.getObject("actor_id", UUID.class),
                 rs.getString("event_type"),
                 parseJsonList(rs.getString("changed_fields_json")),
+                parseJsonList(rs.getString("changed_targets_json")),
                 rs.getString("before_hash"),
                 rs.getString("after_hash"),
                 parseJsonList(rs.getString("issue_codes_json")),

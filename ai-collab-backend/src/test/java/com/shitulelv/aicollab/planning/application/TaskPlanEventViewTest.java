@@ -23,12 +23,13 @@ class TaskPlanEventViewTest {
                 UUID.randomUUID(),
                 "PLAN_VERSION_EDITED",
                 List.of("tasks.t-1.dueDate"),
+                List.of("TASK:t-1"),
                 "before-sensitive-hash",
                 "after-sensitive-hash",
                 List.of("TASK_DATE_INVALID"),
                 OffsetDateTime.parse("2026-07-28T14:00:00+08:00"));
 
-        TaskPlanEventView view = TaskPlanEventView.from(record, List.of("TASK:t-1"));
+        TaskPlanEventView view = TaskPlanEventView.from(record);
         JsonNode json = new ObjectMapper().findAndRegisterModules().valueToTree(view);
 
         assertThat(json.has("id")).isTrue();

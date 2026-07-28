@@ -6,6 +6,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.planning.api.CreateTaskPlanRequest;
 import com.shitulelv.aicollab.planning.api.PartialRegenerateRequest;
+import com.shitulelv.aicollab.planning.api.SaveTaskPlanVersionRequest;
 import com.shitulelv.aicollab.planning.api.UpdateTaskPlanRequest;
 import com.shitulelv.aicollab.planning.domain.*;
 import com.shitulelv.aicollab.planning.infrastructure.*;
@@ -1002,6 +1003,87 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         assertThat(jdbc.queryForObject(
                 "SELECT status FROM ai_task_plan_attempt WHERE id=?",
                 String.class, started.attemptId())).isEqualTo("RUNNING");
+    }
+
+    @Test
+    void restoreCreatesImmutableVersionIssuesAndAuditEvent() {
+        UUID userId = insertUser("restore-event");
+        UUID projectId = insertProject("Restore event project", userId);
+        insertMember(projectId, userId, "OWNER");
+        TaskPlanDraft original = simpleDraft();
+        PlanSetup setup = insertReadyWithIssuesPlan(projectId, userId, original, List.of());
+        PlanTask changedTask = new PlanTask(
+                "t1", "m1", "Task", "Objective", "Changed description", "MEDIUM",
+                BigDecimal.ONE, LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 10),
+                null, null, List.of(), List.of(), 0);
+        TaskPlanDraft changed = new TaskPlanDraft(
+                original.summary(), original.assumptions(), original.risks(),
+                original.milestones(), List.of(changedTask), original.sources());
+        UUID secondVersionId = repository.appendVersion(
+                projectId, setup.planId(), setup.versionId(), "MANUAL_EDIT", setup.versionId(),
+                changed, userId, new ValidationResult(List.of(), List.of()), TaskPlanStatus.READY);
+
+        UUID restoredId = createCommandService(mock(TaskPlanModelClient.class))
+                .restore(projectId, setup.planId(), setup.versionId(), userId);
+
+        TaskPlanRecord after = repository.require(projectId, setup.planId());
+        assertThat(after.latestVersionId()).isEqualTo(restoredId);
+        assertThat(after.latestVersionNo()).isEqualTo(3);
+        TaskPlanVersionRecord restored =
+                repository.requireVersion(projectId, setup.planId(), restoredId);
+        assertThat(restored.sourceType()).isEqualTo("RESTORED");
+        assertThat(restored.basedOnVersionId()).isEqualTo(setup.versionId());
+        assertThat(repository.draft(
+                repository.requireVersion(projectId, setup.planId(), secondVersionId))
+                .tasks().getFirst().description()).isEqualTo("Changed description");
+        TaskPlanEventRecord event = eventRepo.findByPlan(setup.planId(), 10).stream()
+                .filter(value -> "PLAN_VERSION_RESTORED".equals(value.eventType()))
+                .findFirst().orElseThrow();
+        assertThat(event.fromVersionId()).isEqualTo(secondVersionId);
+        assertThat(event.toVersionId()).isEqualTo(restoredId);
+        assertThat(event.changedFields()).contains("tasks.t1.description");
+        assertThat(event.changedTargets()).contains("TASK:t1");
+    }
+
+    @Test
+    void fullDraftEditAddsAndDeletesEntitiesAndPreservesOldVersion() {
+        UUID userId = insertUser("full-edit");
+        UUID projectId = insertProject("Full edit project", userId);
+        insertMember(projectId, userId, "OWNER");
+        TaskPlanDraft original = simpleDraft();
+        PlanSetup setup = insertReadyWithIssuesPlan(projectId, userId, original, List.of());
+        PlanMilestone replacementMilestone = new PlanMilestone(
+                "m2", "Replacement milestone", "Objective", "Description",
+                LocalDate.of(2026, 8, 25), 0, List.of());
+        PlanTask replacementTask = new PlanTask(
+                "t2", "m2", "Replacement task", "Objective", "Description", "HIGH",
+                BigDecimal.TEN, LocalDate.of(2026, 8, 11), LocalDate.of(2026, 8, 20),
+                userId, null, List.of(), List.of(), 0);
+        TaskPlanDraft edited = new TaskPlanDraft(
+                "Updated summary", List.of("New assumption"), List.of("New risk"),
+                List.of(replacementMilestone), List.of(replacementTask), original.sources());
+
+        UUID editedVersionId = createCommandService(mock(TaskPlanModelClient.class)).save(
+                projectId, setup.planId(),
+                new SaveTaskPlanVersionRequest(setup.versionId(), 1, edited), userId);
+
+        TaskPlanDraft oldDraft = repository.draft(
+                repository.requireVersion(projectId, setup.planId(), setup.versionId()));
+        TaskPlanDraft newDraft = repository.draft(
+                repository.requireVersion(projectId, setup.planId(), editedVersionId));
+        assertThat(oldDraft.tasks()).extracting(PlanTask::tempKey).containsExactly("t1");
+        assertThat(newDraft.tasks()).extracting(PlanTask::tempKey).containsExactly("t2");
+        assertThat(newDraft.milestones()).extracting(PlanMilestone::tempKey).containsExactly("m2");
+        assertThat(newDraft.assumptions()).containsExactly("New assumption");
+        assertThat(newDraft.risks()).containsExactly("New risk");
+        TaskPlanEventRecord event = eventRepo.findByPlan(setup.planId(), 10).stream()
+                .filter(value -> "TASK_PLAN_USER_EDITED".equals(value.eventType()))
+                .findFirst().orElseThrow();
+        assertThat(event.changedFields()).contains(
+                "summary", "assumptions", "risks", "tasks.t1", "tasks.t2",
+                "milestones.m1", "milestones.m2");
+        assertThat(event.changedTargets()).contains(
+                "TASK:t1", "TASK:t2", "MILESTONE:m1", "MILESTONE:m2");
     }
 
     // ══════════════════════════════════════════════════════════════════

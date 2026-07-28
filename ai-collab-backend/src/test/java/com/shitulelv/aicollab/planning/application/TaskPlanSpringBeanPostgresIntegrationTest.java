@@ -61,9 +61,15 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         assertThat(AopUtils.isAopProxy(commits)).isTrue();
         assertThat(jdbc.queryForObject(
                 "select version from flyway_schema_history where success=true order by installed_rank desc limit 1",
-                String.class)).isEqualTo("10");
+                String.class)).isEqualTo("11");
         assertThat(jdbc.queryForObject(
                 "select count(*) from information_schema.tables where table_name='ai_task_plan'",
                 Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("""
+                select count(*) from information_schema.columns
+                where table_name='ai_task_plan_event'
+                  and column_name='changed_targets_json'
+                  and data_type='jsonb'
+                """, Integer.class)).isEqualTo(1);
     }
 }
