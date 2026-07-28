@@ -79,6 +79,7 @@ public class TaskPlanCommandService {
     private final TaskPlanModelClient modelClient;
     private final com.fasterxml.jackson.databind.ObjectMapper json;
     private final TaskPlanPartialRepairService partialRepairService;
+    private final TaskPlanActionPolicy actionPolicy;
 
     public TaskPlanCommandService(ProjectAccessGuard access, TaskPlanRepository repository,
                                   TaskPlanGenerationOrchestrator orchestrator,
@@ -90,7 +91,8 @@ public class TaskPlanCommandService {
                                    TaskPlanRepairPatchParser patchParser, TaskPlanRepairPatchApplier patchApplier,
                                    TaskPlanModelClient modelClient,
                                    com.fasterxml.jackson.databind.ObjectMapper json,
-                                   TaskPlanPartialRepairService partialRepairService) {
+                                   TaskPlanPartialRepairService partialRepairService,
+                                   TaskPlanActionPolicy actionPolicy) {
         this.access = access; this.repository = repository; this.orchestrator = orchestrator;
         this.validator = validator; this.jdbc = jdbc;
         this.quotaService = quotaService;
@@ -102,6 +104,7 @@ public class TaskPlanCommandService {
         this.modelClient = modelClient;
         this.json = json;
         this.partialRepairService = partialRepairService;
+        this.actionPolicy = actionPolicy;
     }
 
     /**
@@ -126,6 +129,8 @@ public class TaskPlanCommandService {
      */
     public TaskPlanRecord cancel(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
+        actionPolicy.require(repository.require(projectId, planId).status(),
+                TaskPlanActionPolicy.Action.CANCEL);
         UUID actualAttemptId = repository.cancelAndReturnAttemptId(projectId, planId);
         if (actualAttemptId != null) orchestrator.cancelFuture(actualAttemptId);
         safeAudit(projectId, actor, "TASK_PLAN_CANCELED", "AI_TASK_PLAN", planId);
@@ -137,9 +142,7 @@ public class TaskPlanCommandService {
         access.requireAdmin(projectId, actor);
         // Pre-check state without modifying
         TaskPlanRecord current = repository.require(projectId, planId);
-        if (!List.of("DETAIL_GENERATION_FAILED").contains(current.status().name())) {
-            throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
-        }
+        actionPolicy.require(current.status(), TaskPlanActionPolicy.Action.RETRY_DETAIL);
         attemptThrottle.check(actor);
         quotaService.checkQuota(actor);
         TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, true);
@@ -153,10 +156,7 @@ public class TaskPlanCommandService {
         access.requireAdmin(projectId, actor);
         // Pre-check state without modifying
         TaskPlanRecord current = repository.require(projectId, planId);
-        if (!List.of("READY", "READY_WITH_ISSUES", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED")
-                .contains(current.status().name())) {
-            throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
-        }
+        actionPolicy.require(current.status(), TaskPlanActionPolicy.Action.REGENERATE);
         attemptThrottle.check(actor);
         quotaService.checkQuota(actor);
         TaskPlanRecord plan = repository.startGeneration(projectId, planId, actor, false);
@@ -173,9 +173,7 @@ public class TaskPlanCommandService {
     public UUID save(UUID projectId, UUID planId, SaveTaskPlanVersionRequest request, UUID actor) {
         access.requireAdmin(projectId, actor);
         TaskPlanRecord plan = repository.require(projectId, planId);
-        if (!List.of(TaskPlanStatus.READY, TaskPlanStatus.READY_WITH_ISSUES).contains(plan.status())) {
-            throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
-        }
+        actionPolicy.require(plan.status(), TaskPlanActionPolicy.Action.EDIT);
         if (!request.baseVersionId().equals(plan.latestVersionId())
                 || request.expectedVersionNo() != plan.latestVersionNo()) {
             throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
@@ -203,6 +201,7 @@ public class TaskPlanCommandService {
     public UUID restore(UUID projectId, UUID planId, UUID versionId, UUID actor) {
         access.requireAdmin(projectId, actor);
         TaskPlanRecord plan = repository.require(projectId, planId);
+        actionPolicy.require(plan.status(), TaskPlanActionPolicy.Action.RESTORE);
         TaskPlanVersionRecord source = repository.requireVersion(projectId, planId, versionId);
         TaskPlanDraft draft = repository.draft(source);
 
@@ -226,8 +225,7 @@ public class TaskPlanCommandService {
     public void delete(UUID projectId, UUID planId, UUID actor) {
         access.requireAdmin(projectId, actor);
         TaskPlanRecord plan = repository.lock(projectId, planId);
-        if (!List.of("READY", "READY_WITH_ISSUES", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED")
-                .contains(plan.status().name())) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+        actionPolicy.require(plan.status(), TaskPlanActionPolicy.Action.DELETE);
         jdbc.update("DELETE FROM ai_task_plan WHERE id=?", planId);
         safeAudit(projectId, actor, "TASK_PLAN_DELETED", "AI_TASK_PLAN", planId);
     }
@@ -310,9 +308,7 @@ public class TaskPlanCommandService {
         access.requireAdmin(projectId, actor);
         TaskPlanRecord plan = repository.require(projectId, planId);
         // Only READY or READY_WITH_ISSUES can be edited
-        if (!List.of("READY", "READY_WITH_ISSUES").contains(plan.status().name())) {
-            throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
-        }
+        actionPolicy.require(plan.status(), TaskPlanActionPolicy.Action.EDIT);
         // Optimistic lock: baseVersionId must match latest
         if (!request.baseVersionId().equals(plan.latestVersionId())
                 || request.expectedVersionNo() != plan.latestVersionNo()) {

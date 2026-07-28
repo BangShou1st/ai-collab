@@ -183,3 +183,24 @@ GREEN：
 
 - 事件、提交、生产 PostgreSQL、真实 Spring Bean 与迁移安全目标回归：32 tests，0 failure/error。
 - 后端完整回归：235 tests，0 failure/error/skipped；Testcontainers PostgreSQL 17、Flyway V1～V11 实际执行。
+
+## 阶段七：确认规则、权限矩阵与并发保护
+
+RED：
+
+- 新增 `permissionsMatchCommandGuardsForEveryStatus` 后编译失败，证明不存在统一动作策略组件。
+- 初次在 Command 外层重复预读局部修复状态导致委托回归失败，暴露重复检查会扩大竞态窗口。
+
+根因与修复：
+
+- 新增唯一的 `TaskPlanActionPolicy`，为全部状态定义 edit、cancel、retry detail、regenerate、confirm、delete、restore 与 partial regenerate。
+- `TaskPlanQueryService.permissions`、CommandService、ConfirmationService 和异步 PartialRepairService 共同使用同一策略；局部修复只在真正持有校验流程的服务内检查，不做外层重复读取。
+- `READY_WITH_ISSUES` 可删除、可重新生成、不可确认；`REPAIRING` 只允许取消；`CONFIRMED` 全部只读。
+- 确认 claim 事务锁计划并验证 READY、latest 和 blocking issues；land 事务再次读取并锁定 plan/latest、issues、version 和引用成员。
+- 历史版本返回 `PLAN_VERSION_CONFLICT`，`READY_WITH_ISSUES` 返回 `TASK_PLAN_HAS_BLOCKING_ISSUES`。
+- 两个真实 PostgreSQL 事务的并发测试证明：确认持有计划锁并进入 `CONFIRMING` 后，编辑等待锁且最终因状态冲突失败，不产生新版本。
+
+GREEN：
+
+- 权限/命令/确认/迁移/并发目标回归：30 tests，0 failure/error。
+- 后端完整回归：243 tests，0 failure/error/skipped。

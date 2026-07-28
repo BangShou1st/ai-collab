@@ -32,16 +32,18 @@ public class TaskPlanConfirmationService {
     private final TaskPlanDraftValidator validator;
     private final TaskPlanIssueRepository issueRepo;
     private final AuditService audit;
+    private final TaskPlanActionPolicy actionPolicy;
 
     public TaskPlanConfirmationService(ProjectAccessGuard access, TaskPlanRepository repository,
                                        JdbcTemplate jdbc, PlatformTransactionManager manager,
                                        TaskPlanDraftValidator validator, TaskPlanIssueRepository issueRepo,
-                                       AuditService audit) {
+                                       AuditService audit, TaskPlanActionPolicy actionPolicy) {
         this.access = access; this.repository = repository; this.jdbc = jdbc;
         this.transactions = new TransactionTemplate(manager);
         this.validator = validator;
         this.issueRepo = issueRepo;
         this.audit = audit;
+        this.actionPolicy = actionPolicy;
     }
 
     public Map<String, Object> confirm(UUID projectId, UUID planId, UUID versionId,
@@ -83,7 +85,7 @@ public class TaskPlanConfirmationService {
                 if (plan.status() == TaskPlanStatus.READY_WITH_ISSUES) {
                     throw new BusinessException(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES);
                 }
-                if (plan.status() != TaskPlanStatus.READY) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+                actionPolicy.require(plan.status(), TaskPlanActionPolicy.Action.CONFIRM);
                 if (!versionId.equals(row.get("version_id"))
                         || !versionId.equals(plan.latestVersionId())) {
                     throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
@@ -118,7 +120,7 @@ public class TaskPlanConfirmationService {
         if (plan.status() == TaskPlanStatus.READY_WITH_ISSUES) {
             throw new BusinessException(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES);
         }
-        if (plan.status() != TaskPlanStatus.READY) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
+        actionPolicy.require(plan.status(), TaskPlanActionPolicy.Action.CONFIRM);
         if (!versionId.equals(plan.latestVersionId())) {
             throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
         }
@@ -144,6 +146,9 @@ public class TaskPlanConfirmationService {
         if (plan.status() != TaskPlanStatus.CONFIRMING) throw new BusinessException(ErrorCode.TASK_PLAN_STATE_CONFLICT);
         if (!versionId.equals(plan.latestVersionId())) {
             throw new BusinessException(ErrorCode.PLAN_VERSION_CONFLICT);
+        }
+        if (issueRepo.countUnresolvedBlocking(planId, versionId) > 0) {
+            throw new BusinessException(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES);
         }
         TaskPlanVersionRecord version = repository.requireVersion(projectId, planId, versionId);
         TaskPlanDraft draft = repository.draft(version);

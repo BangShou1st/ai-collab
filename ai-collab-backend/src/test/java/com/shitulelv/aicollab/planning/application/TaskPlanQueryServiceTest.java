@@ -30,7 +30,8 @@ class TaskPlanQueryServiceTest {
         lenient().when(jdbc.queryForList(anyString(), (Object[]) any())).thenReturn(List.of());
         TaskPlanQueryService service = new TaskPlanQueryService(access, repository,
                 mock(com.shitulelv.aicollab.planning.infrastructure.TaskPlanIssueRepository.class),
-                mock(com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRepository.class), jdbc);
+                mock(com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRepository.class), jdbc,
+                new TaskPlanActionPolicy());
 
         TaskPlanDetailView detail = service.detail(project, planId, member);
 
@@ -55,7 +56,8 @@ class TaskPlanQueryServiceTest {
         lenient().when(jdbc.queryForList(anyString(), (Object[]) any())).thenReturn(List.of());
         TaskPlanQueryService service = new TaskPlanQueryService(access, repository,
                 mock(com.shitulelv.aicollab.planning.infrastructure.TaskPlanIssueRepository.class),
-                mock(com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRepository.class), jdbc);
+                mock(com.shitulelv.aicollab.planning.infrastructure.TaskPlanEventRepository.class), jdbc,
+                new TaskPlanActionPolicy());
 
         TaskPlanDetailView detail = service.detail(project, planId, member);
 

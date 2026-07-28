@@ -60,8 +60,10 @@ class Phase08EditableDegradationIntegrationTest {
         patchApplier = new TaskPlanRepairPatchApplier();
         commands = new TaskPlanCommandService(access, repository, orchestrator, validator, jdbc,
                 null, null, audit, normalizer, decider, commitService, patchParser, patchApplier, null,
-                new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules(), partialRepairService);
-        queries = new TaskPlanQueryService(access, repository, issueRepo, eventRepo, jdbc);
+                new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules(), partialRepairService,
+                new TaskPlanActionPolicy());
+        queries = new TaskPlanQueryService(access, repository, issueRepo, eventRepo, jdbc,
+                new TaskPlanActionPolicy());
     }
 
     private TaskPlanRecord planWithStatus(TaskPlanStatus status) {

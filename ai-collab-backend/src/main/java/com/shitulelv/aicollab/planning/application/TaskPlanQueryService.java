@@ -21,11 +21,13 @@ public class TaskPlanQueryService {
     private final TaskPlanIssueRepository issueRepo;
     private final TaskPlanEventRepository eventRepo;
     private final JdbcTemplate jdbc;
+    private final TaskPlanActionPolicy actionPolicy;
     public TaskPlanQueryService(ProjectAccessGuard access, TaskPlanRepository repository,
                                  TaskPlanIssueRepository issueRepo, TaskPlanEventRepository eventRepo,
-                                 JdbcTemplate jdbc) {
+                                 JdbcTemplate jdbc, TaskPlanActionPolicy actionPolicy) {
         this.access = access; this.repository = repository;
         this.issueRepo = issueRepo; this.eventRepo = eventRepo; this.jdbc = jdbc;
+        this.actionPolicy = actionPolicy;
     }
     public List<TaskPlanRecord> list(UUID projectId, String status, int page, int size, UUID actor) {
         access.requireMember(projectId, actor);
@@ -41,8 +43,6 @@ public class TaskPlanQueryService {
         ProjectRole role = access.requireMember(projectId, actor);
         TaskPlanRecord plan = repository.require(projectId, planId);
         boolean write = role.isAdminOrOwner();
-        boolean ready = plan.status().name().equals("READY");
-
         // Active attempt — nullable (QUEUED has null startedAt)
         TaskPlanAttemptView activeAttempt = null;
         if (plan.activeAttemptId() != null) {
@@ -151,21 +151,9 @@ public class TaskPlanQueryService {
                     .toList();
         }
 
-        boolean readyWithIssues = plan.status().name().equals("READY_WITH_ISSUES");
-        boolean canEdit = write && (ready || readyWithIssues);
-        boolean canPartialRegenerate = write && (ready || readyWithIssues);
-        boolean canConfirm = write && ready && structuredIssues.stream()
-                .noneMatch(i -> i.severity() != com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity.WARNING);
-
-        TaskPlanPermissions permissions = new TaskPlanPermissions(
-                canEdit,
-                write && plan.status().isGenerating(),
-                write && plan.status().name().equals("DETAIL_GENERATION_FAILED"),
-                write && List.of("READY", "READY_WITH_ISSUES", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED").contains(plan.status().name()),
-                canConfirm,
-                write && List.of("READY", "READY_WITH_ISSUES", "FAILED", "DETAIL_GENERATION_FAILED", "CANCELED").contains(plan.status().name()),
-                write && (ready || readyWithIssues),
-                canPartialRegenerate);
+        boolean hasBlockingIssues = structuredIssues.stream()
+                .anyMatch(i -> i.severity() != com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity.WARNING);
+        TaskPlanPermissions permissions = actionPolicy.permissions(plan.status(), write, hasBlockingIssues);
 
         return new TaskPlanDetailView(plan, latestVersion, activeAttempt, latestFailedAttempt,
                 latestAttempt, confirmation, validation, permissions, structuredIssues);

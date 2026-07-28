@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.planning.infrastructure;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.planning.api.CreateTaskPlanRequest;
 import com.shitulelv.aicollab.planning.application.TaskPlanCommandService;
+import com.shitulelv.aicollab.planning.application.TaskPlanActionPolicy;
 import com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestrator;
 import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
@@ -175,7 +176,7 @@ class TaskPlanRepositoryIntegrationTest {
         TaskPlanCommandService service = new TaskPlanCommandService(
                 stubGuard(), repository, orchestrator,
                 null, jdbc, stubQuota(), stubThrottle(), mock(AuditService.class),
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, new TaskPlanActionPolicy());
 
         CreateTaskPlanRequest request = validRequest();
 

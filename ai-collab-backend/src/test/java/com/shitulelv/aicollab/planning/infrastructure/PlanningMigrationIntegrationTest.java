@@ -1,8 +1,14 @@
 package com.shitulelv.aicollab.planning.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.planning.application.TaskPlanConfirmationService;
+import com.shitulelv.aicollab.planning.application.TaskPlanActionPolicy;
+import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidator;
+import com.shitulelv.aicollab.planning.domain.TaskPlanStatus;
+import com.shitulelv.aicollab.planning.domain.ValidationResult;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.project.application.service.AuditService;
@@ -17,7 +23,12 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.UUID;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -139,7 +150,8 @@ class PlanningMigrationIntegrationTest {
         var repository = new TaskPlanRepository(jdbc, new ObjectMapper().findAndRegisterModules());
         var issueRepo = new TaskPlanIssueRepository(jdbc, new ObjectMapper().findAndRegisterModules());
         var service = new TaskPlanConfirmationService(adminGuard(), repository, jdbc,
-                new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), issueRepo, mock(AuditService.class));
+                new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), issueRepo,
+                mock(AuditService.class), new TaskPlanActionPolicy());
         UUID firstKey = UUID.randomUUID();
 
         Map<String, Object> first = service.confirm(project, plan, version, firstKey, user);
@@ -151,6 +163,85 @@ class PlanningMigrationIntegrationTest {
         assertThat(newKey.get("confirmationId")).isEqualTo(first.get("confirmationId"));
         assertThat(jdbc.queryForObject("SELECT count(*) FROM milestone WHERE source_plan_id=?", Integer.class, plan)).isOne();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM project_task WHERE source_plan_id=?", Integer.class, plan)).isOne();
+    }
+
+    @Test
+    void historyVersionCannotConfirm() {
+        ConfirmationFixture fixture = confirmationFixture(TaskPlanStatus.READY, true);
+
+        assertThatThrownBy(() -> fixture.service().confirm(
+                fixture.project(), fixture.plan(), fixture.firstVersion(), UUID.randomUUID(), fixture.user()))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.PLAN_VERSION_CONFLICT));
+        assertThat(jdbc.queryForObject("SELECT status FROM ai_task_plan WHERE id=?",
+                String.class, fixture.plan())).isEqualTo("READY");
+    }
+
+    @Test
+    void readyWithIssuesCannotConfirm() {
+        ConfirmationFixture fixture = confirmationFixture(TaskPlanStatus.READY_WITH_ISSUES, false);
+
+        assertThatThrownBy(() -> fixture.service().confirm(
+                fixture.project(), fixture.plan(), fixture.latestVersion(), UUID.randomUUID(), fixture.user()))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode())
+                                .isEqualTo(ErrorCode.TASK_PLAN_HAS_BLOCKING_ISSUES));
+    }
+
+    @Test
+    void readyWithoutIssuesCanConfirm() {
+        ConfirmationFixture fixture = confirmationFixture(TaskPlanStatus.READY, false);
+
+        Map<String, Object> result = fixture.service().confirm(
+                fixture.project(), fixture.plan(), fixture.latestVersion(), UUID.randomUUID(), fixture.user());
+
+        assertThat(result.get("status")).isEqualTo("SUCCESS");
+        assertThat(jdbc.queryForObject("SELECT status FROM ai_task_plan WHERE id=?",
+                String.class, fixture.plan())).isEqualTo("CONFIRMED");
+    }
+
+    @Test
+    void concurrentEditCannotRaceConfirmation() throws Exception {
+        ConfirmationFixture fixture = confirmationFixture(TaskPlanStatus.READY, false);
+        TaskPlanRepository repository = new TaskPlanRepository(
+                jdbc, new ObjectMapper().findAndRegisterModules());
+        var transactions = new org.springframework.transaction.support.TransactionTemplate(
+                new DataSourceTransactionManager(dataSource));
+        CountDownLatch confirmingLocked = new CountDownLatch(1);
+        CountDownLatch releaseConfirmation = new CountDownLatch(1);
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var confirmation = executor.submit(() -> transactions.executeWithoutResult(status -> {
+                repository.lock(fixture.project(), fixture.plan());
+                jdbc.update("UPDATE ai_task_plan SET status='CONFIRMING' WHERE id=?", fixture.plan());
+                confirmingLocked.countDown();
+                try {
+                    if (!releaseConfirmation.await(10, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("confirmation latch timed out");
+                    }
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(interrupted);
+                }
+            }));
+            assertThat(confirmingLocked.await(10, TimeUnit.SECONDS)).isTrue();
+            var edit = executor.submit(() -> repository.appendVersion(
+                    fixture.project(), fixture.plan(), fixture.latestVersion(),
+                    "MANUAL_EDIT", fixture.latestVersion(),
+                    new TaskPlanDraft("edit", List.of(), List.of(), List.of(), List.of(), List.of()),
+                    fixture.user(), new ValidationResult(List.of(), List.of()), TaskPlanStatus.READY));
+
+            releaseConfirmation.countDown();
+            confirmation.get(10, TimeUnit.SECONDS);
+            assertThatThrownBy(() -> edit.get(10, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(BusinessException.class);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_task_plan_version WHERE plan_id=?",
+                    Integer.class, fixture.plan())).isOne();
+        } finally {
+            releaseConfirmation.countDown();
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -188,7 +279,8 @@ class PlanningMigrationIntegrationTest {
                     .write(any(), any(), anyString(), anyString(), any());
             var issueRepo2 = new TaskPlanIssueRepository(jdbc, new ObjectMapper().findAndRegisterModules());
             var service = new TaskPlanConfirmationService(adminGuard(), repository, jdbc,
-                    new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), issueRepo2, failingAudit);
+                    new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), issueRepo2,
+                    failingAudit, new TaskPlanActionPolicy());
 
             assertThatThrownBy(() -> service.confirm(project, plan, version, UUID.randomUUID(), user))
                     .isInstanceOf(Exception.class);
@@ -209,5 +301,64 @@ class PlanningMigrationIntegrationTest {
             @Override public void requireAdmin(UUID projectId, UUID userId) {}
             @Override public void requireOwner(UUID projectId, UUID userId) {}
         };
+    }
+
+    private static ConfirmationFixture confirmationFixture(TaskPlanStatus status, boolean historical) {
+        UUID user = UUID.randomUUID();
+        UUID project = UUID.randomUUID();
+        UUID plan = UUID.randomUUID();
+        UUID firstVersion = UUID.randomUUID();
+        jdbc.update("INSERT INTO app_user(id,username,password_hash,display_name) VALUES (?,?,?,?)",
+                user, "confirm-" + user.toString().substring(0, 8), "test-only-hash", "确认策略");
+        jdbc.update("INSERT INTO project(id,name,owner_id,created_by,start_date,due_date) VALUES (?,?,?,?,?,?)",
+                project, "确认策略", user, user,
+                java.time.LocalDate.of(2026, 8, 1), java.time.LocalDate.of(2026, 8, 31));
+        jdbc.update("""
+                INSERT INTO ai_task_plan(id,project_id,title,goal,plan_start_date,plan_due_date,max_task_count,
+                  status,created_by)
+                VALUES (?,?,?,?,DATE '2026-08-01',DATE '2026-08-31',10,?,?)
+                """, plan, project, "Plan", "Goal", status.name(), user);
+        jdbc.update("""
+                INSERT INTO ai_task_plan_version(id,plan_id,version_no,source_type,generation_seq,summary,
+                  milestones_json,tasks_json,created_by)
+                VALUES (?,?,1,'AI_COMPLETE',1,'Ready',
+                  '[{"tempKey":"m1","title":"M","objective":"O","targetDate":null,"sortOrder":0,"sourceRefs":[]}]',
+                  '[{"tempKey":"t1","milestoneTempKey":"m1","title":"T","objective":"O","description":"D",
+                    "priority":"MEDIUM","estimatedHours":1,"startDate":null,"dueDate":null,
+                    "suggestedAssigneeId":null,"assigneeId":null,"dependencyTempKeys":[],"sourceRefs":[],"sortOrder":0}]',?)
+                """, firstVersion, plan, user);
+        UUID latestVersion = firstVersion;
+        int latestNo = 1;
+        if (historical) {
+            latestVersion = UUID.randomUUID();
+            latestNo = 2;
+            jdbc.update("""
+                    INSERT INTO ai_task_plan_version(id,plan_id,version_no,source_type,based_on_version_id,
+                      generation_seq,summary,milestones_json,tasks_json,created_by)
+                    SELECT ?,plan_id,2,'MANUAL_EDIT',id,generation_seq,'Latest',
+                      milestones_json,tasks_json,created_by
+                    FROM ai_task_plan_version WHERE id=?
+                    """, latestVersion, firstVersion);
+        }
+        jdbc.update("UPDATE ai_task_plan SET latest_version_no=?,latest_version_id=? WHERE id=?",
+                latestNo, latestVersion, plan);
+        TaskPlanRepository repository = new TaskPlanRepository(
+                jdbc, new ObjectMapper().findAndRegisterModules());
+        TaskPlanIssueRepository issueRepo = new TaskPlanIssueRepository(
+                jdbc, new ObjectMapper().findAndRegisterModules());
+        TaskPlanConfirmationService service = new TaskPlanConfirmationService(
+                adminGuard(), repository, jdbc, new DataSourceTransactionManager(dataSource),
+                new TaskPlanDraftValidator(), issueRepo, mock(AuditService.class),
+                new TaskPlanActionPolicy());
+        return new ConfirmationFixture(user, project, plan, firstVersion, latestVersion, service);
+    }
+
+    private record ConfirmationFixture(
+            UUID user,
+            UUID project,
+            UUID plan,
+            UUID firstVersion,
+            UUID latestVersion,
+            TaskPlanConfirmationService service) {
     }
 }
