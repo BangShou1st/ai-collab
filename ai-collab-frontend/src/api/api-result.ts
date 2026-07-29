@@ -63,6 +63,9 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   AI_MODEL_TIMEOUT: '模型服务响应超时，请重试',
   AI_PROVIDER_ERROR: '模型服务调用失败，请稍后再试',
   AI_PROVIDER_INVALID_RESPONSE: '模型服务返回内容无效，请重试',
+  AI_PROVIDER_OUTPUT_TRUNCATED: '模型输出被截断，请缩小问题范围后重试',
+  TASK_PLAN_NOT_FOUND: 'AI 任务规划不存在或你无权访问',
+  TASK_PLAN_VERSION_NOT_FOUND: 'AI 任务规划版本不存在',
   VERSION_CONFLICT: '数据已被其他操作修改，请刷新后重试。',
   AUTH_INVALID_CREDENTIALS: '用户名或密码错误',
   AUTH_UNAUTHORIZED: '登录状态已失效，请重新登录。',
@@ -76,6 +79,7 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   PLANNING_PROVIDER_QUOTA_EXCEEDED: '规划模型服务额度不足，请检查供应商账户或稍后再试',
   PLANNING_MODEL_UNAVAILABLE: '规划模型尚未配置或暂时不可用',
   PLANNING_MODEL_TIMEOUT: '规划模型响应超时，可稍后重试',
+  PLANNING_MODEL_RATE_LIMITED: '规划模型请求受限，请稍后再试',
   PLANNING_MODEL_INVALID_OUTPUT: '模型未能生成有效规划，可重新生成或重试细节',
   PLANNING_MODEL_OUTPUT_TRUNCATED: '模型输出过长被截断，请减少最大任务数或重新生成',
   PLANNING_QUEUE_FULL: '当前规划任务较多，请稍后再试',
@@ -84,6 +88,14 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   TASK_PLAN_STATE_CONFLICT: '当前规划状态不支持此操作，请刷新后重试',
   PLAN_REPAIR_ISSUE_CONFLICT: '所选问题已发生变化，请刷新后重试',
   PLAN_REPAIR_ISSUE_INVALID: '所选问题无效，请刷新后重试',
+  PLAN_VALIDATION_FAILED: '规划草案未通过业务校验，请修正后重试',
+  PLAN_GENERATION_FAILED: '规划骨架生成失败，请重新生成',
+  PLAN_DETAIL_GENERATION_FAILED: '规划细节生成失败，可重试细节生成',
+  PLAN_GENERATION_CANCELED: '规划生成已取消',
+  PLAN_ALREADY_CONFIRMED: '该规划已经确认',
+  IDEMPOTENCY_KEY_REUSED: '本次确认标识已用于其他请求，请重新操作',
+  PLANNING_DOCUMENT_NOT_READY: '所选规划文档尚未完成处理',
+  PLANNING_DOCUMENT_LIMIT_EXCEEDED: '规划最多选择 10 个文档',
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
