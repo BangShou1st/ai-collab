@@ -208,7 +208,10 @@ public class TaskPlanConfirmationService {
                   created_task_ids_json=?::jsonb,created_dependency_count=?,completed_at=now(),updated_at=now()
                 WHERE id=?
                 """, idsJson(milestoneIds.values()), idsJson(taskIds.values()), dependencies, confirmation);
-        audit.write(projectId, actor, "TASK_PLAN_CONFIRMED", "AI_TASK_PLAN", planId);
+        audit.write(projectId, actor, "TASK_PLAN_CONFIRMED", "AI_TASK_PLAN", planId,
+                Map.of("milestoneCount", milestoneIds.size(),
+                        "taskCount", taskIds.size(),
+                        "dependencyCount", dependencies));
         return Map.of("confirmationId", confirmation, "status", "SUCCESS",
                 "milestoneIds", List.copyOf(milestoneIds.values()), "taskIds", List.copyOf(taskIds.values()),
                 "dependencyCount", dependencies);

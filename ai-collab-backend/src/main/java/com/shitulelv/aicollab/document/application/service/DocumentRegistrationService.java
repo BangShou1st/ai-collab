@@ -10,6 +10,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 public class DocumentRegistrationService {
     private static final int MAX_DOCUMENTS = 100;
@@ -36,7 +38,8 @@ public class DocumentRegistrationService {
         }
         documents.create(document);
         audit.write(document.getProjectId(), document.getUploadedBy(),
-                "DOCUMENT_UPLOADED", "PROJECT_DOCUMENT", document.getId());
+                "DOCUMENT_UPLOADED", "PROJECT_DOCUMENT", document.getId(),
+                Map.of("originalFilename", document.getOriginalFilename()));
         events.publishEvent(new DocumentUploadedEvent(document.getProjectId(), document.getId()));
     }
 }

@@ -91,7 +91,9 @@ public class TaskApplicationService {
         entity.setCreatedBy(userId);
         entity.setVersion(0);
         tasks.create(entity);
-        audit.write(projectId, userId, "TASK_CREATED", "TASK", entity.getId());
+        audit.write(projectId, userId, "TASK_CREATED", "TASK", entity.getId(),
+                Map.of("title", entity.getTitle(), "status", entity.getStatus().name(),
+                        "priority", entity.getPriority().name()));
         return view(requireTask(projectId, entity.getId()));
     }
 
@@ -127,7 +129,10 @@ public class TaskApplicationService {
         }
         audit.write(projectId, userId,
                 previousStatus == targetStatus ? "TASK_UPDATED" : "TASK_STATUS_CHANGED",
-                "TASK", taskId);
+                "TASK", taskId,
+                Map.of("title", current.getTitle(),
+                        "previousStatus", previousStatus.name(),
+                        "newStatus", targetStatus.name()));
         return view(requireTask(projectId, taskId));
     }
 
@@ -137,7 +142,8 @@ public class TaskApplicationService {
         if (!tasks.delete(projectId, taskId)) {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
-        audit.write(projectId, userId, "TASK_DELETED", "TASK", taskId);
+        audit.write(projectId, userId, "TASK_DELETED", "TASK", taskId,
+                Map.of("title", "已删除"));
     }
 
     @Transactional

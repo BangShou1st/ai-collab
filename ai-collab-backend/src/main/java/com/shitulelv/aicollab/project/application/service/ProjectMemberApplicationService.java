@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -47,7 +48,8 @@ public class ProjectMemberApplicationService {
         if (!members.changeNonOwnerRole(projectId, userId, role)) {
             throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
         }
-        audit.write(projectId, operatorId, "PROJECT_MEMBER_ROLE_CHANGED", "PROJECT_MEMBER", userId);
+        audit.write(projectId, operatorId, "PROJECT_MEMBER_ROLE_CHANGED", "PROJECT_MEMBER", userId,
+                Map.of("previousRole", current.name(), "newRole", role.name()));
         return members.find(projectId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
     }

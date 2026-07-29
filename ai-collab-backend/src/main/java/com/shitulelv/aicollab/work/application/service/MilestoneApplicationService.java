@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -55,7 +56,8 @@ public class MilestoneApplicationService {
         entity.setCreatedBy(userId);
         entity.setVersion(0);
         milestones.create(entity);
-        audit.write(projectId, userId, "MILESTONE_CREATED", "MILESTONE", entity.getId());
+        audit.write(projectId, userId, "MILESTONE_CREATED", "MILESTONE", entity.getId(),
+                Map.of("name", entity.getName(), "status", entity.getStatus().name()));
         return MilestoneView.from(milestones.find(projectId, entity.getId()).orElseThrow());
     }
 
@@ -74,7 +76,8 @@ public class MilestoneApplicationService {
         if (!milestones.update(projectId, entity)) {
             throw new BusinessException(ErrorCode.VERSION_CONFLICT);
         }
-        audit.write(projectId, userId, "MILESTONE_UPDATED", "MILESTONE", milestoneId);
+        audit.write(projectId, userId, "MILESTONE_UPDATED", "MILESTONE", milestoneId,
+                Map.of("name", entity.getName(), "status", entity.getStatus().name()));
         return MilestoneView.from(milestones.find(projectId, milestoneId).orElseThrow());
     }
 
