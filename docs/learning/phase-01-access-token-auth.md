@@ -1,10 +1,6 @@
 # 第一阶段：Access Token 认证闭环
 
-> **自动化测试历史记录提示**
->
-> 当前仓库后续已移除自动化测试。正文中的测试类、测试命令和测试证明内容属于对应阶段的历史实现记录，
-> 不代表当前仓库仍保留这些测试文件。本文只描述当时的 Access Token 最小闭环；当前认证状态以
-> [`phase-02-refresh-token-session.md`](phase-02-refresh-token-session.md) 和当前代码为准。
+> **历史记录**：本文只说明该阶段的设计过程，可能包含已演进的接口、测试和状态。当前事实以代码、Flyway、`docs/feature-matrix.md` 和 `docs/api/openapi.yaml` 为准。
 
 ## 1. 本阶段解决了什么问题
 
