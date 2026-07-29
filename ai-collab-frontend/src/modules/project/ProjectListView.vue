@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { normalizeApiError } from '../../api/api-result'
 import {
   formatDate,
@@ -13,10 +13,19 @@ import type { Project } from './types'
 
 const projects = ref<Project[]>([])
 const loading = ref(false)
-const creating = ref(false)
+const saving = ref(false)
+const deletingProjectId = ref('')
 const dialogVisible = ref(false)
+const editingProject = ref<Project | null>(null)
 const errorMessage = ref('')
-const form = reactive({ name: '', description: '', startDate: '', dueDate: '' })
+const form = reactive({
+  name: '',
+  description: '',
+  startDate: '',
+  dueDate: '',
+  status: 'ACTIVE' as Project['status'],
+})
+const dialogTitle = computed(() => editingProject.value ? '编辑项目' : '新建项目')
 const validationMessage = computed(() => {
   if (!form.name.trim()) return '项目名称不能为空'
   if (form.name.length > 100) return '项目名称不能超过 100 个字符'
@@ -39,28 +48,84 @@ async function load(): Promise<void> {
   }
 }
 
-async function createProject(): Promise<void> {
-  if (validationMessage.value || creating.value) return
-  creating.value = true
+function resetForm(): void {
+  editingProject.value = null
+  form.name = ''
+  form.description = ''
+  form.startDate = ''
+  form.dueDate = ''
+  form.status = 'ACTIVE'
+}
+
+function openCreate(): void {
+  resetForm()
+  dialogVisible.value = true
+}
+
+function openEdit(project: Project): void {
+  editingProject.value = project
+  form.name = project.name
+  form.description = project.description
+  form.startDate = project.startDate ?? ''
+  form.dueDate = project.dueDate ?? ''
+  form.status = project.status
+  dialogVisible.value = true
+}
+
+async function saveProject(): Promise<void> {
+  if (validationMessage.value || saving.value) return
+  saving.value = true
   errorMessage.value = ''
   try {
-    await projectApi.create({
-      name: form.name.trim(),
-      description: form.description,
-      startDate: form.startDate || null,
-      dueDate: form.dueDate || null,
-    })
+    const project = editingProject.value
+    if (project) {
+      await projectApi.update(project.id, {
+        name: form.name.trim(),
+        description: form.description,
+        startDate: form.startDate || null,
+        dueDate: form.dueDate || null,
+        status: form.status,
+        version: project.version,
+      })
+    } else {
+      await projectApi.create({
+        name: form.name.trim(),
+        description: form.description,
+        startDate: form.startDate || null,
+        dueDate: form.dueDate || null,
+      })
+    }
     dialogVisible.value = false
-    form.name = ''
-    form.description = ''
-    form.startDate = ''
-    form.dueDate = ''
+    resetForm()
     await load()
-    ElMessage.success('项目已创建')
+    ElMessage.success(project ? '项目已更新' : '项目已创建')
   } catch (error) {
     errorMessage.value = normalizeApiError(error).message
   } finally {
-    creating.value = false
+    saving.value = false
+  }
+}
+
+async function deleteProject(project: Project): Promise<void> {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除项目“${project.name}”吗？此操作不可恢复。`,
+      '删除项目',
+      { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  deletingProjectId.value = project.id
+  errorMessage.value = ''
+  try {
+    await projectApi.remove(project.id)
+    projects.value = projects.value.filter((candidate) => candidate.id !== project.id)
+    ElMessage.success('项目已删除')
+  } catch (error) {
+    errorMessage.value = normalizeApiError(error).message
+  } finally {
+    deletingProjectId.value = ''
   }
 }
 
@@ -74,7 +139,7 @@ onMounted(load)
       title="我的项目"
     >
       <template #actions>
-        <el-button type="primary" @click="dialogVisible = true">新建项目</el-button>
+        <el-button type="primary" @click="openCreate">新建项目</el-button>
       </template>
     </PageHeader>
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
@@ -93,12 +158,23 @@ onMounted(load)
           <router-link class="el-button el-button--primary" :to="`/projects/${project.id}/dashboard`">
             进入项目
           </router-link>
+          <template v-if="project.role === 'OWNER'">
+            <el-button data-action="edit-project" @click="openEdit(project)">编辑</el-button>
+            <el-button
+              data-action="delete-project"
+              type="danger"
+              :loading="deletingProjectId === project.id"
+              @click="deleteProject(project)"
+            >
+              删除
+            </el-button>
+          </template>
         </div>
       </el-card>
       <el-empty v-if="!loading && projects.length === 0" description="还没有项目，创建第一个项目吧" />
     </section>
-    <el-dialog v-model="dialogVisible" title="新建项目" width="480px">
-      <el-form label-position="top" @submit.prevent="createProject">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="480px" @closed="resetForm">
+      <el-form label-position="top" @submit.prevent="saveProject">
         <el-form-item label="项目名称"><el-input v-model="form.name" :maxlength="100" /></el-form-item>
         <el-form-item label="项目描述">
           <el-input v-model="form.description" type="textarea" :maxlength="2000" show-word-limit />
@@ -109,6 +185,12 @@ onMounted(load)
         <el-form-item label="截止日期">
           <el-date-picker v-model="form.dueDate" value-format="YYYY-MM-DD" />
         </el-form-item>
+        <el-form-item v-if="editingProject" label="项目状态">
+          <el-select v-model="form.status">
+            <el-option label="进行中" value="ACTIVE" />
+            <el-option label="已归档" value="ARCHIVED" />
+          </el-select>
+        </el-form-item>
         <el-alert
           v-if="validationMessage"
           :title="validationMessage"
@@ -118,10 +200,10 @@ onMounted(load)
         <el-button
           type="primary"
           native-type="submit"
-          :loading="creating"
-          :disabled="Boolean(validationMessage) || creating"
+          :loading="saving"
+          :disabled="Boolean(validationMessage) || saving"
         >
-          新建
+          {{ editingProject ? '保存修改' : '新建' }}
         </el-button>
       </el-form>
     </el-dialog>

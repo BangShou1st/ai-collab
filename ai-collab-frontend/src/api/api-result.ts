@@ -25,6 +25,7 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   NEW_PASSWORD_SAME_AS_CURRENT: '新密码不能与当前密码相同',
   PROJECT_NOT_FOUND: '项目不存在或你无权访问',
   PROJECT_DOCUMENTS_EXIST: '项目中仍有文档，请先删除全部文档后再删除项目',
+  PROJECT_CONFIRMED_PLANS_EXIST: '项目中已有确认的 AI 规划，不能直接删除',
   PROJECT_ADMIN_REQUIRED: '此操作需要项目管理员权限',
   PROJECT_OWNER_REQUIRED: '此操作仅限项目所有者',
   PROJECT_OWNER_CANNOT_BE_REMOVED: '不能修改或移除项目所有者',

@@ -27,6 +27,24 @@ export const projectApi = {
   }): Promise<ApiResult<Project>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<Project>>('/projects', payload))
   },
+  async update(
+    projectId: string,
+    payload: {
+      name: string
+      description: string
+      startDate: string | null
+      dueDate: string | null
+      status: Project['status']
+      version: number
+    },
+  ): Promise<ApiResult<Project>> {
+    return apiResultFromResponse(
+      await httpClient.patch<ApiResponse<Project>>(`/projects/${projectId}`, payload),
+    )
+  },
+  async remove(projectId: string): Promise<void> {
+    await httpClient.delete(`/projects/${projectId}`)
+  },
   async listMembers(projectId: string): Promise<ApiResult<ProjectMember[]>> {
     return apiResultFromResponse(
       await httpClient.get<ApiResponse<ProjectMember[]>>(`/projects/${projectId}/members`),
