@@ -53,11 +53,11 @@ async function logout(): Promise<void> {
 <template>
   <div class="app-shell">
     <header class="app-topbar">
-      <router-link class="brand" to="/projects" aria-label="AI Collab 项目列表">
+      <router-link class="brand" to="/projects" aria-label="高校竞赛 AI 项目协作平台项目列表">
         <span class="brand-mark">AI</span>
         <span>
-          <strong>AI Collab</strong>
-          <small>高校竞赛项目协作平台</small>
+          <strong>高校竞赛 AI 项目协作平台</strong>
+          <small>项目协作与知识工作台</small>
         </span>
       </router-link>
       <nav class="global-nav" aria-label="全局导航">

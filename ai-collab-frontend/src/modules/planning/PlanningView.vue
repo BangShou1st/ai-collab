@@ -279,7 +279,7 @@ watch(projectId, async () => {
     <section class="planning-layout">
       <el-card>
         <button v-for="plan in plans" :key="plan.id" class="planning-list-item" @click="open(plan)">
-          <strong>{{ plan.title }}</strong><el-tag>{{ planStatusLabel(plan.status) }}</el-tag><small>{{ plan.goal }} · v{{ plan.latestVersionNo }}</small>
+          <strong>{{ plan.title }}</strong><el-tag>{{ planStatusLabel(plan.status) }}</el-tag><small>{{ plan.goal }} · 版本 {{ plan.latestVersionNo }}</small>
         </button>
       </el-card>
       <el-card v-if="selected">
