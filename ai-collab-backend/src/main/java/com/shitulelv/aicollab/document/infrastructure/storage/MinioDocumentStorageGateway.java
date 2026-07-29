@@ -14,6 +14,8 @@ import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.errors.ErrorResponseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -27,6 +29,8 @@ import java.util.Map;
 
 @Component
 public class MinioDocumentStorageGateway implements DocumentStorageGateway {
+    private static final Logger log = LoggerFactory.getLogger(MinioDocumentStorageGateway.class);
+
     private final MinioClient client;
     private final MinioProperties properties;
 
@@ -43,7 +47,7 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
             }
             removePublicBucketPolicy();
         } catch (Exception exception) {
-            throw new IllegalStateException("MinIO bucket 初始化失败", exception);
+            log.warn("MinIO bucket 初始化失败，文档存储功能将不可用");
         }
     }
 
