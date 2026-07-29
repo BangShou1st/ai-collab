@@ -1,16 +1,32 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { normalizeApiError } from '../api/api-result'
 import { useAuthStore } from '../stores/auth-store'
+import { useProjectContextStore } from '../stores/project-context-store'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const projectCtx = useProjectContextStore()
 const loggingOut = ref(false)
+
 const projectId = computed(() =>
   typeof route.params.projectId === 'string' ? route.params.projectId : '',
+)
+
+// 当进入项目路由时加载项目上下文
+watch(
+  projectId,
+  async (id) => {
+    if (id) {
+      await projectCtx.loadProject(id)
+    } else {
+      projectCtx.clear()
+    }
+  },
+  { immediate: true },
 )
 
 async function logout(): Promise<void> {
@@ -22,6 +38,7 @@ async function logout(): Promise<void> {
       { confirmButtonText: '确认退出', cancelButtonText: '取消', type: 'warning' },
     )
     loggingOut.value = true
+    projectCtx.clear()
     await auth.logout()
     await router.replace('/login')
   } catch (error) {
@@ -60,12 +77,14 @@ async function logout(): Promise<void> {
     </header>
 
     <nav v-if="projectId" class="project-nav" aria-label="项目导航">
+      <router-link :to="`/projects/${projectId}/dashboard`">项目概览</router-link>
       <router-link :to="`/projects/${projectId}/board`">任务看板</router-link>
       <router-link :to="`/projects/${projectId}/milestones`">里程碑</router-link>
       <router-link :to="`/projects/${projectId}/members`">成员管理</router-link>
       <router-link :to="`/projects/${projectId}/documents`">项目文档</router-link>
       <router-link :to="`/projects/${projectId}/knowledge`">知识问答</router-link>
       <router-link :to="`/projects/${projectId}/ai-planning`">AI 任务规划</router-link>
+      <router-link v-if="projectCtx.isAdminOrOwner" :to="`/projects/${projectId}/audit-logs`">操作日志</router-link>
       <router-link class="project-nav-back" to="/projects">返回项目列表</router-link>
     </nav>
 
