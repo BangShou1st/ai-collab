@@ -106,4 +106,4 @@ demo:
 
 auth:
   public-registration:
-    enabled: "${AUTH_PUBLIC_REGISTRATION_ENABLED:true}"
+    enabled: "${AUTH_PUBLIC_REGISTRATION_ENABLED:false}"

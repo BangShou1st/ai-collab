@@ -102,7 +102,7 @@ try {
         $checks = @(
             @{ Path = "/projects/$projectId"; Name = "Project detail" },
             @{ Path = "/projects/$projectId/dashboard"; Name = "Dashboard" },
-            @{ Path = "/projects/$projectId/audit-logs?page=0&size=20"; Name = "Audit logs" },
+            @{ Path = "/projects/$projectId/audit-logs?page=1&size=20"; Name = "Audit logs" },
             @{ Path = "/projects/$projectId/tasks"; Name = "Tasks" },
             @{ Path = "/projects/$projectId/milestones"; Name = "Milestones" },
             @{ Path = "/projects/$projectId/documents"; Name = "Documents" },

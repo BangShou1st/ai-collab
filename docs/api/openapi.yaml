@@ -1266,6 +1266,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DashboardEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Project does not exist or the current user is not a member
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
   /projects/{projectId}/audit-logs:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -1282,6 +1287,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuditPageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Project OWNER or ADMIN role required
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '404':
+          description: Project does not exist or the current user is not a member
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
 components:
   securitySchemes:
     bearerAuth:
@@ -2266,25 +2279,97 @@ components:
             data: { $ref: '#/components/schemas/ApplyTaskPlanResult' }
     DashboardView:
       type: object
-      required: [taskCounts, completionRate, overdueCount, milestoneProgress, recentActivities]
+      required: [project, tasks, milestones, recentTasks, recentDocuments, recentActivities]
       properties:
-        taskCounts:
-          type: object
-          additionalProperties: { type: integer, minimum: 0 }
-        completionRate: { type: number, minimum: 0, maximum: 1 }
-        overdueCount: { type: integer, minimum: 0 }
-        milestoneProgress:
+        project:
+          $ref: '#/components/schemas/DashboardProject'
+        tasks:
+          $ref: '#/components/schemas/DashboardTaskStats'
+        milestones:
           type: array
-          items:
-            type: object
-            required: [milestoneId, name, completionRate]
-            properties:
-              milestoneId: { type: string, format: uuid }
-              name: { type: string }
-              completionRate: { type: number, minimum: 0, maximum: 1 }
+          items: { $ref: '#/components/schemas/DashboardMilestoneProgress' }
+        recentTasks:
+          type: array
+          items: { $ref: '#/components/schemas/DashboardRecentTask' }
+        recentDocuments:
+          type: array
+          items: { $ref: '#/components/schemas/DashboardRecentDocument' }
         recentActivities:
           type: array
-          items: { $ref: '#/components/schemas/AuditView' }
+          items: { $ref: '#/components/schemas/DashboardActivity' }
+    DashboardProject:
+      type: object
+      required: [id, name, description, status, currentUserRole]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [ACTIVE, ARCHIVED] }
+        startDate: { type: [string, 'null'], format: date }
+        dueDate: { type: [string, 'null'], format: date }
+        currentUserRole: { $ref: '#/components/schemas/ProjectRole' }
+        memberCount: { type: [integer, 'null'], format: int64, minimum: 0 }
+    DashboardTaskStats:
+      type: object
+      required: [total, todo, inProgress, blocked, done, canceled, overdue, completionRate]
+      properties:
+        total: { type: integer, minimum: 0 }
+        todo: { type: integer, minimum: 0 }
+        inProgress: { type: integer, minimum: 0 }
+        blocked: { type: integer, minimum: 0 }
+        done: { type: integer, minimum: 0 }
+        canceled: { type: integer, minimum: 0 }
+        overdue: { type: integer, minimum: 0 }
+        completionRate: { type: number, minimum: 0, maximum: 1 }
+    DashboardMilestoneProgress:
+      type: object
+      required: [id, name, status, totalTasks, completedTasks, completionRate, overdue]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        status: { $ref: '#/components/schemas/MilestoneStatus' }
+        targetDate: { type: [string, 'null'], format: date }
+        totalTasks: { type: integer, minimum: 0 }
+        completedTasks: { type: integer, minimum: 0 }
+        completionRate: { type: number, minimum: 0, maximum: 1 }
+        overdue: { type: boolean }
+    DashboardRecentTask:
+      type: object
+      required: [id, title, status, priority, unfinishedDependencyCount, overdue, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        priority: { $ref: '#/components/schemas/TaskPriority' }
+        assigneeId: { type: [string, 'null'], format: uuid }
+        assigneeDisplayName: { type: [string, 'null'] }
+        milestoneId: { type: [string, 'null'], format: uuid }
+        milestoneName: { type: [string, 'null'] }
+        dueDate: { type: [string, 'null'], format: date }
+        unfinishedDependencyCount: { type: integer, minimum: 0 }
+        overdue: { type: boolean }
+        updatedAt: { type: string, format: date-time }
+    DashboardRecentDocument:
+      type: object
+      required: [id, originalFilename, status, uploadedBy, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        originalFilename: { type: string }
+        status: { $ref: '#/components/schemas/DocumentStatus' }
+        uploadedBy: { type: string, format: uuid }
+        uploaderDisplayName: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    DashboardActivity:
+      type: object
+      required: [id, action, entityType, summary, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        userDisplayName: { type: [string, 'null'] }
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { type: [string, 'null'], format: uuid }
+        summary: { type: string }
+        createdAt: { type: string, format: date-time }
     DashboardEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
@@ -2293,7 +2378,7 @@ components:
             data: { $ref: '#/components/schemas/DashboardView' }
     AuditView:
       type: object
-      required: [id, action, entityType, requestId, createdAt]
+      required: [id, action, entityType, detail, summary, requestId, createdAt]
       properties:
         id: { type: string, format: uuid }
         userId: { type: [string, 'null'], format: uuid }
@@ -2302,6 +2387,7 @@ components:
         entityType: { type: string }
         entityId: { type: [string, 'null'], format: uuid }
         detail: { type: object, additionalProperties: true }
+        summary: { type: string }
         requestId: { type: string, format: uuid }
         createdAt: { type: string, format: date-time }
     AuditPageEnvelope:
