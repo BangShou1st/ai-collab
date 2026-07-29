@@ -36,6 +36,7 @@ chat:
     read-timeout: "${CHAT_READ_TIMEOUT:60s}"
     temperature: "${CHAT_TEMPERATURE:0.2}"
     max-output-tokens: "${CHAT_MAX_OUTPUT_TOKENS:1200}"
+    json-mode-enabled: "${CHAT_JSON_MODE_ENABLED:true}"
 
 planning:
     enabled: "${PLANNING_ENABLED:${CHAT_ENABLED:false}}"
