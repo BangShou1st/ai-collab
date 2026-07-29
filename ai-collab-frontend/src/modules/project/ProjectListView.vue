@@ -90,7 +90,7 @@ onMounted(load)
         <p>项目状态：{{ projectStatusLabel(project.status) }}</p>
         <p>项目周期：{{ formatDate(project.startDate) }} 至 {{ formatDate(project.dueDate) }}</p>
         <div class="actions">
-          <router-link class="el-button el-button--primary" :to="`/projects/${project.id}/board`">
+          <router-link class="el-button el-button--primary" :to="`/projects/${project.id}/dashboard`">
             进入项目
           </router-link>
         </div>

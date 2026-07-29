@@ -4,6 +4,7 @@ import LoginView from './views/LoginView.vue'
 import RegisterView from './modules/auth/RegisterView.vue'
 import AccountView from './modules/account/AccountView.vue'
 import ProjectListView from './modules/project/ProjectListView.vue'
+import DashboardView from './modules/dashboard/DashboardView.vue'
 import TaskBoardView from './modules/work/TaskBoardView.vue'
 import MilestoneView from './modules/work/MilestoneView.vue'
 import ProjectMembersView from './modules/project/ProjectMembersView.vue'
@@ -11,6 +12,7 @@ import InvitationAcceptView from './modules/project/InvitationAcceptView.vue'
 import DocumentView from './modules/document/DocumentView.vue'
 import KnowledgeView from './modules/knowledge/KnowledgeView.vue'
 import PlanningView from './modules/planning/PlanningView.vue'
+import AuditLogView from './modules/audit/AuditLogView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -21,12 +23,15 @@ export const router = createRouter({
     { path: '/invite/:code', component: InvitationAcceptView, meta: { public: true, title: '项目邀请' } },
     { path: '/account', component: AccountView, meta: { title: '账号设置' } },
     { path: '/projects', component: ProjectListView, meta: { title: '我的项目' } },
+    { path: '/projects/:projectId', redirect: (to) => `/projects/${to.params.projectId}/dashboard` },
+    { path: '/projects/:projectId/dashboard', component: DashboardView, meta: { title: '项目概览' } },
     { path: '/projects/:projectId/board', component: TaskBoardView, meta: { title: '任务看板' } },
     { path: '/projects/:projectId/milestones', component: MilestoneView, meta: { title: '里程碑' } },
     { path: '/projects/:projectId/members', component: ProjectMembersView, meta: { title: '成员管理' } },
     { path: '/projects/:projectId/documents', component: DocumentView, meta: { title: '项目文档' } },
     { path: '/projects/:projectId/knowledge', component: KnowledgeView, meta: { title: '知识问答' } },
     { path: '/projects/:projectId/ai-planning', component: PlanningView, meta: { title: 'AI 任务规划' } },
+    { path: '/projects/:projectId/audit-logs', component: AuditLogView, meta: { title: '操作日志' } },
   ],
 })
 
