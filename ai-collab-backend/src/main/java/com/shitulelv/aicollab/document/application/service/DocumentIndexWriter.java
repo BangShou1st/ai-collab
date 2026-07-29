@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -41,7 +42,8 @@ public class DocumentIndexWriter {
             throw new IllegalStateException("文档状态在索引写入期间发生变化");
         }
         audit.write(projectId, attempt.uploadedBy(), "DOCUMENT_INDEXED",
-                "PROJECT_DOCUMENT", documentId);
+                "PROJECT_DOCUMENT", documentId,
+                Map.of("originalFilename", filename != null ? filename : "未知文件"));
         return true;
     }
 }
