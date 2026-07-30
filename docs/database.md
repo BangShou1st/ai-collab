@@ -6,7 +6,7 @@
 ai-collab-backend/src/main/resources/db/migration/
 ```
 
-本文档解释当前最终结构和约束，不复制完整 SQL。当前最新迁移为 V12，最终结构为 23 张表。
+本文档解释当前最终结构和约束，不复制完整 SQL。当前最新迁移为 V26，业务结构为 36 张表（不含 `flyway_schema_history`）。
 
 ## 1. 设计规则
 
@@ -18,7 +18,7 @@ ai-collab-backend/src/main/resources/db/migration/
 - 向量使用 pgvector `vector`，并记录 provider、model、dimension。
 - 已提交迁移不可编辑，任何结构变更使用新版本。
 
-## 2. 当前 23 张表
+## 2. 当前 36 张表
 
 ### 身份与项目
 
@@ -26,7 +26,7 @@ ai-collab-backend/src/main/resources/db/migration/
 |---|---|
 | `app_user` | 用户、密码摘要、状态、token version |
 | `refresh_token` | Refresh Token 摘要、会话、轮换与撤销 |
-| `project` | 项目基本信息、两态状态和版本 |
+| `project` | 项目基本信息、类型、四态状态和版本 |
 | `project_member` | 项目角色 |
 | `project_invitation` | 邀请摘要、角色、状态和有效期 |
 
@@ -38,6 +38,7 @@ ai-collab-backend/src/main/resources/db/migration/
 | `project_task` | 任务、负责人、里程碑、状态、日期、工时、版本 |
 | `task_dependency` | 任务 DAG 边 |
 | `task_comment` | 单层任务评论 |
+| `notification` | 站内通知、类型、已读状态 |
 
 ### 文档与知识
 
@@ -48,6 +49,9 @@ ai-collab-backend/src/main/resources/db/migration/
 | `knowledge_session` | 用户私有问答会话 |
 | `knowledge_message` | USER/ASSISTANT 消息 |
 | `knowledge_citation` | 回答实际引用 |
+| `knowledge_feedback` | 用户对回答的有用/无用反馈 |
+| `knowledge_eval_run` | 知识检索评测运行 |
+| `knowledge_eval_result` | 单条评测问题和结果 |
 
 ### AI 规划
 
@@ -59,6 +63,20 @@ ai-collab-backend/src/main/resources/db/migration/
 | `ai_task_plan_confirmation` | 幂等确认事实 |
 | `ai_task_plan_validation_issue` | 结构化校验问题 |
 | `ai_task_plan_event` | 版本、修复和确认事件 |
+
+### Agent 与模型
+
+| 表 | 作用 |
+|---|---|
+| `agent_session` | 项目 Agent 会话 |
+| `agent_message` | 会话消息 |
+| `agent_run` | 一次 Agent 运行及预算状态 |
+| `agent_step` | 模型、工具、审批和结果步骤 |
+| `agent_approval` | 待审批写操作、nonce 和期限 |
+| `agent_schedule` | 定时运行配置 |
+| `agent_schedule_fire` | 定时触发幂等事实 |
+| `model_configuration` | 加密模型配置 |
+| `model_purpose_assignment` | 知识问答、规划和 Agent 的模型用途分配 |
 
 ### 通用
 
@@ -116,7 +134,7 @@ erDiagram
 - `(project_id, user_id)` 唯一。
 - V3 局部唯一索引保证一个项目至多一个 `OWNER`。
 - 创建项目和 OWNER 成员在同一事务中保证至少一个 OWNER。
-- 当前没有所有权转移用例，因此 OWNER 不能降级或移除。
+- 所有权转移在一个事务中锁定当前 OWNER；旧 OWNER 降级为 MEMBER，新 OWNER 升级为 OWNER。
 
 ### 任务和依赖
 
@@ -205,6 +223,20 @@ LIMIT #{topK};
 | V10 | 增加 AI partial 来源类型 |
 | V11 | event changed targets |
 | V12 | event comment |
+| V13 | 添加项目类型字段（COMPETITION/COURSE_DESIGN/SOFTWARE_TRAINING/OTHER） |
+| V14 | 扩展项目状态为四态（PREPARING/ACTIVE/COMPLETED/ARCHIVED） |
+| V15 | 里程碑添加开始日期和截止日期字段 |
+| V16 | 添加知识问答反馈表 |
+| V17 | 添加文档版本和重新索引字段 |
+| V18 | 添加知识检索评测运行和结果表 |
+| V19 | 添加站内通知表 |
+| V20 | 添加系统管理员标记 |
+| V21 | 添加通知幂等键 |
+| V22 | 添加 Agent 会话、运行、步骤、审批、定时运行和初始评估结构 |
+| V23 | 完成 Agent 运行时约束和通知类型 |
+| V24 | 添加加密模型配置和用途分配 |
+| V25 | 移除无用户价值的 Agent 固定样例评估表 |
+| V26 | 允许管理员配置自定义任务规划数量上限 |
 
 新迁移要求：
 
