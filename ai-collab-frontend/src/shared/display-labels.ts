@@ -9,8 +9,17 @@ const userStatusLabels: Record<string, string> = {
   DISABLED: '已禁用',
 }
 
+const projectTypeLabels: Record<string, string> = {
+  COMPETITION: '竞赛项目',
+  COURSE_DESIGN: '课程设计',
+  SOFTWARE_TRAINING: '软件实训',
+  OTHER: '其他',
+}
+
 const projectStatusLabels: Record<string, string> = {
+  PREPARING: '准备中',
   ACTIVE: '进行中',
+  COMPLETED: '已完成',
   ARCHIVED: '已归档',
 }
 
@@ -55,6 +64,10 @@ export function userStatusLabel(value: string | null | undefined): string {
 
 export function projectStatusLabel(value: string | null | undefined): string {
   return value ? projectStatusLabels[value] ?? '未知状态' : '未知状态'
+}
+
+export function projectTypeLabel(value: string | null | undefined): string {
+  return value ? projectTypeLabels[value] ?? '未知类型' : '未知类型'
 }
 
 export function milestoneStatusLabel(value: string | null | undefined): string {
@@ -158,12 +171,29 @@ const auditEntityLabels: Record<string, string> = {
   AI_TASK_PLAN_VERSION: 'AI 规划版本',
 }
 
+const notificationLabels: Record<string, string> = {
+  TASK_ASSIGNED: '任务分配',
+  TASK_STATUS_CHANGED: '任务状态变更',
+  TASK_DUE_SOON: '任务即将到期',
+  TASK_OVERDUE: '任务已逾期',
+  DEPENDENCY_COMPLETED: '依赖任务完成',
+  DOCUMENT_PROCESSED: '文档处理完成',
+  DOCUMENT_FAILED: '文档处理失败',
+  PLAN_CONFIRMED: '规划确认完成',
+  COMMENT_ADDED: '新增评论',
+  MILESTONE_COMPLETED: '里程碑完成',
+}
+
 export function auditActionLabel(value: string | null | undefined): string {
   return value ? auditActionLabels[value] ?? '未知操作' : '未知操作'
 }
 
 export function auditEntityLabel(value: string | null | undefined): string {
   return value ? auditEntityLabels[value] ?? '未知对象' : '未知对象'
+}
+
+export function notificationLabel(value: string | null | undefined): string {
+  return value ? notificationLabels[value] ?? '未知通知' : '未知通知'
 }
 
 function dateParts(

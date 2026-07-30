@@ -7,10 +7,12 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 public record MilestoneView(
-        UUID id, UUID projectId, String name, String description, LocalDate targetDate,
+        UUID id, UUID projectId, String name, String description,
+        LocalDate startDate, LocalDate endDate, LocalDate targetDate,
         MilestoneStatus status, int sortOrder, int version) {
     public static MilestoneView from(MilestoneEntity entity) {
         return new MilestoneView(entity.getId(), entity.getProjectId(), entity.getName(), entity.getDescription(),
-                entity.getTargetDate(), entity.getStatus(), entity.getSortOrder(), entity.getVersion());
+                entity.getStartDate(), entity.getEndDate(), entity.getTargetDate(),
+                entity.getStatus(), entity.getSortOrder(), entity.getVersion());
     }
 }

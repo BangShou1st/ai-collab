@@ -2,7 +2,6 @@ import type { PlanStatus } from './types'
 
 const ACTIVE = new Set<PlanStatus>(['SKELETON_GENERATING', 'DETAIL_GENERATING', 'REPAIRING', 'CONFIRMING'])
 const RETRYABLE_ERRORS = new Set([429, 502, 503, 504])
-const STOP_ERRORS = new Set([401, 403, 404])
 
 interface PollerOptions {
   load: () => Promise<PlanStatus[]>
@@ -43,7 +42,7 @@ export class PlanningPoller {
     if (!error || typeof error !== 'object') return false
     const axiosError = error as { response?: { status?: number } }
     const status = axiosError.response?.status
-    return status !== undefined && STOP_ERRORS.has(status)
+    return status !== undefined && status >= 400 && status < 500 && status !== 429
   }
 
   private getRetryDelay(error: unknown): number {

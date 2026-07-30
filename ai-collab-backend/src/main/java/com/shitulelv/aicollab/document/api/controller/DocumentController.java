@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.document.api.controller;
 import com.shitulelv.aicollab.common.api.ApiResponse;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.document.application.service.BatchReindexService;
 import com.shitulelv.aicollab.document.application.service.DocumentApplicationService;
 import com.shitulelv.aicollab.document.application.view.DocumentView;
 import com.shitulelv.aicollab.document.application.view.DownloadUrlView;
@@ -26,7 +27,11 @@ import java.util.UUID;
 @RequestMapping("/api/v1/projects/{projectId}/documents")
 public class DocumentController {
     private final DocumentApplicationService documents;
-    public DocumentController(DocumentApplicationService documents) { this.documents = documents; }
+    private final BatchReindexService batchReindex;
+    public DocumentController(DocumentApplicationService documents, BatchReindexService batchReindex) {
+        this.documents = documents;
+        this.batchReindex = batchReindex;
+    }
 
     @GetMapping
     public ApiResponse<List<DocumentView>> list(
@@ -64,6 +69,35 @@ public class DocumentController {
             @AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.accepted()
                 .body(ApiResponse.success(documents.retry(projectId, documentId, userId(jwt))));
+    }
+
+    @PostMapping("/{documentId}/reindex")
+    public ResponseEntity<ApiResponse<DocumentView>> reindex(
+            @PathVariable UUID projectId, @PathVariable UUID documentId,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.accepted()
+                .body(ApiResponse.success(documents.reindex(projectId, documentId, userId(jwt))));
+    }
+
+    @PostMapping("/reindex-all")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Integer>>> reindexAll(
+            @PathVariable UUID projectId,
+            @AuthenticationPrincipal Jwt jwt) {
+        int queued = batchReindex.reindexAll(projectId, userId(jwt));
+        return ResponseEntity.accepted()
+                .body(ApiResponse.success(java.util.Map.of("queued", queued)));
+    }
+
+    @GetMapping("/reindex-progress")
+    public ApiResponse<java.util.Map<String, Object>> reindexProgress(
+            @PathVariable UUID projectId,
+            @AuthenticationPrincipal Jwt jwt) {
+        BatchReindexService.BatchProgress progress = batchReindex.getProgress(projectId, userId(jwt));
+        return ApiResponse.success(java.util.Map.of(
+                "total", progress.total,
+                "completed", progress.getCompleted(),
+                "failed", progress.getFailed(),
+                "inProgress", progress.getInProgress()));
     }
 
     @DeleteMapping("/{documentId}")

@@ -232,8 +232,8 @@ public class TaskPlanCommandService {
     }
 
     private void validateCreate(UUID projectId, CreateTaskPlanRequest request) {
-        if (!Set.of(10, 20, 30, 40).contains(request.maxTaskCount())) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "maxTaskCount 仅允许 10、20、30、40");
+        if (request.maxTaskCount() < 1 || request.maxTaskCount() > 40) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "最大任务数必须在 1 到 40 之间");
         }
         if (request.planStartDate().isAfter(request.planDueDate())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "规划日期范围无效");

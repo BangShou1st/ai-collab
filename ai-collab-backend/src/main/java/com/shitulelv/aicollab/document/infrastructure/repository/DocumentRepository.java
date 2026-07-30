@@ -48,6 +48,9 @@ public class DocumentRepository {
     public boolean resetFailed(UUID projectId, UUID documentId) {
         return mapper.resetFailed(projectId, documentId) == 1;
     }
+    public boolean resetForReindex(UUID projectId, UUID documentId) {
+        return mapper.resetForReindex(projectId, documentId) == 1;
+    }
     public boolean markDeleting(UUID projectId, UUID documentId) {
         return mapper.markDeleting(projectId, documentId) == 1;
     }
@@ -62,11 +65,15 @@ public class DocumentRepository {
             DocumentChunk chunk = chunks.get(i);
             String metadata;
             try {
-                metadata = objectMapper.writeValueAsString(Map.of(
-                        "projectId", projectId.toString(),
-                        "documentId", documentId.toString(),
-                        "chunkNo", chunk.chunkNo(),
-                        "filename", filename));
+                Map<String, Object> metaMap = new java.util.HashMap<>();
+                metaMap.put("projectId", projectId.toString());
+                metaMap.put("documentId", documentId.toString());
+                metaMap.put("chunkNo", chunk.chunkNo());
+                metaMap.put("filename", filename);
+                if (chunk.metadata() != null && !chunk.metadata().isEmpty()) {
+                    metaMap.putAll(chunk.metadata());
+                }
+                metadata = objectMapper.writeValueAsString(metaMap);
             } catch (JsonProcessingException exception) {
                 throw new IllegalStateException("文档分块元数据序列化失败", exception);
             }

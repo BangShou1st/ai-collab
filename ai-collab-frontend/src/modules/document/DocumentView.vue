@@ -12,6 +12,12 @@ import {
 import { projectApi } from '../project/project-api'
 import type { Project } from '../project/types'
 import { documentApi } from './document-api'
+import {
+  createUploadCandidates,
+  uploadCandidatesSequentially,
+  validateUploadCandidate,
+  type UploadCandidate,
+} from './document-upload'
 import type { ProjectDocument } from './types'
 
 const route = useRoute()
@@ -20,31 +26,31 @@ const project = ref<Project | null>(null)
 const documents = ref<ProjectDocument[]>([])
 const selected = ref<ProjectDocument | null>(null)
 const loading = ref(false)
-const errorMessage = ref('')
 const drawerVisible = ref(false)
 const uploadVisible = ref(false)
 const uploading = ref(false)
 const operationId = ref('')
-const chosenFile = ref<File | null>(null)
-const displayName = ref('')
+const uploadCandidates = ref<UploadCandidate[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 const dragging = ref(false)
 let pollTimer: number | null = null
 let active = true
 
+function showError(error: unknown): void {
+  ElMessage.error(normalizeApiError(error).message)
+}
+
 const canManage = computed(() => project.value?.role === 'OWNER' || project.value?.role === 'ADMIN')
+const readyDocuments = computed(() => documents.value.filter(d => d.status === 'READY'))
+const batchReindexing = ref(false)
+const reindexProgress = ref<{ total: number; completed: number; failed: number; inProgress: number } | null>(null)
 const processingStatuses = new Set(['UPLOADED', 'PARSING', 'INDEXING', 'DELETING'])
 const hasProcessing = computed(() => documents.value.some(item => processingStatuses.has(item.status)))
 const uploadValidationMessage = computed(() => {
-  if (!chosenFile.value) return '请选择要上传的文件'
-  if (chosenFile.value.size <= 0) return '不能上传空文件'
-  if (chosenFile.value.size > 20 * 1024 * 1024) return '文件大小不能超过 20MB'
-  if (chosenFile.value.name.length > 180) return '文件名不能超过 180 个字符'
-  if (displayName.value.length > 180) return '显示名称不能超过 180 个字符'
-  if (!/\.(pdf|docx|md|markdown|txt)$/i.test(chosenFile.value.name)) {
-    return '仅支持 PDF、DOCX、Markdown 和 TXT 文件'
-  }
-  return ''
+  if (uploadCandidates.value.length === 0) return '请选择要上传的文件'
+  return uploadCandidates.value
+    .map(validateUploadCandidate)
+    .find(Boolean) ?? ''
 })
 
 function formatBytes(bytes: number): string {
@@ -55,21 +61,27 @@ function formatBytes(bytes: number): string {
 
 async function load(showLoading = true): Promise<void> {
   if (showLoading) loading.value = true
-  errorMessage.value = ''
   try {
-    const [projectResult, documentResult] = await Promise.all([
+    const [projectResult, documentResult] = await Promise.allSettled([
       projectApi.get(projectId),
       documentApi.list(projectId),
     ])
     if (!active) return
-    project.value = projectResult.data
-    documents.value = documentResult.data
+    if (projectResult.status === 'fulfilled') {
+      project.value = projectResult.value.data
+    } else {
+      showError(projectResult.reason)
+    }
+    if (documentResult.status === 'fulfilled') {
+      documents.value = documentResult.value.data
+    } else {
+      documents.value = []
+      showError(documentResult.reason)
+    }
     if (selected.value) {
       selected.value = documents.value.find(item => item.id === selected.value?.id) ?? null
       if (!selected.value) drawerVisible.value = false
     }
-  } catch (error) {
-    if (active) errorMessage.value = normalizeApiError(error).message
   } finally {
     if (active) {
       loading.value = false
@@ -95,9 +107,7 @@ function stopPolling(): void {
 }
 
 function chooseFiles(files: FileList | null): void {
-  const file = files?.item(0) ?? null
-  chosenFile.value = file
-  if (file && !displayName.value) displayName.value = file.name.replace(/\.[^.]+$/, '')
+  uploadCandidates.value = createUploadCandidates(files ? Array.from(files) : [])
 }
 
 function onFileChange(event: Event): void {
@@ -110,23 +120,28 @@ function onDrop(event: DragEvent): void {
 }
 
 function resetUpload(): void {
-  chosenFile.value = null
-  displayName.value = ''
+  uploadCandidates.value = []
   if (fileInput.value) fileInput.value.value = ''
 }
 
 async function upload(): Promise<void> {
-  if (!chosenFile.value || uploadValidationMessage.value || uploading.value) return
+  if (uploadCandidates.value.length === 0 || uploadValidationMessage.value || uploading.value) return
   uploading.value = true
-  errorMessage.value = ''
   try {
-    await documentApi.upload(projectId, chosenFile.value, displayName.value)
-    uploadVisible.value = false
-    resetUpload()
+    const results = await uploadCandidatesSequentially(
+      uploadCandidates.value,
+      candidate => documentApi.upload(projectId, candidate.file, candidate.displayName),
+    )
     await load(false)
-    ElMessage.success('文档已上传，正在后台处理')
-  } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    const succeeded = results.filter(item => item.status === 'success').length
+    const failed = results.length - succeeded
+    if (failed === 0) {
+      uploadVisible.value = false
+      resetUpload()
+      ElMessage.success(`已上传 ${succeeded} 个文档，正在后台处理`)
+    } else {
+      ElMessage.warning(`已上传 ${succeeded} 个文档，${failed} 个失败；请查看文件列表中的具体原因`)
+    }
   } finally {
     uploading.value = false
   }
@@ -139,7 +154,7 @@ async function openDetail(item: ProjectDocument): Promise<void> {
     selected.value = (await documentApi.get(projectId, item.id)).data
     drawerVisible.value = true
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showError(error)
   } finally {
     operationId.value = ''
   }
@@ -152,7 +167,7 @@ async function download(item: ProjectDocument): Promise<void> {
     const result = await documentApi.downloadUrl(projectId, item.id)
     window.location.assign(result.data.url)
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showError(error)
   } finally {
     operationId.value = ''
   }
@@ -166,9 +181,65 @@ async function retry(item: ProjectDocument): Promise<void> {
     await load(false)
     ElMessage.success('已重新提交处理')
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showError(error)
   } finally {
     operationId.value = ''
+  }
+}
+
+async function reindex(item: ProjectDocument): Promise<void> {
+  if (!canManage.value || item.status !== 'READY' || operationId.value) return
+  try {
+    await ElMessageBox.confirm(
+      `将重新解析和索引文档"${item.displayName}"，期间文档状态会变为处理中。`,
+      '重新索引文档',
+      { confirmButtonText: '确认重新索引', cancelButtonText: '取消', type: 'info' },
+    )
+    operationId.value = item.id
+    await documentApi.reindex(projectId, item.id)
+    await load(false)
+    ElMessage.success('已提交重新索引')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    showError(error)
+  } finally {
+    operationId.value = ''
+  }
+}
+
+async function reindexAll(): Promise<void> {
+  if (!canManage.value || batchReindexing.value || readyDocuments.value.length === 0) return
+  try {
+    await ElMessageBox.confirm(
+      `将重新解析和索引全部 ${readyDocuments.value.length} 个已就绪文档，期间文档状态会变为处理中。`,
+      '批量重建索引',
+      { confirmButtonText: '确认重建', cancelButtonText: '取消', type: 'warning' },
+    )
+    batchReindexing.value = true
+    await documentApi.reindexAll(projectId)
+    await load(false)
+    await pollReindexProgress()
+    ElMessage.success('已提交批量重建索引')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    showError(error)
+  } finally {
+    batchReindexing.value = false
+  }
+}
+
+async function pollReindexProgress(): Promise<void> {
+  try {
+    const result = await documentApi.getReindexProgress(projectId)
+    reindexProgress.value = result.data
+    if (result.data.inProgress > 0) {
+      setTimeout(() => { void pollReindexProgress() }, 2000)
+    } else {
+      await load(false)
+      setTimeout(() => { reindexProgress.value = null }, 3000)
+    }
+  } catch {
+    // ignore progress polling errors
   }
 }
 
@@ -190,7 +261,7 @@ async function remove(item: ProjectDocument): Promise<void> {
     ElMessage.success('文档已删除')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showError(error)
   } finally {
     operationId.value = ''
   }
@@ -217,7 +288,6 @@ onUnmounted(() => {
       </template>
     </PageHeader>
 
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <el-alert
       v-if="project?.role === 'MEMBER'"
       title="你可以查看和下载项目文档；上传、重试和删除需要管理员权限。"
@@ -227,6 +297,28 @@ onUnmounted(() => {
     />
 
     <el-card v-loading="loading" class="document-list-card">
+      <template #header>
+        <div class="document-card-header">
+          <span>项目文档</span>
+          <el-button
+            v-if="canManage && readyDocuments.length > 0"
+            type="warning"
+            size="small"
+            :loading="batchReindexing"
+            @click="reindexAll"
+          >
+            重建全部索引
+          </el-button>
+        </div>
+      </template>
+      <el-alert
+        v-if="reindexProgress && reindexProgress.total > 0"
+        :title="`批量重建索引进度：${reindexProgress.completed}/${reindexProgress.total} 完成，${reindexProgress.failed} 失败`"
+        type="info"
+        show-icon
+        :closable="false"
+        class="reindex-progress"
+      />
       <el-table :data="documents" empty-text="暂无项目文档" @row-click="openDetail">
         <el-table-column label="文档名称" min-width="220">
           <template #default="{ row }">
@@ -247,6 +339,9 @@ onUnmounted(() => {
           <template #default="{ row }">{{ formatBytes(row.sizeBytes) }}</template>
         </el-table-column>
         <el-table-column label="分块数" width="100" prop="chunkCount" />
+        <el-table-column label="版本" width="80">
+          <template #default="{ row }">v{{ row.version }}</template>
+        </el-table-column>
         <el-table-column label="上传者" min-width="120">
           <template #default="{ row }">{{ row.uploadedByDisplayName || '未知成员' }}</template>
         </el-table-column>
@@ -270,6 +365,14 @@ onUnmounted(() => {
               @click.stop="retry(row)"
             >
               重试
+            </el-button>
+            <el-button
+              v-if="canManage && row.status === 'READY'"
+              text
+              aria-label="重新索引文档"
+              @click.stop="reindex(row)"
+            >
+              重新索引
             </el-button>
             <el-button
               v-if="canManage"
@@ -301,20 +404,32 @@ onUnmounted(() => {
             @dragleave.prevent="dragging = false"
             @drop.prevent="onDrop"
           >
-            <strong>{{ chosenFile?.name || '将文件拖到这里' }}</strong>
-            <span>或点击选择文件；支持 PDF、DOCX、Markdown、TXT，最大 20MB</span>
+            <strong>{{ uploadCandidates.length ? `已选择 ${uploadCandidates.length} 个文件` : '将文件拖到这里' }}</strong>
+            <span>或点击一次选择多个文件；支持 PDF、DOCX、Markdown、TXT，单个最大 20MB</span>
             <input
               ref="fileInput"
               class="visually-hidden"
               type="file"
+              multiple
               accept=".pdf,.docx,.md,.markdown,.txt"
               @change="onFileChange"
             >
           </div>
         </el-form-item>
-        <el-form-item label="显示名称">
-          <el-input v-model="displayName" :maxlength="180" show-word-limit />
-        </el-form-item>
+        <div v-if="uploadCandidates.length" class="upload-candidate-list">
+          <div v-for="candidate in uploadCandidates" :key="candidate.id" class="upload-candidate">
+            <div class="upload-candidate__heading">
+              <span>{{ candidate.file.name }}</span>
+              <el-tag v-if="candidate.status !== 'pending'" :type="candidate.status === 'success' ? 'success' : candidate.status === 'failed' ? 'danger' : 'info'">
+                {{ candidate.status === 'success' ? '上传成功' : candidate.status === 'failed' ? '上传失败' : '上传中' }}
+              </el-tag>
+            </div>
+            <el-input v-model="candidate.displayName" :maxlength="180" placeholder="显示名称" />
+            <small v-if="candidate.error" class="upload-candidate__error">
+              {{ normalizeApiError(candidate.error).message }}
+            </small>
+          </div>
+        </div>
         <el-alert
           v-if="uploadValidationMessage"
           :title="uploadValidationMessage"
@@ -329,7 +444,7 @@ onUnmounted(() => {
             :loading="uploading"
             :disabled="Boolean(uploadValidationMessage) || uploading"
           >
-            上传
+            上传 {{ uploadCandidates.length }} 个文件
           </el-button>
         </div>
       </el-form>

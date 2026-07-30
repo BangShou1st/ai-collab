@@ -5,11 +5,15 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.knowledge.api.dto.CreateKnowledgeSessionRequest;
 import com.shitulelv.aicollab.knowledge.api.dto.KnowledgeQuestionRequest;
+import com.shitulelv.aicollab.knowledge.application.service.KnowledgeFeedbackService;
 import com.shitulelv.aicollab.knowledge.application.service.KnowledgeQuestionApplicationService;
 import com.shitulelv.aicollab.knowledge.application.service.KnowledgeSessionApplicationService;
+import com.shitulelv.aicollab.knowledge.application.service.KnowledgeStreamQuestionService;
 import com.shitulelv.aicollab.knowledge.application.view.KnowledgeAnswerView;
+import com.shitulelv.aicollab.knowledge.application.view.KnowledgeFeedbackView;
 import com.shitulelv.aicollab.knowledge.application.view.KnowledgeSessionDetailView;
 import com.shitulelv.aicollab.knowledge.application.view.KnowledgeSessionView;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -21,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.UUID;
@@ -30,12 +35,18 @@ import java.util.UUID;
 public class KnowledgeController {
     private final KnowledgeSessionApplicationService sessions;
     private final KnowledgeQuestionApplicationService questions;
+    private final KnowledgeStreamQuestionService streamQuestions;
+    private final KnowledgeFeedbackService feedback;
 
     public KnowledgeController(
             KnowledgeSessionApplicationService sessions,
-            KnowledgeQuestionApplicationService questions) {
+            KnowledgeQuestionApplicationService questions,
+            KnowledgeStreamQuestionService streamQuestions,
+            KnowledgeFeedbackService feedback) {
         this.sessions = sessions;
         this.questions = questions;
+        this.streamQuestions = streamQuestions;
+        this.feedback = feedback;
     }
 
     @GetMapping
@@ -85,6 +96,47 @@ public class KnowledgeController {
             @RequestBody KnowledgeQuestionRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(questions.ask(projectId, sessionId, request, userId(jwt)));
+    }
+
+    @PostMapping(value = "/{sessionId}/questions/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter askStream(
+            @PathVariable UUID projectId,
+            @PathVariable UUID sessionId,
+            @RequestBody KnowledgeQuestionRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        SseEmitter emitter = new SseEmitter(300_000L);
+        streamQuestions.askStream(projectId, sessionId, request, userId(jwt), emitter);
+        return emitter;
+    }
+
+    @PostMapping("/messages/{messageId}/feedback")
+    public ApiResponse<KnowledgeFeedbackView> submitFeedback(
+            @PathVariable UUID projectId,
+            @PathVariable UUID messageId,
+            @RequestBody java.util.Map<String, Boolean> body,
+            @AuthenticationPrincipal Jwt jwt) {
+        Boolean helpful = body.get("helpful");
+        if (helpful == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "helpful 字段不能为空");
+        }
+        return ApiResponse.success(feedback.submit(projectId, messageId, userId(jwt), helpful));
+    }
+
+    @DeleteMapping("/messages/{messageId}/feedback")
+    public ResponseEntity<Void> removeFeedback(
+            @PathVariable UUID projectId,
+            @PathVariable UUID messageId,
+            @AuthenticationPrincipal Jwt jwt) {
+        feedback.remove(projectId, messageId, userId(jwt));
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/messages/{messageId}/feedback")
+    public ApiResponse<KnowledgeFeedbackView> getFeedback(
+            @PathVariable UUID projectId,
+            @PathVariable UUID messageId,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(feedback.getFeedback(projectId, messageId, userId(jwt)));
     }
 
     private static UUID userId(Jwt jwt) {

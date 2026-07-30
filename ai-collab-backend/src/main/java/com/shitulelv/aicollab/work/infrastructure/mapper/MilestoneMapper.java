@@ -26,7 +26,8 @@ public interface MilestoneMapper extends BaseMapper<MilestoneEntity> {
 
     @Update("""
             UPDATE milestone SET name=#{item.name}, description=#{item.description},
-              target_date=#{item.targetDate}, status=#{item.status}, sort_order=#{item.sortOrder},
+              start_date=#{item.startDate}, end_date=#{item.endDate}, target_date=#{item.targetDate},
+              status=#{item.status}, sort_order=#{item.sortOrder},
               version=version+1, updated_at=now()
             WHERE project_id=#{projectId} AND id=#{item.id} AND version=#{item.version}
             """)

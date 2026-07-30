@@ -68,3 +68,11 @@ security:
 auth:
     public-registration:
         enabled: "${AUTH_PUBLIC_REGISTRATION_ENABLED:false}"
+agent:
+  enabled: ${AGENT_ENABLED:${CHAT_ENABLED:false}}
+  worker-delay-ms: ${AGENT_WORKER_DELAY_MS:1000}
+  schedule-delay-ms: ${AGENT_SCHEDULE_DELAY_MS:30000}
+
+model:
+  config:
+    master-key: "${MODEL_CONFIG_MASTER_KEY:local-model-config-key-change-me}"

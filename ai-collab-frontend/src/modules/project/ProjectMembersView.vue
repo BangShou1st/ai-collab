@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { normalizeApiError } from '../../api/api-result'
 import { formatDateTime, roleLabel } from '../../shared/display-labels'
@@ -11,6 +11,7 @@ import type { Project, ProjectMember, ProjectRole } from './types'
 type InvitableRole = Exclude<ProjectRole, 'OWNER'>
 
 const route = useRoute()
+const router = useRouter()
 const projectId = route.params.projectId as string
 const project = ref<Project | null>(null)
 const members = ref<ProjectMember[]>([])
@@ -27,6 +28,7 @@ const invitationForm = reactive({
 })
 const canInvite = computed(() => project.value?.role === 'OWNER' || project.value?.role === 'ADMIN')
 const canManageMembers = computed(() => project.value?.role === 'OWNER')
+const isOwner = computed(() => project.value?.role === 'OWNER')
 
 async function load(): Promise<void> {
   loading.value = true
@@ -105,7 +107,7 @@ async function removeMember(member: ProjectMember): Promise<void> {
   if (memberOperationId.value) return
   try {
     await ElMessageBox.confirm(
-      `确认移除成员“${member.displayName}”吗？`,
+      `确认移除成员”${member.displayName}”吗？`,
       '移除成员',
       { confirmButtonText: '确认移除', cancelButtonText: '取消', type: 'warning' },
     )
@@ -114,6 +116,48 @@ async function removeMember(member: ProjectMember): Promise<void> {
     await projectApi.removeMember(projectId, member.userId)
     await load()
     ElMessage.success('成员已移除')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    errorMessage.value = normalizeApiError(error).message
+  } finally {
+    memberOperationId.value = ''
+  }
+}
+
+async function transferOwnership(member: ProjectMember): Promise<void> {
+  if (memberOperationId.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确认将项目所有权转移给”${member.displayName}”吗？转移后您将变为普通成员。`,
+      '转移所有权',
+      { confirmButtonText: '确认转移', cancelButtonText: '取消', type: 'warning' },
+    )
+    memberOperationId.value = member.userId
+    errorMessage.value = ''
+    await projectApi.transferOwnership(projectId, member.userId)
+    await load()
+    ElMessage.success('所有权已转移')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    errorMessage.value = normalizeApiError(error).message
+  } finally {
+    memberOperationId.value = ''
+  }
+}
+
+async function leaveProject(): Promise<void> {
+  if (memberOperationId.value) return
+  try {
+    await ElMessageBox.confirm(
+      '确认退出当前项目吗？退出后将无法访问该项目。',
+      '退出项目',
+      { confirmButtonText: '确认退出', cancelButtonText: '取消', type: 'warning' },
+    )
+    memberOperationId.value = 'self'
+    errorMessage.value = ''
+    await projectApi.leaveProject(projectId)
+    ElMessage.success('已退出项目')
+    router.push('/projects')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
     errorMessage.value = normalizeApiError(error).message
@@ -135,6 +179,16 @@ onMounted(load)
       <template #actions>
         <el-button v-if="canInvite" type="primary" @click="invitationVisible = true">
           创建邀请
+        </el-button>
+        <el-button
+          v-if="!isOwner"
+          type="danger"
+          plain
+          :loading="memberOperationId === 'self'"
+          :disabled="Boolean(memberOperationId)"
+          @click="leaveProject"
+        >
+          退出项目
         </el-button>
       </template>
     </PageHeader>
@@ -170,8 +224,18 @@ onMounted(load)
       <el-table-column label="加入时间" min-width="190">
         <template #default="{ row }">{{ formatDateTime(row.joinedAt) }}</template>
       </el-table-column>
-      <el-table-column v-if="canManageMembers" label="操作" width="130">
+      <el-table-column v-if="canManageMembers" label="操作" width="200">
         <template #default="{ row }">
+          <el-button
+            v-if="row.role !== 'OWNER'"
+            type="primary"
+            text
+            :loading="memberOperationId === row.userId"
+            :disabled="Boolean(memberOperationId)"
+            @click="transferOwnership(row)"
+          >
+            转移所有权
+          </el-button>
           <el-button
             v-if="row.role !== 'OWNER'"
             type="danger"

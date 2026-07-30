@@ -16,6 +16,8 @@ public class MilestoneEntity {
     private String name;
     private String description;
     private LocalDate targetDate;
+    private LocalDate startDate;
+    private LocalDate endDate;
     private MilestoneStatus status;
     private Integer sortOrder;
     private UUID createdBy;
@@ -36,6 +38,10 @@ public class MilestoneEntity {
     public void setDescription(String description) { this.description = description; }
     public LocalDate getTargetDate() { return targetDate; }
     public void setTargetDate(LocalDate targetDate) { this.targetDate = targetDate; }
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
+    public LocalDate getEndDate() { return endDate; }
+    public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
     public MilestoneStatus getStatus() { return status; }
     public void setStatus(MilestoneStatus status) { this.status = status; }
     public Integer getSortOrder() { return sortOrder; }

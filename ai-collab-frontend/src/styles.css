@@ -25,6 +25,7 @@
   --shadow-float: 0 18px 54px rgba(24, 32, 51, 0.14);
   --page-max-width: 1480px;
   --page-gutter: clamp(18px, 3vw, 40px);
+  --project-shell-offset: 116px;
   --section-gap: 24px;
   --transition-duration: 180ms;
   --el-color-primary: var(--color-primary);
@@ -205,6 +206,9 @@ p {
 }
 
 .project-nav {
+  position: sticky;
+  z-index: 19;
+  top: 68px;
   min-height: 48px;
   padding: 6px var(--page-gutter);
   overflow-x: auto;
@@ -212,6 +216,24 @@ p {
   background: #f9faff;
   gap: 4px;
   scrollbar-width: thin;
+}
+
+.project-nav-menu {
+  padding: 7px 13px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.project-nav-menu:hover,
+.project-nav-menu:focus-visible {
+  color: var(--color-primary);
+  outline: none;
+  background: var(--color-primary-soft);
 }
 
 .project-nav-back {

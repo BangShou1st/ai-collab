@@ -40,16 +40,27 @@ public class LocalDemoUserInitializer implements ApplicationRunner {
      */
     @Override
     public void run(ApplicationArguments arguments) {
-        if (userService.findByUsername(properties.username()).isPresent()) {
+        ensureAdmin(properties.username(), properties.password(), "Local Owner");
+        ensureAdmin("admin", "admin", "系统管理员");
+    }
+
+    private void ensureAdmin(String username, String password, String displayName) {
+        var existing = userService.findByUsername(username);
+        if (existing.isPresent()) {
+            if (!Boolean.TRUE.equals(existing.get().getSystemAdmin())) {
+                userService.grantSystemAdmin(existing.get().getId());
+            }
             return;
         }
 
         UserEntity user = new UserEntity();
         user.setId(UUID.randomUUID());
-        user.setUsername(properties.username());
-        user.setPasswordHash(passwordEncoder.encode(properties.password()));
-        user.setDisplayName("Local Owner");
+        user.setUsername(username);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setDisplayName(displayName);
         user.setStatus(UserStatus.ACTIVE);
+        user.setSystemAdmin(true);
+        user.setTokenVersion(0);
         userService.create(user);
     }
 }

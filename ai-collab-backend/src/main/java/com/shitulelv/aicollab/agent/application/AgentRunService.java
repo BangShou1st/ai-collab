@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.agent.application;
 
 import com.shitulelv.aicollab.agent.api.dto.CreateAgentSessionRequest;
+import com.shitulelv.aicollab.agent.api.dto.RenameAgentSessionRequest;
 import com.shitulelv.aicollab.agent.api.dto.SubmitAgentMessageRequest;
 import com.shitulelv.aicollab.agent.application.view.*;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
@@ -46,6 +47,22 @@ public class AgentRunService {
         access.requireMember(projectId, userId);
         return repository.findSession(projectId, sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_SESSION_NOT_FOUND));
+    }
+
+    @Transactional
+    public AgentSessionView renameSession(
+            UUID projectId, UUID sessionId, UUID userId, RenameAgentSessionRequest request) {
+        access.requireMember(projectId, userId);
+        return repository.renameSession(projectId, sessionId, userId, request.title().strip())
+                .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_SESSION_NOT_FOUND));
+    }
+
+    @Transactional
+    public void deleteSession(UUID projectId, UUID sessionId, UUID userId) {
+        access.requireMember(projectId, userId);
+        if (!repository.deleteSession(projectId, sessionId, userId)) {
+            throw new BusinessException(ErrorCode.AGENT_SESSION_NOT_FOUND);
+        }
     }
 
     @Transactional

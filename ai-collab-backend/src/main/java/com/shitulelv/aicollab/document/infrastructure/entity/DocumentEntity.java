@@ -28,6 +28,7 @@ public class DocumentEntity {
     private OffsetDateTime processingHeartbeatAt;
     private UUID uploadedBy;
     private OffsetDateTime indexedAt;
+    private int version;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     @TableField(exist = false) private String uploadedByDisplayName;
@@ -68,6 +69,8 @@ public class DocumentEntity {
     public void setUploadedBy(UUID uploadedBy) { this.uploadedBy = uploadedBy; }
     public OffsetDateTime getIndexedAt() { return indexedAt; }
     public void setIndexedAt(OffsetDateTime indexedAt) { this.indexedAt = indexedAt; }
+    public int getVersion() { return version; }
+    public void setVersion(int version) { this.version = version; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }

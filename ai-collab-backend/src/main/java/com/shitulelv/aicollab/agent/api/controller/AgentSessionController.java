@@ -1,7 +1,10 @@
 package com.shitulelv.aicollab.agent.api.controller;
 
 import com.shitulelv.aicollab.agent.api.dto.CreateAgentSessionRequest;
+import com.shitulelv.aicollab.agent.api.dto.RenameAgentSessionRequest;
 import com.shitulelv.aicollab.agent.api.dto.SubmitAgentMessageRequest;
+import com.shitulelv.aicollab.agent.api.dto.AgentMessageResponse;
+import com.shitulelv.aicollab.agent.api.dto.AgentRunDetailResponse;
 import com.shitulelv.aicollab.agent.application.AgentRunService;
 import com.shitulelv.aicollab.agent.application.view.*;
 import com.shitulelv.aicollab.common.api.ApiResponse;
@@ -50,11 +53,31 @@ public class AgentSessionController {
         return ApiResponse.success(runs.getSession(projectId, sessionId, userId(jwt)));
     }
 
+    @PatchMapping("/sessions/{sessionId}")
+    public ApiResponse<AgentSessionView> renameSession(
+            @PathVariable UUID projectId,
+            @PathVariable UUID sessionId,
+            @Valid @RequestBody RenameAgentSessionRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(runs.renameSession(
+                projectId, sessionId, userId(jwt), request));
+    }
+
+    @DeleteMapping("/sessions/{sessionId}")
+    public ResponseEntity<Void> deleteSession(
+            @PathVariable UUID projectId,
+            @PathVariable UUID sessionId,
+            @AuthenticationPrincipal Jwt jwt) {
+        runs.deleteSession(projectId, sessionId, userId(jwt));
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/sessions/{sessionId}/messages")
-    public ApiResponse<List<AgentMessageView>> listMessages(
+    public ApiResponse<List<AgentMessageResponse>> listMessages(
             @PathVariable UUID projectId, @PathVariable UUID sessionId,
             @AuthenticationPrincipal Jwt jwt) {
-        return ApiResponse.success(runs.listMessages(projectId, sessionId, userId(jwt)));
+        return ApiResponse.success(runs.listMessages(projectId, sessionId, userId(jwt))
+                .stream().map(AgentMessageResponse::from).toList());
     }
 
     @PostMapping("/sessions/{sessionId}/messages")
@@ -68,10 +91,11 @@ public class AgentSessionController {
     }
 
     @GetMapping("/runs/{runId}")
-    public ApiResponse<AgentRunDetailView> getRun(
+    public ApiResponse<AgentRunDetailResponse> getRun(
             @PathVariable UUID projectId, @PathVariable UUID runId,
             @AuthenticationPrincipal Jwt jwt) {
-        return ApiResponse.success(runs.getRun(projectId, runId, userId(jwt)));
+        return ApiResponse.success(AgentRunDetailResponse.from(
+                runs.getRun(projectId, runId, userId(jwt))));
     }
 
     @PostMapping("/runs/{runId}/cancel")

@@ -35,4 +35,7 @@ public class TaskRepository {
             }
         }
     }
+    public List<TaskEntity> findDependents(UUID projectId, UUID taskId) {
+        return mapper.findDependents(projectId, taskId);
+    }
 }

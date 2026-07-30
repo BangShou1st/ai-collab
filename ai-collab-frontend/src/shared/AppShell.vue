@@ -62,6 +62,8 @@ async function logout(): Promise<void> {
       </router-link>
       <nav class="global-nav" aria-label="全局导航">
         <router-link to="/projects">我的项目</router-link>
+        <router-link to="/notifications">通知中心</router-link>
+        <router-link v-if="auth.currentUser?.systemAdmin" to="/admin">管理中心</router-link>
         <router-link to="/account">账号设置</router-link>
       </nav>
       <div class="user-entry">
@@ -79,12 +81,42 @@ async function logout(): Promise<void> {
     <nav v-if="projectId" class="project-nav" aria-label="项目导航">
       <router-link :to="`/projects/${projectId}/dashboard`">项目概览</router-link>
       <router-link :to="`/projects/${projectId}/board`">任务看板</router-link>
-      <router-link :to="`/projects/${projectId}/milestones`">里程碑</router-link>
-      <router-link :to="`/projects/${projectId}/members`">成员管理</router-link>
       <router-link :to="`/projects/${projectId}/documents`">项目文档</router-link>
       <router-link :to="`/projects/${projectId}/knowledge`">知识问答</router-link>
-      <router-link :to="`/projects/${projectId}/ai-planning`">AI 任务规划</router-link>
-      <router-link v-if="projectCtx.isAdminOrOwner" :to="`/projects/${projectId}/audit-logs`">操作日志</router-link>
+      <router-link :to="`/projects/${projectId}/ai-planning`">任务规划</router-link>
+      <router-link :to="`/projects/${projectId}/agent`">协作 Agent</router-link>
+      <el-dropdown trigger="click" @command="router.push(String($event))">
+        <button class="project-nav-menu" type="button">计划视图⌄</button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item :command="`/projects/${projectId}/gantt`">甘特图</el-dropdown-item>
+            <el-dropdown-item :command="`/projects/${projectId}/calendar`">日历</el-dropdown-item>
+            <el-dropdown-item :command="`/projects/${projectId}/dependency-graph`">任务依赖</el-dropdown-item>
+            <el-dropdown-item :command="`/projects/${projectId}/member-load`">成员负载</el-dropdown-item>
+            <el-dropdown-item :command="`/projects/${projectId}/milestones`">里程碑</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <el-dropdown trigger="click" @command="router.push(String($event))">
+        <button class="project-nav-menu" type="button">智能工具⌄</button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item :command="`/projects/${projectId}/weekly-report`">项目周报</el-dropdown-item>
+            <el-dropdown-item :command="`/projects/${projectId}/risk-analysis`">风险分析</el-dropdown-item>
+            <el-dropdown-item :command="`/projects/${projectId}/plan-comparison`">规划对比</el-dropdown-item>
+            <el-dropdown-item v-if="projectCtx.isAdminOrOwner" :command="`/projects/${projectId}/knowledge/eval`">问答评测</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <el-dropdown trigger="click" @command="router.push(String($event))">
+        <button class="project-nav-menu" type="button">项目设置⌄</button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item :command="`/projects/${projectId}/members`">成员管理</el-dropdown-item>
+            <el-dropdown-item v-if="projectCtx.isAdminOrOwner" :command="`/projects/${projectId}/audit-logs`">操作日志</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
       <router-link class="project-nav-back" to="/projects">返回项目列表</router-link>
     </nav>
 

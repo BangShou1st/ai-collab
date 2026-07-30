@@ -9,11 +9,16 @@ defineProps<{
   opening: boolean
   updating: boolean
   operationLocked: boolean
+  draggable?: boolean
+  selected?: boolean
 }>()
 
 defineEmits<{
   open: [task: Task]
   updateStatus: [task: Task, status: TaskStatus]
+  dragstart: [event: DragEvent]
+  dragend: [event: DragEvent]
+  toggleSelect: [taskId: string]
 }>()
 </script>
 
@@ -24,12 +29,23 @@ defineEmits<{
     shadow="hover"
     tabindex="0"
     role="button"
+    :draggable="draggable"
     :aria-label="`查看任务“${task.title}”详情`"
     @click="$emit('open', task)"
     @keydown.enter="$emit('open', task)"
     @keydown.space.prevent="$emit('open', task)"
+    @dragstart="$emit('dragstart', $event)"
+    @dragend="$emit('dragend', $event)"
   >
-    <h3>{{ task.title }}</h3>
+    <div class="card-header">
+      <el-checkbox
+        v-if="canChangeStatus"
+        :model-value="selected"
+        @click.stop
+        @change="$emit('toggleSelect', task.id)"
+      />
+      <h3>{{ task.title }}</h3>
+    </div>
     <p>负责人：{{ task.assigneeDisplayName || '未分配' }}</p>
     <p>截止日期：{{ formatDate(task.dueDate) }} · {{ taskPriorityLabel(task.priority) }}</p>
     <div v-if="task.dependencyIds.length" class="dependency-summary">
@@ -60,3 +76,16 @@ defineEmits<{
     </div>
   </el-card>
 </template>
+
+<style scoped>
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-header h3 {
+  margin: 0;
+  flex: 1;
+}
+</style>

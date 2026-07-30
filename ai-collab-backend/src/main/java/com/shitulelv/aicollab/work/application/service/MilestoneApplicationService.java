@@ -25,14 +25,17 @@ public class MilestoneApplicationService {
     private final WorkPermissionPolicy permissions;
     private final MilestoneRepository milestones;
     private final AuditService audit;
+    private final ProjectDateRangePolicy projectDates;
 
     public MilestoneApplicationService(
             ProjectAccessGuard access, WorkPermissionPolicy permissions,
-            MilestoneRepository milestones, AuditService audit) {
+            MilestoneRepository milestones, AuditService audit,
+            ProjectDateRangePolicy projectDates) {
         this.access = access;
         this.permissions = permissions;
         this.milestones = milestones;
         this.audit = audit;
+        this.projectDates = projectDates;
     }
 
     @Transactional(readOnly = true)
@@ -45,11 +48,15 @@ public class MilestoneApplicationService {
     public MilestoneView create(UUID projectId, CreateMilestoneRequest request, UUID userId) {
         ProjectRole role = access.requireMember(projectId, userId);
         permissions.requireAdmin(role);
+        validateDates(request.startDate(), request.endDate());
+        projectDates.validate(projectId, request.startDate(), request.endDate(), request.targetDate());
         MilestoneEntity entity = new MilestoneEntity();
         entity.setId(UUID.randomUUID());
         entity.setProjectId(projectId);
         entity.setName(request.name().trim());
         entity.setDescription(request.description() == null ? "" : request.description());
+        entity.setStartDate(request.startDate());
+        entity.setEndDate(request.endDate());
         entity.setTargetDate(request.targetDate());
         entity.setStatus(request.status() == null ? MilestoneStatus.PLANNED : request.status());
         entity.setSortOrder(request.sortOrder() == null ? 0 : request.sortOrder());
@@ -65,10 +72,14 @@ public class MilestoneApplicationService {
     public MilestoneView update(
             UUID projectId, UUID milestoneId, UpdateMilestoneRequest request, UUID userId) {
         permissions.requireAdmin(access.requireMember(projectId, userId));
+        validateDates(request.startDate(), request.endDate());
+        projectDates.validate(projectId, request.startDate(), request.endDate(), request.targetDate());
         MilestoneEntity entity = milestones.find(projectId, milestoneId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
         entity.setName(request.name().trim());
         entity.setDescription(request.description() == null ? "" : request.description());
+        entity.setStartDate(request.startDate());
+        entity.setEndDate(request.endDate());
         entity.setTargetDate(request.targetDate());
         entity.setStatus(request.status());
         entity.setSortOrder(request.sortOrder());
@@ -79,6 +90,12 @@ public class MilestoneApplicationService {
         audit.write(projectId, userId, "MILESTONE_UPDATED", "MILESTONE", milestoneId,
                 Map.of("name", entity.getName(), "status", entity.getStatus().name()));
         return MilestoneView.from(milestones.find(projectId, milestoneId).orElseThrow());
+    }
+
+    private static void validateDates(java.time.LocalDate startDate, java.time.LocalDate endDate) {
+        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "开始日期不能晚于截止日期");
+        }
     }
 
     @Transactional

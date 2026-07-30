@@ -11,6 +11,8 @@ import java.time.LocalDate;
 public record UpdateMilestoneRequest(
         @NotBlank @Size(max = 100) String name,
         @Size(max = 1000) String description,
+        LocalDate startDate,
+        LocalDate endDate,
         LocalDate targetDate,
         @NotNull MilestoneStatus status,
         @NotNull @Min(0) Integer sortOrder,

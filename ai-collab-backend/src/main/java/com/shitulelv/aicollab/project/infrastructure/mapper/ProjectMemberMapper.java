@@ -91,4 +91,27 @@ public interface ProjectMemberMapper {
             @Arg(column = "joined_at", javaType = OffsetDateTime.class)
     })
     Optional<MemberView> findMember(@Param("projectId") UUID projectId, @Param("userId") UUID userId);
+
+    @Select("""
+            SELECT project_id, user_id, role
+            FROM project_member
+            WHERE project_id = #{projectId} AND user_id = #{userId} AND role = 'OWNER'
+            FOR UPDATE
+            """)
+    Optional<MemberView> lockOwner(@Param("projectId") UUID projectId, @Param("userId") UUID userId);
+
+    @Update("""
+            UPDATE project_member SET role = #{role}
+            WHERE project_id = #{projectId} AND user_id = #{userId}
+            """)
+    void updateRoleDirect(
+            @Param("projectId") UUID projectId,
+            @Param("userId") UUID userId,
+            @Param("role") ProjectRole role);
+
+    @Update("""
+            UPDATE project_member SET role = 'OWNER'
+            WHERE project_id = #{projectId} AND user_id = #{userId}
+            """)
+    void promoteToOwner(@Param("projectId") UUID projectId, @Param("userId") UUID userId);
 }

@@ -24,6 +24,7 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   CURRENT_PASSWORD_INVALID: '当前密码不正确',
   NEW_PASSWORD_SAME_AS_CURRENT: '新密码不能与当前密码相同',
   PROJECT_NOT_FOUND: '项目不存在或你无权访问',
+  PROJECT_READ_ONLY: '当前项目状态为只读，不能修改项目文档',
   PROJECT_DOCUMENTS_EXIST: '项目中仍有文档，请先删除全部文档后再删除项目',
   PROJECT_CONFIRMED_PLANS_EXIST: '项目中已有确认的 AI 规划，不能直接删除',
   PROJECT_ADMIN_REQUIRED: '此操作需要项目管理员权限',
@@ -158,7 +159,7 @@ export function normalizeApiError(error: unknown): ApiResult<unknown> {
     return {
       httpStatus,
       code,
-      message: ERROR_CODE_MESSAGES[code] ?? backendMessage ?? statusMessage,
+      message: backendMessage ?? ERROR_CODE_MESSAGES[code] ?? statusMessage,
       data: sanitizeApiData(body.data ?? null),
     }
   }

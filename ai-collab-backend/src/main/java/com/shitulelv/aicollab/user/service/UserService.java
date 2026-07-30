@@ -4,11 +4,15 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.shitulelv.aicollab.user.entity.UserEntity;
 import com.shitulelv.aicollab.user.mapper.UserMapper;
+import com.shitulelv.aicollab.user.model.UserStatus;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.Locale;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -33,6 +37,11 @@ public class UserService {
         return Optional.ofNullable(userMapper.selectById(id));
     }
 
+    public List<UserEntity> findAll() {
+        return userMapper.selectList(new LambdaQueryWrapper<UserEntity>()
+                .orderByDesc(UserEntity::getCreatedAt));
+    }
+
     public Optional<UserEntity> findByEmail(String email) {
         if (email == null || email.isBlank()) {
             return Optional.empty();
@@ -55,6 +64,22 @@ public class UserService {
         userMapper.insert(user);
     }
 
+    public UserEntity requireSystemAdmin(UUID userId) {
+        UserEntity user = findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_UNAUTHORIZED));
+        if (!Boolean.TRUE.equals(user.getSystemAdmin()) || user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.ADMIN_REQUIRED);
+        }
+        return user;
+    }
+
+    public boolean grantSystemAdmin(UUID userId) {
+        return userMapper.update(null, new LambdaUpdateWrapper<UserEntity>()
+                .eq(UserEntity::getId, userId)
+                .set(UserEntity::getSystemAdmin, true)
+                .set(UserEntity::getUpdatedAt, OffsetDateTime.now())) == 1;
+    }
+
     public boolean updateProfile(UUID userId, String displayName, String email) {
         return userMapper.update(null, new LambdaUpdateWrapper<UserEntity>()
                 .eq(UserEntity::getId, userId)
@@ -68,6 +93,13 @@ public class UserService {
                 .eq(UserEntity::getId, userId)
                 .set(UserEntity::getPasswordHash, passwordHash)
                 .setSql("token_version = token_version + 1")
+                .set(UserEntity::getUpdatedAt, OffsetDateTime.now())) == 1;
+    }
+
+    public boolean updateStatus(UUID userId, UserStatus status) {
+        return userMapper.update(null, new LambdaUpdateWrapper<UserEntity>()
+                .eq(UserEntity::getId, userId)
+                .set(UserEntity::getStatus, status)
                 .set(UserEntity::getUpdatedAt, OffsetDateTime.now())) == 1;
     }
 }

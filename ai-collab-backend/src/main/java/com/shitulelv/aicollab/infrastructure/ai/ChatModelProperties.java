@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.infrastructure.ai;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 
 import java.time.Duration;
 
@@ -16,20 +17,5 @@ public record ChatModelProperties(
         Duration readTimeout,
         double temperature,
         int maxOutputTokens,
-        boolean jsonModeEnabled) {
-
-    public ChatModelProperties(
-            boolean enabled,
-            String provider,
-            String baseUrl,
-            String path,
-            String apiKey,
-            String model,
-            Duration connectTimeout,
-            Duration readTimeout,
-            double temperature,
-            int maxOutputTokens) {
-        this(enabled, provider, baseUrl, path, apiKey, model,
-                connectTimeout, readTimeout, temperature, maxOutputTokens, true);
-    }
+        @DefaultValue("true") boolean jsonModeEnabled) {
 }

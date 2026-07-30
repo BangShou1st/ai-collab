@@ -22,6 +22,7 @@ public record DocumentView(
         UUID uploadedById,
         String uploadedByDisplayName,
         OffsetDateTime indexedAt,
+        int version,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt) {
 }

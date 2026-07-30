@@ -23,6 +23,7 @@ export interface ProjectDocument {
   uploadedById: string
   uploadedByDisplayName: string | null
   indexedAt: string | null
+  version: number
   createdAt: string
   updatedAt: string
 }

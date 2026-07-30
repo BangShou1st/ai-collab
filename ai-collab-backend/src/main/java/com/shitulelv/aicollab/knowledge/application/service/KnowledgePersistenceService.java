@@ -57,12 +57,14 @@ public class KnowledgePersistenceService {
                     source.rank(), source.similarity(), quote);
             citationViews.add(new KnowledgeCitationView(
                     source.documentId(), source.originalFilename(), source.chunkId(),
-                    source.heading(), quote, source.similarity(), source.rank()));
+                    source.heading(), quote, source.similarity(), source.rank(),
+                    source.pageNumber()));
         }
         if (!repository.touch(projectId, sessionId, userId, assistantCreatedAt)) {
             throw new BusinessException(ErrorCode.KNOWLEDGE_SESSION_NOT_FOUND);
         }
         return new KnowledgeAnswerView(
+                assistantMessage.getId(),
                 answer,
                 insufficientEvidence,
                 completion == null ? null : completion.model(),

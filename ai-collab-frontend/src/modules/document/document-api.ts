@@ -41,7 +41,28 @@ export const documentApi = {
       ),
     )
   },
+  async reindex(projectId: string, documentId: string): Promise<ApiResult<ProjectDocument>> {
+    return apiResultFromResponse(
+      await httpClient.post<ApiResponse<ProjectDocument>>(
+        `/projects/${projectId}/documents/${documentId}/reindex`,
+      ),
+    )
+  },
   async delete(projectId: string, documentId: string): Promise<void> {
     await httpClient.delete(`/projects/${projectId}/documents/${documentId}`)
+  },
+  async reindexAll(projectId: string): Promise<ApiResult<{ queued: number }>> {
+    return apiResultFromResponse(
+      await httpClient.post<ApiResponse<{ queued: number }>>(
+        `/projects/${projectId}/documents/reindex-all`,
+      ),
+    )
+  },
+  async getReindexProgress(projectId: string): Promise<ApiResult<{ total: number; completed: number; failed: number; inProgress: number }>> {
+    return apiResultFromResponse(
+      await httpClient.get<ApiResponse<{ total: number; completed: number; failed: number; inProgress: number }>>(
+        `/projects/${projectId}/documents/reindex-progress`,
+      ),
+    )
   },
 }

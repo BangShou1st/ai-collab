@@ -11,7 +11,9 @@ import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.BodyContentHandler;
 import org.springframework.stereotype.Component;
+import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
+import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
 
 import java.io.IOException;
@@ -21,6 +23,8 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -95,9 +99,12 @@ public class TikaDocumentParser implements DocumentParser {
     private ParsedDocument parseInternal(InputStream input, String filename, String mimeType) {
         String extension = extension(filename);
         try {
+            if ("pdf".equals(extension)) {
+                return parsePdfWithPageTracking(input, filename, mimeType);
+            }
             String text = switch (extension) {
                 case "txt", "md", "markdown" -> decodeUtf8(input);
-                case "pdf", "docx" -> parseWithTika(input, filename, mimeType);
+                case "docx" -> parseWithTika(input, filename, mimeType);
                 default -> throw new BusinessException(ErrorCode.DOCUMENT_UNSUPPORTED_TYPE);
             };
             String cleaned = clean(text);
@@ -111,6 +118,29 @@ public class TikaDocumentParser implements DocumentParser {
         } catch (IOException | TikaException | SAXException exception) {
             throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED);
         }
+    }
+
+    private ParsedDocument parsePdfWithPageTracking(InputStream input, String filename, String mimeType)
+            throws IOException, TikaException, SAXException {
+        AutoDetectParser parser = new AutoDetectParser();
+        PageTrackingHandler handler = new PageTrackingHandler(MAX_CHARACTERS);
+        Metadata metadata = new Metadata();
+        metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, filename);
+        metadata.set(Metadata.CONTENT_TYPE, mimeType);
+        ParseContext context = new ParseContext();
+        context.set(EmbeddedDocumentExtractor.class, new EmbeddedDocumentExtractor() {
+            @Override public boolean shouldParseEmbedded(Metadata embeddedMetadata) { return false; }
+            @Override public void parseEmbedded(InputStream stream, ContentHandler embeddedHandler,
+                                                Metadata embeddedMetadata, boolean outputHtml) {
+            }
+        });
+        parser.parse(input, handler, metadata, context);
+        String cleaned = clean(handler.toString());
+        if (cleaned.isBlank()) {
+            throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED,
+                    "未提取到可索引文本，暂不支持扫描版文档");
+        }
+        return new ParsedDocument("PDF", cleaned, handler.getPageBoundaries());
     }
 
     private String parseWithTika(InputStream input, String filename, String mimeType)
@@ -164,5 +194,89 @@ public class TikaDocumentParser implements DocumentParser {
     private static String extension(String filename) {
         int dot = filename.lastIndexOf('.');
         return dot < 0 ? "" : filename.substring(dot + 1).toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * 自定义 ContentHandler，跟踪 PDF 的页面边界。
+     * PDFBox 通过 div[type=page] 元素标记页面边界。
+     */
+    private static class PageTrackingHandler implements ContentHandler {
+        private final BodyContentHandler delegate;
+        private final List<ParsedDocument.PageBoundary> pageBoundaries = new ArrayList<>();
+        private int currentPage = 0;
+        private int charOffset = 0;
+
+        PageTrackingHandler(int maxCharacters) {
+            this.delegate = new BodyContentHandler(maxCharacters);
+        }
+
+        List<ParsedDocument.PageBoundary> getPageBoundaries() {
+            return List.copyOf(pageBoundaries);
+        }
+
+        @Override
+        public void startElement(String uri, String localName, String qName, Attributes atts)
+                throws SAXException {
+            // PDFBox uses <div class="page"> or <div type="page"> for page boundaries
+            if ("div".equals(qName)) {
+                String type = atts.getValue("type");
+                String cssClass = atts.getValue("class");
+                if ("page".equals(type) || (cssClass != null && cssClass.contains("page"))) {
+                    currentPage++;
+                    pageBoundaries.add(new ParsedDocument.PageBoundary(currentPage, charOffset));
+                }
+            }
+            delegate.startElement(uri, localName, qName, atts);
+        }
+
+        @Override
+        public void endElement(String uri, String localName, String qName) throws SAXException {
+            delegate.endElement(uri, localName, qName);
+        }
+
+        @Override
+        public void characters(char[] ch, int start, int length) throws SAXException {
+            charOffset += length;
+            delegate.characters(ch, start, length);
+        }
+
+        @Override
+        public void setDocumentLocator(Locator locator) { delegate.setDocumentLocator(locator); }
+
+        @Override
+        public void startDocument() throws SAXException { delegate.startDocument(); }
+
+        @Override
+        public void endDocument() throws SAXException { delegate.endDocument(); }
+
+        @Override
+        public void startPrefixMapping(String prefix, String uri) throws SAXException {
+            delegate.startPrefixMapping(prefix, uri);
+        }
+
+        @Override
+        public void endPrefixMapping(String prefix) throws SAXException {
+            delegate.endPrefixMapping(prefix);
+        }
+
+        @Override
+        public void ignorableWhitespace(char[] ch, int start, int length) throws SAXException {
+            delegate.ignorableWhitespace(ch, start, length);
+        }
+
+        @Override
+        public void processingInstruction(String target, String data) throws SAXException {
+            delegate.processingInstruction(target, data);
+        }
+
+        @Override
+        public void skippedEntity(String name) throws SAXException {
+            delegate.skippedEntity(name);
+        }
+
+        @Override
+        public String toString() {
+            return delegate.toString();
+        }
     }
 }

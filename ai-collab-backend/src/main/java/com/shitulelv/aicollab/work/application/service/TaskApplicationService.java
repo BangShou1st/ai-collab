@@ -6,6 +6,7 @@ import com.shitulelv.aicollab.project.application.service.AuditService;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.project.infrastructure.repository.ProjectMemberRepository;
+import com.shitulelv.aicollab.work.api.dto.BatchUpdateTasksRequest;
 import com.shitulelv.aicollab.work.api.dto.CreateTaskRequest;
 import com.shitulelv.aicollab.work.api.dto.ReplaceDependenciesRequest;
 import com.shitulelv.aicollab.work.api.dto.UpdateTaskRequest;
@@ -17,6 +18,7 @@ import com.shitulelv.aicollab.work.domain.policy.TaskDependencyPolicy;
 import com.shitulelv.aicollab.work.domain.policy.TaskStatusPolicy;
 import com.shitulelv.aicollab.work.domain.policy.WorkPermissionPolicy;
 import com.shitulelv.aicollab.work.infrastructure.entity.TaskEntity;
+import com.shitulelv.aicollab.notification.application.service.NotificationApplicationService;
 import com.shitulelv.aicollab.work.infrastructure.repository.MilestoneRepository;
 import com.shitulelv.aicollab.work.infrastructure.repository.TaskRepository;
 import org.springframework.stereotype.Service;
@@ -41,11 +43,15 @@ public class TaskApplicationService {
     private final TaskStatusPolicy statuses;
     private final TaskDependencyPolicy dependencies;
     private final AuditService audit;
+    private final NotificationApplicationService notifications;
+    private final ProjectDateRangePolicy projectDates;
 
     public TaskApplicationService(
             ProjectAccessGuard access, ProjectMemberRepository members, MilestoneRepository milestones,
             TaskRepository tasks, WorkPermissionPolicy permissions, TaskStatusPolicy statuses,
-            TaskDependencyPolicy dependencies, AuditService audit) {
+            TaskDependencyPolicy dependencies, AuditService audit,
+            NotificationApplicationService notifications,
+            ProjectDateRangePolicy projectDates) {
         this.access = access;
         this.members = members;
         this.milestones = milestones;
@@ -54,6 +60,8 @@ public class TaskApplicationService {
         this.statuses = statuses;
         this.dependencies = dependencies;
         this.audit = audit;
+        this.notifications = notifications;
+        this.projectDates = projectDates;
     }
 
     @Transactional(readOnly = true)
@@ -74,6 +82,7 @@ public class TaskApplicationService {
     public TaskView create(UUID projectId, CreateTaskRequest request, UUID userId) {
         permissions.requireAdmin(access.requireMember(projectId, userId));
         validateDates(request.startDate(), request.dueDate());
+        projectDates.validate(projectId, request.startDate(), request.dueDate(), null);
         validateReferences(projectId, request.milestoneId(), request.assigneeId());
         TaskEntity entity = new TaskEntity();
         entity.setId(UUID.randomUUID());
@@ -94,6 +103,12 @@ public class TaskApplicationService {
         audit.write(projectId, userId, "TASK_CREATED", "TASK", entity.getId(),
                 Map.of("title", entity.getTitle(), "status", entity.getStatus().name(),
                         "priority", entity.getPriority().name()));
+        if (entity.getAssigneeId() != null && !entity.getAssigneeId().equals(userId)) {
+            notifications.create(projectId, entity.getAssigneeId(),
+                    "TASK_ASSIGNED", "你被分配了新任务",
+                    "任务「" + entity.getTitle() + "」已分配给你",
+                    "TASK", entity.getId());
+        }
         return view(requireTask(projectId, entity.getId()));
     }
 
@@ -112,6 +127,7 @@ public class TaskApplicationService {
                         ErrorCode.VALIDATION_ERROR, "管理员更新必须提供 title、status 和 priority");
             }
             validateDates(request.startDate(), request.dueDate());
+            projectDates.validate(projectId, request.startDate(), request.dueDate(), null);
             validateReferences(projectId, request.milestoneId(), request.assigneeId());
             current.setTitle(request.title().trim());
             current.setDescription(request.description() == null ? "" : request.description());
@@ -133,6 +149,24 @@ public class TaskApplicationService {
                 Map.of("title", current.getTitle(),
                         "previousStatus", previousStatus.name(),
                         "newStatus", targetStatus.name()));
+        if (previousStatus != targetStatus) {
+            if (targetStatus == TaskStatus.DONE) {
+                notifyDependents(projectId, taskId, current.getTitle(), userId);
+            }
+            if (current.getAssigneeId() != null && !current.getAssigneeId().equals(userId)) {
+                notifications.create(projectId, current.getAssigneeId(),
+                        "TASK_STATUS_CHANGED", "任务状态已变更",
+                        "任务「" + current.getTitle() + "」状态变更为 " + targetStatus.name(),
+                        "TASK", taskId);
+            }
+        }
+        if (request.assigneeId() != null && !request.assigneeId().equals(current.getAssigneeId())
+                && !request.assigneeId().equals(userId)) {
+            notifications.create(projectId, request.assigneeId(),
+                    "TASK_ASSIGNED", "你被分配了新任务",
+                    "任务「" + current.getTitle() + "」已分配给你",
+                    "TASK", taskId);
+        }
         return view(requireTask(projectId, taskId));
     }
 
@@ -199,5 +233,54 @@ public class TaskApplicationService {
         if (startDate != null && dueDate != null && startDate.isAfter(dueDate)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "startDate 不能晚于 dueDate");
         }
+    }
+
+    private void notifyDependents(UUID projectId, UUID completedTaskId, String completedTitle, UUID actorId) {
+        List<TaskEntity> dependents = tasks.findDependents(projectId, completedTaskId);
+        for (TaskEntity dependent : dependents) {
+            if (dependent.getAssigneeId() != null && !dependent.getAssigneeId().equals(actorId)) {
+                notifications.create(projectId, dependent.getAssigneeId(),
+                        "DEPENDENCY_COMPLETED", "前置任务已完成",
+                        "任务「" + completedTitle + "」已完成，你可以开始「" + dependent.getTitle() + "」",
+                        "TASK", dependent.getId());
+            }
+        }
+    }
+
+    @Transactional
+    public List<TaskView> batchUpdate(UUID projectId, BatchUpdateTasksRequest request, UUID userId) {
+        permissions.requireAdmin(access.requireMember(projectId, userId));
+        List<TaskView> results = new ArrayList<>();
+        for (BatchUpdateTasksRequest.TaskUpdateItem item : request.items()) {
+            TaskEntity current = requireTask(projectId, item.taskId());
+            if (item.status() != null) {
+                statuses.validateTransition(current.getStatus(), item.status(), current.getUnfinishedDependencyCount());
+                current.setStatus(item.status());
+            }
+            if (item.sortOrder() != null) {
+                current.setSortOrder(item.sortOrder());
+            }
+            if (item.priority() != null) {
+                current.setPriority(item.priority());
+            }
+            if (item.assigneeId() != null) {
+                validateReferences(projectId, null, item.assigneeId());
+                current.setAssigneeId(item.assigneeId());
+            }
+            current.setVersion(item.version());
+            if (!tasks.update(projectId, current)) {
+                throw new BusinessException(ErrorCode.VERSION_CONFLICT);
+            }
+            if (item.assigneeId() != null && !item.assigneeId().equals(userId)) {
+                notifications.create(projectId, item.assigneeId(),
+                        "TASK_ASSIGNED", "你被分配了新任务",
+                        "任务「" + current.getTitle() + "」已分配给你",
+                        "TASK", item.taskId());
+            }
+            results.add(view(requireTask(projectId, item.taskId())));
+        }
+        audit.write(projectId, userId, "TASKS_BATCH_UPDATED", "TASK", null,
+                Map.of("taskCount", request.items().size()));
+        return results;
     }
 }

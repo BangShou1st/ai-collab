@@ -14,10 +14,12 @@ public record CurrentUserResponse(
         String username,
         String displayName,
         String email,
-        UserStatus status) {
+        UserStatus status,
+        boolean systemAdmin) {
 
     public static CurrentUserResponse from(UserEntity user) {
         return new CurrentUserResponse(
-                user.getId(), user.getUsername(), user.getDisplayName(), user.getEmail(), user.getStatus());
+                user.getId(), user.getUsername(), user.getDisplayName(), user.getEmail(),
+                user.getStatus(), Boolean.TRUE.equals(user.getSystemAdmin()));
     }
 }

@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { normalizeApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
+import {
+  isEndDateDisabled,
+  isProjectDateDisabled,
+  isStartDateDisabled,
+  validateDateRange,
+} from '../../shared/date-constraints'
 import { clearConfirmationKey, confirmationKey, planningApi } from './planning-api'
 import { PlanningPoller } from './planning-poller'
 import type {
@@ -19,7 +25,7 @@ import PlanningEventTimeline from './components/PlanningEventTimeline.vue'
 import { projectApi } from '../project/project-api'
 import { documentApi } from '../document/document-api'
 import type { ProjectDocument } from '../document/types'
-import type { ProjectMember } from '../project/types'
+import type { Project, ProjectMember } from '../project/types'
 import { dependencyWouldCycle, removeTaskAndDependencies } from './planning-draft'
 import { planStatusLabel, priorityLabel, versionSourceLabel } from './planning-labels'
 import { planningFailureLabel } from './planning-failure'
@@ -29,7 +35,7 @@ const projectId = computed(() => String(route.params.projectId))
 const plans = ref<TaskPlan[]>([]), selected = ref<TaskPlan | null>(null)
 const permissions = ref<PlanPermissions | null>(null), draft = ref<TaskPlanDraft | null>(null)
 const versions = ref<Array<{ id: string; versionNo: number; sourceType: string }>>([])
-const selectedVersionId = ref(''), snapshot = ref(''), errorMessage = ref('')
+const selectedVersionId = ref(''), snapshot = ref('')
 const expandedMilestones = ref<string[]>([])
 
 // 检查里程碑是否有需要确认的内容（未分配负责人等）
@@ -48,6 +54,7 @@ function autoExpandPendingMilestones(): void {
 const createVisible = ref(false), checked = ref(false), saveDialogVisible = ref(false), saveComment = ref('')
 const canCreate = ref(false), pendingConfirmation = ref<{ versionId: string; key: string } | null>(null)
 const documents = ref<ProjectDocument[]>([]), members = ref<ProjectMember[]>([])
+const project = ref<Project | null>(null)
 const structuredIssues = ref<StructuredValidationIssue[]>([]), events = ref<TaskPlanEvent[]>([])
 const form = reactive({ title: '', goal: '', constraints: '', planStartDate: '', planDueDate: '', maxTaskCount: 20, documentIds: [] as string[] })
 const poller = new PlanningPoller()
@@ -74,10 +81,53 @@ const getUnassignedCount = (milestoneTempKey: string) => {
 }
 const failureMessage = computed(() => planningFailureLabel(selected.value?.lastErrorSummary))
 const historyReadOnlyMessage = '历史版本仅供查看，请先恢复为新版本'
+let lastPollError = ''
+
+function showError(error: unknown): void {
+  ElMessage.error(normalizeApiError(error).message)
+}
+
+function showErrorText(message: string): void {
+  ElMessage.error(message)
+}
+
+function formStartDisabled(date: Date): boolean {
+  return isStartDateDisabled(date, project.value?.startDate ?? null, project.value?.dueDate ?? null, form.planDueDate || null)
+}
+
+function formDueDisabled(date: Date): boolean {
+  return isEndDateDisabled(date, project.value?.startDate ?? null, project.value?.dueDate ?? null, form.planStartDate || null)
+}
+
+function milestoneDateDisabled(date: Date): boolean {
+  return isProjectDateDisabled(
+    date,
+    selected.value?.planStartDate ?? project.value?.startDate ?? null,
+    selected.value?.planDueDate ?? project.value?.dueDate ?? null,
+  )
+}
+
+function taskStartDateDisabled(task: TaskPlanDraft['tasks'][number]): (date: Date) => boolean {
+  return date => isStartDateDisabled(
+      date,
+      selected.value?.planStartDate ?? project.value?.startDate ?? null,
+      selected.value?.planDueDate ?? project.value?.dueDate ?? null,
+      task.dueDate,
+    )
+}
+
+function taskDueDateDisabled(task: TaskPlanDraft['tasks'][number]): (date: Date) => boolean {
+  return date => isEndDateDisabled(
+      date,
+      selected.value?.planStartDate ?? project.value?.startDate ?? null,
+      selected.value?.planDueDate ?? project.value?.dueDate ?? null,
+      task.startDate,
+    )
+}
 
 function requireLatestVersion(): boolean {
   if (editingLatest.value) return true
-  errorMessage.value = historyReadOnlyMessage
+  showErrorText(historyReadOnlyMessage)
   return false
 }
 
@@ -113,8 +163,21 @@ async function requestVersion(id: string): Promise<void> {
   await openVersion(id)
 }
 async function create(): Promise<void> {
+  if (!form.title.trim()) return showErrorText('请填写规划标题')
+  if (!form.goal.trim()) return showErrorText('请填写规划目标')
+  if (!form.planStartDate || !form.planDueDate) return showErrorText('请选择规划开始日期和截止日期')
+  if (!Number.isInteger(form.maxTaskCount) || form.maxTaskCount < 1 || form.maxTaskCount > 40) {
+    return showErrorText('最大任务数必须是 1 到 40 之间的整数')
+  }
+  const dateError = validateDateRange(
+    form.planStartDate,
+    form.planDueDate,
+    project.value?.startDate ?? null,
+    project.value?.dueDate ?? null,
+  )
+  if (dateError) return showErrorText(dateError)
   try { const plan = (await planningApi.create(projectId.value, form)).data.data; createVisible.value = false; await list(); await open(plan); startPolling() }
-  catch (error) { errorMessage.value = normalizeApiError(error).message }
+  catch (error) { showError(error) }
 }
 async function action(name: 'cancel' | 'retry-detail' | 'regenerate'): Promise<void> {
   if (!selected.value || !requireLatestVersion() || name === 'regenerate' && dirty.value && !await discard()) return
@@ -123,7 +186,7 @@ async function action(name: 'cancel' | 'retry-detail' | 'regenerate'): Promise<v
     await refresh()
     startPolling()
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showError(error)
   }
 }
 async function restore(): Promise<void> {
@@ -132,7 +195,7 @@ async function restore(): Promise<void> {
     await planningApi.restore(projectId.value, selected.value.id, selectedVersionId.value)
     await refresh()
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showError(error)
   }
 }
 async function save(): Promise<void> {
@@ -150,7 +213,7 @@ async function confirmSave(): Promise<void> {
     saveDialogVisible.value = false
     await refresh()
   }
-  catch (error) { errorMessage.value = normalizeApiError(error).message }
+  catch (error) { showError(error) }
 }
 async function manualEdit(issue: StructuredValidationIssue): Promise<void> {
   if (!requireLatestVersion()) return
@@ -175,7 +238,7 @@ async function removePlan(): Promise<void> {
     await planningApi.remove(projectId.value, selected.value.id)
     selected.value = null; draft.value = null; structuredIssues.value = []; events.value = []
     await list()
-  } catch (error) { errorMessage.value = normalizeApiError(error).message }
+  } catch (error) { showError(error) }
 }
 async function confirm(): Promise<void> {
   if (!selected.value || !selectedVersionId.value || !checked.value || !requireLatestVersion()) return
@@ -188,7 +251,7 @@ async function confirm(): Promise<void> {
     pendingConfirmation.value = null
     clearConfirmationKey(projectId.value, selected.value.id, versionId)
     await router.push({ path: `/projects/${projectId.value}/board`, query: { sourcePlanId: selected.value.id } })
-  } catch (error) { errorMessage.value = normalizeApiError(error).message }
+  } catch (error) { showError(error) }
 }
 async function refresh(): Promise<void> {
   const id = selected.value?.id; await list(); const current = plans.value.find(plan => plan.id === id)
@@ -246,27 +309,60 @@ function startPolling(): void {
       return statuses
     },
     onError: (error) => {
-      console.error('Planning poller error:', error)
+      const message = normalizeApiError(error).message
+      if (message !== lastPollError) {
+        lastPollError = message
+        showErrorText(message)
+      }
     }
   })
+}
+async function loadWorkspace(): Promise<void> {
+  const [projectResult, planResult, documentResult, memberResult] = await Promise.allSettled([
+    projectApi.get(projectId.value),
+    list(),
+    documentApi.list(projectId.value),
+    projectApi.listMembers(projectId.value),
+  ])
+
+  if (projectResult.status === 'fulfilled') {
+    project.value = projectResult.value.data
+    canCreate.value = ['OWNER', 'ADMIN'].includes(projectResult.value.data.role)
+  } else {
+    project.value = null
+    canCreate.value = false
+    showError(projectResult.reason)
+  }
+  if (planResult.status === 'rejected') {
+    plans.value = []
+    showError(planResult.reason)
+  }
+  if (documentResult.status === 'fulfilled') {
+    documents.value = documentResult.value.data.filter(document => document.status === 'READY')
+  } else {
+    documents.value = []
+    showErrorText(`参考文档加载失败：${normalizeApiError(documentResult.reason).message}。仍可创建不引用文档的规划。`)
+  }
+  if (memberResult.status === 'fulfilled') {
+    members.value = memberResult.value.data
+  } else {
+    members.value = []
+    showError(memberResult.reason)
+  }
+  startPolling()
 }
 async function discard(): Promise<boolean> { try { await ElMessageBox.confirm('未保存修改将被丢弃，是否继续？', '未保存保护'); return true } catch { return false } }
 function beforeUnload(event: BeforeUnloadEvent): void { if (dirty.value) event.preventDefault() }
 onMounted(async () => {
   window.addEventListener('beforeunload', beforeUnload)
-  canCreate.value = ['OWNER', 'ADMIN'].includes((await projectApi.get(projectId.value)).data.role)
-  documents.value = (await documentApi.list(projectId.value)).data.filter(document => document.status === 'READY')
-  members.value = (await projectApi.listMembers(projectId.value)).data
-  await list(); startPolling()
+  await loadWorkspace()
 })
 onBeforeUnmount(() => { poller.stop(); window.removeEventListener('beforeunload', beforeUnload) })
 onBeforeRouteLeave(() => !dirty.value || window.confirm('当前规划有未保存修改，确定离开吗？'))
 onBeforeRouteUpdate(() => !dirty.value || window.confirm('当前规划有未保存修改，确定切换项目吗？'))
 watch(projectId, async () => {
-  poller.stop(); selected.value = null; draft.value = null; await list(); startPolling()
-  canCreate.value = ['OWNER', 'ADMIN'].includes((await projectApi.get(projectId.value)).data.role)
-  documents.value = (await documentApi.list(projectId.value)).data.filter(document => document.status === 'READY')
-  members.value = (await projectApi.listMembers(projectId.value)).data
+  poller.stop(); selected.value = null; draft.value = null
+  await loadWorkspace()
 })
 </script>
 
@@ -275,7 +371,6 @@ watch(projectId, async () => {
     <PageHeader eyebrow="AI 辅助" title="AI 任务规划">
       <template #actions><el-button v-if="canCreate" type="primary" @click="createVisible = true">创建规划</el-button></template>
     </PageHeader>
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" />
     <section class="planning-layout">
       <el-card>
         <button v-for="plan in plans" :key="plan.id" class="planning-list-item" @click="open(plan)">
@@ -347,7 +442,7 @@ watch(projectId, async () => {
                 <div class="detail-row">
                   <label>目标日期</label>
                   <span :id="`planning-${m.tempKey}-targetDate`">
-                    <el-date-picker v-model="m.targetDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" />
+                            <el-date-picker v-model="m.targetDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" :disabled-date="milestoneDateDisabled" />
                   </span>
                 </div>
                 <div class="detail-row">
@@ -401,13 +496,13 @@ watch(projectId, async () => {
                       <div class="detail-item">
                         <label>开始日期</label>
                         <span :id="`planning-${task.tempKey}-startDate`">
-                          <el-date-picker v-model="task.startDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" />
+                              <el-date-picker v-model="task.startDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" :disabled-date="taskStartDateDisabled(task)" />
                         </span>
                       </div>
                       <div class="detail-item">
                         <label>截止日期</label>
                         <span :id="`planning-${task.tempKey}-dueDate`">
-                          <el-date-picker v-model="task.dueDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" />
+                              <el-date-picker v-model="task.dueDate" value-format="YYYY-MM-DD" :disabled="!canEditCurrent" :disabled-date="taskDueDateDisabled(task)" />
                         </span>
                       </div>
                     </div>
@@ -456,8 +551,8 @@ watch(projectId, async () => {
     </section>
     <el-dialog v-model="createVisible" title="创建规划"><el-form label-position="top" @submit.prevent="create">
       <el-form-item label="标题"><el-input v-model="form.title" /></el-form-item><el-form-item label="目标"><el-input v-model="form.goal" type="textarea" /></el-form-item>
-      <el-form-item label="约束"><el-input v-model="form.constraints" /></el-form-item><el-form-item label="开始"><el-date-picker v-model="form.planStartDate" value-format="YYYY-MM-DD" /></el-form-item>
-      <el-form-item label="截止"><el-date-picker v-model="form.planDueDate" value-format="YYYY-MM-DD" /></el-form-item><el-form-item label="最大任务数"><el-select v-model="form.maxTaskCount"><el-option v-for="n in [10,20,30,40]" :key="n" :value="n" /></el-select></el-form-item>
+      <el-form-item label="约束"><el-input v-model="form.constraints" /></el-form-item><el-form-item label="开始"><el-date-picker v-model="form.planStartDate" value-format="YYYY-MM-DD" :disabled-date="formStartDisabled" /></el-form-item>
+      <el-form-item label="截止"><el-date-picker v-model="form.planDueDate" value-format="YYYY-MM-DD" :disabled-date="formDueDisabled" /></el-form-item><el-form-item label="最大任务数"><el-input-number v-model="form.maxTaskCount" :min="1" :max="40" :step="1" controls-position="right" /></el-form-item>
       <el-form-item label="可用参考文档（最多 10 个）"><el-select v-model="form.documentIds" multiple :multiple-limit="10"><el-option v-for="document in documents" :key="document.id" :label="document.displayName" :value="document.id" /></el-select></el-form-item>
       <el-button native-type="submit" type="primary">创建并生成</el-button>
     </el-form></el-dialog>
