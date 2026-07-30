@@ -2,8 +2,11 @@ package com.shitulelv.aicollab.infrastructure.ai;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -13,13 +16,21 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.SocketTimeoutException;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.function.Consumer;
 
 @Component
 public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
+    private static final Logger log = LoggerFactory.getLogger(OpenAiCompatibleChatModelGateway.class);
     private static final int MAX_PROVIDER_CODE_POINTS = 80;
     private static final int MAX_MODEL_CODE_POINTS = 120;
     private static final int MAX_BASE_URL_CODE_POINTS = 2048;
@@ -56,7 +67,8 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
         long started = System.nanoTime();
         for (int attempt = 0; attempt < 2; attempt++) {
             try {
-                ResponseFormat responseFormat = command.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT
+                ResponseFormat responseFormat = properties.jsonModeEnabled()
+                        && command.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT
                         ? new ResponseFormat("json_object") : null;
                 ChatResponse response = restClient.post()
                         .uri(join(properties.baseUrl(), properties.path()))
@@ -118,6 +130,118 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
             }
         }
         throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
+    }
+
+    @Override
+    public void completeStream(
+            ChatCompletionCommand command,
+            Consumer<String> onToken,
+            Consumer<ChatCompletionResult> onDone,
+            Consumer<Exception> onError) {
+        validateConfiguration();
+        long started = System.nanoTime();
+        String endpoint = join(properties.baseUrl(), properties.path());
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            String requestBody = mapper.writeValueAsString(new ChatRequest(
+                    properties.model().strip(),
+                    List.of(
+                            new ChatMessage("system", command.systemPrompt()),
+                            new ChatMessage("user", command.userPrompt())),
+                    properties.temperature(),
+                    properties.maxOutputTokens(),
+                    true,
+                    null));
+
+            HttpClient httpClient = HttpClient.newBuilder()
+                    .connectTimeout(boundedDuration(
+                            properties.connectTimeout(), DEFAULT_CONNECT_TIMEOUT, MAX_CONNECT_TIMEOUT))
+                    .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint))
+                    .header("Authorization", "Bearer " + properties.apiKey())
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "text/event-stream")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .timeout(boundedDuration(
+                            properties.readTimeout(), DEFAULT_READ_TIMEOUT, MAX_READ_TIMEOUT))
+                    .build();
+
+            HttpResponse<java.io.InputStream> response = httpClient.send(
+                    request, HttpResponse.BodyHandlers.ofInputStream());
+
+            if (response.statusCode() == 429) {
+                onError.accept(new BusinessException(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED));
+                return;
+            }
+            if (response.statusCode() == 408) {
+                onError.accept(new BusinessException(ErrorCode.AI_MODEL_TIMEOUT));
+                return;
+            }
+            if (response.statusCode() >= 400) {
+                onError.accept(new BusinessException(ErrorCode.AI_PROVIDER_ERROR));
+                return;
+            }
+
+            StringBuilder contentBuilder = new StringBuilder();
+            String responseModel = properties.model().strip();
+            Integer promptTokens = null;
+            Integer completionTokens = null;
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("data: ")) {
+                        String data = line.substring(6).trim();
+                        if ("[DONE]".equals(data)) {
+                            break;
+                        }
+                        try {
+                            StreamChunk chunk = mapper.readValue(data, StreamChunk.class);
+                            if (chunk.choices() != null && !chunk.choices().isEmpty()) {
+                                StreamChoice choice = chunk.choices().getFirst();
+                                if (choice.delta() != null && choice.delta().content() != null) {
+                                    contentBuilder.append(choice.delta().content());
+                                    onToken.accept(choice.delta().content());
+                                }
+                            }
+                            if (chunk.model() != null && !chunk.model().isBlank()) {
+                                responseModel = chunk.model().strip();
+                            }
+                            if (chunk.usage() != null) {
+                                promptTokens = chunk.usage().promptTokens();
+                                completionTokens = chunk.usage().completionTokens();
+                            }
+                        } catch (Exception e) {
+                            log.debug("Failed to parse SSE chunk: {}", data);
+                        }
+                    }
+                }
+            }
+
+            String content = contentBuilder.toString().strip();
+            if (content.isBlank()) {
+                onError.accept(new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE));
+                return;
+            }
+            onDone.accept(new ChatCompletionResult(
+                    content,
+                    properties.provider().strip(),
+                    responseModel,
+                    promptTokens,
+                    completionTokens,
+                    elapsedMs(started)));
+        } catch (java.io.IOException e) {
+            onError.accept(new BusinessException(ErrorCode.AI_PROVIDER_ERROR));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            onError.accept(new BusinessException(ErrorCode.AI_MODEL_TIMEOUT));
+        } catch (BusinessException e) {
+            onError.accept(e);
+        } catch (Exception e) {
+            onError.accept(new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE));
+        }
     }
 
     private void validateConfiguration() {
@@ -282,5 +406,17 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
         Integer completionTokens() {
             return completion_tokens;
         }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record StreamChunk(List<StreamChoice> choices, String model, Usage usage) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record StreamChoice(StreamDelta delta, String finish_reason) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record StreamDelta(String content) {
     }
 }

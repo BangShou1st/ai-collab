@@ -11,8 +11,19 @@ import ProjectMembersView from './modules/project/ProjectMembersView.vue'
 import InvitationAcceptView from './modules/project/InvitationAcceptView.vue'
 import DocumentView from './modules/document/DocumentView.vue'
 import KnowledgeView from './modules/knowledge/KnowledgeView.vue'
+import KnowledgeEvalView from './modules/knowledge/KnowledgeEvalView.vue'
 import PlanningView from './modules/planning/PlanningView.vue'
 import AuditLogView from './modules/audit/AuditLogView.vue'
+import NotificationView from './modules/notification/NotificationView.vue'
+import GanttView from './modules/work/GanttView.vue'
+import DependencyGraphView from './modules/work/DependencyGraphView.vue'
+import CalendarView from './modules/work/CalendarView.vue'
+import MemberLoadView from './modules/work/MemberLoadView.vue'
+import WeeklyReportView from './modules/work/WeeklyReportView.vue'
+import RiskAnalysisView from './modules/work/RiskAnalysisView.vue'
+import PlanComparisonView from './modules/work/PlanComparisonView.vue'
+import AgentView from './modules/agent/AgentView.vue'
+import AdminView from './modules/admin/AdminView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -26,12 +37,23 @@ export const router = createRouter({
     { path: '/projects/:projectId', redirect: (to) => `/projects/${to.params.projectId}/dashboard` },
     { path: '/projects/:projectId/dashboard', component: DashboardView, meta: { title: '项目概览' } },
     { path: '/projects/:projectId/board', component: TaskBoardView, meta: { title: '任务看板' } },
+    { path: '/projects/:projectId/gantt', component: GanttView, meta: { title: '甘特图' } },
+    { path: '/projects/:projectId/dependency-graph', component: DependencyGraphView, meta: { title: '依赖图' } },
+    { path: '/projects/:projectId/calendar', component: CalendarView, meta: { title: '日历视图' } },
+    { path: '/projects/:projectId/member-load', component: MemberLoadView, meta: { title: '成员负载' } },
+    { path: '/projects/:projectId/weekly-report', component: WeeklyReportView, meta: { title: 'AI 周报' } },
+    { path: '/projects/:projectId/risk-analysis', component: RiskAnalysisView, meta: { title: '延期风险分析' } },
+    { path: '/projects/:projectId/plan-comparison', component: PlanComparisonView, meta: { title: '规划对比' } },
     { path: '/projects/:projectId/milestones', component: MilestoneView, meta: { title: '里程碑' } },
     { path: '/projects/:projectId/members', component: ProjectMembersView, meta: { title: '成员管理' } },
     { path: '/projects/:projectId/documents', component: DocumentView, meta: { title: '项目文档' } },
     { path: '/projects/:projectId/knowledge', component: KnowledgeView, meta: { title: '知识问答' } },
+    { path: '/projects/:projectId/knowledge/eval', component: KnowledgeEvalView, meta: { title: '知识库评测' } },
     { path: '/projects/:projectId/ai-planning', component: PlanningView, meta: { title: 'AI 任务规划' } },
+    { path: '/projects/:projectId/agent', component: AgentView, meta: { title: '项目协作 Agent' } },
     { path: '/projects/:projectId/audit-logs', component: AuditLogView, meta: { title: '操作日志' } },
+    { path: '/notifications', component: NotificationView, meta: { title: '通知中心' } },
+    { path: '/admin', component: AdminView, meta: { title: '管理中心', systemAdmin: true } },
   ],
 })
 
@@ -51,6 +73,9 @@ router.beforeEach(async (to) => {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
   if ((to.path === '/login' || to.path === '/register') && auth.isAuthenticated) {
+    return '/projects'
+  }
+  if (to.meta.systemAdmin && !auth.currentUser?.systemAdmin) {
     return '/projects'
   }
   return true

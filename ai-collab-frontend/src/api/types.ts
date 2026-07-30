@@ -17,6 +17,7 @@ export interface CurrentUser {
   displayName: string
   email: string | null
   status: 'ACTIVE' | 'DISABLED'
+  systemAdmin: boolean
 }
 
 export interface AccessTokenResult {

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.shitulelv.aicollab.project.application.view.ProjectView;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.model.ProjectStatus;
+import com.shitulelv.aicollab.project.domain.model.ProjectType;
 import com.shitulelv.aicollab.project.infrastructure.entity.ProjectEntity;
 import org.apache.ibatis.annotations.Arg;
 import org.apache.ibatis.annotations.ConstructorArgs;
@@ -22,7 +23,7 @@ import java.util.UUID;
 public interface ProjectMapper extends BaseMapper<ProjectEntity> {
 
     @Select("""
-            SELECT p.id, p.name, p.description, p.owner_id, p.start_date, p.due_date,
+            SELECT p.id, p.name, p.description, p.owner_id, p.type, p.start_date, p.due_date,
                    p.status, pm.role, p.version, p.created_at, p.updated_at
             FROM project p
             JOIN project_member pm ON pm.project_id = p.id
@@ -34,6 +35,7 @@ public interface ProjectMapper extends BaseMapper<ProjectEntity> {
             @Arg(column = "name", javaType = String.class),
             @Arg(column = "description", javaType = String.class),
             @Arg(column = "owner_id", javaType = UUID.class),
+            @Arg(column = "type", javaType = ProjectType.class),
             @Arg(column = "start_date", javaType = LocalDate.class),
             @Arg(column = "due_date", javaType = LocalDate.class),
             @Arg(column = "status", javaType = ProjectStatus.class),
@@ -45,7 +47,7 @@ public interface ProjectMapper extends BaseMapper<ProjectEntity> {
     List<ProjectView> listForUser(@Param("userId") UUID userId);
 
     @Select("""
-            SELECT p.id, p.name, p.description, p.owner_id, p.start_date, p.due_date,
+            SELECT p.id, p.name, p.description, p.owner_id, p.type, p.start_date, p.due_date,
                    p.status, pm.role, p.version, p.created_at, p.updated_at
             FROM project p
             JOIN project_member pm ON pm.project_id = p.id
@@ -56,6 +58,7 @@ public interface ProjectMapper extends BaseMapper<ProjectEntity> {
             @Arg(column = "name", javaType = String.class),
             @Arg(column = "description", javaType = String.class),
             @Arg(column = "owner_id", javaType = UUID.class),
+            @Arg(column = "type", javaType = ProjectType.class),
             @Arg(column = "start_date", javaType = LocalDate.class),
             @Arg(column = "due_date", javaType = LocalDate.class),
             @Arg(column = "status", javaType = ProjectStatus.class),
@@ -69,28 +72,42 @@ public interface ProjectMapper extends BaseMapper<ProjectEntity> {
     @Select("SELECT name FROM project WHERE id = #{projectId}")
     Optional<String> findNameById(@Param("projectId") UUID projectId);
 
+    @Select("SELECT status FROM project WHERE id = #{projectId}")
+    Optional<ProjectStatus> findStatusById(@Param("projectId") UUID projectId);
+
     @Select("SELECT id FROM project WHERE id = #{projectId} FOR UPDATE")
     Optional<UUID> lockById(@Param("projectId") UUID projectId);
 
-    @Select("SELECT id FROM project WHERE id = #{projectId} AND status = 'ACTIVE' FOR UPDATE")
-    Optional<UUID> lockActiveById(@Param("projectId") UUID projectId);
+    @Select("SELECT status FROM project WHERE id = #{projectId} FOR UPDATE")
+    Optional<ProjectStatus> lockStatusById(@Param("projectId") UUID projectId);
 
     @Select("SELECT count(*) FROM project_document WHERE project_id = #{projectId}")
     int countDocuments(@Param("projectId") UUID projectId);
 
     @Update("""
             UPDATE project
-            SET name = #{name}, description = #{description}, start_date = #{startDate},
-                due_date = #{dueDate}, status = #{status}, version = version + 1, updated_at = now()
+            SET name = #{name}, description = #{description}, type = #{type},
+                start_date = #{startDate}, due_date = #{dueDate}, status = #{status},
+                version = version + 1, updated_at = now()
             WHERE id = #{projectId} AND version = #{version}
             """)
     int updateWithVersion(
             @Param("projectId") UUID projectId,
             @Param("name") String name,
             @Param("description") String description,
+            @Param("type") ProjectType type,
             @Param("startDate") LocalDate startDate,
             @Param("dueDate") LocalDate dueDate,
             @Param("status") ProjectStatus status,
             @Param("version") int version);
+
+    @Update("""
+            UPDATE project
+            SET owner_id = #{newOwnerId}, updated_at = now()
+            WHERE id = #{projectId}
+            """)
+    int transferOwnership(
+            @Param("projectId") UUID projectId,
+            @Param("newOwnerId") UUID newOwnerId);
 
 }

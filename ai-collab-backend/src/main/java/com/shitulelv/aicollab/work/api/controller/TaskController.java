@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.work.api.controller;
 import com.shitulelv.aicollab.common.api.ApiResponse;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.work.api.dto.BatchUpdateTasksRequest;
 import com.shitulelv.aicollab.work.api.dto.CreateTaskRequest;
 import com.shitulelv.aicollab.work.api.dto.ReplaceDependenciesRequest;
 import com.shitulelv.aicollab.work.api.dto.UpdateTaskRequest;
@@ -81,6 +82,14 @@ public class TaskController {
             @PathVariable UUID projectId, @PathVariable UUID taskId,
             @Valid @RequestBody ReplaceDependenciesRequest request, @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(tasks.replaceDependencies(projectId, taskId, request, userId(jwt)));
+    }
+
+    @PostMapping("/batch")
+    public ApiResponse<List<TaskView>> batchUpdate(
+            @PathVariable UUID projectId,
+            @Valid @RequestBody BatchUpdateTasksRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(tasks.batchUpdate(projectId, request, userId(jwt)));
     }
 
     private static UUID userId(Jwt jwt) {

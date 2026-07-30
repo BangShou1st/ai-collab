@@ -47,7 +47,7 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
             }
             removePublicBucketPolicy();
         } catch (Exception exception) {
-            log.warn("MinIO bucket 初始化失败，文档存储功能将不可用");
+            log.warn("MinIO bucket 初始化失败，文档存储功能将不可用", exception);
         }
     }
 
@@ -69,7 +69,7 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
                     .bucket(properties.bucket()).object(objectKey)
                     .stream(input, size, -1L).contentType(contentType).build());
         } catch (Exception exception) {
-            throw new BusinessException(ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE);
+            throw storageUnavailable("上传", objectKey, exception);
         }
     }
 
@@ -79,7 +79,7 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
             return client.getObject(GetObjectArgs.builder()
                     .bucket(properties.bucket()).object(objectKey).build());
         } catch (Exception exception) {
-            throw new BusinessException(ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE);
+            throw storageUnavailable("读取", objectKey, exception);
         }
     }
 
@@ -95,7 +95,7 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
                     .build());
             return new DownloadUrlView(url, OffsetDateTime.now().plusSeconds(seconds));
         } catch (Exception exception) {
-            throw new BusinessException(ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE);
+            throw storageUnavailable("生成下载地址", objectKey, exception);
         }
     }
 
@@ -105,7 +105,32 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
             client.removeObject(RemoveObjectArgs.builder()
                     .bucket(properties.bucket()).object(objectKey).build());
         } catch (Exception exception) {
-            throw new BusinessException(ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE);
+            throw storageUnavailable("删除", objectKey, exception);
         }
+    }
+
+    private BusinessException storageUnavailable(
+            String operation,
+            String objectKey,
+            Exception exception) {
+        log.warn("MinIO {}对象失败，objectKey={}", operation, objectKey, exception);
+        if (exception instanceof ErrorResponseException responseException
+                && isCredentialFailure(responseException)) {
+            return new BusinessException(
+                    ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE,
+                    "文件存储凭据无效，请联系管理员检查 MinIO 配置");
+        }
+        return new BusinessException(
+                ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE,
+                "无法连接文件存储服务，请稍后重试；若持续出现，请联系管理员检查 MinIO 服务");
+    }
+
+    private boolean isCredentialFailure(ErrorResponseException exception) {
+        String code = exception.errorResponse() == null
+                ? null
+                : exception.errorResponse().code();
+        return "AccessDenied".equals(code)
+                || "InvalidAccessKeyId".equals(code)
+                || "SignatureDoesNotMatch".equals(code);
     }
 }

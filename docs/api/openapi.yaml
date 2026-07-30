@@ -9,6 +9,7 @@ security:
   - bearerAuth: []
 tags:
   - name: Auth
+  - name: Admin
   - name: Invitations
   - name: Projects
   - name: Members
@@ -240,6 +241,185 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/VoidResponseEnvelope' }
+  /admin/test-users:
+    post:
+      tags: [Admin]
+      summary: Create a test user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTestUserRequest'
+      responses:
+        '201':
+          description: Test user created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: string }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      userId: { type: string, format: uuid }
+        '400':
+          description: Request validation failed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List local user accounts
+      responses:
+        '200':
+          description: User list without password or token fields
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/AdminUserView' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/models:
+    get:
+      tags: [Admin]
+      summary: List model configurations
+      responses:
+        '200':
+          description: API keys are never returned
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMeta'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/ModelConfigurationView' }
+    post:
+      tags: [Admin]
+      summary: Create a model configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ModelConfigurationRequest' }
+      responses:
+        '201':
+          description: Model configuration created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMeta'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ModelConfigurationView' }
+  /admin/models/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [Admin]
+      summary: Update a model configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ModelConfigurationRequest' }
+      responses:
+        '200':
+          description: Model configuration updated
+    delete:
+      tags: [Admin]
+      summary: Delete a model configuration
+      responses:
+        '204': { description: Deleted }
+  /admin/models/{id}/test:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Admin]
+      summary: Test a model connection
+      responses:
+        '200': { description: Provider response and normalized usage returned }
+  /admin/models/assignments:
+    get:
+      tags: [Admin]
+      summary: List purpose assignments
+      responses:
+        '200': { description: Purpose assignments }
+  /admin/models/assignments/{purpose}:
+    parameters:
+      - name: purpose
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ModelPurpose' }
+    put:
+      tags: [Admin]
+      summary: Assign an enabled configuration to a purpose
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [configurationId]
+              properties:
+                configurationId: { type: string, format: uuid }
+      responses:
+        '204': { description: Assignment updated }
+  /admin/users/{userId}/disable:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Admin]
+      summary: Disable a user account
+      responses:
+        '204':
+          description: User disabled
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/users/{userId}/enable:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Admin]
+      summary: Enable a user account
+      responses:
+        '204':
+          description: User enabled
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /invitations/{code}:
     get:
       tags: [Invitations]
@@ -505,6 +685,41 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /projects/{projectId}/leave:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [Members]
+      summary: Leave project (current user cannot be owner)
+      responses:
+        '204':
+          description: Left project
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /projects/{projectId}/transfer-ownership:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [Members]
+      summary: Transfer project ownership (owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferOwnershipRequest'
+      responses:
+        '204':
+          description: Ownership transferred
+        '400':
+          description: Invalid request
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /projects/{projectId}/milestones:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -752,9 +967,11 @@ paths:
       description: >
         OWNER and ADMIN can upload one validated PDF, DOCX, Markdown, or TXT file.
         Validation and the private MinIO put happen outside the database transaction.
-        A short registration transaction locks the ACTIVE project row, checks the
-        100-document limit, inserts metadata and audit, and publishes the after-commit event.
-        If registration fails, the already-written object is compensating-deleted.
+        PREPARING and ACTIVE projects are writable; COMPLETED and ARCHIVED projects
+        return PROJECT_READ_ONLY. A short registration transaction locks the project row,
+        checks its status and the 100-document limit, inserts metadata and audit, and
+        publishes the after-commit event. If registration fails, the already-written object
+        is compensating-deleted.
       requestBody:
         required: true
         content:
@@ -779,7 +996,9 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: Project is read-only (PROJECT_READ_ONLY), or the document limit was reached
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '415':
@@ -805,7 +1024,7 @@ paths:
     delete:
       tags: [Documents]
       summary: Delete document and its chunks
-      description: OWNER and ADMIN only. Deletes the private object, chunks, citations through foreign keys, and document row.
+      description: OWNER and ADMIN only. PREPARING and ACTIVE projects are writable; COMPLETED and ARCHIVED return PROJECT_READ_ONLY. Deletes the private object, chunks, citations through foreign keys, and document row.
       responses:
         '204':
           description: Deleted
@@ -841,7 +1060,8 @@ paths:
       tags: [Documents]
       summary: Retry failed processing
       description: >
-        OWNER and ADMIN only. Resets the same FAILED document to UPLOADED and reuses its
+        OWNER and ADMIN only. PREPARING and ACTIVE projects are writable; COMPLETED and
+        ARCHIVED return PROJECT_READ_ONLY. Resets the same FAILED document to UPLOADED and reuses its
         existing private object. A new processing token is generated when the worker claims
         the retry; an older worker cannot heartbeat, fail, replace chunks, or complete it.
       responses:
@@ -906,6 +1126,18 @@ paths:
                 $ref: '#/components/schemas/KnowledgeSessionDetailEnvelope'
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Knowledge]
+      summary: Rename own knowledge session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateKnowledgeSessionRequest' }
+      responses:
+        '200': { description: Session renamed }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
     delete:
       tags: [Knowledge]
@@ -1295,6 +1527,269 @@ paths:
         '404':
           description: Project does not exist or the current user is not a member
           content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List current user's notifications
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200': { description: Notification list }
+  /notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Count unread notifications
+      responses:
+        '200': { description: Unread count }
+  /notifications/project/{projectId}:
+    get:
+      tags: [Notifications]
+      summary: List current user's notifications in one project
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200': { description: Project notification list }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /notifications/{notificationId}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark one owned notification as read
+      parameters:
+        - { name: notificationId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Marked as read }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark all owned notifications as read
+      responses:
+        '204': { description: Marked as read }
+  /projects/{projectId}/documents/{documentId}/reindex:
+    post:
+      tags: [Documents]
+      summary: Reindex one ready document
+      description: PREPARING and ACTIVE projects are writable; COMPLETED and ARCHIVED return PROJECT_READ_ONLY.
+      responses:
+        '202': { description: Reindex accepted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /projects/{projectId}/documents/reindex-all:
+    post:
+      tags: [Documents]
+      summary: Reindex all ready documents as project administrator
+      description: PREPARING and ACTIVE projects are writable; COMPLETED and ARCHIVED return PROJECT_READ_ONLY.
+      responses:
+        '202': { description: Batch accepted }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /projects/{projectId}/documents/reindex-progress:
+    get:
+      tags: [Documents]
+      summary: Get in-memory batch reindex queue progress
+      responses:
+        '200': { description: Batch progress }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /projects/{projectId}/knowledge/sessions/{sessionId}/questions/stream:
+    post:
+      tags: [Knowledge]
+      summary: Stream an answer using server-sent events
+      responses:
+        '200':
+          description: Token, citation, error, and done events
+          content:
+            text/event-stream: {}
+  /projects/{projectId}/knowledge/sessions/messages/{messageId}/feedback:
+    get:
+      tags: [Knowledge]
+      summary: Get current user's feedback for an owned assistant message
+      responses:
+        '200': { description: Feedback counts and current choice }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Knowledge]
+      summary: Submit feedback for an owned assistant message
+      responses:
+        '200': { description: Feedback saved }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Knowledge]
+      summary: Remove feedback from an owned assistant message
+      responses:
+        '204': { description: Feedback removed }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /projects/{projectId}/knowledge/eval/run:
+    post:
+      tags: [Knowledge]
+      summary: Start a project-admin retrieval evaluation
+      responses:
+        '202': { description: Evaluation started }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /projects/{projectId}/knowledge/eval/runs:
+    get:
+      tags: [Knowledge]
+      summary: List project retrieval evaluations
+      responses:
+        '200': { description: Evaluation run list }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /projects/{projectId}/knowledge/eval/runs/{runId}:
+    get:
+      tags: [Knowledge]
+      summary: Get one project retrieval evaluation
+      responses:
+        '200': { description: Evaluation detail }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /projects/{projectId}/tasks/batch:
+    post:
+      tags: [Tasks]
+      summary: Atomically update selected tasks
+      responses:
+        '200': { description: Updated tasks }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /projects/{projectId}/visualization/gantt:
+    get:
+      tags: [Work visualization]
+      summary: Get project Gantt data
+      responses:
+        '200': { description: Tasks, milestones, and dependencies }
+  /projects/{projectId}/visualization/dependency-graph:
+    get:
+      tags: [Work visualization]
+      summary: Get project dependency graph
+      responses:
+        '200': { description: Graph nodes and edges }
+  /projects/{projectId}/visualization/calendar:
+    get:
+      tags: [Work visualization]
+      summary: Get project calendar events
+      responses:
+        '200': { description: Calendar events }
+  /projects/{projectId}/visualization/member-load:
+    get:
+      tags: [Work visualization]
+      summary: Get project member workload
+      responses:
+        '200': { description: Member workload metrics }
+  /projects/{projectId}/reports/weekly:
+    get:
+      tags: [Reports]
+      summary: Get deterministic project weekly report
+      responses:
+        '200': { description: Weekly report }
+  /projects/{projectId}/reports/risks:
+    get:
+      tags: [Reports]
+      summary: Get overdue, blocked, and unassigned task risks
+      responses:
+        '200': { description: Risk analysis }
+  /projects/{projectId}/reports/plan-comparison:
+    get:
+      tags: [Reports]
+      summary: Compare latest plan tasks with confirmed project tasks
+      parameters:
+        - { name: planId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Field-level plan comparison }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /projects/{projectId}/agent/sessions:
+    get:
+      tags: [Agent]
+      summary: List Agent sessions
+      responses: { '200': { description: Session list } }
+    post:
+      tags: [Agent]
+      summary: Create an Agent session
+      responses: { '201': { description: Session created } }
+  /projects/{projectId}/agent/sessions/{sessionId}:
+    get:
+      tags: [Agent]
+      summary: Get an Agent session
+      responses: { '200': { description: Session detail } }
+    patch:
+      tags: [Agent]
+      summary: Rename an owned Agent session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string, minLength: 1, maxLength: 160 }
+      responses:
+        '200': { description: Session renamed }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Agent]
+      summary: Delete an owned Agent session and its history
+      responses:
+        '204': { description: Session deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /projects/{projectId}/agent/sessions/{sessionId}/messages:
+    get:
+      tags: [Agent]
+      summary: List Agent messages
+      responses: { '200': { description: Message list } }
+    post:
+      tags: [Agent]
+      summary: Submit an Agent request
+      responses: { '202': { description: Run queued } }
+  /projects/{projectId}/agent/runs/{runId}:
+    get:
+      tags: [Agent]
+      summary: Get normalized run and step details
+      responses: { '200': { description: Run detail } }
+  /projects/{projectId}/agent/runs/{runId}/cancel:
+    post:
+      tags: [Agent]
+      summary: Cancel an Agent run
+      responses: { '204': { description: Run canceled } }
+  /projects/{projectId}/agent/runs/{runId}/retry:
+    post:
+      tags: [Agent]
+      summary: Retry an Agent run
+      responses: { '200': { description: Retry queued } }
+  /projects/{projectId}/agent/approvals:
+    get:
+      tags: [Agent]
+      summary: List Agent approvals
+      responses: { '200': { description: Approval list } }
+  /projects/{projectId}/agent/approvals/{approvalId}/approve:
+    post:
+      tags: [Agent]
+      summary: Approve and execute a proposed write
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
+      responses: { '200': { description: Proposal executed } }
+  /projects/{projectId}/agent/approvals/{approvalId}/reject:
+    post:
+      tags: [Agent]
+      summary: Reject a proposed write
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
+      responses: { '200': { description: Proposal rejected } }
+  /projects/{projectId}/agent/schedules:
+    get:
+      tags: [Agent]
+      summary: List Agent schedules
+      responses: { '200': { description: Schedule list } }
+    post:
+      tags: [Agent]
+      summary: Create an Agent schedule
+      responses: { '201': { description: Schedule created } }
+  /projects/{projectId}/agent/schedules/{scheduleId}/enable:
+    post:
+      tags: [Agent]
+      summary: Enable an Agent schedule
+      responses: { '200': { description: Schedule enabled } }
+  /projects/{projectId}/agent/schedules/{scheduleId}/disable:
+    post:
+      tags: [Agent]
+      summary: Disable an Agent schedule
+      responses: { '200': { description: Schedule disabled } }
 components:
   securitySchemes:
     bearerAuth:
@@ -1518,13 +2013,14 @@ components:
             data: { $ref: '#/components/schemas/AuthResult' }
     UserView:
       type: object
-      required: [id, username, displayName, status]
+      required: [id, username, displayName, status, systemAdmin]
       properties:
         id: { type: string, format: uuid }
         username: { type: string }
         displayName: { type: string }
         email: { type: [string, 'null'], format: email }
         status: { type: string, enum: [ACTIVE, DISABLED] }
+        systemAdmin: { type: boolean }
     UserEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
@@ -1535,27 +2031,35 @@ components:
     ProjectRole:
       type: string
       enum: [OWNER, ADMIN, MEMBER]
+    ProjectType:
+      type: string
+      enum: [COMPETITION, COURSE_DESIGN, SOFTWARE_TRAINING, OTHER]
     ProjectView:
       type: object
-      required: [id, name, status, role, ownerId, createdAt, updatedAt]
+      required: [id, name, type, status, role, ownerId, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         description: { type: string }
         ownerId: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/ProjectType' }
         startDate: { type: [string, 'null'], format: date }
         dueDate: { type: [string, 'null'], format: date }
-        status: { type: string, enum: [ACTIVE, ARCHIVED] }
+        status: { $ref: '#/components/schemas/ProjectStatus' }
         role: { $ref: '#/components/schemas/ProjectRole' }
         version: { type: integer }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    ProjectStatus:
+      type: string
+      enum: [PREPARING, ACTIVE, COMPLETED, ARCHIVED]
     CreateProjectRequest:
       type: object
-      required: [name]
+      required: [name, type]
       properties:
         name: { type: string, minLength: 1, maxLength: 100 }
         description: { type: string, maxLength: 2000, default: '' }
+        type: { $ref: '#/components/schemas/ProjectType' }
         startDate: { type: [string, 'null'], format: date }
         dueDate: { type: [string, 'null'], format: date }
     UpdateProjectRequest:
@@ -1564,7 +2068,7 @@ components:
         - type: object
           required: [version]
           properties:
-            status: { type: string, enum: [ACTIVE, ARCHIVED] }
+            status: { $ref: '#/components/schemas/ProjectStatus' }
             version: { type: integer, minimum: 0 }
     ProjectEnvelope:
       allOf:
@@ -1603,6 +2107,79 @@ components:
             data:
               type: array
               items: { $ref: '#/components/schemas/MemberView' }
+    CreateTestUserRequest:
+      type: object
+      required: [username, displayName, password]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 40 }
+        displayName: { type: string, minLength: 1, maxLength: 60 }
+        password: { type: string, minLength: 6, maxLength: 100 }
+    AdminUserView:
+      type: object
+      required: [id, username, displayName, status, systemAdmin, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        email: { type: [string, 'null'], format: email }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+        systemAdmin: { type: boolean }
+        lastLoginAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    ModelProviderType:
+      type: string
+      enum: [OPENAI_COMPATIBLE, ANTHROPIC, GEMINI]
+    ModelPurpose:
+      type: string
+      enum: [KNOWLEDGE_CHAT, AGENT, PLANNING]
+    ModelCapability:
+      type: string
+      enum: [CHAT, STREAMING, STRUCTURED_OUTPUT, NATIVE_TOOLS, USAGE]
+    ModelConfigurationRequest:
+      type: object
+      required:
+        [name, providerType, baseUrl, apiPath, modelName, enabled,
+         temperature, maxOutputTokens, capabilities]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        providerType: { $ref: '#/components/schemas/ModelProviderType' }
+        baseUrl: { type: string, format: uri, maxLength: 2048 }
+        apiPath: { type: string, minLength: 1, maxLength: 512 }
+        apiKey: { type: [string, 'null'], writeOnly: true, maxLength: 1000 }
+        modelName: { type: string, minLength: 1, maxLength: 160 }
+        enabled: { type: boolean }
+        temperature: { type: number, minimum: 0, maximum: 2 }
+        maxOutputTokens: { type: integer, minimum: 1, maximum: 131072 }
+        capabilities:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/ModelCapability' }
+    ModelConfigurationView:
+      type: object
+      required:
+        [id, name, providerType, baseUrl, apiPath, hasApiKey, modelName,
+         enabled, temperature, maxOutputTokens, capabilities, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        providerType: { $ref: '#/components/schemas/ModelProviderType' }
+        baseUrl: { type: string, format: uri }
+        apiPath: { type: string }
+        hasApiKey: { type: boolean }
+        modelName: { type: string }
+        enabled: { type: boolean }
+        temperature: { type: number }
+        maxOutputTokens: { type: integer }
+        capabilities:
+          type: array
+          items: { $ref: '#/components/schemas/ModelCapability' }
+        updatedAt: { type: string, format: date-time }
+    TransferOwnershipRequest:
+      type: object
+      required: [newOwnerId]
+      properties:
+        newOwnerId: { type: string, format: uuid }
     CreateInvitationRequest:
       type: object
       required: [role, expiresInHours]
@@ -1668,6 +2245,8 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 100 }
         description: { type: string, maxLength: 1000, default: '' }
+        startDate: { type: [string, 'null'], format: date }
+        endDate: { type: [string, 'null'], format: date }
         targetDate: { type: [string, 'null'], format: date }
         status: { $ref: '#/components/schemas/MilestoneStatus' }
         sortOrder: { type: integer, minimum: 0 }
@@ -1686,6 +2265,8 @@ components:
         projectId: { type: string, format: uuid }
         name: { type: string }
         description: { type: string }
+        startDate: { type: [string, 'null'], format: date }
+        endDate: { type: [string, 'null'], format: date }
         targetDate: { type: [string, 'null'], format: date }
         status: { $ref: '#/components/schemas/MilestoneStatus' }
         sortOrder: { type: integer, minimum: 0 }
@@ -2304,7 +2885,7 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         description: { type: string }
-        status: { type: string, enum: [ACTIVE, ARCHIVED] }
+        status: { $ref: '#/components/schemas/ProjectStatus' }
         startDate: { type: [string, 'null'], format: date }
         dueDate: { type: [string, 'null'], format: date }
         currentUserRole: { $ref: '#/components/schemas/ProjectRole' }

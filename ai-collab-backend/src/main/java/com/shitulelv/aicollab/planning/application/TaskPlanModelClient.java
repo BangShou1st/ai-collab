@@ -6,7 +6,10 @@ import com.shitulelv.aicollab.infrastructure.ai.ChatModelProperties;
 import com.shitulelv.aicollab.infrastructure.ai.OpenAiCompatibleChatModelGateway;
 import com.shitulelv.aicollab.infrastructure.ai.AiCallLogWriter;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.planning.infrastructure.ai.PlanningModelProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
@@ -20,6 +23,19 @@ public class TaskPlanModelClient {
     private final PlanningModelProperties properties;
     private final ChatModelProperties chatProperties;
     private final AiCallLogWriter logs;
+
+    @Autowired
+    public TaskPlanModelClient(
+            PlanningModelProperties properties,
+            ChatModelProperties chatProperties,
+            AiCallLogWriter logs,
+            @Qualifier("routingChatModelGateway") ChatModelGateway gateway) {
+        this.properties = properties;
+        this.chatProperties = chatProperties;
+        this.logs = logs;
+        this.gateway = gateway;
+    }
+
     public TaskPlanModelClient(PlanningModelProperties properties, ChatModelProperties chatProperties, AiCallLogWriter logs) {
         this.properties = properties;
         this.chatProperties = chatProperties;
@@ -27,7 +43,7 @@ public class TaskPlanModelClient {
         this.gateway = new OpenAiCompatibleChatModelGateway(new ChatModelProperties(
                 resolveEnabled(), resolveProvider(), resolveBaseUrl(), resolvePath(),
                 resolveApiKey(), resolveModel(), resolveConnectTimeout(), resolveReadTimeout(),
-                resolveTemperature(), resolveMaxOutputTokens()), false);
+                resolveTemperature(), resolveMaxOutputTokens(), true), false);
     }
 
     /**
@@ -61,7 +77,8 @@ public class TaskPlanModelClient {
         long started = System.nanoTime();
         try {
             ChatCompletionResult result = gateway.complete(new ChatCompletionCommand(system, user,
-                    ChatCompletionCommand.OutputFormat.JSON_OBJECT));
+                    ChatCompletionCommand.OutputFormat.JSON_OBJECT,
+                    ModelPurpose.PLANNING, null, java.util.List.of()));
             safeLog(feature, actor, projectId, attemptId, result.provider(), result.model(),
                     "SUCCESS", result.latencyMs(), result.promptTokens(), result.completionTokens(), null);
             return new GenerationResult(result.content(), result.provider(), result.model(),

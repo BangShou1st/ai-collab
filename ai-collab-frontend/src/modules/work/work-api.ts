@@ -1,7 +1,7 @@
 import { httpClient } from '../../api/http-client'
 import { apiResultFromResponse } from '../../api/api-result'
 import type { ApiResponse, ApiResult } from '../../api/types'
-import type { Milestone, Task, TaskComment, TaskStatus } from './types'
+import type { Milestone, Task, TaskComment, TaskPriority, TaskStatus } from './types'
 
 export const workApi = {
   async milestones(projectId: string): Promise<ApiResult<Milestone[]>> {
@@ -105,5 +105,19 @@ export const workApi = {
   },
   async deleteComment(projectId: string, taskId: string, commentId: string): Promise<void> {
     await httpClient.delete(`/projects/${projectId}/tasks/${taskId}/comments/${commentId}`)
+  },
+  async batchUpdate(projectId: string, items: Array<{
+    taskId: string
+    sortOrder?: number
+    status?: TaskStatus
+    priority?: TaskPriority
+    assigneeId?: string
+    version: number
+  }>): Promise<ApiResult<Task[]>> {
+    return apiResultFromResponse(
+      await httpClient.post<ApiResponse<Task[]>>(
+        `/projects/${projectId}/tasks/batch`, { items },
+      ),
+    )
   },
 }

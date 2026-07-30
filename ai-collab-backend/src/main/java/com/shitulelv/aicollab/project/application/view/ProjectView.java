@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.project.application.view;
 
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.model.ProjectStatus;
+import com.shitulelv.aicollab.project.domain.model.ProjectType;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -12,6 +13,7 @@ public record ProjectView(
         String name,
         String description,
         UUID ownerId,
+        ProjectType type,
         LocalDate startDate,
         LocalDate dueDate,
         ProjectStatus status,

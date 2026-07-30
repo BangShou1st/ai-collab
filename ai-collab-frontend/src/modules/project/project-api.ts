@@ -10,6 +10,7 @@ import type {
   Project,
   ProjectMember,
   ProjectRole,
+  ProjectType,
 } from './types'
 
 export const projectApi = {
@@ -22,6 +23,7 @@ export const projectApi = {
   async create(payload: {
     name: string
     description: string
+    type: ProjectType
     startDate: string | null
     dueDate: string | null
   }): Promise<ApiResult<Project>> {
@@ -32,6 +34,7 @@ export const projectApi = {
     payload: {
       name: string
       description: string
+      type: ProjectType
       startDate: string | null
       dueDate: string | null
       status: Project['status']
@@ -100,5 +103,11 @@ export const projectApi = {
         `/invitations/${code}/accept-current-user`,
       ),
     )
+  },
+  async leaveProject(projectId: string): Promise<void> {
+    await httpClient.post(`/projects/${projectId}/leave`)
+  },
+  async transferOwnership(projectId: string, newOwnerId: string): Promise<void> {
+    await httpClient.post(`/projects/${projectId}/transfer-ownership`, { newOwnerId })
   },
 }

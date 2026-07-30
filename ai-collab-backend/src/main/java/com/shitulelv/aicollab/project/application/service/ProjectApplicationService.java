@@ -8,6 +8,7 @@ import com.shitulelv.aicollab.project.application.view.ProjectView;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.model.ProjectStatus;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.project.domain.policy.ProjectStatusTransitionPolicy;
 import com.shitulelv.aicollab.project.infrastructure.entity.ProjectEntity;
 import com.shitulelv.aicollab.project.infrastructure.repository.ProjectMemberRepository;
 import com.shitulelv.aicollab.project.infrastructure.repository.ProjectRepository;
@@ -44,9 +45,10 @@ public class ProjectApplicationService {
         entity.setName(request.name().trim());
         entity.setDescription(request.description() == null ? "" : request.description());
         entity.setOwnerId(userId);
+        entity.setType(request.type());
         entity.setStartDate(request.startDate());
         entity.setDueDate(request.dueDate());
-        entity.setStatus(ProjectStatus.ACTIVE);
+        entity.setStatus(ProjectStatus.PREPARING);
         entity.setCreatedBy(userId);
         entity.setVersion(0);
         projects.create(entity);
@@ -70,14 +72,20 @@ public class ProjectApplicationService {
     public ProjectView update(UUID projectId, UpdateProjectRequest request, UUID userId) {
         accessGuard.requireOwner(projectId, userId);
         validateDates(request.startDate(), request.dueDate());
-        ProjectStatus status = request.status() == null ? get(projectId, userId).status() : request.status();
+        ProjectView current = get(projectId, userId);
+        ProjectStatus targetStatus = request.status() == null ? current.status() : request.status();
+
+        // 验证状态转换合法性
+        ProjectStatusTransitionPolicy.validateTransition(current.status(), targetStatus);
+
         if (!projects.updateWithVersion(
                 projectId,
                 request.name().trim(),
                 request.description() == null ? "" : request.description(),
+                request.type(),
                 request.startDate(),
                 request.dueDate(),
-                status,
+                targetStatus,
                 request.version())) {
             throw new BusinessException(ErrorCode.VERSION_CONFLICT);
         }

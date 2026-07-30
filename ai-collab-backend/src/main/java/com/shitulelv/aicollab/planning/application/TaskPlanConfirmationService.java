@@ -13,6 +13,7 @@ import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanVersionRecord;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.project.application.service.AuditService;
+import com.shitulelv.aicollab.notification.application.service.NotificationApplicationService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -33,17 +34,20 @@ public class TaskPlanConfirmationService {
     private final TaskPlanIssueRepository issueRepo;
     private final AuditService audit;
     private final TaskPlanActionPolicy actionPolicy;
+    private final NotificationApplicationService notifications;
 
     public TaskPlanConfirmationService(ProjectAccessGuard access, TaskPlanRepository repository,
                                        JdbcTemplate jdbc, PlatformTransactionManager manager,
                                        TaskPlanDraftValidator validator, TaskPlanIssueRepository issueRepo,
-                                       AuditService audit, TaskPlanActionPolicy actionPolicy) {
+                                       AuditService audit, TaskPlanActionPolicy actionPolicy,
+                                       NotificationApplicationService notifications) {
         this.access = access; this.repository = repository; this.jdbc = jdbc;
         this.transactions = new TransactionTemplate(manager);
         this.validator = validator;
         this.issueRepo = issueRepo;
         this.audit = audit;
         this.actionPolicy = actionPolicy;
+        this.notifications = notifications;
     }
 
     public Map<String, Object> confirm(UUID projectId, UUID planId, UUID versionId,
@@ -212,6 +216,10 @@ public class TaskPlanConfirmationService {
                 Map.of("milestoneCount", milestoneIds.size(),
                         "taskCount", taskIds.size(),
                         "dependencyCount", dependencies));
+        notifications.create(projectId, plan.createdBy(),
+                "PLAN_CONFIRMED", "AI 规划已确认",
+                "规划「" + plan.title() + "」已创建正式任务",
+                "AI_TASK_PLAN", planId);
         return Map.of("confirmationId", confirmation, "status", "SUCCESS",
                 "milestoneIds", List.copyOf(milestoneIds.values()), "taskIds", List.copyOf(taskIds.values()),
                 "dependencyCount", dependencies);

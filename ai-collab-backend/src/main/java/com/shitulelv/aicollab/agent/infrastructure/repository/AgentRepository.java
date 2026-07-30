@@ -55,6 +55,24 @@ public class AgentRepository {
                 """, sessionMapper(), projectId, limit);
     }
 
+    public Optional<AgentSessionView> renameSession(
+            UUID projectId, UUID sessionId, UUID creatorId, String title) {
+        return jdbc.query("""
+                UPDATE agent_session
+                SET title=?,updated_at=now(),version=version+1
+                WHERE project_id=? AND id=? AND creator_id=?
+                RETURNING id,project_id,creator_id,title,status,version,created_at,updated_at
+                """, sessionMapper(), title, projectId, sessionId, creatorId)
+                .stream().findFirst();
+    }
+
+    public boolean deleteSession(UUID projectId, UUID sessionId, UUID creatorId) {
+        return jdbc.update("""
+                DELETE FROM agent_session
+                WHERE project_id=? AND id=? AND creator_id=?
+                """, projectId, sessionId, creatorId) == 1;
+    }
+
     @Transactional
     public AgentRunView createRun(
             UUID projectId, UUID sessionId, UUID requesterId, String goal, boolean scheduled) {
@@ -134,7 +152,7 @@ public class AgentRepository {
     public boolean updateStatus(
             UUID projectId, UUID runId, int version,
             AgentRunStatus expected, AgentRunStatus target, String errorCode) {
-        return jdbc.update("""
+        boolean changed = jdbc.update("""
                 UPDATE agent_run
                 SET status=?,error_code=?,lease_owner=NULL,lease_expires_at=NULL,
                     finished_at=CASE WHEN ? IN ('SUCCEEDED','FAILED','CANCELED','BUDGET_EXCEEDED')
@@ -143,6 +161,11 @@ public class AgentRepository {
                 WHERE project_id=? AND id=? AND version=? AND status=?
                 """, target.name(), errorCode, target.name(),
                 projectId, runId, version, expected.name()) == 1;
+        if (changed && target == AgentRunStatus.CANCELED) {
+            findRun(projectId, runId).ifPresent(
+                    run -> resumeParent(run, "CANCELED", "AGENT_RUN_CANCELED"));
+        }
+        return changed;
     }
 
     @Transactional
@@ -154,6 +177,62 @@ public class AgentRepository {
                   lease_owner=NULL,lease_expires_at=NULL,updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, run.projectId(), run.id(), run.version()));
+        resumeParent(run, "BUDGET_EXCEEDED", "AGENT_BUDGET_EXCEEDED");
+    }
+
+    @Transactional
+    public void recordBudgetExceeded(AgentRunView run, ChatCompletionResult completion) {
+        int sequence = nextSequence(run.id());
+        jdbc.update("""
+                INSERT INTO agent_step(
+                  run_id,sequence_no,type,reason,prompt_tokens,completion_tokens,
+                  token_usage_estimated,latency_ms,error_code)
+                VALUES (?,?,'ERROR','Model response exceeded remaining budget',?,?,?,?,?,
+                  'AGENT_BUDGET_EXCEEDED')
+                """, run.id(), sequence, completion.promptTokens(), completion.completionTokens(),
+                completion.promptTokens() == null || completion.completionTokens() == null,
+                boundedLatency(completion.latencyMs()));
+        requireRunUpdate(jdbc.update("""
+                UPDATE agent_run SET status='BUDGET_EXCEEDED',
+                  steps_used=LEAST(max_steps,steps_used+1),
+                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
+                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
+                  token_usage_estimated=?,error_code='AGENT_BUDGET_EXCEEDED',
+                  finished_at=now(),lease_owner=NULL,lease_expires_at=NULL,
+                  updated_at=now(),version=version+1
+                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
+                """, tokens(completion.promptTokens(), ""),
+                tokens(completion.completionTokens(), completion.content()),
+                completion.promptTokens() == null || completion.completionTokens() == null,
+                run.projectId(), run.id(), run.version()));
+        resumeParent(run, "BUDGET_EXCEEDED", "AGENT_BUDGET_EXCEEDED");
+    }
+
+    @Transactional
+    public void recordDecisionFailure(
+            AgentRunView run, ChatCompletionResult completion, String errorCode, String reason) {
+        int sequence = nextSequence(run.id());
+        jdbc.update("""
+                INSERT INTO agent_step(
+                  run_id,sequence_no,type,reason,prompt_tokens,completion_tokens,
+                  token_usage_estimated,latency_ms,error_code)
+                VALUES (?,?,'ERROR',?,?,?,?,?,?)
+                """, run.id(), sequence, truncate(reason, 2000),
+                completion.promptTokens(), completion.completionTokens(),
+                completion.promptTokens() == null || completion.completionTokens() == null,
+                boundedLatency(completion.latencyMs()), errorCode);
+        requireRunUpdate(jdbc.update("""
+                UPDATE agent_run SET status='FAILED',steps_used=LEAST(max_steps,steps_used+1),
+                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
+                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
+                  token_usage_estimated=?,error_code=?,finished_at=now(),
+                  lease_owner=NULL,lease_expires_at=NULL,updated_at=now(),version=version+1
+                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
+                """, tokens(completion.promptTokens(), ""),
+                tokens(completion.completionTokens(), completion.content()),
+                completion.promptTokens() == null || completion.completionTokens() == null,
+                errorCode, run.projectId(), run.id(), run.version()));
+        resumeParent(run, "FAILED", errorCode);
     }
 
     @Transactional
@@ -168,6 +247,7 @@ public class AgentRepository {
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, retryable ? "FAILED_RETRYABLE" : "FAILED", errorCode,
                 retryable, retryable, retryable, run.projectId(), run.id(), run.version()));
+        if (!retryable) resumeParent(run, "FAILED", errorCode);
     }
 
     @Transactional
@@ -231,6 +311,7 @@ public class AgentRepository {
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 truncate(completion.provider(), 80), truncate(completion.model(), 120),
                 run.projectId(), run.id(), run.version()));
+        resumeParent(run, "SUCCEEDED", answer.answer());
     }
 
     @Transactional
@@ -262,6 +343,53 @@ public class AgentRepository {
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 truncate(completion.provider(), 80), truncate(completion.model(), 120),
                 run.projectId(), run.id(), run.version()));
+    }
+
+    @Transactional
+    public AgentRunView recordDelegation(
+            AgentRunView run, ChatCompletionResult completion, AgentDecision.Delegate delegate) {
+        if (run.depth() != 0 || run.childrenUsed() >= run.maxChildren()) {
+            throw new IllegalStateException("Agent 子运行预算已耗尽");
+        }
+        UUID childId = UUID.randomUUID();
+        int sequence = nextSequence(run.id());
+        jdbc.update("""
+                INSERT INTO agent_step(
+                  run_id,sequence_no,type,input_json,reason,prompt_tokens,completion_tokens,
+                  token_usage_estimated,latency_ms)
+                VALUES (?,?,'DELEGATION_REQUESTED',
+                  jsonb_build_object('role',?,'objective',?),?,?,?,?,?)
+                """, run.id(), sequence, delegate.role(), delegate.objective(),
+                delegate.objective(), completion.promptTokens(), completion.completionTokens(),
+                completion.promptTokens() == null || completion.completionTokens() == null,
+                boundedLatency(completion.latencyMs()));
+        int promptTokens = tokens(completion.promptTokens(), "");
+        int outputTokens = tokens(completion.completionTokens(), completion.content());
+        int childSteps = run.maxSteps() - run.stepsUsed() - 1;
+        int childTools = run.maxToolCalls() - run.toolCallsUsed();
+        int childInputs = run.maxInputTokens() - run.inputTokensUsed() - promptTokens;
+        int childOutputs = run.maxOutputTokens() - run.outputTokensUsed() - outputTokens;
+        if (childSteps < 1 || childInputs < 1 || childOutputs < 1) {
+            throw new IllegalStateException("Agent 没有可分配给子运行的剩余预算");
+        }
+        AgentRunView child = jdbc.queryForObject("""
+                INSERT INTO agent_run(
+                  id,session_id,project_id,requester_id,parent_run_id,role,depth,goal,status,
+                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens)
+                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?)
+                RETURNING *
+                """, runMapper(), childId, run.sessionId(), run.projectId(), run.requesterId(),
+                run.id(), delegate.role(), delegate.objective(),
+                childSteps, childTools, childInputs, childOutputs);
+        requireRunUpdate(jdbc.update("""
+                UPDATE agent_run SET status='CREATED',steps_used=steps_used+1,
+                  children_used=children_used+1,input_tokens_used=input_tokens_used+?,
+                  output_tokens_used=output_tokens_used+?,lease_owner=NULL,lease_expires_at=NULL,
+                  updated_at=now(),version=version+1
+                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
+                """, promptTokens, outputTokens,
+                run.projectId(), run.id(), run.version()));
+        return child;
     }
 
     private RowMapper<AgentSessionView> sessionMapper() {
@@ -408,5 +536,28 @@ public class AgentRepository {
         if (updated != 1) {
             throw new IllegalStateException("Agent 运行已被其他 worker 修改");
         }
+    }
+
+    private void resumeParent(AgentRunView child, String status, String content) {
+        if (child.parentRunId() == null) return;
+        AgentRunView usage = findRun(child.projectId(), child.id()).orElse(child);
+        int sequence = nextSequence(child.parentRunId());
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,output_json,reason)
+                VALUES (?,?,'DELEGATION_COMPLETED',
+                  jsonb_build_object('childRunId',?,'status',?,'content',?),?)
+                """, child.parentRunId(), sequence, child.id(), status, content,
+                "Specialist child run completed");
+        jdbc.update("""
+                UPDATE agent_run SET status='QUEUED',
+                  steps_used=LEAST(max_steps,steps_used+?),
+                  tool_calls_used=LEAST(max_tool_calls,tool_calls_used+?),
+                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
+                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
+                  token_usage_estimated=token_usage_estimated OR ?,
+                  updated_at=now(),version=version+1
+                WHERE id=? AND status='CREATED'
+                """, usage.stepsUsed(), usage.toolCallsUsed(), usage.inputTokensUsed(),
+                usage.outputTokensUsed(), usage.tokenUsageEstimated(), child.parentRunId());
     }
 }

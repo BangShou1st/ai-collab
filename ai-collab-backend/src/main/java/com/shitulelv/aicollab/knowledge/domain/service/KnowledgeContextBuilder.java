@@ -59,7 +59,8 @@ public class KnowledgeContextBuilder {
             hashes.add(hit.contentHash());
             sources.add(new KnowledgeSource(
                     hit.id(), hit.documentId(), hit.originalFilename(), hit.heading(),
-                    content.original(), hit.contentHash(), hit.similarity(), rank));
+                    content.original(), hit.contentHash(), hit.similarity(), rank,
+                    hit.metadata() != null ? hit.metadata() : java.util.Map.of()));
         }
         return new KnowledgeContext(List.copyOf(sources), prompt.toString());
     }

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.shitulelv.aicollab.project.domain.model.ProjectStatus;
+import com.shitulelv.aicollab.project.domain.model.ProjectType;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -16,6 +17,7 @@ public class ProjectEntity {
     private String name;
     private String description;
     private UUID ownerId;
+    private ProjectType type;
     private LocalDate startDate;
     private LocalDate dueDate;
     private ProjectStatus status;
@@ -32,6 +34,8 @@ public class ProjectEntity {
     public void setDescription(String description) { this.description = description; }
     public UUID getOwnerId() { return ownerId; }
     public void setOwnerId(UUID ownerId) { this.ownerId = ownerId; }
+    public ProjectType getType() { return type; }
+    public void setType(ProjectType type) { this.type = type; }
     public LocalDate getStartDate() { return startDate; }
     public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
     public LocalDate getDueDate() { return dueDate; }

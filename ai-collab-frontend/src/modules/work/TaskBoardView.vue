@@ -8,6 +8,11 @@ import {
   taskStatusLabel,
 } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
+import {
+  isEndDateDisabled,
+  isStartDateDisabled,
+  validateDateRange,
+} from '../../shared/date-constraints'
 import { useAuthStore } from '../../stores/auth-store'
 import { projectApi } from '../project/project-api'
 import type { Project, ProjectMember } from '../project/types'
@@ -45,6 +50,14 @@ const addingComment = ref(false)
 const commentOperationId = ref('')
 const editTargetStatus = ref<TaskStatus | null>(null)
 const filters = reactive({ assigneeId: '', priority: '', milestoneId: '' })
+const draggedTask = ref<Task | null>(null)
+const dragOverColumn = ref<TaskStatus | null>(null)
+const selectedTaskIds = ref<Set<string>>(new Set())
+const batchOperationVisible = ref(false)
+const batchStatus = ref<TaskStatus | null>(null)
+const batchPriority = ref<TaskPriority | null>(null)
+const batchAssigneeId = ref<string>('')
+const batchProcessing = ref(false)
 const form = reactive({
   title: '', description: '', assigneeId: '', milestoneId: '',
   priority: 'MEDIUM' as TaskPriority, estimateHours: null as number | null,
@@ -55,6 +68,18 @@ const editForm = reactive({
   priority: 'MEDIUM' as TaskPriority,
   estimateHours: null as number | null, startDate: '', dueDate: '',
 })
+const createStartDateDisabled = (date: Date) => isStartDateDisabled(
+  date, project.value?.startDate ?? null, project.value?.dueDate ?? null, form.dueDate || null,
+)
+const createDueDateDisabled = (date: Date) => isEndDateDisabled(
+  date, project.value?.startDate ?? null, project.value?.dueDate ?? null, form.startDate || null,
+)
+const editStartDateDisabled = (date: Date) => isStartDateDisabled(
+  date, project.value?.startDate ?? null, project.value?.dueDate ?? null, editForm.dueDate || null,
+)
+const editDueDateDisabled = (date: Date) => isEndDateDisabled(
+  date, project.value?.startDate ?? null, project.value?.dueDate ?? null, editForm.startDate || null,
+)
 const canManage = computed(() => project.value?.role === 'OWNER' || project.value?.role === 'ADMIN')
 const visibleTasks = computed(() =>
   tasks.value.filter(task => !filters.priority || task.priority === filters.priority),
@@ -80,9 +105,13 @@ function validateTaskForm(value: {
   if (value.estimateHours !== null && (value.estimateHours < 0.5 || value.estimateHours > 80)) {
     return '预计工时必须在 0.5 至 80 小时之间'
   }
-  if (value.startDate && value.dueDate && value.startDate > value.dueDate) {
-    return '截止日期不能早于开始日期'
-  }
+  const dateError = validateDateRange(
+    value.startDate || null,
+    value.dueDate || null,
+    project.value?.startDate ?? null,
+    project.value?.dueDate ?? null,
+  )
+  if (dateError) return dateError
   return ''
 }
 
@@ -92,6 +121,131 @@ function columnTasks(status: TaskStatus): Task[] {
 
 function showMyTasks(): void {
   filters.assigneeId = auth.currentUser?.id || ''
+}
+
+function onDragStart(task: Task, event: DragEvent): void {
+  if (!canManage.value && !(project.value?.role === 'MEMBER' && task.assigneeId === auth.currentUser?.id)) {
+    event.preventDefault()
+    return
+  }
+  draggedTask.value = task
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', task.id)
+  }
+}
+
+function onDragEnd(): void {
+  draggedTask.value = null
+  dragOverColumn.value = null
+}
+
+function onDragOver(status: TaskStatus, event: DragEvent): void {
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+  dragOverColumn.value = status
+}
+
+function onDragLeave(): void {
+  dragOverColumn.value = null
+}
+
+async function onDrop(targetStatus: TaskStatus, event: DragEvent): Promise<void> {
+  event.preventDefault()
+  dragOverColumn.value = null
+  if (!draggedTask.value || draggedTask.value.status === targetStatus) {
+    draggedTask.value = null
+    return
+  }
+  if (!allowedTaskStatusTransitions(draggedTask.value.status).includes(targetStatus)) {
+    ElMessage.warning('不允许从 ' + taskStatusLabel(draggedTask.value.status) + ' 转换到 ' + taskStatusLabel(targetStatus))
+    draggedTask.value = null
+    return
+  }
+  const task = draggedTask.value
+  draggedTask.value = null
+  await updateStatus(task, targetStatus)
+}
+
+function toggleTaskSelection(taskId: string): void {
+  if (selectedTaskIds.value.has(taskId)) {
+    selectedTaskIds.value.delete(taskId)
+  } else {
+    selectedTaskIds.value.add(taskId)
+  }
+  selectedTaskIds.value = new Set(selectedTaskIds.value)
+}
+
+function selectAllTasks(): void {
+  const allIds = visibleTasks.value.map(t => t.id)
+  selectedTaskIds.value = new Set(allIds)
+}
+
+function clearSelection(): void {
+  selectedTaskIds.value = new Set()
+}
+
+function openBatchDialog(): void {
+  batchStatus.value = null
+  batchPriority.value = null
+  batchAssigneeId.value = ''
+  batchOperationVisible.value = true
+}
+
+async function executeBatchOperation(): Promise<void> {
+  if (selectedTaskIds.value.size === 0) return
+  if (!batchStatus.value && !batchPriority.value && !batchAssigneeId.value) {
+    ElMessage.warning('请至少选择一项批量变更')
+    return
+  }
+  batchProcessing.value = true
+  try {
+    const items = Array.from(selectedTaskIds.value).map(taskId => {
+      const task = tasks.value.find(t => t.id === taskId)
+      if (!task) return null
+      const updates: {
+        taskId: string
+        sortOrder?: number
+        status?: TaskStatus
+        priority?: TaskPriority
+        assigneeId?: string
+        version: number
+      } = {
+        taskId,
+        version: task.version,
+      }
+      if (batchStatus.value && allowedTaskStatusTransitions(task.status).includes(batchStatus.value)) {
+        updates.status = batchStatus.value
+      }
+      if (batchPriority.value) updates.priority = batchPriority.value
+      if (batchAssigneeId.value) updates.assigneeId = batchAssigneeId.value
+      return updates
+    }).filter(Boolean) as Array<{
+      taskId: string
+      sortOrder?: number
+      status?: TaskStatus
+      priority?: TaskPriority
+      assigneeId?: string
+      version: number
+    }>
+
+    if (items.length === 0) {
+      ElMessage.warning('没有可执行的操作')
+      return
+    }
+
+    await workApi.batchUpdate(projectId, items)
+    batchOperationVisible.value = false
+    selectedTaskIds.value = new Set()
+    await refreshTaskData()
+    ElMessage.success(`已批量更新 ${items.length} 个任务`)
+  } catch (error) {
+    ElMessage.error(normalizeApiError(error).message)
+  } finally {
+    batchProcessing.value = false
+  }
 }
 
 function taskQueryParams(): { assigneeId?: string; milestoneId?: string } {
@@ -410,6 +564,7 @@ onMounted(load)
       <template #actions>
         <el-button v-if="canManage" type="primary" @click="createVisible = true">新建任务</el-button>
         <el-button @click="showMyTasks">我的任务</el-button>
+        <el-button v-if="canManage" @click="selectedTaskIds.size > 0 ? openBatchDialog() : ElMessage.info('请先选择任务')">批量操作</el-button>
       </template>
     </PageHeader>
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
@@ -439,8 +594,21 @@ onMounted(load)
       </label>
     </section>
     <el-alert v-if="highlightedSourcePlanId" title="已高亮显示该 AI 规划创建的任务" type="success" show-icon />
+    <section v-if="canManage" class="batch-toolbar">
+      <el-button size="small" @click="selectAllTasks">全选</el-button>
+      <el-button size="small" @click="clearSelection">清除选择</el-button>
+      <span v-if="selectedTaskIds.size > 0" class="batch-count">已选择 {{ selectedTaskIds.size }} 个任务</span>
+    </section>
     <section v-loading="loading" class="board-grid">
-      <div v-for="status in statuses" :key="status" class="board-column">
+      <div
+        v-for="status in statuses"
+        :key="status"
+        class="board-column"
+        :class="{ 'drag-over': dragOverColumn === status }"
+        @dragover="onDragOver(status, $event)"
+        @dragleave="onDragLeave"
+        @drop="onDrop(status, $event)"
+      >
         <h2>{{ taskStatusLabel(status) }} <el-tag round>{{ columnTasks(status).length }}</el-tag></h2>
         <TaskBoardCard
           v-for="task in columnTasks(status)"
@@ -450,9 +618,14 @@ onMounted(load)
           :opening="openingTaskId === task.id"
           :updating="updatingTaskId === task.id"
           :operation-locked="Boolean(updatingTaskId)"
-          :class="{ 'source-plan-highlight': task.sourcePlanId === highlightedSourcePlanId }"
+          :draggable="canManage || (project?.role === 'MEMBER' && task.assigneeId === auth.currentUser?.id)"
+          :selected="selectedTaskIds.has(task.id)"
+          :class="{ 'source-plan-highlight': task.sourcePlanId === highlightedSourcePlanId, 'dragging': draggedTask?.id === task.id }"
           @open="openTask"
           @update-status="updateStatus"
+          @dragstart="onDragStart(task, $event)"
+          @dragend="onDragEnd"
+          @toggle-select="toggleTaskSelection"
         />
         <el-empty
           v-if="columnTasks(status).length === 0"
@@ -513,9 +686,9 @@ onMounted(load)
           <el-input-number v-model="form.estimateHours" :min="0.5" :max="80" :step="0.5" />
         </el-form-item>
         <el-form-item label="开始日期">
-          <el-date-picker v-model="form.startDate" value-format="YYYY-MM-DD" />
+            <el-date-picker v-model="form.startDate" value-format="YYYY-MM-DD" :disabled-date="createStartDateDisabled" />
         </el-form-item>
-        <el-form-item label="截止日期"><el-date-picker v-model="form.dueDate" value-format="YYYY-MM-DD" /></el-form-item>
+          <el-form-item label="截止日期"><el-date-picker v-model="form.dueDate" value-format="YYYY-MM-DD" :disabled-date="createDueDateDisabled" /></el-form-item>
         <el-alert
           v-if="createValidationMessage"
           :title="createValidationMessage"
@@ -576,10 +749,10 @@ onMounted(load)
           <el-input-number v-model="editForm.estimateHours" :min="0.5" :max="80" :step="0.5" />
         </el-form-item>
         <el-form-item label="开始日期">
-          <el-date-picker v-model="editForm.startDate" value-format="YYYY-MM-DD" />
+            <el-date-picker v-model="editForm.startDate" value-format="YYYY-MM-DD" :disabled-date="editStartDateDisabled" />
         </el-form-item>
         <el-form-item label="截止日期">
-          <el-date-picker v-model="editForm.dueDate" value-format="YYYY-MM-DD" />
+            <el-date-picker v-model="editForm.dueDate" value-format="YYYY-MM-DD" :disabled-date="editDueDateDisabled" />
         </el-form-item>
         <el-alert
           v-if="editValidationMessage"
@@ -597,5 +770,82 @@ onMounted(load)
         </el-button>
       </el-form>
     </el-dialog>
+
+    <el-dialog v-model="batchOperationVisible" title="批量操作">
+      <el-form label-position="top">
+        <el-form-item label="变更状态">
+          <el-select v-model="batchStatus" clearable placeholder="选择目标状态">
+            <el-option
+              v-for="status in statuses"
+              :key="status"
+              :label="taskStatusLabel(status)"
+              :value="status"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="变更优先级">
+          <el-select v-model="batchPriority" clearable placeholder="选择优先级">
+            <el-option
+              v-for="priority in priorities"
+              :key="priority"
+              :label="taskPriorityLabel(priority)"
+              :value="priority"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="变更负责人">
+          <el-select v-model="batchAssigneeId" clearable placeholder="选择负责人">
+            <el-option
+              v-for="member in members"
+              :key="member.userId"
+              :label="member.displayName"
+              :value="member.userId"
+            />
+          </el-select>
+        </el-form-item>
+        <el-button
+          type="primary"
+          :loading="batchProcessing"
+          :disabled="batchProcessing"
+          @click="executeBatchOperation"
+        >
+          执行批量操作
+        </el-button>
+      </el-form>
+    </el-dialog>
   </main>
 </template>
+
+<style scoped>
+.board-column.drag-over {
+  background-color: #f0f9ff;
+  border: 2px dashed #409eff;
+}
+
+.task-card.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.task-card[draggable="true"] {
+  cursor: grab;
+}
+
+.task-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  background-color: #f5f7fa;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.batch-count {
+  color: #606266;
+  font-size: 14px;
+}
+</style>

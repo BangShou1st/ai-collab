@@ -454,6 +454,13 @@ public class TaskPlanGenerationOrchestrator {
             return new GeneratedDetailOutcome(
                     repaired, repairAttempt, repairResult, repairAssessment, true);
         } catch (RuntimeException secondFailure) {
+            // The original detail candidate has already passed structural validation and only
+            // contains editable business issues. A malformed or out-of-scope repair patch must
+            // not discard that usable draft; retain it for user review as READY_WITH_ISSUES.
+            if (initialAssessment.degradable()) {
+                return new GeneratedDetailOutcome(
+                        candidate, repairAttempt, result, initialAssessment, false);
+            }
             String summary = safeErrorSummary("DETAIL", secondFailure);
             repository.fail(plan.id(), plan.generationSeq(), repairAttempt, expectedStatus,
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, safeCode(secondFailure), summary);

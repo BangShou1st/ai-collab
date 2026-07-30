@@ -108,4 +108,17 @@ public interface TaskMapper extends BaseMapper<TaskEntity> {
             @Param("projectId") UUID projectId,
             @Param("taskId") UUID taskId,
             @Param("dependencyId") UUID dependencyId);
+
+    @Select("""
+            SELECT t.*, u.display_name AS assignee_display_name, m.name AS milestone_name,
+              0 AS unfinished_dependency_count
+            FROM project_task t
+            LEFT JOIN app_user u ON u.id=t.assignee_id
+            LEFT JOIN milestone m ON m.id=t.milestone_id AND m.project_id=t.project_id
+            JOIN task_dependency d ON d.task_id=t.id
+            WHERE t.project_id=#{projectId} AND d.depends_on_task_id=#{taskId}
+            """)
+    List<TaskEntity> findDependents(
+            @Param("projectId") UUID projectId,
+            @Param("taskId") UUID taskId);
 }

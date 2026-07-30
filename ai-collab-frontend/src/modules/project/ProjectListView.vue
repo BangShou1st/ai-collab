@@ -5,11 +5,13 @@ import { normalizeApiError } from '../../api/api-result'
 import {
   formatDate,
   projectStatusLabel,
+  projectTypeLabel,
   roleLabel,
 } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
+import { isEndDateDisabled, isStartDateDisabled } from '../../shared/date-constraints'
 import { projectApi } from './project-api'
-import type { Project } from './types'
+import type { Project, ProjectType } from './types'
 
 const projects = ref<Project[]>([])
 const loading = ref(false)
@@ -21,11 +23,14 @@ const errorMessage = ref('')
 const form = reactive({
   name: '',
   description: '',
+  type: 'OTHER' as ProjectType,
   startDate: '',
   dueDate: '',
   status: 'ACTIVE' as Project['status'],
 })
 const dialogTitle = computed(() => editingProject.value ? '编辑项目' : '新建项目')
+const startDateDisabled = (date: Date) => isStartDateDisabled(date, null, null, form.dueDate || null)
+const dueDateDisabled = (date: Date) => isEndDateDisabled(date, null, null, form.startDate || null)
 const validationMessage = computed(() => {
   if (!form.name.trim()) return '项目名称不能为空'
   if (form.name.length > 100) return '项目名称不能超过 100 个字符'
@@ -52,6 +57,7 @@ function resetForm(): void {
   editingProject.value = null
   form.name = ''
   form.description = ''
+  form.type = 'OTHER'
   form.startDate = ''
   form.dueDate = ''
   form.status = 'ACTIVE'
@@ -66,6 +72,7 @@ function openEdit(project: Project): void {
   editingProject.value = project
   form.name = project.name
   form.description = project.description
+  form.type = project.type
   form.startDate = project.startDate ?? ''
   form.dueDate = project.dueDate ?? ''
   form.status = project.status
@@ -82,6 +89,7 @@ async function saveProject(): Promise<void> {
       await projectApi.update(project.id, {
         name: form.name.trim(),
         description: form.description,
+        type: form.type,
         startDate: form.startDate || null,
         dueDate: form.dueDate || null,
         status: form.status,
@@ -91,6 +99,7 @@ async function saveProject(): Promise<void> {
       await projectApi.create({
         name: form.name.trim(),
         description: form.description,
+        type: form.type,
         startDate: form.startDate || null,
         dueDate: form.dueDate || null,
       })
@@ -152,6 +161,7 @@ onMounted(load)
           </div>
         </template>
         <p class="project-description">{{ project.description || '暂无项目描述' }}</p>
+        <p>项目类型：{{ projectTypeLabel(project.type) }}</p>
         <p>项目状态：{{ projectStatusLabel(project.status) }}</p>
         <p>项目周期：{{ formatDate(project.startDate) }} 至 {{ formatDate(project.dueDate) }}</p>
         <div class="actions">
@@ -179,15 +189,25 @@ onMounted(load)
         <el-form-item label="项目描述">
           <el-input v-model="form.description" type="textarea" :maxlength="2000" show-word-limit />
         </el-form-item>
+        <el-form-item label="项目类型">
+          <el-select v-model="form.type">
+            <el-option label="竞赛项目" value="COMPETITION" />
+            <el-option label="课程设计" value="COURSE_DESIGN" />
+            <el-option label="软件实训" value="SOFTWARE_TRAINING" />
+            <el-option label="其他" value="OTHER" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="开始日期">
-          <el-date-picker v-model="form.startDate" value-format="YYYY-MM-DD" />
+          <el-date-picker v-model="form.startDate" value-format="YYYY-MM-DD" :disabled-date="startDateDisabled" />
         </el-form-item>
         <el-form-item label="截止日期">
-          <el-date-picker v-model="form.dueDate" value-format="YYYY-MM-DD" />
+          <el-date-picker v-model="form.dueDate" value-format="YYYY-MM-DD" :disabled-date="dueDateDisabled" />
         </el-form-item>
         <el-form-item v-if="editingProject" label="项目状态">
           <el-select v-model="form.status">
+            <el-option label="准备中" value="PREPARING" />
             <el-option label="进行中" value="ACTIVE" />
+            <el-option label="已完成" value="COMPLETED" />
             <el-option label="已归档" value="ARCHIVED" />
           </el-select>
         </el-form-item>

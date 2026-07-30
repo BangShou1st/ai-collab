@@ -1,6 +1,8 @@
 package com.shitulelv.aicollab.agent.infrastructure.tool;
 
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
+import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
+import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -30,5 +32,25 @@ public class AgentToolRegistry {
 
     public Set<String> names() {
         return tools.keySet();
+    }
+
+    public Set<String> namesFor(AgentToolContext context) {
+        return tools.values().stream()
+                .filter(tool -> allowed(tool, context))
+                .map(AgentTool::name)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    public List<AgentToolDefinition> definitionsFor(AgentToolContext context) {
+        return tools.values().stream()
+                .filter(tool -> allowed(tool, context))
+                .map(AgentTool::definition)
+                .sorted(java.util.Comparator.comparing(AgentToolDefinition::name))
+                .toList();
+    }
+
+    private static boolean allowed(AgentTool tool, AgentToolContext context) {
+        return !tool.writesBusinessData()
+                || (context.depth() == 0 && "SUPERVISOR".equals(context.role()));
     }
 }

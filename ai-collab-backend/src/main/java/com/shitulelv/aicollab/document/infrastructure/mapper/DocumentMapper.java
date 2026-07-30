@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.document.infrastructure.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.shitulelv.aicollab.common.persistence.PostgresJsonMapTypeHandler;
 import com.shitulelv.aicollab.document.domain.model.DocumentChunk;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
@@ -8,6 +9,8 @@ import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRecoveryCandidate;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentProcessingAttempt;
 import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Arg;
+import org.apache.ibatis.annotations.ConstructorArgs;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -16,6 +19,7 @@ import org.apache.ibatis.annotations.Update;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -98,6 +102,15 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
     int resetFailed(@Param("projectId") UUID projectId, @Param("documentId") UUID documentId);
 
     @Update("""
+            UPDATE project_document SET status='UPLOADED', error_message=NULL, chunk_count=0,
+                parser_type=NULL, embedding_provider=NULL, embedding_model=NULL,
+                embedding_dimension=NULL, indexed_at=NULL, processing_token=NULL,
+                processing_heartbeat_at=NULL, version=version+1, updated_at=now()
+            WHERE project_id=#{projectId} AND id=#{documentId} AND status='READY'
+            """)
+    int resetForReindex(@Param("projectId") UUID projectId, @Param("documentId") UUID documentId);
+
+    @Update("""
             UPDATE project_document SET status='DELETING', processing_token=NULL,
                 processing_heartbeat_at=NULL, updated_at=now()
             WHERE project_id=#{projectId} AND id=#{documentId} AND status<>'DELETING'
@@ -164,10 +177,11 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
 
     @Select("""
             <script>
-            SELECT c.id, c.document_id AS documentId,
-                   d.original_filename AS originalFilename,
-                   c.heading, c.content, c.content_hash AS contentHash,
-                   1 - (c.embedding &lt;=> CAST(#{embedding} AS vector)) AS similarity
+            SELECT c.id, c.document_id AS "documentId",
+                   d.original_filename AS "originalFilename",
+                   c.heading, c.content, c.content_hash AS "contentHash",
+                   1 - (c.embedding &lt;=> CAST(#{embedding} AS vector)) AS similarity,
+                   c.metadata
             FROM document_chunk c
             JOIN project_document d ON d.id=c.document_id AND d.project_id=c.project_id
             WHERE c.project_id=#{projectId} AND d.status='READY'
@@ -183,6 +197,19 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             LIMIT #{topK}
             </script>
             """)
+    @ConstructorArgs({
+        @Arg(column = "id", javaType = UUID.class, id = true),
+        @Arg(column = "documentId", javaType = UUID.class),
+        @Arg(column = "originalFilename", javaType = String.class),
+        @Arg(column = "heading", javaType = String.class),
+        @Arg(column = "content", javaType = String.class),
+        @Arg(column = "contentHash", javaType = String.class),
+        @Arg(column = "similarity", javaType = double.class),
+        @Arg(
+                column = "metadata",
+                javaType = Map.class,
+                typeHandler = PostgresJsonMapTypeHandler.class)
+    })
     List<DocumentSearchHit> search(@Param("projectId") UUID projectId,
                                    @Param("embedding") String embedding,
                                    @Param("provider") String provider,

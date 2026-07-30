@@ -16,8 +16,7 @@ public final class AgentToolPolicy {
             throw new IllegalArgumentException("Agent 工具被永久禁止");
         }
         if (tool.writesBusinessData()
-                && (context.scheduled()
-                    || context.depth() != 0
+                && (context.depth() != 0
                     || !"SUPERVISOR".equals(context.role()))) {
             throw new IllegalArgumentException("当前 Agent 运行不允许业务写工具");
         }

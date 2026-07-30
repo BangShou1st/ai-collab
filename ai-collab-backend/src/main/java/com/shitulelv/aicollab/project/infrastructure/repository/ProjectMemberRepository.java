@@ -44,4 +44,16 @@ public class ProjectMemberRepository {
     public boolean removeNonOwner(UUID projectId, UUID userId) {
         return mapper.deleteNonOwner(projectId, userId) == 1;
     }
+
+    public boolean lockOwner(UUID projectId, UUID userId) {
+        return mapper.lockOwner(projectId, userId).isPresent();
+    }
+
+    public void changeRoleDirect(UUID projectId, UUID userId, ProjectRole role) {
+        mapper.updateRoleDirect(projectId, userId, role);
+    }
+
+    public void promoteToOwner(UUID projectId, UUID userId) {
+        mapper.promoteToOwner(projectId, userId);
+    }
 }

@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.project.infrastructure.repository;
 
 import com.shitulelv.aicollab.project.application.view.ProjectView;
 import com.shitulelv.aicollab.project.domain.model.ProjectStatus;
+import com.shitulelv.aicollab.project.domain.model.ProjectType;
 import com.shitulelv.aicollab.project.infrastructure.entity.ProjectEntity;
 import com.shitulelv.aicollab.project.infrastructure.mapper.ProjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -38,12 +39,16 @@ public class ProjectRepository {
         return mapper.findNameById(projectId);
     }
 
+    public Optional<ProjectStatus> findStatus(UUID projectId) {
+        return mapper.findStatusById(projectId);
+    }
+
     public boolean lock(UUID projectId) {
         return mapper.lockById(projectId).isPresent();
     }
 
-    public boolean lockActive(UUID projectId) {
-        return mapper.lockActiveById(projectId).isPresent();
+    public Optional<ProjectStatus> lockStatus(UUID projectId) {
+        return mapper.lockStatusById(projectId);
     }
 
     public int countDocuments(UUID projectId) {
@@ -61,11 +66,16 @@ public class ProjectRepository {
             UUID projectId,
             String name,
             String description,
+            ProjectType type,
             LocalDate startDate,
             LocalDate dueDate,
             ProjectStatus status,
             int version) {
-        return mapper.updateWithVersion(projectId, name, description, startDate, dueDate, status, version) == 1;
+        return mapper.updateWithVersion(projectId, name, description, type, startDate, dueDate, status, version) == 1;
+    }
+
+    public boolean transferOwnership(UUID projectId, UUID newOwnerId) {
+        return mapper.transferOwnership(projectId, newOwnerId) == 1;
     }
 
     public boolean delete(UUID projectId) {

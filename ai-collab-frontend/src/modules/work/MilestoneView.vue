@@ -5,6 +5,12 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { normalizeApiError } from '../../api/api-result'
 import { formatDate, milestoneStatusLabel } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
+import {
+  isEndDateDisabled,
+  isProjectDateDisabled,
+  isStartDateDisabled,
+  validateDateRange,
+} from '../../shared/date-constraints'
 import { projectApi } from '../project/project-api'
 import type { Project } from '../project/types'
 import { workApi } from './work-api'
@@ -22,13 +28,34 @@ const editing = ref<Milestone | null>(null)
 const errorMessage = ref('')
 const canManage = computed(() => project.value?.role === 'OWNER' || project.value?.role === 'ADMIN')
 const form = reactive({
-  name: '', description: '', targetDate: '', status: 'PLANNED' as MilestoneStatus, sortOrder: 0,
+  name: '', description: '', startDate: '', endDate: '', targetDate: '',
+  status: 'PLANNED' as MilestoneStatus, sortOrder: 0,
 })
+const startDateDisabled = (date: Date) => isStartDateDisabled(
+  date, project.value?.startDate ?? null, project.value?.dueDate ?? null, form.endDate || null,
+)
+const endDateDisabled = (date: Date) => isEndDateDisabled(
+  date, project.value?.startDate ?? null, project.value?.dueDate ?? null, form.startDate || null,
+)
+const targetDateDisabled = (date: Date) => isProjectDateDisabled(
+  date, project.value?.startDate ?? null, project.value?.dueDate ?? null,
+)
 const validationMessage = computed(() => {
   if (!form.name.trim()) return '里程碑名称不能为空'
   if (form.name.length > 100) return '里程碑名称不能超过 100 个字符'
   if (form.description.length > 1000) return '里程碑描述不能超过 1000 个字符'
   if (form.sortOrder < 0) return '排序值不能小于 0'
+  const dateError = validateDateRange(
+    form.startDate || null,
+    form.endDate || null,
+    project.value?.startDate ?? null,
+    project.value?.dueDate ?? null,
+  )
+  if (dateError) return dateError
+  if (form.targetDate && (project.value?.startDate && form.targetDate < project.value.startDate
+      || project.value?.dueDate && form.targetDate > project.value.dueDate)) {
+    return `目标日期必须在项目周期 ${project.value.startDate ?? '不限'} 至 ${project.value.dueDate ?? '不限'} 内`
+  }
   return ''
 })
 
@@ -52,6 +79,8 @@ function openEditor(item?: Milestone): void {
   editing.value = item ?? null
   form.name = item?.name ?? ''
   form.description = item?.description ?? ''
+  form.startDate = item?.startDate ?? ''
+  form.endDate = item?.endDate ?? ''
   form.targetDate = item?.targetDate ?? ''
   form.status = item?.status ?? 'PLANNED'
   form.sortOrder = item?.sortOrder ?? 0
@@ -63,6 +92,8 @@ async function save(): Promise<void> {
   const payload = {
     name: form.name,
     description: form.description,
+    startDate: form.startDate || null,
+    endDate: form.endDate || null,
     targetDate: form.targetDate || null,
     status: form.status,
     sortOrder: form.sortOrder,
@@ -124,7 +155,13 @@ onMounted(load)
       <el-table-column label="状态" width="130">
         <template #default="{ row }">{{ milestoneStatusLabel(row.status) }}</template>
       </el-table-column>
-      <el-table-column label="目标日期" width="150">
+      <el-table-column label="开始日期" width="120">
+        <template #default="{ row }">{{ formatDate(row.startDate) }}</template>
+      </el-table-column>
+      <el-table-column label="截止日期" width="120">
+        <template #default="{ row }">{{ formatDate(row.endDate) }}</template>
+      </el-table-column>
+      <el-table-column label="目标日期" width="120">
         <template #default="{ row }">{{ formatDate(row.targetDate) }}</template>
       </el-table-column>
       <el-table-column prop="sortOrder" label="排序" width="90" />
@@ -150,7 +187,9 @@ onMounted(load)
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" :maxlength="1000" show-word-limit />
         </el-form-item>
-        <el-form-item label="目标日期"><el-date-picker v-model="form.targetDate" value-format="YYYY-MM-DD" /></el-form-item>
+        <el-form-item label="开始日期"><el-date-picker v-model="form.startDate" value-format="YYYY-MM-DD" :disabled-date="startDateDisabled" /></el-form-item>
+        <el-form-item label="截止日期"><el-date-picker v-model="form.endDate" value-format="YYYY-MM-DD" :disabled-date="endDateDisabled" /></el-form-item>
+        <el-form-item label="目标日期"><el-date-picker v-model="form.targetDate" value-format="YYYY-MM-DD" :disabled-date="targetDateDisabled" /></el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status">
             <el-option

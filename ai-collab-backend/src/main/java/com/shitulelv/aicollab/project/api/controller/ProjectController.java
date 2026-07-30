@@ -6,6 +6,7 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.api.dto.ChangeRoleRequest;
 import com.shitulelv.aicollab.project.api.dto.CreateInvitationRequest;
 import com.shitulelv.aicollab.project.api.dto.CreateProjectRequest;
+import com.shitulelv.aicollab.project.api.dto.TransferOwnershipRequest;
 import com.shitulelv.aicollab.project.api.dto.UpdateProjectRequest;
 import com.shitulelv.aicollab.project.application.service.InvitationApplicationService;
 import com.shitulelv.aicollab.project.application.service.ProjectApplicationService;
@@ -90,21 +91,38 @@ public class ProjectController {
         return ApiResponse.success(members.list(projectId, userId(jwt)));
     }
 
-    @PatchMapping("/{projectId}/members/{memberId}/role")
+    @PatchMapping("/{projectId}/members/{userId}/role")
     public ApiResponse<MemberView> changeRole(
             @PathVariable UUID projectId,
-            @PathVariable UUID memberId,
+            @PathVariable UUID userId,
             @Valid @RequestBody ChangeRoleRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        return ApiResponse.success(members.changeRole(projectId, memberId, request.role(), userId(jwt)));
+        return ApiResponse.success(members.changeRole(projectId, userId, request.role(), userId(jwt)));
     }
 
-    @DeleteMapping("/{projectId}/members/{memberId}")
+    @DeleteMapping("/{projectId}/members/{userId}")
     public ResponseEntity<Void> removeMember(
             @PathVariable UUID projectId,
-            @PathVariable UUID memberId,
+            @PathVariable UUID userId,
             @AuthenticationPrincipal Jwt jwt) {
-        members.remove(projectId, memberId, userId(jwt));
+        members.remove(projectId, userId, userId(jwt));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{projectId}/leave")
+    public ResponseEntity<Void> leaveProject(
+            @PathVariable UUID projectId,
+            @AuthenticationPrincipal Jwt jwt) {
+        members.leave(projectId, userId(jwt));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{projectId}/transfer-ownership")
+    public ResponseEntity<Void> transferOwnership(
+            @PathVariable UUID projectId,
+            @Valid @RequestBody TransferOwnershipRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        members.transferOwnership(projectId, request.newOwnerId(), userId(jwt));
         return ResponseEntity.noContent().build();
     }
 

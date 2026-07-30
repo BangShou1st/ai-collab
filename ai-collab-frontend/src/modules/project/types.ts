@@ -1,12 +1,17 @@
 export type ProjectRole = 'OWNER' | 'ADMIN' | 'MEMBER'
 
+export type ProjectType = 'COMPETITION' | 'COURSE_DESIGN' | 'SOFTWARE_TRAINING' | 'OTHER'
+
+export type ProjectStatus = 'PREPARING' | 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
+
 export interface Project {
   id: string
   name: string
   description: string
+  type: ProjectType
   startDate: string | null
   dueDate: string | null
-  status: 'ACTIVE' | 'ARCHIVED'
+  status: ProjectStatus
   version: number
   role: ProjectRole
 }

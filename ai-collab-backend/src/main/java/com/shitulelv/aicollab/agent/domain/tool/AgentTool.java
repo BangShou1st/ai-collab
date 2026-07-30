@@ -6,4 +6,9 @@ public interface AgentTool {
     String name();
     boolean writesBusinessData();
     AgentToolResult execute(AgentToolContext context, JsonNode arguments);
+
+    default AgentToolDefinition definition() {
+        return AgentToolDefinition.openObject(
+                name(), "调用项目工具 " + name(), writesBusinessData());
+    }
 }

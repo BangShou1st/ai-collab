@@ -11,11 +11,19 @@ import type { ProjectDocument } from '../document/types'
 import { projectApi } from '../project/project-api'
 import type { Project } from '../project/types'
 import { knowledgeApi } from './knowledge-api'
+import { isFeedbackEligible } from './knowledge-feedback'
 import type {
   KnowledgeCitation,
   KnowledgeSession,
   KnowledgeSessionDetail,
 } from './types'
+
+interface StreamingMessage {
+  role: 'ASSISTANT'
+  content: string
+  citations: KnowledgeCitation[]
+  streaming: boolean
+}
 
 const route = useRoute()
 const projectId = computed(() =>
@@ -32,20 +40,32 @@ const loading = ref(true)
 const creating = ref(false)
 const submitting = ref(false)
 const deletingId = ref('')
-const errorMessage = ref('')
 const citationDrawer = ref(false)
 const selectedCitation = ref<KnowledgeCitation | null>(null)
 const messageArea = ref<HTMLElement | null>(null)
 const editingSessionId = ref('')
 const editingSessionTitle = ref('')
+const streamingMessage = ref<StreamingMessage | null>(null)
+const feedbackMap = ref<Record<string, { myFeedback: boolean | null; helpfulCount: number; unhelpfulCount: number }>>({})
+const feedbackSubmittingIds = ref<string[]>([])
 let active = true
 let projectGeneration = 0
+let currentAbortController: AbortController | null = null
+
+function showError(error: unknown): void {
+  ElMessage.error(normalizeApiError(error).message)
+}
+
+function showErrorText(message: string): void {
+  ElMessage.error(message)
+}
 
 const readyDocuments = computed(() => documents.value.filter(item => item.status === 'READY'))
 const questionLength = computed(() => Array.from(question.value).length)
 const canSubmit = computed(() =>
   Boolean(selectedSessionId.value && question.value.trim())
   && !submitting.value
+  && !streamingMessage.value
   && questionLength.value <= 2000,
 )
 
@@ -94,24 +114,42 @@ function resetProjectState(): void {
   creating.value = false
   submitting.value = false
   deletingId.value = ''
-  errorMessage.value = ''
   citationDrawer.value = false
   selectedCitation.value = null
+  streamingMessage.value = null
+  feedbackMap.value = {}
+  if (currentAbortController) {
+    currentAbortController.abort()
+    currentAbortController = null
+  }
 }
 
 async function load(targetProjectId: string, generation: number): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
-    const [projectResult, sessionResult, documentResult] = await Promise.all([
+    const [projectResult, sessionResult, documentResult] = await Promise.allSettled([
       projectApi.get(targetProjectId),
       knowledgeApi.listSessions(targetProjectId),
       documentApi.list(targetProjectId),
     ])
     if (!isCurrentProject(targetProjectId, generation)) return
-    project.value = projectResult.data
-    sessions.value = sessionResult.data
-    documents.value = documentResult.data
+    if (projectResult.status === 'fulfilled') {
+      project.value = projectResult.value.data
+    } else {
+      showError(projectResult.reason)
+    }
+    if (sessionResult.status === 'fulfilled') {
+      sessions.value = sessionResult.value.data
+    } else {
+      sessions.value = []
+      showError(sessionResult.reason)
+    }
+    if (documentResult.status === 'fulfilled') {
+      documents.value = documentResult.value.data
+    } else {
+      documents.value = []
+      showErrorText(`参考文档加载失败：${normalizeApiError(documentResult.reason).message}。不影响继续使用已有问答会话。`)
+    }
     selectedDocumentIds.value = selectedDocumentIds.value
       .filter(id => readyDocuments.value.some(document => document.id === id))
     if (!selectedSessionId.value && sessions.value.length) {
@@ -124,10 +162,6 @@ async function load(targetProjectId: string, generation: number): Promise<void> 
         selectedSessionId.value = ''
         detail.value = null
       }
-    }
-  } catch (error) {
-    if (isCurrentProject(targetProjectId, generation)) {
-      errorMessage.value = normalizeApiError(error).message
     }
   } finally {
     if (isCurrentProject(targetProjectId, generation)) loading.value = false
@@ -153,6 +187,8 @@ async function loadDetail(
   if (!isCurrentProject(targetProjectId, generation)
       || selectedSessionId.value !== sessionId) return
   detail.value = result.data
+  // 加载反馈状态
+  await loadFeedbackForMessages(result.data.messages.filter(m => m.role === 'ASSISTANT'))
   await nextTick()
   if (isCurrentProject(targetProjectId, generation)
       && selectedSessionId.value === sessionId) {
@@ -161,17 +197,16 @@ async function loadDetail(
 }
 
 async function selectSession(sessionId: string): Promise<void> {
-  if (submitting.value || sessionId === selectedSessionId.value && detail.value) return
+  if (submitting.value || streamingMessage.value || (sessionId === selectedSessionId.value && detail.value)) return
   const targetProjectId = projectId.value
   const generation = projectGeneration
   selectedSessionId.value = sessionId
   detail.value = null
-  errorMessage.value = ''
   try {
     await loadDetail(sessionId, targetProjectId, generation)
   } catch (error) {
     if (isCurrentProject(targetProjectId, generation)) {
-      errorMessage.value = normalizeApiError(error).message
+      showError(error)
     }
   }
 }
@@ -181,7 +216,6 @@ async function createSession(): Promise<void> {
   const targetProjectId = projectId.value
   const generation = projectGeneration
   creating.value = true
-  errorMessage.value = ''
   try {
     const result = await knowledgeApi.createSession(targetProjectId)
     if (!isCurrentProject(targetProjectId, generation)) return
@@ -192,7 +226,7 @@ async function createSession(): Promise<void> {
     if (isCurrentProject(targetProjectId, generation)) ElMessage.success('新会话已创建')
   } catch (error) {
     if (isCurrentProject(targetProjectId, generation)) {
-      errorMessage.value = normalizeApiError(error).message
+      showError(error)
     }
   } finally {
     if (isCurrentProject(targetProjectId, generation)) creating.value = false
@@ -218,7 +252,7 @@ async function renameSession(session: KnowledgeSession, newTitle: string): Promi
     ElMessage.success('会话已重命名')
   } catch (error) {
     if (isCurrentProject(targetProjectId, generation)) {
-      errorMessage.value = normalizeApiError(error).message
+      showError(error)
     }
   }
 }
@@ -276,7 +310,7 @@ async function removeSession(session: KnowledgeSession): Promise<void> {
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
     if (isCurrentProject(targetProjectId, generation)) {
-      errorMessage.value = normalizeApiError(error).message
+      showError(error)
     }
   } finally {
     if (isCurrentProject(targetProjectId, generation)) deletingId.value = ''
@@ -290,11 +324,48 @@ async function submitQuestion(): Promise<void> {
   const generation = projectGeneration
   const targetSessionId = selectedSessionId.value
   submitting.value = true
-  errorMessage.value = ''
+
+  // 初始化流式消息
+  streamingMessage.value = {
+    role: 'ASSISTANT',
+    content: '',
+    citations: [],
+    streaming: true,
+  }
+
+  const abortController = new AbortController()
+  currentAbortController = abortController
+
   try {
-    await knowledgeApi.ask(
+    await knowledgeApi.askStream(
       targetProjectId, targetSessionId, normalized, selectedDocumentIds.value,
+      {
+        onToken: (text) => {
+          if (!isCurrentProject(targetProjectId, generation)) return
+          if (streamingMessage.value) {
+            streamingMessage.value.content += text
+          }
+        },
+        onCitations: (citations) => {
+          if (!isCurrentProject(targetProjectId, generation)) return
+          if (streamingMessage.value) {
+            streamingMessage.value.citations = citations
+          }
+        },
+        onDone: (_messageId) => {
+          // 流式完成，清除流式状态
+          streamingMessage.value = null
+        },
+        onError: (code, message) => {
+          if (isCurrentProject(targetProjectId, generation)) {
+            showErrorText(message)
+            streamingMessage.value = null
+          }
+        },
+      },
+      abortController.signal,
     )
+
     if (!isCurrentProject(targetProjectId, generation)
         || selectedSessionId.value !== targetSessionId) return
     question.value = ''
@@ -306,16 +377,27 @@ async function submitQuestion(): Promise<void> {
     // 如果是第一次提问，根据问题内容自动更新会话标题
     const currentSession = sessions.value.find(s => s.id === targetSessionId)
     if (currentSession && currentSession.title === '新会话') {
-      // 截取问题的前20个字符作为标题
       const newTitle = normalized.length > 20 ? normalized.substring(0, 20) + '...' : normalized
       await renameSession(currentSession, newTitle)
     }
   } catch (error) {
-    if (isCurrentProject(targetProjectId, generation)) {
-      errorMessage.value = normalizeApiError(error).message
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      // 用户取消，不显示错误
+      streamingMessage.value = null
+    } else if (isCurrentProject(targetProjectId, generation)) {
+      showError(error)
+      streamingMessage.value = null
     }
   } finally {
+    currentAbortController = null
     if (isCurrentProject(targetProjectId, generation)) submitting.value = false
+  }
+}
+
+function cancelStream(): void {
+  if (currentAbortController) {
+    currentAbortController.abort()
+    currentAbortController = null
   }
 }
 
@@ -341,7 +423,67 @@ async function downloadCitation(): Promise<void> {
     if (isCurrentProject(targetProjectId, generation)) window.location.assign(result.data.url)
   } catch (error) {
     if (isCurrentProject(targetProjectId, generation)) {
-      errorMessage.value = normalizeApiError(error).message
+      showError(error)
+    }
+  }
+}
+
+async function submitFeedback(messageId: string, helpful: boolean): Promise<void> {
+  if (!projectId.value || feedbackSubmittingIds.value.includes(messageId)) return
+  const targetProjectId = projectId.value
+  const generation = projectGeneration
+  feedbackSubmittingIds.value = [...feedbackSubmittingIds.value, messageId]
+  try {
+    const result = await knowledgeApi.submitFeedback(targetProjectId, messageId, helpful)
+    if (!isCurrentProject(targetProjectId, generation)) return
+    feedbackMap.value[messageId] = result.data
+  } catch (error) {
+    if (isCurrentProject(targetProjectId, generation)) {
+      showError(error)
+    }
+  } finally {
+    feedbackSubmittingIds.value = feedbackSubmittingIds.value.filter(id => id !== messageId)
+  }
+}
+
+async function removeFeedback(messageId: string): Promise<void> {
+  if (!projectId.value || feedbackSubmittingIds.value.includes(messageId)) return
+  const targetProjectId = projectId.value
+  const generation = projectGeneration
+  feedbackSubmittingIds.value = [...feedbackSubmittingIds.value, messageId]
+  try {
+    const result = await knowledgeApi.removeFeedback(targetProjectId, messageId)
+    if (!isCurrentProject(targetProjectId, generation)) return
+    feedbackMap.value[messageId] = result.data
+  } catch (error) {
+    if (isCurrentProject(targetProjectId, generation)) {
+      showError(error)
+    }
+  } finally {
+    feedbackSubmittingIds.value = feedbackSubmittingIds.value.filter(id => id !== messageId)
+  }
+}
+
+async function toggleFeedback(messageId: string, helpful: boolean): Promise<void> {
+  if (feedbackMap.value[messageId]?.myFeedback === helpful) {
+    await removeFeedback(messageId)
+    return
+  }
+  await submitFeedback(messageId, helpful)
+}
+
+async function loadFeedbackForMessages(messages: Array<{ id: string }>): Promise<void> {
+  if (!projectId.value || !messages.length) return
+  const targetProjectId = projectId.value
+  const generation = projectGeneration
+  for (const msg of messages) {
+    if (feedbackMap.value[msg.id]) continue
+    try {
+      const result = await knowledgeApi.getFeedback(targetProjectId, msg.id)
+      if (!isCurrentProject(targetProjectId, generation)) return
+      feedbackMap.value[msg.id] = result.data
+    } catch {
+      // ignore individual failures
     }
   }
 }
@@ -359,6 +501,10 @@ watch(projectId, (nextProjectId) => {
 onUnmounted(() => {
   active = false
   projectGeneration++
+  if (currentAbortController) {
+    currentAbortController.abort()
+    currentAbortController = null
+  }
 })
 </script>
 
@@ -369,8 +515,6 @@ onUnmounted(() => {
       title="知识问答"
       :context="project?.name"
     />
-
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
 
     <section v-loading="loading" class="knowledge-layout">
       <aside class="session-panel" aria-label="我的问答会话">
@@ -464,7 +608,7 @@ onUnmounted(() => {
           </header>
 
           <div ref="messageArea" class="message-area" aria-live="polite">
-            <el-empty v-if="!detail.messages.length" description="输入问题开始基于项目资料问答" />
+            <el-empty v-if="!detail.messages.length && !streamingMessage" description="输入问题开始基于项目资料问答" />
             <article
               v-for="message in detail.messages"
               :key="message.id"
@@ -499,6 +643,66 @@ onUnmounted(() => {
                 >
                   <strong>[S{{ citation.rank }}] {{ citation.filename }}</strong>
                   <span>{{ citation.heading || '未标注标题' }}</span>
+                  <small v-if="citation.pageNumber">第 {{ citation.pageNumber }} 页 · </small>
+                  <small>相似度 {{ similarity(citation.similarity) }}</small>
+                  <p>{{ citation.quote }}</p>
+                </button>
+              </div>
+              <div v-if="isFeedbackEligible(message)" class="feedback-bar">
+                <el-button
+                  size="small"
+                  :type="feedbackMap[message.id]?.myFeedback === true ? 'success' : 'default'"
+                  :loading="feedbackSubmittingIds.includes(message.id)"
+                  :disabled="feedbackSubmittingIds.includes(message.id)"
+                  aria-label="这个回答有用"
+                  @click="toggleFeedback(message.id, true)"
+                >
+                  👍 有用 {{ feedbackMap[message.id]?.helpfulCount ? `(${feedbackMap[message.id].helpfulCount})` : '' }}
+                </el-button>
+                <el-button
+                  size="small"
+                  :type="feedbackMap[message.id]?.myFeedback === false ? 'danger' : 'default'"
+                  :disabled="feedbackSubmittingIds.includes(message.id)"
+                  aria-label="这个回答无用"
+                  @click="toggleFeedback(message.id, false)"
+                >
+                  👎 无用 {{ feedbackMap[message.id]?.unhelpfulCount ? `(${feedbackMap[message.id].unhelpfulCount})` : '' }}
+                </el-button>
+                <el-button
+                  v-if="feedbackMap[message.id]?.myFeedback !== null"
+                  size="small"
+                  text
+                  @click="removeFeedback(message.id)"
+                >
+                  撤销
+                </el-button>
+              </div>
+            </article>
+
+            <!-- 流式消息 -->
+            <article
+              v-if="streamingMessage"
+              class="message assistant"
+            >
+              <div class="message-meta">
+                <strong>知识库助手</strong>
+                <el-tag size="small" type="info">正在回答...</el-tag>
+              </div>
+              <div
+                class="markdown-content"
+                v-html="markdown(streamingMessage.content)"
+              />
+              <div v-if="streamingMessage.citations.length" class="citation-list">
+                <button
+                  v-for="citation in streamingMessage.citations"
+                  :key="`streaming-${citation.rank}`"
+                  class="citation-card"
+                  type="button"
+                  @click="openCitation(citation)"
+                >
+                  <strong>[S{{ citation.rank }}] {{ citation.filename }}</strong>
+                  <span>{{ citation.heading || '未标注标题' }}</span>
+                  <small v-if="citation.pageNumber">第 {{ citation.pageNumber }} 页 · </small>
                   <small>相似度 {{ similarity(citation.similarity) }}</small>
                   <p>{{ citation.quote }}</p>
                 </button>
@@ -523,6 +727,14 @@ onUnmounted(() => {
                 {{ selectedDocumentIds.length }}/20 个文档
               </span>
               <el-button
+                v-if="streamingMessage"
+                type="danger"
+                @click="cancelStream"
+              >
+                取消回答
+              </el-button>
+              <el-button
+                v-else
                 type="primary"
                 native-type="submit"
                 :loading="submitting"
@@ -543,6 +755,7 @@ onUnmounted(() => {
           <dt>来源编号</dt><dd>[S{{ selectedCitation.rank }}]</dd>
           <dt>文件名</dt><dd>{{ selectedCitation.filename }}</dd>
           <dt>标题</dt><dd>{{ selectedCitation.heading || '未标注标题' }}</dd>
+          <dt v-if="selectedCitation.pageNumber">页码</dt><dd v-if="selectedCitation.pageNumber">第 {{ selectedCitation.pageNumber }} 页</dd>
           <dt>相似度</dt><dd>{{ similarity(selectedCitation.similarity) }}</dd>
           <dt>引用内容</dt><dd class="quote">{{ selectedCitation.quote }}</dd>
         </dl>
@@ -557,7 +770,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0;
-  height: 100vh;
+  height: calc(100dvh - var(--project-shell-offset));
+  min-height: 0;
   overflow: hidden;
   padding: 16px 24px;
 }
@@ -585,7 +799,16 @@ onUnmounted(() => {
 .panel-heading, .conversation-heading { min-height: 52px; padding: 10px 14px; border-bottom: 1px solid #e4e7ed; flex-shrink: 0; }
 .panel-heading div, .conversation-heading div { display: grid; gap: 3px; }
 .panel-heading small, .conversation-heading small, .message-meta span, .composer-footer span { color: #64748b; }
-.session-list { padding: 8px; display: grid; gap: 4px; overflow-y: auto; flex: 1; }
+.session-list {
+  display: grid;
+  flex: 0 0 320px;
+  align-content: start;
+  gap: 4px;
+  height: 320px;
+  min-height: 0;
+  padding: 8px;
+  overflow-y: auto;
+}
 .session-item {
   width: 100%; display: flex; align-items: center; justify-content: space-between;
   border: 1px solid transparent; border-radius: 10px; padding: 8px 8px 8px 12px;
@@ -600,12 +823,14 @@ onUnmounted(() => {
 .session-item:hover .session-actions { opacity: 1; }
 .conversation-panel {
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 .document-selector { width: min(420px, 48vw); }
 .message-area {
+  min-height: 0;
   overflow-y: auto;
   padding: 16px;
   display: grid;
@@ -636,9 +861,17 @@ onUnmounted(() => {
 .citation-detail dt { color: #64748b; }
 .citation-detail dd { margin: 0; overflow-wrap: anywhere; }
 .citation-detail .quote { white-space: pre-wrap; line-height: 1.7; }
+.feedback-bar { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+.feedback-label { color: #64748b; font-size: 12px; }
 @media (max-width: 900px) {
+  .knowledge-page {
+    height: auto;
+    min-height: calc(100dvh - var(--project-shell-offset));
+    overflow: visible;
+  }
   .knowledge-layout { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 180px); }
-  .session-panel { border-right: 0; border-bottom: 1px solid #e4e7ed; max-height: 260px; overflow-y: auto; }
+  .session-panel { border-right: 0; border-bottom: 1px solid #e4e7ed; }
+  .session-list { flex-basis: 220px; height: 220px; }
   .document-selector { width: 100%; }
   .conversation-heading { align-items: stretch; flex-direction: column; }
 }

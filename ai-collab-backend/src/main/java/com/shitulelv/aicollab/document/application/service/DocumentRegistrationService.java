@@ -5,6 +5,8 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.project.application.service.AuditService;
+import com.shitulelv.aicollab.project.domain.model.ProjectStatus;
+import com.shitulelv.aicollab.project.domain.policy.ProjectWritePolicy;
 import com.shitulelv.aicollab.project.infrastructure.repository.ProjectRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -30,9 +32,9 @@ public class DocumentRegistrationService {
 
     @Transactional
     public void registerUploadedDocument(DocumentEntity document) {
-        if (!projects.lockActive(document.getProjectId())) {
-            throw new BusinessException(ErrorCode.PROJECT_NOT_FOUND);
-        }
+        ProjectStatus status = projects.lockStatus(document.getProjectId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+        ProjectWritePolicy.requireWritable(status);
         if (documents.countActive(document.getProjectId()) >= MAX_DOCUMENTS) {
             throw new BusinessException(ErrorCode.DOCUMENT_LIMIT_EXCEEDED);
         }

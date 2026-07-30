@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.document.domain.service;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.domain.model.DocumentChunk;
+import com.shitulelv.aicollab.document.infrastructure.parser.ParsedDocument;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -10,7 +11,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class DocumentChunker {
@@ -20,8 +23,13 @@ public class DocumentChunker {
     private static final int MAX_HEADING_CODE_POINTS = 300;
 
     public List<DocumentChunk> split(String text) {
+        return split(text, List.of());
+    }
+
+    public List<DocumentChunk> split(String text, List<ParsedDocument.PageBoundary> pageBoundaries) {
         List<Section> sections = sections(text);
         List<DocumentChunk> result = new ArrayList<>();
+        int globalOffset = 0;
         for (Section section : sections) {
             int start = 0;
             while (start < section.content().length()) {
@@ -32,16 +40,36 @@ public class DocumentChunker {
                         throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED,
                                 "文档内容过长，生成的分块数量超过上限");
                     }
+                    Map<String, Object> metadata = new LinkedHashMap<>();
+                    Integer pageNumber = resolvePageNumber(globalOffset + start, pageBoundaries);
+                    if (pageNumber != null) {
+                        metadata.put("pageNumber", pageNumber);
+                    }
                     result.add(new DocumentChunk(result.size(), truncateHeading(section.heading()), content,
                             sha256(content), Math.max(1,
-                            (content.codePointCount(0, content.length()) + 3) / 4)));
+                            (content.codePointCount(0, content.length()) + 3) / 4),
+                            metadata));
                 }
                 if (end >= section.content().length()) break;
                 int next = safeBoundary(section.content(), Math.max(start + 1, end - OVERLAP));
                 start = next > start ? next : section.content().offsetByCodePoints(start, 1);
             }
+            globalOffset += section.content().length();
         }
         return result;
+    }
+
+    private static Integer resolvePageNumber(int charOffset, List<ParsedDocument.PageBoundary> boundaries) {
+        if (boundaries.isEmpty()) return null;
+        Integer pageNumber = null;
+        for (ParsedDocument.PageBoundary boundary : boundaries) {
+            if (boundary.charOffset() <= charOffset) {
+                pageNumber = boundary.pageNumber();
+            } else {
+                break;
+            }
+        }
+        return pageNumber;
     }
 
     private static List<Section> sections(String text) {
