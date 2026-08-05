@@ -37,7 +37,7 @@ public class PlanningGenerationQuotaService {
     private final int generationLimitPerUserHour;
 
     public PlanningGenerationQuotaService(JdbcTemplate jdbc, Clock clock,
-                                          @Value("${planning.generation-limit-per-user-hour:2}") int generationLimitPerUserHour) {
+                                          @Value("${planning.generation-limit-per-user-hour:60}") int generationLimitPerUserHour) {
         this.jdbc = jdbc;
         this.clock = clock;
         this.generationLimitPerUserHour = generationLimitPerUserHour;

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.AgentApprovalService;
 import com.shitulelv.aicollab.agent.application.AgentWorkerOutcome;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
+import com.shitulelv.aicollab.agent.application.view.AgentStepView;
 import com.shitulelv.aicollab.agent.domain.model.*;
 import com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuard;
 import com.shitulelv.aicollab.agent.domain.tool.*;
@@ -17,6 +18,8 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -241,6 +244,95 @@ class AgentRuntimeCoordinatorTest {
         verify(repository, never()).requeueRun(any());
     }
 
+    @Test
+    void promptKeepsRootListingAtRequestedDepth() {
+        AgentRunView run = run();
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("读取仓库根目录", List.of()));
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false)))
+                .thenReturn(textResult("完成"));
+
+        coordinator.advance(run);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor).callModel(eq(run), messages.capture(), any(), eq(false));
+        assertThat(messages.getValue())
+                .filteredOn(ModelMessage.System.class::isInstance)
+                .map(ModelMessage.System.class::cast)
+                .extracting(ModelMessage.System::content)
+                .anyMatch(content -> content.contains("只要求根目录、当前层或列表时，不得读取子目录或文件正文"));
+    }
+
+    @Test
+    void finalBoundaryUsesToolFreeModelTurnAndCompletesFromExistingEvidence() {
+        AgentRunView run = runAtUsage(14, 5);
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("列出根目录", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(successfulToolStep()));
+        when(modelExecutor.callModel(eq(run), any(), anyList(), eq(false)))
+                .thenReturn(textResult("根目录包含 docs、scripts 等。"));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<AgentToolDefinition>> definitions = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor).callModel(eq(run), messages.capture(), definitions.capture(), eq(false));
+        assertThat(definitions.getValue()).isEmpty();
+        assertThat(messages.getValue())
+                .filteredOn(ModelMessage.System.class::isInstance)
+                .map(ModelMessage.System.class::cast)
+                .extracting(ModelMessage.System::content)
+                .anyMatch(content -> content.contains("只能基于已经取得的工具结果"));
+        verify(repository, never()).requeueRun(any());
+    }
+
+    @Test
+    void finalBoundaryRejectsAnotherToolCallWithoutRequeueing() {
+        AgentRunView run = runAtUsage(14, 5);
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("列出根目录", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(successfulToolStep()));
+        when(modelExecutor.callModel(eq(run), any(), anyList(), eq(false)))
+                .thenReturn(toolCallResult(new ModelToolCall(
+                        "call-extra", "list_tasks", json.createObjectNode())));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(outcome.errorCode()).isEqualTo("AGENT_INVALID_RESPONSE");
+        verify(repository).recordFailure(any(), eq("AGENT_INVALID_RESPONSE"), eq(false));
+        verify(repository, never()).recordToolResult(any(), any(), any(), any(), anyBoolean());
+        verify(repository, never()).requeueRun(any());
+    }
+
+    @Test
+    void rejectsToolBatchAbovePerTurnBudgetBeforeExecution() {
+        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any()))
+                .thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
+        ModelToolCall[] calls = new ModelToolCall[5];
+        for (int index = 0; index < calls.length; index++) {
+            calls[index] = new ModelToolCall(
+                    "call-" + index, "list_tasks", json.createObjectNode());
+        }
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false)))
+                .thenReturn(toolCallResult(calls));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        verify(repository).recordBudgetExceeded(any());
+        verify(repository, never()).recordToolResult(any(), any(), any(), any(), anyBoolean());
+        verify(repository, never()).requeueRun(any());
+    }
+
     // ========== 辅助方法 ==========
 
     private AgentRunView run() {
@@ -321,6 +413,28 @@ class AgentRuntimeCoordinatorTest {
                 r.tokenUsageEstimated(), r.scheduled(), r.correctionAttempted(),
                 r.retryCount(), r.errorCode(), r.planJson(), r.pageContextJson(), r.skillCode(),
                 r.version(), r.createdAt(), r.updatedAt());
+    }
+
+    private AgentRunView runAtUsage(int stepsUsed, int toolCallsUsed) {
+        AgentRunView r = run();
+        return new AgentRunView(
+                r.id(), r.sessionId(), r.projectId(), r.requesterId(),
+                r.parentRunId(), r.role(), r.depth(), r.goal(), r.status(),
+                r.maxSteps(), r.maxToolCalls(), r.maxChildren(),
+                r.maxInputTokens(), r.maxOutputTokens(),
+                stepsUsed, toolCallsUsed, r.childrenUsed(),
+                r.inputTokensUsed(), r.outputTokensUsed(),
+                r.tokenUsageEstimated(), r.scheduled(), r.correctionAttempted(),
+                r.retryCount(), r.errorCode(), r.planJson(), r.pageContextJson(), r.skillCode(),
+                r.version(), r.createdAt(), r.updatedAt());
+    }
+
+    private AgentStepView successfulToolStep() {
+        return new AgentStepView(
+                UUID.randomUUID(), 1, AgentStepType.TOOL_CALL_COMPLETED,
+                "mcp.github-readonly.get_file_contents", json.createObjectNode(),
+                json.createObjectNode().put("type", "dir"), "TOOL_SUCCESS",
+                null, null, false, null, null, OffsetDateTime.now());
     }
 
     private AgentExecutionContext context() {

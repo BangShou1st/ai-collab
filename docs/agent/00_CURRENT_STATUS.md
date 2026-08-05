@@ -21,6 +21,14 @@
 8. MCP Discover 的外部网络调用已移出数据库事务；定时任务因创建者失去成员身份而自动停用时，状态更新与审计处于同一事务。
 9. `FAILED_RETRYABLE` 运行可直接取消；前端 SSE 能正确处理跨字节块拆分的 CRLF 帧边界。
 
+## 2026-08-05 MCP 运行收敛修复
+
+- Runtime 按持久化 `MODEL_TURN`、`TOOL_CALL_COMPLETED` 和 Run 预算统一判断是否还能继续，不再只依赖 Worker 下一次领取时检查 `steps_used`。
+- 用户只要求根目录、当前层或列表时，系统提示明确禁止递归读取子目录或文件正文；已有工具结果足够时必须直接回答，不能为套用 Skill 输出模板扩大目标。
+- 接近步骤、模型轮次或工具总预算边界且已经存在成功工具证据时，Runtime 进入最终回答模式：保留历史工具结果，但不再向模型暴露工具。
+- 最终回答模式仍返回工具调用或空响应时，Run 以 `AGENT_INVALID_RESPONSE` 稳定失败，不再重新排队；单轮工具数和总工具数超限则进入 `BUDGET_EXCEEDED`，超限工具不会执行。
+- 知识问答与 AI 规划的每用户每小时默认限额均为 60，可分别通过 `KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR` 和 `PLANNING_GENERATION_LIMIT_PER_USER_HOUR` 调整。Agent 不增加每小时限额，继续使用单次运行预算。
+
 ## 当前安全边界
 
 - MCP 仅允许 allowlist 内、解析到公网地址的 HTTPS Endpoint；STDIO、本地 HTTP、私网地址和自动重定向不可用。
