@@ -74,8 +74,8 @@ public class ProjectRepository {
         return mapper.updateWithVersion(projectId, name, description, type, startDate, dueDate, status, version) == 1;
     }
 
-    public boolean transferOwnership(UUID projectId, UUID newOwnerId) {
-        return mapper.transferOwnership(projectId, newOwnerId) == 1;
+    public boolean transferOwnership(UUID projectId, UUID currentOwnerId, UUID newOwnerId) {
+        return mapper.transferOwnership(projectId, currentOwnerId, newOwnerId) == 1;
     }
 
     public boolean delete(UUID projectId) {

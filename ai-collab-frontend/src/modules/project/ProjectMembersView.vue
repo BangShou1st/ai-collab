@@ -2,9 +2,10 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import { formatDateTime, roleLabel } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
+import { useProjectContextStore } from '../../stores/project-context-store'
 import { projectApi } from './project-api'
 import type { Project, ProjectMember, ProjectRole } from './types'
 
@@ -12,6 +13,7 @@ type InvitableRole = Exclude<ProjectRole, 'OWNER'>
 
 const route = useRoute()
 const router = useRouter()
+const projectContext = useProjectContextStore()
 const projectId = route.params.projectId as string
 const project = ref<Project | null>(null)
 const members = ref<ProjectMember[]>([])
@@ -20,7 +22,6 @@ const creatingInvitation = ref(false)
 const memberOperationId = ref('')
 const invitationVisible = ref(false)
 const invitationLink = ref('')
-const errorMessage = ref('')
 const invitationForm = reactive({
   role: 'MEMBER' as InvitableRole,
   invitedEmail: '',
@@ -32,7 +33,6 @@ const isOwner = computed(() => project.value?.role === 'OWNER')
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     const [projectResult, memberResult] = await Promise.all([
       projectApi.get(projectId),
@@ -41,7 +41,7 @@ async function load(): Promise<void> {
     project.value = projectResult.data
     members.value = memberResult.data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '项目成员加载')
   } finally {
     loading.value = false
   }
@@ -50,7 +50,6 @@ async function load(): Promise<void> {
 async function createInvitation(): Promise<void> {
   if (creatingInvitation.value) return
   creatingInvitation.value = true
-  errorMessage.value = ''
   invitationLink.value = ''
   try {
     const result = await projectApi.createInvitation(projectId, {
@@ -61,7 +60,7 @@ async function createInvitation(): Promise<void> {
     invitationLink.value = `${window.location.origin}/invite/${result.data.code}`
     ElMessage.success('邀请已创建')
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '项目邀请创建')
   } finally {
     creatingInvitation.value = false
   }
@@ -73,7 +72,7 @@ async function copyInvitationLink(): Promise<void> {
     await navigator.clipboard.writeText(invitationLink.value)
     ElMessage.success('邀请链接已复制')
   } catch {
-    ElMessage.error('复制失败，请手动复制链接')
+    ElMessage.error({ message: '邀请链接复制失败：请手动复制链接', grouping: true })
   }
 }
 
@@ -91,13 +90,12 @@ async function changeRole(member: ProjectMember, role: InvitableRole): Promise<v
       { confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning' },
     )
     memberOperationId.value = member.userId
-    errorMessage.value = ''
     await projectApi.changeMemberRole(projectId, member.userId, role)
     await load()
     ElMessage.success('成员角色已更新')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '成员角色修改')
   } finally {
     memberOperationId.value = ''
   }
@@ -112,13 +110,12 @@ async function removeMember(member: ProjectMember): Promise<void> {
       { confirmButtonText: '确认移除', cancelButtonText: '取消', type: 'warning' },
     )
     memberOperationId.value = member.userId
-    errorMessage.value = ''
     await projectApi.removeMember(projectId, member.userId)
     await load()
     ElMessage.success('成员已移除')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '项目成员移除')
   } finally {
     memberOperationId.value = ''
   }
@@ -133,13 +130,13 @@ async function transferOwnership(member: ProjectMember): Promise<void> {
       { confirmButtonText: '确认转移', cancelButtonText: '取消', type: 'warning' },
     )
     memberOperationId.value = member.userId
-    errorMessage.value = ''
     await projectApi.transferOwnership(projectId, member.userId)
     await load()
+    await projectContext.refreshProject(projectId)
     ElMessage.success('所有权已转移')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '项目所有权转移')
   } finally {
     memberOperationId.value = ''
   }
@@ -154,13 +151,12 @@ async function leaveProject(): Promise<void> {
       { confirmButtonText: '确认退出', cancelButtonText: '取消', type: 'warning' },
     )
     memberOperationId.value = 'self'
-    errorMessage.value = ''
     await projectApi.leaveProject(projectId)
     ElMessage.success('已退出项目')
     router.push('/projects')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '退出项目')
   } finally {
     memberOperationId.value = ''
   }
@@ -192,8 +188,6 @@ onMounted(load)
         </el-button>
       </template>
     </PageHeader>
-
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
 
     <el-table v-loading="loading" :data="members" empty-text="暂无成员">
       <el-table-column prop="username" label="用户名" min-width="150" />

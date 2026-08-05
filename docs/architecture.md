@@ -9,7 +9,7 @@ AI Collab 面向高校竞赛团队，并兼容课程设计、软件实训和小�
 1. 项目、成员、里程碑、任务、评论、通知、审计和多种项目视图；
 2. 项目文档上传、解析、向量检索、流式引用问答、反馈和检索评测；
 3. AI 任务规划、人工预览、版本管理、事务确认和规划对比；
-4. 受控的项目协作 Agent、人工审批写入、定时运行和模型管理。
+4. 受控的项目协作 Agent、原生工具调用、事件流、人工审批写入、定时 Skill、项目记忆、MCP 和模型管理。
 
 ## 2. 部署架构
 
@@ -21,6 +21,7 @@ flowchart LR
     Backend --> MinIO["MinIO 原始文档"]
     Backend --> Embed["Embedding API"]
     Backend --> Chat["Chat / Planning API"]
+    Backend --> MCP["受控 HTTPS MCP Server"]
 ```
 
 本地通过 Docker Compose 运行 PostgreSQL、Redis 和 MinIO；后端、前端作为本地进程启动。Redis 不可用时部分限流降级为进程内实现；PostgreSQL 是业务事实来源；MinIO 故障时文档存储能力不可用，但不应阻止无关协作功能启动。
@@ -36,7 +37,7 @@ flowchart LR
 | `document` | 上传、MinIO、解析、分块、向量化、删除 |
 | `knowledge` | 私人问答会话、检索、回答、引用 |
 | `planning` | 两阶段规划、校验、版本、修复、幂等确认 |
-| `agent` | 会话、运行状态机、工具、预算、审批和定时运行 |
+| `agent` | 会话、执行计划、原生工具调用、事件/SSE、预算、审批、Skill、记忆、定时运行和 MCP |
 | `notification` | 站内通知、未读状态和提醒任务 |
 | `common` | 响应、异常、认证、项目 Guard、审计基础设施 |
 | `infrastructure` | 跨模块外部服务适配 |
@@ -144,11 +145,15 @@ Embedding 和 Chat 网络调用发生在事务外。最终 USER/ASSISTANT 消息
 
 模型输出不能直接写正式业务表。外部模型调用不进入确认事务。规划版本保存模型供应商、模型、原始输出/指标和验证结果，用于复现和比较。
 
-## 9. 模型网关
+## 9. Agent 与模型网关
 
 Chat、Agent、Planning 可由系统管理员在管理中心配置 OpenAI 兼容、Claude 或 Gemini 模型并按用途分配；API Key 加密保存。Embedding 仍使用独立环境配置，切换 Embedding 模型需要重新索引。
 
-项目协作 Agent 是受项目权限、工具白名单、预算和人工审批约束的业务 Agent，不是可访问任意外部系统的通用自治代理。
+项目协作 Agent 是受项目权限、工具白名单、预算和人工审批约束的业务 Agent，不是可访问任意外部系统的通用自治代理。运行时先组装可信页面上下文与固定 Skill，再通过统一模型轮次网关执行原生 Tool Calling；执行计划、步骤和严格递增事件持久化到 PostgreSQL，前端通过 SSE 重放并续传事件。
+
+内置只读工具可在项目范围内直接执行；任务、里程碑和记忆等写工具只能生成待审批提案，批准时重新校验运行状态、项目角色、资源版本和幂等键。取消、预算耗尽和失败使用稳定终态，Worker 不能用旧版本覆盖并发取消。
+
+MCP 是系统管理员配置、项目 OWNER 授权的可选外部只读工具来源。当前实际传输为受 host allowlist、DNS 私网阻断、HTTPS、超时和响应大小限制保护的 `STREAMABLE_HTTP`；工具还必须同时通过远端 `readOnlyHint`、连接级确认白名单和项目级白名单，执行前重新校验 Schema Hash。凭据加密保存，发现网络调用在数据库事务外，返回内容按不可信数据清洗。
 
 ## 10. 前端
 
@@ -167,7 +172,9 @@ Chat、Agent、Planning 可由系统管理员在管理中心配置 OpenAI 兼容
 /projects/:projectId/documents
 /projects/:projectId/knowledge
 /projects/:projectId/ai-planning
+/projects/:projectId/agent
 /projects/:projectId/audit-logs   OWNER/ADMIN
+/admin                            系统管理员
 ```
 
 项目根路由重定向 Dashboard。`project-context-store` 保存当前项目和角色，切换项目、离开项目或退出时清理。页面按角色隐藏入口，但必须正常展示后端 403/404。
@@ -194,7 +201,7 @@ JSON 响应通常为：
 - 项目、任务、里程碑使用版本号；文档 worker 使用 CAS；规划确认使用幂等键。
 - 所有列表使用稳定排序；分页限制最大尺寸。
 - Audit detail、AI 调用日志和错误响应只保存必要元数据。
-- API Key 仅从环境变量读取。
+- 本地默认模型 API Key 从环境变量读取；管理中心保存的模型和 MCP 凭据只以加密密文入库，API 不回传明文。
 - Prompt 和模型响应有长度预算；项目文档不能注入系统权限。
 
 ## 13. 验证边界

@@ -30,6 +30,9 @@ public record AgentRunView(
         boolean correctionAttempted,
         int retryCount,
         String errorCode,
+        String planJson,
+        String pageContextJson,
+        String skillCode,
         int version,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt) {

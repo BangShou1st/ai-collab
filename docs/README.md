@@ -21,7 +21,7 @@
 |---|---|
 | `feature-matrix.md` | 当前功能完成度和明确缺口 |
 | `architecture.md` | 模块边界、依赖、主要数据流、安全和一致性原则 |
-| `database.md` | V1–V26 迁移形成的当前数据库结构 |
+| `database.md` | V1–V30 迁移形成的当前数据库结构 |
 | `api/openapi.yaml` | HTTP 路径、方法、请求和响应契约 |
 
 冲突时以当前源码、迁移和实际测试证据为准，并在同一个任务中修正文档。
@@ -42,6 +42,7 @@
 | `development/guides/project-and-work.md` | 项目、成员、里程碑、任务、评论、可视化 |
 | `development/guides/document-and-knowledge.md` | 文档上传、MinIO、解析、向量、问答、SSE、引用 |
 | `development/guides/planning-and-agent.md` | 任务规划、模型路由、人工确认、Agent 工具与审批 |
+| `agent/README.md` | Agent 2.0 当前入口、阶段历史、部署与验收文档导航 |
 
 功能指南用于提供当前代码入口和正确实现模式，不代替本次任务规格。
 

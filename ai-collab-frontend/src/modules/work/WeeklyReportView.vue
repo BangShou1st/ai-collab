@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import { projectApi } from '../project/project-api'
 import type { Project } from '../project/types'
@@ -12,13 +12,11 @@ const projectId = route.params.projectId as string
 
 const report = ref<WeeklyReport | null>(null)
 const loading = ref(false)
-const errorMessage = ref('')
 
 const project = ref<Project | null>(null)
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     const [result, projectResult] = await Promise.all([
       reportApi.weeklyReport(projectId),
@@ -27,7 +25,7 @@ async function load(): Promise<void> {
     report.value = result.data
     project.value = projectResult.data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '项目周报加载')
   } finally {
     loading.value = false
   }
@@ -48,7 +46,6 @@ onMounted(load)
       title="AI 周报"
       :context="project?.name"
     />
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <section v-loading="loading" class="report-container">
       <el-empty v-if="!loading && !report" description="暂无报告数据" :image-size="64" />
       <template v-else-if="report">

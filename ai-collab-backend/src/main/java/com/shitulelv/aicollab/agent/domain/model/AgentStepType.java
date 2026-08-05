@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.agent.domain.model;
 public enum AgentStepType {
     MODEL_REQUEST,
     MODEL_DECISION,
+    MODEL_TURN,
     TOOL_CALL_PROPOSED,
     TOOL_CALL_COMPLETED,
     APPROVAL_REQUESTED,

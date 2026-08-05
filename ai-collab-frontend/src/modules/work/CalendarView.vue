@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import { projectApi } from '../project/project-api'
 import type { Project } from '../project/types'
@@ -12,7 +12,6 @@ const projectId = route.params.projectId as string
 
 const events = ref<CalendarEvent[]>([])
 const loading = ref(false)
-const errorMessage = ref('')
 const currentDate = ref(new Date())
 
 const project = ref<Project | null>(null)
@@ -29,7 +28,6 @@ const monthName = computed(() => {
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     const [result, projectResult] = await Promise.all([
       visualizationApi.calendar(projectId, currentYear.value, currentMonth.value),
@@ -38,7 +36,7 @@ async function load(): Promise<void> {
     events.value = result.data.events
     project.value = projectResult.data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '日历加载')
   } finally {
     loading.value = false
   }
@@ -97,7 +95,6 @@ onMounted(load)
       title="日历视图"
       :context="project?.name"
     />
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <section v-loading="loading" class="calendar-container">
       <div class="calendar-header">
         <div class="month-controls">

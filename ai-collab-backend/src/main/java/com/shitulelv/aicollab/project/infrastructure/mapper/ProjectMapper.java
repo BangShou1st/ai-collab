@@ -104,10 +104,11 @@ public interface ProjectMapper extends BaseMapper<ProjectEntity> {
     @Update("""
             UPDATE project
             SET owner_id = #{newOwnerId}, updated_at = now()
-            WHERE id = #{projectId}
+            WHERE id = #{projectId} AND owner_id = #{currentOwnerId}
             """)
     int transferOwnership(
             @Param("projectId") UUID projectId,
+            @Param("currentOwnerId") UUID currentOwnerId,
             @Param("newOwnerId") UUID newOwnerId);
 
 }

@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import { formatDate, milestoneStatusLabel } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
 import {
@@ -25,7 +25,6 @@ const saving = ref(false)
 const deletingId = ref('')
 const dialogVisible = ref(false)
 const editing = ref<Milestone | null>(null)
-const errorMessage = ref('')
 const canManage = computed(() => project.value?.role === 'OWNER' || project.value?.role === 'ADMIN')
 const form = reactive({
   name: '', description: '', startDate: '', endDate: '', targetDate: '',
@@ -61,7 +60,6 @@ const validationMessage = computed(() => {
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     const [projectResult, milestoneResult] = await Promise.all([
       projectApi.get(projectId), workApi.milestones(projectId),
@@ -69,7 +67,7 @@ async function load(): Promise<void> {
     project.value = projectResult.data
     milestones.value = milestoneResult.data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '里程碑列表加载')
   } finally {
     loading.value = false
   }
@@ -100,7 +98,6 @@ async function save(): Promise<void> {
     ...(editing.value ? { version: editing.value.version } : {}),
   }
   saving.value = true
-  errorMessage.value = ''
   try {
     if (editing.value) await workApi.updateMilestone(projectId, editing.value.id, payload)
     else await workApi.createMilestone(projectId, payload)
@@ -108,7 +105,7 @@ async function save(): Promise<void> {
     await load()
     ElMessage.success('里程碑已保存')
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, editing.value ? '里程碑更新' : '里程碑创建')
   } finally {
     saving.value = false
   }
@@ -123,13 +120,12 @@ async function remove(item: Milestone): Promise<void> {
       { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' },
     )
     deletingId.value = item.id
-    errorMessage.value = ''
     await workApi.deleteMilestone(projectId, item.id)
     await load()
     ElMessage.success('里程碑已删除')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '里程碑删除')
   } finally {
     deletingId.value = ''
   }
@@ -149,7 +145,6 @@ onMounted(load)
         <el-button v-if="canManage" type="primary" @click="openEditor()">新建里程碑</el-button>
       </template>
     </PageHeader>
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <el-table v-loading="loading" :data="milestones" empty-text="暂无里程碑">
       <el-table-column prop="name" label="名称" min-width="180" />
       <el-table-column label="状态" width="130">

@@ -25,15 +25,23 @@ public class AgentScheduleRepository {
 
     public AgentScheduleView create(
             UUID projectId, UUID creatorId, UUID sessionId, String name, String goal,
-            String frequency, String zone, LocalTime time, Integer weeklyDay,
+            String skillCode, String frequency, String zone, LocalTime time, Integer weeklyDay,
             OffsetDateTime nextFireAt) {
         return jdbc.queryForObject("""
                 INSERT INTO agent_schedule(
-                  id,project_id,creator_id,session_id,name,goal,frequency,time_zone,
+                  id,project_id,creator_id,session_id,name,goal,skill_code,frequency,time_zone,
                   local_time,weekly_day,next_fire_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?) RETURNING *
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?) RETURNING *
                 """, mapper(), UUID.randomUUID(), projectId, creatorId, sessionId,
-                name, goal, frequency, zone, time, weeklyDay, nextFireAt);
+                name, goal, skillCode, frequency, zone, time, weeklyDay, nextFireAt);
+    }
+
+    public AgentScheduleView create(
+            UUID projectId, UUID creatorId, UUID sessionId, String name, String goal,
+            String frequency, String zone, LocalTime time, Integer weeklyDay,
+            OffsetDateTime nextFireAt) {
+        return create(projectId, creatorId, sessionId, name, goal, null,
+                frequency, zone, time, weeklyDay, nextFireAt);
     }
 
     public List<AgentScheduleView> list(UUID projectId) {
@@ -74,7 +82,7 @@ public class AgentScheduleRepository {
         if (claimed != 1) return Optional.empty();
         AgentRunView run = runs.createRun(
                 schedule.projectId(), schedule.sessionId(), schedule.creatorId(),
-                schedule.goal(), true);
+                schedule.goal(), true, schedule.skillCode(), null);
         int inserted = jdbc.update("""
                 INSERT INTO agent_schedule_fire(id,schedule_id,scheduled_for,run_id)
                 VALUES (?,?,?,?) ON CONFLICT (schedule_id,scheduled_for) DO NOTHING
@@ -93,7 +101,7 @@ public class AgentScheduleRepository {
         return (rs, row) -> new AgentScheduleView(
                 rs.getObject("id", UUID.class), rs.getObject("project_id", UUID.class),
                 rs.getObject("creator_id", UUID.class), rs.getObject("session_id", UUID.class),
-                rs.getString("name"), rs.getString("goal"), rs.getString("frequency"),
+                rs.getString("name"), rs.getString("goal"), rs.getString("skill_code"), rs.getString("frequency"),
                 rs.getString("time_zone"), rs.getObject("local_time", LocalTime.class),
                 integer(rs, "weekly_day"), rs.getBoolean("enabled"),
                 rs.getObject("next_fire_at", OffsetDateTime.class),

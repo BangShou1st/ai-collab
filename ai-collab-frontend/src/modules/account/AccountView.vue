@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import { authApi } from '../../api/auth-api'
 import PageHeader from '../../shared/PageHeader.vue'
 import { useAuthStore } from '../../stores/auth-store'
@@ -15,7 +15,6 @@ const profile = reactive({
   email: auth.currentUser?.email ?? '',
 })
 const password = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
-const errorMessage = ref('')
 const savingProfile = ref(false)
 const changingPassword = ref(false)
 const loggingOutCurrent = ref(false)
@@ -53,7 +52,6 @@ function clearPasswordFields(): void {
 async function saveProfile(): Promise<void> {
   if (profileValidationMessage.value || savingProfile.value) return
   savingProfile.value = true
-  errorMessage.value = ''
   try {
     const result = await accountApi.updateProfile({
       displayName: profile.displayName.trim(),
@@ -62,7 +60,7 @@ async function saveProfile(): Promise<void> {
     auth.currentUser = result.data
     ElMessage.success('资料已更新')
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '个人资料保存')
   } finally {
     savingProfile.value = false
   }
@@ -77,14 +75,13 @@ async function changePassword(): Promise<void> {
       { confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning' },
     )
     changingPassword.value = true
-    errorMessage.value = ''
     await authApi.changePassword(auth.accessToken, password.currentPassword, password.newPassword)
     auth.clearAuth()
     await router.replace('/login')
     ElMessage.success('密码已修改，请重新登录')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '密码修改')
   } finally {
     changingPassword.value = false
     clearPasswordFields()
@@ -100,13 +97,12 @@ async function logoutCurrent(): Promise<void> {
       { confirmButtonText: '确认退出', cancelButtonText: '取消', type: 'warning' },
     )
     loggingOutCurrent.value = true
-    errorMessage.value = ''
     await auth.logout()
     await router.replace('/login')
     ElMessage.success('当前设备已退出登录')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '当前设备退出')
   } finally {
     loggingOutCurrent.value = false
   }
@@ -121,13 +117,12 @@ async function logoutAll(): Promise<void> {
       { confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning' },
     )
     loggingOutAll.value = true
-    errorMessage.value = ''
     await authApi.logoutAll(auth.accessToken)
     auth.clearAuth()
     await router.replace('/login')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '全部设备退出')
   } finally {
     loggingOutAll.value = false
   }
@@ -142,7 +137,6 @@ onBeforeUnmount(clearPasswordFields)
       eyebrow="个人中心"
       title="账号设置"
     />
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <section class="settings-grid">
       <el-card>
         <template #header>

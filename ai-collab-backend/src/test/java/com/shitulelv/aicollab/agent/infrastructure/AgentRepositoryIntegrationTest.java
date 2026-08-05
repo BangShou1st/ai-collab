@@ -1,13 +1,28 @@
 package com.shitulelv.aicollab.agent.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.agent.application.AgentApprovalService;
+import com.shitulelv.aicollab.agent.application.runtime.AgentEventService;
+import com.shitulelv.aicollab.agent.application.view.AgentStepView;
+import com.shitulelv.aicollab.agent.domain.model.AgentCitation;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
+import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentScheduleRepository;
 import com.shitulelv.aicollab.agent.domain.policy.AgentApprovalPolicy;
+import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
+import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
+import com.shitulelv.aicollab.agent.domain.tool.ApprovalWriteAgentTool;
+import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,10 +36,14 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 @Testcontainers(disabledWithoutDocker = true)
 class AgentRepositoryIntegrationTest {
@@ -59,7 +78,7 @@ class AgentRepositoryIntegrationTest {
         var session = repository.createSession(
                 fixture.project(), fixture.user(), "项目协作");
         var run = repository.createRun(
-                fixture.project(), session.id(), fixture.user(), "检查进度", false);
+                fixture.project(), session.id(), fixture.user(), "检查进度", false, null, null);
 
         assertThat(repository.findSession(fixture.project(), session.id())).isPresent();
         assertThat(repository.findSession(UUID.randomUUID(), session.id())).isEmpty();
@@ -98,7 +117,7 @@ class AgentRepositoryIntegrationTest {
         Fixture fixture = fixture();
         var session = repository.createSession(fixture.project(), fixture.user(), "领取测试");
         var run = repository.createRun(
-                fixture.project(), session.id(), fixture.user(), "检查项目", false);
+                fixture.project(), session.id(), fixture.user(), "检查项目", false, null, null);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         try (var executor = Executors.newFixedThreadPool(2)) {
@@ -119,7 +138,7 @@ class AgentRepositoryIntegrationTest {
         Fixture fixture = fixture();
         var session = repository.createSession(fixture.project(), fixture.user(), "恢复测试");
         var run = repository.createRun(
-                fixture.project(), session.id(), fixture.user(), "恢复运行", false);
+                fixture.project(), session.id(), fixture.user(), "恢复运行", false, null, null);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         repository.claimNext("crashed-worker", now, Duration.ofSeconds(1));
 
@@ -135,7 +154,7 @@ class AgentRepositoryIntegrationTest {
         Fixture fixture = fixture();
         var session = repository.createSession(fixture.project(), fixture.user(), "完成测试");
         var queued = repository.createRun(
-                fixture.project(), session.id(), fixture.user(), "总结项目", false);
+                fixture.project(), session.id(), fixture.user(), "总结项目", false, null, null);
         repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
@@ -158,7 +177,7 @@ class AgentRepositoryIntegrationTest {
         Fixture fixture = fixture();
         var session = repository.createSession(fixture.project(), fixture.user(), "工具测试");
         var queued = repository.createRun(
-                fixture.project(), session.id(), fixture.user(), "列出任务", false);
+                fixture.project(), session.id(), fixture.user(), "列出任务", false, null, null);
         repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         var arguments = new ObjectMapper().createObjectNode().put("limit", 5);
@@ -185,7 +204,7 @@ class AgentRepositoryIntegrationTest {
         Fixture fixture = fixture();
         var session = repository.createSession(fixture.project(), fixture.user(), "advanced");
         var queued = repository.createRun(
-                fixture.project(), session.id(), fixture.user(), "propose", false);
+                fixture.project(), session.id(), fixture.user(), "propose", false, null, null);
         repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         var arguments = new ObjectMapper().createObjectNode().put("title", "approved task");
@@ -210,6 +229,442 @@ class AgentRepositoryIntegrationTest {
                 "DAILY", "Asia/Shanghai", java.time.LocalTime.of(9, 0), null,
                 OffsetDateTime.now().minusMinutes(1));
         assertThat(schedules.fire(scheduled, OffsetDateTime.now().plusDays(1))).isPresent();
+    }
+
+    // Issue 1: planUpdateThenFinalSucceeds
+    @Test
+    void planUpdateThenFinalSucceeds() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "version-consistency");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "检查项目", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        int initialVersion = running.version();
+
+        // updatePlan increments version
+        repository.updatePlan(fixture.project(), running.id(), running.version(),
+                "{\"version\":1,\"objective\":\"test\",\"steps\":[]}");
+        var afterPlan = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(afterPlan.version()).isEqualTo(initialVersion + 1);
+
+        // recordFinal must use updated version (not stale initialVersion)
+        repository.recordFinal(afterPlan, "项目进展稳定", List.of());
+        var finalRun = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(finalRun.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+
+        // answer stored as valid JSONB with Chinese content
+        var steps = repository.listSteps(fixture.project(), queued.id());
+        assertThat(steps).isNotEmpty();
+        assertThat(steps.getLast().output()).isNotNull();
+
+        // No orphan step - run is SUCCEEDED
+        assertThat(finalRun.errorCode()).isNull();
+
+        // Run should not be claimable again
+        var claimedAgain = repository.claimNext("worker2",
+                OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        assertThat(claimedAgain).isEmpty();
+    }
+
+    // Issue 1: planUpdateThenRequeueSucceeds
+    @Test
+    void planUpdateThenRequeueSucceeds() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "requeue-consistency");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "列出任务", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        int initialVersion = running.version();
+
+        // updatePlan increments version
+        repository.updatePlan(fixture.project(), running.id(), running.version(),
+                "{\"version\":1,\"objective\":\"test\",\"steps\":[]}");
+        var afterPlan = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(afterPlan.version()).isEqualTo(initialVersion + 1);
+
+        // recordModelTurn on updated run
+        repository.recordModelTurn(afterPlan, new ModelTurnResult(
+                "calling tool", List.of(new ModelToolCall("tc1", "task.search",
+                        new ObjectMapper().createObjectNode().put("overdueOnly", false).put("limit", 5))),
+                ModelFinishReason.TOOL_CALLS,
+                new ModelUsage(100, 50),
+                "test-provider", "test-model", 200));
+        var afterTurn = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        // recordToolResult
+        repository.recordToolResult(afterTurn, "task.search",
+                new ObjectMapper().createObjectNode().put("overdueOnly", false).put("limit", 5),
+                new ObjectMapper().createObjectNode().putArray("items"), false);
+        var afterTool = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        // requeueRun
+        repository.requeueRun(afterTool);
+        var requeued = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(requeued.status()).isEqualTo(AgentRunStatus.QUEUED);
+        assertThat(requeued.version()).isGreaterThan(initialVersion);
+    }
+
+    // Issue 1: staleVersionRollsBackEverything
+    @Test
+    void staleVersionRollsBackEverything() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "stale-rollback");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "测试版本冲突", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        int version = running.version();
+
+        // First updatePlan succeeds
+        repository.updatePlan(fixture.project(), running.id(), version,
+                "{\"version\":1,\"objective\":\"test\",\"steps\":[]}");
+        var afterPlan = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        // recordModelTurn on correct version succeeds
+        repository.recordModelTurn(afterPlan, new ModelTurnResult(
+                "text", List.of(), ModelFinishReason.STOP,
+                new ModelUsage(10, 5),
+                "p", "m", 100));
+        var afterTurn = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        int afterTurnVersion = afterTurn.version();
+
+        // recordFinal with stale version (before updatePlan) must fail
+        // Using the stale running object (version == initial version)
+        try {
+            repository.recordFinal(running, "should fail", List.of());
+            // Should not reach here
+            throw new AssertionError("recordFinal with stale version should have failed");
+        } catch (IllegalStateException e) {
+            // Expected: "Agent 运行已被其他 worker 修改"
+        }
+
+        // Run still SUCCEEDED from afterTurn's state? No, afterTurn is still RUNNING
+        var afterFinalAttempt = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(afterFinalAttempt.status()).isEqualTo(AgentRunStatus.RUNNING);
+
+        // No orphan steps or messages from failed attempt
+        var messages = repository.listMessages(fixture.project(), session.id(), 100);
+        assertThat(messages).extracting(m -> m.role()).doesNotContain("ASSISTANT");
+    }
+
+    // Issue 1: finalAnswerIsValidJsonb
+    @Test
+    void finalAnswerIsValidJsonb() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "jsonb-validation");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "回答问题", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        // Save answer with special characters
+        String chineseAnswer = "项目已完成 50%。包含\"双引号\"、\\反斜杠、\n换行和\t制表符。";
+        repository.recordFinal(running, chineseAnswer, List.of());
+
+        // Read back and verify
+        var finalRun = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(finalRun.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+
+        var steps = repository.listSteps(fixture.project(), queued.id());
+        assertThat(steps).isNotEmpty();
+        AgentStepView finalStep = steps.getLast();
+        assertThat(finalStep.type()).isEqualTo(AgentStepType.FINAL_ANSWER);
+        assertThat(finalStep.output()).isNotNull();
+        // Output is a JSON object {"answer":"...","citations":[],"inferences":[]}
+        assertThat(finalStep.output().get("answer").asText()).isEqualTo(chineseAnswer);
+
+        // Message should also contain the answer
+        var messages = repository.listMessages(fixture.project(), session.id(), 100);
+        assertThat(messages).hasSize(2);
+        assertThat(messages.get(1).content()).isEqualTo(chineseAnswer);
+    }
+
+    // Issue 2: modelTurnPersistsTokenUsage
+    @Test
+    void modelTurnPersistsTokenUsage() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "budget-test");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "预算测试", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        assertThat(running.inputTokensUsed()).isZero();
+        assertThat(running.outputTokensUsed()).isZero();
+        assertThat(running.stepsUsed()).isZero();
+
+        // Record model turn with token usage
+        repository.recordModelTurn(running, new ModelTurnResult(
+                "thinking", List.of(), ModelFinishReason.STOP,
+                new ModelUsage(150, 75),
+                "test-provider", "test-model", 300));
+
+        var afterTurn = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(afterTurn.inputTokensUsed()).isEqualTo(150);
+        assertThat(afterTurn.outputTokensUsed()).isEqualTo(75);
+        assertThat(afterTurn.stepsUsed()).isEqualTo(1);
+        assertThat(afterTurn.tokenUsageEstimated()).isFalse();
+    }
+
+    // Issue 2: budgetAccumulatesAcrossSteps
+    @Test
+    void budgetAccumulatesAcrossSteps() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "budget-accum");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "累计测试", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        // First model turn
+        repository.recordModelTurn(running, new ModelTurnResult(
+                "t1", List.of(new ModelToolCall("tc1", "task.search",
+                        new ObjectMapper().createObjectNode().put("overdueOnly", false).put("limit", 5))),
+                ModelFinishReason.TOOL_CALLS,
+                new ModelUsage(100, 50),
+                "p", "m", 200));
+        var run1 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(run1.inputTokensUsed()).isEqualTo(100);
+        assertThat(run1.outputTokensUsed()).isEqualTo(50);
+        assertThat(run1.stepsUsed()).isEqualTo(1);
+
+        // Record tool result
+        repository.recordToolResult(run1, "task.search",
+                new ObjectMapper().createObjectNode(), new ObjectMapper().createObjectNode(), false);
+        var run2 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(run2.toolCallsUsed()).isEqualTo(1);
+        assertThat(run2.stepsUsed()).isEqualTo(2);
+
+        // Requeue (status is RUNNING after recordToolResult, so requeueRun works)
+        repository.requeueRun(run2);
+        var run3 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(run3.status()).isEqualTo(AgentRunStatus.QUEUED);
+
+        // Claim again (simulating next tick picking up the QUEUED run)
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var run4 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(run4.status()).isEqualTo(AgentRunStatus.RUNNING);
+
+        // Second model turn (simulating next tick)
+        repository.recordModelTurn(run4, new ModelTurnResult(
+                "final answer", List.of(), ModelFinishReason.STOP,
+                new ModelUsage(200, 100),
+                "p", "m", 300));
+        var run5 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(run5.inputTokensUsed()).isEqualTo(300); // 100 + 200
+        assertThat(run5.outputTokensUsed()).isEqualTo(150); // 50 + 100
+        assertThat(run5.stepsUsed()).isEqualTo(3); // 1 + 1 + 1
+    }
+
+    // Issue 2: toolCallsAccumulateAcrossTicks
+    @Test
+    void toolCallsAccumulateAcrossTicks() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "tool-budget");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "工具预算", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        assertThat(running.toolCallsUsed()).isZero();
+
+        // First tool result
+        repository.recordToolResult(running, "task.search",
+                new ObjectMapper().createObjectNode(), new ObjectMapper().createObjectNode(), false);
+        var run1 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(run1.toolCallsUsed()).isEqualTo(1);
+        assertThat(run1.stepsUsed()).isEqualTo(1);
+
+        // Second tool result
+        repository.recordToolResult(run1, "milestone.list",
+                new ObjectMapper().createObjectNode(), new ObjectMapper().createObjectNode(), false);
+        var run2 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(run2.toolCallsUsed()).isEqualTo(2);
+        assertThat(run2.stepsUsed()).isEqualTo(2);
+    }
+
+    // Issue 2: invalidToolCallStillConsumesToolBudget
+    @Test
+    void invalidToolCallStillConsumesToolBudget() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "invalid-tool-budget");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "非法工具预算", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        // Error tool result (invalid tool call)
+        repository.recordToolResult(running, "unknown_tool",
+                new ObjectMapper().createObjectNode(),
+                new ObjectMapper().createObjectNode().put("error", "TOOL_NOT_FOUND"), true);
+        var run1 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        // Even invalid tool calls should consume tool_calls_used budget
+        assertThat(run1.toolCallsUsed()).isEqualTo(1);
+        assertThat(run1.stepsUsed()).isEqualTo(1);
+    }
+
+    // Issue 2: budgetExceededRunCannotBeClaimedAgain
+    @Test
+    void budgetExceededRunCannotBeClaimedAgain() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "budget-exceeded");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "预算超限", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        // Mark as budget exceeded
+        repository.recordBudgetExceeded(running);
+        var exceeded = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(exceeded.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+
+        // Try to claim again - should not be claimable
+        var claimedAgain = repository.claimNext("worker2",
+                OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        assertThat(claimedAgain).isEmpty();
+    }
+
+    // Issue 2: canceledRunCannotBeClaimedAgain
+    @Test
+    void canceledRunCannotBeClaimedAgain() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "canceled-claim");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "取消测试", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        // Mark as canceled
+        repository.recordCanceled(running);
+        var canceled = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(canceled.status()).isEqualTo(AgentRunStatus.CANCELED);
+
+        // Try to claim again - should not be claimable
+        var claimedAgain = repository.claimNext("worker2",
+                OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        assertThat(claimedAgain).isEmpty();
+    }
+
+    @Test
+    void runningCancelCanFinalizeWithClaimedVersionAfterRequestIncrementedVersion() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "cancel-version-race");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "取消版本竞争", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var claimedSnapshot = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        assertThat(repository.requestCancel(fixture.project(), queued.id()))
+                .isEqualTo(AgentRunStatus.RUNNING);
+
+        repository.recordCanceled(claimedSnapshot);
+
+        var canceled = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(canceled.status()).isEqualTo(AgentRunStatus.CANCELED);
+        int versionAfterCancellation = canceled.version();
+        assertThat(repository.requestCancel(fixture.project(), queued.id()))
+                .isEqualTo(AgentRunStatus.CANCELED);
+        assertThat(repository.findRun(fixture.project(), queued.id()).orElseThrow().version())
+                .isEqualTo(versionAfterCancellation);
+    }
+
+    @Test
+    void retryableFailureCanBeCanceledWithoutAnotherWorkerClaim() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "cancel-retryable");
+        var run = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "取消待重试运行", false, null, null);
+        jdbc.update("UPDATE agent_run SET status='FAILED_RETRYABLE' WHERE id=?", run.id());
+
+        assertThat(repository.requestCancel(fixture.project(), run.id()))
+                .isEqualTo(AgentRunStatus.CANCELED);
+        assertThat(repository.findRun(fixture.project(), run.id()).orElseThrow().status())
+                .isEqualTo(AgentRunStatus.CANCELED);
+    }
+
+    @Test
+    void canceledWaitingRunCannotExecuteItsPendingApproval() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "cancel-approval-race");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "取消审批竞争", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        UUID approvalId = UUID.randomUUID();
+        AgentApprovalPolicy policy = new AgentApprovalPolicy();
+        var arguments = new ObjectMapper().createObjectNode().put("title", "must-not-write");
+        approvals.createProposal(
+                approvalId, running,
+                new ChatCompletionResult("{}", "fake", "model", 10, 5, 5),
+                new AgentDecision.CallTool("write_after_approval", arguments, "proposal"),
+                arguments, new ObjectMapper().createObjectNode().put("operation", "CREATE"),
+                policy.nonceHash(arguments.toString()),
+                policy.nonceHash(approvalId.toString()), OffsetDateTime.now().plusHours(1));
+        assertThat(repository.requestCancel(fixture.project(), queued.id()))
+                .isEqualTo(AgentRunStatus.CANCELED);
+
+        AtomicInteger writes = new AtomicInteger();
+        ApprovalWriteAgentTool tool = new ApprovalWriteAgentTool() {
+            @Override public String name() { return "write_after_approval"; }
+            @Override public boolean writesBusinessData() { return true; }
+            @Override public com.fasterxml.jackson.databind.JsonNode normalize(
+                    AgentToolContext context, com.fasterxml.jackson.databind.JsonNode value) { return value; }
+            @Override public com.fasterxml.jackson.databind.JsonNode diff(
+                    AgentToolContext context, com.fasterxml.jackson.databind.JsonNode value) { return value; }
+            @Override public void revalidate(
+                    AgentToolContext context, com.fasterxml.jackson.databind.JsonNode value) { }
+            @Override public AgentToolResult execute(
+                    AgentToolContext context, com.fasterxml.jackson.databind.JsonNode value) {
+                writes.incrementAndGet();
+                return new AgentToolResult(value, List.of(), List.of());
+            }
+        };
+        var access = mock(com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard.class);
+        var service = new AgentApprovalService(
+                approvals, new AgentToolRegistry(List.of(tool)), access,
+                new ObjectMapper(), java.time.Clock.systemUTC(), mock(AgentEventService.class));
+
+        assertThatThrownBy(() -> service.approve(
+                fixture.project(), approvalId, fixture.user(), approvalId.toString(), UUID.randomUUID()))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode())
+                                .isEqualTo(ErrorCode.AGENT_RUN_CANCELED));
+        assertThat(writes).hasValue(0);
+        assertThat(approvals.find(fixture.project(), approvalId).orElseThrow().status())
+                .isEqualTo("PENDING");
+    }
+
+    // Issue 2: waitingForApprovalRunCannotBeClaimedAgain
+    @Test
+    void waitingForApprovalRunCannotBeClaimedAgain() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "waiting-approval");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "等待审批", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        // Create approval proposal (sets status to WAITING_FOR_APPROVAL)
+        UUID approvalId = UUID.randomUUID();
+        AgentApprovalPolicy policy = new AgentApprovalPolicy();
+        var arguments = new ObjectMapper().createObjectNode().put("title", "test task");
+        approvals.createProposal(
+                approvalId, running,
+                new ChatCompletionResult("{}", "fake", "model", 10, 5, 5),
+                new AgentDecision.CallTool("create_task_after_approval", arguments, "proposal"),
+                arguments, new ObjectMapper().createObjectNode().put("operation", "CREATE"),
+                policy.nonceHash(arguments.toString()),
+                policy.nonceHash(approvalId.toString()), OffsetDateTime.now().plusHours(1));
+
+        var waiting = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(waiting.status()).isEqualTo(AgentRunStatus.WAITING_FOR_APPROVAL);
+
+        // Try to claim again - should not be claimable
+        var claimedAgain = repository.claimNext("worker2",
+                OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        assertThat(claimedAgain).isEmpty();
     }
 
     private static Fixture fixture() {

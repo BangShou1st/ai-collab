@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import { dashboardApi } from './dashboard-api'
 import { useProjectContextStore } from '../../stores/project-context-store'
 import {
@@ -25,16 +25,14 @@ const projectId = route.params.projectId as string
 
 const dashboard = ref<DashboardView | null>(null)
 const loading = ref(false)
-const errorMessage = ref('')
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     dashboard.value = (await dashboardApi.get(projectId)).data
     await projectCtx.loadProject(projectId)
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '项目概览加载')
   } finally {
     loading.value = false
   }
@@ -77,8 +75,6 @@ onMounted(load)
         <el-button @click="load" :loading="loading">刷新</el-button>
       </template>
     </PageHeader>
-
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon style="margin-bottom: 16px" />
 
     <div v-loading="loading">
       <template v-if="dashboard">

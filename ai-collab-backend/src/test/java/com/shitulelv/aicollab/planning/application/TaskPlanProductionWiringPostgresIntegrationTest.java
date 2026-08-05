@@ -115,7 +115,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         String detailJson = """
                 {"milestones":[{"tempKey":"m1","description":"Design phase milestone","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"Complete design docs","priority":"HIGH",
-                "estimatedHours":8.0,"startDate":"2026-08-01","dueDate":"2026-08-10",
+                "estimatedHours":8.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
                 """;
 
@@ -178,7 +178,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         String detailJson = """
                 {"milestones":[{"tempKey":"m1","description":"desc","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"desc","priority":"MEDIUM",
-                "estimatedHours":4.0,"startDate":"2026-08-01","dueDate":"2026-08-05",
+                "estimatedHours":4.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
                 """;
 
@@ -230,7 +230,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         String detailWithConflict = """
                 {"milestones":[{"tempKey":"m1","description":"desc","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"desc1","priority":"HIGH",
-                "estimatedHours":8.0,"startDate":"2026-08-01","dueDate":"2026-08-15",
+                "estimatedHours":8.0,"startDate":"2026-08-10","dueDate":"2026-08-25",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]},
                 {"tempKey":"t2","description":"desc2","priority":"MEDIUM",
                 "estimatedHours":4.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
@@ -298,7 +298,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         String badDetail = """
                 {"milestones":[{"tempKey":"m1","description":"desc","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"desc","priority":"INVALID",
-                "estimatedHours":8.0,"startDate":"2026-08-01","dueDate":"2026-08-10",
+                "estimatedHours":8.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
                 """;
 
@@ -353,7 +353,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         String detailWithConflict = """
                 {"milestones":[{"tempKey":"m1","description":"desc","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"desc1","priority":"HIGH",
-                "estimatedHours":8.0,"startDate":"2026-08-01","dueDate":"2026-08-15",
+                "estimatedHours":8.0,"startDate":"2026-08-10","dueDate":"2026-08-25",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]},
                 {"tempKey":"t2","description":"desc2","priority":"MEDIUM",
                 "estimatedHours":4.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
@@ -392,14 +392,15 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         TaskPlanVersionRecord baseVersion = repository.requireVersion(projectId, plan.id(), baseVersionId);
         TaskPlanDraft baseDraft = repository.draft(baseVersion);
 
-        // Apply user patch: change t2 startDate to 2026-08-16 (after t1 dueDate 2026-08-15)
+        // Apply user patch: change t2 startDate to 2026-08-26 (after t1 dueDate 2026-08-25)
         UpdateTaskPlanRequest editRequest = new UpdateTaskPlanRequest(
                 baseVersionId, baseVersion.versionNo(),
                 PatchValue.absent(), PatchValue.absent(), PatchValue.absent(),
                 List.of(),
                 List.of(new TaskPlanRepairPatch.TaskPatch("t2",
                         PatchValue.absent(), PatchValue.absent(), PatchValue.absent(),
-                        PatchValue.of(LocalDate.of(2026, 8, 16)), PatchValue.absent(),
+                        PatchValue.of(LocalDate.of(2026, 8, 26)),
+                        PatchValue.of(LocalDate.of(2026, 8, 30)),
                         PatchValue.absent(), PatchValue.absent(), PatchValue.absent())));
 
         TaskPlanCommandService commands = new TaskPlanCommandService(
@@ -591,10 +592,10 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
 
         PlanMilestone m1 = new PlanMilestone("m1", "M", "O", null, null, 0, List.of());
         PlanTask t1 = new PlanTask("t1", "m1", "T1", "O", "desc1", "HIGH",
-                BigDecimal.valueOf(8), LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 15),
+                BigDecimal.valueOf(8), LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 15),
                 null, null, List.of(), List.of(), 0);
         PlanTask t2 = new PlanTask("t2", "m1", "T2", "O", "desc2", "MEDIUM",
-                BigDecimal.valueOf(4), LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 20),
+                BigDecimal.valueOf(4), LocalDate.of(2026, 8, 12), LocalDate.of(2026, 8, 20),
                 null, null, List.of("t1"), List.of(), 1);
         TaskPlanDraft draft = new TaskPlanDraft("s", List.of(), List.of(),
                 List.of(m1), List.of(t1, t2), List.of());
@@ -603,21 +604,25 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 new StructuredValidationIssue("DEPENDENCY_DATE_CONFLICT", ValidationIssueSeverity.BLOCKING_EDITABLE,
                         "TASK", "t2", "startDate", "t1", java.util.Map.of())));
 
-        // Mock model: returns a patch that fixes t2's startDate
+        // Mock model: returns a patch that fixes t2's startDate and dueDate
         String patchJson = """
-                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-16"}]}
+                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-26","dueDate":"2026-08-30"}]}
                 """;
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
                 .thenReturn(new GenerationResult(patchJson, "p", "m", 50, 20, 100));
 
-        TaskPlanCommandService commands = createCommandService(modelClient);
+        var pair = createCommandServiceWithExecutor(modelClient);
 
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                setup.versionId(), 1, List.of("t2"), Set.of("startDate"), Set.of(),
+                setup.versionId(), 1, List.of("t2"), Set.of("startDate", "dueDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES);
 
-        commands.partialRegenerate(projectId, setup.planId(), request, userId);
+        pair.service().partialRegenerate(projectId, setup.planId(), request, userId);
+
+        // Wait for async repair to complete
+        pair.executor().shutdown();
+        assertThat(pair.executor().awaitTermination(10, TimeUnit.SECONDS)).isTrue();
 
         // Verify model was called exactly once with REPAIR_PATCH type
         verify(modelClient, times(1)).generate(
@@ -640,10 +645,10 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
 
         PlanMilestone m1 = new PlanMilestone("m1", "M", "O", null, null, 0, List.of());
         PlanTask t1 = new PlanTask("t1", "m1", "T1", "Original objective", "Original desc", "HIGH",
-                BigDecimal.valueOf(8), LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 15),
+                BigDecimal.valueOf(8), LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 15),
                 null, null, List.of(), List.of(), 0);
         PlanTask t2 = new PlanTask("t2", "m1", "T2", "Original obj2", "Original desc2", "MEDIUM",
-                BigDecimal.valueOf(4), LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 20),
+                BigDecimal.valueOf(4), LocalDate.of(2026, 8, 12), LocalDate.of(2026, 8, 20),
                 null, null, List.of("t1"), List.of(), 1);
         TaskPlanDraft draft = new TaskPlanDraft("summary", List.of(), List.of(),
                 List.of(m1), List.of(t1, t2), List.of());
@@ -654,19 +659,23 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
 
         // Patch changes only the authorized date; locked fields must remain byte-for-byte unchanged.
         String patchJson = """
-                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-16"}]}
+                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-26","dueDate":"2026-08-30"}]}
                 """;
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
                 .thenReturn(new GenerationResult(patchJson, "p", "m", 50, 20, 100));
 
-        TaskPlanCommandService commands = createCommandService(modelClient);
+        var pair = createCommandServiceWithExecutor(modelClient);
 
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                setup.versionId(), 1, List.of("t2"), Set.of("startDate"), Set.of(),
+                setup.versionId(), 1, List.of("t2"), Set.of("startDate", "dueDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES);
 
-        commands.partialRegenerate(projectId, setup.planId(), request, userId);
+        pair.service().partialRegenerate(projectId, setup.planId(), request, userId);
+
+        // Wait for async repair to complete
+        pair.executor().shutdown();
+        assertThat(pair.executor().awaitTermination(10, TimeUnit.SECONDS)).isTrue();
 
         // Verify: startDate changed but title preserved
         TaskPlanRecord afterPatch = repository.require(projectId, setup.planId());
@@ -675,7 +684,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
 
         PlanTask patchedT2 = patchedDraft.tasks().stream()
                 .filter(t -> t.tempKey().equals("t2")).findFirst().orElseThrow();
-        assertThat(patchedT2.startDate()).isEqualTo(LocalDate.of(2026, 8, 16));
+        assertThat(patchedT2.startDate()).isEqualTo(LocalDate.of(2026, 8, 26));
         assertThat(patchedT2.title()).isEqualTo("T2"); // Title NOT changed
         assertThat(patchedT2.objective()).isEqualTo("Original obj2"); // Objective NOT changed
     }
@@ -691,9 +700,9 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         insertMember(projectId, userId, "OWNER");
 
         PlanMilestone m1 = new PlanMilestone("m1", "Milestone Title", "Milestone Obj",
-                "Original milestone desc", LocalDate.of(2026, 8, 15), 0, List.of());
+                "Original milestone desc", LocalDate.of(2026, 8, 20), 0, List.of());
         PlanTask t1 = new PlanTask("t1", "m1", "Task Title", "Task Obj", "Task Desc", "HIGH",
-                BigDecimal.valueOf(8), LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 15),
+                BigDecimal.valueOf(8), LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 15),
                 null, null, List.of(), List.of(), 0);
         TaskPlanDraft draft = new TaskPlanDraft("Plan Summary", List.of("assumption1"), List.of("risk1"),
                 List.of(m1), List.of(t1), List.of());
@@ -705,19 +714,23 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         // Patch tries to modify locked fields on t1 (title, objective, sortOrder, tempKey are ALWAYS_LOCKED)
         // and allowed fields (startDate is allowed by DEPENDENCY_DATE_CONFLICT)
         String patchJson = """
-                {"milestonePatches":[],"taskPatches":[{"tempKey":"t1","startDate":"2026-08-05"}]}
+                {"milestonePatches":[],"taskPatches":[{"tempKey":"t1","startDate":"2026-08-26","dueDate":"2026-08-30"}]}
                 """;
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
                 .thenReturn(new GenerationResult(patchJson, "p", "m", 50, 20, 100));
 
-        TaskPlanCommandService commands = createCommandService(modelClient);
+        var pair = createCommandServiceWithExecutor(modelClient);
 
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                setup.versionId(), 1, List.of("t1"), Set.of("startDate"), Set.of(),
+                setup.versionId(), 1, List.of("t1"), Set.of("startDate", "dueDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_ALL_ISSUES);
 
-        commands.partialRegenerate(projectId, setup.planId(), request, userId);
+        pair.service().partialRegenerate(projectId, setup.planId(), request, userId);
+
+        // Wait for async repair to complete
+        pair.executor().shutdown();
+        assertThat(pair.executor().awaitTermination(10, TimeUnit.SECONDS)).isTrue();
 
         TaskPlanRecord afterPatch = repository.require(projectId, setup.planId());
         TaskPlanDraft patchedDraft = repository.draft(repository.requireVersion(
@@ -729,14 +742,14 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         assertThat(patchedT1.title()).isEqualTo("Task Title"); // LOCKED
         assertThat(patchedT1.objective()).isEqualTo("Task Obj"); // LOCKED
         assertThat(patchedT1.sortOrder()).isEqualTo(0); // LOCKED
-        assertThat(patchedT1.startDate()).isEqualTo(LocalDate.of(2026, 8, 5)); // ALLOWED — changed
+        assertThat(patchedT1.startDate()).isEqualTo(LocalDate.of(2026, 8, 26)); // ALLOWED — changed
 
         // Milestone unchanged (not a target)
         PlanMilestone patchedM1 = patchedDraft.milestones().stream()
                 .filter(m -> m.tempKey().equals("m1")).findFirst().orElseThrow();
         assertThat(patchedM1.title()).isEqualTo("Milestone Title");
         assertThat(patchedM1.description()).isEqualTo("Original milestone desc");
-        assertThat(patchedM1.targetDate()).isEqualTo(LocalDate.of(2026, 8, 15));
+        assertThat(patchedM1.targetDate()).isEqualTo(LocalDate.of(2026, 8, 20));
 
         // Top-level fields also locked
         assertThat(patchedDraft.summary()).isEqualTo("Plan Summary");
@@ -772,12 +785,12 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         insertMember(projectId, userId, "OWNER");
 
         PlanMilestone m1 = new PlanMilestone("m1", "Phase 1", "Design", "Design phase",
-                LocalDate.of(2026, 8, 15), 0, List.of());
+                LocalDate.of(2026, 8, 20), 0, List.of());
         PlanTask t1 = new PlanTask("t1", "m1", "Task A", "Do A", "Desc A", "HIGH",
-                BigDecimal.valueOf(10), LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 10),
+                BigDecimal.valueOf(10), LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 15),
                 null, null, List.of(), List.of(), 0);
         PlanTask t2 = new PlanTask("t2", "m1", "Task B", "Do B", "Desc B", "MEDIUM",
-                BigDecimal.valueOf(5), LocalDate.of(2026, 8, 8), LocalDate.of(2026, 8, 12),
+                BigDecimal.valueOf(5), LocalDate.of(2026, 8, 12), LocalDate.of(2026, 8, 18),
                 null, null, List.of("t1"), List.of(), 1);
         TaskPlanDraft draft = new TaskPlanDraft("Plan S", List.of(), List.of(),
                 List.of(m1), List.of(t1, t2), List.of());
@@ -787,23 +800,27 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                         "TASK", "t2", "startDate", "t1", java.util.Map.of(
                                 "dependencyDueDate", "2026-08-10", "currentStartDate", "2026-08-08"))));
 
-        // Model patch: only fix t2's startDate
+        // Model patch: fix t2's startDate and dueDate
         String patchJson = """
-                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-11"}]}
+                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-16","dueDate":"2026-08-20"}]}
                 """;
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
                 .thenReturn(new GenerationResult(patchJson, "p", "m", 50, 20, 100));
 
-        TaskPlanCommandService commands = createCommandService(modelClient);
+        var pair = createCommandServiceWithExecutor(modelClient);
 
-        // Only t2's startDate is allowed; t1 is not a target
+        // Only t2's startDate and dueDate are allowed; t1 is not a target
         PartialRegenerateRequest request = new PartialRegenerateRequest(
-                setup.versionId(), 1, List.of("t2"), Set.of("startDate"), Set.of(),
+                setup.versionId(), 1, List.of("t2"), Set.of("startDate", "dueDate"), Set.of(),
                 List.of(), PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES);
 
-        TaskPlanRecord result = commands.partialRegenerate(projectId, setup.planId(), request, userId);
+        TaskPlanRecord result = pair.service().partialRegenerate(projectId, setup.planId(), request, userId);
         assertThat(result).isNotNull();
+
+        // Wait for async repair to complete
+        pair.executor().shutdown();
+        assertThat(pair.executor().awaitTermination(10, TimeUnit.SECONDS)).isTrue();
 
         // Verify final state
         TaskPlanRecord afterPatch = repository.require(projectId, setup.planId());
@@ -815,16 +832,16 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         // t1 completely unchanged
         PlanTask finalT1 = finalDraft.tasks().stream()
                 .filter(t -> t.tempKey().equals("t1")).findFirst().orElseThrow();
-        assertThat(finalT1.startDate()).isEqualTo(LocalDate.of(2026, 8, 1));
-        assertThat(finalT1.dueDate()).isEqualTo(LocalDate.of(2026, 8, 10));
+        assertThat(finalT1.startDate()).isEqualTo(LocalDate.of(2026, 8, 10));
+        assertThat(finalT1.dueDate()).isEqualTo(LocalDate.of(2026, 8, 15));
         assertThat(finalT1.title()).isEqualTo("Task A");
         assertThat(finalT1.priority()).isEqualTo("HIGH");
 
-        // t2 only startDate changed
+        // t2 startDate and dueDate changed
         PlanTask finalT2 = finalDraft.tasks().stream()
                 .filter(t -> t.tempKey().equals("t2")).findFirst().orElseThrow();
-        assertThat(finalT2.startDate()).isEqualTo(LocalDate.of(2026, 8, 11));
-        assertThat(finalT2.dueDate()).isEqualTo(LocalDate.of(2026, 8, 12)); // unchanged
+        assertThat(finalT2.startDate()).isEqualTo(LocalDate.of(2026, 8, 16));
+        assertThat(finalT2.dueDate()).isEqualTo(LocalDate.of(2026, 8, 20));
         assertThat(finalT2.title()).isEqualTo("Task B"); // unchanged
         assertThat(finalT2.priority()).isEqualTo("MEDIUM"); // unchanged
         assertThat(finalT2.dependencyTempKeys()).containsExactly("t1"); // unchanged
@@ -952,7 +969,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                             WHERE id=?
                             """, concurrentVersionId, setup.planId());
                     return new GenerationResult(
-                            "{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"t1\",\"startDate\":\"2026-08-02\"}]}",
+                            "{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"t1\",\"startDate\":\"2026-08-12\"}]}",
                             "provider", "model", 10, 5, 20);
                 });
         PartialRegenerateRequest request = new PartialRegenerateRequest(
@@ -1104,7 +1121,13 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 List.of());
     }
 
+    private record CommandServicePair(TaskPlanCommandService service, ExecutorService executor) {}
+
     private TaskPlanCommandService createCommandService(TaskPlanModelClient modelClient) {
+        return createCommandServiceWithExecutor(modelClient).service();
+    }
+
+    private CommandServicePair createCommandServiceWithExecutor(TaskPlanModelClient modelClient) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
                 executor, repository, modelClient, parser, validator, json, contexts,
@@ -1121,9 +1144,11 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 normalizer, outcomeDecider, commitService, patchParser, patchApplier,
                 modelClient, json, Runnable::run, new TaskPlanActionPolicy());
 
-        return new TaskPlanCommandService(accessGuard, repository, orchestrator, validator, jdbc,
-                quota, throttle, auditService, normalizer, outcomeDecider, commitService,
-                patchParser, patchApplier, modelClient, json, partialRepair, new TaskPlanActionPolicy());
+        return new CommandServicePair(
+                new TaskPlanCommandService(accessGuard, repository, orchestrator, validator, jdbc,
+                        quota, throttle, auditService, normalizer, outcomeDecider, commitService,
+                        patchParser, patchApplier, modelClient, json, partialRepair, new TaskPlanActionPolicy()),
+                executor);
     }
 
     private TaskPlanDraft applyUserEditPatch(TaskPlanDraft base, UpdateTaskPlanRequest request) {

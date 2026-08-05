@@ -40,8 +40,12 @@ class AgentMigrationIntegrationTest {
 
         assertThat(tables).containsExactly(
                 "agent_approval",
+                "agent_mcp_connection",
+                "agent_memory",
                 "agent_message",
+                "agent_project_mcp_binding",
                 "agent_run",
+                "agent_run_event",
                 "agent_schedule",
                 "agent_schedule_fire",
                 "agent_session",
@@ -78,6 +82,22 @@ class AgentMigrationIntegrationTest {
                 INSERT INTO agent_schedule_fire(schedule_id,scheduled_for,run_id)
                 VALUES (?,TIMESTAMPTZ '2026-07-30 00:00:00+00',?)
                 """, schedule, run)).isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void scopesMemoriesAndMcpBindingsByProject() {
+        Fixture first = fixture();
+        Fixture second = fixture();
+        jdbc.update("""
+                INSERT INTO agent_memory(project_id,type,title,content,source_type,created_by,updated_by)
+                VALUES (?,'DECISION','A 决策','仅属于 A','USER',?,?)
+                """, first.project(), first.user(), first.user());
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM agent_memory WHERE project_id=?", Integer.class, first.project())).isOne();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM agent_memory WHERE project_id=?", Integer.class, second.project())).isZero();
+        assertThat(jdbc.queryForObject(
+                "SELECT skill_code IS NULL FROM agent_schedule LIMIT 1", Boolean.class)).isTrue();
     }
 
     private static Fixture fixture() {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import { planningApi } from '../planning/planning-api'
 import type { TaskPlan } from '../planning/types'
@@ -19,20 +19,18 @@ const comparison = ref<PlanComparison | null>(null)
 const plans = ref<TaskPlan[]>([])
 const selectedPlanId = ref('')
 const loading = ref(false)
-const errorMessage = ref('')
 
 const project = ref<Project | null>(null)
 
 async function loadComparison(planId: string): Promise<void> {
   if (!projectId.value || !planId) return
   loading.value = true
-  errorMessage.value = ''
   comparison.value = null
   try {
     const result = await reportApi.planComparison(projectId.value, planId)
     comparison.value = result.data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '规划对比加载')
   } finally {
     loading.value = false
   }
@@ -41,7 +39,6 @@ async function loadComparison(planId: string): Promise<void> {
 async function load(): Promise<void> {
   if (!projectId.value) return
   loading.value = true
-  errorMessage.value = ''
   try {
     const [projectResult, planResult] = await Promise.all([
       projectApi.get(projectId.value),
@@ -54,7 +51,7 @@ async function load(): Promise<void> {
       await loadComparison(routePlanId.value)
     }
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '规划列表加载')
   } finally {
     loading.value = false
   }
@@ -95,7 +92,6 @@ onMounted(load)
       title="规划对比"
       :context="project?.name"
     />
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <section v-loading="loading" class="comparison-container">
       <div class="plan-picker">
         <label for="comparison-plan">选择任务规划</label>

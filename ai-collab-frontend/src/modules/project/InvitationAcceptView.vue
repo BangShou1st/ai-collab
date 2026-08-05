@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { normalizeApiError, showApiError } from '../../api/api-result'
 import { formatDateTime, roleLabel } from '../../shared/display-labels'
 import { resolveSafeRedirect } from '../../shared/safe-redirect'
 import { useAuthStore } from '../../stores/auth-store'
@@ -37,7 +37,6 @@ const navigatingToLogin = ref(false)
 const enteringProject = ref(false)
 const accepted = ref(false)
 const registrationMode = ref(false)
-const errorMessage = ref('')
 const previewErrorCode = ref('')
 const form = reactive({
   username: '',
@@ -97,7 +96,7 @@ const failureTitle = computed(() => {
   if (previewErrorCode.value === 'INVITATION_EXPIRED') return '邀请已过期'
   if (previewErrorCode.value === 'INVITATION_ALREADY_USED') return '邀请已被使用'
   if (previewErrorCode.value === 'INVITATION_INVALID') return '邀请无效'
-  return errorMessage.value || '暂时无法读取邀请'
+  return '暂时无法读取邀请'
 })
 
 function clearPasswordFields(): void {
@@ -108,7 +107,6 @@ function clearPasswordFields(): void {
 async function loadPreview(): Promise<void> {
   previewLoading.value = true
   previewErrorCode.value = ''
-  errorMessage.value = ''
   try {
     preview.value = (await projectApi.previewInvitation(code)).data
     form.email = preview.value.invitedEmail ?? ''
@@ -116,7 +114,7 @@ async function loadPreview(): Promise<void> {
     const safeError = normalizeApiError(error)
     preview.value = null
     previewErrorCode.value = safeError.code
-    errorMessage.value = safeError.message
+    showApiError(error, '邀请信息加载')
   } finally {
     previewLoading.value = false
   }
@@ -125,11 +123,10 @@ async function loadPreview(): Promise<void> {
 async function loadMembership(): Promise<void> {
   if (!auth.isAuthenticated || !preview.value) return
   membershipLoading.value = true
-  errorMessage.value = ''
   try {
     projects.value = (await projectApi.list()).data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '项目成员状态加载')
   } finally {
     membershipLoading.value = false
   }
@@ -165,7 +162,8 @@ async function switchAccount(): Promise<void> {
   const redirect = resolveSafeRedirect(router, route.fullPath)
   try {
     await auth.logout()
-  } catch {
+  } catch (error) {
+    showApiError(error, '账号切换')
     auth.clearAuth()
     auth.initialized = true
   } finally {
@@ -189,7 +187,6 @@ async function enterProject(projectId: string): Promise<void> {
 async function acceptAsCurrentUser(): Promise<void> {
   if (!preview.value || acceptingCurrentUser.value || emailMismatch.value) return
   acceptingCurrentUser.value = true
-  errorMessage.value = ''
   try {
     const result = (await projectApi.acceptInvitationAsCurrentUser(code)).data
     projects.value = (await projectApi.list()).data
@@ -202,6 +199,7 @@ async function acceptAsCurrentUser(): Promise<void> {
   } catch (error) {
     const safeError = normalizeApiError(error)
     if (safeError.httpStatus === 401) {
+      showApiError(error, '邀请接受')
       auth.clearAuth()
       await router.replace({
         path: '/login',
@@ -210,7 +208,7 @@ async function acceptAsCurrentUser(): Promise<void> {
       return
     }
     if (safeError.code === 'INVITATION_EMAIL_MISMATCH') {
-      errorMessage.value = '当前账号与邀请邮箱不匹配'
+      showApiError(error, '邀请接受')
       return
     }
     if (
@@ -221,7 +219,7 @@ async function acceptAsCurrentUser(): Promise<void> {
       previewErrorCode.value = safeError.code
       preview.value = null
     }
-    errorMessage.value = safeError.message
+    showApiError(error, '邀请接受', '加入项目后未能刷新项目列表')
   } finally {
     acceptingCurrentUser.value = false
   }
@@ -230,7 +228,6 @@ async function acceptAsCurrentUser(): Promise<void> {
 async function acceptInvitationAndRegister(): Promise<void> {
   if (!preview.value || !canRegister.value || registeringNewUser.value) return
   registeringNewUser.value = true
-  errorMessage.value = ''
   try {
     const result = await projectApi.acceptInvitationAndRegister(code, {
       username: form.username,
@@ -248,7 +245,7 @@ async function acceptInvitationAndRegister(): Promise<void> {
     ElMessage.success('账号已创建并加入项目')
     await router.replace(`/projects/${preview.value.projectId}/board`)
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '邀请注册与加入')
     clearPasswordFields()
   } finally {
     registeringNewUser.value = false
@@ -290,8 +287,6 @@ async function acceptInvitationAndRegister(): Promise<void> {
           <el-descriptions-item label="邀请邮箱">{{ preview.invitedEmail || '未限定' }}</el-descriptions-item>
           <el-descriptions-item label="有效期至">{{ formatDateTime(preview.expiresAt) }}</el-descriptions-item>
         </el-descriptions>
-
-        <el-alert v-if="errorMessage" :title="errorMessage" type="error" :closable="false" show-icon />
 
         <template v-if="pageState === 'unauthenticated' || pageState === 'registeringNewUser'">
           <section class="invitation-choice">

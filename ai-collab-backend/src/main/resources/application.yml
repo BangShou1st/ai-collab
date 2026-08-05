@@ -72,6 +72,8 @@ agent:
   enabled: ${AGENT_ENABLED:${CHAT_ENABLED:false}}
   worker-delay-ms: ${AGENT_WORKER_DELAY_MS:1000}
   schedule-delay-ms: ${AGENT_SCHEDULE_DELAY_MS:30000}
+  mcp:
+    allowed-hosts: "${AGENT_MCP_ALLOWED_HOSTS:}"
 
 model:
   config:

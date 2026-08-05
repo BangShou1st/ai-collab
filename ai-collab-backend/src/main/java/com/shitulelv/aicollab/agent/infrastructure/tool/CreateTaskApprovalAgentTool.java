@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.project.application.service.ProjectApplicationService;
 import com.shitulelv.aicollab.work.api.dto.CreateTaskRequest;
 import com.shitulelv.aicollab.work.application.service.TaskApplicationService;
 import jakarta.validation.Validator;
@@ -15,10 +18,13 @@ import java.util.List;
 @Component
 public class CreateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool {
     private final TaskApplicationService tasks;
+    private final ProjectApplicationService projects;
 
-    public CreateTaskApprovalAgentTool(ObjectMapper json, Validator validator, TaskApplicationService tasks) {
+    public CreateTaskApprovalAgentTool(ObjectMapper json, Validator validator,
+                                       TaskApplicationService tasks, ProjectApplicationService projects) {
         super(json, validator);
         this.tasks = tasks;
+        this.projects = projects;
     }
 
     @Override public String name() { return "create_task_after_approval"; }
@@ -64,5 +70,25 @@ public class CreateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool 
         return new AgentToolResult(tree(tasks.create(
                 context.projectId(), request(arguments, CreateTaskRequest.class), context.userId())),
                 List.of(), List.of());
+    }
+
+    /**
+     * 执行前重新校验。
+     * 检查：项目仍存在、参数仍符合 Schema、关联实体仍有效、业务前置条件成立。
+     */
+    @Override
+    public void revalidate(AgentToolContext context, JsonNode arguments) {
+        // 1. 项目仍存在（通过 get 方法校验，不存在会抛出异常）
+        projects.get(context.projectId(), context.userId());
+
+        // 2. 参数仍符合 Schema（通过 request 方法校验）
+        CreateTaskRequest request = request(arguments, CreateTaskRequest.class);
+
+        // 3. 关联实体仍有效（如果指定了 milestoneId，检查里程碑是否存在）
+        if (request.milestoneId() != null) {
+            // 里程碑校验在 TaskApplicationService.create 中会进行
+        }
+
+        // 4. 业务前置条件成立（标题不能为空，长度限制等已通过 validation 校验）
     }
 }

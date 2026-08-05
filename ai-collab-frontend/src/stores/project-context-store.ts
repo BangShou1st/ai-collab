@@ -31,6 +31,16 @@ export const useProjectContextStore = defineStore('projectContext', {
       }
     },
 
+    async refreshProject(projectId: string): Promise<void> {
+      this.loading = true
+      try {
+        this.project = (await projectApi.get(projectId)).data
+        this.currentProjectId = projectId
+      } finally {
+        this.loading = false
+      }
+    },
+
     clear(): void {
       this.currentProjectId = null
       this.project = null

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import { formatDate } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
 import { projectApi } from '../project/project-api'
@@ -13,13 +13,11 @@ const projectId = route.params.projectId as string
 
 const analysis = ref<RiskAnalysis | null>(null)
 const loading = ref(false)
-const errorMessage = ref('')
 
 const project = ref<Project | null>(null)
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     const [result, projectResult] = await Promise.all([
       reportApi.riskAnalysis(projectId),
@@ -28,7 +26,7 @@ async function load(): Promise<void> {
     analysis.value = result.data
     project.value = projectResult.data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '延期风险分析加载')
   } finally {
     loading.value = false
   }
@@ -69,7 +67,6 @@ onMounted(load)
       title="延期风险分析"
       :context="project?.name"
     />
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <section v-loading="loading" class="risk-container">
       <el-empty v-if="!loading && !analysis" description="暂无风险数据" :image-size="64" />
       <template v-else-if="analysis">

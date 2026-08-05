@@ -6,7 +6,7 @@
 ai-collab-backend/src/main/resources/db/migration/
 ```
 
-本文档解释当前最终结构和约束，不复制完整 SQL。当前最新迁移为 V26，业务结构为 36 张表（不含 `flyway_schema_history`）。
+本文档解释当前最终结构和约束，不复制完整 SQL。当前最新迁移为 V30，业务结构为 40 张表（不含 `flyway_schema_history`）。
 
 ## 1. 设计规则
 
@@ -18,7 +18,7 @@ ai-collab-backend/src/main/resources/db/migration/
 - 向量使用 pgvector `vector`，并记录 provider、model、dimension。
 - 已提交迁移不可编辑，任何结构变更使用新版本。
 
-## 2. 当前 36 张表
+## 2. 当前 40 张表
 
 ### 身份与项目
 
@@ -71,10 +71,14 @@ ai-collab-backend/src/main/resources/db/migration/
 | `agent_session` | 项目 Agent 会话 |
 | `agent_message` | 会话消息 |
 | `agent_run` | 一次 Agent 运行及预算状态 |
+| `agent_run_event` | 可重放的 Run 事件序列，供 SSE 断线续传 |
 | `agent_step` | 模型、工具、审批和结果步骤 |
 | `agent_approval` | 待审批写操作、nonce 和期限 |
 | `agent_schedule` | 定时运行配置 |
 | `agent_schedule_fire` | 定时触发幂等事实 |
+| `agent_mcp_connection` | 系统级 MCP 连接、加密凭据、发现快照与 Schema Hash |
+| `agent_project_mcp_binding` | 项目级 MCP 工具/资源白名单与仓库配置 |
+| `agent_memory` | 项目隔离、可停用的轻量决策/偏好/约束/经验记忆 |
 | `model_configuration` | 加密模型配置 |
 | `model_purpose_assignment` | 知识问答、规划和 Agent 的模型用途分配 |
 
@@ -115,6 +119,17 @@ erDiagram
     AI_TASK_PLAN ||--o{ AI_TASK_PLAN_VALIDATION_ISSUE : issues
     AI_TASK_PLAN ||--o{ AI_TASK_PLAN_EVENT : events
     AI_TASK_PLAN ||--o| AI_TASK_PLAN_CONFIRMATION : confirms
+    PROJECT ||--o{ AGENT_SESSION : has
+    AGENT_SESSION ||--o{ AGENT_MESSAGE : contains
+    AGENT_SESSION ||--o{ AGENT_RUN : starts
+    AGENT_RUN ||--o{ AGENT_STEP : records
+    AGENT_RUN ||--o{ AGENT_RUN_EVENT : emits
+    AGENT_RUN ||--o{ AGENT_APPROVAL : requests
+    PROJECT ||--o{ AGENT_SCHEDULE : schedules
+    AGENT_SCHEDULE ||--o{ AGENT_SCHEDULE_FIRE : fires
+    PROJECT ||--o{ AGENT_MEMORY : remembers
+    PROJECT ||--o{ AGENT_PROJECT_MCP_BINDING : authorizes
+    AGENT_MCP_CONNECTION ||--o{ AGENT_PROJECT_MCP_BINDING : binds
     PROJECT o|--o{ AUDIT_LOG : audits
     PROJECT o|--o{ AI_CALL_LOG : measures
 ```
@@ -134,7 +149,7 @@ erDiagram
 - `(project_id, user_id)` 唯一。
 - V3 局部唯一索引保证一个项目至多一个 `OWNER`。
 - 创建项目和 OWNER 成员在同一事务中保证至少一个 OWNER。
-- 所有权转移在一个事务中锁定当前 OWNER；旧 OWNER 降级为 MEMBER，新 OWNER 升级为 OWNER。
+- 所有权转移在一个事务中锁定项目和当前 OWNER，校验操作者与目标成员后同步更新 `project.owner_id`；先将旧 OWNER 降级为 MEMBER，再将新 OWNER 升级以满足单 OWNER 唯一索引。每条更新都检查影响行数，任一步失败时整体回滚并返回稳定业务错误。
 
 ### 任务和依赖
 
@@ -237,6 +252,10 @@ LIMIT #{topK};
 | V24 | 添加加密模型配置和用途分配 |
 | V25 | 移除无用户价值的 Agent 固定样例评估表 |
 | V26 | 允许管理员配置自定义任务规划数量上限 |
+| V27 | 添加 Agent 执行计划、页面上下文、Skill 和模型轮次字段 |
+| V28 | 添加持久化 Agent 运行事件、SSE 游标和取消请求时间 |
+| V29 | 添加系统 MCP 连接与项目级 MCP 绑定 |
+| V30 | 添加项目 Agent 记忆和定时任务 Skill |
 
 新迁移要求：
 

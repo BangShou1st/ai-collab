@@ -1,4 +1,5 @@
 import axios, { type AxiosResponse } from 'axios'
+import { ElMessage } from 'element-plus'
 import type { ApiResponse, ApiResult } from './types'
 
 const SENSITIVE_KEY = /token|authorization|cookie|password|secret/i
@@ -30,6 +31,9 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   PROJECT_ADMIN_REQUIRED: '此操作需要项目管理员权限',
   PROJECT_OWNER_REQUIRED: '此操作仅限项目所有者',
   PROJECT_OWNER_CANNOT_BE_REMOVED: '不能修改或移除项目所有者',
+  PROJECT_OWNERSHIP_SELF_TRANSFER: '不能将项目所有权转移给自己',
+  PROJECT_OWNERSHIP_TARGET_NOT_MEMBER: '目标成员已不在项目中',
+  PROJECT_OWNERSHIP_CONFLICT: '项目所有权已发生变化，请刷新后重试',
   MEMBER_ALREADY_EXISTS: '该用户名或邮箱已被使用',
   MEMBER_NOT_FOUND: '项目成员不存在',
   INVITATION_INVALID: '邀请无效',
@@ -61,6 +65,7 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   AI_RATE_LIMIT_EXCEEDED: '本小时问答次数已达上限，请稍后再试',
   AI_PROVIDER_QUOTA_EXCEEDED: '模型服务额度不足，请稍后再试',
   AI_PROVIDER_UNAVAILABLE: '模型服务尚未配置或暂时不可用',
+  AI_MODEL_CREDENTIAL_INVALID: '模型凭据无法解密，请在系统管理中重新填写 API Key',
   AI_MODEL_TIMEOUT: '模型服务响应超时，请重试',
   AI_PROVIDER_ERROR: '模型服务调用失败，请稍后再试',
   AI_PROVIDER_INVALID_RESPONSE: '模型服务返回内容无效，请重试',
@@ -97,6 +102,33 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   IDEMPOTENCY_KEY_REUSED: '本次确认标识已用于其他请求，请重新操作',
   PLANNING_DOCUMENT_NOT_READY: '所选规划文档尚未完成处理',
   PLANNING_DOCUMENT_LIMIT_EXCEEDED: '规划最多选择 10 个文档',
+  AGENT_SESSION_NOT_FOUND: 'Agent 会话不存在或你无权访问',
+  AGENT_RUN_NOT_FOUND: 'Agent 运行不存在或你无权访问',
+  AGENT_APPROVAL_NOT_FOUND: 'Agent 审批不存在或你无权访问',
+  AGENT_APPROVAL_EXPIRED: '审批已过期，请重新发起提案',
+  AGENT_APPROVAL_CONFLICT: '审批已处理或幂等标识冲突',
+  AGENT_APPROVAL_NONCE_INVALID: '审批凭证无效，请刷新后重试',
+  AGENT_APPROVAL_REVALIDATION_FAILED: '审批执行前校验未通过',
+  AGENT_APPROVAL_RESOURCE_GONE: '审批目标已不存在',
+  AGENT_APPROVAL_VERSION_CONFLICT: '审批目标已变化，请重新生成提案',
+  AGENT_SCHEDULE_NOT_FOUND: 'Agent 定时运行不存在',
+  AGENT_SKILL_NOT_FOUND: '所选 Agent Skill 不存在',
+  AGENT_SKILL_NOT_ALLOWED: '当前 Agent Skill 不允许此操作',
+  AGENT_RUN_CANCELED: 'Agent 运行已取消',
+  AGENT_RUN_NOT_CANCELABLE: 'Agent 运行当前不能取消',
+  AGENT_EVENT_CURSOR_INVALID: 'Agent 事件游标无效',
+  AGENT_CONTEXT_RESOURCE_INVALID: '页面上下文资源无效或不属于当前项目',
+  AGENT_TOOL_NOT_FOUND: 'Agent 工具不存在',
+  AGENT_TOOL_NOT_ALLOWED: '当前 Agent Skill 不允许使用此工具',
+  AGENT_TOOL_RESULT_TOO_LARGE: 'Agent 工具结果超过大小限制',
+  AGENT_MCP_CONNECTION_NOT_FOUND: 'MCP 连接不存在',
+  AGENT_MCP_CONNECTION_DISABLED: 'MCP 连接已停用',
+  AGENT_MCP_TIMEOUT: 'MCP 服务响应超时',
+  AGENT_MCP_SCHEMA_CHANGED: 'MCP 工具定义已变化，需要管理员重新确认',
+  AGENT_MCP_ENDPOINT_FORBIDDEN: 'MCP 接口地址不在安全允许范围',
+  AGENT_MCP_DATA_INVALID: 'MCP 连接数据格式无效',
+  AGENT_MEMORY_NOT_FOUND: 'Agent 项目记忆不存在',
+  AGENT_NO_PROGRESS: 'Agent 连续重复操作，运行已停止',
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -105,6 +137,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function nonBlankString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null
+}
+
+export class ApiContractError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ApiContractError'
+  }
 }
 
 export function sanitizeApiData(value: unknown): unknown {
@@ -140,6 +179,14 @@ export function toSafeApiResult(result: ApiResult<unknown>): ApiResult<unknown> 
 }
 
 export function normalizeApiError(error: unknown): ApiResult<unknown> {
+  if (error instanceof ApiContractError) {
+    return {
+      httpStatus: null,
+      code: 'API_CONTRACT_ERROR',
+      message: error.message,
+      data: null,
+    }
+  }
   if (!axios.isAxiosError(error)) {
     return {
       httpStatus: null,
@@ -170,6 +217,14 @@ export function normalizeApiError(error: unknown): ApiResult<unknown> {
     message: '网络连接失败，请确认前后端服务是否正常运行。',
     data: null,
   }
+}
+
+export function showApiError(error: unknown, action: string, fallback?: string): string {
+  const normalized = normalizeApiError(error)
+  const reason = normalized.code === 'UNKNOWN_ERROR' && fallback ? fallback : normalized.message
+  const message = `${action}失败：${reason.replace(/[。.]$/, '')}`
+  ElMessage.error({ message, grouping: true })
+  return message
 }
 
 export function formatSafeJson(value: unknown): string {

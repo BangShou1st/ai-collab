@@ -44,13 +44,13 @@ class AgentToolRegistryTest {
     }
 
     @Test
-    void scheduledSupervisorCanProposeButSpecialistCannotUseWriteTools() {
+    void projectMemberCanProposeButSpecialistCannotUseWriteTools() {
         AgentToolPolicy policy = new AgentToolPolicy();
         AgentTool write = fake("update_task_after_approval", true);
 
         policy.requireAllowed(write, new AgentToolContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "SUPERVISOR", true, 0));
+                "MEMBER", true, 0));
         assertThatThrownBy(() -> policy.requireAllowed(write, new AgentToolContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 "RISK_REVIEWER", false, 1))).isInstanceOf(IllegalArgumentException.class);

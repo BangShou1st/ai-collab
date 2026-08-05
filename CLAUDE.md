@@ -5,7 +5,7 @@
 - 后端：Java 21、Spring Boot、MyBatis-Plus、PostgreSQL/pgvector。
 - 前端：Vue 3、TypeScript、Vite、Element Plus、Pinia。
 - 基础设施：Redis、MinIO、Docker Compose。
-- 当前数据库迁移：V1–V26。
+- 当前数据库迁移：V1–V30。
 
 ## 每次任务开始
 

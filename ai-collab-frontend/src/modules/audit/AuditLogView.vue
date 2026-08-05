@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import { auditApi } from './audit-api'
 import { auditEntityLabel, formatDateTime } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
@@ -13,25 +13,18 @@ const projectId = route.params.projectId as string
 
 const items = ref<AuditLogItem[]>([])
 const loading = ref(false)
-const errorMessage = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     const result = await auditApi.page(projectId, currentPage.value, pageSize.value)
     items.value = result.data.items
     total.value = result.data.total
   } catch (error) {
-    const normalized = normalizeApiError(error)
-    if (normalized.httpStatus === 403) {
-      errorMessage.value = '需要项目管理员权限才能查看操作日志'
-    } else {
-      errorMessage.value = normalized.message
-    }
+    showApiError(error, '操作日志加载', '暂时无法加载操作日志')
   } finally {
     loading.value = false
   }
@@ -62,8 +55,6 @@ onMounted(load)
       </template>
     </PageHeader>
 
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon style="margin-bottom: 16px" />
-
     <el-card shadow="never">
       <el-table v-loading="loading" :data="items" stripe>
         <el-table-column label="时间" width="160">
@@ -90,7 +81,7 @@ onMounted(load)
           @size-change="handleSizeChange"
         />
       </div>
-      <el-empty v-if="!loading && items.length === 0 && !errorMessage" description="暂无操作日志" />
+      <el-empty v-if="!loading && items.length === 0" description="暂无操作日志" />
     </el-card>
   </main>
 </template>

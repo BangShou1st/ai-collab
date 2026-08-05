@@ -1,12 +1,20 @@
 package com.shitulelv.aicollab.agent.application;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.api.dto.CreateAgentSessionRequest;
 import com.shitulelv.aicollab.agent.api.dto.RenameAgentSessionRequest;
 import com.shitulelv.aicollab.agent.api.dto.SubmitAgentMessageRequest;
+import com.shitulelv.aicollab.agent.api.dto.AgentPageContextRequest;
 import com.shitulelv.aicollab.agent.application.view.*;
+import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
+import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
+import com.shitulelv.aicollab.agent.application.runtime.AgentEventService;
+import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
 import com.shitulelv.aicollab.agent.domain.policy.AgentStateMachine;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentEventRepository;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
@@ -22,11 +30,24 @@ public class AgentRunService {
     private static final int MAX_MESSAGES = 500;
     private final ProjectAccessGuard access;
     private final AgentRepository repository;
+    private final AgentSkillRegistry skillRegistry;
     private final AgentStateMachine states = new AgentStateMachine();
+    private final ObjectMapper json;
+    private final AgentEventService events;
+    private final AgentEventRepository eventRepository;
+    private final AgentApprovalRepository approvalRepository;
 
-    public AgentRunService(ProjectAccessGuard access, AgentRepository repository) {
+    public AgentRunService(ProjectAccessGuard access, AgentRepository repository,
+                          AgentSkillRegistry skillRegistry, ObjectMapper json,
+                          AgentEventService events, AgentEventRepository eventRepository,
+                          AgentApprovalRepository approvalRepository) {
         this.access = access;
         this.repository = repository;
+        this.skillRegistry = skillRegistry;
+        this.json = json;
+        this.events = events;
+        this.eventRepository = eventRepository;
+        this.approvalRepository = approvalRepository;
     }
 
     @Transactional
@@ -72,8 +93,39 @@ public class AgentRunService {
         if (repository.findSession(projectId, sessionId).isEmpty()) {
             throw new BusinessException(ErrorCode.AGENT_SESSION_NOT_FOUND);
         }
-        return repository.createRun(
-                projectId, sessionId, userId, request.content().strip(), false);
+
+        // 验证 skillCode
+        String skillCode = request.skillCode();
+        if (skillCode != null && !skillCode.isBlank()) {
+            if (!skillRegistry.exists(skillCode.trim().toUpperCase())) {
+                throw new BusinessException(ErrorCode.AGENT_SKILL_NOT_FOUND);
+            }
+            skillCode = skillCode.trim().toUpperCase();
+        }
+
+        // 转换 pageContext
+        String pageContextJson = null;
+        if (request.pageContext() != null) {
+            AgentPageContext pageContext = new AgentPageContext(
+                    request.pageContext().route(),
+                    request.pageContext().selectedTaskId(),
+                    request.pageContext().selectedMilestoneId(),
+                    request.pageContext().selectedDocumentId(),
+                    request.pageContext().selectedPlanId(),
+                    request.pageContext().filters());
+            try {
+                pageContextJson = json.writeValueAsString(pageContext);
+            } catch (Exception e) {
+                pageContextJson = null;
+            }
+        }
+
+        AgentRunView run = repository.createRun(
+                projectId, sessionId, userId, request.content().strip(), false,
+                skillCode, pageContextJson);
+        events.append(projectId, run.id(), AgentEventType.RUN_CREATED,
+                json.createObjectNode().put("status", run.status().name()));
+        return run;
     }
 
     @Transactional(readOnly = true)
@@ -91,7 +143,15 @@ public class AgentRunService {
         access.requireMember(projectId, userId);
         AgentRunView run = repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
-        return new AgentRunDetailView(run, repository.listSteps(projectId, runId));
+        com.fasterxml.jackson.databind.JsonNode plan = null;
+        try { if (run.planJson() != null) plan = json.readTree(run.planJson()); }
+        catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+            throw new IllegalStateException("Agent 计划 JSON 无法读取", exception);
+        }
+        UUID pendingApproval = approvalRepository.list(projectId, "PENDING").stream()
+                .filter(value -> value.runId().equals(runId)).map(AgentApprovalView::id).findFirst().orElse(null);
+        return new AgentRunDetailView(run, plan, repository.listSteps(projectId, runId),
+                eventRepository.lastSequence(projectId, runId), pendingApproval);
     }
 
     @Transactional
@@ -99,10 +159,10 @@ public class AgentRunService {
         access.requireMember(projectId, userId);
         AgentRunView run = repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
-        states.requireTransition(run.status(), AgentRunStatus.CANCELED);
-        if (!repository.updateStatus(projectId, runId, run.version(),
-                run.status(), AgentRunStatus.CANCELED, null)) {
-            throw new BusinessException(ErrorCode.VERSION_CONFLICT);
+        AgentRunStatus status = repository.requestCancel(projectId, runId);
+        if (status == AgentRunStatus.CANCELED) {
+            events.append(projectId, runId, AgentEventType.RUN_CANCELED,
+                    json.createObjectNode().put("status", status.name()));
         }
     }
 
@@ -116,6 +176,9 @@ public class AgentRunService {
                 run.status(), AgentRunStatus.QUEUED, null)) {
             throw new BusinessException(ErrorCode.VERSION_CONFLICT);
         }
-        return repository.findRun(projectId, runId).orElseThrow();
+        AgentRunView retried = repository.findRun(projectId, runId).orElseThrow();
+        events.append(projectId, runId, AgentEventType.RUN_RETRY_SCHEDULED,
+                json.createObjectNode().put("status", retried.status().name()));
+        return retried;
     }
 }

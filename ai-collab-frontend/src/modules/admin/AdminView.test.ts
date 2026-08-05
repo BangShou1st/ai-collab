@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   models: vi.fn(),
   assignments: vi.fn(),
   users: vi.fn(),
+  mcpConnections: vi.fn(),
 }))
 
 vi.mock('element-plus', () => ({
@@ -19,6 +20,7 @@ vi.mock('./admin-api', () => ({
     models: mocks.models,
     assignments: mocks.assignments,
     users: mocks.users,
+    mcpConnections: mocks.mcpConnections,
   },
 }))
 
@@ -27,6 +29,7 @@ beforeEach(() => {
   mocks.models.mockResolvedValue({ data: [] })
   mocks.assignments.mockResolvedValue({ data: [] })
   mocks.users.mockResolvedValue({ data: [] })
+  mocks.mcpConnections.mockResolvedValue({ data: [] })
 })
 
 describe('AdminView', () => {
@@ -60,6 +63,8 @@ describe('AdminView', () => {
     expect(mocks.models).toHaveBeenCalledOnce()
     expect(mocks.assignments).toHaveBeenCalledOnce()
     expect(mocks.users).toHaveBeenCalledOnce()
+    expect(mocks.mcpConnections).toHaveBeenCalledOnce()
+    expect(wrapper.text()).toContain('MCP 连接')
     expect(wrapper.text()).toContain('用途分配')
     expect(wrapper.text()).toContain('模型配置')
     expect(wrapper.text()).toContain('账号管理')

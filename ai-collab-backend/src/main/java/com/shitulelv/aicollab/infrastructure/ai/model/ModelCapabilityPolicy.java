@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.infrastructure.ai.model;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
 
 public final class ModelCapabilityPolicy {
     private ModelCapabilityPolicy() {
@@ -16,6 +17,11 @@ public final class ModelCapabilityPolicy {
             require(configuration, ModelCapability.STRUCTURED_OUTPUT);
         }
         if (!command.tools().isEmpty()) require(configuration, ModelCapability.NATIVE_TOOLS);
+    }
+
+    public static void require(ModelConfiguration configuration, ModelTurnCommand command) {
+        require(configuration, ModelCapability.CHAT);
+        require(configuration, ModelCapability.NATIVE_TOOLS);
     }
 
     private static void require(ModelConfiguration configuration, ModelCapability capability) {

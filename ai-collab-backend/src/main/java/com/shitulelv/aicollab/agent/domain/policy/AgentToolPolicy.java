@@ -6,6 +6,8 @@ import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import java.util.Set;
 
 public final class AgentToolPolicy {
+    private static final Set<String> WRITE_PROPOSAL_ROLES = Set.of(
+            "OWNER", "ADMIN", "MEMBER", "SUPERVISOR");
     private static final Set<String> PERMANENTLY_FORBIDDEN = Set.of(
             "run_sql", "http_request", "delete_project", "delete_document",
             "delete_task", "delete_milestone", "manage_members", "configure_key",
@@ -17,7 +19,7 @@ public final class AgentToolPolicy {
         }
         if (tool.writesBusinessData()
                 && (context.depth() != 0
-                    || !"SUPERVISOR".equals(context.role()))) {
+                    || !WRITE_PROPOSAL_ROLES.contains(context.role()))) {
             throw new IllegalArgumentException("当前 Agent 运行不允许业务写工具");
         }
     }

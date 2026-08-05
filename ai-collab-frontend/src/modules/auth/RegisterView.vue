@@ -3,14 +3,13 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { authApi } from '../../api/auth-api'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import { useAuthStore } from '../../stores/auth-store'
 
 const auth = useAuthStore()
 const router = useRouter()
 const loadingPolicy = ref(true)
 const enabled = ref(false)
-const errorMessage = ref('')
 const form = reactive({
   username: '',
   displayName: '',
@@ -41,11 +40,10 @@ function clearPasswordFields(): void {
 }
 
 onMounted(async () => {
-  errorMessage.value = ''
   try {
     enabled.value = (await authApi.registrationPolicy()).data.enabled
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '注册策略加载')
   } finally {
     loadingPolicy.value = false
   }
@@ -55,7 +53,6 @@ onBeforeUnmount(clearPasswordFields)
 
 async function submit(): Promise<void> {
   if (!canSubmit.value) return
-  errorMessage.value = ''
   try {
     await auth.register({
       username: form.username,
@@ -67,7 +64,7 @@ async function submit(): Promise<void> {
     await router.replace('/projects')
     ElMessage.success('注册成功')
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '账号注册')
     clearPasswordFields()
   }
 }
@@ -117,7 +114,6 @@ async function submit(): Promise<void> {
           type="warning"
           :closable="false"
         />
-        <el-alert v-if="errorMessage" :title="errorMessage" type="error" :closable="false" />
         <el-button
           class="submit-button"
           native-type="submit"

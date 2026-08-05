@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   sessions: vi.fn(),
   approvals: vi.fn(),
   schedules: vi.fn(),
+  mcpBindings: vi.fn(),
   messages: vi.fn(),
   renameSession: vi.fn(),
   deleteSession: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock('./agent-api', () => ({
     sessions: mocks.sessions,
     approvals: mocks.approvals,
     schedules: mocks.schedules,
+    mcpBindings: mocks.mcpBindings,
     messages: mocks.messages,
     renameSession: mocks.renameSession,
     deleteSession: mocks.deleteSession,
@@ -54,6 +56,7 @@ beforeEach(() => {
   }]))
   mocks.approvals.mockResolvedValue(response([]))
   mocks.schedules.mockResolvedValue(response([]))
+  mocks.mcpBindings.mockResolvedValue(response([]))
   mocks.messages.mockResolvedValue(response([]))
   mocks.renameSession.mockResolvedValue(response({
     id: 'session-1',
