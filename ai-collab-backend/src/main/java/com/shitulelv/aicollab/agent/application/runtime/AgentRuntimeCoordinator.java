@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.agent.application.AgentMemoryService;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.view.AgentStepView;
 import com.shitulelv.aicollab.agent.domain.model.*;
+import com.shitulelv.aicollab.agent.domain.policy.AgentConvergencePolicy;
 import com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuard;
 import com.shitulelv.aicollab.agent.domain.tool.*;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -47,6 +48,7 @@ public class AgentRuntimeCoordinator {
     private final AgentApprovalService approvals;
     private final RoutingAgentModelExecutor modelExecutor;
     private final AgentToolResultSanitizer sanitizer;
+    private final AgentConvergencePolicy convergencePolicy;
     private final ObjectMapper json;
     private final AgentEventService events;
     private final AgentMemoryService memories;
@@ -63,6 +65,7 @@ public class AgentRuntimeCoordinator {
             AgentApprovalService approvals,
             RoutingAgentModelExecutor modelExecutor,
             AgentToolResultSanitizer sanitizer,
+            AgentConvergencePolicy convergencePolicy,
             ObjectMapper json,
             AgentEventService events,
             AgentMemoryService memories) {
@@ -76,6 +79,7 @@ public class AgentRuntimeCoordinator {
         this.approvals = approvals;
         this.modelExecutor = modelExecutor;
         this.sanitizer = sanitizer;
+        this.convergencePolicy = convergencePolicy;
         this.json = json;
         this.events = events;
         this.memories = memories;
@@ -94,7 +98,8 @@ public class AgentRuntimeCoordinator {
             AgentToolResultSanitizer sanitizer,
             ObjectMapper json) {
         this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
-                loopGuard, approvals, modelExecutor, sanitizer, json, null, null);
+                loopGuard, approvals, modelExecutor, sanitizer, new AgentConvergencePolicy(),
+                json, null, null);
     }
 
     /**
@@ -132,11 +137,27 @@ public class AgentRuntimeCoordinator {
             // 5. 获取当前步骤列表用于循环检测
             List<AgentStepView> steps = repository.listSteps(run.projectId(), run.id());
 
+            AgentConvergencePolicy.Decision convergence =
+                    convergencePolicy.decide(run, ctx.limits(), steps);
+            if (convergence.mode() == AgentConvergencePolicy.Mode.EXHAUSTED) {
+                return budgetExceeded(run);
+            }
+            boolean finalizing = convergence.mode() == AgentConvergencePolicy.Mode.FINALIZE;
+
             // 6. 获取允许的工具定义
             List<AgentToolDefinition> exposed = tools.definitionsFor(ctx, skill);
+            if (finalizing) {
+                exposed = List.of();
+            }
 
             // 7. 构建模型消息（包含跨 Tick 恢复的历史）
             List<ModelMessage> messages = buildMessageHistory(run, skill, plan, steps);
+            if (finalizing) {
+                messages.add(new ModelMessage.System("""
+                        现在必须结束本次运行。只能基于已经取得的工具结果回答用户，
+                        不得请求或调用任何工具，不得扩大用户目标；信息不足时明确说明缺失信息。
+                        """));
+            }
 
             // 8. 调用模型（通过路由选择正确的执行器）
             ModelTurnResult turn;
@@ -168,8 +189,17 @@ public class AgentRuntimeCoordinator {
                             .put("finishReason", turn.finishReason().name())
                             .put("toolCallCount", turn.toolCalls().size()));
 
+            if (finalizing && (!turn.toolCalls().isEmpty() || turn.content().isBlank())) {
+                return invalidResponse(run);
+            }
+
             // 10. 如果有工具调用，执行
             if (!turn.toolCalls().isEmpty()) {
+                try {
+                    convergencePolicy.validateToolBatch(run, ctx.limits(), turn.toolCalls().size());
+                } catch (IllegalArgumentException overBudget) {
+                    return budgetExceeded(run);
+                }
                 return executeCalls(run, ctx, skill, turn, exposed, steps);
             }
 
@@ -182,10 +212,7 @@ public class AgentRuntimeCoordinator {
             }
 
             // 12. 无效响应
-            repository.recordFailure(run, "AGENT_INVALID_RESPONSE", false);
-            emit(run, AgentEventType.RUN_FAILED,
-                    json.createObjectNode().put("errorCode", "AGENT_INVALID_RESPONSE"));
-            return new AgentWorkerOutcome(AgentRunStatus.FAILED, null, null, "AGENT_INVALID_RESPONSE");
+            return invalidResponse(run);
 
         } catch (BusinessException e) {
             if (e.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
@@ -205,6 +232,24 @@ public class AgentRuntimeCoordinator {
             }
             throw e;
         }
+    }
+
+    private AgentWorkerOutcome budgetExceeded(AgentRunView run) {
+        repository.recordBudgetExceeded(run);
+        emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
+                json.createObjectNode()
+                        .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
+                        .put("errorCode", "AGENT_BUDGET_EXCEEDED"));
+        return new AgentWorkerOutcome(
+                AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
+    }
+
+    private AgentWorkerOutcome invalidResponse(AgentRunView run) {
+        repository.recordFailure(run, "AGENT_INVALID_RESPONSE", false);
+        emit(run, AgentEventType.RUN_FAILED,
+                json.createObjectNode().put("errorCode", "AGENT_INVALID_RESPONSE"));
+        return new AgentWorkerOutcome(
+                AgentRunStatus.FAILED, null, null, "AGENT_INVALID_RESPONSE");
     }
 
     private AgentWorkerOutcome executeCalls(
@@ -487,6 +532,9 @@ public class AgentRuntimeCoordinator {
         }
         sb.append("\n");
         sb.append("输出要求:\n").append(skill.outputContract()).append("\n\n");
+        sb.append("执行边界:\n");
+        sb.append("- 严格遵守用户要求的查询深度；只要求根目录、当前层或列表时，不得读取子目录或文件正文。\n");
+        sb.append("- 已有工具结果足以回答时立即结束，不得为了套用输出模板扩大目标。\n\n");
         sb.append("""
                 安全规则：
                 - 只使用本轮明确提供的工具。

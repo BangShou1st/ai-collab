@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
@@ -21,7 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 public class KnowledgeRateLimiter {
     private static final Logger log = LoggerFactory.getLogger(KnowledgeRateLimiter.class);
-    private static final int LIMIT = 30;
     private static final DateTimeFormatter WINDOW = DateTimeFormatter.ofPattern("yyyyMMddHH");
     private static final DefaultRedisScript<Long> SCRIPT = new DefaultRedisScript<>(
             "local n=redis.call('INCR',KEYS[1]);"
@@ -30,12 +30,19 @@ public class KnowledgeRateLimiter {
             Long.class);
 
     private final StringRedisTemplate redis;
+    private final int limit;
     private final ConcurrentHashMap<String, AtomicInteger> fallback = new ConcurrentHashMap<>();
     private final AtomicInteger cleanupTicker = new AtomicInteger();
     private final ZoneId zoneId;
 
-    public KnowledgeRateLimiter(StringRedisTemplate redis) {
+    public KnowledgeRateLimiter(
+            StringRedisTemplate redis,
+            @Value("${knowledge.rate-limit-per-user-hour:60}") int limit) {
+        if (limit < 1) {
+            throw new IllegalArgumentException("knowledge rate limit 必须大于 0");
+        }
         this.redis = redis;
+        this.limit = limit;
         this.zoneId = ZoneId.systemDefault();
     }
 
@@ -57,7 +64,7 @@ public class KnowledgeRateLimiter {
             log.warn("Redis 问答限流不可用，已切换进程内限流");
             count = localCount;
         }
-        if (count > LIMIT) {
+        if (count > limit) {
             throw new BusinessException(ErrorCode.AI_RATE_LIMIT_EXCEEDED);
         }
     }

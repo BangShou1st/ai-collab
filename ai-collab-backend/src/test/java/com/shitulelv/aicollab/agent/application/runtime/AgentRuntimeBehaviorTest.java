@@ -334,8 +334,7 @@ class AgentRuntimeBehaviorTest {
                 16, 0, 0, 0, 0, false, // stepsUsed = maxSteps
                 false, false, 0, null, null, null, null, 1, OffsetDateTime.now(), OffsetDateTime.now());
 
-        // 不需要 mock contextAssembler，因为 budget 检查在 Worker 中
-        // 这里验证 Coordinator 不会因为 budget 问题而失败
+        // Coordinator 使用持久化预算再次防守，避免绕过 Worker 后继续调用模型。
         AgentExecutionContext ctx = context();
         when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(ctx);
         when(planService.ensurePlan(eq(run), any())).thenReturn(plan("研究", List.of()));
@@ -343,10 +342,11 @@ class AgentRuntimeBehaviorTest {
         ModelTurnResult turn = textResult("完成");
         when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
 
-        // Coordinator 不检查 budget，由 Worker 检查
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
-        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        verify(repository).recordBudgetExceeded(run);
+        verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean());
     }
 
     /**

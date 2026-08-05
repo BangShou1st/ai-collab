@@ -49,14 +49,14 @@
 |---|---|---|---|
 | 文档上传、列表、下载、删除、重试 | 完整 | PDF、DOCX、Markdown、TXT；20MB；MinIO 原文件；预签名下载；失败可重试；支持版本跟踪和重新索引；新建 PREPARING 项目可直接上传，COMPLETED/ARCHIVED 项目写操作返回 `PROJECT_READ_ONLY` | `DocumentController`、`DocumentView.vue`、`ProjectWriteGuard` |
 | 文档解析与向量化 | 完整 | Tika 提取、清洗分块、Embedding、pgvector、处理状态和失败信息；删除时清理文件/记录/分块/向量 | `DocumentProcessingService`、V6/V7/V9 迁移 |
-| 项目知识问答 | 完整 | 仅检索当前项目 READY 文档；保存会话、消息和引用；证据不足明确拒答；引用包含 PDF 页码定位；支持中文表单配置检索评测 | `KnowledgeQuestionApplicationService`、`KnowledgeView.vue`、`KnowledgeEvalView.vue` |
+| 项目知识问答 | 完整 | 仅检索当前项目 READY 文档；保存会话、消息和引用；证据不足明确拒答；引用包含 PDF 页码定位；支持中文表单配置检索评测；每用户每小时限额通过 `KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR` 配置，默认 60 | `KnowledgeQuestionApplicationService`、`KnowledgeRateLimiter`、`KnowledgeView.vue`、`KnowledgeEvalView.vue` |
 | 问答流式输出 | 完整 | SSE 流式推送 token/引用/完成信号；前端兼容分片、CRLF 与末尾缓冲并实时渲染；支持 AbortController 取消 | `KnowledgeController.askStream`、`KnowledgeStreamQuestionService`、`knowledge-api.ts` |
 | 回答有用/无用反馈 | 完整 | knowledge_feedback 表；提交/撤销/查询端点；前端助手消息下方 👍/👎 按钮和统计 | `KnowledgeFeedbackService`、`KnowledgeController`、`KnowledgeView.vue` |
 | 多模型配置与用途分配 | 完整 | 管理中心支持 OpenAI 兼容、Claude、Gemini 配置、连接测试和用途分配；API Key 加密保存；Embedding 仍由独立环境配置控制 | `AdminView.vue`、`ModelConfigurationService`、`RoutingChatModelGateway` |
-| AI 任务规划生成 | 完整 | 两阶段结构化生成、Schema/业务校验、失败修复、来源追踪和权限校验 | `planning` 模块、`PlanningView.vue` |
+| AI 任务规划生成 | 完整 | 两阶段结构化生成、Schema/业务校验、失败修复、来源追踪和权限校验；每用户滚动一小时的成功/进行中生成限额通过 `PLANNING_GENERATION_LIMIT_PER_USER_HOUR` 配置，默认 60 | `planning` 模块、`PlanningGenerationQuotaService`、`PlanningView.vue` |
 | 规划预览与人工确认 | 完整 | 人工编辑、删除/补充、负责人/日期/优先级/依赖调整、事务确认、幂等和审计 | `TaskPlanCommandService`、`TaskPlanConfirmationService` |
 | 规划版本记录 | 完整 | 保存不可变版本、模型 attempt、原始输出/指标、恢复、确认结果和事件 | `ai_task_plan*` 表、规划查询与版本接口 |
-| 项目协作 Agent 2.0 | 完整 | 原生 Tool Calling、6 个固定 Skill、受控页面上下文、执行计划、持久事件/SSE 续传、取消/重试、人工审批写入、项目记忆和带 Skill 的定时运行 | `AgentRuntimeCoordinator`、`AgentEventStreamService`、`AgentApprovalService`、`AgentView.vue`、V22/V23/V27/V28/V30 |
+| 项目协作 Agent 2.0 | 完整 | 原生 Tool Calling、6 个固定 Skill、受控页面上下文、执行计划、持久事件/SSE 续传、取消/重试、人工审批写入、项目记忆和带 Skill 的定时运行；运行时强制查询深度、模型轮次、单轮/总工具预算，并在已有证据且接近预算边界时进入无工具最终回答 | `AgentRuntimeCoordinator`、`AgentConvergencePolicy`、`AgentEventStreamService`、`AgentApprovalService`、`AgentView.vue`、V22/V23/V27/V28/V30 |
 | 受控 MCP | 完整 | 系统管理员连接管理/测试/发现/启停，OWNER 在 Agent 页维护项目绑定；仅暴露 `readOnlyHint=true` 且通过系统确认只读白名单与项目白名单双重授权的工具，执行前重校验绑定/白名单/Schema；Schema Hash 变化停用，HTTPS/SSRF 防护、HTTP 流读取大小限制、加密凭据和不可信结果清洗；STDIO 默认禁用 | `McpAdministrationService`、`McpAgentToolProvider`、`McpEndpointPolicy`、`HttpMcpClientFacade`、V29 |
 
 ## 工程能力

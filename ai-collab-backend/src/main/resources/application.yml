@@ -52,7 +52,7 @@ planning:
     max-sources: "${PLANNING_MAX_SOURCES:12}"
     source-codepoint-budget: "${PLANNING_SOURCE_CODEPOINT_BUDGET:16000}"
     retrieval-threshold: "${PLANNING_RETRIEVAL_THRESHOLD:0.55}"
-    generation-limit-per-user-hour: "${PLANNING_GENERATION_LIMIT_PER_USER_HOUR:10}"
+    generation-limit-per-user-hour: "${PLANNING_GENERATION_LIMIT_PER_USER_HOUR:60}"
     executor:
         core-size: "${PLANNING_EXECUTOR_CORE_SIZE:2}"
         max-size: "${PLANNING_EXECUTOR_MAX_SIZE:4}"
@@ -68,6 +68,8 @@ security:
 auth:
     public-registration:
         enabled: "${AUTH_PUBLIC_REGISTRATION_ENABLED:false}"
+knowledge:
+  rate-limit-per-user-hour: "${KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR:60}"
 agent:
   enabled: ${AGENT_ENABLED:${CHAT_ENABLED:false}}
   worker-delay-ms: ${AGENT_WORKER_DELAY_MS:1000}
