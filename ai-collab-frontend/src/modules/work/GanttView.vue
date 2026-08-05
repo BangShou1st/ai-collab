@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import { taskStatusLabel, formatDate } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
 import { projectApi } from '../project/project-api'
@@ -15,13 +15,11 @@ const tasks = ref<GanttTask[]>([])
 const milestones = ref<GanttMilestone[]>([])
 const dependencies = ref<GanttDependency[]>([])
 const loading = ref(false)
-const errorMessage = ref('')
 
 const project = ref<Project | null>(null)
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     const [result, projectResult] = await Promise.all([
       visualizationApi.gantt(projectId),
@@ -32,7 +30,7 @@ async function load(): Promise<void> {
     dependencies.value = result.data.dependencies
     project.value = projectResult.data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '甘特图加载')
   } finally {
     loading.value = false
   }
@@ -128,7 +126,6 @@ onMounted(load)
       title="甘特图"
       :context="project?.name"
     />
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <section v-loading="loading" class="gantt-container">
       <el-empty v-if="!loading && sortedTasks.length === 0" description="暂无任务数据" :image-size="64" />
       <div v-else class="gantt-chart" :style="{ minWidth: `${240 + timeline.days.length * 28}px` }">

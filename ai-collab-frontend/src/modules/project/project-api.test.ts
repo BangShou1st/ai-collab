@@ -67,4 +67,24 @@ describe('projectApi', () => {
     expect(requestedMethod).toBe('delete')
     expect(requestedUrl).toBe('/projects/project-1')
   })
+
+  it('transfers ownership to the selected member', async () => {
+    let requestedMethod = ''
+    let requestedUrl = ''
+    let requestedBody = ''
+    httpClient.defaults.adapter = (async (config) => {
+      requestedMethod = config.method ?? ''
+      requestedUrl = config.url ?? ''
+      requestedBody = String(config.data)
+      return {
+        data: null, status: 204, statusText: 'No Content', headers: {}, config,
+      } as AxiosResponse
+    }) as AxiosAdapter
+
+    await projectApi.transferOwnership('project-1', 'member-2')
+
+    expect(requestedMethod).toBe('post')
+    expect(requestedUrl).toBe('/projects/project-1/transfer-ownership')
+    expect(JSON.parse(requestedBody)).toEqual({ newOwnerId: 'member-2' })
+  })
 })

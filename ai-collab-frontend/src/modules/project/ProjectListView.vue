@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import {
   formatDate,
   projectStatusLabel,
@@ -19,7 +19,6 @@ const saving = ref(false)
 const deletingProjectId = ref('')
 const dialogVisible = ref(false)
 const editingProject = ref<Project | null>(null)
-const errorMessage = ref('')
 const form = reactive({
   name: '',
   description: '',
@@ -43,11 +42,10 @@ const validationMessage = computed(() => {
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     projects.value = (await projectApi.list()).data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '项目列表加载')
   } finally {
     loading.value = false
   }
@@ -82,7 +80,6 @@ function openEdit(project: Project): void {
 async function saveProject(): Promise<void> {
   if (validationMessage.value || saving.value) return
   saving.value = true
-  errorMessage.value = ''
   try {
     const project = editingProject.value
     if (project) {
@@ -109,7 +106,7 @@ async function saveProject(): Promise<void> {
     await load()
     ElMessage.success(project ? '项目已更新' : '项目已创建')
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, editingProject.value ? '项目更新' : '项目创建')
   } finally {
     saving.value = false
   }
@@ -126,13 +123,12 @@ async function deleteProject(project: Project): Promise<void> {
     return
   }
   deletingProjectId.value = project.id
-  errorMessage.value = ''
   try {
     await projectApi.remove(project.id)
     projects.value = projects.value.filter((candidate) => candidate.id !== project.id)
     ElMessage.success('项目已删除')
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '项目删除')
   } finally {
     deletingProjectId.value = ''
   }
@@ -151,7 +147,6 @@ onMounted(load)
         <el-button type="primary" @click="openCreate">新建项目</el-button>
       </template>
     </PageHeader>
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <section v-loading="loading" class="project-grid">
       <el-card v-for="project in projects" :key="project.id" class="project-card">
         <template #header>

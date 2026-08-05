@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { normalizeApiError, showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import {
   documentStatusLabel,
@@ -36,10 +36,6 @@ const dragging = ref(false)
 let pollTimer: number | null = null
 let active = true
 
-function showError(error: unknown): void {
-  ElMessage.error(normalizeApiError(error).message)
-}
-
 const canManage = computed(() => project.value?.role === 'OWNER' || project.value?.role === 'ADMIN')
 const readyDocuments = computed(() => documents.value.filter(d => d.status === 'READY'))
 const batchReindexing = ref(false)
@@ -70,13 +66,13 @@ async function load(showLoading = true): Promise<void> {
     if (projectResult.status === 'fulfilled') {
       project.value = projectResult.value.data
     } else {
-      showError(projectResult.reason)
+      showApiError(projectResult.reason, '项目信息加载')
     }
     if (documentResult.status === 'fulfilled') {
       documents.value = documentResult.value.data
     } else {
       documents.value = []
-      showError(documentResult.reason)
+      showApiError(documentResult.reason, '文档列表加载')
     }
     if (selected.value) {
       selected.value = documents.value.find(item => item.id === selected.value?.id) ?? null
@@ -154,7 +150,7 @@ async function openDetail(item: ProjectDocument): Promise<void> {
     selected.value = (await documentApi.get(projectId, item.id)).data
     drawerVisible.value = true
   } catch (error) {
-    showError(error)
+    showApiError(error, '文档详情加载')
   } finally {
     operationId.value = ''
   }
@@ -167,7 +163,7 @@ async function download(item: ProjectDocument): Promise<void> {
     const result = await documentApi.downloadUrl(projectId, item.id)
     window.location.assign(result.data.url)
   } catch (error) {
-    showError(error)
+    showApiError(error, '文档下载')
   } finally {
     operationId.value = ''
   }
@@ -181,7 +177,7 @@ async function retry(item: ProjectDocument): Promise<void> {
     await load(false)
     ElMessage.success('已重新提交处理')
   } catch (error) {
-    showError(error)
+    showApiError(error, '文档处理重试')
   } finally {
     operationId.value = ''
   }
@@ -201,7 +197,7 @@ async function reindex(item: ProjectDocument): Promise<void> {
     ElMessage.success('已提交重新索引')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    showError(error)
+    showApiError(error, '文档重新索引')
   } finally {
     operationId.value = ''
   }
@@ -222,7 +218,7 @@ async function reindexAll(): Promise<void> {
     ElMessage.success('已提交批量重建索引')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    showError(error)
+    showApiError(error, '文档批量重新索引')
   } finally {
     batchReindexing.value = false
   }
@@ -238,8 +234,8 @@ async function pollReindexProgress(): Promise<void> {
       await load(false)
       setTimeout(() => { reindexProgress.value = null }, 3000)
     }
-  } catch {
-    // ignore progress polling errors
+  } catch (error) {
+    showApiError(error, '重建索引进度加载')
   }
 }
 
@@ -261,7 +257,7 @@ async function remove(item: ProjectDocument): Promise<void> {
     ElMessage.success('文档已删除')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    showError(error)
+    showApiError(error, '文档删除')
   } finally {
     operationId.value = ''
   }

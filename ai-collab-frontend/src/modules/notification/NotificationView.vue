@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import { notificationLabel } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
 import { notificationApi } from './notification-api'
@@ -9,21 +9,19 @@ import type { Notification } from './types'
 
 const notifications = ref<Notification[]>([])
 const loading = ref(false)
-const errorMessage = ref('')
 const page = ref(0)
 const hasMore = ref(true)
 const loadingMore = ref(false)
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     const result = await notificationApi.list(0, 20)
     notifications.value = result.data
     hasMore.value = result.data.length === 20
     page.value = 0
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '通知列表加载')
   } finally {
     loading.value = false
   }
@@ -39,7 +37,7 @@ async function loadMore(): Promise<void> {
     hasMore.value = result.data.length === 20
     page.value = nextPage
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '更多通知加载')
   } finally {
     loadingMore.value = false
   }
@@ -51,7 +49,7 @@ async function markAsRead(notification: Notification): Promise<void> {
     await notificationApi.markAsRead(notification.id)
     notification.read = true
   } catch (error) {
-    ElMessage.error(normalizeApiError(error).message)
+    showApiError(error, '通知标记已读')
   }
 }
 
@@ -61,7 +59,7 @@ async function markAllAsRead(): Promise<void> {
     notifications.value.forEach(n => { n.read = true })
     ElMessage.success('已全部标记为已读')
   } catch (error) {
-    ElMessage.error(normalizeApiError(error).message)
+    showApiError(error, '全部通知标记已读')
   }
 }
 
@@ -93,7 +91,6 @@ onMounted(load)
         <el-button @click="markAllAsRead">全部已读</el-button>
       </template>
     </PageHeader>
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <section v-loading="loading" class="notification-list">
       <el-empty v-if="!loading && notifications.length === 0" description="暂无通知" :image-size="64" />
       <div

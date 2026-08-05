@@ -16,7 +16,7 @@
 
 1. 当前用户指令。
 2. 已确认的任务规格和验收标准。
-3. 当前源码、V1–V26 Flyway 迁移、自动化测试和实际运行证据。
+3. 当前源码、V1–V30 Flyway 迁移、自动化测试和实际运行证据。
 4. `docs/feature-matrix.md`、`docs/api/openapi.yaml`、`docs/database.md`。
 5. 架构与开发规范。
 6. 历史规格和计划。

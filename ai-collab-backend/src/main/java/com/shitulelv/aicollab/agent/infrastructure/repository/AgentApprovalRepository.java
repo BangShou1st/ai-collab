@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
+import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -92,6 +93,15 @@ public class AgentApprovalRepository {
                 mapper(), projectId, approvalId).stream().findFirst();
     }
 
+    public Optional<AgentRunStatus> lockRunStatus(UUID projectId, UUID runId) {
+        return jdbc.query("""
+                SELECT status FROM agent_run
+                WHERE project_id=? AND id=?
+                FOR UPDATE
+                """, (rs, row) -> AgentRunStatus.valueOf(rs.getString("status")),
+                projectId, runId).stream().findFirst();
+    }
+
     public boolean matchesNonceHash(UUID projectId, UUID approvalId, String nonceHash) {
         Integer count = jdbc.queryForObject("""
                 SELECT count(*) FROM agent_approval
@@ -130,10 +140,11 @@ public class AgentApprovalRepository {
                 approval.id(), approval.version());
         if (updated != 1) throw new IllegalStateException("审批已被处理");
         appendResolution(approval, "APPROVED", result);
-        jdbc.update("""
+        int runUpdated = jdbc.update("""
                 UPDATE agent_run SET status='QUEUED',updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND status='WAITING_FOR_APPROVAL'
                 """, approval.projectId(), approval.runId());
+        if (runUpdated != 1) throw new IllegalStateException("审批所属 Agent 运行状态已变化");
         return find(approval.projectId(), approval.id()).orElseThrow();
     }
 
@@ -148,10 +159,11 @@ public class AgentApprovalRepository {
         if (updated != 1) throw new IllegalStateException("审批已被处理");
         appendResolution(approval, "REJECTED", json.valueToTree(
                 java.util.Map.of("reason", reason == null ? "" : reason)));
-        jdbc.update("""
+        int runUpdated = jdbc.update("""
                 UPDATE agent_run SET status='QUEUED',updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND status='WAITING_FOR_APPROVAL'
                 """, approval.projectId(), approval.runId());
+        if (runUpdated != 1) throw new IllegalStateException("审批所属 Agent 运行状态已变化");
         return find(approval.projectId(), approval.id()).orElseThrow();
     }
 

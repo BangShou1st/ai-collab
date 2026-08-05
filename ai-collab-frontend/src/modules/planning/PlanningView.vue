@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { normalizeApiError, showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import {
   isEndDateDisabled,
@@ -83,12 +83,8 @@ const failureMessage = computed(() => planningFailureLabel(selected.value?.lastE
 const historyReadOnlyMessage = '历史版本仅供查看，请先恢复为新版本'
 let lastPollError = ''
 
-function showError(error: unknown): void {
-  ElMessage.error(normalizeApiError(error).message)
-}
-
-function showErrorText(message: string): void {
-  ElMessage.error(message)
+function showValidationError(message: string): void {
+  ElMessage.error({ message, grouping: true })
 }
 
 function formStartDisabled(date: Date): boolean {
@@ -127,7 +123,7 @@ function taskDueDateDisabled(task: TaskPlanDraft['tasks'][number]): (date: Date)
 
 function requireLatestVersion(): boolean {
   if (editingLatest.value) return true
-  showErrorText(historyReadOnlyMessage)
+  showValidationError(historyReadOnlyMessage)
   return false
 }
 
@@ -151,7 +147,10 @@ async function open(plan: TaskPlan): Promise<void> {
   try {
     const eventsResult = await planningApi.events(projectId.value, plan.id)
     events.value = eventsResult.data.data || []
-  } catch { events.value = [] }
+  } catch (error) {
+    events.value = []
+    showApiError(error, '规划事件加载')
+  }
 }
 async function openVersion(id: string): Promise<void> {
   if (!selected.value) return
@@ -163,11 +162,11 @@ async function requestVersion(id: string): Promise<void> {
   await openVersion(id)
 }
 async function create(): Promise<void> {
-  if (!form.title.trim()) return showErrorText('请填写规划标题')
-  if (!form.goal.trim()) return showErrorText('请填写规划目标')
-  if (!form.planStartDate || !form.planDueDate) return showErrorText('请选择规划开始日期和截止日期')
+  if (!form.title.trim()) return showValidationError('请填写规划标题')
+  if (!form.goal.trim()) return showValidationError('请填写规划目标')
+  if (!form.planStartDate || !form.planDueDate) return showValidationError('请选择规划开始日期和截止日期')
   if (!Number.isInteger(form.maxTaskCount) || form.maxTaskCount < 1 || form.maxTaskCount > 40) {
-    return showErrorText('最大任务数必须是 1 到 40 之间的整数')
+    return showValidationError('最大任务数必须是 1 到 40 之间的整数')
   }
   const dateError = validateDateRange(
     form.planStartDate,
@@ -175,9 +174,9 @@ async function create(): Promise<void> {
     project.value?.startDate ?? null,
     project.value?.dueDate ?? null,
   )
-  if (dateError) return showErrorText(dateError)
+  if (dateError) return showValidationError(dateError)
   try { const plan = (await planningApi.create(projectId.value, form)).data.data; createVisible.value = false; await list(); await open(plan); startPolling() }
-  catch (error) { showError(error) }
+  catch (error) { showApiError(error, '任务规划创建') }
 }
 async function action(name: 'cancel' | 'retry-detail' | 'regenerate'): Promise<void> {
   if (!selected.value || !requireLatestVersion() || name === 'regenerate' && dirty.value && !await discard()) return
@@ -186,7 +185,9 @@ async function action(name: 'cancel' | 'retry-detail' | 'regenerate'): Promise<v
     await refresh()
     startPolling()
   } catch (error) {
-    showError(error)
+    const actionLabel = name === 'cancel' ? '规划生成取消'
+      : name === 'retry-detail' ? '规划细节重试' : '规划重新生成'
+    showApiError(error, actionLabel)
   }
 }
 async function restore(): Promise<void> {
@@ -195,7 +196,7 @@ async function restore(): Promise<void> {
     await planningApi.restore(projectId.value, selected.value.id, selectedVersionId.value)
     await refresh()
   } catch (error) {
-    showError(error)
+    showApiError(error, '规划版本恢复')
   }
 }
 async function save(): Promise<void> {
@@ -213,7 +214,7 @@ async function confirmSave(): Promise<void> {
     saveDialogVisible.value = false
     await refresh()
   }
-  catch (error) { showError(error) }
+  catch (error) { showApiError(error, '规划草案保存') }
 }
 async function manualEdit(issue: StructuredValidationIssue): Promise<void> {
   if (!requireLatestVersion()) return
@@ -238,7 +239,7 @@ async function removePlan(): Promise<void> {
     await planningApi.remove(projectId.value, selected.value.id)
     selected.value = null; draft.value = null; structuredIssues.value = []; events.value = []
     await list()
-  } catch (error) { showError(error) }
+  } catch (error) { showApiError(error, '任务规划删除') }
 }
 async function confirm(): Promise<void> {
   if (!selected.value || !selectedVersionId.value || !checked.value || !requireLatestVersion()) return
@@ -251,7 +252,7 @@ async function confirm(): Promise<void> {
     pendingConfirmation.value = null
     clearConfirmationKey(projectId.value, selected.value.id, versionId)
     await router.push({ path: `/projects/${projectId.value}/board`, query: { sourcePlanId: selected.value.id } })
-  } catch (error) { showError(error) }
+  } catch (error) { showApiError(error, '任务规划确认') }
 }
 async function refresh(): Promise<void> {
   const id = selected.value?.id; await list(); const current = plans.value.find(plan => plan.id === id)
@@ -263,7 +264,8 @@ function addMilestone(): void {
   draft.value.milestones.push({ tempKey, title: '新里程碑', objective: '填写目标', description: '填写描述', targetDate: null, sortOrder: draft.value.milestones.length, sourceRefs: [] })
 }
 function addTask(milestoneTempKey: string): void {
-  if (!draft.value || !canEditCurrent.value || draft.value.tasks.length >= selected.value!.maxTaskCount) return
+  if (!draft.value || !canEditCurrent.value
+      || draft.value.tasks.length >= (selected.value?.maxTaskCount ?? 0)) return
   draft.value.tasks.push({ tempKey: `t-${crypto.randomUUID()}`, milestoneTempKey, title: '新任务', objective: '填写目标', description: '填写描述',
     priority: 'MEDIUM', estimatedHours: null, startDate: null, dueDate: null, suggestedAssigneeId: null,
     assigneeId: null, dependencyTempKeys: [], sourceRefs: [], sortOrder: draft.value.tasks.length })
@@ -312,7 +314,7 @@ function startPolling(): void {
       const message = normalizeApiError(error).message
       if (message !== lastPollError) {
         lastPollError = message
-        showErrorText(message)
+        showApiError(error, '规划状态刷新')
       }
     }
   })
@@ -331,23 +333,23 @@ async function loadWorkspace(): Promise<void> {
   } else {
     project.value = null
     canCreate.value = false
-    showError(projectResult.reason)
+    showApiError(projectResult.reason, '项目信息加载')
   }
   if (planResult.status === 'rejected') {
     plans.value = []
-    showError(planResult.reason)
+    showApiError(planResult.reason, '任务规划列表加载')
   }
   if (documentResult.status === 'fulfilled') {
     documents.value = documentResult.value.data.filter(document => document.status === 'READY')
   } else {
     documents.value = []
-    showErrorText(`参考文档加载失败：${normalizeApiError(documentResult.reason).message}。仍可创建不引用文档的规划。`)
+    showApiError(documentResult.reason, '参考文档加载')
   }
   if (memberResult.status === 'fulfilled') {
     members.value = memberResult.value.data
   } else {
     members.value = []
-    showError(memberResult.reason)
+    showApiError(memberResult.reason, '项目成员加载')
   }
   startPolling()
 }

@@ -2,18 +2,18 @@
 
 ## 功能边界
 
-本指南覆盖模型配置与路由、AI 任务规划、结构化输出、版本、人工确认、Agent 会话/运行/步骤、只读工具和审批写工具。
+本指南覆盖模型配置与路由、AI 任务规划、结构化输出、版本与人工确认，以及 Agent 会话、执行计划、原生 Tool Calling、事件流、Skill、项目记忆、审批写工具和受控 MCP。
 
-AI 不拥有业务权限。模型输出不能直接写项目表，所有写入必须重新经过服务端权限、状态、参数、并发和事务校验。
+AI 不拥有业务权限。模型输出、文档内容和 MCP 返回都不可信；任何业务写入都必须重新经过服务端权限、状态、参数、并发和事务校验。
 
 ## 当前入口
 
-模型：
+模型轮次：
 
-- `infrastructure/ai/ChatModelGateway.java`
-- `infrastructure/ai/model/RoutingChatModelGateway.java`
-- `ModelConfigurationService.java`
-- `ModelProviderAdapter.java`
+- `infrastructure/ai/turn/ModelTurnGateway.java`
+- `infrastructure/ai/model/RoutingModelTurnGateway.java`
+- `infrastructure/ai/model/ModelTurnProviderAdapter.java`
+- `OpenAiCompatibleModelAdapter.java`、`AnthropicModelAdapter.java`、`GeminiModelAdapter.java`
 
 规划：
 
@@ -22,181 +22,100 @@ AI 不拥有业务权限。模型输出不能直接写项目表，所有写入�
 - `TaskPlanCommandService.java`
 - `TaskPlanConfirmationService.java`
 - `TaskPlanQueryService.java`
-- `planning/domain/`
 
 Agent：
 
 - `agent/api/controller/AgentSessionController.java`
+- `AgentEventController.java`、`AgentMemoryController.java`、`AgentSkillController.java`
 - `agent/application/AgentRunService.java`
-- `AgentWorker.java`
-- `AgentApprovalService.java`
-- `agent/domain/policy/AgentToolPolicy.java`
+- `agent/application/runtime/AgentRuntimeCoordinator.java`
+- `NativeToolCallingExecutor.java`、`LegacyReadOnlyAgentExecutor.java`
+- `AgentEventService.java`、`AgentEventStreamService.java`
+- `agent/application/AgentApprovalService.java`
+- `agent/domain/model/AgentSkillRegistry.java`
 - `agent/infrastructure/tool/AgentToolRegistry.java`
+- `agent/infrastructure/mcp/`
 
 前端：
 
 - `modules/planning/PlanningView.vue`
 - `modules/agent/AgentView.vue`
+- `modules/agent/agent-run-store.ts`
+- `modules/agent/agent-event-stream.ts`
 - `modules/admin/AdminView.vue`
 
 ## 模型 Gateway
 
-业务代码依赖统一 `ChatModelGateway`，不能直接调用供应商 SDK。用途通过 `ModelPurpose` 路由到管理员配置：
+知识问答和规划依赖统一 `ChatModelGateway`；Agent 原生工具循环依赖 `ModelTurnGateway`。用途通过 `ModelPurpose` 路由到管理员配置。Provider adapter 只负责供应商协议差异，业务语义、工具权限和终态由 Agent runtime 决定。
 
-- 知识问答。
-- 任务规划。
-- 协作 Agent。
-
-Provider adapter 负责协议差异；业务服务负责业务语义。API Key 加密保存，响应只返回掩码，不进入日志、审计或前端调试数据。
-
-增加供应商时：
-
-1. 实现 `ModelProviderAdapter`。
-2. 明确能力矩阵：JSON、tools、streaming。
-3. 处理供应商错误到统一 `ErrorCode`。
-4. 增加契约测试，使用固定受控响应。
-5. 不在业务模块加入 provider `if/else`。
+增加或修改供应商时必须保持统一的 message、tool definition、tool call、finish reason 和 usage contract，并补充固定响应契约测试。能力不足、限流、超时、配额和无效响应映射为稳定 `ErrorCode`。API Key 加密保存且只返回掩码，不进入日志、审计或前端调试数据。
 
 ## 任务规划
 
-流程：
+任务规划遵循“权限与输入校验 → 骨架生成 → 结构化解析与领域校验 → 细节生成 → 保存不可变版本 → 用户编辑 → 人工确认 → 单事务创建正式数据”。模型生成与确认事务分离；确认携带 `Idempotency-Key`，事务内重新读取最新版本并复验全部规则。
+
+模型输出必须限制 JSON 大小、Schema、key 唯一性、日期、任务数、依赖、优先级、工时以及成员/文档/里程碑的项目归属。解析失败只允许有限修复，不能通过吞异常或删除必要字段迎合输出。
+
+## Agent 运行时与事件
+
+运行时持久化 session、message、run、plan、step、event 和 approval。提交请求时只接受当前项目路由可证明的页面上下文；服务端重新校验选择的任务、里程碑、文档和规划 ID。Skill 来自固定 `AgentSkillRegistry`，客户端不能注入任意 Prompt 或工具集合。
 
 ```text
-用户目标和约束
-  → 权限/配额/日期/文档校验
-  → 生成规划骨架
-  → 结构化解析和领域校验
-  → 生成细节
-  → 保存不可变版本和问题
-  → 用户编辑
-  → 人工确认
-  → 一个数据库事务创建正式里程碑、任务和依赖
+提交目标和 Skill
+  → 校验项目成员与页面上下文
+  → 保存 Run、计划和初始事件
+  → Worker 领取租约
+  → ModelTurnGateway 原生工具轮次
+  → 工具 Schema/参数/风险校验
+  → 只读执行或创建写审批
+  → 保存 step 与严格递增 event
+  → SSE 重放、续传并展示终态
 ```
 
-模型输出是候选，不是事实。必须执行：
+`agent_run.last_event_sequence` 与 `(run_id, sequence_no)` 唯一约束保证事件顺序；SSE 使用 sequence 作为 id，支持 `Last-Event-ID`/`afterSequence`。取消请求和 Worker 完成存在并发时，以行锁、CAS 和终态重读保护，不能让旧 Worker 覆盖 `CANCELED`。
 
-- JSON 大小和结构限制。
-- key 唯一性。
-- 日期范围。
-- 任务数、依赖、优先级和工时。
-- 成员、文档和里程碑项目归属。
-- 依赖环检测。
+## 工具、审批与记忆
 
-解析失败使用受控修复次数；不能无限重试或通过删除字段“修好”。
+内置只读工具仍校验项目成员和项目范围。写工具只能生成审批提案：保存 approval、参数哈希、nonce、过期时间与资源版本；批准时锁定 Approval 和 Run，确认仍处于 `WAITING_FOR_APPROVAL`，再重新校验当前角色、项目状态、资源版本和幂等键，并调用正式 Application Service。Agent 工具禁止直接访问 Mapper。
 
-## 版本与确认
+项目记忆只有 `DECISION / PREFERENCE / CONSTRAINT / LESSON` 四类。读取按项目隔离；创建、更新和停用需要项目管理员，更新使用 version。模型不能静默写记忆，`create_memory` 同样走审批。
 
-- 每次用户编辑生成新的不可变版本。
-- 历史版本只读。
-- 确认携带 `Idempotency-Key`。
-- 同一 key + 同一请求返回已有结果。
-- 同一 key + 不同请求返回 `IDEMPOTENCY_KEY_REUSED`。
-- 确认事务中重新读取最新版本并复验全部业务规则。
-- 任一里程碑、任务或依赖失败时整体回滚。
+## MCP 边界
 
-模型生成和确认事务分离，不能在数据库事务中等待模型。
-
-## Agent 运行时
-
-持久化边界：
-
-- session：用户对话上下文。
-- run：一次执行。
-- step：模型、工具、审批和结果步骤。
-- approval：待人工批准的写操作。
-
-Agent 工具分两类：
-
-### 只读工具
-
-可以直接运行，但仍校验项目成员和项目范围，例如项目概览、任务列表、风险、知识搜索。
-
-### 写工具
-
-模型只能生成提案。工具返回待审批记录，用户明确批准后由应用服务执行：
+系统管理员管理 MCP Connection，项目 OWNER 管理 Binding。实际可见工具是以下交集：
 
 ```text
-模型工具调用
-  → 参数结构化校验
-  → AgentToolPolicy 判断必须审批
-  → 保存 approval + nonce + 过期时间
-  → 用户查看中文摘要
-  → 批准
-  → 重新校验当前权限和业务状态
-  → 调用正式 Application Service
-  → 保存结果和审计
+发现结果 readOnlyHint=true
+∩ 系统管理员确认只读白名单
+∩ 项目 OWNER 白名单
 ```
 
-禁止 Agent 工具直接访问 Mapper。审批不是缓存授权：执行时必须重新校验。
+当前只支持受控 `STREAMABLE_HTTP` 实际调用；STDIO 明确拒绝。Endpoint 必须是 allowlist 内公网 HTTPS 主机，并在每次请求前做 DNS/SSRF 校验；不跟随重定向。外部 test/discover/call 不进入数据库长事务，响应流受 `timeoutMs` 和 `maxResultBytes` 限制。每次执行前重新读取连接、绑定、白名单和已确认 Schema Hash；输出作为不可信内容清洗。详细部署与验收见 `docs/agent/MCP_DEPLOYMENT_AND_BROWSER_TESTING.md`。
 
-## 预算与循环保护
+## 预算、循环和定时运行
 
-每次运行限制：
+每次运行限制步骤、工具调用、子运行、输入/输出 Token、预计费用和总运行时间。`AgentLoopGuard` 拒绝无进展的重复工具调用；达到限制后进入可解释终态。
 
-- 最大步骤数。
-- 最大工具调用数。
-- 最大模型 token/费用。
-- 总运行时间。
-- 相同工具和相同参数重复调用。
+定时任务保存稳定 `skillCode`，触发记录以 `(schedule_id, scheduled_for)` 幂等。执行前重新校验创建者仍是项目成员；失去资格时停用定时任务并写审计，网络调用不包在停用事务内。
 
-`AgentLoopGuard` 检测无进展重复。达到限制时以可解释状态停止，不能悄悄继续后台运行。
+## 测试边界
 
-## 工具定义
-
-工具 schema 使用稳定、最小参数：
-
-```java
-public interface AgentTool {
-    AgentToolDefinition definition();
-    AgentToolResult execute(AgentToolContext context, Map<String, Object> arguments);
-}
-```
-
-定义必须说明：
-
-- 工具用途和非用途。
-- required 字段、类型、长度和 enum。
-- 是否只读、是否需要审批。
-- 返回的结构化字段。
-
-不要把内部 Entity、SQL、异常堆栈或敏感配置返回给模型。
-
-## 测试
-
-模型层：
-
-- provider 请求/响应转换。
-- timeout、rate limit、quota、malformed JSON。
-- 能力不足时拒绝路由。
-
-规划：
-
-- 无效输出、截断、修复上限。
-- 跨项目文档/成员。
-- 版本冲突、幂等复用、事务回滚。
-- 正式任务与来源 key 对齐。
-
-Agent：
-
-- 非成员与跨项目工具调用。
-- 只读工具结果项目隔离。
-- 写工具必须审批。
-- nonce、过期、重复批准。
-- 批准时权限已变化。
-- 循环和预算停止。
-- 重启后的运行恢复。
+- 三类 provider 的原生工具请求/响应、finish reason、usage、timeout 与无效响应。
+- 页面上下文伪造、跨项目 ID、Skill/工具白名单和参数 Schema。
+- 事件严格递增、重放、SSE CRLF/跨字节分块续传与单连接管理。
+- 取消与审批、Worker/CAS、重试和预算终态竞态。
+- 写工具 nonce、过期、重复批准、权限变化、资源版本和业务状态复验。
+- MCP Endpoint/DNS/重定向、Schema 变化、双层白名单、只读标记、结果清洗与大小限制。
+- 项目记忆隔离、version 冲突和定时任务成员资格变化。
+- V1–V30 全量迁移、OpenAPI、前端类型、错误映射和生产装配。
 
 ## 发给 Claude 的提示
 
 ```text
-读取 AGENTS.md、docs/development/guides/planning-and-agent.md 和
-docs/development/api-contract-checklist.md。
-先说明模型边界、结构化验证、人工确认、幂等和事务；
-模型不得直接写业务表。新增工具必须分类为只读或审批写，并给出越权测试。
+读取 AGENTS.md、docs/feature-matrix.md、docs/development/guides/planning-and-agent.md、
+docs/development/api-contract-checklist.md 和任务相关 Agent 文档。
+先说明模型边界、可信上下文、工具风险、人工审批、事件/终态、幂等和事务；
+模型不得直接写业务表，MCP 只允许通过三重只读交集和执行前重校验的工具。
 ```
 
-## 可交给 MiMo 的任务
-
-可以：在既定 Tool Definition 中补一个已完全定义的描述字段，或增加一个固定错误响应映射测试。
-
-禁止：让 MiMo设计 Prompt、模型路由、规划 schema、幂等确认、Agent 状态机、工具权限、审批或预算。
+MiMo 只可补充已完全限定的 DTO/type、枚举映射、局部文案或单个测试；不得设计模型协议、Prompt、状态机、权限、审批、MCP 安全、事务或迁移。

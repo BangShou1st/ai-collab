@@ -60,4 +60,22 @@ describe('project context store', () => {
     expect(store.project).toBeNull()
     expect(store.isAdminOrOwner).toBe(false)
   })
+
+  it('refreshes the cached role after ownership changes', async () => {
+    vi.mocked(projectApi.get)
+      .mockResolvedValueOnce({ httpStatus: 200, code: 'SUCCESS', message: '操作成功', data: project })
+      .mockResolvedValueOnce({
+        httpStatus: 200,
+        code: 'SUCCESS',
+        message: '操作成功',
+        data: { ...project, role: 'MEMBER' },
+      })
+    const store = useProjectContextStore()
+
+    await store.loadProject('project-1')
+    await store.refreshProject('project-1')
+
+    expect(projectApi.get).toHaveBeenCalledTimes(2)
+    expect(store.currentUserRole).toBe('MEMBER')
+  })
 })

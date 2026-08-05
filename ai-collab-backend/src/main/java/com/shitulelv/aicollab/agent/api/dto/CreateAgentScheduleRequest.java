@@ -12,5 +12,6 @@ public record CreateAgentScheduleRequest(
         @NotBlank @Pattern(regexp = "DAILY|WEEKLY") String frequency,
         @NotBlank @Size(max = 80) String timeZone,
         @NotNull LocalTime localTime,
-        @Min(1) @Max(7) Integer weeklyDay) {
+        @Min(1) @Max(7) Integer weeklyDay,
+        @Pattern(regexp="[A-Z][A-Z0-9_]{2,63}") String skillCode) {
 }

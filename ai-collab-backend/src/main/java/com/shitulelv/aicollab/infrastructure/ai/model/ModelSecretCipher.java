@@ -54,7 +54,7 @@ public class ModelSecretCipher {
 
     public String decrypt(String encryptedText) {
         if (encryptedText == null || encryptedText.isBlank()) {
-            throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+            throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
         }
         try {
             byte[] packed = Base64.getDecoder().decode(encryptedText);
@@ -64,7 +64,7 @@ public class ModelSecretCipher {
             cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
             return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
         } catch (Exception exception) {
-            throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+            throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
         }
     }
 }

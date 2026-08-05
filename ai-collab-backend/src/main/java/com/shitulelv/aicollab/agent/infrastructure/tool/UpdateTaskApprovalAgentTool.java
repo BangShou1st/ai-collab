@@ -5,8 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.work.api.dto.UpdateTaskRequest;
 import com.shitulelv.aicollab.work.application.service.TaskApplicationService;
+import com.shitulelv.aicollab.work.application.view.TaskView;
 import jakarta.validation.Validator;
 import org.springframework.stereotype.Component;
 
@@ -49,6 +52,29 @@ public class UpdateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool 
         UpdateTaskRequest request = request(arguments.get("changes"), UpdateTaskRequest.class);
         return new AgentToolResult(tree(tasks.update(
                 context.projectId(), taskId, request, context.userId())), List.of(), List.of());
+    }
+
+    /**
+     * 执行前重新校验。
+     * 检查：目标实体仍存在、属于当前项目、当前版本等于审批提案版本、
+     * approver 仍有权限、更新字段仍合法、业务条件仍成立。
+     */
+    @Override
+    public void revalidate(AgentToolContext context, JsonNode arguments) {
+        UUID taskId = requiredId(arguments, "taskId");
+
+        // 1. 目标实体仍存在且属于当前项目
+        TaskView task = tasks.get(context.projectId(), taskId, context.userId());
+
+        // 2. 参数仍符合 Schema（通过 request 方法校验）
+        UpdateTaskRequest request = request(arguments.get("changes"), UpdateTaskRequest.class);
+
+        if (request.version() == null || request.version() != task.version()) {
+            throw new BusinessException(ErrorCode.AGENT_APPROVAL_VERSION_CONFLICT);
+        }
+
+        // 3. 业务条件仍成立（例如，任务不能已完成才能更新）
+        // 注意：具体的业务条件校验在 TaskApplicationService.update 中会进行
     }
 
     private static UUID requiredId(JsonNode arguments, String name) {

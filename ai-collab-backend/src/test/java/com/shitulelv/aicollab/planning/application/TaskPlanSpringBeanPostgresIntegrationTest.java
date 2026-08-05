@@ -114,7 +114,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         assertThat(AopUtils.isAopProxy(commits)).isTrue();
         assertThat(jdbc.queryForObject(
                 "select version from flyway_schema_history where success=true order by installed_rank desc limit 1",
-                String.class)).isEqualTo("26");
+                String.class)).isEqualTo("30");
         assertThat(jdbc.queryForObject(
                 "select count(*) from information_schema.tables where table_name='ai_task_plan'",
                 Integer.class)).isEqualTo(1);
@@ -359,7 +359,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
                 {"milestones":[{"tempKey":"m1","description":"发布说明","sourceRefs":[]}],
                 "tasks":[
                   {"tempKey":"t1","description":"基础说明","priority":"HIGH","estimatedHours":8,
-                   "startDate":"2026-08-01","dueDate":"2026-08-15","suggestedAssigneeId":null,
+                   "startDate":"2026-08-10","dueDate":"2026-08-15","suggestedAssigneeId":null,
                    "dependencyTempKeys":[],"sourceRefs":[]},
                   {"tempKey":"t2","description":"后续说明","priority":"MEDIUM","estimatedHours":4,
                    "startDate":"2026-08-16","dueDate":"2026-08-20","suggestedAssigneeId":null,

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import { documentApi } from '../document/document-api'
 import type { ProjectDocument } from '../document/types'
@@ -27,7 +27,7 @@ const runs = ref<KnowledgeEvalRun[]>([])
 const selectedRun = ref<KnowledgeEvalRunDetail | null>(null)
 const loading = ref(true)
 const running = ref(false)
-const errorMessage = ref('')
+const validationMessage = ref('')
 let rowSequence = 1
 const testCases = ref<KnowledgeEvalFormRow[]>([{
   id: 'eval-row-1',
@@ -50,7 +50,7 @@ onMounted(async () => {
     runs.value = runsResult.data
     documents.value = documentsResult.data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '知识库评测页面加载')
   } finally {
     loading.value = false
   }
@@ -87,9 +87,10 @@ function statusLabel(status: string): string {
 
 async function startEval(): Promise<void> {
   if (!projectId.value || running.value) return
+  validationMessage.value = ''
   const validation = validateEvalRows(testCases.value)
   if (!validation.valid) {
-    errorMessage.value = validation.message
+    validationMessage.value = validation.message
     return
   }
   const requestCases = toEvalRequest(testCases.value)
@@ -112,7 +113,7 @@ async function startEval(): Promise<void> {
     runs.value = runsResult.data
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '知识库评测运行')
   } finally {
     running.value = false
   }
@@ -137,7 +138,7 @@ async function viewRun(run: KnowledgeEvalRun): Promise<void> {
     const result = await knowledgeApi.getEvalRun(projectId.value, run.id)
     selectedRun.value = result.data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '知识库评测结果加载')
   }
 }
 </script>
@@ -150,8 +151,6 @@ async function viewRun(run: KnowledgeEvalRun): Promise<void> {
       :context="project?.name"
     />
 
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
-
     <section v-loading="loading" class="eval-content">
       <el-card v-if="canManage" class="eval-create">
         <template #header>
@@ -163,6 +162,13 @@ async function viewRun(run: KnowledgeEvalRun): Promise<void> {
         <el-alert
           title="使用方法：输入一个能从项目资料中回答的问题，再选择应该被检索到的文档。系统会检查正确文档是否排在检索结果前面。"
           type="info"
+          :closable="false"
+          show-icon
+        />
+        <el-alert
+          v-if="validationMessage"
+          :title="validationMessage"
+          type="warning"
           :closable="false"
           show-icon
         />

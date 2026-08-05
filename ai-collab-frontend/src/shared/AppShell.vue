@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { normalizeApiError } from '../api/api-result'
+import { showApiError } from '../api/api-result'
 import { useAuthStore } from '../stores/auth-store'
 import { useProjectContextStore } from '../stores/project-context-store'
 
@@ -43,7 +43,7 @@ async function logout(): Promise<void> {
     await router.replace('/login')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    ElMessage.error(normalizeApiError(error).message)
+    showApiError(error, '退出登录')
   } finally {
     loggingOut.value = false
   }

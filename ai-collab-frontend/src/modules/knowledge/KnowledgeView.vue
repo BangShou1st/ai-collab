@@ -4,7 +4,7 @@ import { marked } from 'marked'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { ApiContractError, showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import { documentApi } from '../document/document-api'
 import type { ProjectDocument } from '../document/types'
@@ -51,14 +51,6 @@ const feedbackSubmittingIds = ref<string[]>([])
 let active = true
 let projectGeneration = 0
 let currentAbortController: AbortController | null = null
-
-function showError(error: unknown): void {
-  ElMessage.error(normalizeApiError(error).message)
-}
-
-function showErrorText(message: string): void {
-  ElMessage.error(message)
-}
 
 const readyDocuments = computed(() => documents.value.filter(item => item.status === 'READY'))
 const questionLength = computed(() => Array.from(question.value).length)
@@ -136,19 +128,19 @@ async function load(targetProjectId: string, generation: number): Promise<void> 
     if (projectResult.status === 'fulfilled') {
       project.value = projectResult.value.data
     } else {
-      showError(projectResult.reason)
+      showApiError(projectResult.reason, '项目信息加载')
     }
     if (sessionResult.status === 'fulfilled') {
       sessions.value = sessionResult.value.data
     } else {
       sessions.value = []
-      showError(sessionResult.reason)
+      showApiError(sessionResult.reason, '问答会话列表加载')
     }
     if (documentResult.status === 'fulfilled') {
       documents.value = documentResult.value.data
     } else {
       documents.value = []
-      showErrorText(`参考文档加载失败：${normalizeApiError(documentResult.reason).message}。不影响继续使用已有问答会话。`)
+      showApiError(documentResult.reason, '参考文档加载')
     }
     selectedDocumentIds.value = selectedDocumentIds.value
       .filter(id => readyDocuments.value.some(document => document.id === id))
@@ -206,7 +198,7 @@ async function selectSession(sessionId: string): Promise<void> {
     await loadDetail(sessionId, targetProjectId, generation)
   } catch (error) {
     if (isCurrentProject(targetProjectId, generation)) {
-      showError(error)
+      showApiError(error, '问答会话详情加载')
     }
   }
 }
@@ -226,7 +218,7 @@ async function createSession(): Promise<void> {
     if (isCurrentProject(targetProjectId, generation)) ElMessage.success('新会话已创建')
   } catch (error) {
     if (isCurrentProject(targetProjectId, generation)) {
-      showError(error)
+      showApiError(error, '问答会话创建')
     }
   } finally {
     if (isCurrentProject(targetProjectId, generation)) creating.value = false
@@ -252,7 +244,7 @@ async function renameSession(session: KnowledgeSession, newTitle: string): Promi
     ElMessage.success('会话已重命名')
   } catch (error) {
     if (isCurrentProject(targetProjectId, generation)) {
-      showError(error)
+      showApiError(error, '问答会话重命名')
     }
   }
 }
@@ -310,7 +302,7 @@ async function removeSession(session: KnowledgeSession): Promise<void> {
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
     if (isCurrentProject(targetProjectId, generation)) {
-      showError(error)
+      showApiError(error, '问答会话删除')
     }
   } finally {
     if (isCurrentProject(targetProjectId, generation)) deletingId.value = ''
@@ -358,7 +350,7 @@ async function submitQuestion(): Promise<void> {
         },
         onError: (code, message) => {
           if (isCurrentProject(targetProjectId, generation)) {
-            showErrorText(message)
+            showApiError(new ApiContractError(message), '知识问答')
             streamingMessage.value = null
           }
         },
@@ -385,7 +377,7 @@ async function submitQuestion(): Promise<void> {
       // 用户取消，不显示错误
       streamingMessage.value = null
     } else if (isCurrentProject(targetProjectId, generation)) {
-      showError(error)
+      showApiError(error, '知识问答')
       streamingMessage.value = null
     }
   } finally {
@@ -423,7 +415,7 @@ async function downloadCitation(): Promise<void> {
     if (isCurrentProject(targetProjectId, generation)) window.location.assign(result.data.url)
   } catch (error) {
     if (isCurrentProject(targetProjectId, generation)) {
-      showError(error)
+      showApiError(error, '引用文档下载')
     }
   }
 }
@@ -439,7 +431,7 @@ async function submitFeedback(messageId: string, helpful: boolean): Promise<void
     feedbackMap.value[messageId] = result.data
   } catch (error) {
     if (isCurrentProject(targetProjectId, generation)) {
-      showError(error)
+      showApiError(error, '问答反馈提交')
     }
   } finally {
     feedbackSubmittingIds.value = feedbackSubmittingIds.value.filter(id => id !== messageId)
@@ -457,7 +449,7 @@ async function removeFeedback(messageId: string): Promise<void> {
     feedbackMap.value[messageId] = result.data
   } catch (error) {
     if (isCurrentProject(targetProjectId, generation)) {
-      showError(error)
+      showApiError(error, '问答反馈撤销')
     }
   } finally {
     feedbackSubmittingIds.value = feedbackSubmittingIds.value.filter(id => id !== messageId)
@@ -476,15 +468,19 @@ async function loadFeedbackForMessages(messages: Array<{ id: string }>): Promise
   if (!projectId.value || !messages.length) return
   const targetProjectId = projectId.value
   const generation = projectGeneration
+  let firstError: unknown
   for (const msg of messages) {
     if (feedbackMap.value[msg.id]) continue
     try {
       const result = await knowledgeApi.getFeedback(targetProjectId, msg.id)
       if (!isCurrentProject(targetProjectId, generation)) return
       feedbackMap.value[msg.id] = result.data
-    } catch {
-      // ignore individual failures
+    } catch (error) {
+      firstError ??= error
     }
+  }
+  if (firstError && isCurrentProject(targetProjectId, generation)) {
+    showApiError(firstError, '问答反馈加载')
   }
 }
 

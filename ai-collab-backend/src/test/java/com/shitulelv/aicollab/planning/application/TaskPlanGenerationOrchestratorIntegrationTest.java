@@ -95,7 +95,7 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         String detailJson = """
                 {"milestones":[{"tempKey":"m1","description":"Design phase milestone","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"Complete design docs","priority":"HIGH",
-                "estimatedHours":8.0,"startDate":"2026-08-01","dueDate":"2026-08-10",
+                "estimatedHours":8.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
                 """;
 
@@ -187,7 +187,7 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         String detailJson = """
                 {"milestones":[{"tempKey":"m1","description":"desc","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"desc","priority":"MEDIUM",
-                "estimatedHours":4.0,"startDate":"2026-08-01","dueDate":"2026-08-05",
+                "estimatedHours":4.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
                 """;
 

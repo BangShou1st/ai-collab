@@ -714,12 +714,16 @@ paths:
         '204':
           description: Ownership transferred
         '400':
-          description: Invalid request
+          description: Invalid request, including transfer to the current owner
           content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: Project is not visible or the target user is no longer a project member
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '409':
+          description: Ownership changed concurrently; retry with current project state
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
   /projects/{projectId}/milestones:
     parameters:
       - $ref: '#/components/parameters/ProjectId'
@@ -1736,12 +1740,42 @@ paths:
     post:
       tags: [Agent]
       summary: Submit an Agent request
-      responses: { '202': { description: Run queued } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubmitAgentMessageRequest' }
+      responses:
+        '202':
+          description: Run queued
+          content: { application/json: { schema: { $ref: '#/components/schemas/AgentRunEnvelope' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /projects/{projectId}/agent/runs/{runId}:
     get:
       tags: [Agent]
       summary: Get normalized run and step details
-      responses: { '200': { description: Run detail } }
+      responses:
+        '200':
+          description: Run detail including plan, steps, cursor and pending approval
+          content: { application/json: { schema: { $ref: '#/components/schemas/AgentRunDetailEnvelope' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /projects/{projectId}/agent/runs/{runId}/events:
+    get:
+      tags: [Agent]
+      summary: Replay and stream durable Agent run events
+      description: Project members only. Frames use the event sequence as SSE id; reconnect with Last-Event-ID or afterSequence.
+      parameters:
+        - { name: Last-Event-ID, in: header, required: false, schema: { type: integer, format: int64, minimum: 0 } }
+        - { name: afterSequence, in: query, required: false, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '200':
+          description: Durable replay followed by live events and heartbeat comments
+          content:
+            text/event-stream:
+              schema: { $ref: '#/components/schemas/AgentRunEvent' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /projects/{projectId}/agent/runs/{runId}/cancel:
     post:
       tags: [Agent]
@@ -1790,6 +1824,104 @@ paths:
       tags: [Agent]
       summary: Disable an Agent schedule
       responses: { '200': { description: Schedule disabled } }
+  /projects/{projectId}/agent/skills:
+    get:
+      tags: [Agent]
+      summary: List fixed server-side Agent skills available to project members
+      responses: { '200': { description: Skill list } }
+  /projects/{projectId}/agent/memories:
+    get:
+      tags: [Agent]
+      summary: List project-scoped Agent memories
+      parameters:
+        - { name: activeOnly, in: query, schema: { type: boolean, default: false } }
+      responses: { '200': { description: Memory list }, '404': { $ref: '#/components/responses/NotFound' } }
+    post:
+      tags: [Agent]
+      summary: Create a user-confirmed project memory (project ADMIN required)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AgentMemoryRequest' } } }
+      responses: { '200': { description: Memory created }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /projects/{projectId}/agent/memories/{id}:
+    patch:
+      tags: [Agent]
+      summary: Update project memory using optimistic versioning (project ADMIN required)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AgentMemoryRequest' } } }
+      responses: { '200': { description: Memory updated }, '409': { $ref: '#/components/responses/Conflict' } }
+    delete:
+      tags: [Agent]
+      summary: Disable project memory (project ADMIN required)
+      parameters:
+        - { name: version, in: query, required: true, schema: { type: integer, minimum: 0 } }
+      responses: { '200': { description: Memory disabled }, '409': { $ref: '#/components/responses/Conflict' } }
+  /admin/agent/mcp-connections:
+    get:
+      tags: [Agent MCP]
+      summary: List MCP connections (system admin only; credentials never returned)
+      responses:
+        '200':
+          description: Connection list
+          content: { application/json: { schema: { $ref: '#/components/schemas/McpConnectionListEnvelope' } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Agent MCP]
+      summary: Create MCP connection (system admin only)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/McpConnectionRequest' } } }
+      responses:
+        '201':
+          description: Connection created
+          content: { application/json: { schema: { $ref: '#/components/schemas/McpConnectionEnvelope' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /admin/agent/mcp-connections/{id}:
+    patch:
+      tags: [Agent MCP]
+      summary: Update and disable MCP connection pending rediscovery
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/McpConnectionRequest' } } }
+      responses:
+        '200':
+          description: Connection updated
+          content: { application/json: { schema: { $ref: '#/components/schemas/McpConnectionEnvelope' } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/agent/mcp-connections/{id}/test:
+    post: { tags: [Agent MCP], summary: Test MCP initialization with timeout, responses: { '200': { description: Health updated, content: { application/json: { schema: { $ref: '#/components/schemas/McpConnectionEnvelope' } } } }, '504': { $ref: '#/components/responses/GatewayTimeout' } } }
+  /admin/agent/mcp-connections/{id}/discover:
+    post: { tags: [Agent MCP], summary: Discover tools/resources and compute canonical schema hash, responses: { '200': { description: Discovery saved, content: { application/json: { schema: { $ref: '#/components/schemas/McpConnectionEnvelope' } } } } } }
+  /admin/agent/mcp-connections/{id}/enable:
+    post:
+      tags: [Agent MCP]
+      summary: Confirm current schema and enable connection
+      parameters: [{ name: version, in: query, required: true, schema: { type: integer, minimum: 0 } }]
+      responses: { '200': { description: Connection enabled, content: { application/json: { schema: { $ref: '#/components/schemas/McpConnectionEnvelope' } } } }, '409': { $ref: '#/components/responses/Conflict' } }
+  /admin/agent/mcp-connections/{id}/disable:
+    post:
+      tags: [Agent MCP]
+      summary: Disable connection and invalidate managed client
+      parameters: [{ name: version, in: query, required: true, schema: { type: integer, minimum: 0 } }]
+      responses: { '200': { description: Connection disabled, content: { application/json: { schema: { $ref: '#/components/schemas/McpConnectionEnvelope' } } } } }
+  /projects/{projectId}/agent/mcp-bindings:
+    get:
+      tags: [Agent MCP]
+      summary: List project MCP bindings (project members)
+      responses: { '200': { description: Binding list, content: { application/json: { schema: { $ref: '#/components/schemas/McpBindingListEnvelope' } } } } }
+  /projects/{projectId}/agent/mcp-bindings/{connectionId}:
+    put:
+      tags: [Agent MCP]
+      summary: Bind approved MCP tools to project (project OWNER only)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/McpBindingRequest' } } }
+      responses: { '200': { description: Binding saved, content: { application/json: { schema: { $ref: '#/components/schemas/McpBindingEnvelope' } } } }, '403': { $ref: '#/components/responses/Forbidden' }, '409': { $ref: '#/components/responses/Conflict' } }
+    delete:
+      tags: [Agent MCP]
+      summary: Remove project MCP binding (project OWNER only)
+      responses: { '204': { description: Binding removed }, '403': { $ref: '#/components/responses/Forbidden' } }
 components:
   securitySchemes:
     bearerAuth:
@@ -2986,3 +3118,206 @@ components:
                 page: { type: integer }
                 size: { type: integer }
                 total: { type: integer, format: int64 }
+    AgentPageContext:
+      type: object
+      required: [route, filters]
+      properties:
+        route: { type: string, maxLength: 80 }
+        selectedTaskId: { type: [string, 'null'], format: uuid }
+        selectedMilestoneId: { type: [string, 'null'], format: uuid }
+        selectedDocumentId: { type: [string, 'null'], format: uuid }
+        selectedPlanId: { type: [string, 'null'], format: uuid }
+        filters: { type: object, additionalProperties: true }
+    SubmitAgentMessageRequest:
+      type: object
+      additionalProperties: false
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 4000 }
+        skillCode: { type: [string, 'null'], pattern: '^[A-Z][A-Z0-9_]{2,63}$' }
+        pageContext: { oneOf: [{ $ref: '#/components/schemas/AgentPageContext' }, { type: 'null' }] }
+    AgentRunStatus:
+      type: string
+      enum: [CREATED, QUEUED, RUNNING, WAITING_FOR_APPROVAL, SUCCEEDED, FAILED_RETRYABLE, FAILED, CANCELED, BUDGET_EXCEEDED]
+    AgentRun:
+      type: object
+      required: [id, sessionId, projectId, requesterId, role, depth, goal, status, maxSteps, maxToolCalls, stepsUsed, toolCallsUsed, scheduled, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        requesterId: { type: string, format: uuid }
+        parentRunId: { type: [string, 'null'], format: uuid }
+        role: { type: string }
+        depth: { type: integer, minimum: 0 }
+        goal: { type: string }
+        skillCode: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/AgentRunStatus' }
+        maxSteps: { type: integer }
+        maxToolCalls: { type: integer }
+        stepsUsed: { type: integer }
+        toolCallsUsed: { type: integer }
+        scheduled: { type: boolean }
+        errorCode: { type: [string, 'null'] }
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AgentRunEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties: { data: { $ref: '#/components/schemas/AgentRun' } }
+    AgentRunDetailEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [run, steps, lastEventSequence]
+              properties:
+                run: { $ref: '#/components/schemas/AgentRun' }
+                plan: { type: [object, 'null'], additionalProperties: true }
+                steps: { type: array, items: { type: object, additionalProperties: true } }
+                lastEventSequence: { type: integer, format: int64, minimum: 0 }
+                pendingApprovalId: { type: [string, 'null'], format: uuid }
+    AgentEventType:
+      type: string
+      enum: [RUN_CREATED, CONTEXT_CAPTURED, SKILL_SELECTED, PLAN_CREATED, PLAN_UPDATED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_PROPOSED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, TOOL_CALL_FAILED, APPROVAL_REQUESTED, APPROVAL_APPROVED, APPROVAL_REJECTED, APPROVAL_EXPIRED, RESULT_VERIFIED, RUN_RETRY_SCHEDULED, RUN_CANCELED, RUN_SUCCEEDED, RUN_FAILED, RUN_BUDGET_EXCEEDED]
+    AgentRunEvent:
+      type: object
+      required: [id, projectId, runId, sequence, type, payload, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        runId: { type: string, format: uuid }
+        sequence: { type: integer, format: int64, minimum: 1 }
+        type: { $ref: '#/components/schemas/AgentEventType' }
+        payload: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+    AgentMemoryRequest:
+      type: object
+      additionalProperties: false
+      required: [type, title, content, sourceType, version]
+      properties:
+        type: { type: string, enum: [DECISION, PREFERENCE, CONSTRAINT, LESSON] }
+        title: { type: string, minLength: 1, maxLength: 160 }
+        content: { type: string, minLength: 1, maxLength: 2000 }
+        sourceType: { type: string, minLength: 1, maxLength: 32 }
+        sourceId: { type: [string, 'null'], format: uuid }
+        version: { type: integer, minimum: 0 }
+    McpConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [code, name, transport, authType, timeoutMs, maxResultBytes, version]
+      properties:
+        code: { type: string, pattern: '^[a-z][a-z0-9-]{2,59}$' }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        transport: { type: string, enum: [STDIO, SSE, STREAMABLE_HTTP] }
+        endpoint: { type: [string, 'null'], maxLength: 1000 }
+        stdioCommand: { type: [object, 'null'], additionalProperties: true }
+        authType: { type: string, enum: [NONE, BEARER, OAUTH21] }
+        credential: { type: [string, 'null'], writeOnly: true, maxLength: 8192 }
+        timeoutMs: { type: integer, minimum: 1000, maximum: 60000 }
+        maxResultBytes: { type: integer, minimum: 1024, maximum: 262144 }
+        toolAllowlist: { type: array, items: { type: string } }
+        resourceAllowlist: { type: array, items: { type: string } }
+        version: { type: integer, minimum: 0 }
+    McpBindingRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled, allowedTools, allowedResources, version]
+      properties:
+        enabled: { type: boolean }
+        allowedTools: { type: array, items: { type: string } }
+        allowedResources: { type: array, items: { type: string } }
+        configuration: { type: [object, 'null'], additionalProperties: true }
+        version: { type: integer, minimum: 0 }
+    McpConnection:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, transport, authType, credentialConfigured, timeoutMs, maxResultBytes, toolAllowlist, resourceAllowlist, discoveredTools, discoveredResources, schemaConfirmed, enabled, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+        transport: { type: string, enum: [STDIO, SSE, STREAMABLE_HTTP] }
+        endpoint: { type: [string, 'null'] }
+        authType: { type: string, enum: [NONE, BEARER, OAUTH21] }
+        credentialConfigured: { type: boolean }
+        timeoutMs: { type: integer }
+        maxResultBytes: { type: integer }
+        toolAllowlist: { type: array, items: { type: string } }
+        resourceAllowlist: { type: array, items: { type: string } }
+        discoveredTools: { type: array, items: { $ref: '#/components/schemas/McpDiscoveredTool' } }
+        discoveredResources: { type: array, items: { $ref: '#/components/schemas/McpDiscoveredResource' } }
+        schemaHash: { type: [string, 'null'] }
+        confirmedSchemaHash: { type: [string, 'null'] }
+        schemaConfirmed: { type: boolean }
+        enabled: { type: boolean }
+        lastHealthStatus: { type: [string, 'null'] }
+        lastHealthMessage: { type: [string, 'null'] }
+        lastHealthAt: { type: [string, 'null'], format: date-time }
+        version: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    McpDiscoveredTool:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        inputSchema: { type: [object, 'null'], additionalProperties: true }
+        outputSchema: { type: [object, 'null'], additionalProperties: true }
+        annotations: { type: [object, 'null'], additionalProperties: true }
+    McpDiscoveredResource:
+      type: object
+      additionalProperties: false
+      required: [uri]
+      properties:
+        uri: { type: string }
+        name: { type: [string, 'null'] }
+        description: { type: [string, 'null'] }
+        mimeType: { type: [string, 'null'] }
+    McpBinding:
+      type: object
+      additionalProperties: false
+      required: [projectId, connectionId, connectionCode, connectionName, connectionEnabled, enabled, allowedTools, allowedResources, version, createdAt, updatedAt]
+      properties:
+        projectId: { type: string, format: uuid }
+        connectionId: { type: string, format: uuid }
+        connectionCode: { type: string }
+        connectionName: { type: string }
+        connectionEnabled: { type: boolean }
+        enabled: { type: boolean }
+        allowedTools: { type: array, items: { type: string } }
+        allowedResources: { type: array, items: { type: string } }
+        configuration: { type: [object, 'null'], additionalProperties: true }
+        version: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    McpConnectionEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { $ref: '#/components/schemas/McpConnection' } }
+    McpConnectionListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { type: array, items: { $ref: '#/components/schemas/McpConnection' } } }
+    McpBindingEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { $ref: '#/components/schemas/McpBinding' } }
+    McpBindingListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { type: array, items: { $ref: '#/components/schemas/McpBinding' } } }

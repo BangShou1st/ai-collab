@@ -45,15 +45,15 @@ public class ProjectMemberRepository {
         return mapper.deleteNonOwner(projectId, userId) == 1;
     }
 
-    public boolean lockOwner(UUID projectId, UUID userId) {
-        return mapper.lockOwner(projectId, userId).isPresent();
+    public Optional<UUID> lockOwner(UUID projectId) {
+        return mapper.lockOwner(projectId);
     }
 
-    public void changeRoleDirect(UUID projectId, UUID userId, ProjectRole role) {
-        mapper.updateRoleDirect(projectId, userId, role);
+    public boolean demoteOwner(UUID projectId, UUID userId) {
+        return mapper.demoteOwner(projectId, userId) == 1;
     }
 
-    public void promoteToOwner(UUID projectId, UUID userId) {
-        mapper.promoteToOwner(projectId, userId);
+    public boolean promoteToOwner(UUID projectId, UUID userId) {
+        return mapper.promoteToOwner(projectId, userId) == 1;
     }
 }

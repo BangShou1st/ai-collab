@@ -22,15 +22,18 @@ public class AgentScheduleService {
     private final ProjectAccessGuard access;
     private final Clock clock;
     private final AgentRepository runs;
+    private final com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry skills;
     private final AgentScheduleRule rule = new AgentScheduleRule();
 
     public AgentScheduleService(
             AgentScheduleRepository schedules, ProjectAccessGuard access,
-            AgentRepository runs, Clock clock) {
+            AgentRepository runs, Clock clock,
+            com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry skills) {
         this.schedules = schedules;
         this.access = access;
         this.runs = runs;
         this.clock = clock;
+        this.skills = skills;
     }
 
     public List<AgentScheduleView> list(UUID projectId, UUID userId) {
@@ -44,6 +47,8 @@ public class AgentScheduleService {
         if (runs.findSession(projectId, request.sessionId()).isEmpty()) {
             throw new BusinessException(ErrorCode.AGENT_SESSION_NOT_FOUND);
         }
+        if (request.skillCode() != null && !skills.exists(request.skillCode()))
+            throw new BusinessException(ErrorCode.AGENT_SKILL_NOT_FOUND);
         ZoneId zone;
         try { zone = ZoneId.of(request.timeZone()); }
         catch (RuntimeException exception) {
@@ -58,7 +63,7 @@ public class AgentScheduleService {
                 OffsetDateTime.now(clock));
         return schedules.create(
                 projectId, userId, request.sessionId(), request.name().trim(),
-                request.goal().trim(), request.frequency(), zone.getId(),
+                request.goal().trim(), request.skillCode(), request.frequency(), zone.getId(),
                 request.localTime(), request.weeklyDay(), next);
     }
 

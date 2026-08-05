@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { normalizeApiError } from '../../api/api-result'
+import { showApiError } from '../../api/api-result'
 import { taskStatusLabel } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
 import { projectApi } from '../project/project-api'
@@ -14,13 +14,11 @@ const projectId = route.params.projectId as string
 const nodes = ref<GraphNode[]>([])
 const edges = ref<GraphEdge[]>([])
 const loading = ref(false)
-const errorMessage = ref('')
 
 const project = ref<Project | null>(null)
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     const [result, projectResult] = await Promise.all([
       visualizationApi.dependencyGraph(projectId),
@@ -30,7 +28,7 @@ async function load(): Promise<void> {
     edges.value = result.data.edges
     project.value = projectResult.data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '任务依赖图加载')
   } finally {
     loading.value = false
   }
@@ -87,7 +85,6 @@ onMounted(load)
       title="依赖图"
       :context="project?.name"
     />
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <section v-loading="loading" class="graph-container">
       <el-empty v-if="!loading && nodes.length === 0" description="暂无任务数据" :image-size="64" />
       <div v-else class="graph-stage">

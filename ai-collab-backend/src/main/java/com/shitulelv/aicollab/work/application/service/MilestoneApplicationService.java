@@ -44,6 +44,14 @@ public class MilestoneApplicationService {
         return milestones.list(projectId).stream().map(MilestoneView::from).toList();
     }
 
+    @Transactional(readOnly = true)
+    public MilestoneView get(UUID projectId, UUID milestoneId, UUID userId) {
+        access.requireMember(projectId, userId);
+        return milestones.find(projectId, milestoneId)
+                .map(MilestoneView::from)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MILESTONE_NOT_FOUND));
+    }
+
     @Transactional
     public MilestoneView create(UUID projectId, CreateMilestoneRequest request, UUID userId) {
         ProjectRole role = access.requireMember(projectId, userId);

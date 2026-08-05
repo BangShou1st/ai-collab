@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { normalizeApiError } from '../../api/api-result'
+import { normalizeApiError, showApiError } from '../../api/api-result'
 import {
   taskPriorityLabel,
   taskStatusLabel,
@@ -37,7 +37,6 @@ const comments = ref<TaskComment[]>([])
 const drawerVisible = ref(false)
 const createVisible = ref(false)
 const editVisible = ref(false)
-const errorMessage = ref('')
 const commentContent = ref('')
 const loading = ref(false)
 const openingTaskId = ref('')
@@ -242,7 +241,7 @@ async function executeBatchOperation(): Promise<void> {
     await refreshTaskData()
     ElMessage.success(`已批量更新 ${items.length} 个任务`)
   } catch (error) {
-    ElMessage.error(normalizeApiError(error).message)
+    showApiError(error, '任务批量更新')
   } finally {
     batchProcessing.value = false
   }
@@ -270,7 +269,6 @@ async function refreshTaskData(selectedTaskId?: string): Promise<void> {
 
 async function load(): Promise<void> {
   loading.value = true
-  errorMessage.value = ''
   try {
     const [projectResult, memberResult, milestoneResult, taskResult] = await Promise.all([
       projectApi.get(projectId),
@@ -283,7 +281,7 @@ async function load(): Promise<void> {
     milestones.value = milestoneResult.data
     tasks.value = taskResult.data
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '任务看板加载')
   } finally {
     loading.value = false
   }
@@ -305,21 +303,14 @@ async function updateStatus(task: Task, status: TaskStatus): Promise<void> {
     || !allowedTaskStatusTransitions(task.status).includes(status)
   ) return
   updatingTaskId.value = task.id
-  errorMessage.value = ''
   const selectedTaskId = drawerVisible.value ? selected.value?.id : undefined
   try {
     await workApi.updateStatus(projectId, task, status, canManage.value)
     await refreshTaskData(selectedTaskId)
     ElMessage.success('任务状态已更新')
   } catch (error) {
-    const safeError = normalizeApiError(error)
-    ElMessage.error(safeError.message)
-    try {
-      await refreshTaskData(selectedTaskId)
-    } catch {
-      // 保留原始业务错误，且不把失败前的本地状态作为服务端真相。
-    }
-    errorMessage.value = safeError.message
+    await Promise.allSettled([refreshTaskData(selectedTaskId)])
+    showApiError(error, '任务状态更新')
   } finally {
     updatingTaskId.value = ''
   }
@@ -328,7 +319,6 @@ async function updateStatus(task: Task, status: TaskStatus): Promise<void> {
 async function createTask(): Promise<void> {
   if (createValidationMessage.value || creatingTask.value) return
   creatingTask.value = true
-  errorMessage.value = ''
   try {
     await workApi.createTask(projectId, {
       title: form.title.trim(),
@@ -348,7 +338,7 @@ async function createTask(): Promise<void> {
     })
     await refreshTaskData(drawerVisible.value ? selected.value?.id : undefined)
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '任务创建')
   } finally {
     creatingTask.value = false
   }
@@ -371,7 +361,6 @@ function openTaskEditor(): void {
 async function saveTask(): Promise<void> {
   if (!selected.value || editValidationMessage.value || savingTask.value) return
   savingTask.value = true
-  errorMessage.value = ''
   try {
     selected.value = (await workApi.updateTask(projectId, selected.value.id, {
       title: editForm.title.trim(),
@@ -390,9 +379,9 @@ async function saveTask(): Promise<void> {
     ElMessage.success('任务已更新')
   } catch (error) {
     const safeError = normalizeApiError(error)
-    errorMessage.value = safeError.message
+    showApiError(error, '任务保存')
     if (safeError.code === 'VERSION_CONFLICT' && selected.value) {
-      await reloadSelectedTask(selected.value.id)
+      await Promise.allSettled([reloadSelectedTask(selected.value.id)])
     }
   } finally {
     savingTask.value = false
@@ -408,7 +397,6 @@ async function deleteTask(): Promise<void> {
       { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' },
     )
     deletingTask.value = true
-    errorMessage.value = ''
     await workApi.deleteTask(projectId, selected.value.id)
     drawerVisible.value = false
     selected.value = null
@@ -417,7 +405,7 @@ async function deleteTask(): Promise<void> {
     ElMessage.success('任务已删除')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '任务删除')
   } finally {
     deletingTask.value = false
   }
@@ -426,13 +414,12 @@ async function deleteTask(): Promise<void> {
 async function openTask(task: Task): Promise<void> {
   if (openingTaskId.value) return
   openingTaskId.value = task.id
-  errorMessage.value = ''
   try {
     selected.value = (await workApi.task(projectId, task.id)).data
     comments.value = (await workApi.comments(projectId, task.id)).data
     drawerVisible.value = true
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '任务详情加载')
   } finally {
     openingTaskId.value = ''
   }
@@ -442,20 +429,13 @@ async function saveDependencies(ids: string[]): Promise<void> {
   if (!selected.value || savingDependencies.value) return
   const taskId = selected.value.id
   savingDependencies.value = true
-  errorMessage.value = ''
   try {
     await workApi.replaceDependencies(projectId, taskId, ids)
     await refreshTaskData(taskId)
     ElMessage.success('前置任务已更新')
   } catch (error) {
-    const safeError = normalizeApiError(error)
-    try {
-      await refreshTaskData(taskId)
-    } catch {
-      // 保留原始业务错误；刷新失败时仍不把本地候选值当作服务端真相。
-    }
-    errorMessage.value = safeError.message
-    ElMessage.error(safeError.message)
+    await Promise.allSettled([refreshTaskData(taskId)])
+    showApiError(error, '任务依赖保存')
   } finally {
     savingDependencies.value = false
   }
@@ -464,13 +444,12 @@ async function saveDependencies(ids: string[]): Promise<void> {
 async function addComment(): Promise<void> {
   if (!selected.value || commentValidationMessage.value || addingComment.value) return
   addingComment.value = true
-  errorMessage.value = ''
   try {
     await workApi.createComment(projectId, selected.value.id, commentContent.value.trim())
     commentContent.value = ''
     await reloadComments()
   } catch (error) {
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '任务评论添加')
   } finally {
     addingComment.value = false
   }
@@ -504,13 +483,12 @@ async function editComment(comment: TaskComment): Promise<void> {
       },
     )
     commentOperationId.value = comment.id
-    errorMessage.value = ''
     await workApi.updateComment(projectId, selected.value.id, comment.id, value.trim())
     await reloadComments()
     ElMessage.success('评论已更新')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '任务评论编辑')
   } finally {
     commentOperationId.value = ''
   }
@@ -525,13 +503,12 @@ async function deleteComment(comment: TaskComment): Promise<void> {
       { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' },
     )
     commentOperationId.value = comment.id
-    errorMessage.value = ''
     await workApi.deleteComment(projectId, selected.value.id, comment.id)
     await reloadComments()
     ElMessage.success('评论已删除')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
-    errorMessage.value = normalizeApiError(error).message
+    showApiError(error, '任务评论删除')
   } finally {
     commentOperationId.value = ''
   }
@@ -541,11 +518,10 @@ watch(
   () => [filters.assigneeId, filters.milestoneId],
   async () => {
     loading.value = true
-    errorMessage.value = ''
     try {
       await loadTasks()
     } catch (error) {
-      errorMessage.value = normalizeApiError(error).message
+      showApiError(error, '任务列表筛选')
     } finally {
       loading.value = false
     }
@@ -567,7 +543,6 @@ onMounted(load)
         <el-button v-if="canManage" @click="selectedTaskIds.size > 0 ? openBatchDialog() : ElMessage.info('请先选择任务')">批量操作</el-button>
       </template>
     </PageHeader>
-    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon />
     <section class="filter-bar">
       <label class="filter-field">
         <span>负责人</span>

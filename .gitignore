@@ -19,6 +19,9 @@
 **/dist/
 **/.vite/
 **/coverage/
+**/test-results/
+**/playwright-report/
+**/.pytest_cache/
 
 # 编辑器
 .vscode/
@@ -40,6 +43,12 @@ desktop.ini
 *.tmp
 *.temp
 *.bak
+*.zip
 *.swp
 *~
-.env
+
+# 启动脚本（不提交到仓库）
+start-all.bat
+start-docker.bat
+start-backend.bat
+start-frontend.bat

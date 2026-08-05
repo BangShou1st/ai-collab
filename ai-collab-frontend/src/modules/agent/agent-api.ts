@@ -2,7 +2,7 @@ import { httpClient } from '../../api/http-client'
 import { apiResultFromResponse } from '../../api/api-result'
 import type { ApiResponse, ApiResult } from '../../api/types'
 import type {
-  AgentApproval, AgentMessage, AgentRun, AgentSchedule, AgentSession,
+  AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentSchedule, AgentSession, McpBinding,
 } from './types'
 
 const root = (projectId: string) => `/projects/${projectId}/agent`
@@ -35,14 +35,23 @@ export const agentApi = {
   async messages(projectId: string, sessionId: string): Promise<ApiResult<AgentMessage[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<AgentMessage[]>>(`${root(projectId)}/sessions/${sessionId}/messages`))
   },
-  async submit(projectId: string, sessionId: string, content: string): Promise<ApiResult<AgentRun>> {
-    return apiResultFromResponse(await httpClient.post<ApiResponse<AgentRun>>(`${root(projectId)}/sessions/${sessionId}/messages`, { content }))
+  async submit(
+    projectId: string,
+    sessionId: string,
+    body: { content: string; skillCode?: string | null; pageContext?: AgentPageContext | null },
+  ): Promise<ApiResult<AgentRun>> {
+    return apiResultFromResponse(await httpClient.post<ApiResponse<AgentRun>>(
+      `${root(projectId)}/sessions/${sessionId}/messages`, body,
+    ))
   },
   async run(projectId: string, runId: string): Promise<ApiResult<{ run: AgentRun }>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<{ run: AgentRun }>>(`${root(projectId)}/runs/${runId}`))
   },
   async retry(projectId: string, runId: string): Promise<ApiResult<AgentRun>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<AgentRun>>(`${root(projectId)}/runs/${runId}/retry`))
+  },
+  async cancel(projectId: string, runId: string): Promise<void> {
+    await httpClient.post(`${root(projectId)}/runs/${runId}/cancel`)
   },
   async approvals(projectId: string): Promise<ApiResult<AgentApproval[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<AgentApproval[]>>(`${root(projectId)}/approvals`))
@@ -70,5 +79,20 @@ export const agentApi = {
       `${root(projectId)}/schedules/${item.id}/${enabled ? 'enable' : 'disable'}`, null,
       { params: { version: item.version } },
     ))
+  },
+  async mcpBindings(projectId: string): Promise<ApiResult<McpBinding[]>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<McpBinding[]>>(`${root(projectId)}/mcp-bindings`))
+  },
+  async bindMcp(
+    projectId: string,
+    connectionId: string,
+    body: { enabled: boolean; allowedTools: string[]; allowedResources: string[]; configuration: Record<string, unknown>; version: number },
+  ): Promise<ApiResult<McpBinding>> {
+    return apiResultFromResponse(await httpClient.put<ApiResponse<McpBinding>>(
+      `${root(projectId)}/mcp-bindings/${connectionId}`, body,
+    ))
+  },
+  async unbindMcp(projectId: string, connectionId: string): Promise<void> {
+    await httpClient.delete(`${root(projectId)}/mcp-bindings/${connectionId}`)
   },
 }
