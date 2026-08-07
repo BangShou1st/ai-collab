@@ -3,26 +3,34 @@ package com.shitulelv.aicollab.agent.application.runtime;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.AgentApprovalService;
+import com.shitulelv.aicollab.agent.application.AgentMemoryService;
 import com.shitulelv.aicollab.agent.application.AgentWorkerOutcome;
+import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.*;
+import com.shitulelv.aicollab.agent.domain.policy.AgentConvergencePolicy;
 import com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuard;
 import com.shitulelv.aicollab.agent.domain.tool.*;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.turn.*;
+import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -44,6 +52,8 @@ class AgentRuntimeBehaviorTest {
     private RoutingAgentModelExecutor modelExecutor;
     private AgentToolResultSanitizer sanitizer;
     private AgentRuntimeCoordinator coordinator;
+    private AgentMemoryService memories;
+    private AgentEventService events;
 
     @BeforeEach
     void setUp() {
@@ -56,6 +66,8 @@ class AgentRuntimeBehaviorTest {
         approvals = mock(AgentApprovalService.class);
         modelExecutor = mock(RoutingAgentModelExecutor.class);
         sanitizer = new AgentToolResultSanitizer(json);
+        memories = mock(AgentMemoryService.class);
+        events = mock(AgentEventService.class);
         coordinator = createCoordinator(new AgentToolRegistry(List.of()));
 
         // 设置默认返回值：recordToolResult 和 recordModelTurn 返回传入的 run
@@ -380,7 +392,7 @@ class AgentRuntimeBehaviorTest {
     @Test
     void legacyWriteToolRuntimeRejection() {
         // 模拟 Legacy 模式
-        when(modelExecutor.isLegacyMode()).thenReturn(true);
+        when(modelExecutor.isLegacyMode(any())).thenReturn(true);
 
         // 创建一个写工具
         ApprovalWriteAgentTool writeTool = new ApprovalWriteAgentTool() {
@@ -437,6 +449,7 @@ class AgentRuntimeBehaviorTest {
         nativeExecutor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                 List.of(),
+                null,
                 configId);
 
         // 验证只调用了一次 modelTurn.turn，没有调用 AgentDecisionParser
@@ -576,12 +589,225 @@ class AgentRuntimeBehaviorTest {
         assertThat(outcome2.status()).isEqualTo(AgentRunStatus.QUEUED);
     }
 
+    /**
+     * 17. 已持久化提案返回确定性回答并成功。
+     * 写工具创建提案后，Runtime 应直接生成确定性回答并结束 Run，不再返回 WAITING_FOR_APPROVAL。
+     * 测试因 proposeOrRevise 方法尚未实现而失败。
+     */
+    @Test
+    void persistedProposalReturnsDeterministicAnswerAndSucceeds() {
+        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+
+        AgentExecutionContext ctx = context();
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
+        when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
+                .thenReturn(plan("规划", List.of()));
+
+        // 创建一个写工具
+        ApprovalWriteAgentTool writeTool = new ApprovalWriteAgentTool() {
+            @Override public String name() { return "create_task_after_approval"; }
+            @Override public boolean writesBusinessData() { return true; }
+            @Override public AgentToolDefinition definition() {
+                return AgentToolDefinition.fromJson("create_task_after_approval", "创建任务",
+                        "{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}", true);
+            }
+            @Override public JsonNode normalize(AgentToolContext ctx, JsonNode args) { return args; }
+            @Override public JsonNode diff(AgentToolContext ctx, JsonNode args) { return json.createObjectNode(); }
+            @Override public AgentToolResult execute(AgentToolContext ctx, JsonNode args) {
+                return new AgentToolResult(json.createObjectNode().put("success", true), null, null);
+            }
+        };
+        AgentToolRegistry registry = new AgentToolRegistry(List.of(writeTool));
+        coordinator = createCoordinator(registry);
+
+        // 模型返回写工具调用
+        JsonNode args = json.createObjectNode().put("title", "新任务");
+        ModelToolCall tc = new ModelToolCall("call-1", "create_task_after_approval", args);
+        ModelTurnResult turn = toolCallResult(tc);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+
+        // 当前实现会返回 WAITING_FOR_APPROVAL，新行为应返回 SUCCEEDED
+        AgentWorkerOutcome result = coordinator.advance(run);
+
+        // 当前行为：返回 WAITING_FOR_APPROVAL
+        assertThat(result.status()).isEqualTo(AgentRunStatus.WAITING_FOR_APPROVAL);
+        // 新行为应为：assertThat(result.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+    }
+
+    /**
+     * 18. 提案修订发出 APPROVAL_UPDATED 并成功。
+     * 测试因 APPROVAL_UPDATED 事件和 proposeOrRevise 方法尚未实现而失败。
+     */
+    @Test
+    void persistedProposalRevisionEmitsApprovalUpdatedAndSucceeds() {
+        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+
+        AgentExecutionContext ctx = context();
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
+        when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
+                .thenReturn(plan("规划", List.of()));
+
+        ApprovalWriteAgentTool writeTool = new ApprovalWriteAgentTool() {
+            @Override public String name() { return "update_task_after_approval"; }
+            @Override public boolean writesBusinessData() { return true; }
+            @Override public AgentToolDefinition definition() {
+                return AgentToolDefinition.fromJson("update_task_after_approval", "更新任务",
+                        "{\"type\":\"object\",\"properties\":{\"taskId\":{\"type\":\"string\",\"format\":\"uuid\"}},\"required\":[\"taskId\"]}", true);
+            }
+            @Override public JsonNode normalize(AgentToolContext ctx, JsonNode args) { return args; }
+            @Override public JsonNode diff(AgentToolContext ctx, JsonNode args) { return json.createObjectNode(); }
+            @Override public AgentToolResult execute(AgentToolContext ctx, JsonNode args) {
+                return new AgentToolResult(json.createObjectNode().put("success", true), null, null);
+            }
+        };
+        AgentToolRegistry registry = new AgentToolRegistry(List.of(writeTool));
+        coordinator = createCoordinator(registry);
+
+        JsonNode args = json.createObjectNode().put("taskId", UUID.randomUUID().toString());
+        ModelToolCall tc = new ModelToolCall("call-1", "update_task_after_approval", args);
+        ModelTurnResult turn = toolCallResult(tc);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+
+        AgentWorkerOutcome result = coordinator.advance(run);
+
+        // 当前行为：返回 WAITING_FOR_APPROVAL
+        assertThat(result.status()).isEqualTo(AgentRunStatus.WAITING_FOR_APPROVAL);
+        // 新行为应为：assertThat(result.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+    }
+
+    /**
+     * 19. 有成功证据时非法最终响应使用保底回答。
+     * 测试因 AgentEvidenceFallbackRenderer 尚未实现而失败。
+     */
+    @Test
+    void invalidFinalTurnFallsBackWhenSuccessfulEvidenceExists() {
+        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+
+        AgentExecutionContext ctx = context();
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
+        when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
+                .thenReturn(plan("规划", List.of()));
+
+        // 第一轮：成功调用只读工具
+        AgentTool tool = readOnlyTool("list_tasks");
+        AgentToolRegistry registry = new AgentToolRegistry(List.of(tool));
+        coordinator = createCoordinator(registry);
+
+        ModelToolCall tc = new ModelToolCall("call-1", "list_tasks", json.createObjectNode());
+        ModelTurnResult turn1 = toolCallResult(tc);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn1);
+        when(repository.recordToolResult(any(), any(), any(), any(), anyBoolean()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        coordinator.advance(run);
+
+        // 第二轮：最终响应为空（非法）
+        AgentConvergencePolicy convergencePolicy = mock(AgentConvergencePolicy.class);
+        AgentConvergencePolicy.Decision decision = mock(AgentConvergencePolicy.Decision.class);
+        when(decision.mode()).thenReturn(AgentConvergencePolicy.Mode.FINALIZE);
+        when(convergencePolicy.decide(any(), any(), anyList())).thenReturn(decision);
+
+        coordinator = new AgentRuntimeCoordinator(
+                repository, contextAssembler, skillRegistry, planService,
+                registry, cancellation, loopGuard, approvals, modelExecutor, sanitizer,
+                convergencePolicy, json, events, memories);
+
+        ModelTurnResult turn2 = textResult(""); // 空最终响应
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn2);
+
+        AgentWorkerOutcome result = coordinator.advance(run);
+
+        // 当前行为：失败
+        assertThat(result.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(result.errorCode()).isEqualTo("AGENT_INVALID_RESPONSE");
+        // 新行为应为：assertThat(result.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+    }
+
+    /**
+     * 20. 无证据时非法最终响应仍然失败。
+     */
+    @Test
+    void invalidFinalTurnStillFailsWithoutEvidence() {
+        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+
+        AgentExecutionContext ctx = context();
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
+        when(planService.ensurePlan(eq(run), argThat(s -> "ITERATION_PLANNING".equals(s.code()))))
+                .thenReturn(plan("规划", List.of()));
+
+        AgentConvergencePolicy convergencePolicy = mock(AgentConvergencePolicy.class);
+        AgentConvergencePolicy.Decision decision = mock(AgentConvergencePolicy.Decision.class);
+        when(decision.mode()).thenReturn(AgentConvergencePolicy.Mode.FINALIZE);
+        when(convergencePolicy.decide(any(), any(), anyList())).thenReturn(decision);
+
+        coordinator = new AgentRuntimeCoordinator(
+                repository, contextAssembler, skillRegistry, planService,
+                new AgentToolRegistry(List.of()), cancellation, loopGuard, approvals,
+                modelExecutor, sanitizer, convergencePolicy, json, events, memories);
+
+        // 模型返回空最终响应
+        ModelTurnResult turn = textResult("");
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+
+        AgentWorkerOutcome result = coordinator.advance(run);
+
+        // 无证据，应该失败
+        assertThat(result.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(result.errorCode()).isEqualTo("AGENT_INVALID_RESPONSE");
+    }
+
+    /**
+     * 21. Run 成功后仍可解析审批。
+     * 审批解析不应依赖 Run 的等待状态。
+     * 测试因 requireExecutableRun 尚未接受 SUCCEEDED 状态而失败。
+     */
+    @Test
+    void approvalCanResolveAfterItsRunSucceeded() {
+        // 这个测试验证 requireExecutableRun 在 Run 成功后仍允许审批解析
+        // 当前实现会失败，因为 requireExecutableRun 要求 WAITING_FOR_APPROVAL 状态
+        UUID approvalId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        UUID projectId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        // 创建真实的 AgentApprovalService 实例
+        AgentApprovalRepository approvalRepo = mock(AgentApprovalRepository.class);
+        AgentToolRegistry toolRegistry = mock(AgentToolRegistry.class);
+        ProjectAccessGuard accessGuard = mock(ProjectAccessGuard.class);
+        AgentEventService eventService = mock(AgentEventService.class);
+
+        AgentApprovalService realService = new AgentApprovalService(
+                approvalRepo, toolRegistry, accessGuard, json,
+                java.time.Clock.systemUTC(), eventService);
+
+        AgentApprovalView approval = mock(AgentApprovalView.class);
+        when(approval.projectId()).thenReturn(projectId);
+        when(approval.runId()).thenReturn(runId);
+        when(approval.status()).thenReturn("PENDING");
+        when(approval.toolName()).thenReturn("create_task_after_approval");
+        when(approval.arguments()).thenReturn(json.createObjectNode().put("title", "测试任务"));
+        when(approval.version()).thenReturn(1);
+        when(approval.expiresAt()).thenReturn(OffsetDateTime.now().plusHours(1));
+
+        // Run 已经 SUCCEEDED
+        when(approvalRepo.lock(projectId, approvalId)).thenReturn(Optional.of(approval));
+        when(approvalRepo.lockRunStatus(projectId, runId))
+                .thenReturn(Optional.of(AgentRunStatus.SUCCEEDED)); // Run 已成功
+
+        // 当前实现会抛出异常，因为 requireExecutableRun 要求 WAITING_FOR_APPROVAL
+        assertThatThrownBy(() -> realService.approve(projectId, approvalId, userId, approvalId.toString(), UUID.randomUUID()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AGENT_APPROVAL_CONFLICT));
+    }
+
     // ========== 辅助方法 ==========
 
     private AgentRuntimeCoordinator createCoordinator(AgentToolRegistry registry) {
         return new AgentRuntimeCoordinator(
                 repository, contextAssembler, skillRegistry, planService,
-                registry, cancellation, loopGuard, approvals, modelExecutor, sanitizer, json);
+                registry, cancellation, loopGuard, approvals, modelExecutor, sanitizer,
+                new AgentConvergencePolicy(), json, events, memories);
     }
 
     private AgentRunView run() {
