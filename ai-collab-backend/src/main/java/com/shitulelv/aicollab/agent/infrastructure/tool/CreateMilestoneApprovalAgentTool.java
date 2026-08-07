@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.agent.infrastructure.tool;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
 import com.shitulelv.aicollab.project.application.service.ProjectApplicationService;
@@ -26,6 +27,11 @@ public class CreateMilestoneApprovalAgentTool extends AbstractApprovalWriteAgent
     }
 
     @Override public String name() { return "create_milestone_after_approval"; }
+
+    @Override
+    public AgentProposalFamily proposalFamily() {
+        return AgentProposalFamily.MILESTONE_CREATE;
+    }
 
     @Override
     public JsonNode normalize(AgentToolContext context, JsonNode arguments) {

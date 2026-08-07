@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
+import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.work.api.dto.UpdateMilestoneRequest;
@@ -27,6 +28,11 @@ public class UpdateMilestoneApprovalAgentTool extends AbstractApprovalWriteAgent
     }
 
     @Override public String name() { return "update_milestone_after_approval"; }
+
+    @Override
+    public AgentProposalFamily proposalFamily() {
+        return AgentProposalFamily.MILESTONE_UPDATE;
+    }
 
     @Override
     public JsonNode normalize(AgentToolContext context, JsonNode arguments) {

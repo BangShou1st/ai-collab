@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
+import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.application.service.ProjectApplicationService;
@@ -28,6 +29,11 @@ public class CreateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool 
     }
 
     @Override public String name() { return "create_task_after_approval"; }
+
+    @Override
+    public AgentProposalFamily proposalFamily() {
+        return AgentProposalFamily.TASK_CREATE;
+    }
 
     @Override
     public AgentToolDefinition definition() {

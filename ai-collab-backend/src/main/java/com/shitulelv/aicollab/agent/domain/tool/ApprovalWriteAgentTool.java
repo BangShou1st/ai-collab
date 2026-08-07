@@ -1,11 +1,33 @@
 package com.shitulelv.aicollab.agent.domain.tool;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
+import com.shitulelv.aicollab.agent.domain.policy.AgentProposalArgumentMerger;
 
 public interface ApprovalWriteAgentTool extends AgentTool {
     JsonNode normalize(AgentToolContext context, JsonNode arguments);
 
     JsonNode diff(AgentToolContext context, JsonNode normalizedArguments);
+
+    /**
+     * 返回工具的提案族标识。
+     * 用于提案匹配、修订和历史记录。
+     */
+    default AgentProposalFamily proposalFamily() {
+        return AgentProposalFamily.TASK_CREATE; // 默认值，具体工具应覆盖
+    }
+
+    /**
+     * 合并当前参数和补丁参数。
+     * 默认委托给 AgentProposalArgumentMerger 进行字段存在性覆盖。
+     *
+     * @param current 当前完整参数
+     * @param patch 补丁参数
+     * @return 合并后的参数
+     */
+    default JsonNode mergeArguments(JsonNode current, JsonNode patch) {
+        return new AgentProposalArgumentMerger().merge(current, patch);
+    }
 
     /**
      * 执行前重新校验。

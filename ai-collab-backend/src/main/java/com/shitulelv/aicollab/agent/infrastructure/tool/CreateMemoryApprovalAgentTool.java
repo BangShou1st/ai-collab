@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.api.dto.AgentMemoryRequest;
 import com.shitulelv.aicollab.agent.application.AgentMemoryService;
+import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
@@ -21,6 +22,11 @@ public class CreateMemoryApprovalAgentTool extends AbstractApprovalWriteAgentToo
         super(json, validator); this.memories = memories; this.access = access;
     }
     @Override public String name() { return "create_memory_after_approval"; }
+
+    @Override
+    public AgentProposalFamily proposalFamily() {
+        return AgentProposalFamily.MEMORY_CREATE;
+    }
     @Override public AgentToolDefinition definition() {
         return AgentToolDefinition.fromJson(name(), "保存项目记忆提案，必须由项目管理员批准",
                 """
