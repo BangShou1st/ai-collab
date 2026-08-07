@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.AgentApprovalService;
 import com.shitulelv.aicollab.agent.application.AgentMemoryService;
+import com.shitulelv.aicollab.agent.application.AgentProposalOutcome;
 import com.shitulelv.aicollab.agent.application.AgentWorkerOutcome;
 import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
@@ -626,12 +627,22 @@ class AgentRuntimeBehaviorTest {
         ModelTurnResult turn = toolCallResult(tc);
         when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
 
-        // 当前实现会返回 WAITING_FOR_APPROVAL，新行为应返回 SUCCEEDED
+        // 设置 proposeOrRevise mock
+        AgentApprovalView mockApproval = mock(AgentApprovalView.class);
+        when(mockApproval.id()).thenReturn(UUID.randomUUID());
+        when(mockApproval.proposalFamily()).thenReturn(com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily.TASK_CREATE);
+        when(mockApproval.revision()).thenReturn(1);
+        when(mockApproval.arguments()).thenReturn(args);
+
+        AgentProposalOutcome mockOutcome = new AgentProposalOutcome(
+                mockApproval, AgentProposalOutcome.Operation.CREATED,
+                json.createObjectNode(), args, json.createObjectNode());
+        when(approvals.proposeOrRevise(eq(run), any(), any(), any(), any())).thenReturn(mockOutcome);
+
         AgentWorkerOutcome result = coordinator.advance(run);
 
-        // 当前行为：返回 WAITING_FOR_APPROVAL
-        assertThat(result.status()).isEqualTo(AgentRunStatus.WAITING_FOR_APPROVAL);
-        // 新行为应为：assertThat(result.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        // 新行为：返回 SUCCEEDED
+        assertThat(result.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
     }
 
     /**
@@ -668,11 +679,22 @@ class AgentRuntimeBehaviorTest {
         ModelTurnResult turn = toolCallResult(tc);
         when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
 
+        // 设置 proposeOrRevise mock
+        AgentApprovalView mockApproval = mock(AgentApprovalView.class);
+        when(mockApproval.id()).thenReturn(UUID.randomUUID());
+        when(mockApproval.proposalFamily()).thenReturn(com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily.TASK_UPDATE);
+        when(mockApproval.revision()).thenReturn(2);
+        when(mockApproval.arguments()).thenReturn(args);
+
+        AgentProposalOutcome mockOutcome = new AgentProposalOutcome(
+                mockApproval, AgentProposalOutcome.Operation.UPDATED,
+                json.createObjectNode(), args, json.createObjectNode());
+        when(approvals.proposeOrRevise(eq(run), any(), any(), any(), any())).thenReturn(mockOutcome);
+
         AgentWorkerOutcome result = coordinator.advance(run);
 
-        // 当前行为：返回 WAITING_FOR_APPROVAL
-        assertThat(result.status()).isEqualTo(AgentRunStatus.WAITING_FOR_APPROVAL);
-        // 新行为应为：assertThat(result.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        // 新行为：返回 SUCCEEDED
+        assertThat(result.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
     }
 
     /**

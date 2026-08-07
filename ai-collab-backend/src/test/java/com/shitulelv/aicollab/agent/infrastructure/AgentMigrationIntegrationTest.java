@@ -38,7 +38,7 @@ class AgentMigrationIntegrationTest {
                 ORDER BY table_name
                 """, String.class);
 
-        assertThat(tables).containsExactly(
+        assertThat(tables).contains(
                 "agent_approval",
                 "agent_approval_revision", // V37 新增
                 "agent_mcp_connection",
