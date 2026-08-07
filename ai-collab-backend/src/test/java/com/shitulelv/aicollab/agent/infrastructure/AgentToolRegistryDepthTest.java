@@ -119,7 +119,7 @@ class AgentToolRegistryDepthTest {
     private AgentExecutionContext context(String role, int depth) {
         return new AgentExecutionContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                role, false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), depth);
+                role, false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), depth, List.of());
     }
 
     private AgentSkill skillWithBothTools() {

@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.agent.domain.model;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -17,7 +18,9 @@ public record AgentExecutionContext(
         boolean scheduled,
         AgentPageContext page,
         AgentRuntimeLimits limits,
-        int depth) {
+        int depth,
+        // V37 新增：可信提案上下文
+        List<AgentProposalContext> proposals) {
 
     public AgentExecutionContext {
         if (runId == null) throw new IllegalArgumentException("runId 不能为 null");
@@ -26,6 +29,7 @@ public record AgentExecutionContext(
         if (requesterId == null) throw new IllegalArgumentException("requesterId 不能为 null");
         if (projectRole == null) throw new IllegalArgumentException("projectRole 不能为 null");
         if (limits == null) throw new IllegalArgumentException("limits 不能为 null");
+        if (proposals == null) throw new IllegalArgumentException("proposals 不能为 null");
     }
 
     public int maxSteps() { return limits.maxSteps(); }
