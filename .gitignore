@@ -1,20 +1,37 @@
-# 本地环境变量与敏感配置
+# ===========================
+# Secrets & Environment
+# ===========================
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.cert
 
-# IntelliJ IDEA
+# ===========================
+# IDE
+# ===========================
 .idea/
 **/.idea/
 *.iml
 *.iws
 *.ipr
+.vscode/
+**/.vscode/
+.http-client/
+**/.http-client/
 
+# ===========================
 # Java / Maven
+# ===========================
 **/target/
 *.class
+*.jar
+*.war
 
+# ===========================
 # Node.js / Vue
+# ===========================
 **/node_modules/
 **/dist/
 **/.vite/
@@ -22,34 +39,78 @@
 **/test-results/
 **/playwright-report/
 **/.pytest_cache/
+**/surefire-reports/
 
-# 编辑器
-.vscode/
-**/.vscode/
-.http-client/
-**/.http-client/
+# ===========================
+# Editor
+# ===========================
+*.swp
+*~
+*.bak
+*.tmp
+*.temp
 
-# 日志
-*.log
-logs/
-**/logs/
-
-# 操作系统文件
+# ===========================
+# OS
+# ===========================
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# 临时文件
-*.tmp
-*.temp
-*.bak
-*.zip
-*.swp
-*~
-/机器码.txt
+# ===========================
+# Logs
+# ===========================
+*.log
+logs/
+**/logs/
 
-# 启动脚本（不提交到仓库）
+# ===========================
+# Runtime Data (Docker volumes)
+# ===========================
+postgres-data/
+redis-data/
+minio-data/
+
+# ===========================
+# Build Artifacts
+# ===========================
+*.dump
+*.backup
+*.zip
+*.tar.gz
+
+# ===========================
+# Local AI Coding Instructions
+# ===========================
+CLAUDE.md
+AGENTS.md
+
+# ===========================
+# Local Learning Materials (NOT for GitHub)
+# ===========================
+docs/learning/
+docs/superpowers/
+docs/SESSION_HANDOFF.md
+docs/feature-matrix.md
+docs/database.md
+docs/README.md
+docs/development/
+docs/agent/
+
+# ===========================
+# Local Helper Scripts
+# ===========================
+scripts/
+
+# ===========================
+# Local Startup Helpers (Windows)
+# ===========================
 start-all.bat
 start-docker.bat
 start-backend.bat
 start-frontend.bat
+
+# ===========================
+# Machine-specific files
+# ===========================
+机器码.txt
