@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
+import com.shitulelv.aicollab.agent.application.view.AgentProposalRevisionView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
 import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
@@ -48,14 +49,18 @@ public class AgentApprovalRepository {
                 completion.promptTokens(), completion.completionTokens(),
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 (int) Math.min(Integer.MAX_VALUE, Math.max(0, completion.latencyMs())));
+        // V37: 包含 session_id, proposal_family, subject_key
+        String proposalFamily = extractProposalFamily(call.tool());
         jdbc.update("""
                 INSERT INTO agent_approval(
                   id,project_id,run_id,step_id,tool_name,arguments_json,arguments_hash,
-                  diff_json,resource_id,resource_version,requester_id,nonce_hash,expires_at)
-                VALUES (?,?,?,?,?,?::jsonb,?,?::jsonb,?,?,?,?,?)
+                  diff_json,resource_id,resource_version,requester_id,nonce_hash,expires_at,
+                  session_id,proposal_family,subject_key)
+                VALUES (?,?,?,?,?,?::jsonb,?,?::jsonb,?,?,?,?,?,?,?,?)
                 """, approvalId, run.projectId(), run.id(), stepId, call.tool(),
                 arguments.toString(), argumentsHash, diff.toString(), resourceId(arguments),
-                resourceVersion(arguments), run.requesterId(), nonceHash, expiresAt);
+                resourceVersion(arguments), run.requesterId(), nonceHash, expiresAt,
+                run.sessionId(), proposalFamily, UUID.randomUUID());
         int updated = jdbc.update("""
                 UPDATE agent_run SET status='WAITING_FOR_APPROVAL',
                   steps_used=steps_used+1,tool_calls_used=tool_calls_used+1,
@@ -69,6 +74,17 @@ public class AgentApprovalRepository {
                 completion.provider(), completion.model(), run.projectId(), run.id(), run.version());
         if (updated != 1) throw new IllegalStateException("Agent 运行已被并发修改");
         return find(run.projectId(), approvalId).orElseThrow();
+    }
+
+    private String extractProposalFamily(String toolName) {
+        return switch (toolName) {
+            case "create_task_after_approval" -> "TASK_CREATE";
+            case "update_task_after_approval" -> "TASK_UPDATE";
+            case "create_milestone_after_approval" -> "MILESTONE_CREATE";
+            case "update_milestone_after_approval" -> "MILESTONE_UPDATE";
+            case "create_memory_after_approval" -> "MEMORY_CREATE";
+            default -> "UNKNOWN";
+        };
     }
 
     public List<AgentApprovalView> list(UUID projectId, String status) {
@@ -119,6 +135,80 @@ public class AgentApprovalRepository {
         return count != null && count == 1;
     }
 
+    /**
+     * 查找同一会话、同一工具族、同一请求人的唯一兼容 PENDING 提案。
+     * 用于自动匹配：未携带 approvalId 时，只有唯一兼容候选才自动修订。
+     */
+    public Optional<AgentApprovalView> findCompatiblePending(
+            UUID projectId, UUID sessionId, UUID requesterId, AgentProposalFamily family) {
+        return jdbc.query("""
+                SELECT * FROM agent_approval
+                WHERE project_id=? AND session_id=? AND requester_id=?
+                  AND proposal_family=? AND status='PENDING'
+                LIMIT 1
+                """, mapper(), projectId, sessionId, requesterId, family.name()).stream().findFirst();
+    }
+
+    /**
+     * 查找会话内所有待审批和最近已解决的提案。
+     * 用于提供可信上下文给 Runtime。
+     */
+    public List<AgentApprovalView> listSessionProposals(UUID projectId, UUID sessionId) {
+        return jdbc.query("""
+                SELECT * FROM agent_approval
+                WHERE project_id=? AND session_id=?
+                ORDER BY created_at DESC, id DESC LIMIT 50
+                """, mapper(), projectId, sessionId);
+    }
+
+    /**
+     * 读取提案修订历史。
+     */
+    public List<AgentProposalRevisionView> listRevisions(UUID projectId, UUID approvalId) {
+        return jdbc.query("""
+                SELECT * FROM agent_approval_revision
+                WHERE project_id=? AND approval_id=?
+                ORDER BY revision ASC
+                """, revisionMapper(), projectId, approvalId);
+    }
+
+    /**
+     * 记录提案修订历史。
+     */
+    public void recordRevision(
+            UUID projectId, UUID approvalId, UUID sourceRunId,
+            int revision, JsonNode beforeArguments, JsonNode afterArguments, JsonNode diff) {
+        jdbc.update("""
+                INSERT INTO agent_approval_revision(
+                  project_id, approval_id, source_run_id, revision,
+                  before_arguments_json, after_arguments_json, diff_json)
+                VALUES (?,?,?,?,?::jsonb,?::jsonb,?::jsonb)
+                """, projectId, approvalId, sourceRunId, revision,
+                beforeArguments.toString(), afterArguments.toString(), diff.toString());
+    }
+
+    /**
+     * 修订提案：更新参数、版本、修订号和修订历史。
+     * 使用 CAS 确保并发安全。
+     */
+    public AgentApprovalView revise(
+            AgentApprovalView approval, JsonNode newArguments, JsonNode newDiff,
+            String argumentsHash, UUID sourceRunId) {
+        int newRevision = approval.revision() + 1;
+        int updated = jdbc.update("""
+                UPDATE agent_approval SET
+                  arguments_json=?::jsonb, arguments_hash=?, diff_json=?::jsonb,
+                  revision=?, updated_at=now(), version=version+1
+                WHERE project_id=? AND id=? AND version=? AND status='PENDING'
+                """, newArguments.toString(), argumentsHash, newDiff.toString(),
+                newRevision, approval.projectId(), approval.id(), approval.version());
+        if (updated != 1) throw new IllegalStateException("提案已被并发修改");
+        // 记录修订历史
+        recordRevision(approval.projectId(), approval.id(), sourceRunId,
+                newRevision, approval.arguments(), newArguments, newDiff);
+        return find(approval.projectId(), approval.id()).orElseThrow();
+    }
+
     public int expirePending(OffsetDateTime now) {
         return jdbc.update("""
                 WITH expired AS (
@@ -131,6 +221,10 @@ public class AgentApprovalRepository {
                 """, now, now);
     }
 
+    /**
+     * 批准审批。
+     * 审批解耦：不再 requeue Run，Run 已成功后仍可批准。
+     */
     public AgentApprovalView approve(
             AgentApprovalView approval, UUID approverId, UUID idempotencyKey, JsonNode result) {
         int updated = jdbc.update("""
@@ -141,14 +235,14 @@ public class AgentApprovalRepository {
                 approval.id(), approval.version());
         if (updated != 1) throw new IllegalStateException("审批已被处理");
         appendResolution(approval, "APPROVED", result);
-        int runUpdated = jdbc.update("""
-                UPDATE agent_run SET status='QUEUED',updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND status='WAITING_FOR_APPROVAL'
-                """, approval.projectId(), approval.runId());
-        if (runUpdated != 1) throw new IllegalStateException("审批所属 Agent 运行状态已变化");
+        // 审批解耦：不再 requeue Run
         return find(approval.projectId(), approval.id()).orElseThrow();
     }
 
+    /**
+     * 拒绝审批。
+     * 审批解耦：不再 requeue Run。
+     */
     public AgentApprovalView reject(
             AgentApprovalView approval, UUID approverId, UUID idempotencyKey, String reason) {
         int updated = jdbc.update("""
@@ -160,11 +254,7 @@ public class AgentApprovalRepository {
         if (updated != 1) throw new IllegalStateException("审批已被处理");
         appendResolution(approval, "REJECTED", json.valueToTree(
                 java.util.Map.of("reason", reason == null ? "" : reason)));
-        int runUpdated = jdbc.update("""
-                UPDATE agent_run SET status='QUEUED',updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND status='WAITING_FOR_APPROVAL'
-                """, approval.projectId(), approval.runId());
-        if (runUpdated != 1) throw new IllegalStateException("审批所属 Agent 运行状态已变化");
+        // 审批解耦：不再 requeue Run
         return find(approval.projectId(), approval.id()).orElseThrow();
     }
 
@@ -198,6 +288,19 @@ public class AgentApprovalRepository {
         if (value == null) return null;
         try { return AgentProposalFamily.valueOf(value); }
         catch (IllegalArgumentException ignored) { return null; }
+    }
+
+    private RowMapper<AgentProposalRevisionView> revisionMapper() {
+        return (rs, row) -> new AgentProposalRevisionView(
+                rs.getObject("id", UUID.class),
+                rs.getObject("project_id", UUID.class),
+                rs.getObject("approval_id", UUID.class),
+                rs.getObject("source_run_id", UUID.class),
+                rs.getInt("revision"),
+                parse(rs.getString("before_arguments_json")),
+                parse(rs.getString("after_arguments_json")),
+                parse(rs.getString("diff_json")),
+                rs.getObject("created_at", OffsetDateTime.class));
     }
 
     private void appendResolution(
