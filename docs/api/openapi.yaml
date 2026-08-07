@@ -21,6 +21,15 @@ tags:
   - name: TaskPlans
   - name: Dashboard
   - name: Audit
+  - name: Agent Sessions
+  - name: Agent Runs
+  - name: Agent Approvals
+  - name: Agent Skills
+  - name: Agent Memories
+  - name: Agent MCP
+  - name: Notifications
+  - name: Model Config
+  - name: Embedding Config
 paths:
   /auth/login:
     post:

@@ -1,161 +1,304 @@
 # AI Collab
 
-AI Collab 是一个面向高校竞赛团队和软件课程项目的 AI 项目协作平台，把项目管理、文档知识库、AI 任务规划和受控 Agent 集成在同一个工作空间中。系统强调项目隔离、服务端权限校验、人工确认和可追溯执行，适合作为完整的全栈项目或 Agent/MCP 工程实践参考。
+AI Collab 是一个面向高校竞赛团队和软件课程项目的 AI 项目协作平台，集成项目管理、文档知识库、AI 任务规划和受控 Agent，为团队提供智能化协作体验。
 
-## 主要能力
+## 项目简介
 
-| 模块 | 功能 |
+AI Collab 解决的核心问题：
+
+- **项目管理碎片化**：传统工具分散在多个平台，缺乏统一视图
+- **知识沉淀困难**：项目文档散落各处，难以快速检索和复用
+- **任务规划低效**：人工拆解任务耗时且容易遗漏依赖关系
+- **AI 工具分散**：各类 AI 能力缺乏统一管理和安全控制
+
+平台通过整合项目协作、文档管理、RAG 问答、AI 规划和 Agent 能力，让团队在同一个工作空间中高效协作。
+
+## 核心功能
+
+### 项目协作
+
+| 功能 | 说明 |
 |---|---|
-| **项目管理** | 项目生命周期、三级角色权限（OWNER/ADMIN/MEMBER）、邀请码、里程碑、任务看板、依赖管理、评论和审计日志 |
-| **协作视图** | 甘特图、依赖图、日历视图、成员负载、项目周报、风险分析和规划对比 |
-| **文档知识库** | PDF/DOCX/Markdown/TXT 上传，Tika 解析，pgvector 向量检索，引用定位，流式问答和反馈机制 |
-| **AI 任务规划** | 两阶段结构化生成、Schema/业务校验、版本记录、人工编辑、幂等确认后创建正式任务 |
-| **Agent 2.0** | 原生 Tool Calling、6 个固定 Skill、持久化执行步骤与事件、SSE 断线续传、取消/重试、人工审批写入、项目记忆 |
-| **受控 MCP** | 项目级连接管理、只读工具白名单、Schema 确认、HTTPS/SSRF 防护和不可信结果清洗 |
-| **模型管理** | 项目级 AI 模型配置（OpenAI 兼容/Claude/Gemini）、加密 API Key、多用途路由（知识/规划/Agent） |
+| 项目生命周期 | 创建、编辑、归档、删除，四态状态管理 |
+| 三级权限 | OWNER / ADMIN / MEMBER，后端强制校验 |
+| 任务看板 | 拖拽交互、批量操作、依赖管理、环检测 |
+| 可视化视图 | 甘特图、依赖图、日历、成员负载 |
+| 里程碑 | 目标管理、进度追踪、截止提醒 |
+| 操作日志 | 审计追踪、中文摘要、脱敏详情 |
+
+### 文档知识库
+
+| 功能 | 说明 |
+|---|---|
+| 文档管理 | PDF / DOCX / Markdown / TXT，20MB 限制 |
+| 智能解析 | Apache Tika 提取，自动清洗分块 |
+| 向量检索 | pgvector 存储，余弦相似度搜索 |
+| RAG 问答 | 流式输出、引用定位、反馈机制 |
+
+### AI 任务规划
+
+| 功能 | 说明 |
+|---|---|
+| 两阶段生成 | 骨架生成 → 细节填充 |
+| Schema 校验 | 结构化输出验证 |
+| 人工编辑 | 预览、修改、补充 |
+| 幂等确认 | 事务创建正式任务 |
+
+### 项目协作 Agent
+
+| 功能 | 说明 |
+|---|---|
+| 原生 Tool Calling | OpenAI / Claude / Gemini 统一协议 |
+| 6 个固定 Skill | 项目健康、研究、周报、交付就绪、迭代规划、会议转任务 |
+| 人工审批 | 写操作需确认，安全执行 |
+| 项目记忆 | 决策、偏好、约束、经验 |
+| SSE 事件流 | 实时进度、断线续传 |
+| MCP 集成 | 只读工具白名单，HTTPS 安全 |
 
 ## 技术栈
 
-| 层级 | 技术 | 说明 |
+### Backend
+
+| 技术 | 版本 | 用途 |
 |---|---|---|
-| **后端** | Java 21、Spring Boot、Spring Security | 模块化单体架构，JWT 认证 |
-| **持久层** | MyBatis-Plus、Flyway | V1–V38 迁移，~41 张业务表 |
-| **前端** | Vue 3、TypeScript、Vite、Pinia | Composition API，Element Plus UI |
-| **数据存储** | PostgreSQL 17 + pgvector | 向量检索、项目隔离查询 |
-| **缓存/状态** | Redis 7 | 限流、辅助状态（可降级） |
-| **对象存储** | MinIO | 文档原文件存储 |
-| **AI 集成** | OpenAI 兼容、Claude、Gemini | 原生 Tool Calling、多模型路由 |
-| **协议** | MCP (Model Context Protocol) | 受控外部工具集成 |
-| **部署** | Docker Compose | 一键启动基础设施 |
+| Java | 21 | 运行时 |
+| Spring Boot | 4.1.0 | 框架 |
+| Spring Security + OAuth2 | - | JWT 认证 |
+| MyBatis-Plus | 3.5.17 | 持久层 |
+| Flyway | - | 数据库迁移 |
+| Apache Tika | 3.3.0 | 文档解析 |
 
-## 目录结构
+### Frontend
 
-```text
-ai-collab/
-├─ ai-collab-backend/           # Spring Boot 后端
-│  ├─ src/main/java/            #   业务模块（auth/user/project/work/document/knowledge/planning/agent）
-│  ├─ src/main/resources/db/    #   Flyway 迁移（V1–V38）
-│  └─ src/test/                 #   集成测试、单元测试
-├─ ai-collab-frontend/          # Vue 3 前端
-│  └─ src/modules/              #   功能模块（agent/knowledge/planning/work）
-├─ ai-collab-deploy/            # Docker Compose 配置
-├─ docs/                        # 架构、数据库、OpenAPI、功能文档
-│  ├─ api/openapi.yaml          #   HTTP 契约
-│  ├─ agent/                    #   Agent 2.0 文档与历史规格
-│  └─ development/              #   开发规范与功能指南
-├─ scripts/                     # 校验脚本
-├─ AGENTS.md                    # 自动化代理规则
-└─ .env.example                 # 配置模板（不含真实凭据）
+| 技术 | 版本 | 用途 |
+|---|---|---|
+| Vue | 3.5.18 | 框架 |
+| TypeScript | 5.8.3 | 类型安全 |
+| Vite | 7.1.3 | 构建工具 |
+| Pinia | 3.0.3 | 状态管理 |
+| Element Plus | 2.10.7 | UI 组件库 |
+
+### Infrastructure
+
+| 技术 | 版本 | 用途 |
+|---|---|---|
+| PostgreSQL | 17 + pgvector | 业务数据 + 向量存储 |
+| Redis | 7 | 限流、缓存 |
+| MinIO | latest | 对象存储 |
+
+### AI Integration
+
+| Provider | 支持 |
+|---|---|
+| OpenAI 兼容 | Tool Calling |
+| Anthropic Claude | Tool Calling |
+| Google Gemini | Tool Calling |
+
+## 系统架构
+
 ```
+┌─────────────────────────────────────────────────────────────┐
+│                      Vue 3 Frontend                         │
+│  ┌──────────┬──────────┬──────────┬──────────┬────────────┐ │
+│  │ Project  │   Work   │ Document │Knowledge │   Agent    │ │
+│  │ Module   │  Module  │  Module  │  Module  │   Module   │ │
+│  └──────────┴──────────┴──────────┴──────────┴────────────┘ │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ REST API + SSE
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Spring Boot Backend                       │
+│  ┌──────────┬──────────┬──────────┬──────────┬────────────┐ │
+│  │   Auth   │  Project │   Work   │Document  │   Agent    │ │
+│  │ Module   │  Module  │  Module  │ Module   │   Module   │ │
+│  └──────────┴──────────┴──────────┴──────────┴────────────┘ │
+│  ┌──────────┬──────────┬──────────┬──────────┬────────────┐ │
+│  │Knowledge │Planning  │Notification│ Common  │Infra (AI) │ │
+│  │ Module   │  Module  │  Module   │ Module  │   Module   │ │
+│  └──────────┴──────────┴──────────┴──────────┴────────────┘ │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+          ┌───────────────┼───────────────┐
+          ▼               ▼               ▼
+   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+   │ PostgreSQL  │ │    Redis    │ │    MinIO    │
+   │ + pgvector  │ │             │ │             │
+   └─────────────┘ └─────────────┘ └─────────────┘
+          │
+          ▼
+   ┌─────────────────────────────────────┐
+   │        AI Model Gateway             │
+   │  OpenAI / Claude / Gemini / MCP    │
+   └─────────────────────────────────────┘
+```
+
+详细架构说明见 [docs/architecture.md](docs/architecture.md)。
+
+## 环境要求
+
+- JDK 21
+- Node.js 20+
+- pnpm 11+
+- Docker Desktop (含 Docker Compose)
+
+Docker Compose 提供 PostgreSQL、Redis、MinIO，无需手动安装。
 
 ## 快速开始
 
-### 环境要求
+### 1. 克隆项目
 
-- JDK 21
-- Docker Desktop（含 Docker Compose）
-- Node.js 20+、pnpm 11+
+```bash
+git clone https://github.com/BangShou1st/ai-collab.git
+cd ai-collab
+```
 
-### 启动步骤
+### 2. 配置环境变量
 
-1. **配置环境变量**
+```bash
+cp .env.example .env
+# 编辑 .env，替换所有 change-me 占位符
+```
 
-   ```powershell
-   Copy-Item .env.example .env
-   # 编辑 .env，替换所有 change-me/replace-with 占位符
-   ```
+### 3. 启动基础设施
 
-2. **启动所有服务**（Windows）
+```bash
+docker compose --env-file .env -f ai-collab-deploy/docker-compose.yml up -d
+```
 
-   ```powershell
-   .\start-all.bat          # 一键启动
-   # 或分别启动
-   .\start-docker.bat       # 基础设施
-   .\start-backend.bat      # 后端
-   .\start-frontend.bat     # 前端
-   ```
+### 4. 启动后端
 
-   手动启动（跨平台）：
+```bash
+cd ai-collab-backend
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
 
-   ```bash
-   docker compose --env-file .env -f ai-collab-deploy/docker-compose.yml up -d
-   
-   cd ai-collab-backend && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
-   
-   cd ../ai-collab-frontend && pnpm dev
-   ```
-
-3. **访问服务**
-
-   | 服务 | 地址 |
-   |---|---|
-   | 前端 | http://localhost:5173 |
-   | 后端 API | http://localhost:8080 |
-   | 健康检查 | http://localhost:8080/actuator/health |
-   | MinIO 控制台 | http://localhost:9001 |
-
-### 功能配置
-
-- 默认关闭外部模型能力；配置 `CHAT_*` 环境变量后可启用知识问答和规划
-- Agent 需设置 `AGENT_ENABLED=true`
-- MCP 远程主机必须加入 `AGENT_MCP_ALLOWED_HOSTS` 白名单
-- 详细步骤见 [MCP 部署指南](docs/agent/MCP_DEPLOYMENT_AND_BROWSER_TESTING.md)
-
-## 测试与构建
-
-### 后端
+Windows:
 
 ```powershell
 cd ai-collab-backend
-.\mvnw.cmd test                        # 单元测试 + 集成测试
-.\mvnw.cmd clean package -DskipTests   # 打包
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
 ```
 
-### 前端
+### 5. 启动前端
 
-```powershell
+```bash
 cd ai-collab-frontend
-pnpm install --frozen-lockfile
-pnpm test          # 单元测试
-pnpm typecheck     # 类型检查
-pnpm build         # 生产构建
+pnpm install
+pnpm dev
 ```
 
-### 契约验证
+### 6. 访问应用
 
-```powershell
-.\scripts\validate-openapi.ps1         # OpenAPI 与代码一致性检查
+| 服务 | 地址 |
+|---|---|
+| 前端 | http://localhost:5173 |
+| 后端 API | http://localhost:8080 |
+| 健康检查 | http://localhost:8080/actuator/health |
+| MinIO 控制台 | http://localhost:9001 |
+
+默认登录账号见 `.env` 中的 `DEMO_OWNER_USERNAME` 和 `DEMO_OWNER_PASSWORD`。
+
+## AI 模型配置
+
+### 环境变量
+
+```bash
+# 启用 AI 能力
+CHAT_ENABLED=true
+CHAT_PROVIDER=openai-compatible
+CHAT_BASE_URL=https://api.openai.com
+CHAT_API_KEY=your-api-key
+CHAT_MODEL=gpt-4
+
+# Embedding 配置
+EMBEDDING_ENABLED=true
+EMBEDDING_BASE_URL=https://api.openai.com
+EMBEDDING_API_KEY=your-api-key
+EMBEDDING_MODEL=text-embedding-3-small
+
+# Agent 配置
+AGENT_ENABLED=true
 ```
 
-### 速率限制配置
+### 项目级配置
 
-| 环境变量 | 说明 | 默认值 |
-|---|---|---|
-| `KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR` | 知识问答每用户每小时次数 | 60 |
-| `PLANNING_GENERATION_LIMIT_PER_USER_HOUR` | AI 规划生成限额 | 60 |
+登录后可在项目设置中配置：
 
-> Agent 不使用固定次数限制，而是通过步骤/模型轮次/工具调用/Token 预算收敛。
+- Chat Model（知识问答、规划、Agent）
+- Embedding Model（向量检索）
+- MCP 连接（外部只读工具）
+
+### 支持的 Provider
+
+| Provider | Chat | Embedding | Tool Calling |
+|---|---|---|---|
+| OpenAI 兼容 | ✓ | ✓ | ✓ |
+| Anthropic Claude | ✓ | - | ✓ |
+| Google Gemini | ✓ | - | ✓ |
+
+## API 文档
+
+OpenAPI 规范：[docs/api/openapi.yaml](docs/api/openapi.yaml)
 
 ## 项目结构
 
-| 文档 | 说明 |
-|---|---|
-| [文档导航](docs/README.md) | 所有文档的入口 |
-| [功能矩阵](docs/feature-matrix.md) | 已实现功能与明确缺口 |
-| [系统架构](docs/architecture.md) | 模块边界、数据流、安全原则 |
-| [数据库设计](docs/database.md) | V1–V38 迁移，~41 张表结构 |
-| [OpenAPI 契约](docs/api/openapi.yaml) | HTTP 接口定义 |
-| [Agent 2.0](docs/agent/README.md) | Agent 系统文档 |
-| [开发规范](docs/development/) | 后端/前端规范、功能指南 |
-| [MCP 部署](docs/agent/MCP_DEPLOYMENT_AND_BROWSER_TESTING.md) | MCP 配置与验收 |
+```
+ai-collab/
+├── ai-collab-backend/           # Spring Boot 后端
+│   ├── src/main/java/           # 业务模块
+│   │   └── com.shitulelv.aicollab/
+│   │       ├── auth/            # 认证
+│   │       ├── user/            # 用户
+│   │       ├── project/         # 项目
+│   │       ├── work/            # 任务、里程碑
+│   │       ├── document/        # 文档
+│   │       ├── knowledge/       # 知识问答
+│   │       ├── planning/        # AI 规划
+│   │       ├── agent/           # 协作 Agent
+│   │       ├── notification/    # 通知
+│   │       ├── common/          # 公共组件
+│   │       └── infrastructure/  # AI 网关、存储
+│   ├── src/main/resources/db/   # Flyway 迁移 (V1-V38)
+│   └── src/test/                # 测试
+├── ai-collab-frontend/          # Vue 3 前端
+│   └── src/modules/             # 功能模块
+├── ai-collab-deploy/            # Docker Compose
+├── docs/
+│   ├── architecture.md          # 架构文档
+│   └── api/openapi.yaml         # API 契约
+├── .env.example                 # 环境变量模板
+└── README.md                    # 本文件
+```
 
-## 安全与隐私
+## 开发
 
-- 真实 `.env`、模型密钥、MCP 凭据、构建产物和测试报告不应提交到仓库
-- API Key 和 MCP 凭据仅以加密密文存储
-- 所有项目资源后端校验项目成员身份
-- 敏感信息（密码、Token、Prompt、模型输出）不进入日志或审计
+### 后端测试
 
-## 许可证
+```bash
+cd ai-collab-backend
+./mvnw test
+```
+
+### 前端测试
+
+```bash
+cd ai-collab-frontend
+pnpm test
+pnpm typecheck
+```
+
+### 构建
+
+```bash
+# 后端
+cd ai-collab-backend
+./mvnw clean package -DskipTests
+
+# 前端
+cd ai-collab-frontend
+pnpm build
+```
+
+## License
 
 本项目为私有仓库，仅限授权人员访问。
