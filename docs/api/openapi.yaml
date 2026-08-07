@@ -1786,6 +1786,22 @@ paths:
       tags: [Agent]
       summary: Retry an Agent run
       responses: { '200': { description: Retry queued } }
+  /projects/{projectId}/agent/runs/{runId}/continue:
+    post:
+      tags: [Agent]
+      summary: Continue an Agent run waiting for user input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  maxLength: 4000
+      responses: { '200': { description: Run continued } }
   /projects/{projectId}/agent/approvals:
     get:
       tags: [Agent]
@@ -3181,9 +3197,10 @@ components:
                 steps: { type: array, items: { type: object, additionalProperties: true } }
                 lastEventSequence: { type: integer, format: int64, minimum: 0 }
                 pendingApprovalId: { type: [string, 'null'], format: uuid }
+                pendingApproval: { oneOf: [{ $ref: '#/components/schemas/AgentApproval' }, { type: 'null' }] }
     AgentEventType:
       type: string
-      enum: [RUN_CREATED, CONTEXT_CAPTURED, SKILL_SELECTED, PLAN_CREATED, PLAN_UPDATED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_PROPOSED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, TOOL_CALL_FAILED, APPROVAL_REQUESTED, APPROVAL_APPROVED, APPROVAL_REJECTED, APPROVAL_EXPIRED, RESULT_VERIFIED, RUN_RETRY_SCHEDULED, RUN_CANCELED, RUN_SUCCEEDED, RUN_FAILED, RUN_BUDGET_EXCEEDED]
+      enum: [RUN_CREATED, CONTEXT_CAPTURED, SKILL_SELECTED, PLAN_CREATED, PLAN_UPDATED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_PROPOSED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, TOOL_CALL_FAILED, APPROVAL_REQUESTED, APPROVAL_APPROVED, APPROVAL_REJECTED, APPROVAL_EXPIRED, APPROVAL_UPDATED, RESULT_VERIFIED, RUN_RETRY_SCHEDULED, RUN_CANCELED, RUN_SUCCEEDED, RUN_FAILED, RUN_BUDGET_EXCEEDED]
     AgentRunEvent:
       type: object
       required: [id, projectId, runId, sequence, type, payload, createdAt]
@@ -3194,6 +3211,50 @@ components:
         sequence: { type: integer, format: int64, minimum: 1 }
         type: { $ref: '#/components/schemas/AgentEventType' }
         payload: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+    AgentProposalFamily:
+      type: string
+      enum: [TASK_CREATE, TASK_UPDATE, MILESTONE_CREATE, MILESTONE_UPDATE, MEMORY_CREATE]
+    AgentApproval:
+      type: object
+      required: [id, projectId, runId, stepId, toolName, arguments, diff, status, requesterId, version, createdAt, sessionId, proposalFamily, subjectKey, revision, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        runId: { type: string, format: uuid }
+        stepId: { type: string, format: uuid }
+        toolName: { type: string }
+        arguments: { type: object, additionalProperties: true }
+        diff: { type: object, additionalProperties: true }
+        resourceId: { type: [string, 'null'], format: uuid }
+        resourceVersion: { type: [integer, 'null'] }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, EXPIRED] }
+        requesterId: { type: string, format: uuid }
+        approverId: { type: [string, 'null'], format: uuid }
+        result: { type: [object, 'null'], additionalProperties: true }
+        rejectionReason: { type: [string, 'null'] }
+        expiresAt: { type: [string, 'null'], format: date-time }
+        resolvedAt: { type: [string, 'null'], format: date-time }
+        version: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        sessionId: { type: string, format: uuid }
+        proposalFamily: { $ref: '#/components/schemas/AgentProposalFamily' }
+        subjectKey: { type: string, format: uuid }
+        revision: { type: integer, minimum: 1 }
+        updatedAt: { type: string, format: date-time }
+        nonce: { type: [string, 'null'] }
+    AgentProposalRevision:
+      type: object
+      required: [id, projectId, approvalId, sourceRunId, revision, beforeArguments, afterArguments, diff, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        approvalId: { type: string, format: uuid }
+        sourceRunId: { type: string, format: uuid }
+        revision: { type: integer, minimum: 1 }
+        beforeArguments: { type: object, additionalProperties: true }
+        afterArguments: { type: object, additionalProperties: true }
+        diff: { type: object, additionalProperties: true }
         createdAt: { type: string, format: date-time }
     AgentMemoryRequest:
       type: object

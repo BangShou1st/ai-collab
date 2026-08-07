@@ -28,6 +28,12 @@ function approval(overrides: Partial<AgentApproval> = {}): AgentApproval {
     createdAt: '2026-07-30T00:00:00Z',
     result: null,
     rejectionReason: null,
+    // V37 新增字段
+    sessionId: 'session-1',
+    proposalFamily: 'TASK_CREATE',
+    subjectKey: 'subject-1',
+    revision: 1,
+    updatedAt: '2026-07-30T00:00:00Z',
     ...overrides,
   }
 }
