@@ -2,8 +2,10 @@ package com.shitulelv.aicollab.agent.application.runtime;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.*;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
@@ -18,8 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.shitulelv.aicollab.planning.application.TaskPlanQueryService;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 组装可信运行上下文。
@@ -43,6 +47,7 @@ public class AgentContextAssembler {
 
     private final ProjectAccessGuard access;
     private final AgentRepository repository;
+    private final AgentApprovalRepository approvals;
     private final TaskApplicationService tasks;
     private final DocumentApplicationService documents;
     private final MilestoneApplicationService milestones;
@@ -53,6 +58,7 @@ public class AgentContextAssembler {
     public AgentContextAssembler(
             ProjectAccessGuard access,
             AgentRepository repository,
+            AgentApprovalRepository approvals,
             TaskApplicationService tasks,
             DocumentApplicationService documents,
             MilestoneApplicationService milestones,
@@ -60,6 +66,7 @@ public class AgentContextAssembler {
             TaskPlanQueryService plans) {
         this.access = access;
         this.repository = repository;
+        this.approvals = approvals;
         this.tasks = tasks;
         this.documents = documents;
         this.milestones = milestones;
@@ -70,11 +77,12 @@ public class AgentContextAssembler {
     public AgentContextAssembler(
             ProjectAccessGuard access,
             AgentRepository repository,
+            AgentApprovalRepository approvals,
             TaskApplicationService tasks,
             DocumentApplicationService documents,
             MilestoneApplicationService milestones,
             ObjectMapper json) {
-        this(access, repository, tasks, documents, milestones, json, null);
+        this(access, repository, approvals, tasks, documents, milestones, json, null);
     }
 
     /**
@@ -94,10 +102,13 @@ public class AgentContextAssembler {
         // 3. 验证页面上下文中的实体属于当前项目
         AgentPageContext validatedPage = validatePageContext(run.projectId(), run.requesterId(), pageContext);
 
-        // 4. 获取 Skill 对应的预算限制
-        AgentRuntimeLimits limits = AgentRuntimeLimits.defaults();
+        // 4. 获取 Skill 对应的预算限制（使用技能专用限制而非通用默认值）
+        AgentRuntimeLimits limits = AgentRuntimeLimits.forSkill(skillCode);
 
-        // 5. 构建可信上下文
+        // 5. 加载可信提案上下文
+        List<AgentProposalContext> proposals = loadTrustedProposals(run.projectId(), run.sessionId());
+
+        // 6. 构建可信上下文
         return new AgentExecutionContext(
                 run.id(),
                 run.sessionId(),
@@ -107,7 +118,35 @@ public class AgentContextAssembler {
                 run.scheduled(),
                 validatedPage,
                 limits,
-                run.depth());
+                run.depth(),
+                proposals);
+    }
+
+    /**
+     * 加载可信提案上下文。
+     * 从数据库获取当前会话的待审批和最近已解决提案。
+     */
+    private List<AgentProposalContext> loadTrustedProposals(UUID projectId, UUID sessionId) {
+        if (approvals == null) return List.of();
+        List<AgentApprovalView> sessionProposals = approvals.listSessionProposals(projectId, sessionId);
+        return sessionProposals.stream()
+                .map(this::toProposalContext)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 将 AgentApprovalView 转换为 AgentProposalContext。
+     */
+    private AgentProposalContext toProposalContext(AgentApprovalView approval) {
+        return new AgentProposalContext(
+                approval.id(),
+                approval.proposalFamily(),
+                approval.subjectKey(),
+                approval.status(),
+                approval.revision(),
+                approval.arguments(),
+                approval.result(),
+                approval.diff());
     }
 
     /**

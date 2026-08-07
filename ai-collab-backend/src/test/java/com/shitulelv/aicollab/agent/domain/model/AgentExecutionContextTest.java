@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.agent.domain.model;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -13,7 +14,7 @@ class AgentExecutionContextTest {
     void validContextCreation() {
         AgentExecutionContext ctx = new AgentExecutionContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0);
+                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0, List.of());
 
         assertThat(ctx.runId()).isNotNull();
         assertThat(ctx.sessionId()).isNotNull();
@@ -24,13 +25,14 @@ class AgentExecutionContextTest {
         assertThat(ctx.page()).isNotNull();
         assertThat(ctx.limits()).isNotNull();
         assertThat(ctx.depth()).isEqualTo(0);
+        assertThat(ctx.proposals()).isNotNull().isEmpty();
     }
 
     @Test
     void nullRunIdThrows() {
         assertThatThrownBy(() -> new AgentExecutionContext(
                 null, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0))
+                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0, List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("runId");
     }
@@ -39,7 +41,7 @@ class AgentExecutionContextTest {
     void nullSessionIdThrows() {
         assertThatThrownBy(() -> new AgentExecutionContext(
                 UUID.randomUUID(), null, UUID.randomUUID(), UUID.randomUUID(),
-                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0))
+                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0, List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("sessionId");
     }
@@ -48,7 +50,7 @@ class AgentExecutionContextTest {
     void nullProjectIdThrows() {
         assertThatThrownBy(() -> new AgentExecutionContext(
                 UUID.randomUUID(), UUID.randomUUID(), null, UUID.randomUUID(),
-                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0))
+                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0, List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("projectId");
     }
@@ -57,7 +59,7 @@ class AgentExecutionContextTest {
     void nullRequesterIdThrows() {
         assertThatThrownBy(() -> new AgentExecutionContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null,
-                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0))
+                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0, List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("requesterId");
     }
@@ -66,7 +68,7 @@ class AgentExecutionContextTest {
     void nullProjectRoleThrows() {
         assertThatThrownBy(() -> new AgentExecutionContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                null, false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0))
+                null, false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0, List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("projectRole");
     }
@@ -75,9 +77,18 @@ class AgentExecutionContextTest {
     void nullLimitsThrows() {
         assertThatThrownBy(() -> new AgentExecutionContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "MEMBER", false, AgentPageContext.empty(), null, 0))
+                "MEMBER", false, AgentPageContext.empty(), null, 0, List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("limits");
+    }
+
+    @Test
+    void nullProposalsThrows() {
+        assertThatThrownBy(() -> new AgentExecutionContext(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("proposals");
     }
 
     @Test
@@ -91,7 +102,7 @@ class AgentExecutionContextTest {
 
         AgentExecutionContext ctx = new AgentExecutionContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "MEMBER", false, AgentPageContext.empty(), limits, 0);
+                "MEMBER", false, AgentPageContext.empty(), limits, 0, List.of());
 
         assertThat(ctx.maxSteps()).isEqualTo(10);
         assertThat(ctx.maxModelTurns()).isEqualTo(5);
@@ -103,7 +114,7 @@ class AgentExecutionContextTest {
     void depthIsStored() {
         AgentExecutionContext ctx = new AgentExecutionContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 3);
+                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 3, List.of());
         assertThat(ctx.depth()).isEqualTo(3);
     }
 
@@ -111,7 +122,7 @@ class AgentExecutionContextTest {
     void depthZeroIsDefault() {
         AgentExecutionContext ctx = new AgentExecutionContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0);
+                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0, List.of());
         assertThat(ctx.depth()).isEqualTo(0);
     }
 }

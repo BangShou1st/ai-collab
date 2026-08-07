@@ -6,7 +6,6 @@ import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
-import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpBindingView;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -40,13 +39,24 @@ class McpAgentToolProviderTest {
     }
 
     @Test
-    void executionFailsClosedWhenProjectBindingWasRemovedAfterToolExposure() {
+    void executionFailsClosedWhenConnectionWasDisabledAfterToolExposure() {
         Fixture fixture = fixture("""
                 [{"name":"read_issue","annotations":{"readOnlyHint":true},"inputSchema":{"type":"object"}}]
                 """, List.of("read_issue"));
         AgentTool tool = fixture.provider.tools(fixture.context).getFirst();
-        when(fixture.repository.binding(fixture.context.projectId(), fixture.connection.id()))
-                .thenReturn(Optional.empty());
+        McpConnection disabled = new McpConnection(
+                fixture.connection.id(), fixture.context.projectId(), fixture.connection.code(),
+                fixture.connection.name(), fixture.connection.transport(), fixture.connection.endpoint(),
+                fixture.connection.stdioCommandJson(), fixture.connection.authType(),
+                fixture.connection.credentialCiphertext(), fixture.connection.credentialKeyVersion(),
+                fixture.connection.timeoutMs(), fixture.connection.maxResultBytes(),
+                fixture.connection.toolAllowlistJson(), fixture.connection.resourceAllowlistJson(),
+                fixture.connection.discoveredToolsJson(), fixture.connection.discoveredResourcesJson(),
+                fixture.connection.schemaHash(), fixture.connection.confirmedSchemaHash(), false,
+                fixture.connection.lastHealthStatus(), fixture.connection.lastHealthMessage(),
+                fixture.connection.lastHealthAt(), fixture.connection.createdBy(),
+                fixture.connection.version(), fixture.connection.createdAt(), fixture.connection.updatedAt());
+        when(fixture.repository.find(fixture.connection.id())).thenReturn(Optional.of(disabled));
 
         assertThatThrownBy(() -> tool.execute(toolContext(fixture.context), json.createObjectNode()))
                 .isInstanceOf(BusinessException.class)
@@ -58,39 +68,31 @@ class McpAgentToolProviderTest {
     private Fixture fixture(String discoveredTools, List<String> allowedTools) {
         McpRepository repository = mock(McpRepository.class);
         McpConnectionManager clients = mock(McpConnectionManager.class);
-        McpConnection connection = connection(discoveredTools, allowedTools);
         AgentExecutionContext context = context();
-        McpBindingView binding = binding(context.projectId(), connection, allowedTools);
-        when(repository.bindings(context.projectId())).thenReturn(List.of(binding));
+        McpConnection connection = connection(context.projectId(), discoveredTools, allowedTools);
+        when(repository.listByProject(context.projectId())).thenReturn(List.of(connection));
         when(repository.find(connection.id())).thenReturn(Optional.of(connection));
-        when(repository.binding(context.projectId(), connection.id())).thenReturn(Optional.of(binding));
         McpAgentToolProvider provider = new McpAgentToolProvider(
                 repository, clients, new McpResultSanitizer(json), json);
         return new Fixture(provider, repository, clients, connection, context);
     }
 
-    private McpConnection connection(String tools, List<String> allowedTools) {
+    private McpConnection connection(UUID projectId, String tools, List<String> allowedTools) {
         OffsetDateTime now = OffsetDateTime.now();
         String allowlist;
         try { allowlist = json.writeValueAsString(allowedTools); }
         catch (Exception error) { throw new AssertionError(error); }
         return new McpConnection(
-                UUID.randomUUID(), "github", "GitHub", McpTransport.STREAMABLE_HTTP,
+                UUID.randomUUID(), projectId, "github", "GitHub", McpTransport.STREAMABLE_HTTP,
                 "https://example.com/mcp", null, McpAuthType.NONE, null, null,
                 5_000, 65_536, allowlist, "[]", tools, "[]",
                 "schema-v1", "schema-v1", true, "HEALTHY", null, now,
                 UUID.randomUUID(), 1, now, now);
     }
 
-    private McpBindingView binding(UUID projectId, McpConnection connection, List<String> tools) {
-        OffsetDateTime now = OffsetDateTime.now();
-        return new McpBindingView(projectId, connection.id(), connection.code(), connection.name(),
-                true, true, tools, List.of(), java.util.Map.of(), 1, now, now);
-    }
-
     private AgentExecutionContext context() {
         return new AgentExecutionContext(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0);
+                "MEMBER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 0, List.of());
     }
 
     private AgentToolContext toolContext(AgentExecutionContext context) {

@@ -838,7 +838,7 @@ class AgentRuntimeBehaviorTest {
         return new AgentExecutionContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 "SUPERVISOR", false, AgentPageContext.empty(),
-                AgentRuntimeLimits.defaults(), 0);
+                AgentRuntimeLimits.defaults(), 0, List.of());
     }
 
     private AgentPlan plan(String objective, List<AgentPlanStep> steps) {
