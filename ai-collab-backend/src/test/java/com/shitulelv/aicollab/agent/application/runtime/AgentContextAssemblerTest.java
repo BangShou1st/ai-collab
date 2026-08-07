@@ -5,6 +5,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
@@ -38,6 +39,7 @@ class AgentContextAssemblerTest {
     private final ObjectMapper json = new ObjectMapper();
     private ProjectAccessGuard access;
     private AgentRepository repository;
+    private AgentApprovalRepository approvals;
     private TaskApplicationService tasks;
     private DocumentApplicationService documents;
     private MilestoneApplicationService milestones;
@@ -50,10 +52,11 @@ class AgentContextAssemblerTest {
     void setUp() {
         access = mock(ProjectAccessGuard.class);
         repository = mock(AgentRepository.class);
+        approvals = mock(AgentApprovalRepository.class);
         tasks = mock(TaskApplicationService.class);
         documents = mock(DocumentApplicationService.class);
         milestones = mock(MilestoneApplicationService.class);
-        assembler = new AgentContextAssembler(access, repository, tasks, documents, milestones, json);
+        assembler = new AgentContextAssembler(access, repository, approvals, tasks, documents, milestones, json);
 
         when(access.requireMember(projectId, requesterId)).thenReturn(ProjectRole.MEMBER);
     }
