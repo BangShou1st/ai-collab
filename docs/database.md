@@ -6,7 +6,7 @@
 ai-collab-backend/src/main/resources/db/migration/
 ```
 
-本文档解释当前最终结构和约束，不复制完整 SQL。当前最新迁移为 V30，业务结构为 40 张表（不含 `flyway_schema_history`）。
+本文档解释当前最终结构和约束，不复制完整 SQL。当前最新迁移为 V37，业务结构为 ~41 张表（不含 `flyway_schema_history`）。
 
 ## 1. 设计规则
 
@@ -50,8 +50,6 @@ ai-collab-backend/src/main/resources/db/migration/
 | `knowledge_message` | USER/ASSISTANT 消息 |
 | `knowledge_citation` | 回答实际引用 |
 | `knowledge_feedback` | 用户对回答的有用/无用反馈 |
-| `knowledge_eval_run` | 知识检索评测运行 |
-| `knowledge_eval_result` | 单条评测问题和结果 |
 
 ### AI 规划
 
@@ -73,14 +71,13 @@ ai-collab-backend/src/main/resources/db/migration/
 | `agent_run` | 一次 Agent 运行及预算状态 |
 | `agent_run_event` | 可重放的 Run 事件序列，供 SSE 断线续传 |
 | `agent_step` | 模型、工具、审批和结果步骤 |
-| `agent_approval` | 待审批写操作、nonce 和期限 |
-| `agent_schedule` | 定时运行配置 |
-| `agent_schedule_fire` | 定时触发幂等事实 |
-| `agent_mcp_connection` | 系统级 MCP 连接、加密凭据、发现快照与 Schema Hash |
-| `agent_project_mcp_binding` | 项目级 MCP 工具/资源白名单与仓库配置 |
+| `agent_approval` | 待审批写操作、nonce、期限和提案连续性元数据（V37） |
+| `agent_approval_revision` | 不可变提案修订历史（V37） |
+| `agent_mcp_connection` | 项目级 MCP 连接、加密凭据、发现快照与 Schema Hash |
 | `agent_memory` | 项目隔离、可停用的轻量决策/偏好/约束/经验记忆 |
-| `model_configuration` | 加密模型配置 |
-| `model_purpose_assignment` | 知识问答、规划和 Agent 的模型用途分配 |
+| `model_configuration` | 项目级加密模型配置 |
+| `model_purpose_assignment` | 项目级知识问答、规划和 Agent 的模型用途分配 |
+| `project_embedding_config` | 项目级嵌入模型配置 |
 
 ### 通用
 
@@ -125,11 +122,10 @@ erDiagram
     AGENT_RUN ||--o{ AGENT_STEP : records
     AGENT_RUN ||--o{ AGENT_RUN_EVENT : emits
     AGENT_RUN ||--o{ AGENT_APPROVAL : requests
-    PROJECT ||--o{ AGENT_SCHEDULE : schedules
-    AGENT_SCHEDULE ||--o{ AGENT_SCHEDULE_FIRE : fires
     PROJECT ||--o{ AGENT_MEMORY : remembers
-    PROJECT ||--o{ AGENT_PROJECT_MCP_BINDING : authorizes
-    AGENT_MCP_CONNECTION ||--o{ AGENT_PROJECT_MCP_BINDING : binds
+    PROJECT ||--o{ AGENT_MCP_CONNECTION : authorizes
+    PROJECT ||--o{ MODEL_CONFIGURATION : configures
+    PROJECT ||--o{ PROJECT_EMBEDDING_CONFIG : embeds
     PROJECT o|--o{ AUDIT_LOG : audits
     PROJECT o|--o{ AI_CALL_LOG : measures
 ```
@@ -256,6 +252,9 @@ LIMIT #{topK};
 | V28 | 添加持久化 Agent 运行事件、SSE 游标和取消请求时间 |
 | V29 | 添加系统 MCP 连接与项目级 MCP 绑定 |
 | V30 | 添加项目 Agent 记忆和定时任务 Skill |
+| V31 | 模型/MCP/嵌入配置从全局迁移到项目级；删除 eval/schedule 表 |
+| V32 | 迁移全局模型配置到演示项目 |
+| V33 | 删除知识评测和定时运行表 |
 
 新迁移要求：
 

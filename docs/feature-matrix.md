@@ -15,7 +15,7 @@
 |---|---|---|---|
 | 登录、JWT、刷新、当前用户、退出 | 完整 | Access Token + HttpOnly Refresh Cookie；支持当前设备和全部设备退出 | `auth/AuthController`、`auth-store.ts`、`LoginView.vue` |
 | 公开注册关闭 | 完整 | 默认配置关闭；注册接口仍由策略开关保护，便于未来启用 | `application.yml`、`application-local.yml`、`PublicRegistrationService` |
-| 系统管理中心 | 完整 | 仅系统管理员显示和访问；支持账号创建/启停、模型配置增删改测、模型用途分配，以及 MCP 连接创建/更新/凭据轮换/测试/发现/Schema 确认/启停 | `AdminView.vue`、`AdminController`、`AdminModelController`、`AdminMcpController`、V20/V24/V29 迁移 |
+| 系统管理中心 | 完整 | 仅系统管理员显示和访问；支持账号创建/启停 | `AdminView.vue`、`AdminController` |
 | 邀请成员 | 部分 | OWNER/ADMIN 可创建邀请码；支持当前用户接受，也支持受邀者按链接创建账号；不是“按用户名直接加入” | `InvitationApplicationService`、`InvitationAcceptView.vue` |
 | 成员列表、角色修改、移除 | 完整 | OWNER 管理角色和移除；不能移除 OWNER | `ProjectMemberApplicationService`、`ProjectMembersView.vue` |
 | 成员主动退出项目 | 完整 | 非 OWNER 成员可主动退出项目；OWNER 需先转移所有权 | `ProjectMemberApplicationService.leave`、`ProjectController`、`ProjectMembersView.vue` |
@@ -52,12 +52,12 @@
 | 项目知识问答 | 完整 | 仅检索当前项目 READY 文档；保存会话、消息和引用；证据不足明确拒答；引用包含 PDF 页码定位；支持中文表单配置检索评测；每用户每小时限额通过 `KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR` 配置，默认 60 | `KnowledgeQuestionApplicationService`、`KnowledgeRateLimiter`、`KnowledgeView.vue`、`KnowledgeEvalView.vue` |
 | 问答流式输出 | 完整 | SSE 流式推送 token/引用/完成信号；前端兼容分片、CRLF 与末尾缓冲并实时渲染；支持 AbortController 取消 | `KnowledgeController.askStream`、`KnowledgeStreamQuestionService`、`knowledge-api.ts` |
 | 回答有用/无用反馈 | 完整 | knowledge_feedback 表；提交/撤销/查询端点；前端助手消息下方 👍/👎 按钮和统计 | `KnowledgeFeedbackService`、`KnowledgeController`、`KnowledgeView.vue` |
-| 多模型配置与用途分配 | 完整 | 管理中心支持 OpenAI 兼容、Claude、Gemini 配置、连接测试和用途分配；API Key 加密保存；Embedding 仍由独立环境配置控制 | `AdminView.vue`、`ModelConfigurationService`、`RoutingChatModelGateway` |
+| 项目级模型配置与用途分配 | 完整 | 项目 ADMIN/OWNER 可在项目设置中配置 OpenAI 兼容、Claude、Gemini 模型、连接测试和用途分配；API Key 加密保存；嵌入模型独立配置 | `ProjectModelSettings.vue`、`ProjectModelController`、`ProjectModelConfigurationService`、`RoutingChatModelGateway` |
 | AI 任务规划生成 | 完整 | 两阶段结构化生成、Schema/业务校验、失败修复、来源追踪和权限校验；每用户滚动一小时的成功/进行中生成限额通过 `PLANNING_GENERATION_LIMIT_PER_USER_HOUR` 配置，默认 60 | `planning` 模块、`PlanningGenerationQuotaService`、`PlanningView.vue` |
 | 规划预览与人工确认 | 完整 | 人工编辑、删除/补充、负责人/日期/优先级/依赖调整、事务确认、幂等和审计 | `TaskPlanCommandService`、`TaskPlanConfirmationService` |
 | 规划版本记录 | 完整 | 保存不可变版本、模型 attempt、原始输出/指标、恢复、确认结果和事件 | `ai_task_plan*` 表、规划查询与版本接口 |
-| 项目协作 Agent 2.0 | 完整 | 原生 Tool Calling、6 个固定 Skill、受控页面上下文、执行计划、持久事件/SSE 续传、取消/重试、人工审批写入、项目记忆和带 Skill 的定时运行；运行时强制查询深度、模型轮次、单轮/总工具预算，并在已有证据且接近预算边界时进入无工具最终回答 | `AgentRuntimeCoordinator`、`AgentConvergencePolicy`、`AgentEventStreamService`、`AgentApprovalService`、`AgentView.vue`、V22/V23/V27/V28/V30 |
-| 受控 MCP | 完整 | 系统管理员连接管理/测试/发现/启停，OWNER 在 Agent 页维护项目绑定；仅暴露 `readOnlyHint=true` 且通过系统确认只读白名单与项目白名单双重授权的工具，执行前重校验绑定/白名单/Schema；Schema Hash 变化停用，HTTPS/SSRF 防护、HTTP 流读取大小限制、加密凭据和不可信结果清洗；STDIO 默认禁用 | `McpAdministrationService`、`McpAgentToolProvider`、`McpEndpointPolicy`、`HttpMcpClientFacade`、V29 |
+| 项目协作 Agent 2.0 | 完整 | 原生 Tool Calling、6 个固定 Skill、受控页面上下文、执行计划、持久事件/SSE 续传、取消/重试、人工审批写入、项目记忆和带 Skill 的定时运行；运行时强制查询深度、模型轮次、单轮/总工具预算，并在已有证据且接近预算边界时进入无工具最终回答；支持多轮对话，Agent 可在信息不足时提问用户，用户回复后继续执行，保留最近 5 轮对话上下文；提案连续性：跨轮次修订、最新需求覆盖、确定性即时回答（V37） | `AgentRuntimeCoordinator`、`AgentConvergencePolicy`、`AgentEventStreamService`、`AgentApprovalService`、`AgentProposalArgumentMerger`、`AgentView.vue`、V22/V23/V27/V28/V30/V31/V37 |
+| 项目级 MCP 连接 | 完整 | 项目 ADMIN/OWNER 在项目设置中管理连接/测试/发现/启停；仅暴露 `readOnlyHint=true` 且通过系统确认只读白名单与项目白名单双重授权的工具，执行前重校验绑定/白名单/Schema；Schema Hash 变化停用，HTTPS/SSRF 防护、HTTP 流读取大小限制、加密凭据和不可信结果清洗；STDIO 默认禁用 | `ProjectMcpController`、`McpAdministrationService`、`McpAgentToolProvider`、`McpEndpointPolicy`、`HttpMcpClientFacade`、V29/V31 |
 
 ## 工程能力
 
@@ -68,7 +68,7 @@
 | 分页 | 部分 | 审计和 AI 规划使用分页；普通列表按第一版规模返回数组 | 对应 Controller/Query Service |
 | 日志与隐私 | 完整 | 敏感 Mapper 降低日志级别；API Key 仅从环境变量读取；前端错误数据脱敏；请求失败统一通过顶部 `ElMessage` 输出带操作上下文的具体原因并启用分组去重 | `application-local.yml`、`api-result.ts` |
 | 健康检查与本地基础设施 | 完整 | Actuator health；Docker Compose 启动 PostgreSQL/pgvector、Redis、MinIO | `/actuator/health`、`ai-collab-deploy/docker-compose.yml` |
-| 数据库迁移 | 完整 | Flyway 当前最新版本为 V30，当前业务结构为 40 张表 | `src/main/resources/db/migration` |
+| 数据库迁移 | 完整 | Flyway 当前最新版本为 V37，当前业务结构为 ~41 张表 | `src/main/resources/db/migration` |
 | OpenAPI | 完整 | 已覆盖所有主要接口；提供校验脚本和契约测试确保同步 | `docs/api/openapi.yaml`、`scripts/validate-openapi.ps1`、`OpenApiContractTest` |
 | 自动化验证 | 完整 | 后端集成/单元测试、前端测试/类型检查/构建、真实只读冒烟脚本 | `mvnw test`、`pnpm test`、`scripts/smoke-existing.ps1` |
 
