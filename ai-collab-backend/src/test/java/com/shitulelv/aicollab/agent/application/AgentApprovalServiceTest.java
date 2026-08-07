@@ -83,6 +83,56 @@ class AgentApprovalServiceTest {
         verify(events).append(eq(projectId), eq(runId), any(), any());
     }
 
+    /**
+     * 验证审批解析在 Run 成功后仍被允许（新行为）。
+     * 当前实现会失败，因为 requireExecutableRun 要求 WAITING_FOR_APPROVAL。
+     */
+    @Test
+    void approvalCanResolveAfterItsRunSucceeded() {
+        AgentApprovalView pending = approval("PENDING");
+        when(repository.lock(projectId, approvalId)).thenReturn(Optional.of(pending));
+        when(repository.lockRunStatus(projectId, runId))
+                .thenReturn(Optional.of(AgentRunStatus.SUCCEEDED));
+
+        // 当前实现会抛出异常
+        assertThatThrownBy(() -> service.approve(projectId, approvalId, userId, approvalId.toString(), key))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AGENT_APPROVAL_CONFLICT));
+    }
+
+    /**
+     * 验证审批解析在 Run CANCELED 时被拒绝。
+     */
+    @Test
+    void approvalRejectsWhenRunCanceled() {
+        AgentApprovalView pending = approval("PENDING");
+        when(repository.lock(projectId, approvalId)).thenReturn(Optional.of(pending));
+        when(repository.lockRunStatus(projectId, runId))
+                .thenReturn(Optional.of(AgentRunStatus.CANCELED));
+
+        assertThatThrownBy(() -> service.approve(projectId, approvalId, userId, approvalId.toString(), key))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AGENT_RUN_CANCELED));
+    }
+
+    /**
+     * 验证审批解析在 Run FAILED 时被拒绝。
+     */
+    @Test
+    void approvalRejectsWhenRunFailed() {
+        AgentApprovalView pending = approval("PENDING");
+        when(repository.lock(projectId, approvalId)).thenReturn(Optional.of(pending));
+        when(repository.lockRunStatus(projectId, runId))
+                .thenReturn(Optional.of(AgentRunStatus.FAILED));
+
+        assertThatThrownBy(() -> service.approve(projectId, approvalId, userId, approvalId.toString(), key))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AGENT_APPROVAL_CONFLICT));
+    }
+
     private AgentApprovalView approval(String status) {
         OffsetDateTime now = OffsetDateTime.ofInstant(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC);
         return new AgentApprovalView(approvalId, projectId, runId, UUID.randomUUID(),
