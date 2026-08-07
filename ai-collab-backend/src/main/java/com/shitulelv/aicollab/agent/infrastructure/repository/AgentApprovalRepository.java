@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
+import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -183,8 +184,20 @@ public class AgentApprovalRepository {
                     rs.getObject("expires_at", OffsetDateTime.class),
                     rs.getObject("resolved_at", OffsetDateTime.class), rs.getInt("version"),
                     rs.getObject("created_at", OffsetDateTime.class),
+                    // V37 新增字段
+                    rs.getObject("session_id", UUID.class),
+                    parseProposalFamily(rs.getString("proposal_family")),
+                    rs.getObject("subject_key", UUID.class),
+                    rs.getInt("revision"),
+                    rs.getObject("updated_at", OffsetDateTime.class),
                     "PENDING".equals(status) ? id.toString() : null);
         };
+    }
+
+    private AgentProposalFamily parseProposalFamily(String value) {
+        if (value == null) return null;
+        try { return AgentProposalFamily.valueOf(value); }
+        catch (IllegalArgumentException ignored) { return null; }
     }
 
     private void appendResolution(
