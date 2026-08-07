@@ -207,17 +207,19 @@ class AgentProposalContinuityIntegrationTest {
         // 当前 V36 没有 proposal_family 列，测试会失败
         jdbc.update("""
                 INSERT INTO agent_step(id,run_id,sequence_no,type,tool_name,input_json,output_json)
-                VALUES (?,?,?,?,'APPROVAL_REQUESTED',?::jsonb,?::jsonb)
+                VALUES (?,?,?,'APPROVAL_REQUESTED',?,?::jsonb,?::jsonb)
                 """, stepId, runId, sequence == null ? 1 : sequence, toolName,
                 arguments.toString(), "{}");
         jdbc.update("""
                 INSERT INTO agent_approval(
-                  id,project_id,run_id,step_id,tool_name,arguments_json,
-                  requester_id,nonce_hash,expires_at,status)
-                VALUES (?,?,?,?,?,?::jsonb,?,?,?,'PENDING')
+                  id,project_id,run_id,step_id,tool_name,arguments_json,arguments_hash,
+                  diff_json,requester_id,nonce_hash,expires_at,status,
+                  session_id,proposal_family,subject_key)
+                VALUES (?,?,?,?,?,?::jsonb,?,?::jsonb,?,?,?,'PENDING',?,?,?)
                 """, approvalId, f.project(), runId, stepId, toolName,
-                arguments.toString(), f.user(), "test-hash",
-                OffsetDateTime.now().plusHours(24));
+                arguments.toString(), "test-hash", "{}",
+                f.user(), "test-hash", OffsetDateTime.now().plusHours(24),
+                f.session(), proposalFamily, approvalId);
         return approvalId;
     }
 

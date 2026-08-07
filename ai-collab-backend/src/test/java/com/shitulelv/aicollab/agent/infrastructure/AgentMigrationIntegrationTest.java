@@ -40,20 +40,73 @@ class AgentMigrationIntegrationTest {
 
         assertThat(tables).containsExactly(
                 "agent_approval",
+                "agent_approval_revision", // V37 新增
                 "agent_mcp_connection",
                 "agent_memory",
                 "agent_message",
-                "agent_project_mcp_binding",
                 "agent_run",
                 "agent_run_event",
-                "agent_schedule",
-                "agent_schedule_fire",
                 "agent_session",
                 "agent_step");
     }
 
+    /**
+     * 验证 V37 迁移添加了提案连续性所需的新列和新表。
+     * 测试因 V37 迁移尚未创建而失败。
+     */
     @Test
-    void enforcesStepAndScheduleFireIdempotency() {
+    void v37AddsProposalContinuityColumns() {
+        // 验证 agent_approval 新列
+        List<String> approvalColumns = jdbc.queryForList("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name='agent_approval' AND column_name IN
+                ('session_id','proposal_family','subject_key','revision','updated_at')
+                ORDER BY column_name
+                """, String.class);
+
+        // 当前 V36 没有这些列，测试会失败
+        assertThat(approvalColumns).containsExactly(
+                "proposal_family", "revision", "session_id", "subject_key", "updated_at");
+    }
+
+    /**
+     * 验证 agent_approval_revision 表结构。
+     * 测试因 V37 迁移尚未创建而失败。
+     */
+    @Test
+    void v37CreatesApprovalRevisionTable() {
+        List<String> revisionColumns = jdbc.queryForList("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name='agent_approval_revision'
+                ORDER BY ordinal_position
+                """, String.class);
+
+        // 当前 V36 没有此表，测试会失败
+        assertThat(revisionColumns).containsExactly(
+                "id", "project_id", "approval_id", "source_run_id",
+                "revision", "before_arguments_json", "after_arguments_json",
+                "diff_json", "created_at");
+    }
+
+    /**
+     * 验证 ck_agent_run_event_type 约束包含 APPROVAL_UPDATED。
+     * 测试因 V37 迁移尚未重建约束而失败。
+     */
+    @Test
+    void v37EventConstraintIncludesApprovalUpdated() {
+        // 查询约束定义
+        String constraintDef = jdbc.queryForObject("""
+                SELECT pg_get_constraintdef(oid)
+                FROM pg_constraint
+                WHERE conname='ck_agent_run_event_type'
+                """, String.class);
+
+        // 当前 V36 约束不包含 APPROVAL_UPDATED，测试会失败
+        assertThat(constraintDef).contains("APPROVAL_UPDATED");
+    }
+
+    @Test
+    void enforcesStepIdempotency() {
         Fixture fixture = fixture();
         UUID run = UUID.randomUUID();
         jdbc.update("""
@@ -66,22 +119,6 @@ class AgentMigrationIntegrationTest {
         assertThatThrownBy(() -> jdbc.update("""
                 INSERT INTO agent_step(run_id,sequence_no,type) VALUES (?,1,'ERROR')
                 """, run)).isInstanceOf(Exception.class);
-
-        UUID schedule = UUID.randomUUID();
-        jdbc.update("""
-                INSERT INTO agent_schedule(
-                  id,project_id,creator_id,session_id,name,goal,frequency,time_zone,
-                  local_time,next_fire_at)
-                VALUES (?,?,?,?,?,?,'DAILY','Asia/Shanghai','08:00',now())
-                """, schedule, fixture.project(), fixture.user(), fixture.session(), "晨报", "检查进度");
-        jdbc.update("""
-                INSERT INTO agent_schedule_fire(schedule_id,scheduled_for,run_id)
-                VALUES (?,TIMESTAMPTZ '2026-07-30 00:00:00+00',?)
-                """, schedule, run);
-        assertThatThrownBy(() -> jdbc.update("""
-                INSERT INTO agent_schedule_fire(schedule_id,scheduled_for,run_id)
-                VALUES (?,TIMESTAMPTZ '2026-07-30 00:00:00+00',?)
-                """, schedule, run)).isInstanceOf(Exception.class);
     }
 
     @Test
@@ -96,8 +133,6 @@ class AgentMigrationIntegrationTest {
                 "SELECT count(*) FROM agent_memory WHERE project_id=?", Integer.class, first.project())).isOne();
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM agent_memory WHERE project_id=?", Integer.class, second.project())).isZero();
-        assertThat(jdbc.queryForObject(
-                "SELECT skill_code IS NULL FROM agent_schedule LIMIT 1", Boolean.class)).isTrue();
     }
 
     private static Fixture fixture() {

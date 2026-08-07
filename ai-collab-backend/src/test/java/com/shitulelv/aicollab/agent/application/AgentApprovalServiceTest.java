@@ -139,6 +139,9 @@ class AgentApprovalServiceTest {
                 "write_after_approval", json.createObjectNode().put("version", 3),
                 json.createObjectNode(), null, 3, status, userId, null, null, null,
                 now.plusHours(1), "PENDING".equals(status) ? null : now, 0, now,
+                // V37 新增字段
+                UUID.randomUUID(), com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily.TASK_CREATE,
+                UUID.randomUUID(), 1, now,
                 "PENDING".equals(status) ? approvalId.toString() : null);
     }
 }
