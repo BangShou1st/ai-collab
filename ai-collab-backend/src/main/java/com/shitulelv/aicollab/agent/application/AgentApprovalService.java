@@ -7,6 +7,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.runtime.AgentEventService;
 import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
+import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
 import com.shitulelv.aicollab.agent.domain.policy.AgentApprovalPolicy;
 import com.shitulelv.aicollab.agent.domain.tool.*;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
@@ -14,6 +15,9 @@ import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +28,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -47,6 +52,131 @@ public class AgentApprovalService {
         this.json = json;
         this.clock = clock;
         this.events = events;
+    }
+
+    /**
+     * 提案创建或修订。
+     * 根据 approvalId 和兼容候选自动决定是创建新提案还是修订现有提案。
+     */
+    @Transactional
+    public AgentProposalOutcome proposeOrRevise(
+            AgentRunView run, ModelTurnResult turn, ModelToolCall call,
+            AgentToolContext context, ApprovalWriteAgentTool tool) {
+        JsonNode arguments = tool.normalize(context, call.arguments());
+        JsonNode diff = tool.diff(context, arguments);
+        String argumentsHash = policy.nonceHash(canonical(arguments));
+
+        // 提取保留元字段 approvalId（如果存在）
+        UUID explicitApprovalId = extractApprovalId(arguments);
+        AgentProposalFamily family = tool.proposalFamily();
+
+        // 匹配逻辑
+        Optional<AgentApprovalView> existing = matchProposal(
+                run, explicitApprovalId, family);
+
+        if (existing.isPresent()) {
+            // 修订现有提案
+            return reviseProposal(existing.get(), arguments, diff, argumentsHash, run);
+        } else {
+            // 创建新提案
+            return createProposal(run, call, arguments, diff, argumentsHash, family, turn);
+        }
+    }
+
+    /**
+     * 匹配提案：
+     * 1. 显式 approvalId 先校验项目、会话、请求人、状态和 family
+     * 2. 无 ID 时只有唯一兼容候选才自动修订
+     * 3. 零候选创建
+     * 4. 多候选返回歧义结果（当前简化为创建新提案）
+     */
+    private Optional<AgentApprovalView> matchProposal(
+            AgentRunView run, UUID explicitApprovalId, AgentProposalFamily family) {
+        if (explicitApprovalId != null) {
+            // 显式 approvalId：校验归属
+            Optional<AgentApprovalView> found = approvals.find(run.projectId(), explicitApprovalId);
+            if (found.isEmpty()) {
+                throw new BusinessException(ErrorCode.AGENT_APPROVAL_NOT_FOUND);
+            }
+            AgentApprovalView approval = found.get();
+            // 校验会话、请求人、状态和 family
+            if (!approval.sessionId().equals(run.sessionId())) {
+                throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT,
+                        "审批不属于当前会话");
+            }
+            if (!approval.requesterId().equals(run.requesterId())) {
+                throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT,
+                        "审批不属于当前请求人");
+            }
+            if (!"PENDING".equals(approval.status())) {
+                throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT,
+                        "审批状态不是 PENDING");
+            }
+            if (approval.proposalFamily() != family) {
+                throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT,
+                        "审批工具族不匹配");
+            }
+            return found;
+        }
+
+        // 无 ID 时查找兼容候选
+        return approvals.findCompatiblePending(
+                run.projectId(), run.sessionId(), run.requesterId(), family);
+    }
+
+    /**
+     * 修订现有提案。
+     */
+    private AgentProposalOutcome reviseProposal(
+            AgentApprovalView existing, JsonNode newArguments, JsonNode newDiff,
+            String argumentsHash, AgentRunView run) {
+        JsonNode previousArguments = existing.arguments();
+        AgentApprovalView revised = approvals.revise(
+                existing, newArguments, newDiff, argumentsHash, run.id());
+        return new AgentProposalOutcome(
+                revised, AgentProposalOutcome.Operation.UPDATED,
+                previousArguments, newArguments, newDiff);
+    }
+
+    /**
+     * 创建新提案。
+     */
+    private AgentProposalOutcome createProposal(
+            AgentRunView run, ModelToolCall call,
+            JsonNode arguments, JsonNode diff, String argumentsHash,
+            AgentProposalFamily family, ModelTurnResult turn) {
+        UUID approvalId = UUID.randomUUID();
+        UUID subjectKey = UUID.randomUUID(); // 创建操作使用首次提案生成的稳定 UUID
+
+        ChatCompletionResult completion = toCompletionResult(turn);
+        // 转换 ModelToolCall 到 AgentDecision.CallTool
+        AgentDecision.CallTool callTool = new AgentDecision.CallTool(
+                call.name(), call.arguments(), "");
+        AgentApprovalView created = approvals.createProposal(
+                approvalId, run, completion, callTool, arguments, diff,
+                argumentsHash,
+                policy.nonceHash(approvalId.toString()),
+                OffsetDateTime.now(clock).plus(Duration.ofHours(24)));
+
+        return new AgentProposalOutcome(
+                created, AgentProposalOutcome.Operation.CREATED,
+                json.createObjectNode(), arguments, diff);
+    }
+
+    private UUID extractApprovalId(JsonNode arguments) {
+        JsonNode nodeId = arguments.get("approvalId");
+        if (nodeId == null || nodeId.isNull()) return null;
+        try { return UUID.fromString(nodeId.asText()); }
+        catch (IllegalArgumentException ignored) { return null; }
+    }
+
+    private ChatCompletionResult toCompletionResult(ModelTurnResult turn) {
+        ModelUsage usage = turn.usage();
+        return new ChatCompletionResult(
+                turn.content(), turn.provider(), turn.model(),
+                usage == null ? null : usage.inputTokens(),
+                usage == null ? null : usage.outputTokens(),
+                turn.latencyMs());
     }
 
     public AgentApprovalView propose(
@@ -126,6 +256,7 @@ public class AgentApprovalService {
                 approval, approverId, idempotencyKey, json.valueToTree(result));
         events.append(projectId, approval.runId(), AgentEventType.APPROVAL_APPROVED,
                 json.createObjectNode().put("approvalId", approvalId.toString()));
+        // 审批解耦：不再 requeue Run
         return resolved;
     }
 
@@ -170,6 +301,11 @@ public class AgentApprovalService {
         }
     }
 
+    /**
+     * 审批解耦：Run 成功后仍允许审批解析。
+     * 接受 SUCCEEDED 和 WAITING_FOR_APPROVAL（旧数据兼容）状态。
+     * 拒绝 CANCELED 和 FAILED 状态。
+     */
     private void requireExecutableRun(AgentApprovalView approval) {
         com.shitulelv.aicollab.agent.domain.model.AgentRunStatus status = approvals
                 .lockRunStatus(approval.projectId(), approval.runId())
@@ -177,7 +313,9 @@ public class AgentApprovalService {
         if (status == com.shitulelv.aicollab.agent.domain.model.AgentRunStatus.CANCELED) {
             throw new BusinessException(ErrorCode.AGENT_RUN_CANCELED);
         }
-        if (status != com.shitulelv.aicollab.agent.domain.model.AgentRunStatus.WAITING_FOR_APPROVAL) {
+        // 新行为：接受 SUCCEEDED 和 WAITING_FOR_APPROVAL
+        if (status != com.shitulelv.aicollab.agent.domain.model.AgentRunStatus.SUCCEEDED
+                && status != com.shitulelv.aicollab.agent.domain.model.AgentRunStatus.WAITING_FOR_APPROVAL) {
             throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT);
         }
     }

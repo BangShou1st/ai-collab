@@ -10,7 +10,6 @@ import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
 import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
-import com.shitulelv.aicollab.agent.infrastructure.repository.AgentScheduleRepository;
 import com.shitulelv.aicollab.agent.domain.policy.AgentApprovalPolicy;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
@@ -53,7 +52,6 @@ class AgentRepositoryIntegrationTest {
     static JdbcTemplate jdbc;
     static AgentRepository repository;
     static AgentApprovalRepository approvals;
-    static AgentScheduleRepository schedules;
 
     @BeforeAll
     static void migrate() {
@@ -64,11 +62,15 @@ class AgentRepositoryIntegrationTest {
         ObjectMapper json = new ObjectMapper().findAndRegisterModules();
         repository = new AgentRepository(jdbc, json);
         approvals = new AgentApprovalRepository(jdbc, json);
-        schedules = new AgentScheduleRepository(jdbc, repository);
     }
 
     @BeforeEach
     void clearAgentFixtures() {
+        // 按外键依赖顺序删除数据
+        jdbc.update("DELETE FROM agent_step");
+        jdbc.update("DELETE FROM agent_run_event");
+        jdbc.update("DELETE FROM agent_approval");
+        jdbc.update("DELETE FROM agent_run");
         jdbc.update("DELETE FROM agent_session");
     }
 
@@ -200,7 +202,7 @@ class AgentRepositoryIntegrationTest {
     }
 
     @Test
-    void approvalAndScheduleArePersisted() {
+    void approvalIsPersisted() {
         Fixture fixture = fixture();
         var session = repository.createSession(fixture.project(), fixture.user(), "advanced");
         var queued = repository.createRun(
@@ -223,12 +225,6 @@ class AgentRepositoryIntegrationTest {
                 .isEqualTo(AgentRunStatus.WAITING_FOR_APPROVAL);
         assertThat(approvals.matchesNonceHash(
                 fixture.project(), approvalId, policy.nonceHash(approvalId.toString()))).isTrue();
-
-        var scheduled = schedules.create(
-                fixture.project(), fixture.user(), session.id(), "daily", "report",
-                "DAILY", "Asia/Shanghai", java.time.LocalTime.of(9, 0), null,
-                OffsetDateTime.now().minusMinutes(1));
-        assertThat(schedules.fire(scheduled, OffsetDateTime.now().plusDays(1))).isPresent();
     }
 
     // Issue 1: planUpdateThenFinalSucceeds
