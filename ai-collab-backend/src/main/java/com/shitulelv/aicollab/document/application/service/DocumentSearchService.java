@@ -4,8 +4,9 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
-import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingGateway;
+import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGateway;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,9 +16,9 @@ import java.util.UUID;
 public class DocumentSearchService {
     private static final int MAX_QUERY_CODE_POINTS = 2000;
     private final DocumentRepository documents;
-    private final EmbeddingGateway embeddings;
+    private final ProjectEmbeddingGateway embeddings;
 
-    public DocumentSearchService(DocumentRepository documents, EmbeddingGateway embeddings) {
+    public DocumentSearchService(DocumentRepository documents, ProjectEmbeddingGateway embeddings) {
         this.documents = documents;
         this.embeddings = embeddings;
     }
@@ -38,7 +39,8 @@ public class DocumentSearchService {
                 throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY);
             }
         }
-        EmbeddingBatch queryEmbedding = embeddings.embed(List.of(normalized));
+        EmbeddingBatch queryEmbedding = embeddings.embed(projectId, List.of(normalized),
+                EmbeddingProgressListener.NONE);
         if (queryEmbedding.vectors().size() != 1) {
             throw new BusinessException(ErrorCode.DOCUMENT_EMBEDDING_FAILED);
         }

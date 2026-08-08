@@ -7,7 +7,6 @@ import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
-import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpBindingView;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolProvider;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
@@ -37,18 +36,15 @@ public class McpAgentToolProvider implements AgentToolProvider {
     @Override
     public List<AgentTool> tools(AgentExecutionContext context) {
         List<AgentTool> result = new ArrayList<>();
-        for (McpBindingView binding : repository.bindings(context.projectId())) {
-            if (!binding.enabled() || !binding.connectionEnabled()) continue;
-            McpConnection connection = repository.find(binding.connectionId()).orElse(null);
-            if (connection == null || connection.schemaHash() == null
+        for (McpConnection connection : repository.listByProject(context.projectId())) {
+            if (!connection.enabled()) continue;
+            if (connection.schemaHash() == null
                     || !connection.schemaHash().equals(connection.confirmedSchemaHash())) continue;
-            Set<String> projectAllowed = Set.copyOf(binding.allowedTools());
-            Set<String> systemAllowed = strings(connection.toolAllowlistJson());
+            Set<String> allowedTools = strings(connection.toolAllowlistJson());
             try {
                 for (JsonNode discovered : json.readTree(connection.discoveredToolsJson())) {
                     String serverName = discovered.path("name").asText();
-                    if (projectAllowed.contains(serverName) && systemAllowed.contains(serverName)
-                            && isReadOnly(discovered))
+                    if (allowedTools.contains(serverName) && isReadOnly(discovered))
                         result.add(new McpAgentTool(context.projectId(), connection.id(), connection.code(),
                                 connection.schemaHash(), serverName,
                                 discovered.path("description").asText("外部 MCP 只读工具"),
@@ -100,15 +96,13 @@ public class McpAgentToolProvider implements AgentToolProvider {
         @Override public boolean writesBusinessData() { return false; }
         @Override public AgentToolDefinition definition() { return definition; }
         @Override public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {
-            McpBindingView binding = repository.binding(projectId, connectionId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_DISABLED));
-            if (!binding.enabled() || !binding.connectionEnabled()
-                    || !binding.allowedTools().contains(serverName)) {
-                throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_DISABLED);
-            }
             McpConnection current = repository.find(connectionId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_NOT_FOUND));
-            if (!current.enabled()) {
+            if (!current.projectId().equals(projectId) || !current.enabled()) {
+                throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_DISABLED);
+            }
+            Set<String> allowedTools = strings(current.toolAllowlistJson());
+            if (!allowedTools.contains(serverName)) {
                 throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_DISABLED);
             }
             if (current.schemaHash() == null
@@ -122,6 +116,11 @@ public class McpAgentToolProvider implements AgentToolProvider {
             McpClientFacade.CallResult raw = clients.requireClient(current).callTool(
                     serverName, arguments, Duration.ofMillis(current.timeoutMs()));
             return new AgentToolResult(sanitizer.sanitize(raw.content(), current.maxResultBytes()), List.of(), List.of());
+        }
+
+        private Set<String> strings(String source) {
+            try { Set<String> values = new HashSet<>(); for (JsonNode node : json.readTree(source)) values.add(node.asText()); return values; }
+            catch (Exception exception) { return Set.of(); }
         }
 
         private boolean allowedAndStillReadOnly(McpConnection current) {

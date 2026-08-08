@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.AgentApprovalService;
+import com.shitulelv.aicollab.agent.application.AgentProposalOutcome;
 import com.shitulelv.aicollab.agent.application.AgentWorkerOutcome;
+import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.view.AgentStepView;
 import com.shitulelv.aicollab.agent.domain.model.*;
@@ -186,18 +188,103 @@ class AgentRuntimeCoordinatorTest {
                 repository, contextAssembler, skillRegistry, planService,
                 registry, cancellation, loopGuard, approvals, modelExecutor, sanitizer, json);
 
-        ModelToolCall call = new ModelToolCall("call-write", "create_task_after_approval", json.createObjectNode());
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false)))
-                .thenReturn(toolCallResult(call));
+        JsonNode proposalArguments = json.createObjectNode()
+                .put("title", "修复登录页白屏")
+                .put("dueDate", "2026-08-09")
+                .put("priority", "HIGH");
+        ModelToolCall call = new ModelToolCall(
+                "call-write", "create_task_after_approval", proposalArguments);
+        ModelTurnResult turn = toolCallResult(call);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        AgentApprovalView approval = mock(AgentApprovalView.class);
+        when(approval.id()).thenReturn(UUID.randomUUID());
+        when(approval.proposalFamily()).thenReturn(AgentProposalFamily.TASK_CREATE);
+        when(approval.revision()).thenReturn(1);
+        when(approval.arguments()).thenReturn(call.arguments());
+        when(approvals.proposeOrRevise(eq(run), eq(turn), eq(call), any(), eq(tool)))
+                .thenReturn(new AgentProposalOutcome(approval, AgentProposalOutcome.Operation.CREATED,
+                        json.createObjectNode(), call.arguments(), json.createObjectNode()));
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
-        assertThat(outcome.status()).isEqualTo(AgentRunStatus.WAITING_FOR_APPROVAL);
-        verify(approvals).propose(eq(run), argThat(completion -> completion != null
-                        && completion.provider().equals("test")
-                        && completion.model().equals("model")
-                        && completion.latencyMs() == 100L),
-                any(), any(), eq(tool));
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(outcome.answer())
+                .contains("修复登录页白屏")
+                .contains("截止日期：2026-08-09")
+                .contains("优先级：HIGH")
+                .contains("待审批");
+        verify(approvals).proposeOrRevise(eq(run), argThat(modelTurn ->
+                        modelTurn.provider().equals("test")
+                                && modelTurn.model().equals("model")
+                                && modelTurn.latencyMs() == 100L),
+                  eq(call), any(), eq(tool));
+    }
+
+    @Test
+    void writeProposalFailureTerminatesRunImmediatelyInsteadOfWaitingForLeaseExpiry() {
+        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("write", List.of()));
+
+        ApprovalWriteAgentTool tool = new ApprovalWriteAgentTool() {
+            @Override public String name() { return "create_task_after_approval"; }
+            @Override public boolean writesBusinessData() { return true; }
+            @Override public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {
+                throw new AssertionError("write tool must wait for approval");
+            }
+            @Override public JsonNode normalize(AgentToolContext context, JsonNode arguments) { return arguments; }
+            @Override public JsonNode diff(AgentToolContext context, JsonNode arguments) { return json.createObjectNode(); }
+        };
+        AgentToolRegistry registry = new AgentToolRegistry(List.of(tool));
+        coordinator = new AgentRuntimeCoordinator(
+                repository, contextAssembler, skillRegistry, planService,
+                registry, cancellation, loopGuard, approvals, modelExecutor, sanitizer, json);
+
+        ModelToolCall call = new ModelToolCall(
+                "call-write-failure", "create_task_after_approval",
+                json.createObjectNode().put("title", "修复登录页面白屏问题"));
+        ModelTurnResult turn = toolCallResult(call);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(approvals.proposeOrRevise(eq(run), eq(turn), eq(call), any(), eq(tool)))
+                .thenThrow(new IllegalArgumentException("invalid proposal"));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(outcome.errorCode()).isEqualTo("AGENT_TOOL_EXECUTION_FAILED");
+        verify(repository).recordFailure(run, "AGENT_TOOL_EXECUTION_FAILED", false);
+        verify(repository, never()).requeueRun(any());
+    }
+
+    @Test
+    void trustedPendingProposalIsInjectedWithIdAndLatestArguments() {
+        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        UUID approvalId = UUID.randomUUID();
+        var proposal = new AgentProposalContext(
+                approvalId, AgentProposalFamily.TASK_CREATE, UUID.randomUUID(), "PENDING", 2,
+                json.createObjectNode().put("title", "修复登录页白屏").put("dueDate", "2026-08-09"),
+                null, json.createObjectNode().put("assigneeId", "changed"));
+        AgentExecutionContext base = context();
+        AgentExecutionContext ctx = new AgentExecutionContext(
+                base.runId(), base.sessionId(), base.projectId(), base.requesterId(),
+                base.projectRole(), base.scheduled(), base.page(), base.limits(), base.depth(), List.of(proposal));
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("修订任务提案", List.of()));
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(textResult("已处理"));
+
+        coordinator.advance(run);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor).callModel(eq(run), messages.capture(), any(), eq(false));
+        assertThat(messages.getValue())
+                .filteredOn(ModelMessage.System.class::isInstance)
+                .map(ModelMessage.System.class::cast)
+                .extracting(ModelMessage.System::content)
+                .anyMatch(content -> content.contains("TRUSTED_PROPOSALS")
+                        && content.contains(approvalId.toString())
+                        && content.contains("修复登录页白屏")
+                        && content.contains("最新需求优先"));
     }
 
     @Test
@@ -292,7 +379,7 @@ class AgentRuntimeCoordinatorTest {
     }
 
     @Test
-    void finalBoundaryRejectsAnotherToolCallWithoutRequeueing() {
+    void finalBoundaryFallsBackToPersistedEvidenceWhenModelCallsAnotherTool() {
         AgentRunView run = runAtUsage(14, 5);
         when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
         when(planService.ensurePlan(eq(run), any())).thenReturn(plan("列出根目录", List.of()));
@@ -304,11 +391,27 @@ class AgentRuntimeCoordinatorTest {
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
-        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED);
-        assertThat(outcome.errorCode()).isEqualTo("AGENT_INVALID_RESPONSE");
-        verify(repository).recordFailure(any(), eq("AGENT_INVALID_RESPONSE"), eq(false));
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(outcome.answer()).contains("已取得的结果").contains("mcp.github-readonly.get_file_contents");
+        verify(repository).recordFinal(any(), contains("已取得的结果"), anyList());
         verify(repository, never()).recordToolResult(any(), any(), any(), any(), anyBoolean());
         verify(repository, never()).requeueRun(any());
+    }
+
+    @Test
+    void exhaustedRunReturnsPersistedEvidenceWithoutAnotherModelCall() {
+        AgentRunView run = runAtUsage(15, 5);
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("列出根目录", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(successfulToolStep()));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(outcome.answer()).contains("已取得的结果").contains("type");
+        verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean());
+        verify(repository, never()).recordBudgetExceeded(any());
     }
 
     @Test

@@ -32,9 +32,15 @@ public class WorkReportService {
 
     @Transactional(readOnly = true)
     public WeeklyReportView getWeeklyReport(UUID projectId, UUID userId) {
-        access.requireMember(projectId, userId);
+        return getWeeklyReport(projectId, userId, 7);
+    }
 
-        // 任务统计
+    @Transactional(readOnly = true)
+    public WeeklyReportView getWeeklyReport(UUID projectId, UUID userId, int days) {
+        access.requireMember(projectId, userId);
+        java.time.LocalDate since = java.time.LocalDate.now().minusDays(days);
+
+        // 任务统计（限定日期范围）
         var taskStats = jdbc.queryForObject("""
                 SELECT
                     count(*) AS totalTasks,
@@ -46,6 +52,7 @@ public class WorkReportService {
                                     / count(*) FILTER (WHERE status <> 'CANCELED'), 3)
                     END AS completionRate
                 FROM project_task WHERE project_id = ?
+                  AND (created_at >= ? OR updated_at >= ? OR status = 'DONE')
                 """,
                 (rs, rowNum) -> new WeeklyReportView.TaskStatistics(
                         rs.getInt("totalTasks"),
@@ -54,9 +61,9 @@ public class WorkReportService {
                         rs.getInt("overdueTasks"),
                         rs.getBigDecimal("completionRate")
                 ),
-                projectId);
+                projectId, since, since);
 
-        // 里程碑统计
+        // 里程碑统计（限定日期范围）
         var milestoneStats = jdbc.queryForObject("""
                 SELECT
                     count(*) AS totalMilestones,
@@ -64,6 +71,7 @@ public class WorkReportService {
                     count(*) FILTER (WHERE status IN ('PLANNED','ACTIVE') AND target_date >= CURRENT_DATE) AS upcomingMilestones,
                     count(*) FILTER (WHERE target_date < CURRENT_DATE AND status NOT IN ('COMPLETED','CANCELED')) AS overdueMilestones
                 FROM milestone WHERE project_id = ?
+                  AND (created_at >= ? OR updated_at >= ? OR status = 'COMPLETED')
                 """,
                 (rs, rowNum) -> new WeeklyReportView.MilestoneStatistics(
                         rs.getInt("totalMilestones"),
@@ -71,9 +79,9 @@ public class WorkReportService {
                         rs.getInt("upcomingMilestones"),
                         rs.getInt("overdueMilestones")
                 ),
-                projectId);
+                projectId, since, since);
 
-        // 贡献者排行
+        // 贡献者排行（限定日期范围）
         List<WeeklyReportView.TopContributor> contributors = jdbc.query("""
                 SELECT
                     u.display_name AS displayName,
@@ -82,6 +90,7 @@ public class WorkReportService {
                 FROM project_task t
                 JOIN app_user u ON u.id = t.assignee_id
                 WHERE t.project_id = ? AND t.assignee_id IS NOT NULL
+                  AND (t.created_at >= ? OR t.updated_at >= ? OR t.status = 'DONE')
                 GROUP BY t.assignee_id, u.display_name
                 ORDER BY completedTasks DESC
                 LIMIT 5
@@ -91,7 +100,7 @@ public class WorkReportService {
                         rs.getInt("completedTasks"),
                         rs.getInt("totalTasks")
                 ),
-                projectId);
+                projectId, since, since);
 
         // 亮点和风险
         List<String> highlights = new ArrayList<>();

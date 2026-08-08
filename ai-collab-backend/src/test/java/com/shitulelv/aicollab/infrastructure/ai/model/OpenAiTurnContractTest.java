@@ -340,7 +340,7 @@ class OpenAiTurnContractTest {
     private ModelConfiguration config() {
         OffsetDateTime now = OffsetDateTime.now();
         return new ModelConfiguration(
-                UUID.randomUUID(), "test", ModelProviderType.OPENAI_COMPATIBLE,
+                UUID.randomUUID(), UUID.randomUUID(), "test", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://example.com", "/v1/chat/completions",
                 "encrypted", "test-model", true, 0.2, 1000,
                 EnumSet.allOf(ModelCapability.class), now, now);
@@ -374,7 +374,7 @@ class OpenAiTurnContractTest {
 
     private ChatCompletionCommand legacyCommand() {
         return new ChatCompletionCommand(
-                "system", "user", ChatCompletionCommand.OutputFormat.TEXT,
+                null, "system", "user", ChatCompletionCommand.OutputFormat.TEXT,
                 ModelPurpose.AGENT, null, List.of());
     }
 

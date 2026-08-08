@@ -6,7 +6,7 @@ import com.shitulelv.aicollab.document.domain.model.DocumentChunk;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.domain.service.DocumentChunker;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
-import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingGateway;
+import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGateway;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
 import com.shitulelv.aicollab.document.infrastructure.parser.DocumentParser;
 import com.shitulelv.aicollab.document.infrastructure.parser.ParsedDocument;
@@ -30,14 +30,14 @@ public class DocumentProcessingService {
     private final DocumentStorageGateway storage;
     private final DocumentParser parser;
     private final DocumentChunker chunker;
-    private final EmbeddingGateway embeddingGateway;
+    private final ProjectEmbeddingGateway embeddingGateway;
     private final DocumentIndexWriter indexWriter;
     private final DocumentFailureRecorder failures;
     private final NotificationApplicationService notifications;
 
     public DocumentProcessingService(DocumentRepository documents, DocumentStorageGateway storage,
                                      DocumentParser parser, DocumentChunker chunker,
-                                     EmbeddingGateway embeddingGateway, DocumentIndexWriter indexWriter,
+                                     ProjectEmbeddingGateway embeddingGateway, DocumentIndexWriter indexWriter,
                                      DocumentFailureRecorder failures,
                                      NotificationApplicationService notifications) {
         this.documents = documents;
@@ -65,7 +65,7 @@ public class DocumentProcessingService {
             if (chunks.isEmpty()) throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED);
             if (!documents.markIndexing(
                     projectId, documentId, processingToken, parsed.parserType())) return;
-            EmbeddingBatch embeddings = embeddingGateway.embed(
+            EmbeddingBatch embeddings = embeddingGateway.embed(projectId,
                     chunks.stream().map(DocumentChunk::content).toList(),
                     () -> requireHeartbeat(
                             projectId, documentId, processingToken, DocumentStatus.INDEXING));

@@ -42,7 +42,7 @@ class OpenAiCompatibleChatModelGatewayTest {
                     Duration.ofSeconds(10), 0.2, 1000, false);
 
             new OpenAiCompatibleChatModelGateway(properties, false).complete(
-                    new ChatCompletionCommand("sys", "usr",
+                    new ChatCompletionCommand(null, "sys", "usr",
                             ChatCompletionCommand.OutputFormat.JSON_OBJECT));
 
             assertThat(capturedBody.get()).doesNotContain("response_format");

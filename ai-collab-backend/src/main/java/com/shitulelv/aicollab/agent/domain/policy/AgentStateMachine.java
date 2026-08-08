@@ -25,12 +25,15 @@ public final class AgentStateMachine {
                 AgentRunStatus.BUDGET_EXCEEDED));
         values.put(AgentRunStatus.RUNNING, EnumSet.of(
                 AgentRunStatus.QUEUED, AgentRunStatus.WAITING_FOR_APPROVAL,
+                AgentRunStatus.WAITING_FOR_USER_INPUT,
                 AgentRunStatus.SUCCEEDED, AgentRunStatus.FAILED_RETRYABLE,
                 AgentRunStatus.FAILED, AgentRunStatus.CANCELED,
                 AgentRunStatus.BUDGET_EXCEEDED));
         values.put(AgentRunStatus.WAITING_FOR_APPROVAL, EnumSet.of(
                 AgentRunStatus.QUEUED, AgentRunStatus.FAILED,
                 AgentRunStatus.CANCELED, AgentRunStatus.BUDGET_EXCEEDED));
+        values.put(AgentRunStatus.WAITING_FOR_USER_INPUT, EnumSet.of(
+                AgentRunStatus.QUEUED, AgentRunStatus.CANCELED, AgentRunStatus.FAILED));
         values.put(AgentRunStatus.FAILED_RETRYABLE, EnumSet.of(
                 AgentRunStatus.QUEUED, AgentRunStatus.FAILED, AgentRunStatus.CANCELED));
         return Map.copyOf(values);

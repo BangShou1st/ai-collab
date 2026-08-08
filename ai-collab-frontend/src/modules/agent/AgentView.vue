@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
@@ -8,10 +8,12 @@ import AgentContextChips from './AgentContextChips.vue'
 import AgentRunTimeline from './AgentRunTimeline.vue'
 import AgentApprovalCard from './AgentApprovalCard.vue'
 import { agentApi } from './agent-api'
+import { projectApi } from '../project/project-api'
+import type { ProjectMember } from '../project/types'
 import { streamAgentEvents } from './agent-event-stream'
 import { applyAgentEvent, emptyAgentTimeline, reconcileAgentRun, type AgentTimelineState } from './agent-run-store'
 import { agentRunPresentation } from './agent-run-state'
-import type { AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentSchedule, AgentSession, McpBinding } from './types'
+import type { AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentSession, AgentSkill } from './types'
 
 const route = useRoute()
 const projectId = computed(() => String(route.params.projectId ?? ''))
@@ -20,21 +22,16 @@ const sessions = ref<AgentSession[]>([])
 const sessionId = ref('')
 const messages = ref<AgentMessage[]>([])
 const approvals = ref<AgentApproval[]>([])
-const schedules = ref<AgentSchedule[]>([])
-const mcpBindings = ref<McpBinding[]>([])
-const mcpBindingForm = reactive({ connectionId: '', allowedTools: '', allowedResources: '' })
+const members = ref<ProjectMember[]>([])
+const skills = ref<AgentSkill[]>([])
+const selectedSkillCode = ref<string | null>(null)
 const question = ref('')
 const busy = ref(false)
 const sending = ref(false)
 const activeRun = ref<AgentRun | null>(null)
 const timeline = ref<AgentTimelineState>(emptyAgentTimeline())
 const activeRunState = computed(() => activeRun.value ? agentRunPresentation(activeRun.value) : null)
-const scheduleDialog = ref(false)
 const removedContextKeys = ref(new Set<keyof AgentPageContext>())
-const schedule = ref({
-  name: '每周项目检查', goal: '检查项目进度、风险并生成带来源的周报草案',
-  skillCode: 'WEEKLY_REPORT', frequency: 'WEEKLY', timeZone: 'Asia/Shanghai', localTime: '09:00:00', weeklyDay: 1,
-})
 let timer: number | undefined
 let streamController: AbortController | undefined
 
@@ -45,11 +42,11 @@ async function load() {
   if (!projectId.value) return
   busy.value = true
   try {
-    const [s, a, jobs, bindings] = await Promise.all([
+    const [s, a, skillList, m] = await Promise.all([
       agentApi.sessions(projectId.value), agentApi.approvals(projectId.value),
-      agentApi.schedules(projectId.value), agentApi.mcpBindings(projectId.value),
+      agentApi.skills(projectId.value), projectApi.listMembers(projectId.value),
     ])
-    sessions.value = s.data; approvals.value = a.data; schedules.value = jobs.data; mcpBindings.value = bindings.data
+    sessions.value = s.data; approvals.value = a.data; skills.value = skillList.data; members.value = m.data
     if (!sessionId.value && sessions.value[0]) sessionId.value = sessions.value[0].id
   } catch (reason) { fail(reason, 'Agent 工作区加载') } finally { busy.value = false }
 }
@@ -89,7 +86,7 @@ async function renameSession(item: AgentSession) {
 async function deleteSession(item: AgentSession) {
   try {
     await ElMessageBox.confirm(
-      `确认删除会话“${item.title}”及其全部消息吗？`,
+      `确认删除会话"${item.title}"及其全部消息吗？`,
       '删除会话',
       {
         type: 'warning',
@@ -119,11 +116,13 @@ async function send() {
   try {
     const run = (await agentApi.submit(projectId.value, sessionId.value, {
       content,
+      skillCode: selectedSkillCode.value,
       pageContext: currentPageContext(),
     })).data
     activeRun.value = run
     timeline.value = emptyAgentTimeline(run)
     question.value = ''
+    selectedSkillCode.value = null
     await loadMessages()
     startEventStream(run)
   } catch (reason) { fail(reason, 'Agent 消息发送') } finally { sending.value = false }
@@ -175,7 +174,9 @@ async function consumeEventStream(runId: string, controller: AbortController, de
     }
     if (controller.signal.aborted || timeline.value.run?.status === 'SUCCEEDED'
       || timeline.value.run?.status === 'FAILED' || timeline.value.run?.status === 'CANCELED'
-      || timeline.value.run?.status === 'BUDGET_EXCEEDED') {
+      || timeline.value.run?.status === 'BUDGET_EXCEEDED'
+      || timeline.value.run?.status === 'WAITING_FOR_APPROVAL'
+      || timeline.value.run?.status === 'WAITING_FOR_USER_INPUT') {
       await Promise.all([loadMessages(), refreshApprovals()])
       return
     }
@@ -187,43 +188,6 @@ async function consumeEventStream(runId: string, controller: AbortController, de
     await new Promise(resolve => window.setTimeout(resolve, delayMs))
     if (!controller.signal.aborted) void consumeEventStream(runId, controller, Math.min(delayMs * 2, 5000))
   }
-}
-function pollRun(runId: string) {
-  window.clearTimeout(timer)
-  timer = window.setTimeout(() => pollRunOnce(runId), 900)
-}
-async function pollRunOnce(runId: string) {
-  try {
-    const detail = (await agentApi.run(projectId.value, runId)).data
-    activeRun.value = detail.run
-    const state = agentRunPresentation(detail.run)
-    if (state.terminal) {
-      await Promise.all([loadMessages(), refreshApprovals()])
-      return
-    }
-    pollRun(runId)
-  } catch (reason) {
-    fail(reason, 'Agent 运行状态加载')
-  }
-}
-async function retryActiveRun() {
-  if (!activeRun.value || sending.value) return
-  sending.value = true
-  try {
-    activeRun.value = (await agentApi.retry(projectId.value, activeRun.value.id)).data
-    startEventStream(activeRun.value)
-  } catch (reason) {
-    fail(reason, 'Agent 运行重试')
-  } finally {
-    sending.value = false
-  }
-}
-async function cancelActiveRun() {
-  if (!activeRun.value) return
-  try {
-    await agentApi.cancel(projectId.value, activeRun.value.id)
-    ElMessage.info('正在停止 Agent 运行')
-  } catch (reason) { fail(reason, 'Agent 运行取消') }
 }
 async function refreshApprovals() { approvals.value = (await agentApi.approvals(projectId.value)).data }
 async function approve(item: AgentApproval) {
@@ -237,51 +201,48 @@ async function approve(item: AgentApproval) {
   }
   catch (reason) { fail(reason, 'Agent 提案批准') }
 }
+async function continueRun(content: string) {
+  if (!activeRun.value || activeRun.value.status !== 'WAITING_FOR_USER_INPUT') return
+  sending.value = true
+  try {
+    const run = (await agentApi.continueRun(projectId.value, activeRun.value.id, content)).data
+    activeRun.value = run
+    timeline.value = emptyAgentTimeline(run)
+    question.value = ''
+    await loadMessages()
+    startEventStream(run)
+  } catch (reason) { fail(reason, 'Agent 回复') } finally { sending.value = false }
+}
+function continueRunHandler() {
+  const content = question.value.trim()
+  if (!content || sending.value) return
+  continueRun(content)
+}
+async function retryActiveRun() {
+  if (!activeRun.value || sending.value) return
+  sending.value = true
+  try {
+    const run = (await agentApi.retry(projectId.value, activeRun.value.id)).data
+    activeRun.value = run
+    timeline.value = emptyAgentTimeline(run)
+    await loadMessages()
+    startEventStream(run)
+  } catch (reason) { fail(reason, 'Agent 重试') } finally { sending.value = false }
+}
+async function cancelActiveRun() {
+  if (!activeRun.value) return
+  try {
+    await agentApi.cancel(projectId.value, activeRun.value.id)
+    ElMessage.success('已请求取消')
+  } catch (reason) { fail(reason, 'Agent 取消') }
+}
 async function reject(item: AgentApproval) {
   const result = await ElMessageBox.prompt('请输入拒绝原因', '拒绝 Agent 提案', { inputValidator: value => Boolean(value.trim()) })
   try {
     await agentApi.reject(projectId.value, item, result.value)
-    await refreshApprovals(); pollRun(item.runId)
+    await refreshApprovals()
   }
   catch (reason) { fail(reason, 'Agent 提案拒绝') }
-}
-async function createSchedule() {
-  if (!sessionId.value) await newSession()
-  try {
-    await agentApi.createSchedule(projectId.value, {
-      ...schedule.value, sessionId: sessionId.value,
-      weeklyDay: schedule.value.frequency === 'WEEKLY' ? schedule.value.weeklyDay : null,
-    })
-    schedules.value = (await agentApi.schedules(projectId.value)).data
-    scheduleDialog.value = false; ElMessage.success('定时运行已创建')
-  } catch (reason) { fail(reason, 'Agent 定时运行创建') }
-}
-async function toggle(item: AgentSchedule) {
-  try {
-    await agentApi.setSchedule(projectId.value, item, !item.enabled)
-    schedules.value = (await agentApi.schedules(projectId.value)).data
-  } catch (reason) { fail(reason, item.enabled ? 'Agent 定时运行停用' : 'Agent 定时运行启用') }
-}
-const splitMcpAllowlist = (value: string) => [...new Set(value.split(',').map(item => item.trim()).filter(Boolean))]
-async function saveMcpBinding() {
-  if (!mcpBindingForm.connectionId.trim()) return
-  try {
-    await agentApi.bindMcp(projectId.value, mcpBindingForm.connectionId.trim(), {
-      enabled: true,
-      allowedTools: splitMcpAllowlist(mcpBindingForm.allowedTools),
-      allowedResources: splitMcpAllowlist(mcpBindingForm.allowedResources),
-      configuration: {},
-      version: mcpBindings.value.find(item => item.connectionId === mcpBindingForm.connectionId.trim())?.version ?? 0,
-    })
-    mcpBindings.value = (await agentApi.mcpBindings(projectId.value)).data
-    ElMessage.success('项目 MCP 白名单已保存')
-  } catch (reason) { fail(reason, '项目 MCP 白名单保存') }
-}
-async function removeMcpBinding(item: McpBinding) {
-  try {
-    await agentApi.unbindMcp(projectId.value, item.connectionId)
-    mcpBindings.value = mcpBindings.value.filter(binding => binding.connectionId !== item.connectionId)
-  } catch (reason) { fail(reason, '项目 MCP 绑定删除') }
 }
 const time = (value: string) => new Date(value).toLocaleString('zh-CN')
 watch(projectId, load, { immediate: true })
@@ -358,57 +319,42 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
               </el-alert>
               <AgentRunTimeline :plan="timeline.plan" :events="timeline.events" :status="activeRun?.status" />
             </div>
+            <div v-if="activeRun?.status === 'WAITING_FOR_USER_INPUT'" class="waiting-for-input">
+              <el-alert title="Agent 需要你的输入" type="info" :closable="false" show-icon />
+            </div>
             <AgentContextChips :context="pageContext" @remove="removeContext" @clear="clearContext" />
+            <div class="skill-selector" v-if="skills.length">
+              <span class="skill-label">选择能力：</span>
+              <el-check-tag
+                v-for="skill in skills" :key="skill.code"
+                :checked="selectedSkillCode === skill.code"
+                @change="selectedSkillCode = selectedSkillCode === skill.code ? null : skill.code"
+              >{{ skill.displayName }}</el-check-tag>
+              <el-check-tag
+                :checked="selectedSkillCode === null"
+                @change="selectedSkillCode = null"
+              >自动识别</el-check-tag>
+            </div>
             <el-input v-model="question" type="textarea" :rows="4" maxlength="4000" show-word-limit
-              placeholder="例如：检查本周进度和高风险事项，并给出来源" @keydown.ctrl.enter.prevent="send" />
+              :placeholder="activeRun?.status === 'WAITING_FOR_USER_INPUT' ? '请输入你的回复...' : '例如：检查本周进度和高风险事项，并给出来源'"
+              @keydown.ctrl.enter.prevent="activeRun?.status === 'WAITING_FOR_USER_INPUT' ? continueRunHandler() : send" />
             <div class="composer-actions">
-              <el-button type="primary" :loading="sending" :disabled="!question.trim()" @click="send">发送（Ctrl+Enter）</el-button>
-              <el-button v-if="activeRun && !activeRunState?.terminal" type="danger" plain @click="cancelActiveRun">停止运行</el-button>
+              <el-button v-if="activeRun?.status === 'WAITING_FOR_USER_INPUT'"
+                type="primary" :loading="sending" :disabled="!question.trim()"
+                @click="continueRunHandler">
+                回复 Agent（Ctrl+Enter）
+              </el-button>
+              <el-button v-else type="primary" :loading="sending" :disabled="!question.trim()" @click="send">发送（Ctrl+Enter）</el-button>
+              <el-button v-if="activeRun && !activeRunState?.terminal && activeRun?.status !== 'WAITING_FOR_USER_INPUT'" type="danger" plain @click="cancelActiveRun">停止运行</el-button>
             </div>
           </main>
         </div>
       </el-tab-pane>
       <el-tab-pane :label="`待审批 (${approvals.filter(x => x.status === 'PENDING').length})`" name="approvals">
         <el-empty v-if="!approvals.length" description="暂无 Agent 写入提案" />
-        <AgentApprovalCard v-for="item in approvals" :key="item.id" :approval="item" @approve="approve" @reject="reject" />
-      </el-tab-pane>
-      <el-tab-pane label="定时运行" name="schedules">
-        <el-button type="primary" @click="scheduleDialog = true">新建定时运行</el-button>
-        <el-table :data="schedules">
-          <el-table-column prop="name" label="名称" /><el-table-column prop="frequency" label="频率" width="100" />
-          <el-table-column label="下次运行"><template #default="{ row }">{{ time(row.nextFireAt) }}</template></el-table-column>
-          <el-table-column label="状态" width="100"><template #default="{ row }">{{ row.enabled ? '已启用' : '已停用' }}</template></el-table-column>
-          <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link @click="toggle(row)">{{ row.enabled ? '停用' : '启用' }}</el-button></template></el-table-column>
-        </el-table>
-      </el-tab-pane>
-      <el-tab-pane label="MCP 工具" name="mcp">
-        <el-alert title="只有项目 OWNER 可以修改绑定；连接 ID 可从系统管理中心的 MCP 连接列表复制。" type="info" show-icon />
-        <el-form class="mcp-binding-form" label-position="top">
-          <el-form-item label="MCP Connection ID"><el-input v-model="mcpBindingForm.connectionId" placeholder="UUID" /></el-form-item>
-          <el-form-item label="项目允许的工具（逗号分隔）"><el-input v-model="mcpBindingForm.allowedTools" placeholder="get_file_contents, search_code" /></el-form-item>
-          <el-form-item label="项目允许的资源（逗号分隔）"><el-input v-model="mcpBindingForm.allowedResources" /></el-form-item>
-          <el-button type="primary" @click="saveMcpBinding">保存项目白名单</el-button>
-        </el-form>
-        <el-table :data="mcpBindings" empty-text="项目尚未绑定 MCP 连接">
-          <el-table-column prop="connectionName" label="连接" min-width="160" />
-          <el-table-column prop="connectionCode" label="代码" min-width="140" />
-          <el-table-column label="工具白名单" min-width="240"><template #default="{ row }">{{ row.allowedTools.join(', ') || '无' }}</template></el-table-column>
-          <el-table-column label="状态" width="120"><template #default="{ row }">{{ row.enabled && row.connectionEnabled ? '可用' : '停用' }}</template></el-table-column>
-          <el-table-column label="操作" width="100"><template #default="{ row }"><el-button text type="danger" @click="removeMcpBinding(row)">解除绑定</el-button></template></el-table-column>
-        </el-table>
+        <AgentApprovalCard v-for="item in approvals" :key="item.id" :approval="item" :members="members" @approve="approve" @reject="reject" />
       </el-tab-pane>
     </el-tabs>
-    <el-dialog v-model="scheduleDialog" title="新建定时运行" width="520px">
-      <el-form label-position="top">
-        <el-form-item label="名称"><el-input v-model="schedule.name" /></el-form-item>
-        <el-form-item label="运行目标"><el-input v-model="schedule.goal" type="textarea" :rows="3" /></el-form-item>
-        <el-form-item label="频率"><el-select v-model="schedule.frequency"><el-option label="每天" value="DAILY" /><el-option label="每周" value="WEEKLY" /></el-select></el-form-item>
-        <el-form-item v-if="schedule.frequency === 'WEEKLY'" label="星期（1=周一）"><el-input-number v-model="schedule.weeklyDay" :min="1" :max="7" /></el-form-item>
-        <el-form-item label="本地时间"><el-time-picker v-model="schedule.localTime" value-format="HH:mm:ss" /></el-form-item>
-        <el-form-item label="时区"><el-input v-model="schedule.timeZone" /></el-form-item>
-      </el-form>
-      <template #footer><el-button @click="scheduleDialog = false">取消</el-button><el-button type="primary" @click="createSchedule">创建</el-button></template>
-    </el-dialog>
   </section>
 </template>
 
@@ -417,6 +363,8 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
 aside{padding:14px;background:var(--el-fill-color-light);display:flex;min-height:0;overflow-y:auto;flex-direction:column;gap:8px}.session-row{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:4px;border-radius:10px}.session-row:hover{background:var(--el-fill-color)}.session{width:100%;height:40px;min-height:40px;border:0;border-radius:8px;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;background:transparent;cursor:pointer}.session.active{background:var(--el-color-primary-light-8);color:var(--el-color-primary)}.session-actions{display:flex;justify-content:flex-end;gap:2px}
 .conversation{min-height:0;padding:18px;display:grid;grid-template-rows:minmax(0,1fr) auto auto;gap:10px}.messages{min-height:0;overflow:auto}article{max-width:78%;margin:12px 0;padding:12px 14px;border-radius:10px;background:var(--el-fill-color-light);white-space:pre-wrap}article.user{margin-left:auto;background:var(--el-color-primary-light-9)}article p{margin:8px 0}article small{margin-right:12px;color:var(--el-text-color-secondary)}.empty{text-align:center;padding:80px;color:var(--el-text-color-secondary)}
 .run-state{margin:12px 0}.run-state :deep(.el-alert__content){display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}
+.waiting-for-input{margin:12px 0}.waiting-for-input :deep(.el-alert__content){display:flex;align-items:center;gap:8px}
 .agent-timeline{display:grid;gap:6px;margin:12px 0;padding:0;list-style:none}.agent-timeline li{display:flex;gap:10px;padding:8px 10px;border-left:3px solid var(--el-color-primary);background:var(--el-fill-color-lighter);font-size:13px}.agent-timeline span{color:var(--el-text-color-secondary)}.composer-actions{display:flex;gap:8px;flex-wrap:wrap}
+.skill-selector{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 0}.skill-label{color:var(--el-text-color-secondary);font-size:13px;white-space:nowrap}
 .approval{margin-bottom:12px}.approval :deep(.el-card__header){display:flex;justify-content:space-between}.approval-fields{display:grid;grid-template-columns:120px minmax(0,1fr);gap:8px 16px;margin:0 0 14px}.approval-fields dt{color:var(--el-text-color-secondary)}.approval-fields dd{margin:0;font-weight:600}.approval-expiry{color:var(--el-text-color-secondary);font-size:13px}@media(max-width:760px){.agent-page{height:auto;min-height:calc(100dvh - 116px);overflow:visible}.chat-layout{grid-template-columns:1fr;min-height:620px}aside{max-height:180px;overflow:auto}}
 </style>

@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public record ModelConfiguration(
         UUID id,
+        UUID projectId,
         String name,
         ModelProviderType providerType,
         String baseUrl,

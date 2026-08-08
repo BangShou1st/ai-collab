@@ -9,17 +9,17 @@ import java.util.UUID;
 /**
  * 统一模型轮次命令合同。
  * 包含多轮消息历史、工具定义、用途和运行配置。
- * configurationId 确保能力判断和实际调用使用相同的 ModelConfiguration。
+ * projectId 确保路由到项目专属的模型配置。
  */
 public record ModelTurnCommand(
         ModelPurpose purpose,
+        UUID projectId,
         UUID configurationId,
         List<ModelMessage> messages,
         List<ModelToolDefinition> tools,
         boolean toolsRequired) {
     public ModelTurnCommand {
         purpose = purpose == null ? ModelPurpose.AGENT : purpose;
-        // 先检查 null 元素，再做防御性复制
         if (messages != null) {
             for (ModelMessage message : messages) {
                 if (message == null) {
@@ -42,8 +42,17 @@ public record ModelTurnCommand(
     /**
      * 便捷构造器，不指定 configurationId（向后兼容）。
      */
+    public ModelTurnCommand(ModelPurpose purpose, UUID projectId,
+                            List<ModelMessage> messages,
+                            List<ModelToolDefinition> tools, boolean toolsRequired) {
+        this(purpose, projectId, null, messages, tools, toolsRequired);
+    }
+
+    /**
+     * 便捷构造器，不指定 projectId 和 configurationId（测试向后兼容）。
+     */
     public ModelTurnCommand(ModelPurpose purpose, List<ModelMessage> messages,
                             List<ModelToolDefinition> tools, boolean toolsRequired) {
-        this(purpose, null, messages, tools, toolsRequired);
+        this(purpose, null, null, messages, tools, toolsRequired);
     }
 }

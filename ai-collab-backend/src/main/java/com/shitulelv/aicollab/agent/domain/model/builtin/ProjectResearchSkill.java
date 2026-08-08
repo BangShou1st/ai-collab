@@ -15,10 +15,17 @@ public final class ProjectResearchSkill implements AgentSkill {
 
     private static final String INSTRUCTION = """
             你是项目研究助手。
+
+            ## 信息收集策略
             - 使用工具搜索知识库、获取文档元数据、项目快照。
             - 基于事实回答研究问题。
             - 不要猜测或编造数据。
             - 如果工具返回不足，说明缺失信息。
+
+            ## 用户交互
+            - 如果用户的问题不明确，使用 [QUESTIONS] 询问用户具体想了解什么。
+            - 示例：[QUESTIONS]\\n请问你想了解项目的哪个方面？\\n1. 整体进度\\n2. 风险分析\\n3. 文档内容
+            - 如果用户只说"研究问题"但没有具体问题，询问他们想研究什么。
             """;
 
     private static final String OUTPUT_CONTRACT = """
@@ -64,6 +71,9 @@ public final class ProjectResearchSkill implements AgentSkill {
 
     @Override
     public boolean allowWriteTools() { return false; }
+
+    @Override
+    public boolean allowExternalTools() { return true; }
 
     @Override
     public AgentRuntimeLimits defaultLimits() { return AgentRuntimeLimits.defaults(); }

@@ -63,7 +63,7 @@ export function presentApproval(approval: AgentApproval): ApprovalPresentation {
   const objective = text(source.objective)
   const startDate = text(source.startDate)
   const dueDate = text(source.dueDate) ?? text(source.targetDate)
-  const assigneeSpecified = text(source.assigneeId) ? '已指定' : null
+  const assigneeName = text(source.assigneeName) ?? (text(source.assigneeId) ? '已指定' : null)
   const milestoneSpecified = text(source.milestoneId) ? '已指定' : null
 
   const fields = [
@@ -77,7 +77,7 @@ export function presentApproval(approval: AgentApproval): ApprovalPresentation {
     field('预计工时', estimateHours ? `${estimateHours} 小时` : null),
     field('开始日期', startDate ? formatDate(startDate) : null),
     field(milestone ? '目标日期' : '截止日期', dueDate ? formatDate(dueDate) : null),
-    field('负责人', assigneeSpecified),
+    field('负责人', assigneeName),
     field('所属里程碑', milestoneSpecified),
   ].filter((item): item is ApprovalField => item !== null)
 

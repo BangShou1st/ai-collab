@@ -2,7 +2,6 @@ package com.shitulelv.aicollab.planning.application;
 
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
-import com.shitulelv.aicollab.infrastructure.ai.ChatModelProperties;
 import com.shitulelv.aicollab.infrastructure.ai.AiCallLogWriter;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.planning.infrastructure.ai.PlanningModelProperties;
@@ -33,17 +32,8 @@ class TaskPlanModelClientTest {
                 true, "openai", "https://api.openai.com", "/v1", "test-key", "gpt-4",
                 Duration.ofSeconds(30), Duration.ofSeconds(60), 0.0, 4000,
                 5, 10000, 0.5, 10);
-        ChatModelProperties chatProps = new ChatModelProperties(
-                true, "openai", "https://api.openai.com", "/v1", "test-key", "gpt-4",
-                Duration.ofSeconds(30), Duration.ofSeconds(60), 0.7, 4000, true);
-        client = new TaskPlanModelClient(planningProps, chatProps, logs);
-        // Inject mock gateway via reflection
-        try {
-            var field = TaskPlanModelClient.class.getDeclaredField("gateway");
-            field.setAccessible(true);
-            gateway = mock(ChatModelGateway.class);
-            field.set(client, gateway);
-        } catch (Exception e) { throw new RuntimeException(e); }
+        gateway = mock(ChatModelGateway.class);
+        client = new TaskPlanModelClient(planningProps, logs, gateway);
     }
 
     @Test

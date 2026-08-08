@@ -2,7 +2,7 @@ import { httpClient } from '../../api/http-client'
 import { apiResultFromResponse } from '../../api/api-result'
 import type { ApiResponse, ApiResult } from '../../api/types'
 import type {
-  AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentSchedule, AgentSession, McpBinding,
+  AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentSession, AgentSkill,
 } from './types'
 
 const root = (projectId: string) => `/projects/${projectId}/agent`
@@ -50,6 +50,15 @@ export const agentApi = {
   async retry(projectId: string, runId: string): Promise<ApiResult<AgentRun>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<AgentRun>>(`${root(projectId)}/runs/${runId}/retry`))
   },
+  async continueRun(
+    projectId: string,
+    runId: string,
+    content: string,
+  ): Promise<ApiResult<AgentRun>> {
+    return apiResultFromResponse(await httpClient.post<ApiResponse<AgentRun>>(
+      `${root(projectId)}/runs/${runId}/continue`, { content },
+    ))
+  },
   async cancel(projectId: string, runId: string): Promise<void> {
     await httpClient.post(`${root(projectId)}/runs/${runId}/cancel`)
   },
@@ -68,31 +77,7 @@ export const agentApi = {
       { headers: { 'Idempotency-Key': idempotencyKey(item.id, 'reject') } },
     ))
   },
-  async schedules(projectId: string): Promise<ApiResult<AgentSchedule[]>> {
-    return apiResultFromResponse(await httpClient.get<ApiResponse<AgentSchedule[]>>(`${root(projectId)}/schedules`))
-  },
-  async createSchedule(projectId: string, body: Record<string, unknown>): Promise<ApiResult<AgentSchedule>> {
-    return apiResultFromResponse(await httpClient.post<ApiResponse<AgentSchedule>>(`${root(projectId)}/schedules`, body))
-  },
-  async setSchedule(projectId: string, item: AgentSchedule, enabled: boolean): Promise<ApiResult<AgentSchedule>> {
-    return apiResultFromResponse(await httpClient.post<ApiResponse<AgentSchedule>>(
-      `${root(projectId)}/schedules/${item.id}/${enabled ? 'enable' : 'disable'}`, null,
-      { params: { version: item.version } },
-    ))
-  },
-  async mcpBindings(projectId: string): Promise<ApiResult<McpBinding[]>> {
-    return apiResultFromResponse(await httpClient.get<ApiResponse<McpBinding[]>>(`${root(projectId)}/mcp-bindings`))
-  },
-  async bindMcp(
-    projectId: string,
-    connectionId: string,
-    body: { enabled: boolean; allowedTools: string[]; allowedResources: string[]; configuration: Record<string, unknown>; version: number },
-  ): Promise<ApiResult<McpBinding>> {
-    return apiResultFromResponse(await httpClient.put<ApiResponse<McpBinding>>(
-      `${root(projectId)}/mcp-bindings/${connectionId}`, body,
-    ))
-  },
-  async unbindMcp(projectId: string, connectionId: string): Promise<void> {
-    await httpClient.delete(`${root(projectId)}/mcp-bindings/${connectionId}`)
+  async skills(projectId: string): Promise<ApiResult<AgentSkill[]>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<AgentSkill[]>>(`${root(projectId)}/skills`))
   },
 }

@@ -5,8 +5,6 @@ import type { ApiResponse, ApiResult } from '../../api/types'
 import type {
   KnowledgeAnswer,
   KnowledgeCitation,
-  KnowledgeEvalRun,
-  KnowledgeEvalRunDetail,
   KnowledgeFeedback,
   KnowledgeSession,
   KnowledgeSessionDetail,
@@ -179,36 +177,6 @@ export const knowledgeApi = {
     return apiResultFromResponse(
       await httpClient.get<ApiResponse<KnowledgeFeedback>>(
         `/projects/${projectId}/knowledge/sessions/messages/${messageId}/feedback`,
-      ),
-    )
-  },
-  async startEval(
-    projectId: string,
-    testCases: Array<{ question: string; expectedDocumentIds: string[] }>,
-  ): Promise<ApiResult<{ runId: string }>> {
-    return apiResultFromResponse(
-      await httpClient.post<ApiResponse<{ runId: string }>>(
-        `/projects/${projectId}/knowledge/eval/run`,
-        { testCases },
-      ),
-    )
-  },
-  async listEvalRuns(
-    projectId: string,
-  ): Promise<ApiResult<KnowledgeEvalRun[]>> {
-    return apiResultFromResponse(
-      await httpClient.get<ApiResponse<KnowledgeEvalRun[]>>(
-        `/projects/${projectId}/knowledge/eval/runs`,
-      ),
-    )
-  },
-  async getEvalRun(
-    projectId: string,
-    runId: string,
-  ): Promise<ApiResult<KnowledgeEvalRunDetail>> {
-    return apiResultFromResponse(
-      await httpClient.get<ApiResponse<KnowledgeEvalRunDetail>>(
-        `/projects/${projectId}/knowledge/eval/runs/${runId}`,
       ),
     )
   },

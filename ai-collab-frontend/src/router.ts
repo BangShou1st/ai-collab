@@ -11,7 +11,6 @@ import ProjectMembersView from './modules/project/ProjectMembersView.vue'
 import InvitationAcceptView from './modules/project/InvitationAcceptView.vue'
 import DocumentView from './modules/document/DocumentView.vue'
 import KnowledgeView from './modules/knowledge/KnowledgeView.vue'
-import KnowledgeEvalView from './modules/knowledge/KnowledgeEvalView.vue'
 import PlanningView from './modules/planning/PlanningView.vue'
 import AuditLogView from './modules/audit/AuditLogView.vue'
 import NotificationView from './modules/notification/NotificationView.vue'
@@ -23,6 +22,7 @@ import WeeklyReportView from './modules/work/WeeklyReportView.vue'
 import RiskAnalysisView from './modules/work/RiskAnalysisView.vue'
 import PlanComparisonView from './modules/work/PlanComparisonView.vue'
 import AgentView from './modules/agent/AgentView.vue'
+import ProjectModelSettings from './modules/project/ProjectModelSettings.vue'
 import AdminView from './modules/admin/AdminView.vue'
 
 export const router = createRouter({
@@ -48,9 +48,9 @@ export const router = createRouter({
     { path: '/projects/:projectId/members', component: ProjectMembersView, meta: { title: '成员管理' } },
     { path: '/projects/:projectId/documents', component: DocumentView, meta: { title: '项目文档' } },
     { path: '/projects/:projectId/knowledge', component: KnowledgeView, meta: { title: '知识问答' } },
-    { path: '/projects/:projectId/knowledge/eval', component: KnowledgeEvalView, meta: { title: '知识库评测' } },
     { path: '/projects/:projectId/ai-planning', component: PlanningView, meta: { title: 'AI 任务规划' } },
     { path: '/projects/:projectId/agent', component: AgentView, meta: { title: '项目协作 Agent' } },
+    { path: '/projects/:projectId/model-settings', component: ProjectModelSettings, meta: { title: '模型配置' } },
     { path: '/projects/:projectId/audit-logs', component: AuditLogView, meta: { title: '操作日志' } },
     { path: '/notifications', component: NotificationView, meta: { title: '通知中心' } },
     { path: '/admin', component: AdminView, meta: { title: '管理中心', systemAdmin: true } },

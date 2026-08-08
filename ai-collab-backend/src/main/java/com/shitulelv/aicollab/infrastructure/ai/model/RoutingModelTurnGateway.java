@@ -13,7 +13,7 @@ import java.util.Map;
 
 /**
  * Agent 2.0 的模型轮次路由器。
- * 与旧 RoutingChatModelGateway 并行，不重复复制路由规则和配置读取逻辑。
+ * 根据 projectId + purpose 查找项目专属的模型配置。
  */
 @Component
 public class RoutingModelTurnGateway implements ModelTurnGateway {
@@ -39,15 +39,19 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
 
     @Override
     public ModelTurnResult turn(ModelTurnCommand command) {
-        // 如果命令中指定了 configurationId，使用该配置（确保与能力判断一致）
         ModelConfiguration config;
         if (command.configurationId() != null) {
             config = configurations.findById(command.configurationId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
                             "指定的模型配置不存在"));
         } else {
-            config = configurations.findAssigned(command.purpose())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE));
+            if (command.projectId() == null) {
+                throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
+                        "未指定项目，无法查找模型配置");
+            }
+            config = configurations.findAssigned(command.projectId(), command.purpose())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
+                            "项目未配置 " + command.purpose() + " 模型"));
         }
         if (!config.enabled()) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);

@@ -30,6 +30,9 @@ public interface AgentSkill {
     /** 是否允许写工具（需要审批） */
     boolean allowWriteTools();
 
+    /** 是否允许使用外部 MCP 工具 */
+    default boolean allowExternalTools() { return false; }
+
     /** 默认预算限制 */
     AgentRuntimeLimits defaultLimits();
 

@@ -27,7 +27,7 @@ class ModelProviderAdapterContractTest {
             .set("properties", mapper.createObjectNode()
                     .set("title", mapper.createObjectNode().put("type", "string")));
     private final ChatCompletionCommand command = new ChatCompletionCommand(
-            "system", "user", ChatCompletionCommand.OutputFormat.JSON_OBJECT,
+            null, "system", "user", ChatCompletionCommand.OutputFormat.JSON_OBJECT,
             ModelPurpose.AGENT, schema,
             List.of(new ModelToolDefinition("create_task", "Create a task", schema)));
 
@@ -100,7 +100,7 @@ class ModelProviderAdapterContractTest {
     private ModelConfiguration config(ModelProviderType type, String path) {
         OffsetDateTime now = OffsetDateTime.now();
         return new ModelConfiguration(
-                UUID.randomUUID(), "test", type, "https://example.com", path,
+                UUID.randomUUID(), UUID.randomUUID(), "test", type, "https://example.com", path,
                 "encrypted", "test-model", true, 0.2, 1000,
                 EnumSet.allOf(ModelCapability.class), now, now);
     }

@@ -14,6 +14,7 @@ const projectId = route.params.projectId as string
 const nodes = ref<GraphNode[]>([])
 const edges = ref<GraphEdge[]>([])
 const loading = ref(false)
+const hoveredEdge = ref<string | null>(null)
 
 const project = ref<Project | null>(null)
 
@@ -75,6 +76,42 @@ const graphNodes = computed(() => {
 const graphWidth = computed(() => Math.max(760, ...graphNodes.value.map(node => node.x + 130)))
 const graphHeight = computed(() => Math.max(360, ...graphNodes.value.map(node => node.y + 75)))
 
+function getEdgePath(edge: GraphEdge): string {
+  const sourceNode = graphNodes.value.find(n => n.id === edge.source)
+  const targetNode = graphNodes.value.find(n => n.id === edge.target)
+  if (!sourceNode || !targetNode) return ''
+
+  const x1 = sourceNode.x + 90
+  const y1 = sourceNode.y
+  const x2 = targetNode.x - 90
+  const y2 = targetNode.y
+
+  // Calculate control points for smooth cubic Bezier curve
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const dist = Math.sqrt(dx * dx + dy * dy)
+
+  // Use horizontal control points for a smooth S-curve
+  const cx1 = x1 + dist * 0.4
+  const cy1 = y1
+  const cx2 = x2 - dist * 0.4
+  const cy2 = y2
+
+  return `M ${x1} ${y1} C ${cx1} ${cy1} ${cx2} ${cy2} ${x2} ${y2}`
+}
+
+function edgeKey(edge: GraphEdge): string {
+  return `${edge.source}-${edge.target}`
+}
+
+function onEdgeEnter(edge: GraphEdge): void {
+  hoveredEdge.value = edgeKey(edge)
+}
+
+function onEdgeLeave(): void {
+  hoveredEdge.value = null
+}
+
 onMounted(load)
 </script>
 
@@ -111,17 +148,40 @@ onMounted(load)
           >
             <polygon points="0 0, 10 3.5, 0 7" fill="#909399" />
           </marker>
+          <marker
+            id="arrowhead-hover"
+            markerWidth="10"
+            markerHeight="7"
+            refX="10"
+            refY="3.5"
+            orient="auto"
+          >
+            <polygon points="0 0, 10 3.5, 0 7" fill="#409eff" />
+          </marker>
         </defs>
-        <g v-for="edge in edges" :key="`${edge.source}-${edge.target}`">
-          <line
+        <g v-for="edge in edges" :key="edgeKey(edge)">
+          <!-- Wider invisible hit area for easier hover -->
+          <path
             v-if="graphNodes.find(n => n.id === edge.source) && graphNodes.find(n => n.id === edge.target)"
-            :x1="(graphNodes.find(n => n.id === edge.source)?.x ?? 0) + 90"
-            :y1="graphNodes.find(n => n.id === edge.source)?.y"
-            :x2="(graphNodes.find(n => n.id === edge.target)?.x ?? 0) - 90"
-            :y2="graphNodes.find(n => n.id === edge.target)?.y"
-            stroke="#909399"
-            stroke-width="2"
-            marker-end="url(#arrowhead)"
+            :d="getEdgePath(edge)"
+            stroke="transparent"
+            stroke-width="16"
+            fill="none"
+            class="edge-hit"
+            @mouseenter="onEdgeEnter(edge)"
+            @mouseleave="onEdgeLeave"
+          />
+          <path
+            v-if="graphNodes.find(n => n.id === edge.source) && graphNodes.find(n => n.id === edge.target)"
+            :d="getEdgePath(edge)"
+            :stroke="hoveredEdge === edgeKey(edge) ? '#409eff' : '#909399'"
+            :stroke-width="hoveredEdge === edgeKey(edge) ? 3.5 : 2"
+            :opacity="hoveredEdge !== null && hoveredEdge !== edgeKey(edge) ? 0.3 : 1"
+            fill="none"
+            :marker-end="hoveredEdge === edgeKey(edge) ? 'url(#arrowhead-hover)' : 'url(#arrowhead)'"
+            class="edge-line"
+            @mouseenter="onEdgeEnter(edge)"
+            @mouseleave="onEdgeLeave"
           />
         </g>
         <g v-for="node in graphNodes" :key="node.id">
@@ -195,5 +255,12 @@ onMounted(load)
   background-size: 18px 18px;
   border: 1px solid #e4e7ed;
   border-radius: 12px;
+}
+.edge-hit {
+  cursor: pointer;
+}
+.edge-line {
+  pointer-events: none;
+  transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s;
 }
 </style>

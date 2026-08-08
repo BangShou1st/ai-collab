@@ -330,7 +330,7 @@ class GeminiTurnContractTest {
     private ModelConfiguration config() {
         OffsetDateTime now = OffsetDateTime.now();
         return new ModelConfiguration(
-                UUID.randomUUID(), "test", ModelProviderType.GEMINI,
+                UUID.randomUUID(), UUID.randomUUID(), "test", ModelProviderType.GEMINI,
                 "https://example.com", "/v1beta/models/{model}:generateContent",
                 "encrypted", "gemini-test", true, 0.2, 1000,
                 EnumSet.allOf(ModelCapability.class), now, now);
@@ -364,7 +364,7 @@ class GeminiTurnContractTest {
 
     private ChatCompletionCommand legacyCommand() {
         return new ChatCompletionCommand(
-                "system", "user", ChatCompletionCommand.OutputFormat.TEXT,
+                null, "system", "user", ChatCompletionCommand.OutputFormat.TEXT,
                 ModelPurpose.AGENT, null, List.of());
     }
 

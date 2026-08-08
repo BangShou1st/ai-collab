@@ -85,6 +85,7 @@ class AgentSkillToolMappingTest {
         tools.add(stubTool("analyze_project_risks", false));
         tools.add(stubTool("draft_weekly_report", false));
         tools.add(stubTool("list_project_memories", false));
+        tools.add(stubTool("list_project_members", false));
 
         // 审批写工具
         tools.add(stubWriteTool("create_task_after_approval"));

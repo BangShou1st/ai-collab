@@ -47,6 +47,23 @@ class ToolArgumentValidatorTest {
     }
 
     @Test
+    void trustedApprovalPatchMayOmitCreateRequiredFields() {
+        ObjectNode schema = schemaWith(
+                new String[]{"required", "properties"},
+                mapper.createArrayNode().add("title"),
+                props("title", "string"));
+        schema.put("x-approval-patch", true);
+        ((ObjectNode) schema.path("properties")).set(
+                "approvalId", mapper.createObjectNode().put("type", "string"));
+        ObjectNode patch = mapper.createObjectNode()
+                .put("approvalId", "8aaad965-1fc8-42ff-9d9b-431c0fd51317")
+                .put("title", (String) null);
+        patch.remove("title");
+
+        assertThat(ToolArgumentValidator.validate(patch, schema)).isNull();
+    }
+
+    @Test
     void typeMismatchFails() {
         ObjectNode schema = schemaWith("properties", props("count", "integer"));
         ObjectNode args = mapper.createObjectNode().put("count", "not-a-number");

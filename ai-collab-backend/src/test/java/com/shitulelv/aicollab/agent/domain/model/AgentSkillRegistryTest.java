@@ -87,6 +87,48 @@ class AgentSkillRegistryTest {
     }
 
     @Test
+    void selectByGoalKeywordCreateTask() {
+        AgentSkill skill = registry.select(null, "创建一个任务", null);
+        assertThat(skill.code()).isEqualTo("ITERATION_PLANNING");
+    }
+
+    @Test
+    void selectByGoalKeywordNewTask() {
+        AgentSkill skill = registry.select(null, "帮我新建任务", null);
+        assertThat(skill.code()).isEqualTo("ITERATION_PLANNING");
+    }
+
+    @Test
+    void selectByGoalKeywordAddTask() {
+        AgentSkill skill = registry.select(null, "添加一个任务", null);
+        assertThat(skill.code()).isEqualTo("ITERATION_PLANNING");
+    }
+
+    @Test
+    void selectByGoalKeywordAssignTask() {
+        AgentSkill skill = registry.select(null, "分配任务给成员", null);
+        assertThat(skill.code()).isEqualTo("ITERATION_PLANNING");
+    }
+
+    @Test
+    void selectByGoalKeywordProgressMapsToHealth() {
+        AgentSkill skill = registry.select(null, "查看项目进度", null);
+        assertThat(skill.code()).isEqualTo("PROJECT_HEALTH");
+    }
+
+    @Test
+    void selectByGoalKeywordAnalyzeMapsToResearch() {
+        AgentSkill skill = registry.select(null, "分析一下", null);
+        assertThat(skill.code()).isEqualTo("PROJECT_RESEARCH");
+    }
+
+    @Test
+    void selectByGoalKeywordSearchMapsToResearch() {
+        AgentSkill skill = registry.select(null, "搜索文档", null);
+        assertThat(skill.code()).isEqualTo("PROJECT_RESEARCH");
+    }
+
+    @Test
     void selectByPageRouteDashboard() {
         AgentPageContext page = new AgentPageContext("DASHBOARD", null, null, null, null);
         AgentSkill skill = registry.select(null, null, page);
@@ -97,7 +139,7 @@ class AgentSkillRegistryTest {
     void selectByPageRouteTaskBoard() {
         AgentPageContext page = new AgentPageContext("TASK_BOARD", null, null, null, null);
         AgentSkill skill = registry.select(null, null, page);
-        assertThat(skill.code()).isEqualTo("PROJECT_HEALTH");
+        assertThat(skill.code()).isEqualTo("ITERATION_PLANNING");
     }
 
     @Test

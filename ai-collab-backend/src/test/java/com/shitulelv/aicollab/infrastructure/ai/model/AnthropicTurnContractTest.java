@@ -308,7 +308,7 @@ class AnthropicTurnContractTest {
     private ModelConfiguration config() {
         OffsetDateTime now = OffsetDateTime.now();
         return new ModelConfiguration(
-                UUID.randomUUID(), "test", ModelProviderType.ANTHROPIC,
+                UUID.randomUUID(), UUID.randomUUID(), "test", ModelProviderType.ANTHROPIC,
                 "https://example.com", "/v1/messages",
                 "encrypted", "claude-test", true, 0.2, 1000,
                 EnumSet.allOf(ModelCapability.class), now, now);
@@ -342,7 +342,7 @@ class AnthropicTurnContractTest {
 
     private ChatCompletionCommand legacyCommand() {
         return new ChatCompletionCommand(
-                "system", "user", ChatCompletionCommand.OutputFormat.TEXT,
+                null, "system", "user", ChatCompletionCommand.OutputFormat.TEXT,
                 ModelPurpose.AGENT, null, List.of());
     }
 

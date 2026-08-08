@@ -181,4 +181,26 @@ public class AgentRunService {
                 json.createObjectNode().put("status", retried.status().name()));
         return retried;
     }
+
+    /**
+     * 继续等待用户输入的 Run。
+     */
+    @Transactional
+    public AgentRunView continueRun(UUID projectId, UUID runId, UUID userId, String userResponse) {
+        access.requireMember(projectId, userId);
+        AgentRunView run = repository.findRun(projectId, runId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+
+        // 验证状态必须是 WAITING_FOR_USER_INPUT
+        if (run.status() != AgentRunStatus.WAITING_FOR_USER_INPUT) {
+            throw new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND,
+                    "Agent 运行不在等待用户输入状态");
+        }
+
+        // 继续 Run
+        AgentRunView continued = repository.continueRun(run, userResponse.strip());
+        events.append(projectId, runId, AgentEventType.RUN_CREATED,
+                json.createObjectNode().put("status", continued.status().name()));
+        return continued;
+    }
 }

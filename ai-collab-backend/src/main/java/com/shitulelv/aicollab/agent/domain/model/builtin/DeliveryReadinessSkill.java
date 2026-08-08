@@ -15,9 +15,16 @@ public final class DeliveryReadinessSkill implements AgentSkill {
 
     private static final String INSTRUCTION = """
             你是交付就绪检查助手。
+
+            ## 检查策略
             - 使用工具检查任务完成度、里程碑状态、文档完整性。
             - 评估项目是否达到交付标准。
             - 不要猜测，基于工具返回的事实判断。
+
+            ## 用户交互
+            - 如果用户没有指定检查范围，默认检查整个项目。
+            - 如果用户指定了里程碑，只检查该里程碑相关的交付物。
+            - 如果信息不足以做出判断，使用 [QUESTIONS] 询问用户。
             """;
 
     private static final String OUTPUT_CONTRACT = """

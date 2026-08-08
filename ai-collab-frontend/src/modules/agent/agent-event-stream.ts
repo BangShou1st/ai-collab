@@ -39,9 +39,16 @@ function parseFrame(frame: string, onEvent: (event: AgentRunEvent) => void): voi
     .map(line => line.slice(5).trimStart())
     .join('\n')
   if (!data) return
-  const parsed: unknown = JSON.parse(data)
-  if (!isAgentRunEvent(parsed)) throw new Error('Agent SSE 事件格式无效')
-  onEvent(parsed)
+  try {
+    const parsed: unknown = JSON.parse(data)
+    if (!isAgentRunEvent(parsed)) {
+      console.warn('Agent SSE 事件格式无效，跳过')
+      return
+    }
+    onEvent(parsed)
+  } catch (e) {
+    console.warn('Agent SSE 帧解析失败，跳过:', e)
+  }
 }
 
 function isAgentRunEvent(value: unknown): value is AgentRunEvent {

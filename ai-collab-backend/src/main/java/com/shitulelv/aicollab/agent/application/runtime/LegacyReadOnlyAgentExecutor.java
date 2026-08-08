@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Legacy 只读执行器。
@@ -54,6 +55,7 @@ public class LegacyReadOnlyAgentExecutor {
     public ModelTurnResult callModel(
             List<ModelMessage> messages,
             List<AgentToolDefinition> exposed,
+            UUID projectId,
             boolean correctionAttempted) {
 
         // 构建 system prompt 和 tool list 文本
@@ -64,6 +66,7 @@ public class LegacyReadOnlyAgentExecutor {
         String fullSystemPrompt = systemPrompt + "\n\n" + toolList + "\n" + buildLegacyInstructions();
 
         ChatCompletionCommand command = new ChatCompletionCommand(
+                projectId,
                 fullSystemPrompt,
                 userPrompt,
                 ChatCompletionCommand.OutputFormat.JSON_OBJECT,

@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.agent.api.controller;
 import com.shitulelv.aicollab.agent.api.dto.CreateAgentSessionRequest;
 import com.shitulelv.aicollab.agent.api.dto.RenameAgentSessionRequest;
 import com.shitulelv.aicollab.agent.api.dto.SubmitAgentMessageRequest;
+import com.shitulelv.aicollab.agent.api.dto.ContinueAgentRunRequest;
 import com.shitulelv.aicollab.agent.api.dto.AgentMessageResponse;
 import com.shitulelv.aicollab.agent.api.dto.AgentRunDetailResponse;
 import com.shitulelv.aicollab.agent.application.AgentRunService;
@@ -111,6 +112,15 @@ public class AgentSessionController {
             @PathVariable UUID projectId, @PathVariable UUID runId,
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(runs.retry(projectId, runId, userId(jwt)));
+    }
+
+    @PostMapping("/runs/{runId}/continue")
+    public ApiResponse<AgentRunView> continueRun(
+            @PathVariable UUID projectId, @PathVariable UUID runId,
+            @Valid @RequestBody ContinueAgentRunRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(runs.continueRun(
+                projectId, runId, userId(jwt), request.content()));
     }
 
     private static UUID userId(Jwt jwt) {

@@ -22,7 +22,7 @@ class ModelCapabilityPolicyTest {
     void rejectsStreamingWhenAdministratorDidNotDeclareStreamingCapability() {
         OffsetDateTime now = OffsetDateTime.now();
         ModelConfiguration configuration = new ModelConfiguration(
-                UUID.randomUUID(), "chat", ModelProviderType.OPENAI_COMPATIBLE,
+                UUID.randomUUID(), UUID.randomUUID(), "chat", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://example.com", "/v1/chat/completions", "secret", "model", true,
                 0.2, 1000, EnumSet.of(ModelCapability.CHAT), now, now);
 
@@ -38,7 +38,7 @@ class ModelCapabilityPolicyTest {
     void rejectsNativeToolsWhenNoNativeToolsCapability() {
         OffsetDateTime now = OffsetDateTime.now();
         ModelConfiguration configuration = new ModelConfiguration(
-                UUID.randomUUID(), "chat", ModelProviderType.OPENAI_COMPATIBLE,
+                UUID.randomUUID(), UUID.randomUUID(), "chat", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://example.com", "/v1/chat/completions", "secret", "model", true,
                 0.2, 1000, EnumSet.of(ModelCapability.CHAT), now, now);
 
@@ -58,7 +58,7 @@ class ModelCapabilityPolicyTest {
     void rejectsChatWhenNoChatCapability() {
         OffsetDateTime now = OffsetDateTime.now();
         ModelConfiguration configuration = new ModelConfiguration(
-                UUID.randomUUID(), "chat", ModelProviderType.OPENAI_COMPATIBLE,
+                UUID.randomUUID(), UUID.randomUUID(), "chat", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://example.com", "/v1/chat/completions", "secret", "model", true,
                 0.2, 1000, EnumSet.of(ModelCapability.NATIVE_TOOLS), now, now);
 
@@ -77,7 +77,7 @@ class ModelCapabilityPolicyTest {
     void acceptsModelWithBothChatAndNativeTools() {
         OffsetDateTime now = OffsetDateTime.now();
         ModelConfiguration configuration = new ModelConfiguration(
-                UUID.randomUUID(), "chat", ModelProviderType.OPENAI_COMPATIBLE,
+                UUID.randomUUID(), UUID.randomUUID(), "chat", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://example.com", "/v1/chat/completions", "secret", "model", true,
                 0.2, 1000, EnumSet.of(ModelCapability.CHAT, ModelCapability.NATIVE_TOOLS),
                 now, now);

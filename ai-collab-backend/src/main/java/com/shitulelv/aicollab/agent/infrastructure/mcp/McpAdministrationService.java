@@ -3,9 +3,6 @@ package com.shitulelv.aicollab.agent.infrastructure.mcp;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpBindingRequest;
-import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpBindingView;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionRequest;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionView;
 import com.shitulelv.aicollab.common.exception.BusinessException;
@@ -13,7 +10,6 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.project.application.service.AuditService;
-import com.shitulelv.aicollab.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,13 +19,11 @@ import java.security.MessageDigest;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class McpAdministrationService {
-    private final UserService users;
     private final ProjectAccessGuard access;
     private final McpRepository repository;
     private final McpClientFactory clients;
@@ -39,53 +33,50 @@ public class McpAdministrationService {
     private final ObjectMapper json;
     private final AuditService audit;
 
-    public McpAdministrationService(UserService users, ProjectAccessGuard access,
-            McpRepository repository, McpClientFactory clients, McpConnectionManager manager,
-            ModelSecretCipher secrets, McpEndpointPolicy endpoints, ObjectMapper json) {
-        this.users = users; this.access = access; this.repository = repository;
-        this.clients = clients; this.manager = manager; this.secrets = secrets;
-        this.endpoints = endpoints; this.json = json; this.audit = null;
-    }
-
-    @org.springframework.beans.factory.annotation.Autowired
-    public McpAdministrationService(UserService users, ProjectAccessGuard access,
+    public McpAdministrationService(ProjectAccessGuard access,
             McpRepository repository, McpClientFactory clients, McpConnectionManager manager,
             ModelSecretCipher secrets, McpEndpointPolicy endpoints, ObjectMapper json, AuditService audit) {
-        this.users = users; this.access = access; this.repository = repository;
+        this.access = access; this.repository = repository;
         this.clients = clients; this.manager = manager; this.secrets = secrets;
         this.endpoints = endpoints; this.json = json; this.audit = audit;
     }
 
-    public List<McpConnectionView> list(UUID userId) {
-        users.requireSystemAdmin(userId);
-        return repository.list().stream().map(McpConnectionView::from).toList();
+    public List<McpConnectionView> list(UUID projectId, UUID userId) {
+        access.requireMember(projectId, userId);
+        return repository.listByProject(projectId).stream().map(McpConnectionView::from).toList();
     }
 
     @Transactional
-    public McpConnectionView create(McpConnectionRequest request, UUID userId) {
-        users.requireSystemAdmin(userId); validate(request, true);
-        McpConnection value = toConnection(UUID.randomUUID(), request,
+    public McpConnectionView create(UUID projectId, McpConnectionRequest request, UUID userId) {
+        access.requireAdmin(projectId, userId); validate(request, true);
+        McpConnection value = toConnection(UUID.randomUUID(), projectId, request,
                 encrypt(request.credential(), request.authType()), userId);
         McpConnectionView created = McpConnectionView.from(repository.create(value));
-        audit(null, userId, "AGENT_MCP_CONNECTION_CREATED", created.id(), created.code());
+        audit(projectId, userId, "AGENT_MCP_CONNECTION_CREATED", created.id(), created.code());
         return created;
     }
 
     @Transactional
-    public McpConnectionView update(UUID id, McpConnectionRequest request, UUID userId) {
-        users.requireSystemAdmin(userId); validate(request, false);
+    public McpConnectionView update(UUID projectId, UUID id, McpConnectionRequest request, UUID userId) {
+        access.requireAdmin(projectId, userId); validate(request, false);
         McpConnection existing = require(id);
+        if (!existing.projectId().equals(projectId)) {
+            throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_NOT_FOUND);
+        }
         String encrypted = request.credential() == null || request.credential().isBlank()
                 ? existing.credentialCiphertext() : encrypt(request.credential(), request.authType());
-        McpConnection value = toConnection(id, request, encrypted, existing.createdBy());
+        McpConnection value = toConnection(id, projectId, request, encrypted, existing.createdBy());
         if (!repository.update(value, request.version())) throw new BusinessException(ErrorCode.VERSION_CONFLICT);
-        manager.invalidate(id);
-        audit(null, userId, "AGENT_MCP_CONNECTION_UPDATED", id, request.code());
+        manager.invalidate(projectId, id);
+        audit(projectId, userId, "AGENT_MCP_CONNECTION_UPDATED", id, request.code());
         return McpConnectionView.from(require(id));
     }
 
-    public McpConnectionView test(UUID id, UUID userId) {
-        users.requireSystemAdmin(userId); McpConnection connection = require(id);
+    public McpConnectionView test(UUID projectId, UUID id, UUID userId) {
+        access.requireAdmin(projectId, userId); McpConnection connection = require(id);
+        if (!connection.projectId().equals(projectId)) {
+            throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_NOT_FOUND);
+        }
         try (McpClientFacade client = clients.create(connection)) {
             McpClientFacade.ServerInfo info = client.initialize();
             repository.health(id, "HEALTHY", "已连接 " + info.name());
@@ -95,8 +86,11 @@ public class McpAdministrationService {
         return McpConnectionView.from(require(id));
     }
 
-    public McpConnectionView discover(UUID id, UUID userId) {
-        users.requireSystemAdmin(userId); McpConnection connection = require(id);
+    public McpConnectionView discover(UUID projectId, UUID id, UUID userId) {
+        access.requireAdmin(projectId, userId); McpConnection connection = require(id);
+        if (!connection.projectId().equals(projectId)) {
+            throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_NOT_FOUND);
+        }
         try (McpClientFacade client = clients.create(connection)) {
             client.initialize();
             List<McpClientFacade.DiscoveredTool> tools = client.listTools().stream()
@@ -111,10 +105,10 @@ public class McpAdministrationService {
             String hash = sha256(json.writeValueAsBytes(toolJson));
             boolean changed = connection.confirmedSchemaHash() != null
                     && !connection.confirmedSchemaHash().equals(hash);
-            manager.invalidate(id);
+            manager.invalidate(projectId, id);
             McpConnectionView discovered = McpConnectionView.from(repository.discovered(id,
                     json.writeValueAsString(toolJson), json.writeValueAsString(resourceJson), hash, changed));
-            audit(null, userId, changed ? "AGENT_MCP_SCHEMA_CHANGED" : "AGENT_MCP_CONNECTION_DISCOVERED",
+            audit(projectId, userId, changed ? "AGENT_MCP_SCHEMA_CHANGED" : "AGENT_MCP_CONNECTION_DISCOVERED",
                     id, connection.code());
             return discovered;
         } catch (BusinessException exception) { throw exception; }
@@ -122,47 +116,16 @@ public class McpAdministrationService {
     }
 
     @Transactional
-    public McpConnectionView setEnabled(UUID id, int version, boolean enabled, UUID userId) {
-        users.requireSystemAdmin(userId); require(id);
+    public McpConnectionView setEnabled(UUID projectId, UUID id, int version, boolean enabled, UUID userId) {
+        access.requireAdmin(projectId, userId); McpConnection connection = require(id);
+        if (!connection.projectId().equals(projectId)) {
+            throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_NOT_FOUND);
+        }
         if (!repository.setEnabled(id, version, enabled)) throw new BusinessException(ErrorCode.VERSION_CONFLICT);
-        manager.invalidate(id);
-        audit(null, userId, enabled ? "AGENT_MCP_CONNECTION_ENABLED" : "AGENT_MCP_CONNECTION_DISABLED",
+        manager.invalidate(projectId, id);
+        audit(projectId, userId, enabled ? "AGENT_MCP_CONNECTION_ENABLED" : "AGENT_MCP_CONNECTION_DISABLED",
                 id, require(id).code());
         return McpConnectionView.from(require(id));
-    }
-
-    public List<McpBindingView> bindings(UUID projectId, UUID userId) {
-        access.requireMember(projectId, userId); return repository.bindings(projectId);
-    }
-
-    @Transactional
-    public McpBindingView bind(UUID projectId, UUID connectionId,
-                               McpBindingRequest request, UUID userId) {
-        access.requireOwner(projectId, userId); McpConnection connection = require(connectionId);
-        if (!connection.enabled()) throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_DISABLED);
-        Set<String> discovered = discoveredReadOnlyNames(connection.discoveredToolsJson());
-        Set<String> systemAllowed = strings(connection.toolAllowlistJson());
-        if (!discovered.containsAll(request.allowedTools()) || !systemAllowed.containsAll(request.allowedTools()))
-            throw new BusinessException(ErrorCode.AGENT_MCP_SCHEMA_CHANGED);
-        try {
-            repository.upsertBinding(projectId, connectionId, userId, request.enabled(),
-                    json.writeValueAsString(request.allowedTools()),
-                    json.writeValueAsString(request.allowedResources()),
-                json.writeValueAsString(request.configuration() == null
-                        ? Map.of() : request.configuration()), request.version());
-        } catch (BusinessException exception) { throw exception; }
-        catch (Exception exception) { throw new BusinessException(ErrorCode.VALIDATION_ERROR); }
-        McpBindingView bound = repository.binding(projectId, connectionId).orElseThrow();
-        audit(projectId, userId, "AGENT_PROJECT_MCP_BOUND", connectionId, connection.code());
-        return bound;
-    }
-
-    @Transactional
-    public void unbind(UUID projectId, UUID connectionId, UUID userId) {
-        access.requireOwner(projectId, userId);
-        if (!repository.deleteBinding(projectId, connectionId))
-            throw new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_NOT_FOUND);
-        audit(projectId, userId, "AGENT_PROJECT_MCP_UNBOUND", connectionId, "MCP");
     }
 
     private void validate(McpConnectionRequest request, boolean creating) {
@@ -185,10 +148,10 @@ public class McpAdministrationService {
         return auth == McpAuthType.NONE ? null : secrets.encrypt(credential);
     }
 
-    private McpConnection toConnection(UUID id, McpConnectionRequest request,
+    private McpConnection toConnection(UUID id, UUID projectId, McpConnectionRequest request,
                                        String credential, UUID creator) {
         try {
-            return new McpConnection(id, request.code().strip(), request.name().strip(),
+            return new McpConnection(id, projectId, request.code().strip(), request.name().strip(),
                     request.transport(), request.endpoint().strip(), null, request.authType(), credential,
                     credential == null ? null : 1, request.timeoutMs(), request.maxResultBytes(),
                     json.writeValueAsString(safeStrings(request.toolAllowlist())),
@@ -203,18 +166,6 @@ public class McpAdministrationService {
                 new BusinessException(ErrorCode.AGENT_MCP_CONNECTION_NOT_FOUND));
     }
 
-    private Set<String> discoveredReadOnlyNames(String source) {
-        try {
-            Set<String> result = new HashSet<>();
-            for (JsonNode node : json.readTree(source)) {
-                if (node.path("annotations").path("readOnlyHint").asBoolean(false)) {
-                    result.add(node.path("name").asText());
-                }
-            }
-            return result;
-        } catch (Exception exception) { throw new BusinessException(ErrorCode.AGENT_MCP_SCHEMA_CHANGED); }
-    }
-
     private static void validateDiscoveredTools(List<McpClientFacade.DiscoveredTool> tools) {
         Set<String> serverNames = new HashSet<>();
         Set<String> exposedNames = new HashSet<>();
@@ -225,13 +176,6 @@ public class McpAdministrationService {
                 throw new BusinessException(ErrorCode.AGENT_MCP_SCHEMA_CHANGED,
                         "MCP 工具名称为空、重复或规范化后冲突");
         }
-    }
-
-    private Set<String> strings(String source) {
-        try {
-            Set<String> result = new HashSet<>(); for (JsonNode node : json.readTree(source)) result.add(node.asText());
-            return result;
-        } catch (Exception exception) { return Set.of(); }
     }
 
     private static List<String> safeStrings(List<String> values) {
