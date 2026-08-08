@@ -289,6 +289,7 @@ RoutingChatModelGateway
 | `/projects/:id/knowledge` | 知识问答 |
 | `/projects/:id/ai-planning` | AI 规划 |
 | `/projects/:id/agent` | 协作 Agent |
+| `/projects/:id/model-settings` | 项目 AI 模型与 Embedding 配置 |
 | `/admin` | 系统管理 |
 
 ### 状态管理

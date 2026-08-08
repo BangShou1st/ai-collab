@@ -154,10 +154,19 @@ cd ai-collab
 
 ### 2. 配置环境变量
 
+Linux / macOS:
+
 ```bash
 cp .env.example .env
-# 编辑 .env，替换所有 change-me 占位符
 ```
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+编辑 `.env`，替换所有 `change-me` 占位符。
 
 ### 3. 启动基础设施
 
@@ -299,6 +308,3 @@ cd ai-collab-frontend
 pnpm build
 ```
 
-## License
-
-本项目为公开仓库。
