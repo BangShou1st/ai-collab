@@ -44,6 +44,7 @@ public class AgentCancellationService {
         return status == AgentRunStatus.QUEUED
                 || status == AgentRunStatus.RUNNING
                 || status == AgentRunStatus.WAITING_FOR_APPROVAL
+                || status == AgentRunStatus.WAITING_FOR_USER_INPUT
                 || status == AgentRunStatus.FAILED_RETRYABLE;
     }
 }

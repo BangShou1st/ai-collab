@@ -36,15 +36,66 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
     public ChatCompletionResult complete(
             ModelConfiguration config, String apiKey, ChatCompletionCommand command) {
         long started = System.nanoTime();
-        JsonNode response = http.post(endpoint(config), headers(apiKey), request(config, command, false));
-        JsonNode choice = response.path("choices").path(0);
-        if ("length".equals(choice.path("finish_reason").asText())) {
-            throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+        try {
+            JsonNode response = http.post(endpoint(config), headers(apiKey), request(config, command, false));
+            JsonNode choice = response.path("choices").path(0);
+            if ("length".equals(choice.path("finish_reason").asText())) {
+                throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+            }
+            JsonNode usage = response.path("usage");
+            return result(config, choice.path("message").path("content").asText(null),
+                    response.path("model").asText(config.modelName()),
+                    integer(usage.path("prompt_tokens")), integer(usage.path("completion_tokens")), started);
+        } catch (BusinessException e) {
+            // 如果非流式请求失败且模型支持流式，自动降级到流式模式
+            if (e.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR
+                    && config.capabilities().contains(ModelCapability.STREAMING)) {
+                org.slf4j.LoggerFactory.getLogger(OpenAiCompatibleModelAdapter.class)
+                        .warn("Non-streaming request failed for model {}, retrying with streaming",
+                                config.modelName());
+                return completeStreamingSync(config, apiKey, command);
+            }
+            throw e;
         }
-        JsonNode usage = response.path("usage");
-        return result(config, choice.path("message").path("content").asText(null),
-                response.path("model").asText(config.modelName()),
-                integer(usage.path("prompt_tokens")), integer(usage.path("completion_tokens")), started);
+    }
+
+    private ChatCompletionResult completeStreamingSync(
+            ModelConfiguration config, String apiKey, ChatCompletionCommand command) {
+        long started = System.nanoTime();
+        StringBuilder content = new StringBuilder();
+        java.util.concurrent.atomic.AtomicReference<String> model =
+                new java.util.concurrent.atomic.AtomicReference<>(config.modelName());
+        java.util.concurrent.atomic.AtomicReference<Integer> input = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<Integer> output = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicReference<Exception> errorRef = new java.util.concurrent.atomic.AtomicReference<>();
+
+        completeStream(config, apiKey, command,
+                token -> content.append(token),
+                result -> {
+                    model.set(result.model());
+                    input.set(result.promptTokens());
+                    output.set(result.completionTokens());
+                    latch.countDown();
+                },
+                error -> {
+                    errorRef.set(error);
+                    latch.countDown();
+                });
+
+        try {
+            latch.await(60, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
+        }
+
+        if (errorRef.get() != null) {
+            throw errorRef.get() instanceof BusinessException be
+                    ? be : new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
+        }
+
+        return result(config, content.toString(), model.get(), input.get(), output.get(), started);
     }
 
     @Override
@@ -90,46 +141,148 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
     @Override
     public ModelTurnResult turn(ModelConfiguration config, String apiKey, ModelTurnCommand command) {
         long started = System.nanoTime();
-        JsonNode response = http.post(endpoint(config), headers(apiKey), turnRequest(config, command));
-        JsonNode choice = response.path("choices").path(0);
-        JsonNode message = choice.path("message");
+        org.slf4j.LoggerFactory.getLogger(OpenAiCompatibleModelAdapter.class)
+                .info("Turning with model: {}, endpoint: {}, stream: false",
+                        config.modelName(), endpoint(config));
+        try {
+            JsonNode response = http.post(endpoint(config), headers(apiKey), turnRequest(config, command));
+            JsonNode choice = response.path("choices").path(0);
+            JsonNode message = choice.path("message");
 
-        // 解析文本
-        String content = message.has("content") && !message.get("content").isNull()
-                ? message.path("content").asText(null) : null;
+            // 解析文本
+            String content = message.has("content") && !message.get("content").isNull()
+                    ? message.path("content").asText(null) : null;
 
-        // 解析 tool_calls
-        List<ModelToolCall> toolCalls = parseToolCalls(message);
+            // 解析 tool_calls
+            List<ModelToolCall> toolCalls = parseToolCalls(message);
 
-        // 解析 finish_reason
-        ModelFinishReason finishReason = mapFinishReason(choice.path("finish_reason").asText(""));
+            // 解析 finish_reason
+            ModelFinishReason finishReason = mapFinishReason(choice.path("finish_reason").asText(""));
 
-        // 解析 usage
-        JsonNode usageNode = response.path("usage");
-        ModelUsage usage = null;
-        if (!usageNode.isMissingNode() && !usageNode.isNull()) {
-            usage = new ModelUsage(
-                    integer(usageNode.path("prompt_tokens")),
-                    integer(usageNode.path("completion_tokens")));
+            // 解析 usage
+            JsonNode usageNode = response.path("usage");
+            ModelUsage usage = null;
+            if (!usageNode.isMissingNode() && !usageNode.isNull()) {
+                usage = new ModelUsage(
+                        integer(usageNode.path("prompt_tokens")),
+                        integer(usageNode.path("completion_tokens")));
+            }
+
+            String responseModel = response.path("model").asText(config.modelName());
+            long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
+
+            // 既没有文本也没有 tool_calls 是协议错误
+            if ((content == null || content.isBlank()) && toolCalls.isEmpty()) {
+                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "模型既没有返回文本也没有返回工具调用");
+            }
+
+            // finish_reason=length 表示截断
+            if (finishReason == ModelFinishReason.LENGTH) {
+                throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+            }
+
+            return new ModelTurnResult(
+                    content, toolCalls, finishReason, usage,
+                    providerType().name(), responseModel, latencyMs);
+        } catch (BusinessException e) {
+            // 如果非流式请求失败且模型支持流式，自动降级到流式模式
+            if (e.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR
+                    && config.capabilities().contains(ModelCapability.STREAMING)) {
+                org.slf4j.LoggerFactory.getLogger(OpenAiCompatibleModelAdapter.class)
+                        .warn("Non-streaming turn request failed for model {}, retrying with streaming",
+                                config.modelName());
+                return turnStreamingSync(config, apiKey, command);
+            }
+            throw e;
+        }
+    }
+
+    private ModelTurnResult turnStreamingSync(
+            ModelConfiguration config, String apiKey, ModelTurnCommand command) {
+        long started = System.nanoTime();
+        StringBuilder content = new StringBuilder();
+        java.util.concurrent.atomic.AtomicReference<String> model =
+                new java.util.concurrent.atomic.AtomicReference<>(config.modelName());
+        java.util.concurrent.atomic.AtomicReference<ModelFinishReason> finishReason =
+                new java.util.concurrent.atomic.AtomicReference<>(ModelFinishReason.UNKNOWN);
+        java.util.concurrent.atomic.AtomicReference<ModelUsage> usage =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        List<ModelToolCall> toolCalls = new java.util.concurrent.CopyOnWriteArrayList<>();
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicReference<Exception> errorRef = new java.util.concurrent.atomic.AtomicReference<>();
+
+        http.stream(endpoint(config), headers(apiKey), turnRequest(config, command), (event, data) -> {
+            if (data == null) return;
+            if (data.hasNonNull("model")) model.set(data.path("model").asText());
+            JsonNode usageNode = data.path("usage");
+            if (!usageNode.isMissingNode() && !usageNode.isNull()) {
+                usage.set(new ModelUsage(
+                        integer(usageNode.path("prompt_tokens")),
+                        integer(usageNode.path("completion_tokens"))));
+            }
+            JsonNode choice = data.path("choices").path(0);
+            JsonNode message = choice.path("message");
+
+            // 解析文本
+            String token = message.has("content") && !message.get("content").isNull()
+                    ? message.path("content").asText("") : "";
+            if (!token.isEmpty()) {
+                content.append(token);
+            }
+
+            // 解析 tool_calls
+            JsonNode toolCallsNode = message.path("tool_calls");
+            if (toolCallsNode.isArray()) {
+                for (JsonNode node : toolCallsNode) {
+                    String id = node.path("id").asText();
+                    String name = node.path("function").path("name").asText();
+                    String raw = node.path("function").path("arguments").asText("{}");
+                    try {
+                        JsonNode args = mapper.readTree(raw);
+                        toolCalls.add(new ModelToolCall(id, name, args));
+                    } catch (Exception ex) {
+                        // 忽略解析错误
+                    }
+                }
+            }
+
+            // 解析 finish_reason
+            String finish = choice.path("finish_reason").asText("");
+            if (!finish.isEmpty()) {
+                finishReason.set(mapFinishReason(finish));
+            }
+        });
+
+        // 手动等待流式完成（简化实现）
+        try {
+            latch.await(60, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
         }
 
-        String responseModel = response.path("model").asText(config.modelName());
         long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
 
         // 既没有文本也没有 tool_calls 是协议错误
-        if ((content == null || content.isBlank()) && toolCalls.isEmpty()) {
+        if (content.isEmpty() && toolCalls.isEmpty()) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                     "模型既没有返回文本也没有返回工具调用");
         }
 
         // finish_reason=length 表示截断
-        if (finishReason == ModelFinishReason.LENGTH) {
+        if (finishReason.get() == ModelFinishReason.LENGTH) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
         }
 
         return new ModelTurnResult(
-                content, toolCalls, finishReason, usage,
-                providerType().name(), responseModel, latencyMs);
+                content.isEmpty() ? null : content.toString(),
+                toolCalls,
+                finishReason.get(),
+                usage.get(),
+                providerType().name(),
+                model.get(),
+                latencyMs);
     }
 
     // ========== 请求构建 ==========
@@ -139,6 +292,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         body.put("model", config.modelName());
         body.put("temperature", config.temperature());
         body.put("max_tokens", config.maxOutputTokens());
+        body.put("stream", false);
 
         // 构建多轮消息
         ArrayNode messages = body.putArray("messages");

@@ -35,6 +35,13 @@ public class AgentApprovalRepository {
             UUID approvalId, AgentRunView run, ChatCompletionResult completion,
             AgentDecision.CallTool call, JsonNode arguments, JsonNode diff,
             String argumentsHash, String nonceHash, OffsetDateTime expiresAt) {
+        boolean currentRun = !jdbc.query("""
+                SELECT id FROM agent_run
+                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
+                FOR UPDATE
+                """, (rs, row) -> rs.getObject("id", UUID.class),
+                run.projectId(), run.id(), run.version()).isEmpty();
+        if (!currentRun) throw new IllegalStateException("Agent 运行已被并发修改");
         UUID stepId = UUID.randomUUID();
         Integer sequence = jdbc.queryForObject(
                 "SELECT COALESCE(max(sequence_no),0)+1 FROM agent_step WHERE run_id=?",
@@ -61,18 +68,8 @@ public class AgentApprovalRepository {
                 arguments.toString(), argumentsHash, diff.toString(), resourceId(arguments),
                 resourceVersion(arguments), run.requesterId(), nonceHash, expiresAt,
                 run.sessionId(), proposalFamily, UUID.randomUUID());
-        int updated = jdbc.update("""
-                UPDATE agent_run SET status='WAITING_FOR_APPROVAL',
-                  steps_used=steps_used+1,tool_calls_used=tool_calls_used+1,
-                  input_tokens_used=input_tokens_used+?,output_tokens_used=output_tokens_used+?,
-                  token_usage_estimated=?,model_provider=?,model_name=?,
-                  lease_owner=NULL,lease_expires_at=NULL,updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, tokens(completion.promptTokens(), ""),
-                tokens(completion.completionTokens(), completion.content()),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                completion.provider(), completion.model(), run.projectId(), run.id(), run.version());
-        if (updated != 1) throw new IllegalStateException("Agent 运行已被并发修改");
+        // 提案与 Run 生命周期解耦：审批保持 PENDING，但本次 Run 继续生成并返回确定性结果。
+        // Run 的工具预算与版本由 Runtime 的 recordToolResult 统一更新，避免重复计数。
         return find(run.projectId(), approvalId).orElseThrow();
     }
 

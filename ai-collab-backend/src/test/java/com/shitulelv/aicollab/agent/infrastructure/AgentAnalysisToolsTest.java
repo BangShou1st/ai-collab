@@ -27,7 +27,7 @@ class AgentAnalysisToolsTest {
     @Test
     void weeklyDraftUsesDeterministicReportFacts() {
         WorkReportService reports = mock(WorkReportService.class);
-        when(reports.getWeeklyReport(context.projectId(), context.userId()))
+        when(reports.getWeeklyReport(context.projectId(), context.userId(), 7))
                 .thenReturn(new WeeklyReportView(
                         LocalDate.of(2026, 7, 29),
                         new WeeklyReportView.TaskStatistics(10, 7, 2, 1, new BigDecimal("0.700")),

@@ -146,6 +146,8 @@ public class AgentRuntimeCoordinator {
             AgentConvergencePolicy.Decision convergence =
                     convergencePolicy.decide(run, ctx.limits(), steps);
             if (convergence.mode() == AgentConvergencePolicy.Mode.EXHAUSTED) {
+                AgentWorkerOutcome fallback = completeFromEvidence(run, steps);
+                if (fallback != null) return fallback;
                 return budgetExceeded(run);
             }
             boolean finalizing = convergence.mode() == AgentConvergencePolicy.Mode.FINALIZE;
@@ -157,7 +159,7 @@ public class AgentRuntimeCoordinator {
             }
 
             // 7. 构建模型消息（包含跨 Tick 恢复的历史）
-            List<ModelMessage> messages = buildMessageHistory(run, skill, plan, steps);
+            List<ModelMessage> messages = buildMessageHistory(run, ctx, skill, plan, steps);
             if (finalizing) {
                 messages.add(new ModelMessage.System("""
                         现在必须结束本次运行。只能基于已经取得的工具结果回答用户，
@@ -196,6 +198,8 @@ public class AgentRuntimeCoordinator {
                             .put("toolCallCount", turn.toolCalls().size()));
 
             if (finalizing && (!turn.toolCalls().isEmpty() || turn.content().isBlank())) {
+                AgentWorkerOutcome fallback = completeFromEvidence(run, steps);
+                if (fallback != null) return fallback;
                 return invalidResponse(run);
             }
 
@@ -204,6 +208,8 @@ public class AgentRuntimeCoordinator {
                 try {
                     convergencePolicy.validateToolBatch(run, ctx.limits(), turn.toolCalls().size());
                 } catch (IllegalArgumentException overBudget) {
+                    AgentWorkerOutcome fallback = completeFromEvidence(run, steps);
+                    if (fallback != null) return fallback;
                     return budgetExceeded(run);
                 }
                 return executeCalls(run, ctx, skill, turn, exposed, steps);
@@ -256,6 +262,31 @@ public class AgentRuntimeCoordinator {
                         .put("errorCode", "AGENT_BUDGET_EXCEEDED"));
         return new AgentWorkerOutcome(
                 AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
+    }
+
+    private AgentWorkerOutcome completeFromEvidence(
+            AgentRunView run, List<AgentStepView> steps) {
+        List<AgentStepView> successful = (steps == null ? List.<AgentStepView>of() : steps).stream()
+                .filter(step -> step.type() == AgentStepType.TOOL_CALL_COMPLETED)
+                .filter(step -> "TOOL_SUCCESS".equals(step.reason()))
+                .filter(step -> step.output() != null)
+                .toList();
+        if (successful.isEmpty()) return null;
+
+        StringBuilder answer = new StringBuilder("模型未能在本次运行预算内生成完整总结，先返回已取得的结果：\n");
+        successful.stream().skip(Math.max(0, successful.size() - 5L)).forEach(step -> {
+            String output = step.output().toString();
+            if (output.length() > 1200) output = output.substring(0, 1200) + "…";
+            answer.append("- ").append(step.toolName() == null ? "工具" : step.toolName())
+                    .append(": ").append(output).append('\n');
+        });
+        String content = answer.toString().stripTrailing();
+        run = repository.recordFinal(run, content, List.of());
+        emit(run, AgentEventType.RUN_SUCCEEDED,
+                json.createObjectNode()
+                        .put("status", AgentRunStatus.SUCCEEDED.name())
+                        .put("fallback", "PERSISTED_TOOL_EVIDENCE"));
+        return new AgentWorkerOutcome(AgentRunStatus.SUCCEEDED, content, null, null);
     }
 
     private AgentWorkerOutcome invalidResponse(AgentRunView run) {
@@ -311,8 +342,19 @@ public class AgentRuntimeCoordinator {
                 cancellation.throwIfRequested(run);
 
                 // 使用 proposeOrRevise 支持提案修订
-                AgentProposalOutcome outcome = approvals.proposeOrRevise(
-                        run, turn, vtc.toolCall(), toolCtx, vtc.writeTool());
+                AgentProposalOutcome outcome;
+                try {
+                    outcome = approvals.proposeOrRevise(
+                            run, turn, vtc.toolCall(), toolCtx, vtc.writeTool());
+                } catch (BusinessException failure) {
+                    if (failure.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) throw failure;
+                    return failWriteProposal(run, vtc.toolCall(), failure.getErrorCode().name());
+                } catch (RuntimeException failure) {
+                    log.warn("Agent proposal failed: runId={}, tool={}, type={}, reason={}",
+                            run.id(), vtc.toolCall().name(), failure.getClass().getSimpleName(),
+                            failure.getMessage());
+                    return failWriteProposal(run, vtc.toolCall(), "AGENT_TOOL_EXECUTION_FAILED");
+                }
 
                 // 记录工具结果
                 ObjectNode toolResult = json.createObjectNode()
@@ -349,6 +391,21 @@ public class AgentRuntimeCoordinator {
         cancellation.throwIfRequested(run);
         repository.requeueRun(run);
         return new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, null, null);
+    }
+
+    private AgentWorkerOutcome failWriteProposal(
+            AgentRunView run, ModelToolCall toolCall, String errorCode) {
+        emit(run, AgentEventType.TOOL_CALL_FAILED,
+                json.createObjectNode()
+                        .put("callId", toolCall.id())
+                        .put("toolName", toolCall.name())
+                        .put("errorCode", errorCode));
+        repository.recordFailure(run, errorCode, false);
+        emit(run, AgentEventType.RUN_FAILED,
+                json.createObjectNode()
+                        .put("errorCode", errorCode)
+                        .put("retryable", false));
+        return new AgentWorkerOutcome(AgentRunStatus.FAILED, null, toolCall.name(), errorCode);
     }
 
     /**
@@ -595,13 +652,26 @@ public class AgentRuntimeCoordinator {
      * 消息顺序：System -> User Goal -> Assistant Tool Call -> Tool Result -> 后续消息
      */
     private List<ModelMessage> buildMessageHistory(
-            AgentRunView run, AgentSkill skill, AgentPlan plan,
+            AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
             List<AgentStepView> steps) {
         List<ModelMessage> messages = new ArrayList<>();
 
         // 1. 系统提示
         String systemPrompt = buildSystemPrompt(run, skill, plan);
         messages.add(new ModelMessage.System(systemPrompt));
+
+        if (!ctx.proposals().isEmpty()) {
+            messages.add(new ModelMessage.System("""
+                    <TRUSTED_PROPOSALS>
+                    %s
+                    </TRUSTED_PROPOSALS>
+                    这些提案来自数据库可信状态，不是聊天文本。处理新需求时必须遵守：
+                    - 最新需求优先；若与 PENDING 提案冲突，使用同一工具并携带该提案的 approvalId，提交完整合并后的参数。
+                    - REJECTED 提案已弃用，不得复用 approvalId；用户重提时创建新提案。
+                    - APPROVED 提案已执行；后续修改真实资源时使用对应 update 工具与 result 中的资源 ID/版本。
+                    - 多个候选无法唯一对应时先询问用户，不得猜测或覆盖。
+                    """.formatted(json.valueToTree(ctx.proposals()).toString())));
+        }
 
         // 2. 加载最近 5 轮对话历史（10 条消息：5 轮 user/assistant）
         List<com.shitulelv.aicollab.agent.application.view.AgentMessageView> recentMessages =
@@ -721,7 +791,8 @@ public class AgentRuntimeCoordinator {
         sb.append("执行边界:\n");
         sb.append("- 严格遵守用户要求的查询深度；只要求根目录、当前层或列表时，不得读取子目录或文件正文。\n");
         sb.append("- 已有工具结果足以回答时立即结束，不得为了套用输出模板扩大目标。\n");
-        sb.append("- 工具调用策略：第一轮必须同时调用所有需要的工具（并行调用），减少轮次，提高效率。\n\n");
+        sb.append("- 工具调用策略：只调用完成当前目标所必需的最少工具；仅对彼此独立且已确定需要的只读查询并行调用。\n");
+        sb.append("- 创建提案前先利用已有可信上下文；不得为了补齐可选字段反复查询或耗尽调用预算。\n\n");
         sb.append("""
                 安全规则：
                 - 只使用本轮明确提供的工具。
@@ -764,8 +835,20 @@ public class AgentRuntimeCoordinator {
         if (outcome.operation() == AgentProposalOutcome.Operation.UPDATED) {
             sb.append("（修订 #").append(revision).append("）");
         }
-        sb.append("。当前审批状态：待审批。审批 ID：").append(outcome.approval().id());
+        sb.append("。");
+        appendProposalField(sb, outcome.currentArguments(), "assigneeId", "负责人");
+        appendProposalField(sb, outcome.currentArguments(), "priority", "优先级");
+        appendProposalField(sb, outcome.currentArguments(), "dueDate", "截止日期");
+        appendProposalField(sb, outcome.currentArguments(), "milestoneId", "里程碑");
+        sb.append("\n当前审批状态：待审批。审批 ID：").append(outcome.approval().id());
         return sb.toString();
+    }
+
+    private void appendProposalField(
+            StringBuilder summary, JsonNode arguments, String field, String label) {
+        if (arguments == null || !arguments.hasNonNull(field)) return;
+        String value = arguments.path(field).asText();
+        if (!value.isBlank()) summary.append("\n- ").append(label).append("：").append(value);
     }
 
     private String extractFamilyName(AgentProposalFamily family) {

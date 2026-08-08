@@ -23,7 +23,9 @@ public class AgentEventStreamService {
             AgentEventType.RUN_CANCELED,
             AgentEventType.RUN_SUCCEEDED,
             AgentEventType.RUN_FAILED,
-            AgentEventType.RUN_BUDGET_EXCEEDED);
+            AgentEventType.RUN_BUDGET_EXCEEDED,
+            AgentEventType.APPROVAL_REQUESTED,
+            AgentEventType.WAITING_FOR_USER_INPUT);
 
     private final ProjectAccessGuard access;
     private final AgentRepository runs;

@@ -37,6 +37,7 @@ public class NativeToolCallingExecutor {
     public ModelTurnResult callModel(
             List<ModelMessage> messages,
             List<AgentToolDefinition> exposed,
+            UUID projectId,
             UUID configurationId) {
 
         List<ModelToolDefinition> toolDefs = exposed.stream()
@@ -45,6 +46,7 @@ public class NativeToolCallingExecutor {
 
         ModelTurnCommand command = new ModelTurnCommand(
                 ModelPurpose.AGENT,
+                projectId,
                 configurationId,
                 messages,
                 toolDefs,

@@ -5,6 +5,7 @@ import com.shitulelv.aicollab.agent.domain.policy.AgentToolPolicy;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
+import com.shitulelv.aicollab.agent.domain.tool.ApprovalWriteAgentTool;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -54,6 +55,38 @@ class AgentToolRegistryTest {
         assertThatThrownBy(() -> policy.requireAllowed(write, new AgentToolContext(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 "RISK_REVIEWER", false, 1))).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void approvalWriteToolSchemaExposesTrustedProposalIdAsOptionalMetadata() {
+        ApprovalWriteAgentTool write = new ApprovalWriteAgentTool() {
+            @Override public String name() { return "create_task_after_approval"; }
+            @Override public boolean writesBusinessData() { return true; }
+            @Override public com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition definition() {
+                return com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition.fromJson(
+                        name(), "创建任务", """
+                        {"type":"object","additionalProperties":false,
+                         "required":["title"],"properties":{"title":{"type":"string"}}}
+                        """, true);
+            }
+            @Override public com.fasterxml.jackson.databind.JsonNode normalize(
+                    AgentToolContext context, com.fasterxml.jackson.databind.JsonNode arguments) { return arguments; }
+            @Override public com.fasterxml.jackson.databind.JsonNode diff(
+                    AgentToolContext context, com.fasterxml.jackson.databind.JsonNode arguments) { return arguments; }
+            @Override public AgentToolResult execute(
+                    AgentToolContext context, com.fasterxml.jackson.databind.JsonNode arguments) {
+                throw new AssertionError("审批前不得执行");
+            }
+        };
+        AgentToolRegistry registry = new AgentToolRegistry(List.of(write));
+        AgentToolContext member = new AgentToolContext(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "MEMBER", false, 0);
+
+        var schema = registry.definitionsFor(member).getFirst().inputSchema();
+
+        assertThat(schema.path("properties").path("approvalId").path("format").asText())
+                .isEqualTo("uuid");
+        assertThat(schema.path("required").toString()).doesNotContain("approvalId");
     }
 
     private AgentTool fake(String name, boolean writesBusinessData) {

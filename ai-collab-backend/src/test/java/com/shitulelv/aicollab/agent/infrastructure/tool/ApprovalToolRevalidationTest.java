@@ -11,6 +11,7 @@ import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.application.service.ProjectApplicationService;
+import com.shitulelv.aicollab.project.infrastructure.repository.ProjectMemberRepository;
 import com.shitulelv.aicollab.work.application.service.MilestoneApplicationService;
 import com.shitulelv.aicollab.work.application.service.TaskApplicationService;
 import com.shitulelv.aicollab.work.application.view.TaskView;
@@ -58,6 +59,8 @@ class ApprovalToolRevalidationTest {
     private AgentApprovalRepository approvals;
     @Mock
     private AgentRepository repository;
+    @Mock
+    private ProjectMemberRepository members;
 
     private CreateTaskApprovalAgentTool createTaskTool;
     private UpdateTaskApprovalAgentTool updateTaskTool;
@@ -66,8 +69,8 @@ class ApprovalToolRevalidationTest {
 
     @BeforeEach
     void setUp() {
-        createTaskTool = new CreateTaskApprovalAgentTool(json, validator, tasks, projects);
-        updateTaskTool = new UpdateTaskApprovalAgentTool(json, validator, tasks);
+        createTaskTool = new CreateTaskApprovalAgentTool(json, validator, tasks, projects, members);
+        updateTaskTool = new UpdateTaskApprovalAgentTool(json, validator, tasks, members);
         createMilestoneTool = new CreateMilestoneApprovalAgentTool(json, validator, milestones, projects);
         updateMilestoneTool = new UpdateMilestoneApprovalAgentTool(json, validator, milestones);
     }

@@ -19,6 +19,7 @@ const errorTitles: Record<string, string> = {
   AI_PROVIDER_ERROR: '模型服务暂时不可用',
   AI_PROVIDER_INVALID_RESPONSE: '模型返回了无法识别的内容',
   AI_PROVIDER_OUTPUT_TRUNCATED: '模型输出不完整',
+  TOOL_EXECUTION_TIMEOUT: '工具执行超时，Agent 将继续尝试其他操作',
 }
 
 export function agentRunPresentation(run: AgentRun): AgentRunPresentation {
@@ -27,6 +28,14 @@ export function agentRunPresentation(run: AgentRun): AgentRunPresentation {
       terminal: true,
       severity: 'warning',
       title: '任务提案等待批准',
+      canRetry: false,
+    }
+  }
+  if (run.status === 'WAITING_FOR_USER_INPUT') {
+    return {
+      terminal: false,
+      severity: 'info',
+      title: 'Agent 需要你的输入',
       canRetry: false,
     }
   }

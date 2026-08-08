@@ -23,6 +23,17 @@ class AgentApprovalPolicyTest {
     }
 
     @Test
+    void contentHashAcceptsCanonicalProposalLargerThanNonceLimit() {
+        String canonicalProposal = "x".repeat(1000);
+
+        assertThat(policy.contentHash(canonicalProposal))
+                .hasSize(64)
+                .isEqualTo(policy.contentHash(canonicalProposal));
+        assertThatThrownBy(() -> policy.nonceHash(canonicalProposal))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void expiredApprovalCannotExecute() {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 

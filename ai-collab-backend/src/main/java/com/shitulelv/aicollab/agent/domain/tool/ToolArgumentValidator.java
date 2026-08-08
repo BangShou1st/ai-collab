@@ -103,7 +103,9 @@ public final class ToolArgumentValidator {
     private static String validateObject(JsonNode value, JsonNode schema, String path) {
         // required 校验
         JsonNode requiredNode = schema.path("required");
-        if (requiredNode.isArray()) {
+        boolean trustedApprovalPatch = schema.path("x-approval-patch").asBoolean(false)
+                && value.hasNonNull("approvalId");
+        if (requiredNode.isArray() && !trustedApprovalPatch) {
             for (JsonNode req : requiredNode) {
                 String field = req.asText();
                 if (!value.has(field) || value.get(field).isNull()) {

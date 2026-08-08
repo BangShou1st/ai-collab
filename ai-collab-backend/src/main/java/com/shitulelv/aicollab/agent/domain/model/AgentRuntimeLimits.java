@@ -37,11 +37,12 @@ public record AgentRuntimeLimits(
                 Duration.ofSeconds(10),
                 Duration.ofSeconds(15),
                 32 * 1024,
-                100_000,
-                32_000);
+                50_000,
+                20_000);
     }
 
     public static AgentRuntimeLimits forSkill(String skillCode) {
+        if (skillCode == null || skillCode.isBlank()) return defaults();
         return switch (skillCode) {
             case "PROJECT_HEALTH" -> new AgentRuntimeLimits(
                     8, 4, 6, 4,
@@ -49,40 +50,40 @@ public record AgentRuntimeLimits(
                     Duration.ofSeconds(10),
                     Duration.ofSeconds(15),
                     32 * 1024,
-                    80_000,
-                    24_000);
+                    40_000,
+                    16_000);
             case "WEEKLY_REPORT" -> new AgentRuntimeLimits(
                     12, 6, 8, 4,
                     Duration.ofMinutes(3),
                     Duration.ofSeconds(10),
                     Duration.ofSeconds(15),
                     32 * 1024,
-                    100_000,
-                    32_000);
+                    50_000,
+                    20_000);
             case "MEETING_TO_TASKS" -> new AgentRuntimeLimits(
                     10, 5, 8, 4,
                     Duration.ofMinutes(2),
                     Duration.ofSeconds(10),
                     Duration.ofSeconds(15),
                     32 * 1024,
-                    80_000,
-                    32_000);
+                    40_000,
+                    20_000);
             case "ITERATION_PLANNING" -> new AgentRuntimeLimits(
-                    12, 6, 10, 4,
-                    Duration.ofMinutes(3),
+                    24, 8, 16, 4,
+                    Duration.ofMinutes(5),
                     Duration.ofSeconds(10),
                     Duration.ofSeconds(15),
                     32 * 1024,
-                    100_000,
-                    32_000);
+                    50_000,
+                    20_000);
             case "DELIVERY_READINESS" -> new AgentRuntimeLimits(
                     8, 4, 6, 4,
                     Duration.ofMinutes(2),
                     Duration.ofSeconds(10),
                     Duration.ofSeconds(15),
                     32 * 1024,
-                    80_000,
-                    24_000);
+                    40_000,
+                    16_000);
             default -> defaults();
         };
     }

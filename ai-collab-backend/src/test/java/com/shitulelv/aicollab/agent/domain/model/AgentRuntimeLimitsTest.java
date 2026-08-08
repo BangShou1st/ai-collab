@@ -17,8 +17,8 @@ class AgentRuntimeLimitsTest {
         assertThat(limits.maxToolCallsPerTurn()).isEqualTo(4);
         assertThat(limits.maxRunDuration()).isEqualTo(Duration.ofMinutes(3));
         assertThat(limits.maxToolResultBytes()).isEqualTo(32 * 1024);
-        assertThat(limits.maxInputTokens()).isEqualTo(100_000);
-        assertThat(limits.maxOutputTokens()).isEqualTo(32_000);
+        assertThat(limits.maxInputTokens()).isEqualTo(50_000);
+        assertThat(limits.maxOutputTokens()).isEqualTo(20_000);
     }
 
     @Test
@@ -41,6 +41,13 @@ class AgentRuntimeLimitsTest {
     void unknownSkillReturnsDefaults() {
         AgentRuntimeLimits limits = AgentRuntimeLimits.forSkill("UNKNOWN_SKILL");
         assertThat(limits).isEqualTo(AgentRuntimeLimits.defaults());
+    }
+
+    @Test
+    void nullSkillReturnsDefaults() {
+        assertThat(AgentRuntimeLimits.forSkill(null)).isEqualTo(AgentRuntimeLimits.defaults());
+        assertThat(AgentRuntimeLimits.forSkill("")).isEqualTo(AgentRuntimeLimits.defaults());
+        assertThat(AgentRuntimeLimits.forSkill("  ")).isEqualTo(AgentRuntimeLimits.defaults());
     }
 
     @Test

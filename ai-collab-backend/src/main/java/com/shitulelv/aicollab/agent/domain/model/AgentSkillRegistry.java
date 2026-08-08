@@ -21,8 +21,9 @@ import java.util.AbstractMap;
 @Component
 public final class AgentSkillRegistry {
 
-    /** goal 关键词 → Skill code 映射（优先级从高到低） */
-    private static final Map<String, String> GOAL_KEYWORD_SKILLS = Map.ofEntries(
+    /** goal 关键词 → Skill code 映射（优先级从高到低，取第一个命中） */
+    private static final List<Map.Entry<String, String>> GOAL_KEYWORD_SKILLS = List.of(
+            // 精确场景词（最优先）
             new AbstractMap.SimpleEntry<>("周报", "WEEKLY_REPORT"),
             new AbstractMap.SimpleEntry<>("weekly", "WEEKLY_REPORT"),
             new AbstractMap.SimpleEntry<>("会议", "MEETING_TO_TASKS"),
@@ -36,24 +37,33 @@ public final class AgentSkillRegistry {
             new AbstractMap.SimpleEntry<>("就绪", "DELIVERY_READINESS"),
             new AbstractMap.SimpleEntry<>("健康", "PROJECT_HEALTH"),
             new AbstractMap.SimpleEntry<>("health", "PROJECT_HEALTH"),
+            // 项目状态/进度相关（需在"任务"之前，避免被通用词覆盖）
             new AbstractMap.SimpleEntry<>("项目状态", "PROJECT_HEALTH"),
             new AbstractMap.SimpleEntry<>("任务数量", "PROJECT_HEALTH"),
             new AbstractMap.SimpleEntry<>("任务数", "PROJECT_HEALTH"),
             new AbstractMap.SimpleEntry<>("项目进度", "PROJECT_HEALTH"),
             new AbstractMap.SimpleEntry<>("项目概况", "PROJECT_HEALTH"),
             new AbstractMap.SimpleEntry<>("研究", "PROJECT_RESEARCH"),
-            new AbstractMap.SimpleEntry<>("research", "PROJECT_RESEARCH")
-    );
-
-    /** route → 确定的 Skill code 映射（每个 route 只映射到一个 Skill） */
-    private static final Map<String, String> ROUTE_DEFAULT_SKILLS = Map.of(
-            "DASHBOARD", "PROJECT_HEALTH",
-            "TASK_BOARD", "PROJECT_HEALTH",
-            "MILESTONE_LIST", "ITERATION_PLANNING",
-            "PLANNING", "ITERATION_PLANNING",
-            "DOCUMENT_LIST", "PROJECT_RESEARCH",
-            "DOCUMENT_DETAIL", "MEETING_TO_TASKS",
-            "AGENT", "PROJECT_RESEARCH"
+            new AbstractMap.SimpleEntry<>("research", "PROJECT_RESEARCH"),
+            // 任务创建/管理相关 → ITERATION_PLANNING（有 create_task_after_approval）
+            new AbstractMap.SimpleEntry<>("创建任务", "ITERATION_PLANNING"),
+            new AbstractMap.SimpleEntry<>("新建任务", "ITERATION_PLANNING"),
+            new AbstractMap.SimpleEntry<>("添加任务", "ITERATION_PLANNING"),
+            new AbstractMap.SimpleEntry<>("分配任务", "ITERATION_PLANNING"),
+            new AbstractMap.SimpleEntry<>("安排任务", "ITERATION_PLANNING"),
+            new AbstractMap.SimpleEntry<>("任务创建", "ITERATION_PLANNING"),
+            new AbstractMap.SimpleEntry<>("创建", "ITERATION_PLANNING"),
+            new AbstractMap.SimpleEntry<>("新建", "ITERATION_PLANNING"),
+            new AbstractMap.SimpleEntry<>("添加", "ITERATION_PLANNING"),
+            new AbstractMap.SimpleEntry<>("任务", "ITERATION_PLANNING"),
+            // 进度/状态/概览 → PROJECT_HEALTH（需在"任务"之后，因为"任务"已优先匹配）
+            new AbstractMap.SimpleEntry<>("进度", "PROJECT_HEALTH"),
+            new AbstractMap.SimpleEntry<>("状态", "PROJECT_HEALTH"),
+            new AbstractMap.SimpleEntry<>("概览", "PROJECT_HEALTH"),
+            // 分析/搜索/查找 → PROJECT_RESEARCH
+            new AbstractMap.SimpleEntry<>("分析", "PROJECT_RESEARCH"),
+            new AbstractMap.SimpleEntry<>("搜索", "PROJECT_RESEARCH"),
+            new AbstractMap.SimpleEntry<>("查找", "PROJECT_RESEARCH")
     );
 
     private final Map<String, AgentSkill> skills;
@@ -90,7 +100,7 @@ public final class AgentSkillRegistry {
      * 确定性选择 Skill。
      * 1. 显式 code 优先（不区分大小写）；
      * 2. goal 关键词匹配（取第一个命中的关键词对应的 Skill）；
-     * 3. route 默认 Skill；
+     * 3. route 智能推断（根据页面上下文选择最可能需要的 Skill）；
      * 4. 固定兜底 PROJECT_RESEARCH。
      */
     public AgentSkill select(String explicitCode, String userGoal, AgentPageContext page) {
@@ -102,22 +112,24 @@ public final class AgentSkillRegistry {
         // 2. goal 关键词匹配
         if (userGoal != null && !userGoal.isBlank()) {
             String goalLower = userGoal.toLowerCase();
-            for (Map.Entry<String, String> entry : GOAL_KEYWORD_SKILLS.entrySet()) {
+            for (Map.Entry<String, String> entry : GOAL_KEYWORD_SKILLS) {
                 if (goalLower.contains(entry.getKey())) {
                     return require(entry.getValue());
                 }
             }
         }
 
-        // 3. route 默认 Skill
+        // 3. route 智能推断：根据页面上下文选择最可能需要的 Skill
         if (page != null && page.route() != null) {
-            String routeCode = ROUTE_DEFAULT_SKILLS.get(page.route().toUpperCase());
-            if (routeCode != null) {
-                return require(routeCode);
-            }
+            String route = page.route().toUpperCase();
+            if (route.contains("TASK")) return require("ITERATION_PLANNING");
+            if (route.contains("MILESTONE")) return require("ITERATION_PLANNING");
+            if (route.contains("PLANNING")) return require("ITERATION_PLANNING");
+            if (route.contains("DASHBOARD")) return require("PROJECT_HEALTH");
+            if (route.contains("DOCUMENT")) return require("MEETING_TO_TASKS");
         }
 
-        // 4. 固定兜底
+        // 4. 最终兜底
         return require("PROJECT_RESEARCH");
     }
 

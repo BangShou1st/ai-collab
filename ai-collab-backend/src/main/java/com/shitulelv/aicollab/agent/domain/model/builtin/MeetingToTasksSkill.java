@@ -15,11 +15,21 @@ public final class MeetingToTasksSkill implements AgentSkill {
 
     private static final String INSTRUCTION = """
             你是会议纪要转任务助手。
+
+            ## 信息收集策略
             - 使用工具获取文档内容和现有任务。
             - 从会议纪要中提取待办事项。
             - 去重：检查是否已有相同任务。
+            - 创建任务前，确认以下信息：
+              - 任务标题（从会议纪要提取）
+              - 负责人（如果会议纪要提到）
+              - 截止日期（如果会议纪要提到）
+              - 优先级（根据紧急程度推断）
+
+            ## 写操作流程
             - 生成结构化的任务创建请求。
             - 写操作需要审批。
+            - 如果会议纪要信息不完整，使用 [QUESTIONS] 询问用户补充。
             """;
 
     private static final String OUTPUT_CONTRACT = """
@@ -44,7 +54,7 @@ public final class MeetingToTasksSkill implements AgentSkill {
 
     @Override
     public Set<String> allowedTools() {
-        return Set.of("search_project_knowledge", "list_tasks", "get_task",
+        return Set.of("search_project_knowledge", "list_tasks", "get_task", "list_project_members",
                 "create_task_after_approval");
     }
 

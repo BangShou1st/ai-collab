@@ -4,7 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record McpConnection(
-        UUID id, String code, String name, McpTransport transport, String endpoint,
+        UUID id, UUID projectId, String code, String name, McpTransport transport, String endpoint,
         String stdioCommandJson, McpAuthType authType, String credentialCiphertext,
         Integer credentialKeyVersion, int timeoutMs, int maxResultBytes,
         String toolAllowlistJson, String resourceAllowlistJson,

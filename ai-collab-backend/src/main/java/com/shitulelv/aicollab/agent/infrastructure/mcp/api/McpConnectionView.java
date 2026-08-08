@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 public record McpConnectionView(
-        UUID id, String code, String name, McpTransport transport, String endpoint,
+        UUID id, UUID projectId, String code, String name, McpTransport transport, String endpoint,
         McpAuthType authType, boolean credentialConfigured, int timeoutMs, int maxResultBytes,
         List<String> toolAllowlist, List<String> resourceAllowlist,
         List<DiscoveredToolView> discoveredTools, List<DiscoveredResourceView> discoveredResources,
@@ -26,8 +26,8 @@ public record McpConnectionView(
     private static final ObjectMapper JSON = new ObjectMapper();
 
     public static McpConnectionView from(McpConnection value) {
-        return new McpConnectionView(value.id(), value.code(), value.name(), value.transport(),
-                value.endpoint(), value.authType(), value.credentialCiphertext() != null,
+        return new McpConnectionView(value.id(), value.projectId(), value.code(), value.name(),
+                value.transport(), value.endpoint(), value.authType(), value.credentialCiphertext() != null,
                 value.timeoutMs(), value.maxResultBytes(), strings(value.toolAllowlistJson()),
                 strings(value.resourceAllowlistJson()), tools(value.discoveredToolsJson()),
                 resources(value.discoveredResourcesJson()), value.schemaHash(), value.confirmedSchemaHash(),

@@ -10,6 +10,9 @@ import java.util.List;
 
 @Component
 public final class AgentLoopGuard {
+    private static final int SLIDING_WINDOW_SIZE = 6;
+    private static final int REPETITION_THRESHOLD = 3;
+
     public boolean hasNoProgress(
             List<AgentStepView> steps, AgentDecision.CallTool nextCall) {
         if (steps == null || steps.isEmpty() || nextCall == null) {
@@ -21,19 +24,42 @@ public final class AgentLoopGuard {
         if (completed.size() < 2) {
             return false;
         }
-        AgentStepView previous = completed.get(completed.size() - 1);
-        AgentStepView beforePrevious = completed.get(completed.size() - 2);
 
-        // 提取 arguments 进行比较
-        JsonNode previousArgs = extractArguments(previous.input());
-        JsonNode beforePreviousArgs = extractArguments(beforePrevious.input());
+        // 滑动窗口：最近 N 个已完成步骤，检测 tool+args+output 签名重复
+        int windowStart = Math.max(0, completed.size() - SLIDING_WINDOW_SIZE);
+        java.util.Map<String, Integer> counts = new java.util.HashMap<>();
+        for (int i = windowStart; i < completed.size(); i++) {
+            AgentStepView step = completed.get(i);
+            if (step.output() == null) continue;
+            JsonNode args = extractArguments(step.input());
+            String sig = step.toolName() + "|" + args + "|" + step.output();
+            counts.merge(sig, 1, Integer::sum);
+            if (counts.get(sig) >= REPETITION_THRESHOLD) {
+                return true;
+            }
+        }
 
-        return nextCall.tool().equals(previous.toolName())
-                && nextCall.tool().equals(beforePrevious.toolName())
-                && nextCall.arguments().equals(previousArgs)
-                && nextCall.arguments().equals(beforePreviousArgs)
-                && previous.output() != null
-                && previous.output().equals(beforePrevious.output());
+        // 检查下一步调用是否与窗口中某个已有签名匹配
+        // 如果下一步 tool+args 与某个已完成步骤相同，预测它会产生相同 output，
+        // 则该签名总计出现 windowCount + 1 次
+        for (int i = windowStart; i < completed.size(); i++) {
+            AgentStepView step = completed.get(i);
+            if (step.output() == null) continue;
+            JsonNode stepArgs = extractArguments(step.input());
+            String stepSig = step.toolName() + "|" + stepArgs + "|" + step.output();
+            int stepCount = counts.getOrDefault(stepSig, 0);
+            if (stepCount + 1 >= REPETITION_THRESHOLD) {
+                // 验证下一步的 tool+args 与此步骤匹配
+                String nextArgsStr = nextCall.arguments() != null ? nextCall.arguments().toString() : "";
+                String nextToolArgs = nextCall.tool() + "|" + nextArgsStr;
+                String stepToolArgs = step.toolName() + "|" + stepArgs;
+                if (nextToolArgs.equals(stepToolArgs)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

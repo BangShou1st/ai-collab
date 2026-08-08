@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.agent.infrastructure.tool;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
 import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
@@ -69,7 +70,7 @@ public class AgentToolRegistry {
     public List<AgentToolDefinition> definitionsFor(AgentToolContext context) {
         return tools.values().stream()
                 .filter(tool -> allowed(tool, context))
-                .map(AgentTool::definition)
+                .map(AgentToolRegistry::definitionFor)
                 .sorted(java.util.Comparator.comparing(AgentToolDefinition::name))
                 .toList();
     }
@@ -86,13 +87,32 @@ public class AgentToolRegistry {
                 ? providers.stream().flatMap(provider -> provider.tools(context).stream())
                 : java.util.stream.Stream.empty();
         return java.util.stream.Stream.concat(internal, external)
-                .map(AgentTool::definition)
+                .map(AgentToolRegistry::definitionFor)
                 .sorted(java.util.Comparator.comparing(AgentToolDefinition::name))
                 .toList();
     }
 
     private static boolean allowsExternal(AgentSkill skill) {
-        return "WEEKLY_REPORT".equals(skill.code()) || "PROJECT_RESEARCH".equals(skill.code());
+        return skill.allowExternalTools();
+    }
+
+    private static AgentToolDefinition definitionFor(AgentTool tool) {
+        AgentToolDefinition definition = tool.definition();
+        if (!(tool instanceof com.shitulelv.aicollab.agent.domain.tool.ApprovalWriteAgentTool)
+                || !definition.inputSchema().isObject()) {
+            return definition;
+        }
+        ObjectNode schema = (ObjectNode) definition.inputSchema().deepCopy();
+        schema.put("x-approval-patch", true);
+        ObjectNode properties = schema.withObject("properties");
+        if (!properties.has("approvalId")) {
+            ObjectNode approvalId = properties.putObject("approvalId");
+            approvalId.put("type", "string");
+            approvalId.put("format", "uuid");
+            approvalId.put("description", "仅修订可信上下文中的 PENDING 提案时填写；新建时不要填写");
+        }
+        return new AgentToolDefinition(
+                definition.name(), definition.description(), schema, definition.writesBusinessData());
     }
 
     /**

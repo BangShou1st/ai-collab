@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -136,6 +137,7 @@ public class AgentRepository {
         if (current.status() != AgentRunStatus.QUEUED
                 && current.status() != AgentRunStatus.RUNNING
                 && current.status() != AgentRunStatus.WAITING_FOR_APPROVAL
+                && current.status() != AgentRunStatus.WAITING_FOR_USER_INPUT
                 && current.status() != AgentRunStatus.FAILED_RETRYABLE) {
             throw new com.shitulelv.aicollab.common.exception.BusinessException(
                     com.shitulelv.aicollab.common.exception.ErrorCode.AGENT_RUN_NOT_CANCELABLE);
@@ -145,6 +147,10 @@ public class AgentRepository {
         }
         AgentRunStatus target = current.status() == AgentRunStatus.RUNNING
                 ? AgentRunStatus.RUNNING : AgentRunStatus.CANCELED;
+        // WAITING_FOR_USER_INPUT 可以直接取消
+        if (current.status() == AgentRunStatus.WAITING_FOR_USER_INPUT) {
+            target = AgentRunStatus.CANCELED;
+        }
         int updated = jdbc.update("""
                 UPDATE agent_run
                 SET cancel_requested_at=COALESCE(cancel_requested_at,now()),
@@ -295,16 +301,19 @@ public class AgentRepository {
     @Transactional
     public void recordFailure(AgentRunView run, String errorCode, boolean retryable) {
         appendErrorStep(run, errorCode);
+        // 如果可重试但已达到最大重试次数（10），直接标记为 FAILED 避免死循环
+        boolean finalFailure = !retryable || run.retryCount() >= 9;
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET status=?,error_code=?,
-                  retry_count=retry_count+CASE WHEN ? THEN 1 ELSE 0 END,
-                  retry_after=CASE WHEN ? THEN now()+interval '30 seconds' ELSE NULL END,
+                  retry_count=LEAST(retry_count+CASE WHEN ? THEN 1 ELSE 0 END, 10),
+                  retry_after=CASE WHEN ? AND NOT ? THEN now()+interval '30 seconds' ELSE NULL END,
                   finished_at=CASE WHEN ? THEN NULL ELSE now() END,
                   lease_owner=NULL,lease_expires_at=NULL,updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, retryable ? "FAILED_RETRYABLE" : "FAILED", errorCode,
-                retryable, retryable, retryable, run.projectId(), run.id(), run.version()));
-        if (!retryable) resumeParent(run, "FAILED", errorCode);
+                """, finalFailure ? "FAILED" : "FAILED_RETRYABLE", errorCode,
+                retryable, retryable, finalFailure, finalFailure,
+                run.projectId(), run.id(), run.version()));
+        if (finalFailure) resumeParent(run, "FAILED", errorCode);
     }
 
     /**
@@ -781,6 +790,72 @@ public class AgentRepository {
                 """, run.sessionId(), run.id(), content);
 
         return findRun(run.projectId(), run.id()).orElse(run);
+    }
+
+    /**
+     * 记录等待用户输入状态。
+     */
+    @Transactional
+    public AgentRunView recordWaitingForInput(AgentRunView run, String question) {
+        // 先验证版本和状态
+        int updated = jdbc.update("""
+                UPDATE agent_run SET status='WAITING_FOR_USER_INPUT',
+                  finished_at=NULL,lease_owner=NULL,lease_expires_at=NULL,
+                  updated_at=now(),version=version+1
+                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
+                """, run.projectId(), run.id(), run.version());
+        requireRunUpdate(updated);
+
+        int sequence = nextSequence(run.id());
+        jdbc.update("""
+                INSERT INTO agent_step(
+                  run_id,sequence_no,type,output_json,reason)
+                VALUES (?,?,'FINAL_ANSWER',?::jsonb,'WAITING_FOR_USER_INPUT')
+                """, run.id(), sequence, jsonString(Map.of("question", question)));
+        jdbc.update("""
+                INSERT INTO agent_message(
+                  session_id,run_id,role,content,citations_json,inferences_json)
+                VALUES (?,?,'ASSISTANT',?,'[]'::jsonb,'[]'::jsonb)
+                """, run.sessionId(), run.id(), question);
+
+        return findRun(run.projectId(), run.id()).orElse(run);
+    }
+
+    /**
+     * 继续等待用户输入的 Run。
+     */
+    @Transactional
+    public AgentRunView continueRun(AgentRunView run, String userResponse) {
+        // 先验证版本和状态
+        int updated = jdbc.update("""
+                UPDATE agent_run SET status='QUEUED',
+                  finished_at=NULL,lease_owner=NULL,lease_expires_at=NULL,
+                  updated_at=now(),version=version+1
+                WHERE project_id=? AND id=? AND version=? AND status='WAITING_FOR_USER_INPUT'
+                """, run.projectId(), run.id(), run.version());
+        requireRunUpdate(updated);
+
+        // 记录用户回复
+        jdbc.update("""
+                INSERT INTO agent_message(
+                  session_id,run_id,role,content,citations_json,inferences_json)
+                VALUES (?,?,'USER',?,'[]'::jsonb,'[]'::jsonb)
+                """, run.sessionId(), run.id(), userResponse);
+
+        return findRun(run.projectId(), run.id()).orElse(run);
+    }
+
+    /**
+     * 加载最近的对话历史（用于上下文）。
+     * 返回最近 limit 条消息。
+     */
+    public List<AgentMessageView> listRecentMessages(UUID sessionId, int limit) {
+        return jdbc.query("""
+                SELECT m.* FROM agent_message m
+                WHERE m.session_id=?
+                ORDER BY m.created_at DESC, m.id DESC
+                LIMIT ?
+                """, messageMapper(), sessionId, limit);
     }
 
     private static int estimateInputTokens(ModelTurnResult turn) {

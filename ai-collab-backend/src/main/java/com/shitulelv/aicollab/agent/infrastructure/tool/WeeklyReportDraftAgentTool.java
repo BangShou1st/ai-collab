@@ -29,8 +29,9 @@ public class WeeklyReportDraftAgentTool implements AgentTool {
 
     @Override
     public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {
-        AgentToolArguments.requireFields(arguments, Set.of());
-        var report = reports.getWeeklyReport(context.projectId(), context.userId());
+        AgentToolArguments.requireFields(arguments, Set.of("days"));
+        int days = AgentToolArguments.integer(arguments, "days", 7, 1, 30);
+        var report = reports.getWeeklyReport(context.projectId(), context.userId(), days);
         ObjectNode data = json.createObjectNode();
         data.put("reportDate", report.reportDate().toString());
         data.set("taskStatistics", json.valueToTree(report.taskStats()));

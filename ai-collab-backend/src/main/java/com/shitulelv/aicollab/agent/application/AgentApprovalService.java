@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.agent.application;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.runtime.AgentEventService;
@@ -62,25 +63,27 @@ public class AgentApprovalService {
     public AgentProposalOutcome proposeOrRevise(
             AgentRunView run, ModelTurnResult turn, ModelToolCall call,
             AgentToolContext context, ApprovalWriteAgentTool tool) {
-        JsonNode arguments = tool.normalize(context, call.arguments());
-        JsonNode diff = tool.diff(context, arguments);
-        String argumentsHash = policy.nonceHash(canonical(arguments));
-
-        // 提取保留元字段 approvalId（如果存在）
-        UUID explicitApprovalId = extractApprovalId(arguments);
+        UUID explicitApprovalId = extractApprovalId(call.arguments());
+        JsonNode patch = withoutApprovalId(call.arguments());
         AgentProposalFamily family = tool.proposalFamily();
-
-        // 匹配逻辑
-        Optional<AgentApprovalView> existing = matchProposal(
-                run, explicitApprovalId, family);
+        Optional<AgentApprovalView> existing = matchProposal(run, explicitApprovalId);
 
         if (existing.isPresent()) {
-            // 修订现有提案
-            return reviseProposal(existing.get(), arguments, diff, argumentsHash, run);
-        } else {
-            // 创建新提案
-            return createProposal(run, call, arguments, diff, argumentsHash, family, turn);
+            AgentApprovalView pending = existing.get();
+            ApprovalWriteAgentTool revisionTool = revisionTool(pending, tool);
+            JsonNode revisionPatch = revisionPatch(pending.proposalFamily(), family, patch);
+            JsonNode merged = revisionTool.mergeArguments(pending.arguments(), revisionPatch);
+            JsonNode arguments = revisionTool.normalize(context, merged);
+            JsonNode diff = revisionTool.diff(context, arguments);
+            String argumentsHash = policy.contentHash(canonical(arguments));
+            return reviseProposal(pending, arguments, diff, argumentsHash, run);
         }
+
+        // 没有可信 approvalId 时始终创建新提案，避免覆盖同一会话中的另一个待审批对象。
+        JsonNode arguments = tool.normalize(context, patch);
+        JsonNode diff = tool.diff(context, arguments);
+        String argumentsHash = policy.contentHash(canonical(arguments));
+        return createProposal(run, call, arguments, diff, argumentsHash, family, turn);
     }
 
     /**
@@ -91,7 +94,7 @@ public class AgentApprovalService {
      * 4. 多候选返回歧义结果（当前简化为创建新提案）
      */
     private Optional<AgentApprovalView> matchProposal(
-            AgentRunView run, UUID explicitApprovalId, AgentProposalFamily family) {
+            AgentRunView run, UUID explicitApprovalId) {
         if (explicitApprovalId != null) {
             // 显式 approvalId：校验归属
             Optional<AgentApprovalView> found = approvals.find(run.projectId(), explicitApprovalId);
@@ -112,16 +115,55 @@ public class AgentApprovalService {
                 throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT,
                         "审批状态不是 PENDING");
             }
-            if (approval.proposalFamily() != family) {
-                throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT,
-                        "审批工具族不匹配");
-            }
             return found;
         }
 
-        // 无 ID 时查找兼容候选
-        return approvals.findCompatiblePending(
-                run.projectId(), run.sessionId(), run.requesterId(), family);
+        return Optional.empty();
+    }
+
+    private ApprovalWriteAgentTool revisionTool(
+            AgentApprovalView existing, ApprovalWriteAgentTool requestedTool) {
+        if (existing.proposalFamily() == requestedTool.proposalFamily()) {
+            return requestedTool;
+        }
+        if (!isCreateRevisionAlias(existing.proposalFamily(), requestedTool.proposalFamily())) {
+            throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT,
+                    "审批工具族不匹配");
+        }
+        AgentTool original = tools.find(existing.toolName())
+                .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT));
+        if (!(original instanceof ApprovalWriteAgentTool writeTool)
+                || writeTool.proposalFamily() != existing.proposalFamily()) {
+            throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT,
+                    "原提案工具不可用");
+        }
+        return writeTool;
+    }
+
+    private static boolean isCreateRevisionAlias(
+            AgentProposalFamily existing, AgentProposalFamily requested) {
+        return (existing == AgentProposalFamily.TASK_CREATE
+                && requested == AgentProposalFamily.TASK_UPDATE)
+                || (existing == AgentProposalFamily.MILESTONE_CREATE
+                && requested == AgentProposalFamily.MILESTONE_UPDATE);
+    }
+
+    private JsonNode revisionPatch(
+            AgentProposalFamily existing, AgentProposalFamily requested, JsonNode patch) {
+        if (existing == requested || patch == null || !patch.isObject()) {
+            return patch;
+        }
+        JsonNode changes = patch.get("changes");
+        ObjectNode createPatch = changes != null && changes.isObject()
+                ? ((ObjectNode) changes).deepCopy()
+                : ((ObjectNode) patch).deepCopy();
+        createPatch.remove("version");
+        if (requested == AgentProposalFamily.TASK_UPDATE) {
+            createPatch.remove("taskId");
+        } else if (requested == AgentProposalFamily.MILESTONE_UPDATE) {
+            createPatch.remove("milestoneId");
+        }
+        return createPatch;
     }
 
     /**
@@ -146,12 +188,10 @@ public class AgentApprovalService {
             JsonNode arguments, JsonNode diff, String argumentsHash,
             AgentProposalFamily family, ModelTurnResult turn) {
         UUID approvalId = UUID.randomUUID();
-        UUID subjectKey = UUID.randomUUID(); // 创建操作使用首次提案生成的稳定 UUID
-
         ChatCompletionResult completion = toCompletionResult(turn);
         // 转换 ModelToolCall 到 AgentDecision.CallTool
         AgentDecision.CallTool callTool = new AgentDecision.CallTool(
-                call.name(), call.arguments(), "");
+                call.name(), arguments, "");
         AgentApprovalView created = approvals.createProposal(
                 approvalId, run, completion, callTool, arguments, diff,
                 argumentsHash,
@@ -166,8 +206,18 @@ public class AgentApprovalService {
     private UUID extractApprovalId(JsonNode arguments) {
         JsonNode nodeId = arguments.get("approvalId");
         if (nodeId == null || nodeId.isNull()) return null;
-        try { return UUID.fromString(nodeId.asText()); }
-        catch (IllegalArgumentException ignored) { return null; }
+        try {
+            return UUID.fromString(nodeId.asText());
+        } catch (IllegalArgumentException invalid) {
+            throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT, "approvalId 不是有效 UUID");
+        }
+    }
+
+    private JsonNode withoutApprovalId(JsonNode arguments) {
+        if (arguments == null || !arguments.isObject()) return arguments;
+        ObjectNode businessArguments = ((ObjectNode) arguments).deepCopy();
+        businessArguments.remove("approvalId");
+        return businessArguments;
     }
 
     private ChatCompletionResult toCompletionResult(ModelTurnResult turn) {
@@ -188,7 +238,7 @@ public class AgentApprovalService {
         UUID approvalId = UUID.randomUUID();
         return approvals.createProposal(
                 approvalId, run, completion, call, arguments, diff,
-                policy.nonceHash(canonical(arguments)),
+                policy.contentHash(canonical(arguments)),
                 policy.nonceHash(approvalId.toString()),
                 OffsetDateTime.now(clock).plus(Duration.ofHours(24)));
     }

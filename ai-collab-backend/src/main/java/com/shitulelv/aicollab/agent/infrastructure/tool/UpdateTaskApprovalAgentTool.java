@@ -8,6 +8,7 @@ import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
 import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.project.infrastructure.repository.ProjectMemberRepository;
 import com.shitulelv.aicollab.work.api.dto.UpdateTaskRequest;
 import com.shitulelv.aicollab.work.application.service.TaskApplicationService;
 import com.shitulelv.aicollab.work.application.view.TaskView;
@@ -20,10 +21,13 @@ import java.util.UUID;
 @Component
 public class UpdateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool {
     private final TaskApplicationService tasks;
+    private final ProjectMemberRepository members;
 
-    public UpdateTaskApprovalAgentTool(ObjectMapper json, Validator validator, TaskApplicationService tasks) {
+    public UpdateTaskApprovalAgentTool(ObjectMapper json, Validator validator,
+                                       TaskApplicationService tasks, ProjectMemberRepository members) {
         super(json, validator);
         this.tasks = tasks;
+        this.members = members;
     }
 
     @Override public String name() { return "update_task_after_approval"; }
@@ -37,9 +41,16 @@ public class UpdateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool 
     public JsonNode normalize(AgentToolContext context, JsonNode arguments) {
         UUID taskId = requiredId(arguments, "taskId");
         JsonNode payload = arguments.has("changes") ? arguments.get("changes") : arguments;
+        UpdateTaskRequest req = request(payload, UpdateTaskRequest.class);
+        ObjectNode changes = (ObjectNode) tree(req);
+        // 附加负责人显示名称，便于前端审批界面展示
+        if (req.assigneeId() != null) {
+            members.find(context.projectId(), req.assigneeId())
+                    .ifPresent(m -> changes.put("assigneeName", m.displayName()));
+        }
         ObjectNode normalized = json.createObjectNode();
         normalized.put("taskId", taskId.toString());
-        normalized.set("changes", tree(request(payload, UpdateTaskRequest.class)));
+        normalized.set("changes", changes);
         return normalized;
     }
 

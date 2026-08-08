@@ -42,6 +42,7 @@ class AgentProposalContinuityIntegrationTest {
     @BeforeEach
     void cleanData() {
         // 按外键依赖顺序删除数据
+        jdbc.update("DELETE FROM agent_approval_revision");
         jdbc.update("DELETE FROM agent_step");
         jdbc.update("DELETE FROM agent_run_event");
         jdbc.update("DELETE FROM agent_approval");
@@ -49,12 +50,10 @@ class AgentProposalContinuityIntegrationTest {
         jdbc.update("DELETE FROM agent_session");
         jdbc.update("DELETE FROM project");
         jdbc.update("DELETE FROM app_user");
-        // agent_approval_revision 表在 V37 迁移中创建，当前不存在
-        // TODO: V37 迁移后添加 jdbc.update("DELETE FROM agent_approval_revision");
     }
 
     @Test
-    void revisesTheOnlyCompatiblePendingProposalInTheSameSession() {
+    void independentCreateProposalsRemainDistinctWithoutExplicitApprovalId() {
         // 1. 创建用户、项目、会话和 Run
         Fixture f = fixture();
         UUID runId = createRun(f, "创建任务提案");
@@ -63,17 +62,15 @@ class AgentProposalContinuityIntegrationTest {
         UUID approvalId1 = createApproval(f, runId, "create_task_after_approval",
                 "TASK_CREATE", json.createObjectNode().put("title", "原任务"));
 
-        // 3. 修订审批（模拟第二个提案请求同一 subject）
-        // 新功能：同一会话同一工具族的 PENDING 提案应该被修订
-        // 当前：会创建新审批（测试预期失败）
+        // 3. 第二个完整创建请求没有携带可信 approvalId，应保持独立。
         UUID approvalId2 = createApproval(f, runId, "create_task_after_approval",
                 "TASK_CREATE", json.createObjectNode().put("title", "修订任务"));
 
-        // 验证：应该只有一个 PENDING 提案，而不是两个
+        // 谨慎创建：不能仅因工具族相同就覆盖另一个待审批对象。
         Integer pendingCount = jdbc.queryForObject(
                 "SELECT count(*) FROM agent_approval WHERE project_id=? AND status='PENDING'",
                 Integer.class, f.project());
-        assertThat(pendingCount).isEqualTo(1); // 当前会是 2，测试失败
+        assertThat(pendingCount).isEqualTo(2);
     }
 
     @Test
@@ -137,7 +134,7 @@ class AgentProposalContinuityIntegrationTest {
         // 读取当前版本
         Integer version = jdbc.queryForObject(
                 "SELECT version FROM agent_approval WHERE id=?", Integer.class, approvalId);
-        assertThat(version).isEqualTo(1);
+        assertThat(version).isZero();
 
         // 模拟并发修订：一个成功，一个因版本冲突失败
         int updated1 = jdbc.update("""

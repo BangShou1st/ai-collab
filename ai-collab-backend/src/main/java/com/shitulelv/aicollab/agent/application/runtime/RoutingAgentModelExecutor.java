@@ -15,14 +15,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 模型执行路由。根据当前 Agent 模型的能力选择执行路径：
- * - NATIVE_TOOLS -> NativeToolCallingExecutor
+ * - NATIVE_TOOLS -> NativeToolCallingExecutor（失败时自动降级到 Legacy）
  * - CHAT-only -> LegacyReadOnlyAgentExecutor
  * - 两者都不支持 -> 明确失败
- * <p>
- * 不自动 fallback，不通过 Bean 是否为 null 决定协议。
  */
 @Component
 public class RoutingAgentModelExecutor {
@@ -43,6 +42,7 @@ public class RoutingAgentModelExecutor {
 
     /**
      * 调用模型并返回结果。
+     * 如果模型声明支持 NATIVE_TOOLS 但实际调用失败，自动降级到 Legacy 模式。
      *
      * @param run              当前运行
      * @param messages         多轮消息历史
@@ -56,7 +56,7 @@ public class RoutingAgentModelExecutor {
             List<AgentToolDefinition> exposed,
             boolean correctionAttempted) {
 
-        ModelConfiguration config = configurations.findAssigned(ModelPurpose.AGENT)
+        ModelConfiguration config = configurations.findAssigned(run.projectId(), ModelPurpose.AGENT)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
                         "未找到 Agent 模型配置"));
 
@@ -71,17 +71,23 @@ public class RoutingAgentModelExecutor {
         if (hasNativeTools) {
             log.debug("使用 Native Tool Calling 执行器: model={}, configurationId={}",
                     config.modelName(), config.id());
-            return nativeExecutor.callModel(messages, exposed, config.id());
+            try {
+                return nativeExecutor.callModel(messages, exposed, run.projectId(), config.id());
+            } catch (BusinessException e) {
+                // 如果是模型调用错误且支持 CHAT，降级到 Legacy 模式
+                if (hasChat && isNativeToolError(e)) {
+                    log.warn("Native Tool Calling 失败，降级到 Legacy 模式: model={}, error={}",
+                            config.modelName(), e.getErrorCode());
+                    return fallbackToLegacy(messages, exposed, run.projectId(), correctionAttempted);
+                }
+                throw e;
+            }
         }
 
         if (hasChat) {
             log.debug("使用 Legacy 只读执行器: model={}, configurationId={}",
                     config.modelName(), config.id());
-            // Legacy 模式下只暴露只读工具
-            List<AgentToolDefinition> readOnlyExposed = exposed.stream()
-                    .filter(d -> !d.writesBusinessData())
-                    .toList();
-            return legacyExecutor.callModel(messages, readOnlyExposed, correctionAttempted);
+            return fallbackToLegacy(messages, exposed, run.projectId(), correctionAttempted);
         }
 
         // 既不支持 NATIVE_TOOLS 也不支持 CHAT -> 明确失败
@@ -90,10 +96,34 @@ public class RoutingAgentModelExecutor {
     }
 
     /**
+     * 降级到 Legacy 执行器。
+     * Legacy 模式下只暴露只读工具。
+     */
+    private ModelTurnResult fallbackToLegacy(
+            List<ModelMessage> messages,
+            List<AgentToolDefinition> exposed,
+            UUID projectId,
+            boolean correctionAttempted) {
+        List<AgentToolDefinition> readOnlyExposed = exposed.stream()
+                .filter(d -> !d.writesBusinessData())
+                .toList();
+        return legacyExecutor.callModel(messages, readOnlyExposed, projectId, correctionAttempted);
+    }
+
+    /**
+     * 判断异常是否为 Native Tool Calling 相关错误（可降级）。
+     */
+    private boolean isNativeToolError(BusinessException e) {
+        return e.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR
+                || e.getErrorCode() == ErrorCode.AI_PROVIDER_INVALID_RESPONSE
+                || e.getErrorCode() == ErrorCode.AI_MODEL_TIMEOUT;
+    }
+
+    /**
      * 判断当前模型是否为 Legacy 模式（只支持 CHAT）。
      */
-    public boolean isLegacyMode() {
-        return configurations.findAssigned(ModelPurpose.AGENT)
+    public boolean isLegacyMode(UUID projectId) {
+        return configurations.findAssigned(projectId, ModelPurpose.AGENT)
                 .map(config -> !config.capabilities().contains(ModelCapability.NATIVE_TOOLS)
                         && config.capabilities().contains(ModelCapability.CHAT))
                 .orElse(false);

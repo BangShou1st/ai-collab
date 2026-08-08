@@ -22,44 +22,46 @@ public class ModelConfigurationRepository {
         this.jdbc = jdbc;
     }
 
-    public List<ModelConfiguration> findAll() {
+    public List<ModelConfiguration> findAll(UUID projectId) {
         return jdbc.query("""
-                SELECT id, name, provider_type, base_url, api_path, encrypted_api_key,
+                SELECT id, project_id, name, provider_type, base_url, api_path, encrypted_api_key,
                        model_name, enabled, temperature, max_output_tokens, capabilities,
                        created_at, updated_at
                 FROM model_configuration
+                WHERE project_id = ?
                 ORDER BY name
-                """, MAPPER);
+                """, MAPPER, projectId);
     }
 
     public Optional<ModelConfiguration> findById(UUID id) {
         return jdbc.query("""
-                SELECT id, name, provider_type, base_url, api_path, encrypted_api_key,
+                SELECT id, project_id, name, provider_type, base_url, api_path, encrypted_api_key,
                        model_name, enabled, temperature, max_output_tokens, capabilities,
                        created_at, updated_at
                 FROM model_configuration WHERE id = ?
                 """, MAPPER, id).stream().findFirst();
     }
 
-    public Optional<ModelConfiguration> findAssigned(ModelPurpose purpose) {
+    public Optional<ModelConfiguration> findAssigned(UUID projectId, ModelPurpose purpose) {
         return jdbc.query("""
-                SELECT c.id, c.name, c.provider_type, c.base_url, c.api_path, c.encrypted_api_key,
+                SELECT c.id, c.project_id, c.name, c.provider_type, c.base_url, c.api_path, c.encrypted_api_key,
                        c.model_name, c.enabled, c.temperature, c.max_output_tokens, c.capabilities,
                        c.created_at, c.updated_at
                 FROM model_purpose_assignment a
                 JOIN model_configuration c ON c.id = a.model_configuration_id
-                WHERE a.purpose = ?
-                """, MAPPER, purpose.name()).stream().findFirst();
+                WHERE a.project_id = ? AND a.purpose = ?
+                """, MAPPER, projectId, purpose.name()).stream().findFirst();
     }
 
     public ModelConfiguration save(ModelConfiguration value) {
         jdbc.update("""
                 INSERT INTO model_configuration (
-                    id, name, provider_type, base_url, api_path, encrypted_api_key,
+                    id, project_id, name, provider_type, base_url, api_path, encrypted_api_key,
                     model_name, enabled, temperature, max_output_tokens, capabilities,
                     created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (id) DO UPDATE SET
+                    project_id = EXCLUDED.project_id,
                     name = EXCLUDED.name,
                     provider_type = EXCLUDED.provider_type,
                     base_url = EXCLUDED.base_url,
@@ -72,30 +74,31 @@ public class ModelConfigurationRepository {
                     capabilities = EXCLUDED.capabilities,
                     updated_at = EXCLUDED.updated_at
                 """,
-                value.id(), value.name(), value.providerType().name(), value.baseUrl(), value.apiPath(),
-                value.encryptedApiKey(), value.modelName(), value.enabled(), value.temperature(),
-                value.maxOutputTokens(), capabilityText(value.capabilities()),
-                value.createdAt(), value.updatedAt());
+                value.id(), value.projectId(), value.name(), value.providerType().name(),
+                value.baseUrl(), value.apiPath(), value.encryptedApiKey(), value.modelName(),
+                value.enabled(), value.temperature(), value.maxOutputTokens(),
+                capabilityText(value.capabilities()), value.createdAt(), value.updatedAt());
         return findById(value.id()).orElseThrow();
     }
 
-    public void assign(ModelPurpose purpose, UUID configurationId) {
+    public void assign(UUID projectId, ModelPurpose purpose, UUID configurationId) {
         jdbc.update("""
-                INSERT INTO model_purpose_assignment (purpose, model_configuration_id, updated_at)
-                VALUES (?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT (purpose) DO UPDATE SET
+                INSERT INTO model_purpose_assignment (project_id, purpose, model_configuration_id, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT (project_id, purpose) DO UPDATE SET
                     model_configuration_id = EXCLUDED.model_configuration_id,
                     updated_at = CURRENT_TIMESTAMP
-                """, purpose.name(), configurationId);
+                """, projectId, purpose.name(), configurationId);
     }
 
-    public List<ModelAssignment> assignments() {
+    public List<ModelAssignment> assignments(UUID projectId) {
         return jdbc.query("""
                 SELECT purpose, model_configuration_id
-                FROM model_purpose_assignment ORDER BY purpose
+                FROM model_purpose_assignment
+                WHERE project_id = ? ORDER BY purpose
                 """, (rs, row) -> new ModelAssignment(
                 ModelPurpose.valueOf(rs.getString("purpose")),
-                rs.getObject("model_configuration_id", UUID.class)));
+                rs.getObject("model_configuration_id", UUID.class)), projectId);
     }
 
     public void delete(UUID id) {
@@ -124,6 +127,7 @@ public class ModelConfigurationRepository {
                 public ModelConfiguration mapRow(ResultSet rs, int rowNum) throws SQLException {
                     return new ModelConfiguration(
                             rs.getObject("id", UUID.class),
+                            rs.getObject("project_id", UUID.class),
                             rs.getString("name"),
                             ModelProviderType.valueOf(rs.getString("provider_type")),
                             rs.getString("base_url"),

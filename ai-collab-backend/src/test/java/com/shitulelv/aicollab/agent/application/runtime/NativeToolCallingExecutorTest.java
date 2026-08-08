@@ -53,6 +53,7 @@ class NativeToolCallingExecutorTest {
         ModelTurnResult turn = executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("检查项目")),
                 List.of(),
+                null,
                 configId);
 
         assertThat(turn.content()).isEqualTo("项目进展正常");
@@ -72,6 +73,7 @@ class NativeToolCallingExecutorTest {
         ModelTurnResult turn = executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("列出任务")),
                 List.of(toolDef("list_tasks")),
+                null,
                 configId);
 
         assertThat(turn.toolCalls()).hasSize(1);
@@ -93,6 +95,7 @@ class NativeToolCallingExecutorTest {
         ModelTurnResult turn = executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("列出并获取任务")),
                 List.of(toolDef("list_tasks"), toolDef("get_task")),
+                null,
                 configId);
 
         assertThat(turn.toolCalls()).hasSize(2);
@@ -113,6 +116,7 @@ class NativeToolCallingExecutorTest {
         ModelTurnResult turn = executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("列出任务")),
                 List.of(toolDef("list_tasks")),
+                null,
                 configId);
 
         assertThat(turn.toolCalls().getFirst().id()).isEqualTo(uniqueId);
@@ -127,6 +131,7 @@ class NativeToolCallingExecutorTest {
         assertThatThrownBy(() -> executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                 List.of(),
+                null,
                 configId))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
@@ -146,6 +151,7 @@ class NativeToolCallingExecutorTest {
         executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                 List.of(),
+                null,
                 configId);
 
         // 验证只调用了一次 modelTurn.turn
@@ -165,7 +171,7 @@ class NativeToolCallingExecutorTest {
                 new ModelMessage.User("追问"));
 
         UUID configId = UUID.randomUUID();
-        executor.callModel(messages, List.of(), configId);
+        executor.callModel(messages, List.of(), null, configId);
 
         verify(modelTurn).turn(argThat(cmd -> {
             List<ModelMessage> actualMessages = cmd.messages();
@@ -191,6 +197,7 @@ class NativeToolCallingExecutorTest {
         executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                 exposed,
+                null,
                 configId);
 
         verify(modelTurn).turn(argThat(cmd ->
@@ -213,6 +220,7 @@ class NativeToolCallingExecutorTest {
         executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                 List.of(toolDef("list_tasks")),
+                null,
                 configId);
 
         // 验证 configurationId 被正确传递到 ModelTurnCommand

@@ -3,8 +3,6 @@ package com.shitulelv.aicollab.agent.infrastructure.mcp;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionRequest;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionView;
-import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpBindingRequest;
-import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpBindingView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +20,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,28 +72,35 @@ class McpAdministrationPostgresIntegrationTest {
     @MockitoBean McpClientFactory clients;
 
     @BeforeEach
-    void seedAdmin() {
+    void seedData() {
         jdbc.execute("TRUNCATE TABLE app_user CASCADE");
+        jdbc.execute("TRUNCATE TABLE project CASCADE");
+        jdbc.execute("TRUNCATE TABLE project_member CASCADE");
         jdbc.update("""
                 INSERT INTO app_user(id,username,password_hash,display_name,system_admin)
                 VALUES (?,'mcp-admin','hash','MCP Admin',true)
                 """, ADMIN);
+        jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,'MCP Project',?,?)",
+                PROJECT, ADMIN, ADMIN);
+        jdbc.update("INSERT INTO project_member(project_id,user_id,role) VALUES (?,?,'OWNER')",
+                PROJECT, ADMIN);
     }
 
     @Test
-    void createEditKeepCredentialRotateDiscoverAndEnableFormOneContractSafeFlow() throws Exception {
-        McpConnectionView created = service.create(request("initial-secret", 0, List.of("get_file")), ADMIN);
+    void createEditKeepCredentialRotateDiscoverAndEnableFlow() throws Exception {
+        McpConnectionView created = service.create(PROJECT, request("initial-secret", 0, List.of("get_file")), ADMIN);
         String firstCiphertext = ciphertext(created.id());
         assertThat(created.toolAllowlist()).containsExactly("get_file");
         assertThat(firstCiphertext).isNotEqualTo("initial-secret");
+        assertThat(created.projectId()).isEqualTo(PROJECT);
 
-        McpConnectionView edited = service.update(
-                created.id(), request(null, created.version(), List.of("get_file", "list_issues")), ADMIN);
+        McpConnectionView edited = service.update(PROJECT, created.id(),
+                request(null, created.version(), List.of("get_file", "list_issues")), ADMIN);
         assertThat(ciphertext(created.id())).isEqualTo(firstCiphertext);
         assertThat(edited.toolAllowlist()).containsExactly("get_file", "list_issues");
 
-        McpConnectionView rotated = service.update(
-                created.id(), request("rotated-secret", edited.version(), edited.toolAllowlist()), ADMIN);
+        McpConnectionView rotated = service.update(PROJECT, created.id(),
+                request("rotated-secret", edited.version(), edited.toolAllowlist()), ADMIN);
         assertThat(ciphertext(created.id())).isNotEqualTo(firstCiphertext);
 
         ObjectMapper json = new ObjectMapper();
@@ -109,30 +113,32 @@ class McpAdministrationPostgresIntegrationTest {
         when(client.listResources()).thenReturn(List.of(new McpClientFacade.DiscoveredResource(
                 "repo://main", "main", "Repository", "text/plain")));
 
-        McpConnectionView discovered = service.discover(created.id(), ADMIN);
+        McpConnectionView discovered = service.discover(PROJECT, created.id(), ADMIN);
         assertThat(discovered.discoveredTools()).extracting(McpConnectionView.DiscoveredToolView::name)
                 .containsExactly("get_file");
         assertThat(discovered.discoveredResources()).extracting(McpConnectionView.DiscoveredResourceView::uri)
                 .containsExactly("repo://main");
 
-        McpConnectionView enabled = service.setEnabled(created.id(), discovered.version(), true, ADMIN);
+        McpConnectionView enabled = service.setEnabled(PROJECT, created.id(), discovered.version(), true, ADMIN);
         assertThat(enabled.enabled()).isTrue();
         assertThat(enabled.schemaConfirmed()).isTrue();
         assertThat(enabled.confirmedSchemaHash()).isEqualTo(enabled.schemaHash());
+    }
 
-        jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,'MCP binding',?,?)",
-                PROJECT, ADMIN, ADMIN);
+    @Test
+    void listReturnsOnlyProjectConnections() throws Exception {
+        McpConnectionView connection1 = service.create(PROJECT,
+                request("secret", 0, List.of("get_file")), ADMIN);
+        UUID otherProject = UUID.randomUUID();
+        jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,'Other',?,?)",
+                otherProject, ADMIN, ADMIN);
         jdbc.update("INSERT INTO project_member(project_id,user_id,role) VALUES (?,?,'OWNER')",
-                PROJECT, ADMIN);
-        McpBindingView binding = service.bind(PROJECT, enabled.id(), new McpBindingRequest(
-                true, List.of("get_file"), List.of("repo://main"),
-                Map.of("repository", "main"), 0), ADMIN);
+                otherProject, ADMIN);
+        service.create(otherProject, request("secret", 0, List.of("other_tool")), ADMIN);
 
-        assertThat(binding.allowedTools()).containsExactly("get_file");
-        assertThat(binding.configuration()).containsEntry("repository", "main");
-        String bindingResponse = new tools.jackson.databind.ObjectMapper().writeValueAsString(binding);
-        assertThat(new ObjectMapper().readTree(bindingResponse)
-                .path("configuration").path("repository").asText()).isEqualTo("main");
+        List<McpConnectionView> projectConnections = service.list(PROJECT, ADMIN);
+        assertThat(projectConnections).hasSize(1);
+        assertThat(projectConnections.getFirst().code()).isEqualTo("github-readonly");
     }
 
     private McpConnectionRequest request(String credential, int version, List<String> tools) {

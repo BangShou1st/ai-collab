@@ -10,10 +10,21 @@ public final class AgentApprovalPolicy {
         if (nonce == null || nonce.isBlank() || nonce.length() > 200) {
             throw new IllegalArgumentException("审批 nonce 无效");
         }
+        return sha256(nonce);
+    }
+
+    public String contentHash(String content) {
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("审批内容无效");
+        }
+        return sha256(content);
+    }
+
+    private String sha256(String value) {
         try {
             return HexFormat.of().formatHex(
                     MessageDigest.getInstance("SHA-256")
-                            .digest(nonce.getBytes(StandardCharsets.UTF_8)));
+                            .digest(value.getBytes(StandardCharsets.UTF_8)));
         } catch (java.security.NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 不可用", exception);
         }

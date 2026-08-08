@@ -15,7 +15,7 @@ storage:
 
 embedding:
     enabled: "${EMBEDDING_ENABLED:false}"
-    provider: "${EMBEDDING_PROVIDER:openai-compatible}"
+    provider: "${EMBEDDING_PROVIDER:OPENAI_COMPATIBLE}"
     base-url: "${EMBEDDING_BASE_URL:}"
     path: "${EMBEDDING_PATH:/v1/embeddings}"
     api-key: "${EMBEDDING_API_KEY:}"

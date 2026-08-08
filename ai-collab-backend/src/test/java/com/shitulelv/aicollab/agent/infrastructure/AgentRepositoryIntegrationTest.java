@@ -67,6 +67,7 @@ class AgentRepositoryIntegrationTest {
     @BeforeEach
     void clearAgentFixtures() {
         // 按外键依赖顺序删除数据
+        jdbc.update("DELETE FROM agent_approval_revision");
         jdbc.update("DELETE FROM agent_step");
         jdbc.update("DELETE FROM agent_run_event");
         jdbc.update("DELETE FROM agent_approval");
@@ -112,6 +113,40 @@ class AgentRepositoryIntegrationTest {
         assertThat(repository.deleteSession(
                 fixture.project(), session.id(), fixture.user())).isTrue();
         assertThat(repository.findSession(fixture.project(), session.id())).isEmpty();
+    }
+
+    @Test
+    void sessionWithProposalRevisionCanBeDeleted() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(
+                fixture.project(), fixture.user(), "带提案修订的会话");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "创建任务", false,
+                "ITERATION_PLANNING", null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        UUID approvalId = UUID.randomUUID();
+        AgentApprovalPolicy policy = new AgentApprovalPolicy();
+        var arguments = new ObjectMapper().createObjectNode().put("title", "修复登录白屏");
+        approvals.createProposal(
+                approvalId, running,
+                new ChatCompletionResult("{}", "fake", "model", 10, 5, 5),
+                new AgentDecision.CallTool(
+                        "create_task_after_approval", arguments, "创建任务提案"),
+                arguments, new ObjectMapper().createObjectNode().put("operation", "CREATE"),
+                policy.nonceHash(arguments.toString()),
+                policy.nonceHash(approvalId.toString()), OffsetDateTime.now().plusHours(1));
+        approvals.recordRevision(
+                fixture.project(), approvalId, running.id(), 2,
+                arguments, arguments.deepCopy().put("priority", "HIGH"),
+                new ObjectMapper().createObjectNode().put("priority", "HIGH"));
+
+        assertThat(repository.deleteSession(fixture.project(), session.id(), fixture.user())).isTrue();
+        assertThat(repository.findSession(fixture.project(), session.id())).isEmpty();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM agent_approval_revision WHERE approval_id=?",
+                Integer.class, approvalId)).isZero();
     }
 
     @Test
@@ -221,10 +256,53 @@ class AgentRepositoryIntegrationTest {
                 policy.nonceHash(approvalId.toString()), OffsetDateTime.now().plusHours(1));
 
         assertThat(approval.status()).isEqualTo("PENDING");
-        assertThat(repository.findRun(fixture.project(), queued.id()).orElseThrow().status())
-                .isEqualTo(AgentRunStatus.WAITING_FOR_APPROVAL);
+        var afterProposal = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(afterProposal.status()).isEqualTo(AgentRunStatus.RUNNING);
+        assertThat(afterProposal.stepsUsed()).isEqualTo(running.stepsUsed());
+        assertThat(afterProposal.toolCallsUsed()).isEqualTo(running.toolCallsUsed());
         assertThat(approvals.matchesNonceHash(
                 fixture.project(), approvalId, policy.nonceHash(approvalId.toString()))).isTrue();
+    }
+
+    @Test
+    void proposalRunCanReturnSuccessWhileApprovalRemainsPending() {
+        Fixture fixture = fixture();
+        ObjectMapper json = new ObjectMapper();
+        var session = repository.createSession(fixture.project(), fixture.user(), "proposal-success");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "创建任务", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        var arguments = json.createObjectNode().put("title", "修复登录页白屏");
+        var modelCall = new ModelToolCall("call-1", "create_task_after_approval", arguments);
+        var turn = new ModelTurnResult("", List.of(modelCall), ModelFinishReason.TOOL_CALLS,
+                new ModelUsage(12, 6), "fake", "model", 8L);
+
+        running = repository.recordModelTurn(running, turn);
+        UUID approvalId = UUID.randomUUID();
+        AgentApprovalPolicy policy = new AgentApprovalPolicy();
+        approvals.createProposal(
+                approvalId, running, new ChatCompletionResult("", "fake", "model", 12, 6, 8),
+                new AgentDecision.CallTool(modelCall.name(), arguments, "proposal"),
+                arguments, json.createObjectNode().put("operation", "CREATE"),
+                policy.nonceHash(arguments.toString()), policy.nonceHash(approvalId.toString()),
+                OffsetDateTime.now().plusHours(1));
+        running = repository.recordToolResult(
+                running, modelCall.name(), arguments,
+                json.createObjectNode().put("status", "APPROVAL_CREATED"), false);
+        repository.recordFinal(running, "任务提案已创建，等待审批。", List.of());
+
+        assertThat(repository.findRun(fixture.project(), queued.id()).orElseThrow().status())
+                .isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(approvals.find(fixture.project(), approvalId).orElseThrow().status())
+                .isEqualTo("PENDING");
+        assertThat(repository.listSteps(fixture.project(), queued.id()))
+                .extracting(AgentStepView::type)
+                .containsExactly(
+                        AgentStepType.MODEL_TURN,
+                        AgentStepType.APPROVAL_REQUESTED,
+                        AgentStepType.TOOL_CALL_COMPLETED,
+                        AgentStepType.FINAL_ANSWER);
     }
 
     // Issue 1: planUpdateThenFinalSucceeds
@@ -560,7 +638,8 @@ class AgentRepositoryIntegrationTest {
         var canceled = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         assertThat(canceled.status()).isEqualTo(AgentRunStatus.CANCELED);
         int versionAfterCancellation = canceled.version();
-        assertThat(repository.requestCancel(fixture.project(), queued.id()))
+        repository.recordCanceled(repository.findRun(fixture.project(), queued.id()).orElseThrow());
+        assertThat(repository.findRun(fixture.project(), queued.id()).orElseThrow().status())
                 .isEqualTo(AgentRunStatus.CANCELED);
         assertThat(repository.findRun(fixture.project(), queued.id()).orElseThrow().version())
                 .isEqualTo(versionAfterCancellation);
@@ -599,6 +678,9 @@ class AgentRepositoryIntegrationTest {
                 policy.nonceHash(arguments.toString()),
                 policy.nonceHash(approvalId.toString()), OffsetDateTime.now().plusHours(1));
         assertThat(repository.requestCancel(fixture.project(), queued.id()))
+                .isEqualTo(AgentRunStatus.RUNNING);
+        repository.recordCanceled(repository.findRun(fixture.project(), queued.id()).orElseThrow());
+        assertThat(repository.findRun(fixture.project(), queued.id()).orElseThrow().status())
                 .isEqualTo(AgentRunStatus.CANCELED);
 
         AtomicInteger writes = new AtomicInteger();
@@ -634,7 +716,7 @@ class AgentRepositoryIntegrationTest {
 
     // Issue 2: waitingForApprovalRunCannotBeClaimedAgain
     @Test
-    void waitingForApprovalRunCannotBeClaimedAgain() {
+    void proposalCreationKeepsRunningLeaseUntilFinalResponse() {
         Fixture fixture = fixture();
         var session = repository.createSession(fixture.project(), fixture.user(), "waiting-approval");
         var queued = repository.createRun(
@@ -642,7 +724,7 @@ class AgentRepositoryIntegrationTest {
         repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
         var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
 
-        // Create approval proposal (sets status to WAITING_FOR_APPROVAL)
+        // 创建提案不会暂停 Run；Runtime 随后还要写入工具结果和最终答复。
         UUID approvalId = UUID.randomUUID();
         AgentApprovalPolicy policy = new AgentApprovalPolicy();
         var arguments = new ObjectMapper().createObjectNode().put("title", "test task");
@@ -654,10 +736,10 @@ class AgentRepositoryIntegrationTest {
                 policy.nonceHash(arguments.toString()),
                 policy.nonceHash(approvalId.toString()), OffsetDateTime.now().plusHours(1));
 
-        var waiting = repository.findRun(fixture.project(), queued.id()).orElseThrow();
-        assertThat(waiting.status()).isEqualTo(AgentRunStatus.WAITING_FOR_APPROVAL);
+        var stillRunning = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(stillRunning.status()).isEqualTo(AgentRunStatus.RUNNING);
 
-        // Try to claim again - should not be claimable
+        // 原 worker 的 lease 仍在，其他 worker 不得重复领取。
         var claimedAgain = repository.claimNext("worker2",
                 OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
         assertThat(claimedAgain).isEmpty();

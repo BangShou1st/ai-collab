@@ -109,6 +109,7 @@ class AgentLoopGuardTest {
     @Test
     void wrappedStepArgumentsAreComparedCorrectly() {
         // 测试 input_json 包装结构（含 toolCallId 和 arguments）
+        // 验证 extractArguments 能正确提取包装结构中的 arguments 部分
         ObjectNode args = json.createObjectNode().put("overdueOnly", false).put("limit", 5);
         ObjectNode result = json.createObjectNode().put("count", 3);
 
@@ -123,7 +124,7 @@ class AgentLoopGuardTest {
                 toolStep("task.search", wrappedInput.deepCopy().toString(), result.deepCopy().toString()),
                 toolStep("task.search", wrappedInput.deepCopy().toString(), result.deepCopy().toString()));
 
-        // 即使 input_json 是包装结构，也应该比较 arguments 部分
+        // 即使 input_json 是包装结构，extractArguments 也能正确提取 arguments 并检测循环
         assertThat(guard.hasNoProgress(steps, nextCall)).isTrue();
     }
 
@@ -158,6 +159,62 @@ class AgentLoopGuardTest {
 
         // 即使有三个步骤，只要最后两个相同且下一步也相同 = 无进展
         assertThat(guard.hasNoProgress(steps, nextCall)).isTrue();
+    }
+
+    @Test
+    void alternatingCycleDetected() {
+        // 交替循环：A → B → A → B（下一步是 A，窗口内 A 出现 3 次）
+        ObjectNode result = json.createObjectNode().put("count", 1);
+
+        AgentDecision.CallTool nextCallA = new AgentDecision.CallTool("task.search",
+                json.createObjectNode().put("limit", 5), "");
+
+        List<AgentStepView> steps = List.of(
+                toolStep("task.search", "{\"limit\":5}", result.deepCopy().toString()),
+                toolStep("milestone.list", "{}", result.deepCopy().toString()),
+                toolStep("task.search", "{\"limit\":5}", result.deepCopy().toString()),
+                toolStep("milestone.list", "{}", result.deepCopy().toString()));
+
+        // 窗口：[task.search, milestone.list, task.search, milestone.list, task.search(next)]
+        // task.search 出现 3 次 → 无进展
+        assertThat(guard.hasNoProgress(steps, nextCallA)).isTrue();
+    }
+
+    @Test
+    void threeToolCycleDetected() {
+        // 三工具循环：A → B → C → A（下一步是 B，窗口内 B 出现 3 次）
+        ObjectNode result = json.createObjectNode().put("data", "x");
+
+        AgentDecision.CallTool nextCallB = new AgentDecision.CallTool("milestone.list",
+                json.createObjectNode(), "");
+
+        List<AgentStepView> steps = List.of(
+                toolStep("task.search", "{\"limit\":5}", result.deepCopy().toString()),
+                toolStep("milestone.list", "{}", result.deepCopy().toString()),
+                toolStep("get_project_overview", "{}", result.deepCopy().toString()),
+                toolStep("task.search", "{\"limit\":5}", result.deepCopy().toString()),
+                toolStep("milestone.list", "{}", result.deepCopy().toString()));
+
+        // 窗口：[task.search, milestone.list, overview, task.search, milestone.list, milestone.list(next)]
+        // milestone.list 出现 3 次 → 无进展
+        assertThat(guard.hasNoProgress(steps, nextCallB)).isTrue();
+    }
+
+    @Test
+    void diverseToolsAreNotFalsePositive() {
+        // 多个不同工具 = 有进展
+        ObjectNode result = json.createObjectNode().put("data", "x");
+
+        AgentDecision.CallTool nextCall = new AgentDecision.CallTool("get_project_overview",
+                json.createObjectNode(), "");
+
+        List<AgentStepView> steps = List.of(
+                toolStep("task.search", "{\"limit\":5}", result.deepCopy().toString()),
+                toolStep("milestone.list", "{}", result.deepCopy().toString()),
+                toolStep("get_project_overview", "{}", result.deepCopy().toString()));
+
+        // 每个签名只出现 1 次 + next 1 次 = 2 次 < 3 阈值
+        assertThat(guard.hasNoProgress(steps, nextCall)).isFalse();
     }
 
     private AgentStepView toolStep(String toolName, String inputJson, String outputJson) {

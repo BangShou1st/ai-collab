@@ -104,7 +104,6 @@ async function logout(): Promise<void> {
             <el-dropdown-item :command="`/projects/${projectId}/weekly-report`">项目周报</el-dropdown-item>
             <el-dropdown-item :command="`/projects/${projectId}/risk-analysis`">风险分析</el-dropdown-item>
             <el-dropdown-item :command="`/projects/${projectId}/plan-comparison`">规划对比</el-dropdown-item>
-            <el-dropdown-item v-if="projectCtx.isAdminOrOwner" :command="`/projects/${projectId}/knowledge/eval`">问答评测</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -114,6 +113,7 @@ async function logout(): Promise<void> {
           <el-dropdown-menu>
             <el-dropdown-item :command="`/projects/${projectId}/members`">成员管理</el-dropdown-item>
             <el-dropdown-item v-if="projectCtx.isAdminOrOwner" :command="`/projects/${projectId}/audit-logs`">操作日志</el-dropdown-item>
+            <el-dropdown-item v-if="projectCtx.isAdminOrOwner" :command="`/projects/${projectId}/model-settings`">模型配置</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>

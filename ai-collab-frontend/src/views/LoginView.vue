@@ -1,27 +1,15 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { showApiError } from '../api/api-result'
 import { resolveSafeRedirect } from '../shared/safe-redirect'
 import { useAuthStore } from '../stores/auth-store'
-import { authApi } from '../api/auth-api'
 
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 const form = reactive({ username: '', password: '' })
-const registrationEnabled = ref(false)
-
-onMounted(async () => {
-  try {
-    const policyCall = authApi.registrationPolicy?.()
-    if (policyCall) registrationEnabled.value = (await policyCall).data.enabled
-  } catch (error) {
-    registrationEnabled.value = false
-    showApiError(error, '注册策略加载')
-  }
-})
 
 async function submit(): Promise<void> {
   try {
@@ -61,7 +49,7 @@ async function submit(): Promise<void> {
         >
           {{ auth.authenticating ? '正在登录……' : '登录' }}
         </el-button>
-        <p v-if="registrationEnabled" class="auth-footer">
+        <p class="auth-footer">
           还没有账号？<router-link to="/register">注册账号</router-link>
         </p>
       </el-form>

@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class McpAdministrationTransactionBoundaryTest {
     @Test
     void discoveryNetworkFlowDoesNotHoldDatabaseTransaction() throws Exception {
-        var discover = McpAdministrationService.class.getMethod("discover", UUID.class, UUID.class);
+        var discover = McpAdministrationService.class.getMethod("discover", UUID.class, UUID.class, UUID.class);
 
         assertThat(discover.getAnnotation(Transactional.class)).isNull();
     }
