@@ -134,6 +134,15 @@ async function list(): Promise<TaskPlan['status'][]> {
   plans.value = (await planningApi.list(projectId.value)).data.data
   return plans.value.map(plan => plan.status)
 }
+async function ensureDefaultSelection(): Promise<void> {
+  if (!selected.value && plans.value.length > 0) {
+    try {
+      await open(plans.value[0])
+    } catch (error) {
+      showApiError(error, '任务规划详情加载')
+    }
+  }
+}
 async function open(plan: TaskPlan): Promise<void> {
   if (dirty.value && !await discard()) return
   const [detail, history] = await Promise.all([planningApi.detail(projectId.value, plan.id), planningApi.versions(projectId.value, plan.id)])
@@ -242,6 +251,7 @@ async function removePlan(): Promise<void> {
     await planningApi.remove(projectId.value, selected.value.id)
     selected.value = null; draft.value = null; structuredIssues.value = []; events.value = []
     await list()
+    await ensureDefaultSelection()
   } catch (error) { showApiError(error, '任务规划删除') }
 }
 async function confirm(): Promise<void> {
@@ -343,6 +353,9 @@ async function loadWorkspace(): Promise<void> {
     plans.value = []
     showApiError(planResult.reason, '任务规划列表加载')
   }
+  if (planResult.status === 'fulfilled') {
+    await ensureDefaultSelection()
+  }
   if (documentResult.status === 'fulfilled') {
     documents.value = documentResult.value.data.filter(document => document.status === 'READY')
   } else {
@@ -376,22 +389,26 @@ watch(projectId, async () => {
 <template>
   <main class="workspace-page">
     <PageHeader eyebrow="AI 辅助" title="AI 任务规划">
-      <template #actions><el-button v-if="canCreate" type="primary" @click="createVisible = true">创建规划</el-button></template>
+      <template #actions><router-link v-if="selected" :to="`/projects/${projectId}/agent?plan=${selected.id}`"><el-button text type="primary">交给 Agent</el-button></router-link><el-button v-if="canCreate" type="primary" @click="createVisible = true">创建规划</el-button></template>
     </PageHeader>
     <section class="planning-layout">
-      <el-card>
-        <button v-for="plan in plans" :key="plan.id" class="planning-list-item" @click="open(plan)">
-          <strong>{{ plan.title }}</strong><el-tag>{{ planStatusLabel(plan.status) }}</el-tag><small>{{ plan.goal }} · 版本 {{ plan.latestVersionNo }}</small>
+      <div class="planning-list-panel">
+        <button v-for="plan in plans" :key="plan.id" class="planning-list-item" :class="{ 'is-active': selected?.id === plan.id }" @click="open(plan)">
+          <span class="planning-item-title">{{ plan.title }}</span>
+          <span class="planning-item-meta"><span class="status-dot" :class="plan.status === 'CONFIRMED' ? 'done' : plan.status === 'FAILED' ? 'fail' : 'run'" /><span>{{ planStatusLabel(plan.status) }}</span><span>·</span><span>v{{ plan.latestVersionNo }}</span></span>
+          <small class="planning-item-desc">{{ plan.goal }}</small>
         </button>
         <EmptyState
           v-if="!plans.length"
+          compact
           title="当前还没有规划"
           description="描述你的目标，AI 会生成一份草案"
         />
-      </el-card>
-      <el-card v-if="!selected">
+      </div>
+      <el-card v-if="!selected" class="planning-detail-empty">
         <EmptyState
-          title="AI 任务规划"
+          compact
+          title="选择一份规划查看详情"
           description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。"
         />
         <div class="planning-empty-actions">
@@ -723,7 +740,8 @@ watch(projectId, async () => {
 }
 
 .task-unassigned {
-  border-left: 3px solid #ff9800;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
   background: #fff8e1;
 }
 

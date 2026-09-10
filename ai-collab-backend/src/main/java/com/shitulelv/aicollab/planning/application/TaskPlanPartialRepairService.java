@@ -156,7 +156,7 @@ public class TaskPlanPartialRepairService {
             }
             GenerationResult result = model.generate(
                     REPAIR_SYSTEM, prompt(job), "TASK_PLAN_REPAIR_PATCH",
-                    job.actor(), job.projectId(), job.started().attemptId());
+                    job.actor(), job.projectId(), job.started().attemptId(), job.started().attemptId());
             TaskPlanRepairPatch patch = patchParser.parse(result.content());
             Set<UUID> members = new HashSet<>(jdbc.queryForList(
                     "SELECT user_id FROM project_member WHERE project_id=?",

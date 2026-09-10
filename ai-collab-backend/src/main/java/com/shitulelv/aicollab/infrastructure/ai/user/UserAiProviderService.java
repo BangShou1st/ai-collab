@@ -72,8 +72,9 @@ public class UserAiProviderService {
 
     @Transactional
     public UserAiProviderView update(UUID userId, UUID id, UserAiProviderRequest request) {
-        validateEndpoint(request.baseUrl(), request.apiPath());
         UserAiProvider existing = require(userId, id);
+        rejectPreset(existing);
+        validateEndpoint(request.baseUrl(), request.apiPath());
         String encrypted = request.apiKey() == null || request.apiKey().isBlank()
                 ? existing.encryptedApiKey() : secrets.encrypt(request.apiKey());
         return UserAiProviderView.from(repository.save(toProvider(
@@ -83,7 +84,7 @@ public class UserAiProviderService {
 
     @Transactional
     public void delete(UUID userId, UUID id) {
-        require(userId, id);
+        rejectPreset(require(userId, id));
         repository.deleteByIdAndUserId(id, userId);
     }
 
@@ -110,6 +111,10 @@ public class UserAiProviderService {
         repository.unassignPurpose(userId, purpose);
     }
 
+    public java.util.Map<ModelPurpose, UUID> listAssignments(UUID userId) {
+        return repository.listAssignments(userId);
+    }
+
     public UserAiProvider resolve(UUID userId, ModelPurpose purpose) {
         return repository.findAssigned(userId, purpose)
                 .or(() -> repository.findDefaultByUserId(userId))
@@ -118,6 +123,7 @@ public class UserAiProviderService {
 
     public ChatCompletionResult test(UUID userId, UUID id) {
         UserAiProvider provider = require(userId, id);
+        rejectPreset(provider);
         if (!provider.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能测试已停用的模型配置");
         }
@@ -140,13 +146,19 @@ public class UserAiProviderService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "模型配置不存在"));
     }
 
+    private static void rejectPreset(UserAiProvider provider) {
+        if (provider.presetCode() != null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "预置连接请在 OpenCode Zen Free 专区管理");
+        }
+    }
+
     private static UserAiProvider toProvider(UUID id, UUID userId, UserAiProviderRequest request,
             String encrypted, boolean isDefault, OffsetDateTime createdAt, OffsetDateTime updatedAt) {
         return new UserAiProvider(
                 id, userId, request.name().strip(), request.providerType(), request.baseUrl().strip(),
                 request.apiPath().strip(), encrypted, request.modelName().strip(), request.enabled(),
                 request.temperature(), request.maxOutputTokens(),
-                EnumSet.copyOf(request.capabilities()), isDefault, createdAt, updatedAt);
+                EnumSet.copyOf(request.capabilities()), isDefault, createdAt, updatedAt, null);
     }
 
     private void validateEndpoint(String baseUrl, String apiPath) {

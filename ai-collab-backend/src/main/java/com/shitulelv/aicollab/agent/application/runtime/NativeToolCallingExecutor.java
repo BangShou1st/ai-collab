@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.agent.application.runtime;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelToolDefinition;
+import com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnGateway;
@@ -39,20 +40,21 @@ public class NativeToolCallingExecutor {
             List<AgentToolDefinition> exposed,
             UUID projectId,
             UUID callerUserId) {
+        return callModel(messages, exposed, projectId, callerUserId, null);
+    }
 
+    public ModelTurnResult callModel(
+            List<ModelMessage> messages,
+            List<AgentToolDefinition> exposed,
+            UUID projectId,
+            UUID callerUserId,
+            UUID sessionId) {
         List<ModelToolDefinition> toolDefs = exposed.stream()
                 .map(def -> new ModelToolDefinition(def.name(), def.description(), def.inputSchema()))
                 .toList();
-
         ModelTurnCommand command = new ModelTurnCommand(
-                ModelPurpose.AGENT,
-                projectId,
-                null,
-                messages,
-                toolDefs,
-                false,
-                callerUserId);
-
-        return modelTurn.turn(command);
+                ModelPurpose.AGENT, projectId, null, messages, toolDefs, false, callerUserId);
+        AiRequestMetadata md = sessionId != null ? AiRequestMetadata.of(sessionId.toString()) : AiRequestMetadata.fresh();
+        return modelTurn.turn(command, md);
     }
 }

@@ -8,6 +8,7 @@ import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
+import com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.turn.*;
 import org.slf4j.Logger;
@@ -58,6 +59,16 @@ public class LegacyReadOnlyAgentExecutor {
             UUID projectId,
             UUID callerUserId,
             boolean correctionAttempted) {
+        return callModel(messages, exposed, projectId, callerUserId, correctionAttempted, null);
+    }
+
+    public ModelTurnResult callModel(
+            List<ModelMessage> messages,
+            List<AgentToolDefinition> exposed,
+            UUID projectId,
+            UUID callerUserId,
+            boolean correctionAttempted,
+            UUID sessionId) {
 
         // 构建 system prompt 和 tool list 文本
         String systemPrompt = extractSystemPrompt(messages);
@@ -76,7 +87,8 @@ public class LegacyReadOnlyAgentExecutor {
                 List.of(),
                 callerUserId);
 
-        ChatCompletionResult completion = chatGateway.complete(command);
+        AiRequestMetadata md = sessionId != null ? AiRequestMetadata.of(sessionId.toString()) : AiRequestMetadata.fresh();
+        ChatCompletionResult completion = chatGateway.complete(command, md);
 
         AgentDecision decision = decisionParser.parse(completion.content(), correctionAttempted);
 

@@ -7,6 +7,7 @@ import com.shitulelv.aicollab.infrastructure.ai.AiInvocationContext;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
@@ -27,22 +28,48 @@ public class RoutingChatModelGateway implements ChatModelGateway {
     private final ModelSecretCipher secrets;
     private final Map<ModelProviderType, ModelProviderAdapter> adapters;
     private final ObjectMapper json;
+    private final ZenModelExecution zen;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RoutingChatModelGateway(
+            UserAiProviderService userProviders,
+            ModelSecretCipher secrets,
+            List<ModelProviderAdapter> adapters,
+            ObjectMapper json,
+            ZenModelExecution zen) {
+        this.userProviders = userProviders;
+        this.secrets = secrets;
+        this.adapters = new EnumMap<>(ModelProviderType.class);
+        adapters.forEach(adapter -> this.adapters.put(adapter.providerType(), adapter));
+        this.json = json;
+        this.zen = zen;
+    }
 
     public RoutingChatModelGateway(
             UserAiProviderService userProviders,
             ModelSecretCipher secrets,
             List<ModelProviderAdapter> adapters,
             ObjectMapper json) {
-        this.userProviders = userProviders;
-        this.secrets = secrets;
-        this.adapters = new EnumMap<>(ModelProviderType.class);
-        adapters.forEach(adapter -> this.adapters.put(adapter.providerType(), adapter));
-        this.json = json;
+        this(userProviders, secrets, adapters, json,
+                new ZenModelExecution(new ProviderPresetRegistry(), new ObjectMapper(),
+                        new com.shitulelv.aicollab.common.security.OutboundEndpointPolicy()));
     }
 
     @Override
     public ChatCompletionResult complete(ChatCompletionCommand command) {
-        ModelConfiguration configuration = resolveConfig(command);
+        return complete(command, AiRequestMetadata.fresh());
+    }
+
+    public ChatCompletionResult complete(ChatCompletionCommand command, AiRequestMetadata metadata) {
+        UserAiProvider provider = resolveProvider(command);
+        if (zen.isZen(provider)) {
+            ModelConfiguration configuration = zen.runtimeConfig(provider);
+            ModelCapabilityPolicy.require(configuration, command, false);
+            ChatCompletionResult result = zen.complete(provider, secrets.decrypt(provider.encryptedApiKey()), command, metadata);
+            validateStructured(command, result);
+            return result;
+        }
+        ModelConfiguration configuration = provider.toModelConfiguration();
         ModelCapabilityPolicy.require(configuration, command, false);
         ChatCompletionResult result = adapter(configuration).complete(
                 configuration, secrets.decrypt(configuration.encryptedApiKey()), command);
@@ -56,8 +83,27 @@ public class RoutingChatModelGateway implements ChatModelGateway {
             Consumer<String> onToken,
             Consumer<ChatCompletionResult> onDone,
             Consumer<Exception> onError) {
+        completeStream(command, AiRequestMetadata.fresh(), onToken, onDone, onError);
+    }
+
+    public void completeStream(
+            ChatCompletionCommand command, AiRequestMetadata metadata,
+            Consumer<String> onToken,
+            Consumer<ChatCompletionResult> onDone,
+            Consumer<Exception> onError) {
         try {
-            ModelConfiguration configuration = resolveConfig(command);
+            UserAiProvider provider = resolveProvider(command);
+            if (zen.isZen(provider)) {
+                ModelConfiguration configuration = zen.runtimeConfig(provider);
+                ModelCapabilityPolicy.require(configuration, command, true);
+                zen.completeStream(provider, secrets.decrypt(provider.encryptedApiKey()), command, metadata,
+                        onToken, result -> {
+                            try { validateStructured(command, result); onDone.accept(result); }
+                            catch (Exception ex) { onError.accept(ex); }
+                        }, onError);
+                return;
+            }
+            ModelConfiguration configuration = provider.toModelConfiguration();
             ModelCapabilityPolicy.require(configuration, command, true);
             adapter(configuration).completeStream(
                     configuration, secrets.decrypt(configuration.encryptedApiKey()),
@@ -74,14 +120,12 @@ public class RoutingChatModelGateway implements ChatModelGateway {
         }
     }
 
-    private ModelConfiguration resolveConfig(ChatCompletionCommand command) {
+    private UserAiProvider resolveProvider(ChatCompletionCommand command) {
         if (command.callerUserId() == null) {
-            throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
-                    "未指定调用用户，无法查找模型配置");
+            throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "未指定调用用户，无法查找模型配置");
         }
-        AiInvocationContext context =
-                new AiInvocationContext(command.callerUserId(), command.projectId(), command.purpose());
-        return userProviders.resolve(context.userId(), context.purpose()).toModelConfiguration();
+        AiInvocationContext context = new AiInvocationContext(command.callerUserId(), command.projectId(), command.purpose());
+        return userProviders.resolve(context.userId(), context.purpose());
     }
 
     private void validateStructured(ChatCompletionCommand command, ChatCompletionResult result) {

@@ -1757,6 +1757,23 @@ paths:
           content: { application/json: { schema: { $ref: '#/components/schemas/AgentRunEnvelope' } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /projects/{projectId}/agent/session-summaries:
+    get:
+      tags: [Agent]
+      summary: List Agent session summaries with latest run in one query (no N+1)
+      responses:
+        '200':
+          description: Session summaries with latestRunId, latestRunStatus, latestActivityAt, creatorName
+          content: { application/json: { schema: { $ref: '#/components/schemas/AgentSessionSummaryListEnvelope' } } }
+  /projects/{projectId}/agent/sessions/{sessionId}/latest-run:
+    get:
+      tags: [Agent]
+      summary: Get current or latest run detail for a session (null when none)
+      responses:
+        '200':
+          description: AgentRunDetail or null for refresh/switch restore
+          content: { application/json: { schema: { $ref: '#/components/schemas/AgentRunDetailEnvelope' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
   /projects/{projectId}/agent/runs/{runId}:
     get:
       tags: [Agent]
@@ -1780,6 +1797,29 @@ paths:
           content:
             text/event-stream:
               schema: { $ref: '#/components/schemas/AgentRunEvent' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /projects/{projectId}/agent/runs/{runId}/events-history:
+    get:
+      tags: [Agent]
+      summary: List persisted Agent run events as JSON for history hydration
+      description: Project members only. Used to restore timeline, plan and activities on refresh or session switch; live updates continue over the SSE endpoint from lastEventSequence.
+      parameters:
+        - { name: afterSequence, in: query, required: false, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '200':
+          description: Persisted events in sequence order (max 500), ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMeta'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/AgentRunEventResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
   /projects/{projectId}/agent/runs/{runId}/cancel:
@@ -1808,6 +1848,24 @@ paths:
                   type: string
                   maxLength: 4000
       responses: { '200': { description: Run continued } }
+  /projects/{projectId}/agent/runs/{runId}/approvals:
+    get:
+      tags: [Agent]
+      summary: List approvals scoped to the current run only
+      responses:
+        '200':
+          description: Current run approvals (no cross-session mixing), ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMeta'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/AgentApproval' }
   /projects/{projectId}/agent/approvals:
     get:
       tags: [Agent]
@@ -2004,6 +2062,48 @@ paths:
         '400':
           description: Provider misconfigured or unreachable
           content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  /user/ai-provider-presets:
+    get:
+      tags: [User AI]
+      summary: List available provider presets with my connection status
+      responses:
+        '200':
+          description: Preset list (server-owned endpoint/policy, no secrets returned)
+          content: { application/json: { schema: { $ref: '#/components/schemas/ProviderPresetListEnvelope' } } }
+  /user/ai-provider-presets/OPENCODE_ZEN_FREE/models:
+    get:
+      tags: [User AI]
+      summary: List current OpenCode Zen free models (dynamic *-free discovery)
+      parameters:
+        - { name: refresh, in: query, required: false, schema: { type: boolean } }
+      responses:
+        '200':
+          description: Free model ids (no hardcoded fallback)
+          content: { application/json: { schema: { $ref: '#/components/schemas/FreeModelListEnvelope' } } }
+  /user/ai-provider-presets/OPENCODE_ZEN_FREE:
+    put:
+      tags: [User AI]
+      summary: Save my Zen connection (blank apiKey keeps stored key; model must be current *-free)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SaveZenPresetRequest' } } }
+      responses:
+        '200':
+          description: Zen connection saved
+          content: { application/json: { schema: { $ref: '#/components/schemas/ProviderPresetEnvelope' } } }
+    delete:
+      tags: [User AI]
+      summary: Disconnect the current user's Zen connection (idempotent)
+      description: Deletes only the caller's OPENCODE_ZEN_FREE row including the saved key. Purpose assignments cascade. A deleted default is not replaced and custom providers are untouched. Missing connection returns 204.
+      responses: { '204': { description: Zen disconnected (or already absent) } }
+  /user/ai-provider-presets/OPENCODE_ZEN_FREE/test:
+    post:
+      tags: [User AI]
+      summary: Test Zen connection (saved or provided key, fresh correlation id)
+      requestBody:
+        required: false
+        content: { application/json: { schema: { $ref: '#/components/schemas/TestZenPresetRequest' } } }
+      responses: { '200': { description: Connection succeeded } }
   /user/ai-providers/defaults:
     put:
       tags: [User AI]
@@ -2012,6 +2112,24 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/SetDefaultRequest' } } }
       responses: { '200': { description: Default updated } }
+  /user/ai-providers/purposes:
+    get:
+      tags: [User AI]
+      summary: Read current user purpose assignments (real DB overrides)
+      responses:
+        '200':
+          description: Map of purpose to provider id (empty when using default)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMeta'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: { type: string, format: uuid }
   /user/ai-providers/purposes/{purpose}:
     parameters:
       - name: purpose
@@ -3296,10 +3414,10 @@ components:
         pageContext: { oneOf: [{ $ref: '#/components/schemas/AgentPageContext' }, { type: 'null' }] }
     AgentRunStatus:
       type: string
-      enum: [CREATED, QUEUED, RUNNING, WAITING_FOR_APPROVAL, SUCCEEDED, FAILED_RETRYABLE, FAILED, CANCELED, BUDGET_EXCEEDED]
+      enum: [CREATED, QUEUED, RUNNING, WAITING_FOR_APPROVAL, WAITING_FOR_USER_INPUT, SUCCEEDED, FAILED_RETRYABLE, FAILED, CANCELED, BUDGET_EXCEEDED]
     AgentRun:
       type: object
-      required: [id, sessionId, projectId, requesterId, role, depth, goal, status, maxSteps, maxToolCalls, stepsUsed, toolCallsUsed, scheduled, version, createdAt, updatedAt]
+      required: [id, sessionId, projectId, requesterId, role, depth, goal, status, maxSteps, maxToolCalls, maxChildren, maxInputTokens, maxOutputTokens, stepsUsed, toolCallsUsed, childrenUsed, inputTokensUsed, outputTokensUsed, tokenUsageEstimated, scheduled, correctionAttempted, retryCount, version, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         sessionId: { type: string, format: uuid }
@@ -3313,10 +3431,21 @@ components:
         status: { $ref: '#/components/schemas/AgentRunStatus' }
         maxSteps: { type: integer }
         maxToolCalls: { type: integer }
+        maxChildren: { type: integer }
+        maxInputTokens: { type: integer }
+        maxOutputTokens: { type: integer }
         stepsUsed: { type: integer }
         toolCallsUsed: { type: integer }
+        childrenUsed: { type: integer }
+        inputTokensUsed: { type: integer }
+        outputTokensUsed: { type: integer }
+        tokenUsageEstimated: { type: boolean }
         scheduled: { type: boolean }
+        correctionAttempted: { type: boolean }
+        retryCount: { type: integer, minimum: 0 }
         errorCode: { type: [string, 'null'] }
+        planJson: { type: [string, 'null'] }
+        pageContextJson: { type: [string, 'null'] }
         version: { type: integer }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -3329,20 +3458,23 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
         - type: object
+          required: [data]
           properties:
             data:
-              type: object
-              required: [run, steps, lastEventSequence]
-              properties:
-                run: { $ref: '#/components/schemas/AgentRun' }
-                plan: { type: [object, 'null'], additionalProperties: true }
-                steps: { type: array, items: { type: object, additionalProperties: true } }
-                lastEventSequence: { type: integer, format: int64, minimum: 0 }
-                pendingApprovalId: { type: [string, 'null'], format: uuid }
-                pendingApproval: { oneOf: [{ $ref: '#/components/schemas/AgentApproval' }, { type: 'null' }] }
+              oneOf:
+                - type: 'null'
+                - type: object
+                  required: [run, steps, lastEventSequence]
+                  properties:
+                    run: { $ref: '#/components/schemas/AgentRun' }
+                    plan: { type: [object, 'null'], additionalProperties: true }
+                    steps: { type: array, items: { type: object, additionalProperties: true } }
+                    lastEventSequence: { type: integer, format: int64, minimum: 0 }
+                    pendingApprovalId: { type: [string, 'null'], format: uuid }
+                    pendingApproval: { oneOf: [{ $ref: '#/components/schemas/AgentApproval' }, { type: 'null' }] }
     AgentEventType:
       type: string
-      enum: [RUN_CREATED, CONTEXT_CAPTURED, SKILL_SELECTED, PLAN_CREATED, PLAN_UPDATED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_PROPOSED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, TOOL_CALL_FAILED, APPROVAL_REQUESTED, APPROVAL_APPROVED, APPROVAL_REJECTED, APPROVAL_EXPIRED, APPROVAL_UPDATED, RESULT_VERIFIED, RUN_RETRY_SCHEDULED, RUN_CANCELED, RUN_SUCCEEDED, RUN_FAILED, RUN_BUDGET_EXCEEDED]
+      enum: [RUN_CREATED, CONTEXT_CAPTURED, SKILL_SELECTED, PLAN_CREATED, PLAN_UPDATED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_PROPOSED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, TOOL_CALL_FAILED, APPROVAL_REQUESTED, APPROVAL_APPROVED, APPROVAL_REJECTED, APPROVAL_EXPIRED, APPROVAL_UPDATED, RESULT_VERIFIED, RUN_RETRY_SCHEDULED, RUN_CANCELED, RUN_SUCCEEDED, RUN_FAILED, RUN_BUDGET_EXCEEDED, WAITING_FOR_USER_INPUT]
     AgentRunEvent:
       type: object
       required: [id, projectId, runId, sequence, type, payload, createdAt]
@@ -3357,6 +3489,17 @@ components:
     AgentProposalFamily:
       type: string
       enum: [TASK_CREATE, TASK_UPDATE, MILESTONE_CREATE, MILESTONE_UPDATE, MEMORY_CREATE]
+    AgentRunEventResponse:
+      type: object
+      required: [id, projectId, runId, sequence, type, payload, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        runId: { type: string, format: uuid }
+        sequence: { type: integer, format: int64, minimum: 1 }
+        type: { type: string }
+        payload: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
     AgentApproval:
       type: object
       required: [id, projectId, runId, stepId, toolName, arguments, diff, status, requesterId, version, createdAt, sessionId, proposalFamily, subjectKey, revision, updatedAt]
@@ -3370,7 +3513,7 @@ components:
         diff: { type: object, additionalProperties: true }
         resourceId: { type: [string, 'null'], format: uuid }
         resourceVersion: { type: [integer, 'null'] }
-        status: { type: string, enum: [PENDING, APPROVED, REJECTED, EXPIRED] }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, EXPIRED, CONFLICTED] }
         requesterId: { type: string, format: uuid }
         approverId: { type: [string, 'null'], format: uuid }
         result: { type: [object, 'null'], additionalProperties: true }
@@ -3529,6 +3672,7 @@ components:
       required: [id, name, providerType, baseUrl, apiPath, hasApiKey, modelName, enabled, isDefault, temperature, maxOutputTokens, capabilities, updatedAt]
       properties:
         id: { type: string, format: uuid }
+        presetCode: { type: string, nullable: true, enum: [OPENCODE_ZEN_FREE], description: Null means custom provider }
         name: { type: string }
         providerType: { type: string, enum: [OPENAI_COMPATIBLE, ANTHROPIC, GEMINI] }
         baseUrl: { type: string }
@@ -3571,6 +3715,70 @@ components:
       type: object
       required: [providerId]
       properties: { providerId: { type: string, format: uuid } }
+    ProviderPresetStatus:
+      type: object
+      required: [code, displayName, connected, enabled, isDefault, hasApiKey]
+      properties:
+        code: { type: string, enum: [OPENCODE_ZEN_FREE] }
+        displayName: { type: string }
+        connected: { type: boolean }
+        modelName: { type: string, nullable: true }
+        enabled: { type: boolean }
+        isDefault: { type: boolean }
+        hasApiKey: { type: boolean }
+    ProviderPresetListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { type: array, items: { $ref: '#/components/schemas/ProviderPresetStatus' } } }
+    ProviderPresetEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { $ref: '#/components/schemas/ProviderPresetStatus' } }
+    FreeModelListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { type: array, items: { type: string } } }
+    SaveZenPresetRequest:
+      type: object
+      required: [modelName]
+      properties:
+        apiKey: { type: string, maxLength: 1000, description: Write-only; blank keeps the stored key }
+        modelName: { type: string, maxLength: 160 }
+        enabled: { type: boolean }
+        setDefault: { type: boolean }
+    TestZenPresetRequest:
+      type: object
+      properties:
+        apiKey: { type: string, maxLength: 1000 }
+        modelName: { type: string, maxLength: 160 }
+    AgentSessionSummaryListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { type: array, items: { $ref: '#/components/schemas/AgentSessionSummary' } } }
+    AgentSessionSummary:
+      type: object
+      required: [id, projectId, creatorId, title, status, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        creatorId: { type: string, format: uuid }
+        creatorName: { type: string, nullable: true }
+        title: { type: string }
+        status: { type: string }
+        version: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        latestRunId: { type: string, format: uuid, nullable: true }
+        latestRunStatus: { type: string, nullable: true }
+        latestActivityAt: { type: string, format: date-time, nullable: true }
     UserAiPurposeRequest:
       type: object
       required: [providerId]

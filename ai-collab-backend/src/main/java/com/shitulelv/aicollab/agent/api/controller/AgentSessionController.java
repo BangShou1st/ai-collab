@@ -4,8 +4,10 @@ import com.shitulelv.aicollab.agent.api.dto.CreateAgentSessionRequest;
 import com.shitulelv.aicollab.agent.api.dto.RenameAgentSessionRequest;
 import com.shitulelv.aicollab.agent.api.dto.SubmitAgentMessageRequest;
 import com.shitulelv.aicollab.agent.api.dto.ContinueAgentRunRequest;
+import com.shitulelv.aicollab.agent.api.dto.AgentApprovalResponse;
 import com.shitulelv.aicollab.agent.api.dto.AgentMessageResponse;
 import com.shitulelv.aicollab.agent.api.dto.AgentRunDetailResponse;
+import com.shitulelv.aicollab.agent.api.dto.AgentRunEventResponse;
 import com.shitulelv.aicollab.agent.application.AgentRunService;
 import com.shitulelv.aicollab.agent.application.view.*;
 import com.shitulelv.aicollab.common.api.ApiResponse;
@@ -91,12 +93,43 @@ public class AgentSessionController {
                         projectId, sessionId, userId(jwt), request)));
     }
 
+    @GetMapping("/sessions/{sessionId}/latest-run")
+    public ApiResponse<AgentRunDetailResponse> latestRun(
+            @PathVariable UUID projectId, @PathVariable UUID sessionId,
+            @AuthenticationPrincipal Jwt jwt) {
+        var detail = runs.latestRun(projectId, sessionId, userId(jwt));
+        return detail == null ? ApiResponse.success(null) : ApiResponse.success(AgentRunDetailResponse.from(detail));
+    }
+
+    @GetMapping("/session-summaries")
+    public ApiResponse<List<com.shitulelv.aicollab.agent.application.view.AgentSessionSummaryView>> summaries(
+            @PathVariable UUID projectId, @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(runs.listSessionSummaries(projectId, userId(jwt)));
+    }
+
     @GetMapping("/runs/{runId}")
     public ApiResponse<AgentRunDetailResponse> getRun(
             @PathVariable UUID projectId, @PathVariable UUID runId,
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(AgentRunDetailResponse.from(
                 runs.getRun(projectId, runId, userId(jwt))));
+    }
+
+    @GetMapping("/runs/{runId}/events-history")
+    public ApiResponse<List<AgentRunEventResponse>> runEvents(
+            @PathVariable UUID projectId, @PathVariable UUID runId,
+            @RequestParam(defaultValue = "0") long afterSequence,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(runs.runEvents(projectId, runId, afterSequence, userId(jwt))
+                .stream().map(AgentRunEventResponse::from).toList());
+    }
+
+    @GetMapping("/runs/{runId}/approvals")
+    public ApiResponse<List<AgentApprovalResponse>> runApprovals(
+            @PathVariable UUID projectId, @PathVariable UUID runId,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(runs.runApprovals(projectId, runId, userId(jwt))
+                .stream().map(AgentApprovalResponse::from).toList());
     }
 
     @PostMapping("/runs/{runId}/cancel")

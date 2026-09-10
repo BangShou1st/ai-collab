@@ -36,12 +36,24 @@ public class TaskPlanModelClient {
      */
     public GenerationResult generate(String system, String user, String feature,
                                      UUID actor, UUID projectId, UUID attemptId) {
+        return generate(system, user, feature, actor, projectId, attemptId, null);
+    }
+
+    /**
+     * @param correlationId stable provider correlation for the whole planning generation
+     *                      (skeleton/repair/detail share it); attemptId stays the DB/logging key.
+     */
+    public GenerationResult generate(String system, String user, String feature,
+                                     UUID actor, UUID projectId, UUID attemptId, UUID correlationId) {
         long started = System.nanoTime();
+        String correlation = correlationId != null ? correlationId.toString()
+                : (attemptId != null ? attemptId.toString() : java.util.UUID.randomUUID().toString());
         try {
             ChatCompletionResult result = gateway.complete(new ChatCompletionCommand(
                     projectId, system, user,
                     ChatCompletionCommand.OutputFormat.JSON_OBJECT,
-                    ModelPurpose.PLANNING, null, java.util.List.of(), actor));
+                    ModelPurpose.PLANNING, null, java.util.List.of(), actor),
+                    new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata(correlation));
             safeLog(feature, actor, projectId, attemptId, result.provider(), result.model(),
                     "SUCCESS", result.latencyMs(), result.promptTokens(), result.completionTokens(), null);
             return new GenerationResult(result.content(), result.provider(), result.model(),

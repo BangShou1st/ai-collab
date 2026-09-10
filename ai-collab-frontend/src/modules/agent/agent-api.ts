@@ -2,7 +2,7 @@ import { httpClient } from '../../api/http-client'
 import { apiResultFromResponse } from '../../api/api-result'
 import type { ApiResponse, ApiResult } from '../../api/types'
 import type {
-  AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentSession, AgentSkill,
+  AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentRunDetail, AgentRunEvent, AgentSession, AgentSessionSummary, AgentSkill,
 } from './types'
 
 const root = (projectId: string) => `/projects/${projectId}/agent`
@@ -64,6 +64,18 @@ export const agentApi = {
   },
   async approvals(projectId: string): Promise<ApiResult<AgentApproval[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<AgentApproval[]>>(`${root(projectId)}/approvals`))
+  },
+  async sessionSummaries(projectId: string): Promise<ApiResult<AgentSessionSummary[]>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<AgentSessionSummary[]>>(`${root(projectId)}/session-summaries`))
+  },
+  async latestRun(projectId: string, sessionId: string): Promise<ApiResult<AgentRunDetail | null>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<AgentRunDetail | null>>(`${root(projectId)}/sessions/${sessionId}/latest-run`))
+  },
+  async runApprovals(projectId: string, runId: string): Promise<ApiResult<AgentApproval[]>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<AgentApproval[]>>(`${root(projectId)}/runs/${runId}/approvals`))
+  },
+  async runEvents(projectId: string, runId: string, afterSequence = 0): Promise<ApiResult<AgentRunEvent[]>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<AgentRunEvent[]>>(`${root(projectId)}/runs/${runId}/events-history?afterSequence=${afterSequence}`))
   },
   async approve(projectId: string, item: AgentApproval): Promise<ApiResult<AgentApproval>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<AgentApproval>>(

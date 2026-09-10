@@ -160,9 +160,10 @@ onMounted(load)
         <template #default="{ row }">{{ formatDate(row.targetDate) }}</template>
       </el-table-column>
       <el-table-column prop="sortOrder" label="排序" width="90" />
-      <el-table-column v-if="canManage" label="操作" width="160">
+      <el-table-column v-if="canManage" label="操作" width="220">
         <template #default="{ row }">
           <el-button text :disabled="Boolean(deletingId)" @click="openEditor(row)">编辑</el-button>
+          <router-link :to="`/projects/${projectId}/agent?milestone=${row.id}`"><el-button text type="primary">交给 Agent</el-button></router-link>
           <el-button
             text
             type="danger"

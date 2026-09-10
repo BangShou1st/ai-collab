@@ -8,6 +8,7 @@ export type AiPurpose = 'KNOWLEDGE_CHAT' | 'PLANNING' | 'AGENT'
 export interface UserAiProvider {
   id: string
   name: string
+  presetCode: string | null
   providerType: AiProviderType
   baseUrl: string
   apiPath: string
@@ -59,5 +60,7 @@ export const userAiApi = {
   async unassignPurpose(purpose: AiPurpose): Promise<void> {
     await httpClient.delete(`/user/ai-providers/purposes/${purpose}`)
   },
+  async listPurposes(): Promise<ApiResult<Record<AiPurpose, string>>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<Record<AiPurpose, string>>>('/user/ai-providers/purposes'))
+  },
 }
-

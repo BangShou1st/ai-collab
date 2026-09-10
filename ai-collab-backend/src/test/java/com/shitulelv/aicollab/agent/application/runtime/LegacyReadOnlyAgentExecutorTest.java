@@ -47,7 +47,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 """;
         ChatCompletionResult completion = new ChatCompletionResult(
                 jsonDecision, "openai", "gpt-3.5-turbo", 100, 50, 100L);
-        when(chatGateway.complete(any())).thenReturn(completion);
+        when(chatGateway.complete(any(), any())).thenReturn(completion);
 
         ModelTurnResult turn = executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("检查项目")),
@@ -68,7 +68,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 """;
         ChatCompletionResult completion = new ChatCompletionResult(
                 jsonDecision, "openai", "gpt-3.5-turbo", 100, 50, 100L);
-        when(chatGateway.complete(any())).thenReturn(completion);
+        when(chatGateway.complete(any(), any())).thenReturn(completion);
 
         ModelTurnResult turn = executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("列出任务")),
@@ -89,7 +89,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 """;
         ChatCompletionResult completion = new ChatCompletionResult(
                 jsonDecision, "openai", "gpt-3.5-turbo", 100, 50, 100L);
-        when(chatGateway.complete(any())).thenReturn(completion);
+        when(chatGateway.complete(any(), any())).thenReturn(completion);
 
         List<AgentToolDefinition> exposed = List.of(
                 AgentToolDefinition.openObject("list_tasks", "列出任务", false),
@@ -104,14 +104,14 @@ class LegacyReadOnlyAgentExecutorTest {
 
         // 验证传给 ChatModelGateway 的命令不包含工具（Legacy 模式）
         verify(chatGateway).complete(argThat(cmd ->
-                cmd.tools().isEmpty()));
+                cmd.tools().isEmpty()), any());
     }
 
     @Test
     void invalidJsonFailsWithParser() {
         ChatCompletionResult completion = new ChatCompletionResult(
                 "这不是 JSON", "openai", "gpt-3.5-turbo", 100, 50, 100L);
-        when(chatGateway.complete(any())).thenReturn(completion);
+        when(chatGateway.complete(any(), any())).thenReturn(completion);
 
         try {
             executor.callModel(
@@ -132,7 +132,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 """;
         ChatCompletionResult completion = new ChatCompletionResult(
                 jsonDecision, "openai", "gpt-3.5-turbo", 100, 50, 100L);
-        when(chatGateway.complete(any())).thenReturn(completion);
+        when(chatGateway.complete(any(), any())).thenReturn(completion);
 
         try {
             executor.callModel(
@@ -148,7 +148,7 @@ class LegacyReadOnlyAgentExecutorTest {
 
     @Test
     void legacyProviderExceptionPropagates() {
-        when(chatGateway.complete(any())).thenThrow(
+        when(chatGateway.complete(any(), any())).thenThrow(
                 new RuntimeException("连接超时"));
 
         try {
@@ -170,7 +170,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 """;
         ChatCompletionResult completion = new ChatCompletionResult(
                 jsonDecision, "openai", "gpt-3.5-turbo", 100, 50, 100L);
-        when(chatGateway.complete(any())).thenReturn(completion);
+        when(chatGateway.complete(any(), any())).thenReturn(completion);
 
         executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
@@ -180,7 +180,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 true);
 
         // 验证 parser 被调用，correctionAttempted=true 时错误信息不同
-        verify(chatGateway).complete(any());
+        verify(chatGateway).complete(any(), any());
     }
 
     @Test
@@ -190,7 +190,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 """;
         ChatCompletionResult completion = new ChatCompletionResult(
                 jsonDecision, "openai", "gpt-3.5-turbo", 150, 80, 200L);
-        when(chatGateway.complete(any())).thenReturn(completion);
+        when(chatGateway.complete(any(), any())).thenReturn(completion);
 
         ModelTurnResult turn = executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),

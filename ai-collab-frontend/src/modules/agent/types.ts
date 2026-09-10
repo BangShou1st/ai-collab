@@ -7,6 +7,12 @@ export interface AgentSession {
   id: string; projectId: string; creatorId: string; title: string
   status: string; version: number; createdAt: string; updatedAt: string
 }
+export interface AgentSessionSummary extends AgentSession {
+  creatorName: string | null; latestRunId: string | null; latestRunStatus: string | null; latestActivityAt: string | null
+}
+export interface AgentRunDetail {
+  run: AgentRun; plan: { steps: Array<{ title: string; status: string }> } | null; lastEventSequence: number; pendingApprovalId: string | null
+}
 export interface AgentRun {
   id: string; sessionId: string; projectId: string; goal: string; status: AgentRunStatus
   skillCode?: string | null
@@ -52,6 +58,7 @@ export interface AgentPlanView {
 }
 export interface AgentMessage {
   id: string; role: 'USER' | 'ASSISTANT'; content: string
+  sessionId: string | null; runId: string | null
   citations: unknown[]; inferences: unknown[]; createdAt: string
 }
 export type AgentProposalFamily =

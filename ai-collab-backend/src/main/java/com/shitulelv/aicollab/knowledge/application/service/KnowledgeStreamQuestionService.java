@@ -139,6 +139,7 @@ public class KnowledgeStreamQuestionService {
                             userPrompt(question, context.promptSources()),
                             ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null,
                             List.of(), userId),
+                    new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata(sessionId.toString()),
                     token -> {
                         if (!disconnected.get()) {
                             sendSse(emitter, KnowledgeStreamEvent.token(token));
