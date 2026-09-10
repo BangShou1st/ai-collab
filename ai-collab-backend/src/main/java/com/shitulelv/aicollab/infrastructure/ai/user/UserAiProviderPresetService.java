@@ -29,6 +29,7 @@ public class UserAiProviderPresetService {
     private final OpenCodeZenModelCatalog catalog;
     private final OpenCodeZenTransport transport;
     private final Map<String, CachedModels> cache = new ConcurrentHashMap<>();
+    @org.springframework.beans.factory.annotation.Autowired
     public UserAiProviderPresetService(UserAiProviderRepository repository, ModelSecretCipher secrets,
             ProviderPresetRegistry registry, OpenCodeZenModelCatalog catalog, OpenCodeZenTransport transport) {
         this.repository = repository;

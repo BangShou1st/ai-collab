@@ -324,18 +324,18 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     }
 
     private void stubLegalGeneration() {
-        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
                 .thenReturn(result(skeleton()));
-        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any()))
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
                 .thenReturn(result(legalDetail()));
     }
 
     private void stubDegradedGenerationThenPartialRepair() {
-        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
                 .thenReturn(result(skeleton()));
-        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any()))
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
                 .thenReturn(result(conflictingDetail()));
-        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
                 .thenReturn(result("{\"milestonePatches\":[],\"taskPatches\":[]}"),
                         result("{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"t2\",\"startDate\":\"2026-08-16\"}]}"));
     }

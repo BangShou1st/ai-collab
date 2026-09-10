@@ -102,11 +102,11 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         // Catch-all first (lenient) — specific stubs take precedence
-        lenient().when(modelClient.generate(anyString(), anyString(), anyString(), any(), any(), any()))
+        lenient().when(modelClient.generate(anyString(), anyString(), anyString(), any(), any(), any(), any()))
                 .thenReturn(null);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(skeletonJson, "test-provider", "test-model", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(detailJson, "test-provider", "test-model", 100, 50, 200));
 
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
@@ -158,7 +158,7 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         assertThat(finalDraft.sources().getFirst().ref()).isEqualTo("S1");
 
         // Verify attempt metrics
-        verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), any(), any(), any());
+verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), any(), any(), any(), any());
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -195,12 +195,12 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         // First skeleton call returns bad output, repair returns good output
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(badSkeleton, "p", "m", 100, 50, 200))
                 .thenReturn(new GenerationResult(goodSkeleton, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(detailJson, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(goodSkeleton, "p", "m", 100, 50, 200));
 
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
@@ -248,9 +248,9 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         // Both attempts return bad output
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(badSkeleton, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(badSkeleton, "p", "m", 100, 50, 200));
 
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
@@ -296,7 +296,7 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         // Simulate truncated output by throwing OUTPUT_TRUNCATED
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
                 .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED));
 
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);

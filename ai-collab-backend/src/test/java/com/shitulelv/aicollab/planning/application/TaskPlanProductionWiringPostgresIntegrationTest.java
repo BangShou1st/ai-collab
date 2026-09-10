@@ -121,9 +121,9 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 .replace("$D", LocalDate.now().plusDays(10).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(skeletonJson, "test-provider", "test-model", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(detailJson, "test-provider", "test-model", 100, 50, 200));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -185,12 +185,12 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 .replace("$D", LocalDate.now().plusDays(10).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(badSkeleton, "p", "m", 100, 50, 200))
                 .thenReturn(new GenerationResult(goodSkeleton, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(detailJson, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(goodSkeleton, "p", "m", 100, 50, 200));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -243,12 +243,12 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 .replace("$D2", LocalDate.now().plusDays(8).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(skeletonJson, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(detailWithConflict, "p", "m", 100, 50, 200));
         // Scoped patch changes nothing → the latest candidate still has BLOCKING_EDITABLE issues.
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(
                         """
                         {"milestonePatches":[],"taskPatches":[
@@ -308,12 +308,12 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 """;
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(skeletonJson, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(badDetail, "p", "m", 100, 50, 200));
         // Repair also returns bad detail
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(badDetail, "p", "m", 100, 50, 200));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -369,11 +369,11 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 .replace("$D2", LocalDate.now().plusDays(8).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(skeletonJson, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(detailWithConflict, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(
                         "{\"milestonePatches\":[],\"taskPatches\":[]}", "p", "m", 100, 50, 200));
 
@@ -618,7 +618,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 """.replace("$S", LocalDate.now().plusDays(6).toString())
                 .replace("$D", LocalDate.now().plusDays(10).toString());
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(patchJson, "p", "m", 50, 20, 100));
 
         var pair = createCommandServiceWithExecutor(modelClient);
@@ -635,7 +635,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
 
         // Verify model was called exactly once with REPAIR_PATCH type
         verify(modelClient, times(1)).generate(
-                anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any());
+                anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any());
 
         // Verify plan is now READY
         TaskPlanRecord afterPatch = repository.require(projectId, setup.planId());
@@ -671,7 +671,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-26","dueDate":"2026-08-30"}]}
                 """;
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(patchJson, "p", "m", 50, 20, 100));
 
         var pair = createCommandServiceWithExecutor(modelClient);
@@ -726,7 +726,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 {"milestonePatches":[],"taskPatches":[{"tempKey":"t1","startDate":"2026-08-26","dueDate":"2026-08-30"}]}
                 """;
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(patchJson, "p", "m", 50, 20, 100));
 
         var pair = createCommandServiceWithExecutor(modelClient);
@@ -816,7 +816,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 """.replace("$S", LocalDate.now().plusDays(6).toString())
                 .replace("$D", LocalDate.now().plusDays(10).toString());
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
                 .thenReturn(new GenerationResult(patchJson, "p", "m", 50, 20, 100));
 
         var pair = createCommandServiceWithExecutor(modelClient);
@@ -968,7 +968,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                         "TASK", "t1", "startDate", null, java.util.Map.of())));
         UUID concurrentVersionId = UUID.randomUUID();
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
                 .thenAnswer(invocation -> {
                     jdbc.update("""
                             INSERT INTO ai_task_plan_version
