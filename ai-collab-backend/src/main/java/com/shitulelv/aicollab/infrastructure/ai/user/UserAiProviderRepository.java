@@ -155,6 +155,20 @@ public class UserAiProviderRepository {
                 userId, purpose.name());
     }
 
+    public java.util.Map<ModelPurpose, UUID> listAssignments(UUID userId) {
+        java.util.Map<ModelPurpose, UUID> out = new java.util.EnumMap<>(ModelPurpose.class);
+        jdbc.query("SELECT purpose, provider_id FROM user_model_purpose_assignment WHERE user_id = ?",
+                (rs, row) -> {
+                    try {
+                        out.put(ModelPurpose.valueOf(rs.getString("purpose")),
+                                rs.getObject("provider_id", UUID.class));
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                    return null;
+                }, userId);
+        return out;
+    }
+
     public void deleteByIdAndUserId(UUID id, UUID userId) {
         jdbc.update("DELETE FROM user_ai_provider WHERE id = ? AND user_id = ?", id, userId);
     }

@@ -111,6 +111,10 @@ public class UserAiProviderService {
         repository.unassignPurpose(userId, purpose);
     }
 
+    public java.util.Map<ModelPurpose, UUID> listAssignments(UUID userId) {
+        return repository.listAssignments(userId);
+    }
+
     public UserAiProvider resolve(UUID userId, ModelPurpose purpose) {
         return repository.findAssigned(userId, purpose)
                 .or(() -> repository.findDefaultByUserId(userId))

@@ -145,7 +145,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             AtomicReference<Integer> input = new AtomicReference<>();
             AtomicReference<Integer> output = new AtomicReference<>();
             AtomicBoolean terminal = new AtomicBoolean(false);
-            http.stream(endpoint(config), metadata == null ? headers(apiKey) : headersWithSession(apiKey, metadata, userAgent), request(config, command, true), (event, data) -> {
+            http.stream(endpoint(config), metadata == null ? headers(apiKey) : headersWithSession(apiKey, metadata, userAgent), metadata == null ? request(config, command, true) : zenRequest(config, command, true), (event, data) -> {
                 if (data == null) return;
                 if (data.hasNonNull("model")) model.set(data.path("model").asText());
                 JsonNode usage = data.path("usage");
@@ -513,10 +513,92 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 OpenCodeZenTransport.SESSION_HEADER, metadata.correlationSessionId());
     }
 
+    /**
+     * Zen production wire (spec-agent): model / messages / stream only.
+     * Never send temperature, max_tokens, max_completion_tokens, response_format,
+     * stream_options, reasoning_effort, thinking. Application token budget is
+     * enforced locally and is distinct from provider wire max_tokens.
+     * Agent native tool calls may additionally send tools / tool_choice / tool history.
+     */
+    private ObjectNode zenTurnRequest(ModelConfiguration config, ModelTurnCommand command, boolean stream) {
+        ObjectNode body = mapper.createObjectNode();
+        body.put("model", config.modelName());
+        body.put("stream", stream);
+        ArrayNode messages = body.putArray("messages");
+        for (ModelMessage message : command.messages()) {
+            switch (message) {
+                case ModelMessage.System m -> messages.addObject()
+                        .put("role", "system").put("content", m.content());
+                case ModelMessage.User m -> messages.addObject()
+                        .put("role", "user").put("content", m.content());
+                case ModelMessage.Assistant m -> {
+                    ObjectNode node = messages.addObject().put("role", "assistant");
+                    if (!m.content().isBlank()) {
+                        node.put("content", m.content());
+                    }
+                    if (!m.toolCalls().isEmpty()) {
+                        ArrayNode calls = node.putArray("tool_calls");
+                        for (ModelToolCall call : m.toolCalls()) {
+                            ObjectNode function = calls.addObject()
+                                    .put("id", call.id())
+                                    .put("type", "function")
+                                    .putObject("function");
+                            function.put("name", call.name());
+                            function.put("arguments", call.arguments().toString());
+                        }
+                    }
+                }
+                case ModelMessage.ToolResult m -> messages.addObject()
+                        .put("role", "tool")
+                        .put("tool_call_id", m.toolCallId())
+                        .put("name", m.toolName())
+                        .put("content", m.result().toString());
+            }
+        }
+        if (!command.tools().isEmpty()) {
+            ArrayNode toolsArray = body.putArray("tools");
+            for (ModelToolDefinition tool : command.tools()) {
+                ObjectNode toolObj = toolsArray.addObject();
+                toolObj.put("type", "function");
+                ObjectNode function = toolObj.putObject("function");
+                function.put("name", tool.name());
+                function.put("description", tool.description());
+                function.set("parameters", tool.inputSchema());
+            }
+            if (command.toolsRequired()) {
+                body.put("tool_choice", "required");
+            } else {
+                body.put("tool_choice", "auto");
+            }
+        }
+        return body;
+    }
+
+    private ObjectNode zenRequest(ModelConfiguration config, ChatCompletionCommand command, boolean stream) {
+        ObjectNode body = mapper.createObjectNode();
+        body.put("model", config.modelName());
+        body.put("stream", stream);
+        ArrayNode messages = body.putArray("messages");
+        messages.addObject().put("role", "system").put("content", command.systemPrompt());
+        messages.addObject().put("role", "user").put("content", command.userPrompt());
+        if (!command.tools().isEmpty()) {
+            ArrayNode toolsArray = body.putArray("tools");
+            for (var tool : command.tools()) {
+                ObjectNode toolObj = toolsArray.addObject();
+                toolObj.put("type", "function");
+                ObjectNode function = toolObj.putObject("function");
+                function.put("name", tool.name());
+                function.put("description", tool.description());
+                function.set("parameters", tool.inputSchema());
+            }
+        }
+        return body;
+    }
+
     public ChatCompletionResult completeWithSession(ModelConfiguration config, String apiKey,
             com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand command, AiRequestMetadata metadata, String userAgent) {
         long started = System.nanoTime();
-        JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata, userAgent), request(config, command, false));
+        JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata, userAgent), zenRequest(config, command, false));
         JsonNode choice = response.path("choices").path(0);
         if ("length".equals(choice.path("finish_reason").asText())) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
@@ -531,7 +613,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             AiRequestMetadata metadata, String userAgent) {
         long started = System.nanoTime();
         try {
-            JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata, userAgent), turnRequest(config, command));
+            JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata, userAgent), zenTurnRequest(config, command, false));
             return parseTurnResponse(config, response, started);
         } catch (BusinessException e) {
             if (e.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR
@@ -553,7 +635,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         java.util.concurrent.atomic.AtomicReference<ModelUsage> usage =
                 new java.util.concurrent.atomic.AtomicReference<>();
         java.util.Map<Integer, DeltaToolCall> deltas = new java.util.TreeMap<>();
-        http.stream(endpoint(config), headersWithSession(apiKey, metadata, userAgent), turnRequest(config, command, true, true), (event, data) -> {
+        http.stream(endpoint(config), headersWithSession(apiKey, metadata, userAgent), zenTurnRequest(config, command, true), (event, data) -> {
             if (data == null) return;
             if (data.hasNonNull("model")) model.set(data.path("model").asText());
             JsonNode usageNode = data.path("usage");

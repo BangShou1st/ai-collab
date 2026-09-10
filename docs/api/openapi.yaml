@@ -1808,12 +1808,18 @@ paths:
         - { name: afterSequence, in: query, required: false, schema: { type: integer, format: int64, minimum: 0 } }
       responses:
         '200':
-          description: Persisted events in sequence order (max 500)
+          description: Persisted events in sequence order (max 500), ApiResponse envelope
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/AgentRunEventResponse' }
+                allOf:
+                  - $ref: '#/components/schemas/ApiMeta'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/AgentRunEventResponse' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
   /projects/{projectId}/agent/runs/{runId}/cancel:
@@ -1846,7 +1852,20 @@ paths:
     get:
       tags: [Agent]
       summary: List approvals scoped to the current run only
-      responses: { '200': { description: Current run approvals (no cross-session mixing) } }
+      responses:
+        '200':
+          description: Current run approvals (no cross-session mixing), ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMeta'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/AgentApproval' }
   /projects/{projectId}/agent/approvals:
     get:
       tags: [Agent]
@@ -2088,6 +2107,24 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/SetDefaultRequest' } } }
       responses: { '200': { description: Default updated } }
+  /user/ai-providers/purposes:
+    get:
+      tags: [User AI]
+      summary: Read current user purpose assignments (real DB overrides)
+      responses:
+        '200':
+          description: Map of purpose to provider id (empty when using default)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiMeta'
+                  - type: object
+                    required: [data]
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties: { type: string, format: uuid }
   /user/ai-providers/purposes/{purpose}:
     parameters:
       - name: purpose
@@ -3372,10 +3409,10 @@ components:
         pageContext: { oneOf: [{ $ref: '#/components/schemas/AgentPageContext' }, { type: 'null' }] }
     AgentRunStatus:
       type: string
-      enum: [CREATED, QUEUED, RUNNING, WAITING_FOR_APPROVAL, SUCCEEDED, FAILED_RETRYABLE, FAILED, CANCELED, BUDGET_EXCEEDED]
+      enum: [CREATED, QUEUED, RUNNING, WAITING_FOR_APPROVAL, WAITING_FOR_USER_INPUT, SUCCEEDED, FAILED_RETRYABLE, FAILED, CANCELED, BUDGET_EXCEEDED]
     AgentRun:
       type: object
-      required: [id, sessionId, projectId, requesterId, role, depth, goal, status, maxSteps, maxToolCalls, stepsUsed, toolCallsUsed, scheduled, version, createdAt, updatedAt]
+      required: [id, sessionId, projectId, requesterId, role, depth, goal, status, maxSteps, maxToolCalls, maxChildren, maxInputTokens, maxOutputTokens, stepsUsed, toolCallsUsed, childrenUsed, inputTokensUsed, outputTokensUsed, tokenUsageEstimated, scheduled, correctionAttempted, retryCount, version, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         sessionId: { type: string, format: uuid }
@@ -3389,10 +3426,21 @@ components:
         status: { $ref: '#/components/schemas/AgentRunStatus' }
         maxSteps: { type: integer }
         maxToolCalls: { type: integer }
+        maxChildren: { type: integer }
+        maxInputTokens: { type: integer }
+        maxOutputTokens: { type: integer }
         stepsUsed: { type: integer }
         toolCallsUsed: { type: integer }
+        childrenUsed: { type: integer }
+        inputTokensUsed: { type: integer }
+        outputTokensUsed: { type: integer }
+        tokenUsageEstimated: { type: boolean }
         scheduled: { type: boolean }
+        correctionAttempted: { type: boolean }
+        retryCount: { type: integer, minimum: 0 }
         errorCode: { type: [string, 'null'] }
+        planJson: { type: [string, 'null'] }
+        pageContextJson: { type: [string, 'null'] }
         version: { type: integer }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -3405,20 +3453,23 @@ components:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
         - type: object
+          required: [data]
           properties:
             data:
-              type: object
-              required: [run, steps, lastEventSequence]
-              properties:
-                run: { $ref: '#/components/schemas/AgentRun' }
-                plan: { type: [object, 'null'], additionalProperties: true }
-                steps: { type: array, items: { type: object, additionalProperties: true } }
-                lastEventSequence: { type: integer, format: int64, minimum: 0 }
-                pendingApprovalId: { type: [string, 'null'], format: uuid }
-                pendingApproval: { oneOf: [{ $ref: '#/components/schemas/AgentApproval' }, { type: 'null' }] }
+              oneOf:
+                - type: 'null'
+                - type: object
+                  required: [run, steps, lastEventSequence]
+                  properties:
+                    run: { $ref: '#/components/schemas/AgentRun' }
+                    plan: { type: [object, 'null'], additionalProperties: true }
+                    steps: { type: array, items: { type: object, additionalProperties: true } }
+                    lastEventSequence: { type: integer, format: int64, minimum: 0 }
+                    pendingApprovalId: { type: [string, 'null'], format: uuid }
+                    pendingApproval: { oneOf: [{ $ref: '#/components/schemas/AgentApproval' }, { type: 'null' }] }
     AgentEventType:
       type: string
-      enum: [RUN_CREATED, CONTEXT_CAPTURED, SKILL_SELECTED, PLAN_CREATED, PLAN_UPDATED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_PROPOSED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, TOOL_CALL_FAILED, APPROVAL_REQUESTED, APPROVAL_APPROVED, APPROVAL_REJECTED, APPROVAL_EXPIRED, APPROVAL_UPDATED, RESULT_VERIFIED, RUN_RETRY_SCHEDULED, RUN_CANCELED, RUN_SUCCEEDED, RUN_FAILED, RUN_BUDGET_EXCEEDED]
+      enum: [RUN_CREATED, CONTEXT_CAPTURED, SKILL_SELECTED, PLAN_CREATED, PLAN_UPDATED, MODEL_STARTED, MODEL_COMPLETED, TOOL_CALL_PROPOSED, TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, TOOL_CALL_FAILED, APPROVAL_REQUESTED, APPROVAL_APPROVED, APPROVAL_REJECTED, APPROVAL_EXPIRED, APPROVAL_UPDATED, RESULT_VERIFIED, RUN_RETRY_SCHEDULED, RUN_CANCELED, RUN_SUCCEEDED, RUN_FAILED, RUN_BUDGET_EXCEEDED, WAITING_FOR_USER_INPUT]
     AgentRunEvent:
       type: object
       required: [id, projectId, runId, sequence, type, payload, createdAt]
@@ -3457,7 +3508,7 @@ components:
         diff: { type: object, additionalProperties: true }
         resourceId: { type: [string, 'null'], format: uuid }
         resourceVersion: { type: [integer, 'null'] }
-        status: { type: string, enum: [PENDING, APPROVED, REJECTED, EXPIRED] }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, EXPIRED, CONFLICTED] }
         requesterId: { type: string, format: uuid }
         approverId: { type: [string, 'null'], format: uuid }
         result: { type: [object, 'null'], additionalProperties: true }
