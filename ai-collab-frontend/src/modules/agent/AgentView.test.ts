@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AgentView from './AgentView.vue'
 import AgentContextChips from './AgentContextChips.vue'
+import AgentApprovalCard from './AgentApprovalCard.vue'
 
 const mocks = vi.hoisted(() => ({
   route: { params: { projectId: 'project-1' }, query: {} as Record<string, unknown> },
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   sessionSummaries: vi.fn(),
   latestRun: vi.fn(),
   runApprovals: vi.fn(),
+  runEvents: vi.fn(),
   approvals: vi.fn(),
   schedules: vi.fn(),
   mcpBindings: vi.fn(),
@@ -41,6 +43,7 @@ vi.mock('./agent-api', () => ({
     sessionSummaries: mocks.sessionSummaries,
     latestRun: mocks.latestRun,
     runApprovals: mocks.runApprovals,
+    runEvents: mocks.runEvents,
     approvals: mocks.approvals,
     schedules: mocks.schedules,
     mcpBindings: mocks.mcpBindings,
@@ -78,6 +81,7 @@ beforeEach(() => {
   mocks.sessionSummaries.mockResolvedValue(response([]))
   mocks.latestRun.mockResolvedValue(response(null))
   mocks.runApprovals.mockResolvedValue(response([]))
+  mocks.runEvents.mockResolvedValue(response([]))
   mocks.approvals.mockResolvedValue(response([]))
   mocks.schedules.mockResolvedValue(response([]))
   mocks.mcpBindings.mockResolvedValue(response([]))
@@ -182,5 +186,69 @@ describe('AgentView context handoff', () => {
     expect(mocks.replace).toHaveBeenCalledTimes(1)
     expect(mocks.replace).toHaveBeenCalledWith({ query: { other: 'keep' } })
     mocks.route.query = {}
+  })
+})
+
+describe('AgentView approval race', () => {
+  it('drops a late approvals response from a previous session', async () => {
+    const stamp = '2026-07-30T00:00:00Z'
+    const session = (id: string, title: string) => ({
+      id, projectId: 'project-1', creatorId: 'user-1', title,
+      status: 'ACTIVE', version: 0, createdAt: stamp, updatedAt: stamp,
+    })
+    const approval = (tag: string, runId: string, sessionId: string) => ({
+      id: 'ap-' + tag, runId, sessionId,
+      toolName: 'create_task_after_approval', arguments: {}, diff: { after: { title: tag + '-PROPOSAL' } },
+      status: 'PENDING', nonce: null, expiresAt: stamp, createdAt: stamp,
+      result: null, rejectionReason: null, proposalFamily: 'TASK_CREATE', subjectKey: 'sub-' + tag,
+      revision: 1, updatedAt: stamp,
+    })
+    mocks.sessions.mockResolvedValue(response([session('session-A', '会话A'), session('session-B', '会话B')]))
+    mocks.latestRun.mockImplementation((_pid: string, sid: string) =>
+      Promise.resolve(response({
+        run: { id: sid === 'session-A' ? 'run-A' : 'run-B', status: 'SUCCEEDED' },
+        plan: null, steps: [], lastEventSequence: 0,
+      })))
+    let resolveA!: (value: unknown) => void
+    const pendingA = new Promise((resolve) => { resolveA = resolve })
+    mocks.runApprovals.mockImplementation((_pid: string, rid: string) =>
+      rid === 'run-A' ? pendingA : Promise.resolve(response([approval('B', 'run-B', 'session-B')])))
+    const wrapper = mount(AgentView, {
+      global: {
+        directives: { loading: () => undefined },
+        stubs: {
+          PageHeader: { template: '<header />' },
+          ElAlert: { props: ['title'], template: '<div>{{ title }}<slot /></div>' },
+          ElButton: {
+            inheritAttrs: false,
+            template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
+          },
+          ElTag: { template: '<span><slot /></span>' },
+          ElEmpty: { template: '<div><slot /></div>' },
+          ElInput: { template: '<textarea />' },
+          ElDropdown: { template: '<div><slot /><slot name="dropdown" /></div>' },
+          ElDropdownMenu: { template: '<div><slot /></div>' },
+          ElDropdownItem: {
+            inheritAttrs: false,
+            template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
+          },
+        },
+      },
+    })
+    await flushPromises()
+    // Switch to B while A's approvals request is still pending.
+    await wrapper.findAll('.session')[1].trigger('click')
+    await flushPromises()
+    let cards = wrapper.findAllComponents(AgentApprovalCard)
+    expect(cards).toHaveLength(1)
+    expect(cards[0].props('approval').id).toBe('ap-B')
+    // A's response arrives late: it must not overwrite B.
+    resolveA(response([approval('A', 'run-A', 'session-A')]))
+    await flushPromises()
+    cards = wrapper.findAllComponents(AgentApprovalCard)
+    expect(cards).toHaveLength(1)
+    expect(cards[0].props('approval').id).toBe('ap-B')
+    expect(wrapper.text()).toContain('B-PROPOSAL')
+    expect(wrapper.text()).not.toContain('A-PROPOSAL')
   })
 })

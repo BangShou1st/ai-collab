@@ -171,7 +171,7 @@ async function restoreSession(id: string) {
   timeline.value.lastSequence = Math.max(latest.data?.lastEventSequence ?? 0, timeline.value.lastSequence)
   activeRun.value = timeline.value.run
   if (!fresh()) return
-  await refreshApprovals()
+  await refreshApprovals({ projectId: pid, sessionId: id, runId: run.id, token })
   if (!fresh()) return
   if (run.status === 'RUNNING' || run.status === 'QUEUED') {
     resumeEventStream()
@@ -328,7 +328,10 @@ async function consumeEventStream(runId: string, controller: AbortController, de
       || timeline.value.run?.status === 'BUDGET_EXCEEDED'
       || timeline.value.run?.status === 'WAITING_FOR_APPROVAL'
       || timeline.value.run?.status === 'WAITING_FOR_USER_INPUT') {
-      await Promise.all([loadMessages(), refreshApprovals()])
+      await Promise.all([
+        loadMessages(),
+        refreshApprovals({ projectId: projectId.value, sessionId: sessionId.value, runId }),
+      ])
       return
     }
     await new Promise(resolve => window.setTimeout(resolve, delayMs))
@@ -340,9 +343,34 @@ async function consumeEventStream(runId: string, controller: AbortController, de
     if (!controller.signal.aborted) void consumeEventStream(runId, controller, Math.min(delayMs * 2, 5000))
   }
 }
-async function refreshApprovals() {
-  if (!activeRun.value) { approvals.value = []; return }
-  approvals.value = (await agentApi.runApprovals(projectId.value, activeRun.value.id)).data
+interface ApprovalScope {
+  projectId: string
+  sessionId: string
+  runId: string
+  token?: number
+}
+
+function currentApprovalScope(): ApprovalScope | null {
+  const runId = activeRun.value?.id
+  if (!runId) return null
+  return { projectId: projectId.value, sessionId: sessionId.value, runId }
+}
+
+async function refreshApprovals(scope?: ApprovalScope) {
+  const pid = scope?.projectId ?? projectId.value
+  const sid = scope?.sessionId ?? sessionId.value
+  const rid = scope?.runId ?? activeRun.value?.id
+  if (!rid) {
+    if (projectId.value === pid && sessionId.value === sid) approvals.value = []
+    return
+  }
+  // Fetch into a local first; attribute the response only to still-current context.
+  // Never re-read activeRun to decide an old response's ownership.
+  const data = (await agentApi.runApprovals(pid, rid)).data
+  if (projectId.value !== pid || sessionId.value !== sid) return
+  if (scope?.token !== undefined && scope.token !== restoreSeq) return
+  if ((activeRun.value?.id ?? null) !== rid) return
+  approvals.value = data
 }
 async function approve(item: AgentApproval) {
   try {
@@ -390,9 +418,11 @@ async function reject(item: AgentApproval) {
     const result = await ElMessageBox.prompt('请输入拒绝原因', '拒绝 Agent 提案', { inputValidator: value => Boolean(value.trim()) })
     reason_text = result.value
   } catch { return }
+  const scope = currentApprovalScope()
   try {
     await agentApi.reject(projectId.value, item, reason_text)
-    await refreshApprovals()
+    if (scope) await refreshApprovals(scope)
+    else await refreshApprovals()
   }
   catch (reason) { fail(reason, 'Agent 提案拒绝') }
 }

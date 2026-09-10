@@ -17,5 +17,7 @@ export const aiPresetApi = {
   async test(body: { apiKey?: string; modelName?: string }): Promise<ApiResult<void>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<void>>('/user/ai-provider-presets/OPENCODE_ZEN_FREE/test', body))
   },
+  async disconnect(): Promise<void> {
+    await httpClient.delete('/user/ai-provider-presets/OPENCODE_ZEN_FREE')
+  },
 }
-

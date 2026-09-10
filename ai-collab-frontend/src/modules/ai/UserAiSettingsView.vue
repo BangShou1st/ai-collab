@@ -18,8 +18,10 @@ const zenModel = ref('')
 const zenEnabled = ref(true)
 const zenDefault = ref(false)
 const saving = ref(false)
+const disconnecting = ref(false)
 const testingId = ref('')
 const dialogVisible = ref(false)
+const purposesFailed = ref(false)
 const editing = ref<UserAiProvider | null>(null)
 const showAdvanced = ref('')
 const purposes: { value: AiPurpose; label: string }[] = [
@@ -49,19 +51,29 @@ const customProviders = computed(() => providers.value.filter((p) => !p.presetCo
 const zenProviderId = computed(() => providers.value.find((p) => p.presetCode)?.id ?? '')
 const canSave = computed(() => Boolean(form.name.trim() && form.modelName.trim() && (form.apiKey.trim() || editing.value)))
 
+async function loadPurposes(): Promise<void> {
+  try {
+    const saved = (await userAiApi.listPurposes()).data ?? {}
+    overrides.KNOWLEDGE_CHAT = saved.KNOWLEDGE_CHAT ?? ''
+    overrides.PLANNING = saved.PLANNING ?? ''
+    overrides.AGENT = saved.AGENT ?? ''
+    purposesFailed.value = false
+  } catch (error) {
+    // 失败不是“无覆盖”：保留旧值并禁用选择器，避免把失败伪装成“使用默认”。
+    purposesFailed.value = true
+    showApiError(error, '用途覆盖加载，可点击重试')
+  }
+}
 async function load(): Promise<void> {
   loading.value = true
   try {
-    const [custom, presetList, purposes] = await Promise.all([userAiApi.list(), aiPresetApi.presets(), userAiApi.listPurposes().catch(() => ({ data: {} as Record<string, string> }))])
+    const [custom, presetList] = await Promise.all([userAiApi.list(), aiPresetApi.presets()])
     providers.value = custom.data
     zen.value = presetList.data.find((p) => p.code === 'OPENCODE_ZEN_FREE') ?? null
     if (zen.value?.modelName) zenModel.value = zen.value.modelName
     zenEnabled.value = zen.value?.enabled ?? true
     zenDefault.value = !custom.data.some((p) => p.isDefault) || (zen.value?.isDefault ?? false)
-    const saved = (purposes as { data: Record<string, string> }).data ?? {}
-    overrides.KNOWLEDGE_CHAT = saved.KNOWLEDGE_CHAT ?? ''
-    overrides.PLANNING = saved.PLANNING ?? ''
-    overrides.AGENT = saved.AGENT ?? ''
+    await loadPurposes()
   } catch (error) {
     showApiError(error, 'AI 配置加载')
   } finally {
@@ -104,6 +116,25 @@ async function testZen(): Promise<void> {
     showApiError(error, '连接测试')
   } finally {
     testingId.value = ''
+  }
+}
+async function disconnectZen(): Promise<void> {
+  if (disconnecting.value) return
+  try {
+    await ElMessageBox.confirm('断开后将删除已保存的 Zen API Key，用途覆盖会回退到默认模型。确定断开吗？', '断开 OpenCode Zen', {
+      confirmButtonText: '断开连接', cancelButtonText: '取消', type: 'warning',
+    })
+  } catch { return }
+  disconnecting.value = true
+  try {
+    await aiPresetApi.disconnect()
+    zenKey.value = ''
+    await load()
+    ElMessage.success('已断开 OpenCode Zen 连接')
+  } catch (error) {
+    showApiError(error, '断开连接')
+  } finally {
+    disconnecting.value = false
   }
 }
 
@@ -252,7 +283,10 @@ onMounted(load)
             </ul>
           </div>
           <div>
-            <div v-if="zen?.connected" class="provider-tile__current">{{ zen?.modelName }}</div>
+            <div v-if="zen?.connected" class="provider-tile__current-row">
+              <span class="provider-tile__current">{{ zen?.modelName }}</span>
+              <el-button text type="danger" size="small" :loading="disconnecting" @click="disconnectZen">断开连接</el-button>
+            </div>
             <el-skeleton v-if="zenLoading" :rows="2" animated />
             <div v-else class="zen-form">
               <el-input v-model="zenKey" type="password" show-password placeholder="API Key（留空则保留已保存）" />
@@ -298,10 +332,15 @@ onMounted(load)
       </div>
 
       <el-card v-if="customProviders.length || zen?.connected" shadow="never">
-        <template #header><strong>按用途覆盖默认模型（可选）</strong></template>
+        <template #header>
+          <div class="header-row">
+            <strong>按用途覆盖默认模型（可选）</strong>
+            <el-button v-if="purposesFailed" text type="primary" size="small" @click="loadPurposes">重试</el-button>
+          </div>
+        </template>
         <div v-for="purpose in purposes" :key="purpose.value" class="override-row setting-row">
           <span class="override-label">{{ purpose.label }}</span>
-          <el-select v-model="overrides[purpose.value]" placeholder="使用默认" clearable @change="saveOverride(purpose.value)">
+          <el-select v-model="overrides[purpose.value]" placeholder="使用默认" clearable :disabled="purposesFailed" @change="saveOverride(purpose.value)">
             <el-option v-if="zen?.connected" :key="'zen'" :label="`OpenCode Zen Free · ${zen?.modelName ?? ''}`" :value="zenProviderId" />
             <el-option v-for="p in customProviders.filter((c) => c.enabled)" :key="p.id" :label="p.name" :value="p.id" />
           </el-select>

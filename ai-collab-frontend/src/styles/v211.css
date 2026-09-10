@@ -55,3 +55,18 @@
 .evidence-list p { margin: 2px 0 0; font-size: 12px; color: var(--el-text-color-secondary); }
 .tech-details { font-size: 12px; }
 .tech-details pre { max-height: 160px; overflow: auto; background: #0f172a; color: #e2e8f0; padding: 8px; border-radius: 8px; }
+
+/* Mobile drawer always shows full navigation, decoupled from desktop collapsed. */
+@media (max-width: 760px) {
+  .app-shell.collapsed .brand-copy,
+  .app-shell.collapsed .side-title { display: block; }
+  .app-shell.collapsed .brand { justify-content: flex-start; }
+  .app-shell.collapsed .side-group a { justify-content: flex-start; padding: 0 10px; }
+  .app-shell.collapsed .side-group a span,
+  .app-shell.collapsed .side-details summary span { display: inline; }
+  .app-shell.collapsed .side-details summary { justify-content: flex-start; padding: 0 10px; }
+  .app-shell.collapsed .side-details a { display: flex; }
+  .app-shell.collapsed .side-footer { flex-direction: row; align-items: center; }
+  .app-shell.collapsed .user-row { display: flex; }
+  .app-shell.collapsed .collapsed-user { display: none; }
+}

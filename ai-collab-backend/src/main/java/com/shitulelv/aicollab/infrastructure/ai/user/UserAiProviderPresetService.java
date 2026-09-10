@@ -113,6 +113,17 @@ public class UserAiProviderPresetService {
         repository.save(row);
         return presets(userId).get(0);
     }
+    /**
+     * Disconnect the caller's Zen connection: delete only their OPENCODE_ZEN_FREE row
+     * (encrypted key included). Purpose assignments cascade via FK; a deleted default
+     * is not replaced — "no default" is allowed and nothing is auto-promoted.
+     * Idempotent: missing connection deletes zero rows without error.
+     */
+    @Transactional
+    public void disconnect(UUID userId) {
+        repository.deleteByUserAndPreset(userId, PRESET);
+    }
+
     public void test(UUID userId, String apiKey, String modelName) {
         var existing = repository.findByUserAndPreset(userId, PRESET);
         String key = apiKey != null && !apiKey.isBlank() ? apiKey.strip()

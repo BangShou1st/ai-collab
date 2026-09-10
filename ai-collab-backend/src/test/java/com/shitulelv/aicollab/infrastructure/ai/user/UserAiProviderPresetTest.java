@@ -57,4 +57,23 @@ class UserAiProviderPresetTest {
         assertThat(v.hasApiKey()).isTrue();
         assertThat(v.toString()).doesNotContain("enc-secret");
     }
+    @Test void disconnectDeletesOwnPresetWithoutPromoting() {
+        var repo = mock(UserAiProviderRepository.class);
+        var user = UUID.randomUUID();
+        var svc = new UserAiProviderPresetService(repo, mock(ModelSecretCipher.class),
+                new ProviderPresetRegistry(), mock(OpenCodeZenModelCatalog.class));
+        svc.disconnect(user);
+        verify(repo).deleteByUserAndPreset(user, "OPENCODE_ZEN_FREE");
+        verify(repo, never()).clearDefault(any());
+        verify(repo, never()).markDefault(any(), any());
+    }
+    @Test void disconnectMissingConnectionIsIdempotent() {
+        var repo = mock(UserAiProviderRepository.class);
+        var user = UUID.randomUUID();
+        when(repo.deleteByUserAndPreset(user, "OPENCODE_ZEN_FREE")).thenReturn(0);
+        var svc = new UserAiProviderPresetService(repo, mock(ModelSecretCipher.class),
+                new ProviderPresetRegistry(), mock(OpenCodeZenModelCatalog.class));
+        svc.disconnect(user);
+        verify(repo).deleteByUserAndPreset(user, "OPENCODE_ZEN_FREE");
+    }
 }

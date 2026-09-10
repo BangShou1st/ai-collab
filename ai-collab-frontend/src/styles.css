@@ -48,6 +48,8 @@
 .side-collapse { border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-control); width: 32px; height: 32px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .user-row { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; padding: 6px 2px 6px 6px; }
 .user-row .user-copy { flex: 1; }
+.app-shell.collapsed .user-row { display: none; }
+.app-shell:not(.collapsed) .collapsed-user { display: none; }
 .user-menu-trigger { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 28px; flex: none; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
 .user-menu-trigger:hover { background: var(--color-surface-raised); color: var(--color-text); }
 .collapsed-user { display: flex; justify-content: center; flex: 1; }
@@ -67,6 +69,7 @@
 .setting-row { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 12px; }
 .model-select-row { display: flex; align-items: center; gap: 4px; }
 .model-select-row .el-select { flex: 1; min-width: 0; }
+.provider-tile__current-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .zen-brand { display: grid; gap: 8px; align-content: start; }
 @media (max-width: 760px) { .setting-row { grid-template-columns: 1fr; gap: 6px; } }
 .app-shell.collapsed .side-footer { justify-content: center; }

@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -37,6 +38,11 @@ public class UserAiProviderPresetController {
         presets.test(userId(jwt), request == null ? null : request.apiKey(),
                 request == null ? null : request.modelName());
         return ApiResponse.success(null);
+    }
+    @DeleteMapping("/OPENCODE_ZEN_FREE")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void disconnect(@AuthenticationPrincipal Jwt jwt) {
+        presets.disconnect(userId(jwt));
     }
     private static UUID userId(Jwt jwt) { return UUID.fromString(jwt.getSubject()); }
     public record SaveZenRequest(@Size(max = 1000) String apiKey, @NotBlank @Size(max = 160) String modelName, Boolean enabled, Boolean setDefault) {}

@@ -173,6 +173,11 @@ public class UserAiProviderRepository {
         jdbc.update("DELETE FROM user_ai_provider WHERE id = ? AND user_id = ?", id, userId);
     }
 
+    public int deleteByUserAndPreset(UUID userId, String presetCode) {
+        return jdbc.update("DELETE FROM user_ai_provider WHERE user_id = ? AND preset_code = ?",
+                userId, presetCode);
+    }
+
     private static String capabilityText(EnumSet<ModelCapability> capabilities) {
         return capabilities.stream().map(Enum::name).collect(Collectors.joining(","));
     }

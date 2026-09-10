@@ -145,7 +145,9 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             AtomicReference<Integer> input = new AtomicReference<>();
             AtomicReference<Integer> output = new AtomicReference<>();
             AtomicBoolean terminal = new AtomicBoolean(false);
-            http.stream(endpoint(config), metadata == null ? headers(apiKey) : headersWithSession(apiKey, metadata, userAgent), metadata == null ? request(config, command, true) : zenRequest(config, command, true), (event, data) -> {
+            // userAgent != null marks the Zen preset path (Custom callers pass null):
+            // Zen wire is model/messages/stream only, Custom wire keeps its contract.
+            http.stream(endpoint(config), metadata == null ? headers(apiKey) : headersWithSession(apiKey, metadata, userAgent), userAgent == null ? request(config, command, true) : zenRequest(config, command, true), (event, data) -> {
                 if (data == null) return;
                 if (data.hasNonNull("model")) model.set(data.path("model").asText());
                 JsonNode usage = data.path("usage");

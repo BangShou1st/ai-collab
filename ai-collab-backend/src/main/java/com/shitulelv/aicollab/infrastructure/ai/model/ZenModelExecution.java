@@ -20,14 +20,20 @@ public class ZenModelExecution {
     private final OutboundEndpointPolicy endpoints;
     private final JsonHttpModelClient zenHttp;
     private final OpenAiCompatibleModelAdapter zenAdapter;
+    @org.springframework.beans.factory.annotation.Autowired
     public ZenModelExecution(ProviderPresetRegistry registry, ObjectMapper mapper, OutboundEndpointPolicy endpoints) {
+        this(registry, mapper, endpoints, null);
+    }
+
+    ZenModelExecution(ProviderPresetRegistry registry, ObjectMapper mapper, OutboundEndpointPolicy endpoints,
+            OpenAiCompatibleModelAdapter zenAdapter) {
         this.registry = registry;
         this.mapper = mapper;
         this.endpoints = endpoints;
         HttpClient direct = HttpClient.newBuilder().proxy(HttpClient.Builder.NO_PROXY)
                 .followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(10)).build();
         this.zenHttp = new JsonHttpModelClient(mapper, endpoints, direct);
-        this.zenAdapter = new OpenAiCompatibleModelAdapter(mapper, zenHttp);
+        this.zenAdapter = zenAdapter != null ? zenAdapter : new OpenAiCompatibleModelAdapter(mapper, zenHttp);
     }
     public boolean isZen(UserAiProvider p) {
         return p != null && ProviderPresetCode.OPENCODE_ZEN_FREE.name().equals(p.presetCode());
@@ -50,11 +56,15 @@ public class ZenModelExecution {
     public ModelTurnResult turn(UserAiProvider p, String apiKey, ModelTurnCommand cmd, AiRequestMetadata md) {
         return zenAdapter.turnWithSession(runtimeConfig(p), apiKey, cmd, md, userAgent());
     }
+    /**
+     * Zen production wire is always stream=true (spec-agent transport): the application
+     * gateway keeps its synchronous contract, only the underlying HTTP wire streams.
+     */
     public ChatCompletionResult complete(UserAiProvider p, String apiKey, ChatCompletionCommand cmd, AiRequestMetadata md) {
-        if (cmd.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT) {
-            return zenAdapter.completeStreamingSyncWithSession(runtimeConfig(p), apiKey, forceJson(cmd), md, userAgent());
-        }
-        return zenAdapter.completeWithSession(runtimeConfig(p), apiKey, cmd, md, userAgent());
+        ChatCompletionCommand effective = cmd.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT
+                ? forceJson(cmd)
+                : cmd;
+        return zenAdapter.completeStreamingSyncWithSession(runtimeConfig(p), apiKey, effective, md, userAgent());
     }
 
     /**

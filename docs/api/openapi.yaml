@@ -2091,6 +2091,11 @@ paths:
         '200':
           description: Zen connection saved
           content: { application/json: { schema: { $ref: '#/components/schemas/ProviderPresetEnvelope' } } }
+    delete:
+      tags: [User AI]
+      summary: Disconnect the current user's Zen connection (idempotent)
+      description: Deletes only the caller's OPENCODE_ZEN_FREE row including the saved key. Purpose assignments cascade. A deleted default is not replaced and custom providers are untouched. Missing connection returns 204.
+      responses: { '204': { description: Zen disconnected (or already absent) } }
   /user/ai-provider-presets/OPENCODE_ZEN_FREE/test:
     post:
       tags: [User AI]

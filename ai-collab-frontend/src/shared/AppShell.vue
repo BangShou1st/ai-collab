@@ -166,7 +166,7 @@ async function logout(): Promise<void> {
         <button class="side-collapse" type="button" @click="collapsed = !collapsed" :aria-label="collapsed ? '展开侧栏' : '收起侧栏'" :title="collapsed ? '展开侧栏' : '收起侧栏'">
           <el-icon><component :is="collapsed ? Expand : Fold" /></el-icon>
         </button>
-        <div v-if="!collapsed" class="user-row">
+        <div class="user-row">
           <span class="user-avatar" aria-hidden="true">{{ userInitial }}</span>
           <span class="user-copy">
             <strong>{{ userName }}</strong>
@@ -184,7 +184,7 @@ async function logout(): Promise<void> {
             </template>
           </el-dropdown>
         </div>
-        <el-dropdown v-else trigger="click" placement="right-start" class="collapsed-user" @command="onUserCommand">
+        <el-dropdown trigger="click" placement="right-start" class="collapsed-user" @command="onUserCommand">
           <button class="collapsed-avatar" type="button" aria-label="账号菜单" title="账号菜单">
             <span class="user-avatar" aria-hidden="true">{{ userInitial }}</span>
           </button>
