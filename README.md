@@ -207,6 +207,10 @@ pnpm dev
 
 默认登录账号见 `.env` 中的 `DEMO_OWNER_USERNAME` 和 `DEMO_OWNER_PASSWORD`。
 
+本地 clone 默认开放公开注册（`.env.example` 中 `AUTH_PUBLIC_REGISTRATION_ENABLED=true`），
+可直接注册体验；生产环境可将其设为 `false` 仅保留管理员建号。
+登录与注册均有 IP/用户名双维度限流，无需短信或邮件验证码。
+
 ## AI 模型配置
 
 ### 环境变量
@@ -229,13 +233,12 @@ EMBEDDING_MODEL=text-embedding-3-small
 AGENT_ENABLED=true
 ```
 
-### 项目级配置
+### 配置归属
 
-登录后可在项目设置中配置：
-
-- Chat Model（知识问答、规划、Agent）
-- Embedding Model（向量检索）
-- MCP 连接（外部只读工具）
+登录后在个人 AI 设置（`/settings/ai`）中连接自己的 LLM，
+可分别覆盖知识问答、AI 规划与 Agent，也可只配一个默认模型全用；
+API Key 只写不读。Embedding 由系统管理员在管理中心 AI Infrastructure 维护；
+MCP 集成由项目管理员在项目设置中维护。旧项目级模型配置页已废弃。
 
 ### 支持的 Provider
 
@@ -307,4 +310,3 @@ cd ai-collab-backend
 cd ai-collab-frontend
 pnpm build
 ```
-
