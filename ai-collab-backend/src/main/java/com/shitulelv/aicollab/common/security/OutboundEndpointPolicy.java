@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 
 import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
 import java.util.Arrays;
@@ -36,7 +37,7 @@ public class OutboundEndpointPolicy {
         this(InetAddress::getAllByName);
     }
 
-    OutboundEndpointPolicy(AddressResolver resolver) {
+    public OutboundEndpointPolicy(AddressResolver resolver) {
         this.resolver = resolver;
     }
 
@@ -97,6 +98,11 @@ public class OutboundEndpointPolicy {
                     || (first == 100 && second >= 64 && second <= 127)
                     || (first == 192 && second == 0)
                     || (first == 198 && (second == 18 || second == 19));
+        }
+        if (address instanceof Inet6Address) {
+            // IPv6 Unique Local Addresses (RFC 4193): fc00::/7.
+            int first = Byte.toUnsignedInt(address.getAddress()[0]);
+            return (first & 0xfe) == 0xfc;
         }
         return false;
     }

@@ -18,6 +18,7 @@ class OutboundEndpointPolicyTest {
             "loop.example", "127.0.0.1",
             "private.example", "10.10.2.3",
             "v6loop.example", "::1",
+            "v6ula.example", "fd00::1234",
             "evil.example", "10.0.0.1");
 
     private final OutboundEndpointPolicy policy = new OutboundEndpointPolicy(
@@ -38,6 +39,12 @@ class OutboundEndpointPolicyTest {
     @Test
     void rejects_ipv6_loopback() {
         assertThatThrownBy(() -> policy.requirePublicHttps(URI.create("https://v6loop.example/api")))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void rejects_ipv6_unique_local_address() {
+        assertThatThrownBy(() -> policy.requirePublicHttps(URI.create("https://v6ula.example/api")))
                 .isInstanceOf(BusinessException.class);
     }
 

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -23,12 +25,25 @@ import java.util.function.BiConsumer;
 public class JsonHttpModelClient {
     private static final Logger log = LoggerFactory.getLogger(JsonHttpModelClient.class);
     private final ObjectMapper mapper;
-    private final HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+    private final OutboundEndpointPolicy endpoints;
+    private final HttpClient client;
 
     public JsonHttpModelClient(ObjectMapper mapper) {
+        this(mapper, new OutboundEndpointPolicy());
+    }
+
+    @Autowired
+    public JsonHttpModelClient(ObjectMapper mapper, OutboundEndpointPolicy endpoints) {
+        this(mapper, endpoints, HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build());
+    }
+
+    public JsonHttpModelClient(ObjectMapper mapper, OutboundEndpointPolicy endpoints, HttpClient client) {
         this.mapper = mapper;
+        this.endpoints = endpoints;
+        this.client = client;
     }
 
     public JsonNode post(String url, Map<String, String> headers, JsonNode body) {
@@ -141,14 +156,18 @@ public class JsonHttpModelClient {
 
     private HttpRequest request(String url, Map<String, String> headers, JsonNode body) {
         try {
+            URI endpoint = URI.create(url.strip());
+            endpoints.requirePublicHttps(endpoint);
             HttpRequest.Builder builder = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
+                    .uri(endpoint)
                     .timeout(Duration.ofMinutes(3))
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json, text/event-stream")
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
             headers.forEach(builder::header);
             return builder.build();
+        } catch (BusinessException exception) {
+            throw exception;
         } catch (Exception exception) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
         }

@@ -5,9 +5,11 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
+import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -18,6 +20,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.time.Duration;
 
 /**
  * 系统级向量嵌入网关（V2 运行时）。
@@ -30,10 +35,25 @@ public class ProjectEmbeddingGateway {
 
     private final SystemEmbeddingConfigRepository configRepo;
     private final ModelSecretCipher secrets;
+    private final OutboundEndpointPolicy endpoints;
+    private final RestClient injectedRestClient;
 
     public ProjectEmbeddingGateway(SystemEmbeddingConfigRepository configRepo, ModelSecretCipher secrets) {
+        this(configRepo, secrets, new OutboundEndpointPolicy());
+    }
+
+    @Autowired
+    public ProjectEmbeddingGateway(SystemEmbeddingConfigRepository configRepo, ModelSecretCipher secrets,
+                                   OutboundEndpointPolicy endpoints) {
+        this(configRepo, secrets, endpoints, null);
+    }
+
+    ProjectEmbeddingGateway(SystemEmbeddingConfigRepository configRepo, ModelSecretCipher secrets,
+                            OutboundEndpointPolicy endpoints, RestClient injectedRestClient) {
         this.configRepo = configRepo;
         this.secrets = secrets;
+        this.endpoints = endpoints;
+        this.injectedRestClient = injectedRestClient;
     }
 
     public EmbeddingBatch embed(UUID projectId, List<String> input, EmbeddingProgressListener progressListener) {
@@ -63,10 +83,7 @@ public class ProjectEmbeddingGateway {
     EmbeddingBatch embedWithConfig(ProjectEmbeddingConfig config, List<String> input,
                                     EmbeddingProgressListener progressListener) {
 
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000);
-        factory.setReadTimeout(60000);
-        RestClient restClient = RestClient.builder().requestFactory(factory).build();
+        RestClient restClient = injectedRestClient != null ? injectedRestClient : createRestClient();
 
         String apiKey = secrets.decrypt(config.encryptedApiKey());
         List<List<Double>> vectors = new ArrayList<>(input.size());
@@ -85,9 +102,11 @@ public class ProjectEmbeddingGateway {
         RuntimeException last = null;
         for (int attempt = 0; attempt < 3; attempt++) {
             try {
+                URI endpoint = URI.create(join(config.baseUrl(), config.apiPath()));
+                endpoints.requirePublicHttps(endpoint);
                 progressListener.onProgress();
                 var response = restClient.post()
-                        .uri(join(config.baseUrl(), config.apiPath()))
+                        .uri(endpoint)
                         .header("Authorization", "Bearer " + apiKey)
                         .body(new EmbeddingRequest(config.modelName(), batch, config.dimensions()))
                         .retrieve().body(EmbeddingResponse.class);
@@ -109,12 +128,12 @@ public class ProjectEmbeddingGateway {
                 throw e;
             } catch (HttpClientErrorException e) {
                 log.warn("Embedding API client error (attempt {}): {} {}", attempt + 1,
-                        e.getStatusCode().value(), e.getResponseBodyAsString());
+                        e.getStatusCode().value(), truncate(e.getResponseBodyAsString(), 200));
                 if (e.getStatusCode().value() != 429) throw failure();
                 last = e;
             } catch (HttpServerErrorException e) {
                 log.warn("Embedding API server error (attempt {}): {} {}", attempt + 1,
-                        e.getStatusCode().value(), e.getResponseBodyAsString());
+                        e.getStatusCode().value(), truncate(e.getResponseBodyAsString(), 200));
                 last = e;
             } catch (ResourceAccessException e) {
                 log.warn("Embedding API connection error (attempt {}): {}", attempt + 1, e.getMessage());
@@ -148,6 +167,21 @@ public class ProjectEmbeddingGateway {
     private static String join(String base, String path) {
         return base.endsWith("/") && path.startsWith("/") ? base + path.substring(1)
                 : !base.endsWith("/") && !path.startsWith("/") ? base + "/" + path : base + path;
+    }
+
+    private static RestClient createRestClient() {
+        HttpClient http = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(http);
+        factory.setReadTimeout(Duration.ofSeconds(60));
+        return RestClient.builder().requestFactory(factory).build();
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null) return "null";
+        return value.length() <= maxLength ? value : value.substring(0, maxLength) + "...";
     }
 
     private static BusinessException failure() {
