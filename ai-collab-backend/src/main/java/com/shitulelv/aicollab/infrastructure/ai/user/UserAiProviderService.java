@@ -146,7 +146,7 @@ public class UserAiProviderService {
                 id, userId, request.name().strip(), request.providerType(), request.baseUrl().strip(),
                 request.apiPath().strip(), encrypted, request.modelName().strip(), request.enabled(),
                 request.temperature(), request.maxOutputTokens(),
-                EnumSet.copyOf(request.capabilities()), isDefault, createdAt, updatedAt);
+                EnumSet.copyOf(request.capabilities()), isDefault, createdAt, updatedAt, null);
     }
 
     private void validateEndpoint(String baseUrl, String apiPath) {

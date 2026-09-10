@@ -103,6 +103,13 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             ModelConfiguration config, String apiKey, ChatCompletionCommand command,
             Consumer<String> onToken, Consumer<ChatCompletionResult> onDone,
             Consumer<Exception> onError) {
+        completeStreamWithSession(config, apiKey, command, null, onToken, onDone, onError);
+    }
+
+    public void completeStreamWithSession(
+            ModelConfiguration config, String apiKey, ChatCompletionCommand command, AiRequestMetadata metadata,
+            Consumer<String> onToken, Consumer<ChatCompletionResult> onDone,
+            Consumer<Exception> onError) {
         safeStream(() -> {
             long started = System.nanoTime();
             StringBuilder content = new StringBuilder();
@@ -110,7 +117,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             AtomicReference<Integer> input = new AtomicReference<>();
             AtomicReference<Integer> output = new AtomicReference<>();
             AtomicBoolean terminal = new AtomicBoolean(false);
-            http.stream(endpoint(config), headers(apiKey), request(config, command, true), (event, data) -> {
+            http.stream(endpoint(config), metadata == null ? headers(apiKey) : headersWithSession(apiKey, metadata), request(config, command, true), (event, data) -> {
                 if (data == null) return;
                 if (data.hasNonNull("model")) model.set(data.path("model").asText());
                 JsonNode usage = data.path("usage");
@@ -319,12 +326,17 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
     }
 
     private ObjectNode turnRequest(ModelConfiguration config, ModelTurnCommand command, boolean stream) {
+        return turnRequest(config, command, stream, false);
+    }
+
+    private ObjectNode turnRequest(ModelConfiguration config, ModelTurnCommand command, boolean stream, boolean includeUsage) {
         ObjectNode body = mapper.createObjectNode();
         body.put("model", config.modelName());
         body.put("temperature", config.temperature());
         body.put("max_tokens", config.maxOutputTokens());
         body.put("stream", stream);
-        if (stream) {
+        // stream_options.include_usage 只在明确支持的 Zen preset 路径发送，避免改变所有 Custom 网关的 wire contract。
+        if (stream && includeUsage) {
             body.putObject("stream_options").put("include_usage", true);
         }
 
@@ -513,7 +525,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         java.util.concurrent.atomic.AtomicReference<ModelUsage> usage =
                 new java.util.concurrent.atomic.AtomicReference<>();
         java.util.Map<Integer, DeltaToolCall> deltas = new java.util.TreeMap<>();
-        http.stream(endpoint(config), headersWithSession(apiKey, metadata), turnRequest(config, command, true), (event, data) -> {
+        http.stream(endpoint(config), headersWithSession(apiKey, metadata), turnRequest(config, command, true, true), (event, data) -> {
             if (data == null) return;
             if (data.hasNonNull("model")) model.set(data.path("model").asText());
             JsonNode usageNode = data.path("usage");
