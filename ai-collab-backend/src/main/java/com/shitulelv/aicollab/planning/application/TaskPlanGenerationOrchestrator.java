@@ -337,6 +337,11 @@ public class TaskPlanGenerationOrchestrator {
      * R2+R1: Generate skeleton using strict SkeletonModelOutput contract.
      * The model cannot output detail fields — parser rejects unknown properties.
      */
+    /** Stable provider correlation for one whole planning generation (skeleton/repair/detail share it). */
+    static UUID planningCorrelationId(UUID planId, long generationSeq) {
+        return UUID.nameUUIDFromBytes(("planning-v1:" + planId + ":" + generationSeq).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
     private GeneratedSkeleton generateSkeletonWithOneRepair(TaskPlanRecord plan, UUID initialAttempt,
                                                              TaskPlanStatus expectedStatus, String prompt,
                                                              UUID actor, Predicate<TaskPlanDraft> valid) {
@@ -349,7 +354,8 @@ public class TaskPlanGenerationOrchestrator {
         ModelOutputContractException contractError = null;
         try {
             result = model.generate(system(), prompt, "TASK_PLAN_SKELETON",
-                    actor, plan.projectId(), initialAttempt);
+                    actor, plan.projectId(), initialAttempt,
+                    planningCorrelationId(plan.id(), plan.generationSeq()));
         } catch (BusinessException providerFailure) {
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
                     TaskPlanStatus.FAILED, providerFailure.getErrorCode().name());
@@ -376,7 +382,8 @@ public class TaskPlanGenerationOrchestrator {
                 contractError != null ? contractError.validationCodes() : List.of());
         try {
             GenerationResult repairResult = model.generate(repairSystem(), repairPrompt, "TASK_PLAN_REPAIR",
-                    actor, plan.projectId(), repairAttempt);
+                    actor, plan.projectId(), repairAttempt,
+                    planningCorrelationId(plan.id(), plan.generationSeq()));
             SkeletonModelOutput repaired = parser.parseSkeleton(repairResult.content());
             TaskPlanDraft repairedDraft = toDraft(repaired);
             if (!valid.test(repairedDraft)) throw new IllegalArgumentException("DOMAIN_VALIDATION_FAILED");
@@ -405,7 +412,8 @@ public class TaskPlanGenerationOrchestrator {
         GenerationResult result;
         try {
             result = model.generate(system(), prompt, "TASK_PLAN_DETAIL",
-                    actor, plan.projectId(), initialAttempt);
+                    actor, plan.projectId(), initialAttempt,
+                    planningCorrelationId(plan.id(), plan.generationSeq()));
         } catch (BusinessException providerFailure) {
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, providerFailure.getErrorCode().name());
@@ -446,7 +454,8 @@ public class TaskPlanGenerationOrchestrator {
         try {
             GenerationResult repairResult = model.generate(
                     repairSystem(), repairPrompt, "TASK_PLAN_REPAIR_PATCH",
-                    actor, plan.projectId(), repairAttempt);
+                    actor, plan.projectId(), repairAttempt,
+                    planningCorrelationId(plan.id(), plan.generationSeq()));
             TaskPlanRepairPatch patch = patchParser.parse(repairResult.content());
             ValidationContext context = repository.validationContext(plan);
             Set<String> validSourceRefs = candidate.sources().stream()

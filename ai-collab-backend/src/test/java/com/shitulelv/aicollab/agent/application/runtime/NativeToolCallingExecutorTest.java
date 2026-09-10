@@ -47,7 +47,7 @@ class NativeToolCallingExecutorTest {
         ModelTurnResult result = new ModelTurnResult(
                 "项目进展正常", List.of(), ModelFinishReason.STOP,
                 new ModelUsage(100, 50), "openai", "gpt-4", 200L);
-        when(modelTurn.turn(any())).thenReturn(result);
+        when(modelTurn.turn(any(), any())).thenReturn(result);
 
         UUID configId = UUID.randomUUID();
         ModelTurnResult turn = executor.callModel(
@@ -67,7 +67,7 @@ class NativeToolCallingExecutorTest {
         ModelTurnResult result = new ModelTurnResult(
                 "", List.of(tc), ModelFinishReason.TOOL_CALLS,
                 new ModelUsage(100, 50), "openai", "gpt-4", 200L);
-        when(modelTurn.turn(any())).thenReturn(result);
+        when(modelTurn.turn(any(), any())).thenReturn(result);
 
         UUID configId = UUID.randomUUID();
         ModelTurnResult turn = executor.callModel(
@@ -89,7 +89,7 @@ class NativeToolCallingExecutorTest {
         ModelTurnResult result = new ModelTurnResult(
                 "", List.of(tc1, tc2), ModelFinishReason.TOOL_CALLS,
                 new ModelUsage(100, 50), "openai", "gpt-4", 200L);
-        when(modelTurn.turn(any())).thenReturn(result);
+        when(modelTurn.turn(any(), any())).thenReturn(result);
 
         UUID configId = UUID.randomUUID();
         ModelTurnResult turn = executor.callModel(
@@ -110,7 +110,7 @@ class NativeToolCallingExecutorTest {
         ModelTurnResult result = new ModelTurnResult(
                 "", List.of(tc), ModelFinishReason.TOOL_CALLS,
                 new ModelUsage(100, 50), "openai", "gpt-4", 200L);
-        when(modelTurn.turn(any())).thenReturn(result);
+        when(modelTurn.turn(any(), any())).thenReturn(result);
 
         UUID configId = UUID.randomUUID();
         ModelTurnResult turn = executor.callModel(
@@ -124,7 +124,7 @@ class NativeToolCallingExecutorTest {
 
     @Test
     void modelProviderExceptionPropagates() {
-        when(modelTurn.turn(any())).thenThrow(
+        when(modelTurn.turn(any(), any())).thenThrow(
                 new BusinessException(ErrorCode.AI_PROVIDER_ERROR));
 
         UUID configId = UUID.randomUUID();
@@ -145,7 +145,7 @@ class NativeToolCallingExecutorTest {
         ModelTurnResult result = new ModelTurnResult(
                 "完成", List.of(), ModelFinishReason.STOP,
                 new ModelUsage(100, 50), "openai", "gpt-4", 200L);
-        when(modelTurn.turn(any())).thenReturn(result);
+        when(modelTurn.turn(any(), any())).thenReturn(result);
 
         UUID configId = UUID.randomUUID();
         executor.callModel(
@@ -155,14 +155,14 @@ class NativeToolCallingExecutorTest {
                 configId);
 
         // 验证只调用了一次 modelTurn.turn
-        verify(modelTurn, times(1)).turn(any());
+        verify(modelTurn, times(1)).turn(any(), any());
     }
 
     @Test
     void messageHistoryIsPassedToModel() {
         ModelTurnResult result = new ModelTurnResult(
                 "回答", List.of(), ModelFinishReason.STOP, null, "test", "model", 100L);
-        when(modelTurn.turn(any())).thenReturn(result);
+        when(modelTurn.turn(any(), any())).thenReturn(result);
 
         List<ModelMessage> messages = List.of(
                 new ModelMessage.System("系统提示"),
@@ -180,14 +180,14 @@ class NativeToolCallingExecutorTest {
                     && actualMessages.get(1) instanceof ModelMessage.User
                     && actualMessages.get(2) instanceof ModelMessage.Assistant
                     && actualMessages.get(3) instanceof ModelMessage.User;
-        }));
+        }), any());
     }
 
     @Test
     void toolDefinitionsArePassedToModel() {
         ModelTurnResult result = new ModelTurnResult(
                 "回答", List.of(), ModelFinishReason.STOP, null, "test", "model", 100L);
-        when(modelTurn.turn(any())).thenReturn(result);
+        when(modelTurn.turn(any(), any())).thenReturn(result);
 
         List<AgentToolDefinition> exposed = List.of(
                 toolDef("list_tasks"),
@@ -201,7 +201,7 @@ class NativeToolCallingExecutorTest {
                 configId);
 
         verify(modelTurn).turn(argThat(cmd ->
-                cmd.tools().size() == 2));
+                cmd.tools().size() == 2), any());
     }
 
     // ========== 辅助方法 ==========
@@ -214,7 +214,7 @@ class NativeToolCallingExecutorTest {
     void callerUserIdIsPassedToModelTurnCommand() {
         ModelTurnResult result = new ModelTurnResult(
                 "回答", List.of(), ModelFinishReason.STOP, null, "test", "model", 100L);
-        when(modelTurn.turn(any())).thenReturn(result);
+        when(modelTurn.turn(any(), any())).thenReturn(result);
 
         UUID caller = UUID.randomUUID();
         executor.callModel(
@@ -225,6 +225,6 @@ class NativeToolCallingExecutorTest {
 
         // 验证调用者归属被正确传递到 ModelTurnCommand（用户级路由，不再传项目配置 ID）
         verify(modelTurn).turn(argThat(cmd ->
-                caller.equals(cmd.callerUserId())));
+                caller.equals(cmd.callerUserId())), any());
     }
 }

@@ -79,10 +79,10 @@ const formatIssue = (issue: StructuredValidationIssue) => {
   gap: 8px;
 }
 .issue-item {
-  border-left: 4px solid;
+  border: 1px solid var(--color-border);
   padding: 8px 12px;
   background: white;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 .issue-content {
   cursor: pointer;

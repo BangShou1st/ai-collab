@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { useRoute } from 'vue-router'
+import { computed } from 'vue'
 import { formatDate, formatDateTime, taskPriorityLabel, taskStatusLabel } from '../../shared/display-labels'
 import type { Task, TaskComment } from './types'
+const route = useRoute()
+const projectId = computed(() => String(route.params.projectId ?? ''))
 
 const props = defineProps<{
   visible: boolean
@@ -44,6 +48,7 @@ function dependencyName(dependencyId: string): string {
       <div v-if="canManage" class="actions task-detail-actions">
         <el-button type="primary" :disabled="deletingTask" @click="$emit('editTask')">编辑任务</el-button>
         <el-button type="danger" plain :loading="deletingTask" @click="$emit('deleteTask')">删除任务</el-button>
+        <router-link v-if="selected" :to="`/projects/${projectId}/agent?task=${selected.id}`"><el-button text type="primary">交给 Agent</el-button></router-link>
       </div>
       <el-descriptions :column="1" border>
         <el-descriptions-item label="标题">{{ selected.title }}</el-descriptions-item>

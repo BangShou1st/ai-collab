@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 import {
+  activityDisplayLabel,
   auditActionLabel,
   auditEntityLabel,
   documentStatusLabel,
@@ -30,4 +33,31 @@ describe('面向用户的中文显示映射', () => {
     expect(auditActionLabel('INTERNAL_SECRET_ACTION')).toBe('未知操作')
     expect(auditEntityLabel('RAW_DATABASE_ENTITY')).toBe('未知对象')
   })
+
+  it('never exposes raw activity enums in normal UI', () => {
+    expect(activityDisplayLabel('TASK_CREATED')).toBe('创建任务')
+    expect(activityDisplayLabel('TASK_PLAN_CREATED')).toBe('创建 AI 任务规划')
+    expect(activityDisplayLabel('DOCUMENT_UPLOADED')).toBe('上传文档')
+    // 未知系统事件也不得回显 raw enum
+    expect(activityDisplayLabel('SOME_FUTURE_EVENT_X')).not.toMatch(/^[A-Z]{2,}_[A-Z0-9_]+$/)
+    expect(activityDisplayLabel('')).toBe('动态更新')
+  });
+
+  it('keeps GLOBAL PAGE GEOMETRY CONTRACT tokens', () => {
+    const tokensPath = path.resolve(__dirname, '../styles/tokens.css')
+    const tokens = fs.readFileSync(tokensPath, 'utf8')
+    expect(tokens).toContain('--page-max-width: 1240px')
+    expect(tokens).toContain('--page-gutter: 40px')
+    expect(tokens).toContain('--page-top: 32px')
+    expect(tokens).toContain('--sidebar-expanded: 248px')
+    expect(tokens).toContain('--sidebar-collapsed: 72px')
+    expect(tokens).toContain('--radius-card: 12px')
+    expect(tokens).toContain('--radius-dialog: 14px')
+  });
+
+  it('keeps tables flat and cards non-elevated by default', () => {
+    const overrides = fs.readFileSync(path.resolve(__dirname, '../styles/element-overrides.css'), 'utf8')
+    expect(overrides).toContain('box-shadow: none')
+    expect(overrides).toContain('.object-card')
+  });
 })

@@ -196,6 +196,28 @@ export function notificationLabel(value: string | null | undefined): string {
   return value ? notificationLabels[value] ?? '未知通知' : '未知通知'
 }
 
+const RAW_ENUM_PATTERN = /^[A-Z]{2,}[A-Z0-9]*(_[A-Z0-9]+)+$/
+
+export function isRawEnumLabel(value: string | null | undefined): boolean {
+  if (!value) return false
+  return RAW_ENUM_PATTERN.test(value.trim())
+}
+
+/**
+ * 通用活动文案映射：任何正常 UI 不得直接显示 TASK_CREATED / TASK_PLAN_CREATED
+ * 等 raw enum。优先使用 auditActionLabel，已知映射之外回退为“动态更新”。
+ */
+export function activityDisplayLabel(action: string | null | undefined): string {
+  if (!action) return '动态更新'
+  const trimmed = action.trim()
+  if (!trimmed) return '动态更新'
+  if (!isRawEnumLabel(trimmed)) return trimmed
+  const mapped = auditActionLabels[trimmed]
+  if (mapped) return mapped
+  // 未知系统事件：绝不回显 raw enum
+  return '动态更新'
+}
+
 function dateParts(
   date: Date,
   options: Intl.DateTimeFormatOptions,

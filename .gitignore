@@ -114,3 +114,8 @@ start-frontend.bat
 # Machine-specific files
 # ===========================
 机器码.txt
+
+# ===========================
+# Visual acceptance screenshots (local only, never commit)
+# ===========================
+docs/shots/

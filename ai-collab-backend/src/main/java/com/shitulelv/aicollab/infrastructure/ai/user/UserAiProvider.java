@@ -24,7 +24,12 @@ public record UserAiProvider(
         EnumSet<ModelCapability> capabilities,
         boolean isDefault,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt) {
+        OffsetDateTime updatedAt,
+        String presetCode) {
+    public UserAiProvider {
+        if (presetCode != null && presetCode.isBlank()) presetCode = null;
+    }
+    public boolean isPreset() { return presetCode != null; }
 
     /**
      * 映射为 Provider Adapter 可用的配置视图。

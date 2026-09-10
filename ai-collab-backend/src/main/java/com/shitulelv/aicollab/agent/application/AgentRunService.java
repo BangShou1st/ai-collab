@@ -64,6 +64,35 @@ public class AgentRunService {
     }
 
     @Transactional(readOnly = true)
+    public List<AgentSessionSummaryView> listSessionSummaries(UUID projectId, UUID userId) {
+        access.requireMember(projectId, userId);
+        return repository.listSessionSummaries(projectId, MAX_SESSIONS);
+    }
+
+    @Transactional(readOnly = true)
+    public AgentRunDetailView latestRun(UUID projectId, UUID sessionId, UUID userId) {
+        access.requireMember(projectId, userId);
+        if (repository.findSession(projectId, sessionId).isEmpty())
+            throw new BusinessException(ErrorCode.AGENT_SESSION_NOT_FOUND);
+        return repository.findLatestRun(projectId, sessionId).map(run -> getRun(projectId, run.id(), userId)).orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.shitulelv.aicollab.agent.application.view.AgentRunEventView> runEvents(
+            UUID projectId, UUID runId, long afterSequence, UUID userId) {
+        access.requireMember(projectId, userId);
+        repository.findRun(projectId, runId).orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        return eventRepository.list(projectId, runId, Math.max(0, afterSequence), 500);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AgentApprovalView> runApprovals(UUID projectId, UUID runId, UUID userId) {
+        access.requireMember(projectId, userId);
+        repository.findRun(projectId, runId).orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        return approvalRepository.listByRun(projectId, runId);
+    }
+
+    @Transactional(readOnly = true)
     public AgentSessionView getSession(UUID projectId, UUID sessionId, UUID userId) {
         access.requireMember(projectId, userId);
         return repository.findSession(projectId, sessionId)

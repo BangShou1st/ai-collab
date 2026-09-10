@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import SemanticDiff from '../../shared/SemanticDiff.vue'
 import { presentApproval } from './approval-presentation'
 import type { AgentApproval } from './types'
 import type { ProjectMember } from '../project/types'
@@ -63,10 +64,7 @@ const cleanedDiff = computed(() => {
       </div>
     </template>
     <dl><template v-for="field in presentation.fields" :key="field.label"><dt>{{ field.label }}</dt><dd>{{ field.value }}</dd></template></dl>
-    <div v-if="cleanedDiff" class="approval-diff">
-      <strong>变更内容：</strong>
-      <pre>{{ JSON.stringify(cleanedDiff, null, 2) }}</pre>
-    </div>
+    <SemanticDiff v-if="cleanedDiff" :diff="cleanedDiff" />
     <p>处理期限：{{ new Date(approval.expiresAt).toLocaleString('zh-CN') }}</p>
     <div v-if="approval.status === 'PENDING'">
       <el-button type="success" @click="emit('approve', approval)">批准并执行</el-button>

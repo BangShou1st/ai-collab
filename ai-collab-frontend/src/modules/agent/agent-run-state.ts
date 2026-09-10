@@ -25,7 +25,7 @@ const errorTitles: Record<string, string> = {
 export function agentRunPresentation(run: AgentRun): AgentRunPresentation {
   if (run.status === 'WAITING_FOR_APPROVAL') {
     return {
-      terminal: true,
+      terminal: false,
       severity: 'warning',
       title: '任务提案等待批准',
       canRetry: false,

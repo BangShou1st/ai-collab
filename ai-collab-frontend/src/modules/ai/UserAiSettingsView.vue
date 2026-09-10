@@ -1,16 +1,27 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import EmptyState from '../../shared/EmptyState.vue'
 import { userAiApi, type AiProviderType, type AiPurpose, type UserAiProvider } from './user-ai-api'
+import { aiPresetApi, type PresetStatus } from './ai-preset-api'
 
 const providers = ref<UserAiProvider[]>([])
 const loading = ref(false)
+const zen = ref<PresetStatus | null>(null)
+const zenModels = ref<string[]>([])
+const zenLoading = ref(false)
+const zenKey = ref('')
+const zenModel = ref('')
+const zenEnabled = ref(true)
+const zenDefault = ref(false)
 const saving = ref(false)
+const disconnecting = ref(false)
 const testingId = ref('')
 const dialogVisible = ref(false)
+const purposesFailed = ref(false)
 const editing = ref<UserAiProvider | null>(null)
 const showAdvanced = ref('')
 const purposes: { value: AiPurpose; label: string }[] = [
@@ -36,16 +47,94 @@ const form = reactive({
   capabilities: ['CHAT'] as string[],
 })
 const dialogTitle = computed(() => (editing.value ? '编辑 AI 配置' : '添加 AI 配置'))
+const customProviders = computed(() => providers.value.filter((p) => !p.presetCode))
+const zenProviderId = computed(() => providers.value.find((p) => p.presetCode)?.id ?? '')
 const canSave = computed(() => Boolean(form.name.trim() && form.modelName.trim() && (form.apiKey.trim() || editing.value)))
 
+async function loadPurposes(): Promise<void> {
+  try {
+    const saved = (await userAiApi.listPurposes()).data ?? {}
+    overrides.KNOWLEDGE_CHAT = saved.KNOWLEDGE_CHAT ?? ''
+    overrides.PLANNING = saved.PLANNING ?? ''
+    overrides.AGENT = saved.AGENT ?? ''
+    purposesFailed.value = false
+  } catch (error) {
+    // 失败不是“无覆盖”：保留旧值并禁用选择器，避免把失败伪装成“使用默认”。
+    purposesFailed.value = true
+    showApiError(error, '用途覆盖加载，可点击重试')
+  }
+}
 async function load(): Promise<void> {
   loading.value = true
   try {
-    providers.value = (await userAiApi.list()).data
+    const [custom, presetList] = await Promise.all([userAiApi.list(), aiPresetApi.presets()])
+    providers.value = custom.data
+    zen.value = presetList.data.find((p) => p.code === 'OPENCODE_ZEN_FREE') ?? null
+    if (zen.value?.modelName) zenModel.value = zen.value.modelName
+    zenEnabled.value = zen.value?.enabled ?? true
+    zenDefault.value = !custom.data.some((p) => p.isDefault) || (zen.value?.isDefault ?? false)
+    await loadPurposes()
   } catch (error) {
     showApiError(error, 'AI 配置加载')
   } finally {
     loading.value = false
+  }
+  // 免费模型列表走独立 skeleton，不阻塞整页：先让 Zen 配置/模型/覆盖可见
+  await loadZenModels(false)
+}
+async function loadZenModels(refresh: boolean): Promise<void> {
+  zenLoading.value = true
+  try {
+    zenModels.value = (await aiPresetApi.models(refresh)).data
+    if (!zenModel.value && zenModels.value[0]) zenModel.value = zenModels.value[0]
+  } catch (error) {
+    showApiError(error, '免费模型加载，可点击重试')
+  } finally {
+    zenLoading.value = false
+  }
+}
+async function saveZen(): Promise<void> {
+  if (!zenModel.value || saving.value) return
+  saving.value = true
+  try {
+    zen.value = (await aiPresetApi.save({ apiKey: zenKey.value || undefined, modelName: zenModel.value, enabled: zenEnabled.value, setDefault: zenDefault.value })).data
+    zenKey.value = ''
+    await load()
+    ElMessage.success('OpenCode Zen Free 已保存并启用')
+  } catch (error) {
+    showApiError(error, 'Zen 保存')
+  } finally {
+    saving.value = false
+  }
+}
+async function testZen(): Promise<void> {
+  testingId.value = 'zen'
+  try {
+    await aiPresetApi.test({ apiKey: zenKey.value || undefined, modelName: zenModel.value || undefined })
+    ElMessage.success('连接成功')
+  } catch (error) {
+    showApiError(error, '连接测试')
+  } finally {
+    testingId.value = ''
+  }
+}
+async function disconnectZen(): Promise<void> {
+  if (disconnecting.value) return
+  try {
+    await ElMessageBox.confirm('断开后将删除已保存的 Zen API Key，用途覆盖会回退到默认模型。确定断开吗？', '断开 OpenCode Zen', {
+      confirmButtonText: '断开连接', cancelButtonText: '取消', type: 'warning',
+    })
+  } catch { return }
+  disconnecting.value = true
+  try {
+    await aiPresetApi.disconnect()
+    zenKey.value = ''
+    await load()
+    ElMessage.success('已断开 OpenCode Zen 连接')
+  } catch (error) {
+    showApiError(error, '断开连接')
+  } finally {
+    disconnecting.value = false
   }
 }
 
@@ -172,7 +261,7 @@ async function saveOverride(purpose: AiPurpose): Promise<void> {
 
 onMounted(load)
 </script>
-+<template>
+<template>
   <main class="workspace-page">
     <PageHeader eyebrow="个人设置" title="AI 设置" description="连接自己的模型，知识问答、AI 规划与 Agent 都由此驱动">
       <template #actions>
@@ -180,42 +269,81 @@ onMounted(load)
       </template>
     </PageHeader>
 
-    <section v-loading="loading" class="ai-settings-stack">
+    <section v-loading="loading" class="ai-settings-stack ai-settings-narrow">
+      <div class="section-title"><h2>推荐连接</h2></div>
+      <div class="provider-tile zen">
+        <div class="zen-two-col">
+          <div class="zen-brand">
+            <div><strong>OpenCode Zen</strong><span v-if="zen?.connected" class="status-dot done" /> <span v-if="zen?.isDefault">默认</span></div>
+            <p class="provider-tile__sub">官方免费模型通道，开箱即用。连接后知识问答、AI 规划与 Agent 可直接使用。</p>
+            <ul class="zen-points">
+              <li>免费模型 · 自动发现</li>
+              <li>OpenCode 官方接口</li>
+              <li>应用层 Direct</li>
+            </ul>
+          </div>
+          <div>
+            <div v-if="zen?.connected" class="provider-tile__current-row">
+              <span class="provider-tile__current">{{ zen?.modelName }}</span>
+              <el-button text type="danger" size="small" :loading="disconnecting" @click="disconnectZen">断开连接</el-button>
+            </div>
+            <el-skeleton v-if="zenLoading" :rows="2" animated />
+            <div v-else class="zen-form">
+              <el-input v-model="zenKey" type="password" show-password placeholder="API Key（留空则保留已保存）" />
+              <div class="model-select-row">
+                <el-select v-model="zenModel" placeholder="选择免费模型" filterable>
+                  <el-option v-for="m in zenModels" :key="m" :label="m" :value="m" />
+                </el-select>
+                <el-button text :icon="Refresh" aria-label="刷新模型" title="刷新模型" @click="loadZenModels(true)" />
+              </div>
+              <div class="zen-actions">
+                <el-checkbox v-model="zenDefault">设为默认模型</el-checkbox>
+                <el-button :loading="testingId === 'zen'" @click="testZen">测试连接</el-button>
+                <el-button type="primary" :loading="saving" :disabled="!zenModel" @click="saveZen">保存</el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="section-title"><h2>你的模型</h2><el-button text type="primary" @click="openCreate">+ 自定义 Provider</el-button></div>
       <EmptyState
-        v-if="!providers.length"
-        title="还没有 AI 配置"
-        description="添加后即可使用知识问答、AI 规划与 Agent"
-        action-label="添加 AI 配置"
+        v-if="!customProviders.length"
+        compact
+        title="还没有自定义模型"
+        description="上面的 Zen 连接已可直接使用，这里按需添加自己的网关"
       />
-      <el-card v-for="provider in providers" :key="provider.id" shadow="never" class="provider-card">
-        <template #header>
-          <div class="provider-head">
+      <div v-if="customProviders.length" class="model-rows">
+        <div v-for="provider in customProviders" :key="provider.id" class="model-row">
+          <div class="model-main">
             <strong>{{ provider.name }}</strong>
-            <span class="provider-tags">
-              <el-tag v-if="provider.isDefault" type="success">默认</el-tag>
-              <el-tag v-else type="info">未默认</el-tag>
-              <el-tag :type="provider.enabled ? '' : 'info'">{{ provider.enabled ? '启用' : '停用' }}</el-tag>
-            </span>
+            <span class="provider-meta">{{ provider.modelName }} · {{ provider.providerType }} · API Key {{ provider.hasApiKey ? '已配置' : '未配置' }}</span>
+          </div>
+          <span class="provider-tags">
+            <el-tag v-if="provider.isDefault" type="success" size="small">默认</el-tag>
+            <el-tag :type="provider.enabled ? '' : 'info'" size="small">{{ provider.enabled ? '启用' : '停用' }}</el-tag>
+          </span>
+          <div class="provider-actions">
+            <el-button size="small" :loading="testingId === provider.id" @click="testConnection(provider)">测试</el-button>
+            <el-button v-if="!provider.isDefault" size="small" @click="setDefault(provider)">设为默认</el-button>
+            <el-button size="small" @click="openEdit(provider)">编辑</el-button>
+            <el-button size="small" type="danger" text @click="remove(provider)">删除</el-button>
+          </div>
+        </div>
+      </div>
+
+      <el-card v-if="customProviders.length || zen?.connected" shadow="never">
+        <template #header>
+          <div class="header-row">
+            <strong>按用途覆盖默认模型（可选）</strong>
+            <el-button v-if="purposesFailed" text type="primary" size="small" @click="loadPurposes">重试</el-button>
           </div>
         </template>
-        <p class="provider-model">{{ provider.modelName }}</p>
-        <p class="provider-meta">{{ provider.providerType }} · API Key {{ provider.hasApiKey ? '已配置' : '未配置' }}</p>
-        <div class="provider-actions">
-          <el-button size="small" :loading="testingId === provider.id" @click="testConnection(provider)">连接测试</el-button>
-          <el-button v-if="!provider.isDefault" size="small" @click="setDefault(provider)">设为默认</el-button>
-          <el-button size="small" @click="openEdit(provider)">编辑</el-button>
-          <el-button size="small" type="danger" text @click="remove(provider)">删除</el-button>
-        </div>
-      </el-card>
-
-      <el-card v-if="providers.length" shadow="never">
-        <template #header><strong>按用途覆盖默认模型（可选）</strong></template>
-        <div v-for="purpose in purposes" :key="purpose.value" class="override-row">
+        <div v-for="purpose in purposes" :key="purpose.value" class="override-row setting-row">
           <span class="override-label">{{ purpose.label }}</span>
-          <el-select v-model="overrides[purpose.value]" placeholder="使用默认" clearable>
-            <el-option v-for="p in providers" :key="p.id" :label="p.name" :value="p.id" />
+          <el-select v-model="overrides[purpose.value]" placeholder="使用默认" clearable :disabled="purposesFailed" @change="saveOverride(purpose.value)">
+            <el-option v-if="zen?.connected" :key="'zen'" :label="`OpenCode Zen Free · ${zen?.modelName ?? ''}`" :value="zenProviderId" />
+            <el-option v-for="p in customProviders.filter((c) => c.enabled)" :key="p.id" :label="p.name" :value="p.id" />
           </el-select>
-          <el-button size="small" @click="saveOverride(purpose.value)">保存</el-button>
         </div>
       </el-card>
     </section>

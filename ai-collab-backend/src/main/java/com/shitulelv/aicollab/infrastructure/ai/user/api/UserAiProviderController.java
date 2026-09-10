@@ -65,6 +65,11 @@ public class UserAiProviderController {
         return ApiResponse.success(null);
     }
 
+    @GetMapping("/purposes")
+    public ApiResponse<java.util.Map<ModelPurpose, UUID>> listPurposes(@AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(providers.listAssignments(userId(jwt)));
+    }
+
     @PutMapping("/purposes/{purpose}")
     public ApiResponse<Void> assignPurpose(
             @PathVariable ModelPurpose purpose,

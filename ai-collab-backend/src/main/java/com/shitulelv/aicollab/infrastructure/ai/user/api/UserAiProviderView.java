@@ -18,6 +18,7 @@ public record UserAiProviderView(
         String modelName,
         boolean enabled,
         boolean isDefault,
+        String presetCode,
         double temperature,
         int maxOutputTokens,
         Set<ModelCapability> capabilities,
@@ -27,7 +28,7 @@ public record UserAiProviderView(
         return new UserAiProviderView(
                 value.id(), value.name(), value.providerType(), value.baseUrl(), value.apiPath(),
                 value.encryptedApiKey() != null && !value.encryptedApiKey().isBlank(),
-                value.modelName(), value.enabled(), value.isDefault(), value.temperature(),
+                value.modelName(), value.enabled(), value.isDefault(), value.presetCode(), value.temperature(),
                 value.maxOutputTokens(), Set.copyOf(value.capabilities()), value.updatedAt());
     }
 }

@@ -32,7 +32,7 @@ class UserAiProviderOwnershipTest {
         OffsetDateTime now = OffsetDateTime.now();
         return new UserAiProvider(id, user, "main", ModelProviderType.OPENAI_COMPATIBLE,
                 "https://api.openai.com", "/v1/chat/completions", "enc", "gpt-4o-mini",
-                true, 0.2, 1200, EnumSet.of(ModelCapability.CHAT), isDefault, now, now);
+                true, 0.2, 1200, EnumSet.of(ModelCapability.CHAT), isDefault, now, now, null);
     }
 
     private UserAiProviderService service(UserAiProviderRepository repository) {
