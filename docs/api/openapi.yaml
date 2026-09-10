@@ -70,6 +70,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '429': { $ref: '#/components/responses/TooManyRequests' }
   /auth/registration-policy:
     get:
       tags: [Auth]
@@ -112,6 +113,7 @@ paths:
           content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
         '403':
           $ref: '#/components/responses/Forbidden'
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '409':
           $ref: '#/components/responses/Conflict'
   /auth/refresh:
@@ -1408,12 +1410,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PartialRegenerateRequest'
       responses:
-        '202':
-          description: Partial repair attempt accepted
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
+        '202': { description: Partial repair attempt accepted }
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -1947,6 +1944,142 @@ paths:
       tags: [Agent MCP]
       summary: Remove project MCP binding (project OWNER only)
       responses: { '204': { description: Binding removed }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /user/ai-providers:
+    get:
+      tags: [User AI]
+      summary: List my AI providers (credential owner is always the caller)
+      responses:
+        '200':
+          description: Provider list; API keys are never returned
+          content: { application/json: { schema: { $ref: '#/components/schemas/UserAiProviderListEnvelope' } } }
+    post:
+      tags: [User AI]
+      summary: Create an AI provider (first one becomes default)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UserAiProviderRequest' } } }
+      responses:
+        '201':
+          description: Provider created
+          content: { application/json: { schema: { $ref: '#/components/schemas/UserAiProviderEnvelope' } } }
+        '400':
+          description: Provider request validation failed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  /user/ai-providers/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [User AI]
+      summary: Update my AI provider (blank API key keeps the stored one)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UserAiProviderRequest' } } }
+      responses:
+        '200':
+          description: Provider updated
+          content: { application/json: { schema: { $ref: '#/components/schemas/UserAiProviderEnvelope' } } }
+        '400':
+          description: Unknown provider id for this user
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    delete:
+      tags: [User AI]
+      summary: Delete my AI provider (default becomes none, assignments cascade)
+      responses: { '204': { description: Provider deleted } }
+  /user/ai-providers/{id}/test:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [User AI]
+      summary: Test my AI provider connection
+      responses:
+        '200':
+          description: Connection succeeded
+          content: { application/json: { schema: { $ref: '#/components/schemas/ChatCompletionResultEnvelope' } } }
+        '400':
+          description: Provider misconfigured or unreachable
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  /user/ai-providers/defaults:
+    put:
+      tags: [User AI]
+      summary: Set my default AI provider (replaces the previous default)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SetDefaultRequest' } } }
+      responses: { '200': { description: Default updated } }
+  /user/ai-providers/purposes/{purpose}:
+    parameters:
+      - name: purpose
+        in: path
+        required: true
+        schema: { type: string, enum: [KNOWLEDGE_CHAT, PLANNING, AGENT] }
+    put:
+      tags: [User AI]
+      summary: Override the default model for one purpose
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UserAiPurposeRequest' } } }
+      responses: { '200': { description: Override saved } }
+    delete:
+      tags: [User AI]
+      summary: Remove the purpose override (falls back to default)
+      responses: { '204': { description: Override removed } }
+  /home:
+    get:
+      tags: [Home]
+      summary: Personal workspace aggregate (single bounded call)
+      responses:
+        '200':
+          description: Home workspace data
+          content: { application/json: { schema: { $ref: '#/components/schemas/HomeViewEnvelope' } } }
+  /admin/embedding-config:
+    get:
+      tags: [Admin Embedding]
+      summary: Read system embedding config (system admin only; key never returned)
+      responses:
+        '200':
+          description: System embedding config with stale index count
+          content: { application/json: { schema: { $ref: '#/components/schemas/SystemEmbeddingConfigEnvelope' } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [Admin Embedding]
+      summary: Update system embedding config (semantic change with stale vectors requires reindex)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SystemEmbeddingConfigRequest' } } }
+      responses:
+        '200':
+          description: Config updated
+          content: { application/json: { schema: { $ref: '#/components/schemas/SystemEmbeddingConfigEnvelope' } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Stale vectors exist; rebuild the index first
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  /admin/embedding-config/test:
+    post:
+      tags: [Admin Embedding]
+      summary: Test system embedding connection (system admin only)
+      responses:
+        '200': { description: Connection succeeded }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/embedding-config/reindex:
+    post:
+      tags: [Admin Embedding]
+      summary: Save new embedding config and rebuild all indexes (system admin only)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SystemEmbeddingConfigRequest' } } }
+      responses:
+        '200':
+          description: Rebuild queued
+          content: { application/json: { schema: { $ref: '#/components/schemas/ReindexResultEnvelope' } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -3391,3 +3524,167 @@ components:
         - type: object
           required: [data]
           properties: { data: { type: array, items: { $ref: '#/components/schemas/McpBinding' } } }
+    UserAiProvider:
+      type: object
+      required: [id, name, providerType, baseUrl, apiPath, hasApiKey, modelName, enabled, isDefault, temperature, maxOutputTokens, capabilities, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        providerType: { type: string, enum: [OPENAI_COMPATIBLE, ANTHROPIC, GEMINI] }
+        baseUrl: { type: string }
+        apiPath: { type: string }
+        hasApiKey: { type: boolean }
+        modelName: { type: string }
+        enabled: { type: boolean }
+        isDefault: { type: boolean }
+        temperature: { type: number }
+        maxOutputTokens: { type: integer }
+        capabilities: { type: array, items: { type: string } }
+        updatedAt: { type: string, format: date-time }
+    UserAiProviderEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { $ref: '#/components/schemas/UserAiProvider' } }
+    UserAiProviderListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { type: array, items: { $ref: '#/components/schemas/UserAiProvider' } } }
+    UserAiProviderRequest:
+      type: object
+      required: [name, providerType, baseUrl, apiPath, modelName, enabled, temperature, maxOutputTokens, capabilities]
+      properties:
+        name: { type: string, maxLength: 80 }
+        providerType: { type: string, enum: [OPENAI_COMPATIBLE, ANTHROPIC, GEMINI] }
+        baseUrl: { type: string, maxLength: 2048 }
+        apiPath: { type: string, maxLength: 512 }
+        apiKey: { type: string, maxLength: 1000, description: Write-only; blank keeps the stored key }
+        modelName: { type: string, maxLength: 160 }
+        enabled: { type: boolean }
+        temperature: { type: number, minimum: 0, maximum: 2 }
+        maxOutputTokens: { type: integer, minimum: 1, maximum: 131072 }
+        capabilities: { type: array, items: { type: string } }
+    SetDefaultRequest:
+      type: object
+      required: [providerId]
+      properties: { providerId: { type: string, format: uuid } }
+    UserAiPurposeRequest:
+      type: object
+      required: [providerId]
+      properties: { providerId: { type: string, format: uuid } }
+    ChatCompletionResult:
+      type: object
+      required: [content, provider, model]
+      properties:
+        content: { type: string }
+        provider: { type: string }
+        model: { type: string }
+        promptTokens: { type: integer, nullable: true }
+        completionTokens: { type: integer, nullable: true }
+        latencyMs: { type: integer }
+    ChatCompletionResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { $ref: '#/components/schemas/ChatCompletionResult' } }
+    HomeView:
+      type: object
+      required: [recentProjects, myTasks, notificationsSummary, pendingApprovals, aiConfigSummary, recentActivity]
+      properties:
+        recentProjects:
+          type: array
+          items:
+            type: object
+            required: [id, name, status, role]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              status: { type: string }
+              role: { type: string }
+        myTasks:
+          type: array
+          items:
+            type: object
+            required: [id, projectId, projectName, title, status, priority]
+            properties:
+              id: { type: string, format: uuid }
+              projectId: { type: string, format: uuid }
+              projectName: { type: string }
+              title: { type: string }
+              status: { type: string }
+              priority: { type: string }
+              dueDate: { type: string, format: date, nullable: true }
+        notificationsSummary:
+          type: object
+          required: [unread]
+          properties: { unread: { type: integer } }
+        pendingApprovals: { type: integer }
+        aiConfigSummary:
+          type: object
+          required: [configured, defaultModel, providerCount]
+          properties:
+            configured: { type: boolean }
+            defaultModel: { type: string, nullable: true }
+            providerCount: { type: integer }
+        recentActivity:
+          type: array
+          items:
+            type: object
+            required: [id, projectId, projectName, action]
+            properties:
+              id: { type: string, format: uuid }
+              projectId: { type: string, format: uuid }
+              projectName: { type: string }
+              action: { type: string }
+              createdAt: { type: string, format: date-time, nullable: true }
+    HomeViewEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { $ref: '#/components/schemas/HomeView' } }
+    SystemEmbeddingConfig:
+      type: object
+      required: [provider, baseUrl, apiPath, hasApiKey, modelName, dimensions, batchSize, enabled, fingerprint, staleChunks]
+      properties:
+        provider: { type: string }
+        baseUrl: { type: string }
+        apiPath: { type: string }
+        hasApiKey: { type: boolean }
+        modelName: { type: string }
+        dimensions: { type: integer }
+        batchSize: { type: integer }
+        enabled: { type: boolean }
+        fingerprint: { type: string, nullable: true }
+        staleChunks: { type: integer }
+    SystemEmbeddingConfigEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties: { data: { $ref: '#/components/schemas/SystemEmbeddingConfig' } }
+    SystemEmbeddingConfigRequest:
+      type: object
+      required: [provider, baseUrl, apiPath, modelName, dimensions, batchSize]
+      properties:
+        provider: { type: string, maxLength: 64 }
+        baseUrl: { type: string, maxLength: 2048 }
+        apiPath: { type: string, maxLength: 512 }
+        apiKey: { type: string, maxLength: 1000, description: Write-only; blank keeps the stored key }
+        modelName: { type: string, maxLength: 160 }
+        dimensions: { type: integer, minimum: 1, maximum: 4096 }
+        batchSize: { type: integer, minimum: 1, maximum: 256 }
+    ReindexResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties:
+            data:
+              type: object
+              required: [documents]
+              properties: { documents: { type: integer } }

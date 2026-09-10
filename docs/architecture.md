@@ -264,15 +264,32 @@ RoutingChatModelGateway
 └── GeminiTurnContract
 ```
 
-### 多用途路由
+### 用户级路由（V2）
 
-| 用途 | 配置前缀 |
+```
+AiInvocationContext(userId, projectId, purpose)
+  → UserAiProviderService.resolve(userId, purpose)
+    → purpose assignment 优先，否则 is_default，否则未配置
+```
+
+| 调用方 | Credential 归属 |
 |---|---|
-| 知识问答 | `chat.*` |
-| 任务规划 | `planning.*` |
-| Agent | `agent.*` |
+| 知识问答 | 提问用户 |
+| AI 规划 | actor |
+| Agent | run.requesterId（重试/继续/审批后不变） |
 
-每个项目可独立配置模型和 API Key。
+projectId 仅为业务上下文，不决定 Credential 归属。
+
+### 配置归属
+
+| 域 | 管理者 |
+|---|---|
+| 个人 LLM（问答/规划/Agent） | 用户本人（`/settings/ai`） |
+| Embedding 基础设施 | 系统管理员（管理中心 AI Infrastructure） |
+| MCP / 集成 | 项目管理员（项目设置 → 集成与 MCP） |
+
+向量语义指纹 `sha256(provider|model|dimensions)`；不同空间绝不混合检索；
+语义变更且存在旧索引时拒绝静默修改，须经重建通道。旧项目级模型表保留为废弃数据。
 
 ## 11. 前端架构
 
@@ -281,6 +298,7 @@ RoutingChatModelGateway
 | 路径 | 页面 |
 |---|---|
 | `/login` | 登录 |
+| `/home` | 个人工作台 |
 | `/projects` | 项目列表 |
 | `/projects/:id/dashboard` | 项目概览 |
 | `/projects/:id/board` | 任务看板 |
@@ -289,8 +307,11 @@ RoutingChatModelGateway
 | `/projects/:id/knowledge` | 知识问答 |
 | `/projects/:id/ai-planning` | AI 规划 |
 | `/projects/:id/agent` | 协作 Agent |
-| `/projects/:id/model-settings` | 项目 AI 模型与 Embedding 配置 |
+| `/projects/:id/model-settings` | 旧项目模型配置（已废弃，只读兼容） |
+| `/projects/:id/integrations` | 项目集成与 MCP |
+| `/settings/ai` | 个人 AI 设置 |
 | `/admin` | 系统管理 |
+| `/admin/embedding` | AI Infrastructure（系统 Embedding） |
 
 ### 状态管理
 
