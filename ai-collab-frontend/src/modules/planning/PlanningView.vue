@@ -723,7 +723,8 @@ watch(projectId, async () => {
 }
 
 .task-unassigned {
-  border-left: 3px solid #ff9800;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
   background: #fff8e1;
 }
 

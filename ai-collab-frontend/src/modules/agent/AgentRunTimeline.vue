@@ -14,4 +14,4 @@ defineProps<{ plan: AgentPlanView | null; events: AgentRunEvent[]; status?: Agen
   </section>
 </template>
 
-<style scoped>.timeline ol{display:grid;gap:6px;margin:12px 0;padding:0;list-style:none}.timeline li{display:flex;gap:10px;padding:8px 10px;border-left:3px solid var(--el-color-primary);background:var(--el-fill-color-lighter);font-size:13px}.timeline span,.timeline small{color:var(--el-text-color-secondary)}</style>
+<style scoped>.timeline ol{display:grid;gap:6px;margin:12px 0;padding:0;list-style:none}.timeline li{display:flex;gap:10px;padding:8px 10px;border:1px solid var(--color-border);border-radius:8px;background:var(--el-fill-color-lighter);font-size:13px}.timeline span,.timeline small{color:var(--el-text-color-secondary)}</style>
