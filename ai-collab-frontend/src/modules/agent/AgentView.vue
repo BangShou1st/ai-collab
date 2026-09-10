@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import EmptyState from '../../shared/EmptyState.vue'
+import { MoreFilled } from '@element-plus/icons-vue'
 import AgentContextChips from './AgentContextChips.vue'
 import AgentRunTimeline from './AgentRunTimeline.vue'
 import AgentApprovalCard from './AgentApprovalCard.vue'
@@ -437,10 +438,17 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
                   <span>{{ relativeTime(summaryOf(item.id)?.latestActivityAt ?? item.updatedAt) }}</span>
                 </span>
               </button>
-              <div v-if="isCreator(item)" class="session-actions session-overflow">
-                <el-button data-test="rename-agent-session" text size="small" @click="renameSession(item)">重命名</el-button>
-                <el-button data-test="delete-agent-session" text type="danger" size="small" @click="deleteSession(item)">删除</el-button>
-              </div>
+              <el-dropdown v-if="isCreator(item)" trigger="click" class="session-overflow" placement="bottom-end">
+                <button class="overflow-trigger" type="button" aria-label="会话更多操作" title="更多操作" @click.stop>
+                  <el-icon><MoreFilled /></el-icon>
+                </button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item data-test="rename-agent-session" @click="renameSession(item)">重命名</el-dropdown-item>
+                    <el-dropdown-item data-test="delete-agent-session" divided class="danger-item" @click="deleteSession(item)">删除</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
             <EmptyState v-if="!sessions.length" compact title="还没有协作会话" description="创建第一个会话，开始与 Agent 协作">
               <el-button type="primary" @click="newSession">创建会话</el-button>
@@ -594,13 +602,14 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
 .inspector-empty-state{display:grid;gap:6px;padding:24px 8px;text-align:center}
 .inspector-empty-state h2{font-size:14px;margin:0}
 .inspector-empty-state p{font-size:13px;color:var(--color-text-secondary);margin:0}
-.session-overflow{opacity:0.75}
-.session-row:focus-within .session-overflow,.session-row:hover .session-overflow{opacity:1}
-.session-row{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:4px;border-radius:10px}
+.session-row{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px;align-items:start;padding:4px;border-radius:10px}
+.overflow-trigger{display:none;align-items:center;justify-content:center;width:28px;height:28px;margin-top:6px;border:0;border-radius:8px;background:transparent;color:var(--color-text-secondary);cursor:pointer;flex:none}
+.overflow-trigger:hover{background:var(--el-fill-color)}
+.session-row:hover .overflow-trigger,.session-row:focus-within .overflow-trigger,.session-row:has(.session.active) .overflow-trigger{display:inline-flex}
+.danger-item{color:var(--color-danger)}
 .session-row:hover{background:var(--el-fill-color)}
 .session{width:100%;height:40px;min-height:40px;border:0;border-radius:8px;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;background:transparent;cursor:pointer}
 .session.active{background:var(--el-color-primary-light-8);color:var(--el-color-primary)}
-.session-actions{display:flex;justify-content:flex-end;gap:2px}
 .conversation{min-height:0;padding:18px;display:grid;grid-template-rows:minmax(0,1fr) auto auto;gap:10px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px}
 .agent-workspace .conversation{border:0;border-radius:0;background:var(--color-surface)}
 .agent-main{min-width:0;min-height:0;display:flex;flex-direction:column}

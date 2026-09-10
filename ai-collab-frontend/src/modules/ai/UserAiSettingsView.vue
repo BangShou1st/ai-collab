@@ -61,12 +61,13 @@ async function load(): Promise<void> {
     overrides.KNOWLEDGE_CHAT = saved.KNOWLEDGE_CHAT ?? ''
     overrides.PLANNING = saved.PLANNING ?? ''
     overrides.AGENT = saved.AGENT ?? ''
-    await loadZenModels(false)
   } catch (error) {
     showApiError(error, 'AI 配置加载')
   } finally {
     loading.value = false
   }
+  // 免费模型列表走独立 skeleton，不阻塞整页：先让 Zen 配置/模型/覆盖可见
+  await loadZenModels(false)
 }
 async function loadZenModels(refresh: boolean): Promise<void> {
   zenLoading.value = true

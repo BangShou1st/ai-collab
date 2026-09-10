@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import { useAuthStore } from '../../stores/auth-store'
+import { Cpu } from '@element-plus/icons-vue'
 import PageHeader from '../../shared/PageHeader.vue'
 import EmptyState from '../../shared/EmptyState.vue'
 import StatusBadge from '../../shared/StatusBadge.vue'
@@ -46,6 +47,7 @@ onMounted(load)
     <div v-loading="loading" class="home-grid">
       <template v-if="home">
         <section v-if="!home.aiConfigSummary.configured" class="ai-status-strip ai-onboard-card">
+          <span class="ai-strip-icon" aria-hidden="true"><el-icon><Cpu /></el-icon></span>
           <div>
             <h2>让 AI 加入你的工作流</h2>
             <p>连接自己的 AI 模型后，即可使用：知识问答 · AI 规划 · 项目 Agent</p>
@@ -53,6 +55,7 @@ onMounted(load)
           <router-link to="/settings/ai"><el-button type="primary">配置 AI</el-button></router-link>
         </section>
         <section v-else class="ai-status-strip ai-ready-card">
+          <span class="ai-strip-icon" aria-hidden="true"><el-icon><Cpu /></el-icon></span>
           <div>
             <h2>AI 已就绪</h2>
             <p>默认模型 {{ home.aiConfigSummary.defaultModel ?? '未设置默认' }} · 已配置 {{ home.aiConfigSummary.providerCount }} 个 Provider</p>

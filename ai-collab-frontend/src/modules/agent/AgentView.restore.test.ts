@@ -98,6 +98,12 @@ const stubs = {
   ElAlert: { template: '<div><slot /></div>' },
   ElSegmented: { template: '<div />' },
   ElCheckTag: { template: '<span><slot /></span>' },
+  ElDropdown: { template: '<div><slot /><slot name="dropdown" /></div>' },
+  ElDropdownMenu: { template: '<div><slot /></div>' },
+  ElDropdownItem: {
+    inheritAttrs: false,
+    template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
+  },
 }
 
 const mountView = () =>

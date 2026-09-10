@@ -96,7 +96,9 @@
 .stat-value { font-size: 22px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .stat-label { font-size: 12px; color: var(--color-text-secondary); }
 .planning-item-desc { font-size: 12px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.planning-detail-empty { box-shadow: none; }
+/* Unselected-plan empty: quiet centered block, not a giant white card */
+.planning-detail-empty { box-shadow: none; border-style: dashed; background: var(--color-surface-raised); max-width: 620px; margin: 0 auto; align-self: start; width: 100%; }
+.planning-detail-empty .el-card__body { padding: 20px 20px 16px; }
 .document-list-card { box-shadow: none; }
 
 /* ===== shared primitives: compact product empty states ===== */
@@ -110,18 +112,25 @@
 
 /* ===== home workspace: 12-col, no mechanical 3-col ===== */
 .home-grid { display: grid; gap: var(--section-gap); }
+/* Workspace status strip, not a hero card: low padding, flat, quiet */
 .ai-status-strip {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  background: var(--color-surface); border: 1px solid var(--color-border);
-  border-radius: var(--radius-card); padding: 16px 20px;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--color-surface-raised); border: 1px solid var(--color-border);
+  border-radius: var(--radius-card); padding: 10px 16px; box-shadow: none;
 }
+.ai-strip-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; flex: none; border-radius: 9px;
+  background: var(--color-primary-soft); color: var(--color-primary-hover); font-size: 17px;
+}
+.ai-status-strip > div { flex: 1; min-width: 0; }
 .ai-onboard-card, .ai-ready-card {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: var(--radius-card); padding: 16px 20px;
 }
-.ai-onboard-card h2, .ai-ready-card h2 { margin: 0 0 4px; font-size: 16px; }
-.ai-onboard-card p, .ai-ready-card p { margin: 0; color: var(--color-text-secondary); font-size: 14px; }
+.ai-onboard-card h2, .ai-ready-card h2 { margin: 0 0 2px; font-size: 14px; }
+.ai-onboard-card p, .ai-ready-card p { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
 .home-main { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .home-recent { grid-column: span 7; display: grid; gap: 10px; align-content: start; }
 .home-side { grid-column: span 5; display: grid; gap: 10px; align-content: start; }
@@ -339,10 +348,11 @@
 .project-card h2,
 .settings-grid h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.4;
 }
-.project-card .el-card__body { padding: 16px; display: grid; gap: 8px; }
+.project-card .el-card__header { padding: 10px 14px; }
+.project-card .el-card__body { padding: 10px 14px 12px; display: grid; gap: 6px; }
 .project-description {
   display: -webkit-box;
   min-height: 0;
@@ -354,7 +364,7 @@
   -webkit-line-clamp: 2;
 }
 .project-card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--color-text-muted); }
-.project-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.project-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
 .filter-bar {
   justify-content: flex-start;
   flex-wrap: wrap;
@@ -373,14 +383,21 @@
   font-size: 13px;
 }
 /* True work Kanban: tight hierarchy, compact empty, no giant default illustration */
+/* 5 status columns fit 1440 (content 1112px): 5x200+4x12=1048. Narrower
+   viewports keep a clear horizontal scroll with a visible thin scrollbar. */
 .board-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(240px, 1fr));
+  grid-template-columns: repeat(5, minmax(200px, 1fr));
   gap: 12px;
   padding-bottom: 10px;
   overflow-x: auto;
   align-items: start;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
 }
+.board-grid::-webkit-scrollbar { height: 8px; }
+.board-grid::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 4px; }
+.board-grid::-webkit-scrollbar-track { background: transparent; }
 .board-column {
   min-height: 320px;
   max-height: calc(100vh - 260px);

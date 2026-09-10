@@ -119,6 +119,12 @@ describe('AgentView session management', () => {
           ElOption: { template: '<span />' },
           ElInputNumber: { template: '<input />' },
           ElTimePicker: { template: '<input />' },
+          ElDropdown: { template: '<div><slot /><slot name="dropdown" /></div>' },
+          ElDropdownMenu: { template: '<div><slot /></div>' },
+          ElDropdownItem: {
+            inheritAttrs: false,
+            template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
+          },
         },
       },
     })
@@ -159,6 +165,12 @@ describe('AgentView context handoff', () => {
           ElTag: { template: '<span><slot /></span>' },
           ElEmpty: { template: '<div><slot /></div>' },
           ElInput: { template: '<textarea />' },
+          ElDropdown: { template: '<div><slot /><slot name="dropdown" /></div>' },
+          ElDropdownMenu: { template: '<div><slot /></div>' },
+          ElDropdownItem: {
+            inheritAttrs: false,
+            template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
+          },
         },
       },
     })
