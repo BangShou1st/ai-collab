@@ -2,6 +2,7 @@
 @import './styles/base.css';
 @import './styles/utilities.css';
 @import './styles/element-overrides.css';
+@import './styles/v211.css';
 
 .app-content {
   width: 100%;

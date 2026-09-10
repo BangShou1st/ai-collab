@@ -4,8 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AgentView from './AgentView.vue'
 
 const mocks = vi.hoisted(() => ({
-  route: { params: { projectId: 'project-1' } },
+  route: { params: { projectId: 'project-1' }, query: {} },
   sessions: vi.fn(),
+  sessionSummaries: vi.fn(),
+  latestRun: vi.fn(),
+  runApprovals: vi.fn(),
   approvals: vi.fn(),
   schedules: vi.fn(),
   mcpBindings: vi.fn(),
@@ -19,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('vue-router', () => ({
   useRoute: () => mocks.route,
+  useRouter: () => ({ replace: vi.fn() }),
 }))
 
 vi.mock('element-plus', () => ({
@@ -32,6 +36,9 @@ vi.mock('element-plus', () => ({
 vi.mock('./agent-api', () => ({
   agentApi: {
     sessions: mocks.sessions,
+    sessionSummaries: mocks.sessionSummaries,
+    latestRun: mocks.latestRun,
+    runApprovals: mocks.runApprovals,
     approvals: mocks.approvals,
     schedules: mocks.schedules,
     mcpBindings: mocks.mcpBindings,
@@ -40,6 +47,10 @@ vi.mock('./agent-api', () => ({
     renameSession: mocks.renameSession,
     deleteSession: mocks.deleteSession,
   },
+}))
+
+vi.mock('../../stores/auth-store', () => ({
+  useAuthStore: () => ({ currentUser: { id: 'user-1' } }),
 }))
 
 vi.mock('../project/project-api', () => ({
@@ -62,6 +73,9 @@ beforeEach(() => {
     createdAt: '2026-07-30T00:00:00Z',
     updatedAt: '2026-07-30T00:00:00Z',
   }]))
+  mocks.sessionSummaries.mockResolvedValue(response([]))
+  mocks.latestRun.mockResolvedValue(response(null))
+  mocks.runApprovals.mockResolvedValue(response([]))
   mocks.approvals.mockResolvedValue(response([]))
   mocks.schedules.mockResolvedValue(response([]))
   mocks.mcpBindings.mockResolvedValue(response([]))

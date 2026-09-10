@@ -1,22 +1,29 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import AgentContextChips from './AgentContextChips.vue'
 import AgentRunTimeline from './AgentRunTimeline.vue'
 import AgentApprovalCard from './AgentApprovalCard.vue'
+import SemanticDiff from '../../shared/SemanticDiff.vue'
 import { agentApi } from './agent-api'
 import { projectApi } from '../project/project-api'
 import type { ProjectMember } from '../project/types'
 import { streamAgentEvents } from './agent-event-stream'
 import { applyAgentEvent, emptyAgentTimeline, reconcileAgentRun, type AgentTimelineState } from './agent-run-store'
 import { agentRunPresentation } from './agent-run-state'
-import type { AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentSession, AgentSkill } from './types'
+import { reduceAgentActivities } from './agent-activity'
+import { useAuthStore } from '../../stores/auth-store'
+import type { AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentRunDetail, AgentSession, AgentSessionSummary, AgentSkill } from './types'
 
 const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
 const projectId = computed(() => String(route.params.projectId ?? ''))
+const currentUserId = computed(() => String(auth.currentUser?.id ?? ''))
+const mobileView = ref<'sessions' | 'chat' | 'inspector'>('chat')
 const showInspector = ref(true)
 const runTone = computed(() => {
   const severity = activeRunState.value?.severity
@@ -25,9 +32,29 @@ const runTone = computed(() => {
 const pendingApprovals = computed(() => approvals.value.filter((x) => x.status === 'PENDING'))
 const resolvedApprovals = computed(() => approvals.value.filter((x) => x.status !== 'PENDING'))
 const sessions = ref<AgentSession[]>([])
+const summaries = ref<AgentSessionSummary[]>([])
 const sessionId = ref('')
 const messages = ref<AgentMessage[]>([])
 const approvals = ref<AgentApproval[]>([])
+const runDetail = ref<AgentRunDetail | null>(null)
+const activities = computed(() => reduceAgentActivities(timeline.value.events))
+const summaryOf = (id: string) => summaries.value.find((s) => s.id === id)
+const isCreator = (item: AgentSession) => !currentUserId.value || item.creatorId === currentUserId.value
+const relativeTime = (value: string | null | undefined) => {
+  if (!value) return ''
+  const ms = Date.now() - new Date(value).getTime()
+  if (ms < 60_000) return '刚刚'
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)} 分钟前`
+  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)} 小时前`
+  return new Date(value).toLocaleString('zh-CN')
+}
+const statusDot = (status: string | null | undefined) => {
+  if (status === 'RUNNING' || status === 'QUEUED') return 'run'
+  if (status === 'WAITING_FOR_APPROVAL' || status === 'WAITING_FOR_USER_INPUT') return 'wait'
+  if (status === 'FAILED' || status === 'FAILED_RETRYABLE' || status === 'BUDGET_EXCEEDED') return 'fail'
+  if (status === 'SUCCEEDED') return 'done'
+  return 'idle'
+}
 const members = ref<ProjectMember[]>([])
 const skills = ref<AgentSkill[]>([])
 const selectedSkillCode = ref<string | null>(null)
@@ -48,17 +75,40 @@ async function load() {
   if (!projectId.value) return
   busy.value = true
   try {
-    const [s, a, skillList, m] = await Promise.all([
-      agentApi.sessions(projectId.value), agentApi.approvals(projectId.value),
+    const [s, sum, skillList, m] = await Promise.all([
+      agentApi.sessions(projectId.value), agentApi.sessionSummaries(projectId.value),
       agentApi.skills(projectId.value), projectApi.listMembers(projectId.value),
     ])
-    sessions.value = s.data; approvals.value = a.data; skills.value = skillList.data; members.value = m.data
+    sessions.value = s.data; summaries.value = sum.data; skills.value = skillList.data; members.value = m.data
     if (!sessionId.value && sessions.value[0]) sessionId.value = sessions.value[0].id
+    else if (sessionId.value) await restoreSession(sessionId.value)
   } catch (reason) { fail(reason, 'Agent 工作区加载') } finally { busy.value = false }
 }
 async function loadMessages() {
   messages.value = sessionId.value
     ? (await agentApi.messages(projectId.value, sessionId.value)).data : []
+}
+async function restoreSession(id: string) {
+  streamController?.abort()
+  activeRun.value = null
+  runDetail.value = null
+  approvals.value = []
+  timeline.value = emptyAgentTimeline()
+  const [msgs, latest] = await Promise.all([
+    agentApi.messages(projectId.value, id),
+    agentApi.latestRun(projectId.value, id),
+  ])
+  messages.value = msgs.data
+  runDetail.value = latest.data
+  if (latest.data?.run) {
+    activeRun.value = latest.data.run
+    timeline.value = emptyAgentTimeline(latest.data.run)
+    timeline.value.lastSequence = latest.data.lastSequence ?? 0
+    if (latest.data.run.status === 'RUNNING' || latest.data.run.status === 'QUEUED') {
+      startEventStream(latest.data.run)
+    }
+    await refreshApprovals()
+  }
 }
 async function newSession() {
   try {
@@ -133,23 +183,35 @@ async function send() {
     startEventStream(run)
   } catch (reason) { fail(reason, 'Agent 消息发送') } finally { sending.value = false }
 }
+function queryId(key: string): string | null {
+  const value = route.query[key]
+  const raw = Array.isArray(value) ? value[0] : value
+  return typeof raw === 'string' && /^[0-9a-f-]{36}$/i.test(raw) ? raw : null
+}
 function currentPageContext(): AgentPageContext {
-  const id = (key: string) => {
+  const paramId = (key: string) => {
     const value = route.params[key]
     return typeof value === 'string' && /^[0-9a-f-]{36}$/i.test(value) ? value : null
   }
   return {
     route: String(route.name ?? route.path).slice(0, 80),
-    selectedTaskId: removedContextKeys.value.has('selectedTaskId') ? null : id('taskId'),
-    selectedMilestoneId: removedContextKeys.value.has('selectedMilestoneId') ? null : id('milestoneId'),
-    selectedDocumentId: removedContextKeys.value.has('selectedDocumentId') ? null : id('documentId'),
-    selectedPlanId: removedContextKeys.value.has('selectedPlanId') ? null : id('planId'),
+    selectedTaskId: removedContextKeys.value.has('selectedTaskId') ? null : (queryId('task') ?? paramId('taskId')),
+    selectedMilestoneId: removedContextKeys.value.has('selectedMilestoneId') ? null : (queryId('milestone') ?? paramId('milestoneId')),
+    selectedDocumentId: removedContextKeys.value.has('selectedDocumentId') ? null : (queryId('document') ?? paramId('documentId')),
+    selectedPlanId: removedContextKeys.value.has('selectedPlanId') ? null : (queryId('plan') ?? paramId('planId')),
     filters: {},
   }
+}
+function dropQueryKey(key: string) {
+  const next = { ...route.query }
+  delete next[key]
+  void router.replace({ query: next })
 }
 const pageContext = computed(currentPageContext)
 function removeContext(key: keyof AgentPageContext) {
   removedContextKeys.value = new Set([...removedContextKeys.value, key])
+  const queryKey = key === 'selectedTaskId' ? 'task' : key === 'selectedDocumentId' ? 'document' : key === 'selectedPlanId' ? 'plan' : key === 'selectedMilestoneId' ? 'milestone' : null
+  if (queryKey) dropQueryKey(queryKey)
 }
 function clearContext() {
   removedContextKeys.value = new Set(['selectedTaskId', 'selectedMilestoneId', 'selectedDocumentId', 'selectedPlanId'])
@@ -195,7 +257,10 @@ async function consumeEventStream(runId: string, controller: AbortController, de
     if (!controller.signal.aborted) void consumeEventStream(runId, controller, Math.min(delayMs * 2, 5000))
   }
 }
-async function refreshApprovals() { approvals.value = (await agentApi.approvals(projectId.value)).data }
+async function refreshApprovals() {
+  if (!activeRun.value) { approvals.value = []; return }
+  approvals.value = (await agentApi.runApprovals(projectId.value, activeRun.value.id)).data
+}
 async function approve(item: AgentApproval) {
   await ElMessageBox.confirm('确认按此差异写入项目数据？操作将记录审批人和结果。', '批准 Agent 提案', { type: 'warning' })
   try {
@@ -252,10 +317,9 @@ async function reject(item: AgentApproval) {
 }
 const time = (value: string) => new Date(value).toLocaleString('zh-CN')
 watch(projectId, load, { immediate: true })
-watch(sessionId, () => {
-  streamController?.abort()
-  activeRun.value = null
-  loadMessages().catch(reason => fail(reason, 'Agent 消息加载'))
+watch(sessionId, (id) => {
+  if (!id) return
+  restoreSession(id).catch(reason => fail(reason, 'Agent 会话恢复'))
 })
 onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
 </script>
@@ -271,44 +335,51 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
       </template>
     </PageHeader>
     <div class="agent-workspace" :class="{ 'hide-inspector': !showInspector }">
-      <aside class="agent-sessions" aria-label="会话历史">
+      <aside class="agent-sessions" aria-label="会话历史" :data-view="mobileView">
             <el-button type="primary" plain @click="newSession">新建会话</el-button>
             <div v-for="item in sessions" :key="item.id" class="session-row">
-              <button class="session" :class="{ active: item.id === sessionId }"
-                @click="sessionId = item.id">{{ item.title }}</button>
-              <div class="session-actions">
-                <el-button
-                  data-test="rename-agent-session"
-                  text
-                  size="small"
-                  @click="renameSession(item)"
-                >
-                  重命名
-                </el-button>
-                <el-button
-                  data-test="delete-agent-session"
-                  text
-                  type="danger"
-                  size="small"
-                  @click="deleteSession(item)"
-                >
-                  删除
-                </el-button>
+              <button class="session" :class="{ active: item.id === sessionId }" @click="sessionId = item.id; mobileView = 'chat'">
+                <span class="session-title">{{ item.title }}</span>
+                <span class="session-meta">
+                  <i class="dot" :class="statusDot(summaryOf(item.id)?.latestRunStatus)" />
+                  <span v-if="summaryOf(item.id)?.latestRunStatus">{{ summaryOf(item.id)?.latestRunStatus === 'RUNNING' ? '运行中' : summaryOf(item.id)?.latestRunStatus === 'SUCCEEDED' ? '已完成' : summaryOf(item.id)?.latestRunStatus }}</span>
+                  <span>{{ relativeTime(summaryOf(item.id)?.latestActivityAt ?? item.updatedAt) }}</span>
+                </span>
+              </button>
+              <div v-if="isCreator(item)" class="session-actions">
+                <el-button data-test="rename-agent-session" text size="small" @click="renameSession(item)">重命名</el-button>
+                <el-button data-test="delete-agent-session" text type="danger" size="small" @click="deleteSession(item)">删除</el-button>
               </div>
             </div>
             <el-empty v-if="!sessions.length" description="还没有协作会话">
               <el-button type="primary" @click="newSession">创建会话</el-button>
             </el-empty>
           </aside>
-          <main class="conversation">
+          <main class="conversation" :data-view="mobileView">
+            <div class="mobile-switch">
+              <el-segmented v-model="mobileView" :options="[{ label: '会话', value: 'sessions' }, { label: '对话', value: 'chat' }, { label: '检查器', value: 'inspector' }]" />
+            </div>
             <div class="messages">
               <div v-if="!messages.length" class="empty">开始一个新对话</div>
               <article v-for="message in messages" :key="message.id" :class="message.role.toLowerCase()">
                 <strong>{{ message.role === 'USER' ? '你' : '项目协作 Agent' }}</strong>
                 <p>{{ message.content }}</p>
-                <small v-if="message.citations?.length">来源 {{ message.citations.length }} 条</small>
-                <small v-if="message.inferences?.length">推断 {{ message.inferences.length }} 条</small>
+                <details v-if="message.citations?.length"><summary>证据来源（{{ message.citations.length }}）</summary><pre>{{ JSON.stringify(message.citations, null, 2) }}</pre></details>
+                <details v-if="message.inferences?.length"><summary>推断依据（{{ message.inferences.length }}）</summary><pre>{{ JSON.stringify(message.inferences, null, 2) }}</pre></details>
               </article>
+              <div v-if="activities.length" class="activity-group" aria-label="执行过程">
+                <div v-for="act in activities" :key="act.key" class="activity" :class="[act.kind, act.status]">
+                  <span class="activity-mark" />
+                  <div class="activity-body">
+                    <div class="activity-title">{{ act.title }}</div>
+                    <div v-if="act.detail" class="activity-detail">{{ act.detail }}</div>
+                    <div v-if="act.count != null || act.durationMs != null" class="activity-meta">
+                      <span v-if="act.count != null">{{ act.count }} 条</span>
+                      <span v-if="act.durationMs != null">{{ (act.durationMs / 1000).toFixed(1) }}s</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div v-if="activeRun?.status === 'WAITING_FOR_USER_INPUT'" class="waiting-for-input">
               <el-alert title="Agent 需要你的输入" type="info" :closable="false" show-icon />
@@ -338,9 +409,9 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
               <el-button v-if="activeRun && !activeRunState?.terminal && activeRun?.status !== 'WAITING_FOR_USER_INPUT'" type="danger" plain @click="cancelActiveRun">停止运行</el-button>
             </div>
           </main>
-      <aside v-if="showInspector" class="agent-inspector" aria-label="运行检查器">
+      <aside v-if="showInspector" class="agent-inspector" aria-label="运行检查器" :data-view="mobileView">
         <section class="inspector-block">
-          <h2>运行状态</h2>
+          <h2>Run · {{ activeRun ? activeRun.status : '无运行' }}</h2>
           <el-alert
             v-if="activeRunState"
             :title="activeRunState.title"
@@ -367,8 +438,21 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
           <AgentApprovalCard v-for="item in pendingApprovals" :key="item.id" :approval="item" :members="members" @approve="approve" @reject="reject" />
         </section>
         <section class="inspector-block">
-          <h2>运行时间线</h2>
-          <AgentRunTimeline :plan="timeline.plan" :events="timeline.events" :status="activeRun?.status" />
+          <h2>Plan</h2>
+          <AgentRunTimeline :plan="timeline.plan" :events="[]" :status="activeRun?.status" />
+        </section>
+        <section v-if="activeRun" class="inspector-block">
+          <h2>Resources</h2>
+          <p class="inspector-meta">Steps {{ activeRun.stepsUsed }}/{{ activeRun.maxSteps }} · Tools {{ activeRun.toolCallsUsed }}/{{ activeRun.maxToolCalls }} · Tokens {{ activeRun.inputTokensUsed }}+{{ activeRun.outputTokensUsed }}</p>
+        </section>
+        <section v-if="activities.length" class="inspector-block">
+          <h2>Tool activity</h2>
+          <div v-for="act in activities" :key="act.key" class="activity mini" :class="[act.kind, act.status]"><span class="activity-mark" /><span>{{ act.title }}</span></div>
+        </section>
+        <section v-if="runDetail" class="inspector-block">
+          <h2>Advanced</h2>
+          <p class="inspector-meta">Run {{ runDetail.run.id }}</p>
+          <p class="inspector-meta">Sequence {{ runDetail.lastSequence }} · SSE {{ timeline.connected ? '已连接' : '未连接' }}</p>
         </section>
         <section class="inspector-block">
           <h2>页面上下文</h2>
@@ -412,6 +496,31 @@ article small{margin-right:12px;color:var(--el-text-color-secondary)}
 .inspector-meta{color:var(--color-text-muted);font-size:12px;margin:0}
 .inspector-actions{display:flex;gap:8px}
 .inspector-toggle{display:none}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d1d5db;margin-right:6px}
+.dot.run{background:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.dot.wait{background:#d97706}
+.dot.fail{background:#dc2626}
+.dot.done{background:#16a34a}
+.session-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.session-meta{display:flex;gap:8px;font-size:12px;color:var(--el-text-color-secondary)}
+.activity-group{display:grid;gap:6px;margin:12px 0}
+.activity{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:10px;background:var(--el-fill-color-lighter)}
+.activity.read,.activity.search{padding:6px 10px}
+.activity.proposal{background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.18)}
+.activity.approval{background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.25)}
+.activity.failure,.activity.failed{background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2)}
+.activity-mark{width:8px;height:8px;border-radius:50%;background:#9ca3af;margin-top:5px;flex:none}
+.activity.running .activity-mark{background:#2563eb;animation:pulse 1.2s infinite}
+.activity.done .activity-mark,.activity.success .activity-mark{background:#16a34a}
+.activity.failed .activity-mark,.activity.failure .activity-mark{background:#dc2626}
+.activity.waiting .activity-mark,.activity.approval .activity-mark{background:#d97706}
+.activity-title{font-size:13px;font-weight:600}
+.activity-detail{font-size:12px;color:var(--el-text-color-secondary)}
+.activity-meta{display:flex;gap:8px;font-size:12px;color:var(--el-text-color-secondary)}
+.activity.mini{font-size:12px;padding:4px 8px}
+@keyframes pulse{0%{opacity:1}50%{opacity:.35}100%{opacity:1}}
+.mobile-switch{display:none;margin-bottom:8px}
+@media(max-width:760px){.mobile-switch{display:block}.agent-sessions[data-view]:not([data-view="sessions"]),.conversation[data-view]:not([data-view="chat"]),.agent-inspector[data-view]:not([data-view="inspector"]){display:none}}
 @media(max-width:1280px){.agent-workspace{grid-template-columns:220px minmax(0,1fr)}.agent-workspace.hide-inspector{grid-template-columns:220px minmax(0,1fr)}.agent-inspector{grid-column:1/-1;max-height:none}.inspector-toggle{display:inline-flex}}
 @media(max-width:760px){.agent-workspace,.agent-workspace.hide-inspector{grid-template-columns:1fr}.agent-sessions{max-height:180px}.messages{max-height:none}}
 </style>

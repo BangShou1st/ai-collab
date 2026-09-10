@@ -5,9 +5,17 @@ import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
 import EmptyState from '../../shared/EmptyState.vue'
 import { userAiApi, type AiProviderType, type AiPurpose, type UserAiProvider } from './user-ai-api'
+import { aiPresetApi, type PresetStatus } from './ai-preset-api'
 
 const providers = ref<UserAiProvider[]>([])
 const loading = ref(false)
+const zen = ref<PresetStatus | null>(null)
+const zenModels = ref<string[]>([])
+const zenLoading = ref(false)
+const zenKey = ref('')
+const zenModel = ref('')
+const zenEnabled = ref(true)
+const zenDefault = ref(true)
 const saving = ref(false)
 const testingId = ref('')
 const dialogVisible = ref(false)
@@ -41,11 +49,52 @@ const canSave = computed(() => Boolean(form.name.trim() && form.modelName.trim()
 async function load(): Promise<void> {
   loading.value = true
   try {
-    providers.value = (await userAiApi.list()).data
+    const [custom, presetList] = await Promise.all([userAiApi.list(), aiPresetApi.presets()])
+    providers.value = custom.data
+    zen.value = presetList.data.find((p) => p.code === 'OPENCODE_ZEN_FREE') ?? null
+    if (zen.value?.modelName) zenModel.value = zen.value.modelName
+    zenEnabled.value = zen.value?.enabled ?? true
+    await loadZenModels(false)
   } catch (error) {
     showApiError(error, 'AI 配置加载')
   } finally {
     loading.value = false
+  }
+}
+async function loadZenModels(refresh: boolean): Promise<void> {
+  zenLoading.value = true
+  try {
+    zenModels.value = (await aiPresetApi.models(refresh)).data
+    if (!zenModel.value && zenModels.value[0]) zenModel.value = zenModels.value[0]
+  } catch (error) {
+    showApiError(error, '免费模型加载，可点击重试')
+  } finally {
+    zenLoading.value = false
+  }
+}
+async function saveZen(): Promise<void> {
+  if (!zenModel.value || saving.value) return
+  saving.value = true
+  try {
+    zen.value = (await aiPresetApi.save({ apiKey: zenKey.value || undefined, modelName: zenModel.value, enabled: zenEnabled.value, setDefault: zenDefault.value })).data
+    zenKey.value = ''
+    await load()
+    ElMessage.success('OpenCode Zen Free 已保存并启用')
+  } catch (error) {
+    showApiError(error, 'Zen 保存')
+  } finally {
+    saving.value = false
+  }
+}
+async function testZen(): Promise<void> {
+  testingId.value = 'zen'
+  try {
+    await aiPresetApi.test({ apiKey: zenKey.value || undefined, modelName: zenModel.value || undefined })
+    ElMessage.success('连接成功')
+  } catch (error) {
+    showApiError(error, '连接测试')
+  } finally {
+    testingId.value = ''
   }
 }
 
@@ -181,11 +230,33 @@ onMounted(load)
     </PageHeader>
 
     <section v-loading="loading" class="ai-settings-stack">
+      <div class="section-title"><h2>推荐连接</h2></div>
+      <div class="provider-tile zen">
+        <div class="provider-tile__head">
+          <div><strong>OpenCode Zen Free</strong><span v-if="zen?.connected" class="status-dot done" /> <span v-if="zen?.isDefault">默认</span></div>
+          <div class="provider-tile__sub">免费模型 · 自动发现 · OpenCode 官方接口 · 应用层 Direct</div>
+        </div>
+        <div v-if="zen?.connected" class="provider-tile__current">{{ zen?.modelName }}</div>
+        <el-skeleton v-if="zenLoading" :rows="2" animated />
+        <div v-else class="zen-form">
+          <el-input v-model="zenKey" type="password" show-password placeholder="API Key（留空则保留已保存）" />
+          <el-select v-model="zenModel" placeholder="选择免费模型" filterable>
+            <el-option v-for="m in zenModels" :key="m" :label="m" :value="m" />
+          </el-select>
+          <div class="zen-actions">
+            <el-button size="small" :loading="testingId === 'zen'" @click="testZen">连接测试</el-button>
+            <el-button size="small" @click="loadZenModels(true)">刷新模型</el-button>
+            <el-button size="small" type="primary" :loading="saving" :disabled="!zenModel" @click="saveZen">保存并使用</el-button>
+          </div>
+          <ul class="zen-points"><li>免费模型动态发现</li><li>OpenCode 官方 endpoint</li><li>应用层直连</li></ul>
+        </div>
+      </div>
+      <div class="section-title"><h2>你的模型</h2><el-button text type="primary" @click="openCreate">+ 自定义 Provider</el-button></div>
       <EmptyState
         v-if="!providers.length"
-        title="还没有 AI 配置"
-        description="添加后即可使用知识问答、AI 规划与 Agent"
-        action-label="添加 AI 配置"
+        title="还没有自定义模型"
+        description="上面的 Zen 连接已可直接使用，这里按需添加自己的网关"
+        action-label="添加自定义 Provider"
       />
       <el-card v-for="provider in providers" :key="provider.id" shadow="never" class="provider-card">
         <template #header>
