@@ -157,7 +157,6 @@ onMounted(load)
           </div>
         </template>
         <p class="project-description">{{ project.description || '暂无项目描述' }}</p>
-        <p class="project-description">{{ project.description || '暂无项目描述' }}</p>
         <p class="project-meta-line">
           <StatusBadge :label="projectStatusLabel(project.status)" />
           <span>{{ projectTypeLabel(project.type) }}</span>
