@@ -6,7 +6,6 @@
 .app-content {
   width: 100%;
 }
-+
 /* ===== V2 workspace shell ===== */
 .app-shell { display: flex; min-height: 100vh; }
 .app-sidebar {
@@ -90,7 +89,6 @@
 .next-task-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .next-task-due { color: var(--color-text-muted); font-size: 12px; }
 .overdue-tag { color: var(--color-danger); font-size: 12px; font-weight: 600; }
-+
 /* ===== unified auth experience ===== */
 .auth-split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 40px; align-items: center; max-width: 1020px; margin: 0 auto; width: 100%; }
 .auth-brand h1 { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.25; margin: 8px 0 16px; letter-spacing: -0.01em; }
