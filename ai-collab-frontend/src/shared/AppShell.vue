@@ -98,6 +98,7 @@ async function logout(): Promise<void> {
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item :command="`/projects/${projectId}/members`">成员管理</el-dropdown-item>
+              <el-dropdown-item :command="`/projects/${projectId}/integrations`">集成与 MCP</el-dropdown-item>
               <el-dropdown-item v-if="projectCtx.isAdminOrOwner" :command="`/projects/${projectId}/audit-logs`">操作日志</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -121,4 +122,3 @@ async function logout(): Promise<void> {
     </div>
   </div>
 </template>
-

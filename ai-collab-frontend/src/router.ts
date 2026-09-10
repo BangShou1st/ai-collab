@@ -7,6 +7,7 @@ import HomeView from './modules/home/HomeView.vue'
 import UserAiSettingsView from './modules/ai/UserAiSettingsView.vue'
 import EmbeddingAdminView from './modules/admin/EmbeddingAdminView.vue'
 import ProjectListView from './modules/project/ProjectListView.vue'
+import ProjectIntegrationsView from './modules/project/ProjectIntegrationsView.vue'
 import DashboardView from './modules/dashboard/DashboardView.vue'
 import TaskBoardView from './modules/work/TaskBoardView.vue'
 import MilestoneView from './modules/work/MilestoneView.vue'
@@ -56,6 +57,7 @@ export const router = createRouter({
     { path: '/projects/:projectId/ai-planning', component: PlanningView, meta: { title: 'AI 任务规划' } },
     { path: '/projects/:projectId/agent', component: AgentView, meta: { title: '项目协作 Agent' } },
     { path: '/projects/:projectId/model-settings', component: ProjectModelSettings, meta: { title: '模型配置' } },
+    { path: '/projects/:projectId/integrations', component: ProjectIntegrationsView, meta: { title: '集成与 MCP' } },
     { path: '/projects/:projectId/audit-logs', component: AuditLogView, meta: { title: '操作日志' } },
     { path: '/notifications', component: NotificationView, meta: { title: '通知中心' } },
     { path: '/admin', component: AdminView, meta: { title: '管理中心', systemAdmin: true } },
