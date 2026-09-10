@@ -3,6 +3,7 @@ import { onMounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { showApiError } from '../../api/api-result'
 import { formatDate } from '../../shared/display-labels'
+import EmptyState from '../../shared/EmptyState.vue'
 import PageHeader from '../../shared/PageHeader.vue'
 import { projectApi } from '../project/project-api'
 import type { Project } from '../project/types'
@@ -29,14 +30,6 @@ async function load(): Promise<void> {
     showApiError(error, '延期风险分析加载')
   } finally {
     loading.value = false
-  }
-}
-
-function getSeverityType(severity: string): 'danger' | 'warning' | 'info' {
-  switch (severity) {
-    case 'HIGH': return 'danger'
-    case 'MEDIUM': return 'warning'
-    default: return 'info'
   }
 }
 
@@ -67,46 +60,42 @@ onMounted(load)
       title="延期风险分析"
       :context="project?.name"
     />
-    <section v-loading="loading" class="risk-container">
-      <el-empty v-if="!loading && !analysis" description="暂无风险数据" :image-size="64" />
+    <section v-loading="loading" class="risk-stack">
+      <EmptyState v-if="!loading && !analysis" compact title="暂无风险数据" description="任务数据充足后会自动生成风险评估" />
       <template v-else-if="analysis">
-        <el-card class="summary-card">
-          <div class="summary-grid">
-            <div class="summary-item danger">
-              <span class="summary-count">{{ analysis.summary.highRiskCount }}</span>
-              <span class="summary-label">高风险</span>
-            </div>
-            <div class="summary-item warning">
-              <span class="summary-count">{{ analysis.summary.mediumRiskCount }}</span>
-              <span class="summary-label">中风险</span>
-            </div>
-            <div class="summary-item info">
-              <span class="summary-count">{{ analysis.summary.lowRiskCount }}</span>
-              <span class="summary-label">低风险</span>
-            </div>
+        <div class="risk-metrics">
+          <div class="risk-tile">
+            <strong class="risk-danger">{{ analysis.summary.highRiskCount }}</strong>
+            <span class="summary-label">高风险</span>
           </div>
-          <div class="inline-notice" role="status">
-            <span class="status-dot" :class="analysis.summary.highRiskCount > 0 ? 'wait' : 'done'" />
-            <span>{{ analysis.summary.overallAssessment }}</span>
+          <div class="risk-tile">
+            <strong class="risk-warn">{{ analysis.summary.mediumRiskCount }}</strong>
+            <span class="summary-label">中风险</span>
           </div>
-        </el-card>
+          <div class="risk-tile">
+            <strong>{{ analysis.summary.lowRiskCount }}</strong>
+            <span class="summary-label">低风险</span>
+          </div>
+        </div>
+        <div class="inline-notice" role="status">
+          <span class="status-dot" :class="analysis.summary.highRiskCount > 0 ? 'wait' : 'done'" />
+          <span>{{ analysis.summary.overallAssessment }}</span>
+        </div>
 
-        <el-card v-if="analysis.risks.length > 0" class="risks-card">
-          <template #header>
-            <h3>风险列表</h3>
-          </template>
+        <section v-if="analysis.risks.length > 0" class="risk-list-section">
+          <h3 class="section-title">风险列表</h3>
           <el-table :data="analysis.risks" style="width: 100%">
             <el-table-column prop="taskTitle" label="任务" min-width="200" />
             <el-table-column label="风险类型" width="100">
               <template #default="{ row }">
-                <el-tag size="small">{{ getRiskTypeLabel(row.riskType) }}</el-tag>
+                <span>{{ getRiskTypeLabel(row.riskType) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="严重程度" width="100">
               <template #default="{ row }">
-                <el-tag :type="getSeverityType(row.severity)" size="small">
+                <span class="severity" :class="String(row.severity).toLowerCase()">
                   {{ getSeverityLabel(row.severity) }}
-                </el-tag>
+                </span>
               </template>
             </el-table-column>
             <el-table-column prop="description" label="描述" min-width="250" />
@@ -117,60 +106,20 @@ onMounted(load)
             </el-table-column>
             <el-table-column prop="assigneeName" label="负责人" width="120" />
           </el-table>
-        </el-card>
+        </section>
       </template>
     </section>
   </main>
 </template>
 
 <style scoped>
-.risk-container {
-  padding: 0 24px;
-}
-
-.summary-card {
-  margin-bottom: 16px;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.summary-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px;
-  border-radius: 8px;
-}
-
-.summary-item.danger { background-color: #fef0f0; }
-.summary-item.warning { background-color: #fdf6ec; }
-.summary-item.info { background-color: #f4f4f5; }
-
-.summary-count {
-  font-size: 32px;
-  font-weight: 600;
-}
-
-.summary-item.danger .summary-count { color: #f56c6c; }
-.summary-item.warning .summary-count { color: #e6a23c; }
-.summary-item.info .summary-count { color: #909399; }
-
-.summary-label {
-  font-size: 14px;
-  color: #606266;
-  margin-top: 4px;
-}
-
-.assessment-alert {
-  margin-top: 8px;
-}
-
-.risks-card h3 {
-  margin: 0;
-}
+.risk-stack { display: grid; gap: 16px; }
+.risk-list-section { display: grid; gap: 10px; }
+.summary-label { font-size: 13px; color: var(--color-text-secondary); }
+.risk-danger { color: var(--color-danger); }
+.risk-warn { color: var(--color-warning); }
+.severity { font-weight: 600; font-size: 13px; }
+.severity.high { color: var(--color-danger); }
+.severity.medium { color: var(--color-warning); }
+.severity.low { color: var(--color-text-secondary); }
 </style>

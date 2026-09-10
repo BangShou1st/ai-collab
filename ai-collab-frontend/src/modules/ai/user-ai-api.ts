@@ -60,4 +60,7 @@ export const userAiApi = {
   async unassignPurpose(purpose: AiPurpose): Promise<void> {
     await httpClient.delete(`/user/ai-providers/purposes/${purpose}`)
   },
+  async listPurposes(): Promise<ApiResult<Record<AiPurpose, string>>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<Record<AiPurpose, string>>>('/user/ai-providers/purposes'))
+  },
 }

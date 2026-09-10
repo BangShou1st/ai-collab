@@ -9,7 +9,9 @@ import {
   roleLabel,
 } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
+import EmptyState from '../../shared/EmptyState.vue'
 import StatusBadge from '../../shared/StatusBadge.vue'
+import { MoreFilled } from '@element-plus/icons-vue'
 import { isEndDateDisabled, isStartDateDisabled } from '../../shared/date-constraints'
 import { projectApi } from './project-api'
 import type { Project, ProjectType } from './types'
@@ -149,25 +151,25 @@ onMounted(load)
       </template>
     </PageHeader>
     <section v-loading="loading" class="project-grid">
-      <el-card v-for="project in projects" :key="project.id" class="project-card">
+      <el-card v-for="project in projects" :key="project.id" class="project-card object-card">
         <template #header>
           <div class="header-row">
             <h2>{{ project.name }}</h2>
           </div>
         </template>
         <p class="project-description">{{ project.description || '暂无项目描述' }}</p>
-        <p class="project-meta-line">
+        <p class="project-card-meta">
           <StatusBadge :label="projectStatusLabel(project.status)" />
           <span>{{ projectTypeLabel(project.type) }}</span>
           <span>{{ roleLabel(project.role) }}</span>
         </p>
-        <p class="project-meta-line muted">项目周期：{{ formatDate(project.startDate) }} 至 {{ formatDate(project.dueDate) }}</p>
-        <div class="actions">
+        <p class="project-card-meta">项目周期：{{ formatDate(project.startDate) }} 至 {{ formatDate(project.dueDate) }}</p>
+        <div class="project-card-foot">
           <router-link class="el-button el-button--primary" :to="`/projects/${project.id}/dashboard`">
             进入项目
           </router-link>
           <el-dropdown v-if="project.role === 'OWNER'" trigger="click">
-            <el-button text aria-label="更多操作">更多⌄</el-button>
+            <el-button text aria-label="更多操作"><el-icon><MoreFilled /></el-icon></el-button>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item data-action="edit-project" @click="openEdit(project)">编辑</el-dropdown-item>
@@ -181,7 +183,7 @@ onMounted(load)
           </el-dropdown>
         </div>
       </el-card>
-      <el-empty v-if="!loading && projects.length === 0" description="还没有项目，创建第一个项目吧" />
+      <EmptyState v-if="!loading && projects.length === 0" compact title="还没有项目" description="点击右上新建项目，开始协作" />
     </section>
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="480px" @closed="resetForm">
       <el-form label-position="top" @submit.prevent="saveProject">

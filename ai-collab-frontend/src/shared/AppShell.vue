@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import {
@@ -16,6 +16,40 @@ const auth = useAuthStore()
 const projectCtx = useProjectContextStore()
 const loggingOut = ref(false)
 const collapsed = ref(false)
+
+const mobileNavOpen = ref(false)
+const userInitial = computed(() => {
+  const name = auth.currentUser?.displayName || auth.currentUser?.username || '协'
+  return name.trim().charAt(0).toUpperCase() || '协'
+})
+const userName = computed(() => auth.currentUser?.displayName || auth.currentUser?.username || '协作用户')
+
+function closeMobileNav(): void {
+  if (!mobileNavOpen.value) return
+  mobileNavOpen.value = false
+  document.body.classList.remove('mobile-nav-open')
+}
+function openMobileNav(): void {
+  mobileNavOpen.value = true
+  document.body.classList.add('mobile-nav-open')
+}
+function onEscape(event: KeyboardEvent): void {
+  if (event.key === 'Escape') closeMobileNav()
+}
+async function gotoAccount(): Promise<void> {
+  closeMobileNav()
+  await router.push('/account')
+}
+
+watch(
+  () => route.fullPath,
+  () => closeMobileNav(),
+)
+onMounted(() => window.addEventListener('keydown', onEscape))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onEscape)
+  document.body.classList.remove('mobile-nav-open')
+})
 
 const projectId = computed(() =>
   typeof route.params.projectId === 'string' ? route.params.projectId : '',
@@ -55,7 +89,14 @@ async function logout(): Promise<void> {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ collapsed }">
+  <div class="app-shell" :class="{ collapsed, 'mobile-open': mobileNavOpen }">
+    <div class="mobile-topbar">
+      <button class="hamburger" type="button" aria-label="打开导航" @click="openMobileNav">
+        <el-icon><Expand /></el-icon>
+      </button>
+      <span class="mobile-brand">AI 项目协作平台</span>
+    </div>
+    <div v-if="mobileNavOpen" class="mobile-backdrop" @click="closeMobileNav" />
     <aside class="app-sidebar" aria-label="工作区导航">
       <router-link class="brand" to="/home" aria-label="工作台">
         <span class="brand-mark">AI</span>
@@ -111,14 +152,21 @@ async function logout(): Promise<void> {
         <button class="side-collapse" type="button" @click="collapsed = !collapsed" :aria-label="collapsed ? '展开侧栏' : '收起侧栏'" :title="collapsed ? '展开侧栏' : '收起侧栏'">
           <el-icon><component :is="collapsed ? Expand : Fold" /></el-icon>
         </button>
-        <span v-if="!collapsed" class="user-copy">
-          <strong>{{ auth.currentUser?.displayName || auth.currentUser?.username }}</strong>
-        </span>
+        <button v-if="!collapsed" class="user-chip" type="button" @click="gotoAccount" aria-label="账号设置">
+          <span class="user-avatar" aria-hidden="true">{{ userInitial }}</span>
+          <span class="user-copy">
+            <strong>{{ userName }}</strong>
+            <small>账号设置 · 退出登录</small>
+          </span>
+        </button>
         <el-button v-if="!collapsed" text :loading="loggingOut" aria-label="退出登录" @click="logout">退出</el-button>
+        <button v-else class="user-chip collapsed-avatar" type="button" @click="gotoAccount" aria-label="账号设置" title="账号设置">
+          <span class="user-avatar" aria-hidden="true">{{ userInitial }}</span>
+        </button>
       </div>
     </aside>
 
-    <div class="app-content">
+    <div class="app-content" @click="closeMobileNav">
       <slot />
     </div>
   </div>

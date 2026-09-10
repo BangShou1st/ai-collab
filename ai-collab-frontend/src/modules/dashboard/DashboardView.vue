@@ -97,7 +97,7 @@ onMounted(load)
       </template>
     </PageHeader>
 
-    <div v-loading="loading">
+    <div v-loading="loading" class="overview-stack">
       <template v-if="dashboard">
         <div class="inline-notice" role="status">
           <span class="status-dot" :class="healthState.tone === 'warning' ? 'wait' : healthState.tone === 'info' ? 'run' : 'done'" />

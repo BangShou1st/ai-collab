@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
+import EmptyState from '../../shared/EmptyState.vue'
 import AgentContextChips from './AgentContextChips.vue'
 import AgentRunTimeline from './AgentRunTimeline.vue'
 import AgentApprovalCard from './AgentApprovalCard.vue'
@@ -424,8 +425,8 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
     <div class="mobile-switch">
       <el-segmented v-model="mobileView" :options="[{ label: '会话', value: 'sessions' }, { label: '对话', value: 'chat' }, { label: '检查器', value: 'inspector' }]" />
     </div>
-    <div class="agent-workspace" :class="{ 'hide-inspector': !showInspector }" :data-view="mobileView">
-      <aside class="agent-sessions" aria-label="会话历史" :data-view="mobileView">
+    <div class="agent-layout agent-workspace" :class="{ 'hide-inspector': !showInspector }" :data-view="mobileView">
+      <aside class="agent-rail agent-sessions" aria-label="会话历史" :data-view="mobileView">
             <el-button type="primary" plain @click="newSession">新建会话</el-button>
             <div v-for="item in sessions" :key="item.id" class="session-row">
               <button class="session" :class="{ active: item.id === sessionId }" @click="sessionId = item.id; mobileView = 'chat'">
@@ -436,18 +437,26 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
                   <span>{{ relativeTime(summaryOf(item.id)?.latestActivityAt ?? item.updatedAt) }}</span>
                 </span>
               </button>
-              <div v-if="isCreator(item)" class="session-actions">
+              <div v-if="isCreator(item)" class="session-actions session-overflow">
                 <el-button data-test="rename-agent-session" text size="small" @click="renameSession(item)">重命名</el-button>
                 <el-button data-test="delete-agent-session" text type="danger" size="small" @click="deleteSession(item)">删除</el-button>
               </div>
             </div>
-            <el-empty v-if="!sessions.length" description="还没有协作会话">
+            <EmptyState v-if="!sessions.length" compact title="还没有协作会话" description="创建第一个会话，开始与 Agent 协作">
               <el-button type="primary" @click="newSession">创建会话</el-button>
-            </el-empty>
+            </EmptyState>
           </aside>
-          <main class="conversation" :data-view="mobileView">
+          <main class="agent-main conversation" :data-view="mobileView">
             <div class="messages">
-              <div v-if="!conversationBlocks.length" class="empty">开始一个新对话</div>
+              <div v-if="!conversationBlocks.length" class="conversation-empty">
+                <h3>从一个问题开始</h3>
+                <p>我可以检查风险、整理进度，或生成下一步行动建议。</p>
+                <div class="suggested-prompts">
+                  <el-button plain size="small" @click="question = '检查本周风险，并给出来源'">检查本周风险</el-button>
+                  <el-button plain size="small" @click="question = '整理项目进度'">整理项目进度</el-button>
+                  <el-button plain size="small" @click="question = '生成下一步行动建议'">生成下一步行动建议</el-button>
+                </div>
+              </div>
               <template v-for="block in conversationBlocks" :key="block.kind === 'message' ? block.message.id : block.items.map((a) => a.key).join('|')">
               <article v-if="block.kind === 'message'" :class="block.message.role.toLowerCase()">
                 <strong>{{ block.message.role === 'USER' ? '你' : '项目协作 Agent' }}</strong>
@@ -483,19 +492,15 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
             <div v-if="activeRun?.status === 'WAITING_FOR_USER_INPUT'" class="waiting-for-input">
               <el-alert title="Agent 需要你的输入" type="info" :closable="false" show-icon />
             </div>
-            <div class="skill-selector" v-if="skills.length">
-              <span class="skill-label">选择能力：</span>
-              <el-check-tag
-                v-for="skill in skills" :key="skill.code"
-                :checked="selectedSkillCode === skill.code"
-                @change="selectedSkillCode = selectedSkillCode === skill.code ? null : skill.code"
-              >{{ skill.displayName }}</el-check-tag>
-              <el-check-tag
-                :checked="selectedSkillCode === null"
-                @change="selectedSkillCode = null"
-              >自动识别</el-check-tag>
-            </div>
-            <el-input v-model="question" type="textarea" :rows="4" maxlength="4000" show-word-limit
+            <div class="composer">
+              <details v-if="skills.length" class="capability">
+                <summary>能力：{{ skills.find((s) => s.code === selectedSkillCode)?.displayName ?? '自动识别' }}</summary>
+                <div class="capability-options">
+                  <el-check-tag :checked="selectedSkillCode === null" @change="selectedSkillCode = null">自动识别</el-check-tag>
+                  <el-check-tag v-for="skill in skills" :key="skill.code" :checked="selectedSkillCode === skill.code" @change="selectedSkillCode = selectedSkillCode === skill.code ? null : skill.code">{{ skill.displayName }}</el-check-tag>
+                </div>
+              </details>
+            <el-input v-model="question" type="textarea" :rows="3" maxlength="4000" show-word-limit
               :placeholder="activeRun?.status === 'WAITING_FOR_USER_INPUT' ? '请输入你的回复...' : '例如：检查本周进度和高风险事项，并给出来源'"
               @keydown.ctrl.enter.prevent="activeRun?.status === 'WAITING_FOR_USER_INPUT' ? continueRunHandler() : send" />
             <div class="composer-actions">
@@ -507,10 +512,15 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
               <el-button v-else type="primary" :loading="sending" :disabled="!question.trim()" @click="send">发送（Ctrl+Enter）</el-button>
               <el-button v-if="activeRun && !activeRunState?.terminal && activeRun?.status !== 'WAITING_FOR_USER_INPUT'" type="danger" plain @click="cancelActiveRun">停止运行</el-button>
             </div>
+            </div>
           </main>
       <aside v-if="showInspector" class="agent-inspector" aria-label="运行检查器" :data-view="mobileView">
-        <section class="inspector-block">
-          <h2>Run · {{ activeRun ? runStatusLabel(activeRun.status) : '无运行' }}</h2>
+        <div v-if="!activeRun" class="inspector-empty-state">
+          <h2>运行详情</h2>
+          <p>执行 Agent 后，这里会展示计划、工具活动和审批。</p>
+        </div>
+        <section v-if="activeRun" class="inspector-block">
+          <h2>运行 · {{ runStatusLabel(activeRun.status) }}</h2>
           <el-alert
             v-if="activeRunState"
             :title="activeRunState.title"
@@ -518,7 +528,6 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
             :closable="false"
             show-icon
           />
-          <p v-else class="inspector-empty">暂无运行</p>
           <p class="inspector-meta">SSE {{ timeline.connected ? '已连接' : '未连接' }}</p>
           <div v-if="activeRunState?.canRetry" class="inspector-actions">
             <el-button
@@ -531,12 +540,12 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
             </el-button>
           </div>
         </section>
-        <section class="inspector-block">
+        <section v-if="activeRun" class="inspector-block">
           <h2>待审批（{{ pendingApprovals.length }}）</h2>
-          <el-empty v-if="!pendingApprovals.length" description="暂无待审批提案" :image-size="60" />
+          <div v-if="!pendingApprovals.length" class="board-empty">暂无待审批提案</div>
           <AgentApprovalCard v-for="item in pendingApprovals" :key="item.id" :approval="item" :members="members" @approve="approve" @reject="reject" />
         </section>
-        <section class="inspector-block">
+        <section v-if="activeRun" class="inspector-block">
           <h2>Plan</h2>
           <AgentRunTimeline :plan="timeline.plan" :status="activeRun?.status" />
         </section>
@@ -544,7 +553,7 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
           <h2>Resources</h2>
           <p class="inspector-meta">Steps {{ activeRun.stepsUsed }}/{{ activeRun.maxSteps }} · Tools {{ activeRun.toolCallsUsed }}/{{ activeRun.maxToolCalls }} · Tokens {{ activeRun.inputTokensUsed }}+{{ activeRun.outputTokensUsed }}</p>
         </section>
-        <section v-if="activities.length" class="inspector-block">
+        <section v-if="activeRun && activities.length" class="inspector-block">
           <h2>Tool activity</h2>
           <div v-for="act in activities" :key="act.key" class="activity mini" :class="[act.kind, act.status]"><span class="activity-mark" /><span>{{ act.title }}</span></div>
         </section>
@@ -557,7 +566,7 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
           <h2>页面上下文</h2>
           <AgentContextChips :context="pageContext" @remove="removeContext" @clear="clearContext" />
         </section>
-        <section v-if="resolvedApprovals.length" class="inspector-block">
+        <section v-if="activeRun && resolvedApprovals.length" class="inspector-block">
           <h2>已处理提案（{{ resolvedApprovals.length }}）</h2>
           <AgentApprovalCard v-for="item in resolvedApprovals" :key="item.id" :approval="item" :members="members" @approve="approve" @reject="reject" />
         </section>
@@ -567,16 +576,34 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
 </template>
 
 <style scoped>
-.agent-page{display:flex;flex-direction:column;gap:12px;min-height:calc(100dvh - 116px);padding-top:16px;padding-bottom:16px}
-.agent-workspace{display:grid;grid-template-columns:248px minmax(0,1fr) 340px;gap:12px;align-items:start}
-.agent-sessions,.agent-inspector{background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:0}
-.agent-sessions{max-height:calc(100dvh - 220px);overflow-y:auto}
+.agent-page{display:flex;flex-direction:column;gap:12px;min-height:calc(100dvh - 116px);padding-top:0;padding-bottom:16px}
+/* Three zones separated by borders, not three floating cards */
+.agent-workspace{display:grid;grid-template-columns:232px minmax(0,1fr) 328px;align-items:stretch;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-card);overflow:hidden;min-height:calc(100dvh - 240px)}
+.agent-sessions,.agent-inspector{background:var(--color-surface);padding:14px;display:flex;flex-direction:column;gap:8px;min-height:0;border:0;border-radius:0}
+.agent-rail{border-right:1px solid var(--color-border)}
+.agent-inspector{border-left:1px solid var(--color-border);background:var(--color-surface-raised)}
+.agent-sessions{max-height:calc(100dvh - 240px);overflow-y:auto}
+.conversation-empty{display:grid;gap:8px;justify-items:center;text-align:center;padding:48px 20px}
+.conversation-empty h3{margin:0;font-size:16px}
+.conversation-empty p{margin:0;color:var(--color-text-secondary);font-size:13px}
+.suggested-prompts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.composer{display:grid;gap:8px;position:sticky;bottom:0;background:var(--color-surface);padding-top:8px;border-top:1px solid var(--color-border)}
+.capability{font-size:13px;color:var(--color-text-secondary)}
+.capability summary{cursor:pointer;list-style:none}
+.capability-options{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.inspector-empty-state{display:grid;gap:6px;padding:24px 8px;text-align:center}
+.inspector-empty-state h2{font-size:14px;margin:0}
+.inspector-empty-state p{font-size:13px;color:var(--color-text-secondary);margin:0}
+.session-overflow{opacity:0.75}
+.session-row:focus-within .session-overflow,.session-row:hover .session-overflow{opacity:1}
 .session-row{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:4px;border-radius:10px}
 .session-row:hover{background:var(--el-fill-color)}
 .session{width:100%;height:40px;min-height:40px;border:0;border-radius:8px;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;background:transparent;cursor:pointer}
 .session.active{background:var(--el-color-primary-light-8);color:var(--el-color-primary)}
 .session-actions{display:flex;justify-content:flex-end;gap:2px}
 .conversation{min-height:0;padding:18px;display:grid;grid-template-rows:minmax(0,1fr) auto auto;gap:10px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px}
+.agent-workspace .conversation{border:0;border-radius:0;background:var(--color-surface)}
+.agent-main{min-width:0;min-height:0;display:flex;flex-direction:column}
 .messages{min-height:0;overflow:auto;max-height:calc(100dvh - 420px)}
 article{max-width:78%;margin:12px 0;padding:12px 14px;border-radius:10px;background:var(--el-fill-color-light);white-space:pre-wrap}
 article.user{margin-left:auto;background:var(--el-color-primary-light-9)}

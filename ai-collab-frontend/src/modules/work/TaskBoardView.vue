@@ -584,29 +584,27 @@ onMounted(load)
         @dragleave="onDragLeave"
         @drop="onDrop(status, $event)"
       >
-        <h2>{{ taskStatusLabel(status) }} <el-tag round>{{ columnTasks(status).length }}</el-tag></h2>
-        <TaskBoardCard
-          v-for="task in columnTasks(status)"
-          :key="task.id"
-          :task="task"
-          :can-change-status="canChangeStatus(task)"
-          :opening="openingTaskId === task.id"
-          :updating="updatingTaskId === task.id"
-          :operation-locked="Boolean(updatingTaskId)"
-          :draggable="canManage || (project?.role === 'MEMBER' && task.assigneeId === auth.currentUser?.id)"
-          :selected="selectedTaskIds.has(task.id)"
-          :class="{ 'source-plan-highlight': task.sourcePlanId === highlightedSourcePlanId, 'dragging': draggedTask?.id === task.id }"
-          @open="openTask"
-          @update-status="updateStatus"
-          @dragstart="onDragStart(task, $event)"
-          @dragend="onDragEnd"
-          @toggle-select="toggleTaskSelection"
-        />
-        <el-empty
-          v-if="columnTasks(status).length === 0"
-          description="暂无任务"
-          :image-size="64"
-        />
+        <h2>{{ taskStatusLabel(status) }} <span class="board-count">{{ columnTasks(status).length }}</span></h2>
+        <div class="board-tasks">
+          <TaskBoardCard
+            v-for="task in columnTasks(status)"
+            :key="task.id"
+            :task="task"
+            :can-change-status="canChangeStatus(task)"
+            :opening="openingTaskId === task.id"
+            :updating="updatingTaskId === task.id"
+            :operation-locked="Boolean(updatingTaskId)"
+            :draggable="canManage || (project?.role === 'MEMBER' && task.assigneeId === auth.currentUser?.id)"
+            :selected="selectedTaskIds.has(task.id)"
+            :class="{ 'source-plan-highlight': task.sourcePlanId === highlightedSourcePlanId, 'dragging': draggedTask?.id === task.id }"
+            @open="openTask"
+            @update-status="updateStatus"
+            @dragstart="onDragStart(task, $event)"
+            @dragend="onDragEnd"
+            @toggle-select="toggleTaskSelection"
+          />
+          <div v-if="columnTasks(status).length === 0" class="board-empty">暂无任务</div>
+        </div>
       </div>
     </section>
 

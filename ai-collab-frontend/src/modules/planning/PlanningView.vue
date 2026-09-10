@@ -379,19 +379,23 @@ watch(projectId, async () => {
       <template #actions><router-link v-if="selected" :to="`/projects/${projectId}/agent?plan=${selected.id}`"><el-button text type="primary">交给 Agent</el-button></router-link><el-button v-if="canCreate" type="primary" @click="createVisible = true">创建规划</el-button></template>
     </PageHeader>
     <section class="planning-layout">
-      <el-card>
-        <button v-for="plan in plans" :key="plan.id" class="planning-list-item" @click="open(plan)">
-          <strong>{{ plan.title }}</strong><el-tag>{{ planStatusLabel(plan.status) }}</el-tag><small>{{ plan.goal }} · 版本 {{ plan.latestVersionNo }}</small>
+      <div class="planning-list-panel">
+        <button v-for="plan in plans" :key="plan.id" class="planning-list-item" :class="{ 'is-active': selected?.id === plan.id }" @click="open(plan)">
+          <span class="planning-item-title">{{ plan.title }}</span>
+          <span class="planning-item-meta"><span class="status-dot" :class="plan.status === 'CONFIRMED' ? 'done' : plan.status === 'FAILED' ? 'fail' : 'run'" /><span>{{ planStatusLabel(plan.status) }}</span><span>·</span><span>v{{ plan.latestVersionNo }}</span></span>
+          <small class="planning-item-desc">{{ plan.goal }}</small>
         </button>
         <EmptyState
           v-if="!plans.length"
+          compact
           title="当前还没有规划"
           description="描述你的目标，AI 会生成一份草案"
         />
-      </el-card>
-      <el-card v-if="!selected">
+      </div>
+      <el-card v-if="!selected" class="planning-detail-empty">
         <EmptyState
-          title="AI 任务规划"
+          compact
+          title="选择一份规划查看详情"
           description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。"
         />
         <div class="planning-empty-actions">

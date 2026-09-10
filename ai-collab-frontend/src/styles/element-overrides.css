@@ -1,12 +1,29 @@
+/* Element base unification: minimal, flat by default. Tables/lists are flat
+   surfaces; only independent object cards may carry the faint shadow. */
 .el-card,
-.el-table,
 .content-card {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
+  box-shadow: none;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.el-card.object-card {
   box-shadow: var(--shadow-card);
 }
-.el-card {
+.el-table,
+.el-table__inner-wrapper {
+  border-radius: var(--radius-surface);
+  box-shadow: none;
+}
+.el-table {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   overflow: hidden;
+}
+.el-table th.el-table__cell {
+  background: var(--color-surface-raised);
+  font-weight: 600;
 }
 .el-dialog {
   border-radius: var(--radius-dialog);
@@ -32,6 +49,21 @@
 .el-textarea__inner {
   border-radius: var(--radius-input);
 }
+/* el-alert is reserved for true alerts; product notices use .inline-notice */
 .el-alert {
   margin-bottom: 16px;
+  border-radius: var(--radius-surface);
+}
+/* Never show the giant default empty illustration inside boards/rails/inspectors */
+.board-column .el-empty,
+.agent-rail .el-empty,
+.agent-inspector .el-empty,
+.home-col .el-empty {
+  padding: 12px 8px;
+}
+.board-column .el-empty__image,
+.agent-rail .el-empty__image,
+.agent-inspector .el-empty__image,
+.home-col .el-empty__image {
+  display: none;
 }
