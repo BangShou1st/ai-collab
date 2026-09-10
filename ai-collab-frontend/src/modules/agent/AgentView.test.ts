@@ -2,9 +2,11 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AgentView from './AgentView.vue'
+import AgentContextChips from './AgentContextChips.vue'
 
 const mocks = vi.hoisted(() => ({
-  route: { params: { projectId: 'project-1' }, query: {} },
+  route: { params: { projectId: 'project-1' }, query: {} as Record<string, unknown> },
+  replace: vi.fn(),
   sessions: vi.fn(),
   sessionSummaries: vi.fn(),
   latestRun: vi.fn(),
@@ -22,7 +24,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('vue-router', () => ({
   useRoute: () => mocks.route,
-  useRouter: () => ({ replace: vi.fn() }),
+  useRouter: () => ({ replace: mocks.replace }),
 }))
 
 vi.mock('element-plus', () => ({
@@ -133,5 +135,40 @@ describe('AgentView session management', () => {
     await wrapper.get('[data-test="delete-agent-session"]').trigger('click')
     await flushPromises()
     expect(mocks.deleteSession).toHaveBeenCalledWith('project-1', 'session-1')
+  })
+})
+
+describe('AgentView context handoff', () => {
+  it('clears all four context query keys with a single replace', async () => {
+    mocks.route.query = {
+      task: '11111111-1111-4111-8111-111111111111',
+      document: '22222222-2222-4222-8222-222222222222',
+      plan: '33333333-3333-4333-8333-333333333333',
+      milestone: '44444444-4444-4444-8444-444444444444',
+      other: 'keep',
+    }
+    const wrapper = mount(AgentView, {
+      global: {
+        directives: { loading: () => undefined },
+        stubs: {
+          PageHeader: { template: '<header />' },
+          ElButton: {
+            inheritAttrs: false,
+            template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
+          },
+          ElTag: { template: '<span><slot /></span>' },
+          ElEmpty: { template: '<div><slot /></div>' },
+          ElInput: { template: '<textarea />' },
+        },
+      },
+    })
+    await flushPromises()
+    const chips = wrapper.findComponent(AgentContextChips)
+    expect(chips.exists()).toBe(true)
+    await chips.vm.$emit('clear')
+    await flushPromises()
+    expect(mocks.replace).toHaveBeenCalledTimes(1)
+    expect(mocks.replace).toHaveBeenCalledWith({ query: { other: 'keep' } })
+    mocks.route.query = {}
   })
 })

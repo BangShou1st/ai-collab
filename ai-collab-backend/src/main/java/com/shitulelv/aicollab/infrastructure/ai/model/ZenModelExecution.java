@@ -39,7 +39,7 @@ public class ZenModelExecution {
         ProviderPresetRegistry.PresetPolicy pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
         return new ModelConfiguration(p.id(), p.userId(), pol.displayName(), pol.protocol(),
                 pol.baseUrl(), pol.completionPath(), p.encryptedApiKey(), p.modelName(),
-                p.enabled(), p.temperature(), p.maxOutputTokens(), p.capabilities(), p.createdAt(), p.updatedAt());
+                p.enabled(), p.temperature(), p.maxOutputTokens(), pol.capabilities(), p.createdAt(), p.updatedAt());
     }
     public String runtimeEndpoint() {
         ProviderPresetRegistry.PresetPolicy pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
@@ -51,7 +51,21 @@ public class ZenModelExecution {
         return zenAdapter.turnWithSession(runtimeConfig(p), apiKey, cmd, md, userAgent());
     }
     public ChatCompletionResult complete(UserAiProvider p, String apiKey, ChatCompletionCommand cmd, AiRequestMetadata md) {
+        if (cmd.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT) {
+            return zenAdapter.completeStreamingSyncWithSession(runtimeConfig(p), apiKey, forceJson(cmd), md, userAgent());
+        }
         return zenAdapter.completeWithSession(runtimeConfig(p), apiKey, cmd, md, userAgent());
+    }
+
+    /**
+     * Prompt-forced JSON over streaming (spec-agent production shape): no response_format on the
+     * wire. Downstream strict parser/schema/domain validation stays the single source of truth.
+     */
+    static ChatCompletionCommand forceJson(ChatCompletionCommand cmd) {
+        String forced = cmd.userPrompt() + "\n\n只输出合法 JSON 对象，不要输出其他文字、解释或 Markdown 代码块。";
+        return new ChatCompletionCommand(cmd.projectId(), cmd.systemPrompt(), forced,
+                ChatCompletionCommand.OutputFormat.TEXT, cmd.purpose(), cmd.outputSchema(),
+                cmd.tools(), cmd.callerUserId());
     }
     public void completeStream(UserAiProvider p, String apiKey, ChatCompletionCommand cmd, AiRequestMetadata md,
             Consumer<String> onToken, Consumer<ChatCompletionResult> onDone, Consumer<Exception> onError) {

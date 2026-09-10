@@ -153,7 +153,6 @@ onMounted(load)
         <template #header>
           <div class="header-row">
             <h2>{{ project.name }}</h2>
-            <el-tag>{{ roleLabel(project.role) }}</el-tag>
           </div>
         </template>
         <p class="project-description">{{ project.description || '暂无项目描述' }}</p>

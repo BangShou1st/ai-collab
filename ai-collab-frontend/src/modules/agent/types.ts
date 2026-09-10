@@ -58,6 +58,7 @@ export interface AgentPlanView {
 }
 export interface AgentMessage {
   id: string; role: 'USER' | 'ASSISTANT'; content: string
+  sessionId: string | null; runId: string | null
   citations: unknown[]; inferences: unknown[]; createdAt: string
 }
 export type AgentProposalFamily =

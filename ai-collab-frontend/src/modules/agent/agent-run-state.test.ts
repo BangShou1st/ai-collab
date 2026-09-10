@@ -29,9 +29,9 @@ describe('agent run presentation', () => {
     })
   })
 
-  it('presents waiting approval as a visible terminal polling state', () => {
+  it('presents waiting approval as non-terminal since cancel stays allowed', () => {
     expect(agentRunPresentation(run('WAITING_FOR_APPROVAL'))).toEqual({
-      terminal: true,
+      terminal: false,
       severity: 'warning',
       title: '任务提案等待批准',
       canRetry: false,

@@ -85,12 +85,10 @@ onMounted(load)
               <span class="summary-label">低风险</span>
             </div>
           </div>
-          <el-alert
-            :title="analysis.summary.overallAssessment"
-            :type="analysis.summary.highRiskCount > 0 ? 'warning' : 'success'"
-            show-icon
-            class="assessment-alert"
-          />
+          <div class="inline-notice" role="status">
+            <span class="status-dot" :class="analysis.summary.highRiskCount > 0 ? 'wait' : 'done'" />
+            <span>{{ analysis.summary.overallAssessment }}</span>
+          </div>
         </el-card>
 
         <el-card v-if="analysis.risks.length > 0" class="risks-card">

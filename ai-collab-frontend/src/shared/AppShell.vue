@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import {
-  Bell, ChatDotRound, Cpu, DataBoard, Document, Folder, House, List,
+  Bell, ChatDotRound, Cpu, DataBoard, Document, Expand, Fold, Folder, House, List,
   MagicStick, Setting, Tickets, User,
 } from '@element-plus/icons-vue'
 import { showApiError } from '../api/api-result'
@@ -67,28 +67,28 @@ async function logout(): Promise<void> {
 
       <nav class="side-group" aria-label="全局导航">
         <p class="side-title">工作区</p>
-        <router-link to="/home"><el-icon><House /></el-icon><span>工作台</span></router-link>
-        <router-link to="/projects"><el-icon><Folder /></el-icon><span>我的项目</span></router-link>
-        <router-link to="/notifications"><el-icon><Bell /></el-icon><span>通知中心</span></router-link>
+        <router-link to="/home" title="工作台" aria-label="工作台"><el-icon><House /></el-icon><span>工作台</span></router-link>
+        <router-link to="/projects" title="我的项目" aria-label="我的项目"><el-icon><Folder /></el-icon><span>我的项目</span></router-link>
+        <router-link to="/notifications" title="通知中心" aria-label="通知中心"><el-icon><Bell /></el-icon><span>通知中心</span></router-link>
       </nav>
 
       <nav class="side-group" aria-label="智能与设置">
         <p class="side-title">智能与设置</p>
-        <router-link to="/settings/ai"><el-icon><Cpu /></el-icon><span>AI 设置</span></router-link>
-        <router-link to="/account"><el-icon><User /></el-icon><span>账号设置</span></router-link>
-        <router-link v-if="auth.currentUser?.systemAdmin" to="/admin"><el-icon><Setting /></el-icon><span>管理中心</span></router-link>
+        <router-link to="/settings/ai" title="AI 设置" aria-label="AI 设置"><el-icon><Cpu /></el-icon><span>AI 设置</span></router-link>
+        <router-link to="/account" title="账号设置" aria-label="账号设置"><el-icon><User /></el-icon><span>账号设置</span></router-link>
+        <router-link v-if="auth.currentUser?.systemAdmin" to="/admin" title="管理中心" aria-label="管理中心"><el-icon><Setting /></el-icon><span>管理中心</span></router-link>
       </nav>
 
       <nav v-if="projectId" class="side-group" aria-label="项目导航">
         <p class="side-title">{{ projectCtx.project?.name ?? '当前项目' }}</p>
-        <router-link :to="`/projects/${projectId}/dashboard`"><el-icon><DataBoard /></el-icon><span>项目概览</span></router-link>
-        <router-link :to="`/projects/${projectId}/board`"><el-icon><Tickets /></el-icon><span>任务看板</span></router-link>
-        <router-link :to="`/projects/${projectId}/documents`"><el-icon><Document /></el-icon><span>项目文档</span></router-link>
-        <router-link :to="`/projects/${projectId}/knowledge`"><el-icon><ChatDotRound /></el-icon><span>知识问答</span></router-link>
-        <router-link :to="`/projects/${projectId}/ai-planning`"><el-icon><MagicStick /></el-icon><span>任务规划</span></router-link>
-        <router-link :to="`/projects/${projectId}/agent`"><el-icon><Cpu /></el-icon><span>协作 Agent</span></router-link>
+        <router-link :to="`/projects/${projectId}/dashboard`" title="项目概览" aria-label="项目概览"><el-icon><DataBoard /></el-icon><span>项目概览</span></router-link>
+        <router-link :to="`/projects/${projectId}/board`" title="任务看板" aria-label="任务看板"><el-icon><Tickets /></el-icon><span>任务看板</span></router-link>
+        <router-link :to="`/projects/${projectId}/documents`" title="项目文档" aria-label="项目文档"><el-icon><Document /></el-icon><span>项目文档</span></router-link>
+        <router-link :to="`/projects/${projectId}/knowledge`" title="知识问答" aria-label="知识问答"><el-icon><ChatDotRound /></el-icon><span>知识问答</span></router-link>
+        <router-link :to="`/projects/${projectId}/ai-planning`" title="任务规划" aria-label="任务规划"><el-icon><MagicStick /></el-icon><span>任务规划</span></router-link>
+        <router-link :to="`/projects/${projectId}/agent`" title="协作 Agent" aria-label="协作 Agent"><el-icon><Cpu /></el-icon><span>协作 Agent</span></router-link>
         <details class="side-details">
-          <summary><el-icon><List /></el-icon><span>洞察分析</span></summary>
+          <summary title="洞察分析"><el-icon><List /></el-icon><span>洞察分析</span></summary>
           <router-link :to="`/projects/${projectId}/gantt`">甘特图</router-link>
           <router-link :to="`/projects/${projectId}/calendar`">日历</router-link>
           <router-link :to="`/projects/${projectId}/dependency-graph`">任务依赖</router-link>
@@ -99,17 +99,17 @@ async function logout(): Promise<void> {
           <router-link :to="`/projects/${projectId}/plan-comparison`">规划对比</router-link>
         </details>
         <details class="side-details">
-          <summary><el-icon><Setting /></el-icon><span>项目设置</span></summary>
+          <summary title="项目设置"><el-icon><Setting /></el-icon><span>项目设置</span></summary>
           <router-link :to="`/projects/${projectId}/members`">成员管理</router-link>
           <router-link :to="`/projects/${projectId}/integrations`">集成与 MCP</router-link>
           <router-link v-if="projectCtx.isAdminOrOwner" :to="`/projects/${projectId}/audit-logs`">操作日志</router-link>
         </details>
-        <router-link to="/projects"><el-icon><Folder /></el-icon><span>切换项目</span></router-link>
+        <router-link to="/projects" title="切换项目" aria-label="切换项目"><el-icon><Folder /></el-icon><span>切换项目</span></router-link>
       </nav>
 
       <div class="side-footer">
-        <button class="side-collapse" type="button" @click="collapsed = !collapsed" :aria-label="collapsed ? '展开侧栏' : '收起侧栏'">
-          {{ collapsed ? '»' : '«' }}
+        <button class="side-collapse" type="button" @click="collapsed = !collapsed" :aria-label="collapsed ? '展开侧栏' : '收起侧栏'" :title="collapsed ? '展开侧栏' : '收起侧栏'">
+          <el-icon><component :is="collapsed ? Expand : Fold" /></el-icon>
         </button>
         <span v-if="!collapsed" class="user-copy">
           <strong>{{ auth.currentUser?.displayName || auth.currentUser?.username }}</strong>

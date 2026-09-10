@@ -27,6 +27,16 @@
 .side-details summary:hover { background: var(--color-surface-raised); }
 .side-details summary .el-icon { font-size: 16px; flex: none; }
 .side-details a { padding-left: 36px; font-size: 13px; }
+.app-shell.collapsed .app-sidebar { align-items: stretch; overflow-x: hidden; }
+.app-shell.collapsed .brand { justify-content: center; padding: 4px 0; }
+.app-shell.collapsed .side-group a { justify-content: center; padding: 8px 0; }
+.app-shell.collapsed .side-group a span { display: none; }
+.app-shell.collapsed .side-details summary { justify-content: center; padding: 8px 0; }
+.app-shell.collapsed .side-details summary span { display: none; }
+.app-shell.collapsed .side-details a { display: none; }
+.app-shell.collapsed .side-footer { flex-direction: column; align-items: center; }
+.app-shell.collapsed .side-collapse { margin: 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+.side-collapse .el-icon { font-size: 16px; }
 .dashboard-section.el-card { border: 0; box-shadow: none; background: transparent; border-radius: 0; border-top: 1px solid var(--color-border); padding-top: 4px; }
 .dashboard-section.el-card:first-of-type { border-top: 0; }
 .dashboard-section .el-card__header { border-bottom: 0; padding: 12px 0 4px; font-weight: 650; font-size: 14px; }

@@ -100,13 +100,13 @@ public class UserAiProviderPresetService {
         if (existing.isEmpty()) {
             row = new UserAiProvider(UUID.randomUUID(), userId, pol.displayName(), pol.protocol(),
                     pol.baseUrl(), pol.completionPath(), secrets.encrypt(effectiveKey), modelName.strip(),
-                    enabled, 0.2, 1200, EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.NATIVE_TOOLS, ModelCapability.USAGE),
+                    enabled, 0.2, 1200, EnumSet.copyOf(pol.capabilities()),
                     makeDefault, now, now, PRESET);
         } else {
             var prev = existing.get();
             row = new UserAiProvider(prev.id(), userId, pol.displayName(), pol.protocol(),
                     pol.baseUrl(), pol.completionPath(), secrets.encrypt(effectiveKey), modelName.strip(),
-                    enabled, prev.temperature(), prev.maxOutputTokens(), prev.capabilities(),
+                    enabled, prev.temperature(), prev.maxOutputTokens(), EnumSet.copyOf(pol.capabilities()),
                     makeDefault, prev.createdAt(), now, PRESET);
         }
         repository.save(row);

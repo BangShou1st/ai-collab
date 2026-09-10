@@ -15,6 +15,7 @@ import { streamAgentEvents } from './agent-event-stream'
 import { applyAgentEvent, emptyAgentTimeline, reconcileAgentRun, type AgentTimelineState } from './agent-run-store'
 import { agentRunPresentation } from './agent-run-state'
 import { reduceAgentActivities } from './agent-activity'
+import { buildConversationBlocks, type ConversationBlock } from './conversation-blocks'
 import { RUN_STATUS_LABEL } from './agent-labels'
 import { useAuthStore } from '../../stores/auth-store'
 import type { AgentApproval, AgentMessage, AgentPageContext, AgentPlanView, AgentRun, AgentRunDetail, AgentSession, AgentSessionSummary, AgentSkill } from './types'
@@ -39,6 +40,9 @@ const messages = ref<AgentMessage[]>([])
 const approvals = ref<AgentApproval[]>([])
 const runDetail = ref<AgentRunDetail | null>(null)
 const activities = computed(() => reduceAgentActivities(timeline.value.events))
+const conversationBlocks = computed<ConversationBlock[]>(() =>
+  buildConversationBlocks(messages.value, activeRun.value?.id ?? null, activities.value),
+)
 const summaryOf = (id: string) => summaries.value.find((s) => s.id === id)
 const isCreator = (item: AgentSession) => !currentUserId.value || item.creatorId === currentUserId.value
 const relativeTime = (value: string | null | undefined) => {
@@ -102,8 +106,13 @@ async function load() {
       agentApi.skills(projectId.value), projectApi.listMembers(projectId.value),
     ])
     sessions.value = s.data; summaries.value = sum.data; skills.value = skillList.data; members.value = m.data
-    if (!sessionId.value && sessions.value[0]) sessionId.value = sessions.value[0].id
-    else if (sessionId.value) await restoreSession(sessionId.value)
+    if (sessionId.value && !sessions.value.some((x) => x.id === sessionId.value)) {
+      sessionId.value = sessions.value[0]?.id ?? ''
+    } else if (!sessionId.value && sessions.value[0]) {
+      sessionId.value = sessions.value[0].id
+    } else if (sessionId.value) {
+      await restoreSession(sessionId.value)
+    }
   } catch (reason) { fail(reason, 'Agent 工作区加载') } finally { busy.value = false }
 }
 async function loadMessages() {
@@ -126,16 +135,21 @@ function toPlanView(plan: unknown): AgentPlanView | null {
     successCriteria: Array.isArray(p.successCriteria) ? (p.successCriteria as unknown[]).map(String) : undefined,
   }
 }
+let restoreSeq = 0
 async function restoreSession(id: string) {
+  const token = ++restoreSeq
+  const pid = projectId.value
+  const fresh = () => token === restoreSeq && projectId.value === pid && sessionId.value === id
   streamController?.abort()
   activeRun.value = null
   runDetail.value = null
   approvals.value = []
   timeline.value = emptyAgentTimeline()
   const [msgs, latest] = await Promise.all([
-    agentApi.messages(projectId.value, id),
-    agentApi.latestRun(projectId.value, id),
+    agentApi.messages(pid, id),
+    agentApi.latestRun(pid, id),
   ])
+  if (!fresh()) return
   messages.value = msgs.data
   runDetail.value = latest.data
   const run = latest.data?.run
@@ -144,15 +158,19 @@ async function restoreSession(id: string) {
   timeline.value = emptyAgentTimeline(run)
   timeline.value.plan = toPlanView(latest.data?.plan)
   try {
-    const history = (await agentApi.runEvents(projectId.value, run.id, 0)).data
+    const history = (await agentApi.runEvents(pid, run.id, 0)).data
+    if (!fresh()) return
     for (const e of history) applyAgentEvent(timeline.value, e)
     const planEvent = [...history].reverse().find((e) => e.type === 'PLAN_CREATED' || e.type === 'PLAN_UPDATED')
     const planFromEvents = toPlanView((planEvent?.payload as Record<string, unknown> | undefined)?.plan)
     if (planFromEvents) timeline.value.plan = planFromEvents
-  } catch (reason) { fail(reason, 'Agent 历史恢复') }
+  } catch (reason) { if (fresh()) fail(reason, 'Agent 历史恢复') }
+  if (!fresh()) return
   timeline.value.lastSequence = Math.max(latest.data?.lastEventSequence ?? 0, timeline.value.lastSequence)
   activeRun.value = timeline.value.run
+  if (!fresh()) return
   await refreshApprovals()
+  if (!fresh()) return
   if (run.status === 'RUNNING' || run.status === 'QUEUED') {
     resumeEventStream()
   }
@@ -268,7 +286,12 @@ function removeContext(key: keyof AgentPageContext) {
 }
 function clearContext() {
   removedContextKeys.value = new Set(['selectedTaskId', 'selectedMilestoneId', 'selectedDocumentId', 'selectedPlanId'])
-  for (const key of ['task', 'document', 'plan', 'milestone']) dropQueryKey(key)
+  const next = { ...route.query }
+  delete next.task
+  delete next.document
+  delete next.plan
+  delete next.milestone
+  void router.replace({ query: next })
 }
 function startEventStream(run: AgentRun) {
   streamController?.abort()
@@ -368,7 +391,19 @@ async function reject(item: AgentApproval) {
   catch (reason) { fail(reason, 'Agent 提案拒绝') }
 }
 const time = (value: string) => new Date(value).toLocaleString('zh-CN')
-watch(projectId, load, { immediate: true })
+watch(projectId, (next, prev) => {
+  if (!next) return
+  if (prev !== undefined && next !== prev) {
+    streamController?.abort()
+    sessionId.value = ''
+    messages.value = []
+    activeRun.value = null
+    runDetail.value = null
+    approvals.value = []
+    timeline.value = emptyAgentTimeline()
+  }
+  void load()
+}, { immediate: true })
 watch(sessionId, (id) => {
   if (!id) return
   restoreSession(id).catch(reason => fail(reason, 'Agent 会话恢复'))
@@ -412,25 +447,26 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
           </aside>
           <main class="conversation" :data-view="mobileView">
             <div class="messages">
-              <div v-if="!messages.length" class="empty">开始一个新对话</div>
-              <article v-for="message in messages" :key="message.id" :class="message.role.toLowerCase()">
-                <strong>{{ message.role === 'USER' ? '你' : '项目协作 Agent' }}</strong>
-                <p>{{ message.content }}</p>
-                <details v-if="message.citations?.length"><summary>证据来源（{{ message.citations.length }}）</summary>
+              <div v-if="!conversationBlocks.length" class="empty">开始一个新对话</div>
+              <template v-for="block in conversationBlocks" :key="block.kind === 'message' ? block.message.id : block.items.map((a) => a.key).join('|')">
+              <article v-if="block.kind === 'message'" :class="block.message.role.toLowerCase()">
+                <strong>{{ block.message.role === 'USER' ? '你' : '项目协作 Agent' }}</strong>
+                <p>{{ block.message.content }}</p>
+                <details v-if="block.message.citations?.length"><summary>证据来源（{{ block.message.citations.length }}）</summary>
                   <ul class="evidence-list">
-                    <li v-for="(c, i) in message.citations" :key="i"><strong>{{ evidenceTitle(c, `来源 ${i + 1}`) }}</strong><p v-if="evidenceDetail(c)">{{ evidenceDetail(c) }}</p></li>
+                    <li v-for="(c, i) in block.message.citations" :key="i"><strong>{{ evidenceTitle(c, `来源 ${i + 1}`) }}</strong><p v-if="evidenceDetail(c)">{{ evidenceDetail(c) }}</p></li>
                   </ul>
-                  <details class="tech-details"><summary>技术详情</summary><pre>{{ JSON.stringify(message.citations, null, 2) }}</pre></details>
+                  <details class="tech-details"><summary>技术详情</summary><pre>{{ JSON.stringify(block.message.citations, null, 2) }}</pre></details>
                 </details>
-                <details v-if="message.inferences?.length"><summary>推断依据（{{ message.inferences.length }}）</summary>
+                <details v-if="block.message.inferences?.length"><summary>推断依据（{{ block.message.inferences.length }}）</summary>
                   <ul class="evidence-list">
-                    <li v-for="(f, i) in message.inferences" :key="i"><strong>{{ evidenceTitle(f, `推断 ${i + 1}`) }}</strong><p v-if="evidenceDetail(f)">{{ evidenceDetail(f) }}</p></li>
+                    <li v-for="(f, i) in block.message.inferences" :key="i"><strong>{{ evidenceTitle(f, `推断 ${i + 1}`) }}</strong><p v-if="evidenceDetail(f)">{{ evidenceDetail(f) }}</p></li>
                   </ul>
-                  <details class="tech-details"><summary>技术详情</summary><pre>{{ JSON.stringify(message.inferences, null, 2) }}</pre></details>
+                  <details class="tech-details"><summary>技术详情</summary><pre>{{ JSON.stringify(block.message.inferences, null, 2) }}</pre></details>
                 </details>
               </article>
-              <div v-if="activities.length" class="activity-group" aria-label="执行过程">
-                <div v-for="act in activities" :key="act.key" class="activity" :class="[act.kind, act.status]">
+              <div v-else class="activity-group" aria-label="执行过程">
+                <div v-for="act in block.items" :key="act.key" class="activity" :class="[act.kind, act.status]">
                   <span class="activity-mark" />
                   <div class="activity-body">
                     <div class="activity-title">{{ act.title }}</div>
@@ -442,6 +478,7 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
                   </div>
                 </div>
               </div>
+              </template>
             </div>
             <div v-if="activeRun?.status === 'WAITING_FOR_USER_INPUT'" class="waiting-for-input">
               <el-alert title="Agent 需要你的输入" type="info" :closable="false" show-icon />

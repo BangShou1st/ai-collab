@@ -106,6 +106,34 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         completeStreamWithSession(config, apiKey, command, null, null, onToken, onDone, onError);
     }
 
+    /**
+     * Zen preset structured output: prompt-forced JSON over streaming (spec-agent production shape).
+     * Never sends response_format; caller forces JSON via prompt and validates strictly.
+     */
+    public ChatCompletionResult completeStreamingSyncWithSession(ModelConfiguration config, String apiKey,
+            ChatCompletionCommand command, AiRequestMetadata metadata, String userAgent) {
+        long started = System.nanoTime();
+        StringBuilder content = new StringBuilder();
+        java.util.concurrent.atomic.AtomicReference<String> model =
+                new java.util.concurrent.atomic.AtomicReference<>(config.modelName());
+        java.util.concurrent.atomic.AtomicReference<Integer> input = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<Integer> output = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<Exception> errorRef = new java.util.concurrent.atomic.AtomicReference<>();
+        completeStreamWithSession(config, apiKey, command, metadata, userAgent,
+                content::append,
+                result -> {
+                    model.set(result.model());
+                    input.set(result.promptTokens());
+                    output.set(result.completionTokens());
+                },
+                errorRef::set);
+        if (errorRef.get() != null) {
+            throw errorRef.get() instanceof BusinessException be
+                    ? be : new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
+        }
+        return result(config, content.toString(), model.get(), input.get(), output.get(), started);
+    }
+
     public void completeStreamWithSession(
             ModelConfiguration config, String apiKey, ChatCompletionCommand command, AiRequestMetadata metadata, String userAgent,
             Consumer<String> onToken, Consumer<ChatCompletionResult> onDone,

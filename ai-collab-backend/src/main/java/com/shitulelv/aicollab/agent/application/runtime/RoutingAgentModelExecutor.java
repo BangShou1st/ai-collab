@@ -7,6 +7,7 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
+import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
@@ -31,14 +32,17 @@ public class RoutingAgentModelExecutor {
     private final UserAiProviderService userProviders;
     private final NativeToolCallingExecutor nativeExecutor;
     private final LegacyReadOnlyAgentExecutor legacyExecutor;
+    private final ZenModelExecution zen;
 
     public RoutingAgentModelExecutor(
             UserAiProviderService userProviders,
             NativeToolCallingExecutor nativeExecutor,
-            LegacyReadOnlyAgentExecutor legacyExecutor) {
+            LegacyReadOnlyAgentExecutor legacyExecutor,
+            ZenModelExecution zen) {
         this.userProviders = userProviders;
         this.nativeExecutor = nativeExecutor;
         this.legacyExecutor = legacyExecutor;
+        this.zen = zen;
     }
 
     /**
@@ -58,7 +62,8 @@ public class RoutingAgentModelExecutor {
             boolean correctionAttempted) {
 
         UserAiProvider provider = userProviders.resolve(run.requesterId(), ModelPurpose.AGENT);
-        ModelConfiguration config = provider.toModelConfiguration();
+        // Preset rows must use registry policy capabilities; never trust stale DB capabilities.
+        ModelConfiguration config = zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
 
         if (!config.enabled()) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
@@ -134,7 +139,8 @@ public class RoutingAgentModelExecutor {
         } catch (BusinessException exception) {
             return false;
         }
-        return !provider.toModelConfiguration().capabilities().contains(ModelCapability.NATIVE_TOOLS)
-                && provider.toModelConfiguration().capabilities().contains(ModelCapability.CHAT);
+        ModelConfiguration config = zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
+        return !config.capabilities().contains(ModelCapability.NATIVE_TOOLS)
+                && config.capabilities().contains(ModelCapability.CHAT);
     }
 }
