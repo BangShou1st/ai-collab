@@ -70,7 +70,7 @@ public class ProjectModelConfigurationService {
             UUID projectId, UUID id, ModelConfigurationRequest request, UUID operatorId) {
         accessGuard.requireAdmin(projectId, operatorId);
         validateEndpoint(request.baseUrl(), request.apiPath());
-        ModelConfiguration existing = require(id);
+        ModelConfiguration existing = require(projectId, id);
         String encrypted = request.apiKey() == null || request.apiKey().isBlank()
                 ? existing.encryptedApiKey() : secrets.encrypt(request.apiKey());
         return ModelConfigurationView.from(repository.save(toModel(
@@ -80,7 +80,7 @@ public class ProjectModelConfigurationService {
     @Transactional
     public void assign(UUID projectId, ModelPurpose purpose, UUID configurationId, UUID operatorId) {
         accessGuard.requireAdmin(projectId, operatorId);
-        ModelConfiguration configuration = require(configurationId);
+        ModelConfiguration configuration = require(projectId, configurationId);
         if (!configuration.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能分配已停用的模型配置");
         }
@@ -89,7 +89,7 @@ public class ProjectModelConfigurationService {
 
     public ChatCompletionResult test(UUID projectId, UUID id, UUID operatorId) {
         accessGuard.requireAdmin(projectId, operatorId);
-        ModelConfiguration configuration = require(id);
+        ModelConfiguration configuration = require(projectId, id);
         validateModelParameters(configuration);
 
         ModelProviderAdapter adapter = adapters.get(configuration.providerType());
@@ -165,12 +165,12 @@ public class ProjectModelConfigurationService {
     @Transactional
     public void delete(UUID projectId, UUID id, UUID operatorId) {
         accessGuard.requireAdmin(projectId, operatorId);
-        require(id);
-        repository.delete(id);
+        require(projectId, id);
+        repository.deleteByIdAndProjectId(id, projectId);
     }
 
-    private ModelConfiguration require(UUID id) {
-        return repository.findById(id)
+    private ModelConfiguration require(UUID projectId, UUID id) {
+        return repository.findByIdAndProjectId(id, projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "模型配置不存在"));
     }
 
