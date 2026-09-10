@@ -59,6 +59,29 @@ public class AgentRepository {
                 """, sessionMapper(), projectId, limit);
     }
 
+    public Optional<AgentRunView> findLatestRun(UUID projectId, UUID sessionId) {
+        return jdbc.query("SELECT * FROM agent_run WHERE project_id=? AND session_id=? ORDER BY created_at DESC, id DESC LIMIT 1",
+                runMapper(), projectId, sessionId).stream().findFirst();
+    }
+
+    public List<AgentSessionSummaryView> listSessionSummaries(UUID projectId, int limit) {
+        return jdbc.query("""
+                SELECT s.id, s.project_id, s.creator_id, COALESCE(u.display_name, u.username, s.creator_id::text) AS creator_name,
+                       s.title, s.status, s.version, s.created_at, s.updated_at,
+                       (SELECT r.id FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_id,
+                       (SELECT r.status FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_status,
+                       (SELECT r.updated_at FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_activity_at
+                FROM agent_session s LEFT JOIN app_user u ON u.id=s.creator_id
+                WHERE s.project_id=? ORDER BY s.updated_at DESC, s.id DESC LIMIT ?
+                """, (rs, row) -> new AgentSessionSummaryView(
+                        rs.getObject("id", UUID.class), rs.getObject("project_id", UUID.class),
+                        rs.getObject("creator_id", UUID.class), rs.getString("creator_name"),
+                        rs.getString("title"), rs.getString("status"), rs.getInt("version"),
+                        rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class),
+                        rs.getObject("latest_run_id", UUID.class), rs.getString("latest_run_status"),
+                        rs.getObject("latest_activity_at", OffsetDateTime.class)), projectId, limit);
+    }
+
     public Optional<AgentSessionView> renameSession(
             UUID projectId, UUID sessionId, UUID creatorId, String title) {
         return jdbc.query("""

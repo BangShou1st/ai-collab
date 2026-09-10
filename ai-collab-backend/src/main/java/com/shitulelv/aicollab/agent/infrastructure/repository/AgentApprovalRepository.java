@@ -97,6 +97,11 @@ public class AgentApprovalRepository {
                 """, mapper(), projectId, status);
     }
 
+    public List<AgentApprovalView> listByRun(UUID projectId, UUID runId) {
+        return jdbc.query("SELECT * FROM agent_approval WHERE project_id=? AND run_id=? ORDER BY created_at DESC, id DESC LIMIT 200",
+                mapper(), projectId, runId);
+    }
+
     public Optional<AgentApprovalView> find(UUID projectId, UUID approvalId) {
         return jdbc.query("SELECT * FROM agent_approval WHERE project_id=? AND id=?",
                 mapper(), projectId, approvalId).stream().findFirst();
