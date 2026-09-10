@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
         "planning.enabled=false",
         "agent.mcp.allowed-hosts=example.com",
         "security.jwt.secret=test-only-secret-with-at-least-thirty-two-characters",
+        "model.config.master-key=test-only-master-key-for-integration-tests",
         "security.jwt.access-token-minutes=30"
 })
 @Testcontainers(disabledWithoutDocker = true)

@@ -79,4 +79,4 @@ agent:
 
 model:
   config:
-    master-key: "${MODEL_CONFIG_MASTER_KEY:local-model-config-key-change-me}"
+    master-key: "${MODEL_CONFIG_MASTER_KEY:}"

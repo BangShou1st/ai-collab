@@ -14,7 +14,8 @@ public record ChatCompletionCommand(
         OutputFormat outputFormat,
         ModelPurpose purpose,
         JsonNode outputSchema,
-        List<ModelToolDefinition> tools) {
+        List<ModelToolDefinition> tools,
+        UUID callerUserId) {
     public ChatCompletionCommand(UUID projectId, String systemPrompt, String userPrompt) {
         this(projectId, systemPrompt, userPrompt, OutputFormat.TEXT);
     }
@@ -28,7 +29,8 @@ public record ChatCompletionCommand(
     }
 
     public ChatCompletionCommand(UUID projectId, String systemPrompt, String userPrompt, OutputFormat outputFormat) {
-        this(projectId, systemPrompt, userPrompt, outputFormat, ModelPurpose.KNOWLEDGE_CHAT, null, List.of());
+        this(projectId, systemPrompt, userPrompt, outputFormat, ModelPurpose.KNOWLEDGE_CHAT, null,
+                List.of(), null);
     }
 
     public ChatCompletionCommand {

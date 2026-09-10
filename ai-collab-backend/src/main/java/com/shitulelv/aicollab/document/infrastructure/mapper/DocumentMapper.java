@@ -72,7 +72,8 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
     @Update("""
             UPDATE project_document
             SET status='READY', chunk_count=#{chunkCount}, embedding_provider=#{provider},
-                embedding_model=#{model}, embedding_dimension=#{dimension}, indexed_at=now(),
+                embedding_model=#{model}, embedding_dimension=#{dimension},
+                embedding_fingerprint=#{fingerprint}, indexed_at=now(),
                 error_message=NULL, processing_token=NULL, processing_heartbeat_at=NULL, updated_at=now()
             WHERE project_id=#{projectId} AND id=#{documentId} AND status='INDEXING'
               AND processing_token=#{processingToken}
@@ -80,7 +81,8 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
     int markReady(@Param("projectId") UUID projectId, @Param("documentId") UUID documentId,
                   @Param("processingToken") UUID processingToken,
                   @Param("chunkCount") int chunkCount, @Param("provider") String provider,
-                  @Param("model") String model, @Param("dimension") int dimension);
+                  @Param("model") String model, @Param("dimension") int dimension,
+                  @Param("fingerprint") String fingerprint);
 
     @Update("""
             UPDATE project_document SET status='FAILED', error_message=#{message},
@@ -104,7 +106,7 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
     @Update("""
             UPDATE project_document SET status='UPLOADED', error_message=NULL, chunk_count=0,
                 parser_type=NULL, embedding_provider=NULL, embedding_model=NULL,
-                embedding_dimension=NULL, indexed_at=NULL, processing_token=NULL,
+                embedding_dimension=NULL, embedding_fingerprint=NULL, indexed_at=NULL, processing_token=NULL,
                 processing_heartbeat_at=NULL, version=version+1, updated_at=now()
             WHERE project_id=#{projectId} AND id=#{documentId} AND status='READY'
             """)
@@ -127,17 +129,18 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             INSERT INTO document_chunk(
               id, project_id, document_id, chunk_no, heading, content, content_hash,
               token_estimate, metadata, embedding_provider, embedding_model,
-              embedding_dimension, embedding)
+              embedding_dimension, embedding_fingerprint, embedding)
             VALUES(
               #{id}, #{projectId}, #{documentId}, #{chunk.chunkNo}, #{chunk.heading},
               #{chunk.content}, #{chunk.contentHash}, #{chunk.tokenEstimate},
-              CAST(#{metadata} AS jsonb), #{provider}, #{model}, #{dimension},
+              CAST(#{metadata} AS jsonb), #{provider}, #{model}, #{dimension}, #{fingerprint},
               CAST(#{embedding} AS vector))
             """)
     int insertChunk(@Param("id") UUID id, @Param("projectId") UUID projectId,
                     @Param("documentId") UUID documentId, @Param("chunk") DocumentChunk chunk,
                     @Param("metadata") String metadata, @Param("provider") String provider,
                     @Param("model") String model, @Param("dimension") int dimension,
+                    @Param("fingerprint") String fingerprint,
                     @Param("embedding") String embedding);
 
     @Select("""
@@ -187,6 +190,7 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             WHERE c.project_id=#{projectId} AND d.status='READY'
               AND c.embedding_provider=#{provider} AND c.embedding_model=#{model}
               AND c.embedding_dimension=#{dimension}
+              AND c.embedding_fingerprint=#{fingerprint}
               <if test="documentIds != null and !documentIds.isEmpty()">
                 AND d.id IN
                 <foreach collection="documentIds" item="id" open="(" separator="," close=")">
@@ -215,8 +219,15 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
                                    @Param("provider") String provider,
                                    @Param("model") String model,
                                    @Param("dimension") int dimension,
+                                   @Param("fingerprint") String fingerprint,
                                    @Param("documentIds") List<UUID> documentIds,
                                    @Param("topK") int topK);
+
+    @Select("SELECT count(*) FROM document_chunk WHERE embedding_fingerprint IS DISTINCT FROM #{fingerprint}")
+    long countChunksWithOtherFingerprint(@Param("fingerprint") String fingerprint);
+
+    @Select("SELECT DISTINCT project_id FROM project_document WHERE status='READY'")
+    List<UUID> projectIdsWithReadyDocuments();
 
     @Select("""
             <script>

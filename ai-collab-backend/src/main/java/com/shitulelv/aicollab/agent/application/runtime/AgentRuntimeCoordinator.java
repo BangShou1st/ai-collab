@@ -111,8 +111,8 @@ public class AgentRuntimeCoordinator {
     /**
      * 判断当前是否为 Legacy 模式（只支持 CHAT，不支持 NATIVE_TOOLS）。
      */
-    public boolean isLegacyMode(UUID projectId) {
-        return modelExecutor.isLegacyMode(projectId);
+    public boolean isLegacyMode(UUID callerUserId) {
+        return modelExecutor.isLegacyMode(callerUserId);
     }
 
     /**
@@ -465,7 +465,7 @@ public class AgentRuntimeCoordinator {
             if (!skill.allowWriteTools()) {
                 return new ValidatedToolCall(null, toolCall, createError("SKILL_WRITE_FORBIDDEN", "当前 Skill 不允许写操作"), false);
             }
-            if (isLegacyMode(run.projectId())) {
+            if (isLegacyMode(run.requesterId())) {
                 return new ValidatedToolCall(null, toolCall, createError("LEGACY_WRITE_TOOL_FORBIDDEN", "Legacy 模式下禁止执行写工具"), true);
             }
             return new ValidatedToolCall(writeTool, toolCall, null, false);
@@ -771,7 +771,7 @@ public class AgentRuntimeCoordinator {
         sb.append("你的角色: ").append(run.role()).append("\n\n");
         sb.append(TimeContext.beijingTimeContext()).append("\n");
         sb.append(skill.instruction()).append("\n\n");
-        if (isLegacyMode(run.projectId())) {
+        if (isLegacyMode(run.requesterId())) {
             sb.append("""
                     ## 当前运行模式：Legacy（只读）
                     当前模型不支持原生 Tool Calling，写操作不可用。

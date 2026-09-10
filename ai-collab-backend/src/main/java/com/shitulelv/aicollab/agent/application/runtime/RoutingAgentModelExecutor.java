@@ -6,8 +6,9 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration;
-import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfigurationRepository;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import org.slf4j.Logger;
@@ -27,15 +28,15 @@ import java.util.UUID;
 public class RoutingAgentModelExecutor {
     private static final Logger log = LoggerFactory.getLogger(RoutingAgentModelExecutor.class);
 
-    private final ModelConfigurationRepository configurations;
+    private final UserAiProviderService userProviders;
     private final NativeToolCallingExecutor nativeExecutor;
     private final LegacyReadOnlyAgentExecutor legacyExecutor;
 
     public RoutingAgentModelExecutor(
-            ModelConfigurationRepository configurations,
+            UserAiProviderService userProviders,
             NativeToolCallingExecutor nativeExecutor,
             LegacyReadOnlyAgentExecutor legacyExecutor) {
-        this.configurations = configurations;
+        this.userProviders = userProviders;
         this.nativeExecutor = nativeExecutor;
         this.legacyExecutor = legacyExecutor;
     }
@@ -56,9 +57,8 @@ public class RoutingAgentModelExecutor {
             List<AgentToolDefinition> exposed,
             boolean correctionAttempted) {
 
-        ModelConfiguration config = configurations.findAssigned(run.projectId(), ModelPurpose.AGENT)
-                .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
-                        "未找到 Agent 模型配置"));
+        UserAiProvider provider = userProviders.resolve(run.requesterId(), ModelPurpose.AGENT);
+        ModelConfiguration config = provider.toModelConfiguration();
 
         if (!config.enabled()) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
@@ -72,13 +72,14 @@ public class RoutingAgentModelExecutor {
             log.debug("使用 Native Tool Calling 执行器: model={}, configurationId={}",
                     config.modelName(), config.id());
             try {
-                return nativeExecutor.callModel(messages, exposed, run.projectId(), config.id());
+                return nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId());
             } catch (BusinessException e) {
                 // 如果是模型调用错误且支持 CHAT，降级到 Legacy 模式
                 if (hasChat && isNativeToolError(e)) {
                     log.warn("Native Tool Calling 失败，降级到 Legacy 模式: model={}, error={}",
                             config.modelName(), e.getErrorCode());
-                    return fallbackToLegacy(messages, exposed, run.projectId(), correctionAttempted);
+                    return fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(),
+                            correctionAttempted);
                 }
                 throw e;
             }
@@ -87,7 +88,8 @@ public class RoutingAgentModelExecutor {
         if (hasChat) {
             log.debug("使用 Legacy 只读执行器: model={}, configurationId={}",
                     config.modelName(), config.id());
-            return fallbackToLegacy(messages, exposed, run.projectId(), correctionAttempted);
+            return fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(),
+                    correctionAttempted);
         }
 
         // 既不支持 NATIVE_TOOLS 也不支持 CHAT -> 明确失败
@@ -103,11 +105,13 @@ public class RoutingAgentModelExecutor {
             List<ModelMessage> messages,
             List<AgentToolDefinition> exposed,
             UUID projectId,
+            UUID callerUserId,
             boolean correctionAttempted) {
         List<AgentToolDefinition> readOnlyExposed = exposed.stream()
                 .filter(d -> !d.writesBusinessData())
                 .toList();
-        return legacyExecutor.callModel(messages, readOnlyExposed, projectId, correctionAttempted);
+        return legacyExecutor.callModel(messages, readOnlyExposed, projectId, callerUserId,
+                correctionAttempted);
     }
 
     /**
@@ -122,10 +126,14 @@ public class RoutingAgentModelExecutor {
     /**
      * 判断当前模型是否为 Legacy 模式（只支持 CHAT）。
      */
-    public boolean isLegacyMode(UUID projectId) {
-        return configurations.findAssigned(projectId, ModelPurpose.AGENT)
-                .map(config -> !config.capabilities().contains(ModelCapability.NATIVE_TOOLS)
-                        && config.capabilities().contains(ModelCapability.CHAT))
-                .orElse(false);
+    public boolean isLegacyMode(UUID callerUserId) {
+        UserAiProvider provider;
+        try {
+            provider = userProviders.resolve(callerUserId, ModelPurpose.AGENT);
+        } catch (BusinessException exception) {
+            return false;
+        }
+        return !provider.toModelConfiguration().capabilities().contains(ModelCapability.NATIVE_TOOLS)
+                && provider.toModelConfiguration().capabilities().contains(ModelCapability.CHAT);
     }
 }

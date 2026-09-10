@@ -88,16 +88,17 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         // Valid skeleton (no sources/sourceRefs — S2 compliant)
         String skeletonJson = """
                 {"summary":"Project plan","assumptions":["Team available"],"risks":["Timeline tight"],
-                "milestones":[{"tempKey":"m1","title":"Phase 1","objective":"Design","targetDate":"2026-08-15","sortOrder":0}],
+                "milestones":[{"tempKey":"m1","title":"Phase 1","objective":"Design","targetDate":"$TGT","sortOrder":0}],
                 "tasks":[{"tempKey":"t1","milestoneTempKey":"m1","title":"Task 1","objective":"Do design","sortOrder":0}]}
-                """;
+                """.replace("$TGT", LocalDate.now().plusDays(20).toString());
         // Valid detail (all required fields — S3 compliant)
         String detailJson = """
                 {"milestones":[{"tempKey":"m1","description":"Design phase milestone","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"Complete design docs","priority":"HIGH",
-                "estimatedHours":8.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
+                "estimatedHours":8.0,"startDate":"$S","dueDate":"$D",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
-                """;
+                """.replace("$S", LocalDate.now().plusDays(2).toString())
+                .replace("$D", LocalDate.now().plusDays(10).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         // Catch-all first (lenient) — specific stubs take precedence
@@ -187,9 +188,10 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         String detailJson = """
                 {"milestones":[{"tempKey":"m1","description":"desc","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"desc","priority":"MEDIUM",
-                "estimatedHours":4.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
+                "estimatedHours":4.0,"startDate":"$S","dueDate":"$D",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
-                """;
+                """.replace("$S", LocalDate.now().plusDays(2).toString())
+                .replace("$D", LocalDate.now().plusDays(10).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         // First skeleton call returns bad output, repair returns good output

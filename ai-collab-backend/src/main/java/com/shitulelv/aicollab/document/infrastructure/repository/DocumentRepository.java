@@ -40,7 +40,9 @@ public class DocumentRepository {
     public boolean markReady(UUID projectId, UUID documentId, UUID processingToken,
                              int count, String provider, String model, int dimension) {
         return mapper.markReady(projectId, documentId, processingToken,
-                count, provider, model, dimension) == 1;
+                count, provider, model, dimension,
+                com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprints
+                        .fingerprint(provider, model, dimension)) == 1;
     }
     public boolean markFailed(UUID projectId, UUID documentId, UUID processingToken, String message) {
         return mapper.markFailed(projectId, documentId, processingToken, message) == 1;
@@ -78,7 +80,10 @@ public class DocumentRepository {
                 throw new IllegalStateException("文档分块元数据序列化失败", exception);
             }
             if (mapper.insertChunk(UUID.randomUUID(), projectId, documentId, chunk, metadata,
-                    provider, model, dimension, embeddings.get(i).toString()) != 1) {
+                    provider, model, dimension,
+                    com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprints
+                            .fingerprint(provider, model, dimension),
+                    embeddings.get(i).toString()) != 1) {
                 throw new IllegalStateException("文档分块写入失败");
             }
         }
@@ -97,9 +102,18 @@ public class DocumentRepository {
     }
     public List<DocumentSearchHit> search(UUID projectId, List<Double> embedding,
                                           String provider, String model, int dimension,
-                                          List<UUID> documentIds, int topK) {
+                                          String fingerprint, List<UUID> documentIds, int topK) {
         return mapper.search(projectId, embedding.toString(), provider, model,
-                dimension, documentIds, topK);
+                dimension, fingerprint, documentIds, topK);
+    }
+    public boolean hasChunksWithOtherFingerprint(String fingerprint) {
+        return mapper.countChunksWithOtherFingerprint(fingerprint) > 0;
+    }
+    public long countChunksWithOtherFingerprint(String fingerprint) {
+        return mapper.countChunksWithOtherFingerprint(fingerprint);
+    }
+    public List<UUID> projectIdsWithReadyDocuments() {
+        return mapper.projectIdsWithReadyDocuments();
     }
     public int countReadyDocuments(UUID projectId, List<UUID> documentIds) {
         return mapper.countReadyDocuments(projectId, documentIds);

@@ -43,6 +43,7 @@ import static org.mockito.Mockito.when;
         "storage.minio.access-key=test-access",
         "storage.minio.secret-key=test-secret",
         "security.jwt.secret=test-only-secret-with-at-least-thirty-two-characters",
+        "model.config.master-key=test-only-master-key-for-integration-tests",
         "security.jwt.access-token-minutes=30"
 })
 @Testcontainers(disabledWithoutDocker = true)

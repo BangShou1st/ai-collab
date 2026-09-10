@@ -60,6 +60,11 @@ onMounted(load)
     </PageHeader>
     <section v-loading="loading" class="admin-stack">
       <el-card>
+        <template #header><strong>AI Infrastructure</strong></template>
+        <p>系统 Embedding 配置、连接测试与知识库索引重建。</p>
+        <router-link to="/admin/embedding"><el-button type="primary">进入 AI Infrastructure</el-button></router-link>
+      </el-card>
+      <el-card>
         <template #header><strong>账号管理</strong></template>
         <el-table :data="users" empty-text="暂无账号">
           <el-table-column prop="username" label="用户名" min-width="140" />

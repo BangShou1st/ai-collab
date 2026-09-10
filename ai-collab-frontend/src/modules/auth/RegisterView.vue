@@ -61,7 +61,7 @@ async function submit(): Promise<void> {
       password: form.password,
     })
     clearPasswordFields()
-    await router.replace('/projects')
+    await router.replace('/home')
     ElMessage.success('注册成功')
   } catch (error) {
     showApiError(error, '账号注册')
@@ -72,6 +72,16 @@ async function submit(): Promise<void> {
 
 <template>
   <main class="auth-page">
+    <div class="auth-split">
+      <section class="auth-brand">
+        <p class="eyebrow">高校竞赛协作平台</p>
+        <h1>一个工作台，管完项目、知识与 AI</h1>
+        <ul class="auth-highlights">
+          <li>项目与任务：看板、日历、甘特、依赖</li>
+          <li>知识库问答：文档检索，引用可查</li>
+          <li>AI 规划与 Agent：提案先审后执行</li>
+        </ul>
+      </section>
     <el-card class="auth-card">
       <template #header>
         <p class="eyebrow">高校竞赛协作平台</p>
@@ -124,5 +134,6 @@ async function submit(): Promise<void> {
       </el-form>
       <p class="auth-footer"><router-link to="/login">返回登录</router-link></p>
     </el-card>
+    </div>
   </main>
 </template>

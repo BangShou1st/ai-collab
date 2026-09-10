@@ -42,6 +42,15 @@ public class ModelConfigurationRepository {
                 """, MAPPER, id).stream().findFirst();
     }
 
+    public Optional<ModelConfiguration> findByIdAndProjectId(UUID id, UUID projectId) {
+        return jdbc.query("""
+                SELECT id, project_id, name, provider_type, base_url, api_path, encrypted_api_key,
+                       model_name, enabled, temperature, max_output_tokens, capabilities,
+                       created_at, updated_at
+                FROM model_configuration WHERE id = ? AND project_id = ?
+                """, MAPPER, id, projectId).stream().findFirst();
+    }
+
     public Optional<ModelConfiguration> findAssigned(UUID projectId, ModelPurpose purpose) {
         return jdbc.query("""
                 SELECT c.id, c.project_id, c.name, c.provider_type, c.base_url, c.api_path, c.encrypted_api_key,
@@ -103,6 +112,10 @@ public class ModelConfigurationRepository {
 
     public void delete(UUID id) {
         jdbc.update("DELETE FROM model_configuration WHERE id = ?", id);
+    }
+
+    public void deleteByIdAndProjectId(UUID id, UUID projectId) {
+        jdbc.update("DELETE FROM model_configuration WHERE id = ? AND project_id = ?", id, projectId);
     }
 
     private static String capabilityText(EnumSet<ModelCapability> capabilities) {

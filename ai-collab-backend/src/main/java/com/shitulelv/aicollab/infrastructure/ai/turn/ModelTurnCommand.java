@@ -9,7 +9,7 @@ import java.util.UUID;
 /**
  * 统一模型轮次命令合同。
  * 包含多轮消息历史、工具定义、用途和运行配置。
- * projectId 确保路由到项目专属的模型配置。
+ * callerUserId 决定 Credential 归属（调用者个人模型），projectId 仅为业务上下文。
  */
 public record ModelTurnCommand(
         ModelPurpose purpose,
@@ -17,7 +17,8 @@ public record ModelTurnCommand(
         UUID configurationId,
         List<ModelMessage> messages,
         List<ModelToolDefinition> tools,
-        boolean toolsRequired) {
+        boolean toolsRequired,
+        UUID callerUserId) {
     public ModelTurnCommand {
         purpose = purpose == null ? ModelPurpose.AGENT : purpose;
         if (messages != null) {
@@ -45,7 +46,7 @@ public record ModelTurnCommand(
     public ModelTurnCommand(ModelPurpose purpose, UUID projectId,
                             List<ModelMessage> messages,
                             List<ModelToolDefinition> tools, boolean toolsRequired) {
-        this(purpose, projectId, null, messages, tools, toolsRequired);
+        this(purpose, projectId, null, messages, tools, toolsRequired, null);
     }
 
     /**
@@ -53,6 +54,6 @@ public record ModelTurnCommand(
      */
     public ModelTurnCommand(ModelPurpose purpose, List<ModelMessage> messages,
                             List<ModelToolDefinition> tools, boolean toolsRequired) {
-        this(purpose, null, null, messages, tools, toolsRequired);
+        this(purpose, null, null, messages, tools, toolsRequired, null);
     }
 }

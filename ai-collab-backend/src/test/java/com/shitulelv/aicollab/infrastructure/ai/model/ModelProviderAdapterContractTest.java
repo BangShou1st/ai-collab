@@ -29,7 +29,7 @@ class ModelProviderAdapterContractTest {
     private final ChatCompletionCommand command = new ChatCompletionCommand(
             null, "system", "user", ChatCompletionCommand.OutputFormat.JSON_OBJECT,
             ModelPurpose.AGENT, schema,
-            List.of(new ModelToolDefinition("create_task", "Create a task", schema)));
+            List.of(new ModelToolDefinition("create_task", "Create a task", schema)), null);
 
     @Test
     void openAiCompatibleUsesChatCompletionsContract() {

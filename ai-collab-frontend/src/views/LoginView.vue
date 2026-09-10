@@ -25,7 +25,17 @@ async function submit(): Promise<void> {
 
 <template>
   <main class="auth-page">
-    <el-card class="auth-card" shadow="always">
+    <div class="auth-split">
+      <section class="auth-brand">
+        <p class="eyebrow">高校竞赛协作平台</p>
+        <h1>一个工作台，管完项目、知识与 AI</h1>
+        <ul class="auth-highlights">
+          <li>项目与任务：看板、日历、甘特、依赖</li>
+          <li>知识库问答：文档检索，引用可查</li>
+          <li>AI 规划与 Agent：提案先审后执行</li>
+        </ul>
+      </section>
+      <el-card class="auth-card" shadow="always">
       <template #header>
         <div>
           <p class="eyebrow">高校竞赛协作平台</p>
@@ -53,6 +63,7 @@ async function submit(): Promise<void> {
           还没有账号？<router-link to="/register">注册账号</router-link>
         </p>
       </el-form>
-    </el-card>
+      </el-card>
+    </div>
   </main>
 </template>

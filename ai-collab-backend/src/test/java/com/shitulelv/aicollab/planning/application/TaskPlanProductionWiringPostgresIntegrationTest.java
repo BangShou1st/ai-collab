@@ -109,15 +109,16 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
 
         String skeletonJson = """
                 {"summary":"Project plan","assumptions":["Team available"],"risks":["Timeline tight"],
-                "milestones":[{"tempKey":"m1","title":"Phase 1","objective":"Design","targetDate":"2026-08-15","sortOrder":0}],
+                "milestones":[{"tempKey":"m1","title":"Phase 1","objective":"Design","targetDate":"$TGT","sortOrder":0}],
                 "tasks":[{"tempKey":"t1","milestoneTempKey":"m1","title":"Task 1","objective":"Do design","sortOrder":0}]}
-                """;
+                """.replace("$TGT", LocalDate.now().plusDays(20).toString());
         String detailJson = """
                 {"milestones":[{"tempKey":"m1","description":"Design phase milestone","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"Complete design docs","priority":"HIGH",
-                "estimatedHours":8.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
+                "estimatedHours":8.0,"startDate":"$S","dueDate":"$D",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
-                """;
+                """.replace("$S", LocalDate.now().plusDays(2).toString())
+                .replace("$D", LocalDate.now().plusDays(10).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
@@ -178,9 +179,10 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         String detailJson = """
                 {"milestones":[{"tempKey":"m1","description":"desc","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"desc","priority":"MEDIUM",
-                "estimatedHours":4.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
+                "estimatedHours":4.0,"startDate":"$S","dueDate":"$D",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
-                """;
+                """.replace("$S", LocalDate.now().plusDays(2).toString())
+                .replace("$D", LocalDate.now().plusDays(10).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
@@ -230,12 +232,15 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         String detailWithConflict = """
                 {"milestones":[{"tempKey":"m1","description":"desc","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"desc1","priority":"HIGH",
-                "estimatedHours":8.0,"startDate":"2026-08-10","dueDate":"2026-08-25",
+                "estimatedHours":8.0,"startDate":"$S1","dueDate":"$D1",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]},
                 {"tempKey":"t2","description":"desc2","priority":"MEDIUM",
-                "estimatedHours":4.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
+                "estimatedHours":4.0,"startDate":"$S2","dueDate":"$D2",
                 "suggestedAssigneeId":null,"dependencyTempKeys":["t1"],"sourceRefs":[]}]}
-                """;
+                """.replace("$S1", LocalDate.now().plusDays(2).toString())
+                .replace("$D1", LocalDate.now().plusDays(10).toString())
+                .replace("$S2", LocalDate.now().plusDays(3).toString())
+                .replace("$D2", LocalDate.now().plusDays(8).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
@@ -353,12 +358,15 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         String detailWithConflict = """
                 {"milestones":[{"tempKey":"m1","description":"desc","sourceRefs":[]}],
                 "tasks":[{"tempKey":"t1","description":"desc1","priority":"HIGH",
-                "estimatedHours":8.0,"startDate":"2026-08-10","dueDate":"2026-08-25",
+                "estimatedHours":8.0,"startDate":"$S1","dueDate":"$D1",
                 "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]},
                 {"tempKey":"t2","description":"desc2","priority":"MEDIUM",
-                "estimatedHours":4.0,"startDate":"2026-08-10","dueDate":"2026-08-20",
+                "estimatedHours":4.0,"startDate":"$S2","dueDate":"$D2",
                 "suggestedAssigneeId":null,"dependencyTempKeys":["t1"],"sourceRefs":[]}]}
-                """;
+                """.replace("$S1", LocalDate.now().plusDays(2).toString())
+                .replace("$D1", LocalDate.now().plusDays(10).toString())
+                .replace("$S2", LocalDate.now().plusDays(3).toString())
+                .replace("$D2", LocalDate.now().plusDays(8).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any()))
@@ -392,15 +400,15 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         TaskPlanVersionRecord baseVersion = repository.requireVersion(projectId, plan.id(), baseVersionId);
         TaskPlanDraft baseDraft = repository.draft(baseVersion);
 
-        // Apply user patch: change t2 startDate to 2026-08-26 (after t1 dueDate 2026-08-25)
+        // Apply user patch: change t2 startDate to after t1 dueDate
         UpdateTaskPlanRequest editRequest = new UpdateTaskPlanRequest(
                 baseVersionId, baseVersion.versionNo(),
                 PatchValue.absent(), PatchValue.absent(), PatchValue.absent(),
                 List.of(),
                 List.of(new TaskPlanRepairPatch.TaskPatch("t2",
                         PatchValue.absent(), PatchValue.absent(), PatchValue.absent(),
-                        PatchValue.of(LocalDate.of(2026, 8, 26)),
-                        PatchValue.of(LocalDate.of(2026, 8, 30)),
+                        PatchValue.of(LocalDate.now().plusDays(11)),
+                        PatchValue.of(LocalDate.now().plusDays(15)),
                         PatchValue.absent(), PatchValue.absent(), PatchValue.absent())));
 
         TaskPlanCommandService commands = new TaskPlanCommandService(
@@ -592,10 +600,10 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
 
         PlanMilestone m1 = new PlanMilestone("m1", "M", "O", null, null, 0, List.of());
         PlanTask t1 = new PlanTask("t1", "m1", "T1", "O", "desc1", "HIGH",
-                BigDecimal.valueOf(8), LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 15),
+                BigDecimal.valueOf(8), LocalDate.now().plusDays(2), LocalDate.now().plusDays(5),
                 null, null, List.of(), List.of(), 0);
         PlanTask t2 = new PlanTask("t2", "m1", "T2", "O", "desc2", "MEDIUM",
-                BigDecimal.valueOf(4), LocalDate.of(2026, 8, 12), LocalDate.of(2026, 8, 20),
+                BigDecimal.valueOf(4), LocalDate.now().plusDays(3), LocalDate.now().plusDays(8),
                 null, null, List.of("t1"), List.of(), 1);
         TaskPlanDraft draft = new TaskPlanDraft("s", List.of(), List.of(),
                 List.of(m1), List.of(t1, t2), List.of());
@@ -606,8 +614,9 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
 
         // Mock model: returns a patch that fixes t2's startDate and dueDate
         String patchJson = """
-                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-26","dueDate":"2026-08-30"}]}
-                """;
+                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"$S","dueDate":"$D"}]}
+                """.replace("$S", LocalDate.now().plusDays(6).toString())
+                .replace("$D", LocalDate.now().plusDays(10).toString());
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
                 .thenReturn(new GenerationResult(patchJson, "p", "m", 50, 20, 100));
@@ -785,12 +794,12 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         insertMember(projectId, userId, "OWNER");
 
         PlanMilestone m1 = new PlanMilestone("m1", "Phase 1", "Design", "Design phase",
-                LocalDate.of(2026, 8, 20), 0, List.of());
+                LocalDate.now().plusDays(15), 0, List.of());
         PlanTask t1 = new PlanTask("t1", "m1", "Task A", "Do A", "Desc A", "HIGH",
-                BigDecimal.valueOf(10), LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 15),
+                BigDecimal.valueOf(10), LocalDate.now().plusDays(2), LocalDate.now().plusDays(5),
                 null, null, List.of(), List.of(), 0);
         PlanTask t2 = new PlanTask("t2", "m1", "Task B", "Do B", "Desc B", "MEDIUM",
-                BigDecimal.valueOf(5), LocalDate.of(2026, 8, 12), LocalDate.of(2026, 8, 18),
+                BigDecimal.valueOf(5), LocalDate.now().plusDays(3), LocalDate.now().plusDays(7),
                 null, null, List.of("t1"), List.of(), 1);
         TaskPlanDraft draft = new TaskPlanDraft("Plan S", List.of(), List.of(),
                 List.of(m1), List.of(t1, t2), List.of());
@@ -798,12 +807,14 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         PlanSetup setup = insertReadyWithIssuesPlan(projectId, userId, draft, List.of(
                 new StructuredValidationIssue("DEPENDENCY_DATE_CONFLICT", ValidationIssueSeverity.BLOCKING_EDITABLE,
                         "TASK", "t2", "startDate", "t1", java.util.Map.of(
-                                "dependencyDueDate", "2026-08-10", "currentStartDate", "2026-08-08"))));
+                                "dependencyDueDate", LocalDate.now().plusDays(5).toString(),
+                                "currentStartDate", LocalDate.now().plusDays(3).toString()))));
 
         // Model patch: fix t2's startDate and dueDate
         String patchJson = """
-                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"2026-08-16","dueDate":"2026-08-20"}]}
-                """;
+                {"milestonePatches":[],"taskPatches":[{"tempKey":"t2","startDate":"$S","dueDate":"$D"}]}
+                """.replace("$S", LocalDate.now().plusDays(6).toString())
+                .replace("$D", LocalDate.now().plusDays(10).toString());
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any()))
                 .thenReturn(new GenerationResult(patchJson, "p", "m", 50, 20, 100));
@@ -832,16 +843,16 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         // t1 completely unchanged
         PlanTask finalT1 = finalDraft.tasks().stream()
                 .filter(t -> t.tempKey().equals("t1")).findFirst().orElseThrow();
-        assertThat(finalT1.startDate()).isEqualTo(LocalDate.of(2026, 8, 10));
-        assertThat(finalT1.dueDate()).isEqualTo(LocalDate.of(2026, 8, 15));
+        assertThat(finalT1.startDate()).isEqualTo(LocalDate.now().plusDays(2));
+        assertThat(finalT1.dueDate()).isEqualTo(LocalDate.now().plusDays(5));
         assertThat(finalT1.title()).isEqualTo("Task A");
         assertThat(finalT1.priority()).isEqualTo("HIGH");
 
         // t2 startDate and dueDate changed
         PlanTask finalT2 = finalDraft.tasks().stream()
                 .filter(t -> t.tempKey().equals("t2")).findFirst().orElseThrow();
-        assertThat(finalT2.startDate()).isEqualTo(LocalDate.of(2026, 8, 16));
-        assertThat(finalT2.dueDate()).isEqualTo(LocalDate.of(2026, 8, 20));
+        assertThat(finalT2.startDate()).isEqualTo(LocalDate.now().plusDays(6));
+        assertThat(finalT2.dueDate()).isEqualTo(LocalDate.now().plusDays(10));
         assertThat(finalT2.title()).isEqualTo("Task B"); // unchanged
         assertThat(finalT2.priority()).isEqualTo("MEDIUM"); // unchanged
         assertThat(finalT2.dependencyTempKeys()).containsExactly("t1"); // unchanged

@@ -9,6 +9,7 @@ import {
   roleLabel,
 } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
+import StatusBadge from '../../shared/StatusBadge.vue'
 import { isEndDateDisabled, isStartDateDisabled } from '../../shared/date-constraints'
 import { projectApi } from './project-api'
 import type { Project, ProjectType } from './types'
@@ -156,24 +157,29 @@ onMounted(load)
           </div>
         </template>
         <p class="project-description">{{ project.description || '暂无项目描述' }}</p>
-        <p>项目类型：{{ projectTypeLabel(project.type) }}</p>
-        <p>项目状态：{{ projectStatusLabel(project.status) }}</p>
-        <p>项目周期：{{ formatDate(project.startDate) }} 至 {{ formatDate(project.dueDate) }}</p>
+        <p class="project-meta-line">
+          <StatusBadge :label="projectStatusLabel(project.status)" />
+          <span>{{ projectTypeLabel(project.type) }}</span>
+          <span>{{ roleLabel(project.role) }}</span>
+        </p>
+        <p class="project-meta-line muted">项目周期：{{ formatDate(project.startDate) }} 至 {{ formatDate(project.dueDate) }}</p>
         <div class="actions">
           <router-link class="el-button el-button--primary" :to="`/projects/${project.id}/dashboard`">
             进入项目
           </router-link>
-          <template v-if="project.role === 'OWNER'">
-            <el-button data-action="edit-project" @click="openEdit(project)">编辑</el-button>
-            <el-button
-              data-action="delete-project"
-              type="danger"
-              :loading="deletingProjectId === project.id"
-              @click="deleteProject(project)"
-            >
-              删除
-            </el-button>
-          </template>
+          <el-dropdown v-if="project.role === 'OWNER'" trigger="click">
+            <el-button text aria-label="更多操作">更多⌄</el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item data-action="edit-project" @click="openEdit(project)">编辑</el-dropdown-item>
+                <el-dropdown-item
+                  data-action="delete-project"
+                  :disabled="deletingProjectId === project.id"
+                  @click="deleteProject(project)"
+                >删除项目</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </el-card>
       <el-empty v-if="!loading && projects.length === 0" description="还没有项目，创建第一个项目吧" />

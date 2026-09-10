@@ -339,6 +339,13 @@ onMounted(load)
       :context="project?.name"
     />
 
+    <el-alert
+      title="此页面已废弃：个人模型请前往 AI 设置，系统 Embedding 由管理员维护，MCP 集成请前往项目设置 → 集成与 MCP"
+      type="warning"
+      :closable="false"
+      show-icon
+    />
+
     <section v-loading="loading" class="settings-stack">
       <!-- Purpose Assignment -->
       <el-card>

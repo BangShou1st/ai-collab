@@ -1,0 +1,37 @@
+.el-card,
+.el-table,
+.content-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.el-card {
+  overflow: hidden;
+}
+.el-dialog {
+  border-radius: var(--radius-dialog);
+  box-shadow: var(--shadow-float);
+}
+.el-dialog__footer {
+  padding-top: 8px;
+}
+.el-drawer {
+  max-width: calc(100vw - 16px);
+}
+.el-form-item {
+  margin-bottom: 20px;
+}
+.el-input,
+.el-select,
+.el-date-editor.el-input,
+.el-date-editor.el-input__wrapper {
+  width: 100%;
+}
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner {
+  border-radius: var(--radius-input);
+}
+.el-alert {
+  margin-bottom: 16px;
+}

@@ -29,16 +29,16 @@ public class NativeToolCallingExecutor {
     /**
      * 使用原生 Tool Calling 协议调用模型。
      *
-     * @param messages 多轮消息历史
-     * @param exposed  当前暴露的工具定义
-     * @param configurationId 模型配置 ID，确保与能力判断一致
+    * @param messages 多轮消息历史
+    * @param exposed  当前暴露的工具定义
+    * @param callerUserId 调用者用户 ID，决定个人模型归属
      * @return 模型返回结果
      */
     public ModelTurnResult callModel(
             List<ModelMessage> messages,
             List<AgentToolDefinition> exposed,
             UUID projectId,
-            UUID configurationId) {
+            UUID callerUserId) {
 
         List<ModelToolDefinition> toolDefs = exposed.stream()
                 .map(def -> new ModelToolDefinition(def.name(), def.description(), def.inputSchema()))
@@ -47,10 +47,11 @@ public class NativeToolCallingExecutor {
         ModelTurnCommand command = new ModelTurnCommand(
                 ModelPurpose.AGENT,
                 projectId,
-                configurationId,
+                null,
                 messages,
                 toolDefs,
-                false);
+                false,
+                callerUserId);
 
         return modelTurn.turn(command);
     }

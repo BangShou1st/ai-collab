@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
+import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
@@ -20,9 +21,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 项目级模型配置服务。
- * 只有项目 ADMIN/OWNER 可以管理模型配置。
+ * 项目级模型配置服务（V2 已废弃：个人 AI 配置见 UserAiProviderService）。
+ * 保留安全加固后的实现供兼容读取，运行时不再路由到此处。
  */
+@Deprecated
 @Service
 public class ProjectModelConfigurationService {
     private static final Logger log = LoggerFactory.getLogger(ProjectModelConfigurationService.class);
@@ -31,14 +33,18 @@ public class ProjectModelConfigurationService {
     private final ModelSecretCipher secrets;
     private final Map<ModelProviderType, ModelProviderAdapter> adapters;
 
+    private final OutboundEndpointPolicy endpoints;
+
     public ProjectModelConfigurationService(
             ProjectAccessGuard accessGuard,
             ModelConfigurationRepository repository,
             ModelSecretCipher secrets,
-            List<ModelProviderAdapter> adapters) {
+            List<ModelProviderAdapter> adapters,
+            OutboundEndpointPolicy endpoints) {
         this.accessGuard = accessGuard;
         this.repository = repository;
         this.secrets = secrets;
+        this.endpoints = endpoints;
         this.adapters = new EnumMap<>(ModelProviderType.class);
         adapters.forEach(adapter -> this.adapters.put(adapter.providerType(), adapter));
     }
@@ -70,7 +76,7 @@ public class ProjectModelConfigurationService {
             UUID projectId, UUID id, ModelConfigurationRequest request, UUID operatorId) {
         accessGuard.requireAdmin(projectId, operatorId);
         validateEndpoint(request.baseUrl(), request.apiPath());
-        ModelConfiguration existing = require(id);
+        ModelConfiguration existing = require(projectId, id);
         String encrypted = request.apiKey() == null || request.apiKey().isBlank()
                 ? existing.encryptedApiKey() : secrets.encrypt(request.apiKey());
         return ModelConfigurationView.from(repository.save(toModel(
@@ -80,7 +86,7 @@ public class ProjectModelConfigurationService {
     @Transactional
     public void assign(UUID projectId, ModelPurpose purpose, UUID configurationId, UUID operatorId) {
         accessGuard.requireAdmin(projectId, operatorId);
-        ModelConfiguration configuration = require(configurationId);
+        ModelConfiguration configuration = require(projectId, configurationId);
         if (!configuration.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能分配已停用的模型配置");
         }
@@ -89,7 +95,7 @@ public class ProjectModelConfigurationService {
 
     public ChatCompletionResult test(UUID projectId, UUID id, UUID operatorId) {
         accessGuard.requireAdmin(projectId, operatorId);
-        ModelConfiguration configuration = require(id);
+        ModelConfiguration configuration = require(projectId, id);
         validateModelParameters(configuration);
 
         ModelProviderAdapter adapter = adapters.get(configuration.providerType());
@@ -102,7 +108,7 @@ public class ProjectModelConfigurationService {
                 "只回答测试请求，不要输出其他内容。",
                 "回复：连接成功",
                 ChatCompletionCommand.OutputFormat.TEXT,
-                ModelPurpose.KNOWLEDGE_CHAT, null, List.of());
+                ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), operatorId);
 
         java.util.concurrent.atomic.AtomicReference<ChatCompletionResult> resultRef =
                 new java.util.concurrent.atomic.AtomicReference<>();
@@ -165,12 +171,12 @@ public class ProjectModelConfigurationService {
     @Transactional
     public void delete(UUID projectId, UUID id, UUID operatorId) {
         accessGuard.requireAdmin(projectId, operatorId);
-        require(id);
-        repository.delete(id);
+        require(projectId, id);
+        repository.deleteByIdAndProjectId(id, projectId);
     }
 
-    private ModelConfiguration require(UUID id) {
-        return repository.findById(id)
+    private ModelConfiguration require(UUID projectId, UUID id) {
+        return repository.findByIdAndProjectId(id, projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "模型配置不存在"));
     }
 
@@ -184,18 +190,16 @@ public class ProjectModelConfigurationService {
                 java.util.EnumSet.copyOf(request.capabilities()), createdAt, updatedAt);
     }
 
-    private static void validateEndpoint(String baseUrl, String apiPath) {
+    private void validateEndpoint(String baseUrl, String apiPath) {
         try {
             URI base = URI.create(baseUrl.strip());
             URI path = URI.create(apiPath.strip());
-            if (!base.isAbsolute()
-                    || (!"http".equalsIgnoreCase(base.getScheme())
-                        && !"https".equalsIgnoreCase(base.getScheme()))
-                    || base.getHost() == null || base.getUserInfo() != null
+            if (!base.isAbsolute() || base.getHost() == null || base.getUserInfo() != null
                     || path.isAbsolute() || path.getRawAuthority() != null
                     || apiPath.isBlank()) {
                 throw new IllegalArgumentException();
             }
+            endpoints.requirePublicHttps(base);
         } catch (RuntimeException exception) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型接口地址无效");
         }

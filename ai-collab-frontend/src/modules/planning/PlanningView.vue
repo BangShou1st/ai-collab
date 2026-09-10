@@ -4,6 +4,8 @@ import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vu
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { normalizeApiError, showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
+import EmptyState from '../../shared/EmptyState.vue'
+import { userAiApi } from '../ai/user-ai-api'
 import {
   isEndDateDisabled,
   isProjectDateDisabled,
@@ -52,6 +54,7 @@ function autoExpandPendingMilestones(): void {
   expandedMilestones.value = [...new Set([...expandedMilestones.value, ...pendingMilestones])]
 }
 const createVisible = ref(false), checked = ref(false), saveDialogVisible = ref(false), saveComment = ref('')
+const aiConfigured = ref(true)
 const canCreate = ref(false), pendingConfirmation = ref<{ versionId: string; key: string } | null>(null)
 const documents = ref<ProjectDocument[]>([]), members = ref<ProjectMember[]>([])
 const project = ref<Project | null>(null)
@@ -320,11 +323,12 @@ function startPolling(): void {
   })
 }
 async function loadWorkspace(): Promise<void> {
-  const [projectResult, planResult, documentResult, memberResult] = await Promise.allSettled([
+  const [projectResult, planResult, documentResult, memberResult, aiResult] = await Promise.allSettled([
     projectApi.get(projectId.value),
     list(),
     documentApi.list(projectId.value),
     projectApi.listMembers(projectId.value),
+    userAiApi.list(),
   ])
 
   if (projectResult.status === 'fulfilled') {
@@ -351,6 +355,7 @@ async function loadWorkspace(): Promise<void> {
     members.value = []
     showApiError(memberResult.reason, '项目成员加载')
   }
+  aiConfigured.value = aiResult.status === 'fulfilled' && aiResult.value.data.length > 0
   startPolling()
 }
 async function discard(): Promise<boolean> { try { await ElMessageBox.confirm('未保存修改将被丢弃，是否继续？', '未保存保护'); return true } catch { return false } }
@@ -378,6 +383,32 @@ watch(projectId, async () => {
         <button v-for="plan in plans" :key="plan.id" class="planning-list-item" @click="open(plan)">
           <strong>{{ plan.title }}</strong><el-tag>{{ planStatusLabel(plan.status) }}</el-tag><small>{{ plan.goal }} · 版本 {{ plan.latestVersionNo }}</small>
         </button>
+        <EmptyState
+          v-if="!plans.length"
+          title="当前还没有规划"
+          description="描述你的目标，AI 会生成一份草案"
+        />
+      </el-card>
+      <el-card v-if="!selected">
+        <EmptyState
+          title="AI 任务规划"
+          description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。"
+        />
+        <div class="planning-empty-actions">
+          <el-button v-if="canCreate" type="primary" @click="createVisible = true">创建规划</el-button>
+        </div>
+        <el-alert
+          v-if="!aiConfigured"
+          title="尚未配置 AI"
+          description="配置个人 AI 后即可生成规划"
+          type="info"
+          show-icon
+          :closable="false"
+        >
+          <template #default>
+            <router-link to="/settings/ai"><el-button text type="primary">前往 AI 设置</el-button></router-link>
+          </template>
+        </el-alert>
       </el-card>
       <el-card v-if="selected">
         <template #header><div class="actions"><strong>{{ selected.title }}</strong>

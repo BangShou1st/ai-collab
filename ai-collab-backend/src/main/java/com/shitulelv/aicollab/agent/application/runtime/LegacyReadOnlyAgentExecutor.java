@@ -56,6 +56,7 @@ public class LegacyReadOnlyAgentExecutor {
             List<ModelMessage> messages,
             List<AgentToolDefinition> exposed,
             UUID projectId,
+            UUID callerUserId,
             boolean correctionAttempted) {
 
         // 构建 system prompt 和 tool list 文本
@@ -72,7 +73,8 @@ public class LegacyReadOnlyAgentExecutor {
                 ChatCompletionCommand.OutputFormat.JSON_OBJECT,
                 ModelPurpose.AGENT,
                 null,
-                List.of());
+                List.of(),
+                callerUserId);
 
         ChatCompletionResult completion = chatGateway.complete(command);
 

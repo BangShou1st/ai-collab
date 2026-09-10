@@ -14,9 +14,10 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 项目级模型配置接口。
- * 只有项目 ADMIN/OWNER 可以管理模型配置。
+ * 项目级模型配置接口（V2 已废弃：个人 AI 配置见 /api/v1/user/ai-providers）。
+ * 仅保留只读兼容，运行时不再路由到此处；物理清理见未来独立 migration。
  */
+@Deprecated
 @RestController
 @RequestMapping("/api/v1/projects/{projectId}/models")
 public class ProjectModelController {

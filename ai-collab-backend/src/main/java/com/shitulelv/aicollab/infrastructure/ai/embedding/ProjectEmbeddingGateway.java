@@ -5,9 +5,11 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
+import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -18,34 +20,70 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.time.Duration;
 
 /**
- * 项目级向量嵌入网关。
- * 根据 projectId 从数据库读取嵌入配置，不再依赖 .env。
+ * 系统级向量嵌入网关（V2 运行时）。
+ * 只读取系统 Embedding 配置；旧 project_embedding_config 表保留为 deprecated 数据，不再参与路由。
+ * projectId 参数仅保留为业务上下文（日志/调用链），不决定配置归属。
  */
 @Component
 public class ProjectEmbeddingGateway {
     private static final Logger log = LoggerFactory.getLogger(ProjectEmbeddingGateway.class);
 
-    private final ProjectEmbeddingConfigRepository configRepo;
+    private final SystemEmbeddingConfigRepository configRepo;
     private final ModelSecretCipher secrets;
+    private final OutboundEndpointPolicy endpoints;
+    private final RestClient injectedRestClient;
 
-    public ProjectEmbeddingGateway(ProjectEmbeddingConfigRepository configRepo, ModelSecretCipher secrets) {
+    public ProjectEmbeddingGateway(SystemEmbeddingConfigRepository configRepo, ModelSecretCipher secrets) {
+        this(configRepo, secrets, new OutboundEndpointPolicy());
+    }
+
+    @Autowired
+    public ProjectEmbeddingGateway(SystemEmbeddingConfigRepository configRepo, ModelSecretCipher secrets,
+                                   OutboundEndpointPolicy endpoints) {
+        this(configRepo, secrets, endpoints, null);
+    }
+
+    ProjectEmbeddingGateway(SystemEmbeddingConfigRepository configRepo, ModelSecretCipher secrets,
+                            OutboundEndpointPolicy endpoints, RestClient injectedRestClient) {
         this.configRepo = configRepo;
         this.secrets = secrets;
+        this.endpoints = endpoints;
+        this.injectedRestClient = injectedRestClient;
     }
 
     public EmbeddingBatch embed(UUID projectId, List<String> input, EmbeddingProgressListener progressListener) {
-        ProjectEmbeddingConfig config = configRepo.findByProjectId(projectId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "项目未配置嵌入模型"));
+        SystemEmbeddingConfig config = configRepo.findActive()
+                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "系统未配置嵌入模型，请联系管理员在管理中心 AI Infrastructure 中配置"));
         if (!config.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "嵌入模型已禁用");
         }
+        log.debug("Embedding via system config for project {}", projectId);
+        return embedWithConfig(asProjectConfig(config), input, progressListener);
+    }
 
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000);
-        factory.setReadTimeout(60000);
-        RestClient restClient = RestClient.builder().requestFactory(factory).build();
+    public String activeFingerprint() {
+        return configRepo.findActive()
+                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "系统未配置嵌入模型，请联系管理员在管理中心 AI Infrastructure 中配置"))
+                .fingerprint();
+    }
+
+    private static ProjectEmbeddingConfig asProjectConfig(SystemEmbeddingConfig active) {
+        return new ProjectEmbeddingConfig(null, active.provider(), active.baseUrl(), active.apiPath(),
+                active.encryptedApiKey(), active.modelName(), active.dimensions(), active.batchSize(),
+                true, active.createdAt(), active.updatedAt());
+    }
+
+    EmbeddingBatch embedWithConfig(ProjectEmbeddingConfig config, List<String> input,
+                                    EmbeddingProgressListener progressListener) {
+
+        RestClient restClient = injectedRestClient != null ? injectedRestClient : createRestClient();
 
         String apiKey = secrets.decrypt(config.encryptedApiKey());
         List<List<Double>> vectors = new ArrayList<>(input.size());
@@ -64,9 +102,11 @@ public class ProjectEmbeddingGateway {
         RuntimeException last = null;
         for (int attempt = 0; attempt < 3; attempt++) {
             try {
+                URI endpoint = URI.create(join(config.baseUrl(), config.apiPath()));
+                endpoints.requirePublicHttps(endpoint);
                 progressListener.onProgress();
                 var response = restClient.post()
-                        .uri(join(config.baseUrl(), config.apiPath()))
+                        .uri(endpoint)
                         .header("Authorization", "Bearer " + apiKey)
                         .body(new EmbeddingRequest(config.modelName(), batch, config.dimensions()))
                         .retrieve().body(EmbeddingResponse.class);
@@ -88,12 +128,12 @@ public class ProjectEmbeddingGateway {
                 throw e;
             } catch (HttpClientErrorException e) {
                 log.warn("Embedding API client error (attempt {}): {} {}", attempt + 1,
-                        e.getStatusCode().value(), e.getResponseBodyAsString());
+                        e.getStatusCode().value(), truncate(e.getResponseBodyAsString(), 200));
                 if (e.getStatusCode().value() != 429) throw failure();
                 last = e;
             } catch (HttpServerErrorException e) {
                 log.warn("Embedding API server error (attempt {}): {} {}", attempt + 1,
-                        e.getStatusCode().value(), e.getResponseBodyAsString());
+                        e.getStatusCode().value(), truncate(e.getResponseBodyAsString(), 200));
                 last = e;
             } catch (ResourceAccessException e) {
                 log.warn("Embedding API connection error (attempt {}): {}", attempt + 1, e.getMessage());
@@ -127,6 +167,21 @@ public class ProjectEmbeddingGateway {
     private static String join(String base, String path) {
         return base.endsWith("/") && path.startsWith("/") ? base + path.substring(1)
                 : !base.endsWith("/") && !path.startsWith("/") ? base + "/" + path : base + path;
+    }
+
+    private static RestClient createRestClient() {
+        HttpClient http = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(http);
+        factory.setReadTimeout(Duration.ofSeconds(60));
+        return RestClient.builder().requestFactory(factory).build();
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null) return "null";
+        return value.length() <= maxLength ? value : value.substring(0, maxLength) + "...";
     }
 
     private static BusinessException failure() {

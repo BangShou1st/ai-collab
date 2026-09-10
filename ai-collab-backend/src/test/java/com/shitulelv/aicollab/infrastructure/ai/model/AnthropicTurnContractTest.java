@@ -343,7 +343,7 @@ class AnthropicTurnContractTest {
     private ChatCompletionCommand legacyCommand() {
         return new ChatCompletionCommand(
                 null, "system", "user", ChatCompletionCommand.OutputFormat.TEXT,
-                ModelPurpose.AGENT, null, List.of());
+                ModelPurpose.AGENT, null, List.of(), null);
     }
 
     private static JsonNode capturedBody(JsonHttpModelClient http) {
