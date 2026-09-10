@@ -12,6 +12,7 @@ public enum ErrorCode {
     AUTH_INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "用户名或密码错误"),
     AUTH_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "当前登录状态无效，请重新登录"),
     AUTH_FORBIDDEN(HttpStatus.FORBIDDEN, "没有权限执行此操作"),
+    AUTH_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试"),
     USER_DISABLED(HttpStatus.FORBIDDEN, "账号已被禁用"),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "用户不存在"),
     REGISTRATION_DISABLED(HttpStatus.FORBIDDEN, "当前未开放公开注册"),

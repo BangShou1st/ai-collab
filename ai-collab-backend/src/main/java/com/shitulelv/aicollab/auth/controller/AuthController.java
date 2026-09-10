@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.auth.controller;
 
+import com.shitulelv.aicollab.auth.ratelimit.AuthRateLimiter;
 import com.shitulelv.aicollab.auth.dto.CurrentUserResponse;
 import com.shitulelv.aicollab.auth.dto.AccessTokenResponse;
 import com.shitulelv.aicollab.auth.dto.LoginRequest;
@@ -43,15 +44,19 @@ public class AuthController {
     private final PublicRegistrationService registrations;
     private final AccountService accounts;
 
+    private final AuthRateLimiter rateLimiter;
+
     public AuthController(
             AuthService authService,
             RefreshTokenCookieService refreshTokenCookieService,
             PublicRegistrationService registrations,
-            AccountService accounts) {
+            AccountService accounts,
+            AuthRateLimiter rateLimiter) {
         this.authService = authService;
         this.refreshTokenCookieService = refreshTokenCookieService;
         this.registrations = registrations;
         this.accounts = accounts;
+        this.rateLimiter = rateLimiter;
     }
 
     @GetMapping("/registration-policy")
@@ -62,7 +67,9 @@ public class AuthController {
     @PostMapping("/register")
     public ApiResponse<LoginResponse> register(
             @Valid @RequestBody RegisterRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse response) {
+        rateLimiter.checkRegister(httpRequest);
         AuthenticationResult result = registrations.register(request);
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookieService
                 .createCookie(result.refreshToken().value(), result.refreshToken().expiresAt()).toString());
@@ -72,7 +79,9 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(
             @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse response) {
+        rateLimiter.checkLogin(httpRequest, request.username());
         AuthenticationResult result = authService.login(request);
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookieService
                 .createCookie(result.refreshToken().value(), result.refreshToken().expiresAt())
