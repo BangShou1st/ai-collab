@@ -57,6 +57,7 @@ public enum ErrorCode {
     DOCUMENT_PROCESSING_CONFLICT(HttpStatus.CONFLICT, "文档当前状态不允许执行该操作"),
     DOCUMENT_PARSE_FAILED(HttpStatus.UNPROCESSABLE_CONTENT, "文档解析失败"),
     DOCUMENT_EMBEDDING_FAILED(HttpStatus.BAD_GATEWAY, "文档向量化失败，请检查模型配置后重试"),
+    EMBEDDING_REINDEX_REQUIRED(HttpStatus.CONFLICT, "当前知识库已有使用旧 Embedding 生成的索引，修改模型前需要重新构建知识库索引"),
     DOCUMENT_STORAGE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "文件存储服务暂时不可用"),
     KNOWLEDGE_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "问答会话不存在"),
     AI_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "问答请求过于频繁，请稍后再试"),

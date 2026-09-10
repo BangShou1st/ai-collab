@@ -41,6 +41,11 @@ public class ProjectEmbeddingGateway {
         if (!config.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "嵌入模型已禁用");
         }
+        return embedWithConfig(config, input, progressListener);
+    }
+
+    EmbeddingBatch embedWithConfig(ProjectEmbeddingConfig config, List<String> input,
+                                    EmbeddingProgressListener progressListener) {
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5000);
