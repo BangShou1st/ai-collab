@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
@@ -216,13 +217,6 @@ async function setDefault(provider: UserAiProvider): Promise<void> {
   }
 }
 
-function overrideName(purpose: AiPurpose): string {
-  const id = overrides[purpose]
-  if (!id) return '使用默认'
-  if (id === zenProviderId.value) return `OpenCode Zen · ${zen.value?.modelName ?? ''}`
-  return customProviders.value.find((p) => p.id === id)?.name ?? '使用默认'
-}
-
 async function saveOverride(purpose: AiPurpose): Promise<void> {
   const providerId = overrides[purpose]
   try {
@@ -262,14 +256,16 @@ onMounted(load)
             <el-skeleton v-if="zenLoading" :rows="2" animated />
             <div v-else class="zen-form">
               <el-input v-model="zenKey" type="password" show-password placeholder="API Key（留空则保留已保存）" />
-              <el-select v-model="zenModel" placeholder="选择免费模型" filterable>
-                <el-option v-for="m in zenModels" :key="m" :label="m" :value="m" />
-              </el-select>
+              <div class="model-select-row">
+                <el-select v-model="zenModel" placeholder="选择免费模型" filterable>
+                  <el-option v-for="m in zenModels" :key="m" :label="m" :value="m" />
+                </el-select>
+                <el-button text :icon="Refresh" aria-label="刷新模型" title="刷新模型" @click="loadZenModels(true)" />
+              </div>
               <div class="zen-actions">
                 <el-checkbox v-model="zenDefault">设为默认模型</el-checkbox>
                 <el-button :loading="testingId === 'zen'" @click="testZen">测试连接</el-button>
                 <el-button type="primary" :loading="saving" :disabled="!zenModel" @click="saveZen">保存</el-button>
-                <el-button text aria-label="刷新模型" title="刷新模型" @click="loadZenModels(true)">刷新</el-button>
               </div>
             </div>
           </div>
@@ -305,7 +301,6 @@ onMounted(load)
         <template #header><strong>按用途覆盖默认模型（可选）</strong></template>
         <div v-for="purpose in purposes" :key="purpose.value" class="override-row setting-row">
           <span class="override-label">{{ purpose.label }}</span>
-          <span class="override-current">{{ overrideName(purpose.value) }}</span>
           <el-select v-model="overrides[purpose.value]" placeholder="使用默认" clearable @change="saveOverride(purpose.value)">
             <el-option v-if="zen?.connected" :key="'zen'" :label="`OpenCode Zen Free · ${zen?.modelName ?? ''}`" :value="zenProviderId" />
             <el-option v-for="p in customProviders.filter((c) => c.enabled)" :key="p.id" :label="p.name" :value="p.id" />

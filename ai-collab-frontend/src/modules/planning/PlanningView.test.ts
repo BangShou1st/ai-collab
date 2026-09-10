@@ -355,9 +355,10 @@ describe('PlanningView real component workflow', () => {
       .mockResolvedValueOnce(response([plan({ status: 'REPAIRING' })]))
       .mockResolvedValueOnce(response([plan({ status: 'READY' })]))
     const wrapper = await mounted()
-    expect(mocks.list).toHaveBeenCalledTimes(2)
-    await vi.advanceTimersByTimeAsync(2000)
+    // 默认选中首条 plan 后，每轮 poll 还会走 refresh() 再调一次 list
     expect(mocks.list).toHaveBeenCalledTimes(3)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(mocks.list).toHaveBeenCalledTimes(5)
     wrapper.unmount()
   })
 

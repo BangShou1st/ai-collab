@@ -281,6 +281,10 @@ function dropQueryKey(key: string) {
   void router.replace({ query: next })
 }
 const pageContext = computed(currentPageContext)
+const hasPageContext = computed(() => {
+  const c = pageContext.value
+  return Boolean(c.selectedTaskId ?? c.selectedMilestoneId ?? c.selectedDocumentId ?? c.selectedPlanId)
+})
 function removeContext(key: keyof AgentPageContext) {
   removedContextKeys.value = new Set([...removedContextKeys.value, key])
   const queryKey = key === 'selectedTaskId' ? 'task' : key === 'selectedDocumentId' ? 'document' : key === 'selectedPlanId' ? 'plan' : key === 'selectedMilestoneId' ? 'milestone' : null
@@ -570,7 +574,7 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
           <p class="inspector-meta">Run {{ runDetail.run.id }}</p>
           <p class="inspector-meta">Sequence {{ runDetail.lastEventSequence }} · SSE {{ timeline.connected ? '已连接' : '未连接' }}</p>
         </section>
-        <section class="inspector-block">
+        <section v-if="hasPageContext" class="inspector-block">
           <h2>页面上下文</h2>
           <AgentContextChips :context="pageContext" @remove="removeContext" @clear="clearContext" />
         </section>
@@ -658,5 +662,5 @@ article small{margin-right:12px;color:var(--el-text-color-secondary)}
 @media(max-width:1280px) and (min-width:761px){.agent-workspace{grid-template-columns:220px minmax(0,1fr)}.agent-inspector{position:fixed;top:0;right:0;bottom:0;width:min(420px,92vw);z-index:60;background:var(--color-surface);border-left:1px solid var(--color-border);box-shadow:-12px 0 32px rgba(15,23,42,.12);padding:16px;overflow-y:auto;max-height:none}.agent-workspace.hide-inspector .agent-inspector{display:none}}
 @media(max-width:760px){.mobile-switch{display:block}.agent-workspace{grid-template-columns:1fr}.agent-workspace[data-view="sessions"] .conversation,.agent-workspace[data-view="sessions"] .agent-inspector{display:none}.agent-workspace[data-view="chat"] .agent-sessions,.agent-workspace[data-view="chat"] .agent-inspector{display:none}.agent-workspace[data-view="inspector"] .agent-sessions,.agent-workspace[data-view="inspector"] .conversation{display:none}.agent-inspector{max-height:none}}
 .inspector-toggle{display:inline-flex}
-@media(max-width:760px){.agent-workspace,.agent-workspace.hide-inspector{grid-template-columns:1fr}.agent-sessions{max-height:180px}.messages{max-height:none}}
+@media(max-width:760px){.agent-workspace,.agent-workspace.hide-inspector{grid-template-columns:1fr}.agent-sessions{max-height:180px}.messages{max-height:none}.inspector-toggle{display:none}}
 </style>

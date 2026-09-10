@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import {
   Bell, ChatDotRound, Cpu, DataBoard, Document, Expand, Fold, Folder, House, List,
-  MagicStick, Setting, Tickets, User,
+  MagicStick, MoreFilled, Setting, Tickets, User,
 } from '@element-plus/icons-vue'
 import { showApiError } from '../api/api-result'
 import { useAuthStore } from '../stores/auth-store'
@@ -23,6 +23,20 @@ const userInitial = computed(() => {
   return name.trim().charAt(0).toUpperCase() || '协'
 })
 const userName = computed(() => auth.currentUser?.displayName || auth.currentUser?.username || '协作用户')
+
+const userDetail = computed(() => {
+  const u = auth.currentUser
+  if (!u) return ''
+  return u.username && u.username !== u.displayName ? u.username : ''
+})
+
+async function onUserCommand(command: string): Promise<void> {
+  if (command === 'account') {
+    await gotoAccount()
+  } else if (command === 'logout') {
+    await logout()
+  }
+}
 
 function closeMobileNav(): void {
   if (!mobileNavOpen.value) return
@@ -152,17 +166,35 @@ async function logout(): Promise<void> {
         <button class="side-collapse" type="button" @click="collapsed = !collapsed" :aria-label="collapsed ? '展开侧栏' : '收起侧栏'" :title="collapsed ? '展开侧栏' : '收起侧栏'">
           <el-icon><component :is="collapsed ? Expand : Fold" /></el-icon>
         </button>
-        <button v-if="!collapsed" class="user-chip" type="button" @click="gotoAccount" aria-label="账号设置">
+        <div v-if="!collapsed" class="user-row">
           <span class="user-avatar" aria-hidden="true">{{ userInitial }}</span>
           <span class="user-copy">
             <strong>{{ userName }}</strong>
-            <small>账号设置 · 退出登录</small>
+            <small v-if="userDetail">{{ userDetail }}</small>
           </span>
-        </button>
-        <el-button v-if="!collapsed" text :loading="loggingOut" aria-label="退出登录" @click="logout">退出</el-button>
-        <button v-else class="user-chip collapsed-avatar" type="button" @click="gotoAccount" aria-label="账号设置" title="账号设置">
-          <span class="user-avatar" aria-hidden="true">{{ userInitial }}</span>
-        </button>
+          <el-dropdown trigger="click" placement="top-start" @command="onUserCommand">
+            <button class="user-menu-trigger" type="button" aria-label="账号菜单" title="账号菜单">
+              <el-icon><MoreFilled /></el-icon>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="account">账号设置</el-dropdown-item>
+                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+        <el-dropdown v-else trigger="click" placement="right-start" class="collapsed-user" @command="onUserCommand">
+          <button class="collapsed-avatar" type="button" aria-label="账号菜单" title="账号菜单">
+            <span class="user-avatar" aria-hidden="true">{{ userInitial }}</span>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="account">账号设置</el-dropdown-item>
+              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </aside>
 

@@ -134,6 +134,15 @@ async function list(): Promise<TaskPlan['status'][]> {
   plans.value = (await planningApi.list(projectId.value)).data.data
   return plans.value.map(plan => plan.status)
 }
+async function ensureDefaultSelection(): Promise<void> {
+  if (!selected.value && plans.value.length > 0) {
+    try {
+      await open(plans.value[0])
+    } catch (error) {
+      showApiError(error, '任务规划详情加载')
+    }
+  }
+}
 async function open(plan: TaskPlan): Promise<void> {
   if (dirty.value && !await discard()) return
   const [detail, history] = await Promise.all([planningApi.detail(projectId.value, plan.id), planningApi.versions(projectId.value, plan.id)])
@@ -242,6 +251,7 @@ async function removePlan(): Promise<void> {
     await planningApi.remove(projectId.value, selected.value.id)
     selected.value = null; draft.value = null; structuredIssues.value = []; events.value = []
     await list()
+    await ensureDefaultSelection()
   } catch (error) { showApiError(error, '任务规划删除') }
 }
 async function confirm(): Promise<void> {
@@ -342,6 +352,9 @@ async function loadWorkspace(): Promise<void> {
   if (planResult.status === 'rejected') {
     plans.value = []
     showApiError(planResult.reason, '任务规划列表加载')
+  }
+  if (planResult.status === 'fulfilled') {
+    await ensureDefaultSelection()
   }
   if (documentResult.status === 'fulfilled') {
     documents.value = documentResult.value.data.filter(document => document.status === 'READY')
