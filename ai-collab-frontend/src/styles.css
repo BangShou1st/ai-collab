@@ -84,6 +84,7 @@
 .key-note { color: var(--color-text-muted); font-size: 12px; }
 .project-meta-line { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--color-text-secondary); margin: 6px 0; }
 .project-meta-line.muted { color: var(--color-text-muted); font-size: 12px; }
+.planning-empty-actions { display: flex; justify-content: center; margin: 4px 0 12px; }
 .next-task-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
 .next-task-row + .next-task-row { border-top: 1px solid var(--color-border); }
 .next-task-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
