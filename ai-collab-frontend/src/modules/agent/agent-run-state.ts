@@ -15,7 +15,7 @@ const errorTitles: Record<string, string> = {
   AI_MODEL_TIMEOUT: '模型响应超时',
   AI_PROVIDER_QUOTA_EXCEEDED: '模型额度不足',
   AI_PROVIDER_UNAVAILABLE: '模型尚未配置或不可用',
-  AI_MODEL_CREDENTIAL_INVALID: '模型凭据无法解密，请在系统管理中重新填写 API Key',
+  AI_MODEL_CREDENTIAL_INVALID: '模型凭据无法解密，请在个人 AI 设置中重新填写 API Key',
   AI_PROVIDER_ERROR: '模型服务暂时不可用',
   AI_PROVIDER_INVALID_RESPONSE: '模型返回了无法识别的内容',
   AI_PROVIDER_OUTPUT_TRUNCATED: '模型输出不完整',

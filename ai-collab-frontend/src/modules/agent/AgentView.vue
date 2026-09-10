@@ -17,7 +17,13 @@ import type { AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentSess
 
 const route = useRoute()
 const projectId = computed(() => String(route.params.projectId ?? ''))
-const tab = ref('chat')
+const showInspector = ref(true)
+const runTone = computed(() => {
+  const severity = activeRunState.value?.severity
+  return severity === 'error' ? 'danger' : (severity ?? 'info')
+})
+const pendingApprovals = computed(() => approvals.value.filter((x) => x.status === 'PENDING'))
+const resolvedApprovals = computed(() => approvals.value.filter((x) => x.status !== 'PENDING'))
 const sessions = ref<AgentSession[]>([])
 const sessionId = ref('')
 const messages = ref<AgentMessage[]>([])
@@ -256,11 +262,16 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
 
 <template>
   <section class="workspace-page agent-page" v-loading="busy">
-    <PageHeader title="项目协作 Agent" />
-    <el-tabs v-model="tab">
-      <el-tab-pane label="协作对话" name="chat">
-        <div class="chat-layout">
-          <aside>
+    <PageHeader title="项目协作 Agent" eyebrow="AI 工作区">
+      <template #actions>
+        <el-tag v-if="activeRunState" :type="runTone" effect="light">{{ activeRunState.title }}</el-tag>
+        <el-button class="inspector-toggle" @click="showInspector = !showInspector">
+          {{ showInspector ? '隐藏检查器' : '显示检查器' }}
+        </el-button>
+      </template>
+    </PageHeader>
+    <div class="agent-workspace" :class="{ 'hide-inspector': !showInspector }">
+      <aside class="agent-sessions" aria-label="会话历史">
             <el-button type="primary" plain @click="newSession">新建会话</el-button>
             <div v-for="item in sessions" :key="item.id" class="session-row">
               <button class="session" :class="{ active: item.id === sessionId }"
@@ -298,31 +309,10 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
                 <small v-if="message.citations?.length">来源 {{ message.citations.length }} 条</small>
                 <small v-if="message.inferences?.length">推断 {{ message.inferences.length }} 条</small>
               </article>
-              <el-alert
-                v-if="activeRunState"
-                class="run-state"
-                :title="activeRunState.title"
-                :type="activeRunState.severity"
-                :closable="false"
-                show-icon
-              >
-                <template v-if="activeRunState.canRetry" #default>
-                  <el-button
-                    data-test="agent-retry"
-                    size="small"
-                    :loading="sending"
-                    @click="retryActiveRun"
-                  >
-                    重试
-                  </el-button>
-                </template>
-              </el-alert>
-              <AgentRunTimeline :plan="timeline.plan" :events="timeline.events" :status="activeRun?.status" />
             </div>
             <div v-if="activeRun?.status === 'WAITING_FOR_USER_INPUT'" class="waiting-for-input">
               <el-alert title="Agent 需要你的输入" type="info" :closable="false" show-icon />
             </div>
-            <AgentContextChips :context="pageContext" @remove="removeContext" @clear="clearContext" />
             <div class="skill-selector" v-if="skills.length">
               <span class="skill-label">选择能力：</span>
               <el-check-tag
@@ -348,23 +338,80 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
               <el-button v-if="activeRun && !activeRunState?.terminal && activeRun?.status !== 'WAITING_FOR_USER_INPUT'" type="danger" plain @click="cancelActiveRun">停止运行</el-button>
             </div>
           </main>
-        </div>
-      </el-tab-pane>
-      <el-tab-pane :label="`待审批 (${approvals.filter(x => x.status === 'PENDING').length})`" name="approvals">
-        <el-empty v-if="!approvals.length" description="暂无 Agent 写入提案" />
-        <AgentApprovalCard v-for="item in approvals" :key="item.id" :approval="item" :members="members" @approve="approve" @reject="reject" />
-      </el-tab-pane>
-    </el-tabs>
+      <aside v-if="showInspector" class="agent-inspector" aria-label="运行检查器">
+        <section class="inspector-block">
+          <h2>运行状态</h2>
+          <el-alert
+            v-if="activeRunState"
+            :title="activeRunState.title"
+            :type="activeRunState.severity === 'error' ? 'error' : activeRunState.severity"
+            :closable="false"
+            show-icon
+          />
+          <p v-else class="inspector-empty">暂无运行</p>
+          <p class="inspector-meta">SSE {{ timeline.connected ? '已连接' : '未连接' }}</p>
+          <div v-if="activeRunState?.canRetry" class="inspector-actions">
+            <el-button
+              data-test="agent-retry"
+              size="small"
+              :loading="sending"
+              @click="retryActiveRun"
+            >
+              重试
+            </el-button>
+          </div>
+        </section>
+        <section class="inspector-block">
+          <h2>待审批（{{ pendingApprovals.length }}）</h2>
+          <el-empty v-if="!pendingApprovals.length" description="暂无待审批提案" :image-size="60" />
+          <AgentApprovalCard v-for="item in pendingApprovals" :key="item.id" :approval="item" :members="members" @approve="approve" @reject="reject" />
+        </section>
+        <section class="inspector-block">
+          <h2>运行时间线</h2>
+          <AgentRunTimeline :plan="timeline.plan" :events="timeline.events" :status="activeRun?.status" />
+        </section>
+        <section class="inspector-block">
+          <h2>页面上下文</h2>
+          <AgentContextChips :context="pageContext" @remove="removeContext" @clear="clearContext" />
+        </section>
+        <section v-if="resolvedApprovals.length" class="inspector-block">
+          <h2>已处理提案（{{ resolvedApprovals.length }}）</h2>
+          <AgentApprovalCard v-for="item in resolvedApprovals" :key="item.id" :approval="item" :members="members" @approve="approve" @reject="reject" />
+        </section>
+      </aside>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.agent-page{display:flex;flex-direction:column;gap:12px;height:calc(100dvh - 116px);overflow:hidden;padding-top:16px;padding-bottom:16px}.agent-page :deep(.el-tabs){display:flex;min-height:0;flex:1;flex-direction:column}.agent-page :deep(.el-tabs__content){min-height:0;flex:1;overflow:auto}.agent-page :deep(.el-tab-pane){height:100%}.chat-layout{display:grid;grid-template-columns:240px 1fr;height:100%;min-height:0;border:1px solid var(--el-border-color);border-radius:10px;overflow:hidden}
-aside{padding:14px;background:var(--el-fill-color-light);display:flex;min-height:0;overflow-y:auto;flex-direction:column;gap:8px}.session-row{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:4px;border-radius:10px}.session-row:hover{background:var(--el-fill-color)}.session{width:100%;height:40px;min-height:40px;border:0;border-radius:8px;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;background:transparent;cursor:pointer}.session.active{background:var(--el-color-primary-light-8);color:var(--el-color-primary)}.session-actions{display:flex;justify-content:flex-end;gap:2px}
-.conversation{min-height:0;padding:18px;display:grid;grid-template-rows:minmax(0,1fr) auto auto;gap:10px}.messages{min-height:0;overflow:auto}article{max-width:78%;margin:12px 0;padding:12px 14px;border-radius:10px;background:var(--el-fill-color-light);white-space:pre-wrap}article.user{margin-left:auto;background:var(--el-color-primary-light-9)}article p{margin:8px 0}article small{margin-right:12px;color:var(--el-text-color-secondary)}.empty{text-align:center;padding:80px;color:var(--el-text-color-secondary)}
-.run-state{margin:12px 0}.run-state :deep(.el-alert__content){display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}
-.waiting-for-input{margin:12px 0}.waiting-for-input :deep(.el-alert__content){display:flex;align-items:center;gap:8px}
-.agent-timeline{display:grid;gap:6px;margin:12px 0;padding:0;list-style:none}.agent-timeline li{display:flex;gap:10px;padding:8px 10px;border-left:3px solid var(--el-color-primary);background:var(--el-fill-color-lighter);font-size:13px}.agent-timeline span{color:var(--el-text-color-secondary)}.composer-actions{display:flex;gap:8px;flex-wrap:wrap}
-.skill-selector{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 0}.skill-label{color:var(--el-text-color-secondary);font-size:13px;white-space:nowrap}
-.approval{margin-bottom:12px}.approval :deep(.el-card__header){display:flex;justify-content:space-between}.approval-fields{display:grid;grid-template-columns:120px minmax(0,1fr);gap:8px 16px;margin:0 0 14px}.approval-fields dt{color:var(--el-text-color-secondary)}.approval-fields dd{margin:0;font-weight:600}.approval-expiry{color:var(--el-text-color-secondary);font-size:13px}@media(max-width:760px){.agent-page{height:auto;min-height:calc(100dvh - 116px);overflow:visible}.chat-layout{grid-template-columns:1fr;min-height:620px}aside{max-height:180px;overflow:auto}}
+.agent-page{display:flex;flex-direction:column;gap:12px;min-height:calc(100dvh - 116px);padding-top:16px;padding-bottom:16px}
+.agent-workspace{display:grid;grid-template-columns:248px minmax(0,1fr) 340px;gap:12px;align-items:start}
+.agent-sessions,.agent-inspector{background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:0}
+.agent-sessions{max-height:calc(100dvh - 220px);overflow-y:auto}
+.session-row{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:4px;border-radius:10px}
+.session-row:hover{background:var(--el-fill-color)}
+.session{width:100%;height:40px;min-height:40px;border:0;border-radius:8px;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;background:transparent;cursor:pointer}
+.session.active{background:var(--el-color-primary-light-8);color:var(--el-color-primary)}
+.session-actions{display:flex;justify-content:flex-end;gap:2px}
+.conversation{min-height:0;padding:18px;display:grid;grid-template-rows:minmax(0,1fr) auto auto;gap:10px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px}
+.messages{min-height:0;overflow:auto;max-height:calc(100dvh - 420px)}
+article{max-width:78%;margin:12px 0;padding:12px 14px;border-radius:10px;background:var(--el-fill-color-light);white-space:pre-wrap}
+article.user{margin-left:auto;background:var(--el-color-primary-light-9)}
+article p{margin:8px 0}
+article small{margin-right:12px;color:var(--el-text-color-secondary)}
+.empty{text-align:center;padding:80px;color:var(--el-text-color-secondary)}
+.waiting-for-input{margin:12px 0}
+.composer-actions{display:flex;gap:8px;flex-wrap:wrap}
+.skill-selector{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 0}
+.skill-label{color:var(--el-text-color-secondary);font-size:13px;white-space:nowrap}
+.agent-inspector{max-height:calc(100dvh - 220px);overflow-y:auto}
+.inspector-block{display:grid;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--color-border)}
+.inspector-block:last-child{border-bottom:0}
+.inspector-block h2{font-size:13px;color:var(--color-text-secondary);margin:0}
+.inspector-empty{color:var(--color-text-muted);font-size:13px;margin:0}
+.inspector-meta{color:var(--color-text-muted);font-size:12px;margin:0}
+.inspector-actions{display:flex;gap:8px}
+.inspector-toggle{display:none}
+@media(max-width:1280px){.agent-workspace{grid-template-columns:220px minmax(0,1fr)}.agent-workspace.hide-inspector{grid-template-columns:220px minmax(0,1fr)}.agent-inspector{grid-column:1/-1;max-height:none}.inspector-toggle{display:inline-flex}}
+@media(max-width:760px){.agent-workspace,.agent-workspace.hide-inspector{grid-template-columns:1fr}.agent-sessions{max-height:180px}.messages{max-height:none}}
 </style>
