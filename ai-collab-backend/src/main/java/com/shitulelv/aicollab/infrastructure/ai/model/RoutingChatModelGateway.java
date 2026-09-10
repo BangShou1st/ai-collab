@@ -30,6 +30,7 @@ public class RoutingChatModelGateway implements ChatModelGateway {
     private final ObjectMapper json;
     private final ZenModelExecution zen;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public RoutingChatModelGateway(
             UserAiProviderService userProviders,
             ModelSecretCipher secrets,

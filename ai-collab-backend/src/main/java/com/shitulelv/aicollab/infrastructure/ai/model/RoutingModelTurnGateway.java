@@ -25,6 +25,7 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
     private final Map<ModelProviderType, ModelTurnProviderAdapter> adapters;
     private final ZenModelExecution zen;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public RoutingModelTurnGateway(
             ModelConfigurationRepository configurations,
             UserAiProviderService userProviders,

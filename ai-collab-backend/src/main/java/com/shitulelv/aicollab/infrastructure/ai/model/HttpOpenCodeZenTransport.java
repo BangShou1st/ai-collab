@@ -26,6 +26,7 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
     private final OutboundEndpointPolicy endpoints;
     private final HttpClient production;
     private final HttpClient settings;
+    @org.springframework.beans.factory.annotation.Autowired
     public HttpOpenCodeZenTransport(ObjectMapper mapper, OutboundEndpointPolicy endpoints) {
         this.mapper = mapper;
         this.endpoints = endpoints;

@@ -445,7 +445,7 @@ class AgentRuntimeBehaviorTest {
         ModelTurnResult result = new ModelTurnResult(
                 "完成", List.of(), ModelFinishReason.STOP,
                 new ModelUsage(100, 50), "openai", "gpt-4", 200L);
-        when(modelTurn.turn(any())).thenReturn(result);
+        when(modelTurn.turn(any(), any())).thenReturn(result);
 
         UUID configId = UUID.randomUUID();
         nativeExecutor.callModel(
@@ -455,7 +455,7 @@ class AgentRuntimeBehaviorTest {
                 configId);
 
         // 验证只调用了一次 modelTurn.turn，没有调用 AgentDecisionParser
-        verify(modelTurn, times(1)).turn(any());
+        verify(modelTurn, times(1)).turn(any(), any());
     }
 
     /**

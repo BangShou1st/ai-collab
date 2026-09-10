@@ -38,14 +38,14 @@ class TaskPlanModelClientTest {
 
     @Test
     void planningGenerateAlwaysRequestsJsonObjectOutput() {
-        when(gateway.complete(any())).thenReturn(new ChatCompletionResult(
+        when(gateway.complete(any(), any())).thenReturn(new ChatCompletionResult(
                 "{}", "openai", "gpt-4", 10, 20, 100L));
 
         client.generate("system", "user", "FEATURE", UUID.randomUUID(),
                 UUID.randomUUID(), UUID.randomUUID());
 
         ArgumentCaptor<ChatCompletionCommand> captor = ArgumentCaptor.forClass(ChatCompletionCommand.class);
-        verify(gateway).complete(captor.capture());
+        verify(gateway).complete(captor.capture(), any());
         assertThat(captor.getValue().outputFormat()).isEqualTo(ChatCompletionCommand.OutputFormat.JSON_OBJECT);
     }
 }
