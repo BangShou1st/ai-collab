@@ -1,4 +1,4 @@
-package com.shitulelv.aicollab.document.infrastructure;
+package com.shitulelv.aicollab.infrastructure.ai.embedding;
 
 import com.shitulelv.aicollab.document.domain.model.DocumentChunk;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 })
 @Testcontainers(disabledWithoutDocker = true)
 @ActiveProfiles("test")
-class DocumentRepositoryIntegrationTest {
+class EmbeddingFingerprintSearchTest {
     @Container
     static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>("pgvector/pgvector:pg17");
@@ -52,48 +52,48 @@ class DocumentRepositoryIntegrationTest {
     @Autowired
     DocumentRepository documents;
 
-    @Test
-    void searchReadsJsonMetadataIntoTheResultView() {
-        UUID userId = UUID.randomUUID();
-        UUID projectId = UUID.randomUUID();
-        UUID documentId = UUID.randomUUID();
+    private UUID seedDocument(String userTag, String projectName) {
+        UUID user = UUID.randomUUID();
+        UUID project = UUID.randomUUID();
+        UUID document = UUID.randomUUID();
         jdbc.update("INSERT INTO app_user(id,username,password_hash,display_name) VALUES (?,?,?,?)",
-                userId, "document-" + userId.toString().substring(0, 8),
-                "test-only-hash", "Document owner");
+                user, "fp-" + userTag + "-" + user.toString().substring(0, 8), "test-only-hash", "Fp");
         jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,?,?,?)",
-                projectId, "Document search", userId, userId);
-        jdbc.update("INSERT INTO project_member(project_id,user_id,role) VALUES (?,?,'OWNER')",
-                projectId, userId);
+                project, projectName, user, user);
         jdbc.update("""
-                INSERT INTO project_document(
-                    id, project_id, display_name, original_filename, mime_type,
-                    size_bytes, object_key, status, chunk_count,
-                    embedding_provider, embedding_model, embedding_dimension, uploaded_by)
-                VALUES (?, ?, '需求', '需求.pdf', 'application/pdf',
-                    10, ?, 'READY', 1, 'test-provider', 'test-model', 3, ?)
-                """, documentId, projectId, "projects/" + projectId + "/requirements.pdf", userId);
-        documents.replaceChunks(
-                projectId,
-                documentId,
-                List.of(new DocumentChunk(
-                        0, "验收", "必须通过全部自动化测试", "hash", 8,
-                        Map.of("pageNumber", 7))),
-                List.of(List.of(1d, 0d, 0d)),
-                "test-provider",
-                "test-model",
-                3,
-                "需求.pdf");
+                INSERT INTO project_document(id,project_id,display_name,original_filename,mime_type,
+                  size_bytes,object_key,status,chunk_count,uploaded_by)
+                VALUES (?,?,'d','d.pdf','application/pdf',10,?,'READY',1,?)
+                """, document, project, "projects/" + project + "/d.pdf", user);
+        documents.replaceChunks(project, document,
+                List.of(new DocumentChunk(0, "h", "content", "hash", 8, Map.of())),
+                List.of(List.of(1d, 0d, 0d)), "test-provider", "test-model", 3, "d.pdf");
+        return document;
+    }
 
-        var result = documents.search(
-                projectId, List.of(1d, 0d, 0d),
-                "test-provider", "test-model", 3,
-                com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprints
-                        .fingerprint("test-provider", "test-model", 3),
-                List.of(documentId), 8);
+    @Test
+    void same_fingerprint_is_searched() {
+        UUID document = seedDocument("same", "SameSpace");
+        UUID project = jdbc.queryForObject("SELECT project_id FROM project_document WHERE id=?",
+                UUID.class, document);
+        String fingerprint = EmbeddingFingerprints.fingerprint("test-provider", "test-model", 3);
 
-        assertThat(result).singleElement().satisfies(hit -> {
-            assertThat(hit.originalFilename()).isEqualTo("需求.pdf");
-            assertThat(hit.metadata()).containsEntry("pageNumber", 7);
-        });
+        var hits = documents.search(project, List.of(1d, 0d, 0d),
+                "test-provider", "test-model", 3, fingerprint, List.of(document), 8);
+
+        assertThat(hits).hasSize(1);
+    }
+
+    @Test
+    void mixed_fingerprint_is_never_searched() {
+        UUID document = seedDocument("mixed", "MixedSpace");
+        UUID project = jdbc.queryForObject("SELECT project_id FROM project_document WHERE id=?",
+                UUID.class, document);
+        String other = EmbeddingFingerprints.fingerprint("other-provider", "other-model", 7);
+
+        var hits = documents.search(project, List.of(1d, 0d, 0d),
+                "test-provider", "test-model", 3, other, List.of(document), 8);
+
+        assertThat(hits).isEmpty();
     }
 }

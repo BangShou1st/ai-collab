@@ -190,6 +190,7 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             WHERE c.project_id=#{projectId} AND d.status='READY'
               AND c.embedding_provider=#{provider} AND c.embedding_model=#{model}
               AND c.embedding_dimension=#{dimension}
+              AND c.embedding_fingerprint=#{fingerprint}
               <if test="documentIds != null and !documentIds.isEmpty()">
                 AND d.id IN
                 <foreach collection="documentIds" item="id" open="(" separator="," close=")">
@@ -218,6 +219,7 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
                                    @Param("provider") String provider,
                                    @Param("model") String model,
                                    @Param("dimension") int dimension,
+                                   @Param("fingerprint") String fingerprint,
                                    @Param("documentIds") List<UUID> documentIds,
                                    @Param("topK") int topK);
 

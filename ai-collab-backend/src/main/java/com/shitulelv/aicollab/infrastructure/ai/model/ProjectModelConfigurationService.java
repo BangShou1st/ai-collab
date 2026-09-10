@@ -21,9 +21,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 项目级模型配置服务。
- * 只有项目 ADMIN/OWNER 可以管理模型配置。
+ * 项目级模型配置服务（V2 已废弃：个人 AI 配置见 UserAiProviderService）。
+ * 保留安全加固后的实现供兼容读取，运行时不再路由到此处。
  */
+@Deprecated
 @Service
 public class ProjectModelConfigurationService {
     private static final Logger log = LoggerFactory.getLogger(ProjectModelConfigurationService.class);

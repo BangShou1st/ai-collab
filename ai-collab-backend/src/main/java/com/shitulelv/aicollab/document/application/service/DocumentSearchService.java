@@ -46,7 +46,7 @@ public class DocumentSearchService {
         }
         return documents.search(projectId, queryEmbedding.vectors().getFirst(),
                 queryEmbedding.provider(), queryEmbedding.model(), queryEmbedding.dimension(),
-                scopedIds, topK);
+                embeddings.activeFingerprint(), scopedIds, topK);
     }
 
     private static String validateQuery(String query) {

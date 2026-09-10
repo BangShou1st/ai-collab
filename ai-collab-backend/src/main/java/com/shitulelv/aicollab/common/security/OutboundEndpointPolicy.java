@@ -10,11 +10,14 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
 
+import org.springframework.stereotype.Component;
+
 /**
  * 出站 endpoint 通用安全策略，供 Model Provider、Embedding Provider、MCP 复用。
  * 要求 HTTPS、无 userinfo，DNS 解析后拒绝 loopback/private/link-local/multicast/CGNAT。
  * 默认不自动跟随 redirect；必须跟随处逐跳重验并限制 hop 数。
  */
+@Component
 public class OutboundEndpointPolicy {
 
     @FunctionalInterface

@@ -20,28 +20,44 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 项目级向量嵌入网关。
- * 根据 projectId 从数据库读取嵌入配置，不再依赖 .env。
+ * 系统级向量嵌入网关（V2 运行时）。
+ * 只读取系统 Embedding 配置；旧 project_embedding_config 表保留为 deprecated 数据，不再参与路由。
+ * projectId 参数仅保留为业务上下文（日志/调用链），不决定配置归属。
  */
 @Component
 public class ProjectEmbeddingGateway {
     private static final Logger log = LoggerFactory.getLogger(ProjectEmbeddingGateway.class);
 
-    private final ProjectEmbeddingConfigRepository configRepo;
+    private final SystemEmbeddingConfigRepository configRepo;
     private final ModelSecretCipher secrets;
 
-    public ProjectEmbeddingGateway(ProjectEmbeddingConfigRepository configRepo, ModelSecretCipher secrets) {
+    public ProjectEmbeddingGateway(SystemEmbeddingConfigRepository configRepo, ModelSecretCipher secrets) {
         this.configRepo = configRepo;
         this.secrets = secrets;
     }
 
     public EmbeddingBatch embed(UUID projectId, List<String> input, EmbeddingProgressListener progressListener) {
-        ProjectEmbeddingConfig config = configRepo.findByProjectId(projectId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "项目未配置嵌入模型"));
+        SystemEmbeddingConfig config = configRepo.findActive()
+                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "系统未配置嵌入模型，请联系管理员在管理中心 AI Infrastructure 中配置"));
         if (!config.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "嵌入模型已禁用");
         }
-        return embedWithConfig(config, input, progressListener);
+        log.debug("Embedding via system config for project {}", projectId);
+        return embedWithConfig(asProjectConfig(config), input, progressListener);
+    }
+
+    public String activeFingerprint() {
+        return configRepo.findActive()
+                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "系统未配置嵌入模型，请联系管理员在管理中心 AI Infrastructure 中配置"))
+                .fingerprint();
+    }
+
+    private static ProjectEmbeddingConfig asProjectConfig(SystemEmbeddingConfig active) {
+        return new ProjectEmbeddingConfig(null, active.provider(), active.baseUrl(), active.apiPath(),
+                active.encryptedApiKey(), active.modelName(), active.dimensions(), active.batchSize(),
+                true, active.createdAt(), active.updatedAt());
     }
 
     EmbeddingBatch embedWithConfig(ProjectEmbeddingConfig config, List<String> input,

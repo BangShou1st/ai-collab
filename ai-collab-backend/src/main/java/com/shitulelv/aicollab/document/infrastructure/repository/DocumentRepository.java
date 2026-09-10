@@ -102,9 +102,9 @@ public class DocumentRepository {
     }
     public List<DocumentSearchHit> search(UUID projectId, List<Double> embedding,
                                           String provider, String model, int dimension,
-                                          List<UUID> documentIds, int topK) {
+                                          String fingerprint, List<UUID> documentIds, int topK) {
         return mapper.search(projectId, embedding.toString(), provider, model,
-                dimension, documentIds, topK);
+                dimension, fingerprint, documentIds, topK);
     }
     public boolean hasChunksWithOtherFingerprint(String fingerprint) {
         return mapper.countChunksWithOtherFingerprint(fingerprint) > 0;
