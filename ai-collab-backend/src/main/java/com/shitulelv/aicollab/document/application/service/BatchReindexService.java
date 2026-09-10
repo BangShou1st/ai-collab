@@ -41,6 +41,21 @@ public class BatchReindexService {
     public int reindexAll(UUID projectId, UUID userId) {
         access.requireAdmin(projectId, userId);
         writeGuard.requireWritable(projectId);
+        return reindexProject(projectId, userId);
+    }
+
+    /**
+     * 系统级全量重建：调用方须已验证 systemAdmin，按项目逐个复用同一入队逻辑。
+     */
+    public int reindexAllProjects(UUID operatorId) {
+        int total = 0;
+        for (UUID projectId : documents.projectIdsWithReadyDocuments()) {
+            total += reindexProject(projectId, operatorId);
+        }
+        return total;
+    }
+
+    private int reindexProject(UUID projectId, UUID userId) {
         List<DocumentEntity> readyDocs = documents.list(projectId).stream()
                 .filter(d -> d.getStatus() == DocumentStatus.READY)
                 .toList();

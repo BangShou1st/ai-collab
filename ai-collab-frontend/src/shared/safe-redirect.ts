@@ -1,6 +1,6 @@
 import type { Router } from 'vue-router'
 
-const FALLBACK_PATH = '/projects'
+const FALLBACK_PATH = '/home'
 
 export function resolveSafeRedirect(
   router: Router,

@@ -3,7 +3,11 @@ import { useAuthStore } from './stores/auth-store'
 import LoginView from './views/LoginView.vue'
 import RegisterView from './modules/auth/RegisterView.vue'
 import AccountView from './modules/account/AccountView.vue'
+import HomeView from './modules/home/HomeView.vue'
+import UserAiSettingsView from './modules/ai/UserAiSettingsView.vue'
+import EmbeddingAdminView from './modules/admin/EmbeddingAdminView.vue'
 import ProjectListView from './modules/project/ProjectListView.vue'
+import ProjectIntegrationsView from './modules/project/ProjectIntegrationsView.vue'
 import DashboardView from './modules/dashboard/DashboardView.vue'
 import TaskBoardView from './modules/work/TaskBoardView.vue'
 import MilestoneView from './modules/work/MilestoneView.vue'
@@ -28,10 +32,12 @@ import AdminView from './modules/admin/AdminView.vue'
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/projects' },
+    { path: '/', redirect: '/home' },
     { path: '/login', component: LoginView, meta: { public: true, title: '登录' } },
     { path: '/register', component: RegisterView, meta: { public: true, title: '注册账号' } },
     { path: '/invite/:code', component: InvitationAcceptView, meta: { public: true, title: '项目邀请' } },
+    { path: '/home', component: HomeView, meta: { title: '工作台' } },
+    { path: '/settings/ai', component: UserAiSettingsView, meta: { title: 'AI 设置' } },
     { path: '/account', component: AccountView, meta: { title: '账号设置' } },
     { path: '/projects', component: ProjectListView, meta: { title: '我的项目' } },
     { path: '/projects/:projectId', redirect: (to) => `/projects/${to.params.projectId}/dashboard` },
@@ -51,9 +57,11 @@ export const router = createRouter({
     { path: '/projects/:projectId/ai-planning', component: PlanningView, meta: { title: 'AI 任务规划' } },
     { path: '/projects/:projectId/agent', component: AgentView, meta: { title: '项目协作 Agent' } },
     { path: '/projects/:projectId/model-settings', component: ProjectModelSettings, meta: { title: '模型配置' } },
+    { path: '/projects/:projectId/integrations', component: ProjectIntegrationsView, meta: { title: '集成与 MCP' } },
     { path: '/projects/:projectId/audit-logs', component: AuditLogView, meta: { title: '操作日志' } },
     { path: '/notifications', component: NotificationView, meta: { title: '通知中心' } },
     { path: '/admin', component: AdminView, meta: { title: '管理中心', systemAdmin: true } },
+    { path: '/admin/embedding', component: EmbeddingAdminView, meta: { title: 'AI Infrastructure', systemAdmin: true } },
   ],
 })
 
@@ -73,7 +81,7 @@ router.beforeEach(async (to) => {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
   if ((to.path === '/login' || to.path === '/register') && auth.isAuthenticated) {
-    return '/projects'
+    return '/home'
   }
   if (to.meta.systemAdmin && !auth.currentUser?.systemAdmin) {
     return '/projects'

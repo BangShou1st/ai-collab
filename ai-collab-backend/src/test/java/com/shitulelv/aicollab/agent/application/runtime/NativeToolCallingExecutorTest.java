@@ -211,20 +211,20 @@ class NativeToolCallingExecutorTest {
     }
 
     @Test
-    void configurationIdIsPassedToModelTurnCommand() {
+    void callerUserIdIsPassedToModelTurnCommand() {
         ModelTurnResult result = new ModelTurnResult(
                 "回答", List.of(), ModelFinishReason.STOP, null, "test", "model", 100L);
         when(modelTurn.turn(any())).thenReturn(result);
 
-        UUID configId = UUID.randomUUID();
+        UUID caller = UUID.randomUUID();
         executor.callModel(
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                 List.of(toolDef("list_tasks")),
                 null,
-                configId);
+                caller);
 
-        // 验证 configurationId 被正确传递到 ModelTurnCommand
+        // 验证调用者归属被正确传递到 ModelTurnCommand（用户级路由，不再传项目配置 ID）
         verify(modelTurn).turn(argThat(cmd ->
-                cmd.configurationId() != null && cmd.configurationId().equals(configId)));
+                caller.equals(cmd.callerUserId())));
     }
 }

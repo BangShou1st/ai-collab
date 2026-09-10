@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "chat.enabled=false",
         "planning.enabled=false",
         "security.jwt.secret=test-only-secret-with-at-least-thirty-two-characters",
+        "model.config.master-key=test-only-master-key-for-integration-tests",
         "security.jwt.access-token-minutes=30",
         "storage.minio.endpoint=http://127.0.0.1:1",
         "storage.minio.access-key=test-access",
@@ -85,7 +86,10 @@ class DocumentRepositoryIntegrationTest {
 
         var result = documents.search(
                 projectId, List.of(1d, 0d, 0d),
-                "test-provider", "test-model", 3, List.of(documentId), 8);
+                "test-provider", "test-model", 3,
+                com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprints
+                        .fingerprint("test-provider", "test-model", 3),
+                List.of(documentId), 8);
 
         assertThat(result).singleElement().satisfies(hit -> {
             assertThat(hit.originalFilename()).isEqualTo("需求.pdf");

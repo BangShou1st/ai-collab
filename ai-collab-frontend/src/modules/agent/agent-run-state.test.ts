@@ -45,6 +45,6 @@ describe('agent run presentation', () => {
 
   it('explains an unreadable model credential instead of showing a generic agent failure', () => {
     expect(agentRunPresentation(run('FAILED', 'AI_MODEL_CREDENTIAL_INVALID')).title)
-      .toBe('模型凭据无法解密，请在系统管理中重新填写 API Key')
+      .toBe('模型凭据无法解密，请在个人 AI 设置中重新填写 API Key')
   })
 })

@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.infrastructure.ai.AiCallLogService;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.knowledge.api.dto.KnowledgeQuestionRequest;
 import com.shitulelv.aicollab.knowledge.application.view.KnowledgeAnswerView;
 import com.shitulelv.aicollab.knowledge.application.view.KnowledgeStreamEvent;
@@ -134,7 +135,10 @@ public class KnowledgeStreamQuestionService {
             long chatStarted = System.nanoTime();
 
             chat.completeStream(
-                    new ChatCompletionCommand(projectId, systemPrompt(), userPrompt(question, context.promptSources())),
+                    new ChatCompletionCommand(projectId, systemPrompt(),
+                            userPrompt(question, context.promptSources()),
+                            ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null,
+                            List.of(), userId),
                     token -> {
                         if (!disconnected.get()) {
                             sendSse(emitter, KnowledgeStreamEvent.token(token));

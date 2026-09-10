@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { showApiError } from '../../api/api-result'
@@ -17,6 +17,7 @@ import {
   auditEntityLabel,
 } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
+import StatusBadge from '../../shared/StatusBadge.vue'
 import type { DashboardView } from './types'
 
 const route = useRoute()
@@ -62,6 +63,26 @@ function completionPercent(rate: number): number {
   return Math.round(rate * 100)
 }
 
+const healthState = computed(() => {
+  if (!dashboard.value) return { tone: 'info' as const, text: '' }
+  const risks: string[] = []
+  if (dashboard.value.tasks.overdue > 0) risks.push(`${dashboard.value.tasks.overdue} 个逾期任务`)
+  if (dashboard.value.tasks.blocked > 0) risks.push(`${dashboard.value.tasks.blocked} 个阻塞任务`)
+  const overdueMilestones = dashboard.value.milestones.filter((m) => m.overdue).length
+  if (overdueMilestones > 0) risks.push(`${overdueMilestones} 个逾期里程碑`)
+  if (!risks.length) return { tone: 'success' as const, text: '项目健康：暂无逾期与阻塞' }
+  return { tone: 'warning' as const, text: `需要注意：${risks.join('、')}` }
+})
+
+const nextTasks = computed(() => {
+  if (!dashboard.value) return []
+  const rank = (status: string, overdue: boolean): number =>
+    overdue ? 0 : status === 'BLOCKED' ? 1 : status === 'IN_PROGRESS' ? 2 : 3
+  return [...dashboard.value.recentTasks]
+    .sort((a, b) => rank(a.status, a.overdue) - rank(b.status, b.overdue))
+    .slice(0, 5)
+})
+
 onMounted(load)
 </script>
 
@@ -78,6 +99,24 @@ onMounted(load)
 
     <div v-loading="loading">
       <template v-if="dashboard">
+        <el-alert
+          :title="healthState.text"
+          :type="healthState.tone"
+          show-icon
+          :closable="false"
+          class="dashboard-section"
+        />
+        <el-card v-if="nextTasks.length > 0" class="dashboard-section" shadow="never">
+          <template #header>
+            <span>接下来要做什么</span>
+          </template>
+          <div v-for="task in nextTasks" :key="task.id" class="next-task-row">
+            <StatusBadge :label="taskStatusLabel(task.status)" />
+            <span class="next-task-title">{{ task.title }}</span>
+            <span v-if="task.overdue" class="overdue-tag">已逾期</span>
+            <span class="next-task-due">{{ formatDate(task.dueDate) }}</span>
+          </div>
+        </el-card>
         <!-- 项目基本信息 -->
         <el-card class="dashboard-section" shadow="never">
           <template #header>

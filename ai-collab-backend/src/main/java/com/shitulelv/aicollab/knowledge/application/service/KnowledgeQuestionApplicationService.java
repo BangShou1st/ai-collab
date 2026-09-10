@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.infrastructure.ai.AiCallLogService;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.knowledge.api.dto.KnowledgeQuestionRequest;
 import com.shitulelv.aicollab.knowledge.application.view.KnowledgeAnswerView;
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeContext;
@@ -112,7 +113,9 @@ public class KnowledgeQuestionApplicationService {
         ChatCompletionResult completion;
         try {
             completion = chat.complete(new ChatCompletionCommand(
-                    projectId, systemPrompt(), userPrompt(question, context.promptSources())));
+                    projectId, systemPrompt(), userPrompt(question, context.promptSources()),
+                    ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null,
+                    List.of(), userId));
         } catch (BusinessException exception) {
             if (exception.getErrorCode() != ErrorCode.AI_PROVIDER_UNAVAILABLE) {
                 aiLogs.failure(

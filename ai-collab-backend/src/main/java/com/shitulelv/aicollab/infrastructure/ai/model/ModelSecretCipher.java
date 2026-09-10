@@ -17,11 +17,16 @@ import java.util.Base64;
 public class ModelSecretCipher {
     private static final int IV_LENGTH = 12;
     private static final int TAG_BITS = 128;
+    private static final java.util.Set<String> FORBIDDEN_PLACEHOLDERS = java.util.Set.of(
+            "local-model-config-key-change-me",
+            "change-me",
+            "replace-with-a-long-random-master-key");
     private final SecretKeySpec key;
     private final SecureRandom random = new SecureRandom();
 
     public ModelSecretCipher(@Value("${model.config.master-key}") String masterKey) {
-        if (masterKey == null || masterKey.length() < 16) {
+        if (masterKey == null || masterKey.length() < 16
+                || FORBIDDEN_PLACEHOLDERS.contains(masterKey.strip())) {
             throw new IllegalStateException("model.config.master-key must contain at least 16 characters");
         }
         try {

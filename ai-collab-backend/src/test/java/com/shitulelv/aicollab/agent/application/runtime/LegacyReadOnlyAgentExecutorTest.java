@@ -53,6 +53,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("检查项目")),
                 List.of(),
                 null,
+                java.util.UUID.randomUUID(),
                 false);
 
         assertThat(turn.content()).isEqualTo("项目进展正常");
@@ -73,6 +74,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("列出任务")),
                 List.of(AgentToolDefinition.openObject("list_tasks", "列出任务", false)),
                 null,
+                java.util.UUID.randomUUID(),
                 false);
 
         assertThat(turn.toolCalls()).hasSize(1);
@@ -97,6 +99,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                 exposed,
                 null,
+                java.util.UUID.randomUUID(),
                 false);
 
         // 验证传给 ChatModelGateway 的命令不包含工具（Legacy 模式）
@@ -115,6 +118,7 @@ class LegacyReadOnlyAgentExecutorTest {
                     List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                     List.of(),
                     null,
+                    java.util.UUID.randomUUID(),
                     false);
         } catch (IllegalArgumentException e) {
             assertThat(e.getMessage()).contains("Agent 决策不是合法 JSON");
@@ -135,6 +139,7 @@ class LegacyReadOnlyAgentExecutorTest {
                     List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                     List.of(),
                     null,
+                    java.util.UUID.randomUUID(),
                     false);
         } catch (IllegalArgumentException e) {
             assertThat(e.getMessage()).contains("未知 Agent action");
@@ -151,6 +156,7 @@ class LegacyReadOnlyAgentExecutorTest {
                     List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                     List.of(),
                     null,
+                    java.util.UUID.randomUUID(),
                     false);
         } catch (RuntimeException e) {
             assertThat(e.getMessage()).contains("连接超时");
@@ -170,6 +176,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                 List.of(),
                 null,
+                java.util.UUID.randomUUID(),
                 true);
 
         // 验证 parser 被调用，correctionAttempted=true 时错误信息不同
@@ -189,6 +196,7 @@ class LegacyReadOnlyAgentExecutorTest {
                 List.of(new ModelMessage.System("你是助手"), new ModelMessage.User("测试")),
                 List.of(),
                 null,
+                java.util.UUID.randomUUID(),
                 false);
 
         assertThat(turn.usage()).isNotNull();

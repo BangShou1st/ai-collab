@@ -52,6 +52,7 @@ import static org.mockito.Mockito.when;
         "chat.enabled=false",
         "planning.enabled=false",
         "security.jwt.secret=test-only-secret-with-at-least-thirty-two-characters",
+        "model.config.master-key=test-only-master-key-for-integration-tests",
         "security.jwt.access-token-minutes=30"
 })
 @Testcontainers(disabledWithoutDocker = true)
@@ -114,7 +115,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         assertThat(AopUtils.isAopProxy(commits)).isTrue();
         assertThat(jdbc.queryForObject(
                 "select version from flyway_schema_history where success=true order by installed_rank desc limit 1",
-                String.class)).isEqualTo("38");
+                String.class)).isEqualTo("44");
         assertThat(jdbc.queryForObject(
                 "select count(*) from information_schema.tables where table_name='ai_task_plan'",
                 Integer.class)).isEqualTo(1);
