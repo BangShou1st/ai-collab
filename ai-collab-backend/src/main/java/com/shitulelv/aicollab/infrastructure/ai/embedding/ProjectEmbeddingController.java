@@ -9,6 +9,8 @@ import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -45,8 +47,8 @@ public class ProjectEmbeddingController {
     @GetMapping
     public ApiResponse<ProjectEmbeddingConfigView> get(
             @PathVariable UUID projectId,
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
-        if (userId != null) accessGuard.requireAdmin(projectId, userId);
+            @AuthenticationPrincipal Jwt jwt) {
+        accessGuard.requireAdmin(projectId, userId(jwt));
         return ApiResponse.success(configRepo.findByProjectId(projectId)
                 .map(ProjectEmbeddingConfigView::from)
                 .orElseGet(ProjectEmbeddingConfigView::empty));
@@ -55,8 +57,8 @@ public class ProjectEmbeddingController {
     @PostMapping("/test")
     public ApiResponse<Void> test(
             @PathVariable UUID projectId,
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
-        if (userId != null) accessGuard.requireAdmin(projectId, userId);
+            @AuthenticationPrincipal Jwt jwt) {
+        accessGuard.requireAdmin(projectId, userId(jwt));
         ProjectEmbeddingConfig config = configRepo.findByProjectId(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "项目未配置嵌入模型"));
         if (!config.enabled()) {
@@ -82,6 +84,10 @@ public class ProjectEmbeddingController {
         return ApiResponse.success(null);
     }
 
+    private static UUID userId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
+    }
+
     private static String extractErrorDetail(Exception e) {
         String msg = e.getMessage();
         if (msg == null || msg.isBlank()) return "未知错误";
@@ -93,8 +99,8 @@ public class ProjectEmbeddingController {
     public ApiResponse<ProjectEmbeddingConfigView> save(
             @PathVariable UUID projectId,
             @RequestBody ProjectEmbeddingConfigRequest request,
-            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
-        if (userId != null) accessGuard.requireAdmin(projectId, userId);
+            @AuthenticationPrincipal Jwt jwt) {
+        accessGuard.requireAdmin(projectId, userId(jwt));
         String encrypted = (request.apiKey() != null && !request.apiKey().isBlank())
                 ? secrets.encrypt(request.apiKey()) : null;
 
