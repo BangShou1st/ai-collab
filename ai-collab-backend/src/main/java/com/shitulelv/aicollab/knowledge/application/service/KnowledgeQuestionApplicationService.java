@@ -115,7 +115,8 @@ public class KnowledgeQuestionApplicationService {
             completion = chat.complete(new ChatCompletionCommand(
                     projectId, systemPrompt(), userPrompt(question, context.promptSources()),
                     ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null,
-                    List.of(), userId));
+                    List.of(), userId),
+                    new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata(sessionId.toString()));
         } catch (BusinessException exception) {
             if (exception.getErrorCode() != ErrorCode.AI_PROVIDER_UNAVAILABLE) {
                 aiLogs.failure(

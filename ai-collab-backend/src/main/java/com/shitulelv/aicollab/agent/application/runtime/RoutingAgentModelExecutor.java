@@ -72,13 +72,13 @@ public class RoutingAgentModelExecutor {
             log.debug("使用 Native Tool Calling 执行器: model={}, configurationId={}",
                     config.modelName(), config.id());
             try {
-                return nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId());
+                return nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId(), run.sessionId());
             } catch (BusinessException e) {
                 // 如果是模型调用错误且支持 CHAT，降级到 Legacy 模式
                 if (hasChat && isNativeToolError(e)) {
                     log.warn("Native Tool Calling 失败，降级到 Legacy 模式: model={}, error={}",
                             config.modelName(), e.getErrorCode());
-                    return fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(),
+                    return fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(),
                             correctionAttempted);
                 }
                 throw e;
@@ -88,7 +88,7 @@ public class RoutingAgentModelExecutor {
         if (hasChat) {
             log.debug("使用 Legacy 只读执行器: model={}, configurationId={}",
                     config.modelName(), config.id());
-            return fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(),
+            return fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(),
                     correctionAttempted);
         }
 
@@ -106,12 +106,13 @@ public class RoutingAgentModelExecutor {
             List<AgentToolDefinition> exposed,
             UUID projectId,
             UUID callerUserId,
+            UUID sessionId,
             boolean correctionAttempted) {
         List<AgentToolDefinition> readOnlyExposed = exposed.stream()
                 .filter(d -> !d.writesBusinessData())
                 .toList();
         return legacyExecutor.callModel(messages, readOnlyExposed, projectId, callerUserId,
-                correctionAttempted);
+                correctionAttempted, sessionId);
     }
 
     /**

@@ -41,7 +41,8 @@ public class TaskPlanModelClient {
             ChatCompletionResult result = gateway.complete(new ChatCompletionCommand(
                     projectId, system, user,
                     ChatCompletionCommand.OutputFormat.JSON_OBJECT,
-                    ModelPurpose.PLANNING, null, java.util.List.of(), actor));
+                    ModelPurpose.PLANNING, null, java.util.List.of(), actor),
+                    new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata(attemptId != null ? attemptId.toString() : java.util.UUID.randomUUID().toString()));
             safeLog(feature, actor, projectId, attemptId, result.provider(), result.model(),
                     "SUCCESS", result.latencyMs(), result.promptTokens(), result.completionTokens(), null);
             return new GenerationResult(result.content(), result.provider(), result.model(),
