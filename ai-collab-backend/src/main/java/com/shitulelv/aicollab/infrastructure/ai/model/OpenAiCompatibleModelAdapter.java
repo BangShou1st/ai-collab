@@ -208,11 +208,12 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 new java.util.concurrent.atomic.AtomicReference<>(ModelFinishReason.UNKNOWN);
         java.util.concurrent.atomic.AtomicReference<ModelUsage> usage =
                 new java.util.concurrent.atomic.AtomicReference<>();
-        List<ModelToolCall> toolCalls = new java.util.concurrent.CopyOnWriteArrayList<>();
-        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
-        java.util.concurrent.atomic.AtomicReference<Exception> errorRef = new java.util.concurrent.atomic.AtomicReference<>();
+        // delta.tool_calls 按 index 聚合：id / name / arguments 可能分片到达
+        java.util.Map<Integer, DeltaToolCall> deltas = new java.util.TreeMap<>();
 
-        http.stream(endpoint(config), headers(apiKey), turnRequest(config, command), (event, data) -> {
+        // JsonHttpModelClient.stream() 本身同步读取 SSE 直到结束，返回时流已完成，
+        // 不需要 CountDownLatch 等待。之前 latch 从未 countDown 会导致固定 60s 等待。
+        http.stream(endpoint(config), headers(apiKey), turnRequest(config, command, true), (event, data) -> {
             if (data == null) return;
             if (data.hasNonNull("model")) model.set(data.path("model").asText());
             JsonNode usageNode = data.path("usage");
@@ -222,31 +223,30 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                         integer(usageNode.path("completion_tokens"))));
             }
             JsonNode choice = data.path("choices").path(0);
-            JsonNode message = choice.path("message");
-
-            // 解析文本
-            String token = message.has("content") && !message.get("content").isNull()
-                    ? message.path("content").asText("") : "";
+            if (choice.isMissingNode()) return;
+            JsonNode delta = choice.path("delta");
+            // 文本增量
+            String token = delta.path("content").asText("");
             if (!token.isEmpty()) {
                 content.append(token);
             }
-
-            // 解析 tool_calls
-            JsonNode toolCallsNode = message.path("tool_calls");
+            // 原生 tool_calls 增量聚合
+            JsonNode toolCallsNode = delta.path("tool_calls");
             if (toolCallsNode.isArray()) {
+                int autoIndex = deltas.size();
                 for (JsonNode node : toolCallsNode) {
-                    String id = node.path("id").asText();
-                    String name = node.path("function").path("name").asText();
-                    String raw = node.path("function").path("arguments").asText("{}");
-                    try {
-                        JsonNode args = mapper.readTree(raw);
-                        toolCalls.add(new ModelToolCall(id, name, args));
-                    } catch (Exception ex) {
-                        // 忽略解析错误
-                    }
+                    int index = node.has("index") ? node.path("index").asInt(autoIndex) : autoIndex;
+                    autoIndex = Math.max(autoIndex + 1, index + 1);
+                    DeltaToolCall acc = deltas.computeIfAbsent(index, k -> new DeltaToolCall());
+                    String idFrag = node.path("id").asText("");
+                    if (!idFrag.isEmpty()) acc.id.append(idFrag);
+                    JsonNode fn = node.path("function");
+                    String nameFrag = fn.path("name").asText("");
+                    if (!nameFrag.isEmpty()) acc.name.append(nameFrag);
+                    String argsFrag = fn.path("arguments").asText("");
+                    if (!argsFrag.isEmpty()) acc.arguments.append(argsFrag);
                 }
             }
-
             // 解析 finish_reason
             String finish = choice.path("finish_reason").asText("");
             if (!finish.isEmpty()) {
@@ -254,13 +254,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             }
         });
 
-        // 手动等待流式完成（简化实现）
-        try {
-            latch.await(60, java.util.concurrent.TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
-        }
+        List<ModelToolCall> toolCalls = buildDeltaToolCalls(deltas);
 
         long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
 
@@ -285,14 +279,54 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 latencyMs);
     }
 
+    private List<ModelToolCall> buildDeltaToolCalls(java.util.Map<Integer, DeltaToolCall> deltas) {
+        List<ModelToolCall> calls = new ArrayList<>();
+        for (java.util.Map.Entry<Integer, DeltaToolCall> entry : deltas.entrySet()) {
+            DeltaToolCall acc = entry.getValue();
+            String id = acc.id.toString();
+            String name = acc.name.toString();
+            String raw = acc.arguments.length() == 0 ? "{}" : acc.arguments.toString();
+            if (name.isBlank()) {
+                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "工具调用缺少 function.name");
+            }
+            JsonNode args;
+            try {
+                args = mapper.readTree(raw);
+            } catch (Exception e) {
+                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "工具调用参数不是合法 JSON");
+            }
+            if (!args.isObject()) {
+                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "工具调用参数必须是 JSON Object");
+            }
+            calls.add(new ModelToolCall(id, name, args));
+        }
+        return calls;
+    }
+
+    private static final class DeltaToolCall {
+        final StringBuilder id = new StringBuilder();
+        final StringBuilder name = new StringBuilder();
+        final StringBuilder arguments = new StringBuilder();
+    }
+
     // ========== 请求构建 ==========
 
     private ObjectNode turnRequest(ModelConfiguration config, ModelTurnCommand command) {
+        return turnRequest(config, command, false);
+    }
+
+    private ObjectNode turnRequest(ModelConfiguration config, ModelTurnCommand command, boolean stream) {
         ObjectNode body = mapper.createObjectNode();
         body.put("model", config.modelName());
         body.put("temperature", config.temperature());
         body.put("max_tokens", config.maxOutputTokens());
-        body.put("stream", false);
+        body.put("stream", stream);
+        if (stream) {
+            body.putObject("stream_options").put("include_usage", true);
+        }
 
         // 构建多轮消息
         ArrayNode messages = body.putArray("messages");
@@ -429,5 +463,107 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
 
     private static Map<String, String> headers(String apiKey) {
         return Map.of("Authorization", "Bearer " + apiKey);
+    }
+
+    /** Generic metadata headers. Preset-agnostic: any caller may attach correlation + identity. */
+    public static Map<String, String> headersWithSession(String apiKey, AiRequestMetadata metadata) {
+        if (metadata == null) return headers(apiKey);
+        return Map.of("Authorization", "Bearer " + apiKey,
+                "User-Agent", OpenCodeZenTransport.USER_AGENT,
+                OpenCodeZenTransport.SESSION_HEADER, metadata.correlationSessionId());
+    }
+
+    public ChatCompletionResult completeWithSession(ModelConfiguration config, String apiKey,
+            com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand command, AiRequestMetadata metadata) {
+        long started = System.nanoTime();
+        JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata), request(config, command, false));
+        JsonNode choice = response.path("choices").path(0);
+        if ("length".equals(choice.path("finish_reason").asText())) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+        }
+        JsonNode usage = response.path("usage");
+        return result(config, choice.path("message").path("content").asText(null),
+                response.path("model").asText(config.modelName()),
+                integer(usage.path("prompt_tokens")), integer(usage.path("completion_tokens")), started);
+    }
+
+    public ModelTurnResult turnWithSession(ModelConfiguration config, String apiKey, ModelTurnCommand command,
+            AiRequestMetadata metadata) {
+        long started = System.nanoTime();
+        try {
+            JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata), turnRequest(config, command));
+            return parseTurnResponse(config, response, started);
+        } catch (BusinessException e) {
+            if (e.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR
+                    && config.capabilities().contains(ModelCapability.STREAMING)) {
+                return turnStreamingSyncWithSession(config, apiKey, command, metadata);
+            }
+            throw e;
+        }
+    }
+
+    private ModelTurnResult turnStreamingSyncWithSession(ModelConfiguration config, String apiKey,
+            ModelTurnCommand command, AiRequestMetadata metadata) {
+        long started = System.nanoTime();
+        StringBuilder content = new StringBuilder();
+        java.util.concurrent.atomic.AtomicReference<String> model =
+                new java.util.concurrent.atomic.AtomicReference<>(config.modelName());
+        java.util.concurrent.atomic.AtomicReference<ModelFinishReason> finishReason =
+                new java.util.concurrent.atomic.AtomicReference<>(ModelFinishReason.UNKNOWN);
+        java.util.concurrent.atomic.AtomicReference<ModelUsage> usage =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.Map<Integer, DeltaToolCall> deltas = new java.util.TreeMap<>();
+        http.stream(endpoint(config), headersWithSession(apiKey, metadata), turnRequest(config, command, true), (event, data) -> {
+            if (data == null) return;
+            if (data.hasNonNull("model")) model.set(data.path("model").asText());
+            JsonNode usageNode = data.path("usage");
+            if (!usageNode.isMissingNode() && !usageNode.isNull()) {
+                usage.set(new ModelUsage(integer(usageNode.path("prompt_tokens")), integer(usageNode.path("completion_tokens"))));
+            }
+            JsonNode choice = data.path("choices").path(0);
+            if (choice.isMissingNode()) return;
+            String token = choice.path("delta").path("content").asText("");
+            if (!token.isEmpty()) content.append(token);
+            JsonNode toolCallsNode = choice.path("delta").path("tool_calls");
+            if (toolCallsNode.isArray()) {
+                int autoIndex = deltas.size();
+                for (JsonNode node : toolCallsNode) {
+                    int index = node.has("index") ? node.path("index").asInt(autoIndex) : autoIndex;
+                    autoIndex = Math.max(autoIndex + 1, index + 1);
+                    DeltaToolCall acc = deltas.computeIfAbsent(index, k -> new DeltaToolCall());
+                    String idFrag = node.path("id").asText("");
+                    if (!idFrag.isEmpty()) acc.id.append(idFrag);
+                    String nameFrag = node.path("function").path("name").asText("");
+                    if (!nameFrag.isEmpty()) acc.name.append(nameFrag);
+                    String argsFrag = node.path("function").path("arguments").asText("");
+                    if (!argsFrag.isEmpty()) acc.arguments.append(argsFrag);
+                }
+            }
+            String finish = choice.path("finish_reason").asText("");
+            if (!finish.isEmpty()) finishReason.set(mapFinishReason(finish));
+        });
+        List<ModelToolCall> toolCalls = buildDeltaToolCalls(deltas);
+        long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
+        if (content.isEmpty() && toolCalls.isEmpty()) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE, "model returned neither text nor tool calls");
+        }
+        if (finishReason.get() == ModelFinishReason.LENGTH) throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+        return new ModelTurnResult(content.isEmpty() ? null : content.toString(), toolCalls, finishReason.get(),
+                usage.get(), providerType().name(), model.get(), latencyMs);
+    }
+
+    private ModelTurnResult parseTurnResponse(ModelConfiguration config, JsonNode response, long started) {
+        JsonNode choice = response.path("choices").path(0);
+        JsonNode message = choice.path("message");
+        String content = message.has("content") && !message.get("content").isNull() ? message.path("content").asText(null) : null;
+        List<ModelToolCall> toolCalls = parseToolCalls(message);
+        ModelFinishReason fr = mapFinishReason(choice.path("finish_reason").asText(""));
+        JsonNode usageNode = response.path("usage");
+        ModelUsage usage = null;
+        if (!usageNode.isMissingNode() && !usageNode.isNull()) usage = new ModelUsage(integer(usageNode.path("prompt_tokens")), integer(usageNode.path("completion_tokens")));
+        if ((content == null || content.isBlank()) && toolCalls.isEmpty()) throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
+        if (fr == ModelFinishReason.LENGTH) throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+        long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
+        return new ModelTurnResult(content, toolCalls, fr, usage, providerType().name(), response.path("model").asText(config.modelName()), latencyMs);
     }
 }
