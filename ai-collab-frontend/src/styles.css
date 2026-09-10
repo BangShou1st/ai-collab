@@ -83,6 +83,22 @@
 .override-row + .override-row { border-top: 1px solid var(--color-border); }
 .override-label { width: 90px; flex: none; }
 .key-note { color: var(--color-text-muted); font-size: 12px; }
+.project-meta-line { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--color-text-secondary); margin: 6px 0; }
+.project-meta-line.muted { color: var(--color-text-muted); font-size: 12px; }
+.next-task-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.next-task-row + .next-task-row { border-top: 1px solid var(--color-border); }
+.next-task-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.next-task-due { color: var(--color-text-muted); font-size: 12px; }
+.overdue-tag { color: var(--color-danger); font-size: 12px; font-weight: 600; }
++
+/* ===== unified auth experience ===== */
+.auth-split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 40px; align-items: center; max-width: 1020px; margin: 0 auto; width: 100%; }
+.auth-brand h1 { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.25; margin: 8px 0 16px; letter-spacing: -0.01em; }
+.auth-highlights { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; color: var(--color-text-secondary); font-size: 15px; }
+.auth-highlights li { padding-left: 22px; position: relative; }
+.auth-highlights li::before { content: '✓'; position: absolute; left: 0; color: var(--color-success); font-weight: 700; }
+@media (max-width: 860px) { .auth-split { grid-template-columns: 1fr; gap: 20px; } }
+
 
 .workspace-page {
   width: min(100%, var(--page-max-width));

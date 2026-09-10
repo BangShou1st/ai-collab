@@ -80,10 +80,10 @@ beforeEach(() => {
 })
 
 describe('ProjectListView project management', () => {
-  it('only exposes edit and delete controls for projects owned by the current user', async () => {
+  it('only exposes the overflow menu for projects owned by the current user', async () => {
     const wrapper = await mounted()
 
-    expect(wrapper.findAll('[data-action="edit-project"]')).toHaveLength(1)
-    expect(wrapper.findAll('[data-action="delete-project"]')).toHaveLength(1)
+    expect(wrapper.findAll('[aria-label="更多操作"]')).toHaveLength(1)
+    expect(wrapper.findAll('[data-action="delete-project"]')).toHaveLength(0)
   })
 })
