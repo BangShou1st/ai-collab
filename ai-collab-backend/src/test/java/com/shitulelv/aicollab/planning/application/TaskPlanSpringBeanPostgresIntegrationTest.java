@@ -52,6 +52,7 @@ import static org.mockito.Mockito.when;
         "chat.enabled=false",
         "planning.enabled=false",
         "security.jwt.secret=test-only-secret-with-at-least-thirty-two-characters",
+        "model.config.master-key=test-only-master-key-for-integration-tests",
         "security.jwt.access-token-minutes=30"
 })
 @Testcontainers(disabledWithoutDocker = true)

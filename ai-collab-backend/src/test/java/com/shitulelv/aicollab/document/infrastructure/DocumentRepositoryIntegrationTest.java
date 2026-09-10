@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "chat.enabled=false",
         "planning.enabled=false",
         "security.jwt.secret=test-only-secret-with-at-least-thirty-two-characters",
+        "model.config.master-key=test-only-master-key-for-integration-tests",
         "security.jwt.access-token-minutes=30",
         "storage.minio.endpoint=http://127.0.0.1:1",
         "storage.minio.access-key=test-access",
