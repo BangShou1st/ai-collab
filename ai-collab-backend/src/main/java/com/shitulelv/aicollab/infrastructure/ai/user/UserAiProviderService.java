@@ -72,8 +72,9 @@ public class UserAiProviderService {
 
     @Transactional
     public UserAiProviderView update(UUID userId, UUID id, UserAiProviderRequest request) {
-        validateEndpoint(request.baseUrl(), request.apiPath());
         UserAiProvider existing = require(userId, id);
+        rejectPreset(existing);
+        validateEndpoint(request.baseUrl(), request.apiPath());
         String encrypted = request.apiKey() == null || request.apiKey().isBlank()
                 ? existing.encryptedApiKey() : secrets.encrypt(request.apiKey());
         return UserAiProviderView.from(repository.save(toProvider(
@@ -83,7 +84,7 @@ public class UserAiProviderService {
 
     @Transactional
     public void delete(UUID userId, UUID id) {
-        require(userId, id);
+        rejectPreset(require(userId, id));
         repository.deleteByIdAndUserId(id, userId);
     }
 
@@ -118,6 +119,7 @@ public class UserAiProviderService {
 
     public ChatCompletionResult test(UUID userId, UUID id) {
         UserAiProvider provider = require(userId, id);
+        rejectPreset(provider);
         if (!provider.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能测试已停用的模型配置");
         }
@@ -138,6 +140,12 @@ public class UserAiProviderService {
     private UserAiProvider require(UUID userId, UUID id) {
         return repository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "模型配置不存在"));
+    }
+
+    private static void rejectPreset(UserAiProvider provider) {
+        if (provider.presetCode() != null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "预置连接请在 OpenCode Zen Free 专区管理");
+        }
     }
 
     private static UserAiProvider toProvider(UUID id, UUID userId, UserAiProviderRequest request,

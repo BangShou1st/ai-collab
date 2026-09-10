@@ -7,6 +7,7 @@ import com.shitulelv.aicollab.agent.api.dto.ContinueAgentRunRequest;
 import com.shitulelv.aicollab.agent.api.dto.AgentApprovalResponse;
 import com.shitulelv.aicollab.agent.api.dto.AgentMessageResponse;
 import com.shitulelv.aicollab.agent.api.dto.AgentRunDetailResponse;
+import com.shitulelv.aicollab.agent.api.dto.AgentRunEventResponse;
 import com.shitulelv.aicollab.agent.application.AgentRunService;
 import com.shitulelv.aicollab.agent.application.view.*;
 import com.shitulelv.aicollab.common.api.ApiResponse;
@@ -112,6 +113,15 @@ public class AgentSessionController {
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(AgentRunDetailResponse.from(
                 runs.getRun(projectId, runId, userId(jwt))));
+    }
+
+    @GetMapping("/runs/{runId}/events-history")
+    public ApiResponse<List<AgentRunEventResponse>> runEvents(
+            @PathVariable UUID projectId, @PathVariable UUID runId,
+            @RequestParam(defaultValue = "0") long afterSequence,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(runs.runEvents(projectId, runId, afterSequence, userId(jwt))
+                .stream().map(AgentRunEventResponse::from).toList());
     }
 
     @GetMapping("/runs/{runId}/approvals")

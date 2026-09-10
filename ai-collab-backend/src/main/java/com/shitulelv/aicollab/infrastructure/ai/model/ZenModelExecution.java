@@ -46,14 +46,15 @@ public class ZenModelExecution {
         return registry.completionEndpoint(pol);
     }
     public JsonHttpModelClient zenHttp() { return zenHttp; }
+    private String userAgent() { return registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE).userAgent(); }
     public ModelTurnResult turn(UserAiProvider p, String apiKey, ModelTurnCommand cmd, AiRequestMetadata md) {
-        return zenAdapter.turnWithSession(runtimeConfig(p), apiKey, cmd, md);
+        return zenAdapter.turnWithSession(runtimeConfig(p), apiKey, cmd, md, userAgent());
     }
     public ChatCompletionResult complete(UserAiProvider p, String apiKey, ChatCompletionCommand cmd, AiRequestMetadata md) {
-        return zenAdapter.completeWithSession(runtimeConfig(p), apiKey, cmd, md);
+        return zenAdapter.completeWithSession(runtimeConfig(p), apiKey, cmd, md, userAgent());
     }
     public void completeStream(UserAiProvider p, String apiKey, ChatCompletionCommand cmd, AiRequestMetadata md,
             Consumer<String> onToken, Consumer<ChatCompletionResult> onDone, Consumer<Exception> onError) {
-        zenAdapter.completeStreamWithSession(runtimeConfig(p), apiKey, cmd, md, onToken, onDone, onError);
+        zenAdapter.completeStreamWithSession(runtimeConfig(p), apiKey, cmd, md, userAgent(), onToken, onDone, onError);
     }
 }

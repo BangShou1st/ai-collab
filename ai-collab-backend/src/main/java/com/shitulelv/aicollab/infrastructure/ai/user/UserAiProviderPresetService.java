@@ -7,6 +7,7 @@ import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.infrastructure.ai.model.OpenCodeZenModelCatalog;
+import com.shitulelv.aicollab.infrastructure.ai.model.OpenCodeZenTransport;
 import com.shitulelv.aicollab.infrastructure.ai.model.ProviderPresetCode;
 import com.shitulelv.aicollab.infrastructure.ai.model.ProviderPresetRegistry;
 import java.time.Duration;
@@ -26,13 +27,22 @@ public class UserAiProviderPresetService {
     private final ModelSecretCipher secrets;
     private final ProviderPresetRegistry registry;
     private final OpenCodeZenModelCatalog catalog;
+    private final OpenCodeZenTransport transport;
     private final Map<String, CachedModels> cache = new ConcurrentHashMap<>();
     public UserAiProviderPresetService(UserAiProviderRepository repository, ModelSecretCipher secrets,
-            ProviderPresetRegistry registry, OpenCodeZenModelCatalog catalog) {
+            ProviderPresetRegistry registry, OpenCodeZenModelCatalog catalog, OpenCodeZenTransport transport) {
         this.repository = repository;
         this.secrets = secrets;
         this.registry = registry;
         this.catalog = catalog;
+        this.transport = transport;
+    }
+    public UserAiProviderPresetService(UserAiProviderRepository repository, ModelSecretCipher secrets,
+            ProviderPresetRegistry registry, OpenCodeZenModelCatalog catalog) {
+        this(repository, secrets, registry, catalog,
+                new com.shitulelv.aicollab.infrastructure.ai.model.HttpOpenCodeZenTransport(
+                        new com.fasterxml.jackson.databind.ObjectMapper(),
+                        new com.shitulelv.aicollab.common.security.OutboundEndpointPolicy(), registry));
     }
     public record PresetStatus(String code, String displayName, boolean connected, String modelName,
             boolean enabled, boolean isDefault, boolean hasApiKey) {}
@@ -111,9 +121,6 @@ public class UserAiProviderPresetService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "model required"));
         List<String> free = freeModels(key, false);
         catalog.requireFreeModel(model, free);
-        catalog.freeModels(key, AiRequestMetadata.fresh());
-        var transport = new com.shitulelv.aicollab.infrastructure.ai.model.HttpOpenCodeZenTransport(
-                new com.fasterxml.jackson.databind.ObjectMapper(), new com.shitulelv.aicollab.common.security.OutboundEndpointPolicy());
         transport.validateCredential(key, model, AiRequestMetadata.fresh());
     }
     private record CachedModels(List<String> models, Instant expires) {}

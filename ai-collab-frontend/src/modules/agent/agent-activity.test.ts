@@ -24,8 +24,14 @@ describe('reduceAgentActivities', () => {
   })
   it('falls back safely for unknown tools without snake_case titles', () => {
     const list = reduceAgentActivities([evt(1, 'TOOL_CALL_COMPLETED', { callId: 'c9', toolName: 'mystery_tool' })])
-    expect(list[0].title).toBe('mystery tool')
+    expect(list[0].title).toBe('工具调用')
     expect(list[0].title).not.toContain('_')
+  })
+  it('never shows unknown for tool calls without a name', () => {
+    const list = reduceAgentActivities([evt(1, 'TOOL_CALL_STARTED', { callId: 'c9' })])
+    expect(list).toHaveLength(1)
+    expect(list[0].title).not.toContain('unknown')
+    expect(list[0].title).not.toMatch(/_/)
   })
   it('marks failures with detail', () => {
     const list = reduceAgentActivities([evt(1, 'TOOL_CALL_FAILED', { callId: 'c1', toolName: 'search_project_knowledge', error: '暂时不可访问' })])
@@ -33,4 +39,3 @@ describe('reduceAgentActivities', () => {
     expect(list[0].detail).toBe('暂时不可访问')
   })
 })
-

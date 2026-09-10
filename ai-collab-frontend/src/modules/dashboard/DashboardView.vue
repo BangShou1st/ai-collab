@@ -99,13 +99,10 @@ onMounted(load)
 
     <div v-loading="loading">
       <template v-if="dashboard">
-        <el-alert
-          :title="healthState.text"
-          :type="healthState.tone"
-          show-icon
-          :closable="false"
-          class="dashboard-section"
-        />
+        <div class="inline-notice" role="status">
+          <span class="status-dot" :class="healthState.tone === 'warning' ? 'wait' : healthState.tone === 'info' ? 'run' : 'done'" />
+          <span>{{ healthState.text }}</span>
+        </div>
         <el-card v-if="nextTasks.length > 0" class="dashboard-section" shadow="never">
           <template #header>
             <span>接下来要做什么</span>

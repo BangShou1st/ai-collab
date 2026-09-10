@@ -48,45 +48,84 @@ function callKey(e: AgentRunEvent): string {
   return (raw ?? `${e.type}#${e.sequence}`).trim()
 }
 
-function fallbackTitle(tool: string): string {
-  return tool.split('_').filter(Boolean).join(' ');
-}
+const TOOL_LIFECYCLE = new Set(['TOOL_CALL_PROPOSED', 'TOOL_CALL_STARTED', 'TOOL_CALL_COMPLETED', 'TOOL_CALL_FAILED'])
+const APPROVAL_CLOSE = new Set(['APPROVAL_APPROVED', 'APPROVAL_REJECTED', 'APPROVAL_EXPIRED'])
 
+/** Presentation policy: only tool lifecycles, approvals, analyzing and waiting become rows. Run/model/plan/context events drive state elsewhere and never render. Unknown future types are skipped, never shown. */
 export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] {
-  const groups = new Map<string, AgentRunEvent[]>()
-  const order: string[] = []
+  const tools = new Map<string, AgentRunEvent[]>()
+  const toolOrder: string[] = []
+  const approvals = new Map<string, AgentRunEvent[]>()
+  const approvalOrder: string[] = []
+  let analyzing: AgentRunEvent[] | null = null
+  let waiting: AgentRunEvent[] | null = null
   for (const e of [...events].sort((a, b) => a.sequence - b.sequence)) {
-    const isTool = e.type.startsWith('TOOL_CALL') || e.type === 'APPROVAL_REQUESTED'
-    const key = isTool ? `tool:${callKey(e)}` : `evt:${e.sequence}`
-    if (!groups.has(key)) { groups.set(key, []); order.push(key) }
-    groups.get(key)!.push(e)
-  }
-  return order.map((key) => {
-    const list = groups.get(key)!
-    const first = list[0]
-    const tool = toolOf(first)
-    const meta = TOOL_META[tool]
-    const title = meta?.title ?? fallbackTitle(tool)
-    const verb = meta?.verb ?? `正在执行 ${fallbackTitle(tool)}`
-    let status: ActivityStatus = 'running'
-    let kind: ActivityKind = meta?.kind ?? 'info'
-    let detail: string | null = null
-    let durationMs: number | null = null
-    let count: number | null = null
-    for (const e of list) {
-      const p = (e.payload ?? {}) as Record<string, unknown>
-      if (typeof p.durationMs === 'number') durationMs = p.durationMs as number
-      if (typeof p.latencyMs === 'number') durationMs = p.latencyMs as number
-      if (typeof p.count === 'number') count = p.count as number
-      if (typeof p.resultCount === 'number') count = p.resultCount as number
-      if (typeof p.summary === 'string' && (p.summary as string).length > 0) detail = p.summary as string
-      if (e.type === 'TOOL_CALL_COMPLETED' || e.type === 'APPROVAL_APPROVED' || e.type === 'RESULT_VERIFIED') { status = 'done'; if (kind === 'info') kind = 'success' }
-      if (e.type === 'TOOL_CALL_FAILED' || e.type === 'APPROVAL_REJECTED' || e.type === 'APPROVAL_EXPIRED' || e.type === 'RUN_FAILED') { status = 'failed'; kind = 'failure' }
-      if (e.type === 'APPROVAL_REQUESTED') { status = 'waiting'; kind = 'approval' }
-      if (e.type === 'WAITING_FOR_USER_INPUT') { status = 'waiting'; kind = 'waiting' }
-      if (typeof p.error === 'string' && (p.error as string).length > 0 && status === 'failed') detail = p.error as string
+    if (TOOL_LIFECYCLE.has(e.type)) {
+      const key = callKey(e)
+      if (!tools.has(key)) { tools.set(key, []); toolOrder.push(key) }
+      tools.get(key)!.push(e)
+    } else if (e.type === 'APPROVAL_REQUESTED' || APPROVAL_CLOSE.has(e.type)) {
+      const key = approvalKey(e)
+      if (!approvals.has(key)) { approvals.set(key, []); approvalOrder.push(key) }
+      approvals.get(key)!.push(e)
+    } else if (e.type === 'MODEL_STARTED' || e.type === 'MODEL_COMPLETED') {
+      if (!analyzing) analyzing = []
+      analyzing.push(e)
+    } else if (e.type === 'WAITING_FOR_USER_INPUT') {
+      if (!waiting) waiting = []
+      waiting.push(e)
     }
-    return { key, tool, kind, status, title: status === 'running' ? verb : title, detail, durationMs, count, raw: list }
-  })
+  }
+  const out: AgentActivity[] = []
+  for (const key of toolOrder) out.push(buildToolActivity(key, tools.get(key)!))
+  for (const key of approvalOrder) out.push(buildApprovalActivity(key, approvals.get(key)!))
+  if (analyzing && analyzing.some((e) => e.type === 'MODEL_STARTED') && !analyzing.some((e) => e.type === 'MODEL_COMPLETED')) {
+    out.push({ key: 'model:analyzing', tool: 'model', kind: 'analysis', status: 'running', title: '正在分析', detail: null, durationMs: null, count: null, raw: analyzing })
+  }
+  if (waiting) {
+    out.push({ key: 'waiting:input', tool: 'input', kind: 'waiting', status: 'waiting', title: '等待你的输入', detail: null, durationMs: null, count: null, raw: waiting })
+  }
+  return out.sort((a, b) => minSequence(a.raw) - minSequence(b.raw))
 }
 
+function minSequence(list: AgentRunEvent[]): number {
+  return Math.min(...list.map((e) => e.sequence))
+}
+
+function approvalKey(e: AgentRunEvent): string {
+  const p = (e.payload ?? {}) as Record<string, unknown>
+  const raw = [p.approvalId, p.id].find((v) => typeof v === 'string' && (v as string).length > 0) as string | undefined
+  return (raw ?? `approval:${e.sequence}`).trim()
+}
+
+function buildToolActivity(key: string, list: AgentRunEvent[]): AgentActivity {
+  const rawTool = toolOf(list[0])
+  const known = rawTool !== 'unknown' && (TOOL_META[rawTool] !== undefined || /^[a-z][a-z0-9_]*$/.test(rawTool))
+  const tool = known ? rawTool : 'tool'
+  const meta = TOOL_META[tool]
+  const title = meta?.title ?? '工具调用'
+  const verb = meta?.verb ?? '正在调用工具'
+  let status: ActivityStatus = 'running'
+  let kind: ActivityKind = meta?.kind ?? 'info'
+  let detail: string | null = null
+  let durationMs: number | null = null
+  let count: number | null = null
+  for (const e of list) {
+    const p = (e.payload ?? {}) as Record<string, unknown>
+    if (typeof p.durationMs === 'number') durationMs = p.durationMs as number
+    if (typeof p.latencyMs === 'number') durationMs = p.latencyMs as number
+    if (typeof p.count === 'number') count = p.count as number
+    if (typeof p.resultCount === 'number') count = p.resultCount as number
+    if (typeof p.summary === 'string' && (p.summary as string).length > 0) detail = p.summary as string
+    if (e.type === 'TOOL_CALL_COMPLETED') { status = 'done'; if (kind === 'info') kind = 'success' }
+    if (e.type === 'TOOL_CALL_FAILED') { status = 'failed'; kind = 'failure' }
+    if (typeof p.error === 'string' && (p.error as string).length > 0 && status === 'failed') detail = p.error as string
+  }
+  return { key: `tool:${key}`, tool, kind, status, title: status === 'running' ? verb : title, detail, durationMs, count, raw: list }
+}
+
+function buildApprovalActivity(key: string, list: AgentRunEvent[]): AgentActivity {
+  const last = list[list.length - 1]
+  const status: ActivityStatus = last.type === 'APPROVAL_REQUESTED' ? 'waiting' : (last.type === 'APPROVAL_APPROVED' ? 'done' : 'failed')
+  return { key: `approval:${key}`, tool: 'approval', kind: 'approval', status, title: status === 'waiting' ? '等待审批' : (status === 'done' ? '已批准' : '已拒绝'), detail: null, durationMs: null, count: null, raw: list }
+}

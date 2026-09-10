@@ -8,6 +8,7 @@ export type AiPurpose = 'KNOWLEDGE_CHAT' | 'PLANNING' | 'AGENT'
 export interface UserAiProvider {
   id: string
   name: string
+  presetCode: string | null
   providerType: AiProviderType
   baseUrl: string
   apiPath: string
@@ -60,4 +61,3 @@ export const userAiApi = {
     await httpClient.delete(`/user/ai-providers/purposes/${purpose}`)
   },
 }
-

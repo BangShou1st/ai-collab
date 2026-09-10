@@ -2,7 +2,7 @@ import { httpClient } from '../../api/http-client'
 import { apiResultFromResponse } from '../../api/api-result'
 import type { ApiResponse, ApiResult } from '../../api/types'
 import type {
-  AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentRunDetail, AgentSession, AgentSessionSummary, AgentSkill,
+  AgentApproval, AgentMessage, AgentPageContext, AgentRun, AgentRunDetail, AgentRunEvent, AgentSession, AgentSessionSummary, AgentSkill,
 } from './types'
 
 const root = (projectId: string) => `/projects/${projectId}/agent`
@@ -73,6 +73,9 @@ export const agentApi = {
   },
   async runApprovals(projectId: string, runId: string): Promise<ApiResult<AgentApproval[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<AgentApproval[]>>(`${root(projectId)}/runs/${runId}/approvals`))
+  },
+  async runEvents(projectId: string, runId: string, afterSequence = 0): Promise<ApiResult<AgentRunEvent[]>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<AgentRunEvent[]>>(`${root(projectId)}/runs/${runId}/events-history?afterSequence=${afterSequence}`))
   },
   async approve(projectId: string, item: AgentApproval): Promise<ApiResult<AgentApproval>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<AgentApproval>>(

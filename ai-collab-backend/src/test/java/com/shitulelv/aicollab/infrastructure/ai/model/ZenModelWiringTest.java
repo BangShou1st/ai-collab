@@ -51,16 +51,30 @@ class ZenModelWiringTest {
         assertThat(cfg.modelName()).isEqualTo("mimo-test-free");
     }
     @Test void zenHttpIsDirectAndCustomUnaffected() {
-        ZenModelExecution exec = new ZenModelExecution(new ProviderPresetRegistry(), mapper, new OutboundEndpointPolicy());
+        var registry = new ProviderPresetRegistry();
+        ZenModelExecution exec = new ZenModelExecution(registry, mapper, new OutboundEndpointPolicy());
         assertThat(exec.zenHttp()).isNotNull();
-        HttpOpenCodeZenTransport t = new HttpOpenCodeZenTransport(mapper, new OutboundEndpointPolicy());
+        HttpOpenCodeZenTransport t = new HttpOpenCodeZenTransport(mapper, new OutboundEndpointPolicy(), registry);
         assertThat(t.productionClient().proxy().orElse(null)).isEqualTo(HttpClient.Builder.NO_PROXY);
         assertThat(exec.isZen(zenProvider())).isTrue();
         assertThat(exec.isZen(customProvider())).isFalse();
     }
+    @Test void samePolicyDrivesModelsTestAndInference() {
+        var registry = new ProviderPresetRegistry();
+        var pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
+        HttpOpenCodeZenTransport t = new HttpOpenCodeZenTransport(mapper, new OutboundEndpointPolicy(), registry);
+        ZenModelExecution exec = new ZenModelExecution(registry, mapper, new OutboundEndpointPolicy());
+        assertThat(registry.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/zen/v1/models");
+        assertThat(exec.runtimeEndpoint()).isEqualTo(registry.completionEndpoint(pol));
+        assertThat(t.policy().userAgent()).isEqualTo(pol.userAgent());
+        var md = AiRequestMetadata.of("sess-123");
+        Map<String,String> h = OpenAiCompatibleModelAdapter.headersWithSession("k", md, pol.userAgent());
+        assertThat(h.get("User-Agent")).isEqualTo(pol.userAgent());
+        assertThat(h.get("x-opencode-session")).isEqualTo("sess-123");
+    }
     @Test void sessionHeadersExact() {
         var md = AiRequestMetadata.of("sess-123");
-        Map<String,String> h = OpenAiCompatibleModelAdapter.headersWithSession("k", md);
+        Map<String,String> h = OpenAiCompatibleModelAdapter.headersWithSession("k", md, "opencode/1.18.21");
         assertThat(h.get("Authorization")).isEqualTo("Bearer k");
         assertThat(h.get("User-Agent")).isEqualTo("opencode/1.18.21");
         assertThat(h.get("x-opencode-session")).isEqualTo("sess-123");

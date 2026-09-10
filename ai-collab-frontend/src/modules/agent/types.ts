@@ -11,7 +11,7 @@ export interface AgentSessionSummary extends AgentSession {
   creatorName: string | null; latestRunId: string | null; latestRunStatus: string | null; latestActivityAt: string | null
 }
 export interface AgentRunDetail {
-  run: AgentRun; plan: { steps: Array<{ title: string; status: string }> } | null; lastSequence: number; pendingApprovalId: string | null
+  run: AgentRun; plan: { steps: Array<{ title: string; status: string }> } | null; lastEventSequence: number; pendingApprovalId: string | null
 }
 export interface AgentRun {
   id: string; sessionId: string; projectId: string; goal: string; status: AgentRunStatus

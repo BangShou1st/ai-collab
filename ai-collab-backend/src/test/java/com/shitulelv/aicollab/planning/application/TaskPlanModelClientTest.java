@@ -48,4 +48,22 @@ class TaskPlanModelClientTest {
         verify(gateway).complete(captor.capture(), any());
         assertThat(captor.getValue().outputFormat()).isEqualTo(ChatCompletionCommand.OutputFormat.JSON_OBJECT);
     }
+
+    @Test
+    void repairAndDetailShareStableCorrelationId() {
+        when(gateway.complete(any(), any())).thenReturn(new ChatCompletionResult(
+                "{}", "openai", "gpt-4", 10, 20, 100L));
+        UUID correlation = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        UUID project = UUID.randomUUID();
+        client.generate("s", "u", "SKELETON", actor, project, UUID.randomUUID(), correlation);
+        client.generate("s", "u", "REPAIR", actor, project, UUID.randomUUID(), correlation);
+        client.generate("s", "u", "DETAIL", actor, project, UUID.randomUUID(), correlation);
+        ArgumentCaptor<com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata> meta =
+                ArgumentCaptor.forClass(com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata.class);
+        verify(gateway, times(3)).complete(any(), meta.capture());
+        assertThat(meta.getAllValues()).hasSize(3);
+        assertThat(meta.getAllValues().stream().map(m -> m.correlationSessionId()).distinct().toList())
+                .containsExactly(correlation.toString());
+    }
 }

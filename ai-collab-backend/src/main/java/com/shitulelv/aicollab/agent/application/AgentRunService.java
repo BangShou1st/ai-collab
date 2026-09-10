@@ -78,6 +78,14 @@ public class AgentRunService {
     }
 
     @Transactional(readOnly = true)
+    public List<com.shitulelv.aicollab.agent.application.view.AgentRunEventView> runEvents(
+            UUID projectId, UUID runId, long afterSequence, UUID userId) {
+        access.requireMember(projectId, userId);
+        repository.findRun(projectId, runId).orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        return eventRepository.list(projectId, runId, Math.max(0, afterSequence), 500);
+    }
+
+    @Transactional(readOnly = true)
     public List<AgentApprovalView> runApprovals(UUID projectId, UUID runId, UUID userId) {
         access.requireMember(projectId, userId);
         repository.findRun(projectId, runId).orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));

@@ -103,11 +103,11 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             ModelConfiguration config, String apiKey, ChatCompletionCommand command,
             Consumer<String> onToken, Consumer<ChatCompletionResult> onDone,
             Consumer<Exception> onError) {
-        completeStreamWithSession(config, apiKey, command, null, onToken, onDone, onError);
+        completeStreamWithSession(config, apiKey, command, null, null, onToken, onDone, onError);
     }
 
     public void completeStreamWithSession(
-            ModelConfiguration config, String apiKey, ChatCompletionCommand command, AiRequestMetadata metadata,
+            ModelConfiguration config, String apiKey, ChatCompletionCommand command, AiRequestMetadata metadata, String userAgent,
             Consumer<String> onToken, Consumer<ChatCompletionResult> onDone,
             Consumer<Exception> onError) {
         safeStream(() -> {
@@ -117,7 +117,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             AtomicReference<Integer> input = new AtomicReference<>();
             AtomicReference<Integer> output = new AtomicReference<>();
             AtomicBoolean terminal = new AtomicBoolean(false);
-            http.stream(endpoint(config), metadata == null ? headers(apiKey) : headersWithSession(apiKey, metadata), request(config, command, true), (event, data) -> {
+            http.stream(endpoint(config), metadata == null ? headers(apiKey) : headersWithSession(apiKey, metadata, userAgent), request(config, command, true), (event, data) -> {
                 if (data == null) return;
                 if (data.hasNonNull("model")) model.set(data.path("model").asText());
                 JsonNode usage = data.path("usage");
@@ -478,17 +478,17 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
     }
 
     /** Generic metadata headers. Preset-agnostic: any caller may attach correlation + identity. */
-    public static Map<String, String> headersWithSession(String apiKey, AiRequestMetadata metadata) {
+    public static Map<String, String> headersWithSession(String apiKey, AiRequestMetadata metadata, String userAgent) {
         if (metadata == null) return headers(apiKey);
         return Map.of("Authorization", "Bearer " + apiKey,
-                "User-Agent", OpenCodeZenTransport.USER_AGENT,
+                "User-Agent", userAgent,
                 OpenCodeZenTransport.SESSION_HEADER, metadata.correlationSessionId());
     }
 
     public ChatCompletionResult completeWithSession(ModelConfiguration config, String apiKey,
-            com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand command, AiRequestMetadata metadata) {
+            com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand command, AiRequestMetadata metadata, String userAgent) {
         long started = System.nanoTime();
-        JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata), request(config, command, false));
+        JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata, userAgent), request(config, command, false));
         JsonNode choice = response.path("choices").path(0);
         if ("length".equals(choice.path("finish_reason").asText())) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
@@ -500,22 +500,22 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
     }
 
     public ModelTurnResult turnWithSession(ModelConfiguration config, String apiKey, ModelTurnCommand command,
-            AiRequestMetadata metadata) {
+            AiRequestMetadata metadata, String userAgent) {
         long started = System.nanoTime();
         try {
-            JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata), turnRequest(config, command));
+            JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata, userAgent), turnRequest(config, command));
             return parseTurnResponse(config, response, started);
         } catch (BusinessException e) {
             if (e.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR
                     && config.capabilities().contains(ModelCapability.STREAMING)) {
-                return turnStreamingSyncWithSession(config, apiKey, command, metadata);
+                return turnStreamingSyncWithSession(config, apiKey, command, metadata, userAgent);
             }
             throw e;
         }
     }
 
     private ModelTurnResult turnStreamingSyncWithSession(ModelConfiguration config, String apiKey,
-            ModelTurnCommand command, AiRequestMetadata metadata) {
+            ModelTurnCommand command, AiRequestMetadata metadata, String userAgent) {
         long started = System.nanoTime();
         StringBuilder content = new StringBuilder();
         java.util.concurrent.atomic.AtomicReference<String> model =
@@ -525,7 +525,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         java.util.concurrent.atomic.AtomicReference<ModelUsage> usage =
                 new java.util.concurrent.atomic.AtomicReference<>();
         java.util.Map<Integer, DeltaToolCall> deltas = new java.util.TreeMap<>();
-        http.stream(endpoint(config), headersWithSession(apiKey, metadata), turnRequest(config, command, true, true), (event, data) -> {
+        http.stream(endpoint(config), headersWithSession(apiKey, metadata, userAgent), turnRequest(config, command, true, true), (event, data) -> {
             if (data == null) return;
             if (data.hasNonNull("model")) model.set(data.path("model").asText());
             JsonNode usageNode = data.path("usage");

@@ -15,7 +15,7 @@ const zenLoading = ref(false)
 const zenKey = ref('')
 const zenModel = ref('')
 const zenEnabled = ref(true)
-const zenDefault = ref(true)
+const zenDefault = ref(false)
 const saving = ref(false)
 const testingId = ref('')
 const dialogVisible = ref(false)
@@ -44,6 +44,8 @@ const form = reactive({
   capabilities: ['CHAT'] as string[],
 })
 const dialogTitle = computed(() => (editing.value ? '编辑 AI 配置' : '添加 AI 配置'))
+const customProviders = computed(() => providers.value.filter((p) => !p.presetCode))
+const zenProviderId = computed(() => providers.value.find((p) => p.presetCode)?.id ?? '')
 const canSave = computed(() => Boolean(form.name.trim() && form.modelName.trim() && (form.apiKey.trim() || editing.value)))
 
 async function load(): Promise<void> {
@@ -54,6 +56,7 @@ async function load(): Promise<void> {
     zen.value = presetList.data.find((p) => p.code === 'OPENCODE_ZEN_FREE') ?? null
     if (zen.value?.modelName) zenModel.value = zen.value.modelName
     zenEnabled.value = zen.value?.enabled ?? true
+    zenDefault.value = !custom.data.some((p) => p.isDefault) || (zen.value?.isDefault ?? false)
     await loadZenModels(false)
   } catch (error) {
     showApiError(error, 'AI 配置加载')
@@ -221,7 +224,7 @@ async function saveOverride(purpose: AiPurpose): Promise<void> {
 
 onMounted(load)
 </script>
-+<template>
+<template>
   <main class="workspace-page">
     <PageHeader eyebrow="个人设置" title="AI 设置" description="连接自己的模型，知识问答、AI 规划与 Agent 都由此驱动">
       <template #actions>
@@ -244,6 +247,7 @@ onMounted(load)
             <el-option v-for="m in zenModels" :key="m" :label="m" :value="m" />
           </el-select>
           <div class="zen-actions">
+            <el-checkbox v-model="zenDefault">设为默认模型</el-checkbox>
             <el-button size="small" :loading="testingId === 'zen'" @click="testZen">连接测试</el-button>
             <el-button size="small" @click="loadZenModels(true)">刷新模型</el-button>
             <el-button size="small" type="primary" :loading="saving" :disabled="!zenModel" @click="saveZen">保存并使用</el-button>
@@ -253,12 +257,12 @@ onMounted(load)
       </div>
       <div class="section-title"><h2>你的模型</h2><el-button text type="primary" @click="openCreate">+ 自定义 Provider</el-button></div>
       <EmptyState
-        v-if="!providers.length"
+        v-if="!customProviders.length"
         title="还没有自定义模型"
         description="上面的 Zen 连接已可直接使用，这里按需添加自己的网关"
         action-label="添加自定义 Provider"
       />
-      <el-card v-for="provider in providers" :key="provider.id" shadow="never" class="provider-card">
+      <el-card v-for="provider in customProviders" :key="provider.id" shadow="never" class="provider-card">
         <template #header>
           <div class="provider-head">
             <strong>{{ provider.name }}</strong>
@@ -279,12 +283,13 @@ onMounted(load)
         </div>
       </el-card>
 
-      <el-card v-if="providers.length" shadow="never">
+      <el-card v-if="customProviders.length || zen?.connected" shadow="never">
         <template #header><strong>按用途覆盖默认模型（可选）</strong></template>
         <div v-for="purpose in purposes" :key="purpose.value" class="override-row">
           <span class="override-label">{{ purpose.label }}</span>
           <el-select v-model="overrides[purpose.value]" placeholder="使用默认" clearable>
-            <el-option v-for="p in providers" :key="p.id" :label="p.name" :value="p.id" />
+            <el-option v-if="zen?.connected" :key="'zen'" :label="`OpenCode Zen Free · ${zen?.modelName ?? ''}`" :value="zenProviderId" />
+            <el-option v-for="p in customProviders.filter((c) => c.enabled)" :key="p.id" :label="p.name" :value="p.id" />
           </el-select>
           <el-button size="small" @click="saveOverride(purpose.value)">保存</el-button>
         </div>
