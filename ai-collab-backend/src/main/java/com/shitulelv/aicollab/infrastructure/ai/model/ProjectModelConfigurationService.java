@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
+import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
@@ -31,14 +32,18 @@ public class ProjectModelConfigurationService {
     private final ModelSecretCipher secrets;
     private final Map<ModelProviderType, ModelProviderAdapter> adapters;
 
+    private final OutboundEndpointPolicy endpoints;
+
     public ProjectModelConfigurationService(
             ProjectAccessGuard accessGuard,
             ModelConfigurationRepository repository,
             ModelSecretCipher secrets,
-            List<ModelProviderAdapter> adapters) {
+            List<ModelProviderAdapter> adapters,
+            OutboundEndpointPolicy endpoints) {
         this.accessGuard = accessGuard;
         this.repository = repository;
         this.secrets = secrets;
+        this.endpoints = endpoints;
         this.adapters = new EnumMap<>(ModelProviderType.class);
         adapters.forEach(adapter -> this.adapters.put(adapter.providerType(), adapter));
     }
@@ -184,18 +189,16 @@ public class ProjectModelConfigurationService {
                 java.util.EnumSet.copyOf(request.capabilities()), createdAt, updatedAt);
     }
 
-    private static void validateEndpoint(String baseUrl, String apiPath) {
+    private void validateEndpoint(String baseUrl, String apiPath) {
         try {
             URI base = URI.create(baseUrl.strip());
             URI path = URI.create(apiPath.strip());
-            if (!base.isAbsolute()
-                    || (!"http".equalsIgnoreCase(base.getScheme())
-                        && !"https".equalsIgnoreCase(base.getScheme()))
-                    || base.getHost() == null || base.getUserInfo() != null
+            if (!base.isAbsolute() || base.getHost() == null || base.getUserInfo() != null
                     || path.isAbsolute() || path.getRawAuthority() != null
                     || apiPath.isBlank()) {
                 throw new IllegalArgumentException();
             }
+            endpoints.requirePublicHttps(base);
         } catch (RuntimeException exception) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型接口地址无效");
         }

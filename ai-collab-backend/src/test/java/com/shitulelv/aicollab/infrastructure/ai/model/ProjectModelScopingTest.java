@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
+import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.infrastructure.ai.model.api.ModelConfigurationRequest;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
@@ -39,8 +40,11 @@ class ProjectModelScopingTest {
     }
 
     private ProjectModelConfigurationService service(ModelConfigurationRepository repository) {
+        OutboundEndpointPolicy endpoints = mock(OutboundEndpointPolicy.class);
+        when(endpoints.requirePublicHttps(any())).thenAnswer(call -> call.getArgument(0));
         return new ProjectModelConfigurationService(
-                mock(ProjectAccessGuard.class), repository, mock(ModelSecretCipher.class), List.of());
+                mock(ProjectAccessGuard.class), repository, mock(ModelSecretCipher.class), List.of(),
+                endpoints);
     }
 
     @Test

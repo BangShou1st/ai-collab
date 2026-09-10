@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.agent.infrastructure.mcp;
 
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -54,7 +55,8 @@ public class McpEndpointPolicy {
                 throw forbidden();
             }
             InetAddress[] addresses = resolver.resolve(host);
-            if (addresses.length == 0 || Arrays.stream(addresses).anyMatch(McpEndpointPolicy::forbidden)) {
+            if (addresses.length == 0
+                    || Arrays.stream(addresses).anyMatch(OutboundEndpointPolicy::forbiddenAddress)) {
                 throw forbidden();
             }
             return endpoint;
@@ -63,24 +65,6 @@ public class McpEndpointPolicy {
         } catch (Exception exception) {
             throw forbidden();
         }
-    }
-
-    private static boolean forbidden(InetAddress address) {
-        if (address.isAnyLocalAddress() || address.isLoopbackAddress()
-                || address.isLinkLocalAddress() || address.isSiteLocalAddress()
-                || address.isMulticastAddress()) {
-            return true;
-        }
-        if (address instanceof Inet4Address) {
-            byte[] b = address.getAddress();
-            int first = Byte.toUnsignedInt(b[0]);
-            int second = Byte.toUnsignedInt(b[1]);
-            return first == 0 || first == 127 || first >= 224
-                    || (first == 100 && second >= 64 && second <= 127)
-                    || (first == 192 && second == 0)
-                    || (first == 198 && (second == 18 || second == 19));
-        }
-        return false;
     }
 
     private static BusinessException forbidden() {
