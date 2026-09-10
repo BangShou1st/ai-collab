@@ -376,7 +376,7 @@ watch(projectId, async () => {
 <template>
   <main class="workspace-page">
     <PageHeader eyebrow="AI 辅助" title="AI 任务规划">
-      <template #actions><el-button v-if="canCreate" type="primary" @click="createVisible = true">创建规划</el-button></template>
+      <template #actions><router-link v-if="selected" :to="`/projects/${projectId}/agent?plan=${selected.id}`"><el-button text type="primary">交给 Agent</el-button></router-link><el-button v-if="canCreate" type="primary" @click="createVisible = true">创建规划</el-button></template>
     </PageHeader>
     <section class="planning-layout">
       <el-card>
