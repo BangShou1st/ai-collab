@@ -6,7 +6,6 @@ import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
-import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderAdapter;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
@@ -127,13 +126,13 @@ public class UserAiProviderService {
         if (adapter == null) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
         log.info("Testing user AI provider: {} (provider: {}, model: {})",
                 provider.name(), provider.providerType(), provider.modelName());
-        return adapter.complete(asModelConfiguration(provider),
+        return adapter.complete(provider.toModelConfiguration(),
                 secrets.decrypt(provider.encryptedApiKey()),
                 new ChatCompletionCommand(provider.id(),
                         "只回答测试请求，不要输出其他内容。",
                         "回复：连接成功",
                         ChatCompletionCommand.OutputFormat.TEXT,
-                        ModelPurpose.KNOWLEDGE_CHAT, null, List.of()));
+                        ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), userId));
     }
 
     private UserAiProvider require(UUID userId, UUID id) {
@@ -148,14 +147,6 @@ public class UserAiProviderService {
                 request.apiPath().strip(), encrypted, request.modelName().strip(), request.enabled(),
                 request.temperature(), request.maxOutputTokens(),
                 EnumSet.copyOf(request.capabilities()), isDefault, createdAt, updatedAt);
-    }
-
-    private static ModelConfiguration asModelConfiguration(UserAiProvider provider) {
-        return new ModelConfiguration(
-                provider.id(), provider.userId(), provider.name(), provider.providerType(),
-                provider.baseUrl(), provider.apiPath(), provider.encryptedApiKey(), provider.modelName(),
-                provider.enabled(), provider.temperature(), provider.maxOutputTokens(),
-                provider.capabilities(), provider.createdAt(), provider.updatedAt());
     }
 
     private void validateEndpoint(String baseUrl, String apiPath) {

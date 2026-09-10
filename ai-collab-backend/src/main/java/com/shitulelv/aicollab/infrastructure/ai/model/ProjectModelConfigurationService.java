@@ -107,7 +107,7 @@ public class ProjectModelConfigurationService {
                 "只回答测试请求，不要输出其他内容。",
                 "回复：连接成功",
                 ChatCompletionCommand.OutputFormat.TEXT,
-                ModelPurpose.KNOWLEDGE_CHAT, null, List.of());
+                ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), operatorId);
 
         java.util.concurrent.atomic.AtomicReference<ChatCompletionResult> resultRef =
                 new java.util.concurrent.atomic.AtomicReference<>();

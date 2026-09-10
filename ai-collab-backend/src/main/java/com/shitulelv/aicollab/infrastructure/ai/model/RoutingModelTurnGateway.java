@@ -5,6 +5,7 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnGateway;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService;
 import org.springframework.stereotype.Component;
 
 import java.util.EnumMap;
@@ -13,19 +14,22 @@ import java.util.Map;
 
 /**
  * Agent 2.0 的模型轮次路由器。
- * 根据 projectId + purpose 查找项目专属的模型配置。
+ * 根据调用者 userId + purpose 解析个人模型配置，projectId 仅为业务上下文。
  */
 @Component
 public class RoutingModelTurnGateway implements ModelTurnGateway {
     private final ModelConfigurationRepository configurations;
+    private final UserAiProviderService userProviders;
     private final ModelSecretCipher secrets;
     private final Map<ModelProviderType, ModelTurnProviderAdapter> adapters;
 
     public RoutingModelTurnGateway(
             ModelConfigurationRepository configurations,
+            UserAiProviderService userProviders,
             ModelSecretCipher secrets,
             List<ModelTurnProviderAdapter> adapters) {
         this.configurations = configurations;
+        this.userProviders = userProviders;
         this.secrets = secrets;
         EnumMap<ModelProviderType, ModelTurnProviderAdapter> indexed =
                 new EnumMap<>(ModelProviderType.class);
@@ -40,7 +44,10 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
     @Override
     public ModelTurnResult turn(ModelTurnCommand command) {
         ModelConfiguration config;
-        if (command.configurationId() != null) {
+        if (command.callerUserId() != null) {
+            config = userProviders.resolve(command.callerUserId(), command.purpose())
+                    .toModelConfiguration();
+        } else if (command.configurationId() != null) {
             config = configurations.findById(command.configurationId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
                             "指定的模型配置不存在"));

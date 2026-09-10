@@ -20,19 +20,20 @@ import org.junit.jupiter.api.Test;
 class RoutingChatModelGatewayTest {
 
     @Test
-    void throwsWhenNoProjectConfigAssigned() {
-        ModelConfigurationRepository configurations = mock(ModelConfigurationRepository.class);
+    void throwsWhenCallerHasNoModelConfigured() {
+        com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService providers =
+                mock(com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService.class);
         ModelSecretCipher secrets = mock(ModelSecretCipher.class);
-        UUID projectId = UUID.randomUUID();
+        UUID caller = UUID.randomUUID();
         ChatCompletionCommand command = new ChatCompletionCommand(
-                projectId, "system", "user",
+                UUID.randomUUID(), "system", "user",
                 ChatCompletionCommand.OutputFormat.TEXT,
-                ModelPurpose.KNOWLEDGE_CHAT, null, List.of());
-        when(configurations.findAssigned(projectId, ModelPurpose.KNOWLEDGE_CHAT))
-                .thenReturn(Optional.empty());
+                ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), caller);
+        when(providers.resolve(caller, ModelPurpose.KNOWLEDGE_CHAT))
+                .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE));
 
         RoutingChatModelGateway gateway = new RoutingChatModelGateway(
-                configurations, secrets, List.of(), new ObjectMapper());
+                providers, secrets, List.of(), new ObjectMapper());
 
         assertThatThrownBy(() -> gateway.complete(command))
                 .isInstanceOf(BusinessException.class)
@@ -41,16 +42,15 @@ class RoutingChatModelGatewayTest {
     }
 
     @Test
-    void throwsWhenProjectIdIsNull() {
-        ModelConfigurationRepository configurations = mock(ModelConfigurationRepository.class);
+    void throwsWhenCallerIsNull() {
+        com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService providers =
+                mock(com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService.class);
         ModelSecretCipher secrets = mock(ModelSecretCipher.class);
         ChatCompletionCommand command = new ChatCompletionCommand(
-                null, "system", "user",
-                ChatCompletionCommand.OutputFormat.TEXT,
-                ModelPurpose.KNOWLEDGE_CHAT, null, List.of());
+                UUID.randomUUID(), "system", "user");
 
         RoutingChatModelGateway gateway = new RoutingChatModelGateway(
-                configurations, secrets, List.of(), new ObjectMapper());
+                providers, secrets, List.of(), new ObjectMapper());
 
         assertThatThrownBy(() -> gateway.complete(command))
                 .isInstanceOf(BusinessException.class)

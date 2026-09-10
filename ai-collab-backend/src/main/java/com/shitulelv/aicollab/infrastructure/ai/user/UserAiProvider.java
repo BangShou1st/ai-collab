@@ -3,6 +3,8 @@ package com.shitulelv.aicollab.infrastructure.ai.user;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration;
+
 import java.time.OffsetDateTime;
 import java.util.EnumSet;
 import java.util.UUID;
@@ -23,4 +25,14 @@ public record UserAiProvider(
         boolean isDefault,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt) {
+
+    /**
+     * 映射为 Provider Adapter 可用的配置视图。
+     * projectId 槽位承载 Credential 归属者 userId，仅供 adapter 上下文使用，不代表项目归属。
+     */
+    public ModelConfiguration toModelConfiguration() {
+        return new ModelConfiguration(
+                id, userId, name, providerType, baseUrl, apiPath, encryptedApiKey, modelName,
+                enabled, temperature, maxOutputTokens, capabilities, createdAt, updatedAt);
+    }
 }
