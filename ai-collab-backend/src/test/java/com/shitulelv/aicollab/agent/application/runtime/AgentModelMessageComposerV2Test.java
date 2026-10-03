@@ -259,6 +259,55 @@ class AgentModelMessageComposerV2Test {
         }
     }
 
+    /**
+     * 回退验收（蓝图 8.1/P1-5）：已写入 v2 状态与摘要的会话，
+     * 关闭 composer-v2 开关后走旧组装路径，仍能继续对话——
+     * 不丢记录、不报错、不误认当前目标；约束无法完整表达时 v2 路径明确停止。
+     */
+    @Test
+    void legacyFallbackPathUnderstandsV2WorkingStateAndSummary() {
+        var state = json.createObjectNode();
+        state.put("schemaVersion", 2);
+        state.put("stateRevision", 9);
+        state.put("goalRevision", 2);
+        state.put("activeGoal", "整理项目任务");
+        var constraints = state.putArray("constraints");
+        var constraint = constraints.addObject();
+        constraint.put("id", UUID.randomUUID().toString());
+        constraint.put("value", "不改日期，最多八项");
+        constraint.put("status", "active");
+        constraint.put("scope", "DATE_LOCK");
+        constraint.put("sourceMessageId", UUID.randomUUID().toString());
+        var summary = state.putObject("summary");
+        summary.put("schemaVersion", 1);
+        summary.put("sourceFrom", UUID.randomUUID().toString());
+        summary.put("sourceThrough", UUID.randomUUID().toString());
+        summary.put("text", "早期对话摘要：用户要求不改日期、最多八项。");
+        when(repository.workingState(any(), any())).thenReturn(state);
+        List<AgentMessageView> history = new ArrayList<>(List.of(
+                message("USER", "第二轮请求：请把负责人改成小王。", 5),
+                message("ASSISTANT", "已说明负责人为小王的查询结果。", 6)));
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
+
+        // 旧组装路径（composer-v2=false）读取 v2 状态：不报错、约束与摘要不丢失、目标不误认
+        List<ModelMessage> legacyMessages = composer.buildMessageHistory(run("继续查详情"), context(), skill(),
+                AgentPlan.create("查询", List.of()), List.of());
+
+        assertThat(legacyMessages.get(0)).isInstanceOf(ModelMessage.System.class);
+        String workingStateBlock = legacyMessages.stream()
+                .filter(m -> m instanceof ModelMessage.User)
+                .map(m -> ((ModelMessage.User) m).content())
+                .filter(c -> c.startsWith("<CURRENT_WORKING_STATE>"))
+                .findFirst().orElseThrow();
+        assertThat(workingStateBlock).contains("整理项目任务");
+        assertThat(workingStateBlock).contains("不改日期，最多八项");
+        assertThat(workingStateBlock).contains("仍有效的用户约束");
+        assertThat(legacyMessages).anyMatch(m -> m instanceof ModelMessage.User user
+                && user.content().startsWith("<CONVERSATION_SUMMARY"));
+        // 当前目标未被旧摘要误认：最新请求仍在
+        assertThat(userContents(legacyMessages)).contains("继续查详情");
+    }
+
     private List<String> userContents(List<ModelMessage> messages) {
         return messages.stream()
                 .filter(m -> m instanceof ModelMessage.User)

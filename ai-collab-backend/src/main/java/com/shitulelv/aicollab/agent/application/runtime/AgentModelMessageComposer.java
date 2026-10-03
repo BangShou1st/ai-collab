@@ -121,6 +121,11 @@ public class AgentModelMessageComposer {
         messages.add(new ModelMessage.System(systemPrompt));
         JsonNode state = repository.workingState(run.projectId(), run.sessionId());
         if (state != null && !state.isEmpty()) messages.add(new ModelMessage.User(renderWorkingState(state)));
+        // 回退路径同样注入既有摘要（v2 状态的派生数据），保证关闭开关后上下文不回退丢失
+        JsonNode legacySummary = state == null ? null : state.path("summary");
+        if (legacySummary != null && legacySummary.isObject() && legacySummary.hasNonNull("text")) {
+            messages.add(new ModelMessage.User(renderConversationSummary(legacySummary)));
+        }
         messages.add(new ModelMessage.User("<VERIFIED_PAGE_CONTEXT>" + json.valueToTree(ctx.page()) + "</VERIFIED_PAGE_CONTEXT>"));
 
         if (!ctx.proposals().isEmpty()) {
