@@ -92,3 +92,9 @@ P1 补充验收（本轮修订新增口径）：
 - 证据附件：`docs/acceptance-evidence/2026-10-03/`（隔离副本脱敏产物，无凭据；内含 localhost 副本端口属预期）
 - 更早轮次：`ai-refactor-real-acceptance-report.md`（真实 Zen JSON、原生工具、双模型规划、真实文档 RAG）、`ai-refactor-quality-report.md`（负责人建议、V53）
 - 遗留未验证项（承接上一阶段）：`AGENT_APPROVAL_EXPIRED` 浏览器提示、拒绝路径浏览器冲突、大规模并发/长时评测、正式环境发布与迁移
+
+## 8. 下一阶段增量验证（2026-10-04）
+
+| 能力 | 当前状态 | 验证 | 证据 |
+| --- | --- | --- | --- |
+| P1 摘要持续覆盖与窗口外续读 | 已实现；策略 v4，偏移合并、完成前缀压缩、删除终止、重读鉴权 | 单测 + 真实隔离 PostgreSQL 数据流，61 项通过 | [P1 修复](p1-context-foundation-report.md#11-剩余覆盖修复2026-10-04) |

@@ -1051,6 +1051,48 @@ class AgentRepositoryIntegrationTest {
                 .contains("不改日期");
     }
 
+    @Test
+    void summaryResumesBeyondSixtySegmentsAndRecentWindowAfterDatabaseReload() {
+        var f=fixture(); var session=repository.createSession(f.project(),f.user(),"summary-long");
+        var run=repository.createRun(f.project(),session.id(),f.user(),"当前需求",false,null,null);
+        ObjectMapper json=new ObjectMapper().findAndRegisterModules();
+        UUID old=UUID.randomUUID();
+        jdbc.update("INSERT INTO agent_message(id,session_id,run_id,role,content,created_at) VALUES (?,?,?,'USER',?,now()-interval '2 days')",old,session.id(),run.id(),"甲".repeat(3000)+"尾部约束");
+        for (int i=0;i<45;i++) jdbc.update("INSERT INTO agent_message(session_id,run_id,role,content,created_at) VALUES (?,?,'ASSISTANT',?,now()-interval '1 day'+?*interval '1 second')",session.id(),run.id(),"近期记录"+i,i);
+        var state=(com.fasterxml.jackson.databind.node.ObjectNode)repository.workingState(f.project(),session.id());
+        var summary=state.putObject("summary"); summary.put("text","既有摘要");
+        var segments=summary.putArray("segments");
+        for(int i=0;i<60;i++) segments.addObject().put("messageId",old.toString()).put("from",i*10).put("to",(i+1)*10);
+        summary.putArray("uncoveredMessageIds").add(old.toString());
+        jdbc.update("UPDATE agent_session SET working_state=?::jsonb WHERE id=?",state.toString(),session.id());
+        var executor=mock(com.shitulelv.aicollab.agent.application.runtime.RoutingAgentModelExecutor.class);
+        org.mockito.Mockito.when(executor.callModelWithoutTools(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new ModelTurnResult("有效摘要",List.of(),ModelFinishReason.STOP,new ModelUsage(100,20),"test", "test",1L));
+        var memories=mock(com.shitulelv.aicollab.agent.application.AgentMemoryService.class);
+        var composer=new com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer(repository,memories,json,executor);
+        var skill=mock(com.shitulelv.aicollab.agent.domain.model.AgentSkill.class);
+        org.mockito.Mockito.when(skill.instruction()).thenReturn("测试"); org.mockito.Mockito.when(skill.outputContract()).thenReturn("回答");
+        var ctx=new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(run.id(),session.id(),f.project(),f.user(),"OWNER",false,com.shitulelv.aicollab.agent.domain.model.AgentPageContext.empty(),com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits.defaults(),0,List.of());
+        var composition=composer.composeV2(run,ctx,skill,com.shitulelv.aicollab.agent.domain.model.AgentPlan.create("测试",List.of()),List.of(),3000,1);
+        assertThat(composition.failureReason()).isNull();
+        assertThat(composition.summaryCandidates()).anyMatch(m->m.id().equals(old));
+        new com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer(repository,executor,json).maybeSummarize(run,composition,10000);
+        var persisted=repository.workingState(f.project(),session.id()).path("summary");
+        assertThat(persisted.path("segments")).anySatisfy(s->{ if(s.path("messageId").asText().equals(old.toString())) assertThat(s.path("to").asInt()).isEqualTo(1200); });
+        var reloaded=new AgentRepository(jdbc,json,new AgentRunEventRecorder(jdbc,json));
+        var next=reloaded.createRun(f.project(),session.id(),f.user(),"继续",false,null,null);
+        var loaded=reloaded.listSummaryCandidates(next,java.util.Set.of(),20);
+        var second=new com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer.Composition(List.of(),com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer.CompositionStats.empty(),null,loaded);
+        new com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer(reloaded,executor,json).maybeSummarize(next,second,10000);
+        var requests=org.mockito.ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(executor,org.mockito.Mockito.times(2)).callModelWithoutTools(org.mockito.ArgumentMatchers.any(),requests.capture());
+        assertThat(requests.getAllValues().get(1).toString()).contains("片段 1200-1800").doesNotContain("片段 600-1200");
+        jdbc.update("DELETE FROM agent_message WHERE id=?",old);
+        assertThat(reloaded.listSummaryCandidates(next,java.util.Set.of(),20)).noneMatch(m->m.id().equals(old));
+        jdbc.update("DELETE FROM project_member WHERE project_id=? AND user_id=?",f.project(),f.user());
+        assertThatThrownBy(()->reloaded.listSummaryCandidates(next,java.util.Set.of(),20)).isInstanceOf(BusinessException.class);
+    }
+
     private static Fixture fixture() {
         UUID user = UUID.randomUUID();
         UUID project = UUID.randomUUID();

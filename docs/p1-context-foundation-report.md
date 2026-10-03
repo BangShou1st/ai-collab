@@ -121,3 +121,9 @@
 | 3 | 相同 scope 的保护约束互相覆盖（任务 A/任务 B 的日期保护） | 同作用域替代仅限数量上下界；日期/负责人等保护类约束无法确定性区分对象，一律并存 | `protectiveConstraintsForDifferentObjectsCoexistInsteadOfOverwriting`（DATE_LOCK 与 ASSIGNEE_LOCK 各两条不同对象约束同时 active） |
 
 修复批二后 agent 包 **49 类 383 项测试全绿**（较修复批一 +3）。
+
+## 11. 剩余覆盖修复（2026-10-04）
+
+覆盖策略 v4 将同消息分段合并为连续前缀，不再用 60 条容量丢弃新偏移。已完成的连续历史前缀压缩为 completedBefore，未完成消息保留偏移；兼容旧 segments。Composer 从数据库按旧到新读取未完成历史及新消息，最近 40 条只用于主请求选择，不再限制摘要续读。重读和压缩均校验项目、会话和当前成员权限；删除的来源退出候选，并在下一次摘要提交中记录 terminatedMessageIds。CAS、每运行一次持久尝试、结算与预算检查保留。
+
+真实隔离 PostgreSQL 的 Composer→Repository→Summarizer 数据流用例覆盖 60 条旧分段、窗口外续读、数据库重载后的原偏移、删除与权限撤销。针对性三类测试实际执行 61 项，61 通过、0 失败、0 错误、0 跳过。证据：acceptance-evidence/2026-10-04/p1-coverage-test.log。模型响应在此用例为模拟，不宣称真实模型摘要质量。原业务容器保持停止，无新增迁移。

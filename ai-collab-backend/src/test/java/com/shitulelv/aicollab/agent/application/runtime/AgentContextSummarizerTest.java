@@ -144,10 +144,10 @@ class AgentContextSummarizerTest {
         verify(repository, times(2)).commitConversationSummary(any(), any(), anyInt(), anyInt(), second.capture());
         JsonNode secondSummary = second.getValue();
         assertThat(secondSummary.path("coverage").asText()).isEqualTo("FULL");
-        assertThat(secondSummary.path("segments").size()).isEqualTo(2);
-        assertThat(secondSummary.path("segments").get(1).path("from").asInt())
-                .isEqualTo(AgentContextSummarizer.SEGMENT_CHARS);
-        assertThat(secondSummary.path("segments").get(1).path("to").asInt())
+        assertThat(secondSummary.path("segments").size()).isEqualTo(1);
+        assertThat(secondSummary.path("segments").get(0).path("from").asInt())
+                .isZero();
+        assertThat(secondSummary.path("segments").get(0).path("to").asInt())
                 .isEqualTo(longMessage.content().length());
 
         // 第三次运行：全部已覆盖，无可新增覆盖 → 不再调用模型
