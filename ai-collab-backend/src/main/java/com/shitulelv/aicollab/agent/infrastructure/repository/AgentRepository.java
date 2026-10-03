@@ -144,14 +144,15 @@ public class AgentRepository {
         if (run == null) {
             throw new IllegalArgumentException("Agent 会话不存在");
         }
-        jdbc.update("""
+        UUID messageId = jdbc.queryForObject("""
                 INSERT INTO agent_message(
                   session_id,run_id,role,content,citations_json,inferences_json)
                 VALUES (?,?,'USER',?,'[]'::jsonb,'[]'::jsonb)
-                """, sessionId, runId, goal);
+                RETURNING id
+                """, UUID.class, sessionId, runId, goal);
         jdbc.update("UPDATE agent_session SET updated_at=now(),version=version+1 WHERE project_id=? AND id=?",
                 projectId, sessionId);
-        AgentWorkingState.appendUser(jdbc,json,sessionId,goal);
+        AgentWorkingState.appendUser(jdbc,json,sessionId,goal,messageId);
         return run;
     }
 

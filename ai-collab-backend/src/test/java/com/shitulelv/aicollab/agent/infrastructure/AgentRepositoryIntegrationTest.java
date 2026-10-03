@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.agent.infrastructure;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.AgentApprovalService;
 import com.shitulelv.aicollab.agent.application.runtime.AgentEventService;
@@ -792,14 +793,103 @@ class AgentRepositoryIntegrationTest {
     }
 
     @Test
-    void userSupplementPreservesGoalAndExplicitReplacementClearsConstraints() {
+    void userSupplementPreservesGoalAndExplicitReplacementKeepsHistory() {
         Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"context");
         transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"原目标",false,null,null));
         transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"补充截止日期",false,null,null));
         var state=repository.workingState(fixture.project(),session.id());
-        assertThat(state.path("goal").asText()).isEqualTo("原目标"); assertThat(state.path("constraints").size()).isEqualTo(2);
+        assertThat(state.path("schemaVersion").asInt()).isEqualTo(2);
+        assertThat(state.path("activeGoal").asText()).isEqualTo("原目标");
+        // v2：补充消息不含可识别约束，不再积累进 constraints
+        assertThat(state.path("constraints").size()).isZero();
+        assertThat(state.path("stateRevision").asInt()).isEqualTo(2);
+        // 显式替换：新目标生效，旧目标保留历史，stateRevision 继续递增
         transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"/replace 新目标",false,null,null));
-        assertThat(repository.workingState(fixture.project(),session.id()).path("constraints").size()).isEqualTo(1);
+        var replaced=repository.workingState(fixture.project(),session.id());
+        assertThat(replaced.path("activeGoal").asText()).isEqualTo("/replace 新目标");
+        assertThat(replaced.path("goalHistory").size()).isEqualTo(1);
+        assertThat(replaced.path("goalHistory").get(0).path("goal").asText()).isEqualTo("原目标");
+        assertThat(replaced.path("stateRevision").asInt()).isEqualTo(3);
+    }
+
+    @Test
+    void recognizedPersistentConstraintsStayActiveAcrossOrdinaryMessages() {
+        Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"constraints");
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"整理项目任务，最多十项，不改日期",false,null,null));
+        // 20 条普通问答之后，持续约束仍然有效且来源消息已关联
+        for (int i=0;i<20;i++) {
+            final int round=i;
+            transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"第"+round+"轮：这个任务现在是什么状态？",false,null,null));
+        }
+        var state=repository.workingState(fixture.project(),session.id());
+        JsonNode constraints=state.path("constraints");
+        assertThat(constraints.size()).isEqualTo(2);
+        assertThat(constraints.get(0).path("scope").asText()).isEqualTo("TASK_COUNT");
+        assertThat(constraints.get(1).path("scope").asText()).isEqualTo("DATE_LOCK");
+        for (JsonNode entry : constraints) {
+            assertThat(entry.path("status").asText()).isEqualTo("active");
+            assertThat(entry.hasNonNull("sourceMessageId")).isTrue();
+        }
+    }
+
+    @Test
+    void constraintUpdateSupersedesOldEntryWithinSameScope() {
+        Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"constraint-update");
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"生成任务清单，最多十项",false,null,null));
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"改成最多八项",false,null,null));
+        var state=repository.workingState(fixture.project(),session.id());
+        JsonNode constraints=state.path("constraints");
+        assertThat(constraints.size()).isEqualTo(2);
+        assertThat(constraints.get(0).path("status").asText()).isEqualTo("superseded");
+        assertThat(constraints.get(0).path("supersededReason").asText()).isEqualTo("SCOPE_UPDATED");
+        String supersededBy=constraints.get(0).path("supersededBy").asText();
+        assertThat(constraints.get(1).path("status").asText()).isEqualTo("active");
+        assertThat(constraints.get(1).path("id").asText()).isEqualTo(supersededBy);
+    }
+
+    @Test
+    void ordinaryQuestionsAndTurnRequirementsDoNotAccumulateAsConstraints() {
+        Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"no-accumulate");
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"谢谢",false,null,null));
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"解释详细一点",false,null,null));
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"这个任务完成了吗？",false,null,null));
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"只回答标题和状态",false,null,null));
+        var state=repository.workingState(fixture.project(),session.id());
+        assertThat(state.path("constraints").size()).isZero();
+        // 本轮表达要求当轮生效、下次请求重算，不跨轮累积
+        assertThat(state.path("turnRequirements").size()).isEqualTo(1);
+        assertThat(state.path("turnRequirements").get(0).asText()).isEqualTo("只回答标题和状态");
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"继续查详情",false,null,null));
+        assertThat(repository.workingState(fixture.project(),session.id()).path("turnRequirements").size()).isZero();
+    }
+
+    @Test
+    void legacyWorkingStateIsUpgradedOnWriteWithoutLosingData() {
+        Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"legacy-upgrade");
+        // 直接写入 v1 旧格式
+        jdbc.update("UPDATE agent_session SET working_state=?::jsonb WHERE id=?",
+                "{\"goal\":\"旧目标\",\"constraints\":[\"旧约束一\",\"旧约束二\"],\"latestRequest\":\"旧请求\",\"goalVersion\":3}", session.id());
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"新请求",false,null,null));
+        var state=repository.workingState(fixture.project(),session.id());
+        assertThat(state.path("schemaVersion").asInt()).isEqualTo(2);
+        assertThat(state.path("activeGoal").asText()).isEqualTo("旧目标");
+        assertThat(state.path("constraints").size()).isEqualTo(2);
+        assertThat(state.path("constraints").get(0).path("value").asText()).isEqualTo("旧约束一");
+        assertThat(state.path("constraints").get(0).path("status").asText()).isEqualTo("active");
+        assertThat(state.path("latestRequest").asText()).isEqualTo("新请求");
+        assertThat(state.path("stateRevision").asInt()).isGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    void appendUserAssociatesRealMessageIdWithinTransaction() {
+        Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"message-id");
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"查任务，不改日期",false,null,null));
+        var state=repository.workingState(fixture.project(),session.id());
+        String sourceMessageId=state.path("constraints").get(0).path("sourceMessageId").asText();
+        Integer count=jdbc.queryForObject(
+                "SELECT count(*) FROM agent_message WHERE id=?::uuid AND role='USER'",
+                Integer.class, sourceMessageId);
+        assertThat(count).isEqualTo(1);
     }
 
     private static Fixture fixture() {

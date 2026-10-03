@@ -557,7 +557,6 @@ public class AgentRunEventRecorder {
      */
     @Transactional
     public AgentRunView continueRun(AgentRunView run, String userResponse) {
-        AgentWorkingState.appendUser(jdbc,json,run.sessionId(),userResponse);
         // 先验证版本和状态
         int updated = jdbc.update("""
                 UPDATE agent_run SET status='QUEUED',
@@ -567,12 +566,14 @@ public class AgentRunEventRecorder {
                 """, run.projectId(), run.id(), run.version());
         requireRunUpdate(updated);
 
-        // 记录用户回复
-        jdbc.update("""
+        // 记录用户回复并取得真实消息 ID，同事务内关联到工作状态
+        UUID messageId = jdbc.queryForObject("""
                 INSERT INTO agent_message(
                   session_id,run_id,role,content,citations_json,inferences_json)
                 VALUES (?,?,'USER',?,'[]'::jsonb,'[]'::jsonb)
-                """, run.sessionId(), run.id(), userResponse);
+                RETURNING id
+                """, UUID.class, run.sessionId(), run.id(), userResponse);
+        AgentWorkingState.appendUser(jdbc,json,run.sessionId(),userResponse,messageId);
 
         return findRun(run.projectId(), run.id()).orElse(run);
     }
