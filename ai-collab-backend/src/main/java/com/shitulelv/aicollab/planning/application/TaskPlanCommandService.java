@@ -235,6 +235,11 @@ public class TaskPlanCommandService {
     }
 
     private void validateCreate(UUID projectId, CreateTaskPlanRequest request) {
+        if(request==null || request.title()==null || request.title().isBlank() || request.title().length()>160
+                || request.goal()==null || request.goal().isBlank() || request.goal().length()>2000
+                || (request.constraints()!=null && request.constraints().length()>4000)
+                || request.planStartDate()==null || request.planDueDate()==null)
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,"规划参数无效");
         if (request.maxTaskCount() < 1 || request.maxTaskCount() > 40) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "最大任务数必须在 1 到 40 之间");
         }

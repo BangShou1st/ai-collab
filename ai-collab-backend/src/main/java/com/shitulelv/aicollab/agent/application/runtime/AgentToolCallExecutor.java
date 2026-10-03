@@ -144,14 +144,16 @@ public class AgentToolCallExecutor {
         }
         List<ValidatedToolCall> readOnlyBatch = new ArrayList<>();
         for (ValidatedToolCall vtc : validated) {
-            if (vtc.error() == null && vtc.writeTool() == null) readOnlyBatch.add(vtc);
+            if (vtc.error() == null && vtc.writeTool() == null && !vtc.tool().writesBusinessData()) readOnlyBatch.add(vtc);
         }
-        if (!readOnlyBatch.isEmpty()) run = executeReadOnlyBatch(run, readOnlyBatch, toolCtx, ctx.limits());
+        if (!readOnlyBatch.isEmpty()) run = executeToolBatch(run, readOnlyBatch, toolCtx, ctx.limits());
         readOnlyBatch.clear();
         var clarification = validated.stream().filter(v -> v.error() == null
                 && com.shitulelv.aicollab.agent.infrastructure.tool.RequestUserInputAgentTool.NAME.equals(v.toolCall().name())).findFirst();
         var recoveredClarification = recovered.stream().filter(r -> r.path("data").has("questions")).findFirst();
         if (clarification.isPresent() || recoveredClarification.isPresent()) {
+            for (ValidatedToolCall call : validated) if(call.error()==null && call.tool() instanceof com.shitulelv.aicollab.agent.domain.tool.ControlledWriteAgentTool)
+                run=repository.recordToolResult(run,call.toolCall().name(),input(call.toolCall()),createError("WAITING_FOR_INPUT","等待澄清期间不启动生成"),true);
             for (ValidatedToolCall call : validated) if (call.writeTool() != null) {
                 run = repository.recordToolResult(run, call.toolCall().name(), input(call.toolCall()),
                         createError("WAITING_FOR_INPUT", "等待澄清期间不生成提案，请分轮提交"), true);
@@ -165,13 +167,30 @@ public class AgentToolCallExecutor {
             emit(run, AgentEventType.WAITING_FOR_USER_INPUT, json.createObjectNode().put("question", question).put("typed", true));
             return new AgentWorkerOutcome(AgentRunStatus.WAITING_FOR_USER_INPUT, question, null, null);
         }
+        var controlled=validated.stream().filter(v->v.error()==null && v.tool() instanceof com.shitulelv.aicollab.agent.domain.tool.ControlledWriteAgentTool).toList();
+        if(!controlled.isEmpty()) {
+            if(controlled.size()>1 || validated.stream().anyMatch(v->v.writeTool()!=null)) {
+                for(var call:validated) if(call.error()==null && (call.writeTool()!=null || call.tool().writesBusinessData()))
+                    run=repository.recordToolResult(run,call.toolCall().name(),input(call.toolCall()),createError("WRITE_BATCH_LIMIT","一次仅允许一个规划操作或一个提案，请分轮执行"),true);
+            } else {
+                run=executeToolBatch(run,controlled,toolCtx,ctx.limits());
+                var recorded=repository.listSteps(run.projectId(),run.id());
+                boolean accepted=recorded.stream().anyMatch(s->controlled.getFirst().toolCall().name().equals(s.toolName()) && s.output()!=null && s.output().path("data").has("operationId"));
+                if(accepted) {
+                    String summary="规划操作已受理。后台状态与结果会更新到对应规划卡片；生成完成后请打开规划页审阅并人工确认指定版本。";
+                    repository.recordFinal(run,summary,List.of());
+                    emit(run,AgentEventType.RUN_SUCCEEDED,json.createObjectNode().put("status","SUCCEEDED"));
+                    return new AgentWorkerOutcome(AgentRunStatus.SUCCEEDED,summary,null,null);
+                }
+            }
+        }
         for (ValidatedToolCall vtc : validated) {
             if (vtc.error() != null) continue; // 已记录错误，跳过
 
             if (vtc.writeTool() != null) {
                 // 遇到写工具：先 flush 只读批次
                 if (!readOnlyBatch.isEmpty()) {
-                    run = executeReadOnlyBatch(run, readOnlyBatch, toolCtx, ctx.limits());
+                    run = executeToolBatch(run, readOnlyBatch, toolCtx, ctx.limits());
                     readOnlyBatch.clear();
                 }
                 // 写工具串行执行
@@ -227,12 +246,17 @@ public class AgentToolCallExecutor {
 
         // flush 剩余只读批次
         if (!readOnlyBatch.isEmpty()) {
-            run = executeReadOnlyBatch(run, readOnlyBatch, toolCtx, ctx.limits());
+            run = executeToolBatch(run, readOnlyBatch, toolCtx, ctx.limits());
         }
 
         // 所有工具执行完成，重新排队等待下一轮
         cancellation.throwIfRequested(run);
         var recoveredProposal = recovered.stream().filter(result -> "PROPOSAL_PENDING".equals(result.path("effect").asText())).findFirst();
+        if(recovered.stream().anyMatch(r->r.path("data").has("operationId"))) {
+            String summary="已恢复对应规划操作。请查看规划卡片的真实状态，完成后人工审阅确认。";
+            repository.recordFinal(run,summary,List.of());emit(run,AgentEventType.RUN_SUCCEEDED,json.createObjectNode().put("status","SUCCEEDED").put("recovered",true));
+            return new AgentWorkerOutcome(AgentRunStatus.SUCCEEDED,summary,null,null);
+        }
         if (recoveredProposal.isPresent()) {
             String summary = "已恢复提案，待审批。提案 ID：" + recoveredProposal.get().path("proposalId").asText()
                     + "，修订 #" + recoveredProposal.get().path("revision").asInt();
@@ -325,13 +349,15 @@ public class AgentToolCallExecutor {
         }
 
         // 写工具：Skill 级别开关 + Legacy 检查
-        if (tool instanceof ApprovalWriteAgentTool writeTool) {
+        if(tool.writesBusinessData()) {
             if (!skill.allowWriteTools()) {
                 return new ValidatedToolCall(null, toolCall, createError("SKILL_WRITE_FORBIDDEN", "当前 Skill 不允许写操作"), false);
             }
             if (modelExecutor.isLegacyModeForRun(run)) {
                 return new ValidatedToolCall(null, toolCall, createError("LEGACY_WRITE_TOOL_FORBIDDEN", "Legacy 模式下禁止执行写工具"), true);
             }
+        }
+        if (tool instanceof ApprovalWriteAgentTool writeTool) {
             return new ValidatedToolCall(writeTool, toolCall, null, false);
         }
 
@@ -342,7 +368,7 @@ public class AgentToolCallExecutor {
      * 并行执行一批只读工具，顺序记录结果。
      * 每个工具执行都有超时保护，防止永久挂起。
      */
-    private AgentRunView executeReadOnlyBatch(
+    private AgentRunView executeToolBatch(
             AgentRunView run,
             List<ValidatedToolCall> batch,
             AgentToolContext toolCtx, AgentRuntimeLimits limits) {
@@ -365,7 +391,7 @@ public class AgentToolCallExecutor {
                     emit(executingRun, AgentEventType.TOOL_CALL_STARTED, json.createObjectNode()
                             .put("callId", toolCall.id()).put("toolName", toolCall.name())
                             .put("invocationId",java.util.Objects.toString(repository.invocationId(executingRun,toolCall),"")));
-                    AgentToolResult result = tool.execute(toolCtx, toolCall.arguments());
+                    AgentToolResult result = tool.execute(toolCtx.withInvocationId(repository.invocationId(executingRun,toolCall)), toolCall.arguments());
                     return new ToolExecutionResult(toolCall, result, null);
                 } catch (BusinessException e) {
                     return new ToolExecutionResult(toolCall, null, e);

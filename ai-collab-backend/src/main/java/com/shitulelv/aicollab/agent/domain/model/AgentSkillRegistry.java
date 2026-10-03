@@ -113,6 +113,7 @@ public final class AgentSkillRegistry {
         // 2. goal 关键词匹配
         if (userGoal != null && !userGoal.isBlank()) {
             String goalLower = userGoal.toLowerCase();
+            if(goalLower.contains("规划") || goalLower.contains("迭代") || goalLower.contains("planning")) return require("ITERATION_PLANNING");
             for (Map.Entry<String, String> entry : GOAL_KEYWORD_SKILLS) {
                 if (goalLower.contains(entry.getKey())) {
                     return require(entry.getValue());

@@ -24,6 +24,7 @@ public class TaskPlanModelClient {
     private final PlanningModelProperties properties;
     private final AiCallLogWriter logs;
     private com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService providers;
+    @Autowired private PlanningModelConfigurationStore configurationStore;
     private final ThreadLocal<com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider> snapshot = new ThreadLocal<>();
     @Autowired void configureProviders(com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService providers) { this.providers = providers; }
     public interface ConfigurationScope extends AutoCloseable { @Override void close(); }
@@ -67,7 +68,11 @@ public class TaskPlanModelClient {
             ChatCompletionResult result;
             if (providers != null && gateway instanceof com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGateway routing) {
                 selected = snapshot.get();
-                if (selected == null) { selected = providers.resolve(actor, ModelPurpose.PLANNING); snapshot.set(selected); }
+                if (selected == null) {
+                    selected = configurationStore == null ? providers.resolve(actor, ModelPurpose.PLANNING)
+                            : configurationStore.require(actor, UUID.fromString(correlation), properties.maxOutputTokens());
+                    snapshot.set(selected);
+                }
                 log.info("Planning call stage={} configurationId={} provider={} model={} mode=PROMPT_JSON outputBudget={} budgetEnforced={}",
                         feature, selected.id(), selected.providerType(), selected.modelName(),
                         properties.maxOutputTokens() != null ? properties.maxOutputTokens() : selected.maxOutputTokens(),

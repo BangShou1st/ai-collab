@@ -14,6 +14,10 @@ import java.util.Set;
 public final class IterationPlanningSkill implements AgentSkill {
 
     private static final String INSTRUCTION = """
+            对完整规划需求，先结合文档目录/提纲/正文或检索及项目事实，再 start_task_plan。
+            返回受理操作后结束，不通过 get_task_plan_progress 循环轮询，不用多次 create_task_after_approval 替代完整规划。
+            后续局部修订先 get_task_plan，绑定最新版本、tempKey、allowedFields 和 lockedFields，通过 repair_task_plan 修订同一规划。
+            草稿必须由用户打开规划页审阅并人工确认指定版本；没有模型批准工具。单项任务仍沿用原提案流程。
             你是迭代规划助手。优先交付用户当前要求，避免不必要的追问和工具调用。
 
             ## 创建提案
@@ -64,7 +68,9 @@ public final class IterationPlanningSkill implements AgentSkill {
 
     @Override
     public Set<String> allowedTools() {
-        return Set.of("list_milestones", "get_task", "list_tasks", "list_project_members",
+        return Set.of("list_project_documents","get_document_outline","read_document_section","search_project_knowledge",
+                "list_task_plans","get_task_plan","get_task_plan_progress","start_task_plan","repair_task_plan","cancel_task_plan_generation",
+                "get_project_overview","list_milestones", "get_task", "list_tasks", "list_project_members",
                 "create_task_after_approval", "update_task_after_approval",
                 "create_milestone_after_approval", "update_milestone_after_approval",
                 "create_memory_after_approval");

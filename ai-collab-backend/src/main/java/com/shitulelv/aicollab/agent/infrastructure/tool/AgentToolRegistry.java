@@ -141,6 +141,8 @@ public class AgentToolRegistry {
     }
 
     private static boolean allowed(AgentTool tool, AgentToolContext context) {
+        if(tool instanceof com.shitulelv.aicollab.agent.domain.tool.ControlledWriteAgentTool)
+            return context.depth()==0 && !context.scheduled() && Set.of("OWNER","ADMIN").contains(context.role());
         return !tool.writesBusinessData()
                 || (context.depth() == 0 && WRITE_PROPOSAL_ROLES.contains(context.role()));
     }

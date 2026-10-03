@@ -30,6 +30,8 @@ public class TaskPlanVersionCommitService {
     private final TaskPlanRepository repository;
     private final TaskPlanIssueRepository issueRepo;
     private final TaskPlanEventRepository eventRepo;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard access;
 
     public TaskPlanVersionCommitService(TaskPlanRepository repository,
                                          TaskPlanIssueRepository issueRepo,
@@ -54,6 +56,7 @@ public class TaskPlanVersionCommitService {
             UUID fromVersionId) {
 
         // 1. Append version
+        if(access!=null) access.requireAdmin(plan.projectId(),actorId);
         UUID versionId = repository.appendGeneratedVersion(
                 plan.projectId(), plan.id(), plan.generationSeq(),
                 plan.activeAttemptId(), plan.status(),

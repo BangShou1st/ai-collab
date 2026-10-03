@@ -96,11 +96,112 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;
     @Autowired WorkReportService workReports;
+    @Autowired com.shitulelv.aicollab.agent.application.AgentPlanningOperationService agentOperations;
+    @Autowired com.shitulelv.aicollab.agent.application.AgentPlanningRecoveryJob agentRecovery;
+    @Autowired com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository agents;
     @MockitoBean TaskPlanModelClient model;
+    @Autowired PlanningModelConfigurationStore planningConfigurations;
+
+    @Test void planningConfigurationIdentitySurvivesReloadAndRejectsEdits() {
+        var f=fixture("planning-config"); UUID id=UUID.randomUUID(), generation=UUID.randomUUID();
+        jdbc.update("INSERT INTO user_ai_provider(id,user_id,name,provider_type,base_url,model_name,is_default,enabled) VALUES (?,?,'planning-test','OPENAI_COMPATIBLE','https://example.com','fixture-model',true,true)",id,f.user());
+        var pinned=planningConfigurations.require(f.user(),generation,1200);
+        assertThat(pinned.id()).isEqualTo(id);
+        assertThat(planningConfigurations.require(f.user(),generation,1200).id()).isEqualTo(id);
+        assertThat(jdbc.queryForObject("SELECT snapshot->>'maxOutputTokens' FROM planning_model_snapshot WHERE generation_id=?",String.class,generation)).isEqualTo("1200");
+        jdbc.update("UPDATE user_ai_provider SET model_name='changed',updated_at=updated_at+interval '1 second' WHERE id=?",id);
+        assertThatThrownBy(()->planningConfigurations.require(f.user(),generation,1200)).isInstanceOf(BusinessException.class);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM planning_model_snapshot WHERE generation_id=?",Integer.class,generation)).isEqualTo(1);
+    }
 
     @BeforeEach
     void resetModel() {
         reset(model);
+    }
+
+    @Test
+    void agentPlanningOperationsReplayRepairAndManualConfirmationUseRealTransactions() throws Exception {
+        var f=fixture("agent-plan");stubLegalGeneration();
+        var session=agents.createSession(f.project(),f.user(),"资料规划");
+        var request=json.valueToTree(request("Agent 规划"));
+        var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
+        var accepted=agentOperations.mutate(ctx,"start_task_plan",request);
+        UUID operation=UUID.fromString(accepted.path("operationId").asText());UUID plan=UUID.fromString(accepted.path("planId").asText());
+        var replay=agentOperations.mutate(ctx,"start_task_plan",request);
+        assertThat(replay.path("operationId")).isEqualTo(accepted.path("operationId"));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_task_plan WHERE project_id=?",Integer.class,f.project())).isEqualTo(1);
+        var ready=awaitStatus(f.project(),plan,Set.of(TaskPlanStatus.READY));
+        var terminal=agentOperations.get(f.project(),operation,f.user());assertThat(terminal.path("status").asText()).isEqualTo("READY");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_planning_operation_event WHERE operation_id=? AND status='READY'",Integer.class,operation)).isEqualTo(1);
+        agentOperations.synchronizeOperations();agentOperations.synchronizeOperations();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_planning_operation_event WHERE operation_id=? AND status='READY'",Integer.class,operation)).isEqualTo(1);
+        assertThatThrownBy(()->agentOperations.mutate(ctx,"start_task_plan",((com.fasterxml.jackson.databind.node.ObjectNode)request.deepCopy()).put("title","同键不同参数"))).isInstanceOf(BusinessException.class);
+        var original=repository.draft(repository.requireVersion(f.project(),plan,ready.latestVersionId()));
+        when(model.generate(anyString(),anyString(),eq("TASK_PLAN_REPAIR_PATCH"),any(),any(),any(),any())).thenReturn(result("{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"t1\",\"description\":\"修订后的说明\"}]}"));
+        var repair=json.createObjectNode().put("planId",plan.toString());
+        repair.set("repair",json.valueToTree(new PartialRegenerateRequest(ready.latestVersionId(),ready.latestVersionNo(),List.of("t1"),Set.of("description"),Set.of("startDate","dueDate"),List.of(),PartialRegenerateRequest.REGENERATE_SELECTED_TASK_DETAILS)));
+        var repairCtx=agentInvocation(f,session.id(),"repair_task_plan",repair);
+        var repairOperation=agentOperations.mutate(repairCtx,"repair_task_plan",repair);
+        var repaired=awaitStatus(f.project(),plan,Set.of(TaskPlanStatus.READY));
+        assertThat(repaired.latestVersionNo()).isEqualTo(ready.latestVersionNo()+1);
+        var draft=repository.draft(repository.requireVersion(f.project(),plan,repaired.latestVersionId()));
+        assertThat(draft.tasks().getFirst().description()).isEqualTo("修订后的说明");
+        assertThat(draft.tasks().getFirst().startDate()).isEqualTo(original.tasks().getFirst().startDate());
+        assertThat(draft.tasks().getFirst().dueDate()).isEqualTo(original.tasks().getFirst().dueDate());
+        assertThat(agentOperations.mutate(repairCtx,"repair_task_plan",repair).path("operationId")).isEqualTo(repairOperation.path("operationId"));
+        assertThatThrownBy(()->confirmations.confirm(f.project(),plan,ready.latestVersionId(),UUID.randomUUID(),f.user())).isInstanceOf(BusinessException.class);
+        UUID key=UUID.randomUUID();var confirmed=confirmations.confirm(f.project(),plan,repaired.latestVersionId(),key,f.user());
+        assertThat((com.fasterxml.jackson.databind.JsonNode)json.valueToTree(confirmations.confirm(f.project(),plan,repaired.latestVersionId(),key,f.user()))).isEqualTo(json.valueToTree(confirmed));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM project_task WHERE source_plan_id=?",Integer.class,plan)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM task_dependency d JOIN project_task t ON t.id=d.task_id WHERE t.source_plan_id=?",Integer.class,plan)).isEqualTo(1);
+        // The original operation stays tied to its own result version; later revisions cannot overwrite it.
+        assertThat(agentOperations.get(f.project(),operation,f.user()).path("versionId").asText()).isEqualTo(ready.latestVersionId().toString());
+        jdbc.update("DELETE FROM project_member WHERE project_id=? AND user_id=?",f.project(),f.user());
+        assertThatThrownBy(()->agentOperations.get(f.project(),operation,f.user())).isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void queuedAgentPlanDispatchRecoversSameAttemptWithoutDuplicateSideEffects() throws Exception {
+        var f=fixture("agent-dispatch");stubLegalGeneration();var session=agents.createSession(f.project(),f.user(),"重启恢复");
+        var request=json.valueToTree(request("恢复规划"));var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
+        // Simulate commit before dispatch using the real repository + durable operation intent.
+        var plan=repository.create(f.project(),f.user(),request("恢复规划")); UUID operation=UUID.randomUUID();
+        jdbc.update("INSERT INTO agent_planning_operation(id,invocation_id,project_id,requester_id,session_id,origin_run_id,goal_revision,kind,request_json,plan_id,attempt_id,generation_seq) VALUES (?,?,?,?,?,?,1,'start_task_plan',?::jsonb,?,?,?)",operation,ctx.invocationId(),f.project(),f.user(),session.id(),ctx.runId(),request.toString(),plan.id(),plan.activeAttemptId(),plan.generationSeq());
+        jdbc.update("UPDATE ai_task_plan_attempt SET updated_at=now()-interval '1 minute' WHERE id=?",plan.activeAttemptId());
+        agentRecovery.recover();agentRecovery.recover();
+        var ready=awaitStatus(f.project(),plan.id(),Set.of(TaskPlanStatus.READY));
+        assertThat(repository.versions(f.project(),plan.id())).hasSize(2);
+        assertThat(agentOperations.mutate(ctx,"start_task_plan",request).path("operationId").asText()).isEqualTo(operation.toString());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_task_plan WHERE project_id=?",Integer.class,f.project())).isEqualTo(1);
+        assertThat(ready.latestVersionNo()).isEqualTo(2);
+    }
+
+    @Test void agentCancelIsAttemptScopedAndMemberCannotStartPlanning() throws Exception {
+        var f=fixture("agent-cancel");stubLegalGeneration();var session=agents.createSession(f.project(),f.user(),"取消规划");
+        var started=new java.util.concurrent.CountDownLatch(1);var finish=new java.util.concurrent.CountDownLatch(1);
+        when(model.generate(anyString(),anyString(),eq("TASK_PLAN_SKELETON"),any(),any(),any(),any())).thenAnswer(i->{started.countDown();finish.await(3,TimeUnit.SECONDS);return result(skeleton());});
+        var request=json.valueToTree(request("取消规划"));var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
+        var op=agentOperations.mutate(ctx,"start_task_plan",request);assertThat(started.await(3,TimeUnit.SECONDS)).isTrue();
+        var wrong=json.createObjectNode().put("operationId",op.path("operationId").asText()).put("attemptId",UUID.randomUUID().toString());
+        var wrongCtx=agentInvocation(f,session.id(),"cancel_task_plan_generation",wrong);
+        assertThatThrownBy(()->agentOperations.mutate(wrongCtx,"cancel_task_plan_generation",wrong)).isInstanceOf(BusinessException.class);
+        var cancel=json.createObjectNode().put("operationId",op.path("operationId").asText()).put("attemptId",op.path("attemptId").asText());
+        var cancelCtx=agentInvocation(f,session.id(),"cancel_task_plan_generation",cancel);
+        var canceled=agentOperations.mutate(cancelCtx,"cancel_task_plan_generation",cancel);finish.countDown();
+        assertThat(agentOperations.mutate(cancelCtx,"cancel_task_plan_generation",cancel).path("operationId")).isEqualTo(canceled.path("operationId"));
+        UUID plan=UUID.fromString(op.path("planId").asText());assertThat(repository.require(f.project(),plan).status()).isEqualTo(TaskPlanStatus.CANCELED);
+        assertThat(repository.versions(f.project(),plan)).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM project_task WHERE source_plan_id=?",Integer.class,plan)).isZero();
+        jdbc.update("UPDATE project_member SET role='MEMBER' WHERE project_id=? AND user_id=?",f.project(),f.user());
+        var member=agentInvocation(f,session.id(),"start_task_plan",request);
+        assertThatThrownBy(()->agentOperations.mutate(member,"start_task_plan",request)).isInstanceOf(BusinessException.class);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_task_plan WHERE project_id=?",Integer.class,f.project())).isEqualTo(1);
+    }
+
+    private com.shitulelv.aicollab.agent.domain.tool.AgentToolContext agentInvocation(Fixture f,UUID session,String name,com.fasterxml.jackson.databind.JsonNode args) {
+        var run=agents.createRun(f.project(),session,f.user(),"根据资料生成规划",false,"ITERATION_PLANNING",null);UUID invocation=UUID.randomUUID();
+        jdbc.update("INSERT INTO agent_tool_invocation(run_id,turn_sequence,ordinal,invocation_id,tool_call_id,tool_name,arguments_json,status) VALUES (?,1,1,?,'test-call',?,?::jsonb,'PENDING')",run.id(),invocation,name,args.toString());
+        return new com.shitulelv.aicollab.agent.domain.tool.AgentToolContext(run.id(),f.project(),f.user(),"OWNER",false,0,invocation);
     }
 
     @Test
@@ -116,7 +217,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         assertThat(AopUtils.isAopProxy(commits)).isTrue();
         assertThat(jdbc.queryForObject(
                 "select version from flyway_schema_history where success=true order by installed_rank desc limit 1",
-                String.class)).isEqualTo("53");
+                String.class)).isEqualTo("55");
         assertThat(jdbc.queryForObject(
                 "select count(*) from information_schema.tables where table_name='ai_task_plan'",
                 Integer.class)).isEqualTo(1);
