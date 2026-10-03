@@ -1,0 +1,460 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 54 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 522 source files with javac [debug parameters release 21] to target\classes
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/exception/ErrorCode.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/exception/ErrorCode.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanQueryService.java: E:\project\ai-collab\ai-collab-backend\src\main\java\com\shitulelv\aicollab\planning\application\TaskPlanQueryService.javaʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanQueryService.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 142 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContextSummarizerTest.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContextSummarizerTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.document.infrastructure.DocumentSourceOffsetTest
+02:55:47.649 [main] INFO org.apache.pdfbox.pdmodel.font.FileSystemFontProvider -- 9 new font files found, font cache will be re-built
+02:55:47.650 [main] INFO org.apache.pdfbox.pdmodel.font.FileSystemFontProvider -- Building on-disk font cache, this may take a while
+02:55:48.265 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '$/30' which goes past the file size; offset: 1953620996, size: 3357273648, font size: 4096
+02:55:48.265 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?;?u' which goes past the file size; offset: 2004751671, size: 224665212, font size: 4096
+02:55:48.265 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?,?o' which goes past the file size; offset: 4050706791, size: 1899172729, font size: 4096
+02:55:48.265 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��B"' which goes past the file size; offset: 74541925, size: 290256987, font size: 4096
+02:55:48.265 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'ir?g' which goes past the file size; offset: 823502914, size: 2389797732, font size: 4096
+02:55:48.265 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?\?Q' which goes past the file size; offset: 3777290255, size: 2369781337, font size: 4096
+02:55:48.265 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��[)9' which goes past the file size; offset: 3765055587, size: 890287960, font size: 4096
+02:55:48.265 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '3��' which goes past the file size; offset: 3709274929, size: 3027406957, font size: 4096
+02:55:48.265 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table ''G?~' which goes past the file size; offset: 3946099828, size: 3123836674, font size: 4096
+02:55:48.265 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '>~i' which goes past the file size; offset: 52872744, size: 4234759965, font size: 4096
+02:55:48.265 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '#d*\' which goes past the file size; offset: 2151459855, size: 2989518439, font size: 4096
+02:55:48.266 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?yYU' which goes past the file size; offset: 2706975052, size: 441064719, font size: 4096
+02:55:48.266 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'E'' which goes past the file size; offset: 169988425, size: 4084177777, font size: 4096
+02:55:48.266 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '.P?
+' which goes past the file size; offset: 1144753781, size: 36182552, font size: 4096
+02:55:48.266 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '(o?z' which goes past the file size; offset: 942153030, size: 2435465220, font size: 4096
+02:55:48.266 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?]?j' which goes past the file size; offset: 3089206804, size: 3948455756, font size: 4096
+02:55:48.266 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?(��A' which goes past the file size; offset: 4128098116, size: 3779288585, font size: 4096
+02:55:48.266 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table ':(?' which goes past the file size; offset: 184681022, size: 1212311056, font size: 4096
+02:55:48.266 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��J?K' which goes past the file size; offset: 1918126643, size: 2031564034, font size: 4096
+02:55:48.266 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?og' which goes past the file size; offset: 2319385148, size: 3492362022, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'AQXZ' which goes past the file size; offset: 403988028, size: 759777303, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '`' which goes past the file size; offset: 3262900253, size: 1980054336, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'Ni��' which goes past the file size; offset: 2504784983, size: 320165416, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��zS\' which goes past the file size; offset: 2137410888, size: 1884017423, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?B?+' which goes past the file size; offset: 3593428571, size: 2132762972, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?1JW' which goes past the file size; offset: 3490515205, size: 876781909, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?`?@' which goes past the file size; offset: 159185672, size: 122006065, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table ' m?K' which goes past the file size; offset: 3028499, size: 1968211569, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?ei' which goes past the file size; offset: 2571210272, size: 2120921613, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?@?2' which goes past the file size; offset: 2634100023, size: 676176242, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��iD5' which goes past the file size; offset: 892866415, size: 4232853837, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '&Z\7' which goes past the file size; offset: 1930528330, size: 2219791655, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '3E?.' which goes past the file size; offset: 3389896542, size: 3545317972, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '_Q?E' which goes past the file size; offset: 2432965452, size: 4252910125, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'ec}' which goes past the file size; offset: 2201354247, size: 2589330462, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?x
+' which goes past the file size; offset: 1114637680, size: 1214466561, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '??l' which goes past the file size; offset: 3476857148, size: 637606221, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'n,?U' which goes past the file size; offset: 338205999, size: 1496616207, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'kOV2' which goes past the file size; offset: 1511101729, size: 2316249659, font size: 4096
+02:55:48.268 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '}#?' which goes past the file size; offset: 3540876121, size: 1714056259, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '����|' which goes past the file size; offset: 307958837, size: 505954313, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?>3<' which goes past the file size; offset: 2388752673, size: 3847063575, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?SU' which goes past the file size; offset: 575117155, size: 1948883759, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?Y' which goes past the file size; offset: 2417078320, size: 2303181605, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'ud)' which goes past the file size; offset: 4183349270, size: 1668988429, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'i&f' which goes past the file size; offset: 1728739381, size: 1211120951, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��9W2' which goes past the file size; offset: 1144704837, size: 4284049530, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��=' which goes past the file size; offset: 3758517363, size: 1465997396, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?~H' which goes past the file size; offset: 3993678852, size: 2653920083, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '%q��T' which goes past the file size; offset: 123757139, size: 709145684, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '#p?' which goes past the file size; offset: 640746005, size: 3562706958, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'Q	6' which goes past the file size; offset: 710768243, size: 2015507055, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'r-X0' which goes past the file size; offset: 1479111285, size: 1996742727, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '����' which goes past the file size; offset: 3590586166, size: 896988233, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'H?' which goes past the file size; offset: 827784049, size: 2607362899, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?PCf' which goes past the file size; offset: 3630667606, size: 2503563530, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?T?' which goes past the file size; offset: 2672875571, size: 2503316555, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?9j' which goes past the file size; offset: 1031477104, size: 255264101, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '98F6' which goes past the file size; offset: 3442966865, size: 4215751203, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��x' which goes past the file size; offset: 1365153558, size: 1448728109, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?{f
+' which goes past the file size; offset: 704753502, size: 2701770547, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '8Cw' which goes past the file size; offset: 2721018210, size: 1618734951, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?Y'' which goes past the file size; offset: 1665686396, size: 2621164621, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'C?L' which goes past the file size; offset: 4250615297, size: 1647882325, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'FO?`' which goes past the file size; offset: 1663024744, size: 1111976265, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?AG' which goes past the file size; offset: 1852757573, size: 3510352392, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '!ku'' which goes past the file size; offset: 1499353615, size: 655284501, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��e%' which goes past the file size; offset: 1147163448, size: 1645342577, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '??7' which goes past the file size; offset: 2977156888, size: 557488969, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '??,' which goes past the file size; offset: 174657062, size: 158691185, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?
+vZ' which goes past the file size; offset: 422850171, size: 1141731890, font size: 4096
+02:55:48.269 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'K<?O' which goes past the file size; offset: 2387517489, size: 4246903910, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'K^?R' which goes past the file size; offset: 2083170313, size: 3845217637, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '\3' which goes past the file size; offset: 3694453090, size: 2972128832, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'tk' which goes past the file size; offset: 157857540, size: 2584386894, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '<V' which goes past the file size; offset: 1131342646, size: 3694116363, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?%
+' which goes past the file size; offset: 760484394, size: 922924353, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table ''k?7' which goes past the file size; offset: 1313543984, size: 1901638918, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?C?<' which goes past the file size; offset: 2474423364, size: 3529204745, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?#9' which goes past the file size; offset: 3412786533, size: 2793299245, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?0?J' which goes past the file size; offset: 711316796, size: 3204623735, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?|?[' which goes past the file size; offset: 3339286293, size: 4027536971, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '`N?D' which goes past the file size; offset: 509144871, size: 2472202101, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'P~;' which goes past the file size; offset: 2387844656, size: 73040139, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��_K' which goes past the file size; offset: 3694508376, size: 604982292, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'L;?S' which goes past the file size; offset: 2939275886, size: 3612999688, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'FZ"
+' which goes past the file size; offset: 289746543, size: 2254759194, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'D ��' which goes past the file size; offset: 4112225628, size: 2651861850, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '6p{' which goes past the file size; offset: 2869069416, size: 252156440, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '5D?i' which goes past the file size; offset: 1835587691, size: 3444161578, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '8=?4' which goes past the file size; offset: 3597744687, size: 1398517363, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table ']8?U' which goes past the file size; offset: 1713089539, size: 460683841, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '\V(' which goes past the file size; offset: 7078699, size: 659464313, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '8XUz' which goes past the file size; offset: 1798793488, size: 2071040277, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'q?m' which goes past the file size; offset: 3564165968, size: 2703503983, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?k)' which goes past the file size; offset: 1242409235, size: 610164573, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table ']CW' which goes past the file size; offset: 1098316082, size: 357328160, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '>\Gw' which goes past the file size; offset: 269239604, size: 2305459998, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��?~' which goes past the file size; offset: 1933105168, size: 405437040, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?:5I' which goes past the file size; offset: 168908110, size: 1613162813, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'j?X' which goes past the file size; offset: 3624481127, size: 2154623337, font size: 4096
+02:55:48.270 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '-Y?e' which goes past the file size; offset: 3291951875, size: 2656151055, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'fg?A' which goes past the file size; offset: 455342975, size: 1633258830, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?6?' which goes past the file size; offset: 204109897, size: 2016157799, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?UU' which goes past the file size; offset: 728985602, size: 287264039, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?{��^' which goes past the file size; offset: 4017094012, size: 1648883494, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?Q?$' which goes past the file size; offset: 879692291, size: 606368596, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '_L?' which goes past the file size; offset: 3124746862, size: 324209745, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?	w' which goes past the file size; offset: 2757918995, size: 1884782621, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'jI' which goes past the file size; offset: 4182600053, size: 2138079510, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '_\*' which goes past the file size; offset: 641715794, size: 134231361, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?^?o' which goes past the file size; offset: 2065515132, size: 3657479783, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��?' which goes past the file size; offset: 2842438525, size: 1141740037, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?��:' which goes past the file size; offset: 1263484948, size: 2591378436, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?5Rh' which goes past the file size; offset: 1511591804, size: 3060193863, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?t��!' which goes past the file size; offset: 3060955651, size: 1948263691, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��72' which goes past the file size; offset: 2752066934, size: 893160460, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '/$?4' which goes past the file size; offset: 1263880533, size: 1577279754, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'H/��	' which goes past the file size; offset: 912823647, size: 3595921935, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'X9t' which goes past the file size; offset: 3578939498, size: 2334155023, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��76#' which goes past the file size; offset: 4229261321, size: 3982718291, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'Iote' which goes past the file size; offset: 1646611976, size: 1883948854, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table ':?lL' which goes past the file size; offset: 595207986, size: 256896562, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'A{e' which goes past the file size; offset: 1060468074, size: 3295900476, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '@V:' which goes past the file size; offset: 424840213, size: 285758831, font size: 4096
+02:55:48.271 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?\?K' which goes past the file size; offset: 4167570769, size: 2071954955, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'a?' which goes past the file size; offset: 2315358076, size: 156789825, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'y-?]' which goes past the file size; offset: 1435209291, size: 3005630176, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?s' which goes past the file size; offset: 1667393869, size: 1278227817, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'sq?x' which goes past the file size; offset: 1982687271, size: 626763646, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?-' which goes past the file size; offset: 3507786523, size: 1836773181, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?fx' which goes past the file size; offset: 2488404802, size: 1114781301, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '@Ca_' which goes past the file size; offset: 1112524343, size: 1130896446, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'SV_' which goes past the file size; offset: 1113853271, size: 370815354, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��+?w' which goes past the file size; offset: 1647246399, size: 3812850719, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'sb75' which goes past the file size; offset: 1332741425, size: 3591829588, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'UF' which goes past the file size; offset: 503671855, size: 2705265247, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'EXO' which goes past the file size; offset: 3328363647, size: 4152110172, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table ' ?>' which goes past the file size; offset: 2737607022, size: 306584913, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '#=' which goes past the file size; offset: 4116020584, size: 771862277, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��m' which goes past the file size; offset: 1599349859, size: 206184241, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '1h	' which goes past the file size; offset: 1768058645, size: 1883808118, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '$TL
+' which goes past the file size; offset: 4266728448, size: 2736183601, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '???E' which goes past the file size; offset: 4000201798, size: 4063716115, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'i#' which goes past the file size; offset: 1836168277, size: 740248589, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '??' which goes past the file size; offset: 2449521759, size: 675649295, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?u' which goes past the file size; offset: 3661914913, size: 1028634900, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?J?y' which goes past the file size; offset: 2718567036, size: 3376749694, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '
+F' which goes past the file size; offset: 2960450653, size: 2874843200, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?)O' which goes past the file size; offset: 2872999290, size: 3359577697, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'MW3' which goes past the file size; offset: 2651795539, size: 2299380544, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?k?' which goes past the file size; offset: 2052894223, size: 1530520377, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'O)?
+' which goes past the file size; offset: 2438626854, size: 773596172, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��p?m' which goes past the file size; offset: 453146709, size: 4144506393, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '@��' which goes past the file size; offset: 3022014826, size: 796066161, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '??v' which goes past the file size; offset: 3699110490, size: 1361428270, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '::' which goes past the file size; offset: 1979926574, size: 1611128356, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?q?{' which goes past the file size; offset: 1242854964, size: 1584779353, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��T?R' which goes past the file size; offset: 2202695183, size: 3592780628, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��NIy' which goes past the file size; offset: 828677131, size: 1394653496, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?E?O' which goes past the file size; offset: 3358788680, size: 3863205939, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table ',Q��*' which goes past the file size; offset: 2686598703, size: 2774342457, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'kSt' which goes past the file size; offset: 1933803839, size: 642725902, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��Z0' which goes past the file size; offset: 3799282979, size: 138795047, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'z7\' which goes past the file size; offset: 4027813914, size: 1803360854, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?Wu?' which goes past the file size; offset: 2235472433, size: 1931350081, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'r+?' which goes past the file size; offset: 3961860171, size: 3374071861, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?=q' which goes past the file size; offset: 1433486712, size: 422716480, font size: 4096
+02:55:48.272 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table ' -?' which goes past the file size; offset: 1412472096, size: 2506336796, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 's?' which goes past the file size; offset: 1633505403, size: 1880667503, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?c?I' which goes past the file size; offset: 1450200407, size: 1681955668, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '0m?' which goes past the file size; offset: 4093695027, size: 755672377, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '`U?~' which goes past the file size; offset: 1585052200, size: 204116492, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '|3=' which goes past the file size; offset: 2623023392, size: 1160778807, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��z?m' which goes past the file size; offset: 419798620, size: 2725204587, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?��J' which goes past the file size; offset: 640674131, size: 3983762496, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '(S' which goes past the file size; offset: 1967354198, size: 2030623262, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��M?B' which goes past the file size; offset: 2658004231, size: 2588816765, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '0_?N' which goes past the file size; offset: 2636835879, size: 677669740, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'gPS' which goes past the file size; offset: 1382764074, size: 18507892, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'a?3' which goes past the file size; offset: 4704287, size: 2218428480, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?l4' which goes past the file size; offset: 3476907118, size: 375397916, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'W"?W' which goes past the file size; offset: 1259077209, size: 2707157310, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?' which goes past the file size; offset: 3792226652, size: 271300969, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?Z?B' which goes past the file size; offset: 1763756111, size: 3565135442, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?' which goes past the file size; offset: 2555270499, size: 1649793377, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'Kzb' which goes past the file size; offset: 2301992551, size: 3004688701, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?K?v' which goes past the file size; offset: 1027548005, size: 3260637224, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?X?M' which goes past the file size; offset: 391133445, size: 303840042, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'RgC' which goes past the file size; offset: 1594460746, size: 639856144, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��@=m' which goes past the file size; offset: 3223032345, size: 106847544, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?Mf' which goes past the file size; offset: 3408471057, size: 3244057644, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '???q' which goes past the file size; offset: 1916461874, size: 3847639056, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'iK' which goes past the file size; offset: 2369505627, size: 155378525, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '6t?2' which goes past the file size; offset: 1494524684, size: 1131959409, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?e\m' which goes past the file size; offset: 4098331394, size: 2993605989, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?_ _' which goes past the file size; offset: 3794242847, size: 4135316545, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '*.  ' which goes past the file size; offset: 2333530914, size: 3006153332, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?5?' which goes past the file size; offset: 3126434097, size: 305452831, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?��H' which goes past the file size; offset: 545077551, size: 1078895672, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?,pY' which goes past the file size; offset: 3477340518, size: 3982104432, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '}?<' which goes past the file size; offset: 3224340607, size: 3446248305, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '1LxU' which goes past the file size; offset: 1292516429, size: 442756462, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?f?a' which goes past the file size; offset: 3071336288, size: 289337468, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��>?9' which goes past the file size; offset: 2703295861, size: 1900534079, font size: 4096
+02:55:48.273 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'JG?_' which goes past the file size; offset: 2466289445, size: 4286045287, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '? ?c' which goes past the file size; offset: 2032686200, size: 73113213, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '1?' which goes past the file size; offset: 556682037, size: 3439638910, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'MQxk' which goes past the file size; offset: 3224527375, size: 706296650, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'yZ' which goes past the file size; offset: 1852232220, size: 4032898909, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '}Az1' which goes past the file size; offset: 2769987615, size: 2004218462, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'vU?=' which goes past the file size; offset: 3328460318, size: 493684606, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?D?o' which goes past the file size; offset: 2505105483, size: 3240838172, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��I1t' which goes past the file size; offset: 3089301312, size: 1228176203, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'e`I' which goes past the file size; offset: 992674052, size: 470872601, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?]?k' which goes past the file size; offset: 254318433, size: 2839929646, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '??Z' which goes past the file size; offset: 2251769365, size: 3730767158, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?7?c' which goes past the file size; offset: 3629836097, size: 2977947936, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'YS?H' which goes past the file size; offset: 2718443322, size: 2601297193, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'yQ,' which goes past the file size; offset: 1649346585, size: 409031737, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?S' which goes past the file size; offset: 4228341290, size: 672558095, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'c
+%7' which goes past the file size; offset: 941117987, size: 3512229695, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'A?b' which goes past the file size; offset: 1111876138, size: 2605716605, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'pz��&' which goes past the file size; offset: 672554802, size: 303457081, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��=' which goes past the file size; offset: 1615261213, size: 1211734798, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '+0?_' which goes past the file size; offset: 1061685309, size: 1364721789, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'A?]' which goes past the file size; offset: 2203580946, size: 3292874103, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?X?' which goes past the file size; offset: 3390793071, size: 1094653759, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '
+C?w' which goes past the file size; offset: 408665942, size: 3845362193, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?(?b' which goes past the file size; offset: 1430048826, size: 3625634083, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?e' which goes past the file size; offset: 3440981507, size: 3227075183, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '
+/?K' which goes past the file size; offset: 2925781605, size: 1245411406, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'l$W' which goes past the file size; offset: 2383583503, size: 2826262633, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '_$��Y' which goes past the file size; offset: 3794367260, size: 239191153, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?	[r' which goes past the file size; offset: 2286575456, size: 880677680, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '<=(' which goes past the file size; offset: 1045798527, size: 3630992991, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '��:.' which goes past the file size; offset: 673006423, size: 963834970, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?sr' which goes past the file size; offset: 1311423029, size: 2624583704, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '??|' which goes past the file size; offset: 470564195, size: 3408445048, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?b$' which goes past the file size; offset: 3778764922, size: 2436522590, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'v?	' which goes past the file size; offset: 1343194896, size: 1059156255, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '}el' which goes past the file size; offset: 37448238, size: 709848383, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?lI' which goes past the file size; offset: 4049901592, size: 726879612, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '
+*WJ' which goes past the file size; offset: 4266062183, size: 487586602, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?TW	' which goes past the file size; offset: 1835084658, size: 1669256291, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?j' which goes past the file size; offset: 1681739266, size: 1594633343, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'was' which goes past the file size; offset: 1866414177, size: 4235904865, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?<h:' which goes past the file size; offset: 4278786606, size: 626614553, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'A>?a' which goes past the file size; offset: 3866097670, size: 1275668297, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?Yq' which goes past the file size; offset: 3715509505, size: 3830922342, font size: 4096
+02:55:48.274 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'ki(d' which goes past the file size; offset: 4285130097, size: 3877713220, font size: 4096
+02:55:48.275 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?i?'' which goes past the file size; offset: 1266458886, size: 1359715697, font size: 4096
+02:55:48.275 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table 'SS[' which goes past the file size; offset: 628864557, size: 2722460260, font size: 4096
+02:55:48.275 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '?3zb' which goes past the file size; offset: 3591425614, size: 1617339766, font size: 4096
+02:55:48.275 [main] WARN org.apache.fontbox.ttf.TTFParser -- Skip table '??C' which goes past the file size; offset: 118974035, size: 2471337522, font size: 4096
+02:55:48.275 [main] WARN org.apache.pdfbox.pdmodel.font.FileSystemFontProvider -- Could not load font file: C:\WINDOWS\FONTS\mstmc.ttf
+java.io.EOFException: EOF at 4096, b1: -1, b2: -1, b3: -1, b4: -1
+	at org.apache.fontbox.ttf.TTFDataStream.readUnsignedInt(TTFDataStream.java:139)
+	at org.apache.fontbox.ttf.TTFParser.readTableDirectory(TTFParser.java:390)
+	at org.apache.fontbox.ttf.TTFParser.createFontWithTables(TTFParser.java:140)
+	at org.apache.fontbox.ttf.TTFParser.parseTableHeaders(TTFParser.java:263)
+	at org.apache.fontbox.ttf.TTFParser.parseTableHeaders(TTFParser.java:118)
+	at org.apache.pdfbox.pdmodel.font.FileSystemFontProvider.addTrueTypeFont(FileSystemFontProvider.java:712)
+	at org.apache.pdfbox.pdmodel.font.FileSystemFontProvider.scanFonts(FileSystemFontProvider.java:394)
+	at org.apache.pdfbox.pdmodel.font.FileSystemFontProvider.<init>(FileSystemFontProvider.java:371)
+	at org.apache.pdfbox.pdmodel.font.FontMapperImpl$DefaultFontProvider.<clinit>(FontMapperImpl.java:139)
+	at org.apache.pdfbox.pdmodel.font.FontMapperImpl.getProvider(FontMapperImpl.java:158)
+	at org.apache.pdfbox.pdmodel.font.FontMapperImpl.findFont(FontMapperImpl.java:408)
+	at org.apache.pdfbox.pdmodel.font.FontMapperImpl.findFontBoxFont(FontMapperImpl.java:373)
+	at org.apache.pdfbox.pdmodel.font.FontMapperImpl.getFontBoxFont(FontMapperImpl.java:347)
+	at org.apache.pdfbox.pdmodel.font.PDType1Font.<init>(PDType1Font.java:127)
+	at com.shitulelv.aicollab.document.infrastructure.DocumentSourceOffsetTest.pdfPageBoundariesUseTheCleanedCoordinateIncludingSaxWhitespace(DocumentSourceOffsetTest.java:29)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:701)
+	at org.junit.platform.commons.support.ReflectionSupport.invokeMethod(ReflectionSupport.java:502)
+	at org.junit.jupiter.engine.support.MethodReflectionUtils.invoke(MethodReflectionUtils.java:45)
+	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:61)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:124)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:163)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:148)
+	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:123)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:105)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:99)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:66)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:47)
+	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:39)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:104)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:98)
+	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invokeVoid(InterceptingExecutableInvoker.java:71)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$0(TestMethodTestDescriptor.java:219)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:215)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:157)
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:70)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:176)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166)
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164)
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163)
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116)
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52)
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157)
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125)
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58)
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:57)
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25)
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:56)
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68)
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168)
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+02:55:49.211 [main] INFO org.apache.pdfbox.pdmodel.font.FileSystemFontProvider -- Finished building on-disk font cache, found 397 fonts
+[ERROR] Tests run: 2, Failures: 1, Errors: 1, Skipped: 0, Time elapsed: 3.336 s <<< FAILURE! -- in com.shitulelv.aicollab.document.infrastructure.DocumentSourceOffsetTest
+[ERROR] com.shitulelv.aicollab.document.infrastructure.DocumentSourceOffsetTest.headingsAndWhitespaceDoNotShiftCleanTextOffsets -- Time elapsed: 0.189 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "java.lang.Number.intValue()" because the return value of "java.util.Map.get(Object)" is null
+	at com.shitulelv.aicollab.document.infrastructure.DocumentSourceOffsetTest.headingsAndWhitespaceDoNotShiftCleanTextOffsets(DocumentSourceOffsetTest.java:18)
+
+[ERROR] com.shitulelv.aicollab.document.infrastructure.DocumentSourceOffsetTest.pdfPageBoundariesUseTheCleanedCoordinateIncludingSaxWhitespace -- Time elapsed: 3.123 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting actual:
+  " 2 content.
+
+Page 3 content."
+to start with:
+  "Page 2 content."
+
+	at com.shitulelv.aicollab.document.infrastructure.DocumentSourceOffsetTest.pdfPageBoundariesUseTheCleanedCoordinateIncludingSaxWhitespace(DocumentSourceOffsetTest.java:38)
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   DocumentSourceOffsetTest.pdfPageBoundariesUseTheCleanedCoordinateIncludingSaxWhitespace:38 
+Expecting actual:
+  " 2 content.
+
+Page 3 content."
+to start with:
+  "Page 2 content."
+
+[ERROR] Errors: 
+[ERROR]   DocumentSourceOffsetTest.headingsAndWhitespaceDoNotShiftCleanTextOffsets:18 NullPointer Cannot invoke "java.lang.Number.intValue()" because the return value of "java.util.Map.get(Object)" is null
+[INFO] 
+[ERROR] Tests run: 2, Failures: 1, Errors: 1, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  13.016 s
+[INFO] Finished at: 2026-10-04T02:55:50+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project ai-collab-backend: There are test failures.
+[ERROR] 
+[ERROR] See E:\project\ai-collab\ai-collab-backend\target\surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

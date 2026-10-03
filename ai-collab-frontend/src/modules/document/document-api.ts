@@ -1,9 +1,15 @@
 import { apiResultFromResponse } from '../../api/api-result'
 import { httpClient } from '../../api/http-client'
 import type { ApiResponse, ApiResult } from '../../api/types'
-import type { DownloadUrl, ProjectDocument } from './types'
+import type { DownloadUrl, ProjectDocument, DocumentReadingStatus, DocumentBodyRead } from './types'
 
 export const documentApi = {
+  async readingStatus(projectId: string, documentId: string): Promise<ApiResult<DocumentReadingStatus>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<DocumentReadingStatus>>(`/projects/${projectId}/documents/${documentId}/reading`))
+  },
+  async readBody(projectId: string, documentId: string, params: { snapshotId?: string | null; fromChunk?: number; fromOffset?: number; maxChars?: number; chunkId?: string }): Promise<ApiResult<DocumentBodyRead>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<DocumentBodyRead>>(`/projects/${projectId}/documents/${documentId}/body`, { params }))
+  },
   async list(projectId: string): Promise<ApiResult<ProjectDocument[]>> {
     return apiResultFromResponse(
       await httpClient.get<ApiResponse<ProjectDocument[]>>(`/projects/${projectId}/documents`),

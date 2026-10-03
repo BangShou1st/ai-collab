@@ -1,0 +1,1914 @@
+$ vitest run
+
+ RUN  v3.2.7 E:/project/ai-collab/ai-collab-frontend
+
+ ✓ src/modules/agent/agent-activity.test.ts (5 tests) 7ms
+ ✓ src/modules/agent/agent-activity-coverage.test.ts (6 tests) 8ms
+ ✓ src/modules/planning/planning-poller.test.ts (8 tests) 13ms
+ ✓ src/modules/document/document-upload.test.ts (3 tests) 6ms
+ ✓ src/modules/planning/planning-draft.test.ts (9 tests) 6ms
+ ✓ src/modules/agent/agent-run-store.test.ts (8 tests) 4ms
+ ✓ src/modules/planning/planning-failure.test.ts (7 tests) 5ms
+ ✓ src/modules/agent/agent-run-state.test.ts (4 tests) 3ms
+ ✓ src/shared/date-constraints.test.ts (3 tests) 5ms
+ ✓ src/shared/display-labels.test.ts (6 tests) 6ms
+ ✓ src/modules/agent/approval-presentation.test.ts (2 tests) 4ms
+ ✓ src/stores/project-context-store.test.ts (3 tests) 7ms
+ ✓ src/api/api-result.test.ts (3 tests) 6ms
+ ✓ src/modules/agent/conversation-blocks.test.ts (4 tests) 3ms
+ ✓ src/modules/planning/planning-labels.test.ts (2 tests) 2ms
+stderr | src/modules/document/DocumentBodyReader.test.ts > document body reader > opens the immutable citation id rather than substituting another chunk
+[Vue warn]: Failed to resolve component: el-button
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <DocumentBodyReader projectId="p" documentId="d" chunkId="old-chunk"  ... > 
+  at <VTUROOT>
+
+ ✓ src/modules/dashboard/dashboard-api.test.ts (1 test) 5ms
+stderr | src/modules/document/DocumentBodyReader.test.ts > document body reader > opens the immutable citation id rather than substituting another chunk
+[Vue warn]: Failed to resolve component: el-button
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <DocumentBodyReader projectId="p" documentId="d" chunkId="old-chunk"  ... > 
+  at <VTUROOT>
+
+stderr | src/modules/document/DocumentBodyReader.test.ts > document body reader > opens the immutable citation id rather than substituting another chunk
+[Vue warn]: Failed to resolve component: el-button
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <DocumentBodyReader projectId="p" documentId="d" chunkId="old-chunk"  ... > 
+  at <VTUROOT>
+
+ ✓ src/modules/document/DocumentBodyReader.test.ts (2 tests) 61ms
+ ✓ src/modules/audit/audit-api.test.ts (1 test) 7ms
+ ✓ src/modules/project/project-api.test.ts (3 tests) 11ms
+ ✓ src/modules/knowledge/knowledge-stream.test.ts (5 tests) 18ms
+ ✓ src/modules/agent/agent-event-stream.test.ts (2 tests) 10ms
+ ✓ src/modules/agent/AgentRunTimeline.test.ts (3 tests) 35ms
+ ✓ src/shared/SemanticDiff.test.ts (4 tests) 38ms
+ ✓ src/modules/planning/planning-api.test.ts (5 tests) 3ms
+ ✓ src/modules/knowledge/knowledge-feedback.test.ts (3 tests) 10ms
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > disconnects Zen with confirm and reloads
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > disconnects Zen with confirm and reloads
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > disconnects Zen with confirm and reloads
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > disconnects Zen with confirm and reloads
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > disconnects Zen with confirm and reloads
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ ✓ src/shared/AppShell.test.ts (3 tests) 59ms
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > disconnects Zen with confirm and reloads
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > disconnects Zen with confirm and reloads
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > disconnects Zen with confirm and reloads
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > disconnects Zen with confirm and reloads
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > disconnects Zen with confirm and reloads
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > shows an error state instead of faking defaults when purposes fail
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > shows an error state instead of faking defaults when purposes fail
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > shows an error state instead of faking defaults when purposes fail
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > shows an error state instead of faking defaults when purposes fail
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/project/ProjectListView.test.ts > ProjectListView project management > only exposes the overflow menu for projects owned by the current user
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-dropdown-item
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-dropdown-menu
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-dropdown
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/ai/UserAiSettingsView.test.ts > UserAiSettingsView disconnect > shows an error state instead of faking defaults when purposes fail
+[Vue warn]: Failed to resolve component: el-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <UserAiSettingsView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/project/ProjectListView.test.ts > ProjectListView project management > only exposes the overflow menu for projects owned by the current user
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-dropdown-item
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-dropdown-menu
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-dropdown
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/project/ProjectListView.test.ts > ProjectListView project management > only exposes the overflow menu for projects owned by the current user
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-dropdown-item
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-dropdown-menu
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-dropdown
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <ProjectListView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ ✓ src/modules/ai/UserAiSettingsView.test.ts (2 tests) 81ms
+ ✓ src/modules/project/ProjectListView.test.ts (1 test) 50ms
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 批准失败(提案已修订)后刷新审批列表：展示最新版本待审批，已冲突记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > restores terminal history with plan and activities
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView session management > renames and deletes a conversation without exposing internal controls
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 批准失败(提案已修订)后刷新审批列表：展示最新版本待审批，已冲突记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 批准失败(提案已修订)后刷新审批列表：展示最新版本待审批，已冲突记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > requires explicit adoption and saves the suggested member as the formal assignee
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > requires explicit adoption and saves the suggested member as the formal assignee
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 批准失败(提案已修订)后刷新审批列表：展示最新版本待审批，已冲突记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView session management > renames and deletes a conversation without exposing internal controls
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > restores terminal history with plan and activities
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > requires explicit adoption and saves the suggested member as the formal assignee
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView session management > renames and deletes a conversation without exposing internal controls
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > restores terminal history with plan and activities
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > restores terminal history with plan and activities
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > restores terminal history with plan and activities
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView session management > renames and deletes a conversation without exposing internal controls
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 批准失败(提案已修订)后刷新审批列表：展示最新版本待审批，已冲突记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView session management > renames and deletes a conversation without exposing internal controls
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 批准失败(提案已修订)后刷新审批列表：展示最新版本待审批，已冲突记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 批准失败(提案已修订)后刷新审批列表：展示最新版本待审批，已冲突记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView context handoff > clears all four context query keys with a single replace
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-alert
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView context handoff > clears all four context query keys with a single replace
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-alert
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView context handoff > clears all four context query keys with a single replace
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-alert
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 刷新失败不覆盖原始审批错误
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 刷新失败不覆盖原始审批错误
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView context handoff > clears all four context query keys with a single replace
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-alert
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > resumes running runs from lastEventSequence without duplicating events
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 刷新失败不覆盖原始审批错误
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > resumes running runs from lastEventSequence without duplicating events
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 刷新失败不覆盖原始审批错误
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView approval race > drops a late approvals response from a previous session
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > resumes running runs from lastEventSequence without duplicating events
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 刷新失败不覆盖原始审批错误
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > resumes running runs from lastEventSequence without duplicating events
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 刷新失败不覆盖原始审批错误
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView approval race > drops a late approvals response from a previous session
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > requires explicit adoption and saves the suggested member as the formal assignee
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > resumes running runs from lastEventSequence without duplicating events
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > resumes running runs from lastEventSequence without duplicating events
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView approval race > drops a late approvals response from a previous session
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > requires explicit adoption and saves the suggested member as the formal assignee
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > resumes running runs from lastEventSequence without duplicating events
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 提交期间重复点击不再发起请求，结束后恢复可再次操作
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > resumes running runs from lastEventSequence without duplicating events
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 提交期间重复点击不再发起请求，结束后恢复可再次操作
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > resumes running runs from lastEventSequence without duplicating events
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView approval race > drops a late approvals response from a previous session
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 提交期间重复点击不再发起请求，结束后恢复可再次操作
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView approval race > drops a late approvals response from a previous session
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 提交期间重复点击不再发起请求，结束后恢复可再次操作
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 提交期间重复点击不再发起请求，结束后恢复可再次操作
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.test.ts > AgentView approval race > drops a late approvals response from a previous session
+[Vue warn]: Failed to resolve component: el-segmented
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-card
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentApprovalCard key="ap-B" approval= {
+  id: 'ap-B',
+  runId: 'run-B',
+  sessionId: 'session-B',
+  toolName: 'create_task_after_approval',
+  arguments: {},
+  diff: { after: { title: 'B-PROPOSAL' } },
+  status: 'PENDING',
+  nonce: null,
+  expiresAt: '2026-07-30T00:00:00Z',
+  createdAt: '2026-07-30T00:00:00Z',
+  result: null,
+  rejectionReason: null,
+  proposalFamily: 'TASK_CREATE',
+  subjectKey: 'sub-B',
+  revision: 1,
+  updatedAt: '2026-07-30T00:00:00Z'
+} members= []  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 提交期间重复点击不再发起请求，结束后恢复可再次操作
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > shows safe repair diagnostics separately from errors on the unchanged draft
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 提交期间重复点击不再发起请求，结束后恢复可再次操作
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > shows safe repair diagnostics separately from errors on the unchanged draft
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ ✓ src/modules/agent/AgentView.test.ts (3 tests) 105ms
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 确认弹窗尚未完成时重复触发不进入第二次流程
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 确认弹窗尚未完成时重复触发不进入第二次流程
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 确认弹窗尚未完成时重复触发不进入第二次流程
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > shows safe repair diagnostics separately from errors on the unchanged draft
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 确认弹窗尚未完成时重复触发不进入第二次流程
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 确认弹窗尚未完成时重复触发不进入第二次流程
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 确认弹窗尚未完成时重复触发不进入第二次流程
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 确认弹窗尚未完成时重复触发不进入第二次流程
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 确认弹窗尚未完成时重复触发不进入第二次流程
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 确认弹窗尚未完成时重复触发不进入第二次流程
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 拒绝失败(提案已修订)后同样刷新审批列表并展示最新版本
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 拒绝失败(提案已修订)后同样刷新审批列表并展示最新版本
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 拒绝失败(提案已修订)后同样刷新审批列表并展示最新版本
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > uses a bounded custom number input for the maximum task count
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > uses a bounded custom number input for the maximum task count
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 拒绝失败(提案已修订)后同样刷新审批列表并展示最新版本
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 拒绝失败(提案已修订)后同样刷新审批列表并展示最新版本
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 拒绝失败(提案已修订)后同样刷新审批列表并展示最新版本
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 拒绝失败(提案已修订)后同样刷新审批列表并展示最新版本
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 审批已过期(AGENT_APPROVAL_EXPIRED)提示过期文案并将过期记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > uses a bounded custom number input for the maximum task count
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 审批已过期(AGENT_APPROVAL_EXPIRED)提示过期文案并将过期记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 审批已过期(AGENT_APPROVAL_EXPIRED)提示过期文案并将过期记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 审批已过期(AGENT_APPROVAL_EXPIRED)提示过期文案并将过期记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 审批已过期(AGENT_APPROVAL_EXPIRED)提示过期文案并将过期记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 审批已过期(AGENT_APPROVAL_EXPIRED)提示过期文案并将过期记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.approval-conflict.test.ts > AgentView 审批冲突刷新 > 审批已过期(AGENT_APPROVAL_EXPIRED)提示过期文案并将过期记录移出待审批
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-check-tag
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ ✓ src/modules/agent/AgentView.approval-conflict.test.ts (6 tests) 143ms
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > versionSourceUsesChineseLabels
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > versionSourceUsesChineseLabels
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > versionSourceUsesChineseLabels
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > partialRepairUsesTheSeenVersionAndLocksTaskIdentity
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > partialRepairUsesTheSeenVersionAndLocksTaskIdentity
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > partialRepairUsesTheSeenVersionAndLocksTaskIdentity
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > priorityUsesChineseLabels
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > priorityUsesChineseLabels
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > priorityUsesChineseLabels
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > failureSummaryNeverShowsInternalCode
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > failureSummaryNeverShowsInternalCode
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > failureSummaryNeverShowsInternalCode
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > repairingContinuesPolling
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > repairingContinuesPolling
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > repairingContinuesPolling
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > repairingContinuesPolling
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > repairingContinuesPolling
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > repairingContinuesPolling
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > openingPlanWithoutVersionClearsPreviousDraft
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > openingPlanWithoutVersionClearsPreviousDraft
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > openingPlanWithoutVersionClearsPreviousDraft
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > openingPlanWithoutVersionClearsPreviousDraft
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > openingPlanWithoutVersionClearsPreviousDraft
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > openingPlanWithoutVersionClearsPreviousDraft
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > issueClickFocusesTargetField
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > issueClickFocusesTargetField
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > issueClickFocusesTargetField
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > saveButtonOpensDialogAndCanSave
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > saveButtonOpensDialogAndCanSave
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > saveButtonOpensDialogAndCanSave
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > saveButtonOpensDialogAndCanSave
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > deleteButtonWorksForAllStatuses
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > deleteButtonWorksForAllStatuses
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > deleteButtonWorksForAllStatuses
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > readyWithIssuesCannotConfirm
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > readyWithIssuesCannotConfirm
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > readyWithIssuesCannotConfirm
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > assumptionAndRiskCanBeAddedAndRemoved
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > assumptionAndRiskCanBeAddedAndRemoved
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > assumptionAndRiskCanBeAddedAndRemoved
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > eventTimelineUsesChineseLabels
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="当前还没有规划"  ... > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState compact="" title="选择一份规划查看详情" description="将项目目标转化为可审核的任务方案。草案 → 审核 → 确认，只有确认后才会写入真实项目任务。" > 
+  at <Anonymous key=0 class="planning-detail-empty" > 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > eventTimelineUsesChineseLabels
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/planning/PlanningView.test.ts > PlanningView real component workflow > eventTimelineUsesChineseLabels
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <PlanningView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ ✓ src/modules/planning/PlanningView.test.ts (15 tests) 277ms
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > drops the old session when switching projects
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > drops the old session when switching projects
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > drops the old session when switching projects
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > drops the old session when switching projects
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > drops the old session when switching projects
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > drops the old session when switching projects
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > ignores a stale restore that resolves after a rapid session switch
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: router-link
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <EmptyState key=0 compact="" title="还没有协作会话"  ... > 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > ignores a stale restore that resolves after a rapid session switch
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > ignores a stale restore that resolves after a rapid session switch
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+stderr | src/modules/agent/AgentView.restore.test.ts > AgentView restore > ignores a stale restore that resolves after a rapid session switch
+[Vue warn]: Failed to resolve component: el-icon
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Failed to resolve component: el-drawer
+If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement. 
+  at <AgentView ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ ✓ src/modules/agent/AgentView.restore.test.ts (4 tests) 321ms
+ ✓ src/modules/work/PlanComparisonView.test.ts (1 test) 25ms
+
+ Test Files  33 passed (33)
+      Tests  137 passed (137)
+   Start at  03:00:56
+   Duration  4.09s (transform 2.84s, setup 0ms, collect 27.58s, tests 1.34s, environment 21.33s, prepare 6.60s)
+

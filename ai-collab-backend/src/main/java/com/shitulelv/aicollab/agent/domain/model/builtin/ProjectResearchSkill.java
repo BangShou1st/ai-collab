@@ -50,7 +50,7 @@ public final class ProjectResearchSkill implements AgentSkill {
 
     @Override
     public Set<String> allowedTools() {
-        return Set.of("search_project_knowledge", "get_project_overview",
+        return Set.of("list_project_documents", "get_document_outline", "read_document_section", "search_project_knowledge", "get_project_overview",
                 "check_project_progress", "answer_project_question_with_sources",
                 "list_project_memories");
     }

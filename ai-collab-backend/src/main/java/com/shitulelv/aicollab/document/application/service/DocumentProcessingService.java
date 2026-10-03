@@ -34,6 +34,8 @@ public class DocumentProcessingService {
     private final DocumentIndexWriter indexWriter;
     private final DocumentFailureRecorder failures;
     private final NotificationApplicationService notifications;
+    @org.springframework.beans.factory.annotation.Autowired
+    private DocumentContentService readableContent;
 
     public DocumentProcessingService(DocumentRepository documents, DocumentStorageGateway storage,
                                      DocumentParser parser, DocumentChunker chunker,
@@ -63,6 +65,7 @@ public class DocumentProcessingService {
                     source, document.getOriginalFilename(), document.getMimeType());
             List<DocumentChunk> chunks = chunker.split(parsed.text(), parsed.pageBoundaries());
             if (chunks.isEmpty()) throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED);
+            if (readableContent != null) readableContent.saveParsed(projectId,documentId,processingToken,source,chunks);
             if (!documents.markIndexing(
                     projectId, documentId, processingToken, parsed.parserType())) return;
             EmbeddingBatch embeddings = embeddingGateway.embed(projectId,

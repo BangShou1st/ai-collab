@@ -90,7 +90,7 @@ class AgentReadToolsTest {
 
     private TaskView task(String title) {
         return new TaskView(
-                UUID.randomUUID(), context.projectId(), title, "描述",
+                new UUID(0,title.charAt(0)), context.projectId(), title, "描述",
                 null, null, null, null, TaskStatus.TODO, TaskPriority.MEDIUM,
                 null, null, null, 0, 0, List.of(), null);
     }
