@@ -436,6 +436,73 @@ class AgentRuntimeCoordinatorTest {
 
     // ========== 辅助方法 ==========
 
+    /**
+     * 摘要入账后必须刷新运行并重新核算主请求预算：预算被摘要耗尽时明确停止，
+     * 不得携带超限上下文继续请求主模型。
+     */
+    @Test
+    void summaryAccountingTriggersBudgetRecheckBeforeMainModelCall() {
+        AgentRunView run = run();
+        AgentExecutionContext tightLimits = new AgentExecutionContext(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "SUPERVISOR", false, AgentPageContext.empty(),
+                new AgentRuntimeLimits(8, 4, 6, 2, java.time.Duration.ofMinutes(2),
+                        java.time.Duration.ofSeconds(10), java.time.Duration.ofSeconds(15),
+                        32 * 1024, 6_000, 2_000),
+                0, List.of());
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(tightLimits);
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("研究", List.of()));
+        when(repository.listSteps(any(), any())).thenReturn(List.of());
+        when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
+
+        // v2 工作状态 + 最近几条超预算的大消息，使其余小消息成为摘要候选
+        ObjectNode state = json.createObjectNode();
+        state.put("schemaVersion", 2);
+        state.put("stateRevision", 4);
+        state.put("goalRevision", 1);
+        state.put("activeGoal", "检查项目");
+        when(repository.workingState(any(), any())).thenReturn(state);
+        java.util.List<com.shitulelv.aicollab.agent.application.view.AgentMessageView> history = new java.util.ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            history.add(new com.shitulelv.aicollab.agent.application.view.AgentMessageView(
+                    UUID.randomUUID(), run.sessionId(), run.id(), "USER",
+                    ("大消息 %d：".formatted(i)) + "项目内容。".repeat(600), null, null,
+                    OffsetDateTime.now().plusSeconds(i)));
+        }
+        for (int i = 0; i < 3; i++) {
+            history.add(new com.shitulelv.aicollab.agent.application.view.AgentMessageView(
+                    UUID.randomUUID(), run.sessionId(), run.id(), "ASSISTANT",
+                    "小消息 " + i + "：任务状态正常，无阻塞。", null, null,
+                    OffsetDateTime.now().plusSeconds(10 + i)));
+        }
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
+        when(repository.countSummaryAttempts(any(), any())).thenReturn(0);
+        when(repository.beginSummaryAttempt(any())).thenReturn(UUID.randomUUID());
+        when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(new ModelTurnResult(
+                "摘要内容", List.of(), ModelFinishReason.STOP,
+                new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(500, 60),
+                "test-provider", "test-model", 5L));
+
+        // 摘要入账后刷新出的 run：输入预算已耗尽
+        OffsetDateTime now = OffsetDateTime.now();
+        AgentRunView refreshed = new AgentRunView(
+                run.id(), run.sessionId(), run.projectId(), run.requesterId(),
+                null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
+                16, 12, 3, 100_000, 32_000,
+                0, 0, 0, 6_000, 0, false,
+                false, false, 0, null, null, null, null, 2, now, now);
+        when(repository.findRun(any(), any()))
+                .thenReturn(java.util.Optional.empty())
+                .thenReturn(java.util.Optional.of(refreshed));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        // 主模型调用不得发生：预算已被摘要消耗并重新核算为不足
+        verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean());
+    }
+
     private AgentRunView run() {
         OffsetDateTime now = OffsetDateTime.now();
         return new AgentRunView(

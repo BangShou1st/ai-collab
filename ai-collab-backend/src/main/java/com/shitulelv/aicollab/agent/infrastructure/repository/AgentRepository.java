@@ -315,26 +315,48 @@ public class AgentRepository {
     }
 
     /**
-     * 会话摘要 CAS 提交：仅当 stateRevision 与 goalRevision 与生成时一致才落库，
-     * 用 jsonb_set 只写 summary 节点，不拿旧 JSON 整块覆盖新状态。
-     * 生成期间有新消息（revision 已前进）时返回 false。
+     * 会话摘要 CAS 提交：仅当 stateRevision 与 goalRevision 与生成时一致、且声明的
+     * sourceThrough 消息真实属于本会话时才落库；提交原子递增 stateRevision（同一状态上
+     * 的两个摘要提交只有第一个能成功），用 jsonb_set 只写 summary 节点，不整块覆盖。
      */
     @Transactional
     public boolean commitConversationSummary(UUID projectId, UUID sessionId,
             int expectedStateRevision, int expectedGoalRevision, JsonNode summary) {
         return jdbc.update("""
                 UPDATE agent_session
-                SET working_state=jsonb_set(working_state,'{summary}',?::jsonb,true), updated_at=now()
+                SET working_state=jsonb_set(
+                      jsonb_set(working_state,'{summary}',?::jsonb,true),
+                      '{stateRevision}',
+                      to_jsonb((working_state->>'stateRevision')::int + 1)),
+                    updated_at=now()
                 WHERE project_id=? AND id=?
                   AND (working_state->>'stateRevision')=?::text
                   AND (working_state->>'goalRevision')=?::text
-                """, summary.toString(), projectId, sessionId, expectedStateRevision, expectedGoalRevision) == 1;
+                  AND EXISTS (SELECT 1 FROM agent_message m
+                              WHERE m.id=(?::jsonb->>'sourceThrough')::uuid
+                                AND m.session_id=agent_session.id)
+                """, summary.toString(), projectId, sessionId,
+                String.valueOf(expectedStateRevision), String.valueOf(expectedGoalRevision),
+                summary.toString()) == 1;
     }
 
-    /** 摘要调用单独记账（计入运行总预算，reason=CONTEXT_SUMMARY 区分）。 */
-    public void recordSummaryUsage(AgentRunView run, String model, Integer inputTokens,
-            Integer outputTokens, boolean estimated, Long latencyMs) {
-        recorder.recordSummaryUsage(run, model, inputTokens, outputTokens, estimated, latencyMs);
+    /** 本次运行已持久化的摘要尝试次数（用于"每运行至多一次"约束）。 */
+    public int countSummaryAttempts(UUID projectId, UUID runId) {
+        Integer count = jdbc.queryForObject("""
+                SELECT count(*) FROM agent_step
+                WHERE run_id=? AND type='MODEL_REQUEST' AND reason='CONTEXT_SUMMARY'
+                """, Integer.class, runId);
+        return count == null ? 0 : count;
+    }
+
+    /** 摘要尝试开始（持久化标记）与完成记账，见 AgentRunEventRecorder。 */
+    public UUID beginSummaryAttempt(AgentRunView run) {
+        return recorder.beginSummaryAttempt(run);
+    }
+
+    public void completeSummaryAttempt(UUID attemptId, String outcome, String model,
+            Integer inputTokens, Integer outputTokens, boolean estimated, Long latencyMs) {
+        recorder.completeSummaryAttempt(attemptId, outcome, model, inputTokens, outputTokens, estimated, latencyMs);
     }
 
     public void recordDecisionFailure(

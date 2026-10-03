@@ -236,9 +236,18 @@ public class AgentRuntimeCoordinator {
             }
             AgentModelAccounting.estimate(estimatedInput);
 
-            // 7b. 有界增量摘要：主请求预算保留后，对未覆盖旧对话生成一次摘要（CAS 提交、单独记账）
+            // 7b. 有界增量摘要：主请求预算保留后，对未覆盖旧对话生成一次摘要（持久化尝试标记、CAS 提交、单独记账）
             if (composition != null) {
                 summarizer.maybeSummarize(run, composition, requestBudget.availableInputTokens() - estimatedInput);
+                // 摘要消耗已入账：刷新运行、重查取消状态，并重新核算主请求预算——
+                // 不允许携带超限上下文继续请求模型
+                run = repository.findRun(run.projectId(), run.id()).orElse(run);
+                cancellation.throwIfRequested(run);
+                int refreshedRemaining = Math.min(run.maxInputTokens(), ctx.limits().maxInputTokens()) - run.inputTokensUsed();
+                var refreshedBudget = AgentContextBudget.perRequest(contextProperties, modelWindow, refreshedRemaining);
+                if (estimatedInput > refreshedBudget.availableInputTokens()) {
+                    return inputBudgetExceeded(run, refreshedBudget, "SUMMARY_CONSUMED_BUDGET");
+                }
             }
 
             // 8. 调用模型（通过路由选择正确的执行器）

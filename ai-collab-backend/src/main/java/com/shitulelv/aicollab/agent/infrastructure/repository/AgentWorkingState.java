@@ -24,8 +24,9 @@ final class AgentWorkingState {
     /** 明确的新目标标记（保守词表；不含模糊表述，避免文档引文/否定句误触发）。 */
     private static final String[] GOAL_REPLACE_PREFIXES = {"/replace ", "新目标：", "新目标:"};
 
-    /** 约束作用域：仅收录能确定性识别的持续约束。 */
-    private static final String SCOPE_TASK_COUNT = "TASK_COUNT";
+    /** 约束作用域：仅收录能确定性识别的持续约束；数量上下界分开，可同时成立。 */
+    private static final String SCOPE_TASK_COUNT_MAX = "TASK_COUNT_MAX";
+    private static final String SCOPE_TASK_COUNT_MIN = "TASK_COUNT_MIN";
     private static final String SCOPE_DATE_LOCK = "DATE_LOCK";
     private static final String SCOPE_ASSIGNEE_LOCK = "ASSIGNEE_LOCK";
 
@@ -159,12 +160,12 @@ final class AgentWorkingState {
         String newId=UUID.randomUUID().toString();
         for (JsonNode entry : constraints) {
             if (!"active".equals(entry.path("status").asText())) continue;
-            if (SCOPE_TASK_COUNT.equals(scope) && SCOPE_TASK_COUNT.equals(entry.path("scope").asText())
-                    && entry.path("value").asText("").equals(request)) {
-                return; // 完全相同的数量约束不重复累积
+            if (scope.equals(entry.path("scope").asText()) && entry.path("value").asText("").equals(request)) {
+                return; // 完全相同的同作用域约束不重复累积
             }
-            if (SCOPE_TASK_COUNT.equals(scope) && SCOPE_TASK_COUNT.equals(entry.path("scope").asText())) {
-                // 同一目标同一限制被修改（如 最多十项 → 最多八项）：旧条目被替代且可追溯
+            if (scope.equals(entry.path("scope").asText())) {
+                // 同一目标同一限制被修改（如 最多十项 → 最多八项）：旧条目被替代且可追溯；
+                // 上下界作用域（TASK_COUNT_MAX/TASK_COUNT_MIN）不同，可同时成立、互不替代
                 ((ObjectNode) entry).put("status","superseded");
                 ((ObjectNode) entry).put("supersededBy",newId);
                 ((ObjectNode) entry).put("supersededReason","SCOPE_UPDATED");
@@ -180,12 +181,16 @@ final class AgentWorkingState {
         trimConstraints(json,state);
     }
 
-    /** 只保留确定性可识别的持续约束；其余表述（含格式/范围要求）归入本轮表达要求。 */
+    /** 只保留确定性可识别的持续约束；其余表述（含格式/范围要求）归入本轮表达要求。
+     *  数量限制区分上界/下界，二者可同时成立、互不替代。 */
     private static java.util.List<String> constraintScopes(String request) {
         String text=request==null ? "" : request;
         java.util.List<String> scopes=new java.util.ArrayList<>();
-        if (text.matches(".*(最多|不超过|至多|至少|最少|只能)[^，。;；\\n]{0,8}[0-9一二三四五六七八九十]+[项条个].*")) {
-            scopes.add(SCOPE_TASK_COUNT);
+        if (text.matches(".*(最多|不超过|至多|只能)[^，。;；\\n]{0,8}[0-9一二三四五六七八九十]+[项条个].*")) {
+            scopes.add(SCOPE_TASK_COUNT_MAX);
+        }
+        if (text.matches(".*(至少|最少)[^，。;；\\n]{0,8}[0-9一二三四五六七八九十]+[项条个].*")) {
+            scopes.add(SCOPE_TASK_COUNT_MIN);
         }
         if (text.contains("日期") && text.matches(".*(日期[^。；\\n]{0,6}(不要|不用|别|不能|禁止|保持|固定|不变|别动|不改)|不要改日期|别改日期|不改日期|日期不变|日期保持).*")) {
             scopes.add(SCOPE_DATE_LOCK);
@@ -219,8 +224,16 @@ final class AgentWorkingState {
     private static void trimConstraints(ObjectMapper json,ObjectNode state) {
         JsonNode constraints=state.path("constraints");
         if (constraints.size()<=MAX_CONSTRAINT_ENTRIES) return;
+        // 超限时只归档最旧的 superseded 历史条目；active 约束永不淘汰——
+        // 历史条目可归档，当前仍有效的要求必须完整保留
         ArrayNode trimmed=json.createArrayNode();
-        for (int i=constraints.size()-MAX_CONSTRAINT_ENTRIES; i<constraints.size(); i++) trimmed.add(constraints.get(i));
+        for (int i=0; i<constraints.size(); i++) {
+            JsonNode entry=constraints.get(i);
+            boolean active="active".equals(entry.path("status").asText());
+            boolean oldestSuperseded=i<constraints.size()-MAX_CONSTRAINT_ENTRIES;
+            if (!active && oldestSuperseded) continue;
+            trimmed.add(entry);
+        }
         state.set("constraints",trimmed);
     }
 }

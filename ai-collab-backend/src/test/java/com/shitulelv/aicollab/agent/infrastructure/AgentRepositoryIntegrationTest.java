@@ -824,12 +824,56 @@ class AgentRepositoryIntegrationTest {
         var state=repository.workingState(fixture.project(),session.id());
         JsonNode constraints=state.path("constraints");
         assertThat(constraints.size()).isEqualTo(2);
-        assertThat(constraints.get(0).path("scope").asText()).isEqualTo("TASK_COUNT");
+        assertThat(constraints.get(0).path("scope").asText()).isEqualTo("TASK_COUNT_MAX");
         assertThat(constraints.get(1).path("scope").asText()).isEqualTo("DATE_LOCK");
         for (JsonNode entry : constraints) {
             assertThat(entry.path("status").asText()).isEqualTo("active");
             assertThat(entry.hasNonNull("sourceMessageId")).isTrue();
         }
+    }
+
+    @Test
+    void minAndMaxTaskCountConstraintsCoexistWithoutSupersedingEachOther() {
+        Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"min-max");
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"生成任务清单，至少三项",false,null,null));
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"最多十项",false,null,null));
+        var state=repository.workingState(fixture.project(),session.id());
+        JsonNode constraints=state.path("constraints");
+        assertThat(constraints.size()).isEqualTo(2);
+        assertThat(constraints.get(0).path("scope").asText()).isEqualTo("TASK_COUNT_MIN");
+        assertThat(constraints.get(0).path("status").asText()).isEqualTo("active");
+        assertThat(constraints.get(1).path("scope").asText()).isEqualTo("TASK_COUNT_MAX");
+        assertThat(constraints.get(1).path("status").asText()).isEqualTo("active");
+    }
+
+    @Test
+    void activeConstraintsSurviveConstraintChurnWithoutEviction() {
+        Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"churn");
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"整理任务，不改日期",false,null,null));
+        // 反复修改数量上限 25 次：旧的日期约束不得被条数上限淘汰
+        for (int i=1;i<=25;i++) {
+            final int count=i;
+            transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"改成最多"+count+"项",false,null,null));
+        }
+        var state=repository.workingState(fixture.project(),session.id());
+        JsonNode constraints=state.path("constraints");
+        boolean dateActive=false;
+        String activeCountValue=null;
+        for (JsonNode entry : constraints) {
+            if ("DATE_LOCK".equals(entry.path("scope").asText()) && "active".equals(entry.path("status").asText())) dateActive=true;
+            if ("TASK_COUNT_MAX".equals(entry.path("scope").asText()) && "active".equals(entry.path("status").asText())) {
+                activeCountValue=entry.path("value").asText();
+            }
+        }
+        assertThat(dateActive).isTrue();
+        // 只有最后一条数量约束仍是 active，其余被替代（历史保留可追溯）
+        assertThat(activeCountValue).isEqualTo("改成最多25项");
+        int supersededCount=0;
+        for (JsonNode entry : constraints) {
+            if ("superseded".equals(entry.path("status").asText())) supersededCount++;
+        }
+        // 超限归档只删 superseded 历史条目，active 不受限
+        assertThat(supersededCount).isLessThanOrEqualTo(20);
     }
 
     @Test
@@ -911,11 +955,29 @@ class AgentRepositoryIntegrationTest {
         assertThat(committed).isTrue();
 
         var after=repository.workingState(fixture.project(),session.id());
-        // 只写 summary 节点：activeGoal/constraints/stateRevision 原样保留
+        // 只写 summary 节点 + 原子递增 stateRevision：activeGoal/constraints 原样保留
         assertThat(after.path("summary").path("text").asText()).contains("不改日期");
         assertThat(after.path("activeGoal").asText()).isEqualTo(before.path("activeGoal").asText());
-        assertThat(after.path("stateRevision").asInt()).isEqualTo(revision);
+        assertThat(after.path("stateRevision").asInt()).isEqualTo(revision+1);
         assertThat(after.path("constraints").size()).isEqualTo(before.path("constraints").size());
+
+        // 同一状态上的第二次摘要提交（revision 未随之匹配）必须失败
+        var duplicate=json.createObjectNode();
+        duplicate.put("schemaVersion",1);
+        duplicate.put("text","并发期间的另一份摘要");
+        duplicate.put("sourceThrough",before.path("lastProcessedMessageId").asText());
+        boolean duplicateCommitted=transactions.execute(status ->
+                repository.commitConversationSummary(fixture.project(),session.id(),revision,goalRevision,duplicate));
+        assertThat(duplicateCommitted).isFalse();
+
+        // 声明的覆盖边界不属于本会话消息时，提交必须失败
+        var forged=json.createObjectNode();
+        forged.put("schemaVersion",1);
+        forged.put("text","边界不存在的摘要");
+        forged.put("sourceThrough",UUID.randomUUID().toString());
+        boolean forgedCommitted=transactions.execute(status ->
+                repository.commitConversationSummary(fixture.project(),session.id(),revision,goalRevision,forged));
+        assertThat(forgedCommitted).isFalse();
 
         // revision 前进（新请求）后，旧 revision 的摘要提交必须失败
         transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"继续",false,null,null));

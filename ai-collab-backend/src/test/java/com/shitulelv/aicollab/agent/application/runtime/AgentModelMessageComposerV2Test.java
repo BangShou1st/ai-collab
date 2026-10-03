@@ -211,6 +211,40 @@ class AgentModelMessageComposerV2Test {
         assertThat(userContents(messages)).contains("新目标");
     }
 
+    /**
+     * 回退路径回归：当前请求存在于取回的历史但落在固定窗口之外（或被预算跳过）时，
+     * 必须按"实际入选消息"判断并补入当前请求，不得因"取回列表中存在"而跳过注入。
+     */
+    @Test
+    void legacyPathInjectsCurrentRequestWhenItIsNotAmongSelectedMessages() {
+        // 目标消息是最早的第 1 条：取回 10 条，但固定窗口只选最后 6 条，目标不在其中
+        List<AgentMessageView> history = new ArrayList<>();
+        history.add(message("USER", "不改日期，最多十项任务", 1));
+        for (int i = 2; i <= 10; i++) {
+            history.add(message("ASSISTANT", "第 " + i + " 轮查询的完整结果与说明，用于占位填充固定窗口。", i));
+        }
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
+
+        List<ModelMessage> messages = composer.buildMessageHistory(run("不改日期，最多十项任务"), context(), skill(),
+                AgentPlan.create("查询", List.of()), List.of());
+
+        assertThat(userContents(messages)).contains("不改日期，最多十项任务");
+    }
+
+    @Test
+    void legacyPathInjectsCurrentRequestWhenBudgetSkippedItsWindowEntry() {
+        // 目标在固定窗口内但内容超预算被整条跳过：同样必须补入当前请求
+        List<AgentMessageView> history = new ArrayList<>(List.of(
+                message("USER", "超长消息占满历史预算。".repeat(1200), 1),
+                message("ASSISTANT", "后续回复内容。", 2)));
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
+
+        List<ModelMessage> messages = composer.buildMessageHistory(run("日期不要改"), context(), skill(),
+                AgentPlan.create("查询", List.of()), List.of());
+
+        assertThat(userContents(messages)).contains("日期不要改");
+    }
+
     @Test
     void composeV2InjectsExistingConversationSummary() {
         var state = json.createObjectNode();
