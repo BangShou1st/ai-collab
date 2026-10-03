@@ -61,10 +61,13 @@ public class KnowledgeSearchAgentTool implements AgentTool {
             item.put("pageNumber", pageNumber(source.metadata()));
             item.put("quote", TaskListAgentTool.truncate(source.content(), 600));
             item.put("similarity", source.similarity());
+            item.set("sourceIdentity",json.valueToTree(source.metadata()));
             return citation(source);
         }).toList();
         ObjectNode data = json.createObjectNode();
         data.set("sources", sources);
+        data.put("coverage","RELEVANT_EXCERPTS_ONLY");
+        data.put("fullDocumentRead",false);
         return new AgentToolResult(data, citations, List.of());
     }
 

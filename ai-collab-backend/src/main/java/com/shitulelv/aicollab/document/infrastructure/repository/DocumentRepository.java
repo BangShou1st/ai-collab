@@ -21,6 +21,8 @@ public class DocumentRepository {
     private final ObjectMapper objectMapper = new ObjectMapper();
     @org.springframework.beans.factory.annotation.Autowired
     private com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingConfigRepository configs;
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.jdbc.core.JdbcTemplate sourceJdbc;
     public DocumentRepository(DocumentMapper mapper) {
         this.mapper = mapper;
     }
@@ -90,6 +92,14 @@ public class DocumentRepository {
                 metaMap.put("documentId", documentId.toString());
                 metaMap.put("chunkNo", chunk.chunkNo());
                 metaMap.put("filename", filename);
+                metaMap.put("embeddingGeneration",generationId==null ? "LEGACY" : generationId.toString());
+                if(sourceJdbc!=null) {
+                    var identities=sourceJdbc.queryForList("SELECT original_content_hash,parse_version,snapshot_id FROM document_body WHERE document_id=?",documentId);
+                    if(!identities.isEmpty()) {
+                        var identity=identities.getFirst(); metaMap.put("originalContentHash",identity.get("original_content_hash"));
+                        metaMap.put("parseVersion",identity.get("parse_version"));metaMap.put("bodySnapshotId",identity.get("snapshot_id").toString());
+                    }
+                }
                 if (chunk.metadata() != null && !chunk.metadata().isEmpty()) {
                     metaMap.putAll(chunk.metadata());
                 }

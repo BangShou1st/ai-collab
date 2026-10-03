@@ -586,7 +586,8 @@ public class AgentRepository {
         if (result==null) return false;
         for (JsonNode citation : result.path("citations")) {
             try {
-                int found=jdbc.queryForObject("SELECT count(*) FROM document_chunk c JOIN project_document d ON d.id=c.document_id WHERE c.id=? AND d.id=? AND d.project_id=? AND d.status='READY'",Integer.class,
+                int found=jdbc.queryForObject("SELECT count(*) FROM (SELECT c.id FROM document_chunk c JOIN project_document d ON d.id=c.document_id WHERE c.id=? AND d.id=? AND d.project_id=? AND d.status='READY' UNION ALL SELECT c.id FROM document_body_chunk c JOIN project_document d ON d.id=c.document_id WHERE c.id=? AND d.id=? AND d.project_id=? AND d.status<>'DELETING') sources",Integer.class,
+                        UUID.fromString(citation.path("chunkId").asText()),UUID.fromString(citation.path("documentId").asText()),projectId,
                         UUID.fromString(citation.path("chunkId").asText()),UUID.fromString(citation.path("documentId").asText()),projectId);
                 if (found!=1) return false;
             } catch (IllegalArgumentException malformed) { return false; }

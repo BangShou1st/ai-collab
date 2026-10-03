@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { MoreFilled } from '@element-plus/icons-vue'
+import { ref } from 'vue'
+import DocumentBodyReader from '../document/DocumentBodyReader.vue'
 import PageHeader from '../../shared/PageHeader.vue'
 import EmptyState from '../../shared/EmptyState.vue'
 import AgentContextChips from './AgentContextChips.vue'
@@ -18,6 +20,12 @@ const {
   newSession, renameSession, deleteSession, send, removeContext, clearContext,
   approve, reject, approvalBusy, continueRunHandler, retryActiveRun, cancelActiveRun, time,
 } = useAgentWorkspace()
+const source = ref<{ documentId: string; chunkId: string } | null>(null)
+function sourceIdentity(c: unknown): { documentId: string; chunkId: string } | null {
+  if (!c || typeof c !== 'object') return null
+  const value = c as Record<string, unknown>
+  return typeof value.documentId === 'string' && typeof value.chunkId === 'string' ? { documentId: value.documentId, chunkId: value.chunkId } : null
+}
 </script>
 
 <template>
@@ -78,7 +86,7 @@ const {
                 <p>{{ block.message.content }}</p>
                 <details v-if="block.message.citations?.length"><summary>证据来源（{{ block.message.citations.length }}）</summary>
                   <ul class="evidence-list">
-                    <li v-for="(c, i) in block.message.citations" :key="i"><strong>{{ evidenceTitle(c, `来源 ${i + 1}`) }}</strong><p v-if="evidenceDetail(c)">{{ evidenceDetail(c) }}</p></li>
+                    <li v-for="(c, i) in block.message.citations" :key="i"><strong>{{ evidenceTitle(c, `来源 ${i + 1}`) }}</strong><p v-if="evidenceDetail(c)">{{ evidenceDetail(c) }}</p><el-button v-if="sourceIdentity(c)" text @click="source = sourceIdentity(c)">查看原文片段</el-button></li>
                   </ul>
                   <details class="tech-details"><summary>技术详情</summary><pre>{{ JSON.stringify(block.message.citations, null, 2) }}</pre></details>
                 </details>
@@ -190,6 +198,9 @@ const {
         </section>
       </aside>
     </div>
+    <el-drawer :model-value="Boolean(source)" title="引用原文" @close="source = null">
+      <DocumentBodyReader v-if="source" :project-id="projectId" :document-id="source.documentId" :chunk-id="source.chunkId" />
+    </el-drawer>
   </section>
 </template>
 
