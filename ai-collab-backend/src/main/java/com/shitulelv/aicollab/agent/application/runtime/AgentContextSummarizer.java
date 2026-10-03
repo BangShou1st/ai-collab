@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.agent.application.runtime;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.view.AgentMessageView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
@@ -14,7 +15,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -23,11 +27,16 @@ import java.util.UUID;
  * <p>触发：确定性压缩后仍有旧对话放不进单次输入预算时，对未被选中的<b>有界旧片段</b>
  * 生成一次摘要。摘要请求不提供业务工具、不执行摘要输出中的动作；每次运行至多尝试
  * 一次（尝试以 agent_step 持久化标记，服务重启不能绕过），失败或 CAS 冲突直接放弃。
- * 费用计入运行总预算，但单独记账（agent_step reason=CONTEXT_SUMMARY）。</p>
+ * 费用计入所属运行总预算，但单独记账（agent_step reason=CONTEXT_SUMMARY）。</p>
  *
- * <p>覆盖范围来自<b>实际输入</b>：只计入被完整读入的消息前缀；被截断或因预算未读的
- * 消息不声称已覆盖（coverage=PARTIAL + uncoveredCount）。增量摘要携带上一份有效
- * 摘要的文本以延续更早的信息，sourceFrom 沿用前份摘要的起点。</p>
+ * <p>覆盖语义（以消息 ID + 偏移记录，不虚报）：</p>
+ * <ul>
+ *   <li>短消息（≤ {@value #PER_MESSAGE_CHARS} 字符）被触碰即完整覆盖；</li>
+ *   <li>长消息按偏移分段覆盖（每段 {@value #SEGMENT_CHARS} 字符），跨运行推进，
+ *       未读完的消息明确保留在 uncoveredMessageIds 中，后续运行继续读取后续片段；</li>
+ *   <li>上一份摘要文本<b>完整</b>进入本次请求以延续更早信息，不截断——
+ *       新增片段的预算相应减少，incorporatedPrevious 因此真实成立。</li>
+ * </ul>
  *
  * <p>CAS 提交：仅当会话的 stateRevision 与 goalRevision 与生成时一致、且声明的
  * sourceThrough 消息真实属于本会话时才落库；提交原子递增 stateRevision，只写
@@ -37,23 +46,24 @@ import java.util.UUID;
 public class AgentContextSummarizer {
     private static final Logger log = LoggerFactory.getLogger(AgentContextSummarizer.class);
 
-    static final int POLICY_VERSION = 2;
+    static final int POLICY_VERSION = 3;
     static final int SUMMARY_SCHEMA_VERSION = 1;
     /** 与 AgentWorkingState.SCHEMA_VERSION 一致（跨包不可见，此处同步维护）。 */
     static final int WORKING_STATE_SCHEMA_VERSION = 2;
     /** 每次运行的摘要尝试上限（持久化校验）。 */
     static final int MAX_ATTEMPTS_PER_RUN = 1;
-    /** 摘要输入上界：每次只总结有界旧片段（消息条数与总字符双重限制）。 */
-    static final int MAX_CANDIDATE_MESSAGES = 20;
+    /** 摘要输入上界（字符），含完整旧摘要文本与本次新增片段。 */
     static final int MAX_INPUT_CHARS = 6000;
-    /** 单条消息完整计入的上限；超出者只作为上下文截断读入，不声称覆盖。 */
+    /** 单条消息被触碰即完整覆盖的上限；超出者按偏移分段覆盖。 */
     static final int PER_MESSAGE_CHARS = 400;
+    /** 长消息每次运行读取的片段长度（字符）。 */
+    static final int SEGMENT_CHARS = 600;
     /** 摘要输出上界（字符）。 */
     static final int MAX_OUTPUT_CHARS = 1200;
     /** 输出预留（token，chars/3 兼容估算）。 */
     static final int OUTPUT_RESERVE_TOKENS = (MAX_OUTPUT_CHARS + 2) / 3;
-    /** 延续旧摘要时带入提示词的上限（字符）。 */
-    static final int PREVIOUS_SUMMARY_CHARS = 800;
+    /** 摘要节点保留的覆盖分段上限。 */
+    private static final int MAX_SEGMENTS = 60;
 
     private final AgentRepository repository;
     private final RoutingAgentModelExecutor modelExecutor;
@@ -63,6 +73,10 @@ public class AgentContextSummarizer {
         this.repository = repository;
         this.modelExecutor = modelExecutor;
         this.json = json;
+    }
+
+    /** 一段已覆盖内容：消息 ID + [from,to) 偏移（to == 消息长度即完整覆盖）。 */
+    private record Seg(String messageId, int from, int to) {
     }
 
     /**
@@ -87,19 +101,28 @@ public class AgentContextSummarizer {
 
             JsonNode previous = state.path("summary");
             boolean hasPrevious = previous.isObject() && previous.hasNonNull("text");
+            Map<String, Integer> resume = resumeOffsets(previous);
 
-            // 实际输入：只完整计入读得下的消息；放不下的内容不声称覆盖
-            List<AgentMessageView> included = boundedTranscript(candidates);
-            if (included.isEmpty()) {
-                log.debug("预算内没有可完整读入的旧消息，跳过摘要: run={}", run.id());
+            // 上一份摘要文本完整进入请求（不截断），新增片段使用剩余输入预算
+            String previousBlock = hasPrevious
+                    ? "此前摘要（必须延续其中仍然有效的信息，不得丢失更早的约束与决定）：\n"
+                      + previous.path("text").asText() + "\n"
+                    : "";
+            int transcriptBudget = MAX_INPUT_CHARS - previousBlock.length();
+            if (transcriptBudget < PER_MESSAGE_CHARS / 2) {
+                log.debug("旧摘要文本占满摘要输入预算，跳过: run={}", run.id());
                 return;
             }
-            String lastIncludedId = included.get(included.size() - 1).id().toString();
-            if (previousCoversAtLeast(previous, candidates, lastIncludedId)) {
-                return; // 已有摘要覆盖到同等或更远的位置，不重复生成
+
+            // 本次可新增覆盖的分段；没有新覆盖时不重复生成
+            List<Seg> newSegments = achievableSegments(candidates, resume, transcriptBudget);
+            if (newSegments.isEmpty()) {
+                log.debug("本次没有可新增覆盖的旧消息，跳过摘要: run={}", run.id());
+                return;
             }
 
-            int estimatedInputTokens = estimateTokens(included) + OUTPUT_RESERVE_TOKENS;
+            int estimatedInputTokens = Math.max(1, (previousBlock.length() + segmentsCost(newSegments, candidates)) / 3)
+                    + OUTPUT_RESERVE_TOKENS;
             if (estimatedInputTokens > remainingInputAfterMain) {
                 log.debug("剩余输入预算不足以容纳摘要请求，跳过: run={}, needed={}, remaining={}",
                         run.id(), estimatedInputTokens, remainingInputAfterMain);
@@ -111,14 +134,13 @@ public class AgentContextSummarizer {
 
             UUID attemptId = repository.beginSummaryAttempt(run);
             int actualInputChars = 0;
-            String text = "";
             try {
-                List<ModelMessage> messages = summaryMessages(included, hasPrevious ? previous : null);
+                List<ModelMessage> messages = summaryMessages(candidates, newSegments, previousBlock, hasPrevious);
                 for (ModelMessage message : messages) {
                     if (message instanceof ModelMessage.User user) actualInputChars += user.content().length();
                 }
                 ModelTurnResult result = modelExecutor.callModelWithoutTools(run, messages);
-                text = result.content() == null ? "" : bounded(result.content().strip(), MAX_OUTPUT_CHARS);
+                String text = result.content() == null ? "" : bounded(result.content().strip(), MAX_OUTPUT_CHARS);
                 if (text.isBlank()) {
                     // 调用已发生：如实记账后放弃，不伪造成功
                     repository.completeSummaryAttempt(attemptId, "EMPTY", result.model(),
@@ -128,7 +150,7 @@ public class AgentContextSummarizer {
                     log.debug("摘要输出为空，放弃: run={}", run.id());
                     return;
                 }
-                commitSummary(run, state, previous, hasPrevious, included, lastIncludedId, candidates, text, result, actualInputChars, attemptId);
+                commitSummary(run, state, previous, hasPrevious, candidates, newSegments, text, result, actualInputChars, attemptId);
             } catch (RuntimeException failure) {
                 // 摘要是辅助能力：调用已发生的消耗如实记账，任何异常不得破坏主轮次
                 repository.completeSummaryAttempt(attemptId, "FAILED", "unknown",
@@ -144,20 +166,122 @@ public class AgentContextSummarizer {
         }
     }
 
+    /** 上一份摘要的覆盖进度：messageId → 已覆盖到的最大偏移。 */
+    private Map<String, Integer> resumeOffsets(JsonNode previous) {
+        Map<String, Integer> resume = new HashMap<>();
+        if (previous != null && previous.isObject()) {
+            for (JsonNode segment : previous.path("segments")) {
+                String messageId = segment.path("messageId").asText("");
+                if (messageId.isEmpty()) continue;
+                resume.merge(messageId, segment.path("to").asInt(0), Math::max);
+            }
+        }
+        return resume;
+    }
+
+    /** 按旧→新顺序计算本次可新增的覆盖分段；预算耗尽即止，不虚报未读内容。 */
+    private List<Seg> achievableSegments(List<AgentMessageView> candidates, Map<String, Integer> resume, int transcriptBudget) {
+        List<Seg> segments = new ArrayList<>();
+        int used = 0;
+        for (AgentMessageView message : candidates) {
+            String messageId = message.id().toString();
+            int contentLen = normalized(message).length();
+            int from = resume.getOrDefault(messageId, 0);
+            if (from >= contentLen) continue; // 该消息已完整覆盖
+            int to = contentLen <= PER_MESSAGE_CHARS
+                    ? contentLen
+                    : Math.min(contentLen, from + SEGMENT_CHARS);
+            int cost = segmentLine(message, from, to).length();
+            if (used + cost > transcriptBudget) continue; // 预算放不下，本条保留为未覆盖
+            segments.add(new Seg(messageId, from, to));
+            used += cost;
+        }
+        return segments;
+    }
+
+    private int segmentsCost(List<Seg> segments, List<AgentMessageView> candidates) {
+        Map<String, AgentMessageView> byId = new HashMap<>();
+        for (AgentMessageView message : candidates) byId.put(message.id().toString(), message);
+        int cost = 0;
+        for (Seg segment : segments) {
+            AgentMessageView message = byId.get(segment.messageId());
+            if (message != null) cost += segmentLine(message, segment.from(), segment.to()).length();
+        }
+        return cost;
+    }
+
+    /** 消息内容按统一坐标（换行替换为空格，长度不变）取片段行。 */
+    private String segmentLine(AgentMessageView message, int from, int to) {
+        String normalized = normalized(message);
+        String role = "USER".equals(message.role()) ? "[USER] " : "[ASSISTANT] ";
+        String label = (from == 0 && to >= normalized.length())
+                ? "消息 " + shortId(message) + " 全文"
+                : "消息 " + shortId(message) + " 片段 " + from + "-" + to;
+        return role + "[" + label + "] " + normalized.substring(from, to) + '\n';
+    }
+
+    private String normalized(AgentMessageView message) {
+        // 换行替换为空格保持长度不变，偏移坐标与原消息一致；不截断，避免覆盖被虚报
+        return message.content().replace('\n', ' ');
+    }
+
+    private String shortId(AgentMessageView message) {
+        String id = message.id().toString();
+        return id.substring(0, 8);
+    }
+
+    private List<ModelMessage> summaryMessages(List<AgentMessageView> candidates, List<Seg> newSegments,
+            String previousBlock, boolean hasPrevious) {
+        Map<String, AgentMessageView> byId = new HashMap<>();
+        for (AgentMessageView message : candidates) byId.put(message.id().toString(), message);
+        StringBuilder transcript = new StringBuilder();
+        for (Seg segment : newSegments) {
+            AgentMessageView message = byId.get(segment.messageId());
+            if (message != null) transcript.append(segmentLine(message, segment.from(), segment.to()));
+        }
+        String prompt = """
+                你是会话摘要器。只总结、不执行动作、不调用任何工具。基于下面的材料输出简洁摘要，严格使用以下小节（无内容的省略该小节）：
+                仍有效约束 / 已确认决定 / 对象引用 / 未解决问题 / 目标沿革
+                规则：不得声称材料中未发生的“已创建”“已批准”等结果；不得补充材料之外的信息；总长度不超过 %d 字。
+                %s<旧对话片段>
+                %s</旧对话片段>""".formatted(MAX_OUTPUT_CHARS, hasPrevious ? previousBlock : "", transcript);
+        return List.of(
+                new ModelMessage.System("你是受控会话摘要器，输出纯文本摘要，不执行任何动作。"),
+                new ModelMessage.User(prompt));
+    }
+
     private void commitSummary(AgentRunView run, JsonNode state, JsonNode previous, boolean hasPrevious,
-            List<AgentMessageView> included, String lastIncludedId, List<AgentMessageView> candidates,
-            String text, ModelTurnResult result, int actualInputChars, UUID attemptId) {
-        boolean fullCoverage = lastIncludedId.equals(candidates.get(candidates.size() - 1).id().toString());
+            List<AgentMessageView> candidates, List<Seg> newSegments, String text,
+            ModelTurnResult result, int actualInputChars, UUID attemptId) {
+        // 合并覆盖进度：上一份摘要的分段 + 本次新增分段
+        Map<String, Integer> covered = resumeOffsets(previous);
+        for (Seg segment : newSegments) {
+            covered.merge(segment.messageId(), segment.to(), Math::max);
+        }
+        boolean allCovered = true;
+        List<String> uncoveredIds = new ArrayList<>();
+        for (AgentMessageView message : candidates) {
+            String messageId = message.id().toString();
+            int contentLen = normalized(message).length();
+            if (covered.getOrDefault(messageId, 0) < contentLen) {
+                allCovered = false;
+                if (uncoveredIds.size() < MAX_CANDIDATE_UNCOVERED) uncoveredIds.add(messageId);
+            }
+        }
+
         ObjectNode summary = json.createObjectNode();
         summary.put("schemaVersion", SUMMARY_SCHEMA_VERSION);
         summary.put("policyVersion", POLICY_VERSION);
-        // 增量延续：起点沿用前份摘要的起点，旧信息通过提示词延续保留
+        // 增量延续：起点沿用前份摘要的起点，旧信息通过完整旧摘要文本延续
+        String firstTouched = newSegments.get(0).messageId();
         summary.put("sourceFrom", hasPrevious && previous.hasNonNull("sourceFrom")
-                ? previous.path("sourceFrom").asText() : included.get(0).id().toString());
-        summary.put("sourceThrough", lastIncludedId);
-        summary.put("coverage", fullCoverage ? "FULL" : "PARTIAL");
-        summary.put("coveredMessages", included.size());
-        summary.put("uncoveredCount", Math.max(0, candidates.size() - included.size()));
+                ? previous.path("sourceFrom").asText() : firstTouched);
+        summary.put("sourceThrough", newSegments.get(newSegments.size() - 1).messageId());
+        summary.put("coverage", allCovered ? "FULL" : "PARTIAL");
+        summary.put("coveredMessages", covered.size());
+        summary.put("uncoveredCount", uncoveredIds.size());
+        var uncovered = summary.putArray("uncoveredMessageIds");
+        for (String id : uncoveredIds) uncovered.add(id);
         summary.put("incorporatedPrevious", hasPrevious);
         summary.put("stateRevision", state.path("stateRevision").asInt());
         summary.put("goalRevision", state.path("goalRevision").asInt());
@@ -169,6 +293,9 @@ public class AgentContextSummarizer {
         for (JsonNode entry : state.path("constraints")) {
             if ("active".equals(entry.path("status").asText())) constraints.add(entry.path("value").asText());
         }
+        var segmentsNode = summary.putArray("segments");
+        writeSegments(segmentsNode, previous);
+        writeSegments(segmentsNode, newSegments);
 
         boolean committed = repository.commitConversationSummary(
                 run.projectId(), run.sessionId(), state.path("stateRevision").asInt(),
@@ -178,8 +305,9 @@ public class AgentContextSummarizer {
                 outputTokens(result.usage(), text.length()),
                 result.usage() == null, result.latencyMs());
         if (committed) {
-            log.debug("会话摘要已提交: run={}, coverage={}, range={}..{}",
-                    run.id(), summary.path("coverage").asText(), summary.path("sourceFrom").asText(), lastIncludedId);
+            log.debug("会话摘要已提交: run={}, coverage={}, newSegments={}, range={}..{}",
+                    run.id(), summary.path("coverage").asText(), newSegments.size(),
+                    summary.path("sourceFrom").asText(), summary.path("sourceThrough").asText());
         } else {
             // 生成期间状态已前进：丢弃本次摘要，不重算（受尝试上限约束）
             log.info("摘要 CAS 冲突，丢弃本次结果: run={}, expectedRevision={}",
@@ -187,66 +315,26 @@ public class AgentContextSummarizer {
         }
     }
 
-    /** 覆盖边界内的消息内容：完整（≤PER_MESSAGE_CHARS）才计入，截断读入的不声称覆盖。 */
-    private List<AgentMessageView> boundedTranscript(List<AgentMessageView> candidates) {
-        List<AgentMessageView> included = new java.util.ArrayList<>();
-        int used = 0;
-        for (AgentMessageView message : candidates) {
-            if (message.content().length() > PER_MESSAGE_CHARS) break; // 大消息不完整读入，覆盖到此为止
-            String line = transcriptLine(message);
-            if (used + line.length() > MAX_INPUT_CHARS) break; // 总量预算耗尽，后续消息未读
-            included.add(message);
-            used += line.length();
+    private void writeSegments(ArrayNode target, JsonNode previous) {
+        if (previous != null && previous.isObject()) {
+            for (JsonNode segment : previous.path("segments")) {
+                if (target.size() >= MAX_SEGMENTS) return;
+                ObjectNode node = target.addObject();
+                node.put("messageId", segment.path("messageId").asText());
+                node.put("from", segment.path("from").asInt());
+                node.put("to", segment.path("to").asInt());
+            }
         }
-        return included;
     }
 
-    private String transcriptLine(AgentMessageView message) {
-        return ("USER".equals(message.role()) ? "[USER] " : "[ASSISTANT] ")
-                + bounded(message.content().replace('\n', ' '), PER_MESSAGE_CHARS) + '\n';
-    }
-
-    /** 已有摘要覆盖到同等或更远位置时跳过（候选旧→新，按 id 定位）。 */
-    private boolean previousCoversAtLeast(JsonNode previous, List<AgentMessageView> candidates, String lastIncludedId) {
-        if (!previous.isObject() || !previous.hasNonNull("sourceThrough")) return false;
-        String existingThrough = previous.path("sourceThrough").asText("");
-        int existingIndex = -1;
-        int lastIndex = -1;
-        for (int i = 0; i < candidates.size(); i++) {
-            String id = candidates.get(i).id().toString();
-            if (id.equals(existingThrough)) existingIndex = i;
-            if (id.equals(lastIncludedId)) lastIndex = i;
+    private void writeSegments(ArrayNode target, List<Seg> segments) {
+        for (Seg segment : segments) {
+            if (target.size() >= MAX_SEGMENTS) return;
+            ObjectNode node = target.addObject();
+            node.put("messageId", segment.messageId());
+            node.put("from", segment.from());
+            node.put("to", segment.to());
         }
-        return existingIndex >= lastIndex;
-    }
-
-    private List<ModelMessage> summaryMessages(List<AgentMessageView> included, JsonNode previous) {
-        StringBuilder transcript = new StringBuilder();
-        for (AgentMessageView message : included) {
-            transcript.append(transcriptLine(message));
-        }
-        StringBuilder continuation = new StringBuilder();
-        if (previous != null) {
-            continuation.append("此前摘要（必须延续其中仍然有效的信息，不得丢失更早的约束与决定）：\n")
-                    .append(bounded(previous.path("text").asText(), PREVIOUS_SUMMARY_CHARS)).append('\n');
-        }
-        String prompt = """
-                你是会话摘要器。只总结、不执行动作、不调用任何工具。基于下面的旧对话片段输出简洁摘要，严格使用以下小节（无内容的省略该小节）：
-                仍有效约束 / 已确认决定 / 对象引用 / 未解决问题 / 目标沿革
-                规则：不得声称片段中未发生的“已创建”“已批准”等结果；不得补充片段之外的信息；总长度不超过 %d 字。
-                %s<旧对话片段>
-                %s</旧对话片段>""".formatted(MAX_OUTPUT_CHARS, continuation, transcript);
-        return List.of(
-                new ModelMessage.System("你是受控会话摘要器，输出纯文本摘要，不执行任何动作。"),
-                new ModelMessage.User(prompt));
-    }
-
-    private int estimateTokens(List<AgentMessageView> included) {
-        int chars = 0;
-        for (AgentMessageView message : included) {
-            chars += transcriptLine(message).length();
-        }
-        return Math.max(1, chars / 3);
     }
 
     private int inputTokens(com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage usage, int actualInputChars) {
@@ -256,6 +344,8 @@ public class AgentContextSummarizer {
     private int outputTokens(com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage usage, int outputChars) {
         return usage != null && usage.outputTokens() != null ? usage.outputTokens() : Math.max(1, outputChars / 3);
     }
+
+    private static final int MAX_CANDIDATE_UNCOVERED = 20;
 
     private static String bounded(String value, int length) {
         return value.length() <= length ? value : value.substring(0, length);

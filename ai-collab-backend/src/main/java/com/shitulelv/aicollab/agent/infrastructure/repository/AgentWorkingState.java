@@ -158,19 +158,20 @@ final class AgentWorkingState {
     private static void mergeConstraint(ObjectMapper json,ObjectNode state,String request,UUID messageId,String scope) {
         ArrayNode constraints=constraints(state,json);
         String newId=UUID.randomUUID().toString();
+        // 仅数量上下界允许同作用域替代（同一限制被修改，如 最多十项 → 最多八项）；
+        // 日期/负责人等保护类约束无法确定性区分对象（任务 A/任务 B），
+        // 一律并存，不因限制类型相同而互相覆盖
+        boolean countScope = SCOPE_TASK_COUNT_MAX.equals(scope) || SCOPE_TASK_COUNT_MIN.equals(scope);
         for (JsonNode entry : constraints) {
             if (!"active".equals(entry.path("status").asText())) continue;
             if (scope.equals(entry.path("scope").asText()) && entry.path("value").asText("").equals(request)) {
                 return; // 完全相同的同作用域约束不重复累积
             }
-            if (scope.equals(entry.path("scope").asText())) {
-                // 同一目标同一限制被修改（如 最多十项 → 最多八项）：旧条目被替代且可追溯；
-                // 上下界作用域（TASK_COUNT_MAX/TASK_COUNT_MIN）不同，可同时成立、互不替代
+            if (countScope && scope.equals(entry.path("scope").asText())) {
                 ((ObjectNode) entry).put("status","superseded");
                 ((ObjectNode) entry).put("supersededBy",newId);
                 ((ObjectNode) entry).put("supersededReason","SCOPE_UPDATED");
             }
-            // 日期/负责人等保护类约束：不同表述并存，不自动覆盖（保守）
         }
         ObjectNode created=constraints.addObject();
         created.put("id",newId);

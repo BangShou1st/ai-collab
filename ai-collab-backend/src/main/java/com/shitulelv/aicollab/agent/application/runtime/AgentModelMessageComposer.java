@@ -48,6 +48,8 @@ public class AgentModelMessageComposer {
     static final int PROJECTION_ITEMS = 3;
     /** 单条历史消息参与选择的最小预算（字符），避免零碎消息耗尽预算。 */
     static final int MIN_HISTORY_MESSAGE_CHARS = 16;
+    /** 交给有界摘要的未覆盖旧消息条数上限。 */
+    static final int SUMMARY_CANDIDATE_LIMIT = 20;
 
     private final AgentRepository repository;
     private final AgentMemoryService memories;
@@ -334,9 +336,9 @@ public class AgentModelMessageComposer {
         for (AgentMessageView msg : recentMessages) {
             if (!pickedIds.contains(msg.id())) summaryCandidates.add(msg);
         }
-        if (summaryCandidates.size() > AgentContextSummarizer.MAX_CANDIDATE_MESSAGES) {
+        if (summaryCandidates.size() > SUMMARY_CANDIDATE_LIMIT) {
             summaryCandidates = summaryCandidates.subList(
-                    summaryCandidates.size() - AgentContextSummarizer.MAX_CANDIDATE_MESSAGES, summaryCandidates.size());
+                    summaryCandidates.size() - SUMMARY_CANDIDATE_LIMIT, summaryCandidates.size());
         }
 
         int charsUsed = used + toolUsed + historyUsed;

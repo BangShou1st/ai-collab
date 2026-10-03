@@ -937,6 +937,66 @@ class AgentRepositoryIntegrationTest {
     }
 
     @Test
+    void protectiveConstraintsForDifferentObjectsCoexistInsteadOfOverwriting() {
+        Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"object-scope");
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"任务A的日期不变，不要改",false,null,null));
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"任务B的日期也不变，别改日期",false,null,null));
+        var state=repository.workingState(fixture.project(),session.id());
+        JsonNode constraints=state.path("constraints");
+        assertThat(constraints.size()).isEqualTo(2);
+        for (JsonNode entry : constraints) {
+            assertThat(entry.path("scope").asText()).isEqualTo("DATE_LOCK");
+            // 对象无法确定性区分：不同表述并存，前一条不得因类型相同被替代
+            assertThat(entry.path("status").asText()).isEqualTo("active");
+        }
+        // 负责人保护同理：不同对象并存
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"任务A负责人保持不变",false,null,null));
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"任务B负责人不要改",false,null,null));
+        var updated=repository.workingState(fixture.project(),session.id());
+        int activeAssigneeLocks=0;
+        for (JsonNode entry : updated.path("constraints")) {
+            if ("ASSIGNEE_LOCK".equals(entry.path("scope").asText()) && "active".equals(entry.path("status").asText())) activeAssigneeLocks++;
+        }
+        assertThat(activeAssigneeLocks).isEqualTo(2);
+        // 日期保护条目依然全部 active
+        for (JsonNode entry : updated.path("constraints")) {
+            if ("DATE_LOCK".equals(entry.path("scope").asText())) {
+                assertThat(entry.path("status").asText()).isEqualTo("active");
+            }
+        }
+    }
+
+    @Test
+    void summaryAttemptSettlesTokensToOwningRunExactlyOnce() {
+        Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"summary-settle");
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"查任务，不改日期",false,null,null));
+        var run=repository.findRun(fixture.project(), jdbc.queryForObject(
+                "SELECT id FROM agent_run WHERE session_id=? ORDER BY created_at LIMIT 1", UUID.class, session.id())).orElseThrow();
+
+        // 开始尝试：持久化标记落库，运行数值尚未变化
+        UUID attemptId=repository.beginSummaryAttempt(run);
+        assertThat(jdbc.queryForObject("SELECT output_json->>'status' FROM agent_step WHERE id=?", String.class, attemptId))
+                .isEqualTo("ATTEMPTED");
+        assertThat(jdbc.queryForObject("SELECT input_tokens_used FROM agent_run WHERE id=?", Integer.class, run.id())).isZero();
+
+        // 完成尝试：token 计入所属运行（attemptId 是步骤 ID，运行 ID 从步骤取回）
+        repository.completeSummaryAttempt(attemptId,"COMMITTED","test-model",500,60,false,10L);
+        assertThat(jdbc.queryForObject("SELECT output_json->>'status' FROM agent_step WHERE id=?", String.class, attemptId))
+                .isEqualTo("COMMITTED");
+        assertThat(jdbc.queryForObject("SELECT prompt_tokens FROM agent_step WHERE id=?", Integer.class, attemptId)).isEqualTo(500);
+        assertThat(jdbc.queryForObject("SELECT completion_tokens FROM agent_step WHERE id=?", Integer.class, attemptId)).isEqualTo(60);
+        assertThat(jdbc.queryForObject("SELECT input_tokens_used FROM agent_run WHERE id=?", Integer.class, run.id())).isEqualTo(500);
+        assertThat(jdbc.queryForObject("SELECT output_tokens_used FROM agent_run WHERE id=?", Integer.class, run.id())).isEqualTo(60);
+        assertThat(jdbc.queryForObject("SELECT token_usage_estimated FROM agent_run WHERE id=?", Boolean.class, run.id())).isFalse();
+
+        // 重复完成不得重复扣费：步骤已离开 ATTEMPTED，第二次调用不产生任何变化
+        repository.completeSummaryAttempt(attemptId,"COMMITTED","test-model",999,999,false,20L);
+        assertThat(jdbc.queryForObject("SELECT input_tokens_used FROM agent_run WHERE id=?", Integer.class, run.id())).isEqualTo(500);
+        assertThat(jdbc.queryForObject("SELECT output_tokens_used FROM agent_run WHERE id=?", Integer.class, run.id())).isEqualTo(60);
+        assertThat(jdbc.queryForObject("SELECT prompt_tokens FROM agent_step WHERE id=?", Integer.class, attemptId)).isEqualTo(500);
+    }
+
+    @Test
     void summaryCasCommitOnlyUpdatesSummaryNodeAndRejectsStaleRevision() {
         ObjectMapper json=new ObjectMapper().findAndRegisterModules();
         Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"summary-cas");

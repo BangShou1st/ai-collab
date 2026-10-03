@@ -32,7 +32,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 有界增量摘要：实际覆盖范围、增量延续、持久化尝试标记、CAS 与记账。 */
+/** 有界增量摘要：实际覆盖范围（分段偏移）、增量延续、持久化尝试标记、CAS 与记账。 */
 class AgentContextSummarizerTest {
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     private AgentRepository repository;
@@ -67,13 +67,14 @@ class AgentContextSummarizerTest {
         assertThat(messages.getValue()).hasSize(2);
         assertThat(messages.getValue().get(0).toString()).contains("摘要器");
         assertThat(messages.getValue().get(1).toString()).contains("不调用任何工具");
-        // CAS 提交携带生成时的 revision 快照；摘要节点含覆盖范围与约束快照
+        // CAS 提交携带生成时的 revision 快照；全部候选短消息完整覆盖
         ArgumentCaptor<JsonNode> summary = ArgumentCaptor.forClass(JsonNode.class);
         verify(repository).commitConversationSummary(eq(run.projectId()), eq(run.sessionId()),
                 eq(12), eq(3), summary.capture());
         assertThat(summary.getValue().path("sourceThrough").asText())
                 .isEqualTo(fixedCandidates.get(fixedCandidates.size() - 1).id().toString());
         assertThat(summary.getValue().path("coverage").asText()).isEqualTo("FULL");
+        assertThat(summary.getValue().path("segments").size()).isEqualTo(3);
         assertThat(summary.getValue().path("activeConstraints").size()).isEqualTo(1);
         assertThat(summary.getValue().path("text").asText()).contains("不改日期");
         // 单独记账：尝试开始与完成各落一条持久化记录，usage 缺失按保守估算
@@ -83,11 +84,11 @@ class AgentContextSummarizerTest {
     }
 
     @Test
-    void coverageComesFromActuallyIncludedMessagesNotFromCandidateList() {
-        // 第二条消息超过单条完整计入上限：实际只完整读入第一条，覆盖不得声称到候选末尾
+    void longMessagesAreSegmentCoveredWhileShortOnesFullyCovered() {
+        // 中间一条超过单条上限：按偏移分段覆盖 [0,600)，后续短消息仍然完整覆盖
         List<AgentMessageView> fixedCandidates = List.of(
                 message("USER", "第一条：查询任务并整理。", 1),
-                message("ASSISTANT", "很长的旧回复。".repeat(120), 2),
+                message("ASSISTANT", "前段内容。".repeat(160) + "尾部标记。".repeat(8), 2),
                 message("USER", "第三条：改用表格展示。", 3));
         stubState(v2State(7, 1, null));
         when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("摘要内容"));
@@ -97,48 +98,113 @@ class AgentContextSummarizerTest {
 
         ArgumentCaptor<JsonNode> summary = ArgumentCaptor.forClass(JsonNode.class);
         verify(repository).commitConversationSummary(any(), any(), anyInt(), anyInt(), summary.capture());
-        assertThat(summary.getValue().path("sourceThrough").asText())
-                .isEqualTo(fixedCandidates.get(0).id().toString());
+        // 覆盖分段：短消息全文 + 长消息 [0,600)；PARTIAL 且长消息未覆盖完
+        JsonNode segments = summary.getValue().path("segments");
+        assertThat(segments.size()).isEqualTo(3);
+        assertThat(segments.get(0).path("to").asInt()).isEqualTo(fixedCandidates.get(0).content().length());
+        assertThat(segments.get(1).path("from").asInt()).isZero();
+        assertThat(segments.get(1).path("to").asInt()).isEqualTo(AgentContextSummarizer.SEGMENT_CHARS);
+        assertThat(segments.get(2).path("to").asInt()).isEqualTo(fixedCandidates.get(2).content().length());
         assertThat(summary.getValue().path("coverage").asText()).isEqualTo("PARTIAL");
-        assertThat(summary.getValue().path("uncoveredCount").asInt()).isEqualTo(2);
-        // 提示词中未读消息不得出现
+        assertThat(summary.getValue().path("uncoveredMessageIds").size()).isEqualTo(1);
+        // 提示词包含后续短消息与长消息片段，但不包含长消息未读尾部
         ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
         verify(modelExecutor).callModelWithoutTools(any(), messages.capture());
-        assertThat(messages.getValue().get(1).toString()).doesNotContain("第三条：改用表格展示");
+        String prompt = messages.getValue().get(1).toString();
+        assertThat(prompt).contains("第三条：改用表格展示");
+        assertThat(prompt).contains("前段内容");
+        assertThat(prompt).doesNotContain("尾部标记");
     }
 
     @Test
-    void incrementalSummaryCarriesPreviousSummaryForward() {
-        String previousFrom = UUID.randomUUID().toString();
-        List<AgentMessageView> fixedCandidates = candidates();
-        ObjectNode state = v2State(9, 2, null);
-        var previous = state.putObject("summary");
-        previous.put("schemaVersion", 1);
-        previous.put("sourceFrom", previousFrom);
-        previous.put("sourceThrough", UUID.randomUUID().toString());
-        previous.put("text", "更早的信息：用户要求不改日期。");
-        stubState(state);
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("延续后的摘要"));
+    void longMessageCoverageProgressesAcrossRunsUntilFullyCovered() {
+        // 首条旧消息 875 字符：第一次运行覆盖 [0,600)，第二次 [600,875)，第三次无可新增则跳过
+        AgentMessageView longMessage = message("USER", "很长的历史记录。".repeat(125), 1);
+        List<AgentMessageView> fixedCandidates = List.of(longMessage);
+        stubState(v2State(5, 1, null));
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("第一批摘要"));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
 
         summarizer.maybeSummarize(run(), composition(fixedCandidates), 10_000);
 
-        // 旧摘要文本进入摘要请求（延续更早信息）
-        ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
-        verify(modelExecutor).callModelWithoutTools(any(), messages.capture());
-        assertThat(messages.getValue().get(1).toString()).contains("更早的信息：用户要求不改日期。");
-        // 新摘要起点沿用前份摘要起点，并标记延续
-        ArgumentCaptor<JsonNode> summary = ArgumentCaptor.forClass(JsonNode.class);
-        verify(repository).commitConversationSummary(any(), any(), anyInt(), anyInt(), summary.capture());
-        assertThat(summary.getValue().path("sourceFrom").asText()).isEqualTo(previousFrom);
-        assertThat(summary.getValue().path("incorporatedPrevious").asBoolean()).isTrue();
+        ArgumentCaptor<JsonNode> first = ArgumentCaptor.forClass(JsonNode.class);
+        verify(repository, times(1)).commitConversationSummary(any(), any(), anyInt(), anyInt(), first.capture());
+        assertThat(first.getValue().path("coverage").asText()).isEqualTo("PARTIAL");
+        assertThat(first.getValue().path("segments").get(0).path("to").asInt())
+                .isEqualTo(AgentContextSummarizer.SEGMENT_CHARS);
+
+        // 第二次运行：从上次偏移继续
+        ObjectNode state2 = v2State(6, 1, null);
+        state2.set("summary", first.getValue());
+        stubState(state2);
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("第二批摘要"));
+        summarizer.maybeSummarize(run(), composition(fixedCandidates), 10_000);
+
+        ArgumentCaptor<JsonNode> second = ArgumentCaptor.forClass(JsonNode.class);
+        verify(repository, times(2)).commitConversationSummary(any(), any(), anyInt(), anyInt(), second.capture());
+        JsonNode secondSummary = second.getValue();
+        assertThat(secondSummary.path("coverage").asText()).isEqualTo("FULL");
+        assertThat(secondSummary.path("segments").size()).isEqualTo(2);
+        assertThat(secondSummary.path("segments").get(1).path("from").asInt())
+                .isEqualTo(AgentContextSummarizer.SEGMENT_CHARS);
+        assertThat(secondSummary.path("segments").get(1).path("to").asInt())
+                .isEqualTo(longMessage.content().length());
+
+        // 第三次运行：全部已覆盖，无可新增覆盖 → 不再调用模型
+        ObjectNode state3 = v2State(7, 1, null);
+        state3.set("summary", secondSummary);
+        stubState(state3);
+        summarizer.maybeSummarize(run(), composition(fixedCandidates), 10_000);
+        verify(modelExecutor, times(2)).callModelWithoutTools(any(), any());
+        verify(repository, times(2)).beginSummaryAttempt(any());
     }
 
     @Test
-    void skipsWhenExistingSummaryCoversAtLeastAsFar() {
+    void previousSummaryIsIncludedInFullEvenBeyondEightHundredChars() {
+        // 旧摘要尾部（第 800 字符之后）的关键决定必须完整进入本次请求，不得截断丢失
+        String previousText = "开头信息：用户要求整理任务。"
+                + "填充内容。".repeat(165)
+                + "尾部关键决定：周报必须保留表格格式";
+        assertThat(previousText.length()).isGreaterThan(800);
+        ObjectNode state = v2State(9, 2, null);
+        var previous = state.putObject("summary");
+        previous.put("schemaVersion", 1);
+        previous.put("sourceFrom", UUID.randomUUID().toString());
+        previous.put("sourceThrough", UUID.randomUUID().toString());
+        previous.put("text", previousText);
+        stubState(state);
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("延续后的摘要"));
+        when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
+
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
+
+        ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor).callModelWithoutTools(any(), messages.capture());
+        assertThat(messages.getValue().get(1).toString()).contains("尾部关键决定：周报必须保留表格格式");
+        ArgumentCaptor<JsonNode> summary = ArgumentCaptor.forClass(JsonNode.class);
+        verify(repository).commitConversationSummary(any(), any(), anyInt(), anyInt(), summary.capture());
+        assertThat(summary.getValue().path("incorporatedPrevious").asBoolean()).isTrue();
+        assertThat(summary.getValue().path("sourceFrom").asText()).isEqualTo(previous.path("sourceFrom").asText());
+    }
+
+    @Test
+    void skipsWhenExistingSummaryAlreadyCoversAllCandidates() {
+        // 已有摘要的分段已完整覆盖全部候选：无可新增覆盖 → 不再调用模型
         List<AgentMessageView> fixedCandidates = candidates();
-        // 已有摘要覆盖到本次实际可覆盖的末尾（最后一条完整消息）
-        stubState(v2State(5, 1, fixedCandidates.get(fixedCandidates.size() - 1).id().toString()));
+        ObjectNode state = v2State(5, 1, null);
+        var previous = state.putObject("summary");
+        previous.put("schemaVersion", 1);
+        previous.put("sourceFrom", UUID.randomUUID().toString());
+        previous.put("sourceThrough", fixedCandidates.get(fixedCandidates.size() - 1).id().toString());
+        previous.put("text", "旧摘要");
+        var segments = previous.putArray("segments");
+        for (AgentMessageView message : fixedCandidates) {
+            var segment = segments.addObject();
+            segment.put("messageId", message.id().toString());
+            segment.put("from", 0);
+            segment.put("to", message.content().length());
+        }
+        stubState(state);
 
         summarizer.maybeSummarize(run(), composition(fixedCandidates), 10_000);
 
