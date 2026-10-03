@@ -1,0 +1,82 @@
+# 能力矩阵
+
+维护约定（依据 [ai-next-stage-blueprint.md](ai-next-stage-blueprint.md) 8.3）：
+
+- 本表记录**当前 checkout** 的能力状态；历史审查（`ai-capability-review.md`）与验收报告只作为证据链接，不混列成当前待办。
+- 验证层级：`单测`（Mockito 纯单测）→ `集成`（Testcontainers 真实 PostgreSQL）→ `真实模型`（授权副本上的真实提供商验收）→ `浏览器`（产品界面实际操作）。高层级不自动覆盖低层级未覆盖的分支。
+- 状态口径：`已验收`＝有对应证据；`缺口`＝蓝图已确认待处理；`待评测`＝功能存在但质量未用固定用例度量。
+
+最后更新：2026-10-03（P0 基线，分支 `codex/context-foundation`）。
+
+## 1. 基础设施与模型接入
+
+| 功能 | 关键组件 | 模型要求 | 状态 | 验证层级 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| 多提供商模型路由（OpenAI 兼容 / OpenCode Zen / Ollama） | `infrastructure/ai/model/Routing*`、`ProviderPresetRegistry` | 按用户与用途路由 | 已验收 | 集成 + 真实模型 | [space-bunny-acceptance-report](space-bunny-acceptance-report.md) |
+| 模型配置快照与凭据加密 | V51 迁移、`ModelSecretCipher` | 无 | 已验收 | 集成 | 同上 |
+| 模型能力探测 | `AiCapabilityProbeService` | 无 | 已实现 | 单测/集成 | 本轮快照代码 |
+| Ollama 本地 Embedding（含本地目标白名单） | `EmbeddingEndpointPolicy`、`embedding.local-allowed-targets` | 无 | 已验收 | 集成 + 真实模型 | `real-ollama-index-active.png` |
+| Embedding 索引代际（候选/构建/显式激活） | V46/V48、`EmbeddingIndexService` | 无 | 已验收 | 集成 | `EmbeddingGenerationIntegrationTest` |
+
+## 2. Agent Runtime
+
+| 功能 | 关键组件 | 模型要求 | 状态 | 验证层级 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| 运行租约、崩溃恢复、防重入 | `AgentRecoveryJob`、`AgentLeaseScope`、V49 计数器 | 无 | 已验收 | 集成 | `AgentRepositoryIntegrationTest` |
+| 运行预算（步数/轮数/工具数/时长/输入输出 token） | `AgentRuntimeLimits`、`AgentWorker` 预检、`AgentRuntimeCoordinator` | 无 | 已验收 | 单测 + 集成 | `AgentRuntimeLimitsTest` 等 |
+| 事件流（SSE）与持久化事件双写 | `AgentEventStreamService`、`AgentRunEventRecorder`、V28 | 无 | 已验收 | 集成 | `AgentEventRepositoryIntegrationTest` |
+| 跨 Tick 工具调用恢复（消息协议配对） | `AgentModelMessageComposer.rebuildToolMessagesFromSteps` | 需原生 Tool Calling | 已验收 | 单测 + 集成 | `CrossTickToolCallTest` |
+| 工作状态（goal/constraints/latestRequest/pendingQuestion） | `AgentWorkingState`（V47 JSONB） | 无 | **缺口**：原始片段保存，无约束合并/摘要（蓝图 P1 处理） | 集成 | `AgentRepositoryIntegrationTest` |
+| 每轮上下文组装 | `AgentModelMessageComposer` | 无 | **缺口**：固定条数/字符截断、超预算整条跳过（蓝图 P1 处理） | 单测 | `AgentModelMessageComposerPromptTest` |
+| Skill 路由（六场景关键词首命中） | `AgentSkillRegistry` | 无 | **缺口**：复合需求受限（蓝图第 7 节） | 单测 | `AgentSkillRegistryTest` |
+| 项目记忆（最近更新 10 条注入） | `AgentMemoryService`、V30 | 无 | **待评测**：最近≠相关（蓝图 P4 处理） | 单测 | `AgentReadToolsTest` |
+| 原生 Tool Calling 与 Legacy 只读降级 | `RoutingAgentModelExecutor`、`LegacyReadOnlyAgentExecutor` | 原生工具需模型支持 | 已验收 | 单测 + 真实模型 | `AgentWorkerNativeTurnTest` |
+
+## 3. Agent 工具与写路径
+
+| 功能 | 关键组件 | 角色 | 状态 | 验证层级 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| 只读查询（任务/成员/里程碑/文档检索等） | `TaskListAgentTool`、`KnowledgeSearchAgentTool` 等 | 成员 | 已验收；**缺口**：TaskList 无搜索/分页（蓝图 P2） | 单测 + 真实模型 | `AgentReadToolsTest` |
+| 提案写路径（数值校验、参数合并） | `CreateTaskApprovalAgentTool`、`UpdateTaskApprovalAgentTool` | 成员 | 已验收 | 集成 | `AgentWriteProposalSpringIntegrationTest` |
+| 提案修订与版本冲突 | `AgentApprovalService`（revision、409） | 成员 | 已验收（真实修订 1→2、旧版本 409） | 集成 + 浏览器 | `space-bunny-acceptance-report` |
+| 审批幂等与过期 | `AgentApprovalController`、审批 nonce | 成员 | 已验收（同键幂等批准）；**缺口**：`AGENT_APPROVAL_EXPIRED` 浏览器提示未真实制造 | 集成 + 浏览器 | 同上 |
+| MCP 白名单接入 | `McpAgentToolProvider`、`agent.mcp.allowed-hosts` | 管理员管理 | 已验收 | 集成 | `McpAdministration*Test` |
+| 用户输入暂停/续答（pendingQuestion） | `RequestUserInputAgentTool`、`continueRun` | 成员 | 已实现 | 集成 | 本轮快照代码 |
+
+## 4. 任务规划（planning 模块）
+
+| 功能 | 关键组件 | 角色 | 状态 | 验证层级 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| 规划生成（骨架/详情分阶段、草稿版本） | `TaskPlanCommandService`、`TaskPlanGenerationOrchestrator` | 管理员 | 已验收（真实双模型完整规划） | 集成 + 真实模型 | `real-planning-ling.png` 等 |
+| 结构化校验与局部修复 | `TaskPlanOutputParser`、`TaskPlanPartialRepairService`、V53 | 管理员 | 已验收 | 集成 | `TaskPlanRepairPatchTest` |
+| 人工确认与事务落库 | `TaskPlanConfirmationService` | 管理员 | 已验收（浏览器确认链路、防重复提交） | 集成 + 浏览器 | `space-bunny-browser-A/B` 系列 |
+| Agent 调用规划工具 | — | — | **未开始**（蓝图 P3） | — | — |
+| 规划上下文装配 | `TaskPlanContextAssembler` | — | **缺口**：业务事实集合无裁剪（蓝图第 2 节） | 单测 | 现有代码 |
+
+## 5. 文档与知识
+
+| 功能 | 关键组件 | 状态 | 验证层级 | 证据 |
+| --- | --- | --- | --- | --- |
+| 文档上传解析（Tika、PDF 页码、原件 MinIO） | `TikaDocumentParser`、`DocumentProcessingService` | 已验收（真实文档 RAG）；OCR/复杂表格**不在范围** | 集成 + 真实模型 | `real-document-persistent.png` |
+| 分块与 pgvector 检索 | `DocumentChunker`、`DocumentSearchService` | 已验收；**缺口**：Agent 无目录/分段读取工具（蓝图 P2）；页偏移风险待样本验证 | 集成 + 真实模型 | 同上 |
+| 索引代际与批重建 | `BatchReindexService`、V50 | 已验收 | 集成 | `BatchReindexAuthorizationTest` |
+| 知识问答（检索、引用校验、追问） | `KnowledgeQuestionApplicationService`、`KnowledgeConversationContext` | 已验收（追问链路）；**待评测**：多段证据/中文术语召回（蓝图 5.3） | 集成 + 真实模型 + 浏览器 | `real-knowledge-followup.png` |
+
+## 6. P1 验收用例（蓝图第 9 节场景 1–3 细化）
+
+> P1 完成时逐项在此表登记结果。权限/版本/重复写入为硬性门槛。
+
+| # | 场景 | 输入要点 | 通过标准 | 对应测试 | 结果 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 长对话早期约束保留 | 20–30 轮对话，第 1–2 轮含"最多十项、不改日期"，中间穿插覆盖约束与无关问答 | 早期约束仍在模型输入中（active 条目或摘要）；"最多十项→八项"后旧条目 superseded | 集成 + 单测 | 待验收 |
+| 2 | 当前请求保护 | 当前请求较长且关键否定条件在尾部；低窗口模型配置 | 关键否定条件不静默截断；超预算返回明确原因（区分超接口上限/超单次输入/超运行费用）；缺失 usage 可诊断 | 单测 + 集成 | 待验收 |
+| 3 | 工具结果混合压缩 | 大结果、失败结果、未决调用并存于同一运行 | 压缩不伪造成功、toolCallId 配对完整、未决调用不压缩、不重复写入 | 单测 | 待验收 |
+| 4 | 改目标不串任务 | 对话途中 `/replace` 或同义替换词切换目标，旧规划稍后完成 | 新目标生效，旧约束 superseded；旧目标历史保留 | 集成 | 待验收 |
+| 5 | 回退 | 已写入 v2 working state + 摘要的会话，`agent.context.composer-v2=false` | 继续对话不丢记录、不报错、不误认当前目标；无法完整表达有效约束时明确停止 | 集成 | 待验收 |
+
+## 7. 历史证据索引
+
+- 最新验收：[space-bunny-acceptance-report.md](space-bunny-acceptance-report.md)（2026-10-03；后端 904 项：899 通过 5 跳过，前端 135 项 + vue-tsc + vite build）
+- 证据附件：`docs/acceptance-evidence/2026-10-03/`（隔离副本脱敏产物，无凭据；内含 localhost 副本端口属预期）
+- 更早轮次：`ai-refactor-real-acceptance-report.md`（真实 Zen JSON、原生工具、双模型规划、真实文档 RAG）、`ai-refactor-quality-report.md`（负责人建议、V53）
+- 遗留未验证项（承接上一阶段）：`AGENT_APPROVAL_EXPIRED` 浏览器提示、拒绝路径浏览器冲突、大规模并发/长时评测、正式环境发布与迁移
