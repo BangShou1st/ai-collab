@@ -79,3 +79,29 @@
   - 5 项跳过均为 opt-in 外部验收测试（需真实提供商环境变量）：`RealAcceptanceHostTest`、`ExistingDataUpgradeRehearsalTest`、`BrowserAcceptanceHostTest`、`OllamaEmbeddingSmokeTest`、`OpenCodeZenSmokeTest`，与历史口径一致，非本轮引入。
   - 跳过项按"未执行"单独记录，不计入通过口径。
 - **前端**：未改动；本轮未重跑前端测试（上一口径 135 项 + vue-tsc + vite build，见 space-bunny-acceptance-report）。
+
+## 8. P1 修复批次（63666cd）：审查问题的集中修正
+
+交付审查发现五组实现与已约定验收条件不符，已作为限定范围修复批次处理（各带能触发问题的回归测试）：
+
+| # | 问题 | 修正 | 回归测试 |
+| --- | --- | --- | --- |
+| 1 | active 约束被条数上限淘汰；上下界共用作用域互相替代 | `trimConstraints` 只归档最旧 superseded，active 永不删除；数量限制拆分 `TASK_COUNT_MAX`/`TASK_COUNT_MIN` | `activeConstraintsSurviveConstraintChurnWithoutEviction`、`minAndMaxTaskCountConstraintsCoexistWithoutSupersedingEachOther` |
+| 2 | 摘要覆盖范围按全部候选记录但实际只读入部分；未延续旧摘要 | 覆盖范围来自实际完整读入的消息前缀（coverage=FULL/PARTIAL + uncoveredCount）；增量摘要携带旧摘要文本，sourceFrom 沿用前份起点 | `coverageComesFromActuallyIncludedMessagesNotFromCandidateList`、`incrementalSummaryCarriesPreviousSummaryForward` |
+| 3 | CAS 只比较 revision，未原子递增、未校验消息边界 | 提交原子递增 stateRevision（并发提交仅第一个成功）+ 校验 sourceThrough 消息属于本会话 | `summaryCasCommitOnlyUpdatesSummaryNodeAndRejectsStaleRevision`（扩展并发重复提交与伪造边界拒绝） |
+| 4 | "每运行至多一次"无持久化标记；空输出记账前返回、usage 缺失按零计；摘要后未刷新预算/取消状态 | 尝试先落 agent_step 持久化标记，上限按持久化计数校验；所有结局（COMMITTED/CAS_CONFLICT/EMPTY/FAILED）如实记账，usage 缺失按实际字符估算；摘要后刷新运行、重查取消并重新核算主请求预算，不足时以 `SUMMARY_CONSUMED_BUDGET` 明确停止 | `skipsWhenPersistentAttemptLimitAlreadyReached`、`blankOutputRecordsUsageAndMarksAttemptEmpty`、`realUsageIsRecordedInsteadOfEstimate`、`summaryAccountingTriggersBudgetRecheckBeforeMainModelCall` |
+| 5 | 回退路径仍按"取回历史"判断 goal 补入 | 旧路径改为按"实际入选消息"判断 | `legacyPathInjectsCurrentRequestWhenItIsNotAmongSelectedMessages`、`legacyPathInjectsCurrentRequestWhenBudgetSkippedItsWindowEntry` |
+
+修复后 agent 包 **49 类 380 项测试全绿**（较修复前 +10 回归测试）；修复批后的全量后端测试结果见第 9 节。
+
+### 表述勘误（对应此前报告的不准确声明）
+
+- ~~"三重 CAS"~~ → 准确表述：提交时校验 stateRevision 与 goalRevision 匹配、原子递增 stateRevision、校验 sourceThrough 消息边界；三者在同一条 UPDATE 内原子完成。
+- ~~"每次运行至多一次摘要"~~（初版仅内存语义）→ 现以 agent_step 持久化标记 + 持久化计数校验实现，服务重启不能绕过。
+- ~~"修复 run.goal 补入缺陷"~~（初版仅修复 v2 路径）→ 现两条路径均按实际入选消息判断，并有回退路径回归测试。
+
+## 9. 修复批后全量测试结果
+
+- **全量后端测试**（2026-10-04 00:45，Docker 可用）：**139 个测试类、943 项测试，0 失败、0 错误、5 跳过，BUILD SUCCESS，耗时 2 分 58 秒**。943 = 修复批前口径 933 + 本批新增 10 项回归测试。
+  - 5 项跳过同第 7 节口径（opt-in 外部验收测试），按"未执行"单独记录。
+- **提交后工作区**：干净；无新增未提交项。
