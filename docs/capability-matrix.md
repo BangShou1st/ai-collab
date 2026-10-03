@@ -28,7 +28,7 @@
 | 跨 Tick 工具调用恢复（消息协议配对） | `AgentModelMessageComposer.rebuildToolMessagesFromSteps` | 需原生 Tool Calling | 已验收 | 单测 + 集成 | `CrossTickToolCallTest` |
 | 工作状态（结构化约束/目标/本轮要求） | `AgentWorkingState` v2（V47 JSONB，schemaVersion=2 渐进升级） | 无 | **P1 已交付**：五分类约束（持续/修改/本轮/普通/新目标）、stateRevision、来源消息 ID；摘要节点已启用 | 集成 | `AgentRepositoryIntegrationTest`（31 项） |
 | 每轮上下文组装 | `AgentModelMessageComposer`（v2 分层 + `AgentContextBudget`） | 无 | **P1 已交付**：单次请求预算分层、当前请求保护、大结果确定性投影、去重、降级重组；`agent.context.composer-v2` 可关闭（回退路径兼容 v2 数据） | 单测 + 集成 | `AgentModelMessageComposerV2Test`、`AgentContextBudgetTest` |
-| 有界增量会话摘要 | `AgentContextSummarizer`（working_state.summary 节点） | 原生 Tool Calling 模型 | **P1 已交付**：有界输入/输出、三重 CAS、单独记账、失败不影响主轮次 | 单测 + 集成 | `AgentContextSummarizerTest` |
+| 有界增量会话摘要 | `AgentContextSummarizer`（working_state.summary 节点） | 原生 Tool Calling 模型 | **P1 已交付**：有界输入/输出、覆盖范围来自实际输入（FULL/PARTIAL）、增量延续旧摘要、CAS（revision 匹配 + 原子递增 + 边界校验）、持久化尝试标记（每运行至多一次）、单独记账且 usage 缺失按保守估算、失败不影响主轮次 | 单测 + 集成 | `AgentContextSummarizerTest` |
 | Skill 路由（六场景关键词首命中） | `AgentSkillRegistry` | 无 | **缺口**：复合需求受限（蓝图第 7 节） | 单测 | `AgentSkillRegistryTest` |
 | 项目记忆（最近更新 10 条注入） | `AgentMemoryService`、V30 | 无 | **待评测**：最近≠相关（蓝图 P4 处理） | 单测 | `AgentReadToolsTest` |
 | 原生 Tool Calling 与 Legacy 只读降级 | `RoutingAgentModelExecutor`、`LegacyReadOnlyAgentExecutor` | 原生工具需模型支持 | 已验收 | 单测 + 真实模型 | `AgentWorkerNativeTurnTest` |
@@ -69,7 +69,7 @@
 
 | # | 场景 | 输入要点 | 通过标准 | 对应测试 | 结果 |
 | --- | --- | --- | --- | --- | --- |
-| 1 | 长对话早期约束保留 | 20–30 轮对话，第 1–2 轮含"最多十项、不改日期"，中间穿插覆盖约束与无关问答 | 早期约束仍在模型输入中（active 条目或摘要）；"最多十项→八项"后旧条目 superseded | `recognizedPersistentConstraintsStayActiveAcrossOrdinaryMessages`（20 轮）、`constraintUpdateSupersedesOldEntryWithinSameScope` | 通过（集成；20–30 轮真实模型长对话待 P4 评测） |
+| 1 | 长对话早期约束保留 | 20–30 轮对话，第 1–2 轮含"最多十项、不改日期"，中间穿插覆盖约束与无关问答 | 早期约束仍在模型输入中（active 条目或摘要）；"最多十项→八项"后旧条目 superseded；active 条目不被条数上限淘汰；上下界可并存 | `recognizedPersistentConstraintsStayActiveAcrossOrdinaryMessages`（20 轮）、`constraintUpdateSupersedesOldEntryWithinSameScope`、`activeConstraintsSurviveConstraintChurnWithoutEviction`、`minAndMaxTaskCountConstraintsCoexistWithoutSupersedingEachOther` | 通过（集成；20–30 轮真实模型长对话待 P4 评测） |
 | 2 | 当前请求保护 | 当前请求较长且关键否定条件在尾部；低窗口模型配置 | 关键否定条件不静默截断；超预算返回明确原因（区分超接口上限/超单次输入/超运行费用）；缺失 usage 可诊断 | `currentRequestSurvivesTinyHistoryBudgetButNotRequiredLayerOverflow`、`AgentContextBudgetTest`（原因码）、窗口覆盖估算标记 | 通过（单测/集成；低窗口真实模型待 P4 评测） |
 | 3 | 工具结果混合压缩 | 大结果、失败结果、未完成调用并存于同一运行 | 压缩不伪造成功、toolCallId 配对完整、未决调用不压缩、不重复写入 | `largeToolOutputsAreProjectedDeterministicallyAndStayPaired`、`smallToolOutputsRemainUnprojected`、`CrossTickToolCallTest` | 通过（投影仅作用于已完成结果；未决调用在组装前由批次执行处理，不进入压缩路径） |
 | 4 | 改目标不串任务 | 对话途中 `/replace` 或同义替换词切换目标，旧规划稍后完成 | 新目标生效，旧约束 superseded；旧目标历史保留 | `userSupplementPreservesGoalAndExplicitReplacementKeepsHistory` | 通过（替换词表为保守集合；模糊表述不触发替换，原话保留） |
@@ -81,8 +81,8 @@ P1 补充验收（本轮修订新增口径）：
 | --- | --- | --- |
 | 修改同一约束（十项→八项，旧条目 superseded） | `constraintUpdateSupersedesOldEntryWithinSameScope` | 通过 |
 | 无关问答不积累成约束（含本轮要求重算） | `ordinaryQuestionsAndTurnRequirementsDoNotAccumulateAsConstraints` | 通过 |
-| 摘要 CAS：revision 前进后旧摘要拒绝；只改 summary 节点 | `summaryCasCommitOnlyUpdatesSummaryNodeAndRejectsStaleRevision` | 通过 |
-| 摘要失败/异常不影响主轮次；CAS 冲突不重算 | `AgentContextSummarizerTest` | 通过 |
+| 摘要 CAS：原子递增 stateRevision、revision 前进后旧摘要拒绝、伪造边界拒绝、只改 summary 节点 | `summaryCasCommitOnlyUpdatesSummaryNodeAndRejectsStaleRevision` | 通过 |
+| 摘要失败/异常不影响主轮次；CAS 冲突不重算；持久化尝试上限 | `AgentContextSummarizerTest` | 通过 |
 | 约束替换绑定作用域（文档引文/否定句/举例不触发） | 仅确定性作用域正则触发；`isGoalReplacement` 仅保守词表 | 通过（代码审查 + 保守词表） |
 | appendUser 关联真实消息 ID（同事务） | `appendUserAssociatesRealMessageIdWithinTransaction` | 通过 |
 
