@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
 import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
 import com.shitulelv.aicollab.agent.domain.policy.AgentApprovalPolicy;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
@@ -52,6 +53,7 @@ class AgentRepositoryIntegrationTest {
     static JdbcTemplate jdbc;
     static AgentRepository repository;
     static AgentApprovalRepository approvals;
+    static org.springframework.transaction.support.TransactionTemplate transactions;
 
     @BeforeAll
     static void migrate() {
@@ -59,8 +61,9 @@ class AgentRepositoryIntegrationTest {
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
         jdbc = new JdbcTemplate(dataSource);
+        transactions=new org.springframework.transaction.support.TransactionTemplate(new org.springframework.jdbc.datasource.DataSourceTransactionManager(dataSource));
         ObjectMapper json = new ObjectMapper().findAndRegisterModules();
-        repository = new AgentRepository(jdbc, json);
+        repository = new AgentRepository(jdbc, json, new AgentRunEventRecorder(jdbc, json));
         approvals = new AgentApprovalRepository(jdbc, json);
     }
 
@@ -68,6 +71,7 @@ class AgentRepositoryIntegrationTest {
     void clearAgentFixtures() {
         // 按外键依赖顺序删除数据
         jdbc.update("DELETE FROM agent_approval_revision");
+        jdbc.update("DELETE FROM agent_tool_invocation");
         jdbc.update("DELETE FROM agent_step");
         jdbc.update("DELETE FROM agent_run_event");
         jdbc.update("DELETE FROM agent_approval");
@@ -743,6 +747,59 @@ class AgentRepositoryIntegrationTest {
         var claimedAgain = repository.claimNext("worker2",
                 OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
         assertThat(claimedAgain).isEmpty();
+    }
+
+    @Test
+    void refreshedOptimisticVersionCannotBypassOldClaimEpoch() {
+        Fixture fixture=fixture();
+        var session=repository.createSession(fixture.project(),fixture.user(),"fence");
+        var queued=repository.createRun(fixture.project(),session.id(),fixture.user(),"synthetic",false,null,null);
+        var first=repository.claimNext("first",OffsetDateTime.now(),Duration.ofMinutes(1)).orElseThrow();
+        jdbc.update("UPDATE agent_run SET lease_expires_at=now()-interval '1 second' WHERE id=?",queued.id());
+        var replacement=repository.claimNext("second",OffsetDateTime.now(),Duration.ofMinutes(1)).orElseThrow();
+        var refreshed=repository.findRun(fixture.project(),queued.id()).orElseThrow();
+        try (var scope=new com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope(first.version())) {
+            assertThatThrownBy(() -> transactions.executeWithoutResult(status -> repository.recordFinal(refreshed,"late",List.of())))
+                    .isInstanceOf(IllegalStateException.class);
+        }
+        assertThat(repository.listSteps(fixture.project(),queued.id())).isEmpty();
+        try (var scope=new com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope(replacement.version())) {
+            transactions.executeWithoutResult(status -> repository.recordFinal(refreshed,"owned",List.of()));
+        }
+        assertThat(repository.findRun(fixture.project(),queued.id()).orElseThrow().status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+    }
+
+    @Test
+    void durableTurnRestoresKnownResultsAndRejectsChangedArguments() {
+        Fixture fixture=fixture();
+        var session=repository.createSession(fixture.project(),fixture.user(),"recover");
+        var queued=repository.createRun(fixture.project(),session.id(),fixture.user(),"synthetic",false,null,null);
+        repository.claimNext("worker",OffsetDateTime.now(),Duration.ofMinutes(1));
+        var run=repository.findRun(fixture.project(),queued.id()).orElseThrow();
+        ObjectMapper json=new ObjectMapper();
+        var call=new ModelToolCall("provider-call","list_tasks",json.createObjectNode());
+        var turn=new ModelTurnResult("",List.of(call),ModelFinishReason.TOOL_CALLS,null,"test","test",1);
+        var modeled=transactions.execute(status -> repository.recordModelTurn(run,turn));
+        assertThat(repository.pendingModelTurn(modeled)).contains(turn);
+        var input=json.createObjectNode().put("toolCallId",call.id()); input.set("arguments",call.arguments());
+        var result=json.createObjectNode().put("status","SUCCEEDED").put("count",1);
+        var completed=transactions.execute(status -> repository.recordToolResult(modeled,call.name(),input,result,false));
+        assertThat(repository.knownInvocationResult(completed,call)).contains(result);
+        assertThatThrownBy(() -> repository.knownInvocationResult(completed,new ModelToolCall(call.id(),call.name(),json.createObjectNode().put("changed",true))))
+                .isInstanceOf(IllegalStateException.class);
+        transactions.executeWithoutResult(status -> repository.requeueRun(completed));
+        assertThat(repository.pendingModelTurn(completed)).isEmpty();
+    }
+
+    @Test
+    void userSupplementPreservesGoalAndExplicitReplacementClearsConstraints() {
+        Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"context");
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"原目标",false,null,null));
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"补充截止日期",false,null,null));
+        var state=repository.workingState(fixture.project(),session.id());
+        assertThat(state.path("goal").asText()).isEqualTo("原目标"); assertThat(state.path("constraints").size()).isEqualTo(2);
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"/replace 新目标",false,null,null));
+        assertThat(repository.workingState(fixture.project(),session.id()).path("constraints").size()).isEqualTo(1);
     }
 
     private static Fixture fixture() {

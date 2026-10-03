@@ -4,7 +4,7 @@ import SemanticDiff from '../../shared/SemanticDiff.vue'
 import { presentApproval } from './approval-presentation'
 import type { AgentApproval } from './types'
 import type { ProjectMember } from '../project/types'
-const props = defineProps<{ approval: AgentApproval; members?: ProjectMember[] }>()
+const props = defineProps<{ approval: AgentApproval; members?: ProjectMember[]; busyAction?: 'approve' | 'reject' | null }>()
 const emit = defineEmits<{ (event: 'approve', value: AgentApproval): void; (event: 'reject', value: AgentApproval): void }>()
 
 /** 根据 assigneeId 查找负责人显示名称 */
@@ -67,8 +67,9 @@ const cleanedDiff = computed(() => {
     <SemanticDiff v-if="cleanedDiff" :diff="cleanedDiff" />
     <p>处理期限：{{ new Date(approval.expiresAt).toLocaleString('zh-CN') }}</p>
     <div v-if="approval.status === 'PENDING'">
-      <el-button type="success" @click="emit('approve', approval)">批准并执行</el-button>
-      <el-button @click="emit('reject', approval)">拒绝</el-button>
+      <!-- 提交期间批准、拒绝同时禁用；loading 只出现在实际提交的按钮上，防止重复提交。 -->
+      <el-button type="success" :loading="busyAction === 'approve'" :disabled="Boolean(busyAction)" @click="emit('approve', approval)">批准并执行</el-button>
+      <el-button :loading="busyAction === 'reject'" :disabled="Boolean(busyAction)" @click="emit('reject', approval)">拒绝</el-button>
     </div>
   </el-card>
 </template>

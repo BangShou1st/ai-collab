@@ -21,7 +21,7 @@ import java.util.UUID;
 
 /**
  * 模型执行路由。根据当前 Agent 模型的能力选择执行路径：
- * - NATIVE_TOOLS -> NativeToolCallingExecutor（失败时自动降级到 Legacy）
+ * - NATIVE_TOOLS -> NativeToolCallingExecutor（协议失败保持原始错误）
  * - CHAT-only -> LegacyReadOnlyAgentExecutor
  * - 两者都不支持 -> 明确失败
  */
@@ -33,6 +33,8 @@ public class RoutingAgentModelExecutor {
     private final NativeToolCallingExecutor nativeExecutor;
     private final LegacyReadOnlyAgentExecutor legacyExecutor;
     private final ZenModelExecution zen;
+    private AgentModelConfigurationStore configurationStore;
+    @org.springframework.beans.factory.annotation.Autowired void configureStore(AgentModelConfigurationStore store) { this.configurationStore = store; }
 
     public RoutingAgentModelExecutor(
             UserAiProviderService userProviders,
@@ -47,7 +49,7 @@ public class RoutingAgentModelExecutor {
 
     /**
      * 调用模型并返回结果。
-     * 如果模型声明支持 NATIVE_TOOLS 但实际调用失败，自动降级到 Legacy 模式。
+     * 运行固定模型配置；声明原生工具的模型失败时不降级工具语义。
      *
      * @param run              当前运行
      * @param messages         多轮消息历史
@@ -61,7 +63,7 @@ public class RoutingAgentModelExecutor {
             List<AgentToolDefinition> exposed,
             boolean correctionAttempted) {
 
-        UserAiProvider provider = userProviders.resolve(run.requesterId(), ModelPurpose.AGENT);
+        UserAiProvider provider = configurationStore == null ? userProviders.resolve(run.requesterId(), ModelPurpose.AGENT) : configurationStore.require(run);
         // Preset rows must use registry policy capabilities; never trust stale DB capabilities.
         ModelConfiguration config = zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
 
@@ -76,25 +78,17 @@ public class RoutingAgentModelExecutor {
         if (hasNativeTools) {
             log.debug("使用 Native Tool Calling 执行器: model={}, configurationId={}",
                     config.modelName(), config.id());
-            try {
+            try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(provider)) {
                 return nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId(), run.sessionId());
-            } catch (BusinessException e) {
-                // 如果是模型调用错误且支持 CHAT，降级到 Legacy 模式
-                if (hasChat && isNativeToolError(e)) {
-                    log.warn("Native Tool Calling 失败，降级到 Legacy 模式: model={}, error={}",
-                            config.modelName(), e.getErrorCode());
-                    return fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(),
-                            correctionAttempted);
-                }
-                throw e;
             }
         }
 
         if (hasChat) {
             log.debug("使用 Legacy 只读执行器: model={}, configurationId={}",
                     config.modelName(), config.id());
-            return fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(),
-                    correctionAttempted);
+            try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(provider)) {
+                return fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(), correctionAttempted);
+            }
         }
 
         // 既不支持 NATIVE_TOOLS 也不支持 CHAT -> 明确失败
@@ -142,5 +136,11 @@ public class RoutingAgentModelExecutor {
         ModelConfiguration config = zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
         return !config.capabilities().contains(ModelCapability.NATIVE_TOOLS)
                 && config.capabilities().contains(ModelCapability.CHAT);
+    }
+    public boolean isLegacyModeForRun(AgentRunView run) {
+        if (configurationStore==null) return isLegacyMode(run.requesterId());
+        UserAiProvider provider=configurationStore.require(run);
+        ModelConfiguration config=zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
+        return !config.capabilities().contains(ModelCapability.NATIVE_TOOLS) && config.capabilities().contains(ModelCapability.CHAT);
     }
 }

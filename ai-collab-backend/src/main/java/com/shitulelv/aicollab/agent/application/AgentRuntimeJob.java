@@ -25,6 +25,6 @@ public class AgentRuntimeJob {
     @Scheduled(fixedDelayString = "${agent.worker-delay-ms:1000}")
     public void tick() {
         approvals.expirePending(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC));
-        recovery.claim(workerId, Duration.ofMinutes(2)).ifPresent(worker::process);
+        recovery.claim(workerId, Duration.ofMinutes(6)).ifPresent(worker::process);
     }
 }

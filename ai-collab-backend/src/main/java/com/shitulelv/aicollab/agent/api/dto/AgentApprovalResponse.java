@@ -25,7 +25,12 @@ public record AgentApprovalResponse(
         OffsetDateTime resolvedAt,
         int version,
         OffsetDateTime createdAt,
-        String nonce) {
+        String nonce,
+        UUID sessionId,
+        com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily proposalFamily,
+        UUID subjectKey,
+        int revision,
+        OffsetDateTime updatedAt) {
 
     public static AgentApprovalResponse from(AgentApprovalView view) {
         return new AgentApprovalResponse(
@@ -33,6 +38,7 @@ public record AgentApprovalResponse(
                 JsonApiValue.from(view.arguments()), JsonApiValue.from(view.diff()),
                 view.resourceId(), view.resourceVersion(), view.status(), view.requesterId(),
                 view.approverId(), JsonApiValue.from(view.result()), view.rejectionReason(),
-                view.expiresAt(), view.resolvedAt(), view.version(), view.createdAt(), view.nonce());
+                view.expiresAt(), view.resolvedAt(), view.version(), view.createdAt(), view.nonce(),
+                view.sessionId(), view.proposalFamily(), view.subjectKey(), view.revision(), view.updatedAt());
     }
 }

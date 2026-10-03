@@ -15,6 +15,51 @@ class ToolArgumentValidatorTest {
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
+    void numericTypesUseJsonSchemaValueSemanticsForSingleAndUnionTypes() throws Exception {
+        for (String type : new String[]{"\"number\"", "[\"number\",\"null\"]"}) {
+            var schema = mapper.readTree("{\"type\":\"object\",\"properties\":{\"hours\":{\"type\":" + type + ",\"minimum\":0.5,\"maximum\":80}}}");
+            for (String value : new String[]{"3", "3.5", "0.5", "80"})
+                assertThat(ToolArgumentValidator.validate(mapper.readTree("{\"hours\":" + value + "}"), schema)).as(type + " " + value).isNull();
+            for (String value : new String[]{"\"3\"", "true", "{}", "0", "81"})
+                assertThat(ToolArgumentValidator.validate(mapper.readTree("{\"hours\":" + value + "}"), schema)).as(type + " " + value).isNotNull();
+            assertThat(ToolArgumentValidator.validate(mapper.readTree("{\"hours\":null}"), schema)).isEqualTo(type.startsWith("[") ? null : ".hours类型期望 \"number\"，实际为 null");
+        }
+        for (String type : new String[]{"\"integer\"", "[\"integer\",\"null\"]"}) {
+            var schema = mapper.readTree("{\"properties\":{\"count\":{\"type\":" + type + "}}}");
+            for (String value : new String[]{"3", "3.0", "3.000", "123456789012345678901234567890"})
+                assertThat(ToolArgumentValidator.validate(mapper.readTree("{\"count\":" + value + "}"), schema)).as(type + " " + value).isNull();
+            assertThat(ToolArgumentValidator.validate(mapper.readTree("{\"count\":3.5}"), schema)).isNotNull();
+            if (type.startsWith("[")) assertThat(ToolArgumentValidator.validate(mapper.readTree("{\"count\":null}"), schema)).isNull();
+        }
+    }
+
+    @Test
+    void actualProposalSchemaAcceptsTheFailedIntegerPayloadIncludingNestedUnion() throws Exception {
+        var tool = new com.shitulelv.aicollab.agent.infrastructure.tool.CreateTaskApprovalAgentTool(mapper,
+                org.mockito.Mockito.mock(jakarta.validation.Validator.class),
+                org.mockito.Mockito.mock(com.shitulelv.aicollab.work.application.service.TaskApplicationService.class),
+                org.mockito.Mockito.mock(com.shitulelv.aicollab.project.application.service.ProjectApplicationService.class),
+                org.mockito.Mockito.mock(com.shitulelv.aicollab.project.infrastructure.repository.ProjectMemberRepository.class));
+        var context = new AgentToolContext(java.util.UUID.randomUUID(), java.util.UUID.randomUUID(),
+                java.util.UUID.randomUUID(), "OWNER", false, 0);
+        var schema = new com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry(java.util.List.of(tool))
+                .definitionsFor(context).getFirst().inputSchema();
+        var payload = mapper.readTree("""
+                {"title":"太空兔真实提案验收-180212-修订","status":"TODO","priority":"HIGH",
+                 "approvalId":"e6f2da98-d45e-49de-8a88-82499a7da7ee",
+                 "assigneeId":"9c4cd312-0e99-497a-8e3b-e78f98692df0",
+                 "description":"用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+                 "estimateHours":3}
+                """);
+        assertThat(ToolArgumentValidator.validate(payload, schema)).isNull();
+        var nested = mapper.createObjectNode().put("type", "object");
+        nested.putObject("properties").set("proposal", schema);
+        assertThat(ToolArgumentValidator.validate(mapper.createObjectNode().set("proposal", payload), nested)).isNull();
+        ((ObjectNode) payload).put("estimateHours", 81);
+        assertThat(ToolArgumentValidator.validate(payload, schema)).contains(".estimateHours数值不能大于");
+    }
+
+    @Test
     void nullSchemaPasses() {
         assertThat(ToolArgumentValidator.validate(mapper.createObjectNode(), null)).isNull();
     }

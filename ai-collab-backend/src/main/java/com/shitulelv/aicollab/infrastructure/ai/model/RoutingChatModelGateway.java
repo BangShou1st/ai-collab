@@ -62,6 +62,21 @@ public class RoutingChatModelGateway implements ChatModelGateway {
 
     public ChatCompletionResult complete(ChatCompletionCommand command, AiRequestMetadata metadata) {
         UserAiProvider provider = resolveProvider(command);
+        return executeResolved(command, metadata, provider);
+    }
+
+    public ChatCompletionResult completeWithSnapshot(ChatCompletionCommand command, AiRequestMetadata metadata,
+            UserAiProvider snapshot, Integer budget) {
+        if (!snapshot.userId().equals(command.callerUserId())) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+        userProviders.requireSnapshotAuthorized(snapshot);
+        int effectiveBudget = budget != null && budget > 0 ? budget : snapshot.maxOutputTokens();
+        UserAiProvider effective = new UserAiProvider(snapshot.id(), snapshot.userId(), snapshot.name(), snapshot.providerType(),
+                snapshot.baseUrl(), snapshot.apiPath(), snapshot.encryptedApiKey(), snapshot.modelName(), snapshot.enabled(),
+                snapshot.temperature(), effectiveBudget, snapshot.capabilities(), snapshot.isDefault(), snapshot.createdAt(), snapshot.updatedAt(), snapshot.presetCode());
+        return executeResolved(command, metadata, effective);
+    }
+
+    private ChatCompletionResult executeResolved(ChatCompletionCommand command, AiRequestMetadata metadata, UserAiProvider provider) {
         if (zen.isZen(provider)) {
             ModelConfiguration configuration = zen.runtimeConfig(provider);
             ModelCapabilityPolicy.require(configuration, command, false);
@@ -125,6 +140,12 @@ public class RoutingChatModelGateway implements ChatModelGateway {
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "未指定调用用户，无法查找模型配置");
         }
         AiInvocationContext context = new AiInvocationContext(command.callerUserId(), command.projectId(), command.purpose());
+        UserAiProvider pinned = AiConfigurationContext.current();
+        if (pinned != null) {
+            if (!pinned.userId().equals(context.userId())) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+            userProviders.requireSnapshotAuthorized(pinned);
+            return pinned;
+        }
         return userProviders.resolve(context.userId(), context.purpose());
     }
 

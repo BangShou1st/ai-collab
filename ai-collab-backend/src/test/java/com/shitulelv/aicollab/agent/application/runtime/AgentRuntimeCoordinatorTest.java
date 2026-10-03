@@ -300,15 +300,13 @@ class AgentRuntimeCoordinatorTest {
     }
 
     @Test
-    void coordinatorErrorPropagatesWithoutWorkerOverride() {
+    void invalidTrustedContextEndsRunWithoutRepeatingWorkerClaims() {
         AgentRunView run = run();
         when(contextAssembler.assemble(eq(run), isNull(), any()))
                 .thenThrow(new BusinessException(ErrorCode.AGENT_CONTEXT_RESOURCE_INVALID));
 
-        assertThatThrownBy(() -> coordinator.advance(run))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
-                        .isEqualTo(ErrorCode.AGENT_CONTEXT_RESOURCE_INVALID));
+        assertThat(coordinator.advance(run).status()).isEqualTo(AgentRunStatus.FAILED);
+        verify(repository).recordFailure(run,ErrorCode.AGENT_CONTEXT_RESOURCE_INVALID.name(),false);
     }
 
     @Test

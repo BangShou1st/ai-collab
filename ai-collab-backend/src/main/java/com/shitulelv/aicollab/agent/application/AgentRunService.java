@@ -36,6 +36,8 @@ public class AgentRunService {
     private final AgentEventService events;
     private final AgentEventRepository eventRepository;
     private final AgentApprovalRepository approvalRepository;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.shitulelv.aicollab.agent.application.runtime.AgentCancellationService cancellationSignal;
 
     public AgentRunService(ProjectAccessGuard access, AgentRepository repository,
                           AgentSkillRegistry skillRegistry, ObjectMapper json,
@@ -180,7 +182,7 @@ public class AgentRunService {
         UUID pendingApproval = approvalRepository.list(projectId, "PENDING").stream()
                 .filter(value -> value.runId().equals(runId)).map(AgentApprovalView::id).findFirst().orElse(null);
         return new AgentRunDetailView(run, plan, repository.listSteps(projectId, runId),
-                eventRepository.lastSequence(projectId, runId), pendingApproval);
+                eventRepository.lastSequence(projectId, runId), pendingApproval,repository.modelSnapshot(run),repository.recoveryCounters(run));
     }
 
     @Transactional
@@ -189,6 +191,10 @@ public class AgentRunService {
         AgentRunView run = repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
         AgentRunStatus status = repository.requestCancel(projectId, runId);
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override public void afterCommit() { if (cancellationSignal != null) cancellationSignal.interrupt(runId); }
+                });
         if (status == AgentRunStatus.CANCELED) {
             events.append(projectId, runId, AgentEventType.RUN_CANCELED,
                     json.createObjectNode().put("status", status.name()));

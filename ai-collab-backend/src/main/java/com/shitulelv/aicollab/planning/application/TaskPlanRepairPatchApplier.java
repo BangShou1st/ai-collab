@@ -70,93 +70,94 @@ public class TaskPlanRepairPatchApplier {
         Set<String> seenMilestonePatches = new HashSet<>();
         for (TaskPlanRepairPatch.MilestonePatch mp : patch.milestonePatches()) {
             if (!seenMilestonePatches.add(mp.tempKey())) {
-                throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+                reject("DUPLICATE_PATCH_TARGET", "MILESTONE", mp.tempKey(), "tempKey");
             }
         }
         Set<String> seenTaskPatches = new HashSet<>();
         for (TaskPlanRepairPatch.TaskPatch tp : patch.taskPatches()) {
             if (!seenTaskPatches.add(tp.tempKey())) {
-                throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+                reject("DUPLICATE_PATCH_TARGET", "TASK", tp.tempKey(), "tempKey");
             }
         }
 
         // Validate milestone patches
         for (TaskPlanRepairPatch.MilestonePatch mp : patch.milestonePatches()) {
             if (!draftMilestoneKeys.contains(mp.tempKey())) {
-                throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+                reject("UNKNOWN_PATCH_TARGET", "MILESTONE", mp.tempKey(), "tempKey");
             }
             if (!scope.targetTempKeys().contains(mp.tempKey())) {
-                throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+                reject("PATCH_TARGET_OUT_OF_SCOPE", "MILESTONE", mp.tempKey(), "tempKey");
             }
             validateMilestonePatchFields(mp, scope);
-            validateSourceRefs(mp.sourceRefs(), validSourceRefs);
+            validateSourceRefs(mp.sourceRefs(), validSourceRefs, "MILESTONE", mp.tempKey());
         }
 
         // Validate task patches
         for (TaskPlanRepairPatch.TaskPatch tp : patch.taskPatches()) {
             if (!draftTaskKeys.contains(tp.tempKey())) {
-                throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+                reject("UNKNOWN_PATCH_TARGET", "TASK", tp.tempKey(), "tempKey");
             }
             if (!scope.targetTempKeys().contains(tp.tempKey())) {
-                throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+                reject("PATCH_TARGET_OUT_OF_SCOPE", "TASK", tp.tempKey(), "tempKey");
             }
             validateTaskPatchFields(tp, scope);
-            validateMember(tp.suggestedAssigneeId(), validMemberIds);
-            validateSourceRefs(tp.sourceRefs(), validSourceRefs);
+            validateMember(tp.suggestedAssigneeId(), validMemberIds, tp.tempKey());
+            validateSourceRefs(tp.sourceRefs(), validSourceRefs, "TASK", tp.tempKey());
             validateDependencies(tp.dependencyTempKeys(), draftTaskKeys, tp.tempKey());
         }
     }
 
     private void validateMilestonePatchFields(TaskPlanRepairPatch.MilestonePatch mp, RepairScope scope) {
         if (mp.description().present() && scope.isLocked(mp.tempKey(), "description")) {
-            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+            rejectField("MILESTONE", mp.tempKey(), "description", scope);
         }
         if (mp.targetDate().present() && scope.isLocked(mp.tempKey(), "targetDate")) {
-            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+            rejectField("MILESTONE", mp.tempKey(), "targetDate", scope);
         }
         if (mp.sourceRefs().present() && scope.isLocked(mp.tempKey(), "sourceRefs")) {
-            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+            rejectField("MILESTONE", mp.tempKey(), "sourceRefs", scope);
         }
     }
 
     private void validateTaskPatchFields(TaskPlanRepairPatch.TaskPatch tp, RepairScope scope) {
         if (tp.description().present() && scope.isLocked(tp.tempKey(), "description")) {
-            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+            rejectField("TASK", tp.tempKey(), "description", scope);
         }
         if (tp.priority().present() && scope.isLocked(tp.tempKey(), "priority")) {
-            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+            rejectField("TASK", tp.tempKey(), "priority", scope);
         }
         if (tp.estimatedHours().present() && scope.isLocked(tp.tempKey(), "estimatedHours")) {
-            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+            rejectField("TASK", tp.tempKey(), "estimatedHours", scope);
         }
         if (tp.startDate().present() && scope.isLocked(tp.tempKey(), "startDate")) {
-            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+            rejectField("TASK", tp.tempKey(), "startDate", scope);
         }
         if (tp.dueDate().present() && scope.isLocked(tp.tempKey(), "dueDate")) {
-            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+            rejectField("TASK", tp.tempKey(), "dueDate", scope);
         }
         if (tp.suggestedAssigneeId().present() && scope.isLocked(tp.tempKey(), "suggestedAssigneeId")) {
-            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+            rejectField("TASK", tp.tempKey(), "suggestedAssigneeId", scope);
         }
         if (tp.dependencyTempKeys().present() && scope.isLocked(tp.tempKey(), "dependencyTempKeys")) {
-            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+            rejectField("TASK", tp.tempKey(), "dependencyTempKeys", scope);
         }
         if (tp.sourceRefs().present() && scope.isLocked(tp.tempKey(), "sourceRefs")) {
-            throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+            rejectField("TASK", tp.tempKey(), "sourceRefs", scope);
         }
     }
 
-    private void validateMember(PatchValue<UUID> assignee, Set<UUID> validMemberIds) {
+    private void validateMember(PatchValue<UUID> assignee, Set<UUID> validMemberIds, String key) {
         if (assignee.present() && assignee.value() != null && !validMemberIds.contains(assignee.value())) {
-            throw new BusinessException(ErrorCode.TASK_ASSIGNEE_NOT_MEMBER);
+            throw new TaskPlanRepairRejectedException(ErrorCode.TASK_ASSIGNEE_NOT_MEMBER,
+                    List.of(issue("ASSIGNEE_NOT_PROJECT_MEMBER", "TASK", key, "suggestedAssigneeId")));
         }
     }
 
-    private void validateSourceRefs(PatchValue<List<String>> refs, Set<String> validSourceRefs) {
+    private void validateSourceRefs(PatchValue<List<String>> refs, Set<String> validSourceRefs, String type, String key) {
         if (!refs.present() || refs.value() == null) return;
         for (String ref : refs.value()) {
             if (!validSourceRefs.contains(ref)) {
-                throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+                reject("UNKNOWN_SOURCE_REF", type, key, "sourceRefs");
             }
         }
     }
@@ -165,12 +166,26 @@ public class TaskPlanRepairPatchApplier {
         if (!deps.present() || deps.value() == null) return;
         for (String dep : deps.value()) {
             if (dep.equals(selfKey)) {
-                throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+                reject("SELF_DEPENDENCY", "TASK", selfKey, "dependencyTempKeys");
             }
             if (!draftTaskKeys.contains(dep)) {
-                throw new BusinessException(ErrorCode.PLAN_VALIDATION_FAILED);
+                reject("UNKNOWN_DEPENDENCY", "TASK", selfKey, "dependencyTempKeys");
             }
         }
+    }
+
+    private void rejectField(String type, String key, String field, RepairScope scope) {
+        reject(scope.lockedFields().contains(field) ? "PATCH_FIELD_LOCKED" : "PATCH_FIELD_NOT_ALLOWED", type, key, field);
+    }
+
+    private void reject(String code, String type, String key, String field) {
+        throw new TaskPlanRepairRejectedException(ErrorCode.PLAN_VALIDATION_FAILED, List.of(issue(code, type, key, field)));
+    }
+
+    private StructuredValidationIssue issue(String code, String type, String key, String field) {
+        // Known draft keys may be displayed; bound model-supplied unknown identifiers.
+        return new StructuredValidationIssue(code, ValidationIssueSeverity.HARD, type,
+                key != null && key.matches("[A-Za-z0-9_-]{1,100}") ? key : null, field, null, Map.of());
     }
 
     private PlanMilestone applyMilestonePatch(PlanMilestone original, TaskPlanRepairPatch.MilestonePatch mp, RepairScope scope) {

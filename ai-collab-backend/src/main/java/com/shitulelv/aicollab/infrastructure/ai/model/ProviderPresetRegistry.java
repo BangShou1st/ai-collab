@@ -16,7 +16,7 @@ public class ProviderPresetRegistry {
     // Free reasoning models emit long reasoning traces before content; the default budget must cover both.
     private static final PresetPolicy ZEN_FREE = new PresetPolicy(ProviderPresetCode.OPENCODE_ZEN_FREE,
             "OpenCode Zen Free", ModelProviderType.OPENAI_COMPATIBLE,
-            "https://opencode.ai/zen/v1", "/chat/completions", "/models", "opencode/1.18.21", true,
+            "https://opencode.ai/zen/v1", "/chat/completions", "/models", "opencode/1.18.31 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14", true,
             ZEN_FREE_CAPABILITIES, 0.2, 4000);
     public PresetPolicy require(ProviderPresetCode code) {
         PresetPolicy p = policies.get(code);

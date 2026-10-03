@@ -40,6 +40,8 @@ public record ChatCompletionCommand(
 
     public enum OutputFormat {
         TEXT,
+        /** Application validates the candidate; no provider-native JSON capability required. */
+        PROMPT_JSON,
         JSON_OBJECT
     }
 }

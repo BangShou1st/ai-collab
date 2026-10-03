@@ -97,6 +97,8 @@ public class DocumentController {
                 "total", progress.total,
                 "completed", progress.getCompleted(),
                 "failed", progress.getFailed(),
+                "queued", progress.getQueued(),
+                "processing", progress.getProcessing(),
                 "inProgress", progress.getInProgress()));
     }
 

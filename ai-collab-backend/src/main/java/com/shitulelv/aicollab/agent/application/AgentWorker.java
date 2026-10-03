@@ -25,6 +25,7 @@ public class AgentWorker {
     private final AgentRuntimeCoordinator coordinator;
     private final AgentEventService events;
     private final ObjectMapper json;
+    @Autowired private com.shitulelv.aicollab.agent.application.runtime.AgentCancellationService cancellation;
 
     public AgentWorker(AgentRepository repository, AgentRuntimeCoordinator coordinator) {
         this(repository, coordinator, null, null);
@@ -46,6 +47,17 @@ public class AgentWorker {
     }
 
     public AgentWorkerOutcome process(ClaimedAgentRun claimed) {
+        try (var registration = cancellation == null ? null : cancellation.register(claimed.id());
+             var scope = new com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope(claimed.version())) {
+            return processOwned(claimed);
+        } catch (RuntimeException failure) {
+            throw failure;
+        } catch (Exception failure) {
+            throw new IllegalStateException(failure);
+        }
+    }
+
+    private AgentWorkerOutcome processOwned(ClaimedAgentRun claimed) {
         AgentRunView run = repository.findRun(claimed.projectId(), claimed.id())
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
 

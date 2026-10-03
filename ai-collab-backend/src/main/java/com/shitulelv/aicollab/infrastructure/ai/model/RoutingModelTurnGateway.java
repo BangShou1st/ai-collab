@@ -60,7 +60,11 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
 
     public ModelTurnResult turn(ModelTurnCommand command, AiRequestMetadata metadata) {
         if (command.callerUserId() != null) {
-            UserAiProvider provider = userProviders.resolve(command.callerUserId(), command.purpose());
+            UserAiProvider provider = AiConfigurationContext.current();
+            if (provider != null) {
+                if (!provider.userId().equals(command.callerUserId())) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+                userProviders.requireSnapshotAuthorized(provider);
+            } else provider = userProviders.resolve(command.callerUserId(), command.purpose());
             if (zen.isZen(provider)) {
                 if (!provider.enabled()) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
                 return zen.turn(provider, secrets.decrypt(provider.encryptedApiKey()), command, metadata);

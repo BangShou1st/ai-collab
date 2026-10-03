@@ -24,7 +24,12 @@ public final class AgentDecisionParser {
                     || value.codePointCount(0, value.length()) > MAX_JSON_CODE_POINTS) {
                 throw new JsonProcessingException("empty or oversized") { };
             }
-            JsonNode root = json.readTree(value);
+            String candidate=value.strip();
+            if (candidate.startsWith("```") && candidate.endsWith("```")) {
+                int newline=candidate.indexOf('\n');
+                if (newline>=0) candidate=candidate.substring(newline+1,candidate.length()-3).strip();
+            }
+            JsonNode root = json.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(candidate);
             requireObject(root);
             String action = requiredText(root, "action", 40);
             return switch (action) {

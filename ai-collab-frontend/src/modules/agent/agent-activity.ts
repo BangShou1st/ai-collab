@@ -29,11 +29,11 @@ const TOOL_META: Record<string, { title: string; verb: string; kind: ActivityKin
   answer_project_question_with_sources: { title: '问答检索', verb: '正在检索问答依据', kind: 'search' },
   analyze_project_risks: { title: '分析项目风险', verb: '正在分析项目风险', kind: 'analysis' },
   draft_weekly_report: { title: '起草周报', verb: '正在起草周报', kind: 'proposal' },
-  create_task_after_approval: { title: '创建任务', verb: '正在准备创建任务', kind: 'proposal' },
-  update_task_after_approval: { title: '更新任务', verb: '正在准备更新任务', kind: 'proposal' },
-  create_milestone_after_approval: { title: '创建里程碑', verb: '正在准备创建里程碑', kind: 'proposal' },
-  update_milestone_after_approval: { title: '更新里程碑', verb: '正在准备更新里程碑', kind: 'proposal' },
-  create_memory_after_approval: { title: '创建记忆', verb: '正在准备创建记忆', kind: 'proposal' },
+  create_task_after_approval: { title: '任务创建提案', verb: '正在准备创建任务', kind: 'proposal' },
+  update_task_after_approval: { title: '任务更新提案', verb: '正在准备更新任务', kind: 'proposal' },
+  create_milestone_after_approval: { title: '里程碑创建提案', verb: '正在准备创建里程碑', kind: 'proposal' },
+  update_milestone_after_approval: { title: '里程碑更新提案', verb: '正在准备更新里程碑', kind: 'proposal' },
+  create_memory_after_approval: { title: '记忆创建提案', verb: '正在准备创建记忆', kind: 'proposal' },
 };
 
 function toolOf(e: AgentRunEvent): string {
@@ -44,7 +44,7 @@ function toolOf(e: AgentRunEvent): string {
 
 function callKey(e: AgentRunEvent): string {
   const p = (e.payload ?? {}) as Record<string, unknown>
-  const raw = [p.callId, p.toolCallId, p.id].find((v) => typeof v === 'string' && (v as string).length > 0) as string | undefined
+  const raw = [p.invocationId, p.callId, p.toolCallId, p.id].find((v) => typeof v === 'string' && (v as string).length > 0) as string | undefined
   return (raw ?? `${e.type}#${e.sequence}`).trim()
 }
 
@@ -53,6 +53,7 @@ const APPROVAL_CLOSE = new Set(['APPROVAL_APPROVED', 'APPROVAL_REJECTED', 'APPRO
 
 /** Presentation policy: only tool lifecycles, approvals, analyzing and waiting become rows. Run/model/plan/context events drive state elsewhere and never render. Unknown future types are skipped, never shown. */
 export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] {
+  const terminal = [...events].reverse().find(event => ['RUN_CANCELED', 'RUN_SUCCEEDED', 'RUN_FAILED', 'RUN_BUDGET_EXCEEDED'].includes(event.type))
   const tools = new Map<string, AgentRunEvent[]>()
   const toolOrder: string[] = []
   const approvals = new Map<string, AgentRunEvent[]>()
@@ -77,12 +78,21 @@ export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] 
     }
   }
   const out: AgentActivity[] = []
-  for (const key of toolOrder) out.push(buildToolActivity(key, tools.get(key)!))
+  for (const key of toolOrder) {
+    const activity = buildToolActivity(key, tools.get(key)!)
+    if (terminal && activity.status === 'running') {
+      activity.status = 'failed'
+      activity.kind = 'failure'
+      activity.title = TOOL_META[activity.tool]?.title ?? '工具调用'
+      activity.detail = terminal.type === 'RUN_CANCELED' ? '已取消' : '运行已结束，工具结果需核对'
+    }
+    out.push(activity)
+  }
   for (const key of approvalOrder) out.push(buildApprovalActivity(key, approvals.get(key)!))
-  if (analyzing && analyzing.some((e) => e.type === 'MODEL_STARTED') && !analyzing.some((e) => e.type === 'MODEL_COMPLETED')) {
+  if (!terminal && analyzing && analyzing.some((e) => e.type === 'MODEL_STARTED') && !analyzing.some((e) => e.type === 'MODEL_COMPLETED')) {
     out.push({ key: 'model:analyzing', tool: 'model', kind: 'analysis', status: 'running', title: '正在分析', detail: null, durationMs: null, count: null, raw: analyzing })
   }
-  if (waiting) {
+  if (waiting && !terminal) {
     out.push({ key: 'waiting:input', tool: 'input', kind: 'waiting', status: 'waiting', title: '等待你的输入', detail: null, durationMs: null, count: null, raw: waiting })
   }
   return out.sort((a, b) => minSequence(a.raw) - minSequence(b.raw))
@@ -119,6 +129,10 @@ function buildToolActivity(key: string, list: AgentRunEvent[]): AgentActivity {
     if (typeof p.summary === 'string' && (p.summary as string).length > 0) detail = p.summary as string
     if (e.type === 'TOOL_CALL_COMPLETED') { status = 'done'; if (kind === 'info') kind = 'success' }
     if (e.type === 'TOOL_CALL_FAILED') { status = 'failed'; kind = 'failure' }
+    if (e.type === 'TOOL_CALL_FAILED' && typeof p.status === 'string') {
+      const labels: Record<string, string> = { FAILED: '执行失败', REJECTED: '调用被拒绝', CANCELED: '已取消', SKIPPED: '未执行', UNKNOWN: '结果未知，需核对' }
+      detail = `${labels[p.status] ?? '执行失败'}${typeof p.errorCode === 'string' && p.errorCode ? `：${p.errorCode}` : ''}`
+    }
     if (typeof p.error === 'string' && (p.error as string).length > 0 && status === 'failed') detail = p.error as string
   }
   return { key: `tool:${key}`, tool, kind, status, title: status === 'running' ? verb : title, detail, durationMs, count, raw: list }

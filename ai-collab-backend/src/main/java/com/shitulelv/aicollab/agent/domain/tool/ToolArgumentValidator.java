@@ -40,13 +40,13 @@ public final class ToolArgumentValidator {
                 // ["string","null"] 形式：value 类型在允许列表中即通过
                 typeMatch = false;
                 for (JsonNode allowed : typeNode) {
-                    if (actualType.equals(allowed.asText())) {
+                    if (matchesType(value, allowed.asText())) {
                         typeMatch = true;
                         break;
                     }
                 }
             } else {
-                typeMatch = actualType.equals(typeNode.asText());
+                typeMatch = matchesType(value, typeNode.asText());
             }
             if (!typeMatch) {
                 return path + "类型期望 " + typeNode + "，实际为 " + actualType;
@@ -159,17 +159,20 @@ public final class ToolArgumentValidator {
     }
 
     private static String validateNumber(JsonNode value, JsonNode schema, String path) {
-        double num = value.asDouble();
+        if (!isFiniteNumber(value)) {
+            return path + "必须是有限数值";
+        }
+        var num = value.decimalValue();
 
         // minimum
         JsonNode minimum = schema.path("minimum");
-        if (minimum.isNumber() && num < minimum.asDouble()) {
+        if (minimum.isNumber() && num.compareTo(minimum.decimalValue()) < 0) {
             return path + "数值不能小于 " + minimum.asDouble();
         }
 
         // maximum
         JsonNode maximum = schema.path("maximum");
-        if (maximum.isNumber() && num > maximum.asDouble()) {
+        if (maximum.isNumber() && num.compareTo(maximum.decimalValue()) > 0) {
             return path + "数值不能大于 " + maximum.asDouble();
         }
 
@@ -203,12 +206,29 @@ public final class ToolArgumentValidator {
         return null;
     }
 
+    private static boolean isFiniteNumber(JsonNode node) {
+        return node.isNumber() && (!(node.isDouble() || node.isFloat())
+                || Double.isFinite(node.doubleValue()));
+    }
+
+    private static boolean isInteger(JsonNode node) {
+        return isFiniteNumber(node) && node.decimalValue().stripTrailingZeros().scale() <= 0;
+    }
+
+    private static boolean matchesType(JsonNode node, String type) {
+        return switch (type) {
+            case "number" -> isFiniteNumber(node);
+            case "integer" -> isInteger(node);
+            default -> detectType(node).equals(type);
+        };
+    }
+
     private static String detectType(JsonNode node) {
         if (node.isObject()) return "object";
         if (node.isArray()) return "array";
         if (node.isTextual()) return "string";
         if (node.isBoolean()) return "boolean";
-        if (node.isInt() || node.isLong()) return "integer";
+        if (isInteger(node)) return "integer";
         if (node.isNumber()) return "number";
         if (node.isNull()) return "null";
         return "unknown";

@@ -257,7 +257,7 @@ async function mounted(): Promise<VueWrapper> {
         ElCheckbox: InputStub,
         ElTag: { template: '<span><slot /></span>' },
         ElCard: { template: '<section><slot name="header" /><slot /></section>' },
-        ElDialog: { template: '<div><slot /></div>' },
+        ElDialog: { template: '<div><slot /><slot name="footer" /></div>' },
         ElForm: { template: '<form><slot /></form>' },
         ElFormItem: { template: '<label><slot /></label>' },
       },
@@ -307,6 +307,30 @@ afterEach(() => {
 })
 
 describe('PlanningView real component workflow', () => {
+  it('requires explicit adoption and saves the suggested member as the formal assignee', async () => {
+    const wrapper = await mounted()
+    await openFirst(wrapper)
+    await wrapper.get('.milestone-header').trigger('click')
+    expect(wrapper.text()).toContain('未分配')
+    const adopt = wrapper.findAll('button').find(button => button.text() === '采纳建议负责人')!
+    await adopt.trigger('click')
+    const save = wrapper.findAll('button').find(button => button.text() === '保存新版本')!
+    await save.trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === '确认保存')!.trigger('click')
+    await flushPromises()
+    expect(mocks.save.mock.calls[0]?.[4].tasks[0].assigneeId).toBe('user-1')
+    expect(mocks.save.mock.calls[0]?.[4].tasks[0].suggestedAssigneeId).toBe('user-1')
+    wrapper.unmount()
+  })
+  it('shows safe repair diagnostics separately from errors on the unchanged draft', async () => {
+    mocks.detail.mockResolvedValue(response(detail(plan({ lastErrorSummary: 'REPAIR / PLAN_VALIDATION_FAILED' }), {
+      repairDiagnostics: [{ code: 'PATCH_FIELD_NOT_ALLOWED', severity: 'HARD', targetType: 'TASK', targetTempKey: 't1', field: 'description', relatedTempKey: null, safeDetails: {} }],
+    })))
+    const wrapper = await mounted()
+    await openFirst(wrapper)
+    expect(wrapper.get('[aria-label="修复失败原因"]').text()).toContain('实现登录 · 描述：该字段未获本次修复授权')
+    wrapper.unmount()
+  })
   it('uses a bounded custom number input for the maximum task count', async () => {
     const wrapper = await mounted()
 
@@ -322,6 +346,24 @@ describe('PlanningView real component workflow', () => {
     await openFirst(wrapper)
     expect(wrapper.text()).toContain('v2 AI 局部修复')
     expect(wrapper.text()).toContain('v1 用户修改')
+  })
+
+  it('partialRepairUsesTheSeenVersionAndLocksTaskIdentity', async () => {
+    const wrapper = await mounted()
+    await openFirst(wrapper)
+    await wrapper.get('.milestone-header').trigger('click')
+    await flushPromises()
+    const button = wrapper.findAll('button').find(item => item.text() === 'AI 局部修复')
+    expect(button).toBeDefined()
+    await button!.trigger('click')
+    await flushPromises()
+    expect(mocks.partialRegenerate).toHaveBeenCalledWith('project-1', 'plan-1', expect.objectContaining({
+      baseVersionId: 'v2',
+      expectedVersionNo: 2,
+      targetTempKeys: ['t1'],
+      lockedFields: ['title', 'objective', 'milestoneTempKey'],
+      mode: 'REGENERATE_SELECTED_TASK_DETAILS',
+    }))
   })
 
   it('priorityUsesChineseLabels', async () => {

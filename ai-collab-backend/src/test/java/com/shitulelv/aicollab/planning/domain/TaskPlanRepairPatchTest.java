@@ -75,6 +75,22 @@ class TaskPlanRepairPatchTest {
     }
 
     @Test
+    void rejectionIdentifiesObjectFieldAndRuleWithoutChangingDraft() {
+        var draft = baseDraft();
+        var patch = parser.parse("{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"T2\",\"description\":\"unauthorized\"}]}");
+        var rejected = assertThrows(com.shitulelv.aicollab.planning.application.TaskPlanRepairRejectedException.class,
+                () -> applier.apply(draft, patch, dateConflictScope(), validMembers(), validSources()));
+        var issue = rejected.issues().getFirst();
+        assertEquals("T2", issue.targetTempKey());
+        assertEquals("description", issue.field());
+        assertEquals("PATCH_FIELD_NOT_ALLOWED", issue.code());
+        assertTrue(issue.safeDetails().isEmpty());
+        var invalid = assertThrows(com.shitulelv.aicollab.planning.application.RepairPatchFormatException.class,
+                () -> parser.parse("{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"T2\",\"dueDate\":7}]}"));
+        assertEquals("dueDate", invalid.issues().getFirst().field());
+    }
+
+    @Test
     void repairPatchRejectsUnknownProperties() {
         assertAll(
                 () -> assertThrows(IllegalArgumentException.class, () -> parser.parse("""

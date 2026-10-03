@@ -36,8 +36,11 @@ public record StructuredValidationIssue(
         safeDetails = Map.copyOf(safeDetails);
     }
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isHard() { return severity == ValidationIssueSeverity.HARD; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isBlockingEditable() { return severity == ValidationIssueSeverity.BLOCKING_EDITABLE; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isWarning() { return severity == ValidationIssueSeverity.WARNING; }
     public boolean blocksConfirmation() { return severity != ValidationIssueSeverity.WARNING; }
 }

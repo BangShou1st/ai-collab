@@ -96,11 +96,11 @@ const rows = computed<Row[]>(() => {
 </template>
 <style scoped>
 .semantic-diff { display: grid; gap: 8px; }
-.semantic-diff__field { font-size: 12px; color: var(--ac-meta, #6b7280); }
+.semantic-diff__field { font-size: 12px; color: var(--ac-meta, var(--color-text-secondary)); }
 .semantic-diff__change { display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
-.semantic-diff__change .before { color: #6b7280; text-decoration: line-through; }
+.semantic-diff__change .before { color: var(--color-text-secondary); text-decoration: line-through; }
 .semantic-diff__change .arrow { color: #9ca3af; }
 .semantic-diff__change .after { font-weight: 600; }
 .semantic-diff__raw { margin-top: 4px; font-size: 12px; }
-.semantic-diff__raw pre { max-height: 180px; overflow: auto; background: #0f172a; color: #e2e8f0; padding: 8px; border-radius: 8px; }
+.semantic-diff__raw pre { max-height: 180px; overflow: auto; background: #0f172a; color: var(--color-border); padding: 8px; border-radius: 8px; }
 </style>

@@ -17,7 +17,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Verify TaskPlanModelClient uses JSON_OBJECT output format for planning requests.
+ * Planning's JSON contract does not require provider-native JSON mode.
  */
 class TaskPlanModelClientTest {
 
@@ -37,7 +37,7 @@ class TaskPlanModelClientTest {
     }
 
     @Test
-    void planningGenerateAlwaysRequestsJsonObjectOutput() {
+    void planningGenerateRequestsPromptJsonCandidate() {
         when(gateway.complete(any(), any())).thenReturn(new ChatCompletionResult(
                 "{}", "openai", "gpt-4", 10, 20, 100L));
 
@@ -46,7 +46,7 @@ class TaskPlanModelClientTest {
 
         ArgumentCaptor<ChatCompletionCommand> captor = ArgumentCaptor.forClass(ChatCompletionCommand.class);
         verify(gateway).complete(captor.capture(), any());
-        assertThat(captor.getValue().outputFormat()).isEqualTo(ChatCompletionCommand.OutputFormat.JSON_OBJECT);
+        assertThat(captor.getValue().outputFormat()).isEqualTo(ChatCompletionCommand.OutputFormat.PROMPT_JSON);
     }
 
     @Test

@@ -2,9 +2,9 @@
 import { reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { showApiError } from '../api/api-result'
-import { resolveSafeRedirect } from '../shared/safe-redirect'
-import { useAuthStore } from '../stores/auth-store'
+import { showApiError } from '../../api/api-result'
+import { resolveSafeRedirect } from '../../shared/safe-redirect'
+import { useAuthStore } from '../../stores/auth-store'
 
 const auth = useAuthStore()
 const router = useRouter()

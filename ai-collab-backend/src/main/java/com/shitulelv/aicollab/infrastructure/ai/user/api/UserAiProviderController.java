@@ -20,6 +20,8 @@ import java.util.UUID;
 @RequestMapping("/api/v1/user/ai-providers")
 public class UserAiProviderController {
     private final UserAiProviderService providers;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbeService probes;
 
     public UserAiProviderController(UserAiProviderService providers) {
         this.providers = providers;
@@ -56,6 +58,13 @@ public class UserAiProviderController {
     public ApiResponse<ChatCompletionResult> test(
             @PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(providers.test(userId(jwt), id));
+    }
+    @PostMapping("/{id}/test-capability")
+    public ApiResponse<com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbeService.Evidence> testCapability(
+            @PathVariable UUID id,
+            @RequestParam com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbeService.Mode mode,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(probes.test(userId(jwt),id,mode));
     }
 
     @PutMapping("/defaults")

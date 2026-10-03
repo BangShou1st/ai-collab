@@ -164,18 +164,18 @@ onMounted(load)
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 1px;
-  background-color: #e4e7ed;
-  border: 1px solid #e4e7ed;
+  background-color: var(--color-border);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .calendar-weekday {
-  background-color: #f5f7fa;
+  background-color: var(--color-surface-raised);
   padding: 12px;
   text-align: center;
   font-weight: 500;
-  color: #606266;
+  color: var(--color-text-secondary);
 }
 
 .calendar-day {

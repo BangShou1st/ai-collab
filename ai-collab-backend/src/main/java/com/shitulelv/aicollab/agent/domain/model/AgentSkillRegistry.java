@@ -46,6 +46,7 @@ public final class AgentSkillRegistry {
             new AbstractMap.SimpleEntry<>("研究", "PROJECT_RESEARCH"),
             new AbstractMap.SimpleEntry<>("research", "PROJECT_RESEARCH"),
             // 任务创建/管理相关 → ITERATION_PLANNING（有 create_task_after_approval）
+            new AbstractMap.SimpleEntry<>("提案", "ITERATION_PLANNING"),
             new AbstractMap.SimpleEntry<>("创建任务", "ITERATION_PLANNING"),
             new AbstractMap.SimpleEntry<>("新建任务", "ITERATION_PLANNING"),
             new AbstractMap.SimpleEntry<>("添加任务", "ITERATION_PLANNING"),

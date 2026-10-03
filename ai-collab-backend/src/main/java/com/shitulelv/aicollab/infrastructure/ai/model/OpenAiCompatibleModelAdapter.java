@@ -47,14 +47,6 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                     response.path("model").asText(config.modelName()),
                     integer(usage.path("prompt_tokens")), integer(usage.path("completion_tokens")), started);
         } catch (BusinessException e) {
-            // 如果非流式请求失败且模型支持流式，自动降级到流式模式
-            if (e.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR
-                    && config.capabilities().contains(ModelCapability.STREAMING)) {
-                org.slf4j.LoggerFactory.getLogger(OpenAiCompatibleModelAdapter.class)
-                        .warn("Non-streaming request failed for model {}, retrying with streaming",
-                                config.modelName());
-                return completeStreamingSync(config, apiKey, command);
-            }
             throw e;
         }
     }
@@ -146,8 +138,8 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             AtomicReference<Integer> output = new AtomicReference<>();
             AtomicBoolean terminal = new AtomicBoolean(false);
             // userAgent != null marks the Zen preset path (Custom callers pass null):
-            // Zen wire is model/messages/stream only, Custom wire keeps its contract.
-            http.stream(endpoint(config), metadata == null ? headers(apiKey) : headersWithSession(apiKey, metadata, userAgent), userAgent == null ? request(config, command, true) : zenRequest(config, command, true), (event, data) -> {
+            // Zen includes its client envelope; Custom keeps its own contract.
+            http.stream(endpoint(config), metadata == null && userAgent == null ? headers(apiKey) : headersWithSession(apiKey, metadata, userAgent), userAgent == null ? request(config, command, true) : zenRequest(config, command, true), (event, data) -> {
                 if (data == null) return;
                 if (data.hasNonNull("model")) model.set(data.path("model").asText());
                 JsonNode usage = data.path("usage");
@@ -161,6 +153,10 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                     terminal.set(true);
                     throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
                 }
+                if (userAgent != null && choice.path("delta").path("tool_calls").isArray()
+                        && !choice.path("delta").path("tool_calls").isEmpty())
+                    throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                            "文本请求返回了工具调用；传输保留工具不会执行");
                 String token = choice.path("delta").path("content").asText("");
                 if (!token.isEmpty()) {
                     content.append(token);
@@ -223,14 +219,6 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                     content, toolCalls, finishReason, usage,
                     providerType().name(), responseModel, latencyMs);
         } catch (BusinessException e) {
-            // 如果非流式请求失败且模型支持流式，自动降级到流式模式
-            if (e.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR
-                    && config.capabilities().contains(ModelCapability.STREAMING)) {
-                org.slf4j.LoggerFactory.getLogger(OpenAiCompatibleModelAdapter.class)
-                        .warn("Non-streaming turn request failed for model {}, retrying with streaming",
-                                config.modelName());
-                return turnStreamingSync(config, apiKey, command);
-            }
             throw e;
         }
     }
@@ -270,16 +258,16 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             // 原生 tool_calls 增量聚合
             JsonNode toolCallsNode = delta.path("tool_calls");
             if (toolCallsNode.isArray()) {
-                int autoIndex = deltas.size();
                 for (JsonNode node : toolCallsNode) {
-                    int index = node.has("index") ? node.path("index").asInt(autoIndex) : autoIndex;
-                    autoIndex = Math.max(autoIndex + 1, index + 1);
+                    if (!node.path("index").isInt() || node.path("index").asInt()<0)
+                        throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,"工具分片缺少有效 index");
+                    int index = node.path("index").asInt();
                     DeltaToolCall acc = deltas.computeIfAbsent(index, k -> new DeltaToolCall());
                     String idFrag = node.path("id").asText("");
-                    if (!idFrag.isEmpty()) acc.id.append(idFrag);
+                    if (!idFrag.isEmpty() && !idFrag.contentEquals(acc.id)) acc.id.append(idFrag);
                     JsonNode fn = node.path("function");
                     String nameFrag = fn.path("name").asText("");
-                    if (!nameFrag.isEmpty()) acc.name.append(nameFrag);
+                    if (!nameFrag.isEmpty() && !nameFrag.contentEquals(acc.name)) acc.name.append(nameFrag);
                     String argsFrag = fn.path("arguments").asText("");
                     if (!argsFrag.isEmpty()) acc.arguments.append(argsFrag);
                 }
@@ -291,6 +279,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             }
         });
 
+        if (finishReason.get()==ModelFinishReason.LENGTH) throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
         List<ModelToolCall> toolCalls = buildDeltaToolCalls(deltas);
 
         long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
@@ -323,13 +312,13 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             String id = acc.id.toString();
             String name = acc.name.toString();
             String raw = acc.arguments.length() == 0 ? "{}" : acc.arguments.toString();
-            if (name.isBlank()) {
+            if (id.isBlank() || name.isBlank()) {
                 throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                         "工具调用缺少 function.name");
             }
             JsonNode args;
             try {
-                args = mapper.readTree(raw);
+                args = mapper.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(raw);
             } catch (Exception e) {
                 throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                         "工具调用参数不是合法 JSON");
@@ -436,10 +425,11 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         for (JsonNode node : toolCallsNode) {
             String id = node.path("id").asText();
             String name = node.path("function").path("name").asText();
+            if (id.isBlank() || name.isBlank()) throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,"工具调用缺少身份或名称");
             String raw = node.path("function").path("arguments").asText("{}");
             JsonNode args;
             try {
-                args = mapper.readTree(raw);
+                args = mapper.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(raw);
             } catch (Exception e) {
                 throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                         "工具调用参数不是合法 JSON");
@@ -509,14 +499,21 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
 
     /** Generic metadata headers. Preset-agnostic: any caller may attach correlation + identity. */
     public static Map<String, String> headersWithSession(String apiKey, AiRequestMetadata metadata, String userAgent) {
-        if (metadata == null) return headers(apiKey);
-        return Map.of("Authorization", "Bearer " + apiKey,
-                "User-Agent", userAgent,
-                OpenCodeZenTransport.SESSION_HEADER, metadata.correlationSessionId());
+        var result = new java.util.LinkedHashMap<String,String>();
+        if (apiKey != null && !apiKey.isBlank()) result.put("Authorization", "Bearer " + apiKey.strip());
+        if (metadata != null) result.put(OpenCodeZenTransport.SESSION_HEADER, metadata.correlationSessionId());
+        if (userAgent != null) {
+            result.put("User-Agent", userAgent);
+            result.put(OpenCodeZenTransport.SESSION_HEADER, ZenClientIds.session(metadata == null ? null : metadata.correlationSessionId()));
+            result.put("x-opencode-client", "cli");
+            result.put("x-opencode-request", ZenClientIds.request());
+            result.put("x-opencode-project", "global");
+        }
+        return result;
     }
 
     /**
-     * Zen production wire (spec-agent): model / messages / stream only.
+     * Zen production wire: model / messages / stream plus the Free Tier client envelope.
      * Never send temperature, max_tokens, max_completion_tokens, response_format,
      * stream_options, reasoning_effort, thinking. Application token budget is
      * enforced locally and is distinct from provider wire max_tokens.
@@ -573,7 +570,27 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 body.put("tool_choice", "auto");
             }
         }
+        addZenReservedTools(body);
         return body;
+    }
+
+    private void addZenReservedTools(ObjectNode body) {
+        ArrayNode tools = body.withArray("tools");
+        for (JsonNode tool : tools) {
+            if (isZenReservedTool(tool.path("function").path("name").asText()))
+                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "业务工具与 Zen 传输保留名称冲突");
+        }
+        for (String name : List.of("bash", "read")) {
+            ObjectNode fn = tools.addObject().put("type", "function").putObject("function");
+            fn.put("name", name).put("description", "Reserved by the transport. Never call this tool.");
+            fn.putObject("parameters").put("type", "object").putObject("properties")
+                    .putObject(name.equals("bash") ? "command" : "filePath").put("type", "string");
+        }
+    }
+
+    private static boolean isZenReservedTool(String name) {
+        return "bash".equals(name) || "read".equals(name);
     }
 
     private ObjectNode zenRequest(ModelConfiguration config, ChatCompletionCommand command, boolean stream) {
@@ -594,6 +611,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 function.set("parameters", tool.inputSchema());
             }
         }
+        addZenReservedTools(body);
         return body;
     }
 
@@ -613,17 +631,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
 
     public ModelTurnResult turnWithSession(ModelConfiguration config, String apiKey, ModelTurnCommand command,
             AiRequestMetadata metadata, String userAgent) {
-        long started = System.nanoTime();
-        try {
-            JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata, userAgent), zenTurnRequest(config, command, false));
-            return parseTurnResponse(config, response, started);
-        } catch (BusinessException e) {
-            if (e.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR
-                    && config.capabilities().contains(ModelCapability.STREAMING)) {
-                return turnStreamingSyncWithSession(config, apiKey, command, metadata, userAgent);
-            }
-            throw e;
-        }
+        return turnStreamingSyncWithSession(config, apiKey, command, metadata, userAgent);
     }
 
     private ModelTurnResult turnStreamingSyncWithSession(ModelConfiguration config, String apiKey,
@@ -650,15 +658,15 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             if (!token.isEmpty()) content.append(token);
             JsonNode toolCallsNode = choice.path("delta").path("tool_calls");
             if (toolCallsNode.isArray()) {
-                int autoIndex = deltas.size();
                 for (JsonNode node : toolCallsNode) {
-                    int index = node.has("index") ? node.path("index").asInt(autoIndex) : autoIndex;
-                    autoIndex = Math.max(autoIndex + 1, index + 1);
+                    if (!node.path("index").isInt() || node.path("index").asInt() < 0)
+                        throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,"工具分片缺少有效 index");
+                    int index = node.path("index").asInt();
                     DeltaToolCall acc = deltas.computeIfAbsent(index, k -> new DeltaToolCall());
                     String idFrag = node.path("id").asText("");
-                    if (!idFrag.isEmpty()) acc.id.append(idFrag);
+                    if (!idFrag.isEmpty() && !idFrag.contentEquals(acc.id)) acc.id.append(idFrag);
                     String nameFrag = node.path("function").path("name").asText("");
-                    if (!nameFrag.isEmpty()) acc.name.append(nameFrag);
+                    if (!nameFrag.isEmpty() && !nameFrag.contentEquals(acc.name)) acc.name.append(nameFrag);
                     String argsFrag = node.path("function").path("arguments").asText("");
                     if (!argsFrag.isEmpty()) acc.arguments.append(argsFrag);
                 }
@@ -667,6 +675,9 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             if (!finish.isEmpty()) finishReason.set(mapFinishReason(finish));
         });
         List<ModelToolCall> toolCalls = buildDeltaToolCalls(deltas);
+        if (toolCalls.stream().anyMatch(call -> isZenReservedTool(call.name())))
+            throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                    "模型调用了 Zen 传输保留工具；该调用不会执行");
         long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
         if (content.isEmpty() && toolCalls.isEmpty()) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE, "model returned neither text nor tool calls");

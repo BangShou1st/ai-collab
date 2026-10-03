@@ -38,6 +38,13 @@ public class SystemEmbeddingService {
     private final DocumentRepository documents;
     private final BatchReindexService reindex;
     private final ProjectEmbeddingGateway gateway;
+    private EmbeddingEndpointPolicy embeddingEndpoints;
+    private EmbeddingIndexService indexes;
+    @org.springframework.beans.factory.annotation.Autowired
+    void configureLocalEmbedding(EmbeddingEndpointPolicy policy, EmbeddingIndexService indexes) {
+        this.embeddingEndpoints = policy;
+        this.indexes = indexes;
+    }
 
     public SystemEmbeddingService(
             SystemEmbeddingConfigRepository repository,
@@ -54,6 +61,7 @@ public class SystemEmbeddingService {
         this.documents = documents;
         this.reindex = reindex;
         this.gateway = gateway;
+        this.embeddingEndpoints = new EmbeddingEndpointPolicy(endpoints, "127.0.0.1:11434,localhost:11434,[::1]:11434");
     }
 
     public SystemEmbeddingConfigView get(UUID operatorId) {
@@ -65,10 +73,11 @@ public class SystemEmbeddingService {
     @Transactional
     public SystemEmbeddingConfigView update(UUID operatorId, SystemEmbeddingConfigRequest request) {
         users.requireSystemAdmin(operatorId);
+        repository.lockInfrastructure();
         validateEndpoint(request);
         String encrypted = resolveKey(request, repository.findActive().orElse(null));
-        String fingerprint = EmbeddingFingerprints.fingerprint(
-                request.provider(), request.modelName(), request.dimensions());
+        requireDimensions(request);
+        String fingerprint = fingerprint(request);
         SystemEmbeddingConfig existing = repository.findActive().orElse(null);
         if (existing == null) {
             return view(repository.save(config(null, request, encrypted, fingerprint, true)));
@@ -105,31 +114,48 @@ public class SystemEmbeddingService {
         }
     }
 
+    public record TestResult(String provider, String model, int dimensions, long latencyMs) {}
+
+    public TestResult testCandidate(UUID operatorId, SystemEmbeddingConfigRequest request) {
+        users.requireSystemAdmin(operatorId);
+        validateEndpoint(request);
+        long started = System.nanoTime();
+        String encrypted = resolveKey(request, repository.findActive().orElse(null));
+        ProjectEmbeddingConfig candidate = new ProjectEmbeddingConfig(null, request.provider(), request.baseUrl(),
+                request.apiPath(), encrypted, request.modelName(), 0, 1, true, OffsetDateTime.now(), OffsetDateTime.now());
+        var result = gateway.embedWithConfig(candidate, List.of("合成文本：嵌入维度探测"), EmbeddingProgressListener.NONE);
+        return new TestResult(result.provider(), result.model(), result.dimension(), (System.nanoTime() - started) / 1_000_000);
+    }
+
     @Transactional
     public int reindex(UUID operatorId, SystemEmbeddingConfigRequest request) {
         users.requireSystemAdmin(operatorId);
+        repository.lockInfrastructure();
         validateEndpoint(request);
         String encrypted = resolveKey(request, repository.findActive().orElse(null));
-        String fingerprint = EmbeddingFingerprints.fingerprint(
-                request.provider(), request.modelName(), request.dimensions());
-        repository.disableAll();
-        repository.save(config(null, request, encrypted, fingerprint, true));
-        return reindex.reindexAllProjects(operatorId);
+        requireDimensions(request);
+        if (indexes == null) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "索引构建服务不可用");
+        SystemEmbeddingConfig candidate = repository.save(config(null, request, encrypted, fingerprint(request), false));
+        return indexes.start(candidate);
     }
 
     private String resolveKey(SystemEmbeddingConfigRequest request, SystemEmbeddingConfig existing) {
         if (request.apiKey() != null && !request.apiKey().isBlank()) {
             return secrets.encrypt(request.apiKey());
         }
-        if (existing != null && existing.encryptedApiKey() != null) {
+        if (existing != null && existing.provider().equals(request.provider())
+                && existing.baseUrl().equals(request.baseUrl()) && existing.apiPath().equals(request.apiPath())
+                && existing.encryptedApiKey() != null) {
             return existing.encryptedApiKey();
         }
-        throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Key 不能为空");
+        if ("OLLAMA".equals(request.provider())) return null;
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR, "新目标需要重新填写 API Key");
     }
 
     private static boolean sameSemantic(SystemEmbeddingConfig existing,
             SystemEmbeddingConfigRequest request) {
         return existing.provider().equals(request.provider())
+                && existing.baseUrl().equals(request.baseUrl()) && existing.apiPath().equals(request.apiPath())
                 && existing.modelName().equals(request.modelName())
                 && existing.dimensions() == request.dimensions();
     }
@@ -163,14 +189,23 @@ public class SystemEmbeddingService {
                     || request.apiPath().isBlank()) {
                 throw new IllegalArgumentException();
             }
-            if (request.dimensions() < 1 || request.dimensions() > 4096
+            if (request.dimensions() < 0 || request.dimensions() > 4096
                     || request.batchSize() < 1 || request.batchSize() > 256) {
                 throw new IllegalArgumentException();
             }
-            endpoints.requirePublicHttps(base);
+            if (!List.of("OPENAI_COMPATIBLE", "OLLAMA").contains(request.provider())) throw new IllegalArgumentException();
+            embeddingEndpoints.require(request.provider(), request.baseUrl(), request.apiPath());
         } catch (RuntimeException exception) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "嵌入模型接口地址无效");
         }
         log.debug("System embedding endpoint validated");
+    }
+
+    private static void requireDimensions(SystemEmbeddingConfigRequest request) {
+        if (request.dimensions() < 1) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请先测试并确认实际维度");
+    }
+    private static String fingerprint(SystemEmbeddingConfigRequest request) {
+        return EmbeddingFingerprints.fingerprint(request.provider(), request.modelName() + "|" + request.baseUrl()
+                + "|" + request.apiPath(), request.dimensions());
     }
 }

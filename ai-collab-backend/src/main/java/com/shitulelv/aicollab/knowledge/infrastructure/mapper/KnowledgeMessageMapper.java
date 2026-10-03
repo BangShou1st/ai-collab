@@ -11,6 +11,19 @@ import java.util.UUID;
 
 @Mapper
 public interface KnowledgeMessageMapper {
+    @Select("""
+            SELECT m.* FROM knowledge_message m JOIN knowledge_session s ON s.id=m.session_id
+            WHERE s.project_id=#{projectId} AND s.id=#{sessionId} AND s.user_id=#{userId}
+            AND (m.role='USER' OR (NOT m.insufficient_evidence
+                  AND EXISTS (SELECT 1 FROM knowledge_citation c WHERE c.message_id=m.id)
+                  AND NOT EXISTS (SELECT 1 FROM regexp_matches(m.content,'\\[S([0-9]+)\\]','g') AS r(ref)
+                      WHERE NOT EXISTS (SELECT 1 FROM knowledge_citation c WHERE c.message_id=m.id AND c.rank::text=r.ref[1]))
+                AND NOT EXISTS (SELECT 1 FROM knowledge_citation c JOIN document_chunk k ON k.id=c.chunk_id
+                    JOIN project_document d ON d.id=k.document_id WHERE c.message_id=m.id AND d.status<>'READY')))
+            ORDER BY m.created_at DESC,m.id DESC LIMIT 6
+            """)
+    List<KnowledgeMessageEntity> recentContext(@Param("projectId") UUID projectId,
+            @Param("sessionId") UUID sessionId, @Param("userId") UUID userId);
     @Insert("""
             INSERT INTO knowledge_message(
               id, session_id, role, content, insufficient_evidence, model_provider,

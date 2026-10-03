@@ -106,7 +106,11 @@ class CrossTickToolCallTest {
 
         // 模拟下一次 RuntimeJob 重新领取该 Run
         // 从 Repository 恢复历史消息和步骤
-        AgentStepView toolStep = toolCompletedStep(1, "list_tasks", tc.arguments(), json.createObjectNode().put("success", true));
+        ObjectNode observation = json.createObjectNode().put("status", "SUCCEEDED");
+        observation.putArray("citations");
+        observation.putObject("data").putArray("items").addObject().put("title", "验收任务")
+                .put("status", "TODO").put("assigneeName", "Local Owner");
+        AgentStepView toolStep = toolCompletedStep(1, "list_tasks", tc.arguments(), observation);
         stepStore.add(toolStep);
         when(repository.listSteps(run.projectId(), run.id())).thenReturn(new ArrayList<>(stepStore));
 
@@ -115,6 +119,14 @@ class CrossTickToolCallTest {
         when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn2);
 
         AgentWorkerOutcome outcome2 = coordinator.advance(run);
+
+        var messages = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor, times(2)).callModel(eq(run), messages.capture(), any(), eq(false));
+        var secondMessages = (List<ModelMessage>) messages.getAllValues().get(1);
+        var restored = secondMessages.stream().filter(ModelMessage.ToolResult.class::isInstance)
+                .map(ModelMessage.ToolResult.class::cast).findFirst().orElseThrow();
+        assertThat(restored.result().path("data").path("items").get(0).path("status").asText()).isEqualTo("TODO");
+        assertThat(restored.result().path("data").path("items").get(0).path("assigneeName").asText()).isEqualTo("Local Owner");
 
         // Run 成功
         assertThat(outcome2.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
