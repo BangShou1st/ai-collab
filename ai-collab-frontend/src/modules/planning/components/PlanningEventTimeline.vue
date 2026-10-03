@@ -79,7 +79,7 @@ const formatEventDescription = (event: TaskPlanEvent) => {
 .event-timeline h4 {
   margin: 0 0 12px 0;
   font-size: 14px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 .event-list {
   display: flex;
@@ -114,6 +114,6 @@ const formatEventDescription = (event: TaskPlanEvent) => {
 }
 .event-description {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 </style>

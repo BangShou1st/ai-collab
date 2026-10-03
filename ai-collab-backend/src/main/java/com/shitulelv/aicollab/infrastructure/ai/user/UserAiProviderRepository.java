@@ -19,6 +19,8 @@ import java.util.stream.Collectors;
 
 @Repository
 public class UserAiProviderRepository {
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(UserAiProviderRepository.class);
     private static final RowMapper<UserAiProvider> MAPPER = (ResultSet rs, int row) -> {
         try {
             return new UserAiProvider(
@@ -48,7 +50,11 @@ public class UserAiProviderRepository {
             is_default, created_at, updated_at, preset_code""";
     private static String getPreset(ResultSet rs) {
         try { return rs.getString("preset_code"); }
-        catch (Exception e) { return null; }
+        catch (Exception e) {
+            // preset_code 列由 V45 迁移引入；读不到通常意味着 schema 与代码不一致
+            log.warn("Failed to read preset_code column, falling back to null: {}", e.getMessage());
+            return null;
+        }
     }
 
     private final JdbcTemplate jdbc;
@@ -162,7 +168,10 @@ public class UserAiProviderRepository {
                     try {
                         out.put(ModelPurpose.valueOf(rs.getString("purpose")),
                                 rs.getObject("provider_id", UUID.class));
-                    } catch (IllegalArgumentException ignored) {
+                    } catch (IllegalArgumentException failure) {
+                        // 库中出现无法映射的 purpose 枚举值时跳过该行，但记录告警以便排查脏数据
+                        log.warn("Skipping unmapped ModelPurpose value in user_model_purpose_assignment: {}",
+                                failure.getMessage());
                     }
                     return null;
                 }, userId);

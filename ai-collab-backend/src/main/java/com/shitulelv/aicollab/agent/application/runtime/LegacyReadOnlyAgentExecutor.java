@@ -81,7 +81,7 @@ public class LegacyReadOnlyAgentExecutor {
                 projectId,
                 fullSystemPrompt,
                 userPrompt,
-                ChatCompletionCommand.OutputFormat.JSON_OBJECT,
+                ChatCompletionCommand.OutputFormat.PROMPT_JSON,
                 ModelPurpose.AGENT,
                 null,
                 List.of(),

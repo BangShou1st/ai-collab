@@ -216,7 +216,7 @@ public class TaskPlanGenerationOrchestrator {
     }
 
     private void runPlan(TaskPlanRecord plan, UUID actor, boolean detailOnly) {
-        try {
+        try (TaskPlanModelClient.ConfigurationScope scope = model.openSnapshot()) {
             if (detailOnly) runDetail(plan, plan.activeAttemptId(), actor, latestDraft(plan));
             else runSkeleton(plan, actor);
         } finally {
@@ -376,7 +376,7 @@ public class TaskPlanGenerationOrchestrator {
         // F3: Re-key the Future under the repair attemptId so cancel() can find it
         rekeyFuture(initialAttempt, repairAttempt, plan.generationSeq());
         // S4: Pass structured failure info to repair prompt
-        String repairPrompt = repairPrompt(result.content(), SKELETON_SCHEMA, "SKELETON",
+        String repairPrompt = prompt + "\n" + repairPrompt(result.content(), SKELETON_SCHEMA, "SKELETON",
                 contractError != null ? contractError.category() : "UNKNOWN",
                 contractError != null ? contractError.jsonPath() : null,
                 contractError != null ? contractError.validationCodes() : List.of());
@@ -434,6 +434,26 @@ public class TaskPlanGenerationOrchestrator {
                         initialAssessment.errorCodes());
             }
         } catch (RuntimeException invalidOutput) {
+            if (invalidOutput instanceof ModelOutputContractException contract
+                    && !"DOMAIN_VALIDATION_FAILED".equals(contract.category())) {
+                UUID repairAttempt = repository.startRepair(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus, actor);
+                if (repairAttempt == null) throw new GenerationHandledException();
+                rekeyFuture(initialAttempt, repairAttempt, plan.generationSeq());
+                try {
+                    GenerationResult repairedResult = model.generate(repairSystem(), prompt + "\n"
+                                    + repairPrompt(result.content(), DETAIL_SCHEMA, "DETAIL", contract.category(),
+                                    contract.jsonPath(), contract.validationCodes()), "TASK_PLAN_DETAIL_FORMAT_REPAIR",
+                            actor, plan.projectId(), repairAttempt, planningCorrelationId(plan.id(), plan.generationSeq()));
+                    TaskPlanDraft repaired = normalizer.normalize(mergeDetailIntoSkeleton(skeleton, parser.parseDetail(repairedResult.content())));
+                    ValidationAssessment assessed = validator.assess(repository.validationContext(plan), repaired, ValidationMode.COMPLETE, true);
+                    if (assessed.hasHardIssues()) throw new ModelOutputContractException("DOMAIN_VALIDATION_FAILED", null, assessed.errorCodes());
+                    return new GeneratedDetailOutcome(repaired, repairAttempt, repairedResult, assessed, true);
+                } catch (RuntimeException exhausted) {
+                    repository.fail(plan.id(), plan.generationSeq(), repairAttempt, expectedStatus,
+                            TaskPlanStatus.DETAIL_GENERATION_FAILED, safeCode(exhausted), safeErrorSummary("DETAIL", exhausted));
+                    throw new GenerationHandledException();
+                }
+            }
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, safeCode(invalidOutput),
                     safeErrorSummary("DETAIL", invalidOutput));
@@ -450,7 +470,7 @@ public class TaskPlanGenerationOrchestrator {
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, "DOMAIN_VALIDATION_FAILED");
             throw new GenerationHandledException();
         }
-        String repairPrompt = patchRepairPrompt(candidate, initialAssessment, scope);
+        String repairPrompt = prompt + "\n" + patchRepairPrompt(candidate, initialAssessment, scope);
         try {
             GenerationResult repairResult = model.generate(
                     repairSystem(), repairPrompt, "TASK_PLAN_REPAIR_PATCH",

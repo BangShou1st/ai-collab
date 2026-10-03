@@ -79,6 +79,7 @@ class AgentRuntimeBehaviorTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(repository.recordFinal(any(), any(), anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.consumeRecovery(any(),any(),anyInt())).thenReturn(true);
     }
 
     /**
@@ -394,7 +395,7 @@ class AgentRuntimeBehaviorTest {
     @Test
     void legacyWriteToolRuntimeRejection() {
         // 模拟 Legacy 模式
-        when(modelExecutor.isLegacyMode(any())).thenReturn(true);
+        when(modelExecutor.isLegacyModeForRun(any())).thenReturn(true);
 
         // 创建一个写工具
         ApprovalWriteAgentTool writeTool = new ApprovalWriteAgentTool() {
@@ -532,6 +533,29 @@ class AgentRuntimeBehaviorTest {
         // 非法参数，返回错误，不创建审批
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.QUEUED);
         verify(approvals, never()).propose(any(), any(), any(), any(), any());
+        verify(approvals, never()).proposeOrRevise(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void outOfRangeNumericArgumentsAreRejectedBeforeToolOrApprovalExecution() {
+        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
+        ApprovalWriteAgentTool tool = mock(ApprovalWriteAgentTool.class);
+        when(tool.name()).thenReturn("create_task_after_approval");
+        when(tool.writesBusinessData()).thenReturn(true);
+        when(tool.definition()).thenReturn(AgentToolDefinition.fromJson("create_task_after_approval", "创建任务",
+                "{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"},\"estimateHours\":{\"type\":[\"number\",\"null\"],\"minimum\":0.5,\"maximum\":80}},\"required\":[\"title\"]}", true));
+        coordinator = createCoordinator(new AgentToolRegistry(List.of(tool)));
+        JsonNode invalidArgs = json.createObjectNode().put("title", "无效提案").put("estimateHours", 81);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false)))
+                .thenReturn(toolCallResult(new ModelToolCall("call-invalid", "create_task_after_approval", invalidArgs)));
+
+        assertThat(coordinator.advance(run).status()).isEqualTo(AgentRunStatus.QUEUED);
+        verify(repository).consumeRecovery(eq(run), eq("PARAMETER_CORRECTION"), eq(1));
+        verify(tool, never()).normalize(any(), any());
+        verify(tool, never()).execute(any(), any());
+        verify(approvals, never()).proposeOrRevise(any(), any(), any(), any(), any());
     }
 
     /**
@@ -597,7 +621,7 @@ class AgentRuntimeBehaviorTest {
      * 测试因 proposeOrRevise 方法尚未实现而失败。
      */
     @Test
-    void persistedProposalReturnsDeterministicAnswerAndSucceeds() {
+    void persistedProposalWithIntegerHoursSucceedsWithoutParameterCorrection() {
         AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
 
         AgentExecutionContext ctx = context();
@@ -611,7 +635,7 @@ class AgentRuntimeBehaviorTest {
             @Override public boolean writesBusinessData() { return true; }
             @Override public AgentToolDefinition definition() {
                 return AgentToolDefinition.fromJson("create_task_after_approval", "创建任务",
-                        "{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}", true);
+                        "{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"},\"estimateHours\":{\"type\":[\"number\",\"null\"],\"minimum\":0.5,\"maximum\":80}},\"required\":[\"title\"]}", true);
             }
             @Override public JsonNode normalize(AgentToolContext ctx, JsonNode args) { return args; }
             @Override public JsonNode diff(AgentToolContext ctx, JsonNode args) { return json.createObjectNode(); }
@@ -623,7 +647,7 @@ class AgentRuntimeBehaviorTest {
         coordinator = createCoordinator(registry);
 
         // 模型返回写工具调用
-        JsonNode args = json.createObjectNode().put("title", "新任务");
+        JsonNode args = json.createObjectNode().put("title", "新任务").put("estimateHours", 3);
         ModelToolCall tc = new ModelToolCall("call-1", "create_task_after_approval", args);
         ModelTurnResult turn = toolCallResult(tc);
         when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
@@ -644,6 +668,8 @@ class AgentRuntimeBehaviorTest {
 
         // 新行为：返回 SUCCEEDED
         assertThat(result.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        verify(approvals).proposeOrRevise(eq(run), any(), any(), any(), any());
+        verify(repository, never()).consumeRecovery(any(), eq("PARAMETER_CORRECTION"), anyInt());
     }
 
     /**
@@ -767,6 +793,69 @@ class AgentRuntimeBehaviorTest {
         // 无证据，应该失败
         assertThat(result.status()).isEqualTo(AgentRunStatus.FAILED);
         assertThat(result.errorCode()).isEqualTo("AGENT_INVALID_RESPONSE");
+    }
+
+    @Test
+    void typedClarificationPersistsWaitingState() {
+        AgentRunView run=runWithSkillCode("ITERATION_PLANNING");
+        var clarification=new com.shitulelv.aicollab.agent.infrastructure.tool.RequestUserInputAgentTool();
+        coordinator=createCoordinator(new AgentToolRegistry(List.of(clarification)));
+        when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
+        var args=json.createObjectNode(); args.set("questions",json.createArrayNode().add("需要哪个截止日期？"));
+        when(modelExecutor.callModel(eq(run),any(),any(),anyBoolean())).thenReturn(toolCallResult(new ModelToolCall("question",clarification.name(),args)));
+        var outcome=coordinator.advance(run);
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.WAITING_FOR_USER_INPUT);
+        verify(repository).recordWaitingForInput(any(),eq("需要哪个截止日期？"));
+    }
+
+    @Test
+    void recoveryReusesKnownReadResultWithoutCallingModelOrTool() {
+        AgentRunView run=runWithSkillCode("ITERATION_PLANNING");
+        AgentTool read=spy(readOnlyTool("get_task")); coordinator=createCoordinator(new AgentToolRegistry(List.of(read)));
+        when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
+        var call=new ModelToolCall("known","get_task",json.createObjectNode());
+        when(repository.pendingModelTurn(run)).thenReturn(Optional.of(toolCallResult(call)));
+        when(repository.knownInvocationResult(run,call)).thenReturn(Optional.of(json.createObjectNode().put("status","SUCCEEDED")));
+        assertThat(coordinator.advance(run).status()).isEqualTo(AgentRunStatus.QUEUED);
+        verify(modelExecutor,never()).callModel(any(),any(),any(),anyBoolean()); verify(read,never()).execute(any(),any());
+    }
+
+    @Test
+    void duplicateProtocolCallIdsRejectWholeBatch() {
+        AgentRunView run=runWithSkillCode("ITERATION_PLANNING");
+        AgentTool read=spy(readOnlyTool("get_task")); coordinator=createCoordinator(new AgentToolRegistry(List.of(read)));
+        when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
+        var call=new ModelToolCall("duplicate","get_task",json.createObjectNode());
+        when(modelExecutor.callModel(eq(run),any(),any(),anyBoolean())).thenReturn(toolCallResult(call,call));
+        assertThat(coordinator.advance(run).errorCode()).isEqualTo("TOOL_CALL_PROTOCOL_INVALID");
+        verify(read,never()).execute(any(),any());
+    }
+
+    @Test
+    void readsOnBothSidesOfProposalCompleteAndExtraProposalIsRejected() {
+        var run=runWithSkillCode("ITERATION_PLANNING");
+        AgentTool read=spy(readOnlyTool("list_tasks"));
+        ApprovalWriteAgentTool write=mock(ApprovalWriteAgentTool.class);
+        when(write.name()).thenReturn("create_task_after_approval"); when(write.writesBusinessData()).thenReturn(true);
+        when(write.definition()).thenReturn(AgentToolDefinition.fromJson("create_task_after_approval","创建任务","{\"type\":\"object\"}",true));
+        coordinator=createCoordinator(new AgentToolRegistry(List.of(read,write)));
+        when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
+        var args=json.createObjectNode().put("title","synthetic");
+        var approval=mock(AgentApprovalView.class); when(approval.id()).thenReturn(UUID.randomUUID()); when(approval.revision()).thenReturn(1);
+        when(approval.proposalFamily()).thenReturn(AgentProposalFamily.TASK_CREATE);
+        when(approvals.proposeOrRevise(eq(run),any(),any(),any(),any())).thenReturn(new AgentProposalOutcome(approval,AgentProposalOutcome.Operation.CREATED,args,args,json.createObjectNode()));
+        var turn=toolCallResult(new ModelToolCall("read-before",read.name(),json.createObjectNode()),new ModelToolCall("proposal",write.name(),args),
+                new ModelToolCall("read-after",read.name(),json.createObjectNode()),new ModelToolCall("extra",write.name(),args));
+        when(modelExecutor.callModel(eq(run),any(),any(),anyBoolean())).thenReturn(turn);
+        assertThat(coordinator.advance(run).status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        verify(read,times(2)).execute(any(),any()); verify(approvals,times(1)).proposeOrRevise(any(),any(),any(),any(),any());
+        verify(repository).recordToolResult(any(),eq("create_task_after_approval"),argThat(i -> "extra".equals(i.path("toolCallId").asText())),
+                argThat(r -> "PROPOSAL_BATCH_LIMIT".equals(r.path("error").asText())),eq(true));
+        verify(write,never()).execute(any(),any());
     }
 
     // ========== 辅助方法 ==========

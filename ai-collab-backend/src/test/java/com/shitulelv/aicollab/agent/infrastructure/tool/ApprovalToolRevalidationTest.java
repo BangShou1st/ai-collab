@@ -102,6 +102,56 @@ class ApprovalToolRevalidationTest {
         createTaskTool.revalidate(ctx, arguments);
     }
 
+    @Test
+    void normalizedCreateProposalCanBeRevisedRevalidatedAndExecutedWithDisplayMetadata() {
+        var ctx = new AgentToolContext(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "OWNER", false, 0);
+        UUID assignee = UUID.randomUUID();
+        var member = mock(com.shitulelv.aicollab.project.application.view.MemberView.class);
+        when(member.displayName()).thenReturn("Current Owner");
+        when(members.find(ctx.projectId(), assignee)).thenReturn(java.util.Optional.of(member));
+        var stored = json.createObjectNode().put("title", "Original").put("estimateHours", 2)
+                .put("assigneeId", assignee.toString()).put("assigneeName", "Old display name");
+        var merged = createTaskTool.mergeArguments(stored, json.createObjectNode().put("title", "Revised").put("estimateHours", 3));
+        var normalized = createTaskTool.normalize(ctx, merged);
+        assertThat(normalized.path("assigneeName").asText()).isEqualTo("Current Owner");
+        assertThat(stored.path("title").asText()).isEqualTo("Original");
+        createTaskTool.revalidate(ctx, normalized);
+        createTaskTool.execute(ctx, normalized);
+        var request = org.mockito.ArgumentCaptor.forClass(com.shitulelv.aicollab.work.api.dto.CreateTaskRequest.class);
+        verify(tasks).create(eq(ctx.projectId()), request.capture(), eq(ctx.userId()));
+        assertThat(request.getValue().title()).isEqualTo("Revised");
+        assertThat(request.getValue().estimateHours()).isEqualByComparingTo("3");
+        assertThat(request.getValue().assigneeId()).isEqualTo(assignee);
+    }
+
+    @Test
+    void normalizedUpdateProposalKeepsDisplayMetadataOutOfBusinessRequest() {
+        var ctx = new AgentToolContext(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "OWNER", false, 0);
+        UUID taskId = UUID.randomUUID();
+        var normalized = json.createObjectNode().put("taskId", taskId.toString());
+        normalized.set("changes", json.createObjectNode().put("title", "Revised").put("estimateHours", 3)
+                .put("version", 2).put("assigneeName", "Display only"));
+        var task = mock(TaskView.class);
+        when(task.version()).thenReturn(2);
+        when(tasks.get(ctx.projectId(), taskId, ctx.userId())).thenReturn(task);
+        updateTaskTool.normalize(ctx, normalized);
+        updateTaskTool.revalidate(ctx, normalized);
+        updateTaskTool.execute(ctx, normalized);
+        var request = org.mockito.ArgumentCaptor.forClass(com.shitulelv.aicollab.work.api.dto.UpdateTaskRequest.class);
+        verify(tasks).update(eq(ctx.projectId()), eq(taskId), request.capture(), eq(ctx.userId()));
+        assertThat(request.getValue().title()).isEqualTo("Revised");
+        assertThat(request.getValue().version()).isEqualTo(2);
+    }
+
+    @Test
+    void displayMetadataHandlingDoesNotAllowOtherUnknownFields() {
+        var ctx = new AgentToolContext(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "OWNER", false, 0);
+        var arguments = json.createObjectNode().put("title", "Test").put("assigneeName", "Display")
+                .put("bypassApproval", true);
+        assertThatThrownBy(() -> createTaskTool.normalize(ctx, arguments)).isInstanceOf(IllegalArgumentException.class);
+        verify(tasks, never()).create(any(), any(), any());
+    }
+
     // ========== update_task_after_approval ==========
 
     @Test

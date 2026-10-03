@@ -156,7 +156,9 @@ public class TaskPlanQueryService {
         TaskPlanPermissions permissions = actionPolicy.permissions(plan.status(), write, hasBlockingIssues);
 
         return new TaskPlanDetailView(plan, latestVersion, activeAttempt, latestFailedAttempt,
-                latestAttempt, confirmation, validation, permissions, structuredIssues);
+                latestAttempt, confirmation, validation, permissions, structuredIssues,
+                plan.lastErrorCode() != null && latestFailedAttempt != null && "REPAIR".equals(latestFailedAttempt.stage())
+                        ? repository.repairDiagnostics(planId, UUID.fromString(latestFailedAttempt.id())) : List.of());
     }
 
     public List<TaskPlanVersionRecord> versions(UUID projectId, UUID planId, UUID actor) {

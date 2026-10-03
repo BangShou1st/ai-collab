@@ -52,6 +52,31 @@ class AgentPromptFactoryTest {
     }
 
     @Test
+    void legacySystemPromptContainsAnswerScopeConstraint() {
+        String prompt = prompts.systemPrompt(
+                List.of(AgentToolDefinition.openObject(
+                        "check_project_progress", "检查项目进度", false)),
+                "SUPERVISOR");
+
+        assertThat(prompt)
+                .contains("回答范围")
+                .contains("只回答标题、状态、负责人")
+                .contains("不补充其他字段")
+                .contains("工具结果与事件记录保持完整")
+                .contains("不强制把回答套成固定 JSON 模板");
+    }
+
+    @Test
+    void nativeModeSystemPromptContainsAnswerScopeConstraint() {
+        String prompt = prompts.systemPromptNative("SUPERVISOR");
+
+        assertThat(prompt)
+                .contains("回答范围")
+                .contains("只回答标题、状态、负责人")
+                .contains("工具结果与事件记录保持完整");
+    }
+
+    @Test
     void includesPreviousDecisionErrorInCorrectionPrompt() {
         AgentStepView invalid = new AgentStepView(
                 UUID.randomUUID(), 1, AgentStepType.ERROR, null,

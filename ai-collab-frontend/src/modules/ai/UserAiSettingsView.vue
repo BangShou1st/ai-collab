@@ -20,6 +20,7 @@ const zenDefault = ref(false)
 const saving = ref(false)
 const disconnecting = ref(false)
 const testingId = ref('')
+const probeMode = ref('CONNECTIVITY')
 const dialogVisible = ref(false)
 const purposesFailed = ref(false)
 const editing = ref<UserAiProvider | null>(null)
@@ -229,8 +230,9 @@ async function remove(provider: UserAiProvider): Promise<void> {
 async function testConnection(provider: UserAiProvider): Promise<void> {
   testingId.value = provider.id
   try {
-    await userAiApi.test(provider.id)
-    ElMessage.success('连接成功')
+    if (probeMode.value === 'CONNECTIVITY') await userAiApi.test(provider.id)
+    else await userAiApi.testCapability(provider.id, probeMode.value)
+    ElMessage.success('所选能力测试通过；其他能力需分别测试')
   } catch (error) {
     showApiError(error, '连接测试')
   } finally {
@@ -323,6 +325,12 @@ onMounted(load)
             <el-tag :type="provider.enabled ? '' : 'info'" size="small">{{ provider.enabled ? '启用' : '停用' }}</el-tag>
           </span>
           <div class="provider-actions">
+            <el-select v-model="probeMode" size="small" style="width: 130px" aria-label="测试能力">
+              <el-option label="连接" value="CONNECTIVITY" />
+              <el-option label="规划 JSON" value="PLANNING_JSON" />
+              <el-option label="流式" value="STREAMING" />
+              <el-option label="原生工具" value="NATIVE_TOOLS" />
+            </el-select>
             <el-button size="small" :loading="testingId === provider.id" @click="testConnection(provider)">测试</el-button>
             <el-button v-if="!provider.isDefault" size="small" @click="setDefault(provider)">设为默认</el-button>
             <el-button size="small" @click="openEdit(provider)">编辑</el-button>

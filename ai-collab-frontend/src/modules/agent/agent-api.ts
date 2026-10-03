@@ -44,8 +44,8 @@ export const agentApi = {
       `${root(projectId)}/sessions/${sessionId}/messages`, body,
     ))
   },
-  async run(projectId: string, runId: string): Promise<ApiResult<{ run: AgentRun }>> {
-    return apiResultFromResponse(await httpClient.get<ApiResponse<{ run: AgentRun }>>(`${root(projectId)}/runs/${runId}`))
+  async run(projectId: string, runId: string): Promise<ApiResult<AgentRunDetail>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<AgentRunDetail>>(`${root(projectId)}/runs/${runId}`))
   },
   async retry(projectId: string, runId: string): Promise<ApiResult<AgentRun>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<AgentRun>>(`${root(projectId)}/runs/${runId}/retry`))
@@ -79,14 +79,14 @@ export const agentApi = {
   },
   async approve(projectId: string, item: AgentApproval): Promise<ApiResult<AgentApproval>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<AgentApproval>>(
-      `${root(projectId)}/approvals/${item.id}/approve`, { nonce: item.nonce },
-      { headers: { 'Idempotency-Key': idempotencyKey(item.id, 'approve') } },
+      `${root(projectId)}/approvals/${item.id}/approve`, { nonce: item.nonce, expectedRevision: item.revision },
+      { headers: { 'Idempotency-Key': idempotencyKey(item.id, `approve:${item.revision}`) } },
     ))
   },
   async reject(projectId: string, item: AgentApproval, reason: string): Promise<ApiResult<AgentApproval>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<AgentApproval>>(
-      `${root(projectId)}/approvals/${item.id}/reject`, { nonce: item.nonce, reason },
-      { headers: { 'Idempotency-Key': idempotencyKey(item.id, 'reject') } },
+      `${root(projectId)}/approvals/${item.id}/reject`, { nonce: item.nonce, reason, expectedRevision: item.revision },
+      { headers: { 'Idempotency-Key': idempotencyKey(item.id, `reject:${item.revision}:${reason.trim()}`) } },
     ))
   },
   async skills(projectId: string): Promise<ApiResult<AgentSkill[]>> {

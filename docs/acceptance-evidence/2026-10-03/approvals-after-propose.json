@@ -1,0 +1,53 @@
+[
+  {
+    "id": "242bbe37-8518-4b86-a23a-8849c80fd733",
+    "projectId": "3292c82f-7878-40f4-a7f0-5b12d5c939cd",
+    "runId": "e43f37b8-23bc-4f39-a519-50ccb7f65d00",
+    "stepId": "e6c2a9cd-fcd6-405d-8133-36803af01398",
+    "toolName": "create_task_after_approval",
+    "arguments": {
+      "title": "太空兔浏览器验收-221915",
+      "status": null,
+      "dueDate": null,
+      "priority": "HIGH",
+      "startDate": null,
+      "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "description": null,
+      "milestoneId": null,
+      "assigneeName": "Local Owner",
+      "estimateHours": 3
+    },
+    "diff": {
+      "after": {
+        "title": "太空兔浏览器验收-221915",
+        "status": null,
+        "dueDate": null,
+        "priority": "HIGH",
+        "startDate": null,
+        "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+        "description": null,
+        "milestoneId": null,
+        "assigneeName": "Local Owner",
+        "estimateHours": 3
+      },
+      "operation": "CREATE"
+    },
+    "resourceId": null,
+    "resourceVersion": null,
+    "status": "PENDING",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "approverId": null,
+    "result": null,
+    "rejectionReason": null,
+    "expiresAt": "2026-10-04T14:19:34.810578Z",
+    "resolvedAt": null,
+    "version": 0,
+    "createdAt": "2026-10-03T14:19:34.790114Z",
+    "nonce": "242bbe37-8518-4b86-a23a-8849c80fd733",
+    "sessionId": "9464c291-b884-43e0-b956-ec26c47476f8",
+    "proposalFamily": "TASK_CREATE",
+    "subjectKey": "cb530890-4ba8-4417-98b1-6b612aad33f4",
+    "revision": 1,
+    "updatedAt": "2026-10-03T14:19:34.790114Z"
+  }
+]

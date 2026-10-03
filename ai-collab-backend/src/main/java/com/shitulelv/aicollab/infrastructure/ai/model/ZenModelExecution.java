@@ -52,6 +52,7 @@ public class ZenModelExecution {
         return registry.completionEndpoint(pol);
     }
     public JsonHttpModelClient zenHttp() { return zenHttp; }
+    @jakarta.annotation.PreDestroy void close() { zenHttp.close(); }
     private String userAgent() { return registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE).userAgent(); }
     public ModelTurnResult turn(UserAiProvider p, String apiKey, ModelTurnCommand cmd, AiRequestMetadata md) {
         return zenAdapter.turnWithSession(runtimeConfig(p), apiKey, cmd, md, userAgent());
@@ -61,7 +62,7 @@ public class ZenModelExecution {
      * gateway keeps its synchronous contract, only the underlying HTTP wire streams.
      */
     public ChatCompletionResult complete(UserAiProvider p, String apiKey, ChatCompletionCommand cmd, AiRequestMetadata md) {
-        ChatCompletionCommand effective = cmd.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT
+        ChatCompletionCommand effective = cmd.outputFormat() != ChatCompletionCommand.OutputFormat.TEXT
                 ? forceJson(cmd)
                 : cmd;
         return zenAdapter.completeStreamingSyncWithSession(runtimeConfig(p), apiKey, effective, md, userAgent());

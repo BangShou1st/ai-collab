@@ -41,6 +41,9 @@ public class AgentApprovalService {
     private final ProjectAccessGuard access;
     private final ObjectMapper json;
     private final Clock clock;
+    private org.springframework.jdbc.core.JdbcTemplate invocationJdbc;
+    @org.springframework.beans.factory.annotation.Autowired
+    void configureInvocations(org.springframework.jdbc.core.JdbcTemplate jdbc) { this.invocationJdbc = jdbc; }
     private final AgentEventService events;
     private final AgentApprovalPolicy policy = new AgentApprovalPolicy();
 
@@ -63,6 +66,28 @@ public class AgentApprovalService {
     public AgentProposalOutcome proposeOrRevise(
             AgentRunView run, ModelTurnResult turn, ModelToolCall call,
             AgentToolContext context, ApprovalWriteAgentTool tool) {
+        UUID invocationId = null;
+        if (invocationJdbc != null) {
+            com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope.verify(invocationJdbc, run.projectId(), run.id(), false);
+            var invocations = invocationJdbc.queryForList("""
+                    SELECT invocation_id,proposal_id,proposal_operation,arguments_json::text AS arguments,tool_name
+                    FROM agent_tool_invocation WHERE run_id=? AND tool_call_id=?
+                      AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN') FOR UPDATE
+                    """, run.id(), call.id(), run.id());
+            if (!invocations.isEmpty()) {
+                var invocation = invocations.getFirst();
+                try {
+                    if (!call.name().equals(invocation.get("tool_name")) || !call.arguments().equals(json.readTree((String)invocation.get("arguments"))))
+                        throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT, "调用身份与参数冲突");
+                } catch (com.fasterxml.jackson.core.JsonProcessingException e) { throw new IllegalStateException(e); }
+                invocationId = (UUID)invocation.get("invocation_id");
+                if (invocation.get("proposal_id") != null) {
+                    AgentApprovalView known = approvals.find(run.projectId(), (UUID)invocation.get("proposal_id")).orElseThrow();
+                    return new AgentProposalOutcome(known, AgentProposalOutcome.Operation.valueOf((String)invocation.get("proposal_operation")),
+                            known.arguments(), known.arguments(), known.diff());
+                }
+            }
+        }
         UUID explicitApprovalId = extractApprovalId(call.arguments());
         JsonNode patch = withoutApprovalId(call.arguments());
         AgentProposalFamily family = tool.proposalFamily();
@@ -76,14 +101,29 @@ public class AgentApprovalService {
             JsonNode arguments = revisionTool.normalize(context, merged);
             JsonNode diff = revisionTool.diff(context, arguments);
             String argumentsHash = policy.contentHash(canonical(arguments));
-            return reviseProposal(pending, arguments, diff, argumentsHash, run);
+            AgentProposalOutcome outcome = reviseProposal(pending, arguments, diff, argumentsHash, run);
+            bindInvocation(invocationId, outcome);
+            proposalEvent(run,outcome);
+            return outcome;
         }
 
         // 没有可信 approvalId 时始终创建新提案，避免覆盖同一会话中的另一个待审批对象。
         JsonNode arguments = tool.normalize(context, patch);
         JsonNode diff = tool.diff(context, arguments);
         String argumentsHash = policy.contentHash(canonical(arguments));
-        return createProposal(run, call, arguments, diff, argumentsHash, family, turn);
+        AgentProposalOutcome outcome = createProposal(run, call, arguments, diff, argumentsHash, family, turn);
+        bindInvocation(invocationId, outcome);
+        proposalEvent(run,outcome);
+        return outcome;
+    }
+    private void proposalEvent(AgentRunView run,AgentProposalOutcome outcome) {
+        events.append(run.projectId(),run.id(),outcome.operation()==AgentProposalOutcome.Operation.CREATED ? AgentEventType.APPROVAL_REQUESTED : AgentEventType.APPROVAL_UPDATED,
+                json.createObjectNode().put("approvalId",outcome.approval().id().toString()).put("revision",outcome.approval().revision()).put("status","RUNNING"));
+    }
+
+    private void bindInvocation(UUID invocationId, AgentProposalOutcome outcome) {
+        if (invocationId != null) invocationJdbc.update("UPDATE agent_tool_invocation SET proposal_id=?,proposal_operation=?,updated_at=now() WHERE invocation_id=?",
+                outcome.approval().id(), outcome.operation().name(), invocationId);
     }
 
     /**
@@ -264,13 +304,23 @@ public class AgentApprovalService {
     public AgentApprovalView approve(
             UUID projectId, UUID approvalId, UUID approverId,
             String nonce, UUID idempotencyKey) {
+        return approve(projectId, approvalId, approverId, nonce, idempotencyKey, 1);
+    }
+
+    @Transactional
+    public AgentApprovalView approve(
+            UUID projectId, UUID approvalId, UUID approverId,
+            String nonce, UUID idempotencyKey, Integer expectedRevision) {
         // 1. Approval 存在 + 2. 属于当前项目
         access.requireAdmin(projectId, approverId);
         AgentApprovalView approval = requireLocked(projectId, approvalId);
+        requireRevision(approval, expectedRevision);
 
         // 3. Approval 尚未处理 + 幂等检查
         if ("APPROVED".equals(approval.status())) {
-            if (approvals.matchesIdempotencyKey(projectId, approvalId, idempotencyKey)) {
+            if (approvals.matchesIdempotencyKey(projectId, approvalId, idempotencyKey)
+                    && approverId.equals(approval.approverId())
+                    && approvals.matchesNonceHash(projectId, approvalId, policy.nonceHash(nonce))) {
                 return approval;
             }
             throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT);
@@ -314,10 +364,21 @@ public class AgentApprovalService {
     public AgentApprovalView reject(
             UUID projectId, UUID approvalId, UUID approverId,
             String nonce, UUID idempotencyKey, String reason) {
+        return reject(projectId, approvalId, approverId, nonce, idempotencyKey, reason, 1);
+    }
+
+    @Transactional
+    public AgentApprovalView reject(
+            UUID projectId, UUID approvalId, UUID approverId,
+            String nonce, UUID idempotencyKey, String reason, Integer expectedRevision) {
         access.requireAdmin(projectId, approverId);
         AgentApprovalView approval = requireLocked(projectId, approvalId);
+        requireRevision(approval, expectedRevision);
         if ("REJECTED".equals(approval.status())) {
-            if (approvals.matchesIdempotencyKey(projectId, approvalId, idempotencyKey)) {
+            if (approvals.matchesIdempotencyKey(projectId, approvalId, idempotencyKey)
+                    && approverId.equals(approval.approverId())
+                    && java.util.Objects.equals(approval.rejectionReason(), reason == null ? "" : reason.trim())
+                    && approvals.matchesNonceHash(projectId, approvalId, policy.nonceHash(nonce))) {
                 return approval;
             }
             throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT);
@@ -334,6 +395,12 @@ public class AgentApprovalService {
     private AgentApprovalView requireLocked(UUID projectId, UUID approvalId) {
         return approvals.lock(projectId, approvalId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_APPROVAL_NOT_FOUND));
+    }
+
+    private static void requireRevision(AgentApprovalView approval, Integer expectedRevision) {
+        if (expectedRevision == null || approval.revision() != expectedRevision) {
+            throw new BusinessException(ErrorCode.AGENT_APPROVAL_CONFLICT, "提案已修订，请刷新并确认当前版本");
+        }
     }
 
     private void requireResolvable(AgentApprovalView approval, String nonce) {

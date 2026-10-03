@@ -1,0 +1,6 @@
+CREATE TABLE agent_recovery_counter (
+    run_id UUID NOT NULL REFERENCES agent_run(id) ON DELETE CASCADE,
+    kind VARCHAR(32) NOT NULL CHECK (kind IN ('MODEL_RETRY','FORMAT_REPAIR','PARAMETER_CORRECTION','TOOL_RETRY')),
+    attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts>=0),
+    PRIMARY KEY(run_id,kind)
+);

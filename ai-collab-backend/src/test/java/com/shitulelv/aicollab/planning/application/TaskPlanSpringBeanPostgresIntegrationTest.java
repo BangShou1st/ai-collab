@@ -90,6 +90,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     @Autowired TaskPlanVersionCommitService commits;
     @Autowired TaskPlanGenerationOrchestrator orchestrator;
     @Autowired TaskPlanRepository repository;
+    @Autowired TaskPlanQueryService queries;
     @Autowired TaskPlanIssueRepository issues;
     @Autowired TaskPlanActionPolicy actionPolicy;
     @Autowired ObjectMapper json;
@@ -115,7 +116,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         assertThat(AopUtils.isAopProxy(commits)).isTrue();
         assertThat(jdbc.queryForObject(
                 "select version from flyway_schema_history where success=true order by installed_rank desc limit 1",
-                String.class)).isEqualTo("45");
+                String.class)).isEqualTo("53");
         assertThat(jdbc.queryForObject(
                 "select count(*) from information_schema.tables where table_name='ai_task_plan'",
                 Integer.class)).isEqualTo(1);
@@ -207,6 +208,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         UUID issueId = persistedIssues.stream()
                 .filter(item -> item.issue().code().equals("DEPENDENCY_DATE_CONFLICT"))
                 .findFirst().orElseThrow().id();
+        jdbc.update("update ai_task_plan set last_error_code='PLAN_VALIDATION_FAILED',last_error_summary='REPAIR / PLAN_VALIDATION_FAILED' where id=?", created.id());
         commands.partialRegenerate(fixture.project(), created.id(), new PartialRegenerateRequest(
                 degraded.latestVersionId(), degraded.latestVersionNo(),
                 List.of("t2"), Set.of("startDate"), Set.of(
@@ -214,6 +216,8 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
                 List.of(issueId), PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES), fixture.user());
 
         var repaired = awaitStatus(fixture.project(), created.id(), Set.of(TaskPlanStatus.READY));
+        assertThat(repaired.lastErrorCode()).isNull();
+        assertThat(repaired.lastErrorSummary()).isNull();
         TaskPlanVersionRecord repairedVersion = repository.requireVersion(
                 fixture.project(), created.id(), repaired.latestVersionId());
         TaskPlanDraft afterRepair = repository.draft(repairedVersion);
@@ -235,6 +239,23 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
                 copyWithStartDate(task(conflictAgain, "t2"), LocalDate.of(2026, 8, 16)));
         commands.save(fixture.project(), created.id(), saveRequest(editable, resolved), fixture.user());
         assertThat(repository.require(fixture.project(), created.id()).status()).isEqualTo(TaskPlanStatus.READY);
+    }
+
+    @Test
+    void switchingToAnUnauthorizedModelPreservesTheExistingDraftAndItsFailureCause() throws Exception {
+        Fixture fixture = fixture("spring-model-switch");
+        stubLegalGeneration();
+        var created = commands.create(fixture.project(), request("Model switch"), fixture.user());
+        var ready = awaitStatus(fixture.project(), created.id(), Set.of(TaskPlanStatus.READY));
+        var before = repository.requireVersion(fixture.project(), created.id(), ready.latestVersionId());
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+                .thenThrow(new BusinessException(com.shitulelv.aicollab.common.exception.ErrorCode.AI_MODEL_CREDENTIAL_INVALID));
+        commands.regenerate(fixture.project(), created.id(), fixture.user());
+        var failed = awaitStatus(fixture.project(), created.id(), Set.of(TaskPlanStatus.FAILED));
+        assertThat(failed.latestVersionId()).isEqualTo(ready.latestVersionId());
+        assertThat(failed.latestVersionNo()).isEqualTo(ready.latestVersionNo());
+        assertThat(repository.requireVersion(fixture.project(), created.id(), failed.latestVersionId())).isEqualTo(before);
+        assertThat(failed.lastErrorSummary()).contains("AI_MODEL_CREDENTIAL_INVALID").doesNotContain("安全校验");
     }
 
     @Test
@@ -328,6 +349,29 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
                 .thenReturn(result(skeleton()));
         when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
                 .thenReturn(result(legalDetail()));
+    }
+
+    @Test
+    void rejectedRepairPersistsSafeDiagnosticsAndKeepsTheSeenVersion() throws Exception {
+        Fixture fixture = fixture("repair-diagnostics");
+        stubLegalGeneration();
+        var created = commands.create(fixture.project(), request("Located repair"), fixture.user());
+        var ready = awaitStatus(fixture.project(), created.id(), Set.of(TaskPlanStatus.READY));
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
+                .thenReturn(result("{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"t2\",\"description\":\"not allowed\"}]}"));
+        commands.partialRegenerate(fixture.project(), created.id(), new PartialRegenerateRequest(
+                ready.latestVersionId(), ready.latestVersionNo(), List.of("t2"), Set.of("startDate"),
+                Set.of("description"), List.of(), PartialRegenerateRequest.RESCHEDULE_UNLOCKED_TASKS), fixture.user());
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (repository.require(fixture.project(), created.id()).lastErrorCode() == null && System.nanoTime() < deadline) Thread.sleep(25);
+        var failed = repository.require(fixture.project(), created.id());
+        assertThat(failed.latestVersionId()).isEqualTo(ready.latestVersionId());
+        var diagnostics = queries.detail(fixture.project(), created.id(), fixture.user()).repairDiagnostics();
+        assertThat(diagnostics).hasSize(1);
+        assertThat(diagnostics.getFirst().targetTempKey()).isEqualTo("t2");
+        assertThat(diagnostics.getFirst().field()).isEqualTo("description");
+        assertThat(diagnostics.getFirst().code()).isEqualTo("PATCH_FIELD_LOCKED");
+        assertThat(diagnostics.getFirst().safeDetails()).isEmpty();
     }
 
     private void stubDegradedGenerationThenPartialRepair() {

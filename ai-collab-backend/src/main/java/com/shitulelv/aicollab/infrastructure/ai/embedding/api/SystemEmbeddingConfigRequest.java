@@ -11,6 +11,6 @@ public record SystemEmbeddingConfigRequest(
         @NotBlank @Size(max = 512) String apiPath,
         @Size(max = 1000) String apiKey,
         @NotBlank @Size(max = 160) String modelName,
-        @Min(1) @Max(4096) int dimensions,
+        @Min(0) @Max(4096) int dimensions,
         @Min(1) @Max(256) int batchSize) {
 }

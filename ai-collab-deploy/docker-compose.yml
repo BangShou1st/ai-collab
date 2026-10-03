@@ -58,6 +58,47 @@ services:
     volumes:
       - ai_collab_minio_data:/data
 
+  app:
+    build:
+      context: ../ai-collab-backend
+      dockerfile: Dockerfile
+    image: ai-collab-backend:local
+    container_name: ai-collab-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      EMBEDDING_LOCAL_ALLOWED_TARGETS: ${EMBEDDING_LOCAL_ALLOWED_TARGETS:-host.docker.internal:11434}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      JWT_SECRET: ${JWT_SECRET}
+      AUTH_PUBLIC_REGISTRATION_ENABLED: ${AUTH_PUBLIC_REGISTRATION_ENABLED}
+      MODEL_CONFIG_MASTER_KEY: ${MODEL_CONFIG_MASTER_KEY}
+      CHAT_ENABLED: ${CHAT_ENABLED}
+      CHAT_PROVIDER: ${CHAT_PROVIDER}
+      CHAT_BASE_URL: ${CHAT_BASE_URL}
+      CHAT_API_KEY: ${CHAT_API_KEY}
+      CHAT_MODEL: ${CHAT_MODEL}
+      AGENT_ENABLED: ${AGENT_ENABLED}
+      AGENT_MCP_ALLOWED_HOSTS: ${AGENT_MCP_ALLOWED_HOSTS}
+      KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR: ${KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR}
+      PLANNING_GENERATION_LIMIT_PER_USER_HOUR: ${PLANNING_GENERATION_LIMIT_PER_USER_HOUR}
+      REFRESH_COOKIE_SECURE: "false"
+    ports:
+      - "8080:8080"
+
 volumes:
   ai_collab_postgres_data:
   ai_collab_redis_data:

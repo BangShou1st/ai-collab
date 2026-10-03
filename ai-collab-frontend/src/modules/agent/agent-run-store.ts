@@ -9,7 +9,7 @@ export interface AgentTimelineState {
 }
 
 export function emptyAgentTimeline(run: AgentRun | null = null): AgentTimelineState {
-  return { run, events: [], lastSequence: 0, plan: null, connected: false }
+  return { run: run ? { ...run } : null, events: [], lastSequence: 0, plan: null, connected: false }
 }
 
 export function reconcileAgentRun(state: AgentTimelineState, persisted: AgentRun): void {
@@ -26,12 +26,12 @@ export function applyAgentEvent(state: AgentTimelineState, event: AgentRunEvent)
     state.plan = event.payload as unknown as AgentPlanView
   }
   if (event.type === 'MODEL_STARTED' || event.type === 'TOOL_CALL_STARTED') state.run.status = 'RUNNING'
-  if (event.type === 'APPROVAL_REQUESTED') state.run.status = 'WAITING_FOR_APPROVAL'
+  if (event.type === 'APPROVAL_REQUESTED' && event.payload?.status !== 'RUNNING') state.run.status = 'WAITING_FOR_APPROVAL'
   // APPROVAL_UPDATED 不改变 Run 状态，审批与 Run 已解耦
   if (event.type === 'WAITING_FOR_USER_INPUT') state.run.status = 'WAITING_FOR_USER_INPUT'
   if (event.type === 'RUN_RETRY_SCHEDULED') state.run.status = 'QUEUED'
   if (event.type === 'RUN_CANCELED') state.run.status = 'CANCELED'
   if (event.type === 'RUN_SUCCEEDED') state.run.status = 'SUCCEEDED'
-  if (event.type === 'RUN_FAILED') state.run.status = 'FAILED'
+  if (event.type === 'RUN_FAILED') state.run.status = event.payload?.retryable === true ? 'FAILED_RETRYABLE' : 'FAILED'
   if (event.type === 'RUN_BUDGET_EXCEEDED') state.run.status = 'BUDGET_EXCEEDED'
 }

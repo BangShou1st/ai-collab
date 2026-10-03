@@ -26,14 +26,14 @@ public class SystemEmbeddingConfigRepository {
                     rs.getString("fingerprint"),
                     rs.getBoolean("enabled"),
                     rs.getObject("created_at", OffsetDateTime.class),
-                    rs.getObject("updated_at", OffsetDateTime.class));
+                    rs.getObject("updated_at", OffsetDateTime.class), rs.getObject("generation_id", UUID.class));
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to map system embedding config", exception);
         }
     };
     private static final String COLUMNS = """
             id, provider, base_url, api_path, encrypted_api_key, model_name, dimensions,
-            batch_size, fingerprint, enabled, created_at, updated_at""";
+            batch_size, fingerprint, enabled, created_at, updated_at, generation_id""";
 
     private final JdbcTemplate jdbc;
 
@@ -45,6 +45,7 @@ public class SystemEmbeddingConfigRepository {
         return jdbc.query("SELECT " + COLUMNS + " FROM system_embedding_config WHERE enabled LIMIT 1",
                 MAPPER).stream().findFirst();
     }
+    public void lockInfrastructure() { jdbc.execute("SELECT pg_advisory_xact_lock(61046)"); }
 
     public SystemEmbeddingConfig save(SystemEmbeddingConfig value) {
         jdbc.update("""

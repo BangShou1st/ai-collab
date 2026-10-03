@@ -20,6 +20,7 @@ public interface KnowledgeCitationMapper {
             JOIN knowledge_message m ON m.id=#{messageId}
             JOIN knowledge_session s ON s.id=m.session_id AND s.project_id=c.project_id
             WHERE c.project_id=#{projectId} AND c.id=#{chunkId} AND d.id=#{documentId}
+                AND d.status='READY' FOR SHARE OF d,c
             """)
     int insertScoped(
             @Param("id") UUID id,
@@ -41,6 +42,7 @@ public interface KnowledgeCitationMapper {
             JOIN document_chunk dc ON dc.id=kc.chunk_id AND dc.project_id=ks.project_id
             JOIN project_document pd ON pd.id=dc.document_id AND pd.project_id=ks.project_id
             WHERE ks.project_id=#{projectId} AND ks.id=#{sessionId} AND ks.user_id=#{userId}
+                AND pd.status='READY'
             ORDER BY km.created_at ASC, km.id ASC, kc.rank ASC
             """)
     List<KnowledgeCitationEntity> listOwn(

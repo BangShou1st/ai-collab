@@ -1,450 +1,23 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { showApiError } from '../../api/api-result'
+import { MoreFilled } from '@element-plus/icons-vue'
 import PageHeader from '../../shared/PageHeader.vue'
 import EmptyState from '../../shared/EmptyState.vue'
-import { MoreFilled } from '@element-plus/icons-vue'
 import AgentContextChips from './AgentContextChips.vue'
 import AgentRunTimeline from './AgentRunTimeline.vue'
 import AgentApprovalCard from './AgentApprovalCard.vue'
 import SemanticDiff from '../../shared/SemanticDiff.vue'
-import { agentApi } from './agent-api'
-import { projectApi } from '../project/project-api'
-import type { ProjectMember } from '../project/types'
-import { streamAgentEvents } from './agent-event-stream'
-import { applyAgentEvent, emptyAgentTimeline, reconcileAgentRun, type AgentTimelineState } from './agent-run-store'
-import { agentRunPresentation } from './agent-run-state'
-import { reduceAgentActivities } from './agent-activity'
-import { buildConversationBlocks, type ConversationBlock } from './conversation-blocks'
-import { RUN_STATUS_LABEL } from './agent-labels'
-import { useAuthStore } from '../../stores/auth-store'
-import type { AgentApproval, AgentMessage, AgentPageContext, AgentPlanView, AgentRun, AgentRunDetail, AgentSession, AgentSessionSummary, AgentSkill } from './types'
+import { useAgentWorkspace } from './use-agent-workspace'
 
-const route = useRoute()
-const router = useRouter()
-const auth = useAuthStore()
-const projectId = computed(() => String(route.params.projectId ?? ''))
-const currentUserId = computed(() => String(auth.currentUser?.id ?? ''))
-const mobileView = ref<'sessions' | 'chat' | 'inspector'>('chat')
-const showInspector = ref(true)
-const runTone = computed(() => {
-  const severity = activeRunState.value?.severity
-  return severity === 'error' ? 'danger' : (severity ?? 'info')
-})
-const pendingApprovals = computed(() => approvals.value.filter((x) => x.status === 'PENDING'))
-const resolvedApprovals = computed(() => approvals.value.filter((x) => x.status !== 'PENDING'))
-const sessions = ref<AgentSession[]>([])
-const summaries = ref<AgentSessionSummary[]>([])
-const sessionId = ref('')
-const messages = ref<AgentMessage[]>([])
-const approvals = ref<AgentApproval[]>([])
-const runDetail = ref<AgentRunDetail | null>(null)
-const activities = computed(() => reduceAgentActivities(timeline.value.events))
-const conversationBlocks = computed<ConversationBlock[]>(() =>
-  buildConversationBlocks(messages.value, activeRun.value?.id ?? null, activities.value),
-)
-const summaryOf = (id: string) => summaries.value.find((s) => s.id === id)
-const isCreator = (item: AgentSession) => !currentUserId.value || item.creatorId === currentUserId.value
-const relativeTime = (value: string | null | undefined) => {
-  if (!value) return ''
-  const ms = Date.now() - new Date(value).getTime()
-  if (ms < 60_000) return '刚刚'
-  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)} 分钟前`
-  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)} 小时前`
-  return new Date(value).toLocaleString('zh-CN')
-}
-const runStatusLabel = (status: string) => RUN_STATUS_LABEL[status as keyof typeof RUN_STATUS_LABEL] ?? status
-function evidenceTitle(item: unknown, fallback: string): string {
-  if (item && typeof item === 'object') {
-    const o = item as Record<string, unknown>
-    for (const k of ['title', 'name', 'label', 'source', 'reason']) {
-      if (typeof o[k] === 'string' && (o[k] as string).trim()) return (o[k] as string).trim()
-    }
-  }
-  if (typeof item === 'string' && item.trim()) return item.trim().slice(0, 80)
-  return fallback
-}
-function evidenceDetail(item: unknown): string | null {
-  if (item && typeof item === 'object') {
-    const o = item as Record<string, unknown>
-    for (const k of ['url', 'content', 'text', 'summary', 'detail']) {
-      if (typeof o[k] === 'string' && (o[k] as string).trim()) return (o[k] as string).trim().slice(0, 300)
-    }
-    return null
-  }
-  return null
-}
-const statusDot = (status: string | null | undefined) => {
-  if (status === 'RUNNING' || status === 'QUEUED') return 'run'
-  if (status === 'WAITING_FOR_APPROVAL' || status === 'WAITING_FOR_USER_INPUT') return 'wait'
-  if (status === 'FAILED' || status === 'FAILED_RETRYABLE' || status === 'BUDGET_EXCEEDED') return 'fail'
-  if (status === 'SUCCEEDED') return 'done'
-  return 'idle'
-}
-const members = ref<ProjectMember[]>([])
-const skills = ref<AgentSkill[]>([])
-const selectedSkillCode = ref<string | null>(null)
-const question = ref('')
-const busy = ref(false)
-const sending = ref(false)
-const activeRun = ref<AgentRun | null>(null)
-const timeline = ref<AgentTimelineState>(emptyAgentTimeline())
-const activeRunState = computed(() => activeRun.value ? agentRunPresentation(activeRun.value) : null)
-const removedContextKeys = ref(new Set<keyof AgentPageContext>())
-let timer: number | undefined
-let streamController: AbortController | undefined
-
-function fail(reason: unknown, action: string): void {
-  showApiError(reason, action)
-}
-async function load() {
-  if (!projectId.value) return
-  busy.value = true
-  try {
-    const [s, sum, skillList, m] = await Promise.all([
-      agentApi.sessions(projectId.value), agentApi.sessionSummaries(projectId.value),
-      agentApi.skills(projectId.value), projectApi.listMembers(projectId.value),
-    ])
-    sessions.value = s.data; summaries.value = sum.data; skills.value = skillList.data; members.value = m.data
-    if (sessionId.value && !sessions.value.some((x) => x.id === sessionId.value)) {
-      sessionId.value = sessions.value[0]?.id ?? ''
-    } else if (!sessionId.value && sessions.value[0]) {
-      sessionId.value = sessions.value[0].id
-    } else if (sessionId.value) {
-      await restoreSession(sessionId.value)
-    }
-  } catch (reason) { fail(reason, 'Agent 工作区加载') } finally { busy.value = false }
-}
-async function loadMessages() {
-  messages.value = sessionId.value
-    ? (await agentApi.messages(projectId.value, sessionId.value)).data : []
-}
-function toPlanView(plan: unknown): AgentPlanView | null {
-  if (!plan || typeof plan !== 'object') return null
-  const p = plan as Record<string, unknown>
-  const steps = Array.isArray(p.steps) ? (p.steps as Record<string, unknown>[]).map((s, i) => ({
-    id: typeof s.id === 'string' ? s.id : `step-${i}`,
-    title: typeof s.title === 'string' ? s.title : `步骤 ${i + 1}`,
-    purpose: typeof s.purpose === 'string' ? s.purpose : undefined,
-    status: typeof s.status === 'string' ? s.status : 'PENDING',
-  })) : []
-  return {
-    version: typeof p.version === 'number' ? p.version : 1,
-    objective: typeof p.objective === 'string' ? p.objective : (typeof p.goal === 'string' ? p.goal : ''),
-    steps,
-    successCriteria: Array.isArray(p.successCriteria) ? (p.successCriteria as unknown[]).map(String) : undefined,
-  }
-}
-let restoreSeq = 0
-async function restoreSession(id: string) {
-  const token = ++restoreSeq
-  const pid = projectId.value
-  const fresh = () => token === restoreSeq && projectId.value === pid && sessionId.value === id
-  streamController?.abort()
-  activeRun.value = null
-  runDetail.value = null
-  approvals.value = []
-  timeline.value = emptyAgentTimeline()
-  const [msgs, latest] = await Promise.all([
-    agentApi.messages(pid, id),
-    agentApi.latestRun(pid, id),
-  ])
-  if (!fresh()) return
-  messages.value = msgs.data
-  runDetail.value = latest.data
-  const run = latest.data?.run
-  if (!run) return
-  activeRun.value = run
-  timeline.value = emptyAgentTimeline(run)
-  timeline.value.plan = toPlanView(latest.data?.plan)
-  try {
-    const history = (await agentApi.runEvents(pid, run.id, 0)).data
-    if (!fresh()) return
-    for (const e of history) applyAgentEvent(timeline.value, e)
-    const planEvent = [...history].reverse().find((e) => e.type === 'PLAN_CREATED' || e.type === 'PLAN_UPDATED')
-    const planFromEvents = toPlanView((planEvent?.payload as Record<string, unknown> | undefined)?.plan)
-    if (planFromEvents) timeline.value.plan = planFromEvents
-  } catch (reason) { if (fresh()) fail(reason, 'Agent 历史恢复') }
-  if (!fresh()) return
-  timeline.value.lastSequence = Math.max(latest.data?.lastEventSequence ?? 0, timeline.value.lastSequence)
-  activeRun.value = timeline.value.run
-  if (!fresh()) return
-  await refreshApprovals({ projectId: pid, sessionId: id, runId: run.id, token })
-  if (!fresh()) return
-  if (run.status === 'RUNNING' || run.status === 'QUEUED') {
-    resumeEventStream()
-  }
-}
-function resumeEventStream() {
-  if (!activeRun.value) return
-  streamController?.abort()
-  streamController = new AbortController()
-  void consumeEventStream(activeRun.value.id, streamController, 250)
-}
-async function newSession() {
-  try {
-    const created = (await agentApi.createSession(projectId.value, `项目协作 ${new Date().toLocaleDateString('zh-CN')}`)).data
-    sessions.value.unshift(created); sessionId.value = created.id
-  } catch (reason) { fail(reason, 'Agent 会话创建') }
-}
-async function renameSession(item: AgentSession) {
-  try {
-    const result = await ElMessageBox.prompt('请输入新的会话名称', '重命名会话', {
-      inputValue: item.title,
-      inputValidator: value => {
-        const title = value.trim()
-        if (!title) return '会话名称不能为空'
-        if (Array.from(title).length > 160) return '会话名称不能超过 160 个字符'
-        return true
-      },
-      confirmButtonText: '保存',
-      cancelButtonText: '取消',
-    })
-    const title = result.value.trim()
-    const updated = (await agentApi.renameSession(projectId.value, item.id, title)).data
-    sessions.value = sessions.value.map(session =>
-      session.id === item.id ? { ...session, ...updated } : session)
-    ElMessage.success('会话已重命名')
-  } catch (reason) {
-    if (reason === 'cancel' || reason === 'close') return
-    fail(reason, 'Agent 会话重命名')
-  }
-}
-async function deleteSession(item: AgentSession) {
-  try {
-    await ElMessageBox.confirm(
-      `确认删除会话"${item.title}"及其全部消息吗？`,
-      '删除会话',
-      {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
-      },
-    )
-    await agentApi.deleteSession(projectId.value, item.id)
-    sessions.value = sessions.value.filter(session => session.id !== item.id)
-    if (sessionId.value === item.id) {
-      activeRun.value = null
-      messages.value = []
-      sessionId.value = sessions.value[0]?.id ?? ''
-    }
-    ElMessage.success('会话已删除')
-  } catch (reason) {
-    if (reason === 'cancel' || reason === 'close') return
-    fail(reason, 'Agent 会话删除')
-  }
-}
-async function send() {
-  const content = question.value.trim()
-  if (!content || sending.value) return
-  if (!sessionId.value) await newSession()
-  if (!sessionId.value) return
-  sending.value = true
-  try {
-    const run = (await agentApi.submit(projectId.value, sessionId.value, {
-      content,
-      skillCode: selectedSkillCode.value,
-      pageContext: currentPageContext(),
-    })).data
-    activeRun.value = run
-    timeline.value = emptyAgentTimeline(run)
-    question.value = ''
-    selectedSkillCode.value = null
-    await loadMessages()
-    startEventStream(run)
-  } catch (reason) { fail(reason, 'Agent 消息发送') } finally { sending.value = false }
-}
-function queryId(key: string): string | null {
-  const value = route.query[key]
-  const raw = Array.isArray(value) ? value[0] : value
-  return typeof raw === 'string' && /^[0-9a-f-]{36}$/i.test(raw) ? raw : null
-}
-function currentPageContext(): AgentPageContext {
-  const paramId = (key: string) => {
-    const value = route.params[key]
-    return typeof value === 'string' && /^[0-9a-f-]{36}$/i.test(value) ? value : null
-  }
-  return {
-    route: String(route.name ?? route.path).slice(0, 80),
-    selectedTaskId: removedContextKeys.value.has('selectedTaskId') ? null : (queryId('task') ?? paramId('taskId')),
-    selectedMilestoneId: removedContextKeys.value.has('selectedMilestoneId') ? null : (queryId('milestone') ?? paramId('milestoneId')),
-    selectedDocumentId: removedContextKeys.value.has('selectedDocumentId') ? null : (queryId('document') ?? paramId('documentId')),
-    selectedPlanId: removedContextKeys.value.has('selectedPlanId') ? null : (queryId('plan') ?? paramId('planId')),
-    filters: {},
-  }
-}
-function dropQueryKey(key: string) {
-  const next = { ...route.query }
-  delete next[key]
-  void router.replace({ query: next })
-}
-const pageContext = computed(currentPageContext)
-const hasPageContext = computed(() => {
-  const c = pageContext.value
-  return Boolean(c.selectedTaskId ?? c.selectedMilestoneId ?? c.selectedDocumentId ?? c.selectedPlanId)
-})
-function removeContext(key: keyof AgentPageContext) {
-  removedContextKeys.value = new Set([...removedContextKeys.value, key])
-  const queryKey = key === 'selectedTaskId' ? 'task' : key === 'selectedDocumentId' ? 'document' : key === 'selectedPlanId' ? 'plan' : key === 'selectedMilestoneId' ? 'milestone' : null
-  if (queryKey) dropQueryKey(queryKey)
-}
-function clearContext() {
-  removedContextKeys.value = new Set(['selectedTaskId', 'selectedMilestoneId', 'selectedDocumentId', 'selectedPlanId'])
-  const next = { ...route.query }
-  delete next.task
-  delete next.document
-  delete next.plan
-  delete next.milestone
-  void router.replace({ query: next })
-}
-function startEventStream(run: AgentRun) {
-  streamController?.abort()
-  streamController = new AbortController()
-  timeline.value = emptyAgentTimeline(run)
-  void consumeEventStream(run.id, streamController, 250)
-}
-async function consumeEventStream(runId: string, controller: AbortController, delayMs: number) {
-  try {
-    timeline.value.connected = true
-    await streamAgentEvents(
-      `/api/v1/projects/${projectId.value}/agent/runs/${runId}/events`,
-      timeline.value.lastSequence,
-      controller.signal,
-      event => {
-        applyAgentEvent(timeline.value, event)
-        activeRun.value = timeline.value.run
-      },
-    )
-    timeline.value.connected = false
-    if (!controller.signal.aborted) {
-      const persisted = (await agentApi.run(projectId.value, runId)).data.run
-      reconcileAgentRun(timeline.value, persisted)
-      activeRun.value = timeline.value.run
-    }
-    if (controller.signal.aborted || timeline.value.run?.status === 'SUCCEEDED'
-      || timeline.value.run?.status === 'FAILED' || timeline.value.run?.status === 'CANCELED'
-      || timeline.value.run?.status === 'BUDGET_EXCEEDED'
-      || timeline.value.run?.status === 'WAITING_FOR_APPROVAL'
-      || timeline.value.run?.status === 'WAITING_FOR_USER_INPUT') {
-      await Promise.all([
-        loadMessages(),
-        refreshApprovals({ projectId: projectId.value, sessionId: sessionId.value, runId }),
-      ])
-      return
-    }
-    await new Promise(resolve => window.setTimeout(resolve, delayMs))
-    if (!controller.signal.aborted) void consumeEventStream(runId, controller, Math.min(delayMs * 2, 5000))
-  } catch (reason) {
-    timeline.value.connected = false
-    if (controller.signal.aborted) return
-    await new Promise(resolve => window.setTimeout(resolve, delayMs))
-    if (!controller.signal.aborted) void consumeEventStream(runId, controller, Math.min(delayMs * 2, 5000))
-  }
-}
-interface ApprovalScope {
-  projectId: string
-  sessionId: string
-  runId: string
-  token?: number
-}
-
-function currentApprovalScope(): ApprovalScope | null {
-  const runId = activeRun.value?.id
-  if (!runId) return null
-  return { projectId: projectId.value, sessionId: sessionId.value, runId }
-}
-
-async function refreshApprovals(scope?: ApprovalScope) {
-  const pid = scope?.projectId ?? projectId.value
-  const sid = scope?.sessionId ?? sessionId.value
-  const rid = scope?.runId ?? activeRun.value?.id
-  if (!rid) {
-    if (projectId.value === pid && sessionId.value === sid) approvals.value = []
-    return
-  }
-  // Fetch into a local first; attribute the response only to still-current context.
-  // Never re-read activeRun to decide an old response's ownership.
-  const data = (await agentApi.runApprovals(pid, rid)).data
-  if (projectId.value !== pid || sessionId.value !== sid) return
-  if (scope?.token !== undefined && scope.token !== restoreSeq) return
-  if ((activeRun.value?.id ?? null) !== rid) return
-  approvals.value = data
-}
-async function approve(item: AgentApproval) {
-  try {
-    await ElMessageBox.confirm('确认按此差异写入项目数据？操作将记录审批人和结果。', '批准 Agent 提案', { type: 'warning' })
-  } catch { return }
-  try {
-    await agentApi.approve(projectId.value, item)
-    await restoreSession(sessionId.value)
-    ElMessage.success('已批准并执行')
-  }
-  catch (reason) { fail(reason, 'Agent 提案批准') }
-}
-async function continueRun(content: string) {
-  if (!activeRun.value || activeRun.value.status !== 'WAITING_FOR_USER_INPUT') return
-  sending.value = true
-  try {
-    await agentApi.continueRun(projectId.value, activeRun.value.id, content)
-    question.value = ''
-    await restoreSession(sessionId.value)
-  } catch (reason) { fail(reason, 'Agent 回复') } finally { sending.value = false }
-}
-function continueRunHandler() {
-  const content = question.value.trim()
-  if (!content || sending.value) return
-  continueRun(content)
-}
-async function retryActiveRun() {
-  if (!activeRun.value || sending.value) return
-  sending.value = true
-  try {
-    await agentApi.retry(projectId.value, activeRun.value.id)
-    await restoreSession(sessionId.value)
-  } catch (reason) { fail(reason, 'Agent 重试') } finally { sending.value = false }
-}
-async function cancelActiveRun() {
-  if (!activeRun.value) return
-  try {
-    await agentApi.cancel(projectId.value, activeRun.value.id)
-    ElMessage.success('已请求取消')
-  } catch (reason) { fail(reason, 'Agent 取消') }
-}
-async function reject(item: AgentApproval) {
-  let reason_text: string
-  try {
-    const result = await ElMessageBox.prompt('请输入拒绝原因', '拒绝 Agent 提案', { inputValidator: value => Boolean(value.trim()) })
-    reason_text = result.value
-  } catch { return }
-  const scope = currentApprovalScope()
-  try {
-    await agentApi.reject(projectId.value, item, reason_text)
-    if (scope) await refreshApprovals(scope)
-    else await refreshApprovals()
-  }
-  catch (reason) { fail(reason, 'Agent 提案拒绝') }
-}
-const time = (value: string) => new Date(value).toLocaleString('zh-CN')
-watch(projectId, (next, prev) => {
-  if (!next) return
-  if (prev !== undefined && next !== prev) {
-    streamController?.abort()
-    sessionId.value = ''
-    messages.value = []
-    activeRun.value = null
-    runDetail.value = null
-    approvals.value = []
-    timeline.value = emptyAgentTimeline()
-  }
-  void load()
-}, { immediate: true })
-watch(sessionId, (id) => {
-  if (!id) return
-  restoreSession(id).catch(reason => fail(reason, 'Agent 会话恢复'))
-})
-onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
+const {
+  projectId, currentUserId, mobileView, showInspector, runTone,
+  pendingApprovals, resolvedApprovals, sessions, summaries, sessionId, messages,
+  approvals, runDetail, activities, conversationBlocks,
+  summaryOf, isCreator, relativeTime, runStatusLabel, evidenceTitle, evidenceDetail,
+  statusDot, members, skills, selectedSkillCode, question, busy, sending,
+  activeRun, timeline, activeRunState, pageContext, hasPageContext,
+  newSession, renameSession, deleteSession, send, removeContext, clearContext,
+  approve, reject, approvalBusy, continueRunHandler, retryActiveRun, cancelActiveRun, time,
+} = useAgentWorkspace()
 </script>
 
 <template>
@@ -585,14 +158,17 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
         <section v-if="activeRun" class="inspector-block">
           <h2>待审批（{{ pendingApprovals.length }}）</h2>
           <div v-if="!pendingApprovals.length" class="board-empty">暂无待审批提案</div>
-          <AgentApprovalCard v-for="item in pendingApprovals" :key="item.id" :approval="item" :members="members" @approve="approve" @reject="reject" />
+          <AgentApprovalCard v-for="item in pendingApprovals" :key="item.id" :approval="item" :members="members" :busy-action="approvalBusy?.id === item.id ? approvalBusy.action : null" @approve="approve" @reject="reject" />
         </section>
         <section v-if="activeRun" class="inspector-block">
-          <h2>Plan</h2>
-          <AgentRunTimeline :plan="timeline.plan" :status="activeRun?.status" />
+          <h2>执行记录与参考步骤</h2>
+          <AgentRunTimeline :plan="timeline.plan" :status="activeRun?.status" :events="timeline.events" />
         </section>
         <section v-if="activeRun" class="inspector-block">
-          <h2>Resources</h2>
+            <h2>Resources</h2>
+            <p v-if="runDetail?.modelConfiguration" class="inspector-meta">{{ runDetail.modelConfiguration.provider }} · {{ runDetail.modelConfiguration.model }} · {{ runDetail.modelConfiguration.mode }}</p>
+            <p v-if="runDetail?.modelConfiguration" class="inspector-meta">输出预算 {{ runDetail.modelConfiguration.maxOutputTokens }} · {{ runDetail.modelConfiguration.budgetEnforced ? '请求已设置上限' : '提供商请求不支持该上限' }}</p>
+            <p v-if="runDetail?.recoveryCounters" class="inspector-meta">模型重试 {{ runDetail.recoveryCounters.MODEL_RETRY ?? 0 }} · 格式修复 {{ runDetail.recoveryCounters.FORMAT_REPAIR ?? 0 }} · 参数纠正 {{ runDetail.recoveryCounters.PARAMETER_CORRECTION ?? 0 }}</p>
           <p class="inspector-meta">Steps {{ activeRun.stepsUsed }}/{{ activeRun.maxSteps }} · Tools {{ activeRun.toolCallsUsed }}/{{ activeRun.maxToolCalls }} · Tokens {{ activeRun.inputTokensUsed }}+{{ activeRun.outputTokensUsed }}</p>
         </section>
         <section v-if="activeRun && activities.length" class="inspector-block">
@@ -610,7 +186,7 @@ onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
         </section>
         <section v-if="activeRun && resolvedApprovals.length" class="inspector-block">
           <h2>已处理提案（{{ resolvedApprovals.length }}）</h2>
-          <AgentApprovalCard v-for="item in resolvedApprovals" :key="item.id" :approval="item" :members="members" @approve="approve" @reject="reject" />
+          <AgentApprovalCard v-for="item in resolvedApprovals" :key="item.id" :approval="item" :members="members" :busy-action="approvalBusy?.id === item.id ? approvalBusy.action : null" @approve="approve" @reject="reject" />
         </section>
       </aside>
     </div>
@@ -666,9 +242,9 @@ article small{margin-right:12px;color:var(--el-text-color-secondary)}
 .inspector-actions{display:flex;gap:8px}
 .inspector-toggle{display:none}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d1d5db;margin-right:6px}
-.dot.run{background:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
-.dot.wait{background:#d97706}
-.dot.fail{background:#dc2626}
+.dot.run{background:var(--color-primary);box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.dot.wait{background:var(--color-warning)}
+.dot.fail{background:var(--color-danger)}
 .dot.done{background:#16a34a}
 .session-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .session-meta{display:flex;gap:8px;font-size:12px;color:var(--el-text-color-secondary)}
@@ -678,11 +254,11 @@ article small{margin-right:12px;color:var(--el-text-color-secondary)}
 .activity.proposal{background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.18)}
 .activity.approval{background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.25)}
 .activity.failure,.activity.failed{background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2)}
-.activity-mark{width:8px;height:8px;border-radius:50%;background:#9ca3af;margin-top:5px;flex:none}
-.activity.running .activity-mark{background:#2563eb;animation:pulse 1.2s infinite}
+.activity-mark{width:8px;height:8px;border-radius:50%;background:var(--color-text-muted);margin-top:5px;flex:none}
+.activity.running .activity-mark{background:var(--color-primary);animation:pulse 1.2s infinite}
 .activity.done .activity-mark,.activity.success .activity-mark{background:#16a34a}
-.activity.failed .activity-mark,.activity.failure .activity-mark{background:#dc2626}
-.activity.waiting .activity-mark,.activity.approval .activity-mark{background:#d97706}
+.activity.failed .activity-mark,.activity.failure .activity-mark{background:var(--color-danger)}
+.activity.waiting .activity-mark,.activity.approval .activity-mark{background:var(--color-warning)}
 .activity-title{font-size:13px;font-weight:600}
 .activity-detail{font-size:12px;color:var(--el-text-color-secondary)}
 .activity-meta{display:flex;gap:8px;font-size:12px;color:var(--el-text-color-secondary)}

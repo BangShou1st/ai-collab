@@ -49,6 +49,12 @@ public class TaskListAgentTool implements AgentTool {
         values.stream().limit(limit).map(this::narrow).forEach(items::add);
         ObjectNode data = json.createObjectNode();
         data.set("items", items);
+        data.put("fieldGuide", "items 是本次查询的真实任务记录。title=标题，status=任务状态（TODO待处理、IN_PROGRESS进行中、BLOCKED已阻塞、DONE已完成、CANCELED已取消），assigneeId/assigneeName=正式负责人，null 表示未分配。外层 status=SUCCEEDED 仅表示工具调用成功，不是任务状态。按用户要求回答已有字段，不因 Skill 模板要求额外分析而宣称已有字段缺失。");
+        ArrayNode facts = data.putArray("taskFacts");
+        for (JsonNode item : items) {
+            ObjectNode fact = facts.addObject();
+            for (String field : List.of("id", "title", "status", "assigneeId", "assigneeName")) fact.set(field, item.path(field));
+        }
         data.put("returned", items.size());
         data.put("truncated", values.size() > limit);
         return new AgentToolResult(data, List.of(), List.of());

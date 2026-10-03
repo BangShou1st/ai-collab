@@ -108,4 +108,5 @@ export interface TaskPlanDetailView {
   validation: TaskPlanValidationView
   permissions: PlanPermissions
   structuredIssues: StructuredValidationIssue[]
+  repairDiagnostics?: Omit<StructuredValidationIssue, 'id'>[]
 }

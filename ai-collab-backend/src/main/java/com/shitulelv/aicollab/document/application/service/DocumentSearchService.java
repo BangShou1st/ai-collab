@@ -44,9 +44,12 @@ public class DocumentSearchService {
         if (queryEmbedding.vectors().size() != 1) {
             throw new BusinessException(ErrorCode.DOCUMENT_EMBEDDING_FAILED);
         }
+        if (queryEmbedding.generationId() != null) return documents.search(projectId, queryEmbedding.vectors().getFirst(),
+                queryEmbedding.provider(), queryEmbedding.model(), queryEmbedding.dimension(),
+                queryEmbedding.fingerprint(), scopedIds, topK, queryEmbedding.generationId());
         return documents.search(projectId, queryEmbedding.vectors().getFirst(),
                 queryEmbedding.provider(), queryEmbedding.model(), queryEmbedding.dimension(),
-                embeddings.activeFingerprint(), scopedIds, topK);
+                queryEmbedding.fingerprint(), scopedIds, topK);
     }
 
     private static String validateQuery(String query) {

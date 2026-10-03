@@ -63,11 +63,11 @@ const formatIssue = (issue: StructuredValidationIssue) => {
 
 <style scoped>
 .issue-panel {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
-  background: #fff8e1;
+  background: var(--color-warning-soft);
 }
 .issue-header {
   font-weight: 600;
@@ -112,6 +112,6 @@ const formatIssue = (issue: StructuredValidationIssue) => {
   cursor: pointer;
 }
 .btn-sm:hover {
-  background: #f5f5f5;
+  background: var(--color-surface-raised);
 }
 </style>

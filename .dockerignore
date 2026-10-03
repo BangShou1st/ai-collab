@@ -1,0 +1,33 @@
+# 版本控制与本地文件
+.git
+.gitignore
+.gitattributes
+.idea/
+**/.idea/
+.claude/
+.superpowers/
+.workbuddy/
+
+# 构建产物
+**/target/
+**/node_modules/
+**/dist/
+**/.vite/
+**/.wrangler/
+
+# 日志与崩溃转储
+*.log
+hs_err_pid*.log
+replay_pid*.log
+**/surefire-reports/
+
+# 环境与密钥
+.env
+.env.*
+!*.env.example
+
+# 文档与本地资料
+docs/
+README.md
+机器码.txt
+*.bat

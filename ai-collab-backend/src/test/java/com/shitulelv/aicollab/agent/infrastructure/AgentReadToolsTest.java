@@ -41,6 +41,10 @@ class AgentReadToolsTest {
 
         assertThat(result.data().path("items")).hasSize(1);
         assertThat(result.data().path("items").get(0).path("title").asText()).isEqualTo("一");
+        assertThat(result.data().path("items").get(0).path("status").asText()).isEqualTo("TODO");
+        assertThat(result.data().path("taskFacts").get(0).path("status").asText()).isEqualTo("TODO");
+        assertThat(result.data().path("taskFacts").get(0).path("assigneeId").isNull()).isTrue();
+        assertThat(result.data().path("fieldGuide").asText()).contains("不是任务状态");
     }
 
     @Test
@@ -66,6 +70,22 @@ class AgentReadToolsTest {
         assertThat(result.citations().getFirst().chunkId()).isEqualTo(chunk);
         assertThat(result.citations().getFirst().pageNumber()).isEqualTo(7);
         assertThat(result.citations().getFirst().quote()).isEqualTo("必须通过全部自动化测试");
+    }
+
+    @Test
+    void taskFactsPreserveTitleStatusAndFormalAssignee() {
+        var tasks = mock(TaskApplicationService.class);
+        var member = UUID.randomUUID();
+        var task = new TaskView(UUID.randomUUID(), context.projectId(), "验收", "", null, null,
+                member, "Local Owner", TaskStatus.IN_PROGRESS, TaskPriority.HIGH,
+                null, null, null, 3, 0, List.of(), null);
+        when(tasks.list(eq(context.projectId()), isNull(), isNull(), isNull(), eq(context.userId()))).thenReturn(List.of(task));
+        var data = new TaskListAgentTool(tasks, json).execute(context, json.createObjectNode()).data();
+        var fact = data.path("taskFacts").get(0);
+        assertThat(fact.path("title").asText()).isEqualTo("验收");
+        assertThat(fact.path("status").asText()).isEqualTo("IN_PROGRESS");
+        assertThat(fact.path("assigneeId").asText()).isEqualTo(member.toString());
+        assertThat(fact.path("assigneeName").asText()).isEqualTo("Local Owner");
     }
 
     private TaskView task(String title) {

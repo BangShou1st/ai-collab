@@ -8,8 +8,10 @@ interface RetryRequestConfig extends InternalAxiosRequestConfig {
 
 const NON_REFRESHABLE_PATHS = ['/auth/login', '/auth/refresh', '/auth/logout']
 
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
+
 export const httpClient = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_BASE_URL,
   withCredentials: true,
 })
 
@@ -18,7 +20,7 @@ export const httpClient = axios.create({
  * 邀请码和密码只能作为当前请求参数存在，调用方不得记录或持久化。
  */
 export const anonymousHttpClient = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_BASE_URL,
   withCredentials: true,
 })
 

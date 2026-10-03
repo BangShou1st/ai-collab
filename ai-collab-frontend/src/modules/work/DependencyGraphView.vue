@@ -37,13 +37,13 @@ async function load(): Promise<void> {
 
 function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
-    'TODO': '#909399',
-    'IN_PROGRESS': '#409eff',
-    'BLOCKED': '#e6a23c',
-    'DONE': '#67c23a',
-    'CANCELED': '#f56c6c',
+    'TODO': 'var(--color-text-muted)',
+    'IN_PROGRESS': 'var(--color-primary)',
+    'BLOCKED': 'var(--color-warning)',
+    'DONE': 'var(--color-success)',
+    'CANCELED': 'var(--color-danger)',
   }
-  return colors[status] || '#909399'
+  return colors[status] || 'var(--color-text-muted)'
 }
 
 const graphNodes = computed(() => {
@@ -146,7 +146,7 @@ onMounted(load)
             refY="3.5"
             orient="auto"
           >
-            <polygon points="0 0, 10 3.5, 0 7" fill="#909399" />
+            <polygon points="0 0, 10 3.5, 0 7" fill="var(--color-text-muted)" />
           </marker>
           <marker
             id="arrowhead-hover"
@@ -156,7 +156,7 @@ onMounted(load)
             refY="3.5"
             orient="auto"
           >
-            <polygon points="0 0, 10 3.5, 0 7" fill="#409eff" />
+            <polygon points="0 0, 10 3.5, 0 7" fill="var(--color-primary)" />
           </marker>
         </defs>
         <g v-for="edge in edges" :key="edgeKey(edge)">
@@ -174,7 +174,7 @@ onMounted(load)
           <path
             v-if="graphNodes.find(n => n.id === edge.source) && graphNodes.find(n => n.id === edge.target)"
             :d="getEdgePath(edge)"
-            :stroke="hoveredEdge === edgeKey(edge) ? '#409eff' : '#909399'"
+            :stroke="hoveredEdge === edgeKey(edge) ? 'var(--color-primary)' : 'var(--color-text-muted)'"
             :stroke-width="hoveredEdge === edgeKey(edge) ? 3.5 : 2"
             :opacity="hoveredEdge !== null && hoveredEdge !== edgeKey(edge) ? 0.3 : 1"
             fill="none"
@@ -244,16 +244,16 @@ onMounted(load)
   font-size: 12px;
 }
 .graph-legend span { display: flex; align-items: center; gap: 5px; }
-.graph-legend i { width: 9px; height: 9px; border-radius: 50%; background: #909399; }
-.graph-legend .progress { background: #409eff; }
-.graph-legend .blocked { background: #e6a23c; }
-.graph-legend .done { background: #67c23a; }
+.graph-legend i { width: 9px; height: 9px; border-radius: 50%; background: var(--color-text-muted); }
+.graph-legend .progress { background: var(--color-primary); }
+.graph-legend .blocked { background: var(--color-warning); }
+.graph-legend .done { background: var(--color-success); }
 .dependency-graph {
   display: block;
   background-color: #fafbfe;
   background-image: radial-gradient(#dfe3ec 1px, transparent 1px);
   background-size: 18px 18px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--color-border);
   border-radius: 12px;
 }
 .edge-hit {

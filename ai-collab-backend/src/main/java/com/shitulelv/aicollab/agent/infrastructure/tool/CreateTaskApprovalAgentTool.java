@@ -66,7 +66,7 @@ public class CreateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool 
 
     @Override
     public JsonNode normalize(AgentToolContext context, JsonNode arguments) {
-        CreateTaskRequest req = request(arguments, CreateTaskRequest.class);
+        CreateTaskRequest req = taskRequest(arguments, CreateTaskRequest.class);
         ObjectNode node = (ObjectNode) tree(req);
         // 附加负责人显示名称，便于前端审批界面展示
         if (req.assigneeId() != null) {
@@ -84,7 +84,7 @@ public class CreateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool 
     @Override
     public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {
         return new AgentToolResult(tree(tasks.create(
-                context.projectId(), request(arguments, CreateTaskRequest.class), context.userId())),
+                context.projectId(), taskRequest(arguments, CreateTaskRequest.class), context.userId())),
                 List.of(), List.of());
     }
 
@@ -98,7 +98,7 @@ public class CreateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool 
         projects.get(context.projectId(), context.userId());
 
         // 2. 参数仍符合 Schema（通过 request 方法校验）
-        CreateTaskRequest request = request(arguments, CreateTaskRequest.class);
+        CreateTaskRequest request = taskRequest(arguments, CreateTaskRequest.class);
 
         // 3. 关联实体仍有效（如果指定了 milestoneId，检查里程碑是否存在）
         if (request.milestoneId() != null) {

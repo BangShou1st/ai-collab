@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (Maven verify)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build & verify (Testcontainers)
+        working-directory: ai-collab-backend
+        run: ./mvnw -B verify
+
+      - name: Upload JaCoCo report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report
+          path: ai-collab-backend/target/site/jacoco/
+          retention-days: 14
+
+  frontend:
+    name: Frontend (pnpm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: ai-collab-frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: ai-collab-frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        working-directory: ai-collab-frontend
+        run: pnpm lint
+
+      - name: Typecheck
+        working-directory: ai-collab-frontend
+        run: pnpm typecheck
+
+      - name: Test
+        working-directory: ai-collab-frontend
+        run: pnpm test
+
+      - name: Build
+        working-directory: ai-collab-frontend
+        run: pnpm build

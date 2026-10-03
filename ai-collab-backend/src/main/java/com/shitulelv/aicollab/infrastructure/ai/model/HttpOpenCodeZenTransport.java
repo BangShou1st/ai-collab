@@ -54,11 +54,10 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
             URI uri = URI.create(registry.modelsEndpoint(pol));
             endpoints.requirePublicHttps(uri);
             HttpRequest.Builder b = HttpRequest.newBuilder().uri(uri).timeout(Duration.ofSeconds(45)).GET()
-                    .header("Accept", "application/json").header("User-Agent", pol.userAgent());
-            if (apiKey != null && !apiKey.isBlank()) b.header("Authorization", "Bearer " + apiKey.strip());
-            if (metadata != null) b.header(SESSION_HEADER, metadata.correlationSessionId());
+                    .header("Accept", "application/json");
+            OpenAiCompatibleModelAdapter.headersWithSession(apiKey, metadata, pol.userAgent()).forEach(b::header);
             HttpResponse<String> resp = settings.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            check(resp.statusCode(), resp.body());
+            JsonHttpModelClient.checkStatus(resp.statusCode(), resp.body(), mapper);
             return mapper.readTree(resp.body());
         } catch (BusinessException e) { throw e; }
         catch (Exception e) { throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR); }
@@ -78,31 +77,26 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
     public void validateCredential(String apiKey, String model, AiRequestMetadata metadata) {
         if (apiKey == null || apiKey.isBlank()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Key required");
         if (model == null || model.isBlank()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model required");
-        try {
-            ObjectMapper m = mapper;
-            var body = m.createObjectNode();
-            body.put("model", model.strip());
-            body.put("max_tokens", 16);
-            var msgs = body.putArray("messages");
-            msgs.addObject().put("role", "user").put("content", "Return only {\"action\":\"finish\"}.");
-            ProviderPresetRegistry.PresetPolicy pol = policy();
-            URI uri = URI.create(registry.completionEndpoint(pol));
-            endpoints.requirePublicHttps(uri);
-            HttpRequest req = HttpRequest.newBuilder().uri(uri).timeout(Duration.ofSeconds(45))
-                    .header("Content-Type", "application/json").header("Accept", "application/json")
-                    .header("User-Agent", pol.userAgent()).header("Authorization", "Bearer " + apiKey.strip())
-                    .header(SESSION_HEADER, metadata.correlationSessionId())
-                    .POST(HttpRequest.BodyPublishers.ofString(m.writeValueAsString(body))).build();
-            HttpResponse<String> resp = settings.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            check(resp.statusCode(), resp.body());
+        // Use the same client envelope and SSE parser as inference, with a bounded
+        // settings deadline. A completion probe does not certify tools or planning.
+        try (var probe = new ProbeClient(mapper, endpoints, settings)) {
+            var pol = policy();
+            var now = java.time.OffsetDateTime.now();
+            var config = new ModelConfiguration(null, null, pol.displayName(), pol.protocol(),
+                    pol.baseUrl(), pol.completionPath(), null, model.strip(), true, 0, 256, pol.capabilities(), now, now);
+            new OpenAiCompatibleModelAdapter(mapper, probe.client).completeStreamingSyncWithSession(config,
+                    apiKey.strip(), new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand(
+                            "Synthetic connection probe.", "Return only {\"action\":\"finish\"}."), metadata, pol.userAgent());
         } catch (BusinessException e) { throw e; }
         catch (Exception e) { throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR); }
     }
     public static ProxySelector directSelector() { return HttpClient.Builder.NO_PROXY; }
     public static Proxy directProxy() { return Proxy.NO_PROXY; }
-    private static void check(int status, String body) {
-        if (status == 401 || status == 403) throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
-        if (status == 429) throw new BusinessException(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED);
-        if (status < 200 || status >= 300) throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "Zen HTTP " + status);
+    private static final class ProbeClient implements AutoCloseable {
+        final JsonHttpModelClient client;
+        ProbeClient(ObjectMapper mapper, OutboundEndpointPolicy endpoints, HttpClient http) {
+            client = new JsonHttpModelClient(mapper, endpoints, http, Duration.ofSeconds(45));
+        }
+        @Override public void close() { client.close(); }
     }
 }

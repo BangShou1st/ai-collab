@@ -96,7 +96,8 @@ public class AgentEventStreamService {
                         .name(event.type().name())
                         .data(event));
                 subscription.lastSequence = event.sequence();
-                if (TERMINAL.contains(event.type())) {
+                if (TERMINAL.contains(event.type()) && !(event.type()==AgentEventType.APPROVAL_REQUESTED
+                        && "RUNNING".equals(event.payload().path("status").asText()))) {
                     subscription.closed = true;
                     subscription.emitter.complete();
                     remove(subscription);

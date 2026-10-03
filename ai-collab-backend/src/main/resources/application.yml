@@ -14,6 +14,7 @@ storage:
         bucket: "${MINIO_BUCKET:ai-collab}"
 
 embedding:
+    local-allowed-targets: "${EMBEDDING_LOCAL_ALLOWED_TARGETS:127.0.0.1:11434,localhost:11434,[::1]:11434}"
     enabled: "${EMBEDDING_ENABLED:false}"
     provider: "${EMBEDDING_PROVIDER:OPENAI_COMPATIBLE}"
     base-url: "${EMBEDDING_BASE_URL:}"

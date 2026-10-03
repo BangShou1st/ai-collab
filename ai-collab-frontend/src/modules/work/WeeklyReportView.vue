@@ -167,16 +167,16 @@ onMounted(load)
 .stat-value {
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  color: var(--color-text);
 }
 
-.stat-value.success { color: #67c23a; }
-.stat-value.primary { color: #409eff; }
-.stat-value.danger { color: #f56c6c; }
+.stat-value.success { color: var(--color-success); }
+.stat-value.primary { color: var(--color-primary); }
+.stat-value.danger { color: var(--color-danger); }
 
 .stat-label {
   font-size: 14px;
-  color: #909399;
+  color: var(--color-text-muted);
   margin-top: 4px;
 }
 
@@ -190,7 +190,7 @@ onMounted(load)
   display: flex;
   justify-content: space-between;
   padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-surface-raised);
 }
 
 .contributor-name {
@@ -198,7 +198,7 @@ onMounted(load)
 }
 
 .contributor-stats {
-  color: #909399;
+  color: var(--color-text-muted);
 }
 
 .list-items {
@@ -207,12 +207,12 @@ onMounted(load)
 }
 
 .highlight-item {
-  color: #67c23a;
+  color: var(--color-success);
   margin-bottom: 8px;
 }
 
 .risk-item {
-  color: #e6a23c;
+  color: var(--color-warning);
   margin-bottom: 8px;
 }
 </style>

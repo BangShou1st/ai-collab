@@ -69,20 +69,20 @@ public class DocumentProcessingService {
                     chunks.stream().map(DocumentChunk::content).toList(),
                     () -> requireHeartbeat(
                             projectId, documentId, processingToken, DocumentStatus.INDEXING));
-            indexWriter.replaceAndComplete(
+            if (!indexWriter.replaceAndComplete(
                     projectId, documentId, processingToken,
-                    chunks, embeddings, document.getOriginalFilename());
+                    chunks, embeddings, document.getOriginalFilename())) return;
             notifications.create(projectId, document.getUploadedBy(),
                     "DOCUMENT_PROCESSED", "文档处理完成",
                     "文档「" + document.getDisplayName() + "」已完成解析和索引",
                     "PROJECT_DOCUMENT", documentId);
         } catch (BusinessException exception) {
-            failures.record(projectId, documentId, processingToken, safeMessage(exception));
-            notifyFailure(projectId, documentId);
+            if (failures.record(projectId, documentId, processingToken, safeMessage(exception)))
+                notifyFailure(projectId, documentId);
             log.warn("文档处理失败，documentId={}，code={}", documentId, exception.getErrorCode().name());
         } catch (Exception exception) {
-            failures.record(projectId, documentId, processingToken, "文档处理失败，请重试");
-            notifyFailure(projectId, documentId);
+            if (failures.record(projectId, documentId, processingToken, "文档处理失败，请重试"))
+                notifyFailure(projectId, documentId);
             log.error("文档处理发生内部异常，documentId={}，type={}",
                     documentId, exception.getClass().getSimpleName());
         }

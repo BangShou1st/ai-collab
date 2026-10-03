@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-03",
+  "files": {
+    "space-bunny-original.json": {
+      "bytes": 25592,
+      "sha256": "aab86a8520951d69ebae01dbde9f9e0c3f499828fcf8f6539675d26deb60a2d6"
+    },
+    "space-bunny-retest.json": {
+      "bytes": 41296,
+      "sha256": "388fba6c189f5a520bd3f9da127e8739dd7a76c174bc351bfe784355783c10a9"
+    },
+    "space-bunny-backend-tests.json": {
+      "bytes": 28887,
+      "sha256": "70e71c8cf57bc16c4f7575375f3826b17bde69a30eb6f8787227d53085a49783"
+    },
+    "ai-space-bunny-validator-red.log": {
+      "bytes": 6482,
+      "sha256": "ea19514e63e53860ce5788bd8e4de85aafcdb2a01737229f06797b3fdf923b53"
+    },
+    "ai-space-bunny-metadata-red.log": {
+      "bytes": 10910,
+      "sha256": "599b9042b6f65a49e91ab627ffe39c5f55891432a773271aa10c97e239a2cebe"
+    },
+    "ai-space-bunny-targeted-final.log": {
+      "bytes": 34589,
+      "sha256": "976b813b733255a8b38bbd547e42b798591b102f254c5f1a4da07f3637ed471b"
+    },
+    "ai-space-bunny-retest-host.log": {
+      "bytes": 9821,
+      "sha256": "2dfff1b5ba4723104d668087347a15ebd0133842eeeb10910ae5caf7da2d75ac"
+    },
+    "ai-space-bunny-retest-host-final.log": {
+      "bytes": 9520,
+      "sha256": "f2762edc038c5d4d0245bc0ba4151e4f63e581c1cc53adb1939418f4181a72de"
+    },
+    "ai-space-bunny-full.log": {
+      "bytes": 642401,
+      "sha256": "0aeb76e94aa37bd0d9966473dd1e39768c0cc1fcbfcb7d2c877b65f98a7da60e"
+    }
+  }
+}

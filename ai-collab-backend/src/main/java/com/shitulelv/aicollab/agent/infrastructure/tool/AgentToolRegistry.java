@@ -82,7 +82,7 @@ public class AgentToolRegistry {
         AgentToolContext toolCtx = toToolContext(context);
         java.util.stream.Stream<AgentTool> internal = tools.values().stream()
                 .filter(tool -> allowed(tool, toolCtx))
-                .filter(tool -> skill.allowedTools().contains(tool.name()));
+                .filter(tool -> skill.allowedTools().contains(tool.name()) || RequestUserInputAgentTool.NAME.equals(tool.name()));
         java.util.stream.Stream<AgentTool> external = allowsExternal(skill)
                 ? providers.stream().flatMap(provider -> provider.tools(context).stream())
                 : java.util.stream.Stream.empty();

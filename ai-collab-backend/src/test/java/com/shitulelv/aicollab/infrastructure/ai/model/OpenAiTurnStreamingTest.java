@@ -66,9 +66,12 @@ class OpenAiTurnStreamingTest {
         doAnswer(inv -> { BiConsumer<String, JsonNode> cb = inv.getArgument(3); for (ObjectNode c : chunks) cb.accept("message", c); return null; }).when(http).stream(anyString(), anyMap(), any(JsonNode.class), any(BiConsumer.class));
         return http;
     }
+    private ModelTurnResult streamingTurn(List<ObjectNode> chunks) {
+        return new OpenAiCompatibleModelAdapter(mapper,streamingHttp(chunks)).turnWithSession(config(),"key",cmd(),AiRequestMetadata.fresh(),"opencode/1.18.21");
+    }
     @Test void aggregatesFragmentedArgumentsAcrossChunks() {
         List<ObjectNode> chunks = List.of(deltaChunk(null, null, toolDelta(0, "call_1", "list_tasks", "{\"status\":"), toolDelta(0, null, null, "\"OPEN\"}")), deltaChunk(null, "tool_calls"));
-        ModelTurnResult r = new OpenAiCompatibleModelAdapter(mapper, streamingHttp(chunks)).turn(config(), "key", cmd());
+        ModelTurnResult r = streamingTurn(chunks);
         assertThat(r.toolCalls()).hasSize(1);
         assertThat(r.toolCalls().get(0).id()).isEqualTo("call_1");
         assertThat(r.toolCalls().get(0).arguments().path("status").asText()).isEqualTo("OPEN");
@@ -76,22 +79,22 @@ class OpenAiTurnStreamingTest {
     }
     @Test void aggregatesMultipleToolCalls() {
         List<ObjectNode> chunks = List.of(deltaChunk(null, null, toolDelta(0, "call_1", "list_tasks", "{}")), deltaChunk(null, null, toolDelta(1, "call_2", "list_milestones", "{}")), deltaChunk(null, "tool_calls"));
-        ModelTurnResult r = new OpenAiCompatibleModelAdapter(mapper, streamingHttp(chunks)).turn(config(), "key", cmd());
+        ModelTurnResult r = streamingTurn(chunks);
         assertThat(r.toolCalls()).hasSize(2);
     }
     @Test void textPlusToolCalls() {
         List<ObjectNode> chunks = List.of(deltaChunk("hi-", null), deltaChunk("there", null, toolDelta(0, "call_1", "list_tasks", "{}")), deltaChunk(null, "tool_calls"));
-        ModelTurnResult r = new OpenAiCompatibleModelAdapter(mapper, streamingHttp(chunks)).turn(config(), "key", cmd());
+        ModelTurnResult r = streamingTurn(chunks);
         assertThat(r.content()).isEqualTo("hi-there");
     }
     @Test void malformedArgumentsThrows() {
         List<ObjectNode> chunks = List.of(deltaChunk(null, null, toolDelta(0, "call_1", "list_tasks", "not-json")), deltaChunk(null, "tool_calls"));
-        assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, streamingHttp(chunks)).turn(config(), "key", cmd())).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> streamingTurn(chunks)).isInstanceOf(BusinessException.class);
     }
     @Test void completesWithoutWait() {
         List<ObjectNode> chunks = List.of(deltaChunk("done", "stop"));
         long s = System.nanoTime();
-        ModelTurnResult r = new OpenAiCompatibleModelAdapter(mapper, streamingHttp(chunks)).turn(config(), "key", cmd());
+        ModelTurnResult r = streamingTurn(chunks);
         assertThat(r.content()).isEqualTo("done");
         assertThat((System.nanoTime() - s) / 1000000L).isLessThan(5000L);
     }

@@ -13,6 +13,8 @@ import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -20,6 +22,7 @@ import java.util.Set;
 
 @Component
 public class KnowledgeSearchAgentTool implements AgentTool {
+    private static final Logger log = LoggerFactory.getLogger(KnowledgeSearchAgentTool.class);
     private final ProjectAccessGuard access;
     private final DocumentSearchService search;
     private final KnowledgeContextBuilder contextBuilder;
@@ -78,7 +81,8 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         if (value instanceof Number number) return number.intValue();
         try {
             return value == null ? null : Integer.valueOf(value.toString());
-        } catch (NumberFormatException ignored) {
+        } catch (NumberFormatException malformed) {
+            log.debug("Unparseable pageNumber in document chunk metadata: {}", value);
             return null;
         }
     }

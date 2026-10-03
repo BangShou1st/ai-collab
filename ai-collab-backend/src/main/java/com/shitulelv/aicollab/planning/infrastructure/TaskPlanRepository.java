@@ -122,6 +122,7 @@ public class TaskPlanRepository {
                 write(draft.tasks()), write(draft.sources()), validationJson, actor);
         jdbc.update("""
                 UPDATE ai_task_plan SET latest_version_no=?,latest_version_id=?,updated_at=now(),
+                  last_error_code=NULL,last_error_summary=NULL,
                   status=CASE WHEN ?='AI_SKELETON' THEN 'DETAIL_GENERATING'
                               ELSE ? END,
                   active_attempt_id=CASE WHEN ?='AI_SKELETON' THEN active_attempt_id
@@ -299,14 +300,33 @@ public class TaskPlanRepository {
     @Transactional
     public void failPartialRepair(UUID projectId, UUID planId, UUID attemptId,
                                   TaskPlanStatus previousStatus, String errorCode) {
+        failPartialRepair(projectId, planId, attemptId, previousStatus, errorCode, List.of());
+    }
+
+    @Transactional
+    public void failPartialRepair(UUID projectId, UUID planId, UUID attemptId,
+                                  TaskPlanStatus previousStatus, String errorCode,
+                                  List<com.shitulelv.aicollab.planning.domain.StructuredValidationIssue> diagnostics) {
         TaskPlanRecord plan = lock(projectId, planId);
         finishAttempt(attemptId, "FAILED", errorCode);
+        jdbc.update("UPDATE ai_task_plan_attempt SET diagnostics_json=?::jsonb WHERE id=? AND plan_id=?",
+                write(diagnostics.stream().limit(50).toList()), attemptId, planId);
         if (plan.status() == TaskPlanStatus.REPAIRING && attemptId.equals(plan.activeAttemptId())) {
             jdbc.update("""
                     UPDATE ai_task_plan SET status=?,active_attempt_id=NULL,
-                      last_error_code=?,last_error_summary='局部修复未通过安全校验',updated_at=now()
+                      last_error_code=?,last_error_summary=?,updated_at=now()
                     WHERE id=? AND project_id=? AND status='REPAIRING' AND active_attempt_id=?
-                    """, previousStatus.name(), errorCode, planId, projectId, attemptId);
+                    """, previousStatus.name(), errorCode, "REPAIR / " + errorCode, planId, projectId, attemptId);
+        }
+    }
+
+    public List<com.shitulelv.aicollab.planning.domain.StructuredValidationIssue> repairDiagnostics(UUID planId, UUID attemptId) {
+        String value = jdbc.queryForObject("SELECT diagnostics_json::text FROM ai_task_plan_attempt WHERE plan_id=? AND id=?",
+                String.class, planId, attemptId);
+        try {
+            return json.readValue(value, new com.fasterxml.jackson.core.type.TypeReference<List<com.shitulelv.aicollab.planning.domain.StructuredValidationIssue>>() {});
+        } catch (com.fasterxml.jackson.core.JsonProcessingException invalid) {
+            throw new IllegalStateException("Stored repair diagnostics are invalid", invalid);
         }
     }
 
@@ -339,7 +359,8 @@ public class TaskPlanRepository {
     @Transactional
     public void fail(UUID planId, long generationSeq, UUID attemptId,
                      TaskPlanStatus expectedStatus, TaskPlanStatus status, String code) {
-        fail(planId, generationSeq, attemptId, expectedStatus, status, code, "模型输出未通过安全校验");
+        String stage = expectedStatus == TaskPlanStatus.DETAIL_GENERATING ? "DETAIL" : "SKELETON";
+        fail(planId, generationSeq, attemptId, expectedStatus, status, code, stage + " / " + code);
     }
 
     @Transactional

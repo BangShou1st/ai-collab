@@ -37,9 +37,9 @@ function getCompletionRate(member: MemberLoad): number {
 }
 
 function getCompletionColor(rate: number): string {
-  if (rate >= 80) return '#67c23a'
-  if (rate >= 50) return '#e6a23c'
-  return '#f56c6c'
+  if (rate >= 80) return 'var(--color-success)'
+  if (rate >= 50) return 'var(--color-warning)'
+  return 'var(--color-danger)'
 }
 
 function taskShare(member: MemberLoad, value: number): string {
@@ -158,7 +158,7 @@ onMounted(load)
 
 .stat-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-text-muted);
 }
 
 .stat-value {
@@ -170,19 +170,19 @@ onMounted(load)
   margin-top: 8px;
 }
 .workload-visual { margin: 6px 0 18px; }
-.workload-track { display: flex; width: 100%; height: 12px; overflow: hidden; border-radius: 6px; background: #e7eaf1; }
+.workload-track { display: flex; width: 100%; height: 12px; overflow: hidden; border-radius: 6px; background: var(--color-border); }
 .workload-track span { display: block; height: 100%; }
 .workload-track .done { background: var(--color-success); }
 .workload-track .progress { background: var(--color-primary); }
 .workload-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 7px; color: var(--color-text-secondary); font-size: 11px; }
 .workload-legend span { display: flex; align-items: center; gap: 4px; }
-.workload-legend i { width: 8px; height: 8px; border-radius: 50%; background: #e7eaf1; }
+.workload-legend i { width: 8px; height: 8px; border-radius: 50%; background: var(--color-border); }
 .workload-legend i.done { background: var(--color-success); }
 .workload-legend i.progress { background: var(--color-primary); }
 
 .completion-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-text-muted);
   margin-bottom: 4px;
 }
 </style>
