@@ -46,7 +46,7 @@ import java.util.UUID;
 public class AgentContextSummarizer {
     private static final Logger log = LoggerFactory.getLogger(AgentContextSummarizer.class);
 
-    static final int POLICY_VERSION = 3;
+    static final int POLICY_VERSION = 4;
     static final int SUMMARY_SCHEMA_VERSION = 1;
     /** 与 AgentWorkingState.SCHEMA_VERSION 一致（跨包不可见，此处同步维护）。 */
     static final int WORKING_STATE_SCHEMA_VERSION = 2;
@@ -63,7 +63,6 @@ public class AgentContextSummarizer {
     /** 输出预留（token，chars/3 兼容估算）。 */
     static final int OUTPUT_RESERVE_TOKENS = (MAX_OUTPUT_CHARS + 2) / 3;
     /** 摘要节点保留的覆盖分段上限。 */
-    private static final int MAX_SEGMENTS = 60;
 
     private final AgentRepository repository;
     private final RoutingAgentModelExecutor modelExecutor;
@@ -91,6 +90,7 @@ public class AgentContextSummarizer {
         List<AgentMessageView> candidates = composition == null ? null : composition.summaryCandidates();
         if (candidates == null || candidates.isEmpty()) return;
         try {
+            repository.requireSummaryAccess(run);
             JsonNode state = repository.workingState(run.projectId(), run.sessionId());
             if (state.path("schemaVersion").asInt(0) < WORKING_STATE_SCHEMA_VERSION) {
                 return; // 旧格式状态不生成摘要（渐进升级后自然启用）
@@ -168,7 +168,7 @@ public class AgentContextSummarizer {
 
     /** 上一份摘要的覆盖进度：messageId → 已覆盖到的最大偏移。 */
     private Map<String, Integer> resumeOffsets(JsonNode previous) {
-        Map<String, Integer> resume = new HashMap<>();
+        Map<String, Integer> resume = new java.util.LinkedHashMap<>();
         if (previous != null && previous.isObject()) {
             for (JsonNode segment : previous.path("segments")) {
                 String messageId = segment.path("messageId").asText("");
@@ -200,7 +200,7 @@ public class AgentContextSummarizer {
     }
 
     private int segmentsCost(List<Seg> segments, List<AgentMessageView> candidates) {
-        Map<String, AgentMessageView> byId = new HashMap<>();
+        Map<String, AgentMessageView> byId = new java.util.LinkedHashMap<>();
         for (AgentMessageView message : candidates) byId.put(message.id().toString(), message);
         int cost = 0;
         for (Seg segment : segments) {
@@ -232,7 +232,7 @@ public class AgentContextSummarizer {
 
     private List<ModelMessage> summaryMessages(List<AgentMessageView> candidates, List<Seg> newSegments,
             String previousBlock, boolean hasPrevious) {
-        Map<String, AgentMessageView> byId = new HashMap<>();
+        Map<String, AgentMessageView> byId = new java.util.LinkedHashMap<>();
         for (AgentMessageView message : candidates) byId.put(message.id().toString(), message);
         StringBuilder transcript = new StringBuilder();
         for (Seg segment : newSegments) {
@@ -293,9 +293,12 @@ public class AgentContextSummarizer {
         for (JsonNode entry : state.path("constraints")) {
             if ("active".equals(entry.path("status").asText())) constraints.add(entry.path("value").asText());
         }
+        if (previous.hasNonNull("completedBefore")) summary.set("completedBefore", previous.get("completedBefore"));
         var segmentsNode = summary.putArray("segments");
-        writeSegments(segmentsNode, previous);
-        writeSegments(segmentsNode, newSegments);
+        // 单消息覆盖始终是连续前缀；合并偏移，绝不能因旧记录数量丢弃新进度。
+        covered.entrySet().forEach(entry ->
+                segmentsNode.addObject().put("messageId", entry.getKey()).put("from",0).put("to",entry.getValue()));
+        repository.compactSummaryCoverage(run, summary);
 
         boolean committed = repository.commitConversationSummary(
                 run.projectId(), run.sessionId(), state.path("stateRevision").asInt(),
@@ -312,28 +315,6 @@ public class AgentContextSummarizer {
             // 生成期间状态已前进：丢弃本次摘要，不重算（受尝试上限约束）
             log.info("摘要 CAS 冲突，丢弃本次结果: run={}, expectedRevision={}",
                     run.id(), state.path("stateRevision").asInt());
-        }
-    }
-
-    private void writeSegments(ArrayNode target, JsonNode previous) {
-        if (previous != null && previous.isObject()) {
-            for (JsonNode segment : previous.path("segments")) {
-                if (target.size() >= MAX_SEGMENTS) return;
-                ObjectNode node = target.addObject();
-                node.put("messageId", segment.path("messageId").asText());
-                node.put("from", segment.path("from").asInt());
-                node.put("to", segment.path("to").asInt());
-            }
-        }
-    }
-
-    private void writeSegments(ArrayNode target, List<Seg> segments) {
-        for (Seg segment : segments) {
-            if (target.size() >= MAX_SEGMENTS) return;
-            ObjectNode node = target.addObject();
-            node.put("messageId", segment.messageId());
-            node.put("from", segment.from());
-            node.put("to", segment.to());
         }
     }
 

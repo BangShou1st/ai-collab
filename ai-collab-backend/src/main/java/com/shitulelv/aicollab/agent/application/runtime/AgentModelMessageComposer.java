@@ -336,10 +336,11 @@ public class AgentModelMessageComposer {
         for (AgentMessageView msg : recentMessages) {
             if (!pickedIds.contains(msg.id())) summaryCandidates.add(msg);
         }
-        if (summaryCandidates.size() > SUMMARY_CANDIDATE_LIMIT) {
-            summaryCandidates = summaryCandidates.subList(
-                    summaryCandidates.size() - SUMMARY_CANDIDATE_LIMIT, summaryCandidates.size());
-        }
+        // 从持久化覆盖进度重新加载旧消息，不能让最近历史窗口成为摘要的读取边界。
+        List<AgentMessageView> persisted = repository.listSummaryCandidates(run, pickedIds, SUMMARY_CANDIDATE_LIMIT);
+        if (!persisted.isEmpty() || (summary != null && summary.hasNonNull("completedBefore"))) summaryCandidates = persisted;
+        else if (summaryCandidates.size() > SUMMARY_CANDIDATE_LIMIT)
+            summaryCandidates = summaryCandidates.subList(0, SUMMARY_CANDIDATE_LIMIT);
 
         int charsUsed = used + toolUsed + historyUsed;
         return new Composition(messages, new CompositionStats(

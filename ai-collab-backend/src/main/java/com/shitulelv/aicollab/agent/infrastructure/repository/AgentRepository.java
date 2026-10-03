@@ -469,6 +469,70 @@ public class AgentRepository {
                 """, messageMapper(), sessionId, limit);
     }
 
+    /** 每次重读均验证项目、会话和现有成员资格。按旧到新推进，不依赖最近历史窗口。 */
+    public List<AgentMessageView> listSummaryCandidates(AgentRunView run, java.util.Set<UUID> excluded, int limit) {
+        requireSummaryAccess(run);
+        String excludedJson = json.valueToTree(excluded).toString();
+        return jdbc.query("""
+                SELECT m.* FROM agent_message m JOIN agent_session s ON s.id=m.session_id
+                WHERE s.project_id=? AND s.id=?
+                  AND NOT (?::jsonb @> to_jsonb(m.id::text))
+                  AND COALESCE((s.working_state->'summary'->>'completedBefore')::timestamptz,'-infinity') <= m.created_at
+                  AND length(m.content)+length(regexp_replace(m.content,U&'[^\\+010000-\\+10FFFF]','','g')) > COALESCE((SELECT max((seg->>'to')::int)
+                      FROM jsonb_array_elements(COALESCE(s.working_state->'summary'->'segments','[]')) seg
+                      WHERE seg->>'messageId'=m.id::text),0)
+                ORDER BY m.created_at,m.id LIMIT ?
+                """, messageMapper(), run.projectId(), run.sessionId(), excludedJson, limit);
+    }
+
+    public void requireSummaryAccess(AgentRunView run) {
+        Integer count = jdbc.queryForObject("""
+                SELECT count(*) FROM agent_session s JOIN project_member pm ON pm.project_id=s.project_id
+                WHERE s.project_id=? AND s.id=? AND pm.user_id=?
+                """, Integer.class, run.projectId(), run.sessionId(), run.requesterId());
+        if (count == null || count != 1) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN, "会话资料已不可访问");
+    }
+
+    /** 压缩已完成的连续历史前缀；未完成偏移永不受容量限制。删除的消息明确退出覆盖。 */
+    public void compactSummaryCoverage(AgentRunView run, com.fasterxml.jackson.databind.node.ObjectNode summary) {
+        requireSummaryAccess(run);
+        var rows = jdbc.queryForList("""
+                SELECT m.id::text AS id,m.created_at,length(m.content)+length(regexp_replace(m.content,U&'[^\\+010000-\\+10FFFF]','','g')) AS size
+                FROM agent_message m JOIN agent_session s ON s.id=m.session_id
+                WHERE s.project_id=? AND s.id=? ORDER BY m.created_at,m.id
+                """, run.projectId(),run.sessionId());
+        var offsets = new java.util.HashMap<String,Integer>();
+        for (JsonNode seg : summary.path("segments")) offsets.put(seg.path("messageId").asText(),seg.path("to").asInt());
+        java.time.Instant boundary = summary.hasNonNull("completedBefore")
+                ? java.time.Instant.parse(summary.path("completedBefore").asText()) : java.time.Instant.MIN;
+        var existing = new java.util.HashSet<String>();
+        var incomplete = new java.util.HashSet<String>();
+        boolean prefix = true;
+        for (var row : rows) {
+            String id = row.get("id").toString(); existing.add(id);
+            var time = ((java.sql.Timestamp)row.get("created_at")).toInstant();
+            if (time.isBefore(boundary)) continue;
+            boolean done = offsets.getOrDefault(id,0) >= ((Number)row.get("size")).intValue();
+            if (!done) { prefix = false; incomplete.add(id); }
+            // 时间相等的消息一起保留，不能将未读消息跳过。
+            if (prefix) boundary = time;
+        }
+        if (!boundary.equals(java.time.Instant.MIN)) summary.put("completedBefore",boundary.toString());
+        var segments = summary.putArray("segments");
+        for (var row : rows) {
+            String id = row.get("id").toString();
+            var time = ((java.sql.Timestamp)row.get("created_at")).toInstant();
+            if (!time.isBefore(boundary) && offsets.containsKey(id))
+                segments.addObject().put("messageId",id).put("from",0).put("to",offsets.get(id));
+        }
+        var terminated = summary.putArray("terminatedMessageIds");
+        for (JsonNode id : summary.path("uncoveredMessageIds")) if (!existing.contains(id.asText())) terminated.add(id.asText());
+        var pending = summary.putArray("uncoveredMessageIds");
+        for (var row : rows) if (incomplete.contains(row.get("id").toString()) && offsets.containsKey(row.get("id").toString())) pending.add(row.get("id").toString());
+        summary.put("uncoveredCount",pending.size());
+        summary.put("coverage",incomplete.isEmpty() ? "FULL" : "PARTIAL");
+    }
+
     private RowMapper<AgentSessionView> sessionMapper() {
         return (rs, row) -> new AgentSessionView(
                 rs.getObject("id", UUID.class),
