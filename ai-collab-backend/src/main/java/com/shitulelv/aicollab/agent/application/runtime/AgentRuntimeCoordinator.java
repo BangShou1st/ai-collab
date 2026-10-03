@@ -54,6 +54,7 @@ public class AgentRuntimeCoordinator {
     private final RoutingAgentModelExecutor modelExecutor;
     private final AgentModelMessageComposer composer;
     private final AgentToolCallExecutor toolExecutor;
+    private final AgentContextSummarizer summarizer;
     private final AgentContextProperties contextProperties;
 
     @Autowired
@@ -87,6 +88,7 @@ public class AgentRuntimeCoordinator {
         this.composer = new AgentModelMessageComposer(repository, memories, json, modelExecutor);
         this.toolExecutor = new AgentToolCallExecutor(repository, tools, cancellation, loopGuard,
                 approvals, modelExecutor, sanitizer, json, events);
+        this.summarizer = new AgentContextSummarizer(repository, modelExecutor, json);
     }
 
     public AgentRuntimeCoordinator(
@@ -199,10 +201,11 @@ public class AgentRuntimeCoordinator {
             var requestBudget = AgentContextBudget.perRequest(contextProperties, modelWindow, remainingRunInput);
 
             List<ModelMessage> messages;
+            AgentModelMessageComposer.Composition composition = null;
             int estimatedInput;
             String overBudgetReason = null;
             if (contextProperties.composerV2()) {
-                var composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 1.0);
+                composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 1.0);
                 if (composition.failureReason() != null) {
                     // 必选层（含当前请求）无法完整放入预算：明确停止，不静默截断
                     return inputBudgetExceeded(run, requestBudget, composition.failureReason());
@@ -232,6 +235,11 @@ public class AgentRuntimeCoordinator {
                 return inputBudgetExceeded(run, requestBudget, overBudgetReason);
             }
             AgentModelAccounting.estimate(estimatedInput);
+
+            // 7b. 有界增量摘要：主请求预算保留后，对未覆盖旧对话生成一次摘要（CAS 提交、单独记账）
+            if (composition != null) {
+                summarizer.maybeSummarize(run, composition, requestBudget.availableInputTokens() - estimatedInput);
+            }
 
             // 8. 调用模型（通过路由选择正确的执行器）
             var pendingTurn = repository.pendingModelTurn(run);

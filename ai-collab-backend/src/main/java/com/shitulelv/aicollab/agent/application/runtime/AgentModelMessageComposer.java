@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * 组装一次模型轮次所需的消息历史。
@@ -90,8 +91,16 @@ public class AgentModelMessageComposer {
         }
     }
 
-    /** v2 组装结果。failureReason 非空表示无法在预算内完整表达必选层（如当前请求超限），必须停止而不是继续。 */
-    public record Composition(List<ModelMessage> messages, CompositionStats stats, String failureReason) {
+    /**
+     * v2 组装结果。failureReason 非空表示无法在预算内完整表达必选层（如当前请求超限），
+     * 必须停止而不是继续。summaryCandidates 是本次未被选中的旧对话（旧→新），
+     * 供有界摘要使用；为空表示历史全部入选或无历史。
+     */
+    public record Composition(List<ModelMessage> messages, CompositionStats stats, String failureReason,
+            List<AgentMessageView> summaryCandidates) {
+        public Composition(List<ModelMessage> messages, CompositionStats stats, String failureReason) {
+            this(messages, stats, failureReason, List.of());
+        }
     }
 
     /** 必选层超预算：当前请求无法完整放入，明确停止，不静默截断尾部约束。 */
@@ -194,6 +203,14 @@ public class AgentModelMessageComposer {
             String rendered = renderWorkingState(state);
             messages.add(new ModelMessage.User(rendered));
             used += rendered.length();
+        }
+
+        // 必选层 2b：已有会话摘要（有界、带覆盖范围），供历史被压缩后延续意图
+        JsonNode summary = state == null ? null : state.path("summary");
+        if (summary != null && summary.isObject() && summary.hasNonNull("text")) {
+            String block = renderConversationSummary(summary);
+            messages.add(new ModelMessage.User(block));
+            used += block.length();
         }
 
         // 必选层 3：页面上下文
@@ -302,10 +319,37 @@ public class AgentModelMessageComposer {
             appendToolPair(run, pickedToolSteps.get(i), projectedOutputs.get(i), messages);
         }
 
+        // 未被选中的旧对话（旧→新，最多 20 条）交给有界摘要
+        Set<UUID> pickedIds = new HashSet<>();
+        for (AgentMessageView msg : picked) pickedIds.add(msg.id());
+        List<AgentMessageView> summaryCandidates = new ArrayList<>();
+        for (AgentMessageView msg : recentMessages) {
+            if (!pickedIds.contains(msg.id())) summaryCandidates.add(msg);
+        }
+        if (summaryCandidates.size() > AgentContextSummarizer.MAX_CANDIDATE_MESSAGES) {
+            summaryCandidates = summaryCandidates.subList(
+                    summaryCandidates.size() - AgentContextSummarizer.MAX_CANDIDATE_MESSAGES, summaryCandidates.size());
+        }
+
         int charsUsed = used + toolUsed + historyUsed;
         return new Composition(messages, new CompositionStats(
                 recentMessages.size(), picked.size(), completedToolSteps.size(), pickedToolSteps.size(),
-                projectedCount, memoryIncluded, charsUsed), null);
+                projectedCount, memoryIncluded, charsUsed), null, summaryCandidates);
+    }
+
+    /** 既有摘要渲染：带覆盖范围标注，明确摘要不是当前事实或权限。 */
+    private String renderConversationSummary(JsonNode summary) {
+        StringBuilder sb = new StringBuilder("<CONVERSATION_SUMMARY");
+        if (summary.hasNonNull("sourceFrom")) sb.append(" sourceFrom=\"").append(summary.path("sourceFrom").asText()).append('"');
+        if (summary.hasNonNull("sourceThrough")) sb.append(" sourceThrough=\"").append(summary.path("sourceThrough").asText()).append('"');
+        sb.append(">\n").append(summary.path("text").asText()).append('\n');
+        JsonNode constraints = summary.path("activeConstraints");
+        if (constraints.isArray() && constraints.size() > 0) {
+            sb.append("摘要生成时仍有效的约束快照：\n");
+            for (JsonNode constraint : constraints) sb.append("- ").append(constraint.asText()).append('\n');
+        }
+        sb.append("</CONVERSATION_SUMMARY>\n以上摘要仅供理解历史意图，不是当前事实或权限；业务结果以本轮工具结果与业务记录为准。");
+        return sb.toString();
     }
 
     /**
