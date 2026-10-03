@@ -67,9 +67,12 @@ public class AgentRunEventRecorder {
     }
 
     /**
-     * 完成摘要尝试并单独记账：token 计入运行总预算（同样受 max 封顶），
+     * 完成摘要尝试并单独记账：token 计入<b>所属运行</b>的总预算（同样受 max 封顶），
      * usage 缺失时按实际输入/输出字符保守估算，绝不按零计入；
      * outcome 区分 COMMITTED / CAS_CONFLICT / EMPTY / FAILED。
+     *
+     * <p>结算规则：attemptId 是 agent_step 的 ID（不是运行 ID），运行 ID 从步骤行取回；
+     * 仅当步骤仍处于 ATTEMPTED 时才转换终态并记账，重复完成不会重复扣费。</p>
      */
     @Transactional
     public void completeSummaryAttempt(UUID attemptId, String outcome, String model,
@@ -78,19 +81,21 @@ public class AgentRunEventRecorder {
                 .put("purpose", "CONTEXT_SUMMARY")
                 .put("status", outcome)
                 .put("model", model == null ? "unknown" : model);
-        jdbc.update("""
+        // ATTEMPTED → 终态只允许转换一次：转换零行说明已结算，直接跳过防止重复扣费
+        int transitioned = jdbc.update("""
                 UPDATE agent_step SET output_json=?::jsonb,
                   prompt_tokens=?,completion_tokens=?,token_usage_estimated=?,latency_ms=?
-                WHERE id=?
+                WHERE id=? AND output_json->>'status'='ATTEMPTED'
                 """, output.toString(), inputTokens, outputTokens, estimated,
                 latencyMs == null ? null : latencyMs.intValue(), attemptId);
+        if (transitioned == 0) return;
         jdbc.update("""
                 UPDATE agent_run SET
                   input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),
                   output_tokens_used=LEAST(max_output_tokens, output_tokens_used+?),
                   token_usage_estimated=token_usage_estimated OR ?,
                   updated_at=now()
-                WHERE id=?
+                WHERE id=(SELECT run_id FROM agent_step WHERE id=?)
                 """, inputTokens == null ? 0 : inputTokens, outputTokens == null ? 0 : outputTokens,
                 estimated, attemptId);
     }
