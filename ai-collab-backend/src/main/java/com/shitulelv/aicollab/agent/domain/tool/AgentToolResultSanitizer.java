@@ -69,12 +69,18 @@ public class AgentToolResultSanitizer {
         try {
             byte[] bytes = json.writeValueAsBytes(sanitized);
             if (bytes.length > MAX_RESULT_BYTES) {
-                // 截断并标记
-                ObjectNode wrapper = json.createObjectNode();
-                wrapper.set("data", sanitize(json.readTree(truncateJson(bytes))));
-                wrapper.put("truncated", true);
-                wrapper.put("originalSize", bytes.length);
-                return wrapper;
+                // Reduce the JSON tree, never slice serialized UTF-8/JSON bytes.
+                for(int stringLimit:new int[]{2000,1000,500,250,128}) {
+                    sanitized=reduce(sanitized,stringLimit,MAX_ARRAY_ITEMS);
+                    ObjectNode bounded=markBounded(sanitized,bytes.length);
+                    if(json.writeValueAsBytes(bounded).length<=MAX_RESULT_BYTES) return bounded;
+                }
+                for(int arrayLimit:new int[]{20,10,5,2,1}) {
+                    sanitized=reduce(sanitized,128,arrayLimit);
+                    ObjectNode bounded=markBounded(sanitized,bytes.length);
+                    if(json.writeValueAsBytes(bounded).length<=MAX_RESULT_BYTES) return bounded;
+                }
+                return json.createObjectNode().put("error","TOOL_RESULT_TOO_LARGE").put("truncated",true).put("originalSize",bytes.length);
             }
         } catch (Exception e) {
             // 序列化失败时返回安全的错误结果
@@ -85,6 +91,17 @@ public class AgentToolResultSanitizer {
         }
 
         return sanitized;
+    }
+    private ObjectNode markBounded(JsonNode node,int originalSize) {
+        ObjectNode result=node.isObject()?((ObjectNode)node).deepCopy():json.createObjectNode().set("data",node);
+        return result.put("truncated",true).put("originalSize",originalSize);
+    }
+    private JsonNode reduce(JsonNode node,int stringLimit,int arrayLimit) {
+        if(node.isTextual() && node.asText().codePointCount(0,node.asText().length())>stringLimit)
+            return json.getNodeFactory().textNode(node.asText().substring(0,node.asText().offsetByCodePoints(0,stringLimit))+"… [truncated]");
+        if(node.isObject()){ObjectNode result=json.createObjectNode();node.fields().forEachRemaining(entry->result.set(entry.getKey(),reduce(entry.getValue(),stringLimit,arrayLimit)));return result;}
+        if(node.isArray()){ArrayNode result=json.createArrayNode();for(int i=0;i<Math.min(node.size(),arrayLimit);i++)result.add(reduce(node.get(i),stringLimit,arrayLimit));return result;}
+        return node;
     }
 
     /**
@@ -206,11 +223,4 @@ public class AgentToolResultSanitizer {
         return INTERNAL_FIELDS.contains(fieldName.toLowerCase().replace("-", "").replace("_", ""));
     }
 
-    private byte[] truncateJson(byte[] bytes) {
-        if (bytes.length <= MAX_RESULT_BYTES) return bytes;
-        // 简单截断：保留前 MAX_RESULT_BYTES 字节
-        byte[] truncated = new byte[MAX_RESULT_BYTES];
-        System.arraycopy(bytes, 0, truncated, 0, MAX_RESULT_BYTES);
-        return truncated;
-    }
 }

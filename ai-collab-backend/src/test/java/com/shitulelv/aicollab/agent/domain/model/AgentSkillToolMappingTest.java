@@ -58,7 +58,7 @@ class AgentSkillToolMappingTest {
                         assertThat(tool)
                                 .as("Skill [%s] 的写工具 [%s] 必须是 ApprovalWriteAgentTool",
                                         skill.code(), toolName)
-                                .isInstanceOf(ApprovalWriteAgentTool.class);
+                                .isInstanceOfAny(ApprovalWriteAgentTool.class,com.shitulelv.aicollab.agent.domain.tool.ControlledWriteAgentTool.class);
                     }
                 });
             }
@@ -94,7 +94,14 @@ class AgentSkillToolMappingTest {
         tools.add(stubWriteTool("update_milestone_after_approval"));
         tools.add(stubWriteTool("create_memory_after_approval"));
 
+        addConfigurationTools(tools,new DocumentAgentTools());
+        addConfigurationTools(tools,new PlanningAgentTools(mock(com.shitulelv.aicollab.agent.application.AgentPlanningOperationService.class),mock(com.shitulelv.aicollab.planning.application.TaskPlanQueryService.class),new com.fasterxml.jackson.databind.ObjectMapper()));
         return new AgentToolRegistry(tools);
+    }
+    private static void addConfigurationTools(List<AgentTool> tools,Object configuration) {
+        for(var method:configuration.getClass().getDeclaredMethods()) if(method.isAnnotationPresent(org.springframework.context.annotation.Bean.class)) {
+            try {method.setAccessible(true);Object[] args=java.util.Arrays.stream(method.getParameterTypes()).map(type->type==com.fasterxml.jackson.databind.ObjectMapper.class?new com.fasterxml.jackson.databind.ObjectMapper():mock(type)).toArray();tools.add((AgentTool)method.invoke(configuration,args));}catch(Exception ex){throw new AssertionError(ex);}
+        }
     }
 
     private static AgentTool stubTool(String name, boolean writes) {

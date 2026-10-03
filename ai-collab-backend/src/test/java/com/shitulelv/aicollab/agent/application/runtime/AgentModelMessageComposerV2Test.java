@@ -36,6 +36,20 @@ import static org.mockito.Mockito.when;
  * 必选层预留、当前请求保护、大结果确定性投影、去重与协议配对。
  */
 class AgentModelMessageComposerV2Test {
+    @Test void planningProjectionRetainsNestedVersionAndTaskIdentitiesForScopedRepair() throws Exception {
+        var mapper=new ObjectMapper().findAndRegisterModules();
+        var c=new AgentModelMessageComposer(mock(AgentRepository.class),null,mapper,null);
+        var result=mapper.createObjectNode();var data=result.putObject("data");
+        data.put("baseVersionId","11111111-1111-1111-1111-111111111111");data.put("expectedVersionNo",2);
+        data.putObject("version").put("id","11111111-1111-1111-1111-111111111111");
+        var draft=data.putObject("draft");draft.putArray("tasks").addObject().put("tempKey","t1").put("description","长描述".repeat(3000));
+        var projected=c.projectToolOutput(result,6000);
+        assertThat(projected.path("data").path("baseVersionId").asText()).isEqualTo("11111111-1111-1111-1111-111111111111");
+        assertThat(projected.path("data").path("draft").path("tasks").get(0).path("tempKey").asText()).isEqualTo("t1");
+        assertThat(projected.path("projection").asText()).isEqualTo("DETERMINISTIC");
+        assertThat(projected.toString().length()).isLessThanOrEqualTo(6000);
+        assertThat(c.projectToolOutput(result,1500).path("data").path("draft").path("tasks").get(0).path("tempKey").asText()).isEqualTo("t1");
+    }
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     private AgentRepository repository;
     private AgentMemoryService memories;
@@ -48,7 +62,7 @@ class AgentModelMessageComposerV2Test {
         when(repository.workingState(any(), any())).thenReturn(null);
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(new ArrayList<>());
         when(repository.citationsStillValid(any(), any())).thenReturn(true);
-        when(memories.context(any())).thenReturn(List.of());
+        when(memories.context(any(),any(),any())).thenReturn(List.of());
         composer = new AgentModelMessageComposer(repository, memories, json, mock(RoutingAgentModelExecutor.class));
     }
 
@@ -181,7 +195,7 @@ class AgentModelMessageComposerV2Test {
             history.add(message("USER", ("历史消息 %d：".formatted(i)) + "项目相关内容。".repeat(60), i + 1));
         }
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
-        when(memories.context(any())).thenReturn(List.of(new AgentMemoryView(
+        when(memories.context(any(),any(),any())).thenReturn(List.of(new AgentMemoryView(
                 UUID.randomUUID(), UUID.randomUUID(), "PREFERENCE", "长记忆",
                 "很长的记忆内容。".repeat(800), "MANUAL", null, "ACTIVE",
                 UUID.randomUUID(), null, 1, OffsetDateTime.now(), OffsetDateTime.now())));

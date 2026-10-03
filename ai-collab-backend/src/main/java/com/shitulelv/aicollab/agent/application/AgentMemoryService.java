@@ -18,6 +18,8 @@ public class AgentMemoryService {
     private final AgentMemoryRepository repository;
     private final ProjectAccessGuard access;
     private final AuditService audit;
+    @org.springframework.beans.factory.annotation.Value("${agent.context.relevant-memory:true}")
+    private boolean relevantMemory = true;
     public AgentMemoryService(AgentMemoryRepository repository, ProjectAccessGuard access) {
         this.repository = repository; this.access = access; this.audit = null;
     }
@@ -31,6 +33,35 @@ public class AgentMemoryService {
     }
 
     public List<AgentMemoryView> context(UUID projectId) { return repository.list(projectId, true, 10); }
+
+    public List<AgentMemoryView> context(UUID projectId, UUID userId, String request) {
+        access.requireMember(projectId,userId);
+        if(!relevantMemory) return context(projectId);
+        var terms=terms(request);
+        return repository.list(projectId,true,100).stream()
+                .filter(memory -> score(memory,terms)>0)
+                .sorted(java.util.Comparator.<AgentMemoryView>comparingInt(memory -> score(memory,terms)).reversed()
+                        .thenComparing(AgentMemoryView::updatedAt,java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder()))
+                        .thenComparing(memory -> memory.id().toString()))
+                .limit(10).toList();
+    }
+    private static int score(AgentMemoryView memory, java.util.Set<String> terms) {
+        String title=memory.title().toLowerCase(java.util.Locale.ROOT),content=memory.content().toLowerCase(java.util.Locale.ROOT);
+        return ("PREFERENCE".equals(memory.type())?1:0)+terms.stream().mapToInt(term -> title.contains(term)?4:content.contains(term)?1:0).sum();
+    }
+    private static java.util.Set<String> terms(String request) {
+        var result=new java.util.HashSet<String>();
+        var matcher=java.util.regex.Pattern.compile("[a-z0-9_]{2,}|[\\p{IsHan}]{2,}").matcher(java.util.Objects.toString(request,"").toLowerCase(java.util.Locale.ROOT));
+        while(matcher.find()) {
+            String token=matcher.group();
+            if(Character.UnicodeScript.of(token.codePointAt(0))==Character.UnicodeScript.HAN) {
+                int[] points=token.codePoints().toArray();
+                for(int i=0;i+1<points.length;i++) result.add(new String(points,i,2));
+            } else result.add(token);
+        }
+        result.removeAll(java.util.Set.of("项目","目标","现在","换成","换个","改成","生成","规划","任务","继续","一个","根据","请问"));
+        return result;
+    }
 
     @Transactional public AgentMemoryView create(UUID projectId, UUID userId, AgentMemoryRequest request) {
         access.requireAdmin(projectId, userId);

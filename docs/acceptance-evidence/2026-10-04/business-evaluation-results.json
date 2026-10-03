@@ -1,0 +1,475 @@
+{
+  "executionDate": "2026-10-04",
+  "results": [
+    {
+      "id": "long-constraints",
+      "gate": "约束作用域及 superseded 状态正确",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "长对话中保留有效约束，并用八项替代十项",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:19:46.4081852+08:00",
+          "status": "PASSED",
+          "name": "constraintUpdateSupersedesOldEntryWithinSameScope",
+          "durationSeconds": "0.077",
+          "class": "com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest"
+        }
+      ]
+    },
+    {
+      "id": "summary-resume",
+      "gate": "偏移从持久化位置继续，不重复片段",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "60段旧覆盖、移出40条窗口、重启续读及删除鉴权",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:19:46.4081852+08:00",
+          "status": "PASSED",
+          "name": "summaryResumesBeyondSixtySegmentsAndRecentWindowAfterDatabaseReload",
+          "durationSeconds": "0.574",
+          "class": "com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest"
+        }
+      ]
+    },
+    {
+      "id": "target-switch",
+      "gate": "当前目标检索独立，历史不作为证据",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "明确换目标，不把上一问题混入当前检索",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:19:24.4446351+08:00",
+          "status": "PASSED",
+          "name": "explicitTargetSwitchDoesNotCarryPreviousRetrievalQuery",
+          "durationSeconds": "0.008",
+          "class": "com.shitulelv.aicollab.agent.application.AgentBusinessEvaluationTest"
+        }
+      ]
+    },
+    {
+      "id": "memory-selection",
+      "gate": "只读相关历史偏好，项目事实需重新查询",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "旧相关记忆胜过新无关记忆，撤权后拒绝读取",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:19:24.4446351+08:00",
+          "status": "PASSED",
+          "name": "olderRelevantMemoryOutranksNewUnrelatedMemoriesAndCurrentAccessIsRequired",
+          "durationSeconds": "0.057",
+          "class": "com.shitulelv.aicollab.agent.application.AgentBusinessEvaluationTest"
+        }
+      ]
+    },
+    {
+      "id": "object-identity",
+      "gate": "旧版本冲突和作用域隔离不能失效",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "同名对象与连续提案必须绑定真实身份",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:19:37.3125193+08:00",
+          "status": "PASSED",
+          "name": "independentCreateProposalsRemainDistinctWithoutExplicitApprovalId",
+          "durationSeconds": "0.105",
+          "class": "com.shitulelv.aicollab.agent.infrastructure.AgentProposalContinuityIntegrationTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:37.3125193+08:00",
+          "status": "PASSED",
+          "name": "approvedCreateProducesAResourceUpdateProposal",
+          "durationSeconds": "0.101",
+          "class": "com.shitulelv.aicollab.agent.infrastructure.AgentProposalContinuityIntegrationTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:37.3125193+08:00",
+          "status": "PASSED",
+          "name": "rejectedProposalIsNotReused",
+          "durationSeconds": "0.126",
+          "class": "com.shitulelv.aicollab.agent.infrastructure.AgentProposalContinuityIntegrationTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:37.3125193+08:00",
+          "status": "PASSED",
+          "name": "concurrentRevisionUsesVersionCompareAndSet",
+          "durationSeconds": "0.101",
+          "class": "com.shitulelv.aicollab.agent.infrastructure.AgentProposalContinuityIntegrationTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:37.3125193+08:00",
+          "status": "PASSED",
+          "name": "proposalIdCannotCrossProjectSessionOrRequester",
+          "durationSeconds": "0.107",
+          "class": "com.shitulelv.aicollab.agent.infrastructure.AgentProposalContinuityIntegrationTest"
+        }
+      ]
+    },
+    {
+      "id": "insufficient-sources",
+      "gate": "无可验证来源不得冒充有证据",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "无引用或未知引用不得支持答案",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:20:56.1113804+08:00",
+          "status": "PASSED",
+          "name": "answer_without_citations_has_no_verified_evidence",
+          "durationSeconds": "0.0",
+          "class": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest"
+        }
+      ]
+    },
+    {
+      "id": "multi-sources",
+      "gate": "仅保留本轮真实来源",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "多段引用、未知引用和重复编号",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:20:56.1113804+08:00",
+          "status": "PASSED",
+          "name": "citations_keep_first_occurrence_order_without_duplicates",
+          "durationSeconds": "0.0",
+          "class": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest"
+        }
+      ]
+    },
+    {
+      "id": "task-pages-document-continuation",
+      "gate": "续页、偏移、旧引用失效与跨项目拒绝",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "110任务中查第90项；embedding失败仍可按偏移续读正文",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:20:11.9910811+08:00",
+          "status": "PASSED",
+          "name": "searchReadsJsonMetadataIntoTheResultView",
+          "durationSeconds": "0.263",
+          "class": "com.shitulelv.aicollab.document.infrastructure.DocumentRepositoryIntegrationTest"
+        }
+      ]
+    },
+    {
+      "id": "planning-product-chain",
+      "gate": "恰好2任务1依赖，旧版本不能确认",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "资料规划、同调用重放、指定版本修订与人工确认",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:21:19.9493096+08:00",
+          "status": "PASSED",
+          "name": "agentPlanningOperationsReplayRepairAndManualConfirmationUseRealTransactions",
+          "durationSeconds": "0.146",
+          "class": "com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest"
+        }
+      ]
+    },
+    {
+      "id": "dispatch-restart",
+      "gate": "只有原规划与原attempt",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "提交后未dispatch，恢复必须沿用原attempt",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:21:19.9493096+08:00",
+          "status": "PASSED",
+          "name": "queuedAgentPlanDispatchRecoversSameAttemptWithoutDuplicateSideEffects",
+          "durationSeconds": "0.043",
+          "class": "com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest"
+        }
+      ]
+    },
+    {
+      "id": "cancel-permission",
+      "gate": "取消不创建任务，成员不能启动生成",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "取消竞争、attempt身份及普通成员权限",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:21:19.9493096+08:00",
+          "status": "PASSED",
+          "name": "agentCancelIsAttemptScopedAndMemberCannotStartPlanning",
+          "durationSeconds": "0.285",
+          "class": "com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest"
+        }
+      ]
+    },
+    {
+      "id": "repair-restart",
+      "gate": "修订意图存储，日期锁定，无重复模型副作用",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "重启保留字段范围及用户修订意图",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:21:11.7794982+08:00",
+          "status": "PASSED",
+          "name": "partialRepairReloadsSavedScopeAndResumesSameAttemptAfterRestart",
+          "durationSeconds": "0.179",
+          "class": "com.shitulelv.aicollab.planning.application.TaskPlanProductionWiringPostgresIntegrationTest"
+        }
+      ]
+    },
+    {
+      "id": "model-capabilities",
+      "gate": "不能把写草稿伪装成只读",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "Legacy写入拒绝、原生工具与预算限制",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "differentToolHasIndependentCorrectionCount",
+          "durationSeconds": "0.129",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "persistedProposalWithIntegerHoursSucceedsWithoutParameterCorrection",
+          "durationSeconds": "0.014",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "firstInvalidArgumentsDoesNotCreateApproval",
+          "durationSeconds": "0.008",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "readsOnBothSidesOfProposalCompleteAndExtraProposalIsRejected",
+          "durationSeconds": "0.05",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "persistedProposalRevisionEmitsApprovalUpdatedAndSucceeds",
+          "durationSeconds": "0.007",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "multiRoundInputTokenAccumulation",
+          "durationSeconds": "0.006",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "overBudgetRejectsExecution",
+          "durationSeconds": "0.005",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "withinBudgetAllowsExecution",
+          "durationSeconds": "0.006",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "invalidFinalTurnFallsBackWhenSuccessfulEvidenceExists",
+          "durationSeconds": "0.057",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "toolResultNotDuplicated",
+          "durationSeconds": "0.007",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "firstInvalidArgumentsDoesNotExecuteTool",
+          "durationSeconds": "0.011",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "outOfRangeNumericArgumentsAreRejectedBeforeToolOrApprovalExecution",
+          "durationSeconds": "0.015",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "multiRoundOutputTokenAccumulation",
+          "durationSeconds": "0.0",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "firstInvalidArgumentAllowsCorrection",
+          "durationSeconds": "0.0",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "recoveryReusesKnownReadResultWithoutCallingModelOrTool",
+          "durationSeconds": "0.014",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "multiRoundStepAccumulation",
+          "durationSeconds": "0.008",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "typedClarificationPersistsWaitingState",
+          "durationSeconds": "0.01",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "multiRoundToolCallAccumulation",
+          "durationSeconds": "0.0",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "nativeModeDoesNotUseDecisionParser",
+          "durationSeconds": "0.049",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "schemaValidationBeforeApprovalCreation",
+          "durationSeconds": "0.005",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "secondInvalidArgumentFails",
+          "durationSeconds": "0.01",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "duplicateProtocolCallIdsRejectWholeBatch",
+          "durationSeconds": "0.006",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "legacyWriteToolRuntimeRejection",
+          "durationSeconds": "0.0",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "schemaValidationBeforeReadOnlyToolExecution",
+          "durationSeconds": "0.0",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        },
+        {
+          "reportUpdated": "2026-10-04T04:19:25.5942226+08:00",
+          "status": "PASSED",
+          "name": "invalidFinalTurnStillFailsWithoutEvidence",
+          "durationSeconds": "0.02",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest"
+        }
+      ]
+    },
+    {
+      "id": "configuration-reload",
+      "gate": "同配置身份，编辑后明确拒绝恢复",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "PLANNING快照重载及配置编辑",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:21:19.9493096+08:00",
+          "status": "PASSED",
+          "name": "planningConfigurationIdentitySurvivesReloadAndRejectsEdits",
+          "durationSeconds": "0.013",
+          "class": "com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest"
+        }
+      ]
+    },
+    {
+      "id": "summary-budget",
+      "gate": "摘要真实记账不绕过预算",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "辅助摘要消耗后重新检查主请求预算",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:19:25.6872176+08:00",
+          "status": "PASSED",
+          "name": "summaryAccountingTriggersBudgetRecheckBeforeMainModelCall",
+          "durationSeconds": "0.0",
+          "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinatorTest"
+        }
+      ]
+    },
+    {
+      "id": "large-result",
+      "gate": "不切JSON字节，不丢版本身份",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "中文和emoji大结果必须保持JSON结构和版本身份",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:19:26.3576888+08:00",
+          "status": "PASSED",
+          "name": "oversizedUnicodePlanningResultKeepsValidJsonAndVersionIdentity",
+          "durationSeconds": "0.021",
+          "class": "com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizerTest"
+        }
+      ]
+    },
+    {
+      "id": "upgrade",
+      "gate": "旧表原列摘要和行摘要不变",
+      "layer": "LOCAL_DETERMINISTIC_OR_POSTGRES_WITH_SCRIPTED_MODEL",
+      "scenario": "V53旧会话与文档升级V55",
+      "status": "PASSED",
+      "tests": [
+        {
+          "reportUpdated": "2026-10-04T04:19:24.2091271+08:00",
+          "status": "PASSED",
+          "name": "upgradesV53WithExistingConversationAndDocumentWithoutChangingTheirData",
+          "durationSeconds": "1.544",
+          "class": "com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest"
+        }
+      ]
+    }
+  ],
+  "providerQuality": "separate real-provider evidence; never inferred from this suite",
+  "reportsDirectory": "E:\\project\\ai-collab\\ai-collab-backend\\target\\p4-closure-surefire"
+}

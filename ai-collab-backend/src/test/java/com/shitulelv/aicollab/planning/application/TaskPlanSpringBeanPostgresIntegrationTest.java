@@ -99,6 +99,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     @Autowired com.shitulelv.aicollab.agent.application.AgentPlanningOperationService agentOperations;
     @Autowired com.shitulelv.aicollab.agent.application.AgentPlanningRecoveryJob agentRecovery;
     @Autowired com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository agents;
+    @Autowired com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry agentTools;
     @MockitoBean TaskPlanModelClient model;
     @Autowired PlanningModelConfigurationStore planningConfigurations;
 
@@ -125,12 +126,22 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         var session=agents.createSession(f.project(),f.user(),"资料规划");
         var request=json.valueToTree(request("Agent 规划"));
         var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
+        assertThat(agents.findRun(f.project(),ctx.runId()).orElseThrow().maxSteps()).isEqualTo(24);
+        assertThat(agents.findRun(f.project(),ctx.runId()).orElseThrow().maxToolCalls()).isEqualTo(16);
         var accepted=agentOperations.mutate(ctx,"start_task_plan",request);
         UUID operation=UUID.fromString(accepted.path("operationId").asText());UUID plan=UUID.fromString(accepted.path("planId").asText());
         var replay=agentOperations.mutate(ctx,"start_task_plan",request);
         assertThat(replay.path("operationId")).isEqualTo(accepted.path("operationId"));
         assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_task_plan WHERE project_id=?",Integer.class,f.project())).isEqualTo(1);
         var ready=awaitStatus(f.project(),plan,Set.of(TaskPlanStatus.READY));
+        var readTool=agentTools.find("get_task_plan").orElseThrow();
+        var observed=readTool.execute(ctx,json.createObjectNode().put("planId",plan.toString()).put("taskLimit",1));
+        var sanitized=new com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer(json).sanitize(json.valueToTree(observed));
+        assertThat(sanitized.path("data").path("version").path("id").asText()).isEqualTo(ready.latestVersionId().toString());
+        assertThat(sanitized.path("data").path("draft").path("tasks")).hasSize(1);
+        assertThat(sanitized.path("data").path("draft").path("tasks").get(0).path("tempKey").asText()).isEqualTo("t1");
+        assertThat(sanitized.path("data").path("hasMore").asBoolean()).isTrue();
+        assertThat(sanitized.path("data").path("versions").get(0).has("tasksJson")).isFalse();
         var terminal=agentOperations.get(f.project(),operation,f.user());assertThat(terminal.path("status").asText()).isEqualTo("READY");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_planning_operation_event WHERE operation_id=? AND status='READY'",Integer.class,operation)).isEqualTo(1);
         agentOperations.synchronizeOperations();agentOperations.synchronizeOperations();
@@ -149,6 +160,9 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         assertThat(draft.tasks().getFirst().startDate()).isEqualTo(original.tasks().getFirst().startDate());
         assertThat(draft.tasks().getFirst().dueDate()).isEqualTo(original.tasks().getFirst().dueDate());
         assertThat(agentOperations.mutate(repairCtx,"repair_task_plan",repair).path("operationId")).isEqualTo(repairOperation.path("operationId"));
+        // Simulate lost/late completion event: a subsequent repair must not become the original operation result.
+        jdbc.update("UPDATE agent_planning_operation SET status='ACCEPTED',result_version_id=null WHERE id=?",operation);
+        assertThat(agentOperations.get(f.project(),operation,f.user()).path("versionId").asText()).isEqualTo(ready.latestVersionId().toString());
         assertThatThrownBy(()->confirmations.confirm(f.project(),plan,ready.latestVersionId(),UUID.randomUUID(),f.user())).isInstanceOf(BusinessException.class);
         UUID key=UUID.randomUUID();var confirmed=confirmations.confirm(f.project(),plan,repaired.latestVersionId(),key,f.user());
         assertThat((com.fasterxml.jackson.databind.JsonNode)json.valueToTree(confirmations.confirm(f.project(),plan,repaired.latestVersionId(),key,f.user()))).isEqualTo(json.valueToTree(confirmed));
@@ -156,6 +170,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM task_dependency d JOIN project_task t ON t.id=d.task_id WHERE t.source_plan_id=?",Integer.class,plan)).isEqualTo(1);
         // The original operation stays tied to its own result version; later revisions cannot overwrite it.
         assertThat(agentOperations.get(f.project(),operation,f.user()).path("versionId").asText()).isEqualTo(ready.latestVersionId().toString());
+        assertThat(agentOperations.get(f.project(),operation,f.user()).path("versionNo").asInt()).isEqualTo(ready.latestVersionNo());
         jdbc.update("DELETE FROM project_member WHERE project_id=? AND user_id=?",f.project(),f.user());
         assertThatThrownBy(()->agentOperations.get(f.project(),operation,f.user())).isInstanceOf(BusinessException.class);
     }

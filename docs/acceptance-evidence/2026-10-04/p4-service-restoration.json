@@ -1,0 +1,17 @@
+{
+  "ollamaOwnedProcessStopped": true,
+  "activeAcceptancePorts": [],
+  "originalBusinessDatabaseStarted": false,
+  "browserDaemonExited": true,
+  "executionDate": "2026-10-04",
+  "containers": [
+    "ai-collab-real-acceptance-redis-20261003|Exited (0) 36 seconds ago",
+    "ai-collab-real-acceptance-minio-20261003|Exited (0) 36 seconds ago",
+    "ai-collab-acceptance-postgres-20261003|Exited (0) 36 seconds ago",
+    "ai-collab-redis|Exited (0) 3 weeks ago",
+    "ai-collab-postgres|Exited (0) 24 hours ago",
+    "ai-collab-minio|Exited (0) 3 weeks ago"
+  ],
+  "providerConfigurationsRestored": true,
+  "testcontainersRunning": 0
+}

@@ -56,7 +56,7 @@ public class AgentPlanningOperationService {
     public ObjectNode get(UUID project,UUID operation,UUID user) {
         access.requireMember(project,user);
         synchronizeOperations();
-        var rows=jdbc.queryForList("SELECT o.id,o.plan_id,o.attempt_id,o.kind,o.status,o.goal_revision,o.target_version_id,o.result_version_id,p.title,p.latest_version_no,p.active_attempt_id,a.status AS attempt_status,a.error_code FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id WHERE o.project_id=? AND o.id=?",project,operation);
+        var rows=jdbc.queryForList("SELECT o.id,o.plan_id,o.attempt_id,o.kind,o.status,o.goal_revision,o.target_version_id,o.result_version_id,p.title,coalesce(v.version_no,p.latest_version_no) AS latest_version_no,p.active_attempt_id,a.status AS attempt_status,a.error_code FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id LEFT JOIN ai_task_plan_version v ON v.id=o.result_version_id WHERE o.project_id=? AND o.id=?",project,operation);
         if(rows.isEmpty()) throw new BusinessException(ErrorCode.TASK_PLAN_NOT_FOUND);
         var row=rows.getFirst();var value=json.createObjectNode();
         for(String field:List.of("status","kind"))value.put(field,Objects.toString(row.get(field),null));
@@ -78,9 +78,17 @@ public class AgentPlanningOperationService {
         jdbc.update("""
             WITH states AS (
               SELECT o.id,CASE WHEN a.status IN ('FAILED','CANCELED','DISCARDED') THEN a.status
+                WHEN owned.id IS NOT NULL THEN CASE WHEN jsonb_array_length(coalesce(owned.validation_result_json->'errors','[]'::jsonb))>0 THEN 'READY_WITH_ISSUES' ELSE 'READY' END
                 WHEN p.generation_seq<>o.generation_seq THEN 'SUPERSEDED' ELSE p.status END AS status,
-                CASE WHEN p.generation_seq=o.generation_seq AND p.status NOT IN ('SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING') THEN p.latest_version_id END AS version
+                coalesce(owned.id,CASE WHEN p.generation_seq=o.generation_seq AND p.status NOT IN ('SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING') THEN p.latest_version_id END) AS version
               FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id
+              LEFT JOIN LATERAL (
+                SELECT v.id,v.validation_result_json FROM ai_task_plan_version v
+                WHERE v.plan_id=o.plan_id AND v.generation_seq=o.generation_seq
+                  AND ((o.kind='start_task_plan' AND v.source_type IN ('AI_COMPLETE','AI_REPAIR','AI_PARTIAL'))
+                    OR (o.kind='repair_task_plan' AND v.source_type='AI_PARTIAL_REPAIR' AND v.based_on_version_id=o.target_version_id))
+                ORDER BY v.version_no DESC LIMIT 1
+              ) owned ON true
               WHERE o.status IN ('ACCEPTED','SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING')
             ), changed AS (
               UPDATE agent_planning_operation o SET status=s.status,result_version_id=s.version,updated_at=now()

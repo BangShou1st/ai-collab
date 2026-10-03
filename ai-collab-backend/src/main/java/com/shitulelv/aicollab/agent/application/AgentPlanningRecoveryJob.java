@@ -14,7 +14,9 @@ public class AgentPlanningRecoveryJob {
     public AgentPlanningRecoveryJob(JdbcTemplate jdbc,TaskPlanRepository plans,TaskPlanGenerationOrchestrator generation,TaskPlanPartialRepairService repairs,AgentPlanningOperationService operations){
         this.jdbc=jdbc;this.plans=plans;this.generation=generation;this.repairs=repairs;this.operations=operations;
     }
+    @org.springframework.beans.factory.annotation.Value("${agent.enabled:false}") private boolean enabled;
     @Scheduled(fixedDelayString="${agent.planning.recovery-delay-ms:5000}")
+    public void tick(){if(enabled) recover();}
     public void recover() {
         var rows=jdbc.queryForList("""
             SELECT DISTINCT p.id,p.project_id,a.id AS attempt_id,a.created_by,a.stage

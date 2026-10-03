@@ -1,0 +1,124 @@
+{
+  "tasks": [
+    {
+      "id": "9084b6d5-4c9c-4fb8-95e0-8112f5a64a2f",
+      "projectId": "984c42cd-212d-42ec-a94c-08d73776c280",
+      "title": "会议纪要记录与项目隔离存储",
+      "description": "实现会议纪要的记录与查询能力：定义纪要数据结构与存储，会话内容按项目 ID 隔离，所有写入在服务端执行权限检查（客户端参数不作为权限依据）。范围：纪要创建、读取、更新、按项目查询；不含待办生成与审阅流程。验收标准：同项目内可正常记录与读取纪要；跨项目访问纪要在服务端被拒绝；未授权写入在服务端被拒绝并记录日志。周期 2026-10-05 至 2026-10-12，无前置依赖，为后续任务链的根节点。负责人留空，由用户在规划页人工审阅时指定。文档中「会议内容按项目隔离，所有写入要求服务端权限检查」一句在原文重复堆叠，按同一条约束处理，不展开为多条需求。",
+      "milestoneId": "6fa0ef73-e016-40e8-9f62-ed3bd9b60d4d",
+      "milestoneName": "会议纪要记录与项目隔离存储",
+      "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "assigneeDisplayName": "Local Owner",
+      "status": "TODO",
+      "priority": "HIGH",
+      "estimateHours": 40.0,
+      "startDate": "2026-10-05",
+      "dueDate": "2026-10-12",
+      "version": 0,
+      "unfinishedDependencyCount": 0,
+      "dependencyIds": [],
+      "sourcePlanId": "57dbebc1-6174-4192-ac8f-5d86a12d5b88"
+    },
+    {
+      "id": "b5542505-6d31-49d2-9d65-e64ce6e11165",
+      "projectId": "984c42cd-212d-42ec-a94c-08d73776c280",
+      "title": "纪要转待办生成",
+      "description": "在纪要记录能力可用后，实现由会议纪要生成待办的处理能力：支持对指定纪要触发待办生成，生成的每条待办关联来源纪要，待办写入同样经过服务端权限检查与项目隔离。范围：待办生成入口、生成结果的结构与追溯关系、生成失败的基本处理；不含人工审阅流程。验收标准：可从一条已记录纪要生成至少一条待办并可回溯来源纪要；生成操作受项目隔离约束，跨项目操作被服务端拒绝。周期 2026-10-12 至 2026-10-16（受前置任务 T1 完成时间约束，起始日期自 10-12 起，以满足前置 dueDate ≤ 本任务 startDate 的无环约束；原建议窗口 10-09 起无法与 T1 于 10-12 完成的依赖关系并存）。负责人留空，由用户在规划页人工审阅时指定。",
+      "milestoneId": "a09b9733-755d-4602-af3e-853f9a831406",
+      "milestoneName": "纪要转待办生成",
+      "assigneeId": null,
+      "assigneeDisplayName": null,
+      "status": "TODO",
+      "priority": "HIGH",
+      "estimateHours": 24.0,
+      "startDate": "2026-10-12",
+      "dueDate": "2026-10-16",
+      "version": 0,
+      "unfinishedDependencyCount": 1,
+      "dependencyIds": [
+        "9084b6d5-4c9c-4fb8-95e0-8112f5a64a2f"
+      ],
+      "sourcePlanId": "57dbebc1-6174-4192-ac8f-5d86a12d5b88"
+    },
+    {
+      "id": "656e69d3-13fe-4d63-9478-9943f6e42957",
+      "projectId": "984c42cd-212d-42ec-a94c-08d73776c280",
+      "title": "人工审阅与确认流程",
+      "description": "在待办生成链路打通后，实现会议纪要与待办的人工审阅与确认流程：提供审阅入口与状态流转（待审阅 / 已确认 / 需修改），确认与驳回动作均由人工执行并记录操作痕迹，系统不提供自动批准路径。范围：纪要审阅、待办审阅、审阅结果留痕；不含权限隔离的最终验收。验收标准：纪要与待办均可进入人工审阅状态流转；审阅确认只能由人工操作产生；审阅结果可追溯到对应纪要与待办。周期 2026-10-16 至 2026-10-21（原建议起始 10-14 早于前置 T2 完成日 10-16，为保持依赖无环与前置先行，起点顺延至 10-16）。负责人留空，由用户在规划页人工审阅时指定。",
+      "milestoneId": "65ee8686-9ac9-4a16-b91c-67079fc47d48",
+      "milestoneName": "人工审阅与确认流程",
+      "assigneeId": null,
+      "assigneeDisplayName": null,
+      "status": "TODO",
+      "priority": "MEDIUM",
+      "estimateHours": 28.0,
+      "startDate": "2026-10-16",
+      "dueDate": "2026-10-21",
+      "version": 0,
+      "unfinishedDependencyCount": 1,
+      "dependencyIds": [
+        "b5542505-6d31-49d2-9d65-e64ce6e11165"
+      ],
+      "sourcePlanId": "57dbebc1-6174-4192-ac8f-5d86a12d5b88"
+    },
+    {
+      "id": "c770eb71-982f-4c0c-80b3-e1557f669c68",
+      "projectId": "984c42cd-212d-42ec-a94c-08d73776c280",
+      "title": "权限与数据隔离验收",
+      "description": "在记录与审阅能力完成后，执行会议内容按项目隔离与写入服务端权限检查的验收：覆盖 T1/T2/T3 全部写入路径的权限检查验证、跨项目数据不可见性验证、纪要到待办的追溯链路验证，输出验收结论与问题清单并给出是否可交付的判定。范围：验收执行、结论记录、遗留问题登记；本任务不产生新的功能开发。验收标准：全部写入路径均有服务端权限检查证据；跨项目读写均被拒绝；验收结论书面记录并由用户确认。周期 2026-10-21 至 2026-10-25（原建议起始 10-19 早于前置 T3 完成日 10-21，为满足依赖先行关系顺延至 10-21，该 4 天窗口同时作为关键路径后的验收缓冲，返工余量有限）。负责人留空，由用户在规划页人工审阅时指定。",
+      "milestoneId": "f11cd3ed-dfcc-4cb6-a06a-9c81f624b4fc",
+      "milestoneName": "权限与数据隔离验收",
+      "assigneeId": null,
+      "assigneeDisplayName": null,
+      "status": "TODO",
+      "priority": "MEDIUM",
+      "estimateHours": 20.0,
+      "startDate": "2026-10-21",
+      "dueDate": "2026-10-25",
+      "version": 0,
+      "unfinishedDependencyCount": 2,
+      "dependencyIds": [
+        "656e69d3-13fe-4d63-9478-9943f6e42957",
+        "9084b6d5-4c9c-4fb8-95e0-8112f5a64a2f"
+      ],
+      "sourcePlanId": "57dbebc1-6174-4192-ac8f-5d86a12d5b88"
+    }
+  ],
+  "replay": {
+    "confirmationId": "9b4830c1-664d-47cd-9053-1a899bc34ebe",
+    "status": "SUCCESS",
+    "milestoneIds": [
+      "6fa0ef73-e016-40e8-9f62-ed3bd9b60d4d",
+      "a09b9733-755d-4602-af3e-853f9a831406",
+      "65ee8686-9ac9-4a16-b91c-67079fc47d48",
+      "f11cd3ed-dfcc-4cb6-a06a-9c81f624b4fc"
+    ],
+    "taskIds": [
+      "9084b6d5-4c9c-4fb8-95e0-8112f5a64a2f",
+      "b5542505-6d31-49d2-9d65-e64ce6e11165",
+      "656e69d3-13fe-4d63-9478-9943f6e42957",
+      "c770eb71-982f-4c0c-80b3-e1557f669c68"
+    ],
+    "dependencyCount": 4
+  },
+  "datesUnchanged": true,
+  "confirmation": {
+    "dependencyCount": 4,
+    "taskIds": [
+      "9084b6d5-4c9c-4fb8-95e0-8112f5a64a2f",
+      "b5542505-6d31-49d2-9d65-e64ce6e11165",
+      "656e69d3-13fe-4d63-9478-9943f6e42957",
+      "c770eb71-982f-4c0c-80b3-e1557f669c68"
+    ],
+    "confirmationId": "9b4830c1-664d-47cd-9053-1a899bc34ebe",
+    "milestoneIds": [
+      "6fa0ef73-e016-40e8-9f62-ed3bd9b60d4d",
+      "a09b9733-755d-4602-af3e-853f9a831406",
+      "65ee8686-9ac9-4a16-b91c-67079fc47d48",
+      "f11cd3ed-dfcc-4cb6-a06a-9c81f624b4fc"
+    ],
+    "status": "SUCCESS"
+  },
+  "chosenVersion": "13094133-3bc5-4029-afc2-c3a93b6f3cab",
+  "operator": "owner via existing planning API, no Agent approval capability"
+}

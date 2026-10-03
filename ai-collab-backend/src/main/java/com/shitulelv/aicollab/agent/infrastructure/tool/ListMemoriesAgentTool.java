@@ -23,6 +23,6 @@ public class ListMemoriesAgentTool implements AgentTool {
                 "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{}}", false);
     }
     @Override public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {
-        return new AgentToolResult(json.valueToTree(memories.context(context.projectId())), List.of(), List.of());
+        return new AgentToolResult(json.valueToTree(memories.list(context.projectId(),context.userId(),true)), List.of(), List.of());
     }
 }
