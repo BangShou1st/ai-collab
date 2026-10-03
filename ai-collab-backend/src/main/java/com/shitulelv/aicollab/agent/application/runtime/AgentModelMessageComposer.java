@@ -147,9 +147,11 @@ public class AgentModelMessageComposer {
         // 按时间正序排列（从旧到新）
         recentMessages.sort((a, b) -> a.createdAt().compareTo(b.createdAt()));
         int historyBudget = 12000;
+        List<AgentMessageView> selected = new ArrayList<>();
         for (AgentMessageView msg : recentMessages.subList(Math.max(0, recentMessages.size() - 6), recentMessages.size())) {
             if (msg.content().length() > historyBudget) continue;
             historyBudget -= msg.content().length();
+            selected.add(msg);
             if ("USER".equals(msg.role())) {
                 messages.add(new ModelMessage.User(msg.content()));
             } else if ("ASSISTANT".equals(msg.role())) {
@@ -157,8 +159,9 @@ public class AgentModelMessageComposer {
             }
         }
 
-        // 3. 当前用户目标（如果不在历史中）
-        if (recentMessages.stream().noneMatch(m -> "USER".equals(m.role()) && run.goal().equals(m.content()))) {
+        // 3. 当前用户目标（按实际入选的消息判断，而不是取回的历史：
+        // 取回但未入选的旧目标不能替代当前请求的注入）
+        if (selected.stream().noneMatch(m -> "USER".equals(m.role()) && run.goal().equals(m.content()))) {
             messages.add(new ModelMessage.User(run.goal()));
         }
 
