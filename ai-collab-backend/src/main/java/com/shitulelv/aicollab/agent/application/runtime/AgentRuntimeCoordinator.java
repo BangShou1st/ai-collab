@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -53,6 +54,7 @@ public class AgentRuntimeCoordinator {
     private final RoutingAgentModelExecutor modelExecutor;
     private final AgentModelMessageComposer composer;
     private final AgentToolCallExecutor toolExecutor;
+    private final AgentContextProperties contextProperties;
 
     @Autowired
     public AgentRuntimeCoordinator(
@@ -69,7 +71,8 @@ public class AgentRuntimeCoordinator {
             AgentConvergencePolicy convergencePolicy,
             ObjectMapper json,
             AgentEventService events,
-            AgentMemoryService memories) {
+            AgentMemoryService memories,
+            AgentContextProperties contextProperties) {
         this.repository = repository;
         this.contextAssembler = contextAssembler;
         this.skillRegistry = skillRegistry;
@@ -80,6 +83,7 @@ public class AgentRuntimeCoordinator {
         this.convergencePolicy = convergencePolicy;
         this.json = json;
         this.events = events;
+        this.contextProperties = contextProperties == null ? AgentContextProperties.defaults() : contextProperties;
         this.composer = new AgentModelMessageComposer(repository, memories, json, modelExecutor);
         this.toolExecutor = new AgentToolCallExecutor(repository, tools, cancellation, loopGuard,
                 approvals, modelExecutor, sanitizer, json, events);
@@ -99,7 +103,28 @@ public class AgentRuntimeCoordinator {
             ObjectMapper json) {
         this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
                 loopGuard, approvals, modelExecutor, sanitizer, new AgentConvergencePolicy(),
-                json, null, null);
+                json, null, null, AgentContextProperties.defaults());
+    }
+
+    /** 兼容既有装配与测试：使用默认上下文预算配置。 */
+    public AgentRuntimeCoordinator(
+            AgentRepository repository,
+            AgentContextAssembler contextAssembler,
+            AgentSkillRegistry skillRegistry,
+            AgentPlanService planService,
+            AgentToolRegistry tools,
+            AgentCancellationService cancellation,
+            AgentLoopGuard loopGuard,
+            AgentApprovalService approvals,
+            RoutingAgentModelExecutor modelExecutor,
+            AgentToolResultSanitizer sanitizer,
+            AgentConvergencePolicy convergencePolicy,
+            ObjectMapper json,
+            AgentEventService events,
+            AgentMemoryService memories) {
+        this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
+                loopGuard, approvals, modelExecutor, sanitizer, convergencePolicy,
+                json, events, memories, AgentContextProperties.defaults());
     }
 
     /**
@@ -164,18 +189,48 @@ public class AgentRuntimeCoordinator {
                 exposed = List.of();
             }
 
-            // 7. 构建模型消息（包含跨 Tick 恢复的历史）
-            List<ModelMessage> messages = composer.buildMessageHistory(run, ctx, skill, plan, steps);
-            if (steps.stream().anyMatch(step -> "FORMAT_REPAIR_REQUESTED".equals(step.errorCode())))
-                messages.add(new ModelMessage.User("上次模型响应未满足协议格式。保留原目标与工具权限，纠正输出格式；不得重复已执行的动作。"));
-            if (finalizing) {
-                messages.add(new ModelMessage.System("""
-                        现在必须结束本次运行。只能基于已经取得的工具结果回答用户，
-                        不得请求或调用任何工具，不得扩大用户目标；信息不足时明确说明缺失信息。
-                        """));
+            // 7. 单次请求输入预算：min(模型窗口-输出预留-安全余量, 运行剩余输入预算, 应用单次上限)
+            int remainingRunInput = Math.min(run.maxInputTokens(), ctx.limits().maxInputTokens()) - run.inputTokensUsed();
+            var providerIdentity = modelExecutor.pinnedProviderIdentity(run);
+            var modelWindow = AgentContextBudget.resolveWindow(
+                    providerIdentity == null ? null : providerIdentity.providerType(),
+                    providerIdentity == null ? null : providerIdentity.modelName(),
+                    contextProperties.windowOverrides());
+            var requestBudget = AgentContextBudget.perRequest(contextProperties, modelWindow, remainingRunInput);
+
+            List<ModelMessage> messages;
+            int estimatedInput;
+            String overBudgetReason = null;
+            if (contextProperties.composerV2()) {
+                var composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 1.0);
+                if (composition.failureReason() != null) {
+                    // 必选层（含当前请求）无法完整放入预算：明确停止，不静默截断
+                    return inputBudgetExceeded(run, requestBudget, composition.failureReason());
+                }
+                messages = appendTurnInstructions(composition.messages(), steps, finalizing);
+                estimatedInput = estimateInput(messages, exposed);
+                if (estimatedInput > requestBudget.availableInputTokens()) {
+                    // 降级重组一次：收紧预算并重试，仍超限才明确停止
+                    composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 0.6);
+                    messages = appendTurnInstructions(composition.messages(), steps, finalizing);
+                    estimatedInput = estimateInput(messages, exposed);
+                    if (estimatedInput > requestBudget.availableInputTokens()) {
+                        overBudgetReason = "COMPOSITION_OVER_BUDGET";
+                    } else {
+                        log.debug("上下文预算降级重组生效: run={}, estimated={}, available={}",
+                                run.id(), estimatedInput, requestBudget.availableInputTokens());
+                    }
+                }
+            } else {
+                messages = appendTurnInstructions(composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, finalizing);
+                estimatedInput = estimateInput(messages, exposed);
+                if (estimatedInput > requestBudget.availableInputTokens()) {
+                    overBudgetReason = "COMPOSITION_OVER_BUDGET";
+                }
             }
-            int estimatedInput=Math.max(1,(json.valueToTree(messages).toString().length()+json.valueToTree(exposed).toString().length()+2)/3);
-            if (estimatedInput>Math.min(run.maxInputTokens(),ctx.limits().maxInputTokens())-run.inputTokensUsed()) return budgetExceeded(run);
+            if (overBudgetReason != null) {
+                return inputBudgetExceeded(run, requestBudget, overBudgetReason);
+            }
             AgentModelAccounting.estimate(estimatedInput);
 
             // 8. 调用模型（通过路由选择正确的执行器）
@@ -300,6 +355,43 @@ public class AgentRuntimeCoordinator {
                         .put("errorCode", "AGENT_BUDGET_EXCEEDED"));
         return new AgentWorkerOutcome(
                 AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
+    }
+
+    /** 单次输入预算超限：区分约束来源（运行费用/单次上限/模型窗口），事件带具体原因。 */
+    private AgentWorkerOutcome inputBudgetExceeded(
+            AgentRunView run, AgentContextBudget.Budget budget, String overBudgetReason) {
+        repository.recordBudgetExceeded(run);
+        var payload = json.createObjectNode()
+                .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
+                .put("errorCode", "AGENT_BUDGET_EXCEEDED")
+                .put("scope", "PER_REQUEST_INPUT")
+                .put("binding", budget.binding())
+                .put("availableInputTokens", budget.availableInputTokens())
+                .put("windowEstimated", budget.windowEstimated());
+        if (overBudgetReason != null) payload.put("reason", overBudgetReason);
+        emit(run, AgentEventType.RUN_BUDGET_EXCEEDED, payload);
+        return new AgentWorkerOutcome(
+                AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
+    }
+
+    /** 组装完成后追加本轮附加指令（格式修复、收尾要求），这些内容同样计入输入预算。 */
+    private List<ModelMessage> appendTurnInstructions(List<ModelMessage> base, List<AgentStepView> steps, boolean finalizing) {
+        List<ModelMessage> messages = new ArrayList<>(base);
+        if (steps.stream().anyMatch(step -> "FORMAT_REPAIR_REQUESTED".equals(step.errorCode())))
+            messages.add(new ModelMessage.User("上次模型响应未满足协议格式。保留原目标与工具权限，纠正输出格式；不得重复已执行的动作。"));
+        if (finalizing) {
+            messages.add(new ModelMessage.System("""
+                    现在必须结束本次运行。只能基于已经取得的工具结果回答用户，
+                    不得请求或调用任何工具，不得扩大用户目标；信息不足时明确说明缺失信息。
+                    """));
+        }
+        return messages;
+    }
+
+    /** chars/3 兼容估算：同时计入消息与工具定义，不含 provider 侧协议包装。 */
+    private int estimateInput(List<ModelMessage> messages, List<AgentToolDefinition> exposed) {
+        return Math.max(1, (json.valueToTree(messages).toString().length()
+                + json.valueToTree(exposed).toString().length() + 2) / 3);
     }
 
     private AgentWorkerOutcome completeFromEvidence(
