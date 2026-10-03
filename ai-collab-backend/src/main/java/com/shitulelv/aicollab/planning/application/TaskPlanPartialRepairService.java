@@ -137,14 +137,30 @@ public class TaskPlanPartialRepairService {
                 projectId, planId, request.baseVersionId(), request.expectedVersionNo(), actor);
         RepairJob job = new RepairJob(projectId, planId, actor, request.baseVersionId(),
                 started, draft, issues, scope);
+        jdbc.update("UPDATE ai_task_plan_attempt SET repair_job_json=?::jsonb,repair_previous_status=? WHERE id=?",write(job),started.previousStatus().name(),started.attemptId());
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization(){
+                @Override public void afterCommit(){try{dispatch(job);}catch(RuntimeException failure){ /* attempt records queue rejection */ }}
+            });
+        } else dispatch(job);
+        return started.plan();
+    }
+
+    /** Resumes the same queued attempt and saved scope; never creates a new repair or version. */
+    public void resume(UUID attemptId) {
+        String value=jdbc.queryForObject("SELECT repair_job_json::text FROM ai_task_plan_attempt WHERE id=? AND status='QUEUED'",String.class,attemptId);
+        if(value==null) return;
+        try {dispatch(json.readValue(value,RepairJob.class));} catch(com.fasterxml.jackson.core.JsonProcessingException failure) {throw new IllegalStateException(failure);}
+    }
+
+    private void dispatch(RepairJob job) {
         try {
             executor.execute(() -> run(job));
         } catch (RejectedExecutionException rejected) {
-            repository.failPartialRepair(projectId, planId, started.attemptId(),
-                    started.previousStatus(), "PLANNING_EXECUTOR_BUSY");
+            repository.failPartialRepair(job.projectId(), job.planId(), job.started().attemptId(),
+                    job.started().previousStatus(), "PLANNING_EXECUTOR_BUSY");
             throw new BusinessException(ErrorCode.PLANNING_MODEL_UNAVAILABLE);
         }
-        return started.plan();
     }
 
     private void run(RepairJob job) {
@@ -154,6 +170,7 @@ public class TaskPlanPartialRepairService {
                     repairing.generationSeq(), TaskPlanStatus.REPAIRING)) {
                 return;
             }
+            access.requireAdmin(job.projectId(),job.actor());
             GenerationResult result = model.generate(
                     REPAIR_SYSTEM, prompt(job), "TASK_PLAN_REPAIR_PATCH",
                     job.actor(), job.projectId(), job.started().attemptId(), job.started().attemptId());

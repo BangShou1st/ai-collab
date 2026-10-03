@@ -2,6 +2,7 @@
 import { MoreFilled } from '@element-plus/icons-vue'
 import { ref } from 'vue'
 import DocumentBodyReader from '../document/DocumentBodyReader.vue'
+import AgentPlanningCards from './AgentPlanningCards.vue'
 import PageHeader from '../../shared/PageHeader.vue'
 import EmptyState from '../../shared/EmptyState.vue'
 import AgentContextChips from './AgentContextChips.vue'
@@ -198,6 +199,7 @@ function sourceIdentity(c: unknown): { documentId: string; chunkId: string } | n
         </section>
       </aside>
     </div>
+    <AgentPlanningCards :project-id="projectId" :session-id="sessionId" :run-version="runDetail?.lastEventSequence" />
     <el-drawer :model-value="Boolean(source)" title="引用原文" @close="source = null">
       <DocumentBodyReader v-if="source" :project-id="projectId" :document-id="source.documentId" :chunk-id="source.chunkId" />
     </el-drawer>

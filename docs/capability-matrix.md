@@ -99,3 +99,4 @@ P1 补充验收（本轮修订新增口径）：
 | --- | --- | --- | --- |
 | P1 摘要持续覆盖与窗口外续读 | 已实现；策略 v4，偏移合并、完成前缀压缩、删除终止、重读鉴权 | 单测 + 真实隔离 PostgreSQL 数据流，61 项通过 | [P1 修复](p1-context-foundation-report.md#11-剩余覆盖修复2026-10-04) |
 | P2 任务搜索分页、文档目录/提纲/正文续读、可靠来源 | 已实现；任务 keyset 实时分页，正文独立于 embedding；V54，旧来源兼容读取 | 43 项后端针对性（含 PostgreSQL），137 项前端；类型检查通过 | [连续交付报告](next-stage-delivery-report.md) |
+| P3 Agent 接通规划生成/查询/修复/取消 | 已实现；V55 操作身份、提交后 dispatch、同 attempt 恢复；原规划页人工确认 | 93 项针对性（含 PostgreSQL）、139 项前端、类型检查；真实模型另记 | [连续交付报告](next-stage-delivery-report.md#p3) |

@@ -380,7 +380,11 @@ async function loadWorkspace(): Promise<void> {
     showApiError(planResult.reason, '任务规划列表加载')
   }
   if (planResult.status === 'fulfilled') {
-    await ensureDefaultSelection()
+    const linkedPlan = typeof route.query?.planId === 'string' ? route.query?.planId : undefined
+    if (linkedPlan && !selected.value) {
+      const detail = (await planningApi.detail(projectId.value, linkedPlan)).data.data
+      await open(detail.plan)
+    } else await ensureDefaultSelection()
   }
   if (documentResult.status === 'fulfilled') {
     documents.value = documentResult.value.data.filter(document => document.status === 'READY')

@@ -18,6 +18,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AgentToolRegistryTest {
     private final ObjectMapper json = new ObjectMapper();
 
+    @Test void controlledPlanningMutationsAreWritesAndOnlyExposedToInteractiveAdmins() {
+        var tool=new com.shitulelv.aicollab.agent.domain.tool.ControlledWriteAgentTool(){
+            public String name(){return "start_task_plan";}
+            public AgentToolResult execute(AgentToolContext context,com.fasterxml.jackson.databind.JsonNode args){return null;}
+        };
+        assertThat(tool.writesBusinessData()).isTrue();var registry=new AgentToolRegistry(List.of(tool));
+        for(String role:List.of("MEMBER","SUPERVISOR"))assertThat(registry.namesFor(new AgentToolContext(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),role,false,0))).isEmpty();
+        assertThat(registry.namesFor(new AgentToolContext(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),"ADMIN",false,0))).containsExactly("start_task_plan");
+        assertThat(registry.namesFor(new AgentToolContext(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),"OWNER",true,0))).isEmpty();
+        assertThat(registry.namesFor(new AgentToolContext(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),"OWNER",false,1))).isEmpty();
+    }
+
     @Test
     void registryRejectsDuplicateAndUnknownTools() {
         AgentTool first = fake("list_tasks", false);

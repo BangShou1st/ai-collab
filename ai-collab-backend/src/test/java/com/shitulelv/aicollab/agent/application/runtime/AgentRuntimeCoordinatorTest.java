@@ -555,6 +555,25 @@ class AgentRuntimeCoordinatorTest {
                 }), eq(false));
     }
 
+    @Test void controlledPlanningToolEndsAtAcceptedAndPreservesInvocationIdentity() {
+        var run=runWithSkillCode("ITERATION_PLANNING");UUID invocation=UUID.randomUUID();
+        var ctx=new AgentExecutionContext(run.id(),run.sessionId(),run.projectId(),run.requesterId(),"OWNER",false,AgentPageContext.empty(),AgentRuntimeLimits.defaults(),0,List.of());
+        when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(ctx);when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
+        when(repository.invocationId(eq(run),any())).thenReturn(invocation);
+        var completed=new java.util.concurrent.atomic.AtomicReference<List<AgentStepView>>(List.of());
+        when(repository.listSteps(any(),any())).thenAnswer(i->completed.get());
+        when(repository.recordToolResult(any(),any(),any(),any(),anyBoolean())).thenAnswer(i->{completed.set(List.of(new AgentStepView(UUID.randomUUID(),1,AgentStepType.TOOL_CALL_COMPLETED,i.getArgument(1),i.getArgument(2),i.getArgument(3),"TOOL_SUCCESS",null,null,false,null,null,OffsetDateTime.now())));return i.getArgument(0);});
+        var tool=new ControlledWriteAgentTool(){
+            public String name(){return "start_task_plan";}
+            public AgentToolResult execute(AgentToolContext context,JsonNode args){assertThat(context.invocationId()).isEqualTo(invocation);return new AgentToolResult(json.createObjectNode().put("operationId",UUID.randomUUID().toString()).put("status","SKELETON_GENERATING"),List.of(),List.of());}
+        };
+        var registry=new AgentToolRegistry(List.of(tool));coordinator=new AgentRuntimeCoordinator(repository,contextAssembler,skillRegistry,planService,registry,cancellation,loopGuard,approvals,modelExecutor,sanitizer,json);
+        when(modelExecutor.callModel(eq(run),any(),any(),eq(false))).thenReturn(toolCallResult(new ModelToolCall("call-plan","start_task_plan",json.createObjectNode())));
+        var outcome=coordinator.advance(run);assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(outcome.answer()).contains("已受理").doesNotContain("生成成功");
+        verify(modelExecutor,times(1)).callModel(eq(run),any(),any(),eq(false));verify(repository,never()).requeueRun(any());verifyNoInteractions(approvals);
+    }
+
     private AgentRunView runWithSkillCode(String skillCode) {
         AgentRunView r = run();
         return new AgentRunView(

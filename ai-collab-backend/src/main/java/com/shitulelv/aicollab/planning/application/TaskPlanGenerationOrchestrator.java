@@ -141,6 +141,8 @@ public class TaskPlanGenerationOrchestrator {
             """;
 
     private final Executor executor;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard access;
     private final TaskPlanRepository repository;
     private final TaskPlanModelClient model;
     private final TaskPlanOutputParser parser;
@@ -197,12 +199,23 @@ public class TaskPlanGenerationOrchestrator {
      * so cancel() always finds it. On queue reject, we clean up immediately.
      */
     public void dispatch(TaskPlanRecord plan, UUID actor, boolean detailOnly) {
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization(){
+                @Override public void afterCommit(){
+                    try {dispatchNow(plan,actor,detailOnly);} catch(RuntimeException failure) { /* persisted attempt failure remains queryable */ }
+                }
+            });
+            return;
+        }
+        dispatchNow(plan,actor,detailOnly);
+    }
+    private void dispatchNow(TaskPlanRecord plan,UUID actor,boolean detailOnly) {
         FutureTask<Object> futureTask = new FutureTask<Object>(() -> {
             runPlan(plan, actor, detailOnly);
             return null;
         });
         GenerationRunKey key = new GenerationRunKey(plan.id(), plan.generationSeq());
-        runRegistry.put(key, new GenerationRunHandle(futureTask, plan.activeAttemptId()));
+        if(runRegistry.putIfAbsent(key, new GenerationRunHandle(futureTask, plan.activeAttemptId()))!=null) return;
         try {
             executor.execute(futureTask);
         } catch (RejectedExecutionException rejected) {
@@ -259,6 +272,7 @@ public class TaskPlanGenerationOrchestrator {
         if (!repository.markRunning(plan.activeAttemptId(), plan.id(), plan.generationSeq(),
                 TaskPlanStatus.SKELETON_GENERATING)) return;
         try {
+            if(access!=null) access.requireAdmin(plan.projectId(),actor);
             var context = contexts.assemble(plan);
             // R3: Skeleton prompt uses identity-only schema, no sources in <SKELETON>
             String prompt = skeletonPrompt(plan) + "\n" + context.promptText();
