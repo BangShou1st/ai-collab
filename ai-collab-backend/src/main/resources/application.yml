@@ -75,6 +75,17 @@ agent:
   enabled: ${AGENT_ENABLED:${CHAT_ENABLED:false}}
   worker-delay-ms: ${AGENT_WORKER_DELAY_MS:1000}
   schedule-delay-ms: ${AGENT_SCHEDULE_DELAY_MS:30000}
+  context:
+    # 上下文组装与单次请求预算；composer-v2=false 回退到固定条数/字符截断的旧组装路径
+    composer-v2: "${AGENT_CONTEXT_COMPOSER_V2:true}"
+    # 应用单次输入上限（token）；模型窗口未知时的保守应用上限
+    per-request-input-cap: "${AGENT_CONTEXT_PER_REQUEST_INPUT_CAP:50000}"
+    # 输出预留与安全余量（token），仅在模型窗口已知时参与计算
+    output-reserve-tokens: "${AGENT_CONTEXT_OUTPUT_RESERVE_TOKENS:8000}"
+    safety-margin-tokens: "${AGENT_CONTEXT_SAFETY_MARGIN_TOKENS:2000}"
+    # 模型上下文窗口覆盖，键为 "提供商类型:模型名" 或 "模型名"，值 token；未匹配视为未知
+    # window-overrides:
+    #   "OPENAI_COMPATIBLE:gpt-4o": 128000
   mcp:
     allowed-hosts: "${AGENT_MCP_ALLOWED_HOSTS:}"
 

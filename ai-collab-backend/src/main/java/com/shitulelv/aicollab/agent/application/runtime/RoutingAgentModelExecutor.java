@@ -143,4 +143,19 @@ public class RoutingAgentModelExecutor {
         ModelConfiguration config=zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
         return !config.capabilities().contains(ModelCapability.NATIVE_TOOLS) && config.capabilities().contains(ModelCapability.CHAT);
     }
+
+    /** 本次运行固定的提供商身份（快照），用于按提供商/模型匹配上下文窗口覆盖；解析失败返回 null。 */
+    public ProviderIdentity pinnedProviderIdentity(AgentRunView run) {
+        try {
+            UserAiProvider provider = configurationStore == null
+                    ? userProviders.resolve(run.requesterId(), ModelPurpose.AGENT)
+                    : configurationStore.require(run);
+            return new ProviderIdentity(provider.providerType().name(), provider.modelName());
+        } catch (BusinessException failure) {
+            return null;
+        }
+    }
+
+    public record ProviderIdentity(String providerType, String modelName) {
+    }
 }
