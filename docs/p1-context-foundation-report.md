@@ -12,6 +12,10 @@
 | `606d66a` | P1-3：工作状态 v2（五分类约束 + stateRevision + 消息 ID 关联） | P1 功能 |
 | `d70b8f8` | P1-4：有界增量摘要（CAS + 单独记账 + 有界输入） | P1 功能 |
 | `88f6e32` | P1-5：回退验收测试（v2 数据在旧组装路径下可继续使用） | P1 验收 |
+| `3a75ed7` | P1 交付报告初版 | 文档 |
+| `63666cd` | 修复批一：active 约束不淘汰、摘要覆盖/记账/持久化尝试上限、回退路径 goal 补入 | P1 修复 |
+| `358e5d4` | 修复批一记录与表述勘误 | 文档 |
+| `88c315a` | 修复批二：摘要记账结算到所属运行、旧摘要完整保留、长消息分段覆盖、保护约束按对象并存 | P1 修复 |
 
 后续功能提交（P2 文档读取、P3 规划接入、P4 质量收敛）从此分支继续。
 
@@ -102,6 +106,18 @@
 
 ## 9. 修复批后全量测试结果
 
-- **全量后端测试**（2026-10-04 00:45，Docker 可用）：**139 个测试类、943 项测试，0 失败、0 错误、5 跳过，BUILD SUCCESS，耗时 2 分 58 秒**。943 = 修复批前口径 933 + 本批新增 10 项回归测试。
+- **修复批一后全量后端测试**（2026-10-04 00:45，Docker 可用）：**139 个测试类、943 项测试，0 失败、0 错误、5 跳过，BUILD SUCCESS**。943 = 933 + 修复批一新增 10 项回归测试。
+- **修复批二后全量后端测试**（2026-10-04 01:29，Docker 可用）：**946 项测试，0 失败、0 错误、5 跳过，BUILD SUCCESS**。946 = 943 + 修复批二新增 3 项回归测试。
   - 5 项跳过同第 7 节口径（opt-in 外部验收测试），按"未执行"单独记录。
 - **提交后工作区**：干净；无新增未提交项。
+
+## 10. 修复批次二（88c315a）：审查问题的集中修正（续）
+
+| # | 问题 | 修正 | 回归测试 |
+| --- | --- | --- | --- |
+| 1 | 摘要费用未计入所属运行：`completeSummaryAttempt` 的 `UPDATE agent_run WHERE id=?` 传的是步骤 attemptId，正常情况下更新零行 | 从摘要步骤取回真实 run_id（`WHERE id=(SELECT run_id FROM agent_step WHERE id=?)`）在同一事务结算；仅 ATTEMPTED→终态转换一次，重复完成不重复扣费 | **真实数据库**断言：`summaryAttemptSettlesTokensToOwningRunExactlyOnce`（步骤字段、所属运行 input/output_tokens_used 实际变化、重复完成金额不变） |
+| 2a | 上一份摘要被截到 800 字符仍标 incorporatedPrevious，尾部决定丢失 | 旧摘要文本完整进入本次请求，新增片段使用剩余预算；incorporatedPrevious 真实成立 | `previousSummaryIsIncludedInFullEvenBeyondEightHundredChars`（第 800 字符之后的尾部决定完整进入请求） |
+| 2b | 首条 >400 字符的候选消息阻塞覆盖，后续内容永久无法摘要 | 长消息按消息 ID+偏移分段覆盖（每段 600 字符，跨运行推进，进度存 summary.segments）；后续短消息仍完整覆盖；未读完的消息明确列入 uncoveredMessageIds；无可新增覆盖时不再重复生成 | `longMessagesAreSegmentCoveredWhileShortOnesFullyCovered`、`longMessageCoverageProgressesAcrossRunsUntilFullyCovered`（连续更新：[0,600) → [600,875) → 跳过） |
+| 3 | 相同 scope 的保护约束互相覆盖（任务 A/任务 B 的日期保护） | 同作用域替代仅限数量上下界；日期/负责人等保护类约束无法确定性区分对象，一律并存 | `protectiveConstraintsForDifferentObjectsCoexistInsteadOfOverwriting`（DATE_LOCK 与 ASSIGNEE_LOCK 各两条不同对象约束同时 active） |
+
+修复批二后 agent 包 **49 类 383 项测试全绿**（较修复批一 +3）。
