@@ -24,8 +24,8 @@ class ExistingDataUpgradeRehearsalTest {
             snapshots.put(table,new Snapshot(columns,jdbc.queryForObject("select count(*) from "+quote(table),Long.class),digest(jdbc,table,columns)));
         }
         var result=Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
-        assertThat(result.migrationsExecuted).isEqualTo(7);
-        assertThat(jdbc.queryForObject("select max(version::int) from flyway_schema_history where success",Integer.class)).isEqualTo(53);
+        assertThat(result.migrationsExecuted).isEqualTo(10);
+        assertThat(jdbc.queryForObject("select max(version::int) from flyway_schema_history where success",Integer.class)).isEqualTo(55);
         for (var item:snapshots.entrySet()) {
             assertThat(jdbc.queryForObject("select count(*) from "+quote(item.getKey()),Long.class)).as(item.getKey()+" row count").isEqualTo(item.getValue().rows());
             assertThat(digest(jdbc,item.getKey(),item.getValue().columns())).as(item.getKey()+" original columns digest").isEqualTo(item.getValue().digest());
@@ -38,7 +38,7 @@ class ExistingDataUpgradeRehearsalTest {
         }
         for(String table:List.of("user_ai_provider","system_embedding_config","ai_task_plan","ai_task_plan_version","agent_approval","knowledge_citation"))
             System.out.println("UPGRADE_REHEARSAL table="+table+", preservedRows="+snapshots.get(table).rows());
-        System.out.println("UPGRADE_REHEARSAL V45 -> V53, all existing table digests unchanged; original source volume remains stopped");
+        System.out.println("UPGRADE_REHEARSAL V45 -> V55, all existing table digests unchanged; original source volume remains stopped");
     }
     private static String quote(String identifier) { return "\""+identifier.replace("\"","\"\"")+"\""; }
     private static String digest(JdbcTemplate jdbc,String table,String columns) {

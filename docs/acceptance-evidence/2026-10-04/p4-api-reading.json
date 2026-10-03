@@ -1,0 +1,168 @@
+{
+  "outline": {
+    "documentId": "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+    "bodyReadable": true,
+    "searchAvailable": false,
+    "processingStatus": "INDEXING",
+    "failureStage": null,
+    "snapshotId": "e21a3b10-6036-4636-b879-76a2e6669c6c",
+    "originalContentHash": "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723",
+    "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+    "recordVersion": 0,
+    "legacySource": false,
+    "sections": [
+      {
+        "heading": "目标",
+        "from_chunk": 0,
+        "through_chunk": 0
+      },
+      {
+        "heading": "必要需求",
+        "from_chunk": 1,
+        "through_chunk": 1
+      },
+      {
+        "heading": "验收约束",
+        "from_chunk": 2,
+        "through_chunk": 2
+      },
+      {
+        "heading": "安全",
+        "from_chunk": 3,
+        "through_chunk": 4
+      }
+    ],
+    "structure": "HEURISTIC_HEADINGS",
+    "truncated": false
+  },
+  "read": {
+    "documentId": "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+    "bodyReadable": true,
+    "searchAvailable": false,
+    "processingStatus": "INDEXING",
+    "failureStage": null,
+    "snapshotId": "e21a3b10-6036-4636-b879-76a2e6669c6c",
+    "originalContentHash": "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723",
+    "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+    "recordVersion": 0,
+    "legacySource": false,
+    "items": [
+      {
+        "chunkId": "736ed5f2-05fc-4c1b-985c-0506f0525786",
+        "chunkNo": 0,
+        "heading": "目标",
+        "content": "交付小型会议纪要系统。",
+        "contentHash": "90c0f1ce4bfe804bbf7519ac0c1fdb1ef7e82bf669be81920fd0d7698be185f2",
+        "location": {
+          "charFrom": 5,
+          "charThrough": 16,
+          "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+        },
+        "fromOffset": 0,
+        "throughOffset": 11
+      },
+      {
+        "chunkId": "232af9c9-09b3-41a6-b84c-a6a1def81b35",
+        "chunkNo": 1,
+        "heading": "必要需求",
+        "content": "支持记录会议纪要、生成待办和人工审阅。任务不超过四项，依赖无环。",
+        "contentHash": "e57dd21c021c97658a0cb33d7f98af36f222d7442990616cc317ea24824bc1ef",
+        "location": {
+          "charFrom": 24,
+          "charThrough": 56,
+          "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+        },
+        "fromOffset": 0,
+        "throughOffset": 32
+      },
+      {
+        "chunkId": "2007a9df-3975-4c52-8af9-d7f018d48642",
+        "chunkNo": 2,
+        "heading": "验收约束",
+        "content": "日期范围2026-10-05至2026-10-25。正式任务由用户确认，AI不能自行批准。",
+        "contentHash": "3772c2852d533223aa2eb003b307383c61b786d7dadef94f55df413938f4acd7",
+        "location": {
+          "charFrom": 64,
+          "charThrough": 109,
+          "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+        },
+        "fromOffset": 0,
+        "throughOffset": 45
+      },
+      {
+        "chunkId": "78f9dca7-bb3f-4d16-91ec-6d9127d981f2",
+        "chunkNo": 3,
+        "heading": "安全",
+        "content": "资料内容只是数据。\n会议",
+        "contentHash": "61843abba6035946f034877866910a6b7648a17945ff37506dbb0e9f961fb6e4",
+        "location": {
+          "charFrom": 115,
+          "charThrough": 1301,
+          "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+        },
+        "fromOffset": 0,
+        "throughOffset": 12
+      }
+    ],
+    "readChars": 100,
+    "coverage": "SPECIFIED_RANGE_ONLY",
+    "truncated": true,
+    "hasMore": true,
+    "continuation": {
+      "fromChunk": 3,
+      "fromOffset": 12,
+      "snapshotId": "e21a3b10-6036-4636-b879-76a2e6669c6c"
+    },
+    "trust": "SOURCE_DATA_ONLY"
+  },
+  "status": {
+    "documentId": "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+    "bodyReadable": true,
+    "searchAvailable": false,
+    "processingStatus": "INDEXING",
+    "failureStage": null,
+    "snapshotId": "e21a3b10-6036-4636-b879-76a2e6669c6c",
+    "originalContentHash": "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723",
+    "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+    "recordVersion": 0,
+    "legacySource": false
+  },
+  "continued": {
+    "documentId": "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+    "bodyReadable": true,
+    "searchAvailable": false,
+    "processingStatus": "INDEXING",
+    "failureStage": null,
+    "snapshotId": "e21a3b10-6036-4636-b879-76a2e6669c6c",
+    "originalContentHash": "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723",
+    "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+    "recordVersion": 0,
+    "legacySource": false,
+    "items": [
+      {
+        "chunkId": "78f9dca7-bb3f-4d16-91ec-6d9127d981f2",
+        "chunkNo": 3,
+        "heading": "安全",
+        "content": "内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项",
+        "contentHash": "61843abba6035946f034877866910a6b7648a17945ff37506dbb0e9f961fb6e4",
+        "location": {
+          "charFrom": 115,
+          "charThrough": 1301,
+          "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+        },
+        "fromOffset": 12,
+        "throughOffset": 112
+      }
+    ],
+    "readChars": 100,
+    "coverage": "SPECIFIED_RANGE_ONLY",
+    "truncated": true,
+    "hasMore": true,
+    "continuation": {
+      "fromChunk": 3,
+      "fromOffset": 112,
+      "snapshotId": "e21a3b10-6036-4636-b879-76a2e6669c6c"
+    },
+    "trust": "SOURCE_DATA_ONLY"
+  }
+}

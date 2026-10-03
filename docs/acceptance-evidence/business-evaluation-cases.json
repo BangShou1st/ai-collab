@@ -1,0 +1,19 @@
+[
+  {"id":"long-constraints","scenario":"长对话中保留有效约束，并用八项替代十项","testClass":"AgentRepositoryIntegrationTest","testMethod":"constraintUpdateSupersedesOldEntryWithinSameScope","gate":"约束作用域及 superseded 状态正确"},
+  {"id":"summary-resume","scenario":"60段旧覆盖、移出40条窗口、重启续读及删除鉴权","testClass":"AgentRepositoryIntegrationTest","testMethod":"summaryResumesBeyondSixtySegmentsAndRecentWindowAfterDatabaseReload","gate":"偏移从持久化位置继续，不重复片段"},
+  {"id":"target-switch","scenario":"明确换目标，不把上一问题混入当前检索","testClass":"AgentBusinessEvaluationTest","testMethod":"explicitTargetSwitchDoesNotCarryPreviousRetrievalQuery","gate":"当前目标检索独立，历史不作为证据"},
+  {"id":"memory-selection","scenario":"旧相关记忆胜过新无关记忆，撤权后拒绝读取","testClass":"AgentBusinessEvaluationTest","testMethod":"olderRelevantMemoryOutranksNewUnrelatedMemoriesAndCurrentAccessIsRequired","gate":"只读相关历史偏好，项目事实需重新查询"},
+  {"id":"object-identity","scenario":"同名对象与连续提案必须绑定真实身份","testClass":"AgentProposalContinuityIntegrationTest","testMethod":"*","gate":"旧版本冲突和作用域隔离不能失效"},
+  {"id":"insufficient-sources","scenario":"无引用或未知引用不得支持答案","testClass":"KnowledgeCitationValidatorTest","testMethod":"answer_without_citations_has_no_verified_evidence","gate":"无可验证来源不得冒充有证据"},
+  {"id":"multi-sources","scenario":"多段引用、未知引用和重复编号","testClass":"KnowledgeCitationValidatorTest","testMethod":"citations_keep_first_occurrence_order_without_duplicates","gate":"仅保留本轮真实来源"},
+  {"id":"task-pages-document-continuation","scenario":"110任务中查第90项；embedding失败仍可按偏移续读正文","testClass":"DocumentRepositoryIntegrationTest","testMethod":"searchReadsJsonMetadataIntoTheResultView","gate":"续页、偏移、旧引用失效与跨项目拒绝"},
+  {"id":"planning-product-chain","scenario":"资料规划、同调用重放、指定版本修订与人工确认","testClass":"TaskPlanSpringBeanPostgresIntegrationTest","testMethod":"agentPlanningOperationsReplayRepairAndManualConfirmationUseRealTransactions","gate":"恰好2任务1依赖，旧版本不能确认"},
+  {"id":"dispatch-restart","scenario":"提交后未dispatch，恢复必须沿用原attempt","testClass":"TaskPlanSpringBeanPostgresIntegrationTest","testMethod":"queuedAgentPlanDispatchRecoversSameAttemptWithoutDuplicateSideEffects","gate":"只有原规划与原attempt"},
+  {"id":"cancel-permission","scenario":"取消竞争、attempt身份及普通成员权限","testClass":"TaskPlanSpringBeanPostgresIntegrationTest","testMethod":"agentCancelIsAttemptScopedAndMemberCannotStartPlanning","gate":"取消不创建任务，成员不能启动生成"},
+  {"id":"repair-restart","scenario":"重启保留字段范围及用户修订意图","testClass":"TaskPlanProductionWiringPostgresIntegrationTest","testMethod":"partialRepairReloadsSavedScopeAndResumesSameAttemptAfterRestart","gate":"修订意图存储，日期锁定，无重复模型副作用"},
+  {"id":"model-capabilities","scenario":"Legacy写入拒绝、原生工具与预算限制","testClass":"AgentRuntimeBehaviorTest","testMethod":"*","gate":"不能把写草稿伪装成只读"},
+  {"id":"configuration-reload","scenario":"PLANNING快照重载及配置编辑","testClass":"TaskPlanSpringBeanPostgresIntegrationTest","testMethod":"planningConfigurationIdentitySurvivesReloadAndRejectsEdits","gate":"同配置身份，编辑后明确拒绝恢复"},
+  {"id":"summary-budget","scenario":"辅助摘要消耗后重新检查主请求预算","testClass":"AgentRuntimeCoordinatorTest","testMethod":"summaryAccountingTriggersBudgetRecheckBeforeMainModelCall","gate":"摘要真实记账不绕过预算"},
+  {"id":"large-result","scenario":"中文和emoji大结果必须保持JSON结构和版本身份","testClass":"AgentToolResultSanitizerTest","testMethod":"oversizedUnicodePlanningResultKeepsValidJsonAndVersionIdentity","gate":"不切JSON字节，不丢版本身份"},
+  {"id":"upgrade","scenario":"V53旧会话与文档升级V55","testClass":"NextStageMigrationPostgresTest","testMethod":"upgradesV53WithExistingConversationAndDocumentWithoutChangingTheirData","gate":"旧表原列摘要和行摘要不变"}
+]

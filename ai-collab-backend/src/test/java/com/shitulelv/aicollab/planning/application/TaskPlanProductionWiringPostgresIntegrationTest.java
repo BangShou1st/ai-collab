@@ -1129,7 +1129,7 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         var access=mock(com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard.class);
         var queued=new java.util.ArrayList<Runnable>();
         var first=new TaskPlanPartialRepairService(access,repository,issueRepo,validator,jdbc,mock(PlanningGenerationQuotaService.class),mock(PlanningAttemptThrottle.class),normalizer,outcomeDecider,commitService,patchParser,patchApplier,model,json,queued::add,new TaskPlanActionPolicy());
-        var request=new PartialRegenerateRequest(setup.versionId(),1,List.of("t1"),Set.of("description"),Set.of("startDate","dueDate"),List.of(),PartialRegenerateRequest.REGENERATE_SELECTED_TASK_DETAILS);
+        var request=new PartialRegenerateRequest(setup.versionId(),1,List.of("t1"),Set.of("description"),Set.of("startDate","dueDate"),List.of(),PartialRegenerateRequest.REGENERATE_SELECTED_TASK_DETAILS,"描述改为续接修复，日期不要改");
         var started=tx.execute(status->first.start(project,setup.planId(),request,user));
         assertThat(queued).hasSize(1);verifyNoInteractions(model);
         assertThat(jdbc.queryForObject("SELECT status FROM ai_task_plan_attempt WHERE id=?",String.class,started.activeAttemptId())).isEqualTo("QUEUED");
@@ -1141,6 +1141,9 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
         assertThat(draft.tasks().getFirst().description()).isEqualTo("续接修复");
         assertThat(draft.tasks().getFirst().startDate()).isEqualTo(simpleDraft().tasks().getFirst().startDate());
         verify(model,times(1)).generate(anyString(),anyString(),eq("TASK_PLAN_REPAIR_PATCH"),any(),any(),any(),any());
+        var prompt=org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(model).generate(anyString(),prompt.capture(),eq("TASK_PLAN_REPAIR_PATCH"),any(),any(),any(),any());
+        assertThat(prompt.getValue()).contains("描述改为续接修复，日期不要改");
     }
 
     private TaskPlanDraft simpleDraft() {

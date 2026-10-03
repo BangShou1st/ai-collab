@@ -134,13 +134,15 @@ public class AgentRepository {
         UUID runId = UUID.randomUUID();
         AgentRunView run = jdbc.queryForObject("""
                 INSERT INTO agent_run(
-                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json)
-                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb
+                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,max_steps,max_tool_calls)
+                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb,?,?
                 FROM agent_session s
                 WHERE s.project_id=? AND s.id=?
                 RETURNING *
                 """, AgentRunMappers.runMapper(), runId, requesterId, goal, scheduled,
-                skillCode, pageContextJson, projectId, sessionId);
+                skillCode, pageContextJson,
+                "ITERATION_PLANNING".equals(skillCode)?24:12,
+                "ITERATION_PLANNING".equals(skillCode)?16:8, projectId, sessionId);
         if (run == null) {
             throw new IllegalArgumentException("Agent 会话不存在");
         }

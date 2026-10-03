@@ -60,7 +60,7 @@ class LegacyApprovalCitationUpgradeTest {
         jdbc.update("insert into knowledge_session(id,project_id,user_id,title) values (?,?,?,'旧问答')",knowledge,project,user);
         jdbc.update("insert into knowledge_message(id,session_id,role,content) values (?,?,'ASSISTANT','旧答案 [S1]')",message,knowledge);
         jdbc.update("insert into knowledge_citation(message_id,chunk_id,rank,similarity,quote_text) values (?,?,1,1,'旧资料正文')",message,chunk);
-        assertThat(Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate().migrationsExecuted).isEqualTo(8);
+        assertThat(Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate().migrationsExecuted).isEqualTo(10);
         UUID revisionRun=UUID.randomUUID();
         jdbc.update("insert into agent_run(id,session_id,project_id,requester_id,goal,status) values (?,?,?,?,'提案修订','SUCCEEDED')",revisionRun,session,project,user);
         jdbc.update("insert into agent_approval_revision(project_id,approval_id,source_run_id,revision,before_arguments_json,after_arguments_json,diff_json) values (?,?,?,2,'{}','{}','{}')",project,approval,revisionRun);

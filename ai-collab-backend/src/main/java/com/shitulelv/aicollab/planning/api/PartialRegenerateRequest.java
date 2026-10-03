@@ -17,8 +17,13 @@ public record PartialRegenerateRequest(
         Set<String> allowedFields,
         Set<String> lockedFields,
         List<UUID> issueIds,
-        String mode
+        String mode,
+        @jakarta.validation.constraints.Size(max=2000) String userInstructions
 ) {
+    public PartialRegenerateRequest(UUID baseVersionId,Integer expectedVersionNo,List<String> targetTempKeys,
+            Set<String> allowedFields,Set<String> lockedFields,List<UUID> issueIds,String mode) {
+        this(baseVersionId,expectedVersionNo,targetTempKeys,allowedFields,lockedFields,issueIds,mode,null);
+    }
     public static final String REPAIR_ALL_ISSUES = "REPAIR_ALL_ISSUES";
     public static final String REPAIR_DATES_AND_DEPENDENCIES = "REPAIR_DATES_AND_DEPENDENCIES";
     public static final String REGENERATE_SELECTED_TASK_DETAILS = "REGENERATE_SELECTED_TASK_DETAILS";

@@ -398,8 +398,9 @@ public class AgentRuntimeCoordinator {
             messages.add(new ModelMessage.User("上次模型响应未满足协议格式。保留原目标与工具权限，纠正输出格式；不得重复已执行的动作。"));
         if (finalizing) {
             messages.add(new ModelMessage.System("""
-                    现在必须结束本次运行。只能基于已经取得的工具结果回答用户，
-                    不得请求或调用任何工具，不得扩大用户目标；信息不足时明确说明缺失信息。
+                      现在必须结束本次运行。只能基于已经取得的工具结果回答用户，
+                      不得请求或调用任何工具，不得扩大用户目标；信息不足时明确说明缺失信息。
+                      本轮工具列表为空是因为运行预算进入收尾，不代表产品不支持这些工具；未执行的动作说明未完成，不虚构权限或工具不可用原因。
                     """));
         }
         return messages;

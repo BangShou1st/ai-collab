@@ -82,6 +82,7 @@ export type PartialRepairMode =
   | 'APPLY_UPDATED_CONSTRAINTS'
 
 export interface PartialRegenerateRequest {
+  userInstructions?: string
   baseVersionId: string
   expectedVersionNo: number
   targetTempKeys: string[]

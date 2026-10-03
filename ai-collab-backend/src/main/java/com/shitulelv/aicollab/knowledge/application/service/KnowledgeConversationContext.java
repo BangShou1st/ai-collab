@@ -21,7 +21,10 @@ public record KnowledgeConversationContext(String prompt, String retrievalQuery)
             history.append(message.getRole()).append(": ").append(KnowledgePromptText.escapeXmlText(text)).append('\n');
         }
         String query = question;
-        if (question.matches("(?s).*(它|他们|这个|那个|这些|上述|刚才|继续|具体|为什么|如何|再).*") && !previousQuestion.isBlank()) {
+        boolean replacedTarget=question.matches("(?s).*(换个|换一个|改为|改成|转而|另一个|不再讨论|先不讨论).*");
+        boolean refersBack=question.matches("(?s).*(它|他们|这个|那个|这些|上述|刚才|继续).*")
+                || question.matches("(?s)^(具体|为什么|如何|再)(.{0,20})$");
+        if (!replacedTarget && refersBack && !previousQuestion.isBlank()) {
             int budget = Math.max(0, 1990 - question.codePointCount(0, question.length()));
             int length = Math.min(budget, previousQuestion.codePointCount(0, previousQuestion.length()));
             if (length > 0) query = previousQuestion.substring(0, previousQuestion.offsetByCodePoints(0, length)) + "\n" + question;
