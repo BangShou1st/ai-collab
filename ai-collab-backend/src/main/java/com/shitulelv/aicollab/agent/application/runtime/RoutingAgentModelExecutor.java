@@ -156,6 +156,25 @@ public class RoutingAgentModelExecutor {
         }
     }
 
+    /**
+     * 无工具的纯文本模型调用，供有界会话摘要等辅助任务使用。
+     * 使用本次运行固定的配置快照；调用方负责单独记账，不得混入普通决策轮次。
+     * 仅原生 Tool Calling 模型支持（Legacy 决策协议不适用于摘要任务，返回 UnsupportedOperationException 语义由调用方处理）。
+     */
+    public ModelTurnResult callModelWithoutTools(AgentRunView run, List<ModelMessage> messages) {
+        UserAiProvider provider = configurationStore == null
+                ? userProviders.resolve(run.requesterId(), ModelPurpose.AGENT)
+                : configurationStore.require(run);
+        ModelConfiguration config = zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
+        if (!config.capabilities().contains(ModelCapability.NATIVE_TOOLS)) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
+                    "当前模型不支持原生调用，无法执行摘要任务");
+        }
+        try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(provider)) {
+            return nativeExecutor.callModel(messages, List.of(), run.projectId(), run.requesterId(), run.sessionId());
+        }
+    }
+
     public record ProviderIdentity(String providerType, String modelName) {
     }
 }

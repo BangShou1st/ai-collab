@@ -211,6 +211,54 @@ class AgentModelMessageComposerV2Test {
         assertThat(userContents(messages)).contains("新目标");
     }
 
+    @Test
+    void composeV2InjectsExistingConversationSummary() {
+        var state = json.createObjectNode();
+        state.put("schemaVersion", 2);
+        state.put("stateRevision", 9);
+        state.put("goalRevision", 1);
+        state.put("activeGoal", "整理任务");
+        var summary = state.putObject("summary");
+        summary.put("schemaVersion", 1);
+        summary.put("sourceFrom", UUID.randomUUID().toString());
+        summary.put("sourceThrough", UUID.randomUUID().toString());
+        summary.put("text", "早期对话摘要：用户要求不改日期、最多十项。");
+        when(repository.workingState(any(), any())).thenReturn(state);
+
+        var composition = composer.composeV2(run("继续"), context(), skill(),
+                AgentPlan.create("查询", List.of()), List.of(), 30_000, 1.0);
+
+        assertThat(composition.failureReason()).isNull();
+        assertThat(composition.messages()).anyMatch(m -> m instanceof ModelMessage.User user
+                && user.content().startsWith("<CONVERSATION_SUMMARY")
+                && user.content().contains("不改日期")
+                && user.content().contains("不是当前事实或权限"));
+    }
+
+    @Test
+    void composeV2ExposesUnpickedHistoryAsSummaryCandidates() {
+        List<AgentMessageView> history = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            history.add(message("USER", ("历史消息 %d：".formatted(i)) + "项目相关内容。".repeat(60), i + 1));
+        }
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
+
+        // 极小预算：只有最近几条能入选，更早的消息成为摘要候选
+        var composition = composer.composeV2(run("继续"), context(), skill(),
+                AgentPlan.create("查询", List.of()), List.of(), 4_000, 0.4);
+
+        assertThat(composition.failureReason()).isNull();
+        assertThat(composition.summaryCandidates()).isNotEmpty();
+        // 候选按旧→新排列，最后一条是最新的未选中消息
+        var candidates = composition.summaryCandidates();
+        assertThat(candidates.get(candidates.size() - 1).createdAt())
+                .isAfterOrEqualTo(candidates.get(0).createdAt());
+        for (AgentMessageView candidate : candidates) {
+            assertThat(composition.messages()).noneMatch(m -> m instanceof ModelMessage.User user
+                    && user.content().equals(candidate.content()));
+        }
+    }
+
     private List<String> userContents(List<ModelMessage> messages) {
         return messages.stream()
                 .filter(m -> m instanceof ModelMessage.User)

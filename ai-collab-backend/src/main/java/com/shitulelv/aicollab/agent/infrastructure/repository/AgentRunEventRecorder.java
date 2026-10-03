@@ -47,6 +47,36 @@ public class AgentRunEventRecorder {
         this.json = json;
     }
 
+    /**
+     * 会话摘要调用单独记账：token 计入运行总预算（同样受 max 封顶），
+     * 但以 MODEL_REQUEST + reason=CONTEXT_SUMMARY 的步骤区分，不递增 steps_used，
+     * 不干扰工具恢复与收敛判断。
+     */
+    @Transactional
+    public void recordSummaryUsage(AgentRunView run, String model, Integer inputTokens,
+            Integer outputTokens, boolean estimated, Long latencyMs) {
+        jdbc.update("""
+                UPDATE agent_run SET
+                  input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),
+                  output_tokens_used=LEAST(max_output_tokens, output_tokens_used+?),
+                  token_usage_estimated=token_usage_estimated OR ?,
+                  updated_at=now()
+                WHERE project_id=? AND id=?
+                """, inputTokens == null ? 0 : inputTokens, outputTokens == null ? 0 : outputTokens,
+                estimated, run.projectId(), run.id());
+        jdbc.update("""
+                INSERT INTO agent_step(
+                  run_id,sequence_no,type,tool_name,input_json,output_json,reason,
+                  prompt_tokens,completion_tokens,token_usage_estimated,latency_ms)
+                SELECT ?,coalesce(max(sequence_no),0)+1,'MODEL_REQUEST','context_summary',
+                  ?::jsonb,?::jsonb,'CONTEXT_SUMMARY',?,?,?,?,?
+                FROM agent_step WHERE run_id=?
+                """, run.id(),
+                json.createObjectNode().put("purpose", "CONTEXT_SUMMARY").put("model", model == null ? "unknown" : model).toString(),
+                json.createObjectNode().put("purpose", "CONTEXT_SUMMARY").toString(),
+                inputTokens, outputTokens, estimated, latencyMs == null ? null : latencyMs.intValue(), run.id());
+    }
+
     @Transactional
     public void recordBudgetExceeded(AgentRunView run) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);

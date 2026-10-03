@@ -314,6 +314,29 @@ public class AgentRepository {
         recorder.recordBudgetExceeded(run, completion);
     }
 
+    /**
+     * 会话摘要 CAS 提交：仅当 stateRevision 与 goalRevision 与生成时一致才落库，
+     * 用 jsonb_set 只写 summary 节点，不拿旧 JSON 整块覆盖新状态。
+     * 生成期间有新消息（revision 已前进）时返回 false。
+     */
+    @Transactional
+    public boolean commitConversationSummary(UUID projectId, UUID sessionId,
+            int expectedStateRevision, int expectedGoalRevision, JsonNode summary) {
+        return jdbc.update("""
+                UPDATE agent_session
+                SET working_state=jsonb_set(working_state,'{summary}',?::jsonb,true), updated_at=now()
+                WHERE project_id=? AND id=?
+                  AND (working_state->>'stateRevision')=?::text
+                  AND (working_state->>'goalRevision')=?::text
+                """, summary.toString(), projectId, sessionId, expectedStateRevision, expectedGoalRevision) == 1;
+    }
+
+    /** 摘要调用单独记账（计入运行总预算，reason=CONTEXT_SUMMARY 区分）。 */
+    public void recordSummaryUsage(AgentRunView run, String model, Integer inputTokens,
+            Integer outputTokens, boolean estimated, Long latencyMs) {
+        recorder.recordSummaryUsage(run, model, inputTokens, outputTokens, estimated, latencyMs);
+    }
+
     public void recordDecisionFailure(
             AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion,
             String errorCode, String reason) {

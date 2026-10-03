@@ -892,6 +892,43 @@ class AgentRepositoryIntegrationTest {
         assertThat(count).isEqualTo(1);
     }
 
+    @Test
+    void summaryCasCommitOnlyUpdatesSummaryNodeAndRejectsStaleRevision() {
+        ObjectMapper json=new ObjectMapper().findAndRegisterModules();
+        Fixture fixture=fixture(); var session=repository.createSession(fixture.project(),fixture.user(),"summary-cas");
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"查任务，不改日期",false,null,null));
+        var before=repository.workingState(fixture.project(),session.id());
+        int revision=before.path("stateRevision").asInt();
+        int goalRevision=before.path("goalRevision").asInt();
+
+        var summary=json.createObjectNode();
+        summary.put("schemaVersion",1);
+        summary.put("text","早期对话摘要：用户要求不改日期。");
+        summary.put("sourceFrom",UUID.randomUUID().toString());
+        summary.put("sourceThrough",before.path("lastProcessedMessageId").asText());
+        boolean committed=transactions.execute(status ->
+                repository.commitConversationSummary(fixture.project(),session.id(),revision,goalRevision,summary));
+        assertThat(committed).isTrue();
+
+        var after=repository.workingState(fixture.project(),session.id());
+        // 只写 summary 节点：activeGoal/constraints/stateRevision 原样保留
+        assertThat(after.path("summary").path("text").asText()).contains("不改日期");
+        assertThat(after.path("activeGoal").asText()).isEqualTo(before.path("activeGoal").asText());
+        assertThat(after.path("stateRevision").asInt()).isEqualTo(revision);
+        assertThat(after.path("constraints").size()).isEqualTo(before.path("constraints").size());
+
+        // revision 前进（新请求）后，旧 revision 的摘要提交必须失败
+        transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"继续",false,null,null));
+        var stale=json.createObjectNode();
+        stale.put("schemaVersion",1);
+        stale.put("text","过期摘要");
+        boolean staleCommitted=transactions.execute(status ->
+                repository.commitConversationSummary(fixture.project(),session.id(),revision,goalRevision,stale));
+        assertThat(staleCommitted).isFalse();
+        assertThat(repository.workingState(fixture.project(),session.id()).path("summary").path("text").asText())
+                .contains("不改日期");
+    }
+
     private static Fixture fixture() {
         UUID user = UUID.randomUUID();
         UUID project = UUID.randomUUID();
