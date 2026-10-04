@@ -23,6 +23,10 @@ public class AgentRecoveryJob {
                 || lease.compareTo(Duration.ofMinutes(10)) > 0) {
             throw new IllegalArgumentException("Agent worker 或租约无效");
         }
-        return repository.claimNext(workerId, OffsetDateTime.now(ZoneOffset.UTC), lease);
+        var claimed = repository.claimNext(workerId, OffsetDateTime.now(ZoneOffset.UTC), lease);
+        // 接管运行即原 worker 已越过 stale 边界：其未结算的模型调用身份行结果真实不可知，
+        // 显式收口为 0/0 + UNKNOWN 终态，不长期停留在"仍在调用中"，也不虚构消耗。
+        claimed.ifPresent(run -> repository.closeUnresolvedModelCalls(run.id()));
+        return claimed;
     }
 }

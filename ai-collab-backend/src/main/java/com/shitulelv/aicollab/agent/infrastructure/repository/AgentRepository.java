@@ -451,11 +451,26 @@ public class AgentRepository {
         return recorder.settleOrphanUsage(projectId, runId, callId, kind, usage);
     }
 
-    /** 正常路径（recordModelTurn 等已推进运行总额）只标记身份行已结算，不重复推进总额。 */
+    /** 正常记账（原子）：身份行首次结算与 recordModelTurn 的运行累计/步骤写入同一事务。 */
     @Transactional
-    public boolean markModelCallSettled(UUID projectId, UUID runId, String callId, String kind,
-            AgentRunEventRecorder.UsageSettlement usage) {
-        return recorder.markModelCallSettled(projectId, runId, callId, kind, usage);
+    public AgentRunView recordModelTurnWithSettlement(AgentRunView run,
+            com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn, String callId, String kind,
+            AgentRunEventRecorder.UsageSettlement settlement) {
+        return recorder.recordModelTurnWithSettlement(run, turn, callId, kind, settlement);
+    }
+
+    /** 输出超限分支的原子记账：身份行结算与 recordBudgetExceeded 的运行累计同一事务。 */
+    @Transactional
+    public void recordBudgetExceededWithSettlement(AgentRunView run,
+            com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion, String callId, String kind,
+            AgentRunEventRecorder.UsageSettlement settlement) {
+        recorder.recordBudgetExceededWithSettlement(run, completion, callId, kind, settlement);
+    }
+
+    /** 恢复接管时收口未结算身份行：显式未知终态（0/0 + UNKNOWN），不虚构消耗。 */
+    @Transactional
+    public int closeUnresolvedModelCalls(UUID runId) {
+        return recorder.closeUnresolvedModelCalls(runId);
     }
 
     /**

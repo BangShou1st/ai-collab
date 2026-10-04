@@ -75,7 +75,7 @@ class AgentRuntimeBehaviorTest {
         // 设置默认返回值：recordToolResult 和 recordModelTurn 返回传入的 run
         when(repository.recordToolResult(any(), any(), any(), any(), anyBoolean()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(repository.recordModelTurn(any(), any()))
+        when(repository.recordModelTurnWithSettlement(any(), any(), any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(repository.recordFinal(any(), any(), anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -237,7 +237,7 @@ class AgentRuntimeBehaviorTest {
         coordinator.advance(run);
 
         // 验证 input tokens 被记录
-        verify(repository).recordModelTurn(eq(run), eq(turn1));
+        verify(repository).recordModelTurnWithSettlement(eq(run), eq(turn1), any(), eq("MODEL_TURN"), any());
     }
 
     /**
@@ -259,7 +259,7 @@ class AgentRuntimeBehaviorTest {
         coordinator.advance(run);
 
         // 验证 output tokens 被记录
-        verify(repository).recordModelTurn(eq(run), eq(turn1));
+        verify(repository).recordModelTurnWithSettlement(eq(run), eq(turn1), any(), eq("MODEL_TURN"), any());
     }
 
     /**

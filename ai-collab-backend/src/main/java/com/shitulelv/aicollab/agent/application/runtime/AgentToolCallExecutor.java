@@ -528,7 +528,13 @@ public class AgentToolCallExecutor {
         errorResult.put("error", code);
         errorResult.put("status", "FAILED");
         errorResult.put("retryable", "AI_MODEL_TIMEOUT".equals(code) || "AI_PROVIDER_ERROR".equals(code));
-        errorResult.put("message", "工具执行失败");
+        // 业务异常的 message 由代码作者编写的确定性中文原因（如"规划日期超出项目范围"），
+        // 是模型纠正参数所需的最小信息；非业务异常保持通用提示，不透出堆栈或 SQL。
+        errorResult.put("message",
+                failure instanceof BusinessException business && business.getMessage() != null
+                        && !business.getMessage().isBlank()
+                        ? business.getMessage()
+                        : "工具执行失败");
         JsonNode sanitizedError = sanitizer.sanitize(errorResult);
 
         // 保存原始 toolCallId 到 input_json
