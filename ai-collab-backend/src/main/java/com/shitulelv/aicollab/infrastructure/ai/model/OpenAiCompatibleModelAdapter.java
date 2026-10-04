@@ -592,6 +592,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             }
         }
         addZenReservedTools(body);
+        if (command.tools().isEmpty()) body.put("tool_choice", "none");
         return body;
     }
 
@@ -633,6 +634,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             }
         }
         addZenReservedTools(body);
+        if (command.tools().isEmpty()) body.put("tool_choice", "none");
         return body;
     }
 
