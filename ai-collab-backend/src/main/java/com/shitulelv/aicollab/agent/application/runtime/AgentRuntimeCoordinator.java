@@ -273,6 +273,14 @@ public class AgentRuntimeCoordinator {
                 emit(run, AgentEventType.MODEL_STARTED,
                         json.createObjectNode().put("modelTurn", run.stepsUsed() + 1));
                 turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted());
+                if (repository.isCancelRequested(run.projectId(), run.id())) {
+                    // 模型调用已发生：先如实结算这次消耗，再进入取消终态，用量不因取消丢失
+                    repository.settleOrphanModelUsage(run.projectId(), run.id(),
+                            turn.usage() == null ? null : turn.usage().inputTokens(),
+                            turn.usage() == null ? null : turn.usage().outputTokens(),
+                            turn.usage() == null || turn.usage().inputTokens() == null
+                                    || turn.usage().outputTokens() == null);
+                }
                 cancellation.throwIfRequested(run);
             } catch (IllegalArgumentException malformed) {
                 boolean repair=repository.consumeRecovery(run,"FORMAT_REPAIR",1);
@@ -306,13 +314,27 @@ public class AgentRuntimeCoordinator {
             }
 
             int outputTokens=turn.usage()!=null && turn.usage().outputTokens()!=null ? turn.usage().outputTokens() : Math.max(1,(json.valueToTree(turn).toString().length()+2)/3);
-            if (outputTokens>Math.min(run.maxOutputTokens(),ctx.limits().maxOutputTokens())-run.outputTokensUsed()) {
+            // 输出超额按真实累计值（actual）判定：used 被封顶会低估消耗，实际可能已超
+            long outputRemaining=Math.min(run.maxOutputTokens(),ctx.limits().maxOutputTokens())-(long)run.outputTokensActual();
+            if (outputTokens>outputRemaining) {
                 repository.recordBudgetExceeded(run,new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult(turn.content(),turn.provider(),turn.model(),
                         turn.usage()==null ? null : turn.usage().inputTokens(),turn.usage()==null ? null : turn.usage().outputTokens(),turn.latencyMs()));
                 return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED,null,null,"AGENT_BUDGET_EXCEEDED");
             }
             // 9. 记录 assistant turn（返回更新后的 Run）
             run = repository.recordModelTurn(run, turn);
+            // 输入实际超额：真实输入消耗超出运行上限时结算真实值并明确终止，
+            // 不执行该响应中的工具，不记成功（估算无法绝对保证请求不超限，如实结算+停止）
+            long inputRemaining=Math.min(run.maxInputTokens(),ctx.limits().maxInputTokens())-run.inputTokensActual();
+            if (inputRemaining<0) {
+                repository.recordBudgetExceeded(run);
+                emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
+                        json.createObjectNode()
+                                .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
+                                .put("errorCode", "AGENT_BUDGET_EXCEEDED")
+                                .put("scope", "RUN_INPUT_ACTUAL_OVERSET"));
+                return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED,null,null,"AGENT_BUDGET_EXCEEDED");
+            }
             emit(run, AgentEventType.MODEL_COMPLETED,
                     json.createObjectNode()
                             .put("finishReason", turn.finishReason().name())

@@ -354,7 +354,7 @@ class CrossTickToolCallTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 16, 12, 3, 100_000, 32_000,
-                0, 0, 0, 0, 0, false,
+                0, 0, 0, 0, 0, 0, 0, false,
                 false, false, 0, null, null, null, skillCode, 1, now, now);
     }
 

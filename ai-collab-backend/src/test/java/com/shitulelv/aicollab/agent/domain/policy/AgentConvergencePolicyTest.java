@@ -107,7 +107,7 @@ class AgentConvergencePolicyTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "读取仓库根目录", AgentRunStatus.RUNNING,
                 maxSteps, maxToolCalls, 3, 50_000, 20_000,
-                stepsUsed, toolCallsUsed, 0, 1_000, 100, false,
+                stepsUsed, toolCallsUsed, 0, 1_000, 100, 0, 0, false,
                 false, false, 0, null, null, null, "PROJECT_RESEARCH", 1, now, now);
     }
 

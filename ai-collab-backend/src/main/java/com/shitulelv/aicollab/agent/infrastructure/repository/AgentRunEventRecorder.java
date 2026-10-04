@@ -84,19 +84,26 @@ public class AgentRunEventRecorder {
         // ATTEMPTED → 终态只允许转换一次：转换零行说明已结算，直接跳过防止重复扣费
         int transitioned = jdbc.update("""
                 UPDATE agent_step SET output_json=?::jsonb,
-                  prompt_tokens=?,completion_tokens=?,token_usage_estimated=?,latency_ms=?
+                  prompt_tokens=?,completion_tokens=?,token_usage_estimated=?,usage_basis=?,
+                  latency_ms=?
                 WHERE id=? AND output_json->>'status'='ATTEMPTED'
                 """, output.toString(), inputTokens, outputTokens, estimated,
+                usageBasis(inputTokens, outputTokens),
                 latencyMs == null ? null : latencyMs.intValue(), attemptId);
         if (transitioned == 0) return;
+        // used 保持预算语义（封顶），actual 如实累计：摘要消耗可以超出剩余预算，
+        // 真实值不能被 max 遮蔽
         jdbc.update("""
                 UPDATE agent_run SET
                   input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),
                   output_tokens_used=LEAST(max_output_tokens, output_tokens_used+?),
+                  input_tokens_actual=input_tokens_actual+?,
+                  output_tokens_actual=output_tokens_actual+?,
                   token_usage_estimated=token_usage_estimated OR ?,
                   updated_at=now()
                 WHERE id=(SELECT run_id FROM agent_step WHERE id=?)
                 """, inputTokens == null ? 0 : inputTokens, outputTokens == null ? 0 : outputTokens,
+                inputTokens == null ? 0 : inputTokens, outputTokens == null ? 0 : outputTokens,
                 estimated, attemptId);
     }
 
@@ -134,22 +141,27 @@ public class AgentRunEventRecorder {
         jdbc.update("""
                 INSERT INTO agent_step(
                   run_id,sequence_no,type,reason,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms,error_code)
+                  token_usage_estimated,usage_basis,latency_ms,error_code)
                 VALUES (?,?,'ERROR','Model response exceeded remaining budget',?,?,?,?,?,
                   'AGENT_BUDGET_EXCEEDED')
                 """, run.id(), sequence, completion.promptTokens(), completion.completionTokens(),
                 completion.promptTokens() == null || completion.completionTokens() == null,
+                usageBasis(completion.promptTokens(), completion.completionTokens()),
                 boundedLatency(completion.latencyMs()));
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET status='BUDGET_EXCEEDED',
                   steps_used=LEAST(max_steps,steps_used+1),
                   input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
                   output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
+                  input_tokens_actual=input_tokens_actual+?,
+                  output_tokens_actual=output_tokens_actual+?,
                   token_usage_estimated=?,error_code='AGENT_BUDGET_EXCEEDED',
                   finished_at=now(),lease_owner=NULL,lease_expires_at=NULL,
                   updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, completion.promptTokens()==null ? com.shitulelv.aicollab.agent.application.runtime.AgentModelAccounting.estimatedInput(1) : completion.promptTokens(),
+                tokens(completion.completionTokens(), completion.content()),
+                completion.promptTokens()==null ? com.shitulelv.aicollab.agent.application.runtime.AgentModelAccounting.estimatedInput(1) : completion.promptTokens(),
                 tokens(completion.completionTokens(), completion.content()),
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 run.projectId(), run.id(), run.version()));
@@ -167,20 +179,25 @@ public class AgentRunEventRecorder {
         jdbc.update("""
                 INSERT INTO agent_step(
                   run_id,sequence_no,type,reason,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms,error_code)
-                VALUES (?,?,'ERROR',?,?,?,?,?,?)
+                  token_usage_estimated,usage_basis,latency_ms,error_code)
+                VALUES (?,?,'ERROR',?,?,?,?,?,?,?)
                 """, run.id(), sequence, truncate(reason, 2000),
                 completion.promptTokens(), completion.completionTokens(),
                 completion.promptTokens() == null || completion.completionTokens() == null,
+                usageBasis(completion.promptTokens(), completion.completionTokens()),
                 boundedLatency(completion.latencyMs()), errorCode);
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET status='FAILED',steps_used=LEAST(max_steps,steps_used+1),
                   input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
                   output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
+                  input_tokens_actual=input_tokens_actual+?,
+                  output_tokens_actual=output_tokens_actual+?,
                   token_usage_estimated=?,error_code=?,finished_at=now(),
                   lease_owner=NULL,lease_expires_at=NULL,updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, tokens(completion.promptTokens(), ""),
+                tokens(completion.completionTokens(), completion.content()),
+                tokens(completion.promptTokens(), ""),
                 tokens(completion.completionTokens(), completion.content()),
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 errorCode, run.projectId(), run.id(), run.version()));
@@ -251,23 +268,30 @@ public class AgentRunEventRecorder {
         jdbc.update("""
                 INSERT INTO agent_step(
                   run_id,sequence_no,type,reason,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms,error_code)
-                VALUES (?,?,'ERROR',?,?,?,?,?,'AGENT_INVALID_DECISION')
+                  token_usage_estimated,usage_basis,latency_ms,error_code)
+                VALUES (?,?,'ERROR',?,?,?,?,?,?,'AGENT_INVALID_DECISION')
                 """, run.id(), sequence, truncate(reason, 2000),
                 completion.promptTokens(), completion.completionTokens(),
                 completion.promptTokens() == null || completion.completionTokens() == null,
+                usageBasis(completion.promptTokens(), completion.completionTokens()),
                 boundedLatency(completion.latencyMs()));
         boolean retry = !run.correctionAttempted();
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET status=?,correction_attempted=true,
-                  steps_used=steps_used+1,input_tokens_used=input_tokens_used+?,
-                  output_tokens_used=output_tokens_used+?,token_usage_estimated=?,
+                  steps_used=steps_used+1,
+                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
+                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
+                  input_tokens_actual=input_tokens_actual+?,
+                  output_tokens_actual=output_tokens_actual+?,
+                  token_usage_estimated=?,
                   error_code='AGENT_INVALID_DECISION',
                   lease_owner=NULL,lease_expires_at=NULL,
                   finished_at=CASE WHEN ? THEN NULL ELSE now() END,
                   updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, retry ? "QUEUED" : "FAILED",
+                tokens(completion.promptTokens(), completion.content()),
+                tokens(completion.completionTokens(), completion.content()),
                 tokens(completion.promptTokens(), completion.content()),
                 tokens(completion.completionTokens(), completion.content()),
                 completion.promptTokens() == null || completion.completionTokens() == null,
@@ -281,11 +305,12 @@ public class AgentRunEventRecorder {
         jdbc.update("""
                 INSERT INTO agent_step(
                   run_id,sequence_no,type,output_json,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms)
-                VALUES (?,?,'FINAL_ANSWER',?::jsonb,?,?,?,?)
+                  token_usage_estimated,usage_basis,latency_ms)
+                VALUES (?,?,'FINAL_ANSWER',?::jsonb,?,?,?,?,?)
                 """, run.id(), sequence, jsonString(answer),
                 completion.promptTokens(), completion.completionTokens(),
                 completion.promptTokens() == null || completion.completionTokens() == null,
+                usageBasis(completion.promptTokens(), completion.completionTokens()),
                 boundedLatency(completion.latencyMs()));
         jdbc.update("""
                 INSERT INTO agent_message(
@@ -295,12 +320,17 @@ public class AgentRunEventRecorder {
                 answer.citations().toString(), answer.inferences().toString());
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET status='SUCCEEDED',steps_used=steps_used+1,
-                  input_tokens_used=input_tokens_used+?,output_tokens_used=output_tokens_used+?,
+                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
+                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
+                  input_tokens_actual=input_tokens_actual+?,
+                  output_tokens_actual=output_tokens_actual+?,
                   token_usage_estimated=?,model_provider=?,model_name=?,
                   finished_at=now(),lease_owner=NULL,lease_expires_at=NULL,
                   updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, tokens(completion.promptTokens(), ""),
+                tokens(completion.completionTokens(), completion.content()),
+                tokens(completion.promptTokens(), ""),
                 tokens(completion.completionTokens(), completion.content()),
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 truncate(completion.provider(), 80), truncate(completion.model(), 120),
@@ -318,21 +348,28 @@ public class AgentRunEventRecorder {
         jdbc.update("""
                 INSERT INTO agent_step(
                   run_id,sequence_no,type,tool_name,input_json,output_json,reason,
-                  prompt_tokens,completion_tokens,token_usage_estimated,latency_ms)
-                VALUES (?,?,'TOOL_CALL_COMPLETED',?,?::jsonb,?::jsonb,?,?,?,?,?)
+                  prompt_tokens,completion_tokens,token_usage_estimated,usage_basis,latency_ms)
+                VALUES (?,?,'TOOL_CALL_COMPLETED',?,?::jsonb,?::jsonb,?,?,?,?,?,?)
                 """, run.id(), sequence, call.tool(), call.arguments().toString(),
                 result.toString(), truncate(call.reason(), 2000),
                 completion.promptTokens(), completion.completionTokens(),
                 completion.promptTokens() == null || completion.completionTokens() == null,
+                usageBasis(completion.promptTokens(), completion.completionTokens()),
                 boundedLatency(completion.latencyMs()));
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET status='QUEUED',steps_used=steps_used+1,
-                  tool_calls_used=tool_calls_used+1,input_tokens_used=input_tokens_used+?,
-                  output_tokens_used=output_tokens_used+?,token_usage_estimated=?,
+                  tool_calls_used=tool_calls_used+1,
+                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
+                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
+                  input_tokens_actual=input_tokens_actual+?,
+                  output_tokens_actual=output_tokens_actual+?,
+                  token_usage_estimated=?,
                   model_provider=?,model_name=?,lease_owner=NULL,lease_expires_at=NULL,
                   updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, tokens(completion.promptTokens(), ""),
+                tokens(completion.completionTokens(), completion.content()),
+                tokens(completion.promptTokens(), ""),
                 tokens(completion.completionTokens(), completion.content()),
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 truncate(completion.provider(), 80), truncate(completion.model(), 120),
@@ -377,11 +414,15 @@ public class AgentRunEventRecorder {
                 childSteps, childTools, childInputs, childOutputs);
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET status='CREATED',steps_used=steps_used+1,
-                  children_used=children_used+1,input_tokens_used=input_tokens_used+?,
-                  output_tokens_used=output_tokens_used+?,lease_owner=NULL,lease_expires_at=NULL,
+                  children_used=children_used+1,
+                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
+                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
+                  input_tokens_actual=input_tokens_actual+?,
+                  output_tokens_actual=output_tokens_actual+?,
+                  lease_owner=NULL,lease_expires_at=NULL,
                   updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, promptTokens, outputTokens,
+                """, promptTokens, outputTokens, promptTokens, outputTokens,
                 run.projectId(), run.id(), run.version()));
         return child;
     }
@@ -444,29 +485,35 @@ public class AgentRunEventRecorder {
         int outputTokens = tokens(turn.usage() == null ? null : turn.usage().outputTokens(), jsonString(turn));
         boolean estimated = turn.usage() == null || turn.usage().inputTokens() == null || turn.usage().outputTokens() == null;
 
-        // 先验证版本和状态，避免版本冲突时留下孤立 Step
+        // 先验证版本和状态，避免版本冲突时留下孤立 Step；
+        // used 封顶保持预算语义，actual 如实累计——真实输入可以超出 max_input_tokens
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET
                   steps_used=steps_used+1,
                   input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),
                   output_tokens_used=LEAST(max_output_tokens, output_tokens_used+?),
+                  input_tokens_actual=input_tokens_actual+?,
+                  output_tokens_actual=output_tokens_actual+?,
                   token_usage_estimated=token_usage_estimated OR ?,
                   updated_at=now(), version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, inputTokens, outputTokens, estimated,
+                """, inputTokens, outputTokens, inputTokens, outputTokens, estimated,
                 run.projectId(), run.id(), run.version()));
 
         int sequence = nextSequence(run.id());
         jdbc.update("""
                 INSERT INTO agent_step(
                   run_id,sequence_no,type,reason,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms,model_provider,model_name)
-                VALUES (?,?,'MODEL_TURN',?,?,?,?,?,?,?)
+                  token_usage_estimated,usage_basis,latency_ms,model_provider,model_name)
+                VALUES (?,?,'MODEL_TURN',?,?,?,?,?,?,?,?)
                 """, run.id(), sequence,
                 truncate(turn.content(), 2000),
                 inputTokens,
                 turn.usage() != null ? turn.usage().outputTokens() : null,
                 estimated,
+                // 模型轮次必然有内容/工具调用证据：无上报时按证据估算，不标 UNKNOWN
+                turn.usage() == null ? "ESTIMATED"
+                        : usageBasis(turn.usage().inputTokens(), turn.usage().outputTokens()),
                 boundedLatency(turn.latencyMs()),
                 truncate(turn.provider(), 80),
                 truncate(turn.model(), 120));
@@ -699,6 +746,35 @@ public class AgentRunEventRecorder {
         return Math.max(1, (codePoints + 2) / 3);
     }
 
+    /** usage 来源：提供商上报 / 按证据估算 / 无任何证据（不得把未知冒充上报或精确值）。 */
+    private static String usageBasis(Integer inputTokens, Integer outputTokens) {
+        if (inputTokens != null && outputTokens != null) return "PROVIDER";
+        if (inputTokens == null && outputTokens == null) return "UNKNOWN";
+        return "ESTIMATED";
+    }
+
+    /**
+     * 结算"状态机已离开 RUNNING"后仍须如实入账的模型用量：
+     * 模型调用已发生但运行被取消/并发推进时，used 封顶、actual 如实累计；
+     * 不做状态或版本 CAS（用量结算不是状态迁移），调用方保证一次性。
+     */
+    @Transactional
+    public void settleOrphanModelUsage(
+            UUID projectId, UUID runId, Integer inputTokens, Integer outputTokens, boolean estimated) {
+        int input = inputTokens == null ? 0 : inputTokens;
+        int output = outputTokens == null ? 0 : outputTokens;
+        jdbc.update("""
+                UPDATE agent_run SET
+                  input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),
+                  output_tokens_used=LEAST(max_output_tokens, output_tokens_used+?),
+                  input_tokens_actual=input_tokens_actual+?,
+                  output_tokens_actual=output_tokens_actual+?,
+                  token_usage_estimated=token_usage_estimated OR ?,
+                  updated_at=now()
+                WHERE project_id=? AND id=?
+                """, input, output, input, output, estimated, projectId, runId);
+    }
+
     private static int boundedLatency(long value) {
         return (int) Math.min(Integer.MAX_VALUE, Math.max(0, value));
     }
@@ -731,11 +807,14 @@ public class AgentRunEventRecorder {
                   tool_calls_used=LEAST(max_tool_calls,tool_calls_used+?),
                   input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
                   output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
+                  input_tokens_actual=input_tokens_actual+?,
+                  output_tokens_actual=output_tokens_actual+?,
                   token_usage_estimated=token_usage_estimated OR ?,
                   updated_at=now(),version=version+1
                 WHERE id=? AND status='CREATED'
                 """, usage.stepsUsed(), usage.toolCallsUsed(), usage.inputTokensUsed(),
-                usage.outputTokensUsed(), usage.tokenUsageEstimated(), child.parentRunId());
+                usage.outputTokensUsed(), usage.inputTokensActual(), usage.outputTokensActual(),
+                usage.tokenUsageEstimated(), child.parentRunId());
     }
 
     private static int estimateInputTokens(ModelTurnResult turn) {

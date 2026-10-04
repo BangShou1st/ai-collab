@@ -39,6 +39,8 @@ final class AgentRunMappers {
                 rs.getInt("children_used"),
                 rs.getInt("input_tokens_used"),
                 rs.getInt("output_tokens_used"),
+                rs.getLong("input_tokens_actual"),
+                rs.getLong("output_tokens_actual"),
                 rs.getBoolean("token_usage_estimated"),
                 rs.getBoolean("scheduled"),
                 rs.getBoolean("correction_attempted"),

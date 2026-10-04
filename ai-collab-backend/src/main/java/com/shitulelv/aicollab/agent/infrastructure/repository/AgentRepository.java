@@ -428,6 +428,13 @@ public class AgentRepository {
         return recorder.recordModelTurn(run, turn);
     }
 
+    /** 模型调用已发生但状态机已离开 RUNNING（取消/并发推进）时，如实结算用量。 */
+    @Transactional
+    public void settleOrphanModelUsage(UUID projectId, UUID runId,
+            Integer inputTokens, Integer outputTokens, boolean estimated) {
+        recorder.settleOrphanModelUsage(projectId, runId, inputTokens, outputTokens, estimated);
+    }
+
     /**
      * 记录工具结果。同时更新 Run 的 tool_calls_used 和版本。
      */

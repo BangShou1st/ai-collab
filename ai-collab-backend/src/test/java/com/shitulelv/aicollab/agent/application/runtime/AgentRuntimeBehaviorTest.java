@@ -346,7 +346,7 @@ class AgentRuntimeBehaviorTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 16, 12, 3, 100_000, 32_000,
-                16, 0, 0, 0, 0, false, // stepsUsed = maxSteps
+                16, 0, 0, 0, 0, 0, 0, false, // stepsUsed = maxSteps
                 false, false, 0, null, null, null, null, 1, OffsetDateTime.now(), OffsetDateTime.now());
 
         // Coordinator 使用持久化预算再次防守，避免绕过 Worker 后继续调用模型。
@@ -873,7 +873,7 @@ class AgentRuntimeBehaviorTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 16, 12, 3, 100_000, 32_000,
-                0, 0, 0, 0, 0, false,
+                0, 0, 0, 0, 0, 0, 0, false,
                 false, false, 0, null, null, null, null, 1, now, now);
     }
 
@@ -885,7 +885,7 @@ class AgentRuntimeBehaviorTest {
                 r.maxSteps(), r.maxToolCalls(), r.maxChildren(),
                 r.maxInputTokens(), r.maxOutputTokens(),
                 r.stepsUsed(), r.toolCallsUsed(), r.childrenUsed(),
-                r.inputTokensUsed(), r.outputTokensUsed(),
+                r.inputTokensUsed(), r.outputTokensUsed(), 0, 0,
                 r.tokenUsageEstimated(), r.scheduled(), r.correctionAttempted(),
                 r.retryCount(), r.errorCode(), r.planJson(), r.pageContextJson(), skillCode,
                 r.version(), r.createdAt(), r.updatedAt());
