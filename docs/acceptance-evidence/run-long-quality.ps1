@@ -1,4 +1,4 @@
-param([ValidatePattern('^(minimal(-fixed)?|fixed24(-final)?|correction)$')][string]$Batch='minimal', [ValidateSet('Setup','Turn','Recover','Read')][string]$Mode='Read', [int]$Turn=0)
+param([ValidatePattern('^(minimal(-fixed)?|fixed24(-final2?)?|correction(-fixed)?)$')][string]$Batch='minimal', [ValidateSet('Setup','Turn','Recover','Read')][string]$Mode='Read', [int]$Turn=0)
 $ErrorActionPreference='Stop'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 if(!(Get-NetTCPConnection -LocalPort 18080 -State Listen -ErrorAction SilentlyContinue)){throw 'Isolated acceptance host must be running'}
@@ -29,14 +29,14 @@ if($Mode-eq 'Setup'){
   }finally{$form.Dispose();$client.Dispose()}
   $original.projectId=$project.id;$original.documentId=$document.id
  }
- $session=if($Batch-eq 'correction'){Api GET "/projects/$($original.projectId)/agent/sessions/$($original.sessionId)"}else{Api POST "/projects/$($original.projectId)/agent/sessions" @{title=('四类失败复验 '+$Batch)}}
+ $session=if($Batch-like 'correction*'){Api GET "/projects/$($original.projectId)/agent/sessions/$($original.sessionId)"}else{Api POST "/projects/$($original.projectId)/agent/sessions" @{title=('四类失败复验 '+$Batch)}}
  @{projectId=$original.projectId;documentId=$original.documentId;sessionId=$session.id;completedTurns=0;codeVersion=$head;batch=$Batch}|ConvertTo-Json|Set-Content $private
 }
 $state=Get-Content $private -Raw|ConvertFrom-Json
 if($head-ne $state.codeVersion){throw 'Fixed batch code changed; stop and register incomplete batch'}
 $base="/projects/$($state.projectId)";$session="$base/agent/sessions/$($state.sessionId)"
 if($Mode-in @('Turn','Recover')){
- if($Batch-ne 'correction'-and $Turn-ne $state.completedTurns+1){throw 'Sequential same-session turns required'}
+ if($Batch-notlike 'correction*'-and $Turn-ne $state.completedTurns+1){throw 'Sequential same-session turns required'}
  $entry=Get-Content (Join-Path $PSScriptRoot '2026-10-04/reliability/conversation-turns.json') -Raw|ConvertFrom-Json|Where-Object turn -eq $Turn
  if(!$entry){throw 'Original scenario prompt missing'}
  if($Mode-eq 'Recover'){
