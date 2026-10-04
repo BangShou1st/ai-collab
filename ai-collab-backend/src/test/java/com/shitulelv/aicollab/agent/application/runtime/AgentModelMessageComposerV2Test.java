@@ -96,6 +96,73 @@ class AgentModelMessageComposerV2Test {
         assertThat(projected.path("evidenceScope").asText()).isEqualTo("PROJECTED_PARTIAL_OBSERVATION");
     }
 
+    @Test void bodyItemProjectionKeepsVisibleRangeConsistentWithContent() {
+        // 回归根因：正文截到 200 字后，原始范围终点/截断标记仍按原值保留，
+        // 模型把序列化 JSON 长度（originalChars）误当正文长度
+        var output = json.createObjectNode();
+        var data = output.putObject("data");
+        var item = data.putObject("item");
+        item.put("content", "章节正文".repeat(400)); // 1600 字，超过 cap 触发投影
+        item.put("fromOffset", 4956);
+        item.put("throughOffset", 5513);
+        item.put("chunkNo", 3);
+        item.put("heading", "4.4 摘要与压缩");
+        var projected = composer.projectToolOutput(output, 1500);
+
+        var view = projected.path("data").path("item");
+        String visibleContent = view.path("content").asText();
+        // 可见范围与实际字符串一致：可见终点 = 起点 + 实际可见正文长度
+        assertThat(view.path("fromOffset").asInt()).isEqualTo(4956);
+        assertThat(view.path("throughOffset").asInt()).isEqualTo(4956 + 200);
+        assertThat(view.path("originalThroughOffset").asInt()).isEqualTo(5513);
+        assertThat(view.path("omittedChars").asInt()).isEqualTo(5513 - 4956 - 200);
+        assertThat(view.path("bodyProjection").asText()).isEqualTo("MODEL_VISIBLE_ONLY");
+        assertThat(visibleContent.startsWith("章节正文")).isTrue();
+        assertThat(visibleContent.length()).isEqualTo(200 + "… [projected]".length());
+        // 序列化大小与正文长度的语义区分明确
+        assertThat(projected.path("originalCharsSemantics").asText())
+                .isEqualTo("SERIALIZED_TOOL_RESULT_JSON_CHARS_NOT_BODY_LENGTH");
+        assertThat(projected.path("modelVisibleChars").asInt()).isEqualTo(projected.toString().length());
+        // 续读提示：从可见终点续读，不跳过模型未见内容
+        assertThat(projected.path("resumeHint").asText()).isNotBlank();
+    }
+
+    @Test void repeatedProjectionDoesNotDistortRangeInfo() {
+        var output = json.createObjectNode();
+        var data = output.putObject("data");
+        var item = data.putObject("item");
+        item.put("content", "正文内容".repeat(400)); // 1600 字，超过 cap 触发投影
+        item.put("fromOffset", 100);
+        item.put("throughOffset", 2200);
+
+        JsonNode once = composer.projectToolOutput(output, 1500);
+        // 模拟重复压缩：对已投影视图再次投影（如降级重组后再次组装）
+        JsonNode twice = composer.projectToolOutput(once, 4000);
+
+        var view = twice.path("data").path("item");
+        // 二次投影不改变已修正的可见范围，不把 originalThroughOffset 当成新的可见终点
+        assertThat(view.path("throughOffset").asInt()).isEqualTo(300);
+        assertThat(view.path("originalThroughOffset").asInt()).isEqualTo(2200);
+        assertThat(view.path("omittedChars").asInt()).isEqualTo(1900);
+    }
+
+    @Test void planningProjectionLabelsOriginalCharsSemantics() {
+        var output = json.createObjectNode();
+        var data = output.putObject("data");
+        data.put("baseVersionId", UUID.randomUUID().toString());
+        var draft = data.putObject("draft");
+        var tasks = draft.putArray("tasks");
+        for (int i = 0; i < 10; i++) {
+            var task = tasks.addObject();
+            task.put("tempKey", "t" + i);
+            task.put("title", "任务".repeat(150) + i);
+        }
+        var projected = composer.projectToolOutput(output, 1500);
+        assertThat(projected.path("originalCharsSemantics").asText())
+                .isEqualTo("SERIALIZED_TOOL_RESULT_JSON_CHARS_NOT_BODY_LENGTH");
+        assertThat(projected.path("projection").asText()).isEqualTo("DETERMINISTIC");
+    }
+
     @Test
     void composeV2DoesNotDuplicateGoalAlreadyInHistory() {
         List<AgentMessageView> history = new ArrayList<>(List.of(

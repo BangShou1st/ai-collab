@@ -444,7 +444,27 @@ public class AgentModelMessageComposer {
         projected.put("fullDocumentRead", false);
         projected.put("evidenceScope", "PROJECTED_PARTIAL_OBSERVATION");
         projected.put("originalChars", output.toString().length());
+        // 序列化大小与正文长度是不同语义：originalChars 是整个工具 JSON 的序列化长度，
+        // 模型不得把它当作正文长度；modelVisibleChars 是本视图实际可见的序列化大小
+        projected.put("originalCharsSemantics", "SERIALIZED_TOOL_RESULT_JSON_CHARS_NOT_BODY_LENGTH");
+        if (projected.toString().contains("bodyProjection")) {
+            projected.put("resumeHint", "正文在投影视图中被截断；用同一工具、相同 snapshotId/fromChunk，"
+                    + "把 fromOffset 设为可见范围终点继续读取，不得跳过模型未见内容");
+        }
+        putSelfConsistentVisibleChars(projected);
         return projected;
+    }
+
+    /** modelVisibleChars 是本视图序列化大小；该字段自身也占长度，迭代到不动点保证
+     *  声明值与实际序列化大小完全一致。 */
+    private void putSelfConsistentVisibleChars(ObjectNode projected) {
+        int estimate = projected.toString().length() + 30;
+        for (int i = 0; i < 5; i++) {
+            projected.put("modelVisibleChars", estimate);
+            int actual = projected.toString().length();
+            if (actual == estimate) return;
+            estimate = actual;
+        }
     }
     private JsonNode projectPlanningOutput(JsonNode output,int maxChars) {
         var result=json.createObjectNode();result.put("status",output.path("status").asText("SUCCEEDED"));
@@ -465,10 +485,40 @@ public class AgentModelMessageComposer {
             draft.set("sources",boundNode(source.path("draft").path("sources"),0));
         }
         result.put("projection","DETERMINISTIC");result.put("originalChars",output.toString().length());
-        if(result.toString().length()>maxChars) {draft.remove("sources");data.remove("structuredIssues");data.put("detailsOmitted",true);}
+        result.put("originalCharsSemantics","SERIALIZED_TOOL_RESULT_JSON_CHARS_NOT_BODY_LENGTH");
+        putSelfConsistentVisibleChars(result);
+        if(result.toString().length()>maxChars) {draft.remove("sources");data.remove("structuredIssues");data.put("detailsOmitted",true);putSelfConsistentVisibleChars(result);}
         while(result.toString().length()>maxChars && tasks.size()>1) tasks.remove(tasks.size()-1);
         data.put("projectedOmitted",Math.max(0,originals.size()-tasks.size()));data.put("hasMore",source.path("hasMore").asBoolean() || tasks.size()<originals.size());data.put("nextFromTask",source.path("fromTask").asInt()+tasks.size());
         return result;
+    }
+
+    /** 文档正文条目：带 content 正文与 fromOffset/throughOffset 范围坐标。 */
+    private boolean isBodyItem(JsonNode value) {
+        return value.isObject()
+                && value.path("content").isTextual() && value.path("content").asText().length() > 200
+                && value.path("fromOffset").isIntegralNumber() && value.path("throughOffset").isIntegralNumber();
+    }
+
+    /** 正文条目投影：可见长度、可见终点与正文保持一致；原始范围终点显式保留为
+     *  originalThroughOffset，模型可见视图与工具原始读取范围不再混用同一字段。 */
+    private ObjectNode boundBodyItem(ObjectNode item) {
+        ObjectNode projected = json.createObjectNode();
+        String content = item.path("content").asText();
+        int from = item.path("fromOffset").asInt();
+        int originalThrough = item.path("throughOffset").asInt();
+        int visible = 200;
+        item.fields().forEachRemaining(entry -> {
+            if (entry.getKey().equals("content") || entry.getKey().equals("throughOffset")) return;
+            projected.set(entry.getKey(), boundNode(entry.getValue(),1));
+        });
+        projected.put("content", content.substring(0, visible) + "… [projected]");
+        projected.put("fromOffset", from);
+        projected.put("throughOffset", from + visible);
+        projected.put("originalThroughOffset", originalThrough);
+        projected.put("omittedChars", Math.max(0, originalThrough - (from + visible)));
+        projected.put("bodyProjection", "MODEL_VISIBLE_ONLY");
+        return projected;
     }
 
     private JsonNode boundNode(JsonNode value,int depth) {
@@ -486,6 +536,8 @@ public class AgentModelMessageComposer {
             marker.put("projectedOmitted", Math.max(0, value.size() - PROJECTION_ITEMS));
             return array;
         }
+        // 文档正文条目走专用的可见范围投影，不走通用对象递归
+        if (isBodyItem(value)) return boundBodyItem((ObjectNode) value);
         ObjectNode object = json.createObjectNode();
         value.fields().forEachRemaining(entry -> {
             object.set(entry.getKey(), boundNode(entry.getValue(),depth+1));
