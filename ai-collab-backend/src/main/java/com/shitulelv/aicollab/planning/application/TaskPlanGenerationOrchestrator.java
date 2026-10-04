@@ -315,6 +315,7 @@ public class TaskPlanGenerationOrchestrator {
                 TaskPlanStatus.DETAIL_GENERATING)) return;
         try {
             // R3: Detail prompt only includes identity skeleton, not full draft
+            if (access != null) access.requireAdmin(plan.projectId(), actor);
             String prompt = detailPrompt(plan, skeleton);
             GeneratedDetailOutcome generated = generateDetailWithOneRepair(
                     plan, attempt, TaskPlanStatus.DETAIL_GENERATING, prompt, actor, skeleton);

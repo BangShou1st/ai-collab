@@ -1,0 +1,37 @@
+{
+  "migrationsAdded": 0,
+  "backend": [
+    {
+      "durationSeconds": "0.062",
+      "result": "PASSED",
+      "method": "recoveredClientPassesPersistedOutputBudgetToActualGatewayCall"
+    },
+    {
+      "durationSeconds": "0.029",
+      "result": "PASSED",
+      "method": "operationListSynchronizesOnlyRequestedProjectAndSession"
+    },
+    {
+      "durationSeconds": "0.049",
+      "result": "PASSED",
+      "method": "queuedDetailRecoveryAfterRevocationDoesNotCallModelOrReplaceSkeleton"
+    }
+  ],
+  "executionDate": "2026-10-04",
+  "modelLayer": "scripted model / captured RoutingChatModelGateway; real isolated PostgreSQL",
+  "browser": {
+    "providerFaultInjection": "NOT_VERIFIED",
+    "reason": "daemon reachable; no connected browser extension",
+    "connectedBrowsers": 0,
+    "status": "NOT_EXECUTED",
+    "realLongConversation": "NOT_VERIFIED"
+  },
+  "frontend": {
+    "typecheck": "PASSED",
+    "bundleWarning": "existing >500kB bundle",
+    "fullFrontendPassed": 142,
+    "testFile": "AgentPlanningCards.test.ts",
+    "productionBuild": "PASSED",
+    "passed": 5
+  }
+}
