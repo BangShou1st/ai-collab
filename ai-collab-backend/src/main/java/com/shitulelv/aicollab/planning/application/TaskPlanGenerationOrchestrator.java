@@ -762,7 +762,7 @@ public class TaskPlanGenerationOrchestrator {
         }
         String msg = failure.getMessage();
         if (msg != null && !msg.isBlank()) {
-            String summary = stage + " / " + msg;
+            String summary = stage + " / " + safeCode(failure) + " / " + msg;
             return summary.codePointCount(0, summary.length()) > 300
                     ? summary.substring(0, 300) : summary;
         }
