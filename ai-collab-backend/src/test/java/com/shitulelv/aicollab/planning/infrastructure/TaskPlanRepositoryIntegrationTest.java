@@ -117,6 +117,21 @@ class TaskPlanRepositoryIntegrationTest {
         assertThat(attemptCreatedBy).isEqualTo(userId);
     }
 
+    @Test void failureDiagnosticStaysOnOriginalAttemptAfterRetry() {
+        UUID user = insertUser("quality-diagnostic");
+        UUID project = insertProject("Quality diagnostic", user);
+        insertMember(project, user, "OWNER");
+        var plan = tx.execute(t -> repository.create(project, user, validRequest()));
+        String summary = "SKELETON / PROVIDER_STREAM / UNEXPECTED_TOOL_CALLS";
+        tx.executeWithoutResult(t -> repository.fail(plan.id(), plan.generationSeq(), plan.activeAttemptId(),
+                TaskPlanStatus.SKELETON_GENERATING, TaskPlanStatus.FAILED, "PLANNING_MODEL_INVALID_OUTPUT", summary));
+        var retry = tx.execute(t -> repository.startGeneration(project, plan.id(), user, false));
+        assertThat(retry.activeAttemptId()).isNotEqualTo(plan.activeAttemptId());
+        assertThat(jdbc.queryForObject("select error_summary from ai_task_plan_attempt where id=?", String.class, plan.activeAttemptId())).isEqualTo(summary);
+        assertThat(jdbc.queryForObject("select status from ai_task_plan_attempt where id=?", String.class, plan.activeAttemptId())).isEqualTo("FAILED");
+        assertThat(repository.require(project, plan.id()).lastErrorSummary()).isNull();
+    }
+
     /**
      * RED-2: When attempt INSERT fails, the entire create() transaction must roll back
      * leaving no orphaned plan row.

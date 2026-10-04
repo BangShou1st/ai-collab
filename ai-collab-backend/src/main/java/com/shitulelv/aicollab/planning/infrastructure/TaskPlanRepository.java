@@ -372,7 +372,8 @@ public class TaskPlanRepository {
                 && attemptId.equals(current.get("active_attempt_id"))
                 && expectedStatus.name().equals(current.get("status"));
         finishAttempt(attemptId, active ? "FAILED" : "DISCARDED",
-                active ? code : "PLAN_GENERATION_CANCELED");
+                active ? code : "PLAN_GENERATION_CANCELED", null, null, null, null, null,
+                active ? errorSummary : null);
         if (!active) return;
         // H1: Clear active_attempt_id for terminal states (FAILED, DETAIL_GENERATION_FAILED)
         jdbc.update("""
