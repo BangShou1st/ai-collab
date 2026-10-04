@@ -56,55 +56,132 @@ public class AgentRunEventRecorder {
         var beginInfo = json.createObjectNode()
                 .put("purpose", "CONTEXT_SUMMARY")
                 .put("status", "ATTEMPTED");
+        return insertSummaryCallStep(run, "context_summary", "CONTEXT_SUMMARY", beginInfo);
+    }
+
+    /**
+     * 摘要重压缩调用的持久化标记（reason=CONTEXT_SUMMARY_RECOMPRESS）：
+     * 每次实际模型请求都有独立调用身份与结算状态；重试/恢复不得绕过
+     * CONTEXT_SUMMARY 的每运行尝试上限，也不得重复结算。
+     */
+    @Transactional
+    public UUID beginSummaryRecompressAttempt(AgentRunView run) {
+        var beginInfo = json.createObjectNode()
+                .put("purpose", "CONTEXT_SUMMARY_RECOMPRESS")
+                .put("status", "ATTEMPTED");
+        return insertSummaryCallStep(run, "context_summary", "CONTEXT_SUMMARY_RECOMPRESS", beginInfo);
+    }
+
+    private UUID insertSummaryCallStep(AgentRunView run, String toolName, String reason, ObjectNode beginInfo) {
         return jdbc.queryForObject("""
                 INSERT INTO agent_step(
                   run_id,sequence_no,type,tool_name,input_json,output_json,reason)
-                SELECT ?,coalesce(max(sequence_no),0)+1,'MODEL_REQUEST','context_summary',
-                  ?::jsonb,?::jsonb,'CONTEXT_SUMMARY'
+                SELECT ?,coalesce(max(sequence_no),0)+1,'MODEL_REQUEST',?,
+                  ?::jsonb,?::jsonb,?
                 FROM agent_step WHERE run_id=?
                 RETURNING id
-                """, UUID.class, run.id(), beginInfo.toString(), beginInfo.toString(), run.id());
+                """, UUID.class, run.id(), toolName, beginInfo.toString(), beginInfo.toString(), reason, run.id());
+    }
+
+    /** 单次实际模型请求的结算值与来源：来源按原始 usage 判定并显式传递，不按数字非空倒推。 */
+    public record UsageSettlement(Integer inputTokens, Integer outputTokens,
+            String inputBasis, String outputBasis, Long latencyMs) {
+        public static final String PROVIDER = "PROVIDER";
+        public static final String ESTIMATED = "ESTIMATED";
+        public static final String UNKNOWN = "UNKNOWN";
+
+        /** 原始 usage 缺失的侧用实际请求/响应证据估算；连证据都没有时显式 UNKNOWN。 */
+        public static UsageSettlement fromRaw(com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage usage,
+                int fallbackInput, int fallbackOutput, Long latencyMs) {
+            Integer in = usage == null ? null : usage.inputTokens();
+            Integer out = usage == null ? null : usage.outputTokens();
+            String inBasis = in != null ? PROVIDER : (fallbackInput > 0 ? ESTIMATED : UNKNOWN);
+            String outBasis = out != null ? PROVIDER : (fallbackOutput > 0 ? ESTIMATED : UNKNOWN);
+            return new UsageSettlement(
+                    in != null ? in : Math.max(0, fallbackInput),
+                    out != null ? out : Math.max(0, fallbackOutput),
+                    inBasis, outBasis, latencyMs);
+        }
+
+        /** 无任何可结算证据：显式未知，不得把默认 0 解释成真实零费用。 */
+        public static UsageSettlement unknown() {
+            return new UsageSettlement(null, null, UNKNOWN, UNKNOWN, null);
+        }
+
+        /** 混合来源的统一表示：双方 PROVIDER 才是 PROVIDER，双方 UNKNOWN 才是 UNKNOWN，其余 ESTIMATED。 */
+        public String combinedBasis() {
+            if (PROVIDER.equals(inputBasis) && PROVIDER.equals(outputBasis)) return PROVIDER;
+            if (UNKNOWN.equals(inputBasis) && UNKNOWN.equals(outputBasis)) return UNKNOWN;
+            return ESTIMATED;
+        }
+
+        public boolean estimated() { return !PROVIDER.equals(combinedBasis()); }
+
+        public int bookedInput() { return inputTokens == null ? 0 : inputTokens; }
+
+        public int bookedOutput() { return outputTokens == null ? 0 : outputTokens; }
     }
 
     /**
      * 完成摘要尝试并单独记账：token 计入<b>所属运行</b>的总预算（同样受 max 封顶），
-     * usage 缺失时按实际输入/输出字符保守估算，绝不按零计入；
-     * outcome 区分 COMMITTED / CAS_CONFLICT / EMPTY / FAILED。
+     * usage 来源显式传入（见 {@link UsageSettlement}），混合来源在 output_json 里
+     * 分侧记录；outcome 区分 COMMITTED / CAS_CONFLICT / EMPTY / FAILED / CANCELED /
+     * DOWNSGRADED_UNQUALIFIED，note 记录降级或重压缩结算说明。
      *
      * <p>结算规则：attemptId 是 agent_step 的 ID（不是运行 ID），运行 ID 从步骤行取回；
      * 仅当步骤仍处于 ATTEMPTED 时才转换终态并记账，重复完成不会重复扣费。</p>
      */
     @Transactional
     public void completeSummaryAttempt(UUID attemptId, String outcome, String model,
-            Integer inputTokens, Integer outputTokens, boolean estimated, Long latencyMs) {
+            UsageSettlement usage, String note) {
+        completeSummaryCallStep(attemptId, "CONTEXT_SUMMARY", outcome, model, usage, note);
+    }
+
+    /** 完成摘要重压缩调用的记账（outcome：SETTLED / FAILED）。 */
+    @Transactional
+    public void completeSummaryRecompressAttempt(UUID attemptId, String outcome, String model,
+            UsageSettlement usage, String note) {
+        completeSummaryCallStep(attemptId, "CONTEXT_SUMMARY_RECOMPRESS", outcome, model, usage, note);
+    }
+
+    private void completeSummaryCallStep(UUID attemptId, String purpose, String outcome, String model,
+            UsageSettlement usage, String note) {
+        String basis = usage.combinedBasis();
         var output = json.createObjectNode()
-                .put("purpose", "CONTEXT_SUMMARY")
+                .put("purpose", purpose)
                 .put("status", outcome)
-                .put("model", model == null ? "unknown" : model);
+                .put("model", model == null ? "unknown" : model)
+                .put("usageBasis", basis)
+                .put("inputTokensBasis", usage.inputBasis())
+                .put("outputTokensBasis", usage.outputBasis());
+        if (note != null) output.put("note", note);
+        if (usage.inputTokens() != null) output.put("inputTokens", usage.inputTokens());
+        if (usage.outputTokens() != null) output.put("outputTokens", usage.outputTokens());
         // ATTEMPTED → 终态只允许转换一次：转换零行说明已结算，直接跳过防止重复扣费
         int transitioned = jdbc.update("""
                 UPDATE agent_step SET output_json=?::jsonb,
                   prompt_tokens=?,completion_tokens=?,token_usage_estimated=?,usage_basis=?,
                   latency_ms=?
                 WHERE id=? AND output_json->>'status'='ATTEMPTED'
-                """, output.toString(), inputTokens, outputTokens, estimated,
-                usageBasis(inputTokens, outputTokens),
-                latencyMs == null ? null : latencyMs.intValue(), attemptId);
+                """, output.toString(), usage.bookedInput(), usage.bookedOutput(), usage.estimated(),
+                basis, usage.latencyMs() == null ? null : usage.latencyMs().intValue(), attemptId);
         if (transitioned == 0) return;
         // used 保持预算语义（封顶），actual 如实累计：摘要消耗可以超出剩余预算，
         // 真实值不能被 max 遮蔽
-        jdbc.update("""
-                UPDATE agent_run SET
-                  input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),
-                  output_tokens_used=LEAST(max_output_tokens, output_tokens_used+?),
-                  input_tokens_actual=input_tokens_actual+?,
-                  output_tokens_actual=output_tokens_actual+?,
-                  token_usage_estimated=token_usage_estimated OR ?,
-                  updated_at=now()
-                WHERE id=(SELECT run_id FROM agent_step WHERE id=?)
-                """, inputTokens == null ? 0 : inputTokens, outputTokens == null ? 0 : outputTokens,
-                inputTokens == null ? 0 : inputTokens, outputTokens == null ? 0 : outputTokens,
-                estimated, attemptId);
+        bookRunUsage("UPDATE agent_run SET\n" +
+                "                input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),\n" +
+                "                output_tokens_used=LEAST(max_output_tokens, output_tokens_used+?),\n" +
+                "                input_tokens_actual=input_tokens_actual+?,\n" +
+                "                output_tokens_actual=output_tokens_actual+?,\n" +
+                "                token_usage_estimated=token_usage_estimated OR ?,\n" +
+                "                updated_at=now()\n" +
+                "              WHERE id=(SELECT run_id FROM agent_step WHERE id=?)",
+                usage, attemptId);
+    }
+
+    private void bookRunUsage(String sql, UsageSettlement usage, UUID attemptId) {
+        jdbc.update(sql, usage.bookedInput(), usage.bookedOutput(),
+                usage.bookedInput(), usage.bookedOutput(), usage.estimated(), attemptId);
     }
 
     @Transactional
@@ -755,14 +832,23 @@ public class AgentRunEventRecorder {
 
     /**
      * 结算"状态机已离开 RUNNING"后仍须如实入账的模型用量：
-     * 模型调用已发生但运行被取消/并发推进时，used 封顶、actual 如实累计；
-     * 不做状态或版本 CAS（用量结算不是状态迁移），调用方保证一次性。
+     * 模型调用已发生但运行被取消/并发推进时，used 封顶、actual 如实累计。
+     * 结算以持久化调用身份（agent_usage_settlement，run_id+call_id 唯一）幂等：
+     * 重复回调、恢复与取消竞争只入账一次；业务状态已终结不妨碍结算已发生费用。
      */
     @Transactional
-    public void settleOrphanModelUsage(
-            UUID projectId, UUID runId, Integer inputTokens, Integer outputTokens, boolean estimated) {
-        int input = inputTokens == null ? 0 : inputTokens;
-        int output = outputTokens == null ? 0 : outputTokens;
+    public boolean settleOrphanUsage(
+            UUID projectId, UUID runId, String callId, String kind, UsageSettlement usage) {
+        var inserted = jdbc.query("""
+                INSERT INTO agent_usage_settlement(
+                  run_id,call_id,kind,input_tokens_actual,output_tokens_actual,usage_basis,latency_ms)
+                VALUES (?,?,?,?,?,?,?)
+                ON CONFLICT (run_id,call_id) DO NOTHING
+                RETURNING id
+                """, (rs, row) -> rs.getString(1), runId, callId, kind,
+                usage.bookedInput(), usage.bookedOutput(), usage.combinedBasis(),
+                usage.latencyMs() == null ? null : usage.latencyMs().intValue());
+        if (inserted.isEmpty()) return false; // 同一调用已结算：不重复入账
         jdbc.update("""
                 UPDATE agent_run SET
                   input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),
@@ -772,7 +858,9 @@ public class AgentRunEventRecorder {
                   token_usage_estimated=token_usage_estimated OR ?,
                   updated_at=now()
                 WHERE project_id=? AND id=?
-                """, input, output, input, output, estimated, projectId, runId);
+                """, usage.bookedInput(), usage.bookedOutput(),
+                usage.bookedInput(), usage.bookedOutput(), usage.estimated(), projectId, runId);
+        return true;
     }
 
     private static int boundedLatency(long value) {

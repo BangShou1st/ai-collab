@@ -84,6 +84,12 @@ class AgentActualTokenUsageIntegrationTest {
         return new Fixture(user, project);
     }
 
+    private static AgentRunEventRecorder.UsageSettlement provider(int in, int out, long latency) {
+        return new AgentRunEventRecorder.UsageSettlement(in, out,
+                AgentRunEventRecorder.UsageSettlement.PROVIDER,
+                AgentRunEventRecorder.UsageSettlement.PROVIDER, latency);
+    }
+
     private AgentRunView runningRun(Fixture fixture, String goal) {
         var session = repository.createSession(fixture.project(), fixture.user(), "用量回归");
         var queued = repository.createRun(
@@ -156,10 +162,10 @@ class AgentActualTokenUsageIntegrationTest {
         UUID attemptId = repository.beginSummaryAttempt(run);
 
         repository.completeSummaryAttempt(attemptId, "COMMITTED", "space-bunny-free",
-                661, 1136, false, 1000L);
+                provider(661, 1136, 1000L), null);
         // 重复回调（同 attemptId）不得重复扣费
         repository.completeSummaryAttempt(attemptId, "COMMITTED", "space-bunny-free",
-                661, 1136, false, 1000L);
+                provider(661, 1136, 1000L), null);
 
         AgentRunView updated = repository.findRun(fixture.project(), run.id()).orElseThrow();
         assertThat(updated.inputTokensActual()).isEqualTo(661);
@@ -186,7 +192,8 @@ class AgentActualTokenUsageIntegrationTest {
 
         // 连证据都没有 → UNKNOWN
         UUID attemptId = repository.beginSummaryAttempt(updated);
-        repository.completeSummaryAttempt(attemptId, "FAILED", "unknown", null, null, true, null);
+        repository.completeSummaryAttempt(attemptId, "FAILED", "unknown",
+                AgentRunEventRecorder.UsageSettlement.unknown(), null);
         assertThat(jdbc.queryForObject(
                 "SELECT usage_basis FROM agent_step WHERE id=?", String.class, attemptId))
                 .isEqualTo("UNKNOWN");
@@ -217,7 +224,9 @@ class AgentActualTokenUsageIntegrationTest {
         AgentRunView run = runningRun(fixture, "取消前结算");
 
         // 模型调用已发生但运行随后被取消：用量必须如实入账
-        repository.settleOrphanModelUsage(fixture.project(), run.id(), REAL_INPUT, 700, false);
+        String callId = "MODEL:real-input-overshoot";
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 800L))).isTrue();
         recorder.recordCanceled(run);
 
         AgentRunView canceled = repository.findRun(fixture.project(), run.id()).orElseThrow();
@@ -225,6 +234,64 @@ class AgentActualTokenUsageIntegrationTest {
         assertThat(canceled.inputTokensActual()).isEqualTo(REAL_INPUT);
         assertThat(canceled.outputTokensActual()).isEqualTo(700);
         assertThat(canceled.inputTokensUsed()).isEqualTo(MAX_INPUT);
+        // 账本行唯一，来源为提供商上报
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM agent_usage_settlement WHERE run_id=? AND call_id=?",
+                Integer.class, run.id(), callId)).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT usage_basis FROM agent_usage_settlement WHERE run_id=? AND call_id=?",
+                String.class, run.id(), callId)).isEqualTo("PROVIDER");
+    }
+
+    /** 恢复/取消竞争下重复补记同一调用：调用身份幂等，只能入账一次。 */
+    @Test
+    void repeatedOrphanSettlementWithSameCallIdentityBooksExactlyOnce() {
+        Fixture fixture = fixture();
+        AgentRunView run = runningRun(fixture, "重复补记幂等");
+        String callId = "MODEL:same-request-hash";
+
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 100L))).isTrue();
+        // 恢复后的重复补记、取消路径的补记：同一 callId 全部被唯一约束拦下
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 100L))).isFalse();
+        recorder.recordCanceled(run);
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 100L))).isFalse();
+
+        AgentRunView canceled = repository.findRun(fixture.project(), run.id()).orElseThrow();
+        assertThat(canceled.inputTokensActual()).isEqualTo(REAL_INPUT);
+        assertThat(canceled.outputTokensActual()).isEqualTo(700);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM agent_usage_settlement WHERE run_id=?",
+                Integer.class, run.id())).isEqualTo(1);
+        // 步骤账本与结算账本可对账：actual = 步骤合计 + 孤儿结算合计
+        Integer stepInput = jdbc.queryForObject(
+                "SELECT COALESCE(sum(prompt_tokens),0) FROM agent_step WHERE run_id=?",
+                Integer.class, run.id());
+        Long settledInput = jdbc.queryForObject(
+                "SELECT COALESCE(sum(input_tokens_actual),0) FROM agent_usage_settlement WHERE run_id=?",
+                Long.class, run.id());
+        assertThat(canceled.inputTokensActual()).isEqualTo(stepInput + settledInput);
+    }
+
+    /** 缺失 usage 的孤儿结算：按请求/响应证据估算，basis 显式为 ESTIMATED。 */
+    @Test
+    void orphanSettlementWithoutProviderUsageUsesEvidenceEstimate() {
+        Fixture fixture = fixture();
+        AgentRunView run = runningRun(fixture, "孤儿估算");
+        String callId = "MODEL:no-usage-reported";
+
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId, "MODEL_TURN",
+                AgentRunEventRecorder.UsageSettlement.fromRaw(null, 4000, 300, null))).isTrue();
+
+        assertThat(jdbc.queryForObject(
+                "SELECT usage_basis FROM agent_usage_settlement WHERE run_id=? AND call_id=?",
+                String.class, run.id(), callId)).isEqualTo("ESTIMATED");
+        AgentRunView updated = repository.findRun(fixture.project(), run.id()).orElseThrow();
+        assertThat(updated.inputTokensActual()).isEqualTo(4000);
+        assertThat(updated.outputTokensActual()).isEqualTo(300);
+        assertThat(updated.tokenUsageEstimated()).isTrue();
     }
 
     @Test

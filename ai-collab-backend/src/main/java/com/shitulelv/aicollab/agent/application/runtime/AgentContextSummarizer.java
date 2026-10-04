@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.view.AgentMessageView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
@@ -87,6 +88,17 @@ public class AgentContextSummarizer {
             AgentRunView run,
             AgentModelMessageComposer.Composition composition,
             int remainingInputAfterMain) {
+        maybeSummarize(run, composition, remainingInputAfterMain, () -> true);
+    }
+
+    /**
+     * 同上；timeRemaining 供重压缩前复查运行剩余时长（不把重压缩耗在已到时的运行上）。
+     */
+    public void maybeSummarize(
+            AgentRunView run,
+            AgentModelMessageComposer.Composition composition,
+            int remainingInputAfterMain,
+            java.util.function.BooleanSupplier timeRemaining) {
         List<AgentMessageView> candidates = composition == null ? null : composition.summaryCandidates();
         if (candidates == null || candidates.isEmpty()) return;
         try {
@@ -135,49 +147,92 @@ public class AgentContextSummarizer {
 
             UUID attemptId = repository.beginSummaryAttempt(run);
             int actualInputChars = 0;
+            UsageSettlement firstUsage = null;
             try {
                 List<ModelMessage> messages = summaryMessages(candidates, newSegments, previousBlock, currentStateBlock, hasPrevious);
                 for (ModelMessage message : messages) {
                     if (message instanceof ModelMessage.User user) actualInputChars += user.content().length();
                 }
                 ModelTurnResult result = modelExecutor.callModelWithoutTools(run, messages);
-                // 记账依据完整实际响应，绝不按截短后的文本估算
+                // 记账依据完整实际响应，绝不按截短后的文本估算；
+                // 来源按原始 usage 显式判定，缺失侧用实际请求/响应证据补齐
                 String text = result.content() == null ? "" : result.content().strip();
-                int settledInputTokens = inputTokens(result.usage(), actualInputChars);
-                int settledOutputTokens = outputTokens(result.usage(), text.length());
-                boolean settledEstimated = result.usage() == null
-                        || result.usage().inputTokens() == null || result.usage().outputTokens() == null;
+                firstUsage = UsageSettlement.fromRaw(result.usage(),
+                        Math.max(1, actualInputChars / 3), Math.max(1, text.length() / 3), result.latencyMs());
                 if (text.isBlank()) {
                     // 调用已发生：如实记账后放弃，不伪造成功
-                    repository.completeSummaryAttempt(attemptId, "EMPTY", result.model(),
-                            settledInputTokens, settledOutputTokens, settledEstimated, result.latencyMs());
+                    repository.completeSummaryAttempt(attemptId, "EMPTY", result.model(), firstUsage, null);
                     log.debug("摘要输出为空，放弃: run={}", run.id());
                     return;
                 }
+                String recompressNote = null;
                 if (!qualifies(text)) {
-                    // 一次有界重新压缩：超长或结尾不完整的输出不能当作完整增量摘要提交
-                    ModelTurnResult retry = modelExecutor.callModelWithoutTools(run, recompressMessages(text));
+                    // 一次有界重新压缩：超长或结尾不完整的输出不能当作完整增量摘要提交。
+                    // 第二次调用前重新核算取消状态、剩余时长与剩余预算（扣除第一次真实/估算用量），
+                    // 请求自身保持有界；不足以承担重压缩时保留上一份有效摘要并明确降级原因。
+                    if (repository.isCancelRequested(run.projectId(), run.id())) {
+                        // 第一次调用已发生：结算其真实用量，保留上一份摘要、不推进覆盖
+                        repository.completeSummaryAttempt(attemptId, "CANCELED", result.model(), firstUsage,
+                                "RECOMPRESS_SKIPPED_CANCELED");
+                        log.info("摘要重压缩前检测到取消，保留上一份摘要并结算首次用量: run={}", run.id());
+                        return;
+                    }
+                    if (!timeRemaining.getAsBoolean()) {
+                        repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
+                                "RECOMPRESS_SKIPPED_TIME_EXHAUSTED");
+                        log.warn("运行剩余时长不足以承担重压缩，保留上一份摘要: run={}", run.id());
+                        return;
+                    }
+                    int recompressEstimate = recompressRequestTokens(text);
+                    int remainingForRecompress = remainingInputAfterMain - firstUsage.bookedInput();
+                    if (recompressEstimate > remainingForRecompress) {
+                        repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
+                                "RECOMPRESS_SKIPPED_BUDGET_INSUFFICIENT");
+                        log.warn("剩余预算不足以容纳有界重压缩请求，保留上一份摘要: run={}, needed={}, remaining={}",
+                                run.id(), recompressEstimate, remainingForRecompress);
+                        return;
+                    }
+                    UUID recompressId = repository.beginSummaryRecompressAttempt(run);
+                    ModelTurnResult retry;
+                    try {
+                        retry = modelExecutor.callModelWithoutTools(run, recompressMessages(text));
+                    } catch (RuntimeException reFailure) {
+                        // 第二次失败：第一次的真实用量已单独结算；第二次无可得响应，显式 UNKNOWN
+                        repository.completeSummaryRecompressAttempt(recompressId, "FAILED", "unknown",
+                                UsageSettlement.unknown(), null);
+                        repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
+                                "RECOMPRESS_FAILED");
+                        log.warn("摘要重压缩失败，保留上一份摘要且首次用量已结算: run={}", run.id(), reFailure);
+                        return;
+                    }
                     String recompressed = retry.content() == null ? "" : retry.content().strip();
-                    settledInputTokens += inputTokens(retry.usage(), actualInputChars + text.length());
-                    settledOutputTokens += outputTokens(retry.usage(), recompressed.length());
-                    settledEstimated = settledEstimated || retry.usage() == null
-                            || retry.usage().inputTokens() == null || retry.usage().outputTokens() == null;
+                    repository.completeSummaryRecompressAttempt(recompressId, "SETTLED", retry.model(),
+                            UsageSettlement.fromRaw(retry.usage(),
+                                    Math.max(1, recompressRequestChars(text) / 3),
+                                    Math.max(1, recompressed.length() / 3), retry.latencyMs()), null);
+                    recompressNote = "RECOMPRESS_SETTLED";
                     text = recompressed;
                 }
                 if (!qualifies(text)) {
                     // 无法得到合格摘要：保留上一份有效摘要、不推进本次覆盖，降级原因入账
-                    repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(),
-                            settledInputTokens, settledOutputTokens, settledEstimated, result.latencyMs());
+                    repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
+                            recompressNote == null ? null : "RECOMPRESS_STILL_UNQUALIFIED");
                     log.warn("摘要不合格（超长或结尾不完整），保留上一份摘要且不推进覆盖: run={}, length={}",
                             run.id(), text.length());
                     return;
                 }
                 commitSummary(run, state, previous, hasPrevious, candidates, newSegments, text,
-                        result, settledInputTokens, settledOutputTokens, settledEstimated, attemptId);
+                        result.model(), firstUsage, attemptId, recompressNote);
             } catch (RuntimeException failure) {
-                // 摘要是辅助能力：调用已发生的消耗如实记账，任何异常不得破坏主轮次
-                repository.completeSummaryAttempt(attemptId, "FAILED", "unknown",
-                        Math.max(1, actualInputChars / 3), 0, true, null);
+                // 摘要是辅助能力：任何异常不得破坏主轮次。第一次调用已返回的真实 usage
+                // 不因后续失败丢失；无响应证据时按实际请求大小估算，输出侧显式 UNKNOWN
+                if (firstUsage != null) {
+                    repository.completeSummaryAttempt(attemptId, "FAILED", "unknown", firstUsage,
+                            "POST_RESPONSE_FAILURE");
+                } else {
+                    repository.completeSummaryAttempt(attemptId, "FAILED", "unknown",
+                            UsageSettlement.fromRaw(null, Math.max(1, actualInputChars / 3), 0, null), null);
+                }
                 if (failure instanceof BusinessException business) {
                     log.warn("摘要生成失败，按无摘要路径继续: run={}, errorCode={}", run.id(), business.getErrorCode());
                 } else {
@@ -290,8 +345,7 @@ public class AgentContextSummarizer {
 
     private void commitSummary(AgentRunView run, JsonNode state, JsonNode previous, boolean hasPrevious,
             List<AgentMessageView> candidates, List<Seg> newSegments, String text,
-            ModelTurnResult result, int settledInputTokens, int settledOutputTokens,
-            boolean settledEstimated, UUID attemptId) {
+            String model, UsageSettlement firstUsage, UUID attemptId, String recompressNote) {
         // 合并覆盖进度：上一份摘要的分段 + 本次新增分段
         Map<String, Integer> covered = resumeOffsets(previous);
         for (Seg segment : newSegments) {
@@ -325,7 +379,7 @@ public class AgentContextSummarizer {
         summary.put("stateRevision", state.path("stateRevision").asInt());
         summary.put("goalRevision", state.path("goalRevision").asInt());
         summary.put("text", text);
-        summary.put("model", result.model() == null ? "unknown" : result.model());
+        summary.put("model", model == null ? "unknown" : model);
         summary.put("createdAt", OffsetDateTime.now().toString());
         // 仍有效约束是确定性快照，不是模型自由改写的产物
         var constraints = summary.putArray("activeConstraints");
@@ -342,8 +396,9 @@ public class AgentContextSummarizer {
         boolean committed = repository.commitConversationSummary(
                 run.projectId(), run.sessionId(), state.path("stateRevision").asInt(),
                 state.path("goalRevision").asInt(), summary);
-        repository.completeSummaryAttempt(attemptId, committed ? "COMMITTED" : "CAS_CONFLICT", result.model(),
-                settledInputTokens, settledOutputTokens, settledEstimated, result.latencyMs());
+        // CAS 冲突：文本不覆盖进度，但第一次调用的真实用量照常结算（终态转换一次性）
+        repository.completeSummaryAttempt(attemptId, committed ? "COMMITTED" : "CAS_CONFLICT", model,
+                firstUsage, recompressNote);
         if (committed) {
             log.debug("会话摘要已提交: run={}, coverage={}, newSegments={}, range={}..{}",
                     run.id(), summary.path("coverage").asText(), newSegments.size(),
@@ -355,12 +410,14 @@ public class AgentContextSummarizer {
         }
     }
 
-    private int inputTokens(com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage usage, int actualInputChars) {
-        return usage != null && usage.inputTokens() != null ? usage.inputTokens() : Math.max(1, actualInputChars / 3);
+    /** 重压缩请求自身有界：估算其输入 token（提示词 + 草稿全文 + 输出预留）。 */
+    private int recompressRequestTokens(String draft) {
+        return Math.max(1, recompressRequestChars(draft) / 3) + OUTPUT_RESERVE_TOKENS;
     }
 
-    private int outputTokens(com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage usage, int outputChars) {
-        return usage != null && usage.outputTokens() != null ? usage.outputTokens() : Math.max(1, outputChars / 3);
+    private int recompressRequestChars(String draft) {
+        int prompt = 220; // recompressMessages 固定模板字符数（不含草稿）
+        return prompt + draft.length();
     }
 
     /** 摘要合格标准（确定性）：非空且长度在输出容量内；超长即不可当作完整增量摘要提交。

@@ -360,9 +360,19 @@ public class AgentRepository {
         return recorder.beginSummaryAttempt(run);
     }
 
+    /** 摘要重压缩调用的独立持久化标记（每次实际模型请求一个身份）。 */
+    public UUID beginSummaryRecompressAttempt(AgentRunView run) {
+        return recorder.beginSummaryRecompressAttempt(run);
+    }
+
     public void completeSummaryAttempt(UUID attemptId, String outcome, String model,
-            Integer inputTokens, Integer outputTokens, boolean estimated, Long latencyMs) {
-        recorder.completeSummaryAttempt(attemptId, outcome, model, inputTokens, outputTokens, estimated, latencyMs);
+            AgentRunEventRecorder.UsageSettlement usage, String note) {
+        recorder.completeSummaryAttempt(attemptId, outcome, model, usage, note);
+    }
+
+    public void completeSummaryRecompressAttempt(UUID attemptId, String outcome, String model,
+            AgentRunEventRecorder.UsageSettlement usage, String note) {
+        recorder.completeSummaryRecompressAttempt(attemptId, outcome, model, usage, note);
     }
 
     public void recordDecisionFailure(
@@ -428,11 +438,26 @@ public class AgentRepository {
         return recorder.recordModelTurn(run, turn);
     }
 
-    /** 模型调用已发生但状态机已离开 RUNNING（取消/并发推进）时，如实结算用量。 */
+    /** 模型调用已发生但状态机已离开 RUNNING（取消/并发推进）时，按调用身份幂等结算用量。 */
     @Transactional
-    public void settleOrphanModelUsage(UUID projectId, UUID runId,
-            Integer inputTokens, Integer outputTokens, boolean estimated) {
-        recorder.settleOrphanModelUsage(projectId, runId, inputTokens, outputTokens, estimated);
+    public boolean settleOrphanUsage(UUID projectId, UUID runId, String callId, String kind,
+            AgentRunEventRecorder.UsageSettlement usage) {
+        return recorder.settleOrphanUsage(projectId, runId, callId, kind, usage);
+    }
+
+    /**
+     * 本运行内指定工具是否已有成功的持久化调用结果（用于核心动作是否已发生的判定，
+     * 依据持久工具结果，不扫描最终回答）。
+     */
+    public boolean hasSuccessfulToolInvocation(UUID runId, java.util.Collection<String> toolNames) {
+        if (toolNames == null || toolNames.isEmpty()) return false;
+        String names = toolNames.stream()
+                .map(name -> "'" + name.replace("'", "''") + "'")
+                .collect(java.util.stream.Collectors.joining(","));
+        Integer count = jdbc.queryForObject(
+                "SELECT count(*) FROM agent_tool_invocation WHERE run_id=? AND status='SUCCEEDED' AND tool_name IN (" + names + ")",
+                Integer.class, runId);
+        return count != null && count > 0;
     }
 
     /**
