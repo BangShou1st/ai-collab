@@ -369,6 +369,21 @@ class AgentModelMessageComposerV2Test {
         assertThat(userContents(legacyMessages)).contains("继续查详情");
     }
 
+    @Test
+    void historicalAssistantClaimsRemainIntactButAreExplicitlyUnverified() {
+        var previous = message("ASSISTANT", "全文不存在服务器费用；所有内容已经全部核查。", 1);
+        var request = message("USER", "只核对已经读取部分的费用依据，不生成任务。", 2);
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(new ArrayList<>(List.of(previous, request)));
+        var composition = composer.composeV2(run(request.content()), context(), skill(),
+                AgentPlan.create("核对", List.of()), List.of(), 30_000, 1.0);
+        assertThat(composition.failureReason()).isNull();
+        assertThat(composition.messages()).anyMatch(m -> m instanceof ModelMessage.Assistant assistant
+                && assistant.content().contains("UNVERIFIED_ASSISTANT_HISTORY")
+                && assistant.content().contains(previous.id().toString())
+                && assistant.content().contains(previous.content()));
+        assertThat(userContents(composition.messages())).contains(request.content());
+    }
+
     private List<String> userContents(List<ModelMessage> messages) {
         return messages.stream()
                 .filter(m -> m instanceof ModelMessage.User)

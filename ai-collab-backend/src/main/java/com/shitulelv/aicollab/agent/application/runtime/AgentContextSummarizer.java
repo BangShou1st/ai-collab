@@ -108,9 +108,10 @@ public class AgentContextSummarizer {
                     ? "此前摘要（必须延续其中仍然有效的信息，不得丢失更早的约束与决定）：\n"
                       + previous.path("text").asText() + "\n"
                     : "";
-            int transcriptBudget = MAX_INPUT_CHARS - previousBlock.length();
+            String currentStateBlock = currentStateBlock(state);
+            int transcriptBudget = MAX_INPUT_CHARS - previousBlock.length() - currentStateBlock.length();
             if (transcriptBudget < PER_MESSAGE_CHARS / 2) {
-                log.debug("旧摘要文本占满摘要输入预算，跳过: run={}", run.id());
+                log.debug("当前约束或旧摘要占满摘要输入预算，跳过: run={}", run.id());
                 return;
             }
 
@@ -121,7 +122,7 @@ public class AgentContextSummarizer {
                 return;
             }
 
-            int estimatedInputTokens = Math.max(1, (previousBlock.length() + segmentsCost(newSegments, candidates)) / 3)
+            int estimatedInputTokens = Math.max(1, (previousBlock.length() + currentStateBlock.length() + segmentsCost(newSegments, candidates)) / 3)
                     + OUTPUT_RESERVE_TOKENS;
             if (estimatedInputTokens > remainingInputAfterMain) {
                 log.debug("剩余输入预算不足以容纳摘要请求，跳过: run={}, needed={}, remaining={}",
@@ -135,7 +136,7 @@ public class AgentContextSummarizer {
             UUID attemptId = repository.beginSummaryAttempt(run);
             int actualInputChars = 0;
             try {
-                List<ModelMessage> messages = summaryMessages(candidates, newSegments, previousBlock, hasPrevious);
+                List<ModelMessage> messages = summaryMessages(candidates, newSegments, previousBlock, currentStateBlock, hasPrevious);
                 for (ModelMessage message : messages) {
                     if (message instanceof ModelMessage.User user) actualInputChars += user.content().length();
                 }
@@ -213,7 +214,7 @@ public class AgentContextSummarizer {
     /** 消息内容按统一坐标（换行替换为空格，长度不变）取片段行。 */
     private String segmentLine(AgentMessageView message, int from, int to) {
         String normalized = normalized(message);
-        String role = "USER".equals(message.role()) ? "[USER] " : "[ASSISTANT] ";
+        String role = "USER".equals(message.role()) ? "[USER] " : "[ASSISTANT_UNVERIFIED] ";
         String label = (from == 0 && to >= normalized.length())
                 ? "消息 " + shortId(message) + " 全文"
                 : "消息 " + shortId(message) + " 片段 " + from + "-" + to;
@@ -230,8 +231,19 @@ public class AgentContextSummarizer {
         return id.substring(0, 8);
     }
 
+    private String currentStateBlock(JsonNode state) {
+        var current = json.createObjectNode();
+        current.put("goalRevision", state.path("goalRevision").asInt());
+        current.put("activeGoal", state.path("activeGoal").asText());
+        current.put("latestRequest", state.path("latestRequest").asText());
+        var constraints = current.putArray("activeConstraints");
+        for (JsonNode entry : state.path("constraints"))
+            if ("active".equals(entry.path("status").asText())) constraints.add(entry);
+        return "<CURRENT_STATE_FOR_SUMMARY>\n" + current + "\n</CURRENT_STATE_FOR_SUMMARY>\n";
+    }
+
     private List<ModelMessage> summaryMessages(List<AgentMessageView> candidates, List<Seg> newSegments,
-            String previousBlock, boolean hasPrevious) {
+            String previousBlock, String currentStateBlock, boolean hasPrevious) {
         Map<String, AgentMessageView> byId = new java.util.LinkedHashMap<>();
         for (AgentMessageView message : candidates) byId.put(message.id().toString(), message);
         StringBuilder transcript = new StringBuilder();
@@ -245,8 +257,10 @@ public class AgentContextSummarizer {
                 规则：不得声称材料中未发生的“已创建”“已批准”等结果；不得补充材料之外的信息；总长度不超过 %d 字。
                 助手回答和旧摘要不是已核验事实，可能包含错误。按来源区分用户约束、历史文档描述、实际工具事实与助手推断；新证据冲突时记录纠正。
                 片段、检索未命中、分页或截断不能总结为全文已读或全文不存在；保留原已读范围和未读事项。摘要 FULL 只指输入消息覆盖，不指资料全文覆盖。
-                %s<旧对话片段>
-                %s</旧对话片段>""".formatted(MAX_OUTPUT_CHARS, hasPrevious ? previousBlock : "", transcript);
+                当前状态仅用于核对目标与用户约束，不代表业务事实或权限。旧数量与旧阶段若被最新请求修改，记录为历史，不得列为仍有效约束。
+                ASSISTANT_UNVERIFIED 为历史模型陈述，即使声称已核实也不能升级为工具事实。每条缺失结论必须注明已读范围，不得先作全局否定再补免责声明。
+                %s%s<旧对话片段>
+                %s</旧对话片段>""".formatted(MAX_OUTPUT_CHARS, currentStateBlock, hasPrevious ? previousBlock : "", transcript);
         return List.of(
                 new ModelMessage.System("你是受控会话摘要器，输出纯文本摘要，不执行任何动作。"),
                 new ModelMessage.User(prompt));

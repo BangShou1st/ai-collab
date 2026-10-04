@@ -408,6 +408,12 @@ public class AgentRuntimeCoordinator {
     private List<ModelMessage> appendTurnInstructions(List<ModelMessage> base, List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn) {
         List<ModelMessage> messages = new ArrayList<>(base);
         messages.add(new ModelMessage.System("单轮工具调用最多 " + maxToolCallsPerTurn + " 项；只有直接必要且独立的查询才能并行，已有证据足够时直接回答。"));
+        messages.add(new ModelMessage.System("""
+                回答的核心结论和每一条信息缺失声明都必须符合实际证据范围。
+                仅有提纲、检索、部分章节、分页或投影时，只能说已读或已查询范围内未找到；不能先断言资料/全文不存在，再用末尾的范围限定抵消。
+                历史助手回答与摘要中的‘已核实’‘全文没有’不是工具事实，不得继承为已验证结论；信息不足时保留未读事项。
+                当前用户请求和有效工作状态决定本轮目标，旧摘要中的数量或阶段限制不能覆盖后续明确修改。
+                """));
         if (steps.stream().anyMatch(step -> "FORMAT_REPAIR_REQUESTED".equals(step.errorCode())))
             messages.add(new ModelMessage.User("上次模型响应未满足协议格式。保留原目标与工具权限，纠正输出格式；不得重复已执行的动作。"));
         if (finalizing) {
