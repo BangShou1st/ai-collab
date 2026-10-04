@@ -215,6 +215,19 @@ class AgentRepositoryIntegrationTest {
     }
 
     @Test
+    void budgetPartialAnswerPreservesMessageWithoutSuccessOrWrites() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "预算未完成");
+        var queued = repository.createRun(fixture.project(), session.id(), fixture.user(), "读取资料", false, null, null);
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        transactions.executeWithoutResult(tx -> repository.recordBudgetPartialAnswer(running, "预算不足；已读片段保留，未完成全文核查。"));
+        assertThat(repository.findRun(fixture.project(), queued.id()).orElseThrow().status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        assertThat(repository.listMessages(fixture.project(), session.id(), 10)).extracting(message -> message.role() + ":" + message.content())
+                .containsExactly("USER:读取资料", "ASSISTANT:预算不足；已读片段保留，未完成全文核查。");
+        assertThat(jdbc.queryForObject("select count(*) from agent_run_event where run_id=? and type='RUN_SUCCEEDED'", Integer.class, queued.id())).isZero();
+    }
+    @Test
     void toolResultPersistsAndRequeuesRun() {
         Fixture fixture = fixture();
         var session = repository.createSession(fixture.project(), fixture.user(), "工具测试");

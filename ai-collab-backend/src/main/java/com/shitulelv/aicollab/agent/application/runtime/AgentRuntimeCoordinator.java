@@ -234,11 +234,24 @@ public class AgentRuntimeCoordinator {
             if (overBudgetReason != null) {
                 return inputBudgetExceeded(run, requestBudget, overBudgetReason);
             }
+            if (!finalizing && convergence.successfulToolCalls() > 0
+                    && convergencePolicy.needsFinalRequest(run, ctx.limits(), steps, estimatedInput, contextProperties.outputReserveTokens())) {
+                finalizing = true;
+                exposed = List.of();
+                messages = appendTurnInstructions(composition != null ? composition.messages()
+                        : composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, true);
+                estimatedInput = estimateInput(messages, exposed);
+                if (estimatedInput > requestBudget.availableInputTokens())
+                    return inputBudgetExceeded(run, requestBudget, "FINAL_REQUEST_OVER_BUDGET");
+            }
             AgentModelAccounting.estimate(estimatedInput);
 
             // 7b. 有界增量摘要：主请求预算保留后，对未覆盖旧对话生成一次摘要（持久化尝试标记、CAS 提交、单独记账）
             if (composition != null) {
-                summarizer.maybeSummarize(run, composition, requestBudget.availableInputTokens() - estimatedInput);
+                int finalInputReserve = finalizing ? 0 : Math.max(estimatedInput, steps.stream()
+                        .filter(s -> s.type() == AgentStepType.MODEL_TURN && s.promptTokens() != null)
+                        .reduce((a, b) -> b).map(AgentStepView::promptTokens).orElse(0));
+                summarizer.maybeSummarize(run, composition, Math.max(0, remainingRunInput - estimatedInput - finalInputReserve));
                 // 摘要消耗已入账：刷新运行、重查取消状态，并重新核算主请求预算——
                 // 不允许携带超限上下文继续请求模型
                 run = repository.findRun(run.projectId(), run.id()).orElse(run);
@@ -431,12 +444,12 @@ public class AgentRuntimeCoordinator {
                     .append(": ").append(output).append('\n');
         });
         String content = answer.toString().stripTrailing();
-        run = repository.recordFinal(run, content, List.of());
-        emit(run, AgentEventType.RUN_SUCCEEDED,
+        repository.recordBudgetPartialAnswer(run, content);
+        emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
                 json.createObjectNode()
-                        .put("status", AgentRunStatus.SUCCEEDED.name())
+                        .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
                         .put("fallback", "PERSISTED_TOOL_EVIDENCE"));
-        return new AgentWorkerOutcome(AgentRunStatus.SUCCEEDED, content, null, null);
+        return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, content, null, "AGENT_BUDGET_EXCEEDED");
     }
 
     private AgentWorkerOutcome invalidResponse(AgentRunView run) {

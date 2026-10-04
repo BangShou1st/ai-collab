@@ -389,9 +389,9 @@ class AgentRuntimeCoordinatorTest {
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
-        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
         assertThat(outcome.answer()).contains("已取得的结果").contains("mcp.github-readonly.get_file_contents");
-        verify(repository).recordFinal(any(), contains("已取得的结果"), anyList());
+        verify(repository).recordBudgetPartialAnswer(any(), contains("已取得的结果"));
         verify(repository, never()).recordToolResult(any(), any(), any(), any(), anyBoolean());
         verify(repository, never()).requeueRun(any());
     }
@@ -406,7 +406,7 @@ class AgentRuntimeCoordinatorTest {
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
-        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
         assertThat(outcome.answer()).contains("已取得的结果").contains("type");
         verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean());
         verify(repository, never()).recordBudgetExceeded(any());

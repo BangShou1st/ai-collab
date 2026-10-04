@@ -312,6 +312,10 @@ public class AgentRepository {
         recorder.recordBudgetExceeded(run);
     }
 
+    public void recordBudgetPartialAnswer(AgentRunView run, String content) {
+        recorder.recordBudgetPartialAnswer(run, content);
+    }
+
     public void recordBudgetExceeded(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion) {
         recorder.recordBudgetExceeded(run, completion);
     }

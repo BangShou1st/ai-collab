@@ -83,6 +83,17 @@ class AgentModelMessageComposerV2Test {
         assertThat(composition.stats().historyIncluded()).isEqualTo(2);
     }
 
+    @Test void projectedDocumentCannotRetainFullReadClaim() {
+        var output = json.createObjectNode();
+        var data = output.putObject("data");
+        data.put("coverage", "FULL");
+        data.put("fullDocumentRead", true);
+        data.put("content", "正文".repeat(6000));
+        var projected = composer.projectToolOutput(output, 1500);
+        assertThat(projected.path("fullDocumentRead").asBoolean()).isFalse();
+        assertThat(projected.path("evidenceScope").asText()).isEqualTo("PROJECTED_PARTIAL_OBSERVATION");
+    }
+
     @Test
     void composeV2DoesNotDuplicateGoalAlreadyInHistory() {
         List<AgentMessageView> history = new ArrayList<>(List.of(
