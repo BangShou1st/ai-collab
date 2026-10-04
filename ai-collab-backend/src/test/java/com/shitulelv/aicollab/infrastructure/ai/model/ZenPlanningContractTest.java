@@ -78,4 +78,21 @@ class ZenPlanningContractTest {
         assertThat(pol.capabilities()).containsExactlyInAnyOrder(ModelCapability.CHAT, ModelCapability.STREAMING,
                 ModelCapability.STRUCTURED_OUTPUT, ModelCapability.NATIVE_TOOLS, ModelCapability.USAGE);
     }
+
+    @Test void emptyPlanningStreamKeepsSafeFinishAndUsageDiagnostics() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        doAnswer(inv -> {
+            BiConsumer<String, JsonNode> cb = inv.getArgument(3);
+            cb.accept("message", mapper.readTree("{\"choices\":[{\"delta\":{\"reasoning_content\":\"private reasoning\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":20,\"completion_tokens\":3}}"));
+            return null;
+        }).when(http).stream(anyString(), anyMap(), any(JsonNode.class), any(BiConsumer.class));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, http)
+                .completeStreamingSyncWithSession(zenConfig(), "private-key", jsonCommand(), AiRequestMetadata.of("corr"), "client"))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.getMessage()).contains("EMPTY_CONTENT", "finish=stop", "reasoningPresent=true")
+                            .doesNotContain("private reasoning", "private-key");
+                    assertThat(failure.promptTokens()).isEqualTo(20);
+                    assertThat(failure.completionTokens()).isEqualTo(3);
+                });
+    }
 }

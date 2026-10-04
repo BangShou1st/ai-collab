@@ -39,10 +39,23 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         try {
             JsonNode response = http.post(endpoint(config), headers(apiKey), request(config, command, false));
             JsonNode choice = response.path("choices").path(0);
-            if ("length".equals(choice.path("finish_reason").asText())) {
-                throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
-            }
             JsonNode usage = response.path("usage");
+            String finish = choice.path("finish_reason").asText("");
+            String safeFinish = List.of("stop", "length", "tool_calls", "content_filter").contains(finish)
+                    ? finish : "other_or_missing";
+            JsonNode content = choice.path("message").path("content");
+            String category = "length".equals(finish) ? "OUTPUT_TRUNCATED"
+                    : !choice.isObject() ? "MISSING_CHOICE"
+                    : !content.isTextual() ? "MISSING_OR_NON_TEXT_CONTENT"
+                    : content.asText().isBlank() ? "EMPTY_CONTENT" : null;
+            if (category != null) {
+                throw new ProviderResponseFailure("length".equals(finish)
+                        ? ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED : ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "PROVIDER_RESPONSE / " + category + " / finish=" + safeFinish
+                                + " / contentChars=" + (content.isTextual() ? content.asText().length() : 0)
+                                + " / reasoningPresent=" + choice.path("message").hasNonNull("reasoning_content"),
+                        integer(usage.path("prompt_tokens")), integer(usage.path("completion_tokens")));
+            }
             return result(config, choice.path("message").path("content").asText(null),
                     response.path("model").asText(config.modelName()),
                     integer(usage.path("prompt_tokens")), integer(usage.path("completion_tokens")), started);
@@ -137,6 +150,8 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             AtomicReference<Integer> input = new AtomicReference<>();
             AtomicReference<Integer> output = new AtomicReference<>();
             AtomicBoolean terminal = new AtomicBoolean(false);
+            AtomicReference<String> finishReason = new AtomicReference<>("missing");
+            AtomicBoolean reasoningPresent = new AtomicBoolean(false);
             // userAgent != null marks the Zen preset path (Custom callers pass null):
             // Zen includes its client envelope; Custom keeps its own contract.
             http.stream(endpoint(config), metadata == null && userAgent == null ? headers(apiKey) : headersWithSession(apiKey, metadata, userAgent), userAgent == null ? request(config, command, true) : zenRequest(config, command, true), (event, data) -> {
@@ -149,14 +164,17 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 }
                 JsonNode choice = data.path("choices").path(0);
                 String finish = choice.path("finish_reason").asText("");
+                if (!finish.isEmpty()) finishReason.set(List.of("stop", "length", "tool_calls", "content_filter").contains(finish) ? finish : "other");
+                if (choice.path("delta").hasNonNull("reasoning_content")) reasoningPresent.set(true);
                 if ("length".equals(finish)) {
                     terminal.set(true);
-                    throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+                    throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
+                            "PROVIDER_STREAM / OUTPUT_TRUNCATED / finish=length / contentChars=" + content.length(), input.get(), output.get());
                 }
                 if (userAgent != null && choice.path("delta").path("tool_calls").isArray()
                         && !choice.path("delta").path("tool_calls").isEmpty())
-                    throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                            "文本请求返回了工具调用；传输保留工具不会执行");
+                    throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                            "PROVIDER_STREAM / UNEXPECTED_TOOL_CALLS", input.get(), output.get());
                 String token = choice.path("delta").path("content").asText("");
                 if (!token.isEmpty()) {
                     content.append(token);
@@ -164,6 +182,9 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 }
             });
             if (terminal.compareAndSet(false, true)) {
+                if (content.toString().isBlank()) throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "PROVIDER_STREAM / EMPTY_CONTENT / finish=" + finishReason.get()
+                                + " / contentChars=" + content.length() + " / reasoningPresent=" + reasoningPresent.get(), input.get(), output.get());
                 onDone.accept(result(config, content.toString(), model.get(), input.get(), output.get(), started));
             }
         }, onError);

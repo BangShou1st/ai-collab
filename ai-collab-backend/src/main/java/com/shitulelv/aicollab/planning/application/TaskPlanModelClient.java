@@ -96,10 +96,13 @@ public class TaskPlanModelClient {
                 default -> failure.getErrorCode();
             };
             long latency = Math.max(0, (System.nanoTime() - started) / 1_000_000);
+            var responseFailure = failure instanceof com.shitulelv.aicollab.infrastructure.ai.model.ProviderResponseFailure response ? response : null;
             safeLog(feature, actor, projectId, attemptId, selected == null ? "unresolved" : selected.providerType().name(),
                     selected == null ? "unresolved" : selected.modelName(),
-                    status(mapped), latency, null, null, mapped.name());
-            throw new BusinessException(mapped);
+                    status(mapped), latency, responseFailure == null ? null : responseFailure.promptTokens(),
+                    responseFailure == null ? null : responseFailure.completionTokens(), mapped.name());
+            throw responseFailure == null ? new BusinessException(mapped)
+                    : new BusinessException(mapped, responseFailure.getMessage());
         }
     }
 
