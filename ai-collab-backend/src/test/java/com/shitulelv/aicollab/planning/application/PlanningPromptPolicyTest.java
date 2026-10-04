@@ -171,4 +171,28 @@ class PlanningPromptPolicyTest {
         assertTrue(prompt.contains("里程碑不超过 8 个"));
         assertTrue(prompt.contains("任务不超过 20 个"));
     }
+
+    @Test
+    void promptsDistinguishCurrentConstraintsFromConstraintHistory() {
+        String skeleton = policy.skeletonRules(testContext());
+        String detail = policy.detailRules(testContext());
+        // 约束历史与当前结构化约束的区分规则在两个阶段都存在
+        for (String prompt : List.of(skeleton, detail)) {
+            assertTrue(prompt.contains("CURRENT_VS_HISTORY"));
+            assertTrue(prompt.contains("PLAN_CONSTRAINTS"));
+            assertTrue(prompt.contains("当前唯一生效的结构化约束"));
+            assertTrue(prompt.contains("不得要求已被取代的历史数值"));
+            // 不硬编码任何具体历史数量：规则表达的是语义而不是某个数字
+            assertFalse(prompt.contains("不得要求最多10项"));
+        }
+    }
+
+    @Test
+    void detailPromptStatesSourcesAreAuthoritativeForThisGeneration() {
+        String prompt = policy.detailRules(testContext());
+        assertTrue(prompt.contains("SOURCE_AUTHORITY"));
+        assertTrue(prompt.contains("本次服务端实际检索"));
+        assertTrue(prompt.contains("不能覆盖 SOURCES 中实际存在的内容"));
+        assertTrue(prompt.contains("无文档依据时 sourceRefs=[]"));
+    }
 }
