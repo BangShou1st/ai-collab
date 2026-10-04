@@ -15,7 +15,7 @@ import org.springframework.test.context.DynamicPropertySource;
     "server.port=18080", "spring.flyway.enabled=true", "agent.enabled=true",
     "chat.enabled=false", "planning.enabled=false", "embedding.enabled=false",
     "security.refresh-token.cookie-secure=false", "security.cors.allowed-origins=http://localhost:15173",
-    "security.jwt.access-token-minutes=60"
+    "security.jwt.access-token-minutes=60", "auth.rate-limit.login-per-hour=200"
 })
 @EnabledIfEnvironmentVariable(named="AI_REAL_ACCEPTANCE",matches="true")
 @org.springframework.context.annotation.Import(LongQualityModelCapture.class)
