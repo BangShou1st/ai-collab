@@ -117,6 +117,15 @@ public class AgentRunEventRecorder {
     }
 
     @Transactional
+    public void recordBudgetPartialAnswer(AgentRunView run, String content) {
+        recordBudgetExceeded(run);
+        jdbc.update("""
+                INSERT INTO agent_message(session_id,run_id,role,content)
+                VALUES (?,?,'ASSISTANT',?)
+                """, run.sessionId(), run.id(), content);
+    }
+
+    @Transactional
     public void recordBudgetExceeded(AgentRunView run, ChatCompletionResult completion) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
         accountActiveTime(run.id());

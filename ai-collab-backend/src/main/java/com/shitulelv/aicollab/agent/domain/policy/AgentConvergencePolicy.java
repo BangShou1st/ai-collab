@@ -66,6 +66,18 @@ public final class AgentConvergencePolicy {
         }
     }
 
+    /** Estimate the next evidence request and one final request before admitting more tools. */
+    public boolean needsFinalRequest(AgentRunView run, AgentRuntimeLimits limits,
+            List<AgentStepView> steps, int nextInput, int outputReserve) {
+        int lastInput = (steps == null ? List.<AgentStepView>of() : steps).stream()
+                .filter(s -> s.type() == AgentStepType.MODEL_TURN && s.promptTokens() != null)
+                .reduce((a, b) -> b).map(AgentStepView::promptTokens).orElse(0);
+        long requestCost = Math.max(nextInput, lastInput);
+        long remainingInput = (long) Math.min(run.maxInputTokens(), limits.maxInputTokens()) - run.inputTokensUsed();
+        long remainingOutput = (long) Math.min(run.maxOutputTokens(), limits.maxOutputTokens()) - run.outputTokensUsed();
+        return remainingInput <= 2L * requestCost || remainingOutput <= outputReserve;
+    }
+
     public enum Mode {
         CONTINUE,
         FINALIZE,

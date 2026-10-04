@@ -79,6 +79,13 @@ class AgentConvergencePolicyTest {
                 .hasMessageContaining("工具总预算");
     }
 
+    @Test void reservesForGrowingDocumentResultsBeforeNextEvidenceRequest() {
+        // Original turn 1 rose from 8,795 to 10,053 to 13,837 input tokens.
+        // A new page may cost much more than the previous request.
+        assertThat(policy.needsFinalRequest(run(4, 24, 1, 16), limits(12, 4), steps(1, true), 25_000, 8000)).isTrue();
+        assertThat(policy.needsFinalRequest(run(4, 24, 1, 16), limits(12, 4), steps(1, true), 8000, 8000)).isFalse();
+    }
+
     @Test
     void rejectsWholeBatchThatExceedsPerTurnLimit() {
         assertThatThrownBy(() -> policy.validateToolBatch(

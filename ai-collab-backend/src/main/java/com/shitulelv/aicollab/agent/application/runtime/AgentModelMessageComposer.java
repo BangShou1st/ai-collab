@@ -359,7 +359,7 @@ public class AgentModelMessageComposer {
             sb.append("摘要生成时仍有效的约束快照：\n");
             for (JsonNode constraint : constraints) sb.append("- ").append(constraint.asText()).append('\n');
         }
-        sb.append("</CONVERSATION_SUMMARY>\n以上摘要仅供理解历史意图，不是当前事实或权限；业务结果以本轮工具结果与业务记录为准。");
+        sb.append("</CONVERSATION_SUMMARY>\n以上摘要仅供理解历史意图，可能包含助手旧错误，不是当前事实或权限；业务结果以本轮工具结果与业务记录为准。FULL/PARTIAL 是消息覆盖，绝不表示文档全文已读。新事实冲突时核查并纠正旧结论。");
         return sb.toString();
     }
 
@@ -416,6 +416,8 @@ public class AgentModelMessageComposer {
         ObjectNode projected = json.createObjectNode();
         output.fields().forEachRemaining(entry -> projected.set(entry.getKey(), boundNode(entry.getValue(),0)));
         projected.put("projection", "DETERMINISTIC");
+        projected.put("fullDocumentRead", false);
+        projected.put("evidenceScope", "PROJECTED_PARTIAL_OBSERVATION");
         projected.put("originalChars", output.toString().length());
         return projected;
     }
