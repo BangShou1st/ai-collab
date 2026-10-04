@@ -1,0 +1,20 @@
+{
+  "rootCause": "Zen reserved transport tools inserted into pure JSON/text and empty-tool final requests with no tool_choice=none",
+  "originalKnown": "provider call INVALID_OUTPUT before parser, one SKELETON attempt, no repair",
+  "originalEvidence": "reliability/turn-23.json",
+  "reproduction": "same persisted plan regenerate, generationSeq=2",
+  "diagnostic": "SKELETON / PROVIDER_STREAM / UNEXPECTED_TOOL_CALLS",
+  "originalMissing": [
+    "provider body",
+    "finish reason",
+    "parser diagnostics"
+  ],
+  "boundary": "Original body unavailable; reproduction proves same failure class at adapter, not exact identity of historical response",
+  "historicalPlanId": "1d1496c1-cdeb-44a3-b6f2-43b8baadaf10",
+  "priorMinimal": {
+    "turn1": "SUCCEEDED budget answer, embedding initially unavailable, historical capability risk",
+    "turn3": "SUCCEEDED scope retained",
+    "turn2": "BUDGET_EXCEEDED partial evidence, provider still requested tools"
+  },
+  "codeVersion": "d85018296a6c368239eafabbc3aff0b535f579a2"
+}

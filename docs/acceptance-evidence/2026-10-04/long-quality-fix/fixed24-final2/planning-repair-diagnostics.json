@@ -1,0 +1,8 @@
+[
+  {
+    "at": "2026-10-04T17:13:46.306015600+08:00",
+    "validationIssues": [
+      "\\n- code=TASK_UNASSIGNED\\n  severity=WARNING\\n  targetType=TASK\\n  targetTempKey=T1-BASELINE\\n  field=assigneeId\\n- code=TASK_UNASSIGNED\\n  severity=WARNING\\n  targetType=TASK\\n  targetTempKey=T2-CONSTRAINT\\n  field=assigneeId\\n- code=TASK_UNASSIGNED\\n  severity=WARNING\\n  targetType=TASK\\n  targetTempKey=T3-TIMEOUT\\n  field=assigneeId\\n- code=TASK_UNASSIGNED\\n  severity=WARNING\\n  targetType=TASK\\n  targetTempKey=T4-RESTART-QUEUED\\n  field=assigneeId\\n- code=TASK_UNASSIGNED\\n  severity=WARNING\\n  targetType=TASK\\n  targetTempKey=T5-RESTART-MIDGEN\\n  field=assigneeId\\n- code=TASK_UNASSIGNED\\n  severity=WARNING\\n  targetType=TASK\\n  targetTempKey=T6-CANCEL-CLOSEOUT\\n  field=assigneeId\\n- code=DEPENDENCY_DATE_CONFLICT\\n  severity=BLOCKING_EDITABLE\\n  targetType=TASK\\n  targetTempKey=T5-RESTART-MIDGEN\\n  field=startDate\\n  relatedTempKey=T4-RESTART-QUEUED\\n  dependencyDueDate=2026-10-19\\n  currentStartDate=2026-10-18\\n"
+    ]
+  }
+]

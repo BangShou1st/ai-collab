@@ -1,0 +1,694 @@
+{
+  "batch": "correction",
+  "prompt": "查询刚受理的同一规划真实状态和已有版本，区分后台受理与已完成。只检查当前规划是否符合有效日期、负责人和最多6项，禁止重复启动或确认正式任务。",
+  "answer": {
+    "id": "16941cda-9762-4e20-9eb0-a4f6c9ed5488",
+    "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "runId": "41ede44e-637b-43f2-a46b-e25b369a1efe",
+    "role": "ASSISTANT",
+    "content": "**真实状态：后台生成已完成（READY），但尚未经你人工确认——这与\"已受理\"不同。**\n\n**实测事实**（`list_task_plans` + `get_task_plan`，planId `1d1496c1-cdeb-44a3-b6f2-43b8baadaf10`）\n- 状态 `READY`，`activeAttemptId=null`（无进行中生成），`lastErrorCode=null`——**先前那次 FAILED 已被后续重试取代**。\n- 已有版本：`latestVersionNo=2`、`latestVersionId=c0e95b3e…`（基于版本 817366a8…），`generationSeq=3`。草稿内容存在，可审阅。\n- **任务数**：`totalTasks=6`、`maxTaskCount=6` ✅ 未超上限。\n- **日期**：`planStartDate=2026-10-05`、`planDueDate=2026-10-25` ✅ 与约定一致；已读的 T-01～T-03 日期均落在该区间内。\n\n**负责人** ✅：已读任务 `suggestedAssigneeId` 均为 `9c4cd312-…86df0`（Local Owner，OWNER）。\n\n**两点必须说明**\n1. 结果带 `projection=DETERMINISTIC`：本次只返回 T-01～T-03 与部分来源，**T-04～T-06 未读到**，因此\"全部 6 项日期合规、依赖无环\"**尚未验证**——目前仅见 T-02→T-01、T-03→T-01，无环。\n2. 存在 6 条 `TASK_UNASSIGNED` 警告（assigneeId 为空、仅建议负责人），属草稿态正常，正式任务未创建。\n\n**未做**：未重复启动生成、未确认任何版本、未创建正式任务。请到规划页打开版本 2 审阅并人工确认。",
+    "citations": [],
+    "inferences": [],
+    "createdAt": "2026-10-04T08:50:09.739118Z"
+  },
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG",
+  "session": {
+    "id": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "真实需求24轮约束与目标验收",
+    "status": "ACTIVE",
+    "version": 30,
+    "createdAt": "2026-10-04T03:20:40.014288Z",
+    "updatedAt": "2026-10-04T08:49:54.776701Z"
+  },
+  "codeVersion": "1b1073edf82d52992796a01a2fd0737ac12b6353",
+  "executionDate": "2026-10-04",
+  "run": {
+    "id": "41ede44e-637b-43f2-a46b-e25b369a1efe",
+    "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "查询刚受理的同一规划真实状态和已有版本，区分后台受理与已完成。只检查当前规划是否符合有效日期、负责人和最多6项，禁止重复启动或确认正式任务。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 5,
+    "toolCallsUsed": 2,
+    "childrenUsed": 0,
+    "inputTokensUsed": 31416,
+    "outputTokensUsed": 2463,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"6c164058-05cf-4a3d-9f2c-1dcc17d14211\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 9,
+    "createdAt": "2026-10-04T08:49:30.026237Z",
+    "updatedAt": "2026-10-04T08:50:09.739118Z"
+  },
+  "turn": 24,
+  "steps": [
+    {
+      "id": "84954471-b783-4ae5-ab10-7533dc5ff840",
+      "sequence": 1,
+      "type": "MODEL_REQUEST",
+      "toolName": "context_summary",
+      "input": {
+        "status": "ATTEMPTED",
+        "purpose": "CONTEXT_SUMMARY"
+      },
+      "output": {
+        "model": "space-bunny-free",
+        "status": "COMMITTED",
+        "purpose": "CONTEXT_SUMMARY"
+      },
+      "reason": "CONTEXT_SUMMARY",
+      "promptTokens": 1534,
+      "completionTokens": 1605,
+      "tokenUsageEstimated": false,
+      "latencyMs": 23925,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:49:30.811463Z"
+    },
+    {
+      "id": "48fb3306-6aa9-4d86-b891-e97aef9d4734",
+      "sequence": 2,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 13793,
+          "outputTokens": 172
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 3997,
+        "toolCalls": [
+          {
+            "id": "call_function_77h53bjwsf12_1",
+            "name": "list_task_plans",
+            "arguments": {
+              "size": 10
+            }
+          },
+          {
+            "id": "call_function_77h53bjwsf12_2",
+            "name": "get_task_plan",
+            "arguments": {
+              "planId": "1d1496c1-cdeb-44a3-b6f2-43b8baadaf10"
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 13793,
+      "completionTokens": 172,
+      "tokenUsageEstimated": false,
+      "latencyMs": 3997,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:49:58.816674Z"
+    },
+    {
+      "id": "117812b3-8705-4218-899c-72c3b3bccc24",
+      "sequence": 3,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "list_task_plans",
+      "input": {
+        "arguments": {
+          "size": 10
+        },
+        "toolCallId": "call_function_77h53bjwsf12_1"
+      },
+      "output": {
+        "data": {
+          "page": 0,
+          "size": 10,
+          "items": [
+            {
+              "id": "1d1496c1-cdeb-44a3-b6f2-43b8baadaf10",
+              "goal": "为 ai-collab 发布前可靠性验收形成一份可执行、可判定的完整规划草稿，覆盖六类场景：长对话上下文持续覆盖、模型超时终态与记账、排队中重启的幂等恢复、生成中重启不续接半截输出、取消与模型完成的竞争、验收证据收口。规划须包含里程碑、任务间无环依赖、每项任务可判定的验收标准（要求侧与实测证据区分），全部建议负责人固定为 Local Owner，日期固定 2026-10-05 至 2026-10-25，任务总数不超过 6 项。采购费用核对不属于本规划范围。",
+              "title": "ai-collab可靠性验收24轮",
+              "status": "READY",
+              "createdAt": "2026-10-04T03:37:52.776037Z",
+              "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+              "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+              "updatedAt": "2026-10-04T08:11:27.885714Z",
+              "constraints": "1) 日期固定 2026-10-05 至 2026-10-25，不得变更（已核对落在项目周期 2026-10-04~2026-10-31 内）。2) 全部任务建议负责人固定为 Local Owner（项目内唯一成员，role OWNER，userId 9c4cd312-…86df0，由 list_project_members 返回，不得猜测或改派）。3) 任务总数上限 6 项，覆盖长对话持续覆盖、模型超时、排队重启、运行中重启、取消竞争、证据收口六个场景。4) 禁止自动批准：草稿仅生成供人工审阅，正式任务写入必须由项目管理员在规划页对指定版本人工确认后执行，Agent 不得代为确认版本。5) 依赖必须构成有向无环图，按排队中重启 → 运行中重启 → 取消竞争 → 证据收口顺序推进，不允许反向或互为前置的环。6) 验收标准必须可判定，明确区分「实现要求」与「实际通过证据」，当前项目 list_tasks 与 list_task_plans 均为空，所有场景尚无实测证据。7) 依据主蓝图《ai-collab下一阶段主蓝图》documentId 6c164058-05cf-4a3d-9f2c-1dcc17d14211，snapshot bea5454c（已实读第1节、4.2、4.4、5.1、5.2、5.3、5.4、6.1、6.2、6.3；其中4.2 与6.1为DETERMINISTIC投影，费用/预算口径读取不完整，涉及超时记账处需标注依据不足）。8) 引用 6.2：同一调用键重放须返回原 operation、同键异参拒绝；受理不等于完成，一律以计划与 attempt 的持久状态为准；事件可重复、乱序或经重启恢复。9) 引用 6.3：关闭网页不等于取消生成，「停止回答」与「取消这份规划生成」是不同动作；超时或响应丢失须先查原 operation 状态不得直接重新生成；已提交的正式任务不因取消 Agent 运行而删除。10) 引用 4.4：摘要须按 sourceFrom/sourceThrough 记录覆盖范围并以 CAS 提交，窗口超预算整条跳过，覆盖偏移比单纯增大历史窗口可靠。11) 规划草稿须生成里程碑；人工确认前不得写入任何正式任务。",
+              "planDueDate": "2026-10-25",
+              "maxTaskCount": 6,
+              "generationSeq": 3,
+              "lastErrorCode": null,
+              "planStartDate": "2026-10-05",
+              "activeAttemptId": null,
+              "latestVersionId": "c0e95b3e-64b3-4b17-891a-7d63a1defaf3",
+              "latestVersionNo": 2,
+              "lastErrorSummary": null,
+              "selectedDocumentIdsJson": "[\"6c164058-05cf-4a3d-9f2c-1dcc17d14211\"]"
+            }
+          ],
+          "hasMore": false,
+          "nextPage": 1
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:49:58.861533Z"
+    },
+    {
+      "id": "2a09cdc9-6e8e-41a5-8c47-e800904368ba",
+      "sequence": 4,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "get_task_plan",
+      "input": {
+        "arguments": {
+          "planId": "1d1496c1-cdeb-44a3-b6f2-43b8baadaf10"
+        },
+        "toolCallId": "call_function_77h53bjwsf12_2"
+      },
+      "output": {
+        "data": {
+          "draft": {
+            "risks": [
+              "模型超时记账依据不足：蓝图 4.2 与 6.1 为 DETERMINISTIC 投影，费用/预算口径读取不完整，超时后终态判定与额度归属可能出现口径分歧，需先确认口径再判定通过。",
+              "重启场景与真实服务中断时机的耦合风险：排队中重启与生成中重启需可重复触发，若缺少可控注入手段，证据只能记为待验证而不能宣称通过。",
+              "取消与模型完成竞争属天然竞态，单次观察可能得出偶然结论，需多次重复并以持久状态为准，避免以单次样例宣称可靠。",
+              "幂等键语义风险：同一 invocation 重放须返回原 operation，同键异参须拒绝；若现有实现对参数指纹判定不严，会出现错误复用或错误拒绝。",
+              "摘要覆盖风险：长对话中早期约束（如「最多十项、不改日期」）可能在窗口滚动后被覆盖性指令污染，出现「覆盖偏移」而非「增大历史窗口」。",
+              "证据收口风险：所有证据需在人工确认版本后才可固化，若确认环节被跳过，验收结论将失去可追溯版本号。",
+              "队列积压导致任务日期滑出 2026-10-25 区间，届时需由管理员重新决定日期，不由 Agent 自行变更。",
+              "基础设施不可用或返回429 时，若凭历史错误断言当前状态，会造成误判；须按有限重试策略记录脱敏证据。"
+            ],
+            "tasks": [
+              {
+                "title": "场景基线与判定口径确认（含费用口径依据不足标注）",
+                "dueDate": "2026-10-09",
+                "tempKey": "T-01",
+                "priority": "HIGH",
+                "objective": "核对快照 bea5454c 已实读章节与 DETERMINISTIC 投影范围，输出六类场景统一的验收判定模板：区分「实现要求」（可判定的状态/接口/日志口径）与「实际通过证据」（具体记录与持久状态）。明确模型超时记账相关条目因 4.2/6.1 费用口径读取不完整而标注「依据不足，待口径确认」，并声明采购费用核对不在本规划范围。",
+                "sortOrder": 1,
+                "startDate": "2026-10-05",
+                "assigneeId": null,
+                "sourceRefs": [
+                  "S1",
+                  "S2",
+                  "S3"
+                ],
+                "description": "【场景基线与判定口径确认（含费用口径依据不足标注）】对应 MS-A，sortOrder 1，为 T-02/T-03 的共同前置。\n范围：核对快照 bea5454c 已实读章节（第1节、4.2、4.4、5.1、5.2、5.3、5.4、6.1、6.2、6.3）与 DETERMINISTIC 投影范围，输出六类场景统一验收判定模板。\n实现要求（可判定）：① 模板必须将每条验收标准拆为「实现要求」（可判定的状态/接口/日志口径，如 attempt 终态枚举、幂等键拒绝返回、计划卡片更新目标）与「实际通过… [truncated]",
+                "estimatedHours": 6,
+                "milestoneTempKey": "MS-A",
+                "dependencyTempKeys": [],
+                "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+              },
+              {
+                "title": "长对话上下文持续覆盖验收（20–30 轮，早期约束与尾部否定条件）",
+                "dueDate": "2026-10-13",
+                "tempKey": "T-02",
+                "priority": "HIGH",
+                "objective": "构造20–30 轮对话，其中包含后续覆盖性表述与无关问答，验证最早的「最多十项、不改日期」等约束不被静默丢弃；验证长请求尾部关键否定条件不被截断，且低窗口模型与缺失 usage 均可诊断。实现要求：工作状态约束合并、最新请求保护、按 sourceFrom/sourceThrough 记录覆盖范围并以 CAS 提交、窗口超预算整条跳过而非截断。实际通过证据：逐轮记录约束存续情况、尾部否定条件是否完整落入上下文、摘要覆盖范围与 CAS 结果；当前 list_tasks 与 list_task_pla… [truncated]",
+                "sortOrder": 2,
+                "startDate": "2026-10-10",
+                "assigneeId": null,
+                "sourceRefs": [
+                  "S1",
+                  "S2",
+                  "S3"
+                ],
+                "description": "【长对话上下文持续覆盖验收（20–30 轮，早期约束与尾部否定条件）】对应 MS-B，sortOrder 2，与 T-03 并行。\n范围：构造 20–30 轮对话，其中包含后续覆盖约束与无关问答；另测当前请求较长且关键否定条件在尾部的情况，并覆盖低窗口模型与缺失 usage 的可诊断性。\n实现要求（可判定）：① 工作状态约束合并，最早的「最多十项、不改日期」等约束不被静默丢弃；② 最新请求保护，长请求尾部关键否定条件不被截断；③ 摘要按 sourceFrom/sourceThrough 记录覆盖… [truncated]",
+                "estimatedHours": 24,
+                "milestoneTempKey": "MS-B",
+                "dependencyTempKeys": [
+                  "T-01"
+                ],
+                "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+              },
+              {
+                "title": "模型超时终态与记账判定（受理≠完成，附依据不足标注）",
+                "dueDate": "2026-10-14",
+                "tempKey": "T-03",
+                "priority": "HIGH",
+                "objective": "验证模型调用超时或响应丢失后的终态收敛：先查原 operation 状态而非直接重新生成；以计划与 attempt 的持久状态为准，不以事件监听或轮询结果判定完成。实现要求：超时后 attempt 进入明确终态、重放同一 invocation 返回原 operation、同一键异参拒绝，且不以多次启动规划绕过限流。实际通过证据：超时前后 operation/plan/attempt 状态对照与重放返回记录。因 4.2 与 6.1 为 DETERMINISTIC 投影、费用/预算口径读取不完整，额… [truncated]",
+                "sortOrder": 3,
+                "startDate": "2026-10-10",
+                "assigneeId": null,
+                "sourceRefs": [
+                  "S5",
+                  "S6",
+                  "S1"
+                ],
+                "description": "【模型超时终态与记账判定（受理≠完成，附依据不足标注）】对应 MS-B，sortOrder 3，与 T-02 并行。\n范围：验证模型调用超时或响应丢失后的终态收敛与额度归属口径。\n实现要求（可判定）：① 超时或响应丢失须先查原 operation 状态，不得直接重新生成；② 以计划与 attempt 的持久状态为准，不以事件监听或轮询结果判定完成（受理不等于完成）；③ 超时后 attempt 进入明确终态；④ 重放同一 invocation 返回原 operation，同一键不同参数拒绝；⑤ 规… [truncated]",
+                "estimatedHours": 20,
+                "milestoneTempKey": "MS-B",
+                "dependencyTempKeys": [
+                  "T-01"
+                ],
+                "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+              },
+              {
+                "title": "排队中重启的幂等恢复验收",
+                "dueDate": "2026-10-16",
+                "tempKey": "T-04",
+                "priority": "URGENT",
+                "objective": "在规划已受理但仍在排队阶段触发服务重启，验证恢复后不产生第二份草稿。实现要求：持久关联 projectId/requesterId/sessionId/goalRevision/originRunId/工具 invocation ID 与 plan/attempt；生成请求摘要与幂等身份绑定；提交后崩溃由现有恢复机制或轻量补偿扫描接续，不依赖一次内存通知。实际通过证据：重启前后 operationId/planId/attemptId/versionId 对照、重复草稿数与重复副作用数记录；证据… [truncated]",
+                "sortOrder": 4,
+                "startDate": "2026-10-15",
+                "assigneeId": null,
+                "sourceRefs": [
+                  "S5",
+                  "S1"
+                ],
+                "description": "【排队中重启的幂等恢复验收】对应 MS-C，sortOrder 4，为 T-05 的唯一前置（单向推进，不得反向或互为前置形成环）。\n范围：在规划已受理但仍处排队阶段触发服务重启，验证恢复后不产生第二份草稿。\n实现要求（可判定）：① 持久关联 projectId、requesterId、sessionId、goalRevision、originRunId、工具 invocation ID 与 plan/attempt；② 生成请求摘要与幂等身份绑定，重放同一 invocation 返回原 ope… [truncated]",
+                "estimatedHours": 16,
+                "milestoneTempKey": "MS-C",
+                "dependencyTempKeys": [
+                  "T-01"
+                ],
+                "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+              },
+              {
+                "title": "生成中重启不续接半截输出验收",
+                "dueDate": "2026-10-19",
+                "tempKey": "T-05",
+                "priority": "URGENT",
+                "objective": "在生成进行中触发重启，验证恢复后不输出或提交半截结果。实现要求：草稿提交与操作关联在单一数据库事务内保证一致；未完成草稿不可被当作已完成结果暴露；事件重复、乱序或经重启恢复后以业务计划与 attempt 持久状态为准。实际通过证据：重启点、恢复后计划状态与 attempt 记录、半截输出/半提交草稿计数为 0 的核对记录；证据待采集。",
+                "sortOrder": 5,
+                "startDate": "2026-10-17",
+                "assigneeId": null,
+                "sourceRefs": [
+                  "S5",
+                  "S1"
+                ],
+                "description": "【生成中重启不续接半截输出验收】对应 MS-C，sortOrder 5，单向前置于 T-06。\n范围：在生成进行中触发重启，验证恢复后不输出或提交半截结果。\n实现要求（可判定）：① 草稿提交与操作关联在单一数据库事务内保证一致性；② 未完成草稿不可被当作已完成结果暴露给查询与规划卡片；③ 事件重复、乱序或经重启恢复后，一律以业务计划与 attempt 的持久状态为准，监听与轮询只是传播机制；④ 失败不会再次生成一份草稿，重复副作用数须为 0。\n实际通过证据：重启注入点时间戳、恢复后计划状态与 a… [truncated]",
+                "estimatedHours": 16,
+                "milestoneTempKey": "MS-C",
+                "dependencyTempKeys": [
+                  "T-04"
+                ],
+                "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+              }
+            ],
+            "sources": [
+              {
+                "ref": "S1",
+                "chunkId": "441e3246-afa2-4526-905b-b1e2931645c5",
+                "heading": "最小评测场景",
+                "quoteText": "1. 20–30 轮对话后仍遵守最早的“最多十项、不改日期”；其中包含后续覆盖约束与无关问答。\n2. 当前请求较长且关键否定条件在尾部，不能被静默截断；低窗口模型与缺失 usage 均可诊断。\n3. 工具大结果、失败结果和未完成调用并存时，压缩不伪造成功、不破坏调用配对、不重复写入。\n4. 对话途中更换目标，旧规划稍后完成：只更新其所属卡片，不能修改新目标。\n5. 项目至少 100 个任务，查询第 51 项之后的目标与同名任务；分页没有重复或漏项的隐含承诺，按所用一致性策略验证。\n6. 多页 P… [truncated]",
+                "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+                "similarity": 0.6893182501061124,
+                "contentHash": "ac5d43f263b4d0ec11fb45f619847abbe93e65c84e431b1e13ef33c0e3b3bccb",
+                "documentName": "ai-next-stage-blueprint.md"
+              },
+              {
+                "ref": "S2",
+                "chunkId": "148efcd4-f2d9-446b-85c2-97838d78658c",
+                "heading": "1. 目标与已确定的边界",
+                "quoteText": "目标是让用户在同一项目中完成“理解资料 → 制定计划 → 调整草稿 → 人工确认 → 执行任务 → 查询进度”，并在长对话、换模型、资料更新和服务中断时保持可解释的状态。\n\n- 保留 Java 编排、Spring Boot 模块化单体、现有模型网关和 Agent Runtime。\n- 保留 PostgreSQL/pgvector、MinIO、已有 Redis 用途；本阶段没有新增框架、Python 服务、消息队列或向量库的必要。\n- 任务规划继续拥有生成、校验、版本、局部修复与批量落库；Agen… [truncated]",
+                "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+                "similarity": 0.6391904974707746,
+                "contentHash": "614a87cc0ebf19461c5fedcf317bf9ec4622d072e0cabbe88ba7809abda6eb8b",
+                "documentName": "ai-next-stage-blueprint.md"
+              },
+              {
+                "ref": "S3",
+                "chunkId": "30da38ee-75b8-461d-bd6b-b745145b7139",
+                "heading": "| 阶段 | 交付范围 | 完成条件 |",
+                "quoteText": "| --- | --- | --- |\n| P0：基线与用例 | 记录当前 checkout/已有修改、能力矩阵、代表性场景和当前证据 | 明确已通过/缺口/待评测；不重跑所有真实模型作为开工条件 |\n| P1：上下文基础 | 全请求预算、最新请求保护、工作状态约束合并、可追溯有界摘要、降级与兼容 | 长对话早期约束保留；改目标不串任务；超预算不静默丢当前需求；摘要失败可恢复；工具消息协议合法 |\n| P2：按需读取与来源 | 任务搜索/分页、文档目录/状态/分段读取、来源身份、页码偏移回归及必… [truncated]",
+                "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+                "similarity": 0.6269617445032482,
+                "contentHash": "aeddc95485cc202e7ae53d575961b249d9301a8bf8ecce88d3bd95151851458e",
+                "documentName": "ai-next-stage-blueprint.md"
+              },
+              {
+                "ref": "S4",
+                "chunkId": "bcf5157b-eab6-4682-86e6-6b90366ec220",
+                "heading": "6.1 工具与服务映射",
+                "quoteText": "| 建议工具 | 复用的现有能力 | 副作用 |\n| --- | --- | --- |\n| list_task_plans / get_task_plan | TaskPlanQueryService | 只读，分页/按版本读取 |\n| start_task_plan | TaskPlanCommandService.create | 写草稿与生成任务、消耗额度 |\n| get_task_plan_progress | 现有状态与事件查询 | 只读；生成中不高频唤醒模型 |\n| repair_… [truncated]",
+                "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+                "similarity": 0.622222587797351,
+                "contentHash": "78d802aaf36617f5b1b63d540873a1bb4cd20b5eb445170f5c189ed86928d099",
+                "documentName": "ai-next-stage-blueprint.md"
+              },
+              {
+                "ref": "S5",
+                "chunkId": "db0d9afd-d032-4675-85a2-bff52b6a3ad7",
+                "heading": "6.2 异步操作关联",
+                "quoteText": "工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，语义为“已受理”。一次调用不能等待整个规划生成而占满工具超时。\n\n- 持久关联 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 与 plan/attempt。\n- 重放同一 invocation 返回原 operation；生成请求摘要与幂等身份绑定。同一键不同参数… [truncated]",
+                "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+                "similarity": 0.6191750196576069,
+                "contentHash": "c63c928b95d00962b35afe4ce6c78baffc377f99cde5748d866cf5339c7889ef",
+                "documentName": "ai-next-stage-blueprint.md"
+              },
+              {
+                "ref": "S6",
+                "chunkId": "8c5c9661-3ef0-4695-a70e-b03f7b69b3e6",
+                "heading": "6.3 权限、预算、模型与取消",
+                "quoteText": "- 身份来自宿主；沿用现有规划管理员权限。普通成员不能借 Agent 生成管理员级规划；没有权限时提供真实原因和可用只读入口。\n- 调用应用服务时补齐原来 HTTP DTO 层承担的参数校验，不能因绕过 Controller 丢掉 Bean Validation。\n- 工具副作用至少区分 READ_ONLY、DRAFT_MUTATION、APPROVAL_PROPOSAL、OPERATION_CONTROL。新增分类以本轮工具为限，不抽象成工作流平台。\n- Legacy 仍保持既有只读边界，不把… [truncated]",
+                "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+                "similarity": 0.5879388733128762,
+                "contentHash": "bccbc7c98dbc1e2ce915daa802ce08c3fdeca9fc13cc5d11798b4e5cb4222015",
+                "documentName": "ai-next-stage-blueprint.md"
+              },
+              {
+                "ref": "S7",
+                "chunkId": "fd8fd66d-8200-4b36-abda-784d72fd3515",
+                "heading": "6.4 资料与约束传递",
+                "quoteText": "start/repair 收到目标、日期、任务数上限、用户约束、锁定字段和已核验的文档引用。缺少必需日期等字段时一次性澄清；页面/用户明确提供的信息直接复用。\n\n当前规划在 documentIds 为空时不检索文档：新入口必须明确“使用所选资料”还是“仅按描述规划”。按文件名寻找资料要先查目录、确认唯一身份，不猜 UUID；未就绪资料的等待、排除或停止要明确呈现。\n\n规划服务继续从可信数据加载成员和来源。若引用版本已变或文档被移除，重新验证/检索或报告冲突；不能把 Agent 的历史摘要冒充本次… [truncated]",
+                "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+                "similarity": 0.5802164637139303,
+                "contentHash": "b6c38c47844cff32b8a3e09cc6c4a252bb9673615227402b0f3c41d48e6f5ab0",
+                "documentName": "ai-next-stage-blueprint.md"
+              }
+            ],
+            "summary": "为 ai-collab 发布前可靠性验收形成可执行、可判定的规划草稿（仅草稿，不写入正式任务），覆盖六类场景：长对话上下文持续覆盖、模型超时终态与记账、排队中重启的幂等恢复、生成中重启不续接半截输出、取消与模型完成的竞争、验收证据收口。规划分为四个里程碑，任务依赖按「排队中重启 → 运行中重启 → 取消竞争 → 证据收口」单向推进形成有向无环图，长对话覆盖与模型超时记为并行起点，全部任务建议负责人为 Local Owner，日期区间 2026-10-05 至 2026-10-25。任务总数 6 … [truncated]",
+            "milestones": [
+              {
+                "title": "M1 场景基线与判定口径确认（2026-10-05~2026-10-09）",
+                "tempKey": "MS-A",
+                "objective": "在长对话与模型超时两项场景开工前，确认快照 bea5454c 的可读范围、4.2/6.1 DETERMINISTIC 投影下的费用与预算口径缺口，并固化六类场景统一的「实现要求 / 实际通过证据」判定模板；采购费用核对明确排除在本规划之外。",
+                "sortOrder": 1,
+                "sourceRefs": [
+                  "S1",
+                  "S2",
+                  "S3"
+                ],
+                "targetDate": "2026-10-09",
+                "description": "M1 场景基线与判定口径确认（2026-10-05~2026-10-09，目标日 2026-10-09，sortOrder 1）。目标：在长对话与模型超时两项场景开工前，确认快照 bea5454c 的可读范围、4.2/6.1 DETERMINISTIC 投影下的费用与预算口径缺口，并固化六类场景统一的「实现要求 / 实际通过证据」判定模板；采购费用核对明确排除在本规划之外。本里程碑以主蓝图《ai-next-stage主蓝图》documentId 6c164058-05cf-4a3d-9f2c-1… [truncated]"
+              },
+              {
+                "title": "M2 上下文与超时终态判定（2026-10-10~2026-10-14）",
+                "tempKey": "MS-B",
+                "objective": "完成长对话上下文持续覆盖与模型超时终态及记账两项场景的用例设计、实现要求对齐与证据采集，明确标注依据不足处。",
+                "sortOrder": 2,
+                "sourceRefs": [
+                  "S1",
+                  "S5",
+                  "S6"
+                ],
+                "targetDate": "2026-10-14",
+                "description": "M2 上下文与超时终态判定（2026-10-10~2026-10-14，目标日 2026-10-14，sortOrder 2）。目标：完成长对话上下文持续覆盖与模型超时终态及记账两项场景的用例设计、实现要求对齐与证据采集，明确标注依据不足处。判定依据来自蓝图最小评测场景第1、2、9 条与 6.2 异步操作关联、6.3 取消与预算条目；受理不等于完成，一律以计划与 attempt 的持久状态为准。"
+              },
+              {
+                "title": "M3 幂等与重启恢复链路（2026-10-15~2026-10-19）",
+                "tempKey": "MS-C",
+                "objective": "按「排队中重启 → 生成中重启」单向顺序完成幂等恢复与不续接半截输出的验收，明确受理与完成的边界，依赖无环。",
+                "sortOrder": 3,
+                "sourceRefs": [
+                  "S5",
+                  "S1"
+                ],
+                "targetDate": "2026-10-19",
+                "description": "M3 幂等与重启恢复链路（2026-10-15~2026-10-19，目标日 2026-10-19，sortOrder 3）。目标：按「排队中重启 → 生成中重启」单向顺序完成幂等恢复与不续接半截输出的验收，明确受理与完成的边界，依赖无环（T-05 仅前置 T-04，反向或互为前置一律禁止）。依据蓝图 6.2 的持久关联、重放返回原 operation、同键异参拒绝、提交后崩溃由恢复机制或轻量补偿扫描接续等要求。"
+              },
+              {
+                "title": "M4 取消竞争与验收证据收口（2026-10-20~2026-10-25）",
+                "tempKey": "MS-D",
+                "objective": "完成取消与模型完成竞争的验收，并将六类场景证据统一收口为可审阅版本；正式任务写入须由项目管理员在规划页人工确认指定版本后执行。",
+                "sortOrder": 4,
+                "sourceRefs": [
+                  "S4",
+                  "S5",
+                  "S6",
+                  "S1"
+                ],
+                "targetDate": "2026-10-25",
+                "description": "M4 取消竞争与验收证据收口（2026-10-20~2026-10-25，目标日 2026-10-25，sortOrder 4）。目标：完成取消与模型完成竞争的验收，并将六类场景证据统一收口为可审阅版本；正式任务写入须由项目管理员在规划页对指定版本人工确认后执行，Agent 不得代为确认。依据蓝图 6.1（一期不提供模型可自行执行的正式规划确认工具）、6.3（取消语义与错误分类）与 6.2（以持久状态为准）。"
+              }
+            ],
+            "assumptions": [
+              "依据主蓝图《ai-collab下一阶段主蓝图》documentId 6c164058-05cf-4a3d-9f2c-1dcc17d14211、snapshot bea5454c；已实读第1节、4.2、4.4、5.1、5.2、5.3、5.4、6.1、6.2、6.3。",
+              "蓝图 4.2 与 6.1 为 DETERMINISTIC 投影，费用/预算口径读取不完整；模型超时后的记账与计费判定依据不足，相关任务须以「口径待确认」标注，不得自行假设数值。",
+              "项目成员仅 Local Owner（role OWNER，id 9c4cd312-0e99-497a-8e3b-e78f98692df0），全部任务建议负责人固定为该成员，不改派。",
+              "项目周期 2026-10-04~2026-10-31；规划日期区间 2026-10-05 至 2026-10-25 已核对落在周期内，不得变更。",
+              "当前项目 list_tasks 与 list_task_plans均为空，无既有实测证据可复用；每项任务的「实际通过证据」在执行前一律记为待采集。",
+              "草稿仅供人工审阅；正式任务写入必须由项目管理员在规划页对指定版本人工确认后执行，Agent 不得代为确认版本。",
+              "按蓝图 6.1，一期不提供模型可自行执行的正式规划确认工具，验收证据收口需依赖人工在原规划页确认指定版本。",
+              "按蓝图 6.2，工具发起后返回 operationId/planId/attemptId/status，语义为「已受理」，受理不等于完成，一律以计划与 attempt 的持久状态为准。",
+              "按蓝图 6.3，关闭网页不等于取消生成，「停止回答」与「取消这份规划生成」是两个不同动作；超时或响应丢失须先查原 operation 状态。",
+              "按蓝图 4.4，摘要须按 sourceFrom/sourceThrough 记录覆盖范围并以 CAS 提交，窗口超预算整条跳过。",
+              "采购费用核对不属于本规划范围，相关费用结论不在本轮验收结论中给出。",
+              "真实写入验证继续使用隔离副本；基础设施不可用时记录待验证项，不修改业务数据制造通过。"
+            ]
+          },
+          "detail": {
+            "plan": {
+              "id": "1d1496c1-cdeb-44a3-b6f2-43b8baadaf10",
+              "goal": "为 ai-collab 发布前可靠性验收形成一份可执行、可判定的完整规划草稿，覆盖六类场景：长对话上下文持续覆盖、模型超时终态与记账、排队中重启的幂等恢复、生成中重启不续接半截输出、取消与模型完成的竞争、验收证据收口。规划须包含里程碑、任务间无环依赖、每项任务可判定的验收标准（要求侧与实测证据区分），全部建议负责人固定为 Local Owner，日期固定 2026-10-05 至 2026-10-25，任务总数不超过 6 项。采购费用核对不属于本规划范围。",
+              "title": "ai-collab可靠性验收24轮",
+              "status": "READY",
+              "createdAt": "2026-10-04T03:37:52.776037Z",
+              "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+              "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+              "updatedAt": "2026-10-04T08:11:27.885714Z",
+              "constraints": "1) 日期固定 2026-10-05 至 2026-10-25，不得变更（已核对落在项目周期 2026-10-04~2026-10-31 内）。2) 全部任务建议负责人固定为 Local Owner（项目内唯一成员，role OWNER，userId 9c4cd312-…86df0，由 list_project_members 返回，不得猜测或改派）。3) 任务总数上限 6 项，覆盖长对话持续覆盖、模型超时、排队重启、运行中重启、取消竞争、证据收口六个场景。4) 禁止自动批准：草稿仅生成供人工审… [truncated]",
+              "planDueDate": "2026-10-25",
+              "maxTaskCount": 6,
+              "generationSeq": 3,
+              "lastErrorCode": null,
+              "planStartDate": "2026-10-05",
+              "activeAttemptId": null,
+              "latestVersionId": "c0e95b3e-64b3-4b17-891a-7d63a1defaf3",
+              "latestVersionNo": 2,
+              "lastErrorSummary": null,
+              "selectedDocumentIdsJson": "[\"6c164058-05cf-4a3d-9f2c-1dcc17d14211\"]"
+            },
+            "validation": {
+              "errors": [],
+              "warnings": [
+                "TASK_UNASSIGNED",
+                "TASK_UNASSIGNED",
+                "TASK_UNASSIGNED",
+                "TASK_UNASSIGNED",
+                "TASK_UNASSIGNED",
+                "TASK_UNASSIGNED"
+              ]
+            },
+            "permissions": {
+              "canEdit": true,
+              "canCancel": false,
+              "canDelete": true,
+              "canConfirm": true,
+              "canRestore": true,
+              "canRegenerate": true,
+              "canRetryDetail": false,
+              "canPartialRegenerate": true
+            },
+            "confirmation": null,
+            "activeAttempt": null,
+            "latestAttempt": {
+              "id": "28194aa2-aa33-4e67-9858-f9ac233e9c63",
+              "model": "space-bunny-free",
+              "stage": "DETAIL",
+              "status": "SUCCESS",
+              "provider": "OPENAI_COMPATIBLE",
+              "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+              "errorCode": null,
+              "latencyMs": 50146,
+              "startedAt": "2026-10-04 16:10:37.696464",
+              "finishedAt": "2026-10-04 16:11:27.962646",
+              "errorSummary": null,
+              "promptTokens": 7485,
+              "completionTokens": 4473
+            },
+            "latestVersion": {
+              "id": "c0e95b3e-64b3-4b17-891a-7d63a1defaf3",
+              "createdAt": "2026-10-04 16:11:27.885714",
+              "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+              "versionNo": 2,
+              "sourceType": "AI_COMPLETE",
+              "basedOnVersionId": "817366a8-d960-4d44-8448-e069dd51be11"
+            },
+            "structuredIssues": [
+              {
+                "id": "2692929f-71c9-4b38-b29c-1483f4878e04",
+                "code": "TASK_UNASSIGNED",
+                "field": "assigneeId",
+                "severity": "WARNING",
+                "targetType": "TASK",
+                "safeDetails": {},
+                "targetTempKey": "T-01",
+                "relatedTempKey": null
+              },
+              {
+                "id": "c89a9768-9b54-465b-a63d-46e1b62a0376",
+                "code": "TASK_UNASSIGNED",
+                "field": "assigneeId",
+                "severity": "WARNING",
+                "targetType": "TASK",
+                "safeDetails": {},
+                "targetTempKey": "T-02",
+                "relatedTempKey": null
+              },
+              {
+                "id": "c0acc550-d621-4dd0-9d1e-31380322e749",
+                "code": "TASK_UNASSIGNED",
+                "field": "assigneeId",
+                "severity": "WARNING",
+                "targetType": "TASK",
+                "safeDetails": {},
+                "targetTempKey": "T-03",
+                "relatedTempKey": null
+              },
+              {
+                "id": "39651e1e-b245-4c9b-9f37-7c8542bf215e",
+                "code": "TASK_UNASSIGNED",
+                "field": "assigneeId",
+                "severity": "WARNING",
+                "targetType": "TASK",
+                "safeDetails": {},
+                "targetTempKey": "T-04",
+                "relatedTempKey": null
+              },
+              {
+                "id": "a0745d29-15bc-4e54-968d-efc49da64e60",
+                "code": "TASK_UNASSIGNED",
+                "field": "assigneeId",
+                "severity": "WARNING",
+                "targetType": "TASK",
+                "safeDetails": {},
+                "targetTempKey": "T-05",
+                "relatedTempKey": null
+              },
+              {
+                "id": "4164df62-4582-4510-ba23-bbe291fcdc57",
+                "code": "TASK_UNASSIGNED",
+                "field": "assigneeId",
+                "severity": "WARNING",
+                "targetType": "TASK",
+                "safeDetails": {},
+                "targetTempKey": "T-06",
+                "relatedTempKey": null
+              }
+            ],
+            "repairDiagnostics": [],
+            "latestFailedAttempt": {
+              "id": "dc4816fd-8e6f-4226-bc61-99473c7d2f1a",
+              "model": null,
+              "stage": "SKELETON",
+              "status": "FAILED",
+              "provider": null,
+              "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+              "errorCode": "PLANNING_MODEL_INVALID_OUTPUT",
+              "latencyMs": null,
+              "startedAt": "2026-10-04 15:58:06.421175",
+              "finishedAt": "2026-10-04 15:58:08.401881",
+              "errorSummary": null,
+              "promptTokens": null,
+              "completionTokens": null
+            }
+          },
+          "hasMore": true,
+          "version": {
+            "id": "c0e95b3e-64b3-4b17-891a-7d63a1defaf3",
+            "createdAt": "2026-10-04T08:11:27.885714Z",
+            "versionNo": 2,
+            "sourceType": "AI_COMPLETE",
+            "basedOnVersionId": "817366a8-d960-4d44-8448-e069dd51be11"
+          },
+          "coverage": "TASK_PAGE_AND_PLAN_CONTEXT",
+          "fromTask": 0,
+          "versions": [
+            {
+              "id": "c0e95b3e-64b3-4b17-891a-7d63a1defaf3",
+              "createdAt": "2026-10-04T08:11:27.885714Z",
+              "versionNo": 2,
+              "sourceType": "AI_COMPLETE",
+              "basedOnVersionId": "817366a8-d960-4d44-8448-e069dd51be11"
+            },
+            {
+              "id": "817366a8-d960-4d44-8448-e069dd51be11",
+              "createdAt": "2026-10-04T08:10:37.610582Z",
+              "versionNo": 1,
+              "sourceType": "AI_SKELETON",
+              "basedOnVersionId": null
+            }
+          ],
+          "totalTasks": 6,
+          "nextFromTask": 5,
+          "baseVersionId": "c0e95b3e-64b3-4b17-891a-7d63a1defaf3",
+          "expectedVersionNo": 2,
+          "versionsTruncated": false
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "truncated": true,
+        "inferences": [],
+        "originalSize": 37724
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:49:58.881045Z"
+    },
+    {
+      "id": "a6f983a2-d82a-4d3d-84c4-fd15dbd06d8d",
+      "sequence": 5,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 16089,
+          "outputTokens": 686
+        },
+        "content": "**真实状态：后台生成已完成（READY），但尚未经你人工确认——这与\"已受理\"不同。**\n\n**实测事实**（`list_task_plans` + `get_task_plan`，planId `1d1496c1-cdeb-44a3-b6f2-43b8baadaf10`）\n- 状态 `READY`，`activeAttemptId=null`（无进行中生成），`lastErrorCode=null`——**先前那次 FAILED 已被后续重试取代**。\n- 已有版本：`latestVersionNo=2`、`latestVersionId=c0e95b3e…`（基于版本 817366a8…），`generationSeq=3`。草稿内容存在，可审阅。\n- **任务数**：`totalTasks=6`、`maxTaskCount=6` ✅ 未超上限。\n- **日期**：`planStartDate=2026-10-05`、`planDueDate=2026-10-25` ✅ 与约定一致；已读的 T-01～T-03 日期均落在该区间内。\n\n**负责人** ✅：已读任务 `suggestedAssigneeId` 均为 `9c4cd312-…86df0`（Local Owner，OWNER）。\n\n**两点必须说明**\n1. 结果带 `projection=DETERMINISTIC`：本次只返回 T-01～T-03 与部分来源，**T-04～T-06 未读到**，因此\"全部 6 项日期合规、依赖无环\"**尚未验证**——目前仅见 T-02→T-01、T-03→T-01，无环。\n2. 存在 6 条 `TASK_UNASSIGNED` 警告（assigneeId 为空、仅建议负责人），属草稿态正常，正式任务未创建。\n\n**未做**：未重复启动生成、未确认任何版本、未创建正式任务。请到规划页打开版本 2 审阅并人工确认。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 9628,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "**真实状态：后台生成已完成（READY），但尚未经你人工确认——这与\"已受理\"不同。**\n\n**实测事实**（`list_task_plans` + `get_task_plan`，planId `1d1496c1-cdeb-44a3-b6f2-43b8baadaf10`）\n- 状态 `READY`，`activeAttemptId=null`（无进行中生成），`lastErrorCode=null`——**先前那次 FAILED 已被后续重试取代**。\n- 已有版本：`latestVersionNo=2`、`latestVersionId=c0e95b3e…`（基于版本 817366a8…），`generationSeq=3`。草稿内容存在，可审阅。\n- **任务数**：`totalTasks=6`、`maxTaskCount=6` ✅ 未超上限。\n- **日期**：`planStartDate=2026-10-05`、`planDueDate=2026-10-25` ✅ 与约定一致；已读的 T-01～T-03 日期均落在该区间内。\n\n**负责人** ✅：已读任务 `suggestedAssigneeId` 均为 `9c4cd312-…86df0`（Local Owner，OWNER）。\n\n**两点必须说明**\n1. 结果带 `projection=DETERMINISTIC`：本次只返回 T-01～T-03 与部分来源，**T-04～T-06 未读到**，因此\"全部 6 项日期合规、依赖无环\"**尚未验证**——目前仅见 T-02→T-01、T-03→T-01，无环。\n2. 存在 6 条 `TASK_UNASSIGNED` 警告（assigneeId 为空、仅建议负责人），属草稿态正常，正式任务未创建。\n\n**未做**：未重复启动生成、未确认任何版本、未创建正式任务。请到规划页打开版本 2 审阅并人工确认。",
+      "promptTokens": 16089,
+      "completionTokens": 686,
+      "tokenUsageEstimated": false,
+      "latencyMs": 9628,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:50:09.730445Z"
+    },
+    {
+      "id": "ebcb6273-c997-48ae-a72b-2ba34e997c60",
+      "sequence": 6,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "**真实状态：后台生成已完成（READY），但尚未经你人工确认——这与\"已受理\"不同。**\n\n**实测事实**（`list_task_plans` + `get_task_plan`，planId `1d1496c1-cdeb-44a3-b6f2-43b8baadaf10`）\n- 状态 `READY`，`activeAttemptId=null`（无进行中生成），`lastErrorCode=null`——**先前那次 FAILED 已被后续重试取代**。\n- 已有版本：`latestVersionNo=2`、`latestVersionId=c0e95b3e…`（基于版本 817366a8…），`generationSeq=3`。草稿内容存在，可审阅。\n- **任务数**：`totalTasks=6`、`maxTaskCount=6` ✅ 未超上限。\n- **日期**：`planStartDate=2026-10-05`、`planDueDate=2026-10-25` ✅ 与约定一致；已读的 T-01～T-03 日期均落在该区间内。\n\n**负责人** ✅：已读任务 `suggestedAssigneeId` 均为 `9c4cd312-…86df0`（Local Owner，OWNER）。\n\n**两点必须说明**\n1. 结果带 `projection=DETERMINISTIC`：本次只返回 T-01～T-03 与部分来源，**T-04～T-06 未读到**，因此\"全部 6 项日期合规、依赖无环\"**尚未验证**——目前仅见 T-02→T-01、T-03→T-01，无环。\n2. 存在 6 条 `TASK_UNASSIGNED` 警告（assigneeId 为空、仅建议负责人），属草稿态正常，正式任务未创建。\n\n**未做**：未重复启动生成、未确认任何版本、未创建正式任务。请到规划页打开版本 2 审阅并人工确认。",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:50:09.739118Z"
+    }
+  ]
+}

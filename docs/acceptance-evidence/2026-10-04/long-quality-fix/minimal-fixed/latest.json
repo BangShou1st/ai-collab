@@ -1,0 +1,22 @@
+{
+  "codeVersion": "583daaa2e04565f3dc552cdeb6c5a5ce1e590401",
+  "operations": null,
+  "session": {
+    "id": "a80fc706-410a-4503-a972-f0d1d71eda52",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "四类失败复验 minimal-fixed",
+    "status": "ACTIVE",
+    "version": 0,
+    "createdAt": "2026-10-04T08:05:28.427433Z",
+    "updatedAt": "2026-10-04T08:05:28.427433Z"
+  },
+  "state": {
+    "batch": "minimal-fixed",
+    "completedTurns": 0,
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "sessionId": "a80fc706-410a-4503-a972-f0d1d71eda52",
+    "codeVersion": "583daaa2e04565f3dc552cdeb6c5a5ce1e590401",
+    "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211"
+  }
+}

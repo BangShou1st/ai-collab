@@ -1,0 +1,591 @@
+{
+  "codeVersion": "1b1073edf82d52992796a01a2fd0737ac12b6353",
+  "prompt": "我们要为 ai-collab 做发布前可靠性验收。先只讨论不生成草稿：规划日期固定为2026-10-05至2026-10-25，不改日期；所有任务建议负责人固定为 Local Owner，不改负责人；最多10项任务。先列出必须由服务端守住的权限、版本与幂等边界。",
+  "steps": [
+    {
+      "id": "1abefc7a-4709-4320-8690-38ff820b2352",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 5578,
+          "outputTokens": 246
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 5614,
+        "toolCalls": [
+          {
+            "id": "call_01a106071efd73bab5be8d17",
+            "name": "get_document_outline",
+            "arguments": {
+              "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758"
+            }
+          },
+          {
+            "id": "call_01a106071efd73bab5be8d18",
+            "name": "get_project_overview",
+            "arguments": {}
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 5578,
+      "completionTokens": 246,
+      "tokenUsageEstimated": false,
+      "latencyMs": 5614,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:28:12.329866Z"
+    },
+    {
+      "id": "9913df06-c675-4627-91e2-aad48a5ce16f",
+      "sequence": 2,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "get_document_outline",
+      "input": {
+        "arguments": {
+          "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758"
+        },
+        "toolCallId": "call_01a106071efd73bab5be8d17"
+      },
+      "output": {
+        "data": {
+          "sections": [
+            {
+              "heading": "AI Collab 下一阶段总设计：上下文、文档与规划协作",
+              "from_chunk": 0,
+              "through_chunk": 0
+            },
+            {
+              "heading": "1. 目标与已确定的边界",
+              "from_chunk": 1,
+              "through_chunk": 1
+            },
+            {
+              "heading": "2. 当前状态与具体缺口",
+              "from_chunk": 2,
+              "through_chunk": 2
+            },
+            {
+              "heading": "| 范围 | 已有能力与源码依据 | 本阶段需要处理的缺口 |",
+              "from_chunk": 3,
+              "through_chunk": 4
+            },
+            {
+              "heading": "3. 目标结构与责任划分",
+              "from_chunk": 5,
+              "through_chunk": 5
+            },
+            {
+              "heading": "4.1 六类数据必须分开",
+              "from_chunk": 6,
+              "through_chunk": 6
+            },
+            {
+              "heading": "4.2 单次输入预算与整个运行预算分开",
+              "from_chunk": 7,
+              "through_chunk": 7
+            },
+            {
+              "heading": "4.3 结构化工作状态与目标连续性",
+              "from_chunk": 8,
+              "through_chunk": 8
+            },
+            {
+              "heading": "4.4 摘要与压缩",
+              "from_chunk": 9,
+              "through_chunk": 9
+            },
+            {
+              "heading": "5.1 先补按需读取，不先扩张解析种类",
+              "from_chunk": 10,
+              "through_chunk": 10
+            },
+            {
+              "heading": "向 Agent 暴露受项目权限约束的：",
+              "from_chunk": 11,
+              "through_chunk": 11
+            },
+            {
+              "heading": "5.2 来源身份、定位与版本",
+              "from_chunk": 12,
+              "through_chunk": 12
+            },
+            {
+              "heading": "5.3 检索质量与引用",
+              "from_chunk": 13,
+              "through_chunk": 13
+            },
+            {
+              "heading": "5.4 用户界面",
+              "from_chunk": 14,
+              "through_chunk": 14
+            },
+            {
+              "heading": "6.1 工具与服务映射",
+              "from_chunk": 15,
+              "through_chunk": 15
+            },
+            {
+              "heading": "6.2 异步操作关联",
+              "from_chunk": 16,
+              "through_chunk": 16
+            },
+            {
+              "heading": "6.3 权限、预算、模型与取消",
+              "from_chunk": 17,
+              "through_chunk": 17
+            },
+            {
+              "heading": "6.4 资料与约束传递",
+              "from_chunk": 18,
+              "through_chunk": 18
+            },
+            {
+              "heading": "7. 工具与 Skill 的调整",
+              "from_chunk": 19,
+              "through_chunk": 19
+            },
+            {
+              "heading": "8.1 小步替换，保留事实存储",
+              "from_chunk": 20,
+              "through_chunk": 20
+            },
+            {
+              "heading": "8.2 避免重复实现",
+              "from_chunk": 21,
+              "through_chunk": 21
+            },
+            {
+              "heading": "8.3 工程文档也要收口",
+              "from_chunk": 22,
+              "through_chunk": 22
+            },
+            {
+              "heading": "9. 分阶段交付及验收门槛",
+              "from_chunk": 23,
+              "through_chunk": 23
+            },
+            {
+              "heading": "| 阶段 | 交付范围 | 完成条件 |",
+              "from_chunk": 24,
+              "through_chunk": 24
+            },
+            {
+              "heading": "最小评测场景",
+              "from_chunk": 25,
+              "through_chunk": 25
+            },
+            {
+              "heading": "10. 给执行 AI 的边界说明",
+              "from_chunk": 26,
+              "through_chunk": 26
+            },
+            {
+              "heading": "11. 实施进度（2026-10-04）",
+              "from_chunk": 27,
+              "through_chunk": 27
+            }
+          ],
+          "structure": "HEURISTIC_HEADINGS",
+          "truncated": false,
+          "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+          "snapshotId": "57af26c7-dbae-44a7-ba93-4298804a5885",
+          "bodyReadable": true,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:28:12.384474Z"
+    },
+    {
+      "id": "d0a1dbaf-59cc-4d3e-8af2-2a9dc6f639c8",
+      "sequence": 3,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "get_project_overview",
+      "input": {
+        "arguments": {},
+        "toolCallId": "call_01a106071efd73bab5be8d18"
+      },
+      "output": {
+        "data": {
+          "id": "ef024b8d-eafd-40c4-ad11-66e2b3de7bb2",
+          "name": "ai-collab真实需求长对话20261004",
+          "role": "OWNER",
+          "type": "OTHER",
+          "status": "PREPARING",
+          "dueDate": "2026-10-31",
+          "ownerId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+          "version": 0,
+          "createdAt": "2026-10-04T08:28:04.093307Z",
+          "startDate": "2026-10-04",
+          "updatedAt": "2026-10-04T08:28:04.093307Z",
+          "description": "真实仓库蓝图可靠性专项，隔离副本"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:28:12.405474Z"
+    },
+    {
+      "id": "6565f188-5012-4676-bc6c-9f026695a48b",
+      "sequence": 4,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 6269,
+          "outputTokens": 332
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 9178,
+        "toolCalls": [
+          {
+            "id": "call-b63e611e-c691-4d59-b69c-42b54450a6a6",
+            "name": "read_document_section",
+            "arguments": {
+              "heading": "1. 目标与已确定的边界",
+              "maxChars": 3000,
+              "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+              "snapshotId": "57af26c7-dbae-44a7-ba93-4298804a5885"
+            }
+          },
+          {
+            "id": "call-82da1167-7f6c-4b85-b0f6-63974d6dba95",
+            "name": "read_document_section",
+            "arguments": {
+              "heading": "2. 当前状态与具体缺口",
+              "maxChars": 3000,
+              "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+              "snapshotId": "57af26c7-dbae-44a7-ba93-4298804a5885"
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 6269,
+      "completionTokens": 332,
+      "tokenUsageEstimated": false,
+      "latencyMs": 9178,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:28:22.719965Z"
+    },
+    {
+      "id": "dcd402f9-8f1d-4076-a66d-4be156ef5a64",
+      "sequence": 5,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "read_document_section",
+      "input": {
+        "arguments": {
+          "heading": "1. 目标与已确定的边界",
+          "maxChars": 3000,
+          "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+          "snapshotId": "57af26c7-dbae-44a7-ba93-4298804a5885"
+        },
+        "toolCallId": "call-b63e611e-c691-4d59-b69c-42b54450a6a6"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "chunkId": "08f3ba5f-14ee-4098-a866-26e012791f29",
+              "chunkNo": 1,
+              "content": "目标是让用户在同一项目中完成“理解资料 → 制定计划 → 调整草稿 → 人工确认 → 执行任务 → 查询进度”，并在长对话、换模型、资料更新和服务中断时保持可解释的状态。\n\n- 保留 Java 编排、Spring Boot 模块化单体、现有模型网关和 Agent Runtime。\n- 保留 PostgreSQL/pgvector、MinIO、已有 Redis 用途；本阶段没有新增框架、Python 服务、消息队列或向量库的必要。\n- 任务规划继续拥有生成、校验、版本、局部修复与批量落库；Agent 负责理解请求、选择受控工具和说明结果。\n- 项目权限、成员身份、审批、事务、版本和幂等由业务服务决定，摘要和模型输出不能赋予权限。\n- 保留已通过验收的数值校验、提案修订、版本冲突、审批、幂等、防重入、模型兼容、Ollama 和索引代际成果。\n- 已有业务库及未提交修改保持原状。开发与真实写入验证继续使用隔离副本，正式发布不属于本蓝图的自动授权范围。\n- 后续执行 AI 按本文分段交付；本会话只负责设计与审查，不执行产品开发。\n\n原 [能力审查](ai-capability-review.md)、[全局重构设计](backend-agent-redesign.md) 和 [开发交接](development-handoff.md) 包含上一阶段的历史问题及演进意见，不是当前未完成事项清单。当前完成状态以最新 [太空兔验收报告](space-bunny-acceptance-report.md) 为准；下一阶段范围以本文为准。不得据旧文档重新引入框架或重复实施已完成修复。",
+              "heading": "1. 目标与已确定的边界",
+              "location": {
+                "charFrom": 145,
+                "charThrough": 838,
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+              },
+              "fromOffset": 0,
+              "contentHash": "614a87cc0ebf19461c5fedcf317bf9ec4622d072e0cabbe88ba7809abda6eb8b",
+              "throughOffset": 693
+            }
+          ],
+          "trust": "SOURCE_DATA_ONLY",
+          "hasMore": false,
+          "coverage": "SPECIFIED_RANGE_ONLY",
+          "readChars": 693,
+          "truncated": false,
+          "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+          "snapshotId": "57af26c7-dbae-44a7-ba93-4298804a5885",
+          "bodyReadable": true,
+          "continuation": null,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "目标是让用户在同一项目中完成“理解资料 → 制定计划 → 调整草稿 → 人工确认 → 执行任务 → 查询进度”，并在长对话、换模型、资料更新和服务中断时保持可解释的状态。\n\n- 保留 Java 编排、Spring Boot 模块化单体、现有模型网关和 Agent Runtime。\n- 保留 PostgreSQL/pgvector、MinIO、已有 Redis 用途；本阶段没有新增框架、Python 服务、消息队列或向量库的必要。\n- 任务规划继续拥有生成、校验、版本、局部修复与批量落库；Agent 负责理解请求、选择受控工具和说明结果。\n- 项目权限、成员身份、审批、事务、版本和幂等由业务服务决定，摘要和模型输出不能赋予权限。\n- 保留已通过验收的数值校验、提案修订、版本冲突、审批、幂等、防重入、模型兼容、Ollama 和索引代际成果。\n- 已有业务库及未提交修改保持原状。开发与真实写入验证继续使用隔离副本，正式发布不属于本蓝图的自动授权范围。\n- 后续执行 AI 按本文分段交付；本会话只负责设计与审查，不执行产品开发。\n\n原 [能力审查](ai-capability-review.md)、[全局重构设计](backend-agent-redesign.md) 和 [开发交接](development-handoff.md) 包含上一阶段的历史问题及演进意见，不是当前未完成事项清单",
+            "chunkId": "08f3ba5f-14ee-4098-a866-26e012791f29",
+            "heading": "1. 目标与已确定的边界",
+            "filename": "文档正文",
+            "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:28:22.770006Z"
+    },
+    {
+      "id": "62c2d764-0979-4d76-861d-facc9fd0386e",
+      "sequence": 6,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "read_document_section",
+      "input": {
+        "arguments": {
+          "heading": "2. 当前状态与具体缺口",
+          "maxChars": 3000,
+          "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+          "snapshotId": "57af26c7-dbae-44a7-ba93-4298804a5885"
+        },
+        "toolCallId": "call-82da1167-7f6c-4b85-b0f6-63974d6dba95"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "chunkId": "10e5493d-9a79-4f6f-b690-134fd75092f6",
+              "chunkNo": 2,
+              "content": "以下区分静态代码事实、由代码推导的风险和待评测的优化，避免把所有建议都称为已发生故障。",
+              "heading": "2. 当前状态与具体缺口",
+              "location": {
+                "charFrom": 857,
+                "charThrough": 900,
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+              },
+              "fromOffset": 0,
+              "contentHash": "3ff9390f4dff9f6ec3b1ddfe792af2a60c4d75231a97853c2c5b9d394b2bb615",
+              "throughOffset": 43
+            }
+          ],
+          "trust": "SOURCE_DATA_ONLY",
+          "hasMore": false,
+          "coverage": "SPECIFIED_RANGE_ONLY",
+          "readChars": 43,
+          "truncated": false,
+          "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+          "snapshotId": "57af26c7-dbae-44a7-ba93-4298804a5885",
+          "bodyReadable": true,
+          "continuation": null,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "以下区分静态代码事实、由代码推导的风险和待评测的优化，避免把所有建议都称为已发生故障。",
+            "chunkId": "10e5493d-9a79-4f6f-b690-134fd75092f6",
+            "heading": "2. 当前状态与具体缺口",
+            "filename": "文档正文",
+            "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:28:22.786759Z"
+    },
+    {
+      "id": "c6b44f77-a1c0-4d1c-911b-f143eb82f5d8",
+      "sequence": 7,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 7794,
+          "outputTokens": 3160
+        },
+        "content": "已按“先讨论、不生成草稿”执行：只做了必要的只读核对，未调用 `start_task_plan` / `repair_task_plan`，也未创建任何提案。\n\n---\n\n## 1. 当前迭代状态\n\n- **项目事实（本轮核实）**：`ai-collab真实需求长对话20261004`，当前账号角色 `OWNER`，状态 `PREPARING`，周期 2026-10-04 → 2026-10-31。\n- **文档证据范围（必须限定）**：当前页面选中文档 `61e29c28…`，快照 `57af26c7…`，状态 READY。\n  - 提纲返回 27 个章节，但**只有 3 个可见**（标题 + 第 1、2 章），24 章被确定性投影省略。\n  - 实际读到的正文只有：**第 1 章**（部分投影，结尾在“本阶段没有新增框架、Python…”处截断）与**第 2 章首句**（“以下区分静态代码事实、由代码推导的风险和待评测的优化…”）。\n  - 因此：**关于权限/版本/幂等，下面第 2、3 节的主体来自本轮工具契约本身，不是文档结论。**\n- **执行计划里的三个待办（获取里程碑、查询任务、分析工作负载）本轮未执行**——按“先只讨论”的要求暂停。\n- 用户约束保持不变：日期固定 2026-10-05 → 2026-10-25；建议负责人固定 Local Owner；最多 10 项任务。\n\n## 2. 下个迭代目标 —— 必须由服务端守住的边界\n\n以下每条都直接对应本轮**可用工具的契约**，属于“工具存在即要求服务端强制”的不变量：\n\n### A. 权限边界\n1. **管理员限定**：规划生成（`start_task_plan`）、规划修订（`repair_task_plan`）、取消生成（`cancel_task_plan_generation`）三个工具定义均写明“管理员”。服务端必须在鉴权层拒绝非 OWNER/ADMIN 的调用，而不是只靠前端隐藏入口。\n2. **审批通道唯一**：任务、里程碑、项目记忆的正式写入只能经 `*_after_approval` 提案 + 项目管理员批准。服务端不得提供绕过审批的直接写入接口（包括后台批处理路径）。\n3. **提案状态机**：同一 `approvalId` 重复批准只能生效一次；PENDING 提案可带 `approvalId` 局部修订（只提交本轮变化，服务端保留未提及字段）；**APPROVED 必须走 `update_*` 并携带真实资源 ID/版本；REJECTED 一律视为已弃用**——服务端不得让已拒绝/已批准的 approvalId 被复用为新建。\n4. **成员身份闭包**：`list_project_members` 是唯一成员来源。写入 `assigneeId` / `suggestedAssigneeId` 时，服务端必须校验目标是真实项目成员，非法或悬空 ID 应拒绝而非静默落库；不得允许从任务反推成员身份。\n5. **文档授权与快照**：正文读取绑定 `documentId` + `snapshotId`，越权文档与失效快照必须拒绝；响应必须始终携带来源与覆盖范围限定（当前返回的 `DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY` 即该限定的实例），服务端不得因缓存/优化去掉它。\n\n### B. 版本边界\n6. **规划乐观并发**：`repair_task_plan` 必须同时校验 `baseVersionId` 与 `expectedVersionNo`，任一与当前版本不符即冲突失败。禁止两个修订基于同一基线互相覆盖；**禁止服务端自动 merge**——冲突时返回当前版本，由人决定。\n7. **资源级版本校验**：项目当前 `version=0`；任务/里程碑/记忆的更新必须带期望版本，旧版本写入显式失败，不得静默覆盖。\n8. **取消操作的归属校验**：`cancel_task_plan_generation` 必须校验 `attemptId` 确实属于给定 `operationId`，否则拒绝——防止取消到另一个生成任务。\n9. **文档版本不可混淆**：正文与摘要属于“记录时的描述”；旧蓝图中的“待实现/不支持”不代表当前缺口。服务端必须让历史快照内容无法被当作当前运行时能力对外呈现。\n\n### C. 幂等边界\n10. **写入幂等键**：`create_task/milestone/memory_after_approval` 的网络重试必须命中同一提案，不得产生重复任务、里程碑或记忆。\n11. **额度幂等**：`start_task_plan` 受理后返回 operationId/attemptId；重复提交必须复用同一 attempt，**不得二次消耗 PLANNING 额度**；受理≠生成成功。\n12. **游标快照一致性**：`list_tasks` / `list_project_documents` 按 ID 稳定排序 + `nextCursor` 续页。服务端必须保证翻页期间的语义边界清晰，避免并发新增导致重复或漏项；且单页只是**当时快照事实**。\n13. **投影契约**：带 `projection=DETERMINISTIC` 时，`projectedTotalCount` 为总数、数组仅为前若干项，该标记必须随响应返回，客户端不得把投影当全量（需要全量必须缩小查询范围重查）。\n14. **状态查询纪律**：`get_task_plan_progress` 只查一次真实状态，受理后由后台更新卡片；服务端不得因模型重复轮询而放大压力或改变状态。\n15. **锁定字段不可变更**：`lockedFields` 在 `repair_task_plan` 中必须被服务端强制拒绝修改；`allowedFields` 之外字段的改动必须被拦截。\n\n## 3. 任务分配计划（讨论稿，未生成）\n\n约束遵守情况：日期固定 2026-10-05 → 2026-10-25；负责人一律 Local Owner；**上限 10 项**。以下为按上述边界归并的候选骨架，**尚未进入规划工具**：\n\n| # | 任务（候选） | 对应边界 |\n|---|---|---|\n| 1 | 管理员权限回归：非 OWNER 调用规划生成/修订/取消全部被拒 | A1 |\n| 2 | 审批通道唯一性：不存在绕过审批的写路径 | A2 |\n| 3 | 提案状态机：重复批准、PENDING 局部修订、APPROVED/REJECTED 复用防护 | A3 |\n| 4 | 成员身份闭包：非法 assigneeId/suggestedAssigneeId 被拒 | A4 |\n| 5 | 文档授权与快照越权/失效用例 | A5 |\n| 6 | 规划乐观并发：版本不符必冲突失败且不自动合并 | B6 |\n| 7 | 资源级版本与取消归属校验（含跨 operationId 取消） | B7/B8 |\n| 8 | 历史蓝图能力表述隔离（快照≠当前能力） | B9 |\n| 9 | 写入幂等 + 规划额度幂等（重试不重复、不二次扣额度） | C10/C11 |\n| 10 | 游标分页一致性 + DETERMINISTIC 投影契约 + 轮询纪律 | C12/C13/C14 |\n\n注：第 10 项合并了三条中等强度边界，若验收窗口允许拆分，可在 10 项上限内优先拆出“幂等”（第 9 项）单独验收。\n\n## 4. 风险和依赖\n\n- **文档证据严重不足（主要风险）**：27 章仅 3 章可见，24 章被投影省略；我只读到第 1 章部分与第 2 章首句。**不能据此断言文档中已写明或未写明任何权限/版本/幂等条款**。第 2、3 节内容应视为基于工具契约的推导（已在文中标注）。\n- **“Local Owner” 未核实**：本轮未调用 `list_project_members`，无法确认它是成员显示名还是某个具体 userId。生成草稿前必须核对，否则第 3 节全部任务无法落实负责人。\n- **未查任务与里程碑现状**：执行计划中的“获取里程碑”“查询任务”本轮未执行，存在与既有任务重复的风险。\n- **验收窗口紧**：2026-10-05 至 2026-10-25 共 21 天，且规划周期早于项目整体 2026-10-31 截止；10 项任务中含多项需要环境与权限配合，存在排期依赖。\n- **草稿尚未生成**：按你的要求，本轮停留在讨论。确认第 3 节骨架与第 2 节边界后，我再调用 `start_task_plan`（日期 2026-10-05/2026-10-25，最多 10 项，负责人固定 Local Owner），草稿仍需你在规划页人工确认指定版本。\n\n需要我先补齐哪一块——核对 Local Owner 成员身份、拉取里程碑/任务现状，还是继续读文档后续章节？",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 92405,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "已按“先讨论、不生成草稿”执行：只做了必要的只读核对，未调用 `start_task_plan` / `repair_task_plan`，也未创建任何提案。\n\n---\n\n## 1. 当前迭代状态\n\n- **项目事实（本轮核实）**：`ai-collab真实需求长对话20261004`，当前账号角色 `OWNER`，状态 `PREPARING`，周期 2026-10-04 → 2026-10-31。\n- **文档证据范围（必须限定）**：当前页面选中文档 `61e29c28…`，快照 `57af26c7…`，状态 READY。\n  - 提纲返回 27 个章节，但**只有 3 个可见**（标题 + 第 1、2 章），24 章被确定性投影省略。\n  - 实际读到的正文只有：**第 1 章**（部分投影，结尾在“本阶段没有新增框架、Python…”处截断）与**第 2 章首句**（“以下区分静态代码事实、由代码推导的风险和待评测的优化…”）。\n  - 因此：**关于权限/版本/幂等，下面第 2、3 节的主体来自本轮工具契约本身，不是文档结论。**\n- **执行计划里的三个待办（获取里程碑、查询任务、分析工作负载）本轮未执行**——按“先只讨论”的要求暂停。\n- 用户约束保持不变：日期固定 2026-10-05 → 2026-10-25；建议负责人固定 Local Owner；最多 10 项任务。\n\n## 2. 下个迭代目标 —— 必须由服务端守住的边界\n\n以下每条都直接对应本轮**可用工具的契约**，属于“工具存在即要求服务端强制”的不变量：\n\n### A. 权限边界\n1. **管理员限定**：规划生成（`start_task_plan`）、规划修订（`repair_task_plan`）、取消生成（`cancel_task_plan_generation`）三个工具定义均写明“管理员”。服务端必须在鉴权层拒绝非 OWNER/ADMIN 的调用，而不是只靠前端隐藏入口。\n2. **审批通道唯一**：任务、里程碑、项目记忆的正式写入只能经 `*_after_approval` 提案 + 项目管理员批准。服务端不得提供绕过审批的直接写入接口（包括后台批处理路径）。\n3. **提案状态机**：同一 `approvalId` 重复批准只能生效一次；PENDING 提案可带 `approvalId` 局部修订（只提交本轮变化，服务端保留未提及字段）；**APPROVED 必须走 `update_*` 并携带真实资源 ID/版本；REJECTED 一律视为已弃用**——服务端不得让已拒绝/已批准的 approvalId 被复用为新建。\n4. **成员身份闭包**：`list_project_members` 是唯一成员来源。写入 `assigneeId` / `suggestedAssigneeId` 时，服务端必须校验目标是真实项目成员，非法或悬空 ID 应拒绝而非静默落库；不得允许从任务反推成员身份。\n5. **文档授权与快照**：正文读取绑定 `documentId` + `snapshotId`，越权文档与失效快照必须拒绝；响应必须始终携带来源与覆盖范围限定（当前返回的 `DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY` 即该限定的实例），服务端不得因缓存/优化去掉它。\n\n### B. 版本边界\n6. **规划乐观并发**：`repair_task_plan` 必须同时校验 `baseVersionId` 与 `expectedVersionNo`，任一与当前版本不符即冲突失败。禁止两个修订基于同一基线互相覆盖；**禁止服务端自动 merge**——冲突时返回当前版本，由人决定。\n7. **资源级版本校验**：项目当前 `version=0`；任务/里程碑/记忆的更新必须带期望版本，旧版本写入显式失败，不得静默覆盖。\n8. **取消操作的归属校验**：`cancel_task_plan_generation` 必须校验 `attemptId` 确实属于给定 `operationId`，否则拒绝——防止取消到另一个生成任务。\n9. **文档版本不可混淆**：正文与摘要属于“记录时的描述”；旧蓝图中的“待实现/不支持”不代表当前缺口。服务端必须让历史快照内容无法被当作当前运行时能力对外呈现。\n\n### C. 幂等边界\n10. **写入幂等键**：`create_task/milestone/memory_after_approval` 的网络重试必须命中同一提案，不得产生重复任务、里程碑或记忆。\n11. **额度幂等**：`start_task_plan` 受理后返回 ",
+      "promptTokens": 7794,
+      "completionTokens": 3160,
+      "tokenUsageEstimated": false,
+      "latencyMs": 92405,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:29:56.298477Z"
+    },
+    {
+      "id": "668949db-944f-4e9e-b778-1ebd27824d44",
+      "sequence": 8,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "已按“先讨论、不生成草稿”执行：只做了必要的只读核对，未调用 `start_task_plan` / `repair_task_plan`，也未创建任何提案。\n\n---\n\n## 1. 当前迭代状态\n\n- **项目事实（本轮核实）**：`ai-collab真实需求长对话20261004`，当前账号角色 `OWNER`，状态 `PREPARING`，周期 2026-10-04 → 2026-10-31。\n- **文档证据范围（必须限定）**：当前页面选中文档 `61e29c28…`，快照 `57af26c7…`，状态 READY。\n  - 提纲返回 27 个章节，但**只有 3 个可见**（标题 + 第 1、2 章），24 章被确定性投影省略。\n  - 实际读到的正文只有：**第 1 章**（部分投影，结尾在“本阶段没有新增框架、Python…”处截断）与**第 2 章首句**（“以下区分静态代码事实、由代码推导的风险和待评测的优化…”）。\n  - 因此：**关于权限/版本/幂等，下面第 2、3 节的主体来自本轮工具契约本身，不是文档结论。**\n- **执行计划里的三个待办（获取里程碑、查询任务、分析工作负载）本轮未执行**——按“先只讨论”的要求暂停。\n- 用户约束保持不变：日期固定 2026-10-05 → 2026-10-25；建议负责人固定 Local Owner；最多 10 项任务。\n\n## 2. 下个迭代目标 —— 必须由服务端守住的边界\n\n以下每条都直接对应本轮**可用工具的契约**，属于“工具存在即要求服务端强制”的不变量：\n\n### A. 权限边界\n1. **管理员限定**：规划生成（`start_task_plan`）、规划修订（`repair_task_plan`）、取消生成（`cancel_task_plan_generation`）三个工具定义均写明“管理员”。服务端必须在鉴权层拒绝非 OWNER/ADMIN 的调用，而不是只靠前端隐藏入口。\n2. **审批通道唯一**：任务、里程碑、项目记忆的正式写入只能经 `*_after_approval` 提案 + 项目管理员批准。服务端不得提供绕过审批的直接写入接口（包括后台批处理路径）。\n3. **提案状态机**：同一 `approvalId` 重复批准只能生效一次；PENDING 提案可带 `approvalId` 局部修订（只提交本轮变化，服务端保留未提及字段）；**APPROVED 必须走 `update_*` 并携带真实资源 ID/版本；REJECTED 一律视为已弃用**——服务端不得让已拒绝/已批准的 approvalId 被复用为新建。\n4. **成员身份闭包**：`list_project_members` 是唯一成员来源。写入 `assigneeId` / `suggestedAssigneeId` 时，服务端必须校验目标是真实项目成员，非法或悬空 ID 应拒绝而非静默落库；不得允许从任务反推成员身份。\n5. **文档授权与快照**：正文读取绑定 `documentId` + `snapshotId`，越权文档与失效快照必须拒绝；响应必须始终携带来源与覆盖范围限定（当前返回的 `DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY` 即该限定的实例），服务端不得因缓存/优化去掉它。\n\n### B. 版本边界\n6. **规划乐观并发**：`repair_task_plan` 必须同时校验 `baseVersionId` 与 `expectedVersionNo`，任一与当前版本不符即冲突失败。禁止两个修订基于同一基线互相覆盖；**禁止服务端自动 merge**——冲突时返回当前版本，由人决定。\n7. **资源级版本校验**：项目当前 `version=0`；任务/里程碑/记忆的更新必须带期望版本，旧版本写入显式失败，不得静默覆盖。\n8. **取消操作的归属校验**：`cancel_task_plan_generation` 必须校验 `attemptId` 确实属于给定 `operationId`，否则拒绝——防止取消到另一个生成任务。\n9. **文档版本不可混淆**：正文与摘要属于“记录时的描述”；旧蓝图中的“待实现/不支持”不代表当前缺口。服务端必须让历史快照内容无法被当作当前运行时能力对外呈现。\n\n### C. 幂等边界\n10. **写入幂等键**：`create_task/milestone/memory_after_approval` 的网络重试必须命中同一提案，不得产生重复任务、里程碑或记忆。\n11. **额度幂等**：`start_task_plan` 受理后返回 operationId/attemptId；重复提交必须复用同一 attempt，**不得二次消耗 PLANNING 额度**；受理≠生成成功。\n12. **游标快照一致性**：`list_tasks` / `list_project_documents` 按 ID 稳定排序 + `nextCursor` 续页。服务端必须保证翻页期间的语义边界清晰，避免并发新增导致重复或漏项；且单页只是**当时快照事实**。\n13. **投影契约**：带 `projection=DETERMINISTIC` 时，`projectedTotalCount` 为总数、数组仅为前若干项，该标记必须随响应返回，客户端不得把投影当全量（需要全量必须缩小查询范围重查）。\n14. **状态查询纪律**：`get_task_plan_progress` 只查一次真实状态，受理后由后台更新卡片；服务端不得因模型重复轮询而放大压力或改变状态。\n15. **锁定字段不可变更**：`lockedFields` 在 `repair_task_plan` 中必须被服务端强制拒绝修改；`allowedFields` 之外字段的改动必须被拦截。\n\n## 3. 任务分配计划（讨论稿，未生成）\n\n约束遵守情况：日期固定 2026-10-05 → 2026-10-25；负责人一律 Local Owner；**上限 10 项**。以下为按上述边界归并的候选骨架，**尚未进入规划工具**：\n\n| # | 任务（候选） | 对应边界 |\n|---|---|---|\n| 1 | 管理员权限回归：非 OWNER 调用规划生成/修订/取消全部被拒 | A1 |\n| 2 | 审批通道唯一性：不存在绕过审批的写路径 | A2 |\n| 3 | 提案状态机：重复批准、PENDING 局部修订、APPROVED/REJECTED 复用防护 | A3 |\n| 4 | 成员身份闭包：非法 assigneeId/suggestedAssigneeId 被拒 | A4 |\n| 5 | 文档授权与快照越权/失效用例 | A5 |\n| 6 | 规划乐观并发：版本不符必冲突失败且不自动合并 | B6 |\n| 7 | 资源级版本与取消归属校验（含跨 operationId 取消） | B7/B8 |\n| 8 | 历史蓝图能力表述隔离（快照≠当前能力） | B9 |\n| 9 | 写入幂等 + 规划额度幂等（重试不重复、不二次扣额度） | C10/C11 |\n| 10 | 游标分页一致性 + DETERMINISTIC 投影契约 + 轮询纪律 | C12/C13/C14 |\n\n注：第 10 项合并了三条中等强度边界，若验收窗口允许拆分，可在 10 项上限内优先拆出“幂等”（第 9 项）单独验收。\n\n## 4. 风险和依赖\n\n- **文档证据严重不足（主要风险）**：27 章仅 3 章可见，24 章被投影省略；我只读到第 1 章部分与第 2 章首句。**不能据此断言文档中已写明或未写明任何权限/版本/幂等条款**。第 2、3 节内容应视为基于工具契约的推导（已在文中标注）。\n- **“Local Owner” 未核实**：本轮未调用 `list_project_members`，无法确认它是成员显示名还是某个具体 userId。生成草稿前必须核对，否则第 3 节全部任务无法落实负责人。\n- **未查任务与里程碑现状**：执行计划中的“获取里程碑”“查询任务”本轮未执行，存在与既有任务重复的风险。\n- **验收窗口紧**：2026-10-05 至 2026-10-25 共 21 天，且规划周期早于项目整体 2026-10-31 截止；10 项任务中含多项需要环境与权限配合，存在排期依赖。\n- **草稿尚未生成**：按你的要求，本轮停留在讨论。确认第 3 节骨架与第 2 节边界后，我再调用 `start_task_plan`（日期 2026-10-05/2026-10-25，最多 10 项，负责人固定 Local Owner），草稿仍需你在规划页人工确认指定版本。\n\n需要我先补齐哪一块——核对 Local Owner 成员身份、拉取里程碑/任务现状，还是继续读文档后续章节？",
+        "citations": [
+          {
+            "quote": "目标是让用户在同一项目中完成“理解资料 → 制定计划 → 调整草稿 → 人工确认 → 执行任务 → 查询进度”，并在长对话、换模型、资料更新和服务中断时保持可解释的状态。\n\n- 保留 Java 编排、Spring Boot 模块化单体、现有模型网关和 Agent Runtime。\n- 保留 PostgreSQL/pgvector、MinIO、已有 Redis 用途；本阶段没有新增框架、Python 服务、消息队列或向量库的必要。\n- 任务规划继续拥有生成、校验、版本、局部修复与批量落库；Agent 负责理解请求、选择受控工具和说明结果。\n- 项目权限、成员身份、审批、事务、版本和幂等由业务服务决定，摘要和模型输出不能赋予权限。\n- 保留已通过验收的数值校验、提案修订、版本冲突、审批、幂等、防重入、模型兼容、Ollama 和索引代际成果。\n- 已有业务库及未提交修改保持原状。开发与真实写入验证继续使用隔离副本，正式发布不属于本蓝图的自动授权范围。\n- 后续执行 AI 按本文分段交付；本会话只负责设计与审查，不执行产品开发。\n\n原 [能力审查](ai-capability-review.md)、[全局重构设计](backend-agent-redesign.md) 和 [开发交接](development-handoff.md) 包含上一阶段的历史问题及演进意见，不是当前未完成事项清单",
+            "chunkId": "08f3ba5f-14ee-4098-a866-26e012791f29",
+            "heading": "1. 目标与已确定的边界",
+            "filename": "文档正文",
+            "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+            "pageNumber": null,
+            "similarity": 1.0
+          },
+          {
+            "quote": "以下区分静态代码事实、由代码推导的风险和待评测的优化，避免把所有建议都称为已发生故障。",
+            "chunkId": "10e5493d-9a79-4f6f-b690-134fd75092f6",
+            "heading": "2. 当前状态与具体缺口",
+            "filename": "文档正文",
+            "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:29:56.357732Z"
+    }
+  ],
+  "session": {
+    "id": "5a3154c4-d9c8-4181-9ee2-b9e2fe0289ff",
+    "projectId": "ef024b8d-eafd-40c4-ad11-66e2b3de7bb2",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "四类失败复验 fixed24-final",
+    "status": "ACTIVE",
+    "version": 1,
+    "createdAt": "2026-10-04T08:28:04.324888Z",
+    "updatedAt": "2026-10-04T08:28:05.977145Z"
+  },
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG",
+  "batch": "fixed24-final",
+  "run": {
+    "id": "284972c8-3d4c-4d7d-8ad2-f53aeb880f20",
+    "sessionId": "5a3154c4-d9c8-4181-9ee2-b9e2fe0289ff",
+    "projectId": "ef024b8d-eafd-40c4-ad11-66e2b3de7bb2",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "我们要为 ai-collab 做发布前可靠性验收。先只讨论不生成草稿：规划日期固定为2026-10-05至2026-10-25，不改日期；所有任务建议负责人固定为 Local Owner，不改负责人；最多10项任务。先列出必须由服务端守住的权限、版本与幂等边界。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 8,
+    "toolCallsUsed": 4,
+    "childrenUsed": 0,
+    "inputTokensUsed": 19641,
+    "outputTokensUsed": 3738,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"61e29c28-c54d-4e86-a9b7-59b35ba8b758\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 14,
+    "createdAt": "2026-10-04T08:28:05.977145Z",
+    "updatedAt": "2026-10-04T08:29:56.357732Z"
+  },
+  "executionDate": "2026-10-04",
+  "turn": 1,
+  "answer": {
+    "id": "86fb28c3-30ef-4042-9bc2-a5cd6cd49227",
+    "sessionId": "5a3154c4-d9c8-4181-9ee2-b9e2fe0289ff",
+    "runId": "284972c8-3d4c-4d7d-8ad2-f53aeb880f20",
+    "role": "ASSISTANT",
+    "content": "已按“先讨论、不生成草稿”执行：只做了必要的只读核对，未调用 `start_task_plan` / `repair_task_plan`，也未创建任何提案。\n\n---\n\n## 1. 当前迭代状态\n\n- **项目事实（本轮核实）**：`ai-collab真实需求长对话20261004`，当前账号角色 `OWNER`，状态 `PREPARING`，周期 2026-10-04 → 2026-10-31。\n- **文档证据范围（必须限定）**：当前页面选中文档 `61e29c28…`，快照 `57af26c7…`，状态 READY。\n  - 提纲返回 27 个章节，但**只有 3 个可见**（标题 + 第 1、2 章），24 章被确定性投影省略。\n  - 实际读到的正文只有：**第 1 章**（部分投影，结尾在“本阶段没有新增框架、Python…”处截断）与**第 2 章首句**（“以下区分静态代码事实、由代码推导的风险和待评测的优化…”）。\n  - 因此：**关于权限/版本/幂等，下面第 2、3 节的主体来自本轮工具契约本身，不是文档结论。**\n- **执行计划里的三个待办（获取里程碑、查询任务、分析工作负载）本轮未执行**——按“先只讨论”的要求暂停。\n- 用户约束保持不变：日期固定 2026-10-05 → 2026-10-25；建议负责人固定 Local Owner；最多 10 项任务。\n\n## 2. 下个迭代目标 —— 必须由服务端守住的边界\n\n以下每条都直接对应本轮**可用工具的契约**，属于“工具存在即要求服务端强制”的不变量：\n\n### A. 权限边界\n1. **管理员限定**：规划生成（`start_task_plan`）、规划修订（`repair_task_plan`）、取消生成（`cancel_task_plan_generation`）三个工具定义均写明“管理员”。服务端必须在鉴权层拒绝非 OWNER/ADMIN 的调用，而不是只靠前端隐藏入口。\n2. **审批通道唯一**：任务、里程碑、项目记忆的正式写入只能经 `*_after_approval` 提案 + 项目管理员批准。服务端不得提供绕过审批的直接写入接口（包括后台批处理路径）。\n3. **提案状态机**：同一 `approvalId` 重复批准只能生效一次；PENDING 提案可带 `approvalId` 局部修订（只提交本轮变化，服务端保留未提及字段）；**APPROVED 必须走 `update_*` 并携带真实资源 ID/版本；REJECTED 一律视为已弃用**——服务端不得让已拒绝/已批准的 approvalId 被复用为新建。\n4. **成员身份闭包**：`list_project_members` 是唯一成员来源。写入 `assigneeId` / `suggestedAssigneeId` 时，服务端必须校验目标是真实项目成员，非法或悬空 ID 应拒绝而非静默落库；不得允许从任务反推成员身份。\n5. **文档授权与快照**：正文读取绑定 `documentId` + `snapshotId`，越权文档与失效快照必须拒绝；响应必须始终携带来源与覆盖范围限定（当前返回的 `DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY` 即该限定的实例），服务端不得因缓存/优化去掉它。\n\n### B. 版本边界\n6. **规划乐观并发**：`repair_task_plan` 必须同时校验 `baseVersionId` 与 `expectedVersionNo`，任一与当前版本不符即冲突失败。禁止两个修订基于同一基线互相覆盖；**禁止服务端自动 merge**——冲突时返回当前版本，由人决定。\n7. **资源级版本校验**：项目当前 `version=0`；任务/里程碑/记忆的更新必须带期望版本，旧版本写入显式失败，不得静默覆盖。\n8. **取消操作的归属校验**：`cancel_task_plan_generation` 必须校验 `attemptId` 确实属于给定 `operationId`，否则拒绝——防止取消到另一个生成任务。\n9. **文档版本不可混淆**：正文与摘要属于“记录时的描述”；旧蓝图中的“待实现/不支持”不代表当前缺口。服务端必须让历史快照内容无法被当作当前运行时能力对外呈现。\n\n### C. 幂等边界\n10. **写入幂等键**：`create_task/milestone/memory_after_approval` 的网络重试必须命中同一提案，不得产生重复任务、里程碑或记忆。\n11. **额度幂等**：`start_task_plan` 受理后返回 operationId/attemptId；重复提交必须复用同一 attempt，**不得二次消耗 PLANNING 额度**；受理≠生成成功。\n12. **游标快照一致性**：`list_tasks` / `list_project_documents` 按 ID 稳定排序 + `nextCursor` 续页。服务端必须保证翻页期间的语义边界清晰，避免并发新增导致重复或漏项；且单页只是**当时快照事实**。\n13. **投影契约**：带 `projection=DETERMINISTIC` 时，`projectedTotalCount` 为总数、数组仅为前若干项，该标记必须随响应返回，客户端不得把投影当全量（需要全量必须缩小查询范围重查）。\n14. **状态查询纪律**：`get_task_plan_progress` 只查一次真实状态，受理后由后台更新卡片；服务端不得因模型重复轮询而放大压力或改变状态。\n15. **锁定字段不可变更**：`lockedFields` 在 `repair_task_plan` 中必须被服务端强制拒绝修改；`allowedFields` 之外字段的改动必须被拦截。\n\n## 3. 任务分配计划（讨论稿，未生成）\n\n约束遵守情况：日期固定 2026-10-05 → 2026-10-25；负责人一律 Local Owner；**上限 10 项**。以下为按上述边界归并的候选骨架，**尚未进入规划工具**：\n\n| # | 任务（候选） | 对应边界 |\n|---|---|---|\n| 1 | 管理员权限回归：非 OWNER 调用规划生成/修订/取消全部被拒 | A1 |\n| 2 | 审批通道唯一性：不存在绕过审批的写路径 | A2 |\n| 3 | 提案状态机：重复批准、PENDING 局部修订、APPROVED/REJECTED 复用防护 | A3 |\n| 4 | 成员身份闭包：非法 assigneeId/suggestedAssigneeId 被拒 | A4 |\n| 5 | 文档授权与快照越权/失效用例 | A5 |\n| 6 | 规划乐观并发：版本不符必冲突失败且不自动合并 | B6 |\n| 7 | 资源级版本与取消归属校验（含跨 operationId 取消） | B7/B8 |\n| 8 | 历史蓝图能力表述隔离（快照≠当前能力） | B9 |\n| 9 | 写入幂等 + 规划额度幂等（重试不重复、不二次扣额度） | C10/C11 |\n| 10 | 游标分页一致性 + DETERMINISTIC 投影契约 + 轮询纪律 | C12/C13/C14 |\n\n注：第 10 项合并了三条中等强度边界，若验收窗口允许拆分，可在 10 项上限内优先拆出“幂等”（第 9 项）单独验收。\n\n## 4. 风险和依赖\n\n- **文档证据严重不足（主要风险）**：27 章仅 3 章可见，24 章被投影省略；我只读到第 1 章部分与第 2 章首句。**不能据此断言文档中已写明或未写明任何权限/版本/幂等条款**。第 2、3 节内容应视为基于工具契约的推导（已在文中标注）。\n- **“Local Owner” 未核实**：本轮未调用 `list_project_members`，无法确认它是成员显示名还是某个具体 userId。生成草稿前必须核对，否则第 3 节全部任务无法落实负责人。\n- **未查任务与里程碑现状**：执行计划中的“获取里程碑”“查询任务”本轮未执行，存在与既有任务重复的风险。\n- **验收窗口紧**：2026-10-05 至 2026-10-25 共 21 天，且规划周期早于项目整体 2026-10-31 截止；10 项任务中含多项需要环境与权限配合，存在排期依赖。\n- **草稿尚未生成**：按你的要求，本轮停留在讨论。确认第 3 节骨架与第 2 节边界后，我再调用 `start_task_plan`（日期 2026-10-05/2026-10-25，最多 10 项，负责人固定 Local Owner），草稿仍需你在规划页人工确认指定版本。\n\n需要我先补齐哪一块——核对 Local Owner 成员身份、拉取里程碑/任务现状，还是继续读文档后续章节？",
+    "citations": [
+      {
+        "quote": "目标是让用户在同一项目中完成“理解资料 → 制定计划 → 调整草稿 → 人工确认 → 执行任务 → 查询进度”，并在长对话、换模型、资料更新和服务中断时保持可解释的状态。\n\n- 保留 Java 编排、Spring Boot 模块化单体、现有模型网关和 Agent Runtime。\n- 保留 PostgreSQL/pgvector、MinIO、已有 Redis 用途；本阶段没有新增框架、Python 服务、消息队列或向量库的必要。\n- 任务规划继续拥有生成、校验、版本、局部修复与批量落库；Agent 负责理解请求、选择受控工具和说明结果。\n- 项目权限、成员身份、审批、事务、版本和幂等由业务服务决定，摘要和模型输出不能赋予权限。\n- 保留已通过验收的数值校验、提案修订、版本冲突、审批、幂等、防重入、模型兼容、Ollama 和索引代际成果。\n- 已有业务库及未提交修改保持原状。开发与真实写入验证继续使用隔离副本，正式发布不属于本蓝图的自动授权范围。\n- 后续执行 AI 按本文分段交付；本会话只负责设计与审查，不执行产品开发。\n\n原 [能力审查](ai-capability-review.md)、[全局重构设计](backend-agent-redesign.md) 和 [开发交接](development-handoff.md) 包含上一阶段的历史问题及演进意见，不是当前未完成事项清单",
+        "chunkId": "08f3ba5f-14ee-4098-a866-26e012791f29",
+        "heading": "1. 目标与已确定的边界",
+        "filename": "文档正文",
+        "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+        "pageNumber": null,
+        "similarity": 1.0
+      },
+      {
+        "quote": "以下区分静态代码事实、由代码推导的风险和待评测的优化，避免把所有建议都称为已发生故障。",
+        "chunkId": "10e5493d-9a79-4f6f-b690-134fd75092f6",
+        "heading": "2. 当前状态与具体缺口",
+        "filename": "文档正文",
+        "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+        "pageNumber": null,
+        "similarity": 1.0
+      }
+    ],
+    "inferences": [],
+    "createdAt": "2026-10-04T08:29:56.357732Z"
+  }
+}

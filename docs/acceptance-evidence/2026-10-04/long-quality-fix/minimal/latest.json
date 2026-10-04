@@ -1,0 +1,22 @@
+{
+  "operations": null,
+  "session": {
+    "id": "2d5e1114-ca9c-4cfa-8950-397af19bdaa2",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "四类失败复验 minimal",
+    "status": "ACTIVE",
+    "version": 0,
+    "createdAt": "2026-10-04T07:55:43.340268Z",
+    "updatedAt": "2026-10-04T07:55:43.340268Z"
+  },
+  "state": {
+    "sessionId": "2d5e1114-ca9c-4cfa-8950-397af19bdaa2",
+    "completedTurns": 0,
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "codeVersion": "d85018296a6c368239eafabbc3aff0b535f579a2",
+    "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+    "batch": "minimal"
+  },
+  "codeVersion": "d85018296a6c368239eafabbc3aff0b535f579a2"
+}
