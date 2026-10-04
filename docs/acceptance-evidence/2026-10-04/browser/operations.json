@@ -1,0 +1,107 @@
+[
+  {
+    "at": "2026-10-04T02:26:00.643Z",
+    "name": "内置浏览器最小访问及隔离登录",
+    "url": "http://localhost:15173/login?redirect=/home"
+  },
+  {
+    "at": "2026-10-04T02:26:45.990Z",
+    "name": "文档详情正文可读、检索可用及范围阅读",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/documents"
+  },
+  {
+    "at": "2026-10-04T02:27:07.729Z",
+    "name": "Agent 读取选中文档必要需求及验收约束并请求引用",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent?document=9404f695-969d-43aa-b2bb-72da262e9231"
+  },
+  {
+    "at": "2026-10-04T02:35:01.531Z",
+    "name": "修复后重新实际读取两节资料",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent?document=9404f695-969d-43aa-b2bb-72da262e9231"
+  },
+  {
+    "at": "2026-10-04T02:35:56.422Z",
+    "name": "来源卡片重读指定不可变片段并核对章节与字符范围",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent?document=9404f695-969d-43aa-b2bb-72da262e9231"
+  },
+  {
+    "at": "2026-10-04T02:36:18.255Z",
+    "name": "向 Agent 发起完整规划草稿生成，不批准正式任务",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent?document=9404f695-969d-43aa-b2bb-72da262e9231"
+  },
+  {
+    "at": "2026-10-04T02:37:08.037Z",
+    "name": "一次真实轮询503后无需刷新自动恢复；卡片保留并继续生成",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent?document=9404f695-969d-43aa-b2bb-72da262e9231"
+  },
+  {
+    "at": "2026-10-04T02:37:36.909Z",
+    "name": "连续轮询503故障注入已开启，等待有界退避耗尽",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent?document=9404f695-969d-43aa-b2bb-72da262e9231"
+  },
+  {
+    "at": "2026-10-04T02:38:00.722Z",
+    "name": "生成完成后打开现有规划页审阅v2",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/ai-planning?planId=1bccc896-c95b-47cc-8d96-342e704cd16a"
+  },
+  {
+    "at": "2026-10-04T02:39:27.476Z",
+    "name": "继续同一规划，仅局部修订第一项负责人建议，锁定日期",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent"
+  },
+  {
+    "at": "2026-10-04T02:44:26.888Z",
+    "name": "参数契约修复后：同一规划仅修改第一项描述，锁定其他字段",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent"
+  },
+  {
+    "at": "2026-10-04T02:45:43.511Z",
+    "name": "持续四次503后显示状态更新失败，保留两张原卡片",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent"
+  },
+  {
+    "at": "2026-10-04T02:45:55.633Z",
+    "name": "达到上限后持续观察超过20秒，无追加轮询",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent"
+  },
+  {
+    "at": "2026-10-04T02:45:55.916Z",
+    "name": "点击状态更新失败的手动重试",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent"
+  },
+  {
+    "at": "2026-10-04T02:46:04.652Z",
+    "name": "手动重试恢复READY v3，生成操作仍归属v2",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent"
+  },
+  {
+    "at": "2026-10-04T02:46:24.873Z",
+    "name": "规划页人工采纳第一项负责人并保存新版本",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/ai-planning?planId=1bccc896-c95b-47cc-8d96-342e704cd16a"
+  },
+  {
+    "at": "2026-10-04T02:46:53.068Z",
+    "name": "点击规划页确认v4创建正式任务",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/board?sourcePlanId=1bccc896-c95b-47cc-8d96-342e704cd16a"
+  },
+  {
+    "at": "2026-10-04T02:47:02.413Z",
+    "name": "确认后刷新任务看板，核对落库任务",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/board?sourcePlanId=1bccc896-c95b-47cc-8d96-342e704cd16a"
+  },
+  {
+    "at": "2026-10-04T02:47:26.621Z",
+    "name": "刷新后任务详情：待办生成前置为会议纪要记录，里程碑与日期匹配",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/board?sourcePlanId=1bccc896-c95b-47cc-8d96-342e704cd16a"
+  },
+  {
+    "at": "2026-10-04T02:48:06.715Z",
+    "name": "任务详情核对：人工审阅前置依赖为待办生成",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/board?sourcePlanId=1bccc896-c95b-47cc-8d96-342e704cd16a"
+  },
+  {
+    "at": "2026-10-04T02:49:17.889Z",
+    "name": "收尾任务前置依赖为人工审阅；刷新后四任务三依赖链核对完成",
+    "url": "http://localhost:15173/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/board?sourcePlanId=1bccc896-c95b-47cc-8d96-342e704cd16a"
+  }
+]

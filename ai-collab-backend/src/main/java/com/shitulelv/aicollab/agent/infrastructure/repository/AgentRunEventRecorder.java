@@ -545,11 +545,29 @@ public class AgentRunEventRecorder {
         int sequence = nextSequence(run.id());
 
         // 使用 ObjectMapper 序列化为 JSON 对象，确保 JSONB 正确
+        var evidence = new java.util.LinkedHashMap<UUID, AgentCitation>();
+        for (String value : jdbc.queryForList("""
+                SELECT c.value::text FROM agent_step s
+                CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(s.output_json->'citations')='array' THEN s.output_json->'citations' ELSE '[]'::jsonb END) c(value)
+                WHERE s.run_id=? AND s.type='TOOL_CALL_COMPLETED' AND s.reason='TOOL_SUCCESS'
+                  AND coalesce(s.output_json->>'status','SUCCEEDED')='SUCCEEDED'
+                  AND EXISTS (
+                    SELECT b.id FROM document_body_chunk b JOIN project_document d ON d.id=b.document_id
+                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status<>'DELETING'
+                    UNION ALL SELECT b.id FROM document_chunk b JOIN project_document d ON d.id=b.document_id
+                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status='READY')
+                ORDER BY s.sequence_no
+                """, String.class, run.id(), run.projectId(), run.projectId())) {
+            try { var citation=json.readValue(value,AgentCitation.class); evidence.putIfAbsent(citation.chunkId(),citation); }
+            catch (JsonProcessingException malformed) { /* Only persisted, structured source identities are exposed. */ }
+        }
+        // Source cards describe material actually read this run, never model-invented identifiers.
+        var availableCitations=evidence.values().stream().limit(50).toList();
         String outputJson;
         try {
             ObjectNode outputNode = json.createObjectNode();
             outputNode.put("answer", content);
-            outputNode.set("citations", json.valueToTree(citations));
+            outputNode.set("citations", json.valueToTree(availableCitations));
             outputNode.set("inferences", json.createArrayNode());
             outputJson = json.writeValueAsString(outputNode);
         } catch (JsonProcessingException e) {
@@ -564,8 +582,8 @@ public class AgentRunEventRecorder {
         jdbc.update("""
                 INSERT INTO agent_message(
                   session_id,run_id,role,content,citations_json,inferences_json)
-                VALUES (?,?,'ASSISTANT',?,'[]'::jsonb,'[]'::jsonb)
-                """, run.sessionId(), run.id(), content);
+                VALUES (?,?,'ASSISTANT',?,?::jsonb,'[]'::jsonb)
+                """, run.sessionId(), run.id(), content, json.valueToTree(availableCitations).toString());
         event(run,"RUN_SUCCEEDED",json.createObjectNode().put("status","SUCCEEDED"));
 
         return findRun(run.projectId(), run.id()).orElse(run);
