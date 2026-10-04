@@ -241,6 +241,32 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     }
 
     @Test
+    void failedSkeletonOperationDoesNotBorrowLaterRetryVersion() throws Exception {
+        var f=fixture("failed-agent-retry");
+        when(model.generate(anyString(),anyString(),eq("TASK_PLAN_SKELETON"),any(),any(),any(),any()))
+                .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_INVALID_OUTPUT));
+        var session=agents.createSession(f.project(),f.user(),"原失败规划");
+        var request=json.valueToTree(request("原失败规划"));
+        var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
+        var accepted=agentOperations.mutate(ctx,"start_task_plan",request);
+        UUID operation=UUID.fromString(accepted.path("operationId").asText());
+        UUID plan=UUID.fromString(accepted.path("planId").asText());
+        awaitStatus(f.project(),plan,Set.of(TaskPlanStatus.FAILED));
+        assertThat(agentOperations.get(f.project(),operation,f.user()).path("versionNo").asInt()).isZero();
+        stubLegalGeneration();
+        commands.regenerate(f.project(),plan,f.user());
+        var ready=awaitStatus(f.project(),plan,Set.of(TaskPlanStatus.READY));
+        assertThat(ready.latestVersionNo()).isEqualTo(2);
+        var original=agentOperations.get(f.project(),operation,f.user());
+        assertThat(original.path("status").asText()).isEqualTo("FAILED");
+        assertThat(original.path("errorCode").asText()).isEqualTo("PLANNING_MODEL_INVALID_OUTPUT");
+        assertThat(original.path("versionNo").asInt()).isZero();
+        assertThat(original.path("versionId").isNull()).isTrue();
+        assertThat(original.path("activeAttemptId").isNull()).isTrue();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM project_task WHERE source_plan_id=?",Integer.class,plan)).isZero();
+    }
+
+    @Test
     void queuedAgentPlanDispatchRecoversSameAttemptWithoutDuplicateSideEffects() throws Exception {
         var f=fixture("agent-dispatch");stubLegalGeneration();var session=agents.createSession(f.project(),f.user(),"重启恢复");
         var request=json.valueToTree(request("恢复规划"));var ctx=agentInvocation(f,session.id(),"start_task_plan",request);

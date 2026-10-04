@@ -72,7 +72,8 @@ public class AgentPlanningOperationService {
           ORDER BY CASE WHEN x.stage='DETAIL' THEN 0 ELSE 1 END,x.attempt_no LIMIT 1
         ) execution ON true
         """;
-    private static final String OPERATION_SELECT="SELECT o.id,o.plan_id,o.attempt_id,o.kind,o.status,o.goal_revision,o.target_version_id,o.result_version_id,p.title,coalesce(v.version_no,p.latest_version_no) AS latest_version_no,p.active_attempt_id,coalesce(execution.status,a.status) AS attempt_status,coalesce(a.error_code,execution.error_code) AS error_code FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id LEFT JOIN ai_task_plan_version v ON v.id=o.result_version_id " + EXECUTION_JOIN;
+    // A failed operation without a result version must not borrow a later generation's version.
+    private static final String OPERATION_SELECT="SELECT o.id,o.plan_id,o.attempt_id,o.kind,o.status,o.goal_revision,o.target_version_id,o.result_version_id,p.title,coalesce(v.version_no,0) AS latest_version_no,CASE WHEN p.generation_seq=o.generation_seq THEN p.active_attempt_id END AS active_attempt_id,coalesce(execution.status,a.status) AS attempt_status,coalesce(a.error_code,execution.error_code) AS error_code FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id LEFT JOIN ai_task_plan_version v ON v.id=o.result_version_id " + EXECUTION_JOIN;
     private ObjectNode operationJson(UUID project,Map<String,Object> row) {
         var value=json.createObjectNode();
         for(String field:List.of("status","kind"))value.put(field,Objects.toString(row.get(field),null));
