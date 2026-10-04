@@ -120,6 +120,71 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         reset(model);
     }
 
+    @Test void queuedDetailRecoveryAfterRevocationDoesNotCallModelOrReplaceSkeleton() throws Exception {
+        var f=fixture("detail-revoked");
+        var session=agents.createSession(f.project(),f.user(),"详情排队");
+        var request=json.valueToTree(request("排队详情"));
+        var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
+        var plan=repository.create(f.project(),f.user(),request("排队详情"));
+        var draft=json.readValue(skeleton(),TaskPlanDraft.class);
+        UUID version=repository.appendVersion(f.project(),plan.id(),null,"AI_SKELETON",null,draft,f.user(),null,TaskPlanStatus.DETAIL_GENERATING);
+        UUID attempt=repository.startDetailAfterSkeleton(f.project(),plan.id(),f.user());
+        UUID operation=UUID.randomUUID();
+        jdbc.update("INSERT INTO agent_planning_operation(id,invocation_id,project_id,requester_id,session_id,origin_run_id,goal_revision,kind,request_json,plan_id,attempt_id,generation_seq) VALUES (?,?,?,?,?,?,1,'start_task_plan',?::jsonb,?,?,?)",operation,ctx.invocationId(),f.project(),f.user(),session.id(),ctx.runId(),request.toString(),plan.id(),plan.activeAttemptId(),plan.generationSeq());
+        jdbc.update("UPDATE ai_task_plan_attempt SET updated_at=now()-interval '1 minute' WHERE id=?",attempt);
+        jdbc.update("DELETE FROM project_member WHERE project_id=? AND user_id=?",f.project(),f.user());
+        agentRecovery.recover();
+        var failed=awaitStatus(f.project(),plan.id(),Set.of(TaskPlanStatus.DETAIL_GENERATION_FAILED));
+        agentRecovery.recover();
+        org.mockito.Mockito.verify(model,org.mockito.Mockito.never()).generate(anyString(),anyString(),anyString(),any(),any(),any(),any());
+        assertThat(failed.latestVersionId()).isEqualTo(version);
+        assertThat(repository.versions(f.project(),plan.id())).hasSize(1);
+        assertThat(repository.draft(repository.requireVersion(f.project(),plan.id(),version))).isEqualTo(draft);
+        assertThat(jdbc.queryForObject("SELECT status FROM ai_task_plan_attempt WHERE id=?",String.class,attempt)).isEqualTo("FAILED");
+        assertThat(jdbc.queryForObject("SELECT error_code FROM ai_task_plan_attempt WHERE id=?",String.class,attempt)).isNotBlank();
+        assertThat(jdbc.queryForObject("SELECT status FROM agent_planning_operation WHERE id=?",String.class,operation)).isEqualTo("DETAIL_GENERATION_FAILED");
+    }
+
+    @Autowired com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService providers;
+    @Test void operationListSynchronizesOnlyRequestedProjectAndSession() {
+        var f=fixture("list-scope"); var other=fixture("other-project");
+        var selected=agents.createSession(f.project(),f.user(),"selected");
+        var unselected=agents.createSession(f.project(),f.user(),"unselected");
+        var foreign=agents.createSession(other.project(),other.user(),"foreign");
+        UUID selectedOp=readyOperation(f,selected.id()), unselectedOp=readyOperation(f,unselected.id()), foreignOp=readyOperation(other,foreign.id());
+        var listed=agentOperations.list(f.project(),selected.id(),f.user());
+        assertThat(listed).hasSize(1); assertThat(listed.getFirst().path("operationId").asText()).isEqualTo(selectedOp.toString());
+        assertThat(listed.getFirst().path("status").asText()).isEqualTo("READY");
+        for(UUID untouched:List.of(unselectedOp,foreignOp)) {
+            assertThat(jdbc.queryForObject("SELECT status FROM agent_planning_operation WHERE id=?",String.class,untouched)).isEqualTo("ACCEPTED");
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_planning_operation_event WHERE operation_id=?",Integer.class,untouched)).isZero();
+        }
+    }
+    private UUID readyOperation(Fixture f,UUID session) {
+        var request=json.valueToTree(request("list fixture")); var ctx=agentInvocation(f,session,"start_task_plan",request);
+        var plan=repository.create(f.project(),f.user(),request("list fixture"));
+        repository.appendVersion(f.project(),plan.id(),null,"AI_COMPLETE",null,new TaskPlanDraft("preserved",List.of(),List.of(),List.of(),List.of(),List.of()),f.user(),null,TaskPlanStatus.READY);
+        UUID operation=UUID.randomUUID();
+        jdbc.update("INSERT INTO agent_planning_operation(id,invocation_id,project_id,requester_id,session_id,origin_run_id,goal_revision,kind,request_json,plan_id,attempt_id,generation_seq) VALUES (?,?,?,?,?,?,1,'start_task_plan',?::jsonb,?,?,?)",operation,ctx.invocationId(),f.project(),f.user(),session,ctx.runId(),request.toString(),plan.id(),plan.activeAttemptId(),plan.generationSeq());
+        return operation;
+    }
+    @Test void recoveredClientPassesPersistedOutputBudgetToActualGatewayCall() {
+        var f=fixture("persisted-budget"); UUID id=UUID.randomUUID(),generation=UUID.randomUUID();
+        jdbc.update("INSERT INTO user_ai_provider(id,user_id,name,provider_type,base_url,model_name,is_default,enabled) VALUES (?,?,'budget-test','OPENAI_COMPATIBLE','https://example.com','fixture-model',true,true)",id,f.user());
+        var routing=org.mockito.Mockito.mock(com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGateway.class);
+        when(routing.completeWithSnapshot(any(),any(),any(),any())).thenReturn(new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult("{}","fixture","fixture",1,1,1L));
+        for(int applicationBudget:List.of(1200,9000)) {
+            var props=new com.shitulelv.aicollab.planning.infrastructure.ai.PlanningModelProperties(true,"openai","https://example.com","/v1","test-only","fixture",java.time.Duration.ofSeconds(30),java.time.Duration.ofSeconds(60),0.0,applicationBudget,5,10000,0.5,10);
+            var client=new TaskPlanModelClient(props,org.mockito.Mockito.mock(com.shitulelv.aicollab.infrastructure.ai.AiCallLogWriter.class),routing);
+            client.configureProviders(providers);
+            org.springframework.test.util.ReflectionTestUtils.setField(client,"configurationStore",planningConfigurations);
+            try(var scope=client.openSnapshot()) {client.generate("system","data","DETAIL",f.user(),f.project(),UUID.randomUUID(),generation);}
+        }
+        var budgets=org.mockito.ArgumentCaptor.forClass(Integer.class);
+        org.mockito.Mockito.verify(routing,org.mockito.Mockito.times(2)).completeWithSnapshot(any(),any(),any(),budgets.capture());
+        assertThat(budgets.getAllValues()).containsExactly(1200,1200);
+    }
+
     @Test
     void agentPlanningOperationsReplayRepairAndManualConfirmationUseRealTransactions() throws Exception {
         var f=fixture("agent-plan");stubLegalGeneration();

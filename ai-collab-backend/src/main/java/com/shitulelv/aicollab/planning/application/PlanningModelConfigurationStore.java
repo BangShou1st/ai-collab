@@ -19,6 +19,11 @@ public class PlanningModelConfigurationStore {
     }
     @Transactional
     public UserAiProvider require(UUID actor, UUID generation, Integer outputBudget) {
+        return requireSnapshot(actor, generation, outputBudget).provider();
+    }
+    public record Snapshot(UserAiProvider provider, Integer maxOutputTokens) {}
+    @Transactional
+    public Snapshot requireSnapshot(UUID actor, UUID generation, Integer outputBudget) {
         jdbc.queryForObject("SELECT pg_advisory_xact_lock(hashtextextended(?::text,0))",Object.class,generation.toString());
         var rows=jdbc.queryForList("SELECT configuration_id,configuration_updated_at FROM planning_model_snapshot WHERE generation_id=? AND requester_id=?",generation,actor);
         var provider=rows.isEmpty() ? providers.resolve(actor,ModelPurpose.PLANNING)
@@ -28,6 +33,7 @@ public class PlanningModelConfigurationStore {
                 generation,actor,provider.id(),provider.updatedAt(),provider.providerType().name(),provider.modelName(),outputBudget==null?provider.maxOutputTokens():outputBudget,!"OPENCODE_ZEN_FREE".equals(provider.presetCode()));
         else if(!jdbc.queryForObject("SELECT configuration_updated_at FROM planning_model_snapshot WHERE generation_id=?",OffsetDateTime.class,generation).toInstant().equals(provider.updatedAt().toInstant()))
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,"规划模型配置已变更，请重新发起生成");
-        return provider;
+        Integer persistedBudget = jdbc.queryForObject("SELECT (snapshot->>'maxOutputTokens')::int FROM planning_model_snapshot WHERE generation_id=? AND requester_id=?", Integer.class, generation, actor);
+        return new Snapshot(provider, persistedBudget);
     }
 }

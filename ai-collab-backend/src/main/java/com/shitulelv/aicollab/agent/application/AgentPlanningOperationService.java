@@ -55,12 +55,19 @@ public class AgentPlanningOperationService {
     }
     public ObjectNode get(UUID project,UUID operation,UUID user) {
         access.requireMember(project,user);
-        synchronizeOperations();
-        var rows=jdbc.queryForList("SELECT o.id,o.plan_id,o.attempt_id,o.kind,o.status,o.goal_revision,o.target_version_id,o.result_version_id,p.title,coalesce(v.version_no,p.latest_version_no) AS latest_version_no,p.active_attempt_id,a.status AS attempt_status,a.error_code FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id LEFT JOIN ai_task_plan_version v ON v.id=o.result_version_id WHERE o.project_id=? AND o.id=?",project,operation);
+        synchronizeOperations(project, null, operation);
+        return readOperation(project, operation);
+    }
+    private ObjectNode readOperation(UUID project, UUID operation) {
+        var rows=jdbc.queryForList(OPERATION_SELECT+" WHERE o.project_id=? AND o.id=?",project,operation);
         if(rows.isEmpty()) throw new BusinessException(ErrorCode.TASK_PLAN_NOT_FOUND);
-        var row=rows.getFirst();var value=json.createObjectNode();
+        return operationJson(project,rows.getFirst());
+    }
+    private static final String OPERATION_SELECT="SELECT o.id,o.plan_id,o.attempt_id,o.kind,o.status,o.goal_revision,o.target_version_id,o.result_version_id,p.title,coalesce(v.version_no,p.latest_version_no) AS latest_version_no,p.active_attempt_id,a.status AS attempt_status,a.error_code FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id LEFT JOIN ai_task_plan_version v ON v.id=o.result_version_id";
+    private ObjectNode operationJson(UUID project,Map<String,Object> row) {
+        var value=json.createObjectNode();
         for(String field:List.of("status","kind"))value.put(field,Objects.toString(row.get(field),null));
-        value.put("operationId",operation.toString());value.put("planId",row.get("plan_id").toString());
+        value.put("operationId",row.get("id").toString());value.put("planId",row.get("plan_id").toString());
         value.put("attemptId",Objects.toString(row.get("attempt_id"),null));value.put("activeAttemptId",Objects.toString(row.get("active_attempt_id"),null));
         value.put("attemptStatus",Objects.toString(row.get("attempt_status"),null));value.put("errorCode",Objects.toString(row.get("error_code"),null));
         value.put("title",Objects.toString(row.get("title"),null));value.put("versionNo",((Number)row.get("latest_version_no")).intValue());
@@ -70,11 +77,15 @@ public class AgentPlanningOperationService {
     }
     public List<ObjectNode> list(UUID project,UUID session,UUID user) {
         access.requireMember(project,user);
-        var ids=jdbc.queryForList("SELECT o.id FROM agent_planning_operation o JOIN agent_session s ON s.id=o.session_id WHERE o.project_id=? AND s.project_id=? AND o.session_id=? ORDER BY o.created_at DESC,o.id DESC LIMIT 50",UUID.class,project,project,session);
-        return ids.stream().map(id->get(project,id,user)).toList();
+        synchronizeOperations(project, session, null);
+        var rows=jdbc.queryForList(OPERATION_SELECT+" JOIN agent_session s ON s.id=o.session_id WHERE o.project_id=? AND s.project_id=? AND o.session_id=? ORDER BY o.created_at DESC,o.id DESC LIMIT 50",project,project,session);
+        return rows.stream().map(row->operationJson(project,row)).toList();
     }
     /** Derived from persistent plan/attempt state. One atomic update+event; terminal operation results never follow a newer target. */
     @Transactional public void synchronizeOperations() {
+        synchronizeOperations(null, null, null);
+    }
+    private void synchronizeOperations(UUID project, UUID session, UUID operation) {
         jdbc.update("""
             WITH states AS (
               SELECT o.id,CASE WHEN a.status IN ('FAILED','CANCELED','DISCARDED') THEN a.status
@@ -90,13 +101,16 @@ public class AgentPlanningOperationService {
                 ORDER BY v.version_no DESC LIMIT 1
               ) owned ON true
               WHERE o.status IN ('ACCEPTED','SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING')
+                AND (?::uuid IS NULL OR o.project_id=?::uuid)
+                AND (?::uuid IS NULL OR o.session_id=?::uuid)
+                AND (?::uuid IS NULL OR o.id=?::uuid)
             ), changed AS (
               UPDATE agent_planning_operation o SET status=s.status,result_version_id=s.version,updated_at=now()
               FROM states s WHERE o.id=s.id AND (o.status IS DISTINCT FROM s.status OR o.result_version_id IS DISTINCT FROM s.version)
                 AND o.status IN ('ACCEPTED','SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING')
               RETURNING o.id,o.status,o.result_version_id
             ) INSERT INTO agent_planning_operation_event(operation_id,status,result_version_id) SELECT id,status,result_version_id FROM changed
-            """);
+            """, project, project, session, session, operation, operation);
     }
     private void validate(Object request){if(!validator.validate(request).isEmpty())throw new BusinessException(ErrorCode.VALIDATION_ERROR,"规划参数校验失败");}
     private <T>T convert(JsonNode node,Class<T> type){try{return json.treeToValue(node,type);}catch(Exception ex){throw new BusinessException(ErrorCode.VALIDATION_ERROR,"规划参数格式无效");}}

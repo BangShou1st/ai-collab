@@ -7,6 +7,8 @@ import { planStatusLabel } from '../planning/planning-labels'
 const props = defineProps<{ projectId: string; sessionId: string; runVersion?: number }>()
 interface Operation { operationId: string; planId: string; title: string; status: string; versionNo: number; goalRevision: number; reviewPath: string; errorCode?: string }
 const items = ref<Operation[]>([])
+const updateFailed = ref(false)
+let failures = 0
 let timer: ReturnType<typeof setTimeout> | undefined
 let epoch = 0
 let active = true
@@ -15,19 +17,28 @@ async function load(current = epoch, showError = true) {
   try {
     const response = apiResultFromResponse(await httpClient.get<ApiResponse<Operation[]>>(`/projects/${props.projectId}/agent/sessions/${props.sessionId}/planning-operations`))
     if (!active || current !== epoch) return
+    failures = 0; updateFailed.value = false
     items.value = response.data
     if (items.value.some(item => ['ACCEPTED', 'SKELETON_GENERATING', 'DETAIL_GENERATING', 'REPAIRING'].includes(item.status))) timer = setTimeout(() => load(current, false), 5000)
-  } catch (error) { if (active && current === epoch && showError) showApiError(error, '规划操作加载') }
+  } catch (error) {
+    if (!active || current !== epoch) return
+    failures++
+    if (failures <= 3) timer = setTimeout(() => load(current, false), 5000 * 2 ** (failures - 1))
+    else updateFailed.value = true
+    if (showError) showApiError(error, '规划操作加载')
+  }
 }
+function retry() { if (timer) clearTimeout(timer); epoch++; failures = 0; updateFailed.value = false; void load(epoch) }
 watch(() => [props.projectId, props.sessionId, props.runVersion], () => {
   if (timer) clearTimeout(timer)
-  epoch++; items.value = []; void load(epoch)
+  epoch++; failures = 0; updateFailed.value = false; items.value = []; void load(epoch)
 }, { immediate: true })
 onBeforeUnmount(() => { active = false; epoch++; if (timer) clearTimeout(timer) })
 function label(status: string) { return status === 'ACCEPTED' ? '已受理' : status === 'SUPERSEDED' ? '已结束，后续版本已变化' : status === 'DISCARDED' ? '结果已丢弃' : planStatusLabel(status as never) }
 </script>
 <template>
-  <section v-if="items.length" aria-label="规划操作">
+  <section v-if="items.length || updateFailed" aria-label="规划操作">
+    <p v-if="updateFailed" role="alert">状态更新失败。<button type="button" @click="retry">重试</button></p>
     <article v-for="item in items" :key="item.operationId" class="planning-operation">
       <strong>{{ item.title }}</strong><p>{{ label(item.status) }} · 版本 {{ item.versionNo || '尚未生成' }} · 所属目标 {{ item.goalRevision }}</p>
       <p v-if="['ACCEPTED', 'SKELETON_GENERATING', 'DETAIL_GENERATING', 'REPAIRING'].includes(item.status)">后台处理中，完成后请人工审阅。</p>

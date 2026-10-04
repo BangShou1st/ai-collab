@@ -25,7 +25,7 @@ public class TaskPlanModelClient {
     private final AiCallLogWriter logs;
     private com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService providers;
     @Autowired private PlanningModelConfigurationStore configurationStore;
-    private final ThreadLocal<com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider> snapshot = new ThreadLocal<>();
+    private final ThreadLocal<PlanningModelConfigurationStore.Snapshot> snapshot = new ThreadLocal<>();
     @Autowired void configureProviders(com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService providers) { this.providers = providers; }
     public interface ConfigurationScope extends AutoCloseable { @Override void close(); }
     public ConfigurationScope openSnapshot() { snapshot.remove(); return snapshot::remove; }
@@ -67,17 +67,20 @@ public class TaskPlanModelClient {
             var metadata = new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata(correlation);
             ChatCompletionResult result;
             if (providers != null && gateway instanceof com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGateway routing) {
-                selected = snapshot.get();
-                if (selected == null) {
-                    selected = configurationStore == null ? providers.resolve(actor, ModelPurpose.PLANNING)
-                            : configurationStore.require(actor, UUID.fromString(correlation), properties.maxOutputTokens());
-                    snapshot.set(selected);
+                var pinned = snapshot.get();
+                if (pinned == null) {
+                    if (configurationStore == null) {
+                        var provider = providers.resolve(actor, ModelPurpose.PLANNING);
+                        pinned = new PlanningModelConfigurationStore.Snapshot(provider, properties.maxOutputTokens() == null ? provider.maxOutputTokens() : properties.maxOutputTokens());
+                    } else pinned = configurationStore.requireSnapshot(actor, UUID.fromString(correlation), properties.maxOutputTokens());
+                    snapshot.set(pinned);
                 }
+                selected = pinned.provider();
                 log.info("Planning call stage={} configurationId={} provider={} model={} mode=PROMPT_JSON outputBudget={} budgetEnforced={}",
                         feature, selected.id(), selected.providerType(), selected.modelName(),
-                        properties.maxOutputTokens() != null ? properties.maxOutputTokens() : selected.maxOutputTokens(),
+                        pinned.maxOutputTokens(),
                         !"OPENCODE_ZEN_FREE".equals(selected.presetCode()));
-                result = routing.completeWithSnapshot(command, metadata, selected, properties.maxOutputTokens());
+                result = routing.completeWithSnapshot(command, metadata, selected, pinned.maxOutputTokens());
             } else result = gateway.complete(command, metadata);
             safeLog(feature, actor, projectId, attemptId, result.provider(), result.model(),
                     "SUCCESS", result.latencyMs(), result.promptTokens(), result.completionTokens(), null);
