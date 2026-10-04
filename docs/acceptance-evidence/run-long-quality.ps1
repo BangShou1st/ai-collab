@@ -16,6 +16,19 @@ function Api($method,$path,$body=$null){
 $head=(& git -C $root rev-parse HEAD).Trim()
 if($Mode-eq 'Setup'){
  if(Test-Path $private){throw 'Batch already exists; recover/read original run instead of duplicating'}
+ if($Batch-eq 'fixed24'){
+  # Recreate the original empty-project baseline, keeping the exact original document bytes.
+  $project=Api POST '/projects' @{name='ai-collab真实需求长对话20261004';type='OTHER';description='真实仓库蓝图可靠性专项，隔离副本';startDate='2026-10-04';dueDate='2026-10-31'}
+  $client=[Net.Http.HttpClient]::new();$client.DefaultRequestHeaders.Add('Authorization',$headers.Authorization);$client.DefaultRequestHeaders.Add('Origin','http://localhost:15173')
+  $form=[Net.Http.MultipartFormDataContent]::new();$part=[Net.Http.ByteArrayContent]::new([IO.File]::ReadAllBytes((Join-Path $root 'docs/ai-next-stage-blueprint.md')))
+  $part.Headers.ContentType=[Net.Http.Headers.MediaTypeHeaderValue]::new('text/markdown')
+  $form.Add($part,'file','ai-next-stage-blueprint.md');$form.Add([Net.Http.StringContent]::new('ai-collab下一阶段主蓝图'),'displayName')
+  try{
+   $response=$client.PostAsync("http://localhost:18080/api/v1/projects/$($project.id)/documents",$form).GetAwaiter().GetResult()
+   $null=$response.EnsureSuccessStatusCode();$document=($response.Content.ReadAsStringAsync().GetAwaiter().GetResult()|ConvertFrom-Json).data
+  }finally{$form.Dispose();$client.Dispose()}
+  $original.projectId=$project.id;$original.documentId=$document.id
+ }
  $session=if($Batch-eq 'correction'){Api GET "/projects/$($original.projectId)/agent/sessions/$($original.sessionId)"}else{Api POST "/projects/$($original.projectId)/agent/sessions" @{title=('四类失败复验 '+$Batch)}}
  @{projectId=$original.projectId;documentId=$original.documentId;sessionId=$session.id;completedTurns=0;codeVersion=$head;batch=$Batch}|ConvertTo-Json|Set-Content $private
 }
