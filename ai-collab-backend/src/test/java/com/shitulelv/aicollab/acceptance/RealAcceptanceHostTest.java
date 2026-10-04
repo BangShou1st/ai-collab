@@ -18,6 +18,7 @@ import org.springframework.test.context.DynamicPropertySource;
     "security.jwt.access-token-minutes=60"
 })
 @EnabledIfEnvironmentVariable(named="AI_REAL_ACCEPTANCE",matches="true")
+@org.springframework.context.annotation.Import(LongQualityModelCapture.class)
 class RealAcceptanceHostTest {
     static final Path STOP = Path.of("target/real-acceptance.stop");
     @DynamicPropertySource static void configure(DynamicPropertyRegistry registry) throws Exception {
