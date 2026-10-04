@@ -1,0 +1,319 @@
+{
+  "session": {
+    "id": "3ec37c62-6676-4256-b08e-5f331e0e3067",
+    "projectId": "b18fb2f7-6d9f-4baa-8f50-bd6495caa7ea",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "四类失败复验 fixed24-final2",
+    "status": "ACTIVE",
+    "version": 9,
+    "createdAt": "2026-10-04T08:58:35.771206Z",
+    "updatedAt": "2026-10-04T09:04:34.854012Z"
+  },
+  "turn": 9,
+  "run": {
+    "id": "c4364888-2e25-4107-a39b-a4f54a08776d",
+    "sessionId": "3ec37c62-6676-4256-b08e-5f331e0e3067",
+    "projectId": "b18fb2f7-6d9f-4baa-8f50-bd6495caa7ea",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "任务规划受理和生成完成必须怎样区分？请从资料中读取规划互联相关片段，解释 operation、版本和人工确认各是什么业务意义。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 6,
+    "toolCallsUsed": 2,
+    "childrenUsed": 0,
+    "inputTokensUsed": 39134,
+    "outputTokensUsed": 1591,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"5502508e-afdc-4432-b4e2-88ee46597fa4\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 12,
+    "createdAt": "2026-10-04T09:04:34.854012Z",
+    "updatedAt": "2026-10-04T09:05:08.836661Z"
+  },
+  "steps": [
+    {
+      "id": "37ce50b6-d571-483b-9da7-95ccdd45d0aa",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 13494,
+          "outputTokens": 447
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 7987,
+        "toolCalls": [
+          {
+            "id": "call_01a1062890c0702383dec82f",
+            "name": "read_document_section",
+            "arguments": {
+              "heading": "6.2",
+              "maxChars": 4000,
+              "documentId": "5502508e-afdc-4432-b4e2-88ee46597fa4"
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 13494,
+      "completionTokens": 447,
+      "tokenUsageEstimated": false,
+      "latencyMs": 7987,
+      "errorCode": null,
+      "createdAt": "2026-10-04T09:04:43.441132Z"
+    },
+    {
+      "id": "810bb058-b1f5-4fd0-8712-9012b1ba8371",
+      "sequence": 2,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "read_document_section",
+      "input": {
+        "arguments": {
+          "heading": "6.2",
+          "maxChars": 4000,
+          "documentId": "5502508e-afdc-4432-b4e2-88ee46597fa4"
+        },
+        "toolCallId": "call_01a1062890c0702383dec82f"
+      },
+      "output": {
+        "data": {
+          "items": [],
+          "trust": "SOURCE_DATA_ONLY",
+          "hasMore": false,
+          "coverage": "SPECIFIED_RANGE_ONLY",
+          "readChars": 0,
+          "truncated": false,
+          "documentId": "5502508e-afdc-4432-b4e2-88ee46597fa4",
+          "snapshotId": "85c7602e-3877-4ffe-918e-49f5f9c3a153",
+          "bodyReadable": true,
+          "continuation": null,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T09:04:43.479883Z"
+    },
+    {
+      "id": "d4555602-c649-462f-88c0-356867767e42",
+      "sequence": 3,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 13840,
+          "outputTokens": 177
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 5276,
+        "toolCalls": [
+          {
+            "id": "call_01a10628a907730b9854e5b5",
+            "name": "read_document_section",
+            "arguments": {
+              "heading": "6.2 异步操作关联",
+              "maxChars": 2500,
+              "documentId": "5502508e-afdc-4432-b4e2-88ee46597fa4"
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 13840,
+      "completionTokens": 177,
+      "tokenUsageEstimated": false,
+      "latencyMs": 5276,
+      "errorCode": null,
+      "createdAt": "2026-10-04T09:04:49.85427Z"
+    },
+    {
+      "id": "91fd72fe-9402-4912-ba7d-8dfa07ad449c",
+      "sequence": 4,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "read_document_section",
+      "input": {
+        "arguments": {
+          "heading": "6.2 异步操作关联",
+          "maxChars": 2500,
+          "documentId": "5502508e-afdc-4432-b4e2-88ee46597fa4"
+        },
+        "toolCallId": "call_01a10628a907730b9854e5b5"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "chunkId": "4803d178-b453-4f13-ab5c-f4c07ab850bc",
+              "chunkNo": 16,
+              "content": "工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，语义为“已受理”。一次调用不能等待整个规划生成而占满工具超时。\n\n- 持久关联 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 与 plan/attempt。\n- 重放同一 invocation 返回原 operation；生成请求摘要与幂等身份绑定。同一键不同参数拒绝，用户明确“再生成一份”才创建新操作。\n- 数据库事务保证操作关联与草稿提交的一致性；提交后 dispatch。服务在提交后、dispatch 前崩溃时，由现有恢复机制或轻量补偿扫描接续，不依赖一次内存通知。\n- 第一版 Agent 当前短运行以“已启动，等待生成”的事实结束，由后台跟踪关联操作；状态更新推送前端，不让模型循环 sleep/轮询。\n- 生成完成后发布持久结果事件，幂等更新计划卡片；如需自动解释结果，创建有去重键的后续短运行，并且仅在当前 goalRevision 仍匹配时生成建议。\n- 用户中途换目标时，旧操作仍可结束，但只能更新对应历史卡片，不能覆盖当前对话目标。\n- 事件重复、乱序或重启恢复后，以业务计划和 attempt 的持久状态为准。监听与轮询只是传播机制。",
+              "heading": "6.2 异步操作关联",
+              "location": {
+                "charFrom": 7779,
+                "charThrough": 8377,
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+              },
+              "fromOffset": 0,
+              "contentHash": "c63c928b95d00962b35afe4ce6c78baffc377f99cde5748d866cf5339c7889ef",
+              "throughOffset": 598
+            }
+          ],
+          "trust": "SOURCE_DATA_ONLY",
+          "hasMore": false,
+          "coverage": "SPECIFIED_RANGE_ONLY",
+          "readChars": 598,
+          "truncated": false,
+          "documentId": "5502508e-afdc-4432-b4e2-88ee46597fa4",
+          "snapshotId": "85c7602e-3877-4ffe-918e-49f5f9c3a153",
+          "bodyReadable": true,
+          "continuation": null,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，语义为“已受理”。一次调用不能等待整个规划生成而占满工具超时。\n\n- 持久关联 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 与 plan/attempt。\n- 重放同一 invocation 返回原 operation；生成请求摘要与幂等身份绑定。同一键不同参数拒绝，用户明确“再生成一份”才创建新操作。\n- 数据库事务保证操作关联与草稿提交的一致性；提交后 dispatch。服务在提交后、dispatch 前崩溃时，由现有恢复机制或轻量补偿扫描接续，不依赖一次内存通知。\n- 第一版 Agent 当前短运行以“已启动，等待生成”的事实结束，由后台跟踪关联操作；状态更新推送前端，不让模型循环 sleep/轮询。\n- 生成完成后发布持久结果事件，幂等更新计划卡片；如需自动解释结果，创建有去重键的后续短运行，并且仅在当前 goalRevision 仍匹配时生成建议。\n- 用户中途换目标时，旧操作仍可结束，但只能更新对应历史卡片，不能覆盖当前对话目标。\n- 事件重复、乱序或重启恢复后，以业务计划和 attempt 的持久状态为准。监听与轮询只是传播机制。",
+            "chunkId": "4803d178-b453-4f13-ab5c-f4c07ab850bc",
+            "heading": "6.2 异步操作关联",
+            "filename": "文档正文",
+            "documentId": "5502508e-afdc-4432-b4e2-88ee46597fa4",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T09:04:49.89784Z"
+    },
+    {
+      "id": "2268b097-0e8f-41de-819c-d1a71c82a51f",
+      "sequence": 5,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 11800,
+          "outputTokens": 967
+        },
+        "content": "## 本轮读取\n\n只读了一节：**6.2 异步操作关联**（文档 5502508e…，快照 85c7602e…，charFrom 7779–8377，实读 598 字符，`truncated=false`，**该节读全**）。第二次以\"6.2\"定位返回 items 为空，故 6.2 无更多正文可读。\n\n## 受理 ≠ 生成完成\n\n【文档 6.2】工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，**语义就是\"已受理\"**；\"一次调用不能等待整个规划生成而占满工具超时\"。Agent 短运行以\"已启动，等待生成\"结束，由后台跟踪，不让模型 sleep/轮询。完成时另发持久结果事件、幂等更新卡片。\n\n- **operation 的业务意义**：一次生成请求的受理凭证。它持久关联 projectId／requesterId／sessionId／goalRevision／originRunId／invocation ID 与 plan/attempt；重放同一 invocation **返回原 operation**，同键不同参数拒绝，只有用户明确\"再生成一份\"才新建。判定受理=有 operationId 且可重放取回同一条；判定完成=以计划与 attempt 的持久状态为准，监听/轮询只是传播机制。\n- **版本的业务意义**：`versionId（如已有）`——受理阶段可能还没有版本号，所以不能拿版本当\"已完成\"的凭据；版本是草稿修订的定位标识，事件重复、乱序或重启恢复后一律以持久状态为准。\n- **人工确认的业务意义**：【文档 6.1，前轮已读、本轮未复读】一期不提供 Agent 可自行执行的正式确认工具，用户在规划页审阅并**确认指定版本**。即\"生成完成\"仍不等于\"生效\"，确认权在服务端与用户侧。\n\n## 未读范围与性质\n\n- 本轮只读 6.2；提纲 27 个标题中 24 个未返回，6.4、11 等仅见于更早轮次的片段，本轮未复读。\n- sourceAuthority 为 `DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY`：以上是快照时刻的**设计要求**，**无通过证据**（本轮未读交付报告/能力矩阵）。\n- 未生成草稿、未创建任务、未提交提案；锁定约束未改（2026-10-05～2026-10-25、Local Owner、≤10 项）。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 17816,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "## 本轮读取\n\n只读了一节：**6.2 异步操作关联**（文档 5502508e…，快照 85c7602e…，charFrom 7779–8377，实读 598 字符，`truncated=false`，**该节读全**）。第二次以\"6.2\"定位返回 items 为空，故 6.2 无更多正文可读。\n\n## 受理 ≠ 生成完成\n\n【文档 6.2】工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，**语义就是\"已受理\"**；\"一次调用不能等待整个规划生成而占满工具超时\"。Agent 短运行以\"已启动，等待生成\"结束，由后台跟踪，不让模型 sleep/轮询。完成时另发持久结果事件、幂等更新卡片。\n\n- **operation 的业务意义**：一次生成请求的受理凭证。它持久关联 projectId／requesterId／sessionId／goalRevision／originRunId／invocation ID 与 plan/attempt；重放同一 invocation **返回原 operation**，同键不同参数拒绝，只有用户明确\"再生成一份\"才新建。判定受理=有 operationId 且可重放取回同一条；判定完成=以计划与 attempt 的持久状态为准，监听/轮询只是传播机制。\n- **版本的业务意义**：`versionId（如已有）`——受理阶段可能还没有版本号，所以不能拿版本当\"已完成\"的凭据；版本是草稿修订的定位标识，事件重复、乱序或重启恢复后一律以持久状态为准。\n- **人工确认的业务意义**：【文档 6.1，前轮已读、本轮未复读】一期不提供 Agent 可自行执行的正式确认工具，用户在规划页审阅并**确认指定版本**。即\"生成完成\"仍不等于\"生效\"，确认权在服务端与用户侧。\n\n## 未读范围与性质\n\n- 本轮只读 6.2；提纲 27 个标题中 24 个未返回，6.4、11 等仅见于更早轮次的片段，本轮未复读。\n- sourceAuthority 为 `DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY`：以上是快照时刻的**设计要求**，**无通过证据**（本轮未读交付报告/能力矩阵）。\n- 未生成草稿、未创建任务、未提交提案；锁定约束未改（2026-10-05～2026-10-25、Local Owner、≤10 项）。",
+      "promptTokens": 11800,
+      "completionTokens": 967,
+      "tokenUsageEstimated": false,
+      "latencyMs": 17816,
+      "errorCode": null,
+      "createdAt": "2026-10-04T09:05:08.811746Z"
+    },
+    {
+      "id": "640d8838-ac76-482d-8745-59f23ee6806d",
+      "sequence": 6,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "## 本轮读取\n\n只读了一节：**6.2 异步操作关联**（文档 5502508e…，快照 85c7602e…，charFrom 7779–8377，实读 598 字符，`truncated=false`，**该节读全**）。第二次以\"6.2\"定位返回 items 为空，故 6.2 无更多正文可读。\n\n## 受理 ≠ 生成完成\n\n【文档 6.2】工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，**语义就是\"已受理\"**；\"一次调用不能等待整个规划生成而占满工具超时\"。Agent 短运行以\"已启动，等待生成\"结束，由后台跟踪，不让模型 sleep/轮询。完成时另发持久结果事件、幂等更新卡片。\n\n- **operation 的业务意义**：一次生成请求的受理凭证。它持久关联 projectId／requesterId／sessionId／goalRevision／originRunId／invocation ID 与 plan/attempt；重放同一 invocation **返回原 operation**，同键不同参数拒绝，只有用户明确\"再生成一份\"才新建。判定受理=有 operationId 且可重放取回同一条；判定完成=以计划与 attempt 的持久状态为准，监听/轮询只是传播机制。\n- **版本的业务意义**：`versionId（如已有）`——受理阶段可能还没有版本号，所以不能拿版本当\"已完成\"的凭据；版本是草稿修订的定位标识，事件重复、乱序或重启恢复后一律以持久状态为准。\n- **人工确认的业务意义**：【文档 6.1，前轮已读、本轮未复读】一期不提供 Agent 可自行执行的正式确认工具，用户在规划页审阅并**确认指定版本**。即\"生成完成\"仍不等于\"生效\"，确认权在服务端与用户侧。\n\n## 未读范围与性质\n\n- 本轮只读 6.2；提纲 27 个标题中 24 个未返回，6.4、11 等仅见于更早轮次的片段，本轮未复读。\n- sourceAuthority 为 `DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY`：以上是快照时刻的**设计要求**，**无通过证据**（本轮未读交付报告/能力矩阵）。\n- 未生成草稿、未创建任务、未提交提案；锁定约束未改（2026-10-05～2026-10-25、Local Owner、≤10 项）。",
+        "citations": [
+          {
+            "quote": "工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，语义为“已受理”。一次调用不能等待整个规划生成而占满工具超时。\n\n- 持久关联 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 与 plan/attempt。\n- 重放同一 invocation 返回原 operation；生成请求摘要与幂等身份绑定。同一键不同参数拒绝，用户明确“再生成一份”才创建新操作。\n- 数据库事务保证操作关联与草稿提交的一致性；提交后 dispatch。服务在提交后、dispatch 前崩溃时，由现有恢复机制或轻量补偿扫描接续，不依赖一次内存通知。\n- 第一版 Agent 当前短运行以“已启动，等待生成”的事实结束，由后台跟踪关联操作；状态更新推送前端，不让模型循环 sleep/轮询。\n- 生成完成后发布持久结果事件，幂等更新计划卡片；如需自动解释结果，创建有去重键的后续短运行，并且仅在当前 goalRevision 仍匹配时生成建议。\n- 用户中途换目标时，旧操作仍可结束，但只能更新对应历史卡片，不能覆盖当前对话目标。\n- 事件重复、乱序或重启恢复后，以业务计划和 attempt 的持久状态为准。监听与轮询只是传播机制。",
+            "chunkId": "4803d178-b453-4f13-ab5c-f4c07ab850bc",
+            "heading": "6.2 异步操作关联",
+            "filename": "文档正文",
+            "documentId": "5502508e-afdc-4432-b4e2-88ee46597fa4",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T09:05:08.836661Z"
+    }
+  ],
+  "executionDate": "2026-10-04",
+  "codeVersion": "92cedb8df0134181cda6bf374a3eefbb95b565f4",
+  "prompt": "任务规划受理和生成完成必须怎样区分？请从资料中读取规划互联相关片段，解释 operation、版本和人工确认各是什么业务意义。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+  "answer": {
+    "id": "69ab81ff-cc42-4caa-84d3-31e6324ddff6",
+    "sessionId": "3ec37c62-6676-4256-b08e-5f331e0e3067",
+    "runId": "c4364888-2e25-4107-a39b-a4f54a08776d",
+    "role": "ASSISTANT",
+    "content": "## 本轮读取\n\n只读了一节：**6.2 异步操作关联**（文档 5502508e…，快照 85c7602e…，charFrom 7779–8377，实读 598 字符，`truncated=false`，**该节读全**）。第二次以\"6.2\"定位返回 items 为空，故 6.2 无更多正文可读。\n\n## 受理 ≠ 生成完成\n\n【文档 6.2】工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，**语义就是\"已受理\"**；\"一次调用不能等待整个规划生成而占满工具超时\"。Agent 短运行以\"已启动，等待生成\"结束，由后台跟踪，不让模型 sleep/轮询。完成时另发持久结果事件、幂等更新卡片。\n\n- **operation 的业务意义**：一次生成请求的受理凭证。它持久关联 projectId／requesterId／sessionId／goalRevision／originRunId／invocation ID 与 plan/attempt；重放同一 invocation **返回原 operation**，同键不同参数拒绝，只有用户明确\"再生成一份\"才新建。判定受理=有 operationId 且可重放取回同一条；判定完成=以计划与 attempt 的持久状态为准，监听/轮询只是传播机制。\n- **版本的业务意义**：`versionId（如已有）`——受理阶段可能还没有版本号，所以不能拿版本当\"已完成\"的凭据；版本是草稿修订的定位标识，事件重复、乱序或重启恢复后一律以持久状态为准。\n- **人工确认的业务意义**：【文档 6.1，前轮已读、本轮未复读】一期不提供 Agent 可自行执行的正式确认工具，用户在规划页审阅并**确认指定版本**。即\"生成完成\"仍不等于\"生效\"，确认权在服务端与用户侧。\n\n## 未读范围与性质\n\n- 本轮只读 6.2；提纲 27 个标题中 24 个未返回，6.4、11 等仅见于更早轮次的片段，本轮未复读。\n- sourceAuthority 为 `DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY`：以上是快照时刻的**设计要求**，**无通过证据**（本轮未读交付报告/能力矩阵）。\n- 未生成草稿、未创建任务、未提交提案；锁定约束未改（2026-10-05～2026-10-25、Local Owner、≤10 项）。",
+    "citations": [
+      {
+        "quote": "工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，语义为“已受理”。一次调用不能等待整个规划生成而占满工具超时。\n\n- 持久关联 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 与 plan/attempt。\n- 重放同一 invocation 返回原 operation；生成请求摘要与幂等身份绑定。同一键不同参数拒绝，用户明确“再生成一份”才创建新操作。\n- 数据库事务保证操作关联与草稿提交的一致性；提交后 dispatch。服务在提交后、dispatch 前崩溃时，由现有恢复机制或轻量补偿扫描接续，不依赖一次内存通知。\n- 第一版 Agent 当前短运行以“已启动，等待生成”的事实结束，由后台跟踪关联操作；状态更新推送前端，不让模型循环 sleep/轮询。\n- 生成完成后发布持久结果事件，幂等更新计划卡片；如需自动解释结果，创建有去重键的后续短运行，并且仅在当前 goalRevision 仍匹配时生成建议。\n- 用户中途换目标时，旧操作仍可结束，但只能更新对应历史卡片，不能覆盖当前对话目标。\n- 事件重复、乱序或重启恢复后，以业务计划和 attempt 的持久状态为准。监听与轮询只是传播机制。",
+        "chunkId": "4803d178-b453-4f13-ab5c-f4c07ab850bc",
+        "heading": "6.2 异步操作关联",
+        "filename": "文档正文",
+        "documentId": "5502508e-afdc-4432-b4e2-88ee46597fa4",
+        "pageNumber": null,
+        "similarity": 1.0
+      }
+    ],
+    "inferences": [],
+    "createdAt": "2026-10-04T09:05:08.836661Z"
+  },
+  "batch": "fixed24-final2",
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG"
+}

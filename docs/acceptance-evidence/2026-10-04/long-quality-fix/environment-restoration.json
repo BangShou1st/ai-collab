@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-04",
+  "host": "normal stop marker; REAL_ACCEPTANCE_CONFIGURATION_RESTORED",
+  "originalBusinessContainers": "postgres, redis, minio remained stopped",
+  "isolatedContainers": "all three stopped with exit code 0; volumes retained",
+  "ownHelpers": "relay, Ollama serve, Vite stopped; no listener on 18080,15173,55432,16379,18090,11434",
+  "sharedServices": "Docker and bsk daemon retained; browser agent sessions stopped",
+  "configuration": "config-restoration.json verifies all five provider rows, original timestamps and purpose assignments privately",
+  "deployment": false,
+  "formalDatabaseMigration": false,
+  "formalApproval": false
+}

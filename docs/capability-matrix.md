@@ -6,9 +6,9 @@
 - 验证层级：`单测`（Mockito 纯单测）→ `集成`（Testcontainers 真实 PostgreSQL）→ `真实模型`（授权副本上的真实提供商验收）→ `浏览器`（产品界面实际操作）。高层级不自动覆盖低层级未覆盖的分支。
 - 状态口径：`已验收`＝有对应证据；`缺口`＝蓝图已确认待处理；`待评测`＝功能存在但质量未用固定用例度量。
 
-最后更新：2026-10-04（P1 上下文基础完成，分支 `codex/context-foundation`）。
+最后更新：2026-10-04（四类长对话失败修复，分支 `codex/context-foundation`）。当前质量结果见顶部专项记录；工具可调用不等于整个业务能力全面验收。
 
-可靠性专项当前结论：真实 space-bunny-free 执行 24 轮，约束修改/换目标和 3 次摘要有证据；仍有预算失败、历史资料误读、部分读取过度结论及骨架无效输出，**长对话整体未通过，不建议发布**。已补输入 usage 提前收敛与事实/覆盖范围提示，但没有抹除旧失败。四类隔离实际故障（排队重启、运行中重启、HTTP 超时、取消与完成竞争）关键不变量通过；受控模型结果不代表真实提供商质量。修复操作详情错误及同代际重试归属，4 项真实数据库回归通过。最终全量 972 项：961 通过、11 显式 opt-in 跳过、零失败/错误，打包通过；前端 142 项与类型检查/构建通过。详见 [交付报告](next-stage-delivery-report.md) 顶部及 2026-10-04/reliability 证据。
+本轮修复与真实质量结果见 [四类失败专项报告](acceptance-evidence/2026-10-04/long-quality-fix/report.md)。真实 space-bunny-free 固定长对话已复验；部分核心失败改善，但实际输入 usage 超预算仍被计数上限遮蔽、摘要仍误把当前数量修改列为待确认，读取范围也有残余错误，**整体质量未通过，不满足部署验收条件**。后端全量 982 项：971 通过、11 显式 opt-in 跳过、零失败/错误；真实 PostgreSQL 已执行。前端 143 项、类型检查、构建及后端打包通过。开发分支推送仅用于备份，不代表正式发布。此前可靠性故障恢复证据保留，不重新认定为待开发。
 
 ## 1. 基础设施与模型接入
 
@@ -28,18 +28,18 @@
 | 运行预算（步数/轮数/工具数/时长/输入输出 token） | `AgentRuntimeLimits`、`AgentWorker` 预检、`AgentRuntimeCoordinator` | 无 | 已验收 | 单测 + 集成 | `AgentRuntimeLimitsTest` 等 |
 | 事件流（SSE）与持久化事件双写 | `AgentEventStreamService`、`AgentRunEventRecorder`、V28 | 无 | 已验收 | 集成 | `AgentEventRepositoryIntegrationTest` |
 | 跨 Tick 工具调用恢复（消息协议配对） | `AgentModelMessageComposer.rebuildToolMessagesFromSteps` | 需原生 Tool Calling | 已验收 | 单测 + 集成 | `CrossTickToolCallTest` |
-| 工作状态（结构化约束/目标/本轮要求） | `AgentWorkingState` v2（V47 JSONB，schemaVersion=2 渐进升级） | 无 | **P1 已交付**：五分类约束（持续/修改/本轮/普通/新目标）、stateRevision、来源消息 ID；摘要节点已启用 | 集成 | `AgentRepositoryIntegrationTest`（31 项） |
+| 工作状态（结构化约束/目标/本轮要求） | `AgentWorkingState` v2（V47 JSONB，schemaVersion=2 渐进升级） | 无 | **P1 已交付**：五分类约束（持续/修改/本轮/普通/新目标）、stateRevision、来源消息 ID；摘要节点已启用 | 集成 | `AgentRepositoryIntegrationTest` |
 | 每轮上下文组装 | `AgentModelMessageComposer`（v2 分层 + `AgentContextBudget`） | 无 | **P1 已交付**：单次请求预算分层、当前请求保护、大结果确定性投影、去重、降级重组；`agent.context.composer-v2` 可关闭（回退路径兼容 v2 数据） | 单测 + 集成 | `AgentModelMessageComposerV2Test`、`AgentContextBudgetTest` |
 | 有界增量会话摘要 | `AgentContextSummarizer`（working_state.summary 节点） | 原生 Tool Calling 模型 | **P1 已交付**：有界输入/输出、覆盖范围来自实际输入（FULL/PARTIAL）、增量延续旧摘要、CAS（revision 匹配 + 原子递增 + 边界校验）、持久化尝试标记（每运行至多一次）、单独记账且 usage 缺失按保守估算、失败不影响主轮次 | 单测 + 集成 | `AgentContextSummarizerTest` |
-| Skill 路由（六场景关键词首命中） | `AgentSkillRegistry` | 无 | **缺口**：复合需求受限（蓝图第 7 节） | 单测 | `AgentSkillRegistryTest` |
-| 项目记忆（最近更新 10 条注入） | `AgentMemoryService`、V30 | 无 | **待评测**：最近≠相关（蓝图 P4 处理） | 单测 | `AgentReadToolsTest` |
+| Skill 路由（含复合规划意图） | `AgentSkillRegistry` | 无 | 已实现：复合规划优先进入迭代规划；保留单项提案与只读边界 | 单测 + 真实模型 | `AgentSkillRegistryTest`、交付报告 P3/P4 |
+| 项目记忆（按当前请求相关性选择） | `AgentMemoryService`、V30 | 无 | 已实现；历史记忆不是当前事实，质量仍按具体场景评测 | 单测 + 集成 | `AgentReadToolsTest`、交付报告 P4 |
 | 原生 Tool Calling 与 Legacy 只读降级 | `RoutingAgentModelExecutor`、`LegacyReadOnlyAgentExecutor` | 原生工具需模型支持 | 已验收 | 单测 + 真实模型 | `AgentWorkerNativeTurnTest` |
 
 ## 3. Agent 工具与写路径
 
 | 功能 | 关键组件 | 角色 | 状态 | 验证层级 | 证据 |
 | --- | --- | --- | --- | --- | --- |
-| 只读查询（任务/成员/里程碑/文档检索等） | `TaskListAgentTool`、`KnowledgeSearchAgentTool` 等 | 成员 | 已验收；**缺口**：TaskList 无搜索/分页（蓝图 P2） | 单测 + 真实模型 | `AgentReadToolsTest` |
+| 只读查询（任务/成员/里程碑/文档检索等） | `TaskListAgentTool`、`KnowledgeSearchAgentTool` 等 | 成员 | 已实现并专项验收：任务标题/关键词、过滤、keyset 分页、total/hasMore/truncated；并发分页为实时快照 | 单测 + 真实数据库 + 真实模型 | `AgentReadToolsTest`、交付报告 P2/P4 |
 | 提案写路径（数值校验、参数合并） | `CreateTaskApprovalAgentTool`、`UpdateTaskApprovalAgentTool` | 成员 | 已验收 | 集成 | `AgentWriteProposalSpringIntegrationTest` |
 | 提案修订与版本冲突 | `AgentApprovalService`（revision、409） | 成员 | 已验收（真实修订 1→2、旧版本 409） | 集成 + 浏览器 | `space-bunny-acceptance-report` |
 | 审批幂等与过期 | `AgentApprovalController`、审批 nonce | 成员 | 已验收（同键幂等批准）；**缺口**：`AGENT_APPROVAL_EXPIRED` 浏览器提示未真实制造 | 集成 + 浏览器 | 同上 |
@@ -53,7 +53,7 @@
 | 规划生成（骨架/详情分阶段、草稿版本） | `TaskPlanCommandService`、`TaskPlanGenerationOrchestrator` | 管理员 | 已验收（真实双模型完整规划） | 集成 + 真实模型 | `real-planning-ling.png` 等 |
 | 结构化校验与局部修复 | `TaskPlanOutputParser`、`TaskPlanPartialRepairService`、V53 | 管理员 | 已验收 | 集成 | `TaskPlanRepairPatchTest` |
 | 人工确认与事务落库 | `TaskPlanConfirmationService` | 管理员 | 已验收（浏览器确认链路、防重复提交） | 集成 + 浏览器 | `space-bunny-browser-A/B` 系列 |
-| Agent 调用规划工具 | — | — | **未开始**（蓝图 P3） | — | — |
+| Agent 调用规划工具 | `AgentPlanningOperationService`、V55 | 管理员/所有者交互运行 | 已实现：生成、修订、读取、取消；受理与完成分开，人工确认仍在规划页 | 集成 + 真实模型 + 浏览器 | 交付报告 P3/P4、long-quality-fix |
 | 规划上下文装配 | `TaskPlanContextAssembler` | — | **缺口**：业务事实集合无裁剪（蓝图第 2 节） | 单测 | 现有代码 |
 
 ## 5. 文档与知识
@@ -61,7 +61,7 @@
 | 功能 | 关键组件 | 状态 | 验证层级 | 证据 |
 | --- | --- | --- | --- | --- |
 | 文档上传解析（Tika、PDF 页码、原件 MinIO） | `TikaDocumentParser`、`DocumentProcessingService` | 已验收（真实文档 RAG）；OCR/复杂表格**不在范围** | 集成 + 真实模型 | `real-document-persistent.png` |
-| 分块与 pgvector 检索 | `DocumentChunker`、`DocumentSearchService` | 已验收；**缺口**：Agent 无目录/分段读取工具（蓝图 P2）；页偏移风险待样本验证 | 集成 + 真实模型 | 同上 |
+| 分块与 pgvector 检索、正文按需读取 | `DocumentChunker`、`DocumentSearchService`、正文快照/目录/章节工具 | 已实现：目录、提纲、有界正文、续读与快照引用；检索仅代表命中片段，正文独立于向量化 | 集成 + 真实模型 + 浏览器 | 交付报告 P2、long-quality-fix；旧块不补造页码 |
 | 索引代际与批重建 | `BatchReindexService`、V50 | 已验收 | 集成 | `BatchReindexAuthorizationTest` |
 | 知识问答（检索、引用校验、追问） | `KnowledgeQuestionApplicationService`、`KnowledgeConversationContext` | 已验收（追问链路）；**待评测**：多段证据/中文术语召回（蓝图 5.3） | 集成 + 真实模型 + 浏览器 | `real-knowledge-followup.png` |
 

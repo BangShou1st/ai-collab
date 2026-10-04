@@ -1,0 +1,108 @@
+{
+  "codeVersion": "1b1073edf82d52992796a01a2fd0737ac12b6353",
+  "prompt": "只讨论故障二：排队后进程重启。哪些持久记录必须留存？恢复时为什么不能用同一需求新建第二份规划？ 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+  "steps": [
+    {
+      "id": "ca6f617e-ca64-4966-84d3-02e3f096c1af",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 13773,
+          "outputTokens": 1071
+        },
+        "content": "**来源**：蓝图 `61e29c28…` 快照 `57af26c7…`——第 11 章「实施进度」（\"Agent 复用规划服务完成生成/修订/取消和持久操作恢复\"\"详情恢复前权限复查、规划卡片退避和操作列表一次范围同步\"、chunk 25「权限/版本/重复写入为硬性门槛」）；4.3 状态字段（`schemaVersion、goalRevision、activeGoal、activeOperations、lastProcessedMessageId`）；4.4（`sourceFrom/sourceThrough、state revision`）。前轮已读，本轮不重复读取。权威性为快照记录，非当前运行时能力。\n\n**必须留存的持久记录（要求）**\n1. operation 记录（operationId/attemptId）——跨重启存活，否则恢复时无从判断\"后台仍在跑\"还是已死。\n2. 规划版本基线（planId + versionNo/baseVersionId），旧版不被半成品覆盖。\n3. attempt 与 operation 的归属关系，防止恢复到别的生成任务。\n4. 状态与摘要元数据：`state revision`、`schemaVersion`、`goalRevision`、`lastProcessedMessageId`。\n5. 额度记账按 attempt 计，恢复不得二次扣减。\n6. 恢复前的权限复查上下文（文档明确\"详情恢复前权限复查\"）。\n\n**为何不能用同一需求新建第二份（推导，非文档明文）**\n- 唯一锚点是 `activeGoal`+`goalRevision` 与 `lastProcessedMessageId`；两份规划会并存两个\"当前目标\"，模型无从判定哪个权威 → 约束互相矛盾。\n- 同一段历史会产生两套 `sourceFrom/sourceThrough` 覆盖，互不可比，无法回答\"结论从哪轮开始变\"。\n- `baseVersionId/expectedVersionNo` 只在同一规划内生效，跨规划不冲突——两副本可并行\"修订\"而不报错，双写。\n- 额度与任务分配会重复计、重复建（项目任务表实测 `total=0`，届时是全量重复）。\n\n**已测结果：全部为零。** 未生成过草稿、未调用 `list_task_plans`、未做过重启注入验证。约束不变：2026-10-05→2026-10-25、Local Owner、最多 **8** 项。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 15417,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "**来源**：蓝图 `61e29c28…` 快照 `57af26c7…`——第 11 章「实施进度」（\"Agent 复用规划服务完成生成/修订/取消和持久操作恢复\"\"详情恢复前权限复查、规划卡片退避和操作列表一次范围同步\"、chunk 25「权限/版本/重复写入为硬性门槛」）；4.3 状态字段（`schemaVersion、goalRevision、activeGoal、activeOperations、lastProcessedMessageId`）；4.4（`sourceFrom/sourceThrough、state revision`）。前轮已读，本轮不重复读取。权威性为快照记录，非当前运行时能力。\n\n**必须留存的持久记录（要求）**\n1. operation 记录（operationId/attemptId）——跨重启存活，否则恢复时无从判断\"后台仍在跑\"还是已死。\n2. 规划版本基线（planId + versionNo/baseVersionId），旧版不被半成品覆盖。\n3. attempt 与 operation 的归属关系，防止恢复到别的生成任务。\n4. 状态与摘要元数据：`state revision`、`schemaVersion`、`goalRevision`、`lastProcessedMessageId`。\n5. 额度记账按 attempt 计，恢复不得二次扣减。\n6. 恢复前的权限复查上下文（文档明确\"详情恢复前权限复查\"）。\n\n**为何不能用同一需求新建第二份（推导，非文档明文）**\n- 唯一锚点是 `activeGoal`+`goalRevision` 与 `lastProcessedMessageId`；两份规划会并存两个\"当前目标\"，模型无从判定哪个权威 → 约束互相矛盾。\n- 同一段历史会产生两套 `sourceFrom/sourceThrough` 覆盖，互不可比，无法回答\"结论从哪轮开始变\"。\n- `baseVersionId/expectedVersionNo` 只在同一规划内生效，跨规划不冲突——两副本可并行\"修订\"而不报错，双写。\n- 额度与任务分配会重复计、重复建（项目任务表实测 `total=0`，届时是全量重复）。\n\n**已测结果：全部为零。** 未生成过草稿、未调用 `list_task_plans`、未做过重启注入验证。约束不变：2026-10-05→2026-10-25、Local Owner、最多 **8** 项。",
+      "promptTokens": 13773,
+      "completionTokens": 1071,
+      "tokenUsageEstimated": false,
+      "latencyMs": 15417,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:35:12.487408Z"
+    },
+    {
+      "id": "be6872ed-719c-4a21-a8a8-f2ce0bfc2f3b",
+      "sequence": 2,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "**来源**：蓝图 `61e29c28…` 快照 `57af26c7…`——第 11 章「实施进度」（\"Agent 复用规划服务完成生成/修订/取消和持久操作恢复\"\"详情恢复前权限复查、规划卡片退避和操作列表一次范围同步\"、chunk 25「权限/版本/重复写入为硬性门槛」）；4.3 状态字段（`schemaVersion、goalRevision、activeGoal、activeOperations、lastProcessedMessageId`）；4.4（`sourceFrom/sourceThrough、state revision`）。前轮已读，本轮不重复读取。权威性为快照记录，非当前运行时能力。\n\n**必须留存的持久记录（要求）**\n1. operation 记录（operationId/attemptId）——跨重启存活，否则恢复时无从判断\"后台仍在跑\"还是已死。\n2. 规划版本基线（planId + versionNo/baseVersionId），旧版不被半成品覆盖。\n3. attempt 与 operation 的归属关系，防止恢复到别的生成任务。\n4. 状态与摘要元数据：`state revision`、`schemaVersion`、`goalRevision`、`lastProcessedMessageId`。\n5. 额度记账按 attempt 计，恢复不得二次扣减。\n6. 恢复前的权限复查上下文（文档明确\"详情恢复前权限复查\"）。\n\n**为何不能用同一需求新建第二份（推导，非文档明文）**\n- 唯一锚点是 `activeGoal`+`goalRevision` 与 `lastProcessedMessageId`；两份规划会并存两个\"当前目标\"，模型无从判定哪个权威 → 约束互相矛盾。\n- 同一段历史会产生两套 `sourceFrom/sourceThrough` 覆盖，互不可比，无法回答\"结论从哪轮开始变\"。\n- `baseVersionId/expectedVersionNo` 只在同一规划内生效，跨规划不冲突——两副本可并行\"修订\"而不报错，双写。\n- 额度与任务分配会重复计、重复建（项目任务表实测 `total=0`，届时是全量重复）。\n\n**已测结果：全部为零。** 未生成过草稿、未调用 `list_task_plans`、未做过重启注入验证。约束不变：2026-10-05→2026-10-25、Local Owner、最多 **8** 项。",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:35:12.498674Z"
+    }
+  ],
+  "session": {
+    "id": "5a3154c4-d9c8-4181-9ee2-b9e2fe0289ff",
+    "projectId": "ef024b8d-eafd-40c4-ad11-66e2b3de7bb2",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "四类失败复验 fixed24-final",
+    "status": "ACTIVE",
+    "version": 12,
+    "createdAt": "2026-10-04T08:28:04.324888Z",
+    "updatedAt": "2026-10-04T08:34:56.244345Z"
+  },
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG",
+  "batch": "fixed24-final",
+  "run": {
+    "id": "bae6230e-53c1-48cf-ade0-7482ef025853",
+    "sessionId": "5a3154c4-d9c8-4181-9ee2-b9e2fe0289ff",
+    "projectId": "ef024b8d-eafd-40c4-ad11-66e2b3de7bb2",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "只讨论故障二：排队后进程重启。哪些持久记录必须留存？恢复时为什么不能用同一需求新建第二份规划？ 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 2,
+    "toolCallsUsed": 0,
+    "childrenUsed": 0,
+    "inputTokensUsed": 13773,
+    "outputTokensUsed": 1071,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"61e29c28-c54d-4e86-a9b7-59b35ba8b758\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 4,
+    "createdAt": "2026-10-04T08:34:56.244345Z",
+    "updatedAt": "2026-10-04T08:35:12.498674Z"
+  },
+  "executionDate": "2026-10-04",
+  "turn": 12,
+  "answer": {
+    "id": "7a575fdf-c8d8-403f-a800-97b9011c078e",
+    "sessionId": "5a3154c4-d9c8-4181-9ee2-b9e2fe0289ff",
+    "runId": "bae6230e-53c1-48cf-ade0-7482ef025853",
+    "role": "ASSISTANT",
+    "content": "**来源**：蓝图 `61e29c28…` 快照 `57af26c7…`——第 11 章「实施进度」（\"Agent 复用规划服务完成生成/修订/取消和持久操作恢复\"\"详情恢复前权限复查、规划卡片退避和操作列表一次范围同步\"、chunk 25「权限/版本/重复写入为硬性门槛」）；4.3 状态字段（`schemaVersion、goalRevision、activeGoal、activeOperations、lastProcessedMessageId`）；4.4（`sourceFrom/sourceThrough、state revision`）。前轮已读，本轮不重复读取。权威性为快照记录，非当前运行时能力。\n\n**必须留存的持久记录（要求）**\n1. operation 记录（operationId/attemptId）——跨重启存活，否则恢复时无从判断\"后台仍在跑\"还是已死。\n2. 规划版本基线（planId + versionNo/baseVersionId），旧版不被半成品覆盖。\n3. attempt 与 operation 的归属关系，防止恢复到别的生成任务。\n4. 状态与摘要元数据：`state revision`、`schemaVersion`、`goalRevision`、`lastProcessedMessageId`。\n5. 额度记账按 attempt 计，恢复不得二次扣减。\n6. 恢复前的权限复查上下文（文档明确\"详情恢复前权限复查\"）。\n\n**为何不能用同一需求新建第二份（推导，非文档明文）**\n- 唯一锚点是 `activeGoal`+`goalRevision` 与 `lastProcessedMessageId`；两份规划会并存两个\"当前目标\"，模型无从判定哪个权威 → 约束互相矛盾。\n- 同一段历史会产生两套 `sourceFrom/sourceThrough` 覆盖，互不可比，无法回答\"结论从哪轮开始变\"。\n- `baseVersionId/expectedVersionNo` 只在同一规划内生效，跨规划不冲突——两副本可并行\"修订\"而不报错，双写。\n- 额度与任务分配会重复计、重复建（项目任务表实测 `total=0`，届时是全量重复）。\n\n**已测结果：全部为零。** 未生成过草稿、未调用 `list_task_plans`、未做过重启注入验证。约束不变：2026-10-05→2026-10-25、Local Owner、最多 **8** 项。",
+    "citations": [],
+    "inferences": [],
+    "createdAt": "2026-10-04T08:35:12.498674Z"
+  }
+}

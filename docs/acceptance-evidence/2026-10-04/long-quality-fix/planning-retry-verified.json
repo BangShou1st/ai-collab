@@ -1,0 +1,171 @@
+{
+  "originalOperations": [
+    {
+      "status": "FAILED",
+      "kind": "start_task_plan",
+      "operationId": "df3a6d29-8c29-4654-b0be-3b5187ea8afc",
+      "planId": "1d1496c1-cdeb-44a3-b6f2-43b8baadaf10",
+      "attemptId": "b5a26347-7ee8-49e5-9776-f836da098d0d",
+      "activeAttemptId": null,
+      "attemptStatus": "FAILED",
+      "errorCode": "PLANNING_MODEL_INVALID_OUTPUT",
+      "title": "ai-collab可靠性验收24轮",
+      "versionNo": 2,
+      "versionId": null,
+      "targetVersionId": null,
+      "goalRevision": 2,
+      "effect": "PLANNING_OPERATION_ACCEPTED",
+      "requiresHumanConfirmation": true,
+      "reviewPath": "/projects/85b9bcee-f93f-4c43-93b5-eea71020e6ea/ai-planning?planId=1d1496c1-cdeb-44a3-b6f2-43b8baadaf10"
+    }
+  ],
+  "layer": "REAL_BROWSER_API_POSTGRES_MODEL",
+  "plan": {
+    "plan": {
+      "id": "1d1496c1-cdeb-44a3-b6f2-43b8baadaf10",
+      "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+      "title": "ai-collab可靠性验收24轮",
+      "goal": "为 ai-collab 发布前可靠性验收形成一份可执行、可判定的完整规划草稿，覆盖六类场景：长对话上下文持续覆盖、模型超时终态与记账、排队中重启的幂等恢复、生成中重启不续接半截输出、取消与模型完成的竞争、验收证据收口。规划须包含里程碑、任务间无环依赖、每项任务可判定的验收标准（要求侧与实测证据区分），全部建议负责人固定为 Local Owner，日期固定 2026-10-05 至 2026-10-25，任务总数不超过 6 项。采购费用核对不属于本规划范围。",
+      "constraints": "1) 日期固定 2026-10-05 至 2026-10-25，不得变更（已核对落在项目周期 2026-10-04~2026-10-31 内）。2) 全部任务建议负责人固定为 Local Owner（项目内唯一成员，role OWNER，userId 9c4cd312-…86df0，由 list_project_members 返回，不得猜测或改派）。3) 任务总数上限 6 项，覆盖长对话持续覆盖、模型超时、排队重启、运行中重启、取消竞争、证据收口六个场景。4) 禁止自动批准：草稿仅生成供人工审阅，正式任务写入必须由项目管理员在规划页对指定版本人工确认后执行，Agent 不得代为确认版本。5) 依赖必须构成有向无环图，按排队中重启 → 运行中重启 → 取消竞争 → 证据收口顺序推进，不允许反向或互为前置的环。6) 验收标准必须可判定，明确区分「实现要求」与「实际通过证据」，当前项目 list_tasks 与 list_task_plans 均为空，所有场景尚无实测证据。7) 依据主蓝图《ai-collab下一阶段主蓝图》documentId 6c164058-05cf-4a3d-9f2c-1dcc17d14211，snapshot bea5454c（已实读第1节、4.2、4.4、5.1、5.2、5.3、5.4、6.1、6.2、6.3；其中4.2 与6.1为DETERMINISTIC投影，费用/预算口径读取不完整，涉及超时记账处需标注依据不足）。8) 引用 6.2：同一调用键重放须返回原 operation、同键异参拒绝；受理不等于完成，一律以计划与 attempt 的持久状态为准；事件可重复、乱序或经重启恢复。9) 引用 6.3：关闭网页不等于取消生成，「停止回答」与「取消这份规划生成」是不同动作；超时或响应丢失须先查原 operation 状态不得直接重新生成；已提交的正式任务不因取消 Agent 运行而删除。10) 引用 4.4：摘要须按 sourceFrom/sourceThrough 记录覆盖范围并以 CAS 提交，窗口超预算整条跳过，覆盖偏移比单纯增大历史窗口可靠。11) 规划草稿须生成里程碑；人工确认前不得写入任何正式任务。",
+      "planStartDate": "2026-10-05",
+      "planDueDate": "2026-10-25",
+      "maxTaskCount": 6,
+      "selectedDocumentIdsJson": "[\"6c164058-05cf-4a3d-9f2c-1dcc17d14211\"]",
+      "status": "READY",
+      "latestVersionNo": 2,
+      "latestVersionId": "c0e95b3e-64b3-4b17-891a-7d63a1defaf3",
+      "generationSeq": 3,
+      "activeAttemptId": null,
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "lastErrorCode": null,
+      "lastErrorSummary": null,
+      "createdAt": "2026-10-04T03:37:52.776037Z",
+      "updatedAt": "2026-10-04T08:11:27.885714Z"
+    },
+    "latestVersion": {
+      "id": "c0e95b3e-64b3-4b17-891a-7d63a1defaf3",
+      "versionNo": 2,
+      "sourceType": "AI_COMPLETE",
+      "basedOnVersionId": "817366a8-d960-4d44-8448-e069dd51be11",
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "createdAt": "2026-10-04 16:11:27.885714"
+    },
+    "activeAttempt": null,
+    "latestFailedAttempt": {
+      "id": "dc4816fd-8e6f-4226-bc61-99473c7d2f1a",
+      "stage": "SKELETON",
+      "status": "FAILED",
+      "provider": null,
+      "model": null,
+      "startedAt": "2026-10-04 15:58:06.421175",
+      "finishedAt": "2026-10-04 15:58:08.401881",
+      "latencyMs": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "errorCode": "PLANNING_MODEL_INVALID_OUTPUT",
+      "errorSummary": null,
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+    },
+    "latestAttempt": {
+      "id": "28194aa2-aa33-4e67-9858-f9ac233e9c63",
+      "stage": "DETAIL",
+      "status": "SUCCESS",
+      "provider": "OPENAI_COMPATIBLE",
+      "model": "space-bunny-free",
+      "startedAt": "2026-10-04 16:10:37.696464",
+      "finishedAt": "2026-10-04 16:11:27.962646",
+      "latencyMs": 50146,
+      "promptTokens": 7485,
+      "completionTokens": 4473,
+      "errorCode": null,
+      "errorSummary": null,
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+    },
+    "confirmation": null,
+    "validation": {
+      "errors": [],
+      "warnings": [
+        "TASK_UNASSIGNED",
+        "TASK_UNASSIGNED",
+        "TASK_UNASSIGNED",
+        "TASK_UNASSIGNED",
+        "TASK_UNASSIGNED",
+        "TASK_UNASSIGNED"
+      ]
+    },
+    "permissions": {
+      "canEdit": true,
+      "canCancel": false,
+      "canRetryDetail": false,
+      "canRegenerate": true,
+      "canConfirm": true,
+      "canDelete": true,
+      "canRestore": true,
+      "canPartialRegenerate": true
+    },
+    "structuredIssues": [
+      {
+        "id": "2692929f-71c9-4b38-b29c-1483f4878e04",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-01",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "c89a9768-9b54-465b-a63d-46e1b62a0376",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-02",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "c0acc550-d621-4dd0-9d1e-31380322e749",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-03",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "39651e1e-b245-4c9b-9f37-7c8542bf215e",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-04",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "a0745d29-15bc-4e54-968d-efc49da64e60",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-05",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "4164df62-4582-4510-ba23-bbe291fcdc57",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-06",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      }
+    ],
+    "repairDiagnostics": []
+  },
+  "codeVersion": "583daaa2e04565f3dc552cdeb6c5a5ce1e590401"
+}

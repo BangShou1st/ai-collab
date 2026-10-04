@@ -1,0 +1,906 @@
+{
+  "run": {
+    "id": "62bf49b4-0f6d-4a09-8471-6e1c2a062822",
+    "sessionId": "638181ea-83c9-4f48-8f51-4c67af92217d",
+    "projectId": "515b5d6e-f612-4fe5-9424-8984d69a4b22",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "请用工具读取当前所选真实主蓝图的目录和提纲，找到上下文、恢复和验收门槛相关章节。只列实际存在的章节，不把目录当已通读全文。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 8,
+    "toolCallsUsed": 4,
+    "childrenUsed": 0,
+    "inputTokensUsed": 28172,
+    "outputTokensUsed": 4529,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 1,
+    "errorCode": "AI_MODEL_TIMEOUT",
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"9662256e-14d2-45ef-8d1f-ed1a0935036b\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 16,
+    "createdAt": "2026-10-04T08:22:11.436246Z",
+    "updatedAt": "2026-10-04T08:27:28.944922Z"
+  },
+  "plan": {
+    "steps": [
+      {
+        "id": "1",
+        "title": "获取里程碑",
+        "status": "PENDING",
+        "purpose": "了解当前迭代目标",
+        "expectedTools": [
+          "milestone.get"
+        ]
+      },
+      {
+        "id": "2",
+        "title": "查询任务",
+        "status": "PENDING",
+        "purpose": "了解待办和进行中任务",
+        "expectedTools": [
+          "task.search"
+        ]
+      },
+      {
+        "id": "3",
+        "title": "分析工作负载",
+        "status": "PENDING",
+        "purpose": "评估团队能力",
+        "expectedTools": [
+          "task.get_workload"
+        ]
+      },
+      {
+        "id": "4",
+        "title": "规划任务分配（需审批）",
+        "status": "PENDING",
+        "purpose": "创建或更新任务",
+        "expectedTools": [
+          "task.create_batch",
+          "task.update"
+        ]
+      }
+    ],
+    "version": 1,
+    "objective": "规划迭代",
+    "successCriteria": []
+  },
+  "steps": [
+    {
+      "id": "fa305968-a2b3-4e1a-b591-2743de97d1b7",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 6970,
+          "outputTokens": 402
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 4797,
+        "toolCalls": [
+          {
+            "id": "call_01a10601b56d7173bfad70ee",
+            "name": "get_document_outline",
+            "arguments": {
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b"
+            }
+          },
+          {
+            "id": "call_01a10601b56d7173bfad70ef",
+            "name": "list_project_documents",
+            "arguments": {
+              "limit": 50
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 6970,
+      "completionTokens": 402,
+      "tokenUsageEstimated": false,
+      "latencyMs": 4797,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:22:17.242524Z"
+    },
+    {
+      "id": "37fd1989-4009-4eec-86aa-cfee1a722c3c",
+      "sequence": 2,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "get_document_outline",
+      "input": {
+        "arguments": {
+          "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b"
+        },
+        "toolCallId": "call_01a10601b56d7173bfad70ee"
+      },
+      "output": {
+        "data": {
+          "sections": [
+            {
+              "heading": "AI Collab 下一阶段总设计：上下文、文档与规划协作",
+              "from_chunk": 0,
+              "through_chunk": 0
+            },
+            {
+              "heading": "1. 目标与已确定的边界",
+              "from_chunk": 1,
+              "through_chunk": 1
+            },
+            {
+              "heading": "2. 当前状态与具体缺口",
+              "from_chunk": 2,
+              "through_chunk": 2
+            },
+            {
+              "heading": "| 范围 | 已有能力与源码依据 | 本阶段需要处理的缺口 |",
+              "from_chunk": 3,
+              "through_chunk": 4
+            },
+            {
+              "heading": "3. 目标结构与责任划分",
+              "from_chunk": 5,
+              "through_chunk": 5
+            },
+            {
+              "heading": "4.1 六类数据必须分开",
+              "from_chunk": 6,
+              "through_chunk": 6
+            },
+            {
+              "heading": "4.2 单次输入预算与整个运行预算分开",
+              "from_chunk": 7,
+              "through_chunk": 7
+            },
+            {
+              "heading": "4.3 结构化工作状态与目标连续性",
+              "from_chunk": 8,
+              "through_chunk": 8
+            },
+            {
+              "heading": "4.4 摘要与压缩",
+              "from_chunk": 9,
+              "through_chunk": 9
+            },
+            {
+              "heading": "5.1 先补按需读取，不先扩张解析种类",
+              "from_chunk": 10,
+              "through_chunk": 10
+            },
+            {
+              "heading": "向 Agent 暴露受项目权限约束的：",
+              "from_chunk": 11,
+              "through_chunk": 11
+            },
+            {
+              "heading": "5.2 来源身份、定位与版本",
+              "from_chunk": 12,
+              "through_chunk": 12
+            },
+            {
+              "heading": "5.3 检索质量与引用",
+              "from_chunk": 13,
+              "through_chunk": 13
+            },
+            {
+              "heading": "5.4 用户界面",
+              "from_chunk": 14,
+              "through_chunk": 14
+            },
+            {
+              "heading": "6.1 工具与服务映射",
+              "from_chunk": 15,
+              "through_chunk": 15
+            },
+            {
+              "heading": "6.2 异步操作关联",
+              "from_chunk": 16,
+              "through_chunk": 16
+            },
+            {
+              "heading": "6.3 权限、预算、模型与取消",
+              "from_chunk": 17,
+              "through_chunk": 17
+            },
+            {
+              "heading": "6.4 资料与约束传递",
+              "from_chunk": 18,
+              "through_chunk": 18
+            },
+            {
+              "heading": "7. 工具与 Skill 的调整",
+              "from_chunk": 19,
+              "through_chunk": 19
+            },
+            {
+              "heading": "8.1 小步替换，保留事实存储",
+              "from_chunk": 20,
+              "through_chunk": 20
+            },
+            {
+              "heading": "8.2 避免重复实现",
+              "from_chunk": 21,
+              "through_chunk": 21
+            },
+            {
+              "heading": "8.3 工程文档也要收口",
+              "from_chunk": 22,
+              "through_chunk": 22
+            },
+            {
+              "heading": "9. 分阶段交付及验收门槛",
+              "from_chunk": 23,
+              "through_chunk": 23
+            },
+            {
+              "heading": "| 阶段 | 交付范围 | 完成条件 |",
+              "from_chunk": 24,
+              "through_chunk": 24
+            },
+            {
+              "heading": "最小评测场景",
+              "from_chunk": 25,
+              "through_chunk": 25
+            },
+            {
+              "heading": "10. 给执行 AI 的边界说明",
+              "from_chunk": 26,
+              "through_chunk": 26
+            },
+            {
+              "heading": "11. 实施进度（2026-10-04）",
+              "from_chunk": 27,
+              "through_chunk": 27
+            }
+          ],
+          "structure": "HEURISTIC_HEADINGS",
+          "truncated": false,
+          "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+          "snapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+          "bodyReadable": true,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:22:17.295184Z"
+    },
+    {
+      "id": "78f0730c-8d79-43e5-b76e-d165041b113f",
+      "sequence": 3,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "list_project_documents",
+      "input": {
+        "arguments": {
+          "limit": 50
+        },
+        "toolCallId": "call_01a10601b56d7173bfad70ef"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+              "snapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+              "displayName": "ai-collab下一阶段主蓝图",
+              "bodyReadable": true,
+              "failureStage": null,
+              "legacySource": false,
+              "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+              "recordVersion": 0,
+              "searchAvailable": true,
+              "processingStatus": "READY",
+              "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+            }
+          ],
+          "total": 1,
+          "hasMore": false,
+          "truncated": false,
+          "nextCursor": null
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:22:17.359473Z"
+    },
+    {
+      "id": "81c0cd0a-bc3f-4f4c-8246-d4a5c03f88a2",
+      "sequence": 4,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 7700,
+          "outputTokens": 427
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 9442,
+        "toolCalls": [
+          {
+            "id": "call_01a10601e05a74baaa1b2af0",
+            "name": "search_project_knowledge",
+            "arguments": {
+              "query": "上下文 恢复 验收 门槛"
+            }
+          },
+          {
+            "id": "call_01a10601e05a74baaa1b2af1",
+            "name": "search_project_knowledge",
+            "arguments": {
+              "query": "恢复 回滚 重放 幂等"
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 7700,
+      "completionTokens": 427,
+      "tokenUsageEstimated": false,
+      "latencyMs": 9442,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:22:27.942765Z"
+    },
+    {
+      "id": "81f4671c-e81f-4513-b36e-d48140d9cd74",
+      "sequence": 5,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "search_project_knowledge",
+      "input": {
+        "arguments": {
+          "query": "上下文 恢复 验收 门槛"
+        },
+        "toolCallId": "call_01a10601e05a74baaa1b2af0"
+      },
+      "output": {
+        "data": {
+          "sources": [
+            {
+              "quote": "start/repair 收到目标、日期、任务数上限、用户约束、锁定字段和已核验的文档引用。缺少必需日期等字段时一次性澄清；页面/用户明确提供的信息直接复用。\n\n当前规划在 documentIds 为空时不检索文档：新入口必须明确“使用所选资料”还是“仅按描述规划”。按文件名寻找资料要先查目录、确认唯一身份，不猜 UUID；未就绪资料的等待、排除或停止要明确呈现。\n\n规划服务继续从可信数据加载成员和来源。若引用版本已变或文档被移除，重新验证/检索或报告冲突；不能把 Agent 的历史摘要冒充本次规划的原始来源。",
+              "chunkId": "a2e7e3ab-851d-41a9-8ab7-5af584873c4f",
+              "heading": "6.4 资料与约束传递",
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+              "pageNumber": null,
+              "similarity": 0.4732946644284586,
+              "sourceIdentity": {
+                "chunkNo": 18,
+                "charFrom": 9013,
+                "filename": "ai-next-stage-blueprint.md",
+                "projectId": "515b5d6e-f612-4fe5-9424-8984d69a4b22",
+                "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+                "charThrough": 9271,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+              }
+            },
+            {
+              "quote": "本轮由用户授权连续完成 P1 剩余修复与 P2/P3/P4。本蓝图范围和架构边界继续有效；实际状态、测试层级及限制统一记录在 [连续交付报告](next-stage-delivery-report.md) 和 [能力矩阵](capability-matrix.md)，不将本文初始静态缺口视为仍未修复。\n\nP1 剩余覆盖修复已提交 5f8d7fa。P2 已实施任务搜索分页、文档按需正文读取、来源身份和页边界/偏移修复，见交付报告。\n\nP2 提交 5f53b54；P3 提交 9f1874d，Agent 复用规划服务完成生成/修订/取消和持久操作恢复。P4 已实施小型业务评测与实际链路修复，真实模型、API 确认及隔离数据库断言通过。最终能力与未验证层级以连续交付报告为准；浏览器扩展未连接，未将组件测试计为浏览器验收，未扩展为检索融合或独立评测平台。\n\nP4 代码与证据提交 45ce1b9。阶段实现已完成；真实浏览器与报告列出的扩展验收仍未验证，不以本地测试替代。原业务服务未启动，本轮临时服务已恢复停止。\n\n用户复核后的本轮范围只包括详情恢复前权限复查、持久输出预算实际使用、规划卡片退避和操作列表一次范围同步。修复及独立验证记录追加到连续交付报告；浏览器完整业务链路与故障注入未验证，不能据此前 17 个场景或真实 API 成功宣称全部验收收尾。",
+              "chunkId": "8eb631ee-f0ca-4d85-af86-2d33ef7d67fb",
+              "heading": "11. 实施进度（2026-10-04）",
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+              "pageNumber": null,
+              "similarity": 0.4474962345521267,
+              "sourceIdentity": {
+                "chunkNo": 27,
+                "charFrom": 12396,
+                "filename": "ai-next-stage-blueprint.md",
+                "projectId": "515b5d6e-f612-4fe5-9424-8984d69a4b22",
+                "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+                "charThrough": 12974,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+              }
+            },
+            {
+              "quote": "- 本文作为下一阶段唯一蓝图；历史审查和验收报告保留日期及结果，不混列成当前待办。\n- 维护一张能力矩阵：功能、工具、角色、模型要求、当前状态、验证层级、证据链接。\n- 每阶段更新实际改变的配置与运行步骤，不复制多份大而相似的实施报告。\n- 部署说明区分正式环境、验收副本和 mock；日志只保留可诊断的脱敏信息，不把凭据、签名 URL 或完整私人资料加入公开证据。",
+              "chunkId": "9609517b-faa9-41ae-868e-529255a0a97f",
+              "heading": "8.3 工程文档也要收口",
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+              "pageNumber": null,
+              "similarity": 0.4340214881397142,
+              "sourceIdentity": {
+                "chunkNo": 22,
+                "charFrom": 10382,
+                "filename": "ai-next-stage-blueprint.md",
+                "projectId": "515b5d6e-f612-4fe5-9424-8984d69a4b22",
+                "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+                "charThrough": 10565,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+              }
+            },
+            {
+              "quote": "| --- | --- | --- |\n| P0：基线与用例 | 记录当前 checkout/已有修改、能力矩阵、代表性场景和当前证据 | 明确已通过/缺口/待评测；不重跑所有真实模型作为开工条件 |\n| P1：上下文基础 | 全请求预算、最新请求保护、工作状态约束合并、可追溯有界摘要、降级与兼容 | 长对话早期约束保留；改目标不串任务；超预算不静默丢当前需求；摘要失败可恢复；工具消息协议合法 |\n| P2：按需读取与来源 | 任务搜索/分页、文档目录/状态/分段读取、来源身份、页码偏移回归及必要修复 | 超过 50 个任务可找到目标；能读指定文档范围；多页引用定位有证据；资料越权/失效不被复用 |\n| P3：规划互联 | 规划读/生成/修复/取消工具、操作关联与恢复、能力组、计划卡片、原规划页确认 | 文档→草稿→局部修订→确认→任务完整闭环；重复发起不重复草稿；失败保留草稿；旧版本不可落库 |\n| P4：质量收敛 | 固定评测集、追问与多来源改进、必要时混合检索、相关记忆选择、运维指标与文档收口 | 对比基线有证据；解释每个未通过项；有开关和恢复步骤；不以测试总数替代业务质量 |\n\nP1 与 P2 不要求完成“完美记忆”和“完整文档平台”才能进入 P3：只实现支撑最小真实链路的接口、来源与预算。OCR、复杂表格、多模态、完整文档协同编辑、自动排程优化、多 Agent 平台均为后",
+              "chunkId": "c9298456-5ee4-40b6-a48b-d09bf5543007",
+              "heading": "| 阶段 | 交付范围 | 完成条件 |",
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+              "pageNumber": null,
+              "similarity": 0.43061711927995616,
+              "sourceIdentity": {
+                "chunkNo": 24,
+                "charFrom": 10655,
+                "filename": "ai-next-stage-blueprint.md",
+                "projectId": "515b5d6e-f612-4fe5-9424-8984d69a4b22",
+                "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+                "charThrough": 11259,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+              }
+            },
+            {
+              "quote": "保留 PDF/DOCX/Markdown/TXT 和现有文件、大小、解析并发限制。扫描 PDF 的 OCR、复杂表格/图像理解单列后续范围，不把文字提取成功说成完整理解文档。",
+              "chunkId": "0d44b1ab-739c-47ad-bbf9-abe820d2c28d",
+              "heading": "5.1 先补按需读取，不先扩张解析种类",
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+              "pageNumber": null,
+              "similarity": 0.4183747144975418,
+              "sourceIdentity": {
+                "chunkNo": 10,
+                "charFrom": 5572,
+                "filename": "ai-next-stage-blueprint.md",
+                "projectId": "515b5d6e-f612-4fe5-9424-8984d69a4b22",
+                "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+                "charThrough": 5659,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+              }
+            }
+          ],
+          "coverage": "RELEVANT_EXCERPTS_ONLY",
+          "fullDocumentRead": false
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "start/repair 收到目标、日期、任务数上限、用户约束、锁定字段和已核验的文档引用。缺少必需日期等字段时一次性澄清；页面/用户明确提供的信息直接复用。\n\n当前规划在 documentIds 为空时不检索文档：新入口必须明确“使用所选资料”还是“仅按描述规划”。按文件名寻找资料要先查目录、确认唯一身份，不猜 UUID；未就绪资料的等待、排除或停止要明确呈现。\n\n规划服务继续从可信数据加载成员和来源。若引用版本已变或文档被移除，重新验证/检索或报告冲突；不能把 Agent 的历史摘要冒充本次规划的原始来源。",
+            "chunkId": "a2e7e3ab-851d-41a9-8ab7-5af584873c4f",
+            "heading": "6.4 资料与约束传递",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4732946644284586
+          },
+          {
+            "quote": "本轮由用户授权连续完成 P1 剩余修复与 P2/P3/P4。本蓝图范围和架构边界继续有效；实际状态、测试层级及限制统一记录在 [连续交付报告](next-stage-delivery-report.md) 和 [能力矩阵](capability-matrix.md)，不将本文初始静态缺口视为仍未修复。\n\nP1 剩余覆盖修复已提交 5f8d7fa。P2 已实施任务搜索分页、文档按需正文读取、来源身份和页边界/偏移修复，见交付报告。\n\nP2 提交 5f53b54；P3 提交 9f1874d，Agent 复用规划服务完成生成/修订/取消和持久操作恢复。P4 已实施小型业务评测与实际链路修复，真实模型、API 确认及隔离数据库断言通过。最终能力与未验证层级以连续交付报告为准；浏览器扩展未连接，未将组件测试计为浏览器验收，未扩展为检索融合或独立评测平台。\n\nP4 代码与证据提交 45ce1b9。阶段实现已完成；真实浏览器与报告列出的扩展验收仍未验证，不以本地测试替代。原业务服务未启动，本轮临时服务已恢复停止。\n\n用户复核后的本轮范围只包括详情恢复前权限复查、持久输出预算实际使用、规划卡片退避和操作列表一次范围同步。修复及独立验证记录追加到连续交付报告；浏览器完整业务链路与故障注入未验证，不能据此前 17 个场景或真实 API 成功宣称全部验收收尾。",
+            "chunkId": "8eb631ee-f0ca-4d85-af86-2d33ef7d67fb",
+            "heading": "11. 实施进度（2026-10-04）",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4474962345521267
+          },
+          {
+            "quote": "- 本文作为下一阶段唯一蓝图；历史审查和验收报告保留日期及结果，不混列成当前待办。\n- 维护一张能力矩阵：功能、工具、角色、模型要求、当前状态、验证层级、证据链接。\n- 每阶段更新实际改变的配置与运行步骤，不复制多份大而相似的实施报告。\n- 部署说明区分正式环境、验收副本和 mock；日志只保留可诊断的脱敏信息，不把凭据、签名 URL 或完整私人资料加入公开证据。",
+            "chunkId": "9609517b-faa9-41ae-868e-529255a0a97f",
+            "heading": "8.3 工程文档也要收口",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4340214881397142
+          },
+          {
+            "quote": "| --- | --- | --- |\n| P0：基线与用例 | 记录当前 checkout/已有修改、能力矩阵、代表性场景和当前证据 | 明确已通过/缺口/待评测；不重跑所有真实模型作为开工条件 |\n| P1：上下文基础 | 全请求预算、最新请求保护、工作状态约束合并、可追溯有界摘要、降级与兼容 | 长对话早期约束保留；改目标不串任务；超预算不静默丢当前需求；摘要失败可恢复；工具消息协议合法 |\n| P2：按需读取与来源 | 任务搜索/分页、文档目录/状态/分段读取、来源身份、页码偏移回归及必要修复 | 超过 50 个任务可找到目标；能读指定文档范围；多页引用定位有证据；资料越权/失效不被复用 |\n| P3：规划互联 | 规划读/生成/修复/取消工具、操作关联与恢复、能力组、计划卡片、原规划页确认 | 文档→草稿→局部修订→确认→任务完整闭环；重复发起不重复草稿；失败保留草稿；旧版本不可落库 |\n| P4：质量收敛 | 固定评测集、追问与多来源改进、必要时混合检索、相关记忆选择、运维指标与文档收口 | 对比基线有证据；解释每个未通过项；有开关和恢复步骤；不以测试总数替代业务质量 |\n\nP1 与 P2 不要求完成“完美记忆”和“完整文档平台”才能进入 P3：只实现支撑最小真实链路的接口、来源与预算。OCR、复杂表格、多模态、完整文档协同编辑、自动排程优化、多 Agent 平台均为后",
+            "chunkId": "c9298456-5ee4-40b6-a48b-d09bf5543007",
+            "heading": "| 阶段 | 交付范围 | 完成条件 |",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.43061711927995616
+          },
+          {
+            "quote": "保留 PDF/DOCX/Markdown/TXT 和现有文件、大小、解析并发限制。扫描 PDF 的 OCR、复杂表格/图像理解单列后续范围，不把文字提取成功说成完整理解文档。",
+            "chunkId": "0d44b1ab-739c-47ad-bbf9-abe820d2c28d",
+            "heading": "5.1 先补按需读取，不先扩张解析种类",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4183747144975418
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:22:28.178901Z"
+    },
+    {
+      "id": "a6eb02d7-b8d1-4dca-b1d5-4024ad6fe695",
+      "sequence": 6,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "search_project_knowledge",
+      "input": {
+        "arguments": {
+          "query": "恢复 回滚 重放 幂等"
+        },
+        "toolCallId": "call_01a10601e05a74baaa1b2af1"
+      },
+      "output": {
+        "data": {
+          "sources": [
+            {
+              "quote": "工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，语义为“已受理”。一次调用不能等待整个规划生成而占满工具超时。\n\n- 持久关联 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 与 plan/attempt。\n- 重放同一 invocation 返回原 operation；生成请求摘要与幂等身份绑定。同一键不同参数拒绝，用户明确“再生成一份”才创建新操作。\n- 数据库事务保证操作关联与草稿提交的一致性；提交后 dispatch。服务在提交后、dispatch 前崩溃时，由现有恢复机制或轻量补偿扫描接续，不依赖一次内存通知。\n- 第一版 Agent 当前短运行以“已启动，等待生成”的事实结束，由后台跟踪关联操作；状态更新推送前端，不让模型循环 sleep/轮询。\n- 生成完成后发布持久结果事件，幂等更新计划卡片；如需自动解释结果，创建有去重键的后续短运行，并且仅在当前 goalRevision 仍匹配时生成建议。\n- 用户中途换目标时，旧操作仍可结束，但只能更新对应历史卡片，不能覆盖当前对话目标。\n- 事件重复、乱序或重启恢复后，以业务计划和 attempt 的持久状态为准。监听与轮询只是传播机制。",
+              "chunkId": "2b56e77b-555a-402e-b682-99cf569d14fc",
+              "heading": "6.2 异步操作关联",
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+              "pageNumber": null,
+              "similarity": 0.4898049873927366,
+              "sourceIdentity": {
+                "chunkNo": 16,
+                "charFrom": 7779,
+                "filename": "ai-next-stage-blueprint.md",
+                "projectId": "515b5d6e-f612-4fe5-9424-8984d69a4b22",
+                "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+                "charThrough": 8377,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+              }
+            },
+            {
+              "quote": "文档页优先告诉用户：文件能否下载、正文是否可读、检索是否可用、失败发生在哪一阶段、何时可重试。来源点击应能看到对应原文片段及可用定位。\n\n项目 Agent 显示所选资料、检索/读取事件和规划卡片；不给普通用户展示 token 切片、工作状态 JSON 或内部类名。诊断详情放在可展开区域，并按权限脱敏。",
+              "chunkId": "6167f996-5acb-4b7d-9fcf-32eb06d64511",
+              "heading": "5.4 用户界面",
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+              "pageNumber": null,
+              "similarity": 0.4710288678373289,
+              "sourceIdentity": {
+                "chunkNo": 14,
+                "charFrom": 7023,
+                "filename": "ai-next-stage-blueprint.md",
+                "projectId": "515b5d6e-f612-4fe5-9424-8984d69a4b22",
+                "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+                "charThrough": 7174,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+              }
+            },
+            {
+              "quote": "- 不把旧聊天、工具事件和已批准提案批量改写成新格式。working_state/summary 使用 schemaVersion，读取兼容旧数据，按会话渐进升级。\n- 摘要是派生数据，可失效后重建；操作关联和正式确认记录是业务数据，必须事务化、幂等和保留审计。\n- 文档来源升级优先新增可空元数据和兼容读取。历史内容无法确定版本时明确标为旧格式，不填虚假版本或页码。\n- 新迁移编号由实施时扫描 Flyway 确定，不预占编号，不修改已发布迁移。\n- 上下文策略、文档读取工具和规划接入可分别关闭；停止新调用后仍能查看已有操作及结果。关闭功能不能清空草稿或让进行中任务失联。\n- 回退先关闭新入口/策略，继续用兼容读取和旧业务页面；数据库采用向前修复，不承诺直接降级旧二进制即可兼容所有新增状态。",
+              "chunkId": "8d6353a3-26f4-4c5f-85f7-0c38f6e8e793",
+              "heading": "8.1 小步替换，保留事实存储",
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+              "pageNumber": null,
+              "similarity": 0.4645500736892608,
+              "sourceIdentity": {
+                "chunkNo": 20,
+                "charFrom": 9785,
+                "filename": "ai-next-stage-blueprint.md",
+                "projectId": "515b5d6e-f612-4fe5-9424-8984d69a4b22",
+                "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+                "charThrough": 10134,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+              }
+            },
+            {
+              "quote": "保留 PDF/DOCX/Markdown/TXT 和现有文件、大小、解析并发限制。扫描 PDF 的 OCR、复杂表格/图像理解单列后续范围，不把文字提取成功说成完整理解文档。",
+              "chunkId": "0d44b1ab-739c-47ad-bbf9-abe820d2c28d",
+              "heading": "5.1 先补按需读取，不先扩张解析种类",
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+              "pageNumber": null,
+              "similarity": 0.4626510276850395,
+              "sourceIdentity": {
+                "chunkNo": 10,
+                "charFrom": 5572,
+                "filename": "ai-next-stage-blueprint.md",
+                "projectId": "515b5d6e-f612-4fe5-9424-8984d69a4b22",
+                "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+                "charThrough": 5659,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+              }
+            },
+            {
+              "quote": "| 建议工具 | 复用的现有能力 | 副作用 |\n| --- | --- | --- |\n| list_task_plans / get_task_plan | TaskPlanQueryService | 只读，分页/按版本读取 |\n| start_task_plan | TaskPlanCommandService.create | 写草稿与生成任务、消耗额度 |\n| get_task_plan_progress | 现有状态与事件查询 | 只读；生成中不高频唤醒模型 |\n| repair_task_plan | 现有 partialRegenerate / repair 服务 | 指定版本和范围的草稿修复 |\n| cancel_task_plan_generation | 现有 cancel | 取消对应 attempt，保留已有草稿 |\n\n一期不提供模型可自行执行的正式规划确认工具。Agent 返回计划卡片和规划页入口，用户在原规划页审阅并确认指定版本，继续调用 TaskPlanConfirmationService。\n\n不得把规划拆成 N 次 create_task_after_approval 来绕过批量依赖校验和事务，也不得新写一套规划引擎。",
+              "chunkId": "3d36e545-cf8d-491e-9d4c-0b0f850e8899",
+              "heading": "6.1 工具与服务映射",
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+              "pageNumber": null,
+              "similarity": 0.4610157334199184,
+              "sourceIdentity": {
+                "chunkNo": 15,
+                "charFrom": 7225,
+                "filename": "ai-next-stage-blueprint.md",
+                "projectId": "515b5d6e-f612-4fe5-9424-8984d69a4b22",
+                "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+                "charThrough": 7761,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "f72bbe2e-e51c-400d-bf6b-8ec81c7cf32f",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+              }
+            }
+          ],
+          "coverage": "RELEVANT_EXCERPTS_ONLY",
+          "fullDocumentRead": false
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，语义为“已受理”。一次调用不能等待整个规划生成而占满工具超时。\n\n- 持久关联 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 与 plan/attempt。\n- 重放同一 invocation 返回原 operation；生成请求摘要与幂等身份绑定。同一键不同参数拒绝，用户明确“再生成一份”才创建新操作。\n- 数据库事务保证操作关联与草稿提交的一致性；提交后 dispatch。服务在提交后、dispatch 前崩溃时，由现有恢复机制或轻量补偿扫描接续，不依赖一次内存通知。\n- 第一版 Agent 当前短运行以“已启动，等待生成”的事实结束，由后台跟踪关联操作；状态更新推送前端，不让模型循环 sleep/轮询。\n- 生成完成后发布持久结果事件，幂等更新计划卡片；如需自动解释结果，创建有去重键的后续短运行，并且仅在当前 goalRevision 仍匹配时生成建议。\n- 用户中途换目标时，旧操作仍可结束，但只能更新对应历史卡片，不能覆盖当前对话目标。\n- 事件重复、乱序或重启恢复后，以业务计划和 attempt 的持久状态为准。监听与轮询只是传播机制。",
+            "chunkId": "2b56e77b-555a-402e-b682-99cf569d14fc",
+            "heading": "6.2 异步操作关联",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4898049873927366
+          },
+          {
+            "quote": "文档页优先告诉用户：文件能否下载、正文是否可读、检索是否可用、失败发生在哪一阶段、何时可重试。来源点击应能看到对应原文片段及可用定位。\n\n项目 Agent 显示所选资料、检索/读取事件和规划卡片；不给普通用户展示 token 切片、工作状态 JSON 或内部类名。诊断详情放在可展开区域，并按权限脱敏。",
+            "chunkId": "6167f996-5acb-4b7d-9fcf-32eb06d64511",
+            "heading": "5.4 用户界面",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4710288678373289
+          },
+          {
+            "quote": "- 不把旧聊天、工具事件和已批准提案批量改写成新格式。working_state/summary 使用 schemaVersion，读取兼容旧数据，按会话渐进升级。\n- 摘要是派生数据，可失效后重建；操作关联和正式确认记录是业务数据，必须事务化、幂等和保留审计。\n- 文档来源升级优先新增可空元数据和兼容读取。历史内容无法确定版本时明确标为旧格式，不填虚假版本或页码。\n- 新迁移编号由实施时扫描 Flyway 确定，不预占编号，不修改已发布迁移。\n- 上下文策略、文档读取工具和规划接入可分别关闭；停止新调用后仍能查看已有操作及结果。关闭功能不能清空草稿或让进行中任务失联。\n- 回退先关闭新入口/策略，继续用兼容读取和旧业务页面；数据库采用向前修复，不承诺直接降级旧二进制即可兼容所有新增状态。",
+            "chunkId": "8d6353a3-26f4-4c5f-85f7-0c38f6e8e793",
+            "heading": "8.1 小步替换，保留事实存储",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4645500736892608
+          },
+          {
+            "quote": "保留 PDF/DOCX/Markdown/TXT 和现有文件、大小、解析并发限制。扫描 PDF 的 OCR、复杂表格/图像理解单列后续范围，不把文字提取成功说成完整理解文档。",
+            "chunkId": "0d44b1ab-739c-47ad-bbf9-abe820d2c28d",
+            "heading": "5.1 先补按需读取，不先扩张解析种类",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4626510276850395
+          },
+          {
+            "quote": "| 建议工具 | 复用的现有能力 | 副作用 |\n| --- | --- | --- |\n| list_task_plans / get_task_plan | TaskPlanQueryService | 只读，分页/按版本读取 |\n| start_task_plan | TaskPlanCommandService.create | 写草稿与生成任务、消耗额度 |\n| get_task_plan_progress | 现有状态与事件查询 | 只读；生成中不高频唤醒模型 |\n| repair_task_plan | 现有 partialRegenerate / repair 服务 | 指定版本和范围的草稿修复 |\n| cancel_task_plan_generation | 现有 cancel | 取消对应 attempt，保留已有草稿 |\n\n一期不提供模型可自行执行的正式规划确认工具。Agent 返回计划卡片和规划页入口，用户在原规划页审阅并确认指定版本，继续调用 TaskPlanConfirmationService。\n\n不得把规划拆成 N 次 create_task_after_approval 来绕过批量依赖校验和事务，也不得新写一套规划引擎。",
+            "chunkId": "3d36e545-cf8d-491e-9d4c-0b0f850e8899",
+            "heading": "6.1 工具与服务映射",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4610157334199184
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:22:28.286357Z"
+    },
+    {
+      "id": "6d53409e-c2a1-4045-a6bb-06fd9f898e2d",
+      "sequence": 7,
+      "type": "ERROR",
+      "toolName": null,
+      "input": null,
+      "output": null,
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": "AI_MODEL_TIMEOUT",
+      "createdAt": "2026-10-04T08:25:29.494593Z"
+    },
+    {
+      "id": "784fc933-3356-4c02-8281-ac118961ea1d",
+      "sequence": 8,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 13502,
+          "outputTokens": 3700
+        },
+        "content": "## 1. 当前迭代状态\n\n仍处于\"只讨论、不生成草稿\"阶段：未调用 `start_task_plan`，未提交任何提案，日期/负责人/任务数三项固定约束原样保留。本轮共 4 次只读调用（2 次检索、目录列举、提纲），已用满单轮预算。\n\n**先纠正一处可能的误解**：项目文档目录里**只有 1 份文档**（`total=1, hasMore=false, truncated=false`）：\n\n| 文件名 | documentId | 正文可读 | 检索可用 | 解析状态 | 快照 |\n|---|---|---|---|---|---|\n| ai-next-stage-blueprint.md（显示名\"ai-collab下一阶段主蓝图\"） | 9662256e-…5036b | true | true | READY | f72bbe2e-…32f |\n\n蓝图正文里以链接形式提到的 `next-stage-delivery-report.md`、`capability-matrix.md` **在本项目文档目录中并不存在**，所以\"实际状态、测试层级与限制\"的权威记录我在本项目内读不到，不能用蓝图的初始描述代替。\n\n## 2. 目录/提纲：实际存在的章节（不做全文通读声明）\n\n`get_document_outline` 仍是确定性投影：`projectedTotalCount=27`、`projectedOmitted=24`、`structure=HEURISTIC_HEADINGS`、`fullDocumentRead=false`，**只交回 3 个标题**：总标题、`1. 目标与已确定的边界`、`2. 当前状态与具体缺口`。\n\n提纲投影不可用于回答你的问题，但**检索返回的 `heading` + `charFrom/charThrough` 是已定位的真实章节**，本轮及前序轮共确认存在8 个章节：\n\n| 与你的关注点 | 章节标题（文档中实际存在） | 定位 |\n|---|---|---|\n| 上下文/摘要 | 4.4 摘要与压缩 | chunkNo 9 |\n| 上下文/资料传递 | 6.4 资料与约束传递 | chunkNo 18，char 9013–9271 |\n| 恢复 | 6.2 异步操作关联 | chunkNo 16，char 7779–8377 |\n| 验收相关（无同名章节） | 8.3 工程文档也要收口 | chunkNo 22，char 10382–10565 |\n| 验收相关（无同名章节） | 11. 实施进度（2026-10-04） | chunkNo 27，char 12396–12974 |\n| 迁移/幂等相关 | 8.1 小步替换，保留事实存储 | chunkNo 20，char 9785–10134 |\n| 其他已确认 | 5.1 先补按需读取，不先扩张解析种类 / 5.4 用户界面 | — |\n\n**明确限定**：标题中直接含\"验收门槛\"的章节**在已返回的任何结果中都没有出现**，它属于被投影省略的标题或并不以此命名；目前只能在 `8.3`（\"历史审查和验收报告保留日期及结果\"、\"能力矩阵：功能、工具、角色、模型要求、当前状态、验证层级、证据链接\"）和 `11.`（记录实际状态、测试层级与限制）中看到验收口径的片段文字。**不能据此断言全文没有专门章节**。同理，\"恢复\"我只找到 `6.2 异步操作关联` 这一最贴近的章节，尚未逐字读其正文。\n\n## 3. 摘要对应正文：覆盖偏移 vs 增大历史窗口\n\n来源：`9662256e-…5036b`，章节 **4.4 摘要与压缩**（chunkNo 9，charFrom=4956 / charThrough=5513，本会话已实际读取到的范围）。\n\n**【文档片段】4.4 原文（本轮可见部分）**\n> \"先用确定性投影压缩工具数据，再在历史超出预算时生成**有界增量摘要**，**不每轮全量总结**。\n> 摘要保存 **sourceFrom/sourceThrough 消息范围**、来源 ID、schemaVersion、创建所用模型/策略版本和 state revision。建议字段为：目标沿革、仍有效约束、已确认决定、对象引用、未解决问题、失败尝试摘要。\n> 1. 最近必要的用户原话保留；旧寒暄、重复解释和过时展示内容可被… **[projected]**\"\n\n**【文档片段】8.1 小步替换，保留事实存储**（chunkNo 20）\n> \"不把旧聊天、工具事件和已批准提案批量改写成新格式。working_state/summary 使用 schemaVersion，读取兼容旧数据，按会话渐进升级。\"\n> \"摘要是派生数据，可失效后重建；操作关联和正式确认记录是业务数据，必须事务化、幂等和保留审计。\"\n\n**为什么覆盖偏移更可靠（四条，均可回溯到上面原文）**\n\n1. **窗口没有上界，摘要有界**。4.4 明确要求\"有界增量摘要\"并否定\"每轮全量总结\"。简单增大历史窗口在机制上就是回到每轮全量总结——原文点名的方向，而不是原文认可的机制。\n2. **窗口变大换来的是噪声，不是约束**。4.4 列明可被丢弃的正是\"旧寒暄、重复解释和过时展示内容\"；窗口越大这三类只会更多，而新增的\"仍有效约束\"并不会随之增加。摘要的字段设计（目标沿革/仍有效约束/已确认决定/未解决问题/失败尝试）本身就是按\"约束密度\"而非\"消息条数\"组织的。\n3. **窗口无法判定来源，偏移带坐标**。4.4 强制摘要保存 `sourceFrom/sourceThrough 消息范围` + 来源 ID + schemaVersion + 模型/策略版本 + state revision。增大窗口得到的是一段没有区间标注的原始文本，只能\"相信结论在里面\"；覆盖偏移使每条结论可回溯、可判定失效——恰好对应 8.1\"摘要是派生数据，可失效后重建\"。\n4. **窗口与\"渐进升级\"互斥**。8.1 要求旧数据\"读取兼容、按会话渐进升级\"，并禁止把旧聊天/工具事件批量改写成新格式。反复扩大窗口重放历史，等价于用新口径重新解释全部旧数据，绕过 schemaVersion 的兼容读取路径——原文明确禁止。\n\n**【本轮实测佐证】** 这轮我三次尝试\"看得更全\"，全部撞上确定性投影：提纲 27 节只回 3 节；两次检索各 `projectedTotalCount=5, projectedOmitted=2`；`4.4` 读到 557/2447 字符后 `[projected]` 截断且 `hasMore=false`。也就是说——**扩大范围并不会稳定给你更多内容**，只有拿着确定坐标（heading + charFrom/charThrough + snapshotId）定点读，才能准确说出\"我读到了哪一段、边界外还有多少\"，并且 `continuation` 是否存在必须逐次实测、不能假定。\n\n## 4. 未读范围（限定声明）\n\n- 27 个章节中 **24 个标题未返回**，正文未读；`fullDocumentRead=false`。\n- `4.4 摘要与压缩`：2447 字符中本会话仅观测 557 字符，**约 1890 字符未读**，截断处恰好在裁剪规则列举中途——很可能还有覆盖偏移的具体判定条件，**未读不等于文档中没有**。\n- `6.2`/`6.4`/`8.1`/`8.3`/`11.`均为**检索片段**（各自约 150–580 字符，末尾 `[projected]`），非连续全文。\n- 章节 \"6.2异步操作关联\" 片段显示\"重…\"处被投影省略，重试/恢复的细节**未读**。\n- 全部文档内容的效力为 `DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY`：只代表快照时刻的描述，不能证明当前实现已具备这些能力；文中\"尚未支持/待实现\"也不等于当前缺口。\n\n## 5. 下个迭代目标与风险\n\n**下个迭代目标**：补读 `4.4` 剩余约 1890 字符以拿全覆盖偏移判定规则；再读 `6.2 异步操作关联` 正文确认\"恢复\"的服务端口径。这两项直接决定任务清单里的验收项是否写得准。\n\n**任务分配计划**：本轮无写入、无提案。仍不生成草稿（按你的指示）。\"Local Owner\"目前只是你指定的显示名，我未查询项目成员确认其真实 userId，不会猜 ID。\n\n**风险与依赖**：文档覆盖严重不足（已读3 节正文 + 5 段检索片段 / 共 27 节）；验收门槛章节尚未定位；`capability-matrix.md`、`next-stage-delivery-report.md` 提到的权威状态文件不在本项目文档内；第 4 点中的 schemaVersion/失效重建属于文档描述，落地与否需后续以实际能力核对。\n\n[QUESTIONS]\n下一步希望我怎么做？\n1. 继续读 `4.4` 剩余正文 + `6.2 异步操作关联`，补齐覆盖偏移与恢复口径（推荐）\n2. 换更窄的检索词，专找\"验收/验证层级/证据\"相关章节标题\n3. 资料已够用，直接生成草稿（2026-10-05~2026-10-25，最多 10 项，负责人 Local Owner）\n4. 先查询项目成员确认 \"Local Owner\" 对应的真实 userId 再定",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 47032,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "## 1. 当前迭代状态\n\n仍处于\"只讨论、不生成草稿\"阶段：未调用 `start_task_plan`，未提交任何提案，日期/负责人/任务数三项固定约束原样保留。本轮共 4 次只读调用（2 次检索、目录列举、提纲），已用满单轮预算。\n\n**先纠正一处可能的误解**：项目文档目录里**只有 1 份文档**（`total=1, hasMore=false, truncated=false`）：\n\n| 文件名 | documentId | 正文可读 | 检索可用 | 解析状态 | 快照 |\n|---|---|---|---|---|---|\n| ai-next-stage-blueprint.md（显示名\"ai-collab下一阶段主蓝图\"） | 9662256e-…5036b | true | true | READY | f72bbe2e-…32f |\n\n蓝图正文里以链接形式提到的 `next-stage-delivery-report.md`、`capability-matrix.md` **在本项目文档目录中并不存在**，所以\"实际状态、测试层级与限制\"的权威记录我在本项目内读不到，不能用蓝图的初始描述代替。\n\n## 2. 目录/提纲：实际存在的章节（不做全文通读声明）\n\n`get_document_outline` 仍是确定性投影：`projectedTotalCount=27`、`projectedOmitted=24`、`structure=HEURISTIC_HEADINGS`、`fullDocumentRead=false`，**只交回 3 个标题**：总标题、`1. 目标与已确定的边界`、`2. 当前状态与具体缺口`。\n\n提纲投影不可用于回答你的问题，但**检索返回的 `heading` + `charFrom/charThrough` 是已定位的真实章节**，本轮及前序轮共确认存在8 个章节：\n\n| 与你的关注点 | 章节标题（文档中实际存在） | 定位 |\n|---|---|---|\n| 上下文/摘要 | 4.4 摘要与压缩 | chunkNo 9 |\n| 上下文/资料传递 | 6.4 资料与约束传递 | chunkNo 18，char 9013–9271 |\n| 恢复 | 6.2 异步操作关联 | chunkNo 16，char 7779–8377 |\n| 验收相关（无同名章节） | 8.3 工程文档也要收口 | chunkNo 22，char 10382–10565 |\n| 验收相关（无同名章节） | 11. 实施进度（2026-10-04） | chunkNo 27，char 12396–12974 |\n| 迁移/幂等相关 | 8.1 小步替换，保留事实存储 | chunkNo 20，char 9785–10134 |\n| 其他已确认 | 5.1 先补按需读取，不先扩张解析种类 / 5.4 用户界面 | — |\n\n**明确限定**：标题中直接含\"验收门槛\"的章节**在已返回的任何结果中都没有出现**，它属于被投影省略的标题或并不以此命名；目前只能在 `8.3`（\"历史审查和验收报告保留日期及结果\"、\"能力矩阵：功能、工具、角色、模型要求、当前状态、验证层级、证据链接\"）和 `11.`（记录实际状态、测试层级与限制）中看到验收口径的片段文字。**不能据此断言全文没有专门章节**。同理，\"恢复\"我只找到 `6.2 异步操作关联` 这一最贴近的章节，尚未逐字读其正文。\n\n## 3. 摘要对应正文：覆盖偏移 vs 增大历史窗口\n\n来源：`9662256e-…5036b`，章节 **4.4 摘要与压缩**（chunkNo 9，charFrom=4956 / charThrough=5513，本会话已实际读取到的范围）。\n\n**【文档片段】4.4 原文（本轮可见部分）**\n> \"先用确定性投影压缩工具数据，再在历史超出预算时生成**有界增量摘要**，**不每轮全量总结**。\n> 摘要保存 **sourceFrom/sourceThrough 消息范围**、来源 ID、schemaVersion、创建所用模型/策略版本和 state revision。建议字段为：目标沿革、仍有效约束、已确认决定、对象引用、未解决问题、失败尝试摘要。\n> 1. 最近必要的用户原话保留；旧寒暄、重复解释和过时展示内容可被… **[projected]**\"\n\n**【文档片段】8.1 小步替换，保留事实存储**（chunkNo 20）\n> \"不把旧聊天、工具事件和已批准提案批量改写成新格式。working_state/summary 使用 schemaVersion，读取兼容旧数据，按会话渐进升级。\"\n> \"摘要是派生数据，可失效后重建",
+      "promptTokens": 13502,
+      "completionTokens": 3700,
+      "tokenUsageEstimated": false,
+      "latencyMs": 47032,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:27:28.839374Z"
+    },
+    {
+      "id": "0a017dfe-b753-4517-a335-e615bee5af04",
+      "sequence": 9,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "## 1. 当前迭代状态\n\n仍处于\"只讨论、不生成草稿\"阶段：未调用 `start_task_plan`，未提交任何提案，日期/负责人/任务数三项固定约束原样保留。本轮共 4 次只读调用（2 次检索、目录列举、提纲），已用满单轮预算。\n\n**先纠正一处可能的误解**：项目文档目录里**只有 1 份文档**（`total=1, hasMore=false, truncated=false`）：\n\n| 文件名 | documentId | 正文可读 | 检索可用 | 解析状态 | 快照 |\n|---|---|---|---|---|---|\n| ai-next-stage-blueprint.md（显示名\"ai-collab下一阶段主蓝图\"） | 9662256e-…5036b | true | true | READY | f72bbe2e-…32f |\n\n蓝图正文里以链接形式提到的 `next-stage-delivery-report.md`、`capability-matrix.md` **在本项目文档目录中并不存在**，所以\"实际状态、测试层级与限制\"的权威记录我在本项目内读不到，不能用蓝图的初始描述代替。\n\n## 2. 目录/提纲：实际存在的章节（不做全文通读声明）\n\n`get_document_outline` 仍是确定性投影：`projectedTotalCount=27`、`projectedOmitted=24`、`structure=HEURISTIC_HEADINGS`、`fullDocumentRead=false`，**只交回 3 个标题**：总标题、`1. 目标与已确定的边界`、`2. 当前状态与具体缺口`。\n\n提纲投影不可用于回答你的问题，但**检索返回的 `heading` + `charFrom/charThrough` 是已定位的真实章节**，本轮及前序轮共确认存在8 个章节：\n\n| 与你的关注点 | 章节标题（文档中实际存在） | 定位 |\n|---|---|---|\n| 上下文/摘要 | 4.4 摘要与压缩 | chunkNo 9 |\n| 上下文/资料传递 | 6.4 资料与约束传递 | chunkNo 18，char 9013–9271 |\n| 恢复 | 6.2 异步操作关联 | chunkNo 16，char 7779–8377 |\n| 验收相关（无同名章节） | 8.3 工程文档也要收口 | chunkNo 22，char 10382–10565 |\n| 验收相关（无同名章节） | 11. 实施进度（2026-10-04） | chunkNo 27，char 12396–12974 |\n| 迁移/幂等相关 | 8.1 小步替换，保留事实存储 | chunkNo 20，char 9785–10134 |\n| 其他已确认 | 5.1 先补按需读取，不先扩张解析种类 / 5.4 用户界面 | — |\n\n**明确限定**：标题中直接含\"验收门槛\"的章节**在已返回的任何结果中都没有出现**，它属于被投影省略的标题或并不以此命名；目前只能在 `8.3`（\"历史审查和验收报告保留日期及结果\"、\"能力矩阵：功能、工具、角色、模型要求、当前状态、验证层级、证据链接\"）和 `11.`（记录实际状态、测试层级与限制）中看到验收口径的片段文字。**不能据此断言全文没有专门章节**。同理，\"恢复\"我只找到 `6.2 异步操作关联` 这一最贴近的章节，尚未逐字读其正文。\n\n## 3. 摘要对应正文：覆盖偏移 vs 增大历史窗口\n\n来源：`9662256e-…5036b`，章节 **4.4 摘要与压缩**（chunkNo 9，charFrom=4956 / charThrough=5513，本会话已实际读取到的范围）。\n\n**【文档片段】4.4 原文（本轮可见部分）**\n> \"先用确定性投影压缩工具数据，再在历史超出预算时生成**有界增量摘要**，**不每轮全量总结**。\n> 摘要保存 **sourceFrom/sourceThrough 消息范围**、来源 ID、schemaVersion、创建所用模型/策略版本和 state revision。建议字段为：目标沿革、仍有效约束、已确认决定、对象引用、未解决问题、失败尝试摘要。\n> 1. 最近必要的用户原话保留；旧寒暄、重复解释和过时展示内容可被… **[projected]**\"\n\n**【文档片段】8.1 小步替换，保留事实存储**（chunkNo 20）\n> \"不把旧聊天、工具事件和已批准提案批量改写成新格式。working_state/summary 使用 schemaVersion，读取兼容旧数据，按会话渐进升级。\"\n> \"摘要是派生数据，可失效后重建；操作关联和正式确认记录是业务数据，必须事务化、幂等和保留审计。\"\n\n**为什么覆盖偏移更可靠（四条，均可回溯到上面原文）**\n\n1. **窗口没有上界，摘要有界**。4.4 明确要求\"有界增量摘要\"并否定\"每轮全量总结\"。简单增大历史窗口在机制上就是回到每轮全量总结——原文点名的方向，而不是原文认可的机制。\n2. **窗口变大换来的是噪声，不是约束**。4.4 列明可被丢弃的正是\"旧寒暄、重复解释和过时展示内容\"；窗口越大这三类只会更多，而新增的\"仍有效约束\"并不会随之增加。摘要的字段设计（目标沿革/仍有效约束/已确认决定/未解决问题/失败尝试）本身就是按\"约束密度\"而非\"消息条数\"组织的。\n3. **窗口无法判定来源，偏移带坐标**。4.4 强制摘要保存 `sourceFrom/sourceThrough 消息范围` + 来源 ID + schemaVersion + 模型/策略版本 + state revision。增大窗口得到的是一段没有区间标注的原始文本，只能\"相信结论在里面\"；覆盖偏移使每条结论可回溯、可判定失效——恰好对应 8.1\"摘要是派生数据，可失效后重建\"。\n4. **窗口与\"渐进升级\"互斥**。8.1 要求旧数据\"读取兼容、按会话渐进升级\"，并禁止把旧聊天/工具事件批量改写成新格式。反复扩大窗口重放历史，等价于用新口径重新解释全部旧数据，绕过 schemaVersion 的兼容读取路径——原文明确禁止。\n\n**【本轮实测佐证】** 这轮我三次尝试\"看得更全\"，全部撞上确定性投影：提纲 27 节只回 3 节；两次检索各 `projectedTotalCount=5, projectedOmitted=2`；`4.4` 读到 557/2447 字符后 `[projected]` 截断且 `hasMore=false`。也就是说——**扩大范围并不会稳定给你更多内容**，只有拿着确定坐标（heading + charFrom/charThrough + snapshotId）定点读，才能准确说出\"我读到了哪一段、边界外还有多少\"，并且 `continuation` 是否存在必须逐次实测、不能假定。\n\n## 4. 未读范围（限定声明）\n\n- 27 个章节中 **24 个标题未返回**，正文未读；`fullDocumentRead=false`。\n- `4.4 摘要与压缩`：2447 字符中本会话仅观测 557 字符，**约 1890 字符未读**，截断处恰好在裁剪规则列举中途——很可能还有覆盖偏移的具体判定条件，**未读不等于文档中没有**。\n- `6.2`/`6.4`/`8.1`/`8.3`/`11.`均为**检索片段**（各自约 150–580 字符，末尾 `[projected]`），非连续全文。\n- 章节 \"6.2异步操作关联\" 片段显示\"重…\"处被投影省略，重试/恢复的细节**未读**。\n- 全部文档内容的效力为 `DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY`：只代表快照时刻的描述，不能证明当前实现已具备这些能力；文中\"尚未支持/待实现\"也不等于当前缺口。\n\n## 5. 下个迭代目标与风险\n\n**下个迭代目标**：补读 `4.4` 剩余约 1890 字符以拿全覆盖偏移判定规则；再读 `6.2 异步操作关联` 正文确认\"恢复\"的服务端口径。这两项直接决定任务清单里的验收项是否写得准。\n\n**任务分配计划**：本轮无写入、无提案。仍不生成草稿（按你的指示）。\"Local Owner\"目前只是你指定的显示名，我未查询项目成员确认其真实 userId，不会猜 ID。\n\n**风险与依赖**：文档覆盖严重不足（已读3 节正文 + 5 段检索片段 / 共 27 节）；验收门槛章节尚未定位；`capability-matrix.md`、`next-stage-delivery-report.md` 提到的权威状态文件不在本项目文档内；第 4 点中的 schemaVersion/失效重建属于文档描述，落地与否需后续以实际能力核对。\n\n[QUESTIONS]\n下一步希望我怎么做？\n1. 继续读 `4.4` 剩余正文 + `6.2 异步操作关联`，补齐覆盖偏移与恢复口径（推荐）\n2. 换更窄的检索词，专找\"验收/验证层级/证据\"相关章节标题\n3. 资料已够用，直接生成草稿（2026-10-05~2026-10-25，最多 10 项，负责人 Local Owner）\n4. 先查询项目成员确认 \"Local Owner\" 对应的真实 userId 再定",
+        "citations": [
+          {
+            "quote": "start/repair 收到目标、日期、任务数上限、用户约束、锁定字段和已核验的文档引用。缺少必需日期等字段时一次性澄清；页面/用户明确提供的信息直接复用。\n\n当前规划在 documentIds 为空时不检索文档：新入口必须明确“使用所选资料”还是“仅按描述规划”。按文件名寻找资料要先查目录、确认唯一身份，不猜 UUID；未就绪资料的等待、排除或停止要明确呈现。\n\n规划服务继续从可信数据加载成员和来源。若引用版本已变或文档被移除，重新验证/检索或报告冲突；不能把 Agent 的历史摘要冒充本次规划的原始来源。",
+            "chunkId": "a2e7e3ab-851d-41a9-8ab7-5af584873c4f",
+            "heading": "6.4 资料与约束传递",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4732946644284586
+          },
+          {
+            "quote": "本轮由用户授权连续完成 P1 剩余修复与 P2/P3/P4。本蓝图范围和架构边界继续有效；实际状态、测试层级及限制统一记录在 [连续交付报告](next-stage-delivery-report.md) 和 [能力矩阵](capability-matrix.md)，不将本文初始静态缺口视为仍未修复。\n\nP1 剩余覆盖修复已提交 5f8d7fa。P2 已实施任务搜索分页、文档按需正文读取、来源身份和页边界/偏移修复，见交付报告。\n\nP2 提交 5f53b54；P3 提交 9f1874d，Agent 复用规划服务完成生成/修订/取消和持久操作恢复。P4 已实施小型业务评测与实际链路修复，真实模型、API 确认及隔离数据库断言通过。最终能力与未验证层级以连续交付报告为准；浏览器扩展未连接，未将组件测试计为浏览器验收，未扩展为检索融合或独立评测平台。\n\nP4 代码与证据提交 45ce1b9。阶段实现已完成；真实浏览器与报告列出的扩展验收仍未验证，不以本地测试替代。原业务服务未启动，本轮临时服务已恢复停止。\n\n用户复核后的本轮范围只包括详情恢复前权限复查、持久输出预算实际使用、规划卡片退避和操作列表一次范围同步。修复及独立验证记录追加到连续交付报告；浏览器完整业务链路与故障注入未验证，不能据此前 17 个场景或真实 API 成功宣称全部验收收尾。",
+            "chunkId": "8eb631ee-f0ca-4d85-af86-2d33ef7d67fb",
+            "heading": "11. 实施进度（2026-10-04）",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4474962345521267
+          },
+          {
+            "quote": "- 本文作为下一阶段唯一蓝图；历史审查和验收报告保留日期及结果，不混列成当前待办。\n- 维护一张能力矩阵：功能、工具、角色、模型要求、当前状态、验证层级、证据链接。\n- 每阶段更新实际改变的配置与运行步骤，不复制多份大而相似的实施报告。\n- 部署说明区分正式环境、验收副本和 mock；日志只保留可诊断的脱敏信息，不把凭据、签名 URL 或完整私人资料加入公开证据。",
+            "chunkId": "9609517b-faa9-41ae-868e-529255a0a97f",
+            "heading": "8.3 工程文档也要收口",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4340214881397142
+          },
+          {
+            "quote": "| --- | --- | --- |\n| P0：基线与用例 | 记录当前 checkout/已有修改、能力矩阵、代表性场景和当前证据 | 明确已通过/缺口/待评测；不重跑所有真实模型作为开工条件 |\n| P1：上下文基础 | 全请求预算、最新请求保护、工作状态约束合并、可追溯有界摘要、降级与兼容 | 长对话早期约束保留；改目标不串任务；超预算不静默丢当前需求；摘要失败可恢复；工具消息协议合法 |\n| P2：按需读取与来源 | 任务搜索/分页、文档目录/状态/分段读取、来源身份、页码偏移回归及必要修复 | 超过 50 个任务可找到目标；能读指定文档范围；多页引用定位有证据；资料越权/失效不被复用 |\n| P3：规划互联 | 规划读/生成/修复/取消工具、操作关联与恢复、能力组、计划卡片、原规划页确认 | 文档→草稿→局部修订→确认→任务完整闭环；重复发起不重复草稿；失败保留草稿；旧版本不可落库 |\n| P4：质量收敛 | 固定评测集、追问与多来源改进、必要时混合检索、相关记忆选择、运维指标与文档收口 | 对比基线有证据；解释每个未通过项；有开关和恢复步骤；不以测试总数替代业务质量 |\n\nP1 与 P2 不要求完成“完美记忆”和“完整文档平台”才能进入 P3：只实现支撑最小真实链路的接口、来源与预算。OCR、复杂表格、多模态、完整文档协同编辑、自动排程优化、多 Agent 平台均为后",
+            "chunkId": "c9298456-5ee4-40b6-a48b-d09bf5543007",
+            "heading": "| 阶段 | 交付范围 | 完成条件 |",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.43061711927995616
+          },
+          {
+            "quote": "保留 PDF/DOCX/Markdown/TXT 和现有文件、大小、解析并发限制。扫描 PDF 的 OCR、复杂表格/图像理解单列后续范围，不把文字提取成功说成完整理解文档。",
+            "chunkId": "0d44b1ab-739c-47ad-bbf9-abe820d2c28d",
+            "heading": "5.1 先补按需读取，不先扩张解析种类",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4183747144975418
+          },
+          {
+            "quote": "工具发起后返回 `operationId, planId, attemptId, status, versionId（如已有）`，语义为“已受理”。一次调用不能等待整个规划生成而占满工具超时。\n\n- 持久关联 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 与 plan/attempt。\n- 重放同一 invocation 返回原 operation；生成请求摘要与幂等身份绑定。同一键不同参数拒绝，用户明确“再生成一份”才创建新操作。\n- 数据库事务保证操作关联与草稿提交的一致性；提交后 dispatch。服务在提交后、dispatch 前崩溃时，由现有恢复机制或轻量补偿扫描接续，不依赖一次内存通知。\n- 第一版 Agent 当前短运行以“已启动，等待生成”的事实结束，由后台跟踪关联操作；状态更新推送前端，不让模型循环 sleep/轮询。\n- 生成完成后发布持久结果事件，幂等更新计划卡片；如需自动解释结果，创建有去重键的后续短运行，并且仅在当前 goalRevision 仍匹配时生成建议。\n- 用户中途换目标时，旧操作仍可结束，但只能更新对应历史卡片，不能覆盖当前对话目标。\n- 事件重复、乱序或重启恢复后，以业务计划和 attempt 的持久状态为准。监听与轮询只是传播机制。",
+            "chunkId": "2b56e77b-555a-402e-b682-99cf569d14fc",
+            "heading": "6.2 异步操作关联",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4898049873927366
+          },
+          {
+            "quote": "文档页优先告诉用户：文件能否下载、正文是否可读、检索是否可用、失败发生在哪一阶段、何时可重试。来源点击应能看到对应原文片段及可用定位。\n\n项目 Agent 显示所选资料、检索/读取事件和规划卡片；不给普通用户展示 token 切片、工作状态 JSON 或内部类名。诊断详情放在可展开区域，并按权限脱敏。",
+            "chunkId": "6167f996-5acb-4b7d-9fcf-32eb06d64511",
+            "heading": "5.4 用户界面",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4710288678373289
+          },
+          {
+            "quote": "- 不把旧聊天、工具事件和已批准提案批量改写成新格式。working_state/summary 使用 schemaVersion，读取兼容旧数据，按会话渐进升级。\n- 摘要是派生数据，可失效后重建；操作关联和正式确认记录是业务数据，必须事务化、幂等和保留审计。\n- 文档来源升级优先新增可空元数据和兼容读取。历史内容无法确定版本时明确标为旧格式，不填虚假版本或页码。\n- 新迁移编号由实施时扫描 Flyway 确定，不预占编号，不修改已发布迁移。\n- 上下文策略、文档读取工具和规划接入可分别关闭；停止新调用后仍能查看已有操作及结果。关闭功能不能清空草稿或让进行中任务失联。\n- 回退先关闭新入口/策略，继续用兼容读取和旧业务页面；数据库采用向前修复，不承诺直接降级旧二进制即可兼容所有新增状态。",
+            "chunkId": "8d6353a3-26f4-4c5f-85f7-0c38f6e8e793",
+            "heading": "8.1 小步替换，保留事实存储",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4645500736892608
+          },
+          {
+            "quote": "| 建议工具 | 复用的现有能力 | 副作用 |\n| --- | --- | --- |\n| list_task_plans / get_task_plan | TaskPlanQueryService | 只读，分页/按版本读取 |\n| start_task_plan | TaskPlanCommandService.create | 写草稿与生成任务、消耗额度 |\n| get_task_plan_progress | 现有状态与事件查询 | 只读；生成中不高频唤醒模型 |\n| repair_task_plan | 现有 partialRegenerate / repair 服务 | 指定版本和范围的草稿修复 |\n| cancel_task_plan_generation | 现有 cancel | 取消对应 attempt，保留已有草稿 |\n\n一期不提供模型可自行执行的正式规划确认工具。Agent 返回计划卡片和规划页入口，用户在原规划页审阅并确认指定版本，继续调用 TaskPlanConfirmationService。\n\n不得把规划拆成 N 次 create_task_after_approval 来绕过批量依赖校验和事务，也不得新写一套规划引擎。",
+            "chunkId": "3d36e545-cf8d-491e-9d4c-0b0f850e8899",
+            "heading": "6.1 工具与服务映射",
+            "filename": "ai-next-stage-blueprint.md",
+            "documentId": "9662256e-14d2-45ef-8d1f-ed1a0935036b",
+            "pageNumber": null,
+            "similarity": 0.4610157334199184
+          }
+        ],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:27:28.944922Z"
+    }
+  ],
+  "lastEventSequence": 21,
+  "pendingApprovalId": null
+}
