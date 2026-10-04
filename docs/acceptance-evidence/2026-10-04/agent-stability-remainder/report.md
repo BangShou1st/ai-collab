@@ -44,6 +44,16 @@
 
 **修补后受影响链路真实复验**（`patch-reverify`，代码 `e3e3603`，隔离副本，embedding 可用 doc=READY）：新会话按原措辞执行第 10 轮（负向）与第 23 轮（正向）——第 10 轮 SUCCEEDED、0 次工具调用、无规划操作（否定意图未被注入提示误导）；第 23 轮模型 3 次 `start_task_plan` 均被业务结构化校验 `VALIDATION_ERROR` 拒绝（新会话无约束历史，参数不满足），模型如实报告"草稿未生成"后预算收尾 BUDGET_EXCEEDED——**这是预算保护正确停止，不是用户目标完成**；未调高预算凑成功。账本审计：2 个运行、7 次模型调用、7 条已结算身份行、0 未结算、0 对账差异（正常路径"记账+标记不重复入账"在真实链路成立）。测试增量：AgentContextSummarizerTest 23 项、AgentRuntimeCoordinatorTest 27 项、AgentActualTokenUsageIntegrationTest 11 项（新增落库前取消回归与独立身份回归），后端全量 1030 项 0 失败。
 
+## 结算原子性闭环轮（2026-10-05，代码 `b2d6f2d`）：外部二次评审三项缺口的封堵与复验
+
+外部二次只读评审确认三项缺口并限定本轮闭环范围：
+
+1. **正常记账与"已结算"标记不在同一事务**：修复为原子记账——身份行首次结算（条件更新独占）与 `recordModelTurn`／`recordBudgetExceeded` 的运行累计、步骤写入在同一事务（`recordModelTurnWithSettlement`／`recordBudgetExceededWithSettlement`）；事务中途失败整体回滚（身份行与总额共同回滚），同身份后续补结算不会重复累计；模型网络请求不在事务内。真实 PG 故障注入：注入版本冲突后身份行仍为未结算且总额未变、随后同身份补结算恰好一次；正常记账后重复补结算总额不变；输出超限原子记账恰好一次。
+2. **请求异常与输出超限分支未接入结算**：格式/提供商/超时异常与请求中取消路径现在先按证据结算（输入按实际请求规模估算、输出显式 UNKNOWN、身份行终态）再走失败/恢复流程；输出超限分支使用原子版本并带同身份兜底。恢复任务接管运行时把未结算身份行收口为 0/0+UNKNOWN 显式终态，不虚构消耗、不长期停留"调用中"。
+3. **规划工具业务错误不可纠正**：`recordToolFailure` 对 BusinessException 透出代码作者编写的确定性原因（如"规划日期超出项目范围"），参数校验附字段路径（如 `maxTaskCount,planDueDate`），非业务异常仍为通用提示，不透出堆栈或 SQL。**三次 VALIDATION_ERROR 的实际根因已查明**：模型三次传入 planDueDate=2026-11-27，超出项目窗口 2026-10-04..10-31，被 `validateCreate` 拒绝——并非"新会话缺约束历史"；此前错误反馈丢失了可纠正信息，模型只能盲改 goal/constraints。
+
+**完整前置状态复验**（`planning-reverify`，代码 `b2d6f2d`，隔离副本，embedding 可用）：新会话按原措辞重放第 1/7/10/18 轮（建立日期/负责人/10→目标切换→8→新目标+6 的完整前置），工作状态与冻结 fixed24 终态一致（active=最多6项+日期区间+Local Owner，10/8 superseded 可追溯）后执行第 23 轮：start_task_plan **一次受理成功**（无重复盲试），规划服务链路 SKELETON SUCCESS → DETAIL FAILED（PLANNING_MODEL_INVALID_OUTPUT）→ REPAIR SUCCESS（既有局部修复路径）→ READY v2：**6 项任务、3 个里程碑、日期全部落在 2026-10-05..10-25、负责人齐备、依赖无环、validation.errors=[]、草稿零旧数量残留、6 条真实检索来源**；confirmations=0、正式任务=0。账本审计：5 个运行、9 次模型调用=9 条已结算身份行、0 未结算、0 对账差异。测试：AgentActualTokenUsageIntegrationTest 15 项（新增 4 项故障注入/原子回归），后端全量 1034 项 0 失败。
+
 ## 环境恢复
 
 见 [database-final-state.json](database-final-state.json)。宿主经 stop 标记正常停止（finally 恢复模型配置），隔离容器停止但保留，卷未删除；未部署、未合并 main、未迁移正式库。私有登录缓存、批次状态文件（target 下）与宿主日志保留在忽略的 target 下。
