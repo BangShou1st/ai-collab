@@ -1,0 +1,8 @@
+{
+  "scope": "isolated pre-fault snapshot only",
+  "at": "2026-10-04T07:21:07.8921450Z",
+  "purposesRestored": 1,
+  "assertions": "PASS",
+  "providersRestored": 4,
+  "testProvider": "disabled; historical references retained"
+}

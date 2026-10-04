@@ -1,0 +1,44 @@
+{
+  "at": "2026-10-04T15:13:16.698836+08:00",
+  "case": "race-complete",
+  "plan": {
+    "id": "a433633f-b04f-4b06-9ca0-389788d4d5ab",
+    "status": "CANCELED",
+    "latest_version_no": 1,
+    "active_attempt_id": null,
+    "last_error_code": null,
+    "updated_at": "2026-10-04T15:10:43.958946+08:00"
+  },
+  "operationCount": 1,
+  "matchingOperation": 1,
+  "versions": [
+    {
+      "id": "23e26e55-843f-473d-9c7d-93f408b64f9b",
+      "version_no": 1,
+      "content_hash": "92e74871d3d1ce223897d74b25b6fbe2"
+    }
+  ],
+  "attempts": [
+    {
+      "id": "cc1f2a04-2c88-49b7-b5d5-14a7826a0d63",
+      "attempt_no": 1,
+      "stage": "SKELETON",
+      "status": "SUCCESS",
+      "error_code": null,
+      "started_at": "2026-10-04T15:10:26.705497+08:00",
+      "finished_at": "2026-10-04T15:10:26.744137+08:00"
+    },
+    {
+      "id": "3386cceb-d2ac-4d5f-b371-e2ca4ae659fb",
+      "attempt_no": 2,
+      "stage": "DETAIL",
+      "status": "DISCARDED",
+      "error_code": "PLAN_GENERATION_CANCELED",
+      "started_at": "2026-10-04T15:10:26.756469+08:00",
+      "finished_at": "2026-10-04T15:10:43.978156+08:00"
+    }
+  ],
+  "formalTasks": 0,
+  "confirmations": 0,
+  "assertions": "PASS: original operation, expected status/version count, no formal tasks/confirmation, terminal active attempt cleared"
+}

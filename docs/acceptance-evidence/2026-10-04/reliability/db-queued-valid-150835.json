@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-04T15:08:35.61981+08:00",
+  "case": "queued-valid",
+  "plan": {
+    "id": "e81b8f79-c96a-40e6-9549-24a450b09368",
+    "status": "READY",
+    "latest_version_no": 2,
+    "active_attempt_id": null,
+    "last_error_code": null,
+    "updated_at": "2026-10-04T15:03:45.22094+08:00"
+  },
+  "operationCount": 1,
+  "matchingOperation": 1,
+  "versions": [
+    {
+      "id": "dfb27c22-4670-4ed0-bff1-fa31be9f1edd",
+      "version_no": 1,
+      "content_hash": "92e74871d3d1ce223897d74b25b6fbe2"
+    },
+    {
+      "id": "3b5d402a-1167-4beb-94a1-9301e76cdc5d",
+      "version_no": 2,
+      "content_hash": "61007c255d3c9d6c244f62cd9f7ce6b0"
+    }
+  ],
+  "attempts": [
+    {
+      "id": "67e233fc-b1f1-4f6b-a592-d511b742546a",
+      "attempt_no": 1,
+      "stage": "SKELETON",
+      "status": "SUCCESS",
+      "error_code": null,
+      "started_at": "2026-10-04T15:03:44.732387+08:00",
+      "finished_at": "2026-10-04T15:03:45.07688+08:00"
+    },
+    {
+      "id": "4555d7b8-1196-4ffc-964d-ac04aa7037a6",
+      "attempt_no": 2,
+      "stage": "DETAIL",
+      "status": "SUCCESS",
+      "error_code": null,
+      "started_at": "2026-10-04T15:03:45.1008+08:00",
+      "finished_at": "2026-10-04T15:03:45.245246+08:00"
+    }
+  ],
+  "formalTasks": 0,
+  "confirmations": 0,
+  "assertions": "PASS: original operation, expected status/version count, no formal tasks/confirmation, terminal active attempt cleared"
+}

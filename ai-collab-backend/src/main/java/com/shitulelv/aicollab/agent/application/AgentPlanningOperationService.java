@@ -63,7 +63,16 @@ public class AgentPlanningOperationService {
         if(rows.isEmpty()) throw new BusinessException(ErrorCode.TASK_PLAN_NOT_FOUND);
         return operationJson(project,rows.getFirst());
     }
-    private static final String OPERATION_SELECT="SELECT o.id,o.plan_id,o.attempt_id,o.kind,o.status,o.goal_revision,o.target_version_id,o.result_version_id,p.title,coalesce(v.version_no,p.latest_version_no) AS latest_version_no,p.active_attempt_id,a.status AS attempt_status,a.error_code FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id LEFT JOIN ai_task_plan_version v ON v.id=o.result_version_id";
+    private static final String EXECUTION_JOIN="""
+        LEFT JOIN LATERAL (
+          SELECT x.id,x.status,x.stage,x.error_code,x.finished_at FROM ai_task_plan_attempt x
+          WHERE x.plan_id=o.plan_id AND x.generation_seq=o.generation_seq
+            AND (o.kind='start_task_plan' OR x.id=o.attempt_id)
+            AND x.attempt_no>=a.attempt_no
+          ORDER BY CASE WHEN x.stage='DETAIL' THEN 0 ELSE 1 END,x.attempt_no LIMIT 1
+        ) execution ON true
+        """;
+    private static final String OPERATION_SELECT="SELECT o.id,o.plan_id,o.attempt_id,o.kind,o.status,o.goal_revision,o.target_version_id,o.result_version_id,p.title,coalesce(v.version_no,p.latest_version_no) AS latest_version_no,p.active_attempt_id,coalesce(execution.status,a.status) AS attempt_status,coalesce(a.error_code,execution.error_code) AS error_code FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id LEFT JOIN ai_task_plan_version v ON v.id=o.result_version_id " + EXECUTION_JOIN;
     private ObjectNode operationJson(UUID project,Map<String,Object> row) {
         var value=json.createObjectNode();
         for(String field:List.of("status","kind"))value.put(field,Objects.toString(row.get(field),null));
@@ -90,24 +99,38 @@ public class AgentPlanningOperationService {
             WITH states AS (
               SELECT o.id,CASE WHEN a.status IN ('FAILED','CANCELED','DISCARDED') THEN a.status
                 WHEN owned.id IS NOT NULL THEN CASE WHEN jsonb_array_length(coalesce(owned.validation_result_json->'errors','[]'::jsonb))>0 THEN 'READY_WITH_ISSUES' ELSE 'READY' END
+                WHEN execution.error_code='PLAN_GENERATION_CANCELED' THEN 'CANCELED'
+                WHEN execution.status='FAILED' AND execution.stage='DETAIL' THEN 'DETAIL_GENERATION_FAILED'
+                WHEN execution.status IN ('FAILED','CANCELED','DISCARDED') THEN execution.status
                 WHEN p.generation_seq<>o.generation_seq THEN 'SUPERSEDED' ELSE p.status END AS status,
-                coalesce(owned.id,CASE WHEN p.generation_seq=o.generation_seq AND p.status NOT IN ('SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING') THEN p.latest_version_id END) AS version
+                coalesce(owned.id,CASE WHEN execution.stage='DETAIL' AND execution.status IN ('FAILED','CANCELED','DISCARDED')
+                  THEN (SELECT v.id FROM ai_task_plan_version v WHERE v.plan_id=o.plan_id AND v.generation_seq=o.generation_seq AND v.source_type='AI_SKELETON' ORDER BY v.version_no LIMIT 1)
+                  WHEN p.generation_seq=o.generation_seq AND p.status NOT IN ('SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING') THEN p.latest_version_id END) AS version
               FROM agent_planning_operation o JOIN ai_task_plan p ON p.id=o.plan_id LEFT JOIN ai_task_plan_attempt a ON a.id=o.attempt_id
+              LEFT JOIN LATERAL (
+                SELECT x.status,x.stage,x.error_code,x.finished_at FROM ai_task_plan_attempt x
+                WHERE x.plan_id=o.plan_id AND x.generation_seq=o.generation_seq
+                  AND (o.kind='start_task_plan' OR x.id=o.attempt_id)
+                  AND x.attempt_no>=a.attempt_no
+                ORDER BY CASE WHEN x.stage='DETAIL' THEN 0 ELSE 1 END,x.attempt_no LIMIT 1
+              ) execution ON true
               LEFT JOIN LATERAL (
                 SELECT v.id,v.validation_result_json FROM ai_task_plan_version v
                 WHERE v.plan_id=o.plan_id AND v.generation_seq=o.generation_seq
+                  AND (execution.finished_at IS NULL OR v.created_at<=execution.finished_at)
                   AND ((o.kind='start_task_plan' AND v.source_type IN ('AI_COMPLETE','AI_REPAIR','AI_PARTIAL'))
                     OR (o.kind='repair_task_plan' AND v.source_type='AI_PARTIAL_REPAIR' AND v.based_on_version_id=o.target_version_id))
                 ORDER BY v.version_no DESC LIMIT 1
               ) owned ON true
-              WHERE o.status IN ('ACCEPTED','SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING')
+              WHERE (o.status IN ('ACCEPTED','SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING')
+                OR (o.status='SUPERSEDED' AND execution.error_code='PLAN_GENERATION_CANCELED'))
                 AND (?::uuid IS NULL OR o.project_id=?::uuid)
                 AND (?::uuid IS NULL OR o.session_id=?::uuid)
                 AND (?::uuid IS NULL OR o.id=?::uuid)
             ), changed AS (
               UPDATE agent_planning_operation o SET status=s.status,result_version_id=s.version,updated_at=now()
               FROM states s WHERE o.id=s.id AND (o.status IS DISTINCT FROM s.status OR o.result_version_id IS DISTINCT FROM s.version)
-                AND o.status IN ('ACCEPTED','SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING')
+                AND o.status IN ('ACCEPTED','SKELETON_GENERATING','DETAIL_GENERATING','REPAIRING','SUPERSEDED')
               RETURNING o.id,o.status,o.result_version_id
             ) INSERT INTO agent_planning_operation_event(operation_id,status,result_version_id) SELECT id,status,result_version_id FROM changed
             """, project, project, session, session, operation, operation);

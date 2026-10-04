@@ -1,0 +1,79 @@
+{
+  "at": "2026-10-04T07:24:08.6039093Z",
+  "backendFull": {
+    "failures": 0.0,
+    "tests": 972.0,
+    "scope": "final full suite; separate acceptance runs not added",
+    "skipped": 11.0,
+    "errors": 0.0,
+    "classes": 145
+  },
+  "skippedClasses": [
+    {
+      "name": null,
+      "tests": null,
+      "skipped": null
+    },
+    {
+      "name": null,
+      "tests": null,
+      "skipped": null
+    },
+    {
+      "name": null,
+      "tests": null,
+      "skipped": null
+    },
+    {
+      "name": null,
+      "tests": null,
+      "skipped": null
+    },
+    {
+      "name": null,
+      "tests": null,
+      "skipped": null
+    },
+    {
+      "name": null,
+      "tests": null,
+      "skipped": null
+    },
+    {
+      "name": null,
+      "tests": null,
+      "skipped": null
+    },
+    {
+      "name": null,
+      "tests": null,
+      "skipped": null
+    }
+  ],
+  "faultRegression": {
+    "logSummary": [
+      "[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.230 s -- in com.shitulelv.aicollab.acceptance.ReliabilityOperationDatabaseTest",
+      "[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0",
+      "[INFO] BUILD SUCCESS",
+      "[INFO] Finished at: 2026-10-04T15:17:26+08:00"
+    ],
+    "tests": 4,
+    "skipped": 0,
+    "failed": 0,
+    "passed": 4,
+    "errors": 0,
+    "class": "ReliabilityOperationDatabaseTest"
+  },
+  "targeted": {
+    "passed": 40,
+    "tests": 40
+  },
+  "frontend": {
+    "passed": 142,
+    "productionBuild": "PASS; existing bundle size warning",
+    "files": 34,
+    "typecheck": "PASS via build vue-tsc -b",
+    "tests": 142
+  },
+  "backendPackage": "PASS"
+}
