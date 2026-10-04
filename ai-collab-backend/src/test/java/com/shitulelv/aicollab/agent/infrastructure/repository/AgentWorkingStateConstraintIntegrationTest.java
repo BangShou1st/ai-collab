@@ -261,4 +261,200 @@ class AgentWorkingStateConstraintIntegrationTest {
         assertThat(dates.get(0).path("needsClarification").asBoolean()).isTrue();
         assertThat(dates.get(0).path("quote").asText()).isNotBlank();
     }
+
+    /** 真实第10轮原句：显式"取代"关系必须立即生效，中间状态 8 active / 10 superseded。 */
+    @Test
+    void explicitSupersedeSentencePromotesNewCountImmediately() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "整理任务，最多10项");
+        assertThat(active(state(run), "TASK_COUNT_MAX").get(0).path("value").asText()).isEqualTo("最多10项");
+
+        submit(run, "把本目标任务数量上限调整为最多8项；这取代原来最多10项。日期不改，负责人不改，仍不生成规划。请复述当前有效约束。");
+        UUID turn10MessageId = jdbc.queryForObject(
+                "SELECT id FROM agent_message WHERE session_id=? AND role='USER' ORDER BY created_at DESC, id DESC LIMIT 1",
+                UUID.class, run.sessionId());
+
+        JsonNode after8 = state(run);
+        List<JsonNode> counts = active(after8, "TASK_COUNT_MAX");
+        // 中间状态：8 已生效、旧 10 已退位——不是"待澄清+旧值仍 active"
+        assertThat(counts).hasSize(1);
+        assertThat(counts.get(0).path("value").asText()).isEqualTo("最多8项");
+        assertThat(counts.get(0).path("detail").path("max").asInt()).isEqualTo(8);
+        assertThat(counts.get(0).path("needsClarification").isMissingNode()
+                || !counts.get(0).path("needsClarification").asBoolean()).isTrue();
+        // 溯源与取代关系保留
+        assertThat(counts.get(0).path("detail").path("supersedes").get(0).asInt()).isEqualTo(10);
+        assertThat(counts.get(0).path("sourceMessageId").asText()).isEqualTo(turn10MessageId.toString());
+        assertThat(counts.get(0).path("quote").asText()).contains("8项");
+        List<JsonNode> superseded10 = new ArrayList<>();
+        for (JsonNode entry : after8.path("constraints")) {
+            if ("superseded".equals(entry.path("status").asText())
+                    && "最多10项".equals(entry.path("value").asText())) superseded10.add(entry);
+        }
+        assertThat(superseded10).hasSize(1);
+        assertThat(superseded10.get(0).path("supersededBy").asText()).isEqualTo(counts.get(0).path("id").asText());
+
+        // 目标切换：数量约束随目标退位，历史保留
+        submit(run, "新目标：切换到费用目标评估");
+        assertThat(active(state(run), "TASK_COUNT_MAX")).isEmpty();
+        assertThat(state(run).path("goalHistory").size()).isEqualTo(1);
+
+        // 新目标回到可靠性验收并改为 6 项
+        submit(run, "新目标：回到可靠性验收规划，任务数量调整为最多6项；这取代此前最多8项。");
+        JsonNode after6 = state(run);
+        List<JsonNode> counts6 = active(after6, "TASK_COUNT_MAX");
+        assertThat(counts6).hasSize(1);
+        assertThat(counts6.get(0).path("detail").path("max").asInt()).isEqualTo(6);
+        // 10 与 8 都只存在于 superseded 历史
+        List<String> supersededValues = new ArrayList<>();
+        for (JsonNode entry : after6.path("constraints")) {
+            if ("superseded".equals(entry.path("status").asText())) supersededValues.add(entry.path("value").asText());
+        }
+        assertThat(supersededValues).contains("最多10项", "最多8项");
+
+        // 现在生成：数量约束保持 6，不因普通请求变化
+        submit(run, "现在生成同一目标的完整规划草稿。");
+        List<JsonNode> countsFinal = active(state(run), "TASK_COUNT_MAX");
+        assertThat(countsFinal).hasSize(1);
+        assertThat(countsFinal.get(0).path("detail").path("max").asInt()).isEqualTo(6);
+    }
+
+    /** 兼容既有误标：待澄清条目 + 旧值 active 的会话，显式取代句后一并退位。 */
+    @Test
+    void explicitSupersedeResolvesPreviouslyPendingCountWithoutClearingHistory() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "整理任务，最多10项");
+        submit(run, "最多8项还是最多10项，你再看看"); // 歧义 → 待澄清，旧 10 仍 active
+
+        JsonNode pending = state(run);
+        assertThat(active(pending, "TASK_COUNT_MAX")).hasSize(2);
+
+        submit(run, "把本目标任务数量上限调整为最多8项；这取代原来最多10项。");
+        JsonNode state = state(run);
+        List<JsonNode> counts = active(state, "TASK_COUNT_MAX");
+        assertThat(counts).hasSize(1);
+        assertThat(counts.get(0).path("detail").path("max").asInt()).isEqualTo(8);
+        // 待澄清条目与旧 10 条目都退位，历史保留
+        List<String> supersededValues = new ArrayList<>();
+        for (JsonNode entry : state.path("constraints")) {
+            if ("superseded".equals(entry.path("status").asText())) supersededValues.add(entry.path("value").asText());
+        }
+        assertThat(supersededValues).contains("最多10项");
+        assertThat(state.path("constraints").size()).isGreaterThanOrEqualTo(3);
+    }
+
+    /** 疑问/假设句不得修改当前约束。 */
+    @Test
+    void hypotheticalAndQuestionFormsDoNotChangeCount() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "整理任务，最多6项");
+        submit(run, "如果改成8项会怎样？");
+        submit(run, "要不要改成10项？");
+        JsonNode state = state(run);
+        List<JsonNode> counts = active(state, "TASK_COUNT_MAX");
+        assertThat(counts).hasSize(1);
+        assertThat(counts.get(0).path("detail").path("max").asInt()).isEqualTo(6);
+    }
+
+    /** 不同任务的日期保护并存；明确修改只影响对应任务。 */
+    @Test
+    void dateLocksForDifferentTasksCoexistAndExplicitChangeOnlyAffectsItsObject() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "初始目标");
+        submit(run, "任务A的日期固定为2026-10-05至2026-10-10，不改日期");
+        submit(run, "任务B的日期固定为2026-10-15至2026-10-20，不改日期");
+
+        JsonNode both = state(run);
+        List<JsonNode> locks = active(both, "DATE_LOCK");
+        assertThat(locks).hasSize(2);
+        assertThat(locks.stream().map(e -> e.path("detail").path("object").asText()))
+                .containsExactlyInAnyOrder("任务A", "任务B");
+
+        // 明确修改任务A：只影响A，任务B保护保持 active
+        submit(run, "任务A的日期不变，固定为2026-10-06至2026-10-11");
+        JsonNode afterChange = state(run);
+        List<JsonNode> locksAfter = active(afterChange, "DATE_LOCK");
+        assertThat(locksAfter).hasSize(2);
+        JsonNode entryA = locksAfter.stream()
+                .filter(e -> "任务A".equals(e.path("detail").path("object").asText())).findFirst().orElseThrow();
+        JsonNode entryB = locksAfter.stream()
+                .filter(e -> "任务B".equals(e.path("detail").path("object").asText())).findFirst().orElseThrow();
+        assertThat(entryA.path("detail").path("dates").get(0).asText()).isEqualTo("2026-10-06");
+        assertThat(entryB.path("detail").path("dates").get(0).asText()).isEqualTo("2026-10-15");
+        assertThat(entryB.path("status").asText()).isEqualTo("active");
+
+        // 对象含糊的全局日期：不自动覆盖已有明确对象的约束
+        submit(run, "整体日期定为2026-11-01至2026-11-10，不改日期");
+        List<JsonNode> locksAmbiguous = active(state(run), "DATE_LOCK");
+        assertThat(locksAmbiguous).hasSize(3);
+        assertThat(locksAmbiguous.stream().anyMatch(e ->
+                "任务A".equals(e.path("detail").path("object").asText())
+                        && e.path("detail").path("dates").get(0).asText().equals("2026-10-06"))).isTrue();
+        assertThat(locksAmbiguous.stream().anyMatch(e ->
+                "任务B".equals(e.path("detail").path("object").asText()))).isTrue();
+    }
+
+    /** 不同任务的负责人保护并存；旧实现按值不同互相覆盖。 */
+    @Test
+    void assigneeLocksForDifferentTasksCoexist() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "初始目标");
+        submit(run, "任务A负责人固定为甲");
+        submit(run, "任务B负责人固定为乙");
+
+        List<JsonNode> locks = active(state(run), "ASSIGNEE_LOCK");
+        assertThat(locks).hasSize(2);
+        assertThat(locks.stream().map(e -> e.path("detail").path("object").asText()))
+                .containsExactlyInAnyOrder("任务A", "任务B");
+        assertThat(locks.stream().map(e -> e.path("detail").path("assignee").asText()))
+                .containsExactlyInAnyOrder("甲", "乙");
+
+        // 明确修改任务A负责人：只影响A
+        submit(run, "任务A负责人改为丙");
+        List<JsonNode> after = active(state(run), "ASSIGNEE_LOCK");
+        assertThat(after).hasSize(2);
+        assertThat(after.stream().anyMatch(e ->
+                "任务A".equals(e.path("detail").path("object").asText())
+                        && "丙".equals(e.path("detail").path("assignee").asText()))).isTrue();
+        assertThat(after.stream().anyMatch(e ->
+                "任务B".equals(e.path("detail").path("object").asText())
+                        && "乙".equals(e.path("detail").path("assignee").asText()))).isTrue();
+    }
+
+    /** "沿用此前"必须在对应对象范围内唯一定位，不能把别的对象的日期套过来。 */
+    @Test
+    void reusePriorDatesIsScopedToTheSameObject() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "初始目标");
+        submit(run, "任务A的日期固定为2026-01-05至2026-01-10，不改日期");
+        submit(run, "任务B的日期沿用此前，不改日期");
+
+        List<JsonNode> locks = active(state(run), "DATE_LOCK");
+        JsonNode entryB = locks.stream()
+                .filter(e -> "任务B".equals(e.path("detail").path("object").asText())).findFirst().orElseThrow();
+        // 任务B没有自己的历史日期：不跨对象复用任务A的日期
+        assertThat(entryB.path("value").asText()).doesNotContain("2026-01-05");
+        assertThat(entryB.path("detail").has("dates")).isFalse();
+        assertThat(entryB.path("value").asText()).contains("任务B");
+    }
+
+    /** 泛指整个规划的约束与具体任务约束不混为一条；泛指沿用只在泛指条目里定位。 */
+    @Test
+    void genericAndObjectScopedConstraintsStaySeparate() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "初始目标");
+        submit(run, "任务A的日期固定为2026-01-05至2026-01-10，不改日期");
+        submit(run, "规划日期沿用此前，不改日期");
+        // 泛指条目没有可定位的泛指历史日期 → 待澄清，而不是沿用任务A的日期
+        List<JsonNode> locks = active(state(run), "DATE_LOCK");
+        assertThat(locks).hasSize(2);
+        JsonNode generic = locks.stream()
+                .filter(e -> e.path("detail").path("object").asText().isEmpty()).findFirst().orElseThrow();
+        assertThat(generic.path("needsClarification").asBoolean()).isTrue();
+        assertThat(generic.path("value").asText()).doesNotContain("2026-01-05");
+        // 任务A条目不受影响
+        JsonNode entryA = locks.stream()
+                .filter(e -> "任务A".equals(e.path("detail").path("object").asText())).findFirst().orElseThrow();
+        assertThat(entryA.path("detail").path("dates").get(0).asText()).isEqualTo("2026-01-05");
+    }
 }

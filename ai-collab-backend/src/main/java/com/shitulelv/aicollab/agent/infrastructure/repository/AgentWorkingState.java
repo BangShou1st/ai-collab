@@ -149,6 +149,14 @@ final class AgentWorkingState {
                 if (normalized.has("detail")) ((ObjectNode) entry).set("detail",normalized.path("detail"));
                 if (normalized.has("quote")) ((ObjectNode) entry).put("quote",normalized.path("quote").asText());
             }
+            // 旧版对象只存在于 value 前缀 "[X] "：渐进补进 detail.object，
+            // 让按对象的替代/复用规则同样保护历史条目
+            if ((SCOPE_DATE_LOCK.equals(scope) || SCOPE_ASSIGNEE_LOCK.equals(scope))
+                    && entry.path("detail").isObject()
+                    && entry.path("detail").path("object").asText("").isEmpty()) {
+                var objectMatcher=OBJECT_PREFIX.matcher(entry.path("value").asText());
+                if (objectMatcher.find()) ((ObjectNode) entry.path("detail")).put("object",objectMatcher.group(1).trim());
+            }
         }
     }
 
@@ -238,9 +246,10 @@ final class AgentWorkingState {
                     && String.valueOf(entry.path("detail")).equals(String.valueOf(created.path("detail")))) {
                 return; // 完全相同的同作用域约束不重复累积
             }
-            // 替代规则：数量上下界同作用域直接替代；日期/负责人仅在双方都有明确对象
-            // 且对象不同时替代（不同对象的保护约束并存）
-            if (maySupersede && (countScope || supersedesDifferentObject(entry, created))) {
+            // 替代规则：数量上下界同作用域直接替代（显式取代关系由 detail.supersedes 溯源）；
+            // 日期/负责人按被约束对象判断——同一对象明确修改才替代，不同对象并存，
+            // 对象不明不覆盖已有明确对象的约束
+            if (maySupersede && (countScope || supersedesProtectedScope(entry, created))) {
                 ((ObjectNode) entry).put("status","superseded");
                 ((ObjectNode) entry).put("supersededBy",newId);
                 ((ObjectNode) entry).put("supersededReason","SCOPE_UPDATED");
@@ -250,16 +259,33 @@ final class AgentWorkingState {
         trimConstraints(json,state);
     }
 
-    /** 日期/负责人：仅当新旧条目都携带明确对象且不同时才替代，否则并存。 */
-    private static boolean supersedesDifferentObject(JsonNode oldEntry, JsonNode newEntry) {
-        JsonNode oldDetail=oldEntry.path("detail");
-        JsonNode newDetail=newEntry.path("detail");
-        if (!oldDetail.isObject() || !newDetail.isObject()) return false;
-        String key=SCOPE_DATE_LOCK.equals(oldEntry.path("scope").asText()) ? "dates" : "assignee";
-        JsonNode oldValue=oldDetail.path(key);
-        JsonNode newValue=newDetail.path(key);
-        if (oldValue.isMissingNode() || newValue.isMissingNode()) return false;
-        return !String.valueOf(oldValue).equals(String.valueOf(newValue));
+    /** 旧值前缀中的被约束对象："任务A 日期不改" 存为 "[任务A] 日期不改…"。 */
+    private static final java.util.regex.Pattern OBJECT_PREFIX =
+            java.util.regex.Pattern.compile("^\\[([^\\]]{1,20})\\]\\s*");
+
+    /**
+     * 被约束对象：优先取 detail.object，其次从旧版 value 前缀 "[X] " 渐进解析。
+     * 空串表示泛指（整个规划），不是可区分的具体对象。
+     */
+    private static String objectOf(JsonNode entry) {
+        String explicit=entry.path("detail").path("object").asText("");
+        if (!explicit.isEmpty()) return explicit;
+        var matcher=OBJECT_PREFIX.matcher(entry.path("value").asText(""));
+        return matcher.find() ? matcher.group(1).trim() : "";
+    }
+
+    /**
+     * 日期/负责人保护条目的替代判断（依据对象，不依据值是否不同）：
+     * 双方对象明确且相同 → 同一对象的明确修改/撤销，替代；
+     * 一方对象明确、另一方泛指或不明 → 并存，不自动覆盖；
+     * 双方都泛指 → 同作用域的更新，替代。
+     */
+    private static boolean supersedesProtectedScope(JsonNode oldEntry, JsonNode newEntry) {
+        String oldObject=objectOf(oldEntry);
+        String newObject=objectOf(newEntry);
+        if (!newObject.isEmpty() && !oldObject.isEmpty()) return newObject.equals(oldObject);
+        if (!newObject.isEmpty() || !oldObject.isEmpty()) return false;
+        return true;
     }
 
     // ---------- 规范化事实提取 ----------
@@ -294,7 +320,9 @@ final class AgentWorkingState {
 
     /** 疑问/核查语气的子句不是重新设定约束（"请检查是否仍为最多6项"）。 */
     private static boolean interrogative(String clause) {
-        if (clause.contains("是否") || clause.endsWith("?") || clause.endsWith("吗")) return true;
+        if (clause.contains("是否") || clause.contains("会不会") || clause.contains("要不要")
+                || clause.contains("能不能") || clause.contains("行不行") || clause.contains("好不好")
+                || clause.endsWith("?") || clause.endsWith("吗")) return true;
         return clause.startsWith("请检查") || clause.startsWith("请确认") || clause.startsWith("检查")
                 || clause.startsWith("确认") || clause.startsWith("核实");
     }
@@ -305,43 +333,95 @@ final class AgentWorkingState {
                 || clause.contains("作废");
     }
 
-    private static java.util.regex.Pattern countPattern(boolean max) {
+    /** 限定词模式：最多N项 / 至少N项（当前值候选）。 */
+    private static java.util.regex.Pattern countQualifierPattern(boolean max) {
         String qualifiers=max ? "最多|不超过|至多|不能超过" : "至少|最少|不少于";
-        // 数量上限：限定词模式（最多N项）+ 明确修改动词模式（改成N项/调整为N项）
-        String change=max ? "|改成|改为|调整成|调整为|设为|设置为|定为|限制在|控制在" : "";
         return java.util.regex.Pattern.compile(
-                "("+qualifiers+change+")[^0-9一二三四五六七八九十两]{0,8}?([0-9]+|[一二三四五六七八九十两]+)(项|条|个|件)");
+                "("+qualifiers+")[^0-9一二三四五六七八九十两]{0,8}?([0-9]+|[一二三四五六七八九十两]+)(项|条|个|件)");
     }
 
+    /** 修改动词模式：改成N项 / 调整为N项（明确的新值）。 */
+    private static final java.util.regex.Pattern COUNT_CHANGE =
+            java.util.regex.Pattern.compile(
+                    "(改成|改为|调整成|调整为|设为|设置为|定为|限制在|控制在)[^0-9一二三四五六七八九十两]{0,8}?([0-9]+|[一二三四五六七八九十两]+)(项|条|个|件)");
+
+    /** "从N项改成M项"中的旧值：从N项（后接改/调/变）。 */
+    private static final java.util.regex.Pattern COUNT_FROM_OLD =
+            java.util.regex.Pattern.compile(
+                    "从[^0-9一二三四五六七八九十两]{0,6}?([0-9]+|[一二三四五六七八九十两]+)(项|条|个|件)\\s*(?=改|调|变)");
+
+    /** 显式取代标记：子句中的数值是"被退位的旧值"，不是当前候选。 */
+    private static final java.util.regex.Pattern SUPERSEDE_MARKER =
+            java.util.regex.Pattern.compile("取代|替代|代替");
+
+    /** 假设/虚拟语气的子句不是设定约束（"如果改成8项会怎样"）。 */
+    private static boolean hypothetical(String clause) {
+        return clause.contains("如果") || clause.contains("假如") || clause.contains("假设")
+                || clause.contains("要是") || clause.endsWith("的话") || clause.endsWith("呢")
+                || clause.endsWith("怎样") || clause.endsWith("如何");
+    }
+
+    /**
+     * 数量事实：按子句区分新旧值。含"取代/替代/代替"的子句中的数值是被退位的旧值
+     * （记入 detail.supersedes 保留溯源），不作为当前候选；"从N改成M"同样拆分。
+     * 多个不同新值仍保守待澄清，不贪婪选数。
+     */
     private static CountFact countFact(String request,boolean max) {
-        java.util.regex.Pattern pattern=countPattern(max);
-        java.util.LinkedHashSet<Integer> found=new java.util.LinkedHashSet<>();
+        java.util.regex.Pattern qualifier=countQualifierPattern(max);
+        java.util.LinkedHashSet<Integer> newValues=new java.util.LinkedHashSet<>();
+        java.util.LinkedHashSet<Integer> oldValues=new java.util.LinkedHashSet<>();
         String quote=null;
         for (String clause : clauses(request)) {
-            if (interrogative(clause) || negated(clause)) continue;
-            var matcher=pattern.matcher(clause);
+            if (interrogative(clause) || negated(clause) || hypothetical(clause)) continue;
+            boolean replacement=SUPERSEDE_MARKER.matcher(clause).find();
             boolean matched=false;
-            while (matcher.find()) {
-                Integer value=parseNumber(matcher.group(2));
+            var qm=qualifier.matcher(clause);
+            while (qm.find()) {
+                Integer value=parseNumber(qm.group(2));
                 if (value==null) continue;
-                if (quote==null) quote=clause;
-                found.add(value);
+                (replacement?oldValues:newValues).add(value);
                 matched=true;
+            }
+            if (max) {
+                var cm=COUNT_CHANGE.matcher(clause);
+                while (cm.find()) {
+                    Integer value=parseNumber(cm.group(2));
+                    if (value==null) continue;
+                    newValues.add(value);
+                    matched=true;
+                }
+            }
+            if (replacement) {
+                var fm=COUNT_FROM_OLD.matcher(clause);
+                while (fm.find()) {
+                    Integer value=parseNumber(fm.group(1));
+                    if (value==null) continue;
+                    oldValues.add(value);
+                    matched=true;
+                }
             }
             if (matched && quote==null) quote=clause;
         }
-        if (found.isEmpty()) return null;
+        newValues.removeAll(oldValues); // 同一数值既是新旧也无从谈起，不当新值重复登记
+        if (newValues.isEmpty() && oldValues.isEmpty()) return null;
         CountFact fact=new CountFact();
         String word=max ? "最多" : "至少";
-        if (found.size()==1) {
-            int value=found.iterator().next();
+        if (newValues.size()==1) {
+            int value=newValues.iterator().next();
             fact.value=word+value+"项";
             fact.detail.put(max?"max":"min",value);
+            if (!oldValues.isEmpty()) {
+                var superseded=fact.detail.putArray("supersedes");
+                for (int v : oldValues) superseded.add(v);
+            }
+        } else if (newValues.isEmpty()) {
+            // 只有被退位旧值、没有新值：保守不产生结构化条目（原文留在 latestRequest）
+            return null;
         } else {
             // 多个不同数值无法确定哪个生效：保守保留原文待澄清，不贪婪选数
             StringBuilder joined=new StringBuilder();
-            for (int v : found) { if (joined.length()>0) joined.append('/'); joined.append(v); }
-            fact.value="数量上限待澄清（"+joined+"）";
+            for (int v : newValues) { if (joined.length()>0) joined.append('/'); joined.append(v); }
+            fact.value="数量"+(max?"上限":"下限")+"待澄清（"+joined+"）";
             fact.needsClarification=true;
         }
         fact.quote=quote!=null ? quote : firstMentioning(request,"项");
@@ -351,10 +431,15 @@ final class AgentWorkingState {
     private static final java.util.regex.Pattern DATE_PATTERN = java.util.regex.Pattern.compile(
             "\\d{4}[-/年.]\\s*\\d{1,2}[-/月.]\\s*\\d{1,2}");
 
+    /** 日期限定动词：子句不带"日期"关键词但带这些动词时，其中的日期仍是新值候选。 */
+    private static final java.util.regex.Pattern DATE_BINDING = java.util.regex.Pattern.compile(
+            "固定|保持|落在|安排|区间|改为|改成|调整为|设为|设置为|定在|限定期");
+
     /**
      * 日期保护事实：只表达日期保护，不携带数量/阶段等其他要求。
-     * priorConstraints 用于"沿用此前日期"——仅当历史条目（含已替代条目）
-     * 中能唯一定位一组日期时复用；无法唯一确定时保守不猜。
+     * priorConstraints 用于"沿用此前日期"——仅当与当前对象同范围的
+     * 历史条目（含已替代条目）中能唯一定位一组日期时复用；
+     * 跨对象或无法唯一确定时保守不猜，不能把别的对象的日期套过来。
      */
     private static DateFact dateFact(String request, JsonNode priorConstraints) {
         var dates=new LinkedHashSet<String>();
@@ -363,15 +448,24 @@ final class AgentWorkingState {
         for (String clause : clauses(request)) {
             if (!clause.contains("日期")) continue;
             keywordSeen=true;
-            if (!interrogative(clause)) allInterrogative=false;
+            if (!interrogative(clause) && !hypothetical(clause)) allInterrogative=false;
+        }
+        if (!keywordSeen || allInterrogative) return null;
+        // 日期收集不限"日期"子句：'任务A的日期不变，固定为2026-10-06至2026-10-11' 的
+        // 新日期在后续子句中。只收集包含"日期"或带日期限定动词的子句，
+        // 并跳过疑问/假设子句，避免把问题或其他语境里的日期当作新值
+        for (String clause : clauses(request)) {
+            if (interrogative(clause) || hypothetical(clause)) continue;
+            if (!DATE_PATTERN.matcher(clause).find()) continue;
+            if (!clause.contains("日期") && !DATE_BINDING.matcher(clause).find()) continue;
             var matcher=DATE_PATTERN.matcher(clause);
             while (matcher.find()) dates.add(normalizeDate(matcher.group()));
         }
-        if (!keywordSeen || allInterrogative) return null;
         DateFact fact=new DateFact();
         String subject=protectionSubject(request,"日期",true);
+        if (subject!=null) fact.detail.put("object",subject);
         if (dates.isEmpty()) {
-            JsonNode reused=reuseUniquePriorDetail(priorConstraints,SCOPE_DATE_LOCK,"dates");
+            JsonNode reused=reuseUniquePriorDetail(priorConstraints,SCOPE_DATE_LOCK,"dates",subject);
             if (reused!=null) {
                 StringBuilder joined=new StringBuilder();
                 for (JsonNode date : reused) { if (joined.length()>0) joined.append(" 至 "); joined.append(date.asText()); }
@@ -393,7 +487,7 @@ final class AgentWorkingState {
     }
 
     private static final java.util.regex.Pattern ASSIGNEE_TARGET = java.util.regex.Pattern.compile(
-            "(?:负责人)?(?:固定为|固定成|统一为|统一由|都用|都由|均为)\\s*([^，。;；\\n]{1,40})");
+            "(?:负责人)?(?:固定为|固定成|统一为|统一由|都用|都由|均为|改为|改成|调整为|换为|换成|定为)\\s*([^，。;；\\n]{1,40})");
 
     private static AssigneeFact assigneeFact(String request, JsonNode priorConstraints) {
         String target=null;
@@ -402,8 +496,8 @@ final class AgentWorkingState {
         for (String clause : clauses(request)) {
             if (!clause.contains("负责人")) continue;
             keywordSeen=true;
-            if (!interrogative(clause)) allInterrogative=false;
-            if (interrogative(clause) || negated(clause)) continue;
+            if (!interrogative(clause) && !hypothetical(clause)) allInterrogative=false;
+            if (interrogative(clause) || negated(clause) || hypothetical(clause)) continue;
             var matcher=ASSIGNEE_TARGET.matcher(clause);
             if (matcher.find() && target==null) {
                 String candidate=matcher.group(1).trim();
@@ -414,8 +508,9 @@ final class AgentWorkingState {
         AssigneeFact fact=new AssigneeFact();
         // 无明确新负责人时才识别保护对象（"任务A负责人保持不变"→"任务A"）
         String subject=protectionSubject(request,"负责人",target!=null);
+        if (subject!=null) fact.detail.put("object",subject);
         if (target==null) {
-            JsonNode reused=reuseUniquePriorDetail(priorConstraints,SCOPE_ASSIGNEE_LOCK,"assignee");
+            JsonNode reused=reuseUniquePriorDetail(priorConstraints,SCOPE_ASSIGNEE_LOCK,"assignee",subject);
             if (reused!=null) {
                 fact.value=(subject==null?"":"["+subject+"] ")+"负责人不改（沿用 "+reused.asText()+"）";
                 fact.detail.put("assignee",reused.asText());
@@ -433,12 +528,19 @@ final class AgentWorkingState {
         return fact;
     }
 
-    /** 历史条目中唯一定位同名称细节（日期组/负责人）时返回，否则 null。 */
-    private static JsonNode reuseUniquePriorDetail(JsonNode constraints,String scope,String key) {
+    /**
+     * 历史条目中唯一定位同名称细节（日期组/负责人）时返回，否则 null。
+     * 复用范围限定在被约束对象内：subject 非空时只在该对象的历史条目里找，
+     * subject 为空（泛指）时只在同样泛指的条目里找；
+     * 不能在全部历史里找到唯一日期就套给另一个任务。
+     */
+    private static JsonNode reuseUniquePriorDetail(JsonNode constraints,String scope,String key,String subject) {
         if (constraints==null || !constraints.isArray()) return null;
         JsonNode unique=null;
         for (JsonNode entry : constraints) {
             if (!scope.equals(entry.path("scope").asText())) continue;
+            String entryObject=objectOf(entry);
+            if (subject!=null ? !subject.equals(entryObject) : !entryObject.isEmpty()) continue;
             JsonNode value=entry.path("detail").path(key);
             if (value.isMissingNode()) continue;
             if (unique==null) unique=value;
@@ -458,13 +560,14 @@ final class AgentWorkingState {
     }
 
     /** 保护对象识别："任务A的日期"→"任务A"、"任务A负责人"→"任务A"；
-     *  通用主体（规划/项目等）不算对象。requireParticle 为 false 时也接受
-     *  "X负责人"（X 以字母/数字结尾才算对象，避免把"所有任务建议"当对象）。 */
+     *  通用主体（规划/项目等）不算对象。裸对象形式（"任务A负责人固定为甲"，无"的"）
+     *  统一接受，但仅限以字母/数字结尾的短对象（任务A/任务2），
+     *  避免把"所有任务建议""统一负责人"当对象。 */
     private static String protectionSubject(String request,String keyword,boolean requireParticle) {
         for (String clause : clauses(request)) {
             int index=clause.indexOf("的"+keyword);
             boolean particleFound=index>0;
-            if (!particleFound && !requireParticle) {
+            if (!particleFound) {
                 index=clause.indexOf(keyword);
                 if (index<=0) continue;
                 String before=clause.substring(Math.max(0,index-12),index).trim();
@@ -474,7 +577,6 @@ final class AgentWorkingState {
                 if (interrogative(clause)) continue;
                 return before;
             }
-            if (!particleFound) continue;
             String before=clause.substring(Math.max(0,index-12),index).trim();
             if (before.isEmpty() || GENERIC_SUBJECTS.contains(before)) continue;
             if (interrogative(clause)) continue;
@@ -530,7 +632,7 @@ final class AgentWorkingState {
         if (text.contains("日期") && text.matches(".*(日期[^。；\\n]{0,6}(不要|不用|别|不能|禁止|保持|固定|不变|别动|不改)|不要改日期|别改日期|不改日期|日期不变|日期保持).*")) {
             scopes.add(SCOPE_DATE_LOCK);
         }
-        if (text.contains("负责人") && text.matches(".*(负责人不要|负责人别|负责人不能|不改负责人|别改负责人|不要改负责人|负责人保持|负责人固定|负责人不改|负责人不变|负责人不动).*")) {
+        if (text.contains("负责人") && text.matches(".*(负责人不要|负责人别|负责人不能|不改负责人|别改负责人|不要改负责人|负责人保持|负责人固定|负责人不改|负责人不变|负责人不动|负责人改为|负责人改成|负责人调整为|负责人换为|负责人换成|负责人定为|负责人统一).*")) {
             scopes.add(SCOPE_ASSIGNEE_LOCK);
         }
         return scopes;
