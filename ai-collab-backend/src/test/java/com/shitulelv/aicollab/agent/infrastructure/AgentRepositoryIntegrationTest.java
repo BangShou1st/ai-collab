@@ -880,7 +880,7 @@ class AgentRepositoryIntegrationTest {
         }
         assertThat(dateActive).isTrue();
         // 只有最后一条数量约束仍是 active，其余被替代（历史保留可追溯）
-        assertThat(activeCountValue).isEqualTo("改成最多25项");
+        assertThat(activeCountValue).isEqualTo("最多25项");
         int supersededCount=0;
         for (JsonNode entry : constraints) {
             if ("superseded".equals(entry.path("status").asText())) supersededCount++;
