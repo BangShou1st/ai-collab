@@ -1,4 +1,4 @@
-param([ValidatePattern('^(minimal(-fixed)?|fixed24|correction)$')][string]$Batch='minimal', [ValidateSet('Setup','Turn','Recover','Read')][string]$Mode='Read', [int]$Turn=0)
+param([ValidatePattern('^(minimal(-fixed)?|fixed24(-final)?|correction)$')][string]$Batch='minimal', [ValidateSet('Setup','Turn','Recover','Read')][string]$Mode='Read', [int]$Turn=0)
 $ErrorActionPreference='Stop'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 if(!(Get-NetTCPConnection -LocalPort 18080 -State Listen -ErrorAction SilentlyContinue)){throw 'Isolated acceptance host must be running'}
@@ -16,7 +16,7 @@ function Api($method,$path,$body=$null){
 $head=(& git -C $root rev-parse HEAD).Trim()
 if($Mode-eq 'Setup'){
  if(Test-Path $private){throw 'Batch already exists; recover/read original run instead of duplicating'}
- if($Batch-eq 'fixed24'){
+ if($Batch-like 'fixed24*'){
   # Recreate the original empty-project baseline, keeping the exact original document bytes.
   $project=Api POST '/projects' @{name='ai-collab真实需求长对话20261004';type='OTHER';description='真实仓库蓝图可靠性专项，隔离副本';startDate='2026-10-04';dueDate='2026-10-31'}
   $client=[Net.Http.HttpClient]::new();$client.DefaultRequestHeaders.Add('Authorization',$headers.Authorization);$client.DefaultRequestHeaders.Add('Origin','http://localhost:15173')
@@ -47,10 +47,16 @@ if($Mode-in @('Turn','Recover')){
   $run=Api POST "$session/messages" @{content=$entry.prompt;skillCode='ITERATION_PLANNING';pageContext=@{route='/documents';selectedDocumentId=$state.documentId}}
   $state|Add-Member runId $run.id -Force;$state|Add-Member submittedTurn $Turn -Force;$state|ConvertTo-Json|Set-Content $private
  }
- $deadline=(Get-Date).AddMinutes(5)
+ $deadline=(Get-Date).AddMinutes(10)
+ $observedStatus=$null
  do{
   $detail=Api GET "$base/agent/runs/$($run.id)"
-  if($detail.run.status-notin @('QUEUED','RUNNING','WAITING_APPROVAL')){break}
+  if($detail.run.status-ne $observedStatus){
+   @{at=(Get-Date).ToUniversalTime().ToString('o');runId=$run.id;status=$detail.run.status;errorCode=$detail.run.errorCode;retryCount=$detail.run.retryCount}|ConvertTo-Json -Compress|Add-Content (Join-Path $folder ('turn-{0:D2}-states.jsonl'-f $Turn))
+   $observedStatus=$detail.run.status
+  }
+  # FAILED_RETRYABLE is still eligible for the existing worker retry; do not submit a later turn yet.
+  if($detail.run.status-notin @('QUEUED','RUNNING','WAITING_APPROVAL','FAILED_RETRYABLE')){break}
   if((Get-Date)-gt $deadline){throw 'Nonterminal original run; inspect without duplicate submission'}
   Start-Sleep -Seconds 1
  }while($true)

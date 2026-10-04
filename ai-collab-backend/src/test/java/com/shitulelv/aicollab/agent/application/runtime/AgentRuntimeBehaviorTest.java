@@ -725,11 +725,10 @@ class AgentRuntimeBehaviorTest {
     }
 
     /**
-     * 19. 有成功证据时非法最终响应使用保底回答。
-     * 测试因 AgentEvidenceFallbackRenderer 尚未实现而失败。
+     * 19. 非法收尾可保留已取得证据，但不能把保底片段记成完整成功。
      */
     @Test
-    void invalidFinalTurnFallsBackWhenSuccessfulEvidenceExists() {
+    void invalidFinalTurnRetainsPartialEvidenceWithoutClaimingSuccess() {
         AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
 
         AgentExecutionContext ctx = context();
@@ -758,8 +757,9 @@ class AgentRuntimeBehaviorTest {
 
         AgentWorkerOutcome result = coordinator.advance(run);
 
-        assertThat(result.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(result.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
         assertThat(result.answer()).contains("已取得的结果").contains("list_tasks");
+        org.mockito.Mockito.verify(repository).recordBudgetPartialAnswer(eq(run), eq(result.answer()));
     }
 
     /**
