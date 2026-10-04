@@ -1,4 +1,4 @@
-param([ValidateSet('minimal','fixed24','correction')][string]$Batch='minimal', [ValidateSet('Setup','Turn','Recover','Read')][string]$Mode='Read', [int]$Turn=0)
+param([ValidatePattern('^(minimal(-fixed)?|fixed24|correction)$')][string]$Batch='minimal', [ValidateSet('Setup','Turn','Recover','Read')][string]$Mode='Read', [int]$Turn=0)
 $ErrorActionPreference='Stop'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 if(!(Get-NetTCPConnection -LocalPort 18080 -State Listen -ErrorAction SilentlyContinue)){throw 'Isolated acceptance host must be running'}

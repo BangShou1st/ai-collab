@@ -210,12 +210,12 @@ public class AgentRuntimeCoordinator {
                     // 必选层（含当前请求）无法完整放入预算：明确停止，不静默截断
                     return inputBudgetExceeded(run, requestBudget, composition.failureReason());
                 }
-                messages = appendTurnInstructions(composition.messages(), steps, finalizing);
+                messages = appendTurnInstructions(composition.messages(), steps, finalizing, ctx.limits().maxToolCallsPerTurn());
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens()) {
                     // 降级重组一次：收紧预算并重试，仍超限才明确停止
                     composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 0.6);
-                    messages = appendTurnInstructions(composition.messages(), steps, finalizing);
+                    messages = appendTurnInstructions(composition.messages(), steps, finalizing, ctx.limits().maxToolCallsPerTurn());
                     estimatedInput = estimateInput(messages, exposed);
                     if (estimatedInput > requestBudget.availableInputTokens()) {
                         overBudgetReason = "COMPOSITION_OVER_BUDGET";
@@ -225,7 +225,7 @@ public class AgentRuntimeCoordinator {
                     }
                 }
             } else {
-                messages = appendTurnInstructions(composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, finalizing);
+                messages = appendTurnInstructions(composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, finalizing, ctx.limits().maxToolCallsPerTurn());
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens()) {
                     overBudgetReason = "COMPOSITION_OVER_BUDGET";
@@ -239,7 +239,7 @@ public class AgentRuntimeCoordinator {
                 finalizing = true;
                 exposed = List.of();
                 messages = appendTurnInstructions(composition != null ? composition.messages()
-                        : composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, true);
+                        : composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, true, ctx.limits().maxToolCallsPerTurn());
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens())
                     return inputBudgetExceeded(run, requestBudget, "FINAL_REQUEST_OVER_BUDGET");
@@ -405,8 +405,9 @@ public class AgentRuntimeCoordinator {
     }
 
     /** 组装完成后追加本轮附加指令（格式修复、收尾要求），这些内容同样计入输入预算。 */
-    private List<ModelMessage> appendTurnInstructions(List<ModelMessage> base, List<AgentStepView> steps, boolean finalizing) {
+    private List<ModelMessage> appendTurnInstructions(List<ModelMessage> base, List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn) {
         List<ModelMessage> messages = new ArrayList<>(base);
+        messages.add(new ModelMessage.System("单轮工具调用最多 " + maxToolCallsPerTurn + " 项；只有直接必要且独立的查询才能并行，已有证据足够时直接回答。"));
         if (steps.stream().anyMatch(step -> "FORMAT_REPAIR_REQUESTED".equals(step.errorCode())))
             messages.add(new ModelMessage.User("上次模型响应未满足协议格式。保留原目标与工具权限，纠正输出格式；不得重复已执行的动作。"));
         if (finalizing) {

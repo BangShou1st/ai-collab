@@ -78,6 +78,8 @@ class AgentModelMessageComposerV2Test {
 
         assertThat(composition.failureReason()).isNull();
         assertThat(composition.messages().get(0)).isInstanceOf(ModelMessage.System.class);
+        assertThat(((ModelMessage.System) composition.messages().get(0)).content())
+                .contains("当前注册工具定义", "历史助手回答和摘要可能包含错误", "检索未命中不等于全文不存在", "不从头续读全文");
         // 当前请求注入在历史之后，且完整入选
         assertThat(userContents(composition.messages())).contains("把结果改成表格");
         assertThat(composition.stats().historyIncluded()).isEqualTo(2);
