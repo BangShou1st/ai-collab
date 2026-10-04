@@ -157,7 +157,8 @@ public class JsonHttpModelClient {
                     new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
                 checkStatus(response.statusCode(), null, mapper);
                 if (!response.headers().firstValue("Content-Type").orElse("").toLowerCase(java.util.Locale.ROOT)
-                        .startsWith("text/event-stream")) throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
+                        .startsWith("text/event-stream")) throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                                "PROVIDER_HTTP / UNEXPECTED_CONTENT_TYPE / status=" + response.statusCode(), null, null);
                 String event = "message";
                 StringBuilder data = new StringBuilder();
                 String line;
@@ -172,7 +173,8 @@ public class JsonHttpModelClient {
                             if ("[DONE]".equals(payload)) { onEvent.accept("done", null); return; }
                             JsonNode value = parse(payload);
                             if (value == null || !value.isObject() || value.hasNonNull("error"))
-                                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
+                                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                                        "PROVIDER_STREAM / " + (value != null && value.hasNonNull("error") ? "ERROR_ENVELOPE" : "INVALID_EVENT_SHAPE"), null, null);
                             onEvent.accept(event, value);
                         }
                         data.setLength(0);
@@ -187,7 +189,7 @@ public class JsonHttpModelClient {
                         if (data.length() > 2_000_000) throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
                     }
                 }
-                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE, "SSE 在终止标记前断开");
+                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE, "PROVIDER_STREAM / MISSING_DONE", null, null);
             }
         } catch (BusinessException exception) {
             throw exception;

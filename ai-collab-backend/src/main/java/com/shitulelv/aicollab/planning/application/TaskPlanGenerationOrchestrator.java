@@ -373,7 +373,7 @@ public class TaskPlanGenerationOrchestrator {
                     planningCorrelationId(plan.id(), plan.generationSeq()));
         } catch (BusinessException providerFailure) {
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
-                    TaskPlanStatus.FAILED, providerFailure.getErrorCode().name());
+                    TaskPlanStatus.FAILED, providerFailure.getErrorCode().name(), safeErrorSummary("SKELETON", providerFailure));
             throw new GenerationHandledException();
         }
         try {
