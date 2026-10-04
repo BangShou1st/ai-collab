@@ -388,7 +388,14 @@ public class AgentModelMessageComposer {
         StringBuilder constraints = new StringBuilder();
         for (JsonNode entry : state.path("constraints")) {
             if (!"active".equals(entry.path("status").asText())) continue;
-            constraints.append("- ").append(entry.path("value").asText());
+            // 规范化条目只表达自己的事实；无法确定性识别的条目标注待澄清并保留原文
+            boolean needsClarification = entry.path("needsClarification").asBoolean(false);
+            constraints.append("- ");
+            if (needsClarification) {
+                constraints.append("待澄清：").append(entry.path("quote").asText(entry.path("value").asText()));
+            } else {
+                constraints.append(entry.path("value").asText());
+            }
             if (entry.hasNonNull("sourceMessageId")) constraints.append("（来源消息 ").append(entry.path("sourceMessageId").asText()).append('）');
             constraints.append('\n');
         }
