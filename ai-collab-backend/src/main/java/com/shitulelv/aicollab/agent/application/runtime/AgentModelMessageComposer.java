@@ -403,6 +403,14 @@ public class AgentModelMessageComposer {
         if (stale) {
             return json.createObjectNode().put("status", "REJECTED").put("error", "STALE_OBSERVATION");
         }
+        if (List.of("read_document_section", "get_document_outline", "search_project_knowledge",
+                "answer_project_question_with_sources").contains(step.toolName()) && output.isObject()) {
+            ObjectNode evidence = output.deepCopy();
+            evidence.put("sourceAuthority", "DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY");
+            evidence.put("observedAt", step.createdAt().toString());
+            evidence.put("scopeRule", "Only the returned range is evidence; retrieval time is not the document's authored time.");
+            return evidence;
+        }
         return output;
     }
 
@@ -572,6 +580,13 @@ public class AgentModelMessageComposer {
         sb.append("\n");
         sb.append("输出要求:\n").append(skill.outputContract()).append("\n\n");
         sb.append("执行边界:\n");
+        sb.append("""
+                - 当前注册工具定义说明本次能调用什么，当前成功工具结果说明具体对象在查询时的事实；工具存在不表示整个业务能力已验收。
+                - 文档内容说明其记录时的描述；旧蓝图中的“尚未支持/待实现”不代表当前缺口。与当前工具定义矛盾时明确区分来源与时间并核查具体对象。
+                - 历史助手回答和摘要可能包含错误，不能升级为已核验事实。新工具事实与旧回答冲突时明确纠正；不能因为摘要沿用了旧错误而继续断言。
+                - 提纲、章节、检索片段、分页与投影只支持实际返回范围；检索未命中不等于全文不存在，已读片段未列金额不等于全文缺失。后续回答和规划也必须保留这个限定。
+                - 局部问题只读取直接必要的章节，不从头续读全文。只要求目录/提纲时据目录/提纲作答；不要为背景理解追加正文或套用规划报告模板。
+                """);
         sb.append("- 严格遵守用户要求的查询深度；只要求根目录、当前层或列表时，不得读取子目录或文件正文。\n");
         sb.append("- 已有工具结果足以回答时立即结束，不得为了套用输出模板扩大目标。\n");
         sb.append("- 工具结果的外层 status 是调用结果；任务事实位于 data.items/data.taskFacts。逐条读取 title、status、assigneeName，null 负责人表示未分配。已返回的字段不得说成缺失；以本轮成功工具结果为准，历史记忆不得覆盖它。只查询列表时直接列出事实，无需套用 Skill 的完整报告模板。\n");
