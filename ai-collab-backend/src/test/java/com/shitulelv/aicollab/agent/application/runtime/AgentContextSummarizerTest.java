@@ -290,6 +290,37 @@ class AgentContextSummarizerTest {
         verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
     }
 
+    @Test
+    void oldSegmentsAreSummarizedAgainstCurrentConstraintsWithoutPromotingAssistantClaims() {
+        var state = v2State(16, 3, null);
+        state.put("latestRequest", "现在生成草稿，任务最多6项，取代旧上限。");
+        state.withArray("constraints").addObject().put("value", "最多6项").put("status", "active");
+        state.withArray("constraints").addObject().put("value", "最多10项").put("status", "superseded");
+        stubState(state);
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("当前最多6项；旧10项为历史。"));
+        when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
+        var old = List.of(message("USER", "先只讨论，最多10项，不生成草稿。", 1),
+                message("ASSISTANT", "全文已经核查，资料没有费用。", 2));
+        summarizer.maybeSummarize(run(), composition(old), 10_000);
+        ArgumentCaptor<List<ModelMessage>> input = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor).callModelWithoutTools(any(), input.capture());
+        String prompt = ((ModelMessage.User) input.getValue().get(1)).content();
+        String current = prompt.substring(prompt.indexOf("<CURRENT_STATE_FOR_SUMMARY>"),
+                prompt.indexOf("</CURRENT_STATE_FOR_SUMMARY>"));
+        assertThat(current).contains("最多6项", "现在生成草稿").doesNotContain("最多10项");
+        assertThat(prompt).contains("[ASSISTANT_UNVERIFIED]", old.get(0).content(), old.get(1).content());
+    }
+
+    @Test
+    void oversizedCurrentConstraintsSkipSummaryWithoutSilentlyDroppingThem() {
+        var state = v2State(16, 3, null);
+        state.withArray("constraints").addObject().put("value", "有效条件".repeat(2000)).put("status", "active");
+        stubState(state);
+        summarizer.maybeSummarize(run(), composition(candidates()), 20_000);
+        verify(modelExecutor, never()).callModelWithoutTools(any(), any());
+        verify(repository, never()).beginSummaryAttempt(any());
+    }
+
     private void stubState(JsonNode state) {
         when(repository.workingState(any(), any())).thenReturn(state);
     }

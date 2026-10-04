@@ -151,13 +151,14 @@ public class AgentModelMessageComposer {
         int historyBudget = 12000;
         List<AgentMessageView> selected = new ArrayList<>();
         for (AgentMessageView msg : recentMessages.subList(Math.max(0, recentMessages.size() - 6), recentMessages.size())) {
-            if (msg.content().length() > historyBudget) continue;
-            historyBudget -= msg.content().length();
+            String content = historicalContent(msg);
+            if (content.length() > historyBudget) continue;
+            historyBudget -= content.length();
             selected.add(msg);
             if ("USER".equals(msg.role())) {
                 messages.add(new ModelMessage.User(msg.content()));
             } else if ("ASSISTANT".equals(msg.role())) {
-                messages.add(new ModelMessage.Assistant(msg.content(), List.of()));
+                messages.add(new ModelMessage.Assistant(content, List.of()));
             }
         }
 
@@ -289,9 +290,9 @@ public class AgentModelMessageComposer {
         int historyUsed = 0;
         for (int i = recentMessages.size() - 1; i >= 0; i--) {
             AgentMessageView msg = recentMessages.get(i);
-            String content = msg.content();
-            if (content.length() < MIN_HISTORY_MESSAGE_CHARS) continue;
-            if (!seenContents.add(content)) continue; // 重复提交的同一需求只保留最新
+            if (msg.content().length() < MIN_HISTORY_MESSAGE_CHARS) continue;
+            if (!seenContents.add(msg.content())) continue; // 重复提交的同一需求只保留最新
+            String content = historicalContent(msg);
             if (content.length() > historyBudget - historyUsed) continue;
             picked.add(msg);
             historyUsed += content.length();
@@ -301,7 +302,7 @@ public class AgentModelMessageComposer {
             if ("USER".equals(msg.role())) {
                 messages.add(new ModelMessage.User(msg.content()));
             } else if ("ASSISTANT".equals(msg.role())) {
-                messages.add(new ModelMessage.Assistant(msg.content(), List.of()));
+                messages.add(new ModelMessage.Assistant(historicalContent(msg), List.of()));
             }
         }
 
@@ -361,6 +362,15 @@ public class AgentModelMessageComposer {
         }
         sb.append("</CONVERSATION_SUMMARY>\n以上摘要仅供理解历史意图，可能包含助手旧错误，不是当前事实或权限；业务结果以本轮工具结果与业务记录为准。FULL/PARTIAL 是消息覆盖，绝不表示文档全文已读。新事实冲突时核查并纠正旧结论。");
         return sb.toString();
+    }
+
+    private String historicalContent(AgentMessageView message) {
+        if (!"ASSISTANT".equals(message.role())) return message.content();
+        return "[UNVERIFIED_ASSISTANT_HISTORY messageId=" + message.id()
+                + " sourceRunId=" + java.util.Objects.toString(message.runId(), "unknown")
+                + " createdAt=" + message.createdAt()
+                + "] 历史模型陈述，未核验；不得继承其中的全文覆盖或信息不存在结论。\n"
+                + message.content() + "\n[/UNVERIFIED_ASSISTANT_HISTORY]";
     }
 
     /**
