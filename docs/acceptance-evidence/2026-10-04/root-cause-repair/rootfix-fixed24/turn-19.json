@@ -1,0 +1,110 @@
+{
+  "executionDate": "2026-10-04",
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG",
+  "session": {
+    "id": "a90663d8-5e5e-4724-8923-f76c795dae9f",
+    "projectId": "44e64549-df8f-4351-916e-2e4a330671cd",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "根因修复复验 rootfix-fixed24",
+    "status": "ACTIVE",
+    "version": 19,
+    "createdAt": "2026-10-04T11:43:37.688263Z",
+    "updatedAt": "2026-10-04T11:53:20.680407Z"
+  },
+  "codeVersion": "de032f5dcbcaa277a6790bf3421a13719512accc",
+  "run": {
+    "id": "18f50622-0d38-4651-b2c3-89ff46d25e1c",
+    "sessionId": "a90663d8-5e5e-4724-8923-f76c795dae9f",
+    "projectId": "44e64549-df8f-4351-916e-2e4a330671cd",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "为了形成6项以内的完整规划，请按长对话、模型超时、排队重启、运行中重启、取消竞争、证据收口给出覆盖映射。不要加入采购费用工作。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 2,
+    "toolCallsUsed": 0,
+    "childrenUsed": 0,
+    "inputTokensUsed": 18640,
+    "outputTokensUsed": 1155,
+    "inputTokensActual": 18640,
+    "outputTokensActual": 1155,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"0cfc9686-51fb-4421-a66e-5a47f4d9b616\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 4,
+    "createdAt": "2026-10-04T11:53:20.680407Z",
+    "updatedAt": "2026-10-04T11:53:36.468816Z"
+  },
+  "answer": {
+    "id": "9c3d8a8a-5b1e-41dc-b235-cb8618aefc64",
+    "sessionId": "a90663d8-5e5e-4724-8923-f76c795dae9f",
+    "runId": "18f50622-0d38-4651-b2c3-89ff46d25e1c",
+    "role": "ASSISTANT",
+    "content": "**6 项任务覆盖映射（1:1，不加采购费用，未生成草稿）**\n\n| 故障 | 任务 | 蓝图依据 | 备注 |\n|---|---|---|---|\n| 长对话 | T1 覆盖连续性验收 | §4.1/4.2/4.3（chunkNo 6–8）：约束不按\"最后N条\"淘汰、带来源 messageId、lastProcessedMessageId | 判定锚点是约束条目留存，非窗口大小 |\n| 模型超时 | T2 超时收敛 | §6.2（16）：同 invocation 放回原 operation、同键不同参数拒绝；§6.3（17）：超时先查原 operation 状态 | 费用记账条款在已读范围未见 |\n| 排队重启 | T3 排队态重启 | §8.1（20）：操作关联是业务数据须事务化；§6.2 关联键（originRunId 等）落库 | 不可新建第二份规划 |\n| 运行中重启 | T4 生成中断 | §6.3（17）：错误分类/基础设施不可用记为待验证项；§8.1 审计保留 | 显式失败态字段原文未读到，属推断 |\n| 取消竞争 | T5 取消归属 | §6.3 标题含\"取消\"；工具契约：cancel 须先读真实状态、不得取消他人 attempt | 取消条款大半在未读省略段 |\n| 证据收口 | T6 证据与待验证项 | §5.3（13）：有界补读并保留实际读取范围；§5.1（10）：不把文字提取说成完整理解 | 跨项验收门槛 |\n\n**已测结果：零**。以上均为未实施蓝图（2026-10-03 自述）与工具契约的要求，非运行证据。\n\n**范围限定**：正文按块读、每块多仅见前 200 字符；提纲仅返回 3/27 标题；检索索引失败（processingStatus=FAILED）——\"未读到\"只在我已读区间内成立。\n\n如需余量，可把 T6 降为跨项门槛、释放 1 个名额。约束保持：2026-10-05–10-25、Local Owner、上限 6 项。",
+    "citations": [],
+    "inferences": [],
+    "createdAt": "2026-10-04T11:53:36.468816Z"
+  },
+  "batch": "rootfix-fixed24",
+  "prompt": "为了形成6项以内的完整规划，请按长对话、模型超时、排队重启、运行中重启、取消竞争、证据收口给出覆盖映射。不要加入采购费用工作。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+  "steps": [
+    {
+      "id": "7586604c-9d89-4fb8-b84c-8ff14f9d9209",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 18640,
+          "outputTokens": 1155
+        },
+        "content": "**6 项任务覆盖映射（1:1，不加采购费用，未生成草稿）**\n\n| 故障 | 任务 | 蓝图依据 | 备注 |\n|---|---|---|---|\n| 长对话 | T1 覆盖连续性验收 | §4.1/4.2/4.3（chunkNo 6–8）：约束不按\"最后N条\"淘汰、带来源 messageId、lastProcessedMessageId | 判定锚点是约束条目留存，非窗口大小 |\n| 模型超时 | T2 超时收敛 | §6.2（16）：同 invocation 放回原 operation、同键不同参数拒绝；§6.3（17）：超时先查原 operation 状态 | 费用记账条款在已读范围未见 |\n| 排队重启 | T3 排队态重启 | §8.1（20）：操作关联是业务数据须事务化；§6.2 关联键（originRunId 等）落库 | 不可新建第二份规划 |\n| 运行中重启 | T4 生成中断 | §6.3（17）：错误分类/基础设施不可用记为待验证项；§8.1 审计保留 | 显式失败态字段原文未读到，属推断 |\n| 取消竞争 | T5 取消归属 | §6.3 标题含\"取消\"；工具契约：cancel 须先读真实状态、不得取消他人 attempt | 取消条款大半在未读省略段 |\n| 证据收口 | T6 证据与待验证项 | §5.3（13）：有界补读并保留实际读取范围；§5.1（10）：不把文字提取说成完整理解 | 跨项验收门槛 |\n\n**已测结果：零**。以上均为未实施蓝图（2026-10-03 自述）与工具契约的要求，非运行证据。\n\n**范围限定**：正文按块读、每块多仅见前 200 字符；提纲仅返回 3/27 标题；检索索引失败（processingStatus=FAILED）——\"未读到\"只在我已读区间内成立。\n\n如需余量，可把 T6 降为跨项门槛、释放 1 个名额。约束保持：2026-10-05–10-25、Local Owner、上限 6 项。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 14699,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "**6 项任务覆盖映射（1:1，不加采购费用，未生成草稿）**\n\n| 故障 | 任务 | 蓝图依据 | 备注 |\n|---|---|---|---|\n| 长对话 | T1 覆盖连续性验收 | §4.1/4.2/4.3（chunkNo 6–8）：约束不按\"最后N条\"淘汰、带来源 messageId、lastProcessedMessageId | 判定锚点是约束条目留存，非窗口大小 |\n| 模型超时 | T2 超时收敛 | §6.2（16）：同 invocation 放回原 operation、同键不同参数拒绝；§6.3（17）：超时先查原 operation 状态 | 费用记账条款在已读范围未见 |\n| 排队重启 | T3 排队态重启 | §8.1（20）：操作关联是业务数据须事务化；§6.2 关联键（originRunId 等）落库 | 不可新建第二份规划 |\n| 运行中重启 | T4 生成中断 | §6.3（17）：错误分类/基础设施不可用记为待验证项；§8.1 审计保留 | 显式失败态字段原文未读到，属推断 |\n| 取消竞争 | T5 取消归属 | §6.3 标题含\"取消\"；工具契约：cancel 须先读真实状态、不得取消他人 attempt | 取消条款大半在未读省略段 |\n| 证据收口 | T6 证据与待验证项 | §5.3（13）：有界补读并保留实际读取范围；§5.1（10）：不把文字提取说成完整理解 | 跨项验收门槛 |\n\n**已测结果：零**。以上均为未实施蓝图（2026-10-03 自述）与工具契约的要求，非运行证据。\n\n**范围限定**：正文按块读、每块多仅见前 200 字符；提纲仅返回 3/27 标题；检索索引失败（processingStatus=FAILED）——\"未读到\"只在我已读区间内成立。\n\n如需余量，可把 T6 降为跨项门槛、释放 1 个名额。约束保持：2026-10-05–10-25、Local Owner、上限 6 项。",
+      "promptTokens": 18640,
+      "completionTokens": 1155,
+      "tokenUsageEstimated": false,
+      "latencyMs": 14699,
+      "errorCode": null,
+      "createdAt": "2026-10-04T11:53:36.451178Z"
+    },
+    {
+      "id": "29c030b2-15fc-4bec-b515-b02eb5745bf7",
+      "sequence": 2,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "**6 项任务覆盖映射（1:1，不加采购费用，未生成草稿）**\n\n| 故障 | 任务 | 蓝图依据 | 备注 |\n|---|---|---|---|\n| 长对话 | T1 覆盖连续性验收 | §4.1/4.2/4.3（chunkNo 6–8）：约束不按\"最后N条\"淘汰、带来源 messageId、lastProcessedMessageId | 判定锚点是约束条目留存，非窗口大小 |\n| 模型超时 | T2 超时收敛 | §6.2（16）：同 invocation 放回原 operation、同键不同参数拒绝；§6.3（17）：超时先查原 operation 状态 | 费用记账条款在已读范围未见 |\n| 排队重启 | T3 排队态重启 | §8.1（20）：操作关联是业务数据须事务化；§6.2 关联键（originRunId 等）落库 | 不可新建第二份规划 |\n| 运行中重启 | T4 生成中断 | §6.3（17）：错误分类/基础设施不可用记为待验证项；§8.1 审计保留 | 显式失败态字段原文未读到，属推断 |\n| 取消竞争 | T5 取消归属 | §6.3 标题含\"取消\"；工具契约：cancel 须先读真实状态、不得取消他人 attempt | 取消条款大半在未读省略段 |\n| 证据收口 | T6 证据与待验证项 | §5.3（13）：有界补读并保留实际读取范围；§5.1（10）：不把文字提取说成完整理解 | 跨项验收门槛 |\n\n**已测结果：零**。以上均为未实施蓝图（2026-10-03 自述）与工具契约的要求，非运行证据。\n\n**范围限定**：正文按块读、每块多仅见前 200 字符；提纲仅返回 3/27 标题；检索索引失败（processingStatus=FAILED）——\"未读到\"只在我已读区间内成立。\n\n如需余量，可把 T6 降为跨项门槛、释放 1 个名额。约束保持：2026-10-05–10-25、Local Owner、上限 6 项。",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T11:53:36.468816Z"
+    }
+  ],
+  "turn": 19
+}

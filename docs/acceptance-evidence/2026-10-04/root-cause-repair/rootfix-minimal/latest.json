@@ -1,0 +1,22 @@
+{
+  "state": {
+    "codeVersion": "de032f5dcbcaa277a6790bf3421a13719512accc",
+    "batch": "rootfix-minimal",
+    "sessionId": "4f00881c-04ed-47c8-9229-f449af54de6e",
+    "completedTurns": 0,
+    "documentId": "4d6b959e-4734-4570-af30-a2e57fb7bba9",
+    "projectId": "f29b6731-095e-4484-af41-139502a05024"
+  },
+  "codeVersion": "de032f5dcbcaa277a6790bf3421a13719512accc",
+  "session": {
+    "id": "4f00881c-04ed-47c8-9229-f449af54de6e",
+    "projectId": "f29b6731-095e-4484-af41-139502a05024",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "根因修复复验 rootfix-minimal",
+    "status": "ACTIVE",
+    "version": 0,
+    "createdAt": "2026-10-04T11:37:36.6681Z",
+    "updatedAt": "2026-10-04T11:37:36.6681Z"
+  },
+  "operations": null
+}

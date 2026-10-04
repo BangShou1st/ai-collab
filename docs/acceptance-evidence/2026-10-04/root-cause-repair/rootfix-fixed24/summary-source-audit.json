@@ -1,0 +1,42 @@
+[
+  {
+    "turn": 21,
+    "purpose": "CONTEXT_SUMMARY",
+    "status": "COMMITTED",
+    "usageBasis": null,
+    "inputTokens": 1916,
+    "outputTokens": 1902,
+    "estimated": false,
+    "note": "output_json carries outcome; persisted text length verified in DB separately"
+  },
+  {
+    "turn": 22,
+    "purpose": "CONTEXT_SUMMARY",
+    "status": "DOWNSGRADED_UNQUALIFIED",
+    "usageBasis": null,
+    "inputTokens": 3372,
+    "outputTokens": 3828,
+    "estimated": false,
+    "note": "output_json carries outcome; persisted text length verified in DB separately"
+  },
+  {
+    "turn": 23,
+    "purpose": "CONTEXT_SUMMARY",
+    "status": "DOWNSGRADED_UNQUALIFIED",
+    "usageBasis": null,
+    "inputTokens": 3902,
+    "outputTokens": 2602,
+    "estimated": false,
+    "note": "output_json carries outcome; persisted text length verified in DB separately"
+  },
+  {
+    "turn": 24,
+    "purpose": "CONTEXT_SUMMARY",
+    "status": "COMMITTED",
+    "usageBasis": null,
+    "inputTokens": 2724,
+    "outputTokens": 685,
+    "estimated": false,
+    "note": "output_json carries outcome; persisted text length verified in DB separately"
+  }
+]

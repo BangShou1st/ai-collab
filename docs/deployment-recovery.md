@@ -1,6 +1,6 @@
 # 部署与恢复说明
 
-2026-10-04：本轮授权仅开发分支备份推送，验收写入仅隔离副本；不包含部署或正式迁移。长对话质量结论见交付报告顶部。正式库版本核对、正式备份恢复演练与正式迁移均未执行。
+2026-10-04：本轮授权仅开发分支备份推送，验收写入仅隔离副本；不包含部署或正式迁移。最新根因修复复验见 [root-cause-repair 报告](acceptance-evidence/2026-10-04/root-cause-repair/report.md)，隔离验收入口与停止/恢复约定不变。新增说明：本轮使用独立容器 `ai-collab-rootfix-pg/redis/minio`（端口 55432/16379/18090，复用隔离卷 `ai-collab-acceptance-20261003`，Flyway 已在隔离副本应用至 V56）；复验脚本为 `run-root-cause-repair.ps1`，批次 `rootfix-minimal/fixed24/correction`，原 `run-long-quality.ps1` 与旧证据未改动。数据库新增 V56（agent_run 实际用量列、agent_step.usage_basis），仅应用隔离副本，正式库迁移另行授权。
 
 ## 隔离验收入口
 
