@@ -31,8 +31,8 @@
     {
       "id": 5,
       "issue": "budget-forced finalize without the required action recorded run as SUCCEEDED (real turn-23 of previous round)",
-      "verification": "stability-fixed24 turn-23 (real run, original wording): model called start_task_plan this time — first attempt FAILED (PLANNING_DOCUMENT_NOT_READY, persisted), model retried, second attempt SUCCEEDED, operation accepted, run SUCCEEDED with a real accepted planning operation (this is genuine success, not text-only); had finalize blocked the action, the new deterministic path settles BUDGET_EXCEEDED with scope CORE_ACTION_NOT_PERFORMED — judged from goal text + persisted tool results, never the final answer; hint 'evidence sufficient -> call start_task_plan now' injected while action pending; ordinary read-only runs unaffected (turn-4/10/18/19/22 all SUCCEEDED with text answers)",
-      "result": "PASS"
+      "verification": "stability-fixed24 turn-23 (real run, original wording): model called start_task_plan twice — attempt 1 carried documentIds=[3e247376…] (that document processingStatus=FAILED, retrieval unavailable) and FAILED with PLANNING_DOCUMENT_NOT_READY; attempt 2 DROPPED documentIds and folded previously read fragments into the constraints text, then SUCCEEDED and the operation was accepted (requiresHumanConfirmation=true). This proves degraded-retrieval draft content correctness, NOT a same-parameters retry success; the full 资料→规划 source link is verified separately in the sources-available environment. The deterministic path is unit-tested: had finalize blocked the action, the run settles BUDGET_EXCEEDED with scope CORE_ACTION_NOT_PERFORMED — judged from goal text + persisted tool results, never the final answer; intent recognition covers mirrored negatives/questions (see coreActionIntentHonorsMirroredNegativesQuestionsAndClauses); ordinary read-only runs unaffected (turn-4/10/18/19/22 all SUCCEEDED with text answers)",
+      "result": "PASS (degraded-retrieval content correctness; source-link verified separately)"
     },
     {
       "id": 6,
