@@ -490,7 +490,7 @@ class AgentRuntimeCoordinatorTest {
                 run.id(), run.sessionId(), run.projectId(), run.requesterId(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 16, 12, 3, 100_000, 32_000,
-                0, 0, 0, 6_000, 0, false,
+                0, 0, 0, 6_000, 0, 0, 0, false,
                 false, false, 0, null, null, null, null, 2, now, now);
         when(repository.findRun(any(), any()))
                 .thenReturn(java.util.Optional.empty())
@@ -503,13 +503,49 @@ class AgentRuntimeCoordinatorTest {
         verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean());
     }
 
+    /**
+     * 返回后输入实际超额：结算真实消耗并明确终止，不执行该响应中的工具，不记成功。
+     * 回归根因：fixed24-final2 第 14 轮真实输入 52,289 > 50,000 仍 SUCCEEDED。
+     */
+    @Test
+    void actualInputOvershootAfterModelTurnEndsRunWithoutExecutingTools() {
+        AgentRunView run = run();
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("研究", List.of()));
+        when(repository.listSteps(any(), any())).thenReturn(List.of());
+        when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(
+                new ModelTurnResult("继续分析", List.of(), ModelFinishReason.STOP,
+                        new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(200_000, 500),
+                        "test-provider", "test-model", 10L));
+        // recordModelTurn 结算真实消耗后返回的运行：actual 已超过 max
+        OffsetDateTime now = OffsetDateTime.now();
+        AgentRunView settled = new AgentRunView(
+                run.id(), run.sessionId(), run.projectId(), run.requesterId(),
+                null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
+                16, 12, 3, 100_000, 32_000,
+                1, 0, 0, 100_000, 500, 200_000, 500, false,
+                false, false, 0, null, null, null, null, 2, now, now);
+        when(repository.recordModelTurn(eq(run), any())).thenReturn(settled);
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        verify(repository).recordModelTurn(eq(run), any());
+        verify(repository).recordBudgetExceeded(any());
+        verify(repository, never()).recordFinal(any(), any(),
+                any(com.shitulelv.aicollab.agent.domain.model.AgentDecision.FinalAnswer.class));
+        verify(repository, never()).recordFinal(any(), any(), anyList());
+        verify(repository, never()).recordToolResult(any(), any(), any(), any(), anyBoolean());
+    }
+
     private AgentRunView run() {
         OffsetDateTime now = OffsetDateTime.now();
         return new AgentRunView(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 16, 12, 3, 100_000, 32_000,
-                0, 0, 0, 0, 0, false,
+                0, 0, 0, 0, 0, 0, 0, false,
                 false, false, 0, null, null, null, null, 1, now, now);
     }
 
@@ -582,7 +618,7 @@ class AgentRuntimeCoordinatorTest {
                 r.maxSteps(), r.maxToolCalls(), r.maxChildren(),
                 r.maxInputTokens(), r.maxOutputTokens(),
                 r.stepsUsed(), r.toolCallsUsed(), r.childrenUsed(),
-                r.inputTokensUsed(), r.outputTokensUsed(),
+                r.inputTokensUsed(), r.outputTokensUsed(), 0, 0,
                 r.tokenUsageEstimated(), r.scheduled(), r.correctionAttempted(),
                 r.retryCount(), r.errorCode(), r.planJson(), r.pageContextJson(), skillCode,
                 r.version(), r.createdAt(), r.updatedAt());
@@ -596,7 +632,7 @@ class AgentRuntimeCoordinatorTest {
                 r.maxSteps(), r.maxToolCalls(), r.maxChildren(),
                 r.maxInputTokens(), r.maxOutputTokens(),
                 r.stepsUsed(), r.toolCallsUsed(), r.childrenUsed(),
-                r.inputTokensUsed(), r.outputTokensUsed(),
+                r.inputTokensUsed(), r.outputTokensUsed(), 0, 0,
                 r.tokenUsageEstimated(), r.scheduled(), r.correctionAttempted(),
                 r.retryCount(), r.errorCode(), r.planJson(), r.pageContextJson(), r.skillCode(),
                 r.version(), r.createdAt(), r.updatedAt());
@@ -610,7 +646,7 @@ class AgentRuntimeCoordinatorTest {
                 r.maxSteps(), r.maxToolCalls(), r.maxChildren(),
                 r.maxInputTokens(), r.maxOutputTokens(),
                 stepsUsed, toolCallsUsed, r.childrenUsed(),
-                r.inputTokensUsed(), r.outputTokensUsed(),
+                r.inputTokensUsed(), r.outputTokensUsed(), 0, 0,
                 r.tokenUsageEstimated(), r.scheduled(), r.correctionAttempted(),
                 r.retryCount(), r.errorCode(), r.planJson(), r.pageContextJson(), r.skillCode(),
                 r.version(), r.createdAt(), r.updatedAt());

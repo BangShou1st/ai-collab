@@ -38,7 +38,7 @@ class PresetAwareRoutingTest {
 
     private AgentRunView run(UUID project, UUID requester) {
         return new AgentRunView(UUID.randomUUID(), UUID.randomUUID(), project, requester, null, "agent",
-                0, "goal", AgentRunStatus.RUNNING, 12, 16, 3, 100000, 8000, 0, 0, 0, 0, 0, false, false,
+                0, "goal", AgentRunStatus.RUNNING, 12, 16, 3, 100000, 8000, 0, 0, 0, 0, 0, 0, 0, false, false,
                 false, 0, null, null, null, null, 1, OffsetDateTime.now(), OffsetDateTime.now());
     }
 

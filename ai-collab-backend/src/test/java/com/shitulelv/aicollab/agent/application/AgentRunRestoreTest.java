@@ -17,7 +17,7 @@ import static org.mockito.Mockito.*;
 class AgentRunRestoreTest {
     private AgentRunView run(UUID project, UUID session, AgentRunStatus st) {
         return new AgentRunView(UUID.randomUUID(), session, project, UUID.randomUUID(), null, "USER", 0, "goal",
-                st, 12, 16, 3, 100000, 8000, 0, 0, 0, 0, 0, false, false, false, 0, null, null, null, null, 1,
+                st, 12, 16, 3, 100000, 8000, 0, 0, 0, 0, 0, 0, 0, false, false, false, 0, null, null, null, null, 1,
                 OffsetDateTime.now(), OffsetDateTime.now());
     }
     private AgentRunService svc(AgentRepository repo, AgentApprovalRepository approvals) {

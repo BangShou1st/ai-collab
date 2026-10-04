@@ -86,7 +86,7 @@ class AgentWorkerNativeTurnTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 12, 8, 3, 50_000, 20_000,
-                steps, tools, 0, 0, 0, false,
+                steps, tools, 0, 0, 0, 0, 0, false,
                 false, false, 0, null, null, null, null, 1, now, now);
     }
 
@@ -96,7 +96,7 @@ class AgentWorkerNativeTurnTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 12, 8, 3, 1000, 20_000,
-                0, 0, 0, 1000, 0, false,
+                0, 0, 0, 1000, 0, 0, 0, false,
                 false, false, 0, null, null, null, null, 1, now, now);
     }
 
@@ -106,7 +106,7 @@ class AgentWorkerNativeTurnTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 12, 8, 3, 50_000, 100,
-                0, 0, 0, 0, 100, false,
+                0, 0, 0, 0, 100, 0, 0, false,
                 false, false, 0, null, null, null, null, 1, now, now);
     }
 

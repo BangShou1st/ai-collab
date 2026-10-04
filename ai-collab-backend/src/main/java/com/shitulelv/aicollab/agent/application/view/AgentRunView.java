@@ -25,6 +25,9 @@ public record AgentRunView(
         int childrenUsed,
         int inputTokensUsed,
         int outputTokensUsed,
+        /** 真实消耗（可高于 max_*_tokens 上限）；used 列保持预算语义（封顶）。 */
+        long inputTokensActual,
+        long outputTokensActual,
         boolean tokenUsageEstimated,
         boolean scheduled,
         boolean correctionAttempted,
