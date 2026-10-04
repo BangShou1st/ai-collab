@@ -307,6 +307,22 @@ afterEach(() => {
 })
 
 describe('PlanningView real component workflow', () => {
+  it('can retry the original failed skeleton before any version exists', async () => {
+    const failed = plan({ status: 'FAILED', latestVersionNo: 0, latestVersionId: null })
+    mocks.list.mockResolvedValue(response([failed]))
+    mocks.detail.mockResolvedValue(response(detail(failed)))
+    mocks.versions.mockResolvedValue(response([]))
+    mocks.action.mockResolvedValue(response({}))
+    const wrapper = await mounted()
+    await openFirst(wrapper)
+    const retry = wrapper.findAll('button').find(button => button.text() === '重新生成')
+    expect(retry).toBeDefined()
+    await retry!.trigger('click')
+    await flushPromises()
+    expect(mocks.action).toHaveBeenCalledWith('project-1', 'plan-1', 'regenerate')
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
   it('requires explicit adoption and saves the suggested member as the formal assignee', async () => {
     const wrapper = await mounted()
     await openFirst(wrapper)

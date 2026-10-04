@@ -67,7 +67,7 @@ function adoptAssignee(task: TaskPlanDraft['tasks'][number]) {
 const form = reactive({ title: '', goal: '', constraints: '', planStartDate: '', planDueDate: '', maxTaskCount: 20, documentIds: [] as string[] })
 const poller = new PlanningPoller()
 const dirty = computed(() => draft.value !== null && JSON.stringify(draft.value) !== snapshot.value)
-const editingLatest = computed(() => selectedVersionId.value === selected.value?.latestVersionId)
+const editingLatest = computed(() => selected.value !== null && selectedVersionId.value === (selected.value.latestVersionId ?? ''))
 const canEditCurrent = computed(() => permissions.value?.canEdit === true && editingLatest.value)
 const confirmationSummary = computed(() => ({
   milestones: draft.value?.milestones.length ?? 0,
