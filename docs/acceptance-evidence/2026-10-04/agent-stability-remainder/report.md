@@ -17,8 +17,8 @@
 - `stability-minimal`（1–10 轮，新项目/新会话）：10/10 SUCCEEDED、retry=0。第 10 轮中间状态见上。
 - `stability-fixed24`（1–24 轮严格顺序，同字节蓝图，中途零改动，代码 `6edb3c3`）：22/24 SUCCEEDED、retry=0；**第 9 轮 BUDGET_EXCEEDED**（验收宿主 JVM 意外退出，恢复任务接续原运行后时长预算已耗尽——真实中断路径如实记录，states.jsonl 留痕，未重复提交）；**第 15 轮 BUDGET_EXCEEDED**（真实输入 53437>50000，超额如实终止）。24/24 SUCCEEDED 不是本轮的结果，两个 BUDGET_EXCEEDED 均为诚实结果而非五组缺陷复发。
 - `stability-correction`（原失败会话+全部历史，第 14/16/18/21/22/24 轮）：全部 SUCCEEDED。第 24 轮只读区分"后台生成完成（READY）"与"规划未完成（未人工确认）"，未重复提交、未确认正式任务。第 18 轮证据从其原运行恢复落盘（批处理被中断时已提交，未重发）。
-- 规划正文（fixed24 项目，READY v2）：6 项任务+6 个里程碑，日期全部落在 2026-10-05..10-25，suggestedAssigneeId 均为真实 Local Owner ID，依赖 T1→…→T6 线性无环，validation.errors=[]（TASK_UNASSIGNED 警告为设计内），**草稿全文 0 处"10项/最多十项"残留**，assumptions 明示 6 项来自当前生效约束；confirmations=0、正式任务=0。规划服务两次真实模型调用（SKELETON 1806/3778、DETAIL 5683/2575）均 SUCCESS。
-- 来源链路单独验证（`sources-available`，与冻结批次分开记录）：本副本宿主启动时 Ollama 未运行导致前两批 embedding 失败（降级条件如实沿用）；Ollama 可用后新建项目上传蓝图索引 READY，单轮规划受理后规划服务**实际检索取得 9 条真实来源**（S1–S9，含 chunkId/heading/similarity），草稿 READY v2。首次骨架生成 FAILED（PLANNING_MODEL_INVALID_OUTPUT，零版本）按既有规划页路径重新生成，原失败 attempt 保留。
+- 规划正文（fixed24 项目，READY v2）：6 项任务+6 个里程碑，日期全部落在 2026-10-05..10-25，suggestedAssigneeId 均为真实 Local Owner ID，依赖 T1→…→T6 线性无环，validation.errors=[]（TASK_UNASSIGNED 警告为设计内），**草稿全文 0 处"10项/最多十项"残留**，assumptions 明示 6 项来自当前生效约束；confirmations=0、正式任务=0。规划服务两次真实模型调用（SKELETON 1806/3778、DETAIL 5683/2575）均 SUCCESS。**证据口径说明**：第 23 轮两次 start_task_plan 并非同一参数的重试成功——第一次携带 documentIds=[3e247376…]（该文档 processingStatus=FAILED、检索不可用）→ PLANNING_DOCUMENT_NOT_READY；第二次**去掉了 documentIds**，把此前已读片段写入 constraints 后成功。这证明的是降级检索条件下草稿内容符合当前约束，不是"同一资料关联请求重试成功"。
+- 来源链路**单独环境验证**（`sources-available`，与冻结批次分开记录，不并入冻结 24 轮结论）：冻结批次运行时宿主启动阶段 Ollama 未运行，embedding 失败、检索全程不可用（降级条件如实沿用）；Ollama 可用后**另建**新项目上传蓝图索引 READY，单轮规划受理后规划服务**实际检索取得 9 条真实来源**（S1–S9，含 chunkId/heading/similarity），草稿 READY v2。首次骨架生成 FAILED（PLANNING_MODEL_INVALID_OUTPUT，零版本）按既有规划页路径重新生成，原失败 attempt 保留。该验证使用与冻结批次不同的项目、会话与环境条件。
 
 ## 测试统计（不重复相加）
 
@@ -32,6 +32,17 @@
 - 上一轮"10→8→6 全链路正确"的说法不准确：当时真实第 10 轮 8/10 被标待澄清、旧 10 仍 active，仅最终 6 项正确。本轮以原句复现并修复，中间状态 8 active/10 superseded 已在真实运行验证。
 - 上一轮"规划正文旧数量残留未验"已补验：本轮真实草稿零旧数量残留；上一轮第 23 轮"未执行 start_task_plan 但 SUCCEEDED"的伪成功根因已修复并有回归。
 - 检索可用环境下的"资料→规划来源"链路本轮首次取得真实证据（9 条来源），与降级环境结果分开记录，不混淆条件。
+
+## 修补轮（2026-10-05，代码 `e3e3603`）：外部评审四项缺口的封堵与复验
+
+外部只读评审发现四项缺口并确认（不重跑已通过验收）：
+
+1. **取消竞争漏记窗口**：最后一次取消检查之后、落库之前取消时，`recordModelTurn` 的租约校验先抛取消、未推进总额，费用随取消丢失；且内容哈希 callId 会把"相同内容的真实第二次请求"与"同一次请求的重复结算"错误共享身份。修复：每次实际出站请求先经 `beginModelCall` 落库独立持久身份，正常记账（`markModelCallSettled` 只标记）与取消/落库失败补记（`settleOrphanUsage` 入账）共用同一身份一次性结算；落库失败（租约过期/版本冲突）同样补结算。真实 PG 回归：落库前取消补结算、真实第二次请求独立入账并再次计费。
+2. **重压缩异常输入按未知零值**：请求正文已构造完成，输入改为按实际请求大小估算（ESTIMATED），仅输出侧无响应证据标 UNKNOWN；原错误断言一并纠正。
+3. **摘要输出预算未核算**：初始摘要与重压缩各自独立检查剩余输出预留（新增 `RECOMPRESS_SKIPPED_OUTPUT_BUDGET`）；摘要入账后协调器同时复查输入与输出预算，输出预留不足即 `SUMMARY_CONSUMED_OUTPUT_BUDGET` 停止，不再继续主调用。
+4. **核心动作否定意图误判**：肯定与否定覆盖同一动词集合（生成/起草/制定/启动），按子句评估并跳过疑问/假设语气；"不要起草规划""无需制定计划""是否需要生成规划"不再判为生成要求，"先不生成；现在生成草稿"以后一子句为准。
+
+**修补后受影响链路真实复验**（`patch-reverify`，代码 `e3e3603`，隔离副本，embedding 可用 doc=READY）：新会话按原措辞执行第 10 轮（负向）与第 23 轮（正向）——第 10 轮 SUCCEEDED、0 次工具调用、无规划操作（否定意图未被注入提示误导）；第 23 轮模型 3 次 `start_task_plan` 均被业务结构化校验 `VALIDATION_ERROR` 拒绝（新会话无约束历史，参数不满足），模型如实报告"草稿未生成"后预算收尾 BUDGET_EXCEEDED——**这是预算保护正确停止，不是用户目标完成**；未调高预算凑成功。账本审计：2 个运行、7 次模型调用、7 条已结算身份行、0 未结算、0 对账差异（正常路径"记账+标记不重复入账"在真实链路成立）。测试增量：AgentContextSummarizerTest 23 项、AgentRuntimeCoordinatorTest 27 项、AgentActualTokenUsageIntegrationTest 11 项（新增落库前取消回归与独立身份回归），后端全量 1030 项 0 失败。
 
 ## 环境恢复
 
