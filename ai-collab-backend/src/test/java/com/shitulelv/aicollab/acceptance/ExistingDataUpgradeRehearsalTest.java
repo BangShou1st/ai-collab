@@ -24,8 +24,8 @@ class ExistingDataUpgradeRehearsalTest {
             snapshots.put(table,new Snapshot(columns,jdbc.queryForObject("select count(*) from "+quote(table),Long.class),digest(jdbc,table,columns)));
         }
         var result=Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
-        assertThat(result.migrationsExecuted).isEqualTo(10);
-        assertThat(jdbc.queryForObject("select max(version::int) from flyway_schema_history where success",Integer.class)).isEqualTo(55);
+        assertThat(result.migrationsExecuted).isEqualTo(11);
+        assertThat(jdbc.queryForObject("select max(version::int) from flyway_schema_history where success",Integer.class)).isEqualTo(56);
         for (var item:snapshots.entrySet()) {
             assertThat(jdbc.queryForObject("select count(*) from "+quote(item.getKey()),Long.class)).as(item.getKey()+" row count").isEqualTo(item.getValue().rows());
             assertThat(digest(jdbc,item.getKey(),item.getValue().columns())).as(item.getKey()+" original columns digest").isEqualTo(item.getValue().digest());
