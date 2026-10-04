@@ -1,0 +1,1162 @@
+[
+  {
+    "name": "com.shitulelv.aicollab.acceptance.BrowserAcceptanceHostTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.acceptance.ExistingDataUpgradeRehearsalTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.acceptance.JsonNodeHttpContractTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.acceptance.LegacyApprovalCitationUpgradeTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.acceptance.RealAcceptanceHostTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.acceptance.RealRetrievalBaselineTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.acceptance.ReliabilityAcceptanceHostTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.acceptance.ReliabilityOperationDatabaseTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 4,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.api.controller.AgentEventControllerTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.AgentApprovalServiceTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.AgentBusinessEvaluationTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.AgentPromptFactoryTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.AgentRunRestoreTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.AgentWorkerNativeTurnTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.AgentWorkerTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentContextAssemblerTest",
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentContextBudgetTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizerTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposerPromptTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposerV2Test",
+    "tests": 14,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest",
+    "tests": 25,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinatorTest",
+    "tests": 19,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.CrossTickToolCallTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.LegacyReadOnlyAgentExecutorTest",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.NativeToolCallingExecutorTest",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.PresetAwareRoutingTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.AgentApprovalPolicyTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.AgentLoopGuardTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.AgentRuntimeDomainTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.model.AgentExecutionContextTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.model.AgentPageContextTest",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimitsTest",
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistryTest",
+    "tests": 36,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.model.AgentSkillToolMappingTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.policy.AgentConvergencePolicyTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuardTest",
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.policy.AgentProposalArgumentMergerTest",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizerTest",
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.domain.tool.ToolArgumentValidatorTest",
+    "tests": 26,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.AgentAnalysisToolsTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.AgentEventRepositoryIntegrationTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationChecksumTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.AgentProposalContinuityIntegrationTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.AgentReadToolsTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest",
+    "tests": 38,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryDepthTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.AgentWriteProposalSpringIntegrationTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.mcp.HttpMcpClientFacadeTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpAdministrationPostgresIntegrationTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpAdministrationTransactionBoundaryTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpAgentToolProviderTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpConnectionViewSerializationTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpEndpointPolicyTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpResultSanitizerTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.ProjectMemberListAgentToolTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.tool.ApprovalToolRevalidationTest",
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.auth.ratelimit.AuthRateLimiterTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.auth.service.AccessTokenServiceTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.auth.service.AuthServiceTest",
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.auth.service.RefreshTokenHashServiceTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.auth.service.RegistrationPolicyTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.common.api.JsonApiValueTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.common.security.OutboundEndpointPolicyTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.document.application.service.BatchReindexAuthorizationTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.document.application.service.DocumentApplicationServiceWriteStatusTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.document.application.service.DocumentRegistrationStatusIntegrationTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.document.infrastructure.DocumentRepositoryIntegrationTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.document.infrastructure.DocumentSourceOffsetTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.document.infrastructure.storage.MinioDocumentStorageGatewayTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.home.application.service.HomeAggregateTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.AiInvocationRoutingTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprintSearchTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingGenerationIntegrationTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.embedding.LegacyEmbeddingMigrationTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.embedding.OllamaEmbeddingHttpTest",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.embedding.OllamaEmbeddingSmokeTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingAuthTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGatewaySecurityTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingGuardTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingMigrationTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.embedding.V44MigrationTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.AnthropicTurnContractTest",
+    "tests": 13,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.GeminiTurnContractTest",
+    "tests": 14,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClientSecurityTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.ModelCapabilityPolicyTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.ModelMasterKeyFailFastTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.ModelProtocolHttpTest",
+    "tests": 20,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderAdapterContractTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipherTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.OpenAiTurnContractTest",
+    "tests": 14,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.OpenAiTurnStreamingTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.OpenCodeZenSmokeTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.ProjectModelScopingTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGatewayTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.ZenKnowledgeStreamContractTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.ZenModelWiringTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.model.ZenPlanningContractTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.OpenAiCompatibleChatModelGatewayTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnContractTest",
+    "tests": 40,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.user.ProjectModelToUserMigrationTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.user.UserAiMigrationTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderOwnershipTest",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderPresetGuardTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderPresetTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.user.UserModelPurposeAssignmentMigrationTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.user.ZenDisconnectIntegrationTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.knowledge.application.service.KnowledgeRateLimiterTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.api.PlanningOpenApiContractTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.GenerationOutcomeDeciderTest",
+    "tests": 16,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.Phase08EditableDegradationIntegrationTest",
+    "tests": 16,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.PlanningGenerationQuotaServiceTest",
+    "tests": 22,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.PlanningPromptPolicyTest",
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanActionPolicyTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanEditTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanEventViewTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorIntegrationTest",
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanModelClientTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanOutputParserTest",
+    "tests": 16,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanPartialRegenerateTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanProductionWiringPostgresIntegrationTest",
+    "tests": 19,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanQueryServiceTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest",
+    "tests": 15,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.application.TaskPlanVersionCommitServiceTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.domain.TaskPlanDomainTest",
+    "tests": 26,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.domain.TaskPlanDraftNormalizerTest",
+    "tests": 14,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidatorRuleCatalogTest",
+    "tests": 16,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.domain.TaskPlanRepairPatchTest",
+    "tests": 17,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.domain.ValidationIssueCatalogTest",
+    "tests": 19,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.infrastructure.Phase08MigrationSafetyIntegrationTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.infrastructure.PlanningMigrationIntegrationTest",
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepositoryIntegrationTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.project.application.service.AuditServiceTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.project.application.service.AuditSummaryFormatterTest",
+    "tests": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.project.application.service.ProjectDashboardAuditPostgresIntegrationTest",
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.project.application.service.ProjectOwnershipTransferPostgresIntegrationTest",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.project.domain.policy.ProjectWritePolicyTest",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.user.service.AccountServiceTest",
+    "tests": 6,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.user.service.AdminServiceAuthorizationTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.work.application.service.MilestoneApplicationServiceTest",
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  },
+  {
+    "name": "com.shitulelv.aicollab.work.application.service.ProjectDateRangePolicyTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source": "final full suite stdout per-class execution result"
+  }
+]

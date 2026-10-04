@@ -1,0 +1,44 @@
+{
+  "at": "2026-10-04T15:10:25.381397+08:00",
+  "case": "timeout-real",
+  "plan": {
+    "id": "c34086a5-d509-486b-bec1-177d2d7c3b51",
+    "status": "DETAIL_GENERATION_FAILED",
+    "latest_version_no": 1,
+    "active_attempt_id": null,
+    "last_error_code": "PLANNING_MODEL_TIMEOUT",
+    "updated_at": "2026-10-04T15:10:04.01416+08:00"
+  },
+  "operationCount": 1,
+  "matchingOperation": 1,
+  "versions": [
+    {
+      "id": "76570da6-9080-46b6-8171-95228fc1b211",
+      "version_no": 1,
+      "content_hash": "92e74871d3d1ce223897d74b25b6fbe2"
+    }
+  ],
+  "attempts": [
+    {
+      "id": "e22c7451-453c-4e60-8629-58eba9c2ace8",
+      "attempt_no": 1,
+      "stage": "SKELETON",
+      "status": "SUCCESS",
+      "error_code": null,
+      "started_at": "2026-10-04T15:07:03.887486+08:00",
+      "finished_at": "2026-10-04T15:07:03.955163+08:00"
+    },
+    {
+      "id": "97ce8b44-0b91-47ef-998b-d7d2a54ab84e",
+      "attempt_no": 2,
+      "stage": "DETAIL",
+      "status": "FAILED",
+      "error_code": "PLANNING_MODEL_TIMEOUT",
+      "started_at": "2026-10-04T15:07:03.96932+08:00",
+      "finished_at": "2026-10-04T15:10:04.01416+08:00"
+    }
+  ],
+  "formalTasks": 0,
+  "confirmations": 0,
+  "assertions": "PASS: original operation, expected status/version count, no formal tasks/confirmation, terminal active attempt cleared"
+}

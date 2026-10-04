@@ -1,0 +1,294 @@
+{
+  "layer": "REAL_PROCESS_AND_HTTP_TRANSPORT_WITH_SCRIPTED_MODEL",
+  "action": "Read",
+  "versions": null,
+  "detail": {
+    "plan": {
+      "id": "4ccd03d4-6aef-48b6-b8c7-4db131841867",
+      "projectId": "38206611-4367-4c49-bdf5-23460f3cd51a",
+      "title": "排队重启",
+      "goal": "隔离副本可靠性故障验收",
+      "constraints": "只生成草稿，不确认正式任务",
+      "planStartDate": "2026-10-05",
+      "planDueDate": "2026-10-25",
+      "maxTaskCount": 1,
+      "selectedDocumentIdsJson": "[]",
+      "status": "SKELETON_GENERATING",
+      "latestVersionNo": 0,
+      "latestVersionId": null,
+      "generationSeq": 1,
+      "activeAttemptId": "3ff52864-11e4-46c6-bc15-0366f8839247",
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "lastErrorCode": null,
+      "lastErrorSummary": null,
+      "createdAt": "2026-10-04T06:59:08.828792Z",
+      "updatedAt": "2026-10-04T06:59:08.828792Z"
+    },
+    "latestVersion": null,
+    "activeAttempt": {
+      "id": "3ff52864-11e4-46c6-bc15-0366f8839247",
+      "stage": "SKELETON",
+      "status": "QUEUED",
+      "provider": null,
+      "model": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "latencyMs": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "errorCode": null,
+      "errorSummary": null,
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+    },
+    "latestFailedAttempt": null,
+    "latestAttempt": {
+      "id": "3ff52864-11e4-46c6-bc15-0366f8839247",
+      "stage": "SKELETON",
+      "status": "QUEUED",
+      "provider": null,
+      "model": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "latencyMs": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "errorCode": null,
+      "errorSummary": null,
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+    },
+    "confirmation": null,
+    "validation": {
+      "errors": [],
+      "warnings": []
+    },
+    "permissions": {
+      "canEdit": false,
+      "canCancel": true,
+      "canRetryDetail": false,
+      "canRegenerate": false,
+      "canConfirm": false,
+      "canDelete": false,
+      "canRestore": false,
+      "canPartialRegenerate": false
+    },
+    "structuredIssues": [],
+    "repairDiagnostics": []
+  },
+  "at": "2026-10-04T07:00:20.0184323Z",
+  "run": {
+    "run": {
+      "id": "cbfd3922-8391-43e9-9f96-f599dc9804d2",
+      "sessionId": "0d469f00-202b-4abc-928e-36f8a8c7c9f2",
+      "projectId": "38206611-4367-4c49-bdf5-23460f3cd51a",
+      "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "parentRunId": null,
+      "role": "SUPERVISOR",
+      "depth": 0,
+      "goal": "请生成故障验收规划草稿：queued。不确认正式任务。",
+      "status": "SUCCEEDED",
+      "maxSteps": 24,
+      "maxToolCalls": 16,
+      "maxChildren": 3,
+      "maxInputTokens": 50000,
+      "maxOutputTokens": 20000,
+      "stepsUsed": 3,
+      "toolCallsUsed": 1,
+      "childrenUsed": 0,
+      "inputTokensUsed": 100,
+      "outputTokensUsed": 100,
+      "tokenUsageEstimated": false,
+      "scheduled": false,
+      "correctionAttempted": false,
+      "retryCount": 0,
+      "errorCode": null,
+      "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+      "pageContextJson": null,
+      "skillCode": "ITERATION_PLANNING",
+      "version": 5,
+      "createdAt": "2026-10-04T06:59:07.604769Z",
+      "updatedAt": "2026-10-04T06:59:08.964243Z"
+    },
+    "plan": {
+      "steps": [
+        {
+          "id": "1",
+          "title": "获取里程碑",
+          "status": "PENDING",
+          "purpose": "了解当前迭代目标",
+          "expectedTools": [
+            "milestone.get"
+          ]
+        },
+        {
+          "id": "2",
+          "title": "查询任务",
+          "status": "PENDING",
+          "purpose": "了解待办和进行中任务",
+          "expectedTools": [
+            "task.search"
+          ]
+        },
+        {
+          "id": "3",
+          "title": "分析工作负载",
+          "status": "PENDING",
+          "purpose": "评估团队能力",
+          "expectedTools": [
+            "task.get_workload"
+          ]
+        },
+        {
+          "id": "4",
+          "title": "规划任务分配（需审批）",
+          "status": "PENDING",
+          "purpose": "创建或更新任务",
+          "expectedTools": [
+            "task.create_batch",
+            "task.update"
+          ]
+        }
+      ],
+      "version": 1,
+      "objective": "规划迭代",
+      "successCriteria": []
+    },
+    "steps": [
+      {
+        "id": "887254ba-ff62-4e02-b9a3-b9c76710611d",
+        "sequence": 1,
+        "type": "MODEL_TURN",
+        "toolName": null,
+        "input": null,
+        "output": {
+          "model": "reliability-scripted-peer",
+          "usage": {
+            "inputTokens": 100,
+            "outputTokens": 100
+          },
+          "content": "",
+          "provider": "OPENAI_COMPATIBLE",
+          "latencyMs": 78,
+          "toolCalls": [
+            {
+              "id": "649d142e-34e7-40a8-95df-57668adc9f0e",
+              "name": "start_task_plan",
+              "arguments": {
+                "goal": "隔离副本可靠性故障验收",
+                "title": "排队重启",
+                "constraints": "只生成草稿，不确认正式任务",
+                "documentIds": [],
+                "planDueDate": "2026-10-25",
+                "maxTaskCount": 1,
+                "planStartDate": "2026-10-05"
+              }
+            }
+          ],
+          "batchHandled": true,
+          "finishReason": "TOOL_CALLS"
+        },
+        "reason": "",
+        "promptTokens": 100,
+        "completionTokens": 100,
+        "tokenUsageEstimated": false,
+        "latencyMs": 78,
+        "errorCode": null,
+        "createdAt": "2026-10-04T06:59:08.749532Z"
+      },
+      {
+        "id": "78e842d1-276d-4e4c-b7a4-a7028aeb41bc",
+        "sequence": 2,
+        "type": "TOOL_CALL_COMPLETED",
+        "toolName": "start_task_plan",
+        "input": {
+          "arguments": {
+            "goal": "隔离副本可靠性故障验收",
+            "title": "排队重启",
+            "constraints": "只生成草稿，不确认正式任务",
+            "documentIds": [],
+            "planDueDate": "2026-10-25",
+            "maxTaskCount": 1,
+            "planStartDate": "2026-10-05"
+          },
+          "toolCallId": "649d142e-34e7-40a8-95df-57668adc9f0e"
+        },
+        "output": {
+          "data": {
+            "kind": "start_task_plan",
+            "title": "排队重启",
+            "effect": "PLANNING_OPERATION_ACCEPTED",
+            "planId": "4ccd03d4-6aef-48b6-b8c7-4db131841867",
+            "status": "SKELETON_GENERATING",
+            "attemptId": "3ff52864-11e4-46c6-bc15-0366f8839247",
+            "errorCode": null,
+            "versionId": null,
+            "versionNo": 0,
+            "reviewPath": "/projects/38206611-4367-4c49-bdf5-23460f3cd51a/ai-planning?planId=4ccd03d4-6aef-48b6-b8c7-4db131841867",
+            "operationId": "dd403e3a-9dc2-444e-ac86-e4af57df49dd",
+            "goalRevision": 0,
+            "attemptStatus": "QUEUED",
+            "activeAttemptId": "3ff52864-11e4-46c6-bc15-0366f8839247",
+            "targetVersionId": null,
+            "requiresHumanConfirmation": true
+          },
+          "error": null,
+          "status": "SUCCEEDED",
+          "citations": [],
+          "inferences": []
+        },
+        "reason": "TOOL_SUCCESS",
+        "promptTokens": null,
+        "completionTokens": null,
+        "tokenUsageEstimated": false,
+        "latencyMs": null,
+        "errorCode": null,
+        "createdAt": "2026-10-04T06:59:08.929349Z"
+      },
+      {
+        "id": "1c48f8d1-3564-4c42-8466-3021b6f6584c",
+        "sequence": 3,
+        "type": "FINAL_ANSWER",
+        "toolName": null,
+        "input": null,
+        "output": {
+          "answer": "规划操作已受理。后台状态与结果会更新到对应规划卡片；生成完成后请打开规划页审阅并人工确认指定版本。",
+          "citations": [],
+          "inferences": []
+        },
+        "reason": null,
+        "promptTokens": null,
+        "completionTokens": null,
+        "tokenUsageEstimated": false,
+        "latencyMs": null,
+        "errorCode": null,
+        "createdAt": "2026-10-04T06:59:08.964243Z"
+      }
+    ],
+    "lastEventSequence": 9,
+    "pendingApprovalId": null
+  },
+  "operations": {
+    "status": "SKELETON_GENERATING",
+    "kind": "start_task_plan",
+    "operationId": "dd403e3a-9dc2-444e-ac86-e4af57df49dd",
+    "planId": "4ccd03d4-6aef-48b6-b8c7-4db131841867",
+    "attemptId": "3ff52864-11e4-46c6-bc15-0366f8839247",
+    "activeAttemptId": "3ff52864-11e4-46c6-bc15-0366f8839247",
+    "attemptStatus": "QUEUED",
+    "errorCode": null,
+    "title": "排队重启",
+    "versionNo": 0,
+    "versionId": null,
+    "targetVersionId": null,
+    "goalRevision": 0,
+    "effect": "PLANNING_OPERATION_ACCEPTED",
+    "requiresHumanConfirmation": true,
+    "reviewPath": "/projects/38206611-4367-4c49-bdf5-23460f3cd51a/ai-planning?planId=4ccd03d4-6aef-48b6-b8c7-4db131841867"
+  },
+  "case": "queued",
+  "identity": {
+    "runId": "cbfd3922-8391-43e9-9f96-f599dc9804d2",
+    "sessionId": "0d469f00-202b-4abc-928e-36f8a8c7c9f2",
+    "planId": "4ccd03d4-6aef-48b6-b8c7-4db131841867",
+    "operationId": "dd403e3a-9dc2-444e-ac86-e4af57df49dd"
+  }
+}

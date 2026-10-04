@@ -1,12 +1,11 @@
-param([ValidateSet('Setup','Turn','Read')][string]$Mode='Read',[int]$Turn=0)
+param([ValidateSet('Setup','Turn','Recover','Read')][string]$Mode='Read',[int]$Turn=0)
 $ErrorActionPreference='Stop'
 $root=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $statePath=Join-Path $root 'ai-collab-backend/target/reliability-conversation-state.json'
 $evidence=Join-Path $PSScriptRoot ((Get-Date -Format yyyy-MM-dd)+'/reliability')
 New-Item $evidence -ItemType Directory -Force|Out-Null
 $settings=@{};Get-Content (Join-Path $root '.env')|ForEach-Object{if($_ -match '^([^#=]+)=(.*)$'){$settings[$matches[1]]=$matches[2]}}
-$login=Invoke-RestMethod 'http://localhost:18080/api/v1/auth/login' -Method Post -Headers @{Origin='http://localhost:15173'} -ContentType application/json -Body (@{username=$settings.DEMO_OWNER_USERNAME;password=$settings.DEMO_OWNER_PASSWORD}|ConvertTo-Json)
-$headers=@{Origin='http://localhost:15173';Authorization='Bearer '+$login.data.accessToken}
+. (Join-Path $PSScriptRoot 'get-acceptance-auth.ps1')
 function Api($method,$path,$body=$null){
  $p=@{Uri=('http://localhost:18080/api/v1'+$path);Method=$method;Headers=$headers}
  if($null-ne $body){$p.ContentType='application/json';$p.Body=$body|ConvertTo-Json -Depth 30 -Compress}
@@ -23,13 +22,19 @@ if($Mode-eq 'Setup'){
  @{projectId=$project.id;documentId=$doc.id;sessionId=$session.id;ownerId=$login.data.user.id;completedTurns=0}|ConvertTo-Json|Set-Content $statePath
 }
 $state=Get-Content $statePath -Raw|ConvertFrom-Json;$base="/projects/$($state.projectId)";$session="$base/agent/sessions/$($state.sessionId)"
-if($Mode-eq 'Turn'){
+if($Mode-in @('Turn','Recover')){
  if($Turn -ne $state.completedTurns+1){throw 'Do not replay a submitted conversation turn'}
  $prompts=Get-Content (Join-Path $evidence 'conversation-turns.json') -Raw|ConvertFrom-Json
  $entry=$prompts|Where-Object turn -eq $Turn
  if(!$entry){throw 'No approved scenario prompt for turn'}
- $run=Api POST "$session/messages" @{content=$entry.prompt;skillCode='ITERATION_PLANNING';pageContext=@{route='/documents';selectedDocumentId=$state.documentId}}
- $state|Add-Member runId $run.id -Force;$state|Add-Member submittedTurn $Turn -Force;$state|ConvertTo-Json|Set-Content $statePath
+ if($Mode-eq 'Recover'){
+  if($state.submittedTurn-ne $Turn){throw 'No matching previously submitted run'}
+  $run=[pscustomobject]@{id=$state.runId}
+ }else{
+  if($state.submittedTurn-eq $Turn){throw 'Original request already submitted: use Recover'}
+  $run=Api POST "$session/messages" @{content=$entry.prompt;skillCode='ITERATION_PLANNING';pageContext=@{route='/documents';selectedDocumentId=$state.documentId}}
+  $state|Add-Member runId $run.id -Force;$state|Add-Member submittedTurn $Turn -Force;$state|ConvertTo-Json|Set-Content $statePath
+ }
  $deadline=(Get-Date).AddMinutes(5)
  do{$detail=Api GET "$base/agent/runs/$($run.id)";if($detail.run.status -notin @('QUEUED','RUNNING','WAITING_APPROVAL')){break};if((Get-Date)-gt $deadline){throw 'Run still nonterminal; inspect, never submit duplicate'};Start-Sleep -Seconds 1}while($true)
  $messages=Api GET "$session/messages";$answer=$messages|Where-Object{$_.runId -eq $run.id -and $_.role -eq 'ASSISTANT'}|Select-Object -Last 1

@@ -1,0 +1,31 @@
+{
+  "modelReleasedAt": "2026-10-04T07:10:43.9513643Z",
+  "response": {
+    "code": "SUCCESS",
+    "message": "操作成功",
+    "data": {
+      "id": "a433633f-b04f-4b06-9ca0-389788d4d5ab",
+      "projectId": "38206611-4367-4c49-bdf5-23460f3cd51a",
+      "title": "真实取消完成竞争",
+      "goal": "隔离副本可靠性故障验收",
+      "constraints": "只生成草稿，不确认正式任务",
+      "planStartDate": "2026-10-05",
+      "planDueDate": "2026-10-25",
+      "maxTaskCount": 1,
+      "selectedDocumentIdsJson": "[]",
+      "status": "CANCELED",
+      "latestVersionNo": 1,
+      "latestVersionId": "23e26e55-843f-473d-9c7d-93f408b64f9b",
+      "generationSeq": 2,
+      "activeAttemptId": null,
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "lastErrorCode": null,
+      "lastErrorSummary": null,
+      "createdAt": "2026-10-04T07:10:26.679192Z",
+      "updatedAt": "2026-10-04T07:10:43.958946Z"
+    }
+  },
+  "httpStatus": 202,
+  "cancelSentAt": "2026-10-04T07:10:43.9486209Z",
+  "case": "race-complete"
+}

@@ -1,13 +1,4 @@
 {
-  "state": {
-    "completedTurns": 23,
-    "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
-    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
-    "ownerId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
-    "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
-    "runId": "b3958b81-4b69-42a2-a60a-a36b8e601abf",
-    "submittedTurn": 24
-  },
   "latest": {
     "run": {
       "id": "b3958b81-4b69-42a2-a60a-a36b8e601abf",
@@ -18,17 +9,17 @@
       "role": "SUPERVISOR",
       "depth": 0,
       "goal": "查询刚受理的同一规划真实状态和已有版本，区分后台受理与已完成。只检查当前规划是否符合有效日期、负责人和最多6项，禁止重复启动或确认正式任务。",
-      "status": "RUNNING",
+      "status": "SUCCEEDED",
       "maxSteps": 24,
       "maxToolCalls": 16,
       "maxChildren": 3,
       "maxInputTokens": 50000,
       "maxOutputTokens": 20000,
-      "stepsUsed": 2,
+      "stepsUsed": 4,
       "toolCallsUsed": 1,
       "childrenUsed": 0,
-      "inputTokensUsed": 15829,
-      "outputTokensUsed": 1833,
+      "inputTokensUsed": 31009,
+      "outputTokensUsed": 2322,
       "tokenUsageEstimated": false,
       "scheduled": false,
       "correctionAttempted": false,
@@ -37,9 +28,9 @@
       "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
       "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"6c164058-05cf-4a3d-9f2c-1dcc17d14211\", \"selectedMilestoneId\": null}",
       "skillCode": "ITERATION_PLANNING",
-      "version": 6,
+      "version": 8,
       "createdAt": "2026-10-04T06:55:30.746492Z",
-      "updatedAt": "2026-10-04T06:56:00.847909Z"
+      "updatedAt": "2026-10-04T06:56:15.923761Z"
     },
     "plan": {
       "steps": [
@@ -198,10 +189,65 @@
         "latencyMs": null,
         "errorCode": null,
         "createdAt": "2026-10-04T06:55:59.567276Z"
+      },
+      {
+        "id": "9a2dfb57-161d-43c7-ae2c-876eb661d15e",
+        "sequence": 4,
+        "type": "MODEL_TURN",
+        "toolName": null,
+        "input": null,
+        "output": {
+          "model": "space-bunny-free",
+          "usage": {
+            "inputTokens": 15180,
+            "outputTokens": 489
+          },
+          "content": "**真实状态：生成已失败（FAILED），不是\"已完成\"，也没有任何版本可审阅。**\n\n**实测事实**（`list_task_plans` 返回的真实记录）\n- 规划 ID `1d1496c1-cdeb-44a3-b6f2-43b8baadaf10`，标题「ai-collab可靠性验收24轮」，创建于 2026-10-04T03:37:52Z（北京时间 11:37），03:37:56Z 更新为 FAILED——**约 4 秒后即失败**。\n- 失败码 `PLANNING_MODEL_INVALID_OUTPUT`，摘要 `SKELETON / PLANNING_MODEL_INVALID_OUTPUT`；`activeAttemptId=null`、`latestVersionId=null`、`latestVersionNo=0`。\n- 因此：**既无草稿内容，也无里程碑、无依赖、无验收标准**。规划页此时打开看不到可审阅版本，也不存在可供人工确认的版本号。\n\n**是否符合有效约束**（只检查三项）\n1. **日期**：`planStartDate=2026-10-05`、`planDueDate=2026-10-25` ✅ 与约定一致。\n2. **建议负责人**：constraints 第 2 条写明固定 Local Owner（userId 由 `list_project_members` 返回，禁止猜测或改派）✅。\n3. **任务数量上限**：`maxTaskCount=6` ✅ 未回退到 8 或 10。\n\n另两项约束也已随请求提交：禁止自动批准（第 4 条）、依赖须为 DAG（第 5 条）。\n\n**本轮未做**：未重复启动生成、未确认任何正式任务、未调用修订工具。失败原因在规划记录中由后台给出（非我方参数校验），是否需要你决定重试方式——例如重新发起一次生成，或先精简 constraints 后再试。请指示，我不会自行重启。",
+          "provider": "OPENAI_COMPATIBLE",
+          "latencyMs": 15024,
+          "toolCalls": [],
+          "batchHandled": true,
+          "finishReason": "STOP"
+        },
+        "reason": "**真实状态：生成已失败（FAILED），不是\"已完成\"，也没有任何版本可审阅。**\n\n**实测事实**（`list_task_plans` 返回的真实记录）\n- 规划 ID `1d1496c1-cdeb-44a3-b6f2-43b8baadaf10`，标题「ai-collab可靠性验收24轮」，创建于 2026-10-04T03:37:52Z（北京时间 11:37），03:37:56Z 更新为 FAILED——**约 4 秒后即失败**。\n- 失败码 `PLANNING_MODEL_INVALID_OUTPUT`，摘要 `SKELETON / PLANNING_MODEL_INVALID_OUTPUT`；`activeAttemptId=null`、`latestVersionId=null`、`latestVersionNo=0`。\n- 因此：**既无草稿内容，也无里程碑、无依赖、无验收标准**。规划页此时打开看不到可审阅版本，也不存在可供人工确认的版本号。\n\n**是否符合有效约束**（只检查三项）\n1. **日期**：`planStartDate=2026-10-05`、`planDueDate=2026-10-25` ✅ 与约定一致。\n2. **建议负责人**：constraints 第 2 条写明固定 Local Owner（userId 由 `list_project_members` 返回，禁止猜测或改派）✅。\n3. **任务数量上限**：`maxTaskCount=6` ✅ 未回退到 8 或 10。\n\n另两项约束也已随请求提交：禁止自动批准（第 4 条）、依赖须为 DAG（第 5 条）。\n\n**本轮未做**：未重复启动生成、未确认任何正式任务、未调用修订工具。失败原因在规划记录中由后台给出（非我方参数校验），是否需要你决定重试方式——例如重新发起一次生成，或先精简 constraints 后再试。请指示，我不会自行重启。",
+        "promptTokens": 15180,
+        "completionTokens": 489,
+        "tokenUsageEstimated": false,
+        "latencyMs": 15024,
+        "errorCode": null,
+        "createdAt": "2026-10-04T06:56:15.895088Z"
+      },
+      {
+        "id": "49ea2d72-1142-4cfe-9896-1f325a68437d",
+        "sequence": 5,
+        "type": "FINAL_ANSWER",
+        "toolName": null,
+        "input": null,
+        "output": {
+          "answer": "**真实状态：生成已失败（FAILED），不是\"已完成\"，也没有任何版本可审阅。**\n\n**实测事实**（`list_task_plans` 返回的真实记录）\n- 规划 ID `1d1496c1-cdeb-44a3-b6f2-43b8baadaf10`，标题「ai-collab可靠性验收24轮」，创建于 2026-10-04T03:37:52Z（北京时间 11:37），03:37:56Z 更新为 FAILED——**约 4 秒后即失败**。\n- 失败码 `PLANNING_MODEL_INVALID_OUTPUT`，摘要 `SKELETON / PLANNING_MODEL_INVALID_OUTPUT`；`activeAttemptId=null`、`latestVersionId=null`、`latestVersionNo=0`。\n- 因此：**既无草稿内容，也无里程碑、无依赖、无验收标准**。规划页此时打开看不到可审阅版本，也不存在可供人工确认的版本号。\n\n**是否符合有效约束**（只检查三项）\n1. **日期**：`planStartDate=2026-10-05`、`planDueDate=2026-10-25` ✅ 与约定一致。\n2. **建议负责人**：constraints 第 2 条写明固定 Local Owner（userId 由 `list_project_members` 返回，禁止猜测或改派）✅。\n3. **任务数量上限**：`maxTaskCount=6` ✅ 未回退到 8 或 10。\n\n另两项约束也已随请求提交：禁止自动批准（第 4 条）、依赖须为 DAG（第 5 条）。\n\n**本轮未做**：未重复启动生成、未确认任何正式任务、未调用修订工具。失败原因在规划记录中由后台给出（非我方参数校验），是否需要你决定重试方式——例如重新发起一次生成，或先精简 constraints 后再试。请指示，我不会自行重启。",
+          "citations": [],
+          "inferences": []
+        },
+        "reason": null,
+        "promptTokens": null,
+        "completionTokens": null,
+        "tokenUsageEstimated": false,
+        "latencyMs": null,
+        "errorCode": null,
+        "createdAt": "2026-10-04T06:56:15.923761Z"
       }
     ],
-    "lastEventSequence": 9,
+    "lastEventSequence": 11,
     "pendingApprovalId": null
+  },
+  "state": {
+    "completedTurns": 24,
+    "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "ownerId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+    "runId": "b3958b81-4b69-42a2-a60a-a36b8e601abf",
+    "submittedTurn": 24
   },
   "document": {
     "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",

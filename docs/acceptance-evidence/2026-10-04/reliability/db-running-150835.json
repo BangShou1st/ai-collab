@@ -1,0 +1,44 @@
+{
+  "at": "2026-10-04T15:08:35.839035+08:00",
+  "case": "running",
+  "plan": {
+    "id": "7128aa8e-aa5a-4774-82d1-1fd39ce0c3d7",
+    "status": "DETAIL_GENERATING",
+    "latest_version_no": 1,
+    "active_attempt_id": "83b9a2a5-5b3e-41bb-9d05-a6c89788b844",
+    "last_error_code": null,
+    "updated_at": "2026-10-04T15:04:11.476928+08:00"
+  },
+  "operationCount": 1,
+  "matchingOperation": 1,
+  "versions": [
+    {
+      "id": "1d79baac-8f58-4b10-a2e8-b4114ef813e7",
+      "version_no": 1,
+      "content_hash": "92e74871d3d1ce223897d74b25b6fbe2"
+    }
+  ],
+  "attempts": [
+    {
+      "id": "6f06f268-080a-4532-b0c2-769f8a82c8c3",
+      "attempt_no": 1,
+      "stage": "SKELETON",
+      "status": "SUCCESS",
+      "error_code": null,
+      "started_at": "2026-10-04T15:04:11.432814+08:00",
+      "finished_at": "2026-10-04T15:04:11.473808+08:00"
+    },
+    {
+      "id": "83b9a2a5-5b3e-41bb-9d05-a6c89788b844",
+      "attempt_no": 2,
+      "stage": "DETAIL",
+      "status": "RUNNING",
+      "error_code": null,
+      "started_at": "2026-10-04T15:04:11.487098+08:00",
+      "finished_at": null
+    }
+  ],
+  "formalTasks": 0,
+  "confirmations": 0,
+  "assertions": "PASS: original operation, expected status/version count, no formal tasks/confirmation, terminal active attempt cleared"
+}
