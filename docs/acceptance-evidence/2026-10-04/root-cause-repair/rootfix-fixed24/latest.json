@@ -1,0 +1,22 @@
+{
+  "session": {
+    "id": "a90663d8-5e5e-4724-8923-f76c795dae9f",
+    "projectId": "44e64549-df8f-4351-916e-2e4a330671cd",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "根因修复复验 rootfix-fixed24",
+    "status": "ACTIVE",
+    "version": 0,
+    "createdAt": "2026-10-04T11:43:37.688263Z",
+    "updatedAt": "2026-10-04T11:43:37.688263Z"
+  },
+  "operations": null,
+  "state": {
+    "completedTurns": 0,
+    "documentId": "0cfc9686-51fb-4421-a66e-5a47f4d9b616",
+    "sessionId": "a90663d8-5e5e-4724-8923-f76c795dae9f",
+    "codeVersion": "de032f5dcbcaa277a6790bf3421a13719512accc",
+    "projectId": "44e64549-df8f-4351-916e-2e4a330671cd",
+    "batch": "rootfix-fixed24"
+  },
+  "codeVersion": "de032f5dcbcaa277a6790bf3421a13719512accc"
+}
