@@ -376,9 +376,73 @@ class AgentRuntimeCoordinatorTest {
         verify(repository, never()).requeueRun(any());
     }
 
+    /**
+     * 预算强制收尾且核心动作（start_task_plan）未发生：运行进入 BUDGET_EXCEEDED
+     * 部分完成状态，不得仅凭模型返回文字记 SUCCEEDED（真实第 23 轮回归）。
+     */
     @Test
-    void finalBoundaryFallsBackToPersistedEvidenceWhenModelCallsAnotherTool() {
-        AgentRunView run = runAtUsage(14, 5);
+    void budgetFinalizeWithoutCoreActionIsNotRecordedAsSuccess() {
+        AgentRunView run = planningRunAtUsage(14, 5);
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(successfulToolStep()));
+        when(repository.hasSuccessfulToolInvocation(eq(run.id()), any())).thenReturn(false);
+        when(modelExecutor.callModel(eq(run), any(), anyList(), eq(false)))
+                .thenReturn(textResult("本轮未调用 start_task_plan，规划草稿尚未生成。"));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        verify(repository).recordBudgetPartialAnswer(eq(run), contains("start_task_plan"));
+        verify(repository, never()).recordFinal(any(), any(), anyList());
+    }
+
+    /** 核心动作已有成功受理（持久工具结果）：预算收尾下的最终回答正常记成功。 */
+    @Test
+    void budgetFinalizeWithCoreActionPerformedStillSucceeds() {
+        AgentRunView run = planningRunAtUsage(14, 5);
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(successfulToolStep()));
+        when(repository.hasSuccessfulToolInvocation(eq(run.id()), any())).thenReturn(true);
+        when(modelExecutor.callModel(eq(run), any(), anyList(), eq(false)))
+                .thenReturn(textResult("规划草稿已受理，等待人工确认。"));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        verify(repository).recordFinal(eq(run), anyString(), anyList());
+        verify(repository, never()).recordBudgetPartialAnswer(any(), anyString());
+    }
+
+    /** 非收尾轮次不因核心动作提示改变完成判定；提示只注入给未完成核心动作的运行。 */
+    @Test
+    void coreActionHintIsInjectedBeforeFinalizeWithoutForcingWriteTools() {
+        AgentRunView run = planningRunAtUsage(2, 0);
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
+        when(repository.listSteps(run.projectId(), run.id())).thenReturn(List.of());
+        when(repository.hasSuccessfulToolInvocation(eq(run.id()), any())).thenReturn(false);
+        when(modelExecutor.callModel(eq(run), any(), anyList(), eq(false)))
+                .thenReturn(textResult("先核对事实。"));
+
+        coordinator.advance(run);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor).callModel(eq(run), messages.capture(), any(), eq(false));
+        assertThat(messages.getValue())
+                .filteredOn(ModelMessage.System.class::isInstance)
+                .map(ModelMessage.System.class::cast)
+                .extracting(ModelMessage.System::content)
+                .anyMatch(content -> content.contains("立即调用 start_task_plan"))
+                .noneMatch(content -> content.contains("只能基于已经取得的工具结果"));
+    }
+
+    @Test
+    void finalBoundaryFallsBackToPersistedEvidenceWhenModelCallsAnotherTool() {        AgentRunView run = runAtUsage(14, 5);
         when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
         when(planService.ensurePlan(eq(run), any())).thenReturn(plan("列出根目录", List.of()));
         when(repository.listSteps(run.projectId(), run.id()))
@@ -649,6 +713,23 @@ class AgentRuntimeCoordinatorTest {
                 r.inputTokensUsed(), r.outputTokensUsed(), 0, 0,
                 r.tokenUsageEstimated(), r.scheduled(), r.correctionAttempted(),
                 r.retryCount(), r.errorCode(), r.planJson(), r.pageContextJson(), r.skillCode(),
+                r.version(), r.createdAt(), r.updatedAt());
+    }
+
+    /** ITERATION_PLANNING 运行，目标明确要求生成规划草稿（真实第 23 轮措辞）。 */
+    private AgentRunView planningRunAtUsage(int stepsUsed, int toolCallsUsed) {
+        AgentRunView r = runAtUsage(stepsUsed, toolCallsUsed);
+        return new AgentRunView(
+                r.id(), r.sessionId(), r.projectId(), r.requesterId(),
+                r.parentRunId(), r.role(), r.depth(),
+                "现在生成同一可靠性目标的完整规划草稿，遵守当前有效约束，不确认正式任务。",
+                r.status(),
+                r.maxSteps(), r.maxToolCalls(), r.maxChildren(),
+                r.maxInputTokens(), r.maxOutputTokens(),
+                r.stepsUsed(), r.toolCallsUsed(), r.childrenUsed(),
+                r.inputTokensUsed(), r.outputTokensUsed(), r.inputTokensActual(), r.outputTokensActual(),
+                r.tokenUsageEstimated(), r.scheduled(), r.correctionAttempted(),
+                r.retryCount(), r.errorCode(), r.planJson(), r.pageContextJson(), "ITERATION_PLANNING",
                 r.version(), r.createdAt(), r.updatedAt());
     }
 

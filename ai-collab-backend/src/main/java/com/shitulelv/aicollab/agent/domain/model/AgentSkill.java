@@ -41,4 +41,12 @@ public interface AgentSkill {
 
     /** 输出要求描述 */
     String outputContract();
+
+    /**
+     * 达成当前目标必需的核心业务动作工具（如规划生成的 start_task_plan）。
+     * 空 Set 表示本 Skill 没有必需动作（普通只读/问答）。
+     * 核心动作是否被要求由运行目标确定性判定；工具仍须满足权限、参数、
+     * 预算、版本与业务校验，本声明不放开任何写路径限制。
+     */
+    default Set<String> coreActionTools() { return Set.of(); }
 }

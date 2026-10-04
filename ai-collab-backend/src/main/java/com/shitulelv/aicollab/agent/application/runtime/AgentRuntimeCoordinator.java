@@ -14,6 +14,7 @@ import com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuard;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
@@ -184,6 +185,7 @@ public class AgentRuntimeCoordinator {
                 return budgetExceeded(run);
             }
             boolean finalizing = convergence.mode() == AgentConvergencePolicy.Mode.FINALIZE;
+            boolean coreActionPending = isCoreActionPending(run, skill);
 
             // 6. 获取允许的工具定义
             List<AgentToolDefinition> exposed = tools.definitionsFor(ctx, skill);
@@ -210,12 +212,12 @@ public class AgentRuntimeCoordinator {
                     // 必选层（含当前请求）无法完整放入预算：明确停止，不静默截断
                     return inputBudgetExceeded(run, requestBudget, composition.failureReason());
                 }
-                messages = appendTurnInstructions(composition.messages(), steps, finalizing, ctx.limits().maxToolCallsPerTurn());
+                messages = appendTurnInstructions(composition.messages(), steps, finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens()) {
                     // 降级重组一次：收紧预算并重试，仍超限才明确停止
                     composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 0.6);
-                    messages = appendTurnInstructions(composition.messages(), steps, finalizing, ctx.limits().maxToolCallsPerTurn());
+                    messages = appendTurnInstructions(composition.messages(), steps, finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                     estimatedInput = estimateInput(messages, exposed);
                     if (estimatedInput > requestBudget.availableInputTokens()) {
                         overBudgetReason = "COMPOSITION_OVER_BUDGET";
@@ -225,7 +227,7 @@ public class AgentRuntimeCoordinator {
                     }
                 }
             } else {
-                messages = appendTurnInstructions(composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, finalizing, ctx.limits().maxToolCallsPerTurn());
+                messages = appendTurnInstructions(composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens()) {
                     overBudgetReason = "COMPOSITION_OVER_BUDGET";
@@ -239,7 +241,7 @@ public class AgentRuntimeCoordinator {
                 finalizing = true;
                 exposed = List.of();
                 messages = appendTurnInstructions(composition != null ? composition.messages()
-                        : composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, true, ctx.limits().maxToolCallsPerTurn());
+                        : composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, true, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens())
                     return inputBudgetExceeded(run, requestBudget, "FINAL_REQUEST_OVER_BUDGET");
@@ -251,7 +253,11 @@ public class AgentRuntimeCoordinator {
                 int finalInputReserve = finalizing ? 0 : Math.max(estimatedInput, steps.stream()
                         .filter(s -> s.type() == AgentStepType.MODEL_TURN && s.promptTokens() != null)
                         .reduce((a, b) -> b).map(AgentStepView::promptTokens).orElse(0));
-                summarizer.maybeSummarize(run, composition, Math.max(0, remainingRunInput - estimatedInput - finalInputReserve));
+                long runDurationBudget = Math.min(300000, ctx.limits().maxRunDuration().toMillis());
+                AgentRunView runForSummary = run;
+                summarizer.maybeSummarize(run, composition,
+                        Math.max(0, remainingRunInput - estimatedInput - finalInputReserve),
+                        () -> runDurationBudget - repository.activeElapsedMillis(runForSummary) > 0);
                 // 摘要消耗已入账：刷新运行、重查取消状态，并重新核算主请求预算——
                 // 不允许携带超限上下文继续请求模型
                 run = repository.findRun(run.projectId(), run.id()).orElse(run);
@@ -270,18 +276,35 @@ public class AgentRuntimeCoordinator {
             }
             ModelTurnResult turn;
             try {
-                emit(run, AgentEventType.MODEL_STARTED,
-                        json.createObjectNode().put("modelTurn", run.stepsUsed() + 1));
-                turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted());
-                if (repository.isCancelRequested(run.projectId(), run.id())) {
-                    // 模型调用已发生：先如实结算这次消耗，再进入取消终态，用量不因取消丢失
-                    repository.settleOrphanModelUsage(run.projectId(), run.id(),
-                            turn.usage() == null ? null : turn.usage().inputTokens(),
-                            turn.usage() == null ? null : turn.usage().outputTokens(),
-                            turn.usage() == null || turn.usage().inputTokens() == null
-                                    || turn.usage().outputTokens() == null);
+                var startedPayload = json.createObjectNode().put("modelTurn", run.stepsUsed() + 1);
+                if (composition != null && composition.stats() != null) {
+                    // 单次请求体积分解：让"上下文为什么如此大"有实测依据（系统提示/状态/摘要/
+                    // 页面/提案/工具观察/历史/记忆分列；工具定义与估算 token 由本层补充）
+                    var breakdown = startedPayload.putObject("inputBreakdown");
+                    composition.stats().layerChars().forEach(breakdown::put);
+                    breakdown.put("toolDefinitionsChars", json.valueToTree(exposed).toString().length());
+                    breakdown.put("estimatedInputTokens", estimatedInput);
                 }
-                cancellation.throwIfRequested(run);
+                emit(run, AgentEventType.MODEL_STARTED, startedPayload);
+                turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted());
+                String orphanCallId = modelCallId(run, messages);
+                boolean cancelSettled = false;
+                if (repository.isCancelRequested(run.projectId(), run.id())) {
+                    // 模型调用已发生：先按调用身份幂等结算这次消耗，再进入取消终态，用量不因取消丢失
+                    repository.settleOrphanUsage(run.projectId(), run.id(), orphanCallId, "MODEL_TURN",
+                            turnSettlement(turn));
+                    cancelSettled = true;
+                }
+                try {
+                    cancellation.throwIfRequested(run);
+                } catch (BusinessException canceled) {
+                    if (!cancelSettled) {
+                        // 竞争窗口：两次取消检查之间收到取消——同一调用身份只入账一次
+                        repository.settleOrphanUsage(run.projectId(), run.id(), orphanCallId, "MODEL_TURN",
+                                turnSettlement(turn));
+                    }
+                    throw canceled;
+                }
             } catch (IllegalArgumentException malformed) {
                 boolean repair=repository.consumeRecovery(run,"FORMAT_REPAIR",1);
                 if (repair) {
@@ -367,6 +390,17 @@ public class AgentRuntimeCoordinator {
                             json.createObjectNode().put("question", turn.content()));
                     return new AgentWorkerOutcome(AgentRunStatus.WAITING_FOR_USER_INPUT, turn.content(), null, null);
                 }
+                if (finalizing && coreActionPending) {
+                    // 预算策略强制收尾且核心动作未发生：如实进入预算受限/部分完成状态，
+                    // 不能仅凭模型返回文字记成功（"运行结束"≠"规划已生成"）
+                    repository.recordBudgetPartialAnswer(run, turn.content());
+                    emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
+                            json.createObjectNode()
+                                    .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
+                                    .put("errorCode", "AGENT_BUDGET_EXCEEDED")
+                                    .put("scope", "CORE_ACTION_NOT_PERFORMED"));
+                    return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, turn.content(), null, "AGENT_BUDGET_EXCEEDED");
+                }
                 // 正常完成
                 run = repository.recordFinal(run, turn.content(), List.of());
                 emit(run, AgentEventType.RUN_SUCCEEDED,
@@ -399,8 +433,64 @@ public class AgentRuntimeCoordinator {
         }
     }
 
-    private AgentWorkerOutcome budgetExceeded(AgentRunView run) {
-        repository.recordBudgetExceeded(run);
+    /**
+     * 核心动作是否仍未发生：Skill 声明必需动作、当前目标确定性要求该动作
+     * （"生成…规划"且未被否定，依据目标文本而非最终回答），
+     * 且持久化工具结果中没有成功调用。依据运行控制原因与持久工具结果判定。
+     */
+    private boolean isCoreActionPending(AgentRunView run, AgentSkill skill) {
+        var coreTools = skill.coreActionTools();
+        if (coreTools.isEmpty()) return false;
+        if (!coreActionRequested(run.goal())) return false;
+        return !repository.hasSuccessfulToolInvocation(run.id(), coreTools);
+    }
+
+    /** 目标文本是否要求生成规划类核心动作：生成/起草/制定/启动 + 规划/草稿/计划，
+     *  且不在否定短语内（"仍不生成规划"；"仍不生成规划…现在生成草稿"仍成立）。 */
+    static boolean coreActionRequested(String goal) {
+        if (goal == null || goal.isBlank()) return false;
+        java.util.List<int[]> declineRegions = new ArrayList<>();
+        java.util.regex.Matcher decline = java.util.regex.Pattern
+                .compile("(不生成|不要生成|无需生成|先不生成|暂不生成|不用生成|别生成)[^。；;\\n]{0,8}(规划|草稿|计划)?")
+                .matcher(goal);
+        while (decline.find()) declineRegions.add(new int[]{decline.start(), decline.end()});
+        java.util.regex.Matcher request = java.util.regex.Pattern
+                .compile("(生成|起草|制定|启动)[^。；;\\n]{0,16}(规划|草稿|计划)")
+                .matcher(goal);
+        while (request.find()) {
+            int at = request.start();
+            boolean insideDecline = declineRegions.stream().anyMatch(r -> at >= r[0] && at < r[1]);
+            if (!insideDecline) return true;
+        }
+        return false;
+    }
+
+    /** 稳定调用身份：同一请求内容（恢复重放同请求）得到同一 callId，结算幂等去重。 */    private String modelCallId(AgentRunView run, List<ModelMessage> messages) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(json.valueToTree(messages).toString()
+                            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return "MODEL:" + java.util.HexFormat.of().formatHex(digest, 0, 16);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** 结算值与来源：来源按原始 usage 判定；缺失侧用实际请求/响应证据估算，不冒充零消耗。 */
+    private AgentRunEventRecorder.UsageSettlement turnSettlement(ModelTurnResult turn) {
+        if (turn.usage() != null && turn.usage().inputTokens() != null && turn.usage().outputTokens() != null) {
+            return new AgentRunEventRecorder.UsageSettlement(turn.usage().inputTokens(),
+                    turn.usage().outputTokens(),
+                    AgentRunEventRecorder.UsageSettlement.PROVIDER,
+                    AgentRunEventRecorder.UsageSettlement.PROVIDER, turn.latencyMs());
+        }
+        int inputEstimate = AgentModelAccounting.estimatedInput(1);
+        int outputEstimate = Math.max(1, (json.valueToTree(turn).toString().length() + 2) / 3);
+        return AgentRunEventRecorder.UsageSettlement.fromRaw(turn.usage(), inputEstimate, outputEstimate,
+                turn.latencyMs());
+    }
+
+    private AgentWorkerOutcome budgetExceeded(AgentRunView run) {        repository.recordBudgetExceeded(run);
         emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
                 json.createObjectNode()
                         .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
@@ -427,9 +517,17 @@ public class AgentRuntimeCoordinator {
     }
 
     /** 组装完成后追加本轮附加指令（格式修复、收尾要求），这些内容同样计入输入预算。 */
-    private List<ModelMessage> appendTurnInstructions(List<ModelMessage> base, List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn) {
+    private List<ModelMessage> appendTurnInstructions(List<ModelMessage> base, List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending) {
         List<ModelMessage> messages = new ArrayList<>(base);
-        messages.add(new ModelMessage.System("单轮工具调用最多 " + maxToolCallsPerTurn + " 项；只有直接必要且独立的查询才能并行，已有证据足够时直接回答。"));
+        StringBuilder guidance = new StringBuilder(
+                "单轮工具调用最多 " + maxToolCallsPerTurn + " 项；只有直接必要且独立的查询才能并行，已有证据足够时直接回答。\n");
+        if (coreActionPending && !finalizing) {
+            // 依据持久事实（目标要求生成且本运行尚无成功受理）注入确定性提示：
+            // 不放行额外权限，只提示优先执行必需动作，避免预算耗在重复背景查询上
+            guidance.append("当前目标要求生成本次规划草稿，而本运行尚未受理规划生成；")
+                    .append("已取得的证据足够时立即调用 start_task_plan，不要把预算耗在重复背景查询上。\n");
+        }
+        messages.add(new ModelMessage.System(guidance.toString()));
         messages.add(new ModelMessage.System("""
                 回答的核心结论和每一条信息缺失声明都必须符合实际证据范围。
                 仅有提纲、检索、部分章节、分页或投影时，只能说已读或已查询范围内未找到；不能先断言资料/全文不存在，再用末尾的范围限定抵消。
