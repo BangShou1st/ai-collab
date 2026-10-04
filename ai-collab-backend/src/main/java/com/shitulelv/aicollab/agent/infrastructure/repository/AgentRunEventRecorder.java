@@ -831,24 +831,64 @@ public class AgentRunEventRecorder {
     }
 
     /**
+     * 每次实际出站模型请求的持久化调用身份：请求发出前先落一行（usage_basis=UNKNOWN、
+     * token 列为 NULL）。正常记账与取消补记共用同一身份一次性结算；
+     * 相同内容再次真实请求提供商是新的出站请求，会得到新的身份、如实再次入账，
+     * 不与同一次请求的重复结算共享去重身份。
+     */
+    @Transactional
+    public String beginModelCall(UUID projectId, UUID runId, String kind) {
+        return jdbc.queryForObject("""
+                INSERT INTO agent_usage_settlement(run_id,call_id,kind,usage_basis)
+                VALUES (?,gen_random_uuid(),?,'UNKNOWN')
+                RETURNING call_id
+                """, String.class, runId, kind);
+    }
+
+    /** 未结算行判定：身份行（UNKNOWN + token 列为 NULL）。结算后 token 列非 NULL，不再匹配。 */
+    private static final String UNSETTLED_PREDICATE =
+            " AND usage_basis='UNKNOWN' AND input_tokens_actual IS NULL AND output_tokens_actual IS NULL";
+
+    /**
      * 结算"状态机已离开 RUNNING"后仍须如实入账的模型用量：
-     * 模型调用已发生但运行被取消/并发推进时，used 封顶、actual 如实累计。
-     * 结算以持久化调用身份（agent_usage_settlement，run_id+call_id 唯一）幂等：
+     * 模型调用已发生但运行被取消/并发推进/业务状态校验失败时，used 封顶、actual 如实累计。
+     * 结算基于 {@link #beginModelCall} 落库的调用身份，只有未结算行会入账：
      * 重复回调、恢复与取消竞争只入账一次；业务状态已终结不妨碍结算已发生费用。
+     * UNKNOWN（无任何证据）结算为 0/0 但 basis 显式标 UNKNOWN，不冒充真实零费用或提供商值。
      */
     @Transactional
     public boolean settleOrphanUsage(
             UUID projectId, UUID runId, String callId, String kind, UsageSettlement usage) {
-        var inserted = jdbc.query("""
-                INSERT INTO agent_usage_settlement(
-                  run_id,call_id,kind,input_tokens_actual,output_tokens_actual,usage_basis,latency_ms)
-                VALUES (?,?,?,?,?,?,?)
-                ON CONFLICT (run_id,call_id) DO NOTHING
-                RETURNING id
-                """, (rs, row) -> rs.getString(1), runId, callId, kind,
-                usage.bookedInput(), usage.bookedOutput(), usage.combinedBasis(),
-                usage.latencyMs() == null ? null : usage.latencyMs().intValue());
-        if (inserted.isEmpty()) return false; // 同一调用已结算：不重复入账
+        int settled = jdbc.update("""
+                UPDATE agent_usage_settlement
+                SET kind=?, input_tokens_actual=?, output_tokens_actual=?, usage_basis=?, latency_ms=?
+                WHERE run_id=? AND call_id=?
+                """ + UNSETTLED_PREDICATE,
+                kind, usage.bookedInput(), usage.bookedOutput(), usage.combinedBasis(),
+                usage.latencyMs() == null ? null : usage.latencyMs().intValue(), runId, callId);
+        if (settled == 0) return false; // 同一调用已结算：不重复入账
+        bookUsageToRun(projectId, runId, usage);
+        return true;
+    }
+
+    /**
+     * 标记调用已按正常路径入账（recordModelTurn / recordBudgetExceeded 已推进运行总额），
+     * 只落身份行的结算值，不重复推进运行总额。行已结算时返回 false。
+     */
+    @Transactional
+    public boolean markModelCallSettled(
+            UUID projectId, UUID runId, String callId, String kind, UsageSettlement usage) {
+        int settled = jdbc.update("""
+                UPDATE agent_usage_settlement
+                SET kind=?, input_tokens_actual=?, output_tokens_actual=?, usage_basis=?, latency_ms=?
+                WHERE run_id=? AND call_id=?
+                """ + UNSETTLED_PREDICATE,
+                kind, usage.bookedInput(), usage.bookedOutput(), usage.combinedBasis(),
+                usage.latencyMs() == null ? null : usage.latencyMs().intValue(), runId, callId);
+        return settled == 1;
+    }
+
+    private void bookUsageToRun(UUID projectId, UUID runId, UsageSettlement usage) {
         jdbc.update("""
                 UPDATE agent_run SET
                   input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),
@@ -860,7 +900,6 @@ public class AgentRunEventRecorder {
                 WHERE project_id=? AND id=?
                 """, usage.bookedInput(), usage.bookedOutput(),
                 usage.bookedInput(), usage.bookedOutput(), usage.estimated(), projectId, runId);
-        return true;
     }
 
     private static int boundedLatency(long value) {
