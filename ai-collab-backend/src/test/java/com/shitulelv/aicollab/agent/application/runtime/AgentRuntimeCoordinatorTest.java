@@ -73,7 +73,7 @@ class AgentRuntimeCoordinatorTest {
         // 设置默认返回值：recordToolResult 和 recordModelTurn 返回传入的 run
         when(repository.recordToolResult(any(), any(), any(), any(), anyBoolean()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(repository.recordModelTurn(any(), any()))
+        when(repository.recordModelTurnWithSettlement(any(), any(), any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(repository.recordFinal(any(), any(), anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -137,7 +137,7 @@ class AgentRuntimeCoordinatorTest {
 
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
         assertThat(outcome.answer()).isEqualTo("项目进展正常");
-        verify(repository).recordModelTurn(run, turn);
+        verify(repository).recordModelTurnWithSettlement(eq(run), eq(turn), any(), eq("MODEL_TURN"), any());
         verify(repository).recordFinal(run, "项目进展正常", List.of());
     }
 
@@ -324,7 +324,7 @@ class AgentRuntimeCoordinatorTest {
 
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
         // 验证走的是 Coordinator 路径（有 recordModelTurn）
-        verify(repository).recordModelTurn(run, turn);
+        verify(repository).recordModelTurnWithSettlement(eq(run), eq(turn), any(), eq("MODEL_TURN"), any());
         // 不应该有 requeue（除非有工具调用）
         verify(repository, never()).requeueRun(any());
     }
@@ -590,12 +590,12 @@ class AgentRuntimeCoordinatorTest {
                 16, 12, 3, 100_000, 32_000,
                 1, 0, 0, 100_000, 500, 200_000, 500, false,
                 false, false, 0, null, null, null, null, 2, now, now);
-        when(repository.recordModelTurn(eq(run), any())).thenReturn(settled);
+        when(repository.recordModelTurnWithSettlement(eq(run), any(), any(), any(), any())).thenReturn(settled);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
-        verify(repository).recordModelTurn(eq(run), any());
+        verify(repository).recordModelTurnWithSettlement(eq(run), any(), any(), eq("MODEL_TURN"), any());
         verify(repository).recordBudgetExceeded(any());
         verify(repository, never()).recordFinal(any(), any(),
                 any(com.shitulelv.aicollab.agent.domain.model.AgentDecision.FinalAnswer.class));
@@ -615,7 +615,7 @@ class AgentRuntimeCoordinatorTest {
         when(repository.listSteps(any(), any())).thenReturn(List.of());
         when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
         when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(textResult("已取得的结论"));
-        when(repository.recordModelTurn(eq(run), any()))
+        when(repository.recordModelTurnWithSettlement(eq(run), any(), any(), any(), any()))
                 .thenThrow(new BusinessException(ErrorCode.AGENT_RUN_CANCELED));
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
@@ -634,7 +634,7 @@ class AgentRuntimeCoordinatorTest {
         when(repository.listSteps(any(), any())).thenReturn(List.of());
         when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
         when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(textResult("已取得的结论"));
-        when(repository.recordModelTurn(eq(run), any()))
+        when(repository.recordModelTurnWithSettlement(eq(run), any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("Agent worker lease has expired"));
 
         assertThatThrownBy(() -> coordinator.advance(run)).isInstanceOf(IllegalStateException.class);

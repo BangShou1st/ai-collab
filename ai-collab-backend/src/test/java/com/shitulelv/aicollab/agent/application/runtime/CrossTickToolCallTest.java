@@ -74,7 +74,7 @@ class CrossTickToolCallTest {
         // 设置默认返回值：recordToolResult 和 recordModelTurn 返回传入的 run
         when(repository.recordToolResult(any(), any(), any(), any(), anyBoolean()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(repository.recordModelTurn(any(), any()))
+        when(repository.recordModelTurnWithSettlement(any(), any(), any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(repository.recordFinal(any(), any(), anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(0));

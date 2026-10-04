@@ -303,6 +303,10 @@ public class AgentRuntimeCoordinator {
                 emit(run, AgentEventType.MODEL_STARTED, startedPayload);
                 turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted());
             } catch (IllegalArgumentException malformed) {
+                // 请求已发出、无可用响应证据：输入按实际请求规模估算入账，输出显式 UNKNOWN，
+                // 身份行进入终态——不留"仍在调用中"的未结算行，失败调用的消耗也不丢失
+                repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN",
+                        AgentRunEventRecorder.UsageSettlement.fromRaw(null, AgentModelAccounting.estimatedInput(1), 0, null));
                 boolean repair=repository.consumeRecovery(run,"FORMAT_REPAIR",1);
                 if (repair) {
                     repository.recordFailure(run,"FORMAT_REPAIR_REQUESTED",true);
@@ -312,6 +316,10 @@ public class AgentRuntimeCoordinator {
                 return new AgentWorkerOutcome(AgentRunStatus.FAILED,null,null,"FORMAT_REPAIR_EXHAUSTED");
             } catch (BusinessException failure) {
                 Thread.interrupted();
+                // 超时/提供商异常/请求中取消：请求已发出——先按证据结算本次调用（有据估算输入，
+                // 输出未知显式 UNKNOWN），身份行终态，再走失败/恢复/取消流程
+                repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN",
+                        AgentRunEventRecorder.UsageSettlement.fromRaw(null, AgentModelAccounting.estimatedInput(1), 0, null));
                 cancellation.throwIfRequested(run);
                 if (failure.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
                     throw failure;
@@ -351,29 +359,34 @@ public class AgentRuntimeCoordinator {
             int outputTokens=turn.usage()!=null && turn.usage().outputTokens()!=null ? turn.usage().outputTokens() : Math.max(1,(json.valueToTree(turn).toString().length()+2)/3);
             // 输出超额按真实累计值（actual）判定：used 被封顶会低估消耗，实际可能已超
             long outputRemaining=Math.min(run.maxOutputTokens(),ctx.limits().maxOutputTokens())-(long)run.outputTokensActual();
+            // 身份行结算与 recordBudgetExceeded 的运行累计同一事务；事务失败（取消/租约）
+            // 整体回滚后由同身份补结算，不重复也不丢账。
             if (outputTokens>outputRemaining) {
-                repository.recordBudgetExceeded(run,new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult(turn.content(),turn.provider(),turn.model(),
-                        turn.usage()==null ? null : turn.usage().inputTokens(),turn.usage()==null ? null : turn.usage().outputTokens(),turn.latencyMs()));
-                repository.markModelCallSettled(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
+                try {
+                    repository.recordBudgetExceededWithSettlement(run,new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult(turn.content(),turn.provider(),turn.model(),
+                            turn.usage()==null ? null : turn.usage().inputTokens(),turn.usage()==null ? null : turn.usage().outputTokens(),turn.latencyMs()),
+                            modelCallId, "MODEL_TURN", settlement);
+                } catch (RuntimeException overshootFailed) {
+                    repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
+                    throw overshootFailed;
+                }
                 return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED,null,null,"AGENT_BUDGET_EXCEEDED");
             }
-            // 9. 记录 assistant turn（返回更新后的 Run）。
-            // 租约校验失败（取消/租约过期/版本冲突）发生在最后一次取消检查之后、
-            // 落库之前时，费用不得丢失：按调用身份补结算后再抛出。
+            // 9. 记录 assistant turn（返回更新后的 Run）：身份行首次结算与运行累计、
+            // 步骤写入在同一事务——取消/租约失效/版本冲突使整个事务回滚（身份行回到
+            // 未结算），再按同身份补结算一次，任何中间态都不会导致重复或丢账。
             try {
-                run = repository.recordModelTurn(run, turn);
+                run = repository.recordModelTurnWithSettlement(run, turn, modelCallId, "MODEL_TURN", settlement);
             } catch (BusinessException canceledDuringRecord) {
                 if (canceledDuringRecord.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
                     repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
                 }
                 throw canceledDuringRecord;
             } catch (RuntimeException recordFailed) {
-                // 落库本身失败（租约过期/版本冲突）：本次已返回响应的消耗按调用身份结算，不丢账
+                // 落库事务已整体回滚（身份行未结算）：本次已返回响应的消耗按调用身份结算，不丢账
                 repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
                 throw recordFailed;
             }
-            // 正常路径的运行总额已由 recordModelTurn 推进：身份行只标记结算，不重复入账
-            repository.markModelCallSettled(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
             // 输入实际超额：真实输入消耗超出运行上限时结算真实值并明确终止，
             // 不执行该响应中的工具，不记成功（估算无法绝对保证请求不超限，如实结算+停止）
             long inputRemaining=Math.min(run.maxInputTokens(),ctx.limits().maxInputTokens())-run.inputTokensActual();

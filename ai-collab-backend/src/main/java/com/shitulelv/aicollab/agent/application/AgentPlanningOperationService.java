@@ -136,7 +136,14 @@ public class AgentPlanningOperationService {
             ) INSERT INTO agent_planning_operation_event(operation_id,status,result_version_id) SELECT id,status,result_version_id FROM changed
             """, project, project, session, session, operation, operation);
     }
-    private void validate(Object request){if(!validator.validate(request).isEmpty())throw new BusinessException(ErrorCode.VALIDATION_ERROR,"规划参数校验失败");}
+    private void validate(Object request){
+        var violations=validator.validate(request);
+        if(violations.isEmpty())return;
+        // 字段路径来自代码作者定义的 DTO 约束（如 maxTaskCount/planDueDate），
+        // 是模型纠正参数所需的最小信息；不透出内部异常细节。
+        var fields=violations.stream().map(v->v.getPropertyPath().toString()).distinct().limit(6).sorted().toList();
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR,"规划参数校验失败："+String.join(",",fields));
+    }
     private <T>T convert(JsonNode node,Class<T> type){try{return json.treeToValue(node,type);}catch(Exception ex){throw new BusinessException(ErrorCode.VALIDATION_ERROR,"规划参数格式无效");}}
     private JsonNode parse(String text){try{return json.readTree(text);}catch(Exception ex){throw new IllegalStateException(ex);}}
     private UUID uuid(JsonNode node,String field){try{return UUID.fromString(node.path(field).asText());}catch(Exception ex){throw new BusinessException(ErrorCode.VALIDATION_ERROR,"缺少明确对象身份："+field);}}

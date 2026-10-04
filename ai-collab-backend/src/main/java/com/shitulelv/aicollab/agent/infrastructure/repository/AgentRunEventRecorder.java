@@ -850,6 +850,52 @@ public class AgentRunEventRecorder {
             " AND usage_basis='UNKNOWN' AND input_tokens_actual IS NULL AND output_tokens_actual IS NULL";
 
     /**
+     * 正常记账（原子）：身份行首次结算与运行用量累计、步骤写入在同一事务内完成。
+     * 先以条件更新独占结算身份行（仅未结算行可占用），再执行 recordModelTurn 的
+     * 运行累计与步骤写入；任一步失败则整体回滚——不会出现"运行已扣账、身份行仍未结算"
+     * 的中间态，同身份后续补结算也不会重复累计。模型网络请求不在本事务内。
+     */
+    @Transactional
+    public AgentRunView recordModelTurnWithSettlement(AgentRunView run, ModelTurnResult turn,
+            String callId, String kind, UsageSettlement settlement) {
+        claimIdentity(run.id(), callId, kind, settlement);
+        return recordModelTurn(run, turn);
+    }
+
+    /** 输出超限分支的原子版本：身份行结算与 recordBudgetExceeded 的运行累计同事务。 */
+    @Transactional
+    public void recordBudgetExceededWithSettlement(AgentRunView run, ChatCompletionResult completion,
+            String callId, String kind, UsageSettlement settlement) {
+        claimIdentity(run.id(), callId, kind, settlement);
+        recordBudgetExceeded(run, completion);
+    }
+
+    /**
+     * 条件更新独占结算身份行：仅未结算行（UNKNOWN + token 列 NULL）可占用并写入结算值。
+     * 返回 0 表示该身份已结算过——调用方在同一事务内据此回滚，避免重复累计。
+     */
+    private int claimIdentity(UUID runId, String callId, String kind, UsageSettlement settlement) {
+        return jdbc.update("""
+                UPDATE agent_usage_settlement
+                SET kind=?, input_tokens_actual=?, output_tokens_actual=?, usage_basis=?, latency_ms=?
+                WHERE run_id=? AND call_id=?
+                """ + UNSETTLED_PREDICATE,
+                kind, settlement.bookedInput(), settlement.bookedOutput(), settlement.combinedBasis(),
+                settlement.latencyMs() == null ? null : settlement.latencyMs().intValue(), runId, callId);
+    }
+
+    /** 恢复接管时收口未结算身份行：原 worker 已越过 stale 边界，调用结果真实不可知——
+     *  显式记为 0/0 + UNKNOWN 终态，不长期停留在"仍在调用中"，也不虚构消耗。 */
+    @Transactional
+    public int closeUnresolvedModelCalls(UUID runId) {
+        return jdbc.update("""
+                UPDATE agent_usage_settlement
+                SET input_tokens_actual=0, output_tokens_actual=0, latency_ms=NULL
+                WHERE run_id=?
+                """ + UNSETTLED_PREDICATE, runId);
+    }
+
+    /**
      * 结算"状态机已离开 RUNNING"后仍须如实入账的模型用量：
      * 模型调用已发生但运行被取消/并发推进/业务状态校验失败时，used 封顶、actual 如实累计。
      * 结算基于 {@link #beginModelCall} 落库的调用身份，只有未结算行会入账：
@@ -869,23 +915,6 @@ public class AgentRunEventRecorder {
         if (settled == 0) return false; // 同一调用已结算：不重复入账
         bookUsageToRun(projectId, runId, usage);
         return true;
-    }
-
-    /**
-     * 标记调用已按正常路径入账（recordModelTurn / recordBudgetExceeded 已推进运行总额），
-     * 只落身份行的结算值，不重复推进运行总额。行已结算时返回 false。
-     */
-    @Transactional
-    public boolean markModelCallSettled(
-            UUID projectId, UUID runId, String callId, String kind, UsageSettlement usage) {
-        int settled = jdbc.update("""
-                UPDATE agent_usage_settlement
-                SET kind=?, input_tokens_actual=?, output_tokens_actual=?, usage_basis=?, latency_ms=?
-                WHERE run_id=? AND call_id=?
-                """ + UNSETTLED_PREDICATE,
-                kind, usage.bookedInput(), usage.bookedOutput(), usage.combinedBasis(),
-                usage.latencyMs() == null ? null : usage.latencyMs().intValue(), runId, callId);
-        return settled == 1;
     }
 
     private void bookUsageToRun(UUID projectId, UUID runId, UsageSettlement usage) {
