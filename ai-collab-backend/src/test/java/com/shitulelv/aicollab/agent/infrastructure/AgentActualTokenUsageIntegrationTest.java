@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
@@ -223,8 +224,9 @@ class AgentActualTokenUsageIntegrationTest {
         Fixture fixture = fixture();
         AgentRunView run = runningRun(fixture, "取消前结算");
 
-        // 模型调用已发生但运行随后被取消：用量必须如实入账
-        String callId = "MODEL:real-input-overshoot";
+        // 模型调用已发生但运行随后被取消：用量必须如实入账。
+        // 调用身份在请求发出前由 beginModelCall 落库（每次实际出站请求独立）。
+        String callId = repository.beginModelCall(fixture.project(), run.id(), "MODEL_TURN");
         assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
                 "MODEL_TURN", provider(REAL_INPUT, 700, 800L))).isTrue();
         recorder.recordCanceled(run);
@@ -248,7 +250,7 @@ class AgentActualTokenUsageIntegrationTest {
     void repeatedOrphanSettlementWithSameCallIdentityBooksExactlyOnce() {
         Fixture fixture = fixture();
         AgentRunView run = runningRun(fixture, "重复补记幂等");
-        String callId = "MODEL:same-request-hash";
+        String callId = repository.beginModelCall(fixture.project(), run.id(), "MODEL_TURN");
 
         assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
                 "MODEL_TURN", provider(REAL_INPUT, 700, 100L))).isTrue();
@@ -275,12 +277,76 @@ class AgentActualTokenUsageIntegrationTest {
         assertThat(canceled.inputTokensActual()).isEqualTo(stepInput + settledInput);
     }
 
+    /**
+     * 最后一次取消检查之后、落库之前取消：recordModelTurn 的租约校验抛出取消、
+     * 未推进任何总额；已返回响应的用量按调用身份补结算，不得随取消丢失。
+     */
+    @Test
+    void cancelBetweenLastCheckAndBookingIsSettledByCallIdentity() {
+        Fixture fixture = fixture();
+        AgentRunView run = runningRun(fixture, "落库前取消");
+        String callId = repository.beginModelCall(fixture.project(), run.id(), "MODEL_TURN");
+        int claimVersion = jdbc.queryForObject(
+                "SELECT claim_version FROM agent_run WHERE id=?", Integer.class, run.id());
+
+        // 最后一次取消检查之后：取消标记已置位（保持 RUNNING，等待 worker 自行终态）
+        repository.requestCancel(fixture.project(), run.id());
+
+        // 落库时租约校验发现取消：抛出且不推进任何总额
+        try (var scope = new AgentLeaseScope(claimVersion)) {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> repository.recordModelTurn(run,
+                            turnWith(new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(REAL_INPUT, 700), "已返回的响应")))
+                    .isInstanceOf(com.shitulelv.aicollab.common.exception.BusinessException.class);
+        }
+        assertThat(repository.findRun(fixture.project(), run.id()).orElseThrow().inputTokensActual()).isZero();
+
+        // 按调用身份补结算：费用不丢；随后取消终态如实保留已发生用量
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 100L))).isTrue();
+        recorder.recordCanceled(run);
+
+        AgentRunView canceled = repository.findRun(fixture.project(), run.id()).orElseThrow();
+        assertThat(canceled.status()).isEqualTo(AgentRunStatus.CANCELED);
+        assertThat(canceled.inputTokensActual()).isEqualTo(REAL_INPUT);
+        assertThat(canceled.outputTokensActual()).isEqualTo(700);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM agent_usage_settlement WHERE run_id=? AND input_tokens_actual IS NOT NULL",
+                Integer.class, run.id())).isEqualTo(1);
+    }
+
+    /** 相同内容再次真实请求提供商是新的出站请求：新的调用身份，如实再次入账。 */
+    @Test
+    void genuineSecondRequestGetsItsOwnIdentityAndBooksAgain() {
+        Fixture fixture = fixture();
+        AgentRunView run = runningRun(fixture, "重复真实请求");
+
+        String first = repository.beginModelCall(fixture.project(), run.id(), "MODEL_TURN");
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), first,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 100L))).isTrue();
+        String second = repository.beginModelCall(fixture.project(), run.id(), "MODEL_TURN");
+        assertThat(second).isNotEqualTo(first);
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), second,
+                "MODEL_TURN", provider(100, 50, 60L))).isTrue();
+
+        AgentRunView updated = repository.findRun(fixture.project(), run.id()).orElseThrow();
+        assertThat(updated.inputTokensActual()).isEqualTo(REAL_INPUT + 100);
+        assertThat(updated.outputTokensActual()).isEqualTo(750);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(DISTINCT call_id) FROM agent_usage_settlement WHERE run_id=? AND input_tokens_actual IS NOT NULL",
+                Integer.class, run.id())).isEqualTo(2);
+        // 同一请求的重复结算仍被身份去重
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), first,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 100L))).isFalse();
+        assertThat(repository.findRun(fixture.project(), run.id()).orElseThrow().inputTokensActual())
+                .isEqualTo(REAL_INPUT + 100);
+    }
+
     /** 缺失 usage 的孤儿结算：按请求/响应证据估算，basis 显式为 ESTIMATED。 */
     @Test
     void orphanSettlementWithoutProviderUsageUsesEvidenceEstimate() {
         Fixture fixture = fixture();
         AgentRunView run = runningRun(fixture, "孤儿估算");
-        String callId = "MODEL:no-usage-reported";
+        String callId = repository.beginModelCall(fixture.project(), run.id(), "MODEL_TURN");
 
         assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId, "MODEL_TURN",
                 AgentRunEventRecorder.UsageSettlement.fromRaw(null, 4000, 300, null))).isTrue();

@@ -438,11 +438,24 @@ public class AgentRepository {
         return recorder.recordModelTurn(run, turn);
     }
 
-    /** 模型调用已发生但状态机已离开 RUNNING（取消/并发推进）时，按调用身份幂等结算用量。 */
+    /** 每次实际出站模型请求发出前落库的持久化调用身份（正常记账与取消补记共用）。 */
+    @Transactional
+    public String beginModelCall(UUID projectId, UUID runId, String kind) {
+        return recorder.beginModelCall(projectId, runId, kind);
+    }
+
+    /** 模型调用已发生但状态机已离开 RUNNING（取消/并发推进/校验失败）时，按调用身份幂等结算用量。 */
     @Transactional
     public boolean settleOrphanUsage(UUID projectId, UUID runId, String callId, String kind,
             AgentRunEventRecorder.UsageSettlement usage) {
         return recorder.settleOrphanUsage(projectId, runId, callId, kind, usage);
+    }
+
+    /** 正常路径（recordModelTurn 等已推进运行总额）只标记身份行已结算，不重复推进总额。 */
+    @Transactional
+    public boolean markModelCallSettled(UUID projectId, UUID runId, String callId, String kind,
+            AgentRunEventRecorder.UsageSettlement usage) {
+        return recorder.markModelCallSettled(projectId, runId, callId, kind, usage);
     }
 
     /**

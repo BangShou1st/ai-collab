@@ -421,9 +421,10 @@ class AgentContextSummarizerTest {
         assertThat(usage.getValue().combinedBasis()).isEqualTo("PROVIDER");
     }
 
-    /** 第二次调用失败：第一次真实用量保留结算，第二次显式 UNKNOWN，不冒充零消耗。 */
+    /** 第二次调用失败：第一次真实用量保留结算；第二次请求正文已构造完成——输入按实际请求
+     *  大小估算，输出确实无响应证据才标 UNKNOWN（有据可估不得记成未知零值）。 */
     @Test
-    void recompressFailureKeepsFirstRealUsageAndMarksSecondUnknown() {
+    void recompressFailureKeepsFirstRealUsageAndEstimatesSecondInputFromRequest() {
         stubState(v2State(5, 1, null));
         String oversized = "超长草稿。".repeat(300);
         when(repository.beginSummaryRecompressAttempt(any())).thenReturn(recompressId);
@@ -437,7 +438,10 @@ class AgentContextSummarizerTest {
         ArgumentCaptor<UsageSettlement> secondUsage = ArgumentCaptor.forClass(UsageSettlement.class);
         verify(repository).completeSummaryRecompressAttempt(eq(recompressId), eq("FAILED"),
                 eq("unknown"), secondUsage.capture(), any());
-        assertThat(secondUsage.getValue().combinedBasis()).isEqualTo("UNKNOWN");
+        // 请求正文已知：输入按实际请求估算，不是未知零值；输出无证据才显式 UNKNOWN
+        assertThat(secondUsage.getValue().inputTokens()).isPositive();
+        assertThat(secondUsage.getValue().inputBasis()).isEqualTo("ESTIMATED");
+        assertThat(secondUsage.getValue().outputBasis()).isEqualTo("UNKNOWN");
         // 第一次的真实用量不因第二次失败被估算值覆盖
         ArgumentCaptor<UsageSettlement> firstUsage = ArgumentCaptor.forClass(UsageSettlement.class);
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("DOWNSGRADED_UNQUALIFIED"),
@@ -445,6 +449,35 @@ class AgentContextSummarizerTest {
         assertThat(firstUsage.getValue().inputTokens()).isEqualTo(321);
         assertThat(firstUsage.getValue().outputTokens()).isEqualTo(45);
         verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
+    }
+
+    /** 剩余输出预算放不下摘要输出预留：不发起摘要，主调用输出预留独立于输入预算。 */
+    @Test
+    void summaryIsSkippedWhenOutputBudgetCannotFitOutputReserve() {
+        stubState(v2State(5, 1, null));
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000,
+                AgentContextSummarizer.OUTPUT_RESERVE_TOKENS - 1, () -> true);
+        verify(modelExecutor, never()).callModelWithoutTools(any(), any());
+        verify(repository, never()).beginSummaryAttempt(any());
+    }
+
+    /** 首次摘要输出已耗尽输出预算：不发重压缩，保留上一份摘要并明确降级原因。 */
+    @Test
+    void recompressIsSkippedWhenFirstSummaryExhaustedOutputBudget() {
+        stubState(v2State(5, 1, null));
+        String oversized = "超长草稿。".repeat(300);
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(new ModelTurnResult(
+                oversized, List.of(), ModelFinishReason.STOP,
+                new ModelUsage(500, 5000), "test-provider", "test-model", 9L));
+
+        // 剩余输出预算 = 首次输出消耗(5000) + 不足预留
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000,
+                5000 + AgentContextSummarizer.OUTPUT_RESERVE_TOKENS - 1, () -> true);
+
+        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any());
+        verify(repository, never()).beginSummaryRecompressAttempt(any());
+        verify(repository).completeSummaryAttempt(eq(attemptId), eq("DOWNSGRADED_UNQUALIFIED"),
+                anyString(), any(), eq("RECOMPRESS_SKIPPED_OUTPUT_BUDGET"));
     }
 
     /** 首次成功后的后续异常：第一次已知 usage 不被估算值覆盖。 */

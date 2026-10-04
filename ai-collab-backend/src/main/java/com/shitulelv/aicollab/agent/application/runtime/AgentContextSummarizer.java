@@ -99,6 +99,19 @@ public class AgentContextSummarizer {
             AgentModelMessageComposer.Composition composition,
             int remainingInputAfterMain,
             java.util.function.BooleanSupplier timeRemaining) {
+        maybeSummarize(run, composition, remainingInputAfterMain, Integer.MAX_VALUE, timeRemaining);
+    }
+
+    /**
+     * 同上；remainingOutputTokens 是运行的剩余输出预算：摘要请求（含重压缩）与主调用
+     * 的输出预留分别核算，输出额度不足时禁止再消耗，已发生用量如实保留。
+     */
+    public void maybeSummarize(
+            AgentRunView run,
+            AgentModelMessageComposer.Composition composition,
+            int remainingInputAfterMain,
+            int remainingOutputTokens,
+            java.util.function.BooleanSupplier timeRemaining) {
         List<AgentMessageView> candidates = composition == null ? null : composition.summaryCandidates();
         if (candidates == null || candidates.isEmpty()) return;
         try {
@@ -139,6 +152,12 @@ public class AgentContextSummarizer {
             if (estimatedInputTokens > remainingInputAfterMain) {
                 log.debug("剩余输入预算不足以容纳摘要请求，跳过: run={}, needed={}, remaining={}",
                         run.id(), estimatedInputTokens, remainingInputAfterMain);
+                return;
+            }
+            // 输出预算独立核算：输出预留放不下时不发起摘要（估算进输入不等于输出额度检查）
+            if (OUTPUT_RESERVE_TOKENS > remainingOutputTokens) {
+                log.debug("剩余输出预算不足以容纳摘要输出预留，跳过: run={}, reserve={}, remaining={}",
+                        run.id(), OUTPUT_RESERVE_TOKENS, remainingOutputTokens);
                 return;
             }
 
@@ -192,14 +211,24 @@ public class AgentContextSummarizer {
                                 run.id(), recompressEstimate, remainingForRecompress);
                         return;
                     }
+                    // 输出预算独立复查：首次摘要的输出消耗计入后，输出预留仍须放得下重压缩
+                    int remainingOutputForRecompress = remainingOutputTokens - firstUsage.bookedOutput();
+                    if (OUTPUT_RESERVE_TOKENS > remainingOutputForRecompress) {
+                        repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
+                                "RECOMPRESS_SKIPPED_OUTPUT_BUDGET");
+                        log.warn("剩余输出预算不足以容纳重压缩输出预留，保留上一份摘要: run={}, reserve={}, remaining={}",
+                                run.id(), OUTPUT_RESERVE_TOKENS, remainingOutputForRecompress);
+                        return;
+                    }
                     UUID recompressId = repository.beginSummaryRecompressAttempt(run);
                     ModelTurnResult retry;
                     try {
                         retry = modelExecutor.callModelWithoutTools(run, recompressMessages(text));
                     } catch (RuntimeException reFailure) {
-                        // 第二次失败：第一次的真实用量已单独结算；第二次无可得响应，显式 UNKNOWN
+                        // 第二次失败：第一次的真实用量已单独结算；第二次请求正文已构造完成——
+                        // 输入按实际请求大小估算，输出确实无响应证据才标 UNKNOWN，不把有据可估记成未知零值
                         repository.completeSummaryRecompressAttempt(recompressId, "FAILED", "unknown",
-                                UsageSettlement.unknown(), null);
+                                UsageSettlement.fromRaw(null, Math.max(1, recompressRequestChars(text) / 3), 0, null), null);
                         repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
                                 "RECOMPRESS_FAILED");
                         log.warn("摘要重压缩失败，保留上一份摘要且首次用量已结算: run={}", run.id(), reFailure);

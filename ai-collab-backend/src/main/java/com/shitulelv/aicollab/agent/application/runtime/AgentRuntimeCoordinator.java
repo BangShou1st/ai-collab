@@ -254,18 +254,31 @@ public class AgentRuntimeCoordinator {
                         .filter(s -> s.type() == AgentStepType.MODEL_TURN && s.promptTokens() != null)
                         .reduce((a, b) -> b).map(AgentStepView::promptTokens).orElse(0));
                 long runDurationBudget = Math.min(300000, ctx.limits().maxRunDuration().toMillis());
+                long remainingOutput = Math.min(run.maxOutputTokens(), ctx.limits().maxOutputTokens()) - run.outputTokensActual();
                 AgentRunView runForSummary = run;
                 summarizer.maybeSummarize(run, composition,
                         Math.max(0, remainingRunInput - estimatedInput - finalInputReserve),
+                        (int) Math.max(0, remainingOutput),
                         () -> runDurationBudget - repository.activeElapsedMillis(runForSummary) > 0);
-                // 摘要消耗已入账：刷新运行、重查取消状态，并重新核算主请求预算——
-                // 不允许携带超限上下文继续请求模型
+                // 摘要消耗已入账：刷新运行、重查取消状态，并重新核算主请求的输入与输出预算——
+                // 不允许携带超限上下文或不足的输出预留继续请求模型
                 run = repository.findRun(run.projectId(), run.id()).orElse(run);
                 cancellation.throwIfRequested(run);
                 int refreshedRemaining = Math.min(run.maxInputTokens(), ctx.limits().maxInputTokens()) - run.inputTokensUsed();
                 var refreshedBudget = AgentContextBudget.perRequest(contextProperties, modelWindow, refreshedRemaining);
                 if (estimatedInput > refreshedBudget.availableInputTokens()) {
                     return inputBudgetExceeded(run, refreshedBudget, "SUMMARY_CONSUMED_BUDGET");
+                }
+                long refreshedRemainingOutput = Math.min(run.maxOutputTokens(), ctx.limits().maxOutputTokens()) - run.outputTokensActual();
+                if (refreshedRemainingOutput < contextProperties.outputReserveTokens()) {
+                    // 摘要已耗尽输出预留：主调用/最终请求无法再保证输出容量，明确停止，不继续请求
+                    repository.recordBudgetExceeded(run);
+                    emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
+                            json.createObjectNode()
+                                    .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
+                                    .put("errorCode", "AGENT_BUDGET_EXCEEDED")
+                                    .put("scope", "SUMMARY_CONSUMED_OUTPUT_BUDGET"));
+                    return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
                 }
             }
 
@@ -274,6 +287,8 @@ public class AgentRuntimeCoordinator {
             if (pendingTurn != null && pendingTurn.isPresent()) {
                 return toolExecutor.executeCalls(run, ctx, skill, pendingTurn.get(), tools.definitionsFor(ctx, skill), steps);
             }
+            // 本次实际出站请求的持久化身份：先落库再请求，正常记账与取消补记共用一次性结算
+            String modelCallId = repository.beginModelCall(run.projectId(), run.id(), "MODEL_TURN");
             ModelTurnResult turn;
             try {
                 var startedPayload = json.createObjectNode().put("modelTurn", run.stepsUsed() + 1);
@@ -287,24 +302,6 @@ public class AgentRuntimeCoordinator {
                 }
                 emit(run, AgentEventType.MODEL_STARTED, startedPayload);
                 turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted());
-                String orphanCallId = modelCallId(run, messages);
-                boolean cancelSettled = false;
-                if (repository.isCancelRequested(run.projectId(), run.id())) {
-                    // 模型调用已发生：先按调用身份幂等结算这次消耗，再进入取消终态，用量不因取消丢失
-                    repository.settleOrphanUsage(run.projectId(), run.id(), orphanCallId, "MODEL_TURN",
-                            turnSettlement(turn));
-                    cancelSettled = true;
-                }
-                try {
-                    cancellation.throwIfRequested(run);
-                } catch (BusinessException canceled) {
-                    if (!cancelSettled) {
-                        // 竞争窗口：两次取消检查之间收到取消——同一调用身份只入账一次
-                        repository.settleOrphanUsage(run.projectId(), run.id(), orphanCallId, "MODEL_TURN",
-                                turnSettlement(turn));
-                    }
-                    throw canceled;
-                }
             } catch (IllegalArgumentException malformed) {
                 boolean repair=repository.consumeRecovery(run,"FORMAT_REPAIR",1);
                 if (repair) {
@@ -336,16 +333,47 @@ public class AgentRuntimeCoordinator {
                         null, null, failure.getErrorCode().name());
             }
 
+            // 响应已返回：结算值与来源显式计算（缺失侧按请求/响应证据估算，不冒充零消耗）
+            AgentRunEventRecorder.UsageSettlement settlement = turnSettlement(turn);
+            if (repository.isCancelRequested(run.projectId(), run.id())) {
+                // 模型调用已发生：先按调用身份幂等结算这次消耗，再进入取消终态，用量不因取消丢失
+                repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
+                cancellation.throwIfRequested(run);
+            }
+            try {
+                cancellation.throwIfRequested(run);
+            } catch (BusinessException canceled) {
+                // 竞争窗口：两次取消检查之间收到取消——同一调用身份只入账一次
+                repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
+                throw canceled;
+            }
+
             int outputTokens=turn.usage()!=null && turn.usage().outputTokens()!=null ? turn.usage().outputTokens() : Math.max(1,(json.valueToTree(turn).toString().length()+2)/3);
             // 输出超额按真实累计值（actual）判定：used 被封顶会低估消耗，实际可能已超
             long outputRemaining=Math.min(run.maxOutputTokens(),ctx.limits().maxOutputTokens())-(long)run.outputTokensActual();
             if (outputTokens>outputRemaining) {
                 repository.recordBudgetExceeded(run,new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult(turn.content(),turn.provider(),turn.model(),
                         turn.usage()==null ? null : turn.usage().inputTokens(),turn.usage()==null ? null : turn.usage().outputTokens(),turn.latencyMs()));
+                repository.markModelCallSettled(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
                 return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED,null,null,"AGENT_BUDGET_EXCEEDED");
             }
-            // 9. 记录 assistant turn（返回更新后的 Run）
-            run = repository.recordModelTurn(run, turn);
+            // 9. 记录 assistant turn（返回更新后的 Run）。
+            // 租约校验失败（取消/租约过期/版本冲突）发生在最后一次取消检查之后、
+            // 落库之前时，费用不得丢失：按调用身份补结算后再抛出。
+            try {
+                run = repository.recordModelTurn(run, turn);
+            } catch (BusinessException canceledDuringRecord) {
+                if (canceledDuringRecord.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
+                    repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
+                }
+                throw canceledDuringRecord;
+            } catch (RuntimeException recordFailed) {
+                // 落库本身失败（租约过期/版本冲突）：本次已返回响应的消耗按调用身份结算，不丢账
+                repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
+                throw recordFailed;
+            }
+            // 正常路径的运行总额已由 recordModelTurn 推进：身份行只标记结算，不重复入账
+            repository.markModelCallSettled(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
             // 输入实际超额：真实输入消耗超出运行上限时结算真实值并明确终止，
             // 不执行该响应中的工具，不记成功（估算无法绝对保证请求不超限，如实结算+停止）
             long inputRemaining=Math.min(run.maxInputTokens(),ctx.limits().maxInputTokens())-run.inputTokensActual();
@@ -445,35 +473,37 @@ public class AgentRuntimeCoordinator {
         return !repository.hasSuccessfulToolInvocation(run.id(), coreTools);
     }
 
-    /** 目标文本是否要求生成规划类核心动作：生成/起草/制定/启动 + 规划/草稿/计划，
-     *  且不在否定短语内（"仍不生成规划"；"仍不生成规划…现在生成草稿"仍成立）。 */
+    /** 目标文本是否要求生成规划类核心动作：按子句评估——子句含"生成/起草/制定/启动+规划/草稿/计划"
+     *  且不在同动词否定短语内、非疑问/假设语气。肯定与否定覆盖相同动词集合，
+     *  避免"不要起草规划"被误判为生成要求；"先不生成；现在生成草稿"以后一子句为准。 */
     static boolean coreActionRequested(String goal) {
         if (goal == null || goal.isBlank()) return false;
-        java.util.List<int[]> declineRegions = new ArrayList<>();
-        java.util.regex.Matcher decline = java.util.regex.Pattern
-                .compile("(不生成|不要生成|无需生成|先不生成|暂不生成|不用生成|别生成)[^。；;\\n]{0,8}(规划|草稿|计划)?")
-                .matcher(goal);
-        while (decline.find()) declineRegions.add(new int[]{decline.start(), decline.end()});
-        java.util.regex.Matcher request = java.util.regex.Pattern
-                .compile("(生成|起草|制定|启动)[^。；;\\n]{0,16}(规划|草稿|计划)")
-                .matcher(goal);
-        while (request.find()) {
-            int at = request.start();
-            boolean insideDecline = declineRegions.stream().anyMatch(r -> at >= r[0] && at < r[1]);
-            if (!insideDecline) return true;
+        for (String raw : goal.split("[。；;！？!\\n]")) {
+            String clause = raw.trim();
+            if (clause.isEmpty()) continue;
+            if (interrogativeOrHypotheticalClause(clause)) continue;
+            java.util.List<int[]> declineRegions = new ArrayList<>();
+            java.util.regex.Matcher decline = java.util.regex.Pattern
+                    .compile("(不要|无需|无须|先不|暂不|不用|别|不再|禁止|不得|不)(生成|起草|制定|启动)")
+                    .matcher(clause);
+            while (decline.find()) declineRegions.add(new int[]{decline.start(), decline.end()});
+            java.util.regex.Matcher request = java.util.regex.Pattern
+                    .compile("(生成|起草|制定|启动)[^，,。；;\\n]{0,16}(规划|草稿|计划)")
+                    .matcher(clause);
+            while (request.find()) {
+                int at = request.start();
+                boolean insideDecline = declineRegions.stream().anyMatch(r -> at >= r[0] && at < r[1]);
+                if (!insideDecline) return true;
+            }
         }
         return false;
     }
 
-    /** 稳定调用身份：同一请求内容（恢复重放同请求）得到同一 callId，结算幂等去重。 */    private String modelCallId(AgentRunView run, List<ModelMessage> messages) {
-        try {
-            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
-                    .digest(json.valueToTree(messages).toString()
-                            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            return "MODEL:" + java.util.HexFormat.of().formatHex(digest, 0, 16);
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+    /** 疑问/假设语气的子句不构成动作要求（"是否需要生成规划""如果起草规划会怎样"）。 */
+    private static boolean interrogativeOrHypotheticalClause(String clause) {
+        if (clause.contains("是否") || clause.contains("要不要") || clause.contains("需不需要")
+                || clause.contains("能不能") || clause.contains("会不会") || clause.endsWith("吗")) return true;
+        return clause.contains("如果") || clause.contains("假如") || clause.contains("假设") || clause.contains("要是");
     }
 
     /** 结算值与来源：来源按原始 usage 判定；缺失侧用实际请求/响应证据估算，不冒充零消耗。 */
