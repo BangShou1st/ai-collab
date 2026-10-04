@@ -104,4 +104,12 @@ public final class IterationPlanningSkill implements AgentSkill {
 
     @Override
     public String outputContract() { return OUTPUT_CONTRACT; }
+
+    /**
+     * 本 Skill 的核心业务动作：完整规划生成（受理草稿）。
+     * 是否被当前目标要求由运行目标确定性判定（"生成…规划"且未被否定），
+     * 只影响预算收尾时的完成状态判定，不放开权限或审批。
+     */
+    @Override
+    public Set<String> coreActionTools() { return Set.of("start_task_plan"); }
 }

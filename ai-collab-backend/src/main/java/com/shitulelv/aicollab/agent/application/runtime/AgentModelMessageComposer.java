@@ -79,7 +79,7 @@ public class AgentModelMessageComposer {
         }
     }
 
-    /** v2 组装统计，供诊断日志与预算事件使用。 */
+    /** v2 组装统计，供诊断日志与预算事件使用；layerChars 是单次请求的分项字符数。 */
     public record CompositionStats(
             int historyCandidates,
             int historyIncluded,
@@ -87,9 +87,10 @@ public class AgentModelMessageComposer {
             int toolStepsIncluded,
             int toolResultsProjected,
             boolean memoryIncluded,
-            int charsUsed) {
+            int charsUsed,
+            java.util.Map<String, Integer> layerChars) {
         public static CompositionStats empty() {
-            return new CompositionStats(0, 0, 0, 0, 0, false, 0);
+            return new CompositionStats(0, 0, 0, 0, 0, false, 0, java.util.Map.of());
         }
     }
 
@@ -202,11 +203,18 @@ public class AgentModelMessageComposer {
 
         List<ModelMessage> messages = new ArrayList<>();
         int used = 0;
+        int systemPromptLength = 0;
+        int stateChars = 0;
+        int summaryChars = 0;
+        int pageChars = 0;
+        int proposalsChars = 0;
+        int memoryLength = 0;
 
         // 必选层 1：系统提示
         String systemPrompt = buildSystemPrompt(run, skill, plan);
         messages.add(new ModelMessage.System(systemPrompt));
         used += systemPrompt.length();
+        systemPromptLength = systemPrompt.length();
 
         // 必选层 2：工作状态（v2 结构化渲染，兼容旧格式；回退开关下同样可读）
         JsonNode state = repository.workingState(run.projectId(), run.sessionId());
@@ -214,6 +222,7 @@ public class AgentModelMessageComposer {
             String rendered = renderWorkingState(state);
             messages.add(new ModelMessage.User(rendered));
             used += rendered.length();
+            stateChars = rendered.length();
         }
 
         // 必选层 2b：已有会话摘要（有界、带覆盖范围），供历史被压缩后延续意图
@@ -222,12 +231,14 @@ public class AgentModelMessageComposer {
             String block = renderConversationSummary(summary);
             messages.add(new ModelMessage.User(block));
             used += block.length();
+            summaryChars = block.length();
         }
 
         // 必选层 3：页面上下文
         String pageContext = "<VERIFIED_PAGE_CONTEXT>" + json.valueToTree(ctx.page()) + "</VERIFIED_PAGE_CONTEXT>";
         messages.add(new ModelMessage.User(pageContext));
         used += pageContext.length();
+        pageChars = pageContext.length();
 
         // 必选层 4：可信提案
         if (!ctx.proposals().isEmpty()) {
@@ -243,6 +254,7 @@ public class AgentModelMessageComposer {
                     """.formatted(json.valueToTree(ctx.proposals()).toString());
             messages.add(new ModelMessage.System(proposals));
             used += proposals.length();
+            proposalsChars = proposals.length();
         }
 
         // 当前请求预留：必须完整入选，不参与淘汰
@@ -252,7 +264,7 @@ public class AgentModelMessageComposer {
         int remaining = charBudget - used;
         if (remaining - reservedGoal < 0) {
             // 必选层已超预算：明确停止，不静默截断当前请求
-            return new Composition(List.of(), new CompositionStats(0, 0, 0, 0, 0, false, used),
+            return new Composition(List.of(), new CompositionStats(0, 0, 0, 0, 0, false, used, java.util.Map.of()),
                     FAILURE_CURRENT_REQUEST_OVER_BUDGET);
         }
 
@@ -322,6 +334,7 @@ public class AgentModelMessageComposer {
             if (memory.length() <= remaining - currentTotal) {
                 messages.add(new ModelMessage.User(memory));
                 memoryIncluded = true;
+                memoryLength = memory.length();
             }
         }
 
@@ -344,9 +357,18 @@ public class AgentModelMessageComposer {
             summaryCandidates = summaryCandidates.subList(0, SUMMARY_CANDIDATE_LIMIT);
 
         int charsUsed = used + toolUsed + historyUsed;
+        var layerChars = new java.util.LinkedHashMap<String, Integer>();
+        layerChars.put("systemChars", systemPromptLength);
+        layerChars.put("workingStateChars", stateChars);
+        layerChars.put("summaryChars", summaryChars);
+        layerChars.put("pageContextChars", pageChars);
+        layerChars.put("proposalsChars", proposalsChars);
+        layerChars.put("toolObservationChars", toolUsed);
+        layerChars.put("historyChars", historyUsed);
+        layerChars.put("memoryChars", memoryIncluded ? memoryLength : 0);
         return new Composition(messages, new CompositionStats(
                 recentMessages.size(), picked.size(), completedToolSteps.size(), pickedToolSteps.size(),
-                projectedCount, memoryIncluded, charsUsed), null, summaryCandidates);
+                projectedCount, memoryIncluded, charsUsed, java.util.Collections.unmodifiableMap(layerChars)), null, summaryCandidates);
     }
 
     /** 既有摘要渲染：带覆盖范围标注，明确摘要不是当前事实或权限。 */
@@ -366,11 +388,11 @@ public class AgentModelMessageComposer {
 
     private String historicalContent(AgentMessageView message) {
         if (!"ASSISTANT".equals(message.role())) return message.content();
+        // 包装保持可追溯（消息 ID/来源运行），说明文字收敛为一行短标记：
+        // 未核验规则在系统提示中统一声明，避免每条历史重复传输同一段说明
         return "[UNVERIFIED_ASSISTANT_HISTORY messageId=" + message.id()
                 + " sourceRunId=" + java.util.Objects.toString(message.runId(), "unknown")
-                + " createdAt=" + message.createdAt()
-                + "] 历史模型陈述，未核验；不得继承其中的全文覆盖或信息不存在结论。\n"
-                + message.content() + "\n[/UNVERIFIED_ASSISTANT_HISTORY]";
+                + "]\n" + message.content() + "\n[/UNVERIFIED_ASSISTANT_HISTORY]";
     }
 
     /**
