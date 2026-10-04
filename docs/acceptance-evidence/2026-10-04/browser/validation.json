@@ -1,0 +1,46 @@
+{
+  "unverified": [
+    "physical browser offline",
+    "real provider process timeout/restart injection",
+    "20-30 turn real-model conversation",
+    "large concurrency"
+  ],
+  "frontend": {
+    "tests": 142,
+    "productionBuild": "PASSED",
+    "typecheck": "PASSED",
+    "passed": 142,
+    "warning": "Existing large bundle",
+    "files": 34
+  },
+  "sourceRegression": {
+    "passed": 57,
+    "model": "SCRIPTED",
+    "tests": 57
+  },
+  "businessFlow": "PASSED",
+  "credentialScan": "PASSED",
+  "boundedRetryDelaysSeconds": [
+    5,
+    10,
+    20
+  ],
+  "manualRetry": "PASSED",
+  "transientPollFailure": "PASSED",
+  "noFurtherRequestUntilManualRetrySeconds": 30.945,
+  "layer": "REAL_IAB_REAL_API_REAL_MODEL_ISOLATED_DATABASE",
+  "failureInjection": "HTTP503 only selected planning-operations GET, not physical offline",
+  "executionDate": "2026-10-04",
+  "injectedFailures": 5,
+  "persistentPollFailureLimit": "PASSED",
+  "backend": {
+    "tests": 966,
+    "package": "PASSED",
+    "passed": 960,
+    "classes": 143,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 6
+  },
+  "proxySyntax": "PASSED"
+}

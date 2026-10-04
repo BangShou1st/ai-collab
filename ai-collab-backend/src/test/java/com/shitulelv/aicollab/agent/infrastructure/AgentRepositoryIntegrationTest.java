@@ -1093,6 +1093,30 @@ class AgentRepositoryIntegrationTest {
         assertThatThrownBy(()->reloaded.listSummaryCandidates(next,java.util.Set.of(),20)).isInstanceOf(BusinessException.class);
     }
 
+    @Test void nativeFinalPersistsOnlyLiveSourcesActuallyReadInThisRun() {
+        var json=new ObjectMapper();
+        var own=fixture(); var foreign=fixture();
+        var session=repository.createSession(own.project(),own.user(),"source-flow");
+        var queued=repository.createRun(own.project(),session.id(),own.user(),"读取资料",false,null,null);
+        repository.claimNext("worker",OffsetDateTime.now(ZoneOffset.UTC),Duration.ofMinutes(1));
+        var running=repository.findRun(own.project(),queued.id()).orElseThrow();
+        var sources=new java.util.ArrayList<UUID>();
+        for(int i=0;i<4;i++) {
+            var f=i==2?foreign:own; UUID doc=UUID.randomUUID(),chunk=UUID.randomUUID(); sources.add(chunk);
+            jdbc.update("INSERT INTO project_document(id,project_id,display_name,original_filename,mime_type,size_bytes,object_key,status,uploaded_by) VALUES (?,?,'source','source.txt','text/plain',10,?,'FAILED',?)",doc,f.project(),doc.toString(),f.user());
+            jdbc.update("INSERT INTO document_body(document_id,snapshot_id,original_content_hash,parse_version) VALUES (?,?,?,'test')",doc,UUID.randomUUID(),"a".repeat(64));
+            jdbc.update("INSERT INTO document_body_chunk(id,document_id,chunk_no,content,content_hash) VALUES (?,?,0,'actual source',?)",chunk,doc,"b".repeat(64));
+            var result=json.createObjectNode(); result.putArray("citations").addObject().put("documentId",doc.toString()).put("chunkId",chunk.toString()).put("quote","actual source").put("filename","source.txt");
+            running=repository.recordToolResult(running,"read_document_section",json.createObjectNode(),result,i==3);
+            if(i==0) running=repository.recordToolResult(running,"read_document_section",json.createObjectNode(),result,false); // duplicated replay
+            if(i==1) jdbc.update("DELETE FROM document_body_chunk WHERE id=?",chunk);
+        }
+        repository.recordFinal(running,"资料总结",List.of());
+        var message=repository.listMessages(own.project(),session.id(),100).getLast();
+        assertThat(message.citations()).hasSize(1);
+        assertThat(message.citations().get(0).path("chunkId").asText()).isEqualTo(sources.getFirst().toString());
+        assertThat(repository.listSteps(own.project(),queued.id()).getLast().output().path("citations")).isEqualTo(message.citations());
+    }
     private static Fixture fixture() {
         UUID user = UUID.randomUUID();
         UUID project = UUID.randomUUID();

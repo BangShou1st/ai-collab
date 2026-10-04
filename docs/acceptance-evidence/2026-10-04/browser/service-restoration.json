@@ -1,0 +1,27 @@
+{
+  "executionDate": "2026-10-04",
+  "ownedPorts": [
+    15173,
+    18080,
+    18081,
+    11434,
+    55432,
+    16379,
+    18090
+  ],
+  "dockerProcesses": [],
+  "hostConfigurationRestored": true,
+  "browserCacheRepair": "official unmodified runtime copy retained outside repository",
+  "remainingListeners": [],
+  "isolatedContainersStopped": [
+    "ai-collab-acceptance-postgres-20261003",
+    "ai-collab-real-acceptance-redis-20261003",
+    "ai-collab-real-acceptance-minio-20261003"
+  ],
+  "privateRuntimeArtifacts": "ignored target, retained",
+  "originalContainersNeverStarted": [
+    "ai-collab-postgres",
+    "ai-collab-redis",
+    "ai-collab-minio"
+  ]
+}
