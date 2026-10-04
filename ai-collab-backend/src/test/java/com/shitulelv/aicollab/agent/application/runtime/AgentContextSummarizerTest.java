@@ -7,6 +7,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentMessageView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
@@ -39,6 +40,7 @@ class AgentContextSummarizerTest {
     private RoutingAgentModelExecutor modelExecutor;
     private AgentContextSummarizer summarizer;
     private final UUID attemptId = UUID.randomUUID();
+    private final UUID recompressId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
@@ -80,7 +82,7 @@ class AgentContextSummarizerTest {
         // 单独记账：尝试开始与完成各落一条持久化记录，usage 缺失按保守估算
         verify(repository).beginSummaryAttempt(run);
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("COMMITTED"), anyString(),
-                anyInt(), anyInt(), eq(true), any());
+                any(), any());
     }
 
     @Test
@@ -245,7 +247,7 @@ class AgentContextSummarizerTest {
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("EMPTY"), eq("test-model"),
-                anyInt(), anyInt(), eq(true), any());
+                any(), any());
         verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
     }
 
@@ -259,8 +261,13 @@ class AgentContextSummarizerTest {
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
+        ArgumentCaptor<UsageSettlement> usage = ArgumentCaptor.forClass(UsageSettlement.class);
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("COMMITTED"), eq("test-model"),
-                eq(321), eq(45), eq(false), eq(11L));
+                usage.capture(), any());
+        assertThat(usage.getValue().inputTokens()).isEqualTo(321);
+        assertThat(usage.getValue().outputTokens()).isEqualTo(45);
+        assertThat(usage.getValue().combinedBasis()).isEqualTo("PROVIDER");
+        assertThat(usage.getValue().latencyMs()).isEqualTo(11L);
     }
 
     @Test
@@ -272,7 +279,7 @@ class AgentContextSummarizerTest {
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("CAS_CONFLICT"), anyString(),
-                anyInt(), anyInt(), anyBoolean(), any());
+                any(), any());
         // CAS 冲突后不再重试第二次模型调用
         verify(modelExecutor, times(1)).callModelWithoutTools(any(), any());
     }
@@ -285,8 +292,13 @@ class AgentContextSummarizerTest {
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
+        ArgumentCaptor<UsageSettlement> failureUsage = ArgumentCaptor.forClass(UsageSettlement.class);
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("FAILED"), eq("unknown"),
-                anyInt(), eq(0), eq(true), eq(null));
+                failureUsage.capture(), any());
+        // 请求证据存在 → 输入按证据估算；无响应证据 → 输出侧显式 UNKNOWN，不冒充零消耗
+        assertThat(failureUsage.getValue().inputTokens()).isPositive();
+        assertThat(failureUsage.getValue().inputBasis()).isEqualTo("ESTIMATED");
+        assertThat(failureUsage.getValue().outputBasis()).isEqualTo("UNKNOWN");
         verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
     }
 
@@ -326,6 +338,7 @@ class AgentContextSummarizerTest {
         stubState(v2State(5, 1, null));
         String oversized = "超长草稿。".repeat(300); // 1500 字，超出 1200 上限
         String recompressed = "压缩后的完整摘要，仍有效约束：不改日期。";
+        when(repository.beginSummaryRecompressAttempt(any())).thenReturn(recompressId);
         when(modelExecutor.callModelWithoutTools(any(), any()))
                 .thenReturn(turn(oversized))
                 .thenReturn(turn(recompressed));
@@ -344,22 +357,114 @@ class AgentContextSummarizerTest {
         assertThat(summary.getValue().path("text").asText()).isEqualTo(recompressed);
         // 两次调用的消耗都如实入账
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("COMMITTED"), anyString(),
-                anyInt(), anyInt(), eq(true), any());
+                any(), any());
     }
 
     @Test
     void unqualifiedAfterRecompressDowngradesWithoutCommittingOrAdvancingCoverage() {
         stubState(v2State(5, 1, null));
         String oversized = "仍然超长的输出。".repeat(400); // 重压缩后仍超出容量
+        when(repository.beginSummaryRecompressAttempt(any())).thenReturn(recompressId);
         when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn(oversized));
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
         // 降级：保留上一份有效摘要，不推进本次覆盖（无 commit、segments 不动）
         verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
+        ArgumentCaptor<UsageSettlement> usage = ArgumentCaptor.forClass(UsageSettlement.class);
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("DOWNSGRADED_UNQUALIFIED"),
-                anyString(), anyInt(), anyInt(), eq(true), any());
-        // 降级原因持久化在尝试记录中，可查询
+                anyString(), usage.capture(), eq("RECOMPRESS_STILL_UNQUALIFIED"));
+        // 重压缩调用的消耗也已单独结算，首次真实用量未丢
+        verify(repository).completeSummaryRecompressAttempt(eq(recompressId), eq("SETTLED"), anyString(), any(), any());
+        assertThat(usage.getValue().inputTokens()).isPositive();
+    }
+
+    /** 剩余预算不足以容纳有界重压缩请求：不发第二次调用，保留上一份摘要并明确降级原因。 */
+    @Test
+    void recompressIsSkippedWhenRemainingBudgetCannotFitBoundedRecompressRequest() {
+        stubState(v2State(5, 1, null));
+        String oversized = "超长草稿。".repeat(300); // 1500 字
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn(oversized));
+
+        // 预算刚够首次请求：重压缩估算（草稿全文+输出预留）超出剩余 → 必须跳过
+        summarizer.maybeSummarize(run(), composition(candidates()), 900);
+
+        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any());
+        verify(repository, never()).beginSummaryRecompressAttempt(any());
+        verify(repository, never()).completeSummaryRecompressAttempt(any(), any(), any(), any(), any());
+        verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
+        verify(repository).completeSummaryAttempt(eq(attemptId), eq("DOWNSGRADED_UNQUALIFIED"),
+                anyString(), any(), eq("RECOMPRESS_SKIPPED_BUDGET_INSUFFICIENT"));
+    }
+
+    /** 重压缩前检测到取消：结算首次真实用量，保留上一份摘要，不发起第二次调用。 */
+    @Test
+    void cancelBeforeRecompressSettlesFirstRealUsageWithoutSecondCall() {
+        stubState(v2State(5, 1, null));
+        String oversized = "超长草稿。".repeat(300);
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(new ModelTurnResult(
+                oversized, List.of(), ModelFinishReason.STOP,
+                new ModelUsage(321, 45), "test-provider", "test-model", 9L));
+        when(repository.isCancelRequested(any(), any())).thenReturn(true);
+
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
+
+        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any());
+        verify(repository, never()).beginSummaryRecompressAttempt(any());
+        verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
+        ArgumentCaptor<UsageSettlement> usage = ArgumentCaptor.forClass(UsageSettlement.class);
+        verify(repository).completeSummaryAttempt(eq(attemptId), eq("CANCELED"), eq("test-model"),
+                usage.capture(), eq("RECOMPRESS_SKIPPED_CANCELED"));
+        // 首次真实 usage 不因取消丢失
+        assertThat(usage.getValue().inputTokens()).isEqualTo(321);
+        assertThat(usage.getValue().outputTokens()).isEqualTo(45);
+        assertThat(usage.getValue().combinedBasis()).isEqualTo("PROVIDER");
+    }
+
+    /** 第二次调用失败：第一次真实用量保留结算，第二次显式 UNKNOWN，不冒充零消耗。 */
+    @Test
+    void recompressFailureKeepsFirstRealUsageAndMarksSecondUnknown() {
+        stubState(v2State(5, 1, null));
+        String oversized = "超长草稿。".repeat(300);
+        when(repository.beginSummaryRecompressAttempt(any())).thenReturn(recompressId);
+        when(modelExecutor.callModelWithoutTools(any(), any()))
+                .thenReturn(new ModelTurnResult(oversized, List.of(), ModelFinishReason.STOP,
+                        new ModelUsage(321, 45), "test-provider", "test-model", 9L))
+                .thenThrow(new RuntimeException("recompress timed out"));
+
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
+
+        ArgumentCaptor<UsageSettlement> secondUsage = ArgumentCaptor.forClass(UsageSettlement.class);
+        verify(repository).completeSummaryRecompressAttempt(eq(recompressId), eq("FAILED"),
+                eq("unknown"), secondUsage.capture(), any());
+        assertThat(secondUsage.getValue().combinedBasis()).isEqualTo("UNKNOWN");
+        // 第一次的真实用量不因第二次失败被估算值覆盖
+        ArgumentCaptor<UsageSettlement> firstUsage = ArgumentCaptor.forClass(UsageSettlement.class);
+        verify(repository).completeSummaryAttempt(eq(attemptId), eq("DOWNSGRADED_UNQUALIFIED"),
+                eq("test-model"), firstUsage.capture(), eq("RECOMPRESS_FAILED"));
+        assertThat(firstUsage.getValue().inputTokens()).isEqualTo(321);
+        assertThat(firstUsage.getValue().outputTokens()).isEqualTo(45);
+        verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
+    }
+
+    /** 首次成功后的后续异常：第一次已知 usage 不被估算值覆盖。 */
+    @Test
+    void postResponseFailureKeepsFirstRealUsage() {
+        stubState(v2State(5, 1, null));
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(new ModelTurnResult(
+                "合格摘要", List.of(), ModelFinishReason.STOP,
+                new ModelUsage(321, 45), "test-provider", "test-model", 9L));
+        when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any()))
+                .thenThrow(new IllegalStateException("db gone"));
+
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
+
+        ArgumentCaptor<UsageSettlement> usage = ArgumentCaptor.forClass(UsageSettlement.class);
+        verify(repository).completeSummaryAttempt(eq(attemptId), eq("FAILED"), eq("unknown"),
+                usage.capture(), eq("POST_RESPONSE_FAILURE"));
+        assertThat(usage.getValue().inputTokens()).isEqualTo(321);
+        assertThat(usage.getValue().outputTokens()).isEqualTo(45);
+        assertThat(usage.getValue().combinedBasis()).isEqualTo("PROVIDER");
     }
 
     @Test
@@ -393,9 +498,16 @@ class AgentContextSummarizerTest {
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
-        // 800 字完整输出 → 估算输出 800/3≈267（不是截短后的值），输入按上报 200
+        // 1200 字完整输出 → 估算输出 1200/3=400（不是截短后的值），输入按上报 200
+        ArgumentCaptor<UsageSettlement> usage = ArgumentCaptor.forClass(UsageSettlement.class);
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("COMMITTED"), eq("test-model"),
-                eq(200), anyInt(), eq(true), eq(12L));
+                usage.capture(), any());
+        assertThat(usage.getValue().inputTokens()).isEqualTo(200);
+        assertThat(usage.getValue().inputBasis()).isEqualTo("PROVIDER");
+        assertThat(usage.getValue().outputTokens()).isEqualTo(400);
+        assertThat(usage.getValue().outputBasis()).isEqualTo("ESTIMATED");
+        assertThat(usage.getValue().combinedBasis()).isEqualTo("ESTIMATED");
+        assertThat(usage.getValue().latencyMs()).isEqualTo(12L);
     }
 
     private void stubState(JsonNode state) {

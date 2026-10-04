@@ -993,7 +993,10 @@ class AgentRepositoryIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT input_tokens_used FROM agent_run WHERE id=?", Integer.class, run.id())).isZero();
 
         // 完成尝试：token 计入所属运行（attemptId 是步骤 ID，运行 ID 从步骤取回）
-        repository.completeSummaryAttempt(attemptId,"COMMITTED","test-model",500,60,false,10L);
+        repository.completeSummaryAttempt(attemptId,"COMMITTED","test-model",
+                new AgentRunEventRecorder.UsageSettlement(500,60,
+                        AgentRunEventRecorder.UsageSettlement.PROVIDER,
+                        AgentRunEventRecorder.UsageSettlement.PROVIDER,10L),null);
         assertThat(jdbc.queryForObject("SELECT output_json->>'status' FROM agent_step WHERE id=?", String.class, attemptId))
                 .isEqualTo("COMMITTED");
         assertThat(jdbc.queryForObject("SELECT prompt_tokens FROM agent_step WHERE id=?", Integer.class, attemptId)).isEqualTo(500);
@@ -1003,7 +1006,10 @@ class AgentRepositoryIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT token_usage_estimated FROM agent_run WHERE id=?", Boolean.class, run.id())).isFalse();
 
         // 重复完成不得重复扣费：步骤已离开 ATTEMPTED，第二次调用不产生任何变化
-        repository.completeSummaryAttempt(attemptId,"COMMITTED","test-model",999,999,false,20L);
+        repository.completeSummaryAttempt(attemptId,"COMMITTED","test-model",
+                new AgentRunEventRecorder.UsageSettlement(999,999,
+                        AgentRunEventRecorder.UsageSettlement.PROVIDER,
+                        AgentRunEventRecorder.UsageSettlement.PROVIDER,20L),null);
         assertThat(jdbc.queryForObject("SELECT input_tokens_used FROM agent_run WHERE id=?", Integer.class, run.id())).isEqualTo(500);
         assertThat(jdbc.queryForObject("SELECT output_tokens_used FROM agent_run WHERE id=?", Integer.class, run.id())).isEqualTo(60);
         assertThat(jdbc.queryForObject("SELECT prompt_tokens FROM agent_step WHERE id=?", Integer.class, attemptId)).isEqualTo(500);
