@@ -321,6 +321,83 @@ class AgentContextSummarizerTest {
         verify(repository, never()).beginSummaryAttempt(any());
     }
 
+    @Test
+    void oversizedSummaryIsRecompressedOnceAndCommittedOnlyWhenQualified() {
+        stubState(v2State(5, 1, null));
+        String oversized = "超长草稿。".repeat(300); // 1500 字，超出 1200 上限
+        String recompressed = "压缩后的完整摘要，仍有效约束：不改日期。";
+        when(modelExecutor.callModelWithoutTools(any(), any()))
+                .thenReturn(turn(oversized))
+                .thenReturn(turn(recompressed));
+        when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
+
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
+
+        // 恰好一次有界重压缩，不无限调用模型
+        verify(modelExecutor, times(2)).callModelWithoutTools(any(), any());
+        ArgumentCaptor<List<ModelMessage>> retry = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor, times(2)).callModelWithoutTools(any(), retry.capture());
+        assertThat(retry.getAllValues().get(1).get(1).toString()).contains("压缩后的完整摘要").contains("<摘要草稿>");
+        // 只提交合格摘要，不提交截尾版本
+        ArgumentCaptor<JsonNode> summary = ArgumentCaptor.forClass(JsonNode.class);
+        verify(repository).commitConversationSummary(any(), any(), anyInt(), anyInt(), summary.capture());
+        assertThat(summary.getValue().path("text").asText()).isEqualTo(recompressed);
+        // 两次调用的消耗都如实入账
+        verify(repository).completeSummaryAttempt(eq(attemptId), eq("COMMITTED"), anyString(),
+                anyInt(), anyInt(), eq(true), any());
+    }
+
+    @Test
+    void unqualifiedAfterRecompressDowngradesWithoutCommittingOrAdvancingCoverage() {
+        stubState(v2State(5, 1, null));
+        String oversized = "仍然超长的输出。".repeat(400); // 重压缩后仍超出容量
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn(oversized));
+
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
+
+        // 降级：保留上一份有效摘要，不推进本次覆盖（无 commit、segments 不动）
+        verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
+        verify(repository).completeSummaryAttempt(eq(attemptId), eq("DOWNSGRADED_UNQUALIFIED"),
+                anyString(), anyInt(), anyInt(), eq(true), any());
+        // 降级原因持久化在尝试记录中，可查询
+    }
+
+    @Test
+    void tailDecisionsAreKeptVerbatimInsteadOfSubstringTruncation() {
+        stubState(v2State(5, 1, null));
+        // 1199 字 + 尾部关键决定：旧实现会把它截到 1200 以内并可能丢尾部，新实现必须完整保留
+        String body = "决定甲。".repeat(200); // 600
+        String tail = "后续内容。".repeat(73) + "关键决定：改为最多6项并立即生效。"; // 438+16 → 共 1054
+        String withinCapacity = body + tail;
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn(withinCapacity));
+        when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
+
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
+
+        assertThat(withinCapacity.length()).isLessThanOrEqualTo(1200);
+        ArgumentCaptor<JsonNode> summary = ArgumentCaptor.forClass(JsonNode.class);
+        verify(repository).commitConversationSummary(any(), any(), anyInt(), anyInt(), summary.capture());
+        String persisted = summary.getValue().path("text").asText();
+        assertThat(persisted).isEqualTo(withinCapacity);
+        assertThat(persisted).endsWith("关键决定：改为最多6项并立即生效。");
+    }
+
+    @Test
+    void partialUsageStillSettlesFullResponseLength() {
+        stubState(v2State(5, 1, null));
+        // 只有输入 usage，没有输出 usage：按完整输出长度估算，不按持久化截短文本
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(new ModelTurnResult(
+                "摘要。".repeat(400), List.of(), ModelFinishReason.STOP, new ModelUsage(200, null),
+                "test-provider", "test-model", 12L));
+        when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
+
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
+
+        // 800 字完整输出 → 估算输出 800/3≈267（不是截短后的值），输入按上报 200
+        verify(repository).completeSummaryAttempt(eq(attemptId), eq("COMMITTED"), eq("test-model"),
+                eq(200), anyInt(), eq(true), eq(12L));
+    }
+
     private void stubState(JsonNode state) {
         when(repository.workingState(any(), any())).thenReturn(state);
     }
