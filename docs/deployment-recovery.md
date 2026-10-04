@@ -1,6 +1,6 @@
 # 部署与恢复说明
 
-2026-10-04：本轮授权仅开发分支备份推送，验收写入仅隔离副本；不包含部署或正式迁移。最新根因修复复验见 [root-cause-repair 报告](acceptance-evidence/2026-10-04/root-cause-repair/report.md)，隔离验收入口与停止/恢复约定不变。新增说明：本轮使用独立容器 `ai-collab-rootfix-pg/redis/minio`（端口 55432/16379/18090，复用隔离卷 `ai-collab-acceptance-20261003`，Flyway 已在隔离副本应用至 V56）；复验脚本为 `run-root-cause-repair.ps1`，批次 `rootfix-minimal/fixed24/correction`，原 `run-long-quality.ps1` 与旧证据未改动。数据库新增 V56（agent_run 实际用量列、agent_step.usage_basis），仅应用隔离副本，正式库迁移另行授权。
+2026-10-05：本轮授权仅开发分支备份推送，验收写入仅隔离副本；不包含部署或正式迁移。最新稳定性剩余缺陷修复复验见 [agent-stability-remainder 报告](acceptance-evidence/2026-10-04/agent-stability-remainder/report.md)，隔离验收入口与停止/恢复约定不变。新增说明：本轮沿用独立容器 `ai-collab-rootfix-pg/redis/minio`（端口 55432/16379/18090，复用隔离卷 `ai-collab-acceptance-20261003`），Flyway 已在隔离副本应用至 V57（`agent_usage_settlement` 孤儿用量结算账本，run_id+call_id 唯一幂等）；复验脚本为 `run-agent-stability-remainder.ps1`（批次 `stability-minimal/fixed24/correction`，证据在 `2026-10-04/agent-stability-remainder/<batch>`），旧 `run-root-cause-repair.ps1`、`run-long-quality.ps1` 与旧证据未改动。宿主分离启动脚本 `start-real-acceptance-host.ps1`（先拉起异常退出的隔离容器再启动宿主）。V57 仅应用隔离副本，正式库迁移另行授权；V56 将历史 actual 用 used 回填属历史下界，与 V57 新增结算行分开解读。
 
 ## 隔离验收入口
 
@@ -14,7 +14,7 @@
 
 ## 功能关闭与兼容
 
-agent.enabled=false 关闭 Agent；agent.capabilities.planning=false 关闭规划工具；agent.capabilities.document-reading=false 关闭正文工具。agent.context.composer-v2=false 回退上下文组装，已有 working_state 可兼容读取。此次可靠性修复没有新增迁移，不回退 V54/V55。规划的排队操作保留同一 operation/attempt；运行中进程丢失允许明确失败后由用户对原规划重试，不恢复半截模型输出。正式确认仍只通过原规划服务对指定版本人工执行。
+agent.enabled=false 关闭 Agent；agent.capabilities.planning=false 关闭规划工具；agent.capabilities.document-reading=false 关闭正文工具。agent.context.composer-v2=false 回退上下文组装，已有 working_state 可兼容读取（v2 渲染两条路径共用；约束 detail.object 为新增字段，旧条目从 value 前缀渐进解析，回退路径无需迁移）。预算收尾语义（2026-10-05 起）：收尾由收敛策略触发时，若当前目标确定性要求核心动作（如规划生成的 start_task_plan）且持久工具结果显示未发生，运行以 BUDGET_EXCEEDED（事件 scope=CORE_ACTION_NOT_PERFORMED）部分完成收场，不以模型文字记成功；事件 MODEL_STARTED 携带 inputBreakdown 供体积审计。此次可靠性修复没有新增迁移，不回退 V54/V55。规划的排队操作保留同一 operation/attempt；运行中进程丢失允许明确失败后由用户对原规划重试，不恢复半截模型输出。正式确认仍只通过原规划服务对指定版本人工执行。
 
 纯文本规划与原生收尾请求不允许模型调用工具；Zen 兼容传输保留保留工具声明，但明确 `tool_choice=none`。解析和业务校验保持严格，失败 attempt 保存阶段/原因，不保存完整提供商正文。零版本骨架失败可在原规划页重新生成；原操作没有结果版本时显示尚未生成，不能借用后来重试的版本。预算预留同时覆盖主请求、摘要和最终回答；保底片段保留已取得信息，但不记为成功。
 

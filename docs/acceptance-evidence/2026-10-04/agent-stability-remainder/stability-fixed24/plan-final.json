@@ -1,0 +1,221 @@
+{
+  "draft": {
+    "summary": "为 ai-collab 编制发布前可靠性验收规划骨架：在 2026-10-05 至 2026-10-25 的固定规划区间内，用 6 项任务覆盖六个主题（长对话持续覆盖、模型超时、排队后进程重启、生成中重启、取消与完成竞争、证据收口），每项任务绑定一个里程碑，形成长对话→模型超时→排队重启→运行中重启→取消竞争→证据收口的线性无环推进，后项仅依赖前项已落盘的持久记录。每项任务给出二值可判定的验收口径：验收结论写入指定载体字段（如长对话对话记录的持续覆盖标记、工具调用返回的 operationId/planId/attemptId/status/versionId 与持久关联字段、state revision、sourceFrom/sourceThrough/schemaVersion/创建所用模型或策略版本、摘要逐块 contentHash 与 CLEANED_TEXT_UTF16_V2 偏移、失败阶段与可重试时机字段）并配合可复现的复算步骤，禁止主观表述。引用依据仅为《ai-collab下一阶段主蓝图》本会话已读片段（documentId 3e247376-31f7-4d8c-9839-04c1838e355c，快照 8696427d，§4.1/§4.2/§4.4/§5.1-§5.4/§6.2，chunk 0-19 一带）；取消裁决顺序、重启后恢复（而非重建）的正式条款、预算与费用口径均超出已读范围，标注为“待文档确认”，不作为文档已写明的要求。本骨架不含建议负责人、依赖字段与来源字段，需项目所有者在规划页人工确认指定版本后才生效，不自动批准，也不以多次单项提案替代本规划。",
+    "assumptions": [
+      "规划区间 2026-10-05 至 2026-10-25 取自当前生效约束 PLAN_CONSTRAINTS，日期不可改动。",
+      "任务总数上限 6 项取自 PLAN_CONSTRAINTS 的最多任务；本次恰好写入 6 项任务，不超过上限。",
+      "约束历史中“不包含采购费用核对”的范围说明仅作为范围边界记录，费用核对不占用本规划任务额度；相关预算与费用口径超出已读文档范围，标为待文档确认。",
+      "项目当前任务总数为 0（已执行基线事实：LIVE_KEYSET 全量查询，非分页截断），因此本规划为首次写入任务，且不会与既有任务产生编号或排序冲突。",
+      "里程碑数量未受 6 项任务上限约束，本规划设置 6 个里程碑，与任务一一对应，便于逐项判定完成。",
+      "每项任务的负责人按要求固定为 Local Owner（项目成员仅 1 人，role=OWNER）；该信息仅存在于任务细节字段，本骨架不输出建议负责人字段。",
+      "任务依赖为线性链（长对话→模型超时→排队重启→运行中重启→取消竞争→证据收口），无环；dependencyTempKeys 不在本骨架输出范围内，其无环性以本顺序声明为准。",
+      "验收判定以“证据载体字段是否被写入且取值可复算”为二值判据，不使用主观表述。",
+      "repair_task_plan 的版本参数（baseVersionId、expectedVersionNo、lockedFields）与 cancel_task_plan_generation 的参数（operationId、attemptId）作为已执行基线事实被引用于验收复现步骤。",
+      "任务列表支持 query 搜索与 cursor 分页，可作为证据收口与抽样复核的可复现检索手段。",
+      "文档《ai-collab下一阶段主蓝图》本次关联处理状态为 FAILED、searchAvailable=false，故全部引用按“本会话已读片段”标注，非文档检索验证结论。",
+      "已读范围为 chunk 0-19 一带；§6.2 尾部约 398 字符、§6.3 尾部约 394 字符、§6.4 与 §7 尾部及 chunk 19 之后各块未读取，超出范围的条款一律标为待文档确认。",
+      "长对话验收中“仍有效约束不被按最后 N 条淘汰”（§4.1）与“输入预算同时计入系统提示、Skill、工具定义与工具结果”（§4.2）为已读可引用要点。",
+      "摘要与分块相关字段（§4.4 的 sourceFrom/sourceThrough、来源 ID、schemaVersion、创建所用模型或策略版本、state revision；§5.2 的 CLEANED_TEXT_UTF16_V2 与逐块 contentHash；§5.3 的实际读取范围；§5.1 的文字提取成功不等于完整理解文档）为已读可引用要点。",
+      "失败与重试呈现相关字段（§5.4 的失败阶段、可重试时机、诊断按权限脱敏）为已读可引用要点。",
+      "§6.2 的“已受理”语义与持久关联字段（projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID）为已读可引用要点。",
+      "“重启后恢复而非重建”的正式条款与取消裁决顺序超出已读范围，本规划只验收可观测的持久记录连续性，不对其内部机制下结论。",
+      "本规划仅覆盖发布前可靠性验收，不涉及采购费用核对与功能扩展。"
+    ],
+    "risks": [
+      "文档未能作为检索来源关联（FAILED，searchAvailable=false），全部引用仅覆盖 chunk 0-19 一带，§6.2/§6.3/§6.4/§7 尾部存在未读缺口，可能遗漏影响可靠性验收的条款。",
+      "取消与完成竞争的裁决顺序（谁胜出、是否可回滚）超出已读范围，本任务只能验收可观测结果一致性，正式规则须待文档确认。",
+      "排队后进程重启与生成中重启是否要求恢复而非重建，超出已读范围；若最终条款要求严格恢复语义，本次验收口径需按文档修订。",
+      "§4.2 输入预算的具体阈值与计量口径未在已读片段中给出，长对话持续覆盖的预算判定可能缺少可复现的数值基线。",
+      "预算与费用口径完全超出已读范围，与本规划范围无关但可能在收口评审时被追问，需明确标注待文档确认。",
+      "6 项任务在 20 天规划区间内串行推进，后项仅依赖前项持久记录，任一前项取证失败将顺延后续全部里程碑。",
+      "本地环境复现模型超时、进程重启等故障注入依赖可控的运行环境与环境变量配置，环境不可用会导致验收无法执行，需在计划外单独确认。",
+      "工具调用“已受理”语义下，一次调用不得等待整个规划生成而占满工具超时；若实现偏离该语义，模型超时任务的判定结论可能翻转为不通过。",
+      "摘要与分块字段若在历史数据上缺失 schemaVersion 或逐块 contentHash，证据收口会判定为不通过，可能暴露既有数据缺陷而非本次功能缺陷。",
+      "诊断脱敏（§5.4）需要在证据采集时同时保留可判定字段与权限边界，采集方式不当可能得到不可用于验收的脱敏片段。",
+      "任务列表证据采集依赖 query 搜索与 cursor 分页，抽样参数不当可能遗漏失败样本，产生假通过。",
+      "本规划未生效前不得自动批准；若未由项目所有者在规划页人工确认指定版本，6 项任务不会写入项目。"
+    ],
+    "milestones": [
+      {
+        "tempKey": "MS-1",
+        "title": "长对话持续覆盖验收基线",
+        "objective": "确认在持续多轮长对话下，仍有效约束不被按最后 N 条淘汰（已读 §4.1），输入预算同时计入系统提示、Skill、工具定义与工具结果（已读 §4.2），且每轮结束落盘可复算的持久记录（state revision、sourceFrom/sourceThrough、schemaVersion、创建所用模型或策略版本）。",
+        "description": "长对话持续覆盖验收基线：确认在持续多轮长对话下，仍有效约束不被按最后 N 条淘汰（已读 §4.1），输入预算同时计入系统提示、Skill、工具定义与工具结果（已读 §4.2），且每轮结束落盘可复算的持久记录（state revision、sourceFrom/sourceThrough、schemaVersion、创建所用模型或策略版本）。目标日期 2026-10-08。",
+        "targetDate": "2026-10-08",
+        "sortOrder": 0,
+        "sourceRefs": []
+      },
+      {
+        "tempKey": "MS-2",
+        "title": "模型超时与已受理语义验收",
+        "objective": "确认工具调用在超时前返回“已受理”语义的标识（operationId/planId/attemptId/status/versionId，§6.2）与持久关联字段（projectId/requesterId/sessionId/goalRevision/originRunId/tool invocation ID），单次调用未等待整个规划生成而占满工具超时；失败时界面告知失败阶段与可重试时机且诊断按权限脱敏（§5.4）。",
+        "description": "模型超时与已受理语义验收：确认工具调用在超时前返回“已受理”语义的标识（operationId/planId/attemptId/status/versionId，§6.2）与持久关联字段（projectId/requesterId/sessionId/goalRevision/originRunId/tool invocation ID），单次调用未等待整个规划生成而占满工具超时；失败时界面告知失败阶段与可重试时机且诊断按权限脱敏（§5.4）。目标日期 2026-10-12。",
+        "targetDate": "2026-10-12",
+        "sortOrder": 1,
+        "sourceRefs": []
+      },
+      {
+        "tempKey": "MS-3",
+        "title": "排队后进程重启验收",
+        "objective": "确认排队状态下的进程重启后，排队记录与目标关联字段可从持久存储读回且标识一致，不产生重复条目；重启后应恢复还是重建的正式条款超出已读范围，标为待文档确认，本里程碑只判定可观测记录一致性。",
+        "description": "排队后进程重启验收：确认排队状态下的进程重启后，排队记录与目标关联字段可从持久存储读回且标识一致，不产生重复条目；重启后应恢复还是重建的正式条款超出已读范围，标为待文档确认，本里程碑只判定可观测记录一致性。目标日期 2026-10-15。",
+        "targetDate": "2026-10-15",
+        "sortOrder": 2,
+        "sourceRefs": []
+      },
+      {
+        "tempKey": "MS-4",
+        "title": "生成中重启验收",
+        "objective": "确认生成过程中重启后，已受理标识（operationId/planId/attemptId/status/versionId）与持久关联字段保持唯一且可查询到唯一终态记录，无孤儿记录与重复记录；恢复与重建的内部机制判定标为待文档确认。",
+        "description": "生成中重启验收：确认生成过程中重启后，已受理标识（operationId/planId/attemptId/status/versionId）与持久关联字段保持唯一且可查询到唯一终态记录，无孤儿记录与重复记录；恢复与重建的内部机制判定标为待文档确认。目标日期 2026-10-19。",
+        "targetDate": "2026-10-19",
+        "sortOrder": 3,
+        "sourceRefs": []
+      },
+      {
+        "tempKey": "MS-5",
+        "title": "取消与完成竞争验收",
+        "objective": "确认 cancel_task_plan_generation（需 operationId+attemptId）与完成事件并发时终态唯一、无双写，且 repair_task_plan（需 baseVersionId+expectedVersionNo+lockedFields）在竞争后按版本号给出确定性的成功或冲突结果；取消与完成的裁决顺序超出已读范围，标为待文档确认。",
+        "description": "取消与完成竞争验收：确认 cancel_task_plan_generation（需 operationId+attemptId）与完成事件并发时终态唯一、无双写，且 repair_task_plan（需 baseVersionId+expectedVersionNo+lockedFields）在竞争后按版本号给出确定性的成功或冲突结果；取消与完成的裁决顺序超出已读范围，标为待文档确认。目标日期 2026-10-22。",
+        "targetDate": "2026-10-22",
+        "sortOrder": 4,
+        "sourceRefs": []
+      },
+      {
+        "tempKey": "MS-6",
+        "title": "证据收口与发布判定",
+        "objective": "汇总前五项里程碑的持久记录证据，形成可复现的证据索引与逐项二值判定表，明确通过/不通过与证据载体字段位置；文字提取成功不得表述为完整理解文档（§5.1），未读文档片段与待文档确认项在收口材料中显式列出。",
+        "description": "证据收口与发布判定：汇总前五项里程碑的持久记录证据，形成可复现的证据索引与逐项二值判定表，明确通过/不通过与证据载体字段位置；文字提取成功不得表述为完整理解文档（§5.1），未读文档片段与待文档确认项在收口材料中显式列出。目标日期 2026-10-25。",
+        "targetDate": "2026-10-25",
+        "sortOrder": 5,
+        "sourceRefs": []
+      }
+    ],
+    "tasks": [
+      {
+        "tempKey": "T-1",
+        "milestoneTempKey": "MS-1",
+        "title": "长对话持续覆盖验收",
+        "objective": "在单一会话内连续执行不少于文档规定的对话轮次并跨多次摘要，逐轮落盘记录。通过判据（二值）：每轮记录中仍有效约束条数不随轮次下降且不存在被“最后 N 条”淘汰的仍有效约束；输入预算的记录字段中同时存在系统提示、Skill、工具定义、工具结果四类计量项且四类均非空；每份摘要记录中 sourceFrom、sourceThrough、来源 ID、schemaVersion、创建所用模型/策略版本、state revision 六个字段全部非空且 state revision 单调递增。可复现校验：按会话 ID 与轮次序号导出持久记录，对上述字段逐项做空值与单调性检查，输出通过/不通过。引用范围：§4.1、§4.2、§4.4 为本会话已读片段；轮次具体数值待文档确认，不得以未读条款作为判定依据。",
+        "description": "长对话持续覆盖验收（里程碑 MS-1）。在单一会话内连续执行不少于文档规定的对话轮次并跨多次摘要，逐轮落盘记录。通过判据（二值）：每轮记录中仍有效约束条数不随轮次下降且不存在被“最后 N 条”淘汰的仍有效约束（§4.1）；输入预算的记录字段中同时存在系统提示、Skill、工具定义、工具结果四类计量项且四类均非空（§4.2）；每份摘要记录中 sourceFrom、sourceThrough、来源 ID、schemaVersion、创建所用模型/策略版本、state revision 六个字段全部非空且 state revision 单调递增（§4.4）。可复现校验：按会话 ID 与轮次序号导出持久记录，对上述字段逐项做空值与单调性检查，输出通过/不通过。引用范围：§4.1、§4.2、§4.4 为本会话已读片段（chunk 0-19 一带）；轮次具体数值待文档确认，不得以未读条款作为判定依据。本任务负责人固定为 Local Owner。",
+        "priority": "HIGH",
+        "estimatedHours": 16,
+        "startDate": "2026-10-05",
+        "dueDate": "2026-10-08",
+        "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+        "assigneeId": null,
+        "dependencyTempKeys": [],
+        "sourceRefs": [],
+        "sortOrder": 0
+      },
+      {
+        "tempKey": "T-2",
+        "milestoneTempKey": "MS-2",
+        "title": "模型超时与已受理返回验收",
+        "objective": "在工具调用模型超时条件下执行一次规划生成请求。通过判据（二值）：调用在超时窗口内返回记录含 status=已受理语义且 operationId、planId、attemptId、versionId 四字段全部非空；同一记录中 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 六字段全部非空且与发起方取值逐字相等；工具调用耗时未达到工具超时上限；失败记录的失败阶段字段与可重试时机字段均非空，且诊断文本不含未脱敏凭据（脱敏校验按权限规则逐字符比对）。可复现校验：以 operationId 与 tool invocation ID 为主键在持久存储中检索该次调用，导出耗时与全部标识字段做等值与空值检查。引用范围：§6.2、§5.4 为本会话已读片段；§6.2 尾部约 398 字符未读取，超时窗口具体数值待文档确认。",
+        "description": "模型超时与已受理返回验收（里程碑 MS-2）。在工具调用模型超时条件下执行一次规划生成请求。通过判据（二值）：调用在超时窗口内返回记录含 status=已受理语义且 operationId、planId、attemptId、versionId 四字段全部非空；同一记录中 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 六字段全部非空且与发起方取值逐字相等；工具调用耗时未达到工具超时上限；失败记录的失败阶段字段与可重试时机字段均非空，且诊断文本不含未脱敏凭据（脱敏校验按权限规则逐字符比对）。可复现校验：以 operationId 与 tool invocation ID 为主键在持久存储中检索该次调用，导出耗时与全部标识字段做等值与空值检查。引用范围：§6.2、§5.4 为本会话已读片段；§6.2 尾部约 398 字符未读取，超时窗口具体数值待文档确认。本任务负责人固定为 Local Owner。",
+        "priority": "HIGH",
+        "estimatedHours": 18,
+        "startDate": "2026-10-09",
+        "dueDate": "2026-10-12",
+        "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+        "assigneeId": null,
+        "dependencyTempKeys": [
+          "T-1"
+        ],
+        "sourceRefs": [],
+        "sortOrder": 1
+      },
+      {
+        "tempKey": "T-3",
+        "milestoneTempKey": "MS-3",
+        "title": "排队后进程重启验收",
+        "objective": "在规划请求处于排队状态时重启进程，随后查询持久记录。通过判据（二值）：重启后以 operationId/planId 与 goalRevision 为键的排队记录在持久存储中命中条数恰为 1（无重复、无丢失）；该记录 sessionId、requesterId、originRunId 与重启前快照逐字相等；重启后该请求未产生第二条不同的 planId；重启前后的 state revision 序列中不存在回退或断号。可复现校验：重启前后各导出一次快照，按键做集合差与逐字段比对，输出差异条数（0 为通过）。引用范围：排队与标识语义取自 §6.2 已读片段；“重启后恢复而非重建”的正式条款超出已读范围，标为待文档确认，本任务不据此判定。",
+        "description": "排队后进程重启验收（里程碑 MS-3）。在规划请求处于排队状态时重启进程，随后查询持久记录。通过判据（二值）：重启后以 operationId/planId 与 goalRevision 为键的排队记录在持久存储中命中条数恰为 1（无重复、无丢失）；该记录 sessionId、requesterId、originRunId 与重启前快照逐字相等；重启后该请求未产生第二条不同的 planId；重启前后的 state revision 序列中不存在回退或断号。可复现校验：重启前后各导出一次快照，按键做集合差与逐字段比对，输出差异条数（0 为通过）。引用范围：排队与标识语义取自 §6.2 已读片段；“重启后恢复而非重建”的正式条款超出已读范围，标为待文档确认，本任务不据此判定。依赖 T-1 已落盘的持久记录。本任务负责人固定为 Local Owner。",
+        "priority": "HIGH",
+        "estimatedHours": 16,
+        "startDate": "2026-10-13",
+        "dueDate": "2026-10-15",
+        "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+        "assigneeId": null,
+        "dependencyTempKeys": [
+          "T-2"
+        ],
+        "sourceRefs": [],
+        "sortOrder": 2
+      },
+      {
+        "tempKey": "T-4",
+        "milestoneTempKey": "MS-4",
+        "title": "生成中重启验收",
+        "objective": "在规划生成进行中重启进程，随后查询持久记录。通过判据（二值）：以 operationId 与 attemptId 为键的记录命中条数恰为 1，且其 status 字段取值属于终态枚举（不处于非终态悬挂）；versionId 存在且与 version 记录表一一对应，无孤儿 versionId；无任何 attemptId 对应两条不同 status 的终态记录；分块读取记录的 CLEANED_TEXT_UTF16_V2 偏移字段与逐块 contentHash 可对已读块逐块重算一致；读取范围字段记录的实际读取区间与实际请求区间完全相等（不超出）。可复现校验：重算全部已读块 contentHash 并与存储值逐块比对，重启记录按键做去重计数。引用范围：§5.2、§5.3 为已读片段；§5.3 的有界补读上限具体数值待文档确认；恢复与重建机制判定待文档确认。",
+        "description": "生成中重启验收（里程碑 MS-4）。在规划生成进行中重启进程，随后查询持久记录。通过判据（二值）：以 operationId 与 attemptId 为键的记录命中条数恰为 1，且其 status 字段取值属于终态枚举（不处于非终态悬挂）；versionId 存在且与 version 记录表一一对应，无孤儿 versionId；无任何 attemptId 对应两条不同 status 的终态记录；分块读取记录的 CLEANED_TEXT_UTF16_V2 偏移字段与逐块 contentHash 可对已读块逐块重算一致（§5.2）；读取范围字段记录的实际读取区间与实际请求区间完全相等（不超出，§5.3）。可复现校验：重算全部已读块 contentHash 并与存储值逐块比对，重启记录按键做去重计数。引用范围：§5.2、§5.3 为已读片段；§5.3 的有界补读上限具体数值待文档确认；恢复与重建机制判定待文档确认。依赖 T-2、T-3 已落盘的持久记录。本任务负责人固定为 Local Owner。",
+        "priority": "HIGH",
+        "estimatedHours": 20,
+        "startDate": "2026-10-16",
+        "dueDate": "2026-10-19",
+        "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+        "assigneeId": null,
+        "dependencyTempKeys": [
+          "T-3"
+        ],
+        "sourceRefs": [],
+        "sortOrder": 3
+      },
+      {
+        "tempKey": "T-5",
+        "milestoneTempKey": "MS-5",
+        "title": "取消与完成竞争验收",
+        "objective": "构造取消（cancel_task_plan_generation，需 operationId+attemptId）与生成完成并发的场景，可重复执行不少于一次并发尝试。通过判据（二值）：每次并发后以 operationId 为键的终态记录条数恰为 1，无同时存在“已取消”与“已完成”两种终态；对同一 operationId 重复执行 cancel_task_plan_generation 时，第二次调用返回结果为确定性拒绝且不产生新的 attemptId 终态记录；在竞争后执行 repair_task_plan（需 baseVersionId+expectedVersionNo+lockedFields），expectedVersionNo 与当前版本一致时结果为成功、不一致时结果为版本冲突，两者均不得静默覆盖 lockedFields 字段值。可复现校验：并发脚本固定随机种子或固定并发时序，导出全部 attemptId 记录做终态唯一性与 lockedFields 前后值比对。引用范围：版本与取消参数为已执行基线事实；取消与完成的裁决顺序超出已读范围，标为待文档确认，本任务不预设哪一方胜出。",
+        "description": "取消与完成竞争验收（里程碑 MS-5）。构造取消（cancel_task_plan_generation，需 operationId+attemptId）与生成完成并发的场景，可重复执行不少于一次并发尝试。通过判据（二值）：每次并发后以 operationId 为键的终态记录条数恰为 1，无同时存在“已取消”与“已完成”两种终态；对同一 operationId 重复执行 cancel_task_plan_generation 时，第二次调用返回结果为确定性拒绝且不产生新的 attemptId 终态记录；在竞争后执行 repair_task_plan（需 baseVersionId+expectedVersionNo+lockedFields），expectedVersionNo 与当前版本一致时结果为成功、不一致时结果为版本冲突，两者均不得静默覆盖 lockedFields 字段值。可复现校验：并发脚本固定随机种子或固定并发时序，导出全部 attemptId 记录做终态唯一性与 lockedFields 前后值比对。引用范围：版本与取消参数为已执行基线事实；取消与完成的裁决顺序超出已读范围，标为待文档确认，本任务不预设哪一方胜出。依赖 T-4 已落盘的持久记录。本任务负责人固定为 Local Owner。",
+        "priority": "HIGH",
+        "estimatedHours": 20,
+        "startDate": "2026-10-20",
+        "dueDate": "2026-10-22",
+        "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+        "assigneeId": null,
+        "dependencyTempKeys": [
+          "T-4"
+        ],
+        "sourceRefs": [],
+        "sortOrder": 4
+      },
+      {
+        "tempKey": "T-6",
+        "milestoneTempKey": "MS-6",
+        "title": "证据收口与发布前判定",
+        "objective": "汇总 T-1 至 T-5 的持久记录，形成证据索引与逐项二值判定表。通过判据（二值）：T-1 至 T-5 每项均有对应证据条目，且每条证据记录了载体类型、载体主键、字段名与取值来源，可被独立复算；判定表中每一项取值仅为“通过”或“不通过”，无第三种取值，且每项判定可回溯到至少一个载体字段；证据索引包含使用 query 搜索与 cursor 分页抽样时写入的检索参数，可按同一参数复现相同样本集合；材料中对 §5.1 的引用明确写为“文字提取成功不等于完整理解文档”；未读范围清单（§6.2 尾部约 398 字符、§6.3 尾部约 394 字符、§6.4 与 §7 尾部、chunk 19 之后各块）及待文档确认项（取消裁决顺序、重启后恢复而非重建条款、预算与费用口径）在材料中显式列出；证据收口结果字段 pass_all 为布尔且为 true 时方可给出可发布结论，为 false 时明确列出未通过任务键。可复现校验：以检索参数重跑抽样并与证据索引逐条比对，输出集合差异条数（0 为通过）。",
+        "description": "证据收口与发布前判定（里程碑 MS-6）。汇总 T-1 至 T-5 的持久记录，形成证据索引与逐项二值判定表。通过判据（二值）：T-1 至 T-5 每项均有对应证据条目，且每条证据记录了载体类型、载体主键、字段名与取值来源，可被独立复算；判定表中每一项取值仅为“通过”或“不通过”，无第三种取值，且每项判定可回溯到至少一个载体字段；证据索引包含使用 query 搜索与 cursor 分页抽样时写入的检索参数，可按同一参数复现相同样本集合；材料中对 §5.1 的引用明确写为“文字提取成功不等于完整理解文档”；未读范围清单（§6.2 尾部约 398 字符、§6.3 尾部约 394 字符、§6.4 与 §7 尾部、chunk 19 之后各块）及待文档确认项（取消裁决顺序、重启后恢复而非重建条款、预算与费用口径）在材料中显式列出；证据收口结果字段 pass_all 为布尔且为 true 时方可给出可发布结论，为 false 时明确列出未通过任务键。可复现校验：以检索参数重跑抽样并与证据索引逐条比对，输出集合差异条数（0 为通过）。依赖 T-1 至 T-5 已产生的持久记录。本任务负责人固定为 Local Owner。",
+        "priority": "HIGH",
+        "estimatedHours": 16,
+        "startDate": "2026-10-23",
+        "dueDate": "2026-10-25",
+        "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+        "assigneeId": null,
+        "dependencyTempKeys": [
+          "T-5"
+        ],
+        "sourceRefs": [],
+        "sortOrder": 5
+      }
+    ],
+    "sources": []
+  },
+  "version": {
+    "id": "2c4527f2-228c-48ae-bb0d-4cdf49d506ac",
+    "planId": "ea66cc10-6040-494f-94f1-76ddfc861991",
+    "versionNo": 2,
+    "sourceType": "AI_COMPLETE",
+    "basedOnVersionId": "d30dde5f-a026-4e67-9308-0ab3e5b72dd9",
+    "generationSeq": 1,
+    "summary": "为 ai-collab 编制发布前可靠性验收规划骨架：在 2026-10-05 至 2026-10-25 的固定规划区间内，用 6 项任务覆盖六个主题（长对话持续覆盖、模型超时、排队后进程重启、生成中重启、取消与完成竞争、证据收口），每项任务绑定一个里程碑，形成长对话→模型超时→排队重启→运行中重启→取消竞争→证据收口的线性无环推进，后项仅依赖前项已落盘的持久记录。每项任务给出二值可判定的验收口径：验收结论写入指定载体字段（如长对话对话记录的持续覆盖标记、工具调用返回的 operationId/planId/attemptId/status/versionId 与持久关联字段、state revision、sourceFrom/sourceThrough/schemaVersion/创建所用模型或策略版本、摘要逐块 contentHash 与 CLEANED_TEXT_UTF16_V2 偏移、失败阶段与可重试时机字段）并配合可复现的复算步骤，禁止主观表述。引用依据仅为《ai-collab下一阶段主蓝图》本会话已读片段（documentId 3e247376-31f7-4d8c-9839-04c1838e355c，快照 8696427d，§4.1/§4.2/§4.4/§5.1-§5.4/§6.2，chunk 0-19 一带）；取消裁决顺序、重启后恢复（而非重建）的正式条款、预算与费用口径均超出已读范围，标注为“待文档确认”，不作为文档已写明的要求。本骨架不含建议负责人、依赖字段与来源字段，需项目所有者在规划页人工确认指定版本后才生效，不自动批准，也不以多次单项提案替代本规划。",
+    "assumptionsJson": "[\"规划区间 2026-10-05 至 2026-10-25 取自当前生效约束 PLAN_CONSTRAINTS，日期不可改动。\", \"任务总数上限 6 项取自 PLAN_CONSTRAINTS 的最多任务；本次恰好写入 6 项任务，不超过上限。\", \"约束历史中“不包含采购费用核对”的范围说明仅作为范围边界记录，费用核对不占用本规划任务额度；相关预算与费用口径超出已读文档范围，标为待文档确认。\", \"项目当前任务总数为 0（已执行基线事实：LIVE_KEYSET 全量查询，非分页截断），因此本规划为首次写入任务，且不会与既有任务产生编号或排序冲突。\", \"里程碑数量未受 6 项任务上限约束，本规划设置 6 个里程碑，与任务一一对应，便于逐项判定完成。\", \"每项任务的负责人按要求固定为 Local Owner（项目成员仅 1 人，role=OWNER）；该信息仅存在于任务细节字段，本骨架不输出建议负责人字段。\", \"任务依赖为线性链（长对话→模型超时→排队重启→运行中重启→取消竞争→证据收口），无环；dependencyTempKeys 不在本骨架输出范围内，其无环性以本顺序声明为准。\", \"验收判定以“证据载体字段是否被写入且取值可复算”为二值判据，不使用主观表述。\", \"repair_task_plan 的版本参数（baseVersionId、expectedVersionNo、lockedFields）与 cancel_task_plan_generation 的参数（operationId、attemptId）作为已执行基线事实被引用于验收复现步骤。\", \"任务列表支持 query 搜索与 cursor 分页，可作为证据收口与抽样复核的可复现检索手段。\", \"文档《ai-collab下一阶段主蓝图》本次关联处理状态为 FAILED、searchAvailable=false，故全部引用按“本会话已读片段”标注，非文档检索验证结论。\", \"已读范围为 chunk 0-19 一带；§6.2 尾部约 398 字符、§6.3 尾部约 394 字符、§6.4 与 §7 尾部及 chunk 19 之后各块未读取，超出范围的条款一律标为待文档确认。\", \"长对话验收中“仍有效约束不被按最后 N 条淘汰”（§4.1）与“输入预算同时计入系统提示、Skill、工具定义与工具结果”（§4.2）为已读可引用要点。\", \"摘要与分块相关字段（§4.4 的 sourceFrom/sourceThrough、来源 ID、schemaVersion、创建所用模型或策略版本、state revision；§5.2 的 CLEANED_TEXT_UTF16_V2 与逐块 contentHash；§5.3 的实际读取范围；§5.1 的文字提取成功不等于完整理解文档）为已读可引用要点。\", \"失败与重试呈现相关字段（§5.4 的失败阶段、可重试时机、诊断按权限脱敏）为已读可引用要点。\", \"§6.2 的“已受理”语义与持久关联字段（projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID）为已读可引用要点。\", \"“重启后恢复而非重建”的正式条款与取消裁决顺序超出已读范围，本规划只验收可观测的持久记录连续性，不对其内部机制下结论。\", \"本规划仅覆盖发布前可靠性验收，不涉及采购费用核对与功能扩展。\"]",
+    "risksJson": "[\"文档未能作为检索来源关联（FAILED，searchAvailable=false），全部引用仅覆盖 chunk 0-19 一带，§6.2/§6.3/§6.4/§7 尾部存在未读缺口，可能遗漏影响可靠性验收的条款。\", \"取消与完成竞争的裁决顺序（谁胜出、是否可回滚）超出已读范围，本任务只能验收可观测结果一致性，正式规则须待文档确认。\", \"排队后进程重启与生成中重启是否要求恢复而非重建，超出已读范围；若最终条款要求严格恢复语义，本次验收口径需按文档修订。\", \"§4.2 输入预算的具体阈值与计量口径未在已读片段中给出，长对话持续覆盖的预算判定可能缺少可复现的数值基线。\", \"预算与费用口径完全超出已读范围，与本规划范围无关但可能在收口评审时被追问，需明确标注待文档确认。\", \"6 项任务在 20 天规划区间内串行推进，后项仅依赖前项持久记录，任一前项取证失败将顺延后续全部里程碑。\", \"本地环境复现模型超时、进程重启等故障注入依赖可控的运行环境与环境变量配置，环境不可用会导致验收无法执行，需在计划外单独确认。\", \"工具调用“已受理”语义下，一次调用不得等待整个规划生成而占满工具超时；若实现偏离该语义，模型超时任务的判定结论可能翻转为不通过。\", \"摘要与分块字段若在历史数据上缺失 schemaVersion 或逐块 contentHash，证据收口会判定为不通过，可能暴露既有数据缺陷而非本次功能缺陷。\", \"诊断脱敏（§5.4）需要在证据采集时同时保留可判定字段与权限边界，采集方式不当可能得到不可用于验收的脱敏片段。\", \"任务列表证据采集依赖 query 搜索与 cursor 分页，抽样参数不当可能遗漏失败样本，产生假通过。\", \"本规划未生效前不得自动批准；若未由项目所有者在规划页人工确认指定版本，6 项任务不会写入项目。\"]",
+    "milestonesJson": "[{\"title\": \"长对话持续覆盖验收基线\", \"tempKey\": \"MS-1\", \"objective\": \"确认在持续多轮长对话下，仍有效约束不被按最后 N 条淘汰（已读 §4.1），输入预算同时计入系统提示、Skill、工具定义与工具结果（已读 §4.2），且每轮结束落盘可复算的持久记录（state revision、sourceFrom/sourceThrough、schemaVersion、创建所用模型或策略版本）。\", \"sortOrder\": 0, \"sourceRefs\": [], \"targetDate\": \"2026-10-08\", \"description\": \"长对话持续覆盖验收基线：确认在持续多轮长对话下，仍有效约束不被按最后 N 条淘汰（已读 §4.1），输入预算同时计入系统提示、Skill、工具定义与工具结果（已读 §4.2），且每轮结束落盘可复算的持久记录（state revision、sourceFrom/sourceThrough、schemaVersion、创建所用模型或策略版本）。目标日期 2026-10-08。\"}, {\"title\": \"模型超时与已受理语义验收\", \"tempKey\": \"MS-2\", \"objective\": \"确认工具调用在超时前返回“已受理”语义的标识（operationId/planId/attemptId/status/versionId，§6.2）与持久关联字段（projectId/requesterId/sessionId/goalRevision/originRunId/tool invocation ID），单次调用未等待整个规划生成而占满工具超时；失败时界面告知失败阶段与可重试时机且诊断按权限脱敏（§5.4）。\", \"sortOrder\": 1, \"sourceRefs\": [], \"targetDate\": \"2026-10-12\", \"description\": \"模型超时与已受理语义验收：确认工具调用在超时前返回“已受理”语义的标识（operationId/planId/attemptId/status/versionId，§6.2）与持久关联字段（projectId/requesterId/sessionId/goalRevision/originRunId/tool invocation ID），单次调用未等待整个规划生成而占满工具超时；失败时界面告知失败阶段与可重试时机且诊断按权限脱敏（§5.4）。目标日期 2026-10-12。\"}, {\"title\": \"排队后进程重启验收\", \"tempKey\": \"MS-3\", \"objective\": \"确认排队状态下的进程重启后，排队记录与目标关联字段可从持久存储读回且标识一致，不产生重复条目；重启后应恢复还是重建的正式条款超出已读范围，标为待文档确认，本里程碑只判定可观测记录一致性。\", \"sortOrder\": 2, \"sourceRefs\": [], \"targetDate\": \"2026-10-15\", \"description\": \"排队后进程重启验收：确认排队状态下的进程重启后，排队记录与目标关联字段可从持久存储读回且标识一致，不产生重复条目；重启后应恢复还是重建的正式条款超出已读范围，标为待文档确认，本里程碑只判定可观测记录一致性。目标日期 2026-10-15。\"}, {\"title\": \"生成中重启验收\", \"tempKey\": \"MS-4\", \"objective\": \"确认生成过程中重启后，已受理标识（operationId/planId/attemptId/status/versionId）与持久关联字段保持唯一且可查询到唯一终态记录，无孤儿记录与重复记录；恢复与重建的内部机制判定标为待文档确认。\", \"sortOrder\": 3, \"sourceRefs\": [], \"targetDate\": \"2026-10-19\", \"description\": \"生成中重启验收：确认生成过程中重启后，已受理标识（operationId/planId/attemptId/status/versionId）与持久关联字段保持唯一且可查询到唯一终态记录，无孤儿记录与重复记录；恢复与重建的内部机制判定标为待文档确认。目标日期 2026-10-19。\"}, {\"title\": \"取消与完成竞争验收\", \"tempKey\": \"MS-5\", \"objective\": \"确认 cancel_task_plan_generation（需 operationId+attemptId）与完成事件并发时终态唯一、无双写，且 repair_task_plan（需 baseVersionId+expectedVersionNo+lockedFields）在竞争后按版本号给出确定性的成功或冲突结果；取消与完成的裁决顺序超出已读范围，标为待文档确认。\", \"sortOrder\": 4, \"sourceRefs\": [], \"targetDate\": \"2026-10-22\", \"description\": \"取消与完成竞争验收：确认 cancel_task_plan_generation（需 operationId+attemptId）与完成事件并发时终态唯一、无双写，且 repair_task_plan（需 baseVersionId+expectedVersionNo+lockedFields）在竞争后按版本号给出确定性的成功或冲突结果；取消与完成的裁决顺序超出已读范围，标为待文档确认。目标日期 2026-10-22。\"}, {\"title\": \"证据收口与发布判定\", \"tempKey\": \"MS-6\", \"objective\": \"汇总前五项里程碑的持久记录证据，形成可复现的证据索引与逐项二值判定表，明确通过/不通过与证据载体字段位置；文字提取成功不得表述为完整理解文档（§5.1），未读文档片段与待文档确认项在收口材料中显式列出。\", \"sortOrder\": 5, \"sourceRefs\": [], \"targetDate\": \"2026-10-25\", \"description\": \"证据收口与发布判定：汇总前五项里程碑的持久记录证据，形成可复现的证据索引与逐项二值判定表，明确通过/不通过与证据载体字段位置；文字提取成功不得表述为完整理解文档（§5.1），未读文档片段与待文档确认项在收口材料中显式列出。目标日期 2026-10-25。\"}]",
+    "tasksJson": "[{\"title\": \"长对话持续覆盖验收\", \"dueDate\": \"2026-10-08\", \"tempKey\": \"T-1\", \"priority\": \"HIGH\", \"objective\": \"在单一会话内连续执行不少于文档规定的对话轮次并跨多次摘要，逐轮落盘记录。通过判据（二值）：每轮记录中仍有效约束条数不随轮次下降且不存在被“最后 N 条”淘汰的仍有效约束；输入预算的记录字段中同时存在系统提示、Skill、工具定义、工具结果四类计量项且四类均非空；每份摘要记录中 sourceFrom、sourceThrough、来源 ID、schemaVersion、创建所用模型/策略版本、state revision 六个字段全部非空且 state revision 单调递增。可复现校验：按会话 ID 与轮次序号导出持久记录，对上述字段逐项做空值与单调性检查，输出通过/不通过。引用范围：§4.1、§4.2、§4.4 为本会话已读片段；轮次具体数值待文档确认，不得以未读条款作为判定依据。\", \"sortOrder\": 0, \"startDate\": \"2026-10-05\", \"assigneeId\": null, \"sourceRefs\": [], \"description\": \"长对话持续覆盖验收（里程碑 MS-1）。在单一会话内连续执行不少于文档规定的对话轮次并跨多次摘要，逐轮落盘记录。通过判据（二值）：每轮记录中仍有效约束条数不随轮次下降且不存在被“最后 N 条”淘汰的仍有效约束（§4.1）；输入预算的记录字段中同时存在系统提示、Skill、工具定义、工具结果四类计量项且四类均非空（§4.2）；每份摘要记录中 sourceFrom、sourceThrough、来源 ID、schemaVersion、创建所用模型/策略版本、state revision 六个字段全部非空且 state revision 单调递增（§4.4）。可复现校验：按会话 ID 与轮次序号导出持久记录，对上述字段逐项做空值与单调性检查，输出通过/不通过。引用范围：§4.1、§4.2、§4.4 为本会话已读片段（chunk 0-19 一带）；轮次具体数值待文档确认，不得以未读条款作为判定依据。本任务负责人固定为 Local Owner。\", \"estimatedHours\": 16, \"milestoneTempKey\": \"MS-1\", \"dependencyTempKeys\": [], \"suggestedAssigneeId\": \"9c4cd312-0e99-497a-8e3b-e78f98692df0\"}, {\"title\": \"模型超时与已受理返回验收\", \"dueDate\": \"2026-10-12\", \"tempKey\": \"T-2\", \"priority\": \"HIGH\", \"objective\": \"在工具调用模型超时条件下执行一次规划生成请求。通过判据（二值）：调用在超时窗口内返回记录含 status=已受理语义且 operationId、planId、attemptId、versionId 四字段全部非空；同一记录中 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 六字段全部非空且与发起方取值逐字相等；工具调用耗时未达到工具超时上限；失败记录的失败阶段字段与可重试时机字段均非空，且诊断文本不含未脱敏凭据（脱敏校验按权限规则逐字符比对）。可复现校验：以 operationId 与 tool invocation ID 为主键在持久存储中检索该次调用，导出耗时与全部标识字段做等值与空值检查。引用范围：§6.2、§5.4 为本会话已读片段；§6.2 尾部约 398 字符未读取，超时窗口具体数值待文档确认。\", \"sortOrder\": 1, \"startDate\": \"2026-10-09\", \"assigneeId\": null, \"sourceRefs\": [], \"description\": \"模型超时与已受理返回验收（里程碑 MS-2）。在工具调用模型超时条件下执行一次规划生成请求。通过判据（二值）：调用在超时窗口内返回记录含 status=已受理语义且 operationId、planId、attemptId、versionId 四字段全部非空；同一记录中 projectId、requesterId、sessionId、goalRevision、originRunId、tool invocation ID 六字段全部非空且与发起方取值逐字相等；工具调用耗时未达到工具超时上限；失败记录的失败阶段字段与可重试时机字段均非空，且诊断文本不含未脱敏凭据（脱敏校验按权限规则逐字符比对）。可复现校验：以 operationId 与 tool invocation ID 为主键在持久存储中检索该次调用，导出耗时与全部标识字段做等值与空值检查。引用范围：§6.2、§5.4 为本会话已读片段；§6.2 尾部约 398 字符未读取，超时窗口具体数值待文档确认。本任务负责人固定为 Local Owner。\", \"estimatedHours\": 18, \"milestoneTempKey\": \"MS-2\", \"dependencyTempKeys\": [\"T-1\"], \"suggestedAssigneeId\": \"9c4cd312-0e99-497a-8e3b-e78f98692df0\"}, {\"title\": \"排队后进程重启验收\", \"dueDate\": \"2026-10-15\", \"tempKey\": \"T-3\", \"priority\": \"HIGH\", \"objective\": \"在规划请求处于排队状态时重启进程，随后查询持久记录。通过判据（二值）：重启后以 operationId/planId 与 goalRevision 为键的排队记录在持久存储中命中条数恰为 1（无重复、无丢失）；该记录 sessionId、requesterId、originRunId 与重启前快照逐字相等；重启后该请求未产生第二条不同的 planId；重启前后的 state revision 序列中不存在回退或断号。可复现校验：重启前后各导出一次快照，按键做集合差与逐字段比对，输出差异条数（0 为通过）。引用范围：排队与标识语义取自 §6.2 已读片段；“重启后恢复而非重建”的正式条款超出已读范围，标为待文档确认，本任务不据此判定。\", \"sortOrder\": 2, \"startDate\": \"2026-10-13\", \"assigneeId\": null, \"sourceRefs\": [], \"description\": \"排队后进程重启验收（里程碑 MS-3）。在规划请求处于排队状态时重启进程，随后查询持久记录。通过判据（二值）：重启后以 operationId/planId 与 goalRevision 为键的排队记录在持久存储中命中条数恰为 1（无重复、无丢失）；该记录 sessionId、requesterId、originRunId 与重启前快照逐字相等；重启后该请求未产生第二条不同的 planId；重启前后的 state revision 序列中不存在回退或断号。可复现校验：重启前后各导出一次快照，按键做集合差与逐字段比对，输出差异条数（0 为通过）。引用范围：排队与标识语义取自 §6.2 已读片段；“重启后恢复而非重建”的正式条款超出已读范围，标为待文档确认，本任务不据此判定。依赖 T-1 已落盘的持久记录。本任务负责人固定为 Local Owner。\", \"estimatedHours\": 16, \"milestoneTempKey\": \"MS-3\", \"dependencyTempKeys\": [\"T-2\"], \"suggestedAssigneeId\": \"9c4cd312-0e99-497a-8e3b-e78f98692df0\"}, {\"title\": \"生成中重启验收\", \"dueDate\": \"2026-10-19\", \"tempKey\": \"T-4\", \"priority\": \"HIGH\", \"objective\": \"在规划生成进行中重启进程，随后查询持久记录。通过判据（二值）：以 operationId 与 attemptId 为键的记录命中条数恰为 1，且其 status 字段取值属于终态枚举（不处于非终态悬挂）；versionId 存在且与 version 记录表一一对应，无孤儿 versionId；无任何 attemptId 对应两条不同 status 的终态记录；分块读取记录的 CLEANED_TEXT_UTF16_V2 偏移字段与逐块 contentHash 可对已读块逐块重算一致；读取范围字段记录的实际读取区间与实际请求区间完全相等（不超出）。可复现校验：重算全部已读块 contentHash 并与存储值逐块比对，重启记录按键做去重计数。引用范围：§5.2、§5.3 为已读片段；§5.3 的有界补读上限具体数值待文档确认；恢复与重建机制判定待文档确认。\", \"sortOrder\": 3, \"startDate\": \"2026-10-16\", \"assigneeId\": null, \"sourceRefs\": [], \"description\": \"生成中重启验收（里程碑 MS-4）。在规划生成进行中重启进程，随后查询持久记录。通过判据（二值）：以 operationId 与 attemptId 为键的记录命中条数恰为 1，且其 status 字段取值属于终态枚举（不处于非终态悬挂）；versionId 存在且与 version 记录表一一对应，无孤儿 versionId；无任何 attemptId 对应两条不同 status 的终态记录；分块读取记录的 CLEANED_TEXT_UTF16_V2 偏移字段与逐块 contentHash 可对已读块逐块重算一致（§5.2）；读取范围字段记录的实际读取区间与实际请求区间完全相等（不超出，§5.3）。可复现校验：重算全部已读块 contentHash 并与存储值逐块比对，重启记录按键做去重计数。引用范围：§5.2、§5.3 为已读片段；§5.3 的有界补读上限具体数值待文档确认；恢复与重建机制判定待文档确认。依赖 T-2、T-3 已落盘的持久记录。本任务负责人固定为 Local Owner。\", \"estimatedHours\": 20, \"milestoneTempKey\": \"MS-4\", \"dependencyTempKeys\": [\"T-3\"], \"suggestedAssigneeId\": \"9c4cd312-0e99-497a-8e3b-e78f98692df0\"}, {\"title\": \"取消与完成竞争验收\", \"dueDate\": \"2026-10-22\", \"tempKey\": \"T-5\", \"priority\": \"HIGH\", \"objective\": \"构造取消（cancel_task_plan_generation，需 operationId+attemptId）与生成完成并发的场景，可重复执行不少于一次并发尝试。通过判据（二值）：每次并发后以 operationId 为键的终态记录条数恰为 1，无同时存在“已取消”与“已完成”两种终态；对同一 operationId 重复执行 cancel_task_plan_generation 时，第二次调用返回结果为确定性拒绝且不产生新的 attemptId 终态记录；在竞争后执行 repair_task_plan（需 baseVersionId+expectedVersionNo+lockedFields），expectedVersionNo 与当前版本一致时结果为成功、不一致时结果为版本冲突，两者均不得静默覆盖 lockedFields 字段值。可复现校验：并发脚本固定随机种子或固定并发时序，导出全部 attemptId 记录做终态唯一性与 lockedFields 前后值比对。引用范围：版本与取消参数为已执行基线事实；取消与完成的裁决顺序超出已读范围，标为待文档确认，本任务不预设哪一方胜出。\", \"sortOrder\": 4, \"startDate\": \"2026-10-20\", \"assigneeId\": null, \"sourceRefs\": [], \"description\": \"取消与完成竞争验收（里程碑 MS-5）。构造取消（cancel_task_plan_generation，需 operationId+attemptId）与生成完成并发的场景，可重复执行不少于一次并发尝试。通过判据（二值）：每次并发后以 operationId 为键的终态记录条数恰为 1，无同时存在“已取消”与“已完成”两种终态；对同一 operationId 重复执行 cancel_task_plan_generation 时，第二次调用返回结果为确定性拒绝且不产生新的 attemptId 终态记录；在竞争后执行 repair_task_plan（需 baseVersionId+expectedVersionNo+lockedFields），expectedVersionNo 与当前版本一致时结果为成功、不一致时结果为版本冲突，两者均不得静默覆盖 lockedFields 字段值。可复现校验：并发脚本固定随机种子或固定并发时序，导出全部 attemptId 记录做终态唯一性与 lockedFields 前后值比对。引用范围：版本与取消参数为已执行基线事实；取消与完成的裁决顺序超出已读范围，标为待文档确认，本任务不预设哪一方胜出。依赖 T-4 已落盘的持久记录。本任务负责人固定为 Local Owner。\", \"estimatedHours\": 20, \"milestoneTempKey\": \"MS-5\", \"dependencyTempKeys\": [\"T-4\"], \"suggestedAssigneeId\": \"9c4cd312-0e99-497a-8e3b-e78f98692df0\"}, {\"title\": \"证据收口与发布前判定\", \"dueDate\": \"2026-10-25\", \"tempKey\": \"T-6\", \"priority\": \"HIGH\", \"objective\": \"汇总 T-1 至 T-5 的持久记录，形成证据索引与逐项二值判定表。通过判据（二值）：T-1 至 T-5 每项均有对应证据条目，且每条证据记录了载体类型、载体主键、字段名与取值来源，可被独立复算；判定表中每一项取值仅为“通过”或“不通过”，无第三种取值，且每项判定可回溯到至少一个载体字段；证据索引包含使用 query 搜索与 cursor 分页抽样时写入的检索参数，可按同一参数复现相同样本集合；材料中对 §5.1 的引用明确写为“文字提取成功不等于完整理解文档”；未读范围清单（§6.2 尾部约 398 字符、§6.3 尾部约 394 字符、§6.4 与 §7 尾部、chunk 19 之后各块）及待文档确认项（取消裁决顺序、重启后恢复而非重建条款、预算与费用口径）在材料中显式列出；证据收口结果字段 pass_all 为布尔且为 true 时方可给出可发布结论，为 false 时明确列出未通过任务键。可复现校验：以检索参数重跑抽样并与证据索引逐条比对，输出集合差异条数（0 为通过）。\", \"sortOrder\": 5, \"startDate\": \"2026-10-23\", \"assigneeId\": null, \"sourceRefs\": [], \"description\": \"证据收口与发布前判定（里程碑 MS-6）。汇总 T-1 至 T-5 的持久记录，形成证据索引与逐项二值判定表。通过判据（二值）：T-1 至 T-5 每项均有对应证据条目，且每条证据记录了载体类型、载体主键、字段名与取值来源，可被独立复算；判定表中每一项取值仅为“通过”或“不通过”，无第三种取值，且每项判定可回溯到至少一个载体字段；证据索引包含使用 query 搜索与 cursor 分页抽样时写入的检索参数，可按同一参数复现相同样本集合；材料中对 §5.1 的引用明确写为“文字提取成功不等于完整理解文档”；未读范围清单（§6.2 尾部约 398 字符、§6.3 尾部约 394 字符、§6.4 与 §7 尾部、chunk 19 之后各块）及待文档确认项（取消裁决顺序、重启后恢复而非重建条款、预算与费用口径）在材料中显式列出；证据收口结果字段 pass_all 为布尔且为 true 时方可给出可发布结论，为 false 时明确列出未通过任务键。可复现校验：以检索参数重跑抽样并与证据索引逐条比对，输出集合差异条数（0 为通过）。依赖 T-1 至 T-5 已产生的持久记录。本任务负责人固定为 Local Owner。\", \"estimatedHours\": 16, \"milestoneTempKey\": \"MS-6\", \"dependencyTempKeys\": [\"T-5\"], \"suggestedAssigneeId\": \"9c4cd312-0e99-497a-8e3b-e78f98692df0\"}]",
+    "sourcesJson": "[]",
+    "validationResultJson": "{\"errors\": [], \"warnings\": [\"TASK_UNASSIGNED\", \"AI_SUGGESTION_WITHOUT_SOURCE\", \"TASK_UNASSIGNED\", \"AI_SUGGESTION_WITHOUT_SOURCE\", \"TASK_UNASSIGNED\", \"AI_SUGGESTION_WITHOUT_SOURCE\", \"TASK_UNASSIGNED\", \"AI_SUGGESTION_WITHOUT_SOURCE\", \"TASK_UNASSIGNED\", \"AI_SUGGESTION_WITHOUT_SOURCE\", \"TASK_UNASSIGNED\", \"AI_SUGGESTION_WITHOUT_SOURCE\"]}",
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "createdAt": "2026-10-04T15:41:58.866922Z"
+  }
+}

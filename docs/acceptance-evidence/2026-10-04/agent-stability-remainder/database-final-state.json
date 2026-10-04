@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-04/2026-10-05",
+  "database": "isolated copy volume ai-collab-acceptance-20261003 via container ai-collab-rootfix-pg (localhost:55432); original business containers (postgres/redis/minio) remain stopped; Flyway applied through V57 on the isolated copy only",
+  "codeVersion": "6edb3c39d4573430654cc1772034ad7f99cec75c",
+  "roundStartUtc": "2026-10-04T14:35:00Z",
+  "batches": {
+    "stability-minimal": {
+      "projectId": "06375320-2f36-491e-9ac3-32cf64e09230",
+      "sessionId": "606b39e2-876b-4aa3-b00b-37e622ccb601",
+      "turns": "1-10 sequential, all SUCCEEDED, retry=0"
+    },
+    "stability-fixed24": {
+      "projectId": "cab7e2f0-006b-4716-9295-08d4e8bd4e64",
+      "sessionId": "c6f1a8be-bdb1-4efd-9e14-0e9022101645",
+      "turns": "1-24 sequential, 22 SUCCEEDED + turn-9 BUDGET_EXCEEDED (host interruption recovery) + turn-15 BUDGET_EXCEEDED (real input 53437 > 50000, honest)"
+    },
+    "stability-correction": {
+      "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf (original failed session, full history preserved)",
+      "turns": "14,16,18,21,22,24 — all SUCCEEDED; turn-18 evidence recovered from its original run (no duplicate submission)"
+    },
+    "sources-available": {
+      "note": "separate targeted validation: fresh project + freshly indexed blueprint (embedding available) + one planning turn; first skeleton FAILED PLANNING_MODEL_INVALID_OUTPUT (preserved), regenerated via documented planning-page path to READY v2 with 9 real retrieved sources"
+    }
+  },
+  "invariants": {
+    "runsCreatedThisRound": 46,
+    "usageShadowedRows": 0,
+    "stepLedgerReconcileMismatches": 0,
+    "orphanSettlementRows": 0,
+    "formalTasksInRoundProjects": 0,
+    "planningConfirmationsCreatedThisRound": 0,
+    "plansInRoundProjects": 2
+  },
+  "fixed24": {
+    "constraintChain": {
+      "taskCountMaxHistory": ["最多10项 (superseded)", "最多8项 (superseded, detail.supersedes=[10])", "最多6项 (active, detail.max=6)"],
+      "finalActiveConstraints": [
+        "最多6项 (detail.max=6)",
+        "不改日期（沿用 2026-10-05 至 2026-10-25）",
+        "负责人不改（沿用 Local Owner）"
+      ],
+      "dateLock/assigneeLock": "re-registered by turn-10 message and superseded by explicit replacement; goal switches superseded then reused by 沿用 semantics scoped to matching objects"
+    },
+    "summary": {
+      "attempts": 9,
+      "committed": 1,
+      "downgradedUnqualified": 8,
+      "recompressRows": 8,
+      "recompressUsageBasis": "PROVIDER",
+      "finalSummary": { "textLength": 917, "oldCountsMentioned": 0, "pendingConfirmationForCounts": 0 }
+    },
+    "turn23PlanningGeneration": "EXECUTED — start_task_plan attempt 1 FAILED (PLANNING_DOCUMENT_NOT_READY, persisted in agent_step), model retried, attempt 2 SUCCEEDED, operation accepted (effect=PLANNING_OPERATION_ACCEPTED, requiresHumanConfirmation=true); final plan READY v2 with 6 tasks / 6 milestones / dates 2026-10-05..10-25 / Local Owner assignees / linear acyclic dependencies / validation.errors=[] / zero old-10 residue in draft text",
+    "turn15BudgetHonesty": "inputTokensActual=53437 > max 50000; inputTokensUsed capped at 50000; status BUDGET_EXCEEDED",
+    "turn9Interruption": "host JVM died mid-run; recovery job resumed the same run; it ended BUDGET_EXCEEDED because its duration budget was consumed during the outage; no duplicate submission; states recorded in turn-09-states.jsonl"
+  },
+  "correction": {
+    "turn24": "read-only: distinguishes 后台生成完成（READY, generationSeq=3 retry replaced earlier failure）from 规划未完成（未人工确认）; no regeneration, no confirmation",
+    "originalFailedSession": "kept with full history; document reindex impossible in this host (original object in reliability round's MinIO volume); body/vector chunks intact (28/28)"
+  },
+  "sourcesAvailable": {
+    "documentStatus": "READY (indexed with local embedding now available)",
+    "retrievedSources": 9,
+    "draft": "READY v2, 24 tasks / 5 milestones (goal without 6-item constraint history in a fresh project — expected), validation.errors=[]",
+    "firstAttemptFailure": "SKELETON PLANNING_MODEL_INVALID_OUTPUT, zero version, preserved; regenerate via documented path"
+  }
+}
