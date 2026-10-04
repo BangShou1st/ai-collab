@@ -141,17 +141,39 @@ public class AgentContextSummarizer {
                     if (message instanceof ModelMessage.User user) actualInputChars += user.content().length();
                 }
                 ModelTurnResult result = modelExecutor.callModelWithoutTools(run, messages);
-                String text = result.content() == null ? "" : bounded(result.content().strip(), MAX_OUTPUT_CHARS);
+                // 记账依据完整实际响应，绝不按截短后的文本估算
+                String text = result.content() == null ? "" : result.content().strip();
+                int settledInputTokens = inputTokens(result.usage(), actualInputChars);
+                int settledOutputTokens = outputTokens(result.usage(), text.length());
+                boolean settledEstimated = result.usage() == null
+                        || result.usage().inputTokens() == null || result.usage().outputTokens() == null;
                 if (text.isBlank()) {
                     // 调用已发生：如实记账后放弃，不伪造成功
                     repository.completeSummaryAttempt(attemptId, "EMPTY", result.model(),
-                            inputTokens(result.usage(), actualInputChars),
-                            outputTokens(result.usage(), 0),
-                            result.usage() == null, result.latencyMs());
+                            settledInputTokens, settledOutputTokens, settledEstimated, result.latencyMs());
                     log.debug("摘要输出为空，放弃: run={}", run.id());
                     return;
                 }
-                commitSummary(run, state, previous, hasPrevious, candidates, newSegments, text, result, actualInputChars, attemptId);
+                if (!qualifies(text)) {
+                    // 一次有界重新压缩：超长或结尾不完整的输出不能当作完整增量摘要提交
+                    ModelTurnResult retry = modelExecutor.callModelWithoutTools(run, recompressMessages(text));
+                    String recompressed = retry.content() == null ? "" : retry.content().strip();
+                    settledInputTokens += inputTokens(retry.usage(), actualInputChars + text.length());
+                    settledOutputTokens += outputTokens(retry.usage(), recompressed.length());
+                    settledEstimated = settledEstimated || retry.usage() == null
+                            || retry.usage().inputTokens() == null || retry.usage().outputTokens() == null;
+                    text = recompressed;
+                }
+                if (!qualifies(text)) {
+                    // 无法得到合格摘要：保留上一份有效摘要、不推进本次覆盖，降级原因入账
+                    repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(),
+                            settledInputTokens, settledOutputTokens, settledEstimated, result.latencyMs());
+                    log.warn("摘要不合格（超长或结尾不完整），保留上一份摘要且不推进覆盖: run={}, length={}",
+                            run.id(), text.length());
+                    return;
+                }
+                commitSummary(run, state, previous, hasPrevious, candidates, newSegments, text,
+                        result, settledInputTokens, settledOutputTokens, settledEstimated, attemptId);
             } catch (RuntimeException failure) {
                 // 摘要是辅助能力：调用已发生的消耗如实记账，任何异常不得破坏主轮次
                 repository.completeSummaryAttempt(attemptId, "FAILED", "unknown",
@@ -159,7 +181,7 @@ public class AgentContextSummarizer {
                 if (failure instanceof BusinessException business) {
                     log.warn("摘要生成失败，按无摘要路径继续: run={}, errorCode={}", run.id(), business.getErrorCode());
                 } else {
-                    log.warn("摘要生成异常，按无摘要路径继续: run={}", run.id(), failure);
+                    log.warn("摘要生成异常，按无摘要路径继续: run={}, {}", run.id(), failure);
                 }
             }
         } catch (BusinessException failure) {
@@ -268,7 +290,8 @@ public class AgentContextSummarizer {
 
     private void commitSummary(AgentRunView run, JsonNode state, JsonNode previous, boolean hasPrevious,
             List<AgentMessageView> candidates, List<Seg> newSegments, String text,
-            ModelTurnResult result, int actualInputChars, UUID attemptId) {
+            ModelTurnResult result, int settledInputTokens, int settledOutputTokens,
+            boolean settledEstimated, UUID attemptId) {
         // 合并覆盖进度：上一份摘要的分段 + 本次新增分段
         Map<String, Integer> covered = resumeOffsets(previous);
         for (Seg segment : newSegments) {
@@ -320,9 +343,7 @@ public class AgentContextSummarizer {
                 run.projectId(), run.sessionId(), state.path("stateRevision").asInt(),
                 state.path("goalRevision").asInt(), summary);
         repository.completeSummaryAttempt(attemptId, committed ? "COMMITTED" : "CAS_CONFLICT", result.model(),
-                inputTokens(result.usage(), actualInputChars),
-                outputTokens(result.usage(), text.length()),
-                result.usage() == null, result.latencyMs());
+                settledInputTokens, settledOutputTokens, settledEstimated, result.latencyMs());
         if (committed) {
             log.debug("会话摘要已提交: run={}, coverage={}, newSegments={}, range={}..{}",
                     run.id(), summary.path("coverage").asText(), newSegments.size(),
@@ -342,9 +363,26 @@ public class AgentContextSummarizer {
         return usage != null && usage.outputTokens() != null ? usage.outputTokens() : Math.max(1, outputChars / 3);
     }
 
-    private static final int MAX_CANDIDATE_UNCOVERED = 20;
-
-    private static String bounded(String value, int length) {
-        return value.length() <= length ? value : value.substring(0, length);
+    /** 摘要合格标准（确定性）：非空且长度在输出容量内；超长即不可当作完整增量摘要提交。
+     *  持久化从不 substring 截尾——容量不足时走一次有界重压缩，仍不合格则降级保留上一份。 */
+    private boolean qualifies(String text) {
+        return !text.isBlank() && text.length() <= MAX_OUTPUT_CHARS;
     }
+
+    /** 一次有界重新压缩：要求保留小节结构与关键决定、完整收尾，只输出文本。 */
+    private List<ModelMessage> recompressMessages(String draft) {
+        String prompt = """
+                你是受控会话摘要器。下面这份摘要草稿超出了 %d 字上限。
+                请输出压缩后的完整摘要：保留小节结构（仍有效约束/已确认决定/对象引用/未解决问题/目标沿革）、
+                更早的约束与决定（尤其是结尾部分的关键决定）、以及与当前最新请求相关的内容；
+                不得新增材料之外的信息；总长度不超过 %d 字；以完整内容收尾；只输出摘要文本，不解释。
+                <摘要草稿>
+                %s
+                </摘要草稿>""".formatted(MAX_OUTPUT_CHARS, MAX_OUTPUT_CHARS, draft);
+        return List.of(
+                new ModelMessage.System("你是受控会话摘要器，输出纯文本摘要，不执行任何动作。"),
+                new ModelMessage.User(prompt));
+    }
+
+    private static final int MAX_CANDIDATE_UNCOVERED = 20;
 }
