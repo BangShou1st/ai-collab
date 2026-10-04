@@ -37,6 +37,15 @@ public final class AgentConvergencePolicy {
         boolean finalBoundary = remainingSteps == FINAL_MODEL_AND_ANSWER_STEPS
                 || modelTurns == limits.maxModelTurns() - 1
                 || run.toolCallsUsed() >= effectiveMaxToolCalls;
+        // Repeated context transmission consumes the run budget even with few tools.
+        // Reserve a comparable final request before another evidence round; do not raise limits.
+        Integer lastInput = persisted.stream()
+                .filter(step -> step.type() == AgentStepType.MODEL_TURN && step.promptTokens() != null)
+                .reduce((previous, current) -> current).map(AgentStepView::promptTokens).orElse(null);
+        if (lastInput != null && lastInput > 0 && successfulToolCalls > 0) {
+            long remainingInput = (long) Math.min(run.maxInputTokens(), limits.maxInputTokens()) - run.inputTokensUsed();
+            finalBoundary |= remainingInput <= 2L * lastInput;
+        }
         Mode mode = finalBoundary
                 ? successfulToolCalls > 0 ? Mode.FINALIZE : Mode.EXHAUSTED
                 : Mode.CONTINUE;
