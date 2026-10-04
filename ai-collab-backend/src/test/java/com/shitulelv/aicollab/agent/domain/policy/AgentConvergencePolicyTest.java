@@ -59,6 +59,18 @@ class AgentConvergencePolicyTest {
         assertThat(decision.mode()).isEqualTo(CONTINUE);
     }
 
+    @Test void reservesFinalRequestFromPersistedInputUsageBeforeEvidenceConsumesRunBudget() {
+        var evidence = new ArrayList<>(steps(1, true));
+        evidence.add(new AgentStepView(UUID.randomUUID(),3,AgentStepType.MODEL_TURN,null,
+                json.createObjectNode(),json.createObjectNode(),null,25_000,100,false,null,null,OffsetDateTime.now()));
+        // 49,000 remain; another request comparable to the last would leave too little to answer.
+        assertThat(policy.decide(run(4,24,1,16),limits(12,4),evidence).mode()).isEqualTo(FINALIZE);
+        evidence.set(2,new AgentStepView(UUID.randomUUID(),3,AgentStepType.MODEL_TURN,null,
+                json.createObjectNode(),json.createObjectNode(),null,10_000,100,false,null,null,OffsetDateTime.now()));
+        assertThat(policy.decide(run(4,24,1,16),limits(12,4),evidence).mode()).isEqualTo(CONTINUE);
+        assertThat(policy.decide(run(4,24,1,16),limits(12,4),List.of(evidence.get(2))).mode()).isEqualTo(CONTINUE);
+    }
+
     @Test
     void rejectsWholeBatchThatExceedsRemainingToolBudget() {
         assertThatThrownBy(() -> policy.validateToolBatch(
