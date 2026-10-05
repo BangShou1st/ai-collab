@@ -215,8 +215,12 @@ public class AgentRuntimeCoordinator {
                 messages = appendTurnInstructions(composition.messages(), steps, finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens()) {
-                    // 降级重组一次：收紧预算并重试，仍超限才明确停止
+                    // 降级重组一次：收紧预算并重试；重组本身失败（必选层仍放不下）同样明确停止
                     composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 0.6);
+                    if (composition.failureReason() != null) {
+                        // 空消息继续调用会丢失当前目标与有效约束，违反"当前请求完整保留"契约
+                        return inputBudgetExceeded(run, requestBudget, composition.failureReason());
+                    }
                     messages = appendTurnInstructions(composition.messages(), steps, finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                     estimatedInput = estimateInput(messages, exposed);
                     if (estimatedInput > requestBudget.availableInputTokens()) {

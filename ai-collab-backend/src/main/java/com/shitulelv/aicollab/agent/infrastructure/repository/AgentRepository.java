@@ -163,6 +163,51 @@ public class AgentRepository {
                 AgentRunMappers.runMapper(), projectId, runId).stream().findFirst();
     }
 
+    /** 终态运行的重试派生结果：created=false 表示并发重试命中幂等边界，返回既有派生运行。 */
+    public record RetryRunDerivation(AgentRunView run, boolean created) {}
+
+    /**
+     * 从终态运行派生一次新的重试运行：复制目标/技能/页面上下文，输入输出预算、步骤与
+     * 取消标记全部从默认值开始，不继承已耗尽的预算或取消标记。retried_from_run_id 上的
+     * 部分唯一索引保证同一旧运行至多派生一个新运行——并发重复重试时第二个请求返回既有
+     * 派生运行，业务动作（新运行、用户消息、工作状态推进）不重复执行。
+     */
+    @Transactional
+    public RetryRunDerivation createRetryRun(
+            UUID projectId, UUID sessionId, UUID requesterId, UUID sourceRunId,
+            String goal, String skillCode, String pageContextJson) {
+        UUID runId = UUID.randomUUID();
+        AgentRunView run = jdbc.query("""
+                INSERT INTO agent_run(
+                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,
+                  max_steps,max_tool_calls,retried_from_run_id)
+                SELECT ?,s.id,s.project_id,?,?,'QUEUED',false,?,?::jsonb,?,?,?
+                FROM agent_session s
+                WHERE s.project_id=? AND s.id=?
+                ON CONFLICT (retried_from_run_id) WHERE retried_from_run_id IS NOT NULL DO NOTHING
+                RETURNING *
+                """, AgentRunMappers.runMapper(), runId, requesterId, goal, skillCode, pageContextJson,
+                "ITERATION_PLANNING".equals(skillCode)?24:12,
+                "ITERATION_PLANNING".equals(skillCode)?16:8,
+                sourceRunId, projectId, sessionId).stream().findFirst().orElse(null);
+        if (run == null) {
+            return new RetryRunDerivation(jdbc.query(
+                    "SELECT * FROM agent_run WHERE project_id=? AND retried_from_run_id=?",
+                    AgentRunMappers.runMapper(), projectId, sourceRunId).stream().findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Agent 会话不存在")), false);
+        }
+        UUID messageId = jdbc.queryForObject("""
+                INSERT INTO agent_message(
+                  session_id,run_id,role,content,citations_json,inferences_json)
+                VALUES (?,?,'USER',?,'[]'::jsonb,'[]'::jsonb)
+                RETURNING id
+                """, UUID.class, sessionId, runId, goal);
+        jdbc.update("UPDATE agent_session SET updated_at=now(),version=version+1 WHERE project_id=? AND id=?",
+                projectId, sessionId);
+        AgentWorkingState.appendUser(jdbc,json,sessionId,goal,messageId);
+        return new RetryRunDerivation(run, true);
+    }
+
     public boolean isCancelRequested(UUID projectId, UUID runId) {
         Boolean requested = jdbc.query("""
                 SELECT cancel_requested_at IS NOT NULL

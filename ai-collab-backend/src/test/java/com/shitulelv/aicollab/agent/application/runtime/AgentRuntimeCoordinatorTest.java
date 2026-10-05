@@ -10,6 +10,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.view.AgentStepView;
 import com.shitulelv.aicollab.agent.domain.model.*;
+import com.shitulelv.aicollab.agent.domain.policy.AgentConvergencePolicy;
 import com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuard;
 import com.shitulelv.aicollab.agent.domain.tool.*;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -802,6 +803,136 @@ class AgentRuntimeCoordinatorTest {
                 0, 0, 0, 0, 0, 0, 0, false,
                 false, false, 0, null, null, null, null, 1, now, now);
     }
+
+    // ========== 上下文预算降级重组回归 ==========
+
+    private AgentEventService events;
+
+    /** 必选层体积（系统提示 + 页面上下文；无历史、无工具观察、无工作状态）。 */
+    private int mandatoryLayerChars(AgentExecutionContext ctx, AgentSkill skill) {
+        AgentModelMessageComposer probe = new AgentModelMessageComposer(repository, null, json, modelExecutor);
+        AgentRunView probeRun = run();
+        var baseline = probe.composeV2(probeRun, ctx, skill, plan("规划", List.of()), List.of(), 1_000_000, 1.0);
+        assertThat(baseline.failureReason()).isNull();
+        return baseline.stats().charsUsed() - probeRun.goal().length();
+    }
+
+    /** 注册 list_tasks（ITERATION_PLANNING 允许）并让工具定义体积达到约 descriptionRepeat×5 字符。 */
+    private AgentRuntimeCoordinator coordinatorWithLargeToolDefinition(int descriptionRepeat) {
+        AgentTool bigTool = new AgentTool() {
+            @Override public String name() { return "list_tasks"; }
+            @Override public boolean writesBusinessData() { return false; }
+            @Override public AgentToolDefinition definition() {
+                return AgentToolDefinition.openObject("list_tasks", "工具说明。".repeat(descriptionRepeat), false);
+            }
+            @Override public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {
+                throw new AssertionError("工具不应被调用");
+            }
+        };
+        return new AgentRuntimeCoordinator(
+                repository, contextAssembler, skillRegistry, planService,
+                new AgentToolRegistry(List.of(bigTool)), cancellation, loopGuard, approvals,
+                modelExecutor, sanitizer, new AgentConvergencePolicy(), json, events, null,
+                new AgentContextProperties(true, 4_000, 8_000, 2_000, java.util.Map.of()));
+    }
+
+    private AgentRunView withGoal(AgentRunView r, String goal) {
+        return new AgentRunView(
+                r.id(), r.sessionId(), r.projectId(), r.requesterId(),
+                r.parentRunId(), r.role(), r.depth(), goal, r.status(),
+                r.maxSteps(), r.maxToolCalls(), r.maxChildren(),
+                r.maxInputTokens(), r.maxOutputTokens(),
+                r.stepsUsed(), r.toolCallsUsed(), r.childrenUsed(),
+                r.inputTokensUsed(), r.outputTokensUsed(), r.inputTokensActual(), r.outputTokensActual(),
+                r.tokenUsageEstimated(), r.scheduled(), r.correctionAttempted(),
+                r.retryCount(), r.errorCode(), r.planJson(), r.pageContextJson(), r.skillCode(),
+                r.version(), r.createdAt(), r.updatedAt());
+    }
+
+    /**
+     * 第一次组装成功（必选层 + 当前请求 ≤ 预算），计入工具定义开销后估算超预算，进入降级重组；
+     * 降级后（0.6 系数）必选层溢出：必须明确进入预算终态并记录原因，
+     * 不得以丢失当前目标与有效约束的空上下文继续调用模型。
+     */
+    @Test
+    void degradeRecompositionWithOverflowingMandatoryLayerEndsRunWithoutModelCall() {
+        AgentExecutionContext ctx = context();
+        AgentSkill skill = skillRegistry.select("ITERATION_PLANNING", "检查项目", ctx.page());
+        int mandatoryChars = mandatoryLayerChars(ctx, skill);
+        events = mock(AgentEventService.class);
+        coordinator = coordinatorWithLargeToolDefinition(500);
+
+        // 必选层 + 当前请求 = 11000 chars ≤ 4000×3=12000（第一次组装成功）；
+        // 计入 2500+ 字符工具定义后估算 > 4000 → 降级；降级预算 0.6×12000=7200 < 11000 → 必选层溢出
+        int goalChars = 11000 - mandatoryChars;
+        assertThat(goalChars).isPositive();
+        AgentRunView run = withGoal(runWithSkillCode("ITERATION_PLANNING"), "目".repeat(goalChars));
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
+        when(repository.listSteps(any(), any())).thenReturn(List.of());
+        when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        assertThat(outcome.errorCode()).isEqualTo("AGENT_BUDGET_EXCEEDED");
+        verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean());
+        verify(repository).recordBudgetExceeded(run);
+        verify(events).append(eq(run.projectId()), eq(run.id()), eq(AgentEventType.RUN_BUDGET_EXCEEDED),
+                argThat(payload -> "PER_REQUEST_INPUT".equals(payload.path("scope").asText())
+                        && "CURRENT_REQUEST_OVER_BUDGET".equals(payload.path("reason").asText())));
+    }
+
+    /**
+     * 正常降级成功保留：第一次组装装满预算、计入工具定义后估算超预算，降级重组
+     * （0.6 系数）下可选层收缩、估算回到预算内，当前请求完整保留并继续调用模型完成。
+     */
+    @Test
+    void degradeRecompositionSuccessStillCallsModelWithCurrentRequest() {
+        AgentExecutionContext ctx = context();
+        AgentSkill skill = skillRegistry.select("ITERATION_PLANNING", "检查项目", ctx.page());
+        int mandatoryChars = mandatoryLayerChars(ctx, skill);
+        events = mock(AgentEventService.class);
+        coordinator = coordinatorWithLargeToolDefinition(350);
+
+        int goalChars = 500;
+        AgentRunView run = withGoal(runWithSkillCode("ITERATION_PLANNING"), "目".repeat(goalChars));
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(ctx);
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
+        when(repository.listSteps(any(), any())).thenReturn(List.of());
+        when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
+
+        // 40 条（HISTORY_CANDIDATES 上限）唯一历史消息，第一次组装把 remaining 装满：
+        // 第一次估算 = (12000-余量+附加指令+工具定义)/3 > 4000 必然触发降级；
+        // 降级预算 7200 chars 下历史收缩到 ≤ 7200-必选-当前请求，估算 < 4000 恢复正常
+        int historyBudget = 12000 - (mandatoryChars + goalChars);
+        int messageChars = historyBudget / 40 + 60;
+        java.util.List<com.shitulelv.aicollab.agent.application.view.AgentMessageView> history = new java.util.ArrayList<>();
+        for (int i = 0; i < 40; i++) {
+            String content = ("历史" + i + "：") + "内容。".repeat((messageChars - 8) / 3 + 1);
+            history.add(new com.shitulelv.aicollab.agent.application.view.AgentMessageView(
+                    UUID.randomUUID(), run.sessionId(), run.id(), "USER", content, null, null,
+                    OffsetDateTime.now().plusSeconds(i)));
+        }
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(textResult("完成"));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(outcome.answer()).isEqualTo("完成");
+        verify(repository, never()).recordBudgetExceeded(any());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor, times(1)).callModel(eq(run), messages.capture(), any(), eq(false));
+        // 当前请求完整保留：降级后的请求消息仍包含完整目标
+        assertThat(messages.getValue())
+                .filteredOn(ModelMessage.User.class::isInstance)
+                .map(ModelMessage.User.class::cast)
+                .extracting(ModelMessage.User::content)
+                .anyMatch(content -> content.equals("目".repeat(goalChars)));
+    }
+
 
     @Test
     void toolResultIsSanitizedBeforeRecording() {
