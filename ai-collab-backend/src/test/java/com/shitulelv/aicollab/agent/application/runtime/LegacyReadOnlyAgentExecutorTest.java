@@ -122,6 +122,10 @@ class LegacyReadOnlyAgentExecutorTest {
                     false);
         } catch (IllegalArgumentException e) {
             assertThat(e.getMessage()).contains("Agent 决策不是合法 JSON");
+            // 解析失败保留提供商已上报的响应用量，结算时不被估算覆盖
+            assertThat(e).isInstanceOf(LegacyDecisionParseFailure.class);
+            assertThat(((LegacyDecisionParseFailure) e).carriedPromptTokens()).isEqualTo(100);
+            assertThat(((LegacyDecisionParseFailure) e).carriedCompletionTokens()).isEqualTo(50);
         }
     }
 

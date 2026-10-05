@@ -643,10 +643,13 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         long started = System.nanoTime();
         JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata, userAgent), zenRequest(config, command, false));
         JsonNode choice = response.path("choices").path(0);
-        if ("length".equals(choice.path("finish_reason").asText())) {
-            throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
-        }
         JsonNode usage = response.path("usage");
+        if ("length".equals(choice.path("finish_reason").asText())) {
+            // 提供商已上报用量随异常携带，结算时保留真实值，不被估算覆盖
+            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
+                    "PROVIDER_STREAM / OUTPUT_TRUNCATED",
+                    integer(usage.path("prompt_tokens")), integer(usage.path("completion_tokens")));
+        }
         return result(config, choice.path("message").path("content").asText(null),
                 response.path("model").asText(config.modelName()),
                 integer(usage.path("prompt_tokens")), integer(usage.path("completion_tokens")), started);
@@ -683,7 +686,8 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             if (toolCallsNode.isArray()) {
                 for (JsonNode node : toolCallsNode) {
                     if (!node.path("index").isInt() || node.path("index").asInt() < 0)
-                        throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,"工具分片缺少有效 index");
+                        throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,"工具分片缺少有效 index",
+                                carriedPrompt(usage), carriedCompletion(usage));
                     int index = node.path("index").asInt();
                     DeltaToolCall acc = deltas.computeIfAbsent(index, k -> new DeltaToolCall());
                     String idFrag = node.path("id").asText("");
@@ -699,15 +703,32 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         });
         List<ModelToolCall> toolCalls = buildDeltaToolCalls(deltas);
         if (toolCalls.stream().anyMatch(call -> isZenReservedTool(call.name())))
-            throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                    "模型调用了 Zen 传输保留工具；该调用不会执行");
+            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                    "模型调用了 Zen 传输保留工具；该调用不会执行",
+                    carriedPrompt(usage), carriedCompletion(usage));
         long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
         if (content.isEmpty() && toolCalls.isEmpty()) {
-            throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE, "model returned neither text nor tool calls");
+            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                    "model returned neither text nor tool calls",
+                    carriedPrompt(usage), carriedCompletion(usage));
         }
-        if (finishReason.get() == ModelFinishReason.LENGTH) throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+        if (finishReason.get() == ModelFinishReason.LENGTH) {
+            // 提供商已上报用量随异常携带（流式 usage 在收尾块到达），结算时保留真实值
+            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
+                    "PROVIDER_STREAM / OUTPUT_TRUNCATED", carriedPrompt(usage), carriedCompletion(usage));
+        }
         return new ModelTurnResult(content.isEmpty() ? null : content.toString(), toolCalls, finishReason.get(),
                 usage.get(), providerType().name(), model.get(), latencyMs);
+    }
+
+    private Integer carriedPrompt(java.util.concurrent.atomic.AtomicReference<ModelUsage> usage) {
+        ModelUsage u = usage.get();
+        return u == null ? null : u.inputTokens();
+    }
+
+    private Integer carriedCompletion(java.util.concurrent.atomic.AtomicReference<ModelUsage> usage) {
+        ModelUsage u = usage.get();
+        return u == null ? null : u.outputTokens();
     }
 
     private ModelTurnResult parseTurnResponse(ModelConfiguration config, JsonNode response, long started) {
@@ -719,8 +740,12 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         JsonNode usageNode = response.path("usage");
         ModelUsage usage = null;
         if (!usageNode.isMissingNode() && !usageNode.isNull()) usage = new ModelUsage(integer(usageNode.path("prompt_tokens")), integer(usageNode.path("completion_tokens")));
-        if ((content == null || content.isBlank()) && toolCalls.isEmpty()) throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
-        if (fr == ModelFinishReason.LENGTH) throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+        if ((content == null || content.isBlank()) && toolCalls.isEmpty())
+            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE, "PROVIDER / EMPTY_RESPONSE",
+                    usage == null ? null : usage.inputTokens(), usage == null ? null : usage.outputTokens());
+        if (fr == ModelFinishReason.LENGTH)
+            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED, "PROVIDER / OUTPUT_TRUNCATED",
+                    usage == null ? null : usage.inputTokens(), usage == null ? null : usage.outputTokens());
         long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
         return new ModelTurnResult(content, toolCalls, fr, usage, providerType().name(), response.path("model").asText(config.modelName()), latencyMs);
     }

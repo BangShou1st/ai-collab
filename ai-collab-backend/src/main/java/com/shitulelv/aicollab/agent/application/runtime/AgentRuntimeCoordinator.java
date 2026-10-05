@@ -533,14 +533,12 @@ public class AgentRuntimeCoordinator {
                 turn.latencyMs());
     }
 
-    /** 异常出口的结算值：ProviderResponseFailure 携带的提供商用量优先保留（含单侧），
-     *  缺失侧按请求证据估算或显式 UNKNOWN——不得把异常中的真实值替换成估算。 */
+    /** 异常出口的结算值：异常携带的提供商用量优先保留（含单侧）——适配器截断/空结果、
+     *  Legacy 解析失败等产生点已把 usage 装进异常；缺失侧按请求证据估算或显式 UNKNOWN，
+     *  不得把异常中的真实值替换成估算。 */
     private AgentRunEventRecorder.UsageSettlement failureSettlement(Throwable failure) {
-        com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage carried = null;
-        if (failure instanceof com.shitulelv.aicollab.infrastructure.ai.model.ProviderResponseFailure p) {
-            carried = new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(
-                    p.promptTokens(), p.completionTokens());
-        }
+        com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage carried = failure instanceof
+                com.shitulelv.aicollab.infrastructure.ai.model.UsageCarryingFailure u ? u.carriedUsage() : null;
         return AgentRunEventRecorder.UsageSettlement.fromRaw(carried, AgentModelAccounting.estimatedInput(1), 0, null);
     }
 

@@ -11,6 +11,7 @@ import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
+import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import java.time.OffsetDateTime;
 import java.util.EnumSet;
 import java.util.List;
@@ -97,5 +98,58 @@ class OpenAiTurnStreamingTest {
         ModelTurnResult r = streamingTurn(chunks);
         assertThat(r.content()).isEqualTo("done");
         assertThat((System.nanoTime() - s) / 1000000L).isLessThan(5000L);
+    }
+
+    /** 带用量收尾块的 chunk（流式 usage 在收尾块到达）。 */
+    private ObjectNode usageChunk(String content, String finish, int prompt, int completion) {
+        ObjectNode root = deltaChunk(content, finish);
+        ObjectNode usage = root.putObject("usage");
+        usage.put("prompt_tokens", prompt);
+        usage.put("completion_tokens", completion);
+        return root;
+    }
+
+    /** 截断出口：提供商已上报的 usage 随异常携带，不得替换成估算/未知。 */
+    @Test void truncatedStreamCarriesProviderUsageIntoException() {
+        List<ObjectNode> chunks = List.of(
+                deltaChunk("已生成的部分", null),
+                usageChunk(null, "length", 1234, 567));
+        assertThatThrownBy(() -> streamingTurn(chunks))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(1234);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(567);
+                });
+    }
+
+    /** 空结果出口：已收到的 usage 同样随异常携带。 */
+    @Test void emptyStreamCarriesUsageIntoException() {
+        List<ObjectNode> chunks = List.of(usageChunk(null, null, 900, 0));
+        assertThatThrownBy(() -> streamingTurn(chunks))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(900);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(0);
+                });
+    }
+
+    /** 非流式 complete 截断：usage 先于截断判定读取，随异常携带。 */
+    @Test void nonStreamingTruncationCarriesUsage() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        ObjectNode response = mapper.createObjectNode();
+        ObjectNode choice = response.putArray("choices").addObject();
+        choice.putObject("message").putObject("content");
+        choice.put("finish_reason", "length");
+        ObjectNode usage = response.putObject("usage");
+        usage.put("prompt_tokens", 800);
+        usage.put("completion_tokens", 1200);
+        org.mockito.Mockito.when(http.post(anyString(), anyMap(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(response);
+        assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, http).completeWithSession(
+                config(), "key", org.mockito.Mockito.mock(ChatCompletionCommand.class),
+                AiRequestMetadata.fresh(), "opencode/1.18.21"))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(800);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(1200);
+                });
     }
 }
