@@ -330,10 +330,12 @@ public class TaskPlanGenerationOrchestrator {
             TaskPlanVersionSource sourceType = finalStatus == TaskPlanStatus.READY_WITH_ISSUES
                     ? TaskPlanVersionSource.AI_PARTIAL
                     : generated.repaired() ? TaskPlanVersionSource.AI_REPAIR : TaskPlanVersionSource.AI_COMPLETE;
-            // Re-read plan to get fresh activeAttemptId (may have changed during repair)
-            TaskPlanRecord freshPlan = repository.require(plan.projectId(), plan.id());
-            TaskPlanVersionRecord versionRecord = commitService.commit(freshPlan, detail,
-                    sourceType, assessment, finalStatus,
+            // 提交绑定这份结果实际所属的身份：dispatch 快照的 generationSeq、实际生成/修复的
+            // attemptId 与预期阶段。不能用提交时重新读取的最新规划身份替换——否则有效性检查
+            // 与提交之间发生"取消→重新生成"时，旧结果会借用新一轮身份通过校验产生错误版本。
+            TaskPlanVersionRecord versionRecord = commitService.commitGenerated(
+                    plan, plan.generationSeq(), generated.attemptId(), TaskPlanStatus.DETAIL_GENERATING,
+                    detail, sourceType, assessment, finalStatus,
                     "PLAN_GENERATED", actor, plan.latestVersionId());
             if (versionRecord == null) return;
             var m = generated.metrics();

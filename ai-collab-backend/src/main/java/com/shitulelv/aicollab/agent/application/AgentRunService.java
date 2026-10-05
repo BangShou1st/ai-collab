@@ -201,11 +201,38 @@ public class AgentRunService {
         }
     }
 
+    /**
+     * 重试一次运行。两种语义按状态区分：
+     * <ul>
+     *   <li>FAILED_RETRYABLE：运行内自动重试路径，状态机允许转回 QUEUED，原运行继续。</li>
+     *   <li>FAILED / CANCELED / BUDGET_EXCEEDED（终态）：状态机不允许也不放开转回 QUEUED——
+     *       原地重入会继承已耗尽的预算或取消标记。改为创建新运行（复制目标/技能/页面上下文，
+     *       预算从默认值开始），旧运行记录与其历史结果、事件完整保留。retried_from_run_id
+     *       的唯一约束保证重复点击/并发请求幂等返回同一新运行，业务动作不重复执行。</li>
+     * </ul>
+     */
     @Transactional
     public AgentRunView retry(UUID projectId, UUID runId, UUID userId) {
         access.requireMember(projectId, userId);
         AgentRunView run = repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        if (run.status() == AgentRunStatus.FAILED || run.status() == AgentRunStatus.CANCELED
+                || run.status() == AgentRunStatus.BUDGET_EXCEEDED) {
+            AgentRepository.RetryRunDerivation derivation = repository.createRetryRun(
+                    projectId, run.sessionId(), userId, run.id(),
+                    run.goal(), run.skillCode(), run.pageContextJson());
+            if (derivation.created()) {
+                events.append(projectId, run.id(), AgentEventType.RUN_RETRY_SCHEDULED,
+                        json.createObjectNode()
+                                .put("errorCode", run.errorCode())
+                                .put("retriedToRunId", derivation.run().id().toString()));
+                events.append(projectId, derivation.run().id(), AgentEventType.RUN_CREATED,
+                        json.createObjectNode()
+                                .put("status", derivation.run().status().name())
+                                .put("retriedFromRunId", run.id().toString()));
+            }
+            return derivation.run();
+        }
         states.requireTransition(run.status(), AgentRunStatus.QUEUED);
         if (!repository.updateStatus(projectId, runId, run.version(),
                 run.status(), AgentRunStatus.QUEUED, null)) {

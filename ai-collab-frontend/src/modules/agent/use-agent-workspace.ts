@@ -433,10 +433,21 @@ export function useAgentWorkspace() {
   }
   async function retryActiveRun() {
     if (!activeRun.value || sending.value) return
+    const sourceRunId = activeRun.value.id
     sending.value = true
     try {
-      await agentApi.retry(projectId.value, activeRun.value.id)
-      await restoreSession(sessionId.value)
+      const run = (await agentApi.retry(projectId.value, sourceRunId)).data
+      if (run.id !== sourceRunId) {
+        // 终态重新尝试返回新运行：切换过去并恢复事件订阅；旧运行记录保留可回看
+        ++restoreSeq
+        activeRun.value = run
+        runDetail.value = null
+        startEventStream(run)
+        await loadMessages()
+      } else {
+        // 运行内自动重试路径：原地恢复当前会话状态
+        await restoreSession(sessionId.value)
+      }
     } catch (reason) { fail(reason, 'Agent 重试') } finally { sending.value = false }
   }
   async function cancelActiveRun() {

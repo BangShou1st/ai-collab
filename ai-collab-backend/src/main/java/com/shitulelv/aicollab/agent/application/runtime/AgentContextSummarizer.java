@@ -117,6 +117,7 @@ public class AgentContextSummarizer {
         try {
             repository.requireSummaryAccess(run);
             JsonNode state = repository.workingState(run.projectId(), run.sessionId());
+            if (state == null) return; // 无工作状态（无 v2 结构可延续）不生成摘要
             if (state.path("schemaVersion").asInt(0) < WORKING_STATE_SCHEMA_VERSION) {
                 return; // 旧格式状态不生成摘要（渐进升级后自然启用）
             }
