@@ -631,6 +631,28 @@ class AgentRuntimeCoordinatorTest {
         assertThat(settlement.getValue().combinedBasis()).isEqualTo("PROVIDER");
     }
 
+    /** Legacy 解析失败（IllegalArgumentException 携带用量）到最终结算：真实值保留。 */
+    @Test
+    void legacyParseFailureCarriesCompletionUsageIntoSettlement() {
+        AgentRunView run = run();
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("研究", List.of()));
+        when(repository.listSteps(any(), any())).thenReturn(List.of());
+        when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
+        when(repository.consumeRecovery(any(), eq("FORMAT_REPAIR"), eq(1))).thenReturn(false);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false)))
+                .thenThrow(new LegacyDecisionParseFailure("Agent 决策不是合法 JSON", 100, 50));
+
+        coordinator.advance(run);
+
+        ArgumentCaptor<AgentRunEventRecorder.UsageSettlement> settlement =
+                ArgumentCaptor.forClass(AgentRunEventRecorder.UsageSettlement.class);
+        verify(repository).settleOrphanUsage(eq(run.projectId()), eq(run.id()), any(), eq("MODEL_TURN"), settlement.capture());
+        assertThat(settlement.getValue().inputTokens()).isEqualTo(100);
+        assertThat(settlement.getValue().outputTokens()).isEqualTo(50);
+        assertThat(settlement.getValue().combinedBasis()).isEqualTo("PROVIDER");
+    }
+
     /** 异常仅携带单侧用量：提供商侧保留，缺失侧按证据估算，混合来源显式表示。 */
     @Test
     void providerFailureWithSingleSideUsageKeepsProviderSide() {

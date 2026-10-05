@@ -90,7 +90,14 @@ public class LegacyReadOnlyAgentExecutor {
         AiRequestMetadata md = sessionId != null ? AiRequestMetadata.of(sessionId.toString()) : AiRequestMetadata.fresh();
         ChatCompletionResult completion = chatGateway.complete(command, md);
 
-        AgentDecision decision = decisionParser.parse(completion.content(), correctionAttempted);
+        // 解析失败保留提供商已上报的响应用量随异常携带（格式修复语义不变）
+        AgentDecision decision;
+        try {
+            decision = decisionParser.parse(completion.content(), correctionAttempted);
+        } catch (IllegalArgumentException malformed) {
+            throw new LegacyDecisionParseFailure(malformed.getMessage(),
+                    completion.promptTokens(), completion.completionTokens());
+        }
 
         return convertToModelTurnResult(completion, decision);
     }

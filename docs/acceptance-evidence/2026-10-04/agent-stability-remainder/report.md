@@ -64,6 +64,15 @@
 
 测试组织为顺序矩阵（真实 PostgreSQL）：正常→正常重复、补结算→正常、正常→补结算、恢复收口→迟到证据、未知结算→迟到证据、估算已确认→迟到拒绝，每种顺序下总额恰增加一次、真实证据不丢失；另补异常携带完整用量与仅单侧用量两回归（协调器）与摘要异常携带用量回归。AgentActualTokenUsageIntegrationTest 19 项、AgentRuntimeCoordinatorTest 29 项、AgentContextSummarizerTest 24 项；后端全量 1042 项 0 失败/0 错误、11 显式 opt-in 跳过。按评审意见未重跑规划链路或 24 轮批次。
 
+## 异常用量上游透传轮（2026-10-05，`codex/context-foundation` 最新提交）：外部四次评审确认的最后两处丢失点
+
+前两轮评审确认消费端（结算函数）已保留异常携带用量后，本轮封堵上游两处产生点：
+
+1. **原生适配器（Zen 流式与非流式）**：`completeWithSession` 截断判定先于 usage 解析、`turnStreamingSyncWithSession` 的空结果/截断/保留工具/分片缺 index 四个出口、`parseTurnResponse` 的空结果/截断出口，均把已收到的提供商 usage 装进 `ProviderResponseFailure`（主调用、摘要、重压缩共用此路径），错误码与格式修复语义不变。
+2. **Legacy 决策解析失败**：新增 `LegacyDecisionParseFailure extends IllegalArgumentException implements UsageCarryingFailure`——保留格式修复语义，同时携带 completion 的 prompt/completion 用量。
+
+统一契约 `UsageCarryingFailure`（carriedUsage()）：协调器 `failureSettlement` 只认接口，异常产生处装值、消费端取值，中间不再有丢失点。回归按"产生点→异常→结算"链组织：适配器流式截断（1234/567 PROVIDER）、空结果（900/0）、非流式截断（800/1200）、Legacy 解析失败（100/50，扩展原"响应含 100/50、正文不是 JSON"用例的断言）、协调器端到端（解析失败→结算 100/50 PROVIDER）。OpenAiTurnStreamingTest 8 项、LegacyReadOnlyAgentExecutorTest 8 项、AgentRuntimeCoordinatorTest 30 项；后端全量 1046 项 0 失败/0 错误、11 显式 opt-in 跳过。按评审意见未重跑规划或 24 轮。
+
 ## 环境恢复
 
 见 [database-final-state.json](database-final-state.json)。宿主经 stop 标记正常停止（finally 恢复模型配置），隔离容器停止但保留，卷未删除；未部署、未合并 main、未迁移正式库。私有登录缓存、批次状态文件（target 下）与宿主日志保留在忽略的 target 下。
