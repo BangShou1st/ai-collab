@@ -227,13 +227,18 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
 
             // 既没有文本也没有 tool_calls 是协议错误
             if ((content == null || content.isBlank()) && toolCalls.isEmpty()) {
-                throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                        "模型既没有返回文本也没有返回工具调用");
+                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "模型既没有返回文本也没有返回工具调用",
+                        usage == null ? null : usage.inputTokens(),
+                        usage == null ? null : usage.outputTokens());
             }
 
             // finish_reason=length 表示截断
             if (finishReason == ModelFinishReason.LENGTH) {
-                throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
+                        "PROVIDER / OUTPUT_TRUNCATED",
+                        usage == null ? null : usage.inputTokens(),
+                        usage == null ? null : usage.outputTokens());
             }
 
             return new ModelTurnResult(
@@ -301,7 +306,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         });
 
         if (finishReason.get()==ModelFinishReason.LENGTH) throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
-        List<ModelToolCall> toolCalls = buildDeltaToolCalls(deltas);
+        List<ModelToolCall> toolCalls = buildDeltaToolCallsCarryingUsage(deltas, usage);
 
         long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
 
@@ -324,6 +329,17 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 providerType().name(),
                 model.get(),
                 latencyMs);
+    }
+
+    /** 工具参数解析在握有 usage 的边界包装：已收到的提供商用量随异常携带，错误码与消息保留。 */
+    private List<ModelToolCall> buildDeltaToolCallsCarryingUsage(
+            java.util.Map<Integer, DeltaToolCall> deltas, java.util.concurrent.atomic.AtomicReference<ModelUsage> usage) {
+        try {
+            return buildDeltaToolCalls(deltas);
+        } catch (BusinessException e) {
+            throw new ProviderResponseFailure(e.getErrorCode(), e.getMessage(),
+                    carriedPrompt(usage), carriedCompletion(usage));
+        }
     }
 
     private List<ModelToolCall> buildDeltaToolCalls(java.util.Map<Integer, DeltaToolCall> deltas) {
@@ -701,7 +717,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             String finish = choice.path("finish_reason").asText("");
             if (!finish.isEmpty()) finishReason.set(mapFinishReason(finish));
         });
-        List<ModelToolCall> toolCalls = buildDeltaToolCalls(deltas);
+        List<ModelToolCall> toolCalls = buildDeltaToolCallsCarryingUsage(deltas, usage);
         if (toolCalls.stream().anyMatch(call -> isZenReservedTool(call.name())))
             throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                     "模型调用了 Zen 传输保留工具；该调用不会执行",

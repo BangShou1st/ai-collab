@@ -73,6 +73,13 @@
 
 统一契约 `UsageCarryingFailure`（carriedUsage()）：协调器 `failureSettlement` 只认接口，异常产生处装值、消费端取值，中间不再有丢失点。回归按"产生点→异常→结算"链组织：适配器流式截断（1234/567 PROVIDER）、空结果（900/0）、非流式截断（800/1200）、Legacy 解析失败（100/50，扩展原"响应含 100/50、正文不是 JSON"用例的断言）、协调器端到端（解析失败→结算 100/50 PROVIDER）。OpenAiTurnStreamingTest 8 项、LegacyReadOnlyAgentExecutorTest 8 项、AgentRuntimeCoordinatorTest 30 项；后端全量 1046 项 0 失败/0 错误、11 显式 opt-in 跳过。按评审意见未重跑规划或 24 轮。
 
+## 异常用量收口轮（2026-10-05，`codex/context-foundation` 最新提交）：外部五次评审确认的最后两处遗漏
+
+1. **生产非流式 turn() 出口**：公共 `turn()` 的空结果与截断出口改为携带已解析 usage 的 `ProviderResponseFailure`（此前只修了 `parseTurnResponse`/`completeWithSession`，生产路径未覆盖）。
+2. **Zen 工具参数解析异常**：`buildDeltaToolCalls` 的三个业务异常（缺 function.name、参数不是合法 JSON、参数不是 Object）在两个握有 usage 的流式调用点统一经 `buildDeltaToolCallsCarryingUsage` 边界包装——错误码与消息保留、已收到的提供商用量随异常携带。
+
+回归：公共 turn() 截断（700/300）与空结果（640/0）携带用量、Zen 坏工具参数（1234/567）与缺名称（500/60）携带用量且消息保留；OpenAiTurnContractTest 16 项、OpenAiTurnStreamingTest 10 项；后端全量 1050 项 0 失败/0 错误、11 显式 opt-in 跳过。按评审意见未重跑规划或 24 轮。
+
 ## 环境恢复
 
 见 [database-final-state.json](database-final-state.json)。宿主经 stop 标记正常停止（finally 恢复模型配置），隔离容器停止但保留，卷未删除；未部署、未合并 main、未迁移正式库。私有登录缓存、批次状态文件（target 下）与宿主日志保留在忽略的 target 下。
