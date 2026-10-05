@@ -226,9 +226,14 @@ public class AgentContextSummarizer {
                         retry = modelExecutor.callModelWithoutTools(run, recompressMessages(text));
                     } catch (RuntimeException reFailure) {
                         // 第二次失败：第一次的真实用量已单独结算；第二次请求正文已构造完成——
-                        // 输入按实际请求大小估算，输出确实无响应证据才标 UNKNOWN，不把有据可估记成未知零值
+                        // 异常携带的提供商用量优先，缺失侧输入按实际请求大小估算，
+                        // 输出确实无响应证据才标 UNKNOWN，不把有据可估记成未知零值
+                        com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage carried = reFailure instanceof
+                                com.shitulelv.aicollab.infrastructure.ai.model.ProviderResponseFailure provider
+                                ? new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(
+                                        provider.promptTokens(), provider.completionTokens()) : null;
                         repository.completeSummaryRecompressAttempt(recompressId, "FAILED", "unknown",
-                                UsageSettlement.fromRaw(null, Math.max(1, recompressRequestChars(text) / 3), 0, null), null);
+                                UsageSettlement.fromRaw(carried, Math.max(1, recompressRequestChars(text) / 3), 0, null), null);
                         repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
                                 "RECOMPRESS_FAILED");
                         log.warn("摘要重压缩失败，保留上一份摘要且首次用量已结算: run={}", run.id(), reFailure);
@@ -253,11 +258,17 @@ public class AgentContextSummarizer {
                 commitSummary(run, state, previous, hasPrevious, candidates, newSegments, text,
                         result.model(), firstUsage, attemptId, recompressNote);
             } catch (RuntimeException failure) {
-                // 摘要是辅助能力：任何异常不得破坏主轮次。第一次调用已返回的真实 usage
-                // 不因后续失败丢失；无响应证据时按实际请求大小估算，输出侧显式 UNKNOWN
+                // 摘要是辅助能力：任何异常不得破坏主轮次。ProviderResponseFailure 携带的
+                // 提供商用量优先保留（含单侧）；第一次调用已返回的真实 usage 不因后续失败
+                // 丢失；无响应证据时按实际请求大小估算，输出侧显式 UNKNOWN
                 if (firstUsage != null) {
                     repository.completeSummaryAttempt(attemptId, "FAILED", "unknown", firstUsage,
                             "POST_RESPONSE_FAILURE");
+                } else if (failure instanceof com.shitulelv.aicollab.infrastructure.ai.model.ProviderResponseFailure provider) {
+                    repository.completeSummaryAttempt(attemptId, "FAILED", "unknown",
+                            UsageSettlement.fromRaw(new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(
+                                    provider.promptTokens(), provider.completionTokens()),
+                                    Math.max(1, actualInputChars / 3), 0, null), null);
                 } else {
                     repository.completeSummaryAttempt(attemptId, "FAILED", "unknown",
                             UsageSettlement.fromRaw(null, Math.max(1, actualInputChars / 3), 0, null), null);

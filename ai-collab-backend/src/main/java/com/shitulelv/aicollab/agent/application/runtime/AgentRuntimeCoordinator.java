@@ -306,7 +306,7 @@ public class AgentRuntimeCoordinator {
                 // 请求已发出、无可用响应证据：输入按实际请求规模估算入账，输出显式 UNKNOWN，
                 // 身份行进入终态——不留"仍在调用中"的未结算行，失败调用的消耗也不丢失
                 repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN",
-                        AgentRunEventRecorder.UsageSettlement.fromRaw(null, AgentModelAccounting.estimatedInput(1), 0, null));
+                        failureSettlement(malformed));
                 boolean repair=repository.consumeRecovery(run,"FORMAT_REPAIR",1);
                 if (repair) {
                     repository.recordFailure(run,"FORMAT_REPAIR_REQUESTED",true);
@@ -316,10 +316,10 @@ public class AgentRuntimeCoordinator {
                 return new AgentWorkerOutcome(AgentRunStatus.FAILED,null,null,"FORMAT_REPAIR_EXHAUSTED");
             } catch (BusinessException failure) {
                 Thread.interrupted();
-                // 超时/提供商异常/请求中取消：请求已发出——先按证据结算本次调用（有据估算输入，
-                // 输出未知显式 UNKNOWN），身份行终态，再走失败/恢复/取消流程
+                // 超时/提供商异常/请求中取消：请求已发出——先结算本次调用（异常携带的提供商
+                // 用量优先保留，缺失侧按证据估算或显式 UNKNOWN），身份行终态，再走失败/恢复/取消流程
                 repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN",
-                        AgentRunEventRecorder.UsageSettlement.fromRaw(null, AgentModelAccounting.estimatedInput(1), 0, null));
+                        failureSettlement(failure));
                 cancellation.throwIfRequested(run);
                 if (failure.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
                     throw failure;
@@ -531,6 +531,17 @@ public class AgentRuntimeCoordinator {
         int outputEstimate = Math.max(1, (json.valueToTree(turn).toString().length() + 2) / 3);
         return AgentRunEventRecorder.UsageSettlement.fromRaw(turn.usage(), inputEstimate, outputEstimate,
                 turn.latencyMs());
+    }
+
+    /** 异常出口的结算值：ProviderResponseFailure 携带的提供商用量优先保留（含单侧），
+     *  缺失侧按请求证据估算或显式 UNKNOWN——不得把异常中的真实值替换成估算。 */
+    private AgentRunEventRecorder.UsageSettlement failureSettlement(Throwable failure) {
+        com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage carried = null;
+        if (failure instanceof com.shitulelv.aicollab.infrastructure.ai.model.ProviderResponseFailure p) {
+            carried = new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(
+                    p.promptTokens(), p.completionTokens());
+        }
+        return AgentRunEventRecorder.UsageSettlement.fromRaw(carried, AgentModelAccounting.estimatedInput(1), 0, null);
     }
 
     private AgentWorkerOutcome budgetExceeded(AgentRunView run) {        repository.recordBudgetExceeded(run);

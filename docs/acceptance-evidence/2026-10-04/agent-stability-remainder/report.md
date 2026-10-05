@@ -54,6 +54,16 @@
 
 **完整前置状态复验**（`planning-reverify`，代码 `b2d6f2d`，隔离副本，embedding 可用）：新会话按原措辞重放第 1/7/10/18 轮（建立日期/负责人/10→目标切换→8→新目标+6 的完整前置），工作状态与冻结 fixed24 终态一致（active=最多6项+日期区间+Local Owner，10/8 superseded 可追溯）后执行第 23 轮：start_task_plan **一次受理成功**（无重复盲试），规划服务链路 SKELETON SUCCESS → DETAIL FAILED（PLANNING_MODEL_INVALID_OUTPUT）→ REPAIR SUCCESS（既有局部修复路径）→ READY v2：**6 项任务、3 个里程碑、日期全部落在 2026-10-05..10-25、负责人齐备、依赖无环、validation.errors=[]、草稿零旧数量残留、6 条真实检索来源**；confirmations=0、正式任务=0。账本审计：5 个运行、9 次模型调用=9 条已结算身份行、0 未结算、0 对账差异。测试：AgentActualTokenUsageIntegrationTest 15 项（新增 4 项故障注入/原子回归），后端全量 1034 项 0 失败。
 
+## 结算顺序闭环轮（2026-10-05，代码分支 `codex/context-foundation` 最新提交）：外部三次评审剩余三项结算问题的封堵
+
+外部三次只读评审确认（按"同一调用无论按什么顺序结算，总额最终只增加一次，已有真实证据不丢失"组织验证）：
+
+1. **原子入口未检查身份占用结果**：`claimIdentity` 更新 0 行时原子入口仍继续累计。修复：`claimIdentityOrThrow` 占用失败（已结算或身份不存在，区分报错）即在事务内抛出回滚，累计不会发生。真实 PG 顺序回归：正常→同身份再次正常记账（刷新版本绕过业务 CAS，检验身份独占本身）→ 拒绝且总额只增加一次、步骤只写一条；补结算→正常记账 → 拒绝且总额不变、零步骤。
+2. **恢复收口永久拒绝迟到真实用量**：收口语义改为"用量未确认"（0/0+UNKNOWN），`settleOrphanUsage` 的占用谓词从"未结算"放宽为"未确认"（UNKNOWN 且两侧无已确认数值）——恢复收口的行与未知结算的行都允许迟到证据幂等补全一次（此前入账为 0，补全后总额恰为真实值）；PROVIDER/ESTIMATED 属已确认结算，拒绝覆盖。原测试把"恢复后拒绝真实用量"断言成正确行为，已改正。
+3. **异常结算丢掉异常携带的提供商用量**：`ProviderResponseFailure` 携带的 prompt/completionTokens 优先保留（含单侧：提供商侧 PROVIDER、缺失侧 UNKNOWN/按证据估算），协调器两个异常分支与摘要的首次调用/重压缩异常路径统一走该规则。
+
+测试组织为顺序矩阵（真实 PostgreSQL）：正常→正常重复、补结算→正常、正常→补结算、恢复收口→迟到证据、未知结算→迟到证据、估算已确认→迟到拒绝，每种顺序下总额恰增加一次、真实证据不丢失；另补异常携带完整用量与仅单侧用量两回归（协调器）与摘要异常携带用量回归。AgentActualTokenUsageIntegrationTest 19 项、AgentRuntimeCoordinatorTest 29 项、AgentContextSummarizerTest 24 项；后端全量 1042 项 0 失败/0 错误、11 显式 opt-in 跳过。按评审意见未重跑规划链路或 24 轮批次。
+
 ## 环境恢复
 
 见 [database-final-state.json](database-final-state.json)。宿主经 stop 标记正常停止（finally 恢复模型配置），隔离容器停止但保留，卷未删除；未部署、未合并 main、未迁移正式库。私有登录缓存、批次状态文件（target 下）与宿主日志保留在忽略的 target 下。

@@ -13,6 +13,7 @@ import com.shitulelv.aicollab.agent.domain.model.*;
 import com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuard;
 import com.shitulelv.aicollab.agent.domain.tool.*;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
 import com.shitulelv.aicollab.common.exception.BusinessException;
@@ -607,6 +608,52 @@ class AgentRuntimeCoordinatorTest {
      * 最后一次取消检查之后、落库之前收到取消：recordModelTurn 的租约校验抛出取消，
      * 已返回响应的用量必须按调用身份补结算，不得随取消丢失。
      */
+    /** 异常携带完整提供商用量：结算保留真实值（PROVIDER），不替换成估算。 */
+    @Test
+    void providerFailureCarriesFullUsageIntoSettlement() {
+        AgentRunView run = run();
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("研究", List.of()));
+        when(repository.listSteps(any(), any())).thenReturn(List.of());
+        when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false)))
+                .thenThrow(new com.shitulelv.aicollab.infrastructure.ai.model.ProviderResponseFailure(
+                        ErrorCode.AI_MODEL_TIMEOUT, "provider timeout", 1234, 567));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED_RETRYABLE);
+        ArgumentCaptor<AgentRunEventRecorder.UsageSettlement> settlement =
+                ArgumentCaptor.forClass(AgentRunEventRecorder.UsageSettlement.class);
+        verify(repository).settleOrphanUsage(eq(run.projectId()), eq(run.id()), any(), eq("MODEL_TURN"), settlement.capture());
+        assertThat(settlement.getValue().inputTokens()).isEqualTo(1234);
+        assertThat(settlement.getValue().outputTokens()).isEqualTo(567);
+        assertThat(settlement.getValue().combinedBasis()).isEqualTo("PROVIDER");
+    }
+
+    /** 异常仅携带单侧用量：提供商侧保留，缺失侧按证据估算，混合来源显式表示。 */
+    @Test
+    void providerFailureWithSingleSideUsageKeepsProviderSide() {
+        AgentRunView run = run();
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("研究", List.of()));
+        when(repository.listSteps(any(), any())).thenReturn(List.of());
+        when(repository.pendingModelTurn(any())).thenReturn(java.util.Optional.empty());
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false)))
+                .thenThrow(new com.shitulelv.aicollab.infrastructure.ai.model.ProviderResponseFailure(
+                        ErrorCode.AI_MODEL_TIMEOUT, "provider timeout", 1234, null));
+
+        coordinator.advance(run);
+
+        ArgumentCaptor<AgentRunEventRecorder.UsageSettlement> settlement =
+                ArgumentCaptor.forClass(AgentRunEventRecorder.UsageSettlement.class);
+        verify(repository).settleOrphanUsage(eq(run.projectId()), eq(run.id()), any(), eq("MODEL_TURN"), settlement.capture());
+        assertThat(settlement.getValue().inputTokens()).isEqualTo(1234);
+        assertThat(settlement.getValue().inputBasis()).isEqualTo("PROVIDER");
+        assertThat(settlement.getValue().outputBasis()).isEqualTo("UNKNOWN");
+        assertThat(settlement.getValue().combinedBasis()).isEqualTo("ESTIMATED");
+    }
+
     @Test
     void cancelAfterLastCheckBeforeBookingStillSettlesReturnedUsage() {
         AgentRunView run = run();

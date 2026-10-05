@@ -429,9 +429,12 @@ class AgentActualTokenUsageIntegrationTest {
                 .isEqualTo(25000);
     }
 
-    /** 恢复接管收口：未结算身份行显式转为 0/0 + UNKNOWN 终态，不虚构消耗。 */
+    /**
+     * 恢复接管收口 + 迟到真实响应：收口显式记 0/0 + UNKNOWN（用量未确认），不虚构消耗；
+     * 旧 worker 迟到返回的真实 usage 仍按原身份幂等补全一次，业务动作由租约拦截。
+     */
     @Test
-    void recoveryClosesUnresolvedIdentitiesAsExplicitUnknown() {
+    void recoveryClosureStillAcceptsLateRealUsageExactlyOnce() {
         Fixture fixture = fixture();
         AgentRunView run = runningRun(fixture, "恢复收口");
         String callId = repository.beginModelCall(fixture.project(), run.id(), "MODEL_TURN");
@@ -446,9 +449,106 @@ class AgentActualTokenUsageIntegrationTest {
                 "SELECT input_tokens_actual FROM agent_usage_settlement WHERE run_id=? AND call_id=?",
                 Integer.class, run.id(), callId)).isZero();
         assertThat(repository.findRun(fixture.project(), run.id()).orElseThrow().inputTokensActual()).isZero();
-        // 已收口的行不再被补结算占用
+
+        // 迟到的真实响应：按原调用身份补全，真实用量不丢失；此前入账为 0，补全后总额恰为真实值
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 1L))).isTrue();
+        AgentRunView completed = repository.findRun(fixture.project(), run.id()).orElseThrow();
+        assertThat(completed.inputTokensActual()).isEqualTo(REAL_INPUT);
+        assertThat(completed.outputTokensActual()).isEqualTo(700);
+        // 已按证据确认结算：重复补全被拒绝
         assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
                 "MODEL_TURN", provider(REAL_INPUT, 700, 1L))).isFalse();
+        assertThat(repository.findRun(fixture.project(), run.id()).orElseThrow().inputTokensActual())
+                .isEqualTo(REAL_INPUT);
+    }
+
+    /** 未知结算（0/0 UNKNOWN）后迟到证据：同样允许幂等补全一次，总额从 0 变为真实值。 */
+    @Test
+    void unknownSettlementThenLateEvidenceBooksExactlyOnce() {
+        Fixture fixture = fixture();
+        AgentRunView run = runningRun(fixture, "未知结算后迟到证据");
+        String callId = repository.beginModelCall(fixture.project(), run.id(), "MODEL_TURN");
+
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", AgentRunEventRecorder.UsageSettlement.unknown())).isTrue();
+        assertThat(repository.findRun(fixture.project(), run.id()).orElseThrow().inputTokensActual()).isZero();
+
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 1L))).isTrue();
+        assertThat(repository.findRun(fixture.project(), run.id()).orElseThrow().inputTokensActual())
+                .isEqualTo(REAL_INPUT);
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 1L))).isFalse();
+        assertThat(repository.findRun(fixture.project(), run.id()).orElseThrow().inputTokensActual())
+                .isEqualTo(REAL_INPUT);
+    }
+
+    /** 估算结算（ESTIMATED）属已确认：迟到证据不得覆盖，总额保持估算值。 */
+    @Test
+    void estimatedSettledIdentityRejectsLateEvidence() {
+        Fixture fixture = fixture();
+        AgentRunView run = runningRun(fixture, "估算已确认");
+        String callId = repository.beginModelCall(fixture.project(), run.id(), "MODEL_TURN");
+
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", AgentRunEventRecorder.UsageSettlement.fromRaw(null, 4000, 300, null))).isTrue();
+
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 1L))).isFalse();
+        assertThat(repository.findRun(fixture.project(), run.id()).orElseThrow().inputTokensActual())
+                .isEqualTo(4000);
+    }
+
+    /** 顺序矩阵：正常原子记账 → 同身份再次正常记账（刷新版本绕过业务 CAS）→ 拒绝且总额只增加一次。 */
+    @Test
+    void atomicBookingTwiceBooksOnce() {
+        Fixture fixture = fixture();
+        AgentRunView run = runningRun(fixture, "重复原子记账");
+        String callId = repository.beginModelCall(fixture.project(), run.id(), "MODEL_TURN");
+
+        transactions.executeWithoutResult(tx -> repository.recordModelTurnWithSettlement(run,
+                turnWith(new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(REAL_INPUT, 700), "第一次"),
+                callId, "MODEL_TURN", provider(REAL_INPUT, 700, 100L)));
+
+        // 重复回调：刷新运行版本（绕过 recordModelTurn 的版本 CAS，检验身份独占本身）
+        AgentRunView refreshed = repository.findRun(fixture.project(), run.id()).orElseThrow();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> transactions.executeWithoutResult(tx ->
+                repository.recordModelTurnWithSettlement(refreshed,
+                        turnWith(new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(REAL_INPUT, 700), "重复响应"),
+                        callId, "MODEL_TURN", provider(REAL_INPUT, 700, 100L))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("已结算");
+
+        assertThat(repository.findRun(fixture.project(), run.id()).orElseThrow().inputTokensActual())
+                .isEqualTo(REAL_INPUT);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM agent_step WHERE run_id=? AND type='MODEL_TURN'",
+                Integer.class, run.id())).isEqualTo(1);
+    }
+
+    /** 顺序矩阵：补结算 → 正常原子记账 → 拒绝且总额只增加一次。 */
+    @Test
+    void orphanSettleThenAtomicBookingRejected() {
+        Fixture fixture = fixture();
+        AgentRunView run = runningRun(fixture, "先补结算后正常");
+        String callId = repository.beginModelCall(fixture.project(), run.id(), "MODEL_TURN");
+
+        assertThat(repository.settleOrphanUsage(fixture.project(), run.id(), callId,
+                "MODEL_TURN", provider(REAL_INPUT, 700, 100L))).isTrue();
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> transactions.executeWithoutResult(tx ->
+                repository.recordModelTurnWithSettlement(run,
+                        turnWith(new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(REAL_INPUT, 700), "迟到的正常记账"),
+                        callId, "MODEL_TURN", provider(REAL_INPUT, 700, 100L))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("已结算");
+
+        assertThat(repository.findRun(fixture.project(), run.id()).orElseThrow().inputTokensActual())
+                .isEqualTo(REAL_INPUT);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM agent_step WHERE run_id=? AND type='MODEL_TURN'",
+                Integer.class, run.id())).isZero();
     }
 
     /** 缺失 usage 的孤儿结算：按请求/响应证据估算，basis 显式为 ESTIMATED。 */
