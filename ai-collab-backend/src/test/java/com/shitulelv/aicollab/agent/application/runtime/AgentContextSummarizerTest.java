@@ -451,6 +451,26 @@ class AgentContextSummarizerTest {
         verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
     }
 
+    /** 摘要首次调用抛出携带用量的提供商异常：真实 usage 保留结算，不被估算覆盖。 */
+    @Test
+    void providerFailureUsageSurvivesSummaryFailure() {
+        stubState(v2State(5, 1, null));
+        when(modelExecutor.callModelWithoutTools(any(), any()))
+                .thenThrow(new com.shitulelv.aicollab.infrastructure.ai.model.ProviderResponseFailure(
+                        com.shitulelv.aicollab.common.exception.ErrorCode.AI_MODEL_TIMEOUT,
+                        "provider timeout", 321, 45));
+
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
+
+        ArgumentCaptor<UsageSettlement> usage = ArgumentCaptor.forClass(UsageSettlement.class);
+        verify(repository).completeSummaryAttempt(eq(attemptId), eq("FAILED"), eq("unknown"),
+                usage.capture(), any());
+        assertThat(usage.getValue().inputTokens()).isEqualTo(321);
+        assertThat(usage.getValue().outputTokens()).isEqualTo(45);
+        assertThat(usage.getValue().combinedBasis()).isEqualTo("PROVIDER");
+        verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
+    }
+
     /** 剩余输出预算放不下摘要输出预留：不发起摘要，主调用输出预留独立于输入预算。 */
     @Test
     void summaryIsSkippedWhenOutputBudgetCannotFitOutputReserve() {

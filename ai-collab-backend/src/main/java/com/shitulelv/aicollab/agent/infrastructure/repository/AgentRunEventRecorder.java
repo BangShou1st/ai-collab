@@ -851,14 +851,14 @@ public class AgentRunEventRecorder {
 
     /**
      * 正常记账（原子）：身份行首次结算与运行用量累计、步骤写入在同一事务内完成。
-     * 先以条件更新独占结算身份行（仅未结算行可占用），再执行 recordModelTurn 的
-     * 运行累计与步骤写入；任一步失败则整体回滚——不会出现"运行已扣账、身份行仍未结算"
-     * 的中间态，同身份后续补结算也不会重复累计。模型网络请求不在本事务内。
+     * 先以条件更新独占结算身份行（仅未结算行可占用，占用失败即拒绝累计），
+     * 再执行 recordModelTurn 的运行累计与步骤写入；任一步失败则整体回滚——
+     * 同一身份无论以什么顺序、被调用多少次，总额只增加一次。模型网络请求不在本事务内。
      */
     @Transactional
     public AgentRunView recordModelTurnWithSettlement(AgentRunView run, ModelTurnResult turn,
             String callId, String kind, UsageSettlement settlement) {
-        claimIdentity(run.id(), callId, kind, settlement);
+        claimIdentityOrThrow(run.id(), callId, kind, settlement);
         return recordModelTurn(run, turn);
     }
 
@@ -866,13 +866,12 @@ public class AgentRunEventRecorder {
     @Transactional
     public void recordBudgetExceededWithSettlement(AgentRunView run, ChatCompletionResult completion,
             String callId, String kind, UsageSettlement settlement) {
-        claimIdentity(run.id(), callId, kind, settlement);
+        claimIdentityOrThrow(run.id(), callId, kind, settlement);
         recordBudgetExceeded(run, completion);
     }
 
     /**
      * 条件更新独占结算身份行：仅未结算行（UNKNOWN + token 列 NULL）可占用并写入结算值。
-     * 返回 0 表示该身份已结算过——调用方在同一事务内据此回滚，避免重复累计。
      */
     private int claimIdentity(UUID runId, String callId, String kind, UsageSettlement settlement) {
         return jdbc.update("""
@@ -884,8 +883,24 @@ public class AgentRunEventRecorder {
                 settlement.latencyMs() == null ? null : settlement.latencyMs().intValue(), runId, callId);
     }
 
-    /** 恢复接管时收口未结算身份行：原 worker 已越过 stale 边界，调用结果真实不可知——
-     *  显式记为 0/0 + UNKNOWN 终态，不长期停留在"仍在调用中"，也不虚构消耗。 */
+    /** 占用身份行；占用失败（已结算或身份不存在）必须终止累计，由调用方在同一事务内回滚。 */
+    private void claimIdentityOrThrow(UUID runId, String callId, String kind, UsageSettlement settlement) {
+        if (claimIdentity(runId, callId, kind, settlement) == 1) return;
+        boolean exists = jdbc.queryForObject(
+                "SELECT count(*) FROM agent_usage_settlement WHERE run_id=? AND call_id=?",
+                Integer.class, runId, callId) > 0;
+        throw new IllegalStateException(exists
+                ? "模型调用身份已结算，拒绝重复累计: " + callId
+                : "模型调用身份不存在: " + callId);
+    }
+
+    /** 用量未确认判定：UNKNOWN 且两侧都无已确认数值（NULL 或 0）。被恢复收口或未知结算过的行
+     *  仍可被迟到证据幂等补全；PROVIDER/ESTIMATED 属已确认结算，不再被覆盖。 */
+    private static final String UNCONFIRMED_PREDICATE =
+            " AND usage_basis='UNKNOWN' AND COALESCE(input_tokens_actual,0)=0 AND COALESCE(output_tokens_actual,0)=0";
+
+    /** 恢复接管时收口未结算身份行：显式记为 0/0 + UNKNOWN（用量未确认），不虚构消耗；
+     *  旧 worker 的迟到真实响应仍可按原身份补全（见 settleOrphanUsage），业务动作由租约拦截。 */
     @Transactional
     public int closeUnresolvedModelCalls(UUID runId) {
         return jdbc.update("""
@@ -898,9 +913,10 @@ public class AgentRunEventRecorder {
     /**
      * 结算"状态机已离开 RUNNING"后仍须如实入账的模型用量：
      * 模型调用已发生但运行被取消/并发推进/业务状态校验失败时，used 封顶、actual 如实累计。
-     * 结算基于 {@link #beginModelCall} 落库的调用身份，只有未结算行会入账：
-     * 重复回调、恢复与取消竞争只入账一次；业务状态已终结不妨碍结算已发生费用。
-     * UNKNOWN（无任何证据）结算为 0/0 但 basis 显式标 UNKNOWN，不冒充真实零费用或提供商值。
+     * 结算基于 {@link #beginModelCall} 落库的调用身份，只有"用量未确认"的行会入账：
+     * 重复回调、恢复与取消竞争只入账一次；恢复收口（0/0 UNKNOWN）或未知结算的行
+     * 允许迟到证据幂等补全（此前入账为 0，补全后总额恰为真实值）；
+     * PROVIDER/ESTIMATED 已确认结算的行拒绝覆盖。业务状态已终结不妨碍结算已发生费用。
      */
     @Transactional
     public boolean settleOrphanUsage(
@@ -909,10 +925,10 @@ public class AgentRunEventRecorder {
                 UPDATE agent_usage_settlement
                 SET kind=?, input_tokens_actual=?, output_tokens_actual=?, usage_basis=?, latency_ms=?
                 WHERE run_id=? AND call_id=?
-                """ + UNSETTLED_PREDICATE,
+                """ + UNCONFIRMED_PREDICATE,
                 kind, usage.bookedInput(), usage.bookedOutput(), usage.combinedBasis(),
                 usage.latencyMs() == null ? null : usage.latencyMs().intValue(), runId, callId);
-        if (settled == 0) return false; // 同一调用已结算：不重复入账
+        if (settled == 0) return false; // 已确认结算：不重复入账
         bookUsageToRun(projectId, runId, usage);
         return true;
     }
