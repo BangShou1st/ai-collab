@@ -434,9 +434,18 @@ export function useAgentWorkspace() {
   async function retryActiveRun() {
     if (!activeRun.value || sending.value) return
     const sourceRunId = activeRun.value.id
+    // 记录请求作用域：响应返回时用户可能已切换项目/会话，或页面已被其他恢复重建；
+    // 迟到响应不得覆盖已切换的视图、不得启动不属于当前作用域的事件订阅
+    const requestedProjectId = projectId.value
+    const requestedSessionId = sessionId.value
+    const requestedToken = restoreSeq
     sending.value = true
     try {
-      const run = (await agentApi.retry(projectId.value, sourceRunId)).data
+      const run = (await agentApi.retry(requestedProjectId, sourceRunId)).data
+      if (projectId.value !== requestedProjectId || sessionId.value !== requestedSessionId
+        || restoreSeq !== requestedToken) {
+        return
+      }
       if (run.id !== sourceRunId) {
         // 终态重新尝试返回新运行：切换过去并恢复事件订阅；旧运行记录保留可回看
         ++restoreSeq

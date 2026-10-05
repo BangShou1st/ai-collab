@@ -200,4 +200,72 @@ describe('AgentView retry', () => {
     expect(mocks.runEvents).toHaveBeenCalledWith('project-1', 'run-1', 0)
     wrapper.unmount()
   })
+
+  it('项目切换后的迟到重试响应被忽略，不覆盖当前视图或启动订阅', async () => {
+    mocks.latestRun.mockResolvedValue(response({
+      run: runOf('run-1', 'session-1', 'FAILED'), plan: null, lastEventSequence: 5, pendingApprovalId: null,
+    }))
+    const urls = fetchedUrls()
+    let resolveRetry: (value: unknown) => void = () => undefined
+    mocks.retry.mockReturnValue(new Promise((resolve) => { resolveRetry = resolve }))
+
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-test="agent-retry"]').exists()).toBe(true)
+
+    await wrapper.find('[data-test="agent-retry"]').trigger('click')
+    // 请求未返回时切到另一项目
+    ;(g.__testRoute as { params: Record<string, string> }).params.projectId = 'project-2'
+    await flushPromises()
+    await flushPromises()
+
+    resolveRetry(response(runOf('run-2', 'session-1', 'QUEUED')))
+    await flushPromises()
+
+    expect(mocks.retry).toHaveBeenCalledTimes(1)
+    expect(mocks.retry).toHaveBeenCalledWith('project-1', 'run-1')
+    // 不订阅 A 项目派生运行的事件，也不切换运行状态
+    expect(urls.some((u) => u.includes('/runs/run-2/events'))).toBe(false)
+    expect(wrapper.find('[data-test="agent-retry"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('运行 · 失败')
+    wrapper.unmount()
+  })
+
+  it('会话切换后的迟到重试响应被忽略，保持新会话的运行视图', async () => {
+    mocks.sessions.mockResolvedValue(response([
+      session('session-1', '会话一'),
+      session('session-2', '会话二'),
+    ]))
+    mocks.latestRun.mockResolvedValue(response({
+      run: runOf('run-1', 'session-1', 'FAILED'), plan: null, lastEventSequence: 5, pendingApprovalId: null,
+    }))
+    const urls = fetchedUrls()
+    let resolveRetry: (value: unknown) => void = () => undefined
+    mocks.retry.mockReturnValue(new Promise((resolve) => { resolveRetry = resolve }))
+
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-test="agent-retry"]').exists()).toBe(true)
+
+    await wrapper.find('[data-test="agent-retry"]').trigger('click')
+    // 请求未返回时切到会话二（其最新运行已成功）
+    mocks.latestRun.mockResolvedValue(response({
+      run: runOf('run-old-2', 'session-2', 'SUCCEEDED'), plan: null, lastEventSequence: 2, pendingApprovalId: null,
+    }))
+    await wrapper.findAll('button.session')[1].trigger('click')
+    await flushPromises()
+    await flushPromises()
+    expect(wrapper.text()).toContain('运行 · 已完成')
+
+    resolveRetry(response(runOf('run-2', 'session-1', 'QUEUED')))
+    await flushPromises()
+
+    expect(mocks.retry).toHaveBeenCalledTimes(1)
+    expect(mocks.retry).toHaveBeenCalledWith('project-1', 'run-1')
+    // 不订阅 A 会话派生运行的事件，运行视图保持会话二的成功运行
+    expect(urls.some((u) => u.includes('/runs/run-2/events'))).toBe(false)
+    expect(wrapper.find('[data-test="agent-retry"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('运行 · 已完成')
+    wrapper.unmount()
+  })
 })
