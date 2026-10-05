@@ -162,6 +162,44 @@ class OpenAiTurnContractTest {
                 .isInstanceOf(BusinessException.class);
     }
 
+    /** 公共 turn() 入口的截断出口：usage 已解析，随 ProviderResponseFailure 携带。 */
+    @Test
+    void turnTruncationCarriesProviderUsage() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        ObjectNode response = createResponse("length");
+        getMessage(response).put("content", "truncated");
+        ObjectNode usage = response.putObject("usage");
+        usage.put("prompt_tokens", 700);
+        usage.put("completion_tokens", 300);
+        when(http.post(anyString(), anyMap(), any())).thenReturn(response);
+
+        assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, http)
+                .turn(config(), "key", textOnlyCommand()))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(700);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(300);
+                });
+    }
+
+    /** 公共 turn() 入口的空结果出口：usage 同样随异常携带。 */
+    @Test
+    void turnEmptyResultCarriesProviderUsage() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        ObjectNode response = createResponseWithNullContent("stop");
+        ObjectNode usage = response.putObject("usage");
+        usage.put("prompt_tokens", 640);
+        usage.put("completion_tokens", 0);
+        when(http.post(anyString(), anyMap(), any())).thenReturn(response);
+
+        assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, http)
+                .turn(config(), "key", textOnlyCommand()))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(640);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(0);
+                });
+    }
+
     @Test
     void finishReasonLengthThrows() {
         JsonHttpModelClient http = mock(JsonHttpModelClient.class);

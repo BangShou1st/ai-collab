@@ -132,6 +132,33 @@ class OpenAiTurnStreamingTest {
                 });
     }
 
+    /** Zen 坏工具参数（参数不是合法 JSON）：已收到的 usage 随异常携带，错误码保留。 */
+    @Test void badToolArgumentsCarryUsageIntoException() {
+        List<ObjectNode> chunks = List.of(
+                deltaChunk(null, null, toolDelta(0, "call_1", "list_tasks", "{\"status\":")),
+                usageChunk(null, "tool_calls", 1234, 567));
+        assertThatThrownBy(() -> streamingTurn(chunks))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
+                    assertThat(failure.getMessage()).contains("工具调用参数不是合法 JSON");
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(1234);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(567);
+                });
+    }
+
+    /** Zen 工具缺 function.name：同样携带已收到的 usage。 */
+    @Test void missingToolNameCarriesUsageIntoException() {
+        List<ObjectNode> chunks = List.of(
+                deltaChunk(null, null, toolDelta(0, "call_1", null, "{}")),
+                usageChunk(null, "tool_calls", 500, 60));
+        assertThatThrownBy(() -> streamingTurn(chunks))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.getMessage()).contains("工具调用缺少 function.name");
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(500);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(60);
+                });
+    }
+
     /** 非流式 complete 截断：usage 先于截断判定读取，随异常携带。 */
     @Test void nonStreamingTruncationCarriesUsage() {
         JsonHttpModelClient http = mock(JsonHttpModelClient.class);
