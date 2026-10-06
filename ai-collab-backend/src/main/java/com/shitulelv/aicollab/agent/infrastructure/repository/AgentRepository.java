@@ -229,10 +229,11 @@ public class AgentRepository {
 
     /** 暂停意图落库时间（未请求暂停为 null）；运行详情据此展示"正在暂停/已暂停"。 */
     public OffsetDateTime pauseRequestedAt(UUID projectId, UUID runId) {
-        return jdbc.query("""
+        // pause_requested_at 可空；行映射返回 null 不能进入 Optional.of（findFirst 会抛 NPE）。
+        var rows = jdbc.query("""
                 SELECT pause_requested_at FROM agent_run WHERE project_id=? AND id=?
-                """, (rs, row) -> rs.getObject("pause_requested_at", OffsetDateTime.class), projectId, runId)
-                .stream().findFirst().orElse(null);
+                """, (rs, row) -> rs.getObject("pause_requested_at", OffsetDateTime.class), projectId, runId);
+        return rows.isEmpty() ? null : rows.getFirst();
     }
 
     /**

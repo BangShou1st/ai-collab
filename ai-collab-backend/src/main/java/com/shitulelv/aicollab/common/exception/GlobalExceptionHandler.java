@@ -76,7 +76,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpectedException(Exception exception) {
-        log.error("未处理的系统异常，type={}", exception.getClass().getSimpleName());
+        log.error("未处理的系统异常，type={}", exception.getClass().getSimpleName(), exception);
         return ResponseEntity.internalServerError().body(ApiResponse.error(ErrorCode.INTERNAL_ERROR));
     }
 
