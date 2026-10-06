@@ -253,3 +253,92 @@ describe('正文流式展示', () => {
     wrapper.unmount()
   })
 })
+
+describe('预览生命周期跟随被时间线接受的持久事件', () => {
+  it('重复序号的 MODEL_STARTED 不清空当前预览', async () => {
+    const wrapper = await mountView()
+    try {
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      handlers!.onContent!(frame('call-1', 1, '当前已经生成的完整预览'))
+      await flushPromises()
+      expect(previewText(wrapper)).toContain('当前已经生成的完整预览')
+      // 重复序号：时间线拒绝该事件，预览生命周期不得被重新置空
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      await flushPromises()
+      expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(true)
+      expect(previewText(wrapper)).toContain('当前已经生成的完整预览')
+    } finally { wrapper.unmount() }
+  })
+
+  it('旧请求的完成事件不清掉新请求的预览', async () => {
+    const wrapper = await mountView()
+    try {
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      handlers!.onEvent(event(2, 'MODEL_COMPLETED', { modelCallId: 'call-1', toolCallCount: 1 }))
+      handlers!.onEvent(event(3, 'MODEL_STARTED', { modelCallId: 'call-2' }))
+      handlers!.onContent!(frame('call-2', 1, '第二次请求的当前预览'))
+      await flushPromises()
+      expect(previewText(wrapper)).toContain('第二次请求的当前预览')
+      // 旧序号：时间线拒绝，不得清掉当前请求的预览
+      handlers!.onEvent(event(2, 'MODEL_COMPLETED', { modelCallId: 'call-1', toolCallCount: 1 }))
+      await flushPromises()
+      expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(true)
+      expect(previewText(wrapper)).toContain('第二次请求的当前预览')
+    } finally { wrapper.unmount() }
+  })
+
+  it('已结束请求等待最终消息时不再接受迟到正文', async () => {
+    const wrapper = await mountView()
+    try {
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      handlers!.onContent!(frame('call-1', 1, '已经提交的完整正文'))
+      handlers!.onEvent(event(2, 'MODEL_COMPLETED', { modelCallId: 'call-1', toolCallCount: 0, content: '已经提交的完整正文' }))
+      await flushPromises()
+      expect(previewText(wrapper)).toContain('已经提交的完整正文')
+      handlers!.onContent!(frame('call-1', 2, '迟到帧改写了已提交正文'))
+      await flushPromises()
+      expect(previewText(wrapper)).toContain('已经提交的完整正文')
+      expect(previewText(wrapper)).not.toContain('迟到帧改写')
+    } finally { wrapper.unmount() }
+  })
+})
+
+describe('控制标记不作为正文展示', () => {
+  it('预览不显示 [QUESTIONS] 控制前缀，只显示自然语言问题', async () => {
+    const wrapper = await mountView()
+    try {
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      handlers!.onContent!(frame('call-1', 1, '[QUESTIONS]\n请确认本周的统计范围。'))
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('[QUESTIONS]')
+      expect(previewText(wrapper)).toContain('请确认本周的统计范围。')
+    } finally { wrapper.unmount() }
+  })
+
+  it('分片到达的控制前缀暂缓展示，判明前不闪出半截标记', async () => {
+    const wrapper = await mountView()
+    try {
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      handlers!.onContent!(frame('call-1', 1, '[QUE'))
+      await flushPromises()
+      expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('[QUE')
+      handlers!.onContent!(frame('call-1', 2, '[QUESTIONS]\n请确认范围。'))
+      await flushPromises()
+      expect(previewText(wrapper)).toContain('请确认范围。')
+      expect(wrapper.text()).not.toContain('[QUESTIONS]')
+    } finally { wrapper.unmount() }
+  })
+
+  it('持久化的澄清消息也不显示控制标记', async () => {
+    mocks.messages.mockResolvedValue(response([
+      { id: 'm1', role: 'ASSISTANT', content: '[QUESTIONS]\n请确认本周的统计范围。', sessionId: 'session-1', runId: 'run-1', citations: [], inferences: [], createdAt: '2026-10-06T10:00:05Z' },
+    ]))
+    const wrapper = await mountView()
+    try {
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('[QUESTIONS]')
+      expect(wrapper.text()).toContain('请确认本周的统计范围。')
+    } finally { wrapper.unmount() }
+  })
+})
