@@ -22,6 +22,8 @@ export interface AgentRun {
   stepsUsed: number; maxSteps: number; toolCallsUsed: number; maxToolCalls: number
   inputTokensUsed: number; maxInputTokens: number; outputTokensUsed: number
   maxOutputTokens: number; errorCode: string | null
+  /** 运行内自动重试已发生次数：FAILED_RETRYABLE 时用于"第 N 次尝试"展示 */
+  retryCount?: number
   /** 暂停意图落库时间：非空且状态为 RUNNING 时表示"正在暂停"；PAUSED 时为暂停请求时间 */
   pauseRequestedAt?: string | null
 }

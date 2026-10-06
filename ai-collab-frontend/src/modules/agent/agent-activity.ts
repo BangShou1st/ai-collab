@@ -1,4 +1,5 @@
 import type { AgentRunEvent } from './types'
+import { agentErrorTitle } from './agent-run-state'
 
 export type ActivityStatus = 'running' | 'done' | 'failed' | 'waiting'
 export type ActivityKind = 'read' | 'search' | 'analysis' | 'proposal' | 'approval' | 'success' | 'failure' | 'waiting' | 'info' | 'narration'
@@ -86,8 +87,8 @@ export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] 
         if (toolCount > 0 && content) narrations.push(e)
         if (!latestModelCompleted || e.sequence >= latestModelCompleted.sequence) latestModelCompleted = e
       }
-    } else if (e.type === 'RUN_PAUSED' || e.type === 'RUN_RESUMED') {
-      // 暂停/继续是控制状态变化，不是用户任务或最终回答，只渲染一行状态说明
+    } else if (e.type === 'RUN_PAUSED' || e.type === 'RUN_RESUMED' || e.type === 'RUN_RETRY_SCHEDULED') {
+      // 暂停/继续/手动重试安排是控制状态变化，不是用户任务或最终回答，只渲染一行状态说明
       controlNotes.push(e)
     } else if (e.type === 'WAITING_FOR_USER_INPUT') {
       if (!waiting) waiting = []
@@ -112,9 +113,10 @@ export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] 
   for (const key of approvalOrder) out.push(buildApprovalActivity(key, approvals.get(key)!))
   for (const e of controlNotes) {
     out.push({ key: `control:${e.sequence}`, tool: 'control', kind: 'info', status: 'done',
-      title: e.type === 'RUN_RESUMED' ? '已继续' : '已暂停，进度已保留',
+      title: e.type === 'RUN_RESUMED' ? '已继续' : e.type === 'RUN_RETRY_SCHEDULED' ? '已安排重试' : '已暂停，进度已保留',
       detail: null, durationMs: null, count: null, raw: [e] })
   }
+  for (const retry of retryActivities(events)) out.push(retry)
   const requestInFlight = latestModelStarted !== null
     && (latestModelCompleted === null || latestModelStarted.sequence > latestModelCompleted.sequence)
   if (!terminal && requestInFlight && latestModelStarted) {
@@ -181,6 +183,46 @@ export function currentModelFromEvents(events: AgentRunEvent[]): { provider: str
 
 function minSequence(list: AgentRunEvent[]): number {
   return Math.min(...list.map((e) => e.sequence))
+}
+
+/**
+ * 运行内自动重试生命周期行（每次暂时失败一行）：事实全部来自既有事件流——
+ * RUN_FAILED{retryable:true}（暂时失败）、其后的 MODEL_STARTED（再次尝试，FAILED_RETRYABLE
+ * 回到 RUNNING 的唯一路径）、终态事件（恢复成功或最终失败）。纯事件重放推导，
+ * 刷新与增量订阅结果一致；不新增后端事实、不改重试策略。
+ */
+function retryActivities(events: AgentRunEvent[]): AgentActivity[] {
+  const sorted = [...events].sort((a, b) => a.sequence - b.sequence)
+  const retryableFailures = sorted.filter((e) => {
+    if (e.type !== 'RUN_FAILED') return false
+    return (e.payload ?? {})['retryable'] === true
+  })
+  return retryableFailures.map((failure, index): AgentActivity => {
+    const after = sorted.filter((e) => e.sequence > failure.sequence)
+    const attemptStarted = after.some((e) => e.type === 'MODEL_STARTED')
+    const firstFinal = after.find((e) =>
+      e.type === 'RUN_SUCCEEDED' || e.type === 'RUN_CANCELED' || e.type === 'RUN_BUDGET_EXCEEDED'
+      || (e.type === 'RUN_FAILED' && (e.payload ?? {})['retryable'] !== true))
+    const outcome = firstFinal
+      ? (firstFinal.type === 'RUN_SUCCEEDED' ? '已自动重试并恢复完成'
+        : firstFinal.type === 'RUN_CANCELED' ? '运行已取消'
+        : firstFinal.type === 'RUN_BUDGET_EXCEEDED' ? '重试前已达运行上限'
+        : '重试后仍最终失败')
+      : attemptStarted ? '已再次尝试' : '等待自动重试'
+    const errorCode = (failure.payload ?? {})['errorCode']
+    const parts = [typeof errorCode === 'string' ? agentErrorTitle(errorCode) : null, outcome].filter(Boolean)
+    return {
+      key: `retry:${failure.sequence}`,
+      tool: 'retry',
+      kind: 'failure',
+      status: firstFinal ? 'done' : attemptStarted ? 'running' : 'failed',
+      title: `模型调用暂时失败（第 ${index + 1} 次）`,
+      detail: parts.join('；'),
+      durationMs: null,
+      count: null,
+      raw: [failure],
+    }
+  })
 }
 
 function approvalKey(e: AgentRunEvent): string {

@@ -83,7 +83,9 @@ export function agentRunPresentation(run: AgentRun): AgentRunPresentation {
     return {
       terminal: false,
       severity: 'warning',
-      title: '模型调用暂时失败，正在重试',
+      title: run.retryCount && run.retryCount > 0
+        ? `模型调用暂时失败，等待自动重试（第 ${run.retryCount + 1} 次尝试）`
+        : '模型调用暂时失败，等待自动重试',
       canRetry: false,
     }
   }
@@ -93,4 +95,10 @@ export function agentRunPresentation(run: AgentRun): AgentRunPresentation {
     title: run.status === 'RUNNING' ? 'Agent 正在处理' : '等待 Agent 处理',
     canRetry: false,
   }
+}
+
+/** 供活动时间线复用的错误码可读名；未知错误码返回 null，由调用方决定兜底文案。 */
+export function agentErrorTitle(errorCode: string | null | undefined): string | null {
+  if (!errorCode) return null
+  return errorTitles[errorCode] ?? null
 }
