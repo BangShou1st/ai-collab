@@ -131,6 +131,15 @@
 
 回归:`AgentWorkingStateConstraintIntegrationTest` +4(全角标点、多条按序、换目标退位与后续更正、完整原文)、`AgentModelMessageComposerV2Test` +1(多条按序渲染+退位不渲染)、`AgentContextSummarizerTest` +1(状态块按序携带有效更正、排除退位条目);状态/组装/摘要/仓库/协调器/暂停续跑等 10 个测试类合计 **188 项 0 失败**。
 
+## 8. 自动重试状态展示(2026-10-06 同日交付,纯前端)
+
+目标:主对话清楚呈现运行内自动重试生命周期"暂时失败 → 等待重试 → 再次尝试 → 恢复成功或最终失败",刷新与事件重放后显示一致;**复用既有重试机制、计数与调度事实,不改重试策略、不触碰已收口的恢复编排(后端零改动)**。
+
+- 事实来源(全部既有):`RUN_FAILED{retryable:true}` 事件(暂时失败+错误码)、其后出现的 `MODEL_STARTED`(再次尝试——FAILED_RETRYABLE 回到 RUNNING 的唯一路径)、终态事件(恢复/最终失败)、运行详情既有字段 `retryCount`(等待中的下一次尝试编号)与 `retry_after` 调度事实。
+- 展示:`agent-activity.ts` 新增 `retryActivities`——每次暂时失败渲染一行"模型调用暂时失败(第 N 次)",detail 含错误码可读名与结果(等待自动重试/已再次尝试/已自动重试并恢复完成/重试后仍最终失败/运行已取消/重试前已达运行上限),状态 done/running/failed 随生命周期推进;`RUN_RETRY_SCHEDULED`(手动重试安排)渲染为控制说明行。`agent-run-state.ts` 横幅在 FAILED_RETRYABLE 时显示"等待自动重试(第 retryCount+1 次尝试)"。
+- 一致性:行推导是事件流的纯函数(内部按 sequence 排序),刷新重放 events-history 与增量 SSE 订阅结果一致(有乱序重放等同性回归)。
+- 回归:`agent-activity.test.ts` +7(等待/在途/恢复/最终失败/两次编号/乱序重放一致/手动重试行)、`agent-run-state.test.ts` +2(横幅文案与尝试编号);前端全量 **192 项 0 失败**(38→38 文件),`vue-tsc -b` 零错误。
+
 ### 7.3 回归与验证
 
 - `AgentWorkingStateConstraintIntegrationTest` 新增 4 项(真实 PG):分析请求不产生 DATE_LOCK;日期疑问句不锁定;修复保留原 quote;显式更正登记来源且旧状态让位规则可渲染。
