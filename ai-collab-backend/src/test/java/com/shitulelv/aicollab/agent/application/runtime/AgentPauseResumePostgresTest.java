@@ -186,6 +186,16 @@ class AgentPauseResumePostgresTest {
         assertThat(recovery.claim("worker-2", Duration.ofMinutes(6))).isPresent();
     }
 
+    @Test
+    void runWithoutPauseIntentReportsNullPauseTime() {
+        // 回归:未请求暂停的运行 pause_requested_at 为 NULL,运行详情读取不得抛 NPE
+        // (此前 findFirst 对 null 行映射值包装 Optional.of(null),GET /runs/{runId} 全量 500)
+        Fixture fixture = fixture("无暂停意图的运行");
+        AgentRunView run = repository.createRun(fixture.project(), fixture.session(), fixture.user(),
+                fixture.goal(), false, "ITERATION_PLANNING", null);
+        assertThat(repository.pauseRequestedAt(fixture.project(), run.id())).isNull();
+    }
+
     // ========== 2. 重试等待期暂停：自动调度不领取；继续保留已耗重试次数 ==========
 
     @Test
