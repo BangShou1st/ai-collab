@@ -4,6 +4,7 @@ public enum AgentRunStatus {
     CREATED,
     QUEUED,
     RUNNING,
+    PAUSED,
     WAITING_FOR_APPROVAL,
     WAITING_FOR_USER_INPUT,
     SUCCEEDED,

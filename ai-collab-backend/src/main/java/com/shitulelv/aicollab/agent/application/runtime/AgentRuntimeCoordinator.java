@@ -9,8 +9,8 @@ import com.shitulelv.aicollab.agent.application.AgentMemoryService;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.view.AgentStepView;
 import com.shitulelv.aicollab.agent.domain.model.*;
-import com.shitulelv.aicollab.agent.domain.policy.AgentConvergencePolicy;
-import com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuard;
+
+
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -58,6 +58,11 @@ public class AgentRuntimeCoordinator {
     private final AgentContextSummarizer summarizer;
     private final AgentContextProperties contextProperties;
 
+    /**
+     * 生产装配入口（见 {@code AgentRuntimeConfiguration}）：消息组装器、工具执行器与
+     * 摘要器都是容器中的单例协作者，协调器显式接收；工具调度与模型配置存储
+     * 分别在这两个协作者的构造时确定。本类不再自行 new 这三个协作者。
+     */
     @Autowired
     public AgentRuntimeCoordinator(
             AgentRepository repository,
@@ -66,15 +71,14 @@ public class AgentRuntimeCoordinator {
             AgentPlanService planService,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
-            AgentLoopGuard loopGuard,
-            AgentApprovalService approvals,
             RoutingAgentModelExecutor modelExecutor,
-            AgentToolResultSanitizer sanitizer,
             AgentConvergencePolicy convergencePolicy,
             ObjectMapper json,
             AgentEventService events,
-            AgentMemoryService memories,
-            AgentContextProperties contextProperties) {
+            AgentContextProperties contextProperties,
+            AgentModelMessageComposer composer,
+            AgentToolCallExecutor toolExecutor,
+            AgentContextSummarizer summarizer) {
         this.repository = repository;
         this.contextAssembler = contextAssembler;
         this.skillRegistry = skillRegistry;
@@ -86,12 +90,12 @@ public class AgentRuntimeCoordinator {
         this.json = json;
         this.events = events;
         this.contextProperties = contextProperties == null ? AgentContextProperties.defaults() : contextProperties;
-        this.composer = new AgentModelMessageComposer(repository, memories, json, modelExecutor);
-        this.toolExecutor = new AgentToolCallExecutor(repository, tools, cancellation, loopGuard,
-                approvals, modelExecutor, sanitizer, json, events);
-        this.summarizer = new AgentContextSummarizer(repository, modelExecutor, json);
+        this.composer = composer;
+        this.toolExecutor = toolExecutor;
+        this.summarizer = summarizer;
     }
 
+    /** 测试便捷装配：用传入的受控依赖显式构造三个协作者（生产装配见 AgentRuntimeConfiguration）。 */
     public AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
@@ -109,7 +113,7 @@ public class AgentRuntimeCoordinator {
                 json, null, null, AgentContextProperties.defaults());
     }
 
-    /** 兼容既有装配与测试：使用默认上下文预算配置。 */
+    /** 测试便捷装配：同上，另可注入自定义收敛策略、事件服务与项目记忆。 */
     public AgentRuntimeCoordinator(
             AgentRepository repository,
             AgentContextAssembler contextAssembler,
@@ -130,17 +134,28 @@ public class AgentRuntimeCoordinator {
                 json, events, memories, AgentContextProperties.defaults());
     }
 
-    /**
-     * 判断当前是否为 Legacy 模式（只支持 CHAT，不支持 NATIVE_TOOLS）。
-     */
-    public boolean isLegacyMode(UUID callerUserId) {
-        return modelExecutor.isLegacyMode(callerUserId);
-    }
-
-    @Autowired
-    void configureToolScheduler(AgentToolScheduler scheduler) {
-        toolExecutor.scheduler = scheduler.executor();
-        toolExecutor.limiter = scheduler;
+    private AgentRuntimeCoordinator(
+            AgentRepository repository,
+            AgentContextAssembler contextAssembler,
+            AgentSkillRegistry skillRegistry,
+            AgentPlanService planService,
+            AgentToolRegistry tools,
+            AgentCancellationService cancellation,
+            AgentLoopGuard loopGuard,
+            AgentApprovalService approvals,
+            RoutingAgentModelExecutor modelExecutor,
+            AgentToolResultSanitizer sanitizer,
+            AgentConvergencePolicy convergencePolicy,
+            ObjectMapper json,
+            AgentEventService events,
+            AgentMemoryService memories,
+            AgentContextProperties contextProperties) {
+        this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
+                modelExecutor, convergencePolicy, json, events, contextProperties,
+                new AgentModelMessageComposer(repository, memories, json),
+                new AgentToolCallExecutor(repository, tools, cancellation, loopGuard,
+                        approvals, modelExecutor, sanitizer, json, events, new AgentToolScheduler()),
+                new AgentContextSummarizer(repository, modelExecutor, json));
     }
 
     /**
@@ -150,6 +165,11 @@ public class AgentRuntimeCoordinator {
         try (var accounting=new AgentModelAccounting();var deadline=new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestDeadline()) {
             // 1. 取消检查
             cancellation.throwIfRequested(run);
+
+            // 1b. 暂停意图检查：意图已落库则结清当前 claim 并转 PAUSED，不开始任何推进
+            if (repository.pauseIfRequested(run)) {
+                return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+            }
 
             // 2. 组装可信上下文
             AgentExecutionContext ctx = contextAssembler.assemble(
@@ -173,21 +193,32 @@ public class AgentRuntimeCoordinator {
 
             // 5. 获取当前步骤列表用于循环检测
             List<AgentStepView> steps = repository.listSteps(run.projectId(), run.id());
-            var unfinished = repository.pendingModelTurn(run);
-            if (unfinished != null && unfinished.isPresent())
-                return toolExecutor.executeCalls(run,ctx,skill,unfinished.get(),tools.definitionsFor(ctx,skill),steps);
 
+            // 5b. 已提交、尚未消费的模型响应优先复用，不再请求模型：
+            //     消费一个已经落库的结果不需要"下一次请求准入"的判定（收敛策略的 EXHAUSTED /
+            //     FINALIZE 只回答"是否还能发下一次请求"），因此这里先于 decide。
+            //     本轮请求真实采用的强制收尾意图随响应持久化，恢复时按原语义处理；
+            //     历史记录缺少该元数据时保守回退（见 persistedFinalizing）。
+            var pendingTurn = repository.pendingModelTurn(run);
+            if (pendingTurn != null && pendingTurn.isPresent()) {
+                ModelTurnResult persisted = pendingTurn.get();
+                boolean persistedFinalizing = persistedFinalizing(run, skill, persisted);
+                return afterResponseSaved(run, ctx, skill, persisted, steps,
+                        tools.definitionsFor(ctx, skill), persistedFinalizing, true, false);
+            }
+
+            // 6. 尚未有可复用结果：判断是否还能发下一次请求（准入），并确定本轮请求的收尾意图
             AgentConvergencePolicy.Decision convergence =
                     convergencePolicy.decide(run, ctx.limits(), steps);
             if (convergence.mode() == AgentConvergencePolicy.Mode.EXHAUSTED) {
-                AgentWorkerOutcome fallback = completeFromEvidence(run, steps);
+                AgentWorkerOutcome fallback = completeFromEvidence(run, steps, true);
                 if (fallback != null) return fallback;
                 return budgetExceeded(run);
             }
             boolean finalizing = convergence.mode() == AgentConvergencePolicy.Mode.FINALIZE;
             boolean coreActionPending = isCoreActionPending(run, skill);
 
-            // 6. 获取允许的工具定义
+            // 7. 获取允许的工具定义
             List<AgentToolDefinition> exposed = tools.definitionsFor(ctx, skill);
             if (finalizing) {
                 exposed = List.of();
@@ -195,10 +226,12 @@ public class AgentRuntimeCoordinator {
 
             // 7. 单次请求输入预算：min(模型窗口-输出预留-安全余量, 运行剩余输入预算, 应用单次上限)
             int remainingRunInput = Math.min(run.maxInputTokens(), ctx.limits().maxInputTokens()) - run.inputTokensUsed();
-            var providerIdentity = modelExecutor.pinnedProviderIdentity(run);
+            // 本轮请求准备时解析一次当前 AGENT 配置；窗口预算、能力、工具协议、出站调用
+            // 与该响应的工具校验共用这一份解析结果，下一轮重新读取最新配置
+            var resolved = modelExecutor.resolveRequest(run);
             var modelWindow = AgentContextBudget.resolveWindow(
-                    providerIdentity == null ? null : providerIdentity.providerType(),
-                    providerIdentity == null ? null : providerIdentity.modelName(),
+                    resolved.providerType(),
+                    resolved.modelName(),
                     contextProperties.windowOverrides());
             var requestBudget = AgentContextBudget.perRequest(contextProperties, modelWindow, remainingRunInput);
 
@@ -207,7 +240,7 @@ public class AgentRuntimeCoordinator {
             int estimatedInput;
             String overBudgetReason = null;
             if (contextProperties.composerV2()) {
-                composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 1.0);
+                composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 1.0, resolved.legacyMode());
                 if (composition.failureReason() != null) {
                     // 必选层（含当前请求）无法完整放入预算：明确停止，不静默截断
                     return inputBudgetExceeded(run, requestBudget, composition.failureReason());
@@ -216,7 +249,7 @@ public class AgentRuntimeCoordinator {
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens()) {
                     // 降级重组一次：收紧预算并重试；重组本身失败（必选层仍放不下）同样明确停止
-                    composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 0.6);
+                    composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 0.6, resolved.legacyMode());
                     if (composition.failureReason() != null) {
                         // 空消息继续调用会丢失当前目标与有效约束，违反"当前请求完整保留"契约
                         return inputBudgetExceeded(run, requestBudget, composition.failureReason());
@@ -231,7 +264,7 @@ public class AgentRuntimeCoordinator {
                     }
                 }
             } else {
-                messages = appendTurnInstructions(composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
+                messages = appendTurnInstructions(composer.buildMessageHistory(run, ctx, skill, plan, steps, resolved.legacyMode()), steps, finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens()) {
                     overBudgetReason = "COMPOSITION_OVER_BUDGET";
@@ -245,12 +278,18 @@ public class AgentRuntimeCoordinator {
                 finalizing = true;
                 exposed = List.of();
                 messages = appendTurnInstructions(composition != null ? composition.messages()
-                        : composer.buildMessageHistory(run, ctx, skill, plan, steps), steps, true, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
+                        : composer.buildMessageHistory(run, ctx, skill, plan, steps, resolved.legacyMode()), steps, true, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens())
                     return inputBudgetExceeded(run, requestBudget, "FINAL_REQUEST_OVER_BUDGET");
             }
             AgentModelAccounting.estimate(estimatedInput);
+
+            // 7a. 新动作（摘要请求/主模型请求）准入前的暂停复核：意图已落库则不再启动，
+            // 已发出的摘要请求允许完成并保存；主请求准入由 beginModelCall 的持久化边界最终把关
+            if (repository.pauseIfRequested(run)) {
+                return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+            }
 
             // 7b. 有界增量摘要：主请求预算保留后，对未覆盖旧对话生成一次摘要（持久化尝试标记、CAS 提交、单独记账）
             if (composition != null) {
@@ -286,16 +325,26 @@ public class AgentRuntimeCoordinator {
                 }
             }
 
-            // 8. 调用模型（通过路由选择正确的执行器）
-            var pendingTurn = repository.pendingModelTurn(run);
-            if (pendingTurn != null && pendingTurn.isPresent()) {
-                return toolExecutor.executeCalls(run, ctx, skill, pendingTurn.get(), tools.definitionsFor(ctx, skill), steps);
+            // 8. 调用模型（通过路由选择正确的执行器）；待处理轮次已在 5b 处理
+            // 本次实际出站请求的持久化身份：先落库再请求，正常记账与取消补记共用一次性结算。
+            // beginModelCall 是模型请求的持久化准入边界：暂停意图先落库时拒绝准入（AGENT_RUN_PAUSED），
+            // 此时结清并转 PAUSED；身份先落库则本次请求允许完成当前阶段。
+            String modelCallId;
+            try {
+                modelCallId = repository.beginModelCall(run.projectId(), run.id(), "MODEL_TURN");
+            } catch (BusinessException pauseAdmission) {
+                if (pauseAdmission.getErrorCode() == ErrorCode.AGENT_RUN_PAUSED
+                        && repository.pauseIfRequested(run)) {
+                    return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+                }
+                throw pauseAdmission;
             }
-            // 本次实际出站请求的持久化身份：先落库再请求，正常记账与取消补记共用一次性结算
-            String modelCallId = repository.beginModelCall(run.projectId(), run.id(), "MODEL_TURN");
             ModelTurnResult turn;
             try {
                 var startedPayload = json.createObjectNode().put("modelTurn", run.stepsUsed() + 1);
+                // 本轮出站采用的模型身份（请求准备时解析的同一份配置）；实际响应的模型以 MODEL_COMPLETED 为准
+                startedPayload.put("provider", resolved.providerType());
+                startedPayload.put("model", resolved.modelName());
                 if (composition != null && composition.stats() != null) {
                     // 单次请求体积分解：让"上下文为什么如此大"有实测依据（系统提示/状态/摘要/
                     // 页面/提案/工具观察/历史/记忆分列；工具定义与估算 token 由本层补充）
@@ -305,7 +354,7 @@ public class AgentRuntimeCoordinator {
                     breakdown.put("estimatedInputTokens", estimatedInput);
                 }
                 emit(run, AgentEventType.MODEL_STARTED, startedPayload);
-                turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted());
+                turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted(), resolved);
             } catch (IllegalArgumentException malformed) {
                 // 请求已发出、无可用响应证据：输入按实际请求规模估算入账，输出显式 UNKNOWN，
                 // 身份行进入终态——不留"仍在调用中"的未结算行，失败调用的消耗也不丢失
@@ -379,8 +428,10 @@ public class AgentRuntimeCoordinator {
             // 9. 记录 assistant turn（返回更新后的 Run）：身份行首次结算与运行累计、
             // 步骤写入在同一事务——取消/租约失效/版本冲突使整个事务回滚（身份行回到
             // 未结算），再按同身份补结算一次，任何中间态都不会导致重复或丢账。
+            // 本轮请求实际采用的强制收尾意图随响应持久化（同一事务），供接管按原语义处理。
             try {
-                run = repository.recordModelTurnWithSettlement(run, turn, modelCallId, "MODEL_TURN", settlement);
+                run = repository.recordModelTurnWithSettlement(run, turn, modelCallId, "MODEL_TURN", settlement,
+                        resolved.legacyMode() ? "LEGACY_READ_ONLY" : "NATIVE_TOOLS", finalizing);
             } catch (BusinessException canceledDuringRecord) {
                 if (canceledDuringRecord.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
                     repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
@@ -391,71 +442,9 @@ public class AgentRuntimeCoordinator {
                 repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN", settlement);
                 throw recordFailed;
             }
-            // 输入实际超额：真实输入消耗超出运行上限时结算真实值并明确终止，
-            // 不执行该响应中的工具，不记成功（估算无法绝对保证请求不超限，如实结算+停止）
-            long inputRemaining=Math.min(run.maxInputTokens(),ctx.limits().maxInputTokens())-run.inputTokensActual();
-            if (inputRemaining<0) {
-                repository.recordBudgetExceeded(run);
-                emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
-                        json.createObjectNode()
-                                .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
-                                .put("errorCode", "AGENT_BUDGET_EXCEEDED")
-                                .put("scope", "RUN_INPUT_ACTUAL_OVERSET"));
-                return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED,null,null,"AGENT_BUDGET_EXCEEDED");
-            }
-            emit(run, AgentEventType.MODEL_COMPLETED,
-                    json.createObjectNode()
-                            .put("finishReason", turn.finishReason().name())
-                            .put("toolCallCount", turn.toolCalls().size()));
-
-            if (finalizing && (!turn.toolCalls().isEmpty() || turn.content().isBlank())) {
-                AgentWorkerOutcome fallback = completeFromEvidence(run, steps);
-                if (fallback != null) return fallback;
-                return invalidResponse(run);
-            }
-
-            // 10. 如果有工具调用，执行
-            if (!turn.toolCalls().isEmpty()) {
-                try {
-                    convergencePolicy.validateToolBatch(run, ctx.limits(), turn.toolCalls().size());
-                } catch (IllegalArgumentException overBudget) {
-                    AgentWorkerOutcome fallback = completeFromEvidence(run, steps);
-                    if (fallback != null) return fallback;
-                    return budgetExceeded(run);
-                }
-                return toolExecutor.executeCalls(run, ctx, skill, turn, exposed, steps);
-            }
-
-            // 11. 如果有最终文本，检查是否需要用户输入
-            if (!turn.content().isBlank()) {
-                // 检测 [QUESTIONS] 标记：模型需要用户澄清
-                if (turn.content().startsWith("[QUESTIONS]")) {
-                    run = repository.recordWaitingForInput(run, turn.content());
-                    emit(run, AgentEventType.WAITING_FOR_USER_INPUT,
-                            json.createObjectNode().put("question", turn.content()));
-                    return new AgentWorkerOutcome(AgentRunStatus.WAITING_FOR_USER_INPUT, turn.content(), null, null);
-                }
-                if (finalizing && coreActionPending) {
-                    // 预算策略强制收尾且核心动作未发生：如实进入预算受限/部分完成状态，
-                    // 不能仅凭模型返回文字记成功（"运行结束"≠"规划已生成"）
-                    repository.recordBudgetPartialAnswer(run, turn.content());
-                    emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
-                            json.createObjectNode()
-                                    .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
-                                    .put("errorCode", "AGENT_BUDGET_EXCEEDED")
-                                    .put("scope", "CORE_ACTION_NOT_PERFORMED"));
-                    return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, turn.content(), null, "AGENT_BUDGET_EXCEEDED");
-                }
-                // 正常完成
-                run = repository.recordFinal(run, turn.content(), List.of());
-                emit(run, AgentEventType.RUN_SUCCEEDED,
-                        json.createObjectNode().put("status", AgentRunStatus.SUCCEEDED.name()));
-                return new AgentWorkerOutcome(AgentRunStatus.SUCCEEDED, turn.content(), null, null);
-            }
-
-            // 12. 无效响应
-            return invalidResponse(run);
-
+            // 响应已提交：正常路径与接管恢复共用同一套响应后检查与分派
+            return afterResponseSaved(run, ctx, skill, turn, steps, exposed, finalizing,
+                    false, resolved.legacyMode());
         } catch (BusinessException e) {
             Thread.interrupted();
             if (e.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
@@ -476,6 +465,155 @@ public class AgentRuntimeCoordinator {
             }
             throw e;
         }
+    }
+
+    /**
+     * 无工具调用的模型文本响应的统一收尾判定：正常路径（本轮刚持久化）与接管恢复
+     * （上一 claim 已持久化、尚未消费）共用这一份判定，禁止两套收尾逻辑。
+     *
+     * <p>判定只看运行与响应的持久状态：{@code finalizing}（收敛策略判定本轮为收尾轮）与
+     * {@code coreActionPending}（目标要求核心动作且尚无成功调用）都由持久事实推导，
+     * 因此恢复时重新推导得到与正常路径一致的结果。</p>
+     */
+    private AgentWorkerOutcome completeTextTurn(
+            AgentRunView run, ModelTurnResult turn, boolean finalizing, boolean coreActionPending,
+            List<AgentStepView> steps) {
+        // 收尾轮返回工具调用：违反"收尾轮只回答"的协议，按原语义失败（不记成功、不再请求模型）
+        if (finalizing && !turn.toolCalls().isEmpty()) {
+            AgentWorkerOutcome fallback = completeFromEvidence(run, steps, true);
+            if (fallback != null) return fallback;
+            return invalidResponse(run);
+        }
+        String content = turn.content();
+        // 检测 [QUESTIONS] 标记：模型需要用户澄清
+        if (content.startsWith("[QUESTIONS]")) {
+            run = repository.recordWaitingForInput(run, content, true);
+            emit(run, AgentEventType.WAITING_FOR_USER_INPUT,
+                    json.createObjectNode().put("question", content));
+            return new AgentWorkerOutcome(AgentRunStatus.WAITING_FOR_USER_INPUT, content, null, null);
+        }
+        if (finalizing && coreActionPending) {
+            // 预算策略强制收尾且核心动作未发生：如实进入预算受限/部分完成状态，
+            // 不能仅凭模型返回文字记成功（"运行结束"≠"规划已生成"）
+            repository.recordBudgetPartialAnswer(run, content, true);
+            emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
+                    json.createObjectNode()
+                            .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
+                            .put("errorCode", "AGENT_BUDGET_EXCEEDED")
+                            .put("scope", "CORE_ACTION_NOT_PERFORMED"));
+            return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, content, null, "AGENT_BUDGET_EXCEEDED");
+        }
+        // 正常完成（消费标记与终态同一事务）
+        run = repository.recordFinal(run, content, List.of(), true);
+        emit(run, AgentEventType.RUN_SUCCEEDED,
+                json.createObjectNode().put("status", AgentRunStatus.SUCCEEDED.name()));
+        return new AgentWorkerOutcome(AgentRunStatus.SUCCEEDED, content, null, null);
+    }
+
+    /**
+     * 已保存模型响应之后的统一检查与分派：正常路径（本轮刚落库）与接管恢复（上一 claim 已落库）
+     * 共用同一份逻辑，不再各写一套。这里只处理"如何消费已经提交的响应"，
+     * 不判断"是否还能发下一次请求"（后者由收敛策略的准入分支负责）。
+     *
+     * <p>{@code finalizing} 必须是该响应所属请求<b>实际采用</b>的强制收尾意图：
+     * 正常路径传入本轮的值；恢复路径取持久化元数据。绝不在消费阶段重新推导，
+     * 否则落库后的步骤/轮次计数会改写原请求的语义。</p>
+     *
+     * <p>{@code recoveryBatch}/{@code requestLegacyMode} 描述该响应的调用来源：
+     * 恢复批次的写工具按持久化 source_mode 校验，新轮次用本次请求解析出的执行模式
+     * （见 {@code AgentToolCallExecutor.executeCalls}）。</p>
+     */
+    private AgentWorkerOutcome afterResponseSaved(
+            AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, ModelTurnResult turn,
+            List<AgentStepView> steps, List<AgentToolDefinition> exposed, boolean finalizing,
+            boolean recoveryBatch, boolean requestLegacyMode) {
+        // 输入实际超额：真实输入消耗超出运行上限时如实结算并明确终止，
+        // 不执行该响应中的工具，不记成功（估算无法绝对保证请求不超限，如实结算+停止）。
+        // 恢复路径同样执行该检查：已保存响应不能绕过执行限额保护。
+        long inputRemaining=Math.min(run.maxInputTokens(),ctx.limits().maxInputTokens())-run.inputTokensActual();
+        if (inputRemaining<0) {
+            repository.recordBudgetExceeded(run);
+            emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
+                    json.createObjectNode()
+                            .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
+                            .put("errorCode", "AGENT_BUDGET_EXCEEDED")
+                            .put("scope", "RUN_INPUT_ACTUAL_OVERSET"));
+            return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED,null,null,"AGENT_BUDGET_EXCEEDED");
+        }
+
+        // 暂停意图与"启动响应提出的工具"同边界竞争：意图先落库则不启动任何调用，
+        // 保存进度后进入 PAUSED，待处理 invocation 保持 PENDING（批次不标记已处理，
+        // 恢复时经 pendingModelTurn 按原身份继续）。普通最终文本不启动新的外部动作，
+        // 允许正常收口，不因暂停丢答案。
+        if (!turn.toolCalls().isEmpty() && repository.pauseIfRequested(run)) {
+            return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+        }
+
+        // 强制收尾轮返回工具调用或空内容：违反"收尾轮只回答"的协议，按原语义失败
+        // 退出前先重读步骤，让证据兜底看到刚保存的轮次
+        if (finalizing && (!turn.toolCalls().isEmpty() || turn.content().isBlank())) {
+            AgentWorkerOutcome fallback = completeFromEvidence(run, currentSteps(run, steps), true);
+            if (fallback != null) return fallback;
+            return invalidResponse(run);
+        }
+
+        // 有工具调用：批量校验后执行。恢复批次按原 invocation 身份识别已有持久化结果的
+        // 调用——它们的结果落库时已推进 tool_calls_used，只有尚需执行的调用占新增额度；
+        // 单轮数量仍按原批次校验，真实超限仍拒绝。新轮次无可复用项，语义不变。
+        if (!turn.toolCalls().isEmpty()) {
+            try {
+                int alreadyCompleted = recoveryBatch
+                        ? repository.countSettledInvocations(run, turn.toolCalls()) : 0;
+                convergencePolicy.validateToolBatch(run, ctx.limits(),
+                        turn.toolCalls().size(), alreadyCompleted);
+            } catch (IllegalArgumentException overBudget) {
+                AgentWorkerOutcome fallback = completeFromEvidence(run, currentSteps(run, steps), true);
+                if (fallback != null) return fallback;
+                return budgetExceeded(run);
+            }
+            // 批次来源决定写工具的执行模式校验：恢复批次按持久化 source_mode，
+            // 新轮次按本次请求解析出的模式（既有语义）
+            return toolExecutor.executeCalls(run, ctx, skill, turn, exposed, steps,
+                    recoveryBatch, requestLegacyMode);
+        }
+
+        // 无工具调用的文本响应
+        if (!turn.content().isBlank()) {
+            return completeTextTurn(run, turn, finalizing, isCoreActionPending(run, skill), steps);
+        }
+
+        // 无效响应
+        return invalidResponse(run);
+    }
+
+    /**
+     * 恢复已保存响应时确定其原请求的强制收尾意图：优先使用随响应持久化的实际值。
+     * 历史记录缺少该元数据时的保守回退按响应形态区分：
+     *
+     * <ul>
+     *   <li>工具批次一律按普通轮次处理：继续走原 invocation 身份、source_mode、权限、
+     *       Skill 白名单与执行限额校验的恢复链。"核心动作尚未发生"更可能说明这批调用
+     *       正要执行该动作，而不是该调用违反了原请求的收尾协议；不因此把批次整体否决。
+     *       若原请求确已收尾，总/单轮限额与来源模式校验仍在执行链内兜底。</li>
+     *   <li>文本响应按核心动作证据回退：核心动作已发生按普通轮次完成，未发生按收尾轮
+     *       记预算部分完成（正文保留）。</li>
+     * </ul>
+     *
+     * <p>无法还原的信息：该响应出站时是否为模型可见的收尾指令、以及当时的输入估算/
+     * 输出预留语境；显式持久化 {@code finalizing=true} 的工具响应仍按协议违规拒绝，
+     * 不受回退影响。两种回退都不丢已有答案，也不放宽限额。</p>
+     */
+    private boolean persistedFinalizing(
+            AgentRunView run, AgentSkill skill, ModelTurnResult turn) {
+        if (turn.finalizing() != null) return turn.finalizing();
+        if (!turn.toolCalls().isEmpty()) return false;
+        return isCoreActionPending(run, skill);
+    }
+
+    /** 保存轮次后重新读取步骤（证据兜底需要包含刚提交的轮次）；测试装配下回退到传入列表。 */
+    private List<AgentStepView> currentSteps(AgentRunView run, List<AgentStepView> fallback) {
+        List<AgentStepView> current = repository.listSteps(run.projectId(), run.id());
+        return current == null ? fallback : current;
     }
 
     /**
@@ -609,7 +747,7 @@ public class AgentRuntimeCoordinator {
     }
 
     private AgentWorkerOutcome completeFromEvidence(
-            AgentRunView run, List<AgentStepView> steps) {
+            AgentRunView run, List<AgentStepView> steps, boolean consumePersistedTurn) {
         java.util.UUID projectId=run.projectId();
         List<AgentStepView> successful = (steps == null ? List.<AgentStepView>of() : steps).stream()
                 .filter(step -> step.type() == AgentStepType.TOOL_CALL_COMPLETED)
@@ -627,7 +765,7 @@ public class AgentRuntimeCoordinator {
                     .append(": ").append(output).append('\n');
         });
         String content = answer.toString().stripTrailing();
-        repository.recordBudgetPartialAnswer(run, content);
+        repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn);
         emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
                 json.createObjectNode()
                         .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())

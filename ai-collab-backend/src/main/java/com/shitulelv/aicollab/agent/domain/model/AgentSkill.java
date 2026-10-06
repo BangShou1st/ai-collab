@@ -33,9 +33,6 @@ public interface AgentSkill {
     /** 是否允许使用外部 MCP 工具 */
     default boolean allowExternalTools() { return false; }
 
-    /** 默认预算限制 */
-    AgentRuntimeLimits defaultLimits();
-
     /** 系统指令片段 */
     String instruction();
 

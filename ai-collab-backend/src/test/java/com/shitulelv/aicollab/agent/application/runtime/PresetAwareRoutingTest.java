@@ -8,7 +8,6 @@ import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.infrastructure.ai.model.*;
 import com.shitulelv.aicollab.infrastructure.ai.turn.*;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
-import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService;
 import java.time.OffsetDateTime;
 import java.util.EnumSet;
 import java.util.List;
@@ -42,36 +41,38 @@ class PresetAwareRoutingTest {
                 false, 0, null, null, null, null, 1, OffsetDateTime.now(), OffsetDateTime.now());
     }
 
-    private RoutingAgentModelExecutor executor(UserAiProviderService providers,
+    private RoutingAgentModelExecutor executor(AgentModelConfigurationStore store,
             NativeToolCallingExecutor nativeExec, LegacyReadOnlyAgentExecutor legacyExec) {
-        return new RoutingAgentModelExecutor(providers, nativeExec, legacyExec,
-                new ZenModelExecution(new ProviderPresetRegistry(), mapper, new OutboundEndpointPolicy()));
+        return new RoutingAgentModelExecutor(nativeExec, legacyExec,
+                new ZenModelExecution(new ProviderPresetRegistry(), mapper, new OutboundEndpointPolicy()), store);
     }
 
     @Test void staleZenCapabilitiesStillRouteToNative() {
         var user = UUID.randomUUID();
-        var providers = mock(UserAiProviderService.class);
-        when(providers.resolve(user, ModelPurpose.AGENT)).thenReturn(staleZen(user));
+        var request = run(UUID.randomUUID(), user);
+        var store = mock(AgentModelConfigurationStore.class);
+        when(store.require(request)).thenReturn(staleZen(user));
         var nativeExec = mock(NativeToolCallingExecutor.class);
         var legacyExec = mock(LegacyReadOnlyAgentExecutor.class);
         ModelTurnResult result = mock(ModelTurnResult.class);
         when(nativeExec.callModel(anyList(), anyList(), any(), any(), any())).thenReturn(result);
-        var out = executor(providers, nativeExec, legacyExec)
-                .callModel(run(UUID.randomUUID(), user), List.of(), List.of(), false);
+        var executor = executor(store, nativeExec, legacyExec);
+        var out = executor.callModel(request, List.of(), List.of(), false, executor.resolveRequest(request));
         assertThat(out).isEqualTo(result);
         verify(legacyExec, never()).callModel(anyList(), anyList(), any(), any(), anyBoolean(), any());
     }
 
     @Test void chatOnlyCustomStillRoutesToLegacy() {
         var user = UUID.randomUUID();
-        var providers = mock(UserAiProviderService.class);
-        when(providers.resolve(user, ModelPurpose.AGENT)).thenReturn(chatOnlyCustom(user));
+        var request = run(UUID.randomUUID(), user);
+        var store = mock(AgentModelConfigurationStore.class);
+        when(store.require(request)).thenReturn(chatOnlyCustom(user));
         var nativeExec = mock(NativeToolCallingExecutor.class);
         var legacyExec = mock(LegacyReadOnlyAgentExecutor.class);
         ModelTurnResult result = mock(ModelTurnResult.class);
         when(legacyExec.callModel(anyList(), anyList(), any(), any(), anyBoolean(), any())).thenReturn(result);
-        var out = executor(providers, nativeExec, legacyExec)
-                .callModel(run(UUID.randomUUID(), user), List.of(), List.of(), false);
+        var executor = executor(store, nativeExec, legacyExec);
+        var out = executor.callModel(request, List.of(), List.of(), false, executor.resolveRequest(request));
         assertThat(out).isEqualTo(result);
         verify(nativeExec, never()).callModel(anyList(), anyList(), any(), any(), any());
     }

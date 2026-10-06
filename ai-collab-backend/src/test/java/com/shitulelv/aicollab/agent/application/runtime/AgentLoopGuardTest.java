@@ -1,4 +1,4 @@
-package com.shitulelv.aicollab.agent.domain.policy;
+package com.shitulelv.aicollab.agent.application.runtime;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

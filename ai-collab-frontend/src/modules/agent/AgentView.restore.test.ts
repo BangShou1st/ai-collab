@@ -178,8 +178,8 @@ describe('AgentView restore', () => {
     const conversationText = wrapper.find('.conversation').text()
     expect(conversationText.match(/读取项目任务/g)?.length).toBe(1)
     expect(conversationText).toContain('检查里程碑')
-    const inspectorText = wrapper.find('[aria-label="实际工具执行"]').text()
-    expect(inspectorText.match(/读取项目任务/g)?.length).toBe(1)
+    // 完整过程只在对话主区展示；检查器不再重复渲染工具执行列表
+    expect(wrapper.find('[aria-label="实际工具执行"]').exists()).toBe(false)
     wrapper.unmount()
   })
 

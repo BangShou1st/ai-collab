@@ -36,20 +36,6 @@ import static org.mockito.Mockito.when;
  * 必选层预留、当前请求保护、大结果确定性投影、去重与协议配对。
  */
 class AgentModelMessageComposerV2Test {
-    @Test void planningProjectionRetainsNestedVersionAndTaskIdentitiesForScopedRepair() throws Exception {
-        var mapper=new ObjectMapper().findAndRegisterModules();
-        var c=new AgentModelMessageComposer(mock(AgentRepository.class),null,mapper,null);
-        var result=mapper.createObjectNode();var data=result.putObject("data");
-        data.put("baseVersionId","11111111-1111-1111-1111-111111111111");data.put("expectedVersionNo",2);
-        data.putObject("version").put("id","11111111-1111-1111-1111-111111111111");
-        var draft=data.putObject("draft");draft.putArray("tasks").addObject().put("tempKey","t1").put("description","长描述".repeat(3000));
-        var projected=c.projectToolOutput(result,6000);
-        assertThat(projected.path("data").path("baseVersionId").asText()).isEqualTo("11111111-1111-1111-1111-111111111111");
-        assertThat(projected.path("data").path("draft").path("tasks").get(0).path("tempKey").asText()).isEqualTo("t1");
-        assertThat(projected.path("projection").asText()).isEqualTo("DETERMINISTIC");
-        assertThat(projected.toString().length()).isLessThanOrEqualTo(6000);
-        assertThat(c.projectToolOutput(result,1500).path("data").path("draft").path("tasks").get(0).path("tempKey").asText()).isEqualTo("t1");
-    }
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     private AgentRepository repository;
     private AgentMemoryService memories;
@@ -63,7 +49,7 @@ class AgentModelMessageComposerV2Test {
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(new ArrayList<>());
         when(repository.citationsStillValid(any(), any())).thenReturn(true);
         when(memories.context(any(),any(),any())).thenReturn(List.of());
-        composer = new AgentModelMessageComposer(repository, memories, json, mock(RoutingAgentModelExecutor.class));
+        composer = new AgentModelMessageComposer(repository, memories, json);
     }
 
     @Test
@@ -74,7 +60,7 @@ class AgentModelMessageComposerV2Test {
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
 
         var composition = composer.composeV2(run("把结果改成表格"), context(), skill(),
-                AgentPlan.create("查询任务", List.of()), List.of(), 30_000, 1.0);
+                AgentPlan.create("查询任务", List.of()), List.of(), 30_000, 1.0, false);
 
         assertThat(composition.failureReason()).isNull();
         assertThat(composition.messages().get(0)).isInstanceOf(ModelMessage.System.class);
@@ -85,84 +71,6 @@ class AgentModelMessageComposerV2Test {
         assertThat(composition.stats().historyIncluded()).isEqualTo(2);
     }
 
-    @Test void projectedDocumentCannotRetainFullReadClaim() {
-        var output = json.createObjectNode();
-        var data = output.putObject("data");
-        data.put("coverage", "FULL");
-        data.put("fullDocumentRead", true);
-        data.put("content", "正文".repeat(6000));
-        var projected = composer.projectToolOutput(output, 1500);
-        assertThat(projected.path("fullDocumentRead").asBoolean()).isFalse();
-        assertThat(projected.path("evidenceScope").asText()).isEqualTo("PROJECTED_PARTIAL_OBSERVATION");
-    }
-
-    @Test void bodyItemProjectionKeepsVisibleRangeConsistentWithContent() {
-        // 回归根因：正文截到 200 字后，原始范围终点/截断标记仍按原值保留，
-        // 模型把序列化 JSON 长度（originalChars）误当正文长度
-        var output = json.createObjectNode();
-        var data = output.putObject("data");
-        var item = data.putObject("item");
-        item.put("content", "章节正文".repeat(400)); // 1600 字，超过 cap 触发投影
-        item.put("fromOffset", 4956);
-        item.put("throughOffset", 5513);
-        item.put("chunkNo", 3);
-        item.put("heading", "4.4 摘要与压缩");
-        var projected = composer.projectToolOutput(output, 1500);
-
-        var view = projected.path("data").path("item");
-        String visibleContent = view.path("content").asText();
-        // 可见范围与实际字符串一致：可见终点 = 起点 + 实际可见正文长度
-        assertThat(view.path("fromOffset").asInt()).isEqualTo(4956);
-        assertThat(view.path("throughOffset").asInt()).isEqualTo(4956 + 200);
-        assertThat(view.path("originalThroughOffset").asInt()).isEqualTo(5513);
-        assertThat(view.path("omittedChars").asInt()).isEqualTo(5513 - 4956 - 200);
-        assertThat(view.path("bodyProjection").asText()).isEqualTo("MODEL_VISIBLE_ONLY");
-        assertThat(visibleContent.startsWith("章节正文")).isTrue();
-        assertThat(visibleContent.length()).isEqualTo(200 + "… [projected]".length());
-        // 序列化大小与正文长度的语义区分明确
-        assertThat(projected.path("originalCharsSemantics").asText())
-                .isEqualTo("SERIALIZED_TOOL_RESULT_JSON_CHARS_NOT_BODY_LENGTH");
-        assertThat(projected.path("modelVisibleChars").asInt()).isEqualTo(projected.toString().length());
-        // 续读提示：从可见终点续读，不跳过模型未见内容
-        assertThat(projected.path("resumeHint").asText()).isNotBlank();
-    }
-
-    @Test void repeatedProjectionDoesNotDistortRangeInfo() {
-        var output = json.createObjectNode();
-        var data = output.putObject("data");
-        var item = data.putObject("item");
-        item.put("content", "正文内容".repeat(400)); // 1600 字，超过 cap 触发投影
-        item.put("fromOffset", 100);
-        item.put("throughOffset", 2200);
-
-        JsonNode once = composer.projectToolOutput(output, 1500);
-        // 模拟重复压缩：对已投影视图再次投影（如降级重组后再次组装）
-        JsonNode twice = composer.projectToolOutput(once, 4000);
-
-        var view = twice.path("data").path("item");
-        // 二次投影不改变已修正的可见范围，不把 originalThroughOffset 当成新的可见终点
-        assertThat(view.path("throughOffset").asInt()).isEqualTo(300);
-        assertThat(view.path("originalThroughOffset").asInt()).isEqualTo(2200);
-        assertThat(view.path("omittedChars").asInt()).isEqualTo(1900);
-    }
-
-    @Test void planningProjectionLabelsOriginalCharsSemantics() {
-        var output = json.createObjectNode();
-        var data = output.putObject("data");
-        data.put("baseVersionId", UUID.randomUUID().toString());
-        var draft = data.putObject("draft");
-        var tasks = draft.putArray("tasks");
-        for (int i = 0; i < 10; i++) {
-            var task = tasks.addObject();
-            task.put("tempKey", "t" + i);
-            task.put("title", "任务".repeat(150) + i);
-        }
-        var projected = composer.projectToolOutput(output, 1500);
-        assertThat(projected.path("originalCharsSemantics").asText())
-                .isEqualTo("SERIALIZED_TOOL_RESULT_JSON_CHARS_NOT_BODY_LENGTH");
-        assertThat(projected.path("projection").asText()).isEqualTo("DETERMINISTIC");
-    }
-
     @Test
     void composeV2DoesNotDuplicateGoalAlreadyInHistory() {
         List<AgentMessageView> history = new ArrayList<>(List.of(
@@ -171,7 +79,7 @@ class AgentModelMessageComposerV2Test {
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
 
         var composition = composer.composeV2(run("查询项目任务并汇总本周的状态变化情况。"), context(), skill(),
-                AgentPlan.create("查询任务", List.of()), List.of(), 30_000, 1.0);
+                AgentPlan.create("查询任务", List.of()), List.of(), 30_000, 1.0, false);
 
         assertThat(userContents(composition.messages()).stream()
                 .filter("查询项目任务并汇总本周的状态变化情况。"::equals)
@@ -186,14 +94,14 @@ class AgentModelMessageComposerV2Test {
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
 
         var composition = composer.composeV2(run("日期不要改，最多十项"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(), 4_000, 1.0);
+                AgentPlan.create("查询", List.of()), List.of(), 4_000, 1.0, false);
 
         assertThat(composition.failureReason()).isNull();
         assertThat(userContents(composition.messages())).contains("日期不要改，最多十项");
 
         // 预算小到连必选层都放不下当前请求：明确停止而不是静默截断
         var overflow = composer.composeV2(run("必须完整保留的请求"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(), 10, 1.0);
+                AgentPlan.create("查询", List.of()), List.of(), 10, 1.0, false);
         assertThat(overflow.failureReason())
                 .isEqualTo(AgentModelMessageComposer.FAILURE_CURRENT_REQUEST_OVER_BUDGET);
     }
@@ -207,7 +115,7 @@ class AgentModelMessageComposerV2Test {
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
 
         var composition = composer.composeV2(run("查询项目任务并汇总本周的状态变化情况。"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(), 30_000, 1.0);
+                AgentPlan.create("查询", List.of()), List.of(), 30_000, 1.0, false);
 
         assertThat(userContents(composition.messages()).stream()
                 .filter("查询项目任务并汇总本周的状态变化情况。"::equals)
@@ -228,7 +136,7 @@ class AgentModelMessageComposerV2Test {
                 "TOOL_SUCCESS", null, null, false, null, null, OffsetDateTime.now());
 
         var composition = composer.composeV2(run("查询全部任务"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(step), 30_000, 1.0);
+                AgentPlan.create("查询", List.of()), List.of(step), 30_000, 1.0, false);
 
         assertThat(composition.failureReason()).isNull();
         assertThat(composition.stats().toolResultsProjected()).isEqualTo(1);
@@ -245,8 +153,8 @@ class AgentModelMessageComposerV2Test {
         // 投影保留标量与计数，不伪造完整列表
         JsonNode projected = result.result();
         assertThat(projected.path("status").asText()).isEqualTo("SUCCESS");
-        assertThat(projected.path("items").size()).isEqualTo(AgentModelMessageComposer.PROJECTION_ITEMS + 1);
-        assertThat(projected.path("items").get(AgentModelMessageComposer.PROJECTION_ITEMS).path("projectedTotalCount").asInt())
+        assertThat(projected.path("items").size()).isEqualTo(AgentToolOutputProjector.PROJECTION_ITEMS + 1);
+        assertThat(projected.path("items").get(AgentToolOutputProjector.PROJECTION_ITEMS).path("projectedTotalCount").asInt())
                 .isEqualTo(500);
         assertThat(projected.path("projection").asText()).isEqualTo("DETERMINISTIC");
     }
@@ -259,7 +167,7 @@ class AgentModelMessageComposerV2Test {
                 "TOOL_SUCCESS", null, null, false, null, null, OffsetDateTime.now());
 
         var composition = composer.composeV2(run("查询任务"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(step), 30_000, 1.0);
+                AgentPlan.create("查询", List.of()), List.of(step), 30_000, 1.0, false);
 
         assertThat(composition.stats().toolResultsProjected()).isZero();
         ModelMessage.ToolResult result = (ModelMessage.ToolResult) composition.messages().stream()
@@ -281,7 +189,7 @@ class AgentModelMessageComposerV2Test {
                 UUID.randomUUID(), null, 1, OffsetDateTime.now(), OffsetDateTime.now())));
 
         var composition = composer.composeV2(run("继续完成任务"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(), 4_000, 1.0);
+                AgentPlan.create("查询", List.of()), List.of(), 4_000, 1.0, false);
 
         assertThat(composition.failureReason()).isNull();
         assertThat(composition.stats().memoryIncluded()).isFalse();
@@ -299,7 +207,7 @@ class AgentModelMessageComposerV2Test {
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
 
         List<ModelMessage> messages = composer.buildMessageHistory(run("新目标"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of());
+                AgentPlan.create("查询", List.of()), List.of(), false);
 
         assertThat(messages.get(0)).isInstanceOf(ModelMessage.System.class);
         assertThat(userContents(messages)).contains("新目标");
@@ -320,7 +228,7 @@ class AgentModelMessageComposerV2Test {
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
 
         List<ModelMessage> messages = composer.buildMessageHistory(run("不改日期，最多十项任务"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of());
+                AgentPlan.create("查询", List.of()), List.of(), false);
 
         assertThat(userContents(messages)).contains("不改日期，最多十项任务");
     }
@@ -334,7 +242,7 @@ class AgentModelMessageComposerV2Test {
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(history);
 
         List<ModelMessage> messages = composer.buildMessageHistory(run("日期不要改"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of());
+                AgentPlan.create("查询", List.of()), List.of(), false);
 
         assertThat(userContents(messages)).contains("日期不要改");
     }
@@ -354,7 +262,7 @@ class AgentModelMessageComposerV2Test {
         when(repository.workingState(any(), any())).thenReturn(state);
 
         var composition = composer.composeV2(run("继续"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(), 30_000, 1.0);
+                AgentPlan.create("查询", List.of()), List.of(), 30_000, 1.0, false);
 
         assertThat(composition.failureReason()).isNull();
         assertThat(composition.messages()).anyMatch(m -> m instanceof ModelMessage.User user
@@ -373,7 +281,7 @@ class AgentModelMessageComposerV2Test {
 
         // 极小预算：只有最近几条能入选，更早的消息成为摘要候选
         var composition = composer.composeV2(run("继续"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of(), 4_000, 0.4);
+                AgentPlan.create("查询", List.of()), List.of(), 4_000, 0.4, false);
 
         assertThat(composition.failureReason()).isNull();
         assertThat(composition.summaryCandidates()).isNotEmpty();
@@ -419,7 +327,7 @@ class AgentModelMessageComposerV2Test {
 
         // 旧组装路径（composer-v2=false）读取 v2 状态：不报错、约束与摘要不丢失、目标不误认
         List<ModelMessage> legacyMessages = composer.buildMessageHistory(run("继续查详情"), context(), skill(),
-                AgentPlan.create("查询", List.of()), List.of());
+                AgentPlan.create("查询", List.of()), List.of(), false);
 
         assertThat(legacyMessages.get(0)).isInstanceOf(ModelMessage.System.class);
         String workingStateBlock = legacyMessages.stream()
@@ -442,7 +350,7 @@ class AgentModelMessageComposerV2Test {
         var request = message("USER", "只核对已经读取部分的费用依据，不生成任务。", 2);
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(new ArrayList<>(List.of(previous, request)));
         var composition = composer.composeV2(run(request.content()), context(), skill(),
-                AgentPlan.create("核对", List.of()), List.of(), 30_000, 1.0);
+                AgentPlan.create("核对", List.of()), List.of(), 30_000, 1.0, false);
         assertThat(composition.failureReason()).isNull();
         assertThat(composition.messages()).anyMatch(m -> m instanceof ModelMessage.Assistant assistant
                 && assistant.content().contains("UNVERIFIED_ASSISTANT_HISTORY")

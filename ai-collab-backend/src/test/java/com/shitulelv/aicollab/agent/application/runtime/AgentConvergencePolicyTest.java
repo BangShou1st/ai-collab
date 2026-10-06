@@ -1,4 +1,4 @@
-package com.shitulelv.aicollab.agent.domain.policy;
+package com.shitulelv.aicollab.agent.application.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
@@ -14,9 +14,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import static com.shitulelv.aicollab.agent.domain.policy.AgentConvergencePolicy.Mode.CONTINUE;
-import static com.shitulelv.aicollab.agent.domain.policy.AgentConvergencePolicy.Mode.EXHAUSTED;
-import static com.shitulelv.aicollab.agent.domain.policy.AgentConvergencePolicy.Mode.FINALIZE;
+import static com.shitulelv.aicollab.agent.application.runtime.AgentConvergencePolicy.Mode.CONTINUE;
+import static com.shitulelv.aicollab.agent.application.runtime.AgentConvergencePolicy.Mode.EXHAUSTED;
+import static com.shitulelv.aicollab.agent.application.runtime.AgentConvergencePolicy.Mode.FINALIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

@@ -1,5 +1,5 @@
 export type AgentRunStatus =
-  | 'CREATED' | 'QUEUED' | 'RUNNING' | 'WAITING_FOR_APPROVAL'
+  | 'CREATED' | 'QUEUED' | 'RUNNING' | 'PAUSED' | 'WAITING_FOR_APPROVAL'
   | 'WAITING_FOR_USER_INPUT'
   | 'SUCCEEDED' | 'FAILED_RETRYABLE' | 'FAILED' | 'CANCELED' | 'BUDGET_EXCEEDED'
 
@@ -14,6 +14,7 @@ export interface AgentRunDetail {
   run: AgentRun; plan: { steps: Array<{ title: string; status: string }> } | null; lastEventSequence: number; pendingApprovalId: string | null
   modelConfiguration?: { configurationId: string; provider: string; model: string; mode: string; maxOutputTokens: number; budgetEnforced: boolean } | null
   recoveryCounters?: Record<string, number>
+  pauseRequestedAt?: string | null
 }
 export interface AgentRun {
   id: string; sessionId: string; projectId: string; goal: string; status: AgentRunStatus
@@ -21,6 +22,8 @@ export interface AgentRun {
   stepsUsed: number; maxSteps: number; toolCallsUsed: number; maxToolCalls: number
   inputTokensUsed: number; maxInputTokens: number; outputTokensUsed: number
   maxOutputTokens: number; errorCode: string | null
+  /** 暂停意图落库时间：非空且状态为 RUNNING 时表示"正在暂停"；PAUSED 时为暂停请求时间 */
+  pauseRequestedAt?: string | null
 }
 export type AgentEventType =
   | 'RUN_CREATED' | 'CONTEXT_CAPTURED' | 'SKILL_SELECTED'
@@ -29,7 +32,8 @@ export type AgentEventType =
   | 'TOOL_CALL_FAILED' | 'APPROVAL_REQUESTED' | 'APPROVAL_APPROVED'
   | 'APPROVAL_REJECTED' | 'APPROVAL_EXPIRED' | 'APPROVAL_UPDATED'
   | 'RESULT_VERIFIED'
-  | 'RUN_RETRY_SCHEDULED' | 'RUN_CANCELED' | 'RUN_SUCCEEDED'
+  | 'RUN_RETRY_SCHEDULED' | 'RUN_PAUSE_REQUESTED' | 'RUN_PAUSED' | 'RUN_RESUMED'
+  | 'RUN_CANCELED' | 'RUN_SUCCEEDED'
   | 'RUN_FAILED' | 'RUN_BUDGET_EXCEEDED'
   | 'WAITING_FOR_USER_INPUT'
 

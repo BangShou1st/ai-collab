@@ -29,8 +29,12 @@ public class AgentPlanningOperationService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,"工具调用身份与参数冲突");
         var existing=jdbc.queryForList("SELECT id FROM agent_planning_operation WHERE invocation_id=?",UUID.class,ctx.invocationId());
         if(!existing.isEmpty()) return get(ctx.projectId(),existing.getFirst(),ctx.userId());
-        var run=jdbc.queryForMap("SELECT r.session_id,r.requester_id,r.status,r.cancel_requested_at,s.working_state->>'goalRevision' AS goal_revision FROM agent_run r JOIN agent_session s ON s.id=r.session_id WHERE r.project_id=? AND r.id=? FOR UPDATE OF r",ctx.projectId(),ctx.runId());
+        var run=jdbc.queryForMap("SELECT r.session_id,r.requester_id,r.status,r.cancel_requested_at,r.pause_requested_at,s.working_state->>'goalRevision' AS goal_revision FROM agent_run r JOIN agent_session s ON s.id=r.session_id WHERE r.project_id=? AND r.id=? FOR UPDATE OF r",ctx.projectId(),ctx.runId());
+        // 受理边界与暂停意图用同一运行行锁串行化：意图先落库则不再受理新业务动作
+        // （AGENT_RUN_PAUSED，执行器转入 PAUSED、调用保持 PENDING），不能仅依赖执行器
+        // 之前的无锁检查；受理先提交则原事务完成、保留结果。
         if(!ctx.userId().equals(run.get("requester_id")) || run.get("cancel_requested_at")!=null || !Set.of("RUNNING","QUEUED").contains(run.get("status"))) throw new BusinessException(ErrorCode.AGENT_RUN_CANCELED);
+        if(run.get("pause_requested_at")!=null) throw new BusinessException(ErrorCode.AGENT_RUN_PAUSED,"Agent 运行已请求暂停，不受理新的业务动作");
         TaskPlanRecord plan; UUID targetVersion=null; UUID ownedAttempt;
         if("start_task_plan".equals(tool)) {
             // Bound repeated starts in one run even with a different model-generated call identity.

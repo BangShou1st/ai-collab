@@ -1,7 +1,7 @@
 import type { AgentRunEvent } from './types'
 
 export type ActivityStatus = 'running' | 'done' | 'failed' | 'waiting'
-export type ActivityKind = 'read' | 'search' | 'analysis' | 'proposal' | 'approval' | 'success' | 'failure' | 'waiting' | 'info'
+export type ActivityKind = 'read' | 'search' | 'analysis' | 'proposal' | 'approval' | 'success' | 'failure' | 'waiting' | 'info' | 'narration'
 
 export interface AgentActivity {
   key: string
@@ -51,14 +51,22 @@ function callKey(e: AgentRunEvent): string {
 const TOOL_LIFECYCLE = new Set(['TOOL_CALL_PROPOSED', 'TOOL_CALL_STARTED', 'TOOL_CALL_COMPLETED', 'TOOL_CALL_FAILED'])
 const APPROVAL_CLOSE = new Set(['APPROVAL_APPROVED', 'APPROVAL_REJECTED', 'APPROVAL_EXPIRED'])
 
-/** Presentation policy: only tool lifecycles, approvals, analyzing and waiting become rows. Run/model/plan/context events drive state elsewhere and never render. Unknown future types are skipped, never shown. */
+/** Presentation policy: tool lifecycles, approvals, turn narrations, analyzing and waiting become rows.
+ *  Run/model/plan/context events drive state elsewhere. MODEL_COMPLETED narration only exists for
+ *  turns that also requested tools (toolCallCount > 0); a text-only final turn is the ASSISTANT
+ *  message and must not be duplicated here. Unknown future types are skipped, never shown. */
 export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] {
   const terminal = [...events].reverse().find(event => ['RUN_CANCELED', 'RUN_SUCCEEDED', 'RUN_FAILED', 'RUN_BUDGET_EXCEEDED'].includes(event.type))
   const tools = new Map<string, AgentRunEvent[]>()
   const toolOrder: string[] = []
   const approvals = new Map<string, AgentRunEvent[]>()
   const approvalOrder: string[] = []
-  let analyzing: AgentRunEvent[] | null = null
+  const narrations: AgentRunEvent[] = []
+  const controlNotes: AgentRunEvent[] = []
+  // “正在分析”按最新一次模型请求判定：只比较最新 MODEL_STARTED 与最新 MODEL_COMPLETED 的序号，
+  // 不能因为历史上出现过任何一次完成就永久抑制后续轮次的在途状态。
+  let latestModelStarted: AgentRunEvent | null = null
+  let latestModelCompleted: AgentRunEvent | null = null
   let waiting: AgentRunEvent[] | null = null
   for (const e of [...events].sort((a, b) => a.sequence - b.sequence)) {
     if (TOOL_LIFECYCLE.has(e.type)) {
@@ -70,8 +78,17 @@ export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] 
       if (!approvals.has(key)) { approvals.set(key, []); approvalOrder.push(key) }
       approvals.get(key)!.push(e)
     } else if (e.type === 'MODEL_STARTED' || e.type === 'MODEL_COMPLETED') {
-      if (!analyzing) analyzing = []
-      analyzing.push(e)
+      if (!latestModelStarted || e.sequence >= latestModelStarted.sequence) latestModelStarted = e
+      if (e.type === 'MODEL_COMPLETED') {
+        const p = (e.payload ?? {}) as Record<string, unknown>
+        const content = typeof p.content === 'string' ? p.content.trim() : ''
+        const toolCount = typeof p.toolCallCount === 'number' ? p.toolCallCount : 0
+        if (toolCount > 0 && content) narrations.push(e)
+        if (!latestModelCompleted || e.sequence >= latestModelCompleted.sequence) latestModelCompleted = e
+      }
+    } else if (e.type === 'RUN_PAUSED' || e.type === 'RUN_RESUMED') {
+      // 暂停/继续是控制状态变化，不是用户任务或最终回答，只渲染一行状态说明
+      controlNotes.push(e)
     } else if (e.type === 'WAITING_FOR_USER_INPUT') {
       if (!waiting) waiting = []
       waiting.push(e)
@@ -88,14 +105,78 @@ export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] 
     }
     out.push(activity)
   }
+  for (const e of narrations) {
+    const p = (e.payload ?? {}) as Record<string, unknown>
+    out.push({ key: `narration:${e.sequence}`, tool: 'narration', kind: 'narration', status: 'done', title: 'Agent', detail: (p.content as string).trim(), durationMs: null, count: null, raw: [e] })
+  }
   for (const key of approvalOrder) out.push(buildApprovalActivity(key, approvals.get(key)!))
-  if (!terminal && analyzing && analyzing.some((e) => e.type === 'MODEL_STARTED') && !analyzing.some((e) => e.type === 'MODEL_COMPLETED')) {
-    out.push({ key: 'model:analyzing', tool: 'model', kind: 'analysis', status: 'running', title: '正在分析', detail: null, durationMs: null, count: null, raw: analyzing })
+  for (const e of controlNotes) {
+    out.push({ key: `control:${e.sequence}`, tool: 'control', kind: 'info', status: 'done',
+      title: e.type === 'RUN_RESUMED' ? '已继续' : '已暂停，进度已保留',
+      detail: null, durationMs: null, count: null, raw: [e] })
+  }
+  const requestInFlight = latestModelStarted !== null
+    && (latestModelCompleted === null || latestModelStarted.sequence > latestModelCompleted.sequence)
+  if (!terminal && requestInFlight && latestModelStarted) {
+    const model = (latestModelStarted.payload as Record<string, unknown> | undefined)?.model
+    out.push({ key: 'model:analyzing', tool: 'model', kind: 'analysis', status: 'running', title: '正在分析', detail: typeof model === 'string' && model ? `使用 ${model}` : null, durationMs: null, count: null, raw: [latestModelStarted] })
   }
   if (waiting && !terminal) {
     out.push({ key: 'waiting:input', tool: 'input', kind: 'waiting', status: 'waiting', title: '等待你的输入', detail: null, durationMs: null, count: null, raw: waiting })
   }
   return out.sort((a, b) => minSequence(a.raw) - minSequence(b.raw))
+}
+
+export interface AgentActivityGroup {
+  key: string
+  kind: 'group'
+  title: string
+  status: ActivityStatus
+  count: number
+  items: AgentActivity[]
+}
+export type ConversationActivity = AgentActivity | AgentActivityGroup
+
+/** Merge runs of ≥3 consecutive completed read/search rows into one collapsible group;
+ *  narration, failures, running and approval rows always stay individually visible. */
+export function groupAgentActivities(items: AgentActivity[]): ConversationActivity[] {
+  const out: ConversationActivity[] = []
+  let bucket: AgentActivity[] = []
+  const flush = () => {
+    if (bucket.length >= 3) {
+      const titles = [...new Set(bucket.map((item) => item.title))]
+      out.push({
+        key: `group:${bucket[0].key}`,
+        kind: 'group',
+        title: titles.length === 1 ? titles[0] : '查阅项目资料',
+        status: 'done',
+        count: bucket.length,
+        items: bucket,
+      })
+    } else out.push(...bucket)
+    bucket = []
+  }
+  for (const item of items) {
+    if (item.kind === 'narration') { flush(); out.push(item); continue }
+    if (item.status === 'done' && (item.kind === 'read' || item.kind === 'search')) { bucket.push(item); continue }
+    flush(); out.push(item)
+  }
+  flush()
+  return out
+}
+
+/** Last known model identity for the active run: actual provider response wins,
+ *  then the in-flight MODEL_STARTED, then the run detail snapshot. */
+export function currentModelFromEvents(events: AgentRunEvent[]): { provider: string; model: string; live: boolean } | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.type !== 'MODEL_COMPLETED' && e.type !== 'MODEL_STARTED') continue
+    const p = (e.payload ?? {}) as Record<string, unknown>
+    if (typeof p.model === 'string' && p.model.trim()) {
+      return { provider: typeof p.provider === 'string' ? p.provider : '', model: p.model, live: e.type === 'MODEL_STARTED' }
+    }
+  }
+  return null
 }
 
 function minSequence(list: AgentRunEvent[]): number {

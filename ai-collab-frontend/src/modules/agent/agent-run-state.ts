@@ -39,6 +39,14 @@ export function agentRunPresentation(run: AgentRun): AgentRunPresentation {
       canRetry: false,
     }
   }
+  if (run.status === 'PAUSED') {
+    return {
+      terminal: false,
+      severity: 'warning',
+      title: '已暂停，进度已保留',
+      canRetry: false,
+    }
+  }
   if (run.status === 'SUCCEEDED') {
     return {
       terminal: true,

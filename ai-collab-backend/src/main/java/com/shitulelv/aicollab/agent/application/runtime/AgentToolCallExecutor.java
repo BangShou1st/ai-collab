@@ -9,8 +9,8 @@ import com.shitulelv.aicollab.agent.application.AgentWorkerOutcome;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.view.AgentStepView;
 import com.shitulelv.aicollab.agent.domain.model.*;
-import com.shitulelv.aicollab.agent.domain.policy.AgentConvergencePolicy;
-import com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuard;
+
+
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
@@ -41,6 +41,9 @@ import java.util.concurrent.TimeoutException;
  */
 public class AgentToolCallExecutor {
     private static final Logger log = LoggerFactory.getLogger(AgentToolCallExecutor.class);
+    /** 批次任务的暂停哨兵：意图已落库、本调用未获得执行准入，结果保持 PENDING。 */
+    private static final BusinessException PAUSE_ADMISSION =
+            new BusinessException(ErrorCode.AGENT_RUN_PAUSED, "Agent 运行已请求暂停");
 
     private final AgentRepository repository;
     private final AgentToolRegistry tools;
@@ -51,10 +54,9 @@ public class AgentToolCallExecutor {
     private final AgentToolResultSanitizer sanitizer;
     private final ObjectMapper json;
     private final AgentEventService events;
-    java.util.concurrent.ExecutorService scheduler = java.util.concurrent.ForkJoinPool.commonPool();
-    AgentToolScheduler limiter;
+    private final AgentToolScheduler scheduler;
 
-    AgentToolCallExecutor(
+    public AgentToolCallExecutor(
             AgentRepository repository,
             AgentToolRegistry tools,
             AgentCancellationService cancellation,
@@ -63,7 +65,8 @@ public class AgentToolCallExecutor {
             RoutingAgentModelExecutor modelExecutor,
             AgentToolResultSanitizer sanitizer,
             ObjectMapper json,
-            AgentEventService events) {
+            AgentEventService events,
+            AgentToolScheduler scheduler) {
         this.repository = repository;
         this.tools = tools;
         this.cancellation = cancellation;
@@ -73,6 +76,7 @@ public class AgentToolCallExecutor {
         this.sanitizer = sanitizer;
         this.json = json;
         this.events = events;
+        this.scheduler = scheduler;
     }
 
     AgentWorkerOutcome executeCalls(
@@ -82,6 +86,33 @@ public class AgentToolCallExecutor {
             ModelTurnResult turn,
             List<AgentToolDefinition> exposed,
             List<AgentStepView> steps) {
+        return executeCalls(run, ctx, skill, turn, exposed, steps, false, false);
+    }
+
+    AgentWorkerOutcome executeCalls(
+            AgentRunView run,
+            AgentExecutionContext ctx,
+            AgentSkill skill,
+            ModelTurnResult turn,
+            List<AgentToolDefinition> exposed,
+            List<AgentStepView> steps,
+            boolean recoveryBatch) {
+        return executeCalls(run, ctx, skill, turn, exposed, steps, recoveryBatch, false);
+    }
+
+    /**
+     * @param recoveryBatch     true 表示处理已持久化模型轮次的待处理调用
+     * @param requestLegacyMode 本次请求准备时解析出的执行模式（仅新轮次调用的校验来源）
+     */
+    AgentWorkerOutcome executeCalls(
+            AgentRunView run,
+            AgentExecutionContext ctx,
+            AgentSkill skill,
+            ModelTurnResult turn,
+            List<AgentToolDefinition> exposed,
+            List<AgentStepView> steps,
+            boolean recoveryBatch,
+            boolean requestLegacyMode) {
 
         List<ModelToolCall> assistantToolCalls = new ArrayList<>(turn.toolCalls());
         java.util.Set<String> callIds = new java.util.HashSet<>();
@@ -104,7 +135,7 @@ public class AgentToolCallExecutor {
             cancellation.throwIfRequested(run);
             var known = repository.knownInvocationResult(run, toolCall);
             if (known != null && known.isPresent()) { recovered.add(known.get()); continue; }
-            ValidatedToolCall vtc = validateToolCall(run, toolCall, ctx, skill, exposed, steps, toolCtx);
+            ValidatedToolCall vtc = validateToolCall(run, toolCall, ctx, skill, exposed, steps, toolCtx, recoveryBatch, requestLegacyMode);
             if (vtc.error()==null && com.shitulelv.aicollab.agent.infrastructure.tool.RequestUserInputAgentTool.NAME.equals(toolCall.name())) {
                 if (clarificationSeen) vtc=new ValidatedToolCall(null,toolCall,createError("CLARIFICATION_BATCH_LIMIT","每批仅允许一次澄清动作"),false);
                 clarificationSeen=true;
@@ -146,7 +177,11 @@ public class AgentToolCallExecutor {
         for (ValidatedToolCall vtc : validated) {
             if (vtc.error() == null && vtc.writeTool() == null && !vtc.tool().writesBusinessData()) readOnlyBatch.add(vtc);
         }
-        if (!readOnlyBatch.isEmpty()) run = executeToolBatch(run, readOnlyBatch, toolCtx, ctx.limits());
+        if (!readOnlyBatch.isEmpty()) {
+            BatchOutcome outcome = executeToolBatch(run, readOnlyBatch, toolCtx, ctx.limits());
+            if (outcome.paused()) return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+            run = outcome.run();
+        }
         readOnlyBatch.clear();
         var clarification = validated.stream().filter(v -> v.error() == null
                 && com.shitulelv.aicollab.agent.infrastructure.tool.RequestUserInputAgentTool.NAME.equals(v.toolCall().name())).findFirst();
@@ -173,7 +208,9 @@ public class AgentToolCallExecutor {
                 for(var call:validated) if(call.error()==null && (call.writeTool()!=null || call.tool().writesBusinessData()))
                     run=repository.recordToolResult(run,call.toolCall().name(),input(call.toolCall()),createError("WRITE_BATCH_LIMIT","一次仅允许一个规划操作或一个提案，请分轮执行"),true);
             } else {
-                run=executeToolBatch(run,controlled,toolCtx,ctx.limits());
+                BatchOutcome controlledOutcome = executeToolBatch(run,controlled,toolCtx,ctx.limits());
+                if (controlledOutcome.paused()) return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+                run = controlledOutcome.run();
                 var recorded=repository.listSteps(run.projectId(),run.id());
                 boolean accepted=recorded.stream().anyMatch(s->controlled.getFirst().toolCall().name().equals(s.toolName()) && s.output()!=null && s.output().path("data").has("operationId"));
                 if(accepted) {
@@ -190,11 +227,17 @@ public class AgentToolCallExecutor {
             if (vtc.writeTool() != null) {
                 // 遇到写工具：先 flush 只读批次
                 if (!readOnlyBatch.isEmpty()) {
-                    run = executeToolBatch(run, readOnlyBatch, toolCtx, ctx.limits());
+                    BatchOutcome flushed = executeToolBatch(run, readOnlyBatch, toolCtx, ctx.limits());
+                    if (flushed.paused()) return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+                    run = flushed.run();
                     readOnlyBatch.clear();
                 }
                 // 写工具串行执行
                 cancellation.throwIfRequested(run);
+                // 提案创建是业务受理边界：暂停意图先落库则不创建提案，写调用保持 PENDING
+                if (repository.pauseIfRequested(run)) {
+                    return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+                }
 
                 // 使用 proposeOrRevise 支持提案修订
                 AgentProposalOutcome outcome;
@@ -203,6 +246,10 @@ public class AgentToolCallExecutor {
                             run, turn, vtc.toolCall(), toolCtx, vtc.writeTool());
                 } catch (BusinessException failure) {
                     if (failure.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) throw failure;
+                    // 受理边界内的暂停拒绝（审批/规划服务的行锁检查）：转入 PAUSED，不误标失败
+                    if (failure.getErrorCode() == ErrorCode.AGENT_RUN_PAUSED && repository.pauseIfRequested(run)) {
+                        return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+                    }
                     return failWriteProposal(run, vtc.toolCall(), failure.getErrorCode().name());
                 } catch (RuntimeException failure) {
                     log.warn("Agent proposal failed: runId={}, tool={}, type={}, reason={}",
@@ -246,7 +293,9 @@ public class AgentToolCallExecutor {
 
         // flush 剩余只读批次
         if (!readOnlyBatch.isEmpty()) {
-            run = executeToolBatch(run, readOnlyBatch, toolCtx, ctx.limits());
+            BatchOutcome outcome = executeToolBatch(run, readOnlyBatch, toolCtx, ctx.limits());
+            if (outcome.paused()) return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+            run = outcome.run();
         }
 
         // 所有工具执行完成，重新排队等待下一轮
@@ -294,7 +343,7 @@ public class AgentToolCallExecutor {
             AgentRunView run, ModelToolCall toolCall,
             AgentExecutionContext ctx, AgentSkill skill,
             List<AgentToolDefinition> exposed, List<AgentStepView> steps,
-            AgentToolContext toolCtx) {
+            AgentToolContext toolCtx, boolean recoveryBatch, boolean requestLegacyMode) {
 
         // 工具存在检查
         AgentTool tool = tools.find(toolCall.name(), ctx).orElse(null);
@@ -348,12 +397,23 @@ public class AgentToolCallExecutor {
             return new ValidatedToolCall(null, toolCall, createError("AGENT_NO_PROGRESS", "工具调用无进展"), true);
         }
 
-        // 写工具：Skill 级别开关 + Legacy 检查
+        // 写工具：Skill 级别开关 + Legacy 校验。校验模式按调用来源确定：
+        // 恢复批次用原模型轮次持久化的 source_mode（换模型不追溯否定原生轮次的提案，
+        // 也不放行 Legacy 轮次的越权写调用）；新轮次用本次请求解析出的模式。
+        // 权限、审批与 Skill 白名单对所有来源继续生效。
         if(tool.writesBusinessData()) {
             if (!skill.allowWriteTools()) {
                 return new ValidatedToolCall(null, toolCall, createError("SKILL_WRITE_FORBIDDEN", "当前 Skill 不允许写操作"), false);
             }
-            if (modelExecutor.isLegacyModeForRun(run)) {
+            boolean legacyForCall;
+            if (recoveryBatch) {
+                String sourceMode = repository.invocationSourceMode(run, toolCall);
+                legacyForCall = sourceMode != null ? "LEGACY_READ_ONLY".equals(sourceMode)
+                        : modelExecutor.isLegacyModeForRun(run);
+            } else {
+                legacyForCall = requestLegacyMode;
+            }
+            if (legacyForCall) {
                 return new ValidatedToolCall(null, toolCall, createError("LEGACY_WRITE_TOOL_FORBIDDEN", "Legacy 模式下禁止执行写工具"), true);
             }
         }
@@ -364,11 +424,19 @@ public class AgentToolCallExecutor {
         return new ValidatedToolCall(tool, toolCall, null, false);
     }
 
+    /** 批次执行结果：run 为最新运行视图；paused 表示有调用因暂停意图未获准入而保持 PENDING。 */
+    private record BatchOutcome(AgentRunView run, boolean paused) {
+    }
+
     /**
      * 并行执行一批只读工具，顺序记录结果。
      * 每个工具执行都有超时保护，防止永久挂起。
+     *
+     * <p>暂停控制：每个任务在线程池/限流等待之后、实际调用之前复核暂停意图与 claim——
+     * 已获准入（通过复核）的调用允许完成并落结果；未获准入的调用以哨兵返回，
+     * 保持 invocation PENDING、不误标 SKIPPED/失败，随后运行转入 PAUSED。</p>
      */
-    private AgentRunView executeToolBatch(
+    private BatchOutcome executeToolBatch(
             AgentRunView run,
             List<ValidatedToolCall> batch,
             AgentToolContext toolCtx, AgentRuntimeLimits limits) {
@@ -384,9 +452,13 @@ public class AgentToolCallExecutor {
             cancellation.throwIfRequested(run);
             AgentRunView executingRun = run;
             try {
-            futures.add(scheduler.submit(() -> {
-                try (var permit = limiter == null ? null : limiter.acquire(toolCtx)) {
+            futures.add(scheduler.executor().submit(() -> {
+                try (var permit = scheduler.acquire(toolCtx)) {
                     cancellation.throwIfRequested(executingRun);
+                    // 限流等待之后的准入复核：暂停意图先落库则本调用不启动
+                    if (repository.isPauseRequested(executingRun.projectId(), executingRun.id())) {
+                        return new ToolExecutionResult(toolCall, null, PAUSE_ADMISSION);
+                    }
                     tools.checkPolicy(tool, toolCtx);
                     emit(executingRun, AgentEventType.TOOL_CALL_STARTED, json.createObjectNode()
                             .put("callId", toolCall.id()).put("toolName", toolCall.name())
@@ -409,6 +481,7 @@ public class AgentToolCallExecutor {
         }
 
         // 顺序记录结果（保证 run 状态一致性），带超时保护
+        boolean pauseRequested = false;
         try {
         for (java.util.concurrent.Future<ToolExecutionResult> future : futures) {
             ToolExecutionResult er;
@@ -445,6 +518,11 @@ public class AgentToolCallExecutor {
                 if (be.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
                     throw be;
                 }
+                if (be.getErrorCode() == ErrorCode.AGENT_RUN_PAUSED) {
+                    // 未获准入的调用：保持 PENDING，不记录结果、不占额度
+                    pauseRequested = true;
+                    continue;
+                }
                 run = recordToolFailure(run, er.toolCall(), be);
             } else if (er.exception() instanceof RuntimeException re) {
                 run = recordToolFailure(run, er.toolCall(), re);
@@ -470,7 +548,11 @@ public class AgentToolCallExecutor {
         }
         } finally { futures.forEach(f -> { if (!f.isDone()) f.cancel(true); }); }
 
-        return run;
+        if (pauseRequested) {
+            // 结清已准入调用的结果后确认暂停：未启动调用保持 PENDING，恢复后按原身份继续
+            return new BatchOutcome(repository.recordPaused(run.projectId(), run.id()), true);
+        }
+        return new BatchOutcome(run, false);
     }
 
     /**

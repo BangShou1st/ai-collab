@@ -61,10 +61,20 @@ public class AgentWorker {
         AgentRunView run = repository.findRun(claimed.projectId(), claimed.id())
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
 
-        // 预算检查
-        if (run.stepsUsed() >= run.maxSteps()
+        // 暂停意图优先于一切推进动作：接管带暂停意图的过期运行只确认 PAUSED，
+        // 不开始任何新动作；此前用户已看到的暂停意图在此收口。
+        if (repository.pauseIfRequested(run)) {
+            return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+        }
+
+        // 预算前置检查回答"是否准入下一次请求"；消费已保存结果（pendingModelTurn）
+        // 不消耗新一轮请求，不受该预留检查影响——否则接管会把有效最终文本丢成
+        // BUDGET_EXCEEDED。真实输入实际超限仍由协调器 afterResponseSaved 如实结算。
+        boolean hasSavedResult = repository.pendingModelTurn(run).isPresent();
+        if (!hasSavedResult
+                && (run.stepsUsed() >= run.maxSteps()
                 || run.inputTokensUsed() >= run.maxInputTokens()
-                || run.outputTokensUsed() >= run.maxOutputTokens()) {
+                || run.outputTokensUsed() >= run.maxOutputTokens())) {
             repository.recordBudgetExceeded(run);
             if (events != null && json != null) {
                 events.append(run.projectId(), run.id(), AgentEventType.RUN_BUDGET_EXCEEDED,

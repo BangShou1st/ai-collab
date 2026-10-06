@@ -30,6 +30,16 @@ export function applyAgentEvent(state: AgentTimelineState, event: AgentRunEvent)
   // APPROVAL_UPDATED 不改变 Run 状态，审批与 Run 已解耦
   if (event.type === 'WAITING_FOR_USER_INPUT') state.run.status = 'WAITING_FOR_USER_INPUT'
   if (event.type === 'RUN_RETRY_SCHEDULED') state.run.status = 'QUEUED'
+  // 暂停控制事件：RUNNING 上的意图先呈现"正在暂停"（状态仍 RUNNING，等待边界确认）
+  if (event.type === 'RUN_PAUSE_REQUESTED') state.run.pauseRequestedAt = event.createdAt
+  if (event.type === 'RUN_PAUSED') {
+    state.run.status = 'PAUSED'
+    state.run.pauseRequestedAt = event.createdAt
+  }
+  if (event.type === 'RUN_RESUMED') {
+    state.run.status = 'QUEUED'
+    state.run.pauseRequestedAt = null
+  }
   if (event.type === 'RUN_CANCELED') state.run.status = 'CANCELED'
   if (event.type === 'RUN_SUCCEEDED') state.run.status = 'SUCCEEDED'
   if (event.type === 'RUN_FAILED') state.run.status = event.payload?.retryable === true ? 'FAILED_RETRYABLE' : 'FAILED'

@@ -3,7 +3,6 @@ package com.shitulelv.aicollab.agent.domain.model.builtin;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
 import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
 
 import java.util.Set;
@@ -74,9 +73,6 @@ public final class ProjectResearchSkill implements AgentSkill {
 
     @Override
     public boolean allowExternalTools() { return true; }
-
-    @Override
-    public AgentRuntimeLimits defaultLimits() { return AgentRuntimeLimits.defaults(); }
 
     @Override
     public String instruction() { return INSTRUCTION; }

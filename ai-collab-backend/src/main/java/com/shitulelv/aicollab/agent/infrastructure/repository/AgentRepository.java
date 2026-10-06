@@ -217,6 +217,53 @@ public class AgentRepository {
         return Boolean.TRUE.equals(requested);
     }
 
+    /** 暂停意图是否已落库（不区分运行状态；状态判断由调用方结合 status 完成）。 */
+    public boolean isPauseRequested(UUID projectId, UUID runId) {
+        Boolean requested = jdbc.query("""
+                SELECT pause_requested_at IS NOT NULL
+                FROM agent_run WHERE project_id=? AND id=?
+                """, (rs, row) -> rs.getBoolean(1), projectId, runId)
+                .stream().findFirst().orElse(false);
+        return Boolean.TRUE.equals(requested);
+    }
+
+    /** 暂停意图落库时间（未请求暂停为 null）；运行详情据此展示"正在暂停/已暂停"。 */
+    public OffsetDateTime pauseRequestedAt(UUID projectId, UUID runId) {
+        return jdbc.query("""
+                SELECT pause_requested_at FROM agent_run WHERE project_id=? AND id=?
+                """, (rs, row) -> rs.getObject("pause_requested_at", OffsetDateTime.class), projectId, runId)
+                .stream().findFirst().orElse(null);
+    }
+
+    /**
+     * 暂停意图检查与安全收口（幂等）：意图已落库时由本调用结清当前 claim 的已确认
+     * 执行段并转入 PAUSED（见 {@code AgentRunEventRecorder.recordPaused}）。
+     * worker 的每个"新动作准入"检查点复用这一份判断，避免多处复制状态逻辑。
+     */
+    public boolean pauseIfRequested(AgentRunView run) {
+        if (!isPauseRequested(run.projectId(), run.id())) return false;
+        recorder.recordPaused(run.projectId(), run.id());
+        return true;
+    }
+
+    /** 用户发起暂停（见 {@code AgentRunEventRecorder.requestPause}）。 */
+    @Transactional
+    public AgentRunView requestPause(UUID projectId, UUID runId) {
+        return recorder.requestPause(projectId, runId);
+    }
+
+    /** 用户发起继续（见 {@code AgentRunEventRecorder.requestResume}）。 */
+    @Transactional
+    public AgentRunView requestResume(UUID projectId, UUID runId) {
+        return recorder.requestResume(projectId, runId);
+    }
+
+    /** worker 在动作边界确认暂停（见 {@code AgentRunEventRecorder.recordPaused}）。 */
+    @Transactional
+    public AgentRunView recordPaused(UUID projectId, UUID runId) {
+        return recorder.recordPaused(projectId, runId);
+    }
+
     @Transactional
     public AgentRunStatus requestCancel(UUID projectId, UUID runId) {
         CancelState current = jdbc.query("""
@@ -236,7 +283,8 @@ public class AgentRepository {
                 && current.status() != AgentRunStatus.RUNNING
                 && current.status() != AgentRunStatus.WAITING_FOR_APPROVAL
                 && current.status() != AgentRunStatus.WAITING_FOR_USER_INPUT
-                && current.status() != AgentRunStatus.FAILED_RETRYABLE) {
+                && current.status() != AgentRunStatus.FAILED_RETRYABLE
+                && current.status() != AgentRunStatus.PAUSED) {
             throw new BusinessException(ErrorCode.AGENT_RUN_NOT_CANCELABLE);
         }
         if (current.status() == AgentRunStatus.RUNNING && current.requested()) {
@@ -281,10 +329,26 @@ public class AgentRepository {
                 """, messageMapper(), projectId, sessionId, limit);
     }
 
+    /**
+     * 尚未消费的已持久化模型轮次（最近一轮）：
+     *
+     * <ul>
+     *   <li>含工具调用且批次未处理的轮次——恢复工具批次；</li>
+     *   <li>无工具调用但已有正文的轮次——"MODEL_TURN 已提交、后续收尾尚未提交"的窗口，
+     *       接管时复用该响应继续其原本的收尾，不再次请求模型。</li>
+     * </ul>
+     *
+     * <p>{@code batchHandled} 由终态写入在同一事务内置位（工具批次见
+     * {@code AgentRunEventRecorder.markBatchHandled}，文本收尾见
+     * {@code recordFinal(…,true)}/{@code recordWaitingForInput}/{@code recordBudgetPartialAnswer}），
+     * 因此只会被消费一次；已消费轮次、更早轮次与其他运行的轮次都不会被再次使用。</p>
+     */
     public Optional<com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult> pendingModelTurn(AgentRunView run) {
         return jdbc.query("""
                 SELECT output_json::text FROM agent_step WHERE run_id=? AND type='MODEL_TURN'
-                  AND jsonb_array_length(COALESCE(output_json->'toolCalls','[]'::jsonb))>0
+                  AND output_json IS NOT NULL
+                  AND (jsonb_array_length(COALESCE(output_json->'toolCalls','[]'::jsonb))>0
+                       OR btrim(COALESCE(output_json->>'content',''))<>'')
                   AND NOT COALESCE((output_json->>'batchHandled')::boolean,false)
                 ORDER BY sequence_no DESC LIMIT 1
                 """, (rs, row) -> {
@@ -309,12 +373,32 @@ public class AgentRepository {
         }, run.id(), call.id(), run.id()).stream().findFirst();
     }
 
+    /** 待处理调用所属模型轮次的可信执行模式（NATIVE_TOOLS / LEGACY_READ_ONLY）；无记录返回 null。 */
+    public String invocationSourceMode(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall call) {
+        var rows = jdbc.queryForList("""
+                SELECT source_mode FROM agent_tool_invocation
+                WHERE run_id=? AND tool_call_id=?
+                  AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
+                """, run.id(), call.id(), run.id());
+        return rows.isEmpty() ? null : (String) rows.getFirst().get("source_mode");
+    }
+
     public JsonNode workingState(UUID projectId, UUID sessionId) {
         return jdbc.query("SELECT working_state::text FROM agent_session WHERE project_id=? AND id=?", (rs,row) -> {
             try { return json.readTree(rs.getString(1)); } catch (Exception failed) { throw new IllegalStateException(failed); }
         }, projectId, sessionId).stream().findFirst().orElseGet(json::createObjectNode);
     }
 
+    /**
+     * 领取下一个可执行运行。接管过期 RUNNING 时，把上一个 claim 的<b>已确认执行时长</b>
+     * 累加进 active_elapsed_ms：区间为 [claim_started_at, 最后一次确认进度]；
+     * 该 claim 没有确认进度时累加 0（下界为 0 的 GREATEST 保证不出现负区间）。
+     *
+     * <p>语义：租约有效期不等于已执行时长。租约到期、进程离线和排队重试的等待时间
+     * 都不是执行时间，只有 claim 内已持久化进度之前的区间才算已确认执行；
+     * 最后一次进度到进程退出这一段没有持久记录，不冒充已执行时长
+     * （见 {@code AgentRuntimeJob}：租约 6 分钟是等待上界，不是执行上界）。</p>
+     */
     @Transactional
     public Optional<ClaimedAgentRun> claimNext(
             String workerId, OffsetDateTime now, Duration lease) {
@@ -333,8 +417,12 @@ public class AgentRepository {
                 )
                 UPDATE agent_run r
                 SET active_elapsed_ms=r.active_elapsed_ms+CASE WHEN c.status='RUNNING' AND r.claim_started_at IS NOT NULL
-                    THEN GREATEST(0,(extract(epoch FROM(LEAST(r.lease_expires_at,now())-r.claim_started_at))*1000)::bigint) ELSE 0 END,
+                    THEN GREATEST(0,(extract(epoch FROM(
+                        GREATEST(r.claim_started_at,COALESCE(r.last_progress_at,r.claim_started_at))
+                        -r.claim_started_at))*1000)::bigint)
+                    ELSE 0 END,
                     status='RUNNING',lease_owner=?,lease_expires_at=?,claim_version=r.version+1,claim_started_at=now(),
+                    last_progress_at=NULL,
                     started_at=COALESCE(started_at,?),updated_at=?,version=version+1
                 FROM candidate c
                 WHERE r.id=c.id
@@ -359,6 +447,12 @@ public class AgentRepository {
 
     public void recordBudgetPartialAnswer(AgentRunView run, String content) {
         recorder.recordBudgetPartialAnswer(run, content);
+    }
+
+    /** 预算部分回答 + 同事务消费"上一 claim 已持久化、尚未消费"的模型文本轮次。 */
+    @Transactional
+    public void recordBudgetPartialAnswer(AgentRunView run, String content, boolean consumePersistedTurn) {
+        recorder.recordBudgetPartialAnswer(run, content, consumePersistedTurn);
     }
 
     public void recordBudgetExceeded(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion) {
@@ -483,6 +577,12 @@ public class AgentRepository {
         return recorder.recordModelTurn(run, turn);
     }
 
+    /** 记录模型轮次并持久化本轮可信执行模式，供恢复待处理调用时校验写工具权限。 */
+    @Transactional
+    public AgentRunView recordModelTurn(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn, String sourceMode) {
+        return recorder.recordModelTurn(run, turn, sourceMode);
+    }
+
     /** 每次实际出站模型请求发出前落库的持久化调用身份（正常记账与取消补记共用）。 */
     @Transactional
     public String beginModelCall(UUID projectId, UUID runId, String kind) {
@@ -502,6 +602,25 @@ public class AgentRepository {
             com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn, String callId, String kind,
             AgentRunEventRecorder.UsageSettlement settlement) {
         return recorder.recordModelTurnWithSettlement(run, turn, callId, kind, settlement);
+    }
+
+    /** 带本轮可信执行模式的原子记账；source_mode 随待处理调用持久化，供恢复校验。 */
+    @Transactional
+    public AgentRunView recordModelTurnWithSettlement(AgentRunView run,
+            com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn, String callId, String kind,
+            AgentRunEventRecorder.UsageSettlement settlement, String sourceMode) {
+        return recorder.recordModelTurnWithSettlement(run, turn, callId, kind, settlement, sourceMode);
+    }
+
+    /**
+     * 原子记账并持久化本轮请求实际采用的强制收尾意图（消息组装与 needsFinalRequest 调整后的值）。
+     * 该元数据与响应、用量结算同一事务提交，供接管按原请求语义处理已保存结果。
+     */
+    @Transactional
+    public AgentRunView recordModelTurnWithSettlement(AgentRunView run,
+            com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn, String callId, String kind,
+            AgentRunEventRecorder.UsageSettlement settlement, String sourceMode, Boolean finalizingIntent) {
+        return recorder.recordModelTurnWithSettlement(run, turn, callId, kind, settlement, sourceMode, finalizingIntent);
     }
 
     /** 输出超限分支的原子记账：身份行结算与 recordBudgetExceeded 的运行累计同一事务。 */
@@ -534,6 +653,27 @@ public class AgentRepository {
     }
 
     /**
+     * 恢复批次中已有持久化结果（或已绑定提案）的调用数：按原 invocation 身份（最近一个
+     * 模型轮次 + tool_call_id）识别。这些调用由执行器复用、不再执行，也不应再占工具
+     * 总额度的新增份额——它们的结果落库时已经推进过 tool_calls_used。仅按 tool_call_id
+     * 计数；调用名与参数的一致性仍由执行器的 {@code knownInvocationResult} 逐项校验。
+     */
+    public int countSettledInvocations(AgentRunView run,
+            java.util.List<com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall> calls) {
+        if (calls == null || calls.isEmpty()) return 0;
+        String ids = calls.stream()
+                .map(call -> "'" + call.id().replace("'", "''") + "'")
+                .collect(java.util.stream.Collectors.joining(","));
+        Integer count = jdbc.queryForObject("""
+                SELECT count(*) FROM agent_tool_invocation
+                WHERE run_id=? AND tool_call_id IN (%s)
+                  AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
+                  AND (status<>'PENDING' OR proposal_id IS NOT NULL)
+                """.formatted(ids), Integer.class, run.id(), run.id());
+        return count == null ? 0 : count;
+    }
+
+    /**
      * 记录工具结果。同时更新 Run 的 tool_calls_used 和版本。
      */
     @Transactional
@@ -557,6 +697,22 @@ public class AgentRepository {
     @Transactional
     public AgentRunView recordWaitingForInput(AgentRunView run, String question) {
         return recorder.recordWaitingForInput(run, question);
+    }
+
+    /** 等待输入 + 同事务消费"上一 claim 已持久化、尚未消费"的模型文本轮次（恢复路径）。 */
+    @Transactional
+    public AgentRunView recordWaitingForInput(AgentRunView run, String question, boolean consumePersistedTurn) {
+        return recorder.recordWaitingForInput(run, question, consumePersistedTurn);
+    }
+
+    /**
+     * 记录最终答案；{@code consumePersistedTurn=true} 时在同一事务内消费
+     * "上一 claim 已持久化、尚未消费"的模型文本轮次（恢复收尾路径）。
+     */
+    @Transactional
+    public AgentRunView recordFinal(AgentRunView run, String content, List<AgentCitation> citations,
+            boolean consumePersistedTurn) {
+        return recorder.recordFinal(run, content, citations, consumePersistedTurn);
     }
 
     /**

@@ -2,7 +2,6 @@ package com.shitulelv.aicollab.agent.application.runtime;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.view.AgentMessageView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
@@ -44,8 +43,6 @@ public class AgentModelMessageComposer {
     static final int NEWEST_TOOL_OUTPUT_CAP = 6000;
     /** 更早工具结果投影后的保留上限（字符）。 */
     static final int OLDER_TOOL_OUTPUT_CAP = 1500;
-    /** 投影时每个数组保留的条目数。 */
-    static final int PROJECTION_ITEMS = 3;
     /** 单条历史消息参与选择的最小预算（字符），避免零碎消息耗尽预算。 */
     static final int MIN_HISTORY_MESSAGE_CHARS = 16;
     /** 交给有界摘要的未覆盖旧消息条数上限。 */
@@ -54,17 +51,21 @@ public class AgentModelMessageComposer {
     private final AgentRepository repository;
     private final AgentMemoryService memories;
     private final com.fasterxml.jackson.databind.ObjectMapper json;
-    private final RoutingAgentModelExecutor modelExecutor;
+    /** 工具结果的确定性投影（纯函数组件）；本类只决定投影容量与是否过期。 */
+    private final AgentToolOutputProjector projector;
 
+    /**
+     * 组装器不读取模型配置：一次请求的模式（Native/Legacy）由协调器在准备阶段解析一次，
+     * 作为参数传入，保证同一请求的提示词、协议与出站调用使用同一份配置快照。
+     */
     public AgentModelMessageComposer(
             AgentRepository repository,
             AgentMemoryService memories,
-            com.fasterxml.jackson.databind.ObjectMapper json,
-            RoutingAgentModelExecutor modelExecutor) {
+            com.fasterxml.jackson.databind.ObjectMapper json) {
         this.repository = repository;
         this.memories = memories;
         this.json = json;
-        this.modelExecutor = modelExecutor;
+        this.projector = new AgentToolOutputProjector(json);
     }
 
     public AgentPageContext parsePageContext(String pageContextJson) {
@@ -113,14 +114,16 @@ public class AgentModelMessageComposer {
      * Legacy 组装路径（composer-v2=false 回退用）。
      * 构建模型消息历史，包含跨 Tick 恢复的 Tool Call 和 Tool Result。
      * 消息顺序：System -> User Goal -> Assistant Tool Call -> Tool Result -> 后续消息
+     *
+     * @param legacyMode 本次请求准备时解析出的模式快照，不在组装过程中重新读取配置
      */
     public List<ModelMessage> buildMessageHistory(
             AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
-            List<AgentStepView> steps) {
+            List<AgentStepView> steps, boolean legacyMode) {
         List<ModelMessage> messages = new ArrayList<>();
 
         // 1. 系统提示
-        String systemPrompt = buildSystemPrompt(run, skill, plan);
+        String systemPrompt = buildSystemPrompt(run, skill, plan, legacyMode);
         messages.add(new ModelMessage.System(systemPrompt));
         JsonNode state = repository.workingState(run.projectId(), run.sessionId());
         if (state != null && !state.isEmpty()) messages.add(new ModelMessage.User(renderWorkingState(state)));
@@ -191,10 +194,11 @@ public class AgentModelMessageComposer {
      *
      * @param availableInputTokens 单次请求可用输入预算（token）
      * @param budgetFactor         预算收紧系数（降级重组时 &lt; 1）
+     * @param legacyMode           本次请求准备时解析出的模式快照，不在组装过程中重新读取配置
      */
     public Composition composeV2(
             AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
-            List<AgentStepView> steps, int availableInputTokens, double budgetFactor) {
+            List<AgentStepView> steps, int availableInputTokens, double budgetFactor, boolean legacyMode) {
         if (availableInputTokens <= 0) {
             return new Composition(List.of(), CompositionStats.empty(), FAILURE_CURRENT_REQUEST_OVER_BUDGET);
         }
@@ -211,7 +215,7 @@ public class AgentModelMessageComposer {
         int memoryLength = 0;
 
         // 必选层 1：系统提示
-        String systemPrompt = buildSystemPrompt(run, skill, plan);
+        String systemPrompt = buildSystemPrompt(run, skill, plan, legacyMode);
         messages.add(new ModelMessage.System(systemPrompt));
         used += systemPrompt.length();
         systemPromptLength = systemPrompt.length();
@@ -282,7 +286,7 @@ public class AgentModelMessageComposer {
             AgentStepView step = completedToolSteps.get(i);
             JsonNode output = staleAwareOutput(run, step);
             int cap = i == completedToolSteps.size() - 1 ? NEWEST_TOOL_OUTPUT_CAP : OLDER_TOOL_OUTPUT_CAP;
-            JsonNode projected = projectToolOutput(output, cap);
+            JsonNode projected = projector.projectToolOutput(output, cap);
             String signature = step.toolName() + "|" + step.input() + "|" + projected;
             if (!seenToolSignatures.add(signature)) continue; // 重复工具结果去重
             int size = projected.toString().length() + (step.input() == null ? 0 : step.input().toString().length());
@@ -453,120 +457,6 @@ public class AgentModelMessageComposer {
         return output;
     }
 
-    /**
-     * 确定性投影：超限时保留标量字段、每个数组前 {@value #PROJECTION_ITEMS} 项与计数，
-     * 并附加投影标记；绝不伪造完整数据，模型需要更多数据时须用工具重新查询更小范围。
-     */
-    JsonNode projectToolOutput(JsonNode output, int maxChars) {
-        if (output == null || output.toString().length() <= maxChars) return output;
-        if(output.path("data").has("baseVersionId") && output.path("data").has("draft")) return projectPlanningOutput(output,maxChars);
-        ObjectNode projected = json.createObjectNode();
-        output.fields().forEachRemaining(entry -> projected.set(entry.getKey(), boundNode(entry.getValue(),0)));
-        projected.put("projection", "DETERMINISTIC");
-        projected.put("fullDocumentRead", false);
-        projected.put("evidenceScope", "PROJECTED_PARTIAL_OBSERVATION");
-        projected.put("originalChars", output.toString().length());
-        // 序列化大小与正文长度是不同语义：originalChars 是整个工具 JSON 的序列化长度，
-        // 模型不得把它当作正文长度；modelVisibleChars 是本视图实际可见的序列化大小
-        projected.put("originalCharsSemantics", "SERIALIZED_TOOL_RESULT_JSON_CHARS_NOT_BODY_LENGTH");
-        if (projected.toString().contains("bodyProjection")) {
-            projected.put("resumeHint", "正文在投影视图中被截断；用同一工具、相同 snapshotId/fromChunk，"
-                    + "把 fromOffset 设为可见范围终点继续读取，不得跳过模型未见内容");
-        }
-        putSelfConsistentVisibleChars(projected);
-        return projected;
-    }
-
-    /** modelVisibleChars 是本视图序列化大小；该字段自身也占长度，迭代到不动点保证
-     *  声明值与实际序列化大小完全一致。 */
-    private void putSelfConsistentVisibleChars(ObjectNode projected) {
-        int estimate = projected.toString().length() + 30;
-        for (int i = 0; i < 5; i++) {
-            projected.put("modelVisibleChars", estimate);
-            int actual = projected.toString().length();
-            if (actual == estimate) return;
-            estimate = actual;
-        }
-    }
-    private JsonNode projectPlanningOutput(JsonNode output,int maxChars) {
-        var result=json.createObjectNode();result.put("status",output.path("status").asText("SUCCEEDED"));
-        var source=output.path("data");var data=result.putObject("data");
-        for(String key:List.of("baseVersionId","expectedVersionNo","fromTask","totalTasks","hasMore","nextFromTask")) if(source.has(key)) data.set(key,source.get(key));
-        data.set("version",source.path("version"));data.put("coverage","PROJECTED_TASK_PAGE");
-        var draft=data.putObject("draft");var tasks=draft.putArray("tasks");int count=maxChars>=4000?3:1;
-        var originals=source.path("draft").path("tasks");
-        for(int i=0;i<Math.min(count,originals.size());i++) {
-            var task=tasks.addObject();var original=originals.get(i);
-            for(String key:List.of("tempKey","title","startDate","dueDate","suggestedAssigneeId","assigneeId","priority","milestoneTempKey","dependencyTempKeys"))
-                if(original.has(key)) task.set(key,boundNode(original.get(key),0));
-        }
-        data.put("projectedTotalCount",originals.size());data.put("projectedOmitted",Math.max(0,originals.size()-tasks.size()));
-        data.put("hasMore",source.path("hasMore").asBoolean() || tasks.size()<originals.size());data.put("nextFromTask",source.path("fromTask").asInt()+tasks.size());
-        if(maxChars>=4000) {
-            data.set("structuredIssues",boundNode(source.path("detail").path("structuredIssues"),0));
-            draft.set("sources",boundNode(source.path("draft").path("sources"),0));
-        }
-        result.put("projection","DETERMINISTIC");result.put("originalChars",output.toString().length());
-        result.put("originalCharsSemantics","SERIALIZED_TOOL_RESULT_JSON_CHARS_NOT_BODY_LENGTH");
-        putSelfConsistentVisibleChars(result);
-        if(result.toString().length()>maxChars) {draft.remove("sources");data.remove("structuredIssues");data.put("detailsOmitted",true);putSelfConsistentVisibleChars(result);}
-        while(result.toString().length()>maxChars && tasks.size()>1) tasks.remove(tasks.size()-1);
-        data.put("projectedOmitted",Math.max(0,originals.size()-tasks.size()));data.put("hasMore",source.path("hasMore").asBoolean() || tasks.size()<originals.size());data.put("nextFromTask",source.path("fromTask").asInt()+tasks.size());
-        return result;
-    }
-
-    /** 文档正文条目：带 content 正文与 fromOffset/throughOffset 范围坐标。 */
-    private boolean isBodyItem(JsonNode value) {
-        return value.isObject()
-                && value.path("content").isTextual() && value.path("content").asText().length() > 200
-                && value.path("fromOffset").isIntegralNumber() && value.path("throughOffset").isIntegralNumber();
-    }
-
-    /** 正文条目投影：可见长度、可见终点与正文保持一致；原始范围终点显式保留为
-     *  originalThroughOffset，模型可见视图与工具原始读取范围不再混用同一字段。 */
-    private ObjectNode boundBodyItem(ObjectNode item) {
-        ObjectNode projected = json.createObjectNode();
-        String content = item.path("content").asText();
-        int from = item.path("fromOffset").asInt();
-        int originalThrough = item.path("throughOffset").asInt();
-        int visible = 200;
-        item.fields().forEachRemaining(entry -> {
-            if (entry.getKey().equals("content") || entry.getKey().equals("throughOffset")) return;
-            projected.set(entry.getKey(), boundNode(entry.getValue(),1));
-        });
-        projected.put("content", content.substring(0, visible) + "… [projected]");
-        projected.put("fromOffset", from);
-        projected.put("throughOffset", from + visible);
-        projected.put("originalThroughOffset", originalThrough);
-        projected.put("omittedChars", Math.max(0, originalThrough - (from + visible)));
-        projected.put("bodyProjection", "MODEL_VISIBLE_ONLY");
-        return projected;
-    }
-
-    private JsonNode boundNode(JsonNode value,int depth) {
-        if(value!=null && value.isTextual() && value.asText().length()>200)
-            return json.getNodeFactory().textNode(value.asText().substring(0,200)+"… [projected]");
-        if (value == null || value.isValueNode()) return value;
-        if(depth>6) return json.createObjectNode().put("projectedObject",true);
-        if (value.isArray()) {
-            ArrayNode array = json.createArrayNode();
-            for (int i = 0; i < value.size() && i < PROJECTION_ITEMS; i++) {
-                array.add(boundNode(value.get(i),depth+1));
-            }
-            ObjectNode marker = array.addObject();
-            marker.put("projectedTotalCount", value.size());
-            marker.put("projectedOmitted", Math.max(0, value.size() - PROJECTION_ITEMS));
-            return array;
-        }
-        // 文档正文条目走专用的可见范围投影，不走通用对象递归
-        if (isBodyItem(value)) return boundBodyItem((ObjectNode) value);
-        ObjectNode object = json.createObjectNode();
-        value.fields().forEachRemaining(entry -> {
-            object.set(entry.getKey(), boundNode(entry.getValue(),depth+1));
-        });
-        object.put("projectedObject", true);
-        return object;
-    }
 
     private void appendToolPair(AgentRunView run, AgentStepView step, JsonNode output, List<ModelMessage> messages) {
         String toolCallId = extractToolCallId(step.input(), step.sequence());
@@ -646,14 +536,14 @@ public class AgentModelMessageComposer {
         return inputJson != null ? inputJson : json.createObjectNode();
     }
 
-    private String buildSystemPrompt(AgentRunView run, AgentSkill skill, AgentPlan plan) {
+    private String buildSystemPrompt(AgentRunView run, AgentSkill skill, AgentPlan plan, boolean legacyMode) {
         StringBuilder sb = new StringBuilder();
         sb.append("你是 AI Collab 当前项目的受控协作 Agent。\n");
         sb.append("项目 ID: ").append(run.projectId()).append("\n");
         sb.append("你的角色: ").append(run.role()).append("\n\n");
         sb.append(TimeContext.beijingTimeContext()).append("\n");
         sb.append(skill.instruction()).append("\n\n");
-        if (modelExecutor.isLegacyModeForRun(run)) {
+        if (legacyMode) {
             sb.append("""
                     ## 当前运行模式：Legacy（只读）
                     当前模型不支持原生 Tool Calling，写操作不可用。
@@ -663,10 +553,10 @@ public class AgentModelMessageComposer {
                     3. 如需完整 Agent 功能，请配置支持 Tool Calling 的模型
                     """).append("\n\n");
         }
-        sb.append("当前执行计划:\n");
+        sb.append("参考步骤（Skill 模板，不代表已执行或必须执行）:\n");
         sb.append(plan.objective()).append("\n");
         for (AgentPlanStep step : plan.steps()) {
-            sb.append("- [").append(step.status()).append("] ").append(step.title()).append("\n");
+            sb.append("- ").append(step.title()).append("\n");
         }
         sb.append("\n");
         sb.append("输出要求:\n").append(skill.outputContract()).append("\n\n");
@@ -682,6 +572,8 @@ public class AgentModelMessageComposer {
         sb.append("- 已有工具结果足以回答时立即结束，不得为了套用输出模板扩大目标。\n");
         sb.append("- 工具结果的外层 status 是调用结果；任务事实位于 data.items/data.taskFacts。逐条读取 title、status、assigneeName，null 负责人表示未分配。已返回的字段不得说成缺失；以本轮成功工具结果为准，历史记忆不得覆盖它。只查询列表时直接列出事实，无需套用 Skill 的完整报告模板。\n");
         sb.append("- 工具结果带 projection=DETERMINISTIC 标记时，表示大结果被确定性投影：projectedTotalCount 是总数、数组只保留前几项，需要完整数据时用更小查询范围重新调用工具，不得把投影结果当成完整列表。\n");
+        sb.append("- 列表工具（list_tasks/list_milestones）返回 data.returned（本页条数）、data.total（当前过滤条件下尚未续读的总量）、data.hasMore 与 data.nextCursor。用户要求「全部/所有」这类完整范围时，必须按 data.nextCursor 续读到 hasMore=false，再据实声明覆盖范围；只读了本页时明确说明只核对了该页，不得宣称已列全。data.total 是当前过滤条件下的总数，不是全局项目总量。\n");
+        sb.append("- 同一列表结果可能同时被清洗器缩减和本层投影；投影后的视图会给出 projectionScope、pageRecordCount、unshownInPage，用它来判断本次到底看到了多少条。此时 data.returned 是可见条数而不是服务端一页条数。\n");
         sb.append("- 回答范围：用户明确要求回答只包含某些字段（如只回答标题、状态、负责人）时，最终回答只呈现这些字段的内容，不补充其他字段；工具结果与事件记录保持完整，不因回答简短删改。用户未限定范围时用自然语言回答，不强制套用固定 JSON 模板或截断内容。\n");
         sb.append("- 工具调用策略：只调用完成当前目标所必需的最少工具；仅对彼此独立且已确定需要的只读查询并行调用。\n");
         sb.append("- 创建提案前先利用已有可信上下文；不得为了补齐可选字段反复查询或耗尽调用预算。\n\n");

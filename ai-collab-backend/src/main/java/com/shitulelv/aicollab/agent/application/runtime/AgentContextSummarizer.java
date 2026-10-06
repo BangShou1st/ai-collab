@@ -9,6 +9,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
 import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import org.slf4j.Logger;
@@ -165,7 +166,19 @@ public class AgentContextSummarizer {
             int stateRevision = state.path("stateRevision").asInt();
             int goalRevision = state.path("goalRevision").asInt();
 
-            UUID attemptId = repository.beginSummaryAttempt(run);
+            // 首次摘要请求走持久化准入边界（beginSummaryAttempt 内的运行行锁检查）：
+            // 暂停意图先落库时不创建请求身份、不发模型请求——这是控制结果，
+            // 不是摘要失败，不消耗重试，主请求由 beginModelCall 的同一边界收口 PAUSED。
+            UUID attemptId;
+            try {
+                attemptId = repository.beginSummaryAttempt(run);
+            } catch (BusinessException admissionRefused) {
+                if (admissionRefused.getErrorCode() == ErrorCode.AGENT_RUN_PAUSED) {
+                    log.debug("暂停意图已落库，摘要请求未获准入，按无摘要路径继续: run={}", run.id());
+                    return;
+                }
+                throw admissionRefused;
+            }
             int actualInputChars = 0;
             UsageSettlement firstUsage = null;
             try {
@@ -221,7 +234,27 @@ public class AgentContextSummarizer {
                                 run.id(), OUTPUT_RESERVE_TOKENS, remainingOutputForRecompress);
                         return;
                     }
-                    UUID recompressId = repository.beginSummaryRecompressAttempt(run);
+                    // 重压缩是新的出站请求：再次走持久化准入边界。暂停意图先落库时
+                    // 不创建重压缩身份、不发出；首次调用已发生的结果照常结算，
+                    // 沿用上一份有效摘要（控制结果，不是摘要失败，不消耗重试）
+                    UUID recompressId;
+                    try {
+                        recompressId = repository.beginSummaryRecompressAttempt(run);
+                    } catch (BusinessException admissionRefused) {
+                        if (admissionRefused.getErrorCode() == ErrorCode.AGENT_RUN_PAUSED) {
+                            repository.completeSummaryAttempt(attemptId, "PAUSED", result.model(), firstUsage,
+                                    "RECOMPRESS_SKIPPED_PAUSED");
+                            log.info("摘要重压缩前检测到暂停意图，保留上一份摘要并结算首次用量: run={}", run.id());
+                            return;
+                        }
+                        if (admissionRefused.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
+                            repository.completeSummaryAttempt(attemptId, "CANCELED", result.model(), firstUsage,
+                                    "RECOMPRESS_SKIPPED_CANCELED");
+                            log.info("摘要重压缩前运行已离开运行状态，保留上一份摘要并结算首次用量: run={}", run.id());
+                            return;
+                        }
+                        throw admissionRefused;
+                    }
                     ModelTurnResult retry;
                     try {
                         retry = modelExecutor.callModelWithoutTools(run, recompressMessages(text));

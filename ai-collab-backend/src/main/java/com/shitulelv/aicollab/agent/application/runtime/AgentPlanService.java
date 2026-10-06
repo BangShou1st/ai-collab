@@ -1,19 +1,17 @@
 package com.shitulelv.aicollab.agent.application.runtime;
 
-import com.shitulelv.aicollab.agent.application.view.AgentRunView;
-import com.shitulelv.aicollab.agent.domain.model.*;
-import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.agent.application.view.AgentRunView;
+import com.shitulelv.aicollab.agent.domain.model.AgentPlan;
+import com.shitulelv.aicollab.agent.domain.model.AgentPlanStep;
+import com.shitulelv.aicollab.agent.domain.model.AgentPlanStepStatus;
+import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
-/**
- * 管理执行计划。支持初始计划和 Replan。
- * 计划步骤必须结构化，不允许模型通过计划绕过工具策略。
- */
+/** 保存可展示的 Skill 参考步骤；实际执行和恢复由调用记录负责。 */
 @Service
 public class AgentPlanService {
     private final AgentRepository repository;
@@ -24,144 +22,63 @@ public class AgentPlanService {
         this.json = json;
     }
 
-    /**
-     * 确保 Run 有执行计划。如果没有，根据 Skill 模板生成。
-     */
     public AgentPlan ensurePlan(AgentRunView run, AgentSkill skill) {
-        // 尝试从 Run 的 planJson 加载
         AgentPlan existing = loadPlan(run);
-        if (existing != null) {
-            return existing;
+        if (existing != null) return existing;
+        AgentPlan plan = createPlan(skill.code());
+        try {
+            repository.updatePlan(run.projectId(), run.id(), run.version(), json.writeValueAsString(plan));
+        } catch (Exception failure) {
+            throw new IllegalStateException("保存参考步骤失败", failure);
         }
-
-        // 根据 Skill 模板生成计划
-        AgentPlan plan = createPlan(skill, run.goal(), run.pageContextJson());
-        savePlan(run, plan);
         return plan;
     }
 
-    /**
-     * 更新计划（Replan）。
-     */
-    public AgentPlan replan(AgentRunView run, AgentSkill skill, String reason) {
-        AgentPlan current = loadPlan(run);
-        int version = current != null ? current.version() + 1 : 1;
-        AgentPlan newPlan = createPlan(skill, run.goal(), run.pageContextJson());
-        AgentPlan replanned = newPlan.withVersion(version);
-        savePlan(run, replanned);
-        return replanned;
-    }
-
-    /**
-     * 加载当前计划。
-     */
     public AgentPlan loadPlan(AgentRunView run) {
-        if (run.planJson() == null || run.planJson().isBlank()) {
-            return null;
-        }
+        if (run.planJson() == null || run.planJson().isBlank()) return null;
         try {
             return json.readValue(run.planJson(), AgentPlan.class);
-        } catch (Exception e) {
+        } catch (Exception invalidStoredPlan) {
             return null;
         }
     }
 
-    /**
-     * 根据 Skill 模板生成计划。
-     */
-    private AgentPlan createPlan(AgentSkill skill, String goal, String pageContextJson) {
-        return switch (skill.code()) {
-            case "PROJECT_HEALTH" -> healthPlan(goal);
-            case "WEEKLY_REPORT" -> weeklyPlan(goal);
-            case "MEETING_TO_TASKS" -> meetingPlan(goal);
-            case "ITERATION_PLANNING" -> iterationPlan(goal);
-            case "DELIVERY_READINESS" -> deliveryPlan(goal);
-            default -> researchPlan(goal);
+    private static AgentPlan createPlan(String skillCode) {
+        return switch (skillCode) {
+            case "PROJECT_HEALTH" -> AgentPlan.create("检查项目健康度", List.of(
+                    reference("1", "获取项目快照", "了解项目整体状态"),
+                    reference("2", "查询任务状态", "了解任务分布和逾期情况"),
+                    reference("3", "查询里程碑", "了解里程碑进展"),
+                    reference("4", "生成健康报告", "基于收集的数据生成报告")));
+            case "WEEKLY_REPORT" -> AgentPlan.create("生成项目周报", List.of(
+                    reference("1", "获取近期活动", "了解项目近期进展"),
+                    reference("2", "查询任务状态", "了解任务完成情况"),
+                    reference("3", "查询里程碑", "了解里程碑进展"),
+                    reference("4", "生成周报", "基于数据生成结构化周报")));
+            case "MEETING_TO_TASKS" -> AgentPlan.create("从会议纪要生成任务", List.of(
+                    reference("1", "获取文档内容", "读取会议纪要"),
+                    reference("2", "搜索现有任务", "检查是否有重复任务"),
+                    reference("3", "提取待办事项", "从会议纪要中提取任务"),
+                    reference("4", "创建任务（需审批）", "批量创建新任务")));
+            case "ITERATION_PLANNING" -> AgentPlan.create("规划迭代", List.of(
+                    reference("1", "获取里程碑", "了解当前迭代目标"),
+                    reference("2", "查询任务", "了解待办和进行中任务"),
+                    reference("3", "分析工作负载", "评估团队能力"),
+                    reference("4", "规划任务分配（需审批）", "创建或更新任务")));
+            case "DELIVERY_READINESS" -> AgentPlan.create("检查交付就绪度", List.of(
+                    reference("1", "检查交付就绪度", "评估整体状态"),
+                    reference("2", "查询任务", "了解未完成项"),
+                    reference("3", "检查文档", "确认文档完整性"),
+                    reference("4", "生成报告", "基于数据生成交付报告")));
+            default -> AgentPlan.create("项目研究", List.of(
+                    reference("1", "搜索知识库", "查找相关资料"),
+                    reference("2", "获取文档元数据", "了解相关文档"),
+                    reference("3", "生成研究报告", "基于事实生成报告")));
         };
     }
 
-    private AgentPlan healthPlan(String goal) {
-        List<AgentPlanStep> steps = new ArrayList<>();
-        steps.add(new AgentPlanStep("1", "获取项目快照", "了解项目整体状态", AgentPlanStepStatus.PENDING,
-                List.of("project.get_snapshot")));
-        steps.add(new AgentPlanStep("2", "查询任务状态", "了解任务分布和逾期情况", AgentPlanStepStatus.PENDING,
-                List.of("task.search")));
-        steps.add(new AgentPlanStep("3", "查询里程碑", "了解里程碑进展", AgentPlanStepStatus.PENDING,
-                List.of("milestone.list")));
-        steps.add(new AgentPlanStep("4", "生成健康报告", "基于收集的数据生成报告", AgentPlanStepStatus.PENDING,
-                List.of()));
-        return AgentPlan.create("检查项目健康度", steps);
-    }
-
-    private AgentPlan weeklyPlan(String goal) {
-        List<AgentPlanStep> steps = new ArrayList<>();
-        steps.add(new AgentPlanStep("1", "获取近期活动", "了解项目近期进展", AgentPlanStepStatus.PENDING,
-                List.of("project.get_recent_activity")));
-        steps.add(new AgentPlanStep("2", "查询任务状态", "了解任务完成情况", AgentPlanStepStatus.PENDING,
-                List.of("task.search")));
-        steps.add(new AgentPlanStep("3", "查询里程碑", "了解里程碑进展", AgentPlanStepStatus.PENDING,
-                List.of("milestone.list")));
-        steps.add(new AgentPlanStep("4", "生成周报", "基于数据生成结构化周报", AgentPlanStepStatus.PENDING,
-                List.of()));
-        return AgentPlan.create("生成项目周报", steps);
-    }
-
-    private AgentPlan meetingPlan(String goal) {
-        List<AgentPlanStep> steps = new ArrayList<>();
-        steps.add(new AgentPlanStep("1", "获取文档内容", "读取会议纪要", AgentPlanStepStatus.PENDING,
-                List.of("document.get_metadata")));
-        steps.add(new AgentPlanStep("2", "搜索现有任务", "检查是否有重复任务", AgentPlanStepStatus.PENDING,
-                List.of("task.search")));
-        steps.add(new AgentPlanStep("3", "提取待办事项", "从会议纪要中提取任务", AgentPlanStepStatus.PENDING,
-                List.of()));
-        steps.add(new AgentPlanStep("4", "创建任务（需审批）", "批量创建新任务", AgentPlanStepStatus.PENDING,
-                List.of("task.create_batch")));
-        return AgentPlan.create("从会议纪要生成任务", steps);
-    }
-
-    private AgentPlan iterationPlan(String goal) {
-        List<AgentPlanStep> steps = new ArrayList<>();
-        steps.add(new AgentPlanStep("1", "获取里程碑", "了解当前迭代目标", AgentPlanStepStatus.PENDING,
-                List.of("milestone.get")));
-        steps.add(new AgentPlanStep("2", "查询任务", "了解待办和进行中任务", AgentPlanStepStatus.PENDING,
-                List.of("task.search")));
-        steps.add(new AgentPlanStep("3", "分析工作负载", "评估团队能力", AgentPlanStepStatus.PENDING,
-                List.of("task.get_workload")));
-        steps.add(new AgentPlanStep("4", "规划任务分配（需审批）", "创建或更新任务", AgentPlanStepStatus.PENDING,
-                List.of("task.create_batch", "task.update")));
-        return AgentPlan.create("规划迭代", steps);
-    }
-
-    private AgentPlan deliveryPlan(String goal) {
-        List<AgentPlanStep> steps = new ArrayList<>();
-        steps.add(new AgentPlanStep("1", "检查交付就绪度", "评估整体状态", AgentPlanStepStatus.PENDING,
-                List.of("delivery.check_readiness")));
-        steps.add(new AgentPlanStep("2", "查询任务", "了解未完成项", AgentPlanStepStatus.PENDING,
-                List.of("task.search")));
-        steps.add(new AgentPlanStep("3", "检查文档", "确认文档完整性", AgentPlanStepStatus.PENDING,
-                List.of("document.get_metadata")));
-        steps.add(new AgentPlanStep("4", "生成报告", "基于数据生成交付报告", AgentPlanStepStatus.PENDING,
-                List.of()));
-        return AgentPlan.create("检查交付就绪度", steps);
-    }
-
-    private AgentPlan researchPlan(String goal) {
-        List<AgentPlanStep> steps = new ArrayList<>();
-        steps.add(new AgentPlanStep("1", "搜索知识库", "查找相关资料", AgentPlanStepStatus.PENDING,
-                List.of("knowledge.search")));
-        steps.add(new AgentPlanStep("2", "获取文档元数据", "了解相关文档", AgentPlanStepStatus.PENDING,
-                List.of("document.get_metadata")));
-        steps.add(new AgentPlanStep("3", "生成研究报告", "基于事实生成报告", AgentPlanStepStatus.PENDING,
-                List.of()));
-        return AgentPlan.create("项目研究", steps);
-    }
-
-    private void savePlan(AgentRunView run, AgentPlan plan) {
-        try {
-            String planJson = json.writeValueAsString(plan);
-            repository.updatePlan(run.projectId(), run.id(), run.version(), planJson);
-        } catch (Exception e) {
-            throw new IllegalStateException("保存计划失败", e);
-        }
+    private static AgentPlanStep reference(String id, String title, String purpose) {
+        // 保留既有 JSON 字段；这些值不充当执行状态或工具权限。
+        return new AgentPlanStep(id, title, purpose, AgentPlanStepStatus.PENDING, List.of());
     }
 }

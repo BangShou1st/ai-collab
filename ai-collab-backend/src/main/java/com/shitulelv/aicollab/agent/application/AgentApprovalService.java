@@ -69,6 +69,12 @@ public class AgentApprovalService {
         UUID invocationId = null;
         if (invocationJdbc != null) {
             com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope.verify(invocationJdbc, run.projectId(), run.id(), false);
+            // 提案受理边界与暂停意图串行化（运行行锁已由租约校验取得）：
+            // 意图先落库则不创建/修订提案；受理先提交则原事务完成、保留结果。
+            if (Boolean.TRUE.equals(invocationJdbc.queryForObject(
+                    "SELECT pause_requested_at IS NOT NULL FROM agent_run WHERE id=?", Boolean.class, run.id()))) {
+                throw new BusinessException(ErrorCode.AGENT_RUN_PAUSED, "Agent 运行已请求暂停，不创建新的提案");
+            }
             var invocations = invocationJdbc.queryForList("""
                     SELECT invocation_id,proposal_id,proposal_operation,arguments_json::text AS arguments,tool_name
                     FROM agent_tool_invocation WHERE run_id=? AND tool_call_id=?

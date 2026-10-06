@@ -7,5 +7,6 @@ import jakarta.validation.constraints.Size;
 public record SubmitAgentMessageRequest(
         @NotBlank @Size(max = 4000) String content,
         @Size(max = 80) String skillCode,
-        @Valid AgentPageContextRequest pageContext) {
+        @Valid AgentPageContextRequest pageContext,
+        @Size(max = 64) String pausedRunId) {
 }
