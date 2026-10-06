@@ -262,3 +262,109 @@ describe('auto-retry lifecycle', () => {
     expect(list.filter((row) => row.key.startsWith('retry:'))).toHaveLength(0)
   })
 })
+
+describe('auto-retry review regressions (20261006)', () => {
+  it('R1: shows analyzing while an automatic retry is in flight', () => {
+    const rows = reduceAgentActivities([
+      evt(1, 'MODEL_STARTED', { model: 'configured-model' }),
+      evt(2, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+      evt(3, 'MODEL_STARTED', { model: 'configured-model' }),
+    ])
+    expect(rows.filter((row) => row.key === 'model:analyzing')).toHaveLength(1)
+  })
+
+  it('R1: keeps the current tool running after the retry has recovered', () => {
+    const rows = reduceAgentActivities([
+      evt(1, 'MODEL_STARTED'),
+      evt(2, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+      evt(3, 'MODEL_STARTED'),
+      evt(4, 'MODEL_COMPLETED', { toolCallCount: 1, content: '继续读取任务' }),
+      evt(5, 'TOOL_CALL_STARTED', { callId: 'new-call', toolName: 'list_tasks' }),
+    ])
+    expect(rows.find((row) => row.key === 'tool:new-call')?.status).toBe('running')
+  })
+
+  it('R1: shows the user-input wait after a recovered request asks for clarification', () => {
+    const rows = reduceAgentActivities([
+      evt(1, 'MODEL_STARTED'),
+      evt(2, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+      evt(3, 'MODEL_STARTED'),
+      evt(4, 'MODEL_COMPLETED', { toolCallCount: 0, content: '[QUESTIONS]请确认交付范围' }),
+      evt(5, 'WAITING_FOR_USER_INPUT'),
+    ])
+    expect(rows.some((row) => row.key === 'waiting:input')).toBe(true)
+  })
+
+  it('R2: closes the earlier retry row once the next attempt failed again', () => {
+    const rows = reduceAgentActivities([
+      evt(1, 'MODEL_STARTED'),
+      evt(2, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+      evt(3, 'MODEL_STARTED'),
+      evt(4, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_PROVIDER_ERROR', retryable: true }),
+    ])
+    const first = rows.find((row) => row.key === 'retry:2')!
+    expect(first.status).toBe('done')
+    expect(first.detail).toContain('已再次尝试，仍失败')
+    // 第二次失败才是当前在途/等待行
+    expect(rows.find((row) => row.key === 'retry:4')!.detail).toContain('等待自动重试')
+  })
+
+  it('R2: does not promise automatic retry while the run is paused', () => {
+    const rows = reduceAgentActivities([
+      evt(1, 'MODEL_STARTED'),
+      evt(2, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+      evt(3, 'RUN_PAUSED'),
+    ])
+    const retry = rows.find((row) => row.key === 'retry:2')!
+    expect(retry.detail).not.toContain('等待自动重试')
+    expect(retry.detail).toContain('已暂停，恢复后继续自动重试')
+    expect(retry.status).toBe('waiting')
+  })
+
+  it('R2: resumes waiting state after the run is resumed without a new attempt yet', () => {
+    const rows = reduceAgentActivities([
+      evt(1, 'MODEL_STARTED'),
+      evt(2, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+      evt(3, 'RUN_PAUSED'),
+      evt(4, 'RUN_RESUMED'),
+    ])
+    const retry = rows.find((row) => row.key === 'retry:2')!
+    expect(retry.detail).toContain('等待自动重试')
+    expect(retry.status).toBe('failed')
+  })
+
+  it('R3: uses neutral wording when the run hits its limit after a real request', () => {
+    const rows = reduceAgentActivities([
+      evt(1, 'MODEL_STARTED'),
+      evt(2, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+      evt(3, 'MODEL_STARTED'),
+      evt(4, 'MODEL_COMPLETED', { toolCallCount: 0, content: '已完成部分分析' }),
+      evt(5, 'RUN_BUDGET_EXCEEDED'),
+    ])
+    const retry = rows.find((row) => row.key === 'retry:2')!
+    expect(retry.detail).not.toContain('重试前')
+    expect(retry.detail).toContain('运行已达到上限')
+    expect(retry.status).toBe('done')
+  })
+
+  it('stays identical across shuffled replay, duplicate delivery and pause/resume replay', () => {
+    const stream = [
+      evt(1, 'MODEL_STARTED'),
+      evt(2, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+      evt(3, 'RUN_PAUSED'),
+      evt(4, 'RUN_RESUMED'),
+      evt(5, 'MODEL_STARTED'),
+      evt(6, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_PROVIDER_ERROR', retryable: true }),
+      evt(7, 'MODEL_STARTED'),
+      evt(8, 'RUN_SUCCEEDED'),
+    ]
+    const ordered = reduceAgentActivities(stream)
+    expect(reduceAgentActivities([...stream].reverse())).toEqual(ordered)
+    expect(reduceAgentActivities([...stream, ...stream])).toEqual(ordered)
+    // 重复投递取最后一次到达：载荷变化时以新值为准
+    const updatedPayload = [...stream]
+    updatedPayload.push({ ...evt(6, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }) })
+    const withUpdate = reduceAgentActivities(updatedPayload)
+    expect(withUpdate.find((row) => row.key === 'retry:6')!.detail).toContain('模型响应超时')
+  })
+})
