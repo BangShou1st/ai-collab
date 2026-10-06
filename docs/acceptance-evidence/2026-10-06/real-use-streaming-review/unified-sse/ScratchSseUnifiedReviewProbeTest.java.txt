@@ -1,0 +1,327 @@
+package com.shitulelv.aicollab.agent.application.runtime;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.shitulelv.aicollab.agent.application.view.AgentRunEventView;
+import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentEventRepository;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
+import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
+import com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata;
+import com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClient;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
+import com.shitulelv.aicollab.infrastructure.ai.model.OpenAiCompatibleModelAdapter;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelContentPreview;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
+import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+/**
+ * 临时正文展示与模型执行的隔离边界：可选的预览订阅（慢或被关闭）不得把已经就绪的模型
+ * 响应拖成 {@code AI_MODEL_TIMEOUT}、不得触发 provider 重试，也不得让临时帧进入持久事件
+ * 存储或推进订阅游标。
+ *
+ * <p>确定性复现：真实 {@link JsonHttpModelClient} + 生产 OpenAI 兼容适配器，HTTP transport
+ * 替身立即给出有效正文与 {@code [DONE]}；订阅写入用一个闩锁阻塞。探针不等网络、不调用真实模型。</p>
+ */
+class ScratchSseUnifiedReviewProbeTest {
+
+    @Test
+    void slowPreviewSubscriberDoesNotTurnAnImmediateProviderResponseIntoModelTimeout() throws Exception {
+        Fixture fixture = new Fixture();
+        CountDownLatch enteredSend = new CountDownLatch(1);
+        CountDownLatch releaseSend = new CountDownLatch(1);
+        SseEmitter blocked = mock(SseEmitter.class);
+        doAnswer(invocation -> {
+            enteredSend.countDown();
+            awaitQuietly(releaseSend);
+            return null;
+        }).when(blocked).send(any(SseEmitter.SseEventBuilder.class));
+        register(fixture.streams, fixture.projectId, fixture.runId, blocked);
+        try {
+            // 同一份 wire 数据在没有预览订阅时成功
+            assertThat(turn(fixture)).isEqualTo("provider replied immediately");
+            // 加入被阻塞的预览订阅后，模型读取不得被拖成 AI_MODEL_TIMEOUT
+            ModelContentPreview.activate(new AgentContentPreviewPublisher(
+                    fixture.events, fixture.json, fixture.projectId, fixture.runId, "fixture-call"));
+            assertThat(turn(fixture)).isEqualTo("provider replied immediately");
+            // 展示写入确实被尝试（只是移到发送线程），不是把预览静默关掉
+            assertThat(enteredSend.await(2, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            ModelContentPreview.clear();
+            releaseSend.countDown();
+            fixture.close();
+        }
+    }
+
+    @Test
+    void previewWriteFailureDoesNotFailOrRetryTheModelCall() throws Exception {
+        Fixture fixture = new Fixture();
+        SseEmitter failing = mock(SseEmitter.class);
+        doThrow(new IOException("订阅端已断开")).when(failing).send(any(SseEmitter.SseEventBuilder.class));
+        register(fixture.streams, fixture.projectId, fixture.runId, failing);
+        try {
+            ModelContentPreview.activate(new AgentContentPreviewPublisher(
+                    fixture.events, fixture.json, fixture.projectId, fixture.runId, "fixture-call"));
+            assertThat(turn(fixture)).isEqualTo("provider replied immediately");
+        } finally {
+            ModelContentPreview.clear();
+        }
+        // 展示侧失败不等于 provider 失败：上游只发了一次请求，没有多余重试
+        verify(fixture.transport, times(1))
+                .send(any(HttpRequest.class), ArgumentMatchers.<HttpResponse.BodyHandler<InputStream>>any());
+        // 临时帧不落库：预览发布路径从不触碰持久事件存储
+        verifyNoInteractions(fixture.repository);
+        fixture.close();
+    }
+
+    @Test
+    void contentDeltaPublishingIsNonBlockingAndDoesNotStarveHealthySubscribers() throws Exception {
+        Fixture fixture = new Fixture();
+        CountDownLatch enteredSend = new CountDownLatch(1);
+        CountDownLatch releaseSend = new CountDownLatch(1);
+        SseEmitter blocked = mock(SseEmitter.class);
+        doAnswer(invocation -> {
+            enteredSend.countDown();
+            awaitQuietly(releaseSend);
+            return null;
+        }).when(blocked).send(any(SseEmitter.SseEventBuilder.class));
+        SseEmitter healthy = mock(SseEmitter.class);
+        register(fixture.streams, fixture.projectId, fixture.runId, blocked);
+        register(fixture.streams, fixture.projectId, fixture.runId, healthy);
+        try {
+            long started = System.nanoTime();
+            fixture.streams.publishContentDelta(fixture.projectId, fixture.runId, payload(1, "第一段"));
+            fixture.streams.publishContentDelta(fixture.projectId, fixture.runId, payload(2, "第一段第二段"));
+            long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
+            assertThat(elapsedMs).as("读流线程不能等待客户端网络写").isLessThan(250L);
+            // 慢订阅者占用一个发送 worker，健康订阅仍能收到预览
+            verify(healthy, timeout(2_000)).send(any(SseEmitter.SseEventBuilder.class));
+        } finally {
+            releaseSend.countDown();
+            fixture.close();
+        }
+    }
+
+    @Test
+    void temporaryFramesDoNotAdvanceTheDurableCursor() throws Exception {
+        Fixture fixture = new Fixture();
+        SseEmitter healthy = mock(SseEmitter.class);
+        register(fixture.streams, fixture.projectId, fixture.runId, healthy);
+        try {
+            fixture.streams.publishContentDelta(fixture.projectId, fixture.runId, payload(1, "临时正文"));
+            verify(healthy, timeout(2_000)).send(any(SseEmitter.SseEventBuilder.class));
+            // 临时帧之后序号 1 的持久事件仍能下发；重复序号被游标拒绝
+            fixture.streams.publish(event(fixture.projectId, fixture.runId, 1));
+            fixture.streams.publish(event(fixture.projectId, fixture.runId, 1));
+            verify(healthy, times(2)).send(any(SseEmitter.SseEventBuilder.class));
+        } finally {
+            fixture.close();
+        }
+    }
+
+    /** 模拟慢订阅者：阻塞到释放闩锁；线程被中断（收尾关闭连接）时当作订阅已断开返回。 */
+    private static void awaitQuietly(CountDownLatch release) {
+        try {
+            release.await(10, TimeUnit.SECONDS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    @Test
+    void reviewBlockedPreviewMustNotBlockPersistentEventPublication() throws Exception {
+        Fixture fixture = new Fixture();
+        CountDownLatch previewWriteEntered = new CountDownLatch(1);
+        CountDownLatch releaseWrite = new CountDownLatch(1);
+        CountDownLatch publicationStarted = new CountDownLatch(1);
+        CountDownLatch publicationReturned = new CountDownLatch(1);
+        CountDownLatch healthyReceivedPersistent = new CountDownLatch(1);
+        SseEmitter blocked = mock(SseEmitter.class);
+        doAnswer(invocation -> {
+            previewWriteEntered.countDown();
+            releaseWrite.await(10, TimeUnit.SECONDS);
+            return null;
+        }).when(blocked).send(any(SseEmitter.SseEventBuilder.class));
+        SseEmitter healthy = mock(SseEmitter.class);
+        doAnswer(invocation -> {
+            healthyReceivedPersistent.countDown();
+            return null;
+        }).when(healthy).send(any(SseEmitter.SseEventBuilder.class));
+        register(fixture.streams, fixture.projectId, fixture.runId, blocked);
+        java.util.concurrent.ExecutorService publisher = java.util.concurrent.Executors.newSingleThreadExecutor();
+        java.util.concurrent.Future<?> task = null;
+        boolean returnedBeforeRelease = false;
+        boolean healthyBeforeRelease = false;
+        try {
+            fixture.streams.publishContentDelta(fixture.projectId, fixture.runId, payload(1, "preview"));
+            assertThat(previewWriteEntered.await(2, TimeUnit.SECONDS)).isTrue();
+            // Register after preview starts so this latch counts only durable publication.
+            register(fixture.streams, fixture.projectId, fixture.runId, healthy);
+            task = publisher.submit(() -> {
+                publicationStarted.countDown();
+                fixture.streams.publish(new AgentRunEventView(UUID.randomUUID(), fixture.projectId, fixture.runId, 1,
+                        AgentEventType.MODEL_COMPLETED, fixture.json.createObjectNode(), OffsetDateTime.now()));
+                publicationReturned.countDown();
+            });
+            assertThat(publicationStarted.await(2, TimeUnit.SECONDS)).isTrue();
+            returnedBeforeRelease = publicationReturned.await(300, TimeUnit.MILLISECONDS);
+            healthyBeforeRelease = healthyReceivedPersistent.getCount() == 0;
+        } finally {
+            releaseWrite.countDown();
+            if (task != null) task.get(2, TimeUnit.SECONDS);
+            publisher.shutdownNow();
+            fixture.close();
+        }
+        System.out.println("SSE_REVIEW_PERSISTENT_NONBLOCKING=" + returnedBeforeRelease
+                + ";HEALTHY_DELIVERED_BEFORE_SLOW_RELEASE=" + healthyBeforeRelease);
+        assertThat(returnedBeforeRelease).as("A blocked optional preview must not block persistent publication on the Agent worker").isTrue();
+        assertThat(healthyBeforeRelease).isTrue();
+    }
+
+    @Test
+    void reviewHeartbeatMustNotWaitForSubscriberNetworkWrite() throws Exception {
+        Fixture fixture = new Fixture();
+        CountDownLatch writeEntered = new CountDownLatch(1);
+        CountDownLatch releaseWrite = new CountDownLatch(1);
+        CountDownLatch heartbeatReturned = new CountDownLatch(1);
+        SseEmitter blocked = mock(SseEmitter.class);
+        doAnswer(invocation -> {
+            writeEntered.countDown();
+            releaseWrite.await(10, TimeUnit.SECONDS);
+            return null;
+        }).when(blocked).send(any(SseEmitter.SseEventBuilder.class));
+        register(fixture.streams, fixture.projectId, fixture.runId, blocked);
+        java.util.concurrent.ExecutorService scheduler = java.util.concurrent.Executors.newSingleThreadExecutor();
+        java.util.concurrent.Future<?> task = null;
+        boolean returnedBeforeRelease = false;
+        try {
+            task = scheduler.submit(() -> {
+                fixture.streams.heartbeat();
+                heartbeatReturned.countDown();
+            });
+            assertThat(writeEntered.await(2, TimeUnit.SECONDS)).isTrue();
+            returnedBeforeRelease = heartbeatReturned.await(300, TimeUnit.MILLISECONDS);
+        } finally {
+            releaseWrite.countDown();
+            if (task != null) task.get(2, TimeUnit.SECONDS);
+            scheduler.shutdownNow();
+            fixture.close();
+        }
+        System.out.println("SSE_REVIEW_HEARTBEAT_NONBLOCKING=" + returnedBeforeRelease);
+        assertThat(returnedBeforeRelease).as("Heartbeat scheduling must not wait for subscriber network writes").isTrue();
+    }
+    private static String turn(Fixture fixture) {
+        return fixture.adapter.turnWithSession(fixture.config, "fixture-key", fixture.command,
+                AiRequestMetadata.fresh(), "fixture").content();
+    }
+
+    private static ObjectNode payload(int revision, String text) {
+        return new ObjectMapper().createObjectNode()
+                .put("modelCallId", "fixture-call")
+                .put("revision", revision)
+                .put("text", text)
+                .put("final", false);
+    }
+
+    private static AgentRunEventView event(UUID projectId, UUID runId, long sequence) {
+        return new AgentRunEventView(UUID.randomUUID(), projectId, runId, sequence,
+                AgentEventType.MODEL_STARTED, new ObjectMapper().createObjectNode(), OffsetDateTime.now());
+    }
+
+    /** 把订阅放进既有 fanout 表：{@code Subscription} 是私有实现，测试用反射构造。 */
+    @SuppressWarnings("unchecked")
+    private static void register(
+            AgentEventStreamService streams, UUID projectId, UUID runId, SseEmitter emitter) throws Exception {
+        Class<?> subscriptionType = Class.forName(AgentEventStreamService.class.getName() + "$Subscription");
+        Constructor<?> constructor = subscriptionType.getDeclaredConstructor(
+                UUID.class, UUID.class, SseEmitter.class, long.class);
+        constructor.setAccessible(true);
+        Object subscription = constructor.newInstance(projectId, runId, emitter, 0L);
+        Field field = AgentEventStreamService.class.getDeclaredField("subscriptions");
+        field.setAccessible(true);
+        Map<UUID, CopyOnWriteArrayList<Object>> subscriptions =
+                (Map<UUID, CopyOnWriteArrayList<Object>>) field.get(streams);
+        subscriptions.computeIfAbsent(runId, ignored -> new CopyOnWriteArrayList<>()).add(subscription);
+    }
+
+    private static final class Fixture {
+        final ObjectMapper json = new ObjectMapper();
+        final UUID projectId = UUID.randomUUID();
+        final UUID runId = UUID.randomUUID();
+        final AgentEventRepository repository = mock(AgentEventRepository.class);
+        final AgentEventStreamService streams = new AgentEventStreamService(
+                mock(ProjectAccessGuard.class), mock(AgentRepository.class), repository);
+        final AgentEventService events = new AgentEventService(repository, streams);
+        final HttpClient transport = mock(HttpClient.class);
+        final JsonHttpModelClient http;
+        final OpenAiCompatibleModelAdapter adapter;
+        final ModelConfiguration config;
+        final ModelTurnCommand command;
+
+        Fixture() throws Exception {
+            http = new JsonHttpModelClient(
+                    json, mock(OutboundEndpointPolicy.class), transport, Duration.ofSeconds(1));
+            adapter = new OpenAiCompatibleModelAdapter(json, http);
+            config = new ModelConfiguration(UUID.randomUUID(), projectId, "fixture",
+                    ModelProviderType.OPENAI_COMPATIBLE, "https://example.com", "/v1/chat/completions",
+                    null, "fixture-model", true, 0.2, 1200,
+                    EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.NATIVE_TOOLS),
+                    OffsetDateTime.now(), OffsetDateTime.now());
+            command = new ModelTurnCommand(
+                    ModelPurpose.AGENT, List.of(new ModelMessage.User("fixture")), List.of(), false);
+            HttpResponse<InputStream> response = mock(HttpResponse.class);
+            when(response.statusCode()).thenReturn(200);
+            when(response.headers()).thenReturn(HttpHeaders.of(
+                    Map.of("Content-Type", List.of("text/event-stream")), (a, b) -> true));
+            String wire = "data: {\"choices\":[{\"delta\":{\"content\":\"provider replied immediately\"},"
+                    + "\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+            when(response.body()).thenAnswer(
+                    invocation -> new ByteArrayInputStream(wire.getBytes(StandardCharsets.UTF_8)));
+            when(transport.send(any(HttpRequest.class),
+                    ArgumentMatchers.<HttpResponse.BodyHandler<InputStream>>any())).thenReturn(response);
+        }
+
+        void close() {
+            streams.shutdown();
+            http.close();
+        }
+    }
+}

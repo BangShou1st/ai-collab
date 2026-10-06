@@ -7,7 +7,7 @@
 | 任务 | 结论 |
 | --- | --- |
 | A：真实文档检索成功链 + 正常使用检查 | **完成**。三类场景全部通过，`search_project_knowledge` 真实成功链补齐，无需代码修复（上轮失败根因确认为本机 Ollama 未启动） |
-| B：Agent 普通正文实时流式展示 | **完成**。临时正文帧经既有 SSE 通道下发，含一次真实缺陷修复（读流线程错配，见 5.2）；真机 51 帧真增量确认 |
+| B：Agent 普通正文实时流式展示 | **完成**。临时正文帧经既有 SSE 通道下发，含一次真实缺陷修复（读流线程错配，见 5.2）；真机全运行 51 帧、最终回答轮 48 帧真增量确认 |
 
 ## 2. A：真实文档检索与正常使用检查
 
@@ -52,7 +52,7 @@
 - `AgentContentPreviewPublisher`：请求作用域发布器，按 80 字符/300ms 节流（final 帧总发），载荷 `{modelCallId, revision, text, final}`——自包含累计文本，按 revision 幂等替换。
 - `AgentRuntimeCoordinator`：`beginModelCall` 拿到 `modelCallId` 后、`callModel` 前后激活/清理观察者（同 worker 线程 finally 清理）；`MODEL_STARTED` payload 增加兼容字段 `modelCallId`。
 - `AgentRunEventRecorder.recordModelTurn(…, modelCallId)`：`recordModelTurnWithSettlement` 透传调用身份，`MODEL_COMPLETED` payload 增加 `modelCallId`（历史事件缺该字段按旧规则）。
-- `AgentEventStreamService.publishContentDelta`：临时帧经既有订阅连接下发（SSE 事件名 `MODEL_CONTENT`），**不落 `agent_event`、不占序号、不进 replay、不更新 lastSequence/Last-Event-ID**；发送失败仅关闭该订阅。`AgentEventService.append` 仍是持久事件唯一入口。
+- `AgentEventStreamService.publishContentDelta`：临时帧经既有订阅连接下发（SSE 事件名 `MODEL_CONTENT`），**不落 `agent_event`、不占序号、不进 replay、不更新 lastSequence/Last-Event-ID**；发送失败仅关闭该订阅。`AgentEventService.append` 仍是持久事件唯一入口。该服务在后续收口中把持久事件、正文预览、heartbeat 与初始 replay 统一到同一订阅发送线程，使所有 SSE 网络写退出模型读流线程、事务提交回调与调度线程（见 `docs/agent-real-use-and-streaming-review-20261006.md` 第 10 节）。
 
 **前端**：
 
@@ -64,7 +64,7 @@
 
 初版实现把观察者放在 worker 线程 ThreadLocal 中，但 `JsonHttpModelClient.stream` 的读流回调在 `model-stream` 池线程执行——ThreadLocal 不可见，**逐 token 推送全部被静默丢弃**，只有流结束后 `finish()` 在 worker 线程发出的一帧到达。该缺陷曾被误判为"provider 整块交付"（真机初测仅 1 帧 final）；用 Java HttpClient 探针 + `JsonHttpModelClient` 回调时序探针定位后修复：发起线程 `capture()`，回调线程用捕获值显式 `push(observer, …)`。回归 `ModelContentPreviewObservationTest.pushesFromHttpClientReaderThreadStillReachTheCapturedObserver`（模拟另一线程回调）锁定该行为。
 
-修复后真机重测（run `309ca900`，`sse-frame-real-model-final.json`）：最终回答轮 **51 个 content 帧**（47 个非 final 增量 + 1 个 final），字符数 14 → 3159 递增，final 帧（+54.2s）先于 `MODEL_COMPLETED`（+54.25s）——真实 provider 实为逐块流式，"单块交付"结论系修复前的假象，已在报告第 5 节更正。
+修复后真机重测（run `309ca900`，`sse-frame-real-model-final.json`）：全运行共 **51 个 content 帧**，其中较早一轮 3 帧；最终回答轮 **48 帧 = 47 个非 final 增量 + 1 个 final**，字符数 14 → 3159 递增，final 帧（+54.2s）先于 `MODEL_COMPLETED`（+54.25s）——真实 provider 实为逐块流式，"单块交付"结论系修复前的假象，已在报告第 5 节更正。
 
 ### 3.3 支持范围（如实声明）
 
@@ -89,7 +89,7 @@
 
 ### 4.2 真实模型验证（`OPENCODE_ZEN_FREE` / `space-bunny-free`，生产 API）
 
-- 真增量：run `309ca900` 最终回答轮 51 帧、字符数单调递增、final 先于 MODEL_COMPLETED（3.2 节）。**不是**结束时单块。
+- 真增量：run `309ca900` 全运行 51 帧、最终回答轮 48 帧，字符数单调递增、final 先于 MODEL_COMPLETED（3.2 节）。**不是**结束时单块。
 - 完整链与回答质量：2.2/2.3 节三类场景。
 - 脚本化 SSE 与 UI 观察证据：`sse-frame-fresh.json`（订阅延迟 18–87ms 的完整流捕获）、`sse-frame-real-model-final.json`（脱敏）。
 
@@ -107,13 +107,13 @@
 
 ### 4.4 provider 行为记录
 
-- 真实 `space-bunny-free`：逐块流式（3.2 节 51 帧实测）；工具轮通常无正文，最终回答轮增量明显。
+- 真实 `space-bunny-free`：逐块流式（3.2 节最终回答轮 48 帧实测）；工具轮通常无正文，最终回答轮增量明显。
 - 一次性大块到达的场景（修复前误判、以及部分短回答）在 UI 表现为"预览一次性出现后定格收口"，功能正确但无渐进效果——已按任务书要求区分实现回归与真实体验结论。
 
 ## 5. 边界与未验收项（如实）
 
 1. **未验收**：Anthropic/Gemini/Custom provider 的流式适配（明确不支持，见 3.3）；多实例部署的帧路由；断线后未提交正文的恢复（设计即不承诺）；逐 token 持久化；Q1 类"模型未主动续读"的单次行为差异（沿用上轮结论，不改提示词）。
-2. 真机 UI 在途双状态抓拍未命中窗口（回答轮在 +40s 后，observe/截图 RPC 在流式期间多次超时）；该证明由合成 peer UI 证据（4.3）+ 真机 SSE 51 帧证据（4.2）共同覆盖，不声称"真机 UI 双状态截图已验收"。
+2. 真机 UI 在途双状态抓拍未命中窗口（回答轮在 +40s 后，observe/截图 RPC 在流式期间多次超时）；该证明由合成 peer UI 证据（4.3）+ 真机 SSE 最终轮 48 帧证据（4.2）共同覆盖，不声称"真机 UI 双状态截图已验收"。
 3. 合成 peer 的分段模式与 Zen 暂借仅存在于测试设施（`ScriptedAcceptanceModel`/`BrowserAcceptanceHostTest`），退出恢复逻辑经实测验证；`target/zen-row-backup-20261006.json` 为副本库行备份（不入 Git）。
 4. 临时帧的存量会话兼容：历史事件无 `modelCallId`，前端按旧规则渲染（无预览），恢复路径不受影响（`PersistedModelTurnRecoveryPostgresTest` 23 项通过）。
 
@@ -140,7 +140,7 @@ docs/acceptance-evidence/2026-10-06/real-use-streaming/
 ├── q2-model-identity.json          # 本轮 provider/model
 ├── document-final.json             # 文档 READY 状态
 ├── sse-frame-fresh.json            # 订阅延迟 <100ms 的完整流捕获(合成 peer 分段)
-├── sse-frame-real-model-final.json # 真机 51 帧时序(脱敏)
+├── sse-frame-real-model-final.json # 真机全运行 51 帧（最终轮 48）时序(脱敏)
 ├── obs-state1-2.2s.txt / obs-state2-4.4s.txt  # UI 在途双状态
 ├── state.json                      # 会话/项目/文档 ID(含本地 token,不入库于报告)
 └── shots/01–14.png                 # 浏览器截图

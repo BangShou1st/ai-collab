@@ -1,0 +1,16 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.application.runtime.ScratchSseUnifiedReviewProbeTest
+-------------------------------------------------------------------------------
+Tests run: 2, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 3.091 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.application.runtime.ScratchSseUnifiedReviewProbeTest
+com.shitulelv.aicollab.agent.application.runtime.ScratchSseUnifiedReviewProbeTest.reviewBlockedPreviewMustNotBlockPersistentEventPublication -- Time elapsed: 2.680 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+[A blocked optional preview must not block persistent publication on the Agent worker] 
+Expecting value to be true but was false
+	at com.shitulelv.aicollab.agent.application.runtime.ScratchSseUnifiedReviewProbeTest.reviewBlockedPreviewMustNotBlockPersistentEventPublication(ScratchSseUnifiedReviewProbeTest.java:215)
+
+com.shitulelv.aicollab.agent.application.runtime.ScratchSseUnifiedReviewProbeTest.reviewHeartbeatMustNotWaitForSubscriberNetworkWrite -- Time elapsed: 0.351 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+[Heartbeat scheduling must not wait for subscriber network writes] 
+Expecting value to be true but was false
+	at com.shitulelv.aicollab.agent.application.runtime.ScratchSseUnifiedReviewProbeTest.reviewHeartbeatMustNotWaitForSubscriberNetworkWrite(ScratchSseUnifiedReviewProbeTest.java:249)
+
