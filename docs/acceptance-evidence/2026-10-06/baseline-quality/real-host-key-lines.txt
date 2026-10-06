@@ -1,0 +1,86 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 61 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 161 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: 某些输入文件使用或覆盖了已过时的 API。
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: 有关详细信息, 请使用 -Xlint:deprecation 重新编译。
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContextSummarizerTest.java: 某些输入文件使用了未经检查或不安全的操作。
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContextSummarizerTest.java: 有关详细信息, 请使用 -Xlint:unchecked 重新编译。
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.acceptance.RealAcceptanceHostTest
+15:53:31.373 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.shitulelv.aicollab.acceptance.RealAcceptanceHostTest]: RealAcceptanceHostTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+15:53:31.615 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.shitulelv.aicollab.AiCollabBackendApplication for test class com.shitulelv.aicollab.acceptance.RealAcceptanceHostTest
+15:53:31.752 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.shitulelv.aicollab.acceptance.RealAcceptanceHostTest]: RealAcceptanceHostTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+15:53:31.754 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.shitulelv.aicollab.AiCollabBackendApplication for test class com.shitulelv.aicollab.acceptance.RealAcceptanceHostTest
+15:53:31.849 [main] INFO org.springframework.boot.devtools.restart.RestartApplicationListener -- Restart disabled due to context in which it is running
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.0)
+
+2026-10-06T15:53:32.276+08:00  INFO 35332 --- [ai-collab-backend] [           main] c.s.a.acceptance.RealAcceptanceHostTest  : Starting RealAcceptanceHostTest using Java 21.0.10 with PID 35332 (started by 32962 in E:\project\ai-collab\ai-collab-backend)
+2026-10-06T15:53:32.277+08:00  INFO 35332 --- [ai-collab-backend] [           main] c.s.a.acceptance.RealAcceptanceHostTest  : No active profile set, falling back to 1 default profile: "default"
+2026-10-06T15:53:33.772+08:00  INFO 35332 --- [ai-collab-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-10-06T15:53:33.775+08:00  INFO 35332 --- [ai-collab-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-10-06T15:53:33.840+08:00  INFO 35332 --- [ai-collab-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 46 ms. Found 0 Redis repository interfaces.
+2026-10-06T15:53:35.094+08:00  INFO 35332 --- [ai-collab-backend] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 18080 (http)
+2026-10-06T15:53:35.112+08:00  INFO 35332 --- [ai-collab-backend] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-10-06T15:53:35.113+08:00  INFO 35332 --- [ai-collab-backend] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.22]
+2026-10-06T15:53:35.208+08:00  INFO 35332 --- [ai-collab-backend] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 2909 ms
+2026-10-06T15:53:35.695+08:00  INFO 35332 --- [ai-collab-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-10-06T15:53:35.935+08:00  INFO 35332 --- [ai-collab-backend] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@126aaede
+2026-10-06T15:53:35.938+08:00  INFO 35332 --- [ai-collab-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-10-06T15:53:35.978+08:00  INFO 35332 --- [ai-collab-backend] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://127.0.0.1:55432/ai_collab (PostgreSQL 17.11)
+2026-10-06T15:53:36.130+08:00  INFO 35332 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbValidate     : Successfully validated 61 migrations (execution time 00:00.088s)
+2026-10-06T15:53:36.154+08:00  INFO 35332 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 61
+2026-10-06T15:53:36.166+08:00  INFO 35332 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        null 
+2026-10-06T15:53:40.767+08:00  INFO 35332 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.boot.web.server.servlet.context.AnnotationConfigServletWebServerApplicationContext@137a4b54
+2026-10-06T15:53:41.037+08:00  INFO 35332 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-10-06T15:53:41.126+08:00  INFO 35332 --- [ai-collab-backend] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 18080 (http) with context path '/'
+2026-10-06T15:53:41.142+08:00  INFO 35332 --- [ai-collab-backend] [           main] c.s.a.acceptance.RealAcceptanceHostTest  : Started RealAcceptanceHostTest in 9.307 seconds (process running for 11.005)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+REAL_ACCEPTANCE_READY api=http://localhost:18080; keep-config=true; real providers, isolated persistent MinIO, offline database copy only
+REAL_ACCEPTANCE_REGISTERED_TOOLS [analyze_project_risks, answer_project_question_with_sources, cancel_task_plan_generation, check_project_progress, create_memory_after_approval, create_milestone_after_approval, create_task_after_approval, draft_weekly_report, get_document_outline, get_project_dashboard, get_project_overview, get_task, get_task_plan, get_task_plan_progress, list_milestones, list_project_documents, list_project_members, list_project_memories, list_recent_audit_summaries, list_task_plans, list_tasks, read_document_section, repair_task_plan, request_user_input, search_project_knowledge, start_task_plan, update_milestone_after_approval, update_task_after_approval]
+2026-10-06T15:56:17.705+08:00  INFO 35332 --- [ai-collab-backend] [io-18080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-10-06T15:56:17.705+08:00  INFO 35332 --- [ai-collab-backend] [io-18080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-10-06T15:56:17.706+08:00  INFO 35332 --- [ai-collab-backend] [io-18080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-10-06T15:56:37.659+08:00  WARN 35332 --- [ai-collab-backend] [   scheduling-1] c.s.a.a.a.r.AgentContextSummarizer       : 摘要不合格（超长或结尾不完整），保留上一份摘要且不推进覆盖: run=f8fbab37-5d40-4398-ad90-3f34677abc14, length=1240
+2026-10-06T16:00:31.599+08:00  WARN 35332 --- [ai-collab-backend] [   scheduling-1] c.s.a.a.a.r.AgentContextSummarizer       : 摘要不合格（超长或结尾不完整），保留上一份摘要且不推进覆盖: run=7b06eb46-6c29-40ca-aa0e-0fe301b40152, length=1615
+2026-10-06T16:01:20.709+08:00  WARN 35332 --- [ai-collab-backend] [   scheduling-1] c.s.a.a.a.r.AgentContextSummarizer       : 摘要不合格（超长或结尾不完整），保留上一份摘要且不推进覆盖: run=d4d26ff5-27b8-4c62-8689-1bcf4fbfa757, length=1713
+2026-10-06T16:02:05.999+08:00  WARN 35332 --- [ai-collab-backend] [   scheduling-1] c.s.a.a.a.r.AgentContextSummarizer       : 摘要不合格（超长或结尾不完整），保留上一份摘要且不推进覆盖: run=05fe0552-0355-4957-a899-827ab005f902, length=1849
+2026-10-06T16:03:10.194+08:00  WARN 35332 --- [ai-collab-backend] [   scheduling-1] c.s.a.a.a.r.AgentContextSummarizer       : 摘要不合格（超长或结尾不完整），保留上一份摘要且不推进覆盖: run=0b90c1bb-f7d9-4cb9-b142-985cd96c9b93, length=1592
