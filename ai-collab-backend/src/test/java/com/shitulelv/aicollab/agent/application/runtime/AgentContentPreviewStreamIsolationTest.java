@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.agent.application.runtime;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.view.AgentRunEventView;
+import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentEventRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -19,6 +20,7 @@ import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.TransientDataAccessResourceException;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
@@ -41,7 +43,9 @@ import java.time.OffsetDateTime;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -49,6 +53,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -383,6 +388,142 @@ class AgentContentPreviewStreamIsolationTest {
         }
     }
 
+    // ---- 生命周期补修回归（L1 读取失败不立即重试 / L2 并发登记不被旧清理摘除） ----
+
+    @Test
+    void failedDurableReadWaitsForNextExternalWakeupInsteadOfRetryingImmediately() throws Exception {
+        Fixture fixture = new Fixture();
+        SseEmitter emitter = mock(SseEmitter.class);
+        // 初始 replay 读空，先完成一次正常投递轮
+        when(fixture.repository.list(eq(fixture.projectId), eq(fixture.runId), anyLong(), anyInt()))
+                .thenReturn(List.of());
+        register(fixture.streams, fixture.projectId, fixture.runId, emitter);
+        awaitSendPoolIdle(fixture.streams);
+        AtomicInteger reads = new AtomicInteger();
+        when(fixture.repository.list(eq(fixture.projectId), eq(fixture.runId), anyLong(), anyInt()))
+                .thenAnswer(invocation -> {
+                    if (reads.incrementAndGet() <= 3) {
+                        throw new TransientDataAccessResourceException("fixture 读取瞬时失败");
+                    }
+                    return List.of();
+                });
+        try {
+            // 只给一次外部唤醒：读取失败后必须停住等下一次唤醒，而不是无间隔自我重排
+            fixture.streams.heartbeat();
+            awaitSendPoolIdle(fixture.streams);
+            assertThat(reads.get()).as("一次外部唤醒失败后不应立即反复读库").isEqualTo(1);
+
+            // 恢复仓库并再次外部唤醒：订阅未被拆除，从原游标接着补回
+            // （替身必须按游标过滤：无状态打桩会在游标推进后永远返回已发事件，
+            //   让追赶循环在 forked JVM 里无界自旋分配，直至堆耗尽 OOM）
+            AgentRunEventView durable =
+                    event(fixture.projectId, fixture.runId, 1, AgentEventType.MODEL_STARTED);
+            when(fixture.repository.list(eq(fixture.projectId), eq(fixture.runId), anyLong(), anyInt()))
+                    .thenAnswer(invocation -> {
+                        long after = invocation.getArgument(2);
+                        return durable.sequence() > after ? List.of(durable) : List.of();
+                    });
+            fixture.streams.publish(durable);
+            ArgumentCaptor<SseEmitter.SseEventBuilder> frames =
+                    ArgumentCaptor.forClass(SseEmitter.SseEventBuilder.class);
+            verify(emitter, timeout(2_000).atLeastOnce()).send(frames.capture());
+            assertThat(durableFrames(frames.getAllValues()))
+                    .extracting(AgentRunEventView::sequence)
+                    .containsExactly(1L);
+        } finally {
+            fixture.close();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void removingAnOldSubscriberDoesNotDetachAConcurrentlyRegisteredNewSubscriber() throws Exception {
+        Fixture fixture = new Fixture();
+        when(fixture.runs.findRun(any(), any())).thenReturn(Optional.of(mock(AgentRunView.class)));
+        // 把 fanout 表换成插桩 map：冻结在二参 remove(key,value) 内部——只有旧实现的
+        // "观察空列表→删条目"清理会调用它；修好的实现走 computeIfPresent，钩子永不触发，
+        // 因此不会阻塞正确的原子串行化，也不假设新订阅必须落在旧列表实例里。
+        UUID runId = UUID.randomUUID();
+        CountDownLatch windowEntered = new CountDownLatch(1);
+        CountDownLatch releaseWindow = new CountDownLatch(1);
+        Field subscriptionsField = AgentEventStreamService.class.getDeclaredField("subscriptions");
+        subscriptionsField.setAccessible(true);
+        subscriptionsField.set(fixture.streams, new ConcurrentHashMap<UUID, CopyOnWriteArrayList<Object>>() {
+            @Override
+            public boolean remove(Object key, Object value) {
+                if (key.equals(runId)) {
+                    windowEntered.countDown();
+                    try {
+                        releaseWindow.await(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                return super.remove(key, value);
+            }
+        });
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        Future<?> closeTask = null;
+        try {
+            when(fixture.repository.list(eq(fixture.projectId), eq(runId), anyLong(), anyInt()))
+                    .thenReturn(List.of());
+            SseEmitter oldEmitter = mock(SseEmitter.class);
+            register(fixture.streams, fixture.projectId, runId, oldEmitter);
+            awaitSendPoolIdle(fixture.streams);
+            Object oldSubscription = subscriptionAt(fixture.streams, runId, 0);
+
+            // 先让旧清理走到"已观察空列表、尚未删条目"的窗口，再并发登记新连接：
+            // 新旧交错被确定性地重叠，不靠运气命中纳秒级窗口
+            closeTask = executor.submit(() -> {
+                try {
+                    remove(fixture.streams, oldSubscription);
+                } catch (Exception error) {
+                    throw new RuntimeException(error);
+                }
+            });
+            boolean legacyCleanupWindow = windowEntered.await(300, TimeUnit.MILLISECONDS);
+            Future<?> subscribeTask = executor.submit(() ->
+                    fixture.streams.subscribe(fixture.projectId, runId, UUID.randomUUID(), 0));
+            subscribeTask.get(2, TimeUnit.SECONDS);
+            releaseWindow.countDown();
+            if (closeTask != null) closeTask.get(2, TimeUnit.SECONDS);
+
+            // 新订阅必须留在发送范围：修好的实现无论交错先后都成立；旧实现在此处确定性地失败
+            Object newSubscription = subscriptionAt(fixture.streams, runId, 0);
+            assertThat(newSubscription).as("并发登记的新订阅不得被旧连接清理摘除").isNotSameAs(oldSubscription);
+            assertThat(subscriptionSize(fixture.streams, runId)).isEqualTo(1);
+
+            // 新订阅能收到随后提交的持久事件（替身按游标过滤，忠实于 list 契约）
+            awaitSendPoolIdle(fixture.streams);
+            AgentRunEventView durable =
+                    event(fixture.projectId, runId, 1, AgentEventType.MODEL_COMPLETED);
+            when(fixture.repository.list(eq(fixture.projectId), eq(runId), anyLong(), anyInt()))
+                    .thenAnswer(invocation -> {
+                        long after = invocation.getArgument(2);
+                        return durable.sequence() > after ? List.of(durable) : List.of();
+                    });
+            fixture.streams.publish(durable);
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+            while (durableCursor(fixture.streams, newSubscription) < 1
+                    && System.nanoTime() < deadline) {
+                Thread.sleep(10);
+            }
+            assertThat(durableCursor(fixture.streams, newSubscription))
+                    .as("后续持久事件按游标补回给并发登记的新订阅").isEqualTo(1L);
+
+            // 迟到的重复旧回调不摘掉新订阅；最后一个订阅关闭后条目正常清理
+            remove(fixture.streams, oldSubscription);
+            assertThat(subscriptionAt(fixture.streams, runId, 0)).isSameAs(newSubscription);
+            remove(fixture.streams, newSubscription);
+            assertThat(subscriptionEntry(fixture.streams, runId)).isNull();
+        } finally {
+            releaseWindow.countDown();
+            if (closeTask != null) closeTask.get(2, TimeUnit.SECONDS);
+            executor.shutdownNow();
+            fixture.close();
+        }
+    }
+
     /** 模拟慢订阅者：阻塞到释放闩锁；线程被中断（收尾关闭连接）时当作订阅已断开返回。 */
     private static void awaitQuietly(CountDownLatch release) {
         try {
@@ -454,6 +595,41 @@ class AgentContentPreviewStreamIsolationTest {
         assertThat(subscriptions.get(runId)).isNull();
     }
 
+    @SuppressWarnings("unchecked")
+    private static Object subscriptionEntry(AgentEventStreamService streams, UUID runId) throws Exception {
+        Field field = AgentEventStreamService.class.getDeclaredField("subscriptions");
+        field.setAccessible(true);
+        Map<UUID, CopyOnWriteArrayList<Object>> subscriptions =
+                (Map<UUID, CopyOnWriteArrayList<Object>>) field.get(streams);
+        return subscriptions.get(runId);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object subscriptionAt(AgentEventStreamService streams, UUID runId, int index) throws Exception {
+        CopyOnWriteArrayList<Object> list = (CopyOnWriteArrayList<Object>) subscriptionEntry(streams, runId);
+        assertThat(list).as("runId=%s 应仍有订阅", runId).isNotNull();
+        return list.get(index);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static int subscriptionSize(AgentEventStreamService streams, UUID runId) throws Exception {
+        CopyOnWriteArrayList<Object> list = (CopyOnWriteArrayList<Object>) subscriptionEntry(streams, runId);
+        return list == null ? 0 : list.size();
+    }
+
+    private static long durableCursor(AgentEventStreamService streams, Object subscription) throws Exception {
+        Field cursor = Class.forName(AgentEventStreamService.class.getName() + "$Subscription")
+                .getDeclaredField("lastSequence");
+        cursor.setAccessible(true);
+        return cursor.getLong(subscription);
+    }
+
+    private static void remove(AgentEventStreamService streams, Object subscription) throws Exception {
+        Method method = AgentEventStreamService.class.getDeclaredMethod("remove", subscription.getClass());
+        method.setAccessible(true);
+        method.invoke(streams, subscription);
+    }
+
     /**
      * 把订阅放进既有 fanout 表并像 {@code subscribe} 一样唤醒发送端：
      * {@code Subscription} 是私有实现，测试用反射构造。
@@ -481,8 +657,9 @@ class AgentContentPreviewStreamIsolationTest {
         final UUID projectId = UUID.randomUUID();
         final UUID runId = UUID.randomUUID();
         final AgentEventRepository repository = mock(AgentEventRepository.class);
+        final AgentRepository runs = mock(AgentRepository.class);
         final AgentEventStreamService streams = new AgentEventStreamService(
-                mock(ProjectAccessGuard.class), mock(AgentRepository.class), repository);
+                mock(ProjectAccessGuard.class), runs, repository);
         final AgentEventService events = new AgentEventService(repository, streams);
         final HttpClient transport = mock(HttpClient.class);
         final JsonHttpModelClient http;
