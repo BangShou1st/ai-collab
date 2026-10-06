@@ -732,6 +732,16 @@ public class AgentRunEventRecorder {
      */
     @Transactional
     public AgentRunView recordModelTurn(AgentRunView run, ModelTurnResult turn, String sourceMode) {
+        return recordModelTurn(run, turn, sourceMode, null);
+    }
+
+    /**
+     * 带<b>调用身份</b>的记录版本：modelCallId 随 MODEL_COMPLETED 事件透出，
+     * 前端据此把流式正文预览与持久化的完整轮次关联；null 保留历史行为（事件无该字段）。
+     */
+    @Transactional
+    public AgentRunView recordModelTurn(
+            AgentRunView run, ModelTurnResult turn, String sourceMode, String modelCallId) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
         markProgress(run.id());
         int inputTokens = estimateInputTokens(turn);
@@ -781,11 +791,14 @@ public class AgentRunEventRecorder {
         }
 
         // 轮次正文随事件透出（与 reason 列同一 2000 码点上限），前端按序渲染过渡说明；
-        // provider/model 为本轮实际响应的模型身份，事件重放与刷新恢复共用
-        event(run,"MODEL_COMPLETED",json.createObjectNode().put("stepSequence",sequence).put("finishReason",turn.finishReason().name()).put("toolCallCount",turn.toolCalls().size())
+        // provider/model 为本轮实际响应的模型身份，事件重放与刷新恢复共用。
+        // modelCallId 把预览与完整结果关联；历史事件与恢复路径缺该字段时按旧规则处理
+        var completedPayload = json.createObjectNode().put("stepSequence",sequence).put("finishReason",turn.finishReason().name()).put("toolCallCount",turn.toolCalls().size())
                 .put("content",truncate(turn.content(),2000))
                 .put("provider",truncate(turn.provider(),80))
-                .put("model",truncate(turn.model(),120)));
+                .put("model",truncate(turn.model(),120));
+        if (modelCallId != null) completedPayload.put("modelCallId", modelCallId);
+        event(run,"MODEL_COMPLETED",completedPayload);
         // 返回更新后的 Run
         return findRun(run.projectId(), run.id()).orElse(run);
     }
@@ -1103,7 +1116,7 @@ public class AgentRunEventRecorder {
             Boolean finalizingIntent) {
         claimIdentityOrThrow(run.id(), callId, kind, settlement);
         ModelTurnResult persisted = finalizingIntent == null ? turn : turn.withFinalizing(finalizingIntent);
-        return recordModelTurn(run, persisted, sourceMode);
+        return recordModelTurn(run, persisted, sourceMode, callId);
     }
 
     /** 输出超限分支的原子版本：身份行结算与 recordBudgetExceeded 的运行累计同事务。 */

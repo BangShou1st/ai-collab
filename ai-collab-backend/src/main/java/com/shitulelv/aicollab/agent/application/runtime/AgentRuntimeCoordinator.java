@@ -18,6 +18,7 @@ import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecor
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelContentPreview;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import org.slf4j.Logger;
@@ -342,6 +343,8 @@ public class AgentRuntimeCoordinator {
             ModelTurnResult turn;
             try {
                 var startedPayload = json.createObjectNode().put("modelTurn", run.stepsUsed() + 1);
+                // 临时正文预览与本轮调用身份绑定：前端用它把流式片段关联到本次请求
+                startedPayload.put("modelCallId", modelCallId);
                 // 本轮出站采用的模型身份（请求准备时解析的同一份配置）；实际响应的模型以 MODEL_COMPLETED 为准
                 startedPayload.put("provider", resolved.providerType());
                 startedPayload.put("model", resolved.modelName());
@@ -354,7 +357,16 @@ public class AgentRuntimeCoordinator {
                     breakdown.put("estimatedInputTokens", estimatedInput);
                 }
                 emit(run, AgentEventType.MODEL_STARTED, startedPayload);
-                turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted(), resolved);
+                // 正文流式观察：只在本线程的本次调用期间激活；发布失败不影响调用与结算
+                if (events != null) {
+                    ModelContentPreview.activate(new AgentContentPreviewPublisher(
+                            events, json, run.projectId(), run.id(), modelCallId));
+                }
+                try {
+                    turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted(), resolved);
+                } finally {
+                    ModelContentPreview.clear();
+                }
             } catch (IllegalArgumentException malformed) {
                 // 请求已发出、无可用响应证据：输入按实际请求规模估算入账，输出显式 UNKNOWN，
                 // 身份行进入终态——不留"仍在调用中"的未结算行，失败调用的消耗也不丢失
