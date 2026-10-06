@@ -387,6 +387,9 @@ public class AgentContextSummarizer {
         current.put("goalRevision", state.path("goalRevision").asInt());
         current.put("activeGoal", state.path("activeGoal").asText());
         current.put("latestRequest", state.path("latestRequest").asText());
+        JsonNode corrections = state.path("goalCorrections");
+        if (corrections.isArray() && corrections.size() > 0)
+            current.put("latestUserCorrection", corrections.get(corrections.size() - 1).path("quote").asText());
         var constraints = current.putArray("activeConstraints");
         for (JsonNode entry : state.path("constraints"))
             if ("active".equals(entry.path("status").asText())) constraints.add(entry);

@@ -411,6 +411,13 @@ public class AgentModelMessageComposer {
         StringBuilder sb = new StringBuilder("<CURRENT_WORKING_STATE>\n");
         String activeGoal = state.path("activeGoal").asText(state.path("goal").asText(""));
         if (!activeGoal.isBlank()) sb.append("当前目标: ").append(activeGoal).append('\n');
+        JsonNode goalCorrections = state.path("goalCorrections");
+        if (goalCorrections.isArray() && goalCorrections.size() > 0) {
+            // 用户更正与旧状态的优先级：旧目标/旧约束不自动改写，读取端显式声明让位规则
+            sb.append("注意:此后用户已作出明确更正（共").append(goalCorrections.size())
+              .append("次，最近一次：").append(goalCorrections.get(goalCorrections.size() - 1).path("quote").asText())
+              .append("）。旧目标与旧状态中与更正冲突的内容，一律以用户更正为准，不得把旧值当成最新口径。\n");
+        }
         StringBuilder constraints = new StringBuilder();
         for (JsonNode entry : state.path("constraints")) {
             if (!"active".equals(entry.path("status").asText())) continue;

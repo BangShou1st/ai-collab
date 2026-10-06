@@ -54,6 +54,9 @@ final class AgentWorkingState {
         ObjectNode state=load(jdbc,json,session);
         upgrade(json,state);
         repairLegacyV2Entries(state);
+        // 显式更正与旧状态的优先级：不解析更正语义、不改写 activeGoal，
+        // 只把更正事实登记下来，由读取端（Composer/摘要）声明"以更正为准"
+        recordGoalCorrection(state,request,messageId);
         if (isGoalReplacement(request)) {
             replaceGoal(json,state,request);
             // 新目标生效后，本消息明确给出的约束仍要提取登记：
@@ -147,7 +150,10 @@ final class AgentWorkingState {
             if (normalized.has("value")) {
                 ((ObjectNode) entry).put("value",normalized.path("value").asText());
                 if (normalized.has("detail")) ((ObjectNode) entry).set("detail",normalized.path("detail"));
-                if (normalized.has("quote")) ((ObjectNode) entry).put("quote",normalized.path("quote").asText());
+                // quote 是来源消息中的原文证据；重提取只能从 value 再生（丢失来源语境），
+                // 已有 quote 不覆盖，否则溯源信息每轮被改写（真实案例：分析请求误触发
+                // DATE_LOCK 后，quote 从"列出…截止日期…"被改写成"不改日期"）
+                if (normalized.has("quote") && !entry.hasNonNull("quote")) ((ObjectNode) entry).put("quote",normalized.path("quote").asText());
             }
             // 旧版对象只存在于 value 前缀 "[X] "：渐进补进 detail.object，
             // 让按对象的替代/复用规则同样保护历史条目
@@ -166,6 +172,40 @@ final class AgentWorkingState {
             if (request.startsWith(prefix)) return true;
         }
         return false;
+    }
+
+    /** 显式更正记录上限：只保留最近几条，超限淘汰最旧。 */
+    private static final int MAX_GOAL_CORRECTIONS = 5;
+
+    /**
+     * 用户显式更正登记（保守词表，子句级匹配）：
+     * "更正…"/"修正…"开头的子句，或"更正：/修正:"冒号形式。更正不解析语义、
+     * 不自动改写 activeGoal（新目标仍走显式"新目标："分支），只记录事实供
+     * 读取端声明"旧状态与更正冲突时以更正为准"，避免旧目标被当成最新口径。
+     */
+    private static void recordGoalCorrection(ObjectNode state,String request,UUID messageId) {
+        String marker=firstCorrectionClause(request);
+        if (marker==null) return;
+        ArrayNode corrections;
+        JsonNode previous=state.path("goalCorrections");
+        if (previous instanceof ArrayNode array) corrections=array;
+        else { corrections=state.putArray("goalCorrections"); }
+        ObjectNode entry=corrections.addObject();
+        entry.put("quote",bounded(marker,200));
+        if (messageId!=null) entry.put("sourceMessageId",messageId.toString());
+        while (corrections.size()>MAX_GOAL_CORRECTIONS) corrections.remove(0);
+    }
+
+    private static String firstCorrectionClause(String request) {
+        if (request==null) return null;
+        for (String clause : clauses(request)) {
+            if (clause.startsWith("更正") || clause.startsWith("修正") || clause.startsWith("再更正") || clause.startsWith("再修正")
+                    || clause.contains("更正：") || clause.contains("更正:")
+                    || clause.contains("修正：") || clause.contains("修正:")) {
+                return clause;
+            }
+        }
+        return null;
     }
 
     /** 明确新目标：旧目标与约束历史保留，active 约束批量标记 superseded（不删除）。 */
@@ -318,10 +358,10 @@ final class AgentWorkingState {
                 .toList();
     }
 
-    /** 疑问/核查语气的子句不是重新设定约束（"请检查是否仍为最多6项"）。 */
+    /** 疑问/核查语气的子句不是重新设定约束（"请检查是否仍为最多6项"、"能否按目标日期完成"）。 */
     private static boolean interrogative(String clause) {
         if (clause.contains("是否") || clause.contains("会不会") || clause.contains("要不要")
-                || clause.contains("能不能") || clause.contains("行不行") || clause.contains("好不好")
+                || clause.contains("能不能") || clause.contains("能否") || clause.contains("行不行") || clause.contains("好不好")
                 || clause.endsWith("?") || clause.endsWith("吗")) return true;
         return clause.startsWith("请检查") || clause.startsWith("请确认") || clause.startsWith("检查")
                 || clause.startsWith("确认") || clause.startsWith("核实");
@@ -629,7 +669,9 @@ final class AgentWorkingState {
         if (text.matches(".*(至少|最少)[^，。;；\\n]{0,8}[0-9一二三四五六七八九十]+[项条个].*")) {
             scopes.add(SCOPE_TASK_COUNT_MIN);
         }
-        if (text.contains("日期") && text.matches(".*(日期[^。；\\n]{0,6}(不要|不用|别|不能|禁止|保持|固定|不变|别动|不改)|不要改日期|别改日期|不改日期|日期不变|日期保持).*")) {
+        if (text.contains("日期") && text.matches(".*(日期[^。；\\n]{0,6}(不要|不用|不能|禁止|保持|固定|不变|别动|别改|不改)|不要改日期|别改日期|不改日期|日期不变|日期保持).*")) {
+            // 交替词不含单字"别"："日期…分别/差别"会经 ≤6 字桥接误命中（真实案例：
+            // "按目标日期完成,分别需要什么条件"被登记为"不改日期"约束）
             scopes.add(SCOPE_DATE_LOCK);
         }
         if (text.contains("负责人") && text.matches(".*(负责人不要|负责人别|负责人不能|不改负责人|别改负责人|不要改负责人|负责人保持|负责人固定|负责人不改|负责人不变|负责人不动|负责人改为|负责人改成|负责人调整为|负责人换为|负责人换成|负责人定为|负责人统一).*")) {
