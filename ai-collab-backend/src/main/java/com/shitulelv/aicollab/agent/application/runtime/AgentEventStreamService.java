@@ -68,6 +68,24 @@ public class AgentEventStreamService {
         }
     }
 
+    /**
+     * 临时正文帧：只推送给当前订阅，不落库、不占持久事件序号、不更新订阅游标，
+     * 断线重放不会补发（前端用持久事件收口）。传输失败只关闭该订阅；
+     * 调用方（模型调用的 worker 线程）不依赖本方法的执行结果。
+     */
+    public void publishContentDelta(UUID projectId, UUID runId, Object payload) {
+        for (Subscription subscription : subscriptions.getOrDefault(
+                runId, new CopyOnWriteArrayList<>())) {
+            if (subscription.closed || !subscription.projectId.equals(projectId)) continue;
+            try {
+                subscription.emitter.send(SseEmitter.event().name("MODEL_CONTENT").data(payload));
+            } catch (IOException | IllegalStateException failure) {
+                subscription.closed = true;
+                remove(subscription);
+            }
+        }
+    }
+
     @Scheduled(fixedDelayString = "${agent.events.heartbeat-ms:20000}")
     public void heartbeat() {
         subscriptions.values().forEach(list -> list.forEach(subscription -> {

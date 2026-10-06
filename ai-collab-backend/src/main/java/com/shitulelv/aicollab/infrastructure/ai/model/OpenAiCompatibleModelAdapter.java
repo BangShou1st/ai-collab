@@ -687,6 +687,9 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         java.util.concurrent.atomic.AtomicReference<ModelUsage> usage =
                 new java.util.concurrent.atomic.AtomicReference<>();
         java.util.Map<Integer, DeltaToolCall> deltas = new java.util.TreeMap<>();
+        // 读流回调在 HttpClient 的读流线程上执行,ThreadLocal 观察者不可见:
+        // 在发起请求的 worker 线程先捕获,回调线程用捕获值显式推送
+        ModelContentPreview.Observer contentObserver = ModelContentPreview.capture();
         http.stream(endpoint(config), headersWithSession(apiKey, metadata, userAgent), zenTurnRequest(config, command, true), (event, data) -> {
             if (data == null) return;
             if (data.hasNonNull("model")) model.set(data.path("model").asText());
@@ -697,7 +700,10 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             JsonNode choice = data.path("choices").path(0);
             if (choice.isMissingNode()) return;
             String token = choice.path("delta").path("content").asText("");
-            if (!token.isEmpty()) content.append(token);
+            if (!token.isEmpty()) {
+                content.append(token);
+                ModelContentPreview.push(contentObserver, content.toString());
+            }
             JsonNode toolCallsNode = choice.path("delta").path("tool_calls");
             if (toolCallsNode.isArray()) {
                 for (JsonNode node : toolCallsNode) {
@@ -718,6 +724,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             if (!finish.isEmpty()) finishReason.set(mapFinishReason(finish));
         });
         List<ModelToolCall> toolCalls = buildDeltaToolCallsCarryingUsage(deltas, usage);
+        if (!content.isEmpty()) ModelContentPreview.finish(contentObserver, content.toString());
         if (toolCalls.stream().anyMatch(call -> isZenReservedTool(call.name())))
             throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                     "模型调用了 Zen 传输保留工具；该调用不会执行",
