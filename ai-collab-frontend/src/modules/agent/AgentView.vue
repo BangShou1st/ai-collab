@@ -16,7 +16,7 @@ import { useAgentWorkspace } from './use-agent-workspace'
 const {
   projectId, currentUserId, mobileView, showInspector, runTone,
   pendingApprovals, resolvedApprovals, sessions, summaries, sessionId, messages,
-  approvals, runDetail, activities, conversationBlocks, activeModel,
+  approvals, runDetail, activities, conversationBlocks, activeModel, contentPreview,
   summaryOf, isCreator, relativeTime, runStatusLabel, evidenceTitle, evidenceDetail,
   statusDot, members, skills, selectedSkillCode, question, busy, sending,
   activeRun, timeline, activeRunState, pageContext, hasPageContext,
@@ -72,6 +72,12 @@ watch(conversationBlocks, () => {
   if (pinnedToBottom.value) void scrollToBottom()
   else hasNewContent.value = true
 })
+// 流式正文预览与对话块同等对待：底部跟随新内容，向上阅读不打断
+watch(contentPreview, () => {
+  if (!contentPreview.value?.text) return
+  if (pinnedToBottom.value) void scrollToBottom()
+  else hasNewContent.value = true
+}, { deep: true })
 watch(sessionId, () => {
   pinnedToBottom.value = true
   hasNewContent.value = false
@@ -200,6 +206,12 @@ watch(sessionId, () => {
                   </template>
                 </div>
                 </template>
+                <!-- 临时正文预览：当前请求的实时输出，安全文本插值；最终回答落库后由持久消息收口 -->
+                <div v-if="contentPreview?.text" class="narration streaming-preview" data-test="agent-content-preview">
+                  <span class="narration-label">Agent</span>
+                  <p>{{ contentPreview.text }}<span v-if="!contentPreview.finalized" class="preview-cursor" aria-hidden="true">▍</span></p>
+                  <span v-if="contentPreview.truncated" class="preview-note">内容较长，已停止预览追加，后台仍在继续生成</span>
+                </div>
               </div>
               <button v-if="hasNewContent" class="new-content-pill" type="button" @click="scrollToBottom">查看新内容 ↓</button>
             </div>
@@ -379,6 +391,10 @@ article.assistant{background:var(--color-surface-raised);border:1px solid var(--
 .narration{display:flex;gap:10px;align-items:flex-start;margin:10px 0;max-width:78%}
 .narration-label{flex:none;font-size:11px;font-weight:600;color:var(--color-text-muted);letter-spacing:.04em;padding-top:3px}
 .narration p{margin:0;font-size:14px;line-height:1.6;color:var(--color-text)}
+/* 流式正文预览：安全文本展示未提交正文，光标表示仍在生成；最终回答沿用 marked+DOMPurify 渲染 */
+.streaming-preview p{white-space:pre-wrap;overflow-wrap:anywhere}
+.preview-cursor{display:inline-block;margin-left:2px;color:var(--color-primary);animation:pulse 1.2s infinite}
+.preview-note{font-size:12px;color:var(--color-text-muted);margin-top:4px}
 /* 紧凑活动行：details/summary 原生支持键盘操作 */
 .activity,.activity-card{border-radius:10px;background:var(--el-fill-color-lighter)}
 .activity{padding:0}

@@ -12,7 +12,20 @@ import { reduceAgentActivities, currentModelFromEvents } from './agent-activity'
 import { buildConversationBlocks, type ConversationBlock } from './conversation-blocks'
 import { RUN_STATUS_LABEL } from './agent-labels'
 import { useAuthStore } from '../../stores/auth-store'
-import type { AgentApproval, AgentMessage, AgentPageContext, AgentPlanView, AgentRun, AgentRunDetail, AgentSession, AgentSessionSummary, AgentSkill } from './types'
+import type { AgentApproval, AgentContentFrame, AgentMessage, AgentPageContext, AgentPlanView, AgentRun, AgentRunDetail, AgentRunEvent, AgentSession, AgentSessionSummary, AgentSkill } from './types'
+
+/** 正文预览展示上限：到限仅停止追加展示，不影响后台生成与持久化。 */
+const CONTENT_PREVIEW_MAX_CHARS = 8000
+
+export interface ContentPreviewState {
+  runId: string
+  modelCallId: string
+  text: string
+  revision: number
+  truncated: boolean
+  /** 该请求的 MODEL_COMPLETED 已到达（纯文本轮等待最终消息落库后收口） */
+  finalized: boolean
+}
 
 /**
  * 项目协作 Agent 工作区的状态与业务逻辑。
@@ -106,6 +119,68 @@ export function useAgentWorkspace() {
   const sending = ref(false)
   const timeline = ref<AgentTimelineState>(emptyAgentTimeline())
   const activeRun = computed(() => timeline.value.run)
+  // 当前请求的临时正文预览：由 MODEL_STARTED(modelCallId) 开启，按累计快照帧幂等替换，
+  // 由请求结束事件或最终消息落库收口；不参与时间线/持久事件，切会话/切运行即丢弃
+  const contentPreview = ref<ContentPreviewState | null>(null)
+  function applyPreviewEvent(event: AgentRunEvent) {
+    const payload = (event.payload ?? {}) as Record<string, unknown>
+    if (event.type === 'MODEL_STARTED') {
+      const modelCallId = typeof payload.modelCallId === 'string' ? payload.modelCallId : null
+      if (modelCallId && timeline.value.run) {
+        contentPreview.value = {
+          runId: timeline.value.run.id, modelCallId,
+          text: '', revision: 0, truncated: false, finalized: false,
+        }
+      }
+      return
+    }
+    const preview = contentPreview.value
+    if (!preview) return
+    if (event.type === 'MODEL_COMPLETED') {
+      const modelCallId = typeof payload.modelCallId === 'string' ? payload.modelCallId : ''
+      if (modelCallId === preview.modelCallId && payload.toolCallCount === 0) {
+        // 纯文本轮：预览定格，最终 ASSISTANT 消息落库后由消息核对收口——回答只出现一次
+        preview.finalized = true
+      } else {
+        // 带工具的轮次正文提交后成为既有过渡说明，预览立即让位
+        contentPreview.value = null
+      }
+      return
+    }
+    if (event.type === 'RUN_SUCCEEDED') {
+      if (!preview.finalized) contentPreview.value = null
+      return
+    }
+    if (event.type === 'RUN_FAILED' || event.type === 'RUN_PAUSED' || event.type === 'RUN_CANCELED'
+      || event.type === 'RUN_BUDGET_EXCEEDED' || event.type === 'WAITING_FOR_USER_INPUT'
+      || event.type === 'RUN_RESUMED' || event.type === 'RUN_RETRY_SCHEDULED') {
+      // 失败/暂停/恢复/等待输入不保留未提交正文，避免旧文本混入新请求或冒充成功答案
+      contentPreview.value = null
+    }
+  }
+  function applyContentFrame(frame: AgentContentFrame, isCurrent: () => boolean) {
+    if (!isCurrent()) return
+    const preview = contentPreview.value
+    if (!preview || frame.modelCallId !== preview.modelCallId) return
+    if (frame.revision <= preview.revision) return
+    if (frame.text.length > CONTENT_PREVIEW_MAX_CHARS) {
+      preview.text = frame.text.slice(0, CONTENT_PREVIEW_MAX_CHARS)
+      preview.truncated = true
+    } else {
+      preview.text = frame.text
+      preview.truncated = false
+    }
+    preview.revision = frame.revision
+    if (frame.final) preview.finalized = true
+  }
+  // 最终回答落库后立即收口预览：消息列表出现本运行的 ASSISTANT 消息即丢弃预览
+  watch(messages, (list) => {
+    const preview = contentPreview.value
+    if (!preview) return
+    if (list.some(m => m.role === 'ASSISTANT' && (m.runId ?? null) === preview.runId)) {
+      contentPreview.value = null
+    }
+  })
   const activeRunState = computed(() => activeRun.value ? agentRunPresentation(activeRun.value) : null)
   const runTone = computed(() => {
     const severity = activeRunState.value?.severity
@@ -175,6 +250,7 @@ export function useAgentWorkspace() {
     runDetail.value = null
     approvals.value = []
     timeline.value = emptyAgentTimeline()
+    contentPreview.value = null
     const [msgs, latest] = await Promise.all([
       agentApi.messages(pid, id),
       agentApi.latestRun(pid, id),
@@ -380,6 +456,7 @@ export function useAgentWorkspace() {
     streamController?.abort()
     streamController = new AbortController()
     timeline.value = emptyAgentTimeline(run)
+    contentPreview.value = null
     void consumeEventStream(run.id, streamController, 250)
   }
   async function consumeEventStream(runId: string, controller: AbortController, delayMs: number) {
@@ -394,7 +471,9 @@ export function useAgentWorkspace() {
         event => {
           if (!fresh()) return
           applyAgentEvent(timeline.value, event)
+          applyPreviewEvent(event)
         },
+        frame => applyContentFrame(frame, fresh),
       )
       if (!fresh()) return
       timeline.value.connected = false
@@ -414,6 +493,8 @@ export function useAgentWorkspace() {
           loadMessages(),
           refreshApprovals({ projectId: projectId.value, sessionId: sessionId.value, runId }),
         ])
+        // 终态收口：消息核对未清掉的预览（如无 ASSISTANT 消息的失败轮）不留到页面静止态
+        if (fresh()) contentPreview.value = null
         return
       }
       await new Promise(resolve => window.setTimeout(resolve, delayMs))
@@ -617,7 +698,7 @@ export function useAgentWorkspace() {
     approvals, runDetail, activities, conversationBlocks, activeModel,
     summaryOf, isCreator, relativeTime, runStatusLabel, evidenceTitle, evidenceDetail,
     statusDot, members, skills, selectedSkillCode, question, busy, sending,
-    activeRun, timeline, activeRunState, pageContext, hasPageContext,
+    activeRun, timeline, activeRunState, pageContext, hasPageContext, contentPreview,
     load, newSession, renameSession, deleteSession, send, removeContext, clearContext,
     approve, reject, approvalBusy, continueRunHandler, retryActiveRun, cancelActiveRun,
     pauseActiveRun, pauseBusy, pausePending, canPause, time,
