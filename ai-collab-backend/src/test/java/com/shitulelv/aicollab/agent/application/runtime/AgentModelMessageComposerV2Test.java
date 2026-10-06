@@ -248,6 +248,29 @@ class AgentModelMessageComposerV2Test {
     }
 
     @Test
+    void composeV2DeclaresCorrectionPrecedenceOverStaleGoal() {
+        var state = json.createObjectNode();
+        state.put("schemaVersion", 2);
+        state.put("stateRevision", 12);
+        state.put("goalRevision", 0);
+        state.put("activeGoal", "项目目标:2026-10-31 前完成灰度发布");
+        var corrections = state.putArray("goalCorrections");
+        var correction = corrections.addObject();
+        correction.put("quote", "更正一个关键信息:经过评审,交付目标从 2026-10-31 提前到 2026-10-24。");
+        correction.put("sourceMessageId", UUID.randomUUID().toString());
+        when(repository.workingState(any(), any())).thenReturn(state);
+
+        var composition = composer.composeV2(run("继续"), context(), skill(),
+                AgentPlan.create("查询", List.of()), List.of(), 30_000, 1.0, false);
+
+        assertThat(composition.failureReason()).isNull();
+        assertThat(composition.messages()).anyMatch(m -> m instanceof ModelMessage.User user
+                && user.content().contains("项目目标:2026-10-31 前完成灰度发布")
+                && user.content().contains("以用户更正为准")
+                && user.content().contains("2026-10-31 提前到 2026-10-24"));
+    }
+
+    @Test
     void composeV2InjectsExistingConversationSummary() {
         var state = json.createObjectNode();
         state.put("schemaVersion", 2);

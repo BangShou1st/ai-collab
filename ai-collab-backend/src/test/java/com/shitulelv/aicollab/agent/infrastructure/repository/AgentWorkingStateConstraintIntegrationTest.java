@@ -457,4 +457,84 @@ class AgentWorkingStateConstraintIntegrationTest {
                 .filter(e -> "任务A".equals(e.path("detail").path("object").asText())).findFirst().orElseThrow();
         assertThat(entryA.path("detail").path("dates").get(0).asText()).isEqualTo("2026-01-05");
     }
+
+    /**
+     * 回归（20261006 真实验收溯源）：分析类请求"…按目标日期完成,分别需要什么条件…"
+     * 曾经由"日期+≤6字桥接+单字'别'（来自'分别'）"误命中 DATE_LOCK，登记出
+     * 无日期、无对象的"不改日期"硬约束并被渲染为必须遵守。分析请求不是约束设定。
+     */
+    @Test
+    void analysisRequestMentioningDatesDoesNotCreateDateLock() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "初始目标");
+        submit(run, """
+                请做一次里程碑维度的深入分析:对每个里程碑,列出其下所有任务的标题、状态、截止日期、依赖数量,并计算:\
+                1) 每个里程碑按任务数加权的状态分布;2) 哪些任务的状态与其截止日期的紧迫程度不匹配(例如 URGENT 优先级却排到很晚,\
+                或截止日临近却还是 TODO);3) 每个里程碑最早和最晚的任务截止日期;4) 你认为每个里程碑能否按目标日期完成,\
+                分别需要什么条件。输出用表格,数据来源标注工具名。""");
+
+        assertThat(active(state(run), "DATE_LOCK")).isEmpty();
+    }
+
+    /** "能否/是否"类核查语气即使命中日期保护词形，也不产生锁定约束。 */
+    @Test
+    void dateQuestionDoesNotLockDates() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "初始目标");
+        submit(run, "请评估各里程碑能否按目标日期完成，日期是否会延期？");
+
+        assertThat(active(state(run), "DATE_LOCK")).isEmpty();
+    }
+
+    /** 渐进修复不得覆盖来源 quote：quote 是来源消息中的原文证据，重提取只能从 value 再生。 */
+    @Test
+    void repairNormalizationPreservesOriginalQuote() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "初始目标");
+        jdbc.update("""
+                UPDATE agent_session SET working_state=?::jsonb WHERE id=?
+                """, """
+                {"schemaVersion":2,"stateRevision":5,"goalRevision":1,"goalVersion":3,
+                 "activeGoal":"验收规划",
+                 "constraints":[
+                   {"id":"33333333-3333-3333-3333-333333333333","scope":"DATE_LOCK","status":"active",
+                    "value":"不改日期","quote":"列出其下所有任务的标题、状态、截止日期、依赖数量","sourceMessageId":null}
+                 ],
+                 "latestRequest":"旧请求"}
+                """, run.sessionId());
+        submit(run, "普通追问：任务现在什么状态？");
+
+        List<JsonNode> dates = active(state(run), "DATE_LOCK");
+        assertThat(dates).hasSize(1);
+        // 修复只规范化 value；来源 quote 保持原样，不每轮被"不改日期"改写
+        assertThat(dates.get(0).path("quote").asText())
+                .isEqualTo("列出其下所有任务的标题、状态、截止日期、依赖数量");
+    }
+
+    /**
+     * 用户显式更正与旧状态的优先级：更正不解析语义、不改写 activeGoal（新目标仍走
+     * 显式"新目标："分支），但必须登记事实，供读取端声明"冲突内容以更正为准"。
+     */
+    @Test
+    void explicitCorrectionIsRecordedWithSourceAndKeepsLatest() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "项目目标:2026-10-31 前完成灰度发布");
+        submit(run, "更正一个关键信息:经过评审,交付目标从 2026-10-31 提前到 2026-10-24。预算约束不变。");
+
+        JsonNode state = state(run);
+        JsonNode corrections = state.path("goalCorrections");
+        assertThat(corrections.isArray()).isTrue();
+        assertThat(corrections.size()).isEqualTo(1);
+        JsonNode latest = corrections.get(corrections.size() - 1);
+        assertThat(latest.path("quote").asText()).contains("更正");
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM agent_message WHERE id=?::uuid AND role='USER'",
+                Integer.class, latest.path("sourceMessageId").asText())).isEqualTo(1);
+
+        // 后续无更正的请求不追加、不丢失
+        submit(run, "普通追问：当前进度如何？");
+        assertThat(state(run).path("goalCorrections").size()).isEqualTo(1);
+        // 旧值仍然 active 的约束不受更正影响（更正优先级由读取端声明）
+        assertThat(state(run).path("activeGoal").asText()).isEqualTo("项目目标:2026-10-31 前完成灰度发布");
+    }
 }
