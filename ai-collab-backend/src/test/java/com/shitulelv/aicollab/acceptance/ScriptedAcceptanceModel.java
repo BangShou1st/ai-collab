@@ -36,7 +36,7 @@ final class ScriptedAcceptanceModel implements AutoCloseable {
             for(int i=0;i<count;i++) data.add(json.createObjectNode().put("index",i).set("embedding",json.createArrayNode().add(1).add(0).add(0)));
             reply(e,200,"application/json",json.createObjectNode().set("data",data).toString());
         });
-        server.createContext("/v1/chat/completions",this::chat); server.start();
+        server.createContext("/v1/chat/completions",this::chat); server.createContext("/chat/completions",this::chat); server.start();
     }
     int port(){return server.getAddress().getPort();}
     String base(){return "http://127.0.0.1:"+port();}
@@ -106,10 +106,32 @@ final class ScriptedAcceptanceModel implements AutoCloseable {
             answer="{\"summary\":\"合成验收规划\",\"assumptions\":[],\"risks\":[],\"milestones\":[{\"tempKey\":\"m1\",\"title\":\"验收发布\",\"objective\":\"完成验收\",\"targetDate\":null,\"sortOrder\":0}],\"tasks\":[{\"tempKey\":\"t1\",\"milestoneTempKey\":\"m1\",\"title\":\"验收任务\",\"objective\":\"验证完整业务流程\",\"sortOrder\":0}]}";
         } else if(prompt.contains("probe")) answer="{\"probe\":true}";
         else answer="资料说明：项目采用 Java 架构，验收编号为 ACCEPTANCE-20261003。[S1]";
+        // 分段流式验收：正文按段延迟推送，验证前端在途预览的多次更新与最终收口（仅测试设施）
+        if(prompt.contains("分段流式验收")) {
+            calls.removeAll();
+            answer="项目当前处于准备阶段：四个任务中一项已完成、一项进行中、一项待处理、一项已阻塞。\n\n"
+                    +"风险一：数据迁移脚本核对处于阻塞状态，会连带影响后续验收材料，建议优先确认阻塞原因并指定负责人。\n\n"
+                    +"风险二：性能压测报告缺少截止日期，建议尽快明确时间窗口，避免与发布评审冲突。\n\n"
+                    +"处理顺序建议：先解除数据迁移阻塞，再补齐压测计划，最后进入发布评审准备。\n\n"
+                    +"以上判断基于本轮项目概览与任务列表的实际返回，未读取文档正文；需要向团队确认的事项已在各条建议中标注。";
+        }
         if(model.equals("acceptance-b") && answer.startsWith("{")) answer="```json\n"+answer+"\n```";
         StringBuilder exposedNames=new StringBuilder(); for(var t:request.path("tools")) exposedNames.append(t.path("function").path("name").asText()).append(',');
         System.out.println("ACCEPTANCE_MODEL request model="+model+", tools="+calls.size()+", exposed=["+exposedNames+"], promptChars="+prompt.length()+", answerChars="+answer.length()+", hasToolHistory="+(request.path("messages").path(0).isObject())+", stream="+request.path("stream").asBoolean());
         if(request.path("stream").asBoolean()) {
+            if(prompt.contains("分段流式验收") && calls.isEmpty()) {
+                e.getResponseHeaders().set("Content-Type","text/event-stream");
+                e.sendResponseHeaders(200,0);
+                var out=e.getResponseBody();
+                for(String segment:answer.split("\n\n")) {
+                    var segDelta=json.createObjectNode().put("content",segment+"\n\n");
+                    var segChoice=json.createObjectNode().put("finish_reason","").set("delta",segDelta);
+                    out.write(("data: "+json.createObjectNode().put("model",model).set("choices",json.createArrayNode().add(segChoice))+"\n\n").getBytes(StandardCharsets.UTF_8));
+                    out.flush();
+                    try{Thread.sleep(1500);}catch(InterruptedException interrupted){Thread.currentThread().interrupt();}
+                }
+                out.write("data: [DONE]\n\n".getBytes(StandardCharsets.UTF_8)); out.flush(); e.close(); return;
+            }
             var delta=json.createObjectNode(); if(!calls.isEmpty()) { var fragments=json.createArrayNode(); for(int i=0;i<calls.size();i++)fragments.add(((ObjectNode)calls.get(i)).deepCopy().put("index",i)); delta.set("tool_calls",fragments); } else delta.put("content",answer);
             var choice=json.createObjectNode().put("finish_reason",calls.isEmpty()?"stop":"tool_calls").set("delta",delta);
             reply(e,200,"text/event-stream","data: "+json.createObjectNode().put("model",model).set("choices",json.createArrayNode().add(choice))+"\n\ndata: [DONE]\n\n");

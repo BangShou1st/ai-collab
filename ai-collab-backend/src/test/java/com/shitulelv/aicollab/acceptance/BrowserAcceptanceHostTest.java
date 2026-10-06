@@ -46,6 +46,8 @@ class BrowserAcceptanceHostTest {
         registry.add("embedding.local-allowed-targets",()->"127.0.0.1:"+peer.port());
     }
     @MockitoBean OutboundEndpointPolicy endpoints;
+    /** 离线宿主把 Zen preset 指向合成 peer,让分段流式验收走生产 Zen 流式路径;预设解析规则本身未改动。 */
+    @MockitoBean com.shitulelv.aicollab.infrastructure.ai.model.ProviderPresetRegistry presets;
     @Autowired JdbcTemplate jdbc;
     @Autowired ModelSecretCipher cipher;
     @Autowired org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
@@ -56,6 +58,14 @@ class BrowserAcceptanceHostTest {
                 throw new IllegalArgumentException("Acceptance host only permits its synthetic local peer");
             return null;
         }).when(endpoints).requirePublicHttps(any());
+        var realPresets=new com.shitulelv.aicollab.infrastructure.ai.model.ProviderPresetRegistry();
+        doAnswer(invocation->{
+            var p=realPresets.require(invocation.getArgument(0));
+            return new com.shitulelv.aicollab.infrastructure.ai.model.ProviderPresetRegistry.PresetPolicy(
+                p.code(),p.displayName(),p.protocol(),peer.base(),p.completionPath(),p.modelsPath(),
+                p.userAgent(),false,p.capabilities(),p.defaultTemperature(),p.defaultMaxOutputTokens());
+        }).when(presets).require(any());
+        doAnswer(invocation->peer.base()+"/chat/completions").when(presets).completionEndpoint(any());
         String ownerName=properties.getProperty("DEMO_OWNER_USERNAME","owner");
         String ownerPassword=properties.getProperty("DEMO_OWNER_PASSWORD","12345678");
         UUID owner;
@@ -100,9 +110,28 @@ class BrowserAcceptanceHostTest {
         jdbc.update("update user_ai_provider set is_default=(model_name='acceptance-a') where user_id=?",owner);
         UUID selected=jdbc.queryForObject("select id from user_ai_provider where user_id=? and model_name='acceptance-a'",UUID.class,owner);
         jdbc.update("update user_model_purpose_assignment set provider_id=? where user_id=?",selected,owner);
+        // 分段流式验收:把真实 Zen preset 行"暂借"给合成 peer(走生产 Zen 流式路径),退出时恢复原值。
+        // 加密密钥原值另存 target/(不入 Git),宿主被硬杀时仍可手工恢复。
+        UUID zenId=jdbc.queryForObject("select id from user_ai_provider where user_id=? and preset_code='OPENCODE_ZEN_FREE'",UUID.class,owner);
+        var zenOriginal=jdbc.queryForMap("select base_url,api_path,model_name,encrypted_api_key from user_ai_provider where id=?",zenId);
+        java.nio.file.Files.writeString(java.nio.file.Path.of("target/zen-row-backup-20261006.json"),
+                jsonValue(zenOriginal));
+        jdbc.update("update user_ai_provider set base_url=?,api_path='/chat/completions',model_name='acceptance-zen',encrypted_api_key=?,updated_at=now() where id=?",
+                peer.base(),cipher.encrypt("synthetic-zen-key"),zenId);
+        jdbc.update("update user_model_purpose_assignment set provider_id=? where user_id=? and purpose='AGENT'",zenId,owner);
         System.out.println("BROWSER_ACCEPTANCE_READY api=http://localhost:18080 peer="+peer.base()+"; all model responses synthetic, source database untouched");
         long deadline=System.nanoTime()+java.util.concurrent.TimeUnit.MINUTES.toNanos(45);
         try { while(!peer.stopped&&System.nanoTime()<deadline) Thread.sleep(500); }
-        finally { peer.close();redis.stop();minio.stop(); }
+        finally {
+            jdbc.update("update user_ai_provider set base_url=?,api_path=?,model_name=?,encrypted_api_key=?,updated_at=now() where id=?",
+                    zenOriginal.get("base_url"),zenOriginal.get("api_path"),zenOriginal.get("model_name"),zenOriginal.get("encrypted_api_key"),zenId);
+            jdbc.update("update user_model_purpose_assignment set provider_id=? where user_id=? and purpose='AGENT'",zenId,owner);
+            peer.close();redis.stop();minio.stop();
+        }
+    }
+    private static String jsonValue(java.util.Map<String,Object> row) {
+        var json=new StringBuilder("{");
+        for(var entry:row.entrySet()) json.append('"').append(entry.getKey()).append("\":\"").append(entry.getValue()).append("\",");
+        return json.append("}").toString();
     }
 }
