@@ -1,0 +1,36 @@
+{
+  "runs": [
+    {
+      "seq": 5,
+      "provider": "OPENAI_COMPATIBLE",
+      "model": "space-bunny-free"
+    },
+    {
+      "seq": 11,
+      "provider": "OPENAI_COMPATIBLE",
+      "model": "space-bunny-free"
+    },
+    {
+      "seq": 15,
+      "provider": "OPENAI_COMPATIBLE",
+      "model": "space-bunny-free"
+    }
+  ],
+  "completed": [
+    {
+      "seq": 6,
+      "provider": "OPENAI_COMPATIBLE",
+      "model": "space-bunny-free"
+    },
+    {
+      "seq": 12,
+      "provider": "OPENAI_COMPATIBLE",
+      "model": "space-bunny-free"
+    },
+    {
+      "seq": 16,
+      "provider": "OPENAI_COMPATIBLE",
+      "model": "space-bunny-free"
+    }
+  ]
+}
