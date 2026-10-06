@@ -15,12 +15,18 @@ import java.util.UUID;
  * 让前端在持久完成事件到达前就能定格完整预览。</p>
  *
  * <p>只在模型调用的 worker 线程上被回调（适配器流式聚合是同步读取）；
- * 发布走 {@link AgentEventService#publishContentDelta}，不落库、不占持久事件序号。</p>
+ * 发布走 {@link AgentEventService#publishContentDelta}，不落库、不占持久事件序号，
+ * 并且是非阻塞的：真正的 SSE 写出由 {@link AgentEventStreamService} 的发送线程完成。</p>
+ *
+ * <p>服务端也把累计快照限制在展示上限内（与前端 {@code CONTENT_PREVIEW_MAX_CHARS} 一致），
+ * 避免上游越写越长时持续下发越来越大的全文快照。</p>
  */
 final class AgentContentPreviewPublisher implements ModelContentPreview.Observer {
 
     private static final long MIN_INTERVAL_MS = 300;
     private static final int MIN_DELTA_CHARS = 80;
+    /** 与前端正文预览展示上限一致：超限后不再发送更长的累计快照。 */
+    private static final int MAX_PREVIEW_CHARS = 8000;
 
     private final AgentEventService events;
     private final ObjectMapper json;
@@ -43,8 +49,10 @@ final class AgentContentPreviewPublisher implements ModelContentPreview.Observer
     @Override
     public void onContent(String cumulativeText, boolean finalFrame) {
         if (cumulativeText == null || cumulativeText.isEmpty()) return;
+        String text = cumulativeText.length() > MAX_PREVIEW_CHARS
+                ? cumulativeText.substring(0, MAX_PREVIEW_CHARS) : cumulativeText;
         long now = System.currentTimeMillis();
-        int length = cumulativeText.length();
+        int length = text.length();
         boolean due = finalFrame
                 || length - lastSentChars >= MIN_DELTA_CHARS
                 || (length != lastSentChars && now - lastSentAt >= MIN_INTERVAL_MS);
@@ -52,7 +60,7 @@ final class AgentContentPreviewPublisher implements ModelContentPreview.Observer
         ObjectNode payload = json.createObjectNode()
                 .put("modelCallId", modelCallId)
                 .put("revision", ++revision)
-                .put("text", cumulativeText)
+                .put("text", text)
                 .put("final", finalFrame);
         events.publishContentDelta(projectId, runId, payload);
         lastSentChars = length;

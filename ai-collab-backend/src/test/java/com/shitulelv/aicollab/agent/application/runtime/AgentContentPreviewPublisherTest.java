@@ -85,4 +85,18 @@ class AgentContentPreviewPublisherTest {
         publisher.onContent("", true);
         assertThat(frames).isEmpty();
     }
+
+    @Test
+    void serverSideSnapshotIsBoundedToTheDisplayLimitAndStopsGrowing() {
+        AgentContentPreviewPublisher publisher = publisher();
+        publisher.onContent("a".repeat(9000), true);
+
+        assertThat(frames).hasSize(1);
+        assertThat(frames.get(0).path("text").asText()).hasSize(8000);
+        assertThat(frames.get(0).path("final").asBoolean()).isTrue();
+
+        // 到限后不再持续下发同样长度的截断快照（客户端展示上限也为 8000）
+        publisher.onContent("a".repeat(9000) + "尾部", false);
+        assertThat(frames).hasSize(1);
+    }
 }
