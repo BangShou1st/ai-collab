@@ -368,3 +368,50 @@ describe('auto-retry review regressions (20261006)', () => {
     expect(withUpdate.find((row) => row.key === 'retry:6')!.detail).toContain('模型响应超时')
   })
 })
+
+describe('request-end presentation regressions (R4, 20261006)', () => {
+  const failedRequest = [
+    evt(1, 'MODEL_STARTED', { model: 'configured-model' }),
+    evt(2, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+  ]
+
+  it('has no analyzing row while waiting to retry a failed request', () => {
+    const rows = reduceAgentActivities(failedRequest)
+    expect(rows.find((row) => row.key === 'retry:2')?.detail).toContain('等待自动重试')
+    expect(rows.filter((row) => row.key === 'model:analyzing')).toHaveLength(0)
+  })
+
+  it('does not show the failed request as analyzing while the run is paused', () => {
+    const rows = reduceAgentActivities([...failedRequest, evt(3, 'RUN_PAUSED')])
+    expect(rows.find((row) => row.key === 'retry:2')?.status).toBe('waiting')
+    expect(rows.filter((row) => row.key === 'model:analyzing')).toHaveLength(0)
+  })
+
+  it('does not revive analyzing on resume until a new model request starts', () => {
+    const rows = reduceAgentActivities([...failedRequest, evt(3, 'RUN_PAUSED'), evt(4, 'RUN_RESUMED')])
+    expect(rows.find((row) => row.key === 'retry:2')?.detail).toContain('等待自动重试')
+    expect(rows.filter((row) => row.key === 'model:analyzing')).toHaveLength(0)
+  })
+
+  it('does not keep a completed retry request running while waiting for clarification', () => {
+    const rows = reduceAgentActivities([
+      ...failedRequest,
+      evt(3, 'MODEL_STARTED'),
+      evt(4, 'MODEL_COMPLETED', { toolCallCount: 0, content: '[QUESTIONS]请确认交付范围' }),
+      evt(5, 'WAITING_FOR_USER_INPUT'),
+    ])
+    expect(rows.some((row) => row.key === 'waiting:input')).toBe(true)
+    const retry = rows.find((row) => row.key === 'retry:2')!
+    expect(retry.status).not.toBe('running')
+    expect(retry.status).toBe('done')
+  })
+
+  it('does not treat a pause intent as an end while the request is genuinely in flight', () => {
+    const rows = reduceAgentActivities([
+      evt(1, 'MODEL_STARTED', { model: 'configured-model' }),
+      evt(2, 'RUN_PAUSE_REQUESTED'),
+    ])
+    // 暂停意图不是请求结束：RUNNING 上的请求仍在途，分析行保留
+    expect(rows.filter((row) => row.key === 'model:analyzing')).toHaveLength(1)
+  })
+})
