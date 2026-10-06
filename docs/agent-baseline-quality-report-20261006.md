@@ -119,10 +119,20 @@
 
 1. `AgentWorkingState.constraintScopes`:DATE_LOCK 交替词移除单字"别"(补"别改"保持"日期别改"覆盖),消除"分别/差别"类误触发;`interrogative()` 增加"能否"。
 2. `AgentWorkingState.repairLegacyV2Entries`:渐进修复只规范化 value/detail,不再覆盖已有 quote——来源证据保留。
-3. 用户更正与旧状态的优先级(新增确定性机制):`appendUser` 检测显式更正表述(保守词表:子句以"更正/修正/再更正/再修正"开头或含"更正：/修正:"冒号形式),登记 `working_state.goalCorrections`(最近 5 条,含 sourceMessageId);**不解析更正语义、不改写 activeGoal**(显式换目标仍走"新目标:"分支)。读取端声明让位规则:Composer 在工作状态块中渲染"旧目标与旧状态中与更正冲突的内容,一律以用户更正为准,不得把旧值当成最新口径";摘要器的 `CURRENT_STATE_FOR_SUMMARY` 携带 `latestUserCorrection`。
+3. 用户更正与旧状态的优先级(新增确定性机制):`appendUser` 检测显式更正表述(保守词表:子句以"更正/修正/再更正/再修正"开头或含"更正：/修正:"冒号形式),登记 `working_state.goalCorrections`(最近 5 条,含 sourceMessageId);**不解析更正语义、不改写 activeGoal**(显式换目标仍走"新目标:"分支)。读取端声明让位规则:Composer 在工作状态块中渲染"旧目标与旧状态中与更正冲突的内容,一律以用户更正为准,不得把旧值当成最新口径";摘要器的 `CURRENT_STATE_FOR_SUMMARY` 携带有效更正。
+
+### 7.2.1 更正机制补修(评审探针发现的三处遗漏,同日修复)
+
+初版更正机制经评审复现三处遗漏,已限定补修:
+
+1. **全角标点截断**:登记只取标记子句,"更正一个关键信息：经过评审，交付目标从 10-31 提前到 10-24"被切成"更正一个关键信息：经过评审"丢失日期。补修:quote 保留**完整更正原文**(单条上限 1000 字)。
+2. **多条更正只提供最后一条**:先更正日期、再更正预算时,组装器与摘要状态块都只取最后一条,早期更正在其原始消息退出窗口后可能丢失。补修:Composer 按时间顺序提供当前目标的**全部**有效更正;摘要状态块改为 `activeGoalCorrections` 数组(旧→新)。
+3. **显式新目标未撤销旧更正**:换目标后状态仍注入旧目标的更正及优先规则。补修:`replaceGoal` 对旧更正批量退位(status=superseded、supersededReason=GOAL_REPLACED,历史保留);读取端只渲染 active 条目。
+
+回归:`AgentWorkingStateConstraintIntegrationTest` +4(全角标点、多条按序、换目标退位与后续更正、完整原文)、`AgentModelMessageComposerV2Test` +1(多条按序渲染+退位不渲染)、`AgentContextSummarizerTest` +1(状态块按序携带有效更正、排除退位条目);状态/组装/摘要/仓库/协调器/暂停续跑等 10 个测试类合计 **188 项 0 失败**。
 
 ### 7.3 回归与验证
 
 - `AgentWorkingStateConstraintIntegrationTest` 新增 4 项(真实 PG):分析请求不产生 DATE_LOCK;日期疑问句不锁定;修复保留原 quote;显式更正登记来源且旧状态让位规则可渲染。
 - `AgentModelMessageComposerV2Test` 新增 1 项:工作状态块对更正优先级的渲染。
-- 定向回归:状态/组装/摘要/仓库/协调器/暂停续跑等 10 个测试类合计 **183 项 0 失败**。
+- 定向回归:状态/组装/摘要/仓库/协调器/暂停续跑等 10 个测试类合计 **183 项 0 失败**(更正机制补修后复跑扩大为 188 项 0 失败,见 7.2.1)。
