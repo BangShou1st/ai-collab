@@ -109,4 +109,12 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 
 ## 9. 已知边界（后续任务，勿在本文件继续堆功能）
 
-到限续接、自动重试体验、逐字流式、精确计费——各自独立设计后再动 `AgentRuntimeCoordinator`/`AgentWorker`。R1 未确认尾段（最后一次进度 → 进程退出）按设计不计入执行时长，不声称精确计时；真实模型回答与摘要语义质量仍是独立未验收项。主动暂停/继续已交付（见第 8 节），其"子 Agent 全树控制、强制立即中断、暂停时修改目标的智能重规划"仍未列范围。
+到限续接、自动重试体验、逐字流式、精确计费——各自独立设计后再动 `AgentRuntimeCoordinator`/`AgentWorker`。R1 未确认尾段（最后一次进度 → 进程退出）按设计不计入执行时长，不声称精确计时；真实模型回答与摘要语义质量已于 2026-10-06 完成首批真实验收（报告：`docs/agent-baseline-quality-report-20261006.md`）。主动暂停/继续已交付（见第 8 节），其"子 Agent 全树控制、强制立即中断、暂停时修改目标的智能重规划"仍未列范围。
+
+## 10. 工作状态约束与更正优先级（2026-10-06 修正）
+
+`AgentWorkingState`（`agent_session.working_state`）维护会话权威状态，改动注意：
+
+- **约束只来自 USER 消息**（`appendUser` 三个调用点：createRun、createRetryRun、continueRun），助手响应无写入路径；触发模式是保守词表 + 子句级疑问/否定/假设过滤。2026-10-06 修正：DATE_LOCK 触发词移除单字"别"（"日期…分别…"经 ≤6 字桥接误命中），疑问词表补"能否"。
+- **quote 是来源消息中的原文证据**：`repairLegacyV2Entries` 渐进修复只规范化 value/detail，不得覆盖已有 quote（否则溯源信息逐轮被 value 再生文本改写）。
+- **用户更正优先级**：`working_state.goalCorrections` 登记显式更正（子句以"更正/修正/再更正/再修正"开头或含"更正：/修正:"，最多 5 条，含 sourceMessageId）；**不解析更正语义、不改写 activeGoal**（换目标仍走显式"新目标："分支）。读取端负责声明让位：Composer 工作状态块渲染"冲突内容以用户更正为准"，摘要器 `CURRENT_STATE_FOR_SUMMARY` 携带 `latestUserCorrection`。回归：`AgentWorkingStateConstraintIntegrationTest`、`AgentModelMessageComposerV2Test`。
