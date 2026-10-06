@@ -49,6 +49,17 @@ export interface AgentRunEvent<T extends Record<string, unknown> = Record<string
   createdAt: string
 }
 
+/**
+ * 临时正文帧（SSE 事件名 MODEL_CONTENT）：只服务当前请求的实时展示，
+ * 不进入持久事件流、不占序号；text 是自包含的累计正文快照，按 revision 幂等替换。
+ */
+export interface AgentContentFrame {
+  modelCallId: string
+  revision: number
+  text: string
+  final: boolean
+}
+
 export interface AgentPageContext {
   route: string
   selectedTaskId?: string | null
