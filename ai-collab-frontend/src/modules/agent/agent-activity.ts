@@ -51,6 +51,10 @@ function callKey(e: AgentRunEvent): string {
 
 const TOOL_LIFECYCLE = new Set(['TOOL_CALL_PROPOSED', 'TOOL_CALL_STARTED', 'TOOL_CALL_COMPLETED', 'TOOL_CALL_FAILED'])
 const APPROVAL_CLOSE = new Set(['APPROVAL_APPROVED', 'APPROVAL_REJECTED', 'APPROVAL_EXPIRED'])
+/** 结束一次模型请求的事件：失败（含可恢复失败）、完成、暂停确认、等待输入、终态。
+ *  RUN_PAUSE_REQUESTED 只是暂停意图，请求仍可能在途，不在此列。 */
+const REQUEST_CLOSE = new Set(['MODEL_COMPLETED', 'RUN_FAILED', 'RUN_PAUSED', 'WAITING_FOR_USER_INPUT',
+  'RUN_CANCELED', 'RUN_SUCCEEDED', 'RUN_BUDGET_EXCEEDED'])
 
 /** Presentation policy: tool lifecycles, approvals, turn narrations, analyzing and waiting become rows.
  *  Run/model/plan/context events drive state elsewhere. MODEL_COMPLETED narration only exists for
@@ -77,10 +81,12 @@ export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] 
   const approvalOrder: string[] = []
   const narrations: AgentRunEvent[] = []
   const controlNotes: AgentRunEvent[] = []
-  // “正在分析”按最新一次模型请求判定：只比较最新 MODEL_STARTED 与最新 MODEL_COMPLETED 的序号，
-  // 不能因为历史上出现过任何一次完成就永久抑制后续轮次的在途状态。
+  // “正在分析”按最新一次模型请求判定：只有最新 MODEL_STARTED 之后没有出现任何
+  // 请求结束事件（失败/完成/暂停确认/等待输入/终态）时才在途；
+  // 后续新的 MODEL_STARTED 重新表示在途，不能因历史失败/完成永久抑制或永久保留。
   let latestModelStarted: AgentRunEvent | null = null
   let latestModelCompleted: AgentRunEvent | null = null
+  let latestRequestClose: AgentRunEvent | null = null
   let waiting: AgentRunEvent[] | null = null
   for (const e of stream) {
     if (TOOL_LIFECYCLE.has(e.type)) {
@@ -107,6 +113,9 @@ export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] 
       if (!waiting) waiting = []
       waiting.push(e)
     }
+    if (REQUEST_CLOSE.has(e.type) && (!latestRequestClose || e.sequence >= latestRequestClose.sequence)) {
+      latestRequestClose = e
+    }
   }
   const out: AgentActivity[] = []
   for (const key of toolOrder) {
@@ -131,7 +140,7 @@ export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] 
   }
   for (const retry of retryActivities(stream)) out.push(retry)
   const requestInFlight = latestModelStarted !== null
-    && (latestModelCompleted === null || latestModelStarted.sequence > latestModelCompleted.sequence)
+    && (latestRequestClose === null || latestModelStarted.sequence > latestRequestClose.sequence)
   if (!terminal && requestInFlight && latestModelStarted) {
     const model = (latestModelStarted.payload as Record<string, unknown> | undefined)?.model
     out.push({ key: 'model:analyzing', tool: 'model', kind: 'analysis', status: 'running', title: '正在分析', detail: typeof model === 'string' && model ? `使用 ${model}` : null, durationMs: null, count: null, raw: [latestModelStarted] })
@@ -238,12 +247,20 @@ function retryActivities(events: AgentRunEvent[]): AgentActivity[] {
       const startedSeq = Math.max(-1, ...window.filter((e) => e.type === 'MODEL_STARTED').map((e) => e.sequence))
       const pausedSeq = Math.max(-1, ...window.filter((e) => e.type === 'RUN_PAUSED').map((e) => e.sequence))
       const resumedSeq = Math.max(-1, ...window.filter((e) => e.type === 'RUN_RESUMED').map((e) => e.sequence))
-      if (startedSeq >= 0 && startedSeq > pausedSeq) {
-        status = 'running'
-        outcome = '已再次尝试'
-      } else if (pausedSeq >= 0 && pausedSeq > resumedSeq) {
+      // 该次尝试的请求是否已结束（完成/等待澄清/暂停确认等）：失败或完成结束该次请求，
+      // 只有更新的 MODEL_STARTED 才重新表示在途
+      const endedAfterStart = startedSeq >= 0
+        && window.some((e) => REQUEST_CLOSE.has(e.type) && e.sequence > startedSeq)
+      if (pausedSeq >= 0 && pausedSeq > resumedSeq && pausedSeq > startedSeq) {
         status = 'waiting'
         outcome = '已暂停，恢复后继续自动重试'
+      } else if (startedSeq >= 0 && !endedAfterStart && startedSeq > pausedSeq) {
+        status = 'running'
+        outcome = '已再次尝试'
+      } else if (startedSeq >= 0) {
+        // 尝试已结束且没有新的失败/终态：中性收口，不在途、不承诺继续调度
+        status = 'done'
+        outcome = '已再次尝试'
       } else {
         status = 'failed'
         outcome = '等待自动重试'
