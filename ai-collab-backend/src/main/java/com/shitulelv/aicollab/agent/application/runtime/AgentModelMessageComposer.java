@@ -411,12 +411,21 @@ public class AgentModelMessageComposer {
         StringBuilder sb = new StringBuilder("<CURRENT_WORKING_STATE>\n");
         String activeGoal = state.path("activeGoal").asText(state.path("goal").asText(""));
         if (!activeGoal.isBlank()) sb.append("当前目标: ").append(activeGoal).append('\n');
+        // 用户更正与旧状态的优先级：按时间顺序提供当前目标的全部有效更正（旧→新），
+        // 只取最后一条会让早期更正在其原始消息退出窗口后丢失
+        java.util.List<String> activeCorrections = new java.util.ArrayList<>();
         JsonNode goalCorrections = state.path("goalCorrections");
-        if (goalCorrections.isArray() && goalCorrections.size() > 0) {
-            // 用户更正与旧状态的优先级：旧目标/旧约束不自动改写，读取端显式声明让位规则
-            sb.append("注意:此后用户已作出明确更正（共").append(goalCorrections.size())
-              .append("次，最近一次：").append(goalCorrections.get(goalCorrections.size() - 1).path("quote").asText())
-              .append("）。旧目标与旧状态中与更正冲突的内容，一律以用户更正为准，不得把旧值当成最新口径。\n");
+        if (goalCorrections.isArray()) {
+            for (JsonNode correction : goalCorrections) {
+                if ("active".equals(correction.path("status").asText())) {
+                    activeCorrections.add(correction.path("quote").asText());
+                }
+            }
+        }
+        if (!activeCorrections.isEmpty()) {
+            sb.append("注意:此后用户已对旧目标作出明确更正（按时间顺序，全部有效）：\n");
+            for (String correction : activeCorrections) sb.append("- ").append(correction).append('\n');
+            sb.append("旧目标与旧状态中与上述更正冲突的内容，一律以用户更正为准，不得把旧值当成最新口径。\n");
         }
         StringBuilder constraints = new StringBuilder();
         for (JsonNode entry : state.path("constraints")) {
