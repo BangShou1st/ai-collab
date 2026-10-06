@@ -17,8 +17,12 @@ export function reconcileAgentRun(state: AgentTimelineState, persisted: AgentRun
   state.run = persisted
 }
 
-export function applyAgentEvent(state: AgentTimelineState, event: AgentRunEvent): void {
-  if (!state.run || event.runId !== state.run.id || event.sequence <= state.lastSequence) return
+/**
+ * 把一个持久事件应用到时间线；返回是否被接受（旧序号、重复序号或其他运行的事件被拒绝）。
+ * 调用方据此决定衍生状态（如临时正文预览）是否推进——不接受的事件不得改变展示生命周期。
+ */
+export function applyAgentEvent(state: AgentTimelineState, event: AgentRunEvent): boolean {
+  if (!state.run || event.runId !== state.run.id || event.sequence <= state.lastSequence) return false
   state.events.push(event)
   state.lastSequence = event.sequence
 
@@ -44,4 +48,5 @@ export function applyAgentEvent(state: AgentTimelineState, event: AgentRunEvent)
   if (event.type === 'RUN_SUCCEEDED') state.run.status = 'SUCCEEDED'
   if (event.type === 'RUN_FAILED') state.run.status = event.payload?.retryable === true ? 'FAILED_RETRYABLE' : 'FAILED'
   if (event.type === 'RUN_BUDGET_EXCEEDED') state.run.status = 'BUDGET_EXCEEDED'
+  return true
 }

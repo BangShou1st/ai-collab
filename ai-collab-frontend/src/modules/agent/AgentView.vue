@@ -11,6 +11,7 @@ import AgentApprovalCard from './AgentApprovalCard.vue'
 import SemanticDiff from '../../shared/SemanticDiff.vue'
 import { markdown } from '../knowledge/knowledge-render'
 import { groupAgentActivities, type AgentActivity, type ConversationActivity } from './agent-activity'
+import { visibleAgentProse } from './agent-prose'
 import { useAgentWorkspace } from './use-agent-workspace'
 
 const {
@@ -31,12 +32,15 @@ function sourceIdentity(c: unknown): { documentId: string; chunkId: string } | n
   return typeof value.documentId === 'string' && typeof value.chunkId === 'string' ? { documentId: value.documentId, chunkId: value.chunkId } : null
 }
 
-// 最终回答用 Markdown 渲染（marked + DOMPurify 严格净化，禁外链/图片/脚本）
+// 最终回答用 Markdown 渲染（marked + DOMPurify 严格净化，禁外链/图片/脚本）；
+// 同一展示 helper 去掉澄清控制标记，持久化的澄清消息也只显示自然语言问题
 const answerHtmlById = computed<Record<string, string>>(() => {
   const out: Record<string, string> = {}
-  for (const m of messages.value) if (m.role === 'ASSISTANT') out[m.id] = markdown(m.content)
+  for (const m of messages.value) if (m.role === 'ASSISTANT') out[m.id] = markdown(visibleAgentProse(m.content))
   return out
 })
+// 临时预览同样只展示可读正文：控制标记前缀（含未判明的短前缀）不出现在页面上
+const previewProse = computed(() => visibleAgentProse(contentPreview.value?.text ?? ''))
 
 const STATUS_GLYPH: Record<string, string> = { done: '✓', running: '●', failed: '✕', waiting: '…' }
 const grouped = (items: AgentActivity[]): ConversationActivity[] => groupAgentActivities(items)
@@ -207,10 +211,10 @@ watch(sessionId, () => {
                 </div>
                 </template>
                 <!-- 临时正文预览：当前请求的实时输出，安全文本插值；最终回答落库后由持久消息收口 -->
-                <div v-if="contentPreview?.text" class="narration streaming-preview" data-test="agent-content-preview">
+                <div v-if="previewProse" class="narration streaming-preview" data-test="agent-content-preview">
                   <span class="narration-label">Agent</span>
-                  <p>{{ contentPreview.text }}<span v-if="!contentPreview.finalized" class="preview-cursor" aria-hidden="true">▍</span></p>
-                  <span v-if="contentPreview.truncated" class="preview-note">内容较长，已停止预览追加，后台仍在继续生成</span>
+                  <p>{{ previewProse }}<span v-if="!contentPreview?.finalized" class="preview-cursor" aria-hidden="true">▍</span></p>
+                  <span v-if="contentPreview?.truncated" class="preview-note">内容较长，已停止预览追加，后台仍在继续生成</span>
                 </div>
               </div>
               <button v-if="hasNewContent" class="new-content-pill" type="button" @click="scrollToBottom">查看新内容 ↓</button>

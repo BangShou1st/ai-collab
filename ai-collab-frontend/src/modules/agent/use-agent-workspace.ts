@@ -162,8 +162,11 @@ export function useAgentWorkspace() {
     if (!isCurrent()) return
     const preview = contentPreview.value
     if (!preview || frame.modelCallId !== preview.modelCallId) return
+    // 请求已结束（MODEL_COMPLETED 已提交）：保留已定格文字等待最终消息替换，
+    // 只接受同一请求的 final 快照，不再接收迟到的新增正文
+    if (preview.finalized && !frame.final) return
     if (frame.revision <= preview.revision) return
-    if (frame.text.length > CONTENT_PREVIEW_MAX_CHARS) {
+    if (frame.text.length >= CONTENT_PREVIEW_MAX_CHARS) {
       preview.text = frame.text.slice(0, CONTENT_PREVIEW_MAX_CHARS)
       preview.truncated = true
     } else {
@@ -470,8 +473,9 @@ export function useAgentWorkspace() {
         controller.signal,
         event => {
           if (!fresh()) return
-          applyAgentEvent(timeline.value, event)
-          applyPreviewEvent(event)
+          // 只有本次被时间线接受的持久事件才推进预览生命周期：
+          // 旧序号/重复序号/其他运行的事件由同一套接受判断拒绝，预览不得被其回退
+          if (applyAgentEvent(timeline.value, event)) applyPreviewEvent(event)
         },
         frame => applyContentFrame(frame, fresh),
       )
