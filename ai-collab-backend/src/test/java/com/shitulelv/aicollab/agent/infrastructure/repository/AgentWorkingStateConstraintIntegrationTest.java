@@ -513,7 +513,7 @@ class AgentWorkingStateConstraintIntegrationTest {
 
     /**
      * 用户显式更正与旧状态的优先级：更正不解析语义、不改写 activeGoal（新目标仍走
-     * 显式"新目标："分支），但必须登记事实，供读取端声明"冲突内容以更正为准"。
+     * 显式"新目标："分支），但必须登记完整原文，供读取端声明"冲突内容以更正为准"。
      */
     @Test
     void explicitCorrectionIsRecordedWithSourceAndKeepsLatest() {
@@ -526,7 +526,10 @@ class AgentWorkingStateConstraintIntegrationTest {
         assertThat(corrections.isArray()).isTrue();
         assertThat(corrections.size()).isEqualTo(1);
         JsonNode latest = corrections.get(corrections.size() - 1);
-        assertThat(latest.path("quote").asText()).contains("更正");
+        // 完整更正原文：实际更正内容（日期/预算）不得被子句切分截掉
+        assertThat(latest.path("quote").asText()).contains("交付目标从 2026-10-31 提前到 2026-10-24");
+        assertThat(latest.path("quote").asText()).contains("预算约束不变");
+        assertThat(latest.path("status").asText()).isEqualTo("active");
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM agent_message WHERE id=?::uuid AND role='USER'",
                 Integer.class, latest.path("sourceMessageId").asText())).isEqualTo(1);
@@ -536,5 +539,57 @@ class AgentWorkingStateConstraintIntegrationTest {
         assertThat(state(run).path("goalCorrections").size()).isEqualTo(1);
         // 旧值仍然 active 的约束不受更正影响（更正优先级由读取端声明）
         assertThat(state(run).path("activeGoal").asText()).isEqualTo("项目目标:2026-10-31 前完成灰度发布");
+    }
+
+    /** 回归（用户探针）：全角冒号/逗号切分不得截掉实际更正内容。 */
+    @Test
+    void correctionQuoteKeepsContentAcrossFullwidthPunctuation() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "初始目标");
+        submit(run, "更正一个关键信息：经过评审，交付目标从 10-31 提前到 10-24");
+
+        JsonNode latest = state(run).path("goalCorrections").get(0);
+        assertThat(latest.path("quote").asText()).contains("交付目标从 10-31 提前到 10-24");
+        assertThat(latest.path("quote").asText()).isNotEqualTo("更正一个关键信息：经过评审");
+    }
+
+    /** 多条独立更正全部保持 active（后续可含无关消息），由读取端按顺序提供。 */
+    @Test
+    void multipleCorrectionsStayActiveInOrder() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "初始目标");
+        submit(run, "更正：交付日期提前到 10-24");
+        submit(run, "普通追问：当前进度如何？");
+        submit(run, "再更正：预算调整为 25 人日");
+
+        JsonNode corrections = state(run).path("goalCorrections");
+        assertThat(corrections.size()).isEqualTo(2);
+        assertThat(corrections.get(0).path("quote").asText()).contains("交付日期提前到 10-24");
+        assertThat(corrections.get(0).path("status").asText()).isEqualTo("active");
+        assertThat(corrections.get(1).path("quote").asText()).contains("预算调整为 25 人日");
+        assertThat(corrections.get(1).path("status").asText()).isEqualTo("active");
+    }
+
+    /** 显式新目标撤销旧更正效力：批量退位、历史保留，新目标不再受旧更正约束。 */
+    @Test
+    void goalReplacementSupersedesPriorCorrections() {
+        Fixture f = fixture();
+        AgentRunView run = start(f, "项目目标:2026-10-24 前完成灰度发布");
+        submit(run, "更正：交付日期提前到 10-24，预算不超过 20 人日");
+
+        submit(run, "新目标：11-15 发布独立模块");
+
+        JsonNode state = state(run);
+        assertThat(state.path("activeGoal").asText()).isEqualTo("新目标：11-15 发布独立模块");
+        JsonNode corrections = state.path("goalCorrections");
+        assertThat(corrections.size()).isEqualTo(1);
+        assertThat(corrections.get(0).path("status").asText()).isEqualTo("superseded");
+        assertThat(corrections.get(0).path("supersededReason").asText()).isEqualTo("GOAL_REPLACED");
+        // 换目标后的新更正仍然有效
+        submit(run, "更正：独立模块改为 11-20 发布");
+        JsonNode after = state(run).path("goalCorrections");
+        assertThat(after.get(0).path("status").asText()).isEqualTo("superseded");
+        assertThat(after.get(1).path("status").asText()).isEqualTo("active");
+        assertThat(after.get(1).path("quote").asText()).contains("11-20 发布");
     }
 }

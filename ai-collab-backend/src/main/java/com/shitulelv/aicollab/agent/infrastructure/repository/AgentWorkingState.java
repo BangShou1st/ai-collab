@@ -177,21 +177,25 @@ final class AgentWorkingState {
     /** 显式更正记录上限：只保留最近几条，超限淘汰最旧。 */
     private static final int MAX_GOAL_CORRECTIONS = 5;
 
+    /** 单条更正原文上限：更正必须保留完整原文（日期/数值常在被切分的后续子句里）。 */
+    private static final int MAX_CORRECTION_QUOTE_CHARS = 1000;
+
     /**
-     * 用户显式更正登记（保守词表，子句级匹配）：
-     * "更正…"/"修正…"开头的子句，或"更正：/修正:"冒号形式。更正不解析语义、
-     * 不自动改写 activeGoal（新目标仍走显式"新目标："分支），只记录事实供
-     * 读取端声明"旧状态与更正冲突时以更正为准"，避免旧目标被当成最新口径。
+     * 用户显式更正登记（保守词表，子句级检测）：quote 保留**完整更正原文**——
+     * 子句切分会把"更正：经过评审，交付目标从 10-31 提前到 10-24"拦腰截断，
+     * 只留标记子句会丢失实际更正内容。更正不解析语义、不自动改写 activeGoal
+     * （新目标仍走显式"新目标："分支），只记录事实供读取端声明
+     * "旧状态与更正冲突时以更正为准"；显式换目标时旧更正批量退位（见 replaceGoal）。
      */
     private static void recordGoalCorrection(ObjectNode state,String request,UUID messageId) {
-        String marker=firstCorrectionClause(request);
-        if (marker==null) return;
+        if (firstCorrectionClause(request)==null) return;
         ArrayNode corrections;
         JsonNode previous=state.path("goalCorrections");
         if (previous instanceof ArrayNode array) corrections=array;
         else { corrections=state.putArray("goalCorrections"); }
         ObjectNode entry=corrections.addObject();
-        entry.put("quote",bounded(marker,200));
+        entry.put("quote",bounded(request,MAX_CORRECTION_QUOTE_CHARS));
+        entry.put("status","active");
         if (messageId!=null) entry.put("sourceMessageId",messageId.toString());
         while (corrections.size()>MAX_GOAL_CORRECTIONS) corrections.remove(0);
     }
@@ -221,6 +225,7 @@ final class AgentWorkingState {
             state.set("goalHistory",history);
         }
         supersedeAll(state);
+        supersedeGoalCorrections(state);
         state.put("activeGoal",bounded(request,2000));
         if (!state.hasNonNull("goal")) state.put("goal",bounded(request,2000));
         state.put("goalRevision",state.path("goalRevision").asInt(0)+1);
@@ -229,6 +234,17 @@ final class AgentWorkingState {
     private static void supersedeAll(ObjectNode state) {
         JsonNode constraints=state.path("constraints");
         for (JsonNode entry : constraints) {
+            if ("active".equals(entry.path("status").asText())) {
+                ((ObjectNode) entry).put("status","superseded");
+                ((ObjectNode) entry).put("supersededReason","GOAL_REPLACED");
+            }
+        }
+    }
+
+    /** 显式换目标后，旧目标的更正不再约束新目标：批量退位，历史保留可追溯。 */
+    private static void supersedeGoalCorrections(ObjectNode state) {
+        JsonNode corrections=state.path("goalCorrections");
+        for (JsonNode entry : corrections) {
             if ("active".equals(entry.path("status").asText())) {
                 ((ObjectNode) entry).put("status","superseded");
                 ((ObjectNode) entry).put("supersededReason","GOAL_REPLACED");

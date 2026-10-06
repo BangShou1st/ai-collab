@@ -255,9 +255,14 @@ class AgentModelMessageComposerV2Test {
         state.put("goalRevision", 0);
         state.put("activeGoal", "项目目标:2026-10-31 前完成灰度发布");
         var corrections = state.putArray("goalCorrections");
-        var correction = corrections.addObject();
-        correction.put("quote", "更正一个关键信息:经过评审,交付目标从 2026-10-31 提前到 2026-10-24。");
-        correction.put("sourceMessageId", UUID.randomUUID().toString());
+        var earlier = corrections.addObject();
+        earlier.put("quote", "更正:交付日期从 2026-10-31 提前到 2026-10-24。");
+        earlier.put("status", "active");
+        earlier.put("sourceMessageId", UUID.randomUUID().toString());
+        var later = corrections.addObject();
+        later.put("quote", "再更正:预算调整为 25 人日。");
+        later.put("status", "active");
+        later.put("sourceMessageId", UUID.randomUUID().toString());
         when(repository.workingState(any(), any())).thenReturn(state);
 
         var composition = composer.composeV2(run("继续"), context(), skill(),
@@ -267,7 +272,34 @@ class AgentModelMessageComposerV2Test {
         assertThat(composition.messages()).anyMatch(m -> m instanceof ModelMessage.User user
                 && user.content().contains("项目目标:2026-10-31 前完成灰度发布")
                 && user.content().contains("以用户更正为准")
-                && user.content().contains("2026-10-31 提前到 2026-10-24"));
+                // 多条独立更正按顺序全部提供，只取最后一条会让早期更正在其原始消息退出窗口后丢失
+                && user.content().contains("交付日期从 2026-10-31 提前到 2026-10-24")
+                && user.content().contains("预算调整为 25 人日"));
+    }
+
+    @Test
+    void composeV2DropsSupersededCorrectionsAfterGoalReplacement() {
+        var state = json.createObjectNode();
+        state.put("schemaVersion", 2);
+        state.put("stateRevision", 14);
+        state.put("goalRevision", 1);
+        state.put("activeGoal", "新目标:11-15 发布独立模块");
+        var corrections = state.putArray("goalCorrections");
+        var superseded = corrections.addObject();
+        superseded.put("quote", "更正:交付日期提前到 2026-10-24。");
+        superseded.put("status", "superseded");
+        superseded.put("supersededReason", "GOAL_REPLACED");
+        superseded.put("sourceMessageId", UUID.randomUUID().toString());
+        when(repository.workingState(any(), any())).thenReturn(state);
+
+        var composition = composer.composeV2(run("继续"), context(), skill(),
+                AgentPlan.create("查询", List.of()), List.of(), 30_000, 1.0, false);
+
+        assertThat(composition.failureReason()).isNull();
+        assertThat(composition.messages()).noneMatch(m -> m instanceof ModelMessage.User user
+                && user.content().contains("以用户更正为准"));
+        assertThat(composition.messages()).noneMatch(m -> m instanceof ModelMessage.User user
+                && user.content().contains("交付日期提前到 2026-10-24"));
     }
 
     @Test

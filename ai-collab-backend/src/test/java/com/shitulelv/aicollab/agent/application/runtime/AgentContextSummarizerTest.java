@@ -85,6 +85,27 @@ class AgentContextSummarizerTest {
                 any(), any());
     }
 
+    /** 摘要状态块按顺序携带当前目标的全部有效更正；换目标后退位的旧更正不再进入。 */
+    @Test
+    void summaryStateBlockCarriesActiveCorrectionsInOrder() {
+        stubState(v2StateWithCorrections());
+        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("仍有效约束：不改日期"));
+        when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any()))
+                .thenReturn(true);
+
+        summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
+
+        ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor).callModelWithoutTools(any(), messages.capture());
+        String prompt = messages.getValue().get(1).toString();
+        assertThat(prompt).contains("activeGoalCorrections");
+        int dateCorrection = prompt.indexOf("交付日期提前到 10-24");
+        int budgetCorrection = prompt.indexOf("预算调整为 25 人日");
+        assertThat(dateCorrection).isGreaterThanOrEqualTo(0);
+        assertThat(budgetCorrection).isGreaterThan(dateCorrection);
+        assertThat(prompt).doesNotContain("已被新目标取代的旧更正");
+    }
+
     @Test
     void longMessagesAreSegmentCoveredWhileShortOnesFullyCovered() {
         // 中间一条超过单条上限：按偏移分段覆盖 [0,600)，后续短消息仍然完整覆盖
@@ -585,6 +606,25 @@ class AgentContextSummarizerTest {
             summary.put("sourceThrough", summaryThrough);
             summary.put("text", "旧摘要");
         }
+        return state;
+    }
+
+    private ObjectNode v2StateWithCorrections() {
+        var state = v2State(13, 0, null);
+        var corrections = state.putArray("goalCorrections");
+        var earlier = corrections.addObject();
+        earlier.put("quote", "更正:交付日期提前到 10-24。");
+        earlier.put("status", "active");
+        earlier.put("sourceMessageId", UUID.randomUUID().toString());
+        var later = corrections.addObject();
+        later.put("quote", "再更正:预算调整为 25 人日。");
+        later.put("status", "active");
+        later.put("sourceMessageId", UUID.randomUUID().toString());
+        var superseded = corrections.addObject();
+        superseded.put("quote", "已被新目标取代的旧更正。");
+        superseded.put("status", "superseded");
+        superseded.put("supersededReason", "GOAL_REPLACED");
+        superseded.put("sourceMessageId", UUID.randomUUID().toString());
         return state;
     }
 
