@@ -24,6 +24,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -37,6 +38,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>持久事实仍以 {@code agent_run_event} 为准：发送端按订阅游标（实际写出的最大序号）
  * 批量追赶，因此并发 {@code afterCommit} 的到达顺序不影响投递顺序，也不会跳过已经提交的
  * 较小序号。临时正文帧与 heartbeat 不改动游标，允许合并/丢弃，断线重放只补持久事件。</p>
+ *
+ * <p>生命周期不变量：同一 run 的订阅登记与摘除在 map key 上原子串行化（{@code compute}/
+ * {@code computeIfPresent}），旧连接清理不会摘掉并发登记的新连接；投递异常后不再立即自我
+ * 重排，等下一次外部唤醒（事件/heartbeat/重连）再试，避免无间隔重试挤占共享发送能力。</p>
  */
 @Service
 public class AgentEventStreamService {
@@ -89,7 +94,8 @@ public class AgentEventStreamService {
     /**
      * 建立订阅并把初始 replay 交给发送线程。请求线程只登记订阅并唤醒一次发送端：
      * 先登记后唤醒，保证登记之前提交的持久事件也会被随后的游标追赶读到，登记之后的事件
-     * 会经由 {@link #publish} 唤醒同一个发送端。
+     * 会经由 {@link #publish} 唤醒同一个发送端。登记在 map key 上原子完成：与旧连接的
+     * 摘除串行化后，不会把订阅加入一个正被整体移除的列表。
      */
     public SseEmitter subscribe(UUID projectId, UUID runId, UUID userId, long cursor) {
         access.requireMember(projectId, userId);
@@ -98,13 +104,16 @@ public class AgentEventStreamService {
 
         SseEmitter emitter = new SseEmitter(0L);
         Subscription subscription = new Subscription(projectId, runId, emitter, cursor);
-        subscriptions.computeIfAbsent(runId, ignored -> new CopyOnWriteArrayList<>())
-                .add(subscription);
+        subscriptions.compute(runId, (ignored, existing) -> {
+            CopyOnWriteArrayList<Subscription> list =
+                    existing != null ? existing : new CopyOnWriteArrayList<>();
+            list.add(subscription);
+            return list;
+        });
         emitter.onCompletion(() -> remove(subscription));
         emitter.onTimeout(() -> remove(subscription));
         emitter.onError(ignored -> remove(subscription));
-        subscription.durablePending.set(true);
-        schedule(subscription);
+        wake(subscription);
         return emitter;
     }
 
@@ -117,7 +126,7 @@ public class AgentEventStreamService {
                 event.runId(), new CopyOnWriteArrayList<>())) {
             if (!subscription.projectId.equals(event.projectId())) continue;
             subscription.durablePending.set(true);
-            schedule(subscription);
+            wake(subscription);
         }
     }
 
@@ -135,7 +144,7 @@ public class AgentEventStreamService {
                 runId, new CopyOnWriteArrayList<>())) {
             if (subscription.closed || !subscription.projectId.equals(projectId)) continue;
             subscription.pendingContent.set(payload);
-            schedule(subscription);
+            wake(subscription);
         }
     }
 
@@ -147,18 +156,29 @@ public class AgentEventStreamService {
     public void heartbeat() {
         subscriptions.values().forEach(list -> list.forEach(subscription -> {
             subscription.heartbeatPending.set(true);
-            schedule(subscription);
+            wake(subscription);
         }));
     }
 
     /**
-     * 为订阅排一次发送任务：单飞（CAS）保证同一连接同一时刻只有一个写出者。
-     * 线程池饱和时拒绝投递并复位标记，绝不在调用线程执行网络写（不使用 CallerRunsPolicy）；
-     * 被拒绝的订阅由下一次事件或 heartbeat 周期重试。
+     * 外部唤醒：推进唤醒代次并调度一次投递。代次用于区分「本轮失败」与「失败期间来了
+     * 新唤醒」，保证异常退出后不会被过期标记立即自我重排，也不丢失新唤醒。
+     */
+    private void wake(Subscription subscription) {
+        subscription.wakeupGeneration.incrementAndGet();
+        schedule(subscription);
+    }
+
+    /**
+     * 为订阅排一次投递；投递被 CAS 挡住时也推进唤醒代次，让在跑的一轮在退出时看到
+     * "有新唤醒"并补排，被挡住的这次唤醒不会丢失。
      */
     private void schedule(Subscription subscription) {
         if (subscription.closed) return;
-        if (!subscription.sending.compareAndSet(false, true)) return;
+        if (!subscription.sending.compareAndSet(false, true)) {
+            subscription.wakeupGeneration.incrementAndGet();
+            return;
+        }
         try {
             senders.execute(() -> deliver(subscription));
         } catch (RejectedExecutionException saturated) {
@@ -170,8 +190,15 @@ public class AgentEventStreamService {
      * 发送线程上的单次投递：循环冲刷待发正文快照、按游标追赶持久事件、发送 heartbeat，
      * 直到没有新工作为止。迟到的投递只置位标记，由 {@code finally} 的兜底重排接住，
      * 不会丢失唤醒。
+     *
+     * <p>异常退出（如持久读取瞬时失败）不立即自我重排：未清的待发标记留在订阅上，
+     * 但只有 {@link #wake} 推进了唤醒代次才重新调度——否则快速返回的读取错误会无间隔
+     * 反复重试，挤占共享发送线程。游标不越过未成功写出的事件，下一次外部唤醒从原游标
+     * 接着追赶。</p>
      */
     private void deliver(Subscription subscription) {
+        long wakeup = subscription.wakeupGeneration.get();
+        boolean failed = false;
         try {
             while (!subscription.closed) {
                 subscription.durablePending.set(false);
@@ -187,12 +214,17 @@ public class AgentEventStreamService {
                 }
             }
         } catch (RuntimeException unexpected) {
-            // 持久读取等瞬时失败不拆连接：保留订阅，由下一次事件或 heartbeat 周期重试
-            log.debug("Agent 事件流投递异常，保留订阅等待重试 runId={}", subscription.runId, unexpected);
+            // 持久读取等瞬时失败不拆连接：保留订阅，等下一次外部唤醒再试
+            failed = true;
+            log.debug("Agent 事件流投递异常，保留订阅等待外部唤醒重试 runId={}",
+                    subscription.runId, unexpected);
         } finally {
             subscription.sending.set(false);
-            // 停顿时投递方 CAS 失败、或本轮未读完的积压：补排一次；无新工作则结束
+            // 正常退出：停顿时投递方 CAS 失败、或本轮未读完的积压，补排一次。
+            // 异常退出：仅当失败期间来了新的外部唤醒（代次变化）才补排，避免无间隔重试。
+            boolean newerWakeup = subscription.wakeupGeneration.get() != wakeup;
             if (!subscription.closed
+                    && (!failed || newerWakeup)
                     && (subscription.durablePending.get()
                         || subscription.pendingContent.get() != null
                         || subscription.heartbeatPending.get())) {
@@ -283,14 +315,18 @@ public class AgentEventStreamService {
         }
     }
 
-    /** 生命周期回调（完成/超时/错误）与发送失败共用：幂等摘除，迟到的投递不会复活订阅。 */
+    /**
+     * 生命周期回调（完成/超时/错误）与发送失败共用：幂等摘除，迟到的投递不会复活订阅。
+     * 摘除与 {@link #subscribe} 的登记在同一个 map key 上原子串行化：旧连接观察到的
+     * "空列表删条目" 不会吃掉并发登记的新订阅；只有真正移除最后一个订阅时才清理条目。
+     */
     private void remove(Subscription subscription) {
         subscription.closed = true;
         subscription.pendingContent.set(null);
-        CopyOnWriteArrayList<Subscription> list = subscriptions.get(subscription.runId);
-        if (list == null) return;
-        list.remove(subscription);
-        if (list.isEmpty()) subscriptions.remove(subscription.runId, list);
+        subscriptions.computeIfPresent(subscription.runId, (ignored, list) -> {
+            list.remove(subscription);
+            return list.isEmpty() ? null : list;
+        });
     }
 
     private static final class Subscription {
@@ -307,6 +343,8 @@ public class AgentEventStreamService {
         private final AtomicBoolean heartbeatPending = new AtomicBoolean();
         /** 该订阅的发送任务是否已排队/在执行：保证同一连接只有一个写出者。 */
         private final AtomicBoolean sending = new AtomicBoolean();
+        /** 外部唤醒代次：每次事件/heartbeat/重连唤醒递增，用于异常退出后判断是否有新唤醒。 */
+        private final AtomicLong wakeupGeneration = new AtomicLong();
 
         private Subscription(UUID projectId, UUID runId, SseEmitter emitter, long lastSequence) {
             this.projectId = projectId;
