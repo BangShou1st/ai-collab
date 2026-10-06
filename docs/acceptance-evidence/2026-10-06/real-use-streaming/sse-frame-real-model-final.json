@@ -1,0 +1,407 @@
+{
+  "runId": "309ca900-4c1d-4953-afed-7f6f13c90a6b",
+  "sessionId": "5bf00eaf-00fb-49c8-a2a9-29130f076add",
+  "submitAt": 253,
+  "capturedAt": "2026-10-06T13:42:40.573Z",
+  "frames": [
+    {
+      "at": 1350,
+      "kind": "event",
+      "type": "MODEL_STARTED",
+      "seq": 5
+    },
+    {
+      "kind": "content",
+      "at": 4817,
+      "revision": 1,
+      "chars": 4,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 4820,
+      "revision": 2,
+      "chars": 98,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 5429,
+      "revision": 3,
+      "chars": 99,
+      "final": true
+    },
+    {
+      "at": 5462,
+      "kind": "event",
+      "type": "MODEL_COMPLETED",
+      "seq": 6
+    },
+    {
+      "at": 6792,
+      "kind": "event",
+      "type": "MODEL_STARTED",
+      "seq": 13
+    },
+    {
+      "at": 10740,
+      "kind": "event",
+      "type": "MODEL_COMPLETED",
+      "seq": 14
+    },
+    {
+      "at": 11831,
+      "kind": "event",
+      "type": "MODEL_STARTED",
+      "seq": 17
+    },
+    {
+      "kind": "content",
+      "at": 40484,
+      "revision": 1,
+      "chars": 14,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 40798,
+      "revision": 2,
+      "chars": 88,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 41203,
+      "revision": 3,
+      "chars": 128,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 41375,
+      "revision": 4,
+      "chars": 217,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 41612,
+      "revision": 5,
+      "chars": 299,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 42322,
+      "revision": 6,
+      "chars": 334,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 42323,
+      "revision": 7,
+      "chars": 421,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 42419,
+      "revision": 8,
+      "chars": 515,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 42754,
+      "revision": 9,
+      "chars": 529,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 43660,
+      "revision": 10,
+      "chars": 577,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 43662,
+      "revision": 11,
+      "chars": 660,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 43664,
+      "revision": 12,
+      "chars": 757,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 43781,
+      "revision": 13,
+      "chars": 844,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 43946,
+      "revision": 14,
+      "chars": 930,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 44524,
+      "revision": 15,
+      "chars": 993,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 44526,
+      "revision": 16,
+      "chars": 1083,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 45293,
+      "revision": 17,
+      "chars": 1115,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 45890,
+      "revision": 18,
+      "chars": 1143,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 45893,
+      "revision": 19,
+      "chars": 1231,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 45894,
+      "revision": 20,
+      "chars": 1326,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 45896,
+      "revision": 21,
+      "chars": 1413,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 45899,
+      "revision": 22,
+      "chars": 1502,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 46032,
+      "revision": 23,
+      "chars": 1589,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 46523,
+      "revision": 24,
+      "chars": 1653,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 46524,
+      "revision": 25,
+      "chars": 1745,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 46904,
+      "revision": 26,
+      "chars": 1836,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 47761,
+      "revision": 27,
+      "chars": 1877,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 47763,
+      "revision": 28,
+      "chars": 1965,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 47766,
+      "revision": 29,
+      "chars": 2050,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 48262,
+      "revision": 30,
+      "chars": 2064,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 48354,
+      "revision": 31,
+      "chars": 2161,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 49099,
+      "revision": 32,
+      "chars": 2178,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 49100,
+      "revision": 33,
+      "chars": 2264,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 49664,
+      "revision": 34,
+      "chars": 2362,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 50020,
+      "revision": 35,
+      "chars": 2382,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 50022,
+      "revision": 36,
+      "chars": 2462,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 50024,
+      "revision": 37,
+      "chars": 2551,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 50667,
+      "revision": 38,
+      "chars": 2608,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 51060,
+      "revision": 39,
+      "chars": 2696,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 51704,
+      "revision": 40,
+      "chars": 2718,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 51706,
+      "revision": 41,
+      "chars": 2804,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 52206,
+      "revision": 42,
+      "chars": 2854,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 52501,
+      "revision": 43,
+      "chars": 2941,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 52739,
+      "revision": 44,
+      "chars": 3023,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 53342,
+      "revision": 45,
+      "chars": 3044,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 53698,
+      "revision": 46,
+      "chars": 3100,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 54225,
+      "revision": 47,
+      "chars": 3150,
+      "final": false
+    },
+    {
+      "kind": "content",
+      "at": 54228,
+      "revision": 48,
+      "chars": 3159,
+      "final": true
+    },
+    {
+      "at": 54249,
+      "kind": "event",
+      "type": "MODEL_COMPLETED",
+      "seq": 18
+    },
+    {
+      "at": 54269,
+      "kind": "event",
+      "type": "RUN_SUCCEEDED",
+      "seq": 19
+    }
+  ]
+}

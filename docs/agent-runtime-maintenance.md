@@ -107,9 +107,20 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 - **暂停等待/PAUSED 不计入 active_elapsed_ms**（锚点已清空）；恢复后的下一请求按当前 AGENT 配置解析，已保存结果与待处理调用先于新请求消费（与 R2 恢复共用 5b/afterResponseSaved 规则）。Worker 预算前置检查只回答"是否准入下一次请求"，不拦截"消费已保存结果"。
 - 回归：`AgentPauseResumePostgresTest`（12，真实 PostgreSQL）、`ResumeIntentRecognizerTest`（5）；全量 1134 项零失败（证据见报告第 6 节）。
 
-## 9. 已知边界（后续任务，勿在本文件继续堆功能）
+## 9. 正文实时流式展示（2026-10-06 交付）
 
-到限续接、逐字流式、精确计费——各自独立设计后再动 `AgentRuntimeCoordinator`/`AgentWorker`。R1 未确认尾段（最后一次进度 → 进程退出）按设计不计入执行时长，不声称精确计时；真实模型回答与摘要语义质量已于 2026-10-06 完成首批真实验收（报告：`docs/agent-baseline-quality-report-20261006.md`）。主动暂停/继续已交付（见第 8 节），其"子 Agent 全树控制、强制立即中断、暂停时修改目标的智能重规划"仍未列范围。**自动重试状态展示已于 2026-10-06 交付**（纯前端：重试事实全部复用既有事件流与运行字段，重试策略与恢复编排未动，见 `agent-activity.ts` 的 `retryActivities`）。
+完整报告：`docs/agent-real-use-and-streaming-report-20261006.md`。沿用完整模型轮次链路，**不新增执行循环**；完整 `ModelTurnResult` 仍走既有校验、结算与分派。改动入口：
+
+- **观察通道**：`infrastructure/ai/turn/ModelContentPreview`（ThreadLocal 观察者，`activate`/`clear`/`push`/`finish`）。适配器在 SSE 聚合循环内把**累计正文快照**推给观察者；未激活时无操作，观察者异常被吞掉（展示失败 ≠ provider 失败）。协调器在 `callModel` 前后激活/清理（`AgentContentPreviewPublisher`），作用域只在本次主模型请求，摘要/恢复/工具路径不激活。
+- **临时帧发布**：`AgentEventStreamService.publishContentDelta` 经既有 SSE 连接发送事件名 `MODEL_CONTENT` 的帧 `{modelCallId, revision, text, final}`——**不落 `agent_event`、不占序号、不进 replay、不更新 lastSequence/Last-Event-ID**；发送失败只关闭该订阅。`AgentEventService.publishContentDelta` 是转发入口；`append` 仍是持久事件唯一入口。帧是自包含累计文本，按 revision 幂等替换（丢弃中间帧无缺口）；发布器按 80 字符/300ms 节流，final 帧总是发送。
+- **关联字段**：`MODEL_STARTED`/`MODEL_COMPLETED` payload 新增兼容字段 `modelCallId`（ recorder `recordModelTurn(…, modelCallId)` 透传）；历史事件缺该字段时前端按旧规则展示，不影响恢复。
+- **前端**：`agent-event-stream.ts` 按 SSE 事件名分流正文帧；`use-agent-workspace.ts` 的 `contentPreview` 状态机（MODEL_STARTED 开启 → 帧幂等替换（8000 字符展示上限，超限仅停止追加）→ 请求结束事件收口 → 最终 ASSISTANT 消息落库后清预览）；`AgentView.vue` 的 `.streaming-preview` 用安全文本插值，最终回答仍用 `marked + DOMPurify` 渲染一次。
+- **支持范围**：仅 Zen 传输的 OpenAI 兼容流式路径（`OpenAiCompatibleModelAdapter.turnWithSession` → `turnStreamingSyncWithSession`，生产 OPENCODE_ZEN_FREE 实际路径）。非流式 provider（如 Custom 直连 `adapter.turn`）、Anthropic/Gemini、Legacy CHAT-only 无增量——保持一次性完成展示，不冒充实时生成。
+- **部署边界**：帧只在单实例进程内 fanout（与既有事件订阅一致），多实例部署需先解决订阅路由；断线重连不补发预览帧（已提交内容经持久事件恢复，在途请求从后续帧继续或回到分析提示，不因此重发模型请求）。
+
+## 10. 已知边界（后续任务，勿在本文件继续堆功能）
+
+到限续接、精确计费——各自独立设计后再动 `AgentRuntimeCoordinator`/`AgentWorker`（正文实时流式展示已于 2026-10-06 交付，见第 9 节；逐 token 持久化与未提交正文断点恢复仍是独立未列范围）。R1 未确认尾段（最后一次进度 → 进程退出）按设计不计入执行时长，不声称精确计时；真实模型回答与摘要语义质量已于 2026-10-06 完成首批真实验收（报告：`docs/agent-baseline-quality-report-20261006.md`），**真实文档检索成功链已于同日补齐**（报告：`docs/agent-real-use-and-streaming-report-20261006.md`）。主动暂停/继续已交付（见第 8 节），其"子 Agent 全树控制、强制立即中断、暂停时修改目标的智能重规划"仍未列范围。**自动重试状态展示已于 2026-10-06 交付**（纯前端：重试事实全部复用既有事件流与运行字段，重试策略与恢复编排未动，见 `agent-activity.ts` 的 `retryActivities`）。
 
 ## 10. 工作状态约束与更正优先级（2026-10-06 修正）
 
