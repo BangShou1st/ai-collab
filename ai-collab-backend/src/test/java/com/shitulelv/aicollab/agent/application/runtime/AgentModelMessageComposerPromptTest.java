@@ -37,8 +37,7 @@ class AgentModelMessageComposerPromptTest {
         repository = mock(AgentRepository.class);
         when(repository.workingState(any(), any())).thenReturn(null);
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(new java.util.ArrayList<>());
-        RoutingAgentModelExecutor modelExecutor = mock(RoutingAgentModelExecutor.class);
-        composer = new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json, modelExecutor);
+        composer = new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json);
     }
 
     @Test
@@ -65,7 +64,7 @@ class AgentModelMessageComposerPromptTest {
                 json.createObjectNode().put("title", "任务A").put("status", "TODO"),
                 "TOOL_SUCCESS", null, null, false, null, null, OffsetDateTime.now());
         List<ModelMessage> messages = composer.buildMessageHistory(
-                run, ctx, skill(), plan, List.of(step));
+                run, ctx, skill(), plan, List.of(step), false);
 
         assertThat(messages).filteredOn(m -> m instanceof ModelMessage.ToolResult).isNotEmpty();
     }
@@ -73,7 +72,7 @@ class AgentModelMessageComposerPromptTest {
     private String buildSystemPrompt() {
         AgentRunView run = run();
         List<ModelMessage> messages = composer.buildMessageHistory(
-                run, context(), skill(), AgentPlan.create("查询任务", List.of()), List.of());
+                run, context(), skill(), AgentPlan.create("查询任务", List.of()), List.of(), false);
         assertThat(messages.get(0)).isInstanceOf(ModelMessage.System.class);
         return ((ModelMessage.System) messages.get(0)).content();
     }

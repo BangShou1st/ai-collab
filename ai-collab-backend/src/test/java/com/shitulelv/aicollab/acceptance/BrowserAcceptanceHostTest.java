@@ -48,6 +48,7 @@ class BrowserAcceptanceHostTest {
     @MockitoBean OutboundEndpointPolicy endpoints;
     @Autowired JdbcTemplate jdbc;
     @Autowired ModelSecretCipher cipher;
+    @Autowired org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     @Test void servesOfflineCopyUntilExplicitStop() throws Exception {
         doAnswer(invocation->{
             URI uri=invocation.getArgument(0);
@@ -55,7 +56,36 @@ class BrowserAcceptanceHostTest {
                 throw new IllegalArgumentException("Acceptance host only permits its synthetic local peer");
             return null;
         }).when(endpoints).requirePublicHttps(any());
-        UUID owner=jdbc.queryForObject("select id from app_user where username=?",UUID.class,properties.getProperty("DEMO_OWNER_USERNAME","owner"));
+        String ownerName=properties.getProperty("DEMO_OWNER_USERNAME","owner");
+        String ownerPassword=properties.getProperty("DEMO_OWNER_PASSWORD","12345678");
+        UUID owner;
+        var existingOwner=jdbc.queryForList("select id from app_user where username=?",UUID.class,ownerName);
+        if(existingOwner.isEmpty()) {
+            owner=UUID.randomUUID();
+            jdbc.update("insert into app_user(id,username,password_hash,display_name) values (?,?,?,?)",
+                    owner,ownerName,passwordEncoder.encode(ownerPassword),"验收负责人");
+        } else owner=existingOwner.getFirst();
+        Long existingProject=jdbc.queryForObject("select count(*) from project where owner_id=?",Long.class,owner);
+        UUID projectId=UUID.randomUUID();
+        if(existingProject==null||existingProject==0) {
+            jdbc.update("insert into project(id,name,owner_id,created_by) values (?,?,?,?)",
+                    projectId,"浏览器验收项目",owner,owner);
+            jdbc.update("insert into project_member(project_id,user_id,role) values (?,?,'OWNER')",projectId,owner);
+            jdbc.update("""
+                insert into project_task(id,project_id,title,description,status,priority,assignee_id,due_date,created_by)
+                values (?,?,?,?,?,?,?,?,?)
+                """,UUID.randomUUID(),projectId,"梳理验收范围","整理本轮验收覆盖的功能点","IN_PROGRESS","HIGH",owner,java.time.LocalDate.now().plusDays(3),owner);
+            jdbc.update("""
+                insert into project_task(id,project_id,title,description,status,priority,assignee_id,due_date,created_by)
+                values (?,?,?,?,?,?,?,?,?)
+                """,UUID.randomUUID(),projectId,"回归执行链路","验证运行、审批与模型切换","TODO","URGENT",owner,java.time.LocalDate.now().plusDays(1),owner);
+            jdbc.update("""
+                insert into project_task(id,project_id,title,description,status,priority,assignee_id,due_date,created_by)
+                values (?,?,?,?,?,?,?,?,?)
+                """,UUID.randomUUID(),projectId,"整理验收截图","保存关键页面截图","TODO","MEDIUM",owner,java.time.LocalDate.now().plusDays(7),owner);
+        } else {
+            projectId=jdbc.queryForObject("select id from project where owner_id=? order by created_at limit 1",UUID.class,owner);
+        }
         for(String model:List.of("acceptance-a","acceptance-b","acceptance-auth-failure")) {
             var existing=jdbc.queryForList("select id from user_ai_provider where user_id=? and model_name=?",UUID.class,owner,model);
             UUID id=existing.isEmpty()?UUID.randomUUID():existing.getFirst();

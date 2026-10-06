@@ -124,10 +124,25 @@ class DocumentRepositoryIntegrationTest {
         var ctx=new com.shitulelv.aicollab.agent.domain.tool.AgentToolContext(UUID.randomUUID(),projectId,userId,"OWNER",false,0);
         var json=new com.fasterxml.jackson.databind.ObjectMapper();
         var first=tool.execute(ctx,json.createObjectNode().put("limit",50)).data();
-        var second=tool.execute(ctx,json.createObjectNode().put("limit",50).put("cursor",first.path("nextCursor").asText())).data();
         assertThat(first.path("total").asInt()).isEqualTo(110);
-        assertThat(second.path("items")).hasSize(50);
-        assertThat(second.path("items")).anySatisfy(t->{if(t.path("title").asText().equals("第九十项目标")) assertThat(t.path("id").asText()).isEqualTo(new UUID(0,90).toString());});
+        assertThat(first.path("items").size()).isLessThanOrEqualTo(50);
+        assertThat(first.path("returned").asInt()).isEqualTo(first.path("items").size());
+        assertThat(first.path("hasMore").asBoolean()).isTrue();
+        // 按 nextCursor 续读（含该记录本身）直到最后一页：完整覆盖、不重复、不遗漏
+        var seen=new java.util.LinkedHashSet<String>();
+        var titles=new java.util.ArrayList<String>();
+        var page=first;
+        int pages=0;
+        while(page.path("hasMore").asBoolean() && pages<40){
+            for(var item:page.path("items")){ seen.add(item.path("id").asText()); titles.add(item.path("title").asText()); }
+            page=tool.execute(ctx,json.createObjectNode().put("limit",50)
+                    .put("cursor",page.path("nextCursor").asText())).data();
+            pages++;
+        }
+        for(var item:page.path("items")){ seen.add(item.path("id").asText()); titles.add(item.path("title").asText()); }
+        assertThat(seen).hasSize(110);
+        assertThat(titles).filteredOn("第九十项目标"::equals).hasSize(1);
+        assertThat(seen).contains(new UUID(0,90).toString());
         var found=tool.execute(ctx,json.createObjectNode().put("query","第九十项目标")).data();
         assertThat(found.path("items")).hasSize(1);
         jdbc.update("DELETE FROM project_document WHERE id=?",documentId);

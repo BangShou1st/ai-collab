@@ -55,6 +55,7 @@ public class AgentCancellationService {
     public boolean isCancelable(AgentRunStatus status) {
         return status == AgentRunStatus.QUEUED
                 || status == AgentRunStatus.RUNNING
+                || status == AgentRunStatus.PAUSED
                 || status == AgentRunStatus.WAITING_FOR_APPROVAL
                 || status == AgentRunStatus.WAITING_FOR_USER_INPUT
                 || status == AgentRunStatus.FAILED_RETRYABLE;

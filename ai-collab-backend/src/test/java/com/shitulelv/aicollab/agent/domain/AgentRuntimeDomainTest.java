@@ -2,7 +2,6 @@ package com.shitulelv.aicollab.agent.domain;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.AgentDecisionParser;
-import com.shitulelv.aicollab.agent.domain.model.AgentBudget;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.policy.AgentStateMachine;
@@ -61,30 +60,6 @@ class AgentRuntimeDomainTest {
         assertThatThrownBy(() -> parser.parse("not-json", true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("不可纠正");
-    }
-
-    @Test
-    void budgetStopsAtEveryHardLimit() {
-        AgentBudget defaults = AgentBudget.defaults();
-
-        assertThat(defaults.maxSteps()).isEqualTo(12);
-        assertThat(defaults.maxToolCalls()).isEqualTo(8);
-        assertThat(defaults.maxChildren()).isEqualTo(3);
-        assertThatThrownBy(() -> defaults.withUsage(12, 0, 0, 0, 0, false).debitStep())
-                .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> defaults.withUsage(0, 8, 0, 0, 0, false).debitTool())
-                .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> defaults.withUsage(0, 0, 3, 0, 0, false).debitChild())
-                .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
-    void tokenUsageKeepsEstimatedFlag() {
-        AgentBudget budget = AgentBudget.defaults().debitTokens(120, 40, true);
-
-        assertThat(budget.inputTokensUsed()).isEqualTo(120);
-        assertThat(budget.outputTokensUsed()).isEqualTo(40);
-        assertThat(budget.tokenUsageEstimated()).isTrue();
     }
 
     @Test

@@ -8,7 +8,7 @@ import type { ProjectMember } from '../project/types'
 import { streamAgentEvents } from './agent-event-stream'
 import { applyAgentEvent, emptyAgentTimeline, reconcileAgentRun, type AgentTimelineState } from './agent-run-store'
 import { agentRunPresentation } from './agent-run-state'
-import { reduceAgentActivities } from './agent-activity'
+import { reduceAgentActivities, currentModelFromEvents } from './agent-activity'
 import { buildConversationBlocks, type ConversationBlock } from './conversation-blocks'
 import { RUN_STATUS_LABEL } from './agent-labels'
 import { useAuthStore } from '../../stores/auth-store'
@@ -36,6 +36,11 @@ export function useAgentWorkspace() {
   const approvals = ref<AgentApproval[]>([])
   const runDetail = ref<AgentRunDetail | null>(null)
   const activities = computed(() => reduceAgentActivities(timeline.value.events))
+  // 当前实际使用的模型：模型轮次事件优先（换模型后下一轮即更新），回退到运行详情快照
+  const activeModel = computed(() => currentModelFromEvents(timeline.value.events)
+    ?? (runDetail.value?.modelConfiguration
+      ? { provider: runDetail.value.modelConfiguration.provider, model: runDetail.value.modelConfiguration.model, live: false }
+      : null))
   const conversationBlocks = computed<ConversationBlock[]>(() =>
     buildConversationBlocks(messages.value, activeRun.value?.id ?? null, activities.value),
   )
@@ -78,19 +83,29 @@ export function useAgentWorkspace() {
   }
   const statusDot = (status: string | null | undefined) => {
     if (status === 'RUNNING' || status === 'QUEUED') return 'run'
-    if (status === 'WAITING_FOR_APPROVAL' || status === 'WAITING_FOR_USER_INPUT') return 'wait'
+    if (status === 'PAUSED' || status === 'WAITING_FOR_APPROVAL' || status === 'WAITING_FOR_USER_INPUT') return 'wait'
     if (status === 'FAILED' || status === 'FAILED_RETRYABLE' || status === 'BUDGET_EXCEEDED') return 'fail'
     if (status === 'SUCCEEDED') return 'done'
     return 'idle'
   }
+  // 暂停请求已发出、服务端尚未确认（RUNNING + pauseRequestedAt）：界面区分"正在暂停"与"已暂停"
+  const pausePending = computed(() => {
+    const run = activeRun.value
+    return Boolean(run && run.status === 'RUNNING' && run.pauseRequestedAt)
+  })
+  const canPause = computed(() => {
+    const run = activeRun.value
+    return Boolean(run && !pausePending.value
+      && (run.status === 'QUEUED' || run.status === 'RUNNING' || run.status === 'FAILED_RETRYABLE'))
+  })
   const members = ref<ProjectMember[]>([])
   const skills = ref<AgentSkill[]>([])
   const selectedSkillCode = ref<string | null>(null)
   const question = ref('')
   const busy = ref(false)
   const sending = ref(false)
-  const activeRun = ref<AgentRun | null>(null)
   const timeline = ref<AgentTimelineState>(emptyAgentTimeline())
+  const activeRun = computed(() => timeline.value.run)
   const activeRunState = computed(() => activeRun.value ? agentRunPresentation(activeRun.value) : null)
   const runTone = computed(() => {
     const severity = activeRunState.value?.severity
@@ -99,6 +114,8 @@ export function useAgentWorkspace() {
   const removedContextKeys = ref(new Set<keyof AgentPageContext>())
   let timer: number | undefined
   let streamController: AbortController | undefined
+  // 组件卸载后到达的响应不得再触碰任何页面状态或重启事件订阅
+  let disposed = false
 
   function fail(reason: unknown, action: string): void {
     showApiError(reason, action)
@@ -122,8 +139,16 @@ export function useAgentWorkspace() {
     } catch (reason) { fail(reason, 'Agent 工作区加载') } finally { busy.value = false }
   }
   async function loadMessages() {
-    messages.value = sessionId.value
-      ? (await agentApi.messages(projectId.value, sessionId.value)).data : []
+    const requestedProjectId = projectId.value
+    const requestedSessionId = sessionId.value
+    const requestedToken = restoreSeq
+    const loaded = requestedSessionId
+      ? (await agentApi.messages(requestedProjectId, requestedSessionId)).data : []
+    // 消息加载返回时页面可能已切换或被重新恢复（A→B→A 后项目/会话相同、恢复代次已变）：
+    // 迟到的消息加载不得覆盖当前视图
+    if (disposed || projectId.value !== requestedProjectId
+      || sessionId.value !== requestedSessionId || restoreSeq !== requestedToken) return
+    messages.value = loaded
   }
   function toPlanView(plan: unknown): AgentPlanView | null {
     if (!plan || typeof plan !== 'object') return null
@@ -147,7 +172,6 @@ export function useAgentWorkspace() {
     const pid = projectId.value
     const fresh = () => token === restoreSeq && projectId.value === pid && sessionId.value === id
     streamController?.abort()
-    activeRun.value = null
     runDetail.value = null
     approvals.value = []
     timeline.value = emptyAgentTimeline()
@@ -160,7 +184,7 @@ export function useAgentWorkspace() {
     runDetail.value = latest.data
     const run = latest.data?.run
     if (!run) return
-    activeRun.value = run
+    if (latest.data?.pauseRequestedAt) run.pauseRequestedAt = latest.data.pauseRequestedAt
     timeline.value = emptyAgentTimeline(run)
     timeline.value.plan = toPlanView(latest.data?.plan)
     try {
@@ -175,7 +199,6 @@ export function useAgentWorkspace() {
     timeline.value.lastSequence = Math.max(latest.data?.lastEventSequence ?? 0, timeline.value.lastSequence)
     if (['SUCCEEDED', 'FAILED', 'FAILED_RETRYABLE', 'CANCELED', 'BUDGET_EXCEEDED'].includes(run.status))
       reconcileAgentRun(timeline.value, run)
-    activeRun.value = timeline.value.run
     if (!fresh()) return
     await refreshApprovals({ projectId: pid, sessionId: id, runId: run.id, token })
     if (!fresh()) return
@@ -232,7 +255,7 @@ export function useAgentWorkspace() {
       await agentApi.deleteSession(projectId.value, item.id)
       sessions.value = sessions.value.filter(session => session.id !== item.id)
       if (sessionId.value === item.id) {
-        activeRun.value = null
+        timeline.value = emptyAgentTimeline()
         messages.value = []
         sessionId.value = sessions.value[0]?.id ?? ''
       }
@@ -247,22 +270,68 @@ export function useAgentWorkspace() {
     if (!content || sending.value) return
     if (!sessionId.value) await newSession()
     if (!sessionId.value) return
+    // 从暂停/正在暂停的界面发出：显式绑定当前 runId，由后端统一入口识别续跑意图
+    const scopedRun = activeRun.value
+    const pausedRunId = scopedRun && (scopedRun.status === 'PAUSED' || pausePending.value)
+      ? scopedRun.id
+      : null
+    // 发送时捕获页面作用域：响应（含其后续消息加载）只属于发起时的页面。
+    // 切项目/会话、页面被其他恢复重建（restoreSeq 变化）、当前运行已换或组件卸载后，
+    // 迟到的成功/失败响应都不得修改新页面状态、清草稿、换订阅或显示旧请求错误。
+    const requestedProjectId = projectId.value
+    const requestedSessionId = sessionId.value
+    // 期望代次：本响应自己重建视图（新任务分支递增 restoreSeq）后随之更新，
+    // 不永久豁免代次核对——A→B→A 后 ID 相同但代次已变，旧副作用必须失效
+    let expectedToken = restoreSeq
+    const sentContent = content
+    const stale = () => disposed
+      || projectId.value !== requestedProjectId || sessionId.value !== requestedSessionId
+      || restoreSeq !== expectedToken
+      || (pausedRunId ? activeRun.value?.id !== pausedRunId : false)
     sending.value = true
     try {
       const run = (await agentApi.submit(projectId.value, sessionId.value, {
         content,
         skillCode: selectedSkillCode.value,
         pageContext: currentPageContext(),
+        pausedRunId,
       })).data
+      if (stale()) return
+      if (pausedRunId && run.id === pausedRunId) {
+        // 同一个运行被恢复：不重建时间线、不追加新任务消息。事件流已推进
+        // （RUN_RESUMED 及之后已应用）时不回退状态、不重启订阅；发送后新增的
+        // 草稿不属于本次输入，不清空。
+        const current = timeline.value.run
+        const alreadyAdvanced = Boolean(current && current.id === run.id && current.status !== 'PAUSED')
+        if (question.value === sentContent) {
+          question.value = ''
+          selectedSkillCode.value = null
+        }
+        if (!alreadyAdvanced) {
+          if (current && current.id === run.id) {
+            timeline.value.run = { ...current, status: run.status, pauseRequestedAt: null }
+          }
+          resumeEventStream()
+        }
+        await loadMessages()
+        return
+      }
       ++restoreSeq
-      activeRun.value = run
+      expectedToken = restoreSeq
       runDetail.value = null
       timeline.value = emptyAgentTimeline(run)
-      question.value = ''
-      selectedSkillCode.value = null
+      if (question.value === sentContent) {
+        question.value = ''
+        selectedSkillCode.value = null
+      }
       await loadMessages()
+      // 消息加载期间页面可能已切换或被重新恢复（含 A→B→A 后 ID 相同）：
+      // 不把本次运行的订阅强加给代次已变化的页面
+      if (stale()) return
       startEventStream(run)
-    } catch (reason) { fail(reason, 'Agent 消息发送') } finally { sending.value = false }
+    } catch (reason) {
+      if (!stale()) fail(reason, 'Agent 消息发送')
+    } finally { sending.value = false }
   }
   function queryId(key: string): string | null {
     const value = route.query[key]
@@ -325,7 +394,6 @@ export function useAgentWorkspace() {
         event => {
           if (!fresh()) return
           applyAgentEvent(timeline.value, event)
-          activeRun.value = timeline.value.run
         },
       )
       if (!fresh()) return
@@ -335,13 +403,13 @@ export function useAgentWorkspace() {
         if (!fresh()) return
         runDetail.value = persisted
         reconcileAgentRun(timeline.value, persisted.run)
-        activeRun.value = timeline.value.run
       }
       if (controller.signal.aborted || timeline.value.run?.status === 'SUCCEEDED'
         || timeline.value.run?.status === 'FAILED' || timeline.value.run?.status === 'CANCELED'
         || timeline.value.run?.status === 'BUDGET_EXCEEDED'
         || timeline.value.run?.status === 'WAITING_FOR_APPROVAL'
-        || timeline.value.run?.status === 'WAITING_FOR_USER_INPUT') {
+        || timeline.value.run?.status === 'WAITING_FOR_USER_INPUT'
+        || timeline.value.run?.status === 'PAUSED') {
         await Promise.all([
           loadMessages(),
           refreshApprovals({ projectId: projectId.value, sessionId: sessionId.value, runId }),
@@ -449,7 +517,6 @@ export function useAgentWorkspace() {
       if (run.id !== sourceRunId) {
         // 终态重新尝试返回新运行：切换过去并恢复事件订阅；旧运行记录保留可回看
         ++restoreSeq
-        activeRun.value = run
         runDetail.value = null
         startEventStream(run)
         await loadMessages()
@@ -463,8 +530,43 @@ export function useAgentWorkspace() {
     if (!activeRun.value) return
     try {
       await agentApi.cancel(projectId.value, activeRun.value.id)
-      ElMessage.success('已请求取消')
+      ElMessage.success('已请求结束本次运行')
     } catch (reason) { fail(reason, 'Agent 取消') }
+  }
+  /**
+   * 请求暂停当前运行。响应按作用域核对：切项目/会话、当前 run 已换或页面被其他
+   * 恢复重建后，迟到响应不覆盖视图、不停止不属于当前作用域的订阅。
+   */
+  const pauseBusy = ref(false)
+  async function pauseActiveRun() {
+    const run = activeRun.value
+    if (!run || pauseBusy.value || sending.value || !canPause.value) return
+    const requestedProjectId = projectId.value
+    const requestedSessionId = sessionId.value
+    const requestedRunId = run.id
+    const requestedToken = restoreSeq
+    pauseBusy.value = true
+    try {
+      const detail = (await agentApi.pause(requestedProjectId, requestedRunId)).data
+      if (projectId.value !== requestedProjectId || sessionId.value !== requestedSessionId
+        || restoreSeq !== requestedToken || activeRun.value?.id !== requestedRunId) {
+        return
+      }
+      // 作用域正确 ≠ 快照仍然最新：回包快照落后于已应用到时间线的事件
+      // （如 RUN_SUCCEEDED 已先行到达）时，旧快照不得覆盖状态、暂停标记或订阅决定。
+      // 暂停/恢复/完成的状态迁移都伴随事件序号，序号核对覆盖所有非终态之间的顺序。
+      if ((detail.lastEventSequence ?? 0) < timeline.value.lastSequence) return
+      if (detail.run) {
+        timeline.value.run = { ...detail.run, pauseRequestedAt: detail.pauseRequestedAt ?? null }
+        if (detail.run.status === 'PAUSED') {
+          // 已确认暂停：停止执行流的无意义重连；SSE 不活跃是暂停期的正常状态
+          streamController?.abort()
+          streamController = undefined
+          timeline.value.connected = false
+          await loadMessages()
+        }
+      }
+    } catch (reason) { fail(reason, 'Agent 暂停') } finally { pauseBusy.value = false }
   }
   async function reject(item: AgentApproval) {
     if (approvalBusy.value) return
@@ -493,7 +595,6 @@ export function useAgentWorkspace() {
       streamController?.abort()
       sessionId.value = ''
       messages.value = []
-      activeRun.value = null
       runDetail.value = null
       approvals.value = []
       timeline.value = emptyAgentTimeline()
@@ -504,16 +605,21 @@ export function useAgentWorkspace() {
     if (!id) return
     restoreSession(id).catch(reason => fail(reason, 'Agent 会话恢复'))
   })
-  onUnmounted(() => { window.clearTimeout(timer); streamController?.abort() })
+  onUnmounted(() => {
+    disposed = true
+    window.clearTimeout(timer)
+    streamController?.abort()
+  })
 
   return {
     projectId, currentUserId, mobileView, showInspector, runTone,
     pendingApprovals, resolvedApprovals, sessions, summaries, sessionId, messages,
-    approvals, runDetail, activities, conversationBlocks,
+    approvals, runDetail, activities, conversationBlocks, activeModel,
     summaryOf, isCreator, relativeTime, runStatusLabel, evidenceTitle, evidenceDetail,
     statusDot, members, skills, selectedSkillCode, question, busy, sending,
     activeRun, timeline, activeRunState, pageContext, hasPageContext,
     load, newSession, renameSession, deleteSession, send, removeContext, clearContext,
-    approve, reject, approvalBusy, continueRunHandler, retryActiveRun, cancelActiveRun, time,
+    approve, reject, approvalBusy, continueRunHandler, retryActiveRun, cancelActiveRun,
+    pauseActiveRun, pauseBusy, pausePending, canPause, time,
   }
 }

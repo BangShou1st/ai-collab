@@ -985,6 +985,8 @@ class AgentRepositoryIntegrationTest {
         transactions.executeWithoutResult(status -> repository.createRun(fixture.project(),session.id(),fixture.user(),"查任务，不改日期",false,null,null));
         var run=repository.findRun(fixture.project(), jdbc.queryForObject(
                 "SELECT id FROM agent_run WHERE session_id=? ORDER BY created_at LIMIT 1", UUID.class, session.id())).orElseThrow();
+        // 摘要出站请求有持久化准入边界（暂停/状态/租约）：与生产一致置于 RUNNING 状态
+        jdbc.update("UPDATE agent_run SET status='RUNNING' WHERE id=?", run.id());
 
         // 开始尝试：持久化标记落库，运行数值尚未变化
         UUID attemptId=repository.beginSummaryAttempt(run);
@@ -1074,6 +1076,8 @@ class AgentRepositoryIntegrationTest {
     void summaryResumesBeyondSixtySegmentsAndRecentWindowAfterDatabaseReload() {
         var f=fixture(); var session=repository.createSession(f.project(),f.user(),"summary-long");
         var run=repository.createRun(f.project(),session.id(),f.user(),"当前需求",false,null,null);
+        // 摘要出站请求有持久化准入边界（暂停/状态/租约）：与生产一致置于 RUNNING 状态
+        jdbc.update("UPDATE agent_run SET status='RUNNING' WHERE id=?", run.id());
         ObjectMapper json=new ObjectMapper().findAndRegisterModules();
         UUID old=UUID.randomUUID();
         jdbc.update("INSERT INTO agent_message(id,session_id,run_id,role,content,created_at) VALUES (?,?,?,'USER',?,now()-interval '2 days')",old,session.id(),run.id(),"甲".repeat(3000)+"尾部约束");
@@ -1088,11 +1092,11 @@ class AgentRepositoryIntegrationTest {
         org.mockito.Mockito.when(executor.callModelWithoutTools(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new ModelTurnResult("有效摘要",List.of(),ModelFinishReason.STOP,new ModelUsage(100,20),"test", "test",1L));
         var memories=mock(com.shitulelv.aicollab.agent.application.AgentMemoryService.class);
-        var composer=new com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer(repository,memories,json,executor);
+        var composer=new com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer(repository,memories,json);
         var skill=mock(com.shitulelv.aicollab.agent.domain.model.AgentSkill.class);
         org.mockito.Mockito.when(skill.instruction()).thenReturn("测试"); org.mockito.Mockito.when(skill.outputContract()).thenReturn("回答");
         var ctx=new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(run.id(),session.id(),f.project(),f.user(),"OWNER",false,com.shitulelv.aicollab.agent.domain.model.AgentPageContext.empty(),com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits.defaults(),0,List.of());
-        var composition=composer.composeV2(run,ctx,skill,com.shitulelv.aicollab.agent.domain.model.AgentPlan.create("测试",List.of()),List.of(),3000,1);
+        var composition=composer.composeV2(run,ctx,skill,com.shitulelv.aicollab.agent.domain.model.AgentPlan.create("测试",List.of()),List.of(),3000, 1, false);
         assertThat(composition.failureReason()).isNull();
         assertThat(composition.summaryCandidates()).anyMatch(m->m.id().equals(old));
         new com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer(repository,executor,json).maybeSummarize(run,composition,10000);
@@ -1100,6 +1104,7 @@ class AgentRepositoryIntegrationTest {
         assertThat(persisted.path("segments")).anySatisfy(s->{ if(s.path("messageId").asText().equals(old.toString())) assertThat(s.path("to").asInt()).isEqualTo(1200); });
         var reloaded=new AgentRepository(jdbc,json,new AgentRunEventRecorder(jdbc,json));
         var next=reloaded.createRun(f.project(),session.id(),f.user(),"继续",false,null,null);
+        jdbc.update("UPDATE agent_run SET status='RUNNING' WHERE id=?", next.id());
         var loaded=reloaded.listSummaryCandidates(next,java.util.Set.of(),20);
         var second=new com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer.Composition(List.of(),com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer.CompositionStats.empty(),null,loaded);
         new com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer(reloaded,executor,json).maybeSummarize(next,second,10000);

@@ -1,4 +1,4 @@
-package com.shitulelv.aicollab.agent.domain.policy;
+package com.shitulelv.aicollab.agent.application.runtime;
 
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.view.AgentStepView;
@@ -54,14 +54,28 @@ public final class AgentConvergencePolicy {
 
     public void validateToolBatch(
             AgentRunView run, AgentRuntimeLimits limits, int batchSize) {
-        if (batchSize < 0) {
+        validateToolBatch(run, limits, batchSize, 0);
+    }
+
+    /**
+     * 批次准入：单轮数量仍按原批次校验；总额约束只计尚需执行的新增调用。
+     * 恢复批次中已有持久化结果的调用按原 invocation 身份复用、不再占新增额度——
+     * 每个已提交的工具结果在落库时已经推进 tool_calls_used，把整批再次计入
+     * 会把"先完成一部分再退出"的合法批次误判为超限。真实超限仍拒绝。
+     *
+     * @param alreadyCompletedCalls 批次中已有持久化结果（或已绑定提案）的调用数；
+     *                              新轮次传 0，语义与原版本一致
+     */
+    public void validateToolBatch(
+            AgentRunView run, AgentRuntimeLimits limits, int batchSize, int alreadyCompletedCalls) {
+        if (batchSize < 0 || alreadyCompletedCalls < 0) {
             throw new IllegalArgumentException("工具调用数量不能为负数");
         }
         if (batchSize > limits.maxToolCallsPerTurn()) {
             throw new IllegalArgumentException("单轮工具调用超过预算");
         }
         int effectiveMaxToolCalls = Math.min(run.maxToolCalls(), limits.maxToolCalls());
-        if (run.toolCallsUsed() + batchSize > effectiveMaxToolCalls) {
+        if (run.toolCallsUsed() + batchSize - alreadyCompletedCalls > effectiveMaxToolCalls) {
             throw new IllegalArgumentException("工具总预算不足");
         }
     }

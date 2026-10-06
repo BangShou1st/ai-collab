@@ -140,6 +140,24 @@ public class AgentSessionController {
         return ResponseEntity.noContent().build();
     }
 
+    /** 请求暂停：返回权威运行状态与暂停意图（RUNNING 时为"正在暂停"，由 worker 边界确认）。 */
+    @PostMapping("/runs/{runId}/pause")
+    public ApiResponse<AgentRunDetailResponse> pause(
+            @PathVariable UUID projectId, @PathVariable UUID runId,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(AgentRunDetailResponse.from(
+                runs.pause(projectId, runId, userId(jwt))));
+    }
+
+    /** 恢复同一个暂停运行（内部控制能力；页面通过原输入框的续跑表达分流到这里）。 */
+    @PostMapping("/runs/{runId}/resume")
+    public ApiResponse<AgentRunDetailResponse> resume(
+            @PathVariable UUID projectId, @PathVariable UUID runId,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(AgentRunDetailResponse.from(
+                runs.resume(projectId, runId, userId(jwt))));
+    }
+
     @PostMapping("/runs/{runId}/retry")
     public ApiResponse<AgentRunView> retry(
             @PathVariable UUID projectId, @PathVariable UUID runId,

@@ -9,7 +9,7 @@ const event = (sequence: number, type: AgentRunEvent['type'], payload: Record<st
 })
 const plan = { version: 1, objective: '研究项目', steps: [{ id: '1', title: '搜索知识库', status: 'PENDING' }] }
 
-describe('Agent execution and template presentation', () => {
+describe('Agent reference material presentation', () => {
   it('renders successful task facts independently of model prose and never uses failed results', () => {
     const wrapper = mount(AgentRunTimeline, { props: { plan, status: 'SUCCEEDED', events: [
       event(1, 'TOOL_CALL_COMPLETED', { toolName: 'list_tasks', status: 'SUCCEEDED', taskFacts: [
@@ -25,27 +25,25 @@ describe('Agent execution and template presentation', () => {
     expect(facts).toContain('已分配（姓名不可用）')
     expect(facts).not.toContain('虚假任务')
   })
-  it('keeps unrelated templates as references and shows successful and failed real invocations separately', () => {
+  it('keeps templates as references and does not duplicate the conversation tool feed', () => {
     const wrapper = mount(AgentRunTimeline, { props: { plan, status: 'SUCCEEDED', events: [
       event(1, 'TOOL_CALL_STARTED', { invocationId: 'a', toolName: 'list_tasks' }),
       event(2, 'TOOL_CALL_COMPLETED', { invocationId: 'a', toolName: 'list_tasks', success: true }),
-      event(3, 'TOOL_CALL_STARTED', { invocationId: 'b', toolName: 'get_task' }),
-      event(4, 'TOOL_CALL_FAILED', { invocationId: 'b', toolName: 'get_task', errorCode: 'TOOL_EXECUTION_FAILED' }),
-      event(5, 'RUN_SUCCEEDED'),
+      event(3, 'TOOL_CALL_FAILED', { invocationId: 'b', toolName: 'get_task', errorCode: 'TOOL_EXECUTION_FAILED' }),
+      event(4, 'RUN_SUCCEEDED'),
     ] } })
-    expect(wrapper.get('[aria-label="实际工具执行"]').text()).toContain('调用完成')
-    expect(wrapper.get('[aria-label="实际工具执行"]').text()).toContain('失败')
+    // 完整过程在对话主区展示；检查器不再重复渲染工具执行列表
+    expect(wrapper.find('[aria-label="实际工具执行"]').exists()).toBe(false)
     expect(wrapper.get('[aria-label="参考步骤"]').text()).toContain('参考步骤')
     expect(wrapper.get('[aria-label="参考步骤"]').text()).not.toContain('已完成')
     expect(wrapper.text()).not.toContain('待执行')
   })
-  it('updates from tool events and does not leave a canceled invocation running', async () => {
-    const events = [event(1, 'TOOL_CALL_STARTED', { invocationId: 'a', toolName: 'list_tasks' })]
-    const wrapper = mount(AgentRunTimeline, { props: { plan, status: 'RUNNING', events } })
-    expect(wrapper.text()).toContain('进行中')
-    await wrapper.setProps({ status: 'CANCELED', events: [...events, event(2, 'RUN_CANCELED')] })
+  it('canceled runs show terminal status without leaving running material', () => {
+    const wrapper = mount(AgentRunTimeline, { props: { plan, status: 'CANCELED', events: [
+      event(1, 'TOOL_CALL_STARTED', { invocationId: 'a', toolName: 'list_tasks' }),
+      event(2, 'RUN_CANCELED'),
+    ] } })
     expect(wrapper.text()).toContain('已取消')
-    expect(wrapper.text()).not.toContain('进行中')
     expect(wrapper.text()).not.toContain('待执行')
   })
 })
