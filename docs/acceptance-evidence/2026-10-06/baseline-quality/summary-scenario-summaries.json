@@ -1,0 +1,72 @@
+[
+  {
+    "id": "af4228bd-474e-4449-8e5b-a163265ae5bf",
+    "projectId": "8c80f7ef-f367-46db-a58a-a0a796813d0b",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "creatorName": "Local Owner",
+    "title": "摘要保真验收 20261006",
+    "status": "ACTIVE",
+    "version": 29,
+    "createdAt": "2026-10-06T07:23:02.494585Z",
+    "updatedAt": "2026-10-06T08:02:23.483863Z",
+    "latestRunId": "0b90c1bb-f7d9-4cb9-b142-985cd96c9b93",
+    "latestRunStatus": "SUCCEEDED",
+    "latestActivityAt": "2026-10-06T08:03:23.770206Z"
+  },
+  {
+    "id": "c96f8f35-91dd-4e79-a7d1-a5ddf6e8a9cc",
+    "projectId": "8c80f7ef-f367-46db-a58a-a0a796813d0b",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "creatorName": "Local Owner",
+    "title": "基线验收 q3-progress",
+    "status": "ACTIVE",
+    "version": 1,
+    "createdAt": "2026-10-06T07:21:03.459607Z",
+    "updatedAt": "2026-10-06T07:21:03.468497Z",
+    "latestRunId": "bc7f678f-4e8a-41ab-9f6b-d29a0e480cd3",
+    "latestRunStatus": "SUCCEEDED",
+    "latestActivityAt": "2026-10-06T07:21:26.228073Z"
+  },
+  {
+    "id": "5944ed1d-3db4-4e32-87c9-a34a7b8ca2b1",
+    "projectId": "8c80f7ef-f367-46db-a58a-a0a796813d0b",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "creatorName": "Local Owner",
+    "title": "基线验收 q2-delivery",
+    "status": "ACTIVE",
+    "version": 1,
+    "createdAt": "2026-10-06T07:20:09.324816Z",
+    "updatedAt": "2026-10-06T07:20:09.334949Z",
+    "latestRunId": "75cf97fc-a9b3-407f-8849-59bfb8d3ffd3",
+    "latestRunStatus": "SUCCEEDED",
+    "latestActivityAt": "2026-10-06T07:20:35.12597Z"
+  },
+  {
+    "id": "c662b46a-7647-4660-bb0e-131454cff238",
+    "projectId": "8c80f7ef-f367-46db-a58a-a0a796813d0b",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "creatorName": "Local Owner",
+    "title": "基线验收 q1-risk",
+    "status": "ACTIVE",
+    "version": 1,
+    "createdAt": "2026-10-06T07:17:01.065541Z",
+    "updatedAt": "2026-10-06T07:17:01.10417Z",
+    "latestRunId": "7a7c0d48-d552-474e-a95c-abd79d33664e",
+    "latestRunStatus": "SUCCEEDED",
+    "latestActivityAt": "2026-10-06T07:17:32.153402Z"
+  },
+  {
+    "id": "9ecbd970-b94d-4a6f-9b6b-5ec5970ad4eb",
+    "projectId": "8c80f7ef-f367-46db-a58a-a0a796813d0b",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "creatorName": "Local Owner",
+    "title": "基线验收 q1-risk",
+    "status": "ACTIVE",
+    "version": 1,
+    "createdAt": "2026-10-06T07:06:06.562612Z",
+    "updatedAt": "2026-10-06T07:06:06.587473Z",
+    "latestRunId": "16df7058-7de0-40f3-85f2-a50c0baad50f",
+    "latestRunStatus": "SUCCEEDED",
+    "latestActivityAt": "2026-10-06T07:06:37.83393Z"
+  }
+]
