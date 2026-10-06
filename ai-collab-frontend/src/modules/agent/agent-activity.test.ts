@@ -175,3 +175,90 @@ describe('groupAgentActivities', () => {
     expect(groupAgentActivities(rows)).toHaveLength(2)
   })
 })
+
+describe('auto-retry lifecycle', () => {
+  it('shows waiting state for transient failure with no retry yet', () => {
+    const list = reduceAgentActivities([
+      evt(1, 'MODEL_STARTED', { model: 'space-bunny-free' }),
+      evt(2, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+    ])
+    const retry = list.find((row) => row.key.startsWith('retry:'))
+    expect(retry).toBeDefined()
+    expect(retry!.title).toBe('模型调用暂时失败（第 1 次）')
+    expect(retry!.status).toBe('failed')
+    expect(retry!.detail).toContain('等待自动重试')
+    expect(retry!.detail).toContain('模型响应超时')
+  })
+
+  it('marks attempt in progress once a later model turn starts', () => {
+    const list = reduceAgentActivities([
+      evt(1, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_PROVIDER_ERROR', retryable: true }),
+      evt(2, 'MODEL_STARTED', { model: 'space-bunny-free' }),
+    ])
+    const retry = list.find((row) => row.key.startsWith('retry:'))!
+    expect(retry.status).toBe('running')
+    expect(retry.detail).toContain('已再次尝试')
+  })
+
+  it('shows recovered outcome when the run succeeds after retry', () => {
+    const list = reduceAgentActivities([
+      evt(1, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_PROVIDER_ERROR', retryable: true }),
+      evt(2, 'MODEL_STARTED', {}),
+      evt(3, 'RUN_SUCCEEDED', {}),
+    ])
+    const retry = list.find((row) => row.key.startsWith('retry:'))!
+    expect(retry.status).toBe('done')
+    expect(retry.detail).toContain('已自动重试并恢复完成')
+  })
+
+  it('shows final failure outcome when retry exhausts', () => {
+    const list = reduceAgentActivities([
+      evt(1, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_PROVIDER_ERROR', retryable: true }),
+      evt(2, 'MODEL_STARTED', {}),
+      evt(3, 'RUN_FAILED', { status: 'FAILED', errorCode: 'AI_PROVIDER_ERROR', retryable: false }),
+    ])
+    const retry = list.find((row) => row.key.startsWith('retry:'))!
+    expect(retry.status).toBe('done')
+    expect(retry.detail).toContain('重试后仍最终失败')
+  })
+
+  it('numbers successive transient failures and keeps both rows', () => {
+    const list = reduceAgentActivities([
+      evt(1, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+      evt(2, 'MODEL_STARTED', {}),
+      evt(3, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_PROVIDER_ERROR', retryable: true }),
+      evt(4, 'MODEL_STARTED', {}),
+      evt(5, 'RUN_SUCCEEDED', {}),
+    ])
+    const retries = list.filter((row) => row.key.startsWith('retry:'))
+    expect(retries).toHaveLength(2)
+    expect(retries[0].title).toBe('模型调用暂时失败（第 1 次）')
+    expect(retries[1].title).toBe('模型调用暂时失败（第 2 次）')
+    expect(retries[1].detail).toContain('已自动重试并恢复完成')
+  })
+
+  it('replays identically regardless of event delivery order (refresh consistency)', () => {
+    const stream = [
+      evt(1, 'RUN_CREATED', {}),
+      evt(2, 'MODEL_STARTED', {}),
+      evt(3, 'RUN_FAILED', { status: 'FAILED_RETRYABLE', errorCode: 'AI_MODEL_TIMEOUT', retryable: true }),
+      evt(4, 'MODEL_STARTED', {}),
+      evt(5, 'RUN_SUCCEEDED', {}),
+    ]
+    const ordered = reduceAgentActivities(stream)
+    const replayed = reduceAgentActivities([...stream].reverse())
+    expect(replayed).toEqual(ordered)
+  })
+
+  it('renders manual retry scheduling as a control note', () => {
+    const list = reduceAgentActivities([
+      evt(1, 'RUN_FAILED', { status: 'FAILED', errorCode: 'AI_PROVIDER_ERROR', retryable: false }),
+      evt(2, 'RUN_RETRY_SCHEDULED', { status: 'QUEUED' }),
+    ])
+    const note = list.find((row) => row.key === 'control:2')
+    expect(note).toBeDefined()
+    expect(note!.title).toBe('已安排重试')
+    // 最终失败（retryable=false）不产生自动重试行
+    expect(list.filter((row) => row.key.startsWith('retry:'))).toHaveLength(0)
+  })
+})
