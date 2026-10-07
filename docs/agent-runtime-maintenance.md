@@ -186,3 +186,131 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
   的实验样本误读为默认路由行为。
 - **回归**：`AgentDelegationAdmissionTest`（纯函数 6 项）、`AgentDelegationPostgresTest`
   （拒绝不 FAILED、原因码区分、恢复幂等、无证据继续、可见性收窄、权限/暂停边界、兜底四种覆盖形态）。
+
+## 14. 上下文容量策略 v2（2026-10-08 交付）
+
+完整设计与依据：`docs/agent-context-capacity-design-20261008.md`；本轮交付报告与实测：
+`docs/agent-context-capacity-delivery-20261008.md`。迁移 `V64__agent_context_policy.sql`。
+
+### 14.1 唯一策略判据
+
+- **`agent_run.context_policy_version`（V64）是资源策略的唯一判据**，与 `budget_semantics`（V63，
+  推进计数语义）是两个不同维度。`AgentResourcePolicy`（domain）是解析入口，**不要在
+  Worker/协调器/收敛/委派/仓储里各自复制一份版本判断**。
+  - `v1`（既有行默认）：累计 `max_input_tokens`/`max_output_tokens` 参与准入、收敛、
+    委派切分与停机；旧运行恢复与暂停续跑**保持原额度含义，不重解释**。
+  - `v2`（新根运行与终态重试派生）：累计输入/输出**只统计**，不参与准入、收敛、摘要准入、
+    兜底请求或委派拒绝；单次请求守当前模型真实窗口与本次最大输出。
+- **无累计上限用 `NULL` 表达**：不用 `0`、8M、`Integer.MAX_VALUE` 或另一组更大的数字冒充。
+  所有消费方必须显式处理可空上限，**不得把 JDBC NULL 读成 0**（`AgentRunMappers.nullableInt`），
+  也不得对 `NULL` 做旧的 `min`/比较/对半分配。DB 侧计数推进统一走 `agent_capped_add(used, cap, delta)`：
+  `cap IS NULL` 时不封顶、只累计；`cap` 非空时保持 `used <= max` 的行约束
+  （`ck_agent_run_budgets` 已重建为区分"旧限额行"与"新无限额行"）。
+- **模型配置的单次最大输出是另一层限制**，不随 v2 取消，也不与累计额度混用。
+
+### 14.2 三个量必须分开
+
+| 量 | 含义 | 入口 |
+| --- | --- | --- |
+| `H` 模型安全可用输入 | `W - R - S`，真正的单次硬边界 | `AgentContextBudget.perRequest` |
+| `T` 软压缩触发线 | `min(256000, floor(H*0.85))`，小窗口自动提前 | 同上；`Budget.shouldCompact(C)` |
+| `L` 压缩后软目标 | `floor(T*0.50)`，软目标不是失败判据 | 同上 |
+
+- **256k 是整理旧轨迹的策略线，不是请求硬上限，也不是整轮累计额度**。超过 `T` 触发压缩，
+  不构成拒绝受理、截断必要证据或反复压缩的理由；只要请求仍在 `H` 内就能继续。
+- 已确认窗口的 v2 运行**不再叠加应用单次 50k 上限**（`enforcePerRequestCap=false`）：
+  单次硬边界就是 `H`。窗口未知时保留 50k 兼容回退并显式标记 `estimated`。
+- 输出预留必须等于**本次实际出站值**（`effectiveRequestMaxOutput`），不能用与实际发送不同的数字算窗口。
+- 单次输出的派生封顶经 `AiRequestOutputCap` 在**本次调用范围内**下发（适配器读
+  `AiRequestOutputCap.effective(config)`），**不改用户持久模型配置**，也不跨请求泄漏。
+
+### 14.3 父子独立执行额度
+
+- v2 子运行使用**自己的**独立上限（根 24 轮/64 步/64 工具、子 12 轮/16 步/24 工具），
+  **不从父剩余切分**；累计 token 不切分（v2 本就没有累计上限）。
+- **子消耗回收只做真实统计，不扣减父自身的步骤/工具执行额度**（`resumeParent` 的
+  `independentChildBudget` 分支）。委派本身仍计父 1 次工具，父仍须能发起委派并完成自身综合收尾
+  （`AgentDelegationAdmission.reject` 只检查这一点）。
+- **工具可见性必须计入本轮已知推进成本**（F6）：可见性判定在本轮请求发出前，受理判定在模型轮
+  落库后，两者之间必然多消耗一个推进步。用 `admitsDelegationForUpcomingTurn(facts)`；
+  `combined` 参数取真实持久化语义（`AgentRunView.combinedBudgetSemantics()`），不要固定假定其一。
+
+### 14.4 时长、超时与租约
+
+- v2 活跃执行时长：**根 45 分钟、子 30 分钟**；子**不继承父剩余 deadline**，各自解析各自上限。
+- 模型单次请求 **10 分钟**（`JsonHttpModelClient.DEFAULT_REQUEST_TIMEOUT`）、连接超时 **15 秒**、
+  内置工具 **30 秒**、MCP **120 秒**、工具结果字节保护 **128kB** 级。
+- **不要重新引入固定的 300000ms 隐藏截停**：`AgentRunEventRecorder.recordFailure` 的
+  "活跃时长到限"判断必须读 `AgentRuntimeLimits.forRun(...).maxRunDuration()` 这一有效策略。
+- **长请求必须配套有界租约续期**（`AgentLeaseRenewer`）：单次请求可达分钟级而 claim 租约仍是
+  短窗口（默认 6 分钟）。请求进行期间按短周期把租约推到"当前时刻 + 短窗口"，
+  **只有仍持有当前 claim 的活跃 worker 可续租**（复用 `AgentLeaseScope` 的 claim epoch 做
+  fencing）；失去租约/取消/到限/退出时立即停止续租。**不要把租约直接延长到几十分钟**——
+  那会让崩溃接管明显退化。续租是独立短事务，**不跨 HTTP 持数据库事务锁**，不建第二套调度器。
+
+### 14.5 运行研究轨迹窗口压缩（RUN_CONTEXT scope）
+
+- 复用 `AgentContextSummarizer` 的生成/校验/记账规则与同一持久化准入边界，**不建两套执行循环**。
+  两个 scope 的区别只在落点：主会话摘要写 `agent_session.working_state.summary`；
+  **RUN_CONTEXT 写本运行 `agent_step` 的 `output_json`**（`reason='RUN_CONTEXT_SUMMARY'`），
+  因此**子运行只生成自己的 RUN_CONTEXT，不触发也不改写主会话摘要**。
+- **每个运行最多 4 个有效压缩周期**（成功提交才占周期；失败/不合格不推进覆盖也不占额度）；
+  **每个 `scope + 源边界 + 目标修订` 至多一个有效周期**，已覆盖前缀不重复压缩。
+- **成功提交才推进覆盖**：失败/不合格/暂停/取消一律保留旧有效摘要与原数据，返回未提交。
+  来源范围由**实际送入摘要请求的记录**计算，模型不能填写"这些步骤全读过"；
+  截断时只覆盖完全落入截断点的前缀。
+- **提交成功后调用方必须重新组装本次主请求**（协调器已如此），不能继续发送压缩前组好的 messages。
+- 未消费的模型响应、PENDING 工具调用与最新一轮**永远不进入压缩范围**（属必要层）。
+
+### 14.6 原文优先与正文页
+
+- **移除** `6000`/`1500`/`24000` 固定投影顶：`NEWEST_TOOL_OUTPUT_CAP=48000`、
+  `OLDER_TOOL_OUTPUT_CAP=12000`、工具观察层 6000–120000 字符；Projector 仍是有压力时的
+  确定性投影组件，**不是正常情况下强制丢正文的入口**。
+- `HISTORY_CANDIDATES=40` 只是**查询候选**上限，不是"窗口有空间却只能看 40 条"的逻辑丢弃边界。
+- 正文页默认 **12000**、最多 **24000 字符**：常量在 `DocumentContentService`
+  （`DEFAULT_MAX_CHARS`/`MAX_MAX_CHARS`/`MIN_MAX_CHARS`），工具 schema、执行边界与描述
+  **必须同源**（`DocumentAgentToolContractTest` 锁定）。放大正文页时**同步核对结果字节保护**
+  （`AgentToolResultSanitizer.maxResultBytes()`），不能只改 `maxChars` 后在另一层被拒。
+- 子研究上下文隔离：`AgentContextAssembler` 不为 depth>0 加载父提案；
+  `AgentModelMessageComposer` 的 **v2 与 `composer-v2=false` 两条路径**都不给子运行
+  父工作状态/会话摘要/主会话历史/项目记忆。**不要靠追加"忽略上文"提示词代替数据选择**。
+
+### 14.7 委派覆盖事实（F3/F4 修复）
+
+`DelegatedResearchCoverage` 的输出被标注为"已校验事实"且提示词要求冲突时以它为准，
+因此投影必须严格忠于工具结果：
+
+- **章节 ≠ 片段**：`sectionsRead.count` 是**去重标题**数，`fragmentCount` 才是片段数。
+- **续读可以闭合**：按 `continuation` 续到结尾（`hasMore=false`）后不再声明"后续内容未读完"；
+  只有仍有**未消费的续读点**时才报未读完。
+- **半截读取不是读全**：从 chunk/offset 中间读到的后缀只进 `partiallyReadHeadings`，
+  并报告"起始前缀未被覆盖"缺口。
+- **重复提纲不翻倍**：`sectionsListed` 是去重后的提纲事实，不是调用返回条数累加。
+- **不跨快照合并**：状态按 `(documentId, snapshotId)` 建键，不同快照各自成条并把版本冲突
+  写入 `gaps`；快照未知时单独成键，不推断与已知快照同版本。
+- 旧记录缺 `coverage` 仍按 `UNKNOWN_FACTS` 未知兼容。
+
+### 14.8 研究链的其余修复
+
+- **F1**：子运行（depth>0）的 `[QUESTIONS]` **不得**进入 `WAITING_FOR_USER_INPUT`——
+  那会让父运行等待一个用户看不到也无法回答的隐藏问题。改为降级成"研究缺口"并正常收口。
+- **F2**：**所有组装路径共用一个入口** `AgentRuntimeCoordinator.assembleRequestMessages`
+  （基础消息 + 子证据 + 本轮指令）。新增组装分支必须走它，否则会重演"降级重组/强制收尾
+  丢掉子成果"。
+- **F8**：输出超额分支**保存已返回正文为部分产出**（`recordBudgetExceeded(run, completion)`），
+  `resumeParent` 移交正文而不是只给 `AGENT_BUDGET_EXCEEDED` 占位符；终态仍如实为
+  `BUDGET_EXCEEDED`，不执行该响应提出的新工具。
+
+### 14.9 改这里时同步看
+
+`AgentContextBudgetTest`、`AgentResourcePolicyTest`、`AgentDelegationAdmissionTest`、
+`DelegatedResearchCoverageTest`、`AgentRunMappers`+`AgentRunView`（可空上限与策略字段的
+单一映射）、`AgentRepository.createRun/createRetryRun`（v2 落库）、
+`AgentRunEventRecorder`（`agent_capped_add` 与回收分支）、前端 `types.ts`+`AgentView.vue`
+（无累计上限时不展示"剩余额度/百分比"）。
+
+**前端契约**：`maxInputTokens`/`maxOutputTokens` 在类型上是 `number | null`；
+`null` 表示累计只统计，**不得当作 0**、不展示剩余额度或百分比；父步骤/工具标明为
+**本运行自身**计数，不与全树消耗混用。这不是对话工作区重设计，也未重开 SSE。
+

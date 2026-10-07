@@ -1424,10 +1424,14 @@ public class AgentRunEventRecorder {
         AgentRunView parentView = findRun(child.projectId(), child.parentRunId()).orElse(null);
         boolean independentChildBudget = parentView != null && !parentView.enforcesCumulativeTokenLimits();
         if (independentChildBudget) {
+            // v2：只累计 token 用量事实，不动父自身的 steps_used / tool_calls_used。
+            // token 仍走 NULL 安全的封顶函数：v2 正常情况下 max_* 为 NULL（不封顶、只统计），
+            // 但若该行仍带非 NULL 上限（兼容场景），必须继续保持 used <= max 的行约束，
+            // 不能因放宽执行额度而写出违反 ck_agent_run_budgets 的行。
             jdbc.update("""
                     UPDATE agent_run SET
-                      input_tokens_used=input_tokens_used+?,
-                      output_tokens_used=output_tokens_used+?,
+                      input_tokens_used=agent_capped_add(input_tokens_used, max_input_tokens, ?),
+                      output_tokens_used=agent_capped_add(output_tokens_used, max_output_tokens, ?),
                       input_tokens_actual=input_tokens_actual+?,
                       output_tokens_actual=output_tokens_actual+?,
                       token_usage_estimated=token_usage_estimated OR ?,

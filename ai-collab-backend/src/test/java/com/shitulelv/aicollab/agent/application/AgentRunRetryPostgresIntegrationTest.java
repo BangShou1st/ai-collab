@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.runtime.AgentEventService;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
+import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
@@ -105,7 +106,13 @@ class AgentRunRetryPostgresIntegrationTest {
         assertThat(derived.goal()).isEqualTo("检查项目进度");
         assertThat(derived.skillCode()).isEqualTo("ITERATION_PLANNING");
         assertThat(derived.pageContextJson().replace(" ", "")).isEqualTo("{\"route\":\"TASK_BOARD\"}");
-        assertThat(derived.maxSteps()).isEqualTo(24);
+        // 终态重试派生的新运行采用新策略（v2）：自身独立执行额度 64/64，累计 token 无上限。
+        // 旧 Skill 额度（ITERATION_PLANNING 24/16）只适用于 v1 运行。
+        assertThat(derived.contextPolicyVersion()).isEqualTo(AgentResourcePolicy.V2);
+        assertThat(derived.maxSteps()).isEqualTo(AgentResourcePolicy.V2_ROOT_MAX_STEPS);
+        assertThat(derived.maxToolCalls()).isEqualTo(AgentResourcePolicy.V2_ROOT_MAX_TOOL_CALLS);
+        assertThat(derived.maxInputTokens()).as("新策略累计输入只统计，无上限").isNull();
+        assertThat(derived.maxOutputTokens()).as("新策略累计输出只统计，无上限").isNull();
         var row = jdbc.queryForMap("""
                 SELECT input_tokens_used, output_tokens_used, cancel_requested_at, retried_from_run_id
                 FROM agent_run WHERE id=?

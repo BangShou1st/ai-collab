@@ -100,8 +100,10 @@ class AgentResourcePolicyTest {
         // 内置工具 30 秒、MCP 120 秒
         assertThat(root.internalToolTimeout()).isEqualTo(Duration.ofSeconds(30));
         assertThat(root.mcpToolTimeout()).isEqualTo(Duration.ofSeconds(120));
-        // 正文页放大后同步放宽结果字节保护（仍有界）
-        assertThat(root.maxToolResultBytes()).isEqualTo(128 * 1024);
+        // 正文页放大后同步放宽结果字节保护。24000 字符一页实测最坏约 160kB
+        // （40 个 chunk × 各带引用摘录），128kB 会在该场景触发降级截断，
+        // 因此取 256kB；仍是上界，不是取消保护。
+        assertThat(root.maxToolResultBytes()).isEqualTo(256 * 1024);
     }
 
     @Test

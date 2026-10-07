@@ -31,12 +31,15 @@ public class AgentToolResultSanitizer {
      *
      * <p>原来的 32kB 是按 6000 字符一页的旧正文预算定的。正文页预算放大到
      * {@code DocumentContentService.MAX_MAX_CHARS}=24000 字符后，一页中文（UTF-8 每字符 3 字节）
-     * 正文本身就约 72kB，加上 citations 引用摘录与条目元数据可到 120kB 量级；
-     * 仍按 32kB 判定会走 {@link #reduce} 把正文砍到 2000 字符并标记 truncated，
-     * 表现为"资料不足"的误导性结果。这里按设计建议放大到 128kB 级上限，
-     * 仍是有界值，不是取消保护。</p>
+     * 正文本身就约 72kB；真实文档分块粒度更小（{@code DocumentChunker} 块长 600--1200 字符），
+     * 24000 字符一页可横跨 ~40 个块，每块再各自贡献一条最多 600 字符的引用摘录，
+     * 实测序列化结果可达 160kB 量级。仍按 32kB 判定会走 {@link #reduce} 把正文砍到
+     * 2000 字符并标记 truncated，表现为"资料不足"的误导性结果。</p>
+     *
+     * <p>这里按设计建议放大到 256kB 级上限：足以容纳实测最坏情况（约 160kB）并留出余量，
+     * 同时仍是<b>有界</b>值——远超此上限的结果会被标记截断，不是取消保护。</p>
      */
-    private static final int MAX_RESULT_BYTES = 128 * 1024;
+    private static final int MAX_RESULT_BYTES = 256 * 1024;
 
     /** 当前生效的单条工具结果字节上限；契约测试用它证明正文页预算与结果保护不再漂移。 */
     public static int maxResultBytes() {

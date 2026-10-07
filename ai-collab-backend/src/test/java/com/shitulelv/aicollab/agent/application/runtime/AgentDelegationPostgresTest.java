@@ -218,11 +218,8 @@ class AgentDelegationPostgresTest {
     @Test
     void delegationCreatesChildRunAndParentWaitsThenCollectsResult() {
         Fixture fixture = fixture();
-        AgentRunView run = repository.createRun(fixture.project(), fixture.session(), fixture.user(),
-                "结合需求文档分析项目风险", false, null, null);
-        ClaimedAgentRun claimed = recovery.claim("w1", Duration.ofMinutes(6)).orElseThrow();
-        assertThat(claimed.id()).isEqualTo(run.id());
-        run = repository.findRun(fixture.project(), run.id()).orElseThrow();
+        // v1 共享额度语义：子步数断言（≤8）与切分断言都基于 12/8 的父额度
+        AgentRunView run = v1RunAndClaim(fixture, "结合需求文档分析项目风险", "w1");
 
         // 父运行第一轮：发起委派
         parentResponses.add(new ModelTurnResult("需要委派研究",
@@ -325,11 +322,7 @@ class AgentDelegationPostgresTest {
     @Test
     void delegationIsIdempotentAcrossDuplicateInvocation() {
         Fixture fixture = fixture();
-        AgentRunView run = repository.createRun(fixture.project(), fixture.session(), fixture.user(),
-                "研究文档", false, null, null);
-        // 受理发生在工具执行阶段：运行必须处于 RUNNING（先领取）
-        recovery.claim("w-i1", Duration.ofMinutes(6)).orElseThrow();
-        run = repository.findRun(fixture.project(), run.id()).orElseThrow();
+        AgentRunView run = v1RunAndClaim(fixture, "研究文档", "w-i1");
         UUID invocationId = UUID.randomUUID();
         var result = repository.documentResearchDelegationResult(run, invocationId.toString(), "研究目标 A");
         assertThat(result.path("status").asText()).isEqualTo("DELEGATED");
@@ -347,10 +340,7 @@ class AgentDelegationPostgresTest {
     @Test
     void delegationRejectsPauseIntentAndChildDepth() {
         Fixture fixture = fixture();
-        AgentRunView run = repository.createRun(fixture.project(), fixture.session(), fixture.user(),
-                "研究文档", false, null, null);
-        recovery.claim("w-p0", Duration.ofMinutes(6)).orElseThrow();
-        run = repository.findRun(fixture.project(), run.id()).orElseThrow();
+        AgentRunView run = v1RunAndClaim(fixture, "研究文档", "w-p0");
         // 暂停意图先落库：拒绝受理
         jdbc.update("UPDATE agent_run SET pause_requested_at=now() WHERE id=?", run.id());
         var pausedRun = repository.findRun(fixture.project(), run.id()).orElseThrow();
@@ -387,11 +377,51 @@ class AgentDelegationPostgresTest {
 
     // ===== 2026-10-07 审查探针转正：委派隔离/恢复/白名单/批次/用量/引用/上下文边界 =====
 
+    /**
+     * 本文件的父运行夹具默认钉住 <b>v1 共享额度</b>语义。
+     *
+     * <p>`createRun` 现在默认创建 v2 运行（累计 token 只统计 + 父子独立执行额度）。
+     * 但本文件的用例检验的是 v1 的切分与配额事实：子额度从父剩余切出、扣委派自身一次工具、
+     * 父综合预留 2 步、工具额度按 12/8 封顶、容不下则拒绝受理、COMBINED 旧语义等。
+     * 这些语义在 v1 下必须保持（旧运行恢复/暂停续跑不重解释），因此夹具显式钉住版本与额度，
+     * 让用例测的是它原本要测的那件事，而不是随默认值漂移成 v2 的独立额度。</p>
+     *
+     * <p>v2 的独立额度与新语义由 {@code AgentResourcePolicyTest}、
+     * {@code AgentDelegationAdmissionTest} 与 `newV2ParentWithClaim` 的用例覆盖。</p>
+     */
     private AgentRunView newParentWithClaim(String worker) {
         Fixture fixture = fixture();
         AgentRunView run = repository.createRun(fixture.project(), fixture.session(), fixture.user(),
                 "Research the project documents and report reliable findings", false, null, null);
+        jdbc.update("""
+                UPDATE agent_run SET context_policy_version=1, max_steps=12, max_tool_calls=8,
+                  max_input_tokens=50000, max_output_tokens=20000 WHERE id=?
+                """, run.id());
         repository.claimNext(worker, java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        return repository.findRun(fixture.project(), run.id()).orElseThrow();
+    }
+
+    /** v2 新策略父运行：累计 token 无上限（NULL），父子独立执行额度。 */
+    private AgentRunView newV2ParentWithClaim(String worker) {
+        Fixture fixture = fixture();
+        AgentRunView run = repository.createRun(fixture.project(), fixture.session(), fixture.user(),
+                "Research the project documents and report reliable findings", false, null, null);
+        repository.claimNext(worker, java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        return repository.findRun(fixture.project(), run.id()).orElseThrow();
+    }
+
+    /**
+     * 创建并领取一个 v1 兼容父运行（供直接调 {@code createRun} 的用例复用）：
+     * 钉住旧策略与 12/8 额度，使 v1 切分断言（子 ≤8 步、子工具 = 父剩余 − 委派自身）继续成立。
+     */
+    private AgentRunView v1RunAndClaim(Fixture fixture, String goal, String worker) {
+        AgentRunView run = repository.createRun(fixture.project(), fixture.session(), fixture.user(),
+                goal, false, null, null);
+        jdbc.update("""
+                UPDATE agent_run SET context_policy_version=1, max_steps=12, max_tool_calls=8,
+                  max_input_tokens=50000, max_output_tokens=20000 WHERE id=?
+                """, run.id());
+        recovery.claim(worker, Duration.ofMinutes(6)).orElseThrow();
         return repository.findRun(fixture.project(), run.id()).orElseThrow();
     }
 
@@ -1184,43 +1214,57 @@ class AgentDelegationPostgresTest {
     @Test
     void expectedDelegationRejectionMustNotFailParentRunWithZeroAnswer() {
         AgentRunView parent = parentWithDelegationBudgetExhausted("w-rej-a");
+        // 继续收紧到"剩余 4 步"：此时子可切出的步数 = 12 − 8 − 2 = 2 < 子最小 3，
+        // 受理判定确定性地拒绝（剩余 5 步时恰好等于最小 3，会被受理）。
+        jdbc.update("UPDATE agent_run SET steps_used=max_steps-4 WHERE id=?", parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
         // 父运行已有可信证据：一次成功工具结果（综合依据）
         jdbc.update("""
                 INSERT INTO agent_step(run_id,sequence_no,type,tool_name,output_json,reason)
                 VALUES (?,1,'TOOL_CALL_COMPLETED','search_project_knowledge',?::jsonb,'TOOL_SUCCESS')
                 """, parent.id(), "{\"status\":\"SUCCEEDED\",\"data\":{\"items\":[{\"filename\":\"验收标准v2.1.md\"}]}}");
-        parentResponses.add(parentTurn(List.of(new ModelToolCall("rej-delegate", "delegate_document_research",
-                json.createObjectNode().put("objective", "Research project documents with reliable sources")))));
 
-        AgentWorkerOutcome rejected = coordinator.advance(parent);
-        assertThat(rejected.status())
+        // 受理边界始终返回类型化的稳定原因码（不依赖异常消息文本），
+        // 且不创建子运行、不改写运行状态：这是"可预期拒绝"与"执行失败"的分界。
+        // 先探测受理边界，避免被后续推进改变 steps_used 而影响结论。
+        AgentRunView probe = parent;
+        var thrown = org.assertj.core.api.Assertions.catchThrowable(() ->
+                repository.documentResearchDelegationResult(probe, UUID.randomUUID().toString(),
+                        "Research project documents with reliable sources"));
+        assertThat(thrown)
+                .isInstanceOf(com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException.class);
+        assertThat(((com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException) thrown)
+                .reasonCode()).isEqualTo("AGENT_DELEGATION_BUDGET_INSUFFICIENT");
+        assertThat(repository.childRuns(parent.projectId(), parent.id())).isEmpty();
+        assertThat(repository.findRun(parent.projectId(), parent.id()).orElseThrow().status())
+                .as("可预期拒绝不得把父运行判成终态").isEqualTo(AgentRunStatus.RUNNING);
+
+        // F6 修复后的行为：该父运行剩余不足以容下"子最小研究 3 步 + 父综合收尾 2 步"时，
+        // 委派工具<b>不再暴露</b>，而不是先暴露、等模型请求后再拒绝（白耗一次模型轮次）。
+        // 这比"拒绝但不失败"更强：注定被拒的动作从一开始就不在可见列表里。
+        // 该轮本身也检验交付：已有可信证据 → 无工具综合，正常收口且有真实回答（不得零交付）。
+        exposedToolNames.clear();
+        parentResponses.clear();
+        AgentWorkerOutcome delivered = coordinator.advance(
+                repository.findRun(parent.projectId(), parent.id()).orElseThrow());
+        assertThat(exposedToolNames).isNotEmpty();
+        assertThat(exposedToolNames.get(exposedToolNames.size() - 1))
+                .as("剩余额度容不下子研究与父收尾时不得暴露委派工具")
+                .doesNotContain("delegate_document_research");
+        assertThat(delivered.status())
                 .as("可预期的受理拒绝不得把父运行判成 FAILED")
                 .isNotEqualTo(AgentRunStatus.FAILED);
-        assertThat(rejected.status()).isEqualTo(AgentRunStatus.QUEUED);
-        assertThat(rejected.errorCode()).isEqualTo("AGENT_DELEGATION_BUDGET_INSUFFICIENT");
+        assertThat(delivered.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(delivered.answer()).as("不得零交付").isNotNull().isNotBlank();
+    }
 
-        // 未创建子运行、未写成功 DELEGATED 回执、不宣称已受理
-        assertThat(repository.childRuns(parent.projectId(), parent.id())).isEmpty();
-        String invocationStatus = jdbc.queryForObject("""
-                SELECT status FROM agent_tool_invocation WHERE run_id=? AND tool_call_id='rej-delegate'
-                """, String.class, parent.id());
-        assertThat(invocationStatus).as("拒绝不得留下成功 DELEGATED 回执").isEqualTo("REJECTED");
-        String stepOutput = jdbc.queryForObject("""
-                SELECT output_json::text FROM agent_step
-                WHERE run_id=? AND tool_name='delegate_document_research' ORDER BY sequence_no DESC LIMIT 1
-                """, String.class, parent.id());
-        assertThat(stepOutput).contains("AGENT_DELEGATION_BUDGET_INSUFFICIENT")
-                .doesNotContain("\"DELEGATED\"").contains("delegationAdmitted")
-                .contains("REJECTED");
-
-        // 下一次准入：已有可信证据 → 无工具综合，正常收口交付回答
-        var claimed = repository.claimNext("w-rej-a-2", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
-        assertThat(claimed.id()).isEqualTo(parent.id());
+    /** 本轮模型请求实际暴露给模型的工具名（可见性断言用）；会推进一次模型轮。 */
+    private List<String> exposedToolNamesForTurn(AgentRunView parent) {
+        exposedToolNames.clear();
         parentResponses.clear();
-        AgentWorkerOutcome second = coordinator.advance(
-                repository.findRun(parent.projectId(), parent.id()).orElseThrow());
-        assertThat(second.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
-        assertThat(second.answer()).isNotNull().isNotBlank();
+        parentResponses.add(parentTurn(List.of()));
+        coordinator.advance(parent);
+        return exposedToolNames.isEmpty() ? List.of() : exposedToolNames.get(exposedToolNames.size() - 1);
     }
 
     /**

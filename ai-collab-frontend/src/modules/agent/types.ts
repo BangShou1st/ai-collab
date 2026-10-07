@@ -19,9 +19,25 @@ export interface AgentRunDetail {
 export interface AgentRun {
   id: string; sessionId: string; projectId: string; goal: string; status: AgentRunStatus
   skillCode?: string | null
-  stepsUsed: number; maxSteps: number; toolCallsUsed: number; maxToolCalls: number
-  inputTokensUsed: number; maxInputTokens: number; outputTokensUsed: number
-  maxOutputTokens: number; errorCode: string | null
+  /** 本运行自身的推进步计数与上限（不含子运行消耗）。 */
+  stepsUsed: number; maxSteps: number
+  /** 本运行自身的工具调用计数与上限（委派本身计 1 次；不含子运行消耗）。 */
+  toolCallsUsed: number; maxToolCalls: number
+  /**
+   * 本运行累计输入/输出 token 用量。
+   *
+   * `maxInputTokens` / `maxOutputTokens` 是**运行累计**上限：新策略（contextPolicyVersion=2）
+   * 下为 `null`，表示累计用量只统计、不限额。此时不得展示"剩余额度"或百分比，
+   * 也不得把 `null` 当成 0 显示成"额度已耗尽"。
+   * 模型配置的单次最大输出是另一层限制，见 `modelConfiguration.maxOutputTokens`。
+   */
+  inputTokensUsed: number; maxInputTokens: number | null
+  outputTokensUsed: number; maxOutputTokens: number | null
+  errorCode: string | null
+  /** 运行真实消耗（可高于累计上限，仅作审计显示）。 */
+  inputTokensActual?: number; outputTokensActual?: number
+  /** 资源策略版本：1=既有累计额度语义，2=累计只统计 + 父子独立执行额度。 */
+  contextPolicyVersion?: number
   /** 运行内自动重试已发生次数：FAILED_RETRYABLE 时用于"第 N 次尝试"展示 */
   retryCount?: number
   /** 暂停意图落库时间：非空且状态为 RUNNING 时表示"正在暂停"；PAUSED 时为暂停请求时间 */

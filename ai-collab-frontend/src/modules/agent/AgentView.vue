@@ -70,6 +70,26 @@ const previewHtml = computed(() => {
 })
 
 const STATUS_GLYPH: Record<string, string> = { done: '✓', running: '●', failed: '✕', waiting: '…' }
+
+/**
+ * 用量行：新策略（累计 token 只统计）下不展示"剩余额度/百分比"，只展示实际用量与估算来源；
+ * 旧运行（累计上限非 null）保留 x/y 形式，但仍不推断百分比。
+ * 父运行的步骤/工具只展示**自身**计数——不把全树消耗与父自身额度比较。
+ */
+const tokenUsageLine = computed(() => {
+  const run = activeRun.value
+  if (!run) return ''
+  const estimated = (run as { tokenUsageEstimated?: boolean }).tokenUsageEstimated
+  const basis = estimated ? '（含估算）' : ''
+  const inputPart = run.maxInputTokens == null
+    ? `输入 ${run.inputTokensUsed}${basis}（累计只统计）`
+    : `输入 ${run.inputTokensUsed}/${run.maxInputTokens}${basis}`
+  const outputPart = run.maxOutputTokens == null
+    ? `输出 ${run.outputTokensUsed}${basis}（累计只统计）`
+    : `输出 ${run.outputTokensUsed}/${run.maxOutputTokens}${basis}`
+  const selfScope = run.contextPolicyVersion === 2 ? ' · 本运行自身执行额度（不含子运行）' : ''
+  return `Tokens ${inputPart} · ${outputPart}${selfScope} · Run ${runDetail.value?.run.id ?? run.id}`
+})
 const grouped = (items: AgentActivity[]): ConversationActivity[] => groupAgentActivities(items)
 function activityTech(act: AgentActivity): string {
   return act.raw.map((e) => {
@@ -322,7 +342,7 @@ watch(sessionId, () => {
           <div class="inspector-meta-lines">
             <span v-if="activeModel" class="inspector-meta">模型 {{ activeModel.model }}</span>
             <p class="inspector-meta">SSE {{ activeRun?.status === 'PAUSED' ? '已暂停（无需实时连接）' : (timeline.connected ? '已连接' : '未连接') }}</p>
-            <p class="inspector-meta">Steps {{ activeRun.stepsUsed }}/{{ activeRun.maxSteps }} · Tools {{ activeRun.toolCallsUsed }}/{{ activeRun.maxToolCalls }}</p>
+            <p class="inspector-meta">Steps {{ activeRun.stepsUsed }}/{{ activeRun.maxSteps }} · Tools {{ activeRun.toolCallsUsed }}/{{ activeRun.maxToolCalls }}{{ activeRun.contextPolicyVersion === 2 ? ' · 本运行自身（子运行额度独立，不从此处扣减）' : '' }}</p>
           </div>
           <div v-if="activeRunState?.canRetry" class="inspector-actions">
             <el-button
@@ -350,9 +370,9 @@ watch(sessionId, () => {
         <details v-if="activeRun" class="inspector-block tech-details inspector-diag">
           <summary>诊断与资源</summary>
           <p v-if="runDetail?.modelConfiguration" class="inspector-meta">{{ runDetail.modelConfiguration.provider }} · {{ runDetail.modelConfiguration.model }} · {{ runDetail.modelConfiguration.mode }}</p>
-          <p v-if="runDetail?.modelConfiguration" class="inspector-meta">输出预算 {{ runDetail.modelConfiguration.maxOutputTokens }} · {{ runDetail.modelConfiguration.budgetEnforced ? '请求已设置上限' : '提供商请求不支持该上限' }}</p>
+          <p v-if="runDetail?.modelConfiguration" class="inspector-meta">单次输出上限 {{ runDetail.modelConfiguration.maxOutputTokens }} · {{ runDetail.modelConfiguration.budgetEnforced ? '请求已设置上限' : '提供商请求不支持该上限' }}</p>
           <p v-if="runDetail?.recoveryCounters" class="inspector-meta">模型重试 {{ runDetail.recoveryCounters.MODEL_RETRY ?? 0 }} · 格式修复 {{ runDetail.recoveryCounters.FORMAT_REPAIR ?? 0 }} · 参数纠正 {{ runDetail.recoveryCounters.PARAMETER_CORRECTION ?? 0 }}</p>
-          <p class="inspector-meta">Tokens {{ activeRun.inputTokensUsed }}+{{ activeRun.outputTokensUsed }} · Run {{ runDetail?.run.id }}</p>
+          <p class="inspector-meta">{{ tokenUsageLine }}</p>
           <p class="inspector-meta">Sequence {{ runDetail?.lastEventSequence }} · SSE {{ timeline.connected ? '已连接' : '未连接' }}</p>
         </details>
       </aside>

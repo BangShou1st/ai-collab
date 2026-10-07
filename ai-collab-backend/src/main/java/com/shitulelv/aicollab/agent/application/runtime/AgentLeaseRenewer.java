@@ -44,6 +44,13 @@ final class AgentLeaseRenewer implements AutoCloseable {
             AgentRepository repository, UUID projectId, UUID runId, Integer claimEpoch,
             ScheduledExecutorService timer, Duration interval, Duration leaseWindow) {
         this.timer = timer;
+        // 无 claim epoch（非 claim 上下文）时没有可续的租约：不建定时器，
+        // close() 即无操作。绝不能在这里对 null 定时器注册任务。
+        if (claimEpoch == null || timer == null) {
+            this.task = null;
+            this.stopped.set(true);
+            return;
+        }
         this.task = timer.scheduleWithFixedDelay(() -> {
             if (stopped.get()) return;
             try {

@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.agent.infrastructure;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
+import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -94,12 +95,24 @@ class AgentActualTokenUsageIntegrationTest {
                 AgentRunEventRecorder.UsageSettlement.PROVIDER, latency);
     }
 
+    /** v1 兼容运行：显式钉住旧策略与累计额度（本文件多数用例检验 v1 的封顶/超额语义）。 */
     private AgentRunView runningRun(Fixture fixture, String goal) {
         var session = repository.createSession(fixture.project(), fixture.user(), "用量回归");
         var queued = repository.createRun(
                 fixture.project(), session.id(), fixture.user(), goal, false, null, null);
-        jdbc.update("UPDATE agent_run SET max_input_tokens=?, max_output_tokens=? WHERE id=?",
-                MAX_INPUT, 20000, queued.id());
+        jdbc.update("""
+                UPDATE agent_run SET context_policy_version=1, max_input_tokens=?, max_output_tokens=20000
+                WHERE id=?
+                """, MAX_INPUT, queued.id());
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        return repository.findRun(fixture.project(), queued.id()).orElseThrow();
+    }
+
+    /** v2 新策略运行：累计 token 无上限（NULL），保持 createRun 的默认策略。 */
+    private AgentRunView runningV2Run(Fixture fixture, String goal) {
+        var session = repository.createSession(fixture.project(), fixture.user(), "v2 用量回归");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), goal, false, null, null);
         repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
         return repository.findRun(fixture.project(), queued.id()).orElseThrow();
     }
@@ -575,6 +588,11 @@ class AgentActualTokenUsageIntegrationTest {
         Fixture fixture = fixture();
         AgentRunView parent = runningRun(fixture, "父运行汇总");
         jdbc.update("UPDATE agent_run SET max_children=1 WHERE id=?", parent.id());
+        // 本用例验证的是 v1 共享额度语义下"actual 不被 used 上限遮蔽"。
+        // createRun 现在默认新策略（v2：累计只统计），因此这里显式把父运行钉到 v1
+        // 并给出累计上限，让该断言测的是它原本要测的那件事，而不是随默认值漂移。
+        jdbc.update("UPDATE agent_run SET context_policy_version=1, max_input_tokens=?, max_output_tokens=? WHERE id=?",
+                MAX_INPUT, 20000, parent.id());
         AgentRunView child = repository.recordDelegation(parent,
                 new ChatCompletionResult("委托", "OPENAI_COMPATIBLE", "space-bunny-free", 100, 20, 50L),
                 new AgentDecision.Delegate("KNOWLEDGE_RESEARCHER", "子目标"));
@@ -593,5 +611,42 @@ class AgentActualTokenUsageIntegrationTest {
         // 父运行 actual 如实汇总子运行真实消耗（含超额部分），used 保持封顶
         assertThat(resumedParent.inputTokensActual()).isGreaterThanOrEqualTo(REAL_INPUT);
         assertThat(resumedParent.inputTokensUsed()).isLessThanOrEqualTo(MAX_INPUT);
+    }
+
+    /**
+     * v2 新策略：父运行无累计 token 上限，子运行消耗回收只做真实统计，
+     * 既不因累计上限被截断（无上限即不封顶），也不扣减父自身执行额度。
+     */
+    @Test
+    void v2ChildUsageIsRecordedWithoutCumulativeCapOrParentExecutionDeduction() {
+        Fixture fixture = fixture();
+        AgentRunView parent = runningV2Run(fixture, "v2 父运行汇总");
+        // 新策略根运行：累计上限为 NULL（只统计），父子独立执行额度
+        assertThat(parent.contextPolicyVersion()).isEqualTo(AgentResourcePolicy.V2);
+        assertThat(parent.maxInputTokens()).isNull();
+        assertThat(parent.maxOutputTokens()).isNull();
+        jdbc.update("UPDATE agent_run SET max_children=1 WHERE id=?", parent.id());
+
+        AgentRunView child = repository.recordDelegation(parent,
+                new ChatCompletionResult("委托", "OPENAI_COMPATIBLE", "space-bunny-free", 100, 20, 50L),
+                new AgentDecision.Delegate("KNOWLEDGE_RESEARCHER", "子目标"));
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        AgentRunView runningChild = repository.findRun(fixture.project(), child.id()).orElseThrow();
+        // 子运行消耗远超旧子输入常量 30000，v2 下不设累计上限
+        repository.recordModelTurn(runningChild,
+                turnWith(new ModelUsage(REAL_INPUT, 900), "子运行消耗超过旧常量"));
+        // 子运行进入终态才会触发回收（resumeParent）：无累计上限时 used/actual 都如实累计
+        AgentRunView settledChild = repository.findRun(fixture.project(), child.id()).orElseThrow();
+        repository.recordFinal(settledChild, "子研究结论", java.util.List.of());
+
+        AgentRunView resumedParent = repository.findRun(fixture.project(), parent.id()).orElseThrow();
+        // 真实消耗如实回收（不被任何累计上限遮蔽）
+        assertThat(resumedParent.inputTokensActual()).isGreaterThanOrEqualTo(REAL_INPUT);
+        // 无累计上限时 used 也如实累计，不封顶到某个假额度
+        assertThat(resumedParent.inputTokensUsed()).isGreaterThanOrEqualTo(REAL_INPUT);
+        assertThat(resumedParent.inputTokensUsed()).isGreaterThan(30_000);
+        // 父自身执行额度不因子运行消耗而被扣减
+        assertThat(resumedParent.stepsUsed()).isLessThanOrEqualTo(resumedParent.maxSteps());
+        assertThat(resumedParent.toolCallsUsed()).isLessThanOrEqualTo(resumedParent.maxToolCalls());
     }
 }

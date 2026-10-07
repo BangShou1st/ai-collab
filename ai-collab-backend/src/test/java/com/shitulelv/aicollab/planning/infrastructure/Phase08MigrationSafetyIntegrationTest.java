@@ -16,6 +16,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -166,14 +167,19 @@ class Phase08MigrationSafetyIntegrationTest {
     }
 
     private static void assertSuccessfulHistoryThroughV6(JdbcTemplate jdbc) {
-        assertThat(jdbc.queryForList("""
+        // 断言真实的迁移链不变量，而不是把当前版本清单硬编码进来：
+        // 空库必须把全部迁移按序号连续、无缺口地应用成功。硬编码清单会在每次新增
+        // 迁移时无条件失败（V64 就是这样），既不能发现真问题，也掩盖真正的缺口。
+        List<Integer> versions = jdbc.queryForList("""
                 SELECT version FROM flyway_schema_history
                 WHERE type <> 'SCHEMA' ORDER BY installed_rank
-                """, String.class)).containsExactly(
-                        "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
-                "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30",
-                "31", "32", "33", "34", "35", "36", "37", "38", "39", "40",
-                "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63");
+                """, String.class).stream().map(Integer::parseInt).toList();
+        assertThat(versions).isNotEmpty();
+        // 序号连续（1..N 无缺口）
+        assertThat(versions).containsExactlyElementsOf(
+                java.util.stream.IntStream.rangeClosed(1, versions.size()).boxed().toList());
+        // 至少覆盖到引入 Phase 08 修复的 V6，以及本次容量策略的 V64
+        assertThat(versions.getLast()).isGreaterThanOrEqualTo(64);
         assertThat(jdbc.queryForObject("""
                 SELECT bool_and(success) FROM flyway_schema_history
                 WHERE type <> 'SCHEMA'
