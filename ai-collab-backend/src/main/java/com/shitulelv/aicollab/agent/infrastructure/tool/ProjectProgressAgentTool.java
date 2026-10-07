@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.domain.model.AgentInference;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
+import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
 import com.shitulelv.aicollab.project.application.service.ProjectDashboardQueryService;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,14 @@ public class ProjectProgressAgentTool implements AgentTool {
 
     @Override public String name() { return "check_project_progress"; }
     @Override public boolean writesBusinessData() { return false; }
+
+    @Override
+    public AgentToolDefinition definition() {
+        return AgentToolDefinition.fromJson(name(),
+                "获取项目进度统计（与 get_project_dashboard 数据同源，附确定性推断标注）。不接受任何参数。",
+                "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{}}",
+                false);
+    }
 
     @Override
     public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {

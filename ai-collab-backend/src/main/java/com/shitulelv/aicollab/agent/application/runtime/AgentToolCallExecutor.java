@@ -175,7 +175,35 @@ public class AgentToolCallExecutor {
         }
         List<ValidatedToolCall> readOnlyBatch = new ArrayList<>();
         for (ValidatedToolCall vtc : validated) {
-            if (vtc.error() == null && vtc.writeTool() == null && !vtc.tool().writesBusinessData()) readOnlyBatch.add(vtc);
+            if (vtc.error() != null) continue; // 已有处置（如混合批次的委派拒绝）不进入普通执行
+            if (vtc.writeTool() == null && !vtc.tool().writesBusinessData()
+                    && !(vtc.tool() instanceof com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool))
+                readOnlyBatch.add(vtc);
+        }
+        // 委派调用在只读批次之前单独处理：recordDocumentResearchDelegation 会把运行转回
+        // QUEUED（等待子运行终态唤醒），之后不能再对 RUNNING 状态做结果落库——
+        // 委派结果与委派受理在同一事务内由受理路径持久化，工具层只回执。
+        var delegation = validated.stream().filter(v -> v.error() == null
+                && v.tool() instanceof com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool).findFirst();
+        if (delegation.isPresent()) {
+            if (validated.stream().filter(v -> v.error() == null).count() > 1) {
+                // 混合批次：委派明确拒绝。拒绝结果已落库，委派调用必须从后续普通执行中剔除——
+                // 否则它会随只读批次进入 DocumentResearchDelegateAgentTool.execute，
+                // 产生"没有创建子运行的成功 DELEGATED 回执"（伪成功覆盖前一次拒绝）。
+                run = repository.recordToolResult(run, delegation.get().toolCall().name(),
+                        input(delegation.get().toolCall()),
+                        createError("DELEGATION_BATCH_LIMIT", "委派调用必须单独成批提交"), true);
+                emit(run, AgentEventType.TOOL_CALL_FAILED, json.createObjectNode()
+                        .put("callId", delegation.get().toolCall().id())
+                        .put("toolName", delegation.get().toolCall().name())
+                        .put("status", "REJECTED").put("errorCode", "DELEGATION_BATCH_LIMIT"));
+            } else {
+                // 暂停边界：意图先落库则不启动委派，调用保持 PENDING
+                if (repository.pauseIfRequested(run)) {
+                    return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+                }
+                return executeDelegation(run, delegation.get(), toolCtx);
+            }
         }
         if (!readOnlyBatch.isEmpty()) {
             BatchOutcome outcome = executeToolBatch(run, readOnlyBatch, toolCtx, ctx.limits());
@@ -336,6 +364,41 @@ public class AgentToolCallExecutor {
     }
 
     /**
+     * 受理 document_research 委派：子运行创建、DELEGATION_REQUESTED step 与委派工具
+     * 结果在同一持久化边界内完成（run 状态 RUNNING→QUEUED），随后父运行等待子运行
+     * 终态唤醒。崩溃恢复时同一 invocation 身份的重复执行走 recorder 幂等分支，
+     * 不创建第二个子运行、不重复切预算。
+     */
+    private AgentWorkerOutcome executeDelegation(
+            AgentRunView run, ValidatedToolCall vtc, AgentToolContext toolCtx) {
+        ModelToolCall toolCall = vtc.toolCall();
+        emit(run, AgentEventType.TOOL_CALL_STARTED, json.createObjectNode()
+                .put("callId", toolCall.id()).put("toolName", toolCall.name())
+                .put("invocationId", java.util.Objects.toString(repository.invocationId(run, toolCall), "")));
+        try {
+            repository.documentResearchDelegationResult(
+                    run, repository.invocationId(run, toolCall).toString(),
+                    toolCall.arguments().path("objective").asText());
+            // 委派受理（子运行创建、结果落库、父运行转 QUEUED）已在一个事务内完成
+            emit(repository.findRun(run.projectId(), run.id()).orElse(run),
+                    AgentEventType.TOOL_CALL_COMPLETED, json.createObjectNode()
+                            .put("callId", toolCall.id()).put("toolName", toolCall.name())
+                            .put("status", "SUCCEEDED"));
+            return new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, toolCall.name(), null);
+        } catch (BusinessException failure) {
+            if (failure.getErrorCode() == ErrorCode.AGENT_RUN_PAUSED
+                    && repository.pauseIfRequested(run)) {
+                return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
+            }
+            return failWriteProposal(run, toolCall, failure.getErrorCode().name());
+        } catch (RuntimeException failure) {
+            log.warn("Agent delegation failed: runId={}, tool={}, reason={}",
+                    run.id(), toolCall.name(), failure.getMessage());
+            return failWriteProposal(run, toolCall, "AGENT_TOOL_EXECUTION_FAILED");
+        }
+    }
+
+    /**
      * 验证单个工具调用（纯校验，无 I/O）。
      * 返回 ValidatedToolCall，包含解析后的工具、错误信息和是否致命。
      */
@@ -351,9 +414,20 @@ public class AgentToolCallExecutor {
             return new ValidatedToolCall(null, toolCall, createError("TOOL_NOT_FOUND", "工具未注册"), false);
         }
 
-        // Skill 工具白名单检查
+        // Skill 工具白名单检查。
+        // 与 AgentToolRegistry.definitionsFor 的有效集合保持一致：
+        // 主运行的基础只读集合跨场景可用（场景选择不阻断跨资料只读）；
+        // 受限子研究场景（depth>0 委派）严格按自己的白名单复核，不被基础集合扩大，
+        // 写/规划能力仍按 Skill 白名单。
+        // 白名单之外的兜底由 exposed 列表本身把关：不在本轮暴露列表中的调用在下方被拒绝，
+        // 因此不会出现“基础集合看得到、执行阶段被同一静态规则否决”的契约漂移。
+        boolean childResearchSkill = com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry
+                .isChildResearchSkill(skill);
         boolean allowedMcp = toolCall.name().startsWith("mcp.") && skill.allowExternalTools();
-        if (!skill.allowedTools().contains(toolCall.name()) && !allowedMcp
+        boolean baseReadOnlyAllowed = !childResearchSkill
+                && com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry.baseReadOnlyTools()
+                        .contains(toolCall.name());
+        if (!skill.allowedTools().contains(toolCall.name()) && !allowedMcp && !baseReadOnlyAllowed
                 && !com.shitulelv.aicollab.agent.infrastructure.tool.RequestUserInputAgentTool.NAME.equals(toolCall.name())) {
             return new ValidatedToolCall(null, toolCall, createError("TOOL_NOT_ALLOWED", "当前 Skill 不允许使用此工具"), false);
         }

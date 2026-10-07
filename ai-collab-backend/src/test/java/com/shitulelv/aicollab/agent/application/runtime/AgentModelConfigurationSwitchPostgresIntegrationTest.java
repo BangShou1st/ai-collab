@@ -316,7 +316,7 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
 
         // 原生轮次落库了一个 Skill 白名单之外的写调用：恢复时白名单校验仍然生效
         var outsideTurn = new ModelTurnResult("", List.of(
-                new com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall("call-outside", "draft_weekly_report",
+                new com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall("call-outside", "outside_scope_tool",
                         json.createObjectNode().put("content", "x"))),
                 ModelFinishReason.TOOL_CALLS, null, "OPENAI_COMPATIBLE", "model-a", 10L);
         repository.recordModelTurn(run, outsideTurn, "NATIVE_TOOLS");
@@ -352,8 +352,10 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
                 return new com.shitulelv.aicollab.agent.domain.tool.AgentToolResult(v, List.of(), List.of());
             }
         };
+        // 白名单之外的工具：不得使用基础只读集合中的真实工具名（draft_weekly_report
+        // 等已属跨场景基础只读集合，白名单不再拦截它们），改用集合外桩名保持测试意图
         com.shitulelv.aicollab.agent.domain.tool.AgentTool reportTool = new com.shitulelv.aicollab.agent.domain.tool.AgentTool() {
-            @Override public String name() { return "draft_weekly_report"; }
+            @Override public String name() { return "outside_scope_tool"; }
             @Override public boolean writesBusinessData() { return true; }
             @Override public com.shitulelv.aicollab.agent.domain.tool.AgentToolResult execute(
                     com.shitulelv.aicollab.agent.domain.tool.AgentToolContext c, com.fasterxml.jackson.databind.JsonNode v) {
@@ -381,7 +383,7 @@ class AgentModelConfigurationSwitchPostgresIntegrationTest {
 
     private com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition outsideDefinition() {
         return new com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition(
-                "draft_weekly_report", "起草周报", json.createObjectNode().put("type", "object"), true);
+                "outside_scope_tool", "白名单之外的工具", json.createObjectNode().put("type", "object"), true);
     }
 
     private ModelTurnResult writeCallTurn(String callId, String title) {

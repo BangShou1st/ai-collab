@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
+import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
 import com.shitulelv.aicollab.project.application.service.ProjectApplicationService;
 import com.shitulelv.aicollab.work.api.dto.CreateMilestoneRequest;
@@ -31,6 +32,26 @@ public class CreateMilestoneApprovalAgentTool extends AbstractApprovalWriteAgent
     @Override
     public AgentProposalFamily proposalFamily() {
         return AgentProposalFamily.MILESTONE_CREATE;
+    }
+
+    @Override
+    public AgentToolDefinition definition() {
+        return AgentToolDefinition.fromJson(name(),
+                "创建里程碑提案；必须经过项目管理员批准后才写入。名称必填；"
+                        + "日期可选（开始/结束/目标日期，格式 YYYY-MM-DD），状态默认 PLANNED。",
+                """
+                {"type":"object","additionalProperties":false,"required":["name"],
+                 "properties":{
+                   "name":{"type":"string","minLength":1,"maxLength":100,"description":"里程碑名称"},
+                   "description":{"type":["string","null"],"maxLength":1000,"description":"里程碑说明"},
+                   "startDate":{"type":["string","null"],"format":"date","description":"开始日期 YYYY-MM-DD"},
+                   "endDate":{"type":["string","null"],"format":"date","description":"结束日期 YYYY-MM-DD"},
+                   "targetDate":{"type":["string","null"],"format":"date","description":"目标日期 YYYY-MM-DD"},
+                   "status":{"type":["string","null"],"enum":["PLANNED","ACTIVE","COMPLETED","CANCELED",null],
+                     "description":"里程碑状态，默认 PLANNED"},
+                   "sortOrder":{"type":["integer","null"],"minimum":0,"description":"展示顺序"}}}
+                """,
+                true);
     }
 
     @Override
