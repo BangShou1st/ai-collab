@@ -385,6 +385,14 @@ public class AgentToolCallExecutor {
                             .put("callId", toolCall.id()).put("toolName", toolCall.name())
                             .put("status", "SUCCEEDED"));
             return new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, toolCall.name(), null);
+        } catch (com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException rejected) {
+            // 可预期的受理拒绝（委派次数耗尽 / 剩余预算容不下子运行最小研究与收尾）：
+            // 这是"本次委派不可能被受理"的确定业务事实，不是执行失败。
+            // 不创建子运行、不写成功 DELEGATED 回执、不宣称已受理；拒绝结果按真实调用身份
+            // 持久化（恢复不重复执行、不重复计数、不创建子运行），本模型轮次随后被正常消费，
+            // 父运行有边界地继续：已有可信研究产出则下一次准入进入无工具综合，
+            // 否则按既有权限与预算继续执行目标。
+            return rejectDelegation(run, toolCall, rejected);
         } catch (BusinessException failure) {
             if (failure.getErrorCode() == ErrorCode.AGENT_RUN_PAUSED
                     && repository.pauseIfRequested(run)) {
@@ -396,6 +404,40 @@ public class AgentToolCallExecutor {
                     run.id(), toolCall.name(), failure.getMessage());
             return failWriteProposal(run, toolCall, "AGENT_TOOL_EXECUTION_FAILED");
         }
+    }
+
+    /**
+     * 记录一次<b>可预期</b>的委派受理拒绝并按真实调用身份消费本模型轮次。
+     *
+     * <p>与 {@link #failWriteProposal} 的边界差异（本轮交付 A）：受理拒绝是运行仍可继续的
+     * 业务事实，父运行不因此判成 FAILED 而丢掉已有产出；权限不足、安全拒止、暂停、取消、
+     * 租约与内部执行异常不走本路径，保持原失败边界。</p>
+     *
+     * <p>拒绝结果落在委派工具自己的 invocation 身份上（toolCallId + arguments + 当前模型轮次），
+     * 因此崩溃恢复时 {@code knownInvocationResult} 直接复用该结果——不重复执行、不重复计数、
+     * 不创建第二个子运行；同一 invocation 此前已受理的动作仍按幂等规则返回既有子运行，
+     * 不因后来预算变化变成新的拒绝。</p>
+     */
+    private AgentWorkerOutcome rejectDelegation(
+            AgentRunView run, ModelToolCall toolCall,
+            com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException rejected) {
+        // createError 已给出 status=REJECTED / retryable=false；这里补上受理语义标记，
+        // 供收敛与证据兜底按稳定字段（而非消息文本）识别"这次委派未被受理"
+        ObjectNode result = createError(rejected.reasonCode(), rejected.getMessage());
+        result.put("delegationAdmitted", false);
+        run = repository.recordToolResult(run, toolCall.name(), input(toolCall), result, true);
+        emit(run, AgentEventType.TOOL_CALL_FAILED,
+                json.createObjectNode()
+                        .put("callId", toolCall.id())
+                        .put("toolName", toolCall.name())
+                        .put("status", "REJECTED")
+                        .put("delegationAdmitted", false)
+                        .put("errorCode", rejected.reasonCode()));
+        // 重新排队：本模型轮次被正常消费（markBatchHandled），下一次准入由既有收敛策略判定——
+        // 已有可信证据（父自有工具成功或已回收子产出）且收尾可负担 → 无工具总结；
+        // 否则按既有权限与预算继续执行目标（不再暴露已不可能受理的委派工具）。
+        repository.requeueRun(run);
+        return new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, toolCall.name(), rejected.reasonCode());
     }
 
     /**

@@ -241,6 +241,12 @@ public class AgentRuntimeCoordinator {
             List<AgentToolDefinition> exposed = tools.definitionsFor(ctx, skill);
             if (finalizing) {
                 exposed = List.of();
+            } else {
+                // 工具可见性收窄：受理判定只取决于单调增长的已用额度（步数/工具/输入/输出
+                // 只会增加，委派次数只增不减），因此一旦本次运行已不可能受理新委派，
+                // 就不再把委派工具暴露给模型——避免反复请求注定被拒的委派
+                // （真实单文档实验中父运行在综合前再次委派并被预算拒绝）。
+                exposed = withoutUnadmittableDelegation(run, exposed);
             }
 
             // 7. 单次请求输入预算：min(模型窗口-输出预留-安全余量, 运行剩余输入预算, 应用单次上限)
@@ -510,6 +516,39 @@ public class AgentRuntimeCoordinator {
             }
             throw e;
         }
+    }
+
+    /**
+     * 工具可见性收窄：本次运行已不可能受理新委派（委派次数已用完，或剩余额度连子运行
+     * 最小研究与父综合收尾都容不下）时，从本轮暴露列表中移除委派工具。
+     *
+     * <p>依据运行事实而不是异常消息：委派受理判定只读取单调变化的已用额度
+     * （步数/工具/输入/输出只增不减、children_used 只增不减），因此该判定一旦为拒绝，
+     * 后续每个模型轮次都仍为拒绝——收窄不会在可见性上出现"先不可见、后可见"的抖动。
+     * 这也是既有循环保护（{@link AgentLoopGuard}）之外的一层预防：让模型看不到
+     * 注定被拒的工具，而不是反复请求后再被拒绝。</p>
+     *
+     * <p>只影响<b>本轮新请求</b>的工具暴露；恢复已持久化轮次时按该轮次原样校验，
+     * 不因后来预算变化把已受理的调用重新判成拒绝（幂等恢复边界不变）。</p>
+     */
+    private List<AgentToolDefinition> withoutUnadmittableDelegation(
+            AgentRunView run, List<AgentToolDefinition> exposed) {
+        if (run.depth() != 0) return exposed;
+        if (exposed.stream().noneMatch(definition ->
+                com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool.NAME
+                        .equals(definition.name()))) {
+            return exposed;
+        }
+        var facts = new com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.Facts(
+                run.maxSteps(), run.stepsUsed(), run.maxToolCalls(), run.toolCallsUsed(),
+                run.maxInputTokens(), run.inputTokensUsed(), run.maxOutputTokens(), run.outputTokensUsed(),
+                run.childrenUsed(), run.maxChildren(), false);
+        if (com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.admitsDelegation(facts)) {
+            return exposed;
+        }
+        return exposed.stream().filter(definition ->
+                !com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool.NAME
+                        .equals(definition.name())).toList();
     }
 
     /**
@@ -948,8 +987,14 @@ public class AgentRuntimeCoordinator {
             // 兜底为空 → 连子运行已取得的研究产出都没交付）。
             String childFindings = collectedChildFindings(steps);
             if (childFindings == null) return null;
+            // 证据兜底与正常综合保持同样的覆盖语义：只交付子运行文字产出会把"已读/未读范围"
+            // 降级成模型转述（父回答可能把已取得提纲说成未取得）。这里复用既有持久
+            // coverage 与渲染能力（同一提取器、同一文本），把已校验覆盖事实与 UNTRUSTED
+            // 文字产出分开附上——不追加统计工具调用、不回传全部工具原文、不新增第二套兜底。
+            String childCoverage = collectedChildCoverage(steps);
             String content = ("模型未能在本次运行预算内生成完整总结，先返回已回收子运行的研究产出"
-                    + "（状态如实标注，覆盖范围以其自身声明为准）：\n" + childFindings).stripTrailing();
+                    + "（状态如实标注，覆盖范围以已校验的覆盖事实为准）：\n" + childFindings
+                    + rejectedDelegationNotice(steps) + childCoverage).stripTrailing();
             repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn);
             emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
                     json.createObjectNode()
@@ -965,6 +1010,9 @@ public class AgentRuntimeCoordinator {
             answer.append("- ").append(step.toolName() == null ? "工具" : step.toolName())
                     .append(": ").append(output).append('\n');
         });
+        // 诚实说明未完成范围：可预期的委派受理拒绝要如实标注（拒绝不是失败，但也没受理），
+        // 已回收子运行的覆盖事实同样并入（与无自有证据分支保持同一覆盖语义）
+        answer.append(rejectedDelegationNotice(steps)).append(collectedChildCoverage(steps));
         String content = answer.toString().stripTrailing();
         repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn);
         emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
@@ -991,6 +1039,51 @@ public class AgentRuntimeCoordinator {
                     .append(content).append('\n');
         }
         return findings.isEmpty() ? null : findings.toString();
+    }
+
+    /**
+     * 可预期委派受理拒绝的诚实说明：被拒绝的委派<b>没有</b>被受理（未创建子运行、
+     * 无研究产出），预算兜底交付时要如实说明该部分未完成，不能让用户以为研究已发生。
+     *
+     * <p>只依据持久化的稳定原因码判定（{@code delegationAdmitted=false} + 拒绝原因码），
+     * 不按中文消息文本匹配；无拒绝记录时返回空串。</p>
+     */
+    private String rejectedDelegationNotice(List<AgentStepView> steps) {
+        if (steps == null) return "";
+        StringBuilder notice = new StringBuilder();
+        for (AgentStepView step : steps) {
+            if (step.type() != AgentStepType.TOOL_CALL_COMPLETED || step.output() == null) continue;
+            if (step.output().path("delegationAdmitted").asBoolean(true)) continue;
+            String reason = step.output().path("error").asText("");
+            if (reason.isBlank()) continue;
+            notice.append("\n- 未完成范围：一次文档研究委派被拒绝受理（原因码 ").append(reason)
+                    .append("）。该委派未创建子运行、没有研究产出，上述结果不含它的研究内容。");
+        }
+        return notice.toString();
+    }
+
+    /**
+     * 已回收子运行的<b>已校验覆盖事实</b>（{@code DELEGATION_COMPLETED.coverage}）渲染块，
+     * 供预算证据兜底使用：复用与父综合注入完全相同的提取结果与渲染能力
+     * （{@link com.shitulelv.aicollab.agent.domain.model.DelegatedResearchCoverage#renderForParentPrompt}），
+     * 保持正常综合与预算兜底同样的覆盖语义——已取得提纲不被误称未取得、检索命中不等于正文读完、
+     * 分页/截断与未知范围如实保留、旧记录缺 coverage 时按未知兼容。
+     *
+     * <p>本方法输出的是<b>面向用户的交付文本</b>（depth=0 时落为会话回答；depth=1 时随回收
+     * 回到父运行），因此只陈述事实与优先级，不写提示词指令。块内只含结构化元数据
+     * （文档/版本身份、提纲状态与可信度、已读章节、缺口、结束原因），不回传工具原文、
+     * 不追加统计工具调用、不新增第二套兜底系统。无已回收记录时返回空串。</p>
+     */
+    private String collectedChildCoverage(List<AgentStepView> steps) {
+        if (steps == null) return "";
+        StringBuilder coverage = new StringBuilder();
+        for (AgentStepView step : steps) {
+            if (step.type() != AgentStepType.DELEGATION_COMPLETED || step.output() == null) continue;
+            coverage.append("\n【已校验覆盖事实｜子运行 ").append(step.output().path("childRunId").asText("UNKNOWN"))
+                    .append("】（由子运行持久化工具结果推导，非模型转述；与上文子运行文字转述不一致时以此为准）\n")
+                    .append(DelegatedResearchCoverage.renderForParentPrompt(step.output().path("coverage")));
+        }
+        return coverage.toString();
     }
 
     /**

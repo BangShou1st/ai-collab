@@ -87,6 +87,8 @@ class AgentDelegationPostgresTest {
     private AgentRecoveryJob recovery;
     private AgentWorker worker;
     private final List<String> modelRequests = new CopyOnWriteArrayList<>();
+    /** 每次真实模型请求实际暴露的工具名（可见性断言用：拒绝后不得再暴露已不可能受理的委派工具）。 */
+    private final List<List<String>> exposedToolNames = new CopyOnWriteArrayList<>();
     private final Queue<ModelTurnResult> parentResponses = new ConcurrentLinkedQueue<>();
 
     @BeforeAll
@@ -121,6 +123,7 @@ class AgentDelegationPostgresTest {
         ReflectionTestUtils.setField(recorder, "events", events);
         recovery = new AgentRecoveryJob(repository);
         modelRequests.clear();
+        exposedToolNames.clear();
         parentResponses.clear();
         when(assembler.assemble(any(), any(), any())).thenAnswer(invocation -> {
             AgentRunView argumentRun = invocation.getArgument(0);
@@ -131,6 +134,9 @@ class AgentDelegationPostgresTest {
         when(modelExecutor.callModel(any(), any(), any(), anyBoolean(), any())).thenAnswer(invocation -> {
             List<com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage> messages = invocation.getArgument(1);
             modelRequests.add(messages == null ? "(no-messages)" : messages.toString());
+            List<com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition> definitions = invocation.getArgument(2);
+            exposedToolNames.add(definitions == null ? List.of()
+                    : definitions.stream().map(com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition::name).toList());
             AgentRunView run = invocation.getArgument(0);
             // 子运行按受限白名单执行检索；父运行按脚本响应序列推进
             if (run != null && run.depth() > 0) {
@@ -1143,6 +1149,397 @@ class AgentDelegationPostgresTest {
         String request = modelRequests.get(modelRequests.size() - 1);
         assertThat(request).contains("CHILD_RESEARCH_COVERAGE");
         assertThat(request).contains("已读 0 节").contains("已取得提纲但未读取任何正文");
+    }
+
+    // ===== 2026-10-07 第五轮：可预期受理拒绝后的父运行保留 + 预算兜底覆盖事实 =====
+
+    /**
+     * 让父运行在<b>执行</b>受理判定时必然拒绝委派，而请求准备时仍可受理：
+     * 剩余推进步 5（12−7），扣除父综合收尾预留 2 后为 3 —— 恰好满足子运行最小步数，
+     * 请求准备阶段委派工具仍被暴露；本模型轮次自身消耗 1 步后剩余 4，切分结果降到 2，
+     * 执行阶段明确拒绝受理。这正是真实单文档实验的形态（暴露在前、拒绝在后）。
+     */
+    private AgentRunView parentWithDelegationBudgetExhausted(String worker) {
+        AgentRunView parent = newParentWithClaim(worker);
+        jdbc.update("UPDATE agent_run SET steps_used=max_steps-5 WHERE id=?", parent.id());
+        return repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+    }
+
+    /** 让父运行的委派次数先用完（children_used=max_children），预算其余维度充足。 */
+    private AgentRunView parentWithDelegationCountExhausted(String worker) {
+        AgentRunView parent = newParentWithClaim(worker);
+        jdbc.update("UPDATE agent_run SET children_used=max_children WHERE id=?", parent.id());
+        return repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+    }
+
+    /**
+     * 交付 A 的核心红绿用例（真实生产组件：协调器 + 执行器 + 真实 PostgreSQL）：
+     * 父运行在综合前再次请求委派、被预算拒绝受理时，<b>不得</b>整轮 FAILED 零回答。
+     *
+     * <p>修复前：{@code executeDelegation} 把受理拒绝交给 {@code failWriteProposal}，
+     * 后者直接 {@code recordFailure} → 运行终态 FAILED（真实单文档实验复现）。
+     * 修复后：拒绝结果按真实调用身份持久化，父运行重新排队并在下一次准入
+     * 进入无工具综合，交付已有产出。</p>
+     */
+    @Test
+    void expectedDelegationRejectionMustNotFailParentRunWithZeroAnswer() {
+        AgentRunView parent = parentWithDelegationBudgetExhausted("w-rej-a");
+        // 父运行已有可信证据：一次成功工具结果（综合依据）
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,tool_name,output_json,reason)
+                VALUES (?,1,'TOOL_CALL_COMPLETED','search_project_knowledge',?::jsonb,'TOOL_SUCCESS')
+                """, parent.id(), "{\"status\":\"SUCCEEDED\",\"data\":{\"items\":[{\"filename\":\"验收标准v2.1.md\"}]}}");
+        parentResponses.add(parentTurn(List.of(new ModelToolCall("rej-delegate", "delegate_document_research",
+                json.createObjectNode().put("objective", "Research project documents with reliable sources")))));
+
+        AgentWorkerOutcome rejected = coordinator.advance(parent);
+        assertThat(rejected.status())
+                .as("可预期的受理拒绝不得把父运行判成 FAILED")
+                .isNotEqualTo(AgentRunStatus.FAILED);
+        assertThat(rejected.status()).isEqualTo(AgentRunStatus.QUEUED);
+        assertThat(rejected.errorCode()).isEqualTo("AGENT_DELEGATION_BUDGET_INSUFFICIENT");
+
+        // 未创建子运行、未写成功 DELEGATED 回执、不宣称已受理
+        assertThat(repository.childRuns(parent.projectId(), parent.id())).isEmpty();
+        String invocationStatus = jdbc.queryForObject("""
+                SELECT status FROM agent_tool_invocation WHERE run_id=? AND tool_call_id='rej-delegate'
+                """, String.class, parent.id());
+        assertThat(invocationStatus).as("拒绝不得留下成功 DELEGATED 回执").isEqualTo("REJECTED");
+        String stepOutput = jdbc.queryForObject("""
+                SELECT output_json::text FROM agent_step
+                WHERE run_id=? AND tool_name='delegate_document_research' ORDER BY sequence_no DESC LIMIT 1
+                """, String.class, parent.id());
+        assertThat(stepOutput).contains("AGENT_DELEGATION_BUDGET_INSUFFICIENT")
+                .doesNotContain("\"DELEGATED\"").contains("delegationAdmitted")
+                .contains("REJECTED");
+
+        // 下一次准入：已有可信证据 → 无工具综合，正常收口交付回答
+        var claimed = repository.claimNext("w-rej-a-2", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(parent.id());
+        parentResponses.clear();
+        AgentWorkerOutcome second = coordinator.advance(
+                repository.findRun(parent.projectId(), parent.id()).orElseThrow());
+        assertThat(second.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(second.answer()).isNotNull().isNotBlank();
+    }
+
+    /**
+     * 委派次数耗尽同样属于可预期受理拒绝，且与预算不足是<b>可区分</b>的稳定原因码。
+     * 次数耗尽时工具可见性已被收窄（不可能受理的委派不再暴露），因此这里通过受理边界
+     * （repository 的持久化受理事务）验证类型化原因，并验证运行未被收口为终态。
+     */
+    @Test
+    void exhaustedDelegationCountIsDistinctExpectedRejection() {
+        AgentRunView parent = parentWithDelegationCountExhausted("w-rej-count");
+        var thrown = org.assertj.core.api.Assertions.catchThrowable(() ->
+                repository.documentResearchDelegationResult(parent, UUID.randomUUID().toString(),
+                        "Research project documents with reliable sources"));
+
+        assertThat(thrown)
+                .as("次数耗尽是类型化的可预期受理拒绝")
+                .isInstanceOf(com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException.class);
+        assertThat(((com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException) thrown)
+                .reasonCode()).isEqualTo("AGENT_DELEGATION_CHILDREN_EXHAUSTED");
+        assertThat(repository.childRuns(parent.projectId(), parent.id())).isEmpty();
+        // 受理被拒不改写运行状态：父运行保持可继续
+        assertThat(repository.findRun(parent.projectId(), parent.id()).orElseThrow().status())
+                .isEqualTo(AgentRunStatus.RUNNING);
+
+        // 工具可见性收窄：次数已耗尽时下一次请求不再暴露委派工具（避免反复请求注定被拒的委派）
+        // 让当前 claim 的租约过期以便重新领取（不影响已用额度与 children_used）
+        jdbc.update("UPDATE agent_run SET lease_expires_at=now()-interval '1 minute' WHERE id=?", parent.id());
+        var claimed = repository.claimNext("w-rej-count-2", java.time.OffsetDateTime.now(),
+                Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(parent.id());
+        parentResponses.add(parentTurn(List.of(new ModelToolCall("count-search", "list_project_documents",
+                json.createObjectNode()))));
+        coordinator.advance(repository.findRun(parent.projectId(), parent.id()).orElseThrow());
+        assertThat(exposedToolNames).isNotEmpty();
+        assertThat(exposedToolNames.get(exposedToolNames.size() - 1))
+                .doesNotContain("delegate_document_research");
+    }
+
+    /**
+     * 不被软化的 {@code AGENT_TOOL_NOT_ALLOWED}：受理边界上只有"可预期受理拒绝"是类型化异常；
+     * 其他同错误码的拒绝（如 depth 边界"子运行不能再委派"）仍是普通 BusinessException，
+     * 不会因为本轮软化而被一律放行——证明区分依据是类型而不是错误码或消息文本。
+     */
+    @Test
+    void nonExpectedToolNotAllowedIsNotTypedAsAdmissionRejection() {
+        AgentRunView parent = newParentWithClaim("w-depth");
+        AgentRunView child = delegateChild(parent);
+
+        // depth 边界：子运行不能再委派（同一 AGENT_TOOL_NOT_ALLOWED 错误码，但非受理拒绝类型）
+        var depthRejection = org.assertj.core.api.Assertions.catchThrowable(() ->
+                repository.documentResearchDelegationResult(child, UUID.randomUUID().toString(),
+                        "Nested delegation attempt on a child run"));
+        assertThat(depthRejection)
+                .isInstanceOf(com.shitulelv.aicollab.common.exception.BusinessException.class)
+                .isNotInstanceOf(com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException.class);
+        assertThat(((com.shitulelv.aicollab.common.exception.BusinessException) depthRejection).getErrorCode().name())
+                .isEqualTo("AGENT_TOOL_NOT_ALLOWED");
+        assertThat(repository.childRuns(parent.projectId(), child.id())).isEmpty();
+    }
+
+    /**
+     * 拒绝后本模型轮次被正确消费：恢复（同一运行重新领取）不重复执行拒绝、不重复计数、
+     * 不再创建子运行、不重复落第二条拒绝步骤。
+     */
+    @Test
+    void rejectedDelegationIsConsumedOnceAndNotReplayedOnRecovery() {
+        AgentRunView parent = parentWithDelegationBudgetExhausted("w-rej-idem");
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,tool_name,output_json,reason)
+                VALUES (?,1,'TOOL_CALL_COMPLETED','search_project_knowledge',?::jsonb,'TOOL_SUCCESS')
+                """, parent.id(), "{\"status\":\"SUCCEEDED\",\"data\":{\"items\":[{\"filename\":\"验收标准v2.1.md\"}]}}");
+        parentResponses.add(parentTurn(List.of(new ModelToolCall("rej-idem", "delegate_document_research",
+                json.createObjectNode().put("objective", "Research project documents with reliable sources")))));
+        coordinator.advance(parent);
+
+        int delegationSteps = jdbc.queryForObject("""
+                SELECT count(*) FROM agent_step WHERE run_id=? AND tool_name='delegate_document_research'
+                """, Integer.class, parent.id());
+        int toolCallsUsed = jdbc.queryForObject("SELECT tool_calls_used FROM agent_run WHERE id=?",
+                Integer.class, parent.id());
+        assertThat(delegationSteps).isEqualTo(1);
+
+        // 恢复：重新领取并按持久化事实推进——该轮次已消费，不再重放委派调用
+        var claimed = repository.claimNext("w-rej-idem-2", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(parent.id());
+        parentResponses.clear();
+        AgentWorkerOutcome resumed = coordinator.advance(
+                repository.findRun(parent.projectId(), parent.id()).orElseThrow());
+
+        assertThat(resumed.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM agent_step WHERE run_id=? AND tool_name='delegate_document_research'
+                """, Integer.class, parent.id()))
+                .as("恢复不得重复执行被拒绝的委派").isEqualTo(delegationSteps);
+        assertThat(jdbc.queryForObject("SELECT tool_calls_used FROM agent_run WHERE id=?",
+                Integer.class, parent.id()))
+                .as("恢复不得重复计数").isEqualTo(toolCallsUsed);
+        assertThat(repository.childRuns(parent.projectId(), parent.id()))
+                .as("恢复不得创建第二个子运行").isEmpty();
+    }
+
+    /**
+     * 无现成产出但目标仍可执行：拒绝后父运行按既有权限与预算继续，而不是直接兜底终止
+     * （无证据时不得伪造答案，也不无限重排队）。
+     */
+    @Test
+    void rejectionWithoutEvidenceKeepsRunExecutableWithinExistingBudget() {
+        AgentRunView parent = parentWithDelegationBudgetExhausted("w-rej-cont");
+        parentResponses.add(parentTurn(List.of(new ModelToolCall("rej-cont", "delegate_document_research",
+                json.createObjectNode().put("objective", "Research project documents with reliable sources")))));
+        AgentWorkerOutcome rejected = coordinator.advance(parent);
+        assertThat(rejected.status()).isEqualTo(AgentRunStatus.QUEUED);
+
+        // 下一次准入：无证据 → 不是无工具总结，而是继续正常请求（模型可改用其它工具）；
+        // 委派工具因剩余预算不足已不可见，模型改调检索
+        var claimed = repository.claimNext("w-rej-cont-2", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(parent.id());
+        parentResponses.clear();
+        parentResponses.add(parentTurn(List.of(new ModelToolCall("cont-search", "list_project_documents",
+                json.createObjectNode()))));
+        int before = modelRequests.size();
+        AgentWorkerOutcome continued = coordinator.advance(
+                repository.findRun(parent.projectId(), parent.id()).orElseThrow());
+
+        assertThat(continued.status()).as("拒绝后按既有预算继续推进，而不是零回答失败")
+                .isEqualTo(AgentRunStatus.QUEUED);
+        assertThat(modelRequests.size()).as("确实发出了下一次真实模型请求").isGreaterThan(before);
+        assertThat(repository.childRuns(parent.projectId(), parent.id())).isEmpty();
+        // 恢复/再次领取不重复拒绝同一调用
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM agent_step WHERE run_id=? AND tool_name='delegate_document_research'
+                """, Integer.class, parent.id())).isEqualTo(1);
+        // 继续执行的工具确实落库（不是空转重排队）
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM agent_step WHERE run_id=? AND tool_name='list_project_documents'
+                """, Integer.class, parent.id())).isEqualTo(1);
+    }
+
+    /** 拒绝后不再向模型暴露已不可能受理的委派工具（避免反复请求注定被拒的委派）。 */
+    @Test
+    void rejectedDelegationToolIsNoLongerExposed() {
+        AgentRunView parent = parentWithDelegationBudgetExhausted("w-rej-vis");
+        parentResponses.add(parentTurn(List.of(new ModelToolCall("rej-vis", "delegate_document_research",
+                json.createObjectNode().put("objective", "Research project documents with reliable sources")))));
+        coordinator.advance(parent);
+
+        var claimed = repository.claimNext("w-rej-vis-2", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(parent.id());
+        parentResponses.clear();
+        parentResponses.add(parentTurn(List.of(new ModelToolCall("vis-search", "search_project_knowledge",
+                json.createObjectNode().put("query", "acceptance criteria")))));
+        coordinator.advance(repository.findRun(parent.projectId(), parent.id()).orElseThrow());
+
+        assertThat(exposedToolNames).isNotEmpty();
+        assertThat(exposedToolNames.get(exposedToolNames.size() - 1))
+                .as("剩余预算容不下子运行时不得再暴露委派工具")
+                .doesNotContain("delegate_document_research");
+    }
+
+    /**
+     * 权限/策略边界不得被受理拒绝的软处理吞掉：定时运行不暴露委派工具，
+     * 强行请求时的拒绝必须是权限语义（TOOL_NOT_ALLOWED），不带受理拒绝标记，
+     * 也不创建子运行。
+     */
+    @Test
+    void permissionFailureStillKeepsOriginalFailureBoundary() {
+        AgentRunView parent = newParentWithClaim("w-perm");
+        // 定时运行不允许委派：工具策略不通过（TOOL_NOT_ALLOWED），属权限/安全边界
+        jdbc.update("UPDATE agent_run SET scheduled=true WHERE id=?", parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        parentResponses.add(parentTurn(List.of(new ModelToolCall("perm-delegate", "delegate_document_research",
+                json.createObjectNode().put("objective", "Research project documents with reliable sources")))));
+        coordinator.advance(parent);
+
+        assertThat(repository.childRuns(parent.projectId(), parent.id()))
+                .as("权限拒绝不得创建子运行").isEmpty();
+        String output = jdbc.queryForObject("""
+                SELECT output_json::text FROM agent_step
+                WHERE run_id=? AND tool_name='delegate_document_research' ORDER BY sequence_no DESC LIMIT 1
+                """, String.class, parent.id());
+        assertThat(output).as("权限边界必须保持权限语义")
+                .contains("TOOL_NOT_ALLOWED")
+                .doesNotContain("AGENT_DELEGATION_BUDGET_INSUFFICIENT")
+                .doesNotContain("AGENT_DELEGATION_CHILDREN_EXHAUSTED")
+                .doesNotContain("delegationAdmitted");
+    }
+
+    /** 暂停仍保持原边界：暂停意图先落库时不启动委派，也不被拒绝处理自动解除暂停。 */
+    @Test
+    void pauseStillWinsOverDelegationRejectionHandling() {
+        AgentRunView parent = newParentWithClaim("w-rej-pause");
+        jdbc.update("UPDATE agent_run SET pause_requested_at=now() WHERE id=?", parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        AgentWorkerOutcome outcome = coordinator.advance(parent);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.PAUSED);
+        assertThat(repository.findRun(parent.projectId(), parent.id()).orElseThrow().status())
+                .as("暂停不得被拒绝处理自动解除")
+                .isEqualTo(AgentRunStatus.PAUSED);
+    }
+
+    /**
+     * 交付 B：预算证据兜底必须携带已校验覆盖事实。
+     * 修复前兜底只用子运行文字产出，父回答可能把已取得提纲说成未取得。
+     */
+    @Test
+    void budgetFallbackMustCarryVerifiedCoverageFacts() {
+        AgentRunView parent = newParentWithClaim("w-fb-cov");
+        UUID document = UUID.randomUUID();
+        String snapshot = UUID.randomUUID().toString();
+        // 已回收子运行产出：文字结论 + 结构化覆盖事实（提纲已取得、读完 2 节）
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,output_json,reason)
+                VALUES (?,1,'DELEGATION_COMPLETED',?::jsonb,'Specialist child run completed')
+                """, parent.id(), """
+                {"childRunId":"22222222-2222-2222-2222-222222222222","status":"SUCCEEDED",
+                 "content":"子运行已取得提纲并读完两节正文。","citations":[],
+                 "coverage":{"coverageKnown":true,"endReason":"SUCCEEDED","documents":[
+                   {"documentId":"%s","snapshotId":"%s","processingStatus":"READY",
+                    "outline":{"status":"OBTAINED","structure":"HEURISTIC_HEADINGS","trust":"HEURISTIC",
+                               "sectionsListed":2,"truncated":false,"failures":0},
+                    "sectionsRead":{"count":2,"headings":["架构概述","评分算法"],"truncated":false,
+                                    "unreadRangeUnknown":false}}],
+                  "limits":[],"gaps":[],"notes":["HEURISTIC_HEADINGS 提纲由标题识别得出，不是保证完整的目录；取得提纲不等于读完全文。"]}}
+                """.formatted(document, snapshot));
+        // 父运行步骤预算逼近终点（剩余 1 步 < 收尾所需 2 步 → EXHAUSTED，走证据兜底）
+        jdbc.update("UPDATE agent_run SET steps_used=max_steps-1 WHERE id=?", parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+
+        AgentWorkerOutcome outcome = coordinator.advance(parent);
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        String answer = outcome.answer();
+        assertThat(answer).as("兜底仍交付子运行文字产出").contains("子运行已取得提纲并读完两节正文");
+        assertThat(answer).as("兜底必须携带已校验覆盖事实块")
+                .contains("已校验覆盖事实").contains("22222222-2222-2222-2222-222222222222");
+        assertThat(answer).as("已取得提纲不得被误称未取得")
+                .contains(document.toString()).contains("提纲：已取得").contains("已读 2 节");
+        assertThat(answer).contains("启发式标题识别，不代表完整目录");
+        assertThat(answer).as("覆盖事实优先于子运行文字").contains("以此为准");
+    }
+
+    /** 旧回收记录缺 coverage：兜底按"未知"兼容，不得解释成"未取得提纲"。 */
+    @Test
+    void budgetFallbackTreatsLegacyRecordWithoutCoverageAsUnknown() {
+        AgentRunView parent = newParentWithClaim("w-fb-legacy");
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,output_json,reason)
+                VALUES (?,1,'DELEGATION_COMPLETED',?::jsonb,'Specialist child run completed')
+                """, parent.id(), """
+                {"childRunId":"33333333-3333-3333-3333-333333333333","status":"SUCCEEDED",
+                 "content":"旧格式子运行结论。","citations":[]}
+                """);
+        jdbc.update("UPDATE agent_run SET steps_used=max_steps-1 WHERE id=?", parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+
+        AgentWorkerOutcome outcome = coordinator.advance(parent);
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        assertThat(outcome.answer()).contains("旧格式子运行结论").contains("覆盖事实：未知");
+        assertThat(outcome.answer()).as("旧记录不得被解释成未取得提纲")
+                .doesNotContain("未取得提纲");
+    }
+
+    /** 提纲级（局部）覆盖：兜底如实说明"已取得提纲但未读取任何正文"，不冒充正文覆盖。 */
+    @Test
+    void budgetFallbackReportsOutlineOnlyCoverageHonestly() {
+        AgentRunView parent = newParentWithClaim("w-fb-outline");
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,output_json,reason)
+                VALUES (?,1,'DELEGATION_COMPLETED',?::jsonb,'Specialist child run completed')
+                """, parent.id(), """
+                {"childRunId":"44444444-4444-4444-4444-444444444444","status":"SUCCEEDED",
+                 "content":"仅完成提纲读取。","citations":[],
+                 "coverage":{"coverageKnown":true,"endReason":"SUCCEEDED","documents":[
+                   {"documentId":"55555555-5555-5555-5555-555555555555","snapshotId":null,
+                    "processingStatus":"READY",
+                    "outline":{"status":"OBTAINED","structure":"HEURISTIC_HEADINGS","trust":"HEURISTIC",
+                               "sectionsListed":2,"truncated":false,"failures":0},
+                    "sectionsRead":{"count":0,"headings":[],"truncated":false,"unreadRangeUnknown":false}}],
+                  "limits":[],"gaps":["文档 55555555-5555-5555-5555-555555555555：已取得提纲但未读取任何正文"],
+                  "notes":[]}}
+                """);
+        jdbc.update("UPDATE agent_run SET steps_used=max_steps-1 WHERE id=?", parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+
+        AgentWorkerOutcome outcome = coordinator.advance(parent);
+        assertThat(outcome.answer())
+                .contains("已读 0 节").contains("已取得提纲但未读取任何正文")
+                .doesNotContain("正文完整覆盖");
+    }
+
+    /** 子运行文字与覆盖事实冲突时以覆盖事实为准：文字不得覆盖已校验覆盖声明。 */
+    @Test
+    void verifiedCoverageFactsWinOverChildTextClaims() {
+        AgentRunView parent = newParentWithClaim("w-fb-conflict");
+        UUID document = UUID.randomUUID();
+        // 子文字声称"未取得提纲"，而持久化覆盖事实是"提纲已取得且已读 3 节"
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,output_json,reason)
+                VALUES (?,1,'DELEGATION_COMPLETED',?::jsonb,'Specialist child run completed')
+                """, parent.id(), """
+                {"childRunId":"66666666-6666-6666-6666-666666666666","status":"SUCCEEDED",
+                 "content":"说明：本次未取得文档提纲，因此未能读取任何正文。","citations":[],
+                 "coverage":{"coverageKnown":true,"endReason":"SUCCEEDED","documents":[
+                   {"documentId":"%s","snapshotId":null,"processingStatus":"READY",
+                    "outline":{"status":"OBTAINED","structure":"HEURISTIC_HEADINGS","trust":"HEURISTIC",
+                               "sectionsListed":3,"truncated":false,"failures":0},
+                    "sectionsRead":{"count":3,"headings":["一","二","三"],"truncated":false,
+                                    "unreadRangeUnknown":false}}],
+                  "limits":[],"gaps":[],"notes":[]}}
+                """.formatted(document));
+        jdbc.update("UPDATE agent_run SET steps_used=max_steps-1 WHERE id=?", parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+
+        AgentWorkerOutcome outcome = coordinator.advance(parent);
+        String answer = outcome.answer();
+        // 覆盖事实与文字同时如实呈现，且明确以覆盖事实为准（不静默丢弃任一侧）
+        assertThat(answer).contains(document.toString()).contains("提纲：已取得").contains("已读 3 节");
+        assertThat(answer).as("必须显式声明覆盖事实优先于子运行文字")
+                .contains("以此为准");
     }
 }
 
