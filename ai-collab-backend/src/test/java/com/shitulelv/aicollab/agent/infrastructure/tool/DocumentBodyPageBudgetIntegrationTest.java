@@ -231,7 +231,9 @@ class DocumentBodyPageBudgetIntegrationTest {
 
         var serialized = json.valueToTree(result);
         long rawBytes = json.writeValueAsBytes(serialized).length;
-        System.out.println("DIAG multiChunk rawBytes=" + rawBytes);
+        assertThat(rawBytes)
+                .as("跨 20 块的一页中文正文序列化后应超过旧 32kB 上限")
+                .isGreaterThan(32 * 1024);
 
         var sanitized = sanitizer.sanitize(serialized);
 
@@ -287,6 +289,43 @@ class DocumentBodyPageBudgetIntegrationTest {
         assertThat(json.writeValueAsBytes(sanitized).length)
                 .isLessThanOrEqualTo(AgentToolResultSanitizer.maxResultBytes());
         // 可见正文总和等于声明的 readChars，没有被悄悄截断
+        int visibleTotal = 0;
+        for (var item : sanitized.path("data").path("items")) {
+            assertThat(item.path("content").asText()).doesNotContain("[truncated]");
+            visibleTotal += item.path("content").asText().length();
+        }
+        assertThat(visibleTotal).isEqualTo(readChars);
+    }
+
+    /**
+     * 分块粒度上界：{@code DocumentChunker} 的块长在 [600,1200] 区间（目标 1200、最小不低于
+     * 目标一半）。块越短，一页 24000 字符横跨的块越多，每条记录的固定开销与每条 600 字符
+     * 引用摘录就越叠加——这才是结果体积的真正上界来源。
+     */
+    @Test
+    void manySmallChunksWorstCasePageStillFitsTheResultSizeBound() throws Exception {
+        List<DocumentChunk> chunks = new java.util.ArrayList<>();
+        for (int i = 0; i < 60; i++) chunks.add(chunk(i, "小节 " + (i + 1), "正文内容".repeat(150)));
+        seed(chunks); // 每块 600 字符
+
+        var result = readTool().execute(context(),
+                readArgs(0, 0, DocumentContentService.MAX_MAX_CHARS));
+        int readChars = result.data().path("readChars").asInt();
+        int itemCount = result.data().path("items").size();
+
+        var serialized = json.valueToTree(result);
+        long rawBytes = json.writeValueAsBytes(serialized).length;
+        System.out.println("DIAG smallChunks items=" + itemCount + " readChars=" + readChars
+                + " citations=" + result.citations().size()
+                + " rawBytes=" + rawBytes + " bound=" + AgentToolResultSanitizer.maxResultBytes());
+
+        var sanitized = sanitizer.sanitize(serialized);
+        assertThat(sanitized.hasNonNull("error"))
+                .as("小块文档的一页正文不应被判定为结果过大").isFalse();
+        assertThat(sanitized.path("originalSize").isMissingNode())
+                .as("不应走 reduce 缩减分支").isTrue();
+        assertThat(json.writeValueAsBytes(sanitized).length)
+                .isLessThanOrEqualTo(AgentToolResultSanitizer.maxResultBytes());
         int visibleTotal = 0;
         for (var item : sanitized.path("data").path("items")) {
             assertThat(item.path("content").asText()).doesNotContain("[truncated]");

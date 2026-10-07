@@ -60,8 +60,13 @@ class LegacyApprovalCitationUpgradeTest {
         jdbc.update("insert into knowledge_session(id,project_id,user_id,title) values (?,?,?,'旧问答')",knowledge,project,user);
         jdbc.update("insert into knowledge_message(id,session_id,role,content) values (?,?,'ASSISTANT','旧答案 [S1]')",message,knowledge);
         jdbc.update("insert into knowledge_citation(message_id,chunk_id,rank,similarity,quote_text) values (?,?,1,1,'旧资料正文')",message,chunk);
-        // V46–V63：V60 为崩溃接管计时锚点（agent_run.last_progress_at），V63 为预算语义标记
-        assertThat(Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate().migrationsExecuted).isEqualTo(18);
+        // 从 V45 升级到最新：V60 为崩溃接管计时锚点（agent_run.last_progress_at），
+        // V63 为预算语义标记，V64 为上下文容量策略。
+        // 断言"至少执行了 V46–V64 这些迁移"，而不是写死条数——写死条数会在每次新增迁移时
+        // 无条件失败（V64 就是这样），既发现不了真问题，也掩盖真正的迁移缺口。
+        int migrated = Flyway.configure().dataSource(dataSource).locations("classpath:db/migration")
+                .load().migrate().migrationsExecuted;
+        assertThat(migrated).as("V45 之后应执行到 V64（含 V64 上下文容量策略）").isGreaterThanOrEqualTo(19);
         UUID revisionRun=UUID.randomUUID();
         jdbc.update("insert into agent_run(id,session_id,project_id,requester_id,goal,status) values (?,?,?,?,'提案修订','SUCCEEDED')",revisionRun,session,project,user);
         jdbc.update("insert into agent_approval_revision(project_id,approval_id,source_run_id,revision,before_arguments_json,after_arguments_json,diff_json) values (?,?,?,2,'{}','{}','{}')",project,approval,revisionRun);

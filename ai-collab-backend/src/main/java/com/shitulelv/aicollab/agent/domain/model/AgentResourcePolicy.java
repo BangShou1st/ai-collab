@@ -57,8 +57,17 @@ public final class AgentResourcePolicy {
     public static final Duration V2_INTERNAL_TOOL_TIMEOUT = Duration.ofSeconds(30);
     /** V2 MCP 工具默认超时。 */
     public static final Duration V2_MCP_TOOL_TIMEOUT = Duration.ofSeconds(120);
-    /** V2 工具结果字节保护（正文页放大后同步放宽，仍是有界值）。 */
-    public static final int V2_MAX_TOOL_RESULT_BYTES = 128 * 1024;
+    /**
+     * V2 工具结果字节保护。
+     *
+     * <p>正文页放大到 24000 字符后，一页最多横跨约 40 个 chunk（chunker 块长 600–1200），
+     * 每块再各带一条最多 600 字符的引用摘录；实测最坏序列化约 160kB。
+     * 128kB 会在该场景触发 {@code AgentToolResultSanitizer} 的降级截断（表现为
+     * 误导性的"资料不足"），因此取 256kB（与既有 MCP {@code ck_agent_mcp_limits}
+     * 的 {@code max_result_bytes} 上界一致）。仍是<b>有界</b>值，不是取消保护：
+     * 超限结果照样被标记截断。</p>
+     */
+    public static final int V2_MAX_TOOL_RESULT_BYTES = 256 * 1024;
 
     private AgentResourcePolicy() {
     }
@@ -106,16 +115,22 @@ public final class AgentResourcePolicy {
         return (long) cap - used;
     }
 
-    /** 累计输入是否已到限（无累计上限时恒为 false）。 */
-    public static boolean inputExhausted(int version, Integer runCap, Integer limitsCap, long inputActual) {
+    /**
+     * 累计输入是否已到限（无累计上限时恒为 false）。
+     *
+     * @param usedTokens 预算语义的已用累计值（{@code input_tokens_used}，v1 下由 LEAST 封顶）。
+     *                   这是"准入下一次请求"的判据，与 {@code *_actual}（真实消耗，
+     *                   可用于超额审计）是不同用途，不要混用。
+     */
+    public static boolean inputExhausted(int version, Integer runCap, Integer limitsCap, long usedTokens) {
         Integer cap = effectiveInputCap(version, runCap, limitsCap);
-        return cap != null && inputActual >= cap;
+        return cap != null && usedTokens >= cap;
     }
 
-    /** 累计输出是否已到限（无累计上限时恒为 false）。 */
-    public static boolean outputExhausted(int version, Integer runCap, Integer limitsCap, long outputActual) {
+    /** 累计输出是否已到限（无累计上限时恒为 false）。判据同 {@link #inputExhausted}。 */
+    public static boolean outputExhausted(int version, Integer runCap, Integer limitsCap, long usedTokens) {
         Integer cap = effectiveOutputCap(version, runCap, limitsCap);
-        return cap != null && outputActual >= cap;
+        return cap != null && usedTokens >= cap;
     }
 
     /**

@@ -191,8 +191,9 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         var session=agents.createSession(f.project(),f.user(),"资料规划");
         var request=json.valueToTree(request("Agent 规划"));
         var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
-        assertThat(agents.findRun(f.project(),ctx.runId()).orElseThrow().maxSteps()).isEqualTo(24);
-        assertThat(agents.findRun(f.project(),ctx.runId()).orElseThrow().maxToolCalls()).isEqualTo(16);
+        // 新策略（v2）根运行的独立执行额度；v1 才按 Skill 额度 24/16 落库
+        assertThat(agents.findRun(f.project(),ctx.runId()).orElseThrow().maxSteps()).isEqualTo(64);
+        assertThat(agents.findRun(f.project(),ctx.runId()).orElseThrow().maxToolCalls()).isEqualTo(64);
         var accepted=agentOperations.mutate(ctx,"start_task_plan",request);
         UUID operation=UUID.fromString(accepted.path("operationId").asText());UUID plan=UUID.fromString(accepted.path("planId").asText());
         var replay=agentOperations.mutate(ctx,"start_task_plan",request);
@@ -321,9 +322,11 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         assertThat(repository).isNotNull();
         assertThat(issues).isNotNull();
         assertThat(AopUtils.isAopProxy(commits)).isTrue();
-        assertThat(jdbc.queryForObject(
+        // 断言"最新成功迁移至少到 V64"，而不是把版本硬编码成 63：
+        // 硬编码会在每次新增迁移时无条件失败，既发现不了真问题，也掩盖真正的失败。
+        assertThat(Integer.parseInt(jdbc.queryForObject(
                 "select version from flyway_schema_history where success=true order by installed_rank desc limit 1",
-                String.class)).isEqualTo("63");
+                String.class))).isGreaterThanOrEqualTo(64);
         assertThat(jdbc.queryForObject(
                 "select count(*) from information_schema.tables where table_name='ai_task_plan'",
                 Integer.class)).isEqualTo(1);

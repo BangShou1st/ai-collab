@@ -128,9 +128,16 @@ class AgentModelMessageComposerV2Test {
         ObjectNode bigOutput = json.createObjectNode();
         bigOutput.put("status", "SUCCESS");
         var items = bigOutput.putArray("items");
+        // 输入必须真正超过"最新一批"的保留上限才会触发确定性投影。
+        // 新策略把该上限从 6000 放宽到 48000 字符（有空间时保留必要原文），
+        // 因此夹具要显著超过它——否则"未触发投影"是正确行为，而不是缺陷。
+        String longTitle = "任务".repeat(150);
         for (int i = 0; i < 500; i++) {
-            items.addObject().put("id", "task-" + i).put("title", "任务 " + i);
+            items.addObject().put("id", "task-" + i).put("title", longTitle + i);
         }
+        assertThat(bigOutput.toString().length())
+                .as("夹具必须超过最新一批工具结果的保留上限")
+                .isGreaterThan(AgentModelMessageComposer.NEWEST_TOOL_OUTPUT_CAP);
         AgentStepView step = new AgentStepView(UUID.randomUUID(), 1, AgentStepType.TOOL_CALL_COMPLETED,
                 "get_tasks", json.createObjectNode().put("toolCallId", "call-1"), bigOutput,
                 "TOOL_SUCCESS", null, null, false, null, null, OffsetDateTime.now());

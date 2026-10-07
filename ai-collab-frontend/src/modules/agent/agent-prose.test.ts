@@ -49,7 +49,71 @@ describe('协议区域之外的正文保持原样（R10 回归）', () => {
   })
 
   it('only unescapes inside the identified questions area', () => {
-    const text = '正文保留 C:\\new\\notes.txt 原样。[QUESTIONS]\\n范围？\\n1. 文档'
+    // F7 修正：控制标记必须是独占一行的协议行。原样本把标记直接接在正文同一行
+    // （`...原样。[QUESTIONS]\n范围？`），那正是"普通正文里出现标记字面量"的误判形态；
+    // 本用例的真实意图（标记前的 Windows 路径原样保留、追问区域才反转义）不变，
+    // 只是把标记放到它自己的行上。
+    const text = '正文保留 C:\\new\\notes.txt 原样。\n[QUESTIONS]\\n范围？\\n1. 文档'
+    const parsed = parseAgentProse(text)
+    expect(parsed.text).toContain('C:\\new\\notes.txt')
+    expect(parsed.questions).not.toContain('\\n')
+  })
+})
+
+// ==================================================================
+// F7 回归：字面控制标记不得当作追问协议
+// ==================================================================
+
+describe('F7：正文/代码里的字面 [QUESTIONS] 不是协议控制行', () => {
+  it('代码围栏内的标记不触发分段，围栏结构保持完整', () => {
+    const text = [
+      '下面演示协议标记的写法：',
+      '```text',
+      '[QUESTIONS]\\n请选择范围\\n1. 文档',
+      '```',
+      '以上是示例，不是真的在提问。',
+    ].join('\n')
+    const parsed = parseAgentProse(text)
+    // 不得被解析成追问
+    expect(parsed.questions).toBeNull()
+    expect(hasAgentQuestions(text)).toBe(false)
+    // 围栏必须完整保留，且不做反转义
+    expect(parsed.text).toBe(text)
+    expect(visibleAgentProse(text)).toBe(text)
+    expect(parsed.text).toContain('```')
+  })
+
+  it('行内代码里的标记不触发分段', () => {
+    const text = '模型会在需要澄清时输出 `[QUESTIONS]` 这一行。'
+    expect(parseAgentProse(text)).toEqual({ text, questions: null })
+    expect(hasAgentQuestions(text)).toBe(false)
+  })
+
+  it('引述里的标记不触发分段，且不反转义其后的 Windows 路径', () => {
+    const text = '说明：如果模型写 "[QUESTIONS]"，就表示它在提问。导出目录是 C:\\new\\notes.txt。'
+    const parsed = parseAgentProse(text)
+    expect(parsed.questions).toBeNull()
+    // 关键回归：路径里的 \n 不得被改成真实换行
+    expect(parsed.text).toContain('C:\\new\\notes.txt')
+    expect(parsed.text).not.toContain('C:\n')
+  })
+
+  it('正文中出现标记字面量后，其后的 Windows 路径仍保持原样', () => {
+    const text = '回答里解释了 [QUESTIONS] 标记的含义，路径 C:\\new\\notes.txt 必须原样。'
+    expect(visibleAgentProse(text)).toBe(text)
+  })
+
+  it('真正的控制行仍然正确分段（历史中间标记样本）', () => {
+    const text = '前面的结论。\n\n[QUESTIONS]\\n请确认范围？\\n1. 项目文档\\n2. 任务描述'
+    const parsed = parseAgentProse(text)
+    expect(parsed.text).toBe('前面的结论。')
+    expect(parsed.questions).not.toContain('[QUESTIONS]')
+    expect(parsed.questions).not.toContain('\\n')
+    expect(agentQuestionLines(text)).toContain('1. 项目文档')
+  })
+
+  it('控制行前的空白不影响识别，区域外正文仍不动', () => {
+    const text = '保留 C:\\new\\notes.txt 原样。\n   [QUESTIONS]\\n范围？\\n1. 文档'
     const parsed = parseAgentProse(text)
     expect(parsed.text).toContain('C:\\new\\notes.txt')
     expect(parsed.questions).not.toContain('\\n')

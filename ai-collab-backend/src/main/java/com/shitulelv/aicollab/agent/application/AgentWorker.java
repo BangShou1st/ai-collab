@@ -74,13 +74,13 @@ public class AgentWorker {
         //
         // v2（累计 token 只统计）下累计输入/输出上限为 null：这两个条件不参与准入，
         // 不得把 null 读成 0（那会把每次 v2 运行立刻判成额度耗尽）。
-        // 累计上限只对 v1 生效，vc1 沿用既有语义。
+        // 累计上限只对 v1 生效，v1 沿用既有语义（判据是预算语义的 used 列，与 actual 区分）。
         boolean hasSavedResult = repository.pendingModelTurn(run).isPresent();
         boolean tokenBudgetExhausted = run.enforcesCumulativeTokenLimits()
                 && (AgentResourcePolicy.inputExhausted(run.contextPolicyVersion(),
-                        run.maxInputTokens(), null, run.inputTokensActual())
+                        run.maxInputTokens(), null, run.inputTokensUsed())
                     || AgentResourcePolicy.outputExhausted(run.contextPolicyVersion(),
-                        run.maxOutputTokens(), null, run.outputTokensActual()));
+                        run.maxOutputTokens(), null, run.outputTokensUsed()));
         if (!hasSavedResult
                 && (run.stepsUsed() >= run.maxSteps() || tokenBudgetExhausted)) {
             repository.recordBudgetExceeded(run);

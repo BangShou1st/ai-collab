@@ -1138,6 +1138,16 @@ class PersistedModelTurnRecoveryPostgresTest {
         var session = repository.createSession(fixture.project(), fixture.user(), "结果恢复验收");
         var run = repository.createRun(fixture.project(), session.id(), fixture.user(),
                 fixture.goal(), false, "ITERATION_PLANNING", null);
+        // 本文件检验的是 v1 累计额度语义下的"已保存结果恢复"（输出剩余额度触发
+        // needsFinalRequest、输入实际超额拦截工具批次等）。`createRun` 现在默认创建 v2 运行
+        // （累计 token 只统计、不参与收尾判定），这些用例必须显式钉住 v1，
+        // 才能继续测它原本要测的那件事——否则测的就变成了"v2 下这些判定不生效"。
+        // v2 的对应行为由 AgentResourcePolicyTest / AgentConvergencePolicyTest 与
+        // AgentWorkerNativeTurnTest.v2CumulativeTokensNeverBlockNextRequest 覆盖。
+        jdbc.update("""
+                UPDATE agent_run SET context_policy_version=1, max_steps=24, max_tool_calls=16,
+                  max_input_tokens=50000, max_output_tokens=20000 WHERE id=?
+                """, run.id());
         recovery.claim("worker-1", Duration.ofMinutes(6)).orElseThrow();
         return repository.findRun(fixture.project(), run.id()).orElseThrow();
     }
