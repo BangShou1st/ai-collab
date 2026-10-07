@@ -488,8 +488,9 @@ class AgentDelegationPostgresTest {
         assertThat(after.inputTokensActual()).as("usage must not disappear while parent is paused").isEqualTo(1234);
         assertThat(after.outputTokensActual()).isEqualTo(123);
         // 父运行自身用量（委派轮）+ 子运行回收量（2 步/1 调用）；
-        // tool_calls_used 含委派受理自身消耗（R8 修复）+ 子运行回收
-        assertThat(after.stepsUsed()).isEqualTo(4);
+        // tool_calls_used 含委派受理自身消耗（R8 修复）+ 子运行回收。
+        // steps_used：委派轮 1 + 委派受理不占推进步（SEPARATED 语义）+ 子回收 2 = 3
+        assertThat(after.stepsUsed()).isEqualTo(3);
         assertThat(after.toolCallsUsed()).isEqualTo(2);
     }
 
@@ -759,6 +760,155 @@ class AgentDelegationPostgresTest {
         var after = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
         assertThat(after.inputTokensActual()).isEqualTo(800);
         assertThat(after.outputTokensActual()).isEqualTo(60);
+    }
+
+    // ===== 2026-10-07 第三轮：预算语义分离（模型推进 vs 工具调用）与收尾契约 =====
+
+    /**
+     * 并行工具批次不得耗尽推进预算：旧语义下一轮 4 个并行调用记 4 步，子运行
+     * （提纲+检索+正文读取）在 8 步预算终点提前耗尽（真实 B-narrow 实验复现）。
+     * 新语义（SEPARATED）下一次模型轮计一次推进、最终回答落库保留一次收口，
+     * 工具结果只计 tool_calls_used（4+2 并行调用仍计 6 次工具额度）。
+     */
+    @Test
+    void childParallelToolBatchesMustNotExhaustProgressionBudget() {
+        AgentRunView parent = newParentWithClaim("w-para");
+        AgentRunView child = delegateChild(parent);
+        java.util.concurrent.atomic.AtomicInteger childTurns = new java.util.concurrent.atomic.AtomicInteger();
+        when(modelExecutor.callModel(any(), any(), any(), anyBoolean(), any())).thenAnswer(invocation -> {
+            AgentRunView r = invocation.getArgument(0);
+            modelRequests.add(invocation.getArgument(1) == null ? "(no-messages)"
+                    : invocation.getArgument(1).toString());
+            if (r != null && r.depth() > 0) {
+                int turn = childTurns.incrementAndGet();
+                if (turn == 1) {
+                    return new ModelTurnResult("并行检索四组资料",
+                            java.util.stream.IntStream.range(0, 4).mapToObj(i -> new ModelToolCall(
+                                            "child-p" + i, "search_project_knowledge",
+                                            json.createObjectNode().put("query", "验收标准 " + i)))
+                                    .toList(),
+                            ModelFinishReason.TOOL_CALLS, new ModelUsage(3000, 40),
+                            "OPENAI_COMPATIBLE", "model-a", 100L);
+                }
+                if (turn == 2) {
+                    return new ModelTurnResult("补充检索两组",
+                            java.util.stream.IntStream.range(4, 6).mapToObj(i -> new ModelToolCall(
+                                            "child-p" + i, "search_project_knowledge",
+                                            json.createObjectNode().put("query", "验收标准 " + i)))
+                                    .toList(),
+                            ModelFinishReason.TOOL_CALLS, new ModelUsage(3200, 40),
+                            "OPENAI_COMPATIBLE", "model-a", 100L);
+                }
+                return new ModelTurnResult("研究发现：评分聚合要求去最高最低取平均，批量导入单次上限 500 人。",
+                        List.of(), ModelFinishReason.STOP, new ModelUsage(3400, 400),
+                        "OPENAI_COMPATIBLE", "model-a", 100L);
+            }
+            ModelTurnResult next = parentResponses.poll();
+            return next != null ? next : new ModelTurnResult("综合回答", List.of(),
+                    ModelFinishReason.STOP, null, "OPENAI_COMPATIBLE", "model-a", 100L);
+        });
+        AgentWorkerOutcome outcome = null;
+        int guard = 0;
+        while (outcome == null || outcome.status() == AgentRunStatus.QUEUED) {
+            var loopClaim = repository.claimNext("w-para-loop", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+            if (loopClaim.id().equals(parent.id())) {
+                // 父运行等待子运行：等待轮不发模型请求、重新排队
+                assertThat(coordinator.advance(repository.findRun(parent.projectId(), parent.id()).orElseThrow()).status())
+                        .isEqualTo(AgentRunStatus.QUEUED);
+            } else {
+                assertThat(loopClaim.id()).isEqualTo(child.id());
+                outcome = coordinator.advance(repository.findRun(parent.projectId(), child.id()).orElseThrow());
+            }
+            if (++guard > 16) throw new AssertionError("委派推进循环超限");
+        }
+        assertThat(outcome.status())
+                .as("并行工具批次不应耗尽子运行推进预算")
+                .isEqualTo(AgentRunStatus.SUCCEEDED);
+        var after = repository.findRun(parent.projectId(), child.id()).orElseThrow();
+        assertThat(after.toolCallsUsed()).as("6 个工具调用仍占工具额度").isEqualTo(6);
+        assertThat(after.stepsUsed()).as("推进步 = 3 个模型轮 + 最终回答落库").isEqualTo(4);
+    }
+
+    /**
+     * 工具额度用完但已有可信证据且模型预算尚足：超额度批次应进入无工具总结而不是直接硬停。
+     * 整批无法受理时按请求规模消耗工具额度（封顶）、跳过整批并重新排队，
+     * 下一次准入由收敛策略判定为 FINALIZE（收尾轮禁工具）。
+     */
+    @Test
+    void overQuotaToolBatchMustEnterNoToolSummaryWhenEvidenceExists() {
+        AgentRunView parent = newParentWithClaim("w-ovq");
+        // 已有可信证据（一次成功工具结果）；工具额度只剩 2，而模型请求整批 4 个调用
+        jdbc.update("UPDATE agent_run SET tool_calls_used=6 WHERE id=?", parent.id());
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,tool_name,output_json,reason)
+                VALUES (?,1,'TOOL_CALL_COMPLETED','search_project_knowledge',?::jsonb,'TOOL_SUCCESS')
+                """, parent.id(), "{\"data\":{\"items\":[{\"filename\":\"验收标准v2.1.md\"}]}}");
+        parentResponses.add(parentTurn(java.util.stream.IntStream.range(0, 4)
+                .mapToObj(i -> new ModelToolCall("ovq-" + i, "search_project_knowledge",
+                        json.createObjectNode().put("query", "评分模块 " + i)))
+                .toList()));
+        AgentWorkerOutcome first = coordinator.advance(parent);
+        assertThat(first.status())
+                .as("超额度批次应重新排队进入无工具总结，而不是硬停为 BUDGET_EXCEEDED")
+                .isEqualTo(AgentRunStatus.QUEUED);
+        var claimed = repository.claimNext("w-ovq-2", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(parent.id());
+        parentResponses.clear();
+        AgentWorkerOutcome second = coordinator.advance(
+                repository.findRun(parent.projectId(), parent.id()).orElseThrow());
+        assertThat(second.status()).as("无工具总结轮应正常收口").isEqualTo(AgentRunStatus.SUCCEEDED);
+        var after = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        assertThat(after.toolCallsUsed()).as("被拒批次按请求规模消耗工具额度（封顶）").isEqualTo(8);
+    }
+
+    /** 委派自身占一次工具调用（不占推进步）；子额度扣除该调用并预留父综合收尾。 */
+    @Test
+    void delegationSplitChargesDelegationToolAndReservesParentSynthesis() {
+        AgentRunView parent = newParentWithClaim("w-split");
+        AgentRunView child = delegateChild(parent);
+        var after = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        assertThat(after.toolCallsUsed()).as("委派受理消耗一次工具调用").isEqualTo(1);
+        assertThat(after.stepsUsed()).as("委派受理不再占推进步（SEPARATED）").isZero();
+        var row = jdbc.queryForMap(
+                "SELECT max_steps,max_tool_calls,max_input_tokens,max_output_tokens,budget_semantics FROM agent_run WHERE id=?",
+                child.id());
+        assertThat(row.get("max_tool_calls")).as("子工具额度 = 父剩余扣除委派自身一次调用").isEqualTo(7);
+        assertThat(row.get("max_steps")).as("子步数 = 父剩余扣除父综合收尾预留 2").isEqualTo(8);
+        assertThat(row.get("max_input_tokens")).as("子输入 = 父剩余的一半（等比预留，父综合留一半）").isEqualTo(25_000);
+        assertThat(row.get("max_output_tokens")).as("子输出 = 父剩余的一半").isEqualTo(8_000);
+        assertThat(row.get("budget_semantics")).as("子运行继承父运行预算语义").isEqualTo("SEPARATED");
+    }
+
+    /** 剩余额度连子运行最小研究（1 轮）与收尾（收尾轮+落库）都容纳不了：明确拒绝受理，不先启动再注定失败。 */
+    @Test
+    void delegationRejectedWhenRemainingBudgetCannotFitChildResearchAndClosing() {
+        AgentRunView parent = newParentWithClaim("w-rej");
+        // 父剩余推进步 3：扣除父综合收尾预留 2 后只剩 1，容不下子运行最小研究与收尾
+        jdbc.update("UPDATE agent_run SET steps_used=max_steps-3 WHERE id=?", parent.id());
+        AgentRunView exhausted = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                repository.documentResearchDelegationResult(exhausted, UUID.randomUUID().toString(), "研究目标"))
+                .isInstanceOf(com.shitulelv.aicollab.common.exception.BusinessException.class)
+                .hasMessageContaining("拒绝受理");
+        assertThat(repository.childRuns(parent.projectId(), parent.id())).isEmpty();
+    }
+
+    /** 旧预算运行（COMBINED）恢复推进保持旧记账：工具结果仍占推进步；子运行继承其语义。 */
+    @Test
+    void legacyCombinedSemanticsKeepsOldStepAccounting() {
+        AgentRunView parent = newParentWithClaim("w-leg");
+        jdbc.update("UPDATE agent_run SET budget_semantics='COMBINED' WHERE id=?", parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        parent = repository.recordModelTurn(parent, new ModelTurnResult("检查资料", List.of(),
+                ModelFinishReason.STOP, new ModelUsage(100, 50), "OPENAI_COMPATIBLE", "model-a", 100L));
+        parent = repository.recordToolResult(parent, "search_project_knowledge",
+                json.createObjectNode(), json.createObjectNode().put("status", "SUCCEEDED"), false);
+        assertThat(parent.stepsUsed()).as("COMBINED 旧语义下工具结果仍占推进步").isEqualTo(2);
+        assertThat(parent.toolCallsUsed()).isEqualTo(1);
+        var result = repository.documentResearchDelegationResult(parent, UUID.randomUUID().toString(), "研究目标");
+        var child = repository.findRun(parent.projectId(), UUID.fromString(result.path("childRunId").asText())).orElseThrow();
+        assertThat(jdbc.queryForObject("SELECT budget_semantics FROM agent_run WHERE id=?",
+                String.class, child.id())).as("子运行继承父运行预算语义").isEqualTo("COMBINED");
     }
 
     /**

@@ -139,8 +139,8 @@ public class AgentRepository {
         UUID runId = UUID.randomUUID();
         AgentRunView run = jdbc.queryForObject("""
                 INSERT INTO agent_run(
-                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,max_steps,max_tool_calls)
-                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb,?,?
+                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,max_steps,max_tool_calls,budget_semantics)
+                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb,?,?,'SEPARATED'
                 FROM agent_session s
                 WHERE s.project_id=? AND s.id=?
                 RETURNING *
@@ -191,8 +191,8 @@ public class AgentRepository {
         AgentRunView run = jdbc.query("""
                 INSERT INTO agent_run(
                   id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,
-                  max_steps,max_tool_calls,retried_from_run_id)
-                SELECT ?,s.id,s.project_id,?,?,'QUEUED',false,?,?::jsonb,?,?,?
+                  max_steps,max_tool_calls,retried_from_run_id,budget_semantics)
+                SELECT ?,s.id,s.project_id,?,?,'QUEUED',false,?,?::jsonb,?,?,?,'SEPARATED'
                 FROM agent_session s
                 WHERE s.project_id=? AND s.id=?
                 ON CONFLICT (retried_from_run_id) WHERE retried_from_run_id IS NOT NULL DO NOTHING
@@ -593,6 +593,12 @@ public class AgentRepository {
     @Transactional
     public void requeueRun(AgentRunView run) {
         recorder.requeueRun(run);
+    }
+
+    /** 批次因工具额度无法受理：按请求规模消耗工具额度并重新排队（见 {@link AgentRunEventRecorder}）。 */
+    @Transactional
+    public void consumeToolBatchQuotaAndRequeue(AgentRunView run, int requestedCalls) {
+        recorder.consumeToolBatchQuotaAndRequeue(run, requestedCalls);
     }
 
     /**

@@ -527,7 +527,8 @@ class AgentRepositoryIntegrationTest {
                 new ObjectMapper().createObjectNode(), new ObjectMapper().createObjectNode(), false);
         var run2 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         assertThat(run2.toolCallsUsed()).isEqualTo(1);
-        assertThat(run2.stepsUsed()).isEqualTo(2);
+        // SEPARATED 预算语义：工具结果只计工具额度，不再逐项占用推进步
+        assertThat(run2.stepsUsed()).isEqualTo(1);
 
         // Requeue (status is RUNNING after recordToolResult, so requeueRun works)
         repository.requeueRun(run2);
@@ -547,7 +548,7 @@ class AgentRepositoryIntegrationTest {
         var run5 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         assertThat(run5.inputTokensUsed()).isEqualTo(300); // 100 + 200
         assertThat(run5.outputTokensUsed()).isEqualTo(150); // 50 + 100
-        assertThat(run5.stepsUsed()).isEqualTo(3); // 1 + 1 + 1
+        assertThat(run5.stepsUsed()).isEqualTo(2); // 两个模型轮各计一次推进（工具结果不占推进步）
     }
 
     // Issue 2: toolCallsAccumulateAcrossTicks
@@ -567,14 +568,43 @@ class AgentRepositoryIntegrationTest {
                 new ObjectMapper().createObjectNode(), new ObjectMapper().createObjectNode(), false);
         var run1 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         assertThat(run1.toolCallsUsed()).isEqualTo(1);
-        assertThat(run1.stepsUsed()).isEqualTo(1);
+        // SEPARATED：工具结果不占推进步
+        assertThat(run1.stepsUsed()).isZero();
 
         // Second tool result
         repository.recordToolResult(run1, "milestone.list",
                 new ObjectMapper().createObjectNode(), new ObjectMapper().createObjectNode(), false);
         var run2 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         assertThat(run2.toolCallsUsed()).isEqualTo(2);
-        assertThat(run2.stepsUsed()).isEqualTo(2);
+        assertThat(run2.stepsUsed()).isZero();
+    }
+
+    /** COMBINED 旧语义（既有运行默认）：工具结果仍逐项占用推进步，恢复/续跑保持旧记账不重解释。 */
+    @Test
+    void legacyCombinedSemanticsStillBumpsStepsOnToolResults() {
+        Fixture fixture = fixture();
+        var session = repository.createSession(fixture.project(), fixture.user(), "combined-legacy");
+        var queued = repository.createRun(
+                fixture.project(), session.id(), fixture.user(), "旧语义运行", false, null, null);
+        // 模拟既有（历史）运行：budget_semantics 保持 COMBINED
+        jdbc.update("UPDATE agent_run SET budget_semantics='COMBINED' WHERE id=?", queued.id());
+        repository.claimNext("worker", OffsetDateTime.now(ZoneOffset.UTC), Duration.ofMinutes(1));
+        var running = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+
+        repository.recordModelTurn(running, new ModelTurnResult(
+                "t1", List.of(new ModelToolCall("tc1", "task.search",
+                        new ObjectMapper().createObjectNode().put("limit", 5))),
+                ModelFinishReason.TOOL_CALLS,
+                new ModelUsage(100, 50), "p", "m", 200));
+        var afterTurn = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(afterTurn.stepsUsed()).isEqualTo(1);
+
+        repository.recordToolResult(afterTurn, "task.search",
+                new ObjectMapper().createObjectNode(), new ObjectMapper().createObjectNode(), false);
+        var afterTool = repository.findRun(fixture.project(), queued.id()).orElseThrow();
+        assertThat(afterTool.toolCallsUsed()).isEqualTo(1);
+        // COMBINED：工具结果仍占用推进步（旧含义不静默重解释）
+        assertThat(afterTool.stepsUsed()).isEqualTo(2);
     }
 
     // Issue 2: invalidToolCallStillConsumesToolBudget
@@ -594,7 +624,8 @@ class AgentRepositoryIntegrationTest {
         var run1 = repository.findRun(fixture.project(), queued.id()).orElseThrow();
         // Even invalid tool calls should consume tool_calls_used budget
         assertThat(run1.toolCallsUsed()).isEqualTo(1);
-        assertThat(run1.stepsUsed()).isEqualTo(1);
+        // SEPARATED：非法工具调用也不占推进步
+        assertThat(run1.stepsUsed()).isZero();
     }
 
     // Issue 2: budgetExceededRunCannotBeClaimedAgain

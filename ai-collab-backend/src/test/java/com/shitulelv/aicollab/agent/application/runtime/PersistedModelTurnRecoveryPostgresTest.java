@@ -454,7 +454,8 @@ class PersistedModelTurnRecoveryPostgresTest {
     void stepBoundaryFinalizeAnswerSurvivesTakeoverOnBothPaths() {
         String answer = "完整回答：步骤边界上的收尾结果。";
         ModelTurnResult response = plainTextTurn(answer);
-        // 6 轮共 16 次成功工具调用 → stepsUsed=22、toolCallsUsed=16 → 请求前 FINALIZE
+        // 6 轮共 16 次成功工具调用：SEPARATED 语义下推进步只计模型轮，
+        // FINALIZE 边界由 toolCallsUsed 达到上限触发
         Fixture normalFixture = fixture("汇总这周进展");
         AgentRunView runN = baseStateWithToolEvidence(normalFixture, new int[]{4, 3, 3, 2, 2, 2});
         assertDecision(normalFixture, runN, AgentConvergencePolicy.Mode.FINALIZE);
@@ -464,7 +465,9 @@ class PersistedModelTurnRecoveryPostgresTest {
         Fixture recoveryFixture = fixture("汇总这周进展");
         AgentRunView runR = baseStateWithToolEvidence(recoveryFixture, new int[]{4, 3, 3, 2, 2, 2});
         AgentRunView saved = saveResponseForTakeover(runR, response, true);
-        // 保存后剩余步骤 1：若接管先看准入会判 EXHAUSTED——此处确认它不参与消费判定
+        // 重建"保存后剩余步骤只剩 1"的边界现场（SEPARATED 语义下工具结果不消耗推进步，
+        // 直接把推进步置到 max-1）：若接管先看准入会判 EXHAUSTED——此处确认它不参与消费判定
+        jdbc.update("UPDATE agent_run SET steps_used=max_steps-1 WHERE id=?", saved.id());
         AgentConvergencePolicy.Decision afterSave = new AgentConvergencePolicy().decide(
                 reload(recoveryFixture, saved), AgentRuntimeLimits.forSkill("ITERATION_PLANNING"),
                 repository.listSteps(recoveryFixture.project(), saved.id()));
@@ -749,8 +752,10 @@ class PersistedModelTurnRecoveryPostgresTest {
     }
 
     /**
-     * 19. 剩余调用确实超过总额度仍拒绝：已用 14、批次 4、已完成 1，剩余 3 项
-     *     需要 17 > 16。修复不得把总量检查放松掉。
+     * 19. 剩余调用确实超过总额度仍拒绝执行：已用 14、批次 4、已完成 1，剩余 3 项
+     *     需要 17 > 16——整批不执行，总量检查不放松。预算语义分离后，额度耗尽但有
+     *     可信证据且收尾轮可负担时，按请求规模消耗工具额度（封顶）并重新排队，
+     *     进入无工具总结而不是直接硬停。
      */
     @Test
     void trulyOverBudgetRemainingCallsStillRejected() {
@@ -767,11 +772,21 @@ class PersistedModelTurnRecoveryPostgresTest {
 
         AgentWorkerOutcome takeover = realTakeoverAdvance(fixture, saved);
 
-        assertThat(takeover.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        // 整批不执行；额度按请求规模消耗到封顶（14+4→16），运行重新排队等待无工具总结
+        assertThat(takeover.status()).isEqualTo(AgentRunStatus.QUEUED);
         assertThat(executedToolCalls).isEmpty();
-        assertThat(toolCallsUsed(saved.id())).isEqualTo(14);
+        assertThat(toolCallsUsed(saved.id())).isEqualTo(16);
         assertThat(skippedInvocationCount(saved.id())).isEqualTo(3);
-        assertThat(runStatus(saved.id())).isEqualTo("BUDGET_EXCEEDED");
+        assertThat(runStatus(saved.id())).isEqualTo("QUEUED");
+
+        // 下一次准入：工具额度耗尽 → FINALIZE 无工具总结，正常收口
+        when(modelExecutor.resolveRequest(any())).thenReturn(AgentRuntimeBehaviorTest.resolved(true));
+        when(modelExecutor.callModel(any(), any(), any(), anyBoolean(), any()))
+                .thenReturn(plainTextTurn("无工具总结：基于已核对的任务事实汇总本周进展。"));
+        recovery.claim("worker-tool-recovery-2", Duration.ofMinutes(6)).orElseThrow();
+        AgentWorkerOutcome summary = realToolCoordinator.advance(reload(fixture, saved));
+        assertThat(summary.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(summary.answer()).contains("无工具总结");
     }
 
     /**

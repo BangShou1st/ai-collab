@@ -14,6 +14,19 @@ public final class AgentConvergencePolicy {
 
     public Decision decide(
             AgentRunView run, AgentRuntimeLimits limits, List<AgentStepView> steps) {
+        return decide(run, limits, steps, false);
+    }
+
+    /**
+     * 收敛判定。{@code summarizableChildEvidence}：本运行已回收的子运行研究产出
+     * （DELEGATION_COMPLETED 中的部分回答/结论）可作为无工具总结的依据——委派型父运行
+     * 的工具消耗记在子运行名下，父运行自己的步骤里没有成功工具结果，只看
+     * TOOL_CALL_COMPLETED 会把"额度用完但有子研究产出"误判成硬停；子产出仍以
+     * 结构化身份进入最终回答，不计入父运行自己的工具成功次数。
+     */
+    public Decision decide(
+            AgentRunView run, AgentRuntimeLimits limits, List<AgentStepView> steps,
+            boolean summarizableChildEvidence) {
         List<AgentStepView> persisted = steps == null ? List.of() : steps;
         int modelTurns = (int) persisted.stream()
                 .filter(step -> step.type() == AgentStepType.MODEL_TURN)
@@ -47,7 +60,7 @@ public final class AgentConvergencePolicy {
             finalBoundary |= remainingInput <= 2L * lastInput;
         }
         Mode mode = finalBoundary
-                ? successfulToolCalls > 0 ? Mode.FINALIZE : Mode.EXHAUSTED
+                ? successfulToolCalls > 0 || summarizableChildEvidence ? Mode.FINALIZE : Mode.EXHAUSTED
                 : Mode.CONTINUE;
         return new Decision(mode, modelTurns, completedToolCalls, successfulToolCalls);
     }

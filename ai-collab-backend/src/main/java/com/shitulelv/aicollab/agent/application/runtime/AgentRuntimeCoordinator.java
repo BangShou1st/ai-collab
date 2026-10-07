@@ -224,9 +224,11 @@ public class AgentRuntimeCoordinator {
                 return new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, null, null);
             }
 
-            // 6. 尚未有可复用结果：判断是否还能发下一次请求（准入），并确定本轮请求的收尾意图
+            // 6. 尚未有可复用结果：判断是否还能发下一次请求（准入），并确定本轮请求的收尾意图。
+            //    已回收的子运行研究产出也是可总结依据（委派型父运行自己的步骤里没有工具成功结果）
+            boolean childEvidenceAvailable = collectedChildFindings(steps) != null;
             AgentConvergencePolicy.Decision convergence =
-                    convergencePolicy.decide(run, ctx.limits(), steps);
+                    convergencePolicy.decide(run, ctx.limits(), steps, childEvidenceAvailable);
             if (convergence.mode() == AgentConvergencePolicy.Mode.EXHAUSTED) {
                 AgentWorkerOutcome fallback = completeFromEvidence(run, steps, true);
                 if (fallback != null) return fallback;
@@ -305,7 +307,7 @@ public class AgentRuntimeCoordinator {
             if (overBudgetReason != null) {
                 return inputBudgetExceeded(run, requestBudget, overBudgetReason);
             }
-            if (!finalizing && convergence.successfulToolCalls() > 0
+            if (!finalizing && (convergence.successfulToolCalls() > 0 || childEvidenceAvailable)
                     && convergencePolicy.needsFinalRequest(run, ctx.limits(), steps, estimatedInput, runOutputReserve)) {
                 finalizing = true;
                 exposed = List.of();
@@ -716,13 +718,26 @@ public class AgentRuntimeCoordinator {
         // 调用——它们的结果落库时已推进 tool_calls_used，只有尚需执行的调用占新增额度；
         // 单轮数量仍按原批次校验，真实超限仍拒绝。新轮次无可复用项，语义不变。
         if (!turn.toolCalls().isEmpty()) {
+            List<AgentStepView> current = currentSteps(run, steps);
             try {
                 int alreadyCompleted = recoveryBatch
                         ? repository.countSettledInvocations(run, turn.toolCalls()) : 0;
                 convergencePolicy.validateToolBatch(run, ctx.limits(),
                         turn.toolCalls().size(), alreadyCompleted);
             } catch (IllegalArgumentException overBudget) {
-                AgentWorkerOutcome fallback = completeFromEvidence(run, currentSteps(run, steps), true);
+                // 统一预算终止：批次执行后不能才发现连收尾都无法完成。总额度不足（单轮数量
+                // 合规、模型预算尚足）且已有可信证据（父自有成功工具或已回收子研究产出）时，
+                // 按请求规模消耗工具额度（封顶）、跳过整批并重新排队，下一次准入进入
+                // 无工具总结而不是直接硬停。单轮数量超限是协议违规不是额度耗尽，
+                // 维持原证据兜底/预算终止路径；无证据或收尾不可负担同样维持原路径
+                if (turn.toolCalls().size() <= ctx.limits().maxToolCallsPerTurn()
+                        && summarizableEvidence(current)
+                        && closingTurnAffordable(run, ctx.limits(), current)) {
+                    repository.consumeToolBatchQuotaAndRequeue(run, turn.toolCalls().size());
+                    return new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, null,
+                            "TOOL_BUDGET_BATCH_REJECTED");
+                }
+                AgentWorkerOutcome fallback = completeFromEvidence(run, current, true);
                 if (fallback != null) return fallback;
                 return budgetExceeded(run);
             }
@@ -848,9 +863,11 @@ public class AgentRuntimeCoordinator {
                 AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
     }
 
-    /** 单次输入预算超限：区分约束来源（运行费用/单次上限/模型窗口），事件带具体原因。 */
+    /** 单次输入预算超限：先尝试证据兜底（已有可信证据就交付预算部分回答，不把已有产出丢成无回答终止），无证据才区分约束来源明确终止。 */
     private AgentWorkerOutcome inputBudgetExceeded(
             AgentRunView run, AgentContextBudget.Budget budget, String overBudgetReason) {
+        AgentWorkerOutcome fallback = completeFromEvidence(run, currentSteps(run, null), false);
+        if (fallback != null) return fallback;
         repository.recordBudgetExceeded(run);
         var payload = json.createObjectNode()
                 .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
@@ -960,6 +977,27 @@ public class AgentRuntimeCoordinator {
                     .append(content).append('\n');
         }
         return findings.isEmpty() ? null : findings.toString();
+    }
+
+    /**
+     * 是否已有可总结的可信证据：父运行自己的成功工具结果，或已回收的子运行研究产出
+     * （DELEGATION_COMPLETED 中的部分回答/结论）。只作为"能否进入无工具总结"的判定，
+     * 不伪造父运行的工具成功次数；子来源仍以结构化身份进入最终回答。
+     */
+    private boolean summarizableEvidence(List<AgentStepView> steps) {
+        boolean own = (steps == null ? List.<AgentStepView>of() : steps).stream()
+                .anyMatch(step -> step.type() == AgentStepType.TOOL_CALL_COMPLETED
+                        && "TOOL_SUCCESS".equals(step.reason()));
+        return own || collectedChildFindings(steps) != null;
+    }
+
+    /** 收尾轮（收尾模型请求 + 回答落库）是否仍可负担：剩余推进步足够且模型轮次未耗尽。 */
+    private boolean closingTurnAffordable(
+            AgentRunView run, AgentRuntimeLimits limits, List<AgentStepView> steps) {
+        long modelTurns = (steps == null ? List.<AgentStepView>of() : steps).stream()
+                .filter(step -> step.type() == AgentStepType.MODEL_TURN)
+                .count();
+        return run.maxSteps() - run.stepsUsed() >= 2 && modelTurns < limits.maxModelTurns();
     }
 
     private AgentWorkerOutcome invalidResponse(AgentRunView run) {

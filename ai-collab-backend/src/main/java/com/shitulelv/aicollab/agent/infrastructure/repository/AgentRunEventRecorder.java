@@ -31,6 +31,14 @@ import java.util.UUID;
  */
 @Repository
 public class AgentRunEventRecorder {
+    /**
+     * 推进步记账（V63 预算语义兼容标记）：COMBINED（旧语义，既有行默认）下工具结果
+     * 逐项占用推进步；SEPARATED（新语义，新根运行默认）下一次模型轮计一次推进、
+     * 最终回答落库保留一次收口，工具结果只计 tool_calls_used——持久化步骤/事件/invocation
+     * 不变，只改计数语义。子运行继承父运行语义，旧运行恢复/暂停续跑保持 COMBINED。
+     * 分支表达式内联在各 UPDATE 的 steps_used 赋值处。
+     */
+
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
     @org.springframework.beans.factory.annotation.Autowired
@@ -614,8 +622,8 @@ public class AgentRunEventRecorder {
                 usageBasis(completion.promptTokens(), completion.completionTokens()),
                 boundedLatency(completion.latencyMs()));
         requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status='QUEUED',steps_used=steps_used+1,
-                  tool_calls_used=tool_calls_used+1,
+                UPDATE agent_run SET status='QUEUED',tool_calls_used=tool_calls_used+1,
+                  steps_used=steps_used+CASE WHEN budget_semantics='COMBINED' THEN 1 ELSE 0 END,
                   input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
                   output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
                   input_tokens_actual=input_tokens_actual+?,
@@ -663,15 +671,15 @@ public class AgentRunEventRecorder {
         AgentRunView child = jdbc.queryForObject("""
                 INSERT INTO agent_run(
                   id,session_id,project_id,requester_id,parent_run_id,role,depth,goal,status,
-                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens)
-                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?)
+                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens,budget_semantics)
+                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?,(SELECT budget_semantics FROM agent_run WHERE id=?))
                 RETURNING *
                 """, AgentRunMappers.runMapper(), childId, run.sessionId(), run.projectId(), run.requesterId(),
                 run.id(), delegate.role(), delegate.objective(),
-                childSteps, childTools, childInputs, childOutputs);
+                childSteps, childTools, childInputs, childOutputs, run.id());
         requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status='CREATED',steps_used=steps_used+1,
-                  children_used=children_used+1,
+                UPDATE agent_run SET status='CREATED',children_used=children_used+1,
+                  steps_used=steps_used+CASE WHEN budget_semantics='COMBINED' THEN 1 ELSE 0 END,
                   input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
                   output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
                   input_tokens_actual=input_tokens_actual+?,
@@ -730,6 +738,23 @@ public class AgentRunEventRecorder {
                   updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, run.projectId(), run.id(), run.version()));
+    }
+
+    /**
+     * 批次因工具额度无法受理（新增调用超出剩余额度）：整批跳过（PENDING 调用 SKIPPED、
+     * 轮次标记已消费，恢复不重放），并按<b>请求的批次规模</b>消耗工具额度（LEAST 封顶）——
+     * 该批次的调用请求就是本次运行的额度终点，防止"拒绝→重新排队→再拒绝"空转；
+     * 运行重新排队，下一次准入由收敛策略决定无工具总结（有可信证据且收尾可负担）
+     * 或预算终止。落一条 ERROR 步骤记录拒绝原因（不占推进步），诊断可见。
+     */
+    @Transactional
+    public void consumeToolBatchQuotaAndRequeue(AgentRunView run, int requestedCalls) {
+        jdbc.update("""
+                UPDATE agent_run SET tool_calls_used=LEAST(max_tool_calls,tool_calls_used+?)
+                WHERE project_id=? AND id=? AND status='RUNNING'
+                """, requestedCalls, run.projectId(), run.id());
+        appendErrorStep(run, "TOOL_BUDGET_BATCH_REJECTED");
+        requeueRun(run);
     }
 
     /**
@@ -825,11 +850,12 @@ public class AgentRunEventRecorder {
                                   JsonNode arguments, JsonNode result, boolean isError) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
         markProgress(run.id());
-        // 先验证版本和状态，避免版本冲突时留下孤立 Step
+        // 先验证版本和状态，避免版本冲突时留下孤立 Step。
+        // 工具结果只计工具额度；推进步按预算语义分支（COMBINED 旧语义逐项占用，SEPARATED 不占）
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET
                   tool_calls_used=tool_calls_used+1,
-                  steps_used=steps_used+1,
+                  steps_used=steps_used+CASE WHEN budget_semantics='COMBINED' THEN 1 ELSE 0 END,
                   updated_at=now(), version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, run.projectId(), run.id(), run.version()));
@@ -1380,13 +1406,27 @@ public class AgentRunEventRecorder {
             throw new BusinessException(ErrorCode.AGENT_TOOL_NOT_ALLOWED, "本次运行的委派次数已用完");
         }
 
-        // 子运行预算：从父运行剩余额度切出，硬上限保证委派不放大总资源
-        int childSteps = Math.min(8, Math.max(0, run.maxSteps() - run.stepsUsed() - 1));
-        int childToolCalls = Math.min(8, Math.max(0, run.maxToolCalls() - run.toolCallsUsed()));
-        int childInput = Math.min(30_000, Math.max(0, run.maxInputTokens() - run.inputTokensUsed()));
-        int childOutput = Math.min(8_000, Math.max(0, run.maxOutputTokens() - run.outputTokensUsed()));
-        if (childSteps < 1 || childToolCalls < 1 || childInput < 1_000 || childOutput < 1_000) {
-            throw new BusinessException(ErrorCode.AGENT_TOOL_NOT_ALLOWED, "父运行剩余预算不足以委派子任务");
+        // 子运行预算：从父运行剩余额度切出，硬上限保证委派不放大总资源；
+        // 为子总结与父综合分别预留空间——委派自身占一次工具调用，子工具额度从扣除该
+        // 调用后的父剩余额度分配；父综合收尾（收尾模型轮 + 回答落库）预留 2 个推进步；
+        // COMBINED 旧语义下委派受理另占一个推进步。输入/输出按父剩余等比对半
+        // （沿用运行级等比预留思路，父综合请求需携带子证据与既有上下文），
+        // 不再用与运行自身预算无关的大固定值卡死小运行。
+        String parentSemantics = jdbc.queryForObject(
+                "SELECT budget_semantics FROM agent_run WHERE id=?", String.class, run.id());
+        boolean combined = "COMBINED".equals(parentSemantics);
+        int parentSynthesisReserve = 2;
+        int delegationStepCost = combined ? 1 : 0;
+        int childSteps = Math.min(8, Math.max(0,
+                run.maxSteps() - run.stepsUsed() - delegationStepCost - parentSynthesisReserve));
+        int childToolCalls = Math.min(8, Math.max(0, run.maxToolCalls() - run.toolCallsUsed() - 1));
+        int childInput = Math.min(30_000, Math.max(0, (run.maxInputTokens() - run.inputTokensUsed()) / 2));
+        int childOutput = Math.min(8_000, Math.max(0, (run.maxOutputTokens() - run.outputTokensUsed()) / 2));
+        // 剩余额度连子运行最小研究（1 轮）与收尾（收尾轮 + 落库）都容纳不了：
+        // 明确拒绝受理，不先启动再注定失败
+        if (childSteps < 3 || childToolCalls < 1 || childInput < 1_000 || childOutput < 1_000) {
+            throw new BusinessException(ErrorCode.AGENT_TOOL_NOT_ALLOWED,
+                    "父运行剩余预算无法容纳子运行最小研究与收尾，已拒绝受理");
         }
 
         int sequence = nextSequence(run.id());
@@ -1401,26 +1441,27 @@ public class AgentRunEventRecorder {
         AgentRunView child = jdbc.queryForObject("""
                 INSERT INTO agent_run(
                   id,session_id,project_id,requester_id,parent_run_id,role,depth,goal,status,
-                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens,page_context_json)
-                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?,NULL::jsonb)
+                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens,page_context_json,budget_semantics)
+                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?,NULL::jsonb,?)
                 RETURNING *
                 """, AgentRunMappers.runMapper(), childId, run.sessionId(), run.projectId(), run.requesterId(),
                 run.id(), "KNOWLEDGE_RESEARCHER", truncate(objective, 3800),
-                childSteps, childToolCalls, childInput, childOutput);
+                childSteps, childToolCalls, childInput, childOutput, parentSemantics);
 
         ObjectNode result = json.createObjectNode();
         result.put("status", "DELEGATED");
         result.put("childRunId", child.id().toString());
         result.put("message", "研究任务已受理。子 Agent 完成后本运行自动继续，届时综合其发现回答用户；本轮不要重复委派。");
 
-        // 父运行：登记 children_used 与委派自身的工具/步骤消耗（委派是一次真实的工具
-        // 受理，与普通 recordToolResult 同一配额语义，不出现免费调用），转回 QUEUED
-        // 等待子运行终态唤醒；不预扣子运行将要消耗的额度（子消耗在回收时并入）。
+        // 父运行：登记 children_used 与委派自身的工具消耗（委派是一次真实的工具
+        // 受理，与普通 recordToolResult 同一配额语义，不出现免费调用；推进步按
+        // 预算语义分支），转回 QUEUED 等待子运行终态唤醒；不预扣子运行将要消耗的
+        // 额度（子消耗在回收时并入）。
         // 委派工具结果在执行层身份行（invocation）上落 SUCCEEDED，恢复路径据此幂等复用。
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET status='QUEUED',children_used=children_used+1,
                   tool_calls_used=LEAST(max_tool_calls,tool_calls_used+1),
-                  steps_used=LEAST(max_steps,steps_used+1),
+                  steps_used=steps_used+CASE WHEN budget_semantics='COMBINED' THEN 1 ELSE 0 END,
                   lease_owner=NULL,lease_expires_at=NULL,
                   updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'

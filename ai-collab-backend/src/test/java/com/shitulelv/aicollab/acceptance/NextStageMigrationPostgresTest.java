@@ -29,7 +29,8 @@ class NextStageMigrationPostgresTest {
             columns.put(table,names);digests.put(table,digest(jdbc,table,names));
         }
         var result=Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate();
-        assertThat(result.migrationsExecuted).isEqualTo(8);
+        // V54–V63：V62 为委派占位、V63 为预算语义标记
+        assertThat(result.migrationsExecuted).isEqualTo(10);
         columns.forEach((table,names)->assertThat(digest(jdbc,table,names)).as(table+" existing columns").isEqualTo(digests.get(table)));
         assertThat(jdbc.queryForObject("SELECT count(*) FROM document_body",Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_planning_operation",Integer.class)).isZero();
