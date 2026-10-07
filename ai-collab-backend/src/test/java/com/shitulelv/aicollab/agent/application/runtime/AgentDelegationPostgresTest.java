@@ -31,6 +31,7 @@ import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -147,6 +148,11 @@ class AgentDelegationPostgresTest {
     }
 
     private AgentRuntimeCoordinator coordinator() {
+        return coordinator(new AgentContextProperties(true, 20_000, 4_000, 2_000, java.util.Map.of()));
+    }
+
+    /** 指定上下文预算配置的协调器：回归用生产默认值（基建的预留 4000 会掩盖子运行输出预留边界）。 */
+    private AgentRuntimeCoordinator coordinator(AgentContextProperties properties) {
         var json = new ObjectMapper();
         var access = mock(ProjectAccessGuard.class);
         Mockito.lenient().when(access.requireMember(any(), any())).thenReturn(ProjectRole.OWNER);
@@ -164,7 +170,7 @@ class AgentDelegationPostgresTest {
                 repository, assembler, new AgentSkillRegistry(), new AgentPlanService(repository, json),
                 registry, new AgentCancellationService(repository), modelExecutor,
                 new AgentConvergencePolicy(), json, events,
-                new AgentContextProperties(true, 20_000, 4_000, 2_000, java.util.Map.of()),
+                properties,
                 new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json), executor,
                 new AgentContextSummarizer(repository, modelExecutor, json));
     }
@@ -518,6 +524,129 @@ class AgentDelegationPostgresTest {
         assertThat(modelRequests).noneMatch(request -> request.contains(marker));
     }
 
+    /** R9 摘要面：子运行不得对共享会话触发摘要（摘要对象是父对话历史，不属于子任务）。 */
+    @Test
+    void childRunMustNotTriggerConversationSummary() {
+        AgentRunView parent = newParentWithClaim("w-sum");
+        // 父对话留一条足够长的历史消息（子运行可见的摘要候选源）
+        jdbc.update("INSERT INTO agent_message(session_id,run_id,role,content) VALUES (?,?,'USER',?)",
+                parent.sessionId(), parent.id(), "父对话历史内容，不属于委派任务。".repeat(30));
+        AgentRunView child = delegateChild(parent);
+        var claimed = repository.claimNext("w-sum-child", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(child.id());
+        var before = jdbc.queryForList(
+                "SELECT working_state->'summary'->>'text' FROM agent_session WHERE id=?",
+                String.class, parent.sessionId());
+        coordinator.advance(repository.findRun(parent.projectId(), child.id()).orElseThrow());
+        var after = jdbc.queryForList(
+                "SELECT working_state->'summary'->>'text' FROM agent_session WHERE id=?",
+                String.class, parent.sessionId());
+        assertThat(after.getFirst()).as("child run must not write a session summary").isEqualTo(before.getFirst());
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM agent_step WHERE run_id=? AND reason='CONTEXT_SUMMARY'
+                """, Integer.class, child.id())).isZero();
+    }
+
+    /**
+     * R12 运行级输出预留：委派子运行的输出硬上限（8000）与生产全局预留（outputReserveTokens=8000）
+     * 恰好相等，固定预留会把子运行第一轮之后的任何剩余额度（8000-31=7969）判成
+     * "预留已耗尽"——needsFinalRequest 立即强制收尾、摘要预留检查直接超限，
+     * 子运行永远无法发起第二次模型请求（真实环境三次委派实验复现）。
+     * 测试基建的预留值（4000）会掩盖该边界，本用例用生产默认配置锁定修复行为：
+     * 预留按运行自身预算等比收紧，子运行消耗输出后必须能继续第二轮请求并正常收尾。
+     */
+    @Test
+    void childRunWithProductionOutputReserveMustIssueSecondModelRequest() {
+        AgentRuntimeCoordinator productionCoordinator = coordinator(AgentContextProperties.defaults());
+        AgentRunView parent = newParentWithClaim("w-res");
+        AgentRunView child = delegateChild(parent);
+
+        // 子运行第一轮：留下真实输出消耗（usage 与线上失败一致：input 3512 / output 31）
+        when(modelExecutor.callModel(any(), any(), any(), anyBoolean(), any())).thenAnswer(invocation -> {
+            AgentRunView r = invocation.getArgument(0);
+            modelRequests.add(invocation.getArgument(1) == null ? "(no-messages)"
+                    : invocation.getArgument(1).toString());
+            if (r != null && r.depth() > 0) {
+                return new ModelTurnResult("开始检索项目文档",
+                        List.of(new ModelToolCall("child-call-r1", "list_project_documents",
+                                json.createObjectNode())),
+                        ModelFinishReason.TOOL_CALLS, new ModelUsage(3512, 31),
+                        "OPENAI_COMPATIBLE", "model-a", 100L);
+            }
+            ModelTurnResult next = parentResponses.poll();
+            return next != null ? next : new ModelTurnResult("综合回答", List.of(),
+                    ModelFinishReason.STOP, null, "OPENAI_COMPATIBLE", "model-a", 100L);
+        });
+        var childClaimed = repository.claimNext("w-res-child1", java.time.OffsetDateTime.now(),
+                Duration.ofMinutes(6)).orElseThrow();
+        assertThat(childClaimed.id()).isEqualTo(child.id());
+        productionCoordinator.advance(repository.findRun(parent.projectId(), child.id()).orElseThrow());
+        assertThat(jdbc.queryForObject(
+                "SELECT output_tokens_used FROM agent_run WHERE id=?", Integer.class, child.id()))
+                .as("第一轮必须留下真实输出消耗，否则用例没有触发预留边界")
+                .isGreaterThan(0);
+
+        // 第二轮：修复前在生产预留值下直接 BUDGET_EXCEEDED；修复后继续请求并文本收尾
+        when(modelExecutor.callModel(any(), any(), any(), anyBoolean(), any())).thenAnswer(invocation -> {
+            AgentRunView r = invocation.getArgument(0);
+            modelRequests.add(invocation.getArgument(1) == null ? "(no-messages)"
+                    : invocation.getArgument(1).toString());
+            if (r != null && r.depth() > 0) {
+                return new ModelTurnResult("研究发现：验收标准要求评分去最高最低取平均，批量导入单次上限 500 人。",
+                        List.of(), ModelFinishReason.STOP, new ModelUsage(4200, 500),
+                        "OPENAI_COMPATIBLE", "model-a", 100L);
+            }
+            ModelTurnResult next = parentResponses.poll();
+            return next != null ? next : new ModelTurnResult("综合回答", List.of(),
+                    ModelFinishReason.STOP, null, "OPENAI_COMPATIBLE", "model-a", 100L);
+        });
+        var claimed = repository.claimNext("w-res-child2", java.time.OffsetDateTime.now(),
+                Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(child.id());
+        var outcome = productionCoordinator.advance(
+                repository.findRun(parent.projectId(), child.id()).orElseThrow());
+        assertThat(outcome.status())
+                .as("子运行消耗输出后必须能发起第二次模型请求并正常收尾")
+                .isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(jdbc.queryForObject("SELECT status FROM agent_run WHERE id=?",
+                String.class, child.id())).isEqualTo("SUCCEEDED");
+    }
+
+    /**
+     * R12b 子运行预算部分回答随回收进入父综合：证据兜底产出的部分回答此前只停留在
+     * 子运行运行结果里，DELEGATION_COMPLETED 的 content 仅回传错误码，父运行综合时
+     * 看不到子运行已取得的工具证据（真实委派实验第三次运行复现："子 Agent 产出：零"）。
+     * 修复后错误码占位必须被部分回答覆盖。
+     */
+    @Test
+    void childBudgetPartialAnswerMustReachParentCollection() {
+        AgentRunView parent = newParentWithClaim("w-pb");
+        AgentRunView child = delegateChild(parent);
+        var claimed = repository.claimNext("w-pb-child", java.time.OffsetDateTime.now(),
+                Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(child.id());
+        // 子运行先留下一次成功的工具结果（证据兜底的数据来源）
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,tool_name,output_json,reason)
+                VALUES (?,1,'TOOL_CALL_COMPLETED','list_project_documents',?::jsonb,'TOOL_SUCCESS')
+                """, child.id(), "{\"data\":{\"items\":[{\"filename\":\"验收标准v2.1.md\"}]}}");
+        child = repository.findRun(parent.projectId(), child.id()).orElseThrow();
+
+        String partial = "模型未能在本次运行预算内生成完整总结，先返回已取得的结果：\n"
+                + "- list_project_documents: {\"data\":{\"items\":[{\"filename\":\"验收标准v2.1.md\"}]}}";
+        repository.recordBudgetPartialAnswer(child, partial, true);
+
+        var completed = jdbc.queryForObject("""
+                SELECT output_json->>'status', output_json->>'content' FROM agent_step
+                WHERE run_id=? AND type='DELEGATION_COMPLETED'
+                """, (rs, n) -> rs.getString(1) + "|" + rs.getString(2), parent.id());
+        assertThat(completed).as("回收状态如实标注预算超限").startsWith("BUDGET_EXCEEDED");
+        assertThat(completed).as("回收内容必须是子运行的部分回答而不是错误码占位")
+                .contains("list_project_documents");
+        // 父运行已回收子运行用量并转入可领取状态
+        var after = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        assertThat(after.inputTokensActual()).isGreaterThanOrEqualTo(0);
+    }
     /** R8：受理成功的委派必须计入父运行的工具配额（不出现免费调用）。 */
     @Test
     void acceptedDelegationMustConsumeAToolCall() {
@@ -631,4 +760,39 @@ class AgentDelegationPostgresTest {
         assertThat(after.inputTokensActual()).isEqualTo(800);
         assertThat(after.outputTokensActual()).isEqualTo(60);
     }
+
+    /**
+     * R12c 委派型父运行的预算部分回答必须包含已回收的子运行研究产出：
+     * 委派型运行的工具消耗记在子运行名下（回收并入父预算），父运行自己没有
+     * TOOL_CALL_COMPLETED 步骤——此前证据兜底只看自有工具证据，回收后批量补读
+     * 被预算整批拒绝时兜底为空，连子运行已取得的研究产出都交付不了
+     * （真实委派实验第三次运行复现：运行终止且无任何最终回答落库）。
+     */
+    @Test
+    void delegationParentBudgetFallbackMustCarryChildFindings() {
+        AgentRunView parent = newParentWithClaim("w-cf");
+        // 已回收的子运行产出（DELEGATION_COMPLETED，BUDGET_EXCEEDED + 部分回答）
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,output_json,reason)
+                VALUES (?,1,'DELEGATION_COMPLETED',?::jsonb,'Specialist child run completed')
+                """, parent.id(), """
+                {"childRunId":"11111111-1111-1111-1111-111111111111","status":"BUDGET_EXCEEDED",
+                 "content":"模型未能在本次运行预算内生成完整总结，先返回已取得的结果：\\n- get_document_outline: 评分聚合要求去最高最低取平均，批量导入单次上限 500 人。","citations":[]}
+                """);
+        // 父运行步骤预算逼近终点（剩余 1 步 < 收尾所需 2 步 → EXHAUSTED）
+        jdbc.update("UPDATE agent_run SET steps_used=max_steps-1 WHERE id=?", parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+
+        AgentWorkerOutcome outcome = coordinator.advance(parent);
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        assertThat(outcome.answer())
+                .as("预算部分回答必须携带已回收子运行的研究产出")
+                .contains("get_document_outline").contains("评分聚合");
+        // depth=0 的部分回答落为会话 ASSISTANT 消息（用户可见）
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM agent_message
+                WHERE session_id=? AND role='ASSISTANT' AND content LIKE '%get_document_outline%'
+                """, Integer.class, parent.sessionId())).isEqualTo(1);
+    }
 }
+

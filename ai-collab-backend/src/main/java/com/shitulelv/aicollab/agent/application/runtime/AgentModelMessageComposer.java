@@ -359,11 +359,16 @@ public class AgentModelMessageComposer {
         for (AgentMessageView msg : recentMessages) {
             if (!pickedIds.contains(msg.id())) summaryCandidates.add(msg);
         }
-        // 子研究运行不做会话摘要：摘要的对象是父对话历史，子运行没有参与也不应触发
-        if (isChildResearchRun(run, skill)) summaryCandidates = List.of();
+        // 子研究运行不做会话摘要：摘要的对象是父对话历史，子运行没有参与也不应触发。
+        // 置空必须同时覆盖本地候选与持久化候选（persisted）——否则 line 366 的持久化
+        // 重新加载会把子运行重新变回父对话摘要的发起者，覆盖共享会话的摘要状态。
+        boolean childResearchRun = isChildResearchRun(run, skill);
+        if (childResearchRun) summaryCandidates = List.of();
         // 从持久化覆盖进度重新加载旧消息，不能让最近历史窗口成为摘要的读取边界。
-        List<AgentMessageView> persisted = repository.listSummaryCandidates(run, pickedIds, SUMMARY_CANDIDATE_LIMIT);
-        if (!persisted.isEmpty() || (summary != null && summary.hasNonNull("completedBefore"))) summaryCandidates = persisted;
+        List<AgentMessageView> persisted = childResearchRun
+                ? List.of() : repository.listSummaryCandidates(run, pickedIds, SUMMARY_CANDIDATE_LIMIT);
+        if (childResearchRun) summaryCandidates = List.of();
+        else if (!persisted.isEmpty() || (summary != null && summary.hasNonNull("completedBefore"))) summaryCandidates = persisted;
         else if (summaryCandidates.size() > SUMMARY_CANDIDATE_LIMIT)
             summaryCandidates = summaryCandidates.subList(0, SUMMARY_CANDIDATE_LIMIT);
 

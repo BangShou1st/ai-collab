@@ -1,0 +1,35 @@
+{
+ "run": "quality-B4 delegated full-scope after 3 fixes (R12 reserve / R12b partial-answer backfill / R12c fallback)",
+ "question": "请把这次研究委派给文档研究子 Agent 完整执行：研究本项目全部文档，整理验收标准对评分聚合、批量导入、数据脱敏三项的具体要求，以及各技术方案对这三项的说明与差距，逐项列出文档依据、缺口和未读到的章节。",
+ "parentRunId": "3e92ed11-9ea9-4921-98a1-e3a236c9c468",
+ "childRunId": "3d816801-ec46-4210-8171-a61acc8c8973",
+ "parentStatus": "BUDGET_EXCEEDED",
+ "childStatus": "BUDGET_EXCEEDED",
+ "elapsedSeconds": 98,
+ "childBudget": {
+  "maxSteps": 8,
+  "maxToolCalls": 8,
+  "maxInputTokens": 30000,
+  "maxOutputTokens": 8000,
+  "used": {
+   "steps": 7,
+   "toolCalls": 5,
+   "input": 7720,
+   "output": 242
+  }
+ },
+ "childAchieved": "2 轮模型请求 + list_project_documents + 4×get_document_outline(全部 4 篇文档目录)。修复前(实验B/B2)子运行在第 2 步即被误判预留耗尽(0-2 次工具调用);修复后子运行可正常多轮执行,终点为真实步骤预算(8 步)耗尽。",
+ "deliveredAnswer": "父运行以预算部分回答交付 2092 字:含已回收子运行的文档清单(4 篇元数据)与全部文档提纲(get_document_outline 结果),状态如实标注 BUDGET_EXCEEDED。",
+ "answer": "见会话 ASSISTANT 消息(2026-10-07T09:52:44Z):模型未能在本次运行预算内生成完整总结,先返回已回收子运行的研究产出(状态如实标注,覆盖范围以其自身声明为准)…",
+ "evidence": {
+  "parentSteps": [
+   "MODEL_REQUEST(context_summary)",
+   "MODEL_TURN",
+   "DELEGATION_REQUESTED",
+   "DELEGATION_COMPLETED(child partial answer,R12b)",
+   "MODEL_TURN(synthesis with child evidence)",
+   "budget partial answer via COLLECTED_CHILD_EVIDENCE (R12c)"
+  ],
+  "note": "对照 B2/B3:B2 子运行 2 步即死且回收内容仅错误码;B3 子运行 7 步但部分回答未回传、父运行硬停无交付;B4 全链路优雅降级,最终用户可见部分产出。"
+ }
+}
