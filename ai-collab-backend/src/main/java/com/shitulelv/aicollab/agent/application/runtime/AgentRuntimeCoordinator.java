@@ -243,6 +243,15 @@ public class AgentRuntimeCoordinator {
 
             // 7. 单次请求输入预算：min(模型窗口-输出预留-安全余量, 运行剩余输入预算, 应用单次上限)
             int remainingRunInput = Math.min(run.maxInputTokens(), ctx.limits().maxInputTokens()) - run.inputTokensUsed();
+            // 运行级输出预留：按运行自身输出预算等比收紧（不超过预算一半）。
+            // 全局预留（8000）按常规运行的输出预算（20000）设计；委派子运行的输出硬上限
+            // （8000）与全局预留恰好相等，固定预留会把子运行第一轮之后的任何状态判成
+            // "预留已耗尽"——needsFinalRequest 立即强制收尾、摘要预留检查直接超限，
+            // 子运行永远无法发起第二次模型请求（真实环境三次委派实验复现）。
+            // 运行能承诺的输出预留不能超过它自己的预算；模型窗口级预留（perRequest 内）
+            // 是窗口容量记账，仍用全局值，不在此收紧。
+            int runOutputReserve = Math.min(contextProperties.outputReserveTokens(),
+                    Math.max(0, run.maxOutputTokens() / 2));
             // 本轮请求准备时解析一次当前 AGENT 配置；窗口预算、能力、工具协议、出站调用
             // 与该响应的工具校验共用这一份解析结果，下一轮重新读取最新配置
             var resolved = modelExecutor.resolveRequest(run);
@@ -297,7 +306,7 @@ public class AgentRuntimeCoordinator {
                 return inputBudgetExceeded(run, requestBudget, overBudgetReason);
             }
             if (!finalizing && convergence.successfulToolCalls() > 0
-                    && convergencePolicy.needsFinalRequest(run, ctx.limits(), steps, estimatedInput, contextProperties.outputReserveTokens())) {
+                    && convergencePolicy.needsFinalRequest(run, ctx.limits(), steps, estimatedInput, runOutputReserve)) {
                 finalizing = true;
                 exposed = List.of();
                 messages = appendTurnInstructions(composition != null ? composition.messages()
@@ -336,7 +345,7 @@ public class AgentRuntimeCoordinator {
                     return inputBudgetExceeded(run, refreshedBudget, "SUMMARY_CONSUMED_BUDGET");
                 }
                 long refreshedRemainingOutput = Math.min(run.maxOutputTokens(), ctx.limits().maxOutputTokens()) - run.outputTokensActual();
-                if (refreshedRemainingOutput < contextProperties.outputReserveTokens()) {
+                if (refreshedRemainingOutput < runOutputReserve) {
                     // 摘要已耗尽输出预留：主调用/最终请求无法再保证输出容量，明确停止，不继续请求
                     repository.recordBudgetExceeded(run);
                     emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
@@ -901,7 +910,22 @@ public class AgentRuntimeCoordinator {
                 .filter(step -> step.output() != null)
                 .filter(step -> !step.output().path("citations").isArray() || step.output().path("citations").isEmpty() || repository.citationsStillValid(projectId,step.output()))
                 .toList();
-        if (successful.isEmpty()) return null;
+        if (successful.isEmpty()) {
+            // 本运行无自有工具证据时回退到已回收的子运行研究产出：委派型运行的工具消耗
+            // 记在子运行名下、经回收并入父预算，父运行自己的步骤里没有 TOOL_CALL_COMPLETED。
+            // 预算部分回答不能空手而终（真实委派实验第三次运行：批量补读被预算整批拒绝，
+            // 兜底为空 → 连子运行已取得的研究产出都没交付）。
+            String childFindings = collectedChildFindings(steps);
+            if (childFindings == null) return null;
+            String content = ("模型未能在本次运行预算内生成完整总结，先返回已回收子运行的研究产出"
+                    + "（状态如实标注，覆盖范围以其自身声明为准）：\n" + childFindings).stripTrailing();
+            repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn);
+            emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
+                    json.createObjectNode()
+                            .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
+                            .put("fallback", "COLLECTED_CHILD_EVIDENCE"));
+            return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, content, null, "AGENT_BUDGET_EXCEEDED");
+        }
 
         StringBuilder answer = new StringBuilder("模型未能在本次运行预算内生成完整总结，先返回已取得的结果：\n");
         successful.stream().skip(Math.max(0, successful.size() - 5L)).forEach(step -> {
@@ -917,6 +941,25 @@ public class AgentRuntimeCoordinator {
                         .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
                         .put("fallback", "PERSISTED_TOOL_EVIDENCE"));
         return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, content, null, "AGENT_BUDGET_EXCEEDED");
+    }
+
+    /**
+     * 已回收子运行的研究产出（DELEGATION_COMPLETED 中的部分回答），错误码占位视为无产出：
+     * 失败/取消的子运行没有研究内容可回收，不把占位符当成发现交付。
+     */
+    private String collectedChildFindings(List<AgentStepView> steps) {
+        if (steps == null) return null;
+        StringBuilder findings = new StringBuilder();
+        for (AgentStepView step : steps) {
+            if (step.type() != AgentStepType.DELEGATION_COMPLETED || step.output() == null) continue;
+            String content = step.output().path("content").asText("");
+            if (content.isBlank() || content.length() <= 64 && content.matches("[A-Z0-9_]+")) continue;
+            String status = step.output().path("status").asText("UNKNOWN");
+            if (content.length() > 2000) content = content.substring(0, 2000) + "…";
+            findings.append("- 文档研究子运行（status=").append(status).append("）：\n")
+                    .append(content).append('\n');
+        }
+        return findings.isEmpty() ? null : findings.toString();
     }
 
     private AgentWorkerOutcome invalidResponse(AgentRunView run) {

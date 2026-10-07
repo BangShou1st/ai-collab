@@ -252,6 +252,17 @@ public class AgentRunEventRecorder {
                     INSERT INTO agent_message(session_id,run_id,role,content)
                     VALUES (?,?,'ASSISTANT',?)
                     """, run.sessionId(), run.id(), content);
+        } else if (content != null && !content.isBlank()) {
+            // R12b 子运行预算部分回答随回收进入父综合：recordBudgetExceeded 的 resumeParent
+            // 先按错误码占位写入 DELEGATION_COMPLETED，这里把证据兜底产出的部分回答回填，
+            // 否则子运行已取得的工具证据对父运行不可见（委派失败等于产出全丢，
+            // 真实委派实验第三次运行复现）。仅回填错误码占位，不覆盖已有产出内容。
+            jdbc.update("""
+                    UPDATE agent_step SET output_json = jsonb_set(output_json, '{content}', ?::jsonb)
+                    WHERE run_id=? AND type='DELEGATION_COMPLETED'
+                      AND output_json->>'childRunId'=?
+                      AND output_json->>'content'='AGENT_BUDGET_EXCEEDED'
+                    """, jsonString(content), run.parentRunId(), run.id().toString());
         }
     }
 
