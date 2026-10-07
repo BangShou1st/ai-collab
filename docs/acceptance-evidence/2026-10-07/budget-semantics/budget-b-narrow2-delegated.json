@@ -1,0 +1,39 @@
+{
+  "model": "mimo-v2.6-flash-free (Zen preset)",
+  "embedding": "qwen3-embedding:0.6b/1024d (Ollama, active)",
+  "budgetSemantics": "SEPARATED (V63)",
+  "launchedVia": "browser-skill 实测 Web UI",
+  "date": "2026-10-07",
+  "experiment": "B-narrow2 单文档委派（同上轮 B-narrow 问题文本）",
+  "runId": "f76098d9-b12a-40f6-a6c1-102783aeece2",
+  "childRunId": "5a506353-00af-488d-8029-8633958d4aeb",
+  "parentStatus": "SUCCEEDED",
+  "childStatus": "SUCCEEDED",
+  "elapsedSeconds": 129,
+  "parentUsage": {
+    "steps": 8,
+    "toolCalls": 8,
+    "inputTokens": 33216,
+    "outputTokens": 5618
+  },
+  "childUsage": {
+    "steps": 4,
+    "toolCalls": 6,
+    "inputTokens": 17887,
+    "outputTokens": 3554
+  },
+  "childToolSequence": [
+    "get_document_outline",
+    "search_project_knowledge",
+    "read_document_section",
+    "read_document_section",
+    "read_document_section",
+    "read_document_section"
+  ],
+  "parentCitations": 8,
+  "answerLength": 2174,
+  "keyResult": "子运行完整执行（读提纲、检索、4 次正文读取）并成功收尾；父运行综合出 2174 字逐条对照报告，含 8 条真实 chunk 引用与诚实缺口声明。上轮同任务两层均 BUDGET_EXCEEDED。",
+  "answerFile": "bnarrow2-answer.txt",
+  "screenshot": "bnarrow2-delegated-answer.png",
+  "note": "父综合称\"未取得提纲\"，实际提纲已取得（4 节 HEURISTIC_HEADINGS）：父运行只见子运行回传的结论与结构化引用，不见子工具级细节——记录为模型转述边界，非预算缺陷。"
+}

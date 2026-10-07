@@ -129,3 +129,12 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 - **约束只来自 USER 消息**（`appendUser` 三个调用点：createRun、createRetryRun、continueRun），助手响应无写入路径；触发模式是保守词表 + 子句级疑问/否定/假设过滤。2026-10-06 修正：DATE_LOCK 触发词移除单字"别"（"日期…分别…"经 ≤6 字桥接误命中），疑问词表补"能否"。
 - **quote 是来源消息中的原文证据**：`repairLegacyV2Entries` 渐进修复只规范化 value/detail，不得覆盖已有 quote（否则溯源信息逐轮被 value 再生文本改写）。
 - **用户更正优先级**：`working_state.goalCorrections` 登记显式更正（子句以"更正/修正/再更正/再修正"开头或含"更正：/修正:"，最多 5 条，含 sourceMessageId）。三条不变量：① **quote 保留完整更正原文**（单条上限 1000 字；子句切分会把实际更正内容截掉）；② 读取端（Composer 工作状态块、摘要器 `CURRENT_STATE_FOR_SUMMARY.activeGoalCorrections`）**按时间顺序提供当前目标的全部有效更正**（只取最后一条会让早期更正在原始消息退出窗口后丢失）；③ **显式"新目标："批量退位旧更正**（status=superseded、supersededReason=GOAL_REPLACED，历史保留），读取端只渲染 active 条目——换目标后旧更正不再约束新目标。**不解析更正语义、不改写 activeGoal**。回归：`AgentWorkingStateConstraintIntegrationTest`、`AgentModelMessageComposerV2Test`、`AgentContextSummarizerTest`。
+
+## 11. 预算语义分离（2026-10-07 交付）
+
+完整报告：`docs/agent-budget-semantics-acceptance-20261007.md`（V63、切分公式、无工具总结路径、真实模型验收）。维护要点：
+
+- **`agent_run.budget_semantics`（V63）是计数语义的唯一判据**：`COMBINED`（旧，既有行默认）工具结果逐项占推进步；`SEPARATED`（新根运行/终态重试派生默认）只有模型轮与最终回答落库占推进步，工具结果只计 `tool_calls_used`（`TOOL_CALL_COMPLETED` 步骤/事件/invocation 全保留）。分支表达式内联在 `AgentRunEventRecorder` 各 `steps_used` 赋值处；子运行经 SQL 继承父语义，旧运行恢复/暂停续跑/崩溃接管按原语义累计，不重算历史。
+- **委派切分**（`documentResearchDelegationResult`）：委派自身 1 次工具调用；子工具 = min(8, 父剩余−1)；子步数 = min(8, 父剩余−父综合收尾预留 2−委派步成本)；子输入/输出 = 父剩余一半（封顶 30000/8000）；剩余连"子最小研究+子收尾+父综合"都容不下时明确拒绝受理。调整切分必须同时核对回收（`resumeParent` 只计一次）与父收尾预留。
+- **终止统一**：批次超总额度 + 有可信证据（父自有 `TOOL_SUCCESS` 或已回收子产出）+ 收尾轮可负担 → `consumeToolBatchQuotaAndRequeue`（按请求封顶消耗额度、整批 SKIPPED、`TOOL_BUDGET_BATCH_REJECTED` ERROR 步骤、重排队）→ 下次准入 FINALIZE 无工具总结。单轮数量超限是协议违规，不走该路径。`decide` 的 `summarizableChildEvidence` 参数只作为 FINALIZE 依据，不计入父成功工具次数。
+- **改这里时同步看**：`AgentConvergencePolicy`（公式对两种语义通用）、`AgentWorker` 预算前置检查（数值型）、`AgentRepositoryIntegrationTest`/`AgentDelegationPostgresTest`（两种语义各有镜像断言）。
