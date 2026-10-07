@@ -767,7 +767,7 @@ class AgentRuntimeBehaviorTest {
         AgentConvergencePolicy convergencePolicy = mock(AgentConvergencePolicy.class);
         AgentConvergencePolicy.Decision decision = mock(AgentConvergencePolicy.Decision.class);
         when(decision.mode()).thenReturn(AgentConvergencePolicy.Mode.FINALIZE);
-        when(convergencePolicy.decide(any(), any(), anyList())).thenReturn(decision);
+        when(convergencePolicy.decide(any(), any(), anyList(), anyBoolean())).thenReturn(decision);
 
         coordinator = new AgentRuntimeCoordinator(
                 repository, contextAssembler, skillRegistry, planService,
@@ -801,7 +801,7 @@ class AgentRuntimeBehaviorTest {
         AgentConvergencePolicy convergencePolicy = mock(AgentConvergencePolicy.class);
         AgentConvergencePolicy.Decision decision = mock(AgentConvergencePolicy.Decision.class);
         when(decision.mode()).thenReturn(AgentConvergencePolicy.Mode.FINALIZE);
-        when(convergencePolicy.decide(any(), any(), anyList())).thenReturn(decision);
+        when(convergencePolicy.decide(any(), any(), anyList(), anyBoolean())).thenReturn(decision);
 
         coordinator = new AgentRuntimeCoordinator(
                 repository, contextAssembler, skillRegistry, planService,
