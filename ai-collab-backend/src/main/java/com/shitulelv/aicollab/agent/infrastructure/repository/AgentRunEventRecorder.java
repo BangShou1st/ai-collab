@@ -1440,7 +1440,11 @@ public class AgentRunEventRecorder {
             throw new BusinessException(ErrorCode.AGENT_RUN_PAUSED, "Agent 运行已请求暂停，不启动委派");
         }
         if (run.childrenUsed() >= run.maxChildren()) {
-            throw new BusinessException(ErrorCode.AGENT_TOOL_NOT_ALLOWED, "本次运行的委派次数已用完");
+            throw new com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException(
+                    com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission
+                            .RejectionReason.CHILDREN_EXHAUSTED.code(),
+                    com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission
+                            .RejectionReason.CHILDREN_EXHAUSTED.message());
         }
 
         // 子运行预算：从父运行剩余额度切出，硬上限保证委派不放大总资源；
@@ -1452,19 +1456,23 @@ public class AgentRunEventRecorder {
         String parentSemantics = jdbc.queryForObject(
                 "SELECT budget_semantics FROM agent_run WHERE id=?", String.class, run.id());
         boolean combined = "COMBINED".equals(parentSemantics);
-        int parentSynthesisReserve = 2;
-        int delegationStepCost = combined ? 1 : 0;
-        int childSteps = Math.min(8, Math.max(0,
-                run.maxSteps() - run.stepsUsed() - delegationStepCost - parentSynthesisReserve));
-        int childToolCalls = Math.min(8, Math.max(0, run.maxToolCalls() - run.toolCallsUsed() - 1));
-        int childInput = Math.min(30_000, Math.max(0, (run.maxInputTokens() - run.inputTokensUsed()) / 2));
-        int childOutput = Math.min(8_000, Math.max(0, (run.maxOutputTokens() - run.outputTokensUsed()) / 2));
+        var facts = new com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.Facts(
+                run.maxSteps(), run.stepsUsed(), run.maxToolCalls(), run.toolCallsUsed(),
+                run.maxInputTokens(), run.inputTokensUsed(), run.maxOutputTokens(), run.outputTokensUsed(),
+                run.childrenUsed(), run.maxChildren(), combined);
         // 剩余额度连子运行最小研究（1 轮）与收尾（收尾轮 + 落库）都容纳不了：
-        // 明确拒绝受理，不先启动再注定失败
-        if (childSteps < 3 || childToolCalls < 1 || childInput < 1_000 || childOutput < 1_000) {
-            throw new BusinessException(ErrorCode.AGENT_TOOL_NOT_ALLOWED,
-                    "父运行剩余预算无法容纳子运行最小研究与收尾，已拒绝受理");
+        // 明确拒绝受理（可预期拒绝类型的异常，不先启动再注定失败），
+        // 由调用方有边界地保留父运行、不把它判成失败
+        var rejection = com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.reject(facts);
+        if (rejection != null) {
+            throw new com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException(
+                    rejection.code(), rejection.message());
         }
+        var childBudget = com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.split(facts);
+        int childSteps = childBudget.steps();
+        int childToolCalls = childBudget.toolCalls();
+        int childInput = childBudget.inputTokens();
+        int childOutput = childBudget.outputTokens();
 
         int sequence = nextSequence(run.id());
         jdbc.update("""
