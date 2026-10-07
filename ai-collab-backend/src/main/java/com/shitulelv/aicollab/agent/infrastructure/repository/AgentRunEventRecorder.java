@@ -8,6 +8,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentCitation;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
+import com.shitulelv.aicollab.agent.domain.model.DelegatedResearchCoverage;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import com.shitulelv.aicollab.common.exception.BusinessException;
@@ -1277,6 +1278,12 @@ public class AgentRunEventRecorder {
      *
      * <p>来源身份（R7）：回收本运行成功工具结果中的有效 citations，随 DELEGATION_COMPLETED
      * 持久化，父运行综合时能把这些来源投影到自己的最终回答，不依赖模型重新编造引用 ID。</p>
+     *
+     * <p>覆盖事实：同时从子运行持久化工具结果推导最小结构化覆盖（文档/版本身份、提纲取得状态与
+     * 可信度、已读章节、分页/截断限制、已知缺口、结束原因），由
+     * {@link DelegatedResearchCoverage} 提取——不由模型填写、不追加统计用工具调用、
+     * 不回传工具原文。父运行据此如实说明范围，不再只凭子运行的文字转述
+     * （真实 B-narrow2 实验：父综合误称"未取得提纲"）。</p>
      */
     private void resumeParent(AgentRunView child, String status, String content) {
         if (child.parentRunId() == null) return;
@@ -1295,6 +1302,7 @@ public class AgentRunEventRecorder {
                 .put("status", status)
                 .put("content", content);
         completed.set("citations", json.valueToTree(childCitations.values().stream().limit(50).toList()));
+        completed.set("coverage", DelegatedResearchCoverage.extract(json, persistedToolResults(child.id()), status));
         completed.put("usage", json.createObjectNode()
                 .put("inputTokensUsed", usage.inputTokensUsed())
                 .put("outputTokensUsed", usage.outputTokensUsed())
@@ -1329,6 +1337,35 @@ public class AgentRunEventRecorder {
                   updated_at=now(),version=version+1
                 WHERE id=? AND status IN ('CREATED','QUEUED')
                 """, child.parentRunId());
+    }
+
+    /**
+     * 子运行持久化的全部工具结果（成功与失败），按执行顺序返回给覆盖提取器：
+     * tool_name / reason（TOOL_SUCCESS|TOOL_ERROR）/ input_json / output_json。
+     * 只读取持久化事实，不调用工具、不让模型参与。
+     */
+    private List<DelegatedResearchCoverage.PersistedToolResult> persistedToolResults(UUID runId) {
+        return jdbc.query("""
+                SELECT tool_name, reason, input_json::text AS input_json, output_json::text AS output_json
+                FROM agent_step
+                WHERE run_id=? AND type='TOOL_CALL_COMPLETED' AND tool_name IS NOT NULL
+                ORDER BY sequence_no
+                """, (rs, index) -> new DelegatedResearchCoverage.PersistedToolResult(
+                        rs.getString("tool_name"),
+                        rs.getString("reason"),
+                        parseJsonOrNull(rs.getString("input_json")),
+                        parseJsonOrNull(rs.getString("output_json"))),
+                runId);
+    }
+
+    private JsonNode parseJsonOrNull(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return json.readTree(value);
+        } catch (JsonProcessingException malformed) {
+            // 结构损坏的持久化结果不冒充覆盖事实，按缺失处理
+            return null;
+        }
     }
 
     /** 本运行成功工具结果中的有效来源身份投影（{@link #recordFinal} 的证据查询共用逻辑）。 */

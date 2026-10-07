@@ -1,6 +1,8 @@
 package com.shitulelv.aicollab.agent.application.runtime;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.AgentApprovalService;
 import com.shitulelv.aicollab.agent.application.AgentMemoryService;
 import com.shitulelv.aicollab.agent.application.AgentRecoveryJob;
@@ -943,6 +945,204 @@ class AgentDelegationPostgresTest {
                 SELECT count(*) FROM agent_message
                 WHERE session_id=? AND role='ASSISTANT' AND content LIKE '%get_document_outline%'
                 """, Integer.class, parent.sessionId())).isEqualTo(1);
+    }
+
+    // ===== 2026-10-07 第四轮：委派结果的资料覆盖传递 =====
+
+    private AgentRunView claimChild(AgentRunView parent, AgentRunView child, String worker) {
+        var claimed = repository.claimNext(worker, java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(child.id());
+        return repository.findRun(parent.projectId(), child.id()).orElseThrow();
+    }
+
+    private ObjectNode toolOutput(ObjectNode data) {
+        return json.createObjectNode().put("status", "SUCCEEDED").set("data", data);
+    }
+
+    private ObjectNode outlineData(UUID document, String snapshot, String... headings) {
+        ObjectNode data = json.createObjectNode()
+                .put("documentId", document.toString()).put("snapshotId", snapshot)
+                .put("processingStatus", "READY").put("structure", "HEURISTIC_HEADINGS").put("truncated", false);
+        var sections = data.putArray("sections");
+        for (int index = 0; index < headings.length; index++) {
+            sections.addObject().put("heading", headings[index])
+                    .put("from_chunk", index).put("through_chunk", index);
+        }
+        return data;
+    }
+
+    private ObjectNode readData(UUID document, String snapshot, String heading) {
+        ObjectNode data = json.createObjectNode()
+                .put("documentId", document.toString()).put("snapshotId", snapshot)
+                .put("processingStatus", "READY").put("readChars", 120)
+                .put("coverage", "SPECIFIED_RANGE_ONLY").put("truncated", false).put("hasMore", false);
+        data.putArray("items").addObject().put("chunkId", UUID.randomUUID().toString())
+                .put("chunkNo", 0).put("heading", heading).put("content", "正文内容");
+        data.putNull("continuation");
+        return data;
+    }
+
+    private JsonNode collectedCoverage(UUID parentRunId) {
+        String raw = jdbc.queryForObject("""
+                SELECT (output_json->'coverage')::text FROM agent_step
+                WHERE run_id=? AND type='DELEGATION_COMPLETED'
+                """, String.class, parentRunId);
+        assertThat(raw).as("DELEGATION_COMPLETED must carry structured coverage").isNotNull();
+        try {
+            return json.readTree(raw);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException malformed) {
+            throw new AssertionError("coverage 不是合法 JSON", malformed);
+        }
+    }
+
+    /**
+     * 覆盖事实由子运行持久化工具结果推导，随 DELEGATION_COMPLETED 回收：
+     * 包含文档/版本身份、提纲取得状态与可信度、已读章节、结束原因——不由模型填写。
+     */
+    @Test
+    void delegationCoverageIsDerivedFromChildPersistedToolResults() {
+        AgentRunView parent = newParentWithClaim("w-cov");
+        AgentRunView child = delegateChild(parent);
+        child = claimChild(parent, child, "w-cov-child");
+        UUID document = UUID.randomUUID();
+        String snapshot = UUID.randomUUID().toString();
+        child = repository.recordToolResult(child, "get_document_outline", json.createObjectNode(),
+                toolOutput(outlineData(document, snapshot, "架构概述", "评分算法")), false);
+        child = repository.recordToolResult(child, "read_document_section", json.createObjectNode(),
+                toolOutput(readData(document, snapshot, "架构概述")), false);
+        repository.recordFinal(child, "子运行研究结论", List.of());
+
+        JsonNode coverage = collectedCoverage(parent.id());
+        assertThat(coverage.path("coverageKnown").asBoolean()).isTrue();
+        assertThat(coverage.path("endReason").asText()).isEqualTo("SUCCEEDED");
+        JsonNode doc = coverage.path("documents").get(0);
+        assertThat(doc.path("documentId").asText()).isEqualTo(document.toString());
+        assertThat(doc.path("snapshotId").asText()).isEqualTo(snapshot);
+        assertThat(doc.path("processingStatus").asText()).isEqualTo("READY");
+        assertThat(doc.path("outline").path("status").asText()).isEqualTo("OBTAINED");
+        assertThat(doc.path("outline").path("structure").asText()).isEqualTo("HEURISTIC_HEADINGS");
+        assertThat(doc.path("outline").path("trust").asText()).isEqualTo("HEURISTIC");
+        assertThat(doc.path("outline").path("sectionsListed").asInt()).isEqualTo(2);
+        assertThat(doc.path("sectionsRead").path("count").asInt()).isEqualTo(1);
+        // 提纲列出 2 节但只读 1 节：缺口如实给出，不掩盖
+        assertThat(coverage.path("gaps").toString()).contains("提纲列出 2 节").contains("未读：评分算法");
+    }
+
+    /**
+     * 父综合请求把已校验覆盖事实与 UNTRUSTED 研究文字分开注入：覆盖块在
+     * UNTRUSTED 正文块之外，父运行据此说明真实范围，不再只凭子运行的文字转述
+     * （真实 B-narrow2 实验：子运行已取得提纲并读完 4 节，父综合却称"未取得提纲"）。
+     */
+    @Test
+    void parentSynthesisReceivesVerifiedCoverageSeparateFromUntrustedChildText() {
+        AgentRunView parent = newParentWithClaim("w-cov-inject");
+        AgentRunView child = delegateChild(parent);
+        child = claimChild(parent, child, "w-cov-inject-child");
+        UUID document = UUID.randomUUID();
+        String snapshot = UUID.randomUUID().toString();
+        child = repository.recordToolResult(child, "get_document_outline", json.createObjectNode(),
+                toolOutput(outlineData(document, snapshot, "架构概述", "评分算法")), false);
+        child = repository.recordToolResult(child, "read_document_section", json.createObjectNode(),
+                toolOutput(readData(document, snapshot, "架构概述")), false);
+        child = repository.recordToolResult(child, "read_document_section", json.createObjectNode(),
+                toolOutput(readData(document, snapshot, "评分算法")), false);
+        repository.recordFinal(child, "子运行已读完两节正文", List.of());
+
+        var claimed = repository.claimNext("w-cov-inject-parent", java.time.OffsetDateTime.now(),
+                Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        parentResponses.clear();
+        AgentWorkerOutcome outcome = coordinator.advance(parent);
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+
+        String request = modelRequests.get(modelRequests.size() - 1);
+        assertThat(request).contains("CHILD_RESEARCH").contains("子运行已读完两节正文");
+        assertThat(request).contains("CHILD_RESEARCH_COVERAGE").contains("提纲：已取得").contains("已读 2 节");
+        assertThat(request.indexOf("</CHILD_RESEARCH>")).as("覆盖块必须在 UNTRUSTED 正文块之外")
+                .isLessThan(request.indexOf("<CHILD_RESEARCH_COVERAGE"));
+    }
+
+    /**
+     * 旧回收记录没有 coverage 元数据：按"未知"注入，父上下文不得把它解释成
+     * "未取得提纲"或"未读任何章节"。
+     */
+    @Test
+    void legacyDelegationRecordWithoutCoverageIsInjectedAsUnknown() {
+        AgentRunView parent = newParentWithClaim("w-legacy-cov");
+        AgentRunView child = delegateChild(parent);
+        // 子运行置终态（旧记录场景），DELEGATION_COMPLETED 为旧格式：无 coverage 字段
+        jdbc.update("UPDATE agent_run SET status='SUCCEEDED',finished_at=now() WHERE id=?", child.id());
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,output_json,reason)
+                VALUES (?,100,'DELEGATION_COMPLETED',?::jsonb,'Specialist child run completed')
+                """, parent.id(), "{\"childRunId\":\"" + child.id()
+                        + "\",\"status\":\"SUCCEEDED\",\"content\":\"旧记录研究结论\",\"citations\":[]}");
+        var claimed = repository.claimNext("w-legacy-cov-parent", java.time.OffsetDateTime.now(),
+                Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        parentResponses.clear();
+        assertThat(coordinator.advance(parent).status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+
+        String request = modelRequests.get(modelRequests.size() - 1);
+        assertThat(request).contains("旧记录研究结论").contains("覆盖事实：未知");
+        assertThat(request).as("缺元数据必须按未知兼容，不得解释成未取得提纲")
+                .doesNotContain("未取得提纲");
+    }
+
+    /** 重复回收/迟到重放：覆盖记录唯一且稳定，不重复回收、不二次写入。 */
+    @Test
+    void repeatedChildCollectionKeepsSingleCoverageRecord() {
+        AgentRunView parent = newParentWithClaim("w-cov-idem");
+        AgentRunView child = delegateChild(parent);
+        child = claimChild(parent, child, "w-cov-idem-child");
+        child = repository.recordToolResult(child, "get_document_outline", json.createObjectNode(),
+                toolOutput(outlineData(UUID.randomUUID(), UUID.randomUUID().toString(), "架构概述")), false);
+        repository.recordFinal(child, "结论", List.of());
+        var stale = child;
+        org.assertj.core.api.Assertions.assertThatCode(() -> repository.recordFinal(stale, "结论", List.of()))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM agent_step WHERE run_id=? AND type='DELEGATION_COMPLETED'
+                """, Integer.class, parent.id())).isEqualTo(1);
+        assertThat(collectedCoverage(parent.id()).path("documents").get(0).path("outline").path("status").asText())
+                .isEqualTo("OBTAINED");
+    }
+
+    /**
+     * 四文档降级样本（仅提纲级证据）：覆盖事实必须如实标出"已取得提纲但未读取任何正文"，
+     * 父上下文不得把提纲级证据说成正文完整覆盖。
+     */
+    @Test
+    void outlineOnlyCoverageIsReportedAsIncompleteBodyCoverage() {
+        AgentRunView parent = newParentWithClaim("w-outline-only");
+        AgentRunView child = delegateChild(parent);
+        child = claimChild(parent, child, "w-outline-only-child");
+        for (int index = 0; index < 4; index++) {
+            child = repository.recordToolResult(child, "get_document_outline", json.createObjectNode(),
+                    toolOutput(outlineData(UUID.randomUUID(), UUID.randomUUID().toString(),
+                            "第一节", "第二节")), false);
+        }
+        repository.recordFinal(child, "仅提纲级研究发现", List.of());
+
+        JsonNode coverage = collectedCoverage(parent.id());
+        assertThat(coverage.path("documents")).hasSize(4);
+        for (JsonNode doc : coverage.path("documents")) {
+            assertThat(doc.path("outline").path("status").asText()).isEqualTo("OBTAINED");
+            assertThat(doc.path("sectionsRead").path("count").asInt()).isZero();
+        }
+        assertThat(coverage.path("gaps").toString()).contains("已取得提纲但未读取任何正文");
+
+        var claimed = repository.claimNext("w-outline-only-parent", java.time.OffsetDateTime.now(),
+                Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        parentResponses.clear();
+        assertThat(coordinator.advance(parent).status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        String request = modelRequests.get(modelRequests.size() - 1);
+        assertThat(request).contains("CHILD_RESEARCH_COVERAGE");
+        assertThat(request).contains("已读 0 节").contains("已取得提纲但未读取任何正文");
     }
 }
 
