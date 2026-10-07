@@ -37,16 +37,31 @@ import java.util.UUID;
  * </ul>
  */
 public class AgentModelMessageComposer {
-    /** v2 对话历史候选条数（约 20 轮），更早内容依赖工作状态约束与摘要。 */
+    /** v2 对话历史候选条数上限：这只是<b>查询候选</b>上限，不是"窗口有空间却只能看 40 条"
+     *  的逻辑丢弃边界——有压力时由 RUN_CONTEXT 压缩整理已覆盖前缀后继续加载必要来源。 */
     static final int HISTORY_CANDIDATES = 40;
-    /** 最新一批工具结果的保留上限（字符），保证下一轮决策可读到关键事实。 */
-    static final int NEWEST_TOOL_OUTPUT_CAP = 6000;
-    /** 更早工具结果投影后的保留上限（字符）。 */
-    static final int OLDER_TOOL_OUTPUT_CAP = 1500;
+    /**
+     * 最新一批工具结果的保留上限（字符）。原为 6000，会在大窗口下把刚读到的正文
+     * 压成摘要；新策略"有空间时保留必要原文，不因变旧自动截成小摘要"。
+     */
+    static final int NEWEST_TOOL_OUTPUT_CAP = 48_000;
+    /**
+     * 更早工具结果投影后的保留上限（字符）。原为固定的 1500——"变成旧结果就最多
+     * 1500 字符"的固定压缩规则会把必要原文丢掉。现在由 Projector 在有压力时才做
+     * 确定性投影，正常情况下保留更大原文。
+     */
+    static final int OLDER_TOOL_OUTPUT_CAP = 12_000;
     /** 单条历史消息参与选择的最小预算（字符），避免零碎消息耗尽预算。 */
     static final int MIN_HISTORY_MESSAGE_CHARS = 16;
     /** 交给有界摘要的未覆盖旧消息条数上限。 */
     static final int SUMMARY_CANDIDATE_LIMIT = 20;
+    /**
+     * 工具观察层占剩余预算的比例与上下界（字符）。原上界 24000 会在模型窗口远大于
+     * 192k 时把工具原文无谓压小；新策略下工具观察是可压缩旧轨迹之外的主要原文保留层。
+     */
+    static final double TOOL_OBSERVATION_SHARE = 0.45;
+    static final int TOOL_OBSERVATION_MIN_CHARS = 6_000;
+    static final int TOOL_OBSERVATION_MAX_CHARS = 120_000;
 
     private final AgentRepository repository;
     private final AgentMemoryService memories;
@@ -121,11 +136,18 @@ public class AgentModelMessageComposer {
             AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
             List<AgentStepView> steps, boolean legacyMode) {
         List<ModelMessage> messages = new ArrayList<>();
+        // F5 修复：本回退路径此前没有子运行隔离——工作状态、会话摘要、最近主会话消息与
+        // 项目记忆都会进入子请求，与"子上下文只含委派目标及自身观察"的契约矛盾。
+        // 现在与 composeV2 使用同一套角色选择规则（子运行只保留系统提示中的委派目标
+        // 与自身工具观察），而不是靠追加一段"忽略上文"的提示词来补救。
+        // 注意：composer-v2=false 是<b>消息组装开关</b>，不是模型 Native/Legacy 协议，
+        // 两者不能混为一谈。
+        boolean childResearchRun = isChildResearchRun(run, skill);
 
         // 1. 系统提示
         String systemPrompt = buildSystemPrompt(run, skill, plan, legacyMode);
         messages.add(new ModelMessage.System(systemPrompt));
-        JsonNode state = repository.workingState(run.projectId(), run.sessionId());
+        JsonNode state = childResearchRun ? null : repository.workingState(run.projectId(), run.sessionId());
         if (state != null && !state.isEmpty()) messages.add(new ModelMessage.User(renderWorkingState(state)));
         // 回退路径同样注入既有摘要（v2 状态的派生数据），保证关闭开关后上下文不回退丢失
         JsonNode legacySummary = state == null ? null : state.path("summary");
@@ -134,7 +156,7 @@ public class AgentModelMessageComposer {
         }
         messages.add(new ModelMessage.User("<VERIFIED_PAGE_CONTEXT>" + json.valueToTree(ctx.page()) + "</VERIFIED_PAGE_CONTEXT>"));
 
-        if (!ctx.proposals().isEmpty()) {
+        if (ctx.proposals() != null && !ctx.proposals().isEmpty()) {
             messages.add(new ModelMessage.System("""
                     <TRUSTED_PROPOSALS>
                     %s
@@ -147,9 +169,12 @@ public class AgentModelMessageComposer {
                     """.formatted(json.valueToTree(ctx.proposals()).toString())));
         }
 
-        // 2. 加载最近 5 轮对话历史（10 条消息：5 轮 user/assistant）
-        List<AgentMessageView> recentMessages =
-                repository.listRecentMessages(run.sessionId(), 10);
+        // 2. 加载最近对话历史（5 轮 user/assistant）。
+        // 子研究运行不继承父对话历史：共享 session 的用户消息/助手回答只属于父对话，
+        // 子模型只看到系统提示中的委派目标与自身工具观察（与 composeV2 同一角色规则）。
+        List<AgentMessageView> recentMessages = childResearchRun
+                ? new ArrayList<>()
+                : new ArrayList<>(repository.listRecentMessages(run.sessionId(), 10));
         // 按时间正序排列（从旧到新）
         recentMessages.sort((a, b) -> a.createdAt().compareTo(b.createdAt()));
         int historyBudget = 12000;
@@ -172,7 +197,7 @@ public class AgentModelMessageComposer {
             messages.add(new ModelMessage.User(run.goal()));
         }
 
-        if (memories != null) {
+        if (memories != null && !childResearchRun) {
             JsonNode memoryJson = json.valueToTree(memories.context(run.projectId(),run.requesterId(),run.goal()));
             messages.add(new ModelMessage.User(
                     "<UNTRUSTED_PROJECT_MEMORY>\n" + memoryJson + "\n</UNTRUSTED_PROJECT_MEMORY>"));
@@ -278,7 +303,8 @@ public class AgentModelMessageComposer {
         List<AgentStepView> completedToolSteps = steps == null ? List.of() : steps.stream()
                 .filter(step -> step.type() == AgentStepType.TOOL_CALL_COMPLETED && step.toolName() != null && step.output() != null)
                 .toList();
-        int toolShare = Math.max(3000, Math.min(24000, (int) (remaining * 0.45)));
+        int toolShare = Math.max(TOOL_OBSERVATION_MIN_CHARS,
+                Math.min(TOOL_OBSERVATION_MAX_CHARS, (int) (remaining * TOOL_OBSERVATION_SHARE)));
         Set<String> seenToolSignatures = new HashSet<>();
         List<AgentStepView> pickedToolSteps = new ArrayList<>();
         List<JsonNode> projectedOutputs = new ArrayList<>();

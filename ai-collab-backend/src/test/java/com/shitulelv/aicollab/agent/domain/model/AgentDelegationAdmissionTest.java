@@ -127,4 +127,109 @@ class AgentDelegationAdmissionTest {
         assertThat(AgentDelegationAdmission.RejectionReason.CHILDREN_EXHAUSTED.message())
                 .isNotBlank().isNotEqualTo(AgentDelegationAdmission.RejectionReason.INSUFFICIENT_BUDGET.message());
     }
+
+    // ==================================================================
+    // v2：父子独立执行额度，不从父剩余切分
+    // ==================================================================
+
+    /** 生产 v2 新根运行：64 步 / 64 工具 / 无累计 token 上限 / 3 子运行。 */
+    private static AgentDelegationAdmission.Facts v2Parent() {
+        return new AgentDelegationAdmission.Facts(64, 0, 64, 0, null, 0, null, 0, 0, 3, false,
+                AgentResourcePolicy.V2);
+    }
+
+    /**
+     * v2 回归：父已用掉大部分自身工具额度后仍能发起委派，子取得<b>独立</b>额度。
+     * v1 共享切分下，这种父剩余会直接把子压到最小额度以下（甚至拒绝受理）。
+     */
+    @Test
+    void v2ParentWithMostToolsUsedStillAdmitsDelegationWithIndependentChildBudget() {
+        var facts = new AgentDelegationAdmission.Facts(64, 40, 64, 60, null, 900_000, null, 500_000,
+                1, 3, false, AgentResourcePolicy.V2);
+        assertThat(AgentDelegationAdmission.reject(facts)).isNull();
+
+        var budget = AgentDelegationAdmission.split(facts);
+        // 子额度是自身的独立上限，不随父剩余缩水
+        assertThat(budget.steps()).isEqualTo(AgentResourcePolicy.V2_CHILD_MAX_STEPS);
+        assertThat(budget.toolCalls()).isEqualTo(AgentResourcePolicy.V2_CHILD_MAX_TOOL_CALLS);
+        // 累计 token 不切分：v2 下没有"子只能读多少 token"的上限
+        assertThat(budget.inputTokens()).isNull();
+        assertThat(budget.outputTokens()).isNull();
+    }
+
+    /** v2 回归：父累计 token 远超旧 50k/子 30k 时，不因此隐藏或拒绝委派。 */
+    @Test
+    void v2CumulativeTokensNeverRejectDelegation() {
+        var facts = new AgentDelegationAdmission.Facts(64, 10, 64, 5, null, 9_000_000, null, 5_000_000,
+                0, 3, false, AgentResourcePolicy.V2);
+        assertThat(AgentDelegationAdmission.reject(facts))
+                .as("累计 token 不参与委派拒绝")
+                .isNull();
+    }
+
+    /** v2 仍保证父自身能发起委派（1 次工具）并完成综合收尾（2 个推进步）。 */
+    @Test
+    void v2StillRequiresParentToAffordDelegationAndSynthesis() {
+        // 父工具额度已耗尽：连委派自身那一次工具都放不下
+        var noToolLeft = new AgentDelegationAdmission.Facts(64, 0, 64, 64, null, 0, null, 0, 0, 3,
+                false, AgentResourcePolicy.V2);
+        assertThat(AgentDelegationAdmission.reject(noToolLeft))
+                .isEqualTo(AgentDelegationAdmission.RejectionReason.INSUFFICIENT_BUDGET);
+
+        // 父剩余推进步不足以完成综合收尾
+        var noStepsLeft = new AgentDelegationAdmission.Facts(64, 63, 64, 0, null, 0, null, 0, 0, 3,
+                false, AgentResourcePolicy.V2);
+        assertThat(AgentDelegationAdmission.reject(noStepsLeft))
+                .isEqualTo(AgentDelegationAdmission.RejectionReason.INSUFFICIENT_BUDGET);
+    }
+
+    // ==================================================================
+    // F6：可见性判定必须计入本轮即将发生的已知推进成本
+    // ==================================================================
+
+    /**
+     * F6 回归：剩余 5 步的 SEPARATED 运行，可见性判定若不计入本轮模型轮成本，
+     * 会暴露一个"模型轮落库后必然被拒"的委派工具。修复后必须提前收窄。
+     */
+    @Test
+    void f6VisibilityReservesTheUpcomingModelStep() {
+        // 剩余 5 步：不计本轮成本时子可切出 3 步（≥ 最小 3）→ 旧实现会暴露委派
+        var beforeTurn = new AgentDelegationAdmission.Facts(12, 7, 8, 0, 50_000, 0, 20_000, 0, 0, 3, false);
+
+        // 旧口径：直接按当前事实判定 → 会认为可以委派
+        assertThat(AgentDelegationAdmission.admitsDelegation(beforeTurn))
+                .as("当前事实下切片恰好 3 步，旧实现据此暴露委派")
+                .isTrue();
+
+        // 修复口径：计入本轮模型轮（落库后 +1 步）→ 同一请求不得暴露必然被拒的委派
+        assertThat(AgentDelegationAdmission.admitsDelegationForUpcomingTurn(beforeTurn))
+                .as("模型轮落库后只剩 4 步，子最小 3 + 父收尾 2 已容不下")
+                .isFalse();
+        assertThat(AgentDelegationAdmission.reject(
+                AgentDelegationAdmission.withUpcomingModelStep(beforeTurn)).code())
+                .isEqualTo("AGENT_DELEGATION_BUDGET_INSUFFICIENT");
+    }
+
+    /** F6 回归：确有余额时不能因"预留一轮"而误收窄（避免过度拒绝）。 */
+    @Test
+    void f6VisibilityStillAdmitsWhenBudgetIsComfortable() {
+        var comfortable = new AgentDelegationAdmission.Facts(12, 0, 8, 0, 50_000, 0, 20_000, 0, 0, 3, false);
+        assertThat(AgentDelegationAdmission.admitsDelegationForUpcomingTurn(comfortable)).isTrue();
+    }
+
+    /** F6 回归：COMBINED 旧语义的推进步成本必须来自真实事实，不能固定假定 false。 */
+    @Test
+    void f6CombinedSemanticsUsesItsRealStepCost() {
+        // COMBINED 下委派受理另占一个推进步：同一事实的有效剩余比 SEPARATED 少一步
+        var separated = new AgentDelegationAdmission.Facts(12, 6, 8, 0, 50_000, 0, 20_000, 0, 0, 3, false);
+        var combined = new AgentDelegationAdmission.Facts(12, 6, 8, 0, 50_000, 0, 20_000, 0, 0, 3, true);
+
+        // 12 − 6 − 0 − 2 = 4（≥3 可受理）
+        assertThat(AgentDelegationAdmission.reject(separated)).isNull();
+        // 12 − 6 − 1 − 2 = 3：刚好满足最小值
+        assertThat(AgentDelegationAdmission.split(combined).steps()).isEqualTo(3);
+        // 再一步即容不下：可见性按真实语义收窄
+        var combinedTighter = new AgentDelegationAdmission.Facts(12, 7, 8, 0, 50_000, 0, 20_000, 0, 0, 3, true);
+        assertThat(AgentDelegationAdmission.admitsDelegationForUpcomingTurn(combinedTighter)).isFalse();
+    }
 }

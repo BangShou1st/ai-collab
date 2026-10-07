@@ -39,14 +39,24 @@ public class JsonHttpModelClient {
     @Autowired
     public JsonHttpModelClient(ObjectMapper mapper, OutboundEndpointPolicy endpoints) {
         this(mapper, endpoints, HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
+                // 连接超时保持短（15 秒）：连不上应快速失败，不占满单次请求预算
+                .connectTimeout(CONNECT_TIMEOUT)
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build());
     }
 
     public JsonHttpModelClient(ObjectMapper mapper, OutboundEndpointPolicy endpoints, HttpClient client) {
-        this(mapper, endpoints, client, Duration.ofMinutes(3));
+        this(mapper, endpoints, client, DEFAULT_REQUEST_TIMEOUT);
     }
+
+    /**
+     * 单次模型请求的默认传输超时：10 分钟（设计 3.1）。
+     * 更长的研究会话通过多次请求推进，不靠一次请求跑到超时上限；
+     * 实际出站还受本运行剩余活跃时长与 {@code AiRequestDeadline} 取更小的约束。
+     */
+    static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofMinutes(10);
+    /** 连接超时（不是请求超时）：15 秒。 */
+    static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(15);
 
     public JsonHttpModelClient(ObjectMapper mapper, OutboundEndpointPolicy endpoints, HttpClient client, Duration timeout) {
         this.mapper = mapper;

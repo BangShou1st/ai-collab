@@ -32,6 +32,8 @@ public class AgentModelConfigurationStore {
             unchanged = pinnedAt != null && pinnedAt.toInstant().equals(provider.updatedAt().toInstant());
         }
         if (!unchanged) {
+            // 快照记录本次请求解析出的模型身份与单次输出上限（诊断用）。
+            // 注意：这是<b>单次</b>最大输出，不是运行的累计输出额度；两者不可混用。
             jdbc.update("UPDATE agent_run SET model_configuration_id=?,model_configuration_updated_at=?,model_configuration_snapshot=jsonb_build_object('configurationId',?::text,'updatedAt',?::text,'provider',?::text,'model',?::text,'maxOutputTokens',?::int,'budgetEnforced',?::boolean,'mode',?::text) WHERE id=?",
                     provider.id(),provider.updatedAt(),provider.id(),provider.updatedAt(),provider.providerType().name(),provider.modelName(),provider.maxOutputTokens(),!provider.isPreset(),
                     provider.isPreset() || provider.capabilities().contains(com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.NATIVE_TOOLS) ? "NATIVE_TOOLS" : "LEGACY_READ_ONLY",run.id());

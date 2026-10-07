@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.application.view.*;
 import com.shitulelv.aicollab.agent.domain.model.AgentCitation;
+import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.common.exception.BusinessException;
@@ -139,15 +140,15 @@ public class AgentRepository {
         UUID runId = UUID.randomUUID();
         AgentRunView run = jdbc.queryForObject("""
                 INSERT INTO agent_run(
-                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,max_steps,max_tool_calls,budget_semantics)
-                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb,?,?,'SEPARATED'
+                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,max_steps,max_tool_calls,budget_semantics,context_policy_version,max_input_tokens,max_output_tokens)
+                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb,?,?,'SEPARATED',2,NULL,NULL
                 FROM agent_session s
                 WHERE s.project_id=? AND s.id=?
                 RETURNING *
                 """, AgentRunMappers.runMapper(), runId, requesterId, goal, scheduled,
                 skillCode, pageContextJson,
-                "ITERATION_PLANNING".equals(skillCode)?24:12,
-                "ITERATION_PLANNING".equals(skillCode)?16:8, projectId, sessionId);
+                AgentResourcePolicy.V2_ROOT_MAX_STEPS,
+                AgentResourcePolicy.V2_ROOT_MAX_TOOL_CALLS, projectId, sessionId);
         if (run == null) {
             throw new IllegalArgumentException("Agent 会话不存在");
         }
@@ -191,15 +192,16 @@ public class AgentRepository {
         AgentRunView run = jdbc.query("""
                 INSERT INTO agent_run(
                   id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,
-                  max_steps,max_tool_calls,retried_from_run_id,budget_semantics)
-                SELECT ?,s.id,s.project_id,?,?,'QUEUED',false,?,?::jsonb,?,?,?,'SEPARATED'
+                  max_steps,max_tool_calls,retried_from_run_id,budget_semantics,context_policy_version,
+                  max_input_tokens,max_output_tokens)
+                SELECT ?,s.id,s.project_id,?,?,'QUEUED',false,?,?::jsonb,?,?,?,'SEPARATED',2,NULL,NULL
                 FROM agent_session s
                 WHERE s.project_id=? AND s.id=?
                 ON CONFLICT (retried_from_run_id) WHERE retried_from_run_id IS NOT NULL DO NOTHING
                 RETURNING *
                 """, AgentRunMappers.runMapper(), runId, requesterId, goal, skillCode, pageContextJson,
-                "ITERATION_PLANNING".equals(skillCode)?24:12,
-                "ITERATION_PLANNING".equals(skillCode)?16:8,
+                AgentResourcePolicy.V2_ROOT_MAX_STEPS,
+                AgentResourcePolicy.V2_ROOT_MAX_TOOL_CALLS,
                 sourceRunId, projectId, sessionId).stream().findFirst().orElse(null);
         if (run == null) {
             return new RetryRunDerivation(jdbc.query(
@@ -448,6 +450,41 @@ public class AgentRepository {
                 .stream().findFirst();
     }
 
+    /**
+     * 有界租约续期：<b>只有仍持有当前 claim 的活跃 worker</b>可以续租。
+     *
+     * <p>为什么需要：单次模型请求放宽到分钟级后，固定 6 分钟的 claim 租约可能在请求
+     * 返回之前就过期，让另一个 worker 合法接管——本次合法响应随后被 epoch fencing 拒绝落库，
+     * 用户看到的是"请求已完成但结果丢失"。而简单把租约延长到几十分钟会让崩溃接管明显退化
+     * （进程崩溃后要等很久才能被接管）。因此采用<b>最小有界续租</b>：请求仍在进行时按短周期
+     * 把租约推到"当前时刻 + 一个短租约窗口"，保留既有的崩溃恢复时效。</p>
+     *
+     * <p>安全边界（复用现有机制，不建第二套调度器）：</p>
+     * <ul>
+     *   <li>只有 {@code claim_version} 仍等于本 worker 的 epoch 且租约尚未过期时才续租：
+     *       已被接管的旧 worker 无法续租，也无法借此复活；</li>
+     *   <li>取消已请求、运行已离开 RUNNING 时不续租（返回 false），让正常收口尽早发生；</li>
+     *   <li>短事务、只更新租约列，不跨 HTTP 持数据库事务锁；</li>
+     *   <li>任何续租失败都只是"停止续租"，不改变业务语义——请求照常返回并走原有校验。</li>
+     * </ul>
+     *
+     * @return 是否成功续期（false 表示已失去租约/已取消/状态不符，调用方应停止续租）
+     */
+    @Transactional
+    public boolean renewLease(UUID projectId, UUID runId, int claimEpoch, Duration lease) {
+        if (lease == null || lease.isNegative() || lease.isZero()) {
+            throw new IllegalArgumentException("续租窗口无效");
+        }
+        int updated = jdbc.update("""
+                UPDATE agent_run
+                SET lease_expires_at=now()+?::interval, updated_at=now()
+                WHERE project_id=? AND id=? AND claim_version=? AND status='RUNNING'
+                  AND cancel_requested_at IS NULL
+                  AND (lease_expires_at IS NULL OR lease_expires_at > now())
+                """, lease.toSeconds() + " seconds", projectId, runId, claimEpoch);
+        return updated == 1;
+    }
+
     // ---- 以下为运行事件与状态写路径，委托给 AgentRunEventRecorder ----
 
     public boolean updateStatus(
@@ -527,6 +564,51 @@ public class AgentRepository {
     public void completeSummaryRecompressAttempt(UUID attemptId, String outcome, String model,
             AgentRunEventRecorder.UsageSettlement usage, String note) {
         recorder.completeSummaryRecompressAttempt(attemptId, outcome, model, usage, note);
+    }
+
+    // ---- 运行研究轨迹窗口压缩（RUN_CONTEXT scope，V64 起） ----
+
+    /**
+     * 本运行已提交的 RUN_CONTEXT 压缩周期数（成功提交才计数）。
+     * 每个运行至多允许 {@code MAX_RUN_CONTEXT_CYCLES} 个有效周期；
+     * 失败/不合格的尝试不推进覆盖、也不占用周期额度。
+     */
+    public int countCommittedRunContextCycles(UUID projectId, UUID runId) {
+        Integer count = jdbc.queryForObject("""
+                SELECT count(*) FROM agent_step
+                WHERE run_id=? AND reason='RUN_CONTEXT_SUMMARY' AND output_json->>'status'='COMMITTED'
+                """, Integer.class, runId);
+        return count == null ? 0 : count;
+    }
+
+    /**
+     * 已有的 RUN_CONTEXT 有效摘要（最新一次提交），形如
+     * {@code {scope, text, sourceFromSequence, sourceThroughSequence, cycle, ...}}；
+     * 无有效压缩时返回 null。
+     */
+    public JsonNode latestRunContextSummary(UUID projectId, UUID runId) {
+        return jdbc.query("""
+                SELECT output_json::text FROM agent_step
+                WHERE run_id=? AND reason='RUN_CONTEXT_SUMMARY' AND output_json->>'status'='COMMITTED'
+                ORDER BY sequence_no DESC LIMIT 1
+                """, (rs, row) -> {
+                    try {
+                        return json.readTree(rs.getString(1));
+                    } catch (JsonProcessingException failure) {
+                        throw new IllegalStateException("RUN_CONTEXT 摘要无法解析", failure);
+                    }
+                }, runId).stream().findFirst().orElse(null);
+    }
+
+    /** RUN_CONTEXT 压缩请求身份（持久化准入边界与主会话摘要一致）。 */
+    public UUID beginRunContextAttempt(AgentRunView run, int cycle, int fromSequence, int throughSequence) {
+        return recorder.beginRunContextAttempt(run, cycle, fromSequence, throughSequence);
+    }
+
+    /** 完成 RUN_CONTEXT 压缩尝试；committedSummary 为 null 表示未提交（不推进覆盖）。 */
+    public void completeRunContextAttempt(UUID attemptId, String outcome, String model,
+            AgentRunEventRecorder.UsageSettlement usage, String note, JsonNode committedSummary) {
+        recorder.completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary);
     }
 
     public void recordDecisionFailure(

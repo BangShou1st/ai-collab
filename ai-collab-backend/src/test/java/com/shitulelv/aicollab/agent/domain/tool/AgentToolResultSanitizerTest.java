@@ -96,7 +96,8 @@ class AgentToolResultSanitizerTest {
         assertThat(result.path("error").asText()).isEmpty();
         assertThat(result.path("data").path("versionNo").asInt()).isEqualTo(7);
         assertThat(result.path("data").path("tasks").get(0).path("tempKey").asText()).isEqualTo("t0");
-        byte[] serialized=json.writeValueAsBytes(result);assertThat(serialized.length).isLessThanOrEqualTo(32*1024);
+        byte[] serialized=json.writeValueAsBytes(result);
+        assertThat(serialized.length).isLessThanOrEqualTo(AgentToolResultSanitizer.maxResultBytes());
         assertThat(json.readTree(serialized)).isEqualTo(result);
     }
 

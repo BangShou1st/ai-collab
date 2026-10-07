@@ -175,7 +175,11 @@ public class AgentRuntimeCoordinator {
             // 2. 组装可信上下文
             AgentExecutionContext ctx = contextAssembler.assemble(
                     run, run.skillCode(), composer.parsePageContext(run.pageContextJson()));
-            long remainingMillis=Math.min(300000,ctx.limits().maxRunDuration().toMillis())-repository.activeElapsedMillis(run);
+            // 活跃时长按本运行自己的策略上限计量（v2 根 45 分钟 / 子 30 分钟）。
+            // 这里不做 min(300000, ...) 之类的隐藏截停：那会把统一放宽后的时长
+            // 在另一层重新压回 5 分钟。活跃时间只含模型/工具等待，不含排队/暂停/离线；
+            // 子运行不继承父剩余 deadline（各自解析各自的上限）。
+            long remainingMillis=ctx.limits().maxRunDuration().toMillis()-repository.activeElapsedMillis(run);
             if (remainingMillis<=0) return budgetExceeded(run);
             deadline.limit(java.time.Duration.ofMillis(remainingMillis));
             emitOnce(run, AgentEventType.CONTEXT_CAPTURED,
@@ -249,32 +253,45 @@ public class AgentRuntimeCoordinator {
                 exposed = withoutUnadmittableDelegation(run, exposed);
             }
 
-            // 7. 单次请求输入预算：min(模型窗口-输出预留-安全余量, 运行剩余输入预算, 应用单次上限)
-            int remainingRunInput = Math.min(run.maxInputTokens(), ctx.limits().maxInputTokens()) - run.inputTokensUsed();
-            // 运行级输出预留：按运行自身输出预算等比收紧（不超过预算一半）。
-            // 全局预留（8000）按常规运行的输出预算（20000）设计；委派子运行的输出硬上限
-            // （8000）与全局预留恰好相等，固定预留会把子运行第一轮之后的任何状态判成
-            // "预留已耗尽"——needsFinalRequest 立即强制收尾、摘要预留检查直接超限，
-            // 子运行永远无法发起第二次模型请求（真实环境三次委派实验复现）。
-            // 运行能承诺的输出预留不能超过它自己的预算；模型窗口级预留（perRequest 内）
-            // 是窗口容量记账，仍用全局值，不在此收紧。
-            int runOutputReserve = Math.min(contextProperties.outputReserveTokens(),
-                    Math.max(0, run.maxOutputTokens() / 2));
+            // 7. 单次请求输入预算。累计输入/输出上限只对 v1 生效；v2 为 null（无累计上限），
+            //    此时 remainingRunInput 不再收紧请求——单次请求的真实硬边界是模型窗口 H。
+            Integer effectiveInputCap = AgentResourcePolicy.effectiveInputCap(
+                    run.contextPolicyVersion(), run.maxInputTokens(), ctx.limits().maxInputTokens());
+            int remainingRunInput = effectiveInputCap == null
+                    ? Integer.MAX_VALUE
+                    : (int) Math.max(0, (long) effectiveInputCap - run.inputTokensUsed());
             // 本轮请求准备时解析一次当前 AGENT 配置；窗口预算、能力、工具协议、出站调用
-            // 与该响应的工具校验共用这一份解析结果，下一轮重新读取最新配置
+            // 与该响应的工具校验共用这一份解析结果，下一轮重新读取最新配置。
+            // 必须先把配置解析出来，才能用它派生出"本次实际出站的最大输出"：
+            // 窗口计算、输出封顶与出站请求要用同一个值，不能各算一套。
             var resolved = modelExecutor.resolveRequest(run);
+            int requestMaxOutput = effectiveRequestMaxOutput(run, ctx, resolved);
+            // 运行级输出预留：按运行自身输出预算等比收紧（不超过预算一半）。
+            // v1 下运行输出上限有限；v2 下累计输出无上限，预留只取配置值
+            // （真正的单次输出边界由 requestMaxOutput 与模型窗口共同决定）。
+            int runOutputReserve = run.enforcesCumulativeTokenLimits()
+                    ? Math.min(contextProperties.outputReserveTokens(),
+                            Math.max(0, (run.maxOutputTokens() == null ? 0 : run.maxOutputTokens()) / 2))
+                    : Math.max(0, contextProperties.outputReserveTokens());
             var modelWindow = AgentContextBudget.resolveWindow(
                     resolved.providerType(),
                     resolved.modelName(),
                     contextProperties.windowOverrides());
-            var requestBudget = AgentContextBudget.perRequest(contextProperties, modelWindow, remainingRunInput);
+            // 应用单次输入上限只在 v1 或窗口未知时叠加：已确认窗口的 v2 运行以 H 为硬边界，
+            // 不再被额外的 50k/256k 应用 cap 绑住。
+            boolean enforcePerRequestCap = run.enforcesCumulativeTokenLimits();
+            var requestBudget = AgentContextBudget.perRequest(
+                    contextProperties, modelWindow, remainingRunInput, requestMaxOutput, enforcePerRequestCap);
 
             List<ModelMessage> messages;
             AgentModelMessageComposer.Composition composition = null;
             int estimatedInput;
             String overBudgetReason = null;
             // 委派子运行的发现：存在已完成委派时作为数据层注入（UNTRUSTED 边界内），
-            // 让收尾/继续请求能看到子运行产出；子运行失败也如实注入，不得假装研究已成功
+            // 让收尾/继续请求能看到子运行产出；子运行失败也如实注入，不得假装研究已成功。
+            // F2 修复：子证据属于本次综合的必要证据层，参与<b>每一次</b>组装（正常、
+            // 降级重组、无工具综合）；不能只在第一次 composeV2 之后追加，否则超预算
+            // 降级重组（budgetFactor 0.6）与 needsFinalRequest 强制收尾都会静默丢掉子成果。
             String childEvidence = childResearchEvidence(run, steps);
             if (contextProperties.composerV2()) {
                 composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 1.0, resolved.legacyMode());
@@ -282,17 +299,19 @@ public class AgentRuntimeCoordinator {
                     // 必选层（含当前请求）无法完整放入预算：明确停止，不静默截断
                     return inputBudgetExceeded(run, requestBudget, composition.failureReason());
                 }
-                if (!childEvidence.isEmpty()) composition.messages().add(new ModelMessage.System(childEvidence));
-                messages = appendTurnInstructions(composition.messages(), steps, finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
+                messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
+                        ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens()) {
-                    // 降级重组一次：收紧预算并重试；重组本身失败（必选层仍放不下）同样明确停止
+                    // 降级重组一次：收紧预算并重试；重组本身失败（必选层仍放不下）同样明确停止。
+                    // 重组走与正常路径相同的组装入口，子证据与尾部指令一并重建。
                     composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 0.6, resolved.legacyMode());
                     if (composition.failureReason() != null) {
                         // 空消息继续调用会丢失当前目标与有效约束，违反"当前请求完整保留"契约
                         return inputBudgetExceeded(run, requestBudget, composition.failureReason());
                     }
-                    messages = appendTurnInstructions(composition.messages(), steps, finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
+                    messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
+                            ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                     estimatedInput = estimateInput(messages, exposed);
                     if (estimatedInput > requestBudget.availableInputTokens()) {
                         overBudgetReason = "COMPOSITION_OVER_BUDGET";
@@ -302,9 +321,10 @@ public class AgentRuntimeCoordinator {
                     }
                 }
             } else {
+                // Legacy 组装路径：同样经受统一的组装入口，保证角色隔离与子证据注入一致
                 List<ModelMessage> legacy = composer.buildMessageHistory(run, ctx, skill, plan, steps, resolved.legacyMode());
-                if (!childEvidence.isEmpty()) legacy.add(new ModelMessage.System(childEvidence));
-                messages = appendTurnInstructions(legacy, steps, finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
+                messages = assembleRequestMessages(legacy, childEvidence, steps, finalizing,
+                        ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens()) {
                     overBudgetReason = "COMPOSITION_OVER_BUDGET";
@@ -317,8 +337,11 @@ public class AgentRuntimeCoordinator {
                     && convergencePolicy.needsFinalRequest(run, ctx.limits(), steps, estimatedInput, runOutputReserve)) {
                 finalizing = true;
                 exposed = List.of();
-                messages = appendTurnInstructions(composition != null ? composition.messages()
-                        : composer.buildMessageHistory(run, ctx, skill, plan, steps, resolved.legacyMode()), steps, true, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
+                // 强制收尾同样走统一组装入口：子证据与收尾指令不得因第二次组装而丢失（F2）
+                messages = assembleRequestMessages(
+                        composition != null ? composition.messages()
+                                : composer.buildMessageHistory(run, ctx, skill, plan, steps, resolved.legacyMode()),
+                        childEvidence, steps, true, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens())
                     return inputBudgetExceeded(run, requestBudget, "FINAL_REQUEST_OVER_BUDGET");
@@ -331,37 +354,52 @@ public class AgentRuntimeCoordinator {
                 return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
             }
 
-            // 7b. 有界增量摘要：主请求预算保留后，对未覆盖旧对话生成一次摘要（持久化尝试标记、CAS 提交、单独记账）
+            // 7b. 有界增量摘要 / 运行轨迹窗口压缩：主请求预算保留后发起。
+            // 摘要调用受自己的持久化周期上限与本次请求容量约束，不受累计 token 限制（v2）。
             if (composition != null) {
                 int finalInputReserve = finalizing ? 0 : Math.max(estimatedInput, steps.stream()
                         .filter(s -> s.type() == AgentStepType.MODEL_TURN && s.promptTokens() != null)
                         .reduce((a, b) -> b).map(AgentStepView::promptTokens).orElse(0));
-                long runDurationBudget = Math.min(300000, ctx.limits().maxRunDuration().toMillis());
-                long remainingOutput = Math.min(run.maxOutputTokens(), ctx.limits().maxOutputTokens()) - run.outputTokensActual();
+                long runDurationBudget = ctx.limits().maxRunDuration().toMillis();
+                long remainingOutput = AgentResourcePolicy.remaining(
+                        AgentResourcePolicy.effectiveOutputCap(run.contextPolicyVersion(),
+                                run.maxOutputTokens(), ctx.limits().maxOutputTokens()),
+                        run.outputTokensActual());
                 AgentRunView runForSummary = run;
                 summarizer.maybeSummarize(run, composition,
-                        Math.max(0, remainingRunInput - estimatedInput - finalInputReserve),
-                        (int) Math.max(0, remainingOutput),
+                        requestBudget.availableInputTokens() - estimatedInput - finalInputReserve,
+                        (int) Math.min(Integer.MAX_VALUE, Math.max(0, remainingOutput)),
+                        requestBudget,
                         () -> runDurationBudget - repository.activeElapsedMillis(runForSummary) > 0);
-                // 摘要消耗已入账：刷新运行、重查取消状态，并重新核算主请求的输入与输出预算——
-                // 不允许携带超限上下文或不足的输出预留继续请求模型
+                // 摘要消耗已入账：刷新运行、重查取消状态，并重新核算主请求的输入预算。
+                // v2 无累计输入上限，摘要消耗不会把主请求"挤到超限"；这里仍按同一
+                // 单次请求容量复核，避免窗口本身装不下。摘要提交后必须<b>重新组装</b>
+                // 本次主请求，不能继续发送摘要生成前组好的旧 messages（旧轨迹已被压缩）。
                 run = repository.findRun(run.projectId(), run.id()).orElse(run);
                 cancellation.throwIfRequested(run);
-                int refreshedRemaining = Math.min(run.maxInputTokens(), ctx.limits().maxInputTokens()) - run.inputTokensUsed();
-                var refreshedBudget = AgentContextBudget.perRequest(contextProperties, modelWindow, refreshedRemaining);
-                if (estimatedInput > refreshedBudget.availableInputTokens()) {
-                    return inputBudgetExceeded(run, refreshedBudget, "SUMMARY_CONSUMED_BUDGET");
+                messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
+                        ctx.limits().maxToolCallsPerTurn(), coreActionPending);
+                estimatedInput = estimateInput(messages, exposed);
+                if (estimatedInput > requestBudget.availableInputTokens()) {
+                    return inputBudgetExceeded(run, requestBudget, "SUMMARY_CONSUMED_BUDGET");
                 }
-                long refreshedRemainingOutput = Math.min(run.maxOutputTokens(), ctx.limits().maxOutputTokens()) - run.outputTokensActual();
-                if (refreshedRemainingOutput < runOutputReserve) {
-                    // 摘要已耗尽输出预留：主调用/最终请求无法再保证输出容量，明确停止，不继续请求
-                    repository.recordBudgetExceeded(run);
-                    emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
-                            json.createObjectNode()
-                                    .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
-                                    .put("errorCode", "AGENT_BUDGET_EXCEEDED")
-                                    .put("scope", "SUMMARY_CONSUMED_OUTPUT_BUDGET"));
-                    return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
+                // 输出预留：v1 下摘要可能耗尽运行剩余输出额度；v2 累计输出无上限，
+                // 单次输出由模型配置与本次窗口约束，不因"累计输出剩余不足"停止。
+                if (run.enforcesCumulativeTokenLimits()) {
+                    long refreshedRemainingOutput = AgentResourcePolicy.remaining(
+                            AgentResourcePolicy.effectiveOutputCap(run.contextPolicyVersion(),
+                                    run.maxOutputTokens(), ctx.limits().maxOutputTokens()),
+                            run.outputTokensActual());
+                    if (refreshedRemainingOutput < runOutputReserve) {
+                        // 摘要已耗尽输出预留：主调用/最终请求无法再保证输出容量，明确停止，不继续请求
+                        repository.recordBudgetExceeded(run);
+                        emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
+                                json.createObjectNode()
+                                        .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
+                                        .put("errorCode", "AGENT_BUDGET_EXCEEDED")
+                                        .put("scope", "SUMMARY_CONSUMED_OUTPUT_BUDGET"));
+                        return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
+                    }
                 }
             }
 
@@ -402,7 +440,19 @@ public class AgentRuntimeCoordinator {
                             events, json, run.projectId(), run.id(), modelCallId));
                 }
                 try {
-                    turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted(), resolved);
+                    // 本次请求的有效单次输出上限在本调用范围内下发：适配器据此发送
+                    // max_tokens（不改用户持久模型配置），与窗口计算使用的是同一个值。
+                    // 主决策、摘要与兜底请求各自遵守自己解析出的本次最大输出。
+                    //
+                    // 长请求配套有界租约续期（设计 3.1）：单次模型请求可长达分钟级，而 claim
+                    // 租约仍是短窗口。请求仍在进行时按短周期把租约推到"当前时刻 + 短窗口"，
+                    // 避免请求返回时租约已过期而被 epoch fencing 拒绝落库；失去租约/取消/退出
+                    // 时立即停止续租，崩溃接管时效不退化为几十分钟。
+                    try (var leaseRenewer = AgentLeaseRenewer.forCurrentClaim(
+                                repository, run.projectId(), run.id());
+                         var outputCap = new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestOutputCap(requestMaxOutput)) {
+                        turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted(), resolved);
+                    }
                 } finally {
                     ModelContentPreview.clear();
                 }
@@ -461,11 +511,19 @@ public class AgentRuntimeCoordinator {
             }
 
             int outputTokens=turn.usage()!=null && turn.usage().outputTokens()!=null ? turn.usage().outputTokens() : Math.max(1,(json.valueToTree(turn).toString().length()+2)/3);
-            // 输出超额按真实累计值（actual）判定：used 被封顶会低估消耗，实际可能已超
-            long outputRemaining=Math.min(run.maxOutputTokens(),ctx.limits().maxOutputTokens())-(long)run.outputTokensActual();
+            // 输出超额判定（只对仍执行累计输出上限的 v1 生效）：按真实累计值（actual）判定，
+            // used 被封顶会低估消耗，实际可能已超。v2 累计输出不限额，因此不因累计超额判死；
+            // 单次输出的溢出由模型侧 finishReason/截断语义与本次 requestMaxOutput 处理，
+            // 不再生成"整轮累计输出超额"的终态（设计 3 节的明确要求）。
+            Integer effectiveOutputCap = AgentResourcePolicy.effectiveOutputCap(
+                    run.contextPolicyVersion(), run.maxOutputTokens(), ctx.limits().maxOutputTokens());
+            long outputRemaining = effectiveOutputCap == null
+                    ? Long.MAX_VALUE
+                    : (long) effectiveOutputCap - run.outputTokensActual();
             // 身份行结算与 recordBudgetExceeded 的运行累计同一事务；事务失败（取消/租约）
             // 整体回滚后由同身份补结算，不重复也不丢账。
-            if (outputTokens>outputRemaining) {
+            // F8 修复：该分支保存已返回的无工具正文（部分产出），不再只留错误码。
+            if (effectiveOutputCap != null && outputTokens>outputRemaining) {
                 try {
                     repository.recordBudgetExceededWithSettlement(run,new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult(turn.content(),turn.provider(),turn.model(),
                             turn.usage()==null ? null : turn.usage().inputTokens(),turn.usage()==null ? null : turn.usage().outputTokens(),turn.latencyMs()),
@@ -539,11 +597,18 @@ public class AgentRuntimeCoordinator {
                         .equals(definition.name()))) {
             return exposed;
         }
+        // combined 取真实持久化预算语义（不再固定 false）：旧 COMBINED 运行下委派受理
+        // 另占一个推进步，可见性判定必须用同一事实，否则会高估可用步数（F6）。
         var facts = new com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.Facts(
                 run.maxSteps(), run.stepsUsed(), run.maxToolCalls(), run.toolCallsUsed(),
                 run.maxInputTokens(), run.inputTokensUsed(), run.maxOutputTokens(), run.outputTokensUsed(),
-                run.childrenUsed(), run.maxChildren(), false);
-        if (com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.admitsDelegation(facts)) {
+                run.childrenUsed(), run.maxChildren(), run.combinedBudgetSemantics(),
+                run.contextPolicyVersion());
+        // F6 修复：可见性判定发生在本轮模型请求发出<b>之前</b>，而受理判定发生在模型轮次
+        // 落库<b>之后</b>——两者之间必然多出一个已消耗的推进步。可见性必须预先计入这一
+        // 已知成本，否则会暴露一个"模型轮落库后必然被拒"的委派工具，白耗一次模型轮次。
+        if (com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission
+                .admitsDelegationForUpcomingTurn(facts)) {
             return exposed;
         }
         return exposed.stream().filter(definition ->
@@ -626,7 +691,7 @@ public class AgentRuntimeCoordinator {
             String content = output.path("content").asText("");
             research.append("<CHILD_RESEARCH status=\"").append(status).append("\" childRunId=\"")
                     .append(child.id()).append("\" sourceRun=\"document_research_subagent\">\n")
-                    .append(truncateForPrompt(content, 6000)).append('\n')
+                    .append(truncateForPrompt(content, CHILD_RESEARCH_EVIDENCE_CHARS)).append('\n')
                     .append("</CHILD_RESEARCH>\n");
             coverage.append("<CHILD_RESEARCH_COVERAGE childRunId=\"").append(child.id())
                     .append("\" source=\"persisted-tool-results\" verified=\"true\">\n")
@@ -646,6 +711,10 @@ public class AgentRuntimeCoordinator {
         if (value == null) return "";
         return value.length() <= maximum ? value : value.substring(0, maximum) + "…";
     }
+
+    /** 交给父综合的子研究文字上限（字符）。原来的 6000 会把子运行已取得的必要原文
+     *  在注入父上下文时砍掉一半以上；子成果属于必要证据层，有空间时应完整进入。 */
+    static final int CHILD_RESEARCH_EVIDENCE_CHARS = 24_000;
 
     /**
      * 父运行最终回答应携带的结构化来源：本运行成功工具结果的来源（由 recordFinal 的
@@ -693,12 +762,41 @@ public class AgentRuntimeCoordinator {
             return invalidResponse(run);
         }
         String content = turn.content();
-        // 检测 [QUESTIONS] 标记：模型需要用户澄清
-        if (content.startsWith("[QUESTIONS]")) {
+        // 检测 [QUESTIONS] 标记：模型需要用户澄清。
+        //
+        // F1 修复：只读文档研究子运行（depth>0）<b>不得</b>进入主用户等待状态。
+        // 子运行与父运行共享 session，但它的问题不会写进主会话（recordWaitingForInput
+        // 对 depth>0 也不写消息），因此父运行会一直等待一个用户看不到、也无法回答的隐藏
+        // 问题——父运行持续重排队，既不综合已有资料也不结束。子研究缺资料时应当回传
+        // <b>研究缺口</b>并正常收口，让父运行按已取证据综合（父再决定是否向用户提问）。
+        if (run.depth() == 0 && content.startsWith("[QUESTIONS]")) {
             run = repository.recordWaitingForInput(run, content, true);
             emit(run, AgentEventType.WAITING_FOR_USER_INPUT,
                     json.createObjectNode().put("question", content));
             return new AgentWorkerOutcome(AgentRunStatus.WAITING_FOR_USER_INPUT, content, null, null);
+        }
+        if (run.depth() > 0 && content.startsWith("[QUESTIONS]")) {
+            // 剥离协议标记，把子运行的问题降级为研究缺口陈述并正常收口：
+            // 父运行据此看到"该子任务存在未解决的信息缺口"，而不是无限等待。
+            String gap = content.substring("[QUESTIONS]".length()).strip();
+            String asFindings = (gap.isEmpty()
+                    ? "子研究未能继续：缺少必要信息。"
+                    : "子研究需要但无法从现有资料确认的信息（研究缺口，非用户提问）：\n" + gap)
+                    + "\n（子研究不回传用户提问：父运行按已取得证据综合，并自行决定是否向用户澄清。）";
+            if (finalizing && coreActionPending) {
+                repository.recordBudgetPartialAnswer(run, asFindings, true);
+                emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
+                        json.createObjectNode()
+                                .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
+                                .put("errorCode", "AGENT_BUDGET_EXCEEDED")
+                                .put("scope", "CORE_ACTION_NOT_PERFORMED"));
+                return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, asFindings, null, "AGENT_BUDGET_EXCEEDED");
+            }
+            run = repository.recordFinal(run, asFindings, childCitations(run, steps), true);
+            emit(run, AgentEventType.RUN_SUCCEEDED,
+                    json.createObjectNode().put("status", AgentRunStatus.SUCCEEDED.name())
+                            .put("childAskedInsteadOfAnswering", true));
+            return new AgentWorkerOutcome(AgentRunStatus.SUCCEEDED, asFindings, null, null);
         }
         if (finalizing && coreActionPending) {
             // 预算策略强制收尾且核心动作未发生：如实进入预算受限/部分完成状态，
@@ -737,11 +835,16 @@ public class AgentRuntimeCoordinator {
             AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, ModelTurnResult turn,
             List<AgentStepView> steps, List<AgentToolDefinition> exposed, boolean finalizing,
             boolean recoveryBatch, boolean requestLegacyMode) {
-        // 输入实际超额：真实输入消耗超出运行上限时如实结算并明确终止，
-        // 不执行该响应中的工具，不记成功（估算无法绝对保证请求不超限，如实结算+停止）。
-        // 恢复路径同样执行该检查：已保存响应不能绕过执行限额保护。
-        long inputRemaining=Math.min(run.maxInputTokens(),ctx.limits().maxInputTokens())-run.inputTokensActual();
-        if (inputRemaining<0) {
+        // 输入实际超额：仅对仍执行累计输入上限的 v1 运行生效——真实输入消耗超出运行上限时
+        // 如实结算并明确终止，不执行该响应中的工具，不记成功（估算无法绝对保证请求不超限）。
+        // v2 累计输入只统计，不因累计输入超额终止（单次请求的真实边界是模型窗口 H，
+        // 已在组装阶段按 H 校验）。恢复路径执行同一份检查：已保存响应不能绕过 v1 的限额保护。
+        Integer effectiveInputCap = AgentResourcePolicy.effectiveInputCap(
+                run.contextPolicyVersion(), run.maxInputTokens(), ctx.limits().maxInputTokens());
+        long inputRemaining = effectiveInputCap == null
+                ? Long.MAX_VALUE
+                : (long) effectiveInputCap - run.inputTokensActual();
+        if (effectiveInputCap != null && inputRemaining < 0) {
             repository.recordBudgetExceeded(run);
             emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
                     json.createObjectNode()
@@ -935,9 +1038,63 @@ public class AgentRuntimeCoordinator {
                 AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
     }
 
-    /** 组装完成后追加本轮附加指令（格式修复、收尾要求），这些内容同样计入输入预算。 */
-    private List<ModelMessage> appendTurnInstructions(List<ModelMessage> base, List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending) {
+    /**
+     * 本次主请求的统一组装入口：正常、降级重组、无工具综合与预算兜底共用。
+     *
+     * <p>F2 修复的落点：子研究证据属于本次综合的<b>必要证据层</b>，必须在每一次组装后
+     * 都重新注入。原实现在第一次 {@code composeV2(1.0)} 之后追加子证据，
+     * 但超预算降级重组（{@code 0.6}）与 {@code needsFinalRequest} 强制收尾都重新组装
+     * 却不再追加——只要第二版请求放得下，模型就在看不到子产出与覆盖块的情况下回答并记
+     * {@code SUCCEEDED}。现在由本方法唯一负责"基础消息 + 子证据 + 本轮指令"的组合，
+     * 所有组装分支都经由此处，不再有"某条路径忘了补回"的可能。</p>
+     *
+     * <p>层次顺序固定：基础消息（系统提示/工作状态/页面/提案/工具观察/历史）→
+     * 子证据数据块（UNTRUSTED 文字 + 已校验覆盖事实，二者内部已分离）→ 本轮尾部指令。</p>
+     */
+    private List<ModelMessage> assembleRequestMessages(
+            List<ModelMessage> base, String childEvidence, List<AgentStepView> steps,
+            boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending) {
         List<ModelMessage> messages = new ArrayList<>(base);
+        if (childEvidence != null && !childEvidence.isEmpty()) {
+            messages.add(new ModelMessage.System(childEvidence));
+        }
+        return appendTurnInstructions(messages, steps, finalizing, maxToolCallsPerTurn, coreActionPending);
+    }
+
+    /** v2 兼容重载：无子证据时仍走同一入口。 */
+    private List<ModelMessage> assembleRequestMessages(
+            AgentModelMessageComposer.Composition composition, String childEvidence,
+            List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending) {
+        return assembleRequestMessages(composition.messages(), childEvidence, steps, finalizing,
+                maxToolCallsPerTurn, coreActionPending);
+    }
+
+    /**
+     * 派生<b>本次实际出站</b>的单次输出上限：取"当前模型配置的单次最大输出"与
+     * "本次请求剩余可用的运行输出额度"的较小值（v1），v2 下只受模型配置与本次窗口约束。
+     *
+     * <p>这个值同时用于：窗口计算（输出预留必须等于实际出站值，不能用与实际发送不同的
+     * 数字计算窗口）、出站封顶（经 {@code AiRequestOutputCap} 在本次调用范围内下发）
+     * 以及该响应的输出超额判定。不改数据库用户设置。</p>
+     */
+    private int effectiveRequestMaxOutput(
+            AgentRunView run, AgentExecutionContext ctx, RoutingAgentModelExecutor.ResolvedRequest resolved) {
+        int configured = resolved == null || resolved.config() == null
+                ? contextProperties.outputReserveTokens()
+                : resolved.config().maxOutputTokens();
+        if (configured <= 0) configured = Math.max(1, contextProperties.outputReserveTokens());
+        // v1：运行累计输出额度仍会收紧本次请求的输出（历史语义保持不变）。
+        // v2：累计输出不限额，只守模型配置的单次上限（窗口适配在 perRequest 内完成）。
+        Integer cumulativeCap = AgentResourcePolicy.effectiveOutputCap(
+                run.contextPolicyVersion(), run.maxOutputTokens(), ctx.limits().maxOutputTokens());
+        if (cumulativeCap == null) return configured;
+        long remaining = (long) cumulativeCap - run.outputTokensActual();
+        if (remaining <= 0) return configured; // 已超额由既有判定处理，不在这里伪造更小的值
+        return (int) Math.min(configured, remaining);
+    }
+
+    /** 组装完成后追加本轮附加指令（格式修复、收尾要求），这些内容同样计入输入预算。 */
+    private List<ModelMessage> appendTurnInstructions(List<ModelMessage> base, List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending) {        List<ModelMessage> messages = new ArrayList<>(base);
         StringBuilder guidance = new StringBuilder(
                 "单轮工具调用最多 " + maxToolCallsPerTurn + " 项；只有直接必要且独立的查询才能并行，已有证据足够时直接回答。\n");
         if (coreActionPending && !finalizing) {

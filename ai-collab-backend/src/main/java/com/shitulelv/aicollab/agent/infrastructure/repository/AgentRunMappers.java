@@ -32,8 +32,9 @@ final class AgentRunMappers {
                 rs.getInt("max_steps"),
                 rs.getInt("max_tool_calls"),
                 rs.getInt("max_children"),
-                rs.getInt("max_input_tokens"),
-                rs.getInt("max_output_tokens"),
+                // v2 的累计上限显式为 NULL：必须映射成 null，不能读成 0（0 会被当成"额度已耗尽"）
+                nullableInt(rs, "max_input_tokens"),
+                nullableInt(rs, "max_output_tokens"),
                 rs.getInt("steps_used"),
                 rs.getInt("tool_calls_used"),
                 rs.getInt("children_used"),
@@ -50,8 +51,16 @@ final class AgentRunMappers {
                 rs.getString("page_context_json"),
                 rs.getString("skill_code"),
                 rs.getInt("version"),
+                rs.getInt("context_policy_version"),
+                "COMBINED".equals(rs.getString("budget_semantics")),
                 rs.getObject("created_at", OffsetDateTime.class),
                 rs.getObject("updated_at", OffsetDateTime.class));
+    }
+
+    /** JDBC NULL → null（不是 0）：累计 token 上限的可空表达必须原样保留。 */
+    private static Integer nullableInt(ResultSet rs, String column) throws java.sql.SQLException {
+        int value = rs.getInt(column);
+        return rs.wasNull() ? null : value;
     }
 
     static RowMapper<ClaimedAgentRun> claimedMapper() {

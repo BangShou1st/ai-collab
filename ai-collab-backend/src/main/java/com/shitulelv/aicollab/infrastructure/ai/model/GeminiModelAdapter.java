@@ -147,7 +147,7 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
         ObjectNode body = mapper.createObjectNode();
         ObjectNode generation = body.putObject("generationConfig");
         generation.put("temperature", config.temperature());
-        generation.put("maxOutputTokens", config.maxOutputTokens());
+        generation.put("maxOutputTokens", AiRequestOutputCap.effective(config.maxOutputTokens()));
 
         // 提取 system 消息，放入 systemInstruction
         StringBuilder systemPrompt = new StringBuilder();
@@ -223,7 +223,7 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
                 .put("text", command.userPrompt());
         ObjectNode generation = body.putObject("generationConfig");
         generation.put("temperature", config.temperature());
-        generation.put("maxOutputTokens", config.maxOutputTokens());
+        generation.put("maxOutputTokens", AiRequestOutputCap.effective(config.maxOutputTokens()));
         if (command.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT) {
             generation.put("responseMimeType", "application/json");
             if (command.outputSchema() != null) {
