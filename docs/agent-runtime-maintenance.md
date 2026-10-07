@@ -155,3 +155,34 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
   （`UNKNOWN_FACTS`），**不得**解释成"未取得提纲"。
 - **回归**：`DelegatedResearchCoverageTest`（纯函数 9 项）、`AgentDelegationPostgresTest`（覆盖附带、
   分离注入、旧记录、重复回收、提纲级降级）。
+
+## 13. 委派受理拒绝的边界与兜底覆盖事实（2026-10-07 交付）
+
+完整报告：`docs/agent-delegation-rejection-admission-delivery-20261007.md`。维护要点：
+
+- **区分"受理拒绝"与"执行失败"**：`common/exception/AgentDelegationNotAdmittedException` 只表示
+  "委派在**当前运行预算下不可能被受理**"（次数耗尽 / 剩余预算容不下子运行最小研究与父综合收尾），
+  原因以稳定错误码 `AGENT_DELEGATION_CHILDREN_EXHAUSTED` / `AGENT_DELEGATION_BUDGET_INSUFFICIENT`
+  表达。**不要用中文异常消息文本判断原因，也不要把 `AGENT_TOOL_NOT_ALLOWED` 一律软化**：
+  depth 边界（子运行不能再委派）、定时运行策略拒绝等仍是普通 `BusinessException`，走原失败边界。
+- **受理判定是纯函数**：`agent/domain/model/AgentDelegationAdmission`（`reject(Facts)` / `split(Facts)`）
+  被 `AgentRunEventRecorder.documentResearchDelegationResult`（持久化受理事务）与
+  `AgentRuntimeCoordinator.withoutUnadminttableDelegation`（工具可见性）共用——**同一判定只有一处**，
+  改阈值或切分公式必须同时看这两处。判定只读单调变化的运行事实，同一事实结论稳定（恢复重放不产生新语义）。
+- **拒绝的行为**（`AgentToolCallExecutor.rejectDelegation`）：不创建子运行、不写成功 DELEGATED 回执；
+  结果（`status=REJECTED`、`delegationAdmitted=false`、`error=<原因码>`）落在委派工具**自己的
+  invocation 身份**上并被本模型轮次消费，恢复经 `knownInvocationResult` 复用——**不重复执行、不重复计数、
+  不创建第二个子运行**。之后按既有收敛策略走：有可信证据→无工具综合；无证据但可继续→照常发下一次请求；
+  都不可负担→证据兜底；无证据→既有 EXHAUSTED。**暂停/取消/权限/租约仍走原边界，暂停不被自动解除**。
+  **同 invocation 已受理的动作仍按幂等规则返回既有子运行**，不因后来预算变化变成新拒绝。
+- **兜底必须带覆盖事实**：`AgentRuntimeCoordinator.completeFromEvidence` 的**两条**分支都并入
+  `collectedChildCoverage(steps)`（复用既有 `DelegatedResearchCoverage.renderForParentPrompt`，
+  与 UNTRUSTED 子文字分开）。正常综合与预算兜底**覆盖语义必须一致**：已取得提纲不得被误称未取得、
+  `HEURISTIC_HEADINGS` 不是完整目录、检索命中不等于正文读完、旧记录缺 `coverage` 按
+  `UNKNOWN_FACTS` 未知兼容、子文字与覆盖事实冲突时**以覆盖事实为准**。兜底文本是**面向用户的交付文本**，
+  只陈述事实与优先级，**不要**往里面写提示词指令。
+- **委派是显式触发而非默认行为**：根运行非定时才可见该工具，子运行 `maxChildren=0` 最多一层；
+  对照实验证明普通提问（`children_used=0`）走直接检索，不创建子运行。不要把"提示词里显式要求委派"
+  的实验样本误读为默认路由行为。
+- **回归**：`AgentDelegationAdmissionTest`（纯函数 6 项）、`AgentDelegationPostgresTest`
+  （拒绝不 FAILED、原因码区分、恢复幂等、无证据继续、可见性收窄、权限/暂停边界、兜底四种覆盖形态）。
