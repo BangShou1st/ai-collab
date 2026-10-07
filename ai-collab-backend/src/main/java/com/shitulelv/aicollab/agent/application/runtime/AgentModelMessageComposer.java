@@ -221,7 +221,9 @@ public class AgentModelMessageComposer {
         systemPromptLength = systemPrompt.length();
 
         // 必选层 2：工作状态（v2 结构化渲染，兼容旧格式；回退开关下同样可读）
-        JsonNode state = repository.workingState(run.projectId(), run.sessionId());
+        // 子研究运行不读取会话工作状态：它与父运行共享 session，父目标/约束/待答问题
+        // 不属于委派任务，自动继承会造成目标污染（子上下文只含委派目标与自身观察）。
+        JsonNode state = isChildResearchRun(run, skill) ? null : repository.workingState(run.projectId(), run.sessionId());
         if (state != null && !state.isEmpty()) {
             String rendered = renderWorkingState(state);
             messages.add(new ModelMessage.User(rendered));
@@ -297,9 +299,12 @@ public class AgentModelMessageComposer {
             toolUsed += size;
         }
 
-        // 对话历史：剩余预算（扣除当前请求预留）从最新到最旧选择
+        // 对话历史：剩余预算（扣除当前请求预留）从最新到最旧选择。
+        // 子研究运行不继承父对话历史：共享 session 的用户消息/助手回答只属于父对话，
+        // 子模型只看到系统提示中的委派目标与自身工具观察。
         int historyBudget = remaining - toolUsed - reservedGoal;
-        List<AgentMessageView> recentMessages = repository.listRecentMessages(run.sessionId(), HISTORY_CANDIDATES);
+        List<AgentMessageView> recentMessages = new ArrayList<>(isChildResearchRun(run, skill)
+                ? List.of() : repository.listRecentMessages(run.sessionId(), HISTORY_CANDIDATES));
         recentMessages.sort((a, b) -> a.createdAt().compareTo(b.createdAt()));
         Set<String> seenContents = new HashSet<>();
         List<AgentMessageView> picked = new ArrayList<>();
@@ -354,6 +359,8 @@ public class AgentModelMessageComposer {
         for (AgentMessageView msg : recentMessages) {
             if (!pickedIds.contains(msg.id())) summaryCandidates.add(msg);
         }
+        // 子研究运行不做会话摘要：摘要的对象是父对话历史，子运行没有参与也不应触发
+        if (isChildResearchRun(run, skill)) summaryCandidates = List.of();
         // 从持久化覆盖进度重新加载旧消息，不能让最近历史窗口成为摘要的读取边界。
         List<AgentMessageView> persisted = repository.listSummaryCandidates(run, pickedIds, SUMMARY_CANDIDATE_LIMIT);
         if (!persisted.isEmpty() || (summary != null && summary.hasNonNull("completedBefore"))) summaryCandidates = persisted;
@@ -455,7 +462,12 @@ public class AgentModelMessageComposer {
         return sb.toString();
     }
 
-    /** 失效引用检测：citations 失效时替换为 REJECTED，保证旧资料不被当作当前事实。 */    private JsonNode staleAwareOutput(AgentRunView run, AgentStepView step) {
+    /** 失效引用检测：citations 失效时替换为 REJECTED，保证旧资料不被当作当前事实。 */
+    private boolean isChildResearchRun(AgentRunView run, AgentSkill skill) {
+        return run.depth() > 0
+                || com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry.isChildResearchSkill(skill);
+    }
+    private JsonNode staleAwareOutput(AgentRunView run, AgentStepView step) {
         JsonNode output = step.output();
         boolean stale = output.path("citations").isArray() && !output.path("citations").isEmpty()
                 && !repository.citationsStillValid(run.projectId(), output);
@@ -558,6 +570,16 @@ public class AgentModelMessageComposer {
         sb.append("项目 ID: ").append(run.projectId()).append("\n");
         sb.append("你的角色: ").append(run.role()).append("\n\n");
         sb.append(TimeContext.beijingTimeContext()).append("\n");
+        if (isChildResearchRun(run, skill)) {
+            sb.append("""
+                    你是只读文档研究子任务，不是面向用户的对话 Agent：
+                    - 你的任务只有当前委派目标；你看不到用户对话历史，也不需要它。
+                    - 只使用本轮提供的只读文档研究工具收集资料，回答委派目标。
+                    - 如实列出已核实的发现、每个发现的来源（工具返回的 documentId/chunkId）与覆盖缺口；
+                      检索未命中或资料不足时明确说明，不编造来源或结论。
+                    - 直接输出研究发现本身，不提问、不等待用户输入、不调用写操作。
+                    """).append('\n');
+        }
         sb.append(skill.instruction()).append("\n\n");
         if (legacyMode) {
             sb.append("""
@@ -575,7 +597,33 @@ public class AgentModelMessageComposer {
             sb.append("- ").append(step.title()).append("\n");
         }
         sb.append("\n");
+        if (!isChildResearchRun(run, skill)) {
+            sb.append("任务场景说明:\n");
+            sb.append("- 当前命中的任务场景（").append(skill.code()).append("）提供的是场景指引与建议回答结构，不是能力上限；")
+              .append("本轮可见的工具就是你可以使用的完整能力集合，未选场景不会禁用基础只读工具。\n");
+            sb.append("- 用户本轮目标优先于场景模板：用户只要一项事实时就直接回答该事实，")
+              .append("短问短答；综合问题可按结论/依据/风险/建议组织，但不必凑满模板的全部栏目。\n\n");
+        }
         sb.append("输出要求:\n").append(skill.outputContract()).append("\n\n");
+        if (isChildResearchRun(run, skill)) {
+            sb.append("""
+                    回答结构要求:
+                    - 研究发现用 "## 发现" 这样的 Markdown 小标题分节，不要用 "1. 2. 3." 编号表示章节。
+                    - 建议的后续步骤单独用从 1 开始的编号列表；不要把章节名、步骤和追问混进同一个列表。
+                    - 每个发现标注来源身份（documentId/chunkId），无法核实的部分写进 "## 覆盖缺口"。
+                    - 不要输出 [QUESTIONS] 标记：子任务不与用户对话。
+
+                    """);
+        } else {
+            sb.append("""
+                    通用回答结构约定:
+                    - 章节用 Markdown 小标题（##）表达，不用 "1. 2. 3." 编号表示章节；
+                      编号列表从 1 开始且只用于真正的列表项（步骤、选项、要点）。
+                    - 建议步骤与追问选项各自独立编号，不并入同一列表。
+                    - 关键事实适量加粗；短问题直接作答，不强制套用报告模板。
+
+                    """);
+        }
         sb.append("执行边界:\n");
         sb.append("""
                 - 当前注册工具定义说明本次能调用什么，当前成功工具结果说明具体对象在查询时的事实；工具存在不表示整个业务能力已验收。

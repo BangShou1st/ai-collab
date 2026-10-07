@@ -246,10 +246,13 @@ public class AgentRunEventRecorder {
     public void recordBudgetPartialAnswer(AgentRunView run, String content, boolean consumePersistedTurn) {
         recordBudgetExceeded(run);
         if (consumePersistedTurn) markModelTurnConsumed(run.id());
-        jdbc.update("""
-                INSERT INTO agent_message(session_id,run_id,role,content)
-                VALUES (?,?,'ASSISTANT',?)
-                """, run.sessionId(), run.id(), content);
+        // 子研究运行不向共享会话写 ASSISTANT 消息（与 recordFinal 同一隔离边界）
+        if (run.depth() == 0) {
+            jdbc.update("""
+                    INSERT INTO agent_message(session_id,run_id,role,content)
+                    VALUES (?,?,'ASSISTANT',?)
+                    """, run.sessionId(), run.id(), content);
+        }
     }
 
     /**
@@ -883,22 +886,14 @@ public class AgentRunEventRecorder {
 
         int sequence = nextSequence(run.id());
 
-        // 使用 ObjectMapper 序列化为 JSON 对象，确保 JSONB 正确
-        var evidence = new java.util.LinkedHashMap<UUID, AgentCitation>();
-        for (String value : jdbc.queryForList("""
-                SELECT c.value::text FROM agent_step s
-                CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(s.output_json->'citations')='array' THEN s.output_json->'citations' ELSE '[]'::jsonb END) c(value)
-                WHERE s.run_id=? AND s.type='TOOL_CALL_COMPLETED' AND s.reason='TOOL_SUCCESS'
-                  AND coalesce(s.output_json->>'status','SUCCEEDED')='SUCCEEDED'
-                  AND EXISTS (
-                    SELECT b.id FROM document_body_chunk b JOIN project_document d ON d.id=b.document_id
-                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status<>'DELETING'
-                    UNION ALL SELECT b.id FROM document_chunk b JOIN project_document d ON d.id=b.document_id
-                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status='READY')
-                ORDER BY s.sequence_no
-                """, String.class, run.id(), run.projectId(), run.projectId())) {
-            try { var citation=json.readValue(value,AgentCitation.class); evidence.putIfAbsent(citation.chunkId(),citation); }
-            catch (JsonProcessingException malformed) { /* Only persisted, structured source identities are exposed. */ }
+        // 使用 ObjectMapper 序列化为 JSON 对象，确保 JSONB 正确。
+        // citations 参数是协调器移交的结构化来源（已完成委派子运行的持久引用投影），
+        // 与本运行自己的持久证据合并——两者都来自持久化工具结果，不接受模型编造的 ID。
+        var evidence = collectEvidence(run.id(), run.projectId());
+        if (citations != null) {
+            for (AgentCitation handed : citations) {
+                if (handed != null) evidence.putIfAbsent(handed.chunkId(), handed);
+            }
         }
         // Source cards describe material actually read this run, never model-invented identifiers.
         var availableCitations=evidence.values().stream().limit(50).toList();
@@ -918,11 +913,18 @@ public class AgentRunEventRecorder {
                   run_id,sequence_no,type,output_json)
                 VALUES (?,?,'FINAL_ANSWER',?::jsonb)
                 """, run.id(), sequence, outputJson);
-        jdbc.update("""
-                INSERT INTO agent_message(
-                  session_id,run_id,role,content,citations_json,inferences_json)
-                VALUES (?,?,'ASSISTANT',?,?::jsonb,'[]'::jsonb)
-                """, run.sessionId(), run.id(), content, json.valueToTree(availableCitations).toString());
+        // 子研究运行不向共享会话写 ASSISTANT 消息（R1 隔离）：其产出由父运行读取
+        // DELEGATION_COMPLETED 后综合落一份最终回答；中间结果只持久化在子运行自身。
+        boolean childRun = run.depth() > 0;
+        if (!childRun) {
+            jdbc.update("""
+                    INSERT INTO agent_message(
+                      session_id,run_id,role,content,citations_json,inferences_json)
+                    VALUES (?,?,'ASSISTANT',?,?::jsonb,'[]'::jsonb)
+                    """, run.sessionId(), run.id(), content, json.valueToTree(availableCitations).toString());
+        }
+        // 委派子运行成功收口：唤醒等待中的父运行（非父运行 no-op）
+        resumeParent(run, "SUCCEEDED", content);
         event(run,"RUN_SUCCEEDED",json.createObjectNode().put("status","SUCCEEDED"));
 
         return findRun(run.projectId(), run.id()).orElse(run);
@@ -942,7 +944,8 @@ public class AgentRunEventRecorder {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
         accountActiveTime(run.id());
         if (consumePersistedTurn) markModelTurnConsumed(run.id());
-        AgentWorkingState.question(jdbc,json,run.sessionId(),question);
+        // 子研究运行不推进主会话工作状态（R9 隔离）：question() 只面向用户会话的父运行
+        if (run.depth() == 0) AgentWorkingState.question(jdbc,json,run.sessionId(),question);
         markBatchHandled(run.id());
         // 先验证版本和状态
         int updated = jdbc.update("""
@@ -959,11 +962,16 @@ public class AgentRunEventRecorder {
                   run_id,sequence_no,type,output_json,reason)
                 VALUES (?,?,'FINAL_ANSWER',?::jsonb,'WAITING_FOR_USER_INPUT')
                 """, run.id(), sequence, jsonString(Map.of("question", question)));
-        jdbc.update("""
-                INSERT INTO agent_message(
-                  session_id,run_id,role,content,citations_json,inferences_json)
-                VALUES (?,?,'ASSISTANT',?,'[]'::jsonb,'[]'::jsonb)
-                """, run.sessionId(), run.id(), question);
+        // 子研究运行不提问、不进主会话（R1/R9 隔离）：等待输入语义只属于面向用户的父运行
+        if (run.depth() == 0) {
+            jdbc.update("""
+                    INSERT INTO agent_message(
+                      session_id,run_id,role,content,citations_json,inferences_json)
+                    VALUES (?,?,'ASSISTANT',?,'[]'::jsonb,'[]'::jsonb)
+                    """, run.sessionId(), run.id(), question);
+        } else {
+            jdbc.update("UPDATE agent_session SET working_state=jsonb_set(working_state,'{pendingQuestion}','null'::jsonb,true) WHERE project_id=? AND id=?", run.projectId(), run.sessionId());
+        }
         event(run,"WAITING_FOR_USER_INPUT",json.createObjectNode().put("question",question));
 
         return findRun(run.projectId(), run.id()).orElse(run);
@@ -1220,18 +1228,50 @@ public class AgentRunEventRecorder {
         }
     }
 
+    /**
+     * 子运行终态回收：唤醒等待中的父运行，回收已发生的消耗并移交结构化结果。
+     *
+     * <p>消息隔离（R1）：子运行自身不向会话写 ASSISTANT 消息——它的产出只以
+     * DELEGATION_COMPLETED step（本方法）持久化，由父运行综合后以父身份落一份最终回答。</p>
+     *
+     * <p>用量回收（R5）：已发生消耗的回收独立于能否唤醒父运行——父处于 RUNNING/PAUSED
+     * 等任何状态时用量照样累加（幂等键 DELEGATION_COMPLETED step 防重复回收），
+     * 只是把父运行唤醒为 QUEUED 的部分仍要求 CREATED/QUEUED；父保持 PAUSED 不被自动解除。</p>
+     *
+     * <p>来源身份（R7）：回收本运行成功工具结果中的有效 citations，随 DELEGATION_COMPLETED
+     * 持久化，父运行综合时能把这些来源投影到自己的最终回答，不依赖模型重新编造引用 ID。</p>
+     */
     private void resumeParent(AgentRunView child, String status, String content) {
         if (child.parentRunId() == null) return;
+        // 幂等：同一子运行只回收一次。恢复/重复收口重放时直接返回，不重复写 step、不重复累计用量。
+        boolean alreadyCollected = jdbc.queryForObject("""
+                SELECT count(*) FROM agent_step
+                WHERE run_id=? AND type='DELEGATION_COMPLETED' AND output_json->>'childRunId'=?
+                """, Integer.class, child.parentRunId(), child.id().toString()) > 0;
+        if (alreadyCollected) return;
         AgentRunView usage = findRun(child.projectId(), child.id()).orElse(child);
+        // 子研究运行的可验证来源身份：本运行成功工具结果中真实存在的 chunk/document 投影
+        java.util.LinkedHashMap<UUID, AgentCitation> childCitations = collectEvidence(child.id(), child.projectId());
         int sequence = nextSequence(child.parentRunId());
+        var completed = json.createObjectNode()
+                .put("childRunId", child.id().toString())
+                .put("status", status)
+                .put("content", content);
+        completed.set("citations", json.valueToTree(childCitations.values().stream().limit(50).toList()));
+        completed.put("usage", json.createObjectNode()
+                .put("inputTokensUsed", usage.inputTokensUsed())
+                .put("outputTokensUsed", usage.outputTokensUsed())
+                .put("inputTokensActual", usage.inputTokensActual())
+                .put("outputTokensActual", usage.outputTokensActual()));
         jdbc.update("""
                 INSERT INTO agent_step(run_id,sequence_no,type,output_json,reason)
-                VALUES (?,?,'DELEGATION_COMPLETED',
-                  jsonb_build_object('childRunId',?,'status',?,'content',?),?)
-                """, child.parentRunId(), sequence, child.id(), status, content,
+                VALUES (?,?,'DELEGATION_COMPLETED',?::jsonb,?)
+                """, child.parentRunId(), sequence, jsonString(completed),
                 "Specialist child run completed");
+        // 已发生消耗的回收独立于唤醒：无论父运行处于什么状态都如实累计（步数/调用数封顶，
+        // token 沿用 used 封顶 + actual 如实的既有预算语义）。
         jdbc.update("""
-                UPDATE agent_run SET status='QUEUED',
+                UPDATE agent_run SET
                   steps_used=LEAST(max_steps,steps_used+?),
                   tool_calls_used=LEAST(max_tool_calls,tool_calls_used+?),
                   input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
@@ -1239,11 +1279,40 @@ public class AgentRunEventRecorder {
                   input_tokens_actual=input_tokens_actual+?,
                   output_tokens_actual=output_tokens_actual+?,
                   token_usage_estimated=token_usage_estimated OR ?,
-                  updated_at=now(),version=version+1
-                WHERE id=? AND status='CREATED'
+                  updated_at=now()
+                WHERE id=?
                 """, usage.stepsUsed(), usage.toolCallsUsed(), usage.inputTokensUsed(),
                 usage.outputTokensUsed(), usage.inputTokensActual(), usage.outputTokensActual(),
                 usage.tokenUsageEstimated(), child.parentRunId());
+        // 唤醒部分单独执行：只有 CREATED/QUEUED 的等待父运行被转回 QUEUED（再次确认时
+        // no-op 不报错）；RUNNING（竞争窗口）保持运行，PAUSED 不被自动解除暂停。
+        jdbc.update("""
+                UPDATE agent_run SET status='QUEUED',
+                  lease_owner=NULL,lease_expires_at=NULL,
+                  updated_at=now(),version=version+1
+                WHERE id=? AND status IN ('CREATED','QUEUED')
+                """, child.parentRunId());
+    }
+
+    /** 本运行成功工具结果中的有效来源身份投影（{@link #recordFinal} 的证据查询共用逻辑）。 */
+    private java.util.LinkedHashMap<UUID, AgentCitation> collectEvidence(UUID runId, UUID projectId) {
+        var evidence = new java.util.LinkedHashMap<UUID, AgentCitation>();
+        for (String value : jdbc.queryForList("""
+                SELECT c.value::text FROM agent_step s
+                CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(s.output_json->'citations')='array' THEN s.output_json->'citations' ELSE '[]'::jsonb END) c(value)
+                WHERE s.run_id=? AND s.type='TOOL_CALL_COMPLETED' AND s.reason='TOOL_SUCCESS'
+                  AND coalesce(s.output_json->>'status','SUCCEEDED')='SUCCEEDED'
+                  AND EXISTS (
+                    SELECT b.id FROM document_body_chunk b JOIN project_document d ON d.id=b.document_id
+                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status<>'DELETING'
+                    UNION ALL SELECT b.id FROM document_chunk b JOIN project_document d ON d.id=b.document_id
+                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status='READY')
+                ORDER BY s.sequence_no
+                """, String.class, runId, projectId, projectId)) {
+            try { var citation = json.readValue(value, AgentCitation.class); evidence.putIfAbsent(citation.chunkId(), citation); }
+            catch (JsonProcessingException malformed) { /* Only persisted, structured source identities are exposed. */ }
+        }
+        return evidence;
     }
 
     private static int estimateInputTokens(ModelTurnResult turn) {
@@ -1251,5 +1320,112 @@ public class AgentRunEventRecorder {
             return turn.usage().inputTokens();
         }
         return com.shitulelv.aicollab.agent.application.runtime.AgentModelAccounting.estimatedInput(Math.max(1,(turn.content()==null ? 0 : turn.content().length())/3));
+    }
+
+    // ========== document_research 只读委派（V62） ==========
+
+    /**
+     * 受理一次只读文档研究委派：创建 depth=1 的子运行、落 DELEGATION_REQUESTED step、
+     * 委派工具结果落库并把父运行转回 QUEUED——全部在同一事务内完成。
+     * 与旧 {@link #recordDelegation} 的差异：本方法不绑定一次模型轮次 completion
+     * （委派发生在工具执行阶段），预算从父运行剩余额度切出。
+     *
+     * <p>幂等：同一 invocation（run + invocationId）重复执行返回既有结果，
+     * 不再切预算、不再创建第二个子运行——崩溃恢复与重复接管安全。</p>
+     *
+     * <p>暂停/取消：父运行暂停意图先落库时拒绝受理（AGENT_RUN_PAUSED），由调用方按控制结果处理。</p>
+     */
+    @Transactional
+    public JsonNode documentResearchDelegationResult(
+            AgentRunView run, String invocationId, String objective) {
+        AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        if (run.depth() != 0) {
+            throw new BusinessException(ErrorCode.AGENT_TOOL_NOT_ALLOWED, "子运行不能再委派（最多一层）");
+        }
+        // 幂等：同调用身份已有委派结果直接返回（恢复路径的重复执行）；
+        // 或该运行已有同一 objective 的待决委派（父运行已转 QUEUED）时返回既有子运行
+        var existing = jdbc.query("""
+                SELECT i.result_json::text FROM agent_tool_invocation i
+                WHERE i.run_id=? AND i.invocation_id::text=? AND i.status='SUCCEEDED'
+                """, (rs, row) -> rs.getString(1), run.id(), invocationId).stream().findFirst();
+        if (existing.isEmpty()) {
+            existing = jdbc.query("""
+                    SELECT jsonb_build_object('status','DELEGATED','childRunId',c.id::text)::text
+                    FROM agent_step s
+                    JOIN agent_run c ON c.parent_run_id=s.run_id AND c.role='KNOWLEDGE_RESEARCHER'
+                    WHERE s.run_id=? AND s.type='DELEGATION_REQUESTED'
+                      AND s.input_json->>'invocationId'=?
+                    """, (rs, row) -> rs.getString(1), run.id(), invocationId).stream().findFirst();
+        }
+        if (existing.isPresent()) {
+            try { return json.readTree(existing.get()); }
+            catch (JsonProcessingException failure) { throw new IllegalStateException(failure); }
+        }
+        if (Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT pause_requested_at IS NOT NULL FROM agent_run WHERE id=?", Boolean.class, run.id()))) {
+            throw new BusinessException(ErrorCode.AGENT_RUN_PAUSED, "Agent 运行已请求暂停，不启动委派");
+        }
+        if (run.childrenUsed() >= run.maxChildren()) {
+            throw new BusinessException(ErrorCode.AGENT_TOOL_NOT_ALLOWED, "本次运行的委派次数已用完");
+        }
+
+        // 子运行预算：从父运行剩余额度切出，硬上限保证委派不放大总资源
+        int childSteps = Math.min(8, Math.max(0, run.maxSteps() - run.stepsUsed() - 1));
+        int childToolCalls = Math.min(8, Math.max(0, run.maxToolCalls() - run.toolCallsUsed()));
+        int childInput = Math.min(30_000, Math.max(0, run.maxInputTokens() - run.inputTokensUsed()));
+        int childOutput = Math.min(8_000, Math.max(0, run.maxOutputTokens() - run.outputTokensUsed()));
+        if (childSteps < 1 || childToolCalls < 1 || childInput < 1_000 || childOutput < 1_000) {
+            throw new BusinessException(ErrorCode.AGENT_TOOL_NOT_ALLOWED, "父运行剩余预算不足以委派子任务");
+        }
+
+        int sequence = nextSequence(run.id());
+        jdbc.update("""
+                INSERT INTO agent_step(run_id,sequence_no,type,input_json,reason)
+                VALUES (?,?,'DELEGATION_REQUESTED',?::jsonb,'DOCUMENT_RESEARCH_DELEGATED')
+                """, run.id(), sequence,
+                jsonString(Map.of("invocationId", invocationId, "role", "KNOWLEDGE_RESEARCHER",
+                        "objective", truncate(objective, 3800))));
+
+        UUID childId = UUID.randomUUID();
+        AgentRunView child = jdbc.queryForObject("""
+                INSERT INTO agent_run(
+                  id,session_id,project_id,requester_id,parent_run_id,role,depth,goal,status,
+                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens,page_context_json)
+                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?,NULL::jsonb)
+                RETURNING *
+                """, AgentRunMappers.runMapper(), childId, run.sessionId(), run.projectId(), run.requesterId(),
+                run.id(), "KNOWLEDGE_RESEARCHER", truncate(objective, 3800),
+                childSteps, childToolCalls, childInput, childOutput);
+
+        ObjectNode result = json.createObjectNode();
+        result.put("status", "DELEGATED");
+        result.put("childRunId", child.id().toString());
+        result.put("message", "研究任务已受理。子 Agent 完成后本运行自动继续，届时综合其发现回答用户；本轮不要重复委派。");
+
+        // 父运行：登记 children_used 与委派自身的工具/步骤消耗（委派是一次真实的工具
+        // 受理，与普通 recordToolResult 同一配额语义，不出现免费调用），转回 QUEUED
+        // 等待子运行终态唤醒；不预扣子运行将要消耗的额度（子消耗在回收时并入）。
+        // 委派工具结果在执行层身份行（invocation）上落 SUCCEEDED，恢复路径据此幂等复用。
+        requireRunUpdate(jdbc.update("""
+                UPDATE agent_run SET status='QUEUED',children_used=children_used+1,
+                  tool_calls_used=LEAST(max_tool_calls,tool_calls_used+1),
+                  steps_used=LEAST(max_steps,steps_used+1),
+                  lease_owner=NULL,lease_expires_at=NULL,
+                  updated_at=now(),version=version+1
+                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
+                """, run.projectId(), run.id(), run.version()));
+        jdbc.update("""
+                UPDATE agent_tool_invocation SET status='SUCCEEDED',
+                  result_json=?::jsonb,updated_at=now()
+                WHERE run_id=? AND invocation_id=? AND status='PENDING'
+                """, jsonString(result), run.id(), UUID.fromString(invocationId));
+        // 委派批次全部完成：标记本运行最近模型轮次已消费，恢复路径不再重放委派调用
+        markBatchHandled(run.id());
+        return result;
+    }
+
+    /** 读取子运行的最终回答与状态（父运行综合时的证据来源；只读）。 */
+    public java.util.Optional<AgentRunView> findRunById(UUID projectId, UUID runId) {
+        return findRun(projectId, runId);
     }
 }

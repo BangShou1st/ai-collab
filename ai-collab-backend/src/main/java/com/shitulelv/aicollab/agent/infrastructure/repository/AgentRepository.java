@@ -86,8 +86,13 @@ public class AgentRepository {
                 """, sessionMapper(), projectId, limit);
     }
 
+    /**
+     * 会话最新"主运行"：恢复、SSE 订阅与控制入口都以此为身份。
+     * 只取 depth=0 的运行——委派子运行（depth=1）共享同一 session 但不是用户会话的
+     * 控制对象，刷新/切会话不能把子运行当主运行恢复（否则父运行被孤立在等待状态）。
+     */
     public Optional<AgentRunView> findLatestRun(UUID projectId, UUID sessionId) {
-        return jdbc.query("SELECT * FROM agent_run WHERE project_id=? AND session_id=? ORDER BY created_at DESC, id DESC LIMIT 1",
+        return jdbc.query("SELECT * FROM agent_run WHERE project_id=? AND session_id=? AND depth=0 ORDER BY created_at DESC, id DESC LIMIT 1",
                 AgentRunMappers.runMapper(), projectId, sessionId).stream().findFirst();
     }
 
@@ -95,9 +100,9 @@ public class AgentRepository {
         return jdbc.query("""
                 SELECT s.id, s.project_id, s.creator_id, COALESCE(u.display_name, u.username, s.creator_id::text) AS creator_name,
                        s.title, s.status, s.version, s.created_at, s.updated_at,
-                       (SELECT r.id FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_id,
-                       (SELECT r.status FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_status,
-                       (SELECT r.updated_at FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_activity_at
+                       (SELECT r.id FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_id,
+                       (SELECT r.status FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_status,
+                       (SELECT r.updated_at FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_activity_at
                 FROM agent_session s LEFT JOIN app_user u ON u.id=s.creator_id
                 WHERE s.project_id=? ORDER BY s.updated_at DESC, s.id DESC LIMIT ?
                 """, (rs, row) -> new AgentSessionSummaryView(
@@ -161,6 +166,12 @@ public class AgentRepository {
     public Optional<AgentRunView> findRun(UUID projectId, UUID runId) {
         return jdbc.query("SELECT * FROM agent_run WHERE project_id=? AND id=?",
                 AgentRunMappers.runMapper(), projectId, runId).stream().findFirst();
+    }
+
+    /** 指定运行的全部子运行（委派等待与结果回收判定使用；只读）。 */
+    public List<AgentRunView> childRuns(UUID projectId, UUID parentRunId) {
+        return jdbc.query("SELECT * FROM agent_run WHERE project_id=? AND parent_run_id=? ORDER BY created_at",
+                AgentRunMappers.runMapper(), projectId, parentRunId);
     }
 
     /** 终态运行的重试派生结果：created=false 表示并发重试命中幂等边界，返回既有派生运行。 */
@@ -399,6 +410,9 @@ public class AgentRepository {
      * 都不是执行时间，只有 claim 内已持久化进度之前的区间才算已确认执行；
      * 最后一次进度到进程退出这一段没有持久记录，不冒充已执行时长
      * （见 {@code AgentRuntimeJob}：租约 6 分钟是等待上界，不是执行上界）。</p>
+     *
+     * <p>领取顺序按 depth 降序再按 created_at：委派子运行（depth=1）先于等待它的父运行
+     * 被处理，父运行在子运行完成后回收结果；正常深度 0 运行之间的顺序不变。</p>
      */
     @Transactional
     public Optional<ClaimedAgentRun> claimNext(
@@ -412,7 +426,7 @@ public class AgentRepository {
                     OR (status='RUNNING' AND lease_expires_at < ?)
                     OR (status='FAILED_RETRYABLE' AND retry_after <= ?)
                   )
-                  ORDER BY created_at,id
+                  ORDER BY depth DESC,created_at,id
                   FOR UPDATE SKIP LOCKED
                   LIMIT 1
                 )
@@ -552,6 +566,17 @@ public class AgentRepository {
             AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion,
             com.shitulelv.aicollab.agent.domain.model.AgentDecision.Delegate delegate) {
         return recorder.recordDelegation(run, completion, delegate);
+    }
+
+    /**
+     * 受理一次只读文档研究委派（V62）：创建 depth=1 子运行、落 DELEGATION_REQUESTED step、
+     * 委派工具结果与父运行转回 QUEUED 在同一事务内完成。
+     * 幂等键是本次工具调用的 invocationId；同一调用重复执行返回既有子运行，不重复落库。
+     */
+    @Transactional
+    public JsonNode documentResearchDelegationResult(
+            AgentRunView run, String invocationId, String objective) {
+        return recorder.documentResearchDelegationResult(run, invocationId, objective);
     }
 
     /**

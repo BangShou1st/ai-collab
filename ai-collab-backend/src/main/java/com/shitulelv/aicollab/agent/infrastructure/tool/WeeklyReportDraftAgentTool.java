@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.domain.model.AgentInference;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
+import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
 import com.shitulelv.aicollab.work.application.service.WorkReportService;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,23 @@ public class WeeklyReportDraftAgentTool implements AgentTool {
 
     @Override public String name() { return "draft_weekly_report"; }
     @Override public boolean writesBusinessData() { return false; }
+
+    /**
+     * 返回确定性的周报统计事实（任务/里程碑统计、贡献者、亮点、风险），
+     * 不在工具内部生成 AI 周报正文；叙述由模型基于返回统计组织。
+     */
+    @Override
+    public AgentToolDefinition definition() {
+        return AgentToolDefinition.fromJson(name(),
+                "获取最近 N 天的周报统计事实：任务与里程碑统计、主要贡献者、亮点与风险。"
+                        + "返回的是确定性统计数据，不是成稿周报；叙述由你基于统计组织，不得虚构统计之外的数字。",
+                """
+                {"type":"object","additionalProperties":false,
+                 "properties":{"days":{"type":"integer","minimum":1,"maximum":30,"default":7,
+                   "description":"统计回溯天数，默认 7"}}}
+                """,
+                false);
+    }
 
     @Override
     public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {
