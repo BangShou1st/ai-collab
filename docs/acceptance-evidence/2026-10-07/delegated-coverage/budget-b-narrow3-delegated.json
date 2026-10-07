@@ -1,0 +1,55 @@
+{
+  "model": "mimo-v2.6-flash-free (Zen preset)",
+  "embedding": "qwen3-embedding:0.6b/1024d (Ollama, active)",
+  "budgetSemantics": "SEPARATED (V63)",
+  "launchedVia": "browser-skill/bsk 实测 Web UI（本机 Chromium，后台会话，仅电脑端）",
+  "date": "2026-10-07",
+  "experiment": "B-narrow3 单文档委派：只研究《评分模块技术方案》一篇，子运行先取提纲再逐节读完全文",
+  "question": "请把这次研究委派给文档研究子 Agent 完整执行：只需研究《评分模块技术方案》这一篇文档，先获取该文档提纲，再逐节读完全文，然后判断评分聚合是否满足《验收标准 v2.1》，给出文档依据、覆盖缺口和未读章节。不要研究其他文档。",
+  "runId": "fcfcd044-f006-489e-b11f-20c609729246",
+  "childRunId": "edaf73c7-96fd-4d97-a8e9-dafb0fcbcd97",
+  "parentStatus": "SUCCEEDED",
+  "childStatus": "SUCCEEDED",
+  "elapsedSeconds": 106,
+  "parentUsage": {
+    "steps": 8,
+    "toolCalls": 7,
+    "inputTokens": 30168,
+    "outputTokens": 3631
+  },
+  "childUsage": {
+    "steps": 5,
+    "toolCalls": 6,
+    "inputTokens": 18304,
+    "outputTokens": 2049
+  },
+  "childToolSequence": [
+    "list_project_documents",
+    "get_document_outline",
+    "read_document_section",
+    "read_document_section",
+    "read_document_section",
+    "read_document_section"
+  ],
+  "childCoverage": {
+    "coverageKnown": true,
+    "endReason": "SUCCEEDED",
+    "documents": 1,
+    "outlineStatus": "OBTAINED",
+    "outlineStructure": "HEURISTIC_HEADINGS",
+    "outlineTrust": "HEURISTIC",
+    "sectionsListed": 4,
+    "sectionsRead": 4,
+    "readHeadings": ["架构概述", "评分算法", "与验收标准的对应关系", "性能设计"],
+    "readTruncated": false,
+    "gaps": 0,
+    "limits": 0
+  },
+  "parentCitations": 4,
+  "answerLength": 3166,
+  "keyResult": "子运行取得提纲并逐节读完 4 章；DELEGATION_COMPLETED 携带结构化覆盖事实；父综合依据覆盖块如实写出\"提纲 4 节、已读完全部 4 章\"，未再出现\"未取得提纲\"，并保留启发式提纲不是完整目录的边界声明。",
+  "answerFile": "bnarrow3-answer.txt",
+  "coverageFile": "b-narrow3-coverage.json",
+  "screenshot": "single-doc-and-fourdoc-session.png",
+  "comparison": "同任务上一轮（B-narrow2，f76098d9/5a506353）父综合两次称\"未取得提纲\"；本轮父回答误称计数为 0（grep \"未取得提纲\"=0）。"
+}

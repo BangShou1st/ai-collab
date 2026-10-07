@@ -138,3 +138,20 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 - **委派切分**（`documentResearchDelegationResult`）：委派自身 1 次工具调用；子工具 = min(8, 父剩余−1)；子步数 = min(8, 父剩余−父综合收尾预留 2−委派步成本)；子输入/输出 = 父剩余一半（封顶 30000/8000）；剩余连"子最小研究+子收尾+父综合"都容不下时明确拒绝受理。调整切分必须同时核对回收（`resumeParent` 只计一次）与父收尾预留。
 - **终止统一**：批次超总额度 + 有可信证据（父自有 `TOOL_SUCCESS` 或已回收子产出）+ 收尾轮可负担 → `consumeToolBatchQuotaAndRequeue`（按请求封顶消耗额度、整批 SKIPPED、`TOOL_BUDGET_BATCH_REJECTED` ERROR 步骤、重排队）→ 下次准入 FINALIZE 无工具总结。单轮数量超限是协议违规，不走该路径。`decide` 的 `summarizableChildEvidence` 参数只作为 FINALIZE 依据，不计入父成功工具次数。
 - **改这里时同步看**：`AgentConvergencePolicy`（公式对两种语义通用）、`AgentWorker` 预算前置检查（数值型）、`AgentRepositoryIntegrationTest`/`AgentDelegationPostgresTest`（两种语义各有镜像断言）。
+
+## 12. 委派结果资料覆盖传递（2026-10-07 交付）
+
+完整报告：`docs/agent-delegated-coverage-delivery-20261007.md`。维护要点：
+
+- **`DELEGATION_COMPLETED.coverage` 是父运行的覆盖事实来源**：`AgentRunEventRecorder.resumeParent` 写回收时，
+  用 `agent/domain/model/DelegatedResearchCoverage` 从子运行持久化的 `TOOL_CALL_COMPLETED` 提取
+  文档/版本身份、提纲取得状态与可信度、已读章节、分页/截断限制、覆盖缺口、结束原因——
+  **不由模型填写、不追加统计用工具调用、不回传工具原文**。改文档研究工具的输出结构时同步看提取器。
+- **注入分离**：`AgentRuntimeCoordinator.childResearchEvidence` 同时写 `<CHILD_RESEARCH>`（文字结论，
+  UNTRUSTED）与 `<CHILD_RESEARCH_COVERAGE>`（`DelegatedResearchCoverage.renderForParentPrompt`，
+  已校验事实），二者不混同。不要把覆盖块合并进 UNTRUSTED 正文块。
+- **语义边界**：检索命中（`RELEVANT_EXCERPTS_ONLY`）不计入正文覆盖；`HEURISTIC_HEADINGS` 提纲不是完整目录；
+  未取得提纲时未读范围未知，不得枚举未读章节；旧记录缺 `coverage` 字段时按未知渲染
+  （`UNKNOWN_FACTS`），**不得**解释成"未取得提纲"。
+- **回归**：`DelegatedResearchCoverageTest`（纯函数 9 项）、`AgentDelegationPostgresTest`（覆盖附带、
+  分离注入、旧记录、重复回收、提纲级降级）。

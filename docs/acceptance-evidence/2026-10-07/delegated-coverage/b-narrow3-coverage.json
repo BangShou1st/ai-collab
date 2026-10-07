@@ -1,0 +1,37 @@
+{
+    "gaps": [
+    ],
+    "notes": [
+        "HEURISTIC_HEADINGS 提纲由标题识别得出，不是保证完整的目录；取得提纲不等于读完全文。"
+    ],
+    "limits": [
+    ],
+    "documents": [
+        {
+            "outline": {
+                "trust": "HEURISTIC",
+                "status": "OBTAINED",
+                "failures": 0,
+                "structure": "HEURISTIC_HEADINGS",
+                "truncated": false,
+                "sectionsListed": 4
+            },
+            "documentId": "9fe67dbf-a013-4a53-a70f-138ba524ae64",
+            "snapshotId": "2e6693d7-dbf7-47e1-8f4f-cab384c20f83",
+            "sectionsRead": {
+                "count": 4,
+                "headings": [
+                    "架构概述",
+                    "评分算法",
+                    "与验收标准的对应关系",
+                    "性能设计"
+                ],
+                "truncated": false,
+                "unreadRangeUnknown": false
+            },
+            "processingStatus": "READY"
+        }
+    ],
+    "endReason": "SUCCEEDED",
+    "coverageKnown": true
+}

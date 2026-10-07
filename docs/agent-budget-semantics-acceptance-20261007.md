@@ -57,7 +57,7 @@
 | `trulyOverBudgetRemainingCallsStillRejected` 更新 | 总量检查不放松（整批不执行），但额度耗尽+有证据时进入无工具总结 | 接管→QUEUED（tools 16/16 封顶、3 项 SKIPPED）→ 总结轮 SUCCEEDED |
 | `stepBoundaryFinalizeAnswerSurvivesTakeoverOnBothPaths` 更新 | 接管消费不依赖准入判定的不变量保持 | 以 steps_used=max−1 重建边界现场后不变量仍成立 |
 
-**回归规模**：全量后端 `mvnw test` **1207 项，1200 通过，0 错误，11 显式 opt-in 跳过**；唯一 7 处失败为迁移版本清单断言（Phase08/TaskPlanBean/LegacyApprovalCitation/NextStage 硬编码最新版本 61/计数 16/8），全部更新为纳入 V62/V63 后复验通过（日志 `ai-collab-backend/target/full-test-budget-semantics.log`）。R1–R12c 既有回归全部保留并通过（委派 23 项、持久恢复 23 项、暂停续跑 19 项、协调器/行为/仓库等全绿）。
+**回归规模（口径更正）**：本轮不是一次全量零失败。初次全量 `mvnw test` 有 **7 项失败**，均为迁移版本清单断言（Phase08/TaskPlanBean/LegacyApprovalCitation/NextStage 硬编码最新版本 61/计数 16/8）；其中四个迁移类更新为纳入 V62/V63 后重跑通过。**最新一次匹配的 surefire XML 为 1196 通过、11 显式 opt-in 跳过**（日志 `ai-collab-backend/target/full-test-budget-semantics.log`）。R1–R12c 既有回归全部保留并通过（委派、持久恢复、暂停续跑、协调器/行为/仓库等全绿）。
 
 ## 6. 真实模型验收（[实验]，browser-skill 实测 Web UI）
 
@@ -80,7 +80,8 @@
 
 ## 7. 剩余限制
 
-- **父综合只见子运行回传内容**：B-narrow2 中父回答称"未取得文档提纲"，而子运行实际已取得（4 节 `HEURISTIC_HEADINGS`）——父运行依据的是 `DELEGATION_COMPLETED` 的结论与结构化引用，不含子运行工具级细节。这是委派接口的转述边界（模型质量/接口设计问题），不是预算缺陷；如需改善应考虑在回收内容中附带子运行的覆盖元数据，属后续独立评估。
+- **父综合只见子运行回传内容**（已于后续独立一轮修复）：B-narrow2 中父回答称"未取得文档提纲"，而子运行实际已取得（4 节 `HEURISTIC_HEADINGS`）——当时父运行只依据 `DELEGATION_COMPLETED` 的结论与结构化引用，不含子运行工具级细节。后续独立一轮（交付记录 `docs/agent-delegated-coverage-delivery-20261007.md`）在 `DELEGATION_COMPLETED` 上附带结构化覆盖事实，并与 UNTRUSTED 研究文字分开注入父上下文；真实单文档重跑中该误称已消除。
+- **派发的模型可能再次发起委派**：单文档重跑中出现一次父运行在综合前再次请求 `delegate_document_research`，被预算拒绝受理后运行终态为 FAILED（收不回应答）。这是既有"拒绝受理"路径的收尾口径（拒绝≠才停止整轮）与模型自主选择叠加的结果，非本轮覆盖传递引入；是否把拒绝改为"保留运行、用剩余预算直接研究"属后续评估。
 - **四文档全库对照仍不适合委派**：子运行 6 次工具额度内"4 提纲 + 4 正文读取"不可同时完成（输入侧收尾预留也会在两轮大输入后触发收尾）。这是真实资源边界，不是缺陷；需要全库对照时直接研究（A2 形态）仍是正确入口。
 - 父 RUNNING 竞争窗口用量回收、FAILED_RETRYABLE 刷新恢复入口、真实 HTTP Last-Event-ID 补回验收：保持既有待验证清单，本轮未动。
 - `estimated_cost` 列与精确计费维持低优先级，未动。
