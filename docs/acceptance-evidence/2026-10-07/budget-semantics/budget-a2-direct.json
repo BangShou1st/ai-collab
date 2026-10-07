@@ -1,0 +1,22 @@
+{
+  "model": "mimo-v2.6-flash-free (Zen preset)",
+  "embedding": "qwen3-embedding:0.6b/1024d (Ollama, active)",
+  "budgetSemantics": "SEPARATED (V63)",
+  "launchedVia": "browser-skill 实测 Web UI",
+  "date": "2026-10-07",
+  "experiment": "A2 直接研究对照（不委派，同上轮 A 问题文本）",
+  "runId": "421d92b4-4916-424f-af54-9a054a256b1c",
+  "status": "SUCCEEDED",
+  "elapsedSeconds": 146,
+  "usage": {
+    "steps": 5,
+    "toolCalls": 8,
+    "inputTokens": 44803,
+    "outputTokens": 3704
+  },
+  "citations": 11,
+  "answerLength": 2453,
+  "keyResult": "完整四文档对照报告（评分聚合合规判定、批量导入差距、脱敏一致性），11 条真实 chunk 引用。中途 1 次 FAILED_RETRYABLE 自动重试并成功恢复（自动重试链路在新语义下正常）。",
+  "answerFile": "a2-direct-answer.txt",
+  "screenshot": "a2-direct-answer.png"
+}
