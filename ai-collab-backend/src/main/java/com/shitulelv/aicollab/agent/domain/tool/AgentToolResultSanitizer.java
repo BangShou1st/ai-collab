@@ -26,7 +26,22 @@ import java.util.Set;
 @Component
 public class AgentToolResultSanitizer {
 
-    private static final int MAX_RESULT_BYTES = 32 * 1024;
+    /**
+     * 单条工具结果序列化字节上限。
+     *
+     * <p>原来的 32kB 是按 6000 字符一页的旧正文预算定的。正文页预算放大到
+     * {@code DocumentContentService.MAX_MAX_CHARS}=24000 字符后，一页中文（UTF-8 每字符 3 字节）
+     * 正文本身就约 72kB，加上 citations 引用摘录与条目元数据可到 120kB 量级；
+     * 仍按 32kB 判定会走 {@link #reduce} 把正文砍到 2000 字符并标记 truncated，
+     * 表现为"资料不足"的误导性结果。这里按设计建议放大到 128kB 级上限，
+     * 仍是有界值，不是取消保护。</p>
+     */
+    private static final int MAX_RESULT_BYTES = 128 * 1024;
+
+    /** 当前生效的单条工具结果字节上限；契约测试用它证明正文页预算与结果保护不再漂移。 */
+    public static int maxResultBytes() {
+        return MAX_RESULT_BYTES;
+    }
     private static final int MAX_ARRAY_ITEMS = 100;
     private static final int MAX_NESTING_DEPTH = 10;
     private static final int MAX_STRING_LENGTH = 8000;

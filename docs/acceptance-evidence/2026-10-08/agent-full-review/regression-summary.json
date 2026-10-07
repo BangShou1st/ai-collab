@@ -1,0 +1,255 @@
+{
+  "baseline": "c911a8518c68ee363855497cd51ab96e2fd9449b",
+  "productionCommit": "813148869e49cd893f5f8d1395b57c6b22e6bf6d",
+  "backend": {
+    "tests": 404.0,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "batches": [
+      {
+        "tests": 71.0,
+        "classes": [
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest",
+            "tests": 40,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-07 23:58:10"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposerV2Test",
+            "tests": 16,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-07 23:58:10"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmissionTest",
+            "tests": 6,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-07 23:58:10"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.domain.model.DelegatedResearchCoverageTest",
+            "tests": 9,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-07 23:58:10"
+          }
+        ]
+      },
+      {
+        "tests": 254.0,
+        "classes": [
+          {
+            "name": "com.shitulelv.aicollab.agent.application.AgentApprovalServiceTest",
+            "tests": 11,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:08:13"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.AgentContextAssemblerTest",
+            "tests": 12,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:08:14"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.AgentContextBudgetTest",
+            "tests": 7,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:08:14"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizerTest",
+            "tests": 25,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:08:14"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.AgentConvergencePolicyTest",
+            "tests": 8,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:08:14"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest",
+            "tests": 5,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:08:21"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.AgentModelConfigurationSwitchPostgresIntegrationTest",
+            "tests": 9,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:08:27"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.AgentPauseResumePostgresTest",
+            "tests": 19,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:08:39"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest",
+            "tests": 25,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:08:39"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinatorTest",
+            "tests": 32,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:08:39"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.PersistedModelTurnRecoveryPostgresTest",
+            "tests": 23,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:09:02"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistryTest",
+            "tests": 36,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:09:02"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentWorkingStateConstraintIntegrationTest",
+            "tests": 21,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:09:07"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolContractTest",
+            "tests": 9,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:09:08"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.infrastructure.tool.ApprovalToolRevalidationTest",
+            "tests": 12,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:09:08"
+          }
+        ]
+      },
+      {
+        "tests": 79.0,
+        "classes": [
+          {
+            "name": "com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest",
+            "tests": 6,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:11:05"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.AgentRunServiceRetryTest",
+            "tests": 6,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:11:05"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.LegacyReadOnlyAgentExecutorTest",
+            "tests": 8,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:11:05"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.application.runtime.NativeToolCallingExecutorTest",
+            "tests": 9,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:11:05"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest",
+            "tests": 40,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:11:16"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryDepthTest",
+            "tests": 5,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:11:16"
+          },
+          {
+            "name": "com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryTest",
+            "tests": 5,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0,
+            "reportWritten": "2026-10-08 00:11:16"
+          }
+        ]
+      }
+    ]
+  },
+  "frontend": {
+    "files": 18,
+    "tests": 139,
+    "failures": 0,
+    "command": "npm run test -- src/modules/agent"
+  },
+  "reviewProbes": {
+    "javaTests": 11,
+    "javaFailures": 11,
+    "javaErrors": 0,
+    "frontendTests": 2,
+    "frontendFailures": 2,
+    "frontendErrors": 0,
+    "meaning": "Assertions of desired behavior failed on unchanged baseline; no fixes or red-green claim"
+  },
+  "limitations": [
+    "No full backend or frontend suite run",
+    "No real model calls or browser acceptance",
+    "No production database writes"
+  ]
+}

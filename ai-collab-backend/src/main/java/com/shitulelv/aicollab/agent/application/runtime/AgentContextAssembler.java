@@ -102,11 +102,23 @@ public class AgentContextAssembler {
         // 3. 验证页面上下文中的实体属于当前项目
         AgentPageContext validatedPage = validatePageContext(run.projectId(), run.requesterId(), pageContext);
 
-        // 4. 获取 Skill 对应的预算限制（使用技能专用限制而非通用默认值）
-        AgentRuntimeLimits limits = AgentRuntimeLimits.forSkill(skillCode);
+        // 4. 获取本运行适用的执行限制：按运行资源策略版本（V64 context_policy_version）解析——
+        //    v1 沿用既有 Skill 额度语义（旧运行恢复/暂停续跑不重解释）；
+        //    v2 使用新策略的独立执行额度：根 24 轮/64 步/64 工具、子 12 轮/16 步/24 工具，
+        //    活跃时长根 45 分钟、子 30 分钟，且累计 token 上限为 null（只统计，不限额）。
+        //    子运行的上限独立于父剩余额度，不从父切分。
+        AgentRuntimeLimits limits = AgentRuntimeLimits.forRun(
+                run.contextPolicyVersion(), run.depth(), skillCode);
 
-        // 5. 加载可信提案上下文
-        List<AgentProposalContext> proposals = loadTrustedProposals(run.projectId(), run.sessionId());
+        // 5. 加载可信提案上下文。
+        // F5 修复：只读文档研究子运行（depth>0）不加载主会话提案。子运行与父运行共享
+        // session，因此"共享会话的提案"会被无差别载入子上下文；提案块还附带
+        // "修订/更新提案、歧义时问用户"等父角色指令，与只读子任务的契约矛盾
+        // （目标污染 + 额外 token + 错误的澄清/写动作尝试）。子任务的必要身份只有
+        // 自己的 objective、允许的观察与请求人/项目归属，而不是主会话的提案修订规则。
+        List<AgentProposalContext> proposals = run.depth() > 0
+                ? List.of()
+                : loadTrustedProposals(run.projectId(), run.sessionId());
 
         // 6. 构建可信上下文
         return new AgentExecutionContext(

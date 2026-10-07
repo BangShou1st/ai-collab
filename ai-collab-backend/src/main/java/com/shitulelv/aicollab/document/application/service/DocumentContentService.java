@@ -18,6 +18,15 @@ import java.security.MessageDigest;
 @Service
 public class DocumentContentService {
     public static final String PARSE_VERSION="tika-page-clean-v2/chunk-offset-v2";
+    /**
+     * 正文分页预算（<b>字符</b>，不是 token）。工具 Schema 的默认值、执行边界的默认值与
+     * 这里必须来自同一常量，避免"模型可见范围"与"执行要求"漂移。
+     */
+    public static final int DEFAULT_MAX_CHARS=12000;
+    /** 单页正文预算上限（字符）。放宽窗口后仍必须有界，续读靠 continuation。 */
+    public static final int MAX_MAX_CHARS=24000;
+    /** 单页正文预算下限（字符）。 */
+    public static final int MIN_MAX_CHARS=100;
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
     private final ProjectAccessGuard access;
@@ -61,7 +70,7 @@ public class DocumentContentService {
 
     @Transactional(readOnly=true,isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public ObjectNode read(UUID project,UUID document,UUID user,UUID snapshot,Integer from,int fromOffset,int maxChars,String heading,UUID chunkId) {
-        if(from==null || from<0 || fromOffset<0 || maxChars<100 || maxChars>6000 || (heading!=null && heading.length()>300)) throw new IllegalArgumentException("文档范围或预算无效");
+        if(from==null || from<0 || fromOffset<0 || maxChars<MIN_MAX_CHARS || maxChars>MAX_MAX_CHARS || (heading!=null && heading.length()>300)) throw new IllegalArgumentException("文档范围或预算无效");
         var state=status(project,document,user);
         if(snapshot!=null && !snapshot.toString().equals(state.path("snapshotId").asText())) throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT,"来源已更新，请重新选择正文");
         boolean legacy=state.path("legacySource").asBoolean();

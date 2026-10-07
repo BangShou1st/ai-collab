@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.view.AgentMessageView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
+import com.shitulelv.aicollab.agent.application.view.AgentStepView;
+import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
 import com.shitulelv.aicollab.common.exception.BusinessException;
@@ -66,6 +68,23 @@ public class AgentContextSummarizer {
     static final int OUTPUT_RESERVE_TOKENS = (MAX_OUTPUT_CHARS + 2) / 3;
     /** 摘要节点保留的覆盖分段上限。 */
 
+    // ---- 运行研究轨迹窗口压缩（RUN_CONTEXT scope） ----
+
+    /** RUN_CONTEXT 摘要的 schema/policy 版本（与主会话摘要分开演进）。 */
+    static final int RUN_CONTEXT_SCHEMA_VERSION = 1;
+    static final int RUN_CONTEXT_POLICY_VERSION = 1;
+    /** 每个运行最多 4 个有效压缩周期（设计 3 节）。成功提交才占周期。 */
+    static final int MAX_RUN_CONTEXT_CYCLES = 4;
+    /** RUN_CONTEXT 摘要输入上界（字符）。窗口压缩不复用 6000 字符的会话摘要预算：
+     *  不尝试把 256k 材料塞进 6000 字符，一次覆盖不了的前缀明确保留为未覆盖。 */
+    static final int RUN_CONTEXT_MAX_INPUT_CHARS = 60_000;
+    /** RUN_CONTEXT 摘要输出目标上界（字符，约 4k--8k tokens 的建议目标下界起步）。 */
+    static final int RUN_CONTEXT_MAX_OUTPUT_CHARS = 16_000;
+    /** RUN_CONTEXT 摘要输出预留（token）。 */
+    static final int RUN_CONTEXT_OUTPUT_RESERVE_TOKENS = (RUN_CONTEXT_MAX_OUTPUT_CHARS + 2) / 3;
+    /** 每次 RUN_CONTEXT 周期送入的源记录条数上界（有界分页，不一次加载无限历史）。 */
+    static final int RUN_CONTEXT_SOURCE_LIMIT = 60;
+
     private final AgentRepository repository;
     private final RoutingAgentModelExecutor modelExecutor;
     private final ObjectMapper json;
@@ -108,6 +127,46 @@ public class AgentContextSummarizer {
      * 的输出预留分别核算，输出额度不足时禁止再消耗，已发生用量如实保留。
      */
     public void maybeSummarize(
+            AgentRunView run,
+            AgentModelMessageComposer.Composition composition,
+            int remainingInputAfterMain,
+            int remainingOutputTokens,
+            java.util.function.BooleanSupplier timeRemaining) {
+        maybeSummarize(run, composition, remainingInputAfterMain, remainingOutputTokens, null, timeRemaining);
+    }
+
+    /**
+     * 统一入口（含单次请求容量事实）。
+     *
+     * <p>{@code budget} 非空时启用<b>运行研究轨迹窗口压缩</b>（RUN_CONTEXT scope）：
+     * 当本次活跃上下文估算达到软压缩触发线 {@code T} 时，整理最旧的、已经闭合且可压缩的
+     * 研究轨迹，成功后主请求必须重新组装。{@code budget} 为空时保持既有会话摘要行为
+     * （兼容旧调用点与既有测试）。</p>
+     *
+     * <p>两个 scope 共用生成/校验/记账规则与同一准入边界，不建立两套执行循环：
+     * 主会话摘要写 {@code agent_session.working_state.summary}；
+     * RUN_CONTEXT 写本运行 {@code agent_step} 的 {@code output_json}，
+     * 子运行只生成自己的 RUN_CONTEXT，不触发也不改写主会话摘要。</p>
+     */
+    public void maybeSummarize(
+            AgentRunView run,
+            AgentModelMessageComposer.Composition composition,
+            int remainingInputAfterMain,
+            int remainingOutputTokens,
+            AgentContextBudget.Budget budget,
+            java.util.function.BooleanSupplier timeRemaining) {
+        // 运行轨迹压缩：达到软压缩触发线且仍有可压缩旧前缀、周期未满时优先执行。
+        // 这是"整理旧轨迹"，不是"拒绝请求"——失败或没有可压缩来源时继续原上下文。
+        if (budget != null && shouldCompactRunContext(run, composition, budget)) {
+            if (compactRunContext(run, composition, budget, remainingOutputTokens, timeRemaining)) {
+                return; // 已提交新的 RUN_CONTEXT 摘要：调用方必须重新组装主请求
+            }
+        }
+        maybeSummarizeConversation(run, composition, remainingInputAfterMain, remainingOutputTokens, timeRemaining);
+    }
+
+    /** 去除重复实现：原有主会话摘要逻辑（含重压缩）保持不变。 */
+    private void maybeSummarizeConversation(
             AgentRunView run,
             AgentModelMessageComposer.Composition composition,
             int remainingInputAfterMain,
@@ -525,4 +584,259 @@ public class AgentContextSummarizer {
     }
 
     private static final int MAX_CANDIDATE_UNCOVERED = 20;
+
+    // ==================================================================
+    // 运行研究轨迹窗口压缩（RUN_CONTEXT scope）
+    // ==================================================================
+
+    /**
+     * 是否应对本运行的研究轨迹做窗口压缩。
+     *
+     * <p>两个条件必须同时满足：</p>
+     * <ol>
+     *   <li>活跃上下文估算 {@code C} 达到软压缩触发线 {@code T}（{@code C} 不是累计
+     *       {@code input_tokens_actual}，也不是历史工具结果的库内大小）；</li>
+     *   <li>本运行仍有可压缩的、已经闭合的旧轨迹前缀，且压缩周期未满。</li>
+     * </ol>
+     *
+     * <p>达到 {@code T} 只是触发整理，<b>不</b>构成拒绝受理、截断必要证据或反复压缩的理由。
+     * 必要原文/状态本身超过 {@code T} 时允许有界继续。</p>
+     */
+    boolean shouldCompactRunContext(
+            AgentRunView run, AgentModelMessageComposer.Composition composition,
+            AgentContextBudget.Budget budget) {
+        if (composition == null || budget == null) return false;
+        // 活跃上下文估算 C：本次组装实际产物 + 工具定义已计入组装字符中
+        int activeChars = composition.stats() == null ? 0 : composition.stats().charsUsed();
+        int activeTokens = Math.max(1, (activeChars + 2) / 3);
+        if (!budget.shouldCompact(activeTokens)) return false;
+        if (repository.countCommittedRunContextCycles(run.projectId(), run.id()) >= MAX_RUN_CONTEXT_CYCLES) {
+            return false;
+        }
+        return !compressibleSourceSteps(run).isEmpty();
+    }
+
+    /**
+     * 选择本运行已经闭合、可压缩的最旧研究轨迹前缀。
+     *
+     * <p>只选<b>已闭合</b>的记录：MODEL_TURN 已经落库并有对应工具结果（或有正文无工具调用），
+     * 以及已落库的 TOOL_CALL_COMPLETED。未消费的模型响应、PENDING 工具调用与最新一轮
+     * 永远不进入压缩范围（它们属于"当前未消费的模型响应、尚未完成的工具调用"必要层）。</p>
+     *
+     * <p>已覆盖的前缀不重复加载：从上次有效 RUN_CONTEXT 的 {@code sourceThroughSequence}
+     * 之后开始，天然避免重复压缩同一源区间。</p>
+     */
+    List<AgentStepView> compressibleSourceSteps(AgentRunView run) {
+        List<AgentStepView> steps = repository.listSteps(run.projectId(), run.id());
+        if (steps == null || steps.isEmpty()) return List.of();
+        JsonNode previous = repository.latestRunContextSummary(run.projectId(), run.id());
+        int alreadyThrough = previous == null ? 0 : previous.path("sourceThroughSequence").asInt(0);
+        int maxSequence = steps.stream().mapToInt(AgentStepView::sequence).max().orElse(0);
+        List<AgentStepView> candidates = new ArrayList<>();
+        for (AgentStepView step : steps) {
+            if (step.sequence() <= alreadyThrough) continue;
+            // 最新一条记录可能仍在进行中（对应下一次请求的上下文），保留为近期原文
+            if (step.sequence() >= maxSequence) continue;
+            // 工具失败也持久化为 TOOL_CALL_COMPLETED（reason=TOOL_ERROR），因此按类型即可
+            boolean compressible = step.type() == AgentStepType.MODEL_TURN
+                    || step.type() == AgentStepType.TOOL_CALL_COMPLETED
+                    || step.type() == AgentStepType.DELEGATION_COMPLETED;
+            if (!compressible) continue;
+            candidates.add(step);
+            if (candidates.size() >= RUN_CONTEXT_SOURCE_LIMIT) break;
+        }
+        return candidates;
+    }
+
+    /**
+     * 执行一次 RUN_CONTEXT 窗口压缩。
+     *
+     * <p>流程：无工具摘要请求 → 质量校验 → <b>成功提交才推进覆盖</b>。
+     * 失败/不合格/暂停/取消一律保留旧有效摘要与原数据，不推进覆盖、不丢旧状态，
+     * 返回 {@code false} 让调用方按原上下文继续。</p>
+     *
+     * @return 是否成功提交了新的有效 RUN_CONTEXT 摘要（true 时调用方必须重新组装主请求）
+     */
+    boolean compactRunContext(
+            AgentRunView run, AgentModelMessageComposer.Composition composition,
+            AgentContextBudget.Budget budget, int remainingOutputTokens,
+            java.util.function.BooleanSupplier timeRemaining) {
+        List<AgentStepView> source = compressibleSourceSteps(run);
+        if (source.isEmpty()) return false; // 无新增可压缩来源：不反复压缩
+        JsonNode previous = repository.latestRunContextSummary(run.projectId(), run.id());
+        String previousBlock = previous == null ? ""
+                : "此前运行轨迹摘要（必须延续其中仍然有效的信息，不得丢失更早的发现、更正与来源）：\n"
+                  + previous.path("text").asText() + "\n";
+        String transcript = runContextTranscript(source);
+        int transcriptBudget = RUN_CONTEXT_MAX_INPUT_CHARS - previousBlock.length();
+        if (transcriptBudget < 500) {
+            log.debug("旧轨迹摘要占满压缩输入预算，跳过运行轨迹压缩: run={}", run.id());
+            return false;
+        }
+        String boundedTranscript = transcript.length() <= transcriptBudget
+                ? transcript
+                : transcript.substring(0, transcriptBudget);
+        // 覆盖范围必须由实际送入请求的记录计算，模型不能填写"这些步骤全读过"。
+        // 截断时只覆盖到截断点之前最后一条完整记录的序号（分页/partial 偏移必须准确）。
+        boolean truncated = boundedTranscript.length() < transcript.length();
+        List<AgentStepView> covered = truncated
+                ? coveredPrefixFor(source, boundedTranscript)
+                : source;
+        if (covered.isEmpty()) return false;
+        int fromSequence = covered.get(0).sequence();
+        int throughSequence = covered.get(covered.size() - 1).sequence();
+
+        int estimatedTokens = Math.max(1, (previousBlock.length() + boundedTranscript.length()) / 3)
+                + RUN_CONTEXT_OUTPUT_RESERVE_TOKENS;
+        if (estimatedTokens > budget.hardInputTokens()) {
+            // 压缩请求自身也必须满足模型窗口；一次覆盖不了的前缀明确保留未覆盖范围
+            log.debug("压缩请求超出本次模型安全输入，跳过运行轨迹压缩: run={}, needed={}, H={}",
+                    run.id(), estimatedTokens, budget.hardInputTokens());
+            return false;
+        }
+        if (RUN_CONTEXT_OUTPUT_RESERVE_TOKENS > remainingOutputTokens) {
+            log.debug("剩余输出预算不足以容纳运行轨迹摘要输出，跳过: run={}", run.id());
+            return false;
+        }
+        if (!timeRemaining.getAsBoolean()) {
+            log.debug("运行剩余时长不足，跳过运行轨迹压缩: run={}", run.id());
+            return false;
+        }
+        int cycle = repository.countCommittedRunContextCycles(run.projectId(), run.id()) + 1;
+
+        UUID attemptId;
+        try {
+            attemptId = repository.beginRunContextAttempt(run, cycle, fromSequence, throughSequence);
+        } catch (BusinessException admissionRefused) {
+            if (admissionRefused.getErrorCode() == ErrorCode.AGENT_RUN_PAUSED) {
+                // 暂停意图先落库：不启动新摘要；已受理的摘要允许完成并保存
+                log.debug("暂停意图已落库，运行轨迹压缩未获准入: run={}", run.id());
+                return false;
+            }
+            throw admissionRefused;
+        }
+        int actualInputChars = 0;
+        ModelTurnResult result = null;
+        try {
+            List<ModelMessage> messages = runContextSummaryMessages(boundedTranscript, previousBlock);
+            for (ModelMessage message : messages) {
+                if (message instanceof ModelMessage.User user) actualInputChars += user.content().length();
+            }
+            result = modelExecutor.callModelWithoutTools(run, messages);
+            String text = result.content() == null ? "" : result.content().strip();
+            UsageSettlement usage = UsageSettlement.fromRaw(result.usage(),
+                    Math.max(1, actualInputChars / 3), Math.max(1, text.length() / 3), result.latencyMs());
+            if (text.isBlank()) {
+                repository.completeRunContextAttempt(attemptId, "EMPTY", result.model(), usage,
+                        "RUN_CONTEXT_EMPTY_OUTPUT", null);
+                return false;
+            }
+            if (!runContextQualifies(text)) {
+                // 超长/结尾不完整：保留旧有效摘要与原数据，不推进覆盖（不做无界重压缩循环）
+                repository.completeRunContextAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(),
+                        usage, "RUN_CONTEXT_UNQUALIFIED", null);
+                log.warn("运行轨迹摘要不合格，保留上一份摘要且不推进覆盖: run={}, length={}",
+                        run.id(), text.length());
+                return false;
+            }
+            // 成功提交才推进覆盖：来源范围、引用身份与摘要文本一并持久化
+            ObjectNode committed = json.createObjectNode()
+                    .put("scope", "RUN_CONTEXT")
+                    .put("schemaVersion", RUN_CONTEXT_SCHEMA_VERSION)
+                    .put("policyVersion", RUN_CONTEXT_POLICY_VERSION)
+                    .put("runId", run.id().toString())
+                    .put("cycle", cycle)
+                    .put("goalRevision", run.version())
+                    .put("sourceFromSequence", fromSequence)
+                    .put("sourceThroughSequence", throughSequence)
+                    .put("sourceStepCount", covered.size())
+                    .put("sourceTruncated", truncated)
+                    .put("previousSummaryIncorporated", previous != null)
+                    .put("text", text)
+                    .put("model", result.model() == null ? "unknown" : result.model())
+                    .put("createdAt", OffsetDateTime.now().toString());
+            var sourceIds = committed.putArray("sourceStepIds");
+            for (AgentStepView step : covered) sourceIds.add(step.id().toString());
+            repository.completeRunContextAttempt(attemptId, "COMMITTED", result.model(), usage,
+                    "RUN_CONTEXT_COMMITTED", committed);
+            log.debug("运行轨迹窗口压缩已提交: run={}, cycle={}, range={}..{}, steps={}, truncated={}",
+                    run.id(), cycle, fromSequence, throughSequence, covered.size(), truncated);
+            return true;
+        } catch (RuntimeException failure) {
+            // 摘要是辅助能力：任何异常不得破坏主轮次；已发生用量如实结算，覆盖不推进
+            com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage carried = failure instanceof
+                    com.shitulelv.aicollab.infrastructure.ai.model.ProviderResponseFailure provider
+                    ? new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(
+                            provider.promptTokens(), provider.completionTokens()) : null;
+            repository.completeRunContextAttempt(attemptId, "FAILED",
+                    result == null ? "unknown" : result.model(),
+                    UsageSettlement.fromRaw(carried, Math.max(1, actualInputChars / 3), 0, null),
+                    "RUN_CONTEXT_FAILED", null);
+            log.warn("运行轨迹压缩失败，保留原上下文继续: run={}, error={}", run.id(), failure.toString());
+            return false;
+        }
+    }
+
+    /** 截断后的实际覆盖前缀：只覆盖完全落在截断点内的源记录（不虚报未完整送入的范围）。 */
+    private List<AgentStepView> coveredPrefixFor(List<AgentStepView> source, String boundedTranscript) {
+        List<AgentStepView> covered = new ArrayList<>();
+        for (AgentStepView step : source) {
+            if (!boundedTranscript.contains(step.id().toString())) break;
+            covered.add(step);
+        }
+        return covered;
+    }
+
+    /** 把本运行的研究轨迹渲染成有界文本：模型轮正文 + 工具结果的结构化事实。 */
+    private String runContextTranscript(List<AgentStepView> source) {
+        StringBuilder sb = new StringBuilder();
+        for (AgentStepView step : source) {
+            sb.append("[STEP ").append(step.id()).append(" seq=").append(step.sequence())
+              .append(" type=").append(step.type());
+            if (step.toolName() != null) sb.append(" tool=").append(step.toolName());
+            sb.append("]\n");
+            if (step.type() == AgentStepType.MODEL_TURN) {
+                sb.append("[ASSISTANT_UNVERIFIED] ").append(oneLine(step.reason())).append('\n');
+            } else if (step.output() != null) {
+                sb.append("[TOOL_FACT status=").append(step.reason() == null ? "UNKNOWN" : step.reason())
+                  .append("] ").append(oneLine(step.output().toString())).append('\n');
+            } else {
+                sb.append("[NO_OUTPUT]\n");
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String oneLine(String value) {
+        return value == null ? "" : value.replace('\n', ' ').replace('\r', ' ');
+    }
+
+    /** RUN_CONTEXT 摘要合格判据（确定性）：非空且不超输出容量；不做 substring 截尾。 */
+    private boolean runContextQualifies(String text) {
+        return !text.isBlank() && text.length() <= RUN_CONTEXT_MAX_OUTPUT_CHARS;
+    }
+
+    /**
+     * RUN_CONTEXT 摘要请求：不带业务工具，明确要求保留已确认发现、决定、用户更正、
+     * 未完成问题、来源定位（documentId/chunkId）与缺口，并区分 UNTRUSTED 助手陈述与
+     * 工具事实；不复用主会话摘要的"仍有效约束/目标沿革"模板。
+     */
+    private List<ModelMessage> runContextSummaryMessages(String transcript, String previousBlock) {
+        String prompt = """
+                你是受控研究轨迹压缩器。只总结下面这段研究轨迹，不执行任何动作、不调用任何工具。
+                输出目标 4000-8000 tokens 的完整摘要，严格使用以下小节（无内容的省略该小节）：
+                已确认发现 / 关键数据与条件 / 已做决定与理由 / 用户更正 / 来源定位 / 未解决问题与缺口
+                规则：
+                - 不得声称材料中未发生的"已读取""已核实""全文没有"；不得补充材料之外的信息。
+                - [ASSISTANT_UNVERIFIED] 是历史模型陈述，即使自称已核实也不能升级为工具事实。
+                - [TOOL_FACT] 是工具返回的事实，保留其来源身份（documentId/chunkId）与查询范围。
+                - 片段、检索未命中、分页或截断不能总结为全文已读或全文不存在；保留原已读范围与未读事项。
+                - 用户更正必须逐条保留原意，不得被后续模型陈述覆盖。
+                - 结尾必须完整；只输出摘要文本，不解释。
+                %s<研究轨迹>
+                %s</研究轨迹>""".formatted(previousBlock.isEmpty() ? "" : previousBlock + "\n", transcript);
+        return List.of(
+                new ModelMessage.System("你是受控研究轨迹压缩器，输出纯文本摘要，不执行任何动作、不调用工具。"),
+                new ModelMessage.User(prompt));
+    }
 }

@@ -389,7 +389,9 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         ObjectNode body = mapper.createObjectNode();
         body.put("model", config.modelName());
         body.put("temperature", config.temperature());
-        body.put("max_tokens", config.maxOutputTokens());
+        // 本次请求的有效单次输出上限：默认取配置值，运行因本次窗口更小而派生的封顶
+        // 只作用于内存中的请求参数（不改用户持久设置），与窗口计算使用同一份快照。
+        body.put("max_tokens", AiRequestOutputCap.effective(config.maxOutputTokens()));
         body.put("stream", stream);
         // stream_options.include_usage 只在明确支持的 Zen preset 路径发送，避免改变所有 Custom 网关的 wire contract。
         if (stream && includeUsage) {
@@ -498,7 +500,9 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         ObjectNode body = mapper.createObjectNode();
         body.put("model", config.modelName());
         body.put("temperature", config.temperature());
-        body.put("max_tokens", config.maxOutputTokens());
+        // 本次请求的有效单次输出上限：默认取配置值，运行因本次窗口更小而派生的封顶
+        // 只作用于内存中的请求参数（不改用户持久设置），与窗口计算使用同一份快照。
+        body.put("max_tokens", AiRequestOutputCap.effective(config.maxOutputTokens()));
         body.put("stream", stream);
         if (stream) {
             body.putObject("stream_options").put("include_usage", true);

@@ -1,0 +1,29 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+
+const require = createRequire('E:/project/ai-collab/ai-collab-frontend/package.json');
+const ts = require('typescript');
+const source = fs.readFileSync('E:/project/ai-collab/ai-collab-frontend/src/modules/agent/agent-prose.ts', 'utf8');
+const compiled = ts.transpileModule(source, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const { parseAgentProse } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
+
+const cases = [
+  { name: 'quoted marker is ordinary prose', input: 'Explain the `[QUESTIONS]` protocol.\nExample path: C:\\new\\notes.txt' },
+  { name: 'marker inside fenced code is not a control region', input: 'Protocol example:\n```text\n[QUESTIONS]\\nQuestion one\n```\nFinal ordinary prose.' },
+];
+let failures = 0;
+for (const item of cases) {
+  const actual = parseAgentProse(item.input);
+  try {
+    assert.deepEqual(actual, { text: item.input, questions: null });
+    console.log(JSON.stringify({ name: item.name, passed: true }));
+  } catch {
+    failures++;
+    console.log(JSON.stringify({ name: item.name, passed: false, input: item.input, actual }));
+  }
+}
+console.log(JSON.stringify({ tests: cases.length, failures, errors: 0 }));
+process.exitCode = failures ? 1 : 0;

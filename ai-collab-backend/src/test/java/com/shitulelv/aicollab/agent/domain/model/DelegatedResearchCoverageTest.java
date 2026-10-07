@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,7 +19,6 @@ class DelegatedResearchCoverageTest {
 
     private static final String DOCUMENT = "9fe67dbf-a013-4a53-a70f-138ba524ae64";
     private static final String SNAPSHOT = "2e6693d7-dbf7-47e1-8f4f-cab384c20f83";
-
     @Test
     void heuristicOutlineWithFullSectionReadsIsReportedAsObtained() {
         ObjectNode coverage = DelegatedResearchCoverage.extract(JSON, List.of(
@@ -161,9 +161,254 @@ class DelegatedResearchCoverageTest {
 
     // ===== fixtures =====
 
+    // ==================================================================
+    // F3 回归：覆盖投影必须忠于工具返回的 chunk/offset/continuation 事实
+    // ==================================================================
+
+    /**
+     * F3-1 回归：同一标题下的多个 body chunk 是<b>片段</b>，不是多个章节。
+     * 修复前：`items.size()` 被当作章节数，一个标题两个 chunk 会报"已读 2 节"。
+     */
+    @Test
+    void f3MultipleChunksUnderOneHeadingCountAsOneSectionNotManySections() {
+        ObjectNode coverage = DelegatedResearchCoverage.extract(JSON, List.of(
+                tool("get_document_outline", outline("评分算法")),
+                // 同一标题的两段连续 chunk，都从各自起点读
+                readChunk("评分算法", 4, 0),
+                readChunk("评分算法", 5, 0)),
+                "SUCCEEDED");
+
+        var read = coverage.path("documents").get(0).path("sectionsRead");
+        // 章节数是去重标题数，不是片段数
+        assertThat(read.path("count").asInt()).isEqualTo(1);
+        // 片段数单独如实给出，两个语义不混用
+        assertThat(read.path("fragmentCount").asInt()).isEqualTo(2);
+        assertThat(coverage.path("gaps").toString()).doesNotContain("已读 2 节");
+        assertThat(DelegatedResearchCoverage.renderForParentPrompt(coverage))
+                .contains("已读 1 节")
+                .contains("实际读取 2 个正文片段");
+    }
+
+    /**
+     * F3-2 回归：分页读取经 continuation 续到结尾后，续读链闭合，
+     * 不再永久声明"后续内容未读完"。
+     * 修复前：`readTruncated` 只置 true 且从不按已闭合续读更新。
+     */
+    @Test
+    void f3ClosedContinuationChainStopsReportingUnreadRemainder() {
+        ObjectNode coverage = DelegatedResearchCoverage.extract(JSON, List.of(
+                tool("get_document_outline", outline("第一章")),
+                // 第一页：在第 3 个 chunk 处截断，声明续读点 fromChunk=3
+                readChunk("第一章", 0, 0, true, 3, 0),
+                // 按 continuation 续读，这次读到结尾（hasMore=false）
+                readChunk("第一章", 3, 0, false, null, 0)),
+                "SUCCEEDED");
+
+        var read = coverage.path("documents").get(0).path("sectionsRead");
+        // 续读已闭合：不得再声明未读完
+        assertThat(read.path("truncated").asBoolean()).isFalse();
+        assertThat(coverage.path("gaps").toString()).doesNotContain("后续内容未读完");
+        assertThat(DelegatedResearchCoverage.renderForParentPrompt(coverage))
+                .contains("无未闭合的分页截断");
+    }
+
+    /**
+     * F3-2 反向回归：续读链<b>未</b>闭合并仍然敞开时，必须如实保留"未读完"。
+     * 闭合判定不能宽松到把真正未读完的分页读取说成读完。
+     */
+    @Test
+    void f3OpenContinuationChainStillReportsUnreadRemainder() {
+        ObjectNode coverage = DelegatedResearchCoverage.extract(JSON, List.of(
+                tool("get_document_outline", outline("第一章", "第二章")),
+                readChunk("第一章", 0, 0, true, 3, 0)),
+                "SUCCEEDED");
+
+        assertThat(coverage.path("documents").get(0).path("sectionsRead").path("truncated").asBoolean()).isTrue();
+        assertThat(coverage.path("gaps").toString()).contains("后续内容未读完");
+        assertThat(coverage.path("limits").toString()).contains("fromChunk=3");
+    }
+
+    /**
+     * F3-3 回归：从章节中间 chunk/offset 读后缀、到结尾 hasMore=false 时，
+     * 未覆盖的前缀必须记为缺口，该标题不能算作已读。
+     * 修复前：gaps 为空、该标题被列为已读，未读前缀静默消失。
+     */
+    @Test
+    void f3SuffixOnlyReadDoesNotClaimTheHeadingWasRead() {
+        ObjectNode coverage = DelegatedResearchCoverage.extract(JSON, List.of(
+                tool("get_document_outline", outline("评分算法")),
+                // 从 chunk 7 的 offset 900 开始读后缀，一直读到结尾
+                readChunk("评分算法", 7, 900, false, null, 0)),
+                "SUCCEEDED");
+
+        var read = coverage.path("documents").get(0).path("sectionsRead");
+        // 只读后缀：不能算已读该节
+        assertThat(read.path("count").asInt()).isZero();
+        assertThat(read.path("partiallyReadHeadings").toString()).contains("评分算法");
+        String gaps = coverage.path("gaps").toString();
+        assertThat(gaps)
+                .contains("起始前缀未被覆盖")
+                .contains("仅读取了后缀");
+        // 报告必须如实说明该标题未读全，而不是把它当作已读
+        assertThat(DelegatedResearchCoverage.renderForParentPrompt(coverage))
+                .contains("仅读后缀的标题");
+    }
+
+    /**
+     * F3-4 回归：同一提纲读取两次，列出节数不得翻倍。
+     * 修复前：累加调用返回条数（sectionsListed 翻倍），把重复调用当成更多章节。
+     */
+    @Test
+    void f3RepeatedOutlineReadDoesNotDoubleTheListedSections() {
+        ObjectNode coverage = DelegatedResearchCoverage.extract(JSON, List.of(
+                tool("get_document_outline", outline("第一章", "第二章")),
+                tool("get_document_outline", outline("第一章", "第二章")),
+                read("第一章"), read("第二章")),
+                "SUCCEEDED");
+
+        var outline = coverage.path("documents").get(0).path("outline");
+        assertThat(outline.path("sectionsListed").asInt()).isEqualTo(2);
+        assertThat(coverage.path("gaps").toString()).doesNotContain("提纲列出 4 节");
+        assertThat(DelegatedResearchCoverage.renderForParentPrompt(coverage)).contains("列出 2 节");
+    }
+
+    // ==================================================================
+    // F4 回归：同一文档的不同快照不得合并成"已校验完整版本"
+    // ==================================================================
+
+    /**
+     * F4 回归：先取旧快照提纲、后读新快照正文时，两个版本不能合并，
+     * 也不能把新快照正文挂到旧快照上。
+     * 修复前：状态按 documentId 单独建键、snapshotId 只取第一次非空值，
+     * 结果只保留旧快照却把新快照正文计入其覆盖。
+     */
+    @Test
+    void f4DifferentSnapshotsAreNotMergedIntoVerifiedCoverage() {
+        String oldSnapshot = "11111111-1111-1111-1111-111111111111";
+        String newSnapshot = "22222222-2222-2222-2222-222222222222";
+        ObjectNode coverage = DelegatedResearchCoverage.extract(JSON, List.of(
+                outlineWithSnapshot(oldSnapshot, "旧章节 A"),
+                readWithSnapshot(newSnapshot, "新章节 B", 0, 0, false, null)),
+                "SUCCEEDED");
+
+        // 两个快照各自成条，不合并
+        assertThat(coverage.path("documents")).hasSize(2);
+        List<String> snapshots = new ArrayList<>();
+        coverage.path("documents").forEach(doc -> snapshots.add(doc.path("snapshotId").asText()));
+        assertThat(snapshots).containsExactlyInAnyOrder(oldSnapshot, newSnapshot);
+
+        // 旧快照只有提纲、没有正文；新快照只有正文、没有提纲
+        for (var doc : coverage.path("documents")) {
+            String snapshot = doc.path("snapshotId").asText();
+            var read = doc.path("sectionsRead");
+            if (oldSnapshot.equals(snapshot)) {
+                assertThat(read.path("count").asInt())
+                        .as("旧快照不得把新快照的正文计入自己的覆盖")
+                        .isZero();
+            } else {
+                assertThat(doc.path("outline").path("status").asText()).isEqualTo("NOT_ATTEMPTED");
+            }
+        }
+
+        // 版本冲突必须显式报告，而不是拼成一个"已校验完整版本"
+        assertThat(coverage.path("gaps").toString())
+                .contains("研究期间出现 2 个不同快照")
+                .contains("不合并陈述");
+    }
+
+    /**
+     * F4 兼容回归：快照未知时不与其他未知快照合并，也不推断与已知快照同版本。
+     */
+    @Test
+    void f4UnknownSnapshotIsNotGuessedToBeTheSameVersion() {
+        String knownSnapshot = "33333333-3333-3333-3333-333333333333";
+        ObjectNode coverage = DelegatedResearchCoverage.extract(JSON, List.of(
+                outlineWithSnapshot(knownSnapshot, "章节 A"),
+                // 未传 snapshotId 的读取：身份未知
+                readWithSnapshot(null, "章节 A", 0, 0, false, null)),
+                "SUCCEEDED");
+
+        assertThat(coverage.path("documents")).hasSize(2);
+        // 未知快照条目如实标 null，不被当作已知版本
+        boolean hasUnknown = false;
+        for (var doc : coverage.path("documents")) {
+            if (doc.path("snapshotId").isNull()) hasUnknown = true;
+        }
+        assertThat(hasUnknown).isTrue();
+    }
+
     private static DelegatedResearchCoverage.PersistedToolResult tool(String name, ObjectNode output) {
         return new DelegatedResearchCoverage.PersistedToolResult(name, "TOOL_SUCCESS",
                 JSON.createObjectNode().put("toolCallId", name + "-call"), output);
+    }
+
+    /** 读取一个指定 chunk 起点的正文片段（可声明续读点/是否到结尾）。 */
+    private static DelegatedResearchCoverage.PersistedToolResult readChunk(
+            String heading, int chunkNo, int fromOffset) {
+        return readChunk(heading, chunkNo, fromOffset, false, null, 0);
+    }
+
+    private static DelegatedResearchCoverage.PersistedToolResult readChunk(
+            String heading, int chunkNo, int fromOffset,
+            boolean hasMore, Integer continuationChunk, int continuationOffset) {
+        return new DelegatedResearchCoverage.PersistedToolResult("read_document_section", "TOOL_SUCCESS",
+                JSON.createObjectNode().put("toolCallId", "read-" + chunkNo),
+                readOutput(heading, chunkNo, fromOffset, hasMore, continuationChunk, continuationOffset));
+    }
+
+    private static ObjectNode readOutput(String heading, int chunkNo, int fromOffset,
+            boolean hasMore, Integer continuationChunk, int continuationOffset) {
+        ObjectNode data = JSON.createObjectNode()
+                .put("documentId", DOCUMENT).put("snapshotId", SNAPSHOT)
+                .put("processingStatus", "READY").put("readChars", 120)
+                .put("coverage", "SPECIFIED_RANGE_ONLY")
+                .put("truncated", hasMore).put("hasMore", hasMore);
+        data.putArray("items").addObject().put("chunkId", heading + "-chunk-" + chunkNo)
+                .put("chunkNo", chunkNo).put("heading", heading).put("content", "...")
+                .put("fromOffset", fromOffset).put("throughOffset", fromOffset + 120);
+        if (hasMore && continuationChunk != null) {
+            data.putObject("continuation").put("fromChunk", continuationChunk)
+                    .put("fromOffset", continuationOffset).put("snapshotId", SNAPSHOT);
+        } else {
+            data.putNull("continuation");
+        }
+        return JSON.createObjectNode().put("status", "SUCCEEDED").set("data", data);
+    }
+
+    /** 指定快照的提纲输出。 */
+    private static DelegatedResearchCoverage.PersistedToolResult outlineWithSnapshot(
+            String snapshotId, String... headings) {
+        ObjectNode data = JSON.createObjectNode()
+                .put("documentId", DOCUMENT).put("snapshotId", snapshotId)
+                .put("processingStatus", "READY").put("structure", "HEURISTIC_HEADINGS").put("truncated", false);
+        var sections = data.putArray("sections");
+        for (int index = 0; index < headings.length; index++) {
+            sections.addObject().put("heading", headings[index])
+                    .put("from_chunk", index).put("through_chunk", index);
+        }
+        return tool("get_document_outline",
+                JSON.createObjectNode().put("status", "SUCCEEDED").set("data", data));
+    }
+
+    /** 指定快照的正文读取输出。 */
+    private static DelegatedResearchCoverage.PersistedToolResult readWithSnapshot(
+            String snapshotId, String heading, int chunkNo, int fromOffset,
+            boolean hasMore, Integer continuationChunk) {
+        ObjectNode data = JSON.createObjectNode()
+                .put("documentId", DOCUMENT)
+                .put("processingStatus", "READY").put("readChars", 120)
+                .put("coverage", "SPECIFIED_RANGE_ONLY")
+                .put("truncated", hasMore).put("hasMore", hasMore);
+        if (snapshotId == null) data.putNull("snapshotId"); else data.put("snapshotId", snapshotId);
+        data.putArray("items").addObject().put("chunkId", heading + "-chunk")
+                .put("chunkNo", chunkNo).put("heading", heading).put("content", "...")
+                .put("fromOffset", fromOffset).put("throughOffset", fromOffset + 120);
+        if (hasMore && continuationChunk != null) {
+            data.putObject("continuation").put("fromChunk", continuationChunk).put("fromOffset", 0);
+        } else {
+            data.putNull("continuation");
+        }
+        return tool("read_document_section", JSON.createObjectNode().put("status", "SUCCEEDED").set("data", data));
     }
 
     private static DelegatedResearchCoverage.PersistedToolResult failure(String name, String errorCode) {

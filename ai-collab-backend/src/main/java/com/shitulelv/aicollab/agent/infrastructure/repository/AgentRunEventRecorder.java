@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentCitation;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
+import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.DelegatedResearchCoverage;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
@@ -90,6 +91,44 @@ public class AgentRunEventRecorder {
                 .put("purpose", "CONTEXT_SUMMARY_RECOMPRESS")
                 .put("status", "ATTEMPTED");
         return insertSummaryCallStep(run, "context_summary", "CONTEXT_SUMMARY_RECOMPRESS", beginInfo);
+    }
+
+    /**
+     * 运行研究轨迹窗口压缩（RUN_CONTEXT scope）的持久化请求身份。
+     *
+     * <p>与主会话摘要（{@code CONTEXT_SUMMARY}）共用生成/校验/记账规则与同一准入边界，
+     * 但作用域不同：本 scope 压缩的是<b>本运行自己的研究轨迹</b>（模型轮与工具结果），
+     * 不读写 {@code agent_session.working_state.summary}，因此子运行只生成自己的
+     * RUN_CONTEXT、不触发也不改写主会话摘要。</p>
+     *
+     * <p>身份先落库再出站，成功提交才推进覆盖；每个
+     * {@code scope + 源边界 + 目标修订/摘要版本} 至多一个有效周期。</p>
+     */
+    @Transactional
+    public UUID beginRunContextAttempt(AgentRunView run, int cycle, int fromSequence, int throughSequence) {
+        var beginInfo = json.createObjectNode()
+                .put("purpose", "RUN_CONTEXT_SUMMARY")
+                .put("status", "ATTEMPTED")
+                .put("scope", "RUN_CONTEXT")
+                .put("runId", run.id().toString())
+                .put("cycle", cycle)
+                .put("sourceFromSequence", fromSequence)
+                .put("sourceThroughSequence", throughSequence);
+        return insertSummaryCallStep(run, "run_context_summary", "RUN_CONTEXT_SUMMARY", beginInfo);
+    }
+
+    /** 完成一次 RUN_CONTEXT 压缩尝试：覆盖边界只在成功提交时写入（失败不推进）。 */
+    @Transactional
+    public void completeRunContextAttempt(UUID attemptId, String outcome, String model,
+            UsageSettlement usage, String note, JsonNode committedSummary) {
+        completeSummaryCallStep(attemptId, "RUN_CONTEXT_SUMMARY", outcome, model, usage, note);
+        if (committedSummary == null) return;
+        // 覆盖事实与本运行一致：把后端计算出的源范围与有效摘要写进该步骤的 output_json，
+        // 模型不能填写"这些步骤全读过"（覆盖由实际送入摘要请求的记录计算）。
+        jdbc.update("""
+                UPDATE agent_step SET output_json = output_json || ?::jsonb
+                WHERE id=? AND reason='RUN_CONTEXT_SUMMARY'
+                """, committedSummary.toString(), attemptId);
     }
 
     /**
@@ -210,8 +249,8 @@ public class AgentRunEventRecorder {
         // used 保持预算语义（封顶），actual 如实累计：摘要消耗可以超出剩余预算，
         // 真实值不能被 max 遮蔽
         bookRunUsage("UPDATE agent_run SET\n" +
-                "                input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),\n" +
-                "                output_tokens_used=LEAST(max_output_tokens, output_tokens_used+?),\n" +
+                "                input_tokens_used=agent_capped_add(input_tokens_used, max_input_tokens, ?),\n" +
+                "                output_tokens_used=agent_capped_add(output_tokens_used, max_output_tokens, ?),\n" +
                 "                input_tokens_actual=input_tokens_actual+?,\n" +
                 "                output_tokens_actual=output_tokens_actual+?,\n" +
                 "                token_usage_estimated=token_usage_estimated OR ?,\n" +
@@ -287,11 +326,27 @@ public class AgentRunEventRecorder {
                 """, runId);
     }
 
+    /**
+     * 输出超限分支：如实结算用量并按原语义进入 BUDGET_EXCEEDED，<b>同时保存已经返回的正文</b>。
+     *
+     * <p>F8 修复：原先只写 ERROR 与用量，丢弃 {@code completion.content()}，
+     * 随后 {@code resumeParent} 只回传错误码 —— 已经发生的模型调用返回的研究文字
+     * 对父运行不可见（子运行同样丢失这一轮研究文字）。现在把已返回的无工具正文
+     * 有界持久化为<b>部分产出</b>：终态仍如实为 BUDGET_EXCEEDED（不用 SUCCEEDED 粉饰完整性），
+     * 真实用量（含提供商上报）如实保留，且<b>不执行</b>该响应提出的任何新工具。</p>
+     */
     @Transactional
     public void recordBudgetExceeded(AgentRunView run, ChatCompletionResult completion) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
         accountActiveTime(run.id());
         markBatchHandled(run.id());
+        // 已返回但未及正常收口的正文：有界保存为部分回答（截断只影响落库长度，
+        // 不虚构内容、不改终态语义），供父运行回收与用户查看。
+        String returned = completion.content() == null ? "" : completion.content().strip();
+        boolean hasReturnedText = !returned.isBlank();
+        if (hasReturnedText) {
+            persistPartialAnswerText(run, truncate(returned, MAX_PARTIAL_ANSWER_CHARS));
+        }
         int sequence = nextSequence(run.id());
         jdbc.update("""
                 INSERT INTO agent_step(
@@ -306,8 +361,8 @@ public class AgentRunEventRecorder {
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET status='BUDGET_EXCEEDED',
                   steps_used=LEAST(max_steps,steps_used+1),
-                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
-                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
+                  input_tokens_used=agent_capped_add(input_tokens_used, max_input_tokens, ?),
+                  output_tokens_used=agent_capped_add(output_tokens_used, max_output_tokens, ?),
                   input_tokens_actual=input_tokens_actual+?,
                   output_tokens_actual=output_tokens_actual+?,
                   token_usage_estimated=?,error_code='AGENT_BUDGET_EXCEEDED',
@@ -320,8 +375,36 @@ public class AgentRunEventRecorder {
                 tokens(completion.completionTokens(), completion.content()),
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 run.projectId(), run.id(), run.version()));
-        resumeParent(run, "BUDGET_EXCEEDED", "AGENT_BUDGET_EXCEEDED");
-        event(run,"RUN_BUDGET_EXCEEDED",json.createObjectNode().put("status","BUDGET_EXCEEDED"));
+        // 回收：已有部分正文时把正文一并移交父运行（而不是只回传 AGENT_BUDGET_EXCEEDED 占位符）
+        resumeParent(run, "BUDGET_EXCEEDED", hasReturnedText ? truncate(returned, MAX_PARTIAL_ANSWER_CHARS) : "AGENT_BUDGET_EXCEEDED");
+        event(run,"RUN_BUDGET_EXCEEDED",json.createObjectNode().put("status","BUDGET_EXCEEDED")
+                .put("partialAnswerSaved", hasReturnedText));
+    }
+
+    /** 部分产出正文的落库长度上限（模型可见/用户可见，不影响真实 usage 结算）。 */
+    private static final int MAX_PARTIAL_ANSWER_CHARS = 20000;
+
+    /**
+     * 持久化已返回的部分回答文本：父运行（depth=0）写 ASSISTANT 消息；子运行（depth&gt;0）
+     * 只回填自身 DELEGATION_COMPLETED 的 content 占位，不向共享会话写消息（R1 隔离）。
+     * 与 {@link #recordBudgetPartialAnswer} 共用同一落库边界，但不改状态（状态由调用方推进）。
+     */
+    private void persistPartialAnswerText(AgentRunView run, String content) {
+        if (content == null || content.isBlank()) return;
+        if (run.depth() == 0) {
+            jdbc.update("""
+                    INSERT INTO agent_message(session_id,run_id,role,content)
+                    VALUES (?,?,'ASSISTANT',?)
+                    """, run.sessionId(), run.id(), content);
+        } else if (run.parentRunId() != null) {
+            // 子运行：把正文回填到 resumeParent 已写的错误码占位上（尚未写时后续 UPDATE 自然 no-op）
+            jdbc.update("""
+                    UPDATE agent_step SET output_json = jsonb_set(output_json, '{content}', ?::jsonb)
+                    WHERE run_id=? AND type='DELEGATION_COMPLETED'
+                      AND output_json->>'childRunId'=?
+                      AND output_json->>'content'='AGENT_BUDGET_EXCEEDED'
+                    """, jsonString(content), run.parentRunId(), run.id().toString());
+        }
     }
 
     @Transactional
@@ -367,8 +450,18 @@ public class AgentRunEventRecorder {
         // retry_count 记录可重试模型失败次数（含最终失败），最多安排两次自动重试。
         // MODEL_RETRY 记录实际安排的重试次数；最终失败不再增加该诊断计数。
         boolean modelRetry=retryable && !"FORMAT_REPAIR_REQUESTED".equals(errorCode);
+        // 可重试失败是否已到"不再安排自动重试"的边界：一是重试次数，二是本运行活跃时长。
+        // 时长判据必须读取<b>本运行适用的同一有效策略</b>（v2 根 45 分钟 / 子 30 分钟，
+        // v1 沿用原 Skill 额度），不能保留固定的 300000ms 隐藏截停——否则统一放宽到
+        // 45 分钟后仍会在 5 分钟处被这一层判停（设计 3 节明确要求的冲突消除）。
+        long activeBudgetMillis = com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits
+                .forRun(run.contextPolicyVersion(), run.depth(), run.skillCode())
+                .maxRunDuration().toMillis();
+        boolean activeTimeExhausted = Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT active_elapsed_ms>=? FROM agent_run WHERE id=?", Boolean.class,
+                activeBudgetMillis, run.id()));
         boolean finalFailure = !retryable || (modelRetry && run.retryCount() >= 2)
-                || Boolean.TRUE.equals(jdbc.queryForObject("SELECT active_elapsed_ms>=300000 FROM agent_run WHERE id=?",Boolean.class,run.id()));
+                || activeTimeExhausted;
         if (finalFailure) markBatchHandled(run.id());
         if (!finalFailure && !"FORMAT_REPAIR_REQUESTED".equals(errorCode)) jdbc.update("INSERT INTO agent_recovery_counter(run_id,kind,attempts) VALUES (?,'MODEL_RETRY',1) ON CONFLICT(run_id,kind) DO UPDATE SET attempts=agent_recovery_counter.attempts+1",run.id());
         requireRunUpdate(jdbc.update("""
@@ -662,22 +755,33 @@ public class AgentRunEventRecorder {
                 boundedLatency(completion.latencyMs()));
         int promptTokens = tokens(completion.promptTokens(), "");
         int outputTokens = tokens(completion.completionTokens(), completion.content());
-        int childSteps = run.maxSteps() - run.stepsUsed() - 1;
-        int childTools = run.maxToolCalls() - run.toolCallsUsed();
-        int childInputs = run.maxInputTokens() - run.inputTokensUsed() - promptTokens;
-        int childOutputs = run.maxOutputTokens() - run.outputTokensUsed() - outputTokens;
-        if (childSteps < 1 || childInputs < 1 || childOutputs < 1) {
+        // v1 兼容：从父剩余额度切出（旧 DELEGATE 决策协议路径）。
+        // v2：子运行使用自身独立执行额度，累计输入/输出为 NULL（不限额），
+        // 不出现"父剩余多少、子只能多少"的切分，也不因父累计 token 用得多而拒绝。
+        boolean independentChildBudget = !run.enforcesCumulativeTokenLimits();
+        int childSteps = independentChildBudget
+                ? AgentResourcePolicy.V2_CHILD_MAX_STEPS
+                : run.maxSteps() - run.stepsUsed() - 1;
+        int childTools = independentChildBudget
+                ? AgentResourcePolicy.V2_CHILD_MAX_TOOL_CALLS
+                : run.maxToolCalls() - run.toolCallsUsed();
+        Integer childInputs = independentChildBudget
+                ? null : run.maxInputTokens() - run.inputTokensUsed() - promptTokens;
+        Integer childOutputs = independentChildBudget
+                ? null : run.maxOutputTokens() - run.outputTokensUsed() - outputTokens;
+        if (childSteps < 1 || (childInputs != null && childInputs < 1) || (childOutputs != null && childOutputs < 1)) {
             throw new IllegalStateException("Agent 没有可分配给子运行的剩余预算");
         }
         AgentRunView child = jdbc.queryForObject("""
                 INSERT INTO agent_run(
                   id,session_id,project_id,requester_id,parent_run_id,role,depth,goal,status,
-                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens,budget_semantics)
-                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?,(SELECT budget_semantics FROM agent_run WHERE id=?))
+                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens,budget_semantics,context_policy_version)
+                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?,(SELECT budget_semantics FROM agent_run WHERE id=?),
+                  (SELECT context_policy_version FROM agent_run WHERE id=?))
                 RETURNING *
                 """, AgentRunMappers.runMapper(), childId, run.sessionId(), run.projectId(), run.requesterId(),
                 run.id(), delegate.role(), delegate.objective(),
-                childSteps, childTools, childInputs, childOutputs, run.id());
+                childSteps, childTools, childInputs, childOutputs, run.id(), run.id());
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET status='CREATED',children_used=children_used+1,
                   steps_used=steps_used+CASE WHEN budget_semantics='COMBINED' THEN 1 ELSE 0 END,
@@ -793,8 +897,8 @@ public class AgentRunEventRecorder {
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET
                   steps_used=steps_used+1,
-                  input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),
-                  output_tokens_used=LEAST(max_output_tokens, output_tokens_used+?),
+                  input_tokens_used=agent_capped_add(input_tokens_used, max_input_tokens, ?),
+                  output_tokens_used=agent_capped_add(output_tokens_used, max_output_tokens, ?),
                   input_tokens_actual=input_tokens_actual+?,
                   output_tokens_actual=output_tokens_actual+?,
                   token_usage_estimated=token_usage_estimated OR ?,
@@ -1239,8 +1343,8 @@ public class AgentRunEventRecorder {
     private void bookUsageToRun(UUID projectId, UUID runId, UsageSettlement usage) {
         jdbc.update("""
                 UPDATE agent_run SET
-                  input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),
-                  output_tokens_used=LEAST(max_output_tokens, output_tokens_used+?),
+                  input_tokens_used=agent_capped_add(input_tokens_used, max_input_tokens, ?),
+                  output_tokens_used=agent_capped_add(output_tokens_used, max_output_tokens, ?),
                   input_tokens_actual=input_tokens_actual+?,
                   output_tokens_actual=output_tokens_actual+?,
                   token_usage_estimated=token_usage_estimated OR ?,
@@ -1313,22 +1417,41 @@ public class AgentRunEventRecorder {
                 VALUES (?,?,'DELEGATION_COMPLETED',?::jsonb,?)
                 """, child.parentRunId(), sequence, jsonString(completed),
                 "Specialist child run completed");
-        // 已发生消耗的回收独立于唤醒：无论父运行处于什么状态都如实累计（步数/调用数封顶，
-        // token 沿用 used 封顶 + actual 如实的既有预算语义）。
-        jdbc.update("""
-                UPDATE agent_run SET
-                  steps_used=LEAST(max_steps,steps_used+?),
-                  tool_calls_used=LEAST(max_tool_calls,tool_calls_used+?),
-                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
-                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
-                  input_tokens_actual=input_tokens_actual+?,
-                  output_tokens_actual=output_tokens_actual+?,
-                  token_usage_estimated=token_usage_estimated OR ?,
-                  updated_at=now()
-                WHERE id=?
-                """, usage.stepsUsed(), usage.toolCallsUsed(), usage.inputTokensUsed(),
-                usage.outputTokensUsed(), usage.inputTokensActual(), usage.outputTokensActual(),
-                usage.tokenUsageEstimated(), child.parentRunId());
+        // 已发生消耗的回收独立于唤醒。v1 沿用"并入父运行共享额度"的既有语义；
+        // v2 父子执行额度独立：子消耗只做<b>真实统计</b>（actual 与 used 如实累计一次），
+        // <b>不扣减父自身的步骤/工具执行额度</b>——否则子研究会把父综合的额度吃掉
+        // （设计要求：子消耗回收只用于真实统计，不扣减父自身步骤/工具额度）。
+        AgentRunView parentView = findRun(child.projectId(), child.parentRunId()).orElse(null);
+        boolean independentChildBudget = parentView != null && !parentView.enforcesCumulativeTokenLimits();
+        if (independentChildBudget) {
+            jdbc.update("""
+                    UPDATE agent_run SET
+                      input_tokens_used=input_tokens_used+?,
+                      output_tokens_used=output_tokens_used+?,
+                      input_tokens_actual=input_tokens_actual+?,
+                      output_tokens_actual=output_tokens_actual+?,
+                      token_usage_estimated=token_usage_estimated OR ?,
+                      updated_at=now()
+                    WHERE id=?
+                    """, usage.inputTokensUsed(), usage.outputTokensUsed(),
+                    usage.inputTokensActual(), usage.outputTokensActual(),
+                    usage.tokenUsageEstimated(), child.parentRunId());
+        } else {
+            jdbc.update("""
+                    UPDATE agent_run SET
+                      steps_used=LEAST(max_steps,steps_used+?),
+                      tool_calls_used=LEAST(max_tool_calls,tool_calls_used+?),
+                      input_tokens_used=agent_capped_add(input_tokens_used, max_input_tokens, ?),
+                      output_tokens_used=agent_capped_add(output_tokens_used, max_output_tokens, ?),
+                      input_tokens_actual=input_tokens_actual+?,
+                      output_tokens_actual=output_tokens_actual+?,
+                      token_usage_estimated=token_usage_estimated OR ?,
+                      updated_at=now()
+                    WHERE id=?
+                    """, usage.stepsUsed(), usage.toolCallsUsed(), usage.inputTokensUsed(),
+                    usage.outputTokensUsed(), usage.inputTokensActual(), usage.outputTokensActual(),
+                    usage.tokenUsageEstimated(), child.parentRunId());
+        }
         // 唤醒部分单独执行：只有 CREATED/QUEUED 的等待父运行被转回 QUEUED（再次确认时
         // no-op 不报错）；RUNNING（竞争窗口）保持运行，PAUSED 不被自动解除暂停。
         jdbc.update("""
@@ -1447,22 +1570,19 @@ public class AgentRunEventRecorder {
                             .RejectionReason.CHILDREN_EXHAUSTED.message());
         }
 
-        // 子运行预算：从父运行剩余额度切出，硬上限保证委派不放大总资源；
-        // 为子总结与父综合分别预留空间——委派自身占一次工具调用，子工具额度从扣除该
-        // 调用后的父剩余额度分配；父综合收尾（收尾模型轮 + 回答落库）预留 2 个推进步；
-        // COMBINED 旧语义下委派受理另占一个推进步。输入/输出按父剩余等比对半
-        // （沿用运行级等比预留思路，父综合请求需携带子证据与既有上下文），
-        // 不再用与运行自身预算无关的大固定值卡死小运行。
+        // 子运行预算：v1 从父运行剩余额度切出（硬上限保证委派不放大总资源）；
+        // v2 使用子运行自己的独立有限执行额度（不从父剩余切分，累计 token 不设上限），
+        // 父仍须能发起委派并完成自身综合收尾——这一检查不能变成"父还剩几次工具，子只能读几页"。
         String parentSemantics = jdbc.queryForObject(
                 "SELECT budget_semantics FROM agent_run WHERE id=?", String.class, run.id());
         boolean combined = "COMBINED".equals(parentSemantics);
         var facts = new com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.Facts(
                 run.maxSteps(), run.stepsUsed(), run.maxToolCalls(), run.toolCallsUsed(),
                 run.maxInputTokens(), run.inputTokensUsed(), run.maxOutputTokens(), run.outputTokensUsed(),
-                run.childrenUsed(), run.maxChildren(), combined);
-        // 剩余额度连子运行最小研究（1 轮）与收尾（收尾轮 + 落库）都容纳不了：
-        // 明确拒绝受理（可预期拒绝类型的异常，不先启动再注定失败），
-        // 由调用方有边界地保留父运行、不把它判成失败
+                run.childrenUsed(), run.maxChildren(), combined, run.contextPolicyVersion());
+        // 剩余执行额度连"发起委派 + 父综合收尾"都容纳不了：明确拒绝受理
+        // （可预期拒绝类型的异常，不先启动再注定失败），由调用方有边界地保留父运行、
+        // 不把它判成失败。
         var rejection = com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.reject(facts);
         if (rejection != null) {
             throw new com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException(
@@ -1471,8 +1591,8 @@ public class AgentRunEventRecorder {
         var childBudget = com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.split(facts);
         int childSteps = childBudget.steps();
         int childToolCalls = childBudget.toolCalls();
-        int childInput = childBudget.inputTokens();
-        int childOutput = childBudget.outputTokens();
+        Integer childInput = childBudget.inputTokens();
+        Integer childOutput = childBudget.outputTokens();
 
         int sequence = nextSequence(run.id());
         jdbc.update("""
@@ -1483,15 +1603,18 @@ public class AgentRunEventRecorder {
                         "objective", truncate(objective, 3800))));
 
         UUID childId = UUID.randomUUID();
+        // 子运行继承父运行的预算语义（V63）与资源策略版本（V64）：v2 父下子运行同样是
+        // v2，累计输入/输出写 NULL（只统计、不限额），执行额度用自己的独立上界。
         AgentRunView child = jdbc.queryForObject("""
                 INSERT INTO agent_run(
                   id,session_id,project_id,requester_id,parent_run_id,role,depth,goal,status,
-                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens,page_context_json,budget_semantics)
-                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?,NULL::jsonb,?)
+                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens,budget_semantics,context_policy_version)
+                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?,(SELECT budget_semantics FROM agent_run WHERE id=?),
+                  (SELECT context_policy_version FROM agent_run WHERE id=?))
                 RETURNING *
                 """, AgentRunMappers.runMapper(), childId, run.sessionId(), run.projectId(), run.requesterId(),
                 run.id(), "KNOWLEDGE_RESEARCHER", truncate(objective, 3800),
-                childSteps, childToolCalls, childInput, childOutput, parentSemantics);
+                childSteps, childToolCalls, childInput, childOutput, run.id(), run.id());
 
         ObjectNode result = json.createObjectNode();
         result.put("status", "DELEGATED");
