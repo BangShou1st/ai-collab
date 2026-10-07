@@ -1,0 +1,13 @@
+Output format is unaligned.
+[
+    {
+        "depth": 1,
+        "steps": 4,
+        "tools": 4,
+        "status": "SUCCEEDED",
+        "coverage": null,
+        "childRunId": "1c0d92f6-32af-48c4-af94-f67519eeb13b",
+        "outlineCalls": 2,
+        "sectionReads": 0
+    }
+]

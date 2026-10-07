@@ -1,0 +1,10 @@
+{
+    "goal": "这个项目的评分聚合是怎么计算的？简要说明即可。",
+    "runId": "362e9d00-51e1-4ba5-a699-6fcef97ea665",
+    "steps": "3/12",
+    "tools": "2/8",
+    "status": "SUCCEEDED",
+    "childRuns": 0,
+    "childrenUsed": 0,
+    "delegationSteps": 0
+}
