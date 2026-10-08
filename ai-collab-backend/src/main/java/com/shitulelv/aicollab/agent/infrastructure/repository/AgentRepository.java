@@ -600,15 +600,41 @@ public class AgentRepository {
                 }, runId).stream().findFirst().orElse(null);
     }
 
-    /** RUN_CONTEXT 压缩请求身份（持久化准入边界与主会话摘要一致）。 */
+    /** RUN_CONTEXT 压缩请求身份（持久化准入边界与主会话摘要一致；goalRevision 参与提交 fencing）。 */
+    public UUID beginRunContextAttempt(AgentRunView run, int cycle, int fromSequence, int throughSequence, int goalRevision) {
+        return recorder.beginRunContextAttempt(run, cycle, fromSequence, throughSequence, goalRevision);
+    }
+
+    /** 兼容入口：目标修订按当前业务事实即时读取。 */
     public UUID beginRunContextAttempt(AgentRunView run, int cycle, int fromSequence, int throughSequence) {
-        return recorder.beginRunContextAttempt(run, cycle, fromSequence, throughSequence);
+        return beginRunContextAttempt(run, cycle, fromSequence, throughSequence,
+                currentGoalRevision(run.projectId(), run.sessionId()));
     }
 
     /** 完成 RUN_CONTEXT 压缩尝试；committedSummary 为 null 表示未提交（不推进覆盖）。 */
     public void completeRunContextAttempt(UUID attemptId, String outcome, String model,
+            AgentRunEventRecorder.UsageSettlement usage, String note, JsonNode committedSummary, Integer expectedGoalRevision) {
+        recorder.completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary, expectedGoalRevision);
+    }
+
+    /** 兼容入口：不做目标修订冲突检查的发布（仍受 claim epoch 与取消 fencing 约束）。 */
+    public void completeRunContextAttempt(UUID attemptId, String outcome, String model,
             AgentRunEventRecorder.UsageSettlement usage, String note, JsonNode committedSummary) {
-        recorder.completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary);
+        recorder.completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary, null);
+    }
+
+    /**
+     * 当前目标的业务修订事实：会话工作状态的 {@code goalRevision}（目标更正/新目标时递增）。
+     * RUN_CONTEXT 摘要提交的冲突检查使用该值，不把任意 run.version 当成目标修订。
+     * 无工作状态（旧格式会话）按 0 兼容。
+     */
+    public int currentGoalRevision(UUID projectId, UUID sessionId) {
+        return jdbc.query("""
+                SELECT CASE WHEN working_state->>'goalRevision' ~ '^[0-9]+$'
+                            THEN (working_state->>'goalRevision')::int ELSE 0 END AS rev
+                FROM agent_session WHERE project_id=? AND id=?
+                """, (rs, row) -> rs.getInt("rev"), projectId, sessionId)
+                .stream().findFirst().orElse(0);
     }
 
     public void recordDecisionFailure(
