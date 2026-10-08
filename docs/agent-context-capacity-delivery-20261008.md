@@ -2,6 +2,16 @@
 
 ## 0. 状态
 
+> **2026-10-08 第二轮更正**：本文写作时点的以下表述超出实际实现，已被同日
+> [补充审查](agent-context-capacity-review-20261008.md)（C1–C5）证实并在
+> [C1–C5 修复交付报告](agent-context-capacity-c1c5-delivery-20261008.md)中修复与实测：
+> ① 1.7 节"提交后协调器重新组装主请求"——实际仅重发摘要前旧 composition，
+> Composer 不读取 RUN_CONTEXT（C1）；② 1.7 节"多周期"推进——截断来源按 step ID
+> 出现虚报整条覆盖，未送入尾部永久丢失（C3），压缩触发按裁后体积计算（C2）；
+> ③ 1.6 节"长请求配套有界租约续期"——续租只覆盖主请求，摘要/重压缩无续租与输出封顶（C5）；
+> ④ 摘要提交无 claim/目标修订 fencing（C4）。本文保留为容量策略（迁移/策略层/额度/
+> 时长）的真实交付记录，压缩闭环与出站边界以修复报告为准。
+
 - 分支 `codex/context-foundation`，起点 HEAD `c911a8518c68ee363855497cd51ab96e2fd9449b`。
 - 依据：[容量设计](agent-context-capacity-design-20261008.md)、
   [全面审查](agent-comprehensive-review-20261008.md)、[维护入口](agent-runtime-maintenance.md) 第 14 节。

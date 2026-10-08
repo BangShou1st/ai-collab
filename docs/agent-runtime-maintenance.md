@@ -315,3 +315,64 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 `null` 表示累计只统计，**不得当作 0**、不展示剩余额度或百分比；父步骤/工具标明为
 **本运行自身**计数，不与全树消耗混用。这不是对话工作区重设计，也未重开 SSE。
 
+## 15. 上下文容量 C1–C5 修复（2026-10-08 第二轮）
+
+完整报告：`docs/agent-context-capacity-c1c5-delivery-20261008.md`；红绿证据：
+`docs/acceptance-evidence/2026-10-08/agent-capacity-review/`（基线 ef2a514 上 4/4 红灯实测）。
+第 14 节与本节的差异以本节为准。
+
+### 15.1 RUN_CONTEXT 闭环（C1）
+
+- **Composer 是 RUN_CONTEXT 的消费端**：`composeV2` 必选层 2c 渲染
+  `<RUN_CONTEXT_SUMMARY>`，工具观察层跳过 `sequence <= sourceThroughSequence` 的已覆盖
+  记录。删掉这一层或跳过逻辑，摘要就会退回"只落库不消费"（上轮审查 C1 的原始缺陷）。
+- **摘要提交后必须重新组装**：`maybeSummarize` 返回 `boolean`；协调器在 true 时刷新
+  steps/子证据、**重新解析模型配置、重算 requestBudget、重新 composeV2**。
+  新增组装分支必须保持这条路径，否则重新发送压缩前旧 messages。
+- 摘要不替代必要原文/当前目标/有效更正/子证据/引用身份——那些层保持原样注入。
+
+### 15.2 压力感知投影与裁前触发（C2）
+
+- **有空间时不按"变旧"裁正文**：工具观察层上限 = `max(6000, 剩余×0.45)`，随真实请求
+  预算伸缩；固定 6000/1500/48000/12000/120000 差异化 cap 只存在于 Projector 的压力路径。
+  改这里时不要把年龄阈值加回选择循环。
+- **压缩触发必须用裁前估算**：`estimateInput(messages, exposed) + droppedSourceChars/3`。
+  `droppedSourceChars`（CompositionStats）记录被投影丢弃的尾部与未入选来源的原始体积；
+  只按裁后 `charsUsed` 判断会重现"先裁掉来源后宣称未达触发线"。
+
+### 15.3 结构化覆盖与 partial 偏移（C3）
+
+- **覆盖只按记录块边界计算**，不按 step ID 字符串出现判断。截断时记录
+  `sourcePartialSequence` + `sourcePartialChars`；未送入的尾部留在未覆盖来源中，
+  `compressibleSourceSteps` 按 through + partial 续读。超大首条记录推进时必须带
+  partial 字段，不虚报整条覆盖。
+- 上一份 RUN_CONTEXT 的 partial 记录在下一周期从未送入偏移继续；partial 字段丢失
+  等于回到"半条记录标为完整覆盖"的缺陷。
+
+### 15.4 RUN_CONTEXT 提交 fencing 与幂等（C4）
+
+- **发布与结算是同一次 ATTEMPTED → 终态转换**（单条 UPDATE，`output_json = 记账 || 摘要`）。
+  重复调用转换零行即幂等——不重复结算、不改写已发布摘要。不要把发布拆回独立 UPDATE。
+- 发布前在同一短事务内核对：claim epoch（`AgentLeaseScope.currentEpoch` vs
+  `claim_version`）、`cancel_requested_at`、目标修订（**会话工作状态 `goalRevision`**，
+  经 `AgentRepository.currentGoalRevision` 读取；不是 `run.version`）。
+- 被 fenced 的返回以 `FENCED` 落账，用量照常结算；"失去租约的旧 worker 不能写入"
+  现在覆盖摘要发布入口。暂停按已受理契约允许在途摘要完成保存，不自动解除暂停。
+
+### 15.5 辅助模型出站统一规则（C5）
+
+- 每次实际辅助出站（会话摘要/重压缩/RUN_CONTEXT 压缩）解析**自己的**配置快照
+  （`resolveAuxiliaryCapacity`）、核对自己的模型窗口、下发自己的 `AiRequestOutputCap`、
+  套用 `AgentLeaseRenewer.forCurrentClaim` 有界续租。**不要把主请求的 budget 借给
+  重新择模的摘要请求**，也不要给辅助请求裸发（无封顶无续租）。
+- 出站统一入口是 `sendAuxiliary` + `callModelWithoutTools(run, messages, resolved)`；
+  新增辅助模型调用（如未来的受控规划摘要）必须走同一入口。
+- 证据兜底 `completeFromEvidence` 不发模型请求，不为它加续租或新模型调用。
+
+### 15.6 回归索引
+
+`AgentRunContextCompactionRegressionTest`（4，基线红绿）、
+`AgentRunContextCommitPostgresTest`（6，隔离 PostgreSQL：幂等/取消/失去 claim/目标修订/
+真实消费/两周期推进）、`AgentAuxiliaryOutboundRegressionTest`（3，输出封顶/续租生命周期/
+快照解析）。改本节任何行为时先看这三个类。
+
