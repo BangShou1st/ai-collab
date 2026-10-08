@@ -41,14 +41,14 @@ public class AgentModelMessageComposer {
      *  的逻辑丢弃边界——有压力时由 RUN_CONTEXT 压缩整理已覆盖前缀后继续加载必要来源。 */
     static final int HISTORY_CANDIDATES = 40;
     /**
-     * 最新一批工具结果的保留上限（字符）。原为 6000，会在大窗口下把刚读到的正文
-     * 压成摘要；新策略"有空间时保留必要原文，不因变旧自动截成小摘要"。
+     * 最新一批工具结果的保留上限（字符）。这是<b>压力下</b>单条结果的投影上限候选之一：
+     * 正常情况下按真实剩余空间分配（见 composeV2 工具观察层），不因结果变旧就固定裁切。
      */
     static final int NEWEST_TOOL_OUTPUT_CAP = 48_000;
     /**
-     * 更早工具结果投影后的保留上限（字符）。原为固定的 1500——"变成旧结果就最多
-     * 1500 字符"的固定压缩规则会把必要原文丢掉。现在由 Projector 在有压力时才做
-     * 确定性投影，正常情况下保留更大原文。
+     * 更早工具结果在<b>压力下</b>投影的保留上限（字符）。已废除"变成旧结果就最多 1500
+     * 字符"的固定压缩规则：有真实窗口空间时旧正文不因变旧被裁，只有空间不足时才由
+     * Projector 做确定性投影。
      */
     static final int OLDER_TOOL_OUTPUT_CAP = 12_000;
     /** 单条历史消息参与选择的最小预算（字符），避免零碎消息耗尽预算。 */
@@ -56,12 +56,12 @@ public class AgentModelMessageComposer {
     /** 交给有界摘要的未覆盖旧消息条数上限。 */
     static final int SUMMARY_CANDIDATE_LIMIT = 20;
     /**
-     * 工具观察层占剩余预算的比例与上下界（字符）。原上界 24000 会在模型窗口远大于
-     * 192k 时把工具原文无谓压小；新策略下工具观察是可压缩旧轨迹之外的主要原文保留层。
+     * 工具观察层占剩余预算的比例与下界（字符）。原固定上界 24000/120000 已废除：
+     * 上限随本次请求的真实剩余预算伸缩（约 45%），有空间时保留必要原文，
+     * 仍然受单次请求预算约束——不无条件加载全部历史。
      */
     static final double TOOL_OBSERVATION_SHARE = 0.45;
     static final int TOOL_OBSERVATION_MIN_CHARS = 6_000;
-    static final int TOOL_OBSERVATION_MAX_CHARS = 120_000;
 
     private final AgentRepository repository;
     private final AgentMemoryService memories;
@@ -104,9 +104,15 @@ public class AgentModelMessageComposer {
             int toolResultsProjected,
             boolean memoryIncluded,
             int charsUsed,
+            /**
+             * 被预算裁掉的相关活跃来源体积（字符，按原始未投影大小计）：投影丢弃的尾部、
+             * 因空间不足未入选的工具结果与历史消息。压缩触发必须以
+             * "完整请求估算 + 本字段"的<b>裁剪前</b>体积判断，不能先裁掉来源后宣称未达触发线。
+             */
+            int droppedSourceChars,
             java.util.Map<String, Integer> layerChars) {
         public static CompositionStats empty() {
-            return new CompositionStats(0, 0, 0, 0, 0, false, 0, java.util.Map.of());
+            return new CompositionStats(0, 0, 0, 0, 0, false, 0, 0, java.util.Map.of());
         }
     }
 
@@ -265,6 +271,22 @@ public class AgentModelMessageComposer {
             summaryChars = block.length();
         }
 
+        // 必选层 2c：本运行的有效研究轨迹摘要（RUN_CONTEXT scope）。
+        // 这是"生成→落库→消费"闭环的消费端：已压缩前缀由摘要表达，其原始轨迹
+        // 不再重复进入工具观察层（见下方 coveredThroughSequence 过滤）。
+        // 摘要不替代必要原文/当前目标/有效更正/子证据/引用身份——那些层保持不变，
+        // 只有已被摘要覆盖的旧前缀被替换出活跃视图。
+        JsonNode runContext = repository.latestRunContextSummary(run.projectId(), run.id());
+        int coveredThroughSequence = 0;
+        int runContextChars = 0;
+        if (runContext != null && runContext.isObject() && runContext.hasNonNull("text")) {
+            String block = renderRunContextSummary(runContext);
+            messages.add(new ModelMessage.User(block));
+            used += block.length();
+            runContextChars = block.length();
+            coveredThroughSequence = runContext.path("sourceThroughSequence").asInt(0);
+        }
+
         // 必选层 3：页面上下文
         String pageContext = "<VERIFIED_PAGE_CONTEXT>" + json.valueToTree(ctx.page()) + "</VERIFIED_PAGE_CONTEXT>";
         messages.add(new ModelMessage.User(pageContext));
@@ -295,33 +317,51 @@ public class AgentModelMessageComposer {
         int remaining = charBudget - used;
         if (remaining - reservedGoal < 0) {
             // 必选层已超预算：明确停止，不静默截断当前请求
-            return new Composition(List.of(), new CompositionStats(0, 0, 0, 0, 0, false, used, java.util.Map.of()),
+            return new Composition(List.of(), new CompositionStats(0, 0, 0, 0, 0, false, used, 0, java.util.Map.of()),
                     FAILURE_CURRENT_REQUEST_OVER_BUDGET);
         }
 
-        // 工具观察：从最新到最旧选择，最新一批保留更大上限
+        // 工具观察：从最新到最旧选择。上限随本次真实剩余预算伸缩（约 45%），
+        // 不再固定封顶 120000、也不再"变旧就裁到 1500/12000"：
+        // 有空间时保留必要原文；只有单条结果放不进剩余空间时才做确定性投影（压力路径）。
+        // 已被 RUN_CONTEXT 摘要覆盖的前缀（sequence <= coveredThrough）不重复进入，
+        // 活跃视图真正缩小；近期原文与未覆盖尾部保持完整。
+        final int coveredThrough = coveredThroughSequence;
         List<AgentStepView> completedToolSteps = steps == null ? List.of() : steps.stream()
                 .filter(step -> step.type() == AgentStepType.TOOL_CALL_COMPLETED && step.toolName() != null && step.output() != null)
+                .filter(step -> step.sequence() > coveredThrough)
                 .toList();
-        int toolShare = Math.max(TOOL_OBSERVATION_MIN_CHARS,
-                Math.min(TOOL_OBSERVATION_MAX_CHARS, (int) (remaining * TOOL_OBSERVATION_SHARE)));
+        int toolShare = Math.max(TOOL_OBSERVATION_MIN_CHARS, (int) (remaining * TOOL_OBSERVATION_SHARE));
         Set<String> seenToolSignatures = new HashSet<>();
         List<AgentStepView> pickedToolSteps = new ArrayList<>();
         List<JsonNode> projectedOutputs = new ArrayList<>();
         int toolUsed = 0;
         int projectedCount = 0;
+        int droppedSourceChars = 0;
         for (int i = completedToolSteps.size() - 1; i >= 0 && toolUsed < toolShare; i--) {
             AgentStepView step = completedToolSteps.get(i);
             JsonNode output = staleAwareOutput(run, step);
-            int cap = i == completedToolSteps.size() - 1 ? NEWEST_TOOL_OUTPUT_CAP : OLDER_TOOL_OUTPUT_CAP;
-            JsonNode projected = projector.projectToolOutput(output, cap);
+            int inputSize = step.input() == null ? 0 : step.input().toString().length();
+            int rawSize = output.toString().length() + inputSize;
+            int cap = toolShare - toolUsed;
+            JsonNode projected = output;
+            if (rawSize > cap) {
+                projected = projector.projectToolOutput(output, cap);
+            }
             String signature = step.toolName() + "|" + step.input() + "|" + projected;
             if (!seenToolSignatures.add(signature)) continue; // 重复工具结果去重
-            int size = projected.toString().length() + (step.input() == null ? 0 : step.input().toString().length());
-            if (size > toolShare - toolUsed) continue;
+            int size = projected.toString().length() + inputSize;
+            if (size > toolShare - toolUsed) {
+                // 投影后仍放不下：本条不入选，原始体积计入裁掉来源（压缩触发的估算输入）
+                droppedSourceChars += rawSize;
+                continue;
+            }
             pickedToolSteps.add(step);
             projectedOutputs.add(projected);
-            if (projected != output) projectedCount++;
+            if (projected != output) {
+                projectedCount++;
+                droppedSourceChars += rawSize - size; // 投影丢掉的尾部按原始大小计
+            }
             toolUsed += size;
         }
 
@@ -340,7 +380,10 @@ public class AgentModelMessageComposer {
             if (msg.content().length() < MIN_HISTORY_MESSAGE_CHARS) continue;
             if (!seenContents.add(msg.content())) continue; // 重复提交的同一需求只保留最新
             String content = historicalContent(msg);
-            if (content.length() > historyBudget - historyUsed) continue;
+            if (content.length() > historyBudget - historyUsed) {
+                droppedSourceChars += content.length();
+                continue;
+            }
             picked.add(msg);
             historyUsed += content.length();
         }
@@ -403,6 +446,7 @@ public class AgentModelMessageComposer {
         layerChars.put("systemChars", systemPromptLength);
         layerChars.put("workingStateChars", stateChars);
         layerChars.put("summaryChars", summaryChars);
+        layerChars.put("runContextChars", runContextChars);
         layerChars.put("pageContextChars", pageChars);
         layerChars.put("proposalsChars", proposalsChars);
         layerChars.put("toolObservationChars", toolUsed);
@@ -410,12 +454,29 @@ public class AgentModelMessageComposer {
         layerChars.put("memoryChars", memoryIncluded ? memoryLength : 0);
         return new Composition(messages, new CompositionStats(
                 recentMessages.size(), picked.size(), completedToolSteps.size(), pickedToolSteps.size(),
-                projectedCount, memoryIncluded, charsUsed, java.util.Collections.unmodifiableMap(layerChars)), null, summaryCandidates);
+                projectedCount, memoryIncluded, charsUsed, droppedSourceChars,
+                java.util.Collections.unmodifiableMap(layerChars)), null, summaryCandidates);
+    }
+
+    /**
+     * RUN_CONTEXT（运行研究轨迹摘要）渲染：带源范围标注与"摘要不是当前事实"的边界声明。
+     * 覆盖范围 sourceFromSequence..sourceThroughSequence 之外的近期轨迹保持原文；
+     * 摘要可能遗漏细节，需要精确条件、数字或措辞时必须用工具回读原文。
+     */
+    private String renderRunContextSummary(JsonNode summary) {
+        StringBuilder sb = new StringBuilder("<RUN_CONTEXT_SUMMARY");
+        if (summary.hasNonNull("sourceFromSequence")) sb.append(" sourceFromSequence=\"").append(summary.path("sourceFromSequence").asText()).append('"');
+        if (summary.hasNonNull("sourceThroughSequence")) sb.append(" sourceThroughSequence=\"").append(summary.path("sourceThroughSequence").asText()).append('"');
+        if (summary.hasNonNull("cycle")) sb.append(" cycle=\"").append(summary.path("cycle").asText()).append('"');
+        sb.append(">\n").append(summary.path("text").asText()).append('\n');
+        sb.append("</RUN_CONTEXT_SUMMARY>\n以上摘要是本运行此前研究轨迹的已压缩前缀，供延续研究使用；")
+          .append("它可能遗漏细节，不是当前工具事实或权限，未覆盖的近期轨迹以下文工具结果为准；")
+          .append("需要精确条件、数字或措辞时用工具回读原文，不得把摘要当成全文已读。");
+        return sb.toString();
     }
 
     /** 既有摘要渲染：带覆盖范围标注，明确摘要不是当前事实或权限。 */
-    private String renderConversationSummary(JsonNode summary) {
-        StringBuilder sb = new StringBuilder("<CONVERSATION_SUMMARY");
+    private String renderConversationSummary(JsonNode summary) {        StringBuilder sb = new StringBuilder("<CONVERSATION_SUMMARY");
         if (summary.hasNonNull("sourceFrom")) sb.append(" sourceFrom=\"").append(summary.path("sourceFrom").asText()).append('"');
         if (summary.hasNonNull("sourceThrough")) sb.append(" sourceThrough=\"").append(summary.path("sourceThrough").asText()).append('"');
         sb.append(">\n").append(summary.path("text").asText()).append('\n');

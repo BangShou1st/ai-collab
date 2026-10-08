@@ -154,13 +154,21 @@ public class RoutingAgentModelExecutor {
      * 仅原生 Tool Calling 模型支持（Legacy 决策协议不适用于摘要任务，返回 UnsupportedOperationException 语义由调用方处理）。
      */
     public ModelTurnResult callModelWithoutTools(AgentRunView run, List<ModelMessage> messages) {
-        UserAiProvider provider = configurationStore.require(run);
-        ModelConfiguration config = zen.isZen(provider) ? zen.runtimeConfig(provider) : provider.toModelConfiguration();
+        return callModelWithoutTools(run, messages, resolveRequest(run));
+    }
+
+    /**
+     * 同上，但配置快照由调用方在请求准备时解析并传入（C5）：
+     * 辅助请求的窗口核对、输出封顶与出站调用使用同一份快照，
+     * 避免准备按 A、调用按 B；下一次实际请求由调用方重新解析。
+     */
+    public ModelTurnResult callModelWithoutTools(AgentRunView run, List<ModelMessage> messages, ResolvedRequest resolved) {
+        ModelConfiguration config = resolved.config();
         if (!config.capabilities().contains(ModelCapability.NATIVE_TOOLS)) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
                     "当前模型不支持原生调用，无法执行摘要任务");
         }
-        try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(provider)) {
+        try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
             return nativeExecutor.callModel(messages, List.of(), run.projectId(), run.requesterId(), run.sessionId());
         }
     }

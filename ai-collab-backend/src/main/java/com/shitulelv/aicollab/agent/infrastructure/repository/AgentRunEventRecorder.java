@@ -105,30 +105,148 @@ public class AgentRunEventRecorder {
      * {@code scope + 源边界 + 目标修订/摘要版本} 至多一个有效周期。</p>
      */
     @Transactional
-    public UUID beginRunContextAttempt(AgentRunView run, int cycle, int fromSequence, int throughSequence) {
+    public UUID beginRunContextAttempt(AgentRunView run, int cycle, int fromSequence, int throughSequence, int goalRevision) {
         var beginInfo = json.createObjectNode()
                 .put("purpose", "RUN_CONTEXT_SUMMARY")
                 .put("status", "ATTEMPTED")
                 .put("scope", "RUN_CONTEXT")
                 .put("runId", run.id().toString())
                 .put("cycle", cycle)
+                .put("goalRevision", goalRevision)
                 .put("sourceFromSequence", fromSequence)
                 .put("sourceThroughSequence", throughSequence);
         return insertSummaryCallStep(run, "run_context_summary", "RUN_CONTEXT_SUMMARY", beginInfo);
     }
 
-    /** 完成一次 RUN_CONTEXT 压缩尝试：覆盖边界只在成功提交时写入（失败不推进）。 */
+    /** 兼容入口：未显式提供目标修订时按 0 记录（发布时跳过目标修订冲突检查）。 */
+    @Transactional
+    public UUID beginRunContextAttempt(AgentRunView run, int cycle, int fromSequence, int throughSequence) {
+        return beginRunContextAttempt(run, cycle, fromSequence, throughSequence, 0);
+    }
+
+    /** 兼容入口：不做目标修订冲突检查的发布（仍受 claim epoch 与取消 fencing 约束）。 */
     @Transactional
     public void completeRunContextAttempt(UUID attemptId, String outcome, String model,
             UsageSettlement usage, String note, JsonNode committedSummary) {
-        completeSummaryCallStep(attemptId, "RUN_CONTEXT_SUMMARY", outcome, model, usage, note);
-        if (committedSummary == null) return;
-        // 覆盖事实与本运行一致：把后端计算出的源范围与有效摘要写进该步骤的 output_json，
-        // 模型不能填写"这些步骤全读过"（覆盖由实际送入摘要请求的记录计算）。
-        jdbc.update("""
-                UPDATE agent_step SET output_json = output_json || ?::jsonb
-                WHERE id=? AND reason='RUN_CONTEXT_SUMMARY'
-                """, committedSummary.toString(), attemptId);
+        completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary, null);
+    }
+
+    /**
+     * 完成一次 RUN_CONTEXT 压缩尝试（C4）：实际用量结算与有效摘要发布<b>分开判定、
+     * 同一短事务内原子完成</b>。
+     *
+     * <p>发布前在同一事务内核对 fencing 事实：</p>
+     * <ul>
+     *   <li><b>claim epoch</b>：当前线程持有该运行租约时经 {@link AgentLeaseScope} 校验，
+     *       失去租约的旧 worker 不得发布有效状态；</li>
+     *   <li><b>取消</b>：cancel_requested_at 已落库的返回不得成为当前有效摘要；</li>
+     *   <li><b>目标修订</b>：expectedGoalRevision 与会话工作状态当前 goalRevision 冲突
+     *       （目标更正发生在生成期间）时不得发布——目标修订使用真实业务修订事实，
+     *       不把任意 run.version 当成目标修订。</li>
+     * </ul>
+     *
+     * <p>被 fenced 的返回<b>不能</b>成为当前有效摘要，但已发生用量仍如实幂等结算。
+     * 同一 attempt 重复完成既不重复结算，也不能改写已发布的摘要：发布与结算是
+     * agent_step 行上同一次 ATTEMPTED → 终态转换，重复调用转换零行即幂等返回。
+     * 已受理的暂停按契约允许摘要完成保存，不自动解除暂停。</p>
+     */
+    @Transactional
+    public void completeRunContextAttempt(UUID attemptId, String outcome, String model,
+            UsageSettlement usage, String note, JsonNode committedSummary, Integer expectedGoalRevision) {
+        boolean wantPublish = committedSummary != null && "COMMITTED".equals(outcome);
+        String effectiveOutcome = outcome;
+        String effectiveNote = note;
+        if (wantPublish) {
+            var rows = jdbc.queryForList("""
+                    SELECT r.claim_version, r.status, r.cancel_requested_at,
+                           COALESCE(s.working_state->>'goalRevision','0') AS goal_revision
+                    FROM agent_step st
+                    JOIN agent_run r ON r.id = st.run_id
+                    LEFT JOIN agent_session s ON s.id = r.session_id
+                    WHERE st.id=? AND st.reason='RUN_CONTEXT_SUMMARY'
+                    """, attemptId);
+            if (rows.isEmpty()) {
+                wantPublish = false;
+                effectiveOutcome = "FAILED";
+                effectiveNote = appendNote(note, "RUN_CONTEXT_STEP_MISSING");
+            } else {
+                var row = rows.getFirst();
+                String fenceReason = null;
+                Integer epoch = AgentLeaseScope.currentEpoch();
+                if (epoch != null && !epoch.equals(((Number) row.get("claim_version")).intValue())) {
+                    fenceReason = "RUN_CONTEXT_LEASE_LOST";
+                }
+                if (fenceReason == null && row.get("cancel_requested_at") != null) {
+                    fenceReason = "RUN_CONTEXT_CANCELED";
+                }
+                if (fenceReason == null && !"RUNNING".equals(row.get("status"))) {
+                    fenceReason = "RUN_CONTEXT_LEFT_RUNNING";
+                }
+                if (fenceReason == null && expectedGoalRevision != null) {
+                    int goalRevisionNow;
+                    try {
+                        goalRevisionNow = Integer.parseInt(String.valueOf(row.get("goal_revision")));
+                    } catch (NumberFormatException malformed) {
+                        goalRevisionNow = -1;
+                    }
+                    if (goalRevisionNow != expectedGoalRevision) {
+                        fenceReason = "RUN_CONTEXT_GOAL_REVISION_CONFLICT";
+                    }
+                }
+                if (fenceReason != null) {
+                    wantPublish = false;
+                    effectiveOutcome = "FENCED";
+                    effectiveNote = appendNote(note, fenceReason);
+                }
+            }
+        }
+        if (!wantPublish) {
+            // 只结算，不发布：失去 claim / 取消 / 目标修订冲突的返回不成为当前有效摘要，
+            // 但已发生用量仍如实幂等结算（ATTEMPTED → 终态只允许一次转换）
+            completeSummaryCallStep(attemptId, "RUN_CONTEXT_SUMMARY", effectiveOutcome, model, usage, effectiveNote);
+            return;
+        }
+        // 发布与结算同一行一次转换：output_json 一次性从 ATTEMPTED 覆写为
+        // 终态记账 || 已提交摘要。重复完成转换零行——不重复结算、不改写已发布摘要。
+        String basis = usage.combinedBasis();
+        var terminal = runContextTerminalOutput(model, usage, note);
+        int published = jdbc.update("""
+                UPDATE agent_step SET output_json = (?::jsonb || ?::jsonb),
+                  prompt_tokens=?, completion_tokens=?, token_usage_estimated=?, usage_basis=?, latency_ms=?
+                WHERE id=? AND reason='RUN_CONTEXT_SUMMARY' AND output_json->>'status'='ATTEMPTED'
+                """, terminal.toString(), committedSummary.toString(),
+                usage.bookedInput(), usage.bookedOutput(), usage.estimated(), basis,
+                usage.latencyMs() == null ? null : usage.latencyMs().intValue(), attemptId);
+        if (published == 0) return;
+        bookRunUsage("UPDATE agent_run SET\n" +
+                "                input_tokens_used=agent_capped_add(input_tokens_used, max_input_tokens, ?),\n" +
+                "                output_tokens_used=agent_capped_add(output_tokens_used, max_output_tokens, ?),\n" +
+                "                input_tokens_actual=input_tokens_actual+?,\n" +
+                "                output_tokens_actual=output_tokens_actual+?,\n" +
+                "                token_usage_estimated=token_usage_estimated OR ?,\n" +
+                "                updated_at=now()\n" +
+                "              WHERE id=(SELECT run_id FROM agent_step WHERE id=?)",
+                usage, attemptId);
+    }
+
+    private String appendNote(String note, String reason) {
+        return note == null || note.isBlank() ? reason : note + "," + reason;
+    }
+
+    /** 发布路径的终态记账 JSON（status 固定 COMMITTED，与摘要内容合并后落库）。 */
+    private ObjectNode runContextTerminalOutput(String model, UsageSettlement usage, String note) {
+        String basis = usage.combinedBasis();
+        var output = json.createObjectNode()
+                .put("purpose", "RUN_CONTEXT_SUMMARY")
+                .put("status", "COMMITTED")
+                .put("model", model == null ? "unknown" : model)
+                .put("usageBasis", basis)
+                .put("inputTokensBasis", usage.inputBasis())
+                .put("outputTokensBasis", usage.outputBasis());
+        if (note != null) output.put("note", note);
+        if (usage.inputTokens() != null) output.put("inputTokens", usage.inputTokens());
+        if (usage.outputTokens() != null) output.put("outputTokens", usage.outputTokens());
+        return output;
     }
 
     /**

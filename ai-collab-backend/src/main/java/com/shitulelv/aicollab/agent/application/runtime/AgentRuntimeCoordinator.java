@@ -366,17 +366,48 @@ public class AgentRuntimeCoordinator {
                                 run.maxOutputTokens(), ctx.limits().maxOutputTokens()),
                         run.outputTokensActual());
                 AgentRunView runForSummary = run;
-                summarizer.maybeSummarize(run, composition,
+                // 压缩触发按<b>裁剪前</b>的活跃来源估算（C2）：完整请求（含工具定义、
+                // 子证据与尾部指令）+ 被预算裁掉的相关来源体积。不能先裁掉来源后
+                // 按裁后体积宣称未达到触发线。
+                int activeContextTokens = estimatedInput
+                        + (int) ((composition.stats().droppedSourceChars() + 2) / 3);
+                boolean contextCommitted = summarizer.maybeSummarize(run, composition,
                         requestBudget.availableInputTokens() - estimatedInput - finalInputReserve,
                         (int) Math.min(Integer.MAX_VALUE, Math.max(0, remainingOutput)),
                         requestBudget,
+                        activeContextTokens,
                         () -> runDurationBudget - repository.activeElapsedMillis(runForSummary) > 0);
                 // 摘要消耗已入账：刷新运行、重查取消状态，并重新核算主请求的输入预算。
                 // v2 无累计输入上限，摘要消耗不会把主请求"挤到超限"；这里仍按同一
-                // 单次请求容量复核，避免窗口本身装不下。摘要提交后必须<b>重新组装</b>
-                // 本次主请求，不能继续发送摘要生成前组好的旧 messages（旧轨迹已被压缩）。
+                // 单次请求容量复核，避免窗口本身装不下。
                 run = repository.findRun(run.projectId(), run.id()).orElse(run);
                 cancellation.throwIfRequested(run);
+                if (contextCommitted) {
+                    // C1：摘要已提交并改变活跃视图（RUN_CONTEXT 覆盖推进 / 会话摘要推进），
+                    // 必须真正重新组装本次主请求，不能继续发送摘要生成前组好的旧 messages。
+                    // 刷新来源与子证据、重新解析当前模型配置、按同一配置重算单次请求预算——
+                    // 摘要之后的主请求重新适配（模型或窗口可能已切换）。
+                    steps = repository.listSteps(run.projectId(), run.id());
+                    childEvidence = childResearchEvidence(run, steps);
+                    resolved = modelExecutor.resolveRequest(run);
+                    requestMaxOutput = effectiveRequestMaxOutput(run, ctx, resolved);
+                    modelWindow = AgentContextBudget.resolveWindow(
+                            resolved.providerType(), resolved.modelName(), contextProperties.windowOverrides());
+                    Integer refreshedInputCap = AgentResourcePolicy.effectiveInputCap(
+                            run.contextPolicyVersion(), run.maxInputTokens(), ctx.limits().maxInputTokens());
+                    int refreshedRemainingRunInput = refreshedInputCap == null
+                            ? Integer.MAX_VALUE
+                            : (int) Math.max(0, (long) refreshedInputCap - run.inputTokensUsed());
+                    requestBudget = AgentContextBudget.perRequest(
+                            contextProperties, modelWindow, refreshedRemainingRunInput, requestMaxOutput,
+                            run.enforcesCumulativeTokenLimits());
+                    composition = composer.composeV2(run, ctx, skill, plan, steps,
+                            requestBudget.availableInputTokens(), 1.0, resolved.legacyMode());
+                    if (composition.failureReason() != null) {
+                        // 重组后必选层放不下：明确停止，不静默截断当前请求
+                        return inputBudgetExceeded(run, requestBudget, composition.failureReason());
+                    }
+                }
                 messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
                         ctx.limits().maxToolCallsPerTurn(), coreActionPending);
                 estimatedInput = estimateInput(messages, exposed);
