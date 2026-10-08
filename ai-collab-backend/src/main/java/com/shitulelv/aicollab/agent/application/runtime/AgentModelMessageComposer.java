@@ -278,6 +278,11 @@ public class AgentModelMessageComposer {
         // 只有已被摘要覆盖的旧前缀被替换出活跃视图。
         JsonNode runContext = repository.latestRunContextSummary(run.projectId(), run.id());
         int coveredThroughSequence = 0;
+        // D1：partial 记录（上一周期只送入前缀、未送入尾部）不能按整条覆盖排除——
+        // 未送入摘要的尾部必须仍可进入主请求（允许有界重复：整条原始记录保留）。
+        // 只有完全覆盖的前缀（无 partial 或 partial 记录已完整送入）才退出原文视图。
+        int partialSequence = 0;
+        int partialChars = 0;
         int runContextChars = 0;
         if (runContext != null && runContext.isObject() && runContext.hasNonNull("text")) {
             String block = renderRunContextSummary(runContext);
@@ -285,6 +290,8 @@ public class AgentModelMessageComposer {
             used += block.length();
             runContextChars = block.length();
             coveredThroughSequence = runContext.path("sourceThroughSequence").asInt(0);
+            partialSequence = runContext.path("sourcePartialSequence").asInt(0);
+            partialChars = runContext.path("sourcePartialChars").asInt(0);
         }
 
         // 必选层 3：页面上下文
@@ -324,12 +331,18 @@ public class AgentModelMessageComposer {
         // 工具观察：从最新到最旧选择。上限随本次真实剩余预算伸缩（约 45%），
         // 不再固定封顶 120000、也不再"变旧就裁到 1500/12000"：
         // 有空间时保留必要原文；只有单条结果放不进剩余空间时才做确定性投影（压力路径）。
-        // 已被 RUN_CONTEXT 摘要覆盖的前缀（sequence <= coveredThrough）不重复进入，
-        // 活跃视图真正缩小；近期原文与未覆盖尾部保持完整。
+        // 已被 RUN_CONTEXT 摘要完全覆盖的前缀（sequence <= coveredThrough 且非 partial 记录）
+        // 不重复进入，活跃视图真正缩小；partial 记录整条保留（未送入摘要的尾部仍在其中，
+        // 已送入的前缀允许有界重复），近期原文与未覆盖尾部保持完整。
         final int coveredThrough = coveredThroughSequence;
+        final int partialSeq = partialSequence;
+        final int partialLen = partialChars;
         List<AgentStepView> completedToolSteps = steps == null ? List.of() : steps.stream()
                 .filter(step -> step.type() == AgentStepType.TOOL_CALL_COMPLETED && step.toolName() != null && step.output() != null)
-                .filter(step -> step.sequence() > coveredThrough)
+                .filter(step -> step.sequence() > coveredThrough
+                        // D1：partial 记录不整条跳过——它的未送入尾部尚未被任何摘要表达；
+                        // 上一周期摘要记录的 partial 块内已送入字符不构成完整覆盖。
+                        || (step.sequence() == partialSeq && partialLen > 0))
                 .toList();
         int toolShare = Math.max(TOOL_OBSERVATION_MIN_CHARS, (int) (remaining * TOOL_OBSERVATION_SHARE));
         Set<String> seenToolSignatures = new HashSet<>();
@@ -338,18 +351,27 @@ public class AgentModelMessageComposer {
         int toolUsed = 0;
         int projectedCount = 0;
         int droppedSourceChars = 0;
-        for (int i = completedToolSteps.size() - 1; i >= 0 && toolUsed < toolShare; i--) {
+        for (int i = completedToolSteps.size() - 1; i >= 0; i--) {
+            // D6：循环条件不再内置空间判断——空间耗满后停止选择，但更旧的未访问来源
+            // 仍必须按原始体积计入裁前统计（droppedSourceChars），否则"先裁掉来源后
+            // 宣称未达压缩触发线"的漏算会重现。相关、未覆盖、因空间退出的来源都计入；
+            // 明确去重、失效或无关排除的来源在下方各 continue 分支处理，不计入。
             AgentStepView step = completedToolSteps.get(i);
             JsonNode output = staleAwareOutput(run, step);
             int inputSize = step.input() == null ? 0 : step.input().toString().length();
             int rawSize = output.toString().length() + inputSize;
+            if (toolUsed >= toolShare) {
+                // 工具层已耗满：本条及更旧的相关来源未入选，按原始体积计入裁前估算
+                droppedSourceChars += rawSize;
+                continue;
+            }
             int cap = toolShare - toolUsed;
             JsonNode projected = output;
             if (rawSize > cap) {
                 projected = projector.projectToolOutput(output, cap);
             }
             String signature = step.toolName() + "|" + step.input() + "|" + projected;
-            if (!seenToolSignatures.add(signature)) continue; // 重复工具结果去重
+            if (!seenToolSignatures.add(signature)) continue; // 重复工具结果去重：不计入裁前材料
             int size = projected.toString().length() + inputSize;
             if (size > toolShare - toolUsed) {
                 // 投影后仍放不下：本条不入选，原始体积计入裁掉来源（压缩触发的估算输入）
@@ -403,9 +425,11 @@ public class AgentModelMessageComposer {
             historyUsed += reservedGoal;
         }
 
-        // 项目记忆：仅在仍有剩余时附带（优先级低于当前请求与最新状态）
+        // 项目记忆：仅在仍有剩余时附带（优先级低于当前请求与最新状态）。
+        // D4：子研究运行不继承父项目记忆——与工作状态/会话摘要/主会话历史同一角色
+        // 隔离规则，v2 与回退路径共用同一子身份判定，不靠提示词"忽略上文"补救。
         boolean memoryIncluded = false;
-        if (memories != null) {
+        if (memories != null && !isChildResearchRun(run, skill)) {
             JsonNode memoryJson = json.valueToTree(memories.context(run.projectId(),run.requesterId(),run.goal()));
             String memory = "<UNTRUSTED_PROJECT_MEMORY>\n" + memoryJson + "\n</UNTRUSTED_PROJECT_MEMORY>";
             int currentTotal = toolUsed + historyUsed;

@@ -12,6 +12,7 @@ import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import org.slf4j.Logger;
@@ -160,9 +161,31 @@ public class AgentContextSummarizer {
      *
      * @param activeContextTokens 裁剪前的活跃上下文估算（完整请求 + 被预算裁掉的相关来源），
      *                            压缩触发以此判断，不使用裁剪后的组装体积
-     * @return 是否提交了新的有效上下文摘要（true 时调用方必须重新组装主请求）
+     * @return 摘要结果：committed=true 表示提交了新的有效摘要（调用方必须重新组装主请求）；
+     *         auxiliaryAttempted=true 表示本阶段实际发起过辅助出站请求（含失败/不合格/fenced），
+     *         协调器据此在辅助阶段之后重新解析主请求快照（D8）
      */
     public boolean maybeSummarize(
+            AgentRunView run,
+            AgentModelMessageComposer.Composition composition,
+            int remainingInputAfterMain,
+            int remainingOutputTokens,
+            AgentContextBudget.Budget budget,
+            int activeContextTokens,
+            java.util.function.BooleanSupplier timeRemaining) {
+        return maybeSummarizeDetailed(run, composition, remainingInputAfterMain, remainingOutputTokens,
+                budget, activeContextTokens, timeRemaining).committed();
+    }
+
+    /**
+     * 摘要结果：提交事实 + 是否实际发起过辅助出站（D8 的主请求快照刷新依据）。
+     */
+    public record SummaryOutcome(boolean committed, boolean auxiliaryAttempted) {
+        static final SummaryOutcome NOT_ATTEMPTED = new SummaryOutcome(false, false);
+    }
+
+    /** 详细结果入口：协调器需要区分"提交了摘要"与"发过辅助请求"两种后续动作（D8）。 */
+    public SummaryOutcome maybeSummarizeDetailed(
             AgentRunView run,
             AgentModelMessageComposer.Composition composition,
             int remainingInputAfterMain,
@@ -174,7 +197,7 @@ public class AgentContextSummarizer {
         // 这是"整理旧轨迹"，不是"拒绝请求"——失败或没有可压缩来源时继续原上下文。
         if (budget != null && shouldCompactRunContext(run, activeContextTokens, budget)) {
             if (compactRunContext(run, composition, budget, remainingOutputTokens, timeRemaining)) {
-                return true; // 已提交新的 RUN_CONTEXT 摘要：调用方必须重新组装主请求
+                return new SummaryOutcome(true, true); // 已提交新的 RUN_CONTEXT 摘要：调用方必须重新组装主请求
             }
         }
         return maybeSummarizeConversation(run, composition, remainingInputAfterMain, remainingOutputTokens, timeRemaining);
@@ -196,23 +219,26 @@ public class AgentContextSummarizer {
     }
 
     /** 去除重复实现：原有主会话摘要逻辑（含重压缩）保持不变。 */
-    private boolean maybeSummarizeConversation(
+    private SummaryOutcome maybeSummarizeConversation(
             AgentRunView run,
             AgentModelMessageComposer.Composition composition,
             int remainingInputAfterMain,
             int remainingOutputTokens,
             java.util.function.BooleanSupplier timeRemaining) {
         List<AgentMessageView> candidates = composition == null ? null : composition.summaryCandidates();
-        if (candidates == null || candidates.isEmpty()) return false;
+        if (candidates == null || candidates.isEmpty()) return SummaryOutcome.NOT_ATTEMPTED;
+        // D8：辅助出站事实——从身份创建成功起，本阶段已发起过辅助请求（含后续失败/不合格/暂停/取消）；
+        // 在此之前的任何跳过都未发起请求。初值 false；beginSummaryAttempt 成功后置 true。
+        boolean auxiliaryAttempted = false;
         try {
             repository.requireSummaryAccess(run);
             JsonNode state = repository.workingState(run.projectId(), run.sessionId());
-            if (state == null) return false; // 无工作状态（无 v2 结构可延续）不生成摘要
+            if (state == null) return SummaryOutcome.NOT_ATTEMPTED; // 无工作状态（无 v2 结构可延续）不生成摘要
             if (state.path("schemaVersion").asInt(0) < WORKING_STATE_SCHEMA_VERSION) {
-                return false; // 旧格式状态不生成摘要（渐进升级后自然启用）
+                return SummaryOutcome.NOT_ATTEMPTED; // 旧格式状态不生成摘要（渐进升级后自然启用）
             }
             if (repository.countSummaryAttempts(run.projectId(), run.id()) >= MAX_ATTEMPTS_PER_RUN) {
-                return false; // 本次运行已有持久化的摘要尝试
+                return SummaryOutcome.NOT_ATTEMPTED; // 本次运行已有持久化的摘要尝试
             }
 
             JsonNode previous = state.path("summary");
@@ -228,37 +254,41 @@ public class AgentContextSummarizer {
             int transcriptBudget = MAX_INPUT_CHARS - previousBlock.length() - currentStateBlock.length();
             if (transcriptBudget < PER_MESSAGE_CHARS / 2) {
                 log.debug("当前约束或旧摘要占满摘要输入预算，跳过: run={}", run.id());
-                return false;
+                return SummaryOutcome.NOT_ATTEMPTED;
             }
 
             // 本次可新增覆盖的分段；没有新覆盖时不重复生成
             List<Seg> newSegments = achievableSegments(candidates, resume, transcriptBudget);
             if (newSegments.isEmpty()) {
                 log.debug("本次没有可新增覆盖的旧消息，跳过摘要: run={}", run.id());
-                return false;
+                return SummaryOutcome.NOT_ATTEMPTED;
             }
 
             int estimatedInputTokens = Math.max(1, (previousBlock.length() + currentStateBlock.length() + segmentsCost(newSegments, candidates)) / 3)
                     + OUTPUT_RESERVE_TOKENS;
-            if (estimatedInputTokens > remainingInputAfterMain) {
-                log.debug("剩余输入预算不足以容纳摘要请求，跳过: run={}, needed={}, remaining={}",
-                        run.id(), estimatedInputTokens, remainingInputAfterMain);
-                return false;
-            }
             // 辅助请求自己的单次请求容量（C5）：每次实际出站解析自己的配置快照，
-            // 用同一份快照核对模型窗口；不把主请求的 budget 借给重新择模的摘要请求
+            // 用同一份快照核对模型窗口；不把主请求的 budget 借给重新择模的摘要请求。
+            // D5：单次请求之间不共享输入空间——v2（无累计上限）下不再用
+            // "主请求预算扣除后的余额"否决可独立发送的摘要（该值可为负或过小）；
+            // v1 保留真实运行累计余量与既有语义，时间/输出保护仍有效。
             var auxiliary = resolveAuxiliaryCapacity(run);
             if (estimatedInputTokens > auxiliary.budget().hardInputTokens()) {
                 log.debug("摘要请求超出自身配置快照的模型安全输入，跳过: run={}, needed={}, H={}, window={}",
                         run.id(), estimatedInputTokens, auxiliary.budget().hardInputTokens(),
                         auxiliary.budget().windowEstimated() ? "UNKNOWN" : "CONFIRMED");
-                return false;
+                return SummaryOutcome.NOT_ATTEMPTED;
             }
-            // 输出预算独立核算：输出预留放不下时不发起摘要（估算进输入不等于输出额度检查）
-            if (OUTPUT_RESERVE_TOKENS > remainingOutputTokens) {
+            if (run.enforcesCumulativeTokenLimits() && estimatedInputTokens > remainingInputAfterMain) {
+                log.debug("剩余输入预算不足以容纳摘要请求，跳过: run={}, needed={}, remaining={}",
+                        run.id(), estimatedInputTokens, remainingInputAfterMain);
+                return SummaryOutcome.NOT_ATTEMPTED;
+            }
+            // 输出预算独立核算：输出预留放不下时不发起摘要（估算进输入不等于输出额度检查）。
+            // D5：v2 累计输出无上限，单次输出由本次快照的封顶约束，不做累计剩余复查
+            if (run.enforcesCumulativeTokenLimits() && OUTPUT_RESERVE_TOKENS > remainingOutputTokens) {
                 log.debug("剩余输出预算不足以容纳摘要输出预留，跳过: run={}, reserve={}, remaining={}",
                         run.id(), OUTPUT_RESERVE_TOKENS, remainingOutputTokens);
-                return false;
+                return SummaryOutcome.NOT_ATTEMPTED;
             }
 
             int stateRevision = state.path("stateRevision").asInt();
@@ -273,10 +303,11 @@ public class AgentContextSummarizer {
             } catch (BusinessException admissionRefused) {
                 if (admissionRefused.getErrorCode() == ErrorCode.AGENT_RUN_PAUSED) {
                     log.debug("暂停意图已落库，摘要请求未获准入，按无摘要路径继续: run={}", run.id());
-                    return false;
+                    return SummaryOutcome.NOT_ATTEMPTED;
                 }
                 throw admissionRefused;
             }
+            auxiliaryAttempted = true;
             int actualInputChars = 0;
             UsageSettlement firstUsage = null;
             try {
@@ -294,44 +325,56 @@ public class AgentContextSummarizer {
                     // 调用已发生：如实记账后放弃，不伪造成功
                     repository.completeSummaryAttempt(attemptId, "EMPTY", result.model(), firstUsage, null);
                     log.debug("摘要输出为空，放弃: run={}", run.id());
-                    return false;
+                    return new SummaryOutcome(false, auxiliaryAttempted);
                 }
                 String recompressNote = null;
+                if (result.finishReason() == ModelFinishReason.LENGTH) {
+                    // D3：显式截断的摘要草稿不能作为完整增量摘要提交——短且非空的截断文本
+                    // 恰好满足旧资格判据，直接提交会推进覆盖并把原文替换成不完整摘要。
+                    // 重压缩只能缩短已有草稿，无法恢复被截断丢失的尾部，因此不走重压缩；
+                    // 结算首次实际用量、保留上一份有效摘要与原始来源，沿既有降级路径处理。
+                    repository.completeSummaryAttempt(attemptId, "DOWNGRADED_UNQUALIFIED", result.model(),
+                            firstUsage, "SUMMARY_TRUNCATED_FINISH_REASON");
+                    log.warn("摘要被提供商输出上限截断（LENGTH），保留上一份摘要且不推进覆盖: run={}, length={}",
+                            run.id(), text.length());
+                    return new SummaryOutcome(false, auxiliaryAttempted);
+                }
                 if (!qualifies(text)) {
                     // 一次有界重新压缩：超长或结尾不完整的输出不能当作完整增量摘要提交。
-                    // 第二次调用前重新核算取消状态、剩余时长与剩余预算（扣除第一次真实/估算用量），
-                    // 请求自身保持有界；不足以承担重压缩时保留上一份有效摘要并明确降级原因。
                     // 重压缩是新的出站请求：解析自己的配置快照并核对自己的模型窗口（C5）。
                     if (repository.isCancelRequested(run.projectId(), run.id())) {
                         // 第一次调用已发生：结算其真实用量，保留上一份摘要、不推进覆盖
                         repository.completeSummaryAttempt(attemptId, "CANCELED", result.model(), firstUsage,
                                 "RECOMPRESS_SKIPPED_CANCELED");
                         log.info("摘要重压缩前检测到取消，保留上一份摘要并结算首次用量: run={}", run.id());
-                        return false;
+                        return new SummaryOutcome(false, auxiliaryAttempted);
                     }
                     if (!timeRemaining.getAsBoolean()) {
                         repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
                                 "RECOMPRESS_SKIPPED_TIME_EXHAUSTED");
                         log.warn("运行剩余时长不足以承担重压缩，保留上一份摘要: run={}", run.id());
-                        return false;
+                        return new SummaryOutcome(false, auxiliaryAttempted);
                     }
                     int recompressEstimate = recompressRequestTokens(text);
+                    // D5：重压缩按自己的快照窗口核对（下方 auxRetry），不与主请求共享余额；
+                    // v1 才用运行累计余量扣减首次已消耗量做既有语义的预算复查
                     int remainingForRecompress = remainingInputAfterMain - firstUsage.bookedInput();
-                    if (recompressEstimate > remainingForRecompress) {
+                    if (run.enforcesCumulativeTokenLimits() && recompressEstimate > remainingForRecompress) {
                         repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
                                 "RECOMPRESS_SKIPPED_BUDGET_INSUFFICIENT");
                         log.warn("剩余预算不足以容纳有界重压缩请求，保留上一份摘要: run={}, needed={}, remaining={}",
                                 run.id(), recompressEstimate, remainingForRecompress);
-                        return false;
+                        return new SummaryOutcome(false, auxiliaryAttempted);
                     }
-                    // 输出预算独立复查：首次摘要的输出消耗计入后，输出预留仍须放得下重压缩
+                    // 输出预算独立复查：首次摘要的输出消耗计入后，输出预留仍须放得下重压缩。
+                    // D5：v2 累计输出无上限，不做累计剩余复查
                     int remainingOutputForRecompress = remainingOutputTokens - firstUsage.bookedOutput();
-                    if (OUTPUT_RESERVE_TOKENS > remainingOutputForRecompress) {
+                    if (run.enforcesCumulativeTokenLimits() && OUTPUT_RESERVE_TOKENS > remainingOutputForRecompress) {
                         repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
                                 "RECOMPRESS_SKIPPED_OUTPUT_BUDGET");
                         log.warn("剩余输出预算不足以容纳重压缩输出预留，保留上一份摘要: run={}, reserve={}, remaining={}",
                                 run.id(), OUTPUT_RESERVE_TOKENS, remainingOutputForRecompress);
-                        return false;
+                        return new SummaryOutcome(false, auxiliaryAttempted);
                     }
                     // 重压缩是新的出站请求：再次走持久化准入边界。暂停意图先落库时
                     // 不创建重压缩身份、不发出；首次调用已发生的结果照常结算，
@@ -344,13 +387,13 @@ public class AgentContextSummarizer {
                             repository.completeSummaryAttempt(attemptId, "PAUSED", result.model(), firstUsage,
                                     "RECOMPRESS_SKIPPED_PAUSED");
                             log.info("摘要重压缩前检测到暂停意图，保留上一份摘要并结算首次用量: run={}", run.id());
-                            return false;
+                            return new SummaryOutcome(false, auxiliaryAttempted);
                         }
                         if (admissionRefused.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
                             repository.completeSummaryAttempt(attemptId, "CANCELED", result.model(), firstUsage,
                                     "RECOMPRESS_SKIPPED_CANCELED");
                             log.info("摘要重压缩前运行已离开运行状态，保留上一份摘要并结算首次用量: run={}", run.id());
-                            return false;
+                            return new SummaryOutcome(false, auxiliaryAttempted);
                         }
                         throw admissionRefused;
                     }
@@ -364,7 +407,7 @@ public class AgentContextSummarizer {
                             repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
                                     "RECOMPRESS_SKIPPED_AUX_WINDOW");
                             log.warn("重压缩请求超出自身配置快照的模型安全输入，保留上一份摘要: run={}", run.id());
-                            return false;
+                            return new SummaryOutcome(false, auxiliaryAttempted);
                         }
                         retry = sendAuxiliary(run, recompressMessages(text), auxRetry);
                     } catch (RuntimeException reFailure) {
@@ -380,7 +423,7 @@ public class AgentContextSummarizer {
                         repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(), firstUsage,
                                 "RECOMPRESS_FAILED");
                         log.warn("摘要重压缩失败，保留上一份摘要且首次用量已结算: run={}", run.id(), reFailure);
-                        return false;
+                        return new SummaryOutcome(false, auxiliaryAttempted);
                     }
                     String recompressed = retry.content() == null ? "" : retry.content().strip();
                     repository.completeSummaryRecompressAttempt(recompressId, "SETTLED", retry.model(),
@@ -389,6 +432,14 @@ public class AgentContextSummarizer {
                                     Math.max(1, recompressed.length() / 3), retry.latencyMs()), null);
                     recompressNote = "RECOMPRESS_SETTLED";
                     text = recompressed;
+                    // D3：重压缩响应自身若也被截断，同样不能当作完整摘要提交
+                    if (retry.finishReason() == ModelFinishReason.LENGTH) {
+                        repository.completeSummaryAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(),
+                                firstUsage, "RECOMPRESS_TRUNCATED_FINISH_REASON");
+                        log.warn("重压缩响应被截断（LENGTH），保留上一份摘要且不推进覆盖: run={}, length={}",
+                                run.id(), text.length());
+                        return new SummaryOutcome(false, auxiliaryAttempted);
+                    }
                 }
                 if (!qualifies(text)) {
                     // 无法得到合格摘要：保留上一份有效摘要、不推进本次覆盖，降级原因入账
@@ -396,11 +447,11 @@ public class AgentContextSummarizer {
                             recompressNote == null ? null : "RECOMPRESS_STILL_UNQUALIFIED");
                     log.warn("摘要不合格（超长或结尾不完整），保留上一份摘要且不推进覆盖: run={}, length={}",
                             run.id(), text.length());
-                    return false;
+                    return new SummaryOutcome(false, auxiliaryAttempted);
                 }
                 commitSummary(run, state, previous, hasPrevious, candidates, newSegments, text,
                         result.model(), firstUsage, attemptId, recompressNote);
-                return true;
+                return new SummaryOutcome(true, auxiliaryAttempted);
             } catch (RuntimeException failure) {
                 // 摘要是辅助能力：任何异常不得破坏主轮次。ProviderResponseFailure 携带的
                 // 提供商用量优先保留（含单侧）；第一次调用已返回的真实 usage 不因后续失败
@@ -422,12 +473,12 @@ public class AgentContextSummarizer {
                 } else {
                     log.warn("摘要生成异常，按无摘要路径继续: run={}, {}", run.id(), failure);
                 }
-                return false;
+                return new SummaryOutcome(false, auxiliaryAttempted);
             }
         } catch (BusinessException failure) {
             log.warn("摘要生成失败，按无摘要路径继续: run={}, errorCode={}", run.id(), failure.getErrorCode());
         }
-        return false;
+        return new SummaryOutcome(false, auxiliaryAttempted);
     }
 
     /** 上一份摘要的覆盖进度：messageId → 已覆盖到的最大偏移。 */
@@ -615,8 +666,12 @@ public class AgentContextSummarizer {
         return prompt + draft.length();
     }
 
-    /** 摘要合格标准（确定性）：非空且长度在输出容量内；超长即不可当作完整增量摘要提交。
-     *  持久化从不 substring 截尾——容量不足时走一次有界重压缩，仍不合格则降级保留上一份。 */
+    /**
+     * 摘要合格标准（确定性）：非空且长度在输出容量内；超长即不可当作完整增量摘要提交。
+     * 持久化从不 substring 截尾——容量不足时走一次有界重压缩，仍不合格则降级保留上一份。
+     * 显式截断（finishReason=LENGTH，D3）在调用点先行降级：截断的短草稿不进入重压缩，
+     * 也不提交推进覆盖；不给正常最终回答加累计输出限制。
+     */
     private boolean qualifies(String text) {
         return !text.isBlank() && text.length() <= MAX_OUTPUT_CHARS;
     }
@@ -829,7 +884,9 @@ public class AgentContextSummarizer {
                     auxiliary.budget().windowEstimated() ? "UNKNOWN" : "CONFIRMED");
             return false;
         }
-        if (RUN_CONTEXT_OUTPUT_RESERVE_TOKENS > remainingOutputTokens) {
+        // D5：v2 累计输出无上限，RUN_CONTEXT 压缩输出不受"运行累计输出剩余"否决；
+        // v1 保留既有输出预留复查
+        if (run.enforcesCumulativeTokenLimits() && RUN_CONTEXT_OUTPUT_RESERVE_TOKENS > remainingOutputTokens) {
             log.debug("剩余输出预算不足以容纳运行轨迹摘要输出，跳过: run={}", run.id());
             return false;
         }
@@ -869,12 +926,16 @@ public class AgentContextSummarizer {
                         "RUN_CONTEXT_EMPTY_OUTPUT", null, goalRevision);
                 return false;
             }
-            if (!runContextQualifies(text)) {
-                // 超长/结尾不完整：保留旧有效摘要与原数据，不推进覆盖（不做无界重压缩循环）
+            if (!runContextQualifies(text, result.finishReason())) {
+                // D3：显式截断（finishReason=LENGTH 等）或超长的辅助产物不能当作完整摘要
+                // 发布推进覆盖：结算实际用量、保留旧有效摘要与原始来源（不做无界重压缩循环，
+                // 也不按句末标点猜测完整性）。短且非空的截断文本恰好满足旧资格判据——
+                // 它会被提交并把输入源范围标为已覆盖，之后 Composer 以摘要替换原文，
+                // 失去依靠未完成摘要恢复完整发现的保障。
                 repository.completeRunContextAttempt(attemptId, "DOWNSGRADED_UNQUALIFIED", result.model(),
                         usage, "RUN_CONTEXT_UNQUALIFIED", null, goalRevision);
-                log.warn("运行轨迹摘要不合格，保留上一份摘要且不推进覆盖: run={}, length={}",
-                        run.id(), text.length());
+                log.warn("运行轨迹摘要不合格（{}），保留上一份摘要且不推进覆盖: run={}, length={}",
+                        result.finishReason(), run.id(), text.length());
                 return false;
             }
             // 成功提交才推进覆盖：来源范围、引用身份与摘要文本一并持久化。
@@ -942,8 +1003,14 @@ public class AgentContextSummarizer {
         return value == null ? "" : value.replace('\n', ' ').replace('\r', ' ');
     }
 
-    /** RUN_CONTEXT 摘要合格判据（确定性）：非空且不超输出容量；不做 substring 截尾。 */
-    private boolean runContextQualifies(String text) {
+    /**
+     * RUN_CONTEXT 摘要合格判据（确定性）：非空、不超输出容量、且<b>不是显式截断</b>；
+     * 不做 substring 截尾，也不按句末标点猜测完整性。
+     * finishReason=LENGTH 表示提供商输出上限截断了产物，短且非空的截断文本不能
+     * 冒充完整摘要并推进覆盖；结算实际用量后沿既有降级路径处理。
+     */
+    private boolean runContextQualifies(String text, ModelFinishReason finishReason) {
+        if (finishReason == ModelFinishReason.LENGTH) return false;
         return !text.isBlank() && text.length() <= RUN_CONTEXT_MAX_OUTPUT_CHARS;
     }
 
