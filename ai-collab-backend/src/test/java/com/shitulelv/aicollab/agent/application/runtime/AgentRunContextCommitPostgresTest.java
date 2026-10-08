@@ -312,6 +312,107 @@ class AgentRunContextCommitPostgresTest {
         assertThat(secondRequestText).doesNotContain("CYCLE_ONE_FACT_AAA");
     }
 
+    // ========== D2：租约过期未换 epoch 的返回不得发布（真实事务） ==========
+
+    @Test
+    void expiredClaimWithoutEpochChangeCannotPublishRunSummary() {
+        Fixture f = fixture("租约过期未换 epoch");
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 0);
+        // 租约过期但 claim_version（epoch）仍是 1：仅靠 epoch 比对无法拦截，必须核对租约有效期
+        jdbc.update("UPDATE agent_run SET lease_expires_at=now()-interval '1 second' WHERE id=?", f.run().id());
+
+        var tx = new org.springframework.transaction.support.TransactionTemplate(
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(jdbc.getDataSource()));
+        try (var scope = new AgentLeaseScope(1)) {
+            tx.executeWithoutResult(status -> repository.completeRunContextAttempt(attemptId,
+                    "COMMITTED", "test-native", usage(), "RUN_CONTEXT_COMMITTED",
+                    committedSummary("过期租约的摘要", 1, 2), 0));
+        }
+
+        assertThat(stepStatus(attemptId)).isNotEqualTo("COMMITTED");
+        assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNull();
+        assertThat(repository.countCommittedRunContextCycles(f.project(), f.run().id())).isZero();
+        // 已发生用量仍如实幂等结算
+        assertThat(runInputActual(f.run().id())).isEqualTo(1_000);
+    }
+
+    // ========== D2：检查与发布之间取消已提交的返回不得发布（真实事务 + 受控并发交错） ==========
+
+    @Test
+    void cancelCommittedBetweenCheckAndPublishCannotBecomeValidSummary() throws Exception {
+        Fixture f = fixture("检查后发布前取消");
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 0);
+        // 门控 JDBC：fencing 的检查 SELECT 返回后挂起发布线程，
+        // 让另一条真实连接先把取消落库提交，再放行发布 UPDATE。
+        // SELECT/UPDATE 与事务都是真实执行，不是 mock SQL；门控只控制时间顺序。
+        var gate = new org.springframework.jdbc.core.JdbcTemplate(jdbc.getDataSource()) {
+            final java.util.concurrent.CountDownLatch checked = new java.util.concurrent.CountDownLatch(1);
+            final java.util.concurrent.CountDownLatch publish = new java.util.concurrent.CountDownLatch(1);
+            @Override
+            public java.util.List<java.util.Map<String, Object>> queryForList(String sql, Object... args) {
+                var result = super.queryForList(sql, args);
+                if (sql.contains("JOIN agent_run r") && sql.contains("cancel_requested_at")) {
+                    checked.countDown();
+                    try {
+                        if (!publish.await(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                            throw new AssertionError("publish gate timed out");
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                    }
+                }
+                return result;
+            }
+        };
+        var gatedRecorder = new AgentRunEventRecorder(gate, json);
+        var tx = new org.springframework.transaction.support.TransactionTemplate(
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(jdbc.getDataSource()));
+        var threads = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var publication = threads.submit(() -> {
+                try (var scope = new AgentLeaseScope(1)) {
+                    tx.executeWithoutResult(status -> gatedRecorder.completeRunContextAttempt(attemptId,
+                            "COMMITTED", "test-native", usage(), "RUN_CONTEXT_COMMITTED",
+                            committedSummary("发布窗口内被取消的摘要", 1, 2), 0));
+                } catch (RuntimeException e) {
+                    throw e;
+                }
+            });
+            assertThat(gate.checked.await(10, java.util.concurrent.TimeUnit.SECONDS))
+                    .as("fencing 检查 SELECT 必须被到达").isTrue();
+            // 另一条真实连接提交取消：发布线程的检查事务尚未提交
+            var cancellation = threads.submit(() ->
+                    jdbc.update("UPDATE agent_run SET cancel_requested_at=now() WHERE id=?", f.run().id()));
+            boolean cancellationCommittedFirst = true;
+            try {
+                cancellation.get(2, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (java.util.concurrent.TimeoutException blockedByCorrectLock) {
+                // 修复后的短行锁会让取消等待发布事务提交：这是正确的先发布后取消顺序，探针不判失败
+                cancellationCommittedFirst = false;
+            }
+            gate.publish.countDown();
+            publication.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            cancellation.get(15, java.util.concurrent.TimeUnit.SECONDS);
+
+            if (cancellationCommittedFirst) {
+                // 取消先提交：发布必须被拦截，不成为有效摘要，用量照常结算
+                assertThat(stepStatus(attemptId)).isNotEqualTo("COMMITTED");
+                assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNull();
+                assertThat(runInputActual(f.run().id())).isEqualTo(1_000);
+            } else {
+                // 发布先提交（行锁串行化的合法顺序）：取消之后该摘要已合法发布，
+                // 此时 latestRunContextSummary 存在——保留"重复完成与暂停镜像"语义即可
+                assertThat(stepStatus(attemptId)).isEqualTo("COMMITTED");
+                assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNotNull();
+            }
+        } finally {
+            gate.publish.countDown();
+            threads.shutdownNow();
+            threads.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+        }
+    }
+
     // ========== 辅助 ==========
 
     private void insertToolStep(UUID runId, int sequence, String content) {
