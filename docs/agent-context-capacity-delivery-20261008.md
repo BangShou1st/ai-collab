@@ -161,4 +161,84 @@ F6：修复前口径由 `AgentDelegationAdmissionTest.f6VisibilityReservesTheUpc
 
 ## 4. 实测清单
 
-（收尾时以真实日志/证据文件补齐；只记录实际观察到的结果。）
+### 4.1 后端全量（本轮真实执行）
+
+```
+.\mvnw.cmd -o clean test
+→ Tests run: 1286, Failures: 0, Errors: 0, Skipped: 11
+→ BUILD SUCCESS
+```
+
+- 11 个跳过是**既有 opt-in 门控**（`BrowserAcceptanceHostTest`、`ExistingDataUpgradeRehearsalTest`、
+  `RealAcceptanceHostTest`、`RealRetrievalBaselineTest`、`ReliabilityAcceptanceHostTest`、
+  `ReliabilityOperationDatabaseTest`、`OllamaEmbeddingSmokeTest`、`OpenCodeZenSmokeTest` 等），
+  需显式环境开关才运行；不是本轮新增跳过，也不是环境抖动被记成跳过。
+- PostgreSQL 回归全部使用 Testcontainers `pgvector/pgvector:pg17` 独立容器与真实 Flyway 迁移（v1→v64），
+  未读写生产库。V64 在空库与"从 V45/V53 升级"两条路径上都验证过。
+- **诚实说明过程**：中途一轮全量曾出现 124 个 `NoClassDefFoundError`——那是同一 `target/` 目录
+  被并发 Maven 进程（测试 + spring-boot:run）互相覆盖造成的**自我干扰**，不是代码缺陷；
+  清理后单进程重跑得到上述干净结果。以下逐项由真实日志确认。
+
+### 4.2 前端
+
+- `vitest run src/modules/agent` → 18 文件 / **145 项通过**。
+- `vue-tsc -b` → 通过（无错误输出）。
+
+### 4.3 旧基线红绿复现（本轮真实执行，非历史报告）
+
+- **F3/F4**：把 `DelegatedResearchCoverage.java` 还原为 `HEAD` 版本重跑同一测试类，
+  **16 项中 6 项失败**，症状与审查反例逐条对应：
+
+  | 用例 | 旧基线实际 | 修复后 |
+  | --- | --- | --- |
+  | f4DifferentSnapshotsAreNotMergedIntoVerifiedCoverage | Expected size: 2 but was: 1 | 通过 |
+  | f4UnknownSnapshotIsNotGuessedToBeTheSameVersion | Expected size: 2 but was: 1 | 通过 |
+  | f3MultipleChunksUnderOneHeadingCountAsOneSection | expected: 1 but was: 2 | 通过 |
+  | f3RepeatedOutlineReadDoesNotDoubleTheListedSections | expected: 2 but was: 4 | 通过 |
+  | f3ClosedContinuationChainStopsReportingUnreadRemainder | Expecting value to be false but was true | 通过 |
+  | f3SuffixOnlyReadDoesNotClaimTheHeadingWasRead | expected: 0 but was: 1 | 通过 |
+
+- **F7**：把 `agent-prose.ts` 还原为 `HEAD` 版本重跑同一测试文件，
+  **18 项中 5 项失败**（代码围栏、行内代码、引述、标记后 Windows 路径、历史中间标记样本）；
+  恢复修复后 18/18 通过。
+- **F6**：`AgentDelegationAdmissionTest.f6VisibilityReservesTheUpcomingModelStep`
+  显式断言两种口径的差别（旧口径 `admitsDelegation` 为 true、修复口径
+  `admitsDelegationForUpcomingTurn` 为 false），旧基线上的失败是确定性的。
+- 其余 F1/F2/F5/F8：对应行为已并入主链，并以既有 PostgreSQL 回归 + 新增断言覆盖；
+  未再单独构造旧基线反例（不把"没有重跑反例"表述成"已复现红绿"）。
+
+### 4.4 浏览器验收（bsk，真实模型）
+
+完整记录见
+[acceptance-evidence/2026-10-08/agent-context-capacity/browser-acceptance.md](acceptance-evidence/2026-10-08/agent-context-capacity/browser-acceptance.md)。
+要点：
+
+- **简单问答**：1 次工具调用，正确任务事实与状态汇总，不为扩容增加无关请求。
+- **四文档对照（直接）**：4 步 / 5 次工具调用；正确识别 4 份文档并给出关键事实
+  （500 人上限、验收下限 200 人/<2%、0.8% 为开发环境实测且 500 人并发未验证、
+  去高低取平均、脱敏与 AES-256/备份 ≤90 天/日志 1 年）；`来源（15）`；
+  明确写"四份文档均未通读全文（RELEVANT_EXCERPTS_ONLY）……不能声称全文没有某个内容"。
+- **四文档逐份委派**：3 个子运行全部 `SUCCEEDED`（16/24 独立额度），父运行回收 citations
+  3/4/4 条且 `coverageKnown=true`；第 4 次委派因 `maxChildren=3` 已满而**不再暴露**
+  （F6），模型收到 `TOOL_NOT_ALLOWED` 后**改用本层工具直接读取第四份正文全文**并完成目标；
+  父最终回答明确区分"委派成功 3 份 + 第 4 份被拒后直接取证"，不粉饰为全部委派成功。
+- **诊断展示**：`Steps 4/64 · Tools 5/64 · 本运行自身（子运行额度独立，不从此处扣减）`、
+  `Tokens 输入 38528（累计只统计） · 输出 2905（累计只统计）`——无累计上限时
+  不展示"剩余额度/百分比"，父计数标明为自身，不与全树消耗混用。
+- **刷新与跨页恢复**：离开会话页再返回，会话/回答/执行过程/查询事实完整恢复，无"继续"按钮。
+- **无文档项目**：如实回答"当前项目中没有文档"并说明查询范围。
+
+### 4.5 环境问题（单独说明，不算缺陷）
+
+- **文档上传的浏览器路径被拦截**：Edge 扩展未开启"Allow access to file URLs"，
+  `bsk upload` 的 `input` 与 `drop` 两种机制均报 `Not allowed`。按规则不修改浏览器设置绕过；
+  4 份固定文档改经**同一生产后端 API**（携带 Origin 校验头）真实上传，解析/入库走同一条链路。
+- **embedding 未启用**：本地 `EMBEDDING_ENABLED=false`。本轮四文档对照的引用来自语义检索
+  （检索在该环境实际可用），但正文读取路径同样被验证（委派子运行走
+  `get_document_outline` + `read_document_section` 读全文）。
+- **本机 8080 端口有一个 10/7 启动的旧后端进程**（不含本轮代码）。为不干扰用户进程，
+  本轮浏览器验收指向本机 :8081 的新构建后端，前端 vite 以
+  `VITE_BACKEND_ORIGIN=http://127.0.0.1:8081` 代理；初次用 `127.0.0.1` 访问时登录 403，
+  原因是 `AUTH_ALLOWED_ORIGINS` 默认只允许 `http://localhost:5173`（来源校验按设计工作），
+  改用 `localhost` 后正常。
+
