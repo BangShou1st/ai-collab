@@ -372,7 +372,60 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 ### 15.6 回归索引
 
 `AgentRunContextCompactionRegressionTest`（4，基线红绿）、
-`AgentRunContextCommitPostgresTest`（6，隔离 PostgreSQL：幂等/取消/失去 claim/目标修订/
-真实消费/两周期推进）、`AgentAuxiliaryOutboundRegressionTest`（3，输出封顶/续租生命周期/
-快照解析）。改本节任何行为时先看这三个类。
+`AgentRunContextCommitPostgresTest`（8，隔离 PostgreSQL：幂等/取消/失去 claim/目标修订/
+租约过期未换 epoch/并发取消窗口/真实消费/两周期推进）、`AgentAuxiliaryOutboundRegressionTest`
+（3，输出封顶/续租生命周期/快照解析）。改本节任何行为时先看这三个类。
+
+## 16. 上下文可靠性 D1–D8 收口（2026-10-08 第三轮）
+
+完整报告：`docs/agent-context-capacity-d1d8-delivery-20261008.md`；红绿证据：
+`docs/acceptance-evidence/2026-10-08/d1d8-delivery/`。第 15 节与本节的差异以本节为准。
+
+### 16.1 覆盖消费与截断摘要（D1/D3）
+
+- **partial 记录不按整条覆盖排除**（D1）：Composer 工具观察层跳过条件是
+  `sequence <= sourceThroughSequence 且非 partial 记录`。上一周期 partial 记录
+  （`sourcePartialSequence` 匹配）**整条保留**在实际主请求中——未送入摘要的尾部重新可见，
+  已送入前缀允许有界重复。不要改回"只按 sequence 过滤"，那会把尾部丢出活跃视图。
+- **LENGTH 截断的辅助产物不能发布**（D3）：RUN_CONTEXT 与会话摘要的资格判定都会检查
+  `finishReason==LENGTH`。会话摘要的截断草稿**不进重压缩**（重压缩无法恢复丢失尾部），
+  直接降级 `SUMMARY_TRUNCATED_FINISH_REASON`；重压缩响应被截断同样降级。不要把
+  截断检查合并回 `qualifies` 后再进重压缩分支。
+
+### 16.2 发布并发安全（D2）
+
+- `completeRunContextAttempt` 的发布路径是**行锁检查 + 原子条件 UPDATE**：
+  - 检查 SELECT 带 `FOR UPDATE OF r`（运行行锁，与 requestPause/cancel/claim 接管同锁序，
+    运行行先行，不新增死锁风险）；
+  - 租约有效期参与 fencing：租约过期未换 epoch 以 `RUN_CONTEXT_LEASE_EXPIRED` 拦截；
+    无 claim 上下文（HTTP 管理路径）沿用旧语义不按租约拦截；
+  - 发布 UPDATE 经 `FROM agent_run` 重新原子核对 epoch/租约/取消/RUNNING/目标修订/
+    ATTEMPTED，条件不满足零行 → FENCED 结算（用量幂等入账，不推进覆盖）。
+  不要把检查拆回无锁 SELECT；不要在发布 UPDATE 里去掉任何条件谓词。
+- 时间点列转换用 `toOffsetDateTime`（驱动可能返回 Timestamp/LocalDateTime），不要按
+  `instanceof OffsetDateTime` 硬判。
+
+### 16.3 请求准备与转换一致性（D4/D5/D7/D8）
+
+- **子运行项目记忆隔离在两条路径都生效**（D4）：`composeV2` 的记忆注入条件是
+  `memories != null && !isChildResearchRun(run, skill)`；回退路径同判定。删掉任一处
+  会重现子运行继承父记忆。
+- **单次窗口不跨请求共享**（D5）：会话摘要/重压缩/RUN_CONTEXT 压缩按自己的快照 H 核对；
+  v2（`enforcesCumulativeTokenLimits()==false`）不再用主请求预算余额否决摘要；v1 保留
+  累计余量与输出预留复查。改这里时不要把 v2 分支删掉。
+- **Legacy 出站保留全部层**（D7）：`extractSystemPrompt` 拼接全部 System 消息、
+  `buildUserPromptWithHistory` 附加全部 User 消息。断言落在实际 `ChatCompletionCommand`，
+  不要只断言中间 messages。
+- **主请求快照刷新条件**（D8）：`maybeSummarizeDetailed` 返回
+  `SummaryOutcome(committed, auxiliaryAttempted)`；协调器在 `auxiliaryAttempted` 时刷新
+  steps/模型配置/预算，在 `committed` 时重新 composeV2。未发起辅助请求时保持"每请求一次
+  解析"（`AgentRuntimeRequestSnapshotTest` 锁定）。不要把刷新条件改回"仅 committed"，
+  那会重现辅助失败后主请求用旧模型。
+
+### 16.4 回归索引
+
+`AgentContextReliabilityD1D8RegressionTest`（8，mock 行为回归，基线 2cf4c51 上 8/8 红灯）、
+`AgentRunContextCommitPostgresTest`（8，含 D2 两个并发用例）、
+`AgentRunContextCompactionRegressionTest`（4）、`AgentAuxiliaryOutboundRegressionTest`（3）。
+改 D1-D8 相关行为时先看这四类。
 
