@@ -1120,7 +1120,18 @@ class AgentRepositoryIntegrationTest {
         summary.putArray("uncoveredMessageIds").add(old.toString());
         jdbc.update("UPDATE agent_session SET working_state=?::jsonb WHERE id=?",state.toString(),session.id());
         var executor=mock(com.shitulelv.aicollab.agent.application.runtime.RoutingAgentModelExecutor.class);
-        org.mockito.Mockito.when(executor.callModelWithoutTools(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any()))
+        // C5：辅助出站每次实际请求解析自己的配置快照
+        var stubProvider=new com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider(
+                UUID.randomUUID(), UUID.randomUUID(), "test-native",
+                com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType.OPENAI_COMPATIBLE,
+                "https://example.invalid", "/v1/chat/completions", "encrypted", "test-native",
+                true, 0.2, 1024,
+                java.util.EnumSet.of(com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.NATIVE_TOOLS),
+                true, java.time.OffsetDateTime.now(), java.time.OffsetDateTime.now(), null);
+        org.mockito.Mockito.when(executor.resolveRequest(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(com.shitulelv.aicollab.agent.application.runtime.RoutingAgentModelExecutor.ResolvedRequest.of(
+                        stubProvider, stubProvider.toModelConfiguration()));
+        org.mockito.Mockito.when(executor.callModelWithoutTools(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new ModelTurnResult("有效摘要",List.of(),ModelFinishReason.STOP,new ModelUsage(100,20),"test", "test",1L));
         var memories=mock(com.shitulelv.aicollab.agent.application.AgentMemoryService.class);
         var composer=new com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer(repository,memories,json);
@@ -1140,7 +1151,7 @@ class AgentRepositoryIntegrationTest {
         var second=new com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer.Composition(List.of(),com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposer.CompositionStats.empty(),null,loaded);
         new com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer(reloaded,executor,json).maybeSummarize(next,second,10000);
         var requests=org.mockito.ArgumentCaptor.forClass(List.class);
-        org.mockito.Mockito.verify(executor,org.mockito.Mockito.times(2)).callModelWithoutTools(org.mockito.ArgumentMatchers.any(),requests.capture());
+        org.mockito.Mockito.verify(executor,org.mockito.Mockito.times(2)).callModelWithoutTools(org.mockito.ArgumentMatchers.any(),requests.capture(),org.mockito.ArgumentMatchers.any());
         assertThat(requests.getAllValues().get(1).toString()).contains("片段 1200-1800").doesNotContain("片段 600-1200");
         jdbc.update("DELETE FROM agent_message WHERE id=?",old);
         assertThat(reloaded.listSummaryCandidates(next,java.util.Set.of(),20)).noneMatch(m->m.id().equals(old));

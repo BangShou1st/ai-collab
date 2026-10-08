@@ -92,7 +92,7 @@ class AgentRuntimeBehaviorTest {
 
     /** 构造请求准备快照：能力由 nativeTools 决定，与协调器实际使用方式一致。
      *  不使用 Mockito 打桩，避免嵌套 stubbing 污染后续 case。 */
-    static RoutingAgentModelExecutor.ResolvedRequest resolved(boolean nativeTools) {
+    public static RoutingAgentModelExecutor.ResolvedRequest resolved(boolean nativeTools) {
         var capabilities = nativeTools
                 ? java.util.EnumSet.of(ModelCapability.NATIVE_TOOLS, ModelCapability.CHAT)
                 : java.util.EnumSet.of(ModelCapability.CHAT);
