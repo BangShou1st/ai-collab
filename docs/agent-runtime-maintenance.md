@@ -190,7 +190,8 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 ## 14. 上下文容量策略 v2（2026-10-08 交付）
 
 完整设计与依据：`docs/agent-context-capacity-design-20261008.md`；本轮交付报告与实测：
-`docs/agent-context-capacity-delivery-20261008.md`。迁移 `V64__agent_context_policy.sql`。
+`docs/agent-context-capacity-delivery-20261008.md`（含后端全量 1286 项 0 失败、
+旧基线红绿复现清单、浏览器验收实测与环境问题单独说明）；迁移 `V64__agent_context_policy.sql`。
 
 ### 14.1 唯一策略判据
 
