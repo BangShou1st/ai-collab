@@ -371,22 +371,28 @@ public class AgentRuntimeCoordinator {
                 // 按裁后体积宣称未达到触发线。
                 int activeContextTokens = estimatedInput
                         + (int) ((composition.stats().droppedSourceChars() + 2) / 3);
-                boolean contextCommitted = summarizer.maybeSummarize(run, composition,
-                        requestBudget.availableInputTokens() - estimatedInput - finalInputReserve,
-                        (int) Math.min(Integer.MAX_VALUE, Math.max(0, remainingOutput)),
-                        requestBudget,
-                        activeContextTokens,
-                        () -> runDurationBudget - repository.activeElapsedMillis(runForSummary) > 0);
+                boolean contextCommitted;
+                boolean auxiliaryAttempted;
+                {
+                    var summaryOutcome = summarizer.maybeSummarizeDetailed(run, composition,
+                            requestBudget.availableInputTokens() - estimatedInput - finalInputReserve,
+                            (int) Math.min(Integer.MAX_VALUE, Math.max(0, remainingOutput)),
+                            requestBudget,
+                            activeContextTokens,
+                            () -> runDurationBudget - repository.activeElapsedMillis(runForSummary) > 0);
+                    contextCommitted = summaryOutcome.committed();
+                    auxiliaryAttempted = summaryOutcome.auxiliaryAttempted();
+                }
                 // 摘要消耗已入账：刷新运行、重查取消状态，并重新核算主请求的输入预算。
                 // v2 无累计输入上限，摘要消耗不会把主请求"挤到超限"；这里仍按同一
                 // 单次请求容量复核，避免窗口本身装不下。
                 run = repository.findRun(run.projectId(), run.id()).orElse(run);
                 cancellation.throwIfRequested(run);
-                if (contextCommitted) {
-                    // C1：摘要已提交并改变活跃视图（RUN_CONTEXT 覆盖推进 / 会话摘要推进），
-                    // 必须真正重新组装本次主请求，不能继续发送摘要生成前组好的旧 messages。
-                    // 刷新来源与子证据、重新解析当前模型配置、按同一配置重算单次请求预算——
-                    // 摘要之后的主请求重新适配（模型或窗口可能已切换）。
+                // D8：辅助请求（无论提交、失败、不合格还是被 fence）之后，下一次实际主请求
+                // 都按当前配置重新准备——配置解析、单次请求预算与后续组装共用同一份新快照；
+                // 不以"摘要成功"为刷新前提。本阶段未发起任何辅助出站时保持既有"每请求一次
+                // 解析"语义。在途请求仍用各自的快照完成，不在 HTTP 层重读配置造成请求内部漂移。
+                if (auxiliaryAttempted) {
                     steps = repository.listSteps(run.projectId(), run.id());
                     childEvidence = childResearchEvidence(run, steps);
                     resolved = modelExecutor.resolveRequest(run);
@@ -401,6 +407,10 @@ public class AgentRuntimeCoordinator {
                     requestBudget = AgentContextBudget.perRequest(
                             contextProperties, modelWindow, refreshedRemainingRunInput, requestMaxOutput,
                             run.enforcesCumulativeTokenLimits());
+                }
+                if (contextCommitted) {
+                    // C1：摘要已提交并改变活跃视图（RUN_CONTEXT 覆盖推进 / 会话摘要推进），
+                    // 必须真正重新组装本次主请求，不能继续发送摘要生成前组好的旧 messages。
                     composition = composer.composeV2(run, ctx, skill, plan, steps,
                             requestBudget.availableInputTokens(), 1.0, resolved.legacyMode());
                     if (composition.failureReason() != null) {

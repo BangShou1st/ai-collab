@@ -150,20 +150,56 @@ public class AgentRunEventRecorder {
      * agent_step 行上同一次 ATTEMPTED → 终态转换，重复调用转换零行即幂等返回。
      * 已受理的暂停按契约允许摘要完成保存，不自动解除暂停。</p>
      */
+    /**
+     * 完成一次 RUN_CONTEXT 压缩尝试（C4）：实际用量结算与有效摘要发布<b>分开判定、
+     * 同一短事务内原子完成</b>。
+     *
+     * <p>发布前在同一事务内核对 fencing 事实（D2 并发安全）：</p>
+     * <ul>
+     *   <li><b>claim epoch 与租约有效期</b>：当前线程持有该运行租约时经
+     *       {@link AgentLeaseScope} 校验，失去租约或租约已过期的旧 worker 不得发布有效状态
+     *       （仅比对 epoch 不够——租约过期未换 epoch 时旧 worker 同样没有发布权）；</li>
+     *   <li><b>取消</b>：cancel_requested_at 已落库的返回不得成为当前有效摘要；</li>
+     *   <li><b>状态</b>：已离开 RUNNING 的运行不再发布；</li>
+     *   <li><b>目标修订</b>：expectedGoalRevision 与会话工作状态当前 goalRevision 冲突
+     *       （目标更正发生在生成期间）时不得发布——目标修订使用真实业务修订事实，
+     *       不把任意 run.version 当成目标修订。</li>
+     * </ul>
+     *
+     * <p><b>并发安全（D2）</b>：普通 SELECT 在 READ COMMITTED 下不能阻止另一事务在
+     * 检查与发布之间提交取消/目标修订/接管。发布路径改为短事务行锁 + 原子条件方案：
+     * 检查 SELECT 对 {@code agent_run} 行加 {@code FOR UPDATE}（与 requestPause /
+     * cancel / claim 接管的行锁串行化，锁序均为"先运行行"，与既有准入边界一致，
+     * 不引入新的死锁风险），发布 UPDATE 以 <b>条件谓词</b>（租约有效 + epoch + 未取消 +
+     * RUNNING + 目标修订一致 + ATTEMPTED）重新约束——即使检查后事实变化，UPDATE 影响
+     * 零行，返回退回 FENCED 结算，不推进有效覆盖。短事务不跨模型 HTTP 持锁。</p>
+     *
+     * <p>被 fenced 的返回<b>不能</b>成为当前有效摘要，但已发生用量仍如实幂等结算。
+     * 同一 attempt 重复完成既不重复结算，也不能改写已发布的摘要：发布与结算是
+     * agent_step 行上同一次 ATTEMPTED → 终态转换，重复调用转换零行即幂等返回。
+     * 已受理的暂停按契约允许摘要完成保存，不自动解除暂停。</p>
+     */
     @Transactional
     public void completeRunContextAttempt(UUID attemptId, String outcome, String model,
             UsageSettlement usage, String note, JsonNode committedSummary, Integer expectedGoalRevision) {
         boolean wantPublish = committedSummary != null && "COMMITTED".equals(outcome);
         String effectiveOutcome = outcome;
         String effectiveNote = note;
+        String fenceReason = null;
         if (wantPublish) {
+            // 检查 SELECT 带 FOR UPDATE：对运行行加短事务行锁，与 requestPause/cancel/
+            // claim 接管（同样先取运行行锁）串行化——取消/暂停意图要么先于本次检查提交
+            // （本事务读得到，直接 FENCED），要么等待本事务提交后才发生（合法的先发布后取消）。
+            // 目标修订行（agent_session）在运行行之后读取，锁序与既有准入边界一致。
             var rows = jdbc.queryForList("""
-                    SELECT r.claim_version, r.status, r.cancel_requested_at,
+                    SELECT r.id AS run_id, r.claim_version, r.status, r.cancel_requested_at,
+                           r.lease_expires_at,
                            COALESCE(s.working_state->>'goalRevision','0') AS goal_revision
                     FROM agent_step st
                     JOIN agent_run r ON r.id = st.run_id
                     LEFT JOIN agent_session s ON s.id = r.session_id
                     WHERE st.id=? AND st.reason='RUN_CONTEXT_SUMMARY'
+                    FOR UPDATE OF r
                     """, attemptId);
             if (rows.isEmpty()) {
                 wantPublish = false;
@@ -171,10 +207,16 @@ public class AgentRunEventRecorder {
                 effectiveNote = appendNote(note, "RUN_CONTEXT_STEP_MISSING");
             } else {
                 var row = rows.getFirst();
-                String fenceReason = null;
                 Integer epoch = AgentLeaseScope.currentEpoch();
-                if (epoch != null && !epoch.equals(((Number) row.get("claim_version")).intValue())) {
+                // 租约有效期参与 fencing（D2）：租约过期未换 epoch 的旧 worker 没有发布权。
+                // 无 claim 上下文（epoch==null，如 HTTP 管理命令路径）沿用旧语义不按租约拦截。
+                java.time.OffsetDateTime leaseExpiresAt = toOffsetDateTime(row.get("lease_expires_at"));
+                boolean epochValid = epoch == null || epoch.equals(((Number) row.get("claim_version")).intValue());
+                boolean leaseValid = epoch == null || (leaseExpiresAt != null && leaseExpiresAt.isAfter(OffsetDateTime.now()));
+                if (!epochValid) {
                     fenceReason = "RUN_CONTEXT_LEASE_LOST";
+                } else if (!leaseValid) {
+                    fenceReason = "RUN_CONTEXT_LEASE_EXPIRED";
                 }
                 if (fenceReason == null && row.get("cancel_requested_at") != null) {
                     fenceReason = "RUN_CONTEXT_CANCELED";
@@ -201,23 +243,41 @@ public class AgentRunEventRecorder {
             }
         }
         if (!wantPublish) {
-            // 只结算，不发布：失去 claim / 取消 / 目标修订冲突的返回不成为当前有效摘要，
-            // 但已发生用量仍如实幂等结算（ATTEMPTED → 终态只允许一次转换）
+            // 只结算，不发布：失去 claim / 租约过期 / 取消 / 目标修订冲突的返回不成为
+            // 当前有效摘要，但已发生用量仍如实幂等结算（ATTEMPTED → 终态只允许一次转换）
             completeSummaryCallStep(attemptId, "RUN_CONTEXT_SUMMARY", effectiveOutcome, model, usage, effectiveNote);
             return;
         }
         // 发布与结算同一行一次转换：output_json 一次性从 ATTEMPTED 覆写为
         // 终态记账 || 已提交摘要。重复完成转换零行——不重复结算、不改写已发布摘要。
+        // WHERE 再次原子核对全部 fencing 事实（D2）：即使检查 SELECT 之后、本 UPDATE
+        // 之前同事务内事实被并发修改（行锁已阻止这种情况），条件不满足也转换零行，
+        // 调用方得到 FENCED 结算而不是把过期返回发布成有效摘要。
         String basis = usage.combinedBasis();
         var terminal = runContextTerminalOutput(model, usage, note);
         int published = jdbc.update("""
-                UPDATE agent_step SET output_json = (?::jsonb || ?::jsonb),
+                UPDATE agent_step st SET output_json = (?::jsonb || ?::jsonb),
                   prompt_tokens=?, completion_tokens=?, token_usage_estimated=?, usage_basis=?, latency_ms=?
-                WHERE id=? AND reason='RUN_CONTEXT_SUMMARY' AND output_json->>'status'='ATTEMPTED'
+                FROM agent_run r
+                LEFT JOIN agent_session s ON s.id = r.session_id
+                WHERE st.id=? AND st.reason='RUN_CONTEXT_SUMMARY' AND st.output_json->>'status'='ATTEMPTED'
+                  AND st.run_id = r.id
+                  AND r.claim_version = COALESCE(?, r.claim_version)
+                  AND r.lease_expires_at > now()
+                  AND r.cancel_requested_at IS NULL
+                  AND r.status = 'RUNNING'
+                  AND (?::int IS NULL OR COALESCE(s.working_state->>'goalRevision','0')::int = ?::int)
                 """, terminal.toString(), committedSummary.toString(),
                 usage.bookedInput(), usage.bookedOutput(), usage.estimated(), basis,
-                usage.latencyMs() == null ? null : usage.latencyMs().intValue(), attemptId);
-        if (published == 0) return;
+                usage.latencyMs() == null ? null : usage.latencyMs().intValue(), attemptId,
+                AgentLeaseScope.currentEpoch(), expectedGoalRevision, expectedGoalRevision);
+        if (published == 0) {
+            // 检查通过但原子条件不再满足（并发取消/接管/目标修订/重复完成）：
+            // 不发布、不推进覆盖，用量照常结算
+            completeSummaryCallStep(attemptId, "RUN_CONTEXT_SUMMARY", "FENCED", model, usage,
+                    appendNote(note, fenceReason == null ? "RUN_CONTEXT_PUBLISH_CONDITION_LOST" : fenceReason));
+            return;
+        }
         bookRunUsage("UPDATE agent_run SET\n" +
                 "                input_tokens_used=agent_capped_add(input_tokens_used, max_input_tokens, ?),\n" +
                 "                output_tokens_used=agent_capped_add(output_tokens_used, max_output_tokens, ?),\n" +
@@ -231,6 +291,16 @@ public class AgentRunEventRecorder {
 
     private String appendNote(String note, String reason) {
         return note == null || note.isBlank() ? reason : note + "," + reason;
+    }
+
+    /** 时间点列的宽泛转换：驱动可能返回 OffsetDateTime / Timestamp / LocalDateTime。 */
+    private static java.time.OffsetDateTime toOffsetDateTime(Object value) {
+        if (value == null) return null;
+        if (value instanceof java.time.OffsetDateTime odt) return odt;
+        if (value instanceof java.sql.Timestamp ts) return ts.toInstant().atOffset(OffsetDateTime.now().getOffset());
+        if (value instanceof java.time.LocalDateTime ldt) return ldt.atOffset(OffsetDateTime.now().getOffset());
+        if (value instanceof java.time.Instant instant) return instant.atOffset(OffsetDateTime.now().getOffset());
+        return null;
     }
 
     /** 发布路径的终态记账 JSON（status 固定 COMMITTED，与摘要内容合并后落库）。 */
