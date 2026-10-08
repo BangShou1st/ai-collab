@@ -779,21 +779,22 @@ class AgentPauseResumePostgresTest {
 
         // 暂停意图先于首次摘要准入落库：不创建请求身份、不发模型请求
         repository.requestPause(fixture.project(), run.id());
-        when(modelExecutor.callModelWithoutTools(any(), any()))
+        when(modelExecutor.resolveRequest(any())).thenReturn(AgentRuntimeBehaviorTest.resolved(true));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any()))
                 .thenReturn(plainTextTurn("不应被调用"));
         new AgentContextSummarizer(repository, modelExecutor, json)
                 .maybeSummarize(run, composition, 100_000);
-        verify(modelExecutor, never()).callModelWithoutTools(any(), any());
+        verify(modelExecutor, never()).callModelWithoutTools(any(), any(), any());
         assertThat(summaryAttemptCount(run.id())).isZero();
         assertThat(recompressAttemptCount(run.id())).isZero();
 
         // 清除暂停意图（恢复边界）后：首次摘要正常准入并按原语义提交
         jdbc.update("UPDATE agent_run SET pause_requested_at=NULL WHERE id=?", run.id());
-        when(modelExecutor.callModelWithoutTools(any(), any()))
+        when(modelExecutor.callModelWithoutTools(any(), any(), any()))
                 .thenReturn(plainTextTurn("仍有效约束：保留原目标。"));
         new AgentContextSummarizer(repository, modelExecutor, json)
                 .maybeSummarize(reload(fixture, run), composition, 100_000);
-        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any());
+        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any(), any());
         assertThat(summaryAttemptCount(run.id())).isEqualTo(1);
         assertThat(summaryAttemptOutcome(run.id())).isEqualTo("COMMITTED");
         assertThat(summaryText(run.sessionId())).contains("仍有效约束：保留原目标。");
@@ -808,7 +809,8 @@ class AgentPauseResumePostgresTest {
                 AgentModelMessageComposer.CompositionStats.empty(), null, candidates);
         java.util.concurrent.atomic.AtomicInteger summaryCalls =
                 new java.util.concurrent.atomic.AtomicInteger();
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenAnswer(invocation -> {
+        when(modelExecutor.resolveRequest(any())).thenReturn(AgentRuntimeBehaviorTest.resolved(true));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenAnswer(invocation -> {
             if (summaryCalls.incrementAndGet() == 1) {
                 // 首次摘要在途时用户请求暂停：意图先于重压缩准入落库
                 repository.requestPause(fixture.project(), run.id());
@@ -852,7 +854,7 @@ class AgentPauseResumePostgresTest {
         java.util.concurrent.atomic.AtomicInteger summaryCalls =
                 new java.util.concurrent.atomic.AtomicInteger();
         when(modelExecutor.resolveRequest(any())).thenReturn(AgentRuntimeBehaviorTest.resolved(true));
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenAnswer(invocation -> {
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenAnswer(invocation -> {
             if (summaryCalls.incrementAndGet() == 1) {
                 repository.requestPause(fixture.project(), run.id());
                 return plainTextTurn("仍有效约束。".repeat(300)); // 超长，不合格

@@ -49,13 +49,17 @@ class AgentContextSummarizerTest {
         summarizer = new AgentContextSummarizer(repository, modelExecutor, json);
         when(repository.countSummaryAttempts(any(), any())).thenReturn(0);
         when(repository.beginSummaryAttempt(any())).thenReturn(attemptId);
+        // C5：辅助请求每次实际出站解析自己的配置快照（窗口/输出封顶核对），
+        // 测试提供真实 ResolvedRequest，不依赖 mock 返回 null 的旧行为
+        when(modelExecutor.resolveRequest(any()))
+                .thenReturn(AgentRuntimeBehaviorTest.resolved(true));
     }
 
     @Test
     void summarizesBoundedCandidatesAndCommitsWithCasSnapshot() {
         List<AgentMessageView> fixedCandidates = candidates();
         stubState(v2State(12, 3, null));
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("仍有效约束：不改日期"));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(turn("仍有效约束：不改日期"));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any()))
                 .thenReturn(true);
 
@@ -65,7 +69,7 @@ class AgentContextSummarizerTest {
         // 尝试上限先经持久化计数校验
         verify(repository).countSummaryAttempts(eq(run.projectId()), eq(run.id()));
         ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
-        verify(modelExecutor).callModelWithoutTools(eq(run), messages.capture());
+        verify(modelExecutor).callModelWithoutTools(eq(run), messages.capture(), any());
         assertThat(messages.getValue()).hasSize(2);
         assertThat(messages.getValue().get(0).toString()).contains("摘要器");
         assertThat(messages.getValue().get(1).toString()).contains("不调用任何工具");
@@ -89,14 +93,14 @@ class AgentContextSummarizerTest {
     @Test
     void summaryStateBlockCarriesActiveCorrectionsInOrder() {
         stubState(v2StateWithCorrections());
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("仍有效约束：不改日期"));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(turn("仍有效约束：不改日期"));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any()))
                 .thenReturn(true);
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
         ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
-        verify(modelExecutor).callModelWithoutTools(any(), messages.capture());
+        verify(modelExecutor).callModelWithoutTools(any(), messages.capture(), any());
         String prompt = messages.getValue().get(1).toString();
         assertThat(prompt).contains("activeGoalCorrections");
         int dateCorrection = prompt.indexOf("交付日期提前到 10-24");
@@ -114,7 +118,7 @@ class AgentContextSummarizerTest {
                 message("ASSISTANT", "前段内容。".repeat(160) + "尾部标记。".repeat(8), 2),
                 message("USER", "第三条：改用表格展示。", 3));
         stubState(v2State(7, 1, null));
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("摘要内容"));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(turn("摘要内容"));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
 
         summarizer.maybeSummarize(run(), composition(fixedCandidates), 10_000);
@@ -132,7 +136,7 @@ class AgentContextSummarizerTest {
         assertThat(summary.getValue().path("uncoveredMessageIds").size()).isEqualTo(1);
         // 提示词包含后续短消息与长消息片段，但不包含长消息未读尾部
         ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
-        verify(modelExecutor).callModelWithoutTools(any(), messages.capture());
+        verify(modelExecutor).callModelWithoutTools(any(), messages.capture(), any());
         String prompt = messages.getValue().get(1).toString();
         assertThat(prompt).contains("第三条：改用表格展示");
         assertThat(prompt).contains("前段内容");
@@ -145,7 +149,7 @@ class AgentContextSummarizerTest {
         AgentMessageView longMessage = message("USER", "很长的历史记录。".repeat(125), 1);
         List<AgentMessageView> fixedCandidates = List.of(longMessage);
         stubState(v2State(5, 1, null));
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("第一批摘要"));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(turn("第一批摘要"));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
 
         summarizer.maybeSummarize(run(), composition(fixedCandidates), 10_000);
@@ -160,7 +164,7 @@ class AgentContextSummarizerTest {
         ObjectNode state2 = v2State(6, 1, null);
         state2.set("summary", first.getValue());
         stubState(state2);
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("第二批摘要"));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(turn("第二批摘要"));
         summarizer.maybeSummarize(run(), composition(fixedCandidates), 10_000);
 
         ArgumentCaptor<JsonNode> second = ArgumentCaptor.forClass(JsonNode.class);
@@ -178,7 +182,7 @@ class AgentContextSummarizerTest {
         state3.set("summary", secondSummary);
         stubState(state3);
         summarizer.maybeSummarize(run(), composition(fixedCandidates), 10_000);
-        verify(modelExecutor, times(2)).callModelWithoutTools(any(), any());
+        verify(modelExecutor, times(2)).callModelWithoutTools(any(), any(), any());
         verify(repository, times(2)).beginSummaryAttempt(any());
     }
 
@@ -196,13 +200,13 @@ class AgentContextSummarizerTest {
         previous.put("sourceThrough", UUID.randomUUID().toString());
         previous.put("text", previousText);
         stubState(state);
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("延续后的摘要"));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(turn("延续后的摘要"));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
         ArgumentCaptor<List<ModelMessage>> messages = ArgumentCaptor.forClass(List.class);
-        verify(modelExecutor).callModelWithoutTools(any(), messages.capture());
+        verify(modelExecutor).callModelWithoutTools(any(), messages.capture(), any());
         assertThat(messages.getValue().get(1).toString()).contains("尾部关键决定：周报必须保留表格格式");
         ArgumentCaptor<JsonNode> summary = ArgumentCaptor.forClass(JsonNode.class);
         verify(repository).commitConversationSummary(any(), any(), anyInt(), anyInt(), summary.capture());
@@ -232,7 +236,7 @@ class AgentContextSummarizerTest {
         summarizer.maybeSummarize(run(), composition(fixedCandidates), 10_000);
 
         verify(repository, never()).beginSummaryAttempt(any());
-        verify(modelExecutor, never()).callModelWithoutTools(any(), any());
+        verify(modelExecutor, never()).callModelWithoutTools(any(), any(), any());
     }
 
     @Test
@@ -244,7 +248,7 @@ class AgentContextSummarizerTest {
 
         // 尝试上限是持久化校验：服务重启不能绕过
         verify(repository, never()).beginSummaryAttempt(any());
-        verify(modelExecutor, never()).callModelWithoutTools(any(), any());
+        verify(modelExecutor, never()).callModelWithoutTools(any(), any(), any());
     }
 
     @Test
@@ -254,14 +258,14 @@ class AgentContextSummarizerTest {
         summarizer.maybeSummarize(run(), composition(candidates()), 10);
 
         verify(repository, never()).beginSummaryAttempt(any());
-        verify(modelExecutor, never()).callModelWithoutTools(any(), any());
+        verify(modelExecutor, never()).callModelWithoutTools(any(), any(), any());
     }
 
     @Test
     void blankOutputRecordsUsageAndMarksAttemptEmpty() {
         stubState(v2State(5, 1, null));
         // content 为空但带 toolCalls 的合法结果 → 触发 EMPTY 路径
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(new ModelTurnResult(
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(new ModelTurnResult(
                 "  ", List.of(new ModelToolCall("x", "list_tasks", json.createObjectNode())),
                 ModelFinishReason.STOP, null, "test-provider", "test-model", 9L));
 
@@ -275,7 +279,7 @@ class AgentContextSummarizerTest {
     @Test
     void realUsageIsRecordedInsteadOfEstimate() {
         stubState(v2State(5, 1, null));
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(new ModelTurnResult(
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(new ModelTurnResult(
                 "摘要内容", List.of(), ModelFinishReason.STOP, new ModelUsage(321, 45),
                 "test-provider", "test-model", 11L));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
@@ -294,7 +298,7 @@ class AgentContextSummarizerTest {
     @Test
     void casConflictDiscardsSummaryWithoutRetry() {
         stubState(v2State(5, 1, null));
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("摘要内容"));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(turn("摘要内容"));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(false);
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
@@ -302,13 +306,13 @@ class AgentContextSummarizerTest {
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("CAS_CONFLICT"), anyString(),
                 any(), any());
         // CAS 冲突后不再重试第二次模型调用
-        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any());
+        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any(), any());
     }
 
     @Test
     void modelFailureNeverBreaksMainTurnAndRecordsAttempt() {
         stubState(v2State(5, 1, null));
-        when(modelExecutor.callModelWithoutTools(any(), any()))
+        when(modelExecutor.callModelWithoutTools(any(), any(), any()))
                 .thenThrow(new RuntimeException("provider exploded"));
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
@@ -330,13 +334,13 @@ class AgentContextSummarizerTest {
         state.withArray("constraints").addObject().put("value", "最多6项").put("status", "active");
         state.withArray("constraints").addObject().put("value", "最多10项").put("status", "superseded");
         stubState(state);
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn("当前最多6项；旧10项为历史。"));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(turn("当前最多6项；旧10项为历史。"));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
         var old = List.of(message("USER", "先只讨论，最多10项，不生成草稿。", 1),
                 message("ASSISTANT", "全文已经核查，资料没有费用。", 2));
         summarizer.maybeSummarize(run(), composition(old), 10_000);
         ArgumentCaptor<List<ModelMessage>> input = ArgumentCaptor.forClass(List.class);
-        verify(modelExecutor).callModelWithoutTools(any(), input.capture());
+        verify(modelExecutor).callModelWithoutTools(any(), input.capture(), any());
         String prompt = ((ModelMessage.User) input.getValue().get(1)).content();
         String current = prompt.substring(prompt.indexOf("<CURRENT_STATE_FOR_SUMMARY>"),
                 prompt.indexOf("</CURRENT_STATE_FOR_SUMMARY>"));
@@ -350,7 +354,7 @@ class AgentContextSummarizerTest {
         state.withArray("constraints").addObject().put("value", "有效条件".repeat(2000)).put("status", "active");
         stubState(state);
         summarizer.maybeSummarize(run(), composition(candidates()), 20_000);
-        verify(modelExecutor, never()).callModelWithoutTools(any(), any());
+        verify(modelExecutor, never()).callModelWithoutTools(any(), any(), any());
         verify(repository, never()).beginSummaryAttempt(any());
     }
 
@@ -360,7 +364,7 @@ class AgentContextSummarizerTest {
         String oversized = "超长草稿。".repeat(300); // 1500 字，超出 1200 上限
         String recompressed = "压缩后的完整摘要，仍有效约束：不改日期。";
         when(repository.beginSummaryRecompressAttempt(any())).thenReturn(recompressId);
-        when(modelExecutor.callModelWithoutTools(any(), any()))
+        when(modelExecutor.callModelWithoutTools(any(), any(), any()))
                 .thenReturn(turn(oversized))
                 .thenReturn(turn(recompressed));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
@@ -368,9 +372,9 @@ class AgentContextSummarizerTest {
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
         // 恰好一次有界重压缩，不无限调用模型
-        verify(modelExecutor, times(2)).callModelWithoutTools(any(), any());
+        verify(modelExecutor, times(2)).callModelWithoutTools(any(), any(), any());
         ArgumentCaptor<List<ModelMessage>> retry = ArgumentCaptor.forClass(List.class);
-        verify(modelExecutor, times(2)).callModelWithoutTools(any(), retry.capture());
+        verify(modelExecutor, times(2)).callModelWithoutTools(any(), retry.capture(), any());
         assertThat(retry.getAllValues().get(1).get(1).toString()).contains("压缩后的完整摘要").contains("<摘要草稿>");
         // 只提交合格摘要，不提交截尾版本
         ArgumentCaptor<JsonNode> summary = ArgumentCaptor.forClass(JsonNode.class);
@@ -386,7 +390,7 @@ class AgentContextSummarizerTest {
         stubState(v2State(5, 1, null));
         String oversized = "仍然超长的输出。".repeat(400); // 重压缩后仍超出容量
         when(repository.beginSummaryRecompressAttempt(any())).thenReturn(recompressId);
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn(oversized));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(turn(oversized));
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
@@ -405,12 +409,12 @@ class AgentContextSummarizerTest {
     void recompressIsSkippedWhenRemainingBudgetCannotFitBoundedRecompressRequest() {
         stubState(v2State(5, 1, null));
         String oversized = "超长草稿。".repeat(300); // 1500 字
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn(oversized));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(turn(oversized));
 
         // 预算刚够首次请求：重压缩估算（草稿全文+输出预留）超出剩余 → 必须跳过
         summarizer.maybeSummarize(run(), composition(candidates()), 900);
 
-        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any());
+        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any(), any());
         verify(repository, never()).beginSummaryRecompressAttempt(any());
         verify(repository, never()).completeSummaryRecompressAttempt(any(), any(), any(), any(), any());
         verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
@@ -423,14 +427,14 @@ class AgentContextSummarizerTest {
     void cancelBeforeRecompressSettlesFirstRealUsageWithoutSecondCall() {
         stubState(v2State(5, 1, null));
         String oversized = "超长草稿。".repeat(300);
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(new ModelTurnResult(
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(new ModelTurnResult(
                 oversized, List.of(), ModelFinishReason.STOP,
                 new ModelUsage(321, 45), "test-provider", "test-model", 9L));
         when(repository.isCancelRequested(any(), any())).thenReturn(true);
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
 
-        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any());
+        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any(), any());
         verify(repository, never()).beginSummaryRecompressAttempt(any());
         verify(repository, never()).commitConversationSummary(any(), any(), anyInt(), anyInt(), any());
         ArgumentCaptor<UsageSettlement> usage = ArgumentCaptor.forClass(UsageSettlement.class);
@@ -449,7 +453,7 @@ class AgentContextSummarizerTest {
         stubState(v2State(5, 1, null));
         String oversized = "超长草稿。".repeat(300);
         when(repository.beginSummaryRecompressAttempt(any())).thenReturn(recompressId);
-        when(modelExecutor.callModelWithoutTools(any(), any()))
+        when(modelExecutor.callModelWithoutTools(any(), any(), any()))
                 .thenReturn(new ModelTurnResult(oversized, List.of(), ModelFinishReason.STOP,
                         new ModelUsage(321, 45), "test-provider", "test-model", 9L))
                 .thenThrow(new RuntimeException("recompress timed out"));
@@ -476,7 +480,7 @@ class AgentContextSummarizerTest {
     @Test
     void providerFailureUsageSurvivesSummaryFailure() {
         stubState(v2State(5, 1, null));
-        when(modelExecutor.callModelWithoutTools(any(), any()))
+        when(modelExecutor.callModelWithoutTools(any(), any(), any()))
                 .thenThrow(new com.shitulelv.aicollab.infrastructure.ai.model.ProviderResponseFailure(
                         com.shitulelv.aicollab.common.exception.ErrorCode.AI_MODEL_TIMEOUT,
                         "provider timeout", 321, 45));
@@ -498,7 +502,7 @@ class AgentContextSummarizerTest {
         stubState(v2State(5, 1, null));
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000,
                 AgentContextSummarizer.OUTPUT_RESERVE_TOKENS - 1, () -> true);
-        verify(modelExecutor, never()).callModelWithoutTools(any(), any());
+        verify(modelExecutor, never()).callModelWithoutTools(any(), any(), any());
         verify(repository, never()).beginSummaryAttempt(any());
     }
 
@@ -507,7 +511,7 @@ class AgentContextSummarizerTest {
     void recompressIsSkippedWhenFirstSummaryExhaustedOutputBudget() {
         stubState(v2State(5, 1, null));
         String oversized = "超长草稿。".repeat(300);
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(new ModelTurnResult(
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(new ModelTurnResult(
                 oversized, List.of(), ModelFinishReason.STOP,
                 new ModelUsage(500, 5000), "test-provider", "test-model", 9L));
 
@@ -515,7 +519,7 @@ class AgentContextSummarizerTest {
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000,
                 5000 + AgentContextSummarizer.OUTPUT_RESERVE_TOKENS - 1, () -> true);
 
-        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any());
+        verify(modelExecutor, times(1)).callModelWithoutTools(any(), any(), any());
         verify(repository, never()).beginSummaryRecompressAttempt(any());
         verify(repository).completeSummaryAttempt(eq(attemptId), eq("DOWNSGRADED_UNQUALIFIED"),
                 anyString(), any(), eq("RECOMPRESS_SKIPPED_OUTPUT_BUDGET"));
@@ -525,7 +529,7 @@ class AgentContextSummarizerTest {
     @Test
     void postResponseFailureKeepsFirstRealUsage() {
         stubState(v2State(5, 1, null));
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(new ModelTurnResult(
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(new ModelTurnResult(
                 "合格摘要", List.of(), ModelFinishReason.STOP,
                 new ModelUsage(321, 45), "test-provider", "test-model", 9L));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any()))
@@ -548,7 +552,7 @@ class AgentContextSummarizerTest {
         String body = "决定甲。".repeat(200); // 600
         String tail = "后续内容。".repeat(73) + "关键决定：改为最多6项并立即生效。"; // 438+16 → 共 1054
         String withinCapacity = body + tail;
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(turn(withinCapacity));
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(turn(withinCapacity));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
 
         summarizer.maybeSummarize(run(), composition(candidates()), 10_000);
@@ -565,7 +569,7 @@ class AgentContextSummarizerTest {
     void partialUsageStillSettlesFullResponseLength() {
         stubState(v2State(5, 1, null));
         // 只有输入 usage，没有输出 usage：按完整输出长度估算，不按持久化截短文本
-        when(modelExecutor.callModelWithoutTools(any(), any())).thenReturn(new ModelTurnResult(
+        when(modelExecutor.callModelWithoutTools(any(), any(), any())).thenReturn(new ModelTurnResult(
                 "摘要。".repeat(400), List.of(), ModelFinishReason.STOP, new ModelUsage(200, null),
                 "test-provider", "test-model", 12L));
         when(repository.commitConversationSummary(any(), any(), anyInt(), anyInt(), any())).thenReturn(true);
