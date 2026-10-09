@@ -1,7 +1,8 @@
 import type { AgentRunEvent } from './types'
+import { agentErrorTitle } from './agent-run-state'
 
 export type ActivityStatus = 'running' | 'done' | 'failed' | 'waiting'
-export type ActivityKind = 'read' | 'search' | 'analysis' | 'proposal' | 'approval' | 'success' | 'failure' | 'waiting' | 'info'
+export type ActivityKind = 'read' | 'search' | 'analysis' | 'proposal' | 'approval' | 'success' | 'failure' | 'waiting' | 'info' | 'narration'
 
 export interface AgentActivity {
   key: string
@@ -29,11 +30,11 @@ const TOOL_META: Record<string, { title: string; verb: string; kind: ActivityKin
   answer_project_question_with_sources: { title: '问答检索', verb: '正在检索问答依据', kind: 'search' },
   analyze_project_risks: { title: '分析项目风险', verb: '正在分析项目风险', kind: 'analysis' },
   draft_weekly_report: { title: '起草周报', verb: '正在起草周报', kind: 'proposal' },
-  create_task_after_approval: { title: '创建任务', verb: '正在准备创建任务', kind: 'proposal' },
-  update_task_after_approval: { title: '更新任务', verb: '正在准备更新任务', kind: 'proposal' },
-  create_milestone_after_approval: { title: '创建里程碑', verb: '正在准备创建里程碑', kind: 'proposal' },
-  update_milestone_after_approval: { title: '更新里程碑', verb: '正在准备更新里程碑', kind: 'proposal' },
-  create_memory_after_approval: { title: '创建记忆', verb: '正在准备创建记忆', kind: 'proposal' },
+  create_task_after_approval: { title: '任务创建提案', verb: '正在准备创建任务', kind: 'proposal' },
+  update_task_after_approval: { title: '任务更新提案', verb: '正在准备更新任务', kind: 'proposal' },
+  create_milestone_after_approval: { title: '里程碑创建提案', verb: '正在准备创建里程碑', kind: 'proposal' },
+  update_milestone_after_approval: { title: '里程碑更新提案', verb: '正在准备更新里程碑', kind: 'proposal' },
+  create_memory_after_approval: { title: '记忆创建提案', verb: '正在准备创建记忆', kind: 'proposal' },
 };
 
 function toolOf(e: AgentRunEvent): string {
@@ -44,22 +45,50 @@ function toolOf(e: AgentRunEvent): string {
 
 function callKey(e: AgentRunEvent): string {
   const p = (e.payload ?? {}) as Record<string, unknown>
-  const raw = [p.callId, p.toolCallId, p.id].find((v) => typeof v === 'string' && (v as string).length > 0) as string | undefined
+  const raw = [p.invocationId, p.callId, p.toolCallId, p.id].find((v) => typeof v === 'string' && (v as string).length > 0) as string | undefined
   return (raw ?? `${e.type}#${e.sequence}`).trim()
 }
 
 const TOOL_LIFECYCLE = new Set(['TOOL_CALL_PROPOSED', 'TOOL_CALL_STARTED', 'TOOL_CALL_COMPLETED', 'TOOL_CALL_FAILED'])
 const APPROVAL_CLOSE = new Set(['APPROVAL_APPROVED', 'APPROVAL_REJECTED', 'APPROVAL_EXPIRED'])
+/** 结束一次模型请求的事件：失败（含可恢复失败）、完成、暂停确认、等待输入、终态。
+ *  RUN_PAUSE_REQUESTED 只是暂停意图，请求仍可能在途，不在此列。 */
+const REQUEST_CLOSE = new Set(['MODEL_COMPLETED', 'RUN_FAILED', 'RUN_PAUSED', 'WAITING_FOR_USER_INPUT',
+  'RUN_CANCELED', 'RUN_SUCCEEDED', 'RUN_BUDGET_EXCEEDED'])
 
-/** Presentation policy: only tool lifecycles, approvals, analyzing and waiting become rows. Run/model/plan/context events drive state elsewhere and never render. Unknown future types are skipped, never shown. */
+/** Presentation policy: tool lifecycles, approvals, turn narrations, analyzing and waiting become rows.
+ *  Run/model/plan/context events drive state elsewhere. MODEL_COMPLETED narration only exists for
+ *  turns that also requested tools (toolCallCount > 0); a text-only final turn is the ASSISTANT
+ *  message and must not be duplicated here. Unknown future types are skipped, never shown. */
+/** 同一事件可能经历史重放与 SSE 各到达一次（存储层按 sequence 去重，这里防御同等处理）：
+ *  按 sequence 保留最后一次到达，保证重复投递下的展示等同。 */
+function dedupeBySequence(events: AgentRunEvent[]): AgentRunEvent[] {
+  const bySequence = new Map<number, AgentRunEvent>()
+  for (const e of [...events].sort((a, b) => a.sequence - b.sequence)) bySequence.set(e.sequence, e)
+  return [...bySequence.values()].sort((a, b) => a.sequence - b.sequence)
+}
+
 export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] {
+  const stream = dedupeBySequence(events)
+  // 终态=真正结束运行的事件；RUN_FAILED{retryable:true} 只是本次请求暂时失败，
+  // 运行会自动重试继续——把它当终态会遮蔽恢复后的分析、工具与等待输入
+  const terminal = [...stream].reverse().find(event =>
+    ['RUN_CANCELED', 'RUN_SUCCEEDED', 'RUN_BUDGET_EXCEEDED'].includes(event.type)
+    || (event.type === 'RUN_FAILED' && (event.payload ?? {})['retryable'] !== true))
   const tools = new Map<string, AgentRunEvent[]>()
   const toolOrder: string[] = []
   const approvals = new Map<string, AgentRunEvent[]>()
   const approvalOrder: string[] = []
-  let analyzing: AgentRunEvent[] | null = null
+  const narrations: AgentRunEvent[] = []
+  const controlNotes: AgentRunEvent[] = []
+  // “正在分析”按最新一次模型请求判定：只有最新 MODEL_STARTED 之后没有出现任何
+  // 请求结束事件（失败/完成/暂停确认/等待输入/终态）时才在途；
+  // 后续新的 MODEL_STARTED 重新表示在途，不能因历史失败/完成永久抑制或永久保留。
+  let latestModelStarted: AgentRunEvent | null = null
+  let latestModelCompleted: AgentRunEvent | null = null
+  let latestRequestClose: AgentRunEvent | null = null
   let waiting: AgentRunEvent[] | null = null
-  for (const e of [...events].sort((a, b) => a.sequence - b.sequence)) {
+  for (const e of stream) {
     if (TOOL_LIFECYCLE.has(e.type)) {
       const key = callKey(e)
       if (!tools.has(key)) { tools.set(key, []); toolOrder.push(key) }
@@ -69,27 +98,188 @@ export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] 
       if (!approvals.has(key)) { approvals.set(key, []); approvalOrder.push(key) }
       approvals.get(key)!.push(e)
     } else if (e.type === 'MODEL_STARTED' || e.type === 'MODEL_COMPLETED') {
-      if (!analyzing) analyzing = []
-      analyzing.push(e)
+      if (!latestModelStarted || e.sequence >= latestModelStarted.sequence) latestModelStarted = e
+      if (e.type === 'MODEL_COMPLETED') {
+        const p = (e.payload ?? {}) as Record<string, unknown>
+        const content = typeof p.content === 'string' ? p.content.trim() : ''
+        const toolCount = typeof p.toolCallCount === 'number' ? p.toolCallCount : 0
+        if (toolCount > 0 && content) narrations.push(e)
+        if (!latestModelCompleted || e.sequence >= latestModelCompleted.sequence) latestModelCompleted = e
+      }
+    } else if (e.type === 'RUN_PAUSED' || e.type === 'RUN_RESUMED' || e.type === 'RUN_RETRY_SCHEDULED') {
+      // 暂停/继续/手动重试安排是控制状态变化，不是用户任务或最终回答，只渲染一行状态说明
+      controlNotes.push(e)
     } else if (e.type === 'WAITING_FOR_USER_INPUT') {
       if (!waiting) waiting = []
       waiting.push(e)
     }
+    if (REQUEST_CLOSE.has(e.type) && (!latestRequestClose || e.sequence >= latestRequestClose.sequence)) {
+      latestRequestClose = e
+    }
   }
   const out: AgentActivity[] = []
-  for (const key of toolOrder) out.push(buildToolActivity(key, tools.get(key)!))
-  for (const key of approvalOrder) out.push(buildApprovalActivity(key, approvals.get(key)!))
-  if (analyzing && analyzing.some((e) => e.type === 'MODEL_STARTED') && !analyzing.some((e) => e.type === 'MODEL_COMPLETED')) {
-    out.push({ key: 'model:analyzing', tool: 'model', kind: 'analysis', status: 'running', title: '正在分析', detail: null, durationMs: null, count: null, raw: analyzing })
+  for (const key of toolOrder) {
+    const activity = buildToolActivity(key, tools.get(key)!)
+    if (terminal && activity.status === 'running') {
+      activity.status = 'failed'
+      activity.kind = 'failure'
+      activity.title = TOOL_META[activity.tool]?.title ?? '工具调用'
+      activity.detail = terminal.type === 'RUN_CANCELED' ? '已取消' : '运行已结束，工具结果需核对'
+    }
+    out.push(activity)
   }
-  if (waiting) {
+  for (const e of narrations) {
+    const p = (e.payload ?? {}) as Record<string, unknown>
+    out.push({ key: `narration:${e.sequence}`, tool: 'narration', kind: 'narration', status: 'done', title: 'Agent', detail: (p.content as string).trim(), durationMs: null, count: null, raw: [e] })
+  }
+  for (const key of approvalOrder) out.push(buildApprovalActivity(key, approvals.get(key)!))
+  for (const e of controlNotes) {
+    out.push({ key: `control:${e.sequence}`, tool: 'control', kind: 'info', status: 'done',
+      title: e.type === 'RUN_RESUMED' ? '已继续' : e.type === 'RUN_RETRY_SCHEDULED' ? '已安排重试' : '已暂停，进度已保留',
+      detail: null, durationMs: null, count: null, raw: [e] })
+  }
+  for (const retry of retryActivities(stream)) out.push(retry)
+  const requestInFlight = latestModelStarted !== null
+    && (latestRequestClose === null || latestModelStarted.sequence > latestRequestClose.sequence)
+  if (!terminal && requestInFlight && latestModelStarted) {
+    const model = (latestModelStarted.payload as Record<string, unknown> | undefined)?.model
+    out.push({ key: 'model:analyzing', tool: 'model', kind: 'analysis', status: 'running', title: '正在分析', detail: typeof model === 'string' && model ? `使用 ${model}` : null, durationMs: null, count: null, raw: [latestModelStarted] })
+  }
+  if (waiting && !terminal) {
     out.push({ key: 'waiting:input', tool: 'input', kind: 'waiting', status: 'waiting', title: '等待你的输入', detail: null, durationMs: null, count: null, raw: waiting })
   }
   return out.sort((a, b) => minSequence(a.raw) - minSequence(b.raw))
 }
 
+export interface AgentActivityGroup {
+  key: string
+  kind: 'group'
+  title: string
+  status: ActivityStatus
+  count: number
+  items: AgentActivity[]
+}
+export type ConversationActivity = AgentActivity | AgentActivityGroup
+
+/** Merge runs of ≥3 consecutive completed read/search rows into one collapsible group;
+ *  narration, failures, running and approval rows always stay individually visible. */
+export function groupAgentActivities(items: AgentActivity[]): ConversationActivity[] {
+  const out: ConversationActivity[] = []
+  let bucket: AgentActivity[] = []
+  const flush = () => {
+    if (bucket.length >= 3) {
+      const titles = [...new Set(bucket.map((item) => item.title))]
+      out.push({
+        key: `group:${bucket[0].key}`,
+        kind: 'group',
+        title: titles.length === 1 ? titles[0] : '查阅项目资料',
+        status: 'done',
+        count: bucket.length,
+        items: bucket,
+      })
+    } else out.push(...bucket)
+    bucket = []
+  }
+  for (const item of items) {
+    if (item.kind === 'narration') { flush(); out.push(item); continue }
+    if (item.status === 'done' && (item.kind === 'read' || item.kind === 'search')) { bucket.push(item); continue }
+    flush(); out.push(item)
+  }
+  flush()
+  return out
+}
+
+/** Last known model identity for the active run: actual provider response wins,
+ *  then the in-flight MODEL_STARTED, then the run detail snapshot. */
+export function currentModelFromEvents(events: AgentRunEvent[]): { provider: string; model: string; live: boolean } | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]
+    if (e.type !== 'MODEL_COMPLETED' && e.type !== 'MODEL_STARTED') continue
+    const p = (e.payload ?? {}) as Record<string, unknown>
+    if (typeof p.model === 'string' && p.model.trim()) {
+      return { provider: typeof p.provider === 'string' ? p.provider : '', model: p.model, live: e.type === 'MODEL_STARTED' }
+    }
+  }
+  return null
+}
+
 function minSequence(list: AgentRunEvent[]): number {
   return Math.min(...list.map((e) => e.sequence))
+}
+
+/**
+ * 运行内自动重试生命周期行（每次暂时失败一行）：事实全部来自既有事件流——
+ * RUN_FAILED{retryable:true}（暂时失败）、其后的 MODEL_STARTED（再次尝试，FAILED_RETRYABLE
+ * 回到 RUNNING 的唯一路径）、下一次可恢复失败或终态事件（本行生命周期关闭）。
+ * 纯事件重放推导，刷新与增量订阅结果一致；不新增后端事实、不改重试策略。
+ *
+ * 每行的窗口到"下一次可恢复失败或终态"为止：历史行保留历史（再次尝试后仍失败），
+ * 不冒充当前在途；暂停期间不承诺后台会继续自动重试，恢复后按真实后续事件推进。
+ */
+function retryActivities(events: AgentRunEvent[]): AgentActivity[] {
+  const sorted = [...events].sort((a, b) => a.sequence - b.sequence)
+  const isTerminal = (e: AgentRunEvent) =>
+    ['RUN_CANCELED', 'RUN_SUCCEEDED', 'RUN_BUDGET_EXCEEDED'].includes(e.type)
+    || (e.type === 'RUN_FAILED' && (e.payload ?? {})['retryable'] !== true)
+  const failures = sorted.filter((e) => e.type === 'RUN_FAILED' && (e.payload ?? {})['retryable'] === true)
+  return failures.map((failure, index): AgentActivity => {
+    const after = sorted.filter((e) => e.sequence > failure.sequence)
+    const nextFailure = after.find((e) => e.type === 'RUN_FAILED' && (e.payload ?? {})['retryable'] === true)
+    const terminalEvent = after.find(isTerminal)
+    const closer = [nextFailure, terminalEvent]
+      .filter((e): e is AgentRunEvent => Boolean(e))
+      .sort((a, b) => a.sequence - b.sequence)[0] ?? null
+    const window = closer ? after.filter((e) => e.sequence < closer.sequence) : after
+
+    let outcome: string
+    let status: ActivityStatus
+    if (closer === terminalEvent && terminalEvent) {
+      status = 'done'
+      outcome = terminalEvent.type === 'RUN_SUCCEEDED' ? '已自动重试并恢复完成'
+        : terminalEvent.type === 'RUN_CANCELED' ? '运行已取消'
+        : terminalEvent.type === 'RUN_BUDGET_EXCEEDED' ? '运行已达到上限'
+        : '重试后仍最终失败'
+    } else if (closer === nextFailure && nextFailure) {
+      // 本行的再次尝试已经发生并以再次失败结束；新失败由下一行呈现
+      status = 'done'
+      outcome = '已再次尝试，仍失败'
+    } else {
+      const startedSeq = Math.max(-1, ...window.filter((e) => e.type === 'MODEL_STARTED').map((e) => e.sequence))
+      const pausedSeq = Math.max(-1, ...window.filter((e) => e.type === 'RUN_PAUSED').map((e) => e.sequence))
+      const resumedSeq = Math.max(-1, ...window.filter((e) => e.type === 'RUN_RESUMED').map((e) => e.sequence))
+      // 该次尝试的请求是否已结束（完成/等待澄清/暂停确认等）：失败或完成结束该次请求，
+      // 只有更新的 MODEL_STARTED 才重新表示在途
+      const endedAfterStart = startedSeq >= 0
+        && window.some((e) => REQUEST_CLOSE.has(e.type) && e.sequence > startedSeq)
+      if (pausedSeq >= 0 && pausedSeq > resumedSeq && pausedSeq > startedSeq) {
+        status = 'waiting'
+        outcome = '已暂停，恢复后继续自动重试'
+      } else if (startedSeq >= 0 && !endedAfterStart && startedSeq > pausedSeq) {
+        status = 'running'
+        outcome = '已再次尝试'
+      } else if (startedSeq >= 0) {
+        // 尝试已结束且没有新的失败/终态：中性收口，不在途、不承诺继续调度
+        status = 'done'
+        outcome = '已再次尝试'
+      } else {
+        status = 'failed'
+        outcome = '等待自动重试'
+      }
+    }
+    const errorCode = (failure.payload ?? {})['errorCode']
+    const parts = [typeof errorCode === 'string' ? agentErrorTitle(errorCode) : null, outcome].filter(Boolean)
+    return {
+      key: `retry:${failure.sequence}`,
+      tool: 'retry',
+      kind: 'failure',
+      status,
+      title: `模型调用暂时失败（第 ${index + 1} 次）`,
+      detail: parts.join('；'),
+      durationMs: null,
+      count: null,
+      raw: [failure],
+    }
+  })
 }
 
 function approvalKey(e: AgentRunEvent): string {
@@ -119,6 +309,10 @@ function buildToolActivity(key: string, list: AgentRunEvent[]): AgentActivity {
     if (typeof p.summary === 'string' && (p.summary as string).length > 0) detail = p.summary as string
     if (e.type === 'TOOL_CALL_COMPLETED') { status = 'done'; if (kind === 'info') kind = 'success' }
     if (e.type === 'TOOL_CALL_FAILED') { status = 'failed'; kind = 'failure' }
+    if (e.type === 'TOOL_CALL_FAILED' && typeof p.status === 'string') {
+      const labels: Record<string, string> = { FAILED: '执行失败', REJECTED: '调用被拒绝', CANCELED: '已取消', SKIPPED: '未执行', UNKNOWN: '结果未知，需核对' }
+      detail = `${labels[p.status] ?? '执行失败'}${typeof p.errorCode === 'string' && p.errorCode ? `：${p.errorCode}` : ''}`
+    }
     if (typeof p.error === 'string' && (p.error as string).length > 0 && status === 'failed') detail = p.error as string
   }
   return { key: `tool:${key}`, tool, kind, status, title: status === 'running' ? verb : title, detail, durationMs, count, raw: list }

@@ -37,13 +37,19 @@ public class TaskPlanRepairPatchParser {
 
     public TaskPlanRepairPatch parse(String patchJson) {
         try {
-            JsonNode root = json.readTree(patchJson);
+            String content = patchJson == null ? "" : patchJson.strip();
+            if (content.startsWith("```") && content.endsWith("```")) {
+                int newline = content.indexOf('\n');
+                if (newline >= 0) content = content.substring(newline + 1, content.length() - 3).strip();
+            }
+            JsonNode root = json.reader().with(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(content);
             requireObject(root);
             rejectUnknownFields(root, ROOT_FIELDS);
             List<TaskPlanRepairPatch.MilestonePatch> milestones = new ArrayList<>();
             JsonNode msNode = requireArray(root, "milestonePatches");
             for (JsonNode m : msNode) {
                 requireObject(m);
+                validateValues(m, "MILESTONE", MILESTONE_FIELDS);
                 rejectUnknownFields(m, MILESTONE_FIELDS);
                 milestones.add(parseMilestonePatch(m));
             }
@@ -51,13 +57,55 @@ public class TaskPlanRepairPatchParser {
             JsonNode tNode = requireArray(root, "taskPatches");
             for (JsonNode t : tNode) {
                 requireObject(t);
+                validateValues(t, "TASK", TASK_FIELDS);
                 rejectUnknownFields(t, TASK_FIELDS);
                 tasks.add(parseTaskPatch(t));
             }
             return new TaskPlanRepairPatch(milestones, tasks);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid repair patch JSON");
+            if (e instanceof RepairPatchFormatException precise) throw precise;
+            throw formatIssue("PLAN", null, null);
         }
+    }
+
+    private void validateValues(JsonNode node, String type, Set<String> allowed) {
+        String key = node.path("tempKey").isTextual() ? node.path("tempKey").asText() : null;
+        if (key != null && !key.matches("[A-Za-z0-9_-]{1,100}")) key = null;
+        if (!node.hasNonNull("tempKey") || !node.path("tempKey").isTextual() || node.path("tempKey").asText().isBlank())
+            throw formatIssue(type, key, "tempKey");
+        var fields = node.fields();
+        while (fields.hasNext()) {
+            var entry = fields.next();
+            String field = entry.getKey();
+            JsonNode value = entry.getValue();
+            if (!allowed.contains(field)) throw formatIssue(type, key,
+                    Set.of("title", "objective", "sortOrder", "assigneeId", "milestoneTempKey").contains(field) ? field : "unsupportedField");
+            if (value.isNull()) continue;
+            try {
+                switch (field) {
+                    case "sourceRefs", "dependencyTempKeys" -> {
+                        if (!value.isArray()) throw new IllegalArgumentException();
+                        for (JsonNode item : value) if (!item.isTextual()) throw new IllegalArgumentException();
+                    }
+                    case "estimatedHours" -> { if (!value.isNumber()) throw new IllegalArgumentException(); }
+                    case "startDate", "dueDate", "targetDate" -> {
+                        if (!value.isTextual()) throw new IllegalArgumentException();
+                        LocalDate.parse(value.asText());
+                    }
+                    case "suggestedAssigneeId" -> {
+                        if (!value.isTextual()) throw new IllegalArgumentException();
+                        UUID.fromString(value.asText());
+                    }
+                    default -> { if (!value.isTextual()) throw new IllegalArgumentException(); }
+                }
+            } catch (IllegalArgumentException invalid) { throw formatIssue(type, key, field); }
+        }
+    }
+
+    private RepairPatchFormatException formatIssue(String type, String key, String field) {
+        return new RepairPatchFormatException(new com.shitulelv.aicollab.planning.domain.StructuredValidationIssue(
+                "INVALID_PATCH_STRUCTURE", com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity.HARD,
+                type, key, field, null, java.util.Map.of()));
     }
 
     private TaskPlanRepairPatch.MilestonePatch parseMilestonePatch(JsonNode node) {

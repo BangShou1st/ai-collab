@@ -34,6 +34,8 @@ public class DocumentProcessingService {
     private final DocumentIndexWriter indexWriter;
     private final DocumentFailureRecorder failures;
     private final NotificationApplicationService notifications;
+    @org.springframework.beans.factory.annotation.Autowired
+    private DocumentContentService readableContent;
 
     public DocumentProcessingService(DocumentRepository documents, DocumentStorageGateway storage,
                                      DocumentParser parser, DocumentChunker chunker,
@@ -63,26 +65,27 @@ public class DocumentProcessingService {
                     source, document.getOriginalFilename(), document.getMimeType());
             List<DocumentChunk> chunks = chunker.split(parsed.text(), parsed.pageBoundaries());
             if (chunks.isEmpty()) throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED);
+            if (readableContent != null) readableContent.saveParsed(projectId,documentId,processingToken,source,chunks);
             if (!documents.markIndexing(
                     projectId, documentId, processingToken, parsed.parserType())) return;
             EmbeddingBatch embeddings = embeddingGateway.embed(projectId,
                     chunks.stream().map(DocumentChunk::content).toList(),
                     () -> requireHeartbeat(
                             projectId, documentId, processingToken, DocumentStatus.INDEXING));
-            indexWriter.replaceAndComplete(
+            if (!indexWriter.replaceAndComplete(
                     projectId, documentId, processingToken,
-                    chunks, embeddings, document.getOriginalFilename());
+                    chunks, embeddings, document.getOriginalFilename())) return;
             notifications.create(projectId, document.getUploadedBy(),
                     "DOCUMENT_PROCESSED", "文档处理完成",
                     "文档「" + document.getDisplayName() + "」已完成解析和索引",
                     "PROJECT_DOCUMENT", documentId);
         } catch (BusinessException exception) {
-            failures.record(projectId, documentId, processingToken, safeMessage(exception));
-            notifyFailure(projectId, documentId);
+            if (failures.record(projectId, documentId, processingToken, safeMessage(exception)))
+                notifyFailure(projectId, documentId);
             log.warn("文档处理失败，documentId={}，code={}", documentId, exception.getErrorCode().name());
         } catch (Exception exception) {
-            failures.record(projectId, documentId, processingToken, "文档处理失败，请重试");
-            notifyFailure(projectId, documentId);
+            if (failures.record(projectId, documentId, processingToken, "文档处理失败，请重试"))
+                notifyFailure(projectId, documentId);
             log.error("文档处理发生内部异常，documentId={}，type={}",
                     documentId, exception.getClass().getSimpleName());
         }

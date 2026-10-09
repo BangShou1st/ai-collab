@@ -1,0 +1,147 @@
+{
+  "plan": {
+    "id": "4c26c6d0-52da-470a-b32c-454fd6087c96",
+    "projectId": "575a9f0d-011a-430c-bd78-be4e9b0b6986",
+    "title": "ai-collab可靠性验收24轮",
+    "goal": "为 ai-collab 做发布前可靠性验收（24 轮压力验证），覆盖三条主线的可判定验收标准：\n\n1. 权限边界：服务端按场景白名单强制校验能力组；研究场景（项目事实、文档读取与检索）不得自动获得业务写入权限；规划写入仅经审批工具落地；诊断与错误详情按权限脱敏，不向普通用户暴露 token 切片、工作状态 JSON、内部类名。验收＝越权调用被服务端拒绝且返回可判定的拒绝原因（前端放开无效）。\n2. 版本与幂等边界：规划修订携带 baseVersionId+expectedVersionNo 乐观并发校验，版本不匹配时拒绝并要求重新读取，不得静默覆盖；局部修订的 allowedFields/lockedFields 由服务端强校验，锁定字段被请求修改即整体拒绝；提案以 approvalId 为幂等键（同一 approvalId 重复提交只更新本轮变化字段、不产生第二份提案）；正式写入以已批准提案为幂等单元；规划生成按 operationId+attemptId 管理状态，取消须针对真实 attemptId。\n3. 文档可靠性：正文解析成功但向量服务失败时，目录/提纲/按 heading 分块读取仍可用（读取路径不依赖 embedding），检索降级时必须声明为关键词/章节定位而非语义召回，并显式暴露 failureStage；重建后旧 chunkId 不得静默指向新内容，历史引用必须显示来源快照或标注“来源已更新/已不可用”，旧页码无依据不得自动重算。\n\n交付要求：含里程碑（权限/版本幂等/文档可靠性三条主线各自可验收节点）；任务依赖必须构成有向无环图（DAG）；每项任务带可判定验收标准（明确给定输入、预期返回字段与通过/失败判定），不以主观描述代替。",
+    "constraints": "任务数量上限最多 6 项；规划日期区间固定 2026-10-05 至 2026-10-25，不修改；所有任务建议负责人固定为 Local Owner，不修改。本规划为草稿，须由用户在规划页人工确认指定版本后才生效，不代用户确认正式任务。不得使用多次单项任务提案替代本次完整规划。\n\n证据范围说明：依据文档《ai-collab下一阶段主蓝图》(documentId 8aa5fa94-2d2c-44db-bd31-177f1cbe1e28) 的已读内容——§1 首段（边界/技术栈）、§2 首句（须区分静态代码事实、推导风险、待评测优化）、§5.2 全文（chunkNo 12，旧引用与重建）、以及 §5.1/§5.3/§5.4/§6.4/§7 的检索片段。提纲按 DETERMINISTIC 投影仅返回前 3 个标题（共 27 节），其余 24 节未返回，未逐节读取。\n\n待评测/推断项（需在对应任务中以代码事实校正，不得当作已核实结论）：§5.3 只提到向量检索为基线、召回不足时验证词面融合，未写明“向量服务不可用时的降级读路径”；§7 只说明 Skill 不代替业务权限、按受控能力组开放复合需求，以及场景级权限分级，其余场景细则未读；文档解析与向量入库的具体状态字段、阶段枚举、chunkId 稳定性实现方式未在已读正文中确认。\n\n规划要求：里程碑覆盖三条主线（权限边界 / 版本与幂等边界 / 文档可靠性）；任务依赖必须为有向无环图，禁止环与自依赖；每项任务给出可判定验收标准（明确输入、预期输出字段、通过/失败判定条件），例如“向量不可用时按 heading 读取仍返回 processingStatus=READY 且 bodyReadable=true 的非空正文并暴露 failureStage”“重建后以旧 chunkId 取内容必须标注来源已更新或返回旧来源快照，不得返回新正文”“版本号不匹配的修订请求被拒绝且不产生新版本”“同一 approvalId 重复提交不产生第二条提案且未提及字段被保留”。不将历史助手结论当作已验证事实。",
+    "planStartDate": "2026-10-05",
+    "planDueDate": "2026-10-25",
+    "maxTaskCount": 6,
+    "selectedDocumentIdsJson": "[\"8aa5fa94-2d2c-44db-bd31-177f1cbe1e28\"]",
+    "status": "READY",
+    "latestVersionNo": 2,
+    "latestVersionId": "46e408a8-76e3-471b-b181-2f4ec83a7ffc",
+    "generationSeq": 1,
+    "activeAttemptId": null,
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "lastErrorCode": null,
+    "lastErrorSummary": null,
+    "createdAt": "2026-10-04T17:39:58.496597Z",
+    "updatedAt": "2026-10-04T17:41:28.586032Z"
+  },
+  "latestVersion": {
+    "id": "46e408a8-76e3-471b-b181-2f4ec83a7ffc",
+    "versionNo": 2,
+    "sourceType": "AI_REPAIR",
+    "basedOnVersionId": "4a2dae64-582a-49f7-a2aa-e4b3a3288d63",
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "createdAt": "2026-10-05 01:41:28.586032"
+  },
+  "activeAttempt": null,
+  "latestFailedAttempt": {
+    "id": "1f3d2f86-292d-4c54-8e65-7c9559cdda77",
+    "stage": "DETAIL",
+    "status": "FAILED",
+    "provider": null,
+    "model": null,
+    "startedAt": "2026-10-05 01:40:54.953589",
+    "finishedAt": "2026-10-05 01:41:21.887822",
+    "latencyMs": null,
+    "promptTokens": null,
+    "completionTokens": null,
+    "errorCode": "PLANNING_MODEL_INVALID_OUTPUT",
+    "errorSummary": null,
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+  },
+  "latestAttempt": {
+    "id": "89377417-d4f3-47e9-a2c7-ad64b3289ec4",
+    "stage": "REPAIR",
+    "status": "SUCCESS",
+    "provider": "OPENAI_COMPATIBLE",
+    "model": "space-bunny-free",
+    "startedAt": "2026-10-05 01:41:21.887822",
+    "finishedAt": "2026-10-05 01:41:28.615132",
+    "latencyMs": 6669,
+    "promptTokens": 16131,
+    "completionTokens": 308,
+    "errorCode": null,
+    "errorSummary": null,
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+  },
+  "confirmation": null,
+  "validation": {
+    "errors": [],
+    "warnings": [
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED"
+    ]
+  },
+  "permissions": {
+    "canEdit": true,
+    "canCancel": false,
+    "canRetryDetail": false,
+    "canRegenerate": true,
+    "canConfirm": true,
+    "canDelete": true,
+    "canRestore": true,
+    "canPartialRegenerate": true
+  },
+  "structuredIssues": [
+    {
+      "id": "aec32371-afc3-4735-a6a7-2d50e0d924e6",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T-PERM-01",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "ab83216a-7df6-4d7a-9624-c91560f76d49",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T-PERM-02",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "e746a07d-0d4c-421c-9e42-1dfb4364d2b6",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T-VER-01",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "588ac4e7-0165-42c6-9cf0-32e8444cc702",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T-VER-02",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "3259d819-f14a-4940-804e-9d9aab89d7dd",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T-DOC-01",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "dea331bd-afa7-4b75-848f-17f1d6d5e30c",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T-DOC-02",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    }
+  ],
+  "repairDiagnostics": []
+}

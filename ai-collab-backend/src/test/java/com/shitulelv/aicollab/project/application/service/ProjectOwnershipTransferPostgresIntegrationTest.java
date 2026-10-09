@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.project.application.service;
 
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.common.testing.MinioTestImage;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,7 @@ class ProjectOwnershipTransferPostgresIntegrationTest {
     private static final String MINIO_SECRET_KEY = "ownership-secret-key";
     @Container
     static final GenericContainer<?> MINIO =
-            new GenericContainer<>(DockerImageName.parse("quay.io/minio/minio:latest"))
+            new GenericContainer<>(DockerImageName.parse(MinioTestImage.IMAGE))
                     .withExposedPorts(9000)
                     .withEnv("MINIO_ROOT_USER", MINIO_ACCESS_KEY)
                     .withEnv("MINIO_ROOT_PASSWORD", MINIO_SECRET_KEY)

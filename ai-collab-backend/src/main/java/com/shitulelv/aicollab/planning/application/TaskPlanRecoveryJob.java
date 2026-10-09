@@ -30,6 +30,12 @@ public class TaskPlanRecoveryJob {
                   AND updated_at < now() - interval '10 minutes'
                 """);
         jdbc.update("""
+                UPDATE ai_task_plan p SET status=COALESCE(a.repair_previous_status,'READY'),active_attempt_id=NULL,
+                  last_error_code='PROCESS_RESTARTED',last_error_summary='进程重启中断修复，保留原版本',updated_at=now()
+                FROM ai_task_plan_attempt a WHERE p.active_attempt_id=a.id AND p.status='REPAIRING'
+                  AND a.status='FAILED' AND a.error_code='PROCESS_RESTARTED'
+                """);
+        jdbc.update("""
                 UPDATE ai_task_plan p SET status=CASE WHEN EXISTS (
                     SELECT 1 FROM ai_task_plan_confirmation c WHERE c.plan_id=p.id AND c.status='SUCCESS')
                     THEN 'CONFIRMED' ELSE 'READY' END,

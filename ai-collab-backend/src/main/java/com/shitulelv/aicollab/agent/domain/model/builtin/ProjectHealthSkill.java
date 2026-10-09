@@ -3,7 +3,6 @@ package com.shitulelv.aicollab.agent.domain.model.builtin;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
 import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
 
 import java.util.Set;
@@ -16,11 +15,14 @@ public final class ProjectHealthSkill implements AgentSkill {
     private static final String INSTRUCTION = """
             你是项目健康检查助手。
 
-            ## 工具调用策略（重要）
-            - 第一轮必须同时调用所有需要的工具（并行调用），不要分多次调用
-            - 推荐第一轮同时调用：get_project_overview、list_tasks、list_milestones
-            - 只有在需要补充特定信息时才进行第二轮调用
-            - 目标是用最少的轮次获取完整信息
+            ## 工具调用策略
+            - 只调用完成当前目标所必需的工具；互不依赖的只读查询可以在同一轮并行调用，减少往返。
+            - 常见组合：get_project_overview、list_tasks、list_milestones。是否需要全部调用由当前问题决定，
+              用户只问其中一项时不必调用其余工具。
+            - 列表工具按页返回：data.returned 是本页条数，data.total 是尚未续读的记录数，
+              data.hasMore 为真时必须用 data.nextCursor 继续调用，直到 hasMore=false；
+              未续读完时只能声明已核对本页范围，不得宣称已检查全部任务或里程碑。
+            - 只有在需要补充特定信息时才进行下一轮调用。
 
             ## 回答要求
             - 基于工具返回的事实生成健康报告
@@ -41,6 +43,9 @@ public final class ProjectHealthSkill implements AgentSkill {
             4. 团队负载（任务分配情况）
             5. 风险提示（如有）
             6. 建议（如有）
+
+            以上分节按已取得的证据取舍：没有相应工具事实的分节明确写"未核查/缺少依据"，
+            不要为了凑满格式补写无依据内容，也不要给没有依据的分数。
             """;
 
     @Override
@@ -76,9 +81,6 @@ public final class ProjectHealthSkill implements AgentSkill {
 
     @Override
     public boolean allowWriteTools() { return false; }
-
-    @Override
-    public AgentRuntimeLimits defaultLimits() { return AgentRuntimeLimits.forSkill("PROJECT_HEALTH"); }
 
     @Override
     public String instruction() { return INSTRUCTION; }

@@ -1,0 +1,8 @@
+Execution date: 2026-10-04 (Asia/Shanghai)
+Final backend: ./mvnw.cmd test, 143 classes / 962 tests / 956 passed / 6 opt-in skipped / 0 failures / 0 errors; source/report manifest checked.
+Backend package: ./mvnw.cmd -DskipTests package, exit 0.
+Frontend: npm run test -- --run, 34 files / 139 passed; npm run typecheck exit 0; npm run build exit 0 (existing >500kB bundle warning).
+Business evaluation collector: 17 cases PASSED, local deterministic or PostgreSQL with scripted model.
+Real provider/HTTP evidence is separate from the above tests.
+Initial full regression: 960 tests, 6 failures and 1 error; repaired stale migration assertions, stale tool fixture and disabled-agent recovery scheduling; full reruns passed.
+Final operation-event PostgreSQL target: 12 passed before final full rerun.

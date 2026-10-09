@@ -1,0 +1,41 @@
+{
+  "codeVersion": "92cedb8df0134181cda6bf374a3eefbb95b565f4",
+  "session": {
+    "id": "3ec37c62-6676-4256-b08e-5f331e0e3067",
+    "projectId": "b18fb2f7-6d9f-4baa-8f50-bd6495caa7ea",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "四类失败复验 fixed24-final2",
+    "status": "ACTIVE",
+    "version": 24,
+    "createdAt": "2026-10-04T08:58:35.771206Z",
+    "updatedAt": "2026-10-04T09:12:43.734175Z"
+  },
+  "state": {
+    "sessionId": "3ec37c62-6676-4256-b08e-5f331e0e3067",
+    "completedTurns": 24,
+    "codeVersion": "92cedb8df0134181cda6bf374a3eefbb95b565f4",
+    "projectId": "b18fb2f7-6d9f-4baa-8f50-bd6495caa7ea",
+    "documentId": "5502508e-afdc-4432-b4e2-88ee46597fa4",
+    "batch": "fixed24-final2",
+    "runId": "0be1ef91-63d7-4d97-bd82-56dddd1c827f",
+    "submittedTurn": 24
+  },
+  "operations": {
+    "status": "SKELETON_GENERATING",
+    "kind": "start_task_plan",
+    "operationId": "2c546144-f091-4d03-9b43-eeb8aa732423",
+    "planId": "9961219f-3651-4a1d-9336-208d075c4667",
+    "attemptId": "e626ec16-128c-452e-8501-81fd19d5dee7",
+    "activeAttemptId": "e626ec16-128c-452e-8501-81fd19d5dee7",
+    "attemptStatus": "RUNNING",
+    "errorCode": null,
+    "title": "ai-collab可靠性验收24轮",
+    "versionNo": 0,
+    "versionId": null,
+    "targetVersionId": null,
+    "goalRevision": 2,
+    "effect": "PLANNING_OPERATION_ACCEPTED",
+    "requiresHumanConfirmation": true,
+    "reviewPath": "/projects/b18fb2f7-6d9f-4baa-8f50-bd6495caa7ea/ai-planning?planId=9961219f-3651-4a1d-9336-208d075c4667"
+  }
+}

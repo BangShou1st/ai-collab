@@ -1,0 +1,237 @@
+{
+  "turn": 4,
+  "layer": "REAL_API_SPACE_BUNNY_PRODUCTION_ADAPTER",
+  "run": {
+    "id": "9999fe15-6f47-45bf-9e39-3a6ec0ce8d7c",
+    "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "对于长消息未读完却离开最近历史窗口，验收应该怎样检查持续覆盖？只根据刚读内容区分实现要求与实际通过证据。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 4,
+    "toolCallsUsed": 1,
+    "childrenUsed": 0,
+    "inputTokensUsed": 15724,
+    "outputTokensUsed": 849,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"6c164058-05cf-4a3d-9f2c-1dcc17d14211\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 8,
+    "createdAt": "2026-10-04T03:23:34.336769Z",
+    "updatedAt": "2026-10-04T03:23:47.614471Z"
+  },
+  "steps": [
+    {
+      "id": "af0ede33-a41a-44ff-b1c5-4d133de86b08",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 7266,
+          "outputTokens": 470
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 5115,
+        "toolCalls": [
+          {
+            "id": "call_01a104f0512d73ffbb0ff047",
+            "name": "read_document_section",
+            "arguments": {
+              "heading": "4.4 摘要与压缩",
+              "maxChars": 3000,
+              "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+              "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83"
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 7266,
+      "completionTokens": 470,
+      "tokenUsageEstimated": false,
+      "latencyMs": 5115,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:23:39.806984Z"
+    },
+    {
+      "id": "79a1c6d5-4b7c-4843-b02c-31cf65e5eb84",
+      "sequence": 2,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "read_document_section",
+      "input": {
+        "arguments": {
+          "heading": "4.4 摘要与压缩",
+          "maxChars": 3000,
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+          "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83"
+        },
+        "toolCallId": "call_01a104f0512d73ffbb0ff047"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "chunkId": "c2b0da50-8179-4608-8835-e1d9e33ca77a",
+              "chunkNo": 9,
+              "content": "先用确定性投影压缩工具数据，再在历史超出预算时生成有界增量摘要，不每轮全量总结。\n\n摘要保存 sourceFrom/sourceThrough 消息范围、来源 ID、schemaVersion、创建所用模型/策略版本和 state revision。建议字段为：目标沿革、仍有效约束、已确认决定、对象引用、未解决问题、失败尝试摘要。\n\n1. 最近必要的用户原话保留；旧寒暄、重复解释和过时展示内容可被摘要替代。\n2. UUID、日期、数量、否定约束、审批版本和锁定字段不让模型自由改写；结构化字段由原始数据提供并校验。\n3. 摘要中不能出现没有来源支持的“已创建”“已批准”。操作结果以业务记录为准。\n4. 生成期间新消息到来时，只提交摘要覆盖范围对应的版本；用 CAS 或等效事务规则防止旧摘要覆盖新状态。\n5. 摘要失败或输出无效时使用前一个有效摘要及近期原文，并重新预算；放不下则说明原因，不无限修复。\n6. 保留完整工具调用组及其结果的协议配对；未决调用不随意压缩。已结束且无恢复依赖的旧组可转为有来源的历史摘要。\n7. 历史摘要仅供理解意图；依据文档作答要重新读取可用来源，依据任务状态作答要按时效与版本刷新事实。\n\n优先验收“早期限制在长对话后仍有效”，而不是只看摘要更短。摘要不能保证无限长对话无损。",
+              "heading": "4.4 摘要与压缩",
+              "location": {
+                "charFrom": 4956,
+                "charThrough": 5513,
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+              },
+              "fromOffset": 0,
+              "contentHash": "95047dbdf006f7011460ca981ab26ed2e03af2968164d6a391f3efaacbcc0d16",
+              "throughOffset": 557
+            }
+          ],
+          "trust": "SOURCE_DATA_ONLY",
+          "hasMore": false,
+          "coverage": "SPECIFIED_RANGE_ONLY",
+          "readChars": 557,
+          "truncated": false,
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+          "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83",
+          "bodyReadable": true,
+          "continuation": null,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "先用确定性投影压缩工具数据，再在历史超出预算时生成有界增量摘要，不每轮全量总结。\n\n摘要保存 sourceFrom/sourceThrough 消息范围、来源 ID、schemaVersion、创建所用模型/策略版本和 state revision。建议字段为：目标沿革、仍有效约束、已确认决定、对象引用、未解决问题、失败尝试摘要。\n\n1. 最近必要的用户原话保留；旧寒暄、重复解释和过时展示内容可被摘要替代。\n2. UUID、日期、数量、否定约束、审批版本和锁定字段不让模型自由改写；结构化字段由原始数据提供并校验。\n3. 摘要中不能出现没有来源支持的“已创建”“已批准”。操作结果以业务记录为准。\n4. 生成期间新消息到来时，只提交摘要覆盖范围对应的版本；用 CAS 或等效事务规则防止旧摘要覆盖新状态。\n5. 摘要失败或输出无效时使用前一个有效摘要及近期原文，并重新预算；放不下则说明原因，不无限修复。\n6. 保留完整工具调用组及其结果的协议配对；未决调用不随意压缩。已结束且无恢复依赖的旧组可转为有来源的历史摘要。\n7. 历史摘要仅供理解意图；依据文档作答要重新读取可用来源，依据任务状态作答要按时效与版本刷新事实。\n\n优先验收“早期限制在长对话后仍有效”，而不是只看摘要更短。摘要不能保证无限长对话无损。",
+            "chunkId": "c2b0da50-8179-4608-8835-e1d9e33ca77a",
+            "heading": "4.4 摘要与压缩",
+            "filename": "文档正文",
+            "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:23:39.881361Z"
+    },
+    {
+      "id": "f5f3f88a-2565-41e4-afb0-fa2a99842b71",
+      "sequence": 3,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 8458,
+          "outputTokens": 379
+        },
+        "content": "**依据**：本轮仅读了主蓝图 4.4 摘要与压缩（chunk 9，char 4956–5513，snapshot bea5454c…）。目录其余章节（1、2、3、4.1–4.3、5.x、6.x 及之后）未读，故以下仅为该节内容。\n\n**为什么覆盖偏移比加大窗口可靠**：窗口增大只推迟溢出，且第2节已述超预算整条跳过；摘要按 sourceFrom/sourceThrough 记录覆盖范围与 state revision，并用 CAS 提交，覆盖范围可核对、冲突可拒绝；而加大窗口没有任何\"旧消息仍在场\"的证明。\n\n**持续覆盖的验收检查点**（区分两类）：\n- 实现要求（本节写明的应有行为）：保留最近用户原话；UUID/日期/否定约束/审批版本/锁定字段不被模型改写；摘要不得出现无来源的\"已创建/已批准\"；CAS 防旧摘要覆盖新状态；失败回退到上一有效摘要并说明原因；文档/任务事实需重新读取刷新。\n- 实际通过证据（须现场跑出，文档未提供）：长对话中\"早期限制仍生效\"的可复现用例记录；每轮摘要的 sourceFrom/sourceThrough 与 state revision 日志；范围外新消息未被旧摘要吞掉的对照；摘要失效时的回退路径证据。\n\n**未读范围**：如需验收用例数值口径或窗口预算（12000/16000 字符）出处，需再读 2 节与 4.2——是否要我读取那两节？",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 6471,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "**依据**：本轮仅读了主蓝图 4.4 摘要与压缩（chunk 9，char 4956–5513，snapshot bea5454c…）。目录其余章节（1、2、3、4.1–4.3、5.x、6.x 及之后）未读，故以下仅为该节内容。\n\n**为什么覆盖偏移比加大窗口可靠**：窗口增大只推迟溢出，且第2节已述超预算整条跳过；摘要按 sourceFrom/sourceThrough 记录覆盖范围与 state revision，并用 CAS 提交，覆盖范围可核对、冲突可拒绝；而加大窗口没有任何\"旧消息仍在场\"的证明。\n\n**持续覆盖的验收检查点**（区分两类）：\n- 实现要求（本节写明的应有行为）：保留最近用户原话；UUID/日期/否定约束/审批版本/锁定字段不被模型改写；摘要不得出现无来源的\"已创建/已批准\"；CAS 防旧摘要覆盖新状态；失败回退到上一有效摘要并说明原因；文档/任务事实需重新读取刷新。\n- 实际通过证据（须现场跑出，文档未提供）：长对话中\"早期限制仍生效\"的可复现用例记录；每轮摘要的 sourceFrom/sourceThrough 与 state revision 日志；范围外新消息未被旧摘要吞掉的对照；摘要失效时的回退路径证据。\n\n**未读范围**：如需验收用例数值口径或窗口预算（12000/16000 字符）出处，需再读 2 节与 4.2——是否要我读取那两节？",
+      "promptTokens": 8458,
+      "completionTokens": 379,
+      "tokenUsageEstimated": false,
+      "latencyMs": 6471,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:23:47.590922Z"
+    },
+    {
+      "id": "5501f497-5fd7-4abd-85bc-576cd8fe808b",
+      "sequence": 4,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "**依据**：本轮仅读了主蓝图 4.4 摘要与压缩（chunk 9，char 4956–5513，snapshot bea5454c…）。目录其余章节（1、2、3、4.1–4.3、5.x、6.x 及之后）未读，故以下仅为该节内容。\n\n**为什么覆盖偏移比加大窗口可靠**：窗口增大只推迟溢出，且第2节已述超预算整条跳过；摘要按 sourceFrom/sourceThrough 记录覆盖范围与 state revision，并用 CAS 提交，覆盖范围可核对、冲突可拒绝；而加大窗口没有任何\"旧消息仍在场\"的证明。\n\n**持续覆盖的验收检查点**（区分两类）：\n- 实现要求（本节写明的应有行为）：保留最近用户原话；UUID/日期/否定约束/审批版本/锁定字段不被模型改写；摘要不得出现无来源的\"已创建/已批准\"；CAS 防旧摘要覆盖新状态；失败回退到上一有效摘要并说明原因；文档/任务事实需重新读取刷新。\n- 实际通过证据（须现场跑出，文档未提供）：长对话中\"早期限制仍生效\"的可复现用例记录；每轮摘要的 sourceFrom/sourceThrough 与 state revision 日志；范围外新消息未被旧摘要吞掉的对照；摘要失效时的回退路径证据。\n\n**未读范围**：如需验收用例数值口径或窗口预算（12000/16000 字符）出处，需再读 2 节与 4.2——是否要我读取那两节？",
+        "citations": [
+          {
+            "quote": "先用确定性投影压缩工具数据，再在历史超出预算时生成有界增量摘要，不每轮全量总结。\n\n摘要保存 sourceFrom/sourceThrough 消息范围、来源 ID、schemaVersion、创建所用模型/策略版本和 state revision。建议字段为：目标沿革、仍有效约束、已确认决定、对象引用、未解决问题、失败尝试摘要。\n\n1. 最近必要的用户原话保留；旧寒暄、重复解释和过时展示内容可被摘要替代。\n2. UUID、日期、数量、否定约束、审批版本和锁定字段不让模型自由改写；结构化字段由原始数据提供并校验。\n3. 摘要中不能出现没有来源支持的“已创建”“已批准”。操作结果以业务记录为准。\n4. 生成期间新消息到来时，只提交摘要覆盖范围对应的版本；用 CAS 或等效事务规则防止旧摘要覆盖新状态。\n5. 摘要失败或输出无效时使用前一个有效摘要及近期原文，并重新预算；放不下则说明原因，不无限修复。\n6. 保留完整工具调用组及其结果的协议配对；未决调用不随意压缩。已结束且无恢复依赖的旧组可转为有来源的历史摘要。\n7. 历史摘要仅供理解意图；依据文档作答要重新读取可用来源，依据任务状态作答要按时效与版本刷新事实。\n\n优先验收“早期限制在长对话后仍有效”，而不是只看摘要更短。摘要不能保证无限长对话无损。",
+            "chunkId": "c2b0da50-8179-4608-8835-e1d9e33ca77a",
+            "heading": "4.4 摘要与压缩",
+            "filename": "文档正文",
+            "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:23:47.614471Z"
+    }
+  ],
+  "answer": {
+    "id": "b121f2be-8430-4088-bbd7-ed88202ac641",
+    "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "runId": "9999fe15-6f47-45bf-9e39-3a6ec0ce8d7c",
+    "role": "ASSISTANT",
+    "content": "**依据**：本轮仅读了主蓝图 4.4 摘要与压缩（chunk 9，char 4956–5513，snapshot bea5454c…）。目录其余章节（1、2、3、4.1–4.3、5.x、6.x 及之后）未读，故以下仅为该节内容。\n\n**为什么覆盖偏移比加大窗口可靠**：窗口增大只推迟溢出，且第2节已述超预算整条跳过；摘要按 sourceFrom/sourceThrough 记录覆盖范围与 state revision，并用 CAS 提交，覆盖范围可核对、冲突可拒绝；而加大窗口没有任何\"旧消息仍在场\"的证明。\n\n**持续覆盖的验收检查点**（区分两类）：\n- 实现要求（本节写明的应有行为）：保留最近用户原话；UUID/日期/否定约束/审批版本/锁定字段不被模型改写；摘要不得出现无来源的\"已创建/已批准\"；CAS 防旧摘要覆盖新状态；失败回退到上一有效摘要并说明原因；文档/任务事实需重新读取刷新。\n- 实际通过证据（须现场跑出，文档未提供）：长对话中\"早期限制仍生效\"的可复现用例记录；每轮摘要的 sourceFrom/sourceThrough 与 state revision 日志；范围外新消息未被旧摘要吞掉的对照；摘要失效时的回退路径证据。\n\n**未读范围**：如需验收用例数值口径或窗口预算（12000/16000 字符）出处，需再读 2 节与 4.2——是否要我读取那两节？",
+    "citations": [
+      {
+        "quote": "先用确定性投影压缩工具数据，再在历史超出预算时生成有界增量摘要，不每轮全量总结。\n\n摘要保存 sourceFrom/sourceThrough 消息范围、来源 ID、schemaVersion、创建所用模型/策略版本和 state revision。建议字段为：目标沿革、仍有效约束、已确认决定、对象引用、未解决问题、失败尝试摘要。\n\n1. 最近必要的用户原话保留；旧寒暄、重复解释和过时展示内容可被摘要替代。\n2. UUID、日期、数量、否定约束、审批版本和锁定字段不让模型自由改写；结构化字段由原始数据提供并校验。\n3. 摘要中不能出现没有来源支持的“已创建”“已批准”。操作结果以业务记录为准。\n4. 生成期间新消息到来时，只提交摘要覆盖范围对应的版本；用 CAS 或等效事务规则防止旧摘要覆盖新状态。\n5. 摘要失败或输出无效时使用前一个有效摘要及近期原文，并重新预算；放不下则说明原因，不无限修复。\n6. 保留完整工具调用组及其结果的协议配对；未决调用不随意压缩。已结束且无恢复依赖的旧组可转为有来源的历史摘要。\n7. 历史摘要仅供理解意图；依据文档作答要重新读取可用来源，依据任务状态作答要按时效与版本刷新事实。\n\n优先验收“早期限制在长对话后仍有效”，而不是只看摘要更短。摘要不能保证无限长对话无损。",
+        "chunkId": "c2b0da50-8179-4608-8835-e1d9e33ca77a",
+        "heading": "4.4 摘要与压缩",
+        "filename": "文档正文",
+        "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+        "pageNumber": null,
+        "similarity": 1.0
+      }
+    ],
+    "inferences": [],
+    "createdAt": "2026-10-04T03:23:47.614471Z"
+  },
+  "scenario": "real-requirements-4",
+  "session": {
+    "id": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "真实需求24轮约束与目标验收",
+    "status": "ACTIVE",
+    "version": 4,
+    "createdAt": "2026-10-04T03:20:40.014288Z",
+    "updatedAt": "2026-10-04T03:23:34.336769Z"
+  },
+  "executionDate": "2026-10-04",
+  "prompt": "对于长消息未读完却离开最近历史窗口，验收应该怎样检查持续覆盖？只根据刚读内容区分实现要求与实际通过证据。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。"
+}

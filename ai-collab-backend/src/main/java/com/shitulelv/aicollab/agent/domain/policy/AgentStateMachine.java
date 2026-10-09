@@ -21,21 +21,23 @@ public final class AgentStateMachine {
         values.put(AgentRunStatus.CREATED, EnumSet.of(
                 AgentRunStatus.QUEUED, AgentRunStatus.CANCELED, AgentRunStatus.FAILED));
         values.put(AgentRunStatus.QUEUED, EnumSet.of(
-                AgentRunStatus.RUNNING, AgentRunStatus.CANCELED, AgentRunStatus.FAILED,
+                AgentRunStatus.RUNNING, AgentRunStatus.PAUSED, AgentRunStatus.CANCELED, AgentRunStatus.FAILED,
                 AgentRunStatus.BUDGET_EXCEEDED));
         values.put(AgentRunStatus.RUNNING, EnumSet.of(
-                AgentRunStatus.QUEUED, AgentRunStatus.WAITING_FOR_APPROVAL,
+                AgentRunStatus.QUEUED, AgentRunStatus.PAUSED, AgentRunStatus.WAITING_FOR_APPROVAL,
                 AgentRunStatus.WAITING_FOR_USER_INPUT,
                 AgentRunStatus.SUCCEEDED, AgentRunStatus.FAILED_RETRYABLE,
                 AgentRunStatus.FAILED, AgentRunStatus.CANCELED,
                 AgentRunStatus.BUDGET_EXCEEDED));
+        values.put(AgentRunStatus.PAUSED, EnumSet.of(
+                AgentRunStatus.QUEUED, AgentRunStatus.CANCELED));
         values.put(AgentRunStatus.WAITING_FOR_APPROVAL, EnumSet.of(
                 AgentRunStatus.QUEUED, AgentRunStatus.FAILED,
                 AgentRunStatus.CANCELED, AgentRunStatus.BUDGET_EXCEEDED));
         values.put(AgentRunStatus.WAITING_FOR_USER_INPUT, EnumSet.of(
                 AgentRunStatus.QUEUED, AgentRunStatus.CANCELED, AgentRunStatus.FAILED));
         values.put(AgentRunStatus.FAILED_RETRYABLE, EnumSet.of(
-                AgentRunStatus.QUEUED, AgentRunStatus.FAILED, AgentRunStatus.CANCELED));
+                AgentRunStatus.QUEUED, AgentRunStatus.PAUSED, AgentRunStatus.FAILED, AgentRunStatus.CANCELED));
         return Map.copyOf(values);
     }
 }

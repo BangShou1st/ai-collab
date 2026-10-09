@@ -1,0 +1,69 @@
+{
+  "round": "space-bunny 浏览器链路与回答范围收尾",
+  "date": "2026-10-03",
+  "environment": {
+    "model": "space-bunny-free",
+    "restoredModel": "mimo-v2.5-free",
+    "backendHost": "RealAcceptanceHostTest, http://localhost:18080",
+    "frontend": "vite dev, http://localhost:15173",
+    "database": "127.0.0.1:55432/ai_collab 离线副本 (ai-collab-acceptance-postgres-20261003)",
+    "originalBusinessDb": "ai-collab-postgres 未启动、未写入"
+  },
+  "identity": {
+    "projectId": "3292c82f-7878-40f4-a7f0-5b12d5c939cd",
+    "sessionId": "9464c291-b884-43e0-b956-ec26c47476f8",
+    "proposeRunId": "e43f37b8-23bc-4f39-a519-50ccb7f65d00",
+    "approvalId": "242bbe37-8518-4b86-a23a-8849c80fd733",
+    "queryRunId": "9f1dc36f-7424-452e-85bc-10f7a8c1607c",
+    "taskId": "07d07cf4-86cc-4c4f-be8b-27799e046414"
+  },
+  "browserSteps": [
+    {
+      "step": "1. 页面A展示待审批卡片",
+      "result": "PASS",
+      "detail": "页面A(/projects/{projectId}/agent)在检查器中显示创建任务卡片:任务名称=太空兔浏览器验收-221915,负责人=Local Owner(成员表解析的显示名),批准并执行/拒绝按钮可见。revision 1。"
+    },
+    {
+      "step": "2. 页面B完成修订",
+      "result": "PASS",
+      "detail": "页面B(独立标签页,同一会话)提交业务语言修订请求;真实模型(space-bunny-free)运行 SUCCEEDED;同一审批ID的卡片变为 修订 #2,任务名称=太空兔浏览器验收-221915-修订,其余字段保持。截图 space-bunny-browser-B-revision2-pending.png。"
+    },
+    {
+      "step": "3. 页面A不刷新,用旧版本卡片批准",
+      "result": "PASS",
+      "detail": "页面A未刷新仍持有 revision 1 旧卡片(快照核对卡片任务名称无“-修订”)。点击批准并执行→确认弹窗→确定;请求携带 expectedRevision=1,服务端返回 409 AGENT_APPROVAL_CONFLICT。界面提示:Agent 提案批准失败：提案已修订，请刷新并确认当前版本。"
+    },
+    {
+      "step": "4. 冲突后审批列表自动刷新到最新状态",
+      "result": "PASS",
+      "detail": "失败后待审批列表自动刷新:待审批（1）显示最新版本卡片(修订 #2,标题-修订),供重新确认;旧 revision 卡片不再是待审批状态。未一律移除卡片。截图 space-bunny-browser-A-stale-approve-conflict-refresh.png。"
+    },
+    {
+      "step": "5. 双击防重复提交(前端)",
+      "result": "PASS(前端层级)",
+      "detail": "对当前版本卡片批准→确认弹窗→对“确定”快速双击:仅一次确认解析、一次批准请求;批准后待审批（0),卡片状态=已批准,任务前缀匹配数=1(见 browser-final-tasks.json),无重复任务。提交期间的按钮 loading/禁用由组件测试覆盖(AgentView.approval-conflict.test.ts),本轮浏览器未能可视捕捉瞬时 loading 状态。服务端同键幂等沿用上一轮 API 证据(space-bunny-retest.json),两者分别记录。"
+    },
+    {
+      "step": "6. 刷新后事实表核对",
+      "result": "PASS",
+      "detail": "浏览器重新登录态下打开任务看板并刷新:任务“太空兔浏览器验收-221915-修订”显示 负责人：Local Owner;详情抽屉:标题=太空兔浏览器验收-221915-修订,负责人=Local Owner,任务状态=待处理(TODO),优先级=高,预计工时=3 小时。与 API GET /tasks 一致(项目共 6 项任务,前缀匹配恰 1 项)。截图 space-bunny-browser-board-task-after-refresh.png。"
+    }
+  ],
+  "answerScope": {
+    "request": "只查询任务“太空兔浏览器验收-221915-修订”：回答只包含标题、状态、负责人这三个字段，不要输出优先级、工时、日期、里程碑、依赖或其他任何字段。",
+    "finalAnswer": "任务“太空兔浏览器验收-221915-修订”：\n\n- 标题：太空兔浏览器验收-221915-修订\n- 状态：TODO\n- 负责人：Local Owner",
+    "result": "PASS(本用例)",
+    "path": "原生 Tool Calling(路由依据 provider capabilities 含 NATIVE_TOOLS;运行步骤为原生 get_task 工具调用 + 纯文本最终回答,非 Legacy JSON 决策)",
+    "toolFactsIntact": "get_task 工具结果完整保留全部业务字段(priority=HIGH、dueDate、assigneeId、version 等),见 space-bunny-browser-query-run.json;最终回答未因此删改工具数据,未强制固定 JSON。",
+    "caveat": "一次真实成功只证明该用例通过,不证明所有模型都能稳定遵循。"
+  },
+  "notVerified": [
+    "AGENT_APPROVAL_EXPIRED(审批已过期)的浏览器提示:副本审批有效期 24 小时,本轮无法在隔离环境中真实制造过期场景;过期文案与过期记录移出待审批的行为由组件测试 AgentView.approval-conflict.test.ts 覆盖(410 + AGENT_APPROVAL_EXPIRED 用例)。",
+    "拒绝(reject)路径的浏览器冲突场景:本轮浏览器场景仅覆盖批准路径;拒绝的失败刷新、错误提示与冲突后展示最新版本由组件测试 AgentView.approval-conflict.test.ts 的拒绝冲突用例覆盖。"
+  ],
+  "closeoutFixes": [
+    "防重入锁提前到打开确认弹窗之前占用,取消、失败、成功统一在 finally 释放;新增'弹窗尚未完成时重复触发不进入第二次流程'组件测试。",
+    "审批卡片区分当前操作:批准、拒绝提交期间同时禁用,loading 只出现在实际提交的按钮上(busyAction prop)。",
+    "补齐拒绝冲突与 AGENT_APPROVAL_EXPIRED 组件测试;前端 135 项、类型检查、生产构建、后端全量 mvnw package 日志见 space-bunny-closeout-*.log 与 ai-space-bunny-closeout-full.log。"
+  ]
+}

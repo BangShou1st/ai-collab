@@ -1,0 +1,593 @@
+{
+  "turn": 6,
+  "layer": "REAL_API_SPACE_BUNNY_PRODUCTION_ADAPTER",
+  "run": {
+    "id": "22082ef8-f694-4b15-a269-13461099cdd7",
+    "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "读取蓝图中任务搜索和文档按需读取的章节，说明分页检索与通读正文各能支持什么结论。附实际来源。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 9,
+    "toolCallsUsed": 4,
+    "childrenUsed": 0,
+    "inputTokensUsed": 39683,
+    "outputTokensUsed": 1841,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"6c164058-05cf-4a3d-9f2c-1dcc17d14211\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 17,
+    "createdAt": "2026-10-04T03:24:04.25375Z",
+    "updatedAt": "2026-10-04T03:24:47.168577Z"
+  },
+  "steps": [
+    {
+      "id": "dc3ff12c-1c62-41e2-a12a-0a4197a73648",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 8159,
+          "outputTokens": 633
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 10357,
+        "toolCalls": [
+          {
+            "id": "call_function_mu1bwdek0wgq_1",
+            "name": "read_document_section",
+            "arguments": {
+              "heading": "5.1 先补按需读取，不先扩张解析种类",
+              "maxChars": 3000,
+              "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+              "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83"
+            }
+          },
+          {
+            "id": "call_function_mu1bwdek0wgq_2",
+            "name": "read_document_section",
+            "arguments": {
+              "heading": "5.3 检索质量与引用",
+              "maxChars": 3000,
+              "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+              "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83"
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 8159,
+      "completionTokens": 633,
+      "tokenUsageEstimated": false,
+      "latencyMs": 10357,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:24:15.580626Z"
+    },
+    {
+      "id": "5503843f-bbb6-4678-80e6-ed92d97e8005",
+      "sequence": 2,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "read_document_section",
+      "input": {
+        "arguments": {
+          "heading": "5.1 先补按需读取，不先扩张解析种类",
+          "maxChars": 3000,
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+          "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83"
+        },
+        "toolCallId": "call_function_mu1bwdek0wgq_1"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "chunkId": "9b99a905-fc9a-4691-929c-64aa309d0f45",
+              "chunkNo": 10,
+              "content": "保留 PDF/DOCX/Markdown/TXT 和现有文件、大小、解析并发限制。扫描 PDF 的 OCR、复杂表格/图像理解单列后续范围，不把文字提取成功说成完整理解文档。",
+              "heading": "5.1 先补按需读取，不先扩张解析种类",
+              "location": {
+                "charFrom": 5572,
+                "charThrough": 5659,
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+              },
+              "fromOffset": 0,
+              "contentHash": "f21e4ea6e824cb7105563bd5f51c2e879693ff50d5e8de95e0dc56aada0d23d9",
+              "throughOffset": 87
+            }
+          ],
+          "trust": "SOURCE_DATA_ONLY",
+          "hasMore": false,
+          "coverage": "SPECIFIED_RANGE_ONLY",
+          "readChars": 87,
+          "truncated": false,
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+          "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83",
+          "bodyReadable": true,
+          "continuation": null,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "保留 PDF/DOCX/Markdown/TXT 和现有文件、大小、解析并发限制。扫描 PDF 的 OCR、复杂表格/图像理解单列后续范围，不把文字提取成功说成完整理解文档。",
+            "chunkId": "9b99a905-fc9a-4691-929c-64aa309d0f45",
+            "heading": "5.1 先补按需读取，不先扩张解析种类",
+            "filename": "文档正文",
+            "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:24:15.674111Z"
+    },
+    {
+      "id": "20c82458-1875-4e72-88be-0c1d36e168d9",
+      "sequence": 3,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "read_document_section",
+      "input": {
+        "arguments": {
+          "heading": "5.3 检索质量与引用",
+          "maxChars": 3000,
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+          "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83"
+        },
+        "toolCallId": "call_function_mu1bwdek0wgq_2"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "chunkId": "6948cc95-2dd5-40b3-83cf-70ee88659b66",
+              "chunkNo": 13,
+              "content": "- 先建立真实问题集，覆盖精确名词、中文缩写、跨章节约束、相互矛盾的文档、缺失资料和连续追问。\n- 向量检索保留为基线；若精确术语召回不足，再验证 PostgreSQL 内的词面/关键词检索与向量结果融合。中文分词效果必须实测，不直接套英文全文检索设置。\n- 需要邻段才能理解时有界补读相邻章节/块，并保留实际读取范围。\n- 相似度阈值与来源数量按检索模式、embedding 代际及评测调整，不把固定分数当所有模型通用标准。\n- 不先引入独立重排模型；只有评测表明排序确实是主要瓶颈时才加入。\n- 引用校验继续做项目、来源存在性、版本与编号校验；“编号合法”不等于“原文支持结论”，语义支持通过人工标注样本与评测检查。\n- 文档更新/删除、成员被移除时，对旧会话的资料引用和缓存重新鉴权。摘要不能让已撤销资料继续成为可访问事实。\n- 资料内容、文件名、摘要均为不可信数据，不因位于系统提示中的包装块就获得指令权限。",
+              "heading": "5.3 检索质量与引用",
+              "location": {
+                "charFrom": 6599,
+                "charThrough": 7007,
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+              },
+              "fromOffset": 0,
+              "contentHash": "08b6fe708abcb3a7cdf8d1aec24edd2712160f74612f6b1020e1a88f31fd8bd7",
+              "throughOffset": 408
+            }
+          ],
+          "trust": "SOURCE_DATA_ONLY",
+          "hasMore": false,
+          "coverage": "SPECIFIED_RANGE_ONLY",
+          "readChars": 408,
+          "truncated": false,
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+          "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83",
+          "bodyReadable": true,
+          "continuation": null,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "- 先建立真实问题集，覆盖精确名词、中文缩写、跨章节约束、相互矛盾的文档、缺失资料和连续追问。\n- 向量检索保留为基线；若精确术语召回不足，再验证 PostgreSQL 内的词面/关键词检索与向量结果融合。中文分词效果必须实测，不直接套英文全文检索设置。\n- 需要邻段才能理解时有界补读相邻章节/块，并保留实际读取范围。\n- 相似度阈值与来源数量按检索模式、embedding 代际及评测调整，不把固定分数当所有模型通用标准。\n- 不先引入独立重排模型；只有评测表明排序确实是主要瓶颈时才加入。\n- 引用校验继续做项目、来源存在性、版本与编号校验；“编号合法”不等于“原文支持结论”，语义支持通过人工标注样本与评测检查。\n- 文档更新/删除、成员被移除时，对旧会话的资料引用和缓存重新鉴权。摘要不能让已撤销资料继续成为可访问事实。\n- 资料内容、文件名、摘要均为不可信数据，不因位于系统提示中的包装块就获得指令权限。",
+            "chunkId": "6948cc95-2dd5-40b3-83cf-70ee88659b66",
+            "heading": "5.3 检索质量与引用",
+            "filename": "文档正文",
+            "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:24:15.713893Z"
+    },
+    {
+      "id": "b998a52d-619e-4173-881f-9829f42e8301",
+      "sequence": 4,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 9734,
+          "outputTokens": 250
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 5729,
+        "toolCalls": [
+          {
+            "id": "call_yaCR2xig8OHPyoOedG9qnlEE",
+            "name": "read_document_section",
+            "arguments": {
+              "heading": "6.1 工具与服务映射",
+              "maxChars": 2500,
+              "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+              "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83"
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 9734,
+      "completionTokens": 250,
+      "tokenUsageEstimated": false,
+      "latencyMs": 5729,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:24:22.676195Z"
+    },
+    {
+      "id": "8b45f395-9b24-4a70-9d6b-09423bd8c017",
+      "sequence": 5,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "read_document_section",
+      "input": {
+        "arguments": {
+          "heading": "6.1 工具与服务映射",
+          "maxChars": 2500,
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+          "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83"
+        },
+        "toolCallId": "call_yaCR2xig8OHPyoOedG9qnlEE"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "chunkId": "72db85e9-c457-4a33-ab25-9d401149be7c",
+              "chunkNo": 15,
+              "content": "| 建议工具 | 复用的现有能力 | 副作用 |\n| --- | --- | --- |\n| list_task_plans / get_task_plan | TaskPlanQueryService | 只读，分页/按版本读取 |\n| start_task_plan | TaskPlanCommandService.create | 写草稿与生成任务、消耗额度 |\n| get_task_plan_progress | 现有状态与事件查询 | 只读；生成中不高频唤醒模型 |\n| repair_task_plan | 现有 partialRegenerate / repair 服务 | 指定版本和范围的草稿修复 |\n| cancel_task_plan_generation | 现有 cancel | 取消对应 attempt，保留已有草稿 |\n\n一期不提供模型可自行执行的正式规划确认工具。Agent 返回计划卡片和规划页入口，用户在原规划页审阅并确认指定版本，继续调用 TaskPlanConfirmationService。\n\n不得把规划拆成 N 次 create_task_after_approval 来绕过批量依赖校验和事务，也不得新写一套规划引擎。",
+              "heading": "6.1 工具与服务映射",
+              "location": {
+                "charFrom": 7225,
+                "charThrough": 7761,
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+              },
+              "fromOffset": 0,
+              "contentHash": "78d802aaf36617f5b1b63d540873a1bb4cd20b5eb445170f5c189ed86928d099",
+              "throughOffset": 536
+            }
+          ],
+          "trust": "SOURCE_DATA_ONLY",
+          "hasMore": false,
+          "coverage": "SPECIFIED_RANGE_ONLY",
+          "readChars": 536,
+          "truncated": false,
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+          "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83",
+          "bodyReadable": true,
+          "continuation": null,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "| 建议工具 | 复用的现有能力 | 副作用 |\n| --- | --- | --- |\n| list_task_plans / get_task_plan | TaskPlanQueryService | 只读，分页/按版本读取 |\n| start_task_plan | TaskPlanCommandService.create | 写草稿与生成任务、消耗额度 |\n| get_task_plan_progress | 现有状态与事件查询 | 只读；生成中不高频唤醒模型 |\n| repair_task_plan | 现有 partialRegenerate / repair 服务 | 指定版本和范围的草稿修复 |\n| cancel_task_plan_generation | 现有 cancel | 取消对应 attempt，保留已有草稿 |\n\n一期不提供模型可自行执行的正式规划确认工具。Agent 返回计划卡片和规划页入口，用户在原规划页审阅并确认指定版本，继续调用 TaskPlanConfirmationService。\n\n不得把规划拆成 N 次 create_task_after_approval 来绕过批量依赖校验和事务，也不得新写一套规划引擎。",
+            "chunkId": "72db85e9-c457-4a33-ab25-9d401149be7c",
+            "heading": "6.1 工具与服务映射",
+            "filename": "文档正文",
+            "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:24:22.74906Z"
+    },
+    {
+      "id": "bcae6442-aa7d-4da2-bc0c-e53c37882c1b",
+      "sequence": 6,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 10525,
+          "outputTokens": 340
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 6115,
+        "toolCalls": [
+          {
+            "id": "call_yoofoBNolOs8F1aH2V9iWJP9",
+            "name": "read_document_section",
+            "arguments": {
+              "heading": "向 Agent 暴露受项目权限约束的：",
+              "maxChars": 3000,
+              "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+              "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83"
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 10525,
+      "completionTokens": 340,
+      "tokenUsageEstimated": false,
+      "latencyMs": 6115,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:24:30.101721Z"
+    },
+    {
+      "id": "b835b290-8c59-43d8-92c6-2dcab76c2e33",
+      "sequence": 7,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "read_document_section",
+      "input": {
+        "arguments": {
+          "heading": "向 Agent 暴露受项目权限约束的：",
+          "maxChars": 3000,
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+          "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83"
+        },
+        "toolCallId": "call_yoofoBNolOs8F1aH2V9iWJP9"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "chunkId": "d099f49e-3550-4821-b0c3-08adb955ba1d",
+              "chunkNo": 11,
+              "content": "- `list_project_documents`：可搜索、分页的名称、类型、处理状态与可用来源身份。\n- `get_document_outline`：文档标题/章节与可读取范围；没有可靠结构时明确说明。\n- `read_document_section`：指定章节、页范围或连续块范围，受长度限制，有 continuation cursor。\n- 现有 `search_project_knowledge`：按文档范围检索相关证据，返回完整性与来源信息。\n\n模型不得传原始 MinIO 对象键、任意 URL 或 SQL。普通文档目录/已解析正文读取不依赖 embedding 服务可用；向量检索失败与文件不可读是不同状态。\n\n“查某个问题”走检索；“总结整份文档”走提纲和受预算控制的分段读取。若只读了部分内容，明确覆盖范围；超过预算时分批产生摘要，不能把前五个相似块称为全文总结。",
+              "heading": "向 Agent 暴露受项目权限约束的：",
+              "location": {
+                "charFrom": 5682,
+                "charThrough": 6076,
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+              },
+              "fromOffset": 0,
+              "contentHash": "3af586a609be438eb318f81e0275d36bff06730bbfc001a2fde8c61b48968c84",
+              "throughOffset": 394
+            }
+          ],
+          "trust": "SOURCE_DATA_ONLY",
+          "hasMore": false,
+          "coverage": "SPECIFIED_RANGE_ONLY",
+          "readChars": 394,
+          "truncated": false,
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+          "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83",
+          "bodyReadable": true,
+          "continuation": null,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "- `list_project_documents`：可搜索、分页的名称、类型、处理状态与可用来源身份。\n- `get_document_outline`：文档标题/章节与可读取范围；没有可靠结构时明确说明。\n- `read_document_section`：指定章节、页范围或连续块范围，受长度限制，有 continuation cursor。\n- 现有 `search_project_knowledge`：按文档范围检索相关证据，返回完整性与来源信息。\n\n模型不得传原始 MinIO 对象键、任意 URL 或 SQL。普通文档目录/已解析正文读取不依赖 embedding 服务可用；向量检索失败与文件不可读是不同状态。\n\n“查某个问题”走检索；“总结整份文档”走提纲和受预算控制的分段读取。若只读了部分内容，明确覆盖范围；超过预算时分批产生摘要，不能把前五个相似块称为全文总结。",
+            "chunkId": "d099f49e-3550-4821-b0c3-08adb955ba1d",
+            "heading": "向 Agent 暴露受项目权限约束的：",
+            "filename": "文档正文",
+            "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:24:30.18266Z"
+    },
+    {
+      "id": "f25f5e8e-95f5-4b04-9ef0-62fe5ccfe54d",
+      "sequence": 8,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 11265,
+          "outputTokens": 618
+        },
+        "content": "**来源**：主蓝图《ai-collab下一阶段主蓝图》snapshot `bea5454c…`（READY，originalContentHash 9216932a…）。本轮只读 5.1（chunk 10，char 5572–5659）、工具暴露清单（chunk 11，char 5682–6076，全文）、5.3（chunk 13，char 6599–7007，DETERMINISTIC 投影，未全读）、6.1（chunk 15，投影，未全读）。目录其余章节未读。\n\n**分页检索能支持的结论**\n- 只能支持\"某处可能存在相关证据\"：`list_project_documents` 是可搜索、可分页的目录，`search_project_knowledge` 返回相关证据与来源信息，`list_tasks` 稳定排序＋nextCursor 分页（chunk 4 记：`TaskListAgentTool` 现有上限 50 项且无标题搜索/续页参数）。\n- 可支持：命中块的字面内容、定位（documentId/snapshotId/chunk）、来源身份、可读取范围。\n- **不能支持**：全库无遗漏、语义完整性、约束是否被违反。\n\n**分段通读能支持的结论**\n- `get_document_outline` 给出章节与可读范围（结构不可靠时须明说）；`read_document_section` 按章节或连续块读取、有 continuation cursor，覆盖范围可核对。\n- **只能支持已覆盖区间**；超预算须分批摘要，\"不能把前五个相似块称为全文总结\"（chunk 11 原文）。\n\n**风险**：5.3 投影未全读，检索阈值/代际调整口径未确认；分页 totalCount 也可能投影，需缩小范围重查。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 15705,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "**来源**：主蓝图《ai-collab下一阶段主蓝图》snapshot `bea5454c…`（READY，originalContentHash 9216932a…）。本轮只读 5.1（chunk 10，char 5572–5659）、工具暴露清单（chunk 11，char 5682–6076，全文）、5.3（chunk 13，char 6599–7007，DETERMINISTIC 投影，未全读）、6.1（chunk 15，投影，未全读）。目录其余章节未读。\n\n**分页检索能支持的结论**\n- 只能支持\"某处可能存在相关证据\"：`list_project_documents` 是可搜索、可分页的目录，`search_project_knowledge` 返回相关证据与来源信息，`list_tasks` 稳定排序＋nextCursor 分页（chunk 4 记：`TaskListAgentTool` 现有上限 50 项且无标题搜索/续页参数）。\n- 可支持：命中块的字面内容、定位（documentId/snapshotId/chunk）、来源身份、可读取范围。\n- **不能支持**：全库无遗漏、语义完整性、约束是否被违反。\n\n**分段通读能支持的结论**\n- `get_document_outline` 给出章节与可读范围（结构不可靠时须明说）；`read_document_section` 按章节或连续块读取、有 continuation cursor，覆盖范围可核对。\n- **只能支持已覆盖区间**；超预算须分批摘要，\"不能把前五个相似块称为全文总结\"（chunk 11 原文）。\n\n**风险**：5.3 投影未全读，检索阈值/代际调整口径未确认；分页 totalCount 也可能投影，需缩小范围重查。",
+      "promptTokens": 11265,
+      "completionTokens": 618,
+      "tokenUsageEstimated": false,
+      "latencyMs": 15705,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:24:47.091876Z"
+    },
+    {
+      "id": "e1e12d64-55e2-4954-ab85-891601ebb627",
+      "sequence": 9,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "**来源**：主蓝图《ai-collab下一阶段主蓝图》snapshot `bea5454c…`（READY，originalContentHash 9216932a…）。本轮只读 5.1（chunk 10，char 5572–5659）、工具暴露清单（chunk 11，char 5682–6076，全文）、5.3（chunk 13，char 6599–7007，DETERMINISTIC 投影，未全读）、6.1（chunk 15，投影，未全读）。目录其余章节未读。\n\n**分页检索能支持的结论**\n- 只能支持\"某处可能存在相关证据\"：`list_project_documents` 是可搜索、可分页的目录，`search_project_knowledge` 返回相关证据与来源信息，`list_tasks` 稳定排序＋nextCursor 分页（chunk 4 记：`TaskListAgentTool` 现有上限 50 项且无标题搜索/续页参数）。\n- 可支持：命中块的字面内容、定位（documentId/snapshotId/chunk）、来源身份、可读取范围。\n- **不能支持**：全库无遗漏、语义完整性、约束是否被违反。\n\n**分段通读能支持的结论**\n- `get_document_outline` 给出章节与可读范围（结构不可靠时须明说）；`read_document_section` 按章节或连续块读取、有 continuation cursor，覆盖范围可核对。\n- **只能支持已覆盖区间**；超预算须分批摘要，\"不能把前五个相似块称为全文总结\"（chunk 11 原文）。\n\n**风险**：5.3 投影未全读，检索阈值/代际调整口径未确认；分页 totalCount 也可能投影，需缩小范围重查。",
+        "citations": [
+          {
+            "quote": "保留 PDF/DOCX/Markdown/TXT 和现有文件、大小、解析并发限制。扫描 PDF 的 OCR、复杂表格/图像理解单列后续范围，不把文字提取成功说成完整理解文档。",
+            "chunkId": "9b99a905-fc9a-4691-929c-64aa309d0f45",
+            "heading": "5.1 先补按需读取，不先扩张解析种类",
+            "filename": "文档正文",
+            "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+            "pageNumber": null,
+            "similarity": 1.0
+          },
+          {
+            "quote": "- 先建立真实问题集，覆盖精确名词、中文缩写、跨章节约束、相互矛盾的文档、缺失资料和连续追问。\n- 向量检索保留为基线；若精确术语召回不足，再验证 PostgreSQL 内的词面/关键词检索与向量结果融合。中文分词效果必须实测，不直接套英文全文检索设置。\n- 需要邻段才能理解时有界补读相邻章节/块，并保留实际读取范围。\n- 相似度阈值与来源数量按检索模式、embedding 代际及评测调整，不把固定分数当所有模型通用标准。\n- 不先引入独立重排模型；只有评测表明排序确实是主要瓶颈时才加入。\n- 引用校验继续做项目、来源存在性、版本与编号校验；“编号合法”不等于“原文支持结论”，语义支持通过人工标注样本与评测检查。\n- 文档更新/删除、成员被移除时，对旧会话的资料引用和缓存重新鉴权。摘要不能让已撤销资料继续成为可访问事实。\n- 资料内容、文件名、摘要均为不可信数据，不因位于系统提示中的包装块就获得指令权限。",
+            "chunkId": "6948cc95-2dd5-40b3-83cf-70ee88659b66",
+            "heading": "5.3 检索质量与引用",
+            "filename": "文档正文",
+            "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+            "pageNumber": null,
+            "similarity": 1.0
+          },
+          {
+            "quote": "| 建议工具 | 复用的现有能力 | 副作用 |\n| --- | --- | --- |\n| list_task_plans / get_task_plan | TaskPlanQueryService | 只读，分页/按版本读取 |\n| start_task_plan | TaskPlanCommandService.create | 写草稿与生成任务、消耗额度 |\n| get_task_plan_progress | 现有状态与事件查询 | 只读；生成中不高频唤醒模型 |\n| repair_task_plan | 现有 partialRegenerate / repair 服务 | 指定版本和范围的草稿修复 |\n| cancel_task_plan_generation | 现有 cancel | 取消对应 attempt，保留已有草稿 |\n\n一期不提供模型可自行执行的正式规划确认工具。Agent 返回计划卡片和规划页入口，用户在原规划页审阅并确认指定版本，继续调用 TaskPlanConfirmationService。\n\n不得把规划拆成 N 次 create_task_after_approval 来绕过批量依赖校验和事务，也不得新写一套规划引擎。",
+            "chunkId": "72db85e9-c457-4a33-ab25-9d401149be7c",
+            "heading": "6.1 工具与服务映射",
+            "filename": "文档正文",
+            "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+            "pageNumber": null,
+            "similarity": 1.0
+          },
+          {
+            "quote": "- `list_project_documents`：可搜索、分页的名称、类型、处理状态与可用来源身份。\n- `get_document_outline`：文档标题/章节与可读取范围；没有可靠结构时明确说明。\n- `read_document_section`：指定章节、页范围或连续块范围，受长度限制，有 continuation cursor。\n- 现有 `search_project_knowledge`：按文档范围检索相关证据，返回完整性与来源信息。\n\n模型不得传原始 MinIO 对象键、任意 URL 或 SQL。普通文档目录/已解析正文读取不依赖 embedding 服务可用；向量检索失败与文件不可读是不同状态。\n\n“查某个问题”走检索；“总结整份文档”走提纲和受预算控制的分段读取。若只读了部分内容，明确覆盖范围；超过预算时分批产生摘要，不能把前五个相似块称为全文总结。",
+            "chunkId": "d099f49e-3550-4821-b0c3-08adb955ba1d",
+            "heading": "向 Agent 暴露受项目权限约束的：",
+            "filename": "文档正文",
+            "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:24:47.168577Z"
+    }
+  ],
+  "answer": {
+    "id": "5bb9f567-7684-4b2b-b7a9-ba2729863be4",
+    "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "runId": "22082ef8-f694-4b15-a269-13461099cdd7",
+    "role": "ASSISTANT",
+    "content": "**来源**：主蓝图《ai-collab下一阶段主蓝图》snapshot `bea5454c…`（READY，originalContentHash 9216932a…）。本轮只读 5.1（chunk 10，char 5572–5659）、工具暴露清单（chunk 11，char 5682–6076，全文）、5.3（chunk 13，char 6599–7007，DETERMINISTIC 投影，未全读）、6.1（chunk 15，投影，未全读）。目录其余章节未读。\n\n**分页检索能支持的结论**\n- 只能支持\"某处可能存在相关证据\"：`list_project_documents` 是可搜索、可分页的目录，`search_project_knowledge` 返回相关证据与来源信息，`list_tasks` 稳定排序＋nextCursor 分页（chunk 4 记：`TaskListAgentTool` 现有上限 50 项且无标题搜索/续页参数）。\n- 可支持：命中块的字面内容、定位（documentId/snapshotId/chunk）、来源身份、可读取范围。\n- **不能支持**：全库无遗漏、语义完整性、约束是否被违反。\n\n**分段通读能支持的结论**\n- `get_document_outline` 给出章节与可读范围（结构不可靠时须明说）；`read_document_section` 按章节或连续块读取、有 continuation cursor，覆盖范围可核对。\n- **只能支持已覆盖区间**；超预算须分批摘要，\"不能把前五个相似块称为全文总结\"（chunk 11 原文）。\n\n**风险**：5.3 投影未全读，检索阈值/代际调整口径未确认；分页 totalCount 也可能投影，需缩小范围重查。",
+    "citations": [
+      {
+        "quote": "保留 PDF/DOCX/Markdown/TXT 和现有文件、大小、解析并发限制。扫描 PDF 的 OCR、复杂表格/图像理解单列后续范围，不把文字提取成功说成完整理解文档。",
+        "chunkId": "9b99a905-fc9a-4691-929c-64aa309d0f45",
+        "heading": "5.1 先补按需读取，不先扩张解析种类",
+        "filename": "文档正文",
+        "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+        "pageNumber": null,
+        "similarity": 1.0
+      },
+      {
+        "quote": "- 先建立真实问题集，覆盖精确名词、中文缩写、跨章节约束、相互矛盾的文档、缺失资料和连续追问。\n- 向量检索保留为基线；若精确术语召回不足，再验证 PostgreSQL 内的词面/关键词检索与向量结果融合。中文分词效果必须实测，不直接套英文全文检索设置。\n- 需要邻段才能理解时有界补读相邻章节/块，并保留实际读取范围。\n- 相似度阈值与来源数量按检索模式、embedding 代际及评测调整，不把固定分数当所有模型通用标准。\n- 不先引入独立重排模型；只有评测表明排序确实是主要瓶颈时才加入。\n- 引用校验继续做项目、来源存在性、版本与编号校验；“编号合法”不等于“原文支持结论”，语义支持通过人工标注样本与评测检查。\n- 文档更新/删除、成员被移除时，对旧会话的资料引用和缓存重新鉴权。摘要不能让已撤销资料继续成为可访问事实。\n- 资料内容、文件名、摘要均为不可信数据，不因位于系统提示中的包装块就获得指令权限。",
+        "chunkId": "6948cc95-2dd5-40b3-83cf-70ee88659b66",
+        "heading": "5.3 检索质量与引用",
+        "filename": "文档正文",
+        "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+        "pageNumber": null,
+        "similarity": 1.0
+      },
+      {
+        "quote": "| 建议工具 | 复用的现有能力 | 副作用 |\n| --- | --- | --- |\n| list_task_plans / get_task_plan | TaskPlanQueryService | 只读，分页/按版本读取 |\n| start_task_plan | TaskPlanCommandService.create | 写草稿与生成任务、消耗额度 |\n| get_task_plan_progress | 现有状态与事件查询 | 只读；生成中不高频唤醒模型 |\n| repair_task_plan | 现有 partialRegenerate / repair 服务 | 指定版本和范围的草稿修复 |\n| cancel_task_plan_generation | 现有 cancel | 取消对应 attempt，保留已有草稿 |\n\n一期不提供模型可自行执行的正式规划确认工具。Agent 返回计划卡片和规划页入口，用户在原规划页审阅并确认指定版本，继续调用 TaskPlanConfirmationService。\n\n不得把规划拆成 N 次 create_task_after_approval 来绕过批量依赖校验和事务，也不得新写一套规划引擎。",
+        "chunkId": "72db85e9-c457-4a33-ab25-9d401149be7c",
+        "heading": "6.1 工具与服务映射",
+        "filename": "文档正文",
+        "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+        "pageNumber": null,
+        "similarity": 1.0
+      },
+      {
+        "quote": "- `list_project_documents`：可搜索、分页的名称、类型、处理状态与可用来源身份。\n- `get_document_outline`：文档标题/章节与可读取范围；没有可靠结构时明确说明。\n- `read_document_section`：指定章节、页范围或连续块范围，受长度限制，有 continuation cursor。\n- 现有 `search_project_knowledge`：按文档范围检索相关证据，返回完整性与来源信息。\n\n模型不得传原始 MinIO 对象键、任意 URL 或 SQL。普通文档目录/已解析正文读取不依赖 embedding 服务可用；向量检索失败与文件不可读是不同状态。\n\n“查某个问题”走检索；“总结整份文档”走提纲和受预算控制的分段读取。若只读了部分内容，明确覆盖范围；超过预算时分批产生摘要，不能把前五个相似块称为全文总结。",
+        "chunkId": "d099f49e-3550-4821-b0c3-08adb955ba1d",
+        "heading": "向 Agent 暴露受项目权限约束的：",
+        "filename": "文档正文",
+        "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+        "pageNumber": null,
+        "similarity": 1.0
+      }
+    ],
+    "inferences": [],
+    "createdAt": "2026-10-04T03:24:47.168577Z"
+  },
+  "scenario": "real-requirements-6",
+  "session": {
+    "id": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "真实需求24轮约束与目标验收",
+    "status": "ACTIVE",
+    "version": 6,
+    "createdAt": "2026-10-04T03:20:40.014288Z",
+    "updatedAt": "2026-10-04T03:24:04.25375Z"
+  },
+  "executionDate": "2026-10-04",
+  "prompt": "读取蓝图中任务搜索和文档按需读取的章节，说明分页检索与通读正文各能支持什么结论。附实际来源。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。"
+}

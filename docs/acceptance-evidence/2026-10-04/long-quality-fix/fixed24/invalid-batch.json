@@ -1,0 +1,6 @@
+{
+  "status": "INVALID_FOR_FIXED_24_ACCEPTANCE",
+  "completedTurns": 3,
+  "reason": "FAILED_RETRYABLE was initially treated as terminal by harness; following turn submitted before durable retry completed",
+  "preserved": "Original run and recovery evidence retained; no duplicate submission; later fresh batches wait for durable terminal status"
+}

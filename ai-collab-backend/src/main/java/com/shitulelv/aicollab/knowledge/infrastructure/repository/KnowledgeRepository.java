@@ -53,6 +53,9 @@ public class KnowledgeRepository {
     public List<KnowledgeMessageEntity> listMessages(UUID projectId, UUID sessionId, UUID userId) {
         return messages.listOwn(projectId, sessionId, userId);
     }
+    public List<KnowledgeMessageEntity> recentContext(UUID projectId, UUID sessionId, UUID userId) {
+        return messages.recentContext(projectId, sessionId, userId);
+    }
     public List<KnowledgeCitationEntity> listCitations(UUID projectId, UUID sessionId, UUID userId) {
         return citations.listOwn(projectId, sessionId, userId);
     }

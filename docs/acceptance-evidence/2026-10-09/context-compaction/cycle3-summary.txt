@@ -1,0 +1,102 @@
+已确认发现
+
+一、项目文档清单（tool=list_project_documents，TOOL_FACT，status=TOOL_SUCCESS）
+- 返回 items 共 6 条，`total=6`、`hasMore=false`、`truncated=false`、`nextCursor=null`：该项目下"可见文档清单"未被分页截断（仅指该次列举结果完整，不代表任何文档正文已读）。
+- 三份"放大版"：
+  - 数据报表口径手册-放大版.md — documentId `246f8cf6-3ce4-4f57-88a9-c0309adbd053`，snapshotId `6a5f594e-9a7f-4e45-88e1-bcb03fa0e2d8`，originalContentHash `38a050bd…70c5b`
+  - 客户成功服务规范-放大版.md — documentId `436876f7-ed23-41b3-8518-30f333a7138a`，snapshotId `b837f812-cba4-4453-bd1e-c851c7fe959a`，originalContentHash `34f911b7…4c212f3`
+  - 团队协作平台运维手册-放大版.md — documentId `b5a90861-1a11-46b0-8ddf-9571167f3a24`，snapshotId `eac99af3-6673-4bca-b3f0-18515e978b6d`，originalContentHash `29f477c553df2dd973eb743932fb2c8781268ae503ea0897a64a325e689a360d`
+- 三份非放大版（同一手册的普通版本，内容是否等同未做任何比对）：
+  - 客户成功服务规范.md — documentId `9863651e-68cc-452a-92e6-897ab8a63f87`，snapshotId `7af02ec2-8fb1-4044-9e5a-2a089d2702a5`，originalContentHash `b805cb0c…aed4ca`
+  - 团队协作平台运维手册.md — documentId `b409737f-50c5-4112-88be-da99f0e1a008`，snapshotId `a77194c9-1a34-449d-af2c-d7762d01bb73`，originalContentHash `09d1724a…fd6ed8ce`
+  - 数据报表口径手册.md — documentId `ea343a5e-b7b5-4e1a-9766-d9fb4dda0425`，snapshotId `a1ce66a9-7d04-402d-b6af-609bd5c374b4`，originalContentHash `c5ee00ba…f7b2710c`
+- 全部 6 份文档共有属性：`processingStatus=READY`、`bodyReadable=true`、`searchAvailable=true`、`failureStage=null`、`legacySource=false`、`parseVersion="tika-page-clean-v2/chunk-offset-v2"`、`recordVersion=0`。
+
+二、三份"放大版"文档的大纲（tool=get_document_outline，三次 TOOL_FACT，status=TOOL_SUCCEEDED，均 `structure="HEURISTIC_HEADINGS"`、`truncated=false`、`citations=[]`、`inferences=[]`）
+- 团队协作平台运维手册-放大版（documentId `b5a90861-1a11-46b0-8ddf-9571167f3a24`）：共 30 个 section。chunk 0 "团队协作平台运维手册"（文档标题）；chunk 1 "第 1 页：API 使用限制"；chunk 2 "团队管理员可以在管理后台为特定用户申请限流提额。提额审批通过后，该用户的限流上限"（标题文本即正文片段，句子未完）；chunk 3 "数据导入"；chunk 4 "导入过程中系统逐行校验，失败行会在导入报告中逐条列出。当整批失败率超过 2% 时，"（未完）；chunk 5 "第 2 页：密钥管理"；chunk 6 "部署纪律"；chunk 7 "第 3 页：故障处置"；chunk 8 "备份策略"。之后20 个"附录段"：附录段 1 = chunk 9–13；2 = 14–18；3 = 19–23；4 = 24–28；5 = 29–33；6 = 34–38；7 = 39–43；8 = 44–48；9 = 49–53；10 = 54–58；11 = 59–63；12 = 64–68；13 = 69–73；14 = 74–78；15 = 79–83；16 = 84–88；17 = 89–93；18 = 94–98；19 = 99–103；20 = 104–108（through_chunk=108）。
+- 客户成功服务规范-放大版（documentId `436876f7-ed23-41b3-8518-30f333a7138a`）：共 30 个 section。chunk 0 "客户成功服务规范"；chunk 1 "第 1 页：响应时限"；chunk 2 "付费客户的工单响应时限提升为 1 小时，且按 7×24 计时，不受工作时段限制。该承诺仅"（未完）；chunk 3 "故障分级"；chunk 4 "第 2 页：记录与留存"；chunk 5 "自 2026-09-01 起，企业套餐客户的证据保留期提升为 365 天。该条款仅适用于企业套餐"（未完）；chunk 6 "交接规则"；chunk 7 "回访"；chunk 8 "升级路径"；chunk 9 "服务资源"。附录段 1 = chunk 10–14；2 = 15–19；3 = 20–24；4 = 25–29；5 = 30–34；6 = 35–39；7 = 40–44；8 = 45–49；9 = 50–54；10 = 55–59；11 = 60–64；12 = 65–69；13 = 70–74；14 = 75–79；15 = 80–84；16 = 85–89；17 = 90–94；18 = 95–99；19 = 100–104；20 = 105–109（through_chunk=109）。
+- 数据报表口径手册-放大版（documentId `246f8cf6-3ce4-4f57-88a9-c0309adbd053`）：共 31 个 section。chunk 0 "数据报表口径手册"；chunk 1 "第 1 页：活跃用户"；chunk 2 "运营报表的活跃用户口径为：当日产生任何事件（含页面浏览、点击）的用户。该口径自"（未完）；chunk 3 "时区"；chunk 4 "自 2026-03 起，海外节点（新加坡、法兰克福）单独出表，使用节点当地时间。海外节点"（未完）；chunk 5 "第 2 页：GMV"；chunk 6 "财务对账报表的 GMV 为净口径：剔除退款后的实际成交金额。该口径仅用于财务对账，"（未完）；chunk 7 "出数时间"；chunk 8 "第 3 页：归因"；chunk 9 "自 2026-05 起，新客报表的归因窗口调整为 14 天（同样从最后一次点击起算）；老客报表"（未完）；chunk 10 "运维"。附录段 1 = chunk 11–15；2 = 16–20；3 = 21–25；4 = 26–30；5 = 31–35；6 = 36–40；7 = 41–45；8 = 46–50；9 = 51–55；10 = 56–60；11 = 61–65；12 = 66–70；13 = 71–75；14 = 76–80；15 = 81–85；16 = 86–90；17 = 91–95；18 = 96–100；19 = 101–105；20 = 106–110（through_chunk=110）。
+
+三、三份放大版文档的结构共性（由上述大纲直接可得）
+- 每份均为"标题 + 按页组织的小节（每个小节标题常与紧随其后的一句正文片段成对出现）+ 20 个等长附录段（每段 5 个 chunk）"；正文主体 chunk 数 9–11，附录占绝大多数 chunk（每份约 100 个 chunk）。
+- 三份手册正文主题彼此不同且不重叠（运维类 / 客户服务类 / 数据口径类）；轨迹中尚未出现跨文档交叉引用或冲突点。
+
+四、团队协作平台运维手册-放大版正文分块读取（唯一一次正文读取）
+来源：STEP `74ac629a-3edd-43ae-9a09-facdea84afdd`，seq=8，tool=read_document_section，TOOL_FACT，status=SUCCEEDED；documentId `b5a90861-1a11-46b0-8ddf-9571167f3a24`，snapshotId `eac99af3-6673-4bca-b3f0-18515e978b6d`；返回 `trust="SOURCE_DATA_ONLY"`、`coverage="SPECIFIED_RANGE_ONLY"`、`readChars=24000`、`truncated=true`、`hasMore=true`、`continuation={fromChunk:31, fromOffset:76, snapshotId: eac99af3-…}`、`bodyReadable=true`、`searchAvailable=true`、`processingStatus=READY`、`failureStage=null`、`legacySource=false`、`parseVersion="tika-page-clean-v2/chunk-offset-v2"`、`recordVersion=0`、`originalContentHash` 与清单一致。返回 items 为 chunkNo 1–31（坐标 `offsetCoordinate="CLEANED_TEXT_UTF16_V2"`，正文起于 charFrom=70，即大纲中的 chunk 0 标题块未包含在本次返回内）。返回 citations 共覆盖这些 chunk，`filename="文档正文"`、`pageNumber=null`、`similarity=1.0`。
+
+正文条款（chunk 1–8，heading 字段仍为启发式标题，与正文句对）：
+- chunk 1（chunkId `54daaaa7-a6c4-4338-aad8-c5aaeb760ea6`，heading "第 1 页：API 使用限制"，charFrom 70–charThrough 178）："自 2026-06-01 起，Public API（含个人访问令牌）对每个用户实施默认限流 100 req/min。限流按用户维度统计，不按 IP 维度统计；超出后返回 429 并附带 Retry-After 头。"
+- chunk 2（chunkId `22b4ea07-1dee-413a-b96f-1ab5370dff85`，heading 为前半句，charFrom 221–280）："提升为 120 req/min。提额仅对申请时指定的用户生效，不能对整个团队批量生效；普通用户无法自行发起提额申请。"
+- chunk 3（chunkId `0a38376b-63f1-4b1f-af10-cbef64fdcb9c`，heading "数据导入"，charFrom 292–391）："批量导入功能单次最多支持 5000 条记录。导入文件仅支持 CSV 格式，编码必须为 UTF-8 且不带 BOM；Excel 的 .xlsx 文件不被导入接口接受。超过 5000 条的批次必须拆分。"
+- chunk 4（chunkId `12051d51-8d60-4b87-961e-9f90a3e2b801`，charFrom 435–471）："系统拒绝整批导入并要求修正后重试；失败率以单批 5000 条为分母计算。"
+- chunk 5（chunkId `f7558947-e5b1-45c3-af3b-8c13c505b196`，heading "第 2 页：密钥管理"，charFrom 488–573）："生产环境的 API 密钥必须每 180 天轮换一次。轮换窗口为到期前 7 天，逾期未轮换的密钥将被自动禁用。测试环境与开发环境的密钥不强制轮换，但建议至少每年更换一次。"
+- chunk 6（chunkId `8430a995-651f-48c7-8569-b45b0fff2d27`，heading "部署纪律"，charFrom 585–714）："同一 Helm chart 在同一集群内不得同时存在两个 release。历史事故表明，双 release 会导致数据库迁移脚本双跑，产生不可逆的 schema 冲突。发布前必须确认旧 release 已完全删除，包括级联的服务与 ingress 资源。"
+- chunk 7（chunkId `c4ea4b3a-aee8-497e-bcf5-44ec709f4150`，heading "第 3 页：故障处置"，charFrom 731–830）："数据库迁移失败时，必须先回滚当前 release，再修复迁移脚本。顺序不能颠倒：先修脚本会导致部分节点已经应用了半成品迁移，产生 schema 漂移；回滚后再修复可以保证所有节点从同一基线重放。"
+- chunk 8（chunkId `abd17320-297f-420a-a222-24a19ef031e8`，heading "备份策略"，charFrom 842–944）："全量备份每周日 02:00 执行一次，备份数据保留 90 天。手动触发的备份同样写入备份存储，但不占用 90 天保留窗口的自动清理名额，需要运维手动管理。恢复演练每季度进行一次，演练结果记入运维台账。"
+
+附录部分（chunk 9–31，heading 为"附录段 1"–"附录段 5"）：
+- 内容形态：全部为同格式的运维值班巡检日志行，每行形如"<日期> <时间> INFO 运维值班例行巡检：各服务健康检查通过，队列深度正常，无待处理告警。批次记录 OPS-LOG-N，处理人按月度值班表轮换，处置口径以本手册既有章节为准，本日志不新增任何规则或数值。"；日期时间字符串存在明显畸形（如 `2026-02-2 02:7:00`、`2026-03-3 03:14:00`、`2026-09-9 09:56:00`），月份/日数与小时不补零；行首偶有残留字符（如 `O 运维值班…`）。
+- 编号范围：本次读取覆盖 OPS-LOG-1 至 OPS-LOG-40（OPS-LOG-1 出现在附录段 1 的首 chunk，OPS-LOG-40 出现在附录段 1–5 各段的末 chunk）；不同 chunk 边界处存在同一日志行跨 chunk 重复（如 OPS-LOG-10、OPS-LOG-19、OPS-LOG-28、OPS-LOG-37 同时出现在相邻两个 chunk 的首尾）。
+- 高度重复性（contentHash 证据）：附录段 1 的 chunk 9–13 与附录段 2 的 chunk 14–18、附录段 3 的 chunk 19–23、附录段 4 的 chunk 24–28、附录段 5 的 chunk 29–31 分别出现相同的 contentHash：`8b4d692e…a28a22`、`de59711a…9e59`、`0fd49a5e…a7626`、`0b812bff…b05db85`、`955b1ac8…35c5c5`（附录段 1 与附录段 2 的前四个亦相同），说明这五个附录段的正文是同一批日志的重复副本。
+- 截断点：chunk 31（chunkId `0c87c46a-95f7-4908-ad86-c7b2b4792964`，heading "附录段 5"）只返回到 `处置口径以本手册既有章节为准，`（throughOffset=76），句子在读取边界处中断。
+- 这些日志行本身声明"本日志不新增任何规则或数值"，本次读取范围内未见附录覆盖或修改正文 chunk 1–8 条款的表述。
+
+五、本段新增轨迹内容
+- 本段轨迹在摘要输入中仅呈现一个被截断的片段 `es":[]}`：其结构上像是某个 JSON 字段（如 `…citations":[]}` / `…inferences":[]}` 一类空数组字段）的尾部残片，缺少字段名前缀、所属工具名、调用参数与返回主体，无法与任何已知调用结果对应。
+- 因此本段未产生任何可确认的新增发现：既不能确认为新的工具调用事实，也不能据此判定某文档"无引用/无推断"或某次检索"未命中"。该片段不改变也不升级此前任何结论。
+- 此前 seq=8 的运维手册正文读取仍是轨迹中最后一次有实质内容的事件；本段未出现续读（`fromChunk=31, fromOffset=76`）调用，也未出现对客户成功手册或数据报表手册的任何读取、检索调用。
+
+关键数据与条件
+
+- 团队协作手册正文（已由正文分块读取确认，chunkId 见上）：
+  - API 限流：自 2026-06-01 起生效；默认 100 req/min，按用户维度（非 IP）统计；超限返回 429 并带 Retry-After 头。
+  - 限流提额：审批通过后提升为 120 req/min；仅对申请时指定的用户生效，不能团队批量生效；普通用户不能自行发起申请；申请入口为团队管理员在管理后台。
+  - 批量导入：单次上限 5000 条；仅 CSV，UTF-8 且不带 BOM；.xlsx 不被接受；超过 5000 条必须拆分；整批失败率超过 2% 时系统拒绝整批导入并要求修正后重试；失败率以单批 5000 条为分母；失败行逐条列于导入报告（逐行校验）。
+  - 密钥管理：生产环境 API 密钥每 180 天轮换一次，轮换窗口为到期前 7 天，逾期自动禁用；测试/开发环境不强制轮换，建议至少每年更换一次。
+  - 部署纪律：同一 Helm chart 在同一集群内不得同时存在两个 release（历史事故：双 release 导致数据库迁移脚本双跑、产生不可逆 schema 冲突）；发布前必须确认旧 release 已完全删除，含级联的服务与 ingress 资源。
+  - 故障处置顺序：数据库迁移失败时先回滚当前 release，再修复迁移脚本；顺序不可颠倒（先修脚本会导致部分节点应用半成品迁移、产生 schema 漂移；回滚后修复可保证所有节点从同一基线重放）。
+  - 备份策略：全量备份每周日 02:00 执行一次；备份数据保留 90 天；手动触发备份同样写入备份存储，但不占用 90 天保留窗口的自动清理名额，需运维手动管理；恢复演练每季度一次，结果记入运维台账。
+- 仍只来自大纲启发式标题（尚未通过正文读取验证，故其未完句的缺口依旧成立）：客户成功侧的 1 小时 / 7×24 响应时限（"该承诺仅…"范围未显示）、自 2026-09-01 起企业套餐 365 天证据保留期（限定后半句未显示）；数据口径侧的活跃用户口径生效起点（"该口径自…"）、自 2026-03 起海外节点（新加坡、法兰克福）单独出表用当地时间（后续未显示）、自 2026-05 起新客报表归因窗口 14 天（老客报表口径未显示）、GMV 净口径限定后半句。
+- 结构性/读取条件：文档清单 `total=6`、无分页；三份 outline 均 `HEURISTIC_HEADINGS`、`truncated=false`（三者 citations 与 inferences 均为空数组）；本次 read 返回 `coverage=SPECIFIED_RANGE_ONLY`、`readChars=24000`、`truncated=true`、`hasMore=true`，续读游标 `fromChunk=31, fromOffset=76`；所有文档 `searchAvailable=true`（具备检索条件，但轨迹中仍未发起任何检索调用）。
+
+已做决定与理由
+
+- 轨迹实际动作序列：list_project_documents → 对三份"放大版"各 get_document_outline → 对"团队协作平台运维手册-放大版"执行一次 read_document_section（正文分块读取），即三份手册中目前只有运维手册进入正文读取阶段；此后（含本段）无新的有效调用。
+- STEP 1（[ASSISTANT_UNVERIFIED]）曾自述计划："I'll start by locating the three manuals and inspecting their structure."；STEP 3 与 STEP 7 为空的模型回合，无结论与工具调用。本次 seq=8 的正文读取未附任何模型说明文本；本段新增片段亦无模型说明文本或可辨识的决策陈述。
+- 未出现选择"放大版"而跳过三份普通版（`b409737f…`、`9863651e…`、`ea343a5e…`）的显式理由，也未出现选择先读运维手册的显式理由；这些选择只体现在调用参数中，不得推断依据。
+- 本次读取选择了固定范围（一次调用覆盖 chunkNo 1–31，约 24000 字符）而非逐段小步读取；`continuation` 已给出续读位置，但轨迹在此后未再续读。
+
+用户更正
+
+（材料中未出现用户发言，也未出现对模型陈述的更正。）
+
+来源定位
+
+- 文档清单事实 → tool=list_project_documents 的一次返回（total=6，无分页）。
+- 三份放大版结构 → get_document_outline：运维手册-放大版 documentId `b5a90861-1a11-46b0-8ddf-9571167f3a24` / snapshotId `eac99af3-…`（正文 chunk 0–8，附录段 1–20 对应 chunk 9–108）；客户成功服务规范-放大版 `436876f7-ed23-41b3-8518-30f333a7138a` / `b837f812-…`（正文 chunk 0–9，附录 chunk 10–109）；数据报表口径手册-放大版 `246f8cf6-3ce4-4f57-88a9-c0309adbd053` / `6a5f594e-…`（正文 chunk 0–10，附录 chunk 11–110）。这三处文本均来自 outline 的 heading 字段（HEURISTIC_HEADINGS），不是正文分块读取结果。
+- 运维手册正文条款 → read_document_section(documentId `b5a90861-1a11-46b0-8ddf-9571167f3a24`, snapshotId `eac99af3-6673-4bca-b3f0-18515e978b6d`)，STEP `74ac629a-3edd-43ae-9a09-facdea84afdd` seq=8，返回 items chunkNo 1–31，对应 chunkId：
+  - chunk 1 `54daaaa7-a6c4-4338-aad8-c5aaeb760ea6`
+  - chunk 2 `22b4ea07-1dee-413a-b96f-1ab5370dff85`
+  - chunk 3 `0a38376b-63f1-4b1f-af10-cbef64fdcb9c`
+  - chunk 4 `12051d51-8d60-4b87-961e-9f90a3e2b801`
+  - chunk 5 `f7558947-e5b1-45c3-af3b-8c13c505b196`
+  - chunk 6 `8430a995-651f-48c7-8569-b45b0fff2d27`
+  - chunk 7 `c4ea4b3a-aee8-497e-bcf5-44ec709f4150`
+  - chunk 8 `abd17320-297f-420a-a222-24a19ef031e8`
+  - 附录段 1：chunk 9 `ea736a9b-fb56-4878-8443-702e22dcfac0`、10 `ecf891dc-d4cb-4f7a-b228-8534f81f2e64`、11 `7716f6a5-5ebc-44be-b9eb-7a8e5f6a6a0c`、12 `b97749cf-c3ce-4cd1-8dfc-256f2f8b1ce6`、13 `4d19dc65-0047-4e5d-9f75-acba52f5687b`
+  - 附录段 2：chunk 14 `255f7b99-bdde-4682-a2b3-569939a378a6`、15 `a5b83a97-fee6-4119-af3c-8de74a1c0b7c`、16 `0afaca9b-ad57-415e-98c2-ca07f08b8855`、17 `bed419ed-e2ea-4c08-8d1a-5ede51a1af08`、18 `37cc5c3c-7f72-4401-ab00-4cec6558213d`
+  - 附录段 3：chunk 19 `2dd638ef-bbcc-47e2-bad8-505faffde4a4`、20 `0d9d8e8a-d1dd-4a2f-8d46-f4db63cfaf4e`、21 `f7261aef-a80b-45b9-ac6b-cd27a39619d6`、22 `653df0cc-2d27-4ddc-9f64-e3bfaf8bb3c1`、23 `66d944cd-9325-4718-bf5e-17cc2bd1000b`
+  - 附录段 4：chunk 24 `eb7a03d9-445f-4382-bb50-c844d58d75f4`、25 `86e4d407-0796-4359-b2dc-27abcef2cf7d`、26 `cce3341a-eda0-4aa5-bbc3-ac527222026a`、27 `ad360be5-7bee-4dec-8116-a0d18075bdbc`、28 `bb8e38b8-6359-45b1-87e3-8938b5fb9852`
+  - 附录段 5（部分）：chunk 29 `9ed8b38f-10df-4d6c-b402-f890e9bb0e12`、30 `f1568cd3-5a94-4af4-8ff8-493284e9594d`、31 `0c87c46a-95f7-4908-ad86-c7b2b4792964`（末尾被截断）
+  - 上述引用均带 `filename="文档正文"`、`pageNumber=null`、`similarity=1.0`，字符坐标基于 `CLEANED_TEXT_UTF16_V2`。
+- 本段新增片段 `es":[]}` → 来源不可定位：无法归属到任何已知 STEP、tool 或 documentId，不得作为引用依据使用。
+
+未解决问题与缺口
+
+- 运维手册-放大版读取范围不完整：seq=8 返回 `truncated=true`、`hasMore=true`，仅覆盖 chunkNo 1–31（字符 70–22767 区间附近）；chunk 0（文档标题块，charFrom 0 起）不在返回中；chunk 32–108（即大纲中附录段 5 的剩余部分与附录段 6–20）未读，续读需从 `fromChunk=31, fromOffset=76` 开始，此后未再续读。不得据此认为该文档已读完。
+- 客户成功服务规范-放大版与数据报表口径手册-放大版的正文仍未读取，其条款的完整措辞、例外与限定条件全部未确认；两份大纲中多处未完句（1 小时响应承诺的适用客户范围、365 天保留期的套餐限定全文、海外节点出表的后续规定、老客报表归因口径、活跃用户口径生效起始时间、GMV 净口径限定后半句）仍为缺口，不能视为不存在或已确认。
+- 三份普通版文档（团队协作平台运维手册.md、客户成功服务规范.md、数据报表口径手册.md）未获取大纲或正文，与放大版的差异（内容是否重复、同源不同颗粒度、是否存在口径不一致）未知。
+- 文档版本时间、编制/生效主体、与其他制度文件的层级关系未获取（list 与 outline 返回中均无此元数据）；三份手册之间是否存在相互引用、覆盖优先级或冲突点尚未检查。
+- 运维手册正文内部是否存在被附录日志覆盖或例外说明的情形：本次读取范围内（附录段 1–5 的部分内容）未出现此类表述，但附录段 6–20 未读，不能推断全篇附录无覆盖条款。
+- 本段新增的 `es":[]}` 片段无法辨识，若其原属某次调用（例如读取续段或某次 outline/检索），则该调用的完整参数与返回主体在轨迹中仍是不可读的缺口，不能视为"空结果"或"无匹配"。
+- 尚未产生面向用户的答复、结论或交叉对比；轨迹在完成 seq=8 的那一次正文读取之后即进入无可解读内容的状态。

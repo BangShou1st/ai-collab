@@ -121,6 +121,13 @@ public class UserAiProviderService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE));
     }
 
+    public void requireSnapshotAuthorized(UserAiProvider snapshot) {
+        UserAiProvider current = require(snapshot.userId(), snapshot.id());
+        if (!current.enabled() || !java.util.Objects.equals(current.encryptedApiKey(), snapshot.encryptedApiKey()))
+            throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID, "模型配置已停用或凭据已轮换，请重新发起");
+    }
+    public UserAiProvider requireRuntimeConfiguration(UUID userId, UUID id) { return require(userId, id); }
+
     public ChatCompletionResult test(UUID userId, UUID id) {
         UserAiProvider provider = require(userId, id);
         rejectPreset(provider);

@@ -40,7 +40,7 @@ class ZenModelWiringTest {
         assertThat(pol.protocol()).isEqualTo(ModelProviderType.OPENAI_COMPATIBLE);
         assertThat(reg.completionEndpoint(pol)).isEqualTo("https://opencode.ai/zen/v1/chat/completions");
         assertThat(reg.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/zen/v1/models");
-        assertThat(pol.userAgent()).isEqualTo("opencode/1.18.21");
+        assertThat(pol.userAgent()).isEqualTo("opencode/1.18.31 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14");
     }
     @Test void runtimeConfigIgnoresPersistedUrls() {
         ZenModelExecution exec = new ZenModelExecution(new ProviderPresetRegistry(), mapper, new OutboundEndpointPolicy());
@@ -70,14 +70,17 @@ class ZenModelWiringTest {
         var md = AiRequestMetadata.of("sess-123");
         Map<String,String> h = OpenAiCompatibleModelAdapter.headersWithSession("k", md, pol.userAgent());
         assertThat(h.get("User-Agent")).isEqualTo(pol.userAgent());
-        assertThat(h.get("x-opencode-session")).isEqualTo("sess-123");
+        assertThat(h.get("x-opencode-session")).matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
     }
     @Test void sessionHeadersExact() {
         var md = AiRequestMetadata.of("sess-123");
         Map<String,String> h = OpenAiCompatibleModelAdapter.headersWithSession("k", md, "opencode/1.18.21");
         assertThat(h.get("Authorization")).isEqualTo("Bearer k");
         assertThat(h.get("User-Agent")).isEqualTo("opencode/1.18.21");
-        assertThat(h.get("x-opencode-session")).isEqualTo("sess-123");
+        assertThat(h.get("x-opencode-session")).matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
+        var next = OpenAiCompatibleModelAdapter.headersWithSession("k", md, "opencode/1.18.21");
+        assertThat(next.get("x-opencode-session")).isEqualTo(h.get("x-opencode-session"));
+        assertThat(next.get("x-opencode-request")).matches("msg_[0-9a-f]{12}[A-Za-z0-9]{14}").isNotEqualTo(h.get("x-opencode-request"));
         assertThat(h.values().stream().noneMatch(v -> v.contains("k-secret"))).isTrue();
     }
     @Test void catalogOnlyFree() {

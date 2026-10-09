@@ -351,4 +351,109 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
                 VALUES (?,?,?)
                 """, projectId, userId, role);
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    // O5: 旧 detail 结果在"有效性检查通过→提交"之间遭遇取消→重新生成，
+    //     不得借用新一轮身份提交（同步点控制时序，不靠 sleep）
+    // ══════════════════════════════════════════════════════════════════
+
+    @org.junit.jupiter.api.Test
+    void staleDetailResultCannotBorrowNewGenerationIdentityAfterCancelAndRegenerate() {
+        UUID userId = insertUser("o5");
+        UUID projectId = insertProject("O5 Project", userId);
+        insertMember(projectId, userId, "OWNER");
+
+        TaskPlanRecord plan = repository.create(projectId, userId, new CreateTaskPlanRequest(
+                "O5 Plan", "Goal", null, LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), 10, List.of()));
+
+        // 与 runSkeleton 正常路径一致的持久化推进：骨架版本落库 → DETAIL_GENERATING
+        TaskPlanDraft skeleton = new TaskPlanDraft(
+                "Project plan", List.of("Team available"), List.of("Timeline tight"),
+                List.of(new PlanMilestone("m1", "Phase 1", "Design", null,
+                        LocalDate.now().plusDays(20), 0, List.of())),
+                List.of(new PlanTask("t1", "m1", "Task 1", "Do design",
+                        null, null, null, null, null, null, null, List.of(), List.of(), 0)),
+                List.of());
+        UUID skeletonVersion = repository.appendGeneratedVersion(
+                projectId, plan.id(), plan.generationSeq(), plan.activeAttemptId(),
+                TaskPlanStatus.SKELETON_GENERATING, "AI_SKELETON", null, skeleton, userId,
+                validator.validate(repository.validationContext(plan), skeleton, TaskPlanDraftValidator.ValidationMode.AI_SKELETON),
+                TaskPlanStatus.DETAIL_GENERATING);
+        assertThat(skeletonVersion).isNotNull();
+        UUID detailAttempt = repository.startDetailAfterSkeleton(projectId, plan.id(), userId);
+        TaskPlanRecord detailPlan = repository.require(projectId, plan.id());
+        assertThat(detailPlan.status()).isEqualTo(TaskPlanStatus.DETAIL_GENERATING);
+        assertThat(detailPlan.activeAttemptId()).isEqualTo(detailAttempt);
+
+        String detailJson = """
+                {"milestones":[{"tempKey":"m1","description":"Design phase milestone","sourceRefs":[]}],
+                "tasks":[{"tempKey":"t1","description":"Complete design docs","priority":"HIGH",
+                "estimatedHours":8.0,"startDate":"$S","dueDate":"$D",
+                "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
+                """.replace("$S", LocalDate.now().plusDays(2).toString())
+                .replace("$D", LocalDate.now().plusDays(10).toString());
+        String skeletonJson = """
+                {"summary":"Project plan","assumptions":["Team available"],"risks":["Timeline tight"],
+                "milestones":[{"tempKey":"m1","title":"Phase 1","objective":"Design","targetDate":"$TGT","sortOrder":0}],
+                "tasks":[{"tempKey":"t1","milestoneTempKey":"m1","title":"Task 1","objective":"Do design","sortOrder":0}]}
+                """.replace("$TGT", LocalDate.now().plusDays(20).toString());
+
+        TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
+                .thenReturn(new GenerationResult(detailJson, "p", "m", 100, 50, 200));
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+                .thenReturn(new GenerationResult(skeletonJson, "p", "m", 100, 50, 200));
+        TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
+        when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
+                "<PROJECT_DATA>test</PROJECT_DATA>", List.of()));
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
+
+        // 同步点：结果有效性检查已通过、提交开始前，稳定插入"取消→重新生成"。
+        // 此时旧一轮 detail 已生成完毕，新一轮以 generation_seq+1、新 activeAttemptId 运行。
+        // decideStatus 在最后一次有效性检查之后、提交之前执行，旧实现会在此间隙重新读取
+        // 最新规划身份并提交——这正是旧结果借用新一轮身份的窗口。
+        java.util.concurrent.atomic.AtomicBoolean raced = new java.util.concurrent.atomic.AtomicBoolean();
+        GenerationOutcomeDecider hookedDecider = new GenerationOutcomeDecider() {
+            @Override
+            public TaskPlanStatus decideStatus(ValidationAssessment assessment) {
+                if (raced.compareAndSet(false, true)) {
+                    repository.cancel(projectId, plan.id());
+                    repository.startGeneration(projectId, plan.id(), userId, false);
+                }
+                return super.decideStatus(assessment);
+            }
+        };
+
+        // 同步 executor：dispatch 在当前线程完成整个 runDetail
+        TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
+                Runnable::run, repository, modelClient, parser, validator, json, contexts,
+                promptPolicy, hookedDecider, normalizer, commitService);
+
+        orchestrator.dispatch(detailPlan, userId, true);
+
+        assertThat(raced.get()).isTrue();
+        // 旧结果被丢弃：没有产生错误版本，旧 attempt 记为 DISCARDED
+        List<TaskPlanVersionRecord> versions = repository.versions(projectId, plan.id());
+        assertThat(versions).hasSize(1);
+        assertThat(versions.getFirst().sourceType()).isEqualTo("AI_SKELETON");
+        Integer discarded = jdbc.queryForObject(
+                "SELECT count(*) FROM ai_task_plan_attempt WHERE plan_id=? AND status='DISCARDED'",
+                Integer.class, plan.id());
+        assertThat(discarded).isEqualTo(1);
+        // 新一轮未被旧结果改变：仍在 SKELETON_GENERATING，身份是新一轮自己的
+        TaskPlanRecord afterRace = repository.require(projectId, plan.id());
+        assertThat(afterRace.status()).isEqualTo(TaskPlanStatus.SKELETON_GENERATING);
+        assertThat(afterRace.generationSeq()).isGreaterThan(detailPlan.generationSeq());
+        assertThat(afterRace.activeAttemptId()).isNotNull().isNotEqualTo(detailAttempt);
+
+        // 新一轮仍能正常完成
+        orchestrator.dispatch(repository.require(projectId, plan.id()), userId, false);
+        TaskPlanRecord finalPlan = repository.require(projectId, plan.id());
+        assertThat(finalPlan.status())
+                .as(() -> "lastError=" + finalPlan.lastErrorCode() + " / " + finalPlan.lastErrorSummary())
+                .isEqualTo(TaskPlanStatus.READY);
+        assertThat(finalPlan.generationSeq()).isEqualTo(afterRace.generationSeq());
+        assertThat(repository.versions(projectId, plan.id())).hasSize(3);
+    }
 }

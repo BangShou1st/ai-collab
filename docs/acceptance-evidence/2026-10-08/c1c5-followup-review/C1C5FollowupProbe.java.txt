@@ -1,0 +1,182 @@
+package com.shitulelv.aicollab.agent.application.runtime;
+
+import com.fasterxml.jackson.databind.*;
+import com.shitulelv.aicollab.agent.application.view.*;
+import com.shitulelv.aicollab.agent.domain.model.*;
+import com.shitulelv.aicollab.agent.infrastructure.repository.*;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
+import com.shitulelv.aicollab.infrastructure.ai.model.*;
+import com.shitulelv.aicollab.infrastructure.ai.turn.*;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
+import org.mockito.ArgumentCaptor;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import javax.sql.DataSource;
+import java.time.*;
+import java.util.*;
+import java.util.concurrent.*;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
+
+public class C1C5FollowupProbe {
+    private static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules();
+    private static int failures;
+    public static void main(String[] args) throws Exception {
+        probe("partialTailRemainsInActualMainRequest", C1C5FollowupProbe::partialTailRemainsInActualMainRequest);
+        AgentRunContextCommitPostgresTest.POSTGRES.start();
+        try {
+            AgentRunContextCommitPostgresTest.migrate();
+            probe("expiredClaimCannotPublishRunSummary", C1C5FollowupProbe::expiredClaimCannotPublishRunSummary);
+            probe("cancelBetweenCheckAndPublishCannotPublish", C1C5FollowupProbe::cancelBetweenCheckAndPublishCannotPublish);
+        } finally {
+            AgentRunContextCommitPostgresTest.POSTGRES.stop();
+        }
+        System.out.println("Expected-correctness failures=" + failures + "/3");
+        if (failures > 0) System.exit(1);
+    }
+    interface Checked { void run() throws Exception; }
+    private static void probe(String name, Checked action) throws Exception {
+        try { action.run(); System.out.println("PASS " + name); }
+        catch (AssertionError error) { failures++; System.out.println("FAIL " + name + ": " + error.getMessage()); }
+    }
+    private static AgentRunView run() {
+        var now = OffsetDateTime.now();
+        return new AgentRunView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                null, "SUPERVISOR", 0, "Research document", AgentRunStatus.RUNNING,
+                64, 64, 3, null, null, 0, 0, 0, 0, 0, 0, 0, false,
+                false, false, 0, null, null, null, "PROJECT_RESEARCH", 1, 2, false, now, now);
+    }
+    private static void partialTailRemainsInActualMainRequest() {
+        AgentRunView run = run();
+        AgentRepository repository = mock(AgentRepository.class);
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(new ArrayList<>());
+        when(repository.citationsStillValid(any(), any())).thenReturn(true);
+        NativeToolCallingExecutor nativeExecutor = mock(NativeToolCallingExecutor.class);
+        var now = OffsetDateTime.now();
+        var provider = new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), "controlled", ModelProviderType.OPENAI_COMPATIBLE,
+                "https://example.invalid", "/v1/chat/completions", "encrypted", "controlled", true, 0.2, 1024,
+                EnumSet.of(ModelCapability.CHAT, ModelCapability.NATIVE_TOOLS), true, now, now, null);
+        var store = mock(AgentModelConfigurationStore.class);
+        when(store.require(any())).thenReturn(provider);
+        var zen = mock(ZenModelExecution.class);
+        when(zen.isZen(any())).thenReturn(false);
+        var model = new RoutingAgentModelExecutor(nativeExecutor, mock(LegacyReadOnlyAgentExecutor.class), zen, store);
+        var summarizer = new AgentContextSummarizer(repository, model, JSON);
+        var huge = new AgentStepView(UUID.randomUUID(), 1, AgentStepType.TOOL_CALL_COMPLETED,
+                "read_document_section", JSON.createObjectNode().put("toolCallId", "call-1"),
+                JSON.createObjectNode().put("status", "SUCCEEDED").put("content", "x".repeat(80000) + "UNSENT_TAIL_4907"),
+                "TOOL_SUCCESS", null, null, false, null, null, now);
+        var latest = new AgentStepView(UUID.randomUUID(), 2, AgentStepType.MODEL_REQUEST,
+                null, null, null, "latest", null, null, false, null, null, now);
+        when(repository.listSteps(any(), any())).thenReturn(List.of(huge, latest));
+        when(repository.beginRunContextAttempt(any(), anyInt(), anyInt(), anyInt(), anyInt())).thenReturn(UUID.randomUUID());
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any())).thenReturn(
+                new ModelTurnResult("Only the supplied prefix", List.of(), ModelFinishReason.STOP,
+                        new ModelUsage(20000, 15), "controlled", "controlled", 1L));
+        var budget = new AgentContextBudget.Budget(950000, 950000, 256000, 128000,
+                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+        if (!summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true)) {
+            throw new AssertionError("fixture did not produce a partial summary");
+        }
+        var summary = ArgumentCaptor.forClass(JsonNode.class);
+        verify(repository).completeRunContextAttempt(any(), eq("COMMITTED"), anyString(), any(), anyString(), summary.capture(), eq(0));
+        when(repository.latestRunContextSummary(any(), any())).thenReturn(summary.getValue());
+        AgentSkill skill = mock(AgentSkill.class);
+        when(skill.code()).thenReturn("PROJECT_RESEARCH");
+        when(skill.instruction()).thenReturn("Read-only research");
+        when(skill.outputContract()).thenReturn("Evidence and gaps");
+        var ctx = new AgentExecutionContext(run.projectId(), run.sessionId(), run.id(), run.requesterId(),
+                "SUPERVISOR", false, AgentPageContext.empty(), AgentResourcePolicy.v2Limits(0), 0, List.of());
+        var composition = new AgentModelMessageComposer(repository, null, JSON).composeV2(run, ctx, skill,
+                AgentPlan.create(run.goal(), List.of()), List.of(huge, latest), 950000, 1.0, false);
+        if (!composition.messages().toString().contains("UNSENT_TAIL_4907")) {
+            throw new AssertionError("tail missing after partial summary: through=" + summary.getValue().path("sourceThroughSequence")
+                    + ", partialSeq=" + summary.getValue().path("sourcePartialSequence")
+                    + ", partialChars=" + summary.getValue().path("sourcePartialChars"));
+        }
+    }
+    private record Fixture(UUID project, AgentRunView run, UUID attempt) {}
+    private static Fixture fixture() {
+        JdbcTemplate jdbc = AgentRunContextCommitPostgresTest.jdbc;
+        AgentRepository repository = AgentRunContextCommitPostgresTest.repository;
+        UUID user = UUID.randomUUID(), project = UUID.randomUUID();
+        jdbc.update("INSERT INTO app_user(id,username,password_hash,display_name) VALUES (?,?,?,?)", user, "probe-"+user.toString().substring(0, 8), "test-only", "Probe");
+        jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,?,?,?)", project, "isolated-review", user, user);
+        jdbc.update("INSERT INTO project_member(project_id,user_id,role) VALUES (?,?,'OWNER')", project, user);
+        var session = repository.createSession(project, user, "isolated review");
+        var created = repository.createRun(project, session.id(), user, "Research", false, "PROJECT_RESEARCH", null);
+        jdbc.update("UPDATE agent_run SET status='RUNNING',claim_version=1,claim_started_at=now(),lease_expires_at=now()+interval '10 minutes' WHERE id=?", created.id());
+        var run = repository.findRun(project, created.id()).orElseThrow();
+        UUID attempt = repository.beginRunContextAttempt(run, 1, 1, 2, 0);
+        return new Fixture(project, run, attempt);
+    }
+    private static JsonNode summary() {
+        return JSON.createObjectNode().put("scope", "RUN_CONTEXT").put("text", "Test summary")
+                .put("sourceFromSequence", 1).put("sourceThroughSequence", 2).put("goalRevision", 0).put("cycle", 1);
+    }
+    private static UsageSettlement usage() { return new UsageSettlement(1000, 100, "PROVIDER", "PROVIDER", 5L); }
+    private static void complete(AgentRunEventRecorder recorder, UUID attempt) {
+        recorder.completeRunContextAttempt(attempt, "COMMITTED", "controlled", usage(), "probe", summary(), 0);
+    }
+    private static String status(UUID attempt) {
+        return AgentRunContextCommitPostgresTest.jdbc.queryForObject("SELECT output_json->>'status' FROM agent_step WHERE id=?", String.class, attempt);
+    }
+    private static void expiredClaimCannotPublishRunSummary() {
+        Fixture f = fixture();
+        JdbcTemplate jdbc = AgentRunContextCommitPostgresTest.jdbc;
+        jdbc.update("UPDATE agent_run SET lease_expires_at=now()-interval '1 second' WHERE id=?", f.run().id());
+        var tx = new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
+        try (var scope = new AgentLeaseScope(1)) {
+            tx.executeWithoutResult(s -> complete(AgentRunContextCommitPostgresTest.recorder, f.attempt()));
+        }
+        if ("COMMITTED".equals(status(f.attempt()))) {
+            throw new AssertionError("expired claim epoch=1 published COMMITTED; actual input="
+                    + jdbc.queryForObject("SELECT input_tokens_actual FROM agent_run WHERE id=?", Long.class, f.run().id()));
+        }
+    }
+    private static final class GateJdbc extends JdbcTemplate {
+        final CountDownLatch checked = new CountDownLatch(1), publish = new CountDownLatch(1);
+        GateJdbc(DataSource ds) { super(ds); }
+        @Override public List<Map<String,Object>> queryForList(String sql, Object... args) {
+            var result = super.queryForList(sql, args);
+            if (sql.contains("JOIN agent_run r") && sql.contains("goal_revision")) {
+                checked.countDown();
+                try { if (!publish.await(5, TimeUnit.SECONDS)) throw new AssertionError("publish gate timed out"); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new RuntimeException(e); }
+            }
+            return result;
+        }
+    }
+    private static void cancelBetweenCheckAndPublishCannotPublish() throws Exception {
+        Fixture f = fixture();
+        JdbcTemplate jdbc = AgentRunContextCommitPostgresTest.jdbc;
+        var gate = new GateJdbc(jdbc.getDataSource());
+        var recorder = new AgentRunEventRecorder(gate, JSON);
+        var tx = new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
+        var threads = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> publication = threads.submit(() -> {
+                try (var scope = new AgentLeaseScope(1)) {
+                    tx.executeWithoutResult(s -> complete(recorder, f.attempt()));
+                }
+            });
+            if (!gate.checked.await(5, TimeUnit.SECONDS)) throw new AssertionError("fence read was not reached");
+            Future<?> cancellation = threads.submit(() -> jdbc.update("UPDATE agent_run SET cancel_requested_at=now() WHERE id=?", f.run().id()));
+            boolean cancellationCommittedFirst = true;
+            try { cancellation.get(2, TimeUnit.SECONDS); }
+            catch (TimeoutException blockedByCorrectLock) { cancellationCommittedFirst = false; }
+            gate.publish.countDown();
+            publication.get(5, TimeUnit.SECONDS);
+            cancellation.get(5, TimeUnit.SECONDS);
+            if (cancellationCommittedFirst && "COMMITTED".equals(status(f.attempt()))) {
+                throw new AssertionError("cancel committed after fence read, before publication; summary still COMMITTED");
+            }
+        } finally {
+            gate.publish.countDown();
+            threads.shutdownNow();
+            threads.awaitTermination(5, TimeUnit.SECONDS);
+        }
+    }
+}

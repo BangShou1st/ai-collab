@@ -1,0 +1,36 @@
+{
+  "codeVersion": "92cedb8df0134181cda6bf374a3eefbb95b565f4",
+  "overall": "NOT_PASSED",
+  "transportSkeleton": "PASS",
+  "finalDraftStrictValidation": "PASS_WITH_UNASSIGNED_WARNINGS",
+  "budget": "FAIL_ACTUAL_INPUT_OVER_LIMIT_AND_CLAMPED_COUNTER",
+  "historyAuthority": "CORE_CORRECTION_PASS_WITH_OFFSET_AND_SUMMARY_ERRORS",
+  "readingScope": "CORE_14_16_22_AND_OLD_SESSION_CORRECTION_PASS_WITH_RESIDUAL_ERRORS",
+  "draftSemantics": "FAIL_STALE_TEN_TASK_ACCEPTANCE_TEXT",
+  "dateWindow": true,
+  "suggestedOwner": true,
+  "taskCount": 6,
+  "acyclicDependencies": true,
+  "summaryActualSlicesMatch": true,
+  "noAutomaticApproval": true,
+  "evidence": [
+    "usage-audit.json",
+    "summary-input-output.json",
+    "summary-source-audit.json",
+    "planning-final-version.json",
+    "planning-repair-diagnostics.json",
+    "database-final-state.json"
+  ],
+  "manualFindings": {
+    "3": "serialized originalChars mistaken for body length; partial conclusion retained",
+    "14": "scope-limited conclusion correct; actual input budget exceeded",
+    "16": "scope-limited costs follow-up; unsupported claim only member means finance must be outside project",
+    "19": "4.4 previously projected partial but called read fully",
+    "21": "query/cursor exist; offset not defined",
+    "22": "6/date/owner/target switch correct, missing fees only within queried range",
+    "23": "one plan accepted; subsequent skeleton succeeded, detail dependency conflict repaired once",
+    "24": "correct generating/no version at query time; later readonly final draft inspected",
+    "summary": "old 10 vs current 6 treated unresolved despite authoritative current goal; no source deletion",
+    "draft": "T2/MS-CONSTRAINT preserve superseded ten-task wording; description contains replacement characters"
+  }
+}

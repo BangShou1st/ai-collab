@@ -1,0 +1,18 @@
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+08:14:21.703 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer -- 运行轨迹压缩失败，保留原上下文继续: run=7a77cdcc-8b89-45b4-8e77-630a7d7f0e00, error=com.shitulelv.aicollab.common.exception.BusinessException: Controlled auxiliary failure
+run-compaction outbound=[model-B, model-A] outcome=SUCCEEDED
+FAIL failedRunCompactionRefreshesModel: [next main request must use current model B] 
+expected: "model-B"
+ but was: "model-A"
+fresh B composition chars=2735 H=16976
+08:14:21.770 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizer -- 摘要生成失败，按无摘要路径继续: run=7f15faf8-69a1-47e3-9979-5becc66e4a75, errorCode=AI_PROVIDER_ERROR
+smaller-window outbound=[model-B] outcome=BUDGET_EXCEEDED reason=AGENT_BUDGET_EXCEEDED
+FAIL failedConversationSummaryRecomposesForSmallerWindow: [failed auxiliary must not force a budget stop when recomposition fits B] 
+expected: SUCCEEDED
+ but was: BUDGET_EXCEEDED
+PROBE_RESULT tests=2 failures=2

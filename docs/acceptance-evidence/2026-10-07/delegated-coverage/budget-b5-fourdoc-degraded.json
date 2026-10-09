@@ -1,0 +1,34 @@
+{
+  "model": "mimo-v2.6-flash-free (Zen preset)",
+  "embedding": "qwen3-embedding:0.6b/1024d (Ollama, active)",
+  "budgetSemantics": "SEPARATED (V63)",
+  "launchedVia": "browser-skill/bsk 实测 Web UI（本机 Chromium，后台会话，仅电脑端）",
+  "date": "2026-10-07",
+  "experiment": "B5 四文档降级样本：委派全部 4 份文档做逐项对照，子运行受 6 次工具额度限制只覆盖提纲级",
+  "question": "请把这次研究委派给文档研究子 Agent 完整执行：对照本项目全部 4 份文档，按《验收标准 v2.1》逐项判断评分聚合是否合规、批量导入的差距、数据脱敏的一致性，给出文档依据、覆盖缺口和未读章节。",
+  "runId": "fa9ac404-de0f-4eec-bc61-1f2c2e942a7a",
+  "childRunId": "732284e4-16f5-49d6-becc-c66cda6eed72",
+  "parentStatus": "SUCCEEDED",
+  "childStatus": "SUCCEEDED",
+  "childToolSequence": [
+    "get_document_outline",
+    "get_document_outline",
+    "get_document_outline",
+    "get_document_outline"
+  ],
+  "childCoverage": {
+    "coverageKnown": true,
+    "endReason": "SUCCEEDED",
+    "documents": 4,
+    "outlineStatus": "OBTAINED",
+    "sectionsRead": 0,
+    "gapPerDocument": "已取得提纲但未读取任何正文",
+    "notes": ["HEURISTIC_HEADINGS 提纲由标题识别得出，不是保证完整的目录；取得提纲不等于读完全文。"]
+  },
+  "parentCitations": 0,
+  "answerLength": 3825,
+  "keyResult": "覆盖事实如实标出 4 份文档\"已取得提纲但未读取任何正文\"；父回答据此声明\"只完成提纲读取、未读任何章节正文\"、列出 15 节未读清单、0 引用，并把提纲级证据限定为启发式标题识别——没有把提纲级证据说成正文完整覆盖。",
+  "answerFile": "fourdoc-degraded-answer.txt",
+  "coverageFile": "b5-fourdoc-coverage.json",
+  "screenshot": "fourdoc-degraded-answer.png"
+}

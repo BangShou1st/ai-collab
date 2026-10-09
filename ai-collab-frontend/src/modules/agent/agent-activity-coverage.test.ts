@@ -14,6 +14,18 @@ const NON_ROW_TYPES: AgentRunEvent['type'][] = [
 ]
 
 describe('agent activity presentation policy', () => {
+  it('stops analyzing and marks unfinished tools when cancellation is terminal', () => {
+    const rows = reduceAgentActivities([
+      evt(1, 'MODEL_STARTED'),
+      evt(2, 'TOOL_CALL_STARTED', { invocationId: 'i1', toolName: 'list_tasks' }),
+      evt(3, 'RUN_CANCELED'),
+    ])
+    expect(rows).toHaveLength(1)
+    expect(rows[0].status).toBe('failed')
+    expect(rows[0].detail).toBe('已取消')
+    expect(rows[0].title).toBe('读取项目任务')
+  })
+
   it('never emits unknown, snake_case or raw enum rows', () => {
     const events = NON_ROW_TYPES.map((t, i) => evt(i + 1, t, { callId: 'c1', toolName: 'list_tasks' }))
     const rows = reduceAgentActivities(events)
@@ -53,4 +65,3 @@ describe('agent activity presentation policy', () => {
     expect(rows[0].status).toBe('waiting')
   })
 })
-

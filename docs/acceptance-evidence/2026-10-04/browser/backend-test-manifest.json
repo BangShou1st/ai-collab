@@ -1,0 +1,1331 @@
+{
+  "tests": 966.0,
+  "passed": 960.0,
+  "staleReports": 0,
+  "notExecuted": [],
+  "executionDate": "2026-10-04",
+  "failures": 0.0,
+  "skipped": 6.0,
+  "command": ".\\mvnw.cmd test",
+  "classResults": [
+    {
+      "class": "com.shitulelv.aicollab.acceptance.BrowserAcceptanceHostTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "updated": "2026-10-04T10:44:34.2009554+08:00",
+      "skippedTests": [
+        {
+          "name": "servesOfflineCopyUntilExplicitStop",
+          "reason": "Environment variable [AI_BROWSER_ACCEPTANCE] does not exist"
+        }
+      ]
+    },
+    {
+      "class": "com.shitulelv.aicollab.acceptance.ExistingDataUpgradeRehearsalTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "updated": "2026-10-04T10:44:34.2511835+08:00",
+      "skippedTests": [
+        {
+          "name": "upgradesOfflineBusinessCopyWithoutChangingExistingColumnsOrRows",
+          "reason": "Environment variable [AI_UPGRADE_REHEARSAL] does not exist"
+        }
+      ]
+    },
+    {
+      "class": "com.shitulelv.aicollab.acceptance.JsonNodeHttpContractTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:36.8446806+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.acceptance.LegacyApprovalCitationUpgradeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:45.3927345+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:50.2244705+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.acceptance.RealAcceptanceHostTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "updated": "2026-10-04T10:44:50.2305749+08:00",
+      "skippedTests": [
+        {
+          "name": "servesRealAcceptanceUntilStopMarker",
+          "reason": "Environment variable [AI_REAL_ACCEPTANCE] does not exist"
+        }
+      ]
+    },
+    {
+      "class": "com.shitulelv.aicollab.acceptance.RealRetrievalBaselineTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "updated": "2026-10-04T10:44:50.2387713+08:00",
+      "skippedTests": [
+        {
+          "name": "measuresRealVectorRetrievalWithoutHybridOrReranker",
+          "reason": "Environment variable [AI_REAL_RETRIEVAL] does not exist"
+        }
+      ]
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.api.controller.AgentEventControllerTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:50.2469442+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.AgentApprovalServiceTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:50.4285040+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.AgentBusinessEvaluationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:50.4952083+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.AgentPromptFactoryTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:50.5057500+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.AgentRunRestoreTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:50.6714539+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.AgentWorkerNativeTurnTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:50.7320041+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.AgentWorkerTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:50.7445290+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.runtime.AgentContextAssemblerTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:51.0113677+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.runtime.AgentContextBudgetTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:51.0253852+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizerTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:51.1261926+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposerPromptTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:51.2396471+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposerV2Test",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:51.3496876+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest",
+      "tests": 25,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:51.9386977+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinatorTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.0830877+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.runtime.CrossTickToolCallTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.1607501+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.runtime.LegacyReadOnlyAgentExecutorTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.2274006+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.runtime.NativeToolCallingExecutorTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.2379136+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.application.runtime.PresetAwareRoutingTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.6074682+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.AgentApprovalPolicyTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.6139781+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.AgentLoopGuardTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.6205135+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.AgentRuntimeDomainTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.6250233+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.model.AgentExecutionContextTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.6305352+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.model.AgentPageContextTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.6427436+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimitsTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.6515656+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistryTest",
+      "tests": 36,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.6746171+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.model.AgentSkillToolMappingTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.8255142+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.policy.AgentConvergencePolicyTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.8320249+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuardTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.8455382+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.policy.AgentProposalArgumentMergerTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.8550628+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizerTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:52.8922667+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.domain.tool.ToolArgumentValidatorTest",
+      "tests": 26,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:53.0504326+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.AgentAnalysisToolsTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:53.1204955+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.AgentEventRepositoryIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:56.8597072+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationChecksumTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:44:56.8667186+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:00.6479377+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.AgentProposalContinuityIntegrationTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:04.9600545+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.AgentReadToolsTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:05.0093432+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest",
+      "tests": 38,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:17.7599010+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryDepthTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:17.7879257+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:17.8070222+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.AgentWriteProposalSpringIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:32.4462522+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.mcp.HttpMcpClientFacadeTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:32.4515016+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpAdministrationPostgresIntegrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.2050615+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpAdministrationTransactionBoundaryTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.2102810+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpAgentToolProviderTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.3141354+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpConnectionViewSerializationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.3322586+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpEndpointPolicyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.3377622+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpResultSanitizerTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.3427695+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.ProjectMemberListAgentToolTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.3905790+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.agent.infrastructure.tool.ApprovalToolRevalidationTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.5253651+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.auth.ratelimit.AuthRateLimiterTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.6342579+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.auth.service.AccessTokenServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.6895437+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.auth.service.AuthServiceTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.8942707+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.auth.service.RefreshTokenHashServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.8982752+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.auth.service.RegistrationPolicyTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.9473612+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.common.api.JsonApiValueTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.9548732+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.common.security.OutboundEndpointPolicyTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:41.9593823+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.document.application.service.BatchReindexAuthorizationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:42.1141671+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.document.application.service.DocumentApplicationServiceWriteStatusTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:42.4063857+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.document.application.service.DocumentRegistrationStatusIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:47.0123228+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.document.infrastructure.DocumentRepositoryIntegrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:51.4622828+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.document.infrastructure.DocumentSourceOffsetTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:51.9754995+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.document.infrastructure.storage.MinioDocumentStorageGatewayTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:51.9890302+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.home.application.service.HomeAggregateTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:52.0954687+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.AiInvocationRoutingTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:52.2032801+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprintSearchTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:45:56.3089372+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingGenerationIntegrationTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:00.3597243+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.embedding.LegacyEmbeddingMigrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:08.8618242+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.embedding.OllamaEmbeddingHttpTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:09.1484276+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.embedding.OllamaEmbeddingSmokeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "updated": "2026-10-04T10:46:09.1534393+08:00",
+      "skippedTests": [
+        {
+          "name": "installedLocalModelUsesProductionGateway",
+          "reason": "Environment variable [AI_OLLAMA_SMOKE] does not exist"
+        }
+      ]
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingAuthTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:09.2050074+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGatewaySecurityTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:09.2844134+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingGuardTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:09.3924359+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingMigrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:12.6555933+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.embedding.V44MigrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:15.8078631+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.AnthropicTurnContractTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:15.8716122+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.GeminiTurnContractTest",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:15.8908400+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClientSecurityTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:15.9711529+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.ModelCapabilityPolicyTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:15.9751513+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.ModelMasterKeyFailFastTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:15.9806594+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.ModelProtocolHttpTest",
+      "tests": 20,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.4092083+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderAdapterContractTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.4142031+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipherTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.4188734+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.OpenAiTurnContractTest",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.4387709+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.OpenAiTurnStreamingTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.4442643+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.OpenCodeZenSmokeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "updated": "2026-10-04T10:46:22.4492845+08:00",
+      "skippedTests": [
+        {
+          "name": "oneSyntheticRequestThroughProductionZenExecution",
+          "reason": "Environment variable [AI_ZEN_SMOKE] does not exist"
+        }
+      ]
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.ProjectModelScopingTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.5055375+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGatewayTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.5104895+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.ZenKnowledgeStreamContractTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.6280208+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.ZenModelWiringTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.6950342+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.model.ZenPlanningContractTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.6990369+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.OpenAiCompatibleChatModelGatewayTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.7598070+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnContractTest",
+      "tests": 40,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:22.7729467+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.user.ProjectModelToUserMigrationTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:26.2287917+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.user.UserAiMigrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:29.4011507+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderOwnershipTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:29.4755144+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderPresetGuardTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:29.4800931+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderPresetTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:29.5590909+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.user.UserModelPurposeAssignmentMigrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:32.9594549+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.infrastructure.ai.user.ZenDisconnectIntegrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:36.1399366+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.knowledge.application.service.KnowledgeRateLimiterTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:36.1469831+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:36.1526473+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.api.PlanningOpenApiContractTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:36.2090697+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.GenerationOutcomeDeciderTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:36.2145860+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.Phase08EditableDegradationIntegrationTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:36.6955735+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.PlanningGenerationQuotaServiceTest",
+      "tests": 22,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:40.9333954+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.PlanningPromptPolicyTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:40.9404557+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanActionPolicyTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:40.9494763+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanEditTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:41.0419521+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanEventViewTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:41.0471349+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorIntegrationTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:45.3713263+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:45.5483684+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanModelClientTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:45.6099822+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanOutputParserTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:45.6424035+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanPartialRegenerateTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:45.6507912+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanProductionWiringPostgresIntegrationTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:53.2097897+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanQueryServiceTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:46:53.2160689+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:30.6677667+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.application.TaskPlanVersionCommitServiceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:30.6728259+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.domain.TaskPlanDomainTest",
+      "tests": 26,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:30.6804407+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.domain.TaskPlanDraftNormalizerTest",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:30.6932926+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidatorRuleCatalogTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:30.6982984+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.domain.TaskPlanRepairPatchTest",
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:30.7058076+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.domain.ValidationIssueCatalogTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:30.7140151+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.infrastructure.Phase08MigrationSafetyIntegrationTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:36.5337197+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.infrastructure.PlanningMigrationIntegrationTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:40.2477301+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepositoryIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:43.4724285+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.project.application.service.AuditServiceTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:43.6812322+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.project.application.service.AuditSummaryFormatterTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:43.6862652+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.project.application.service.ProjectDashboardAuditPostgresIntegrationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:50.2796385+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.project.application.service.ProjectOwnershipTransferPostgresIntegrationTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:56.7778647+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.project.domain.policy.ProjectWritePolicyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:56.7832831+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.user.service.AccountServiceTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:56.7879723+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.user.service.AdminServiceAuthorizationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:56.8878948+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.work.application.service.MilestoneApplicationServiceTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:57.0197997+08:00",
+      "skippedTests": []
+    },
+    {
+      "class": "com.shitulelv.aicollab.work.application.service.ProjectDateRangePolicyTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "updated": "2026-10-04T10:47:57.0253863+08:00",
+      "skippedTests": []
+    }
+  ],
+  "classes": 143,
+  "errors": 0.0
+}

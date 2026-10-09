@@ -8,7 +8,7 @@ import com.shitulelv.aicollab.agent.application.AgentWorkerOutcome;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.view.AgentStepView;
 import com.shitulelv.aicollab.agent.domain.model.*;
-import com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuard;
+
 import com.shitulelv.aicollab.agent.domain.tool.*;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
@@ -74,10 +74,13 @@ class CrossTickToolCallTest {
         // 设置默认返回值：recordToolResult 和 recordModelTurn 返回传入的 run
         when(repository.recordToolResult(any(), any(), any(), any(), anyBoolean()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(repository.recordModelTurn(any(), any()))
+        when(repository.recordModelTurnWithSettlement(any(), any(), any(), any(), any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(repository.recordFinal(any(), any(), anyList()))
+        when(repository.recordFinal(any(), any(), anyList(), anyBoolean()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        // 请求准备快照：默认原生模式，与协调器实际使用方式一致
+        when(modelExecutor.resolveRequest(any()))
+                .thenReturn(AgentRuntimeBehaviorTest.resolved(true));
     }
 
     /**
@@ -95,7 +98,7 @@ class CrossTickToolCallTest {
         // 第一次 advance：模型返回 tool call
         ModelToolCall tc = new ModelToolCall("call-1", "list_tasks", json.createObjectNode());
         ModelTurnResult turn1 = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn1);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn1);
         when(repository.listSteps(run.projectId(), run.id())).thenReturn(stepStore);
 
         AgentWorkerOutcome outcome1 = coordinator.advance(run);
@@ -106,15 +109,27 @@ class CrossTickToolCallTest {
 
         // 模拟下一次 RuntimeJob 重新领取该 Run
         // 从 Repository 恢复历史消息和步骤
-        AgentStepView toolStep = toolCompletedStep(1, "list_tasks", tc.arguments(), json.createObjectNode().put("success", true));
+        ObjectNode observation = json.createObjectNode().put("status", "SUCCEEDED");
+        observation.putArray("citations");
+        observation.putObject("data").putArray("items").addObject().put("title", "验收任务")
+                .put("status", "TODO").put("assigneeName", "Local Owner");
+        AgentStepView toolStep = toolCompletedStep(1, "list_tasks", tc.arguments(), observation);
         stepStore.add(toolStep);
         when(repository.listSteps(run.projectId(), run.id())).thenReturn(new ArrayList<>(stepStore));
 
         // 第二次 advance：模型返回最终文本
         ModelTurnResult turn2 = textResult("查询完成，项目有 3 个任务");
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn2);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn2);
 
         AgentWorkerOutcome outcome2 = coordinator.advance(run);
+
+        var messages = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(modelExecutor, times(2)).callModel(eq(run), messages.capture(), any(), eq(false), any());
+        var secondMessages = (List<ModelMessage>) messages.getAllValues().get(1);
+        var restored = secondMessages.stream().filter(ModelMessage.ToolResult.class::isInstance)
+                .map(ModelMessage.ToolResult.class::cast).findFirst().orElseThrow();
+        assertThat(restored.result().path("data").path("items").get(0).path("status").asText()).isEqualTo("TODO");
+        assertThat(restored.result().path("data").path("items").get(0).path("assigneeName").asText()).isEqualTo("Local Owner");
 
         // Run 成功
         assertThat(outcome2.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
@@ -122,7 +137,7 @@ class CrossTickToolCallTest {
 
         // 工具只执行一次（第二次没有再次执行）
         verify(repository, times(1)).requeueRun(run);
-        verify(repository).recordFinal(eq(run), eq("查询完成，项目有 3 个任务"), any());
+        verify(repository).recordFinal(eq(run), eq("查询完成，项目有 3 个任务"), any(), eq(true));
     }
 
     /**
@@ -141,7 +156,7 @@ class CrossTickToolCallTest {
         ModelToolCall tc2 = new ModelToolCall("call-2", "get_task",
                 json.createObjectNode().put("taskId", UUID.randomUUID().toString()));
         ModelTurnResult turn = toolCallResult(tc1, tc2);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
         when(repository.listSteps(run.projectId(), run.id())).thenReturn(stepStore);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
@@ -166,7 +181,7 @@ class CrossTickToolCallTest {
         // 第一次 advance：第一个工具
         ModelToolCall tc1 = new ModelToolCall("call-1", "list_tasks", json.createObjectNode());
         ModelTurnResult turn1 = toolCallResult(tc1);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn1);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn1);
         when(repository.listSteps(run.projectId(), run.id())).thenReturn(stepStore);
 
         coordinator.advance(run);
@@ -180,7 +195,7 @@ class CrossTickToolCallTest {
         ObjectNode getTaskArgs = json.createObjectNode().put("taskId", UUID.randomUUID().toString());
         ModelToolCall tc2 = new ModelToolCall("call-2", "get_task", getTaskArgs);
         ModelTurnResult turn2 = toolCallResult(tc2);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn2);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn2);
 
         coordinator.advance(run);
 
@@ -191,14 +206,14 @@ class CrossTickToolCallTest {
 
         // 第三次 advance：最终答案
         ModelTurnResult turn3 = textResult("完成");
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn3);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn3);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
         // 两个工具都被记录
         verify(repository, times(2)).recordToolResult(any(), anyString(), any(), any(), eq(false));
-        verify(repository).recordFinal(eq(run), eq("完成"), any());
+        verify(repository).recordFinal(eq(run), eq("完成"), any(), eq(true));
     }
 
     /**
@@ -215,7 +230,7 @@ class CrossTickToolCallTest {
         // 模型调用一个不在注册表中的工具
         ModelToolCall tc = new ModelToolCall("call-1", "nonexistent_tool", json.createObjectNode());
         ModelTurnResult turn = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
         when(repository.listSteps(run.projectId(), run.id())).thenReturn(stepStore);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
@@ -253,7 +268,7 @@ class CrossTickToolCallTest {
 
         ModelToolCall tc = new ModelToolCall("call-1", "list_tasks", json.createObjectNode());
         ModelTurnResult turn = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
         when(repository.listSteps(run.projectId(), run.id())).thenReturn(stepStore);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
@@ -280,7 +295,7 @@ class CrossTickToolCallTest {
         ModelToolCall tc2 = new ModelToolCall("unique-id-2", "get_task",
                 json.createObjectNode().put("taskId", UUID.randomUUID().toString()));
         ModelTurnResult turn = toolCallResult(tc1, tc2);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
         when(repository.listSteps(run.projectId(), run.id())).thenReturn(stepStore);
 
         coordinator.advance(run);
@@ -312,7 +327,7 @@ class CrossTickToolCallTest {
         // 第一次 advance
         ModelToolCall tc = new ModelToolCall("call-1", "list_tasks", json.createObjectNode());
         ModelTurnResult turn1 = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn1);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn1);
         when(repository.listSteps(run.projectId(), run.id())).thenReturn(stepStore);
 
         coordinator.advance(run);
@@ -324,7 +339,7 @@ class CrossTickToolCallTest {
 
         // 第二次 advance - 模型直接返回最终答案
         ModelTurnResult turn2 = textResult("完成");
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn2);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn2);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
@@ -342,7 +357,7 @@ class CrossTickToolCallTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 16, 12, 3, 100_000, 32_000,
-                0, 0, 0, 0, 0, false,
+                0, 0, 0, 0, 0, 0, 0, false,
                 false, false, 0, null, null, null, skillCode, 1, now, now);
     }
 

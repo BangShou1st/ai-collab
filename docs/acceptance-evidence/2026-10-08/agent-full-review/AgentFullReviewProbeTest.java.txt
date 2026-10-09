@@ -1,0 +1,321 @@
+package com.shitulelv.aicollab.agent.application.runtime;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.shitulelv.aicollab.agent.application.AgentApprovalService;
+import com.shitulelv.aicollab.agent.application.AgentMemoryService;
+import com.shitulelv.aicollab.agent.application.AgentRecoveryJob;
+import com.shitulelv.aicollab.agent.application.view.AgentRunView;
+import com.shitulelv.aicollab.agent.domain.model.*;
+import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
+import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
+import com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool;
+import com.shitulelv.aicollab.infrastructure.ai.turn.*;
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+// Review-only probes: isolated Testcontainers database, no production data or source changes.
+class AgentFullReviewProbeTest extends AgentDelegationPostgresTest {
+    private record Fixture(UUID user, UUID project, UUID session) {}
+
+    private Fixture fixtureForReview() {
+        UUID user = UUID.randomUUID();
+        UUID project = UUID.randomUUID();
+        jdbc.update("INSERT INTO app_user(id,username,password_hash,display_name) VALUES (?,?,?,?)",
+                user, "review-" + user.toString().substring(0, 8), "test-only", "Review");
+        jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,?,?,?)",
+                project, "Review", user, user);
+        jdbc.update("INSERT INTO project_member(project_id,user_id,role) VALUES (?,?,'OWNER')", project, user);
+        return new Fixture(user, project, repository.createSession(project, user, "Review").id());
+    }
+
+    private AgentExecutionContext executionContext(AgentRunView run) {
+        return new AgentExecutionContext(run.id(), run.sessionId(), run.projectId(), run.requesterId(),
+                "OWNER", false, AgentPageContext.empty(),
+                run.depth() > 0 ? AgentRuntimeLimits.defaults() : AgentRuntimeLimits.forSkill(run.skillCode()),
+                run.depth(), List.of());
+    }
+
+    private AgentRuntimeCoordinator runtime(RoutingAgentModelExecutor model,
+            AgentModelMessageComposer composer, AgentContextProperties properties) {
+        AgentContextAssembler assembler = mock(AgentContextAssembler.class);
+        when(assembler.assemble(any(), any(), any())).thenAnswer(call -> executionContext(call.getArgument(0)));
+        when(model.resolveRequest(any())).thenReturn(AgentRuntimeBehaviorTest.resolved(false));
+        var registry = new AgentToolRegistry(List.of(new DocumentResearchDelegateAgentTool(json)));
+        var events = mock(AgentEventService.class);
+        var cancel = new AgentCancellationService(repository);
+        var executor = new AgentToolCallExecutor(repository, registry, cancel, new AgentLoopGuard(),
+                mock(AgentApprovalService.class), model, new AgentToolResultSanitizer(json), json,
+                events, new AgentToolScheduler());
+        return new AgentRuntimeCoordinator(repository, assembler, new AgentSkillRegistry(),
+                new AgentPlanService(repository, json), registry, cancel, model, new AgentConvergencePolicy(),
+                json, events, properties, composer, executor, new AgentContextSummarizer(repository, model, json));
+    }
+
+    private AgentRunView claim(UUID wanted, AgentRuntimeCoordinator coordinator) {
+        var recovery = new AgentRecoveryJob(repository);
+        for (int i = 0; i < 10; i++) {
+            var claimed = recovery.claim("review", Duration.ofMinutes(6)).orElseThrow();
+            AgentRunView run = repository.findRun(claimed.projectId(), claimed.id()).orElseThrow();
+            if (run.id().equals(wanted)) return run;
+            coordinator.advance(run);
+        }
+        throw new AssertionError("Could not claim expected run");
+    }
+
+    private ModelTurnResult text(String content) {
+        return new ModelTurnResult(content, List.of(), ModelFinishReason.STOP,
+                new ModelUsage(10, 10), "OPENAI_COMPATIBLE", "model-a", 1L);
+    }
+
+    private ModelTurnResult delegate() {
+        return new ModelTurnResult("Research requested", List.of(new ModelToolCall("review-delegate",
+                "delegate_document_research", json.createObjectNode().put("objective",
+                "Study one project document and report evidence and missing information"))),
+                ModelFinishReason.TOOL_CALLS, new ModelUsage(10, 10), "OPENAI_COMPATIBLE", "model-a", 1L);
+    }
+
+    @Test
+    void reviewChildQuestionsMustNotStrandParent() {
+        Fixture f = fixtureForReview();
+        AgentRunView root = repository.createRun(f.project(), f.session(), f.user(),
+                "Research document acceptance criteria", false, null, null);
+        var model = mock(RoutingAgentModelExecutor.class);
+        when(model.callModel(any(), any(), any(), anyBoolean(), any())).thenAnswer(call -> {
+            AgentRunView run = call.getArgument(0);
+            return run.depth() > 0 ? text("[QUESTIONS]\nWhich document should I study?") : delegate();
+        });
+        var composer = new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json);
+        var coordinator = runtime(model, composer, new AgentContextProperties(true, 20000, 4000, 2000, Map.of()));
+        assertThat(coordinator.advance(claim(root.id(), coordinator)).status()).isEqualTo(AgentRunStatus.QUEUED);
+        AgentRunView child = repository.childRuns(f.project(), root.id()).getFirst();
+        var childOutcome = coordinator.advance(claim(child.id(), coordinator));
+        int before = mockingDetails(model).getInvocations().size();
+        var parentOutcome = coordinator.advance(claim(root.id(), coordinator));
+        int after = mockingDetails(model).getInvocations().size();
+        System.out.printf("REVIEW_CHILD_WAIT child=%s parent=%s modelInvocationsBefore=%d after=%d collected=%d%n",
+                childOutcome.status(), parentOutcome.status(), before, after,
+                jdbc.queryForObject("SELECT count(*) FROM agent_step WHERE run_id=? AND type='DELEGATION_COMPLETED'",
+                        Integer.class, root.id()));
+        assertThat(childOutcome.status()).as("Child research must not wait for unreachable user input")
+                .isNotEqualTo(AgentRunStatus.WAITING_FOR_USER_INPUT);
+    }
+
+    @Test
+    void reviewRecompositionMustRetainChildEvidence() {
+        Fixture f = fixtureForReview();
+        AgentRunView root = repository.createRun(f.project(), f.session(), f.user(),
+                "Research document acceptance criteria", false, null, null);
+        var model = mock(RoutingAgentModelExecutor.class);
+        AtomicInteger parentTurns = new AtomicInteger();
+        AtomicReference<List<ModelMessage>> finalRequest = new AtomicReference<>();
+        when(model.callModel(any(), any(), any(), anyBoolean(), any())).thenAnswer(call -> {
+            AgentRunView run = call.getArgument(0);
+            if (run.depth() > 0) return text("CHILD_EVIDENCE_SENTINEL " + "r".repeat(5700));
+            if (parentTurns.getAndIncrement() == 0) return delegate();
+            finalRequest.set(List.copyOf(call.getArgument(1)));
+            return text("Final parent answer");
+        });
+        AgentModelMessageComposer composer = mock(AgentModelMessageComposer.class);
+        AtomicInteger downgraded = new AtomicInteger();
+        when(composer.composeV2(any(), any(), any(), any(), any(), anyInt(), anyDouble(), anyBoolean()))
+                .thenAnswer(call -> {
+                    AgentRunView run = call.getArgument(0);
+                    double factor = call.getArgument(6);
+                    boolean completedChild = run.depth() == 0 && parentTurns.get() > 0;
+                    if (completedChild && factor < 1) downgraded.incrementAndGet();
+                    String padding = completedChild && factor == 1 ? "p".repeat(34500) : "short context";
+                    return new AgentModelMessageComposer.Composition(new ArrayList<>(List.of(
+                            new ModelMessage.System(padding), new ModelMessage.User(run.goal()))),
+                            AgentModelMessageComposer.CompositionStats.empty(), null);
+                });
+        var coordinator = runtime(model, composer, new AgentContextProperties(true, 12000, 4000, 2000, Map.of()));
+        assertThat(coordinator.advance(claim(root.id(), coordinator)).status()).isEqualTo(AgentRunStatus.QUEUED);
+        AgentRunView child = repository.childRuns(f.project(), root.id()).getFirst();
+        assertThat(coordinator.advance(claim(child.id(), coordinator)).status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(coordinator.advance(claim(root.id(), coordinator)).status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(downgraded.get()).isEqualTo(1);
+        System.out.println("REVIEW_RECOMPOSE downgraded=" + downgraded.get() + " finalRequest=" + finalRequest.get());
+        assertThat(finalRequest.get().toString()).as("Recomposed parent request must preserve transferred evidence")
+                .contains("CHILD_EVIDENCE_SENTINEL", "CHILD_RESEARCH_COVERAGE");
+    }
+
+    @Test
+    void reviewLegacyComposerMustIsolateChildConversation() {
+        Fixture f = fixtureForReview();
+        AgentRunView root = repository.createRun(f.project(), f.session(), f.user(),
+                "MAIN_CONVERSATION_SENTINEL: unrelated private parent instruction", false, null, null);
+        var model = mock(RoutingAgentModelExecutor.class);
+        when(model.callModel(any(), any(), any(), anyBoolean(), any())).thenReturn(delegate());
+        var composer = new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json);
+        var coordinator = runtime(model, composer, new AgentContextProperties(true, 20000, 4000, 2000, Map.of()));
+        coordinator.advance(claim(root.id(), coordinator));
+        AgentRunView child = repository.childRuns(f.project(), root.id()).getFirst();
+        AgentSkill skill = new AgentSkillRegistry().select("PROJECT_RESEARCH", child.goal(), AgentPageContext.empty());
+        var messages = composer.buildMessageHistory(child, executionContext(child), skill,
+                AgentPlan.create(child.goal(), List.of()), List.of(), false);
+        System.out.println("REVIEW_LEGACY childMessagesContainParent=" + messages.toString().contains("MAIN_CONVERSATION_SENTINEL"));
+        assertThat(messages.toString()).as("composer-v2=false must retain child context isolation")
+                .doesNotContain("MAIN_CONVERSATION_SENTINEL");
+    }
+
+    @Test
+    void reviewVisibilityMustReserveTheUpcomingModelStep() {
+        Fixture f = fixtureForReview();
+        AgentRunView root = repository.createRun(f.project(), f.session(), f.user(),
+                "Research one project document", false, null, null);
+        jdbc.update("UPDATE agent_run SET max_steps=5 WHERE id=?", root.id());
+        var model = mock(RoutingAgentModelExecutor.class);
+        AtomicReference<List<String>> names = new AtomicReference<>();
+        when(model.callModel(any(), any(), any(), anyBoolean(), any())).thenAnswer(call -> {
+            List<com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition> definitions = call.getArgument(2);
+            names.set(definitions.stream().map(com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition::name).toList());
+            return delegate();
+        });
+        var composer = new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json);
+        var coordinator = runtime(model, composer, new AgentContextProperties(true, 20000, 4000, 2000, Map.of()));
+        assertThat(coordinator.advance(claim(root.id(), coordinator)).status()).isEqualTo(AgentRunStatus.QUEUED);
+        String result = jdbc.queryForObject("SELECT result_json::text FROM agent_tool_invocation WHERE run_id=?",
+                String.class, root.id());
+        System.out.println("REVIEW_VISIBILITY exposed=" + names.get() + " actualResult=" + result);
+        assertThat(result).contains("AGENT_DELEGATION_BUDGET_INSUFFICIENT");
+        assertThat(names.get()).as("The known model step already makes minimum child admission impossible")
+                .doesNotContain("delegate_document_research");
+    }
+
+    @Test
+    void reviewV2ChildMustNotInheritParentProposalInstructions() {
+        Fixture f = fixtureForReview();
+        AgentRunView root = repository.createRun(f.project(), f.session(), f.user(),
+                "Research document acceptance criteria", false, null, null);
+        var model = mock(RoutingAgentModelExecutor.class);
+        when(model.callModel(any(), any(), any(), anyBoolean(), any())).thenReturn(delegate());
+        var composer = new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json);
+        var coordinator = runtime(model, composer, new AgentContextProperties(true, 20000, 4000, 2000, Map.of()));
+        coordinator.advance(claim(root.id(), coordinator));
+        AgentRunView child = repository.childRuns(f.project(), root.id()).getFirst();
+        var proposal = new AgentProposalContext(UUID.randomUUID(), AgentProposalFamily.TASK_CREATE,
+                UUID.randomUUID(), "PENDING", 1, json.createObjectNode().put("title", "PARENT_PROPOSAL_SENTINEL"),
+                json.createObjectNode(), json.createObjectNode());
+        AgentExecutionContext context = new AgentExecutionContext(child.id(), child.sessionId(), child.projectId(),
+                child.requesterId(), "OWNER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(),
+                child.depth(), List.of(proposal));
+        AgentSkill skill = new AgentSkillRegistry().require("PROJECT_RESEARCH");
+        var composition = composer.composeV2(child, context, skill, AgentPlan.create(child.goal(), List.of()),
+                List.of(), 20000, 1.0, false);
+        assertThat(composition.failureReason()).isNull();
+        System.out.println("REVIEW_V2_PROPOSAL childMessagesContainParent="
+                + composition.messages().toString().contains("PARENT_PROPOSAL_SENTINEL"));
+        assertThat(composition.messages().toString()).as("Child research context should not inherit unrelated parent proposals")
+                .doesNotContain("PARENT_PROPOSAL_SENTINEL", "TRUSTED_PROPOSALS");
+    }
+
+    @Test
+    void reviewOutputOvershootMustPreserveReturnedChildText() {
+        Fixture f = fixtureForReview();
+        AgentRunView root = repository.createRun(f.project(), f.session(), f.user(),
+                "Research document acceptance criteria", false, null, null);
+        var model = mock(RoutingAgentModelExecutor.class);
+        when(model.callModel(any(), any(), any(), anyBoolean(), any())).thenAnswer(call -> {
+            AgentRunView run = call.getArgument(0);
+            if (run.depth() == 0) return delegate();
+            return new ModelTurnResult("OUTPUT_OVERSHOOT_SENTINEL: findings and explicitly unknown coverage",
+                    List.of(), ModelFinishReason.STOP, new ModelUsage(10, run.maxOutputTokens() + 1),
+                    "OPENAI_COMPATIBLE", "review-native", 1L);
+        });
+        var composer = new AgentModelMessageComposer(repository, mock(AgentMemoryService.class), json);
+        var coordinator = runtime(model, composer, new AgentContextProperties(true, 20000, 4000, 2000, Map.of()));
+        var now = java.time.OffsetDateTime.now();
+        var provider = new com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider(
+                UUID.randomUUID(), f.user(), "Review", com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType.OPENAI_COMPATIBLE,
+                "https://example.invalid", "/v1/chat/completions", "encrypted", "review-native", true, 0.2, 16384,
+                java.util.EnumSet.of(com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.NATIVE_TOOLS,
+                        com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.CHAT), true, now, now, null);
+        when(model.resolveRequest(any())).thenReturn(RoutingAgentModelExecutor.ResolvedRequest.of(provider, provider.toModelConfiguration()));
+        coordinator.advance(claim(root.id(), coordinator));
+        AgentRunView child = repository.childRuns(f.project(), root.id()).getFirst();
+        assertThat(coordinator.advance(claim(child.id(), coordinator)).status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        String completed = jdbc.queryForObject("SELECT output_json::text FROM agent_step WHERE run_id=? AND type='DELEGATION_COMPLETED'",
+                String.class, root.id());
+        int savedText = jdbc.queryForObject("SELECT count(*) FROM agent_step WHERE run_id=? AND output_json::text LIKE '%OUTPUT_OVERSHOOT_SENTINEL%'",
+                Integer.class, child.id());
+        System.out.println("REVIEW_OUTPUT_OVERSHOOT childOutputCap=" + child.maxOutputTokens()
+                + " providerOutputCap=" + provider.maxOutputTokens() + " savedText=" + savedText + " completion=" + completed);
+        assertThat(completed).as("A returned answer must be preserved as partial data even when usage exceeds the cap")
+                .contains("OUTPUT_OVERSHOOT_SENTINEL");
+    }
+
+    private DelegatedResearchCoverage.PersistedToolResult outline(String snapshot) {
+        ObjectNode data = json.createObjectNode().put("documentId", "doc-a").put("snapshotId", snapshot)
+                .put("processingStatus", "READY").put("structure", "HEURISTIC_HEADINGS");
+        data.putArray("sections").addObject().put("heading", "Only Section").put("from_chunk", 0).put("through_chunk", 1);
+        return new DelegatedResearchCoverage.PersistedToolResult("get_document_outline", "TOOL_SUCCESS",
+                json.createObjectNode().put("arguments", ""), json.createObjectNode().put("status", "SUCCEEDED").set("data", data));
+    }
+
+    private DelegatedResearchCoverage.PersistedToolResult read(String snapshot, boolean more, int fromOffset, int... chunks) {
+        ObjectNode data = json.createObjectNode().put("documentId", "doc-a").put("snapshotId", snapshot)
+                .put("processingStatus", "READY").put("hasMore", more).put("truncated", more);
+        var items = data.putArray("items");
+        for (int chunk : chunks) items.addObject().put("chunkIndex", chunk).put("heading", "Only Section")
+                .put("content", "abcdef").put("fromOffset", fromOffset).put("throughOffset", fromOffset + 6);
+        if (more) data.putObject("continuation").put("fromChunk", chunks[chunks.length - 1] + 1).put("fromOffset", 0);
+        return new DelegatedResearchCoverage.PersistedToolResult("read_document_section", "TOOL_SUCCESS",
+                json.createObjectNode(), json.createObjectNode().put("status", "SUCCEEDED").set("data", data));
+    }
+
+    @Test
+    void reviewCoverageMustNotCountChunksAsSections() {
+        var coverage = DelegatedResearchCoverage.extract(json, List.of(outline("snapshot-a"),
+                read("snapshot-a", false, 0, 0, 1)), "SUCCEEDED");
+        System.out.println("REVIEW_CHUNKS " + DelegatedResearchCoverage.renderForParentPrompt(coverage));
+        assertThat(coverage.path("documents").get(0).path("sectionsRead").path("count").asInt())
+                .as("Two chunks of the same heading are one section").isEqualTo(1);
+    }
+
+    @Test
+    void reviewCompletedPaginationMustNotClaimUnreadSuffix() {
+        var coverage = DelegatedResearchCoverage.extract(json, List.of(outline("snapshot-a"),
+                read("snapshot-a", true, 0, 0), read("snapshot-a", false, 0, 1)), "SUCCEEDED");
+        System.out.println("REVIEW_PAGINATION " + DelegatedResearchCoverage.renderForParentPrompt(coverage));
+        assertThat(coverage.path("gaps").toString()).as("Follow-up read closed the continuation")
+                .doesNotContain("\u540e\u7eed\u5185\u5bb9\u672a\u8bfb\u5b8c");
+    }
+
+    @Test
+    void reviewPartialPrefixMustRemainUnknownOrIncomplete() {
+        var coverage = DelegatedResearchCoverage.extract(json, List.of(outline("snapshot-a"),
+                read("snapshot-a", false, 400, 1)), "SUCCEEDED");
+        System.out.println("REVIEW_PARTIAL " + DelegatedResearchCoverage.renderForParentPrompt(coverage));
+        assertThat(coverage.path("gaps")).as("A suffix read cannot prove the full outlined section was read")
+                .isNotEmpty();
+    }
+
+    @Test
+    void reviewDifferentSnapshotsMustNotMergeIntoVerifiedCoverage() {
+        var coverage = DelegatedResearchCoverage.extract(json, List.of(outline("snapshot-old"),
+                read("snapshot-new", false, 0, 0, 1)), "SUCCEEDED");
+        System.out.println("REVIEW_SNAPSHOT " + DelegatedResearchCoverage.renderForParentPrompt(coverage));
+        assertThat(coverage.path("documents").toString())
+                .as("Version-aware facts must not silently label new body reads with old snapshot identity")
+                .contains("snapshot-new");
+    }
+
+    @Test
+    void reviewDuplicateOutlineMustNotInflateListedSections() {
+        var coverage = DelegatedResearchCoverage.extract(json, List.of(outline("snapshot-a"), outline("snapshot-a")), "SUCCEEDED");
+        System.out.println("REVIEW_DUPLICATE_OUTLINE " + coverage);
+        assertThat(coverage.path("documents").get(0).path("outline").path("sectionsListed").asInt())
+                .as("Repeated outline reads should not duplicate section count").isEqualTo(1);
+    }
+}

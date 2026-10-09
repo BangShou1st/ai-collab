@@ -1,0 +1,22 @@
+[
+  {
+    "id": "5a2576c3-2003-4ada-a280-515adfbbb892",
+    "sessionId": "af4228bd-474e-4449-8e5b-a163265ae5bf",
+    "runId": "675c78a9-c2ce-4aa4-a443-1070bd95351e",
+    "role": "USER",
+    "content": "先记录项目协作基线,后续所有讨论以此为准。项目目标:2026-10-31 前完成灰度发布。硬性约束:总预算不超过 20 人日;灰度发布开始前必须完成数据迁移脚本的验证。目前已完成的任务:用户登录模块开发。",
+    "citations": [],
+    "inferences": [],
+    "createdAt": "2026-10-06T07:23:02.505191Z"
+  },
+  {
+    "id": "ff1d8bfa-03aa-49db-9a01-b5f5c2002ac1",
+    "sessionId": "af4228bd-474e-4449-8e5b-a163265ae5bf",
+    "runId": "675c78a9-c2ce-4aa4-a443-1070bd95351e",
+    "role": "ASSISTANT",
+    "content": "已生成项目记忆提案：项目协作基线：2026-10-31 灰度发布目标与硬性约束。\n当前审批状态：待审批。审批 ID：3fa84357-e28c-41aa-9c4e-c1ca8e9063c0",
+    "citations": [],
+    "inferences": [],
+    "createdAt": "2026-10-06T07:23:08.445534Z"
+  }
+]

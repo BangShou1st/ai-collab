@@ -37,6 +37,9 @@ public class ProjectEmbeddingGateway {
     private final ModelSecretCipher secrets;
     private final OutboundEndpointPolicy endpoints;
     private final RestClient injectedRestClient;
+    private EmbeddingEndpointPolicy embeddingEndpoints;
+
+    @Autowired void configureEndpoints(EmbeddingEndpointPolicy policy) { this.embeddingEndpoints = policy; }
 
     public ProjectEmbeddingGateway(SystemEmbeddingConfigRepository configRepo, ModelSecretCipher secrets) {
         this(configRepo, secrets, new OutboundEndpointPolicy());
@@ -54,6 +57,7 @@ public class ProjectEmbeddingGateway {
         this.secrets = secrets;
         this.endpoints = endpoints;
         this.injectedRestClient = injectedRestClient;
+        this.embeddingEndpoints = new EmbeddingEndpointPolicy(endpoints, "127.0.0.1:11434,localhost:11434,[::1]:11434");
     }
 
     public EmbeddingBatch embed(UUID projectId, List<String> input, EmbeddingProgressListener progressListener) {
@@ -64,7 +68,8 @@ public class ProjectEmbeddingGateway {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "嵌入模型已禁用");
         }
         log.debug("Embedding via system config for project {}", projectId);
-        return embedWithConfig(asProjectConfig(config), input, progressListener);
+        EmbeddingBatch batch = embedWithConfig(asProjectConfig(config), input, progressListener);
+        return new EmbeddingBatch(batch.provider(), batch.model(), batch.dimension(), batch.vectors(), config.fingerprint(), config.generationId());
     }
 
     public String activeFingerprint() {
@@ -74,7 +79,7 @@ public class ProjectEmbeddingGateway {
                 .fingerprint();
     }
 
-    private static ProjectEmbeddingConfig asProjectConfig(SystemEmbeddingConfig active) {
+    static ProjectEmbeddingConfig asProjectConfig(SystemEmbeddingConfig active) {
         return new ProjectEmbeddingConfig(null, active.provider(), active.baseUrl(), active.apiPath(),
                 active.encryptedApiKey(), active.modelName(), active.dimensions(), active.batchSize(),
                 true, active.createdAt(), active.updatedAt());
@@ -85,15 +90,18 @@ public class ProjectEmbeddingGateway {
 
         RestClient restClient = injectedRestClient != null ? injectedRestClient : createRestClient();
 
-        String apiKey = secrets.decrypt(config.encryptedApiKey());
+        String apiKey = config.encryptedApiKey() == null || config.encryptedApiKey().isBlank()
+                ? null : secrets.decrypt(config.encryptedApiKey());
+        if (apiKey == null && !"OLLAMA".equals(config.provider())) throw failure();
         List<List<Double>> vectors = new ArrayList<>(input.size());
         int size = config.batchSize();
         for (int from = 0; from < input.size(); from += size) {
             int to = Math.min(input.size(), from + size);
             vectors.addAll(callWithRetry(restClient, config, apiKey, input.subList(from, to), progressListener));
         }
-        validateVectors(vectors, input.size(), config.dimensions());
-        return new EmbeddingBatch(config.provider(), config.modelName(), config.dimensions(), vectors);
+        int dimensions = config.dimensions() == 0 && !vectors.isEmpty() ? vectors.getFirst().size() : config.dimensions();
+        validateVectors(vectors, input.size(), dimensions);
+        return new EmbeddingBatch(config.provider(), config.modelName(), dimensions, vectors);
     }
 
     private List<List<Double>> callWithRetry(
@@ -102,13 +110,14 @@ public class ProjectEmbeddingGateway {
         RuntimeException last = null;
         for (int attempt = 0; attempt < 3; attempt++) {
             try {
-                URI endpoint = URI.create(join(config.baseUrl(), config.apiPath()));
-                endpoints.requirePublicHttps(endpoint);
+                URI endpoint = embeddingEndpoints.require(config.provider(), config.baseUrl(), config.apiPath());
                 progressListener.onProgress();
-                var response = restClient.post()
-                        .uri(endpoint)
-                        .header("Authorization", "Bearer " + apiKey)
-                        .body(new EmbeddingRequest(config.modelName(), batch, config.dimensions()))
+                var request = restClient.post().uri(endpoint);
+                if (apiKey != null) request.header("Authorization", "Bearer " + apiKey);
+                java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+                body.put("model", config.modelName()); body.put("input", batch);
+                if (config.dimensions() > 0 && !"OLLAMA".equals(config.provider())) body.put("dimensions", config.dimensions());
+                var response = request.body(body)
                         .retrieve().body(EmbeddingResponse.class);
                 if (response == null || response.data() == null) throw failure();
                 if (response.data().stream().anyMatch(item -> item == null || item.index() == null)) {
@@ -121,19 +130,20 @@ public class ProjectEmbeddingGateway {
                     if (ordered.get(i).index() != i) throw failure();
                 }
                 List<List<Double>> vectors = ordered.stream().map(EmbeddingData::embedding).toList();
-                validateVectors(vectors, batch.size(), config.dimensions());
+                validateVectors(vectors, batch.size(), config.dimensions() == 0 && !vectors.isEmpty()
+                        ? vectors.getFirst().size() : config.dimensions());
                 progressListener.onProgress();
                 return vectors;
             } catch (BusinessException e) {
                 throw e;
             } catch (HttpClientErrorException e) {
-                log.warn("Embedding API client error (attempt {}): {} {}", attempt + 1,
-                        e.getStatusCode().value(), truncate(e.getResponseBodyAsString(), 200));
-                if (e.getStatusCode().value() != 429) throw failure();
-                last = e;
+                log.warn("Embedding API client error (attempt {}): {}", attempt + 1, e.getStatusCode().value());
+                if (e.getStatusCode().value() == 401 || e.getStatusCode().value() == 403)
+                    throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
+                if (e.getStatusCode().value() == 429) throw new BusinessException(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED);
+                throw failure();
             } catch (HttpServerErrorException e) {
-                log.warn("Embedding API server error (attempt {}): {} {}", attempt + 1,
-                        e.getStatusCode().value(), truncate(e.getResponseBodyAsString(), 200));
+                log.warn("Embedding API server error (attempt {}): {}", attempt + 1, e.getStatusCode().value());
                 last = e;
             } catch (ResourceAccessException e) {
                 log.warn("Embedding API connection error (attempt {}): {}", attempt + 1, e.getMessage());
@@ -157,6 +167,7 @@ public class ProjectEmbeddingGateway {
     private static void validateVectors(List<List<Double>> vectors, int expectedCount, int dimensions) {
         if (vectors == null || vectors.size() != expectedCount) throw failure();
         for (List<Double> vector : vectors) {
+            if (dimensions < 1 || dimensions > 4096) throw failure();
             if (vector == null || vector.isEmpty() || vector.size() != dimensions) throw failure();
             for (Double value : vector) {
                 if (value == null || !Double.isFinite(value)) throw failure();

@@ -1,0 +1,34 @@
+{
+  "model": "mimo-v2.6-flash-free (Zen preset)",
+  "embedding": "qwen3-embedding:0.6b/1024d (Ollama, active)",
+  "budgetSemantics": "SEPARATED (V63)",
+  "launchedVia": "browser-skill 实测 Web UI",
+  "date": "2026-10-07",
+  "experiment": "B2 四文档委派（同上轮 B4 问题文本）",
+  "runId": "8dd4161d-c3fe-4346-845d-adc3f25726a2",
+  "childRunId": "4cd0bee5-3e1d-4d26-9777-dbebfa598524",
+  "parentStatus": "SUCCEEDED",
+  "childStatus": "SUCCEEDED",
+  "elapsedSeconds": 136,
+  "parentUsage": {
+    "steps": 8,
+    "toolCalls": 8,
+    "inputTokens": 29999,
+    "outputTokens": 5197
+  },
+  "childUsage": {
+    "steps": 4,
+    "toolCalls": 6,
+    "inputTokens": 13656,
+    "outputTokens": 2890
+  },
+  "childToolSequence": [
+    "get_document_outline x4",
+    "第2轮请求 4 个并行 read_document_section 被拒（4+4>6 工具额度）→ TOOL_BUDGET_BATCH_REJECTED → 消耗额度并重排队 → 无工具总结轮"
+  ],
+  "parentCitations": 0,
+  "answerLength": 2239,
+  "keyResult": "子运行提纲级研究 + 无工具总结（新收尾路径在生产首次生效，旧语义下此场景直接 BUDGET_EXCEEDED）；父运行综合出 2239 字诚实降级报告：明确声明完成标准未达成、仅提纲级证据、逐章未读清单与后续步骤。未突破任何硬上限，状态如实。",
+  "answerFile": "b2-fourdoc-answer.txt",
+  "screenshot": "b2-fourdoc-delegated-answer.png"
+}

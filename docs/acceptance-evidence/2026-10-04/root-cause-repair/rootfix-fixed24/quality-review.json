@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-04",
+  "model": "space-bunny-free (authorized provider, temperature 0.2, planning output cap 6000)",
+  "codeVersion": "de032f5dcbcaa277a6790bf3421a13719512accc",
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG; original business DB/Redis/MinIO stopped; every turn from original reliability/conversation-turns.json without added hints",
+  "items": [
+    {
+      "id": 1,
+      "issue": "actual usage shadowed by run cap (fixed24-final2 turn14: real 52289 recorded 50000, SUCCEEDED)",
+      "verification": "usage-audit.json all three batches: recorded==actual for every run; 40/40 runs this round have zero shadowed rows; V56 actual columns present on every row",
+      "result": "PASS"
+    },
+    {
+      "id": 2,
+      "issue": "goal-replacement branch dropped same-message constraints",
+      "verification": "rootfix-fixed24 turn18 (新目标…最多6项，取代8项，日期不改，负责人不改) registered TASK_COUNT_MAX max=6 + DATE_LOCK(reused dates) + ASSIGNEE_LOCK(Local Owner) bound to the turn-18 message id and new goalRevision",
+      "result": "PASS"
+    },
+    {
+      "id": 3,
+      "issue": "constraint value stored whole request; old values leaked across scopes",
+      "verification": "working-state audit: date entry carries only dates, count entry only max, assignee only Local Owner; 10→8→6 sequence ends with exactly 最多6项 active; 10/8 only in superseded history; turn-10 answer restates 8; turn-22 answer restates 6 with no 10/8",
+      "result": "PASS"
+    },
+    {
+      "id": 4,
+      "issue": "summary tail-truncated to 1200 chars while coverage advanced",
+      "verification": "real model produced oversized summaries in turns 22 and 23; both persisted as DOWNSGRADED_UNQUALIFIED with provider usage, coverage NOT advanced, previous summary retained; commits only in turns 21/24; final summary clean (523 chars, current 6项, zero old-count mentions, zero count-pending wording)",
+      "result": "PASS"
+    },
+    {
+      "id": 5,
+      "issue": "projection range metadata contradicted model-visible body; originalChars was serialized JSON length",
+      "verification": "turn-3/6/7/9 answers quote visible ranges consistent with body (e.g. 4.4 char4956-5513 visible 0-200/557, 后半357未读, resume via same snapshotId fromOffset=200); originalCharsSemantics/modelVisibleChars present in projections",
+      "result": "PASS"
+    },
+    {
+      "id": 6,
+      "issue": "planning draft carried superseded 10-item requirements despite maxTaskCount=6",
+      "verification": "PARTIAL/UNVERIFIED this round: turn 23 entered budget finalization and the model honestly did not call start_task_plan; no draft was generated in any batch, so draft-content checks could not be re-run against real output; prompt-level fixes (CURRENT_VS_HISTORY, SOURCE_AUTHORITY) shipped with unit tests and structured maxTaskCount validation unchanged",
+      "result": "FAIL (not re-verified; generation did not occur)"
+    }
+  ],
+  "notes": [
+    "turn-23 behavior is recorded as-is: no re-run, no prompt or config change mid-batch, no second generation request brushed for a pass",
+    "minimal batch turn-10: 数量上限 8项 取代 10项 restated correctly (ambiguous 8/10 extraction kept for clarification without overriding known value; superseded later by explicit 6)",
+    "embedding/search unavailable in the isolated copy (processingStatus=FAILED, searchAvailable=false) exactly as in original minimal evidence; answers scope their claims accordingly"
+  ],
+  "overallRealQuality": "NOT FULLY PASSED: five deterministic root-cause groups verified in real runs; planning-content item not re-verified because generation did not execute in the fixed batch"
+}

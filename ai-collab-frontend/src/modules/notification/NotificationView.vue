@@ -130,18 +130,18 @@ onMounted(load)
 .notification-item {
   padding: 16px;
   margin-bottom: 8px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .notification-item:hover {
-  border-color: #409eff;
+  border-color: var(--color-primary);
 }
 
 .notification-item.unread {
-  background-color: #f0f9ff;
+  background-color: var(--color-primary-soft);
   border-color: #b3d8ff;
 }
 
@@ -154,7 +154,7 @@ onMounted(load)
 
 .notification-time {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-text-muted);
 }
 
 .notification-title {
@@ -164,13 +164,13 @@ onMounted(load)
 
 .notification-content {
   font-size: 14px;
-  color: #606266;
+  color: var(--color-text-secondary);
   margin-bottom: 4px;
 }
 
 .notification-project {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-text-muted);
 }
 
 .load-more {

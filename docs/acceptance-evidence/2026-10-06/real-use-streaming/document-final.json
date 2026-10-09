@@ -1,0 +1,21 @@
+{
+  "id": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+  "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+  "displayName": "星桥发布值班手册(验收专用 20261006)",
+  "originalFilename": "星桥发布值班手册-20261006.md",
+  "mimeType": "text/markdown",
+  "sizeBytes": 1252,
+  "status": "READY",
+  "parserType": "MD",
+  "chunkCount": 5,
+  "embeddingProvider": "OLLAMA",
+  "embeddingModel": "qwen3-embedding:0.6b",
+  "embeddingDimension": 1024,
+  "errorMessage": null,
+  "uploadedById": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+  "uploadedByDisplayName": "Local Owner",
+  "indexedAt": "2026-10-06T11:54:08.285916Z",
+  "version": 0,
+  "createdAt": "2026-10-06T11:54:05.680136Z",
+  "updatedAt": "2026-10-06T11:54:08.285916Z"
+}

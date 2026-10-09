@@ -1,0 +1,22 @@
+{
+  "operations": null,
+  "session": {
+    "id": "606b39e2-876b-4aa3-b00b-37e622ccb601",
+    "projectId": "06375320-2f36-491e-9ac3-32cf64e09230",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "稳定性修复复验 stability-minimal",
+    "status": "ACTIVE",
+    "version": 0,
+    "createdAt": "2026-10-04T14:32:48.057147Z",
+    "updatedAt": "2026-10-04T14:32:48.057147Z"
+  },
+  "state": {
+    "documentId": "60d1258b-ef89-469a-8149-1a29f5ce2ca8",
+    "projectId": "06375320-2f36-491e-9ac3-32cf64e09230",
+    "codeVersion": "6edb3c39d4573430654cc1772034ad7f99cec75c",
+    "completedTurns": 0,
+    "batch": "stability-minimal",
+    "sessionId": "606b39e2-876b-4aa3-b00b-37e622ccb601"
+  },
+  "codeVersion": "6edb3c39d4573430654cc1772034ad7f99cec75c"
+}

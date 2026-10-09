@@ -1,0 +1,147 @@
+{
+  "plan": {
+    "id": "3ccc7130-d7e8-444b-9664-7c6a46688ca1",
+    "projectId": "ef024b8d-eafd-40c4-ad11-66e2b3de7bb2",
+    "title": "ai-collab可靠性验收24轮",
+    "goal": "在 2026-10-05 至 2026-10-25 内完成 ai-collab 发布前可靠性验收规划，覆盖六类场景并给出可判定验收标准：1) 长对话约束不丢失——长会话后期，早期否定约束（只讨论不生成草稿）、固定日期与固定负责人仍原样生效，摘要/状态记录含 sourceFrom/sourceThrough、schemaVersion、state revision，CAS 拒绝旧摘要覆盖新状态；2) 模型超时——受理与完成为两个独立状态，attempt 落终态，PLANNING 额度按 attempt 只计一次，超时不产生新版本且旧草稿版本号不变；3) 排队后进程重启——operation 记录跨重启存活可恢复，恢复前执行权限复查，规划卡片退避有明确终点且操作列表一次范围同步，同一 activeGoal/goalRevision 不得新建第二份规划；4) 运行中重启——仅终态 FAILED 视为明确失败，中间态不得被标为终态，失败 attempt 的部分输出一律丢弃从零重生，旧版本可通过带基线版本的局部修订继续修改；5) 取消与完成的竞争/重复请求——同一 attempt 不得同时出现已取消与生成成功两个终态，取消成功后不得产生新版本，attemptId 必须归属对应 operationId，不得取消到其他生成任务，并发请求不产生双写，额度不因竞态二次扣减；6) 证据收口——每条结论带来源 ID、定位与 snapshotId，明确区分文档主张（快照记录，非当前运行时能力）与本轮工具实测，未读范围与投影省略必须显式保留，不得把未读当未存在。",
+    "constraints": "日期固定 2026-10-05 至 2026-10-25，不得更改（落在项目周期 2026-10-04 至 2026-10-31 内，留 6 天缓冲）。建议负责人固定 Local Owner（成员表唯一成员、角色 OWNER，userId 9c4cd312-…92df0，与项目 ownerId 同源）。任务数量上限 6 项，不得超出。任务之间必须无环依赖，按上列 1→6 场景单向推进，场景 5 的取消竞争用例须在场景 2/4 的 attempt 生命周期用例之后执行。采购费用核对不属于本目标，不作为任务或验收项。所有涉及\"预算/额度\"均为单次请求 token 容量控制与 PLANNING 次数配额，非财务口径，不得换算为金额。验收标准必须可判定：给出触发条件与通过/失败结果，不使用\"应当正常\"一类不可判定表述。正式规划须由用户在规划页人工确认指定版本后生效，不自动批准；工具受理不等于生成成功。项目任务表当前为 0 项（total=0、hasMore=false），无同名任务消歧需求。文档 61e29c28-c54d-4e86-a9b7-59b35ba8b758（快照 57af26c7-dbae-44a7-ba93-4298804a5885）27 章中 24 章被确定性投影省略，未读章节不得视为不存在；凡引用文档条款须标注为快照记录而非当前运行时能力。所有超时/重启/取消竞争用例目前已测结果为零，需在验收中实际执行后才可判定通过。",
+    "planStartDate": "2026-10-05",
+    "planDueDate": "2026-10-25",
+    "maxTaskCount": 6,
+    "selectedDocumentIdsJson": "[\"61e29c28-c54d-4e86-a9b7-59b35ba8b758\"]",
+    "status": "READY",
+    "latestVersionNo": 2,
+    "latestVersionId": "ca7bfbbf-290e-46e4-b353-c7b89a59b885",
+    "generationSeq": 1,
+    "activeAttemptId": null,
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "lastErrorCode": null,
+    "lastErrorSummary": null,
+    "createdAt": "2026-10-04T08:40:31.777091Z",
+    "updatedAt": "2026-10-04T08:42:15.928575Z"
+  },
+  "latestVersion": {
+    "id": "ca7bfbbf-290e-46e4-b353-c7b89a59b885",
+    "versionNo": 2,
+    "sourceType": "AI_REPAIR",
+    "basedOnVersionId": "7f58bd43-7b2e-47c5-9b4b-6fd158868c2d",
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "createdAt": "2026-10-04 16:42:15.928575"
+  },
+  "activeAttempt": null,
+  "latestFailedAttempt": {
+    "id": "0dd24eb8-0650-45d3-b485-267d6858fd6e",
+    "stage": "DETAIL",
+    "status": "FAILED",
+    "provider": null,
+    "model": null,
+    "startedAt": "2026-10-04 16:41:37.318617",
+    "finishedAt": "2026-10-04 16:42:05.995344",
+    "latencyMs": null,
+    "promptTokens": null,
+    "completionTokens": null,
+    "errorCode": "PLANNING_MODEL_INVALID_OUTPUT",
+    "errorSummary": null,
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+  },
+  "latestAttempt": {
+    "id": "5367b1cd-a15e-4469-9059-5912eac5c0e6",
+    "stage": "REPAIR",
+    "status": "SUCCESS",
+    "provider": "OPENAI_COMPATIBLE",
+    "model": "space-bunny-free",
+    "startedAt": "2026-10-04 16:42:05.995344",
+    "finishedAt": "2026-10-04 16:42:16.002644",
+    "latencyMs": 9907,
+    "promptTokens": 15033,
+    "completionTokens": 587,
+    "errorCode": null,
+    "errorSummary": null,
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+  },
+  "confirmation": null,
+  "validation": {
+    "errors": [],
+    "warnings": [
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED"
+    ]
+  },
+  "permissions": {
+    "canEdit": true,
+    "canCancel": false,
+    "canRetryDetail": false,
+    "canRegenerate": true,
+    "canConfirm": true,
+    "canDelete": true,
+    "canRestore": true,
+    "canPartialRegenerate": true
+  },
+  "structuredIssues": [
+    {
+      "id": "d8225911-aa70-492b-a220-0a03dbc7f8b6",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T1",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "83b05c4f-1c4d-4b15-8045-68664372cef3",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T2",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "3d5b9bce-ef3b-4668-b179-51c28b8487bb",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T3",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "42ee10a7-2b23-49ab-b1f0-776db425b3da",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T4",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "3b571a8d-4d85-4cc2-83ca-c6c9b8551f26",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T5",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "324dc5a0-70a7-47e0-9f88-0060b0361732",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T6",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    }
+  ],
+  "repairDiagnostics": []
+}

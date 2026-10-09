@@ -234,7 +234,7 @@ class AgentContextAssemblerTest {
                 UUID.randomUUID(), UUID.randomUUID(), projectId, requesterId,
                 null, "MEMBER", 0, "检查项目", AgentRunStatus.RUNNING,
                 12, 8, 3, 50_000, 20_000,
-                0, 0, 0, 0, 0, false,
+                0, 0, 0, 0, 0, 0, 0, false,
                 false, false, 0, null, null, null, null, 1, now, now);
     }
 }

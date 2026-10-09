@@ -1,0 +1,6 @@
+{
+  "case": "queued-valid",
+  "at": "2026-10-04T07:03:30.0272566Z",
+  "action": "Terminate verified isolated JVM",
+  "pid": 38476
+}

@@ -57,10 +57,9 @@ public class KnowledgeCitationValidator {
             cited.add(byRank.get(rank));
         }
         String cleanedAnswer = cleaned.toString().replaceAll("[ \\t]+\\n", "\n").strip();
-        if (cleanedAnswer.isBlank()) {
+        if (cleanedAnswer.isBlank() || validRanks.isEmpty()) {
             return insufficient(invalid, true);
         }
-        // 即使没有引用来源，也展示 AI 的回答（不判为证据不足）
         return new ValidatedKnowledgeAnswer(
                 cleanedAnswer,
                 false,

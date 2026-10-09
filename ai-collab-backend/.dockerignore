@@ -1,0 +1,8 @@
+target/
+.idea/
+.mvn/wrapper/maven-wrapper.jar
+*.log
+hs_err_pid*.log
+replay_pid*.log
+Dockerfile
+.dockerignore

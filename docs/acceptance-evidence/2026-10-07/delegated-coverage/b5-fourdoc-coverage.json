@@ -1,0 +1,97 @@
+{
+    "gaps": [
+        "文档 02cc7dd3-2a31-4abc-9155-f9ef14bac435：已取得提纲但未读取任何正文",
+        "文档 049ba0e6-3bc6-4121-a736-d672b0789e0f：已取得提纲但未读取任何正文",
+        "文档 2d4672c7-650e-49ba-a83e-c90b6478b1f5：已取得提纲但未读取任何正文",
+        "文档 9fe67dbf-a013-4a53-a70f-138ba524ae64：已取得提纲但未读取任何正文"
+    ],
+    "notes": [
+        "HEURISTIC_HEADINGS 提纲由标题识别得出，不是保证完整的目录；取得提纲不等于读完全文。"
+    ],
+    "limits": [
+    ],
+    "documents": [
+        {
+            "outline": {
+                "trust": "HEURISTIC",
+                "status": "OBTAINED",
+                "failures": 0,
+                "structure": "HEURISTIC_HEADINGS",
+                "truncated": false,
+                "sectionsListed": 4
+            },
+            "documentId": "02cc7dd3-2a31-4abc-9155-f9ef14bac435",
+            "snapshotId": "765d483e-b82f-4fc3-8759-47edfb3a03ac",
+            "sectionsRead": {
+                "count": 0,
+                "headings": [
+                ],
+                "truncated": false,
+                "unreadRangeUnknown": false
+            },
+            "processingStatus": "READY"
+        },
+        {
+            "outline": {
+                "trust": "HEURISTIC",
+                "status": "OBTAINED",
+                "failures": 0,
+                "structure": "HEURISTIC_HEADINGS",
+                "truncated": false,
+                "sectionsListed": 4
+            },
+            "documentId": "049ba0e6-3bc6-4121-a736-d672b0789e0f",
+            "snapshotId": "fbdfb1d7-b929-4593-a615-7431fa8ae481",
+            "sectionsRead": {
+                "count": 0,
+                "headings": [
+                ],
+                "truncated": false,
+                "unreadRangeUnknown": false
+            },
+            "processingStatus": "READY"
+        },
+        {
+            "outline": {
+                "trust": "HEURISTIC",
+                "status": "OBTAINED",
+                "failures": 0,
+                "structure": "HEURISTIC_HEADINGS",
+                "truncated": false,
+                "sectionsListed": 3
+            },
+            "documentId": "2d4672c7-650e-49ba-a83e-c90b6478b1f5",
+            "snapshotId": "0f424b34-b70c-467f-afb5-27b48c136fc7",
+            "sectionsRead": {
+                "count": 0,
+                "headings": [
+                ],
+                "truncated": false,
+                "unreadRangeUnknown": false
+            },
+            "processingStatus": "READY"
+        },
+        {
+            "outline": {
+                "trust": "HEURISTIC",
+                "status": "OBTAINED",
+                "failures": 0,
+                "structure": "HEURISTIC_HEADINGS",
+                "truncated": false,
+                "sectionsListed": 4
+            },
+            "documentId": "9fe67dbf-a013-4a53-a70f-138ba524ae64",
+            "snapshotId": "2e6693d7-dbf7-47e1-8f4f-cab384c20f83",
+            "sectionsRead": {
+                "count": 0,
+                "headings": [
+                ],
+                "truncated": false,
+                "unreadRangeUnknown": false
+            },
+            "processingStatus": "READY"
+        }
+    ],
+    "endReason": "SUCCEEDED",
+    "coverageKnown": true
+}

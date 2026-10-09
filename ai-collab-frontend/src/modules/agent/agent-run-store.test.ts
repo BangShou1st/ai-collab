@@ -15,6 +15,22 @@ const event = (sequence: number, type: AgentRunEvent['type']): AgentRunEvent => 
 })
 
 describe('agent timeline state', () => {
+  it('keeps proposal batches running until the persisted terminal event', () => {
+    const state = emptyAgentTimeline(run)
+    applyAgentEvent(state, { ...event(1, 'APPROVAL_REQUESTED'), payload: { status: 'RUNNING' } })
+    expect(state.run?.status).toBe('RUNNING')
+    applyAgentEvent(state, event(2, 'RUN_SUCCEEDED'))
+    expect(state.run?.status).toBe('SUCCEEDED')
+  })
+
+  it('distinguishes scheduled recovery from a permanent model failure', () => {
+    const state = emptyAgentTimeline(run)
+    applyAgentEvent(state, { ...event(1, 'RUN_FAILED'), payload: { retryable: true } })
+    expect(state.run?.status).toBe('FAILED_RETRYABLE')
+    applyAgentEvent(state, { ...event(2, 'RUN_FAILED'), payload: { retryable: false } })
+    expect(state.run?.status).toBe('FAILED')
+  })
+
   it('moves a queued run to running when model execution starts', () => {
     const state = emptyAgentTimeline({ ...run, status: 'QUEUED' })
 

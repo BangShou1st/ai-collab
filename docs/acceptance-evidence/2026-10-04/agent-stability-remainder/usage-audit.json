@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-04/2026-10-05",
+  "model": "space-bunny-free (authorized provider, temperature 0.2, planning output cap 6000)",
+  "codeVersion": "6edb3c39d4573430654cc1772034ad7f99cec75c",
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG; original business DB/Redis/MinIO stopped; every turn from reliability/conversation-turns.json without added hints",
+  "scope": "Usage ledger audit across the 46 real runs created this round (40 batch turns + 6 sources-available/retry runs)",
+  "checks": [
+    {
+      "check": "recorded usage not shadowed by run cap",
+      "query": "agent_run rows of this round with input_tokens_actual > max_input_tokens AND input_tokens_used < max_input_tokens",
+      "result": "shadowed_rows=0",
+      "note": "turn-15 (stability-fixed24) real input 53437 > 50000: used capped at 50000, actual 53437, run honestly BUDGET_EXCEEDED — V56 semantics preserved"
+    },
+    {
+      "check": "step ledger reconciles with run actuals",
+      "query": "per run: input_tokens_actual == sum(agent_step.prompt_tokens), output_tokens_actual == sum(agent_step.completion_tokens)",
+      "result": "reconcile_mismatches=0",
+      "note": "no orphan settlements occurred in the real runs (settlement_rows=0); idempotent settlement is covered by AgentActualTokenUsageIntegrationTest against real PostgreSQL (repeated settle / cancel race / evidence estimate)"
+    },
+    {
+      "check": "usage_basis distribution on batch steps",
+      "result": "PROVIDER=97, UNKNOWN=105 (steps without token accounting: tool results, markers — default UNKNOWN per V56)",
+      "result_ok": true
+    },
+    {
+      "check": "summary attempts are per-request identified and settled",
+      "result": "9 CONTEXT_SUMMARY attempts: 8 oversized outputs triggered a second CONTEXT_SUMMARY_RECOMPRESS call (8 rows, all SETTLED, usage_basis=PROVIDER, booked independently); 1 recompress still unqualified -> DOWNSGRADED_UNQUALIFIED with note RECOMPRESS_STILL_UNQUALIFIED, coverage not advanced; 1 COMMITTED",
+      "result_ok": true
+    },
+    {
+      "check": "no unknown masquerading as zero or provider",
+      "query": "mixed-side bases recorded per side in attempt output_json (inputTokensBasis/outputTokensBasis)",
+      "result": "no row with substituted-estimate values marked PROVIDER",
+      "result_ok": true
+    }
+  ],
+  "notes": [
+    "V56 backfilled historical actuals from used values (lower bound); agent_usage_settlement (V57) records only new orphan settlements — the two ledgers are complementary and both reconciled in tests",
+    "planning service attempts for the fixed24 plan (SKELETON in=1806/out=3778, DETAIL in=5683/out=2575, both SUCCESS) are billed on the planning side, not in agent_run"
+  ]
+}

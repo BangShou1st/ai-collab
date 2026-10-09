@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-04/2026-10-05",
+  "model": "space-bunny-free (authorized provider, temperature 0.2, planning output cap 6000)",
+  "codeVersion": "6edb3c39d4573430654cc1772034ad7f99cec75c",
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG; original business DB/Redis/MinIO stopped; every turn from reliability/conversation-turns.json without added hints",
+  "items": [
+    {
+      "id": 1,
+      "issue": "summary recompression unbounded and lossy on accounting (second call skipped budget/cancel checks; failure discarded first call's real usage)",
+      "verification": "real fixed24 turns: 8 summary attempts hit oversized output -> bounded recompress request re-checked remaining budget/duration/cancellation, ran as its own persisted CONTEXT_SUMMARY_RECOMPRESS row, settled PROVIDER usage independently; 1 still-unqualified attempt downgraded with note RECOMPRESS_STILL_UNQUALIFIED, previous summary retained, coverage not advanced; first-call usage survives recompress failure/cancel/CAS per unit + PostgreSQL tests (AgentContextSummarizerTest 21 items, AgentActualTokenUsageIntegrationTest 9 items)",
+      "result": "PASS"
+    },
+    {
+      "id": 2,
+      "issue": "real turn-10 sentence '…调整为最多8项；这取代原来最多10项' produced pending 8/10 with old 10 still active",
+      "verification": "stability-minimal turn-10 and stability-fixed24 turn-10 (real runs, original wording): working state now has 最多8项 active with detail.supersedes=[10] and sourceMessageId of the turn-10 message; 最多10项 superseded; answer restates 8 replacing 10; multi-value/no-marker sentences still conservative (integration tests); compatibility case (existing pending + active old value) resolves without clearing history",
+      "result": "PASS"
+    },
+    {
+      "id": 3,
+      "issue": "date/assignee supersede decided by differing values, letting task B's protection override task A's",
+      "verification": "10→8→6 supersede chain retraced in DB (最多10项,最多8项,最多6项 with 8 carrying supersedes=[10]); final active constraints exactly 最多6项 + date range + Local Owner; zero old-count mentions and zero pending-count entries in final summary (917 chars); object-scoped protection coexistence and no-cross-object reuse covered by AgentWorkingStateConstraintIntegrationTest (14 items, real PostgreSQL); final states of all three real batches consistent",
+      "result": "PASS"
+    },
+    {
+      "id": 4,
+      "issue": "usage source inferred from non-null values; orphan settlement had no identity/idempotency",
+      "verification": "UsageSettlement computes source per side from RAW usage and passes it explicitly; missing sides estimated from request/response evidence, no-evidence marked UNKNOWN; agent_usage_settlement (V57) with unique(run_id,call_id) books orphan usage exactly once under retry/recovery/cancel races — verified on real PostgreSQL (orphanUsageAfterCancellationIsStillSettled, repeatedOrphanSettlementWithSameCallIdentityBooksExactlyOnce, orphanSettlementWithoutProviderUsageUsesEvidenceEstimate); real batch audit: 0 shadowed rows, step ledger reconciles exactly",
+      "result": "PASS"
+    },
+    {
+      "id": 5,
+      "issue": "budget-forced finalize without the required action recorded run as SUCCEEDED (real turn-23 of previous round)",
+      "verification": "stability-fixed24 turn-23 (real run, original wording): model called start_task_plan twice — attempt 1 carried documentIds=[3e247376…] (that document processingStatus=FAILED, retrieval unavailable) and FAILED with PLANNING_DOCUMENT_NOT_READY; attempt 2 DROPPED documentIds and folded previously read fragments into the constraints text, then SUCCEEDED and the operation was accepted (requiresHumanConfirmation=true). This proves degraded-retrieval draft content correctness, NOT a same-parameters retry success; the full 资料→规划 source link is verified separately in the sources-available environment. The deterministic path is unit-tested: had finalize blocked the action, the run settles BUDGET_EXCEEDED with scope CORE_ACTION_NOT_PERFORMED — judged from goal text + persisted tool results, never the final answer; intent recognition covers mirrored negatives/questions (see coreActionIntentHonorsMirroredNegativesQuestionsAndClauses); ordinary read-only runs unaffected (turn-4/10/18/19/22 all SUCCEEDED with text answers)",
+      "result": "PASS (degraded-retrieval content correctness; source-link verified separately)"
+    },
+    {
+      "id": 6,
+      "issue": "planning draft carried superseded 10-item requirements; source认识 not updated by planning-service retrieval",
+      "verification": "fixed24 real draft READY v2: 6 tasks + 6 milestones, all dates within 2026-10-05..10-25, all suggestedAssigneeId = real Local Owner id, linear acyclic dependencies T1→…→T6, validation.errors=[] (warnings: TASK_UNASSIGNED by design), confirmation=0, formal tasks=0; draft text contains zero occurrences of 10项/最多十项; assumptions cite PLAN_CONSTRAINTS 最多6项; retrieval degraded in the isolated copy (sources=0) and the draft marks out-of-read scope as 待文档确认 instead of asserting; separately, with embedding available (sources-available validation), the planning service retrieved 9 real sources (S1–S9 with chunkId/heading/similarity) — the full 资料→规划 source link is verified in that environment, recorded separately from the frozen batch",
+      "result": "PASS (frozen-batch content checks + separate sources-available validation)"
+    }
+  ],
+  "knownFailuresHonest": [
+    "stability-fixed24 turn-9: isolated host JVM died mid-run (background-task timeout); recovery resumed the original run which then ended BUDGET_EXCEEDED (duration budget consumed during the outage) — recorded, no duplicate submission",
+    "stability-fixed24 turn-15: real input 53437 > 50000 cap — used capped, actual recorded, run honestly BUDGET_EXCEEDED",
+    "sources-available first skeleton attempt FAILED with PLANNING_MODEL_INVALID_OUTPUT (zero version) — regenerated via the documented planning-page path; first attempt preserved",
+    "original failed session's document reindex rejected: its original object lives in the reliability round's MinIO volume, not mounted by this host; body/vector chunks intact (28/28), reading unaffected — environment limitation recorded",
+    "run counts: 46 runs this round (40 batch turns + planning retry infrastructure runs); 22/24 fixed24 turns SUCCEEDED, not 24/24 — the two BUDGET_EXCEEDED are honest outcomes, not quality failures of the five groups"
+  ],
+  "overallRealQuality": "FIVE GROUPS VERIFIED ON REAL RUNS; batch-level outcomes honestly record two BUDGET_EXCEEDED turns; planning content verified with zero old-count residue and (in the sources-available environment) real retrieved sources; no formal task or confirmation created"
+}

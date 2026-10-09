@@ -3,7 +3,6 @@ package com.shitulelv.aicollab.agent.domain.model.builtin;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
 import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
 
 import java.util.Set;
@@ -54,7 +53,7 @@ public final class MeetingToTasksSkill implements AgentSkill {
 
     @Override
     public Set<String> allowedTools() {
-        return Set.of("search_project_knowledge", "list_tasks", "get_task", "list_project_members",
+        return Set.of("list_project_documents", "get_document_outline", "read_document_section", "search_project_knowledge", "list_tasks", "get_task", "list_project_members",
                 "create_task_after_approval");
     }
 
@@ -73,9 +72,6 @@ public final class MeetingToTasksSkill implements AgentSkill {
 
     @Override
     public boolean allowWriteTools() { return true; }
-
-    @Override
-    public AgentRuntimeLimits defaultLimits() { return AgentRuntimeLimits.forSkill("MEETING_TO_TASKS"); }
 
     @Override
     public String instruction() { return INSTRUCTION; }

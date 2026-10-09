@@ -1,0 +1,54 @@
+[
+  {
+    "executionDate": "2026-10-04",
+    "database": "ISOLATED_COPY_55432",
+    "status": "PASSED",
+    "planCount": 1,
+    "confirmedVersionNo": 4,
+    "taskCount": 4,
+    "milestoneCount": 2,
+    "dependencyCount": 3,
+    "confirmationCount": 1,
+    "operationCount": 2,
+    "successfulAttempts": 3
+  },
+  {
+    "stage": "REPAIR",
+    "status": "SUCCESS",
+    "provider": "OPENAI_COMPATIBLE",
+    "model": "space-bunny-free",
+    "latencyMs": 1848,
+    "promptTokens": 4515,
+    "completionTokens": 212
+  },
+  {
+    "stage": "SKELETON",
+    "status": "SUCCESS",
+    "provider": "OPENAI_COMPATIBLE",
+    "model": "space-bunny-free",
+    "latencyMs": 20232,
+    "promptTokens": 1885,
+    "completionTokens": 1532
+  },
+  {
+    "stage": "DETAIL",
+    "status": "SUCCESS",
+    "provider": "OPENAI_COMPATIBLE",
+    "model": "space-bunny-free",
+    "latencyMs": 16755,
+    "promptTokens": 3338,
+    "completionTokens": 2007
+  },
+  {
+    "task": "T-02",
+    "predecessor": "T-01"
+  },
+  {
+    "task": "T-03",
+    "predecessor": "T-02"
+  },
+  {
+    "task": "T-04",
+    "predecessor": "T-03"
+  }
+]

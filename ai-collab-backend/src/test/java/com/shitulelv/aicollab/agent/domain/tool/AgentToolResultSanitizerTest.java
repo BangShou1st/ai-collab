@@ -88,6 +88,18 @@ class AgentToolResultSanitizerTest {
         JsonNode result = sanitizer.sanitize(null);
         assertThat(result).isNull();
     }
+    @Test void oversizedUnicodePlanningResultKeepsValidJsonAndVersionIdentity() throws Exception {
+        var input=json.createObjectNode();var data=input.putObject("data");data.put("versionId","11111111-1111-1111-1111-111111111111");data.put("versionNo",7);
+        var tasks=data.putArray("tasks");for(int i=0;i<10;i++) tasks.addObject().put("tempKey","t"+i).put("description","中文😀".repeat(2000));
+        JsonNode result=sanitizer.sanitize(input);
+        assertThat(result.path("truncated").asBoolean()).isTrue();
+        assertThat(result.path("error").asText()).isEmpty();
+        assertThat(result.path("data").path("versionNo").asInt()).isEqualTo(7);
+        assertThat(result.path("data").path("tasks").get(0).path("tempKey").asText()).isEqualTo("t0");
+        byte[] serialized=json.writeValueAsBytes(result);
+        assertThat(serialized.length).isLessThanOrEqualTo(AgentToolResultSanitizer.maxResultBytes());
+        assertThat(json.readTree(serialized)).isEqualTo(result);
+    }
 
     @Test
     void safeDataPassesThrough() throws Exception {

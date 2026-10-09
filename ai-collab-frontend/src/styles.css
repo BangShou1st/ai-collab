@@ -426,15 +426,26 @@
   font-weight: 650;
 }
 .board-count { color: var(--color-text-muted); font-weight: 600; font-size: 12px; }
-.board-tasks { display: grid; gap: 8px; overflow-y: auto; align-content: start; }
+.board-tasks {
+  display: grid;
+  grid-auto-rows: max-content;
+  min-height: 0;
+  gap: 8px;
+  overflow-y: auto;
+  align-content: start;
+}
 .board-empty { padding: 12px 8px; text-align: center; color: var(--color-text-muted); font-size: 13px; }
 .task-card {
+  min-width: 0;
   margin-bottom: 0;
   cursor: pointer;
   border-radius: var(--radius-surface);
   box-shadow: none;
 }
+.task-card .el-card__body { overflow: visible; }
 .task-card h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
   margin: 0 0 8px;
   font-size: 14px;
   line-height: 1.4;

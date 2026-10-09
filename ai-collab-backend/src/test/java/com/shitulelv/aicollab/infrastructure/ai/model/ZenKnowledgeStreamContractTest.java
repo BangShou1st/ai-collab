@@ -83,7 +83,7 @@ class ZenKnowledgeStreamContractTest {    private final ObjectMapper mapper = ne
         Map<String, String> headers = headerRef[0];
         assertThat(headers.get("Authorization")).isEqualTo("Bearer k");
         assertThat(headers.get("User-Agent")).isEqualTo("opencode/1.18.21");
-        assertThat(headers.get(OpenCodeZenTransport.SESSION_HEADER)).isEqualTo("corr-1");
+        assertThat(headers.get(OpenCodeZenTransport.SESSION_HEADER)).matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
     }
 
     @Test void zenExecutionCompleteUsesStreamingWireForTextAndJson() {
@@ -100,6 +100,6 @@ class ZenKnowledgeStreamContractTest {    private final ObjectMapper mapper = ne
         verify(adapter, never()).completeWithSession(any(), anyString(), any(), any(), anyString());
         verify(adapter, times(2)).completeStreamingSyncWithSession(
                 any(ModelConfiguration.class), eq("k"), any(ChatCompletionCommand.class),
-                any(AiRequestMetadata.class), eq("opencode/1.18.21"));
+                any(AiRequestMetadata.class), eq(new ProviderPresetRegistry().require(ProviderPresetCode.OPENCODE_ZEN_FREE).userAgent()));
     }
 }

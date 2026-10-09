@@ -11,6 +11,8 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.planning.domain.DetailModelOutput;
 import com.shitulelv.aicollab.planning.domain.SkeletonModelOutput;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -22,6 +24,7 @@ import java.util.List;
  */
 @Component
 public class TaskPlanOutputParser {
+    private static final Logger log = LoggerFactory.getLogger(TaskPlanOutputParser.class);
     private final ObjectMapper json;
     private final ObjectMapper strictSkeleton;
     private final ObjectMapper strictDetail;
@@ -29,9 +32,9 @@ public class TaskPlanOutputParser {
     public TaskPlanOutputParser(ObjectMapper json) {
         this.json = json;
         this.strictSkeleton = json.copy()
-                .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+                .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
         this.strictDetail = json.copy()
-                .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+                .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     }
 
     /** Legacy parse — used only for repair prompt which expects full draft. */
@@ -151,7 +154,9 @@ public class TaskPlanOutputParser {
             if (exception instanceof UnrecognizedPropertyException unrecognized) {
                 return unrecognized.getPropertyName();
             }
-        } catch (Exception ignored) {}
+        } catch (Exception failure) {
+            log.debug("Failed to extract safe field path from Jackson exception: {}", failure.getMessage());
+        }
         return null;
     }
 
@@ -194,7 +199,7 @@ public class TaskPlanOutputParser {
 
     private static String clean(String output) {
         String value = output == null ? "" : output.strip();
-        if (value.startsWith("```")) {
+        if (value.startsWith("```") && value.endsWith("```")) {
             value = value.replaceFirst("^```(?:json)?\\s*", "").replaceFirst("\\s*```$", "");
         }
         return value;

@@ -141,6 +141,8 @@ public class TaskPlanGenerationOrchestrator {
             """;
 
     private final Executor executor;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard access;
     private final TaskPlanRepository repository;
     private final TaskPlanModelClient model;
     private final TaskPlanOutputParser parser;
@@ -197,12 +199,23 @@ public class TaskPlanGenerationOrchestrator {
      * so cancel() always finds it. On queue reject, we clean up immediately.
      */
     public void dispatch(TaskPlanRecord plan, UUID actor, boolean detailOnly) {
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization(){
+                @Override public void afterCommit(){
+                    try {dispatchNow(plan,actor,detailOnly);} catch(RuntimeException failure) { /* persisted attempt failure remains queryable */ }
+                }
+            });
+            return;
+        }
+        dispatchNow(plan,actor,detailOnly);
+    }
+    private void dispatchNow(TaskPlanRecord plan,UUID actor,boolean detailOnly) {
         FutureTask<Object> futureTask = new FutureTask<Object>(() -> {
             runPlan(plan, actor, detailOnly);
             return null;
         });
         GenerationRunKey key = new GenerationRunKey(plan.id(), plan.generationSeq());
-        runRegistry.put(key, new GenerationRunHandle(futureTask, plan.activeAttemptId()));
+        if(runRegistry.putIfAbsent(key, new GenerationRunHandle(futureTask, plan.activeAttemptId()))!=null) return;
         try {
             executor.execute(futureTask);
         } catch (RejectedExecutionException rejected) {
@@ -216,7 +229,7 @@ public class TaskPlanGenerationOrchestrator {
     }
 
     private void runPlan(TaskPlanRecord plan, UUID actor, boolean detailOnly) {
-        try {
+        try (TaskPlanModelClient.ConfigurationScope scope = model.openSnapshot()) {
             if (detailOnly) runDetail(plan, plan.activeAttemptId(), actor, latestDraft(plan));
             else runSkeleton(plan, actor);
         } finally {
@@ -259,6 +272,7 @@ public class TaskPlanGenerationOrchestrator {
         if (!repository.markRunning(plan.activeAttemptId(), plan.id(), plan.generationSeq(),
                 TaskPlanStatus.SKELETON_GENERATING)) return;
         try {
+            if(access!=null) access.requireAdmin(plan.projectId(),actor);
             var context = contexts.assemble(plan);
             // R3: Skeleton prompt uses identity-only schema, no sources in <SKELETON>
             String prompt = skeletonPrompt(plan) + "\n" + context.promptText();
@@ -301,6 +315,7 @@ public class TaskPlanGenerationOrchestrator {
                 TaskPlanStatus.DETAIL_GENERATING)) return;
         try {
             // R3: Detail prompt only includes identity skeleton, not full draft
+            if (access != null) access.requireAdmin(plan.projectId(), actor);
             String prompt = detailPrompt(plan, skeleton);
             GeneratedDetailOutcome generated = generateDetailWithOneRepair(
                     plan, attempt, TaskPlanStatus.DETAIL_GENERATING, prompt, actor, skeleton);
@@ -315,10 +330,12 @@ public class TaskPlanGenerationOrchestrator {
             TaskPlanVersionSource sourceType = finalStatus == TaskPlanStatus.READY_WITH_ISSUES
                     ? TaskPlanVersionSource.AI_PARTIAL
                     : generated.repaired() ? TaskPlanVersionSource.AI_REPAIR : TaskPlanVersionSource.AI_COMPLETE;
-            // Re-read plan to get fresh activeAttemptId (may have changed during repair)
-            TaskPlanRecord freshPlan = repository.require(plan.projectId(), plan.id());
-            TaskPlanVersionRecord versionRecord = commitService.commit(freshPlan, detail,
-                    sourceType, assessment, finalStatus,
+            // 提交绑定这份结果实际所属的身份：dispatch 快照的 generationSeq、实际生成/修复的
+            // attemptId 与预期阶段。不能用提交时重新读取的最新规划身份替换——否则有效性检查
+            // 与提交之间发生"取消→重新生成"时，旧结果会借用新一轮身份通过校验产生错误版本。
+            TaskPlanVersionRecord versionRecord = commitService.commitGenerated(
+                    plan, plan.generationSeq(), generated.attemptId(), TaskPlanStatus.DETAIL_GENERATING,
+                    detail, sourceType, assessment, finalStatus,
                     "PLAN_GENERATED", actor, plan.latestVersionId());
             if (versionRecord == null) return;
             var m = generated.metrics();
@@ -358,7 +375,7 @@ public class TaskPlanGenerationOrchestrator {
                     planningCorrelationId(plan.id(), plan.generationSeq()));
         } catch (BusinessException providerFailure) {
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
-                    TaskPlanStatus.FAILED, providerFailure.getErrorCode().name());
+                    TaskPlanStatus.FAILED, providerFailure.getErrorCode().name(), safeErrorSummary("SKELETON", providerFailure));
             throw new GenerationHandledException();
         }
         try {
@@ -376,7 +393,7 @@ public class TaskPlanGenerationOrchestrator {
         // F3: Re-key the Future under the repair attemptId so cancel() can find it
         rekeyFuture(initialAttempt, repairAttempt, plan.generationSeq());
         // S4: Pass structured failure info to repair prompt
-        String repairPrompt = repairPrompt(result.content(), SKELETON_SCHEMA, "SKELETON",
+        String repairPrompt = prompt + "\n" + repairPrompt(result.content(), SKELETON_SCHEMA, "SKELETON",
                 contractError != null ? contractError.category() : "UNKNOWN",
                 contractError != null ? contractError.jsonPath() : null,
                 contractError != null ? contractError.validationCodes() : List.of());
@@ -434,6 +451,26 @@ public class TaskPlanGenerationOrchestrator {
                         initialAssessment.errorCodes());
             }
         } catch (RuntimeException invalidOutput) {
+            if (invalidOutput instanceof ModelOutputContractException contract
+                    && !"DOMAIN_VALIDATION_FAILED".equals(contract.category())) {
+                UUID repairAttempt = repository.startRepair(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus, actor);
+                if (repairAttempt == null) throw new GenerationHandledException();
+                rekeyFuture(initialAttempt, repairAttempt, plan.generationSeq());
+                try {
+                    GenerationResult repairedResult = model.generate(repairSystem(), prompt + "\n"
+                                    + repairPrompt(result.content(), DETAIL_SCHEMA, "DETAIL", contract.category(),
+                                    contract.jsonPath(), contract.validationCodes()), "TASK_PLAN_DETAIL_FORMAT_REPAIR",
+                            actor, plan.projectId(), repairAttempt, planningCorrelationId(plan.id(), plan.generationSeq()));
+                    TaskPlanDraft repaired = normalizer.normalize(mergeDetailIntoSkeleton(skeleton, parser.parseDetail(repairedResult.content())));
+                    ValidationAssessment assessed = validator.assess(repository.validationContext(plan), repaired, ValidationMode.COMPLETE, true);
+                    if (assessed.hasHardIssues()) throw new ModelOutputContractException("DOMAIN_VALIDATION_FAILED", null, assessed.errorCodes());
+                    return new GeneratedDetailOutcome(repaired, repairAttempt, repairedResult, assessed, true);
+                } catch (RuntimeException exhausted) {
+                    repository.fail(plan.id(), plan.generationSeq(), repairAttempt, expectedStatus,
+                            TaskPlanStatus.DETAIL_GENERATION_FAILED, safeCode(exhausted), safeErrorSummary("DETAIL", exhausted));
+                    throw new GenerationHandledException();
+                }
+            }
             repository.fail(plan.id(), plan.generationSeq(), initialAttempt, expectedStatus,
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, safeCode(invalidOutput),
                     safeErrorSummary("DETAIL", invalidOutput));
@@ -450,7 +487,7 @@ public class TaskPlanGenerationOrchestrator {
                     TaskPlanStatus.DETAIL_GENERATION_FAILED, "DOMAIN_VALIDATION_FAILED");
             throw new GenerationHandledException();
         }
-        String repairPrompt = patchRepairPrompt(candidate, initialAssessment, scope);
+        String repairPrompt = prompt + "\n" + patchRepairPrompt(candidate, initialAssessment, scope);
         try {
             GenerationResult repairResult = model.generate(
                     repairSystem(), repairPrompt, "TASK_PLAN_REPAIR_PATCH",
@@ -645,7 +682,7 @@ public class TaskPlanGenerationOrchestrator {
         return PLAN_INPUT_TAG_OPEN + "\n"
                 + "标题=" + PlanningPromptText.escapeUntrusted(p.title()) + "\n"
                 + "目标=" + PlanningPromptText.escapeUntrusted(p.goal()) + "\n"
-                + "约束=" + PlanningPromptText.escapeUntrusted(p.constraints()) + "\n"
+                + "约束历史（可能含已取代旧值，当前生效值以 PLAN_CONSTRAINTS/最多任务 为准）=" + PlanningPromptText.escapeUntrusted(p.constraints()) + "\n"
                 + "日期=" + p.planStartDate() + ".." + p.planDueDate() + "\n"
                 + "最多任务=" + p.maxTaskCount() + "\n"
                 + PLAN_INPUT_TAG_CLOSE + "\n"
@@ -680,7 +717,7 @@ public class TaskPlanGenerationOrchestrator {
             return PLAN_INPUT_TAG_OPEN + "\n"
                     + "标题=" + PlanningPromptText.escapeUntrusted(p.title()) + "\n"
                     + "目标=" + PlanningPromptText.escapeUntrusted(p.goal()) + "\n"
-                    + "约束=" + PlanningPromptText.escapeUntrusted(p.constraints()) + "\n"
+                    + "约束历史（可能含已取代旧值，当前生效值以 PLAN_CONSTRAINTS/最多任务 为准）=" + PlanningPromptText.escapeUntrusted(p.constraints()) + "\n"
                     + "日期=" + p.planStartDate() + ".." + p.planDueDate() + "\n"
                     + "最多任务=" + p.maxTaskCount() + "\n"
                     + PLAN_INPUT_TAG_CLOSE + "\n"
@@ -727,7 +764,7 @@ public class TaskPlanGenerationOrchestrator {
         }
         String msg = failure.getMessage();
         if (msg != null && !msg.isBlank()) {
-            String summary = stage + " / " + msg;
+            String summary = stage + " / " + safeCode(failure) + " / " + msg;
             return summary.codePointCount(0, summary.length()) > 300
                     ? summary.substring(0, 300) : summary;
         }

@@ -12,6 +12,12 @@ class AgentSkillRegistryTest {
     private final AgentSkillRegistry registry = new AgentSkillRegistry();
 
     @Test
+    void proposalRevisionKeepsWriteCapableToolsWithoutRepeatingTaskKeyword() {
+        assertThat(registry.select(null, "继续生成刚才的待审批提案，工时改为3小时", null).allowedTools())
+                .contains("create_task_after_approval", "update_task_after_approval");
+    }
+
+    @Test
     void allSixBuiltinSkillsRegistered() {
         assertThat(registry.listAll()).hasSize(6);
     }

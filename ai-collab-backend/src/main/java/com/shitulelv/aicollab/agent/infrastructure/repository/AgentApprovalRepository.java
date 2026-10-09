@@ -14,6 +14,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -22,6 +24,7 @@ import java.util.UUID;
 
 @Repository
 public class AgentApprovalRepository {
+    private static final Logger log = LoggerFactory.getLogger(AgentApprovalRepository.class);
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
 
@@ -35,9 +38,10 @@ public class AgentApprovalRepository {
             UUID approvalId, AgentRunView run, ChatCompletionResult completion,
             AgentDecision.CallTool call, JsonNode arguments, JsonNode diff,
             String argumentsHash, String nonceHash, OffsetDateTime expiresAt) {
+        AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
         boolean currentRun = !jdbc.query("""
                 SELECT id FROM agent_run
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
+                WHERE project_id=? AND id=? AND version=? AND status='RUNNING' AND cancel_requested_at IS NULL
                 FOR UPDATE
                 """, (rs, row) -> rs.getObject("id", UUID.class),
                 run.projectId(), run.id(), run.version()).isEmpty();
@@ -98,8 +102,14 @@ public class AgentApprovalRepository {
     }
 
     public List<AgentApprovalView> listByRun(UUID projectId, UUID runId) {
-        return jdbc.query("SELECT * FROM agent_approval WHERE project_id=? AND run_id=? ORDER BY created_at DESC, id DESC LIMIT 200",
-                mapper(), projectId, runId);
+        return jdbc.query("""
+                SELECT a.* FROM agent_approval a WHERE a.project_id=? AND
+                  (a.run_id=? OR EXISTS(SELECT 1 FROM agent_approval_revision revision
+                      WHERE revision.approval_id=a.id AND revision.source_run_id=?)
+                    OR EXISTS(SELECT 1 FROM agent_tool_invocation invocation
+                      WHERE invocation.proposal_id=a.id AND invocation.run_id=?))
+                ORDER BY a.created_at DESC,a.id DESC LIMIT 200
+                """, mapper(), projectId, runId, runId, runId);
     }
 
     public Optional<AgentApprovalView> find(UUID projectId, UUID approvalId) {
@@ -196,6 +206,7 @@ public class AgentApprovalRepository {
     public AgentApprovalView revise(
             AgentApprovalView approval, JsonNode newArguments, JsonNode newDiff,
             String argumentsHash, UUID sourceRunId) {
+        AgentLeaseScope.verify(jdbc, approval.projectId(), sourceRunId, false);
         int newRevision = approval.revision() + 1;
         int updated = jdbc.update("""
                 UPDATE agent_approval SET
@@ -289,7 +300,10 @@ public class AgentApprovalRepository {
     private AgentProposalFamily parseProposalFamily(String value) {
         if (value == null) return null;
         try { return AgentProposalFamily.valueOf(value); }
-        catch (IllegalArgumentException ignored) { return null; }
+        catch (IllegalArgumentException unknown) {
+            log.debug("Unknown agent proposal family value in persisted row: {}", value);
+            return null;
+        }
     }
 
     private RowMapper<AgentProposalRevisionView> revisionMapper() {
@@ -331,7 +345,10 @@ public class AgentApprovalRepository {
         for (String name : List.of("taskId", "milestoneId")) {
             if (arguments.hasNonNull(name)) {
                 try { return UUID.fromString(arguments.get(name).asText()); }
-                catch (IllegalArgumentException ignored) { return null; }
+                catch (IllegalArgumentException malformed) {
+                    log.debug("Malformed UUID in proposal arguments field '{}': {}", name, arguments.get(name).asText());
+                    return null;
+                }
             }
         }
         return null;

@@ -1,0 +1,26 @@
+{
+  "projectId": "3292c82f-7878-40f4-a7f0-5b12d5c939cd",
+  "providerId": "c86f2463-3a7e-4283-8669-24d65bdbaacd",
+  "originalProvider": {
+    "name": "OpenCode Zen Free",
+    "providerType": "OPENAI_COMPATIBLE",
+    "baseUrl": "https://opencode.ai/zen/v1",
+    "apiPath": "/chat/completions",
+    "modelName": "mimo-v2.5-free",
+    "enabled": true,
+    "temperature": 0.2,
+    "maxOutputTokens": 4000,
+    "capabilities": [
+      "STREAMING",
+      "USAGE",
+      "NATIVE_TOOLS",
+      "STRUCTURED_OUTPUT",
+      "CHAT"
+    ],
+    "apiKey": null
+  },
+  "title": "太空兔浏览器验收-221915",
+  "sessionId": "9464c291-b884-43e0-b956-ec26c47476f8",
+  "proposeRunId": "e43f37b8-23bc-4f39-a519-50ccb7f65d00",
+  "queryRunId": "9f1dc36f-7424-452e-85bc-10f7a8c1607c"
+}

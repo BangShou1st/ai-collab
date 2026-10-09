@@ -1,0 +1,649 @@
+{
+  "model": "space-bunny-free",
+  "createRunId": "5f2de7bd-960e-4d6f-a6d0-a4239b5516f6",
+  "createDetail": {
+    "run": {
+      "id": "5f2de7bd-960e-4d6f-a6d0-a4239b5516f6",
+      "sessionId": "34d96f0e-e482-4500-9621-13615e9bf8fa",
+      "projectId": "3292c82f-7878-40f4-a7f0-5b12d5c939cd",
+      "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "parentRunId": null,
+      "role": "SUPERVISOR",
+      "depth": 0,
+      "goal": "请为当前项目创建一项任务提案，标题必须为“太空兔真实提案验收-180212”，优先级 HIGH，预估工时 2 小时，负责人 Local Owner。先查询并确认成员身份，然后生成待审批提案。不要直接创建正式任务，不要批准提案。只处理这一项任务。",
+      "status": "SUCCEEDED",
+      "maxSteps": 12,
+      "maxToolCalls": 8,
+      "maxChildren": 3,
+      "maxInputTokens": 50000,
+      "maxOutputTokens": 20000,
+      "stepsUsed": 7,
+      "toolCallsUsed": 3,
+      "childrenUsed": 0,
+      "inputTokensUsed": 9131,
+      "outputTokensUsed": 341,
+      "tokenUsageEstimated": false,
+      "scheduled": false,
+      "correctionAttempted": false,
+      "retryCount": 0,
+      "errorCode": null,
+      "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+      "pageContextJson": null,
+      "skillCode": null,
+      "version": 13,
+      "createdAt": "2026-10-03T10:02:14.923757Z",
+      "updatedAt": "2026-10-03T10:02:27.386248Z"
+    },
+    "plan": {
+      "steps": [
+        {
+          "id": "1",
+          "title": "获取里程碑",
+          "status": "PENDING",
+          "purpose": "了解当前迭代目标",
+          "expectedTools": [
+            "milestone.get"
+          ]
+        },
+        {
+          "id": "2",
+          "title": "查询任务",
+          "status": "PENDING",
+          "purpose": "了解待办和进行中任务",
+          "expectedTools": [
+            "task.search"
+          ]
+        },
+        {
+          "id": "3",
+          "title": "分析工作负载",
+          "status": "PENDING",
+          "purpose": "评估团队能力",
+          "expectedTools": [
+            "task.get_workload"
+          ]
+        },
+        {
+          "id": "4",
+          "title": "规划任务分配（需审批）",
+          "status": "PENDING",
+          "purpose": "创建或更新任务",
+          "expectedTools": [
+            "task.create_batch",
+            "task.update"
+          ]
+        }
+      ],
+      "version": 1,
+      "objective": "规划迭代",
+      "successCriteria": []
+    },
+    "steps": [
+      {
+        "id": "2893ab81-2e0c-4d70-a3a6-49277dfb6c28",
+        "sequence": 1,
+        "type": "MODEL_TURN",
+        "toolName": null,
+        "input": null,
+        "output": {
+          "model": "space-bunny-free",
+          "usage": {
+            "inputTokens": 2899,
+            "outputTokens": 46
+          },
+          "content": "I'll first confirm the project members to verify \"Local Owner\" exists.",
+          "provider": "OPENAI_COMPATIBLE",
+          "latencyMs": 2659,
+          "toolCalls": [
+            {
+              "id": "call-9686d69a-c61b-42db-8c8f-0cf3d1b50dbd",
+              "name": "list_project_members",
+              "arguments": {
+                "recommendOne": false
+              }
+            }
+          ],
+          "batchHandled": true,
+          "finishReason": "TOOL_CALLS"
+        },
+        "reason": "I'll first confirm the project members to verify \"Local Owner\" exists.",
+        "promptTokens": 2899,
+        "completionTokens": 46,
+        "tokenUsageEstimated": false,
+        "latencyMs": 2659,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:02:18.162928Z"
+      },
+      {
+        "id": "e78d1fa5-ffff-4270-9af1-3808c6cda5bb",
+        "sequence": 2,
+        "type": "TOOL_CALL_COMPLETED",
+        "toolName": "list_project_members",
+        "input": {
+          "arguments": {
+            "recommendOne": false
+          },
+          "toolCallId": "call-9686d69a-c61b-42db-8c8f-0cf3d1b50dbd"
+        },
+        "output": {
+          "data": {
+            "count": 1,
+            "items": [
+              {
+                "role": "OWNER",
+                "userId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+                "username": "owner",
+                "displayName": "Local Owner"
+              }
+            ]
+          },
+          "error": null,
+          "status": "SUCCEEDED",
+          "citations": [],
+          "inferences": []
+        },
+        "reason": "TOOL_SUCCESS",
+        "promptTokens": null,
+        "completionTokens": null,
+        "tokenUsageEstimated": false,
+        "latencyMs": null,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:02:18.204805Z"
+      },
+      {
+        "id": "67797d2d-b367-475a-9216-6950ec7f67a7",
+        "sequence": 3,
+        "type": "MODEL_TURN",
+        "toolName": null,
+        "input": null,
+        "output": {
+          "model": "space-bunny-free",
+          "usage": {
+            "inputTokens": 3018,
+            "outputTokens": 150
+          },
+          "content": "",
+          "provider": "OPENAI_COMPATIBLE",
+          "latencyMs": 3264,
+          "toolCalls": [
+            {
+              "id": "call-b5137209-4ff7-46c1-a9ca-35d9614676a5",
+              "name": "create_task_after_approval",
+              "arguments": {
+                "title": "太空兔真实提案验收-180212",
+                "priority": "HIGH",
+                "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+                "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+                "estimateHours": 2
+              }
+            }
+          ],
+          "batchHandled": true,
+          "finishReason": "TOOL_CALLS"
+        },
+        "reason": "",
+        "promptTokens": 3018,
+        "completionTokens": 150,
+        "tokenUsageEstimated": false,
+        "latencyMs": 3264,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:02:22.608063Z"
+      },
+      {
+        "id": "fcf2f54c-66e1-44d8-8b14-3cdf5e805dc5",
+        "sequence": 4,
+        "type": "TOOL_CALL_COMPLETED",
+        "toolName": "create_task_after_approval",
+        "input": {
+          "arguments": {
+            "title": "太空兔真实提案验收-180212",
+            "priority": "HIGH",
+            "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+            "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+            "estimateHours": 2
+          },
+          "toolCallId": "call-b5137209-4ff7-46c1-a9ca-35d9614676a5"
+        },
+        "output": {
+          "error": "TOOL_ARGUMENT_INVALID",
+          "status": "REJECTED",
+          "message": ".estimateHours类型期望 [\"number\",\"null\"]，实际为 integer",
+          "retryable": false
+        },
+        "reason": "TOOL_ERROR",
+        "promptTokens": null,
+        "completionTokens": null,
+        "tokenUsageEstimated": false,
+        "latencyMs": null,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:02:22.625518Z"
+      },
+      {
+        "id": "146e28d2-2dcb-40da-ad6c-b4e1fe63d391",
+        "sequence": 5,
+        "type": "MODEL_TURN",
+        "toolName": null,
+        "input": null,
+        "output": {
+          "model": "space-bunny-free",
+          "usage": {
+            "inputTokens": 3214,
+            "outputTokens": 145
+          },
+          "content": "",
+          "provider": "OPENAI_COMPATIBLE",
+          "latencyMs": 3649,
+          "toolCalls": [
+            {
+              "id": "call-c13054a2-ce94-4ce2-963c-cb328d992a88",
+              "name": "create_task_after_approval",
+              "arguments": {
+                "title": "太空兔真实提案验收-180212",
+                "priority": "HIGH",
+                "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+                "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+                "estimateHours": 2.0
+              }
+            }
+          ],
+          "batchHandled": true,
+          "finishReason": "TOOL_CALLS"
+        },
+        "reason": "",
+        "promptTokens": 3214,
+        "completionTokens": 145,
+        "tokenUsageEstimated": false,
+        "latencyMs": 3649,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:02:27.333137Z"
+      },
+      {
+        "id": "611bfa86-7903-40ff-a302-048d2410209d",
+        "sequence": 6,
+        "type": "APPROVAL_REQUESTED",
+        "toolName": "create_task_after_approval",
+        "input": {
+          "title": "太空兔真实提案验收-180212",
+          "status": null,
+          "dueDate": null,
+          "priority": "HIGH",
+          "startDate": null,
+          "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+          "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+          "milestoneId": null,
+          "assigneeName": "Local Owner",
+          "estimateHours": 2
+        },
+        "output": {
+          "after": {
+            "title": "太空兔真实提案验收-180212",
+            "status": null,
+            "dueDate": null,
+            "priority": "HIGH",
+            "startDate": null,
+            "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+            "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+            "milestoneId": null,
+            "assigneeName": "Local Owner",
+            "estimateHours": 2
+          },
+          "operation": "CREATE"
+        },
+        "reason": "",
+        "promptTokens": 3214,
+        "completionTokens": 145,
+        "tokenUsageEstimated": false,
+        "latencyMs": 3649,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:02:27.349703Z"
+      },
+      {
+        "id": "be2fada2-15d8-4121-9d6a-0fa4310a6ee2",
+        "sequence": 7,
+        "type": "TOOL_CALL_COMPLETED",
+        "toolName": "create_task_after_approval",
+        "input": {
+          "arguments": {
+            "title": "太空兔真实提案验收-180212",
+            "priority": "HIGH",
+            "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+            "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+            "estimateHours": 2.0
+          },
+          "toolCallId": "call-c13054a2-ce94-4ce2-963c-cb328d992a88"
+        },
+        "output": {
+          "effect": "PROPOSAL_PENDING",
+          "status": "SUCCEEDED",
+          "revision": 1,
+          "proposalId": "e6f2da98-d45e-49de-8a88-82499a7da7ee"
+        },
+        "reason": "TOOL_SUCCESS",
+        "promptTokens": null,
+        "completionTokens": null,
+        "tokenUsageEstimated": false,
+        "latencyMs": null,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:02:27.375137Z"
+      },
+      {
+        "id": "062ef373-d760-4b9f-b7cd-759b82ae7a73",
+        "sequence": 8,
+        "type": "FINAL_ANSWER",
+        "toolName": null,
+        "input": null,
+        "output": {
+          "answer": "已生成任务创建提案：太空兔真实提案验收-180212。\n- 负责人：9c4cd312-0e99-497a-8e3b-e78f98692df0\n- 优先级：HIGH\n当前审批状态：待审批。审批 ID：e6f2da98-d45e-49de-8a88-82499a7da7ee\n部分调用未完成，请查看失败步骤；提案尚待审批。",
+          "citations": [],
+          "inferences": []
+        },
+        "reason": null,
+        "promptTokens": null,
+        "completionTokens": null,
+        "tokenUsageEstimated": false,
+        "latencyMs": null,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:02:27.386248Z"
+      }
+    ],
+    "lastEventSequence": 16,
+    "pendingApprovalId": "e6f2da98-d45e-49de-8a88-82499a7da7ee"
+  },
+  "createApprovals": [
+    {
+      "id": "e6f2da98-d45e-49de-8a88-82499a7da7ee",
+      "projectId": "3292c82f-7878-40f4-a7f0-5b12d5c939cd",
+      "runId": "5f2de7bd-960e-4d6f-a6d0-a4239b5516f6",
+      "stepId": "611bfa86-7903-40ff-a302-048d2410209d",
+      "toolName": "create_task_after_approval",
+      "arguments": {
+        "title": "太空兔真实提案验收-180212",
+        "status": null,
+        "dueDate": null,
+        "priority": "HIGH",
+        "startDate": null,
+        "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+        "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+        "milestoneId": null,
+        "assigneeName": "Local Owner",
+        "estimateHours": 2
+      },
+      "diff": {
+        "after": {
+          "title": "太空兔真实提案验收-180212",
+          "status": null,
+          "dueDate": null,
+          "priority": "HIGH",
+          "startDate": null,
+          "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+          "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+          "milestoneId": null,
+          "assigneeName": "Local Owner",
+          "estimateHours": 2
+        },
+        "operation": "CREATE"
+      },
+      "resourceId": null,
+      "resourceVersion": null,
+      "status": "PENDING",
+      "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "approverId": null,
+      "result": null,
+      "rejectionReason": null,
+      "expiresAt": "2026-10-04T10:02:27.363782Z",
+      "resolvedAt": null,
+      "version": 0,
+      "createdAt": "2026-10-03T10:02:27.349703Z",
+      "nonce": "e6f2da98-d45e-49de-8a88-82499a7da7ee",
+      "sessionId": "34d96f0e-e482-4500-9621-13615e9bf8fa",
+      "proposalFamily": "TASK_CREATE",
+      "subjectKey": "009633de-b75e-4523-b9cf-1ae56752112f",
+      "revision": 1,
+      "updatedAt": "2026-10-03T10:02:27.349703Z"
+    }
+  ],
+  "beforeRevisionFormalTaskCount": 0,
+  "reviseRunId": "2585c7be-01ea-4494-8cf6-d55c7a79b8bc",
+  "reviseDetail": {
+    "run": {
+      "id": "2585c7be-01ea-4494-8cf6-d55c7a79b8bc",
+      "sessionId": "34d96f0e-e482-4500-9621-13615e9bf8fa",
+      "projectId": "3292c82f-7878-40f4-a7f0-5b12d5c939cd",
+      "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "parentRunId": null,
+      "role": "SUPERVISOR",
+      "depth": 0,
+      "goal": "请继续修订刚才同一个待审批提案：标题改为“太空兔真实提案验收-180212-修订”，预估工时改为 3 小时，优先级仍为 HIGH，负责人仍为 Local Owner。其余内容保持，不另建提案，不批准、不创建正式任务。",
+      "status": "FAILED",
+      "maxSteps": 12,
+      "maxToolCalls": 8,
+      "maxChildren": 3,
+      "maxInputTokens": 50000,
+      "maxOutputTokens": 20000,
+      "stepsUsed": 4,
+      "toolCallsUsed": 2,
+      "childrenUsed": 0,
+      "inputTokensUsed": 7404,
+      "outputTokensUsed": 569,
+      "tokenUsageEstimated": false,
+      "scheduled": false,
+      "correctionAttempted": false,
+      "retryCount": 0,
+      "errorCode": "PARAMETER_CORRECTION_EXHAUSTED",
+      "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+      "pageContextJson": null,
+      "skillCode": null,
+      "version": 9,
+      "createdAt": "2026-10-03T10:03:35.267833Z",
+      "updatedAt": "2026-10-03T10:03:54.289776Z"
+    },
+    "plan": {
+      "steps": [
+        {
+          "id": "1",
+          "title": "获取里程碑",
+          "status": "PENDING",
+          "purpose": "了解当前迭代目标",
+          "expectedTools": [
+            "milestone.get"
+          ]
+        },
+        {
+          "id": "2",
+          "title": "查询任务",
+          "status": "PENDING",
+          "purpose": "了解待办和进行中任务",
+          "expectedTools": [
+            "task.search"
+          ]
+        },
+        {
+          "id": "3",
+          "title": "分析工作负载",
+          "status": "PENDING",
+          "purpose": "评估团队能力",
+          "expectedTools": [
+            "task.get_workload"
+          ]
+        },
+        {
+          "id": "4",
+          "title": "规划任务分配（需审批）",
+          "status": "PENDING",
+          "purpose": "创建或更新任务",
+          "expectedTools": [
+            "task.create_batch",
+            "task.update"
+          ]
+        }
+      ],
+      "version": 1,
+      "objective": "规划迭代",
+      "successCriteria": []
+    },
+    "steps": [
+      {
+        "id": "93f1f51e-471d-4612-8fc0-fc20eefb1727",
+        "sequence": 1,
+        "type": "MODEL_TURN",
+        "toolName": null,
+        "input": null,
+        "output": {
+          "model": "space-bunny-free",
+          "usage": {
+            "inputTokens": 3582,
+            "outputTokens": 380
+          },
+          "content": "",
+          "provider": "OPENAI_COMPATIBLE",
+          "latencyMs": 9885,
+          "toolCalls": [
+            {
+              "id": "call_NTCma9MeTmFKZt3tuWPy3MNt",
+              "name": "create_task_after_approval",
+              "arguments": {
+                "title": "太空兔真实提案验收-180212-修订",
+                "status": "TODO",
+                "priority": "HIGH",
+                "approvalId": "e6f2da98-d45e-49de-8a88-82499a7da7ee",
+                "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+                "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+                "estimateHours": 3
+              }
+            }
+          ],
+          "batchHandled": true,
+          "finishReason": "TOOL_CALLS"
+        },
+        "reason": "",
+        "promptTokens": 3582,
+        "completionTokens": 380,
+        "tokenUsageEstimated": false,
+        "latencyMs": 9885,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:03:46.154907Z"
+      },
+      {
+        "id": "a44dceec-36ce-4a19-b444-836d02077c57",
+        "sequence": 2,
+        "type": "TOOL_CALL_COMPLETED",
+        "toolName": "create_task_after_approval",
+        "input": {
+          "arguments": {
+            "title": "太空兔真实提案验收-180212-修订",
+            "status": "TODO",
+            "priority": "HIGH",
+            "approvalId": "e6f2da98-d45e-49de-8a88-82499a7da7ee",
+            "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+            "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+            "estimateHours": 3
+          },
+          "toolCallId": "call_NTCma9MeTmFKZt3tuWPy3MNt"
+        },
+        "output": {
+          "error": "TOOL_ARGUMENT_INVALID",
+          "status": "REJECTED",
+          "message": ".estimateHours类型期望 [\"number\",\"null\"]，实际为 integer",
+          "retryable": false
+        },
+        "reason": "TOOL_ERROR",
+        "promptTokens": null,
+        "completionTokens": null,
+        "tokenUsageEstimated": false,
+        "latencyMs": null,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:03:46.164871Z"
+      },
+      {
+        "id": "b333301e-c5a3-4d0d-96be-bbbaa58a1e26",
+        "sequence": 3,
+        "type": "MODEL_TURN",
+        "toolName": null,
+        "input": null,
+        "output": {
+          "model": "space-bunny-free",
+          "usage": {
+            "inputTokens": 3822,
+            "outputTokens": 189
+          },
+          "content": "",
+          "provider": "OPENAI_COMPATIBLE",
+          "latencyMs": 7051,
+          "toolCalls": [
+            {
+              "id": "call_OSLFgq2axvuq5i0dXa5jeCw6",
+              "name": "create_task_after_approval",
+              "arguments": {
+                "title": "太空兔真实提案验收-180212-修订",
+                "status": "TODO",
+                "priority": "HIGH",
+                "approvalId": "e6f2da98-d45e-49de-8a88-82499a7da7ee",
+                "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+                "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+                "estimateHours": 3
+              }
+            }
+          ],
+          "batchHandled": true,
+          "finishReason": "TOOL_CALLS"
+        },
+        "reason": "",
+        "promptTokens": 3822,
+        "completionTokens": 189,
+        "tokenUsageEstimated": false,
+        "latencyMs": 7051,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:03:54.264354Z"
+      },
+      {
+        "id": "354aeb30-0395-4dcc-bb0a-71509fa3aca8",
+        "sequence": 4,
+        "type": "TOOL_CALL_COMPLETED",
+        "toolName": "create_task_after_approval",
+        "input": {
+          "arguments": {
+            "title": "太空兔真实提案验收-180212-修订",
+            "status": "TODO",
+            "priority": "HIGH",
+            "approvalId": "e6f2da98-d45e-49de-8a88-82499a7da7ee",
+            "assigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+            "description": "用户指定：为本项目创建任务提案“太空兔真实提案验收-180212”，优先级 HIGH，预估 2 小时，负责人 Local Owner。仅生成待审批提案，不创建正式任务、不批准。",
+            "estimateHours": 3
+          },
+          "toolCallId": "call_OSLFgq2axvuq5i0dXa5jeCw6"
+        },
+        "output": {
+          "error": "PARAMETER_CORRECTION_EXHAUSTED",
+          "status": "REJECTED",
+          "message": ".estimateHours类型期望 [\"number\",\"null\"]，实际为 integer",
+          "retryable": false
+        },
+        "reason": "TOOL_ERROR",
+        "promptTokens": null,
+        "completionTokens": null,
+        "tokenUsageEstimated": false,
+        "latencyMs": null,
+        "errorCode": null,
+        "createdAt": "2026-10-03T10:03:54.282019Z"
+      },
+      {
+        "id": "760813c1-4f0d-4b82-a3b2-aa419a6c43a1",
+        "sequence": 5,
+        "type": "ERROR",
+        "toolName": null,
+        "input": null,
+        "output": null,
+        "reason": null,
+        "promptTokens": null,
+        "completionTokens": null,
+        "tokenUsageEstimated": false,
+        "latencyMs": null,
+        "errorCode": "PARAMETER_CORRECTION_EXHAUSTED",
+        "createdAt": "2026-10-03T10:03:54.289776Z"
+      }
+    ],
+    "lastEventSequence": 11,
+    "pendingApprovalId": null
+  },
+  "reviseApprovals": []
+}

@@ -18,6 +18,15 @@ import java.util.Set;
 public class AgentToolRegistry {
     private static final Set<String> WRITE_PROPOSAL_ROLES = Set.of(
             "OWNER", "ADMIN", "MEMBER", "SUPERVISOR");
+    /** 供执行校验（AgentToolCallExecutor）与测试复核暴露/执行一致性。 */
+    public static Set<String> baseReadOnlyTools() {
+        return Set.copyOf(BASE_READ_ONLY_TOOLS);
+    }
+
+    /** 受限子研究场景判定（转发协调器的识别逻辑，供执行端白名单复核使用）。 */
+    public static boolean isChildResearchSkill(com.shitulelv.aicollab.agent.domain.model.AgentSkill skill) {
+        return com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator.isChildResearchSkill(skill);
+    }
     private final Map<String, AgentTool> tools;
     private final List<AgentToolProvider> providers;
 
@@ -76,13 +85,38 @@ public class AgentToolRegistry {
     }
 
     /**
+     * 跨场景基础只读集合：所有 Skill 的有效工具集合 = 基础只读集合 ∪ Skill 白名单。
+     * 场景自动选择只决定提示与建议工具，不再因为命中某个场景就阻断必要的跨资料只读；
+     * 写/规划/外部工具不在此集合内，仍按 Skill 写开关、角色、协议与运行范围过滤。
+     */
+    private static final Set<String> BASE_READ_ONLY_TOOLS = java.util.Set.of(
+            "get_project_overview", "get_project_dashboard",
+            "list_tasks", "get_task", "list_milestones", "list_project_members",
+            "list_project_documents", "get_document_outline", "read_document_section",
+            "search_project_knowledge", "answer_project_question_with_sources",
+            "list_project_memories", "analyze_project_risks", "check_project_progress",
+            "list_recent_audit_summaries", "draft_weekly_report",
+            DocumentResearchDelegateAgentTool.NAME);
+
+    /**
      * 获取 Skill 允许且角色有权限的工具定义。
+     * 主运行有效集合 = （基础只读集合 ∪ Skill 白名单 ∪ 澄清工具）∩ 角色/运行范围允许。
+     * 受限子研究场景（depth>0 委派）不并入基础只读集合：子运行严格按自己的白名单暴露，
+     * 基础集合只为扩大主运行跨场景资料能力，不允许把任务/记忆/统计工具重新带给子运行。
+     * 暴露与执行校验共用本入口（AgentToolCallExecutor 以同一 exposed 列表校验），
+     * 不存在“模型看得到、执行阶段同一静态规则却拒绝”的契约漂移。
      */
     public List<AgentToolDefinition> definitionsFor(AgentExecutionContext context, AgentSkill skill) {
         AgentToolContext toolCtx = toToolContext(context);
+        boolean childResearchSkill = com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinator
+                .isChildResearchSkill(skill);
         java.util.stream.Stream<AgentTool> internal = tools.values().stream()
                 .filter(tool -> allowed(tool, toolCtx))
-                .filter(tool -> skill.allowedTools().contains(tool.name()));
+                .filter(tool -> childResearchSkill
+                        ? skill.allowedTools().contains(tool.name())
+                        : BASE_READ_ONLY_TOOLS.contains(tool.name())
+                                || skill.allowedTools().contains(tool.name())
+                                || RequestUserInputAgentTool.NAME.equals(tool.name()));
         java.util.stream.Stream<AgentTool> external = allowsExternal(skill)
                 ? providers.stream().flatMap(provider -> provider.tools(context).stream())
                 : java.util.stream.Stream.empty();
@@ -141,6 +175,12 @@ public class AgentToolRegistry {
     }
 
     private static boolean allowed(AgentTool tool, AgentToolContext context) {
+        if (tool instanceof com.shitulelv.aicollab.agent.domain.tool.ControlledWriteAgentTool)
+            return context.depth()==0 && !context.scheduled() && Set.of("OWNER","ADMIN").contains(context.role());
+        // document_research 委派不是业务写，但只允许根运行的非定时调用发起：
+        // 子运行（depth>0）不得再委派（最多一层），定时运行不自动派生子运行
+        if (tool instanceof DocumentResearchDelegateAgentTool)
+            return context.depth()==0 && !context.scheduled();
         return !tool.writesBusinessData()
                 || (context.depth() == 0 && WRITE_PROPOSAL_ROLES.contains(context.role()));
     }

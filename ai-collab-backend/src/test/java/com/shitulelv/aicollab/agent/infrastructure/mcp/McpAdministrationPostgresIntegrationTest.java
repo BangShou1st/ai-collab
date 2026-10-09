@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.agent.infrastructure.mcp;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionRequest;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionView;
+import com.shitulelv.aicollab.common.testing.MinioTestImage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,7 +47,7 @@ class McpAdministrationPostgresIntegrationTest {
     private static final String MINIO_SECRET_KEY = "mcp-secret-key";
     @Container
     static final GenericContainer<?> MINIO =
-            new GenericContainer<>(DockerImageName.parse("quay.io/minio/minio:latest"))
+            new GenericContainer<>(DockerImageName.parse(MinioTestImage.IMAGE))
                     .withExposedPorts(9000)
                     .withEnv("MINIO_ROOT_USER", MINIO_ACCESS_KEY)
                     .withEnv("MINIO_ROOT_PASSWORD", MINIO_SECRET_KEY)

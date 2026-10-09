@@ -18,10 +18,12 @@ public record TaskPlanDetailView(
         TaskPlanConfirmationView confirmation,
         TaskPlanValidationView validation,
         TaskPlanPermissions permissions,
-        List<TaskPlanValidationIssueView> structuredIssues
+        List<TaskPlanValidationIssueView> structuredIssues,
+        List<com.shitulelv.aicollab.planning.domain.StructuredValidationIssue> repairDiagnostics
 ) {
     public TaskPlanDetailView {
         structuredIssues = structuredIssues == null ? List.of() : List.copyOf(structuredIssues);
+        repairDiagnostics = repairDiagnostics == null ? List.of() : List.copyOf(repairDiagnostics);
     }
 }
 

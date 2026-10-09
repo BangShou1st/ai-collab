@@ -1,0 +1,16 @@
+{
+  "checkedPorts": [
+    18080,
+    18082,
+    55432,
+    16379,
+    18090,
+    11434
+  ],
+  "isolatedContainers": "stopped; volumes retained",
+  "remainingListeners": [],
+  "originalBusinessContainers": "remained stopped",
+  "privateArtifacts": "backend target logs, state, provider backup retained; no credentials committed",
+  "at": "2026-10-04T07:29:10.2451480Z",
+  "dockerDesktop": "stopped after owned containers stopped"
+}

@@ -39,7 +39,7 @@ public class AgentApprovalController {
             @Valid @RequestBody ResolveAgentApprovalRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(AgentApprovalResponse.from(approvals.approve(
-                projectId, approvalId, userId(jwt), request.nonce(), idempotencyKey)));
+                projectId, approvalId, userId(jwt), request.nonce(), idempotencyKey, request.expectedRevision())));
     }
 
     @PostMapping("/{approvalId}/reject")
@@ -50,7 +50,7 @@ public class AgentApprovalController {
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(AgentApprovalResponse.from(approvals.reject(
                 projectId, approvalId, userId(jwt), request.nonce(),
-                idempotencyKey, request.reason())));
+                idempotencyKey, request.reason(), request.expectedRevision())));
     }
 
     private static UUID userId(Jwt jwt) {

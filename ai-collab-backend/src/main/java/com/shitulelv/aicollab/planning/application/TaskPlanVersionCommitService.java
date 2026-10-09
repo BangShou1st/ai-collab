@@ -30,6 +30,8 @@ public class TaskPlanVersionCommitService {
     private final TaskPlanRepository repository;
     private final TaskPlanIssueRepository issueRepo;
     private final TaskPlanEventRepository eventRepo;
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard access;
 
     public TaskPlanVersionCommitService(TaskPlanRepository repository,
                                          TaskPlanIssueRepository issueRepo,
@@ -41,6 +43,8 @@ public class TaskPlanVersionCommitService {
 
     /**
      * Atomic commit: version + issues + event + plan status update.
+     * <p>身份取自 plan 记录本身——仅适用于"plan 就是这份结果所属身份"的交互路径
+     * （如部分修复）。异步模型生成结果必须用 {@link #commitGenerated} 显式绑定身份。</p>
      */
     @Transactional
     public TaskPlanVersionRecord commit(
@@ -52,11 +56,52 @@ public class TaskPlanVersionCommitService {
             String eventType,
             UUID actorId,
             UUID fromVersionId) {
+        return commitWithIdentity(plan, plan.generationSeq(), plan.activeAttemptId(), plan.status(),
+                draft, source, assessment, finalStatus, eventType, actorId, fromVersionId);
+    }
+
+    /**
+     * 模型生成结果的原子提交：身份必须绑定这份结果<b>实际所属</b>的 generationSeq、
+     * attemptId 与预期阶段，而不是提交时重新读取的最新规划身份。持锁事务中校验——
+     * 结果有效性检查与提交之间发生"取消→重新生成"时，旧结果因身份不匹配被丢弃，
+     * 不会借用新一轮身份产生错误版本；自动修复产生的新 attempt 属于同一 generationSeq，
+     * 正常路径不受影响。
+     */
+    @Transactional
+    public TaskPlanVersionRecord commitGenerated(
+            TaskPlanRecord plan,
+            long generationSeq,
+            UUID attemptId,
+            TaskPlanStatus expectedStage,
+            TaskPlanDraft draft,
+            TaskPlanVersionSource source,
+            ValidationAssessment assessment,
+            TaskPlanStatus finalStatus,
+            String eventType,
+            UUID actorId,
+            UUID fromVersionId) {
+        return commitWithIdentity(plan, generationSeq, attemptId, expectedStage,
+                draft, source, assessment, finalStatus, eventType, actorId, fromVersionId);
+    }
+
+    private TaskPlanVersionRecord commitWithIdentity(
+            TaskPlanRecord plan,
+            long generationSeq,
+            UUID attemptId,
+            TaskPlanStatus expectedStage,
+            TaskPlanDraft draft,
+            TaskPlanVersionSource source,
+            ValidationAssessment assessment,
+            TaskPlanStatus finalStatus,
+            String eventType,
+            UUID actorId,
+            UUID fromVersionId) {
 
         // 1. Append version
+        if(access!=null) access.requireAdmin(plan.projectId(),actorId);
         UUID versionId = repository.appendGeneratedVersion(
-                plan.projectId(), plan.id(), plan.generationSeq(),
-                plan.activeAttemptId(), plan.status(),
+                plan.projectId(), plan.id(), generationSeq,
+                attemptId, expectedStage,
                 source.name(), fromVersionId, draft, actorId,
                 assessment.toFlat(), finalStatus);
         if (versionId == null) return null;
