@@ -1,0 +1,9 @@
+ sequence_no | cycle | from_seq | through_seq | steps | trunc | partial_seq | partial_chars | prev  |          note           | text_chars 
+-------------+-------+----------+-------------+-------+-------+-------------+---------------+-------+-------------------------+------------
+          11 | 1     | 1        | 7           | 7     | true  | 0           | 0             | false | RUN_CONTEXT_COMMITTED   |       6219
+          15 | 2     | 8        | 8           | 0     | true  | 8           | 53739         | true  | RUN_CONTEXT_COMMITTED   |      11750
+          18 | 3     | 8        | 8           | 1     | true  | 0           | 0             | true  | RUN_CONTEXT_COMMITTED   |      12365
+          21 |       |          |             |       |       |             |               |       | RUN_CONTEXT_UNQUALIFIED |           
+          17 | 1     | 1        | 12          | 12    | true  | 0           | 0             | false | RUN_CONTEXT_COMMITTED   |       9420
+(5 rows)
+
