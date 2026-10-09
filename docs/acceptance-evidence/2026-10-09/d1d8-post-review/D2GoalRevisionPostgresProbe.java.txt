@@ -1,0 +1,99 @@
+package com.shitulelv.aicollab.agent.application.runtime;
+
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import java.util.UUID;
+import java.util.concurrent.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
+public class D2GoalRevisionPostgresProbe {
+    public static void main(String[] args) throws Exception {
+        int failures = 0;
+        try {
+            AgentRunContextCommitPostgresTest.POSTGRES.start();
+            AgentRunContextCommitPostgresTest.migrate();
+            publicationAndGoalCorrectionMustSerialize();
+            System.out.println("PROBE_RESULT tests=1 failures=0");
+        } catch (AssertionError failure) {
+            System.out.println("FAIL goalCorrectionDuringPublication: " + failure.getMessage());
+            System.out.println("PROBE_RESULT tests=1 failures=1");
+            failures = 1;
+        } finally {
+            AgentRunContextCommitPostgresTest.POSTGRES.stop();
+        }
+        if (failures > 0) System.exit(1);
+    }
+
+    private static void publicationAndGoalCorrectionMustSerialize() throws Exception {
+        var jdbc = AgentRunContextCommitPostgresTest.jdbc;
+        var repository = AgentRunContextCommitPostgresTest.repository;
+        var json = AgentRunContextCommitPostgresTest.json;
+        var tx = new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource()));
+        var user = UUID.randomUUID();
+        var project = UUID.randomUUID();
+        jdbc.update("INSERT INTO app_user(id,username,password_hash,display_name) VALUES (?,?,?,?)",
+                user, "probe-" + user.toString().substring(0, 8), "test-only-hash", "Probe");
+        jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,?,?,?)", project, "Probe", user, user);
+        jdbc.update("INSERT INTO project_member(project_id,user_id,role) VALUES (?,?,'OWNER')", project, user);
+        var session = repository.createSession(project, user, "Probe");
+        var created = tx.execute(s -> repository.createRun(project, session.id(), user, "Research first goal", false, "PROJECT_RESEARCH", null));
+        jdbc.update("UPDATE agent_run SET status='RUNNING',claim_version=1,lease_expires_at=now()+interval '10 minutes' WHERE id=?", created.id());
+        var run = repository.findRun(project, created.id()).orElseThrow();
+        var attempt = tx.execute(s -> repository.beginRunContextAttempt(repository.findRun(project, run.id()).orElseThrow(), 1, 1, 2, 0));
+        var summary = json.createObjectNode().put("scope", "RUN_CONTEXT").put("text", "Old goal summary")
+                .put("goalRevision", 0).put("sourceFromSequence", 1).put("sourceThroughSequence", 2).put("cycle", 1);
+
+        // Only timing is gated: the real production publication SQL already has its READ COMMITTED snapshot.
+        jdbc.execute("""
+                CREATE FUNCTION probe_publication_gate() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN
+                  IF OLD.output_json->>'status'='ATTEMPTED' AND NEW.output_json->>'status'='COMMITTED' THEN
+                    PERFORM pg_advisory_xact_lock(490709);
+                  END IF;
+                  RETURN NEW;
+                END $$
+                """);
+        jdbc.execute("CREATE TRIGGER probe_publication_gate BEFORE UPDATE ON agent_step FOR EACH ROW EXECUTE FUNCTION probe_publication_gate()");
+        var executor = Executors.newSingleThreadExecutor();
+        try (var blocker = jdbc.getDataSource().getConnection(); var gate = blocker.createStatement()) {
+            gate.execute("SELECT pg_advisory_lock(490709)");
+            try {
+                var publication = executor.submit(() -> {
+                    try (var scope = new AgentLeaseScope(1)) {
+                        tx.executeWithoutResult(s -> repository.completeRunContextAttempt(attempt, "COMMITTED", "controlled",
+                                new UsageSettlement(1000, 100, "PROVIDER", "PROVIDER", 1L), "PROBE", summary, 0));
+                    }
+                });
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+                boolean waiting = false;
+                while (System.nanoTime() < deadline) {
+                    waiting = Boolean.TRUE.equals(jdbc.queryForObject("""
+                            SELECT EXISTS(SELECT 1 FROM pg_stat_activity
+                              WHERE wait_event='advisory' AND query LIKE '%UPDATE agent_step st%')
+                            """, Boolean.class));
+                    if (waiting) break;
+                    Thread.sleep(30);
+                }
+                assertThat(waiting).as("production publication must reach the gated UPDATE").isTrue();
+                tx.executeWithoutResult(s -> repository.createRun(project, session.id(), user,
+                        "\u65b0\u76ee\u6807: Research a different goal", false, "PROJECT_RESEARCH", null));
+                int currentRevision = repository.currentGoalRevision(project, session.id());
+                assertThat(currentRevision).as("real repository new-goal writer must have committed first").isEqualTo(1);
+                gate.execute("SELECT pg_advisory_unlock(490709)");
+                publication.get(10, TimeUnit.SECONDS);
+                var status = jdbc.queryForObject("SELECT output_json->>'status' FROM agent_step WHERE id=?", String.class, attempt);
+                var latest = repository.latestRunContextSummary(project, run.id());
+                System.out.println("goalRevision=" + currentRevision + " summaryStatus=" + status
+                        + " summaryGoalRevision=" + (latest == null ? "NONE" : latest.path("goalRevision").asInt()));
+                assertThat(status).as("old-goal summary must not publish after a committed target correction").isNotEqualTo("COMMITTED");
+            } finally {
+                gate.execute("SELECT pg_advisory_unlock_all()");
+            }
+        } finally {
+            executor.shutdown();
+            if (!executor.awaitTermination(15, TimeUnit.SECONDS)) executor.shutdownNow();
+        }
+    }
+}

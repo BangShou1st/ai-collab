@@ -1,0 +1,14 @@
+E1-E3 扩展相关回归（2026-10-09）
+Tests run: 32, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.157 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinatorTest
+Tests run: 25, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.342 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in com.shitulelv.aicollab.agent.domain.AgentRuntimeDomainTest
+Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.011 s -- in com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimitsTest
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.223 s -- in com.shitulelv.aicollab.agent.application.AgentRunServiceRetryTest
+Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmissionTest
+Tests run: 20, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.789 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentActualTokenUsageIntegrationTest
+Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.077 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentModelConfigurationSwitchPostgresIntegrationTest
+Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.23 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentPauseResumePostgresTest
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.630 s -- in com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.757 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest
+Tests run: 40, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 20.80 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest
+Tests run: 23, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 21.84 s -- in com.shitulelv.aicollab.agent.application.runtime.PersistedModelTurnRecoveryPostgresTest

@@ -1,0 +1,108 @@
+08:15:26.738 [main] INFO org.testcontainers.images.PullPolicy -- Image pull policy will be performed by: DefaultPullPolicy()
+08:15:26.742 [main] INFO org.testcontainers.utility.ImageNameSubstitutor -- Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
+08:15:26.769 [main] INFO org.testcontainers.DockerClientFactory -- Testcontainers version: 1.21.4
+08:15:26.914 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Loaded org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy from ~/.testcontainers.properties, will try it first
+08:15:27.106 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with local Npipe socket (npipe:////./pipe/docker_engine)
+08:15:27.122 [main] INFO org.testcontainers.DockerClientFactory -- Docker host IP address is localhost
+08:15:27.141 [main] INFO org.testcontainers.DockerClientFactory -- Connected to docker: 
+  Server Version: 29.8.0
+  API Version: 1.56
+  Operating System: Docker Desktop
+  Total Memory: 1903 MB
+  Labels: 
+    com.docker.desktop.address=npipe://\\.\pipe\docker_cli
+08:15:27.226 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Creating container for image: testcontainers/ryuk:0.12.0
+08:15:27.276 [main] INFO org.testcontainers.utility.RegistryAuthLocator -- Credential helper/store (docker-credential-desktop) does not have credentials for https://index.docker.io/v1/
+08:15:27.429 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 is starting: 2d5719e8c2e2f3c226fedc156d89d9400df77c37b82a1dfb57c648494b7f4a54
+08:15:27.946 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 started in PT0.7195057S
+08:15:27.950 [main] INFO org.testcontainers.utility.RyukResourceReaper -- Ryuk started - will monitor and terminate Testcontainers containers on JVM exit
+08:15:27.950 [main] INFO org.testcontainers.DockerClientFactory -- Checking the system...
+08:15:27.950 [main] INFO org.testcontainers.DockerClientFactory -- ✔︎ Docker server version should be at least 1.6.0
+08:15:27.950 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+08:15:28.126 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: b07e02b28a626c5c0d4a732e704990df3af7a022a4aa79bcab5c28e40f39b5c2
+08:15:30.344 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT2.3935149S
+08:15:30.345 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:45173/test?loggerLevel=OFF)
+08:15:32.390 [main] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://localhost:45173/test?loggerLevel=OFF (PostgreSQL 17.11)
+08:15:32.811 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+08:15:32.832 [main] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 64 migrations (execution time 00:00.216s)
+08:15:32.873 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+08:15:33.104 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+08:15:33.241 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "1 - init schema"
+08:15:33.440 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "2 - extend refresh token session"
+08:15:33.498 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "3 - enforce single project owner"
+08:15:33.561 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "4 - document processing attempt"
+08:15:33.665 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "5 - create ai task planning"
+08:15:33.769 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+08:15:33.830 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "7 - add task plan issues and events"
+08:15:33.890 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "8 - fix status check constraint"
+08:15:33.937 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "9 - add partial repair source type"
+08:15:33.973 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "10 - add ai partial source type"
+08:15:34.010 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "11 - add task plan event changed targets"
+08:15:34.048 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "12 - add comment to task plan event"
+08:15:34.076 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "13 - add project type"
+08:15:34.119 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "14 - expand project status"
+08:15:34.154 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "15 - add milestone start end dates"
+08:15:34.196 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "16 - add knowledge feedback"
+08:15:34.232 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "17 - add document version and reindex"
+08:15:34.258 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "18 - add knowledge eval tables"
+08:15:34.300 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "19 - add notification"
+08:15:34.339 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "20 - add system admin"
+08:15:34.377 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "21 - add notification dedupe key"
+08:15:34.457 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "22 - add agent runtime"
+08:15:34.590 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "23 - complete agent runtime"
+08:15:34.618 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "24 - add model configuration"
+08:15:34.673 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "25 - remove agent evaluation"
+08:15:34.718 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "26 - allow custom task plan limit"
+08:15:34.748 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+08:15:34.781 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "28 - add agent run events"
+08:15:34.815 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "29 - add agent mcp"
+08:15:34.847 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "30 - add agent memory and schedule skill"
+08:15:34.872 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "31 - per project model and embedding"
+08:15:34.910 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "32 - migrate global models to project"
+08:15:34.964 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "33 - drop eval and schedule tables"
+08:15:35.000 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "34 - fix embedding api path"
+08:15:35.021 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "35 - add agent waiting for input"
+08:15:35.041 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "36 - add waiting for user input event type"
+08:15:35.073 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "37 - add agent proposal continuity"
+08:15:35.123 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "38 - cascade agent proposal session delete"
+08:15:35.169 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "39 - create user ai configuration"
+08:15:35.233 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "40 - create user model purpose assignment"
+08:15:35.270 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "41 - create system embedding configuration"
+08:15:35.311 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "42 - migrate project models to users"
+08:15:35.352 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "43 - add embedding fingerprint"
+08:15:35.391 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "44 - switch ai configuration constraints"
+08:15:35.420 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "45 - add provider preset code"
+08:15:35.448 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "46 - embedding index generations"
+08:15:35.507 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "47 - agent execution identity"
+08:15:35.549 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "48 - embedding build snapshot"
+08:15:35.592 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "49 - agent recovery counters"
+08:15:35.642 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "50 - document batch reindex progress"
+08:15:35.701 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "51 - agent model snapshot"
+08:15:35.765 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "52 - agent active duration"
+08:15:35.811 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "53 - planning repair diagnostics"
+08:15:35.834 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "54 - document readable body"
+08:15:35.868 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "55 - agent planning operations"
+08:15:35.893 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "56 - agent actual token usage"
+08:15:35.924 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "57 - agent usage settlement"
+08:15:35.948 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "58 - agent run retry derivation"
+08:15:35.977 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "59 - agent invocation source mode"
+08:15:36.017 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "60 - agent last progress at"
+08:15:36.065 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "61 - agent pause resume"
+08:15:36.094 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "62 - agent document research delegation"
+08:15:36.120 [main] INFO org.flywaydb.core.internal.sqlscript.DefaultSqlScriptExecutor -- +----------+
+| ?column? |
++----------+
+| 1        |
++----------+
+
+08:15:36.156 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "63 - agent budget semantics"
+08:15:36.196 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "64 - agent context policy"
+08:15:36.290 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:01.187s)
+goalRevision=1 summaryStatus=COMMITTED summaryGoalRevision=0
+FAIL goalCorrectionDuringPublication: [old-goal summary must not publish after a committed target correction] 
+Expecting actual:
+  "COMMITTED"
+not to be equal to:
+  "COMMITTED"
+
+PROBE_RESULT tests=1 failures=1
