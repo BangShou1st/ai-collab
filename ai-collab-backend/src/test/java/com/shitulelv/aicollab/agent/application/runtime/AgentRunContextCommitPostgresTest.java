@@ -413,7 +413,187 @@ class AgentRunContextCommitPostgresTest {
         }
     }
 
+    // ========== E1：目标修订与会话摘要发布必须真实串行化（真实 PostgreSQL 事务） ==========
+
+    /**
+     * E1 交错一：<b>目标更正已提交</b> → 旧目标的摘要绝不能成为当前有效摘要。
+     *
+     * <p>门控挂在与复核探针完全相同的位置——生产发布 {@code UPDATE agent_step} 的
+     * BEFORE UPDATE 触发器内（advisory 事务锁）。此时发布语句<b>已经取过自己的
+     * READ COMMITTED 语句快照</b>，正是"条件 UPDATE ≠ 跨行串行化"的窗口：另一条真实
+     * 连接走生产写入路径 {@code repository.createRun(..., 新目标)} 推进 goalRevision
+     * 并提交。修复前发布语句看不到这一提交，旧摘要仍会 COMMITTED。</p>
+     *
+     * <p>由于修复后发布事务会真实持有会话行锁，"目标写入先提交"在该交错里可能被
+     * 合法地串行化到发布之后（发布先提交）。因此断言按契约分支，两种分支都是不变式，
+     * 不放宽也不掩盖：<b>凡目标更正先于发布语句提交，旧摘要一律不得生效</b>；
+     * 若被串行化，则发布先提交、更正随后照常生效。用量结算在任何分支都必须如实完成。</p>
+     */
+    @Test
+    void goalCorrectionCommittedDuringPublicationNeverLeavesOldGoalSummaryEffective() throws Exception {
+        Fixture f = fixture("目标写入先提交");
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 0);
+        var tx = transactionTemplate();
+        var threads = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try (var blocker = jdbc.getDataSource().getConnection();
+             var gate = blocker.createStatement()) {
+            installPublicationGate();
+            gate.execute("SELECT pg_advisory_lock(490709)");
+
+            var publication = threads.submit(() -> {
+                try (var scope = new AgentLeaseScope(1)) {
+                    tx.executeWithoutResult(status -> recorder.completeRunContextAttempt(attemptId,
+                            "COMMITTED", "test-native", usage(), "RUN_CONTEXT_COMMITTED",
+                            committedSummary("旧目标的摘要", 1, 2, 0), 0));
+                }
+            });
+            assertThat(awaitPublicationGate())
+                    .as("生产发布必须真实到达被门控的 UPDATE").isTrue();
+
+            // 真实生产目标写入路径：独立事务，与发布并发
+            var goalWrite = threads.submit(() -> tx.execute(status -> repository.createRun(
+                    f.project(), f.session(), f.user(), "新目标: 换一个研究方向", false,
+                    "PROJECT_RESEARCH", null)));
+            boolean goalCorrectionCommittedDuringPublication = false;
+            try {
+                goalWrite.get(2, java.util.concurrent.TimeUnit.SECONDS);
+                goalCorrectionCommittedDuringPublication = true;
+            } catch (java.util.concurrent.TimeoutException serializedBehindPublication) {
+                // 修复后：发布持有会话行锁，目标更正被真实串行化到发布之后
+            }
+
+            gate.execute("SELECT pg_advisory_unlock(490709)");
+            publication.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            goalWrite.get(15, java.util.concurrent.TimeUnit.SECONDS);
+
+            assertThat(repository.currentGoalRevision(f.project(), f.session()))
+                    .as("目标更正最终必须生效（goalRevision 前进到 1）").isEqualTo(1);
+            String status = stepStatus(attemptId);
+            if (goalCorrectionCommittedDuringPublication) {
+                assertThat(status)
+                        .as("目标更正在发布语句提交前已提交：旧目标摘要绝不能成为有效摘要")
+                        .isNotEqualTo("COMMITTED");
+                assertThat(repository.latestRunContextSummary(f.project(), f.run().id()))
+                        .as("旧目标摘要不得对后续组装可见").isNull();
+                assertThat(repository.countCommittedRunContextCycles(f.project(), f.run().id())).isZero();
+            } else {
+                // 发布先提交：该摘要在其提交时对修订 0 有效，其后的更正照常生效（合法顺序）
+                assertThat(status).isEqualTo("COMMITTED");
+                assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNotNull();
+            }
+            // 无论哪个分支，已发生的模型调用消耗都不因 fencing 丢失
+            assertThat(runInputActual(f.run().id())).as("已发生用量仍如实结算").isEqualTo(1_000);
+        } finally {
+            dropPublicationGate();
+            threads.shutdownNow();
+            threads.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+        }
+    }
+
+    /**
+     * E1 交错二：发布进行中时，<b>真实目标写入不得穿过发布的临界区提交</b>；发布先提交后，
+     * 更正随后照常生效（不因加固而丢写、不产生死锁）。
+     *
+     * <p>门控同样在生产发布 UPDATE 内。修复后发布事务已持有真实会话行锁，目标写入必须
+     * 被阻塞；修复前只锁运行行，目标写入会立刻提交成功——这正是"条件 UPDATE 不等于
+     * 跨行串行化"的可观测后果。</p>
+     */
+    @Test
+    void goalWriteCannotCommitInsidePublicationCriticalSection() throws Exception {
+        Fixture f = fixture("发布先提交");
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 0);
+        var tx = transactionTemplate();
+        var threads = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try (var blocker = jdbc.getDataSource().getConnection();
+             var gate = blocker.createStatement()) {
+            installPublicationGate();
+            gate.execute("SELECT pg_advisory_lock(490709)");
+
+            var publication = threads.submit(() -> {
+                try (var scope = new AgentLeaseScope(1)) {
+                    tx.executeWithoutResult(status -> recorder.completeRunContextAttempt(attemptId,
+                            "COMMITTED", "test-native", usage(), "RUN_CONTEXT_COMMITTED",
+                            committedSummary("当前目标的摘要", 1, 2, 0), 0));
+                }
+            });
+            assertThat(awaitPublicationGate())
+                    .as("生产发布必须真实到达被门控的 UPDATE").isTrue();
+
+            var goalWrite = threads.submit(() -> tx.execute(status -> repository.createRun(
+                    f.project(), f.session(), f.user(), "新目标: 换一个研究方向", false,
+                    "PROJECT_RESEARCH", null)));
+            boolean blockedInsideCriticalSection = false;
+            try {
+                goalWrite.get(2, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (java.util.concurrent.TimeoutException expected) {
+                blockedInsideCriticalSection = true;
+            }
+            assertThat(blockedInsideCriticalSection)
+                    .as("发布进行中时目标写入必须被真实串行化（不能穿过发布的临界区提交）").isTrue();
+
+            gate.execute("SELECT pg_advisory_unlock(490709)");
+            publication.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            goalWrite.get(15, java.util.concurrent.TimeUnit.SECONDS);
+
+            // 发布先提交是合法顺序：摘要有效发布，其后的目标更正随后生效，且不重复结算
+            assertThat(stepStatus(attemptId)).isEqualTo("COMMITTED");
+            assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNotNull();
+            assertThat(repository.currentGoalRevision(f.project(), f.session()))
+                    .as("发布先提交后，目标更正随后照常生效（不丢写）").isEqualTo(1);
+            assertThat(runInputActual(f.run().id())).isEqualTo(1_000);
+        } finally {
+            dropPublicationGate();
+            threads.shutdownNow();
+            threads.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+        }
+    }
+
     // ========== 辅助 ==========
+
+    private org.springframework.transaction.support.TransactionTemplate transactionTemplate() {
+        return new org.springframework.transaction.support.TransactionTemplate(
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(jdbc.getDataSource()));
+    }
+
+    /**
+     * 在与复核探针相同的位置门控生产发布：BEFORE UPDATE 触发器在
+     * {@code ATTEMPTED → COMMITTED} 的转换上取 advisory 事务锁。
+     * 门控只控制时间顺序，不替换生产 SQL、不改返回值、不伪造判据。
+     */
+    private static void installPublicationGate() {
+        jdbc.execute("""
+                CREATE OR REPLACE FUNCTION test_publication_gate() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN
+                  IF OLD.output_json->>'status'='ATTEMPTED' AND NEW.output_json->>'status'='COMMITTED' THEN
+                    PERFORM pg_advisory_xact_lock(490709);
+                  END IF;
+                  RETURN NEW;
+                END $$
+                """);
+        jdbc.execute("""
+                CREATE TRIGGER test_publication_gate BEFORE UPDATE ON agent_step
+                FOR EACH ROW EXECUTE FUNCTION test_publication_gate()
+                """);
+    }
+
+    private static void dropPublicationGate() {
+        jdbc.execute("DROP TRIGGER IF EXISTS test_publication_gate ON agent_step");
+        jdbc.execute("DROP FUNCTION IF EXISTS test_publication_gate()");
+    }
+
+    /** 等待真实发布语句阻塞在门控的 advisory 锁上（等待即证明已取过自己的语句快照）。 */
+    private static boolean awaitPublicationGate() throws InterruptedException {
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
+        while (System.nanoTime() < deadline) {
+            Boolean waiting = jdbc.queryForObject("""
+                    SELECT EXISTS(SELECT 1 FROM pg_stat_activity
+                      WHERE wait_event='advisory' AND query LIKE '%UPDATE agent_step st%')
+                    """, Boolean.class);
+            if (Boolean.TRUE.equals(waiting)) return true;
+            Thread.sleep(30);
+        }
+        return false;
+    }
 
     private void insertToolStep(UUID runId, int sequence, String content) {
         jdbc.update("""

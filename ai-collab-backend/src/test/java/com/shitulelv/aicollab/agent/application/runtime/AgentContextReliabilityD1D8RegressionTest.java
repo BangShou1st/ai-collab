@@ -40,6 +40,7 @@ import org.mockito.ArgumentCaptor;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -97,11 +98,15 @@ class AgentContextReliabilityD1D8RegressionTest {
     // ---------------------------------------------------------------- 受控边界
 
     private static UserAiProvider provider(String name) {
+        return provider(name, java.util.EnumSet.of(ModelCapability.CHAT, ModelCapability.NATIVE_TOOLS));
+    }
+
+    private static UserAiProvider provider(String name, java.util.EnumSet<ModelCapability> capabilities) {
         var now = OffsetDateTime.now();
         return new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), name,
                 ModelProviderType.OPENAI_COMPATIBLE, "https://example.invalid", "/v1/chat/completions",
                 "encrypted", name, true, 0.2, 1024,
-                java.util.EnumSet.of(ModelCapability.CHAT, ModelCapability.NATIVE_TOOLS),
+                capabilities,
                 true, now, now, null);
     }
 
@@ -431,10 +436,317 @@ class AgentContextReliabilityD1D8RegressionTest {
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
     }
 
+    // ================================================================
+    // E2：RUN_CONTEXT 失败/不合格的辅助出站事实必须跨两个 scope 保留
+    // ================================================================
+
+    /**
+     * RUN_CONTEXT 实际失败后，即使会话摘要分支因"无候选"跳过，辅助出站事实也不得被抹掉：
+     * 下一次实际主请求必须按当前配置重新准备（实际出站模型断言，不只看中间 flag）。
+     */
+    @Test
+    void failedRunContextCompactionStillRefreshesNextMainRequest() {
+        var store = mock(AgentModelConfigurationStore.class);
+        when(store.require(any())).thenReturn(provider("model-A"), provider("model-B"));
+        var calls = new ArrayList<String>();
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any())).thenAnswer(invocation -> {
+            List<ModelMessage> messages = invocation.getArgument(0);
+            calls.add(AiConfigurationContext.current().modelName());
+            if (isAuxiliaryRequest(messages)) {
+                throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "Controlled auxiliary failure");
+            }
+            return turn("A complete answer.", ModelFinishReason.STOP);
+        });
+        var routing = controlledRouting(nativeExecutor, store);
+        AgentRunView run = run(0);
+        var repository = coordinatorRepository(run);
+        // 旧工具轨迹使裁前估算达到触发线；会话侧无任何候选
+        var huge = toolStep(1, "read_document_section", "x".repeat(180_000));
+        when(repository.listSteps(any(), any())).thenReturn(List.of(huge, latestModelRequest(2)));
+        when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of());
+        var coordinator = coordinator(repository, routing, run,
+                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of()));
+
+        var outcome = coordinator.advance(run);
+
+        assertThat(calls).as("一次失败的 RUN_CONTEXT 出站后必须仍有一次主请求").hasSize(2);
+        assertThat(calls.getFirst()).as("压缩按自己的配置快照使用当前模型 B").isEqualTo("model-B");
+        assertThat(calls.getLast())
+                .as("RUN_CONTEXT 失败后主请求必须按当前配置重新准备，不能被无会话候选的跳过抹掉")
+                .isEqualTo("model-B");
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+    }
+
+    /** RUN_CONTEXT 不合格（LENGTH 截断）同样保留辅助尝试事实，且绝不发布覆盖。 */
+    @Test
+    void unqualifiedRunContextCompactionStillRefreshesNextMainRequest() {
+        var store = mock(AgentModelConfigurationStore.class);
+        when(store.require(any())).thenReturn(provider("model-A"), provider("model-B"));
+        var calls = new ArrayList<String>();
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any())).thenAnswer(invocation -> {
+            List<ModelMessage> messages = invocation.getArgument(0);
+            calls.add(AiConfigurationContext.current().modelName());
+            if (isAuxiliaryRequest(messages)) {
+                return turn("truncated run-context draft", ModelFinishReason.LENGTH);
+            }
+            return turn("A complete answer.", ModelFinishReason.STOP);
+        });
+        var routing = controlledRouting(nativeExecutor, store);
+        AgentRunView run = run(0);
+        var repository = coordinatorRepository(run);
+        when(repository.listSteps(any(), any())).thenReturn(List.of(
+                toolStep(1, "read_document_section", "x".repeat(180_000)), latestModelRequest(2)));
+        when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of());
+        var coordinator = coordinator(repository, routing, run,
+                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of()));
+
+        var outcome = coordinator.advance(run);
+
+        assertThat(calls).hasSize(2);
+        assertThat(calls.getLast()).as("不合格不等于未尝试：主请求仍按当前配置重新准备")
+                .isEqualTo("model-B");
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        verify(repository, never()).completeRunContextAttempt(any(), eq("COMMITTED"),
+                anyString(), any(), anyString(), any(), anyInt());
+        verify(repository).completeRunContextAttempt(any(), eq("DOWNSGRADED_UNQUALIFIED"),
+                anyString(), any(), anyString(), any(), anyInt());
+    }
+
+    /**
+     * 完全没有发生辅助出站（无任何辅助请求）时保持"每请求一次解析"：
+     * 不得因为"估算很大"就误报已尝试，从而多做一次配置解析。
+     */
+    @Test
+    void noAuxiliaryOutboundKeepsSingleConfigurationResolution() {
+        var store = mock(AgentModelConfigurationStore.class);
+        var resolves = new AtomicInteger();
+        when(store.require(any())).thenAnswer(invocation -> {
+            resolves.incrementAndGet();
+            return provider("model-A");
+        });
+        var calls = new ArrayList<String>();
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any())).thenAnswer(invocation -> {
+            calls.add(AiConfigurationContext.current().modelName());
+            return turn("A complete answer.", ModelFinishReason.STOP);
+        });
+        var routing = controlledRouting(nativeExecutor, store);
+        AgentRunView run = run(0);
+        var repository = coordinatorRepository(run);
+        // 裁前估算远超触发线，但没有任何可压缩来源 → 压缩准入前即跳过，无出站
+        var state = JSON.createObjectNode().put("schemaVersion", 2).put("stateRevision", 1)
+                .put("goalRevision", 0).put("activeGoal", run.goal()).put("latestRequest", run.goal());
+        state.putArray("constraints").addObject().put("status", "active")
+                .put("value", "NECESSARY_LAYER_" + "c".repeat(900_000));
+        when(repository.workingState(any(), any())).thenReturn(state);
+        when(repository.listSteps(any(), any())).thenReturn(List.of(latestModelRequest(2)));
+        var coordinator = coordinator(repository, routing, run,
+                new AgentContextProperties(true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000)));
+
+        var outcome = coordinator.advance(run);
+
+        assertThat(calls).as("未发生辅助出站时只有一次主请求").hasSize(1);
+        assertThat(calls.getFirst()).isEqualTo("model-A");
+        assertThat(resolves.get()).as("未发生辅助出站时保持每请求一次解析").isEqualTo(1);
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+    }
+
+    /** 提交事实必须对应真实有效发布：条件转换零行（fenced）不算提交。 */
+    @Test
+    void fencedRunContextPublicationIsNotReportedAsCommitted() {
+        AgentRunView run = run(0);
+        when(repository.listSteps(any(), any())).thenReturn(List.of(
+                toolStep(1, "read_document_section", "evidence"), latestModelRequest(2)));
+        when(repository.beginRunContextAttempt(any(), anyInt(), anyInt(), anyInt(), anyInt()))
+                .thenReturn(UUID.randomUUID());
+        when(repository.completeRunContextAttempt(any(), anyString(), anyString(), any(), anyString(), any(), anyInt()))
+                .thenReturn(false); // 条件 UPDATE 转换零行：fenced / 重复完成
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any()))
+                .thenReturn(turn("A qualifying run-context summary text.", ModelFinishReason.STOP));
+        var budget = new AgentContextBudget.Budget(50_000, 50_000, 42_500, 21_250,
+                AgentContextBudget.BINDING_PER_REQUEST_CAP, true);
+
+        var outcome = summarizer.maybeSummarizeDetailed(run, null, Integer.MAX_VALUE, Integer.MAX_VALUE,
+                budget, 60_000, () -> true);
+
+        assertThat(outcome.committed()).as("fenced 发布不算提交，不能只因调用了 complete 就声称成功").isFalse();
+        assertThat(outcome.auxiliaryAttempted()).as("请求已真实出站").isTrue();
+    }
+
+    // ================================================================
+    // E3：辅助实际发生后按新快照重建本次主请求
+    // ================================================================
+
+    /**
+     * 大窗口 A 切小窗口 B：辅助失败后必须按 B 的窗口重建消息视图，
+     * 不能继续发送只装得下 A 的旧历史再直接判超限。
+     */
+    @Test
+    void failedAuxiliaryRebuildsMainRequestForSmallerWindow() {
+        var store = mock(AgentModelConfigurationStore.class);
+        when(store.require(any())).thenReturn(provider("model-A"), provider("model-B"));
+        var calls = new ArrayList<String>();
+        var mainOutbound = new ArrayList<List<ModelMessage>>();
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any())).thenAnswer(invocation -> {
+            List<ModelMessage> messages = invocation.getArgument(0);
+            calls.add(AiConfigurationContext.current().modelName());
+            if (isAuxiliaryRequest(messages)) {
+                throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "Controlled auxiliary failure");
+            }
+            mainOutbound.add(messages);
+            return turn("A complete answer.", ModelFinishReason.STOP);
+        });
+        var routing = controlledRouting(nativeExecutor, store);
+        AgentRunView run = run(0);
+        var repository = coordinatorRepository(run);
+        repositoryState(repository, run);
+        // 可选旧历史：只有大窗口 A 装得下；B 必须重新组装而不是沿用 A 的结果
+        var old = new AgentMessageView(UUID.randomUUID(), run.sessionId(), run.id(), "ASSISTANT",
+                "OLD_HISTORY_ONLY_FITS_A_" + "h".repeat(90_000), null, null,
+                OffsetDateTime.now().minusMinutes(5));
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(List.of(old));
+        when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of(
+                new AgentMessageView(UUID.randomUUID(), run.sessionId(), run.id(), "USER",
+                        "An earlier explicit decision must remain available", null, null,
+                        OffsetDateTime.now().minusDays(1))));
+        var coordinator = coordinator(repository, routing, run, new AgentContextProperties(
+                true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B", 20_000)));
+
+        var outcome = coordinator.advance(run);
+
+        assertThat(outcome.status())
+                .as("辅助失败后按 B 窗口可重组时不得直接停成 BUDGET_EXCEEDED")
+                .isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(calls).as("一次辅助出站 + 一次主请求").hasSize(2);
+        assertThat(calls.getLast()).isEqualTo("model-B");
+        assertThat(mainOutbound).hasSize(1);
+        String outbound = mainOutbound.getFirst().toString();
+        assertThat(outbound)
+                .as("主请求必须按 B 的窗口重新组装，不沿用只装得下 A 的旧历史")
+                .doesNotContain("OLD_HISTORY_ONLY_FITS_A_");
+        assertThat(outbound).as("重建后本轮收尾/格式指令层保留").contains("单轮工具调用最多");
+    }
+
+    /**
+     * 必要层真实超过 H 时仍明确收口：不得为了"让请求通过"放宽窗口或屏蔽超限。
+     * 工作状态（必要层）在小窗口 B 下装不下，辅助失败后重建必须如实 BUDGET_EXCEEDED，
+     * 且不得再发出主请求。
+     */
+    @Test
+    void necessaryLayerExceedingSmallWindowStillClosesExplicitly() {
+        var store = mock(AgentModelConfigurationStore.class);
+        when(store.require(any())).thenReturn(provider("model-A"), provider("model-B"));
+        var calls = new ArrayList<String>();
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any())).thenAnswer(invocation -> {
+            List<ModelMessage> messages = invocation.getArgument(0);
+            calls.add(AiConfigurationContext.current().modelName());
+            if (isAuxiliaryRequest(messages)) {
+                throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "Controlled auxiliary failure");
+            }
+            return turn("A complete answer.", ModelFinishReason.STOP);
+        });
+        var routing = controlledRouting(nativeExecutor, store);
+        AgentRunView run = run(0);
+        var repository = coordinatorRepository(run);
+        // 必要层（工作状态）真实超过 B 的安全可用输入
+        var state = JSON.createObjectNode().put("schemaVersion", 2).put("stateRevision", 1)
+                .put("goalRevision", 0).put("activeGoal", run.goal()).put("latestRequest", run.goal());
+        state.putArray("constraints").addObject().put("status", "active")
+                .put("value", "NECESSARY_LAYER_" + "c".repeat(800_000));
+        when(repository.workingState(any(), any())).thenReturn(state);
+        when(repository.listSteps(any(), any())).thenReturn(List.of(
+                toolStep(1, "read_document_section", "bounded evidence " + "e".repeat(3_000)),
+                latestModelRequest(2)));
+        when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of());
+        var coordinator = coordinator(repository, routing, run, new AgentContextProperties(
+                true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B", 40_000)));
+
+        var outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).as("必要层真实超过 H 时明确收口").isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        assertThat(outcome.errorCode()).isEqualTo("AGENT_BUDGET_EXCEEDED");
+        assertThat(calls).as("超出必要层时不再发出主请求，只发生过辅助出站").hasSize(1);
+    }
+
+    /**
+     * Native → Legacy 的模式切换同样按新快照重建：辅助失败后主请求必须使用新的只读协议契约，
+     * 而不是继续沿用按 Native 模式组装的消息与出站路径。
+     */
+    @Test
+    void auxiliaryFailureSwitchingToLegacyRebuildsReadOnlyContract() {
+        var store = mock(AgentModelConfigurationStore.class);
+        when(store.require(any())).thenReturn(
+                provider("model-A"),
+                provider("model-B-legacy", java.util.EnumSet.of(ModelCapability.CHAT)));
+        var legacyOutbound = new ArrayList<List<ModelMessage>>();
+        var legacy = mock(LegacyReadOnlyAgentExecutor.class);
+        when(legacy.callModel(anyList(), anyList(), any(), any(), anyBoolean(), any())).thenAnswer(invocation -> {
+            legacyOutbound.add(invocation.getArgument(0));
+            return turn("只读回答", ModelFinishReason.STOP);
+        });
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any()))
+                .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "Controlled auxiliary failure"));
+        var zen = mock(ZenModelExecution.class);
+        when(zen.isZen(any())).thenReturn(false);
+        var routing = new RoutingAgentModelExecutor(nativeExecutor, legacy, zen, store);
+
+        AgentRunView run = run(0);
+        var repository = coordinatorRepository(run);
+        repositoryState(repository, run);
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(List.of(
+                new AgentMessageView(UUID.randomUUID(), run.sessionId(), run.id(), "ASSISTANT",
+                        "h".repeat(30_000), null, null, OffsetDateTime.now().minusMinutes(5))));
+        when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of(
+                new AgentMessageView(UUID.randomUUID(), run.sessionId(), run.id(), "USER",
+                        "An earlier explicit decision must remain available", null, null,
+                        OffsetDateTime.now().minusDays(1))));
+        var coordinator = coordinator(repository, routing, run, new AgentContextProperties(
+                true, 50_000, 8_000, 2_000, Map.of("model-A", 1_000_000, "model-B-legacy", 200_000)));
+
+        var outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(legacyOutbound).as("主请求必须按新快照走 Legacy 出站路径").hasSize(1);
+        assertThat(legacyOutbound.getFirst().toString())
+                .as("重建后的消息视图必须携带新的 Legacy 只读契约")
+                .contains("当前运行模式：Legacy（只读）");
+    }
+
     // ---------------------------------------------------------------- D5/D8 共用内核
 
     private record Kernel(AgentRunView run, AgentRepository repository, AgentRuntimeCoordinator coordinator) {}
 
+    /** 协调器装配：真实 Composer/Summarizer/Routing，受控仓库与出站。 */
+    private AgentRuntimeCoordinator coordinator(AgentRepository repository,
+            RoutingAgentModelExecutor executor, AgentRunView run, AgentContextProperties properties) {
+        // 先在 stubbing 之外构造受控 Skill，避免嵌套 stubbing（UnfinishedStubbing）
+        var skill = skill(run);
+        var assembledContext = context(run);
+        var assembler = mock(AgentContextAssembler.class);
+        when(assembler.assemble(any(), any(), any())).thenReturn(assembledContext);
+        var registry = mock(com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry.class);
+        when(registry.select(any(), any(), any())).thenReturn(skill);
+        var planService = mock(AgentPlanService.class);
+        when(planService.ensurePlan(any(), any())).thenReturn(AgentPlan.create(run.goal(), List.of()));
+        var composer = new AgentModelMessageComposer(repository, null, JSON);
+        var contextSummarizer = new AgentContextSummarizer(repository, executor, JSON, properties);
+        return new AgentRuntimeCoordinator(repository, assembler, registry, planService,
+                new AgentToolRegistry(List.of()), new AgentCancellationService(repository), executor,
+                new AgentConvergencePolicy(), JSON, null, properties, composer,
+                mock(AgentToolCallExecutor.class), contextSummarizer);
+    }
+
+    /** 会话摘要在本类多个用例中需要的 v2 工作状态。 */
+    private static void repositoryState(AgentRepository repository, AgentRunView run) {
+        var state = JSON.createObjectNode().put("schemaVersion", 2).put("stateRevision", 1)
+                .put("goalRevision", 0).put("activeGoal", run.goal()).put("latestRequest", run.goal());
+        state.putArray("constraints");
+        when(repository.workingState(any(), any())).thenReturn(state);
+    }
+
+    /** 辅助出站判定：会话摘要/重压缩/RUN_CONTEXT 压缩的系统提示都以"你是受控"开头。 */
+    private static boolean isAuxiliaryRequest(List<ModelMessage> messages) {
+        return !messages.isEmpty() && messages.getFirst().toString().contains("你是受控");
+    }
     private Kernel kernel(RoutingAgentModelExecutor modelExecutor) {
         AgentRunView run = run(0);
         AgentRepository repository = coordinatorRepository(run);

@@ -63,6 +63,11 @@ class AgentRunContextCompactionRegressionTest {
         repository = mock(AgentRepository.class);
         when(repository.listRecentMessages(any(), anyInt())).thenReturn(new ArrayList<>());
         when(repository.citationsStillValid(any(), any())).thenReturn(true);
+        // E1：发布接口现在返回"是否真实发布"的业务事实。本类用 mock 仓库模拟一个
+        // 健康的持久层，因此条件转换必须成功（true）；断言仍校验真实返回的业务结果，
+        // 不因打了这个桩而放松（真正的 fenced/零行场景见 AgentRunContextCommitPostgresTest）。
+        when(repository.completeRunContextAttempt(any(), anyString(), anyString(), any(), anyString(),
+                any(), anyInt())).thenReturn(true);
         nativeExecutor = mock(NativeToolCallingExecutor.class);
         model = controlledModel();
         summarizer = new AgentContextSummarizer(repository, model, JSON);

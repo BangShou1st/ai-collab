@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +50,10 @@ class AgentAuxiliaryOutboundRegressionTest {
     @BeforeEach
     void setUp() {
         repository = mock(AgentRepository.class);
+        // E1：发布接口返回"是否真实发布"的业务事实；本类模拟健康持久层，条件转换成功。
+        // 真正 fenced/零行的场景由 AgentRunContextCommitPostgresTest 真实 PostgreSQL 覆盖。
+        when(repository.completeRunContextAttempt(any(), anyString(), anyString(), any(), anyString(),
+                any(), anyInt())).thenReturn(true);
         nativeExecutor = mock(NativeToolCallingExecutor.class);
         model = controlledModel();
         summarizer = new AgentContextSummarizer(repository, model, json());
