@@ -534,33 +534,46 @@ maybeSummarizeConversation(...)`；不要把准入前拒绝也标成"已尝试"�
 其 `completeRunContextAttempt` 桩必须返回 `true`；真正的 fenced/零行场景在真实
 PostgreSQL 用例里断言）。
 
-## 18. 真实模型多周期压缩质量验收（2026-10-09 第五轮）
+## 18. 真实模型多周期压缩质量验收（2026-10-09 第五轮，收口修订）
 
 完整结果与证据：`docs/acceptance-evidence/2026-10-09/context-compaction/`
 （runbook、事实清单、两周期以上摘要全文、覆盖字段 SQL、模型调用捕获、最终回答、
-浏览器状态、results.md）。本轮**零生产代码改动**，纯验收轮。
+浏览器状态、results.md）。本轮**零生产代码改动**，纯验收轮。本节结论以收口修订后的
+results.md 为准（初版四处不准确结论已按原始调用捕获逐项修正）。
 
 ### 18.1 验收方式与结论
 
-- **入**口：`RealAcceptanceHostTest`（`AI_REAL_ACCEPTANCE=true` +
+- **入口**：`RealAcceptanceHostTest`（`AI_REAL_ACCEPTANCE=true` +
   `AI_UPGRADE_REHEARSAL=true` + `AI_REAL_ACCEPTANCE_KEEP_CONFIG=true`），隔离副本 PG
   （卷 `ai-collab-acceptance-20261003`，Flyway 由 V61 迁至 V64）、隔离 Redis/MinIO；
   用户模型配置只读沿用（KEEP_CONFIG），开始/结束零修改。
-- **结论：通过**。3 个有效压缩周期（COMMITTED ×3）+ 1 个 D3 截断降级周期
-  （UNQUALIFIED，不发布、不推进覆盖、用量如实结算），全链路真实模型
-  （space-bunny-free）+ 真实持久化 + 真实 Composer 消费 + 真实最终回答。
+- **结论（收窄）**：**受控样本的三周期发布、消费及部分事实延续通过**——3 个有效
+  压缩周期（COMMITTED ×3）+ 1 个输出超长资格保护降级周期（UNQUALIFIED，不发布、
+  不推进覆盖、用量如实结算），全链路真实模型（space-bunny-free）+ 真实持久化 +
+  真实 Composer 消费 + 真实最终回答。**严格同问题质量对照、更正跨周期保真尚未
+  验证**（见 18.3）。
 - 定性为**受控规模的真实模型质量验收**：裁前估算约 4.3–4.7 万 tokens（约 27 万 chars
   材料），未达 256k 自然触发线；不冒充 256k 实测（未验证项如实记录）。
 
-### 18.2 实测确认的生产行为（与第 14–17 节逐条对应）
+### 18.2 实测确认的生产行为（与第 14–17 节逐条对应，按 toolCallId 归因）
+
+三次 24000-char 正文读取的 toolCallId：`…c9`＝数据报表、`…c8`＝客户成功、
+`…c7`＝运维手册；周期 2/3 的 partial 记录是 step seq=8（即 `…c9`）。
 
 - **C3 覆盖推进**：周期 1 覆盖 seq 1–7；周期 2 对超大记录 seq 8 记
   `sourcePartialChars=53739`；周期 3 从偏移继续并完整闭合（`through=8, partial=0`）。
-- **D1 partial 保留**：partial 周期中 seq 8 的 53984 chars 工具结果**整条保留**在
-  实际主请求中；完整覆盖后被确定性投影（53984 → 3384 chars），未覆盖尾部
-  （seq 13/14/17/20）始终原文可见。
-- **D3 截断降级**：辅助输出 12747 tokens 超长 → `RUN_CONTEXT_UNQUALIFIED`，
-  保留周期 3 摘要，覆盖不推进——"截断产物不能冒充完整摘要"红线的真实行为证明。
+- **D1 partial 保留（修正归因）**：partial 后的第一次主请求 call#22 中 seq 8 的
+  工具结果（55045 chars，capture 口径）**完整原文保留、无投影标记**；周期 2 提交后
+  （call#24 起）该记录变为 `projection=DETERMINISTIC` 投影（originalChars=54940 →
+  modelVisibleChars=3437）。真正体现 partial 语义的是摘要侧：周期 2 只送入 seq 8
+  前 53739 chars、周期 3 从未送入偏移继续并完整闭合。未覆盖尾部（seq 13/14/17/20，
+  16k 级）在后续主请求中始终完整原文。c7/c8 从 call#22 起就是投影（它们不是周期
+  1–2 的覆盖对象），**不构成覆盖退出证据**——不要把另一调用的投影当作 seq 8 归因。
+- **输出超长资格保护（修正定性，非 LENGTH 截断）**：周期 4 的原始辅助响应
+  `finishReason=STOP`、**正文 18740 字符**，触发 `runContextQualifies` 的
+  RUN_CONTEXT_MAX_OUTPUT_CHARS=16000 上限判定 → `RUN_CONTEXT_UNQUALIFIED`，
+  保留周期 3 摘要，覆盖不推进，用量如实结算（inputTokens=33044/outputTokens=12747,
+  basis=PROVIDER）。落库记录 JSON 的 273 bytes 是状态记录长度，**不是响应正文长度**。
 - **C1 消费闭环**：周期 1 提交后主请求出现
   `<RUN_CONTEXT_SUMMARY sourceThroughSequence="7" cycle="1">`；`previousSummaryIncorporated=true`
   在周期 2/3 摘要文本中真实体现（周期 1 全部事实/来源身份延续）。
@@ -568,14 +581,26 @@ PostgreSQL 用例里断言）。
   documentId/snapshotId/chunkId/charFrom 来源定位、未读缺口全部保留；partial 尾部残片
   如实标注"无法对应、不能视为空结果"，无虚报全文覆盖。
 - **E3 重建**：每个周期提交后主请求都按新快照重组（模型调用捕获 jsonl 佐证）。
-- **更正优先**：同会话第二轮的用户更正（U1）在后续回答中按更正条件复述，
-  且如实声明"本轮未重新读取正文，仅按更正复述"。
+- **更正优先（限定范围）**：U1 更正在 run2（独立运行、0 压缩周期）的后续回答中
+  按更正条件复述，且如实声明"本轮未重新读取正文，仅按更正复述"。**这不是跨压缩
+  周期的更正保真**——G1 会话只有 1 个运行，无第二轮更正输入。
 
 ### 18.3 复验收口与边界
 
+- **对照范围**：runC1 同问题但发生了 1 个压缩周期（不是未压缩对照）；run1 未压缩
+  但问题集不同。三组回答仅用于事实正确性交叉检查，不能下"压缩 vs 未压缩"的质量差
+  结论。严格同问题质量对照未完成；如需补齐属可选补充实验，非必做任务。
+- **事实核对结果**：27 项清单（B2 已按真实资料修正），G1 问题集明确要求的 21 项中
+  20 项 ✓；**A8（备份保留 90 天）被问题第 6 项明确要求但最终回答遗漏（△）**——
+  摘要周期 2/3 与工具事实层均保留 90 天，属模型收尾遗漏（模型行为差异），
+  不是压缩链路丢失；未以改代码方式"修复"。
 - 压缩触发依赖**裁前估算**（C2：组装体积 + droppedSourceChars/3）。资料体积不足时
   不会触发——这是设计行为；自然触发需要约 ≥12.7 万 chars 的活跃材料。
 - 窗口覆盖（`window-overrides`）试验期间曾用于观察辅助窗口核对（H=6000 CONFIRMED），
   最终验收按 UNKNOWN 窗口回退路径（H=50000/T=42500）自然触发，未改生产默认策略。
 - 未重复实测（由既有回归覆盖）：fenced 发布、并发窗口、暂停交互、会话摘要 scope 合并。
+- 字符/长度口径必须区分（results.md 末尾对照表）：DB `output_json` 序列化长度、
+  捕获 jsonl 的消息 JSON 长度、投影元数据 originalChars（SERIALIZED_TOOL_RESULT_JSON_
+  CHARS）、modelVisibleChars、响应正文 chars、落库记账 JSON 长度——六者不可互换，
+  不得把记账 JSON 长度当响应正文长度。
 
