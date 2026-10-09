@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.acceptance;
 
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
+import com.shitulelv.aicollab.common.testing.MinioTestImage;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -31,7 +32,7 @@ class BrowserAcceptanceHostTest {
     static Properties properties;
     @DynamicPropertySource static void configure(DynamicPropertyRegistry registry) throws Exception {
         properties=AcceptanceDatabaseSupport.localProperties(); peer=new ScriptedAcceptanceModel();
-        minio=new GenericContainer<>(DockerImageName.parse("quay.io/minio/minio:latest")).withExposedPorts(9000)
+        minio=new GenericContainer<>(DockerImageName.parse(MinioTestImage.IMAGE)).withExposedPorts(9000)
                 .withEnv("MINIO_ROOT_USER","acceptance").withEnv("MINIO_ROOT_PASSWORD","acceptance-test-only")
                 .withCommand("server","/data").waitingFor(Wait.forHttp("/minio/health/ready").forPort(9000));minio.start();
         redis=new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);redis.start();
