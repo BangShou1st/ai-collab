@@ -137,7 +137,7 @@ AI Collab 解决的核心问题：
 ## 环境要求
 
 - JDK 21
-- Node.js 20+
+- Node.js 22+
 - pnpm 11+
 - Docker Desktop (含 Docker Compose)
 
@@ -157,24 +157,47 @@ cd ai-collab
 Linux / macOS:
 
 ```bash
-cp .env.example .env
+[ -e .env ] || cp .env.example .env
 ```
 
 Windows PowerShell:
 
 ```powershell
-Copy-Item .env.example .env
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
 编辑 `.env`，替换所有 `change-me` 占位符。
 
-### 3. 启动基础设施
+### 3. Windows 本地开发入口（推荐）
 
-```bash
-docker compose --env-file .env -f ai-collab-deploy/docker-compose.yml up -d
+在仓库根目录执行，Docker 只运行 PostgreSQL、Redis、MinIO，本机运行后端源码与 Vite：
+
+```powershell
+cd ai-collab-frontend
+pnpm install --frozen-lockfile
+cd ..
+.\dev.ps1 start
+.\dev.ps1 status
+.\dev.ps1 stop        # 仅本入口管理的前后端
+.\dev.ps1 stop-infra  # 独立操作：停止基础设施，保留容器与数据卷
 ```
 
-### 4. 启动后端
+后台运行不弹额外窗口；重复启动复用健康进程，端口冲突时报告 PID 并退出。
+已有容器优先复用，不自动重建或升级 MinIO。日志与进程身份在
+`ai-collab-backend/target/local-dev/`，详细配置归属、修改源码后的重启与故障处理见
+[本地开发维护说明](docs/local-development.md)。入口使用现有 `.env`，不会生成或覆盖配置。
+
+### 4. 手动启动（其他系统或需要前台调试时）
+
+只选择三个基础设施服务，**不要**同时启动容器 `app` 和本机后端。
+以下 compose 命令适用于新环境；已有数据的环境优先使用 Windows 入口复用原容器，
+镜像升级须遵循 [恢复说明](docs/deployment-recovery.md) 的副本验证边界。
+
+```bash
+docker compose --env-file .env -f ai-collab-deploy/docker-compose.yml up -d --no-deps --no-recreate postgres redis minio
+```
+
+#### 启动后端
 
 ```bash
 cd ai-collab-backend
@@ -188,15 +211,15 @@ cd ai-collab-backend
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
 ```
 
-### 5. 启动前端
+#### 启动前端
 
 ```bash
 cd ai-collab-frontend
-pnpm install
-pnpm dev
+pnpm install --frozen-lockfile
+pnpm dev --port 5173 --strictPort
 ```
 
-### 6. 访问应用
+### 5. 访问应用
 
 | 服务 | 地址 |
 |---|---|
