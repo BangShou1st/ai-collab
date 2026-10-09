@@ -45,9 +45,15 @@ services:
       retries: 20
 
   minio:
-    image: quay.io/minio/minio:latest
+    # MinIO 官方已撤下可匿名拉取的服务端镜像：Docker Hub 的 minio/minio 仓库不存在，
+    # quay.io/minio/minio 对匿名请求返回 401（仓库策略，非网络故障）。官方 release
+    # 说明改为"自行 clone 源码构建"。这里改用 Chainguard 构建的同一服务端，跟踪
+    # minio/minio 上游 master（当前 digest 对应 RELEASE.2026-09-22T19-25-18Z），
+    # 按 digest 固定以保证可复现；digest 更新方式见 docs/deployment-recovery.md。
+    image: cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18
     container_name: ai-collab-minio
     restart: unless-stopped
+    # Chainguard 镜像的 ENTRYPOINT 是 /usr/bin/minio，所以此处只给子命令参数。
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -57,6 +63,15 @@ services:
       - "9001:9001"
     volumes:
       - ai_collab_minio_data:/data
+    healthcheck:
+      # 服务端以非 root（uid/gid 65532）运行，镜像内无 curl；/minio/health/ready 无需凭据。
+      test:
+        - CMD-SHELL
+        - 'mc ready local >/dev/null 2>&1 || exit 1'
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   app:
     build:
