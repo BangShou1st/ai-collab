@@ -1,0 +1,7 @@
+                  id                  |  status   | steps_used | tool_calls_used | input_tokens_actual | output_tokens_actual | context_policy_version | budget_semantics 
+--------------------------------------+-----------+------------+-----------------+---------------------+----------------------+------------------------+------------------
+ c2c3a7fd-971f-4668-8a7f-6b4239784444 | SUCCEEDED |          5 |               7 |               33290 |                 2678 |                      2 | SEPARATED
+ c4437bed-a3e3-432f-8aef-cdbca9c18341 | SUCCEEDED |          8 |              11 |              252915 |                40116 |                      2 | SEPARATED
+ f32bb97e-1518-456a-bf4f-f88f0849df7d | SUCCEEDED |          8 |              12 |              165713 |                16296 |                      2 | SEPARATED
+(3 rows)
+
