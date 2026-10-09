@@ -126,30 +126,11 @@ public class AgentRunEventRecorder {
 
     /** 兼容入口：不做目标修订冲突检查的发布（仍受 claim epoch 与取消 fencing 约束）。 */
     @Transactional
-    public void completeRunContextAttempt(UUID attemptId, String outcome, String model,
+    public boolean completeRunContextAttempt(UUID attemptId, String outcome, String model,
             UsageSettlement usage, String note, JsonNode committedSummary) {
-        completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary, null);
+        return completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary, null);
     }
 
-    /**
-     * 完成一次 RUN_CONTEXT 压缩尝试（C4）：实际用量结算与有效摘要发布<b>分开判定、
-     * 同一短事务内原子完成</b>。
-     *
-     * <p>发布前在同一事务内核对 fencing 事实：</p>
-     * <ul>
-     *   <li><b>claim epoch</b>：当前线程持有该运行租约时经 {@link AgentLeaseScope} 校验，
-     *       失去租约的旧 worker 不得发布有效状态；</li>
-     *   <li><b>取消</b>：cancel_requested_at 已落库的返回不得成为当前有效摘要；</li>
-     *   <li><b>目标修订</b>：expectedGoalRevision 与会话工作状态当前 goalRevision 冲突
-     *       （目标更正发生在生成期间）时不得发布——目标修订使用真实业务修订事实，
-     *       不把任意 run.version 当成目标修订。</li>
-     * </ul>
-     *
-     * <p>被 fenced 的返回<b>不能</b>成为当前有效摘要，但已发生用量仍如实幂等结算。
-     * 同一 attempt 重复完成既不重复结算，也不能改写已发布的摘要：发布与结算是
-     * agent_step 行上同一次 ATTEMPTED → 终态转换，重复调用转换零行即幂等返回。
-     * 已受理的暂停按契约允许摘要完成保存，不自动解除暂停。</p>
-     */
     /**
      * 完成一次 RUN_CONTEXT 压缩尝试（C4）：实际用量结算与有效摘要发布<b>分开判定、
      * 同一短事务内原子完成</b>。
@@ -166,21 +147,36 @@ public class AgentRunEventRecorder {
      *       不把任意 run.version 当成目标修订。</li>
      * </ul>
      *
-     * <p><b>并发安全（D2）</b>：普通 SELECT 在 READ COMMITTED 下不能阻止另一事务在
-     * 检查与发布之间提交取消/目标修订/接管。发布路径改为短事务行锁 + 原子条件方案：
-     * 检查 SELECT 对 {@code agent_run} 行加 {@code FOR UPDATE}（与 requestPause /
-     * cancel / claim 接管的行锁串行化，锁序均为"先运行行"，与既有准入边界一致，
-     * 不引入新的死锁风险），发布 UPDATE 以 <b>条件谓词</b>（租约有效 + epoch + 未取消 +
-     * RUNNING + 目标修订一致 + ATTEMPTED）重新约束——即使检查后事实变化，UPDATE 影响
-     * 零行，返回退回 FENCED 结算，不推进有效覆盖。短事务不跨模型 HTTP 持锁。</p>
+     * <p><b>并发安全（D2 + E1）</b>：普通 SELECT 在 READ COMMITTED 下不能阻止另一事务在
+     * 检查与发布之间提交取消/目标修订/接管。发布路径改为短事务行锁 + 原子条件方案：</p>
+     * <ul>
+     *   <li>检查 SELECT 对 {@code agent_run} 行加 {@code FOR UPDATE}（与 requestPause /
+     *       cancel / claim 接管的行锁串行化，锁序均为"先运行行"）；</li>
+     *   <li><b>E1</b>：目标修订的真实存储行是 {@code agent_session}，其写入路径
+     *       （{@code AgentWorkingState.appendUser} 的 {@code SELECT ... FOR UPDATE}）
+     *       只锁会话行、不碰运行行，因此仅锁运行行<b>不足以</b>与目标修订串行化。
+     *       这里在运行行之后显式对会话行加 {@code FOR UPDATE}（锁序固定为
+     *       "运行行 → 会话行"，与 {@code AgentPlanningOperationService} 的
+     *       {@code FOR UPDATE OF r} + 会话读取同序，不新增反向锁序），并在<b>取得该保护之后</b>
+     *       重新读取真实 {@code goalRevision} 作为判定依据——READ COMMITTED 下加锁读
+     *       看到的必然是已提交的最新修订，语句级旧快照不再能骗过校验；</li>
+     *   <li>发布 UPDATE 以 <b>条件谓词</b>（租约有效 + epoch + 未取消 + RUNNING +
+     *       目标修订一致 + ATTEMPTED）重新约束——即使检查后事实变化，UPDATE 影响零行，
+     *       返回退回 FENCED 结算，不推进有效覆盖。</li>
+     * </ul>
+     *
+     * <p>短事务只含读锁与一次 UPDATE，<b>不跨模型 HTTP 持锁</b>（模型调用已在本方法之外完成）。</p>
      *
      * <p>被 fenced 的返回<b>不能</b>成为当前有效摘要，但已发生用量仍如实幂等结算。
      * 同一 attempt 重复完成既不重复结算，也不能改写已发布的摘要：发布与结算是
      * agent_step 行上同一次 ATTEMPTED → 终态转换，重复调用转换零行即幂等返回。
      * 已受理的暂停按契约允许摘要完成保存，不自动解除暂停。</p>
+     *
+     * @return 是否<b>真实发布</b>了有效摘要（只有真正推进覆盖的提交才为 true）：
+     *         调用方据此判断"提交事实"，不能只因调用了本方法就声称成功
      */
     @Transactional
-    public void completeRunContextAttempt(UUID attemptId, String outcome, String model,
+    public boolean completeRunContextAttempt(UUID attemptId, String outcome, String model,
             UsageSettlement usage, String note, JsonNode committedSummary, Integer expectedGoalRevision) {
         boolean wantPublish = committedSummary != null && "COMMITTED".equals(outcome);
         String effectiveOutcome = outcome;
@@ -190,14 +186,11 @@ public class AgentRunEventRecorder {
             // 检查 SELECT 带 FOR UPDATE：对运行行加短事务行锁，与 requestPause/cancel/
             // claim 接管（同样先取运行行锁）串行化——取消/暂停意图要么先于本次检查提交
             // （本事务读得到，直接 FENCED），要么等待本事务提交后才发生（合法的先发布后取消）。
-            // 目标修订行（agent_session）在运行行之后读取，锁序与既有准入边界一致。
             var rows = jdbc.queryForList("""
-                    SELECT r.id AS run_id, r.claim_version, r.status, r.cancel_requested_at,
-                           r.lease_expires_at,
-                           COALESCE(s.working_state->>'goalRevision','0') AS goal_revision
+                    SELECT r.id AS run_id, r.session_id, r.claim_version, r.status, r.cancel_requested_at,
+                           r.lease_expires_at
                     FROM agent_step st
                     JOIN agent_run r ON r.id = st.run_id
-                    LEFT JOIN agent_session s ON s.id = r.session_id
                     WHERE st.id=? AND st.reason='RUN_CONTEXT_SUMMARY'
                     FOR UPDATE OF r
                     """, attemptId);
@@ -225,11 +218,30 @@ public class AgentRunEventRecorder {
                     fenceReason = "RUN_CONTEXT_LEFT_RUNNING";
                 }
                 if (fenceReason == null && expectedGoalRevision != null) {
+                    // E1：目标修订的真实存储行是 agent_session，其写入路径
+                    // （AgentWorkingState.appendUser / createRun）只锁会话行、不碰运行行。
+                    // 仅锁运行行时，并发目标写入不会被本事务阻挡，而发布语句的
+                    // READ COMMITTED 语句快照也不会重新读取会话——旧目标摘要仍可能发布。
+                    // 因此在运行行之后显式对<b>真实会话行</b>加 FOR UPDATE，把目标修订的
+                    // 写入纳入同一短事务的串行化保护；锁序固定为"运行行 → 会话行"，
+                    // 与 createRun（先插入运行行、再锁会话行）一致，不引入反向锁序。
+                    var lockedSession = jdbc.queryForList("""
+                            SELECT COALESCE(working_state->>'goalRevision','0') AS goal_revision
+                            FROM agent_session WHERE id=?
+                            FOR UPDATE
+                            """, row.get("session_id"));
                     int goalRevisionNow;
-                    try {
-                        goalRevisionNow = Integer.parseInt(String.valueOf(row.get("goal_revision")));
-                    } catch (NumberFormatException malformed) {
-                        goalRevisionNow = -1;
+                    if (lockedSession.isEmpty()) {
+                        goalRevisionNow = -1; // 会话行不存在：无法核对修订，按冲突处理
+                    } else {
+                        try {
+                            // 取得行保护之后读取：加锁读在 READ COMMITTED 下必然看到最新已提交修订，
+                            // 不使用语句开始时的旧快照
+                            goalRevisionNow = Integer.parseInt(
+                                    String.valueOf(lockedSession.getFirst().get("goal_revision")));
+                        } catch (NumberFormatException malformed) {
+                            goalRevisionNow = -1;
+                        }
                     }
                     if (goalRevisionNow != expectedGoalRevision) {
                         fenceReason = "RUN_CONTEXT_GOAL_REVISION_CONFLICT";
@@ -246,7 +258,7 @@ public class AgentRunEventRecorder {
             // 只结算，不发布：失去 claim / 租约过期 / 取消 / 目标修订冲突的返回不成为
             // 当前有效摘要，但已发生用量仍如实幂等结算（ATTEMPTED → 终态只允许一次转换）
             completeSummaryCallStep(attemptId, "RUN_CONTEXT_SUMMARY", effectiveOutcome, model, usage, effectiveNote);
-            return;
+            return false;
         }
         // 发布与结算同一行一次转换：output_json 一次性从 ATTEMPTED 覆写为
         // 终态记账 || 已提交摘要。重复完成转换零行——不重复结算、不改写已发布摘要。
@@ -276,7 +288,7 @@ public class AgentRunEventRecorder {
             // 不发布、不推进覆盖，用量照常结算
             completeSummaryCallStep(attemptId, "RUN_CONTEXT_SUMMARY", "FENCED", model, usage,
                     appendNote(note, fenceReason == null ? "RUN_CONTEXT_PUBLISH_CONDITION_LOST" : fenceReason));
-            return;
+            return false;
         }
         bookRunUsage("UPDATE agent_run SET\n" +
                 "                input_tokens_used=agent_capped_add(input_tokens_used, max_input_tokens, ?),\n" +
@@ -287,6 +299,8 @@ public class AgentRunEventRecorder {
                 "                updated_at=now()\n" +
                 "              WHERE id=(SELECT run_id FROM agent_step WHERE id=?)",
                 usage, attemptId);
+        // 只有真正转换成功（推进覆盖）才报告提交事实：调用方不得只因调用了本方法就声称成功
+        return true;
     }
 
     private String appendNote(String note, String reason) {

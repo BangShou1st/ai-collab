@@ -611,16 +611,20 @@ public class AgentRepository {
                 currentGoalRevision(run.projectId(), run.sessionId()));
     }
 
-    /** 完成 RUN_CONTEXT 压缩尝试；committedSummary 为 null 表示未提交（不推进覆盖）。 */
-    public void completeRunContextAttempt(UUID attemptId, String outcome, String model,
+    /**
+     * 完成 RUN_CONTEXT 压缩尝试；committedSummary 为 null 表示未提交（不推进覆盖）。
+     *
+     * @return 是否<b>真实发布</b>了有效摘要（fenced / 重复完成 / CAS 失配均为 false）
+     */
+    public boolean completeRunContextAttempt(UUID attemptId, String outcome, String model,
             AgentRunEventRecorder.UsageSettlement usage, String note, JsonNode committedSummary, Integer expectedGoalRevision) {
-        recorder.completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary, expectedGoalRevision);
+        return recorder.completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary, expectedGoalRevision);
     }
 
     /** 兼容入口：不做目标修订冲突检查的发布（仍受 claim epoch 与取消 fencing 约束）。 */
-    public void completeRunContextAttempt(UUID attemptId, String outcome, String model,
+    public boolean completeRunContextAttempt(UUID attemptId, String outcome, String model,
             AgentRunEventRecorder.UsageSettlement usage, String note, JsonNode committedSummary) {
-        recorder.completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary, null);
+        return recorder.completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary, null);
     }
 
     /**

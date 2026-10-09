@@ -179,9 +179,23 @@ public class AgentContextSummarizer {
 
     /**
      * 摘要结果：提交事实 + 是否实际发起过辅助出站（D8 的主请求快照刷新依据）。
+     *
+     * <p>E2：两个 scope（RUN_CONTEXT 压缩与会话摘要）都返回本类型，调用方在合并阶段对
+     * 两个事实分别做逻辑 OR。此前 RUN_CONTEXT 只返回 boolean，失败/不合格后直接把
+     * 结果丢掉、再由"无会话候选"的 {@code NOT_ATTEMPTED} 覆盖，导致已经真实发生的辅助
+     * 出站事实丢失，协调器不刷新主请求配置（实际出站顺序仍为 B→A）。</p>
      */
     public record SummaryOutcome(boolean committed, boolean auxiliaryAttempted) {
         static final SummaryOutcome NOT_ATTEMPTED = new SummaryOutcome(false, false);
+        /** 仅发生过辅助出站、未提交（失败/不合格/fenced）：主请求仍须按当前配置重新准备。 */
+        static final SummaryOutcome ATTEMPTED_ONLY = new SummaryOutcome(false, true);
+
+        /** 合并两个 scope 的事实：提交与尝试事实都取 OR，任一发生即保留。 */
+        SummaryOutcome merge(SummaryOutcome other) {
+            if (other == null) return this;
+            return new SummaryOutcome(committed || other.committed,
+                    auxiliaryAttempted || other.auxiliaryAttempted);
+        }
     }
 
     /** 详细结果入口：协调器需要区分"提交了摘要"与"发过辅助请求"两种后续动作（D8）。 */
@@ -195,12 +209,19 @@ public class AgentContextSummarizer {
             java.util.function.BooleanSupplier timeRemaining) {
         // 运行轨迹压缩：达到软压缩触发线且仍有可压缩旧前缀、周期未满时优先执行。
         // 这是"整理旧轨迹"，不是"拒绝请求"——失败或没有可压缩来源时继续原上下文。
+        // E2：两个 scope 都返回可合并的提交/尝试事实；压缩失败或不合格不能被随后的
+        // "无会话候选"分支覆盖（那会抹掉已经真实发生的辅助出站事实，D8 刷新随之失效）。
+        SummaryOutcome outcome = SummaryOutcome.NOT_ATTEMPTED;
         if (budget != null && shouldCompactRunContext(run, activeContextTokens, budget)) {
-            if (compactRunContext(run, composition, budget, remainingOutputTokens, timeRemaining)) {
-                return new SummaryOutcome(true, true); // 已提交新的 RUN_CONTEXT 摘要：调用方必须重新组装主请求
+            outcome = compactRunContextDetailed(run, composition, budget, remainingOutputTokens, timeRemaining);
+            if (outcome.committed()) {
+                return outcome; // 已提交新的 RUN_CONTEXT 摘要：调用方必须重新组装主请求
             }
         }
-        return maybeSummarizeConversation(run, composition, remainingInputAfterMain, remainingOutputTokens, timeRemaining);
+        // 未提交时仍尝试会话摘要（两个 scope 各自独立准入、互不否决），事实按 OR 合并：
+        // RUN_CONTEXT 的真实失败/不合格不被会话摘要的"无候选"跳过抹掉。
+        return outcome.merge(maybeSummarizeConversation(run, composition, remainingInputAfterMain,
+                remainingOutputTokens, timeRemaining));
     }
 
     /** 兼容入口：活跃上下文估算按裁剪前口径近似（组装体积 + 被裁掉的相关来源）。 */
@@ -449,10 +470,11 @@ public class AgentContextSummarizer {
                             run.id(), text.length());
                     return new SummaryOutcome(false, auxiliaryAttempted);
                 }
-                commitSummary(run, state, previous, hasPrevious, candidates, newSegments, text,
-                        result.model(), firstUsage, attemptId, recompressNote);
-                return new SummaryOutcome(true, auxiliaryAttempted);
-            } catch (RuntimeException failure) {
+                // E2：提交事实对应真实有效发布——CAS 失败（生成期间状态已前进）不算提交，
+                // 调用方不得只因走到这里就声称摘要已生效
+                boolean summaryCommitted = commitSummary(run, state, previous, hasPrevious, candidates,
+                        newSegments, text, result.model(), firstUsage, attemptId, recompressNote);
+                return new SummaryOutcome(summaryCommitted, auxiliaryAttempted);            } catch (RuntimeException failure) {
                 // 摘要是辅助能力：任何异常不得破坏主轮次。ProviderResponseFailure 携带的
                 // 提供商用量优先保留（含单侧）；第一次调用已返回的真实 usage 不因后续失败
                 // 丢失；无响应证据时按实际请求大小估算，输出侧显式 UNKNOWN
@@ -589,7 +611,12 @@ public class AgentContextSummarizer {
                 new ModelMessage.User(prompt));
     }
 
-    private void commitSummary(AgentRunView run, JsonNode state, JsonNode previous, boolean hasPrevious,
+    /**
+     * 提交会话摘要并结算。
+     *
+     * @return 是否真实提交（CAS 成功）；CAS 冲突时不推进覆盖，调用方不得声称已提交
+     */
+    private boolean commitSummary(AgentRunView run, JsonNode state, JsonNode previous, boolean hasPrevious,
             List<AgentMessageView> candidates, List<Seg> newSegments, String text,
             String model, UsageSettlement firstUsage, UUID attemptId, String recompressNote) {
         // 合并覆盖进度：上一份摘要的分段 + 本次新增分段
@@ -654,6 +681,7 @@ public class AgentContextSummarizer {
             log.info("摘要 CAS 冲突，丢弃本次结果: run={}, expectedRevision={}",
                     run.id(), state.path("stateRevision").asInt());
         }
+        return committed;
     }
 
     /** 重压缩请求自身有界：估算其输入 token（提示词 + 草稿全文 + 输出预留）。 */
@@ -811,8 +839,28 @@ public class AgentContextSummarizer {
             AgentRunView run, AgentModelMessageComposer.Composition composition,
             AgentContextBudget.Budget budget, int remainingOutputTokens,
             java.util.function.BooleanSupplier timeRemaining) {
+        return compactRunContextDetailed(run, composition, budget, remainingOutputTokens, timeRemaining).committed();
+    }
+
+    /**
+     * E2：RUN_CONTEXT 压缩的详细结果——除提交事实外，还如实报告"是否实际发起过辅助出站"。
+     *
+     * <p>事实边界：</p>
+     * <ul>
+     *   <li><b>准入前的一切跳过/拒绝</b>（无可压缩来源、输入预算容不下、超自身窗口快照、
+     *       剩余输出/时长不足、暂停意图拒绝准入）都没有发出任何辅助请求 → 未尝试；</li>
+     *   <li>{@code beginRunContextAttempt} 成功之后，无论后续是空输出、不合格、
+     *       fencing 还是异常，请求都已真实出站 → 已尝试（不得被下游跳过覆盖）；</li>
+     *   <li>{@code committed} 只在<b>真实有效发布</b>（Recorder 的条件 UPDATE 转换成功）时为
+     *       true；fenced/重复完成不算提交，不能只因调用了 complete 方法就声称成功。</li>
+     * </ul>
+     */
+    SummaryOutcome compactRunContextDetailed(
+            AgentRunView run, AgentModelMessageComposer.Composition composition,
+            AgentContextBudget.Budget budget, int remainingOutputTokens,
+            java.util.function.BooleanSupplier timeRemaining) {
         List<AgentStepView> source = compressibleSourceSteps(run);
-        if (source.isEmpty()) return false; // 无新增可压缩来源：不反复压缩
+        if (source.isEmpty()) return SummaryOutcome.NOT_ATTEMPTED; // 无新增可压缩来源：不反复压缩
         JsonNode previous = repository.latestRunContextSummary(run.projectId(), run.id());
         String previousBlock = previous == null ? ""
                 : "此前运行轨迹摘要（必须延续其中仍然有效的信息，不得丢失更早的发现、更正与来源）：\n"
@@ -822,7 +870,7 @@ public class AgentContextSummarizer {
         int transcriptBudget = RUN_CONTEXT_MAX_INPUT_CHARS - previousBlock.length();
         if (transcriptBudget < 500) {
             log.debug("旧轨迹摘要占满压缩输入预算，跳过运行轨迹压缩: run={}", run.id());
-            return false;
+            return SummaryOutcome.NOT_ATTEMPTED;
         }
 
         // 结构化覆盖计算（C3）：按记录块逐条累计，截断只发生在记录边界或唯一超大记录内部
@@ -854,7 +902,7 @@ public class AgentContextSummarizer {
                         int include = Math.min(room, chunk.length());
                         if (include <= 0) {
                             log.debug("压缩输入预算容不下首条记录的任何前缀，跳过: run={}", run.id());
-                            return false;
+                            return SummaryOutcome.NOT_ATTEMPTED;
                         }
                         sb.append(chunk, 0, include);
                         partialStep = step;
@@ -867,7 +915,7 @@ public class AgentContextSummarizer {
             truncated = partialStep != null || covered.size() < source.size();
             transcript = sb.toString();
         }
-        if (covered.isEmpty() && partialStep == null) return false;
+        if (covered.isEmpty() && partialStep == null) return SummaryOutcome.NOT_ATTEMPTED;
         int fromSequence = covered.isEmpty() ? partialStep.sequence() : covered.get(0).sequence();
         int throughSequence = covered.isEmpty()
                 ? partialStep.sequence()
@@ -882,17 +930,17 @@ public class AgentContextSummarizer {
             log.debug("压缩请求超出自身配置快照的模型安全输入，跳过运行轨迹压缩: run={}, needed={}, H={}, window={}",
                     run.id(), estimatedTokens, auxiliary.budget().hardInputTokens(),
                     auxiliary.budget().windowEstimated() ? "UNKNOWN" : "CONFIRMED");
-            return false;
+            return SummaryOutcome.NOT_ATTEMPTED;
         }
         // D5：v2 累计输出无上限，RUN_CONTEXT 压缩输出不受"运行累计输出剩余"否决；
         // v1 保留既有输出预留复查
         if (run.enforcesCumulativeTokenLimits() && RUN_CONTEXT_OUTPUT_RESERVE_TOKENS > remainingOutputTokens) {
             log.debug("剩余输出预算不足以容纳运行轨迹摘要输出，跳过: run={}", run.id());
-            return false;
+            return SummaryOutcome.NOT_ATTEMPTED;
         }
         if (!timeRemaining.getAsBoolean()) {
             log.debug("运行剩余时长不足，跳过运行轨迹压缩: run={}", run.id());
-            return false;
+            return SummaryOutcome.NOT_ATTEMPTED;
         }
         int cycle = repository.countCommittedRunContextCycles(run.projectId(), run.id()) + 1;
         // 目标修订使用真实业务修订事实（会话工作状态的 goalRevision），
@@ -904,9 +952,10 @@ public class AgentContextSummarizer {
             attemptId = repository.beginRunContextAttempt(run, cycle, fromSequence, throughSequence, goalRevision);
         } catch (BusinessException admissionRefused) {
             if (admissionRefused.getErrorCode() == ErrorCode.AGENT_RUN_PAUSED) {
-                // 暂停意图先落库：不启动新摘要；已受理的摘要允许完成并保存
+                // 暂停意图先落库：不启动新摘要；已受理的摘要允许完成并保存。
+                // 准入前拒绝 = 没有任何辅助出站，不误报"已尝试"。
                 log.debug("暂停意图已落库，运行轨迹压缩未获准入: run={}", run.id());
-                return false;
+                return SummaryOutcome.NOT_ATTEMPTED;
             }
             throw admissionRefused;
         }
@@ -924,7 +973,7 @@ public class AgentContextSummarizer {
             if (text.isBlank()) {
                 repository.completeRunContextAttempt(attemptId, "EMPTY", result.model(), usage,
                         "RUN_CONTEXT_EMPTY_OUTPUT", null, goalRevision);
-                return false;
+                return SummaryOutcome.ATTEMPTED_ONLY;
             }
             if (!runContextQualifies(text, result.finishReason())) {
                 // D3：显式截断（finishReason=LENGTH 等）或超长的辅助产物不能当作完整摘要
@@ -936,7 +985,7 @@ public class AgentContextSummarizer {
                         usage, "RUN_CONTEXT_UNQUALIFIED", null, goalRevision);
                 log.warn("运行轨迹摘要不合格（{}），保留上一份摘要且不推进覆盖: run={}, length={}",
                         result.finishReason(), run.id(), text.length());
-                return false;
+                return SummaryOutcome.ATTEMPTED_ONLY;
             }
             // 成功提交才推进覆盖：来源范围、引用身份与摘要文本一并持久化。
             // 发布由 Recorder 在短事务内做 claim epoch / 取消 / 目标修订 fencing（C4）：
@@ -960,12 +1009,14 @@ public class AgentContextSummarizer {
                     .put("createdAt", OffsetDateTime.now().toString());
             var sourceIds = committed.putArray("sourceStepIds");
             for (AgentStepView step : covered) sourceIds.add(step.id().toString());
-            repository.completeRunContextAttempt(attemptId, "COMMITTED", result.model(), usage,
-                    "RUN_CONTEXT_COMMITTED", committed, goalRevision);
+            // E2：提交事实取 Recorder 的<b>真实发布结果</b>——fenced/重复完成转换零行时为
+            // false，不能只因调用了 complete 方法就声称成功。
+            boolean published = repository.completeRunContextAttempt(attemptId, "COMMITTED", result.model(),
+                    usage, "RUN_CONTEXT_COMMITTED", committed, goalRevision);
             log.debug("运行轨迹窗口压缩已提交: run={}, cycle={}, range={}..{}, steps={}, truncated={}, partial={}",
                     run.id(), cycle, fromSequence, throughSequence, covered.size(), truncated,
                     partialStep == null ? 0 : partialIncluded);
-            return true;
+            return published ? new SummaryOutcome(true, true) : SummaryOutcome.ATTEMPTED_ONLY;
         } catch (RuntimeException failure) {
             // 摘要是辅助能力：任何异常不得破坏主轮次；已发生用量如实结算，覆盖不推进
             com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage carried = failure instanceof
@@ -977,7 +1028,7 @@ public class AgentContextSummarizer {
                     UsageSettlement.fromRaw(carried, Math.max(1, actualInputChars / 3), 0, null),
                     "RUN_CONTEXT_FAILED", null, goalRevision);
             log.warn("运行轨迹压缩失败，保留原上下文继续: run={}, error={}", run.id(), failure.toString());
-            return false;
+            return SummaryOutcome.ATTEMPTED_ONLY;
         }
     }
 

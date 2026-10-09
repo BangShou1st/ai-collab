@@ -293,42 +293,18 @@ public class AgentRuntimeCoordinator {
             // 降级重组、无工具综合）；不能只在第一次 composeV2 之后追加，否则超预算
             // 降级重组（budgetFactor 0.6）与 needsFinalRequest 强制收尾都会静默丢掉子成果。
             String childEvidence = childResearchEvidence(run, steps);
-            if (contextProperties.composerV2()) {
-                composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 1.0, resolved.legacyMode());
-                if (composition.failureReason() != null) {
+            {
+                var assembly = assembleMainRequest(run, ctx, skill, plan, steps, childEvidence,
+                        finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending,
+                        exposed, resolved, requestBudget);
+                if (assembly.failureReason() != null) {
                     // 必选层（含当前请求）无法完整放入预算：明确停止，不静默截断
-                    return inputBudgetExceeded(run, requestBudget, composition.failureReason());
+                    return inputBudgetExceeded(run, requestBudget, assembly.failureReason());
                 }
-                messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
-                        ctx.limits().maxToolCallsPerTurn(), coreActionPending);
-                estimatedInput = estimateInput(messages, exposed);
-                if (estimatedInput > requestBudget.availableInputTokens()) {
-                    // 降级重组一次：收紧预算并重试；重组本身失败（必选层仍放不下）同样明确停止。
-                    // 重组走与正常路径相同的组装入口，子证据与尾部指令一并重建。
-                    composition = composer.composeV2(run, ctx, skill, plan, steps, requestBudget.availableInputTokens(), 0.6, resolved.legacyMode());
-                    if (composition.failureReason() != null) {
-                        // 空消息继续调用会丢失当前目标与有效约束，违反"当前请求完整保留"契约
-                        return inputBudgetExceeded(run, requestBudget, composition.failureReason());
-                    }
-                    messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
-                            ctx.limits().maxToolCallsPerTurn(), coreActionPending);
-                    estimatedInput = estimateInput(messages, exposed);
-                    if (estimatedInput > requestBudget.availableInputTokens()) {
-                        overBudgetReason = "COMPOSITION_OVER_BUDGET";
-                    } else {
-                        log.debug("上下文预算降级重组生效: run={}, estimated={}, available={}",
-                                run.id(), estimatedInput, requestBudget.availableInputTokens());
-                    }
-                }
-            } else {
-                // Legacy 组装路径：同样经受统一的组装入口，保证角色隔离与子证据注入一致
-                List<ModelMessage> legacy = composer.buildMessageHistory(run, ctx, skill, plan, steps, resolved.legacyMode());
-                messages = assembleRequestMessages(legacy, childEvidence, steps, finalizing,
-                        ctx.limits().maxToolCallsPerTurn(), coreActionPending);
-                estimatedInput = estimateInput(messages, exposed);
-                if (estimatedInput > requestBudget.availableInputTokens()) {
-                    overBudgetReason = "COMPOSITION_OVER_BUDGET";
-                }
+                composition = assembly.composition();
+                messages = assembly.messages();
+                estimatedInput = assembly.estimatedInput();
+                overBudgetReason = assembly.overBudgetReason();
             }
             if (overBudgetReason != null) {
                 return inputBudgetExceeded(run, requestBudget, overBudgetReason);
@@ -371,16 +347,16 @@ public class AgentRuntimeCoordinator {
                 // 按裁后体积宣称未达到触发线。
                 int activeContextTokens = estimatedInput
                         + (int) ((composition.stats().droppedSourceChars() + 2) / 3);
-                boolean contextCommitted;
                 boolean auxiliaryAttempted;
                 {
+                    // E2：两个 scope 的提交/尝试事实已按 OR 合并——RUN_CONTEXT 的真实失败、
+                    // 不合格不会被后续会话摘要的"无候选"跳过抹掉；准入前拒绝/未出站不误报。
                     var summaryOutcome = summarizer.maybeSummarizeDetailed(run, composition,
                             requestBudget.availableInputTokens() - estimatedInput - finalInputReserve,
                             (int) Math.min(Integer.MAX_VALUE, Math.max(0, remainingOutput)),
                             requestBudget,
                             activeContextTokens,
                             () -> runDurationBudget - repository.activeElapsedMillis(runForSummary) > 0);
-                    contextCommitted = summaryOutcome.committed();
                     auxiliaryAttempted = summaryOutcome.auxiliaryAttempted();
                 }
                 // 摘要消耗已入账：刷新运行、重查取消状态，并重新核算主请求的输入预算。
@@ -408,19 +384,31 @@ public class AgentRuntimeCoordinator {
                             contextProperties, modelWindow, refreshedRemainingRunInput, requestMaxOutput,
                             run.enforcesCumulativeTokenLimits());
                 }
-                if (contextCommitted) {
-                    // C1：摘要已提交并改变活跃视图（RUN_CONTEXT 覆盖推进 / 会话摘要推进），
-                    // 必须真正重新组装本次主请求，不能继续发送摘要生成前组好的旧 messages。
-                    composition = composer.composeV2(run, ctx, skill, plan, steps,
-                            requestBudget.availableInputTokens(), 1.0, resolved.legacyMode());
-                    if (composition.failureReason() != null) {
-                        // 重组后必选层放不下：明确停止，不静默截断当前请求
-                        return inputBudgetExceeded(run, requestBudget, composition.failureReason());
+                if (auxiliaryAttempted) {
+                    // E3：辅助请求<b>实际发起过</b>（无论提交、失败还是不合格）就按重新解析的
+                    // 同一份当前快照重建本次主请求的消息视图——窗口、输出封顶、协议模式、
+                    // 组装体积与估算全部来自新快照。此前只在 contextCommitted 时重新 compose，
+                    // 大窗口 A 切小窗口 B 时会继续发送按 A 组装的可选历史，明明能按 B 重组
+                    // 却直接 BUDGET_EXCEEDED。这里复用统一组装入口与一次降级重组，
+                    // 子研究产出、覆盖事实与收尾指令都按同一入口补齐。
+                    // contextCommitted 时 steps/子证据已在上面刷新，重建同时消费新的摘要视图。
+                    var reassembly = assembleMainRequest(run, ctx, skill, plan, steps, childEvidence,
+                            finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending,
+                            exposed, resolved, requestBudget);
+                    if (reassembly.failureReason() != null) {
+                        // 重建后必选层（含当前请求）放不下：明确停止，不静默截断当前请求。
+                        // 这不是"为让用例通过放宽窗口"——必要时仍如实收口。
+                        return inputBudgetExceeded(run, requestBudget, reassembly.failureReason());
                     }
+                    composition = reassembly.composition();
+                    messages = reassembly.messages();
+                    estimatedInput = reassembly.estimatedInput();
+                } else {
+                    // 未发起任何辅助出站：保持既有"每请求一次解析"语义，不改动已组装视图
+                    messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
+                            ctx.limits().maxToolCallsPerTurn(), coreActionPending);
+                    estimatedInput = estimateInput(messages, exposed);
                 }
-                messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
-                        ctx.limits().maxToolCallsPerTurn(), coreActionPending);
-                estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens()) {
                     return inputBudgetExceeded(run, requestBudget, "SUMMARY_CONSUMED_BUDGET");
                 }
@@ -1108,6 +1096,75 @@ public class AgentRuntimeCoordinator {
             List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending) {
         return assembleRequestMessages(composition.messages(), childEvidence, steps, finalizing,
                 maxToolCallsPerTurn, coreActionPending);
+    }
+
+    /**
+     * 一次主请求组装的结果：组装体积、可选的 v2 组装对象，以及必须停止的两种原因。
+     *
+     * @param failureReason     必选层（含当前请求）在预算内放不下 → 明确收口，不静默截断
+     * @param overBudgetReason  组装 + 尾部指令仍超预算 → 走既有单次输入预算收口
+     */
+    private record MainRequestAssembly(AgentModelMessageComposer.Composition composition,
+            List<ModelMessage> messages, int estimatedInput, String failureReason, String overBudgetReason) {}
+
+    /**
+     * 按<b>传入的配置快照</b>组装本次主请求（E3）：窗口、协议模式、消息视图与估算全部
+     * 来自同一份快照，并经统一入口补齐子证据与收尾指令；超预算时按同一入口做<b>一次</b>
+     * 降级重组（{@code budgetFactor=0.6}）。
+     *
+     * <p>E3 复用的就是本方法：辅助请求实际发生后，协调器用重新解析的当前配置再调用一次，
+     * 得到按新窗口/新模式组装的消息，而不是继续发送辅助发生前按旧窗口组好的 messages。
+     * 任何组装分支都保持子研究产出、覆盖事实与收尾指令，不通过放宽窗口或删必要来源让请求"通过"。</p>
+     */
+    private MainRequestAssembly assembleMainRequest(
+            AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
+            List<AgentStepView> steps, String childEvidence, boolean finalizing, int maxToolCallsPerTurn,
+            boolean coreActionPending, List<AgentToolDefinition> exposed,
+            RoutingAgentModelExecutor.ResolvedRequest resolved, AgentContextBudget.Budget requestBudget) {
+        AgentModelMessageComposer.Composition composition = null;
+        List<ModelMessage> messages;
+        int estimatedInput;
+        String overBudgetReason = null;
+        if (contextProperties.composerV2()) {
+            composition = composer.composeV2(run, ctx, skill, plan, steps,
+                    requestBudget.availableInputTokens(), 1.0, resolved.legacyMode());
+            if (composition.failureReason() != null) {
+                return new MainRequestAssembly(composition, List.of(), 0, composition.failureReason(), null);
+            }
+            messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
+                    maxToolCallsPerTurn, coreActionPending);
+            estimatedInput = estimateInput(messages, exposed);
+            if (estimatedInput > requestBudget.availableInputTokens()) {
+                // 降级重组一次：收紧预算并重试；重组本身失败（必选层仍放不下）同样明确停止。
+                // 重组走与正常路径相同的组装入口，子证据与尾部指令一并重建。
+                composition = composer.composeV2(run, ctx, skill, plan, steps,
+                        requestBudget.availableInputTokens(), 0.6, resolved.legacyMode());
+                if (composition.failureReason() != null) {
+                    // 空消息继续调用会丢失当前目标与有效约束，违反"当前请求完整保留"契约
+                    return new MainRequestAssembly(composition, List.of(), 0, composition.failureReason(), null);
+                }
+                messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
+                        maxToolCallsPerTurn, coreActionPending);
+                estimatedInput = estimateInput(messages, exposed);
+                if (estimatedInput > requestBudget.availableInputTokens()) {
+                    overBudgetReason = "COMPOSITION_OVER_BUDGET";
+                } else {
+                    log.debug("上下文预算降级重组生效: run={}, estimated={}, available={}",
+                            run.id(), estimatedInput, requestBudget.availableInputTokens());
+                }
+            }
+        } else {
+            // Legacy 组装路径：同样经受统一的组装入口，保证角色隔离与子证据注入一致
+            List<ModelMessage> legacy = composer.buildMessageHistory(run, ctx, skill, plan, steps,
+                    resolved.legacyMode());
+            messages = assembleRequestMessages(legacy, childEvidence, steps, finalizing,
+                    maxToolCallsPerTurn, coreActionPending);
+            estimatedInput = estimateInput(messages, exposed);
+            if (estimatedInput > requestBudget.availableInputTokens()) {
+                overBudgetReason = "COMPOSITION_OVER_BUDGET";
+            }
+        }
+        return new MainRequestAssembly(composition, messages, estimatedInput, null, overBudgetReason);
     }
 
     /**
