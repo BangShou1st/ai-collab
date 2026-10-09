@@ -30,3 +30,57 @@ agent.enabled=false 关闭 Agent；agent.capabilities.planning=false 关闭规�
 ### 2026-10-04 四类长对话修复的部署边界
 
 本轮仅备份开发分支，不执行部署。真实固定场景仍存在阻断项，详见 [专项报告](acceptance-evidence/2026-10-04/long-quality-fix/report.md)。不要依据运行计数恰好等于预算上限认定实际 usage 没有超支，应核对步骤及摘要原始 usage 的合计。助手历史全文保留并标记未核验来源；摘要的现行目标、最新请求和有效约束作为有界输入计入预算，不删除历史或未决工具配对。完整固定批次使用 `fixed24-final2`，此前批次保留失败，不覆盖。
+
+## MinIO 服务端镜像（2026-10-09 收口）
+
+### 换镜像的原因（本轮实测，非转述历史结论）
+
+原 `ai-collab-deploy/docker-compose.yml` 固定 `quay.io/minio/minio:latest`。该引用**当前不可用**，
+在无 registry 凭据的干净环境下实测：
+
+| 引用 | 本轮实测结果 | 归因 |
+| --- | --- | --- |
+| `quay.io/minio/minio:latest` | `401 UNAUTHORIZED`（HEAD manifest） | 仓库访问策略：匿名不可拉取，不是本机网络故障 |
+| `minio/minio:latest`（Docker Hub） | `pull access denied ... repository does not exist` | 仓库已不存在；同一时刻 `hello-world` 拉取成功，排除网络问题 |
+| `cgr.dev/chainguard/minio:latest` | 拉取成功，`linux/amd64`、`linux/arm64` | 可用 |
+
+`401` 出现在 quay 的 `/v2/` ping 上时是 OCI registry 的正常令牌协商，**不能据此判断镜像可拉取**；
+判断依据必须是真实 `docker pull` 的结果。MinIO 官方 release 说明已改为
+"for container environments, please clone the source and build the latest container"，
+即官方不再发布可直接匿名拉取的服务端镜像。因此本项目不自建镜像平台，也不迁移存储产品。
+
+### 采用的镜像与更新方式
+
+- `ai-collab-deploy/docker-compose.yml` 的 minio 服务改为
+  `cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18`。
+  该 digest 对应上游 `minio/minio` 的 `RELEASE.2026-09-22T19-25-18Z`
+  （构建 commit `df34868a`，可在 github.com/minio/minio 查到），是**同一服务端**而非替代品。
+- Chainguard 免费层只发布 `latest` 标签（`2026-09-22`、`RELEASE.*` 等 tag 均返回
+  `MANIFEST_UNKNOWN`），因此版本只能靠 **digest** 固定。
+- **digest 更新方式**：`docker buildx imagetools inspect cgr.dev/chainguard/minio:latest`
+  或 `docker manifest inspect cgr.dev/chainguard/minio:latest` 取当前 index digest，
+  连同其 `RELEASE.*` 版本串一并记录后替换 compose 中的 `@sha256:...`。digest 被回收导致拉取失败时，
+  按同法取新 digest；**不要**改用不带 digest 的 `latest` 部署。
+- 运行用户为非 root（uid/gid 65532），数据目录 `/data` 可写；compose 新增
+  `/minio/health/ready` 语义的健康检查（`mc ready local`），与 postgres/redis 的健康检查风格一致。
+- `ai-collab-backend` 的 `MinioTestImage` 仍**独立**固定同一镜像 digest，不反向依赖 compose；
+  两者只共享"镜像来源"这一事实，测试不读部署配置。
+
+### 隔离验证结论（2026-10-09）
+
+独立容器 + 独立临时卷 + 非冲突端口（19000/19001），未启动整个业务 compose，
+未挂载任何真实业务卷，未删除任何既有镜像、容器或卷。实测通过：镜像可拉取、
+`/minio/health/ready` 返回 200、9001 控制台返回 200、匿名访问被拒、错误凭据被拒、
+测试凭据可建桶/上传/下载（字节一致）、删除容器后用同一卷重建后桶与对象内容不变。
+
+### 回退边界
+
+- 改动只涉及镜像引用与一条健康检查，**未改**端口映射（9000/9001）、凭据变量名
+  （`MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`）、数据卷名（`ai_collab_minio_data`）、命令语义
+  （`server /data --console-address ":9001"`）与服务依赖关系。
+- 回退方式：把 minio 的 `image` 改回原值即可；但原值当前**拉不到**，回退后服务将无法启动，
+  故回退只在 quay/Docker Hub 访问恢复的前提下有意义。
+- **未验证项**：没有对"旧 MinIO 版本写入的数据卷"做升级兼容验证——旧官方镜像已不可拉取，
+  无法取得旧版二进制来产出旧格式数据。上述空卷验证不能代表生产数据兼容。
+  正式部署前须用隔离 fixture 单独验证旧数据升级。
+- 本轮未执行正式部署、未操作业务数据卷、未改动业务库或用户 AI 配置。
