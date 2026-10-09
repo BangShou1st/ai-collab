@@ -1,16 +1,38 @@
 name: CI
 
+# PR 面向 main 与 main 自身 push 触发；workflow_dispatch 供手动复跑。
+# 不使用 pull_request_target：本流水线会检出并执行提交内的构建脚本与测试。
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 最小权限：只读仓库内容，不上传/写入任何仓库状态。
+permissions:
+  contents: read
+
+# 同一 PR 的旧运行可取消；main 上的运行不互相取消，避免丢失主干验证结果。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend:
     name: Backend (Maven verify)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: ai-collab-backend
     steps:
       - uses: actions/checkout@v4
+
+      # Testcontainers 用例在无 Docker 时会被静默跳过，先确认守护进程可用。
+      - name: Check Docker availability
+        working-directory: .
+        run: docker info
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -18,29 +40,100 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+          cache-dependency-path: ai-collab-backend/pom.xml
 
-      - name: Build & verify (Testcontainers)
-        working-directory: ai-collab-backend
-        run: ./mvnw -B verify
+      # 仓库中 mvnw 的 Git 权限位是 100644，用 bash 显式调用以避开执行位问题。
+      - name: Build & verify (Testcontainers + Flyway)
+        run: bash ./mvnw -B -ntp verify
+
+      # verify 成功不等于容器用例真的跑过：逐类核对关键 Testcontainers 用例的
+      # Surefire 统计，整类被跳过时判定失败，不把"全跳过"当成通过。
+      - name: Assert container tests actually ran
+        if: success()
+        run: |
+          python3 - <<'PY'
+          import glob
+          import sys
+          import xml.etree.ElementTree as ET
+
+          # 覆盖上下文压缩、Flyway 迁移与运行恢复的关键真实 PostgreSQL 用例。
+          required = [
+              "com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest",
+              "com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest",
+              "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest",
+              "com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest",
+          ]
+
+          stats = {}
+          for path in glob.glob("target/surefire-reports/TEST-*.xml"):
+              root = ET.parse(path).getroot()
+              stats[root.get("name")] = {
+                  key: int(root.get(key, 0))
+                  for key in ("tests", "failures", "errors", "skipped")
+              }
+
+          total = sum(item["tests"] for item in stats.values())
+          skipped = sum(item["skipped"] for item in stats.values())
+          print(
+              f"Surefire: {total} tests, {skipped} skipped, "
+              f"{len(stats)} test classes reported"
+          )
+
+          problems = []
+          for name in required:
+              item = stats.get(name)
+              if item is None:
+                  problems.append(f"{name}: no Surefire report (class did not run)")
+              elif item["tests"] == 0:
+                  problems.append(f"{name}: recorded 0 tests")
+              elif item["skipped"] == item["tests"]:
+                  problems.append(
+                      f"{name}: all {item['tests']} tests skipped — "
+                      "container runtime unavailable?"
+                  )
+
+          if problems:
+              print("Container test guard FAILED:", file=sys.stderr)
+              for problem in problems:
+                  print(f"  - {problem}", file=sys.stderr)
+              sys.exit(1)
+          print("Container test guard passed for all required classes.")
+          PY
+
+      - name: Upload Surefire reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-surefire-reports
+          path: ai-collab-backend/target/surefire-reports/
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Upload JaCoCo report
-        uses: actions/upload-artifact@v4
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: jacoco-report
+          name: backend-jacoco-report
           path: ai-collab-backend/target/site/jacoco/
           retention-days: 14
+          if-no-files-found: warn
 
   frontend:
     name: Frontend (pnpm)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ai-collab-frontend
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
+      # 版本与 ai-collab-frontend/package.json 的 packageManager（pnpm@11.9.0）精确对齐。
+      - name: Install pnpm 11.9.0
         uses: pnpm/action-setup@v4
         with:
-          version: 11
+          version: 11.9.0
+          package_json_file: ai-collab-frontend/package.json
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -50,21 +143,16 @@ jobs:
           cache-dependency-path: ai-collab-frontend/pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: ai-collab-frontend
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        working-directory: ai-collab-frontend
         run: pnpm lint
 
       - name: Typecheck
-        working-directory: ai-collab-frontend
         run: pnpm typecheck
 
       - name: Test
-        working-directory: ai-collab-frontend
         run: pnpm test
 
       - name: Build
-        working-directory: ai-collab-frontend
         run: pnpm build
