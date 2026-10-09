@@ -81,7 +81,7 @@ public class LegacyReadOnlyAgentExecutor {
                 projectId,
                 fullSystemPrompt,
                 userPrompt,
-                ChatCompletionCommand.OutputFormat.JSON_OBJECT,
+                ChatCompletionCommand.OutputFormat.PROMPT_JSON,
                 ModelPurpose.AGENT,
                 null,
                 List.of(),
@@ -90,7 +90,14 @@ public class LegacyReadOnlyAgentExecutor {
         AiRequestMetadata md = sessionId != null ? AiRequestMetadata.of(sessionId.toString()) : AiRequestMetadata.fresh();
         ChatCompletionResult completion = chatGateway.complete(command, md);
 
-        AgentDecision decision = decisionParser.parse(completion.content(), correctionAttempted);
+        // 解析失败保留提供商已上报的响应用量随异常携带（格式修复语义不变）
+        AgentDecision decision;
+        try {
+            decision = decisionParser.parse(completion.content(), correctionAttempted);
+        } catch (IllegalArgumentException malformed) {
+            throw new LegacyDecisionParseFailure(malformed.getMessage(),
+                    completion.promptTokens(), completion.completionTokens());
+        }
 
         return convertToModelTurnResult(completion, decision);
     }
@@ -133,28 +140,45 @@ public class LegacyReadOnlyAgentExecutor {
         };
     }
 
+    /**
+     * Legacy 出站的 System 层转换（D7）：保留 Composer/统一组装入口给出的<b>全部</b>
+     * System 消息——第一条是核心角色规则，后续 System（可信提案、子证据块、本轮
+     * 工具/收尾指令）同样是已经组装好的必要层，不得丢弃。只按序拼接，不重新解释。
+     */
     private String extractSystemPrompt(List<ModelMessage> messages) {
-        return messages.stream()
+        List<String> systems = messages.stream()
                 .filter(m -> m instanceof ModelMessage.System)
                 .map(m -> ((ModelMessage.System) m).content())
-                .findFirst()
-                .orElse("你是 AI Collab 当前项目的受控协作 Agent。");
+                .toList();
+        if (systems.isEmpty()) return "你是 AI Collab 当前项目的受控协作 Agent。";
+        return String.join("\n\n", systems);
     }
 
     /**
      * 构建包含历史 Tool Result 的用户提示。
      * Legacy 模式下，Tool Result 被压缩为文本格式附加到用户提示中。
+     *
+     * <p>D7：User 层同样<b>全部保留</b>——工作状态、会话/RUN_CONTEXT 摘要、页面上下文、
+     * 当前请求（若不是第一条 User）都是 Composer 组装的必要数据层；旧实现只取第一条
+     * User 会把有效摘要与当前请求丢在出站之外。附加层按序渲染在目标之后，
+     * 带来源边界声明，保持消息语义完整转换。</p>
      */
     private String buildUserPromptWithHistory(List<ModelMessage> messages) {
         StringBuilder userPrompt = new StringBuilder();
 
-        // 提取用户消息
-        String userGoal = messages.stream()
+        // User 消息全量保留：第一条作为主目标，其余按序附加（必要数据层，不是可选上下文）
+        List<String> userContents = messages.stream()
                 .filter(m -> m instanceof ModelMessage.User)
                 .map(m -> ((ModelMessage.User) m).content())
-                .findFirst()
-                .orElse("");
-        userPrompt.append(userGoal);
+                .toList();
+        if (userContents.isEmpty()) {
+            // 无 User 消息：兼容历史空目标行为
+        } else {
+            userPrompt.append(userContents.getFirst());
+            for (int i = 1; i < userContents.size(); i++) {
+                userPrompt.append("\n\n").append(userContents.get(i));
+            }
+        }
 
         // 提取 Tool Result 历史（Legacy 跨 Tick 恢复的关键）
         List<String> toolHistory = new ArrayList<>();
@@ -182,14 +206,6 @@ public class LegacyReadOnlyAgentExecutor {
         }
 
         return userPrompt.toString();
-    }
-
-    private String extractUserPrompt(List<ModelMessage> messages) {
-        return messages.stream()
-                .filter(m -> m instanceof ModelMessage.User)
-                .map(m -> ((ModelMessage.User) m).content())
-                .findFirst()
-                .orElse("");
     }
 
     private String buildToolListText(List<AgentToolDefinition> tools) {

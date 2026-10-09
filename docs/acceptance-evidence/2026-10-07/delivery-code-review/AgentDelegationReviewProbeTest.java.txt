@@ -1,0 +1,190 @@
+package com.shitulelv.aicollab.agent.application.runtime;
+
+import com.shitulelv.aicollab.agent.application.view.AgentRunView;
+import com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext;
+import com.shitulelv.aicollab.agent.domain.model.AgentPageContext;
+import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
+import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
+import com.shitulelv.aicollab.agent.domain.model.builtin.ProjectResearchSkill;
+import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
+import com.shitulelv.aicollab.agent.infrastructure.tool.TaskGetAgentTool;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
+import com.shitulelv.aicollab.work.application.service.TaskApplicationService;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Queue;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+
+/** Review-only invariants. Not a production-source edit or a real-model quality test. */
+class AgentDelegationReviewProbeTest extends AgentDelegationPostgresTest {
+    private AgentRunView parent() {
+        ReflectionTestUtils.invokeMethod(this, "fixture");
+        UUID project = jdbc.queryForObject("SELECT id FROM project", UUID.class);
+        UUID session = jdbc.queryForObject("SELECT id FROM agent_session", UUID.class);
+        UUID user = jdbc.queryForObject("SELECT id FROM app_user", UUID.class);
+        AgentRunView run = repository.createRun(project, session, user,
+                "Research the project documents and report reliable findings", false, null, null);
+        repository.claimNext("review-parent", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        return repository.findRun(project, run.id()).orElseThrow();
+    }
+
+    private AgentRunView delegate(AgentRunView parent) {
+        var result = repository.documentResearchDelegationResult(parent, UUID.randomUUID().toString(),
+                "Research the acceptance criteria in project documents with sources");
+        UUID childId = UUID.fromString(result.path("childRunId").asText());
+        return repository.findRun(parent.projectId(), childId).orElseThrow();
+    }
+
+    private AgentRuntimeCoordinator runtime() {
+        return (AgentRuntimeCoordinator) ReflectionTestUtils.getField(this, "coordinator");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Queue<ModelTurnResult> responses() {
+        return (Queue<ModelTurnResult>) ReflectionTestUtils.getField(this, "parentResponses");
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> requests() {
+        return (List<String>) ReflectionTestUtils.getField(this, "modelRequests");
+    }
+
+    @Test
+    void childAnswerMustNotBecomeMainSessionMessage() {
+        super.delegationCreatesChildRunAndParentWaitsThenCollectsResult();
+        int leaked = jdbc.queryForObject("""
+                SELECT count(*) FROM agent_message m JOIN agent_run r ON r.id=m.run_id
+                WHERE m.role='ASSISTANT' AND r.depth=1
+                """, Integer.class);
+        assertThat(leaked).as("child ASSISTANT messages in the shared session").isZero();
+    }
+
+    @Test
+    void latestSessionRunMustRemainTheRoot() {
+        AgentRunView parent = parent();
+        AgentRunView child = delegate(parent);
+        assertThat(repository.findLatestRun(parent.projectId(), parent.sessionId()).orElseThrow().id())
+                .as("session latest run must be parent, not child %s", child.id()).isEqualTo(parent.id());
+    }
+
+    @Test
+    void restrictedChildMustNotReceiveCommonRootTools() {
+        AgentSkill restricted = ReflectionTestUtils.invokeMethod(runtime(), "restrictedChildSkill",
+                new ProjectResearchSkill());
+        var registry = new AgentToolRegistry(List.of(new TaskGetAgentTool(mock(TaskApplicationService.class), json)));
+        var context = new AgentExecutionContext(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), "OWNER", false, AgentPageContext.empty(), AgentRuntimeLimits.defaults(), 1, List.of());
+        assertThat(restricted.allowedTools()).doesNotContain("get_task");
+        assertThat(registry.definitionsFor(context, restricted)).noneMatch(d -> d.name().equals("get_task"));
+    }
+
+    @Test
+    void pausedParentMustStillCollectChildUsage() {
+        AgentRunView parent = parent();
+        AgentRunView child = delegate(parent);
+        repository.requestPause(parent.projectId(), parent.id());
+        var claimed = repository.claimNext("review-child", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(child.id());
+        jdbc.update("""
+                UPDATE agent_run SET input_tokens_used=1234,input_tokens_actual=1234,
+                  output_tokens_used=123,output_tokens_actual=123,steps_used=2,tool_calls_used=1 WHERE id=?
+                """, child.id());
+        child = repository.findRun(parent.projectId(), child.id()).orElseThrow();
+        repository.recordFinal(child, "Child findings with coverage gaps", List.of());
+        AgentRunView after = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        assertThat(after.status().name()).isEqualTo("PAUSED");
+        assertThat(after.inputTokensActual()).as("usage must not disappear while parent is paused").isEqualTo(1234);
+    }
+
+    @Test
+    void rejectedMixedBatchMustNotPublishFakeDelegationReceipt() {
+        AgentRunView parent = parent();
+        responses().add(new ModelTurnResult("Research request", List.of(
+                new ModelToolCall("mixed-delegate", "delegate_document_research",
+                        json.createObjectNode().put("objective", "Research project documents with reliable sources")),
+                new ModelToolCall("mixed-search", "search_project_knowledge",
+                        json.createObjectNode().put("query", "acceptance criteria"))),
+                ModelFinishReason.TOOL_CALLS, null, "OPENAI_COMPATIBLE", "model-a", 100L));
+        runtime().advance(parent);
+        assertThat(repository.childRuns(parent.projectId(), parent.id())).isEmpty();
+        String status = jdbc.queryForObject("""
+                SELECT status FROM agent_tool_invocation WHERE run_id=? AND tool_call_id='mixed-delegate'
+                """, String.class, parent.id());
+        assertThat(status).as("rejected delegate must not become a successful DELEGATED receipt").isNotEqualTo("SUCCEEDED");
+    }
+
+    @Test
+    void childModelMustNotReceiveParentConversationHistory() {
+        AgentRunView parent = parent();
+        String marker = "PRIVATE_PARENT_HISTORY_NOT_PART_OF_DELEGATED_OBJECTIVE";
+        jdbc.update("INSERT INTO agent_message(session_id,run_id,role,content) VALUES (?,?,'USER',?)",
+                parent.sessionId(), parent.id(), marker);
+        AgentRunView child = delegate(parent);
+        var claimed = repository.claimNext("review-child", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(child.id());
+        runtime().advance(repository.findRun(parent.projectId(), child.id()).orElseThrow());
+        assertThat(requests()).noneMatch(request -> request.contains(marker));
+    }
+
+    @Test
+    void acceptedDelegationMustConsumeAToolCall() {
+        AgentRunView parent = parent();
+        responses().add(new ModelTurnResult("Research request", List.of(
+                new ModelToolCall("single-delegate", "delegate_document_research",
+                        json.createObjectNode().put("objective", "Research project documents with reliable sources"))),
+                ModelFinishReason.TOOL_CALLS, null, "OPENAI_COMPATIBLE", "model-a", 100L));
+        runtime().advance(parent);
+        assertThat(repository.childRuns(parent.projectId(), parent.id())).hasSize(1);
+        assertThat(repository.findRun(parent.projectId(), parent.id()).orElseThrow().toolCallsUsed())
+                .as("successful delegation is still a tool invocation").isEqualTo(1);
+    }
+
+    @Test
+    void parentFinalAnswerMustRetainChildSourceIdentities() {
+        AgentRunView parent = parent();
+        AgentRunView child = delegate(parent);
+        var claimed = repository.claimNext("review-citation-child", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        assertThat(claimed.id()).isEqualTo(child.id());
+        child = repository.findRun(parent.projectId(), child.id()).orElseThrow();
+        UUID document = UUID.randomUUID();
+        UUID chunk = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO project_document(id,project_id,display_name,original_filename,mime_type,
+                  size_bytes,object_key,uploaded_by) VALUES (?,?,'Review source','review.txt','text/plain',100,?,?)
+                """, document, parent.projectId(), "review/" + document, parent.requesterId());
+        jdbc.update("""
+                INSERT INTO document_body(document_id,snapshot_id,original_content_hash,parse_version)
+                VALUES (?,?,'review-hash','review-v1')
+                """, document, UUID.randomUUID());
+        jdbc.update("""
+                INSERT INTO document_body_chunk(id,document_id,chunk_no,content,content_hash)
+                VALUES (?,?,0,'Acceptance requires test success','review-hash')
+                """, chunk, document);
+        var citation = new com.shitulelv.aicollab.agent.domain.model.AgentCitation(document, chunk,
+                "review.txt", "Acceptance", null, "Acceptance requires test success", 1.0);
+        var result = json.createObjectNode().put("status", "SUCCEEDED");
+        result.set("citations", json.valueToTree(List.of(citation)));
+        child = repository.recordToolResult(child, "read_document_section", json.createObjectNode(), result, false);
+        repository.recordFinal(child, "The child found acceptance criteria", List.of());
+        assertThat(jdbc.queryForObject("""
+                SELECT jsonb_array_length(output_json->'citations') FROM agent_step
+                WHERE run_id=? AND type='FINAL_ANSWER'
+                """, Integer.class, child.id())).isEqualTo(1);
+        var parentClaim = repository.claimNext("review-citation-parent", java.time.OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        assertThat(parentClaim.id()).isEqualTo(parent.id());
+        parent = repository.findRun(parent.projectId(), parent.id()).orElseThrow();
+        repository.recordFinal(parent, "The parent synthesized the child findings", List.of());
+        assertThat(jdbc.queryForObject("""
+                SELECT jsonb_array_length(output_json->'citations') FROM agent_step
+                WHERE run_id=? AND type='FINAL_ANSWER'
+                """, Integer.class, parent.id())).as("source identities must survive parent synthesis").isEqualTo(1);
+    }
+}

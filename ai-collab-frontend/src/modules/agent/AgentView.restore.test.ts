@@ -135,6 +135,8 @@ beforeEach(() => {
 
 describe('AgentView restore', () => {
   it('restores terminal history with plan and activities', async () => {
+    mocks.sessionSummaries.mockResolvedValue(response([{ ...session('session-1', '会话一'),
+      latestRunId: 'old-run', latestRunStatus: 'CANCELED', latestActivityAt: '2026-09-09T00:00:00Z' }]))
     const plan = { objective: '检查风险', steps: [{ id: 's1', title: '读取任务', status: 'DONE' }] }
     mocks.latestRun.mockResolvedValue(response({
       run: runOf('run-1', 'session-1', 'SUCCEEDED'), plan, lastEventSequence: 3, pendingApprovalId: null,
@@ -150,6 +152,8 @@ describe('AgentView restore', () => {
     expect(mocks.runEvents).toHaveBeenCalledWith('project-1', 'run-1', 0)
     expect(wrapper.text()).toContain('读取项目任务')
     expect(wrapper.text()).toContain('读取任务')
+    expect(wrapper.get('[aria-label="会话历史"]').text()).toContain('已完成')
+    expect(wrapper.get('[aria-label="会话历史"]').text()).not.toContain('已取消')
     wrapper.unmount()
   })
 
@@ -174,8 +178,8 @@ describe('AgentView restore', () => {
     const conversationText = wrapper.find('.conversation').text()
     expect(conversationText.match(/读取项目任务/g)?.length).toBe(1)
     expect(conversationText).toContain('检查里程碑')
-    const inspectorText = wrapper.find('.agent-inspector').text()
-    expect(inspectorText.match(/读取项目任务/g)?.length).toBe(1)
+    // 完整过程只在对话主区展示；检查器不再重复渲染工具执行列表
+    expect(wrapper.find('[aria-label="实际工具执行"]').exists()).toBe(false)
     wrapper.unmount()
   })
 

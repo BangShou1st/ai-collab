@@ -1,0 +1,629 @@
+package com.shitulelv.aicollab.agent.application.runtime;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.shitulelv.aicollab.agent.application.view.AgentRunView;
+import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRunEventRecorder.UsageSettlement;
+import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
+import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+/**
+ * RUN_CONTEXT 提交边界回归（审查 2026-10-08 C4/C5，真实 PostgreSQL）。
+ *
+ * <p>用真实 Recorder/Repository 与 Flyway 迁移验证：实际用量结算与有效摘要发布分开、
+ * 同 attempt 重复完成幂等、失去 claim / 取消 / 目标修订冲突不得发布有效摘要但用量如实结算；
+ * 已提交摘要经真实持久化进入实际组装消息并替换覆盖前缀；两个压缩周期经真实持久化推进。
+ * 隔离 Testcontainers 容器，不读写生产库。</p>
+ */
+@Testcontainers(disabledWithoutDocker = true)
+class AgentRunContextCommitPostgresTest {
+    @Container
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("pgvector/pgvector:pg17");
+    static JdbcTemplate jdbc;
+    static ObjectMapper json;
+    static AgentRepository repository;
+    static AgentRunEventRecorder recorder;
+
+    private NativeToolCallingExecutor nativeExecutor;
+    private RoutingAgentModelExecutor model;
+    private AgentContextSummarizer summarizer;
+
+    @BeforeAll
+    static void migrate() {
+        var dataSource = new DriverManagerDataSource(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+        Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
+        jdbc = new JdbcTemplate(dataSource);
+        json = new ObjectMapper().findAndRegisterModules();
+        recorder = new AgentRunEventRecorder(jdbc, json);
+        repository = new AgentRepository(jdbc, json, recorder);
+    }
+
+    @BeforeEach
+    void setUp() {
+        jdbc.update("DELETE FROM agent_usage_settlement");
+        jdbc.update("DELETE FROM agent_tool_invocation");
+        jdbc.update("DELETE FROM agent_step");
+        jdbc.update("DELETE FROM agent_run_event");
+        jdbc.update("DELETE FROM agent_run");
+        jdbc.update("DELETE FROM agent_session");
+        jdbc.update("DELETE FROM project_member");
+        jdbc.update("DELETE FROM project");
+        jdbc.update("DELETE FROM app_user");
+
+        nativeExecutor = mock(NativeToolCallingExecutor.class);
+        var now = java.time.OffsetDateTime.now();
+        var provider = new com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider(
+                UUID.randomUUID(), UUID.randomUUID(), "test-native", com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType.OPENAI_COMPATIBLE,
+                "https://example.invalid", "/v1/chat/completions", "encrypted", "test-native",
+                true, 0.2, 1024,
+                java.util.EnumSet.of(com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.NATIVE_TOOLS,
+                        com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability.CHAT),
+                true, now, now, null);
+        var store = mock(AgentModelConfigurationStore.class);
+        when(store.require(any())).thenReturn(provider);
+        var zen = mock(ZenModelExecution.class);
+        when(zen.isZen(any())).thenReturn(false);
+        model = new RoutingAgentModelExecutor(nativeExecutor,
+                mock(LegacyReadOnlyAgentExecutor.class), zen, store);
+        summarizer = new AgentContextSummarizer(repository, model, json);
+    }
+
+    private record Fixture(UUID user, UUID project, UUID session, AgentRunView run) {}
+
+    private Fixture fixture(String goal) {
+        UUID user = UUID.randomUUID();
+        UUID project = UUID.randomUUID();
+        jdbc.update("INSERT INTO app_user(id,username,password_hash,display_name) VALUES (?,?,?,?)",
+                user, "rctx-" + user.toString().substring(0, 8), "test-only-hash", "RunContext");
+        jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,?,?,?)",
+                project, "RUN_CONTEXT 提交边界", user, user);
+        jdbc.update("INSERT INTO project_member(project_id,user_id,role) VALUES (?,?,'OWNER')",
+                project, user);
+        var session = repository.createSession(project, user, "RUN_CONTEXT 提交边界");
+        AgentRunView run = repository.createRun(project, session.id(), user, goal, false,
+                "PROJECT_RESEARCH", null);
+        jdbc.update("""
+                UPDATE agent_run SET status='RUNNING', claim_version=1, claim_started_at=now(),
+                  lease_expires_at=now()+interval '10 minutes' WHERE id=?
+                """, run.id());
+        return new Fixture(user, project, session.id(), repository.findRun(project, run.id()).orElseThrow());
+    }
+
+    private JsonNode committedSummary(String text, int from, int through) {
+        return committedSummary(text, from, through, 0);
+    }
+
+    private JsonNode committedSummary(String text, int from, int through, int goalRevision) {
+        return json.createObjectNode()
+                .put("scope", "RUN_CONTEXT")
+                .put("text", text)
+                .put("sourceFromSequence", from)
+                .put("sourceThroughSequence", through)
+                .put("goalRevision", goalRevision)
+                .put("cycle", 1);
+    }
+
+    private UsageSettlement usage() {
+        return new UsageSettlement(1_000, 100, "PROVIDER", "PROVIDER", 5L);
+    }
+
+    private int runInputActual(UUID runId) {
+        Integer v = jdbc.queryForObject(
+                "SELECT input_tokens_actual FROM agent_run WHERE id=?", Integer.class, runId);
+        return v == null ? 0 : v;
+    }
+
+    private String stepStatus(UUID attemptId) {
+        return jdbc.queryForObject(
+                "SELECT output_json->>'status' FROM agent_step WHERE id=?", String.class, attemptId);
+    }
+
+    // ========== C4-1：同 attempt 重复完成不重复结算、不改写已发布摘要 ==========
+
+    @Test
+    void duplicateCompletionDoesNotResettleOrRewritePublishedSummary() {
+        Fixture f = fixture("重复完成幂等");
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 0);
+        repository.completeRunContextAttempt(attemptId, "COMMITTED", "test-native", usage(),
+                "RUN_CONTEXT_COMMITTED", committedSummary("第一份摘要文本", 1, 2));
+        int bookedAfterFirst = runInputActual(f.run().id());
+
+        // 重复完成：换一份不同文本的摘要，不得改写已发布内容，也不得再次结算
+        repository.completeRunContextAttempt(attemptId, "COMMITTED", "test-native", usage(),
+                "RUN_CONTEXT_COMMITTED", committedSummary("改写尝试文本", 1, 2));
+
+        assertThat(runInputActual(f.run().id())).isEqualTo(bookedAfterFirst);
+        assertThat(repository.countCommittedRunContextCycles(f.project(), f.run().id())).isEqualTo(1);
+        JsonNode latest = repository.latestRunContextSummary(f.project(), f.run().id());
+        assertThat(latest).isNotNull();
+        assertThat(latest.path("text").asText()).isEqualTo("第一份摘要文本");
+        assertThat(stepStatus(attemptId)).isEqualTo("COMMITTED");
+    }
+
+    // ========== C4-2：取消的返回不得成为当前有效摘要，用量仍如实结算 ==========
+
+    @Test
+    void canceledReturnCannotBecomeValidSummaryButUsageIsSettled() {
+        Fixture f = fixture("取消 fencing");
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 0);
+        jdbc.update("UPDATE agent_run SET cancel_requested_at=now() WHERE id=?", f.run().id());
+
+        repository.completeRunContextAttempt(attemptId, "COMMITTED", "test-native", usage(),
+                "RUN_CONTEXT_COMMITTED", committedSummary("不应生效的摘要", 1, 2));
+
+        assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNull();
+        assertThat(repository.countCommittedRunContextCycles(f.project(), f.run().id())).isZero();
+        assertThat(stepStatus(attemptId)).isNotEqualTo("COMMITTED");
+        // 已发生的模型调用消耗不因 fencing 丢失
+        assertThat(runInputActual(f.run().id())).isEqualTo(1_000);
+    }
+
+    // ========== C4-3：失去 claim 的旧 worker 不得发布有效摘要 ==========
+
+    @Test
+    void staleWorkerWithLostLeaseCannotPublishValidSummary() {
+        Fixture f = fixture("失去 claim fencing");
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 0);
+        jdbc.update("UPDATE agent_run SET claim_version=7 WHERE id=?", f.run().id());
+
+        // 旧 worker 仍持 epoch=1：发布被拦截，用量照常幂等结算
+        try (var scope = new AgentLeaseScope(1)) {
+            repository.completeRunContextAttempt(attemptId, "COMMITTED", "test-native", usage(),
+                    "RUN_CONTEXT_COMMITTED", committedSummary("旧 worker 摘要", 1, 2));
+        }
+
+        assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNull();
+        assertThat(repository.countCommittedRunContextCycles(f.project(), f.run().id())).isZero();
+        assertThat(stepStatus(attemptId)).isNotEqualTo("COMMITTED");
+        assertThat(runInputActual(f.run().id())).isEqualTo(1_000);
+    }
+
+    // ========== C4-4：目标修订冲突不得发布；一致时正常发布（真实业务修订事实） ==========
+
+    @Test
+    void goalRevisionConflictCannotPublishButMatchingRevisionPublishes() {
+        Fixture f = fixture("目标修订 fencing");
+        // 会话工作状态的业务目标修订（真实事实，非 run.version）
+        jdbc.update("""
+                UPDATE agent_session SET working_state=jsonb_set(
+                  COALESCE(working_state,'{}'::jsonb),'{goalRevision}','2',true) WHERE id=?
+                """, f.session());
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 2);
+
+        // 生成期间用户更正目标：goalRevision 前进到 3 → 期望 2 的返回不得发布
+        jdbc.update("""
+                UPDATE agent_session SET working_state=jsonb_set(
+                  working_state,'{goalRevision}','3',true) WHERE id=?
+                """, f.session());
+        repository.completeRunContextAttempt(attemptId, "COMMITTED", "test-native", usage(),
+                "RUN_CONTEXT_COMMITTED", committedSummary("过期目标的摘要", 1, 2), 2);
+        assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNull();
+        assertThat(runInputActual(f.run().id())).isEqualTo(1_000);
+
+        // 同一目标修订（3）下的新周期正常发布
+        jdbc.update("UPDATE agent_run SET cancel_requested_at=NULL WHERE id=?", f.run().id());
+        UUID second = repository.beginRunContextAttempt(f.run(), 2, 1, 2, 3);
+        repository.completeRunContextAttempt(second, "COMMITTED", "test-native", usage(),
+                "RUN_CONTEXT_COMMITTED", committedSummary("当前目标的摘要", 1, 2, 3), 3);
+        JsonNode latest = repository.latestRunContextSummary(f.project(), f.run().id());
+        assertThat(latest).isNotNull();
+        assertThat(latest.path("text").asText()).isEqualTo("当前目标的摘要");
+        assertThat(latest.path("goalRevision").asInt()).isEqualTo(3);
+    }
+
+    // ========== C1+真实持久化：已提交摘要进入实际组装消息，覆盖前缀被替换 ==========
+
+    @Test
+    void committedSummaryEntersComposerMessagesThroughRealPersistence() {
+        Fixture f = fixture("摘要进入实际消息");
+        insertToolStep(f.run().id(), 1, "COVERED_RAW_FACT_SHOULD_NOT_REAPPEAR");
+        insertToolStep(f.run().id(), 2, "RECENT_RAW_FACT_5311");
+
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 1, 0);
+        repository.completeRunContextAttempt(attemptId, "COMMITTED", "test-native", usage(),
+                "RUN_CONTEXT_COMMITTED", committedSummary("PERSISTED_SUMMARY_FACT_4907", 1, 1));
+
+        AgentRunView run = repository.findRun(f.project(), f.run().id()).orElseThrow();
+        var composer = new AgentModelMessageComposer(repository, null, json);
+        var composition = composer.composeV2(run, contextFor(run),
+                stubSkill(), com.shitulelv.aicollab.agent.domain.model.AgentPlan.create(run.goal(), List.of()),
+                repository.listSteps(f.project(), run.id()), 950_000, 1.0, false);
+
+        String request = composition.messages().toString();
+        assertThat(request).contains("PERSISTED_SUMMARY_FACT_4907");
+        assertThat(request).contains("RECENT_RAW_FACT_5311");
+        assertThat(request).doesNotContain("COVERED_RAW_FACT_SHOULD_NOT_REAPPEAR");
+    }
+
+    // ========== 两个压缩周期经真实持久化真实推进 ==========
+
+    @Test
+    void twoCompactionCyclesAdvanceThroughRealPersistence() {
+        Fixture f = fixture("两周期推进");
+        insertToolStep(f.run().id(), 1, "CYCLE_ONE_FACT_AAA");
+        insertToolStep(f.run().id(), 2, "CYCLE_ONE_FACT_BBB");
+        insertModelRequestStep(f.run().id(), 3);
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any()))
+                .thenReturn(new com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult(
+                        "第一周期摘要文本", List.of(),
+                        com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason.STOP,
+                        new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(2_000, 200),
+                        "controlled", "controlled", 1L));
+
+        AgentRunView run = repository.findRun(f.project(), f.run().id()).orElseThrow();
+        var budget = new AgentContextBudget.Budget(950_000, 950_000, 256_000, 128_000,
+                AgentContextBudget.BINDING_MODEL_WINDOW, false);
+        boolean first = summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true);
+        assertThat(first).isTrue();
+        assertThat(repository.countCommittedRunContextCycles(f.project(), run.id())).isEqualTo(1);
+        JsonNode firstSummary = repository.latestRunContextSummary(f.project(), run.id());
+        assertThat(firstSummary.path("sourceThroughSequence").asInt()).isEqualTo(2);
+
+        // 新增来源后第二周期：只压缩未覆盖的新记录（seq 10），seq 11 为最新记录不进入。
+        // 注意：周期自身的摘要请求步骤也占用 sequence（uq_agent_step_sequence），
+        // 因此第二周期的新来源用更高的序号插入。
+        insertToolStep(run.id(), 10, "CYCLE_TWO_FACT_CCC");
+        insertModelRequestStep(run.id(), 11);
+        run = repository.findRun(f.project(), run.id()).orElseThrow();
+        org.mockito.ArgumentCaptor<List<com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage>> secondRequest =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        when(nativeExecutor.callModel(secondRequest.capture(), anyList(), any(), any(), any()))
+                .thenReturn(new com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult(
+                        "第二周期摘要文本（延续第一周期）", List.of(),
+                        com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason.STOP,
+                        new com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage(2_000, 200),
+                        "controlled", "controlled", 1L));
+        boolean second = summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true);
+
+        assertThat(second).isTrue();
+        assertThat(repository.countCommittedRunContextCycles(f.project(), run.id())).isEqualTo(2);
+        JsonNode latest = repository.latestRunContextSummary(f.project(), run.id());
+        assertThat(latest.path("cycle").asInt()).isEqualTo(2);
+        assertThat(latest.path("previousSummaryIncorporated").asBoolean()).isTrue();
+        // 第二周期只覆盖新来源：seq 10，不重复压缩已覆盖的 seq 1..2
+        assertThat(latest.path("sourceFromSequence").asInt()).isEqualTo(10);
+        assertThat(latest.path("sourceThroughSequence").asInt()).isEqualTo(10);
+        // 第二周期请求延续上一份摘要文本、包含新记录原文，不重复送入已覆盖原文
+        String secondRequestText = secondRequest.getValue().toString();
+        assertThat(secondRequestText).contains("第一周期摘要文本");
+        assertThat(secondRequestText).contains("CYCLE_TWO_FACT_CCC");
+        assertThat(secondRequestText).doesNotContain("CYCLE_ONE_FACT_AAA");
+    }
+
+    // ========== D2：租约过期未换 epoch 的返回不得发布（真实事务） ==========
+
+    @Test
+    void expiredClaimWithoutEpochChangeCannotPublishRunSummary() {
+        Fixture f = fixture("租约过期未换 epoch");
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 0);
+        // 租约过期但 claim_version（epoch）仍是 1：仅靠 epoch 比对无法拦截，必须核对租约有效期
+        jdbc.update("UPDATE agent_run SET lease_expires_at=now()-interval '1 second' WHERE id=?", f.run().id());
+
+        var tx = new org.springframework.transaction.support.TransactionTemplate(
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(jdbc.getDataSource()));
+        try (var scope = new AgentLeaseScope(1)) {
+            tx.executeWithoutResult(status -> repository.completeRunContextAttempt(attemptId,
+                    "COMMITTED", "test-native", usage(), "RUN_CONTEXT_COMMITTED",
+                    committedSummary("过期租约的摘要", 1, 2), 0));
+        }
+
+        assertThat(stepStatus(attemptId)).isNotEqualTo("COMMITTED");
+        assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNull();
+        assertThat(repository.countCommittedRunContextCycles(f.project(), f.run().id())).isZero();
+        // 已发生用量仍如实幂等结算
+        assertThat(runInputActual(f.run().id())).isEqualTo(1_000);
+    }
+
+    // ========== D2：检查与发布之间取消已提交的返回不得发布（真实事务 + 受控并发交错） ==========
+
+    @Test
+    void cancelCommittedBetweenCheckAndPublishCannotBecomeValidSummary() throws Exception {
+        Fixture f = fixture("检查后发布前取消");
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 0);
+        // 门控 JDBC：fencing 的检查 SELECT 返回后挂起发布线程，
+        // 让另一条真实连接先把取消落库提交，再放行发布 UPDATE。
+        // SELECT/UPDATE 与事务都是真实执行，不是 mock SQL；门控只控制时间顺序。
+        var gate = new org.springframework.jdbc.core.JdbcTemplate(jdbc.getDataSource()) {
+            final java.util.concurrent.CountDownLatch checked = new java.util.concurrent.CountDownLatch(1);
+            final java.util.concurrent.CountDownLatch publish = new java.util.concurrent.CountDownLatch(1);
+            @Override
+            public java.util.List<java.util.Map<String, Object>> queryForList(String sql, Object... args) {
+                var result = super.queryForList(sql, args);
+                if (sql.contains("JOIN agent_run r") && sql.contains("cancel_requested_at")) {
+                    checked.countDown();
+                    try {
+                        if (!publish.await(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                            throw new AssertionError("publish gate timed out");
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                    }
+                }
+                return result;
+            }
+        };
+        var gatedRecorder = new AgentRunEventRecorder(gate, json);
+        var tx = new org.springframework.transaction.support.TransactionTemplate(
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(jdbc.getDataSource()));
+        var threads = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var publication = threads.submit(() -> {
+                try (var scope = new AgentLeaseScope(1)) {
+                    tx.executeWithoutResult(status -> gatedRecorder.completeRunContextAttempt(attemptId,
+                            "COMMITTED", "test-native", usage(), "RUN_CONTEXT_COMMITTED",
+                            committedSummary("发布窗口内被取消的摘要", 1, 2), 0));
+                } catch (RuntimeException e) {
+                    throw e;
+                }
+            });
+            assertThat(gate.checked.await(10, java.util.concurrent.TimeUnit.SECONDS))
+                    .as("fencing 检查 SELECT 必须被到达").isTrue();
+            // 另一条真实连接提交取消：发布线程的检查事务尚未提交
+            var cancellation = threads.submit(() ->
+                    jdbc.update("UPDATE agent_run SET cancel_requested_at=now() WHERE id=?", f.run().id()));
+            boolean cancellationCommittedFirst = true;
+            try {
+                cancellation.get(2, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (java.util.concurrent.TimeoutException blockedByCorrectLock) {
+                // 修复后的短行锁会让取消等待发布事务提交：这是正确的先发布后取消顺序，探针不判失败
+                cancellationCommittedFirst = false;
+            }
+            gate.publish.countDown();
+            publication.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            cancellation.get(15, java.util.concurrent.TimeUnit.SECONDS);
+
+            if (cancellationCommittedFirst) {
+                // 取消先提交：发布必须被拦截，不成为有效摘要，用量照常结算
+                assertThat(stepStatus(attemptId)).isNotEqualTo("COMMITTED");
+                assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNull();
+                assertThat(runInputActual(f.run().id())).isEqualTo(1_000);
+            } else {
+                // 发布先提交（行锁串行化的合法顺序）：取消之后该摘要已合法发布，
+                // 此时 latestRunContextSummary 存在——保留"重复完成与暂停镜像"语义即可
+                assertThat(stepStatus(attemptId)).isEqualTo("COMMITTED");
+                assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNotNull();
+            }
+        } finally {
+            gate.publish.countDown();
+            threads.shutdownNow();
+            threads.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+        }
+    }
+
+    // ========== E1：目标修订与会话摘要发布必须真实串行化（真实 PostgreSQL 事务） ==========
+
+    /**
+     * E1 交错一：<b>目标更正已提交</b> → 旧目标的摘要绝不能成为当前有效摘要。
+     *
+     * <p>门控挂在与复核探针完全相同的位置——生产发布 {@code UPDATE agent_step} 的
+     * BEFORE UPDATE 触发器内（advisory 事务锁）。此时发布语句<b>已经取过自己的
+     * READ COMMITTED 语句快照</b>，正是"条件 UPDATE ≠ 跨行串行化"的窗口：另一条真实
+     * 连接走生产写入路径 {@code repository.createRun(..., 新目标)} 推进 goalRevision
+     * 并提交。修复前发布语句看不到这一提交，旧摘要仍会 COMMITTED。</p>
+     *
+     * <p>由于修复后发布事务会真实持有会话行锁，"目标写入先提交"在该交错里可能被
+     * 合法地串行化到发布之后（发布先提交）。因此断言按契约分支，两种分支都是不变式，
+     * 不放宽也不掩盖：<b>凡目标更正先于发布语句提交，旧摘要一律不得生效</b>；
+     * 若被串行化，则发布先提交、更正随后照常生效。用量结算在任何分支都必须如实完成。</p>
+     */
+    @Test
+    void goalCorrectionCommittedDuringPublicationNeverLeavesOldGoalSummaryEffective() throws Exception {
+        Fixture f = fixture("目标写入先提交");
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 0);
+        var tx = transactionTemplate();
+        var threads = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try (var blocker = jdbc.getDataSource().getConnection();
+             var gate = blocker.createStatement()) {
+            installPublicationGate();
+            gate.execute("SELECT pg_advisory_lock(490709)");
+
+            var publication = threads.submit(() -> {
+                try (var scope = new AgentLeaseScope(1)) {
+                    tx.executeWithoutResult(status -> recorder.completeRunContextAttempt(attemptId,
+                            "COMMITTED", "test-native", usage(), "RUN_CONTEXT_COMMITTED",
+                            committedSummary("旧目标的摘要", 1, 2, 0), 0));
+                }
+            });
+            assertThat(awaitPublicationGate())
+                    .as("生产发布必须真实到达被门控的 UPDATE").isTrue();
+
+            // 真实生产目标写入路径：独立事务，与发布并发
+            var goalWrite = threads.submit(() -> tx.execute(status -> repository.createRun(
+                    f.project(), f.session(), f.user(), "新目标: 换一个研究方向", false,
+                    "PROJECT_RESEARCH", null)));
+            boolean goalCorrectionCommittedDuringPublication = false;
+            try {
+                goalWrite.get(2, java.util.concurrent.TimeUnit.SECONDS);
+                goalCorrectionCommittedDuringPublication = true;
+            } catch (java.util.concurrent.TimeoutException serializedBehindPublication) {
+                // 修复后：发布持有会话行锁，目标更正被真实串行化到发布之后
+            }
+
+            gate.execute("SELECT pg_advisory_unlock(490709)");
+            publication.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            goalWrite.get(15, java.util.concurrent.TimeUnit.SECONDS);
+
+            assertThat(repository.currentGoalRevision(f.project(), f.session()))
+                    .as("目标更正最终必须生效（goalRevision 前进到 1）").isEqualTo(1);
+            String status = stepStatus(attemptId);
+            if (goalCorrectionCommittedDuringPublication) {
+                assertThat(status)
+                        .as("目标更正在发布语句提交前已提交：旧目标摘要绝不能成为有效摘要")
+                        .isNotEqualTo("COMMITTED");
+                assertThat(repository.latestRunContextSummary(f.project(), f.run().id()))
+                        .as("旧目标摘要不得对后续组装可见").isNull();
+                assertThat(repository.countCommittedRunContextCycles(f.project(), f.run().id())).isZero();
+            } else {
+                // 发布先提交：该摘要在其提交时对修订 0 有效，其后的更正照常生效（合法顺序）
+                assertThat(status).isEqualTo("COMMITTED");
+                assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNotNull();
+            }
+            // 无论哪个分支，已发生的模型调用消耗都不因 fencing 丢失
+            assertThat(runInputActual(f.run().id())).as("已发生用量仍如实结算").isEqualTo(1_000);
+        } finally {
+            dropPublicationGate();
+            threads.shutdownNow();
+            threads.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+        }
+    }
+
+    /**
+     * E1 交错二：发布进行中时，<b>真实目标写入不得穿过发布的临界区提交</b>；发布先提交后，
+     * 更正随后照常生效（不因加固而丢写、不产生死锁）。
+     *
+     * <p>门控同样在生产发布 UPDATE 内。修复后发布事务已持有真实会话行锁，目标写入必须
+     * 被阻塞；修复前只锁运行行，目标写入会立刻提交成功——这正是"条件 UPDATE 不等于
+     * 跨行串行化"的可观测后果。</p>
+     */
+    @Test
+    void goalWriteCannotCommitInsidePublicationCriticalSection() throws Exception {
+        Fixture f = fixture("发布先提交");
+        UUID attemptId = repository.beginRunContextAttempt(f.run(), 1, 1, 2, 0);
+        var tx = transactionTemplate();
+        var threads = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try (var blocker = jdbc.getDataSource().getConnection();
+             var gate = blocker.createStatement()) {
+            installPublicationGate();
+            gate.execute("SELECT pg_advisory_lock(490709)");
+
+            var publication = threads.submit(() -> {
+                try (var scope = new AgentLeaseScope(1)) {
+                    tx.executeWithoutResult(status -> recorder.completeRunContextAttempt(attemptId,
+                            "COMMITTED", "test-native", usage(), "RUN_CONTEXT_COMMITTED",
+                            committedSummary("当前目标的摘要", 1, 2, 0), 0));
+                }
+            });
+            assertThat(awaitPublicationGate())
+                    .as("生产发布必须真实到达被门控的 UPDATE").isTrue();
+
+            var goalWrite = threads.submit(() -> tx.execute(status -> repository.createRun(
+                    f.project(), f.session(), f.user(), "新目标: 换一个研究方向", false,
+                    "PROJECT_RESEARCH", null)));
+            boolean blockedInsideCriticalSection = false;
+            try {
+                goalWrite.get(2, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (java.util.concurrent.TimeoutException expected) {
+                blockedInsideCriticalSection = true;
+            }
+            assertThat(blockedInsideCriticalSection)
+                    .as("发布进行中时目标写入必须被真实串行化（不能穿过发布的临界区提交）").isTrue();
+
+            gate.execute("SELECT pg_advisory_unlock(490709)");
+            publication.get(15, java.util.concurrent.TimeUnit.SECONDS);
+            goalWrite.get(15, java.util.concurrent.TimeUnit.SECONDS);
+
+            // 发布先提交是合法顺序：摘要有效发布，其后的目标更正随后生效，且不重复结算
+            assertThat(stepStatus(attemptId)).isEqualTo("COMMITTED");
+            assertThat(repository.latestRunContextSummary(f.project(), f.run().id())).isNotNull();
+            assertThat(repository.currentGoalRevision(f.project(), f.session()))
+                    .as("发布先提交后，目标更正随后照常生效（不丢写）").isEqualTo(1);
+            assertThat(runInputActual(f.run().id())).isEqualTo(1_000);
+        } finally {
+            dropPublicationGate();
+            threads.shutdownNow();
+            threads.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+        }
+    }
+
+    // ========== 辅助 ==========
+
+    private org.springframework.transaction.support.TransactionTemplate transactionTemplate() {
+        return new org.springframework.transaction.support.TransactionTemplate(
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(jdbc.getDataSource()));
+    }
+
+    /**
+     * 在与复核探针相同的位置门控生产发布：BEFORE UPDATE 触发器在
+     * {@code ATTEMPTED → COMMITTED} 的转换上取 advisory 事务锁。
+     * 门控只控制时间顺序，不替换生产 SQL、不改返回值、不伪造判据。
+     */
+    private static void installPublicationGate() {
+        jdbc.execute("""
+                CREATE OR REPLACE FUNCTION test_publication_gate() RETURNS trigger LANGUAGE plpgsql AS $$
+                BEGIN
+                  IF OLD.output_json->>'status'='ATTEMPTED' AND NEW.output_json->>'status'='COMMITTED' THEN
+                    PERFORM pg_advisory_xact_lock(490709);
+                  END IF;
+                  RETURN NEW;
+                END $$
+                """);
+        jdbc.execute("""
+                CREATE TRIGGER test_publication_gate BEFORE UPDATE ON agent_step
+                FOR EACH ROW EXECUTE FUNCTION test_publication_gate()
+                """);
+    }
+
+    private static void dropPublicationGate() {
+        jdbc.execute("DROP TRIGGER IF EXISTS test_publication_gate ON agent_step");
+        jdbc.execute("DROP FUNCTION IF EXISTS test_publication_gate()");
+    }
+
+    /** 等待真实发布语句阻塞在门控的 advisory 锁上（等待即证明已取过自己的语句快照）。 */
+    private static boolean awaitPublicationGate() throws InterruptedException {
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
+        while (System.nanoTime() < deadline) {
+            Boolean waiting = jdbc.queryForObject("""
+                    SELECT EXISTS(SELECT 1 FROM pg_stat_activity
+                      WHERE wait_event='advisory' AND query LIKE '%UPDATE agent_step st%')
+                    """, Boolean.class);
+            if (Boolean.TRUE.equals(waiting)) return true;
+            Thread.sleep(30);
+        }
+        return false;
+    }
+
+    private void insertToolStep(UUID runId, int sequence, String content) {
+        jdbc.update("""
+                INSERT INTO agent_step(run_id, sequence_no, type, tool_name, input_json, output_json, reason)
+                SELECT ?, ?, 'TOOL_CALL_COMPLETED', 'read_document_section',
+                  ?::jsonb, ?::jsonb, 'TOOL_SUCCESS'
+                """, runId, sequence,
+                json.createObjectNode().put("toolCallId", "call-" + sequence).toString(),
+                json.createObjectNode().put("status", "SUCCEEDED").put("content", content).toString());
+    }
+
+    private void insertModelRequestStep(UUID runId, int sequence) {
+        jdbc.update("""
+                INSERT INTO agent_step(run_id, sequence_no, type, reason)
+                VALUES (?, ?, 'MODEL_REQUEST', 'latest')
+                """, runId, sequence);
+    }
+
+    private com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext contextFor(AgentRunView run) {
+        return new com.shitulelv.aicollab.agent.domain.model.AgentExecutionContext(
+                run.projectId(), run.sessionId(), run.id(), run.requesterId(),
+                "SUPERVISOR", false, com.shitulelv.aicollab.agent.domain.model.AgentPageContext.empty(),
+                com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy.v2Limits(0), 0, List.of());
+    }
+
+    private com.shitulelv.aicollab.agent.domain.model.AgentSkill stubSkill() {
+        var skill = mock(com.shitulelv.aicollab.agent.domain.model.AgentSkill.class);
+        when(skill.code()).thenReturn("PROJECT_RESEARCH");
+        when(skill.instruction()).thenReturn("Read only document research");
+        when(skill.outputContract()).thenReturn("Evidence and gaps");
+        return skill;
+    }
+}

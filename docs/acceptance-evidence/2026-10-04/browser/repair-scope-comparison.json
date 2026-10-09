@@ -1,0 +1,8 @@
+{
+  "status": "PASSED",
+  "onlyChanged": "tasks[T-01].description",
+  "allDatesDependenciesMilestonesAndOtherFieldsUnchanged": true,
+  "repairedVersionNo": 3,
+  "executionDate": "2026-10-04",
+  "baseVersionNo": 2
+}

@@ -1,0 +1,239 @@
+package com.shitulelv.aicollab.agent.application.runtime;
+
+import com.fasterxml.jackson.databind.*;
+import com.shitulelv.aicollab.agent.application.*;
+import com.shitulelv.aicollab.agent.application.view.*;
+import com.shitulelv.aicollab.agent.domain.model.*;
+import com.shitulelv.aicollab.agent.infrastructure.repository.*;
+import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
+import com.shitulelv.aicollab.common.exception.*;
+import com.shitulelv.aicollab.infrastructure.ai.*;
+import com.shitulelv.aicollab.infrastructure.ai.model.*;
+import com.shitulelv.aicollab.infrastructure.ai.turn.*;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
+import com.shitulelv.aicollab.project.domain.model.ProjectRole;
+import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import org.mockito.ArgumentCaptor;
+
+import java.time.*;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
+
+public class C1C5ExpandedProbe {
+    private static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules();
+    private static int failures;
+    public static void main(String[] args) {
+        probe("lengthTerminatedRunSummaryDoesNotAdvanceCoverage", C1C5ExpandedProbe::lengthTerminatedRunSummaryDoesNotAdvanceCoverage);
+        probe("childV2DoesNotInheritProjectMemory", C1C5ExpandedProbe::childV2DoesNotInheritProjectMemory);
+        probe("fullToolLayerStillCountsUnvisitedOlderSources", C1C5ExpandedProbe::fullToolLayerStillCountsUnvisitedOlderSources);
+        probe("nearWindowV2ConversationSummaryHasIndependentInput", C1C5ExpandedProbe::nearWindowV2ConversationSummaryHasIndependentInput);
+        probe("failedAuxiliaryStillRefreshesNextMainRequest", C1C5ExpandedProbe::failedAuxiliaryStillRefreshesNextMainRequest);
+        probe("legacyOutboundKeepsCommittedRunSummaryAndGuidance", C1C5ExpandedProbe::legacyOutboundKeepsCommittedRunSummaryAndGuidance);
+        System.out.println("Expanded expected-correctness failures=" + failures + "/6");
+        if (failures > 0) System.exit(1);
+    }
+    private static void probe(String name, Runnable action) {
+        try { action.run(); System.out.println("PASS " + name); }
+        catch (AssertionError error) { failures++; System.out.println("FAIL " + name + ": " + error.getMessage()); }
+    }
+    private static AgentRunView run(int depth) {
+        var now = OffsetDateTime.now();
+        return new AgentRunView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                depth > 0 ? UUID.randomUUID() : null, depth > 0 ? "KNOWLEDGE_RESEARCHER" : "SUPERVISOR", depth,
+                "Review document findings", AgentRunStatus.RUNNING, 64, 64, 3, null, null,
+                0, 0, 0, 0, 0, 0, 0, false, false, false, 0, null, null, null,
+                "PROJECT_RESEARCH", 1, 2, false, now, now);
+    }
+    private static AgentExecutionContext context(AgentRunView run) {
+        return new AgentExecutionContext(run.id(), run.sessionId(), run.projectId(), run.requesterId(),
+                "OWNER", false, AgentPageContext.empty(), AgentResourcePolicy.v2Limits(run.depth()), run.depth(), List.of());
+    }
+    private static AgentSkill skill(AgentRunView run) {
+        AgentSkill skill = mock(AgentSkill.class);
+        when(skill.code()).thenReturn(run.depth() > 0 ? "CHILD_DOCUMENT_RESEARCH" : "PROJECT_RESEARCH");
+        when(skill.instruction()).thenReturn("Read-only document research.");
+        when(skill.outputContract()).thenReturn("Evidence and gaps.");
+        return skill;
+    }
+    private static AgentRepository repository(AgentRunView run) {
+        AgentRepository repository = mock(AgentRepository.class);
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(new ArrayList<>());
+        when(repository.findRun(any(), any())).thenReturn(Optional.of(run));
+        when(repository.citationsStillValid(any(), any())).thenReturn(true);
+        when(repository.beginSummaryAttempt(any())).thenReturn(UUID.randomUUID());
+        when(repository.beginRunContextAttempt(any(), anyInt(), anyInt(), anyInt(), anyInt())).thenReturn(UUID.randomUUID());
+        when(repository.beginModelCall(any(), any(), anyString())).thenReturn("probe-main-call");
+        when(repository.recordModelTurnWithSettlement(any(), any(), any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.recordFinal(any(), anyString(), anyList(), anyBoolean()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        return repository;
+    }
+    private static UserAiProvider provider(String name) {
+        var now = OffsetDateTime.now();
+        return new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), name, ModelProviderType.OPENAI_COMPATIBLE,
+                "https://example.invalid", "/v1/chat/completions", "encrypted", name, true, 0.2, 1024,
+                EnumSet.of(ModelCapability.CHAT, ModelCapability.NATIVE_TOOLS), true, now, now, null);
+    }
+    private static RoutingAgentModelExecutor routing(NativeToolCallingExecutor nativeExecutor, AgentModelConfigurationStore store) {
+        var zen = mock(ZenModelExecution.class);
+        when(zen.isZen(any())).thenReturn(false);
+        return new RoutingAgentModelExecutor(nativeExecutor, mock(LegacyReadOnlyAgentExecutor.class), zen, store);
+    }
+    private static RoutingAgentModelExecutor routing(NativeToolCallingExecutor nativeExecutor) {
+        var store = mock(AgentModelConfigurationStore.class);
+        when(store.require(any())).thenReturn(provider("controlled"));
+        return routing(nativeExecutor, store);
+    }
+    private static AgentStepView toolStep(int seq, String tool, String text) {
+        return new AgentStepView(UUID.randomUUID(), seq, AgentStepType.TOOL_CALL_COMPLETED, tool, null,
+                JSON.createObjectNode().put("data", text), "TOOL_SUCCESS", null, null, false, null, null, OffsetDateTime.now());
+    }
+    private static ModelTurnResult turn(String content, ModelFinishReason reason) {
+        return new ModelTurnResult(content, List.of(), reason, new ModelUsage(1000, 100), "controlled", "controlled", 1L);
+    }
+    private static void lengthTerminatedRunSummaryDoesNotAdvanceCoverage() {
+        var run = run(0);
+        var repository = repository(run);
+        var nativeExecutor = mock(NativeToolCallingExecutor.class);
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any()))
+                .thenReturn(turn("The generated summary ends before its findings are complete", ModelFinishReason.LENGTH));
+        var summarizer = new AgentContextSummarizer(repository, routing(nativeExecutor), JSON);
+        var latest = new AgentStepView(UUID.randomUUID(), 2, AgentStepType.MODEL_REQUEST, null, null, null,
+                "latest", null, null, false, null, null, OffsetDateTime.now());
+        when(repository.listSteps(any(), any())).thenReturn(List.of(toolStep(1, "list_project_documents", "Evidence"), latest));
+        var budget = new AgentContextBudget.Budget(50000, 50000, 42500, 21250, "PER_REQUEST_CAP", true);
+        boolean committed = summarizer.compactRunContext(run, null, budget, Integer.MAX_VALUE, () -> true);
+        if (committed) {
+            var summary = ArgumentCaptor.forClass(JsonNode.class);
+            verify(repository).completeRunContextAttempt(any(), eq("COMMITTED"), anyString(), any(), anyString(), summary.capture(), eq(0));
+            throw new AssertionError("finishReason=LENGTH advanced sourceThrough=" + summary.getValue().path("sourceThroughSequence"));
+        }
+    }
+    private static void childV2DoesNotInheritProjectMemory() {
+        var run = run(1);
+        var repository = repository(run);
+        var memoryRepository = mock(AgentMemoryRepository.class);
+        var access = mock(ProjectAccessGuard.class);
+        when(access.requireMember(any(), any())).thenReturn(ProjectRole.OWNER);
+        var now = OffsetDateTime.now();
+        var memory = new AgentMemoryView(UUID.randomUUID(), run.projectId(), "PREFERENCE", "Parent preference",
+                "PARENT_MEMORY_SENTINEL_6279", "MANUAL", null, "ACTIVE", run.requesterId(), run.requesterId(), 1, now, now);
+        when(memoryRepository.list(any(), eq(true), eq(100))).thenReturn(List.of(memory));
+        var memories = new AgentMemoryService(memoryRepository, access);
+        var composer = new AgentModelMessageComposer(repository, memories, JSON);
+        var composition = composer.composeV2(run, context(run), skill(run), AgentPlan.create(run.goal(), List.of()),
+                List.of(), 50000, 1.0, false);
+        if (composition.messages().toString().contains("PARENT_MEMORY_SENTINEL_6279"))
+            throw new AssertionError("depth=1 v2 request includes parent project preference; memoryIncluded=" + composition.stats().memoryIncluded());
+    }
+    private static void fullToolLayerStillCountsUnvisitedOlderSources() {
+        var run = run(0);
+        var repository = repository(run);
+        var composer = new AgentModelMessageComposer(repository, null, JSON);
+        var skill = skill(run);
+        var plan = AgentPlan.create(run.goal(), List.of());
+        var baseline = composer.composeV2(run, context(run), skill, plan, List.of(), 20000, 1.0, false);
+        int mandatory = baseline.stats().charsUsed() - run.goal().length();
+        int toolShare = Math.max(6000, (int) ((60000 - mandatory) * 0.45));
+        int emptyOutputSize = JSON.createObjectNode().put("data", "").toString().length();
+        var old = toolStep(1, "list_tasks", "o".repeat(180000));
+        var newest = toolStep(2, "list_tasks", "n".repeat(toolShare - emptyOutputSize));
+        var composition = composer.composeV2(run, context(run), skill, plan, List.of(old, newest), 20000, 1.0, false);
+        if (composition.stats().droppedSourceChars() < old.output().toString().length())
+            throw new AssertionError("tool layer filled exactly: candidates=" + composition.stats().toolStepsCandidates()
+                    + ", included=" + composition.stats().toolStepsIncluded() + ", droppedSourceChars=" + composition.stats().droppedSourceChars()
+                    + ", omittedOlderChars=" + old.output().toString().length());
+    }
+    private record Kernel(AgentRunView run, AgentRepository repository, AgentRuntimeCoordinator coordinator) {}
+    private static Kernel kernel(RoutingAgentModelExecutor model) {
+        var run = run(0);
+        var repository = repository(run);
+        var state = JSON.createObjectNode().put("schemaVersion", 2).put("stateRevision", 1).put("goalRevision", 0)
+                .put("activeGoal", run.goal()).put("latestRequest", run.goal());
+        state.putArray("constraints");
+        when(repository.workingState(any(), any())).thenReturn(state);
+        var candidates = List.of(new AgentMessageView(UUID.randomUUID(), run.sessionId(), null, "USER",
+                "An earlier explicit decision must remain available", null, null, OffsetDateTime.now().minusDays(1)));
+        when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(candidates);
+        var assembler = mock(AgentContextAssembler.class);
+        when(assembler.assemble(any(), any(), any())).thenReturn(context(run));
+        var skill = skill(run);
+        var registry = mock(AgentSkillRegistry.class);
+        when(registry.select(any(), any(), any())).thenReturn(skill);
+        var planService = mock(AgentPlanService.class);
+        when(planService.ensurePlan(any(), any())).thenReturn(AgentPlan.create(run.goal(), List.of()));
+        var composer = new AgentModelMessageComposer(repository, null, JSON);
+        var summarizer = new AgentContextSummarizer(repository, model, JSON);
+        var coordinator = new AgentRuntimeCoordinator(repository, assembler, registry, planService,
+                new AgentToolRegistry(List.of()), new AgentCancellationService(repository), model,
+                new AgentConvergencePolicy(), JSON, null, AgentContextProperties.defaults(), composer,
+                mock(AgentToolCallExecutor.class), summarizer);
+        return new Kernel(run, repository, coordinator);
+    }
+    private static boolean isSummary(List<ModelMessage> messages) {
+        return messages.getFirst().toString().contains("\u6458\u8981\u5668");
+    }
+    private static void nearWindowV2ConversationSummaryHasIndependentInput() {
+        var nativeExecutor = mock(NativeToolCallingExecutor.class);
+        var summaryCalls = new AtomicInteger();
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any())).thenAnswer(invocation -> {
+            List<ModelMessage> messages = invocation.getArgument(0);
+            if (isSummary(messages)) summaryCalls.incrementAndGet();
+            return turn("A complete answer.", ModelFinishReason.STOP);
+        });
+        var kernel = kernel(routing(nativeExecutor));
+        when(kernel.repository().listRecentMessages(any(), anyInt())).thenReturn(List.of(
+                new AgentMessageView(UUID.randomUUID(), kernel.run().sessionId(), null, "ASSISTANT", "h".repeat(90000),
+                        null, null, OffsetDateTime.now().minusMinutes(1))));
+        var outcome = kernel.coordinator().advance(kernel.run());
+        if (summaryCalls.get() == 0)
+            throw new AssertionError("v2 main request fits 50k fallback, but old conversation summary never sent; status=" + outcome.status());
+    }
+    private static void failedAuxiliaryStillRefreshesNextMainRequest() {
+        var nativeExecutor = mock(NativeToolCallingExecutor.class);
+        var store = mock(AgentModelConfigurationStore.class);
+        var a = provider("model-A");
+        var b = provider("model-B");
+        when(store.require(any())).thenReturn(a, b);
+        var calls = new ArrayList<String>();
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any())).thenAnswer(invocation -> {
+            List<ModelMessage> messages = invocation.getArgument(0);
+            calls.add(AiConfigurationContext.current().modelName());
+            if (isSummary(messages)) throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "Controlled auxiliary failure");
+            return turn("A complete answer.", ModelFinishReason.STOP);
+        });
+        var kernel = kernel(routing(nativeExecutor, store));
+        var outcome = kernel.coordinator().advance(kernel.run());
+        if (calls.size() != 2) throw new AssertionError("fixture expected auxiliary and main, actual calls=" + calls + ", status=" + outcome.status());
+        if (!calls.getLast().equals("model-B"))
+            throw new AssertionError("configuration changed A->B, actual outbound order=" + calls + "; failed auxiliary left stale main snapshot");
+    }
+    private static void legacyOutboundKeepsCommittedRunSummaryAndGuidance() {
+        var run = run(0);
+        var repository = repository(run);
+        when(repository.workingState(any(), any())).thenReturn(JSON.createObjectNode()
+                .put("schemaVersion", 2).put("activeGoal", run.goal()).put("latestRequest", run.goal()));
+        when(repository.latestRunContextSummary(any(), any())).thenReturn(JSON.createObjectNode()
+                .put("text", "COMMITTED_RUN_SUMMARY_SENTINEL_8163").put("sourceThroughSequence", 1));
+        var composer = new AgentModelMessageComposer(repository, null, JSON);
+        var messages = new ArrayList<>(composer.composeV2(run, context(run), skill(run),
+                AgentPlan.create(run.goal(), List.of()), List.of(), 50000, 1.0, true).messages());
+        messages.add(new ModelMessage.System("FINALIZING_GUIDANCE_SENTINEL_9551"));
+        var gateway = mock(ChatModelGateway.class);
+        when(gateway.complete(any(), any())).thenReturn(new ChatCompletionResult(
+                "{\"action\":\"final\",\"answer\":\"Done.\",\"citations\":[],\"inferences\":[]}",
+                "controlled", "legacy", 100, 10, 1L));
+        var legacy = new LegacyReadOnlyAgentExecutor(gateway, new AgentDecisionParser(JSON), JSON);
+        legacy.callModel(messages, List.of(), run.projectId(), run.requesterId(), false, run.sessionId());
+        var command = ArgumentCaptor.forClass(ChatCompletionCommand.class);
+        verify(gateway).complete(command.capture(), any());
+        var outbound = command.getValue();
+        boolean hasSummary = outbound.userPrompt().contains("COMMITTED_RUN_SUMMARY_SENTINEL_8163");
+        boolean hasGuidance = outbound.systemPrompt().contains("FINALIZING_GUIDANCE_SENTINEL_9551");
+        if (!hasSummary || !hasGuidance)
+            throw new AssertionError("actual Legacy HTTP command dropped composed mandatory layers: summary=" + hasSummary + ", finalizingGuidance=" + hasGuidance);
+    }
+}

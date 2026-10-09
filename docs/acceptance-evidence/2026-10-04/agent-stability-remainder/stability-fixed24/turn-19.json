@@ -1,0 +1,110 @@
+{
+  "steps": [
+    {
+      "id": "339914e4-12c7-473e-8091-adb80b7caa29",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 17739,
+          "outputTokens": 810
+        },
+        "content": "## 6 项覆盖映射（讨论稿，未生成草稿）\n\n| # | 主题 | 已读来源 | 判定证据要点 |\n|---|---|---|---|\n| 1 | 长对话持续覆盖 | §4.4（chunk 9）、§4.1–4.2（chunk 6–7） | 摘要带 sourceFrom/sourceThrough、来源ID、schemaVersion、state revision；区间拼接无空洞；「最近必要用户原话保留」；不按「最后N条」淘汰仍有效约束 |\n| 2 | 模型超时 | §6.1（chunk 15）、§6.2（chunk 16） | 受理即返回 operationId/planId/attemptId/status/versionId，不等生成；持久关联 goalRevision、originRunId、tool invocation ID；超时后 attempt 落终态 |\n| 3 | 排队后重启 | §6.2（chunk 16）+ 工具定义 | 按 goalRevision+invocation 幂等键恢复，不新建第二份规划；`get_task_plan_progress` 不轮询 |\n| 4 | 运行中重启 | §6.2、§6.3（chunk 17） | 旧草稿为完整版本、无半段模型输出；失败可见且原因真实；重试走新 attemptId、同 planId |\n| 5 | 取消竞争 | `cancel_task_plan_generation` 需 operationId+attemptId；§6.3 | 取消须校验 attemptId 归属，误伤他人生成必须被拒 |\n| 6 | 证据收口 | §5.2/§5.3（chunk 12–13）、§5.4（chunk 14） | 引用带 chunkId/偏移（CLEANED_TEXT_UTF16_V2）+ contentHash 可复现；检索不可用须显式告知；失败须说明阶段与可重试时机，诊断按权限脱敏 |\n\n## 证据限制\n\n- 已读截至 chunk 17–19；**§6.2 尾部 398 字符、§6.3 尾部、§6.4/§7 尾部、chunk 19 之后各块未读**，其中可能含正式的重试/恢复/取消条款。`searchAvailable=false`，只能续读。\n- **无任何运行时验收数据**，以上为蓝图要求非已测结果。\n\n采购费用已按你的要求排除。日期 2026-10-05→2026-10-25、Local Owner、最多 6 项约束不变；确认后我再生成草稿。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 28712,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "## 6 项覆盖映射（讨论稿，未生成草稿）\n\n| # | 主题 | 已读来源 | 判定证据要点 |\n|---|---|---|---|\n| 1 | 长对话持续覆盖 | §4.4（chunk 9）、§4.1–4.2（chunk 6–7） | 摘要带 sourceFrom/sourceThrough、来源ID、schemaVersion、state revision；区间拼接无空洞；「最近必要用户原话保留」；不按「最后N条」淘汰仍有效约束 |\n| 2 | 模型超时 | §6.1（chunk 15）、§6.2（chunk 16） | 受理即返回 operationId/planId/attemptId/status/versionId，不等生成；持久关联 goalRevision、originRunId、tool invocation ID；超时后 attempt 落终态 |\n| 3 | 排队后重启 | §6.2（chunk 16）+ 工具定义 | 按 goalRevision+invocation 幂等键恢复，不新建第二份规划；`get_task_plan_progress` 不轮询 |\n| 4 | 运行中重启 | §6.2、§6.3（chunk 17） | 旧草稿为完整版本、无半段模型输出；失败可见且原因真实；重试走新 attemptId、同 planId |\n| 5 | 取消竞争 | `cancel_task_plan_generation` 需 operationId+attemptId；§6.3 | 取消须校验 attemptId 归属，误伤他人生成必须被拒 |\n| 6 | 证据收口 | §5.2/§5.3（chunk 12–13）、§5.4（chunk 14） | 引用带 chunkId/偏移（CLEANED_TEXT_UTF16_V2）+ contentHash 可复现；检索不可用须显式告知；失败须说明阶段与可重试时机，诊断按权限脱敏 |\n\n## 证据限制\n\n- 已读截至 chunk 17–19；**§6.2 尾部 398 字符、§6.3 尾部、§6.4/§7 尾部、chunk 19 之后各块未读**，其中可能含正式的重试/恢复/取消条款。`searchAvailable=false`，只能续读。\n- **无任何运行时验收数据**，以上为蓝图要求非已测结果。\n\n采购费用已按你的要求排除。日期 2026-10-05→2026-10-25、Local Owner、最多 6 项约束不变；确认后我再生成草稿。",
+      "promptTokens": 17739,
+      "completionTokens": 810,
+      "tokenUsageEstimated": false,
+      "latencyMs": 28712,
+      "errorCode": null,
+      "createdAt": "2026-10-04T15:36:49.816219Z"
+    },
+    {
+      "id": "4d8f9ac5-bb82-4a22-94e9-7feda5eb05d0",
+      "sequence": 2,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "## 6 项覆盖映射（讨论稿，未生成草稿）\n\n| # | 主题 | 已读来源 | 判定证据要点 |\n|---|---|---|---|\n| 1 | 长对话持续覆盖 | §4.4（chunk 9）、§4.1–4.2（chunk 6–7） | 摘要带 sourceFrom/sourceThrough、来源ID、schemaVersion、state revision；区间拼接无空洞；「最近必要用户原话保留」；不按「最后N条」淘汰仍有效约束 |\n| 2 | 模型超时 | §6.1（chunk 15）、§6.2（chunk 16） | 受理即返回 operationId/planId/attemptId/status/versionId，不等生成；持久关联 goalRevision、originRunId、tool invocation ID；超时后 attempt 落终态 |\n| 3 | 排队后重启 | §6.2（chunk 16）+ 工具定义 | 按 goalRevision+invocation 幂等键恢复，不新建第二份规划；`get_task_plan_progress` 不轮询 |\n| 4 | 运行中重启 | §6.2、§6.3（chunk 17） | 旧草稿为完整版本、无半段模型输出；失败可见且原因真实；重试走新 attemptId、同 planId |\n| 5 | 取消竞争 | `cancel_task_plan_generation` 需 operationId+attemptId；§6.3 | 取消须校验 attemptId 归属，误伤他人生成必须被拒 |\n| 6 | 证据收口 | §5.2/§5.3（chunk 12–13）、§5.4（chunk 14） | 引用带 chunkId/偏移（CLEANED_TEXT_UTF16_V2）+ contentHash 可复现；检索不可用须显式告知；失败须说明阶段与可重试时机，诊断按权限脱敏 |\n\n## 证据限制\n\n- 已读截至 chunk 17–19；**§6.2 尾部 398 字符、§6.3 尾部、§6.4/§7 尾部、chunk 19 之后各块未读**，其中可能含正式的重试/恢复/取消条款。`searchAvailable=false`，只能续读。\n- **无任何运行时验收数据**，以上为蓝图要求非已测结果。\n\n采购费用已按你的要求排除。日期 2026-10-05→2026-10-25、Local Owner、最多 6 项约束不变；确认后我再生成草稿。",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T15:36:49.825262Z"
+    }
+  ],
+  "prompt": "为了形成6项以内的完整规划，请按长对话、模型超时、排队重启、运行中重启、取消竞争、证据收口给出覆盖映射。不要加入采购费用工作。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+  "session": {
+    "id": "c6f1a8be-bdb1-4efd-9e14-0e9022101645",
+    "projectId": "cab7e2f0-006b-4716-9295-08d4e8bd4e64",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "稳定性修复复验 stability-fixed24",
+    "status": "ACTIVE",
+    "version": 19,
+    "createdAt": "2026-10-04T14:42:31.0133Z",
+    "updatedAt": "2026-10-04T15:36:20.948954Z"
+  },
+  "batch": "stability-fixed24",
+  "codeVersion": "6edb3c39d4573430654cc1772034ad7f99cec75c",
+  "answer": {
+    "id": "75a6379f-872b-49bf-b930-d65b2e1e5996",
+    "sessionId": "c6f1a8be-bdb1-4efd-9e14-0e9022101645",
+    "runId": "0cfd33f0-2610-4105-9997-0fa658deacf0",
+    "role": "ASSISTANT",
+    "content": "## 6 项覆盖映射（讨论稿，未生成草稿）\n\n| # | 主题 | 已读来源 | 判定证据要点 |\n|---|---|---|---|\n| 1 | 长对话持续覆盖 | §4.4（chunk 9）、§4.1–4.2（chunk 6–7） | 摘要带 sourceFrom/sourceThrough、来源ID、schemaVersion、state revision；区间拼接无空洞；「最近必要用户原话保留」；不按「最后N条」淘汰仍有效约束 |\n| 2 | 模型超时 | §6.1（chunk 15）、§6.2（chunk 16） | 受理即返回 operationId/planId/attemptId/status/versionId，不等生成；持久关联 goalRevision、originRunId、tool invocation ID；超时后 attempt 落终态 |\n| 3 | 排队后重启 | §6.2（chunk 16）+ 工具定义 | 按 goalRevision+invocation 幂等键恢复，不新建第二份规划；`get_task_plan_progress` 不轮询 |\n| 4 | 运行中重启 | §6.2、§6.3（chunk 17） | 旧草稿为完整版本、无半段模型输出；失败可见且原因真实；重试走新 attemptId、同 planId |\n| 5 | 取消竞争 | `cancel_task_plan_generation` 需 operationId+attemptId；§6.3 | 取消须校验 attemptId 归属，误伤他人生成必须被拒 |\n| 6 | 证据收口 | §5.2/§5.3（chunk 12–13）、§5.4（chunk 14） | 引用带 chunkId/偏移（CLEANED_TEXT_UTF16_V2）+ contentHash 可复现；检索不可用须显式告知；失败须说明阶段与可重试时机，诊断按权限脱敏 |\n\n## 证据限制\n\n- 已读截至 chunk 17–19；**§6.2 尾部 398 字符、§6.3 尾部、§6.4/§7 尾部、chunk 19 之后各块未读**，其中可能含正式的重试/恢复/取消条款。`searchAvailable=false`，只能续读。\n- **无任何运行时验收数据**，以上为蓝图要求非已测结果。\n\n采购费用已按你的要求排除。日期 2026-10-05→2026-10-25、Local Owner、最多 6 项约束不变；确认后我再生成草稿。",
+    "citations": [],
+    "inferences": [],
+    "createdAt": "2026-10-04T15:36:49.825262Z"
+  },
+  "run": {
+    "id": "0cfd33f0-2610-4105-9997-0fa658deacf0",
+    "sessionId": "c6f1a8be-bdb1-4efd-9e14-0e9022101645",
+    "projectId": "cab7e2f0-006b-4716-9295-08d4e8bd4e64",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "为了形成6项以内的完整规划，请按长对话、模型超时、排队重启、运行中重启、取消竞争、证据收口给出覆盖映射。不要加入采购费用工作。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 2,
+    "toolCallsUsed": 0,
+    "childrenUsed": 0,
+    "inputTokensUsed": 17739,
+    "outputTokensUsed": 810,
+    "inputTokensActual": 17739,
+    "outputTokensActual": 810,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"3e247376-31f7-4d8c-9839-04c1838e355c\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 4,
+    "createdAt": "2026-10-04T15:36:20.948954Z",
+    "updatedAt": "2026-10-04T15:36:49.825262Z"
+  },
+  "turn": 19,
+  "executionDate": "2026-10-04",
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG"
+}

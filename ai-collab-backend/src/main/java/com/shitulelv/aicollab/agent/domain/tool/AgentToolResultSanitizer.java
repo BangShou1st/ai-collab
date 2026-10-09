@@ -26,7 +26,25 @@ import java.util.Set;
 @Component
 public class AgentToolResultSanitizer {
 
-    private static final int MAX_RESULT_BYTES = 32 * 1024;
+    /**
+     * 单条工具结果序列化字节上限。
+     *
+     * <p>原来的 32kB 是按 6000 字符一页的旧正文预算定的。正文页预算放大到
+     * {@code DocumentContentService.MAX_MAX_CHARS}=24000 字符后，一页中文（UTF-8 每字符 3 字节）
+     * 正文本身就约 72kB；真实文档分块粒度更小（{@code DocumentChunker} 块长 600--1200 字符），
+     * 24000 字符一页可横跨 ~40 个块，每块再各自贡献一条最多 600 字符的引用摘录，
+     * 实测序列化结果可达 160kB 量级。仍按 32kB 判定会走 {@link #reduce} 把正文砍到
+     * 2000 字符并标记 truncated，表现为"资料不足"的误导性结果。</p>
+     *
+     * <p>这里按设计建议放大到 256kB 级上限：足以容纳实测最坏情况（约 160kB）并留出余量，
+     * 同时仍是<b>有界</b>值——远超此上限的结果会被标记截断，不是取消保护。</p>
+     */
+    private static final int MAX_RESULT_BYTES = 256 * 1024;
+
+    /** 当前生效的单条工具结果字节上限；契约测试用它证明正文页预算与结果保护不再漂移。 */
+    public static int maxResultBytes() {
+        return MAX_RESULT_BYTES;
+    }
     private static final int MAX_ARRAY_ITEMS = 100;
     private static final int MAX_NESTING_DEPTH = 10;
     private static final int MAX_STRING_LENGTH = 8000;
@@ -69,12 +87,18 @@ public class AgentToolResultSanitizer {
         try {
             byte[] bytes = json.writeValueAsBytes(sanitized);
             if (bytes.length > MAX_RESULT_BYTES) {
-                // 截断并标记
-                ObjectNode wrapper = json.createObjectNode();
-                wrapper.set("data", sanitize(json.readTree(truncateJson(bytes))));
-                wrapper.put("truncated", true);
-                wrapper.put("originalSize", bytes.length);
-                return wrapper;
+                // Reduce the JSON tree, never slice serialized UTF-8/JSON bytes.
+                for(int stringLimit:new int[]{2000,1000,500,250,128}) {
+                    sanitized=reduce(sanitized,stringLimit,MAX_ARRAY_ITEMS);
+                    ObjectNode bounded=markBounded(sanitized,bytes.length);
+                    if(json.writeValueAsBytes(bounded).length<=MAX_RESULT_BYTES) return bounded;
+                }
+                for(int arrayLimit:new int[]{20,10,5,2,1}) {
+                    sanitized=reduce(sanitized,128,arrayLimit);
+                    ObjectNode bounded=markBounded(sanitized,bytes.length);
+                    if(json.writeValueAsBytes(bounded).length<=MAX_RESULT_BYTES) return bounded;
+                }
+                return json.createObjectNode().put("error","TOOL_RESULT_TOO_LARGE").put("truncated",true).put("originalSize",bytes.length);
             }
         } catch (Exception e) {
             // 序列化失败时返回安全的错误结果
@@ -85,6 +109,17 @@ public class AgentToolResultSanitizer {
         }
 
         return sanitized;
+    }
+    private ObjectNode markBounded(JsonNode node,int originalSize) {
+        ObjectNode result=node.isObject()?((ObjectNode)node).deepCopy():json.createObjectNode().set("data",node);
+        return result.put("truncated",true).put("originalSize",originalSize);
+    }
+    private JsonNode reduce(JsonNode node,int stringLimit,int arrayLimit) {
+        if(node.isTextual() && node.asText().codePointCount(0,node.asText().length())>stringLimit)
+            return json.getNodeFactory().textNode(node.asText().substring(0,node.asText().offsetByCodePoints(0,stringLimit))+"… [truncated]");
+        if(node.isObject()){ObjectNode result=json.createObjectNode();node.fields().forEachRemaining(entry->result.set(entry.getKey(),reduce(entry.getValue(),stringLimit,arrayLimit)));return result;}
+        if(node.isArray()){ArrayNode result=json.createArrayNode();for(int i=0;i<Math.min(node.size(),arrayLimit);i++)result.add(reduce(node.get(i),stringLimit,arrayLimit));return result;}
+        return node;
     }
 
     /**
@@ -206,11 +241,4 @@ public class AgentToolResultSanitizer {
         return INTERNAL_FIELDS.contains(fieldName.toLowerCase().replace("-", "").replace("_", ""));
     }
 
-    private byte[] truncateJson(byte[] bytes) {
-        if (bytes.length <= MAX_RESULT_BYTES) return bytes;
-        // 简单截断：保留前 MAX_RESULT_BYTES 字节
-        byte[] truncated = new byte[MAX_RESULT_BYTES];
-        System.arraycopy(bytes, 0, truncated, 0, MAX_RESULT_BYTES);
-        return truncated;
-    }
 }

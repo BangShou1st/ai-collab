@@ -214,7 +214,7 @@ onMounted(load)
   align-items: center;
   padding: 16px;
   border-radius: 8px;
-  background-color: #f5f7fa;
+  background-color: var(--color-surface-raised);
 }
 
 .summary-item.success { background-color: #f0f9eb; }
@@ -225,16 +225,16 @@ onMounted(load)
 .summary-value {
   font-size: 24px;
   font-weight: 600;
-  color: #303133;
+  color: var(--color-text);
 }
 
-.summary-item.success .summary-value { color: #67c23a; }
-.summary-item.warning .summary-value { color: #e6a23c; }
-.summary-item.danger .summary-value { color: #f56c6c; }
+.summary-item.success .summary-value { color: var(--color-success); }
+.summary-item.warning .summary-value { color: var(--color-warning); }
+.summary-item.danger .summary-value { color: var(--color-danger); }
 
 .summary-label {
   font-size: 14px;
-  color: #606266;
+  color: var(--color-text-secondary);
   margin-top: 4px;
 }
 
@@ -257,24 +257,24 @@ onMounted(load)
 
 .diff-field {
   font-weight: 500;
-  color: #606266;
+  color: var(--color-text-secondary);
 }
 
 .diff-planned {
-  color: #909399;
+  color: var(--color-text-muted);
   text-decoration: line-through;
 }
 
 .diff-arrow {
-  color: #909399;
+  color: var(--color-text-muted);
 }
 
 .diff-actual {
-  color: #409eff;
+  color: var(--color-primary);
 }
 
 .no-diff {
-  color: #909399;
+  color: var(--color-text-muted);
   font-style: italic;
 }
 </style>

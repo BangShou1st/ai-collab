@@ -1,0 +1,344 @@
+// @vitest-environment jsdom
+import { flushPromises, mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import AgentView from './AgentView.vue'
+
+// 正文流式展示的组件级回归：临时帧只驱动预览位置，最终回答只出现一次，
+// 失败/重试不混旧文本，工具轮正文让位给过渡说明。事件与帧均由测试手动驱动。
+
+const mocks = vi.hoisted(() => ({
+  route: { params: { projectId: 'project-1' }, query: {} as Record<string, unknown> },
+  replace: vi.fn(),
+  sessions: vi.fn(),
+  sessionSummaries: vi.fn(),
+  latestRun: vi.fn(),
+  runApprovals: vi.fn(),
+  runEvents: vi.fn(),
+  run: vi.fn(),
+  submit: vi.fn(),
+  pause: vi.fn(),
+  resume: vi.fn(),
+  cancel: vi.fn(),
+  continueRun: vi.fn(),
+  messages: vi.fn(),
+  skills: vi.fn(),
+  stream: vi.fn(),
+}))
+
+vi.mock('vue-router', () => ({
+  useRoute: () => mocks.route,
+  useRouter: () => ({ replace: mocks.replace }),
+}))
+
+vi.mock('element-plus', () => ({
+  ElMessage: { success: vi.fn(), error: vi.fn() },
+  ElMessageBox: { prompt: vi.fn(), confirm: vi.fn() },
+}))
+
+vi.mock('./agent-api', () => ({
+  agentApi: {
+    sessions: mocks.sessions,
+    sessionSummaries: mocks.sessionSummaries,
+    latestRun: mocks.latestRun,
+    runApprovals: mocks.runApprovals,
+    runEvents: mocks.runEvents,
+    run: mocks.run,
+    submit: mocks.submit,
+    pause: mocks.pause,
+    resume: mocks.resume,
+    cancel: mocks.cancel,
+    continueRun: mocks.continueRun,
+    messages: mocks.messages,
+    skills: mocks.skills,
+  },
+}))
+
+vi.mock('./agent-event-stream', () => ({
+  streamAgentEvents: mocks.stream,
+}))
+
+vi.mock('../../stores/auth-store', () => ({
+  useAuthStore: () => ({ currentUser: { id: 'user-1' } }),
+}))
+
+vi.mock('../project/project-api', () => ({
+  projectApi: { listMembers: vi.fn().mockResolvedValue({ data: [] }) },
+}))
+
+const response = <T,>(data: T) => ({ data })
+
+const runBase = {
+  id: 'run-1', sessionId: 'session-1', projectId: 'project-1', goal: '检查本周进度',
+  stepsUsed: 0, maxSteps: 12, toolCallsUsed: 0, maxToolCalls: 8,
+  inputTokensUsed: 0, maxInputTokens: 50000, outputTokensUsed: 0, maxOutputTokens: 20000,
+  errorCode: null,
+}
+const detail = (status: string) => ({
+  run: { ...runBase, status },
+  plan: null, lastEventSequence: 0, pendingApprovalId: null, pauseRequestedAt: null,
+})
+
+type AgentEvent = Record<string, unknown>
+type ContentFrame = { modelCallId: string; revision: number; text: string; final: boolean }
+
+const event = (sequence: number, type: string, payload: Record<string, unknown> = {}): AgentEvent => ({
+  id: `e${sequence}`, projectId: 'project-1', runId: 'run-1',
+  sequence, type, payload, createdAt: '2026-10-06T10:00:00Z',
+})
+
+const frame = (modelCallId: string, revision: number, text: string, final = false): ContentFrame =>
+  ({ modelCallId, revision, text, final })
+
+const stubs = {
+  PageHeader: { template: '<header />' },
+  ElButton: { inheritAttrs: false, template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' },
+  ElTag: { template: '<span><slot /></span>' },
+  ElEmpty: { template: '<div><slot /></div>' },
+  ElInput: {
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    template: `<textarea :value="modelValue ?? ''" @input="$emit('update:modelValue', $event.target.value)" />`,
+  },
+  ElAlert: { props: ['title'], template: '<div class="alert">{{ title }}<slot /></div>' },
+  ElSegmented: { template: '<div />' },
+  ElCheckTag: { template: '<span><slot /></span>' },
+  ElDropdown: { template: '<div><slot /><slot name="dropdown" /></div>' },
+  ElDropdownMenu: { template: '<div><slot /></div>' },
+  ElDropdownItem: { inheritAttrs: false, template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' },
+}
+
+let handlers: { onEvent: (e: AgentEvent) => void; onContent?: (f: ContentFrame) => void } | null = null
+let releaseStream: (() => void) | null = null
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  handlers = null
+  releaseStream = null
+  mocks.sessions.mockResolvedValue(response([{
+    id: 'session-1', projectId: 'project-1', creatorId: 'user-1', title: '项目检查',
+    status: 'ACTIVE', version: 0, createdAt: '2026-07-30T00:00:00Z', updatedAt: '2026-07-30T00:00:00Z',
+  }]))
+  mocks.sessionSummaries.mockResolvedValue(response([]))
+  mocks.messages.mockResolvedValue(response([]))
+  mocks.skills.mockResolvedValue(response([]))
+  mocks.runApprovals.mockResolvedValue(response([]))
+  mocks.runEvents.mockResolvedValue(response([]))
+  mocks.run.mockResolvedValue(response(detail('RUNNING')))
+  mocks.latestRun.mockResolvedValue(response(detail('RUNNING')))
+  // 流保持打开：测试手动驱动事件与正文帧，不自动结束
+  mocks.stream.mockImplementation(async (_url: string, _after: number, _signal: AbortSignal,
+    onEvent: (e: AgentEvent) => void, onContent?: (f: ContentFrame) => void) => {
+    handlers = { onEvent, onContent }
+    await new Promise<void>(resolve => { releaseStream = resolve })
+  })
+})
+
+const mountView = async () => {
+  const wrapper = mount(AgentView, {
+    attachTo: document.body,
+    global: { directives: { loading: () => undefined }, stubs },
+  })
+  await flushPromises()
+  return wrapper
+}
+
+const previewText = (wrapper: ReturnType<typeof mount>) =>
+  wrapper.find('[data-test="agent-content-preview"]').text()
+
+describe('正文流式展示', () => {
+  it('至少两段正文增量在完整结果提交前依次进入预览，完整结果仍走持久事件', async () => {
+    const wrapper = await mountView()
+    expect(handlers).not.toBeNull()
+
+    handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1', model: 'test-model' }))
+    await flushPromises()
+    handlers!.onContent!(frame('call-1', 1, '我先查看项目任务。'))
+    await flushPromises()
+    expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(true)
+    expect(previewText(wrapper)).toContain('我先查看项目任务。')
+
+    handlers!.onContent!(frame('call-1', 2, '我先查看项目任务。发现两项延期，正在核对里程碑。'))
+    await flushPromises()
+    expect(previewText(wrapper)).toContain('发现两项延期')
+
+    // 提交：带工具的轮次正文成为过渡说明，预览让位
+    handlers!.onEvent(event(2, 'MODEL_COMPLETED', { modelCallId: 'call-1', stepSequence: 1, toolCallCount: 1, content: '我先查看项目任务。' }))
+    await flushPromises()
+    expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('我先查看项目任务。')
+    wrapper.unmount()
+  })
+
+  it('纯文本最终轮：预览定格后由持久消息收口，最终回答只出现一次', async () => {
+    mocks.messages.mockResolvedValue(response([]))
+    const wrapper = await mountView()
+
+    handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1', model: 'test-model' }))
+    handlers!.onContent!(frame('call-1', 1, '结论：进度正常。'))
+    await flushPromises()
+    expect(previewText(wrapper)).toContain('结论：进度正常。')
+
+    // 提交纯文本轮：预览定格，等待最终消息
+    handlers!.onEvent(event(2, 'MODEL_COMPLETED', { modelCallId: 'call-1', stepSequence: 1, toolCallCount: 0, content: '结论：进度正常。' }))
+    handlers!.onEvent(event(3, 'RUN_SUCCEEDED', {}))
+    await flushPromises()
+    expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(true)
+
+    // 流结束 → 拉取运行与消息：ASSISTANT 消息落库，预览收口，回答只渲染一次
+    mocks.run.mockResolvedValue(response(detail('SUCCEEDED')))
+    mocks.messages.mockResolvedValue(response([
+      { id: 'm1', role: 'USER', content: '检查本周进度', sessionId: 'session-1', runId: 'run-1', citations: [], inferences: [], createdAt: '2026-10-06T10:00:00Z' },
+      { id: 'm2', role: 'ASSISTANT', content: '结论：进度正常。', sessionId: 'session-1', runId: 'run-1', citations: [], inferences: [], createdAt: '2026-10-06T10:00:05Z' },
+    ]))
+    releaseStream!()
+    await flushPromises()
+    expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(false)
+    const answers = wrapper.findAll('.answer-body')
+    expect(answers).toHaveLength(1)
+    expect(answers[0].text()).toContain('结论：进度正常。')
+    wrapper.unmount()
+  })
+
+  it('失败与自动重试：旧正文不冒充成功答案，重试新 call 不混旧文本，过期帧被忽略', async () => {
+    const wrapper = await mountView()
+
+    handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1', model: 'test-model' }))
+    handlers!.onContent!(frame('call-1', 1, '第一次尝试的正文。'))
+    await flushPromises()
+    expect(previewText(wrapper)).toContain('第一次尝试的正文。')
+
+    handlers!.onEvent(event(2, 'RUN_FAILED', { errorCode: 'AI_PROVIDER_ERROR', retryable: true }))
+    await flushPromises()
+    expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(false)
+
+    // 自动重试：新 MODEL_STARTED 重开预览；旧 call 的迟到帧与过期 revision 不生效
+    handlers!.onEvent(event(3, 'MODEL_STARTED', { modelCallId: 'call-2', model: 'test-model' }))
+    handlers!.onContent!(frame('call-1', 3, '旧请求的迟到帧'))
+    handlers!.onContent!(frame('call-2', 1, '重试后的正文。'))
+    handlers!.onContent!(frame('call-2', 1, '重复 revision 不重复拼接'))
+    handlers!.onContent!(frame('call-2', 2, '重试后的正文。继续生成。'))
+    await flushPromises()
+    expect(previewText(wrapper)).toContain('重试后的正文。继续生成。')
+    expect(previewText(wrapper)).not.toContain('第一次尝试')
+    expect(previewText(wrapper)).not.toContain('旧请求的迟到帧')
+    wrapper.unmount()
+  })
+
+  it('可恢复失败不显示在途分析行之外的旧预览；暂停确认后预览清空', async () => {
+    const wrapper = await mountView()
+
+    handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1', model: 'test-model' }))
+    handlers!.onContent!(frame('call-1', 1, '在途正文。'))
+    await flushPromises()
+    expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(true)
+
+    handlers!.onEvent(event(2, 'RUN_PAUSED', {}))
+    await flushPromises()
+    expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('预览上限：到限仅停止追加展示，不丢弃 revision 推进', async () => {
+    const wrapper = await mountView()
+    handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1', model: 'test-model' }))
+    const long = '字'.repeat(9000)
+    handlers!.onContent!(frame('call-1', 1, long))
+    await flushPromises()
+    expect(previewText(wrapper).length).toBeLessThan(9000)
+    expect(wrapper.text()).toContain('已停止预览追加')
+    // 超限后 revision 仍前进， shorter frame 不回退
+    handlers!.onContent!(frame('call-1', 2, `${long}更多`))
+    await flushPromises()
+    expect(previewText(wrapper).length).toBeLessThan(9000)
+    wrapper.unmount()
+  })
+})
+
+describe('预览生命周期跟随被时间线接受的持久事件', () => {
+  it('重复序号的 MODEL_STARTED 不清空当前预览', async () => {
+    const wrapper = await mountView()
+    try {
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      handlers!.onContent!(frame('call-1', 1, '当前已经生成的完整预览'))
+      await flushPromises()
+      expect(previewText(wrapper)).toContain('当前已经生成的完整预览')
+      // 重复序号：时间线拒绝该事件，预览生命周期不得被重新置空
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      await flushPromises()
+      expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(true)
+      expect(previewText(wrapper)).toContain('当前已经生成的完整预览')
+    } finally { wrapper.unmount() }
+  })
+
+  it('旧请求的完成事件不清掉新请求的预览', async () => {
+    const wrapper = await mountView()
+    try {
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      handlers!.onEvent(event(2, 'MODEL_COMPLETED', { modelCallId: 'call-1', toolCallCount: 1 }))
+      handlers!.onEvent(event(3, 'MODEL_STARTED', { modelCallId: 'call-2' }))
+      handlers!.onContent!(frame('call-2', 1, '第二次请求的当前预览'))
+      await flushPromises()
+      expect(previewText(wrapper)).toContain('第二次请求的当前预览')
+      // 旧序号：时间线拒绝，不得清掉当前请求的预览
+      handlers!.onEvent(event(2, 'MODEL_COMPLETED', { modelCallId: 'call-1', toolCallCount: 1 }))
+      await flushPromises()
+      expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(true)
+      expect(previewText(wrapper)).toContain('第二次请求的当前预览')
+    } finally { wrapper.unmount() }
+  })
+
+  it('已结束请求等待最终消息时不再接受迟到正文', async () => {
+    const wrapper = await mountView()
+    try {
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      handlers!.onContent!(frame('call-1', 1, '已经提交的完整正文'))
+      handlers!.onEvent(event(2, 'MODEL_COMPLETED', { modelCallId: 'call-1', toolCallCount: 0, content: '已经提交的完整正文' }))
+      await flushPromises()
+      expect(previewText(wrapper)).toContain('已经提交的完整正文')
+      handlers!.onContent!(frame('call-1', 2, '迟到帧改写了已提交正文'))
+      await flushPromises()
+      expect(previewText(wrapper)).toContain('已经提交的完整正文')
+      expect(previewText(wrapper)).not.toContain('迟到帧改写')
+    } finally { wrapper.unmount() }
+  })
+})
+
+describe('控制标记不作为正文展示', () => {
+  it('预览不显示 [QUESTIONS] 控制前缀，只显示自然语言问题', async () => {
+    const wrapper = await mountView()
+    try {
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      handlers!.onContent!(frame('call-1', 1, '[QUESTIONS]\n请确认本周的统计范围。'))
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('[QUESTIONS]')
+      expect(previewText(wrapper)).toContain('请确认本周的统计范围。')
+    } finally { wrapper.unmount() }
+  })
+
+  it('分片到达的控制前缀暂缓展示，判明前不闪出半截标记', async () => {
+    const wrapper = await mountView()
+    try {
+      handlers!.onEvent(event(1, 'MODEL_STARTED', { modelCallId: 'call-1' }))
+      handlers!.onContent!(frame('call-1', 1, '[QUE'))
+      await flushPromises()
+      expect(wrapper.find('[data-test="agent-content-preview"]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('[QUE')
+      handlers!.onContent!(frame('call-1', 2, '[QUESTIONS]\n请确认范围。'))
+      await flushPromises()
+      expect(previewText(wrapper)).toContain('请确认范围。')
+      expect(wrapper.text()).not.toContain('[QUESTIONS]')
+    } finally { wrapper.unmount() }
+  })
+
+  it('持久化的澄清消息也不显示控制标记', async () => {
+    mocks.messages.mockResolvedValue(response([
+      { id: 'm1', role: 'ASSISTANT', content: '[QUESTIONS]\n请确认本周的统计范围。', sessionId: 'session-1', runId: 'run-1', citations: [], inferences: [], createdAt: '2026-10-06T10:00:05Z' },
+    ]))
+    const wrapper = await mountView()
+    try {
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('[QUESTIONS]')
+      expect(wrapper.text()).toContain('请确认本周的统计范围。')
+    } finally { wrapper.unmount() }
+  })
+})

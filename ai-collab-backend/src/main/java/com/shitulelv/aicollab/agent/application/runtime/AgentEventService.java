@@ -41,4 +41,9 @@ public class AgentEventService {
         if (repository.exists(projectId, runId, type)) return null;
         return append(projectId, runId, type, safePayload);
     }
+
+    /** 临时正文帧的轻量转发（见 AgentEventStreamService#publishContentDelta）；不走持久事件入口。 */
+    public void publishContentDelta(UUID projectId, UUID runId, Object payload) {
+        streams.publishContentDelta(projectId, runId, payload);
+    }
 }

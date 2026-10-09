@@ -1,0 +1,259 @@
+{
+  "formalTasks": 0,
+  "at": "2026-10-04T07:22:04.2637768Z",
+  "turnsExecuted": 24,
+  "adapter": "production",
+  "results": [
+    {
+      "turn": 1,
+      "runId": "7a569f6d-e7b6-457e-b669-c8bd15378622",
+      "runtimeStatus": "BUDGET_EXCEEDED",
+      "quality": "FAIL: input budget exhausted",
+      "toolNames": [
+        "get_document_outline",
+        "search_project_knowledge",
+        "read_document_section",
+        "read_document_section",
+        "read_document_section",
+        "read_document_section",
+        "read_document_section",
+        "read_document_section"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 2,
+      "runId": "d7dc3f26-a0a0-4b61-ae62-2f4d757e5055",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "PARTIAL: fallback tool evidence, no complete answer",
+      "toolNames": [
+        "get_document_outline",
+        "list_project_documents",
+        "read_document_section",
+        "read_document_section"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 3,
+      "runId": "4ca9a5c0-cb34-4fa9-8ac9-6e609942f179",
+      "runtimeStatus": "BUDGET_EXCEEDED",
+      "quality": "FAIL: input budget exhausted",
+      "toolNames": [
+        "read_document_section",
+        "read_document_section",
+        "read_document_section",
+        "read_document_section",
+        "read_document_section",
+        "read_document_section",
+        "read_document_section",
+        "read_document_section"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 4,
+      "runId": "9999fe15-6f47-45bf-9e39-3a6ec0ce8d7c",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [
+        "read_document_section"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 5,
+      "runId": "88de8d7d-f31f-4df3-9477-731aaa23a461",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [
+        "get_project_overview",
+        "list_project_members"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 6,
+      "runId": "22082ef8-f694-4b15-a269-13461099cdd7",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "FAIL: historical blueprint treated as current tool limitation",
+      "toolNames": [
+        "read_document_section",
+        "read_document_section",
+        "read_document_section",
+        "read_document_section"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 7,
+      "runId": "13527956-931e-4f6e-8411-ecefd78d1470",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [
+        "read_document_section",
+        "read_document_section"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 8,
+      "runId": "dbaae811-22fb-483c-b948-8e9cdbc18429",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "FAIL: historical blueprint treated as current tool limitation",
+      "toolNames": [
+        "list_tasks"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 9,
+      "runId": "386535b7-2851-4e4f-978b-56c05c83dc45",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [
+        "read_document_section"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 10,
+      "runId": "f50917b5-b29e-446c-8fee-30f8a78c7890",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 11,
+      "runId": "4213ef58-fc7f-4ab5-83ce-38dc34721791",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [
+        "read_document_section",
+        "read_document_section",
+        "list_task_plans"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 12,
+      "runId": "1ae6d2f9-c49c-4620-ae7a-a1545f1f7ce0",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 13,
+      "runId": "9dfb7bb9-22ea-497a-9fa4-035eac6a8bed",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 14,
+      "runId": "1b14e282-c24c-42d2-906c-600e81108357",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "FAIL: excerpt retrieval overstated as full document coverage",
+      "toolNames": [
+        "search_project_knowledge",
+        "search_project_knowledge"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 15,
+      "runId": "f5315b15-371b-4df4-a9ca-2478474416c4",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 16,
+      "runId": "7d992cea-4868-42bc-9fcc-e956ddfe2ed0",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "FAIL: overly broad absence claim retained",
+      "toolNames": [],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 17,
+      "runId": "09c8ab4f-f7a6-4354-adba-404574f9e324",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 18,
+      "runId": "4a99c72f-eb44-4ac0-91e9-162c8d10aaf7",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 19,
+      "runId": "9a84b6fe-54b6-4c51-b4c2-2fde3b7c7f0c",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 20,
+      "runId": "1691a164-ee6b-4b7c-b9b8-62fbfbe3e930",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [
+        "read_document_section"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 21,
+      "runId": "f3a79ae7-2e06-4c69-bdf6-3bec55ec6856",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [
+        "list_tasks",
+        "list_tasks"
+      ],
+      "summaryRequests": 0
+    },
+    {
+      "turn": 22,
+      "runId": "79ad39d8-2bfa-44d5-aa49-4fdab1d30835",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "LIMITATION: repeats earlier broad fee absence claim",
+      "toolNames": [],
+      "summaryRequests": 1
+    },
+    {
+      "turn": 23,
+      "runId": "77aae4bc-0d05-4f01-8fc6-760093b88f91",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "FAIL: accepted operation, actual skeleton invalid output",
+      "toolNames": [
+        "start_task_plan"
+      ],
+      "summaryRequests": 1
+    },
+    {
+      "turn": 24,
+      "runId": "b3958b81-4b69-42a2-a60a-a36b8e601abf",
+      "runtimeStatus": "SUCCEEDED",
+      "quality": "Reviewed; see original response and scenario, no automatic quality pass",
+      "toolNames": [
+        "list_task_plans"
+      ],
+      "summaryRequests": 1
+    }
+  ],
+  "overall": "NOT_ACCEPTED",
+  "summaryRequests": 3,
+  "provider": "space-bunny-free"
+}

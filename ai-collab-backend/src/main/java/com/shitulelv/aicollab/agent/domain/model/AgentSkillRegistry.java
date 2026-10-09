@@ -46,6 +46,7 @@ public final class AgentSkillRegistry {
             new AbstractMap.SimpleEntry<>("研究", "PROJECT_RESEARCH"),
             new AbstractMap.SimpleEntry<>("research", "PROJECT_RESEARCH"),
             // 任务创建/管理相关 → ITERATION_PLANNING（有 create_task_after_approval）
+            new AbstractMap.SimpleEntry<>("提案", "ITERATION_PLANNING"),
             new AbstractMap.SimpleEntry<>("创建任务", "ITERATION_PLANNING"),
             new AbstractMap.SimpleEntry<>("新建任务", "ITERATION_PLANNING"),
             new AbstractMap.SimpleEntry<>("添加任务", "ITERATION_PLANNING"),
@@ -112,6 +113,7 @@ public final class AgentSkillRegistry {
         // 2. goal 关键词匹配
         if (userGoal != null && !userGoal.isBlank()) {
             String goalLower = userGoal.toLowerCase();
+            if(goalLower.contains("规划") || goalLower.contains("迭代") || goalLower.contains("planning")) return require("ITERATION_PLANNING");
             for (Map.Entry<String, String> entry : GOAL_KEYWORD_SKILLS) {
                 if (goalLower.contains(entry.getKey())) {
                     return require(entry.getValue());

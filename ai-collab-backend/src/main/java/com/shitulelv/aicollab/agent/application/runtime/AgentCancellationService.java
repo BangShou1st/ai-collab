@@ -15,6 +15,18 @@ import java.util.UUID;
 @Service
 public class AgentCancellationService {
     private final AgentRepository repository;
+    private final java.util.concurrent.ConcurrentMap<UUID, Thread> running = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public AutoCloseable register(UUID runId) {
+        Thread thread = Thread.currentThread();
+        running.put(runId, thread);
+        return () -> { running.remove(runId, thread); Thread.interrupted(); };
+    }
+
+    public void interrupt(UUID runId) {
+        Thread thread = running.get(runId);
+        if (thread != null) thread.interrupt();
+    }
 
     public AgentCancellationService(AgentRepository repository) {
         this.repository = repository;
@@ -43,6 +55,7 @@ public class AgentCancellationService {
     public boolean isCancelable(AgentRunStatus status) {
         return status == AgentRunStatus.QUEUED
                 || status == AgentRunStatus.RUNNING
+                || status == AgentRunStatus.PAUSED
                 || status == AgentRunStatus.WAITING_FOR_APPROVAL
                 || status == AgentRunStatus.WAITING_FOR_USER_INPUT
                 || status == AgentRunStatus.FAILED_RETRYABLE;

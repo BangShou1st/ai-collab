@@ -1,0 +1,292 @@
+{
+  "turn": 7,
+  "codeVersion": "de032f5dcbcaa277a6790bf3421a13719512accc",
+  "prompt": "文档已解析正文但向量服务失败时，用户还能读什么？旧引用重建后应该怎样处理？给出两条可判定验收标准。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+  "executionDate": "2026-10-04",
+  "batch": "rootfix-minimal",
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG",
+  "run": {
+    "id": "04739f3a-ccdb-4dc2-b4ec-a67c78b4af42",
+    "sessionId": "4f00881c-04ed-47c8-9229-f449af54de6e",
+    "projectId": "f29b6731-095e-4484-af41-139502a05024",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "文档已解析正文但向量服务失败时，用户还能读什么？旧引用重建后应该怎样处理？给出两条可判定验收标准。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 5,
+    "toolCallsUsed": 2,
+    "childrenUsed": 0,
+    "inputTokensUsed": 25183,
+    "outputTokensUsed": 1163,
+    "inputTokensActual": 25183,
+    "outputTokensActual": 1163,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"4d6b959e-4734-4570-af30-a2e57fb7bba9\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 9,
+    "createdAt": "2026-10-04T11:41:41.463624Z",
+    "updatedAt": "2026-10-04T11:42:05.279819Z"
+  },
+  "session": {
+    "id": "4f00881c-04ed-47c8-9229-f449af54de6e",
+    "projectId": "f29b6731-095e-4484-af41-139502a05024",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "根因修复复验 rootfix-minimal",
+    "status": "ACTIVE",
+    "version": 7,
+    "createdAt": "2026-10-04T11:37:36.6681Z",
+    "updatedAt": "2026-10-04T11:41:41.463624Z"
+  },
+  "steps": [
+    {
+      "id": "2f037711-f7bb-4e48-adbd-f15c5e3ef444",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 11985,
+          "outputTokens": 708
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 13459,
+        "toolCalls": [
+          {
+            "id": "call_function_spcd94w34v24_1",
+            "name": "read_document_section",
+            "arguments": {
+              "heading": "5.2 来源身份、定位与版本",
+              "maxChars": 1500,
+              "documentId": "4d6b959e-4734-4570-af30-a2e57fb7bba9"
+            }
+          },
+          {
+            "id": "call_function_spcd94w34v24_2",
+            "name": "list_project_documents",
+            "arguments": {
+              "limit": 1
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 11985,
+      "completionTokens": 708,
+      "tokenUsageEstimated": false,
+      "latencyMs": 13459,
+      "errorCode": null,
+      "createdAt": "2026-10-04T11:41:55.855571Z"
+    },
+    {
+      "id": "874b9f5f-65cb-419a-91d2-6f4576ea17f5",
+      "sequence": 2,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "read_document_section",
+      "input": {
+        "arguments": {
+          "heading": "5.2 来源身份、定位与版本",
+          "maxChars": 1500,
+          "documentId": "4d6b959e-4734-4570-af30-a2e57fb7bba9"
+        },
+        "toolCallId": "call_function_spcd94w34v24_1"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "chunkId": "b374b1da-9160-4326-8f65-05c36611682a",
+              "chunkNo": 12,
+              "content": "至少区分：文档逻辑 ID、原件内容 hash/内容版本、解析/分块策略版本、embedding generation，以及用于并发控制的记录 version。\n\n- 第一个切片不强制开发完整文档版本管理界面。先确保原件 hash、处理身份和引用能追溯，兼容旧文档；未知来源字段不能编造。\n- 新的章节/分块带原文定位信息。PDF 优先按页形成稳定文本，再清洗和分块；跨页保留起止页，避免用清洗前的 offset 定位清洗后文本。\n- 针对当前偏移风险先写多页、多标题、空白清洗样本；若复现，再最小修复。旧引用页码不能在无依据时自动重算成“正确”。\n- 新旧处理版本可区分；重建不能让旧 chunk ID 被当成新内容。历史引用显示来源快照或明确“来源已更新/已不可用”，禁止静默指向另一段。\n- 后续如支持“同一文档上传新版”，再引入显式文档版本及选择策略；原件不可被无痕覆盖。\n- 保留现有 embedding 候选代际、构建和显式激活；内容版本与 embedding 代际独立演进。新增正文/章节存储优先复用现有表或派生存储能力，DDL 由实现阶段盘点后确定。",
+              "heading": "5.2 来源身份、定位与版本",
+              "location": {
+                "charFrom": 6098,
+                "charThrough": 6580,
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2"
+              },
+              "fromOffset": 0,
+              "contentHash": "886254073c70a964595f696c871535003340da38826179df329f3b17e2c5d8ad",
+              "throughOffset": 482
+            }
+          ],
+          "trust": "SOURCE_DATA_ONLY",
+          "hasMore": false,
+          "coverage": "SPECIFIED_RANGE_ONLY",
+          "readChars": 482,
+          "truncated": false,
+          "documentId": "4d6b959e-4734-4570-af30-a2e57fb7bba9",
+          "snapshotId": "4a32e1c5-082b-4fd6-9a0b-cd630651484a",
+          "bodyReadable": true,
+          "continuation": null,
+          "failureStage": "检索索引",
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": false,
+          "processingStatus": "FAILED",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "至少区分：文档逻辑 ID、原件内容 hash/内容版本、解析/分块策略版本、embedding generation，以及用于并发控制的记录 version。\n\n- 第一个切片不强制开发完整文档版本管理界面。先确保原件 hash、处理身份和引用能追溯，兼容旧文档；未知来源字段不能编造。\n- 新的章节/分块带原文定位信息。PDF 优先按页形成稳定文本，再清洗和分块；跨页保留起止页，避免用清洗前的 offset 定位清洗后文本。\n- 针对当前偏移风险先写多页、多标题、空白清洗样本；若复现，再最小修复。旧引用页码不能在无依据时自动重算成“正确”。\n- 新旧处理版本可区分；重建不能让旧 chunk ID 被当成新内容。历史引用显示来源快照或明确“来源已更新/已不可用”，禁止静默指向另一段。\n- 后续如支持“同一文档上传新版”，再引入显式文档版本及选择策略；原件不可被无痕覆盖。\n- 保留现有 embedding 候选代际、构建和显式激活；内容版本与 embedding 代际独立演进。新增正文/章节存储优先复用现有表或派生存储能力，DDL 由实现阶段盘点后确定。",
+            "chunkId": "b374b1da-9160-4326-8f65-05c36611682a",
+            "heading": "5.2 来源身份、定位与版本",
+            "filename": "文档正文",
+            "documentId": "4d6b959e-4734-4570-af30-a2e57fb7bba9",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T11:41:55.872112Z"
+    },
+    {
+      "id": "50896290-db41-4392-9120-2f463b83fbc3",
+      "sequence": 3,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "list_project_documents",
+      "input": {
+        "arguments": {
+          "limit": 1
+        },
+        "toolCallId": "call_function_spcd94w34v24_2"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "filename": "ai-next-stage-blueprint.md",
+              "documentId": "4d6b959e-4734-4570-af30-a2e57fb7bba9",
+              "snapshotId": "4a32e1c5-082b-4fd6-9a0b-cd630651484a",
+              "displayName": "ai-collab下一阶段主蓝图",
+              "bodyReadable": true,
+              "failureStage": "检索索引",
+              "legacySource": false,
+              "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+              "recordVersion": 0,
+              "searchAvailable": false,
+              "processingStatus": "FAILED",
+              "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+            }
+          ],
+          "total": 1,
+          "hasMore": false,
+          "truncated": false,
+          "nextCursor": null
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T11:41:55.879383Z"
+    },
+    {
+      "id": "d6a97131-bc5f-465a-95b3-2e28c676570a",
+      "sequence": 4,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 13198,
+          "outputTokens": 455
+        },
+        "content": "**本轮来源**：文档 4d6b959e…，snapshot 4a32e1c5…；仅读 chunk 12「5.2 来源身份、定位与版本」前 200 字符（原文 482 字符，省 282）；`processingStatus=FAILED`、failureStage=检索索引、`searchAvailable=false`、`bodyReadable=true`。\n\n**还能读什么**（文档级事实+工具返回）：正文可读——`get_document_outline` 提纲（27 条）、`read_document_section` 按标题/块读取并带 continuation；`list_project_documents` 仍返回名称、类型、处理状态与来源身份。**不可用**：关键词/向量检索（`searchAvailable=false`），只能按 chunk 顺序读。未命中≠全文没有。\n\n**旧引用重建**（5.2 原文支持的部分）：「先确保原件 hash、处理身份和引用能追溯，兼容旧文档；未知来源字段不能编造」「新的章节/分块带原文定位信息」；须区分文档逻辑 ID、原件 hash、解析/分块策略版本、embedding generation、记录 version。→ 推断：旧 chunk 引用应按这五类身份解析，能对上则按定位续读，对不上或字段缺失时保留原引用并标注不可重建，不得用新 chunk 冒充旧来源。\n\n**两条可判定验收标准**（推断，源自上述条款）：\n1. 检索关闭时按标题/offset 读取任一章节，返回的 chunk 定位（charFrom/charThrough + parseVersion）与其内容 hash 可复现，引用可反查原件 hash。\n2. 用旧 snapshotId/旧 chunk 引用读取时：能解析则返回新快照对应原文并标注版本差异；无法解析则显式返回\"引用不可重建\"，且不返回任何新解析文本充数。\n\n**未读范围**：chunk 12 剩余 282 字符、chunk 13「5.3 检索质量与引用」全文（本轮只见标题）、chunk 14–27 未读；提纲本轮只定位 1 条。第五节完整条款仍需顺序续读才能定稿验收细则。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 8347,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "**本轮来源**：文档 4d6b959e…，snapshot 4a32e1c5…；仅读 chunk 12「5.2 来源身份、定位与版本」前 200 字符（原文 482 字符，省 282）；`processingStatus=FAILED`、failureStage=检索索引、`searchAvailable=false`、`bodyReadable=true`。\n\n**还能读什么**（文档级事实+工具返回）：正文可读——`get_document_outline` 提纲（27 条）、`read_document_section` 按标题/块读取并带 continuation；`list_project_documents` 仍返回名称、类型、处理状态与来源身份。**不可用**：关键词/向量检索（`searchAvailable=false`），只能按 chunk 顺序读。未命中≠全文没有。\n\n**旧引用重建**（5.2 原文支持的部分）：「先确保原件 hash、处理身份和引用能追溯，兼容旧文档；未知来源字段不能编造」「新的章节/分块带原文定位信息」；须区分文档逻辑 ID、原件 hash、解析/分块策略版本、embedding generation、记录 version。→ 推断：旧 chunk 引用应按这五类身份解析，能对上则按定位续读，对不上或字段缺失时保留原引用并标注不可重建，不得用新 chunk 冒充旧来源。\n\n**两条可判定验收标准**（推断，源自上述条款）：\n1. 检索关闭时按标题/offset 读取任一章节，返回的 chunk 定位（charFrom/charThrough + parseVersion）与其内容 hash 可复现，引用可反查原件 hash。\n2. 用旧 snapshotId/旧 chunk 引用读取时：能解析则返回新快照对应原文并标注版本差异；无法解析则显式返回\"引用不可重建\"，且不返回任何新解析文本充数。\n\n**未读范围**：chunk 12 剩余 282 字符、chunk 13「5.3 检索质量与引用」全文（本轮只见标题）、chunk 14–27 未读；提纲本轮只定位 1 条。第五节完整条款仍需顺序续读才能定稿验收细则。",
+      "promptTokens": 13198,
+      "completionTokens": 455,
+      "tokenUsageEstimated": false,
+      "latencyMs": 8347,
+      "errorCode": null,
+      "createdAt": "2026-10-04T11:42:05.272261Z"
+    },
+    {
+      "id": "d514ed1d-8417-4cb9-b5aa-72a390c26ad5",
+      "sequence": 5,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "**本轮来源**：文档 4d6b959e…，snapshot 4a32e1c5…；仅读 chunk 12「5.2 来源身份、定位与版本」前 200 字符（原文 482 字符，省 282）；`processingStatus=FAILED`、failureStage=检索索引、`searchAvailable=false`、`bodyReadable=true`。\n\n**还能读什么**（文档级事实+工具返回）：正文可读——`get_document_outline` 提纲（27 条）、`read_document_section` 按标题/块读取并带 continuation；`list_project_documents` 仍返回名称、类型、处理状态与来源身份。**不可用**：关键词/向量检索（`searchAvailable=false`），只能按 chunk 顺序读。未命中≠全文没有。\n\n**旧引用重建**（5.2 原文支持的部分）：「先确保原件 hash、处理身份和引用能追溯，兼容旧文档；未知来源字段不能编造」「新的章节/分块带原文定位信息」；须区分文档逻辑 ID、原件 hash、解析/分块策略版本、embedding generation、记录 version。→ 推断：旧 chunk 引用应按这五类身份解析，能对上则按定位续读，对不上或字段缺失时保留原引用并标注不可重建，不得用新 chunk 冒充旧来源。\n\n**两条可判定验收标准**（推断，源自上述条款）：\n1. 检索关闭时按标题/offset 读取任一章节，返回的 chunk 定位（charFrom/charThrough + parseVersion）与其内容 hash 可复现，引用可反查原件 hash。\n2. 用旧 snapshotId/旧 chunk 引用读取时：能解析则返回新快照对应原文并标注版本差异；无法解析则显式返回\"引用不可重建\"，且不返回任何新解析文本充数。\n\n**未读范围**：chunk 12 剩余 282 字符、chunk 13「5.3 检索质量与引用」全文（本轮只见标题）、chunk 14–27 未读；提纲本轮只定位 1 条。第五节完整条款仍需顺序续读才能定稿验收细则。",
+        "citations": [
+          {
+            "quote": "至少区分：文档逻辑 ID、原件内容 hash/内容版本、解析/分块策略版本、embedding generation，以及用于并发控制的记录 version。\n\n- 第一个切片不强制开发完整文档版本管理界面。先确保原件 hash、处理身份和引用能追溯，兼容旧文档；未知来源字段不能编造。\n- 新的章节/分块带原文定位信息。PDF 优先按页形成稳定文本，再清洗和分块；跨页保留起止页，避免用清洗前的 offset 定位清洗后文本。\n- 针对当前偏移风险先写多页、多标题、空白清洗样本；若复现，再最小修复。旧引用页码不能在无依据时自动重算成“正确”。\n- 新旧处理版本可区分；重建不能让旧 chunk ID 被当成新内容。历史引用显示来源快照或明确“来源已更新/已不可用”，禁止静默指向另一段。\n- 后续如支持“同一文档上传新版”，再引入显式文档版本及选择策略；原件不可被无痕覆盖。\n- 保留现有 embedding 候选代际、构建和显式激活；内容版本与 embedding 代际独立演进。新增正文/章节存储优先复用现有表或派生存储能力，DDL 由实现阶段盘点后确定。",
+            "chunkId": "b374b1da-9160-4326-8f65-05c36611682a",
+            "heading": "5.2 来源身份、定位与版本",
+            "filename": "文档正文",
+            "documentId": "4d6b959e-4734-4570-af30-a2e57fb7bba9",
+            "pageNumber": null,
+            "similarity": 1.0
+          }
+        ],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T11:42:05.279819Z"
+    }
+  ],
+  "answer": {
+    "id": "dd935691-0189-4191-8e43-60e082f4356e",
+    "sessionId": "4f00881c-04ed-47c8-9229-f449af54de6e",
+    "runId": "04739f3a-ccdb-4dc2-b4ec-a67c78b4af42",
+    "role": "ASSISTANT",
+    "content": "**本轮来源**：文档 4d6b959e…，snapshot 4a32e1c5…；仅读 chunk 12「5.2 来源身份、定位与版本」前 200 字符（原文 482 字符，省 282）；`processingStatus=FAILED`、failureStage=检索索引、`searchAvailable=false`、`bodyReadable=true`。\n\n**还能读什么**（文档级事实+工具返回）：正文可读——`get_document_outline` 提纲（27 条）、`read_document_section` 按标题/块读取并带 continuation；`list_project_documents` 仍返回名称、类型、处理状态与来源身份。**不可用**：关键词/向量检索（`searchAvailable=false`），只能按 chunk 顺序读。未命中≠全文没有。\n\n**旧引用重建**（5.2 原文支持的部分）：「先确保原件 hash、处理身份和引用能追溯，兼容旧文档；未知来源字段不能编造」「新的章节/分块带原文定位信息」；须区分文档逻辑 ID、原件 hash、解析/分块策略版本、embedding generation、记录 version。→ 推断：旧 chunk 引用应按这五类身份解析，能对上则按定位续读，对不上或字段缺失时保留原引用并标注不可重建，不得用新 chunk 冒充旧来源。\n\n**两条可判定验收标准**（推断，源自上述条款）：\n1. 检索关闭时按标题/offset 读取任一章节，返回的 chunk 定位（charFrom/charThrough + parseVersion）与其内容 hash 可复现，引用可反查原件 hash。\n2. 用旧 snapshotId/旧 chunk 引用读取时：能解析则返回新快照对应原文并标注版本差异；无法解析则显式返回\"引用不可重建\"，且不返回任何新解析文本充数。\n\n**未读范围**：chunk 12 剩余 282 字符、chunk 13「5.3 检索质量与引用」全文（本轮只见标题）、chunk 14–27 未读；提纲本轮只定位 1 条。第五节完整条款仍需顺序续读才能定稿验收细则。",
+    "citations": [
+      {
+        "quote": "至少区分：文档逻辑 ID、原件内容 hash/内容版本、解析/分块策略版本、embedding generation，以及用于并发控制的记录 version。\n\n- 第一个切片不强制开发完整文档版本管理界面。先确保原件 hash、处理身份和引用能追溯，兼容旧文档；未知来源字段不能编造。\n- 新的章节/分块带原文定位信息。PDF 优先按页形成稳定文本，再清洗和分块；跨页保留起止页，避免用清洗前的 offset 定位清洗后文本。\n- 针对当前偏移风险先写多页、多标题、空白清洗样本；若复现，再最小修复。旧引用页码不能在无依据时自动重算成“正确”。\n- 新旧处理版本可区分；重建不能让旧 chunk ID 被当成新内容。历史引用显示来源快照或明确“来源已更新/已不可用”，禁止静默指向另一段。\n- 后续如支持“同一文档上传新版”，再引入显式文档版本及选择策略；原件不可被无痕覆盖。\n- 保留现有 embedding 候选代际、构建和显式激活；内容版本与 embedding 代际独立演进。新增正文/章节存储优先复用现有表或派生存储能力，DDL 由实现阶段盘点后确定。",
+        "chunkId": "b374b1da-9160-4326-8f65-05c36611682a",
+        "heading": "5.2 来源身份、定位与版本",
+        "filename": "文档正文",
+        "documentId": "4d6b959e-4734-4570-af30-a2e57fb7bba9",
+        "pageNumber": null,
+        "similarity": 1.0
+      }
+    ],
+    "inferences": [],
+    "createdAt": "2026-10-04T11:42:05.279819Z"
+  }
+}

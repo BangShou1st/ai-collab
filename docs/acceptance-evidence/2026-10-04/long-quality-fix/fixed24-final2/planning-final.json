@@ -1,0 +1,147 @@
+{
+  "plan": {
+    "id": "9961219f-3651-4a1d-9336-208d075c4667",
+    "projectId": "b18fb2f7-6d9f-4baa-8f50-bd6495caa7ea",
+    "title": "ai-collab可靠性验收24轮",
+    "goal": "为 ai-collab 产出发布前可靠性验收的完整规划草稿，覆盖六类故障场景并给出可判定验收标准：1) 长对话下的约束持续覆盖（早期约束在多轮后仍有效，摘要须带 sourceFrom/sourceThrough 范围、来源 ID、schemaVersion、策略版本与 state revision，区间无空洞，旧摘要提交须被事务规则拒绝）；2) 模型超时（超时先查原 operation，不得直接重新生成，重放同一 invocation 返回原 operation，同键不同参数拒绝，429/不可用/结构错误/版本冲突分开展示，该次调用计入父操作总调用上限与费用关联）；3) 排队后进程重启（重启视为重放而非新意图，不得新建第二份规划；须持久保留 operation→plan→attempt 链、projectId/requesterId/sessionId/goalRevision/originRunId/invocation ID、幂等映射与 attempt 所有权）；4) 生成过程中重启（不续接半段模型输出，失败即终态，旧草稿原样保留且版本可读，可继续路径为重试重放原 operation 或绑定最新版本局部修订仅改白名单字段，新建第二份规划不算可继续）；5) 取消竞争（取消须针对拥有该 attempt 的服务并与 attempt 状态原子生效，关网页不等于取消，停止回答与取消规划生成分开，已提交正式任务不因 Agent 中止而删除）；6) 证据收口（每项判定须有可复现记录：请求、返回状态、拒绝原因；基础设施不可用时记为待验证项，不得修改业务数据制造通过）。所有任务建议负责人固定为 Local Owner；本规划为草稿，不得由 Agent 自动确认，正式确认由用户在规划页审阅并确认指定版本。",
+    "constraints": "硬约束（用户锁定，不得改动）：1) 规划区间固定 2026-10-05 至 2026-10-25，起止日期均不得调整；该区间已核对落在项目周期 2026-10-04 至 2026-10-31 内，无越界。2) 全部任务建议负责人固定为 Local Owner，不得分散到其他成员；该项目成员列表仅此 1 人（role OWNER，userId 取自成员列表工具返回，非猜测），6 项由同一人承担，无并行余量。3) 任务数量最多 6 项（已依次取代更早的 10 项、8 项口径），不得超出。4) 规划须包含里程碑、任务间无环依赖（形成有向无环图，禁止循环引用与自依赖）、每项任务带可判定的验收标准（明确的通过/不通过判定条件，不使用主观描述）。5) 不得自动批准：本期不提供 Agent 可执行的正式规划确认工具，草稿须由用户打开规划页审阅并人工确认指定版本；不得以多次单项 create_task_after_approval 提案替代完整规划，以规避批量依赖校验与事务。\n\n证据边界（必须在规划中如实体现）：6) 上述验收要点来源于主蓝图 ai-next-stage-blueprint.md（文档 5502508e-afdc-4432-b4e2-88ee46597fa4，快照 85c7602e…）第 4.2、4.4、6.1、6.3 节已读正文片段，其 sourceAuthority 为 DOCUMENT_CONTENT_AT_SNAPSHOT_NOT_CURRENT_RUNTIME_CAPABILITY，即快照时刻的设计要求，不等于运行时已具备或已验收。7) 截至本轮，本项目任务列表为空（total=0、hasMore=false、未截断），无重名候选；里程碑列表与规划列表本轮未查询。8) 蓝图 6.2、6.4 节按标题定位读取返回 items 为空、按字符区间读取报 TOOL_EXECUTION_FAILED，故\"异步操作关联\"与\"资料与约束传递\"的原文本轮未取得，相关条款目前仅有历史助手陈述，不得作为已核验事实引用；若规划需要引用该两节原文，应标注为待核验来源。9) 文档提纲共 27 个标题、确定性投影仅返回 3 个，24 个未返回；检索为确定性投影，各有命中未返回。10) 交付报告 next-stage-delivery-report.md 与能力矩阵 capability-matrix.md 本轮未读取，因此六项验收目前均无通过证据，规划不得写入任何\"已通过\"结论。11) 采购费用核对属另一独立目标，不纳入本规划。",
+    "planStartDate": "2026-10-05",
+    "planDueDate": "2026-10-25",
+    "maxTaskCount": 6,
+    "selectedDocumentIdsJson": "[\"5502508e-afdc-4432-b4e2-88ee46597fa4\"]",
+    "status": "READY",
+    "latestVersionNo": 2,
+    "latestVersionId": "9e0870ae-a931-4370-9ad6-a0984b2233ed",
+    "generationSeq": 1,
+    "activeAttemptId": null,
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "lastErrorCode": null,
+    "lastErrorSummary": null,
+    "createdAt": "2026-10-04T09:12:22.103829Z",
+    "updatedAt": "2026-10-04T09:13:48.693399Z"
+  },
+  "latestVersion": {
+    "id": "9e0870ae-a931-4370-9ad6-a0984b2233ed",
+    "versionNo": 2,
+    "sourceType": "AI_REPAIR",
+    "basedOnVersionId": "3d69c6d1-41f1-4cfd-8cc9-a3447085e03f",
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "createdAt": "2026-10-04 17:13:48.693399"
+  },
+  "activeAttempt": null,
+  "latestFailedAttempt": {
+    "id": "dc02e86a-4a7d-4a0e-95db-53855cdb4ff8",
+    "stage": "DETAIL",
+    "status": "FAILED",
+    "provider": null,
+    "model": null,
+    "startedAt": "2026-10-04 17:13:13.89841",
+    "finishedAt": "2026-10-04 17:13:46.295306",
+    "latencyMs": null,
+    "promptTokens": null,
+    "completionTokens": null,
+    "errorCode": "PLANNING_MODEL_INVALID_OUTPUT",
+    "errorSummary": null,
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+  },
+  "latestAttempt": {
+    "id": "dedc27f7-bb97-4af9-a097-ca8cf9bdf3b6",
+    "stage": "REPAIR",
+    "status": "SUCCESS",
+    "provider": "OPENAI_COMPATIBLE",
+    "model": "space-bunny-free",
+    "startedAt": "2026-10-04 17:13:46.295306",
+    "finishedAt": "2026-10-04 17:13:48.786059",
+    "latencyMs": 2349,
+    "promptTokens": 18513,
+    "completionTokens": 46,
+    "errorCode": null,
+    "errorSummary": null,
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+  },
+  "confirmation": null,
+  "validation": {
+    "errors": [],
+    "warnings": [
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED"
+    ]
+  },
+  "permissions": {
+    "canEdit": true,
+    "canCancel": false,
+    "canRetryDetail": false,
+    "canRegenerate": true,
+    "canConfirm": true,
+    "canDelete": true,
+    "canRestore": true,
+    "canPartialRegenerate": true
+  },
+  "structuredIssues": [
+    {
+      "id": "742be83d-78eb-476b-810b-e34978dae3ba",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T1-BASELINE",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "d988b922-e01a-47fa-8078-a434407ecc02",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T2-CONSTRAINT",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "8feea25b-75ee-4c97-9f06-47879857c534",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T3-TIMEOUT",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "46685217-6e73-4d46-8d6d-6403eec73b86",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T4-RESTART-QUEUED",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "1a4ef4c4-34cb-410d-88c5-e4c84f09f6eb",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T5-RESTART-MIDGEN",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "0c30f225-855d-4a1f-a3d1-8895066dfc1f",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T6-CANCEL-CLOSEOUT",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    }
+  ],
+  "repairDiagnostics": []
+}

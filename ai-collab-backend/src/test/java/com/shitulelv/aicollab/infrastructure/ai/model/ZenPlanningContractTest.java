@@ -57,6 +57,7 @@ class ZenPlanningContractTest {
         assertThat(result.content()).isEqualTo("{\"ok\":true}");
         assertThat(captured[0].path("stream").asBoolean()).isTrue();
         assertThat(captured[0].has("response_format")).isFalse();
+        assertThat(captured[0].path("tool_choice").asText()).isEqualTo("none");
         assertThat(forced.outputFormat()).isEqualTo(ChatCompletionCommand.OutputFormat.TEXT);
     }
 
@@ -73,9 +74,48 @@ class ZenPlanningContractTest {
         assertThat(runtime.baseUrl()).isEqualTo("https://opencode.ai/zen/v1");
     }
 
+    @Test void nativeFinalRequestWithToolHistoryDisablesTransportTools() throws Exception {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        final JsonNode[] captured = new JsonNode[1];
+        doAnswer(inv -> {
+            captured[0] = inv.getArgument(2);
+            BiConsumer<String, JsonNode> cb = inv.getArgument(3);
+            cb.accept("message", mapper.readTree("{\"choices\":[{\"delta\":{\"content\":\"已读部分不足以计算金额\"},\"finish_reason\":\"stop\"}]}"));
+            return null;
+        }).when(http).stream(anyString(), anyMap(), any(JsonNode.class), any(BiConsumer.class));
+        var call = new com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall("c1", "read_document_section", mapper.createObjectNode());
+        var messages = List.<com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage>of(
+                new com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage.User("原始费用问题"),
+                new com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage.Assistant("", List.of(call)),
+                new com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage.ToolResult("c1", call.name(), mapper.createObjectNode().put("coverage", "PARTIAL"), false));
+        var command = new com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand(ModelPurpose.AGENT, UUID.randomUUID(), null, messages, List.of(), false, UUID.randomUUID());
+        var result = new OpenAiCompatibleModelAdapter(mapper, http).turnWithSession(zenConfig(), "key", command, AiRequestMetadata.of("s"), "client");
+        assertThat(result.content()).contains("已读部分");
+        assertThat(captured[0].path("tool_choice").asText()).isEqualTo("none");
+        assertThat(captured[0].path("messages").size()).isEqualTo(3);
+        assertThat(captured[0].path("messages").get(2).path("tool_call_id").asText()).isEqualTo("c1");
+    }
+
     @Test void registryOwnsPresetCapabilities() {
         var pol = new ProviderPresetRegistry().require(ProviderPresetCode.OPENCODE_ZEN_FREE);
         assertThat(pol.capabilities()).containsExactlyInAnyOrder(ModelCapability.CHAT, ModelCapability.STREAMING,
                 ModelCapability.STRUCTURED_OUTPUT, ModelCapability.NATIVE_TOOLS, ModelCapability.USAGE);
+    }
+
+    @Test void emptyPlanningStreamKeepsSafeFinishAndUsageDiagnostics() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        doAnswer(inv -> {
+            BiConsumer<String, JsonNode> cb = inv.getArgument(3);
+            cb.accept("message", mapper.readTree("{\"choices\":[{\"delta\":{\"reasoning_content\":\"private reasoning\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":20,\"completion_tokens\":3}}"));
+            return null;
+        }).when(http).stream(anyString(), anyMap(), any(JsonNode.class), any(BiConsumer.class));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, http)
+                .completeStreamingSyncWithSession(zenConfig(), "private-key", jsonCommand(), AiRequestMetadata.of("corr"), "client"))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.getMessage()).contains("EMPTY_CONTENT", "finish=stop", "reasoningPresent=true")
+                            .doesNotContain("private reasoning", "private-key");
+                    assertThat(failure.promptTokens()).isEqualTo(20);
+                    assertThat(failure.completionTokens()).isEqualTo(3);
+                });
     }
 }

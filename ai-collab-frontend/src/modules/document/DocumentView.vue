@@ -19,6 +19,7 @@ import {
   type UploadCandidate,
 } from './document-upload'
 import type { ProjectDocument } from './types'
+import DocumentBodyReader from './DocumentBodyReader.vue'
 
 const route = useRoute()
 const projectId = String(route.params.projectId)
@@ -448,6 +449,7 @@ onUnmounted(() => {
 
     <el-drawer v-model="drawerVisible" title="文档详情" size="520px">
       <template v-if="selected">
+        <DocumentBodyReader :project-id="projectId" :document-id="selected.id" />
         <dl class="document-detail">
           <dt>显示名称</dt><dd>{{ selected.displayName }}</dd>
           <dt>原始文件名</dt><dd>{{ selected.originalFilename }}</dd>

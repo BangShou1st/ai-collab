@@ -1,0 +1,319 @@
+{
+  "session": {
+    "id": "a80fc706-410a-4503-a972-f0d1d71eda52",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "四类失败复验 minimal-fixed",
+    "status": "ACTIVE",
+    "version": 2,
+    "createdAt": "2026-10-04T08:05:28.427433Z",
+    "updatedAt": "2026-10-04T08:06:48.911073Z"
+  },
+  "answer": {
+    "id": "852e0f16-2c31-4699-a316-d9f62dc6ec58",
+    "sessionId": "a80fc706-410a-4503-a972-f0d1d71eda52",
+    "runId": "1614241f-3ee3-43c6-9f44-38b790f9a66a",
+    "role": "ASSISTANT",
+    "content": "已读取所选蓝图《AI Collab 下一阶段总设计：上下文、文档与规划协作》（documentId 6c164058-05cf-4a3d-9f2c-1dcc17d14211）的**提纲**，结构标记为 HEURISTIC_HEADINGS（启发式识别），共 27 节，`truncated: false`，snapshotId `bea5454c-…`，处理状态 READY。\n\n**本轮只读了提纲，没有读这些章节正文**，所以下面只是\"目录里实际存在的章节\"，不代表已通读其中任何一节。另外其中 3 条是表格表头行被识别成标题（`| 范围 | 已有能力与源码依据 |`、`| 阶段 | 交付范围 | 完成条件 |`、`向 Agent 暴露受项目权限约束的：`），不是独立章节。\n\n## 一、上下文相关（提纲中实际存在）\n\n| 提纲标题 | 所在块 |\n|---|---|\n| AI Collab 下一阶段总设计：上下文、文档与规划协作（文档标题节） | chunk 0 |\n| 2. 当前状态与具体缺口 | chunk 2 |\n| 3. 目标结构与责任划分 | chunk 5 |\n| 4.1 六类数据必须分开 | chunk 6 |\n| 4.2 单次输入预算与整个运行预算分开 | chunk 7 |\n| 4.3 结构化工作状态与目标连续性 | chunk 8 |\n| 4.4 摘要与压缩 | chunk 9 |\n| 5.1 先补按需读取，不先扩张解析种类 | chunk 10 |\n| 5.2 来源身份、定位与版本 | chunk 12 |\n| 5.3 检索质量与引用 | chunk 13 |\n| 6.4 资料与约束传递 | chunk 18 |\n\n## 二、恢复相关\n\n**需要明确：提纲里没有任何一节标题直接含\"恢复/续跑/接续\"字样。** 与该主题最接近的现有章节是：\n\n| 提纲标题 | 所在块 | 与\"恢复\"的关联（推断，未读正文） |\n|---|---|---|\n| 4.3 结构化工作状态与目标连续性 | chunk 8 | 目标连续性≈中断后接续/恢复的依据 |\n| 4.4 摘要与压缩 | chunk 9 | 压缩后能否还原上下文 |\n| 6.2 异步操作关联 | chunk 16 | 异步受理与结果归属，关系到恢复时的关联 |\n| 6.3 权限、预算、模型与取消 | chunk 17 | 取消与恢复的边界 |\n| 5.2 来源身份、定位与版本 | chunk 12 | 恢复时定位到正确版本 |\n| 2. 当前状态与具体缺口 | chunk 2 | 可能已记录恢复相关的现存缺口 |\n\n## 三、验收门槛相关（提纲中实际存在）\n\n| 提纲标题 | 所在块 |\n|---|---|\n| 9. 分阶段交付及验收门槛 | chunk 23 |\n| `\\| 阶段 \\| 交付范围 \\| 完成条件 \\|`（章节内表格表头） | chunk 24 |\n| 最小评测场景 | chunk 25 |\n\n## 四、其余实际存在的章节（供参考）\n\n`1. 目标与已确定的边界`(1)、`7. 工具与 Skill 的调整`(19)、`8.1 小步替换，保留事实存储`(20)、`8.2 避免重复实现`(21)、`8.3 工程文档也要收口`(22)、`10. 给执行 AI 的边界说明`(26)、`11. 实施进度（2026-10-04）`(27)。\n\n---\n\n两处需要你注意的限定：\n1. 「恢复」没有专门章节，我只能给出主题相邻的章节，**它们是否真的覆盖恢复语义要读正文才能确认**。\n2. 提纲是启发式识别的标题，不排除正文中还有未被识别成独立章节的相关内容。\n\n下一步如需确认，我可以按章节读 **「9. 分阶段交付及验收门槛」**（chunk 23–24）和 **「4.3 结构化工作状态与目标连续性」**（chunk 8）的正文，用来校准上一轮那份权限/版本/幂等边界清单——你说读哪几节，我就只读那几节。",
+    "citations": [],
+    "inferences": [],
+    "createdAt": "2026-10-04T08:07:13.705598Z"
+  },
+  "executionDate": "2026-10-04",
+  "codeVersion": "583daaa2e04565f3dc552cdeb6c5a5ce1e590401",
+  "run": {
+    "id": "1614241f-3ee3-43c6-9f44-38b790f9a66a",
+    "sessionId": "a80fc706-410a-4503-a972-f0d1d71eda52",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "请用工具读取当前所选真实主蓝图的目录和提纲，找到上下文、恢复和验收门槛相关章节。只列实际存在的章节，不把目录当已通读全文。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 4,
+    "toolCallsUsed": 1,
+    "childrenUsed": 0,
+    "inputTokensUsed": 14676,
+    "outputTokensUsed": 1691,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"6c164058-05cf-4a3d-9f2c-1dcc17d14211\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 8,
+    "createdAt": "2026-10-04T08:06:48.911073Z",
+    "updatedAt": "2026-10-04T08:07:13.705598Z"
+  },
+  "steps": [
+    {
+      "id": "b9e90515-a11c-4f15-a8ae-e40c8770992b",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 6923,
+          "outputTokens": 274
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 4196,
+        "toolCalls": [
+          {
+            "id": "call_function_wmv45igvqv3c_1",
+            "name": "get_document_outline",
+            "arguments": {
+              "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211"
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 6923,
+      "completionTokens": 274,
+      "tokenUsageEstimated": false,
+      "latencyMs": 4196,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:06:53.21604Z"
+    },
+    {
+      "id": "6b26cf76-7d03-4856-b047-beba822460ea",
+      "sequence": 2,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "get_document_outline",
+      "input": {
+        "arguments": {
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211"
+        },
+        "toolCallId": "call_function_wmv45igvqv3c_1"
+      },
+      "output": {
+        "data": {
+          "sections": [
+            {
+              "heading": "AI Collab 下一阶段总设计：上下文、文档与规划协作",
+              "from_chunk": 0,
+              "through_chunk": 0
+            },
+            {
+              "heading": "1. 目标与已确定的边界",
+              "from_chunk": 1,
+              "through_chunk": 1
+            },
+            {
+              "heading": "2. 当前状态与具体缺口",
+              "from_chunk": 2,
+              "through_chunk": 2
+            },
+            {
+              "heading": "| 范围 | 已有能力与源码依据 | 本阶段需要处理的缺口 |",
+              "from_chunk": 3,
+              "through_chunk": 4
+            },
+            {
+              "heading": "3. 目标结构与责任划分",
+              "from_chunk": 5,
+              "through_chunk": 5
+            },
+            {
+              "heading": "4.1 六类数据必须分开",
+              "from_chunk": 6,
+              "through_chunk": 6
+            },
+            {
+              "heading": "4.2 单次输入预算与整个运行预算分开",
+              "from_chunk": 7,
+              "through_chunk": 7
+            },
+            {
+              "heading": "4.3 结构化工作状态与目标连续性",
+              "from_chunk": 8,
+              "through_chunk": 8
+            },
+            {
+              "heading": "4.4 摘要与压缩",
+              "from_chunk": 9,
+              "through_chunk": 9
+            },
+            {
+              "heading": "5.1 先补按需读取，不先扩张解析种类",
+              "from_chunk": 10,
+              "through_chunk": 10
+            },
+            {
+              "heading": "向 Agent 暴露受项目权限约束的：",
+              "from_chunk": 11,
+              "through_chunk": 11
+            },
+            {
+              "heading": "5.2 来源身份、定位与版本",
+              "from_chunk": 12,
+              "through_chunk": 12
+            },
+            {
+              "heading": "5.3 检索质量与引用",
+              "from_chunk": 13,
+              "through_chunk": 13
+            },
+            {
+              "heading": "5.4 用户界面",
+              "from_chunk": 14,
+              "through_chunk": 14
+            },
+            {
+              "heading": "6.1 工具与服务映射",
+              "from_chunk": 15,
+              "through_chunk": 15
+            },
+            {
+              "heading": "6.2 异步操作关联",
+              "from_chunk": 16,
+              "through_chunk": 16
+            },
+            {
+              "heading": "6.3 权限、预算、模型与取消",
+              "from_chunk": 17,
+              "through_chunk": 17
+            },
+            {
+              "heading": "6.4 资料与约束传递",
+              "from_chunk": 18,
+              "through_chunk": 18
+            },
+            {
+              "heading": "7. 工具与 Skill 的调整",
+              "from_chunk": 19,
+              "through_chunk": 19
+            },
+            {
+              "heading": "8.1 小步替换，保留事实存储",
+              "from_chunk": 20,
+              "through_chunk": 20
+            },
+            {
+              "heading": "8.2 避免重复实现",
+              "from_chunk": 21,
+              "through_chunk": 21
+            },
+            {
+              "heading": "8.3 工程文档也要收口",
+              "from_chunk": 22,
+              "through_chunk": 22
+            },
+            {
+              "heading": "9. 分阶段交付及验收门槛",
+              "from_chunk": 23,
+              "through_chunk": 23
+            },
+            {
+              "heading": "| 阶段 | 交付范围 | 完成条件 |",
+              "from_chunk": 24,
+              "through_chunk": 24
+            },
+            {
+              "heading": "最小评测场景",
+              "from_chunk": 25,
+              "through_chunk": 25
+            },
+            {
+              "heading": "10. 给执行 AI 的边界说明",
+              "from_chunk": 26,
+              "through_chunk": 26
+            },
+            {
+              "heading": "11. 实施进度（2026-10-04）",
+              "from_chunk": 27,
+              "through_chunk": 27
+            }
+          ],
+          "structure": "HEURISTIC_HEADINGS",
+          "truncated": false,
+          "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211",
+          "snapshotId": "bea5454c-6507-4d3e-9276-218d16abbe83",
+          "bodyReadable": true,
+          "failureStage": null,
+          "legacySource": false,
+          "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+          "recordVersion": 0,
+          "searchAvailable": true,
+          "processingStatus": "READY",
+          "originalContentHash": "9216932a8f034a17bcb4d1935b2fda89ea51df763c9134cb8f783e5c6087a8b4"
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:06:53.249109Z"
+    },
+    {
+      "id": "5ca6b62c-d9d1-4edb-84de-1f7bc3f983a9",
+      "sequence": 3,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 7753,
+          "outputTokens": 1417
+        },
+        "content": "已读取所选蓝图《AI Collab 下一阶段总设计：上下文、文档与规划协作》（documentId 6c164058-05cf-4a3d-9f2c-1dcc17d14211）的**提纲**，结构标记为 HEURISTIC_HEADINGS（启发式识别），共 27 节，`truncated: false`，snapshotId `bea5454c-…`，处理状态 READY。\n\n**本轮只读了提纲，没有读这些章节正文**，所以下面只是\"目录里实际存在的章节\"，不代表已通读其中任何一节。另外其中 3 条是表格表头行被识别成标题（`| 范围 | 已有能力与源码依据 |`、`| 阶段 | 交付范围 | 完成条件 |`、`向 Agent 暴露受项目权限约束的：`），不是独立章节。\n\n## 一、上下文相关（提纲中实际存在）\n\n| 提纲标题 | 所在块 |\n|---|---|\n| AI Collab 下一阶段总设计：上下文、文档与规划协作（文档标题节） | chunk 0 |\n| 2. 当前状态与具体缺口 | chunk 2 |\n| 3. 目标结构与责任划分 | chunk 5 |\n| 4.1 六类数据必须分开 | chunk 6 |\n| 4.2 单次输入预算与整个运行预算分开 | chunk 7 |\n| 4.3 结构化工作状态与目标连续性 | chunk 8 |\n| 4.4 摘要与压缩 | chunk 9 |\n| 5.1 先补按需读取，不先扩张解析种类 | chunk 10 |\n| 5.2 来源身份、定位与版本 | chunk 12 |\n| 5.3 检索质量与引用 | chunk 13 |\n| 6.4 资料与约束传递 | chunk 18 |\n\n## 二、恢复相关\n\n**需要明确：提纲里没有任何一节标题直接含\"恢复/续跑/接续\"字样。** 与该主题最接近的现有章节是：\n\n| 提纲标题 | 所在块 | 与\"恢复\"的关联（推断，未读正文） |\n|---|---|---|\n| 4.3 结构化工作状态与目标连续性 | chunk 8 | 目标连续性≈中断后接续/恢复的依据 |\n| 4.4 摘要与压缩 | chunk 9 | 压缩后能否还原上下文 |\n| 6.2 异步操作关联 | chunk 16 | 异步受理与结果归属，关系到恢复时的关联 |\n| 6.3 权限、预算、模型与取消 | chunk 17 | 取消与恢复的边界 |\n| 5.2 来源身份、定位与版本 | chunk 12 | 恢复时定位到正确版本 |\n| 2. 当前状态与具体缺口 | chunk 2 | 可能已记录恢复相关的现存缺口 |\n\n## 三、验收门槛相关（提纲中实际存在）\n\n| 提纲标题 | 所在块 |\n|---|---|\n| 9. 分阶段交付及验收门槛 | chunk 23 |\n| `\\| 阶段 \\| 交付范围 \\| 完成条件 \\|`（章节内表格表头） | chunk 24 |\n| 最小评测场景 | chunk 25 |\n\n## 四、其余实际存在的章节（供参考）\n\n`1. 目标与已确定的边界`(1)、`7. 工具与 Skill 的调整`(19)、`8.1 小步替换，保留事实存储`(20)、`8.2 避免重复实现`(21)、`8.3 工程文档也要收口`(22)、`10. 给执行 AI 的边界说明`(26)、`11. 实施进度（2026-10-04）`(27)。\n\n---\n\n两处需要你注意的限定：\n1. 「恢复」没有专门章节，我只能给出主题相邻的章节，**它们是否真的覆盖恢复语义要读正文才能确认**。\n2. 提纲是启发式识别的标题，不排除正文中还有未被识别成独立章节的相关内容。\n\n下一步如需确认，我可以按章节读 **「9. 分阶段交付及验收门槛」**（chunk 23–24）和 **「4.3 结构化工作状态与目标连续性」**（chunk 8）的正文，用来校准上一轮那份权限/版本/幂等边界清单——你说读哪几节，我就只读那几节。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 19339,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "已读取所选蓝图《AI Collab 下一阶段总设计：上下文、文档与规划协作》（documentId 6c164058-05cf-4a3d-9f2c-1dcc17d14211）的**提纲**，结构标记为 HEURISTIC_HEADINGS（启发式识别），共 27 节，`truncated: false`，snapshotId `bea5454c-…`，处理状态 READY。\n\n**本轮只读了提纲，没有读这些章节正文**，所以下面只是\"目录里实际存在的章节\"，不代表已通读其中任何一节。另外其中 3 条是表格表头行被识别成标题（`| 范围 | 已有能力与源码依据 |`、`| 阶段 | 交付范围 | 完成条件 |`、`向 Agent 暴露受项目权限约束的：`），不是独立章节。\n\n## 一、上下文相关（提纲中实际存在）\n\n| 提纲标题 | 所在块 |\n|---|---|\n| AI Collab 下一阶段总设计：上下文、文档与规划协作（文档标题节） | chunk 0 |\n| 2. 当前状态与具体缺口 | chunk 2 |\n| 3. 目标结构与责任划分 | chunk 5 |\n| 4.1 六类数据必须分开 | chunk 6 |\n| 4.2 单次输入预算与整个运行预算分开 | chunk 7 |\n| 4.3 结构化工作状态与目标连续性 | chunk 8 |\n| 4.4 摘要与压缩 | chunk 9 |\n| 5.1 先补按需读取，不先扩张解析种类 | chunk 10 |\n| 5.2 来源身份、定位与版本 | chunk 12 |\n| 5.3 检索质量与引用 | chunk 13 |\n| 6.4 资料与约束传递 | chunk 18 |\n\n## 二、恢复相关\n\n**需要明确：提纲里没有任何一节标题直接含\"恢复/续跑/接续\"字样。** 与该主题最接近的现有章节是：\n\n| 提纲标题 | 所在块 | 与\"恢复\"的关联（推断，未读正文） |\n|---|---|---|\n| 4.3 结构化工作状态与目标连续性 | chunk 8 | 目标连续性≈中断后接续/恢复的依据 |\n| 4.4 摘要与压缩 | chunk 9 | 压缩后能否还原上下文 |\n| 6.2 异步操作关联 | chunk 16 | 异步受理与结果归属，关系到恢复时的关联 |\n| 6.3 权限、预算、模型与取消 | chunk 17 | 取消与恢复的边界 |\n| 5.2 来源身份、定位与版本 | chunk 12 | 恢复时定位到正确版本 |\n| 2. 当前状态与具体缺口 | chunk 2 | 可能已记录恢复相关的现存缺口 |\n\n## 三、验收门槛相关（提纲中实际存在）\n\n| 提纲标题 | 所在块 |\n|---|---|\n| 9. 分阶段交付及验收门槛 | chunk 23 |\n| `\\| 阶段 \\| 交付范围 \\| 完成条件 \\|`（章节内表格表头） | chunk 24 |\n| 最小评测场景 | chunk 25 |\n\n## 四、其余实际存在的章节（供参考）\n\n`1. 目标与已确定的边界`(1)、`7. 工具与 Skill 的调整`(19)、`8.1 小步替换，保留事实存储`(20)、`8.2 避免重复实现`(21)、`8.3 工程文档也要收口`(22)、`10. 给执行 AI 的边界说明`(26)、`11. 实施进度（2026-10-04）`(27)。\n\n---\n\n两处需要你注意的限定：\n1. 「恢复」没有专门章节，我只能给出主题相邻的章节，**它们是否真的覆盖恢复语义要读正文才能确认**。\n2. 提纲是启发式识别的标题，不排除正文中还有未被识别成独立章节的相关内容。\n\n下一步如需确认，我可以按章节读 **「9. 分阶段交付及验收门槛」**（chunk 23–24）和 **「4.3 结构化工作状态与目标连续性」**（chunk 8）的正文，用来校准上一轮那份权限/版本/幂等边界清单——你说读哪几节，我就只读那几节。",
+      "promptTokens": 7753,
+      "completionTokens": 1417,
+      "tokenUsageEstimated": false,
+      "latencyMs": 19339,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:07:13.690091Z"
+    },
+    {
+      "id": "b6273aee-0791-4ba6-8943-a2103e721046",
+      "sequence": 4,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "已读取所选蓝图《AI Collab 下一阶段总设计：上下文、文档与规划协作》（documentId 6c164058-05cf-4a3d-9f2c-1dcc17d14211）的**提纲**，结构标记为 HEURISTIC_HEADINGS（启发式识别），共 27 节，`truncated: false`，snapshotId `bea5454c-…`，处理状态 READY。\n\n**本轮只读了提纲，没有读这些章节正文**，所以下面只是\"目录里实际存在的章节\"，不代表已通读其中任何一节。另外其中 3 条是表格表头行被识别成标题（`| 范围 | 已有能力与源码依据 |`、`| 阶段 | 交付范围 | 完成条件 |`、`向 Agent 暴露受项目权限约束的：`），不是独立章节。\n\n## 一、上下文相关（提纲中实际存在）\n\n| 提纲标题 | 所在块 |\n|---|---|\n| AI Collab 下一阶段总设计：上下文、文档与规划协作（文档标题节） | chunk 0 |\n| 2. 当前状态与具体缺口 | chunk 2 |\n| 3. 目标结构与责任划分 | chunk 5 |\n| 4.1 六类数据必须分开 | chunk 6 |\n| 4.2 单次输入预算与整个运行预算分开 | chunk 7 |\n| 4.3 结构化工作状态与目标连续性 | chunk 8 |\n| 4.4 摘要与压缩 | chunk 9 |\n| 5.1 先补按需读取，不先扩张解析种类 | chunk 10 |\n| 5.2 来源身份、定位与版本 | chunk 12 |\n| 5.3 检索质量与引用 | chunk 13 |\n| 6.4 资料与约束传递 | chunk 18 |\n\n## 二、恢复相关\n\n**需要明确：提纲里没有任何一节标题直接含\"恢复/续跑/接续\"字样。** 与该主题最接近的现有章节是：\n\n| 提纲标题 | 所在块 | 与\"恢复\"的关联（推断，未读正文） |\n|---|---|---|\n| 4.3 结构化工作状态与目标连续性 | chunk 8 | 目标连续性≈中断后接续/恢复的依据 |\n| 4.4 摘要与压缩 | chunk 9 | 压缩后能否还原上下文 |\n| 6.2 异步操作关联 | chunk 16 | 异步受理与结果归属，关系到恢复时的关联 |\n| 6.3 权限、预算、模型与取消 | chunk 17 | 取消与恢复的边界 |\n| 5.2 来源身份、定位与版本 | chunk 12 | 恢复时定位到正确版本 |\n| 2. 当前状态与具体缺口 | chunk 2 | 可能已记录恢复相关的现存缺口 |\n\n## 三、验收门槛相关（提纲中实际存在）\n\n| 提纲标题 | 所在块 |\n|---|---|\n| 9. 分阶段交付及验收门槛 | chunk 23 |\n| `\\| 阶段 \\| 交付范围 \\| 完成条件 \\|`（章节内表格表头） | chunk 24 |\n| 最小评测场景 | chunk 25 |\n\n## 四、其余实际存在的章节（供参考）\n\n`1. 目标与已确定的边界`(1)、`7. 工具与 Skill 的调整`(19)、`8.1 小步替换，保留事实存储`(20)、`8.2 避免重复实现`(21)、`8.3 工程文档也要收口`(22)、`10. 给执行 AI 的边界说明`(26)、`11. 实施进度（2026-10-04）`(27)。\n\n---\n\n两处需要你注意的限定：\n1. 「恢复」没有专门章节，我只能给出主题相邻的章节，**它们是否真的覆盖恢复语义要读正文才能确认**。\n2. 提纲是启发式识别的标题，不排除正文中还有未被识别成独立章节的相关内容。\n\n下一步如需确认，我可以按章节读 **「9. 分阶段交付及验收门槛」**（chunk 23–24）和 **「4.3 结构化工作状态与目标连续性」**（chunk 8）的正文，用来校准上一轮那份权限/版本/幂等边界清单——你说读哪几节，我就只读那几节。",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:07:13.705598Z"
+    }
+  ],
+  "turn": 2,
+  "batch": "minimal-fixed",
+  "prompt": "请用工具读取当前所选真实主蓝图的目录和提纲，找到上下文、恢复和验收门槛相关章节。只列实际存在的章节，不把目录当已通读全文。",
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG"
+}

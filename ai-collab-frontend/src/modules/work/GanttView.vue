@@ -107,13 +107,13 @@ function dayLabel(value: Date): string {
 
 function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
-    'TODO': '#909399',
-    'IN_PROGRESS': '#409eff',
-    'BLOCKED': '#e6a23c',
-    'DONE': '#67c23a',
-    'CANCELED': '#f56c6c',
+    'TODO': 'var(--color-text-muted)',
+    'IN_PROGRESS': 'var(--color-primary)',
+    'BLOCKED': 'var(--color-warning)',
+    'DONE': 'var(--color-success)',
+    'CANCELED': 'var(--color-danger)',
   }
-  return colors[status] || '#909399'
+  return colors[status] || 'var(--color-text-muted)'
 }
 
 onMounted(load)
@@ -204,7 +204,7 @@ onMounted(load)
   position: sticky;
   z-index: 3;
   top: 0;
-  border-bottom: 2px solid #e4e7ed;
+  border-bottom: 2px solid var(--color-border);
   background: #f8f9fd;
 }
 
@@ -227,18 +227,18 @@ onMounted(load)
   border-right: 1px solid #edf0f5;
   text-align: center;
   font-size: 12px;
-  color: #909399;
+  color: var(--color-text-muted);
 }
 
 .gantt-row {
   min-height: 58px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-surface-raised);
 }
 
 .gantt-row:last-child { border-bottom: 0; }
 .day-cell { grid-row: 1; border-right: 1px solid #f0f2f6; }
 .day-cell.weekend, .gantt-day.weekend { background: #f7f8fb; }
-.day-cell.today, .gantt-day.today { background: #eef0ff; box-shadow: inset 1px 0 #9ba2ea, inset -1px 0 #9ba2ea; }
+.day-cell.today, .gantt-day.today { background: #eef0ff; box-shadow: inset 1px 0 var(--el-color-primary-light-5), inset -1px 0 var(--color-primary-light-5); }
 
 .task-title {
   font-size: 14px;
@@ -246,12 +246,12 @@ onMounted(load)
 
 .task-assignee {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-text-muted);
 }
 
 .milestone-title {
   font-size: 14px;
-  color: #e6a23c;
+  color: var(--color-warning);
 }
 
 .gantt-bar {
@@ -274,7 +274,7 @@ onMounted(load)
   grid-row: 1;
   align-self: center;
   justify-self: center;
-  color: #e6a23c;
+  color: var(--color-warning);
   font-size: 24px;
   filter: drop-shadow(0 2px 2px rgba(135, 89, 26, .18));
 }

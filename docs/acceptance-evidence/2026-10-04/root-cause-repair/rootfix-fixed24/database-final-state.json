@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-04",
+  "database": "isolated copy volume ai-collab-acceptance-20261003 via container ai-collab-rootfix-pg (localhost:55432); original business containers (postgres/redis/minio) remain stopped",
+  "codeVersion": "de032f5dcbcaa277a6790bf3421a13719512accc",
+  "roundStartUtc": "2026-10-04T11:00:00Z",
+  "batches": {
+    "rootfix-minimal": {
+      "projectId": "f29b6731-095e-4484-af41-139502a05024",
+      "sessionId": "4f00881c-04ed-47c8-9229-f449af54de6e",
+      "turns": "1-10 sequential",
+      "formalTasks": 0
+    },
+    "rootfix-fixed24": {
+      "projectId": "44e64549-df8f-4351-916e-2e4a330671cd",
+      "sessionId": "a90663d8-5e5e-4724-8923-f76c795dae9f",
+      "turns": "1-24 sequential"
+    },
+    "rootfix-correction": {
+      "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+      "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+      "turns": "14,16,18,21,22,24 on original failed session, history preserved"
+    }
+  },
+  "invariants": {
+    "runsCreatedThisRound": 40,
+    "runsSucceededWithUsageShadowing": 0,
+    "planningConfirmationsCreatedThisRound": 0,
+    "formalTasksInRoundProjects": 0,
+    "preExistingFormalTasksInSharedCopy": 22,
+    "preExistingConfirmations": 5
+  },
+  "fixed24": {
+    "runsTotal": 24,
+    "runsSucceeded": 24,
+    "usageShadowedRows": 0,
+    "plansInProject": 0,
+    "planningOperationsInProject": 0,
+    "summaryAttempts": 4,
+    "summaryCommitted": 2,
+    "summaryDowngradedUnqualified": 2,
+    "summaryUsageBasis": "PROVIDER",
+    "finalActiveConstraints": {
+      "taskCountMax": "最多6项 (detail.max=6)",
+      "dateLock": "dates [2026-10-05, 2026-10-25]",
+      "assigneeLock": "Local Owner"
+    },
+    "supersededConstraintHistory": [
+      "最多10项 (detail.max=10, source 8fb3c438…)",
+      "数量上限待澄清 8/10 (needsClarification, source e78a687a…)",
+      "不改日期（沿用 2026-10-05 至 2026-10-25）",
+      "负责人不改（沿用 Local Owner）"
+    ],
+    "finalSummary": {
+      "textLength": 523,
+      "coverage": "PARTIAL",
+      "oldCountsMentioned": 0,
+      "pendingConfirmationForCounts": 0,
+      "activeConstraintsSnapshot": [
+        "最多6项",
+        "不改日期（沿用 2026-10-05 至 2026-10-25）",
+        "负责人不改（沿用 Local Owner）"
+      ]
+    },
+    "turn23PlanningGeneration": "NOT_EXECUTED — run entered budget finalization before start_task_plan; model honestly reported the action was not performed and listed finalized parameters; no plan, operation or draft was created; no fake success recorded. Content-level check of a newly generated draft (old-10 residue) therefore remains unverified this round."
+  },
+  "correction": {
+    "originalPlanStatus": "READY",
+    "originalPlanVersions": 2,
+    "originalPlanActiveAttemptNull": true,
+    "note": "original failed session kept with full history; no regeneration/repair/confirmation issued this round"
+  }
+}

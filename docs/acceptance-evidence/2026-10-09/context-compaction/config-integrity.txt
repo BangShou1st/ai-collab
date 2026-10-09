@@ -1,0 +1,10 @@
+模型配置与用途分配在宿主停止后保持不变（keep-config=true，无任何修改）：
+           name            |        model_name         | is_default | enabled |          base_url          
+---------------------------+---------------------------+------------+---------+----------------------------
+ acceptance-a              | acceptance-a              | t          | t       | http://127.0.0.1:57890
+ acceptance-auth-failure   | acceptance-auth-failure   | f          | t       | http://127.0.0.1:57890
+ acceptance-b              | acceptance-b              | f          | t       | http://127.0.0.1:57890
+ OpenCode Zen Free         | space-bunny-free          | f          | t       | https://opencode.ai/zen/v1
+ reliability-scripted-peer | reliability-scripted-peer | f          | f       | http://127.0.0.1:18082
+(5 rows)
+

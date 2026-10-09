@@ -3,14 +3,13 @@ package com.shitulelv.aicollab.agent.infrastructure.repository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.view.*;
 import com.shitulelv.aicollab.agent.domain.model.AgentCitation;
+import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
-import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
 import com.shitulelv.aicollab.agent.domain.model.AgentStepType;
-import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
-import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -25,14 +24,43 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Agent 会话与运行的查询/领取仓储。
+ *
+ * <p>运行过程中的事件与状态写路径已拆分到 {@link AgentRunEventRecorder}；
+ * 行映射共用 {@link AgentRunMappers}，保证查询与写入两侧的字段清单一致。</p>
+ */
 @Repository
 public class AgentRepository {
+    public boolean atomicEventsEnabled() { return recorder.atomicEventsEnabled(); }
+    public long activeElapsedMillis(AgentRunView run) {
+        return jdbc.queryForObject("SELECT active_elapsed_ms+CASE WHEN claim_started_at IS NULL THEN 0 ELSE GREATEST(0,(extract(epoch FROM(now()-claim_started_at))*1000)::bigint) END FROM agent_run WHERE project_id=? AND id=?",Long.class,run.projectId(),run.id());
+    }
+    public JsonNode modelSnapshot(AgentRunView run) {
+        var values=jdbc.queryForList("SELECT model_configuration_snapshot::text FROM agent_run WHERE project_id=? AND id=?",String.class,run.projectId(),run.id());
+        return values.isEmpty() ? null : parse(values.getFirst());
+    }
+    public UUID invocationId(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall call) {
+        var ids=jdbc.queryForList("SELECT invocation_id FROM agent_tool_invocation WHERE run_id=? AND tool_call_id=? AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')",UUID.class,run.id(),call.id(),run.id());
+        return ids.size()==1 ? ids.getFirst() : null;
+    }
+    public Map<String,Integer> recoveryCounters(AgentRunView run) {
+        Map<String,Integer> counters=new java.util.HashMap<>(Map.of("MODEL_RETRY",0,"FORMAT_REPAIR",0,"PARAMETER_CORRECTION",0,"TOOL_RETRY",0));
+        jdbc.query("SELECT kind,attempts FROM agent_recovery_counter WHERE run_id=?",(org.springframework.jdbc.core.RowCallbackHandler)rs -> counters.put(rs.getString(1),rs.getInt(2)),run.id());
+        return counters;
+    }
+    @Transactional public boolean consumeRecovery(AgentRunView run, String kind, int maximum) {
+        AgentLeaseScope.verify(jdbc,run.projectId(),run.id(),false);
+        return jdbc.queryForList("INSERT INTO agent_recovery_counter(run_id,kind,attempts) VALUES (?,?,1) ON CONFLICT(run_id,kind) DO UPDATE SET attempts=agent_recovery_counter.attempts+1 WHERE agent_recovery_counter.attempts<? RETURNING attempts",Integer.class,run.id(),kind,maximum).size()==1;
+    }
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    private final AgentRunEventRecorder recorder;
 
-    public AgentRepository(JdbcTemplate jdbc, ObjectMapper json) {
+    public AgentRepository(JdbcTemplate jdbc, ObjectMapper json, AgentRunEventRecorder recorder) {
         this.jdbc = jdbc;
         this.json = json;
+        this.recorder = recorder;
     }
 
     public AgentSessionView createSession(UUID projectId, UUID creatorId, String title) {
@@ -59,18 +87,23 @@ public class AgentRepository {
                 """, sessionMapper(), projectId, limit);
     }
 
+    /**
+     * 会话最新"主运行"：恢复、SSE 订阅与控制入口都以此为身份。
+     * 只取 depth=0 的运行——委派子运行（depth=1）共享同一 session 但不是用户会话的
+     * 控制对象，刷新/切会话不能把子运行当主运行恢复（否则父运行被孤立在等待状态）。
+     */
     public Optional<AgentRunView> findLatestRun(UUID projectId, UUID sessionId) {
-        return jdbc.query("SELECT * FROM agent_run WHERE project_id=? AND session_id=? ORDER BY created_at DESC, id DESC LIMIT 1",
-                runMapper(), projectId, sessionId).stream().findFirst();
+        return jdbc.query("SELECT * FROM agent_run WHERE project_id=? AND session_id=? AND depth=0 ORDER BY created_at DESC, id DESC LIMIT 1",
+                AgentRunMappers.runMapper(), projectId, sessionId).stream().findFirst();
     }
 
     public List<AgentSessionSummaryView> listSessionSummaries(UUID projectId, int limit) {
         return jdbc.query("""
                 SELECT s.id, s.project_id, s.creator_id, COALESCE(u.display_name, u.username, s.creator_id::text) AS creator_name,
                        s.title, s.status, s.version, s.created_at, s.updated_at,
-                       (SELECT r.id FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_id,
-                       (SELECT r.status FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_status,
-                       (SELECT r.updated_at FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_activity_at
+                       (SELECT r.id FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_id,
+                       (SELECT r.status FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_status,
+                       (SELECT r.updated_at FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_activity_at
                 FROM agent_session s LEFT JOIN app_user u ON u.id=s.creator_id
                 WHERE s.project_id=? ORDER BY s.updated_at DESC, s.id DESC LIMIT ?
                 """, (rs, row) -> new AgentSessionSummaryView(
@@ -107,29 +140,85 @@ public class AgentRepository {
         UUID runId = UUID.randomUUID();
         AgentRunView run = jdbc.queryForObject("""
                 INSERT INTO agent_run(
-                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json)
-                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb
+                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,max_steps,max_tool_calls,budget_semantics,context_policy_version,max_input_tokens,max_output_tokens)
+                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb,?,?,'SEPARATED',2,NULL,NULL
                 FROM agent_session s
                 WHERE s.project_id=? AND s.id=?
                 RETURNING *
-                """, runMapper(), runId, requesterId, goal, scheduled,
-                skillCode, pageContextJson, projectId, sessionId);
+                """, AgentRunMappers.runMapper(), runId, requesterId, goal, scheduled,
+                skillCode, pageContextJson,
+                AgentResourcePolicy.V2_ROOT_MAX_STEPS,
+                AgentResourcePolicy.V2_ROOT_MAX_TOOL_CALLS, projectId, sessionId);
         if (run == null) {
             throw new IllegalArgumentException("Agent 会话不存在");
         }
-        jdbc.update("""
+        UUID messageId = jdbc.queryForObject("""
                 INSERT INTO agent_message(
                   session_id,run_id,role,content,citations_json,inferences_json)
                 VALUES (?,?,'USER',?,'[]'::jsonb,'[]'::jsonb)
-                """, sessionId, runId, goal);
+                RETURNING id
+                """, UUID.class, sessionId, runId, goal);
         jdbc.update("UPDATE agent_session SET updated_at=now(),version=version+1 WHERE project_id=? AND id=?",
                 projectId, sessionId);
+        AgentWorkingState.appendUser(jdbc,json,sessionId,goal,messageId);
         return run;
     }
 
     public Optional<AgentRunView> findRun(UUID projectId, UUID runId) {
         return jdbc.query("SELECT * FROM agent_run WHERE project_id=? AND id=?",
-                runMapper(), projectId, runId).stream().findFirst();
+                AgentRunMappers.runMapper(), projectId, runId).stream().findFirst();
+    }
+
+    /** 指定运行的全部子运行（委派等待与结果回收判定使用；只读）。 */
+    public List<AgentRunView> childRuns(UUID projectId, UUID parentRunId) {
+        return jdbc.query("SELECT * FROM agent_run WHERE project_id=? AND parent_run_id=? ORDER BY created_at",
+                AgentRunMappers.runMapper(), projectId, parentRunId);
+    }
+
+    /** 终态运行的重试派生结果：created=false 表示并发重试命中幂等边界，返回既有派生运行。 */
+    public record RetryRunDerivation(AgentRunView run, boolean created) {}
+
+    /**
+     * 从终态运行派生一次新的重试运行：复制目标/技能/页面上下文，输入输出预算、步骤与
+     * 取消标记全部从默认值开始，不继承已耗尽的预算或取消标记。retried_from_run_id 上的
+     * 部分唯一索引保证同一旧运行至多派生一个新运行——并发重复重试时第二个请求返回既有
+     * 派生运行，业务动作（新运行、用户消息、工作状态推进）不重复执行。
+     */
+    @Transactional
+    public RetryRunDerivation createRetryRun(
+            UUID projectId, UUID sessionId, UUID requesterId, UUID sourceRunId,
+            String goal, String skillCode, String pageContextJson) {
+        UUID runId = UUID.randomUUID();
+        AgentRunView run = jdbc.query("""
+                INSERT INTO agent_run(
+                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,
+                  max_steps,max_tool_calls,retried_from_run_id,budget_semantics,context_policy_version,
+                  max_input_tokens,max_output_tokens)
+                SELECT ?,s.id,s.project_id,?,?,'QUEUED',false,?,?::jsonb,?,?,?,'SEPARATED',2,NULL,NULL
+                FROM agent_session s
+                WHERE s.project_id=? AND s.id=?
+                ON CONFLICT (retried_from_run_id) WHERE retried_from_run_id IS NOT NULL DO NOTHING
+                RETURNING *
+                """, AgentRunMappers.runMapper(), runId, requesterId, goal, skillCode, pageContextJson,
+                AgentResourcePolicy.V2_ROOT_MAX_STEPS,
+                AgentResourcePolicy.V2_ROOT_MAX_TOOL_CALLS,
+                sourceRunId, projectId, sessionId).stream().findFirst().orElse(null);
+        if (run == null) {
+            return new RetryRunDerivation(jdbc.query(
+                    "SELECT * FROM agent_run WHERE project_id=? AND retried_from_run_id=?",
+                    AgentRunMappers.runMapper(), projectId, sourceRunId).stream().findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Agent 会话不存在")), false);
+        }
+        UUID messageId = jdbc.queryForObject("""
+                INSERT INTO agent_message(
+                  session_id,run_id,role,content,citations_json,inferences_json)
+                VALUES (?,?,'USER',?,'[]'::jsonb,'[]'::jsonb)
+                RETURNING id
+                """, UUID.class, sessionId, runId, goal);
+        jdbc.update("UPDATE agent_session SET updated_at=now(),version=version+1 WHERE project_id=? AND id=?",
+                projectId, sessionId);
+        AgentWorkingState.appendUser(jdbc,json,sessionId,goal,messageId);
+        return new RetryRunDerivation(run, true);
     }
 
     public boolean isCancelRequested(UUID projectId, UUID runId) {
@@ -139,6 +228,54 @@ public class AgentRepository {
                 """, (rs, row) -> rs.getBoolean(1), projectId, runId)
                 .stream().findFirst().orElse(false);
         return Boolean.TRUE.equals(requested);
+    }
+
+    /** 暂停意图是否已落库（不区分运行状态；状态判断由调用方结合 status 完成）。 */
+    public boolean isPauseRequested(UUID projectId, UUID runId) {
+        Boolean requested = jdbc.query("""
+                SELECT pause_requested_at IS NOT NULL
+                FROM agent_run WHERE project_id=? AND id=?
+                """, (rs, row) -> rs.getBoolean(1), projectId, runId)
+                .stream().findFirst().orElse(false);
+        return Boolean.TRUE.equals(requested);
+    }
+
+    /** 暂停意图落库时间（未请求暂停为 null）；运行详情据此展示"正在暂停/已暂停"。 */
+    public OffsetDateTime pauseRequestedAt(UUID projectId, UUID runId) {
+        // pause_requested_at 可空；行映射返回 null 不能进入 Optional.of（findFirst 会抛 NPE）。
+        var rows = jdbc.query("""
+                SELECT pause_requested_at FROM agent_run WHERE project_id=? AND id=?
+                """, (rs, row) -> rs.getObject("pause_requested_at", OffsetDateTime.class), projectId, runId);
+        return rows.isEmpty() ? null : rows.getFirst();
+    }
+
+    /**
+     * 暂停意图检查与安全收口（幂等）：意图已落库时由本调用结清当前 claim 的已确认
+     * 执行段并转入 PAUSED（见 {@code AgentRunEventRecorder.recordPaused}）。
+     * worker 的每个"新动作准入"检查点复用这一份判断，避免多处复制状态逻辑。
+     */
+    public boolean pauseIfRequested(AgentRunView run) {
+        if (!isPauseRequested(run.projectId(), run.id())) return false;
+        recorder.recordPaused(run.projectId(), run.id());
+        return true;
+    }
+
+    /** 用户发起暂停（见 {@code AgentRunEventRecorder.requestPause}）。 */
+    @Transactional
+    public AgentRunView requestPause(UUID projectId, UUID runId) {
+        return recorder.requestPause(projectId, runId);
+    }
+
+    /** 用户发起继续（见 {@code AgentRunEventRecorder.requestResume}）。 */
+    @Transactional
+    public AgentRunView requestResume(UUID projectId, UUID runId) {
+        return recorder.requestResume(projectId, runId);
+    }
+
+    /** worker 在动作边界确认暂停（见 {@code AgentRunEventRecorder.recordPaused}）。 */
+    @Transactional
+    public AgentRunView recordPaused(UUID projectId, UUID runId) {
+        return recorder.recordPaused(projectId, runId);
     }
 
     @Transactional
@@ -152,8 +289,7 @@ public class AgentRepository {
                         AgentRunStatus.valueOf(rs.getString("status")),
                         rs.getBoolean("cancel_requested")), projectId, runId)
                 .stream().findFirst()
-                .orElseThrow(() -> new com.shitulelv.aicollab.common.exception.BusinessException(
-                        com.shitulelv.aicollab.common.exception.ErrorCode.AGENT_RUN_NOT_CANCELABLE));
+                .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_CANCELABLE));
         if (current.status() == AgentRunStatus.CANCELED) {
             return AgentRunStatus.CANCELED;
         }
@@ -161,9 +297,9 @@ public class AgentRepository {
                 && current.status() != AgentRunStatus.RUNNING
                 && current.status() != AgentRunStatus.WAITING_FOR_APPROVAL
                 && current.status() != AgentRunStatus.WAITING_FOR_USER_INPUT
-                && current.status() != AgentRunStatus.FAILED_RETRYABLE) {
-            throw new com.shitulelv.aicollab.common.exception.BusinessException(
-                    com.shitulelv.aicollab.common.exception.ErrorCode.AGENT_RUN_NOT_CANCELABLE);
+                && current.status() != AgentRunStatus.FAILED_RETRYABLE
+                && current.status() != AgentRunStatus.PAUSED) {
+            throw new BusinessException(ErrorCode.AGENT_RUN_NOT_CANCELABLE);
         }
         if (current.status() == AgentRunStatus.RUNNING && current.requested()) {
             return AgentRunStatus.RUNNING;
@@ -207,6 +343,79 @@ public class AgentRepository {
                 """, messageMapper(), projectId, sessionId, limit);
     }
 
+    /**
+     * 尚未消费的已持久化模型轮次（最近一轮）：
+     *
+     * <ul>
+     *   <li>含工具调用且批次未处理的轮次——恢复工具批次；</li>
+     *   <li>无工具调用但已有正文的轮次——"MODEL_TURN 已提交、后续收尾尚未提交"的窗口，
+     *       接管时复用该响应继续其原本的收尾，不再次请求模型。</li>
+     * </ul>
+     *
+     * <p>{@code batchHandled} 由终态写入在同一事务内置位（工具批次见
+     * {@code AgentRunEventRecorder.markBatchHandled}，文本收尾见
+     * {@code recordFinal(…,true)}/{@code recordWaitingForInput}/{@code recordBudgetPartialAnswer}），
+     * 因此只会被消费一次；已消费轮次、更早轮次与其他运行的轮次都不会被再次使用。</p>
+     */
+    public Optional<com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult> pendingModelTurn(AgentRunView run) {
+        return jdbc.query("""
+                SELECT output_json::text FROM agent_step WHERE run_id=? AND type='MODEL_TURN'
+                  AND output_json IS NOT NULL
+                  AND (jsonb_array_length(COALESCE(output_json->'toolCalls','[]'::jsonb))>0
+                       OR btrim(COALESCE(output_json->>'content',''))<>'')
+                  AND NOT COALESCE((output_json->>'batchHandled')::boolean,false)
+                ORDER BY sequence_no DESC LIMIT 1
+                """, (rs, row) -> {
+            try { return json.readValue(rs.getString(1), com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult.class); }
+            catch (Exception failure) { throw new IllegalStateException("持久化模型轮次无法恢复", failure); }
+        }, run.id()).stream().findFirst();
+    }
+
+    public Optional<JsonNode> knownInvocationResult(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall call) {
+        return jdbc.query("""
+                SELECT i.arguments_json::text,CASE WHEN i.proposal_id IS NOT NULL
+                  THEN jsonb_build_object('status','SUCCEEDED','effect','PROPOSAL_PENDING','proposalId',i.proposal_id,'revision',a.revision)::text
+                  ELSE i.result_json::text END AS result, i.tool_name FROM agent_tool_invocation i LEFT JOIN agent_approval a ON a.id=i.proposal_id
+                WHERE i.run_id=? AND i.tool_call_id=? AND (i.status<>'PENDING' OR i.proposal_id IS NOT NULL)
+                  AND i.turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
+                """, (rs, row) -> {
+            try {
+                if (!call.name().equals(rs.getString("tool_name")) || !json.readTree(rs.getString(1)).equals(call.arguments()))
+                    throw new IllegalStateException("调用身份与参数冲突");
+                return json.readTree(rs.getString(2));
+            } catch (com.fasterxml.jackson.core.JsonProcessingException failure) { throw new IllegalStateException(failure); }
+        }, run.id(), call.id(), run.id()).stream().findFirst();
+    }
+
+    /** 待处理调用所属模型轮次的可信执行模式（NATIVE_TOOLS / LEGACY_READ_ONLY）；无记录返回 null。 */
+    public String invocationSourceMode(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall call) {
+        var rows = jdbc.queryForList("""
+                SELECT source_mode FROM agent_tool_invocation
+                WHERE run_id=? AND tool_call_id=?
+                  AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
+                """, run.id(), call.id(), run.id());
+        return rows.isEmpty() ? null : (String) rows.getFirst().get("source_mode");
+    }
+
+    public JsonNode workingState(UUID projectId, UUID sessionId) {
+        return jdbc.query("SELECT working_state::text FROM agent_session WHERE project_id=? AND id=?", (rs,row) -> {
+            try { return json.readTree(rs.getString(1)); } catch (Exception failed) { throw new IllegalStateException(failed); }
+        }, projectId, sessionId).stream().findFirst().orElseGet(json::createObjectNode);
+    }
+
+    /**
+     * 领取下一个可执行运行。接管过期 RUNNING 时，把上一个 claim 的<b>已确认执行时长</b>
+     * 累加进 active_elapsed_ms：区间为 [claim_started_at, 最后一次确认进度]；
+     * 该 claim 没有确认进度时累加 0（下界为 0 的 GREATEST 保证不出现负区间）。
+     *
+     * <p>语义：租约有效期不等于已执行时长。租约到期、进程离线和排队重试的等待时间
+     * 都不是执行时间，只有 claim 内已持久化进度之前的区间才算已确认执行；
+     * 最后一次进度到进程退出这一段没有持久记录，不冒充已执行时长
+     * （见 {@code AgentRuntimeJob}：租约 6 分钟是等待上界，不是执行上界）。</p>
+     *
+     * <p>领取顺序按 depth 降序再按 created_at：委派子运行（depth=1）先于等待它的父运行
+     * 被处理，父运行在子运行完成后回收结果；正常深度 0 运行之间的顺序不变。</p>
+     */
     @Transactional
     public Optional<ClaimedAgentRun> claimNext(
             String workerId, OffsetDateTime now, Duration lease) {
@@ -219,289 +428,520 @@ public class AgentRepository {
                     OR (status='RUNNING' AND lease_expires_at < ?)
                     OR (status='FAILED_RETRYABLE' AND retry_after <= ?)
                   )
-                  ORDER BY created_at,id
+                  ORDER BY depth DESC,created_at,id
                   FOR UPDATE SKIP LOCKED
                   LIMIT 1
                 )
                 UPDATE agent_run r
-                SET status='RUNNING',lease_owner=?,lease_expires_at=?,
+                SET active_elapsed_ms=r.active_elapsed_ms+CASE WHEN c.status='RUNNING' AND r.claim_started_at IS NOT NULL
+                    THEN GREATEST(0,(extract(epoch FROM(
+                        GREATEST(r.claim_started_at,COALESCE(r.last_progress_at,r.claim_started_at))
+                        -r.claim_started_at))*1000)::bigint)
+                    ELSE 0 END,
+                    status='RUNNING',lease_owner=?,lease_expires_at=?,claim_version=r.version+1,claim_started_at=now(),
+                    last_progress_at=NULL,
                     started_at=COALESCE(started_at,?),updated_at=?,version=version+1
                 FROM candidate c
                 WHERE r.id=c.id
                 RETURNING r.id,r.session_id,r.project_id,r.requester_id,r.parent_run_id,
                   r.role,r.depth,r.goal,c.status AS previous_status,r.scheduled,
                   r.correction_attempted,r.version
-                """, claimedMapper(), now, now, workerId, expires, now, now)
+                """, AgentRunMappers.claimedMapper(), now, now, workerId, expires, now, now)
                 .stream().findFirst();
     }
+
+    /**
+     * 有界租约续期：<b>只有仍持有当前 claim 的活跃 worker</b>可以续租。
+     *
+     * <p>为什么需要：单次模型请求放宽到分钟级后，固定 6 分钟的 claim 租约可能在请求
+     * 返回之前就过期，让另一个 worker 合法接管——本次合法响应随后被 epoch fencing 拒绝落库，
+     * 用户看到的是"请求已完成但结果丢失"。而简单把租约延长到几十分钟会让崩溃接管明显退化
+     * （进程崩溃后要等很久才能被接管）。因此采用<b>最小有界续租</b>：请求仍在进行时按短周期
+     * 把租约推到"当前时刻 + 一个短租约窗口"，保留既有的崩溃恢复时效。</p>
+     *
+     * <p>安全边界（复用现有机制，不建第二套调度器）：</p>
+     * <ul>
+     *   <li>只有 {@code claim_version} 仍等于本 worker 的 epoch 且租约尚未过期时才续租：
+     *       已被接管的旧 worker 无法续租，也无法借此复活；</li>
+     *   <li>取消已请求、运行已离开 RUNNING 时不续租（返回 false），让正常收口尽早发生；</li>
+     *   <li>短事务、只更新租约列，不跨 HTTP 持数据库事务锁；</li>
+     *   <li>任何续租失败都只是"停止续租"，不改变业务语义——请求照常返回并走原有校验。</li>
+     * </ul>
+     *
+     * @return 是否成功续期（false 表示已失去租约/已取消/状态不符，调用方应停止续租）
+     */
+    @Transactional
+    public boolean renewLease(UUID projectId, UUID runId, int claimEpoch, Duration lease) {
+        if (lease == null || lease.isNegative() || lease.isZero()) {
+            throw new IllegalArgumentException("续租窗口无效");
+        }
+        int updated = jdbc.update("""
+                UPDATE agent_run
+                SET lease_expires_at=now()+?::interval, updated_at=now()
+                WHERE project_id=? AND id=? AND claim_version=? AND status='RUNNING'
+                  AND cancel_requested_at IS NULL
+                  AND (lease_expires_at IS NULL OR lease_expires_at > now())
+                """, lease.toSeconds() + " seconds", projectId, runId, claimEpoch);
+        return updated == 1;
+    }
+
+    // ---- 以下为运行事件与状态写路径，委托给 AgentRunEventRecorder ----
 
     public boolean updateStatus(
             UUID projectId, UUID runId, int version,
             AgentRunStatus expected, AgentRunStatus target, String errorCode) {
-        boolean changed = jdbc.update("""
-                UPDATE agent_run
-                SET status=?,error_code=?,lease_owner=NULL,lease_expires_at=NULL,
-                    finished_at=CASE WHEN ? IN ('SUCCEEDED','FAILED','CANCELED','BUDGET_EXCEEDED')
-                                     THEN now() ELSE finished_at END,
-                    updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status=?
-                """, target.name(), errorCode, target.name(),
-                projectId, runId, version, expected.name()) == 1;
-        if (changed && target == AgentRunStatus.CANCELED) {
-            findRun(projectId, runId).ifPresent(
-                    run -> resumeParent(run, "CANCELED", "AGENT_RUN_CANCELED"));
-        }
-        return changed;
+        return recorder.updateStatus(projectId, runId, version, expected, target, errorCode);
     }
 
-    @Transactional
     public void recordBudgetExceeded(AgentRunView run) {
-        appendErrorStep(run, "AGENT_BUDGET_EXCEEDED");
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status='BUDGET_EXCEEDED',
-                  error_code='AGENT_BUDGET_EXCEEDED',finished_at=now(),
-                  lease_owner=NULL,lease_expires_at=NULL,updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, run.projectId(), run.id(), run.version()));
-        resumeParent(run, "BUDGET_EXCEEDED", "AGENT_BUDGET_EXCEEDED");
+        recorder.recordBudgetExceeded(run);
     }
 
-    @Transactional
-    public void recordBudgetExceeded(AgentRunView run, ChatCompletionResult completion) {
-        int sequence = nextSequence(run.id());
-        jdbc.update("""
-                INSERT INTO agent_step(
-                  run_id,sequence_no,type,reason,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms,error_code)
-                VALUES (?,?,'ERROR','Model response exceeded remaining budget',?,?,?,?,?,
-                  'AGENT_BUDGET_EXCEEDED')
-                """, run.id(), sequence, completion.promptTokens(), completion.completionTokens(),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                boundedLatency(completion.latencyMs()));
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status='BUDGET_EXCEEDED',
-                  steps_used=LEAST(max_steps,steps_used+1),
-                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
-                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
-                  token_usage_estimated=?,error_code='AGENT_BUDGET_EXCEEDED',
-                  finished_at=now(),lease_owner=NULL,lease_expires_at=NULL,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, tokens(completion.promptTokens(), ""),
-                tokens(completion.completionTokens(), completion.content()),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                run.projectId(), run.id(), run.version()));
-        resumeParent(run, "BUDGET_EXCEEDED", "AGENT_BUDGET_EXCEEDED");
+    public void recordBudgetPartialAnswer(AgentRunView run, String content) {
+        recorder.recordBudgetPartialAnswer(run, content);
     }
 
+    /** 预算部分回答 + 同事务消费"上一 claim 已持久化、尚未消费"的模型文本轮次。 */
     @Transactional
-    public void recordDecisionFailure(
-            AgentRunView run, ChatCompletionResult completion, String errorCode, String reason) {
-        int sequence = nextSequence(run.id());
-        jdbc.update("""
-                INSERT INTO agent_step(
-                  run_id,sequence_no,type,reason,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms,error_code)
-                VALUES (?,?,'ERROR',?,?,?,?,?,?)
-                """, run.id(), sequence, truncate(reason, 2000),
-                completion.promptTokens(), completion.completionTokens(),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                boundedLatency(completion.latencyMs()), errorCode);
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status='FAILED',steps_used=LEAST(max_steps,steps_used+1),
-                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
-                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
-                  token_usage_estimated=?,error_code=?,finished_at=now(),
-                  lease_owner=NULL,lease_expires_at=NULL,updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, tokens(completion.promptTokens(), ""),
-                tokens(completion.completionTokens(), completion.content()),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                errorCode, run.projectId(), run.id(), run.version()));
-        resumeParent(run, "FAILED", errorCode);
+    public void recordBudgetPartialAnswer(AgentRunView run, String content, boolean consumePersistedTurn) {
+        recorder.recordBudgetPartialAnswer(run, content, consumePersistedTurn);
     }
 
-    @Transactional
-    public void recordFailure(AgentRunView run, String errorCode, boolean retryable) {
-        appendErrorStep(run, errorCode);
-        // 如果可重试但已达到最大重试次数（10），直接标记为 FAILED 避免死循环
-        boolean finalFailure = !retryable || run.retryCount() >= 9;
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status=?,error_code=?,
-                  retry_count=LEAST(retry_count+CASE WHEN ? THEN 1 ELSE 0 END, 10),
-                  retry_after=CASE WHEN ? AND NOT ? THEN now()+interval '30 seconds' ELSE NULL END,
-                  finished_at=CASE WHEN ? THEN NULL ELSE now() END,
-                  lease_owner=NULL,lease_expires_at=NULL,updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, finalFailure ? "FAILED" : "FAILED_RETRYABLE", errorCode,
-                retryable, retryable, finalFailure, finalFailure,
-                run.projectId(), run.id(), run.version()));
-        if (finalFailure) resumeParent(run, "FAILED", errorCode);
+    public void recordBudgetExceeded(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion) {
+        recorder.recordBudgetExceeded(run, completion);
     }
 
     /**
-     * 记录取消状态。状态为 CANCELED，error_code 为 RUN_CANCELLED。
-     * 不复用 recordFailure 方法，确保状态一致。
+     * 会话摘要 CAS 提交：仅当 stateRevision 与 goalRevision 与生成时一致、且声明的
+     * sourceThrough 消息真实属于本会话时才落库；提交原子递增 stateRevision（同一状态上
+     * 的两个摘要提交只有第一个能成功），用 jsonb_set 只写 summary 节点，不整块覆盖。
      */
     @Transactional
+    public boolean commitConversationSummary(UUID projectId, UUID sessionId,
+            int expectedStateRevision, int expectedGoalRevision, JsonNode summary) {
+        return jdbc.update("""
+                UPDATE agent_session
+                SET working_state=jsonb_set(
+                      jsonb_set(working_state,'{summary}',?::jsonb,true),
+                      '{stateRevision}',
+                      to_jsonb((working_state->>'stateRevision')::int + 1)),
+                    updated_at=now()
+                WHERE project_id=? AND id=?
+                  AND (working_state->>'stateRevision')=?::text
+                  AND (working_state->>'goalRevision')=?::text
+                  AND EXISTS (SELECT 1 FROM agent_message m
+                              WHERE m.id=(?::jsonb->>'sourceThrough')::uuid
+                                AND m.session_id=agent_session.id)
+                """, summary.toString(), projectId, sessionId,
+                String.valueOf(expectedStateRevision), String.valueOf(expectedGoalRevision),
+                summary.toString()) == 1;
+    }
+
+    /** 本次运行已持久化的摘要尝试次数（用于"每运行至多一次"约束）。 */
+    public int countSummaryAttempts(UUID projectId, UUID runId) {
+        Integer count = jdbc.queryForObject("""
+                SELECT count(*) FROM agent_step
+                WHERE run_id=? AND type='MODEL_REQUEST' AND reason='CONTEXT_SUMMARY'
+                """, Integer.class, runId);
+        return count == null ? 0 : count;
+    }
+
+    /** 摘要尝试开始（持久化标记）与完成记账，见 AgentRunEventRecorder。 */
+    public UUID beginSummaryAttempt(AgentRunView run) {
+        return recorder.beginSummaryAttempt(run);
+    }
+
+    /** 摘要重压缩调用的独立持久化标记（每次实际模型请求一个身份）。 */
+    public UUID beginSummaryRecompressAttempt(AgentRunView run) {
+        return recorder.beginSummaryRecompressAttempt(run);
+    }
+
+    public void completeSummaryAttempt(UUID attemptId, String outcome, String model,
+            AgentRunEventRecorder.UsageSettlement usage, String note) {
+        recorder.completeSummaryAttempt(attemptId, outcome, model, usage, note);
+    }
+
+    public void completeSummaryRecompressAttempt(UUID attemptId, String outcome, String model,
+            AgentRunEventRecorder.UsageSettlement usage, String note) {
+        recorder.completeSummaryRecompressAttempt(attemptId, outcome, model, usage, note);
+    }
+
+    // ---- 运行研究轨迹窗口压缩（RUN_CONTEXT scope，V64 起） ----
+
+    /**
+     * 本运行已提交的 RUN_CONTEXT 压缩周期数（成功提交才计数）。
+     * 每个运行至多允许 {@code MAX_RUN_CONTEXT_CYCLES} 个有效周期；
+     * 失败/不合格的尝试不推进覆盖、也不占用周期额度。
+     */
+    public int countCommittedRunContextCycles(UUID projectId, UUID runId) {
+        Integer count = jdbc.queryForObject("""
+                SELECT count(*) FROM agent_step
+                WHERE run_id=? AND reason='RUN_CONTEXT_SUMMARY' AND output_json->>'status'='COMMITTED'
+                """, Integer.class, runId);
+        return count == null ? 0 : count;
+    }
+
+    /**
+     * 已有的 RUN_CONTEXT 有效摘要（最新一次提交），形如
+     * {@code {scope, text, sourceFromSequence, sourceThroughSequence, cycle, ...}}；
+     * 无有效压缩时返回 null。
+     */
+    public JsonNode latestRunContextSummary(UUID projectId, UUID runId) {
+        return jdbc.query("""
+                SELECT output_json::text FROM agent_step
+                WHERE run_id=? AND reason='RUN_CONTEXT_SUMMARY' AND output_json->>'status'='COMMITTED'
+                ORDER BY sequence_no DESC LIMIT 1
+                """, (rs, row) -> {
+                    try {
+                        return json.readTree(rs.getString(1));
+                    } catch (JsonProcessingException failure) {
+                        throw new IllegalStateException("RUN_CONTEXT 摘要无法解析", failure);
+                    }
+                }, runId).stream().findFirst().orElse(null);
+    }
+
+    /** RUN_CONTEXT 压缩请求身份（持久化准入边界与主会话摘要一致；goalRevision 参与提交 fencing）。 */
+    public UUID beginRunContextAttempt(AgentRunView run, int cycle, int fromSequence, int throughSequence, int goalRevision) {
+        return recorder.beginRunContextAttempt(run, cycle, fromSequence, throughSequence, goalRevision);
+    }
+
+    /** 兼容入口：目标修订按当前业务事实即时读取。 */
+    public UUID beginRunContextAttempt(AgentRunView run, int cycle, int fromSequence, int throughSequence) {
+        return beginRunContextAttempt(run, cycle, fromSequence, throughSequence,
+                currentGoalRevision(run.projectId(), run.sessionId()));
+    }
+
+    /**
+     * 完成 RUN_CONTEXT 压缩尝试；committedSummary 为 null 表示未提交（不推进覆盖）。
+     *
+     * @return 是否<b>真实发布</b>了有效摘要（fenced / 重复完成 / CAS 失配均为 false）
+     */
+    public boolean completeRunContextAttempt(UUID attemptId, String outcome, String model,
+            AgentRunEventRecorder.UsageSettlement usage, String note, JsonNode committedSummary, Integer expectedGoalRevision) {
+        return recorder.completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary, expectedGoalRevision);
+    }
+
+    /** 兼容入口：不做目标修订冲突检查的发布（仍受 claim epoch 与取消 fencing 约束）。 */
+    public boolean completeRunContextAttempt(UUID attemptId, String outcome, String model,
+            AgentRunEventRecorder.UsageSettlement usage, String note, JsonNode committedSummary) {
+        return recorder.completeRunContextAttempt(attemptId, outcome, model, usage, note, committedSummary, null);
+    }
+
+    /**
+     * 当前目标的业务修订事实：会话工作状态的 {@code goalRevision}（目标更正/新目标时递增）。
+     * RUN_CONTEXT 摘要提交的冲突检查使用该值，不把任意 run.version 当成目标修订。
+     * 无工作状态（旧格式会话）按 0 兼容。
+     */
+    public int currentGoalRevision(UUID projectId, UUID sessionId) {
+        return jdbc.query("""
+                SELECT CASE WHEN working_state->>'goalRevision' ~ '^[0-9]+$'
+                            THEN (working_state->>'goalRevision')::int ELSE 0 END AS rev
+                FROM agent_session WHERE project_id=? AND id=?
+                """, (rs, row) -> rs.getInt("rev"), projectId, sessionId)
+                .stream().findFirst().orElse(0);
+    }
+
+    public void recordDecisionFailure(
+            AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion,
+            String errorCode, String reason) {
+        recorder.recordDecisionFailure(run, completion, errorCode, reason);
+    }
+
+    public void recordFailure(AgentRunView run, String errorCode, boolean retryable) {
+        recorder.recordFailure(run, errorCode, retryable);
+    }
+
     public void recordCanceled(AgentRunView run) {
-        int updated = jdbc.update("""
-                UPDATE agent_run SET status='CANCELED', error_code='RUN_CANCELLED',
-                  finished_at=now(), lease_owner=NULL, lease_expires_at=NULL,
-                  updated_at=now(), version=version+1
-                WHERE project_id=? AND id=? AND status='RUNNING'
-                """, run.projectId(), run.id());
-        if (updated == 0) {
-            AgentRunStatus status = findRun(run.projectId(), run.id())
-                    .map(AgentRunView::status)
-                    .orElseThrow(() -> new IllegalStateException("Agent 运行不存在"));
-            if (status == AgentRunStatus.CANCELED) return;
-            throw new IllegalStateException("Agent 运行已进入不可取消状态: " + status);
-        }
-        appendErrorStep(run, "RUN_CANCELLED");
-        resumeParent(run, "CANCELED", "AGENT_RUN_CANCELED");
+        recorder.recordCanceled(run);
     }
 
-    @Transactional
     public void recordInvalidDecision(
-            AgentRunView run, ChatCompletionResult completion, String reason) {
-        int sequence = nextSequence(run.id());
-        jdbc.update("""
-                INSERT INTO agent_step(
-                  run_id,sequence_no,type,reason,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms,error_code)
-                VALUES (?,?,'ERROR',?,?,?,?,?,'AGENT_INVALID_DECISION')
-                """, run.id(), sequence, truncate(reason, 2000),
-                completion.promptTokens(), completion.completionTokens(),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                boundedLatency(completion.latencyMs()));
-        boolean retry = !run.correctionAttempted();
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status=?,correction_attempted=true,
-                  steps_used=steps_used+1,input_tokens_used=input_tokens_used+?,
-                  output_tokens_used=output_tokens_used+?,token_usage_estimated=?,
-                  error_code='AGENT_INVALID_DECISION',
-                  lease_owner=NULL,lease_expires_at=NULL,
-                  finished_at=CASE WHEN ? THEN NULL ELSE now() END,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, retry ? "QUEUED" : "FAILED",
-                tokens(completion.promptTokens(), completion.content()),
-                tokens(completion.completionTokens(), completion.content()),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                retry, run.projectId(), run.id(), run.version()));
+            AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion, String reason) {
+        recorder.recordInvalidDecision(run, completion, reason);
     }
 
-    @Transactional
     public void recordFinal(
-            AgentRunView run, ChatCompletionResult completion, AgentDecision.FinalAnswer answer) {
-        int sequence = nextSequence(run.id());
-        jdbc.update("""
-                INSERT INTO agent_step(
-                  run_id,sequence_no,type,output_json,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms)
-                VALUES (?,?,'FINAL_ANSWER',?::jsonb,?,?,?,?)
-                """, run.id(), sequence, jsonString(answer),
-                completion.promptTokens(), completion.completionTokens(),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                boundedLatency(completion.latencyMs()));
-        jdbc.update("""
-                INSERT INTO agent_message(
-                  session_id,run_id,role,content,citations_json,inferences_json)
-                VALUES (?,?,'ASSISTANT',?,?::jsonb,?::jsonb)
-                """, run.sessionId(), run.id(), answer.answer(),
-                answer.citations().toString(), answer.inferences().toString());
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status='SUCCEEDED',steps_used=steps_used+1,
-                  input_tokens_used=input_tokens_used+?,output_tokens_used=output_tokens_used+?,
-                  token_usage_estimated=?,model_provider=?,model_name=?,
-                  finished_at=now(),lease_owner=NULL,lease_expires_at=NULL,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, tokens(completion.promptTokens(), ""),
-                tokens(completion.completionTokens(), completion.content()),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                truncate(completion.provider(), 80), truncate(completion.model(), 120),
-                run.projectId(), run.id(), run.version()));
-        resumeParent(run, "SUCCEEDED", answer.answer());
+            AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion,
+            com.shitulelv.aicollab.agent.domain.model.AgentDecision.FinalAnswer answer) {
+        recorder.recordFinal(run, completion, answer);
     }
 
-    @Transactional
     public void recordToolResult(
             AgentRunView run,
-            ChatCompletionResult completion,
-            AgentDecision.CallTool call,
+            com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion,
+            com.shitulelv.aicollab.agent.domain.model.AgentDecision.CallTool call,
             JsonNode result) {
-        int sequence = nextSequence(run.id());
-        jdbc.update("""
-                INSERT INTO agent_step(
-                  run_id,sequence_no,type,tool_name,input_json,output_json,reason,
-                  prompt_tokens,completion_tokens,token_usage_estimated,latency_ms)
-                VALUES (?,?,'TOOL_CALL_COMPLETED',?,?::jsonb,?::jsonb,?,?,?,?,?)
-                """, run.id(), sequence, call.tool(), call.arguments().toString(),
-                result.toString(), truncate(call.reason(), 2000),
-                completion.promptTokens(), completion.completionTokens(),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                boundedLatency(completion.latencyMs()));
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status='QUEUED',steps_used=steps_used+1,
-                  tool_calls_used=tool_calls_used+1,input_tokens_used=input_tokens_used+?,
-                  output_tokens_used=output_tokens_used+?,token_usage_estimated=?,
-                  model_provider=?,model_name=?,lease_owner=NULL,lease_expires_at=NULL,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, tokens(completion.promptTokens(), ""),
-                tokens(completion.completionTokens(), completion.content()),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                truncate(completion.provider(), 80), truncate(completion.model(), 120),
-                run.projectId(), run.id(), run.version()));
+        recorder.recordToolResult(run, completion, call, result);
     }
 
-    @Transactional
     public AgentRunView recordDelegation(
-            AgentRunView run, ChatCompletionResult completion, AgentDecision.Delegate delegate) {
-        if (run.depth() != 0 || run.childrenUsed() >= run.maxChildren()) {
-            throw new IllegalStateException("Agent 子运行预算已耗尽");
+            AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion,
+            com.shitulelv.aicollab.agent.domain.model.AgentDecision.Delegate delegate) {
+        return recorder.recordDelegation(run, completion, delegate);
+    }
+
+    /**
+     * 受理一次只读文档研究委派（V62）：创建 depth=1 子运行、落 DELEGATION_REQUESTED step、
+     * 委派工具结果与父运行转回 QUEUED 在同一事务内完成。
+     * 幂等键是本次工具调用的 invocationId；同一调用重复执行返回既有子运行，不重复落库。
+     */
+    @Transactional
+    public JsonNode documentResearchDelegationResult(
+            AgentRunView run, String invocationId, String objective) {
+        return recorder.documentResearchDelegationResult(run, invocationId, objective);
+    }
+
+    /**
+     * 更新 Run 的计划。
+     */
+    @Transactional
+    public void updatePlan(UUID projectId, UUID runId, int version, String planJson) {
+        recorder.updatePlan(projectId, runId, version, planJson);
+    }
+
+    /**
+     * 重新排队 Run。
+     */
+    @Transactional
+    public void requeueRun(AgentRunView run) {
+        recorder.requeueRun(run);
+    }
+
+    /** 批次因工具额度无法受理：按请求规模消耗工具额度并重新排队（见 {@link AgentRunEventRecorder}）。 */
+    @Transactional
+    public void consumeToolBatchQuotaAndRequeue(AgentRunView run, int requestedCalls) {
+        recorder.consumeToolBatchQuotaAndRequeue(run, requestedCalls);
+    }
+
+    /**
+     * 记录模型轮次。同时更新 Run 的 token 预算计数和版本。
+     */
+    @Transactional
+    public AgentRunView recordModelTurn(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn) {
+        return recorder.recordModelTurn(run, turn);
+    }
+
+    /** 记录模型轮次并持久化本轮可信执行模式，供恢复待处理调用时校验写工具权限。 */
+    @Transactional
+    public AgentRunView recordModelTurn(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn, String sourceMode) {
+        return recorder.recordModelTurn(run, turn, sourceMode);
+    }
+
+    /** 每次实际出站模型请求发出前落库的持久化调用身份（正常记账与取消补记共用）。 */
+    @Transactional
+    public String beginModelCall(UUID projectId, UUID runId, String kind) {
+        return recorder.beginModelCall(projectId, runId, kind);
+    }
+
+    /** 模型调用已发生但状态机已离开 RUNNING（取消/并发推进/校验失败）时，按调用身份幂等结算用量。 */
+    @Transactional
+    public boolean settleOrphanUsage(UUID projectId, UUID runId, String callId, String kind,
+            AgentRunEventRecorder.UsageSettlement usage) {
+        return recorder.settleOrphanUsage(projectId, runId, callId, kind, usage);
+    }
+
+    /** 正常记账（原子）：身份行首次结算与 recordModelTurn 的运行累计/步骤写入同一事务。 */
+    @Transactional
+    public AgentRunView recordModelTurnWithSettlement(AgentRunView run,
+            com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn, String callId, String kind,
+            AgentRunEventRecorder.UsageSettlement settlement) {
+        return recorder.recordModelTurnWithSettlement(run, turn, callId, kind, settlement);
+    }
+
+    /** 带本轮可信执行模式的原子记账；source_mode 随待处理调用持久化，供恢复校验。 */
+    @Transactional
+    public AgentRunView recordModelTurnWithSettlement(AgentRunView run,
+            com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn, String callId, String kind,
+            AgentRunEventRecorder.UsageSettlement settlement, String sourceMode) {
+        return recorder.recordModelTurnWithSettlement(run, turn, callId, kind, settlement, sourceMode);
+    }
+
+    /**
+     * 原子记账并持久化本轮请求实际采用的强制收尾意图（消息组装与 needsFinalRequest 调整后的值）。
+     * 该元数据与响应、用量结算同一事务提交，供接管按原请求语义处理已保存结果。
+     */
+    @Transactional
+    public AgentRunView recordModelTurnWithSettlement(AgentRunView run,
+            com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn, String callId, String kind,
+            AgentRunEventRecorder.UsageSettlement settlement, String sourceMode, Boolean finalizingIntent) {
+        return recorder.recordModelTurnWithSettlement(run, turn, callId, kind, settlement, sourceMode, finalizingIntent);
+    }
+
+    /** 输出超限分支的原子记账：身份行结算与 recordBudgetExceeded 的运行累计同一事务。 */
+    @Transactional
+    public void recordBudgetExceededWithSettlement(AgentRunView run,
+            com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion, String callId, String kind,
+            AgentRunEventRecorder.UsageSettlement settlement) {
+        recorder.recordBudgetExceededWithSettlement(run, completion, callId, kind, settlement);
+    }
+
+    /** 恢复接管时收口未结算身份行：显式未知终态（0/0 + UNKNOWN），不虚构消耗。 */
+    @Transactional
+    public int closeUnresolvedModelCalls(UUID runId) {
+        return recorder.closeUnresolvedModelCalls(runId);
+    }
+
+    /**
+     * 本运行内指定工具是否已有成功的持久化调用结果（用于核心动作是否已发生的判定，
+     * 依据持久工具结果，不扫描最终回答）。
+     */
+    public boolean hasSuccessfulToolInvocation(UUID runId, java.util.Collection<String> toolNames) {
+        if (toolNames == null || toolNames.isEmpty()) return false;
+        String names = toolNames.stream()
+                .map(name -> "'" + name.replace("'", "''") + "'")
+                .collect(java.util.stream.Collectors.joining(","));
+        Integer count = jdbc.queryForObject(
+                "SELECT count(*) FROM agent_tool_invocation WHERE run_id=? AND status='SUCCEEDED' AND tool_name IN (" + names + ")",
+                Integer.class, runId);
+        return count != null && count > 0;
+    }
+
+    /**
+     * 恢复批次中已有持久化结果（或已绑定提案）的调用数：按原 invocation 身份（最近一个
+     * 模型轮次 + tool_call_id）识别。这些调用由执行器复用、不再执行，也不应再占工具
+     * 总额度的新增份额——它们的结果落库时已经推进过 tool_calls_used。仅按 tool_call_id
+     * 计数；调用名与参数的一致性仍由执行器的 {@code knownInvocationResult} 逐项校验。
+     */
+    public int countSettledInvocations(AgentRunView run,
+            java.util.List<com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall> calls) {
+        if (calls == null || calls.isEmpty()) return 0;
+        String ids = calls.stream()
+                .map(call -> "'" + call.id().replace("'", "''") + "'")
+                .collect(java.util.stream.Collectors.joining(","));
+        Integer count = jdbc.queryForObject("""
+                SELECT count(*) FROM agent_tool_invocation
+                WHERE run_id=? AND tool_call_id IN (%s)
+                  AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
+                  AND (status<>'PENDING' OR proposal_id IS NOT NULL)
+                """.formatted(ids), Integer.class, run.id(), run.id());
+        return count == null ? 0 : count;
+    }
+
+    /**
+     * 记录工具结果。同时更新 Run 的 tool_calls_used 和版本。
+     */
+    @Transactional
+    public AgentRunView recordToolResult(AgentRunView run, String toolName,
+                                  JsonNode arguments, JsonNode result, boolean isError) {
+        return recorder.recordToolResult(run, toolName, arguments, result, isError);
+    }
+
+    /**
+     * 记录最终答案。使用 ObjectMapper 序列化 JSONB，确保中文、引号、换行等正确保存。
+     * 先检查版本，再写入数据，避免版本冲突时留下孤立数据。
+     */
+    @Transactional
+    public AgentRunView recordFinal(AgentRunView run, String content, List<AgentCitation> citations) {
+        return recorder.recordFinal(run, content, citations);
+    }
+
+    /**
+     * 记录等待用户输入状态。
+     */
+    @Transactional
+    public AgentRunView recordWaitingForInput(AgentRunView run, String question) {
+        return recorder.recordWaitingForInput(run, question);
+    }
+
+    /** 等待输入 + 同事务消费"上一 claim 已持久化、尚未消费"的模型文本轮次（恢复路径）。 */
+    @Transactional
+    public AgentRunView recordWaitingForInput(AgentRunView run, String question, boolean consumePersistedTurn) {
+        return recorder.recordWaitingForInput(run, question, consumePersistedTurn);
+    }
+
+    /**
+     * 记录最终答案；{@code consumePersistedTurn=true} 时在同一事务内消费
+     * "上一 claim 已持久化、尚未消费"的模型文本轮次（恢复收尾路径）。
+     */
+    @Transactional
+    public AgentRunView recordFinal(AgentRunView run, String content, List<AgentCitation> citations,
+            boolean consumePersistedTurn) {
+        return recorder.recordFinal(run, content, citations, consumePersistedTurn);
+    }
+
+    /**
+     * 继续等待用户输入的 Run。
+     */
+    @Transactional
+    public AgentRunView continueRun(AgentRunView run, String userResponse) {
+        return recorder.continueRun(run, userResponse);
+    }
+
+    /**
+     * 加载最近的对话历史（用于上下文）。
+     * 返回最近 limit 条消息。
+     */
+    public List<AgentMessageView> listRecentMessages(UUID sessionId, int limit) {
+        return jdbc.query("""
+                SELECT m.* FROM agent_message m
+                WHERE m.session_id=?
+                ORDER BY m.created_at DESC, m.id DESC
+                LIMIT ?
+                """, messageMapper(), sessionId, limit);
+    }
+
+    /** 每次重读均验证项目、会话和现有成员资格。按旧到新推进，不依赖最近历史窗口。 */
+    public List<AgentMessageView> listSummaryCandidates(AgentRunView run, java.util.Set<UUID> excluded, int limit) {
+        requireSummaryAccess(run);
+        String excludedJson = json.valueToTree(excluded).toString();
+        return jdbc.query("""
+                SELECT m.* FROM agent_message m JOIN agent_session s ON s.id=m.session_id
+                WHERE s.project_id=? AND s.id=?
+                  AND NOT (?::jsonb @> to_jsonb(m.id::text))
+                  AND COALESCE((s.working_state->'summary'->>'completedBefore')::timestamptz,'-infinity') <= m.created_at
+                  AND length(m.content)+length(regexp_replace(m.content,U&'[^\\+010000-\\+10FFFF]','','g')) > COALESCE((SELECT max((seg->>'to')::int)
+                      FROM jsonb_array_elements(COALESCE(s.working_state->'summary'->'segments','[]')) seg
+                      WHERE seg->>'messageId'=m.id::text),0)
+                ORDER BY m.created_at,m.id LIMIT ?
+                """, messageMapper(), run.projectId(), run.sessionId(), excludedJson, limit);
+    }
+
+    public void requireSummaryAccess(AgentRunView run) {
+        Integer count = jdbc.queryForObject("""
+                SELECT count(*) FROM agent_session s JOIN project_member pm ON pm.project_id=s.project_id
+                WHERE s.project_id=? AND s.id=? AND pm.user_id=?
+                """, Integer.class, run.projectId(), run.sessionId(), run.requesterId());
+        if (count == null || count != 1) throw new BusinessException(ErrorCode.AUTH_FORBIDDEN, "会话资料已不可访问");
+    }
+
+    /** 压缩已完成的连续历史前缀；未完成偏移永不受容量限制。删除的消息明确退出覆盖。 */
+    public void compactSummaryCoverage(AgentRunView run, com.fasterxml.jackson.databind.node.ObjectNode summary) {
+        requireSummaryAccess(run);
+        var rows = jdbc.queryForList("""
+                SELECT m.id::text AS id,m.created_at,length(m.content)+length(regexp_replace(m.content,U&'[^\\+010000-\\+10FFFF]','','g')) AS size
+                FROM agent_message m JOIN agent_session s ON s.id=m.session_id
+                WHERE s.project_id=? AND s.id=? ORDER BY m.created_at,m.id
+                """, run.projectId(),run.sessionId());
+        var offsets = new java.util.HashMap<String,Integer>();
+        for (JsonNode seg : summary.path("segments")) offsets.put(seg.path("messageId").asText(),seg.path("to").asInt());
+        java.time.Instant boundary = summary.hasNonNull("completedBefore")
+                ? java.time.Instant.parse(summary.path("completedBefore").asText()) : java.time.Instant.MIN;
+        var existing = new java.util.HashSet<String>();
+        var incomplete = new java.util.HashSet<String>();
+        boolean prefix = true;
+        for (var row : rows) {
+            String id = row.get("id").toString(); existing.add(id);
+            var time = ((java.sql.Timestamp)row.get("created_at")).toInstant();
+            if (time.isBefore(boundary)) continue;
+            boolean done = offsets.getOrDefault(id,0) >= ((Number)row.get("size")).intValue();
+            if (!done) { prefix = false; incomplete.add(id); }
+            // 时间相等的消息一起保留，不能将未读消息跳过。
+            if (prefix) boundary = time;
         }
-        UUID childId = UUID.randomUUID();
-        int sequence = nextSequence(run.id());
-        jdbc.update("""
-                INSERT INTO agent_step(
-                  run_id,sequence_no,type,input_json,reason,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms)
-                VALUES (?,?,'DELEGATION_REQUESTED',
-                  jsonb_build_object('role',?,'objective',?),?,?,?,?,?)
-                """, run.id(), sequence, delegate.role(), delegate.objective(),
-                delegate.objective(), completion.promptTokens(), completion.completionTokens(),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                boundedLatency(completion.latencyMs()));
-        int promptTokens = tokens(completion.promptTokens(), "");
-        int outputTokens = tokens(completion.completionTokens(), completion.content());
-        int childSteps = run.maxSteps() - run.stepsUsed() - 1;
-        int childTools = run.maxToolCalls() - run.toolCallsUsed();
-        int childInputs = run.maxInputTokens() - run.inputTokensUsed() - promptTokens;
-        int childOutputs = run.maxOutputTokens() - run.outputTokensUsed() - outputTokens;
-        if (childSteps < 1 || childInputs < 1 || childOutputs < 1) {
-            throw new IllegalStateException("Agent 没有可分配给子运行的剩余预算");
+        if (!boundary.equals(java.time.Instant.MIN)) summary.put("completedBefore",boundary.toString());
+        var segments = summary.putArray("segments");
+        for (var row : rows) {
+            String id = row.get("id").toString();
+            var time = ((java.sql.Timestamp)row.get("created_at")).toInstant();
+            if (!time.isBefore(boundary) && offsets.containsKey(id))
+                segments.addObject().put("messageId",id).put("from",0).put("to",offsets.get(id));
         }
-        AgentRunView child = jdbc.queryForObject("""
-                INSERT INTO agent_run(
-                  id,session_id,project_id,requester_id,parent_run_id,role,depth,goal,status,
-                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens)
-                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?)
-                RETURNING *
-                """, runMapper(), childId, run.sessionId(), run.projectId(), run.requesterId(),
-                run.id(), delegate.role(), delegate.objective(),
-                childSteps, childTools, childInputs, childOutputs);
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status='CREATED',steps_used=steps_used+1,
-                  children_used=children_used+1,input_tokens_used=input_tokens_used+?,
-                  output_tokens_used=output_tokens_used+?,lease_owner=NULL,lease_expires_at=NULL,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, promptTokens, outputTokens,
-                run.projectId(), run.id(), run.version()));
-        return child;
+        var terminated = summary.putArray("terminatedMessageIds");
+        for (JsonNode id : summary.path("uncoveredMessageIds")) if (!existing.contains(id.asText())) terminated.add(id.asText());
+        var pending = summary.putArray("uncoveredMessageIds");
+        for (var row : rows) if (incomplete.contains(row.get("id").toString()) && offsets.containsKey(row.get("id").toString())) pending.add(row.get("id").toString());
+        summary.put("uncoveredCount",pending.size());
+        summary.put("coverage",incomplete.isEmpty() ? "FULL" : "PARTIAL");
     }
 
     private RowMapper<AgentSessionView> sessionMapper() {
@@ -514,56 +954,6 @@ public class AgentRepository {
                 rs.getInt("version"),
                 rs.getObject("created_at", OffsetDateTime.class),
                 rs.getObject("updated_at", OffsetDateTime.class));
-    }
-
-    private RowMapper<AgentRunView> runMapper() {
-        return (rs, row) -> new AgentRunView(
-                rs.getObject("id", UUID.class),
-                rs.getObject("session_id", UUID.class),
-                rs.getObject("project_id", UUID.class),
-                rs.getObject("requester_id", UUID.class),
-                rs.getObject("parent_run_id", UUID.class),
-                rs.getString("role"),
-                rs.getInt("depth"),
-                rs.getString("goal"),
-                AgentRunStatus.valueOf(rs.getString("status")),
-                rs.getInt("max_steps"),
-                rs.getInt("max_tool_calls"),
-                rs.getInt("max_children"),
-                rs.getInt("max_input_tokens"),
-                rs.getInt("max_output_tokens"),
-                rs.getInt("steps_used"),
-                rs.getInt("tool_calls_used"),
-                rs.getInt("children_used"),
-                rs.getInt("input_tokens_used"),
-                rs.getInt("output_tokens_used"),
-                rs.getBoolean("token_usage_estimated"),
-                rs.getBoolean("scheduled"),
-                rs.getBoolean("correction_attempted"),
-                rs.getInt("retry_count"),
-                rs.getString("error_code"),
-                rs.getString("plan_json"),
-                rs.getString("page_context_json"),
-                rs.getString("skill_code"),
-                rs.getInt("version"),
-                rs.getObject("created_at", OffsetDateTime.class),
-                rs.getObject("updated_at", OffsetDateTime.class));
-    }
-
-    private RowMapper<ClaimedAgentRun> claimedMapper() {
-        return (rs, row) -> new ClaimedAgentRun(
-                rs.getObject("id", UUID.class),
-                rs.getObject("session_id", UUID.class),
-                rs.getObject("project_id", UUID.class),
-                rs.getObject("requester_id", UUID.class),
-                rs.getObject("parent_run_id", UUID.class),
-                rs.getString("role"),
-                rs.getInt("depth"),
-                rs.getString("goal"),
-                AgentRunStatus.valueOf(rs.getString("previous_status")),
-                rs.getBoolean("scheduled"),
-                rs.getBoolean("correction_attempted"),
-                rs.getInt("version"));
     }
 
     private RowMapper<AgentStepView> stepMapper() {
@@ -603,289 +993,28 @@ public class AgentRepository {
             throw new IllegalStateException("Agent 持久化 JSON 无法读取", exception);
         }
     }
+    public boolean citationsStillValid(UUID projectId, JsonNode result) {
+        if (result==null) return false;
+        for (JsonNode citation : result.path("citations")) {
+            try {
+                int found=jdbc.queryForObject("SELECT count(*) FROM (SELECT c.id FROM document_chunk c JOIN project_document d ON d.id=c.document_id WHERE c.id=? AND d.id=? AND d.project_id=? AND d.status='READY' UNION ALL SELECT c.id FROM document_body_chunk c JOIN project_document d ON d.id=c.document_id WHERE c.id=? AND d.id=? AND d.project_id=? AND d.status<>'DELETING') sources",Integer.class,
+                        UUID.fromString(citation.path("chunkId").asText()),UUID.fromString(citation.path("documentId").asText()),projectId,
+                        UUID.fromString(citation.path("chunkId").asText()),UUID.fromString(citation.path("documentId").asText()),projectId);
+                if (found!=1) return false;
+            } catch (IllegalArgumentException malformed) { return false; }
+        }
+        return true;
+    }
 
     private static Integer integer(ResultSet rs, String column) throws SQLException {
         int value = rs.getInt(column);
         return rs.wasNull() ? null : value;
     }
 
-    private void appendErrorStep(AgentRunView run, String errorCode) {
-        jdbc.update("""
-                INSERT INTO agent_step(run_id,sequence_no,type,error_code)
-                VALUES (?,?,'ERROR',?)
-                """, run.id(), nextSequence(run.id()), errorCode);
-    }
-
-    private int nextSequence(UUID runId) {
-        Integer value = jdbc.queryForObject("""
-                SELECT COALESCE(max(sequence_no),0)+1 FROM agent_step WHERE run_id=?
-                """, Integer.class, runId);
-        return value == null ? 1 : value;
-    }
-
-    private String jsonString(Object value) {
-        try {
-            return json.writeValueAsString(value);
-        } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Agent 结果无法序列化", exception);
-        }
-    }
-
-    private static int tokens(Integer reported, String text) {
-        if (reported != null) return reported;
-        int codePoints = text == null ? 0 : text.codePointCount(0, text.length());
-        return Math.max(1, (codePoints + 2) / 3);
-    }
-
-    private static int boundedLatency(long value) {
-        return (int) Math.min(Integer.MAX_VALUE, Math.max(0, value));
-    }
-
-    private static String truncate(String value, int maximum) {
-        if (value == null) return null;
-        int count = value.codePointCount(0, value.length());
-        return count <= maximum ? value : value.substring(0, value.offsetByCodePoints(0, maximum));
-    }
-
     private static void requireRunUpdate(int updated) {
         if (updated != 1) {
             throw new IllegalStateException("Agent 运行已被其他 worker 修改");
         }
-    }
-
-    private void resumeParent(AgentRunView child, String status, String content) {
-        if (child.parentRunId() == null) return;
-        AgentRunView usage = findRun(child.projectId(), child.id()).orElse(child);
-        int sequence = nextSequence(child.parentRunId());
-        jdbc.update("""
-                INSERT INTO agent_step(run_id,sequence_no,type,output_json,reason)
-                VALUES (?,?,'DELEGATION_COMPLETED',
-                  jsonb_build_object('childRunId',?,'status',?,'content',?),?)
-                """, child.parentRunId(), sequence, child.id(), status, content,
-                "Specialist child run completed");
-        jdbc.update("""
-                UPDATE agent_run SET status='QUEUED',
-                  steps_used=LEAST(max_steps,steps_used+?),
-                  tool_calls_used=LEAST(max_tool_calls,tool_calls_used+?),
-                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
-                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
-                  token_usage_estimated=token_usage_estimated OR ?,
-                  updated_at=now(),version=version+1
-                WHERE id=? AND status='CREATED'
-                """, usage.stepsUsed(), usage.toolCallsUsed(), usage.inputTokensUsed(),
-                usage.outputTokensUsed(), usage.tokenUsageEstimated(), child.parentRunId());
-    }
-
-    /**
-     * 更新 Run 的计划。
-     */
-    @Transactional
-    public void updatePlan(UUID projectId, UUID runId, int version, String planJson) {
-        jdbc.update("""
-                UPDATE agent_run SET plan_json=?::jsonb,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=?
-                """, planJson, projectId, runId, version);
-    }
-
-    /**
-     * 重新排队 Run。
-     */
-    @Transactional
-    public void requeueRun(AgentRunView run) {
-        jdbc.update("""
-                UPDATE agent_run SET status='QUEUED',
-                  lease_owner=NULL,lease_expires_at=NULL,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, run.projectId(), run.id(), run.version());
-    }
-
-    /**
-     * 记录模型轮次。同时更新 Run 的 token 预算计数和版本。
-     */
-    @Transactional
-    public AgentRunView recordModelTurn(AgentRunView run, ModelTurnResult turn) {
-        int inputTokens = estimateInputTokens(turn);
-        int outputTokens = turn.usage() != null && turn.usage().outputTokens() != null
-                ? turn.usage().outputTokens() : 0;
-        boolean estimated = turn.usage() == null || turn.usage().inputTokens() == null;
-
-        // 先验证版本和状态，避免版本冲突时留下孤立 Step
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET
-                  steps_used=steps_used+1,
-                  input_tokens_used=LEAST(max_input_tokens, input_tokens_used+?),
-                  output_tokens_used=LEAST(max_output_tokens, output_tokens_used+?),
-                  token_usage_estimated=token_usage_estimated OR ?,
-                  updated_at=now(), version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, inputTokens, outputTokens, estimated,
-                run.projectId(), run.id(), run.version()));
-
-        int sequence = nextSequence(run.id());
-        jdbc.update("""
-                INSERT INTO agent_step(
-                  run_id,sequence_no,type,reason,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms,model_provider,model_name)
-                VALUES (?,?,'MODEL_TURN',?,?,?,?,?,?,?)
-                """, run.id(), sequence,
-                truncate(turn.content(), 2000),
-                inputTokens,
-                turn.usage() != null ? turn.usage().outputTokens() : null,
-                estimated,
-                boundedLatency(turn.latencyMs()),
-                truncate(turn.provider(), 80),
-                truncate(turn.model(), 120));
-
-        // 返回更新后的 Run
-        return findRun(run.projectId(), run.id()).orElse(run);
-    }
-
-    /**
-     * 记录工具结果。同时更新 Run 的 tool_calls_used 和版本。
-     */
-    @Transactional
-    public AgentRunView recordToolResult(AgentRunView run, String toolName,
-                                  JsonNode arguments, JsonNode result, boolean isError) {
-        // 先验证版本和状态，避免版本冲突时留下孤立 Step
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET
-                  tool_calls_used=tool_calls_used+1,
-                  steps_used=steps_used+1,
-                  updated_at=now(), version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, run.projectId(), run.id(), run.version()));
-
-        int sequence = nextSequence(run.id());
-        // 7 columns, type hardcoded = 6 bind params. ::jsonb on input_json and output_json.
-        jdbc.update("""
-                INSERT INTO agent_step(
-                  run_id,sequence_no,type,tool_name,input_json,output_json,reason)
-                VALUES (?,?,'TOOL_CALL_COMPLETED',?,?::jsonb,?::jsonb,?)
-                """, run.id(), sequence, toolName,
-                arguments.toString(),
-                result.toString(),
-                isError ? "TOOL_ERROR" : "TOOL_SUCCESS");
-
-        return findRun(run.projectId(), run.id()).orElse(run);
-    }
-
-    /**
-     * 记录最终答案。使用 ObjectMapper 序列化 JSONB，确保中文、引号、换行等正确保存。
-     * 先检查版本，再写入数据，避免版本冲突时留下孤立数据。
-     */
-    @Transactional
-    public AgentRunView recordFinal(AgentRunView run, String content, List<AgentCitation> citations) {
-        // 先验证版本和状态，避免版本冲突时留下孤立 Step/Message
-        int updated = jdbc.update("""
-                UPDATE agent_run SET status='SUCCEEDED',
-                  steps_used=steps_used+1,
-                  finished_at=now(),lease_owner=NULL,lease_expires_at=NULL,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, run.projectId(), run.id(), run.version());
-        requireRunUpdate(updated);
-
-        int sequence = nextSequence(run.id());
-
-        // 使用 ObjectMapper 序列化为 JSON 对象，确保 JSONB 正确
-        String outputJson;
-        try {
-            ObjectNode outputNode = json.createObjectNode();
-            outputNode.put("answer", content);
-            outputNode.set("citations", json.valueToTree(citations));
-            outputNode.set("inferences", json.createArrayNode());
-            outputJson = json.writeValueAsString(outputNode);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Agent 结果无法序列化", e);
-        }
-
-        jdbc.update("""
-                INSERT INTO agent_step(
-                  run_id,sequence_no,type,output_json)
-                VALUES (?,?,'FINAL_ANSWER',?::jsonb)
-                """, run.id(), sequence, outputJson);
-        jdbc.update("""
-                INSERT INTO agent_message(
-                  session_id,run_id,role,content,citations_json,inferences_json)
-                VALUES (?,?,'ASSISTANT',?,'[]'::jsonb,'[]'::jsonb)
-                """, run.sessionId(), run.id(), content);
-
-        return findRun(run.projectId(), run.id()).orElse(run);
-    }
-
-    /**
-     * 记录等待用户输入状态。
-     */
-    @Transactional
-    public AgentRunView recordWaitingForInput(AgentRunView run, String question) {
-        // 先验证版本和状态
-        int updated = jdbc.update("""
-                UPDATE agent_run SET status='WAITING_FOR_USER_INPUT',
-                  finished_at=NULL,lease_owner=NULL,lease_expires_at=NULL,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, run.projectId(), run.id(), run.version());
-        requireRunUpdate(updated);
-
-        int sequence = nextSequence(run.id());
-        jdbc.update("""
-                INSERT INTO agent_step(
-                  run_id,sequence_no,type,output_json,reason)
-                VALUES (?,?,'FINAL_ANSWER',?::jsonb,'WAITING_FOR_USER_INPUT')
-                """, run.id(), sequence, jsonString(Map.of("question", question)));
-        jdbc.update("""
-                INSERT INTO agent_message(
-                  session_id,run_id,role,content,citations_json,inferences_json)
-                VALUES (?,?,'ASSISTANT',?,'[]'::jsonb,'[]'::jsonb)
-                """, run.sessionId(), run.id(), question);
-
-        return findRun(run.projectId(), run.id()).orElse(run);
-    }
-
-    /**
-     * 继续等待用户输入的 Run。
-     */
-    @Transactional
-    public AgentRunView continueRun(AgentRunView run, String userResponse) {
-        // 先验证版本和状态
-        int updated = jdbc.update("""
-                UPDATE agent_run SET status='QUEUED',
-                  finished_at=NULL,lease_owner=NULL,lease_expires_at=NULL,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='WAITING_FOR_USER_INPUT'
-                """, run.projectId(), run.id(), run.version());
-        requireRunUpdate(updated);
-
-        // 记录用户回复
-        jdbc.update("""
-                INSERT INTO agent_message(
-                  session_id,run_id,role,content,citations_json,inferences_json)
-                VALUES (?,?,'USER',?,'[]'::jsonb,'[]'::jsonb)
-                """, run.sessionId(), run.id(), userResponse);
-
-        return findRun(run.projectId(), run.id()).orElse(run);
-    }
-
-    /**
-     * 加载最近的对话历史（用于上下文）。
-     * 返回最近 limit 条消息。
-     */
-    public List<AgentMessageView> listRecentMessages(UUID sessionId, int limit) {
-        return jdbc.query("""
-                SELECT m.* FROM agent_message m
-                WHERE m.session_id=?
-                ORDER BY m.created_at DESC, m.id DESC
-                LIMIT ?
-                """, messageMapper(), sessionId, limit);
-    }
-
-    private static int estimateInputTokens(ModelTurnResult turn) {
-        if (turn.usage() != null && turn.usage().inputTokens() != null) {
-            return turn.usage().inputTokens();
-        }
-        return Math.max(1, (turn.content() == null ? 0 : turn.content().length()) / 3);
     }
 
     private record CancelState(AgentRunStatus status, boolean requested) {

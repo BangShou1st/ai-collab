@@ -1,11 +1,15 @@
 import { authenticatedFetch } from '../../api/authenticated-fetch'
-import type { AgentRunEvent } from './types'
+import type { AgentContentFrame, AgentRunEvent } from './types'
+
+/** 临时正文帧的 SSE 事件名；与后端 AgentEventStreamService.publishContentDelta 对应。 */
+const CONTENT_EVENT_NAME = 'MODEL_CONTENT'
 
 export async function streamAgentEvents(
   url: string,
   afterSequence: number,
   signal: AbortSignal,
   onEvent: (event: AgentRunEvent) => void,
+  onContent?: (frame: AgentContentFrame) => void,
 ): Promise<void> {
   const separator = url.includes('?') ? '&' : '?'
   const response = await authenticatedFetch(`${url}${separator}afterSequence=${afterSequence}`, {
@@ -22,23 +26,46 @@ export async function streamAgentEvents(
     if (done) {
       buffer += decoder.decode()
       buffer = buffer.replaceAll('\r\n', '\n')
-      if (buffer.trim()) parseFrame(buffer, onEvent)
+      if (buffer.trim()) parseFrame(buffer, onEvent, onContent)
       return
     }
     buffer += decoder.decode(value, { stream: true })
     buffer = buffer.replaceAll('\r\n', '\n')
     const frames = buffer.split('\n\n')
     buffer = frames.pop() ?? ''
-    for (const frame of frames) parseFrame(frame, onEvent)
+    for (const frame of frames) parseFrame(frame, onEvent, onContent)
   }
 }
 
-function parseFrame(frame: string, onEvent: (event: AgentRunEvent) => void): void {
-  const data = frame.split('\n')
+function parseFrame(
+  frame: string,
+  onEvent: (event: AgentRunEvent) => void,
+  onContent?: (frame: AgentContentFrame) => void,
+): void {
+  const lines = frame.split('\n')
+  const data = lines
     .filter(line => line.startsWith('data:'))
     .map(line => line.slice(5).trimStart())
     .join('\n')
   if (!data) return
+  // 临时正文帧与持久事件按 SSE 事件名区分：正文帧不进入事件时间线
+  const eventName = lines
+    .filter(line => line.startsWith('event:'))
+    .map(line => line.slice(6).trim())
+    .at(-1)
+  if (onContent && eventName === CONTENT_EVENT_NAME) {
+    try {
+      const parsed: unknown = JSON.parse(data)
+      if (!isAgentContentFrame(parsed)) {
+        console.warn('Agent SSE 正文帧格式无效，跳过')
+        return
+      }
+      onContent(parsed)
+    } catch (e) {
+      console.warn('Agent SSE 正文帧解析失败，跳过:', e)
+    }
+    return
+  }
   try {
     const parsed: unknown = JSON.parse(data)
     if (!isAgentRunEvent(parsed)) {
@@ -61,4 +88,13 @@ function isAgentRunEvent(value: unknown): value is AgentRunEvent {
     && typeof event.type === 'string'
     && typeof event.payload === 'object'
     && typeof event.createdAt === 'string'
+}
+
+function isAgentContentFrame(value: unknown): value is AgentContentFrame {
+  if (typeof value !== 'object' || value === null) return false
+  const frame = value as Record<string, unknown>
+  return typeof frame.modelCallId === 'string'
+    && typeof frame.revision === 'number'
+    && typeof frame.text === 'string'
+    && typeof frame.final === 'boolean'
 }

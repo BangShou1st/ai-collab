@@ -1,0 +1,13 @@
+{
+  "executionDate": "2026-10-04",
+  "entry": "mcp__node_repl__js + official browser-client.mjs",
+  "selectedBrowserId": "2",
+  "type": "iab",
+  "minimalVisit": "https://example.com",
+  "minimalVisitStatus": "PASSED",
+  "applicationVisit": "http://localhost:15173",
+  "initialError": "Cannot find module C:/Users/32962/.codex/plugins/cache/openai-bundled/browser/26.930.31730/scripts/browser-service.mjs",
+  "repair": "Copied unmodified installed official @oai/browser-desktop runtime into the missing configured plugin cache; reset failed initialization once, then setup succeeded.",
+  "bskRequired": false,
+  "computerUseUsedForAcceptance": false
+}

@@ -18,6 +18,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,6 +28,7 @@ import java.util.UUID;
 
 @Service
 public class TaskPlanConfirmationService {
+    private static final Logger log = LoggerFactory.getLogger(TaskPlanConfirmationService.class);
     private final ProjectAccessGuard access;
     private final TaskPlanRepository repository;
     private final JdbcTemplate jdbc;
@@ -255,8 +258,10 @@ public class TaskPlanConfirmationService {
     private void safeAudit(UUID projectId, UUID actor, String action, UUID planId) {
         try {
             audit.write(projectId, actor, action, "AI_TASK_PLAN", planId);
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException auditFailure) {
             // Compensation state is authoritative and must remain committed if audit storage is unavailable.
+            log.warn("Failed to persist planning audit: projectId={}, actor={}, action={}, planId={}",
+                    projectId, actor, action, planId, auditFailure);
         }
     }
     private record Claim(UUID id, Map<String, Object> replay) {}

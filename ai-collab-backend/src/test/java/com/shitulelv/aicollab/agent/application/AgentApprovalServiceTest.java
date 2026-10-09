@@ -61,6 +61,7 @@ class AgentApprovalServiceTest {
         AgentApprovalView approved = approval("APPROVED");
         when(repository.lock(projectId, approvalId)).thenReturn(Optional.of(approved));
         when(repository.matchesIdempotencyKey(projectId, approvalId, key)).thenReturn(true);
+        when(repository.matchesNonceHash(eq(projectId),eq(approvalId),any())).thenReturn(true);
         assertThat(service.approve(projectId, approvalId, userId, approvalId.toString(), key)).isSameAs(approved);
         verify(tool, never()).execute(any(), any());
     }
@@ -72,6 +73,20 @@ class AgentApprovalServiceTest {
         assertThatThrownBy(() -> service.approve(projectId, approvalId, userId, approvalId.toString(), key))
                 .isInstanceOfSatisfying(BusinessException.class,
                         error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.AGENT_APPROVAL_CONFLICT));
+    }
+
+    @Test
+    void staleSeenRevisionRejectsBothActionsBeforeAnyWrite() {
+        when(repository.lock(projectId, approvalId)).thenReturn(Optional.of(approval("PENDING")));
+        assertThatThrownBy(() -> service.approve(projectId, approvalId, userId, approvalId.toString(), key, 2))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.AGENT_APPROVAL_CONFLICT));
+        assertThatThrownBy(() -> service.reject(projectId, approvalId, userId, approvalId.toString(), key, "reason", 2))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.AGENT_APPROVAL_CONFLICT));
+        verify(tool, never()).execute(any(), any());
+        verify(repository, never()).approve(any(), any(), any(), any());
+        verify(repository, never()).reject(any(), any(), any(), any());
     }
 
     @Test
@@ -235,6 +250,8 @@ class AgentApprovalServiceTest {
                 Clock.fixed(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC), events);
         JsonNode arguments = json.createObjectNode().put("title", "另一个独立任务");
         AgentApprovalView created = mock(AgentApprovalView.class);
+        when(created.id()).thenReturn(UUID.randomUUID());
+        when(created.revision()).thenReturn(1);
         when(repository.createProposal(any(), eq(run), any(), any(), eq(arguments), any(), any(), any(), any()))
                 .thenReturn(created);
 
@@ -282,7 +299,7 @@ class AgentApprovalServiceTest {
         OffsetDateTime now = OffsetDateTime.ofInstant(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC);
         return new AgentApprovalView(approvalId, projectId, runId, UUID.randomUUID(),
                 "write_after_approval", json.createObjectNode().put("version", 3),
-                json.createObjectNode(), null, 3, status, userId, null, null, null,
+                json.createObjectNode(), null, 3, status, userId, "PENDING".equals(status) ? null : userId, null, null,
                 now.plusHours(1), "PENDING".equals(status) ? null : now, 0, now,
                 // V37 新增字段
                 UUID.randomUUID(), com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily.TASK_CREATE,

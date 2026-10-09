@@ -5,7 +5,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 /**
- * 执行计划。计划不是隐藏 chain-of-thought，只保存可展示的操作步骤。
+ * Skill 的参考步骤。真实执行与恢复以工具调用和业务操作记录为准。
+ * version 与 successCriteria 保留以兼容既有 plan_json 和事件。
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AgentPlan(
@@ -26,7 +27,4 @@ public record AgentPlan(
         return new AgentPlan(1, objective, steps, List.of());
     }
 
-    public AgentPlan withVersion(int newVersion) {
-        return new AgentPlan(newVersion, objective, steps, successCriteria);
-    }
 }

@@ -1,0 +1,269 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 55 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 528 source files with javac [debug parameters release 21] to target\classes
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/exception/ErrorCode.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/exception/ErrorCode.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanQueryService.java: E:\project\ai-collab\ai-collab-backend\src\main\java\com\shitulelv\aicollab\planning\application\TaskPlanQueryService.javaʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanQueryService.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 142 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContextSummarizerTest.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContextSummarizerTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinatorTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+03:27:25.147 [main] WARN com.shitulelv.aicollab.agent.application.runtime.AgentToolCallExecutor -- Agent proposal failed: runId=20f2d5be-cbbd-493f-a237-d7102adaadad, tool=create_task_after_approval, type=IllegalArgumentException, reason=invalid proposal
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.527 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinatorTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistryTest
+[INFO] Tests run: 36, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.058 s -- in com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistryTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.033 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanModelClientTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.144 s -- in com.shitulelv.aicollab.planning.application.TaskPlanModelClientTest
+03:27:25.691 [main] INFO org.testcontainers.DockerClientFactory -- Testcontainers version: 1.21.4
+03:27:26.114 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Loaded org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy from ~/.testcontainers.properties, will try it first
+03:27:26.469 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with local Npipe socket (npipe:////./pipe/docker_engine)
+03:27:26.471 [main] INFO org.testcontainers.DockerClientFactory -- Docker host IP address is localhost
+03:27:26.487 [main] INFO org.testcontainers.DockerClientFactory -- Connected to docker: 
+  Server Version: 29.8.0
+  API Version: 1.56
+  Operating System: Docker Desktop
+  Total Memory: 1903 MB
+  Labels: 
+    com.docker.desktop.address=npipe://\\.\pipe\docker_cli
+03:27:26.495 [main] INFO org.testcontainers.images.PullPolicy -- Image pull policy will be performed by: DefaultPullPolicy()
+03:27:26.495 [main] INFO org.testcontainers.utility.ImageNameSubstitutor -- Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
+03:27:26.571 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Creating container for image: testcontainers/ryuk:0.12.0
+03:27:26.636 [main] INFO org.testcontainers.utility.RegistryAuthLocator -- Credential helper/store (docker-credential-desktop) does not have credentials for https://index.docker.io/v1/
+03:27:26.777 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 is starting: b5147ce4fbc89e1debfeb9fe88d28d5437c9e8ad5b003db43f24be68cfb9254a
+03:27:27.286 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 started in PT0.7143382S
+03:27:27.290 [main] INFO org.testcontainers.utility.RyukResourceReaper -- Ryuk started - will monitor and terminate Testcontainers containers on JVM exit
+03:27:27.290 [main] INFO org.testcontainers.DockerClientFactory -- Checking the system...
+03:27:27.290 [main] INFO org.testcontainers.DockerClientFactory -- ?? Docker server version should be at least 1.6.0
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanProductionWiringPostgresIntegrationTest
+03:27:27.294 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+03:27:27.372 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: 82a5284901c279d50d12d0af8bf5e30d773446ccbbcee4ec96ae3a364f3f4b49
+03:27:30.422 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT3.1286646S
+03:27:30.424 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:44927/test?loggerLevel=OFF)
+03:27:30.916 [main] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://localhost:44927/test?loggerLevel=OFF (PostgreSQL 17.11)
+03:27:30.986 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+03:27:30.989 [main] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 55 migrations (execution time 00:00.030s)
+03:27:31.001 [main] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+03:27:31.039 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+03:27:31.058 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "1 - init schema"
+03:27:31.129 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "2 - extend refresh token session"
+03:27:31.141 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "3 - enforce single project owner"
+03:27:31.150 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "4 - document processing attempt"
+03:27:31.164 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "5 - create ai task planning"
+03:27:31.194 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+03:27:31.203 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "7 - add task plan issues and events"
+03:27:31.216 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "8 - fix status check constraint"
+03:27:31.224 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "9 - add partial repair source type"
+03:27:31.232 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "10 - add ai partial source type"
+03:27:31.239 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "11 - add task plan event changed targets"
+03:27:31.245 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "12 - add comment to task plan event"
+03:27:31.252 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "13 - add project type"
+03:27:31.260 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "14 - expand project status"
+03:27:31.268 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "15 - add milestone start end dates"
+03:27:31.278 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "16 - add knowledge feedback"
+03:27:31.287 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "17 - add document version and reindex"
+03:27:31.294 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "18 - add knowledge eval tables"
+03:27:31.304 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "19 - add notification"
+03:27:31.313 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "20 - add system admin"
+03:27:31.322 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "21 - add notification dedupe key"
+03:27:31.335 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "22 - add agent runtime"
+03:27:31.365 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "23 - complete agent runtime"
+03:27:31.375 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "24 - add model configuration"
+03:27:31.383 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "25 - remove agent evaluation"
+03:27:31.395 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "26 - allow custom task plan limit"
+03:27:31.402 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+03:27:31.410 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "28 - add agent run events"
+03:27:31.420 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "29 - add agent mcp"
+03:27:31.429 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "30 - add agent memory and schedule skill"
+03:27:31.437 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "31 - per project model and embedding"
+03:27:31.449 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "32 - migrate global models to project"
+03:27:31.461 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "33 - drop eval and schedule tables"
+03:27:31.472 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "34 - fix embedding api path"
+03:27:31.478 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "35 - add agent waiting for input"
+03:27:31.486 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "36 - add waiting for user input event type"
+03:27:31.493 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "37 - add agent proposal continuity"
+03:27:31.505 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "38 - cascade agent proposal session delete"
+03:27:31.516 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "39 - create user ai configuration"
+03:27:31.524 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "40 - create user model purpose assignment"
+03:27:31.531 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "41 - create system embedding configuration"
+03:27:31.537 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "42 - migrate project models to users"
+03:27:31.544 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "43 - add embedding fingerprint"
+03:27:31.551 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "44 - switch ai configuration constraints"
+03:27:31.557 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "45 - add provider preset code"
+03:27:31.564 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "46 - embedding index generations"
+03:27:31.574 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "47 - agent execution identity"
+03:27:31.581 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "48 - embedding build snapshot"
+03:27:31.587 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "49 - agent recovery counters"
+03:27:31.593 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "50 - document batch reindex progress"
+03:27:31.600 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "51 - agent model snapshot"
+03:27:31.605 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "52 - agent active duration"
+03:27:31.616 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "53 - planning repair diagnostics"
+03:27:31.623 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "54 - document readable body"
+03:27:31.631 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "55 - agent planning operations"
+03:27:31.643 [main] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 55 migrations to schema "public", now at version v55 (execution time 00:00.266s)
+10�� 04, 2026 3:27:35 ���� org.junit.jupiter.engine.descriptor.AbstractExtensionContext lambda$createCloseAction$1
+����: Type implements CloseableResource but not AutoCloseable: org.testcontainers.junit.jupiter.TestcontainersExtension$StoreAdapter
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.917 s -- in com.shitulelv.aicollab.planning.application.TaskPlanProductionWiringPostgresIntegrationTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest
+03:27:36.278 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest]: TaskPlanSpringBeanPostgresIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+03:27:36.400 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.shitulelv.aicollab.AiCollabBackendApplication for test class com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest
+03:27:36.453 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest]: TaskPlanSpringBeanPostgresIntegrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+03:27:36.454 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.shitulelv.aicollab.AiCollabBackendApplication for test class com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest
+03:27:36.472 [main] INFO tc.quay.io/minio/minio:latest -- Creating container for image: quay.io/minio/minio:latest
+03:27:36.523 [main] INFO org.testcontainers.utility.RegistryAuthLocator -- Credential helper/store (docker-credential-desktop) does not have credentials for quay.io
+03:27:36.597 [main] INFO tc.quay.io/minio/minio:latest -- Container quay.io/minio/minio:latest is starting: db6d7066717e21dfd2123253c3f34af5c188c834a09694435d9f6d1eec850284
+03:27:37.018 [main] INFO org.testcontainers.containers.wait.strategy.HttpWaitStrategy -- /boring_chebyshev: Waiting for 60 seconds for URL: http://localhost:44719/minio/health/ready (where port 44719 maps to container port 9000)
+03:27:38.055 [main] INFO tc.quay.io/minio/minio:latest -- Container quay.io/minio/minio:latest started in PT1.5832583S
+03:27:38.056 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+03:27:38.155 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: 0ab92b6483969eb1c73ab423e65e06b536877ddfc7b7ad1713af1c90faca0e64
+03:27:40.456 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT2.4002148S
+03:27:40.457 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:44649/test?loggerLevel=OFF)
+03:27:40.496 [main] INFO org.springframework.boot.devtools.restart.RestartApplicationListener -- Restart disabled due to context in which it is running
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.0)
+
+2026-10-04T03:27:40.766+08:00  INFO 47888 --- [ai-collab-backend] [           main] askPlanSpringBeanPostgresIntegrationTest : Starting TaskPlanSpringBeanPostgresIntegrationTest using Java 21.0.10 with PID 47888 (started by 32962 in E:\project\ai-collab\ai-collab-backend)
+2026-10-04T03:27:40.767+08:00  INFO 47888 --- [ai-collab-backend] [           main] askPlanSpringBeanPostgresIntegrationTest : The following 1 profile is active: "test"
+2026-10-04T03:27:41.670+08:00  INFO 47888 --- [ai-collab-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-10-04T03:27:41.672+08:00  INFO 47888 --- [ai-collab-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-10-04T03:27:41.714+08:00  INFO 47888 --- [ai-collab-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 30 ms. Found 0 Redis repository interfaces.
+2026-10-04T03:27:42.241+08:00  INFO 47888 --- [ai-collab-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-10-04T03:27:42.261+08:00  INFO 47888 --- [ai-collab-backend] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@12a79800
+2026-10-04T03:27:42.262+08:00  INFO 47888 --- [ai-collab-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-10-04T03:27:42.275+08:00  INFO 47888 --- [ai-collab-backend] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:44649/test?loggerLevel=OFF (PostgreSQL 17.11)
+2026-10-04T03:27:42.292+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Schema history table "public"."flyway_schema_history" does not exist yet
+2026-10-04T03:27:42.294+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbValidate     : Successfully validated 55 migrations (execution time 00:00.011s)
+2026-10-04T03:27:42.298+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "public"."flyway_schema_history" ...
+2026-10-04T03:27:42.332+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": << Empty Schema >>
+2026-10-04T03:27:42.336+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "1 - init schema"
+2026-10-04T03:27:42.394+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "2 - extend refresh token session"
+2026-10-04T03:27:42.402+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "3 - enforce single project owner"
+2026-10-04T03:27:42.408+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "4 - document processing attempt"
+2026-10-04T03:27:42.418+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "5 - create ai task planning"
+2026-10-04T03:27:42.441+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+2026-10-04T03:27:42.447+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "7 - add task plan issues and events"
+2026-10-04T03:27:42.456+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "8 - fix status check constraint"
+2026-10-04T03:27:42.462+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "9 - add partial repair source type"
+2026-10-04T03:27:42.467+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "10 - add ai partial source type"
+2026-10-04T03:27:42.474+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "11 - add task plan event changed targets"
+2026-10-04T03:27:42.479+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "12 - add comment to task plan event"
+2026-10-04T03:27:42.483+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "13 - add project type"
+2026-10-04T03:27:42.489+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "14 - expand project status"
+2026-10-04T03:27:42.494+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "15 - add milestone start end dates"
+2026-10-04T03:27:42.500+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "16 - add knowledge feedback"
+2026-10-04T03:27:42.506+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "17 - add document version and reindex"
+2026-10-04T03:27:42.511+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "18 - add knowledge eval tables"
+2026-10-04T03:27:42.519+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "19 - add notification"
+2026-10-04T03:27:42.529+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "20 - add system admin"
+2026-10-04T03:27:42.535+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "21 - add notification dedupe key"
+2026-10-04T03:27:42.542+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "22 - add agent runtime"
+2026-10-04T03:27:42.569+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "23 - complete agent runtime"
+2026-10-04T03:27:42.576+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "24 - add model configuration"
+2026-10-04T03:27:42.583+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "25 - remove agent evaluation"
+2026-10-04T03:27:42.591+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "26 - allow custom task plan limit"
+2026-10-04T03:27:42.597+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+2026-10-04T03:27:42.603+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "28 - add agent run events"
+2026-10-04T03:27:42.612+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "29 - add agent mcp"
+2026-10-04T03:27:42.621+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "30 - add agent memory and schedule skill"
+2026-10-04T03:27:42.628+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "31 - per project model and embedding"
+2026-10-04T03:27:42.639+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "32 - migrate global models to project"
+2026-10-04T03:27:42.652+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "33 - drop eval and schedule tables"
+2026-10-04T03:27:42.663+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "34 - fix embedding api path"
+2026-10-04T03:27:42.667+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "35 - add agent waiting for input"
+2026-10-04T03:27:42.672+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "36 - add waiting for user input event type"
+2026-10-04T03:27:42.678+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "37 - add agent proposal continuity"
+2026-10-04T03:27:42.691+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "38 - cascade agent proposal session delete"
+2026-10-04T03:27:42.700+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "39 - create user ai configuration"
+2026-10-04T03:27:42.709+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "40 - create user model purpose assignment"
+2026-10-04T03:27:42.714+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "41 - create system embedding configuration"
+2026-10-04T03:27:42.722+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "42 - migrate project models to users"
+2026-10-04T03:27:42.729+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "43 - add embedding fingerprint"
+2026-10-04T03:27:42.735+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "44 - switch ai configuration constraints"
+2026-10-04T03:27:42.740+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "45 - add provider preset code"
+2026-10-04T03:27:42.746+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "46 - embedding index generations"
+2026-10-04T03:27:42.757+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "47 - agent execution identity"
+2026-10-04T03:27:42.766+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "48 - embedding build snapshot"
+2026-10-04T03:27:42.772+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "49 - agent recovery counters"
+2026-10-04T03:27:42.777+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "50 - document batch reindex progress"
+2026-10-04T03:27:42.784+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "51 - agent model snapshot"
+2026-10-04T03:27:42.788+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "52 - agent active duration"
+2026-10-04T03:27:42.794+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "53 - planning repair diagnostics"
+2026-10-04T03:27:42.800+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "54 - document readable body"
+2026-10-04T03:27:42.808+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "55 - agent planning operations"
+2026-10-04T03:27:42.817+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 55 migrations to schema "public", now at version v55 (execution time 00:00.236s)
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        null 
+2026-10-04T03:27:45.683+08:00  INFO 47888 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@44eb4740
+2026-10-04T03:27:45.950+08:00  INFO 47888 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-10-04T03:27:46.009+08:00  INFO 47888 --- [ai-collab-backend] [           main] askPlanSpringBeanPostgresIntegrationTest : Started TaskPlanSpringBeanPostgresIntegrationTest in 5.522 seconds (process running for 24.107)
+2026-10-04T03:27:46.828+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:46.892+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:46.990+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:47.058+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:47.130+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:47.255+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:47.313+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:47.406+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:47.492+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:47.528+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:47.596+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:47.629+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+2026-10-04T03:27:47.670+08:00  WARN 47888 --- [ai-collab-backend] [           main] c.s.a.p.a.PlanningAttemptThrottle        : Redis �滮���������ã����л�����������
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.58 s -- in com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 93, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  37.424 s
+[INFO] Finished at: 2026-10-04T03:27:49+08:00
+[INFO] ------------------------------------------------------------------------

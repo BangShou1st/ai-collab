@@ -1,0 +1,108 @@
+{
+  "codeVersion": "1b1073edf82d52992796a01a2fd0737ac12b6353",
+  "prompt": "为了形成6项以内的完整规划，请按长对话、模型超时、排队重启、运行中重启、取消竞争、证据收口给出覆盖映射。不要加入采购费用工作。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+  "steps": [
+    {
+      "id": "3153448a-c844-4446-af1a-6fe23b8ef95a",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 16901,
+          "outputTokens": 889
+        },
+        "content": "**来源**：蓝图 `61e29c28…` 快照 `57af26c7…`（4.3/4.4 状态与摘要、11 章「持久操作恢复」「规划卡片退避」「权限/版本/重复写入为硬性门槛」）＋本轮工具契约。前轮已读，不重复读取。文档为快照记录，非当前运行时能力。\n\n**覆盖映射（6 项，一场景一项，无空档）**\n\n| # | 任务 | 覆盖 | 关键判据 |\n|---|---|---|---|\n| 1 | 长对话约束不丢失 | 4.4 摘要覆盖偏移 | 长会话后早期否定约束/日期/负责人仍原样生效；`sourceFrom/sourceThrough`、`schemaVersion`、`state revision` 齐全；CAS 拒旧覆盖 |\n| 2 | 模型超时 | 受理≠完成 | operation/attempt 落终态；额度按 attempt 只扣一次；旧草稿版本号不变 |\n| 3 | 排队重启 | 持久操作恢复 | operation 记录跨重启存活；恢复前权限复查；退避有终点；同一 `activeGoal` 不新建第二份规划 |\n| 4 | 运行中重启 | 失败判定 | 仅终态 FAILED 算失败；半段输出丢弃从零重生；旧版本可带基线 `repair_task_plan` |\n| 5 | 取消竞争 | 归属与幂等 | attemptId 须归属 operationId；取消保留已有版本；并发取消/修订不双写 |\n| 6 | 证据收口 | 来源与限定 | 每条结论带来源 ID/定位/snapshotId；区分文档主张 vs 工具实测；`projection=DETERMINISTIC` 限定不被抹除 |\n\n**折叠说明**：原 8 项候选中的「提案状态机（已批准/已拒绝 approvalId 不可复用）」「写入幂等」并入 T5；**成员身份闭包、游标分页/投影契约**不再单列——投影契约已在 T6 体现，成员闭包因负责人固定 Local Owner 且成员表仅 1 人而失去验收价值。**采购费用按你要求完全排除。**\n\n**已测结果：全部为零**——未生成草稿、未做超时/重启注入验证。约束保留：2026-10-05→2026-10-25、Local Owner、最多 6 项。确认后即可生成草稿。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 19593,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "**来源**：蓝图 `61e29c28…` 快照 `57af26c7…`（4.3/4.4 状态与摘要、11 章「持久操作恢复」「规划卡片退避」「权限/版本/重复写入为硬性门槛」）＋本轮工具契约。前轮已读，不重复读取。文档为快照记录，非当前运行时能力。\n\n**覆盖映射（6 项，一场景一项，无空档）**\n\n| # | 任务 | 覆盖 | 关键判据 |\n|---|---|---|---|\n| 1 | 长对话约束不丢失 | 4.4 摘要覆盖偏移 | 长会话后早期否定约束/日期/负责人仍原样生效；`sourceFrom/sourceThrough`、`schemaVersion`、`state revision` 齐全；CAS 拒旧覆盖 |\n| 2 | 模型超时 | 受理≠完成 | operation/attempt 落终态；额度按 attempt 只扣一次；旧草稿版本号不变 |\n| 3 | 排队重启 | 持久操作恢复 | operation 记录跨重启存活；恢复前权限复查；退避有终点；同一 `activeGoal` 不新建第二份规划 |\n| 4 | 运行中重启 | 失败判定 | 仅终态 FAILED 算失败；半段输出丢弃从零重生；旧版本可带基线 `repair_task_plan` |\n| 5 | 取消竞争 | 归属与幂等 | attemptId 须归属 operationId；取消保留已有版本；并发取消/修订不双写 |\n| 6 | 证据收口 | 来源与限定 | 每条结论带来源 ID/定位/snapshotId；区分文档主张 vs 工具实测；`projection=DETERMINISTIC` 限定不被抹除 |\n\n**折叠说明**：原 8 项候选中的「提案状态机（已批准/已拒绝 approvalId 不可复用）」「写入幂等」并入 T5；**成员身份闭包、游标分页/投影契约**不再单列——投影契约已在 T6 体现，成员闭包因负责人固定 Local Owner 且成员表仅 1 人而失去验收价值。**采购费用按你要求完全排除。**\n\n**已测结果：全部为零**——未生成草稿、未做超时/重启注入验证。约束保留：2026-10-05→2026-10-25、Local Owner、最多 6 项。确认后即可生成草稿。",
+      "promptTokens": 16901,
+      "completionTokens": 889,
+      "tokenUsageEstimated": false,
+      "latencyMs": 19593,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:37:59.113272Z"
+    },
+    {
+      "id": "ac971a5a-a30c-4241-b028-2e1577e5f168",
+      "sequence": 2,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "**来源**：蓝图 `61e29c28…` 快照 `57af26c7…`（4.3/4.4 状态与摘要、11 章「持久操作恢复」「规划卡片退避」「权限/版本/重复写入为硬性门槛」）＋本轮工具契约。前轮已读，不重复读取。文档为快照记录，非当前运行时能力。\n\n**覆盖映射（6 项，一场景一项，无空档）**\n\n| # | 任务 | 覆盖 | 关键判据 |\n|---|---|---|---|\n| 1 | 长对话约束不丢失 | 4.4 摘要覆盖偏移 | 长会话后早期否定约束/日期/负责人仍原样生效；`sourceFrom/sourceThrough`、`schemaVersion`、`state revision` 齐全；CAS 拒旧覆盖 |\n| 2 | 模型超时 | 受理≠完成 | operation/attempt 落终态；额度按 attempt 只扣一次；旧草稿版本号不变 |\n| 3 | 排队重启 | 持久操作恢复 | operation 记录跨重启存活；恢复前权限复查；退避有终点；同一 `activeGoal` 不新建第二份规划 |\n| 4 | 运行中重启 | 失败判定 | 仅终态 FAILED 算失败；半段输出丢弃从零重生；旧版本可带基线 `repair_task_plan` |\n| 5 | 取消竞争 | 归属与幂等 | attemptId 须归属 operationId；取消保留已有版本；并发取消/修订不双写 |\n| 6 | 证据收口 | 来源与限定 | 每条结论带来源 ID/定位/snapshotId；区分文档主张 vs 工具实测；`projection=DETERMINISTIC` 限定不被抹除 |\n\n**折叠说明**：原 8 项候选中的「提案状态机（已批准/已拒绝 approvalId 不可复用）」「写入幂等」并入 T5；**成员身份闭包、游标分页/投影契约**不再单列——投影契约已在 T6 体现，成员闭包因负责人固定 Local Owner 且成员表仅 1 人而失去验收价值。**采购费用按你要求完全排除。**\n\n**已测结果：全部为零**——未生成草稿、未做超时/重启注入验证。约束保留：2026-10-05→2026-10-25、Local Owner、最多 6 项。确认后即可生成草稿。",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T08:37:59.124204Z"
+    }
+  ],
+  "session": {
+    "id": "5a3154c4-d9c8-4181-9ee2-b9e2fe0289ff",
+    "projectId": "ef024b8d-eafd-40c4-ad11-66e2b3de7bb2",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "四类失败复验 fixed24-final",
+    "status": "ACTIVE",
+    "version": 19,
+    "createdAt": "2026-10-04T08:28:04.324888Z",
+    "updatedAt": "2026-10-04T08:37:38.687699Z"
+  },
+  "layer": "REAL_SPACE_BUNNY_PRODUCTION_TRANSPORT_ISOLATED_PG",
+  "batch": "fixed24-final",
+  "run": {
+    "id": "dc39f56c-0e9d-4422-8a2e-7b7a0bd413d5",
+    "sessionId": "5a3154c4-d9c8-4181-9ee2-b9e2fe0289ff",
+    "projectId": "ef024b8d-eafd-40c4-ad11-66e2b3de7bb2",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "为了形成6项以内的完整规划，请按长对话、模型超时、排队重启、运行中重启、取消竞争、证据收口给出覆盖映射。不要加入采购费用工作。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 2,
+    "toolCallsUsed": 0,
+    "childrenUsed": 0,
+    "inputTokensUsed": 16901,
+    "outputTokensUsed": 889,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"61e29c28-c54d-4e86-a9b7-59b35ba8b758\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 4,
+    "createdAt": "2026-10-04T08:37:38.687699Z",
+    "updatedAt": "2026-10-04T08:37:59.124204Z"
+  },
+  "executionDate": "2026-10-04",
+  "turn": 19,
+  "answer": {
+    "id": "504d9c1a-297f-436a-bfb7-5b64ac019f64",
+    "sessionId": "5a3154c4-d9c8-4181-9ee2-b9e2fe0289ff",
+    "runId": "dc39f56c-0e9d-4422-8a2e-7b7a0bd413d5",
+    "role": "ASSISTANT",
+    "content": "**来源**：蓝图 `61e29c28…` 快照 `57af26c7…`（4.3/4.4 状态与摘要、11 章「持久操作恢复」「规划卡片退避」「权限/版本/重复写入为硬性门槛」）＋本轮工具契约。前轮已读，不重复读取。文档为快照记录，非当前运行时能力。\n\n**覆盖映射（6 项，一场景一项，无空档）**\n\n| # | 任务 | 覆盖 | 关键判据 |\n|---|---|---|---|\n| 1 | 长对话约束不丢失 | 4.4 摘要覆盖偏移 | 长会话后早期否定约束/日期/负责人仍原样生效；`sourceFrom/sourceThrough`、`schemaVersion`、`state revision` 齐全；CAS 拒旧覆盖 |\n| 2 | 模型超时 | 受理≠完成 | operation/attempt 落终态；额度按 attempt 只扣一次；旧草稿版本号不变 |\n| 3 | 排队重启 | 持久操作恢复 | operation 记录跨重启存活；恢复前权限复查；退避有终点；同一 `activeGoal` 不新建第二份规划 |\n| 4 | 运行中重启 | 失败判定 | 仅终态 FAILED 算失败；半段输出丢弃从零重生；旧版本可带基线 `repair_task_plan` |\n| 5 | 取消竞争 | 归属与幂等 | attemptId 须归属 operationId；取消保留已有版本；并发取消/修订不双写 |\n| 6 | 证据收口 | 来源与限定 | 每条结论带来源 ID/定位/snapshotId；区分文档主张 vs 工具实测；`projection=DETERMINISTIC` 限定不被抹除 |\n\n**折叠说明**：原 8 项候选中的「提案状态机（已批准/已拒绝 approvalId 不可复用）」「写入幂等」并入 T5；**成员身份闭包、游标分页/投影契约**不再单列——投影契约已在 T6 体现，成员闭包因负责人固定 Local Owner 且成员表仅 1 人而失去验收价值。**采购费用按你要求完全排除。**\n\n**已测结果：全部为零**——未生成草稿、未做超时/重启注入验证。约束保留：2026-10-05→2026-10-25、Local Owner、最多 6 项。确认后即可生成草稿。",
+    "citations": [],
+    "inferences": [],
+    "createdAt": "2026-10-04T08:37:59.124204Z"
+  }
+}

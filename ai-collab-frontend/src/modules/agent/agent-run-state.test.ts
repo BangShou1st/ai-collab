@@ -48,3 +48,19 @@ describe('agent run presentation', () => {
       .toBe('模型凭据无法解密，请在个人 AI 设置中重新填写 API Key')
   })
 })
+
+describe('auto-retry presentation', () => {
+  it('presents transient failure as waiting for automatic retry', () => {
+    expect(agentRunPresentation(run('FAILED_RETRYABLE', 'AI_MODEL_TIMEOUT'))).toEqual({
+      terminal: false,
+      severity: 'warning',
+      title: '模型调用暂时失败，等待自动重试',
+      canRetry: false,
+    })
+  })
+
+  it('announces the next attempt number from the existing retry counter', () => {
+    const retried = { ...run('FAILED_RETRYABLE', 'AI_MODEL_TIMEOUT'), retryCount: 1 }
+    expect(agentRunPresentation(retried).title).toBe('模型调用暂时失败，等待自动重试（第 2 次尝试）')
+  })
+})

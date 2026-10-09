@@ -1,0 +1,188 @@
+- complementary "工作区导航":
+  - link "工作台":
+    - /url: /home
+    - generic: AI
+    - strong: AI 项目协作平台
+    - text: 项目协作与知识工作台
+  - navigation "全局导航":
+    - paragraph: 工作区
+    - link "工作台":
+      - /url: /home
+      - generic: 工作台
+    - link "我的项目":
+      - /url: /projects
+      - generic: 我的项目
+    - link "通知中心":
+      - /url: /notifications
+      - generic: 通知中心
+  - navigation "智能与设置":
+    - paragraph: 智能与设置
+    - link "AI 设置":
+      - /url: /settings/ai
+      - generic: AI 设置
+    - link "账号设置":
+      - /url: /account
+      - generic: 账号设置
+    - link "管理中心":
+      - /url: /admin
+      - generic: 管理中心
+  - navigation "项目导航":
+    - paragraph: Browser隔离验收20261004
+    - link "项目概览":
+      - /url: /projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/dashboard
+      - generic: 项目概览
+    - link "任务看板":
+      - /url: /projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/board
+      - generic: 任务看板
+    - link "项目文档":
+      - /url: /projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/documents
+      - generic: 项目文档
+    - link "知识问答":
+      - /url: /projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/knowledge
+      - generic: 知识问答
+    - link "任务规划":
+      - /url: /projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/ai-planning
+      - generic: 任务规划
+    - link "协作 Agent":
+      - /url: /projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent
+      - generic: 协作 Agent
+    - generic "洞察分析":
+      - generic: 洞察分析
+    - generic "项目设置":
+      - generic: 项目设置
+    - link "切换项目":
+      - /url: /projects
+      - generic: 切换项目
+  - button "收起侧栏":
+  - generic: L
+  - strong: Local Owner
+  - generic: owner
+  - button "账号菜单":
+- main:
+  - generic "任务看板"
+  - generic: 负责人
+  - combobox "负责人筛选"
+  - generic: 全部负责人
+  - generic: 优先级
+  - combobox "优先级筛选"
+  - generic: 全部优先级
+  - generic: 里程碑
+  - combobox "里程碑筛选"
+  - generic: 全部里程碑
+  - alert:
+    - generic: 已高亮显示该 AI 规划创建的任务
+  - button "全选":
+    - generic: 全选
+  - button "清除选择":
+    - generic: 清除选择
+  - heading "待处理 4" [level=2]:
+    - text: 待处理
+    - generic: "4"
+  - button "查看任务“实现会议纪要记录能力”详情":
+    - checkbox
+    - heading "实现会议纪要记录能力" [level=3]
+    - paragraph: 负责人：Local Owner
+    - paragraph: 截止日期：2026年10月12日 · 高
+    - generic: 待处理
+    - combobox "修改任务“实现会议纪要记录能力”的状态"
+    - generic: 变更状态
+  - button "查看任务“实现待办生成能力”详情":
+    - checkbox
+    - heading "实现待办生成能力" [level=3]
+    - paragraph: 负责人：未分配
+    - paragraph: 截止日期：2026年10月16日 · 高
+    - generic: 前置任务 1 项
+    - generic: 还有 1 项未完成，暂时不能推进
+    - generic: 待处理
+    - combobox "修改任务“实现待办生成能力”的状态"
+    - generic: 变更状态
+  - button "查看任务“实现人工审阅能力”详情":
+    - checkbox
+    - heading "实现人工审阅能力" [level=3]
+    - paragraph: 负责人：未分配
+    - paragraph: 截止日期：2026年10月20日 · 中
+    - generic: 前置任务 1 项
+    - generic: 还有 1 项未完成，暂时不能推进
+    - generic: 待处理
+    - combobox "修改任务“实现人工审阅能力”的状态"
+    - generic: 变更状态
+  - button "查看任务“端到端串联验收与规划约束核对”详情":
+    - checkbox
+    - heading "端到端串联验收与规划约束核对" [level=3]
+    - paragraph: 负责人：未分配
+    - paragraph: 截止日期：2026年10月25日 · 高
+    - generic: 前置任务 1 项
+    - generic: 还有 1 项未完成，暂时不能推进
+    - generic: 待处理
+    - combobox "修改任务“端到端串联验收与规划约束核对”的状态"
+    - generic: 变更状态
+  - heading "进行中 0" [level=2]:
+    - text: 进行中
+    - generic: "0"
+  - generic: 暂无任务
+  - heading "已阻塞 0" [level=2]:
+    - text: 已阻塞
+    - generic: "0"
+  - generic: 暂无任务
+  - heading "已完成 0" [level=2]:
+    - text: 已完成
+    - generic: "0"
+  - generic: 暂无任务
+  - heading "已取消 0" [level=2]:
+    - text: 已取消
+    - generic: "0"
+  - generic: 暂无任务
+  - dialog "任务详情":
+    - heading "任务详情" [level=2]
+    - button "关闭此对话框":
+    - button "编辑任务":
+      - generic: 编辑任务
+    - button "删除任务":
+      - generic: 删除任务
+    - link "交给 Agent":
+      - /url: /projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/agent?task=95951497-5b74-4244-a11e-515a8771ed84
+      - button "交给 Agent":
+        - generic: 交给 Agent
+    - table:
+      - rowgroup:
+        - row "标题 端到端串联验收与规划约束核对":
+          - cell "标题"
+          - cell "端到端串联验收与规划约束核对"
+        - row "描述 端到端串联验收与规划约束核对，唯一前置依赖为 T-03（人工审阅能力），三项能力齐备后执行。工作范围：以一条真实会议纪要贯通三项能力，并复核规划本身的合规性，输出文字汇总供用户人工审阅。可判定验收标准：1) 完成「记录 → 生成待办 → 人工审阅通过」的完整链路，最终状态可查询核验；2) 三项核心能力各至少有一项判定检查通过，任一能力未通过即整体判定为不通过；3) 核对并记录任务总数不超过 4 项、任务依赖图不存在环路、全部任务与里程碑日期落在 2026-10-05 至 2026-10-25 区间内，核对结论以文字形式汇总；4) 验收过程中不写入正式任务，全部正式任务仅在用户于规划页审阅并人工确认后生效，AI 不自行批准。优先级为 HIGH，预估 8 小时，工期 2026-10-21 至 2026-10-25，收尾于规划区间末日并对齐 MS-02。":
+          - cell "描述"
+          - cell "端到端串联验收与规划约束核对，唯一前置依赖为 T-03（人工审阅能力），三项能力齐备后执行。工作范围：以一条真实会议纪要贯通三项能力，并复核规划本身的合规性，输出文字汇总供用户人工审阅。可判定验收标准：1) 完成「记录 → 生成待办 → 人工审阅通过」的完整链路，最终状态可查询核验；2) 三项核心能力各至少有一项判定检查通过，任一能力未通过即整体判定为不通过；3) 核对并记录任务总数不超过 4 项、任务依赖图不存在环路、全部任务与里程碑日期落在 2026-10-05 至 2026-10-25 区间内，核对结论以文字形式汇总；4) 验收过程中不写入正式任务，全部正式任务仅在用户于规划页审阅并人工确认后生效，AI 不自行批准。优先级为 HIGH，预估 8 小时，工期 2026-10-21 至 2026-10-25，收尾于规划区间末日并对齐 MS-02。"
+        - row "负责人 未分配":
+          - cell "负责人"
+          - cell "未分配"
+        - row "里程碑 验收收尾完成":
+          - cell "里程碑"
+          - cell "验收收尾完成"
+        - row "预计工时 8 小时":
+          - cell "预计工时"
+          - cell "8 小时"
+        - row "开始日期 2026年10月21日":
+          - cell "开始日期"
+          - cell "2026年10月21日"
+        - row "截止日期 2026年10月25日":
+          - cell "截止日期"
+          - cell "2026年10月25日"
+        - row "任务状态 待处理":
+          - cell "任务状态"
+          - cell "待处理"
+        - row "任务优先级 高":
+          - cell "任务优先级"
+          - cell "高"
+    - heading "前置任务" [level=3]
+    - paragraph: 已配置 1 项前置任务； 其中 1 项尚未完成。
+    - generic: 实现人工审阅能力
+    - button "关闭此标签":
+    - combobox "选择前置任务"
+    - generic: 还有 1 项前置任务未完成，当前任务暂时不能推进。
+    - heading "评论" [level=3]
+    - paragraph: 暂无评论
+    - generic: 评论内容
+    - textbox "评论内容":
+      - /placeholder: 请输入评论内容
+    - generic: 0 / 2000
+    - button "发送评论" [disabled]:
+      - generic: 发送评论

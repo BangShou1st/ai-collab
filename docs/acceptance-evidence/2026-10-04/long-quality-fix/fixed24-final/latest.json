@@ -1,0 +1,41 @@
+{
+  "operations": {
+    "status": "SKELETON_GENERATING",
+    "kind": "start_task_plan",
+    "operationId": "5c3aa004-5132-473c-a674-473a4c113652",
+    "planId": "3ccc7130-d7e8-444b-9664-7c6a46688ca1",
+    "attemptId": "36679891-cfa5-4342-ad85-3b0a5357bc08",
+    "activeAttemptId": "36679891-cfa5-4342-ad85-3b0a5357bc08",
+    "attemptStatus": "RUNNING",
+    "errorCode": null,
+    "title": "ai-collab可靠性验收24轮",
+    "versionNo": 0,
+    "versionId": null,
+    "targetVersionId": null,
+    "goalRevision": 2,
+    "effect": "PLANNING_OPERATION_ACCEPTED",
+    "requiresHumanConfirmation": true,
+    "reviewPath": "/projects/ef024b8d-eafd-40c4-ad11-66e2b3de7bb2/ai-planning?planId=3ccc7130-d7e8-444b-9664-7c6a46688ca1"
+  },
+  "session": {
+    "id": "5a3154c4-d9c8-4181-9ee2-b9e2fe0289ff",
+    "projectId": "ef024b8d-eafd-40c4-ad11-66e2b3de7bb2",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "四类失败复验 fixed24-final",
+    "status": "ACTIVE",
+    "version": 24,
+    "createdAt": "2026-10-04T08:28:04.324888Z",
+    "updatedAt": "2026-10-04T08:41:09.905647Z"
+  },
+  "state": {
+    "projectId": "ef024b8d-eafd-40c4-ad11-66e2b3de7bb2",
+    "completedTurns": 24,
+    "codeVersion": "1b1073edf82d52992796a01a2fd0737ac12b6353",
+    "batch": "fixed24-final",
+    "documentId": "61e29c28-c54d-4e86-a9b7-59b35ba8b758",
+    "sessionId": "5a3154c4-d9c8-4181-9ee2-b9e2fe0289ff",
+    "runId": "866f5999-00e9-4176-a24e-f0bf67261c39",
+    "submittedTurn": 24
+  },
+  "codeVersion": "1b1073edf82d52992796a01a2fd0737ac12b6353"
+}

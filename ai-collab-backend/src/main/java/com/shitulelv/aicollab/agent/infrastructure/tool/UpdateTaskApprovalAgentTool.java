@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
+import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
 import com.shitulelv.aicollab.agent.domain.model.AgentProposalFamily;
 import com.shitulelv.aicollab.common.exception.BusinessException;
@@ -37,11 +38,54 @@ public class UpdateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool 
         return AgentProposalFamily.TASK_UPDATE;
     }
 
+    /**
+     * 参数契约按调用形态区分：
+     * <ul>
+     *   <li>新建提案（无 approvalId）：taskId、changes.version 必填，changes 内为完整更新参数。</li>
+     *   <li>可信 PENDING 提案修订（带 approvalId）：Registry 标记 x-approval-patch，
+     *       Validator 跳过 required——模型可以只提交本轮变化字段，
+     *       未提及字段由 {@link com.shitulelv.aicollab.agent.domain.policy.AgentProposalArgumentMerger}
+     *       在合并后保留，合并结果经 normalize 完整校验。</li>
+     * </ul>
+     * 注意：修订补丁中的 changes.version 非必填（旧提案版本可整体保留）；
+     * 嵌套对象无法用 x-approval-patch 跳过 required，因此 changes 内不声明 required——
+     * 新建时 version 必填由 DTO 校验（UpdateTaskRequest 的 @NotNull version）在执行边界保证。
+     */
+    @Override
+    public AgentToolDefinition definition() {
+        return AgentToolDefinition.fromJson(name(),
+                "更新既有任务的提案；必须经过项目管理员批准后才写入。"
+                        + "新建提案时提交 taskId、changes（含该任务当前 version）；"
+                        + "修订可信 PENDING 提案时携带 approvalId，只提交本轮变化字段，未提及字段保持提案原值。",
+                """
+                {"type":"object","additionalProperties":false,"x-approval-patch":true,
+                 "required":["taskId","changes"],
+                 "properties":{
+                   "taskId":{"type":"string","format":"uuid","description":"目标任务 ID"},
+                   "approvalId":{"type":"string","format":"uuid",
+                     "description":"仅修订可信上下文中的 PENDING 提案时填写；新建时不要填写"},
+                   "changes":{"type":"object","additionalProperties":false,
+                     "description":"要更新的字段；新建提案必须包含 version（该任务当前版本号）。修订 PENDING 提案时可省略未变化字段",
+                     "properties":{
+                       "title":{"type":"string","minLength":1,"maxLength":160},
+                       "description":{"type":["string","null"],"maxLength":4000},
+                       "milestoneId":{"type":["string","null"],"format":"uuid"},
+                       "assigneeId":{"type":["string","null"],"format":"uuid"},
+                       "status":{"type":["string","null"],"enum":["TODO","IN_PROGRESS","BLOCKED","DONE","CANCELED",null]},
+                       "priority":{"type":["string","null"],"enum":["LOW","MEDIUM","HIGH","URGENT",null]},
+                       "estimateHours":{"type":["number","null"],"minimum":0.5,"maximum":80},
+                       "startDate":{"type":["string","null"],"format":"date"},
+                       "dueDate":{"type":["string","null"],"format":"date"},
+                       "version":{"type":"integer","minimum":0,"description":"任务当前版本号，乐观锁；新建提案必填"}}}}}
+                """,
+                true);
+    }
+
     @Override
     public JsonNode normalize(AgentToolContext context, JsonNode arguments) {
         UUID taskId = requiredId(arguments, "taskId");
         JsonNode payload = arguments.has("changes") ? arguments.get("changes") : arguments;
-        UpdateTaskRequest req = request(payload, UpdateTaskRequest.class);
+        UpdateTaskRequest req = taskRequest(payload, UpdateTaskRequest.class);
         ObjectNode changes = (ObjectNode) tree(req);
         // 附加负责人显示名称，便于前端审批界面展示
         if (req.assigneeId() != null) {
@@ -66,7 +110,7 @@ public class UpdateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool 
     @Override
     public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {
         UUID taskId = requiredId(arguments, "taskId");
-        UpdateTaskRequest request = request(arguments.get("changes"), UpdateTaskRequest.class);
+        UpdateTaskRequest request = taskRequest(arguments.get("changes"), UpdateTaskRequest.class);
         return new AgentToolResult(tree(tasks.update(
                 context.projectId(), taskId, request, context.userId())), List.of(), List.of());
     }
@@ -84,7 +128,7 @@ public class UpdateTaskApprovalAgentTool extends AbstractApprovalWriteAgentTool 
         TaskView task = tasks.get(context.projectId(), taskId, context.userId());
 
         // 2. 参数仍符合 Schema（通过 request 方法校验）
-        UpdateTaskRequest request = request(arguments.get("changes"), UpdateTaskRequest.class);
+        UpdateTaskRequest request = taskRequest(arguments.get("changes"), UpdateTaskRequest.class);
 
         if (request.version() == null || request.version() != task.version()) {
             throw new BusinessException(ErrorCode.AGENT_APPROVAL_VERSION_CONFLICT);

@@ -36,6 +36,9 @@ export interface UserAiProviderPayload {
 }
 
 export const userAiApi = {
+  async testCapability(id: string, mode: string): Promise<ApiResult<unknown>> {
+    return apiResultFromResponse(await httpClient.post<ApiResponse<unknown>>(`/user/ai-providers/${id}/test-capability`, {}, { params: { mode } }))
+  },
   async list(): Promise<ApiResult<UserAiProvider[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<UserAiProvider[]>>('/user/ai-providers'))
   },

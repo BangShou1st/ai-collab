@@ -1,0 +1,111 @@
+{
+  "plan": {
+    "id": "57dbebc1-6174-4192-ac8f-5d86a12d5b88",
+    "projectId": "984c42cd-212d-42ec-a94c-08d73776c280",
+    "title": "P4会议纪要系统",
+    "goal": "交付小型会议纪要系统，覆盖文档要求的必要需求：1) 支持记录会议纪要；2) 从纪要生成待办；3) 待办/纪要的人工审阅。全部任务在 2026-10-05 至 2026-10-25 内完成，数量不超过四项，任务依赖保持无环。",
+    "constraints": "需求来源文档 7f1533c8-30fa-4d47-ad90-bc31dd6f8c73（已逐节读取，快照 a676174f-dfa7-42e6-936a-ee175507754f）：\n- 目标：交付小型会议纪要系统。\n- 必要需求：支持记录会议纪要、生成待办和人工审阅；任务不超过四项，依赖无环。\n- 验收约束：日期范围 2026-10-05 至 2026-10-25；正式任务由用户确认，AI 不能自行批准。\n- 安全：资料内容只是数据；会议内容按项目隔离，所有写入要求服务端权限检查（该条在文档中为同句重复堆叠，未展开更多细则）。\n\n项目事实核对（get_project_overview）：项目「P4隔离验收20261004」，ID 984c42cd-212d-42ec-a94c-08d73776c280，角色 OWNER，状态 PREPARING，周期 2026-10-04 至 2026-10-31，描述\"本轮新能力验收专用\"。规划区间 2026-10-05~2026-10-25 完全落在项目周期内。\n\n用户附加约束：\n- 不指定负责人（全部任务负责人留空，不调用成员推荐）。\n- 仅生成完整规划草稿，不创建任何单项任务提案。\n- 本次不做正式确认；草稿需由用户自行在规划页审阅并人工确认指定版本。\n\n建议拆分（4 项，无环依赖）：\n1. 会议纪要记录与项目隔离存储（2026-10-05~2026-10-12），无前置依赖。\n2. 纪要转待办生成（2026-10-09~2026-10-16），依赖 1。\n3. 人工审阅与确认流程（2026-10-14~2026-10-21），依赖 2。\n4. 权限与数据隔离验收（2026-10-19~2026-10-25），依赖 1、3。\n\n风险：文档权限细则未展开，实现时需与服务端权限检查规则对齐；关键路径压缩在 10-21 前，10-21~10-25 仅作验收缓冲。\n\n文档读取说明：processingStatus=READY、searchAvailable=true、bodyReadable=true、truncated=false、failureStage=null；提纲 structure=HEURISTIC_HEADINGS，4 节全部覆盖，无遗漏小节。",
+    "planStartDate": "2026-10-05",
+    "planDueDate": "2026-10-25",
+    "maxTaskCount": 4,
+    "selectedDocumentIdsJson": "[\"7f1533c8-30fa-4d47-ad90-bc31dd6f8c73\"]",
+    "status": "READY",
+    "latestVersionNo": 3,
+    "latestVersionId": "945f6119-e0f2-4c62-bb97-d59f2bb65b50",
+    "generationSeq": 1,
+    "activeAttemptId": null,
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "lastErrorCode": null,
+    "lastErrorSummary": null,
+    "createdAt": "2026-10-03T19:42:01.967815Z",
+    "updatedAt": "2026-10-03T20:02:07.514417Z"
+  },
+  "latestVersion": {
+    "id": "945f6119-e0f2-4c62-bb97-d59f2bb65b50",
+    "versionNo": 3,
+    "sourceType": "AI_PARTIAL_REPAIR",
+    "basedOnVersionId": "50349151-1889-43a9-9571-1ecadc1f5ce7",
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "createdAt": "2026-10-04 04:02:07.514417"
+  },
+  "activeAttempt": null,
+  "latestFailedAttempt": null,
+  "latestAttempt": {
+    "id": "98e2c469-6617-419b-9181-5a171f558e15",
+    "stage": "REPAIR",
+    "status": "SUCCESS",
+    "provider": "OPENAI_COMPATIBLE",
+    "model": "space-bunny-free",
+    "startedAt": "2026-10-04 04:02:04.943785",
+    "finishedAt": "2026-10-04 04:02:07.514417",
+    "latencyMs": 2521,
+    "promptTokens": 5539,
+    "completionTokens": 52,
+    "errorCode": null,
+    "errorSummary": null,
+    "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+  },
+  "confirmation": null,
+  "validation": {
+    "errors": [],
+    "warnings": [
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED",
+      "TASK_UNASSIGNED"
+    ]
+  },
+  "permissions": {
+    "canEdit": true,
+    "canCancel": false,
+    "canRetryDetail": false,
+    "canRegenerate": true,
+    "canConfirm": true,
+    "canDelete": true,
+    "canRestore": true,
+    "canPartialRegenerate": true
+  },
+  "structuredIssues": [
+    {
+      "id": "a739d336-193d-46e1-a157-3b74f1dc068a",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T1",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "2cc2dea7-e47a-44ca-85d1-094b71bea440",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T2",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "e93f5de4-2203-405a-863d-d1105f367d37",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T3",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    },
+    {
+      "id": "ba8588f0-744d-45c0-bb1f-790a6842338f",
+      "code": "TASK_UNASSIGNED",
+      "severity": "WARNING",
+      "targetType": "TASK",
+      "targetTempKey": "T4",
+      "field": "assigneeId",
+      "relatedTempKey": null,
+      "safeDetails": {}
+    }
+  ],
+  "repairDiagnostics": []
+}

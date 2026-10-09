@@ -1,0 +1,57 @@
+{
+  "runId": "f9ae9b4c-af4b-4414-b899-deca8cf1ee09",
+  "capturedAt": "2026-10-06T12:30:19.521Z",
+  "frames": [
+    {
+      "at": 26,
+      "type": "MODEL_STARTED",
+      "seq": 5
+    },
+    {
+      "at": 26,
+      "type": "MODEL_COMPLETED",
+      "seq": 6
+    },
+    {
+      "at": 26,
+      "type": "MODEL_STARTED",
+      "seq": 11
+    },
+    {
+      "at": 26,
+      "type": "MODEL_COMPLETED",
+      "seq": 12
+    },
+    {
+      "at": 27,
+      "type": "MODEL_STARTED",
+      "seq": 15
+    },
+    {
+      "at": 27,
+      "type": "MODEL_COMPLETED",
+      "seq": 16
+    },
+    {
+      "at": 27,
+      "type": "MODEL_STARTED",
+      "seq": 19
+    },
+    {
+      "at": 11865,
+      "revision": 1,
+      "chars": 2599,
+      "final": true
+    },
+    {
+      "at": 11904,
+      "type": "MODEL_COMPLETED",
+      "seq": 20
+    },
+    {
+      "at": 11938,
+      "type": "RUN_SUCCEEDED",
+      "seq": 21
+    }
+  ]
+}

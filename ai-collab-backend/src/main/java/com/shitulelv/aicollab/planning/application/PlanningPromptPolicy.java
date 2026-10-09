@@ -43,6 +43,7 @@ public class PlanningPromptPolicy {
         sb.append("- 任务必须引用已存在的里程碑 tempKey。\n");
         sb.append("- 不得捏造成员、来源或项目事实。\n");
         sb.append("</BUSINESS_RULES>\n");
+        sb.append(currentVersusHistoryRules());
         return sb.toString();
     }
 
@@ -91,7 +92,43 @@ public class PlanningPromptPolicy {
         sb.append("- 前置任务 dueDate <= 后续任务 startDate。\n");
         sb.append("- 依赖不得重复、自依赖或引用不存在任务。\n");
         sb.append("</BUSINESS_RULES>\n");
+        sb.append(currentVersusHistoryRules());
+        sb.append(sourceAuthorityRules());
         return sb.toString();
+    }
+
+    /**
+     * 当前约束与历史变更的区分规则：
+     * PLAN_INPUT 中的"约束"文本是会话历史，可能包含已被取代的旧值（如多次调整后的数量）；
+     * 当前必须执行的只有 PLAN_CONSTRAINTS 中的结构化字段（maxTaskCount/日期）。
+     * 历史变更过程只能作为背景提及，不得写成仍须执行的当前要求。
+     */
+    private String currentVersusHistoryRules() {
+        return """
+                <CURRENT_VS_HISTORY>
+                - PLAN_INPUT 中的"约束"文本是用户约束的完整历史，可能同时包含已被后续修改取代的旧值。
+                - 当前唯一生效的结构化约束是 PLAN_CONSTRAINTS 中的 planStartDate、planDueDate 和 maxTaskCount；两者冲突时以 PLAN_CONSTRAINTS 为准。
+                - 任务数量、日期范围、里程碑数必须按 PLAN_CONSTRAINTS 执行；约束历史中出现过的其他数值只代表曾经提出过，不是当前要求。
+                - 验收标准/任务描述不得要求已被取代的历史数值在最终草稿中生效；如需说明数量变更过程，必须明确标注为"历史变更"，不得写成当前验收条件。
+                - 本规则不禁止描述历史；禁止的是把被取代的历史值当作当前必须保持的条件。
+                </CURRENT_VS_HISTORY>
+
+                """;
+    }
+
+    /**
+     * 来源权威规则：SOURCES 是本次服务端实际检索到的资料片段；
+     * Agent 会话中"未取得/未读到"的旧结论不能覆盖实际存在的来源内容。
+     */
+    private String sourceAuthorityRules() {
+        return """
+                <SOURCE_AUTHORITY>
+                - SOURCES 是本次服务端实际检索并选定的资料片段；其中实际出现的内容就是本次可用资料。
+                - 规划请求或会话历史中"资料未取得/未读到"的说法是当时的读取边界，不能覆盖 SOURCES 中实际存在的内容；引用 S 编号来源时以片段实际内容为准。
+                - SOURCES 未覆盖的主题不得捏造来源；无文档依据时 sourceRefs=[]。
+                </SOURCE_AUTHORITY>
+
+                """;
     }
 
     /**

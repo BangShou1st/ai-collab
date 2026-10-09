@@ -1,0 +1,11 @@
+{
+  "user": "owner",
+  "zenModel": {
+    "id": "c86f2463-3a7e-4283-8669-24d65bdbaacd",
+    "name": "OpenCode Zen Free",
+    "model": "space-bunny-free"
+  },
+  "purposes": {
+    "AGENT": "c86f2463-3a7e-4283-8669-24d65bdbaacd"
+  }
+}

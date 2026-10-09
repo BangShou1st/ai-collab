@@ -25,6 +25,14 @@ import java.util.UUID;
 
 @Mapper
 public interface DocumentMapper extends BaseMapper<DocumentEntity> {
+    default int insertChunk(UUID id, UUID projectId, UUID documentId, DocumentChunk chunk, String metadata,
+            String provider, String model, int dimension, String fingerprint, String embedding) {
+        return insertChunk(id, projectId, documentId, chunk, metadata, provider, model, dimension, fingerprint, embedding, null);
+    }
+    default List<DocumentSearchHit> search(UUID projectId, String embedding, String provider, String model,
+            int dimension, String fingerprint, List<UUID> documentIds, int topK) {
+        return search(projectId, embedding, provider, model, dimension, fingerprint, documentIds, topK, null);
+    }
     String VIEW = """
             SELECT d.*, u.display_name AS uploaded_by_display_name
             FROM project_document d
@@ -129,19 +137,19 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             INSERT INTO document_chunk(
               id, project_id, document_id, chunk_no, heading, content, content_hash,
               token_estimate, metadata, embedding_provider, embedding_model,
-              embedding_dimension, embedding_fingerprint, embedding)
+              embedding_dimension, embedding_fingerprint, embedding, generation_id)
             VALUES(
               #{id}, #{projectId}, #{documentId}, #{chunk.chunkNo}, #{chunk.heading},
               #{chunk.content}, #{chunk.contentHash}, #{chunk.tokenEstimate},
               CAST(#{metadata} AS jsonb), #{provider}, #{model}, #{dimension}, #{fingerprint},
-              CAST(#{embedding} AS vector))
+              CAST(#{embedding} AS vector), #{generationId})
             """)
     int insertChunk(@Param("id") UUID id, @Param("projectId") UUID projectId,
                     @Param("documentId") UUID documentId, @Param("chunk") DocumentChunk chunk,
                     @Param("metadata") String metadata, @Param("provider") String provider,
                     @Param("model") String model, @Param("dimension") int dimension,
                     @Param("fingerprint") String fingerprint,
-                    @Param("embedding") String embedding);
+                    @Param("embedding") String embedding, @Param("generationId") UUID generationId);
 
     @Select("""
             SELECT status, processing_token AS processingToken, uploaded_by AS uploadedBy
@@ -191,6 +199,7 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
               AND c.embedding_provider=#{provider} AND c.embedding_model=#{model}
               AND c.embedding_dimension=#{dimension}
               AND c.embedding_fingerprint=#{fingerprint}
+              AND c.generation_id IS NOT DISTINCT FROM #{generationId,jdbcType=OTHER}
               <if test="documentIds != null and !documentIds.isEmpty()">
                 AND d.id IN
                 <foreach collection="documentIds" item="id" open="(" separator="," close=")">
@@ -221,9 +230,9 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
                                    @Param("dimension") int dimension,
                                    @Param("fingerprint") String fingerprint,
                                    @Param("documentIds") List<UUID> documentIds,
-                                   @Param("topK") int topK);
+                                   @Param("topK") int topK, @Param("generationId") UUID generationId);
 
-    @Select("SELECT count(*) FROM document_chunk WHERE embedding_fingerprint IS DISTINCT FROM #{fingerprint}")
+    @Select("SELECT count(*) FROM document_chunk WHERE embedding_fingerprint IS DISTINCT FROM #{fingerprint} AND generation_id IS NOT DISTINCT FROM (SELECT generation_id FROM system_embedding_config WHERE enabled)")
     long countChunksWithOtherFingerprint(@Param("fingerprint") String fingerprint);
 
     @Select("SELECT DISTINCT project_id FROM project_document WHERE status='READY'")

@@ -1,0 +1,4 @@
+
+> ai-collab-frontend@0.0.0 typecheck
+> vue-tsc -b
+

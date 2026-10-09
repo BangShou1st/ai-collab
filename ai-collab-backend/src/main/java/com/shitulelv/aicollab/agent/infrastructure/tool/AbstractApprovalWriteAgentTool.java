@@ -42,4 +42,14 @@ abstract class AbstractApprovalWriteAgentTool implements ApprovalWriteAgentTool 
     protected final JsonNode tree(Object value) {
         return json.valueToTree(value);
     }
+
+    /** Stored task proposals include a derived display name, which is not a business request field. */
+    protected final <T> T taskRequest(JsonNode arguments, Class<T> type) {
+        if (arguments == null || !arguments.isObject()) {
+            return request(arguments, type);
+        }
+        var businessArguments = ((com.fasterxml.jackson.databind.node.ObjectNode) arguments).deepCopy();
+        businessArguments.remove("assigneeName");
+        return request(businessArguments, type);
+    }
 }

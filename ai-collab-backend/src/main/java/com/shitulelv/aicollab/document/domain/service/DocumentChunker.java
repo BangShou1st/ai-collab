@@ -29,21 +29,28 @@ public class DocumentChunker {
     public List<DocumentChunk> split(String text, List<ParsedDocument.PageBoundary> pageBoundaries) {
         List<Section> sections = sections(text);
         List<DocumentChunk> result = new ArrayList<>();
-        int globalOffset = 0;
         for (Section section : sections) {
             int start = 0;
             while (start < section.content().length()) {
                 int end = chooseEnd(section.content(), start);
-                String content = section.content().substring(start, end).trim();
+                String raw = section.content().substring(start, end);
+                String content = raw.trim();
+                int leading = raw.indexOf(content);
+                int sourceStart = section.offset()+start+Math.max(0,leading);
+                int sourceEnd = sourceStart+content.length();
                 if (!content.isBlank()) {
                     if (result.size() >= MAX_CHUNKS) {
                         throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED,
                                 "文档内容过长，生成的分块数量超过上限");
                     }
                     Map<String, Object> metadata = new LinkedHashMap<>();
-                    Integer pageNumber = resolvePageNumber(globalOffset + start, pageBoundaries);
+                    metadata.put("charFrom",sourceStart);
+                    metadata.put("charThrough",sourceEnd);
+                    metadata.put("offsetCoordinate","CLEANED_TEXT_UTF16_V2");
+                    Integer pageNumber = resolvePageNumber(sourceStart, pageBoundaries);
                     if (pageNumber != null) {
                         metadata.put("pageNumber", pageNumber);
+                        metadata.put("pageThrough",resolvePageNumber(Math.max(sourceStart,sourceEnd-1),pageBoundaries));
                     }
                     result.add(new DocumentChunk(result.size(), truncateHeading(section.heading()), content,
                             sha256(content), Math.max(1,
@@ -54,7 +61,6 @@ public class DocumentChunker {
                 int next = safeBoundary(section.content(), Math.max(start + 1, end - OVERLAP));
                 start = next > start ? next : section.content().offsetByCodePoints(start, 1);
             }
-            globalOffset += section.content().length();
         }
         return result;
     }
@@ -75,28 +81,29 @@ public class DocumentChunker {
     private static List<Section> sections(String text) {
         List<Section> result = new ArrayList<>();
         String heading = null;
-        StringBuilder body = new StringBuilder();
-        for (String line : text.split("\\n")) {
+        int bodyStart=0;
+        int offset=0;
+        for (String line : text.split("\\n",-1)) {
             String trimmed = line.trim();
             boolean markdownHeading = trimmed.matches("^#{1,6}\\s+.+");
             boolean inferredHeading = !trimmed.isBlank()
                     && trimmed.codePointCount(0, trimmed.length()) <= 80
-                    && !trimmed.matches(".*[。！？.!?；;]$") && body.length() > 0;
-            if (markdownHeading || inferredHeading && body.toString().endsWith("\n\n")) {
-                flush(result, heading, body);
+                    && !trimmed.matches(".*[。！？.!?；;]$") && offset>bodyStart;
+            if (markdownHeading || inferredHeading && text.substring(bodyStart,Math.min(offset,text.length())).endsWith("\n\n")) {
+                flush(result, heading, text,bodyStart,Math.min(offset,text.length()));
                 heading = markdownHeading ? trimmed.replaceFirst("^#{1,6}\\s+", "") : trimmed;
-            } else {
-                body.append(line).append('\n');
+                bodyStart=Math.min(text.length(),offset+line.length()+1);
             }
+            offset+=line.length()+1;
         }
-        flush(result, heading, body);
+        flush(result, heading, text,bodyStart,text.length());
         return result;
     }
 
-    private static void flush(List<Section> result, String heading, StringBuilder body) {
-        String content = body.toString().trim();
-        if (!content.isBlank()) result.add(new Section(heading, content));
-        body.setLength(0);
+    private static void flush(List<Section> result, String heading, String text,int start,int end) {
+        String raw=text.substring(start,end);
+        String content=raw.trim();
+        if(!content.isBlank()) result.add(new Section(heading,content,start+raw.indexOf(content)));
     }
 
     private static int chooseEnd(String content, int start) {
@@ -134,6 +141,6 @@ public class DocumentChunker {
         }
     }
 
-    private record Section(String heading, String content) {
+    private record Section(String heading, String content,int offset) {
     }
 }

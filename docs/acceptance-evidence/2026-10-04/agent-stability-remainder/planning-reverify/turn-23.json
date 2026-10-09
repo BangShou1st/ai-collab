@@ -1,0 +1,163 @@
+{
+  "answer": {
+    "id": "748d890d-8d79-4899-bf3d-a7c7ea274006",
+    "sessionId": "dc71d85f-9b80-48ee-8bf4-c28786be4548",
+    "runId": "8fb72111-080d-4743-bfc9-5c7048d31d17",
+    "role": "ASSISTANT",
+    "content": "规划操作已受理。后台状态与结果会更新到对应规划卡片；生成完成后请打开规划页审阅并人工确认指定版本。",
+    "citations": [],
+    "inferences": [],
+    "createdAt": "2026-10-04T17:39:58.863301Z"
+  },
+  "run": {
+    "id": "8fb72111-080d-4743-bfc9-5c7048d31d17",
+    "sessionId": "dc71d85f-9b80-48ee-8bf4-c28786be4548",
+    "projectId": "575a9f0d-011a-430c-bd78-be4e9b0b6986",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "现在生成同一可靠性目标的完整规划草稿，标题为ai-collab可靠性验收24轮；遵守当前有效约束，包含里程碑、无环依赖与可判定验收标准。先核对事实，用现有规划生成工具，不用多次单项创建提案，不确认正式任务。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 3,
+    "toolCallsUsed": 1,
+    "childrenUsed": 0,
+    "inputTokensUsed": 8068,
+    "outputTokensUsed": 1182,
+    "inputTokensActual": 8068,
+    "outputTokensActual": 1182,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"8aa5fa94-2d2c-44db-bd31-177f1cbe1e28\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 5,
+    "createdAt": "2026-10-04T17:39:26.136561Z",
+    "updatedAt": "2026-10-04T17:39:58.863301Z"
+  },
+  "turn": 23,
+  "steps": [
+    {
+      "id": "f27f7bca-791a-4c21-b6fd-bc55271a8d33",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 8068,
+          "outputTokens": 1182
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 32170,
+        "toolCalls": [
+          {
+            "id": "call-509e5941-112d-4113-a70b-166cbc208647",
+            "name": "start_task_plan",
+            "arguments": {
+              "goal": "为 ai-collab 做发布前可靠性验收（24 轮压力验证），覆盖三条主线的可判定验收标准：\n\n1. 权限边界：服务端按场景白名单强制校验能力组；研究场景（项目事实、文档读取与检索）不得自动获得业务写入权限；规划写入仅经审批工具落地；诊断与错误详情按权限脱敏，不向普通用户暴露 token 切片、工作状态 JSON、内部类名。验收＝越权调用被服务端拒绝且返回可判定的拒绝原因（前端放开无效）。\n2. 版本与幂等边界：规划修订携带 baseVersionId+expectedVersionNo 乐观并发校验，版本不匹配时拒绝并要求重新读取，不得静默覆盖；局部修订的 allowedFields/lockedFields 由服务端强校验，锁定字段被请求修改即整体拒绝；提案以 approvalId 为幂等键（同一 approvalId 重复提交只更新本轮变化字段、不产生第二份提案）；正式写入以已批准提案为幂等单元；规划生成按 operationId+attemptId 管理状态，取消须针对真实 attemptId。\n3. 文档可靠性：正文解析成功但向量服务失败时，目录/提纲/按 heading 分块读取仍可用（读取路径不依赖 embedding），检索降级时必须声明为关键词/章节定位而非语义召回，并显式暴露 failureStage；重建后旧 chunkId 不得静默指向新内容，历史引用必须显示来源快照或标注“来源已更新/已不可用”，旧页码无依据不得自动重算。\n\n交付要求：含里程碑（权限/版本幂等/文档可靠性三条主线各自可验收节点）；任务依赖必须构成有向无环图（DAG）；每项任务带可判定验收标准（明确给定输入、预期返回字段与通过/失败判定），不以主观描述代替。",
+              "title": "ai-collab可靠性验收24轮",
+              "constraints": "任务数量上限最多 6 项；规划日期区间固定 2026-10-05 至 2026-10-25，不修改；所有任务建议负责人固定为 Local Owner，不修改。本规划为草稿，须由用户在规划页人工确认指定版本后才生效，不代用户确认正式任务。不得使用多次单项任务提案替代本次完整规划。\n\n证据范围说明：依据文档《ai-collab下一阶段主蓝图》(documentId 8aa5fa94-2d2c-44db-bd31-177f1cbe1e28) 的已读内容——§1 首段（边界/技术栈）、§2 首句（须区分静态代码事实、推导风险、待评测优化）、§5.2 全文（chunkNo 12，旧引用与重建）、以及 §5.1/§5.3/§5.4/§6.4/§7 的检索片段。提纲按 DETERMINISTIC 投影仅返回前 3 个标题（共 27 节），其余 24 节未返回，未逐节读取。\n\n待评测/推断项（需在对应任务中以代码事实校正，不得当作已核实结论）：§5.3 只提到向量检索为基线、召回不足时验证词面融合，未写明“向量服务不可用时的降级读路径”；§7 只说明 Skill 不代替业务权限、按受控能力组开放复合需求，以及场景级权限分级，其余场景细则未读；文档解析与向量入库的具体状态字段、阶段枚举、chunkId 稳定性实现方式未在已读正文中确认。\n\n规划要求：里程碑覆盖三条主线（权限边界 / 版本与幂等边界 / 文档可靠性）；任务依赖必须为有向无环图，禁止环与自依赖；每项任务给出可判定验收标准（明确输入、预期输出字段、通过/失败判定条件），例如“向量不可用时按 heading 读取仍返回 processingStatus=READY 且 bodyReadable=true 的非空正文并暴露 failureStage”“重建后以旧 chunkId 取内容必须标注来源已更新或返回旧来源快照，不得返回新正文”“版本号不匹配的修订请求被拒绝且不产生新版本”“同一 approvalId 重复提交不产生第二条提案且未提及字段被保留”。不将历史助手结论当作已验证事实。",
+              "documentIds": [
+                "8aa5fa94-2d2c-44db-bd31-177f1cbe1e28"
+              ],
+              "planDueDate": "2026-10-25",
+              "maxTaskCount": 6,
+              "planStartDate": "2026-10-05"
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 8068,
+      "completionTokens": 1182,
+      "tokenUsageEstimated": false,
+      "latencyMs": 32170,
+      "errorCode": null,
+      "createdAt": "2026-10-04T17:39:58.480037Z"
+    },
+    {
+      "id": "03141360-6089-421f-8e9d-5208efad01af",
+      "sequence": 2,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "start_task_plan",
+      "input": {
+        "arguments": {
+          "goal": "为 ai-collab 做发布前可靠性验收（24 轮压力验证），覆盖三条主线的可判定验收标准：\n\n1. 权限边界：服务端按场景白名单强制校验能力组；研究场景（项目事实、文档读取与检索）不得自动获得业务写入权限；规划写入仅经审批工具落地；诊断与错误详情按权限脱敏，不向普通用户暴露 token 切片、工作状态 JSON、内部类名。验收＝越权调用被服务端拒绝且返回可判定的拒绝原因（前端放开无效）。\n2. 版本与幂等边界：规划修订携带 baseVersionId+expectedVersionNo 乐观并发校验，版本不匹配时拒绝并要求重新读取，不得静默覆盖；局部修订的 allowedFields/lockedFields 由服务端强校验，锁定字段被请求修改即整体拒绝；提案以 approvalId 为幂等键（同一 approvalId 重复提交只更新本轮变化字段、不产生第二份提案）；正式写入以已批准提案为幂等单元；规划生成按 operationId+attemptId 管理状态，取消须针对真实 attemptId。\n3. 文档可靠性：正文解析成功但向量服务失败时，目录/提纲/按 heading 分块读取仍可用（读取路径不依赖 embedding），检索降级时必须声明为关键词/章节定位而非语义召回，并显式暴露 failureStage；重建后旧 chunkId 不得静默指向新内容，历史引用必须显示来源快照或标注“来源已更新/已不可用”，旧页码无依据不得自动重算。\n\n交付要求：含里程碑（权限/版本幂等/文档可靠性三条主线各自可验收节点）；任务依赖必须构成有向无环图（DAG）；每项任务带可判定验收标准（明确给定输入、预期返回字段与通过/失败判定），不以主观描述代替。",
+          "title": "ai-collab可靠性验收24轮",
+          "constraints": "任务数量上限最多 6 项；规划日期区间固定 2026-10-05 至 2026-10-25，不修改；所有任务建议负责人固定为 Local Owner，不修改。本规划为草稿，须由用户在规划页人工确认指定版本后才生效，不代用户确认正式任务。不得使用多次单项任务提案替代本次完整规划。\n\n证据范围说明：依据文档《ai-collab下一阶段主蓝图》(documentId 8aa5fa94-2d2c-44db-bd31-177f1cbe1e28) 的已读内容——§1 首段（边界/技术栈）、§2 首句（须区分静态代码事实、推导风险、待评测优化）、§5.2 全文（chunkNo 12，旧引用与重建）、以及 §5.1/§5.3/§5.4/§6.4/§7 的检索片段。提纲按 DETERMINISTIC 投影仅返回前 3 个标题（共 27 节），其余 24 节未返回，未逐节读取。\n\n待评测/推断项（需在对应任务中以代码事实校正，不得当作已核实结论）：§5.3 只提到向量检索为基线、召回不足时验证词面融合，未写明“向量服务不可用时的降级读路径”；§7 只说明 Skill 不代替业务权限、按受控能力组开放复合需求，以及场景级权限分级，其余场景细则未读；文档解析与向量入库的具体状态字段、阶段枚举、chunkId 稳定性实现方式未在已读正文中确认。\n\n规划要求：里程碑覆盖三条主线（权限边界 / 版本与幂等边界 / 文档可靠性）；任务依赖必须为有向无环图，禁止环与自依赖；每项任务给出可判定验收标准（明确输入、预期输出字段、通过/失败判定条件），例如“向量不可用时按 heading 读取仍返回 processingStatus=READY 且 bodyReadable=true 的非空正文并暴露 failureStage”“重建后以旧 chunkId 取内容必须标注来源已更新或返回旧来源快照，不得返回新正文”“版本号不匹配的修订请求被拒绝且不产生新版本”“同一 approvalId 重复提交不产生第二条提案且未提及字段被保留”。不将历史助手结论当作已验证事实。",
+          "documentIds": [
+            "8aa5fa94-2d2c-44db-bd31-177f1cbe1e28"
+          ],
+          "planDueDate": "2026-10-25",
+          "maxTaskCount": 6,
+          "planStartDate": "2026-10-05"
+        },
+        "toolCallId": "call-509e5941-112d-4113-a70b-166cbc208647"
+      },
+      "output": {
+        "data": {
+          "kind": "start_task_plan",
+          "title": "ai-collab可靠性验收24轮",
+          "effect": "PLANNING_OPERATION_ACCEPTED",
+          "planId": "4c26c6d0-52da-470a-b32c-454fd6087c96",
+          "status": "SKELETON_GENERATING",
+          "attemptId": "d96bf30f-3876-4bd2-b81f-82eb7762cdbf",
+          "errorCode": null,
+          "versionId": null,
+          "versionNo": 0,
+          "reviewPath": "/projects/575a9f0d-011a-430c-bd78-be4e9b0b6986/ai-planning?planId=4c26c6d0-52da-470a-b32c-454fd6087c96",
+          "operationId": "d640010b-52e9-49e2-a3df-159acf14e159",
+          "goalRevision": 1,
+          "attemptStatus": "QUEUED",
+          "activeAttemptId": "d96bf30f-3876-4bd2-b81f-82eb7762cdbf",
+          "targetVersionId": null,
+          "requiresHumanConfirmation": true
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T17:39:58.856551Z"
+    },
+    {
+      "id": "d550aa55-f47b-443f-b01b-0d82b36c2213",
+      "sequence": 3,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "规划操作已受理。后台状态与结果会更新到对应规划卡片；生成完成后请打开规划页审阅并人工确认指定版本。",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T17:39:58.863301Z"
+    }
+  ],
+  "prompt": "现在生成同一可靠性目标的完整规划草稿，标题为ai-collab可靠性验收24轮；遵守当前有效约束，包含里程碑、无环依赖与可判定验收标准。先核对事实，用现有规划生成工具，不用多次单项创建提案，不确认正式任务。"
+}

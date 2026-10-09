@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
 /**
- * 计划步骤。
+ * 参考步骤。status 与 expectedTools 仅保留用于读取既有计划，不推进工具执行。
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AgentPlanStep(
@@ -25,7 +25,4 @@ public record AgentPlanStep(
         else expectedTools = List.copyOf(expectedTools);
     }
 
-    public AgentPlanStep withStatus(AgentPlanStepStatus newStatus) {
-        return new AgentPlanStep(id, title, purpose, newStatus, expectedTools);
-    }
 }

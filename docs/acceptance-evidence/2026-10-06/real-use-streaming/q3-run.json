@@ -1,0 +1,1114 @@
+{
+  "run": {
+    "id": "cd3a9156-9c2f-4c83-a503-211a25d82df3",
+    "sessionId": "b53652b7-9e9f-48f7-b717-1987c3a7e923",
+    "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "数据同步服务的移动端 App 计划什么时候上线?上线前需要哪些审批?",
+    "status": "SUCCEEDED",
+    "maxSteps": 12,
+    "maxToolCalls": 8,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 10,
+    "toolCallsUsed": 5,
+    "childrenUsed": 0,
+    "inputTokensUsed": 35843,
+    "outputTokensUsed": 3104,
+    "inputTokensActual": 35843,
+    "outputTokensActual": 3104,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"搜索知识库\", \"status\": \"PENDING\", \"purpose\": \"查找相关资料\", \"expectedTools\": []}, {\"id\": \"2\", \"title\": \"获取文档元数据\", \"status\": \"PENDING\", \"purpose\": \"了解相关文档\", \"expectedTools\": []}, {\"id\": \"3\", \"title\": \"生成研究报告\", \"status\": \"PENDING\", \"purpose\": \"基于事实生成报告\", \"expectedTools\": []}], \"version\": 1, \"objective\": \"项目研究\", \"successCriteria\": []}",
+    "pageContextJson": null,
+    "skillCode": null,
+    "version": 18,
+    "createdAt": "2026-10-06T11:55:23.543262Z",
+    "updatedAt": "2026-10-06T11:55:54.673711Z"
+  },
+  "plan": {
+    "steps": [
+      {
+        "id": "1",
+        "title": "搜索知识库",
+        "status": "PENDING",
+        "purpose": "查找相关资料",
+        "expectedTools": []
+      },
+      {
+        "id": "2",
+        "title": "获取文档元数据",
+        "status": "PENDING",
+        "purpose": "了解相关文档",
+        "expectedTools": []
+      },
+      {
+        "id": "3",
+        "title": "生成研究报告",
+        "status": "PENDING",
+        "purpose": "基于事实生成报告",
+        "expectedTools": []
+      }
+    ],
+    "version": 1,
+    "objective": "项目研究",
+    "successCriteria": []
+  },
+  "steps": [
+    {
+      "id": "b8834c87-0978-49ba-bcda-5f57a2c48767",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 4326,
+          "outputTokens": 192
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 2311,
+        "toolCalls": [
+          {
+            "id": "call_01a111118e7477f180b2e406",
+            "name": "search_project_knowledge",
+            "arguments": {
+              "query": "数据同步服务 移动端 App 上线时间"
+            }
+          },
+          {
+            "id": "call_01a111118e7477f180b2e407",
+            "name": "search_project_knowledge",
+            "arguments": {
+              "query": "上线前审批流程 发布评审 审批人"
+            }
+          }
+        ],
+        "finalizing": false,
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 4326,
+      "completionTokens": 192,
+      "tokenUsageEstimated": false,
+      "latencyMs": 2311,
+      "errorCode": null,
+      "createdAt": "2026-10-06T11:55:26.180962Z"
+    },
+    {
+      "id": "512ac6a7-e5cf-4778-82e6-d930a390bf93",
+      "sequence": 2,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "search_project_knowledge",
+      "input": {
+        "arguments": {
+          "query": "数据同步服务 移动端 App 上线时间"
+        },
+        "toolCallId": "call_01a111118e7477f180b2e406"
+      },
+      "output": {
+        "data": {
+          "sources": [
+            {
+              "quote": "星桥数据同步服务的常规发布窗口固定在**每周三 02:00–02:30(UTC+8)**。\n窗口期内执行灰度发布:先放量 10% 观察十五分钟,确认同步延迟指标无异常后再全量。",
+              "chunkId": "1e6d4772-d27e-4842-b6a1-7a0046686770",
+              "heading": "1. 发布窗口",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.6430674833534699,
+              "sourceIdentity": {
+                "chunkNo": 1,
+                "charFrom": 124,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 212,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "> 本文档为隔离验收专用测试资料,描述\"星桥\"数据同步服务的发布值班约定。\n> 文档版本:v3.2,生效日期 2026-09-20,责任人:平台交付组。",
+              "chunkId": "a32595b5-26d0-48cd-a408-d54d56fab199",
+              "heading": "星桥数据同步服务 发布值班手册(验收专用 20261006)",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.5459178958315384,
+              "sourceIdentity": {
+                "chunkNo": 0,
+                "charFrom": 34,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 110,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "发布开始后,如出现同步延迟超过阈值或数据校验不一致,**回滚操作必须在 15 分钟内完成**。\n回滚采用数据库反向补录脚本,由值班工程师执行,回滚结果需在值班日志中登记。",
+              "chunkId": "63432868-8c45-4aa0-80a9-60124e289624",
+              "heading": "2. 回滚时限",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.5181234148520095,
+              "sourceIdentity": {
+                "chunkNo": 2,
+                "charFrom": 226,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 311,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "灰度观察期间重点盯三项指标:同步延迟 P99、失败重试率、反向补录队列深度。\n任何一项连续两个采样点超标,立即触发回滚流程。",
+              "chunkId": "b5d21480-911e-461c-ab12-4a965a419723",
+              "heading": "4. 观察指标",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.44476258737667584,
+              "sourceIdentity": {
+                "chunkNo": 4,
+                "charFrom": 459,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 521,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "- 发布窗口值班工程师按周轮值,轮值表由平台交付组维护。\n- 发布放行采用**三级审批**:模块负责人 → 平台交付组 → 值班经理。任一级驳回即中止发布。\n- 紧急修复发布不受固定窗口限制,但需值班经理口头批准并在 24 小时内补记录。",
+              "chunkId": "38187b6b-e122-4748-9542-cb95a5cd6e55",
+              "heading": "3. 值班与审批",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.38958484244798974,
+              "sourceIdentity": {
+                "chunkNo": 3,
+                "charFrom": 326,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 445,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            }
+          ],
+          "coverage": "RELEVANT_EXCERPTS_ONLY",
+          "fullDocumentRead": false
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "星桥数据同步服务的常规发布窗口固定在**每周三 02:00–02:30(UTC+8)**。\n窗口期内执行灰度发布:先放量 10% 观察十五分钟,确认同步延迟指标无异常后再全量。",
+            "chunkId": "1e6d4772-d27e-4842-b6a1-7a0046686770",
+            "heading": "1. 发布窗口",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.6430674833534699
+          },
+          {
+            "quote": "> 本文档为隔离验收专用测试资料,描述\"星桥\"数据同步服务的发布值班约定。\n> 文档版本:v3.2,生效日期 2026-09-20,责任人:平台交付组。",
+            "chunkId": "a32595b5-26d0-48cd-a408-d54d56fab199",
+            "heading": "星桥数据同步服务 发布值班手册(验收专用 20261006)",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.5459178958315384
+          },
+          {
+            "quote": "发布开始后,如出现同步延迟超过阈值或数据校验不一致,**回滚操作必须在 15 分钟内完成**。\n回滚采用数据库反向补录脚本,由值班工程师执行,回滚结果需在值班日志中登记。",
+            "chunkId": "63432868-8c45-4aa0-80a9-60124e289624",
+            "heading": "2. 回滚时限",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.5181234148520095
+          },
+          {
+            "quote": "灰度观察期间重点盯三项指标:同步延迟 P99、失败重试率、反向补录队列深度。\n任何一项连续两个采样点超标,立即触发回滚流程。",
+            "chunkId": "b5d21480-911e-461c-ab12-4a965a419723",
+            "heading": "4. 观察指标",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.44476258737667584
+          },
+          {
+            "quote": "- 发布窗口值班工程师按周轮值,轮值表由平台交付组维护。\n- 发布放行采用**三级审批**:模块负责人 → 平台交付组 → 值班经理。任一级驳回即中止发布。\n- 紧急修复发布不受固定窗口限制,但需值班经理口头批准并在 24 小时内补记录。",
+            "chunkId": "38187b6b-e122-4748-9542-cb95a5cd6e55",
+            "heading": "3. 值班与审批",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.38958484244798974
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-06T11:55:26.516301Z"
+    },
+    {
+      "id": "21a7a5e0-3ab0-432a-8b73-3a99386d6074",
+      "sequence": 3,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "search_project_knowledge",
+      "input": {
+        "arguments": {
+          "query": "上线前审批流程 发布评审 审批人"
+        },
+        "toolCallId": "call_01a111118e7477f180b2e407"
+      },
+      "output": {
+        "data": {
+          "sources": [
+            {
+              "quote": "- 发布窗口值班工程师按周轮值,轮值表由平台交付组维护。\n- 发布放行采用**三级审批**:模块负责人 → 平台交付组 → 值班经理。任一级驳回即中止发布。\n- 紧急修复发布不受固定窗口限制,但需值班经理口头批准并在 24 小时内补记录。",
+              "chunkId": "38187b6b-e122-4748-9542-cb95a5cd6e55",
+              "heading": "3. 值班与审批",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.6035687203921799,
+              "sourceIdentity": {
+                "chunkNo": 3,
+                "charFrom": 326,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 445,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "> 本文档为隔离验收专用测试资料,描述\"星桥\"数据同步服务的发布值班约定。\n> 文档版本:v3.2,生效日期 2026-09-20,责任人:平台交付组。",
+              "chunkId": "a32595b5-26d0-48cd-a408-d54d56fab199",
+              "heading": "星桥数据同步服务 发布值班手册(验收专用 20261006)",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.41171071456852615,
+              "sourceIdentity": {
+                "chunkNo": 0,
+                "charFrom": 34,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 110,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "星桥数据同步服务的常规发布窗口固定在**每周三 02:00–02:30(UTC+8)**。\n窗口期内执行灰度发布:先放量 10% 观察十五分钟,确认同步延迟指标无异常后再全量。",
+              "chunkId": "1e6d4772-d27e-4842-b6a1-7a0046686770",
+              "heading": "1. 发布窗口",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.4019073545932884,
+              "sourceIdentity": {
+                "chunkNo": 1,
+                "charFrom": 124,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 212,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "发布开始后,如出现同步延迟超过阈值或数据校验不一致,**回滚操作必须在 15 分钟内完成**。\n回滚采用数据库反向补录脚本,由值班工程师执行,回滚结果需在值班日志中登记。",
+              "chunkId": "63432868-8c45-4aa0-80a9-60124e289624",
+              "heading": "2. 回滚时限",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.3719365298748122,
+              "sourceIdentity": {
+                "chunkNo": 2,
+                "charFrom": 226,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 311,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "灰度观察期间重点盯三项指标:同步延迟 P99、失败重试率、反向补录队列深度。\n任何一项连续两个采样点超标,立即触发回滚流程。",
+              "chunkId": "b5d21480-911e-461c-ab12-4a965a419723",
+              "heading": "4. 观察指标",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.3690933457279817,
+              "sourceIdentity": {
+                "chunkNo": 4,
+                "charFrom": 459,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 521,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            }
+          ],
+          "coverage": "RELEVANT_EXCERPTS_ONLY",
+          "fullDocumentRead": false
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "- 发布窗口值班工程师按周轮值,轮值表由平台交付组维护。\n- 发布放行采用**三级审批**:模块负责人 → 平台交付组 → 值班经理。任一级驳回即中止发布。\n- 紧急修复发布不受固定窗口限制,但需值班经理口头批准并在 24 小时内补记录。",
+            "chunkId": "38187b6b-e122-4748-9542-cb95a5cd6e55",
+            "heading": "3. 值班与审批",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.6035687203921799
+          },
+          {
+            "quote": "> 本文档为隔离验收专用测试资料,描述\"星桥\"数据同步服务的发布值班约定。\n> 文档版本:v3.2,生效日期 2026-09-20,责任人:平台交付组。",
+            "chunkId": "a32595b5-26d0-48cd-a408-d54d56fab199",
+            "heading": "星桥数据同步服务 发布值班手册(验收专用 20261006)",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.41171071456852615
+          },
+          {
+            "quote": "星桥数据同步服务的常规发布窗口固定在**每周三 02:00–02:30(UTC+8)**。\n窗口期内执行灰度发布:先放量 10% 观察十五分钟,确认同步延迟指标无异常后再全量。",
+            "chunkId": "1e6d4772-d27e-4842-b6a1-7a0046686770",
+            "heading": "1. 发布窗口",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.4019073545932884
+          },
+          {
+            "quote": "发布开始后,如出现同步延迟超过阈值或数据校验不一致,**回滚操作必须在 15 分钟内完成**。\n回滚采用数据库反向补录脚本,由值班工程师执行,回滚结果需在值班日志中登记。",
+            "chunkId": "63432868-8c45-4aa0-80a9-60124e289624",
+            "heading": "2. 回滚时限",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.3719365298748122
+          },
+          {
+            "quote": "灰度观察期间重点盯三项指标:同步延迟 P99、失败重试率、反向补录队列深度。\n任何一项连续两个采样点超标,立即触发回滚流程。",
+            "chunkId": "b5d21480-911e-461c-ab12-4a965a419723",
+            "heading": "4. 观察指标",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.3690933457279817
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-06T11:55:26.52961Z"
+    },
+    {
+      "id": "be8fa877-1734-4001-bd70-292b171a7d87",
+      "sequence": 4,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 8971,
+          "outputTokens": 303
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 2843,
+        "toolCalls": [
+          {
+            "id": "call_01a11111a063744981c44d59",
+            "name": "search_project_knowledge",
+            "arguments": {
+              "query": "移动端 客户端 App 上线 里程碑"
+            }
+          },
+          {
+            "id": "call_01a11111a063744981c44d5a",
+            "name": "list_project_documents",
+            "arguments": {
+              "limit": 50
+            }
+          }
+        ],
+        "finalizing": false,
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 8971,
+      "completionTokens": 303,
+      "tokenUsageEstimated": false,
+      "latencyMs": 2843,
+      "errorCode": null,
+      "createdAt": "2026-10-06T11:55:30.474902Z"
+    },
+    {
+      "id": "f315da7b-61a2-48bc-bc0f-36f483c86fe9",
+      "sequence": 5,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "search_project_knowledge",
+      "input": {
+        "arguments": {
+          "query": "移动端 客户端 App 上线 里程碑"
+        },
+        "toolCallId": "call_01a11111a063744981c44d59"
+      },
+      "output": {
+        "data": {
+          "sources": [
+            {
+              "quote": "星桥数据同步服务的常规发布窗口固定在**每周三 02:00–02:30(UTC+8)**。\n窗口期内执行灰度发布:先放量 10% 观察十五分钟,确认同步延迟指标无异常后再全量。",
+              "chunkId": "1e6d4772-d27e-4842-b6a1-7a0046686770",
+              "heading": "1. 发布窗口",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.48772716814823913,
+              "sourceIdentity": {
+                "chunkNo": 1,
+                "charFrom": 124,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 212,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "灰度观察期间重点盯三项指标:同步延迟 P99、失败重试率、反向补录队列深度。\n任何一项连续两个采样点超标,立即触发回滚流程。",
+              "chunkId": "b5d21480-911e-461c-ab12-4a965a419723",
+              "heading": "4. 观察指标",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.46977334036034946,
+              "sourceIdentity": {
+                "chunkNo": 4,
+                "charFrom": 459,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 521,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "- 发布窗口值班工程师按周轮值,轮值表由平台交付组维护。\n- 发布放行采用**三级审批**:模块负责人 → 平台交付组 → 值班经理。任一级驳回即中止发布。\n- 紧急修复发布不受固定窗口限制,但需值班经理口头批准并在 24 小时内补记录。",
+              "chunkId": "38187b6b-e122-4748-9542-cb95a5cd6e55",
+              "heading": "3. 值班与审批",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.46712754352300134,
+              "sourceIdentity": {
+                "chunkNo": 3,
+                "charFrom": 326,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 445,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "发布开始后,如出现同步延迟超过阈值或数据校验不一致,**回滚操作必须在 15 分钟内完成**。\n回滚采用数据库反向补录脚本,由值班工程师执行,回滚结果需在值班日志中登记。",
+              "chunkId": "63432868-8c45-4aa0-80a9-60124e289624",
+              "heading": "2. 回滚时限",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.45232899133467885,
+              "sourceIdentity": {
+                "chunkNo": 2,
+                "charFrom": 226,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 311,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            },
+            {
+              "quote": "> 本文档为隔离验收专用测试资料,描述\"星桥\"数据同步服务的发布值班约定。\n> 文档版本:v3.2,生效日期 2026-09-20,责任人:平台交付组。",
+              "chunkId": "a32595b5-26d0-48cd-a408-d54d56fab199",
+              "heading": "星桥数据同步服务 发布值班手册(验收专用 20261006)",
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "pageNumber": null,
+              "similarity": 0.4256962829791131,
+              "sourceIdentity": {
+                "chunkNo": 0,
+                "charFrom": 34,
+                "filename": "星桥发布值班手册-20261006.md",
+                "projectId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+                "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+                "charThrough": 110,
+                "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+                "bodySnapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+                "offsetCoordinate": "CLEANED_TEXT_UTF16_V2",
+                "embeddingGeneration": "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+                "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+              }
+            }
+          ],
+          "coverage": "RELEVANT_EXCERPTS_ONLY",
+          "fullDocumentRead": false
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [
+          {
+            "quote": "星桥数据同步服务的常规发布窗口固定在**每周三 02:00–02:30(UTC+8)**。\n窗口期内执行灰度发布:先放量 10% 观察十五分钟,确认同步延迟指标无异常后再全量。",
+            "chunkId": "1e6d4772-d27e-4842-b6a1-7a0046686770",
+            "heading": "1. 发布窗口",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.48772716814823913
+          },
+          {
+            "quote": "灰度观察期间重点盯三项指标:同步延迟 P99、失败重试率、反向补录队列深度。\n任何一项连续两个采样点超标,立即触发回滚流程。",
+            "chunkId": "b5d21480-911e-461c-ab12-4a965a419723",
+            "heading": "4. 观察指标",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.46977334036034946
+          },
+          {
+            "quote": "- 发布窗口值班工程师按周轮值,轮值表由平台交付组维护。\n- 发布放行采用**三级审批**:模块负责人 → 平台交付组 → 值班经理。任一级驳回即中止发布。\n- 紧急修复发布不受固定窗口限制,但需值班经理口头批准并在 24 小时内补记录。",
+            "chunkId": "38187b6b-e122-4748-9542-cb95a5cd6e55",
+            "heading": "3. 值班与审批",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.46712754352300134
+          },
+          {
+            "quote": "发布开始后,如出现同步延迟超过阈值或数据校验不一致,**回滚操作必须在 15 分钟内完成**。\n回滚采用数据库反向补录脚本,由值班工程师执行,回滚结果需在值班日志中登记。",
+            "chunkId": "63432868-8c45-4aa0-80a9-60124e289624",
+            "heading": "2. 回滚时限",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.45232899133467885
+          },
+          {
+            "quote": "> 本文档为隔离验收专用测试资料,描述\"星桥\"数据同步服务的发布值班约定。\n> 文档版本:v3.2,生效日期 2026-09-20,责任人:平台交付组。",
+            "chunkId": "a32595b5-26d0-48cd-a408-d54d56fab199",
+            "heading": "星桥数据同步服务 发布值班手册(验收专用 20261006)",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.4256962829791131
+          }
+        ],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-06T11:55:30.767818Z"
+    },
+    {
+      "id": "0db93209-5219-4ee7-8bee-12b139b9e142",
+      "sequence": 6,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "list_project_documents",
+      "input": {
+        "arguments": {
+          "limit": 50
+        },
+        "toolCallId": "call_01a11111a063744981c44d5a"
+      },
+      "output": {
+        "data": {
+          "items": [
+            {
+              "filename": "星桥发布值班手册-20261006.md",
+              "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "snapshotId": "5852048f-a27b-439f-9190-35a491e91d06",
+              "displayName": "星桥发布值班手册(验收专用 20261006)",
+              "bodyReadable": true,
+              "failureStage": null,
+              "legacySource": false,
+              "parseVersion": "tika-page-clean-v2/chunk-offset-v2",
+              "recordVersion": 0,
+              "searchAvailable": true,
+              "processingStatus": "READY",
+              "originalContentHash": "df58bc05f100623c5c21051fbae91e01f127fc7314463b62a1fd1dfa91006b2f"
+            }
+          ],
+          "total": 1,
+          "hasMore": false,
+          "truncated": false,
+          "nextCursor": null
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-06T11:55:30.787069Z"
+    },
+    {
+      "id": "279acf38-3125-44ee-9754-284e841cee8e",
+      "sequence": 7,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 10280,
+          "outputTokens": 344
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 3561,
+        "toolCalls": [
+          {
+            "id": "call_01a11111b3cd706bb00017f6",
+            "name": "check_project_progress",
+            "arguments": {}
+          }
+        ],
+        "finalizing": false,
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 10280,
+      "completionTokens": 344,
+      "tokenUsageEstimated": false,
+      "latencyMs": 3561,
+      "errorCode": null,
+      "createdAt": "2026-10-06T11:55:35.464376Z"
+    },
+    {
+      "id": "90972605-6ade-4d1f-b0b1-9412e8674ca1",
+      "sequence": 8,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "check_project_progress",
+      "input": {
+        "arguments": {},
+        "toolCallId": "call_01a11111b3cd706bb00017f6"
+      },
+      "output": {
+        "data": {
+          "tasks": {
+            "done": 1,
+            "todo": 1,
+            "total": 4,
+            "blocked": 1,
+            "overdue": 1,
+            "canceled": 0,
+            "inProgress": 1,
+            "completionRate": 0.25
+          },
+          "project": {
+            "id": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+            "name": "文档检索与流式验收 20261006",
+            "status": "PREPARING",
+            "dueDate": "2026-11-13",
+            "startDate": "2026-09-28",
+            "description": "本轮真实文档检索成功链与正常使用检查的隔离场景项目;基准日 2026-10-06。",
+            "memberCount": 1,
+            "currentUserRole": "OWNER"
+          },
+          "milestones": [
+            {
+              "id": "31344abb-cc48-4f7a-b6fc-9618dbad97d4",
+              "name": "数据同步服务联调冻结",
+              "status": "ACTIVE",
+              "overdue": true,
+              "targetDate": "2026-10-05",
+              "totalTasks": 3,
+              "completedTasks": 1,
+              "completionRate": 0.333
+            },
+            {
+              "id": "85f56753-98f5-45d7-905f-e6784a567d7d",
+              "name": "发布评审",
+              "status": "PLANNED",
+              "overdue": false,
+              "targetDate": "2026-10-30",
+              "totalTasks": 0,
+              "completedTasks": 0,
+              "completionRate": 0
+            }
+          ],
+          "recentTasks": [
+            {
+              "id": "156c4b58-79d3-4fa6-b628-3b00982e27d6",
+              "title": "数据迁移脚本核对",
+              "status": "BLOCKED",
+              "dueDate": "2026-10-08",
+              "overdue": false,
+              "priority": "HIGH",
+              "updatedAt": "2026-10-06T11:54:05.142412Z",
+              "assigneeId": null,
+              "milestoneId": null,
+              "milestoneName": null,
+              "assigneeDisplayName": null,
+              "unfinishedDependencyCount": 0
+            },
+            {
+              "id": "c9221701-9bf8-4c99-aafe-91da65d7890a",
+              "title": "性能压测报告",
+              "status": "IN_PROGRESS",
+              "dueDate": null,
+              "overdue": false,
+              "priority": "MEDIUM",
+              "updatedAt": "2026-10-06T11:54:05.088268Z",
+              "assigneeId": null,
+              "milestoneId": "31344abb-cc48-4f7a-b6fc-9618dbad97d4",
+              "milestoneName": "数据同步服务联调冻结",
+              "assigneeDisplayName": null,
+              "unfinishedDependencyCount": 0
+            },
+            {
+              "id": "c9e2afae-c390-4394-a494-5955f6cc638c",
+              "title": "权限模型评审",
+              "status": "TODO",
+              "dueDate": "2026-10-04",
+              "overdue": true,
+              "priority": "MEDIUM",
+              "updatedAt": "2026-10-06T11:54:05.045623Z",
+              "assigneeId": null,
+              "milestoneId": "31344abb-cc48-4f7a-b6fc-9618dbad97d4",
+              "milestoneName": "数据同步服务联调冻结",
+              "assigneeDisplayName": null,
+              "unfinishedDependencyCount": 0
+            },
+            {
+              "id": "cbb3f915-be71-4c41-89b6-f44f57c048cf",
+              "title": "同步通道压测报告",
+              "status": "DONE",
+              "dueDate": "2026-10-03",
+              "overdue": false,
+              "priority": "HIGH",
+              "updatedAt": "2026-10-06T11:54:04.955188Z",
+              "assigneeId": null,
+              "milestoneId": "31344abb-cc48-4f7a-b6fc-9618dbad97d4",
+              "milestoneName": "数据同步服务联调冻结",
+              "assigneeDisplayName": null,
+              "unfinishedDependencyCount": 0
+            }
+          ],
+          "recentDocuments": [
+            {
+              "id": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "status": "READY",
+              "createdAt": "2026-10-06T11:54:05.680136Z",
+              "uploadedBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+              "originalFilename": "星桥发布值班手册-20261006.md",
+              "uploaderDisplayName": "Local Owner"
+            }
+          ],
+          "recentActivities": [
+            {
+              "id": "eaa8d1b0-15a9-49e4-89ad-a4cf1db22c61",
+              "action": "DOCUMENT_INDEXED",
+              "summary": "Local Owner完成了文档处理「星桥发布值班手册-20261006.md」",
+              "entityId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "createdAt": "2026-10-06T11:54:08.285916Z",
+              "entityType": "PROJECT_DOCUMENT",
+              "userDisplayName": "Local Owner"
+            },
+            {
+              "id": "7d38d26e-d239-4e36-a423-73847e5385a0",
+              "action": "DOCUMENT_UPLOADED",
+              "summary": "Local Owner上传了文档「星桥发布值班手册-20261006.md」",
+              "entityId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+              "createdAt": "2026-10-06T11:54:05.680136Z",
+              "entityType": "PROJECT_DOCUMENT",
+              "userDisplayName": "Local Owner"
+            },
+            {
+              "id": "d09635a5-650e-48c7-badd-4ba6749ae2a4",
+              "action": "TASK_CREATED",
+              "summary": "Local Owner创建了任务「数据迁移脚本核对」",
+              "entityId": "156c4b58-79d3-4fa6-b628-3b00982e27d6",
+              "createdAt": "2026-10-06T11:54:05.142412Z",
+              "entityType": "TASK",
+              "userDisplayName": "Local Owner"
+            },
+            {
+              "id": "d867ee36-d6fd-4f04-bb65-b0e1a5a309e9",
+              "action": "TASK_CREATED",
+              "summary": "Local Owner创建了任务「性能压测报告」",
+              "entityId": "c9221701-9bf8-4c99-aafe-91da65d7890a",
+              "createdAt": "2026-10-06T11:54:05.088268Z",
+              "entityType": "TASK",
+              "userDisplayName": "Local Owner"
+            },
+            {
+              "id": "e36ca3e4-9557-41d4-9acc-bd6861ccc152",
+              "action": "TASK_CREATED",
+              "summary": "Local Owner创建了任务「权限模型评审」",
+              "entityId": "c9e2afae-c390-4394-a494-5955f6cc638c",
+              "createdAt": "2026-10-06T11:54:05.045623Z",
+              "entityType": "TASK",
+              "userDisplayName": "Local Owner"
+            },
+            {
+              "id": "a0810a03-47db-46d4-b598-3504bd240e03",
+              "action": "TASK_CREATED",
+              "summary": "Local Owner创建了任务「同步通道压测报告」",
+              "entityId": "cbb3f915-be71-4c41-89b6-f44f57c048cf",
+              "createdAt": "2026-10-06T11:54:04.955188Z",
+              "entityType": "TASK",
+              "userDisplayName": "Local Owner"
+            },
+            {
+              "id": "1df0afc2-ca5c-4297-9ba7-3c7bb9729bac",
+              "action": "MILESTONE_CREATED",
+              "summary": "Local Owner创建了里程碑「发布评审」",
+              "entityId": "85f56753-98f5-45d7-905f-e6784a567d7d",
+              "createdAt": "2026-10-06T11:54:04.868092Z",
+              "entityType": "MILESTONE",
+              "userDisplayName": "Local Owner"
+            },
+            {
+              "id": "49b410a6-19bb-4e8c-8473-66b71486784b",
+              "action": "MILESTONE_CREATED",
+              "summary": "Local Owner创建了里程碑「数据同步服务联调冻结」",
+              "entityId": "31344abb-cc48-4f7a-b6fc-9618dbad97d4",
+              "createdAt": "2026-10-06T11:54:04.743698Z",
+              "entityType": "MILESTONE",
+              "userDisplayName": "Local Owner"
+            },
+            {
+              "id": "8fce8b9d-2e8a-4667-951b-de419c27e8ad",
+              "action": "PROJECT_CREATED",
+              "summary": "Local Owner创建了项目",
+              "entityId": "e4aed8a8-a2c0-4092-a5c8-c96f8650aeac",
+              "createdAt": "2026-10-06T11:54:04.634666Z",
+              "entityType": "PROJECT",
+              "userDisplayName": "Local Owner"
+            }
+          ]
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": [
+          {
+            "basis": "项目 Dashboard 统计",
+            "statement": "进度判断应以返回的确定性项目统计为依据",
+            "confidence": "HIGH"
+          }
+        ]
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-06T11:55:35.582164Z"
+    },
+    {
+      "id": "d64ecb8b-2397-4b6b-96c2-25287db210ff",
+      "sequence": 9,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 12266,
+          "outputTokens": 2265
+        },
+        "content": "## 1. 研究问题摘要\n\n两个问题：**①「数据同步服务的移动端 App 计划什么时候上线」；②「上线前需要哪些审批」**。\n\n结论先说：**当前项目数据里没有移动端 App 的排期记录**；与「审批」相关的唯一记录来自发布值班手册，但它的适用对象是数据同步服务本身，不是 App/客户端。\n\n## 2. 找到的相关信息（引用来源）\n\n**排期方面 —— 未命中任何 App 记录**，覆盖范围如下：\n\n| 查询 | 返回范围 | 结果 |\n|---|---|---|\n| `list_project_documents`（limit=50） | `total=1`、`hasMore=false`，**项目内文档已全量核对** | 唯一文档《星桥发布值班手册-20261006.md》，无移动端/App 内容 |\n| `check_project_progress` | 任务 `total=4`、里程碑 2 条，**均已返回明细** | 4 条任务全为服务端压测/迁移/权限评审；里程碑「数据同步服务联调冻结」(2026-10-05, ACTIVE)、「发布评审」(2026-10-30, PLANNED, **名下 0 个任务**) |\n| 知识库检索「移动端 客户端 App 上线 里程碑」 | `coverage=RELEVANT_EXCERPTS_ONLY`、确定性投影（共 5 条片段，本次返回 3 条） | 返回的是「1. 发布窗口」「4. 观察指标」片段，**无任何 App 上线时间** |\n\n**审批方面 —— 仅一条直接记录**，来源：《星桥发布值班手册-20261006.md》（documentId `f2d5d6d5-0dda-431a-a57a-79a7dcad37a4`，snapshotId `5852048f-...`），章节「3. 值班与审批」原文：\n\n> - 发布窗口值班工程师按周轮值，轮值表由平台交付组维护。\n> - 发布放行采用**三级审批**：模块负责人 → 平台交付组 → 值班经理。任一级驳回即中止发布。\n> - 紧急修复发布不受固定窗口限制，但需值班经理口头批准并在 24 小时内补记录。\n\n同文档头部自述：「本文档为隔离验收专用测试资料，描述\"星桥\"数据同步服务的发布值班约定；版本 v3.2，生效日期 2026-09-20，责任人：平台交付组。」\n\n## 3. 分析和总结\n\n- **「移动端 App 何时上线」：在已查询范围内找不到答案。** 项目文档只有 1 篇且已全量列出；4 条任务、2 个里程碑里没有任何 App / 客户端条目。因此准确表述是「当前项目数据中不存在 App排期记录」，而不是「App 不存在」——它可能在另一份未导入的资料或另一个项目里。\n- **「上线前需要哪些审批」：现有证据只覆盖服务端发布放行。** 手册的三级审批（模块负责人 → 平台交付组 → 值班经理）是发布值班约定，我未在已读范围内看到它适用于 App 客户端发布，也未看到任何应用商店审核、备案、隐私合规之类的环节记录。**不能直接把这条当作 App 上线的审批流程**。\n- **推断（明确标记，非事实）**：若 App 确属本项目范围，本项目仅有的两个后续时间锚点是「发布评审」2026-10-30 与项目整体截止 2026-11-13；但「发布评审」目前 `totalTasks=0`，是空里程碑，不能据此推断 App 会走这个节点。\n\n**阅读范围限定**：手册我读的是提纲 + 5 个章节片段，**未通读全文**；检索为相关片段模式并带确定性投影。准确说法是「在已读章节范围内未见移动端 App 内容」，不是「全文不含」。\n\n## 4. 建议的后顺步骤\n\n1. **先确认归属**：移动端 App 是否属于本项目？如果属于，需要新增一条 App 里程碑/任务来承载排期与审批节点；如果不属于，我需要去对应项目或文档源查。\n2. **补充资料**：若 App 排期另有文档，请导入本项目，我再据实给上线时间与审批清单。\n3. **可立即做**：把「发布评审」里程碑的空状态处理掉（挂入任务或调整目标日），它是当前唯一一个面向未来的节点。\n4. 需要的话，我可以通读值班手册全文，逐章确认是否存在面向客户端/移动端的例外条款——但那只能回答「手册有没有写」，不能替代缺失的 App 排期本身。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 17924,
+        "toolCalls": [],
+        "finalizing": false,
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "## 1. 研究问题摘要\n\n两个问题：**①「数据同步服务的移动端 App 计划什么时候上线」；②「上线前需要哪些审批」**。\n\n结论先说：**当前项目数据里没有移动端 App 的排期记录**；与「审批」相关的唯一记录来自发布值班手册，但它的适用对象是数据同步服务本身，不是 App/客户端。\n\n## 2. 找到的相关信息（引用来源）\n\n**排期方面 —— 未命中任何 App 记录**，覆盖范围如下：\n\n| 查询 | 返回范围 | 结果 |\n|---|---|---|\n| `list_project_documents`（limit=50） | `total=1`、`hasMore=false`，**项目内文档已全量核对** | 唯一文档《星桥发布值班手册-20261006.md》，无移动端/App 内容 |\n| `check_project_progress` | 任务 `total=4`、里程碑 2 条，**均已返回明细** | 4 条任务全为服务端压测/迁移/权限评审；里程碑「数据同步服务联调冻结」(2026-10-05, ACTIVE)、「发布评审」(2026-10-30, PLANNED, **名下 0 个任务**) |\n| 知识库检索「移动端 客户端 App 上线 里程碑」 | `coverage=RELEVANT_EXCERPTS_ONLY`、确定性投影（共 5 条片段，本次返回 3 条） | 返回的是「1. 发布窗口」「4. 观察指标」片段，**无任何 App 上线时间** |\n\n**审批方面 —— 仅一条直接记录**，来源：《星桥发布值班手册-20261006.md》（documentId `f2d5d6d5-0dda-431a-a57a-79a7dcad37a4`，snapshotId `5852048f-...`），章节「3. 值班与审批」原文：\n\n> - 发布窗口值班工程师按周轮值，轮值表由平台交付组维护。\n> - 发布放行采用**三级审批**：模块负责人 → 平台交付组 → 值班经理。任一级驳回即中止发布。\n> - 紧急修复发布不受固定窗口限制，但需值班经理口头批准并在 24 小时内补记录。\n\n同文档头部自述：「本文档为隔离验收专用测试资料，描述\"星桥\"数据同步服务的发布值班约定；版本 v3.2，生效日期 2026-09-20，责任人：平台交付组。」\n\n## 3. 分析和总结\n\n- **「移动端 App 何时上线」：在已查询范围内找不到答案。** 项目文档只有 1 篇且已全量列出；4 条任务、2 个里程碑里没有任何 App / 客户端条目。因此准确表述是「当前项目数据中不存在 App排期记录」，而不是「App 不存在」——它可能在另一份未导入的资料或另一个项目里。\n- **「上线前需要哪些审批」：现有证据只覆盖服务端发布放行。** 手册的三级审批（模块负责人 → 平台交付组 → 值班经理）是发布值班约定，我未在已读范围内看到它适用于 App 客户端发布，也未看到任何应用商店审核、备案、隐私合规之类的环节记录。**不能直接把这条当作 App 上线的审批流程**。\n- **推断（明确标记，非事实）**：若 App 确属本项目范围，本项目仅有的两个后续时间锚点是「发布评审」2026-10-30 与项目整体截止 2026-11-13；但「发布评审」目前 `totalTasks=0`，是空里程碑，不能据此推断 App 会走这个节点。\n\n**阅读范围限定**：手册我读的是提纲 + 5 个章节片段，**未通读全文**；检索为相关片段模式并带确定性投影。准确说法是「在已读章节范围内未见移动端 App 内容」，不是「全文不含」。\n\n## 4. 建议的后顺步骤\n\n1. **先确认归属**：移动端 App 是否属于本项目？如果属于，需要新增一条 App 里程碑/任务来承载排期与审批节点；如果不属于，我需要去对应项目或文档源查。\n2. **补充资料**：若 App 排期另有文档，请导入本项目，我再据实给上线时间与审批清单。\n3. **可立即做**：把「发布评审」里程碑的空状态处理掉（挂入任务或调整目标日），它是当前唯一一个面向未来的节点。\n4. 需要的话，我可以通读值班手册全文，逐章确认是否存在面向客户端/移动端的例外条款——但那只能回答「手册有没有写」，不能替代缺失的 App 排期本身。",
+      "promptTokens": 12266,
+      "completionTokens": 2265,
+      "tokenUsageEstimated": false,
+      "latencyMs": 17924,
+      "errorCode": null,
+      "createdAt": "2026-10-06T11:55:54.656636Z"
+    },
+    {
+      "id": "8c10d32b-53d2-43d3-b177-475c992f6048",
+      "sequence": 10,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "## 1. 研究问题摘要\n\n两个问题：**①「数据同步服务的移动端 App 计划什么时候上线」；②「上线前需要哪些审批」**。\n\n结论先说：**当前项目数据里没有移动端 App 的排期记录**；与「审批」相关的唯一记录来自发布值班手册，但它的适用对象是数据同步服务本身，不是 App/客户端。\n\n## 2. 找到的相关信息（引用来源）\n\n**排期方面 —— 未命中任何 App 记录**，覆盖范围如下：\n\n| 查询 | 返回范围 | 结果 |\n|---|---|---|\n| `list_project_documents`（limit=50） | `total=1`、`hasMore=false`，**项目内文档已全量核对** | 唯一文档《星桥发布值班手册-20261006.md》，无移动端/App 内容 |\n| `check_project_progress` | 任务 `total=4`、里程碑 2 条，**均已返回明细** | 4 条任务全为服务端压测/迁移/权限评审；里程碑「数据同步服务联调冻结」(2026-10-05, ACTIVE)、「发布评审」(2026-10-30, PLANNED, **名下 0 个任务**) |\n| 知识库检索「移动端 客户端 App 上线 里程碑」 | `coverage=RELEVANT_EXCERPTS_ONLY`、确定性投影（共 5 条片段，本次返回 3 条） | 返回的是「1. 发布窗口」「4. 观察指标」片段，**无任何 App 上线时间** |\n\n**审批方面 —— 仅一条直接记录**，来源：《星桥发布值班手册-20261006.md》（documentId `f2d5d6d5-0dda-431a-a57a-79a7dcad37a4`，snapshotId `5852048f-...`），章节「3. 值班与审批」原文：\n\n> - 发布窗口值班工程师按周轮值，轮值表由平台交付组维护。\n> - 发布放行采用**三级审批**：模块负责人 → 平台交付组 → 值班经理。任一级驳回即中止发布。\n> - 紧急修复发布不受固定窗口限制，但需值班经理口头批准并在 24 小时内补记录。\n\n同文档头部自述：「本文档为隔离验收专用测试资料，描述\"星桥\"数据同步服务的发布值班约定；版本 v3.2，生效日期 2026-09-20，责任人：平台交付组。」\n\n## 3. 分析和总结\n\n- **「移动端 App 何时上线」：在已查询范围内找不到答案。** 项目文档只有 1 篇且已全量列出；4 条任务、2 个里程碑里没有任何 App / 客户端条目。因此准确表述是「当前项目数据中不存在 App排期记录」，而不是「App 不存在」——它可能在另一份未导入的资料或另一个项目里。\n- **「上线前需要哪些审批」：现有证据只覆盖服务端发布放行。** 手册的三级审批（模块负责人 → 平台交付组 → 值班经理）是发布值班约定，我未在已读范围内看到它适用于 App 客户端发布，也未看到任何应用商店审核、备案、隐私合规之类的环节记录。**不能直接把这条当作 App 上线的审批流程**。\n- **推断（明确标记，非事实）**：若 App 确属本项目范围，本项目仅有的两个后续时间锚点是「发布评审」2026-10-30 与项目整体截止 2026-11-13；但「发布评审」目前 `totalTasks=0`，是空里程碑，不能据此推断 App 会走这个节点。\n\n**阅读范围限定**：手册我读的是提纲 + 5 个章节片段，**未通读全文**；检索为相关片段模式并带确定性投影。准确说法是「在已读章节范围内未见移动端 App 内容」，不是「全文不含」。\n\n## 4. 建议的后顺步骤\n\n1. **先确认归属**：移动端 App 是否属于本项目？如果属于，需要新增一条 App 里程碑/任务来承载排期与审批节点；如果不属于，我需要去对应项目或文档源查。\n2. **补充资料**：若 App 排期另有文档，请导入本项目，我再据实给上线时间与审批清单。\n3. **可立即做**：把「发布评审」里程碑的空状态处理掉（挂入任务或调整目标日），它是当前唯一一个面向未来的节点。\n4. 需要的话，我可以通读值班手册全文，逐章确认是否存在面向客户端/移动端的例外条款——但那只能回答「手册有没有写」，不能替代缺失的 App 排期本身。",
+        "citations": [
+          {
+            "quote": "星桥数据同步服务的常规发布窗口固定在**每周三 02:00–02:30(UTC+8)**。\n窗口期内执行灰度发布:先放量 10% 观察十五分钟,确认同步延迟指标无异常后再全量。",
+            "chunkId": "1e6d4772-d27e-4842-b6a1-7a0046686770",
+            "heading": "1. 发布窗口",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.6430674833534699
+          },
+          {
+            "quote": "> 本文档为隔离验收专用测试资料,描述\"星桥\"数据同步服务的发布值班约定。\n> 文档版本:v3.2,生效日期 2026-09-20,责任人:平台交付组。",
+            "chunkId": "a32595b5-26d0-48cd-a408-d54d56fab199",
+            "heading": "星桥数据同步服务 发布值班手册(验收专用 20261006)",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.5459178958315384
+          },
+          {
+            "quote": "发布开始后,如出现同步延迟超过阈值或数据校验不一致,**回滚操作必须在 15 分钟内完成**。\n回滚采用数据库反向补录脚本,由值班工程师执行,回滚结果需在值班日志中登记。",
+            "chunkId": "63432868-8c45-4aa0-80a9-60124e289624",
+            "heading": "2. 回滚时限",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.5181234148520095
+          },
+          {
+            "quote": "灰度观察期间重点盯三项指标:同步延迟 P99、失败重试率、反向补录队列深度。\n任何一项连续两个采样点超标,立即触发回滚流程。",
+            "chunkId": "b5d21480-911e-461c-ab12-4a965a419723",
+            "heading": "4. 观察指标",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.44476258737667584
+          },
+          {
+            "quote": "- 发布窗口值班工程师按周轮值,轮值表由平台交付组维护。\n- 发布放行采用**三级审批**:模块负责人 → 平台交付组 → 值班经理。任一级驳回即中止发布。\n- 紧急修复发布不受固定窗口限制,但需值班经理口头批准并在 24 小时内补记录。",
+            "chunkId": "38187b6b-e122-4748-9542-cb95a5cd6e55",
+            "heading": "3. 值班与审批",
+            "filename": "星桥发布值班手册-20261006.md",
+            "documentId": "f2d5d6d5-0dda-431a-a57a-79a7dcad37a4",
+            "pageNumber": null,
+            "similarity": 0.38958484244798974
+          }
+        ],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-06T11:55:54.673711Z"
+    }
+  ],
+  "lastEventSequence": 23,
+  "pendingApprovalId": null,
+  "pauseRequestedAt": null
+}

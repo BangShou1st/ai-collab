@@ -1,0 +1,20 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest
+-------------------------------------------------------------------------------
+Tests run: 10, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 9.981 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest
+com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest.goalWriteCannotCommitInsidePublicationCriticalSection -- Time elapsed: 1.536 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+[发布进行中时目标写入必须被真实串行化（不能穿过发布的临界区提交）] 
+Expecting value to be true but was false
+	at com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest.goalWriteCannotCommitInsidePublicationCriticalSection(AgentRunContextCommitPostgresTest.java:532)
+
+com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest.goalCorrectionCommittedDuringPublicationNeverLeavesOldGoalSummaryEffective -- Time elapsed: 0.256 s <<< FAILURE!
+java.lang.AssertionError: 
+[目标更正在发布语句提交前已提交：旧目标摘要绝不能成为有效摘要] 
+Expecting actual:
+  "COMMITTED"
+not to be equal to:
+  "COMMITTED"
+
+	at com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest.goalCorrectionCommittedDuringPublicationNeverLeavesOldGoalSummaryEffective(AgentRunContextCommitPostgresTest.java:475)
+

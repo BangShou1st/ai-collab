@@ -1,0 +1,56 @@
+[
+  {
+    "turn": 14,
+    "status": "SUCCEEDED",
+    "recordedInputTokens": 33415,
+    "stepInputTokens": 33415,
+    "summaryInputTokens": 2108,
+    "actualKnownInputTokens": 35523,
+    "maxInputTokens": 50000
+  },
+  {
+    "turn": 16,
+    "status": "SUCCEEDED",
+    "recordedInputTokens": 33910,
+    "stepInputTokens": 33910,
+    "summaryInputTokens": 2030,
+    "actualKnownInputTokens": 35940,
+    "maxInputTokens": 50000
+  },
+  {
+    "turn": 18,
+    "status": "SUCCEEDED",
+    "recordedInputTokens": 17561,
+    "stepInputTokens": 17561,
+    "summaryInputTokens": 1919,
+    "actualKnownInputTokens": 19480,
+    "maxInputTokens": 50000
+  },
+  {
+    "turn": 21,
+    "status": "SUCCEEDED",
+    "recordedInputTokens": 33951,
+    "stepInputTokens": 33951,
+    "summaryInputTokens": 2123,
+    "actualKnownInputTokens": 36074,
+    "maxInputTokens": 50000
+  },
+  {
+    "turn": 22,
+    "status": "SUCCEEDED",
+    "recordedInputTokens": 17504,
+    "stepInputTokens": 17504,
+    "summaryInputTokens": 1873,
+    "actualKnownInputTokens": 19377,
+    "maxInputTokens": 50000
+  },
+  {
+    "turn": 24,
+    "status": "SUCCEEDED",
+    "recordedInputTokens": 50000,
+    "stepInputTokens": 50760,
+    "summaryInputTokens": 1741,
+    "actualKnownInputTokens": 52501,
+    "maxInputTokens": 50000
+  }
+]

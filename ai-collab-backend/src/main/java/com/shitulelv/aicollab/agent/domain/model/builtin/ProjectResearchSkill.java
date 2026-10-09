@@ -3,7 +3,6 @@ package com.shitulelv.aicollab.agent.domain.model.builtin;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimits;
 import com.shitulelv.aicollab.agent.domain.model.AgentSkill;
 
 import java.util.Set;
@@ -29,11 +28,13 @@ public final class ProjectResearchSkill implements AgentSkill {
             """;
 
     private static final String OUTPUT_CONTRACT = """
-            输出格式：
-            1. 研究问题摘要
-            2. 找到的相关信息（引用来源）
-            3. 分析和总结
-            4. 建议的后续步骤
+            回答组织要求：
+            - 长回答用 Markdown 小标题（## 研究问题摘要、## 相关信息、## 分析与总结、## 建议的后续步骤）分节；
+              标题是章节语义，不要用 "1. 2. 3." 编号表示章节，编号只用于真正的列表项。
+            - 建议的后续步骤是一个从 1 开始的独立编号列表；步骤与章节分开编号。
+            - 结论优先，关键事实适量加粗；短问题直接给出答案，不必凑满全部分节。
+            - 需要用户澄清时才使用 [QUESTIONS]（见用户交互）；追问选项从 1 开始编号，
+              追问区域与正文步骤分开，不要并入"建议的后续步骤"。
             """;
 
     @Override
@@ -50,7 +51,7 @@ public final class ProjectResearchSkill implements AgentSkill {
 
     @Override
     public Set<String> allowedTools() {
-        return Set.of("search_project_knowledge", "get_project_overview",
+        return Set.of("list_project_documents", "get_document_outline", "read_document_section", "search_project_knowledge", "get_project_overview",
                 "check_project_progress", "answer_project_question_with_sources",
                 "list_project_memories");
     }
@@ -74,9 +75,6 @@ public final class ProjectResearchSkill implements AgentSkill {
 
     @Override
     public boolean allowExternalTools() { return true; }
-
-    @Override
-    public AgentRuntimeLimits defaultLimits() { return AgentRuntimeLimits.defaults(); }
 
     @Override
     public String instruction() { return INSTRUCTION; }

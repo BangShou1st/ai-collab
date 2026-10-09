@@ -1,0 +1,107 @@
+{
+  "steps": [
+    {
+      "id": "2eaf4e3d-1cb8-4f4e-9a65-a9b2a29af7af",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 13480,
+          "outputTokens": 576
+        },
+        "content": "**来源与读取范围**：主蓝图 snapshot `bea5454c…`——已实读 4.4（chunk 9）、6.2（chunk 16 全文）、1 节（chunk 1）、5.1/5.4（全文）及工具暴露清单；**6.3 仅投影读到前 594 字**，故\"取消竞争\"一项为要求侧、依据不完整。以下全部是要求侧映射，无一实测。\n\n**6 项 → 6 场景（1:1，无需合并）**\n\n| # | 任务 | 覆盖点 | 主要依据 |\n|---|---|---|---|\n| 1 | 长对话上下文持续覆盖 | 摘要覆盖偏移+CAS；早期约束不因滑窗丢失 | 4.4 |\n| 2 | 模型超时终态与记账 | 超时落可判定失败态，不覆盖旧草稿 | 4.2/6.3（部分）|\n| 3 | 排队中重启幂等恢复 | 同键重放返原 operation，不新建第二份 | 6.2 |\n| 4 | 运行中重启不续半截 | 只以完整旧 versionId续修 | 6.2 |\n| 5 | 取消与完成竞争 | 取消不产生副作用，终态唯一 | 6.3（依据不全）|\n| 6 | 验收证据收口 | 受理≠完成、attempt 持久态为唯一判据 | 6.2 |\n\n**风险**：第 5 项依据不足，建议我先单独读完 6.3 再定稿；第 2、5 项的费用记账口径在 4.2 投影截断处，可能需补读。\n\n**未做**：未生成草稿、未创建任务。是否先读 6.3？",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 8145,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "**来源与读取范围**：主蓝图 snapshot `bea5454c…`——已实读 4.4（chunk 9）、6.2（chunk 16 全文）、1 节（chunk 1）、5.1/5.4（全文）及工具暴露清单；**6.3 仅投影读到前 594 字**，故\"取消竞争\"一项为要求侧、依据不完整。以下全部是要求侧映射，无一实测。\n\n**6 项 → 6 场景（1:1，无需合并）**\n\n| # | 任务 | 覆盖点 | 主要依据 |\n|---|---|---|---|\n| 1 | 长对话上下文持续覆盖 | 摘要覆盖偏移+CAS；早期约束不因滑窗丢失 | 4.4 |\n| 2 | 模型超时终态与记账 | 超时落可判定失败态，不覆盖旧草稿 | 4.2/6.3（部分）|\n| 3 | 排队中重启幂等恢复 | 同键重放返原 operation，不新建第二份 | 6.2 |\n| 4 | 运行中重启不续半截 | 只以完整旧 versionId续修 | 6.2 |\n| 5 | 取消与完成竞争 | 取消不产生副作用，终态唯一 | 6.3（依据不全）|\n| 6 | 验收证据收口 | 受理≠完成、attempt 持久态为唯一判据 | 6.2 |\n\n**风险**：第 5 项依据不足，建议我先单独读完 6.3 再定稿；第 2、5 项的费用记账口径在 4.2 投影截断处，可能需补读。\n\n**未做**：未生成草稿、未创建任务。是否先读 6.3？",
+      "promptTokens": 13480,
+      "completionTokens": 576,
+      "tokenUsageEstimated": false,
+      "latencyMs": 8145,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:32:19.990353Z"
+    },
+    {
+      "id": "ca2d8303-92b9-4dfc-96a3-d01b97a62087",
+      "sequence": 2,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "**来源与读取范围**：主蓝图 snapshot `bea5454c…`——已实读 4.4（chunk 9）、6.2（chunk 16 全文）、1 节（chunk 1）、5.1/5.4（全文）及工具暴露清单；**6.3 仅投影读到前 594 字**，故\"取消竞争\"一项为要求侧、依据不完整。以下全部是要求侧映射，无一实测。\n\n**6 项 → 6 场景（1:1，无需合并）**\n\n| # | 任务 | 覆盖点 | 主要依据 |\n|---|---|---|---|\n| 1 | 长对话上下文持续覆盖 | 摘要覆盖偏移+CAS；早期约束不因滑窗丢失 | 4.4 |\n| 2 | 模型超时终态与记账 | 超时落可判定失败态，不覆盖旧草稿 | 4.2/6.3（部分）|\n| 3 | 排队中重启幂等恢复 | 同键重放返原 operation，不新建第二份 | 6.2 |\n| 4 | 运行中重启不续半截 | 只以完整旧 versionId续修 | 6.2 |\n| 5 | 取消与完成竞争 | 取消不产生副作用，终态唯一 | 6.3（依据不全）|\n| 6 | 验收证据收口 | 受理≠完成、attempt 持久态为唯一判据 | 6.2 |\n\n**风险**：第 5 项依据不足，建议我先单独读完 6.3 再定稿；第 2、5 项的费用记账口径在 4.2 投影截断处，可能需补读。\n\n**未做**：未生成草稿、未创建任务。是否先读 6.3？",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T03:32:20.026628Z"
+    }
+  ],
+  "executionDate": "2026-10-04",
+  "answer": {
+    "id": "ee5bd6bb-846a-4775-93ce-ab7de551d3f2",
+    "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "runId": "9a84b6fe-54b6-4c51-b4c2-2fde3b7c7f0c",
+    "role": "ASSISTANT",
+    "content": "**来源与读取范围**：主蓝图 snapshot `bea5454c…`——已实读 4.4（chunk 9）、6.2（chunk 16 全文）、1 节（chunk 1）、5.1/5.4（全文）及工具暴露清单；**6.3 仅投影读到前 594 字**，故\"取消竞争\"一项为要求侧、依据不完整。以下全部是要求侧映射，无一实测。\n\n**6 项 → 6 场景（1:1，无需合并）**\n\n| # | 任务 | 覆盖点 | 主要依据 |\n|---|---|---|---|\n| 1 | 长对话上下文持续覆盖 | 摘要覆盖偏移+CAS；早期约束不因滑窗丢失 | 4.4 |\n| 2 | 模型超时终态与记账 | 超时落可判定失败态，不覆盖旧草稿 | 4.2/6.3（部分）|\n| 3 | 排队中重启幂等恢复 | 同键重放返原 operation，不新建第二份 | 6.2 |\n| 4 | 运行中重启不续半截 | 只以完整旧 versionId续修 | 6.2 |\n| 5 | 取消与完成竞争 | 取消不产生副作用，终态唯一 | 6.3（依据不全）|\n| 6 | 验收证据收口 | 受理≠完成、attempt 持久态为唯一判据 | 6.2 |\n\n**风险**：第 5 项依据不足，建议我先单独读完 6.3 再定稿；第 2、5 项的费用记账口径在 4.2 投影截断处，可能需补读。\n\n**未做**：未生成草稿、未创建任务。是否先读 6.3？",
+    "citations": [],
+    "inferences": [],
+    "createdAt": "2026-10-04T03:32:20.026628Z"
+  },
+  "run": {
+    "id": "9a84b6fe-54b6-4c51-b4c2-2fde3b7c7f0c",
+    "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "requesterId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "parentRunId": null,
+    "role": "SUPERVISOR",
+    "depth": 0,
+    "goal": "为了形成6项以内的完整规划，请按长对话、模型超时、排队重启、运行中重启、取消竞争、证据收口给出覆盖映射。不要加入采购费用工作。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。",
+    "status": "SUCCEEDED",
+    "maxSteps": 24,
+    "maxToolCalls": 16,
+    "maxChildren": 3,
+    "maxInputTokens": 50000,
+    "maxOutputTokens": 20000,
+    "stepsUsed": 2,
+    "toolCallsUsed": 0,
+    "childrenUsed": 0,
+    "inputTokensUsed": 13480,
+    "outputTokensUsed": 576,
+    "tokenUsageEstimated": false,
+    "scheduled": false,
+    "correctionAttempted": false,
+    "retryCount": 0,
+    "errorCode": null,
+    "planJson": "{\"steps\": [{\"id\": \"1\", \"title\": \"获取里程碑\", \"status\": \"PENDING\", \"purpose\": \"了解当前迭代目标\", \"expectedTools\": [\"milestone.get\"]}, {\"id\": \"2\", \"title\": \"查询任务\", \"status\": \"PENDING\", \"purpose\": \"了解待办和进行中任务\", \"expectedTools\": [\"task.search\"]}, {\"id\": \"3\", \"title\": \"分析工作负载\", \"status\": \"PENDING\", \"purpose\": \"评估团队能力\", \"expectedTools\": [\"task.get_workload\"]}, {\"id\": \"4\", \"title\": \"规划任务分配（需审批）\", \"status\": \"PENDING\", \"purpose\": \"创建或更新任务\", \"expectedTools\": [\"task.create_batch\", \"task.update\"]}], \"version\": 1, \"objective\": \"规划迭代\", \"successCriteria\": []}",
+    "pageContextJson": "{\"route\": \"/documents\", \"filters\": {}, \"selectedPlanId\": null, \"selectedTaskId\": null, \"selectedDocumentId\": \"6c164058-05cf-4a3d-9f2c-1dcc17d14211\", \"selectedMilestoneId\": null}",
+    "skillCode": "ITERATION_PLANNING",
+    "version": 4,
+    "createdAt": "2026-10-04T03:32:11.410894Z",
+    "updatedAt": "2026-10-04T03:32:20.026628Z"
+  },
+  "layer": "REAL_API_SPACE_BUNNY_PRODUCTION_ADAPTER",
+  "scenario": "real-requirements-19",
+  "turn": 19,
+  "session": {
+    "id": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "真实需求24轮约束与目标验收",
+    "status": "ACTIVE",
+    "version": 19,
+    "createdAt": "2026-10-04T03:20:40.014288Z",
+    "updatedAt": "2026-10-04T03:32:11.410894Z"
+  },
+  "prompt": "为了形成6项以内的完整规划，请按长对话、模型超时、排队重启、运行中重启、取消竞争、证据收口给出覆盖映射。不要加入采购费用工作。 回答保持简短（约250字）；只读取直接必要的一节，不要从头续读全文。前轮资料能支持时不要重复读取，不足则说明或追问。"
+}

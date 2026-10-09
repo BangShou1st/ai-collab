@@ -18,6 +18,10 @@
   --color-warning: #ad7628;
   --color-danger: #c74f59;
   --color-info: #55719b;
+  --color-success-soft: #e7f4ee;
+  --color-warning-soft: #fff8e1;
+  --color-danger-soft: #fdecee;
+  --color-info-soft: #eef2f7;
   --radius-control: 8px;
   --radius-card: 12px;
   --radius-surface: 10px;
@@ -43,9 +47,15 @@
   --el-color-primary-light-9: var(--color-primary-soft);
   --el-color-primary-dark-2: var(--color-primary-hover);
   --el-color-success: var(--color-success);
+  --el-color-success-light-9: var(--color-success-soft);
   --el-color-warning: var(--color-warning);
+  --el-color-warning-light-9: var(--color-warning-soft);
   --el-color-danger: var(--color-danger);
+  --el-color-error: var(--color-danger);
+  --el-color-danger-light-9: var(--color-danger-soft);
+  --el-color-error-light-9: var(--color-danger-soft);
   --el-color-info: var(--color-info);
+  --el-color-info-light-9: var(--color-info-soft);
   --el-border-color: var(--color-border);
   --el-border-color-light: #e9ecf3;
   --el-border-radius-base: var(--radius-input);

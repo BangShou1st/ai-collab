@@ -1,0 +1,82 @@
+{
+  "baselineDate": "2026-10-06",
+  "projectId": "8c80f7ef-f367-46db-a58a-a0a796813d0b",
+  "milestones": [
+    {
+      "id": "d7387f76-1a96-47c9-9cb1-fe3e4d0247de",
+      "name": "需求冻结",
+      "targetDate": "2026-10-05",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "f63d27bf-b6f4-47d1-b054-214e8410f85b",
+      "name": "联调测试",
+      "targetDate": "2026-10-16",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "b182efe7-7668-436e-b158-78429905abaf",
+      "name": "发布评审",
+      "targetDate": "2026-10-30",
+      "status": "PLANNED"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "a8d9016b-17ab-4672-a54e-278b4a82026a",
+      "title": "用户登录模块开发",
+      "status": "DONE",
+      "dueDate": "2026-09-28",
+      "milestoneId": "d7387f76-1a96-47c9-9cb1-fe3e4d0247de",
+      "dependencyIds": []
+    },
+    {
+      "id": "6c6c6b78-cecd-400c-8847-c2ac4862aab3",
+      "title": "权限模型评审",
+      "status": "TODO",
+      "dueDate": "2026-10-05",
+      "milestoneId": "d7387f76-1a96-47c9-9cb1-fe3e4d0247de",
+      "dependencyIds": []
+    },
+    {
+      "id": "b28b68d4-8f62-4c85-a447-7203836a71d5",
+      "title": "接口联调",
+      "status": "IN_PROGRESS",
+      "dueDate": "2026-10-14",
+      "milestoneId": "f63d27bf-b6f4-47d1-b054-214e8410f85b",
+      "dependencyIds": []
+    },
+    {
+      "id": "8b5c8761-0f1b-4bf1-9b9a-e4a5327c3884",
+      "title": "性能压测报告",
+      "status": "TODO",
+      "dueDate": null,
+      "milestoneId": "f63d27bf-b6f4-47d1-b054-214e8410f85b",
+      "dependencyIds": []
+    },
+    {
+      "id": "d4081d2d-8158-4a55-a00b-694624122e0f",
+      "title": "灰度发布准备",
+      "status": "TODO",
+      "dueDate": "2026-10-26",
+      "milestoneId": "b182efe7-7668-436e-b158-78429905abaf",
+      "dependencyIds": []
+    },
+    {
+      "id": "0b00cd48-8a81-4945-b9f9-f6305261177b",
+      "title": "数据迁移脚本",
+      "status": "IN_PROGRESS",
+      "dueDate": "2026-10-08",
+      "milestoneId": null,
+      "dependencyIds": []
+    },
+    {
+      "id": "f787efab-c565-4d7b-b012-037afaf5f1a1",
+      "title": "验收报告模板",
+      "status": "BLOCKED",
+      "dueDate": "2026-10-12",
+      "milestoneId": "f63d27bf-b6f4-47d1-b054-214e8410f85b",
+      "dependencyIds": []
+    }
+  ]
+}

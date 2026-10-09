@@ -11,6 +11,7 @@ import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
+import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import java.time.OffsetDateTime;
 import java.util.EnumSet;
 import java.util.List;
@@ -66,9 +67,12 @@ class OpenAiTurnStreamingTest {
         doAnswer(inv -> { BiConsumer<String, JsonNode> cb = inv.getArgument(3); for (ObjectNode c : chunks) cb.accept("message", c); return null; }).when(http).stream(anyString(), anyMap(), any(JsonNode.class), any(BiConsumer.class));
         return http;
     }
+    private ModelTurnResult streamingTurn(List<ObjectNode> chunks) {
+        return new OpenAiCompatibleModelAdapter(mapper,streamingHttp(chunks)).turnWithSession(config(),"key",cmd(),AiRequestMetadata.fresh(),"opencode/1.18.21");
+    }
     @Test void aggregatesFragmentedArgumentsAcrossChunks() {
         List<ObjectNode> chunks = List.of(deltaChunk(null, null, toolDelta(0, "call_1", "list_tasks", "{\"status\":"), toolDelta(0, null, null, "\"OPEN\"}")), deltaChunk(null, "tool_calls"));
-        ModelTurnResult r = new OpenAiCompatibleModelAdapter(mapper, streamingHttp(chunks)).turn(config(), "key", cmd());
+        ModelTurnResult r = streamingTurn(chunks);
         assertThat(r.toolCalls()).hasSize(1);
         assertThat(r.toolCalls().get(0).id()).isEqualTo("call_1");
         assertThat(r.toolCalls().get(0).arguments().path("status").asText()).isEqualTo("OPEN");
@@ -76,23 +80,103 @@ class OpenAiTurnStreamingTest {
     }
     @Test void aggregatesMultipleToolCalls() {
         List<ObjectNode> chunks = List.of(deltaChunk(null, null, toolDelta(0, "call_1", "list_tasks", "{}")), deltaChunk(null, null, toolDelta(1, "call_2", "list_milestones", "{}")), deltaChunk(null, "tool_calls"));
-        ModelTurnResult r = new OpenAiCompatibleModelAdapter(mapper, streamingHttp(chunks)).turn(config(), "key", cmd());
+        ModelTurnResult r = streamingTurn(chunks);
         assertThat(r.toolCalls()).hasSize(2);
     }
     @Test void textPlusToolCalls() {
         List<ObjectNode> chunks = List.of(deltaChunk("hi-", null), deltaChunk("there", null, toolDelta(0, "call_1", "list_tasks", "{}")), deltaChunk(null, "tool_calls"));
-        ModelTurnResult r = new OpenAiCompatibleModelAdapter(mapper, streamingHttp(chunks)).turn(config(), "key", cmd());
+        ModelTurnResult r = streamingTurn(chunks);
         assertThat(r.content()).isEqualTo("hi-there");
     }
     @Test void malformedArgumentsThrows() {
         List<ObjectNode> chunks = List.of(deltaChunk(null, null, toolDelta(0, "call_1", "list_tasks", "not-json")), deltaChunk(null, "tool_calls"));
-        assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, streamingHttp(chunks)).turn(config(), "key", cmd())).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> streamingTurn(chunks)).isInstanceOf(BusinessException.class);
     }
     @Test void completesWithoutWait() {
         List<ObjectNode> chunks = List.of(deltaChunk("done", "stop"));
         long s = System.nanoTime();
-        ModelTurnResult r = new OpenAiCompatibleModelAdapter(mapper, streamingHttp(chunks)).turn(config(), "key", cmd());
+        ModelTurnResult r = streamingTurn(chunks);
         assertThat(r.content()).isEqualTo("done");
         assertThat((System.nanoTime() - s) / 1000000L).isLessThan(5000L);
+    }
+
+    /** 带用量收尾块的 chunk（流式 usage 在收尾块到达）。 */
+    private ObjectNode usageChunk(String content, String finish, int prompt, int completion) {
+        ObjectNode root = deltaChunk(content, finish);
+        ObjectNode usage = root.putObject("usage");
+        usage.put("prompt_tokens", prompt);
+        usage.put("completion_tokens", completion);
+        return root;
+    }
+
+    /** 截断出口：提供商已上报的 usage 随异常携带，不得替换成估算/未知。 */
+    @Test void truncatedStreamCarriesProviderUsageIntoException() {
+        List<ObjectNode> chunks = List.of(
+                deltaChunk("已生成的部分", null),
+                usageChunk(null, "length", 1234, 567));
+        assertThatThrownBy(() -> streamingTurn(chunks))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(1234);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(567);
+                });
+    }
+
+    /** 空结果出口：已收到的 usage 同样随异常携带。 */
+    @Test void emptyStreamCarriesUsageIntoException() {
+        List<ObjectNode> chunks = List.of(usageChunk(null, null, 900, 0));
+        assertThatThrownBy(() -> streamingTurn(chunks))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(900);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(0);
+                });
+    }
+
+    /** Zen 坏工具参数（参数不是合法 JSON）：已收到的 usage 随异常携带，错误码保留。 */
+    @Test void badToolArgumentsCarryUsageIntoException() {
+        List<ObjectNode> chunks = List.of(
+                deltaChunk(null, null, toolDelta(0, "call_1", "list_tasks", "{\"status\":")),
+                usageChunk(null, "tool_calls", 1234, 567));
+        assertThatThrownBy(() -> streamingTurn(chunks))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
+                    assertThat(failure.getMessage()).contains("工具调用参数不是合法 JSON");
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(1234);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(567);
+                });
+    }
+
+    /** Zen 工具缺 function.name：同样携带已收到的 usage。 */
+    @Test void missingToolNameCarriesUsageIntoException() {
+        List<ObjectNode> chunks = List.of(
+                deltaChunk(null, null, toolDelta(0, "call_1", null, "{}")),
+                usageChunk(null, "tool_calls", 500, 60));
+        assertThatThrownBy(() -> streamingTurn(chunks))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.getMessage()).contains("工具调用缺少 function.name");
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(500);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(60);
+                });
+    }
+
+    /** 非流式 complete 截断：usage 先于截断判定读取，随异常携带。 */
+    @Test void nonStreamingTruncationCarriesUsage() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        ObjectNode response = mapper.createObjectNode();
+        ObjectNode choice = response.putArray("choices").addObject();
+        choice.putObject("message").putObject("content");
+        choice.put("finish_reason", "length");
+        ObjectNode usage = response.putObject("usage");
+        usage.put("prompt_tokens", 800);
+        usage.put("completion_tokens", 1200);
+        org.mockito.Mockito.when(http.post(anyString(), anyMap(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(response);
+        assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, http).completeWithSession(
+                config(), "key", org.mockito.Mockito.mock(ChatCompletionCommand.class),
+                AiRequestMetadata.fresh(), "opencode/1.18.21"))
+                .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+                    assertThat(failure.carriedPromptTokens()).isEqualTo(800);
+                    assertThat(failure.carriedCompletionTokens()).isEqualTo(1200);
+                });
     }
 }

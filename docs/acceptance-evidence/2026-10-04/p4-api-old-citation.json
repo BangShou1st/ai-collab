@@ -1,0 +1,10 @@
+{
+  "oldChunkId": "736ed5f2-05fc-4c1b-985c-0506f0525786",
+  "error": {
+    "code": "DOCUMENT_NOT_FOUND",
+    "message": "引用来源已更新或已删除",
+    "data": null
+  },
+  "executionDate": "2026-10-04",
+  "expectation": "rebuild must not substitute another chunk"
+}

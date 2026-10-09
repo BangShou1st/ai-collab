@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
+import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
 import com.shitulelv.aicollab.project.application.service.ProjectDashboardQueryService;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,14 @@ public class DashboardAgentTool implements AgentTool {
 
     @Override public String name() { return "get_project_dashboard"; }
     @Override public boolean writesBusinessData() { return false; }
+
+    @Override
+    public AgentToolDefinition definition() {
+        return AgentToolDefinition.fromJson(name(),
+                "获取项目仪表盘统计（任务分布、里程碑进度等聚合数字）。不接受任何参数。",
+                "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{}}",
+                false);
+    }
 
     @Override
     public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {

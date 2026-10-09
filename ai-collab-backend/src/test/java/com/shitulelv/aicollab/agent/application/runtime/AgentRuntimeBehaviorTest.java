@@ -10,14 +10,17 @@ import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.view.AgentStepView;
 import com.shitulelv.aicollab.agent.domain.model.*;
-import com.shitulelv.aicollab.agent.domain.policy.AgentConvergencePolicy;
-import com.shitulelv.aicollab.agent.domain.policy.AgentLoopGuard;
+
+
 import com.shitulelv.aicollab.agent.domain.tool.*;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelConfiguration;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.turn.*;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,10 +78,31 @@ class AgentRuntimeBehaviorTest {
         // 设置默认返回值：recordToolResult 和 recordModelTurn 返回传入的 run
         when(repository.recordToolResult(any(), any(), any(), any(), anyBoolean()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(repository.recordModelTurn(any(), any()))
+        when(repository.recordModelTurnWithSettlement(any(), any(), any(), any(), any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.recordFinal(any(), any(), anyList(), anyBoolean()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        // 工具执行器的提案摘要收尾走同一原子写入体（非消费已持久化轮次）
         when(repository.recordFinal(any(), any(), anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.consumeRecovery(any(),any(),anyInt())).thenReturn(true);
+        // 请求准备时解析出的模式快照：默认原生（非 Legacy），个别用例按需覆盖
+        when(modelExecutor.resolveRequest(any())).thenReturn(resolved(true));
+    }
+
+    /** 构造请求准备快照：能力由 nativeTools 决定，与协调器实际使用方式一致。
+     *  不使用 Mockito 打桩，避免嵌套 stubbing 污染后续 case。 */
+    public static RoutingAgentModelExecutor.ResolvedRequest resolved(boolean nativeTools) {
+        var capabilities = nativeTools
+                ? java.util.EnumSet.of(ModelCapability.NATIVE_TOOLS, ModelCapability.CHAT)
+                : java.util.EnumSet.of(ModelCapability.CHAT);
+        var now = OffsetDateTime.now();
+        String modelName = nativeTools ? "test-native" : "test-legacy";
+        var provider = new com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider(
+                UUID.randomUUID(), UUID.randomUUID(), modelName, ModelProviderType.OPENAI_COMPATIBLE,
+                "https://example.invalid", "/v1/chat/completions", "encrypted", modelName, true, 0.2, 1024,
+                capabilities, true, now, now, null);
+        return RoutingAgentModelExecutor.ResolvedRequest.of(provider, provider.toModelConfiguration());
     }
 
     /**
@@ -111,7 +135,7 @@ class AgentRuntimeBehaviorTest {
         JsonNode invalidArgs = json.createObjectNode(); // 缺少 taskId
         ModelToolCall tc = new ModelToolCall("call-1", "get_task", invalidArgs);
         ModelTurnResult turn = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
@@ -153,7 +177,7 @@ class AgentRuntimeBehaviorTest {
         JsonNode invalidArgs = json.createObjectNode(); // 缺少 title
         ModelToolCall tc = new ModelToolCall("call-1", "create_task_after_approval", invalidArgs);
         ModelTurnResult turn = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
@@ -175,7 +199,7 @@ class AgentRuntimeBehaviorTest {
                 .thenReturn(plan("规划", List.of()));
 
         ModelTurnResult turn = textResult("修正后的回答");
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
@@ -209,7 +233,7 @@ class AgentRuntimeBehaviorTest {
         JsonNode invalidArgs = json.createObjectNode();
         ModelToolCall tc = new ModelToolCall("call-1", "get_task", invalidArgs);
         ModelTurnResult turn = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
@@ -231,12 +255,12 @@ class AgentRuntimeBehaviorTest {
         // 第一轮：输入 100 tokens
         ModelTurnResult turn1 = new ModelTurnResult("回答1", List.of(), ModelFinishReason.STOP,
                 new ModelUsage(100, 50), "test", "model", 100L);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn1);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn1);
 
         coordinator.advance(run);
 
         // 验证 input tokens 被记录
-        verify(repository).recordModelTurn(eq(run), eq(turn1));
+        verify(repository).recordModelTurnWithSettlement(eq(run), eq(turn1), any(), eq("MODEL_TURN"), any(), any(), any());
     }
 
     /**
@@ -253,12 +277,12 @@ class AgentRuntimeBehaviorTest {
         // 第一轮：输出 50 tokens
         ModelTurnResult turn1 = new ModelTurnResult("回答1", List.of(), ModelFinishReason.STOP,
                 new ModelUsage(100, 50), "test", "model", 100L);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn1);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn1);
 
         coordinator.advance(run);
 
         // 验证 output tokens 被记录
-        verify(repository).recordModelTurn(eq(run), eq(turn1));
+        verify(repository).recordModelTurnWithSettlement(eq(run), eq(turn1), any(), eq("MODEL_TURN"), any(), any(), any());
     }
 
     /**
@@ -279,7 +303,7 @@ class AgentRuntimeBehaviorTest {
 
         ModelToolCall tc = new ModelToolCall("call-1", "list_tasks", json.createObjectNode());
         ModelTurnResult turn1 = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn1);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn1);
 
         coordinator.advance(run);
 
@@ -307,7 +331,7 @@ class AgentRuntimeBehaviorTest {
         ModelToolCall tc1 = new ModelToolCall("call-1", "list_tasks", json.createObjectNode());
         ModelToolCall tc2 = new ModelToolCall("call-2", "get_task", json.createObjectNode().put("taskId", UUID.randomUUID().toString()));
         ModelTurnResult turn1 = toolCallResult(tc1, tc2);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn1);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn1);
 
         coordinator.advance(run);
 
@@ -328,7 +352,7 @@ class AgentRuntimeBehaviorTest {
                 .thenReturn(plan("研究", List.of()));
 
         ModelTurnResult turn = textResult("完成");
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
@@ -345,7 +369,7 @@ class AgentRuntimeBehaviorTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 16, 12, 3, 100_000, 32_000,
-                16, 0, 0, 0, 0, false, // stepsUsed = maxSteps
+                16, 0, 0, 0, 0, 0, 0, false, // stepsUsed = maxSteps
                 false, false, 0, null, null, null, null, 1, OffsetDateTime.now(), OffsetDateTime.now());
 
         // Coordinator 使用持久化预算再次防守，避免绕过 Worker 后继续调用模型。
@@ -354,13 +378,13 @@ class AgentRuntimeBehaviorTest {
         when(planService.ensurePlan(eq(run), any())).thenReturn(plan("研究", List.of()));
 
         ModelTurnResult turn = textResult("完成");
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
         verify(repository).recordBudgetExceeded(run);
-        verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean());
+        verify(modelExecutor, never()).callModel(any(), any(), any(), anyBoolean(), any());
     }
 
     /**
@@ -380,7 +404,7 @@ class AgentRuntimeBehaviorTest {
 
         ModelToolCall tc = new ModelToolCall("call-1", "list_tasks", json.createObjectNode());
         ModelTurnResult turn = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         coordinator.advance(run);
 
@@ -393,8 +417,8 @@ class AgentRuntimeBehaviorTest {
      */
     @Test
     void legacyWriteToolRuntimeRejection() {
-        // 模拟 Legacy 模式
-        when(modelExecutor.isLegacyMode(any())).thenReturn(true);
+        // 模拟 Legacy 模式：请求准备快照即为 Legacy（提示词、协议与出站共用该快照）
+        when(modelExecutor.resolveRequest(any())).thenReturn(resolved(false));
 
         // 创建一个写工具
         ApprovalWriteAgentTool writeTool = new ApprovalWriteAgentTool() {
@@ -422,7 +446,7 @@ class AgentRuntimeBehaviorTest {
         // 模型返回写工具调用
         ModelToolCall tc = new ModelToolCall("call-1", "create_task_after_approval", json.createObjectNode());
         ModelTurnResult turn = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
@@ -484,7 +508,7 @@ class AgentRuntimeBehaviorTest {
         JsonNode invalidArgs = json.createObjectNode(); // 缺少 taskId
         ModelToolCall tc = new ModelToolCall("call-1", "get_task", invalidArgs);
         ModelTurnResult turn = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
@@ -525,13 +549,36 @@ class AgentRuntimeBehaviorTest {
         JsonNode invalidArgs = json.createObjectNode(); // 缺少 title
         ModelToolCall tc = new ModelToolCall("call-1", "create_task_after_approval", invalidArgs);
         ModelTurnResult turn = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
         // 非法参数，返回错误，不创建审批
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.QUEUED);
         verify(approvals, never()).propose(any(), any(), any(), any(), any());
+        verify(approvals, never()).proposeOrRevise(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void outOfRangeNumericArgumentsAreRejectedBeforeToolOrApprovalExecution() {
+        AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
+        when(contextAssembler.assemble(eq(run), eq("ITERATION_PLANNING"), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("规划", List.of()));
+        ApprovalWriteAgentTool tool = mock(ApprovalWriteAgentTool.class);
+        when(tool.name()).thenReturn("create_task_after_approval");
+        when(tool.writesBusinessData()).thenReturn(true);
+        when(tool.definition()).thenReturn(AgentToolDefinition.fromJson("create_task_after_approval", "创建任务",
+                "{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"},\"estimateHours\":{\"type\":[\"number\",\"null\"],\"minimum\":0.5,\"maximum\":80}},\"required\":[\"title\"]}", true));
+        coordinator = createCoordinator(new AgentToolRegistry(List.of(tool)));
+        JsonNode invalidArgs = json.createObjectNode().put("title", "无效提案").put("estimateHours", 81);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any()))
+                .thenReturn(toolCallResult(new ModelToolCall("call-invalid", "create_task_after_approval", invalidArgs)));
+
+        assertThat(coordinator.advance(run).status()).isEqualTo(AgentRunStatus.QUEUED);
+        verify(repository).consumeRecovery(eq(run), eq("PARAMETER_CORRECTION"), eq(1));
+        verify(tool, never()).normalize(any(), any());
+        verify(tool, never()).execute(any(), any());
+        verify(approvals, never()).proposeOrRevise(any(), any(), any(), any(), any());
     }
 
     /**
@@ -575,7 +622,7 @@ class AgentRuntimeBehaviorTest {
         JsonNode invalidArgs1 = json.createObjectNode(); // 缺少 taskId
         ModelToolCall tc1 = new ModelToolCall("call-1", "get_task", invalidArgs1);
         ModelTurnResult turn1 = toolCallResult(tc1);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn1);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn1);
 
         AgentWorkerOutcome outcome1 = coordinator.advance(run);
         assertThat(outcome1.status()).isEqualTo(AgentRunStatus.QUEUED);
@@ -584,7 +631,7 @@ class AgentRuntimeBehaviorTest {
         JsonNode invalidArgs2 = json.createObjectNode(); // 缺少 milestoneId
         ModelToolCall tc2 = new ModelToolCall("call-2", "get_milestone", invalidArgs2);
         ModelTurnResult turn2 = toolCallResult(tc2);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn2);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn2);
 
         AgentWorkerOutcome outcome2 = coordinator.advance(run);
         // 不同工具，第一次非法参数，应该返回 QUEUED
@@ -597,7 +644,7 @@ class AgentRuntimeBehaviorTest {
      * 测试因 proposeOrRevise 方法尚未实现而失败。
      */
     @Test
-    void persistedProposalReturnsDeterministicAnswerAndSucceeds() {
+    void persistedProposalWithIntegerHoursSucceedsWithoutParameterCorrection() {
         AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
 
         AgentExecutionContext ctx = context();
@@ -611,7 +658,7 @@ class AgentRuntimeBehaviorTest {
             @Override public boolean writesBusinessData() { return true; }
             @Override public AgentToolDefinition definition() {
                 return AgentToolDefinition.fromJson("create_task_after_approval", "创建任务",
-                        "{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}", true);
+                        "{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"},\"estimateHours\":{\"type\":[\"number\",\"null\"],\"minimum\":0.5,\"maximum\":80}},\"required\":[\"title\"]}", true);
             }
             @Override public JsonNode normalize(AgentToolContext ctx, JsonNode args) { return args; }
             @Override public JsonNode diff(AgentToolContext ctx, JsonNode args) { return json.createObjectNode(); }
@@ -623,10 +670,10 @@ class AgentRuntimeBehaviorTest {
         coordinator = createCoordinator(registry);
 
         // 模型返回写工具调用
-        JsonNode args = json.createObjectNode().put("title", "新任务");
+        JsonNode args = json.createObjectNode().put("title", "新任务").put("estimateHours", 3);
         ModelToolCall tc = new ModelToolCall("call-1", "create_task_after_approval", args);
         ModelTurnResult turn = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         // 设置 proposeOrRevise mock
         AgentApprovalView mockApproval = mock(AgentApprovalView.class);
@@ -644,6 +691,8 @@ class AgentRuntimeBehaviorTest {
 
         // 新行为：返回 SUCCEEDED
         assertThat(result.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        verify(approvals).proposeOrRevise(eq(run), any(), any(), any(), any());
+        verify(repository, never()).consumeRecovery(any(), eq("PARAMETER_CORRECTION"), anyInt());
     }
 
     /**
@@ -678,7 +727,7 @@ class AgentRuntimeBehaviorTest {
         JsonNode args = json.createObjectNode().put("taskId", UUID.randomUUID().toString());
         ModelToolCall tc = new ModelToolCall("call-1", "update_task_after_approval", args);
         ModelTurnResult turn = toolCallResult(tc);
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         // 设置 proposeOrRevise mock
         AgentApprovalView mockApproval = mock(AgentApprovalView.class);
@@ -699,11 +748,10 @@ class AgentRuntimeBehaviorTest {
     }
 
     /**
-     * 19. 有成功证据时非法最终响应使用保底回答。
-     * 测试因 AgentEvidenceFallbackRenderer 尚未实现而失败。
+     * 19. 非法收尾可保留已取得证据，但不能把保底片段记成完整成功。
      */
     @Test
-    void invalidFinalTurnFallsBackWhenSuccessfulEvidenceExists() {
+    void invalidFinalTurnRetainsPartialEvidenceWithoutClaimingSuccess() {
         AgentRunView run = runWithSkillCode("ITERATION_PLANNING");
 
         AgentExecutionContext ctx = context();
@@ -719,7 +767,7 @@ class AgentRuntimeBehaviorTest {
         AgentConvergencePolicy convergencePolicy = mock(AgentConvergencePolicy.class);
         AgentConvergencePolicy.Decision decision = mock(AgentConvergencePolicy.Decision.class);
         when(decision.mode()).thenReturn(AgentConvergencePolicy.Mode.FINALIZE);
-        when(convergencePolicy.decide(any(), any(), anyList())).thenReturn(decision);
+        when(convergencePolicy.decide(any(), any(), anyList(), anyBoolean())).thenReturn(decision);
 
         coordinator = new AgentRuntimeCoordinator(
                 repository, contextAssembler, skillRegistry, planService,
@@ -728,12 +776,14 @@ class AgentRuntimeBehaviorTest {
 
         ModelTurnResult turn2 = toolCallResult(
                 new ModelToolCall("unexpected", "list_tasks", json.createObjectNode()));
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn2);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn2);
 
         AgentWorkerOutcome result = coordinator.advance(run);
 
-        assertThat(result.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(result.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
         assertThat(result.answer()).contains("已取得的结果").contains("list_tasks");
+        // 本轮已终止：证据回退收尾同时消费本轮轮次（不再作为待恢复结果）
+        org.mockito.Mockito.verify(repository).recordBudgetPartialAnswer(eq(run), eq(result.answer()), anyBoolean());
     }
 
     /**
@@ -751,7 +801,7 @@ class AgentRuntimeBehaviorTest {
         AgentConvergencePolicy convergencePolicy = mock(AgentConvergencePolicy.class);
         AgentConvergencePolicy.Decision decision = mock(AgentConvergencePolicy.Decision.class);
         when(decision.mode()).thenReturn(AgentConvergencePolicy.Mode.FINALIZE);
-        when(convergencePolicy.decide(any(), any(), anyList())).thenReturn(decision);
+        when(convergencePolicy.decide(any(), any(), anyList(), anyBoolean())).thenReturn(decision);
 
         coordinator = new AgentRuntimeCoordinator(
                 repository, contextAssembler, skillRegistry, planService,
@@ -760,13 +810,76 @@ class AgentRuntimeBehaviorTest {
 
         ModelTurnResult turn = toolCallResult(
                 new ModelToolCall("unexpected", "list_tasks", json.createObjectNode()));
-        when(modelExecutor.callModel(eq(run), any(), any(), eq(false))).thenReturn(turn);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any())).thenReturn(turn);
 
         AgentWorkerOutcome result = coordinator.advance(run);
 
         // 无证据，应该失败
         assertThat(result.status()).isEqualTo(AgentRunStatus.FAILED);
         assertThat(result.errorCode()).isEqualTo("AGENT_INVALID_RESPONSE");
+    }
+
+    @Test
+    void typedClarificationPersistsWaitingState() {
+        AgentRunView run=runWithSkillCode("ITERATION_PLANNING");
+        var clarification=new com.shitulelv.aicollab.agent.infrastructure.tool.RequestUserInputAgentTool();
+        coordinator=createCoordinator(new AgentToolRegistry(List.of(clarification)));
+        when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
+        var args=json.createObjectNode(); args.set("questions",json.createArrayNode().add("需要哪个截止日期？"));
+        when(modelExecutor.callModel(eq(run), any(), any(), anyBoolean(), any())).thenReturn(toolCallResult(new ModelToolCall("question",clarification.name(),args)));
+        var outcome=coordinator.advance(run);
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.WAITING_FOR_USER_INPUT);
+        verify(repository).recordWaitingForInput(any(),eq("需要哪个截止日期？"));
+    }
+
+    @Test
+    void recoveryReusesKnownReadResultWithoutCallingModelOrTool() {
+        AgentRunView run=runWithSkillCode("ITERATION_PLANNING");
+        AgentTool read=spy(readOnlyTool("get_task")); coordinator=createCoordinator(new AgentToolRegistry(List.of(read)));
+        when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
+        var call=new ModelToolCall("known","get_task",json.createObjectNode());
+        when(repository.pendingModelTurn(run)).thenReturn(Optional.of(toolCallResult(call)));
+        when(repository.knownInvocationResult(run,call)).thenReturn(Optional.of(json.createObjectNode().put("status","SUCCEEDED")));
+        assertThat(coordinator.advance(run).status()).isEqualTo(AgentRunStatus.QUEUED);
+        verify(modelExecutor,never()).callModel(any(), any(), any(), anyBoolean(), any()); verify(read,never()).execute(any(),any());
+    }
+
+    @Test
+    void duplicateProtocolCallIdsRejectWholeBatch() {
+        AgentRunView run=runWithSkillCode("ITERATION_PLANNING");
+        AgentTool read=spy(readOnlyTool("get_task")); coordinator=createCoordinator(new AgentToolRegistry(List.of(read)));
+        when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
+        var call=new ModelToolCall("duplicate","get_task",json.createObjectNode());
+        when(modelExecutor.callModel(eq(run), any(), any(), anyBoolean(), any())).thenReturn(toolCallResult(call,call));
+        assertThat(coordinator.advance(run).errorCode()).isEqualTo("TOOL_CALL_PROTOCOL_INVALID");
+        verify(read,never()).execute(any(),any());
+    }
+
+    @Test
+    void readsOnBothSidesOfProposalCompleteAndExtraProposalIsRejected() {
+        var run=runWithSkillCode("ITERATION_PLANNING");
+        AgentTool read=spy(readOnlyTool("list_tasks"));
+        ApprovalWriteAgentTool write=mock(ApprovalWriteAgentTool.class);
+        when(write.name()).thenReturn("create_task_after_approval"); when(write.writesBusinessData()).thenReturn(true);
+        when(write.definition()).thenReturn(AgentToolDefinition.fromJson("create_task_after_approval","创建任务","{\"type\":\"object\"}",true));
+        coordinator=createCoordinator(new AgentToolRegistry(List.of(read,write)));
+        when(contextAssembler.assemble(eq(run),any(),any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run),any())).thenReturn(plan("规划",List.of()));
+        var args=json.createObjectNode().put("title","synthetic");
+        var approval=mock(AgentApprovalView.class); when(approval.id()).thenReturn(UUID.randomUUID()); when(approval.revision()).thenReturn(1);
+        when(approval.proposalFamily()).thenReturn(AgentProposalFamily.TASK_CREATE);
+        when(approvals.proposeOrRevise(eq(run),any(),any(),any(),any())).thenReturn(new AgentProposalOutcome(approval,AgentProposalOutcome.Operation.CREATED,args,args,json.createObjectNode()));
+        var turn=toolCallResult(new ModelToolCall("read-before",read.name(),json.createObjectNode()),new ModelToolCall("proposal",write.name(),args),
+                new ModelToolCall("read-after",read.name(),json.createObjectNode()),new ModelToolCall("extra",write.name(),args));
+        when(modelExecutor.callModel(eq(run), any(), any(), anyBoolean(), any())).thenReturn(turn);
+        assertThat(coordinator.advance(run).status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        verify(read,times(2)).execute(any(),any()); verify(approvals,times(1)).proposeOrRevise(any(),any(),any(),any(),any());
+        verify(repository).recordToolResult(any(),eq("create_task_after_approval"),argThat(i -> "extra".equals(i.path("toolCallId").asText())),
+                argThat(r -> "PROPOSAL_BATCH_LIMIT".equals(r.path("error").asText())),eq(true));
+        verify(write,never()).execute(any(),any());
     }
 
     // ========== 辅助方法 ==========
@@ -784,7 +897,7 @@ class AgentRuntimeBehaviorTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 16, 12, 3, 100_000, 32_000,
-                0, 0, 0, 0, 0, false,
+                0, 0, 0, 0, 0, 0, 0, false,
                 false, false, 0, null, null, null, null, 1, now, now);
     }
 
@@ -796,7 +909,7 @@ class AgentRuntimeBehaviorTest {
                 r.maxSteps(), r.maxToolCalls(), r.maxChildren(),
                 r.maxInputTokens(), r.maxOutputTokens(),
                 r.stepsUsed(), r.toolCallsUsed(), r.childrenUsed(),
-                r.inputTokensUsed(), r.outputTokensUsed(),
+                r.inputTokensUsed(), r.outputTokensUsed(), 0, 0,
                 r.tokenUsageEstimated(), r.scheduled(), r.correctionAttempted(),
                 r.retryCount(), r.errorCode(), r.planJson(), r.pageContextJson(), skillCode,
                 r.version(), r.createdAt(), r.updatedAt());

@@ -4,6 +4,9 @@
 .env
 .env.*
 !.env.example
+# 前端构建期 env 文件仅含公开的 API 地址前缀，需要随仓库分发
+!ai-collab-frontend/.env.development
+!ai-collab-frontend/.env.production
 *.pem
 *.key
 *.cert
@@ -40,6 +43,9 @@
 **/playwright-report/
 **/.pytest_cache/
 **/surefire-reports/
+# Cloudflare 本地开发残留与前端本地日志
+.wrangler/
+dev.log
 
 # ===========================
 # Editor
@@ -119,3 +125,10 @@ start-frontend.bat
 # Visual acceptance screenshots (local only, never commit)
 # ===========================
 docs/shots/
+
+# ===========================
+# Local AI tooling state (session plans, agent memory)
+# ===========================
+.zcode/
+.zcodeignore
+.workbuddy/

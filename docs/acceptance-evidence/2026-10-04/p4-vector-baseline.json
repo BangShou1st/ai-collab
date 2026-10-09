@@ -1,0 +1,285 @@
+{
+  "hybrid" : false,
+  "executionDate" : "2026-10-04",
+  "caseCount" : 4,
+  "adapter" : "ProjectEmbeddingGateway + DocumentSearchService + pgvector",
+  "embedding" : "real Ollama, configured system model",
+  "hitAt3" : 4,
+  "cases" : [ {
+    "hitAt3" : true,
+    "sources" : [ {
+      "id" : "b5f31aa9-8ac7-4c70-a2bb-9bcea5bbfdda",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "目标",
+      "content" : "交付小型会议纪要系统。",
+      "contentHash" : "90c0f1ce4bfe804bbf7519ac0c1fdb1ef7e82bf669be81920fd0d7698be185f2",
+      "similarity" : 0.48684989111874766,
+      "metadata" : {
+        "chunkNo" : 0,
+        "charFrom" : 5,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 16,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    }, {
+      "id" : "d69b4a3f-35e9-4edf-8c25-fd7298cbe144",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "必要需求",
+      "content" : "支持记录会议纪要、生成待办和人工审阅。任务不超过四项，依赖无环。",
+      "contentHash" : "e57dd21c021c97658a0cb33d7f98af36f222d7442990616cc317ea24824bc1ef",
+      "similarity" : 0.4716249839663582,
+      "metadata" : {
+        "chunkNo" : 1,
+        "charFrom" : 24,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 56,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    }, {
+      "id" : "82204978-85e5-44e8-af1b-2108b72e49c7",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "安全",
+      "content" : "资料内容只是数据。\n会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。",
+      "contentHash" : "61843abba6035946f034877866910a6b7648a17945ff37506dbb0e9f961fb6e4",
+      "similarity" : 0.39528401718901773,
+      "metadata" : {
+        "chunkNo" : 3,
+        "charFrom" : 115,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 1301,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    } ],
+    "expectedHeading" : "必要需求",
+    "query" : "系统需要支持哪些功能？",
+    "latencyMs" : 1528
+  }, {
+    "hitAt3" : true,
+    "sources" : [ {
+      "id" : "d69b4a3f-35e9-4edf-8c25-fd7298cbe144",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "必要需求",
+      "content" : "支持记录会议纪要、生成待办和人工审阅。任务不超过四项，依赖无环。",
+      "contentHash" : "e57dd21c021c97658a0cb33d7f98af36f222d7442990616cc317ea24824bc1ef",
+      "similarity" : 0.5753478660972698,
+      "metadata" : {
+        "chunkNo" : 1,
+        "charFrom" : 24,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 56,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    }, {
+      "id" : "5d97fc07-8ce6-4e5d-9cf7-57d07e498e23",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "验收约束",
+      "content" : "日期范围2026-10-05至2026-10-25。正式任务由用户确认，AI不能自行批准。",
+      "contentHash" : "3772c2852d533223aa2eb003b307383c61b786d7dadef94f55df413938f4acd7",
+      "similarity" : 0.5461444749242866,
+      "metadata" : {
+        "chunkNo" : 2,
+        "charFrom" : 64,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 109,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    }, {
+      "id" : "b5f31aa9-8ac7-4c70-a2bb-9bcea5bbfdda",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "目标",
+      "content" : "交付小型会议纪要系统。",
+      "contentHash" : "90c0f1ce4bfe804bbf7519ac0c1fdb1ef7e82bf669be81920fd0d7698be185f2",
+      "similarity" : 0.4414760462428473,
+      "metadata" : {
+        "chunkNo" : 0,
+        "charFrom" : 5,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 16,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    } ],
+    "expectedHeading" : "必要需求",
+    "query" : "允许多少项任务？",
+    "latencyMs" : 229
+  }, {
+    "hitAt3" : true,
+    "sources" : [ {
+      "id" : "5d97fc07-8ce6-4e5d-9cf7-57d07e498e23",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "验收约束",
+      "content" : "日期范围2026-10-05至2026-10-25。正式任务由用户确认，AI不能自行批准。",
+      "contentHash" : "3772c2852d533223aa2eb003b307383c61b786d7dadef94f55df413938f4acd7",
+      "similarity" : 0.644210967013862,
+      "metadata" : {
+        "chunkNo" : 2,
+        "charFrom" : 64,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 109,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    }, {
+      "id" : "b5f31aa9-8ac7-4c70-a2bb-9bcea5bbfdda",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "目标",
+      "content" : "交付小型会议纪要系统。",
+      "contentHash" : "90c0f1ce4bfe804bbf7519ac0c1fdb1ef7e82bf669be81920fd0d7698be185f2",
+      "similarity" : 0.43556376139469655,
+      "metadata" : {
+        "chunkNo" : 0,
+        "charFrom" : 5,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 16,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    }, {
+      "id" : "d69b4a3f-35e9-4edf-8c25-fd7298cbe144",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "必要需求",
+      "content" : "支持记录会议纪要、生成待办和人工审阅。任务不超过四项，依赖无环。",
+      "contentHash" : "e57dd21c021c97658a0cb33d7f98af36f222d7442990616cc317ea24824bc1ef",
+      "similarity" : 0.4334886024164488,
+      "metadata" : {
+        "chunkNo" : 1,
+        "charFrom" : 24,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 56,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    } ],
+    "expectedHeading" : "验收约束",
+    "query" : "规划开始和结束日期？",
+    "latencyMs" : 171
+  }, {
+    "hitAt3" : true,
+    "sources" : [ {
+      "id" : "5d97fc07-8ce6-4e5d-9cf7-57d07e498e23",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "验收约束",
+      "content" : "日期范围2026-10-05至2026-10-25。正式任务由用户确认，AI不能自行批准。",
+      "contentHash" : "3772c2852d533223aa2eb003b307383c61b786d7dadef94f55df413938f4acd7",
+      "similarity" : 0.6203176522634012,
+      "metadata" : {
+        "chunkNo" : 2,
+        "charFrom" : 64,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 109,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    }, {
+      "id" : "d69b4a3f-35e9-4edf-8c25-fd7298cbe144",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "必要需求",
+      "content" : "支持记录会议纪要、生成待办和人工审阅。任务不超过四项，依赖无环。",
+      "contentHash" : "e57dd21c021c97658a0cb33d7f98af36f222d7442990616cc317ea24824bc1ef",
+      "similarity" : 0.45732067561602596,
+      "metadata" : {
+        "chunkNo" : 1,
+        "charFrom" : 24,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 56,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    }, {
+      "id" : "b9e728c6-ba57-4665-b736-4842fefff188",
+      "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+      "originalFilename" : "p4-requirements.txt",
+      "heading" : "安全",
+      "content" : "端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。会议内容按项目隔离，所有写入要求服务端权限检查。",
+      "contentHash" : "5ee2be3add006feacfe82082a99d36e7e57ee4f87633747a630b444e838f01df",
+      "similarity" : 0.36620050668717474,
+      "metadata" : {
+        "chunkNo" : 4,
+        "charFrom" : 1151,
+        "filename" : "p4-requirements.txt",
+        "projectId" : "984c42cd-212d-42ec-a94c-08d73776c280",
+        "documentId" : "7f1533c8-30fa-4d47-ad90-bc31dd6f8c73",
+        "charThrough" : 1445,
+        "parseVersion" : "tika-page-clean-v2/chunk-offset-v2",
+        "bodySnapshotId" : "a676174f-dfa7-42e6-936a-ee175507754f",
+        "offsetCoordinate" : "CLEANED_TEXT_UTF16_V2",
+        "embeddingGeneration" : "be9b4a5a-a7fe-4a32-bda4-95bb03b80140",
+        "originalContentHash" : "9a3c3053735d90b976e0aa4246ac540b00dad9348fb935b6cd61029d3ebfb723"
+      }
+    } ],
+    "expectedHeading" : "验收约束",
+    "query" : "谁批准正式任务？",
+    "latencyMs" : 134
+  } ]
+}

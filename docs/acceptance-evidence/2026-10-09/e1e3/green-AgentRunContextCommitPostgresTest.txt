@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest
+-------------------------------------------------------------------------------
+Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.61 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest

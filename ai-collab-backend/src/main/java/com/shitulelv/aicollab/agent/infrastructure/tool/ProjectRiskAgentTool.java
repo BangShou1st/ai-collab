@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.domain.model.AgentInference;
 import com.shitulelv.aicollab.agent.domain.tool.AgentTool;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolContext;
+import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResult;
 import com.shitulelv.aicollab.work.application.service.WorkReportService;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,14 @@ public class ProjectRiskAgentTool implements AgentTool {
 
     @Override public String name() { return "analyze_project_risks"; }
     @Override public boolean writesBusinessData() { return false; }
+
+    @Override
+    public AgentToolDefinition definition() {
+        return AgentToolDefinition.fromJson(name(),
+                "获取确定性风险分析统计（逾期任务、依赖阻塞等）。不接受任何参数。",
+                "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{}}",
+                false);
+    }
 
     @Override
     public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {

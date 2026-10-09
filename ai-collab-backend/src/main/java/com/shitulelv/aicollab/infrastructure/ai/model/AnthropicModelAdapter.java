@@ -147,7 +147,9 @@ public class AnthropicModelAdapter extends AbstractModelProviderAdapter
     private ObjectNode turnRequest(ModelConfiguration config, ModelTurnCommand command) {
         ObjectNode body = mapper.createObjectNode();
         body.put("model", config.modelName());
-        body.put("max_tokens", config.maxOutputTokens());
+        // 本次请求的有效单次输出上限：默认取配置值，运行因本次窗口更小而派生的封顶
+        // 只作用于内存中的请求参数（不改用户持久设置），与窗口计算使用同一份快照。
+        body.put("max_tokens", AiRequestOutputCap.effective(config.maxOutputTokens()));
 
         // 提取 system 消息，放入顶层 system 字段
         StringBuilder systemPrompt = new StringBuilder();
@@ -211,7 +213,9 @@ public class AnthropicModelAdapter extends AbstractModelProviderAdapter
             ModelConfiguration config, ChatCompletionCommand command, boolean stream) {
         ObjectNode body = mapper.createObjectNode();
         body.put("model", config.modelName());
-        body.put("max_tokens", config.maxOutputTokens());
+        // 本次请求的有效单次输出上限：默认取配置值，运行因本次窗口更小而派生的封顶
+        // 只作用于内存中的请求参数（不改用户持久设置），与窗口计算使用同一份快照。
+        body.put("max_tokens", AiRequestOutputCap.effective(config.maxOutputTokens()));
         body.put("stream", stream);
         body.put("system", command.systemPrompt());
         body.putArray("messages").addObject()

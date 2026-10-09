@@ -1,0 +1,6 @@
+{
+  "at": "2026-10-04T07:04:27.0510880Z",
+  "case": "running",
+  "action": "Terminate verified isolated JVM during real HTTP DETAIL request",
+  "pid": 36492
+}

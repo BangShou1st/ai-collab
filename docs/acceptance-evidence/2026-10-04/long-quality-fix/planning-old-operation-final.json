@@ -1,0 +1,18 @@
+{
+  "status": "FAILED",
+  "kind": "start_task_plan",
+  "operationId": "df3a6d29-8c29-4654-b0be-3b5187ea8afc",
+  "planId": "1d1496c1-cdeb-44a3-b6f2-43b8baadaf10",
+  "attemptId": "b5a26347-7ee8-49e5-9776-f836da098d0d",
+  "activeAttemptId": null,
+  "attemptStatus": "FAILED",
+  "errorCode": "PLANNING_MODEL_INVALID_OUTPUT",
+  "title": "ai-collab可靠性验收24轮",
+  "versionNo": 0,
+  "versionId": null,
+  "targetVersionId": null,
+  "goalRevision": 2,
+  "effect": "PLANNING_OPERATION_ACCEPTED",
+  "requiresHumanConfirmation": true,
+  "reviewPath": "/projects/85b9bcee-f93f-4c43-93b5-eea71020e6ea/ai-planning?planId=1d1496c1-cdeb-44a3-b6f2-43b8baadaf10"
+}

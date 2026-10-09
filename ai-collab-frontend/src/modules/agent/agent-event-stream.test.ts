@@ -45,4 +45,53 @@ describe('agent event stream', () => {
 
     expect(received).toEqual([2, 3])
   })
+
+  it('routes MODEL_CONTENT frames to onContent without entering the event timeline', async () => {
+    const encoder = new TextEncoder()
+    const event = 'data: {"id":"e4","projectId":"p","runId":"r","sequence":4,"type":"MODEL_STARTED","payload":{},"createdAt":"now"}\n\n'
+    const content = 'event: MODEL_CONTENT\ndata: {"modelCallId":"call-1","revision":1,"text":"正在生成","final":false}\n\n'
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(event + content))
+        controller.close()
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, body }))
+    const received: number[] = []
+    const frames: Array<{ modelCallId: string; revision: number; text: string; final: boolean }> = []
+
+    await streamAgentEvents('/events', 0, new AbortController().signal,
+      value => received.push(value.sequence),
+      frame => frames.push(frame))
+
+    expect(received).toEqual([4])
+    expect(frames).toEqual([{ modelCallId: 'call-1', revision: 1, text: '正在生成', final: false }])
+  })
+
+  it('skips invalid content frames and keeps routing persistent events', async () => {
+    const encoder = new TextEncoder()
+    const badContent = 'event: MODEL_CONTENT\ndata: {"revision":"x"}\n\n'
+    const goodEvent = 'data: {"id":"e5","projectId":"p","runId":"r","sequence":5,"type":"MODEL_COMPLETED","payload":{},"createdAt":"now"}\n\n'
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(badContent + goodEvent))
+        controller.close()
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, body }))
+    const received: number[] = []
+    const frames: unknown[] = []
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    try {
+      await streamAgentEvents('/events', 0, new AbortController().signal,
+        value => received.push(value.sequence),
+        frame => frames.push(frame))
+    } finally {
+      warn.mockRestore()
+    }
+
+    expect(received).toEqual([5])
+    expect(frames).toEqual([])
+  })
 })

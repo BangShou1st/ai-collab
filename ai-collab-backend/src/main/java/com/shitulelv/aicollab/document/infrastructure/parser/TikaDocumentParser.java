@@ -135,12 +135,24 @@ public class TikaDocumentParser implements DocumentParser {
             }
         });
         parser.parse(input, handler, metadata, context);
-        String cleaned = clean(handler.toString());
+        String raw=handler.toString();
+        StringBuilder pageText=new StringBuilder();
+        List<ParsedDocument.PageBoundary> cleanedBoundaries=new ArrayList<>();
+        var boundaries=handler.getPageBoundaries();
+        for(int i=0;i<boundaries.size();i++) {
+            var boundary=boundaries.get(i);
+            int end=i+1<boundaries.size()?boundaries.get(i+1).charOffset():raw.length();
+            String page=clean(raw.substring(Math.min(boundary.charOffset(),raw.length()),Math.min(end,raw.length())));
+            if(!pageText.isEmpty()) pageText.append("\n\n");
+            cleanedBoundaries.add(new ParsedDocument.PageBoundary(boundary.pageNumber(),pageText.length()));
+            pageText.append(page);
+        }
+        String cleaned=boundaries.isEmpty()?clean(raw):pageText.toString();
         if (cleaned.isBlank()) {
             throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED,
                     "未提取到可索引文本，暂不支持扫描版文档");
         }
-        return new ParsedDocument("PDF", cleaned, handler.getPageBoundaries());
+        return new ParsedDocument("PDF", cleaned,cleanedBoundaries);
     }
 
     private String parseWithTika(InputStream input, String filename, String mimeType)
@@ -223,7 +235,7 @@ public class TikaDocumentParser implements DocumentParser {
                 String cssClass = atts.getValue("class");
                 if ("page".equals(type) || (cssClass != null && cssClass.contains("page"))) {
                     currentPage++;
-                    pageBoundaries.add(new ParsedDocument.PageBoundary(currentPage, charOffset));
+                    pageBoundaries.add(new ParsedDocument.PageBoundary(currentPage, delegate.toString().length()));
                 }
             }
             delegate.startElement(uri, localName, qName, atts);

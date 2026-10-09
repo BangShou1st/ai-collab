@@ -1,0 +1,18 @@
+{
+  "status": "READY",
+  "kind": "start_task_plan",
+  "operationId": "19923ec6-c0ca-44d3-88a2-4390eacdbe7e",
+  "planId": "1bccc896-c95b-47cc-8d96-342e704cd16a",
+  "attemptId": "6d5538bc-18ea-4365-8ee5-ed34297e3434",
+  "activeAttemptId": null,
+  "attemptStatus": "SUCCESS",
+  "errorCode": null,
+  "title": "小型会议纪要系统任务规划（2026-10-05 至 2026-10-25）",
+  "versionNo": 2,
+  "versionId": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+  "targetVersionId": null,
+  "goalRevision": 0,
+  "effect": "PLANNING_OPERATION_ACCEPTED",
+  "requiresHumanConfirmation": true,
+  "reviewPath": "/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/ai-planning?planId=1bccc896-c95b-47cc-8d96-342e704cd16a"
+}

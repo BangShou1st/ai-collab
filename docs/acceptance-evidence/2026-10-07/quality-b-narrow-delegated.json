@@ -1,0 +1,19 @@
+{
+ "run": "quality-B-narrow delegated single-document scope, after 3 fixes (R12/R12b/R12c)",
+ "question": "请把这次研究委派给文档研究子 Agent 完整执行：只研究《评分模块技术方案》这一篇文档，对照验收标准逐条说明评分聚合的实现方案是否满足要求，给出差距、未读到的章节和引用来源。",
+ "parentRunId": "0c7c64a0-21f7-480d-9e0c-b52bdc16b363",
+ "childRunId": "f8ca9b43-46a7-44c6-b24d-e64268b310db",
+ "parentStatus": "BUDGET_EXCEEDED",
+ "childStatus": "BUDGET_EXCEEDED",
+ "elapsedSeconds": 65,
+ "childToolSequence": [
+  "list_project_documents",
+  "get_document_outline",
+  "search_project_knowledge",
+  "list_project_documents",
+  "read_document_section"
+ ],
+ "childAchieved": "读到目标文档真实正文片段:search 命中评分规则引文(7 名评委、去最高最低、5 分平均保留 2 位小数),read_document_section 取回 chunk 正文。8 步预算终点前未能成文。",
+ "deliveredAnswer": "父运行预算部分回答(2092 字):已回收子运行的研究产出,状态如实标注。",
+ "contribution": "证明委派链路在窄范围任务下能推进到正文级证据;距完整成文仅差子运行步骤预算(见验收文档第 4/5 节)。"
+}

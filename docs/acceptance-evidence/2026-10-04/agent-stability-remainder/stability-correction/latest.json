@@ -1,0 +1,39 @@
+{
+  "operations": {
+    "status": "FAILED",
+    "kind": "start_task_plan",
+    "operationId": "df3a6d29-8c29-4654-b0be-3b5187ea8afc",
+    "planId": "1d1496c1-cdeb-44a3-b6f2-43b8baadaf10",
+    "attemptId": "b5a26347-7ee8-49e5-9776-f836da098d0d",
+    "activeAttemptId": null,
+    "attemptStatus": "FAILED",
+    "errorCode": "PLANNING_MODEL_INVALID_OUTPUT",
+    "title": "ai-collab可靠性验收24轮",
+    "versionNo": 0,
+    "versionId": null,
+    "targetVersionId": null,
+    "goalRevision": 2,
+    "effect": "PLANNING_OPERATION_ACCEPTED",
+    "requiresHumanConfirmation": true,
+    "reviewPath": "/projects/85b9bcee-f93f-4c43-93b5-eea71020e6ea/ai-planning?planId=1d1496c1-cdeb-44a3-b6f2-43b8baadaf10"
+  },
+  "state": {
+    "batch": "stability-correction",
+    "sessionId": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "completedTurns": 0,
+    "codeVersion": "6edb3c39d4573430654cc1772034ad7f99cec75c",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "documentId": "6c164058-05cf-4a3d-9f2c-1dcc17d14211"
+  },
+  "session": {
+    "id": "ee5dd5fb-72c1-4e2f-aefb-5f6e51a1dbcf",
+    "projectId": "85b9bcee-f93f-4c43-93b5-eea71020e6ea",
+    "creatorId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+    "title": "真实需求24轮约束与目标验收",
+    "status": "ACTIVE",
+    "version": 42,
+    "createdAt": "2026-10-04T03:20:40.014288Z",
+    "updatedAt": "2026-10-04T12:03:16.409399Z"
+  },
+  "codeVersion": "6edb3c39d4573430654cc1772034ad7f99cec75c"
+}

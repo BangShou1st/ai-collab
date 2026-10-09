@@ -1,0 +1,1094 @@
+{
+  "executionDate": "2026-10-04",
+  "projectId": "92f8592d-1c50-4e7f-bcb7-61e6bdfb610b",
+  "version": {
+    "version": {
+      "id": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+      "planId": "1bccc896-c95b-47cc-8d96-342e704cd16a",
+      "versionNo": 2,
+      "sourceType": "AI_COMPLETE",
+      "basedOnVersionId": "9ce2f18e-50ab-4753-9ed7-d970a4d36744",
+      "generationSeq": 1,
+      "summary": "为小型会议纪要系统生成一份任务规划草稿（2026-10-05 至 2026-10-25），覆盖会议纪要记录、待办生成、人工审阅三项核心能力，并安排一次端到端验收。任务总数控制在 4 项以内，里程碑目标日期全部落在约定日期区间内，任务间依赖按单向链路设计以确保无环。每项任务的目标描述中内嵌可判定的验收标准。本输出仅为草稿，不写入正式任务、不做逐项任务提案，正式任务须由用户在规划页人工确认后生效，AI 不自行批准。",
+      "assumptionsJson": "[\"日期区间 2026-10-05 至 2026-10-25 与全部里程碑目标日期一致，项目整体周期（2026-10-04 至 2026-10-31）与该区间并不冲突。\", \"需求文档「必要需求」将任务数量上限设为 4 项，因此草稿按 4 项任务组织，不额外拆分。\", \"任务依赖按单向链路理解（会议纪要记录 → 待办生成 → 人工审阅 → 端到端验收），不含任何反向引用，因此不存在循环依赖。\", \"三项核心能力（会议纪要记录、待办生成、人工审阅）被视为同等必要，各自至少有一项任务覆盖。\", \"验收标准需要在任务目标文本中可判定，因骨架字段仅允许 tempKey/title/objective/targetDate/sortOrder，故将判定条件写入 objective。\", \"未提供具体技术栈、接口规范或既有模块信息，因此验收标准仅描述功能性可判定结果，不假设实现细节。\", \"项目成员信息未用于本骨架（不输出建议负责人字段），任务归属由用户在确认阶段决定。\"]",
+      "risksJson": "[\"三项核心能力在同一时间窗内串行推进，若会议纪要记录阶段延期，将直接推迟待办生成与人工审阅的启动，可能挤压 2026-10-25 的收尾时间。\", \"验收标准以功能可判定结果描述，若实现过程中出现口径歧义（如待办生成的判定规则粒度），可能导致验收争议。\", \"文档仅给出「交付小型会议纪要系统」的总体目标，未定义性能、数据量或兼容性指标，验收范围可能存在遗漏项。\", \"规划为草稿且需人工确认，若用户在确认阶段调整任务范围或增补任务，任务总数可能突破 4 项上限。\", \"里程碑目标日期为规划假设值，缺少中间评审节点校验，进度偏差可能无法被及时发现。\"]",
+      "milestonesJson": "[{\"title\": \"核心能力可用\", \"tempKey\": \"MS-01\", \"objective\": \"会议纪要记录、待办生成、人工审阅三项能力均具备可演示的最小可用形态，并通过各自的功能级判定检查；若届时仍有能力未通过判定，则里程碑不予达成并顺延至 MS-02 之前修订。\", \"sortOrder\": 0, \"sourceRefs\": [\"S1\"], \"targetDate\": \"2026-10-20\", \"description\": \"覆盖规划期前半段（2026-10-05 至 2026-10-20），对应任务 T-01、T-02、T-03。达成判定：三项核心能力各自具备可演示的最小可用形态，T-01、T-02、T-03 的全部验收条目均判定通过，且 T-03 的审阅结果可在纪要详情中查见处理人与处理结果；若任一能力未通过判定，本里程碑不予达成，相关任务在 2026-10-21 之前修订并重判。来源依据为文档「必要需求」中关于会议纪要记录、待办生成与人工审阅的能力要求。\"}, {\"title\": \"验收收尾完成\", \"tempKey\": \"MS-02\", \"objective\": \"在 2026-10-25 前完成端到端串联验证与约束核对（任务数量不超过 4 项、依赖无环、日期范围符合 2026-10-05 至 2026-10-25），确认草稿可提交用户人工审阅确认；本里程碑达成不代表正式任务获批。\", \"sortOrder\": 1, \"sourceRefs\": [\"S3\", \"S1\"], \"targetDate\": \"2026-10-25\", \"description\": \"覆盖规划期末段（2026-10-21 至 2026-10-25），对应任务 T-04。达成判定：完成一次「会议纪要记录 → 待办生成 → 人工审阅通过」的端到端串联验证并留存可复核记录；同时完成规划约束核对——任务总数不超过 4 项、任务依赖图无环、全部任务与里程碑日期落在 2026-10-05 至 2026-10-25 区间内；核对结果以文字汇总形式提交用户人工审阅。本里程碑达成仅表示规划草稿可提交确认，不代表任何正式任务获批，AI 不自行批准。\"}]",
+      "tasksJson": "[{\"title\": \"实现会议纪要记录能力\", \"dueDate\": \"2026-10-12\", \"tempKey\": \"T-01\", \"priority\": \"HIGH\", \"objective\": \"支持创建、编辑、保存与查询会议纪要，覆盖标题、日期、参与人与正文等基本信息字段。验收标准：1) 可创建并成功保存一条含标题、日期、参与人、正文的纪要并可再次查询到完整内容；2) 编辑已保存纪要后查询结果与最新编辑一致；3) 缺少标题或日期时保存被拒绝并给出可读的错误提示；4) 纪要记录可供下游待办生成环节读取。\", \"sortOrder\": 0, \"startDate\": \"2026-10-05\", \"assigneeId\": null, \"sourceRefs\": [\"S1\", \"S2\"], \"description\": \"实现会议纪要记录能力（规划期首项，无前置依赖）。工作范围：会议纪要的创建、编辑、保存与查询能力落地，数据结构至少包含标题、日期、参与人、正文四个基本信息字段，并对外提供供 T-02 读取的查询接口。可判定验收标准：1) 可创建并成功保存一条含标题、日期、参与人、正文的纪要，并可再次查询到完整内容；2) 编辑已保存纪要后查询结果与最新编辑内容一致；3) 缺少标题或日期时保存被拒绝并返回可读的错误提示；4) 已保存纪要可被 T-02 的待办生成环节读取且读取内容完整。优先级为 HIGH，预估 24 小时，工期 2026-10-05 至 2026-10-12，须在 T-02 启动前完成。\", \"estimatedHours\": 24, \"milestoneTempKey\": \"MS-01\", \"dependencyTempKeys\": [], \"suggestedAssigneeId\": \"9c4cd312-0e99-497a-8e3b-e78f98692df0\"}, {\"title\": \"实现待办生成能力\", \"dueDate\": \"2026-10-16\", \"tempKey\": \"T-02\", \"priority\": \"HIGH\", \"objective\": \"基于已保存的会议纪要生成待办项。验收标准：1) 对一条包含明确行动描述的纪要执行生成后，产生至少一条待办，且每条待办可回溯到来源纪要；2) 生成结果中的待办内容与纪要中的行动描述一致，无凭空新增内容；3) 对不含行动项的纪要执行生成时，返回零待办且不报错；4) 重复对同一纪要生成不会产生重复待办。\", \"sortOrder\": 1, \"startDate\": \"2026-10-13\", \"assigneeId\": null, \"sourceRefs\": [\"S1\"], \"description\": \"实现待办生成能力，唯一前置依赖为 T-01（会议纪要记录能力）。工作范围：基于已保存的会议纪要内容抽取行动描述并生成待办项，待办需携带来源纪要标识以便回溯与幂等控制。可判定验收标准：1) 对一条包含明确行动描述的纪要执行生成后，产生至少一条待办，且每条待办均可回溯到其来源纪要；2) 生成结果中的待办内容与纪要中的行动描述一致，不出现凭空新增内容；3) 对不含行动项的纪要执行生成时返回零待办且不报错；4) 重复对同一纪要执行生成不会产生重复待办；5) 生成过程与结果不修改原纪要内容。优先级为 HIGH，预估 20 小时，工期 2026-10-13 至 2026-10-16，在 T-01 交付后启动。\", \"estimatedHours\": 20, \"milestoneTempKey\": \"MS-01\", \"dependencyTempKeys\": [\"T-01\"], \"suggestedAssigneeId\": \"9c4cd312-0e99-497a-8e3b-e78f98692df0\"}, {\"title\": \"实现人工审阅能力\", \"dueDate\": \"2026-10-20\", \"tempKey\": \"T-03\", \"priority\": \"MEDIUM\", \"objective\": \"提供对待办与纪要的人工审阅入口，支持通过、驳回与备注三种处理结果。验收标准：1) 审阅人可将一条待办标记为通过或驳回，并可选填写备注；2) 处理结果持久化，再次查看时状态与备注保持不变；3) 未作处理前待办处于待审阅状态，且不允许直接进入终态；4) 审阅动作在纪要详情中可见处理人与处理结果。\", \"sortOrder\": 2, \"startDate\": \"2026-10-17\", \"assigneeId\": null, \"sourceRefs\": [\"S1\"], \"description\": \"实现人工审阅能力，唯一前置依赖为 T-02（待办生成能力）。工作范围：提供针对待办（及所属纪要）的人工审阅入口，支持通过、驳回与备注三类处理结果，并对未处理状态施加限制。可判定验收标准：1) 审阅人可将一条待办标记为通过或驳回，并可选填写备注；2) 处理结果持久化，再次查看时状态与备注保持不变；3) 未作处理前待办处于待审阅状态，且不允许从待审阅直接进入终态；4) 审阅动作在纪要详情中可见处理人与处理结果。优先级为 MEDIUM，预估 16 小时，工期 2026-10-17 至 2026-10-20，完成后对齐 MS-01（2026-10-20）。\", \"estimatedHours\": 16, \"milestoneTempKey\": \"MS-01\", \"dependencyTempKeys\": [\"T-02\"], \"suggestedAssigneeId\": \"9c4cd312-0e99-497a-8e3b-e78f98692df0\"}, {\"title\": \"端到端串联验收与规划约束核对\", \"dueDate\": \"2026-10-25\", \"tempKey\": \"T-04\", \"priority\": \"HIGH\", \"objective\": \"在 2026-10-25 前完成一次贯穿三项能力的端到端验证，并核对规划约束。验收标准：1) 以一条真实纪要完成「记录 → 生成待办 → 人工审阅通过」的完整链路，最终状态可查；2) 三项核心能力各至少有一项判定检查通过，否则验收判定为不通过；3) 核对任务总数不超过 4 项、任务依赖图中不存在环路、所有里程碑目标日期落在 2026-10-05 至 2026-10-25 区间内，并将核对结果以文字形式汇总提交用户人工审阅；4) 验收过程中不写入正式任务，全部正式任务仅由用户确认后生效。\", \"sortOrder\": 3, \"startDate\": \"2026-10-21\", \"assigneeId\": null, \"sourceRefs\": [\"S3\", \"S1\"], \"description\": \"端到端串联验收与规划约束核对，唯一前置依赖为 T-03（人工审阅能力），三项能力齐备后执行。工作范围：以一条真实会议纪要贯通三项能力，并复核规划本身的合规性，输出文字汇总供用户人工审阅。可判定验收标准：1) 完成「记录 → 生成待办 → 人工审阅通过」的完整链路，最终状态可查询核验；2) 三项核心能力各至少有一项判定检查通过，任一能力未通过即整体判定为不通过；3) 核对并记录任务总数不超过 4 项、任务依赖图不存在环路、全部任务与里程碑日期落在 2026-10-05 至 2026-10-25 区间内，核对结论以文字形式汇总；4) 验收过程中不写入正式任务，全部正式任务仅在用户于规划页审阅并人工确认后生效，AI 不自行批准。优先级为 HIGH，预估 8 小时，工期 2026-10-21 至 2026-10-25，收尾于规划区间末日并对齐 MS-02。\", \"estimatedHours\": 8, \"milestoneTempKey\": \"MS-02\", \"dependencyTempKeys\": [\"T-03\"], \"suggestedAssigneeId\": \"9c4cd312-0e99-497a-8e3b-e78f98692df0\"}]",
+      "sourcesJson": "[{\"ref\": \"S1\", \"chunkId\": \"e6ab2656-0c66-4516-9915-f15902b84fad\", \"heading\": \"必要需求\", \"quoteText\": \"支持记录会议纪要、生成待办和人工审阅。任务不超过四项，依赖无环。\", \"documentId\": \"9404f695-969d-43aa-b2bb-72da262e9231\", \"similarity\": 0.7738990534965187, \"contentHash\": \"e57dd21c021c97658a0cb33d7f98af36f222d7442990616cc317ea24824bc1ef\", \"documentName\": \"p4-requirements.txt\"}, {\"ref\": \"S2\", \"chunkId\": \"671ee3af-a841-40f7-a5fd-f1ef24a3a681\", \"heading\": \"目标\", \"quoteText\": \"交付小型会议纪要系统。\", \"documentId\": \"9404f695-969d-43aa-b2bb-72da262e9231\", \"similarity\": 0.6686460374016373, \"contentHash\": \"90c0f1ce4bfe804bbf7519ac0c1fdb1ef7e82bf669be81920fd0d7698be185f2\", \"documentName\": \"p4-requirements.txt\"}, {\"ref\": \"S3\", \"chunkId\": \"233f478b-9c16-4787-9d98-547ce38cb426\", \"heading\": \"验收约束\", \"quoteText\": \"日期范围2026-10-05至2026-10-25。正式任务由用户确认，AI不能自行批准。\", \"documentId\": \"9404f695-969d-43aa-b2bb-72da262e9231\", \"similarity\": 0.6014434457686141, \"contentHash\": \"3772c2852d533223aa2eb003b307383c61b786d7dadef94f55df413938f4acd7\", \"documentName\": \"p4-requirements.txt\"}]",
+      "validationResultJson": "{\"errors\": [], \"warnings\": [\"TASK_UNASSIGNED\", \"TASK_UNASSIGNED\", \"TASK_UNASSIGNED\", \"TASK_UNASSIGNED\"]}",
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "createdAt": "2026-10-04T02:37:07.523748Z"
+    },
+    "draft": {
+      "summary": "为小型会议纪要系统生成一份任务规划草稿（2026-10-05 至 2026-10-25），覆盖会议纪要记录、待办生成、人工审阅三项核心能力，并安排一次端到端验收。任务总数控制在 4 项以内，里程碑目标日期全部落在约定日期区间内，任务间依赖按单向链路设计以确保无环。每项任务的目标描述中内嵌可判定的验收标准。本输出仅为草稿，不写入正式任务、不做逐项任务提案，正式任务须由用户在规划页人工确认后生效，AI 不自行批准。",
+      "assumptions": [
+        "日期区间 2026-10-05 至 2026-10-25 与全部里程碑目标日期一致，项目整体周期（2026-10-04 至 2026-10-31）与该区间并不冲突。",
+        "需求文档「必要需求」将任务数量上限设为 4 项，因此草稿按 4 项任务组织，不额外拆分。",
+        "任务依赖按单向链路理解（会议纪要记录 → 待办生成 → 人工审阅 → 端到端验收），不含任何反向引用，因此不存在循环依赖。",
+        "三项核心能力（会议纪要记录、待办生成、人工审阅）被视为同等必要，各自至少有一项任务覆盖。",
+        "验收标准需要在任务目标文本中可判定，因骨架字段仅允许 tempKey/title/objective/targetDate/sortOrder，故将判定条件写入 objective。",
+        "未提供具体技术栈、接口规范或既有模块信息，因此验收标准仅描述功能性可判定结果，不假设实现细节。",
+        "项目成员信息未用于本骨架（不输出建议负责人字段），任务归属由用户在确认阶段决定。"
+      ],
+      "risks": [
+        "三项核心能力在同一时间窗内串行推进，若会议纪要记录阶段延期，将直接推迟待办生成与人工审阅的启动，可能挤压 2026-10-25 的收尾时间。",
+        "验收标准以功能可判定结果描述，若实现过程中出现口径歧义（如待办生成的判定规则粒度），可能导致验收争议。",
+        "文档仅给出「交付小型会议纪要系统」的总体目标，未定义性能、数据量或兼容性指标，验收范围可能存在遗漏项。",
+        "规划为草稿且需人工确认，若用户在确认阶段调整任务范围或增补任务，任务总数可能突破 4 项上限。",
+        "里程碑目标日期为规划假设值，缺少中间评审节点校验，进度偏差可能无法被及时发现。"
+      ],
+      "milestones": [
+        {
+          "tempKey": "MS-01",
+          "title": "核心能力可用",
+          "objective": "会议纪要记录、待办生成、人工审阅三项能力均具备可演示的最小可用形态，并通过各自的功能级判定检查；若届时仍有能力未通过判定，则里程碑不予达成并顺延至 MS-02 之前修订。",
+          "description": "覆盖规划期前半段（2026-10-05 至 2026-10-20），对应任务 T-01、T-02、T-03。达成判定：三项核心能力各自具备可演示的最小可用形态，T-01、T-02、T-03 的全部验收条目均判定通过，且 T-03 的审阅结果可在纪要详情中查见处理人与处理结果；若任一能力未通过判定，本里程碑不予达成，相关任务在 2026-10-21 之前修订并重判。来源依据为文档「必要需求」中关于会议纪要记录、待办生成与人工审阅的能力要求。",
+          "targetDate": "2026-10-20",
+          "sortOrder": 0,
+          "sourceRefs": [
+            "S1"
+          ]
+        },
+        {
+          "tempKey": "MS-02",
+          "title": "验收收尾完成",
+          "objective": "在 2026-10-25 前完成端到端串联验证与约束核对（任务数量不超过 4 项、依赖无环、日期范围符合 2026-10-05 至 2026-10-25），确认草稿可提交用户人工审阅确认；本里程碑达成不代表正式任务获批。",
+          "description": "覆盖规划期末段（2026-10-21 至 2026-10-25），对应任务 T-04。达成判定：完成一次「会议纪要记录 → 待办生成 → 人工审阅通过」的端到端串联验证并留存可复核记录；同时完成规划约束核对——任务总数不超过 4 项、任务依赖图无环、全部任务与里程碑日期落在 2026-10-05 至 2026-10-25 区间内；核对结果以文字汇总形式提交用户人工审阅。本里程碑达成仅表示规划草稿可提交确认，不代表任何正式任务获批，AI 不自行批准。",
+          "targetDate": "2026-10-25",
+          "sortOrder": 1,
+          "sourceRefs": [
+            "S3",
+            "S1"
+          ]
+        }
+      ],
+      "tasks": [
+        {
+          "tempKey": "T-01",
+          "milestoneTempKey": "MS-01",
+          "title": "实现会议纪要记录能力",
+          "objective": "支持创建、编辑、保存与查询会议纪要，覆盖标题、日期、参与人与正文等基本信息字段。验收标准：1) 可创建并成功保存一条含标题、日期、参与人、正文的纪要并可再次查询到完整内容；2) 编辑已保存纪要后查询结果与最新编辑一致；3) 缺少标题或日期时保存被拒绝并给出可读的错误提示；4) 纪要记录可供下游待办生成环节读取。",
+          "description": "实现会议纪要记录能力（规划期首项，无前置依赖）。工作范围：会议纪要的创建、编辑、保存与查询能力落地，数据结构至少包含标题、日期、参与人、正文四个基本信息字段，并对外提供供 T-02 读取的查询接口。可判定验收标准：1) 可创建并成功保存一条含标题、日期、参与人、正文的纪要，并可再次查询到完整内容；2) 编辑已保存纪要后查询结果与最新编辑内容一致；3) 缺少标题或日期时保存被拒绝并返回可读的错误提示；4) 已保存纪要可被 T-02 的待办生成环节读取且读取内容完整。优先级为 HIGH，预估 24 小时，工期 2026-10-05 至 2026-10-12，须在 T-02 启动前完成。",
+          "priority": "HIGH",
+          "estimatedHours": 24,
+          "startDate": "2026-10-05",
+          "dueDate": "2026-10-12",
+          "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+          "assigneeId": null,
+          "dependencyTempKeys": [],
+          "sourceRefs": [
+            "S1",
+            "S2"
+          ],
+          "sortOrder": 0
+        },
+        {
+          "tempKey": "T-02",
+          "milestoneTempKey": "MS-01",
+          "title": "实现待办生成能力",
+          "objective": "基于已保存的会议纪要生成待办项。验收标准：1) 对一条包含明确行动描述的纪要执行生成后，产生至少一条待办，且每条待办可回溯到来源纪要；2) 生成结果中的待办内容与纪要中的行动描述一致，无凭空新增内容；3) 对不含行动项的纪要执行生成时，返回零待办且不报错；4) 重复对同一纪要生成不会产生重复待办。",
+          "description": "实现待办生成能力，唯一前置依赖为 T-01（会议纪要记录能力）。工作范围：基于已保存的会议纪要内容抽取行动描述并生成待办项，待办需携带来源纪要标识以便回溯与幂等控制。可判定验收标准：1) 对一条包含明确行动描述的纪要执行生成后，产生至少一条待办，且每条待办均可回溯到其来源纪要；2) 生成结果中的待办内容与纪要中的行动描述一致，不出现凭空新增内容；3) 对不含行动项的纪要执行生成时返回零待办且不报错；4) 重复对同一纪要执行生成不会产生重复待办；5) 生成过程与结果不修改原纪要内容。优先级为 HIGH，预估 20 小时，工期 2026-10-13 至 2026-10-16，在 T-01 交付后启动。",
+          "priority": "HIGH",
+          "estimatedHours": 20,
+          "startDate": "2026-10-13",
+          "dueDate": "2026-10-16",
+          "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+          "assigneeId": null,
+          "dependencyTempKeys": [
+            "T-01"
+          ],
+          "sourceRefs": [
+            "S1"
+          ],
+          "sortOrder": 1
+        },
+        {
+          "tempKey": "T-03",
+          "milestoneTempKey": "MS-01",
+          "title": "实现人工审阅能力",
+          "objective": "提供对待办与纪要的人工审阅入口，支持通过、驳回与备注三种处理结果。验收标准：1) 审阅人可将一条待办标记为通过或驳回，并可选填写备注；2) 处理结果持久化，再次查看时状态与备注保持不变；3) 未作处理前待办处于待审阅状态，且不允许直接进入终态；4) 审阅动作在纪要详情中可见处理人与处理结果。",
+          "description": "实现人工审阅能力，唯一前置依赖为 T-02（待办生成能力）。工作范围：提供针对待办（及所属纪要）的人工审阅入口，支持通过、驳回与备注三类处理结果，并对未处理状态施加限制。可判定验收标准：1) 审阅人可将一条待办标记为通过或驳回，并可选填写备注；2) 处理结果持久化，再次查看时状态与备注保持不变；3) 未作处理前待办处于待审阅状态，且不允许从待审阅直接进入终态；4) 审阅动作在纪要详情中可见处理人与处理结果。优先级为 MEDIUM，预估 16 小时，工期 2026-10-17 至 2026-10-20，完成后对齐 MS-01（2026-10-20）。",
+          "priority": "MEDIUM",
+          "estimatedHours": 16,
+          "startDate": "2026-10-17",
+          "dueDate": "2026-10-20",
+          "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+          "assigneeId": null,
+          "dependencyTempKeys": [
+            "T-02"
+          ],
+          "sourceRefs": [
+            "S1"
+          ],
+          "sortOrder": 2
+        },
+        {
+          "tempKey": "T-04",
+          "milestoneTempKey": "MS-02",
+          "title": "端到端串联验收与规划约束核对",
+          "objective": "在 2026-10-25 前完成一次贯穿三项能力的端到端验证，并核对规划约束。验收标准：1) 以一条真实纪要完成「记录 → 生成待办 → 人工审阅通过」的完整链路，最终状态可查；2) 三项核心能力各至少有一项判定检查通过，否则验收判定为不通过；3) 核对任务总数不超过 4 项、任务依赖图中不存在环路、所有里程碑目标日期落在 2026-10-05 至 2026-10-25 区间内，并将核对结果以文字形式汇总提交用户人工审阅；4) 验收过程中不写入正式任务，全部正式任务仅由用户确认后生效。",
+          "description": "端到端串联验收与规划约束核对，唯一前置依赖为 T-03（人工审阅能力），三项能力齐备后执行。工作范围：以一条真实会议纪要贯通三项能力，并复核规划本身的合规性，输出文字汇总供用户人工审阅。可判定验收标准：1) 完成「记录 → 生成待办 → 人工审阅通过」的完整链路，最终状态可查询核验；2) 三项核心能力各至少有一项判定检查通过，任一能力未通过即整体判定为不通过；3) 核对并记录任务总数不超过 4 项、任务依赖图不存在环路、全部任务与里程碑日期落在 2026-10-05 至 2026-10-25 区间内，核对结论以文字形式汇总；4) 验收过程中不写入正式任务，全部正式任务仅在用户于规划页审阅并人工确认后生效，AI 不自行批准。优先级为 HIGH，预估 8 小时，工期 2026-10-21 至 2026-10-25，收尾于规划区间末日并对齐 MS-02。",
+          "priority": "HIGH",
+          "estimatedHours": 8,
+          "startDate": "2026-10-21",
+          "dueDate": "2026-10-25",
+          "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+          "assigneeId": null,
+          "dependencyTempKeys": [
+            "T-03"
+          ],
+          "sourceRefs": [
+            "S3",
+            "S1"
+          ],
+          "sortOrder": 3
+        }
+      ],
+      "sources": [
+        {
+          "ref": "S1",
+          "documentId": "9404f695-969d-43aa-b2bb-72da262e9231",
+          "documentName": "p4-requirements.txt",
+          "chunkId": "e6ab2656-0c66-4516-9915-f15902b84fad",
+          "heading": "必要需求",
+          "similarity": 0.7738990534965187,
+          "quoteText": "支持记录会议纪要、生成待办和人工审阅。任务不超过四项，依赖无环。",
+          "contentHash": "e57dd21c021c97658a0cb33d7f98af36f222d7442990616cc317ea24824bc1ef"
+        },
+        {
+          "ref": "S2",
+          "documentId": "9404f695-969d-43aa-b2bb-72da262e9231",
+          "documentName": "p4-requirements.txt",
+          "chunkId": "671ee3af-a841-40f7-a5fd-f1ef24a3a681",
+          "heading": "目标",
+          "similarity": 0.6686460374016373,
+          "quoteText": "交付小型会议纪要系统。",
+          "contentHash": "90c0f1ce4bfe804bbf7519ac0c1fdb1ef7e82bf669be81920fd0d7698be185f2"
+        },
+        {
+          "ref": "S3",
+          "documentId": "9404f695-969d-43aa-b2bb-72da262e9231",
+          "documentName": "p4-requirements.txt",
+          "chunkId": "233f478b-9c16-4787-9d98-547ce38cb426",
+          "heading": "验收约束",
+          "similarity": 0.6014434457686141,
+          "quoteText": "日期范围2026-10-05至2026-10-25。正式任务由用户确认，AI不能自行批准。",
+          "contentHash": "3772c2852d533223aa2eb003b307383c61b786d7dadef94f55df413938f4acd7"
+        }
+      ]
+    }
+  },
+  "stage": "repair-rejected",
+  "operations": {
+    "status": "READY",
+    "kind": "start_task_plan",
+    "operationId": "19923ec6-c0ca-44d3-88a2-4390eacdbe7e",
+    "planId": "1bccc896-c95b-47cc-8d96-342e704cd16a",
+    "attemptId": "6d5538bc-18ea-4365-8ee5-ed34297e3434",
+    "activeAttemptId": null,
+    "attemptStatus": "SUCCESS",
+    "errorCode": null,
+    "title": "小型会议纪要系统任务规划（2026-10-05 至 2026-10-25）",
+    "versionNo": 2,
+    "versionId": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+    "targetVersionId": null,
+    "goalRevision": 0,
+    "effect": "PLANNING_OPERATION_ACCEPTED",
+    "requiresHumanConfirmation": true,
+    "reviewPath": "/projects/92f8592d-1c50-4e7f-bcb7-61e6bdfb610b/ai-planning?planId=1bccc896-c95b-47cc-8d96-342e704cd16a"
+  },
+  "detail": {
+    "plan": {
+      "id": "1bccc896-c95b-47cc-8d96-342e704cd16a",
+      "projectId": "92f8592d-1c50-4e7f-bcb7-61e6bdfb610b",
+      "title": "小型会议纪要系统任务规划（2026-10-05 至 2026-10-25）",
+      "goal": "依据需求文档 9404f695-969d-43aa-b2bb-72da262e9231 的「必要需求」与「验收约束」，为小型会议纪要系统生成一份完整任务规划草稿：覆盖会议纪要记录、待办生成、人工审阅三条核心能力，包含至少一个里程碑，所有任务之间的依赖必须无环（不得出现循环依赖），并为每项任务给出可判定的验收标准。规划仅作为草稿，正式任务由用户在规划页确认后生效，AI 不自行批准。",
+      "constraints": "1. 任务数量上限 4 项，不得超出（来源：文档「必要需求」chunkId 07fecc02-61ee-4458-884b-06e221b71a94）。\n2. 日期范围严格限定 2026-10-05 至 2026-10-25，所有任务起止日期落在该区间内（来源：文档「验收约束」chunkId ae9319bf-84f0-4cf4-8dbf-f6df013bcc84）。\n3. 任务依赖必须无环，不得出现循环依赖（来源：文档「必要需求」）。\n4. 每项任务必须包含明确、可判定的验收标准。\n5. 规划必须包含里程碑设置。\n6. 系统功能范围限于：会议纪要记录、待办生成、人工审阅（来源：文档「必要需求」）。\n7. 本次仅生成规划草稿，不写入正式任务、不做逐项任务提案；正式任务须由用户在规划页审阅并人工确认，AI 不能自行批准（来源：文档「验收约束」及用户本轮指令）。",
+      "planStartDate": "2026-10-05",
+      "planDueDate": "2026-10-25",
+      "maxTaskCount": 4,
+      "selectedDocumentIdsJson": "[\"9404f695-969d-43aa-b2bb-72da262e9231\"]",
+      "status": "READY",
+      "latestVersionNo": 2,
+      "latestVersionId": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+      "generationSeq": 1,
+      "activeAttemptId": null,
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "lastErrorCode": null,
+      "lastErrorSummary": null,
+      "createdAt": "2026-10-04T02:36:26.224331Z",
+      "updatedAt": "2026-10-04T02:37:07.523748Z"
+    },
+    "latestVersion": {
+      "id": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+      "versionNo": 2,
+      "sourceType": "AI_COMPLETE",
+      "basedOnVersionId": "9ce2f18e-50ab-4753-9ed7-d970a4d36744",
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+      "createdAt": "2026-10-04 10:37:07.523748"
+    },
+    "activeAttempt": null,
+    "latestFailedAttempt": null,
+    "latestAttempt": {
+      "id": "2d050614-5981-4fc5-8695-c0ca80710870",
+      "stage": "DETAIL",
+      "status": "SUCCESS",
+      "provider": "OPENAI_COMPATIBLE",
+      "model": "space-bunny-free",
+      "startedAt": "2026-10-04 10:36:50.56838",
+      "finishedAt": "2026-10-04 10:37:07.624488",
+      "latencyMs": 16755,
+      "promptTokens": 3338,
+      "completionTokens": 2007,
+      "errorCode": null,
+      "errorSummary": null,
+      "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+    },
+    "confirmation": null,
+    "validation": {
+      "errors": [],
+      "warnings": [
+        "TASK_UNASSIGNED",
+        "TASK_UNASSIGNED",
+        "TASK_UNASSIGNED",
+        "TASK_UNASSIGNED"
+      ]
+    },
+    "permissions": {
+      "canEdit": true,
+      "canCancel": false,
+      "canRetryDetail": false,
+      "canRegenerate": true,
+      "canConfirm": true,
+      "canDelete": true,
+      "canRestore": true,
+      "canPartialRegenerate": true
+    },
+    "structuredIssues": [
+      {
+        "id": "22697e77-7860-457e-bf18-af14be910de4",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-01",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "878a26bb-e630-4848-aa29-d12ea0d7dd4f",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-02",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "f590fa2f-675c-462b-83fc-ea5a7b8548f6",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-03",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      },
+      {
+        "id": "e40f424e-9011-418e-8029-4be95839581b",
+        "code": "TASK_UNASSIGNED",
+        "severity": "WARNING",
+        "targetType": "TASK",
+        "targetTempKey": "T-04",
+        "field": "assigneeId",
+        "relatedTempKey": null,
+        "safeDetails": {}
+      }
+    ],
+    "repairDiagnostics": []
+  },
+  "run": {
+    "id": "1a0199b7-c24e-4149-ac24-8e3139162da9",
+    "status": "SUCCEEDED",
+    "stepsUsed": 10,
+    "toolCallsUsed": 4,
+    "promptTokensUsed": null,
+    "completionTokensUsed": null
+  },
+  "sessionId": "216f72b0-8a2a-4298-91c8-0a5c0e9c462e",
+  "layer": "real browser UI actions, independent read-only HTTP verification",
+  "messages": [
+    {
+      "id": "074d63a1-562f-4aa7-b349-74d70391ea1d",
+      "sessionId": "216f72b0-8a2a-4298-91c8-0a5c0e9c462e",
+      "runId": "d786ec0b-acfa-4c94-a120-fe65f04b996b",
+      "role": "USER",
+      "content": "请读取当前文档的“必要需求”和“验收约束”，说明任务数量上限及日期范围，并附可查看的来源引用。这里只阅读资料，不生成或写入规划。",
+      "citations": [],
+      "inferences": [],
+      "createdAt": "2026-10-04T02:27:07.754981Z"
+    },
+    {
+      "id": "8e672295-501f-4da9-89cf-49d61e1e1844",
+      "sessionId": "216f72b0-8a2a-4298-91c8-0a5c0e9c462e",
+      "runId": "d786ec0b-acfa-4c94-a120-fe65f04b996b",
+      "role": "ASSISTANT",
+      "content": "已按要求只读取资料，未生成或写入任何规划。\n\n## 1. 必要需求（文档章节：必要需求）\n> 「支持记录会议纪要、生成待办和人工审阅。任务不超过四项，依赖无环。」\n> —文档 `9404f695-969d-43aa-b2bb-72da262e9231`（正文 chunkNo=1，chunkId `07fecc02-61ee-4458-884b-06e221b71a94`，章节定位 charFrom 24–56，snapshotId `7b05db36-181e-4201-8e77-8675be0b5087`）\n\n要点：\n- 功能范围：记录会议纪要 → 生成待办 → 人工审阅\n- 任务数量上限：**不超过 4 项**\n- 任务依赖关系：**必须无环（无循环依赖）**\n\n## 2. 验收约束（文档章节：验收约束）\n> 「日期范围2026-10-05至2026-10-25。正式任务由用户确认，AI不能自行批准。」\n> — 文档 `9404f695-969d-43aa-b2bb-72da262e9231`（正文 chunkNo=2，chunkId `ae9319bf-84f0-4cf4-8dbf-f6df013bcc84`，章节定位 charFrom 64–109，snapshotId `7b05db36-181e-4201-8e77-8675be0b5087`）\n\n要点：\n- 规划日期范围：**2026-10-05 至 2026-10-25**\n- 审批约束：正式任务必须由用户确认，AI 不得自行批准\n\n## 3. 来源引用汇总\n| 内容 | 来源 |\n|---|---|\n| 任务上限 4 项、依赖无环 | 文档正文，章节「必要需求」，chunkId `07fecc02-61ee-4458-884b-06e221b71a94` |\n| 日期范围 2026-10-05～2026-10-25、用户确认约束 | 文档正文，章节「验收约束」，chunkId `ae9319bf-84f0-4cf4-8dbf-f6df013bcc84` |\n| 文档结构（另有「目标」「安全」章节，本次未读） | 文档提纲，snapshotId `7b05db36-181e-4201-8e77-8675be0b5087`，parsingStatus=READY |\n\n补充说明：本轮仅覆盖「必要需求」「验收约束」两个指定章节（coverage=SPECIFIED_RANGE_ONLY，未截断）。提纲显示文档还存在「目标」与「安全」两个章节，本轮按你的范围要求未读取，如需可再指定读取。",
+      "citations": [],
+      "inferences": [],
+      "createdAt": "2026-10-04T02:27:27.081091Z"
+    },
+    {
+      "id": "851e023c-0ef4-47aa-9b50-d8b232983c72",
+      "sessionId": "216f72b0-8a2a-4298-91c8-0a5c0e9c462e",
+      "runId": "77b249e6-8bc7-4907-ba7e-1d32a70477cc",
+      "role": "USER",
+      "content": "请重新用工具读取当前文档的“必要需求”和“验收约束”两节，再简短列出任务上限与日期边界，并附来源。仍只读，不启动规划。",
+      "citations": [],
+      "inferences": [],
+      "createdAt": "2026-10-04T02:35:01.861442Z"
+    },
+    {
+      "id": "7ceef92c-384d-4886-b6e5-bd32ad3e6670",
+      "sessionId": "216f72b0-8a2a-4298-91c8-0a5c0e9c462e",
+      "runId": "77b249e6-8bc7-4907-ba7e-1d32a70477cc",
+      "role": "ASSISTANT",
+      "content": "已重新用工具读取，两节均为本轮真实读取结果，只读未写入任何规划。\n\n## 必要需求\n> 「支持记录会议纪要、生成待办和人工审阅。任务不超过四项，依赖无环。」\n\n## 验收约束\n> 「日期范围2026-10-05至2026-10-25。正式任务由用户确认，AI不能自行批准。」\n\n## 任务上限与日期边界\n- 任务数量上限：**4 项**（「不超过四项」）\n- 日期范围：**2026-10-05 至 2026-10-25**（起始日 2026-10-05，截止日 2026-10-25）\n- 附带约束：任务依赖无环；正式任务需用户确认，AI 不得自行批准\n\n## 来源引用\n| 内容 | 文档 | 章节 | 定位 |\n|---|---|---|---|\n| 任务上限四项、依赖无环 | `9404f695-969d-43aa-b2bb-72da262e9231` | 必要需求 | chunkId `07fecc02-61ee-4458-884b-06e221b71a94`，chunkNo 1，char 24–56 |\n| 日期范围、审批约束 | `9404f695-969d-43aa-b2bb-72da262e9231` | 验收约束 | chunkId `ae9319bf-84f0-4cf4-8dbf-f6df013bcc84`，chunkNo 2，char 64–109 |\n\n统一快照：snapshotId `7b05db36-181e-4201-8e77-8675be0b5087`，processingStatus=READY，coverage=SPECIFIED_RANGE_ONLY，两节均未截断。\n\n补充：提纲显示该文档另有「目标」（chunk 0）与「安全」（chunk 3–4）两节，本次按你指定的范围未读取；需要的话我可以再读。",
+      "citations": [
+        {
+          "quote": "支持记录会议纪要、生成待办和人工审阅。任务不超过四项，依赖无环。",
+          "chunkId": "07fecc02-61ee-4458-884b-06e221b71a94",
+          "heading": "必要需求",
+          "filename": "文档正文",
+          "documentId": "9404f695-969d-43aa-b2bb-72da262e9231",
+          "pageNumber": null,
+          "similarity": 1.0
+        },
+        {
+          "quote": "日期范围2026-10-05至2026-10-25。正式任务由用户确认，AI不能自行批准。",
+          "chunkId": "ae9319bf-84f0-4cf4-8dbf-f6df013bcc84",
+          "heading": "验收约束",
+          "filename": "文档正文",
+          "documentId": "9404f695-969d-43aa-b2bb-72da262e9231",
+          "pageNumber": null,
+          "similarity": 1.0
+        }
+      ],
+      "inferences": [],
+      "createdAt": "2026-10-04T02:35:14.890123Z"
+    },
+    {
+      "id": "380d061a-2f0d-44a1-adb0-c0686e9f5686",
+      "sessionId": "216f72b0-8a2a-4298-91c8-0a5c0e9c462e",
+      "runId": "919e5206-694d-477d-851e-cfc200ff978c",
+      "role": "USER",
+      "content": "现在根据已选中的需求资料生成一份完整的小型会议纪要系统任务规划草稿：最多4项任务，日期2026-10-05至2026-10-25，包含里程碑、无环依赖和验收标准。请调用现有规划生成能力，不用逐项创建任务提案，不确认正式任务。",
+      "citations": [],
+      "inferences": [],
+      "createdAt": "2026-10-04T02:36:18.096246Z"
+    },
+    {
+      "id": "8963ad3b-be08-4ff7-8a93-d397be819ec1",
+      "sessionId": "216f72b0-8a2a-4298-91c8-0a5c0e9c462e",
+      "runId": "919e5206-694d-477d-851e-cfc200ff978c",
+      "role": "ASSISTANT",
+      "content": "规划操作已受理。后台状态与结果会更新到对应规划卡片；生成完成后请打开规划页审阅并人工确认指定版本。",
+      "citations": [],
+      "inferences": [],
+      "createdAt": "2026-10-04T02:36:27.197343Z"
+    },
+    {
+      "id": "c91e6de6-5a81-414a-a244-817596bd6631",
+      "sessionId": "216f72b0-8a2a-4298-91c8-0a5c0e9c462e",
+      "runId": "1a0199b7-c24e-4149-ac24-8e3139162da9",
+      "role": "USER",
+      "content": "请继续修订刚才生成的同一份“小型会议纪要系统任务规划”：只把第一项“实现会议纪要记录能力”的建议负责人改为 Local Owner，其他任务、里程碑、依赖、全部开始和截止日期保持不变。读取真实最新版本和任务身份后，用现有局部修复能力执行，不新建规划，也不确认正式任务。",
+      "citations": [],
+      "inferences": [],
+      "createdAt": "2026-10-04T02:39:27.515254Z"
+    },
+    {
+      "id": "175ea167-1001-4f96-a3a7-6aa31a772fbb",
+      "sessionId": "216f72b0-8a2a-4298-91c8-0a5c0e9c462e",
+      "runId": "1a0199b7-c24e-4149-ac24-8e3139162da9",
+      "role": "ASSISTANT",
+      "content": "局部修复没有执行成功，我没有创建新规划，也没有确认任何正式任务。先说明发生了什么。\n\n## 1. 修复调用结果\n`repair_task_plan`（planId `1bccc896-c95b-47cc-8d96-342e704cd16a`）返回：\n- status `FAILED`，errorCode `VALIDATION_ERROR`\n- retryable: `false`\n\n版本绑定本身是对的：`baseVersionId` / `expectedVersionNo` 与当前最新版本一致（versionNo 2，latestVersionId `3d04f88d-4652-458f-b2f5-6d67d6f97311`，计划状态 READY）。\n\n## 2. 但你要的改动可能已经是现状\n读到的第一项任务与项目成员如下：\n\n| 项 | 值 |\n|---|---|\n| tempKey | T-01 |\n| 标题 | 实现会议纪要记录能力 |\n| suggestedAssigneeId | `9c4cd312-0e99-497a-8e3b-e78f98692df0` |\n| assigneeId（正式负责人） | `null` |\n| 开始 / 截止 | 2026-10-05 / 2026-10-12 |\n| 里程碑 / 优先级 | MS-01 / HIGH |\n| 依赖 | 空（无上游） |\n\n项目成员共 1 人：\n| userId | displayName | username | role |\n|---|---|---|---|\n| `9c4cd312-0e99-497a-8e3b-e78f98692df0` | **Local Owner** | owner | OWNER |\n\n**T-01 的建议负责人当前就已经是 Local Owner**，而且 Local Owner 是项目里唯一的可选成员。所以「把 T-01 的建议负责人改为 Local Owner」在事实上是一次无变化的修订 —— 这很可能是校验失败的原因（*推断*：我不掌握该校验的具体规则，另一个可能原因是 `mode` 参数取值不被接受，这需要你或系统侧确认）。\n\n## 3. 需要你确认的一点\n「建议负责人」（`suggestedAssigneeId`，规划草稿中的建议值，当前为 Local Owner）和「正式负责人」（`assigneeId`，当前为 `null`）是两个不同字段。如果你要的是把**正式负责人**设为 Local Owner，那是另一回事 —— 但那属于正式任务写入，需要你在规划页审阅确认，我不会代为执行。\n\n## 4. 下一步\n请告诉我按哪种方式继续：\n1. 就按现状处理 —— 不再提交修订，你在规划页直接审阅 versionNo 2；\n2. 重新尝试一次修复（请告知可接受的 `mode` 取值）；\n3. 你实际想改的是 T-01 的正式负责人或别的字段，请指明。\n\n补充说明：本轮 `get_task_plan` 返回的是确定性投影（totalTasks=4，实际只返回 T-01），T-02 至 T-04 我没有读到；但它们本次不需要改动，我没有扩大查询去读取它们。",
+      "citations": [],
+      "inferences": [],
+      "createdAt": "2026-10-04T02:40:27.70353Z"
+    }
+  ],
+  "steps": [
+    {
+      "id": "5e30fc78-cc5c-4e77-b24b-f495232acb5f",
+      "sequence": 1,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 6296,
+          "outputTokens": 89
+        },
+        "content": "我需要先读取真实的规划列表与最新版本，再执行局部修复。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 4260,
+        "toolCalls": [
+          {
+            "id": "call-ad00aa0f-e1ce-4ace-8698-81e0e76e246c",
+            "name": "list_task_plans",
+            "arguments": {
+              "page": 0,
+              "size": 10
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "我需要先读取真实的规划列表与最新版本，再执行局部修复。",
+      "promptTokens": 6296,
+      "completionTokens": 89,
+      "tokenUsageEstimated": false,
+      "latencyMs": 4260,
+      "errorCode": null,
+      "createdAt": "2026-10-04T02:39:33.073298Z"
+    },
+    {
+      "id": "c1838d9b-b88a-4efa-aecd-408cd777f1af",
+      "sequence": 2,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "list_task_plans",
+      "input": {
+        "arguments": {
+          "page": 0,
+          "size": 10
+        },
+        "toolCallId": "call-ad00aa0f-e1ce-4ace-8698-81e0e76e246c"
+      },
+      "output": {
+        "data": {
+          "page": 0,
+          "size": 10,
+          "items": [
+            {
+              "id": "1bccc896-c95b-47cc-8d96-342e704cd16a",
+              "goal": "依据需求文档 9404f695-969d-43aa-b2bb-72da262e9231 的「必要需求」与「验收约束」，为小型会议纪要系统生成一份完整任务规划草稿：覆盖会议纪要记录、待办生成、人工审阅三条核心能力，包含至少一个里程碑，所有任务之间的依赖必须无环（不得出现循环依赖），并为每项任务给出可判定的验收标准。规划仅作为草稿，正式任务由用户在规划页确认后生效，AI 不自行批准。",
+              "title": "小型会议纪要系统任务规划（2026-10-05 至 2026-10-25）",
+              "status": "READY",
+              "createdAt": "2026-10-04T02:36:26.224331Z",
+              "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+              "projectId": "92f8592d-1c50-4e7f-bcb7-61e6bdfb610b",
+              "updatedAt": "2026-10-04T02:37:07.523748Z",
+              "constraints": "1. 任务数量上限 4 项，不得超出（来源：文档「必要需求」chunkId 07fecc02-61ee-4458-884b-06e221b71a94）。\n2. 日期范围严格限定 2026-10-05 至 2026-10-25，所有任务起止日期落在该区间内（来源：文档「验收约束」chunkId ae9319bf-84f0-4cf4-8dbf-f6df013bcc84）。\n3. 任务依赖必须无环，不得出现循环依赖（来源：文档「必要需求」）。\n4. 每项任务必须包含明确、可判定的验收标准。\n5. 规划必须包含里程碑设置。\n6. 系统功能范围限于：会议纪要记录、待办生成、人工审阅（来源：文档「必要需求」）。\n7. 本次仅生成规划草稿，不写入正式任务、不做逐项任务提案；正式任务须由用户在规划页审阅并人工确认，AI 不能自行批准（来源：文档「验收约束」及用户本轮指令）。",
+              "planDueDate": "2026-10-25",
+              "maxTaskCount": 4,
+              "generationSeq": 1,
+              "lastErrorCode": null,
+              "planStartDate": "2026-10-05",
+              "activeAttemptId": null,
+              "latestVersionId": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+              "latestVersionNo": 2,
+              "lastErrorSummary": null,
+              "selectedDocumentIdsJson": "[\"9404f695-969d-43aa-b2bb-72da262e9231\"]"
+            }
+          ],
+          "hasMore": false,
+          "nextPage": 1
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T02:39:33.167378Z"
+    },
+    {
+      "id": "8d705d4c-4a86-4c83-bd20-3ee042b5d52a",
+      "sequence": 3,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 7020,
+          "outputTokens": 77
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 1959,
+        "toolCalls": [
+          {
+            "id": "call-ebda3b07-d0de-4d74-af6c-a278238af83b",
+            "name": "get_task_plan",
+            "arguments": {
+              "planId": "1bccc896-c95b-47cc-8d96-342e704cd16a",
+              "taskLimit": 5
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 7020,
+      "completionTokens": 77,
+      "tokenUsageEstimated": false,
+      "latencyMs": 1959,
+      "errorCode": null,
+      "createdAt": "2026-10-04T02:39:36.259481Z"
+    },
+    {
+      "id": "02f9430f-2d1f-4d76-b53d-8959877af4dd",
+      "sequence": 4,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "get_task_plan",
+      "input": {
+        "arguments": {
+          "planId": "1bccc896-c95b-47cc-8d96-342e704cd16a",
+          "taskLimit": 5
+        },
+        "toolCallId": "call-ebda3b07-d0de-4d74-af6c-a278238af83b"
+      },
+      "output": {
+        "data": {
+          "draft": {
+            "risks": [
+              "三项核心能力在同一时间窗内串行推进，若会议纪要记录阶段延期，将直接推迟待办生成与人工审阅的启动，可能挤压 2026-10-25 的收尾时间。",
+              "验收标准以功能可判定结果描述，若实现过程中出现口径歧义（如待办生成的判定规则粒度），可能导致验收争议。",
+              "文档仅给出「交付小型会议纪要系统」的总体目标，未定义性能、数据量或兼容性指标，验收范围可能存在遗漏项。",
+              "规划为草稿且需人工确认，若用户在确认阶段调整任务范围或增补任务，任务总数可能突破 4 项上限。",
+              "里程碑目标日期为规划假设值，缺少中间评审节点校验，进度偏差可能无法被及时发现。"
+            ],
+            "tasks": [
+              {
+                "title": "实现会议纪要记录能力",
+                "dueDate": "2026-10-12",
+                "tempKey": "T-01",
+                "priority": "HIGH",
+                "objective": "支持创建、编辑、保存与查询会议纪要，覆盖标题、日期、参与人与正文等基本信息字段。验收标准：1) 可创建并成功保存一条含标题、日期、参与人、正文的纪要并可再次查询到完整内容；2) 编辑已保存纪要后查询结果与最新编辑一致；3) 缺少标题或日期时保存被拒绝并给出可读的错误提示；4) 纪要记录可供下游待办生成环节读取。",
+                "sortOrder": 0,
+                "startDate": "2026-10-05",
+                "assigneeId": null,
+                "sourceRefs": [
+                  "S1",
+                  "S2"
+                ],
+                "description": "实现会议纪要记录能力（规划期首项，无前置依赖）。工作范围：会议纪要的创建、编辑、保存与查询能力落地，数据结构至少包含标题、日期、参与人、正文四个基本信息字段，并对外提供供 T-02 读取的查询接口。可判定验收标准：1) 可创建并成功保存一条含标题、日期、参与人、正文的纪要，并可再次查询到完整内容；2) 编辑已保存纪要后查询结果与最新编辑内容一致；3) 缺少标题或日期时保存被拒绝并返回可读的错误提示；4) 已保存纪要可被 T-02 的待办生成环节读取且读取内容完整。优先级为 HIGH，预估 24 小时，工期 2026-10-05 至 2026-10-12，须在 T-02 启动前完成。",
+                "estimatedHours": 24,
+                "milestoneTempKey": "MS-01",
+                "dependencyTempKeys": [],
+                "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+              },
+              {
+                "title": "实现待办生成能力",
+                "dueDate": "2026-10-16",
+                "tempKey": "T-02",
+                "priority": "HIGH",
+                "objective": "基于已保存的会议纪要生成待办项。验收标准：1) 对一条包含明确行动描述的纪要执行生成后，产生至少一条待办，且每条待办可回溯到来源纪要；2) 生成结果中的待办内容与纪要中的行动描述一致，无凭空新增内容；3) 对不含行动项的纪要执行生成时，返回零待办且不报错；4) 重复对同一纪要生成不会产生重复待办。",
+                "sortOrder": 1,
+                "startDate": "2026-10-13",
+                "assigneeId": null,
+                "sourceRefs": [
+                  "S1"
+                ],
+                "description": "实现待办生成能力，唯一前置依赖为 T-01（会议纪要记录能力）。工作范围：基于已保存的会议纪要内容抽取行动描述并生成待办项，待办需携带来源纪要标识以便回溯与幂等控制。可判定验收标准：1) 对一条包含明确行动描述的纪要执行生成后，产生至少一条待办，且每条待办均可回溯到其来源纪要；2) 生成结果中的待办内容与纪要中的行动描述一致，不出现凭空新增内容；3) 对不含行动项的纪要执行生成时返回零待办且不报错；4) 重复对同一纪要执行生成不会产生重复待办；5) 生成过程与结果不修改原纪要内容。优先级为 HIGH，预估 20 小时，工期 2026-10-13 至 2026-10-16，在 T-01 交付后启动。",
+                "estimatedHours": 20,
+                "milestoneTempKey": "MS-01",
+                "dependencyTempKeys": [
+                  "T-01"
+                ],
+                "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+              },
+              {
+                "title": "实现人工审阅能力",
+                "dueDate": "2026-10-20",
+                "tempKey": "T-03",
+                "priority": "MEDIUM",
+                "objective": "提供对待办与纪要的人工审阅入口，支持通过、驳回与备注三种处理结果。验收标准：1) 审阅人可将一条待办标记为通过或驳回，并可选填写备注；2) 处理结果持久化，再次查看时状态与备注保持不变；3) 未作处理前待办处于待审阅状态，且不允许直接进入终态；4) 审阅动作在纪要详情中可见处理人与处理结果。",
+                "sortOrder": 2,
+                "startDate": "2026-10-17",
+                "assigneeId": null,
+                "sourceRefs": [
+                  "S1"
+                ],
+                "description": "实现人工审阅能力，唯一前置依赖为 T-02（待办生成能力）。工作范围：提供针对待办（及所属纪要）的人工审阅入口，支持通过、驳回与备注三类处理结果，并对未处理状态施加限制。可判定验收标准：1) 审阅人可将一条待办标记为通过或驳回，并可选填写备注；2) 处理结果持久化，再次查看时状态与备注保持不变；3) 未作处理前待办处于待审阅状态，且不允许从待审阅直接进入终态；4) 审阅动作在纪要详情中可见处理人与处理结果。优先级为 MEDIUM，预估 16 小时，工期 2026-10-17 至 2026-10-20，完成后对齐 MS-01（2026-10-20）。",
+                "estimatedHours": 16,
+                "milestoneTempKey": "MS-01",
+                "dependencyTempKeys": [
+                  "T-02"
+                ],
+                "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+              },
+              {
+                "title": "端到端串联验收与规划约束核对",
+                "dueDate": "2026-10-25",
+                "tempKey": "T-04",
+                "priority": "HIGH",
+                "objective": "在 2026-10-25 前完成一次贯穿三项能力的端到端验证，并核对规划约束。验收标准：1) 以一条真实纪要完成「记录 → 生成待办 → 人工审阅通过」的完整链路，最终状态可查；2) 三项核心能力各至少有一项判定检查通过，否则验收判定为不通过；3) 核对任务总数不超过 4 项、任务依赖图中不存在环路、所有里程碑目标日期落在 2026-10-05 至 2026-10-25 区间内，并将核对结果以文字形式汇总提交用户人工审阅；4) 验收过程中不写入正式任务，全部正式任务仅由用户确认后生效。",
+                "sortOrder": 3,
+                "startDate": "2026-10-21",
+                "assigneeId": null,
+                "sourceRefs": [
+                  "S3",
+                  "S1"
+                ],
+                "description": "端到端串联验收与规划约束核对，唯一前置依赖为 T-03（人工审阅能力），三项能力齐备后执行。工作范围：以一条真实会议纪要贯通三项能力，并复核规划本身的合规性，输出文字汇总供用户人工审阅。可判定验收标准：1) 完成「记录 → 生成待办 → 人工审阅通过」的完整链路，最终状态可查询核验；2) 三项核心能力各至少有一项判定检查通过，任一能力未通过即整体判定为不通过；3) 核对并记录任务总数不超过 4 项、任务依赖图不存在环路、全部任务与里程碑日期落在 2026-10-05 至 2026-10-25 区间内，核对结论以文字形式汇总；4) 验收过程中不写入正式任务，全部正式任务仅在用户于规划页审阅并人工确认后生效，AI 不自行批准。优先级为 HIGH，预估 8 小时，工期 2026-10-21 至 2026-10-25，收尾于规划区间末日并对齐 MS-02。",
+                "estimatedHours": 8,
+                "milestoneTempKey": "MS-02",
+                "dependencyTempKeys": [
+                  "T-03"
+                ],
+                "suggestedAssigneeId": "9c4cd312-0e99-497a-8e3b-e78f98692df0"
+              }
+            ],
+            "sources": [
+              {
+                "ref": "S1",
+                "chunkId": "e6ab2656-0c66-4516-9915-f15902b84fad",
+                "heading": "必要需求",
+                "quoteText": "支持记录会议纪要、生成待办和人工审阅。任务不超过四项，依赖无环。",
+                "documentId": "9404f695-969d-43aa-b2bb-72da262e9231",
+                "similarity": 0.7738990534965187,
+                "contentHash": "e57dd21c021c97658a0cb33d7f98af36f222d7442990616cc317ea24824bc1ef",
+                "documentName": "p4-requirements.txt"
+              },
+              {
+                "ref": "S2",
+                "chunkId": "671ee3af-a841-40f7-a5fd-f1ef24a3a681",
+                "heading": "目标",
+                "quoteText": "交付小型会议纪要系统。",
+                "documentId": "9404f695-969d-43aa-b2bb-72da262e9231",
+                "similarity": 0.6686460374016373,
+                "contentHash": "90c0f1ce4bfe804bbf7519ac0c1fdb1ef7e82bf669be81920fd0d7698be185f2",
+                "documentName": "p4-requirements.txt"
+              },
+              {
+                "ref": "S3",
+                "chunkId": "233f478b-9c16-4787-9d98-547ce38cb426",
+                "heading": "验收约束",
+                "quoteText": "日期范围2026-10-05至2026-10-25。正式任务由用户确认，AI不能自行批准。",
+                "documentId": "9404f695-969d-43aa-b2bb-72da262e9231",
+                "similarity": 0.6014434457686141,
+                "contentHash": "3772c2852d533223aa2eb003b307383c61b786d7dadef94f55df413938f4acd7",
+                "documentName": "p4-requirements.txt"
+              }
+            ],
+            "summary": "为小型会议纪要系统生成一份任务规划草稿（2026-10-05 至 2026-10-25），覆盖会议纪要记录、待办生成、人工审阅三项核心能力，并安排一次端到端验收。任务总数控制在 4 项以内，里程碑目标日期全部落在约定日期区间内，任务间依赖按单向链路设计以确保无环。每项任务的目标描述中内嵌可判定的验收标准。本输出仅为草稿，不写入正式任务、不做逐项任务提案，正式任务须由用户在规划页人工确认后生效，AI 不自行批准。",
+            "milestones": [
+              {
+                "title": "核心能力可用",
+                "tempKey": "MS-01",
+                "objective": "会议纪要记录、待办生成、人工审阅三项能力均具备可演示的最小可用形态，并通过各自的功能级判定检查；若届时仍有能力未通过判定，则里程碑不予达成并顺延至 MS-02 之前修订。",
+                "sortOrder": 0,
+                "sourceRefs": [
+                  "S1"
+                ],
+                "targetDate": "2026-10-20",
+                "description": "覆盖规划期前半段（2026-10-05 至 2026-10-20），对应任务 T-01、T-02、T-03。达成判定：三项核心能力各自具备可演示的最小可用形态，T-01、T-02、T-03 的全部验收条目均判定通过，且 T-03 的审阅结果可在纪要详情中查见处理人与处理结果；若任一能力未通过判定，本里程碑不予达成，相关任务在 2026-10-21 之前修订并重判。来源依据为文档「必要需求」中关于会议纪要记录、待办生成与人工审阅的能力要求。"
+              },
+              {
+                "title": "验收收尾完成",
+                "tempKey": "MS-02",
+                "objective": "在 2026-10-25 前完成端到端串联验证与约束核对（任务数量不超过 4 项、依赖无环、日期范围符合 2026-10-05 至 2026-10-25），确认草稿可提交用户人工审阅确认；本里程碑达成不代表正式任务获批。",
+                "sortOrder": 1,
+                "sourceRefs": [
+                  "S3",
+                  "S1"
+                ],
+                "targetDate": "2026-10-25",
+                "description": "覆盖规划期末段（2026-10-21 至 2026-10-25），对应任务 T-04。达成判定：完成一次「会议纪要记录 → 待办生成 → 人工审阅通过」的端到端串联验证并留存可复核记录；同时完成规划约束核对——任务总数不超过 4 项、任务依赖图无环、全部任务与里程碑日期落在 2026-10-05 至 2026-10-25 区间内；核对结果以文字汇总形式提交用户人工审阅。本里程碑达成仅表示规划草稿可提交确认，不代表任何正式任务获批，AI 不自行批准。"
+              }
+            ],
+            "assumptions": [
+              "日期区间 2026-10-05 至 2026-10-25 与全部里程碑目标日期一致，项目整体周期（2026-10-04 至 2026-10-31）与该区间并不冲突。",
+              "需求文档「必要需求」将任务数量上限设为 4 项，因此草稿按 4 项任务组织，不额外拆分。",
+              "任务依赖按单向链路理解（会议纪要记录 → 待办生成 → 人工审阅 → 端到端验收），不含任何反向引用，因此不存在循环依赖。",
+              "三项核心能力（会议纪要记录、待办生成、人工审阅）被视为同等必要，各自至少有一项任务覆盖。",
+              "验收标准需要在任务目标文本中可判定，因骨架字段仅允许 tempKey/title/objective/targetDate/sortOrder，故将判定条件写入 objective。",
+              "未提供具体技术栈、接口规范或既有模块信息，因此验收标准仅描述功能性可判定结果，不假设实现细节。",
+              "项目成员信息未用于本骨架（不输出建议负责人字段），任务归属由用户在确认阶段决定。"
+            ]
+          },
+          "detail": {
+            "plan": {
+              "id": "1bccc896-c95b-47cc-8d96-342e704cd16a",
+              "goal": "依据需求文档 9404f695-969d-43aa-b2bb-72da262e9231 的「必要需求」与「验收约束」，为小型会议纪要系统生成一份完整任务规划草稿：覆盖会议纪要记录、待办生成、人工审阅三条核心能力，包含至少一个里程碑，所有任务之间的依赖必须无环（不得出现循环依赖），并为每项任务给出可判定的验收标准。规划仅作为草稿，正式任务由用户在规划页确认后生效，AI 不自行批准。",
+              "title": "小型会议纪要系统任务规划（2026-10-05 至 2026-10-25）",
+              "status": "READY",
+              "createdAt": "2026-10-04T02:36:26.224331Z",
+              "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+              "projectId": "92f8592d-1c50-4e7f-bcb7-61e6bdfb610b",
+              "updatedAt": "2026-10-04T02:37:07.523748Z",
+              "constraints": "1. 任务数量上限 4 项，不得超出（来源：文档「必要需求」chunkId 07fecc02-61ee-4458-884b-06e221b71a94）。\n2. 日期范围严格限定 2026-10-05 至 2026-10-25，所有任务起止日期落在该区间内（来源：文档「验收约束」chunkId ae9319bf-84f0-4cf4-8dbf-f6df013bcc84）。\n3. 任务依赖必须无环，不得出现循环依赖（来源：文档「必要需求」）。\n4. 每项任务必须包含明确、可判定的验收标准。\n5. 规划必须包含里程碑设置。\n6. 系统功能范围限于：会议纪要记录、待办生成、人工审阅（来源：文档「必要需求」）。\n7. 本次仅生成规划草稿，不写入正式任务、不做逐项任务提案；正式任务须由用户在规划页审阅并人工确认，AI 不能自行批准（来源：文档「验收约束」及用户本轮指令）。",
+              "planDueDate": "2026-10-25",
+              "maxTaskCount": 4,
+              "generationSeq": 1,
+              "lastErrorCode": null,
+              "planStartDate": "2026-10-05",
+              "activeAttemptId": null,
+              "latestVersionId": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+              "latestVersionNo": 2,
+              "lastErrorSummary": null,
+              "selectedDocumentIdsJson": "[\"9404f695-969d-43aa-b2bb-72da262e9231\"]"
+            },
+            "validation": {
+              "errors": [],
+              "warnings": [
+                "TASK_UNASSIGNED",
+                "TASK_UNASSIGNED",
+                "TASK_UNASSIGNED",
+                "TASK_UNASSIGNED"
+              ]
+            },
+            "permissions": {
+              "canEdit": true,
+              "canCancel": false,
+              "canDelete": true,
+              "canConfirm": true,
+              "canRestore": true,
+              "canRegenerate": true,
+              "canRetryDetail": false,
+              "canPartialRegenerate": true
+            },
+            "confirmation": null,
+            "activeAttempt": null,
+            "latestAttempt": {
+              "id": "2d050614-5981-4fc5-8695-c0ca80710870",
+              "model": "space-bunny-free",
+              "stage": "DETAIL",
+              "status": "SUCCESS",
+              "provider": "OPENAI_COMPATIBLE",
+              "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+              "errorCode": null,
+              "latencyMs": 16755,
+              "startedAt": "2026-10-04 10:36:50.56838",
+              "finishedAt": "2026-10-04 10:37:07.624488",
+              "errorSummary": null,
+              "promptTokens": 3338,
+              "completionTokens": 2007
+            },
+            "latestVersion": {
+              "id": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+              "createdAt": "2026-10-04 10:37:07.523748",
+              "createdBy": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+              "versionNo": 2,
+              "sourceType": "AI_COMPLETE",
+              "basedOnVersionId": "9ce2f18e-50ab-4753-9ed7-d970a4d36744"
+            },
+            "structuredIssues": [
+              {
+                "id": "22697e77-7860-457e-bf18-af14be910de4",
+                "code": "TASK_UNASSIGNED",
+                "field": "assigneeId",
+                "severity": "WARNING",
+                "targetType": "TASK",
+                "safeDetails": {},
+                "targetTempKey": "T-01",
+                "relatedTempKey": null
+              },
+              {
+                "id": "878a26bb-e630-4848-aa29-d12ea0d7dd4f",
+                "code": "TASK_UNASSIGNED",
+                "field": "assigneeId",
+                "severity": "WARNING",
+                "targetType": "TASK",
+                "safeDetails": {},
+                "targetTempKey": "T-02",
+                "relatedTempKey": null
+              },
+              {
+                "id": "f590fa2f-675c-462b-83fc-ea5a7b8548f6",
+                "code": "TASK_UNASSIGNED",
+                "field": "assigneeId",
+                "severity": "WARNING",
+                "targetType": "TASK",
+                "safeDetails": {},
+                "targetTempKey": "T-03",
+                "relatedTempKey": null
+              },
+              {
+                "id": "e40f424e-9011-418e-8029-4be95839581b",
+                "code": "TASK_UNASSIGNED",
+                "field": "assigneeId",
+                "severity": "WARNING",
+                "targetType": "TASK",
+                "safeDetails": {},
+                "targetTempKey": "T-04",
+                "relatedTempKey": null
+              }
+            ],
+            "repairDiagnostics": [],
+            "latestFailedAttempt": null
+          },
+          "hasMore": false,
+          "version": {
+            "id": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+            "createdAt": "2026-10-04T02:37:07.523748Z",
+            "versionNo": 2,
+            "sourceType": "AI_COMPLETE",
+            "basedOnVersionId": "9ce2f18e-50ab-4753-9ed7-d970a4d36744"
+          },
+          "coverage": "TASK_PAGE_AND_PLAN_CONTEXT",
+          "fromTask": 0,
+          "versions": [
+            {
+              "id": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+              "createdAt": "2026-10-04T02:37:07.523748Z",
+              "versionNo": 2,
+              "sourceType": "AI_COMPLETE",
+              "basedOnVersionId": "9ce2f18e-50ab-4753-9ed7-d970a4d36744"
+            },
+            {
+              "id": "9ce2f18e-50ab-4753-9ed7-d970a4d36744",
+              "createdAt": "2026-10-04T02:36:50.403238Z",
+              "versionNo": 1,
+              "sourceType": "AI_SKELETON",
+              "basedOnVersionId": null
+            }
+          ],
+          "totalTasks": 4,
+          "nextFromTask": 4,
+          "baseVersionId": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+          "expectedVersionNo": 2,
+          "versionsTruncated": false
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T02:39:36.417517Z"
+    },
+    {
+      "id": "4516078d-efd1-47e6-a80f-09f9bc84b901",
+      "sequence": 5,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 8337,
+          "outputTokens": 318
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 6104,
+        "toolCalls": [
+          {
+            "id": "call-83c7a15f-7f47-4127-85ee-c67894815605",
+            "name": "list_project_members",
+            "arguments": {}
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 8337,
+      "completionTokens": 318,
+      "tokenUsageEstimated": false,
+      "latencyMs": 6104,
+      "errorCode": null,
+      "createdAt": "2026-10-04T02:39:43.665833Z"
+    },
+    {
+      "id": "95f5c1d0-93a5-4ba2-936f-6bee141a1c4f",
+      "sequence": 6,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "list_project_members",
+      "input": {
+        "arguments": {},
+        "toolCallId": "call-83c7a15f-7f47-4127-85ee-c67894815605"
+      },
+      "output": {
+        "data": {
+          "count": 1,
+          "items": [
+            {
+              "role": "OWNER",
+              "userId": "9c4cd312-0e99-497a-8e3b-e78f98692df0",
+              "username": "owner",
+              "displayName": "Local Owner"
+            }
+          ]
+        },
+        "error": null,
+        "status": "SUCCEEDED",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": "TOOL_SUCCESS",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T02:39:43.727656Z"
+    },
+    {
+      "id": "7d396d5f-80c7-4a99-bf0c-a0c8e0f1fcd0",
+      "sequence": 7,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 7505,
+          "outputTokens": 536
+        },
+        "content": "",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 9017,
+        "toolCalls": [
+          {
+            "id": "call-458ce041-b762-4198-8700-f7ba57b14171",
+            "name": "repair_task_plan",
+            "arguments": {
+              "planId": "1bccc896-c95b-47cc-8d96-342e704cd16a",
+              "repair": {
+                "mode": "PATCH",
+                "lockedFields": [
+                  "planStartDate",
+                  "planDueDate",
+                  "tasks.startDate",
+                  "tasks.dueDate",
+                  "tasks.milestoneTempKey",
+                  "tasks.dependencyTempKeys",
+                  "milestones"
+                ],
+                "allowedFields": [
+                  "tasks.suggestedAssigneeId"
+                ],
+                "baseVersionId": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+                "targetTempKeys": [
+                  "T-01"
+                ],
+                "userInstructions": "仅把第一项任务「实现会议纪要记录能力」（tempKey T-01）的建议负责人改为 Local Owner（userId 9c4cd312-0e99-497a-8e3b-e78f98692df0）。其他任务、里程碑、依赖关系，以及全部任务的开始日期与截止日期一律保持不变。仅生成草稿修订，不确认正式任务。",
+                "expectedVersionNo": 2
+              }
+            }
+          }
+        ],
+        "batchHandled": true,
+        "finishReason": "TOOL_CALLS"
+      },
+      "reason": "",
+      "promptTokens": 7505,
+      "completionTokens": 536,
+      "tokenUsageEstimated": false,
+      "latencyMs": 9017,
+      "errorCode": null,
+      "createdAt": "2026-10-04T02:39:53.873633Z"
+    },
+    {
+      "id": "1d755208-cc4f-4ecd-a665-65036becd4a1",
+      "sequence": 8,
+      "type": "TOOL_CALL_COMPLETED",
+      "toolName": "repair_task_plan",
+      "input": {
+        "arguments": {
+          "planId": "1bccc896-c95b-47cc-8d96-342e704cd16a",
+          "repair": {
+            "mode": "PATCH",
+            "lockedFields": [
+              "planStartDate",
+              "planDueDate",
+              "tasks.startDate",
+              "tasks.dueDate",
+              "tasks.milestoneTempKey",
+              "tasks.dependencyTempKeys",
+              "milestones"
+            ],
+            "allowedFields": [
+              "tasks.suggestedAssigneeId"
+            ],
+            "baseVersionId": "3d04f88d-4652-458f-b2f5-6d67d6f97311",
+            "targetTempKeys": [
+              "T-01"
+            ],
+            "userInstructions": "仅把第一项任务「实现会议纪要记录能力」（tempKey T-01）的建议负责人改为 Local Owner（userId 9c4cd312-0e99-497a-8e3b-e78f98692df0）。其他任务、里程碑、依赖关系，以及全部任务的开始日期与截止日期一律保持不变。仅生成草稿修订，不确认正式任务。",
+            "expectedVersionNo": 2
+          }
+        },
+        "toolCallId": "call-458ce041-b762-4198-8700-f7ba57b14171"
+      },
+      "output": {
+        "error": "VALIDATION_ERROR",
+        "status": "FAILED",
+        "message": "工具执行失败",
+        "retryable": false
+      },
+      "reason": "TOOL_ERROR",
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T02:39:53.962857Z"
+    },
+    {
+      "id": "03acdcc9-58be-4115-9e20-dcc35a65111d",
+      "sequence": 9,
+      "type": "MODEL_TURN",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "model": "space-bunny-free",
+        "usage": {
+          "inputTokens": 7888,
+          "outputTokens": 2023
+        },
+        "content": "局部修复没有执行成功，我没有创建新规划，也没有确认任何正式任务。先说明发生了什么。\n\n## 1. 修复调用结果\n`repair_task_plan`（planId `1bccc896-c95b-47cc-8d96-342e704cd16a`）返回：\n- status `FAILED`，errorCode `VALIDATION_ERROR`\n- retryable: `false`\n\n版本绑定本身是对的：`baseVersionId` / `expectedVersionNo` 与当前最新版本一致（versionNo 2，latestVersionId `3d04f88d-4652-458f-b2f5-6d67d6f97311`，计划状态 READY）。\n\n## 2. 但你要的改动可能已经是现状\n读到的第一项任务与项目成员如下：\n\n| 项 | 值 |\n|---|---|\n| tempKey | T-01 |\n| 标题 | 实现会议纪要记录能力 |\n| suggestedAssigneeId | `9c4cd312-0e99-497a-8e3b-e78f98692df0` |\n| assigneeId（正式负责人） | `null` |\n| 开始 / 截止 | 2026-10-05 / 2026-10-12 |\n| 里程碑 / 优先级 | MS-01 / HIGH |\n| 依赖 | 空（无上游） |\n\n项目成员共 1 人：\n| userId | displayName | username | role |\n|---|---|---|---|\n| `9c4cd312-0e99-497a-8e3b-e78f98692df0` | **Local Owner** | owner | OWNER |\n\n**T-01 的建议负责人当前就已经是 Local Owner**，而且 Local Owner 是项目里唯一的可选成员。所以「把 T-01 的建议负责人改为 Local Owner」在事实上是一次无变化的修订 —— 这很可能是校验失败的原因（*推断*：我不掌握该校验的具体规则，另一个可能原因是 `mode` 参数取值不被接受，这需要你或系统侧确认）。\n\n## 3. 需要你确认的一点\n「建议负责人」（`suggestedAssigneeId`，规划草稿中的建议值，当前为 Local Owner）和「正式负责人」（`assigneeId`，当前为 `null`）是两个不同字段。如果你要的是把**正式负责人**设为 Local Owner，那是另一回事 —— 但那属于正式任务写入，需要你在规划页审阅确认，我不会代为执行。\n\n## 4. 下一步\n请告诉我按哪种方式继续：\n1. 就按现状处理 —— 不再提交修订，你在规划页直接审阅 versionNo 2；\n2. 重新尝试一次修复（请告知可接受的 `mode` 取值）；\n3. 你实际想改的是 T-01 的正式负责人或别的字段，请指明。\n\n补充说明：本轮 `get_task_plan` 返回的是确定性投影（totalTasks=4，实际只返回 T-01），T-02 至 T-04 我没有读到；但它们本次不需要改动，我没有扩大查询去读取它们。",
+        "provider": "OPENAI_COMPATIBLE",
+        "latencyMs": 32653,
+        "toolCalls": [],
+        "batchHandled": true,
+        "finishReason": "STOP"
+      },
+      "reason": "局部修复没有执行成功，我没有创建新规划，也没有确认任何正式任务。先说明发生了什么。\n\n## 1. 修复调用结果\n`repair_task_plan`（planId `1bccc896-c95b-47cc-8d96-342e704cd16a`）返回：\n- status `FAILED`，errorCode `VALIDATION_ERROR`\n- retryable: `false`\n\n版本绑定本身是对的：`baseVersionId` / `expectedVersionNo` 与当前最新版本一致（versionNo 2，latestVersionId `3d04f88d-4652-458f-b2f5-6d67d6f97311`，计划状态 READY）。\n\n## 2. 但你要的改动可能已经是现状\n读到的第一项任务与项目成员如下：\n\n| 项 | 值 |\n|---|---|\n| tempKey | T-01 |\n| 标题 | 实现会议纪要记录能力 |\n| suggestedAssigneeId | `9c4cd312-0e99-497a-8e3b-e78f98692df0` |\n| assigneeId（正式负责人） | `null` |\n| 开始 / 截止 | 2026-10-05 / 2026-10-12 |\n| 里程碑 / 优先级 | MS-01 / HIGH |\n| 依赖 | 空（无上游） |\n\n项目成员共 1 人：\n| userId | displayName | username | role |\n|---|---|---|---|\n| `9c4cd312-0e99-497a-8e3b-e78f98692df0` | **Local Owner** | owner | OWNER |\n\n**T-01 的建议负责人当前就已经是 Local Owner**，而且 Local Owner 是项目里唯一的可选成员。所以「把 T-01 的建议负责人改为 Local Owner」在事实上是一次无变化的修订 —— 这很可能是校验失败的原因（*推断*：我不掌握该校验的具体规则，另一个可能原因是 `mode` 参数取值不被接受，这需要你或系统侧确认）。\n\n## 3. 需要你确认的一点\n「建议负责人」（`suggestedAssigneeId`，规划草稿中的建议值，当前为 Local Owner）和「正式负责人」（`assigneeId`，当前为 `null`）是两个不同字段。如果你要的是把**正式负责人**设为 Local Owner，那是另一回事 —— 但那属于正式任务写入，需要你在规划页审阅确认，我不会代为执行。\n\n## 4. 下一步\n请告诉我按哪种方式继续：\n1. 就按现状处理 —— 不再提交修订，你在规划页直接审阅 versionNo 2；\n2. 重新尝试一次修复（请告知可接受的 `mode` 取值）；\n3. 你实际想改的是 T-01 的正式负责人或别的字段，请指明。\n\n补充说明：本轮 `get_task_plan` 返回的是确定性投影（totalTasks=4，实际只返回 T-01），T-02 至 T-04 我没有读到；但它们本次不需要改动，我没有扩大查询去读取它们。",
+      "promptTokens": 7888,
+      "completionTokens": 2023,
+      "tokenUsageEstimated": false,
+      "latencyMs": 32653,
+      "errorCode": null,
+      "createdAt": "2026-10-04T02:40:27.690094Z"
+    },
+    {
+      "id": "72d2ffa1-cc3d-4b25-b819-520794648217",
+      "sequence": 10,
+      "type": "FINAL_ANSWER",
+      "toolName": null,
+      "input": null,
+      "output": {
+        "answer": "局部修复没有执行成功，我没有创建新规划，也没有确认任何正式任务。先说明发生了什么。\n\n## 1. 修复调用结果\n`repair_task_plan`（planId `1bccc896-c95b-47cc-8d96-342e704cd16a`）返回：\n- status `FAILED`，errorCode `VALIDATION_ERROR`\n- retryable: `false`\n\n版本绑定本身是对的：`baseVersionId` / `expectedVersionNo` 与当前最新版本一致（versionNo 2，latestVersionId `3d04f88d-4652-458f-b2f5-6d67d6f97311`，计划状态 READY）。\n\n## 2. 但你要的改动可能已经是现状\n读到的第一项任务与项目成员如下：\n\n| 项 | 值 |\n|---|---|\n| tempKey | T-01 |\n| 标题 | 实现会议纪要记录能力 |\n| suggestedAssigneeId | `9c4cd312-0e99-497a-8e3b-e78f98692df0` |\n| assigneeId（正式负责人） | `null` |\n| 开始 / 截止 | 2026-10-05 / 2026-10-12 |\n| 里程碑 / 优先级 | MS-01 / HIGH |\n| 依赖 | 空（无上游） |\n\n项目成员共 1 人：\n| userId | displayName | username | role |\n|---|---|---|---|\n| `9c4cd312-0e99-497a-8e3b-e78f98692df0` | **Local Owner** | owner | OWNER |\n\n**T-01 的建议负责人当前就已经是 Local Owner**，而且 Local Owner 是项目里唯一的可选成员。所以「把 T-01 的建议负责人改为 Local Owner」在事实上是一次无变化的修订 —— 这很可能是校验失败的原因（*推断*：我不掌握该校验的具体规则，另一个可能原因是 `mode` 参数取值不被接受，这需要你或系统侧确认）。\n\n## 3. 需要你确认的一点\n「建议负责人」（`suggestedAssigneeId`，规划草稿中的建议值，当前为 Local Owner）和「正式负责人」（`assigneeId`，当前为 `null`）是两个不同字段。如果你要的是把**正式负责人**设为 Local Owner，那是另一回事 —— 但那属于正式任务写入，需要你在规划页审阅确认，我不会代为执行。\n\n## 4. 下一步\n请告诉我按哪种方式继续：\n1. 就按现状处理 —— 不再提交修订，你在规划页直接审阅 versionNo 2；\n2. 重新尝试一次修复（请告知可接受的 `mode` 取值）；\n3. 你实际想改的是 T-01 的正式负责人或别的字段，请指明。\n\n补充说明：本轮 `get_task_plan` 返回的是确定性投影（totalTasks=4，实际只返回 T-01），T-02 至 T-04 我没有读到；但它们本次不需要改动，我没有扩大查询去读取它们。",
+        "citations": [],
+        "inferences": []
+      },
+      "reason": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "tokenUsageEstimated": false,
+      "latencyMs": null,
+      "errorCode": null,
+      "createdAt": "2026-10-04T02:40:27.70353Z"
+    }
+  ]
+}

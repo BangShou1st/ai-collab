@@ -1,0 +1,3 @@
+{"name":"quoted marker is ordinary prose","passed":false,"input":"Explain the `[QUESTIONS]` protocol.\nExample path: C:\\new\\notes.txt","actual":{"text":"Explain the `","questions":"` protocol.\nExample path: C:\new\notes.txt"}}
+{"name":"marker inside fenced code is not a control region","passed":false,"input":"Protocol example:\n```text\n[QUESTIONS]\\nQuestion one\n```\nFinal ordinary prose.","actual":{"text":"Protocol example:\n```text","questions":"Question one\n```\nFinal ordinary prose."}}
+{"tests":2,"failures":2,"errors":0}

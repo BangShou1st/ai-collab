@@ -36,6 +36,7 @@ class AgentWorkerNativeTurnTest {
 
     @Test
     void inputTokenBudgetExceededStopsBeforeCoordinator() {
+        // v1 兼容路径：累计输入到限仍拦截下一次请求
         AgentRunView run = inputTokensExhausted();
         AgentRepository repository = mock(AgentRepository.class);
         when(repository.findRun(run.projectId(), run.id())).thenReturn(Optional.of(run));
@@ -50,6 +51,7 @@ class AgentWorkerNativeTurnTest {
 
     @Test
     void outputTokenBudgetExceededStopsBeforeCoordinator() {
+        // v1 兼容路径：累计输出到限仍拦截下一次请求
         AgentRunView run = outputTokensExhausted();
         AgentRepository repository = mock(AgentRepository.class);
         when(repository.findRun(run.projectId(), run.id())).thenReturn(Optional.of(run));
@@ -60,6 +62,39 @@ class AgentWorkerNativeTurnTest {
 
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
         verify(coordinator, never()).advance(any());
+    }
+
+    /**
+     * v2 回归：累计输入/输出远超旧 50k/20k 上限（甚至超过已撤回的 8M 建议值）时，
+     * Worker 前置检查<b>不</b>因累计 token 拦截下一次请求——只统计，不参与准入。
+     */
+    @Test
+    void v2CumulativeTokensNeverBlockNextRequest() {
+        AgentRunView run = v2WithHugeCumulativeUsage();
+        AgentRepository repository = mock(AgentRepository.class);
+        when(repository.findRun(run.projectId(), run.id())).thenReturn(Optional.of(run));
+        AgentRuntimeCoordinator coordinator = mock(AgentRuntimeCoordinator.class);
+        when(coordinator.advance(run)).thenReturn(
+                new AgentWorkerOutcome(AgentRunStatus.SUCCEEDED, "完成", null, null));
+
+        AgentWorkerOutcome outcome = new AgentWorker(repository, coordinator)
+                .process(claimed(run));
+
+        assertThat(outcome.status()).as("v2 不因累计 token 拒绝下一次请求")
+                .isEqualTo(AgentRunStatus.SUCCEEDED);
+        verify(coordinator).advance(run);
+    }
+
+    /** v2 运行：无累计上限（NULL），累计用量远超旧常量，但自身执行额度仍有余额。 */
+    private AgentRunView v2WithHugeCumulativeUsage() {
+        OffsetDateTime now = OffsetDateTime.now();
+        return new AgentRunView(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
+                64, 64, 3, null, null,
+                3, 2, 0, 9_000_000, 5_000_000, 9_000_000L, 5_000_000L, false,
+                false, false, 0, null, null, null, null, 1,
+                com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy.V2, false, now, now);
     }
 
     @Test
@@ -86,7 +121,7 @@ class AgentWorkerNativeTurnTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 12, 8, 3, 50_000, 20_000,
-                steps, tools, 0, 0, 0, false,
+                steps, tools, 0, 0, 0, 0, 0, false,
                 false, false, 0, null, null, null, null, 1, now, now);
     }
 
@@ -96,7 +131,7 @@ class AgentWorkerNativeTurnTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 12, 8, 3, 1000, 20_000,
-                0, 0, 0, 1000, 0, false,
+                0, 0, 0, 1000, 0, 0, 0, false,
                 false, false, 0, null, null, null, null, 1, now, now);
     }
 
@@ -106,7 +141,7 @@ class AgentWorkerNativeTurnTest {
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 null, "SUPERVISOR", 0, "检查项目", AgentRunStatus.RUNNING,
                 12, 8, 3, 50_000, 100,
-                0, 0, 0, 0, 100, false,
+                0, 0, 0, 0, 100, 0, 0, false,
                 false, false, 0, null, null, null, null, 1, now, now);
     }
 

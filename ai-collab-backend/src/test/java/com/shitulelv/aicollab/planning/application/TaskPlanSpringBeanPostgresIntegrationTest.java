@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.planning.application;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.common.testing.MinioTestImage;
 import com.shitulelv.aicollab.planning.api.CreateTaskPlanRequest;
 import com.shitulelv.aicollab.planning.api.PartialRegenerateRequest;
 import com.shitulelv.aicollab.planning.api.SaveTaskPlanVersionRequest;
@@ -65,7 +66,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     private static final String MINIO_SECRET_KEY = "phase08-secret-key";
     @Container
     static final GenericContainer<?> MINIO =
-            new GenericContainer<>(DockerImageName.parse("quay.io/minio/minio:latest"))
+            new GenericContainer<>(DockerImageName.parse(MinioTestImage.IMAGE))
                     .withExposedPorts(9000)
                     .withEnv("MINIO_ROOT_USER", MINIO_ACCESS_KEY)
                     .withEnv("MINIO_ROOT_PASSWORD", MINIO_SECRET_KEY)
@@ -90,16 +91,225 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     @Autowired TaskPlanVersionCommitService commits;
     @Autowired TaskPlanGenerationOrchestrator orchestrator;
     @Autowired TaskPlanRepository repository;
+    @Autowired TaskPlanQueryService queries;
     @Autowired TaskPlanIssueRepository issues;
     @Autowired TaskPlanActionPolicy actionPolicy;
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;
     @Autowired WorkReportService workReports;
+    @Autowired com.shitulelv.aicollab.agent.application.AgentPlanningOperationService agentOperations;
+    @Autowired com.shitulelv.aicollab.agent.application.AgentPlanningRecoveryJob agentRecovery;
+    @Autowired com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository agents;
+    @Autowired com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry agentTools;
     @MockitoBean TaskPlanModelClient model;
+    @Autowired PlanningModelConfigurationStore planningConfigurations;
+
+    @Test void planningConfigurationIdentitySurvivesReloadAndRejectsEdits() {
+        var f=fixture("planning-config"); UUID id=UUID.randomUUID(), generation=UUID.randomUUID();
+        jdbc.update("INSERT INTO user_ai_provider(id,user_id,name,provider_type,base_url,model_name,is_default,enabled) VALUES (?,?,'planning-test','OPENAI_COMPATIBLE','https://example.com','fixture-model',true,true)",id,f.user());
+        var pinned=planningConfigurations.require(f.user(),generation,1200);
+        assertThat(pinned.id()).isEqualTo(id);
+        assertThat(planningConfigurations.require(f.user(),generation,1200).id()).isEqualTo(id);
+        assertThat(jdbc.queryForObject("SELECT snapshot->>'maxOutputTokens' FROM planning_model_snapshot WHERE generation_id=?",String.class,generation)).isEqualTo("1200");
+        jdbc.update("UPDATE user_ai_provider SET model_name='changed',updated_at=updated_at+interval '1 second' WHERE id=?",id);
+        assertThatThrownBy(()->planningConfigurations.require(f.user(),generation,1200)).isInstanceOf(BusinessException.class);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM planning_model_snapshot WHERE generation_id=?",Integer.class,generation)).isEqualTo(1);
+    }
 
     @BeforeEach
     void resetModel() {
         reset(model);
+    }
+
+    @Test void queuedDetailRecoveryAfterRevocationDoesNotCallModelOrReplaceSkeleton() throws Exception {
+        var f=fixture("detail-revoked");
+        var session=agents.createSession(f.project(),f.user(),"详情排队");
+        var request=json.valueToTree(request("排队详情"));
+        var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
+        var plan=repository.create(f.project(),f.user(),request("排队详情"));
+        var draft=json.readValue(skeleton(),TaskPlanDraft.class);
+        UUID version=repository.appendVersion(f.project(),plan.id(),null,"AI_SKELETON",null,draft,f.user(),null,TaskPlanStatus.DETAIL_GENERATING);
+        UUID attempt=repository.startDetailAfterSkeleton(f.project(),plan.id(),f.user());
+        UUID operation=UUID.randomUUID();
+        jdbc.update("INSERT INTO agent_planning_operation(id,invocation_id,project_id,requester_id,session_id,origin_run_id,goal_revision,kind,request_json,plan_id,attempt_id,generation_seq) VALUES (?,?,?,?,?,?,1,'start_task_plan',?::jsonb,?,?,?)",operation,ctx.invocationId(),f.project(),f.user(),session.id(),ctx.runId(),request.toString(),plan.id(),plan.activeAttemptId(),plan.generationSeq());
+        jdbc.update("UPDATE ai_task_plan_attempt SET updated_at=now()-interval '1 minute' WHERE id=?",attempt);
+        jdbc.update("DELETE FROM project_member WHERE project_id=? AND user_id=?",f.project(),f.user());
+        agentRecovery.recover();
+        var failed=awaitStatus(f.project(),plan.id(),Set.of(TaskPlanStatus.DETAIL_GENERATION_FAILED));
+        agentRecovery.recover();
+        org.mockito.Mockito.verify(model,org.mockito.Mockito.never()).generate(anyString(),anyString(),anyString(),any(),any(),any(),any());
+        assertThat(failed.latestVersionId()).isEqualTo(version);
+        assertThat(repository.versions(f.project(),plan.id())).hasSize(1);
+        assertThat(repository.draft(repository.requireVersion(f.project(),plan.id(),version))).isEqualTo(draft);
+        assertThat(jdbc.queryForObject("SELECT status FROM ai_task_plan_attempt WHERE id=?",String.class,attempt)).isEqualTo("FAILED");
+        assertThat(jdbc.queryForObject("SELECT error_code FROM ai_task_plan_attempt WHERE id=?",String.class,attempt)).isNotBlank();
+        assertThat(jdbc.queryForObject("SELECT status FROM agent_planning_operation WHERE id=?",String.class,operation)).isEqualTo("DETAIL_GENERATION_FAILED");
+    }
+
+    @Autowired com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService providers;
+    @Test void operationListSynchronizesOnlyRequestedProjectAndSession() {
+        var f=fixture("list-scope"); var other=fixture("other-project");
+        var selected=agents.createSession(f.project(),f.user(),"selected");
+        var unselected=agents.createSession(f.project(),f.user(),"unselected");
+        var foreign=agents.createSession(other.project(),other.user(),"foreign");
+        UUID selectedOp=readyOperation(f,selected.id()), unselectedOp=readyOperation(f,unselected.id()), foreignOp=readyOperation(other,foreign.id());
+        var listed=agentOperations.list(f.project(),selected.id(),f.user());
+        assertThat(listed).hasSize(1); assertThat(listed.getFirst().path("operationId").asText()).isEqualTo(selectedOp.toString());
+        assertThat(listed.getFirst().path("status").asText()).isEqualTo("READY");
+        for(UUID untouched:List.of(unselectedOp,foreignOp)) {
+            assertThat(jdbc.queryForObject("SELECT status FROM agent_planning_operation WHERE id=?",String.class,untouched)).isEqualTo("ACCEPTED");
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_planning_operation_event WHERE operation_id=?",Integer.class,untouched)).isZero();
+        }
+    }
+    private UUID readyOperation(Fixture f,UUID session) {
+        var request=json.valueToTree(request("list fixture")); var ctx=agentInvocation(f,session,"start_task_plan",request);
+        var plan=repository.create(f.project(),f.user(),request("list fixture"));
+        repository.appendVersion(f.project(),plan.id(),null,"AI_COMPLETE",null,new TaskPlanDraft("preserved",List.of(),List.of(),List.of(),List.of(),List.of()),f.user(),null,TaskPlanStatus.READY);
+        UUID operation=UUID.randomUUID();
+        jdbc.update("INSERT INTO agent_planning_operation(id,invocation_id,project_id,requester_id,session_id,origin_run_id,goal_revision,kind,request_json,plan_id,attempt_id,generation_seq) VALUES (?,?,?,?,?,?,1,'start_task_plan',?::jsonb,?,?,?)",operation,ctx.invocationId(),f.project(),f.user(),session,ctx.runId(),request.toString(),plan.id(),plan.activeAttemptId(),plan.generationSeq());
+        return operation;
+    }
+    @Test void recoveredClientPassesPersistedOutputBudgetToActualGatewayCall() {
+        var f=fixture("persisted-budget"); UUID id=UUID.randomUUID(),generation=UUID.randomUUID();
+        jdbc.update("INSERT INTO user_ai_provider(id,user_id,name,provider_type,base_url,model_name,is_default,enabled) VALUES (?,?,'budget-test','OPENAI_COMPATIBLE','https://example.com','fixture-model',true,true)",id,f.user());
+        var routing=org.mockito.Mockito.mock(com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGateway.class);
+        when(routing.completeWithSnapshot(any(),any(),any(),any())).thenReturn(new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult("{}","fixture","fixture",1,1,1L));
+        for(int applicationBudget:List.of(1200,9000)) {
+            var props=new com.shitulelv.aicollab.planning.infrastructure.ai.PlanningModelProperties(true,"openai","https://example.com","/v1","test-only","fixture",java.time.Duration.ofSeconds(30),java.time.Duration.ofSeconds(60),0.0,applicationBudget,5,10000,0.5,10);
+            var client=new TaskPlanModelClient(props,org.mockito.Mockito.mock(com.shitulelv.aicollab.infrastructure.ai.AiCallLogWriter.class),routing);
+            client.configureProviders(providers);
+            org.springframework.test.util.ReflectionTestUtils.setField(client,"configurationStore",planningConfigurations);
+            try(var scope=client.openSnapshot()) {client.generate("system","data","DETAIL",f.user(),f.project(),UUID.randomUUID(),generation);}
+        }
+        var budgets=org.mockito.ArgumentCaptor.forClass(Integer.class);
+        org.mockito.Mockito.verify(routing,org.mockito.Mockito.times(2)).completeWithSnapshot(any(),any(),any(),budgets.capture());
+        assertThat(budgets.getAllValues()).containsExactly(1200,1200);
+    }
+
+    @Test
+    void agentPlanningOperationsReplayRepairAndManualConfirmationUseRealTransactions() throws Exception {
+        var f=fixture("agent-plan");stubLegalGeneration();
+        var session=agents.createSession(f.project(),f.user(),"资料规划");
+        var request=json.valueToTree(request("Agent 规划"));
+        var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
+        // 新策略（v2）根运行的独立执行额度；v1 才按 Skill 额度 24/16 落库
+        assertThat(agents.findRun(f.project(),ctx.runId()).orElseThrow().maxSteps()).isEqualTo(64);
+        assertThat(agents.findRun(f.project(),ctx.runId()).orElseThrow().maxToolCalls()).isEqualTo(64);
+        var accepted=agentOperations.mutate(ctx,"start_task_plan",request);
+        UUID operation=UUID.fromString(accepted.path("operationId").asText());UUID plan=UUID.fromString(accepted.path("planId").asText());
+        var replay=agentOperations.mutate(ctx,"start_task_plan",request);
+        assertThat(replay.path("operationId")).isEqualTo(accepted.path("operationId"));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_task_plan WHERE project_id=?",Integer.class,f.project())).isEqualTo(1);
+        var ready=awaitStatus(f.project(),plan,Set.of(TaskPlanStatus.READY));
+        var readTool=agentTools.find("get_task_plan").orElseThrow();
+        var observed=readTool.execute(ctx,json.createObjectNode().put("planId",plan.toString()).put("taskLimit",1));
+        var sanitized=new com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer(json).sanitize(json.valueToTree(observed));
+        assertThat(sanitized.path("data").path("version").path("id").asText()).isEqualTo(ready.latestVersionId().toString());
+        assertThat(sanitized.path("data").path("draft").path("tasks")).hasSize(1);
+        assertThat(sanitized.path("data").path("draft").path("tasks").get(0).path("tempKey").asText()).isEqualTo("t1");
+        assertThat(sanitized.path("data").path("hasMore").asBoolean()).isTrue();
+        assertThat(sanitized.path("data").path("versions").get(0).has("tasksJson")).isFalse();
+        var terminal=agentOperations.get(f.project(),operation,f.user());assertThat(terminal.path("status").asText()).isEqualTo("READY");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_planning_operation_event WHERE operation_id=? AND status='READY'",Integer.class,operation)).isEqualTo(1);
+        agentOperations.synchronizeOperations();agentOperations.synchronizeOperations();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_planning_operation_event WHERE operation_id=? AND status='READY'",Integer.class,operation)).isEqualTo(1);
+        assertThatThrownBy(()->agentOperations.mutate(ctx,"start_task_plan",((com.fasterxml.jackson.databind.node.ObjectNode)request.deepCopy()).put("title","同键不同参数"))).isInstanceOf(BusinessException.class);
+        var original=repository.draft(repository.requireVersion(f.project(),plan,ready.latestVersionId()));
+        when(model.generate(anyString(),anyString(),eq("TASK_PLAN_REPAIR_PATCH"),any(),any(),any(),any())).thenReturn(result("{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"t1\",\"description\":\"修订后的说明\"}]}"));
+        var repair=json.createObjectNode().put("planId",plan.toString());
+        repair.set("repair",json.valueToTree(new PartialRegenerateRequest(ready.latestVersionId(),ready.latestVersionNo(),List.of("t1"),Set.of("description"),Set.of("startDate","dueDate"),List.of(),PartialRegenerateRequest.REGENERATE_SELECTED_TASK_DETAILS)));
+        var repairCtx=agentInvocation(f,session.id(),"repair_task_plan",repair);
+        var repairOperation=agentOperations.mutate(repairCtx,"repair_task_plan",repair);
+        var repaired=awaitStatus(f.project(),plan,Set.of(TaskPlanStatus.READY));
+        assertThat(repaired.latestVersionNo()).isEqualTo(ready.latestVersionNo()+1);
+        var draft=repository.draft(repository.requireVersion(f.project(),plan,repaired.latestVersionId()));
+        assertThat(draft.tasks().getFirst().description()).isEqualTo("修订后的说明");
+        assertThat(draft.tasks().getFirst().startDate()).isEqualTo(original.tasks().getFirst().startDate());
+        assertThat(draft.tasks().getFirst().dueDate()).isEqualTo(original.tasks().getFirst().dueDate());
+        assertThat(agentOperations.mutate(repairCtx,"repair_task_plan",repair).path("operationId")).isEqualTo(repairOperation.path("operationId"));
+        // Simulate lost/late completion event: a subsequent repair must not become the original operation result.
+        jdbc.update("UPDATE agent_planning_operation SET status='ACCEPTED',result_version_id=null WHERE id=?",operation);
+        assertThat(agentOperations.get(f.project(),operation,f.user()).path("versionId").asText()).isEqualTo(ready.latestVersionId().toString());
+        assertThatThrownBy(()->confirmations.confirm(f.project(),plan,ready.latestVersionId(),UUID.randomUUID(),f.user())).isInstanceOf(BusinessException.class);
+        UUID key=UUID.randomUUID();var confirmed=confirmations.confirm(f.project(),plan,repaired.latestVersionId(),key,f.user());
+        assertThat((com.fasterxml.jackson.databind.JsonNode)json.valueToTree(confirmations.confirm(f.project(),plan,repaired.latestVersionId(),key,f.user()))).isEqualTo(json.valueToTree(confirmed));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM project_task WHERE source_plan_id=?",Integer.class,plan)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM task_dependency d JOIN project_task t ON t.id=d.task_id WHERE t.source_plan_id=?",Integer.class,plan)).isEqualTo(1);
+        // The original operation stays tied to its own result version; later revisions cannot overwrite it.
+        assertThat(agentOperations.get(f.project(),operation,f.user()).path("versionId").asText()).isEqualTo(ready.latestVersionId().toString());
+        assertThat(agentOperations.get(f.project(),operation,f.user()).path("versionNo").asInt()).isEqualTo(ready.latestVersionNo());
+        jdbc.update("DELETE FROM project_member WHERE project_id=? AND user_id=?",f.project(),f.user());
+        assertThatThrownBy(()->agentOperations.get(f.project(),operation,f.user())).isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void failedSkeletonOperationDoesNotBorrowLaterRetryVersion() throws Exception {
+        var f=fixture("failed-agent-retry");
+        when(model.generate(anyString(),anyString(),eq("TASK_PLAN_SKELETON"),any(),any(),any(),any()))
+                .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_INVALID_OUTPUT));
+        var session=agents.createSession(f.project(),f.user(),"原失败规划");
+        var request=json.valueToTree(request("原失败规划"));
+        var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
+        var accepted=agentOperations.mutate(ctx,"start_task_plan",request);
+        UUID operation=UUID.fromString(accepted.path("operationId").asText());
+        UUID plan=UUID.fromString(accepted.path("planId").asText());
+        awaitStatus(f.project(),plan,Set.of(TaskPlanStatus.FAILED));
+        assertThat(agentOperations.get(f.project(),operation,f.user()).path("versionNo").asInt()).isZero();
+        stubLegalGeneration();
+        commands.regenerate(f.project(),plan,f.user());
+        var ready=awaitStatus(f.project(),plan,Set.of(TaskPlanStatus.READY));
+        assertThat(ready.latestVersionNo()).isEqualTo(2);
+        var original=agentOperations.get(f.project(),operation,f.user());
+        assertThat(original.path("status").asText()).isEqualTo("FAILED");
+        assertThat(original.path("errorCode").asText()).isEqualTo("PLANNING_MODEL_INVALID_OUTPUT");
+        assertThat(original.path("versionNo").asInt()).isZero();
+        assertThat(original.path("versionId").isNull()).isTrue();
+        assertThat(original.path("activeAttemptId").isNull()).isTrue();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM project_task WHERE source_plan_id=?",Integer.class,plan)).isZero();
+    }
+
+    @Test
+    void queuedAgentPlanDispatchRecoversSameAttemptWithoutDuplicateSideEffects() throws Exception {
+        var f=fixture("agent-dispatch");stubLegalGeneration();var session=agents.createSession(f.project(),f.user(),"重启恢复");
+        var request=json.valueToTree(request("恢复规划"));var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
+        // Simulate commit before dispatch using the real repository + durable operation intent.
+        var plan=repository.create(f.project(),f.user(),request("恢复规划")); UUID operation=UUID.randomUUID();
+        jdbc.update("INSERT INTO agent_planning_operation(id,invocation_id,project_id,requester_id,session_id,origin_run_id,goal_revision,kind,request_json,plan_id,attempt_id,generation_seq) VALUES (?,?,?,?,?,?,1,'start_task_plan',?::jsonb,?,?,?)",operation,ctx.invocationId(),f.project(),f.user(),session.id(),ctx.runId(),request.toString(),plan.id(),plan.activeAttemptId(),plan.generationSeq());
+        jdbc.update("UPDATE ai_task_plan_attempt SET updated_at=now()-interval '1 minute' WHERE id=?",plan.activeAttemptId());
+        agentRecovery.recover();agentRecovery.recover();
+        var ready=awaitStatus(f.project(),plan.id(),Set.of(TaskPlanStatus.READY));
+        assertThat(repository.versions(f.project(),plan.id())).hasSize(2);
+        assertThat(agentOperations.mutate(ctx,"start_task_plan",request).path("operationId").asText()).isEqualTo(operation.toString());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_task_plan WHERE project_id=?",Integer.class,f.project())).isEqualTo(1);
+        assertThat(ready.latestVersionNo()).isEqualTo(2);
+    }
+
+    @Test void agentCancelIsAttemptScopedAndMemberCannotStartPlanning() throws Exception {
+        var f=fixture("agent-cancel");stubLegalGeneration();var session=agents.createSession(f.project(),f.user(),"取消规划");
+        var started=new java.util.concurrent.CountDownLatch(1);var finish=new java.util.concurrent.CountDownLatch(1);
+        when(model.generate(anyString(),anyString(),eq("TASK_PLAN_SKELETON"),any(),any(),any(),any())).thenAnswer(i->{started.countDown();finish.await(3,TimeUnit.SECONDS);return result(skeleton());});
+        var request=json.valueToTree(request("取消规划"));var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
+        var op=agentOperations.mutate(ctx,"start_task_plan",request);assertThat(started.await(3,TimeUnit.SECONDS)).isTrue();
+        var wrong=json.createObjectNode().put("operationId",op.path("operationId").asText()).put("attemptId",UUID.randomUUID().toString());
+        var wrongCtx=agentInvocation(f,session.id(),"cancel_task_plan_generation",wrong);
+        assertThatThrownBy(()->agentOperations.mutate(wrongCtx,"cancel_task_plan_generation",wrong)).isInstanceOf(BusinessException.class);
+        var cancel=json.createObjectNode().put("operationId",op.path("operationId").asText()).put("attemptId",op.path("attemptId").asText());
+        var cancelCtx=agentInvocation(f,session.id(),"cancel_task_plan_generation",cancel);
+        var canceled=agentOperations.mutate(cancelCtx,"cancel_task_plan_generation",cancel);finish.countDown();
+        assertThat(agentOperations.mutate(cancelCtx,"cancel_task_plan_generation",cancel).path("operationId")).isEqualTo(canceled.path("operationId"));
+        UUID plan=UUID.fromString(op.path("planId").asText());assertThat(repository.require(f.project(),plan).status()).isEqualTo(TaskPlanStatus.CANCELED);
+        assertThat(repository.versions(f.project(),plan)).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM project_task WHERE source_plan_id=?",Integer.class,plan)).isZero();
+        jdbc.update("UPDATE project_member SET role='MEMBER' WHERE project_id=? AND user_id=?",f.project(),f.user());
+        var member=agentInvocation(f,session.id(),"start_task_plan",request);
+        assertThatThrownBy(()->agentOperations.mutate(member,"start_task_plan",request)).isInstanceOf(BusinessException.class);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM ai_task_plan WHERE project_id=?",Integer.class,f.project())).isEqualTo(1);
+    }
+
+    private com.shitulelv.aicollab.agent.domain.tool.AgentToolContext agentInvocation(Fixture f,UUID session,String name,com.fasterxml.jackson.databind.JsonNode args) {
+        var run=agents.createRun(f.project(),session,f.user(),"根据资料生成规划",false,"ITERATION_PLANNING",null);UUID invocation=UUID.randomUUID();
+        jdbc.update("INSERT INTO agent_tool_invocation(run_id,turn_sequence,ordinal,invocation_id,tool_call_id,tool_name,arguments_json,status) VALUES (?,1,1,?,'test-call',?,?::jsonb,'PENDING')",run.id(),invocation,name,args.toString());
+        return new com.shitulelv.aicollab.agent.domain.tool.AgentToolContext(run.id(),f.project(),f.user(),"OWNER",false,0,invocation);
     }
 
     @Test
@@ -113,9 +323,11 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         assertThat(repository).isNotNull();
         assertThat(issues).isNotNull();
         assertThat(AopUtils.isAopProxy(commits)).isTrue();
-        assertThat(jdbc.queryForObject(
+        // 断言"最新成功迁移至少到 V64"，而不是把版本硬编码成 63：
+        // 硬编码会在每次新增迁移时无条件失败，既发现不了真问题，也掩盖真正的失败。
+        assertThat(Integer.parseInt(jdbc.queryForObject(
                 "select version from flyway_schema_history where success=true order by installed_rank desc limit 1",
-                String.class)).isEqualTo("45");
+                String.class))).isGreaterThanOrEqualTo(64);
         assertThat(jdbc.queryForObject(
                 "select count(*) from information_schema.tables where table_name='ai_task_plan'",
                 Integer.class)).isEqualTo(1);
@@ -207,6 +419,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         UUID issueId = persistedIssues.stream()
                 .filter(item -> item.issue().code().equals("DEPENDENCY_DATE_CONFLICT"))
                 .findFirst().orElseThrow().id();
+        jdbc.update("update ai_task_plan set last_error_code='PLAN_VALIDATION_FAILED',last_error_summary='REPAIR / PLAN_VALIDATION_FAILED' where id=?", created.id());
         commands.partialRegenerate(fixture.project(), created.id(), new PartialRegenerateRequest(
                 degraded.latestVersionId(), degraded.latestVersionNo(),
                 List.of("t2"), Set.of("startDate"), Set.of(
@@ -214,6 +427,8 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
                 List.of(issueId), PartialRegenerateRequest.REPAIR_DATES_AND_DEPENDENCIES), fixture.user());
 
         var repaired = awaitStatus(fixture.project(), created.id(), Set.of(TaskPlanStatus.READY));
+        assertThat(repaired.lastErrorCode()).isNull();
+        assertThat(repaired.lastErrorSummary()).isNull();
         TaskPlanVersionRecord repairedVersion = repository.requireVersion(
                 fixture.project(), created.id(), repaired.latestVersionId());
         TaskPlanDraft afterRepair = repository.draft(repairedVersion);
@@ -235,6 +450,23 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
                 copyWithStartDate(task(conflictAgain, "t2"), LocalDate.of(2026, 8, 16)));
         commands.save(fixture.project(), created.id(), saveRequest(editable, resolved), fixture.user());
         assertThat(repository.require(fixture.project(), created.id()).status()).isEqualTo(TaskPlanStatus.READY);
+    }
+
+    @Test
+    void switchingToAnUnauthorizedModelPreservesTheExistingDraftAndItsFailureCause() throws Exception {
+        Fixture fixture = fixture("spring-model-switch");
+        stubLegalGeneration();
+        var created = commands.create(fixture.project(), request("Model switch"), fixture.user());
+        var ready = awaitStatus(fixture.project(), created.id(), Set.of(TaskPlanStatus.READY));
+        var before = repository.requireVersion(fixture.project(), created.id(), ready.latestVersionId());
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+                .thenThrow(new BusinessException(com.shitulelv.aicollab.common.exception.ErrorCode.AI_MODEL_CREDENTIAL_INVALID));
+        commands.regenerate(fixture.project(), created.id(), fixture.user());
+        var failed = awaitStatus(fixture.project(), created.id(), Set.of(TaskPlanStatus.FAILED));
+        assertThat(failed.latestVersionId()).isEqualTo(ready.latestVersionId());
+        assertThat(failed.latestVersionNo()).isEqualTo(ready.latestVersionNo());
+        assertThat(repository.requireVersion(fixture.project(), created.id(), failed.latestVersionId())).isEqualTo(before);
+        assertThat(failed.lastErrorSummary()).contains("AI_MODEL_CREDENTIAL_INVALID").doesNotContain("安全校验");
     }
 
     @Test
@@ -328,6 +560,29 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
                 .thenReturn(result(skeleton()));
         when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
                 .thenReturn(result(legalDetail()));
+    }
+
+    @Test
+    void rejectedRepairPersistsSafeDiagnosticsAndKeepsTheSeenVersion() throws Exception {
+        Fixture fixture = fixture("repair-diagnostics");
+        stubLegalGeneration();
+        var created = commands.create(fixture.project(), request("Located repair"), fixture.user());
+        var ready = awaitStatus(fixture.project(), created.id(), Set.of(TaskPlanStatus.READY));
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
+                .thenReturn(result("{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"t2\",\"description\":\"not allowed\"}]}"));
+        commands.partialRegenerate(fixture.project(), created.id(), new PartialRegenerateRequest(
+                ready.latestVersionId(), ready.latestVersionNo(), List.of("t2"), Set.of("startDate"),
+                Set.of("description"), List.of(), PartialRegenerateRequest.RESCHEDULE_UNLOCKED_TASKS), fixture.user());
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (repository.require(fixture.project(), created.id()).lastErrorCode() == null && System.nanoTime() < deadline) Thread.sleep(25);
+        var failed = repository.require(fixture.project(), created.id());
+        assertThat(failed.latestVersionId()).isEqualTo(ready.latestVersionId());
+        var diagnostics = queries.detail(fixture.project(), created.id(), fixture.user()).repairDiagnostics();
+        assertThat(diagnostics).hasSize(1);
+        assertThat(diagnostics.getFirst().targetTempKey()).isEqualTo("t2");
+        assertThat(diagnostics.getFirst().field()).isEqualTo("description");
+        assertThat(diagnostics.getFirst().code()).isEqualTo("PATCH_FIELD_LOCKED");
+        assertThat(diagnostics.getFirst().safeDetails()).isEmpty();
     }
 
     private void stubDegradedGenerationThenPartialRepair() {
