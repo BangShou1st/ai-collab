@@ -607,3 +607,27 @@ call#23 输入的原始 STEP 标记及其运维 TOOL_FACT 确认，不能按主�
   捕获 jsonl 的消息 JSON 长度、投影元数据 originalChars（SERIALIZED_TOOL_RESULT_JSON_
   CHARS）、modelVisibleChars、响应正文 chars、落库记账 JSON 长度——六者不可互换，
   不得把记账 JSON 长度当响应正文长度。
+
+## 19. CI 门禁（2026-10-09 整合轮）
+
+CI 是 `.github/workflows/ci.yml` 单一流水线，复用既有 `backend` / `frontend` 两个 job，
+不另建平台。改动它时守住以下边界：
+
+- 触发为 PR 面向 `main` + `main` push，另留 `workflow_dispatch`；**不使用
+  `pull_request_target`**（本流水线执行提交内的构建脚本与测试）；权限保持
+  `contents: read`；同一 PR 的旧运行可取消，`main` 上的运行不互相取消。
+- 后端 JDK 21 + 在线 Maven `verify`，用真实 Testcontainers 与 Flyway。仓库中
+  `mvnw` 的 Git 权限位是 100644，Linux 上必须写成 `bash ./mvnw -B -ntp verify`，
+  不能依赖执行位。
+- **容器用例"全跳过"不等于通过**：`verify` 前先 `docker info`，`verify` 后再核对
+  Surefire 统计；`AgentRunContextCommitPostgresTest`、`AgentRunRetryPostgresIntegrationTest`、
+  `AgentMigrationIntegrationTest`、`NextStageMigrationPostgresTest` 任一整类被跳过即判定失败。
+  真实模型/外部环境验收沿用既有 `AI_*` 环境变量 opt-in 门控，CI 不配置任何密钥。
+- 前端 Node 22，pnpm 版本与 `ai-collab-frontend/package.json` 的 `packageManager`
+  精确对齐（当前 11.9.0），一律 `--frozen-lockfile`，不混用 npm；依次跑
+  lint、typecheck、test、build。
+- 产物只归档 Surefire 报告与 JaCoCo（保留 14 天）；**不上传**真实模型调用捕获
+  （如 `model-calls-private.jsonl`）或任何环境/凭据文件。
+- 本地无法用 `bash ./mvnw` 复现容器用例：WSL 侧没有 Docker socket，Testcontainers
+  会静默全跳过。要在本机真正跑容器用例，用 Windows 侧 `.\mvnw.cmd -B -ntp verify`
+  （走 Docker Desktop 的 npipe）。
