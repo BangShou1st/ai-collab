@@ -534,3 +534,48 @@ maybeSummarizeConversation(...)`；不要把准入前拒绝也标成"已尝试"�
 其 `completeRunContextAttempt` 桩必须返回 `true`；真正的 fenced/零行场景在真实
 PostgreSQL 用例里断言）。
 
+## 18. 真实模型多周期压缩质量验收（2026-10-09 第五轮）
+
+完整结果与证据：`docs/acceptance-evidence/2026-10-09/context-compaction/`
+（runbook、事实清单、两周期以上摘要全文、覆盖字段 SQL、模型调用捕获、最终回答、
+浏览器状态、results.md）。本轮**零生产代码改动**，纯验收轮。
+
+### 18.1 验收方式与结论
+
+- **入**口：`RealAcceptanceHostTest`（`AI_REAL_ACCEPTANCE=true` +
+  `AI_UPGRADE_REHEARSAL=true` + `AI_REAL_ACCEPTANCE_KEEP_CONFIG=true`），隔离副本 PG
+  （卷 `ai-collab-acceptance-20261003`，Flyway 由 V61 迁至 V64）、隔离 Redis/MinIO；
+  用户模型配置只读沿用（KEEP_CONFIG），开始/结束零修改。
+- **结论：通过**。3 个有效压缩周期（COMMITTED ×3）+ 1 个 D3 截断降级周期
+  （UNQUALIFIED，不发布、不推进覆盖、用量如实结算），全链路真实模型
+  （space-bunny-free）+ 真实持久化 + 真实 Composer 消费 + 真实最终回答。
+- 定性为**受控规模的真实模型质量验收**：裁前估算约 4.3–4.7 万 tokens（约 27 万 chars
+  材料），未达 256k 自然触发线；不冒充 256k 实测（未验证项如实记录）。
+
+### 18.2 实测确认的生产行为（与第 14–17 节逐条对应）
+
+- **C3 覆盖推进**：周期 1 覆盖 seq 1–7；周期 2 对超大记录 seq 8 记
+  `sourcePartialChars=53739`；周期 3 从偏移继续并完整闭合（`through=8, partial=0`）。
+- **D1 partial 保留**：partial 周期中 seq 8 的 53984 chars 工具结果**整条保留**在
+  实际主请求中；完整覆盖后被确定性投影（53984 → 3384 chars），未覆盖尾部
+  （seq 13/14/17/20）始终原文可见。
+- **D3 截断降级**：辅助输出 12747 tokens 超长 → `RUN_CONTEXT_UNQUALIFIED`，
+  保留周期 3 摘要，覆盖不推进——"截断产物不能冒充完整摘要"红线的真实行为证明。
+- **C1 消费闭环**：周期 1 提交后主请求出现
+  `<RUN_CONTEXT_SUMMARY sourceThroughSequence="7" cycle="1">`；`previousSummaryIncorporated=true`
+  在周期 2/3 摘要文本中真实体现（周期 1 全部事实/来源身份延续）。
+- **摘要质量**：TOOL_FACT 与 ASSISTANT_UNVERIFIED 边界严格执行；数值、适用条件、
+  documentId/snapshotId/chunkId/charFrom 来源定位、未读缺口全部保留；partial 尾部残片
+  如实标注"无法对应、不能视为空结果"，无虚报全文覆盖。
+- **E3 重建**：每个周期提交后主请求都按新快照重组（模型调用捕获 jsonl 佐证）。
+- **更正优先**：同会话第二轮的用户更正（U1）在后续回答中按更正条件复述，
+  且如实声明"本轮未重新读取正文，仅按更正复述"。
+
+### 18.3 复验收口与边界
+
+- 压缩触发依赖**裁前估算**（C2：组装体积 + droppedSourceChars/3）。资料体积不足时
+  不会触发——这是设计行为；自然触发需要约 ≥12.7 万 chars 的活跃材料。
+- 窗口覆盖（`window-overrides`）试验期间曾用于观察辅助窗口核对（H=6000 CONFIRMED），
+  最终验收按 UNKNOWN 窗口回退路径（H=50000/T=42500）自然触发，未改生产默认策略。
+- 未重复实测（由既有回归覆盖）：fenced 发布、并发窗口、暂停交互、会话摘要 scope 合并。
+
