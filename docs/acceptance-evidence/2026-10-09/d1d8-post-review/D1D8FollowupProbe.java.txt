@@ -1,0 +1,136 @@
+package com.shitulelv.aicollab.agent.application.runtime;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.agent.application.view.*;
+import com.shitulelv.aicollab.agent.domain.model.*;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
+import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
+import com.shitulelv.aicollab.common.exception.*;
+import com.shitulelv.aicollab.infrastructure.ai.model.*;
+import com.shitulelv.aicollab.infrastructure.ai.turn.*;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
+import java.time.OffsetDateTime;
+import java.util.*;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
+public class D1D8FollowupProbe {
+    private static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules();
+    public static void main(String[] args) {
+        int failures = 0;
+        try { failedRunCompactionRefreshesModel(); System.out.println("PASS failedRunCompactionRefreshesModel"); }
+        catch (AssertionError e) { failures++; System.out.println("FAIL failedRunCompactionRefreshesModel: " + e.getMessage()); }
+        try { failedConversationSummaryRecomposesForSmallerWindow(); System.out.println("PASS failedConversationSummaryRecomposesForSmallerWindow"); }
+        catch (AssertionError e) { failures++; System.out.println("FAIL failedConversationSummaryRecomposesForSmallerWindow: " + e.getMessage()); }
+        System.out.println("PROBE_RESULT tests=2 failures=" + failures);
+        if (failures > 0) System.exit(1);
+    }
+
+    private static void failedRunCompactionRefreshesModel() {
+        var fixture = fixture(Map.of());
+        var repository = fixture.repository();
+        var source = new AgentStepView(UUID.randomUUID(), 1, AgentStepType.TOOL_CALL_COMPLETED,
+                "read_document_section", JSON.createObjectNode().put("toolCallId", "call-1"),
+                JSON.createObjectNode().put("data", "x".repeat(180000)), "TOOL_SUCCESS",
+                null, null, false, null, null, OffsetDateTime.now());
+        var latest = new AgentStepView(UUID.randomUUID(), 2, AgentStepType.MODEL_REQUEST,
+                null, null, null, "latest", null, null, false, null, null, OffsetDateTime.now());
+        when(repository.listSteps(any(), any())).thenReturn(List.of(source, latest));
+        when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of());
+        var outcome = fixture.coordinator().advance(fixture.run());
+        System.out.println("run-compaction outbound=" + fixture.calls() + " outcome=" + outcome.status());
+        verify(repository).completeRunContextAttempt(any(), eq("FAILED"), anyString(), any(), anyString(), isNull(), anyInt());
+        assertThat(fixture.calls()).as("one failed RUN_CONTEXT outbound followed by main request").hasSize(2);
+        assertThat(fixture.calls().getLast()).as("next main request must use current model B").isEqualTo("model-B");
+    }
+
+    private static void failedConversationSummaryRecomposesForSmallerWindow() {
+        var fixture = fixture(Map.of("model-A", 1_000_000, "model-B", 20_000));
+        var old = new AgentMessageView(UUID.randomUUID(), fixture.run().sessionId(), fixture.run().id(),
+                "ASSISTANT", "h".repeat(90000), null, null, OffsetDateTime.now().minusMinutes(1));
+        when(fixture.repository().listRecentMessages(any(), anyInt())).thenReturn(List.of(old));
+        var composer = new AgentModelMessageComposer(fixture.repository(), null, JSON);
+        var budgetB = AgentContextBudget.perRequest(fixture.properties(),
+                new AgentContextBudget.ModelWindow(20000, "model-B", false), Integer.MAX_VALUE, 1024, false);
+        var fresh = composer.composeV2(fixture.run(), fixture.context(), fixture.skill(),
+                AgentPlan.create(fixture.run().goal(), List.of()), List.of(), budgetB.availableInputTokens(), 1.0, false);
+        assertThat(fresh.failureReason()).as("same sources can be recomposed for B").isNull();
+        System.out.println("fresh B composition chars=" + fresh.stats().charsUsed() + " H=" + budgetB.availableInputTokens());
+        var outcome = fixture.coordinator().advance(fixture.run());
+        System.out.println("smaller-window outbound=" + fixture.calls() + " outcome=" + outcome.status() + " reason=" + outcome.errorCode());
+        assertThat(outcome.status()).as("failed auxiliary must not force a budget stop when recomposition fits B").isEqualTo(AgentRunStatus.SUCCEEDED);
+        assertThat(fixture.calls()).hasSize(2);
+    }
+
+    private record Fixture(AgentRunView run, AgentRepository repository, AgentExecutionContext context,
+            AgentSkill skill, AgentContextProperties properties, AgentRuntimeCoordinator coordinator, List<String> calls) {}
+
+    private static Fixture fixture(Map<String, Integer> windows) {
+        var now = OffsetDateTime.now();
+        var run = new AgentRunView(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                null, "SUPERVISOR", 0, "Review document findings", AgentRunStatus.RUNNING,
+                64, 64, 3, null, null, 0, 0, 0, 0, 0, 0, 0, false,
+                false, false, 0, null, null, null, "PROJECT_RESEARCH", 1, 2, false, now, now);
+        var repository = mock(AgentRepository.class);
+        when(repository.listRecentMessages(any(), anyInt())).thenReturn(new ArrayList<>());
+        when(repository.findRun(any(), any())).thenReturn(Optional.of(run));
+        when(repository.citationsStillValid(any(), any())).thenReturn(true);
+        when(repository.beginSummaryAttempt(any())).thenReturn(UUID.randomUUID());
+        when(repository.beginRunContextAttempt(any(), anyInt(), anyInt(), anyInt(), anyInt())).thenReturn(UUID.randomUUID());
+        when(repository.beginModelCall(any(), any(), anyString())).thenReturn("probe-main-call");
+        when(repository.recordModelTurnWithSettlement(any(), any(), any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.recordFinal(any(), anyString(), anyList(), anyBoolean()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var state = JSON.createObjectNode().put("schemaVersion", 2).put("stateRevision", 1)
+                .put("goalRevision", 0).put("activeGoal", run.goal()).put("latestRequest", run.goal());
+        state.putArray("constraints");
+        when(repository.workingState(any(), any())).thenReturn(state);
+        when(repository.listSummaryCandidates(any(), any(), anyInt())).thenReturn(List.of(
+                new AgentMessageView(UUID.randomUUID(), run.sessionId(), run.id(), "USER",
+                        "An earlier explicit decision must remain available", null, null, now.minusDays(1))));
+        var context = new AgentExecutionContext(run.id(), run.sessionId(), run.projectId(), run.requesterId(),
+                "OWNER", false, AgentPageContext.empty(), AgentResourcePolicy.v2Limits(0), 0, List.of());
+        var assembler = mock(AgentContextAssembler.class);
+        when(assembler.assemble(any(), any(), any())).thenReturn(context);
+        var skill = mock(AgentSkill.class);
+        when(skill.code()).thenReturn("PROJECT_RESEARCH");
+        when(skill.instruction()).thenReturn("Read-only document research.");
+        when(skill.outputContract()).thenReturn("Evidence and gaps.");
+        var registry = mock(AgentSkillRegistry.class);
+        when(registry.select(any(), any(), any())).thenReturn(skill);
+        var planService = mock(AgentPlanService.class);
+        when(planService.ensurePlan(any(), any())).thenReturn(AgentPlan.create(run.goal(), List.of()));
+        var store = mock(AgentModelConfigurationStore.class);
+        when(store.require(any())).thenReturn(provider("model-A"), provider("model-B"));
+        var nativeExecutor = mock(NativeToolCallingExecutor.class);
+        var calls = new ArrayList<String>();
+        when(nativeExecutor.callModel(anyList(), anyList(), any(), any(), any())).thenAnswer(invocation -> {
+            List<ModelMessage> messages = invocation.getArgument(0);
+            calls.add(AiConfigurationContext.current().modelName());
+            if (!messages.isEmpty() && (messages.getFirst().toString().contains("\u6458\u8981\u5668")
+                    || messages.getFirst().toString().contains("\u7814\u7a76\u8f68\u8ff9\u538b\u7f29\u5668")))
+                throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "Controlled auxiliary failure");
+            return new ModelTurnResult("A complete answer.", List.of(), ModelFinishReason.STOP,
+                    new ModelUsage(1000, 100), "controlled", AiConfigurationContext.current().modelName(), 1L);
+        });
+        var zen = mock(ZenModelExecution.class);
+        when(zen.isZen(any())).thenReturn(false);
+        var model = new RoutingAgentModelExecutor(nativeExecutor, mock(LegacyReadOnlyAgentExecutor.class), zen, store);
+        var properties = new AgentContextProperties(true, 50000, 8000, 2000, windows);
+        var composer = new AgentModelMessageComposer(repository, null, JSON);
+        var summarizer = new AgentContextSummarizer(repository, model, JSON, properties);
+        var coordinator = new AgentRuntimeCoordinator(repository, assembler, registry, planService,
+                new AgentToolRegistry(List.of()), new AgentCancellationService(repository), model,
+                new AgentConvergencePolicy(), JSON, null, properties, composer, mock(AgentToolCallExecutor.class), summarizer);
+        return new Fixture(run, repository, context, skill, properties, coordinator, calls);
+    }
+
+    private static UserAiProvider provider(String name) {
+        var now = OffsetDateTime.now();
+        return new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), name, ModelProviderType.OPENAI_COMPATIBLE,
+                "https://example.invalid", "/v1/chat/completions", "encrypted", name, true, 0.2, 1024,
+                EnumSet.of(ModelCapability.CHAT, ModelCapability.NATIVE_TOOLS), true, now, now, null);
+    }
+}

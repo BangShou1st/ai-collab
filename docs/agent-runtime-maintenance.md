@@ -429,3 +429,108 @@ AgentRuntimeJob（内嵌 worker，租约 claimNext）
 `AgentRunContextCompactionRegressionTest`（4）、`AgentAuxiliaryOutboundRegressionTest`（3）。
 改 D1-D8 相关行为时先看这四类。
 
+## 17. 上下文容量 E1–E3 修复（2026-10-09 复核后第四轮）
+
+完整报告：`docs/agent-context-capacity-e1e3-delivery-20261009.md`；问题复核：
+`docs/agent-context-capacity-d1d8-post-review-20261009.md`；红绿证据：
+`docs/acceptance-evidence/2026-10-09/e1e3/`。
+
+本轮**只修 D1–D8 复核发现的三个缺陷**，不改容量策略语义、不新增平台/表/编排层。
+第 16 节仍是 D1–D8 的权威描述，本节的差异以本节为准。
+
+### 17.1 目标修订必须与真实会话行串行化（E1）
+
+复核事实：第 16.2 节的方案只对 `agent_run` 行加锁，而目标修订的真实存储行是
+`agent_session`（`AgentWorkingState.appendUser` / `createRun` 只锁会话行、不碰运行行）。
+READ COMMITTED 下条件 UPDATE 使用**自己的语句快照**，跨行不会串行化——已提交的目标更正
+照样能让旧目标摘要发布（复核探针实测 `goalRevision=1 summaryStatus=COMMITTED`）。
+
+修复（`AgentRunEventRecorder.completeRunContextAttempt`）：
+
+- 检查 SELECT 只取 `r.session_id`，**不再 join `agent_session`** 取修订；
+- 在运行行锁之后、对**真实会话行**显式加 `FOR UPDATE`，并在**取得该保护之后**读取
+  `working_state->>'goalRevision'` 作为判定依据（加锁读必然看到最新已提交修订，语句级旧快照
+  不再能骗过校验）；会话行缺失或修订不可解析按冲突处理；
+- 锁序固定为 **"运行行 → 会话行"**，与 `createRun`（先插运行行、再锁会话行）、
+  `requestPause`/`requestResume`、`AgentLeaseScope`、`AgentWorkingState.appendUser`、
+  `AgentPlanningOperationService`（`FOR UPDATE OF r` + 会话读取）一致，**不引入反向锁序**；
+- 短事务只含读锁与一次 UPDATE，**不跨模型 HTTP 持锁**（模型调用在方法之外完成）；
+- 发布 UPDATE 的条件谓词**保持原样**（epoch/租约/取消/RUNNING/目标修订/ATTEMPTED 一次转换）：
+  行锁负责"阻止并发写入穿过临界区"，谓词负责"即使事实变化也零行退回 FENCED"，二者缺一不可。
+
+**返回值语义变更**：两个重载都从 `void` 改为 `boolean`，只有**真实发布**（条件 UPDATE 转换
+成功）才为 `true`；fenced / 条件丢失 / 重复完成一律 `false`。调用方**不得只因调用了本方法就
+声称摘要已提交**。`AgentRepository` 的同名重载透传真实结果。
+
+复核红线（勿改回）：不要把修订读取放回检查 SELECT 的同一语句快照；不要只锁运行行；
+不要给外连接加 `FOR UPDATE OF s`（PostgreSQL 对可空侧外连接不可用）；不要把会话行锁
+扩大到模型调用期间。
+
+### 17.2 辅助出站事实必须跨两个 scope 保留（E2）
+
+复核事实：`maybeSummarizeDetailed` 先跑 RUN_CONTEXT 压缩，失败/不合格时其 `false` 结果被
+随后会话摘要分支的 `NOT_ATTEMPTED` **覆盖**，于是"已经真实发生过辅助出站"这一事实丢失，
+协调器不刷新配置，实际出站顺序退回 B→A（复核探针实测 `outbound=[model-B, model-A]`）。
+
+修复（`AgentContextSummarizer`）：
+
+- `SummaryOutcome(committed, auxiliaryAttempted)` 成为**两个 scope 的公共返回类型**，
+  新增 `merge(other)`：两个事实分别做**逻辑 OR**（任一发生即保留）；
+- `maybeSummarizeDetailed` 在未提交时返回 `outcome.merge(maybeSummarizeConversation(...))`，
+  RUN_CONTEXT 的真实失败/不合格不再被"无会话候选"跳过抹掉；
+- **事实边界**（这条是本节最容易改错的地方）：
+  - **准入前**的一切跳过/拒绝——无可压缩来源、输入预算容不下、超自身窗口、剩余输出/时长
+    不足、`AGENT_RUN_PAUSED` 拒绝准入——**都没有发出任何辅助请求**，一律
+    `NOT_ATTEMPTED`（不误报"已尝试"，否则会破坏"每请求一次解析"语义）；
+  - `beginRunContextAttempt` **成功之后**，无论空输出、不合格、fencing 还是异常，请求都已
+    真实出站，一律 `ATTEMPTED_ONLY`（不得被下游跳过覆盖）；
+  - `committed` 只在**真实有效发布**时为 true（由 17.1 的 `boolean` 返回值决定）；
+- 会话摘要路径的 `commitSummary` 由 `void` 改为 `boolean`，返回**真实 CAS 结果**：
+  CAS 冲突（生成期间状态已前进）不算提交，不能只因走到那里就声称生效。
+
+复核红线（勿改回）：不要在 `maybeSummarizeDetailed` 里直接 `return
+maybeSummarizeConversation(...)`；不要把准入前拒绝也标成"已尝试"；不要把 `committed` 与
+"调用了 complete 方法"划等号。
+
+### 17.3 辅助实际发生后按新快照重建本次主请求（E3）
+
+复核事实：协调器**刷新了** `resolved`/`requestBudget`，却把重组**门控在 `contextCommitted`
+上**。大窗口 A(1,000,000) 切小窗口 B(20,000，单次输出 1024、安全余量 2000，H=16976) 时，
+辅助失败 → 不提交 → 不重组 → 继续发送只装得下 A 的可选历史 → 直接
+`BUDGET_EXCEEDED`，而同样的来源按 B 组装只有 2735 字符（复核探针实测）。
+
+修复（`AgentRuntimeCoordinator`）：
+
+- 抽出**统一组装入口** `assembleMainRequest(...)`：v2 路径 `composeV2(..., 1.0,
+  resolved.legacyMode())`，超预算时**一次**降级重组（`0.6`）；必选层放不下返回
+  `failureReason`，否则超预算标 `COMPOSITION_OVER_BUDGET`。Legacy 路径走
+  `composer.buildMessageHistory(...)`。初始组装与重建**共用同一个入口**，
+  子研究产出、覆盖事实与收尾指令不会因第二次组装丢失；
+- 把重组条件从 `contextCommitted` 改为 **`auxiliaryAttempted`**：只要辅助请求**实际发起过**
+  （无论提交、失败还是不合格），就按重新解析的**同一份当前快照**重建本次主请求——
+  窗口、输出封顶、协议模式、组装体积与估算全部来自新快照；重建后必选层仍放不下时
+  **明确收口** `inputBudgetExceeded`；
+- 未发起任何辅助出站时走 `else` 分支，保持既有"每请求一次解析"语义，不改动已组装视图；
+- 不变量保持：**一次解析对应一次请求**（不在 HTTP 层重读配置造成请求内部漂移）、
+  子研究产出/覆盖事实/收尾指令不丢、必要层超限如实收口而不是放宽窗口。
+
+复核红线（勿改回）：不要把重组门控改回 `committed`；不要在重建时丢掉子证据或收尾指令；
+不要为让用例通过放宽窗口、删减必要来源或屏蔽超限路径。
+
+### 17.4 回归索引（本轮新增）
+
+- `AgentContextReliabilityD1D8RegressionTest`（15，D1–D8 的 8 项 + 本轮 E2/E3 的 7 项）：
+  E2 四项——RUN_CONTEXT 真实失败后主请求仍按当前配置重新准备、LENGTH 不合格同样刷新、
+  完全无辅助出站时保持单次解析、fenced 发布不算提交；E3 三项——大窗口切小窗口重建、
+  必要层真实超 H 仍明确收口、Native→Legacy 切换按新契约重建。
+- `AgentRunContextCommitPostgresTest`（10，真实 PostgreSQL；D2 的 8 项 + 本轮 E1 的 2 项）：
+  用与复核探针相同的 BEFORE UPDATE 触发器门控**生产发布 UPDATE 自身**的窗口，
+  验证"目标更正在发布提交前已提交 → 旧摘要绝不生效、用量照常结算"与
+  "发布进行中目标写入不得穿过临界区提交，发布先提交后更正照常生效、不丢写"。
+  两个用例都按契约接受合法分支，不放宽也不掩盖。
+
+改 E1–E3 相关行为时先看这三类（外加 `AgentRunContextCompactionRegressionTest`（4）、
+`AgentAuxiliaryOutboundRegressionTest`（3）——二者用 mock 仓库模拟健康持久层，
+其 `completeRunContextAttempt` 桩必须返回 `true`；真正的 fenced/零行场景在真实
+PostgreSQL 用例里断言）。
+
