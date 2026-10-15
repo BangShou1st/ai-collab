@@ -31,7 +31,9 @@ public record ZenFreeModelSelection(List<String> models, Map<String, ZenModelPro
      *   <li>已知输入或输出价格非零 → 即使名字带 {@code -free} 也排除。</li>
      *   <li>可信的零价格（input=0 且 output=0）→ 即使名字不带 {@code -free} 也可入选。</li>
      *   <li>原生协议必须能判定为 Chat Completions；Responses / Anthropic / 协议未知一律不作为可执行模型，
-     *       并记录到 {@code unsupportedProtocols}，以便配置阶段给出明确的协议不匹配原因。</li>
+     *       并记录到 {@code unsupportedProtocols}，以便配置阶段给出明确的协议不匹配原因。
+     *       协议来源顺序为：模型级 {@code provider.npm} → 服务商级 {@code opencode.npm}；
+     *       两者都无法判定、且模型名带 {@code -free} 时按既有约定归入 Chat，这是向后兼容的假定而非协议验证。</li>
      *   <li>可信目录不可用时保守回退：只保留带 {@code -free} 后缀的模型（与改造前的行为一致），
      *       绝不把价格未知的模型当作免费，也不放行协议未知的模型。</li>
      * </ol>
@@ -50,7 +52,7 @@ public record ZenFreeModelSelection(List<String> models, Map<String, ZenModelPro
         if (entries != null && !entries.isObject()) {
             entries = null;
         }
-        String providerNpm = provider == null ? null : provider.path("provider").path("npm").asText(null);
+        String providerNpm = providerNpmOf(provider);
 
         List<String> chatModels = new ArrayList<>();
         Map<String, ZenModelProtocol> unsupported = new LinkedHashMap<>();
@@ -136,8 +138,39 @@ public record ZenFreeModelSelection(List<String> models, Map<String, ZenModelPro
         return value.isNumber() && value.asDouble() > 0d;
     }
 
+    /**
+     * 服务商级 npm 包名。<b>真实目录形状是 {@code opencode.npm}</b>（例如
+     * {@code {"opencode":{"npm":"@ai-sdk/openai-compatible","models":{...}}}}），
+     * 它只作为模型级 {@code provider.npm} 缺失时的回退来源。
+     *
+     * <p>若目录变体把 provider 块嵌套在 {@code opencode.provider.npm} 下，则作为显式的兼容分支读取。
+     * 两个位置都缺失时返回 {@code null}——不做协议猜测，交由调用方保守回退。</p>
+     */
+    private static String providerNpmOf(JsonNode provider) {
+        if (provider == null) {
+            return null;
+        }
+        String direct = text(provider.path("npm"));
+        return direct != null ? direct : text(provider.path("provider").path("npm"));
+    }
+
+    private static String text(JsonNode value) {
+        if (value == null || !value.isTextual()) {
+            return null;
+        }
+        String text = value.asText().strip();
+        return text.isEmpty() ? null : text;
+    }
+
+    /**
+     * 解析原生协议：<b>模型级 {@code provider.npm} 优先</b>，缺失时回退到服务商级 {@code opencode.npm}。
+     *
+     * <p>已知的 Responses / Anthropic 声明一律不降级为 Chat；两处都无法判定且模型名带 {@code -free} 时，
+     * 才按改造前的既有行为走 Chat 路径——这是向后兼容的<b>假定</b>，不是对协议的验证，
+     * 因此仅对免费后缀模型生效，普通模型仍判为 {@link ZenModelProtocol#UNKNOWN} 并被排除。</p>
+     */
     private static ZenModelProtocol resolveProtocol(JsonNode entry, String providerNpm, String modelId) {
-        String npm = entry == null ? null : entry.path("provider").path("npm").asText(null);
+        String npm = entry == null ? null : text(entry.path("provider").path("npm"));
         ZenModelProtocol protocol = ZenModelProtocol.fromNpmPackage(npm);
         if (protocol == null) {
             protocol = ZenModelProtocol.fromNpmPackage(providerNpm);
