@@ -71,10 +71,20 @@ auth:
         enabled: "${AUTH_PUBLIC_REGISTRATION_ENABLED:false}"
 knowledge:
   rate-limit-per-user-hour: "${KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR:60}"
+
+zen:
+  # Zen / Console 上游地址。取值必须命中代码白名单（ProviderPresetRegistry.APPROVED_ZEN_BASES）：
+  # 默认使用新版官方文档（/v2/docs/console/models/）列出的 /inference/v1；
+  # 旧版文档的 /zen/v1 保留为显式选择的兼容选项。用户请求、已保存的 preset baseUrl、
+  # HTTP Header 与模型响应都不能覆盖此处的取值。
+  upstream: "${OPENCODE_ZEN_UPSTREAM:https://opencode.ai/inference/v1}"
 agent:
   enabled: ${AGENT_ENABLED:${CHAT_ENABLED:false}}
   worker-delay-ms: ${AGENT_WORKER_DELAY_MS:1000}
   schedule-delay-ms: ${AGENT_SCHEDULE_DELAY_MS:30000}
+  # Agent Worker 执行器并发数（取值 1-4，越界启动失败）：耗时的模型轮次与工具执行在独立线程池中运行，
+  # 满载时本轮 tick 直接放弃派发，不排队、不阻塞调度线程，由数据库租约与恢复机制接管。
+  worker-concurrency: ${AGENT_WORKER_CONCURRENCY:2}
   context:
     # 上下文组装与单次请求预算；composer-v2=false 回退到固定条数/字符截断的旧组装路径
     composer-v2: "${AGENT_CONTEXT_COMPOSER_V2:true}"

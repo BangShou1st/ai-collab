@@ -38,14 +38,14 @@ class ZenModelWiringTest {
         ProviderPresetRegistry reg = new ProviderPresetRegistry();
         var pol = reg.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
         assertThat(pol.protocol()).isEqualTo(ModelProviderType.OPENAI_COMPATIBLE);
-        assertThat(reg.completionEndpoint(pol)).isEqualTo("https://opencode.ai/zen/v1/chat/completions");
-        assertThat(reg.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/zen/v1/models");
+        assertThat(reg.completionEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/chat/completions");
+        assertThat(reg.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/models");
         assertThat(pol.userAgent()).isEqualTo("opencode/1.18.31 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14");
     }
     @Test void runtimeConfigIgnoresPersistedUrls() {
         ZenModelExecution exec = new ZenModelExecution(new ProviderPresetRegistry(), mapper, new OutboundEndpointPolicy());
         var cfg = exec.runtimeConfig(zenProvider());
-        assertThat(cfg.baseUrl()).isEqualTo("https://opencode.ai/zen/v1");
+        assertThat(cfg.baseUrl()).isEqualTo("https://opencode.ai/inference/v1");
         assertThat(cfg.apiPath()).isEqualTo("/chat/completions");
         assertThat(cfg.providerType()).isEqualTo(ModelProviderType.OPENAI_COMPATIBLE);
         assertThat(cfg.modelName()).isEqualTo("mimo-test-free");
@@ -64,7 +64,7 @@ class ZenModelWiringTest {
         var pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
         HttpOpenCodeZenTransport t = new HttpOpenCodeZenTransport(mapper, new OutboundEndpointPolicy(), registry);
         ZenModelExecution exec = new ZenModelExecution(registry, mapper, new OutboundEndpointPolicy());
-        assertThat(registry.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/zen/v1/models");
+        assertThat(registry.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/models");
         assertThat(exec.runtimeEndpoint()).isEqualTo(registry.completionEndpoint(pol));
         assertThat(t.policy().userAgent()).isEqualTo(pol.userAgent());
         var md = AiRequestMetadata.of("sess-123");
@@ -91,16 +91,17 @@ class ZenModelWiringTest {
         arr.addObject().put("id", "c-free");
         OpenCodeZenTransport stub = new OpenCodeZenTransport() {
             public com.fasterxml.jackson.databind.JsonNode listModelsRaw(String apiKey, AiRequestMetadata metadata) { return root; }
-            public java.util.List<String> listFreeModels(String apiKey, AiRequestMetadata metadata) {
-                java.util.List<String> out = new java.util.ArrayList<>();
-                for (var n : root.path("data")) { String id = n.path("id").asText(null); if (id != null && id.endsWith("-free")) out.add(id); }
-                return out;
+            public ZenFreeModelSelection freeModelSelection(String apiKey, AiRequestMetadata metadata) {
+                // 可信目录不可用：保守回退只保留免费后缀模型（与改造前行为一致）。
+                return ZenFreeModelSelection.select(root, null);
             }
             public void validateCredential(String apiKey, String model, AiRequestMetadata metadata) { }
         };
         OpenCodeZenModelCatalog catalog = new OpenCodeZenModelCatalog(stub);
         var free = catalog.freeModels(null, AiRequestMetadata.of("s"));
         assertThat(free).containsExactlyInAnyOrder("a-free", "c-free");
+        // 协议不受支持的模型不会被当作可执行模型。
+        catalog.requireExecutableModel("a-free", catalog.selection(null, AiRequestMetadata.of("s")));
     }
     @Test void turnRoutingKeepsStableSession() {
         var provider = zenProvider();

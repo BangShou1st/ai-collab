@@ -71,7 +71,7 @@ class ZenPlanningContractTest {
         ModelConfiguration runtime = exec.runtimeConfig(stale);
         assertThat(runtime.capabilities()).contains(ModelCapability.STRUCTURED_OUTPUT, ModelCapability.NATIVE_TOOLS);
         ModelCapabilityPolicy.require(runtime, jsonCommand(), false);
-        assertThat(runtime.baseUrl()).isEqualTo("https://opencode.ai/zen/v1");
+        assertThat(runtime.baseUrl()).isEqualTo("https://opencode.ai/inference/v1");
     }
 
     @Test void nativeFinalRequestWithToolHistoryDisablesTransportTools() throws Exception {
