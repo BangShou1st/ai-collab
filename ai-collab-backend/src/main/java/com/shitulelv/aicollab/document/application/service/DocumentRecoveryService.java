@@ -8,16 +8,22 @@ import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
 
+/**
+ * 文档恢复调度。
+ *
+ * <p>UPLOADED 分支只派发给 {@link DocumentTaskDispatcher}，不在此同步执行解析或 Embedding；
+ * 派发与上传事务提交后的事件共用同一去重边界。PARSING / INDEXING 过期候选仍沿用原有失败标记。</p>
+ */
 @Component
 public class DocumentRecoveryService {
     private final DocumentRepository documents;
-    private final DocumentProcessingService processing;
+    private final DocumentTaskDispatcher dispatcher;
     private final DocumentFailureRecorder failures;
 
-    public DocumentRecoveryService(DocumentRepository documents, DocumentProcessingService processing,
+    public DocumentRecoveryService(DocumentRepository documents, DocumentTaskDispatcher dispatcher,
                                    DocumentFailureRecorder failures) {
         this.documents = documents;
-        this.processing = processing;
+        this.dispatcher = dispatcher;
         this.failures = failures;
     }
 
@@ -27,7 +33,7 @@ public class DocumentRecoveryService {
         OffsetDateTime staleBefore = OffsetDateTime.now().minusMinutes(15);
         for (DocumentRecoveryCandidate candidate : documents.recoverable(staleBefore)) {
             if (candidate.status() == DocumentStatus.UPLOADED) {
-                processing.process(candidate.projectId(), candidate.documentId());
+                dispatcher.dispatch(candidate.projectId(), candidate.documentId());
             } else {
                 failures.recordStale(candidate, staleBefore);
             }

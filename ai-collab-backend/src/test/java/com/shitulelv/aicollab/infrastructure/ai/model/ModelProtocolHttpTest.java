@@ -148,6 +148,24 @@ class ModelProtocolHttpTest {
         reply(200, "application/json", "{\"choices\":[]}");
         assertThatThrownBy(this::complete).isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_INVALID_RESPONSE));
     }
+    @Test void sse_error_envelope_is_not_a_successful_answer() {
+        reply(200, "text/event-stream", "data: {\"error\":{\"message\":\"synthetic stream failure\"}}\n\n");
+        assertThatThrownBy(this::complete).isInstanceOfSatisfying(BusinessException.class, e -> {
+            assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
+            assertThat(e.getMessage()).doesNotContain("synthetic stream failure");
+        });
+        assertThat(requests.get()).isEqualTo(1);
+    }
+    @Test void truncated_stream_keeps_the_usage_reported_by_the_provider() {
+        reply(200, "text/event-stream",
+                "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":5}}\n\n"
+                        + "data: {\"choices\":[{\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n");
+        assertThatThrownBy(this::complete).isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
+            assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+            assertThat(failure.promptTokens()).isEqualTo(11);
+            assertThat(failure.completionTokens()).isEqualTo(5);
+        });
+    }
     @Test void multiline_sse_data_is_one_event() {
         reply(200, "text/event-stream", "event: message\ndata: {\"choices\":\ndata: [{\"delta\":{\"content\":\"ok\"}}]}\n\ndata: [DONE]\n\n");
         assertThat(complete().content()).isEqualTo("ok");
