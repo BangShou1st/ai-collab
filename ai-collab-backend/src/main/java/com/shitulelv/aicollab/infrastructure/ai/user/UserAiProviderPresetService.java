@@ -10,6 +10,7 @@ import com.shitulelv.aicollab.infrastructure.ai.model.OpenCodeZenModelCatalog;
 import com.shitulelv.aicollab.infrastructure.ai.model.OpenCodeZenTransport;
 import com.shitulelv.aicollab.infrastructure.ai.model.ProviderPresetCode;
 import com.shitulelv.aicollab.infrastructure.ai.model.ProviderPresetRegistry;
+import com.shitulelv.aicollab.infrastructure.ai.model.ZenFreeModelSelection;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumSet;
@@ -23,12 +24,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class UserAiProviderPresetService {
     private static final String PRESET = ProviderPresetCode.OPENCODE_ZEN_FREE.name();
+    /** 按凭证分桶的模型发现缓存：有界容量 + 短 TTL。 */
+    private static final int MAX_CACHE_ENTRIES = 512;
+    private static final Duration CACHE_TTL = Duration.ofMinutes(5);
     private final UserAiProviderRepository repository;
     private final ModelSecretCipher secrets;
     private final ProviderPresetRegistry registry;
     private final OpenCodeZenModelCatalog catalog;
     private final OpenCodeZenTransport transport;
-    private final Map<String, CachedModels> cache = new ConcurrentHashMap<>();
+    private final Map<String, CachedListing> cache = new ConcurrentHashMap<>();
     @org.springframework.beans.factory.annotation.Autowired
     public UserAiProviderPresetService(UserAiProviderRepository repository, ModelSecretCipher secrets,
             ProviderPresetRegistry registry, OpenCodeZenModelCatalog catalog, OpenCodeZenTransport transport) {
@@ -64,18 +68,47 @@ public class UserAiProviderPresetService {
         return freeModels(key, refresh);
     }
     public List<String> freeModels(String apiKey, boolean refresh) {
-        String ck = "public";
+        return selection(apiKey, refresh).models();
+    }
+    /**
+     * 发现当前可执行的 Zen 模型。缓存按凭证分桶（凭证哈希，非明文），
+     * 不同用户凭证关联的非公开可用性不会被混在一起；缓存有界且带 TTL，
+     * 不会每次用户请求都访问公共目录（公共目录自身由传输层缓存）。
+     */
+    public ZenFreeModelSelection selection(String apiKey, boolean refresh) {
+        String cacheKey = cacheKey(apiKey);
         if (!refresh) {
-            CachedModels hit = cache.get(ck);
-            if (hit != null && Instant.now().isBefore(hit.expires)) return hit.models;
+            CachedListing hit = cache.get(cacheKey);
+            if (hit != null && Instant.now().isBefore(hit.expires())) {
+                return hit.listing();
+            }
         }
-        List<String> models;
+        ZenFreeModelSelection listing;
         try {
-            models = catalog.freeModels(apiKey, AiRequestMetadata.fresh());
+            listing = catalog.selection(apiKey, AiRequestMetadata.fresh());
         } catch (BusinessException e) { throw e; }
         catch (Exception e) { throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "model catalog temporarily unavailable, please retry"); }
-        cache.put(ck, new CachedModels(List.copyOf(models), Instant.now().plus(Duration.ofMinutes(5))));
-        return models;
+        cacheListing(cacheKey, listing);
+        return listing;
+    }
+    private void cacheListing(String cacheKey, ZenFreeModelSelection listing) {
+        if (cache.size() >= MAX_CACHE_ENTRIES) {
+            Instant now = Instant.now();
+            cache.entrySet().removeIf(entry -> now.isAfter(entry.getValue().expires()));
+            if (cache.size() >= MAX_CACHE_ENTRIES) cache.clear();
+        }
+        cache.put(cacheKey, new CachedListing(listing, Instant.now().plus(CACHE_TTL)));
+    }
+    /** 只保存凭证的不可逆摘要作为缓存键；凭证明文既不持久化到缓存，也不写日志。 */
+    private static String cacheKey(String apiKey) {
+        if (apiKey == null || apiKey.isBlank()) return "anonymous";
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(apiKey.strip().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException unavailable) {
+            return "unavailable";
+        }
     }
     @Transactional
     public PresetStatus save(UUID userId, String apiKey, String modelName, boolean enabled, boolean setDefault) {
@@ -89,8 +122,7 @@ public class UserAiProviderPresetService {
         } else {
             effectiveKey = key.isBlank() ? secrets.decrypt(existing.get().encryptedApiKey()) : key;
         }
-        List<String> free = freeModels(effectiveKey, false);
-        catalog.requireFreeModel(modelName.strip(), free);
+        catalog.requireExecutableModel(modelName, selection(effectiveKey, false));
         var pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
         boolean first = repository.countByUserId(userId) == 0;
         boolean makeDefault = setDefault || first || existing.map(UserAiProvider::isDefault).orElse(false);
@@ -132,9 +164,8 @@ public class UserAiProviderPresetService {
         String model = modelName != null && !modelName.isBlank() ? modelName.strip()
                 : existing.map(UserAiProvider::modelName)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "model required"));
-        List<String> free = freeModels(key, false);
-        catalog.requireFreeModel(model, free);
+        catalog.requireExecutableModel(model, selection(key, false));
         transport.validateCredential(key, model, AiRequestMetadata.fresh());
     }
-    private record CachedModels(List<String> models, Instant expires) {}
+    private record CachedListing(ZenFreeModelSelection listing, Instant expires) {}
 }
