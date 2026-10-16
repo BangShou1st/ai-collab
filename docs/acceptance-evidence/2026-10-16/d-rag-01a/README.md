@@ -236,3 +236,41 @@ A 部分（Agent limit 修复）与其余基线算法逻辑**未改动**。
 
 未改动检索算法、Agent limit、上下文预算或任何现有评价口径。
 `RetrievalCoverageTest`（10 例）与 `RetrievalCoverage` 度量本身**未触碰**。
+
+## PR #12 CI 偶发失败修复：调度器测试的完成信号时序
+
+GitHub CI 偶发失败于
+`AgentRuntimeJobSchedulerTest.releasingOneSlotAllowsNextTickToClaimAgain`（原第 188 行）。
+该失败与本批 RAG 改动无关，是既有测试的时序假设问题，但位于本分支上，故一并修复。
+
+**根因**：`RecordingExecutor` 在包裹的 Runnable 内部、`delegate.execute(...)` 返回<b>之前</b>
+于 `finally` 中执行 `completions.countDown()`。这个信号发生在**池线程内部**：
+此刻该线程尚未回到零容量（`queueCapacity=0`）队列上重新阻塞，因此
+“完成信号已发出”只代表**任务体结束**，不代表**线程池已能接收下一个任务**。
+紧随完成信号的那一次 tick 会被 `AbortPolicy` **正确拒绝**，于是第三个任务领取超时。
+
+**修复（只改测试同步方式）**：
+
+- 新增有界等待助手 `awaitNextDispatch(...)`：可靠条件是
+  `RecordingExecutor.dispatchedCount()` **增长**（该计数只在任务真正被线程池接收时递增，
+  被拒绝的 tick 抛 `TaskRejectedException` 故不计入）。一旦增长**立即停止**，不再多发 tick；
+  上界由墙钟 `TIMEOUT_SECONDS` 约束，循环体仅 `Thread.yield()`，**不使用 `Thread.sleep`**，
+  也**未放大超时**；
+- 断言改为“槽位释放后，有限次数的周期 tick 最终能再次派发”，
+  而不是“完成信号后的第一次 tick 必须成功”；
+- `workerFailureDoesNotLeakAnExecutionSlot` 存在**同一类竞争窗口**（失败 Runnable 的完成信号
+  同样在池线程内），已做同样的最小修复。
+
+断言强度**未削弱**：新增 `dispatchedCount()` 精确断言（2 → 3、1 → 2），
+并保留原有的 `thirdClaimed` / `secondEntered` / `times(n).claim(...)` 校验。
+若槽位真的泄漏，`awaitNextDispatch` 会在有界时间内返回 `false` 使用例失败。
+
+**验证方式**：先用一次性探针量化该窗口——本机 300 次 + 200 次 spin 复现均为 0 次拒绝
+（本机过快、窗口极小；CI 较慢且受争用，窗口被放大），
+故改用**确定性替身**验证：照搬用例结构并注入 N 次 `TaskRejectedException`，
+结果 1/3/25/199 次注入均能恢复并领取第三个任务，
+而注入 1000 次（远超有界上界）则**如期失败**——证明该重试确实有界，
+不会掩盖真实的槽位泄漏。探针为一次性文件，验证后已删除，未进入提交。
+
+未修改生产调度器（`AgentRuntimeJob`/`AgentRunExecutionConfiguration`）、
+并发上限、数据库领取策略、RAG 代码或 CI 守卫。
