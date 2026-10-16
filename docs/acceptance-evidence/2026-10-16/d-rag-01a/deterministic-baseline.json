@@ -1,0 +1,1740 @@
+{
+  "note" : "D-RAG-01A 确定性检索基线的机器可读诊断数据。pgvector 检索、指纹/代际过滤、知识上下文构建均为真实实现；嵌入向量为 SyntheticEmbedder 合成，因此不代表模型召回质量，也不代表模型回答质量。",
+  "topKObservations" : [ 8, 20 ],
+  "knowledgeQaContextLimit" : 5,
+  "agentContextLimit" : 12,
+  "cases" : {
+    "索引代际隔离" : {
+      "topK" : 20,
+      "contextLimit" : 12,
+      "expectedEvidenceCount" : 1,
+      "candidateCount" : 1,
+      "retainedSourceCount" : 1,
+      "retrievalStatus" : "MEASURED",
+      "retrievalRecall" : 1.0,
+      "contextEvidenceRetention" : 1.0,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 1,
+        "candidateDocumentsWithEvidence" : 1,
+        "retainedDocumentsWithEvidence" : 1,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 1.0
+      },
+      "notRecalledInTopK" : 0,
+      "droppedByContext" : 0,
+      "unexpectedSourcesRetained" : 0,
+      "candidatesRejectedByThresholdOrDedup" : 0,
+      "expectedEvidence" : [ {
+        "label" : "活跃代际证据",
+        "documentId" : "5cb9338b-136f-4e5b-8adb-ddcdcdabcf03",
+        "chunkId" : "8829a911-5bcc-4bd5-b2f3-c5821bffb6a2",
+        "recalledInCandidates" : true,
+        "candidateRank" : 1,
+        "candidateSimilarity" : 1.0,
+        "retainedInContext" : true
+      } ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "8829a911-5bcc-4bd5-b2f3-c5821bffb6a2",
+        "documentId" : "5cb9338b-136f-4e5b-8adb-ddcdcdabcf03",
+        "filename" : "代际.md",
+        "similarity" : 1.0,
+        "expectedEvidence" : true
+      } ],
+      "retainedSources" : [ {
+        "rank" : 1,
+        "chunkId" : "8829a911-5bcc-4bd5-b2f3-c5821bffb6a2",
+        "documentId" : "5cb9338b-136f-4e5b-8adb-ddcdcdabcf03",
+        "filename" : "代际.md",
+        "heading" : "新代",
+        "similarity" : 1.0,
+        "expectedEvidence" : true
+      } ]
+    },
+    "来源上限-知识问答" : {
+      "topK" : 20,
+      "contextLimit" : 5,
+      "expectedEvidenceCount" : 12,
+      "candidateCount" : 12,
+      "retainedSourceCount" : 5,
+      "retrievalStatus" : "MEASURED",
+      "retrievalRecall" : 1.0,
+      "contextEvidenceRetention" : 0.4167,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 1,
+        "candidateDocumentsWithEvidence" : 1,
+        "retainedDocumentsWithEvidence" : 1,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 1.0
+      },
+      "notRecalledInTopK" : 0,
+      "droppedByContext" : 7,
+      "unexpectedSourcesRetained" : 0,
+      "candidatesRejectedByThresholdOrDedup" : 7,
+      "expectedEvidence" : [ {
+        "label" : "事实0",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "13c86cf2-8391-4039-b714-419350f0552c",
+        "recalledInCandidates" : true,
+        "candidateRank" : 4,
+        "candidateSimilarity" : 0.5368754304564546,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实1",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "29cbf027-348f-466c-a5d4-2cf6cb1cf972",
+        "recalledInCandidates" : true,
+        "candidateRank" : 6,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实2",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "ad2eedf4-ad71-4702-ab2d-a517d067b97e",
+        "recalledInCandidates" : true,
+        "candidateRank" : 8,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实3",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "c177fda8-9939-4d9b-9906-550ce9490976",
+        "recalledInCandidates" : true,
+        "candidateRank" : 10,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实4",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "d4ce8d02-d4db-444f-baf5-b944495a6060",
+        "recalledInCandidates" : true,
+        "candidateRank" : 11,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实5",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "b6d3dbe3-2704-4e01-a6eb-004c6ad0c0f6",
+        "recalledInCandidates" : true,
+        "candidateRank" : 9,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实6",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "27fd42fd-b71f-46f2-b175-cac9544d9a04",
+        "recalledInCandidates" : true,
+        "candidateRank" : 1,
+        "candidateSimilarity" : 0.6002450286267823,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实7",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "eb8624db-d273-49f6-8574-1be51c3a74ce",
+        "recalledInCandidates" : true,
+        "candidateRank" : 3,
+        "candidateSimilarity" : 0.6002450286267823,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实8",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "e6bc96ae-a5cb-4eed-80d2-2d4b7180224c",
+        "recalledInCandidates" : true,
+        "candidateRank" : 12,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实9",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "562c47bc-3de5-40ef-b66c-40cc004dc1d6",
+        "recalledInCandidates" : true,
+        "candidateRank" : 2,
+        "candidateSimilarity" : 0.6002450286267823,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实10",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "691fa2b0-2b4f-409a-8fb5-e5ccc94c96cc",
+        "recalledInCandidates" : true,
+        "candidateRank" : 7,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实11",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "1ad7bda5-ad0b-4a18-b830-95e747ad1aac",
+        "recalledInCandidates" : true,
+        "candidateRank" : 5,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : true
+      } ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "27fd42fd-b71f-46f2-b175-cac9544d9a04",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "562c47bc-3de5-40ef-b66c-40cc004dc1d6",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 3,
+        "chunkId" : "eb8624db-d273-49f6-8574-1be51c3a74ce",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 4,
+        "chunkId" : "13c86cf2-8391-4039-b714-419350f0552c",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5369,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 5,
+        "chunkId" : "1ad7bda5-ad0b-4a18-b830-95e747ad1aac",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 6,
+        "chunkId" : "29cbf027-348f-466c-a5d4-2cf6cb1cf972",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 7,
+        "chunkId" : "691fa2b0-2b4f-409a-8fb5-e5ccc94c96cc",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 8,
+        "chunkId" : "ad2eedf4-ad71-4702-ab2d-a517d067b97e",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 9,
+        "chunkId" : "b6d3dbe3-2704-4e01-a6eb-004c6ad0c0f6",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 10,
+        "chunkId" : "c177fda8-9939-4d9b-9906-550ce9490976",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 11,
+        "chunkId" : "d4ce8d02-d4db-444f-baf5-b944495a6060",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 12,
+        "chunkId" : "e6bc96ae-a5cb-4eed-80d2-2d4b7180224c",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      } ],
+      "retainedSources" : [ {
+        "rank" : 1,
+        "chunkId" : "27fd42fd-b71f-46f2-b175-cac9544d9a04",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实6",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "562c47bc-3de5-40ef-b66c-40cc004dc1d6",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实9",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 3,
+        "chunkId" : "eb8624db-d273-49f6-8574-1be51c3a74ce",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实7",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 4,
+        "chunkId" : "13c86cf2-8391-4039-b714-419350f0552c",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实0",
+        "similarity" : 0.5369,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 5,
+        "chunkId" : "1ad7bda5-ad0b-4a18-b830-95e747ad1aac",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实11",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      } ]
+    },
+    "来源上限-Agent" : {
+      "topK" : 20,
+      "contextLimit" : 12,
+      "expectedEvidenceCount" : 12,
+      "candidateCount" : 12,
+      "retainedSourceCount" : 12,
+      "retrievalStatus" : "MEASURED",
+      "retrievalRecall" : 1.0,
+      "contextEvidenceRetention" : 1.0,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 1,
+        "candidateDocumentsWithEvidence" : 1,
+        "retainedDocumentsWithEvidence" : 1,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 1.0
+      },
+      "notRecalledInTopK" : 0,
+      "droppedByContext" : 0,
+      "unexpectedSourcesRetained" : 0,
+      "candidatesRejectedByThresholdOrDedup" : 0,
+      "expectedEvidence" : [ {
+        "label" : "事实0",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "13c86cf2-8391-4039-b714-419350f0552c",
+        "recalledInCandidates" : true,
+        "candidateRank" : 4,
+        "candidateSimilarity" : 0.5368754304564546,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实1",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "29cbf027-348f-466c-a5d4-2cf6cb1cf972",
+        "recalledInCandidates" : true,
+        "candidateRank" : 6,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实2",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "ad2eedf4-ad71-4702-ab2d-a517d067b97e",
+        "recalledInCandidates" : true,
+        "candidateRank" : 8,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实3",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "c177fda8-9939-4d9b-9906-550ce9490976",
+        "recalledInCandidates" : true,
+        "candidateRank" : 10,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实4",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "d4ce8d02-d4db-444f-baf5-b944495a6060",
+        "recalledInCandidates" : true,
+        "candidateRank" : 11,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实5",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "b6d3dbe3-2704-4e01-a6eb-004c6ad0c0f6",
+        "recalledInCandidates" : true,
+        "candidateRank" : 9,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实6",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "27fd42fd-b71f-46f2-b175-cac9544d9a04",
+        "recalledInCandidates" : true,
+        "candidateRank" : 1,
+        "candidateSimilarity" : 0.6002450286267823,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实7",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "eb8624db-d273-49f6-8574-1be51c3a74ce",
+        "recalledInCandidates" : true,
+        "candidateRank" : 3,
+        "candidateSimilarity" : 0.6002450286267823,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实8",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "e6bc96ae-a5cb-4eed-80d2-2d4b7180224c",
+        "recalledInCandidates" : true,
+        "candidateRank" : 12,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实9",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "562c47bc-3de5-40ef-b66c-40cc004dc1d6",
+        "recalledInCandidates" : true,
+        "candidateRank" : 2,
+        "candidateSimilarity" : 0.6002450286267823,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实10",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "691fa2b0-2b4f-409a-8fb5-e5ccc94c96cc",
+        "recalledInCandidates" : true,
+        "candidateRank" : 7,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实11",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "chunkId" : "1ad7bda5-ad0b-4a18-b830-95e747ad1aac",
+        "recalledInCandidates" : true,
+        "candidateRank" : 5,
+        "candidateSimilarity" : 0.5144957388229562,
+        "retainedInContext" : true
+      } ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "27fd42fd-b71f-46f2-b175-cac9544d9a04",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "562c47bc-3de5-40ef-b66c-40cc004dc1d6",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 3,
+        "chunkId" : "eb8624db-d273-49f6-8574-1be51c3a74ce",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 4,
+        "chunkId" : "13c86cf2-8391-4039-b714-419350f0552c",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5369,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 5,
+        "chunkId" : "1ad7bda5-ad0b-4a18-b830-95e747ad1aac",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 6,
+        "chunkId" : "29cbf027-348f-466c-a5d4-2cf6cb1cf972",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 7,
+        "chunkId" : "691fa2b0-2b4f-409a-8fb5-e5ccc94c96cc",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 8,
+        "chunkId" : "ad2eedf4-ad71-4702-ab2d-a517d067b97e",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 9,
+        "chunkId" : "b6d3dbe3-2704-4e01-a6eb-004c6ad0c0f6",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 10,
+        "chunkId" : "c177fda8-9939-4d9b-9906-550ce9490976",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 11,
+        "chunkId" : "d4ce8d02-d4db-444f-baf5-b944495a6060",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 12,
+        "chunkId" : "e6bc96ae-a5cb-4eed-80d2-2d4b7180224c",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      } ],
+      "retainedSources" : [ {
+        "rank" : 1,
+        "chunkId" : "27fd42fd-b71f-46f2-b175-cac9544d9a04",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实6",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "562c47bc-3de5-40ef-b66c-40cc004dc1d6",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实9",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 3,
+        "chunkId" : "eb8624db-d273-49f6-8574-1be51c3a74ce",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实7",
+        "similarity" : 0.6002,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 4,
+        "chunkId" : "13c86cf2-8391-4039-b714-419350f0552c",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实0",
+        "similarity" : 0.5369,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 5,
+        "chunkId" : "1ad7bda5-ad0b-4a18-b830-95e747ad1aac",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实11",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 6,
+        "chunkId" : "29cbf027-348f-466c-a5d4-2cf6cb1cf972",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实1",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 7,
+        "chunkId" : "691fa2b0-2b4f-409a-8fb5-e5ccc94c96cc",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实10",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 8,
+        "chunkId" : "ad2eedf4-ad71-4702-ab2d-a517d067b97e",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实2",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 9,
+        "chunkId" : "b6d3dbe3-2704-4e01-a6eb-004c6ad0c0f6",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实5",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 10,
+        "chunkId" : "c177fda8-9939-4d9b-9906-550ce9490976",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实3",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 11,
+        "chunkId" : "d4ce8d02-d4db-444f-baf5-b944495a6060",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实4",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 12,
+        "chunkId" : "e6bc96ae-a5cb-4eed-80d2-2d4b7180224c",
+        "documentId" : "1970931f-4aa4-4105-bccf-32e107090821",
+        "filename" : "上限.md",
+        "heading" : "事实8",
+        "similarity" : 0.5145,
+        "expectedEvidence" : true
+      } ]
+    },
+    "无有效证据" : {
+      "topK" : 8,
+      "contextLimit" : 12,
+      "expectedEvidenceCount" : 0,
+      "candidateCount" : 2,
+      "retainedSourceCount" : 0,
+      "retrievalStatus" : "UNDEFINED_NO_EXPECTED_EVIDENCE",
+      "retrievalRecall" : null,
+      "contextEvidenceRetention" : null,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 0,
+        "candidateDocumentsWithEvidence" : 0,
+        "retainedDocumentsWithEvidence" : 0,
+        "candidateRatio" : null,
+        "retainedRatio" : null
+      },
+      "notRecalledInTopK" : 0,
+      "droppedByContext" : 0,
+      "unexpectedSourcesRetained" : 0,
+      "candidatesRejectedByThresholdOrDedup" : 2,
+      "expectedEvidence" : [ ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "2d1071e2-f71f-405d-8956-39ea45984385",
+        "documentId" : "c5c797fa-2b70-40b0-a88c-0099eef9282c",
+        "filename" : "无关件.md",
+        "similarity" : 0.0,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 2,
+        "chunkId" : "a106d837-b148-4802-a604-5353bc402d75",
+        "documentId" : "c5c797fa-2b70-40b0-a88c-0099eef9282c",
+        "filename" : "无关件.md",
+        "similarity" : 0.0,
+        "expectedEvidence" : false
+      } ],
+      "retainedSources" : [ ]
+    },
+    "精确编号" : {
+      "topK" : 8,
+      "contextLimit" : 12,
+      "expectedEvidenceCount" : 1,
+      "candidateCount" : 8,
+      "retainedSourceCount" : 1,
+      "retrievalStatus" : "MEASURED",
+      "retrievalRecall" : 1.0,
+      "contextEvidenceRetention" : 1.0,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 1,
+        "candidateDocumentsWithEvidence" : 1,
+        "retainedDocumentsWithEvidence" : 1,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 1.0
+      },
+      "notRecalledInTopK" : 0,
+      "droppedByContext" : 0,
+      "unexpectedSourcesRetained" : 0,
+      "candidatesRejectedByThresholdOrDedup" : 7,
+      "expectedEvidence" : [ {
+        "label" : "REQ-7741",
+        "documentId" : "1795f315-0b7e-445c-8887-107c1845c30e",
+        "chunkId" : "70521c52-8881-48eb-a2ca-237a6a071088",
+        "recalledInCandidates" : true,
+        "candidateRank" : 1,
+        "candidateSimilarity" : 0.47140454605602855,
+        "retainedInContext" : true
+      } ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "70521c52-8881-48eb-a2ca-237a6a071088",
+        "documentId" : "1795f315-0b7e-445c-8887-107c1845c30e",
+        "filename" : "变更单.md",
+        "similarity" : 0.4714,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "0944724e-6e77-4c0b-8101-3f1066c50e50",
+        "documentId" : "1795f315-0b7e-445c-8887-107c1845c30e",
+        "filename" : "变更单.md",
+        "similarity" : 0.0,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 3,
+        "chunkId" : "79255ad4-9192-481c-929f-f49555d54f83",
+        "documentId" : "1795f315-0b7e-445c-8887-107c1845c30e",
+        "filename" : "变更单.md",
+        "similarity" : 0.0,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 4,
+        "chunkId" : "90c8d8eb-8b2a-4399-86dc-73ec1871d501",
+        "documentId" : "1795f315-0b7e-445c-8887-107c1845c30e",
+        "filename" : "变更单.md",
+        "similarity" : 0.0,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 5,
+        "chunkId" : "9303c7c8-d845-430f-be8f-9977638af0ec",
+        "documentId" : "1795f315-0b7e-445c-8887-107c1845c30e",
+        "filename" : "变更单.md",
+        "similarity" : 0.0,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 6,
+        "chunkId" : "c2900116-d589-4f1f-b022-101fe9aa43d9",
+        "documentId" : "1795f315-0b7e-445c-8887-107c1845c30e",
+        "filename" : "变更单.md",
+        "similarity" : 0.0,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 7,
+        "chunkId" : "d98e80d4-7eaa-4dc2-8a8c-d9424c705633",
+        "documentId" : "1795f315-0b7e-445c-8887-107c1845c30e",
+        "filename" : "变更单.md",
+        "similarity" : 0.0,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 8,
+        "chunkId" : "f7d33824-0282-43f0-8905-224850e61d8e",
+        "documentId" : "1795f315-0b7e-445c-8887-107c1845c30e",
+        "filename" : "变更单.md",
+        "similarity" : 0.0,
+        "expectedEvidence" : false
+      } ],
+      "retainedSources" : [ {
+        "rank" : 1,
+        "chunkId" : "70521c52-8881-48eb-a2ca-237a6a071088",
+        "documentId" : "1795f315-0b7e-445c-8887-107c1845c30e",
+        "filename" : "变更单.md",
+        "heading" : "变更",
+        "similarity" : 0.4714,
+        "expectedEvidence" : true
+      } ]
+    },
+    "跨文档多事实" : {
+      "topK" : 8,
+      "contextLimit" : 12,
+      "expectedEvidenceCount" : 3,
+      "candidateCount" : 8,
+      "retainedSourceCount" : 6,
+      "retrievalStatus" : "MEASURED",
+      "retrievalRecall" : 1.0,
+      "contextEvidenceRetention" : 1.0,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 3,
+        "candidateDocumentsWithEvidence" : 3,
+        "retainedDocumentsWithEvidence" : 3,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 1.0
+      },
+      "notRecalledInTopK" : 0,
+      "droppedByContext" : 0,
+      "unexpectedSourcesRetained" : 3,
+      "candidatesRejectedByThresholdOrDedup" : 2,
+      "expectedEvidence" : [ {
+        "label" : "分册1事实",
+        "documentId" : "f11bc80e-3bc6-4a5b-a72a-5304bfdc4957",
+        "chunkId" : "af410dda-cf1d-4ad0-b31b-a818ceb69ab0",
+        "recalledInCandidates" : true,
+        "candidateRank" : 3,
+        "candidateSimilarity" : 0.6681530908419975,
+        "retainedInContext" : true
+      }, {
+        "label" : "分册2事实",
+        "documentId" : "71ea3931-942d-4be7-92ab-e0d7043c20a3",
+        "chunkId" : "84eccf69-11dc-44bb-8dc4-f8d67e7bbab6",
+        "recalledInCandidates" : true,
+        "candidateRank" : 1,
+        "candidateSimilarity" : 0.6681530908419975,
+        "retainedInContext" : true
+      }, {
+        "label" : "分册3事实",
+        "documentId" : "005a3437-8cc5-47e0-9894-bb78a9932444",
+        "chunkId" : "9668fcfc-cc49-4fdd-be23-f7376a196e69",
+        "recalledInCandidates" : true,
+        "candidateRank" : 2,
+        "candidateSimilarity" : 0.6681530908419975,
+        "retainedInContext" : true
+      } ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "84eccf69-11dc-44bb-8dc4-f8d67e7bbab6",
+        "documentId" : "71ea3931-942d-4be7-92ab-e0d7043c20a3",
+        "filename" : "分册2.md",
+        "similarity" : 0.6682,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "9668fcfc-cc49-4fdd-be23-f7376a196e69",
+        "documentId" : "005a3437-8cc5-47e0-9894-bb78a9932444",
+        "filename" : "分册3.md",
+        "similarity" : 0.6682,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 3,
+        "chunkId" : "af410dda-cf1d-4ad0-b31b-a818ceb69ab0",
+        "documentId" : "f11bc80e-3bc6-4a5b-a72a-5304bfdc4957",
+        "filename" : "分册1.md",
+        "similarity" : 0.6682,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 4,
+        "chunkId" : "19721a97-666d-470e-a4e2-1b3c63006f3f",
+        "documentId" : "005a3437-8cc5-47e0-9894-bb78a9932444",
+        "filename" : "分册3.md",
+        "similarity" : 0.2857,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 5,
+        "chunkId" : "2d4de42b-d83c-43b4-b191-8201db0b0dd6",
+        "documentId" : "71ea3931-942d-4be7-92ab-e0d7043c20a3",
+        "filename" : "分册2.md",
+        "similarity" : 0.2857,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 6,
+        "chunkId" : "8194f1b6-d339-4bf9-bfe1-e09a8e9d5f07",
+        "documentId" : "f11bc80e-3bc6-4a5b-a72a-5304bfdc4957",
+        "filename" : "分册1.md",
+        "similarity" : 0.2857,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 7,
+        "chunkId" : "97444a47-3bae-436f-aea2-9addcf11c54e",
+        "documentId" : "005a3437-8cc5-47e0-9894-bb78a9932444",
+        "filename" : "分册3.md",
+        "similarity" : 0.2857,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 8,
+        "chunkId" : "a377cc94-56ae-4093-84cf-3e6659747e49",
+        "documentId" : "005a3437-8cc5-47e0-9894-bb78a9932444",
+        "filename" : "分册3.md",
+        "similarity" : 0.2857,
+        "expectedEvidence" : false
+      } ],
+      "retainedSources" : [ {
+        "rank" : 1,
+        "chunkId" : "84eccf69-11dc-44bb-8dc4-f8d67e7bbab6",
+        "documentId" : "71ea3931-942d-4be7-92ab-e0d7043c20a3",
+        "filename" : "分册2.md",
+        "heading" : "事实2",
+        "similarity" : 0.6682,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "9668fcfc-cc49-4fdd-be23-f7376a196e69",
+        "documentId" : "005a3437-8cc5-47e0-9894-bb78a9932444",
+        "filename" : "分册3.md",
+        "heading" : "事实3",
+        "similarity" : 0.6682,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 3,
+        "chunkId" : "af410dda-cf1d-4ad0-b31b-a818ceb69ab0",
+        "documentId" : "f11bc80e-3bc6-4a5b-a72a-5304bfdc4957",
+        "filename" : "分册1.md",
+        "heading" : "事实1",
+        "similarity" : 0.6682,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 4,
+        "chunkId" : "19721a97-666d-470e-a4e2-1b3c63006f3f",
+        "documentId" : "005a3437-8cc5-47e0-9894-bb78a9932444",
+        "filename" : "分册3.md",
+        "heading" : "噪声",
+        "similarity" : 0.2857,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 5,
+        "chunkId" : "2d4de42b-d83c-43b4-b191-8201db0b0dd6",
+        "documentId" : "71ea3931-942d-4be7-92ab-e0d7043c20a3",
+        "filename" : "分册2.md",
+        "heading" : "噪声",
+        "similarity" : 0.2857,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 6,
+        "chunkId" : "97444a47-3bae-436f-aea2-9addcf11c54e",
+        "documentId" : "005a3437-8cc5-47e0-9894-bb78a9932444",
+        "filename" : "分册3.md",
+        "heading" : "噪声",
+        "similarity" : 0.2857,
+        "expectedEvidence" : false
+      } ]
+    },
+    "预算" : {
+      "topK" : 20,
+      "contextLimit" : 12,
+      "expectedEvidenceCount" : 12,
+      "candidateCount" : 12,
+      "retainedSourceCount" : 3,
+      "retrievalStatus" : "MEASURED",
+      "retrievalRecall" : 1.0,
+      "contextEvidenceRetention" : 0.25,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 1,
+        "candidateDocumentsWithEvidence" : 1,
+        "retainedDocumentsWithEvidence" : 1,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 1.0
+      },
+      "notRecalledInTopK" : 0,
+      "droppedByContext" : 9,
+      "unexpectedSourcesRetained" : 0,
+      "candidatesRejectedByThresholdOrDedup" : 9,
+      "expectedEvidence" : [ {
+        "label" : "事实0",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "d0054881-57cb-4074-8436-7aab1e972b46",
+        "recalledInCandidates" : true,
+        "candidateRank" : 1,
+        "candidateSimilarity" : 0.390359979580829,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实1",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "cbdd7a92-0baa-407d-9d50-05e4a4285e0b",
+        "recalledInCandidates" : true,
+        "candidateRank" : 11,
+        "candidateSimilarity" : 0.346410136589848,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实2",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "98b64849-2eec-4595-aeb0-a1c199c6cab1",
+        "recalledInCandidates" : true,
+        "candidateRank" : 9,
+        "candidateSimilarity" : 0.346410136589848,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实3",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "6bda6897-489c-4fae-a58c-9cf353383af9",
+        "recalledInCandidates" : true,
+        "candidateRank" : 5,
+        "candidateSimilarity" : 0.346410136589848,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实4",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "52482648-5acf-4e2a-96bf-27a77c0896a6",
+        "recalledInCandidates" : true,
+        "candidateRank" : 4,
+        "candidateSimilarity" : 0.346410136589848,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实5",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "2d16facc-aa54-463e-811e-814ec5ba3fe6",
+        "recalledInCandidates" : true,
+        "candidateRank" : 3,
+        "candidateSimilarity" : 0.346410136589848,
+        "retainedInContext" : true
+      }, {
+        "label" : "事实6",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "9765594e-f6b3-47dd-add3-2fa6777a3f29",
+        "recalledInCandidates" : true,
+        "candidateRank" : 8,
+        "candidateSimilarity" : 0.346410136589848,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实7",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "7204a9b4-aefa-47c6-82be-ee8f571d091d",
+        "recalledInCandidates" : true,
+        "candidateRank" : 6,
+        "candidateSimilarity" : 0.346410136589848,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实8",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "9e71d231-4b08-41ee-b4df-9a5bfcec3b3d",
+        "recalledInCandidates" : true,
+        "candidateRank" : 10,
+        "candidateSimilarity" : 0.346410136589848,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实9",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "fbb05791-8a27-4053-a3a0-6fe24e7b910c",
+        "recalledInCandidates" : true,
+        "candidateRank" : 12,
+        "candidateSimilarity" : 0.346410136589848,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实10",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "761c77be-154f-4a27-9346-90f2e5b2c04c",
+        "recalledInCandidates" : true,
+        "candidateRank" : 7,
+        "candidateSimilarity" : 0.346410136589848,
+        "retainedInContext" : false
+      }, {
+        "label" : "事实11",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "chunkId" : "0a88ef6f-f22f-4e07-85b1-eec3b997c19a",
+        "recalledInCandidates" : true,
+        "candidateRank" : 2,
+        "candidateSimilarity" : 0.346410136589848,
+        "retainedInContext" : true
+      } ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "d0054881-57cb-4074-8436-7aab1e972b46",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3904,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "0a88ef6f-f22f-4e07-85b1-eec3b997c19a",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 3,
+        "chunkId" : "2d16facc-aa54-463e-811e-814ec5ba3fe6",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 4,
+        "chunkId" : "52482648-5acf-4e2a-96bf-27a77c0896a6",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 5,
+        "chunkId" : "6bda6897-489c-4fae-a58c-9cf353383af9",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 6,
+        "chunkId" : "7204a9b4-aefa-47c6-82be-ee8f571d091d",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 7,
+        "chunkId" : "761c77be-154f-4a27-9346-90f2e5b2c04c",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 8,
+        "chunkId" : "9765594e-f6b3-47dd-add3-2fa6777a3f29",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 9,
+        "chunkId" : "98b64849-2eec-4595-aeb0-a1c199c6cab1",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 10,
+        "chunkId" : "9e71d231-4b08-41ee-b4df-9a5bfcec3b3d",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 11,
+        "chunkId" : "cbdd7a92-0baa-407d-9d50-05e4a4285e0b",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 12,
+        "chunkId" : "fbb05791-8a27-4053-a3a0-6fe24e7b910c",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      } ],
+      "retainedSources" : [ {
+        "rank" : 1,
+        "chunkId" : "d0054881-57cb-4074-8436-7aab1e972b46",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "heading" : "事实0",
+        "similarity" : 0.3904,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "0a88ef6f-f22f-4e07-85b1-eec3b997c19a",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "heading" : "事实11",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 3,
+        "chunkId" : "2d16facc-aa54-463e-811e-814ec5ba3fe6",
+        "documentId" : "b8bccfed-2041-4d30-a2e5-34ddb8ce2397",
+        "filename" : "预算.md",
+        "heading" : "事实5",
+        "similarity" : 0.3464,
+        "expectedEvidence" : true
+      } ]
+    },
+    "单事实" : {
+      "topK" : 8,
+      "contextLimit" : 12,
+      "expectedEvidenceCount" : 1,
+      "candidateCount" : 7,
+      "retainedSourceCount" : 7,
+      "retrievalStatus" : "MEASURED",
+      "retrievalRecall" : 1.0,
+      "contextEvidenceRetention" : 1.0,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 1,
+        "candidateDocumentsWithEvidence" : 1,
+        "retainedDocumentsWithEvidence" : 1,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 1.0
+      },
+      "notRecalledInTopK" : 0,
+      "droppedByContext" : 0,
+      "unexpectedSourcesRetained" : 6,
+      "candidatesRejectedByThresholdOrDedup" : 0,
+      "expectedEvidence" : [ {
+        "label" : "并发导出上限",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "chunkId" : "a52d9c51-062f-4114-8756-e39f5789fd46",
+        "recalledInCandidates" : true,
+        "candidateRank" : 1,
+        "candidateSimilarity" : 0.5163978030450235,
+        "retainedInContext" : true
+      } ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "a52d9c51-062f-4114-8756-e39f5789fd46",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "similarity" : 0.5164,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "027fe62e-9dd4-4f49-832f-ca6dab7665bc",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 3,
+        "chunkId" : "1ed37eef-8185-4687-af1c-c4e95931c269",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 4,
+        "chunkId" : "c89cd60f-2b5b-4b7d-bda5-bdba0c8c6f8e",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 5,
+        "chunkId" : "ce9214c5-b9ea-48de-85cc-38aa28b54827",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 6,
+        "chunkId" : "e2b0b3b2-da26-4688-82a0-b0b0717a7f6d",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 7,
+        "chunkId" : "f765f510-fbf3-4c6a-83f2-3016df4e99e6",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      } ],
+      "retainedSources" : [ {
+        "rank" : 1,
+        "chunkId" : "a52d9c51-062f-4114-8756-e39f5789fd46",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "heading" : "容量",
+        "similarity" : 0.5164,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "027fe62e-9dd4-4f49-832f-ca6dab7665bc",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "heading" : "噪声",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 3,
+        "chunkId" : "1ed37eef-8185-4687-af1c-c4e95931c269",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "heading" : "噪声",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 4,
+        "chunkId" : "c89cd60f-2b5b-4b7d-bda5-bdba0c8c6f8e",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "heading" : "噪声",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 5,
+        "chunkId" : "ce9214c5-b9ea-48de-85cc-38aa28b54827",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "heading" : "噪声",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 6,
+        "chunkId" : "e2b0b3b2-da26-4688-82a0-b0b0717a7f6d",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "heading" : "噪声",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 7,
+        "chunkId" : "f765f510-fbf3-4c6a-83f2-3016df4e99e6",
+        "documentId" : "3e166802-5f2a-44b2-862e-c2591d966eaf",
+        "filename" : "需求规格.md",
+        "heading" : "噪声",
+        "similarity" : 0.1543,
+        "expectedEvidence" : false
+      } ]
+    },
+    "同内容不同文档" : {
+      "topK" : 8,
+      "contextLimit" : 12,
+      "expectedEvidenceCount" : 2,
+      "candidateCount" : 2,
+      "retainedSourceCount" : 1,
+      "retrievalStatus" : "MEASURED",
+      "retrievalRecall" : 1.0,
+      "contextEvidenceRetention" : 0.5,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 2,
+        "candidateDocumentsWithEvidence" : 2,
+        "retainedDocumentsWithEvidence" : 1,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 0.5
+      },
+      "notRecalledInTopK" : 0,
+      "droppedByContext" : 1,
+      "unexpectedSourcesRetained" : 0,
+      "candidatesRejectedByThresholdOrDedup" : 1,
+      "expectedEvidence" : [ {
+        "label" : "原始件条款",
+        "documentId" : "010b1c62-9655-4e9c-b165-261221858b1f",
+        "chunkId" : "da17ed78-989b-4e57-9d07-68ed390d8be9",
+        "recalledInCandidates" : true,
+        "candidateRank" : 2,
+        "candidateSimilarity" : 1.0,
+        "retainedInContext" : false
+      }, {
+        "label" : "复印件条款",
+        "documentId" : "ed693db7-dfa2-4110-b385-97dd708fa480",
+        "chunkId" : "3f5466cc-670c-40b9-9560-643528338eee",
+        "recalledInCandidates" : true,
+        "candidateRank" : 1,
+        "candidateSimilarity" : 1.0,
+        "retainedInContext" : true
+      } ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "3f5466cc-670c-40b9-9560-643528338eee",
+        "documentId" : "ed693db7-dfa2-4110-b385-97dd708fa480",
+        "filename" : "复印件.md",
+        "similarity" : 1.0,
+        "expectedEvidence" : true
+      }, {
+        "rank" : 2,
+        "chunkId" : "da17ed78-989b-4e57-9d07-68ed390d8be9",
+        "documentId" : "010b1c62-9655-4e9c-b165-261221858b1f",
+        "filename" : "原始件.md",
+        "similarity" : 1.0,
+        "expectedEvidence" : true
+      } ],
+      "retainedSources" : [ {
+        "rank" : 1,
+        "chunkId" : "3f5466cc-670c-40b9-9560-643528338eee",
+        "documentId" : "ed693db7-dfa2-4110-b385-97dd708fa480",
+        "filename" : "复印件.md",
+        "heading" : "条款",
+        "similarity" : 1.0,
+        "expectedEvidence" : true
+      } ]
+    },
+    "深排位(Top8)" : {
+      "topK" : 8,
+      "contextLimit" : 12,
+      "expectedEvidenceCount" : 1,
+      "candidateCount" : 8,
+      "retainedSourceCount" : 8,
+      "retrievalStatus" : "MEASURED",
+      "retrievalRecall" : 0.0,
+      "contextEvidenceRetention" : 0.0,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 1,
+        "candidateDocumentsWithEvidence" : 0,
+        "retainedDocumentsWithEvidence" : 0,
+        "candidateRatio" : 0.0,
+        "retainedRatio" : 0.0
+      },
+      "notRecalledInTopK" : 1,
+      "droppedByContext" : 0,
+      "unexpectedSourcesRetained" : 8,
+      "candidatesRejectedByThresholdOrDedup" : 0,
+      "expectedEvidence" : [ {
+        "label" : "深排位证据",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "chunkId" : "d909af29-ca3c-463e-8110-af69451a7977",
+        "recalledInCandidates" : false,
+        "candidateRank" : null,
+        "candidateSimilarity" : null,
+        "retainedInContext" : false
+      } ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "00cc7167-a7c3-4e73-9d76-b27d273773e5",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 2,
+        "chunkId" : "02301b4c-98a8-4924-8c8a-1fb76ad8c46f",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 3,
+        "chunkId" : "104045bb-d3db-4f7f-b23e-390c1fd70b5a",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 4,
+        "chunkId" : "2f8fe763-b92d-4126-a93e-0366fa052b6f",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 5,
+        "chunkId" : "3c965cd1-5795-4da8-9fdb-9c4c187e7e70",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 6,
+        "chunkId" : "5296c206-64ff-4219-996b-173e6167f6e5",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 7,
+        "chunkId" : "5a5c1ad9-a87e-42d5-9bad-7e3c0d54b277",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 8,
+        "chunkId" : "8e52ac58-ab85-4947-a7ba-a612bb6384c6",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      } ],
+      "retainedSources" : [ {
+        "rank" : 1,
+        "chunkId" : "00cc7167-a7c3-4e73-9d76-b27d273773e5",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 2,
+        "chunkId" : "02301b4c-98a8-4924-8c8a-1fb76ad8c46f",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 3,
+        "chunkId" : "104045bb-d3db-4f7f-b23e-390c1fd70b5a",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 4,
+        "chunkId" : "2f8fe763-b92d-4126-a93e-0366fa052b6f",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 5,
+        "chunkId" : "3c965cd1-5795-4da8-9fdb-9c4c187e7e70",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 6,
+        "chunkId" : "5296c206-64ff-4219-996b-173e6167f6e5",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 7,
+        "chunkId" : "5a5c1ad9-a87e-42d5-9bad-7e3c0d54b277",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 8,
+        "chunkId" : "8e52ac58-ab85-4947-a7ba-a612bb6384c6",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      } ]
+    },
+    "深排位(Top20)" : {
+      "topK" : 20,
+      "contextLimit" : 12,
+      "expectedEvidenceCount" : 1,
+      "candidateCount" : 13,
+      "retainedSourceCount" : 12,
+      "retrievalStatus" : "MEASURED",
+      "retrievalRecall" : 1.0,
+      "contextEvidenceRetention" : 0.0,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 1,
+        "candidateDocumentsWithEvidence" : 1,
+        "retainedDocumentsWithEvidence" : 0,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 0.0
+      },
+      "notRecalledInTopK" : 0,
+      "droppedByContext" : 1,
+      "unexpectedSourcesRetained" : 12,
+      "candidatesRejectedByThresholdOrDedup" : 1,
+      "expectedEvidence" : [ {
+        "label" : "深排位证据",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "chunkId" : "d909af29-ca3c-463e-8110-af69451a7977",
+        "recalledInCandidates" : true,
+        "candidateRank" : 13,
+        "candidateSimilarity" : 0.32478491694783984,
+        "retainedInContext" : false
+      } ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "00cc7167-a7c3-4e73-9d76-b27d273773e5",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 2,
+        "chunkId" : "02301b4c-98a8-4924-8c8a-1fb76ad8c46f",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 3,
+        "chunkId" : "104045bb-d3db-4f7f-b23e-390c1fd70b5a",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 4,
+        "chunkId" : "2f8fe763-b92d-4126-a93e-0366fa052b6f",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 5,
+        "chunkId" : "3c965cd1-5795-4da8-9fdb-9c4c187e7e70",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 6,
+        "chunkId" : "5296c206-64ff-4219-996b-173e6167f6e5",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 7,
+        "chunkId" : "5a5c1ad9-a87e-42d5-9bad-7e3c0d54b277",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 8,
+        "chunkId" : "8e52ac58-ab85-4947-a7ba-a612bb6384c6",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 9,
+        "chunkId" : "8f7ebd71-202a-4789-96db-4ff9e0ec6058",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 10,
+        "chunkId" : "909680be-eeab-4cd9-b28a-ca225e3a7f42",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 11,
+        "chunkId" : "b1add8b2-7e98-48e4-9981-a1635a77d863",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 12,
+        "chunkId" : "c653687b-7319-4dae-a4e3-872b40b1b3e5",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 13,
+        "chunkId" : "d909af29-ca3c-463e-8110-af69451a7977",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "similarity" : 0.3248,
+        "expectedEvidence" : true
+      } ],
+      "retainedSources" : [ {
+        "rank" : 1,
+        "chunkId" : "00cc7167-a7c3-4e73-9d76-b27d273773e5",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 2,
+        "chunkId" : "02301b4c-98a8-4924-8c8a-1fb76ad8c46f",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 3,
+        "chunkId" : "104045bb-d3db-4f7f-b23e-390c1fd70b5a",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 4,
+        "chunkId" : "2f8fe763-b92d-4126-a93e-0366fa052b6f",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 5,
+        "chunkId" : "3c965cd1-5795-4da8-9fdb-9c4c187e7e70",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 6,
+        "chunkId" : "5296c206-64ff-4219-996b-173e6167f6e5",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 7,
+        "chunkId" : "5a5c1ad9-a87e-42d5-9bad-7e3c0d54b277",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 8,
+        "chunkId" : "8e52ac58-ab85-4947-a7ba-a612bb6384c6",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 9,
+        "chunkId" : "8f7ebd71-202a-4789-96db-4ff9e0ec6058",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 10,
+        "chunkId" : "909680be-eeab-4cd9-b28a-ca225e3a7f42",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 11,
+        "chunkId" : "b1add8b2-7e98-48e4-9981-a1635a77d863",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      }, {
+        "rank" : 12,
+        "chunkId" : "c653687b-7319-4dae-a4e3-872b40b1b3e5",
+        "documentId" : "24dd4c53-15bc-4f23-8f74-1a72cce6f384",
+        "filename" : "深排位.md",
+        "heading" : "噪声",
+        "similarity" : 0.7071,
+        "expectedEvidence" : false
+      } ]
+    },
+    "深排位(归因)" : {
+      "case" : "深排位",
+      "status" : "MEASURED",
+      "recallAt8" : 0.0,
+      "recallAt20" : 1.0,
+      "contextEvidenceRetention" : 0.0,
+      "dbMissCount" : 0,
+      "droppedByContext" : 0,
+      "verdict" : "WINDOW_TRUNCATED"
+    },
+    "指定文档范围" : {
+      "topK" : 8,
+      "contextLimit" : 12,
+      "expectedEvidenceCount" : 1,
+      "candidateCount" : 1,
+      "retainedSourceCount" : 1,
+      "retrievalStatus" : "MEASURED",
+      "retrievalRecall" : 1.0,
+      "contextEvidenceRetention" : 1.0,
+      "documentCoverage" : {
+        "expectedDocumentCount" : 1,
+        "candidateDocumentsWithEvidence" : 1,
+        "retainedDocumentsWithEvidence" : 1,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 1.0
+      },
+      "notRecalledInTopK" : 0,
+      "droppedByContext" : 0,
+      "unexpectedSourcesRetained" : 0,
+      "candidatesRejectedByThresholdOrDedup" : 0,
+      "expectedEvidence" : [ {
+        "label" : "范围内证据",
+        "documentId" : "9e5d1693-ced2-44b3-b586-4180685116bf",
+        "chunkId" : "2c11edd9-face-4060-b884-e4cd9c1d7d63",
+        "recalledInCandidates" : true,
+        "candidateRank" : 1,
+        "candidateSimilarity" : 0.5773502612979813,
+        "retainedInContext" : true
+      } ],
+      "candidateSources" : [ {
+        "rank" : 1,
+        "chunkId" : "2c11edd9-face-4060-b884-e4cd9c1d7d63",
+        "documentId" : "9e5d1693-ced2-44b3-b586-4180685116bf",
+        "filename" : "范围内.md",
+        "similarity" : 0.5774,
+        "expectedEvidence" : true
+      } ],
+      "retainedSources" : [ {
+        "rank" : 1,
+        "chunkId" : "2c11edd9-face-4060-b884-e4cd9c1d7d63",
+        "documentId" : "9e5d1693-ced2-44b3-b586-4180685116bf",
+        "filename" : "范围内.md",
+        "heading" : "范围",
+        "similarity" : 0.5774,
+        "expectedEvidence" : true
+      } ]
+    }
+  }
+}

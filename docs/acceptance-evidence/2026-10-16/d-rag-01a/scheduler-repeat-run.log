@@ -1,0 +1,2085 @@
+=== run 1 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 188 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:10:38.645 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:10:38.654 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:10:38.682 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-2a1c3363-55e9-44e3-87f7-b7b3e5a92327��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.229 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  11.720 s
+[INFO] Finished at: 2026-10-16T13:10:38+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 2 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:10:46.160 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:10:46.170 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:10:46.202 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-dee4ec3a-acf3-44ae-91fd-711ee19a6b35��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.553 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.750 s
+[INFO] Finished at: 2026-10-16T13:10:46+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 3 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:10:53.521 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:10:53.529 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:10:53.561 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-4a23373f-c281-4515-899d-30b31fbc6fd0��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.515 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.616 s
+[INFO] Finished at: 2026-10-16T13:10:53+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 4 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:11:00.874 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:11:00.886 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:11:00.921 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-2f352f1c-5b7a-4a69-9d73-fbe8f4494959��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.420 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.673 s
+[INFO] Finished at: 2026-10-16T13:11:01+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 5 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:11:08.433 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:11:08.444 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:11:08.470 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-2691aa25-771a-4114-85f2-a18046a4f15d��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.546 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.823 s
+[INFO] Finished at: 2026-10-16T13:11:08+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 6 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:11:15.529 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:11:15.539 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:11:15.574 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-6a867664-aafe-4120-9a2e-e1e6d5828baf��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.392 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.483 s
+[INFO] Finished at: 2026-10-16T13:11:15+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 7 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:11:22.576 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:11:22.587 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:11:22.616 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-8cd62d03-fe1c-4e54-bf88-bcf1e0fcf602��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.348 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.386 s
+[INFO] Finished at: 2026-10-16T13:11:22+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 8 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:11:29.786 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:11:29.795 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:11:29.830 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-d0a96dd9-4073-46f5-afae-9fbdfe108c1f��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.399 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.490 s
+[INFO] Finished at: 2026-10-16T13:11:29+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 9 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:11:36.871 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:11:36.885 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:11:36.917 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-72d6777b-902c-49c5-9a27-fdf2f42e97f5��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.340 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.428 s
+[INFO] Finished at: 2026-10-16T13:11:37+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 10 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:11:44.156 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:11:44.165 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:11:44.197 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-b58d66c1-e78c-469c-abd1-a215cb81d44a��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.475 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.630 s
+[INFO] Finished at: 2026-10-16T13:11:44+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 11 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:11:51.036 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:11:51.044 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:11:51.075 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-1c8688c0-020b-4aff-8de1-904295a9d14f��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.079 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.207 s
+[INFO] Finished at: 2026-10-16T13:11:51+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 12 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:11:57.809 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:11:57.818 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:11:57.852 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-ce61070b-f2b1-4de3-aac1-698100333ff2��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.135 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.113 s
+[INFO] Finished at: 2026-10-16T13:11:57+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 13 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:12:04.980 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:12:04.992 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:12:05.031 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-085dc361-d567-454f-926d-0658fba465e7��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.277 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.496 s
+[INFO] Finished at: 2026-10-16T13:12:05+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 14 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:12:12.099 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:12:12.111 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:12:12.147 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-6c746417-3e4b-431d-8fea-dd606973069b��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.345 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.399 s
+[INFO] Finished at: 2026-10-16T13:12:12+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 15 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:12:19.057 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:12:19.068 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:12:19.099 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-3bfdcee8-7dd1-4a64-9a73-1a3ea0f64eae��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.230 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.315 s
+[INFO] Finished at: 2026-10-16T13:12:19+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 16 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:12:25.921 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:12:25.930 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:12:25.956 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-aa3842cf-b01d-4135-9b01-b2a9da9e1c3d��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.199 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.244 s
+[INFO] Finished at: 2026-10-16T13:12:26+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 17 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:12:32.622 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:12:32.632 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:12:32.667 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-661e6cec-0a53-4443-9ac7-e0877a1cec44��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.187 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.075 s
+[INFO] Finished at: 2026-10-16T13:12:32+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 18 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:12:40.123 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:12:40.139 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:12:40.174 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-f07574e7-d2cd-497e-8b67-783d80154525��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.744 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.865 s
+[INFO] Finished at: 2026-10-16T13:12:40+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 19 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:12:47.448 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:12:47.459 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:12:47.488 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-2cf67fff-c4da-42b9-94dc-15ffbf488c69��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.605 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.701 s
+[INFO] Finished at: 2026-10-16T13:12:47+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 20 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:12:54.837 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:12:54.850 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:12:54.886 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-37f54f2b-e7c5-43f1-bd18-af44a12bccfb��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.657 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.786 s
+[INFO] Finished at: 2026-10-16T13:12:55+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 21 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:13:02.384 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:13:02.396 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:13:02.431 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-6a7d40b6-ea20-48c0-892b-19f4b796411a��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.661 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.796 s
+[INFO] Finished at: 2026-10-16T13:13:02+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 22 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:13:10.259 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:13:10.272 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:13:10.301 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-52e6c829-64b1-4f47-95ba-f804579ad543��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.211 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.251 s
+[INFO] Finished at: 2026-10-16T13:13:10+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 23 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:13:16.796 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:13:16.806 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:13:16.838 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-fe50262c-fca8-4435-8966-5ff581983c06��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.388 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.049 s
+[INFO] Finished at: 2026-10-16T13:13:16+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 24 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:13:23.118 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:13:23.128 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:13:23.156 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-2733dfeb-1c1e-4ce0-b8d2-0f111ba6f047��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.221 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.919 s
+[INFO] Finished at: 2026-10-16T13:13:23+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 25 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:13:29.661 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:13:29.670 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:13:29.698 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-0c346477-9690-494d-b774-81c9474d729a��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.309 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.002 s
+[INFO] Finished at: 2026-10-16T13:13:29+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 26 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:13:36.271 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:13:36.282 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:13:36.312 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-01f6408c-7602-449f-bbfd-eb8675251451��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.395 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.174 s
+[INFO] Finished at: 2026-10-16T13:13:36+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 27 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:13:42.651 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:13:42.660 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:13:42.691 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-984e2a64-9d28-4729-9940-c7606e6d98c1��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.287 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.851 s
+[INFO] Finished at: 2026-10-16T13:13:42+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 28 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:13:48.912 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:13:48.922 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:13:48.948 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-ec3a7ef7-45df-4a4b-bff4-2b2857afe2e8��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.120 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.794 s
+[INFO] Finished at: 2026-10-16T13:13:49+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 29 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:13:55.269 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:13:55.278 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:13:55.306 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-5086e290-c225-4569-9e49-134f5d6ceb02��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.072 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.896 s
+[INFO] Finished at: 2026-10-16T13:13:55+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 30 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:14:01.530 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:14:01.538 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:14:01.562 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-97ffd646-2acb-45a0-9363-98c35eba4060��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.053 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.751 s
+[INFO] Finished at: 2026-10-16T13:14:01+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 31 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:14:07.991 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:14:07.999 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:14:08.026 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-e8bfc0d9-e613-4bbe-aa74-ea15d1461e15��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.190 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.009 s
+[INFO] Finished at: 2026-10-16T13:14:08+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 32 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:14:14.931 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:14:14.941 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:14:14.971 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-7ad33cce-8721-4adf-9866-69d630da61c1��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.410 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.390 s
+[INFO] Finished at: 2026-10-16T13:14:15+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 33 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:14:21.837 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:14:21.844 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:14:21.882 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-d3de17d3-5639-4b16-a8b6-d0d0b31e6e0c��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.309 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.314 s
+[INFO] Finished at: 2026-10-16T13:14:22+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 34 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:14:28.899 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:14:28.913 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:14:28.943 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-1b6a7983-d56d-4d2c-94e2-70e0528eeeaa��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.411 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.419 s
+[INFO] Finished at: 2026-10-16T13:14:29+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 35 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:14:35.933 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:14:35.943 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:14:35.977 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-c4da11d6-6c49-437b-ba72-0f79d8d1e25f��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.308 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.410 s
+[INFO] Finished at: 2026-10-16T13:14:36+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 36 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:14:42.729 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:14:42.738 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:14:42.770 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-0f25f94d-68c2-4739-b8fc-8a44f8670801��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.225 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.195 s
+[INFO] Finished at: 2026-10-16T13:14:42+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 37 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:14:49.660 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:14:49.670 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:14:49.702 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-47850bad-ed49-4c94-ba99-3b47e0e436b8��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.366 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.407 s
+[INFO] Finished at: 2026-10-16T13:14:49+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 38 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+13:14:56.631 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:14:56.640 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:14:56.670 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-f5a9b538-6ec2-429a-8f40-49d63ed9a984��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.445 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.244 s
+[INFO] Finished at: 2026-10-16T13:14:56+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 39 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:15:03.118 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:15:03.127 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:15:03.153 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-179f66ad-9db9-4fdd-b1dc-02449a244b16��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.151 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.920 s
+[INFO] Finished at: 2026-10-16T13:15:03+08:00
+[INFO] ------------------------------------------------------------------------
+=== run 40 ===
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+13:15:09.515 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 9
+13:15:09.526 [main] WARN org.springframework.context.annotation.AnnotationConfigApplicationContext -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'agentRunTaskExecutor' defined in com.shitulelv.aicollab.agent.application.AgentRunExecutionConfiguration: Failed to instantiate [org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor]: Factory method 'agentRunTaskExecutor' threw exception with message: agent.worker-concurrency ������ 1-4 ֮�䣬��ǰֵΪ 0
+13:15:09.557 [agent-run-test-1] ERROR com.shitulelv.aicollab.agent.application.AgentRuntimeJob -- Agent Worker ִ�з���δԤ���쳣��workerId=embedded-de5d6c89-7476-4d91-94ea-ebdc379b1649��type=IllegalStateException
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.173 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  4.984 s
+[INFO] Finished at: 2026-10-16T13:15:09+08:00
+[INFO] ------------------------------------------------------------------------
