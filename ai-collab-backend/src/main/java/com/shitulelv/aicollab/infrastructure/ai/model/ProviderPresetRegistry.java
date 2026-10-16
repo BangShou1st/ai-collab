@@ -35,23 +35,32 @@ public class ProviderPresetRegistry {
             "opencode/1.18.31 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14";
 
     private final String zenBaseUrl;
+    private final String zenUserAgent;
     private final Map<ProviderPresetCode, PresetPolicy> policies;
 
     /** 默认上游：新版官方文档列出的 {@code /inference/v1}。 */
     public ProviderPresetRegistry() {
-        this(ZEN_DEFAULT_BASE);
+        this(ZEN_DEFAULT_BASE, ZEN_USER_AGENT);
+    }
+
+    public ProviderPresetRegistry(String zenUpstream) {
+        this(zenUpstream, ZEN_USER_AGENT);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
-    public ProviderPresetRegistry(@Value("${zen.upstream:https://opencode.ai/inference/v1}") String zenUpstream) {
+    public ProviderPresetRegistry(
+            @Value("${zen.upstream:https://opencode.ai/inference/v1}") String zenUpstream,
+            @Value("${opencode.zen.user-agent:opencode/1.18.31 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14}") String zenUserAgent) {
         this.zenBaseUrl = approveZenUpstream(zenUpstream);
-        this.policies = Map.of(ProviderPresetCode.OPENCODE_ZEN_FREE, zenFree(this.zenBaseUrl));
+        this.zenUserAgent = zenUserAgent;
+        this.policies = Map.of(ProviderPresetCode.OPENCODE_ZEN_FREE,
+                zenFree(this.zenBaseUrl, this.zenUserAgent));
     }
 
-    private static PresetPolicy zenFree(String baseUrl) {
+    private static PresetPolicy zenFree(String baseUrl, String userAgent) {
         return new PresetPolicy(ProviderPresetCode.OPENCODE_ZEN_FREE, "OpenCode Zen Free",
                 ModelProviderType.OPENAI_COMPATIBLE, baseUrl, "/chat/completions", "/models",
-                ZEN_USER_AGENT, true, ZEN_FREE_CAPABILITIES, 0.2, 4000);
+                userAgent, true, ZEN_FREE_CAPABILITIES, 0.2, 4000);
     }
 
     /** 校验并归一化服务端配置的 Zen 上游地址；不在白名单内时明确失败。 */

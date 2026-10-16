@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sharedlibs.opencodezen.autoconfigure.OpenCodeZenRequestFactory;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
@@ -10,6 +11,7 @@ import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import org.springframework.stereotype.Component;
 
 /** Zen preset runtime execution. Single place where preset branches to DIRECT transport + registry authority. */
@@ -21,11 +23,26 @@ public class ZenModelExecution {
     private final JsonHttpModelClient zenHttp;
     private final OpenAiCompatibleModelAdapter zenAdapter;
     @org.springframework.beans.factory.annotation.Autowired
+    public ZenModelExecution(ProviderPresetRegistry registry, ObjectMapper mapper, OutboundEndpointPolicy endpoints,
+            OpenCodeZenRequestFactory requestFactory, OpenCodeZenModelCatalog catalog) {
+        this(registry, mapper, endpoints, requestFactory, catalog::isVerifiedFreeModel, null);
+    }
+
     public ZenModelExecution(ProviderPresetRegistry registry, ObjectMapper mapper, OutboundEndpointPolicy endpoints) {
-        this(registry, mapper, endpoints, null);
+        this(registry, mapper, endpoints,
+                new OpenCodeZenRequestFactory(registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE).userAgent()),
+                model -> false, null);
     }
 
     ZenModelExecution(ProviderPresetRegistry registry, ObjectMapper mapper, OutboundEndpointPolicy endpoints,
+            OpenAiCompatibleModelAdapter zenAdapter) {
+        this(registry, mapper, endpoints,
+                new OpenCodeZenRequestFactory(registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE).userAgent()),
+                model -> false, zenAdapter);
+    }
+
+    private ZenModelExecution(ProviderPresetRegistry registry, ObjectMapper mapper, OutboundEndpointPolicy endpoints,
+            OpenCodeZenRequestFactory requestFactory, Predicate<String> verifiedFreeModel,
             OpenAiCompatibleModelAdapter zenAdapter) {
         this.registry = registry;
         this.mapper = mapper;
@@ -33,7 +50,8 @@ public class ZenModelExecution {
         HttpClient direct = HttpClient.newBuilder().proxy(HttpClient.Builder.NO_PROXY)
                 .followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(10)).build();
         this.zenHttp = new JsonHttpModelClient(mapper, endpoints, direct);
-        this.zenAdapter = zenAdapter != null ? zenAdapter : new OpenAiCompatibleModelAdapter(mapper, zenHttp);
+        this.zenAdapter = zenAdapter != null ? zenAdapter
+                : new OpenAiCompatibleModelAdapter(mapper, zenHttp, requestFactory, verifiedFreeModel);
     }
     public boolean isZen(UserAiProvider p) {
         return p != null && ProviderPresetCode.OPENCODE_ZEN_FREE.name().equals(p.presetCode());

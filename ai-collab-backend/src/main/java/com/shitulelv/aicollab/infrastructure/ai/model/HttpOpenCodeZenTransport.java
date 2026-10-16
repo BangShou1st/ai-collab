@@ -1,5 +1,10 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
+import com.sharedlibs.opencodezen.OpenCodeZenFreeModelPolicy;
+import com.sharedlibs.opencodezen.OpenCodeZenIdGenerator;
+import com.sharedlibs.opencodezen.OpenCodeZenModelCatalogParser;
+import com.sharedlibs.opencodezen.ZenModelMetadata;
+import com.sharedlibs.opencodezen.autoconfigure.OpenCodeZenRequestFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.exception.BusinessException;
@@ -31,23 +36,37 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
     private final ObjectMapper mapper;
     private final OutboundEndpointPolicy endpoints;
     private final ProviderPresetRegistry registry;
+    private final OpenCodeZenRequestFactory requestFactory;
     private final HttpClient production;
     private final HttpClient settings;
     private final Object catalogLock = new Object();
     private JsonNode catalogCache;
     private Instant catalogExpires = Instant.EPOCH;
     @org.springframework.beans.factory.annotation.Autowired
-    public HttpOpenCodeZenTransport(ObjectMapper mapper, OutboundEndpointPolicy endpoints, ProviderPresetRegistry registry) {
+    public HttpOpenCodeZenTransport(ObjectMapper mapper, OutboundEndpointPolicy endpoints,
+            ProviderPresetRegistry registry, OpenCodeZenRequestFactory requestFactory) {
         this.mapper = mapper;
         this.endpoints = endpoints;
         this.registry = registry;
+        this.requestFactory = requestFactory;
         this.production = HttpClient.newBuilder().proxy(HttpClient.Builder.NO_PROXY).followRedirects(HttpClient.Redirect.NEVER).build();
         this.settings = HttpClient.newBuilder().proxy(HttpClient.Builder.NO_PROXY).followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(45)).build();
     }
+    public HttpOpenCodeZenTransport(ObjectMapper mapper, OutboundEndpointPolicy endpoints, ProviderPresetRegistry registry) {
+        this(mapper, endpoints, registry,
+                new OpenCodeZenRequestFactory(registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE).userAgent()));
+    }
     HttpOpenCodeZenTransport(ObjectMapper mapper, OutboundEndpointPolicy endpoints, ProviderPresetRegistry registry, HttpClient production, HttpClient settings) {
+        this(mapper, endpoints, registry,
+                new OpenCodeZenRequestFactory(registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE).userAgent()),
+                production, settings);
+    }
+    HttpOpenCodeZenTransport(ObjectMapper mapper, OutboundEndpointPolicy endpoints, ProviderPresetRegistry registry,
+            OpenCodeZenRequestFactory requestFactory, HttpClient production, HttpClient settings) {
         this.mapper = mapper;
         this.endpoints = endpoints;
         this.registry = registry;
+        this.requestFactory = requestFactory;
         this.production = production;
         this.settings = settings;
     }
@@ -62,9 +81,10 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
             ProviderPresetRegistry.PresetPolicy pol = policy();
             URI uri = URI.create(registry.modelsEndpoint(pol));
             endpoints.requirePublicHttps(uri);
-            HttpRequest.Builder b = HttpRequest.newBuilder().uri(uri).timeout(Duration.ofSeconds(45)).GET()
+            String sessionId = ZenClientIds.session(metadata == null ? null : metadata.correlationSessionId());
+            HttpRequest.Builder b = requestFactory.newModelRequestBuilder(uri, true, apiKey, sessionId,
+                    OpenCodeZenIdGenerator.newRequestId()).timeout(Duration.ofSeconds(45)).GET()
                     .header("Accept", "application/json");
-            OpenAiCompatibleModelAdapter.headersWithSession(apiKey, metadata, pol.userAgent()).forEach(b::header);
             HttpResponse<String> resp = settings.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             JsonHttpModelClient.checkStatus(resp.statusCode(), resp.body(), mapper);
             return mapper.readTree(resp.body());
@@ -75,6 +95,17 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
     public ZenFreeModelSelection freeModelSelection(String apiKey, AiRequestMetadata metadata) {
         // 可用性来自当前上游列表；免费与协议由可信目录元数据判定；元数据不可用时保守回退。
         return ZenFreeModelSelection.select(listModelsRaw(apiKey, metadata), trustedModelCatalog());
+    }
+
+    @Override
+    public boolean isVerifiedFreeModel(String model) {
+        String candidate = model == null ? "" : model.strip();
+        if (candidate.isEmpty()) return false;
+        var parsed = OpenCodeZenModelCatalogParser.parse(trustedModelCatalog());
+        if (parsed.isEmpty()) return false;
+        ZenModelMetadata metadata = parsed.get().get(candidate);
+        return OpenCodeZenFreeModelPolicy.isFreeModel(candidate, true, true, metadata)
+                && OpenCodeZenFreeModelPolicy.isVerifiedChatModel(candidate, true, true, metadata);
     }
 
     /**
@@ -112,7 +143,6 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
 
     @Override
     public void validateCredential(String apiKey, String model, AiRequestMetadata metadata) {
-        if (apiKey == null || apiKey.isBlank()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Key required");
         if (model == null || model.isBlank()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model required");
         // Use the same client envelope and SSE parser as inference, with a bounded
         // settings deadline. A completion probe does not certify tools or planning.
@@ -121,8 +151,9 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
             var now = java.time.OffsetDateTime.now();
             var config = new ModelConfiguration(null, null, pol.displayName(), pol.protocol(),
                     pol.baseUrl(), pol.completionPath(), null, model.strip(), true, 0, 256, pol.capabilities(), now, now);
-            new OpenAiCompatibleModelAdapter(mapper, probe.client).completeStreamingSyncWithSession(config,
-                    apiKey.strip(), new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand(
+            new OpenAiCompatibleModelAdapter(mapper, probe.client, requestFactory, this::isVerifiedFreeModel)
+                    .completeStreamingSyncWithSession(config,
+                    apiKey == null ? null : apiKey.strip(), new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand(
                             "Synthetic connection probe.", "Return only {\"action\":\"finish\"}."), metadata, pol.userAgent());
         } catch (BusinessException e) { throw e; }
         catch (Exception e) { throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR); }

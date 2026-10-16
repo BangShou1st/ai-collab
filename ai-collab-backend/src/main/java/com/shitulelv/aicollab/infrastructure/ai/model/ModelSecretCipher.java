@@ -72,4 +72,9 @@ public class ModelSecretCipher {
             throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
         }
     }
+
+    /** Decrypts a stored key when present; free Zen models legitimately have no user key. */
+    public String decryptOptional(String encryptedText) {
+        return encryptedText == null || encryptedText.isBlank() ? null : decrypt(encryptedText);
+    }
 }

@@ -75,8 +75,8 @@ services:
 
   app:
     build:
-      context: ../ai-collab-backend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: ai-collab-backend/Dockerfile
     image: ai-collab-backend:local
     container_name: ai-collab-app
     restart: unless-stopped
