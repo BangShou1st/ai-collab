@@ -4,25 +4,44 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.sharedlibs.opencodezen.OpenCodeZenCredentialPolicy;
+import com.sharedlibs.opencodezen.OpenCodeZenFreeAdmissionPolicy;
+import com.sharedlibs.opencodezen.OpenCodeZenProtocolPolicy;
+import com.sharedlibs.opencodezen.autoconfigure.OpenCodeZenRequestFactory;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.turn.*;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
+import java.net.URI;
+import java.net.http.HttpRequest;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Component
 public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         implements ModelTurnProviderAdapter {
+    private final OpenCodeZenRequestFactory zenRequestFactory;
+
     public OpenAiCompatibleModelAdapter(ObjectMapper mapper, JsonHttpModelClient http) {
+        this(mapper, http, new OpenCodeZenRequestFactory(OpenCodeZenProtocolPolicy.USER_AGENT));
+    }
+
+    @Autowired
+    public OpenAiCompatibleModelAdapter(ObjectMapper mapper, JsonHttpModelClient http,
+            OpenCodeZenRequestFactory zenRequestFactory) {
         super(mapper, http);
+        this.zenRequestFactory = zenRequestFactory;
     }
 
     @Override
@@ -154,7 +173,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             AtomicBoolean reasoningPresent = new AtomicBoolean(false);
             // userAgent != null marks the Zen preset path (Custom callers pass null):
             // Zen includes its client envelope; Custom keeps its own contract.
-            http.stream(endpoint(config), metadata == null && userAgent == null ? headers(apiKey) : headersWithSession(apiKey, metadata, userAgent), userAgent == null ? request(config, command, true) : zenRequest(config, command, true), (event, data) -> {
+            java.util.function.BiConsumer<String, JsonNode> eventHandler = (event, data) -> {
                 if (data == null) return;
                 if (data.hasNonNull("model")) model.set(data.path("model").asText());
                 JsonNode usage = data.path("usage");
@@ -180,7 +199,13 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                     content.append(token);
                     onToken.accept(token);
                 }
-            });
+            };
+            if (userAgent == null) {
+                http.stream(endpoint(config), headers(apiKey), request(config, command, true), eventHandler);
+            } else {
+                http.streamWithRequestBuilder(endpoint(config), zenRequestBuilder(config, apiKey, metadata, userAgent),
+                        zenRequest(config, command, true), eventHandler);
+            }
             if (terminal.compareAndSet(false, true)) {
                 if (content.toString().isBlank()) throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                         "PROVIDER_STREAM / EMPTY_CONTENT / finish=" + finishReason.get()
@@ -538,19 +563,29 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         return Map.of("Authorization", "Bearer " + apiKey);
     }
 
-    /** Generic metadata headers. Preset-agnostic: any caller may attach correlation + identity. */
-    public static Map<String, String> headersWithSession(String apiKey, AiRequestMetadata metadata, String userAgent) {
-        var result = new java.util.LinkedHashMap<String,String>();
-        if (apiKey != null && !apiKey.isBlank()) result.put("Authorization", "Bearer " + apiKey.strip());
-        if (metadata != null) result.put(OpenCodeZenTransport.SESSION_HEADER, metadata.correlationSessionId());
-        if (userAgent != null) {
-            result.put("User-Agent", userAgent);
-            result.put(OpenCodeZenTransport.SESSION_HEADER, ZenClientIds.session(metadata == null ? null : metadata.correlationSessionId()));
-            result.put("x-opencode-client", "cli");
-            result.put("x-opencode-request", ZenClientIds.request());
-            result.put("x-opencode-project", "global");
+    private Function<URI, HttpRequest.Builder> zenRequestBuilder(
+            ModelConfiguration config, String apiKey, AiRequestMetadata metadata, String userAgent) {
+        // 免费凭证决策来自共享库的已评审白名单（不是 -free 后缀，也不是运行时目录）。
+        boolean freeModel = OpenCodeZenFreeAdmissionPolicy.admitsFreeChatModel(config.modelName());
+        try {
+            OpenCodeZenCredentialPolicy.credentialForModel(freeModel, apiKey);
+        } catch (IllegalArgumentException missingKey) {
+            throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
         }
-        return result;
+        OpenCodeZenRequestFactory factory = userAgent == null || userAgent.equals(zenRequestFactory.userAgent())
+                ? zenRequestFactory : new OpenCodeZenRequestFactory(userAgent);
+        // 标识与身份头统一由共享请求工厂生成：同一对话复用 ses_、每次请求新 msg_；
+        // 无对话键（一次性探测/发现）用 newEphemeralRequest。业务关联 id 绝不直接成为 wire 会话 id。
+        UUID conversationKey = conversationKey(metadata);
+        return endpoint -> conversationKey == null
+                ? factory.newEphemeralRequest(endpoint, freeModel, apiKey)
+                : factory.newConversationRequest(endpoint, freeModel, apiKey, conversationKey);
+    }
+
+    /** 业务关联 id → 对话级 UUID：共享请求工厂按它缓存 ses_ 标识（同一对话稳定、跨对话隔离）。 */
+    static UUID conversationKey(AiRequestMetadata metadata) {
+        return metadata == null ? null
+                : UUID.nameUUIDFromBytes(metadata.correlationSessionId().getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -623,16 +658,15 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                         "业务工具与 Zen 传输保留名称冲突");
         }
-        for (String name : List.of("bash", "read")) {
-            ObjectNode fn = tools.addObject().put("type", "function").putObject("function");
-            fn.put("name", name).put("description", "Reserved by the transport. Never call this tool.");
-            fn.putObject("parameters").put("type", "object").putObject("properties")
-                    .putObject(name.equals("bash") ? "command" : "filePath").put("type", "string");
+        // 免费额度要求完整的 CLI core 工具信封（bash/edit/glob/grep/read）；缺任一项上游即判 403 FreeTierError。
+        for (JsonNode declaration : mapper.valueToTree(OpenCodeZenProtocolPolicy.reservedToolDeclarations())) {
+            tools.add(declaration);
         }
     }
 
+    /** 传输保留名称以共享策略为准（bash/edit/glob/grep/read），业务工具不得占用。 */
     private static boolean isZenReservedTool(String name) {
-        return "bash".equals(name) || "read".equals(name);
+        return name != null && OpenCodeZenProtocolPolicy.reservedToolNames().contains(name);
     }
 
     private ObjectNode zenRequest(ModelConfiguration config, ChatCompletionCommand command, boolean stream) {
@@ -661,7 +695,8 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
     public ChatCompletionResult completeWithSession(ModelConfiguration config, String apiKey,
             com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand command, AiRequestMetadata metadata, String userAgent) {
         long started = System.nanoTime();
-        JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata, userAgent), zenRequest(config, command, false));
+        JsonNode response = http.postWithRequestBuilder(endpoint(config),
+                zenRequestBuilder(config, apiKey, metadata, userAgent), zenRequest(config, command, false));
         JsonNode choice = response.path("choices").path(0);
         JsonNode usage = response.path("usage");
         if ("length".equals(choice.path("finish_reason").asText())) {
@@ -694,7 +729,8 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         // 读流回调在 HttpClient 的读流线程上执行,ThreadLocal 观察者不可见:
         // 在发起请求的 worker 线程先捕获,回调线程用捕获值显式推送
         ModelContentPreview.Observer contentObserver = ModelContentPreview.capture();
-        http.stream(endpoint(config), headersWithSession(apiKey, metadata, userAgent), zenTurnRequest(config, command, true), (event, data) -> {
+        http.streamWithRequestBuilder(endpoint(config), zenRequestBuilder(config, apiKey, metadata, userAgent),
+                zenTurnRequest(config, command, true), (event, data) -> {
             if (data == null) return;
             if (data.hasNonNull("model")) model.set(data.path("model").asText());
             JsonNode usageNode = data.path("usage");

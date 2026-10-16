@@ -10,6 +10,9 @@
 *.pem
 *.key
 *.cert
+# 私有私服（OpenCode Zen 共享库）构建凭据：Docker BuildKit secret 使用的 Maven settings.xml
+maven-settings.xml
+**/maven-settings.xml
 
 # ===========================
 # IDE

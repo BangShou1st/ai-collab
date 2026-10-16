@@ -1,7 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
@@ -11,7 +10,6 @@ import java.net.http.HttpClient;
 import java.time.OffsetDateTime;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,7 +38,7 @@ class ZenModelWiringTest {
         assertThat(pol.protocol()).isEqualTo(ModelProviderType.OPENAI_COMPATIBLE);
         assertThat(reg.completionEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/chat/completions");
         assertThat(reg.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/models");
-        assertThat(pol.userAgent()).isEqualTo("opencode/1.18.31 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14");
+        assertThat(pol.userAgent()).isEqualTo("opencode/1.19.0 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14");
     }
     @Test void runtimeConfigIgnoresPersistedUrls() {
         ZenModelExecution exec = new ZenModelExecution(new ProviderPresetRegistry(), mapper, new OutboundEndpointPolicy());
@@ -67,41 +65,18 @@ class ZenModelWiringTest {
         assertThat(registry.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/models");
         assertThat(exec.runtimeEndpoint()).isEqualTo(registry.completionEndpoint(pol));
         assertThat(t.policy().userAgent()).isEqualTo(pol.userAgent());
-        var md = AiRequestMetadata.of("sess-123");
-        Map<String,String> h = OpenAiCompatibleModelAdapter.headersWithSession("k", md, pol.userAgent());
-        assertThat(h.get("User-Agent")).isEqualTo(pol.userAgent());
-        assertThat(h.get("x-opencode-session")).matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
+        // 身份头（User-Agent / ses_ / msg_ / x-opencode-*）统一由共享请求工厂生成；
+        // 端到端 wire 断言见 ModelProtocolHttpTest，这里只核对同一策略驱动发现与推理。
     }
-    @Test void sessionHeadersExact() {
-        var md = AiRequestMetadata.of("sess-123");
-        Map<String,String> h = OpenAiCompatibleModelAdapter.headersWithSession("k", md, "opencode/1.18.21");
-        assertThat(h.get("Authorization")).isEqualTo("Bearer k");
-        assertThat(h.get("User-Agent")).isEqualTo("opencode/1.18.21");
-        assertThat(h.get("x-opencode-session")).matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
-        var next = OpenAiCompatibleModelAdapter.headersWithSession("k", md, "opencode/1.18.21");
-        assertThat(next.get("x-opencode-session")).isEqualTo(h.get("x-opencode-session"));
-        assertThat(next.get("x-opencode-request")).matches("msg_[0-9a-f]{12}[A-Za-z0-9]{14}").isNotEqualTo(h.get("x-opencode-request"));
-        assertThat(h.values().stream().noneMatch(v -> v.contains("k-secret"))).isTrue();
-    }
-    @Test void catalogOnlyFree() {
-        ObjectNode root = mapper.createObjectNode();
-        var arr = root.putArray("data");
-        arr.addObject().put("id", "a-free");
-        arr.addObject().put("id", "b-paid");
-        arr.addObject().put("id", "c-free");
-        OpenCodeZenTransport stub = new OpenCodeZenTransport() {
-            public com.fasterxml.jackson.databind.JsonNode listModelsRaw(String apiKey, AiRequestMetadata metadata) { return root; }
-            public ZenFreeModelSelection freeModelSelection(String apiKey, AiRequestMetadata metadata) {
-                // 可信目录不可用：保守回退只保留免费后缀模型（与改造前行为一致）。
-                return ZenFreeModelSelection.select(root, null);
-            }
-            public void validateCredential(String apiKey, String model, AiRequestMetadata metadata) { }
-        };
-        OpenCodeZenModelCatalog catalog = new OpenCodeZenModelCatalog(stub);
-        var free = catalog.freeModels(null, AiRequestMetadata.of("s"));
-        assertThat(free).containsExactlyInAnyOrder("a-free", "c-free");
-        // 协议不受支持的模型不会被当作可执行模型。
-        catalog.requireExecutableModel("a-free", catalog.selection(null, AiRequestMetadata.of("s")));
+    @Test void admittedListingIsTheReviewedWhitelistIntersectedWithTheLiveUpstream() {
+        // 上游仍在服务白名单内的两个模型；非白名单模型与白名单内但上游已下线的模型都被排除。
+        assertThat(HttpOpenCodeZenTransport.intersectWithAdmitted(
+                List.of("big-pickle", "space-bunny-free", "some-new-free", "gpt-4")))
+                .containsExactly("big-pickle", "space-bunny-free");
+        // 上游不可用：保守退回已评审白名单本身（准入始终以白名单为准，不臆测可用性）。
+        assertThat(HttpOpenCodeZenTransport.intersectWithAdmitted(null))
+                .containsExactly("big-pickle", "longcat-2.5-preview-free", "mimo-v2.6-flash-free",
+                        "nemotron-3.5-lightning-free", "space-bunny-free");
     }
     @Test void turnRoutingKeepsStableSession() {
         var provider = zenProvider();

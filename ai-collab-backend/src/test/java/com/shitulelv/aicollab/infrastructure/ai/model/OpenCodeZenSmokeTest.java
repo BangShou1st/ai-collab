@@ -41,7 +41,7 @@ class OpenCodeZenSmokeTest {
         try {
             if ("CATALOG".equals(System.getenv("AI_ZEN_SMOKE_MODE"))) {
                 var models = new HttpOpenCodeZenTransport(new ObjectMapper(), new OutboundEndpointPolicy(), registry)
-                        .listFreeModels(key, AiRequestMetadata.fresh());
+                        .admittedModels(key, AiRequestMetadata.fresh());
                 assertThat(models).isNotEmpty();
                 System.out.println("Zen real free model catalog: " + String.join(",", models));
             } else if ("TOOLS".equals(System.getenv("AI_ZEN_SMOKE_MODE"))) {

@@ -10,13 +10,11 @@ import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import java.time.OffsetDateTime;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -48,12 +46,14 @@ class ZenKnowledgeStreamContractTest {    private final ObjectMapper mapper = ne
                 false, OffsetDateTime.now(), OffsetDateTime.now(), "OPENCODE_ZEN_FREE");
     }
 
+    @SuppressWarnings("unchecked")
     @Test void zenTextWireStreamsWithMinimalBodyAndHeaders() {
         JsonHttpModelClient http = mock(JsonHttpModelClient.class);
         final JsonNode[] captured = new JsonNode[1];
-        final Map[] headerRef = new Map[1];
+        final java.util.function.Function<java.net.URI, java.net.http.HttpRequest.Builder>[] factoryRef =
+                new java.util.function.Function[1];
         doAnswer(inv -> {
-            headerRef[0] = inv.getArgument(1);
+            factoryRef[0] = inv.getArgument(1);
             captured[0] = inv.getArgument(2);
             BiConsumer<String, JsonNode> cb = inv.getArgument(3);
             ObjectNode chunk = mapper.createObjectNode();
@@ -63,7 +63,7 @@ class ZenKnowledgeStreamContractTest {    private final ObjectMapper mapper = ne
             done.putArray("choices").addObject().put("finish_reason", "stop");
             cb.accept("message", done);
             return null;
-        }).when(http).stream(anyString(), anyMap(), any(JsonNode.class), any(BiConsumer.class));
+        }).when(http).streamWithRequestBuilder(anyString(), any(), any(JsonNode.class), any(BiConsumer.class));
         OpenAiCompatibleModelAdapter adapter = new OpenAiCompatibleModelAdapter(mapper, http);
         ChatCompletionResult result = adapter.completeStreamingSyncWithSession(
                 zenConfig(), "k", textCommand(), AiRequestMetadata.of("corr-1"), "opencode/1.18.21");
@@ -79,11 +79,13 @@ class ZenKnowledgeStreamContractTest {    private final ObjectMapper mapper = ne
         assertThat(body.has("stream_options")).isFalse();
         assertThat(body.has("reasoning_effort")).isFalse();
         assertThat(body.has("thinking")).isFalse();
-        @SuppressWarnings("unchecked")
-        Map<String, String> headers = headerRef[0];
-        assertThat(headers.get("Authorization")).isEqualTo("Bearer k");
-        assertThat(headers.get("User-Agent")).isEqualTo("opencode/1.18.21");
-        assertThat(headers.get(OpenCodeZenTransport.SESSION_HEADER)).matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
+        // Zen 身份头由共享请求工厂注入：把捕获到的 builder 应用于一个真实端点来核对头部。
+        var built = factoryRef[0].apply(java.net.URI.create("https://opencode.ai/zen/v1/chat/completions"))
+                .POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build();
+        assertThat(built.headers().firstValue("Authorization")).contains("Bearer k");
+        assertThat(built.headers().firstValue("User-Agent")).contains("opencode/1.18.21");
+        assertThat(built.headers().firstValue(OpenCodeZenTransport.SESSION_HEADER).orElseThrow())
+                .matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
     }
 
     @Test void zenExecutionCompleteUsesStreamingWireForTextAndJson() {

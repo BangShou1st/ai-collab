@@ -19,7 +19,6 @@ import java.util.function.BiConsumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -71,7 +70,7 @@ class ModelContentPreviewObservationTest {
             BiConsumer<String, ObjectNode> cb = inv.getArgument(3);
             for (ObjectNode c : chunks) cb.accept("message", c);
             return null;
-        }).when(http).stream(anyString(), anyMap(), any(ObjectNode.class), any(BiConsumer.class));
+        }).when(http).streamWithRequestBuilder(anyString(), any(), any(ObjectNode.class), any(BiConsumer.class));
         return http;
     }
 
@@ -103,7 +102,7 @@ class ModelContentPreviewObservationTest {
             reader.start();
             reader.join(5000);
             return null;
-        }).when(http).stream(anyString(), anyMap(), any(ObjectNode.class), any(BiConsumer.class));
+        }).when(http).streamWithRequestBuilder(anyString(), any(), any(ObjectNode.class), any(BiConsumer.class));
         List<String> seen = new ArrayList<>();
         List<Boolean> finals = new ArrayList<>();
         ModelContentPreview.Observer observer = (text, finalFrame) -> {
