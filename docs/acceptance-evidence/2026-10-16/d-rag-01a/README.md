@@ -103,7 +103,7 @@
 | 测试 | 性质 | 观察对象 |
 | --- | --- | --- |
 | `RetrievalCoverageTest`（10 例） | 纯单元，合成候选 | **度量口径本身**是否正确、归因是否分得开、0/0 是否不计为失败 |
-| `RetrievalCoveragePostgresTest`（10 例） | Testcontainers + 真实 pgvector | 真实 schema/排序/指纹/代际/范围限定/上下文保留 |
+| `RetrievalCoveragePostgresTest`（11 例） | Testcontainers + 真实 pgvector | 真实 schema/排序/指纹/代际/范围限定/上下文保留；输出路径守卫 |
 | `RealRetrievalBaselineTest` | `AI_REAL_RETRIEVAL=true` 门控，真实 Ollama | 真实模型召回（本次**未运行**，默认跳过） |
 
 **合成与真实必须分清**：`RetrievalCoveragePostgresTest` 的 pgvector 检索、指纹与代际过滤、
@@ -137,19 +137,41 @@
 2. **知识问答确实是本批 Agent 修复的旁观者**：同一批 12 条候选，
    知识问答保留 5 条（丢 7），Agent 保留 12 条（丢 0）。
 
-机器可读诊断数据（含每条期望证据的 `documentId`/`chunkId`、候选 rank 与相似度、
-实际保留来源清单）：`deterministic-baseline.json`。
+### 诊断数据的产出位置与“快照”性质
+
+仓库中已跟踪的 `deterministic-baseline.json` 是**一次验收样例（快照）**，
+**不是**每次运行都会字节一致的产物，也不应被当作可重复生成的构建产物来比对：
+
+- 它包含每次运行都会变化的随机 UUID（文档/分块 ID），因此**逐次运行字节必然不同**；
+- 它记录的是**记录时点**的实测值，用于人工复审该次基线，而不是断言依据
+  （断言全部写在测试代码里）。
+
+测试**不再**覆盖这份已跟踪文件。每次运行的诊断 JSON 输出到 Maven 构建目录：
+
+```
+ai-collab-backend/target/retrieval-baseline/deterministic-baseline.json
+```
+
+该目录被 `ai-collab-backend/.gitignore` 的 `**/target/` 忽略，
+不回写仓库、不污染工作区。诊断字段与指标口径与快照完全一致（未改动）。
+`RetrievalCoveragePostgresTest` 中有一条回归守卫用例，
+断言输出路径必须位于 `target/` 且不得指向仓库中那份快照。
+测试结束时会在控制台打印 `RETRIEVAL_BASELINE_DIAGNOSTICS=<绝对路径>`，
+便于直接从 CI 日志定位当次产物。
+
+机器可读诊断字段（与快照同构）：每条期望证据的 `documentId`/`chunkId`、
+候选 rank 与相似度、实际保留来源清单、以及 `retrievalStatus`。
 
 ## 测试结果
 
 | 命令 | 结果 |
 | --- | --- |
-| 定向测试（A + B + 相关回归，8 个类 97 例） | Tests run 97, Failures 0, Errors 0, Skipped 0 |
-| `mvnw verify`（完整） | **Tests run 1406, Failures 0, Errors 0, Skipped 11** |
+| 定向测试（A + B + 相关回归，8 个类 98 例） | Tests run 98, Failures 0, Errors 0, Skipped 0 |
+| `mvnw verify`（完整） | **Tests run 1407, Failures 0, Errors 0, Skipped 11** |
 
 定向测试实际执行的类：`KnowledgeContextBuilderTest` 10、`AgentReadToolsTest` 5、
 `AgentToolContractTest` 9、`KnowledgeCitationValidatorTest` 8、`RetrievalCoverageTest` 10、
-`RetrievalCoveragePostgresTest` 10、`AgentToolOutputProjectorTest` 5、
+`RetrievalCoveragePostgresTest` 11、`AgentToolOutputProjectorTest` 5、
 `AgentDelegationPostgresTest` 40。
 
 另一处检索来源组装 `TaskPlanContextAssembler`（规划）**不使用** `KnowledgeContextBuilder`：
@@ -164,7 +186,7 @@
 真实宿主验收 / Ollama 与 Zen 冒烟），非本批引入，也没有本批用例被静默跳过。
 CI 容器用例守卫所需的 4 个类实际运行数：`AgentRunContextCommitPostgresTest` 10、
 `AgentRunRetryPostgresIntegrationTest` 6、`AgentMigrationIntegrationTest` 6、
-`NextStageMigrationPostgresTest` 1；新增的 `RetrievalCoveragePostgresTest` 10 例全部实跑，
+`NextStageMigrationPostgresTest` 1；新增的 `RetrievalCoveragePostgresTest` 11 例全部实跑，
 并已加入 `.github/workflows/ci.yml` 的 `required` 列表，整类被跳过即判失败。
 
 Maven 输出中的 `ConnectException: Connection refused` 来自
@@ -192,7 +214,25 @@ Maven 输出中的 `ConnectException: Connection refused` 来自
 - `RetrievalCoverageTest`：把 `emptyExpectationReportsNullRatioInsteadOfZero` 升级为
   未定义语义断言，并新增“未定义 vs 真 0.0 可区分”“未定义不拉低汇总”两个用例（8 → 10 例）；
 - `RetrievalCoveragePostgresTest`：“无有效证据”改用**空期望证据集合**，
-  断言未定义而非失败（仍为 10 例）；
+  断言未定义而非失败（该轮仍为 10 例；本轮 PR 审查修复后为 11 例）；
 - 本 README：更新归因说明、用例表与测试计数。
 
 A 部分（Agent limit 修复）与其余基线算法逻辑**未改动**。
+
+## PR #12 审查修复：证据输出不再改写已跟踪文件
+
+审查指出 `RetrievalCoveragePostgresTest` 每次运行都会覆盖仓库中已跟踪的
+`deterministic-baseline.json`。实测确认：运行前后该文件 SHA256 由
+`2E57584B…` 变为 `A47CE355…`，`git status` 出现 `M`——确实会反复污染工作区。
+
+修复（**只改证据输出行为**，诊断字段与指标口径不变）：
+
+- 输出路径改为 `target/retrieval-baseline/deterministic-baseline.json`（被 `.gitignore` 忽略）；
+- 新增回归守卫用例 `evidenceOutputGoesToTargetAndNeverRewritesTheTrackedSnapshot`，
+  断言输出必须位于 `target/`、不得等于已跟踪快照路径、不得位于 `docs/` 下；
+- 仓库中那份 JSON 保留为**一次验收样例**，README 已注明它是快照、
+  含每次运行都变化的随机 UUID、**不是**逐次字节一致的产物；
+- `@AfterAll` 结束打印 `RETRIEVAL_BASELINE_DIAGNOSTICS=<绝对路径>`，便于 CI 日志定位。
+
+未改动检索算法、Agent limit、上下文预算或任何现有评价口径。
+`RetrievalCoverageTest`（10 例）与 `RetrievalCoverage` 度量本身**未触碰**。

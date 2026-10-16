@@ -1,0 +1,321 @@
+[INFO] Scanning for projects...
+[INFO]
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO]
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO]
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO]
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO]
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO]
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 188 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO]
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO]
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+12:31:25.870 [main] INFO org.testcontainers.DockerClientFactory -- Testcontainers version: 1.21.4
+12:31:26.339 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Loaded org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy from ~/.testcontainers.properties, will try it first
+12:31:26.623 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with local Npipe socket (npipe:////./pipe/docker_engine)
+12:31:26.625 [main] INFO org.testcontainers.DockerClientFactory -- Docker host IP address is localhost
+12:31:26.643 [main] INFO org.testcontainers.DockerClientFactory -- Connected to docker:
+  Server Version: 29.8.0
+  API Version: 1.56
+  Operating System: Docker Desktop
+  Total Memory: 1903 MB
+  Labels:
+    com.docker.desktop.address=npipe://\\.\pipe\docker_cli
+12:31:26.656 [main] INFO org.testcontainers.images.PullPolicy -- Image pull policy will be performed by: DefaultPullPolicy()
+12:31:26.658 [main] INFO org.testcontainers.utility.ImageNameSubstitutor -- Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
+12:31:26.743 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Creating container for image: testcontainers/ryuk:0.12.0
+12:31:26.801 [main] INFO org.testcontainers.utility.RegistryAuthLocator -- Credential helper/store (docker-credential-desktop) does not have credentials for https://index.docker.io/v1/
+12:31:26.938 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 is starting: 532c12120e731ffa577912a40c8599d337bf28e43821c128ddff784f559d5b1a
+12:31:27.445 [main] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 started in PT0.7024456S
+12:31:27.450 [main] INFO org.testcontainers.utility.RyukResourceReaper -- Ryuk started - will monitor and terminate Testcontainers containers on JVM exit
+12:31:27.450 [main] INFO org.testcontainers.DockerClientFactory -- Checking the system...
+12:31:27.450 [main] INFO org.testcontainers.DockerClientFactory -- ?? Docker server version should be at least 1.6.0
+[INFO] Running com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest
+12:31:27.544 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest]: RetrievalCoveragePostgresTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+12:31:27.667 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.shitulelv.aicollab.AiCollabBackendApplication for test class com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest
+12:31:27.758 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest]: RetrievalCoveragePostgresTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+12:31:27.760 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.shitulelv.aicollab.AiCollabBackendApplication for test class com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest
+12:31:27.943 [main] INFO tc.pgvector/pgvector:pg17 -- Creating container for image: pgvector/pgvector:pg17
+12:31:28.017 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 is starting: 03a43839633f6859d3eb3a9a26bea4a49facddc78f6086529e01776d0dff782b
+12:31:30.033 [main] INFO tc.pgvector/pgvector:pg17 -- Container pgvector/pgvector:pg17 started in PT2.0898707S
+12:31:30.034 [main] INFO tc.pgvector/pgvector:pg17 -- Container is started (JDBC URL: jdbc:postgresql://localhost:41953/test?loggerLevel=OFF)
+12:31:30.089 [main] INFO org.springframework.boot.devtools.restart.RestartApplicationListener -- Restart disabled due to context in which it is running
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.0)
+
+2026-10-16T12:31:30.449+08:00  INFO 46192 --- [ai-collab-backend] [           main] c.s.a.r.RetrievalCoveragePostgresTest    : Starting RetrievalCoveragePostgresTest using Java 21.0.10 with PID 46192 (started by 32962 in E:\project\ai-collab\ai-collab-backend)
+2026-10-16T12:31:30.452+08:00  INFO 46192 --- [ai-collab-backend] [           main] c.s.a.r.RetrievalCoveragePostgresTest    : The following 1 profile is active: "test"
+2026-10-16T12:31:32.154+08:00  INFO 46192 --- [ai-collab-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-10-16T12:31:32.157+08:00  INFO 46192 --- [ai-collab-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-10-16T12:31:32.229+08:00  INFO 46192 --- [ai-collab-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 49 ms. Found 0 Redis repository interfaces.
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+2026-10-16T12:31:34.737+08:00  INFO 46192 --- [ai-collab-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-10-16T12:31:35.111+08:00  INFO 46192 --- [ai-collab-backend] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@56f4226
+2026-10-16T12:31:35.115+08:00  INFO 46192 --- [ai-collab-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-10-16T12:31:35.182+08:00  INFO 46192 --- [ai-collab-backend] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:41953/test?loggerLevel=OFF (PostgreSQL 17.11)
+2026-10-16T12:31:35.358+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Schema history table "public"."flyway_schema_history" does not exist yet
+2026-10-16T12:31:35.370+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbValidate     : Successfully validated 64 migrations (execution time 00:00.077s)
+2026-10-16T12:31:35.394+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "public"."flyway_schema_history" ...
+2026-10-16T12:31:35.480+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": << Empty Schema >>
+2026-10-16T12:31:35.524+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "1 - init schema"
+2026-10-16T12:31:35.618+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "2 - extend refresh token session"
+2026-10-16T12:31:35.633+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "3 - enforce single project owner"
+2026-10-16T12:31:35.650+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "4 - document processing attempt"
+2026-10-16T12:31:35.673+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "5 - create ai task planning"
+2026-10-16T12:31:35.708+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "6 - repair phase 08 ai task planning"
+2026-10-16T12:31:35.721+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "7 - add task plan issues and events"
+2026-10-16T12:31:35.738+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "8 - fix status check constraint"
+2026-10-16T12:31:35.747+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "9 - add partial repair source type"
+2026-10-16T12:31:35.758+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "10 - add ai partial source type"
+2026-10-16T12:31:35.769+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "11 - add task plan event changed targets"
+2026-10-16T12:31:35.778+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "12 - add comment to task plan event"
+2026-10-16T12:31:35.789+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "13 - add project type"
+2026-10-16T12:31:35.799+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "14 - expand project status"
+2026-10-16T12:31:35.810+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "15 - add milestone start end dates"
+2026-10-16T12:31:35.822+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "16 - add knowledge feedback"
+2026-10-16T12:31:35.833+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "17 - add document version and reindex"
+2026-10-16T12:31:35.844+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "18 - add knowledge eval tables"
+2026-10-16T12:31:35.859+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "19 - add notification"
+2026-10-16T12:31:35.869+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "20 - add system admin"
+2026-10-16T12:31:35.881+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "21 - add notification dedupe key"
+2026-10-16T12:31:35.902+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "22 - add agent runtime"
+2026-10-16T12:31:35.944+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "23 - complete agent runtime"
+2026-10-16T12:31:35.958+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "24 - add model configuration"
+2026-10-16T12:31:35.975+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "25 - remove agent evaluation"
+2026-10-16T12:31:35.989+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "26 - allow custom task plan limit"
+2026-10-16T12:31:36.003+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "27 - add agent runtime phase2 fields"
+2026-10-16T12:31:36.014+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "28 - add agent run events"
+2026-10-16T12:31:36.027+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "29 - add agent mcp"
+2026-10-16T12:31:36.039+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "30 - add agent memory and schedule skill"
+2026-10-16T12:31:36.050+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "31 - per project model and embedding"
+2026-10-16T12:31:36.065+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "32 - migrate global models to project"
+2026-10-16T12:31:36.081+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "33 - drop eval and schedule tables"
+2026-10-16T12:31:36.095+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "34 - fix embedding api path"
+2026-10-16T12:31:36.105+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "35 - add agent waiting for input"
+2026-10-16T12:31:36.114+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "36 - add waiting for user input event type"
+2026-10-16T12:31:36.123+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "37 - add agent proposal continuity"
+2026-10-16T12:31:36.140+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "38 - cascade agent proposal session delete"
+2026-10-16T12:31:36.152+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "39 - create user ai configuration"
+2026-10-16T12:31:36.165+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "40 - create user model purpose assignment"
+2026-10-16T12:31:36.175+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "41 - create system embedding configuration"
+2026-10-16T12:31:36.187+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "42 - migrate project models to users"
+2026-10-16T12:31:36.198+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "43 - add embedding fingerprint"
+2026-10-16T12:31:36.209+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "44 - switch ai configuration constraints"
+2026-10-16T12:31:36.225+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "45 - add provider preset code"
+2026-10-16T12:31:36.234+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "46 - embedding index generations"
+2026-10-16T12:31:36.250+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "47 - agent execution identity"
+2026-10-16T12:31:36.262+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "48 - embedding build snapshot"
+2026-10-16T12:31:36.274+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "49 - agent recovery counters"
+2026-10-16T12:31:36.284+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "50 - document batch reindex progress"
+2026-10-16T12:31:36.296+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "51 - agent model snapshot"
+2026-10-16T12:31:36.304+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "52 - agent active duration"
+2026-10-16T12:31:36.313+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "53 - planning repair diagnostics"
+2026-10-16T12:31:36.320+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "54 - document readable body"
+2026-10-16T12:31:36.331+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "55 - agent planning operations"
+2026-10-16T12:31:36.345+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "56 - agent actual token usage"
+2026-10-16T12:31:36.356+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "57 - agent usage settlement"
+2026-10-16T12:31:36.365+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "58 - agent run retry derivation"
+2026-10-16T12:31:36.374+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "59 - agent invocation source mode"
+2026-10-16T12:31:36.382+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "60 - agent last progress at"
+2026-10-16T12:31:36.390+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "61 - agent pause resume"
+2026-10-16T12:31:36.401+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "62 - agent document research delegation"
+2026-10-16T12:31:36.403+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.c.i.s.DefaultSqlScriptExecutor       : +----------+
+| ?column? |
++----------+
+| 1        |
++----------+
+
+2026-10-16T12:31:36.410+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
+2026-10-16T12:31:36.420+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
+2026-10-16T12:31:36.451+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.387s)
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
+2026-10-16T12:31:41.647+08:00  INFO 46192 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@12dab9a8
+2026-10-16T12:31:41.948+08:00  INFO 46192 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-10-16T12:31:42.018+08:00  INFO 46192 --- [ai-collab-backend] [           main] c.s.a.r.RetrievalCoveragePostgresTest    : Started RetrievalCoveragePostgresTest in 11.941 seconds (process running for 17.192)
+2026-10-16T12:31:42.151+08:00  WARN 46192 --- [ai-collab-backend] [           main] c.s.a.d.i.s.MinioDocumentStorageGateway  : MinIO bucket ��ʼ��ʧ�ܣ��ĵ��洢���ܽ�������
+
+java.lang.IllegalStateException: java.net.ConnectException: Connection refused: getsockopt
+	at io.minio.MinioAsyncClient.throwMinioException(MinioAsyncClient.java:3700) ~[minio-9.0.2.jar:9.0.2]
+	at io.minio.MinioClient.bucketExists(MinioClient.java:691) ~[minio-9.0.2.jar:9.0.2]
+	at com.shitulelv.aicollab.document.infrastructure.storage.MinioDocumentStorageGateway.ensurePrivateBucket(MinioDocumentStorageGateway.java:45) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.context.event.ApplicationListenerMethodAdapter.doInvoke(ApplicationListenerMethodAdapter.java:392) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.context.event.ApplicationListenerMethodAdapter.processEvent(ApplicationListenerMethodAdapter.java:270) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.context.event.ApplicationListenerMethodAdapter.onApplicationEvent(ApplicationListenerMethodAdapter.java:200) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.context.event.SimpleApplicationEventMulticaster.doInvokeListener(SimpleApplicationEventMulticaster.java:180) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.context.event.SimpleApplicationEventMulticaster.invokeListener(SimpleApplicationEventMulticaster.java:173) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.context.event.SimpleApplicationEventMulticaster.multicastEvent(SimpleApplicationEventMulticaster.java:151) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.context.support.AbstractApplicationContext.publishEvent(AbstractApplicationContext.java:448) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.context.support.AbstractApplicationContext.publishEvent(AbstractApplicationContext.java:381) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.boot.context.event.EventPublishingRunListener.ready(EventPublishingRunListener.java:110) ~[spring-boot-4.1.0.jar:4.1.0]
+	at org.springframework.boot.SpringApplicationRunListeners.lambda$ready$0(SpringApplicationRunListeners.java:82) ~[spring-boot-4.1.0.jar:4.1.0]
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75) ~[na:na]
+	at org.springframework.boot.SpringApplicationRunListeners.doWithListeners(SpringApplicationRunListeners.java:123) ~[spring-boot-4.1.0.jar:4.1.0]
+	at org.springframework.boot.SpringApplicationRunListeners.doWithListeners(SpringApplicationRunListeners.java:117) ~[spring-boot-4.1.0.jar:4.1.0]
+	at org.springframework.boot.SpringApplicationRunListeners.ready(SpringApplicationRunListeners.java:82) ~[spring-boot-4.1.0.jar:4.1.0]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:335) ~[spring-boot-4.1.0.jar:4.1.0]
+	at org.springframework.boot.test.context.SpringBootContextLoader.lambda$loadContext$2(SpringBootContextLoader.java:155) ~[spring-boot-test-4.1.0.jar:4.1.0]
+	at org.springframework.util.function.ThrowingSupplier.get(ThrowingSupplier.java:58) ~[spring-core-7.0.8.jar:7.0.8]
+	at org.springframework.util.function.ThrowingSupplier.get(ThrowingSupplier.java:46) ~[spring-core-7.0.8.jar:7.0.8]
+	at org.springframework.boot.SpringApplication.withHook(SpringApplication.java:1465) ~[spring-boot-4.1.0.jar:4.1.0]
+	at org.springframework.boot.test.context.SpringBootContextLoader$ContextLoaderHook.run(SpringBootContextLoader.java:600) ~[spring-boot-test-4.1.0.jar:4.1.0]
+	at org.springframework.boot.test.context.SpringBootContextLoader.loadContext(SpringBootContextLoader.java:155) ~[spring-boot-test-4.1.0.jar:4.1.0]
+	at org.springframework.boot.test.context.SpringBootContextLoader.loadContext(SpringBootContextLoader.java:114) ~[spring-boot-test-4.1.0.jar:4.1.0]
+	at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.loadContextInternal(DefaultCacheAwareContextLoaderDelegate.java:247) ~[spring-test-7.0.8.jar:7.0.8]
+	at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.lambda$loadContext$0(DefaultCacheAwareContextLoaderDelegate.java:167) ~[spring-test-7.0.8.jar:7.0.8]
+	at org.springframework.test.context.cache.DefaultContextCache.put(DefaultContextCache.java:214) ~[spring-test-7.0.8.jar:7.0.8]
+	at org.springframework.test.context.cache.DefaultCacheAwareContextLoaderDelegate.loadContext(DefaultCacheAwareContextLoaderDelegate.java:160) ~[spring-test-7.0.8.jar:7.0.8]
+	at org.springframework.test.context.support.DefaultTestContext.getApplicationContext(DefaultTestContext.java:128) ~[spring-test-7.0.8.jar:7.0.8]
+	at org.springframework.test.context.web.ServletTestExecutionListener.setUpRequestContextIfNecessary(ServletTestExecutionListener.java:200) ~[spring-test-7.0.8.jar:7.0.8]
+	at org.springframework.test.context.web.ServletTestExecutionListener.prepareTestInstance(ServletTestExecutionListener.java:139) ~[spring-test-7.0.8.jar:7.0.8]
+	at org.springframework.test.context.TestContextManager.prepareTestInstance(TestContextManager.java:260) ~[spring-test-7.0.8.jar:7.0.8]
+	at org.springframework.test.context.junit.jupiter.SpringExtension.postProcessTestInstance(SpringExtension.java:242) ~[spring-test-7.0.8.jar:7.0.8]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$invokeTestInstancePostProcessors$1(ClassBasedTestDescriptor.java:423) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.executeAndMaskThrowable(ClassBasedTestDescriptor.java:428) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$invokeTestInstancePostProcessors$0(ClassBasedTestDescriptor.java:422) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:184) ~[na:na]
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197) ~[na:na]
+	at java.base/java.util.stream.ReferencePipeline$2$1.accept(ReferencePipeline.java:179) ~[na:na]
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197) ~[na:na]
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1708) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499) ~[na:na]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:151) ~[na:na]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:174) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234) ~[na:na]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:596) ~[na:na]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.invokeTestInstancePostProcessors(ClassBasedTestDescriptor.java:422) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$instantiateAndPostProcessTestInstance$0(ClassBasedTestDescriptor.java:334) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.instantiateAndPostProcessTestInstance(ClassBasedTestDescriptor.java:333) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$testInstancesProvider$1(ClassBasedTestDescriptor.java:322) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.Optional.orElseGet(Optional.java:364) ~[na:na]
+	at org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor.lambda$testInstancesProvider$0(ClassBasedTestDescriptor.java:321) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.execution.TestInstancesProvider.getTestInstances(TestInstancesProvider.java:27) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$prepare$0(TestMethodTestDescriptor.java:127) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.prepare(TestMethodTestDescriptor.java:126) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.prepare(TestMethodTestDescriptor.java:70) ~[junit-jupiter-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$prepare$0(NodeTestTask.java:144) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.prepare(NodeTestTask.java:144) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:110) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596) ~[na:na]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:42) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$2(NodeTestTask.java:180) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$1(NodeTestTask.java:166) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:138) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$0(NodeTestTask.java:164) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:74) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:163) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:116) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:36) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:52) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:58) ~[junit-platform-engine-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.executeEngine(EngineExecutionOrchestrator.java:246) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.failOrExecuteEngine(EngineExecutionOrchestrator.java:218) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:179) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:108) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:66) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:157) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:65) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:125) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:114) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.lambda$execute$2(InterceptingLauncher.java:57) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.ClasspathAlignmentCheckingLauncherInterceptor.intercept(ClasspathAlignmentCheckingLauncherInterceptor.java:25) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.InterceptingLauncher.execute(InterceptingLauncher.java:56) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:58) ~[junit-platform-launcher-6.0.3.jar:6.0.3]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.apache.maven.surefire.api.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:125) ~[surefire-api-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithCancellationToken(LauncherAdapter.java:68) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:54) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136) ~[surefire-junit-platform-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507) ~[surefire-booter-3.5.6.jar:3.5.6]
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495) ~[surefire-booter-3.5.6.jar:3.5.6]
+Caused by: java.net.ConnectException: Connection refused: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:690) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:751) ~[na:na]
+	at okhttp3.internal.platform.Platform.connectSocket(Platform.kt:148) ~[okhttp-jvm-5.3.2.jar:na]
+	at okhttp3.internal.connection.ConnectPlan.connectSocket(ConnectPlan.kt:276) ~[okhttp-jvm-5.3.2.jar:na]
+	at okhttp3.internal.connection.ConnectPlan.connectTcp(ConnectPlan.kt:135) ~[okhttp-jvm-5.3.2.jar:na]
+	at okhttp3.internal.connection.FastFallbackExchangeFinder$launchTcpConnect$1.runOnce(FastFallbackExchangeFinder.kt:141) ~[okhttp-jvm-5.3.2.jar:na]
+	at okhttp3.internal.concurrent.TaskRunner$runnable$1.run(TaskRunner.kt:81) ~[okhttp-jvm-5.3.2.jar:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+
+RETRIEVAL_BASELINE_DIAGNOSTICS=E:\project\ai-collab\ai-collab-backend\target\retrieval-baseline\deterministic-baseline.json
+2026-10-16T12:31:42.909+08:00  WARN 46192 --- [ai-collab-backend] [           main] o.j.j.e.d.AbstractExtensionContext       : Type implements CloseableResource but not AutoCloseable: org.testcontainers.junit.jupiter.TestcontainersExtension$StoreAdapter
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 15.98 s -- in com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.RetrievalCoverageTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.016 s -- in com.shitulelv.aicollab.retrieval.RetrievalCoverageTest
+[INFO]
+[INFO] Results:
+[INFO]
+[INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0
+[INFO]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  29.029 s
+[INFO] Finished at: 2026-10-16T12:31:44+08:00
+[INFO] ------------------------------------------------------------------------

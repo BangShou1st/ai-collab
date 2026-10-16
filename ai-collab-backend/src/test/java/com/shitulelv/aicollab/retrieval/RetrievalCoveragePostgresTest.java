@@ -79,9 +79,17 @@ class RetrievalCoveragePostgresTest {
     private static final int DIMENSION = SyntheticEmbedder.DIMENSIONS;
     private static final String FINGERPRINT =
             EmbeddingFingerprints.fingerprint(PROVIDER, MODEL, DIMENSION);
-    private static final Path EVIDENCE_PATH =
-            Path.of("..", "docs", "acceptance-evidence", "2026-10-16", "d-rag-01a",
-                    "deterministic-baseline.json");
+    /**
+     * 诊断 JSON 的<b>唯一</b>输出位置：Maven 构建目录 {@code target/retrieval-baseline/}。
+     *
+     * <p>刻意<b>不</b>写回仓库里那份已跟踪的
+     * {@code docs/acceptance-evidence/2026-10-16/d-rag-01a/deterministic-baseline.json}：
+     * 该文件是一次验收样例（含每次运行都会变化的随机 UUID），
+     * 让测试覆盖它会反复污染工作区、并制造“产物字节一致”的假象。
+     * {@code target/} 已被 {@code ai-collab-backend/.gitignore} 忽略。</p>
+     */
+    static final Path EVIDENCE_DIRECTORY = Path.of("target", "retrieval-baseline");
+    static final Path EVIDENCE_PATH = EVIDENCE_DIRECTORY.resolve("deterministic-baseline.json");
 
     /** 每个用例一条，测试结束后一次性落盘，避免用例执行顺序影响证据内容。 */
     private static final Map<String, Map<String, Object>> EVIDENCE = new LinkedHashMap<>();
@@ -122,6 +130,24 @@ class RetrievalCoveragePostgresTest {
         project = insertProject();
     }
 
+    /** 仓库中已跟踪的那份验收样例：测试只允许读它，绝不允许写它。 */
+    static final Path TRACKED_SNAPSHOT = Path.of("..", "docs", "acceptance-evidence",
+            "2026-10-16", "d-rag-01a", "deterministic-baseline.json");
+
+    @Test
+    void evidenceOutputGoesToTargetAndNeverRewritesTheTrackedSnapshot() {
+        // 回归守卫：诊断输出必须落在 target/ 下，且不得等于仓库里已跟踪的快照路径。
+        assertThat(EVIDENCE_PATH.normalize().startsWith(Path.of("target")))
+                .as("诊断 JSON 必须输出到 Maven target/ 下")
+                .isTrue();
+        assertThat(EVIDENCE_PATH.normalize())
+                .as("诊断 JSON 不得写回仓库中已跟踪的证据文件")
+                .isNotEqualTo(TRACKED_SNAPSHOT.normalize());
+        assertThat(EVIDENCE_PATH.normalize().toString())
+                .as("诊断 JSON 不得落在 docs/ 证据目录内")
+                .doesNotContain("docs");
+    }
+
     @AfterAll
     static void writeEvidence() throws Exception {
         Files.createDirectories(EVIDENCE_PATH.getParent());
@@ -129,7 +155,8 @@ class RetrievalCoveragePostgresTest {
         Map<String, Object> document = new LinkedHashMap<>();
         document.put("note", "D-RAG-01A 确定性检索基线的机器可读诊断数据。pgvector 检索、"
                 + "指纹/代际过滤、知识上下文构建均为真实实现；嵌入向量为 SyntheticEmbedder 合成，"
-                + "因此不代表模型召回质量，也不代表模型回答质量。");
+                + "因此不代表模型召回质量，也不代表模型回答质量。本文件由测试写入 Maven "
+                + "target/retrieval-baseline/，不是仓库中那份验收快照。");
         document.put("topKObservations", List.of(TOP_8, TOP_20));
         document.put("knowledgeQaContextLimit", QA_LIMIT);
         document.put("agentContextLimit", AGENT_LIMIT);
@@ -137,6 +164,8 @@ class RetrievalCoveragePostgresTest {
         Files.writeString(EVIDENCE_PATH,
                 JSON.writerWithDefaultPrettyPrinter().writeValueAsString(document),
                 StandardCharsets.UTF_8);
+        // 交付到控制台，便于 CI 日志直接查看，而不必从构建目录取文件。
+        System.out.println("RETRIEVAL_BASELINE_DIAGNOSTICS=" + EVIDENCE_PATH.toAbsolutePath());
     }
 
     // ---- 1. 单事实 ----

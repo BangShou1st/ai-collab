@@ -1,29 +1,29 @@
 [INFO] Scanning for projects...
-[INFO] 
+[INFO]
 [INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
 [INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
 [INFO]   from pom.xml
 [INFO] --------------------------------[ jar ]---------------------------------
-[INFO] 
+[INFO]
 [INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
 [INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
-[INFO] 
+[INFO]
 [INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
 [INFO] Copying 2 resources from src\main\resources to target\classes
 [INFO] Copying 64 resources from src\main\resources to target\classes
-[INFO] 
+[INFO]
 [INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
 [INFO] Nothing to compile - all classes are up to date.
-[INFO] 
+[INFO]
 [INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
 [INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
-[INFO] 
+[INFO]
 [INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
 [INFO] Nothing to compile - all classes are up to date.
-[INFO] 
+[INFO]
 [INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
 [INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
-[INFO] 
+[INFO]
 [INFO] -------------------------------------------------------
 [INFO]  T E S T S
 [INFO] -------------------------------------------------------
@@ -47,12 +47,12 @@ Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot lo
 12:12:46.309 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Loaded org.testcontainers.dockerclient.NpipeSocketClientProviderStrategy from ~/.testcontainers.properties, will try it first
 12:12:46.998 [main] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with local Npipe socket (npipe:////./pipe/docker_engine)
 12:12:47.009 [main] INFO org.testcontainers.DockerClientFactory -- Docker host IP address is localhost
-12:12:47.043 [main] INFO org.testcontainers.DockerClientFactory -- Connected to docker: 
+12:12:47.043 [main] INFO org.testcontainers.DockerClientFactory -- Connected to docker:
   Server Version: 29.8.0
   API Version: 1.56
   Operating System: Docker Desktop
   Total Memory: 1903 MB
-  Labels: 
+  Labels:
     com.docker.desktop.address=npipe://\\.\pipe\docker_cli
 12:12:47.083 [main] INFO org.testcontainers.images.PullPolicy -- Image pull policy will be performed by: DefaultPullPolicy()
 12:12:47.087 [main] INFO org.testcontainers.utility.ImageNameSubstitutor -- Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
@@ -1910,10 +1910,10 @@ java.lang.NullPointerException: Cannot invoke "com.shitulelv.aicollab.infrastruc
 2026-10-16T12:15:23.803+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
 2026-10-16T12:15:23.818+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
 2026-10-16T12:15:23.838+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.636s)
- _ _   |_  _ _|_. ___ _ |    _ 
-| | |\/|_)(_| | |_\  |_)||_|_\ 
-     /               |         
-                        null 
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
 2026-10-16T12:15:28.811+08:00  INFO 40472 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@5a730d8f
 2026-10-16T12:15:29.143+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
 2026-10-16T12:15:29.238+08:00  INFO 40472 --- [ai-collab-backend] [           main] .AgentWriteProposalSpringIntegrationTest : Started AgentWriteProposalSpringIntegrationTest in 9.576 seconds (process running for 168.425)
@@ -2118,10 +2118,10 @@ java.lang.NullPointerException: Cannot invoke "com.shitulelv.aicollab.infrastruc
 2026-10-16T12:15:37.040+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
 2026-10-16T12:15:37.047+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
 2026-10-16T12:15:37.057+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.471s)
- _ _   |_  _ _|_. ___ _ |    _ 
-| | |\/|_)(_| | |_\  |_)||_|_\ 
-     /               |         
-                        null 
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
 2026-10-16T12:15:38.135+08:00  INFO 40472 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@54be2d
 2026-10-16T12:15:38.212+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
 2026-10-16T12:15:38.231+08:00  INFO 40472 --- [ai-collab-backend] [           main] McpAdministrationPostgresIntegrationTest : Started McpAdministrationPostgresIntegrationTest in 3.231 seconds (process running for 177.418)
@@ -2330,10 +2330,10 @@ java.lang.NullPointerException: Cannot invoke "com.shitulelv.aicollab.infrastruc
 2026-10-16T12:15:52.774+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
 2026-10-16T12:15:52.780+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
 2026-10-16T12:15:52.789+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.337s)
- _ _   |_  _ _|_. ___ _ |    _ 
-| | |\/|_)(_| | |_\  |_)||_|_\ 
-     /               |         
-                        null 
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
 2026-10-16T12:15:53.525+08:00  INFO 40472 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@26bfb8a3
 2026-10-16T12:15:53.605+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
 2026-10-16T12:15:53.619+08:00  INFO 40472 --- [ai-collab-backend] [           main] .t.DocumentBodyPageBudgetIntegrationTest : Started DocumentBodyPageBudgetIntegrationTest in 2.35 seconds (process running for 192.806)
@@ -2605,10 +2605,10 @@ DIAG smallChunks items=40 readChars=24000 citations=40 rawBytes=159892 bound=262
 2026-10-16T12:15:59.168+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
 2026-10-16T12:15:59.175+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
 2026-10-16T12:15:59.183+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.309s)
- _ _   |_  _ _|_. ___ _ |    _ 
-| | |\/|_)(_| | |_\  |_)||_|_\ 
-     /               |         
-                        null 
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
 2026-10-16T12:15:59.866+08:00  INFO 40472 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@779700d8
 2026-10-16T12:15:59.919+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
 2026-10-16T12:15:59.931+08:00  INFO 40472 --- [ai-collab-backend] [           main] .DocumentRecoveryPostgresIntegrationTest : Started DocumentRecoveryPostgresIntegrationTest in 1.843 seconds (process running for 199.118)
@@ -2853,10 +2853,10 @@ Caused by: java.net.ConnectException: Connection refused: getsockopt
 2026-10-16T12:16:04.157+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
 2026-10-16T12:16:04.162+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
 2026-10-16T12:16:04.169+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.230s)
- _ _   |_  _ _|_. ___ _ |    _ 
-| | |\/|_)(_| | |_\  |_)||_|_\ 
-     /               |         
-                        null 
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
 2026-10-16T12:16:04.774+08:00  INFO 40472 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@43af145
 2026-10-16T12:16:04.833+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
 2026-10-16T12:16:04.848+08:00  INFO 40472 --- [ai-collab-backend] [           main] ocumentRegistrationStatusIntegrationTest : Started DocumentRegistrationStatusIntegrationTest in 1.701 seconds (process running for 204.034)
@@ -3104,10 +3104,10 @@ Caused by: java.net.ConnectException: Connection refused: getsockopt
 2026-10-16T12:16:09.793+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
 2026-10-16T12:16:09.801+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
 2026-10-16T12:16:09.810+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.407s)
- _ _   |_  _ _|_. ___ _ |    _ 
-| | |\/|_)(_| | |_\  |_)||_|_\ 
-     /               |         
-                        null 
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
 2026-10-16T12:16:10.473+08:00  INFO 40472 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@10ca6e14
 2026-10-16T12:16:10.524+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
 2026-10-16T12:16:10.533+08:00  INFO 40472 --- [ai-collab-backend] [           main] .a.d.i.DocumentRepositoryIntegrationTest : Started DocumentRepositoryIntegrationTest in 2.46 seconds (process running for 209.72)
@@ -3541,10 +3541,10 @@ java.lang.RuntimeException: storage unavailable
 2026-10-16T12:16:16.141+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
 2026-10-16T12:16:16.146+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
 2026-10-16T12:16:16.154+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.356s)
- _ _   |_  _ _|_. ___ _ |    _ 
-| | |\/|_)(_| | |_\  |_)||_|_\ 
-     /               |         
-                        null 
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
 2026-10-16T12:16:16.725+08:00  INFO 40472 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@50b9d396
 2026-10-16T12:16:16.767+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
 2026-10-16T12:16:16.774+08:00  INFO 40472 --- [ai-collab-backend] [           main] s.a.i.a.e.EmbeddingFingerprintSearchTest : Started EmbeddingFingerprintSearchTest in 1.863 seconds (process running for 215.962)
@@ -4971,7 +4971,7 @@ Caused by: java.net.ConnectException: Connection refused: getsockopt
 2026-10-16T12:17:16.665+08:00  INFO 40472 --- [ai-collab-backend] [           main] t.c.d...                                 : Container cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18 is starting: a7cf80f5414166e8a117f25bca58836904f88d20d2603ba7375130a29011a320
 2026-10-16T12:17:16.796+08:00 ERROR 40472 --- [ai-collab-backend] [   scheduling-1] o.s.s.s.TaskUtils$LoggingErrorHandler    : Unexpected error occurred in scheduled task
 
-org.mybatis.spring.MyBatisSystemException: 
+org.mybatis.spring.MyBatisSystemException:
 ### Error querying database.  Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
 ### The error may exist in com/shitulelv/aicollab/document/infrastructure/mapper/DocumentMapper.java (best guess)
 ### The error may involve com.shitulelv.aicollab.document.infrastructure.mapper.DocumentMapper.recoverable
@@ -5011,7 +5011,7 @@ org.mybatis.spring.MyBatisSystemException:
 	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[na:na]
 	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[na:na]
 	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
-Caused by: org.apache.ibatis.exceptions.PersistenceException: 
+Caused by: org.apache.ibatis.exceptions.PersistenceException:
 ### Error querying database.  Cause: org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
 ### The error may exist in com/shitulelv/aicollab/document/infrastructure/mapper/DocumentMapper.java (best guess)
 ### The error may involve com.shitulelv.aicollab.document.infrastructure.mapper.DocumentMapper.recoverable
@@ -5300,10 +5300,10 @@ Caused by: java.net.ConnectException: Connection refused: getsockopt
 2026-10-16T12:17:47.955+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
 2026-10-16T12:17:47.962+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
 2026-10-16T12:17:47.973+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.269s)
- _ _   |_  _ _|_. ___ _ |    _ 
-| | |\/|_)(_| | |_\  |_)||_|_\ 
-     /               |         
-                        null 
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
 2026-10-16T12:17:48.632+08:00  INFO 40472 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@4574b530
 2026-10-16T12:17:48.686+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
 2026-10-16T12:17:48.700+08:00  INFO 40472 --- [ai-collab-backend] [           main] askPlanSpringBeanPostgresIntegrationTest : Started TaskPlanSpringBeanPostgresIntegrationTest in 1.887 seconds (process running for 307.887)
@@ -6185,10 +6185,10 @@ com.shitulelv.aicollab.project.application.service.AuditServiceTest$1: ï¿½Þ·ï¿½ï
 2026-10-16T12:18:11.366+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
 2026-10-16T12:18:11.374+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
 2026-10-16T12:18:11.382+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.313s)
- _ _   |_  _ _|_. ___ _ |    _ 
-| | |\/|_)(_| | |_\  |_)||_|_\ 
-     /               |         
-                        null 
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
 2026-10-16T12:18:12.008+08:00  INFO 40472 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@45523a5c
 2026-10-16T12:18:12.073+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
 2026-10-16T12:18:12.087+08:00  INFO 40472 --- [ai-collab-backend] [           main] ectDashboardAuditPostgresIntegrationTest : Started ProjectDashboardAuditPostgresIntegrationTest in 2.117 seconds (process running for 331.275)
@@ -6332,10 +6332,10 @@ Caused by: java.net.ConnectException: Connection refused: getsockopt
 2026-10-16T12:18:18.022+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
 2026-10-16T12:18:18.026+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
 2026-10-16T12:18:18.034+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.223s)
- _ _   |_  _ _|_. ___ _ |    _ 
-| | |\/|_)(_| | |_\  |_)||_|_\ 
-     /               |         
-                        null 
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
 2026-10-16T12:18:18.536+08:00  INFO 40472 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@5c740549
 2026-10-16T12:18:18.571+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
 2026-10-16T12:18:18.578+08:00  INFO 40472 --- [ai-collab-backend] [           main] OwnershipTransferPostgresIntegrationTest : Started ProjectOwnershipTransferPostgresIntegrationTest in 1.383 seconds (process running for 337.765)
@@ -6446,10 +6446,10 @@ Caused by: java.net.ConnectException: Connection refused: getsockopt
 2026-10-16T12:18:23.249+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "63 - agent budget semantics"
 2026-10-16T12:18:23.255+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "64 - agent context policy"
 2026-10-16T12:18:23.266+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 64 migrations to schema "public", now at version v64 (execution time 00:00.297s)
- _ _   |_  _ _|_. ___ _ |    _ 
-| | |\/|_)(_| | |_\  |_)||_|_\ 
-     /               |         
-                        null 
+ _ _   |_  _ _|_. ___ _ |    _
+| | |\/|_)(_| | |_\  |_)||_|_\
+     /               |
+                        null
 2026-10-16T12:18:23.786+08:00  INFO 40472 --- [ai-collab-backend] [           main] b.m.s.MybatisPlusApplicationContextAware : Register ApplicationContext instances org.springframework.web.context.support.GenericWebApplicationContext@4202bec3
 2026-10-16T12:18:23.828+08:00  INFO 40472 --- [ai-collab-backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
 2026-10-16T12:18:23.841+08:00  INFO 40472 --- [ai-collab-backend] [           main] c.s.a.r.RetrievalCoveragePostgresTest    : Started RetrievalCoveragePostgresTest in 1.596 seconds (process running for 343.028)
@@ -6598,18 +6598,18 @@ Caused by: java.net.ConnectException: Connection refused: getsockopt
 [INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.136 s -- in com.shitulelv.aicollab.work.application.service.MilestoneApplicationServiceTest
 [INFO] Running com.shitulelv.aicollab.work.application.service.ProjectDateRangePolicyTest
 [INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in com.shitulelv.aicollab.work.application.service.ProjectDateRangePolicyTest
-[INFO] 
+[INFO]
 [INFO] Results:
-[INFO] 
+[INFO]
 [INFO] Tests run: 1406, Failures: 0, Errors: 0, Skipped: 11
-[INFO] 
-[INFO] 
+[INFO]
+[INFO]
 [INFO] --- jar:3.5.0:jar (default-jar) @ ai-collab-backend ---
-[INFO] 
+[INFO]
 [INFO] --- spring-boot:4.1.0:repackage (repackage) @ ai-collab-backend ---
 [INFO] Replacing main artifact E:\project\ai-collab\ai-collab-backend\target\ai-collab-backend-0.0.1-SNAPSHOT.jar with repackaged archive, adding nested dependencies in BOOT-INF/.
 [INFO] The original artifact has been renamed to E:\project\ai-collab\ai-collab-backend\target\ai-collab-backend-0.0.1-SNAPSHOT.jar.original
-[INFO] 
+[INFO]
 [INFO] --- jacoco:0.8.13:report (report) @ ai-collab-backend ---
 [INFO] Loading execution data file E:\project\ai-collab\ai-collab-backend\target\jacoco.exec
 [INFO] Analyzed bundle 'ai-collab-backend' with 676 classes
