@@ -67,7 +67,7 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
             } else provider = userProviders.resolve(command.callerUserId(), command.purpose());
             if (zen.isZen(provider)) {
                 if (!provider.enabled()) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
-                return zen.turn(provider, secrets.decryptOptional(provider.encryptedApiKey()), command, metadata);
+                return zen.turn(provider, secrets.decrypt(provider.encryptedApiKey()), command, metadata);
             }
             ModelConfiguration config = provider.toModelConfiguration();
             return turnWithConfig(config, command);

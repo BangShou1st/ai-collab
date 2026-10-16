@@ -22,11 +22,6 @@ public class OpenCodeZenModelCatalog {
         return transport.freeModelSelection(apiKey, metadata);
     }
 
-    /** Runtime credentials use only authoritative, explicit catalog metadata; unknown models are paid. */
-    public boolean isVerifiedFreeModel(String model) {
-        return transport.isVerifiedFreeModel(model);
-    }
-
     /** 当前可作为 Zen 预设的模型（Chat 协议、可用且免费）。 */
     public List<String> freeModels(String apiKey, AiRequestMetadata metadata) {
         return transport.listFreeModels(apiKey, metadata);

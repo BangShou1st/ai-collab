@@ -4,51 +4,25 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.sharedlibs.opencodezen.OpenCodeZenCredentialPolicy;
-import com.sharedlibs.opencodezen.OpenCodeZenIdGenerator;
-import com.sharedlibs.opencodezen.OpenCodeZenProtocolPolicy;
-import com.sharedlibs.opencodezen.autoconfigure.OpenCodeZenRequestFactory;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.turn.*;
 import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Autowired;
 
-import java.net.URI;
-import java.net.http.HttpRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
 
 @Component
 public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         implements ModelTurnProviderAdapter {
-    private final OpenCodeZenRequestFactory zenRequestFactory;
-    private final Predicate<String> verifiedFreeModel;
-
     public OpenAiCompatibleModelAdapter(ObjectMapper mapper, JsonHttpModelClient http) {
-        this(mapper, http,
-                new OpenCodeZenRequestFactory(OpenCodeZenProtocolPolicy.USER_AGENT), model -> false);
-    }
-
-    @Autowired
-    public OpenAiCompatibleModelAdapter(ObjectMapper mapper, JsonHttpModelClient http,
-            OpenCodeZenRequestFactory zenRequestFactory, OpenCodeZenModelCatalog catalog) {
-        this(mapper, http, zenRequestFactory, catalog::isVerifiedFreeModel);
-    }
-
-    OpenAiCompatibleModelAdapter(ObjectMapper mapper, JsonHttpModelClient http,
-            OpenCodeZenRequestFactory zenRequestFactory, Predicate<String> verifiedFreeModel) {
         super(mapper, http);
-        this.zenRequestFactory = zenRequestFactory;
-        this.verifiedFreeModel = verifiedFreeModel;
     }
 
     @Override
@@ -180,7 +154,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             AtomicBoolean reasoningPresent = new AtomicBoolean(false);
             // userAgent != null marks the Zen preset path (Custom callers pass null):
             // Zen includes its client envelope; Custom keeps its own contract.
-            java.util.function.BiConsumer<String, JsonNode> eventHandler = (event, data) -> {
+            http.stream(endpoint(config), metadata == null && userAgent == null ? headers(apiKey) : headersWithSession(apiKey, metadata, userAgent), userAgent == null ? request(config, command, true) : zenRequest(config, command, true), (event, data) -> {
                 if (data == null) return;
                 if (data.hasNonNull("model")) model.set(data.path("model").asText());
                 JsonNode usage = data.path("usage");
@@ -206,14 +180,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                     content.append(token);
                     onToken.accept(token);
                 }
-            };
-            if (userAgent == null) {
-                http.stream(endpoint(config), metadata == null ? headers(apiKey) : headersWithSession(apiKey, metadata, null),
-                        request(config, command, true), eventHandler);
-            } else {
-                http.streamWithRequestBuilder(endpoint(config), zenRequestBuilder(config, apiKey, metadata, userAgent),
-                        zenRequest(config, command, true), eventHandler);
-            }
+            });
             if (terminal.compareAndSet(false, true)) {
                 if (content.toString().isBlank()) throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                         "PROVIDER_STREAM / EMPTY_CONTENT / finish=" + finishReason.get()
@@ -578,29 +545,12 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         if (metadata != null) result.put(OpenCodeZenTransport.SESSION_HEADER, metadata.correlationSessionId());
         if (userAgent != null) {
             result.put("User-Agent", userAgent);
-            String sessionId = ZenClientIds.session(metadata == null ? null : metadata.correlationSessionId());
-            result.put(OpenCodeZenProtocolPolicy.SESSION_HEADER, sessionId);
-            result.put(OpenCodeZenProtocolPolicy.SESSION_ID_HEADER, sessionId);
-            result.put(OpenCodeZenProtocolPolicy.CLIENT_HEADER, OpenCodeZenProtocolPolicy.CLIENT_ID);
-            result.put(OpenCodeZenProtocolPolicy.REQUEST_HEADER, OpenCodeZenIdGenerator.newRequestId());
-            result.put(OpenCodeZenProtocolPolicy.PROJECT_HEADER, OpenCodeZenProtocolPolicy.GLOBAL_PROJECT);
+            result.put(OpenCodeZenTransport.SESSION_HEADER, ZenClientIds.session(metadata == null ? null : metadata.correlationSessionId()));
+            result.put("x-opencode-client", "cli");
+            result.put("x-opencode-request", ZenClientIds.request());
+            result.put("x-opencode-project", "global");
         }
         return result;
-    }
-
-    private Function<URI, HttpRequest.Builder> zenRequestBuilder(
-            ModelConfiguration config, String apiKey, AiRequestMetadata metadata, String userAgent) {
-        boolean freeModel = verifiedFreeModel.test(config.modelName());
-        try {
-            OpenCodeZenCredentialPolicy.credentialForModel(freeModel, apiKey);
-        } catch (IllegalArgumentException missingKey) {
-            throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
-        }
-        String sessionId = ZenClientIds.session(metadata == null ? null : metadata.correlationSessionId());
-        String requestId = OpenCodeZenIdGenerator.newRequestId();
-        OpenCodeZenRequestFactory factory = userAgent == null || userAgent.equals(zenRequestFactory.userAgent())
-                ? zenRequestFactory : new OpenCodeZenRequestFactory(userAgent);
-        return endpoint -> factory.newModelRequestBuilder(endpoint, freeModel, apiKey, sessionId, requestId);
     }
 
     /**
@@ -711,8 +661,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
     public ChatCompletionResult completeWithSession(ModelConfiguration config, String apiKey,
             com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand command, AiRequestMetadata metadata, String userAgent) {
         long started = System.nanoTime();
-        JsonNode response = http.postWithRequestBuilder(endpoint(config),
-                zenRequestBuilder(config, apiKey, metadata, userAgent), zenRequest(config, command, false));
+        JsonNode response = http.post(endpoint(config), headersWithSession(apiKey, metadata, userAgent), zenRequest(config, command, false));
         JsonNode choice = response.path("choices").path(0);
         JsonNode usage = response.path("usage");
         if ("length".equals(choice.path("finish_reason").asText())) {
@@ -745,8 +694,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         // 读流回调在 HttpClient 的读流线程上执行,ThreadLocal 观察者不可见:
         // 在发起请求的 worker 线程先捕获,回调线程用捕获值显式推送
         ModelContentPreview.Observer contentObserver = ModelContentPreview.capture();
-        http.streamWithRequestBuilder(endpoint(config), zenRequestBuilder(config, apiKey, metadata, userAgent),
-                zenTurnRequest(config, command, true), (event, data) -> {
+        http.stream(endpoint(config), headersWithSession(apiKey, metadata, userAgent), zenTurnRequest(config, command, true), (event, data) -> {
             if (data == null) return;
             if (data.hasNonNull("model")) model.set(data.path("model").asText());
             JsonNode usageNode = data.path("usage");

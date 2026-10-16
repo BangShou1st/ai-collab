@@ -291,7 +291,7 @@ onMounted(load)
             </div>
             <el-skeleton v-if="zenLoading" :rows="2" animated />
             <div v-else class="zen-form">
-              <el-input v-model="zenKey" type="password" show-password placeholder="API Key（免费模型可留空；留空则保留已保存 Key）" />
+              <el-input v-model="zenKey" type="password" show-password placeholder="API Key（留空则保留已保存）" />
               <div class="model-select-row">
                 <el-select v-model="zenModel" placeholder="选择免费模型" filterable>
                   <el-option v-for="m in zenModels" :key="m" :label="m" :value="m" />

@@ -1,6 +1,5 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
-import com.sharedlibs.opencodezen.SseFrameDecoder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.exception.BusinessException;
@@ -74,23 +73,11 @@ public class JsonHttpModelClient {
     }
 
     public JsonNode post(String url, Map<String, String> headers, JsonNode body, int maxAttempts) {
-        return post(url, headers, body, maxAttempts, null);
-    }
-
-    /** Sends a request whose endpoint-specific headers are built by the supplied shared request factory. */
-    public JsonNode postWithRequestBuilder(
-            String url, java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
-            JsonNode body) {
-        return post(url, Map.of(), body, 1, requestBuilderFactory);
-    }
-
-    private JsonNode post(String url, Map<String, String> headers, JsonNode body, int maxAttempts,
-            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory) {
         BusinessException lastError = null;
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             try {
                 log.debug("Model API request: model={}, stream={}", body.path("model").asText(), body.path("stream").asBoolean());
-                HttpResponse<String> response = sendBounded(request(url, headers, body, requestBuilderFactory));
+                HttpResponse<String> response = sendBounded(request(url, headers, body));
                 log.debug("Model API response status: {}", response.statusCode());
                 if (response.statusCode() == 408 || response.statusCode() == 504) {
                     // 超时错误可重试
@@ -142,24 +129,9 @@ public class JsonHttpModelClient {
             Map<String, String> headers,
             JsonNode body,
             BiConsumer<String, JsonNode> onEvent) {
-        stream(url, headers, body, null, onEvent);
-    }
-
-    /** Streams SSE through a request builder supplied by the caller. */
-    public void streamWithRequestBuilder(
-            String url,
-            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
-            JsonNode body,
-            BiConsumer<String, JsonNode> onEvent) {
-        stream(url, Map.of(), body, requestBuilderFactory, onEvent);
-    }
-
-    private void stream(String url, Map<String, String> headers, JsonNode body,
-            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
-            BiConsumer<String, JsonNode> onEvent) {
         java.util.concurrent.atomic.AtomicReference<java.io.InputStream> input = new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.Future<?> task;
-        try { task = streams.submit(() -> readStream(url, headers, body, onEvent, requestBuilderFactory, input)); }
+        try { task = streams.submit(() -> readStream(url, headers, body, onEvent, input)); }
         catch (java.util.concurrent.RejectedExecutionException busy) { throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE); }
         try {
             task.get(AiRequestDeadline.timeoutMillis(timeout), java.util.concurrent.TimeUnit.MILLISECONDS);
@@ -180,11 +152,10 @@ public class JsonHttpModelClient {
 
     private void readStream(String url, Map<String, String> headers, JsonNode body,
             BiConsumer<String, JsonNode> onEvent,
-            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
             java.util.concurrent.atomic.AtomicReference<java.io.InputStream> input) {
         try {
             log.debug("Model API stream request: model={}", body.path("model").asText());
-            HttpResponse<java.io.InputStream> response = client.send(request(url, headers, body, requestBuilderFactory),
+            HttpResponse<java.io.InputStream> response = client.send(request(url, headers, body),
                     HttpResponse.BodyHandlers.ofInputStream());
             input.set(response.body());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -199,8 +170,7 @@ public class JsonHttpModelClient {
                         .startsWith("text/event-stream")) throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                                 "PROVIDER_HTTP / UNEXPECTED_CONTENT_TYPE / status=" + response.statusCode(), null, null);
                 String event = "message";
-                SseFrameDecoder decoder = new SseFrameDecoder();
-                long frameChars = 0;
+                StringBuilder data = new StringBuilder();
                 String line;
                 long received=0;
                 while ((line = reader.readLine()) != null) {
@@ -208,24 +178,27 @@ public class JsonHttpModelClient {
                     if (received>8_000_000) throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,"SSE 响应超过容量限制");
                     if (Thread.currentThread().isInterrupted()) throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
                     if (line.isEmpty()) {
-                        var completed = decoder.accept(line);
-                        frameChars = 0;
-                        if (completed.isPresent() && dispatchSsePayload(completed.get(), event, onEvent)) return;
+                        if (!data.isEmpty()) {
+                            String payload = data.toString();
+                            if ("[DONE]".equals(payload)) { onEvent.accept("done", null); return; }
+                            JsonNode value = parse(payload);
+                            if (value == null || !value.isObject() || value.hasNonNull("error"))
+                                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                                        "PROVIDER_STREAM / " + (value != null && value.hasNonNull("error") ? "ERROR_ENVELOPE" : "INVALID_EVENT_SHAPE"), null, null);
+                            onEvent.accept(event, value);
+                        }
+                        data.setLength(0);
                         event = "message";
                         continue;
                     }
                     if (line.startsWith("event:")) {
                         event = line.substring(6).strip();
+                    } else if (line.startsWith("data:")) {
+                        if (!data.isEmpty()) data.append('\n');
+                        data.append(line.substring(5).stripLeading());
+                        if (data.length() > 2_000_000) throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
                     }
-                    if (line.startsWith("data:")) {
-                        frameChars += line.length();
-                        if (frameChars > 2_000_000) throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
-                    }
-                    var completed = decoder.accept(line);
-                    if (completed.isPresent() && dispatchSsePayload(completed.get(), event, onEvent)) return;
                 }
-                var finalFrame = decoder.finish();
-                if (finalFrame.isPresent() && dispatchSsePayload(finalFrame.get(), event, onEvent)) return;
                 throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE, "PROVIDER_STREAM / MISSING_DONE", null, null);
             }
         } catch (BusinessException exception) {
@@ -238,21 +211,6 @@ public class JsonHttpModelClient {
         } catch (Exception exception) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
         }
-    }
-
-    private boolean dispatchSsePayload(String payload, String event, BiConsumer<String, JsonNode> onEvent) {
-        if ("[DONE]".equals(payload)) {
-            onEvent.accept("done", null);
-            return true;
-        }
-        JsonNode value = parse(payload);
-        if (value == null || !value.isObject() || value.hasNonNull("error")) {
-            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                    "PROVIDER_STREAM / " + (value != null && value.hasNonNull("error")
-                            ? "ERROR_ENVELOPE" : "INVALID_EVENT_SHAPE"), null, null);
-        }
-        onEvent.accept(event, value);
-        return false;
     }
 
     private JsonNode parse(String value) {
@@ -274,24 +232,16 @@ public class JsonHttpModelClient {
     }
 
     private HttpRequest request(String url, Map<String, String> headers, JsonNode body) {
-        return request(url, headers, body, null);
-    }
-
-    private HttpRequest request(String url, Map<String, String> headers, JsonNode body,
-            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory) {
         try {
             URI endpoint = URI.create(url.strip());
             endpoints.requirePublicHttps(endpoint);
-            HttpRequest.Builder builder = requestBuilderFactory == null
-                    ? HttpRequest.newBuilder().uri(endpoint)
-                    : requestBuilderFactory.apply(endpoint);
-            builder.timeout(timeout)
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(endpoint)
+                    .timeout(timeout)
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json, text/event-stream")
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
-            if (requestBuilderFactory == null) {
-                headers.forEach(builder::header);
-            }
+            headers.forEach(builder::header);
             return builder.build();
         } catch (BusinessException exception) {
             throw exception;

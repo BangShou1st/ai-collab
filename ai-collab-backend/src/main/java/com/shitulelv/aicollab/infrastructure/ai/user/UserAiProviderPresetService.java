@@ -1,6 +1,5 @@
 package com.shitulelv.aicollab.infrastructure.ai.user;
 
-import com.sharedlibs.opencodezen.OpenCodeZenCredentialPolicy;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata;
@@ -118,13 +117,12 @@ public class UserAiProviderPresetService {
         String key = apiKey != null ? apiKey.strip() : "";
         String effectiveKey;
         if (existing.isEmpty()) {
-            effectiveKey = key.isBlank() ? null : key;
+            if (key.isBlank()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Key required");
+            effectiveKey = key;
         } else {
-            effectiveKey = key.isBlank()
-                    ? secrets.decryptOptional(existing.get().encryptedApiKey()) : key;
+            effectiveKey = key.isBlank() ? secrets.decrypt(existing.get().encryptedApiKey()) : key;
         }
         catalog.requireExecutableModel(modelName, selection(effectiveKey, false));
-        requireCredentialForModel(effectiveKey, modelName);
         var pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
         boolean first = repository.countByUserId(userId) == 0;
         boolean makeDefault = setDefault || first || existing.map(UserAiProvider::isDefault).orElse(false);
@@ -161,22 +159,13 @@ public class UserAiProviderPresetService {
     public void test(UUID userId, String apiKey, String modelName) {
         var existing = repository.findByUserAndPreset(userId, PRESET);
         String key = apiKey != null && !apiKey.isBlank() ? apiKey.strip()
-                : existing.map(c -> secrets.decryptOptional(c.encryptedApiKey())).orElse(null);
+                : existing.map(c -> secrets.decrypt(c.encryptedApiKey()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "API Key required"));
         String model = modelName != null && !modelName.isBlank() ? modelName.strip()
                 : existing.map(UserAiProvider::modelName)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "model required"));
         catalog.requireExecutableModel(model, selection(key, false));
-        requireCredentialForModel(key, model);
         transport.validateCredential(key, model, AiRequestMetadata.fresh());
-    }
-
-    private void requireCredentialForModel(String apiKey, String model) {
-        try {
-            OpenCodeZenCredentialPolicy.credentialForModel(catalog.isVerifiedFreeModel(model), apiKey);
-        } catch (IllegalArgumentException missingKey) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                    "API Key required for models not verified as free");
-        }
     }
     private record CachedListing(ZenFreeModelSelection listing, Instant expires) {}
 }

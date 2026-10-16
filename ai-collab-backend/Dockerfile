@@ -3,15 +3,13 @@ FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 
 # 先拷贝构建描述文件，利用镜像层缓存依赖下载
-COPY ai-collab-backend/pom.xml ./ai-collab-backend/pom.xml
-COPY ai-collab-backend/mvnw ./ai-collab-backend/mvnw
-COPY ai-collab-backend/.mvn ./ai-collab-backend/.mvn
-WORKDIR /workspace/ai-collab-backend
-RUN bash ./mvnw -B -q dependency:go-offline
+COPY pom.xml ./
+COPY mvnw ./
+COPY .mvn ./.mvn
+RUN ./mvnw -B -q dependency:go-offline
 
-COPY shared-libs /workspace/shared-libs
-COPY ai-collab-backend/src ./src
-RUN bash ./mvnw -B -DskipTests package
+COPY src ./src
+RUN ./mvnw -B -DskipTests package
 
 # ---- 运行阶段 ----
 FROM eclipse-temurin:21-jre-alpine
@@ -19,7 +17,7 @@ FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
-COPY --from=build /workspace/ai-collab-backend/target/*.jar app.jar
+COPY --from=build /workspace/target/*.jar app.jar
 
 USER appuser
 EXPOSE 8080

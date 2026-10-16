@@ -14,7 +14,6 @@
 **/dist/
 **/.vite/
 **/.wrangler/
-**/.mvn/wrapper/maven-wrapper.jar
 
 # 日志与崩溃转储
 *.log
