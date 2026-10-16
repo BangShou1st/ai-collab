@@ -1,0 +1,81 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------< com.shitulelv:ai-collab-backend >-------------------
+[INFO] Building ai-collab-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- jacoco:0.8.13:prepare-agent (prepare-agent) @ ai-collab-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\32962\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.13\\org.jacoco.agent-0.8.13-runtime.jar=destfile=E:\\project\\ai-collab\\ai-collab-backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ ai-collab-backend ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 64 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 542 source files with javac [debug parameters release 21] to target\classes
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/exception/ErrorCode.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/exception/ErrorCode.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanQueryService.java: E:\project\ai-collab\ai-collab-backend\src\main\java\com\shitulelv\aicollab\planning\application\TaskPlanQueryService.javaʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/planning/application/TaskPlanQueryService.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ ai-collab-backend ---
+[INFO] skip non existing resourceDirectory E:\project\ai-collab\ai-collab-backend\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ ai-collab-backend ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 184 source files with javac [debug parameters release 21] to target\test-classes
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: ĳЩ�����ļ�ʹ�û򸲸����ѹ�ʱ�� API��
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingAuthTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:deprecation ���±��롣
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: ĳЩ�����ļ�ʹ����δ�����򲻰�ȫ�Ĳ�����
+[INFO] /E:/project/ai-collab/ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentContentPreviewStreamIsolationTest.java: �й���ϸ��Ϣ, ��ʹ�� -Xlint:unchecked ���±��롣
+[INFO] 
+[INFO] --- surefire:3.5.6:test (default-test) @ ai-collab-backend ---
+[INFO] Using auto detected provider org.apache.maven.surefire.junitplatform.JUnitPlatformProvider
+[INFO] 
+[INFO] -------------------------------------------------------
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentReadToolsTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+Java HotSpot(TM) 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A Java agent has been loaded dynamically (C:\Users\32962\.m2\repository\net\bytebuddy\byte-buddy-agent\1.18.10\byte-buddy-agent-1.18.10.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+[ERROR] Tests run: 5, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 2.092 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.infrastructure.AgentReadToolsTest
+[ERROR] com.shitulelv.aicollab.agent.infrastructure.AgentReadToolsTest.knowledgeSearchHonoursRequestedLimitUpToTwelve -- Time elapsed: 0.068 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expected size: 12 but was: 5 in:
+[{"documentId":"2cc4016d-50ca-4b14-aec3-88e44c8a43f4","chunkId":"92cce794-11bd-47ab-8b3a-2724e8e660a7","filename":"�ĵ�1.pdf","heading":"����1","pageNumber":null,"quote":"��1��������ͬ�Ķ�֤��","similarity":0.99,"sourceIdentity":{}},{"documentId":"07e4c8e2-a9cc-4c5e-9d43-fecaab12f001","chunkId":"b1ea146a-cef9-4ec0-9b8d-bdf1157fb93c","filename":"�ĵ�2.pdf","heading":"����2","pageNumber":null,"quote":"��2��������ͬ�Ķ�֤��","similarity":0.98,"sourceIdentity":{}},{"documentId":"b780f6c3-662f-4ddf-9807-2e32c2b3f7cf","chunkId":"17b9e472-4c6e-4724-afeb-04140f1b0392","filename":"�ĵ�3.pdf","heading":"����3","pageNumber":null,"quote":"��3��������ͬ�Ķ�֤��","similarity":0.97,"sourceIdentity":{}},{"documentId":"70d427ab-fa34-490c-9cb1-a082542c8473","chunkId":"67a70520-7504-400e-bd08-ff36363321a4","filename":"�ĵ�4.pdf","heading":"����4","pageNumber":null,"quote":"��4��������ͬ�Ķ�֤��","similarity":0.96,"sourceIdentity":{}},{"documentId":"d8ec1ae6-d82f-433b-b3ed-1c2196d36cd5","chunkId":"777d1f32-8a65-480b-9add-747c2740c700","filename":"�ĵ�5.pdf","heading":"����5","pageNumber":null,"quote":"��5��������ͬ�Ķ�֤��","similarity":0.95,"sourceIdentity":{}}]
+	at com.shitulelv.aicollab.agent.infrastructure.AgentReadToolsTest.knowledgeSearchHonoursRequestedLimitUpToTwelve(AgentReadToolsTest.java:100)
+
+[INFO] 
+[INFO] Results:
+[INFO] 
+[ERROR] Failures: 
+[ERROR]   AgentReadToolsTest.knowledgeSearchHonoursRequestedLimitUpToTwelve:100 
+Expected size: 12 but was: 5 in:
+[{"documentId":"2cc4016d-50ca-4b14-aec3-88e44c8a43f4","chunkId":"92cce794-11bd-47ab-8b3a-2724e8e660a7","filename":"�ĵ�1.pdf","heading":"����1","pageNumber":null,"quote":"��1��������ͬ�Ķ�֤��","similarity":0.99,"sourceIdentity":{}},{"documentId":"07e4c8e2-a9cc-4c5e-9d43-fecaab12f001","chunkId":"b1ea146a-cef9-4ec0-9b8d-bdf1157fb93c","filename":"�ĵ�2.pdf","heading":"����2","pageNumber":null,"quote":"��2��������ͬ�Ķ�֤��","similarity":0.98,"sourceIdentity":{}},{"documentId":"b780f6c3-662f-4ddf-9807-2e32c2b3f7cf","chunkId":"17b9e472-4c6e-4724-afeb-04140f1b0392","filename":"�ĵ�3.pdf","heading":"����3","pageNumber":null,"quote":"��3��������ͬ�Ķ�֤��","similarity":0.97,"sourceIdentity":{}},{"documentId":"70d427ab-fa34-490c-9cb1-a082542c8473","chunkId":"67a70520-7504-400e-bd08-ff36363321a4","filename":"�ĵ�4.pdf","heading":"����4","pageNumber":null,"quote":"��4��������ͬ�Ķ�֤��","similarity":0.96,"sourceIdentity":{}},{"documentId":"d8ec1ae6-d82f-433b-b3ed-1c2196d36cd5","chunkId":"777d1f32-8a65-480b-9add-747c2740c700","filename":"�ĵ�5.pdf","heading":"����5","pageNumber":null,"quote":"��5��������ͬ�Ķ�֤��","similarity":0.95,"sourceIdentity":{}}]
+[INFO] 
+[ERROR] Tests run: 5, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  59.411 s
+[INFO] Finished at: 2026-10-16T10:16:21+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project ai-collab-backend: There are test failures.
+[ERROR] 
+[ERROR] See E:\project\ai-collab\ai-collab-backend\target\surefire-reports for the individual test results.
+[ERROR] See dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

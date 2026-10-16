@@ -57,11 +57,14 @@ jobs:
           import xml.etree.ElementTree as ET
 
           # 覆盖上下文压缩、Flyway 迁移与运行恢复的关键真实 PostgreSQL 用例。
+          # RetrievalCoveragePostgresTest 是 D-RAG-01A 的检索覆盖基线：用真实 pgvector
+          # 观察向量候选与上下文保留；整类被跳过时同样判失败。
           required = [
               "com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest",
               "com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest",
               "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest",
               "com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest",
+              "com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest",
           ]
 
           stats = {}

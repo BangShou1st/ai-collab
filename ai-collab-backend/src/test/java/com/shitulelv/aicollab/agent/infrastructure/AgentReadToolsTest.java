@@ -22,6 +22,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentReadToolsTest {
@@ -70,6 +71,51 @@ class AgentReadToolsTest {
         assertThat(result.citations().getFirst().chunkId()).isEqualTo(chunk);
         assertThat(result.citations().getFirst().pageNumber()).isEqualTo(7);
         assertThat(result.citations().getFirst().quote()).isEqualTo("必须通过全部自动化测试");
+    }
+
+    @Test
+    void knowledgeSearchHonoursRequestedLimitUpToTwelve() {
+        ProjectAccessGuard access = mock(ProjectAccessGuard.class);
+        when(access.requireMember(any(), any())).thenReturn(ProjectRole.MEMBER);
+        DocumentSearchService search = mock(DocumentSearchService.class);
+        List<DocumentSearchHit> twelve = new java.util.ArrayList<>();
+        for (int i = 1; i <= 12; i++) {
+            twelve.add(new DocumentSearchHit(
+                    UUID.randomUUID(), UUID.randomUUID(), "文档" + i + ".pdf", "标题" + i,
+                    "第" + i + "条互不相同的短证据", "hash-" + i, 1.0 - i * 0.01));
+        }
+        when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(12)))
+                .thenReturn(twelve);
+        when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(3)))
+                .thenReturn(twelve.subList(0, 5));
+        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
+                access, search, new KnowledgeContextBuilder(), json);
+
+        var twelveResult = tool.execute(context,
+                json.createObjectNode().put("query", "验收标准").put("limit", 12));
+        var threeResult = tool.execute(context,
+                json.createObjectNode().put("query", "验收标准").put("limit", 3));
+
+        // limit=12 时 12 个短而不同的有效来源全部保留；limit=3 时最多 3 个。
+        assertThat(twelveResult.data().path("sources")).hasSize(12);
+        assertThat(twelveResult.citations()).hasSize(12);
+        assertThat(threeResult.data().path("sources")).hasSize(3);
+        assertThat(threeResult.citations()).hasSize(3);
+    }
+
+    @Test
+    void knowledgeSearchKeepsDefaultEightCandidateWindow() {
+        ProjectAccessGuard access = mock(ProjectAccessGuard.class);
+        when(access.requireMember(any(), any())).thenReturn(ProjectRole.MEMBER);
+        DocumentSearchService search = mock(DocumentSearchService.class);
+        when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(8)))
+                .thenReturn(List.of());
+        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
+                access, search, new KnowledgeContextBuilder(), json);
+
+        tool.execute(context, json.createObjectNode().put("query", "验收标准"));
+
+        verify(search).search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(8));
     }
 
     @Test
