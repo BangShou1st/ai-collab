@@ -70,8 +70,10 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         var documentIds = AgentToolArguments.uuidList(arguments, "documentIds", 20);
         int limit = AgentToolArguments.integer(arguments, "limit", 8, 1, 12);
         access.requireMember(context.projectId(), context.userId());
+        // 检索候选与上下文保留来源使用同一个有界 limit：工具声明的 1–12 决定来源数量上限，
+        // 知识问答仍走 KnowledgeContextBuilder 的默认上限（5），正文预算不变。
         var knowledge = contextBuilder.build(
-                search.search(context.projectId(), query, documentIds, limit));
+                search.search(context.projectId(), query, documentIds, limit), limit);
         ArrayNode sources = json.createArrayNode();
         List<AgentCitation> citations = knowledge.sources().stream().map(source -> {
             ObjectNode item = sources.addObject();
