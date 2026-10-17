@@ -90,4 +90,27 @@ class KnowledgeCitationValidatorTest {
         assertThat(result.citedSources()).extracting(KnowledgeSource::rank)
                 .containsExactly(2, 1);
     }
+
+    @Test
+    void citation_rank_maps_to_the_correct_identity_for_cross_document_duplicate_hashes() {
+        UUID chunkA = UUID.randomUUID();
+        UUID documentA = UUID.randomUUID();
+        UUID chunkB = UUID.randomUUID();
+        UUID documentB = UUID.randomUUID();
+        // 两条来源正文与 contentHash 相同（跨文档重复文本），但 documentId/chunkId 各自独立。
+        KnowledgeSource first = new KnowledgeSource(chunkA, documentA, "原始件.pdf", "条款",
+                "两件文档相同的条款", "same", 0.9, 1);
+        KnowledgeSource second = new KnowledgeSource(chunkB, documentB, "复印件.pdf", "条款",
+                "两件文档相同的条款", "same", 0.8, 2);
+
+        ValidatedKnowledgeAnswer result =
+                validator.validate("结论依据 [S2]，另见 [S1]。", List.of(first, second));
+
+        assertThat(result.citedSources()).extracting(KnowledgeSource::rank).containsExactly(2, 1);
+        // [S2] 必须落到第二条来源的身份上，不能与 [S1] 互换或合并成同一文档。
+        assertThat(result.citedSources().getFirst().chunkId()).isEqualTo(chunkB);
+        assertThat(result.citedSources().getFirst().documentId()).isEqualTo(documentB);
+        assertThat(result.citedSources().get(1).chunkId()).isEqualTo(chunkA);
+        assertThat(result.citedSources().get(1).documentId()).isEqualTo(documentA);
+    }
 }

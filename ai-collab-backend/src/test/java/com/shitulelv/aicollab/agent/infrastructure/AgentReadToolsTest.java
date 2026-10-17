@@ -55,7 +55,7 @@ class AgentReadToolsTest {
         DocumentSearchService search = mock(DocumentSearchService.class);
         UUID chunk = UUID.randomUUID();
         UUID document = UUID.randomUUID();
-        when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(8)))
+        when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(20)))
                 .thenReturn(List.of(new DocumentSearchHit(
                         chunk, document, "需求.pdf", "验收",
                         "必须通过全部自动化测试", "hash", 0.91,
@@ -71,6 +71,13 @@ class AgentReadToolsTest {
         assertThat(result.citations().getFirst().chunkId()).isEqualTo(chunk);
         assertThat(result.citations().getFirst().pageNumber()).isEqualTo(7);
         assertThat(result.citations().getFirst().quote()).isEqualTo("必须通过全部自动化测试");
+        // 工具实际返回 limit、citation、sourceIdentity 与 coverage。
+        var source = result.data().path("sources").get(0);
+        assertThat(source.path("chunkId").asText()).isEqualTo(chunk.toString());
+        assertThat(source.path("documentId").asText()).isEqualTo(document.toString());
+        assertThat(source.path("sourceIdentity").path("pageNumber").asInt()).isEqualTo(7);
+        assertThat(result.data().path("coverage").asText()).isEqualTo("RELEVANT_EXCERPTS_ONLY");
+        assertThat(result.data().path("fullDocumentRead").asBoolean()).isFalse();
     }
 
     @Test
@@ -84,10 +91,9 @@ class AgentReadToolsTest {
                     UUID.randomUUID(), UUID.randomUUID(), "文档" + i + ".pdf", "标题" + i,
                     "第" + i + "条互不相同的短证据", "hash-" + i, 1.0 - i * 0.01));
         }
-        when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(12)))
+        // 候选池固定为有界 20：外部 limit 只决定最终返回来源数。
+        when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(20)))
                 .thenReturn(twelve);
-        when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(3)))
-                .thenReturn(twelve.subList(0, 5));
         KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
                 access, search, new KnowledgeContextBuilder(), json);
 
@@ -104,18 +110,62 @@ class AgentReadToolsTest {
     }
 
     @Test
-    void knowledgeSearchKeepsDefaultEightCandidateWindow() {
+    void knowledgeSearchUsesBoundedCandidatePoolAndKeepsDefaultSourceLimit() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         when(access.requireMember(any(), any())).thenReturn(ProjectRole.MEMBER);
         DocumentSearchService search = mock(DocumentSearchService.class);
-        when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(8)))
-                .thenReturn(List.of());
+        List<DocumentSearchHit> twelve = new java.util.ArrayList<>();
+        for (int i = 1; i <= 12; i++) {
+            twelve.add(new DocumentSearchHit(
+                    UUID.randomUUID(), UUID.randomUUID(), "文档" + i + ".pdf", "标题" + i,
+                    "第" + i + "条互不相同的短证据", "hash-" + i, 1.0 - i * 0.01));
+        }
+        when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(20)))
+                .thenReturn(twelve);
         KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
                 access, search, new KnowledgeContextBuilder(), json);
 
-        tool.execute(context, json.createObjectNode().put("query", "验收标准"));
+        var result = tool.execute(context, json.createObjectNode().put("query", "验收标准"));
 
-        verify(search).search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(8));
+        // 候选窗口有界放大到 20，但缺省 limit 仍只返回 8 条来源。
+        verify(search).search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(20));
+        assertThat(result.data().path("sources")).hasSize(8);
+        assertThat(result.citations()).hasSize(8);
+    }
+
+    @Test
+    void knowledgeSearchSelectsAcrossDocumentsAndKeepsCitationIdentity() {
+        ProjectAccessGuard access = mock(ProjectAccessGuard.class);
+        when(access.requireMember(any(), any())).thenReturn(ProjectRole.MEMBER);
+        DocumentSearchService search = mock(DocumentSearchService.class);
+        UUID crowdedDocument = UUID.randomUUID();
+        UUID otherDocument = UUID.randomUUID();
+        UUID otherChunk = UUID.randomUUID();
+        List<DocumentSearchHit> candidates = new java.util.ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            candidates.add(new DocumentSearchHit(
+                    UUID.randomUUID(), crowdedDocument, "主体文档.pdf", "高频章节" + i,
+                    "主体文档的高分证据 " + i, "crowd-" + i, 0.95 - i * 0.01));
+        }
+        candidates.add(new DocumentSearchHit(
+                otherChunk, otherDocument, "附属文档.pdf", "关键结论",
+                "附属文档里的关键证据", "other-hash", 0.5));
+        when(search.search(eq(context.projectId()), eq("关键证据"), eq(List.of()), eq(20)))
+                .thenReturn(candidates);
+        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
+                access, search, new KnowledgeContextBuilder(), json);
+
+        var result = tool.execute(context,
+                json.createObjectNode().put("query", "关键证据"));
+
+        // 单一高分文档不能把来源名额占满：另一文档的有效证据必须进得来，且引用身份正确。
+        assertThat(result.data().path("sources")).hasSize(6);
+        assertThat(result.citations()).extracting(com.shitulelv.aicollab.agent.domain.model.AgentCitation::chunkId)
+                .contains(otherChunk);
+        var citation = result.citations().stream()
+                .filter(item -> item.chunkId().equals(otherChunk)).findFirst().orElseThrow();
+        assertThat(citation.documentId()).isEqualTo(otherDocument);
+        assertThat(citation.quote()).isEqualTo("附属文档里的关键证据");
     }
 
     @Test
