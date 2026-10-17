@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
+import com.sharedlibs.opencodezen.OpenCodeZenProtocolPolicy;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -9,9 +10,10 @@ import org.springframework.stereotype.Component;
 /**
  * Server-owned trust source for provider presets. Frontend must never submit baseUrl/apiPath for presets.
  *
- * <p>Zen / Console 上游地址只在这里决定，并且必须命中代码白名单：默认使用新版官方文档
- * （{@code https://opencode.ai/v2/docs/console/models/}）列出的 {@code /inference/v1}；
- * 旧版文档的 {@code /zen/v1} 保留为可显式选择的兼容选项。
+ * <p>Zen 上游的 base、推理路径与发现路径不再由应用自行硬编码，而是直接取共享库
+ * {@link OpenCodeZenProtocolPolicy} 的已验证常量：推理与模型发现都以
+ * {@code INFERENCE_BASE_URL} 为 base，推理走 {@code /chat/completions}、发现走 {@code /models}。
+ * 旧版 {@code /zen/v1} 只可用于发现、绝不可用于推理，因此不再作为可选上游。
  * 用户请求、持久化的 preset baseUrl、HTTP Header 或模型响应都不能覆盖这里的取值。</p>
  */
 @Component
@@ -20,48 +22,57 @@ public class ProviderPresetRegistry {
             String baseUrl, String completionPath, String modelsPath, String userAgent, boolean directNoProxy,
             java.util.EnumSet<ModelCapability> capabilities, double defaultTemperature, int defaultMaxOutputTokens) {}
 
-    /** 新版官方文档的默认上游。 */
-    static final String ZEN_DEFAULT_BASE = "https://opencode.ai/inference/v1";
-    /** 旧版官方文档的兼容上游；需服务端显式配置启用。 */
-    static final String ZEN_LEGACY_BASE = "https://opencode.ai/zen/v1";
-    /** 白名单：只有这些经批准的 HTTPS Zen 地址可以被选为上游。 */
-    static final Set<String> APPROVED_ZEN_BASES = Set.of(ZEN_DEFAULT_BASE, ZEN_LEGACY_BASE);
+    /** 唯一获批的 Zen 上游 base：共享库声明的推理 base（{@code https://opencode.ai/inference/v1}）。 */
+    static final String ZEN_INFERENCE_BASE = OpenCodeZenProtocolPolicy.INFERENCE_BASE_URL;
+    /** 白名单：只有这个经批准的 HTTPS Zen base 可以被选为上游。 */
+    static final Set<String> APPROVED_ZEN_BASES = Set.of(ZEN_INFERENCE_BASE);
 
     private static final java.util.EnumSet<ModelCapability> ZEN_FREE_CAPABILITIES = java.util.EnumSet.of(
             ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.STRUCTURED_OUTPUT,
             ModelCapability.NATIVE_TOOLS, ModelCapability.USAGE);
-    // Free reasoning models emit long reasoning traces before content; the default budget must cover both.
-    private static final String ZEN_USER_AGENT =
-            "opencode/1.18.31 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14";
 
     private final String zenBaseUrl;
+    private final String zenUserAgent;
     private final Map<ProviderPresetCode, PresetPolicy> policies;
 
-    /** 默认上游：新版官方文档列出的 {@code /inference/v1}。 */
+    /** 默认上游：共享库的推理 base。 */
     public ProviderPresetRegistry() {
-        this(ZEN_DEFAULT_BASE);
+        this(ZEN_INFERENCE_BASE, OpenCodeZenProtocolPolicy.USER_AGENT);
+    }
+
+    public ProviderPresetRegistry(String zenUpstream) {
+        this(zenUpstream, OpenCodeZenProtocolPolicy.USER_AGENT);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
-    public ProviderPresetRegistry(@Value("${zen.upstream:https://opencode.ai/inference/v1}") String zenUpstream) {
+    public ProviderPresetRegistry(
+            @Value("${zen.upstream:" + ZEN_INFERENCE_BASE + "}") String zenUpstream,
+            @Value("${opencode.zen.user-agent:" + OpenCodeZenProtocolPolicy.USER_AGENT + "}") String zenUserAgent) {
         this.zenBaseUrl = approveZenUpstream(zenUpstream);
-        this.policies = Map.of(ProviderPresetCode.OPENCODE_ZEN_FREE, zenFree(this.zenBaseUrl));
+        this.zenUserAgent = zenUserAgent;
+        this.policies = Map.of(ProviderPresetCode.OPENCODE_ZEN_FREE,
+                zenFree(this.zenBaseUrl, this.zenUserAgent));
     }
 
-    private static PresetPolicy zenFree(String baseUrl) {
+    private static PresetPolicy zenFree(String baseUrl, String userAgent) {
         return new PresetPolicy(ProviderPresetCode.OPENCODE_ZEN_FREE, "OpenCode Zen Free",
-                ModelProviderType.OPENAI_COMPATIBLE, baseUrl, "/chat/completions", "/models",
-                ZEN_USER_AGENT, true, ZEN_FREE_CAPABILITIES, 0.2, 4000);
+                ModelProviderType.OPENAI_COMPATIBLE, baseUrl, OpenCodeZenProtocolPolicy.CHAT_COMPLETIONS_PATH,
+                OpenCodeZenProtocolPolicy.MODELS_PATH, userAgent, true, ZEN_FREE_CAPABILITIES, 0.2, 4000);
     }
 
     /** 校验并归一化服务端配置的 Zen 上游地址；不在白名单内时明确失败。 */
     static String approveZenUpstream(String candidate) {
+        String normalized = normalize(candidate);
+        if (!APPROVED_ZEN_BASES.contains(normalized)) {
+            throw new IllegalStateException("zen.upstream 必须是白名单内的 HTTPS Zen 推理 base，当前值：" + normalized);
+        }
+        return normalized;
+    }
+
+    private static String normalize(String candidate) {
         String normalized = candidate == null ? "" : candidate.strip();
         while (normalized.endsWith("/")) {
             normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        if (!APPROVED_ZEN_BASES.contains(normalized)) {
-            throw new IllegalStateException("zen.upstream 必须是白名单内的 HTTPS Zen 地址，当前值：" + normalized);
         }
         return normalized;
     }

@@ -1,16 +1,16 @@
 package com.shitulelv.aicollab.infrastructure.ai.user;
 
+import com.sharedlibs.opencodezen.OpenCodeZenCredentialPolicy;
+import com.sharedlibs.opencodezen.OpenCodeZenFreeAdmissionPolicy;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
-import com.shitulelv.aicollab.infrastructure.ai.model.OpenCodeZenModelCatalog;
 import com.shitulelv.aicollab.infrastructure.ai.model.OpenCodeZenTransport;
 import com.shitulelv.aicollab.infrastructure.ai.model.ProviderPresetCode;
 import com.shitulelv.aicollab.infrastructure.ai.model.ProviderPresetRegistry;
-import com.shitulelv.aicollab.infrastructure.ai.model.ZenFreeModelSelection;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumSet;
@@ -30,27 +30,21 @@ public class UserAiProviderPresetService {
     private final UserAiProviderRepository repository;
     private final ModelSecretCipher secrets;
     private final ProviderPresetRegistry registry;
-    private final OpenCodeZenModelCatalog catalog;
     private final OpenCodeZenTransport transport;
     private final Map<String, CachedListing> cache = new ConcurrentHashMap<>();
+
     @org.springframework.beans.factory.annotation.Autowired
     public UserAiProviderPresetService(UserAiProviderRepository repository, ModelSecretCipher secrets,
-            ProviderPresetRegistry registry, OpenCodeZenModelCatalog catalog, OpenCodeZenTransport transport) {
+            ProviderPresetRegistry registry, OpenCodeZenTransport transport) {
         this.repository = repository;
         this.secrets = secrets;
         this.registry = registry;
-        this.catalog = catalog;
         this.transport = transport;
     }
-    public UserAiProviderPresetService(UserAiProviderRepository repository, ModelSecretCipher secrets,
-            ProviderPresetRegistry registry, OpenCodeZenModelCatalog catalog) {
-        this(repository, secrets, registry, catalog,
-                new com.shitulelv.aicollab.infrastructure.ai.model.HttpOpenCodeZenTransport(
-                        new com.fasterxml.jackson.databind.ObjectMapper(),
-                        new com.shitulelv.aicollab.common.security.OutboundEndpointPolicy(), registry));
-    }
+
     public record PresetStatus(String code, String displayName, boolean connected, String modelName,
             boolean enabled, boolean isDefault, boolean hasApiKey) {}
+
     public List<PresetStatus> presets(UUID userId) {
         var pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
         var conn = repository.findByUserAndPreset(userId, PRESET);
@@ -61,21 +55,23 @@ public class UserAiProviderPresetService {
                 conn.map(UserAiProvider::isDefault).orElse(false),
                 conn.map(c -> c.encryptedApiKey() != null && !c.encryptedApiKey().isBlank()).orElse(false)));
     }
+
     public List<String> models(UUID userId, boolean refresh) {
         String key = repository.findByUserAndPreset(userId, PRESET)
                 .map(c -> { try { return secrets.decrypt(c.encryptedApiKey()); } catch (Exception e) { return null; } })
                 .orElse(null);
         return freeModels(key, refresh);
     }
+
     public List<String> freeModels(String apiKey, boolean refresh) {
-        return selection(apiKey, refresh).models();
+        return admittedModels(apiKey, refresh);
     }
+
     /**
-     * 发现当前可执行的 Zen 模型。缓存按凭证分桶（凭证哈希，非明文），
-     * 不同用户凭证关联的非公开可用性不会被混在一起；缓存有界且带 TTL，
-     * 不会每次用户请求都访问公共目录（公共目录自身由传输层缓存）。
+     * 发现当前可执行的 Zen 模型：共享库已评审白名单 ∩ 上游实时列表。缓存按凭证分桶（凭证哈希，非明文），
+     * 不同用户凭证关联的非公开可用性不会被混在一起；缓存有界且带 TTL，不会每次用户请求都访问上游。
      */
-    public ZenFreeModelSelection selection(String apiKey, boolean refresh) {
+    public List<String> admittedModels(String apiKey, boolean refresh) {
         String cacheKey = cacheKey(apiKey);
         if (!refresh) {
             CachedListing hit = cache.get(cacheKey);
@@ -83,15 +79,12 @@ public class UserAiProviderPresetService {
                 return hit.listing();
             }
         }
-        ZenFreeModelSelection listing;
-        try {
-            listing = catalog.selection(apiKey, AiRequestMetadata.fresh());
-        } catch (BusinessException e) { throw e; }
-        catch (Exception e) { throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "model catalog temporarily unavailable, please retry"); }
+        List<String> listing = transport.admittedModels(apiKey, AiRequestMetadata.fresh());
         cacheListing(cacheKey, listing);
         return listing;
     }
-    private void cacheListing(String cacheKey, ZenFreeModelSelection listing) {
+
+    private void cacheListing(String cacheKey, List<String> listing) {
         if (cache.size() >= MAX_CACHE_ENTRIES) {
             Instant now = Instant.now();
             cache.entrySet().removeIf(entry -> now.isAfter(entry.getValue().expires()));
@@ -99,6 +92,7 @@ public class UserAiProviderPresetService {
         }
         cache.put(cacheKey, new CachedListing(listing, Instant.now().plus(CACHE_TTL)));
     }
+
     /** 只保存凭证的不可逆摘要作为缓存键；凭证明文既不持久化到缓存，也不写日志。 */
     private static String cacheKey(String apiKey) {
         if (apiKey == null || apiKey.isBlank()) return "anonymous";
@@ -110,6 +104,7 @@ public class UserAiProviderPresetService {
             return "unavailable";
         }
     }
+
     @Transactional
     public PresetStatus save(UUID userId, String apiKey, String modelName, boolean enabled, boolean setDefault) {
         if (modelName == null || modelName.isBlank()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model required");
@@ -117,12 +112,13 @@ public class UserAiProviderPresetService {
         String key = apiKey != null ? apiKey.strip() : "";
         String effectiveKey;
         if (existing.isEmpty()) {
-            if (key.isBlank()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Key required");
-            effectiveKey = key;
+            effectiveKey = key.isBlank() ? null : key;
         } else {
-            effectiveKey = key.isBlank() ? secrets.decrypt(existing.get().encryptedApiKey()) : key;
+            effectiveKey = key.isBlank()
+                    ? secrets.decryptOptional(existing.get().encryptedApiKey()) : key;
         }
-        catalog.requireExecutableModel(modelName, selection(effectiveKey, false));
+        requireAdmittedModel(modelName, admittedModels(effectiveKey, false));
+        requireCredentialForModel(effectiveKey, modelName);
         var pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
         boolean first = repository.countByUserId(userId) == 0;
         boolean makeDefault = setDefault || first || existing.map(UserAiProvider::isDefault).orElse(false);
@@ -145,6 +141,7 @@ public class UserAiProviderPresetService {
         repository.save(row);
         return presets(userId).get(0);
     }
+
     /**
      * Disconnect the caller's Zen connection: delete only their OPENCODE_ZEN_FREE row
      * (encrypted key included). Purpose assignments cascade via FK; a deleted default
@@ -159,13 +156,37 @@ public class UserAiProviderPresetService {
     public void test(UUID userId, String apiKey, String modelName) {
         var existing = repository.findByUserAndPreset(userId, PRESET);
         String key = apiKey != null && !apiKey.isBlank() ? apiKey.strip()
-                : existing.map(c -> secrets.decrypt(c.encryptedApiKey()))
-                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "API Key required"));
+                : existing.map(c -> secrets.decryptOptional(c.encryptedApiKey())).orElse(null);
         String model = modelName != null && !modelName.isBlank() ? modelName.strip()
                 : existing.map(UserAiProvider::modelName)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "model required"));
-        catalog.requireExecutableModel(model, selection(key, false));
+        requireAdmittedModel(model, admittedModels(key, false));
+        requireCredentialForModel(key, model);
         transport.validateCredential(key, model, AiRequestMetadata.fresh());
     }
-    private record CachedListing(ZenFreeModelSelection listing, Instant expires) {}
+
+    /**
+     * 只有共享库白名单内、且当前上游仍在服务的模型才可作为 Zen 预设。
+     * 白名单以已评审证据为准，{@code -free} 后缀本身不构成证据。
+     */
+    private void requireAdmittedModel(String model, List<String> admitted) {
+        String candidate = model == null ? "" : model.strip();
+        if (candidate.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model required");
+        }
+        if (!admitted.contains(candidate)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model must be a current free Chat model");
+        }
+    }
+
+    private void requireCredentialForModel(String apiKey, String model) {
+        try {
+            OpenCodeZenCredentialPolicy.credentialForModel(OpenCodeZenFreeAdmissionPolicy.admitsFreeChatModel(model), apiKey);
+        } catch (IllegalArgumentException missingKey) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "API Key required for models not verified as free");
+        }
+    }
+
+    private record CachedListing(List<String> listing, Instant expires) {}
 }
