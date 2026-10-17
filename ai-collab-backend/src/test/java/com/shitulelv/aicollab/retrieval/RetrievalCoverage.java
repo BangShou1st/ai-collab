@@ -3,6 +3,8 @@ package com.shitulelv.aicollab.retrieval;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeContext;
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource;
+import com.shitulelv.aicollab.knowledge.domain.service.ContextDropReason;
+import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -52,6 +54,26 @@ public final class RetrievalCoverage {
             List<ExpectedEvidence> expected,
             List<DocumentSearchHit> candidates,
             KnowledgeContext context) {
+        return measure(topK, contextLimit, expected, candidates, context, Map.of());
+    }
+
+    public static Map<String, Object> measure(
+            int topK,
+            int contextLimit,
+            List<ExpectedEvidence> expected,
+            List<DocumentSearchHit> candidates,
+            KnowledgeContextBuilder.BuildResult buildResult) {
+        return measure(topK, contextLimit, expected, candidates,
+                buildResult.context(), buildResult.dropReasons());
+    }
+
+    public static Map<String, Object> measure(
+            int topK,
+            int contextLimit,
+            List<ExpectedEvidence> expected,
+            List<DocumentSearchHit> candidates,
+            KnowledgeContext context,
+            Map<UUID, ContextDropReason> dropReasons) {
 
         Set<UUID> expectedChunks = new LinkedHashSet<>();
         Set<UUID> expectedDocuments = new LinkedHashSet<>();
@@ -84,12 +106,48 @@ public final class RetrievalCoverage {
         int expectedDocumentHits = coveredExpectedDocuments(expected, candidateChunks);
         int retainedDocumentHits = coveredExpectedDocuments(expected, retainedChunks);
         int unexpectedSourcesRetained = 0;
-        int belowThresholdCandidates = 0;
+        int candidateSourcesNotRetained = 0;
+        int candidatesRejectedByThresholdOrDedup = 0;
         for (UUID chunk : candidateChunks) {
-            if (!retainedChunks.contains(chunk)) belowThresholdCandidates++;
+            if (!retainedChunks.contains(chunk)) {
+                candidateSourcesNotRetained++;
+                ContextDropReason reason = dropReasons.getOrDefault(
+                        chunk, ContextDropReason.UNATTRIBUTED);
+                if (reason == ContextDropReason.BELOW_SIMILARITY_THRESHOLD
+                        || reason == ContextDropReason.INTRA_DOCUMENT_DUPLICATE
+                        || reason == ContextDropReason.CROSS_DOCUMENT_DUPLICATE) {
+                    candidatesRejectedByThresholdOrDedup++;
+                }
+            }
         }
         for (UUID chunk : retainedChunks) {
             if (!expectedChunks.contains(chunk)) unexpectedSourcesRetained++;
+        }
+
+        // 归因仅读取构建过程记录的实际原因；只有最终候选和上下文结果时，不根据相同 hash 猜原因。
+        int crossDocumentDedupLoss = 0;
+        int intraDocumentDedupLoss = 0;
+        int sourceCapDrop = 0;
+        int budgetDrop = 0;
+        int belowSimilarityThresholdDrop = 0;
+        int emptyBodyDrop = 0;
+        int unattributedDrop = 0;
+        for (UUID chunkId : expectedChunks) {
+            if (!candidateChunks.contains(chunkId) || retainedChunks.contains(chunkId)) continue;
+            switch (dropReasons.getOrDefault(chunkId, ContextDropReason.UNATTRIBUTED)) {
+                case CROSS_DOCUMENT_DUPLICATE -> crossDocumentDedupLoss++;
+                case INTRA_DOCUMENT_DUPLICATE -> intraDocumentDedupLoss++;
+                case SOURCE_CAP -> sourceCapDrop++;
+                case BODY_BUDGET -> budgetDrop++;
+                case BELOW_SIMILARITY_THRESHOLD -> belowSimilarityThresholdDrop++;
+                case EMPTY_BODY -> emptyBodyDrop++;
+                case UNATTRIBUTED -> unattributedDrop++;
+            }
+        }
+
+        Set<UUID> candidateDocuments = new LinkedHashSet<>();
+        for (DocumentSearchHit hit : candidates) {
+            candidateDocuments.add(hit.documentId());
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -97,7 +155,10 @@ public final class RetrievalCoverage {
         result.put("contextLimit", contextLimit);
         result.put("expectedEvidenceCount", expectedChunks.size());
         result.put("candidateCount", candidates.size());
+        result.put("candidateDocumentCount", candidateDocuments.size());
         result.put("retainedSourceCount", context.sources().size());
+        result.put("contextPromptCodePoints",
+                context.promptSources().codePointCount(0, context.promptSources().length()));
         // 期望证据为空时 Recall/Retention 是 0/0：比率未定义（下面写 null），
         // 这既不是满分也不是检索失败，必须能和不合格的 0.0 区分开。
         result.put("retrievalStatus", expectedChunks.isEmpty()
@@ -111,12 +172,20 @@ public final class RetrievalCoverage {
         // 真正没命中（见 classification）。
         result.put("notRecalledInTopK", notRecalledInTopK);
         result.put("droppedByContext", droppedByContext);
+        result.put("crossDocumentDedupLoss", crossDocumentDedupLoss);
+        result.put("intraDocumentDedupLoss", intraDocumentDedupLoss);
+        result.put("sourceCapDrop", sourceCapDrop);
+        result.put("budgetDrop", budgetDrop);
+        result.put("belowSimilarityThresholdDrop", belowSimilarityThresholdDrop);
+        result.put("emptyBodyDrop", emptyBodyDrop);
+        result.put("unattributedDrop", unattributedDrop);
         result.put("unexpectedSourcesRetained", unexpectedSourcesRetained);
-        result.put("candidatesRejectedByThresholdOrDedup", belowThresholdCandidates);
+        result.put("candidateSourcesNotRetained", candidateSourcesNotRetained);
+        result.put("candidatesRejectedByThresholdOrDedup", candidatesRejectedByThresholdOrDedup);
         result.put("expectedEvidence", describeExpected(
                 expected, candidateRanks, candidateSimilarity, retainedChunks));
         result.put("candidateSources", describeCandidates(
-                candidates, expectedChunks));
+                candidates, expectedChunks, retainedChunks, dropReasons));
         result.put("retainedSources", describeRetained(context.sources(), expectedChunks));
         return result;
     }
@@ -170,7 +239,10 @@ public final class RetrievalCoverage {
     }
 
     private static List<Map<String, Object>> describeCandidates(
-            List<DocumentSearchHit> candidates, Set<UUID> expectedChunks) {
+            List<DocumentSearchHit> candidates,
+            Set<UUID> expectedChunks,
+            Set<UUID> retainedChunks,
+            Map<UUID, ContextDropReason> dropReasons) {
         List<Map<String, Object>> described = new ArrayList<>(candidates.size());
         for (int index = 0; index < candidates.size(); index++) {
             DocumentSearchHit hit = candidates.get(index);
@@ -181,6 +253,8 @@ public final class RetrievalCoverage {
             item.put("filename", hit.originalFilename());
             item.put("similarity", round(hit.similarity()));
             item.put("expectedEvidence", expectedChunks.contains(hit.id()));
+            item.put("dropReason", retainedChunks.contains(hit.id()) ? "RETAINED"
+                    : dropReasons.getOrDefault(hit.id(), ContextDropReason.UNATTRIBUTED).name());
             described.add(item);
         }
         return described;
@@ -226,7 +300,15 @@ public final class RetrievalCoverage {
         classification.put("contextEvidenceRetention", top8.get("contextEvidenceRetention"));
         classification.put("dbMissCount", top20.get("notRecalledInTopK"));
         classification.put("droppedByContext", top8.get("droppedByContext"));
+        classification.put("crossDocumentDedupLoss", top8.get("crossDocumentDedupLoss"));
+        classification.put("intraDocumentDedupLoss", top8.get("intraDocumentDedupLoss"));
+        classification.put("sourceCapDrop", top8.get("sourceCapDrop"));
+        classification.put("budgetDrop", top8.get("budgetDrop"));
+        classification.put("belowSimilarityThresholdDrop", top8.get("belowSimilarityThresholdDrop"));
+        classification.put("emptyBodyDrop", top8.get("emptyBodyDrop"));
+        classification.put("unattributedDrop", top8.get("unattributedDrop"));
         classification.put("verdict", verdictFor(top8, top20));
+        classification.put("retentionVerdict", retentionVerdictFor(top8, top20));
         return classification;
     }
 
@@ -242,6 +324,37 @@ public final class RetrievalCoverage {
     }
 
     /**
+     * 保留侧的归因：候选已命中、上下文未保留时，指出最首要的那一类原因。
+     *
+     * <p>与 {@link #verdictFor} 互补——前者回答“候选窗口有没有召回”，这里回答
+     * “召回了却没进上下文，是被跨文档去重合并了、被来源条数上限挡下、还是被正文预算挤掉”。</p>
+     */
+    private static String retentionVerdictFor(Map<String, Object> top8, Map<String, Object> top20) {
+        int expected = (int) top8.get("expectedEvidenceCount");
+        if (expected == 0) return UNDEFINED_NO_EXPECTED_EVIDENCE;
+        // 候选侧先丢：保留侧无从谈起，直接回候选侧结论（窗口截断 / 数据库没召回）。
+        int missedAt8 = number(top8, "notRecalledInTopK");
+        if (missedAt8 > 0) {
+            int missedAt20 = number(top20, "notRecalledInTopK");
+            return missedAt20 < missedAt8 ? "WINDOW_TRUNCATED" : "DB_MISS";
+        }
+        if (number(top8, "droppedByContext") == 0) return "RETAINED";
+        // 候选全部召回、但有期望证据没进上下文：指出最首要的那一类原因。
+        if (number(top8, "crossDocumentDedupLoss") > 0) return "CROSS_DOCUMENT_DEDUP";
+        if (number(top8, "sourceCapDrop") > 0) return "CONTEXT_DROP_SOURCE_CAP";
+        if (number(top8, "budgetDrop") > 0) return "BUDGET_DROP";
+        if (number(top8, "intraDocumentDedupLoss") > 0) return "INTRA_DOCUMENT_DEDUP";
+        if (number(top8, "belowSimilarityThresholdDrop") > 0) return "BELOW_SIMILARITY_THRESHOLD";
+        if (number(top8, "emptyBodyDrop") > 0) return "EMPTY_BODY";
+        if (number(top8, "unattributedDrop") > 0) return "UNATTRIBUTED_CONTEXT_DROP";
+        return "CONTEXT_DROP";
+    }
+
+    private static int number(Map<String, Object> item, String key) {
+        return item.get(key) instanceof Integer value ? value : 0;
+    }
+
+    /**
      * 跨用例汇总：把每个用例的计数相加后再取比值，避免简单的比率平均掩盖样本量差异。
      *
      * <p>期望证据为空的用例（{@link #UNDEFINED_NO_EXPECTED_EVIDENCE}）对分子分母都不贡献，
@@ -254,11 +367,21 @@ public final class RetrievalCoverage {
         int retained = 0;
         int dbMiss = 0;
         int contextDrop = 0;
+        int crossDocumentDedup = 0;
+        int intraDocumentDedup = 0;
+        int sourceCapDrop = 0;
+        int budgetDrop = 0;
+        int belowSimilarityThresholdDrop = 0;
+        int emptyBodyDrop = 0;
+        int unattributedDrop = 0;
         int expectedDocuments = 0;
         int candidateDocuments = 0;
         int retainedDocuments = 0;
         int unexpected = 0;
         int undefinedCases = 0;
+        int candidateCount = 0;
+        int retainedSourceCount = 0;
+        int contextPromptCodePoints = 0;
         for (Map<String, Object> item : perCaseResults) {
             if (UNDEFINED_NO_EXPECTED_EVIDENCE.equals(item.get("retrievalStatus"))) undefinedCases++;
             int itemExpected = (int) item.get("expectedEvidenceCount");
@@ -269,6 +392,16 @@ public final class RetrievalCoverage {
             retained += itemExpected - itemDbMiss - itemDrop;
             dbMiss += itemDbMiss;
             contextDrop += itemDrop;
+            crossDocumentDedup += number(item, "crossDocumentDedupLoss");
+            intraDocumentDedup += number(item, "intraDocumentDedupLoss");
+            sourceCapDrop += number(item, "sourceCapDrop");
+            budgetDrop += number(item, "budgetDrop");
+            belowSimilarityThresholdDrop += number(item, "belowSimilarityThresholdDrop");
+            emptyBodyDrop += number(item, "emptyBodyDrop");
+            unattributedDrop += number(item, "unattributedDrop");
+            candidateCount += number(item, "candidateCount");
+            retainedSourceCount += number(item, "retainedSourceCount");
+            contextPromptCodePoints += number(item, "contextPromptCodePoints");
             unexpected += (int) item.get("unexpectedSourcesRetained");
             @SuppressWarnings("unchecked")
             Map<String, Object> coverage = (Map<String, Object>) item.get("documentCoverage");
@@ -287,7 +420,19 @@ public final class RetrievalCoverage {
                 candidateDocuments, retainedDocuments, expectedDocuments));
         summary.put("notRecalledInTopK", dbMiss);
         summary.put("droppedByContext", contextDrop);
+        summary.put("crossDocumentDedupLoss", crossDocumentDedup);
+        summary.put("intraDocumentDedupLoss", intraDocumentDedup);
+        summary.put("sourceCapDrop", sourceCapDrop);
+        summary.put("budgetDrop", budgetDrop);
+        summary.put("belowSimilarityThresholdDrop", belowSimilarityThresholdDrop);
+        summary.put("emptyBodyDrop", emptyBodyDrop);
+        summary.put("unattributedDrop", unattributedDrop);
         summary.put("unexpectedSourcesRetained", unexpected);
+        // 平均规模：每个用例一条，反映“平均召回多少候选、最终留多少来源、上下文字符数有多大”。
+        summary.put("averageCandidateCount", ratio(candidateCount, perCaseResults.size()));
+        summary.put("averageRetainedSourceCount", ratio(retainedSourceCount, perCaseResults.size()));
+        summary.put("averageContextPromptCodePoints",
+                ratio(contextPromptCodePoints, perCaseResults.size()));
         return summary;
     }
 
