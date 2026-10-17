@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -63,8 +62,8 @@ class OpenAiTurnStreamingTest {
     @SuppressWarnings("unchecked")
     private JsonHttpModelClient streamingHttp(List<ObjectNode> chunks) {
         JsonHttpModelClient http = mock(JsonHttpModelClient.class);
-        org.mockito.Mockito.when(http.post(anyString(), anyMap(), any(JsonNode.class))).thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_ERROR));
-        doAnswer(inv -> { BiConsumer<String, JsonNode> cb = inv.getArgument(3); for (ObjectNode c : chunks) cb.accept("message", c); return null; }).when(http).stream(anyString(), anyMap(), any(JsonNode.class), any(BiConsumer.class));
+        org.mockito.Mockito.when(http.postWithRequestBuilder(anyString(), any(), any(JsonNode.class))).thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_ERROR));
+        doAnswer(inv -> { BiConsumer<String, JsonNode> cb = inv.getArgument(3); for (ObjectNode c : chunks) cb.accept("message", c); return null; }).when(http).streamWithRequestBuilder(anyString(), any(), any(JsonNode.class), any(BiConsumer.class));
         return http;
     }
     private ModelTurnResult streamingTurn(List<ObjectNode> chunks) {
@@ -169,7 +168,7 @@ class OpenAiTurnStreamingTest {
         ObjectNode usage = response.putObject("usage");
         usage.put("prompt_tokens", 800);
         usage.put("completion_tokens", 1200);
-        org.mockito.Mockito.when(http.post(anyString(), anyMap(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+        org.mockito.Mockito.when(http.postWithRequestBuilder(anyString(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(response);
         assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, http).completeWithSession(
                 config(), "key", org.mockito.Mockito.mock(ChatCompletionCommand.class),

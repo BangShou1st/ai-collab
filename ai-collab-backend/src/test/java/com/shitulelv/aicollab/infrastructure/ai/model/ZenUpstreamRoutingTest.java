@@ -40,18 +40,10 @@ class ZenUpstreamRoutingTest {
     }
 
     @Test
-    void explicitLegacyUpstreamRoutesModelsChatAndConnectionTestToTheSameBase() {
-        ProviderPresetRegistry registry = new ProviderPresetRegistry("https://opencode.ai/zen/v1/");
-        var pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
-        ZenModelExecution exec = new ZenModelExecution(registry, mapper, new OutboundEndpointPolicy());
-        HttpOpenCodeZenTransport transport = new HttpOpenCodeZenTransport(mapper, new OutboundEndpointPolicy(), registry);
-
-        // 旧版兼容端点被显式选择时，模型列表、推理、连接测试用的策略同样来自这一个上游。
-        assertThat(registry.zenBaseUrl()).isEqualTo("https://opencode.ai/zen/v1");
-        assertThat(registry.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/zen/v1/models");
-        assertThat(exec.runtimeEndpoint()).isEqualTo("https://opencode.ai/zen/v1/chat/completions");
-        assertThat(transport.policy().baseUrl()).isEqualTo(registry.zenBaseUrl());
-        assertThat(transport.policy().completionPath()).isEqualTo(pol.completionPath());
+    void legacyDiscoveryBaseIsNotAnAcceptedInferenceUpstream() {
+        // 共享库明确：/zen/v1 只允许发现、绝不允许推理，因此不能作为可选上游。
+        assertThatThrownBy(() -> new ProviderPresetRegistry("https://opencode.ai/zen/v1/"))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -62,25 +54,26 @@ class ZenUpstreamRoutingTest {
                 .isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> ProviderPresetRegistry.approveZenUpstream(""))
                 .isInstanceOf(IllegalStateException.class);
+        // 旧 base 与旧版发现端点都不再获批为推理上游：白名单只含共享库声明的推理 base。
+        assertThatThrownBy(() -> ProviderPresetRegistry.approveZenUpstream("https://opencode.ai/inference"))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> ProviderPresetRegistry.approveZenUpstream("https://opencode.ai/zen/v1"))
+                .isInstanceOf(IllegalStateException.class);
         assertThat(ProviderPresetRegistry.approveZenUpstream("https://opencode.ai/inference/v1/"))
                 .isEqualTo("https://opencode.ai/inference/v1");
-        assertThat(ProviderPresetRegistry.approveZenUpstream("https://opencode.ai/zen/v1/"))
-                .isEqualTo("https://opencode.ai/zen/v1");
         assertThat(new ProviderPresetRegistry().approvedBaseUrls())
-                .containsExactlyInAnyOrder("https://opencode.ai/inference/v1", "https://opencode.ai/zen/v1");
+                .containsExactly("https://opencode.ai/inference/v1");
     }
 
     @Test
     void persistedProviderBaseUrlCannotOverrideTheSelectedUpstream() {
-        for (String configured : new String[]{"https://opencode.ai/inference/v1", "https://opencode.ai/zen/v1"}) {
-            ProviderPresetRegistry registry = new ProviderPresetRegistry(configured);
-            ZenModelExecution exec = new ZenModelExecution(registry, mapper, new OutboundEndpointPolicy());
+        ProviderPresetRegistry registry = new ProviderPresetRegistry("https://opencode.ai/inference/v1");
+        ZenModelExecution exec = new ZenModelExecution(registry, mapper, new OutboundEndpointPolicy());
 
-            var runtime = exec.runtimeConfig(providerWithPersistedUrls("https://evil.example/override", "/evil"));
+        var runtime = exec.runtimeConfig(providerWithPersistedUrls("https://evil.example/override", "/evil"));
 
-            assertThat(runtime.baseUrl()).isEqualTo(configured);
-            assertThat(runtime.apiPath()).isEqualTo("/chat/completions");
-        }
+        assertThat(runtime.baseUrl()).isEqualTo("https://opencode.ai/inference/v1");
+        assertThat(runtime.apiPath()).isEqualTo("/chat/completions");
     }
 
     @Test

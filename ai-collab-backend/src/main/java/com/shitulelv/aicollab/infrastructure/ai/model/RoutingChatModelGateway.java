@@ -80,7 +80,7 @@ public class RoutingChatModelGateway implements ChatModelGateway {
         if (zen.isZen(provider)) {
             ModelConfiguration configuration = zen.runtimeConfig(provider);
             ModelCapabilityPolicy.require(configuration, command, false);
-            ChatCompletionResult result = zen.complete(provider, secrets.decrypt(provider.encryptedApiKey()), command, metadata);
+            ChatCompletionResult result = zen.complete(provider, secrets.decryptOptional(provider.encryptedApiKey()), command, metadata);
             validateStructured(command, result);
             return result;
         }
@@ -111,7 +111,7 @@ public class RoutingChatModelGateway implements ChatModelGateway {
             if (zen.isZen(provider)) {
                 ModelConfiguration configuration = zen.runtimeConfig(provider);
                 ModelCapabilityPolicy.require(configuration, command, true);
-                zen.completeStream(provider, secrets.decrypt(provider.encryptedApiKey()), command, metadata,
+                zen.completeStream(provider, secrets.decryptOptional(provider.encryptedApiKey()), command, metadata,
                         onToken, result -> {
                             try { validateStructured(command, result); onDone.accept(result); }
                             catch (Exception ex) { onError.accept(ex); }

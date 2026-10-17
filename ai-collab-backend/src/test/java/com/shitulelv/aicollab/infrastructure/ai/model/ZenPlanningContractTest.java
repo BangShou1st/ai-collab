@@ -15,7 +15,6 @@ import java.util.function.BiConsumer;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -49,7 +48,7 @@ class ZenPlanningContractTest {
             done.putArray("choices").addObject().put("finish_reason", "stop");
             cb.accept("message", done);
             return null;
-        }).when(http).stream(anyString(), anyMap(), any(JsonNode.class), any(BiConsumer.class));
+        }).when(http).streamWithRequestBuilder(anyString(), any(), any(JsonNode.class), any(BiConsumer.class));
         OpenAiCompatibleModelAdapter adapter = new OpenAiCompatibleModelAdapter(mapper, http);
         ChatCompletionCommand forced = ZenModelExecution.forceJson(jsonCommand());
         ChatCompletionResult result = adapter.completeStreamingSyncWithSession(
@@ -82,7 +81,7 @@ class ZenPlanningContractTest {
             BiConsumer<String, JsonNode> cb = inv.getArgument(3);
             cb.accept("message", mapper.readTree("{\"choices\":[{\"delta\":{\"content\":\"已读部分不足以计算金额\"},\"finish_reason\":\"stop\"}]}"));
             return null;
-        }).when(http).stream(anyString(), anyMap(), any(JsonNode.class), any(BiConsumer.class));
+        }).when(http).streamWithRequestBuilder(anyString(), any(), any(JsonNode.class), any(BiConsumer.class));
         var call = new com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall("c1", "read_document_section", mapper.createObjectNode());
         var messages = List.<com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage>of(
                 new com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage.User("原始费用问题"),
@@ -108,7 +107,7 @@ class ZenPlanningContractTest {
             BiConsumer<String, JsonNode> cb = inv.getArgument(3);
             cb.accept("message", mapper.readTree("{\"choices\":[{\"delta\":{\"reasoning_content\":\"private reasoning\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":20,\"completion_tokens\":3}}"));
             return null;
-        }).when(http).stream(anyString(), anyMap(), any(JsonNode.class), any(BiConsumer.class));
+        }).when(http).streamWithRequestBuilder(anyString(), any(), any(JsonNode.class), any(BiConsumer.class));
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, http)
                 .completeStreamingSyncWithSession(zenConfig(), "private-key", jsonCommand(), AiRequestMetadata.of("corr"), "client"))
                 .isInstanceOfSatisfying(ProviderResponseFailure.class, failure -> {
