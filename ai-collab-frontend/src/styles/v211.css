@@ -12,6 +12,7 @@
 .inline-notice { display: flex; gap: 10px; padding: 10px 12px; border-radius: var(--radius-surface); background: var(--color-surface-raised); border: 1px solid var(--color-border); font-size: 13px; }
 .provider-tile { border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: 16px; display: grid; gap: 12px; background: var(--color-surface); }
 .provider-tile.zen { border-color: rgba(37,99,235,.28); background: linear-gradient(180deg, rgba(37,99,235,.05), transparent 55%), var(--color-surface); }
+.provider-tile.kilo { border-color: rgba(16,185,129,.28); background: linear-gradient(180deg, rgba(16,185,129,.05), transparent 55%), var(--color-surface); }
 .provider-tile__sub { font-size: 12px; color: var(--el-text-color-secondary); margin-top: 2px; }
 .provider-tile__current { font-size: 13px; font-weight: 650; }
 .zen-form { display: grid; gap: 10px; } .zen-actions { display: flex; gap: 8px; flex-wrap: wrap; }

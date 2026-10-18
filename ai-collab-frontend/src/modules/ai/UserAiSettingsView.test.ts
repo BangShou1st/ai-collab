@@ -81,6 +81,32 @@ describe("UserAiSettingsView disconnect", () => {
     expect(mocks.success).toHaveBeenCalledWith("已断开 OpenCode Zen 连接");
     expect(wrapper.findAll("button").some((b) => b.text() === "断开连接")).toBe(false);
   });
+  it("connects and disconnects Kilo Gateway Free without an API Key", async () => {
+    mocks.presets.mockReset();
+    mocks.presets.mockResolvedValue(
+      response([
+        zen({ connected: false, modelName: null, hasApiKey: false, isDefault: false }),
+        {
+          code: "KILO_GATEWAY_FREE", displayName: "Kilo Gateway Free", connected: true,
+          modelName: "poolside/laguna-s-2.1:free", enabled: true, isDefault: true, hasApiKey: false,
+        },
+      ]),
+    );
+    mocks.models.mockResolvedValue(response(["poolside/laguna-s-2.1:free"]));
+    const wrapper = mount(UserAiSettingsView, {
+      global: { directives: { loading: () => undefined }, stubs },
+    });
+    await flushPromises();
+    // 预设模型发现按 code 参数化：Kilo 与 Zen 各自独立拉取。
+    expect(mocks.models).toHaveBeenCalledWith("KILO_GATEWAY_FREE", false);
+    expect(wrapper.text()).toContain("Kilo Gateway");
+    const disconnectButtons = wrapper.findAll("button").filter((b) => b.text() === "断开连接");
+    expect(disconnectButtons.length).toBe(1);
+    await disconnectButtons[0].trigger("click");
+    await flushPromises();
+    expect(mocks.disconnect).toHaveBeenCalledWith("KILO_GATEWAY_FREE");
+    expect(mocks.success).toHaveBeenCalledWith("已断开 Kilo Gateway 连接");
+  });
   it("shows an error state instead of faking defaults when purposes fail", async () => {
     mocks.listPurposes.mockRejectedValueOnce(new Error("boom"));
     const wrapper = mount(UserAiSettingsView, {

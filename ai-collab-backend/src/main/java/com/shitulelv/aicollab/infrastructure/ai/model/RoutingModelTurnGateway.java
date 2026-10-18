@@ -24,6 +24,7 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
     private final ModelSecretCipher secrets;
     private final Map<ModelProviderType, ModelTurnProviderAdapter> adapters;
     private final ZenModelExecution zen;
+    private final KiloGatewayModelExecution kilo;
 
     @org.springframework.beans.factory.annotation.Autowired
     public RoutingModelTurnGateway(
@@ -31,7 +32,8 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
             UserAiProviderService userProviders,
             ModelSecretCipher secrets,
             List<ModelTurnProviderAdapter> adapters,
-            ZenModelExecution zen) {
+            ZenModelExecution zen,
+            KiloGatewayModelExecution kilo) {
         this.configurations = configurations;
         this.userProviders = userProviders;
         this.secrets = secrets;
@@ -41,6 +43,16 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
         }
         this.adapters = Map.copyOf(indexed);
         this.zen = zen;
+        this.kilo = kilo;
+    }
+
+    public RoutingModelTurnGateway(
+            ModelConfigurationRepository configurations,
+            UserAiProviderService userProviders,
+            ModelSecretCipher secrets,
+            List<ModelTurnProviderAdapter> adapters,
+            ZenModelExecution zen) {
+        this(configurations, userProviders, secrets, adapters, zen, KiloGatewayModelExecution.standalone());
     }
 
     public RoutingModelTurnGateway(
@@ -50,7 +62,8 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
             List<ModelTurnProviderAdapter> adapters) {
         this(configurations, userProviders, secrets, adapters,
                 new ZenModelExecution(new ProviderPresetRegistry(), new com.fasterxml.jackson.databind.ObjectMapper(),
-                        new com.shitulelv.aicollab.common.security.OutboundEndpointPolicy()));
+                        new com.shitulelv.aicollab.common.security.OutboundEndpointPolicy()),
+                KiloGatewayModelExecution.standalone());
     }
 
     @Override
@@ -68,6 +81,10 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
             if (zen.isZen(provider)) {
                 if (!provider.enabled()) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
                 return zen.turn(provider, secrets.decryptOptional(provider.encryptedApiKey()), command, metadata);
+            }
+            if (kilo.isKilo(provider)) {
+                if (!provider.enabled()) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+                return kilo.turn(provider, command);
             }
             ModelConfiguration config = provider.toModelConfiguration();
             return turnWithConfig(config, command);
