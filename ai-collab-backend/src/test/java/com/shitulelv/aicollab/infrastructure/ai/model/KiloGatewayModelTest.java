@@ -181,13 +181,73 @@ class KiloGatewayModelTest {
                 .isEqualTo(ErrorCode.AI_PROVIDER_ERROR);
     }
 
-    @Test void libraryFreeOnlyRejectionBecomesValidationError() {
+    @Test void incompleteStreamMapsToInvalidResponse() {
+        var client = mock(KiloGatewayClient.class);
+        doThrow(new KiloGatewayException(KiloGatewayException.STATUS_INCOMPLETE_STREAM, "",
+                "Kilo SSE stream ended without the [DONE] completion signal"))
+                .when(client).streamChat(any(), any());
+        assertThatThrownBy(() -> new KiloGatewayClientTransport(client)
+                .streamChat(mapper.createObjectNode(), chunk -> { }))
+                .isInstanceOfSatisfying(BusinessException.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
+                    assertThat(failure.getMessage())
+                            .isEqualTo(ErrorCode.AI_PROVIDER_INVALID_RESPONSE.message())
+                            .doesNotContain("DONE");
+                });
+    }
+
+    // ---- R3：上游原始正文绝不进入客户端响应 ----
+
+    @Test void upstreamErrorBodyNeverReachesTheClient() {
+        var client = mock(KiloGatewayClient.class);
+        when(client.chat(any())).thenThrow(new KiloGatewayException(502, "Nvidia",
+                "Kilo HTTP 502 (Nvidia): <html><body>Internal Server Error</body></html>"
+                        + " at /srv/kilo/internal/route?token=SUPERSECRET"));
+        assertThatThrownBy(() -> new KiloGatewayClientTransport(client).chat(mapper.createObjectNode()))
+                .isInstanceOfSatisfying(BusinessException.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_ERROR);
+                    assertThat(failure.getMessage())
+                            .isEqualTo(ErrorCode.AI_PROVIDER_ERROR.message())
+                            .doesNotContain("html")
+                            .doesNotContain("SUPERSECRET")
+                            .doesNotContain("/srv/")
+                            .doesNotContain("Nvidia");
+                });
+    }
+
+    @Test void credentialAndQuotaFailuresAlsoCarryOnlyStableMessages() {
+        var unauthorized = mock(KiloGatewayClient.class);
+        when(unauthorized.chat(any()))
+                .thenThrow(new KiloGatewayException(401, "OpenAI", "missing key at /etc/kilo/secret.pem"));
+        assertThatThrownBy(() -> new KiloGatewayClientTransport(unauthorized).chat(mapper.createObjectNode()))
+                .isInstanceOfSatisfying(BusinessException.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
+                    assertThat(failure.getMessage()).isEqualTo(ErrorCode.AI_MODEL_CREDENTIAL_INVALID.message());
+                });
+
+        var throttled = mock(KiloGatewayClient.class);
+        when(throttled.chat(any()))
+                .thenThrow(new KiloGatewayException(429, "Nvidia", "rate limited, retry after 60s"));
+        assertThatThrownBy(() -> new KiloGatewayClientTransport(throttled).chat(mapper.createObjectNode()))
+                .isInstanceOfSatisfying(BusinessException.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED);
+                    assertThat(failure.getMessage())
+                            .isEqualTo(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED.message())
+                            .doesNotContain("60s");
+                });
+    }
+
+    @Test void libraryRequestRejectionBecomesStableUpstreamFailure() {
         var client = mock(KiloGatewayClient.class);
         when(client.chat(any())).thenThrow(
                 new IllegalArgumentException("Free-only mode rejected non-free model: paid/model"));
         assertThatThrownBy(() -> new KiloGatewayClientTransport(client).chat(mapper.createObjectNode()))
-                .extracting(failure -> ((BusinessException) failure).getErrorCode())
-                .isEqualTo(ErrorCode.VALIDATION_ERROR);
+                .isInstanceOfSatisfying(BusinessException.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_ERROR);
+                    assertThat(failure.getMessage())
+                            .isEqualTo(ErrorCode.AI_PROVIDER_ERROR.message())
+                            .doesNotContain("paid/model");
+                });
     }
 
     // ---- 路由：Kilo 预设行必须分派到 Kilo 执行层 ----

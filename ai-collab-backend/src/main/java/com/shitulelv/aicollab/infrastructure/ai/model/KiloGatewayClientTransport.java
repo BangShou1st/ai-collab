@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class KiloGatewayClientTransport implements KiloGatewayTransport {
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(KiloGatewayClientTransport.class);
     private final KiloGatewayClient direct;
     private final org.springframework.beans.factory.ObjectProvider<KiloGatewayClient> provided;
 
@@ -81,7 +83,8 @@ public class KiloGatewayClientTransport implements KiloGatewayTransport {
         } catch (KiloGatewayException failure) {
             throw translate(failure);
         } catch (IllegalArgumentException invalidRequest) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, invalidRequest.getMessage());
+            log.warn("Kilo gateway rejected the request: {}", sanitize(invalidRequest.getMessage()));
+            throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
         }
     }
 
@@ -92,24 +95,30 @@ public class KiloGatewayClientTransport implements KiloGatewayTransport {
         } catch (KiloGatewayException failure) {
             throw translate(failure);
         } catch (IllegalArgumentException invalidRequest) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, invalidRequest.getMessage());
+            log.warn("Kilo gateway rejected the request: {}", sanitize(invalidRequest.getMessage()));
+            throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
         }
     }
 
     /**
-     * 共享库异常 → 业务错误码：授权、额度、超时与其它上游失败分门别类。
+     * 共享库异常 → 稳定业务错误码。上游正文只用于内部日志，绝不进入客户端响应：
+     * 这里一律使用 {@link ErrorCode} 的固定提示，不携带异常消息。
      *
-     * <p>共享库把超时、连接失败、SSE 中断与解码失败统一为 {@code statusCode = -1}，
+     * <p>共享库把超时、连接失败、SSE 中断、非法 JSON 与流未完成都记为负 statusCode，
      * 因此只有根因是 {@link java.net.http.HttpTimeoutException} 时才判为超时，
-     * 其余（连接失败 / 流中断 / 非法 JSON）按上游错误处理，不伪装成超时。</p>
+     * 未观察到 {@code [DONE]} 的截断流判为无效响应，其余按上游错误处理。</p>
      */
     private static BusinessException translate(KiloGatewayException failure) {
+        log.warn("Kilo gateway call failed: status={}, provider={}, detail={}",
+                failure.getStatusCode(), failure.getProvider(), sanitize(failure.getMessage()));
         return switch (failure.getStatusCode()) {
-            case 401, 403 -> new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID, failure.getMessage());
-            case 429 -> new BusinessException(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED, failure.getMessage());
+            case 401, 403 -> new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
+            case 429 -> new BusinessException(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED);
+            case KiloGatewayException.STATUS_INCOMPLETE_STREAM ->
+                    new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
             default -> isTimeout(failure)
-                    ? new BusinessException(ErrorCode.AI_MODEL_TIMEOUT, failure.getMessage())
-                    : new BusinessException(ErrorCode.AI_PROVIDER_ERROR, failure.getMessage());
+                    ? new BusinessException(ErrorCode.AI_MODEL_TIMEOUT)
+                    : new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
         };
     }
 
@@ -118,5 +127,12 @@ public class KiloGatewayClientTransport implements KiloGatewayTransport {
             if (cause instanceof java.net.http.HttpTimeoutException) return true;
         }
         return false;
+    }
+
+    /** 压平换行/控制字符并限长，避免把上游原始正文（HTML、内部路径等）成块写入日志。 */
+    private static String sanitize(String message) {
+        if (message == null) return "-";
+        String flattened = message.replaceAll("\\s+", " ").strip().replaceAll("[\\p{Cntrl}]", "");
+        return flattened.length() > 200 ? flattened.substring(0, 200) + "..." : flattened;
     }
 }
