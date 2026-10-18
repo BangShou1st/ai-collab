@@ -27,7 +27,22 @@ public class ProviderPresetRegistry {
     /** 白名单：只有这个经批准的 HTTPS Zen base 可以被选为上游。 */
     static final Set<String> APPROVED_ZEN_BASES = Set.of(ZEN_INFERENCE_BASE);
 
+    /**
+     * Kilo Gateway 上游 base：取自共享库 {@code KiloGatewayProperties} 的默认值，
+     * 不在应用侧重复声明该地址。实际 HTTP 由共享库客户端按 {@code kilo.gateway.base-url} 发起。
+     */
+    static final String KILO_GATEWAY_BASE =
+            new com.sharedlibs.kilogateway.autoconfigure.KiloGatewayProperties().getBaseUrl();
+    /** Kilo 网关的 OpenAI 兼容 wire 路径（与共享库客户端使用的后缀一致）。 */
+    static final String KILO_CHAT_COMPLETIONS_PATH = "/chat/completions";
+    static final String KILO_MODELS_PATH = "/models";
+
     private static final java.util.EnumSet<ModelCapability> ZEN_FREE_CAPABILITIES = java.util.EnumSet.of(
+            ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.STRUCTURED_OUTPUT,
+            ModelCapability.NATIVE_TOOLS, ModelCapability.USAGE);
+
+    /** Kilo Gateway 免费模型能力与 Zen 免费预设一致：Chat/流式/结构化/原生工具/用量。 */
+    private static final java.util.EnumSet<ModelCapability> KILO_FREE_CAPABILITIES = java.util.EnumSet.of(
             ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.STRUCTURED_OUTPUT,
             ModelCapability.NATIVE_TOOLS, ModelCapability.USAGE);
 
@@ -50,14 +65,22 @@ public class ProviderPresetRegistry {
             @Value("${opencode.zen.user-agent:" + OpenCodeZenProtocolPolicy.USER_AGENT + "}") String zenUserAgent) {
         this.zenBaseUrl = approveZenUpstream(zenUpstream);
         this.zenUserAgent = zenUserAgent;
-        this.policies = Map.of(ProviderPresetCode.OPENCODE_ZEN_FREE,
-                zenFree(this.zenBaseUrl, this.zenUserAgent));
+        this.policies = Map.of(
+                ProviderPresetCode.OPENCODE_ZEN_FREE, zenFree(this.zenBaseUrl, this.zenUserAgent),
+                ProviderPresetCode.KILO_GATEWAY_FREE, kiloFree());
     }
 
     private static PresetPolicy zenFree(String baseUrl, String userAgent) {
         return new PresetPolicy(ProviderPresetCode.OPENCODE_ZEN_FREE, "OpenCode Zen Free",
                 ModelProviderType.OPENAI_COMPATIBLE, baseUrl, OpenCodeZenProtocolPolicy.CHAT_COMPLETIONS_PATH,
                 OpenCodeZenProtocolPolicy.MODELS_PATH, userAgent, true, ZEN_FREE_CAPABILITIES, 0.2, 4000);
+    }
+
+    /** Kilo Gateway 免费预设：base/路径取自共享库契约，无应用侧身份头（免费模型匿名调用）。 */
+    private static PresetPolicy kiloFree() {
+        return new PresetPolicy(ProviderPresetCode.KILO_GATEWAY_FREE, "Kilo Gateway Free",
+                ModelProviderType.OPENAI_COMPATIBLE, KILO_GATEWAY_BASE, KILO_CHAT_COMPLETIONS_PATH,
+                KILO_MODELS_PATH, null, true, KILO_FREE_CAPABILITIES, 0.2, 4000);
     }
 
     /** 校验并归一化服务端配置的 Zen 上游地址；不在白名单内时明确失败。 */

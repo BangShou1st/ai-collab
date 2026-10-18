@@ -8,16 +8,16 @@ export const aiPresetApi = {
   async presets(): Promise<ApiResult<PresetStatus[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<PresetStatus[]>>('/user/ai-provider-presets'))
   },
-  async models(refresh = false): Promise<ApiResult<string[]>> {
-    return apiResultFromResponse(await httpClient.get<ApiResponse<string[]>>(`/user/ai-provider-presets/OPENCODE_ZEN_FREE/models${refresh ? '?refresh=true' : ''}`))
+  async models(code: string, refresh = false): Promise<ApiResult<string[]>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<string[]>>(`/user/ai-provider-presets/${code}/models${refresh ? '?refresh=true' : ''}`))
   },
-  async save(body: { apiKey?: string; modelName: string; enabled: boolean; setDefault: boolean }): Promise<ApiResult<PresetStatus>> {
-    return apiResultFromResponse(await httpClient.put<ApiResponse<PresetStatus>>('/user/ai-provider-presets/OPENCODE_ZEN_FREE', body))
+  async save(code: string, body: { apiKey?: string; modelName: string; enabled: boolean; setDefault: boolean }): Promise<ApiResult<PresetStatus>> {
+    return apiResultFromResponse(await httpClient.put<ApiResponse<PresetStatus>>(`/user/ai-provider-presets/${code}`, body))
   },
-  async test(body: { apiKey?: string; modelName?: string }): Promise<ApiResult<void>> {
-    return apiResultFromResponse(await httpClient.post<ApiResponse<void>>('/user/ai-provider-presets/OPENCODE_ZEN_FREE/test', body))
+  async test(code: string, body: { apiKey?: string; modelName?: string }): Promise<ApiResult<void>> {
+    return apiResultFromResponse(await httpClient.post<ApiResponse<void>>(`/user/ai-provider-presets/${code}/test`, body))
   },
-  async disconnect(): Promise<void> {
-    await httpClient.delete('/user/ai-provider-presets/OPENCODE_ZEN_FREE')
+  async disconnect(code: string): Promise<void> {
+    await httpClient.delete(`/user/ai-provider-presets/${code}`)
   },
 }

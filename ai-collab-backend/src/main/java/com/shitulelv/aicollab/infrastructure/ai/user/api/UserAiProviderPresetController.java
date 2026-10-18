@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.infrastructure.ai.user.api;
 
 import com.shitulelv.aicollab.common.api.ApiResponse;
+import com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetService;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderPresetService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -16,10 +17,16 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/user/ai-provider-presets")
 public class UserAiProviderPresetController {
     private final UserAiProviderPresetService presets;
-    public UserAiProviderPresetController(UserAiProviderPresetService presets) { this.presets = presets; }
+    private final KiloGatewayPresetService kilo;
+    public UserAiProviderPresetController(UserAiProviderPresetService presets, KiloGatewayPresetService kilo) {
+        this.presets = presets;
+        this.kilo = kilo;
+    }
     @GetMapping
     public ApiResponse<List<UserAiProviderPresetService.PresetStatus>> list(@AuthenticationPrincipal Jwt jwt) {
-        return ApiResponse.success(presets.presets(userId(jwt)));
+        List<UserAiProviderPresetService.PresetStatus> all = new java.util.ArrayList<>(presets.presets(userId(jwt)));
+        all.add(kilo.presets(userId(jwt)));
+        return ApiResponse.success(all);
     }
     @GetMapping("/OPENCODE_ZEN_FREE/models")
     public ApiResponse<List<String>> models(@AuthenticationPrincipal Jwt jwt,
@@ -44,7 +51,30 @@ public class UserAiProviderPresetController {
     public void disconnect(@AuthenticationPrincipal Jwt jwt) {
         presets.disconnect(userId(jwt));
     }
+    @GetMapping("/KILO_GATEWAY_FREE/models")
+    public ApiResponse<List<String>> kiloModels(@RequestParam(defaultValue = "false") boolean refresh) {
+        return ApiResponse.success(kilo.models(refresh));
+    }
+    @PutMapping("/KILO_GATEWAY_FREE")
+    public ApiResponse<UserAiProviderPresetService.PresetStatus> saveKilo(@AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody SaveKiloRequest request) {
+        return ApiResponse.success(kilo.save(userId(jwt), request.modelName(),
+                request.enabled() == null || request.enabled(), request.setDefault() != null && request.setDefault()));
+    }
+    @PostMapping("/KILO_GATEWAY_FREE/test")
+    public ApiResponse<Void> testKilo(@AuthenticationPrincipal Jwt jwt,
+            @RequestBody(required = false) TestKiloRequest request) {
+        kilo.test(userId(jwt), request == null ? null : request.modelName());
+        return ApiResponse.success(null);
+    }
+    @DeleteMapping("/KILO_GATEWAY_FREE")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void disconnectKilo(@AuthenticationPrincipal Jwt jwt) {
+        kilo.disconnect(userId(jwt));
+    }
     private static UUID userId(Jwt jwt) { return UUID.fromString(jwt.getSubject()); }
     public record SaveZenRequest(@Size(max = 1000) String apiKey, @NotBlank @Size(max = 160) String modelName, Boolean enabled, Boolean setDefault) {}
     public record TestZenRequest(@Size(max = 1000) String apiKey, @Size(max = 160) String modelName) {}
+    public record SaveKiloRequest(@NotBlank @Size(max = 160) String modelName, Boolean enabled, Boolean setDefault) {}
+    public record TestKiloRequest(@Size(max = 160) String modelName) {}
 }

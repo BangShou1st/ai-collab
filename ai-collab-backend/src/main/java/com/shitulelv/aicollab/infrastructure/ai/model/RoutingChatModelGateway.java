@@ -29,6 +29,7 @@ public class RoutingChatModelGateway implements ChatModelGateway {
     private final Map<ModelProviderType, ModelProviderAdapter> adapters;
     private final ObjectMapper json;
     private final ZenModelExecution zen;
+    private final KiloGatewayModelExecution kilo;
 
     @org.springframework.beans.factory.annotation.Autowired
     public RoutingChatModelGateway(
@@ -36,13 +37,15 @@ public class RoutingChatModelGateway implements ChatModelGateway {
             ModelSecretCipher secrets,
             List<ModelProviderAdapter> adapters,
             ObjectMapper json,
-            ZenModelExecution zen) {
+            ZenModelExecution zen,
+            KiloGatewayModelExecution kilo) {
         this.userProviders = userProviders;
         this.secrets = secrets;
         this.adapters = new EnumMap<>(ModelProviderType.class);
         adapters.forEach(adapter -> this.adapters.put(adapter.providerType(), adapter));
         this.json = json;
         this.zen = zen;
+        this.kilo = kilo;
     }
 
     public RoutingChatModelGateway(
@@ -52,7 +55,8 @@ public class RoutingChatModelGateway implements ChatModelGateway {
             ObjectMapper json) {
         this(userProviders, secrets, adapters, json,
                 new ZenModelExecution(new ProviderPresetRegistry(), new ObjectMapper(),
-                        new com.shitulelv.aicollab.common.security.OutboundEndpointPolicy()));
+                        new com.shitulelv.aicollab.common.security.OutboundEndpointPolicy()),
+                KiloGatewayModelExecution.standalone());
     }
 
     @Override
@@ -81,6 +85,13 @@ public class RoutingChatModelGateway implements ChatModelGateway {
             ModelConfiguration configuration = zen.runtimeConfig(provider);
             ModelCapabilityPolicy.require(configuration, command, false);
             ChatCompletionResult result = zen.complete(provider, secrets.decryptOptional(provider.encryptedApiKey()), command, metadata);
+            validateStructured(command, result);
+            return result;
+        }
+        if (kilo.isKilo(provider)) {
+            ModelConfiguration configuration = kilo.runtimeConfig(provider);
+            ModelCapabilityPolicy.require(configuration, command, false);
+            ChatCompletionResult result = kilo.complete(provider, command);
             validateStructured(command, result);
             return result;
         }
@@ -116,6 +127,15 @@ public class RoutingChatModelGateway implements ChatModelGateway {
                             try { validateStructured(command, result); onDone.accept(result); }
                             catch (Exception ex) { onError.accept(ex); }
                         }, onError);
+                return;
+            }
+            if (kilo.isKilo(provider)) {
+                ModelConfiguration configuration = kilo.runtimeConfig(provider);
+                ModelCapabilityPolicy.require(configuration, command, true);
+                kilo.completeStream(provider, command, onToken, result -> {
+                    try { validateStructured(command, result); onDone.accept(result); }
+                    catch (Exception ex) { onError.accept(ex); }
+                }, onError);
                 return;
             }
             ModelConfiguration configuration = provider.toModelConfiguration();
