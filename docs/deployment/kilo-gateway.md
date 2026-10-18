@@ -20,10 +20,11 @@
 - Maven 坐标（JitPack 多模块格式 `com.github.User.Repo:Module:Tag`）：
 
   ```
-  com.github.BangShou1st.kilo-gateway:kilo-gateway-spring-boot-starter:v0.2.1
+  com.github.BangShou1st.kilo-gateway:kilo-gateway-spring-boot-starter:v0.2.3
   ```
 
-  版本集中在 `ai-collab-backend/pom.xml` 的 `kilo-gateway.version`。
+  版本集中在 `ai-collab-backend/pom.xml` 的 `kilo-gateway.version`（当前 `v0.2.3`）。
+  该版本在 `streamChat()` 中要求上游终止哨兵 `data: [DONE]`，见 §6。
 - **构建期**需要能访问 `https://jitpack.io`（按 Git tag 构建并托管构件，公开仓库无需 Token）。
   首次解析某 tag 时 JitPack 需现场构建，可能耗时数分钟；也可能因上游限流（例如 Maven Central 429）暂时失败。
   失败时可重试，或用 `--refresh-dependencies` / `-U` 强制刷新；容器镜像构建前建议预热本地或 CI 依赖缓存。
@@ -65,26 +66,31 @@
    `Kilo Gateway Free · <模型>`。
 3. **断开连接**：删除本人 Kilo 预设行（不涉及任何凭证）；用途覆盖回退，Zen 连接保持不变。
 
-## 6. 免费模型与限流
+## 6. 免费模型、限流与流式完成契约
 
 - 免费识别由共享库 `FreeModelPolicy` 决定：模型 id 以 `:free` 结尾，或等于 `kilo-auto/free`。
   这是**形状判定，不是实时价格或额度认证**。
 - 本项目的准入是「共享库免费判定 ∩ 网关实时免费目录」：保存与测试都要求模型当前仍在免费目录内，
   否则报校验错误（`:free` 后缀本身不构成准入证据）。目录变化时请在界面刷新模型后重新选择。
 - 模型可用性与价格可能随时变化，`:free` 后缀**不构成永久免费保证**。
+- **流式完成契约（v0.2.3 起）**：SSE 流只有在观察到 `data: [DONE]` 时才算成功。
+  提前 EOF 而无该哨兵、中途出现错误帧、或帧无法解析，一律判为失败；失败流不重放已输出内容，
+  也不会切换 fallback（未完成流不是可重试的上游错误）。应用层因此只在正常结束时回调 onDone。
 
 ## 7. 故障区分
 
 | 现象 | 错误码 / 提示 | 处置 |
 | --- | --- | --- |
-| 构建期无法解析 `...:v0.2.1` | Maven 报 JitPack 解析失败 | 网络或 JitPack 限流，重试 / 刷新依赖；不是运行时故障 |
+| 构建期无法解析 `...:v0.2.3` | Maven 报 JitPack 解析失败 | 网络或 JitPack 构建失败；查看 https://jitpack.io 的构建日志，必要时重新出包 |
 | `429 Too Many Requests` | `AI_PROVIDER_QUOTA_EXCEEDED` 模型服务额度不足 | 共享库**不重试、不切 fallback**；稍后再试 |
 | 网关 5xx（500/502/503/504） | `AI_PROVIDER_ERROR` | 仅在配置了 `fallback-models` 时才会切换模型 |
 | 401 / 403 | `AI_MODEL_CREDENTIAL_INVALID` | 匿名免费路径通常不会出现；检查是否配置了无效 Key |
 | 超时（根因 `HttpTimeoutException`） | `AI_MODEL_TIMEOUT` | 检查网络与 `request-timeout` |
-| 连接失败 / SSE 中断 / 非法 JSON | `AI_PROVIDER_ERROR` | 共享库同样报告 `-1`，但不会被伪装成超时 |
+| 连接失败 / SSE 中断 / 非法 JSON / 中途错误帧 | `AI_PROVIDER_ERROR` | 共享库同样报告负 statusCode，但不会被伪装成超时 |
+| 流未完成（缺少 `[DONE]`） | `AI_PROVIDER_INVALID_RESPONSE` 模型服务返回了无效响应 | 输出按不完整丢弃；稍后重发整轮请求 |
 | 模型不在当前免费目录 | 校验错误「不是当前 Kilo 免费模型」 | 刷新模型后重新选择 |
-| 共享库被关闭（`enabled=false`） | `AI_PROVIDER_UNAVAILABLE`「Kilo Gateway 未启用」 | 恢复 `enabled=true` |
+| 预设已停用（`enabled=false`） | `AI_PROVIDER_UNAVAILABLE` 模型服务尚未配置或暂时不可用 | 同步与流式都会在出站前拒绝，不会发出模型请求 |
+| 共享库被关闭（`kilo.gateway.enabled=false`） | `AI_PROVIDER_UNAVAILABLE`「Kilo Gateway 未启用」 | 恢复 `kilo.gateway.enabled=true` |
 
 ## 8. 安全约定
 
@@ -92,4 +98,6 @@
 - 上游地址、路径、代理与超时均为**服务端拥有**：保存接口只接受模型名、启用与默认标记，
   用户无法通过请求参数提交 base URL、路径、代理或解除免费限制。
 - 共享库客户端固定 `Redirect.NEVER`，不做自动跳转；base URL 必须是 HTTPS。
+- **上游原始响应正文（HTML、内部路径、上游错误细节）只写内部日志**，客户端只会收到
+  `ErrorCode` 的固定提示，不携带上游消息、堆栈或凭据。
 - 维护本文档时**不得写入**真实 Token、内部环境变量取值、私有代理地址或任何凭据。

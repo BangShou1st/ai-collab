@@ -89,6 +89,8 @@ public class RoutingChatModelGateway implements ChatModelGateway {
             return result;
         }
         if (kilo.isKilo(provider)) {
+            // 停用的预设必须拒绝在出站前：resolve() 可能返回停用配置（用途绑定或默认模型路径）。
+            if (!provider.enabled()) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
             ModelConfiguration configuration = kilo.runtimeConfig(provider);
             ModelCapabilityPolicy.require(configuration, command, false);
             ChatCompletionResult result = kilo.complete(provider, command);
@@ -130,6 +132,8 @@ public class RoutingChatModelGateway implements ChatModelGateway {
                 return;
             }
             if (kilo.isKilo(provider)) {
+                // 停用的预设不得发出实际模型请求（同步与流式同一判定）。
+                if (!provider.enabled()) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
                 ModelConfiguration configuration = kilo.runtimeConfig(provider);
                 ModelCapabilityPolicy.require(configuration, command, true);
                 kilo.completeStream(provider, command, onToken, result -> {

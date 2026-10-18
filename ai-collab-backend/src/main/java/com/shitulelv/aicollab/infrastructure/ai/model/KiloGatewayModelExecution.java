@@ -82,6 +82,11 @@ public class KiloGatewayModelExecution {
         return parseCompletion(config, response, started);
     }
 
+    /**
+     * 流式完成语义由共享库负责：只有在观察到上游终止哨兵 {@code [DONE]} 时
+     * {@code streamChat} 才正常返回；EOF 早于哨兵、错误帧或不可解析帧都会抛出异常。
+     * 因此本方法只在正常返回后调用 {@code onDone}，成功与失败回调互斥。
+     */
     public void completeStream(UserAiProvider provider, ChatCompletionCommand command,
             Consumer<String> onToken, Consumer<ChatCompletionResult> onDone, Consumer<Exception> onError) {
         try {
