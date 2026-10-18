@@ -17,8 +17,16 @@ const zenKey = ref('')
 const zenModel = ref('')
 const zenEnabled = ref(true)
 const zenDefault = ref(false)
+const kilo = ref<PresetStatus | null>(null)
+const kiloModels = ref<string[]>([])
+const kiloLoading = ref(false)
+const kiloModel = ref('')
+const kiloEnabled = ref(true)
+const kiloDefault = ref(false)
 const saving = ref(false)
+const savingKilo = ref(false)
 const disconnecting = ref(false)
+const disconnectingKilo = ref(false)
 const testingId = ref('')
 const probeMode = ref('CONNECTIVITY')
 const dialogVisible = ref(false)
@@ -49,7 +57,8 @@ const form = reactive({
 })
 const dialogTitle = computed(() => (editing.value ? '编辑 AI 配置' : '添加 AI 配置'))
 const customProviders = computed(() => providers.value.filter((p) => !p.presetCode))
-const zenProviderId = computed(() => providers.value.find((p) => p.presetCode)?.id ?? '')
+const zenProviderId = computed(() => providers.value.find((p) => p.presetCode === 'OPENCODE_ZEN_FREE')?.id ?? '')
+const kiloProviderId = computed(() => providers.value.find((p) => p.presetCode === 'KILO_GATEWAY_FREE')?.id ?? '')
 const canSave = computed(() => Boolean(form.name.trim() && form.modelName.trim() && (form.apiKey.trim() || editing.value)))
 
 async function loadPurposes(): Promise<void> {
@@ -71,22 +80,26 @@ async function load(): Promise<void> {
     const [custom, presetList] = await Promise.all([userAiApi.list(), aiPresetApi.presets()])
     providers.value = custom.data
     zen.value = presetList.data.find((p) => p.code === 'OPENCODE_ZEN_FREE') ?? null
+    kilo.value = presetList.data.find((p) => p.code === 'KILO_GATEWAY_FREE') ?? null
     if (zen.value?.modelName) zenModel.value = zen.value.modelName
+    if (kilo.value?.modelName) kiloModel.value = kilo.value.modelName
     zenEnabled.value = zen.value?.enabled ?? true
+    kiloEnabled.value = kilo.value?.enabled ?? true
     zenDefault.value = !custom.data.some((p) => p.isDefault) || (zen.value?.isDefault ?? false)
+    kiloDefault.value = !custom.data.some((p) => p.isDefault) || (kilo.value?.isDefault ?? false)
     await loadPurposes()
   } catch (error) {
     showApiError(error, 'AI 配置加载')
   } finally {
     loading.value = false
   }
-  // 免费模型列表走独立 skeleton，不阻塞整页：先让 Zen 配置/模型/覆盖可见
-  await loadZenModels(false)
+  // 免费模型列表走独立 skeleton，不阻塞整页：先让预设配置/模型/覆盖可见
+  await Promise.all([loadZenModels(false), loadKiloModels(false)])
 }
 async function loadZenModels(refresh: boolean): Promise<void> {
   zenLoading.value = true
   try {
-    zenModels.value = (await aiPresetApi.models(refresh)).data
+    zenModels.value = (await aiPresetApi.models('OPENCODE_ZEN_FREE', refresh)).data
     if (!zenModel.value && zenModels.value[0]) zenModel.value = zenModels.value[0]
   } catch (error) {
     showApiError(error, '免费模型加载，可点击重试')
@@ -94,11 +107,22 @@ async function loadZenModels(refresh: boolean): Promise<void> {
     zenLoading.value = false
   }
 }
+async function loadKiloModels(refresh: boolean): Promise<void> {
+  kiloLoading.value = true
+  try {
+    kiloModels.value = (await aiPresetApi.models('KILO_GATEWAY_FREE', refresh)).data
+    if (!kiloModel.value && kiloModels.value[0]) kiloModel.value = kiloModels.value[0]
+  } catch (error) {
+    showApiError(error, 'Kilo 免费模型加载，可点击重试')
+  } finally {
+    kiloLoading.value = false
+  }
+}
 async function saveZen(): Promise<void> {
   if (!zenModel.value || saving.value) return
   saving.value = true
   try {
-    zen.value = (await aiPresetApi.save({ apiKey: zenKey.value || undefined, modelName: zenModel.value, enabled: zenEnabled.value, setDefault: zenDefault.value })).data
+    zen.value = (await aiPresetApi.save('OPENCODE_ZEN_FREE', { apiKey: zenKey.value || undefined, modelName: zenModel.value, enabled: zenEnabled.value, setDefault: zenDefault.value })).data
     zenKey.value = ''
     await load()
     ElMessage.success('OpenCode Zen Free 已保存并启用')
@@ -111,7 +135,7 @@ async function saveZen(): Promise<void> {
 async function testZen(): Promise<void> {
   testingId.value = 'zen'
   try {
-    await aiPresetApi.test({ apiKey: zenKey.value || undefined, modelName: zenModel.value || undefined })
+    await aiPresetApi.test('OPENCODE_ZEN_FREE', { apiKey: zenKey.value || undefined, modelName: zenModel.value || undefined })
     ElMessage.success('连接成功')
   } catch (error) {
     showApiError(error, '连接测试')
@@ -128,7 +152,7 @@ async function disconnectZen(): Promise<void> {
   } catch { return }
   disconnecting.value = true
   try {
-    await aiPresetApi.disconnect()
+    await aiPresetApi.disconnect('OPENCODE_ZEN_FREE')
     zenKey.value = ''
     await load()
     ElMessage.success('已断开 OpenCode Zen 连接')
@@ -136,6 +160,48 @@ async function disconnectZen(): Promise<void> {
     showApiError(error, '断开连接')
   } finally {
     disconnecting.value = false
+  }
+}
+async function saveKilo(): Promise<void> {
+  if (!kiloModel.value || savingKilo.value) return
+  savingKilo.value = true
+  try {
+    kilo.value = (await aiPresetApi.save('KILO_GATEWAY_FREE', { modelName: kiloModel.value, enabled: kiloEnabled.value, setDefault: kiloDefault.value })).data
+    await load()
+    ElMessage.success('Kilo Gateway Free 已保存并启用')
+  } catch (error) {
+    showApiError(error, 'Kilo 保存')
+  } finally {
+    savingKilo.value = false
+  }
+}
+async function testKilo(): Promise<void> {
+  testingId.value = 'kilo'
+  try {
+    await aiPresetApi.test('KILO_GATEWAY_FREE', { modelName: kiloModel.value || undefined })
+    ElMessage.success('连接成功')
+  } catch (error) {
+    showApiError(error, '连接测试')
+  } finally {
+    testingId.value = ''
+  }
+}
+async function disconnectKilo(): Promise<void> {
+  if (disconnectingKilo.value) return
+  try {
+    await ElMessageBox.confirm('断开后将删除已保存的 Kilo Gateway 连接，用途覆盖会回退到默认模型。确定断开吗？', '断开 Kilo Gateway', {
+      confirmButtonText: '断开连接', cancelButtonText: '取消', type: 'warning',
+    })
+  } catch { return }
+  disconnectingKilo.value = true
+  try {
+    await aiPresetApi.disconnect('KILO_GATEWAY_FREE')
+    await load()
+    ElMessage.success('已断开 Kilo Gateway 连接')
+  } catch (error) {
+    showApiError(error, '断开连接')
+  } finally {
+    disconnectingKilo.value = false
   }
 }
 
@@ -307,12 +373,45 @@ onMounted(load)
           </div>
         </div>
       </div>
+      <div class="provider-tile kilo">
+        <div class="zen-two-col">
+          <div class="zen-brand">
+            <div><strong>Kilo Gateway</strong><span v-if="kilo?.connected" class="status-dot done" /> <span v-if="kilo?.isDefault">默认</span></div>
+            <p class="provider-tile__sub">免费模型聚合网关，匿名可用。连接后知识问答、AI 规划与 Agent 可直接使用。</p>
+            <ul class="zen-points">
+              <li>免费模型 · 自动发现</li>
+              <li>ai-gateway.kilo.ai 官方接口</li>
+              <li>匿名调用 · 无需 Key</li>
+            </ul>
+          </div>
+          <div>
+            <div v-if="kilo?.connected" class="provider-tile__current-row">
+              <span class="provider-tile__current">{{ kilo?.modelName }}</span>
+              <el-button text type="danger" size="small" :loading="disconnectingKilo" @click="disconnectKilo">断开连接</el-button>
+            </div>
+            <el-skeleton v-if="kiloLoading" :rows="2" animated />
+            <div v-else class="zen-form">
+              <div class="model-select-row">
+                <el-select v-model="kiloModel" placeholder="选择免费模型" filterable>
+                  <el-option v-for="m in kiloModels" :key="m" :label="m" :value="m" />
+                </el-select>
+                <el-button text :icon="Refresh" aria-label="刷新模型" title="刷新模型" @click="loadKiloModels(true)" />
+              </div>
+              <div class="zen-actions">
+                <el-checkbox v-model="kiloDefault">设为默认模型</el-checkbox>
+                <el-button :loading="testingId === 'kilo'" @click="testKilo">测试连接</el-button>
+                <el-button type="primary" :loading="savingKilo" :disabled="!kiloModel" @click="saveKilo">保存</el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="section-title"><h2>你的模型</h2><el-button text type="primary" @click="openCreate">+ 自定义 Provider</el-button></div>
       <EmptyState
         v-if="!customProviders.length"
         compact
         title="还没有自定义模型"
-        description="上面的 Zen 连接已可直接使用，这里按需添加自己的网关"
+        description="上面的预设连接已可直接使用，这里按需添加自己的网关"
       />
       <div v-if="customProviders.length" class="model-rows">
         <div v-for="provider in customProviders" :key="provider.id" class="model-row">
@@ -339,7 +438,7 @@ onMounted(load)
         </div>
       </div>
 
-      <el-card v-if="customProviders.length || zen?.connected" shadow="never">
+      <el-card v-if="customProviders.length || zen?.connected || kilo?.connected" shadow="never">
         <template #header>
           <div class="header-row">
             <strong>按用途覆盖默认模型（可选）</strong>
@@ -350,6 +449,7 @@ onMounted(load)
           <span class="override-label">{{ purpose.label }}</span>
           <el-select v-model="overrides[purpose.value]" placeholder="使用默认" clearable :disabled="purposesFailed" @change="saveOverride(purpose.value)">
             <el-option v-if="zen?.connected" :key="'zen'" :label="`OpenCode Zen Free · ${zen?.modelName ?? ''}`" :value="zenProviderId" />
+            <el-option v-if="kilo?.connected" :key="'kilo'" :label="`Kilo Gateway Free · ${kilo?.modelName ?? ''}`" :value="kiloProviderId" />
             <el-option v-for="p in customProviders.filter((c) => c.enabled)" :key="p.id" :label="p.name" :value="p.id" />
           </el-select>
         </div>
