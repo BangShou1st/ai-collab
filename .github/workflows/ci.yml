@@ -1,10 +1,10 @@
 name: CI
 
-# PR 面向 main 与 main 自身 push 触发；workflow_dispatch 供手动复跑。
+# PR 面向 main、main 与 dev 自身 push 触发；workflow_dispatch 供手动复跑。
 # 不使用 pull_request_target：本流水线会检出并执行提交内的构建脚本与测试。
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -77,12 +77,15 @@ jobs:
           # 覆盖上下文压缩、Flyway 迁移与运行恢复的关键真实 PostgreSQL 用例。
           # RetrievalCoveragePostgresTest 是 D-RAG-01A 的检索覆盖基线：用真实 pgvector
           # 观察向量候选与上下文保留；整类被跳过时同样判失败。
+          # KiloGatewayPresetIsolationIntegrationTest 验证 V65 迁移与双预设隔离：同样不得整类跳过。
           required = [
               "com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest",
               "com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest",
               "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest",
               "com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest",
               "com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest",
+              "com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest",
+              "com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetIsolationIntegrationTest",
           ]
 
           stats = {}

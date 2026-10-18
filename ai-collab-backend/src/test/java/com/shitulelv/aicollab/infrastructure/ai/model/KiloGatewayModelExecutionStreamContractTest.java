@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 流式完成契约：用真实共享库客户端（v0.2.2）+ 本地 SSE 服务器验证，
+ * 流式完成契约：用真实共享库客户端（v0.2.3）+ 本地 SSE 服务器验证，
  * 只有观察到 {@code data: [DONE]} 才算成功；截断 / 错误帧 / 非法帧一律失败，
  * 且成功与失败回调互斥，未完成流绝不调用 onDone。
  */
