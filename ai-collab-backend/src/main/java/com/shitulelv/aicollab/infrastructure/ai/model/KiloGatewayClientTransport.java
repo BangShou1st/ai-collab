@@ -83,7 +83,7 @@ public class KiloGatewayClientTransport implements KiloGatewayTransport {
         } catch (KiloGatewayException failure) {
             throw translate(failure);
         } catch (IllegalArgumentException invalidRequest) {
-            log.warn("Kilo gateway rejected the request: {}", sanitize(invalidRequest.getMessage()));
+            rejectRequest();
             throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
         }
     }
@@ -95,22 +95,25 @@ public class KiloGatewayClientTransport implements KiloGatewayTransport {
         } catch (KiloGatewayException failure) {
             throw translate(failure);
         } catch (IllegalArgumentException invalidRequest) {
-            log.warn("Kilo gateway rejected the request: {}", sanitize(invalidRequest.getMessage()));
+            rejectRequest();
             throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
         }
     }
 
     /**
-     * 共享库异常 → 稳定业务错误码。上游正文只用于内部日志，绝不进入客户端响应：
-     * 这里一律使用 {@link ErrorCode} 的固定提示，不携带异常消息。
+     * 共享库异常 → 稳定业务错误码。客户端一律只收到 {@link ErrorCode} 的固定提示。
+     *
+     * <p>日志只记录可信诊断数据：共享库给出的 statusCode、本类派生的固定分类，
+     * 以及是否发生未完成流。上游正文、provider 名称与异常消息属于不可信输入，
+     * 一律不落日志、不进响应，避免泄漏 token、内部路径或上游 HTML。</p>
      *
      * <p>共享库把超时、连接失败、SSE 中断、非法 JSON 与流未完成都记为负 statusCode，
      * 因此只有根因是 {@link java.net.http.HttpTimeoutException} 时才判为超时，
      * 未观察到 {@code [DONE]} 的截断流判为无效响应，其余按上游错误处理。</p>
      */
     private static BusinessException translate(KiloGatewayException failure) {
-        log.warn("Kilo gateway call failed: status={}, provider={}, detail={}",
-                failure.getStatusCode(), failure.getProvider(), sanitize(failure.getMessage()));
+        log.warn("Kilo gateway call failed: status={}, class={}, incompleteStream={}",
+                failure.getStatusCode(), classification(failure), failure.isIncompleteStream());
         return switch (failure.getStatusCode()) {
             case 401, 403 -> new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
             case 429 -> new BusinessException(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED);
@@ -122,17 +125,26 @@ public class KiloGatewayClientTransport implements KiloGatewayTransport {
         };
     }
 
+    /** 库内固定分类名（内部诊断用）：只由 statusCode 与异常根因派生，不含任何上游数据。 */
+    private static String classification(KiloGatewayException failure) {
+        int status = failure.getStatusCode();
+        if (status == 401 || status == 403) return "CREDENTIAL_REJECTED";
+        if (status == 429) return "RATE_LIMITED";
+        if (status == KiloGatewayException.STATUS_INCOMPLETE_STREAM) return "INCOMPLETE_STREAM";
+        if (isTimeout(failure)) return "TIMEOUT";
+        if (status >= 500) return "UPSTREAM_5XX";
+        return status > 0 ? "UPSTREAM_ERROR" : "TRANSPORT_ERROR";
+    }
+
+    /** 共享库拒绝了请求：只记录固定标签，不回显库异常里的原始消息。 */
+    private static void rejectRequest() {
+        log.warn("Kilo gateway rejected the request: class=INVALID_REQUEST");
+    }
+
     private static boolean isTimeout(KiloGatewayException failure) {
         for (Throwable cause = failure.getCause(); cause != null; cause = cause.getCause()) {
             if (cause instanceof java.net.http.HttpTimeoutException) return true;
         }
         return false;
-    }
-
-    /** 压平换行/控制字符并限长，避免把上游原始正文（HTML、内部路径等）成块写入日志。 */
-    private static String sanitize(String message) {
-        if (message == null) return "-";
-        String flattened = message.replaceAll("\\s+", " ").strip().replaceAll("[\\p{Cntrl}]", "");
-        return flattened.length() > 200 ? flattened.substring(0, 200) + "..." : flattened;
     }
 }
