@@ -30,6 +30,8 @@
         <java.version>21</java.version>
         <!-- OpenCode Zen 共享库版本（私服 com.sharedlibs:opencode-zen-spring-boot-starter）。 -->
         <opencode-zen.version>1.2.0</opencode-zen.version>
+        <!-- Kilo Gateway 共享库版本（公开仓库经 JitPack 解析，随 Git 标签 v0.2.3）。 -->
+        <kilo-gateway.version>v0.2.3</kilo-gateway.version>
         <minio.version>9.0.2</minio.version>
         <okhttp.version>5.3.2</okhttp.version>
         <tika.version>3.3.0</tika.version>
@@ -44,6 +46,15 @@
             <id>github</id>
             <name>OpenCode Zen GitHub Packages</name>
             <url>https://maven.pkg.github.com/BangShou1st/opencode-zen</url>
+        </repository>
+        <!--
+          Kilo Gateway 共享库发布在公开仓库并经 JitPack 解析，消费者无需 Token。
+          坐标格式为 com.github.User.Repo:Module:Tag（JitPack 多模块约定）。
+        -->
+        <repository>
+            <id>jitpack.io</id>
+            <name>JitPack</name>
+            <url>https://jitpack.io</url>
         </repository>
     </repositories>
     <dependencyManagement>
@@ -95,6 +106,12 @@
             <groupId>com.sharedlibs</groupId>
             <artifactId>opencode-zen-spring-boot-starter</artifactId>
             <version>${opencode-zen.version}</version>
+        </dependency>
+        <!-- Kilo Gateway 共享库（OpenAI 兼容网关客户端与自动配置，免费模型匿名调用）。 -->
+        <dependency>
+            <groupId>com.github.BangShou1st.kilo-gateway</groupId>
+            <artifactId>kilo-gateway-spring-boot-starter</artifactId>
+            <version>${kilo-gateway.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
