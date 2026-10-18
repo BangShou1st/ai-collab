@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.knowledge.domain.service;
 
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
+import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -153,5 +154,161 @@ class KnowledgeContextBuilderTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThat(builder.build(distinctHits(1), KnowledgeContextBuilder.MAX_SOURCES_LIMIT).sources())
                 .isNotEmpty();
+    }
+
+    // ---- D-RAG-01B：跨文档入口 buildDiverse ----
+
+    private static DocumentSearchHit documentedHit(
+            UUID chunkId, UUID documentId, String filename, String content, String hash,
+            double similarity) {
+        return new DocumentSearchHit(
+                chunkId, documentId, filename, "标题", content, hash, similarity, Map.of("pageNumber", 1));
+    }
+
+    @Test
+    void diverseEntryKeepsCrossDocumentEvidenceWithDistinctIdentities() {
+        UUID documentA = UUID.randomUUID();
+        UUID documentB = UUID.randomUUID();
+        UUID chunkA = UUID.randomUUID();
+        UUID chunkB = UUID.randomUUID();
+        List<DocumentSearchHit> hits = List.of(
+                documentedHit(chunkA, documentA, "原始件.md", "两件文档相同的条款", "same-hash", 0.9),
+                documentedHit(chunkB, documentB, "复印件.md", "两件文档相同的条款", "same-hash", 0.8));
+
+        var context = builder.buildDiverse(hits, 12);
+
+        // 不同文档即使内容与 contentHash 相同，也各自保留可追溯的来源身份，不合并成同一文档。
+        assertThat(context.sources()).hasSize(2);
+        assertThat(context.sources()).extracting(KnowledgeSource::chunkId)
+                .containsExactly(chunkA, chunkB);
+        assertThat(context.sources()).extracting(KnowledgeSource::documentId)
+                .containsExactly(documentA, documentB);
+        assertThat(context.promptSources()).contains("[S1]").contains("[S2]").doesNotContain("[S3]");
+    }
+
+    @Test
+    void diverseEntryFoldsIdenticalContentWithinTheSameDocument() {
+        UUID document = UUID.randomUUID();
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        List<DocumentSearchHit> hits = List.of(
+                documentedHit(first, document, "文档.pdf", "同一条证据", "same", 0.9),
+                documentedHit(second, document, "文档.pdf", "同一条证据（同文档副本）", "same", 0.8),
+                documentedHit(other, document, "文档.pdf", "另一条证据", "other", 0.7));
+
+        var context = builder.buildDiverse(hits, 12);
+
+        // 同一文档内相同内容属于真正的冗余，折叠为一条且不占用其他来源名额。
+        assertThat(context.sources()).hasSize(2);
+        assertThat(context.sources().getFirst().chunkId()).isEqualTo(first);
+        assertThat(context.sources()).extracting(KnowledgeSource::contentHash)
+                .containsExactly("same", "other");
+    }
+
+    @Test
+    void diverseEntrySharesBodyBudgetSoOneHugeChunkCannotStarveShorterCrossDocumentEvidence() {
+        UUID documentA = UUID.randomUUID();
+        UUID documentB = UUID.randomUUID();
+        UUID huge = UUID.randomUUID();
+        UUID shortEvidence = UUID.randomUUID();
+        List<DocumentSearchHit> hits = List.of(
+                documentedHit(huge, documentA, "巨块.md", "证".repeat(9000), "huge", 0.99),
+                documentedHit(shortEvidence, documentB, "短证.md", "另一文档的关键短证据", "short", 0.5));
+
+        var context = builder.buildDiverse(hits, 8);
+
+        // 公平分配后，超大分块无法吃光 8000 字符预算，其他文档的短证据仍能进入上下文。
+        assertThat(context.sources()).extracting(KnowledgeSource::chunkId)
+                .containsExactly(huge, shortEvidence);
+        assertThat(context.sources()).extracting(KnowledgeSource::rank).containsExactly(1, 2);
+        assertThat(context.promptSources().codePointCount(0, context.promptSources().length()))
+                .isLessThanOrEqualTo(BUDGET_CODE_POINTS);
+    }
+
+    @Test
+    void diverseEntryRanksAreContiguousAndMarkersMatchRetainedSources() {
+        UUID documentA = UUID.randomUUID();
+        UUID documentB = UUID.randomUUID();
+        UUID documentC = UUID.randomUUID();
+        List<DocumentSearchHit> hits = List.of(
+                documentedHit(UUID.randomUUID(), documentA, "甲.md", "甲的证据", "ha", 0.9),
+                documentedHit(UUID.randomUUID(), documentB, "乙.md", "乙的证据", "hb", 0.8),
+                documentedHit(UUID.randomUUID(), documentC, "丙.md", "丙的证据", "hc", 0.7),
+                documentedHit(UUID.randomUUID(), documentA, "甲.md", "甲的第二条证据", "ha2", 0.5));
+
+        var context = builder.buildDiverse(hits, 3);
+
+        assertThat(context.sources()).hasSize(3);
+        assertThat(context.sources()).extracting(KnowledgeSource::rank).containsExactly(1, 2, 3);
+        assertThat(context.promptSources()).contains("[S1]").contains("[S2]").contains("[S3]")
+                .doesNotContain("[S4]");
+        // 三条来源来自三个不同文档，文档覆盖不因单一文档的高分而丢失。
+        assertThat(context.sources()).extracting(KnowledgeSource::documentId)
+                .containsExactly(documentA, documentB, documentC);
+    }
+
+    @Test
+    void diverseEntryPromptNeverExceedsBudgetEvenWhenEverySourceIsLong() {
+        List<DocumentSearchHit> hits = new ArrayList<>();
+        for (int i = 1; i <= 12; i++) {
+            hits.add(documentedHit(UUID.randomUUID(), UUID.randomUUID(),
+                    "文档" + i + ".md", "证".repeat(3000), "long-" + i, 1.0 - i * 0.01));
+        }
+
+        var context = builder.buildDiverse(hits, 12);
+
+        assertThat(context.promptSources().codePointCount(0, context.promptSources().length()))
+                .isLessThanOrEqualTo(BUDGET_CODE_POINTS);
+        assertThat(context.sources()).isNotEmpty();
+    }
+
+    @Test
+    void diverseEntryRejectsMaxSourcesOutsideDeclaredBound() {
+        assertThatThrownBy(() -> builder.buildDiverse(distinctHits(1), 0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> builder.buildDiverse(distinctHits(1), 13))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void defaultEntryDoesNotReserveHashForCandidateThatCouldNotBeWritten() {
+        UUID firstChunk = UUID.randomUUID();
+        UUID failedChunk = UUID.randomUUID();
+        UUID laterChunk = UUID.randomUUID();
+        List<DocumentSearchHit> hits = List.of(
+                documentedHit(firstChunk, UUID.randomUUID(), "文档.pdf", "x".repeat(7853), "first", 0.9),
+                documentedHit(failedChunk, UUID.randomUUID(), "x".repeat(100), "&", "shared", 0.8),
+                documentedHit(laterChunk, UUID.randomUUID(), "短.md", "第三条可写入", "shared", 0.7));
+
+        var context = builder.build(hits, 12);
+
+        // 第二条来源前缀较长，剩余正文预算不足以容纳转义后的 &amp;；
+        // 它没有进入上下文，所以第三条同 hash、短前缀的来源仍应按 main 旧逻辑进入。
+        assertThat(context.sources()).extracting(KnowledgeSource::chunkId)
+                .containsExactly(firstChunk, laterChunk);
+        assertThat(context.sources()).extracting(KnowledgeSource::rank).containsExactly(1, 2);
+        assertThat(context.sources()).extracting(KnowledgeSource::originalFilename)
+                .containsExactly("文档.pdf", "短.md");
+        assertThat(context.promptSources()).contains("[S1]", "[S2]", "第三条可写入")
+                .doesNotContain("[S3]");
+        assertThat(context.promptSources().codePointCount(0, context.promptSources().length()))
+                .isLessThanOrEqualTo(BUDGET_CODE_POINTS);
+    }
+
+    @Test
+    void defaultEntryKeepsXmlEscapingInsideTheEightThousandCodePointLimit() {
+        UUID chunk = UUID.randomUUID();
+        var context = builder.build(List.of(documentedHit(
+                chunk, UUID.randomUUID(), "文档&<>.md", "&<>😀".repeat(3000), "escaped", 0.9)), 12);
+
+        assertThat(context.promptSources().codePointCount(0, context.promptSources().length()))
+                .isLessThanOrEqualTo(BUDGET_CODE_POINTS);
+        assertThat(context.promptSources()).contains("&amp;", "&lt;", "&gt;")
+                .doesNotContain("&am;");
+        assertThat(context.sources()).singleElement().satisfies(source -> {
+            assertThat(source.chunkId()).isEqualTo(chunk);
+            assertThat(source.rank()).isEqualTo(1);
+        });
     }
 }

@@ -24,6 +24,13 @@ import java.util.Set;
 @Component
 public class KnowledgeSearchAgentTool implements AgentTool {
     private static final Logger log = LoggerFactory.getLogger(KnowledgeSearchAgentTool.class);
+    /**
+     * D-RAG-01B：Agent 跨文档来源选择的内部有界候选池，绝对上限 20。
+     * 外部 {@code limit}（1–12）只决定最终返回来源数，不决定候选窗口大小；
+     * 候选池放大到 20 才能让深排位的跨文档证据（Top8 之外、Top20 之内）有机会进入上下文。
+     * 这是一次带 {@code LIMIT 20} 的有界检索，不是无界查询，也不产生 N+1。
+     */
+    private static final int MAX_CANDIDATE_POOL = 20;
     private final ProjectAccessGuard access;
     private final DocumentSearchService search;
     private final KnowledgeContextBuilder contextBuilder;
@@ -70,10 +77,11 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         var documentIds = AgentToolArguments.uuidList(arguments, "documentIds", 20);
         int limit = AgentToolArguments.integer(arguments, "limit", 8, 1, 12);
         access.requireMember(context.projectId(), context.userId());
-        // 检索候选与上下文保留来源使用同一个有界 limit：工具声明的 1–12 决定来源数量上限，
-        // 知识问答仍走 KnowledgeContextBuilder 的默认上限（5），正文预算不变。
-        var knowledge = contextBuilder.build(
-                search.search(context.projectId(), query, documentIds, limit), limit);
+        // D-RAG-01B：候选池固定为有界 20（绝对上限），limit（1–12）只决定最终来源数；
+        // 选择走跨文档入口：剔除不合格候选后跨文档优先、文档感知去重、并公平分配 8000 字符正文预算。
+        // 知识问答仍走 KnowledgeContextBuilder 的默认上限（5）与默认入口，行为逐字不变。
+        var knowledge = contextBuilder.buildDiverse(
+                search.search(context.projectId(), query, documentIds, MAX_CANDIDATE_POOL), limit);
         ArrayNode sources = json.createArrayNode();
         List<AgentCitation> citations = knowledge.sources().stream().map(source -> {
             ObjectNode item = sources.addObject();
