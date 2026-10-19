@@ -445,7 +445,7 @@ class AgentResearchQualityPostgresTest {
                                         json.createObjectNode().put("query", "重大变更审批要求")),
                                 finalText("研究发现：合同模板甲与合同模板乙的条款一致，均须经项目负责人书面批准后方可实施。"))),
                 // S3 指定文档范围（问题点名《批量导出规范》）
-                new PairedScenario("S3-指定文档范围", "根据《批量导出规范》说明导出文件保留多久",
+                new PairedScenario("S3-指定文档范围", "只依据《批量导出规范》说明导出文件保留多久",
                         q -> List.of(
                                 hit(exports, 0, "文件保留",
                                         "已完成的导出文件在临时存储区保存二十四小时，过期后自动清理。", 0.9),
@@ -741,12 +741,15 @@ class AgentResearchQualityPostgresTest {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         lenient().when(access.requireMember(any(), any())).thenReturn(ProjectRole.OWNER);
         DocumentSearchService search = mock(DocumentSearchService.class);
-        lenient().when(search.resolveNamedDocumentIds(any(), anyList())).thenAnswer(invocation -> {
-            List<String> names = invocation.getArgument(1);
-            return documentIds.entrySet().stream()
-                    .filter(entry -> names.stream().anyMatch(name -> name.equals(entry.getKey())
-                            || name.equals(entry.getKey().replaceFirst("\\.[^.]+$", ""))))
-                    .map(Map.Entry::getValue).toList();
+        lenient().when(search.resolveUserDocumentScope(any(), any())).thenAnswer(invocation -> {
+            String goal = invocation.getArgument(1);
+            UUID exportId = documentIds.get("批量导出规范.md");
+            if (goal != null && goal.contains("只依据《批量导出规范》") && exportId != null) {
+                return new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.ENFORCED,
+                        List.of("批量导出规范"), List.of(), List.of(exportId), List.of(), List.of(exportId), List.of());
+            }
+            return new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.UNRESTRICTED,
+                    List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
         });
         lenient().when(search.search(any(), anyString(), any(), anyInt())).thenAnswer(invocation -> {
             String query = invocation.getArgument(1);
@@ -757,9 +760,9 @@ class AgentResearchQualityPostgresTest {
         });
         var knowledge = new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), json);
         var docs = new DocumentAgentTools();
-        AgentTool list = docs.listProjectDocuments(this.documents, content, json);
-        AgentTool outline = docs.getDocumentOutline(content);
-        AgentTool read = docs.readDocumentSection(content);
+        AgentTool list = docs.listProjectDocuments(this.documents, content, search, json);
+        AgentTool outline = docs.getDocumentOutline(content, search);
+        AgentTool read = docs.readDocumentSection(content, search);
         var delegate = new DocumentResearchDelegateAgentTool(json);
         return new AgentToolRegistryForTest(List.of(list, outline, read, knowledge, delegate));
     }

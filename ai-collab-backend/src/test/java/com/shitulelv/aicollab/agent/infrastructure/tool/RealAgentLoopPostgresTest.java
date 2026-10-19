@@ -251,7 +251,7 @@ class RealAgentLoopPostgresTest {
                 hit("数据归档通告.md", 0, "归档周期", "业务记录每季度归档一次，归档副本整体保留五年。", 0.7));
 
         Map<String, Object> result = runScenario("R2-指定文档范围",
-                "根据《批量导出规范》回答：已完成的导出文件会在临时存储区保留多久？请调用检索工具取得真实来源。");
+                "只依据《批量导出规范》回答：已完成的导出文件会在临时存储区保留多久？请调用检索工具取得真实来源。");
 
         assertRealScenarioSucceeded(result);
         assertRealToolCall(result, "search_project_knowledge");
@@ -586,12 +586,15 @@ class RealAgentLoopPostgresTest {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         lenient().when(access.requireMember(any(), any())).thenReturn(ProjectRole.OWNER);
         DocumentSearchService search = mock(DocumentSearchService.class);
-        when(search.resolveNamedDocumentIds(any(), anyList())).thenAnswer(invocation -> {
-            List<String> names = invocation.getArgument(1);
-            return documentIds.entrySet().stream()
-                    .filter(entry -> names.stream().anyMatch(name -> name.equals(entry.getKey())
-                            || name.equals(entry.getKey().replaceFirst("\\.[^.]+$", ""))))
-                    .map(Map.Entry::getValue).toList();
+        when(search.resolveUserDocumentScope(any(), any())).thenAnswer(invocation -> {
+            String goal = invocation.getArgument(1);
+            UUID exportId = documentIds.get("批量导出规范.md");
+            if (goal != null && goal.contains("只依据《批量导出规范》") && exportId != null) {
+                return new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.ENFORCED,
+                        List.of("批量导出规范"), List.of(), List.of(exportId), List.of(), List.of(exportId), List.of());
+            }
+            return new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.UNRESTRICTED,
+                    List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
         });
         lenient().when(search.search(any(), anyString(), any(), anyInt())).thenAnswer(invocation -> {
             String query = invocation.getArgument(1);
@@ -603,8 +606,8 @@ class RealAgentLoopPostgresTest {
         var knowledge = new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), json);
         var docs = new DocumentAgentTools();
         var delegate = new DocumentResearchDelegateAgentTool(json);
-        return new AgentToolRegistry(List.of(knowledge, docs.listProjectDocuments(this.documents, content, json),
-                docs.getDocumentOutline(content), docs.readDocumentSection(content), delegate));
+        return new AgentToolRegistry(List.of(knowledge, docs.listProjectDocuments(this.documents, content, search, json),
+                docs.getDocumentOutline(content, search), docs.readDocumentSection(content, search), delegate));
     }
 
     private AgentRuntimeCoordinator coordinator(AgentToolRegistry registry) {

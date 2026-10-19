@@ -121,9 +121,10 @@ public class AgentToolCallExecutor {
             repository.recordFailure(run, "TOOL_CALL_PROTOCOL_INVALID", false);
             return new AgentWorkerOutcome(AgentRunStatus.FAILED, null, null, "TOOL_CALL_PROTOCOL_INVALID");
         }
+        String trustedUserGoal = trustedUserGoal(run, repository);
         AgentToolContext toolCtx = new AgentToolContext(
                 run.id(), run.projectId(), run.requesterId(),
-                ctx.projectRole(), run.scheduled(), run.depth(), null, run.goal());
+                ctx.projectRole(), run.scheduled(), run.depth(), null, trustedUserGoal);
 
         // ===== 阶段 1：验证所有工具调用（快速，无 I/O） =====
         List<ValidatedToolCall> validated = new ArrayList<>();
@@ -404,6 +405,14 @@ public class AgentToolCallExecutor {
                     run.id(), toolCall.name(), failure.getMessage());
             return failWriteProposal(run, toolCall, "AGENT_TOOL_EXECUTION_FAILED");
         }
+    }
+
+    static String trustedUserGoal(AgentRunView run, AgentRepository repository) {
+        if (run.parentRunId() == null) return run.goal();
+        AgentRunView root = repository.findRun(run.projectId(), run.parentRunId())
+                .filter(parent -> parent.depth() == 0)
+                .orElseThrow(() -> new IllegalStateException("委派子运行缺少可信根请求，拒绝执行文档工具"));
+        return root.goal();
     }
 
     /**
