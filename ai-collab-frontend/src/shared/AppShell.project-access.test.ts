@@ -5,8 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AppShell from './AppShell.vue'
 
 type ProjectContextMock = {
+  currentProjectId: string | null
   project: { name: string } | null
   accessDeniedProjectId: string | null
+  loading: boolean
   isAdminOrOwner: boolean
   clear: ReturnType<typeof vi.fn>
   loadProject: ReturnType<typeof vi.fn>
@@ -43,8 +45,10 @@ const stubs = {
 describe('AppShell project access handling', () => {
   beforeEach(() => {
     mocks.context = reactive({
+      currentProjectId: null,
       project: null,
       accessDeniedProjectId: null,
+      loading: false,
       isAdminOrOwner: false,
       clear: vi.fn(),
       loadProject: vi.fn(),
@@ -63,6 +67,19 @@ describe('AppShell project access handling', () => {
 
     expect(mocks.context!.loadProject).toHaveBeenCalledWith('private-project')
     expect(mocks.showApiError).toHaveBeenCalledWith(failure, '加载项目')
+  })
+
+  it('keeps protected route content hidden until project access is confirmed', () => {
+    mocks.context!.loading = true
+    mocks.context!.loadProject.mockImplementation(() => new Promise(() => {}))
+
+    const wrapper = mount(AppShell, {
+      slots: { default: '<div data-test="protected-content">private content</div>' },
+      global: { stubs },
+    })
+
+    expect(wrapper.get('[role="status"]').text()).toContain('正在确认项目访问权限')
+    expect(wrapper.find('[data-test="protected-content"]').exists()).toBe(false)
   })
 
   it('shows a neutral access-denied page and hides the protected route content', () => {
