@@ -61,6 +61,8 @@ class AgentToolContractTest {
         when(access.requireMember(any(), any())).thenReturn(
                 com.shitulelv.aicollab.project.domain.model.ProjectRole.MEMBER);
         DocumentSearchService search = mock(DocumentSearchService.class);
+        when(search.resolveUserDocumentScope(any(), any()))
+                .thenReturn(DocumentSearchService.UserDocumentScope.unrestricted());
         when(search.search(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(List.of());
         return new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), JSON);

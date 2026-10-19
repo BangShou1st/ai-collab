@@ -52,7 +52,7 @@ class AgentReadToolsTest {
     void knowledgeSearchReturnsBoundedLocationAwareCitations() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         when(access.requireMember(context.projectId(), context.userId())).thenReturn(ProjectRole.MEMBER);
-        DocumentSearchService search = mock(DocumentSearchService.class);
+        DocumentSearchService search = searchService();
         UUID chunk = UUID.randomUUID();
         UUID document = UUID.randomUUID();
         when(search.search(eq(context.projectId()), eq("验收标准"), eq(List.of()), eq(20)))
@@ -84,12 +84,14 @@ class AgentReadToolsTest {
     void knowledgeSearchEnforcesExactUserNamedDocumentWhenModelOmitsDocumentIds() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         when(access.requireMember(context.projectId(), context.userId())).thenReturn(ProjectRole.MEMBER);
-        DocumentSearchService search = mock(DocumentSearchService.class);
+        DocumentSearchService search = searchService();
         UUID exports = UUID.randomUUID();
         UUID exportsChunk = UUID.randomUUID();
         UUID archive = UUID.randomUUID();
-        when(search.resolveNamedDocumentIds(context.projectId(), List.of("批量导出规范")))
-                .thenReturn(List.of(exports));
+        String goal = "只根据《批量导出规范》回答导出文件保留多久？";
+        when(search.resolveUserDocumentScope(context.projectId(), goal)).thenReturn(
+                new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.ENFORCED,
+                        List.of("批量导出规范"), List.of(), List.of(exports), List.of(), List.of(exports), List.of()));
         when(search.search(eq(context.projectId()), eq("导出文件保留多久"), eq(List.of(exports)), eq(20)))
                 .thenReturn(List.of(new DocumentSearchHit(exportsChunk, exports, "批量导出规范.md",
                                 "文件保留", "临时存储区保存二十四小时。", "export-hash", 0.9),
@@ -99,7 +101,7 @@ class AgentReadToolsTest {
                 access, search, new KnowledgeContextBuilder(), json);
         AgentToolContext scoped = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
                 context.role(), false, 0, null,
-                "根据《批量导出规范》回答导出文件保留多久？");
+                goal);
 
         var result = tool.execute(scoped, json.createObjectNode().put("query", "导出文件保留多久"));
 
@@ -115,17 +117,22 @@ class AgentReadToolsTest {
     void unresolvedUserNamedDocumentCannotFallBackToAllProjectSearch() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         when(access.requireMember(context.projectId(), context.userId())).thenReturn(ProjectRole.MEMBER);
-        DocumentSearchService search = mock(DocumentSearchService.class);
-        when(search.resolveNamedDocumentIds(context.projectId(), List.of("不存在的规范"))).thenReturn(List.of());
+        DocumentSearchService search = searchService();
+        String goal = "只能依据《不存在的规范》回答保留多久？";
+        when(search.resolveUserDocumentScope(context.projectId(), goal)).thenReturn(
+                new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.UNRESOLVED_INCOMPLETE,
+                        List.of("不存在的规范"), List.of(), List.of(), List.of(), List.of(), List.of("不存在的规范")));
         KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
                 access, search, new KnowledgeContextBuilder(), json);
         AgentToolContext scoped = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
-                context.role(), false, 0, null, "根据《不存在的规范》回答保留多久？");
+                context.role(), false, 0, null, goal);
 
         var result = tool.execute(scoped, json.createObjectNode().put("query", "保留多久"));
 
         verify(search, org.mockito.Mockito.never()).search(any(), anyString(), any(), anyInt());
         assertThat(result.data().path("userScopeEnforced").asBoolean()).isTrue();
+        assertThat(result.data().path("documentScope").path("status").asText())
+                .isEqualTo("UNRESOLVED_INCOMPLETE");
         assertThat(result.data().path("sources").size()).isZero();
     }
 
@@ -133,15 +140,17 @@ class AgentReadToolsTest {
     void modelSuppliedDocumentIdsCannotWidenExplicitUserScope() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         when(access.requireMember(context.projectId(), context.userId())).thenReturn(ProjectRole.MEMBER);
-        DocumentSearchService search = mock(DocumentSearchService.class);
+        DocumentSearchService search = searchService();
         UUID exports = UUID.randomUUID();
         UUID archive = UUID.randomUUID();
-        when(search.resolveNamedDocumentIds(context.projectId(), List.of("批量导出规范")))
-                .thenReturn(List.of(exports));
+        String goal = "只能根据《批量导出规范》回答保留多久？";
+        when(search.resolveUserDocumentScope(context.projectId(), goal)).thenReturn(
+                new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.ENFORCED,
+                        List.of("批量导出规范"), List.of(), List.of(exports), List.of(), List.of(exports), List.of()));
         KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
                 access, search, new KnowledgeContextBuilder(), json);
         AgentToolContext scoped = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
-                context.role(), false, 0, null, "根据《批量导出规范》回答保留多久？");
+                context.role(), false, 0, null, goal);
 
         var result = tool.execute(scoped, json.createObjectNode().put("query", "保留多久")
                 .set("documentIds", json.createArrayNode().add(archive.toString())));
@@ -152,10 +161,88 @@ class AgentReadToolsTest {
     }
 
     @Test
+    void ordinaryMentionAndCrossDocumentComparisonKeepProjectWideSearch() {
+        ProjectAccessGuard access = mock(ProjectAccessGuard.class);
+        when(access.requireMember(context.projectId(), context.userId())).thenReturn(ProjectRole.MEMBER);
+        DocumentSearchService search = searchService();
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        when(search.resolveUserDocumentScope(context.projectId(), "比较《甲规范》和《乙规范》的标题差异"))
+                .thenReturn(new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.UNRESTRICTED,
+                        List.of(), List.of(), List.of(), List.of(), List.of(), List.of()));
+        when(search.search(eq(context.projectId()), eq("标题差异"), eq(List.of()), eq(20)))
+                .thenReturn(List.of(
+                        new DocumentSearchHit(UUID.randomUUID(), a, "甲规范.md", "甲", "甲内容", "a", 0.9),
+                        new DocumentSearchHit(UUID.randomUUID(), b, "乙规范.md", "乙", "乙内容", "b", 0.8)));
+        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
+                access, search, new KnowledgeContextBuilder(), json);
+        AgentToolContext compare = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
+                context.role(), false, 0, null, "比较《甲规范》和《乙规范》的标题差异");
+
+        var result = tool.execute(compare, json.createObjectNode().put("query", "标题差异"));
+
+        verify(search).search(context.projectId(), "标题差异", List.of(), 20);
+        assertThat(result.data().path("userScopeEnforced").asBoolean()).isFalse();
+        assertThat(result.citations()).extracting(
+                com.shitulelv.aicollab.agent.domain.model.AgentCitation::documentId).containsExactly(a, b);
+    }
+
+    @Test
+    void excludedDocumentIsFilteredFromProjectWideSearchResults() {
+        ProjectAccessGuard access = mock(ProjectAccessGuard.class);
+        when(access.requireMember(context.projectId(), context.userId())).thenReturn(ProjectRole.MEMBER);
+        DocumentSearchService search = searchService();
+        UUID allowed = UUID.randomUUID();
+        UUID excluded = UUID.randomUUID();
+        String goal = "回答这个问题，但排除《数据归档通告》";
+        when(search.resolveUserDocumentScope(context.projectId(), goal)).thenReturn(
+                new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.ENFORCED,
+                        List.of(), List.of("数据归档通告"), List.of(), List.of(excluded), List.of(), List.of()));
+        when(search.search(eq(context.projectId()), eq("文件保留"), isNull(), eq(20)))
+                .thenReturn(List.of(
+                        new DocumentSearchHit(UUID.randomUUID(), allowed, "批量导出规范.md", "文件保留", "二十四小时", "a", 0.9),
+                        new DocumentSearchHit(UUID.randomUUID(), excluded, "数据归档通告.md", "归档周期", "五年", "b", 0.8)));
+        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
+                access, search, new KnowledgeContextBuilder(), json);
+        AgentToolContext exclusion = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
+                context.role(), false, 0, null, goal);
+
+        var result = tool.execute(exclusion, json.createObjectNode().put("query", "文件保留"));
+
+        verify(search).search(context.projectId(), "文件保留", null, 20);
+        assertThat(result.citations()).extracting(
+                com.shitulelv.aicollab.agent.domain.model.AgentCitation::documentId).containsExactly(allowed);
+    }
+
+    @Test
+    void incompleteMultiDocumentScopeCannotSearchTheResolvedSubset() {
+        ProjectAccessGuard access = mock(ProjectAccessGuard.class);
+        when(access.requireMember(context.projectId(), context.userId())).thenReturn(ProjectRole.MEMBER);
+        DocumentSearchService search = searchService();
+        UUID resolved = UUID.randomUUID();
+        String goal = "只允许引用《甲规范》和《缺失规范》";
+        when(search.resolveUserDocumentScope(context.projectId(), goal)).thenReturn(
+                new DocumentSearchService.UserDocumentScope(DocumentSearchService.ScopeStatus.UNRESOLVED_INCOMPLETE,
+                        List.of("甲规范", "缺失规范"), List.of(), List.of(resolved), List.of(), List.of(),
+                        List.of("缺失规范")));
+        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
+                access, search, new KnowledgeContextBuilder(), json);
+        AgentToolContext scoped = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
+                context.role(), false, 0, null, goal);
+
+        var result = tool.execute(scoped, json.createObjectNode().put("query", "检索"));
+
+        verify(search, org.mockito.Mockito.never()).search(any(), anyString(), any(), anyInt());
+        assertThat(result.data().path("documentScope").path("status").asText())
+                .isEqualTo("UNRESOLVED_INCOMPLETE");
+        assertThat(result.data().path("sources").size()).isZero();
+    }
+
+    @Test
     void knowledgeSearchHonoursRequestedLimitUpToTwelve() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         when(access.requireMember(any(), any())).thenReturn(ProjectRole.MEMBER);
-        DocumentSearchService search = mock(DocumentSearchService.class);
+        DocumentSearchService search = searchService();
         List<DocumentSearchHit> twelve = new java.util.ArrayList<>();
         for (int i = 1; i <= 12; i++) {
             twelve.add(new DocumentSearchHit(
@@ -184,7 +271,7 @@ class AgentReadToolsTest {
     void knowledgeSearchUsesBoundedCandidatePoolAndKeepsDefaultSourceLimit() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         when(access.requireMember(any(), any())).thenReturn(ProjectRole.MEMBER);
-        DocumentSearchService search = mock(DocumentSearchService.class);
+        DocumentSearchService search = searchService();
         List<DocumentSearchHit> twelve = new java.util.ArrayList<>();
         for (int i = 1; i <= 12; i++) {
             twelve.add(new DocumentSearchHit(
@@ -208,7 +295,7 @@ class AgentReadToolsTest {
     void knowledgeSearchSelectsAcrossDocumentsAndKeepsCitationIdentity() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         when(access.requireMember(any(), any())).thenReturn(ProjectRole.MEMBER);
-        DocumentSearchService search = mock(DocumentSearchService.class);
+        DocumentSearchService search = searchService();
         UUID crowdedDocument = UUID.randomUUID();
         UUID otherDocument = UUID.randomUUID();
         UUID otherChunk = UUID.randomUUID();
@@ -255,6 +342,12 @@ class AgentReadToolsTest {
         assertThat(fact.path("assigneeName").asText()).isEqualTo("Local Owner");
     }
 
+    private DocumentSearchService searchService() {
+        DocumentSearchService search = mock(DocumentSearchService.class);
+        when(search.resolveUserDocumentScope(any(), any()))
+                .thenReturn(DocumentSearchService.UserDocumentScope.unrestricted());
+        return search;
+    }
     private TaskView task(String title) {
         return new TaskView(
                 new UUID(0,title.charAt(0)), context.projectId(), title, "描述",
