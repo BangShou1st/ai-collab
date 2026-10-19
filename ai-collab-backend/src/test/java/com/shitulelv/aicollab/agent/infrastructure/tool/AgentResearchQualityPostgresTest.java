@@ -126,6 +126,7 @@ class AgentResearchQualityPostgresTest {
     private final Queue<ModelTurnResult> childResponses = new ConcurrentLinkedQueue<>();
     private final List<String> modelRequests = new ArrayList<>();
     private final List<List<String>> exposedToolNames = new ArrayList<>();
+    private final java.util.concurrent.atomic.AtomicInteger modelCalls = new java.util.concurrent.atomic.AtomicInteger();
     private Function<String, List<DocumentSearchHit>> searchResolver = query -> List.of();
 
     private UUID user;
@@ -135,8 +136,10 @@ class AgentResearchQualityPostgresTest {
     private final Map<String, UUID> chunkIds = new LinkedHashMap<>();
 
     private static final Map<String, Map<String, Object>> SCENARIOS = new LinkedHashMap<>();
-    static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "2026-10-18",
-            "agent-research-quality.json");
+    /** C1 同题对照结果（直接研究 vs 委派研究）。 */
+    private static final Map<String, Map<String, Object>> PAIRED_COMPARISONS = new LinkedHashMap<>();
+    static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "2026-10-19",
+            "agent-research-quality-paired.json");
 
     @BeforeAll
     static void migrate() {
@@ -162,6 +165,7 @@ class AgentResearchQualityPostgresTest {
         childResponses.clear();
         modelRequests.clear();
         exposedToolNames.clear();
+        modelCalls.set(0);
         searchResolver = query -> List.of();
 
         assembler = mock(AgentContextAssembler.class);
@@ -177,6 +181,7 @@ class AgentResearchQualityPostgresTest {
         });
         when(modelExecutor.resolveRequest(any())).thenReturn(resolved(false));
         when(modelExecutor.callModel(any(), any(), any(), anyBoolean(), any())).thenAnswer(invocation -> {
+            modelCalls.incrementAndGet();
             AgentRunView run = invocation.getArgument(0);
             List<ModelMessage> messages = invocation.getArgument(1);
             modelRequests.add(messages == null ? "(none)" : messages.toString());
@@ -360,6 +365,281 @@ class AgentResearchQualityPostgresTest {
         assertThat(finalCitations(parent)).as("失败工具不得贡献来源")
                 .matches(value -> value == null || value.equals("[]") || value.isEmpty());
         record("A-failed-tool", outcome, parent, List.of());
+    }
+
+    // ============================================================ C1：同题直接研究 vs 子 Agent 委派对照
+
+    /** 一条期望事实：marker 是最终回答里应出现的依据文本；chunkKeys 是支撑该事实的来源分块。 */
+    private record Fact(String marker, List<String> chunkKeys) {}
+
+    /**
+     * 一个同题对照场景：直接与委派两种模式使用<b>同一问题、同一批文档、同一组输入事实、同一总预算</b>。
+     * 两种模式的差别只在“是否把检索/阅读等研究动作委派给只读子 Agent”。
+     */
+    private record PairedScenario(
+            String name, String goal,
+            Function<String, List<DocumentSearchHit>> search,
+            List<Fact> facts,
+            List<ModelTurnResult> directParent,
+            List<ModelTurnResult> delegatedParent,
+            List<ModelTurnResult> delegatedChild) {}
+
+    /** 一次运行的对照指标：事实覆盖、来源支持、错误引用、无依据断言、调用次数、预算与耗时。 */
+    private record PairedMetrics(
+            String mode, String status, int factsTotal, int factsCovered, int unsupportedFacts,
+            int citationsTotal, int citationsSupported, int wrongCitations, int coverageGaps,
+            int modelCalls, int toolCalls, int childRuns, boolean collectionComplete,
+            int stepsUsed, int inputTokens, int outputTokens, long elapsedMs) {}
+
+    private static String chunkKey(String filename, int chunkNo) {
+        return filename + "#" + chunkNo;
+    }
+
+    @Test
+    void directResearchVersusDelegatedResearchOnTheSameQuestionAndBudget() {
+        UUID verify = documentIds.get("上线验收规程.md");
+        UUID rollback = documentIds.get("发布回滚预案.md");
+        UUID contractA = documentIds.get("合同模板甲.md");
+        UUID contractB = documentIds.get("合同模板乙.md");
+        UUID exports = documentIds.get("批量导出规范.md");
+        UUID archive = documentIds.get("数据归档通告.md");
+        UUID missing = UUID.randomUUID();
+
+        List<PairedScenario> scenarios = List.of(
+                // S1 多份文档分别提供上线与回退条件（跨文档综合）
+                new PairedScenario("S1-上线与回退综合", "结合文档说明上线验收与回滚触发条件",
+                        q -> List.of(
+                                hit(verify, 0, "上线门禁",
+                                        "生产发布前必须完成核心业务流程的自动化验收，所有阻断级缺陷必须关闭。", 0.91),
+                                hit(rollback, 0, "回滚触发条件",
+                                        "上线后核心指标连续两次低于约定阈值时，立即暂停发布并回滚到最近一次稳定版本。", 0.88)),
+                        List.of(new Fact("自动化验收", List.of(chunkKey("上线验收规程.md", 0))),
+                                new Fact("连续两次低于约定阈值", List.of(chunkKey("发布回滚预案.md", 0)))),
+                        List.of(toolCall("s1-search", "search_project_knowledge",
+                                        json.createObjectNode().put("query", "上线验收与回滚条件")),
+                                finalText("上线验收要求完成自动化验收并关闭阻断级缺陷；"
+                                        + "当核心指标连续两次低于约定阈值时应暂停发布并回滚到最近一次稳定版本。")),
+                        List.of(toolCall("s1-delegate", "delegate_document_research",
+                                        json.createObjectNode().put("objective", "查证上线验收与回滚触发条件并给出真实来源")),
+                                finalText("依据子研究：上线验收要求完成自动化验收并关闭阻断级缺陷；"
+                                        + "指标连续两次低于约定阈值时应暂停发布并回滚到最近一次稳定版本。")),
+                        List.of(toolCall("s1-child-search", "search_project_knowledge",
+                                        json.createObjectNode().put("query", "上线验收与回滚条件")),
+                                finalText("研究发现：必须完成自动化验收并关闭阻断级缺陷；"
+                                        + "核心指标连续两次低于约定阈值时应暂停发布并回滚。"))),
+                // S2 两份合同中同一条款的来源身份（相同正文不得合并）
+                new PairedScenario("S2-相同条款来源身份", "对比两份合同模板里重大变更审批条款是否一致",
+                        q -> List.of(
+                                hit(contractA, 0, "重大变更审批", "重大变更须经项目负责人书面批准后方可实施。", 0.9),
+                                hit(contractB, 0, "重大变更审批", "重大变更须经项目负责人书面批准后方可实施。", 0.9)),
+                        List.of(new Fact("项目负责人书面批准",
+                                List.of(chunkKey("合同模板甲.md", 0), chunkKey("合同模板乙.md", 0)))),
+                        List.of(toolCall("s2-search", "search_project_knowledge",
+                                        json.createObjectNode().put("query", "重大变更审批要求")),
+                                finalText("两份合同的重大变更审批条款完全一致：均须经项目负责人书面批准后方可实施。")),
+                        List.of(toolCall("s2-delegate", "delegate_document_research",
+                                        json.createObjectNode().put("objective", "比对两份合同模板的重大变更审批条款并给出真实来源")),
+                                finalText("依据子研究：两份合同模板关于重大变更的审批要求完全一致，均须经项目负责人书面批准。")),
+                        List.of(toolCall("s2-child-search", "search_project_knowledge",
+                                        json.createObjectNode().put("query", "重大变更审批要求")),
+                                finalText("研究发现：合同模板甲与合同模板乙的条款一致，均须经项目负责人书面批准后方可实施。"))),
+                // S3 指定文档范围（问题点名《批量导出规范》）
+                new PairedScenario("S3-指定文档范围", "根据《批量导出规范》说明导出文件保留多久",
+                        q -> List.of(
+                                hit(exports, 0, "文件保留",
+                                        "已完成的导出文件在临时存储区保存二十四小时，过期后自动清理。", 0.9),
+                                hit(archive, 0, "归档周期", "业务记录每季度归档一次，归档副本整体保留五年。", 0.7)),
+                        List.of(new Fact("二十四小时", List.of(chunkKey("批量导出规范.md", 0)))),
+                        List.of(toolCall("s3-search", "search_project_knowledge",
+                                        json.createObjectNode().put("query", "导出文件保留多久")
+                                                .set("documentIds", json.createArrayNode().add(exports.toString()))),
+                                finalText("导出文件在临时存储区保留二十四小时，过期后自动清理。")),
+                        List.of(toolCall("s3-delegate", "delegate_document_research",
+                                        json.createObjectNode().put("objective", "在《批量导出规范》内查证导出文件保留时长并给出真实来源")),
+                                finalText("依据子研究：导出文件在临时存储区保留二十四小时，过期后自动清理。")),
+                        List.of(toolCall("s3-child-search", "search_project_knowledge",
+                                        json.createObjectNode().put("query", "导出文件保留多久")
+                                                .set("documentIds", json.createArrayNode().add(exports.toString()))),
+                                finalText("研究发现：导出文件在临时存储区保存二十四小时，过期后自动清理。"))),
+                // S4 资料不足时拒绝编造
+                new PairedScenario("S4-资料不足拒绝编造", "审计日志必须保留多少年",
+                        q -> List.of(),
+                        List.of(),
+                        List.of(toolCall("s4-search", "search_project_knowledge",
+                                        json.createObjectNode().put("query", "审计日志必须保留多少年")),
+                                finalText("当前项目资料不足以回答审计日志的保留年限，未在已索引文档中找到依据。")),
+                        List.of(toolCall("s4-delegate", "delegate_document_research",
+                                        json.createObjectNode().put("objective", "查证审计日志保留年限并如实报告是否资料不足")),
+                                finalText("依据子研究：资料不足，无法确定审计日志保留年限，未编造年限。")),
+                        List.of(toolCall("s4-child-search", "search_project_knowledge",
+                                        json.createObjectNode().put("query", "审计日志必须保留多少年")),
+                                finalText("研究发现：未找到相关依据，资料不足。"))),
+                // S5 工具失败时的诚实降级
+                new PairedScenario("S5-工具失败诚实降级", "读取一份不存在的文档并总结其内容",
+                        q -> List.of(),
+                        List.of(),
+                        List.of(toolCall("s5-read", "read_document_section",
+                                        json.createObjectNode().put("documentId", missing.toString())),
+                                finalText("无法读取该文档，未取得可引用的正文证据。")),
+                        List.of(toolCall("s5-delegate", "delegate_document_research",
+                                        json.createObjectNode().put("objective", "尝试读取指定文档并如实报告读取失败")),
+                                finalText("依据子研究：无法读取文档，未取得可引用证据。")),
+                        List.of(toolCall("s5-child-read", "read_document_section",
+                                        json.createObjectNode().put("documentId", missing.toString())),
+                                finalText("研究发现：读取失败，无可用证据。"))));
+
+        for (PairedScenario scenario : scenarios) {
+            PairedMetrics direct = runMode(scenario, false);
+            PairedMetrics delegated = runMode(scenario, true);
+            Map<String, Object> comparison = new LinkedHashMap<>();
+            comparison.put("scenario", scenario.name());
+            comparison.put("question", scenario.goal());
+            comparison.put("direct", describeMetrics(direct));
+            comparison.put("delegated", describeMetrics(delegated));
+            comparison.put("deltaDelegatedMinusDirect", deltaMetrics(direct, delegated));
+            PAIRED_COMPARISONS.put(scenario.name(), comparison);
+
+            // 公平对照的硬性事实：同一问题、同一批文档、同一组输入事实。
+            assertThat(direct.status()).as("%s：直接研究必须成功", scenario.name())
+                    .isEqualTo("SUCCEEDED");
+            assertThat(delegated.status()).as("%s：委派研究必须成功", scenario.name())
+                    .isEqualTo("SUCCEEDED");
+            assertThat(direct.factsCovered())
+                    .as("%s：两种模式必须覆盖同一组输入事实", scenario.name())
+                    .isEqualTo(delegated.factsCovered());
+            assertThat(direct.unsupportedFacts()).as("%s：直接研究不得有无依据断言", scenario.name()).isZero();
+            assertThat(delegated.unsupportedFacts()).as("%s：委派研究不得有无依据断言", scenario.name()).isZero();
+            assertThat(delegated.collectionComplete()).as("%s：父子结果回收必须完整", scenario.name()).isTrue();
+            assertThat(delegated.childRuns()).as("%s：委派必须产生恰好一个只读子运行", scenario.name()).isEqualTo(1);
+            // 资料不足/工具失败场景：两种模式都不得补造来源。
+            if (scenario.facts().isEmpty()) {
+                assertThat(direct.citationsTotal()).as("%s：无证据时不得携带来源", scenario.name()).isZero();
+                assertThat(delegated.citationsTotal()).as("%s：无证据时不得携带来源", scenario.name()).isZero();
+            }
+            // 指定文档范围场景：不得引用范围外文档。
+            if (scenario.name().startsWith("S3-")) {
+                assertThat(direct.wrongCitations()).as("指定范围不得越界引用").isZero();
+                assertThat(delegated.wrongCitations()).as("指定范围不得越界引用").isZero();
+            }
+        }
+    }
+
+    private PairedMetrics runMode(PairedScenario scenario, boolean delegated) {
+        parentResponses.clear();
+        childResponses.clear();
+        parentResponses.addAll(delegated ? scenario.delegatedParent() : scenario.directParent());
+        childResponses.addAll(delegated ? scenario.delegatedChild() : List.of());
+        searchResolver = scenario.search();
+        int callsBefore = modelCalls.get();
+        long started = System.nanoTime();
+        AgentRunView run = pairedRun(scenario.goal());
+        AgentWorkerOutcome outcome = drive(run);
+        long elapsedMs = (System.nanoTime() - started) / 1_000_000;
+        return metrics(scenario, delegated, run, outcome, modelCalls.get() - callsBefore, elapsedMs);
+    }
+
+    private AgentRunView pairedRun(String goal) {
+        AgentRunView run = repository.createRun(project, session, user, goal, false, null, null);
+        // 两种模式共用同一总预算限制，保证对照公平。
+        jdbc.update("UPDATE agent_run SET max_steps=12, max_tool_calls=8, max_children=2 WHERE id=?",
+                run.id());
+        repository.claimNext("w-paired", OffsetDateTime.now(), Duration.ofMinutes(6)).orElseThrow();
+        return repository.findRun(project, run.id()).orElseThrow();
+    }
+
+    private PairedMetrics metrics(PairedScenario scenario, boolean delegated, AgentRunView run,
+                                  AgentWorkerOutcome outcome, int modelCallsUsed, long elapsedMs) {
+        String rawAnswer = finalAnswer(run);
+        String answer = rawAnswer == null ? "" : rawAnswer;
+        // 引用载荷同时包含 documentId 与 chunkId：只把“真实来源分块（chunkId）”计为来源引用。
+        java.util.Set<UUID> allChunks = new java.util.LinkedHashSet<>(chunkIds.values());
+        java.util.Set<UUID> citations = new java.util.LinkedHashSet<>();
+        String rawCitations = finalCitations(run);
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+                .matcher(rawCitations == null ? "[]" : rawCitations);
+        while (matcher.find()) {
+            UUID cited = UUID.fromString(matcher.group());
+            if (allChunks.contains(cited)) citations.add(cited);
+        }
+
+        java.util.Set<UUID> allowed = new java.util.LinkedHashSet<>();
+        for (Fact fact : scenario.facts()) {
+            for (String key : fact.chunkKeys()) {
+                UUID id = chunkIds.get(key);
+                if (id != null) allowed.add(id);
+            }
+        }
+        int covered = 0;
+        int unsupported = 0;
+        for (Fact fact : scenario.facts()) {
+            if (!answer.contains(fact.marker())) continue;
+            covered++;
+            boolean backed = fact.chunkKeys().stream().map(chunkIds::get).anyMatch(citations::contains);
+            if (!backed) unsupported++;
+        }
+        int supported = 0;
+        int wrong = 0;
+        for (UUID citation : citations) {
+            if (allowed.contains(citation)) supported++;
+            else wrong++;
+        }
+        var view = repository.findRun(project, run.id()).orElseThrow();
+        int childRuns = repository.childRuns(project, run.id()).size();
+        boolean collectionComplete = !delegated
+                || (childRuns == 1 && steps(run, "DELEGATION_COMPLETED") == 1);
+        int gaps = delegated ? coverageGapCount(run) : 0;
+        return new PairedMetrics(delegated ? "DELEGATED" : "DIRECT",
+                outcome == null ? "NULL" : outcome.status().name(),
+                scenario.facts().size(), covered, unsupported,
+                citations.size(), supported, wrong, gaps,
+                modelCallsUsed, view.toolCallsUsed(), childRuns, collectionComplete,
+                view.stepsUsed(), view.inputTokensUsed(), view.outputTokensUsed(), elapsedMs);
+    }
+
+    private int coverageGapCount(AgentRunView run) {
+        List<Integer> rows = jdbc.queryForList("""
+                SELECT jsonb_array_length(output_json->'coverage'->'gaps') FROM agent_step
+                WHERE run_id=? AND type='DELEGATION_COMPLETED'
+                """, Integer.class, run.id());
+        return rows.isEmpty() || rows.getFirst() == null ? -1 : rows.getFirst();
+    }
+
+    private static Map<String, Object> describeMetrics(PairedMetrics metrics) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("mode", metrics.mode());
+        item.put("status", metrics.status());
+        item.put("factsTotal", metrics.factsTotal());
+        item.put("factsCovered", metrics.factsCovered());
+        item.put("unsupportedFacts", metrics.unsupportedFacts());
+        item.put("citationsTotal", metrics.citationsTotal());
+        item.put("citationsSupported", metrics.citationsSupported());
+        item.put("wrongCitations", metrics.wrongCitations());
+        item.put("coverageGaps", metrics.coverageGaps());
+        item.put("modelCalls", metrics.modelCalls());
+        item.put("toolCalls", metrics.toolCalls());
+        item.put("childRuns", metrics.childRuns());
+        item.put("childResultCollectionComplete", metrics.collectionComplete());
+        item.put("stepsUsed", metrics.stepsUsed());
+        item.put("inputTokensUsed", metrics.inputTokens());
+        item.put("outputTokensUsed", metrics.outputTokens());
+        item.put("elapsedMs", metrics.elapsedMs());
+        return item;
+    }
+
+    private static Map<String, Object> deltaMetrics(PairedMetrics direct, PairedMetrics delegated) {
+        Map<String, Object> delta = new LinkedHashMap<>();
+        delta.put("factsCovered", delegated.factsCovered() - direct.factsCovered());
+        delta.put("unsupportedFacts", delegated.unsupportedFacts() - direct.unsupportedFacts());
+        delta.put("citationsTotal", delegated.citationsTotal() - direct.citationsTotal());
+        delta.put("wrongCitations", delegated.wrongCitations() - direct.wrongCitations());
+        delta.put("modelCalls", delegated.modelCalls() - direct.modelCalls());
+        delta.put("toolCalls", delegated.toolCalls() - direct.toolCalls());
+        delta.put("stepsUsed", delegated.stepsUsed() - direct.stepsUsed());
+        delta.put("inputTokensUsed", delegated.inputTokens() - direct.inputTokens());
+        delta.put("outputTokensUsed", delegated.outputTokens() - direct.outputTokens());
+        delta.put("elapsedMs", delegated.elapsedMs() - direct.elapsedMs());
+        return delta;
     }
 
     // ============================================================ 驱动与装配
@@ -623,6 +903,7 @@ class AgentResearchQualityPostgresTest {
                 + "脚本化模型轮次）。度量委派受理/回收/来源身份保真与失败如实降级，不代表真实模型回答质量。"
                 + "真实 Chat 供应商限流时该层为 BLOCKED_EXTERNAL。");
         document.put("scenarios", SCENARIOS);
+        document.put("pairedDirectVsDelegated", PAIRED_COMPARISONS);
         Files.createDirectories(EVIDENCE_PATH.getParent());
         Files.writeString(EVIDENCE_PATH,
                 json.writerWithDefaultPrettyPrinter().writeValueAsString(document), StandardCharsets.UTF_8);
