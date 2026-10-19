@@ -251,10 +251,11 @@ P2 **不能正式关闭**。以下为需显式接受或继续跟踪的遗留项�
 ## 8. Git 与 CI
 
 - 开工基线：`9d9d2f246311365a71f19bf6c464eff7c4dc6aa4`（本地 `dev` 与 `origin/dev` 一致，工作区无预存修改）。
-- 本轮代码与验收资料提交：`__CODE_SHA__`，普通快进推送至 `dev`，**未 force push、未硬重置、未清理数据卷**。
+- 本轮代码与验收资料提交：`a266a2b4b35fb1788388cb1b4872f397f504f26d`，普通快进推送至 `dev`（`9d9d2f2..a266a2b`），**未 force push、未硬重置、未清理数据卷**。
 - 工作区保留说明：仅在本机新增/修改前端 agent 模块文件与验收证据目录；未改动后端源码、迁移或既有数据。
 - 配套：为通过 `dev.ps1` 的依赖检查，在本机用户级 PATH 增加了一个 `pnpm` 转发脚本（`%USERPROFILE%\.local\bin\pnpm.cmd → corepack pnpm`），**不属于仓库内容**，不影响代码与 CI。
 
 ### GitHub Actions
 
-- 代码提交对应 CI：**待推送后回填**（`__CI_PLACEHOLDER__`）。
+- 代码提交对应 CI：[CI run 39298097447](https://github.com/BangShou1st/ai-collab/actions/runs/39298097447)，head SHA `a266a2b4b35fb1788388cb1b4872f397f504f26d`，整体 **success**：`Frontend (pnpm)` 与 `Backend (Maven verify)` 两个 job 均 `success`；Backend job 实际执行了 Testcontainers + Flyway 的构建与容器测试。
+- 本节在代码提交 CI 完成后补记。本次 README 元数据提交的 CI 状态在其推送后由最终交付消息列明。
