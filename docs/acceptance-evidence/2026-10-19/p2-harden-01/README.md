@@ -72,4 +72,6 @@
 
 ## Git 与 CI
 
-代码提交 SHA、推送结果及最终 SHA 的 CI 状态将在提交后补记。不得以本地通过替代远端 CI 结果。
+代码提交：`9397ceb424be72a8ebbe09be1049b5d0322d7b94`，已普通快进推送至 `dev`，未 force push。对应 GitHub Actions [CI run 39280801480](https://github.com/BangShou1st/ai-collab/actions/runs/39280801480) 的 head SHA 与提交一致，整体 **success**：Frontend (pnpm) 和 Backend (Maven verify) 均通过；Backend job 确认 Testcontainers 容器测试实际执行。
+
+本段将在代码提交的 CI 完成后补记。本 README 元数据更新会产生新的最终提交，其 CI 状态在最终交付中另行核对；不得以本地通过替代远端 CI 结果。
