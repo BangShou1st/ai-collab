@@ -313,6 +313,7 @@ B（相关度保护：相对全局第 N 名门槛 + 为全局竞争预留名额�
 - 另行确定性回归：37 tests，0 failures / errors / skipped；包含 R1 Agent 成功/失败/限流/预算策略、scope 范围、研究引用身份、Kilo 429/超时/5xx 分类和 SOURCE_CAP parity。
 - clean 后真实 Ollama opt-in：3/3 通过，范围修正后分桶与表格一致。SOURCE_CAP 固定 E1–E6 实验和 parity 各 1/1 通过。
 - 真实 Kilo Agent-loop：R1 在首次三场景执行中完整通过；R2/R3 首次的模型输出真实且 run 状态为 `SUCCEEDED`，答案正则替代分支的未分组写法造成两次误报。修复后 R2 和 R3 各单独做了一次有界复验，均 1/1 通过所有来源/拒答断言。三题均有成功真实工具调用和真实模型输出；首次结果分别为 2 次模型调用，耗时 28.812s / 11.894s / 9.918s，均在每场景 12 次 / 180s 限制内。没有遇到限流或绕过限流。
-- 最终提交 SHA：推送后填写。GitHub Actions CI：推送后填写运行链接。
+- 本次实现提交 SHA：`e7498a27a517c80a59619f004dc20023d123bb2f`。
+- 该实现提交的 GitHub Actions CI（Frontend + Backend）全绿：[run 39185118045](https://github.com/BangShou1st/ai-collab/actions/runs/39185118045)。
 
 ---
