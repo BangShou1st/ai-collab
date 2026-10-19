@@ -215,9 +215,14 @@ B（相关度保护：相对全局第 N 名门槛 + 为全局竞争预留名额�
 
 ---
 
-## 8. 回归与 CI（待第 8 节回填实跑结果）
+## 8. 回归与 CI 结果
 
-见最终交付报告。本地全量 `clean verify`、前端 `pnpm lint/typecheck/test/build`、GitHub CI（Backend/Frontend）结果将一并给出。
+- **全量后端 `mvn clean verify`（本地，Docker 可用）**：**Tests run: 1488, Failures: 0, Errors: 0, Skipped: 18 → BUILD SUCCESS**（Total time 07:28）。
+  - 对比上轮 1476 项：新增 B1 硬门槛类 7 项、阶段 D 实验 1 项、C1 同题对照 1 项（`AgentResearchQualityPostgresTest` 由 6 → 7），共 +12（另含既有用例）。
+  - 跳过 18 项 = 上轮 15 项环境门控 + 新增 `RealAgentLoopPostgresTest` 3 项（`AI_REAL_AGENT_LOOP` 未启用时整类跳过）；**真实 Ollama 与真实 Agent-loop 均为 Opt-in，普通 CI 不联网**。
+  - **Testcontainers 非跳过守卫**：本轮把 `RetrievalQualityHardGatePostgresTest`（7 项，实跑 0 跳过）与 `AgentResearchQualityPostgresTest`（7 项，实跑 0 跳过）加入 `.github/workflows/ci.yml` 的“容器用例必须真跑”名单；整类被跳过即判失败。
+- **前端**：本轮**无前端源码改动**；前端 CI 由 GitHub Actions（pnpm 11.9.0 / lint / typecheck / test / build）按既有流程验证。
+- **GitHub CI**：`dev` push 后由 Backend（Maven verify + 容器守卫）与 Frontend 两个 job 验证，结果见最终交付报告。
 
 ## 9. 可复查产物
 
