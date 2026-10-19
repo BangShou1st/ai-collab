@@ -1,0 +1,66 @@
+{
+  "note": "P3-ENTRY-01 受控真实验证的脱敏网络/控制台元数据。已移除 Cookie、请求/响应头、查询串、正文与完整业务 UUID；运行 ID 以占位符替代。",
+  "environment": {
+    "browser": "Microsoft Edge 155.0.4283.62",
+    "tool": "BrowserSkill CLI/扩展 0.3.3",
+    "frontend": "http://localhost:5173",
+    "backend": "http://localhost:8080",
+    "viewport": "1544x847 (标准桌面)"
+  },
+  "scenarios": [
+    {
+      "id": "S1",
+      "title": "运行中页面重载导致的 SSE 中断（真实 ERR_ABORTED 再现）",
+      "method": "在 Agent 运行（真实免费 Kilo 模型 cohere/north-mini-code:free）进行中重载页面，客户端主动取消 SSE 流。",
+      "observed": [
+        {
+          "route": "/api/v1/projects/{projectId}/agent/runs/{runId}/events",
+          "method": "GET",
+          "status": 200,
+          "mime": "text/event-stream",
+          "note": "SSE 流建立成功"
+        },
+        {
+          "route": "/api/v1/projects/{projectId}/agent/runs/{runId}/events",
+          "method": "GET",
+          "outcome": "failure",
+          "error_text": "net::ERR_ABORTED",
+          "note": "与历史 P2 记录的 ERR_ABORTED 同型"
+        }
+      ],
+      "attribution": "该 ERR_ABORTED 由客户端页面重载触发（本地主动取消）。按本轮新增规则，应用不产生意外断线记录；因此『有 [agent-sse] 记录＝意外断线』『无记录＋网络 ERR_ABORTED＝客户端取消或页面卸载』可区分。",
+      "recovery": "重载后页面按 afterSequence 从持久事件重建时间线，运行状态与消息均正确恢复；最终回答只出现一次。"
+    },
+    {
+      "id": "S2",
+      "title": "受控 SSE 传输中断（在运行中停止前端开发代理），观察到脱敏断线诊断",
+      "method": "Agent 运行进行中（真实免费模型，SSE 已连接）停止本机前端开发代理进程，使 SSE 传输路径中断；页面保持加载（未重载）。",
+      "console_records": [
+        {
+          "tag": "[agent-sse]",
+          "record": {
+            "scope": "agent.sse",
+            "phase": "disconnect",
+            "category": "NETWORK",
+            "runId": "<redacted-run-uuid>",
+            "lastSequence": 12,
+            "attempt": 1
+          }
+        }
+      ],
+      "ui_state_observed": "SSE 重连中（传输中断 · 断线前 seq 8 / 12 · 第 4 / 5 次尝试）",
+      "bounding": "传输中断后多次重连失败（浏览器控制台出现多次 ERR_CONNECTION_RESET / ERR_CONNECTION_REFUSED），而 [agent-sse] 只输出 1 条 disconnect 记录——『一次连续断线只记录一次』的区间收敛生效。"
+    },
+    {
+      "id": "S3",
+      "title": "传输恢复后的功能恢复",
+      "method": "重新启动前端开发代理后，同一 Agent 运行继续，最终产出带真实来源标签的回答。",
+      "observed": "回答含 project-release-standards.md 与 rollback-rules.md 的真实来源标记（来源引用对应真实 READY 文档分块）；会话中该运行的最终回答只出现一次，无重复终态消息。",
+      "limitation": "本环境仅能通过重启『承载页面的 Vite 开发服务器』来中断 SSE 传输；该操作会同时重载页面（已用 window 标记验证：标记在重启后丢失），因此在同一页面内发出 phase=recovered 的 [agent-sse] 记录未能在此环境复现。recovered 记录与『断线区间复位』由单元测试覆盖（agent-sse-diagnostics.test.ts）。"
+    }
+  ],
+  "not_tested": {
+    "real_provider_429_injection": "未执行（不通过大量真实模型请求或耗尽额度制造错误）。",
+    "backend_kill_break": "停止后端进程不会使经 Vite 代理的客户端 SSE 断开（代理保持下游连接），未产生客户端可见断线。"
+  }
+}
