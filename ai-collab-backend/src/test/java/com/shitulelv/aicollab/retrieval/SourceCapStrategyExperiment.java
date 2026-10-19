@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.retrieval;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.knowledge.domain.service.CrossDocumentSourceSelector;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
+import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptText;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -19,8 +20,9 @@ import java.util.UUID;
  * D-RAG-01C 第二轮 阶段 D：<b>SOURCE_CAP 选择策略对照</b>（实验用，仅存在于测试源码）。
  *
  * <p>本类<b>不进入生产路径</b>：策略 A 直接委托生产 {@link CrossDocumentSourceSelector}；
- * 策略 B 是“相关度保护”实验版本。两者都通过<b>同一个</b>测试侧装配器 {@link #assemble} 组上下文，
- * 因此候选输入、最终 source limit、正文预算三者完全相同，差异只来自选择策略本身。</p>
+ * 策略 B 是“相关度保护”实验版本。A 的选择结果经 {@link #assemble} 后由 parity test 与生产
+ * {@code buildDiverse} 对齐；B 的选中来源是测试侧反事实，因此相关度收益必须报告为近似实验指标，
+ * 不能称作生产上下文的实际提升。</p>
  *
  * <p>策略 B 的规则：保留现有“每文档一个代表”的多样性意图，但加两道相关度保护——
  * ① <b>相对全局第 N 名门槛</b>：某文档的最佳分块若比全局第 maxSources 名的相似度还低，
@@ -35,6 +37,8 @@ final class SourceCapStrategyExperiment {
     /** 实验侧的最小装配预算：与生产一致（12 来源、8000 code point、单条正文下限 120）。 */
     static final int MAX_PROMPT_SOURCE_CODE_POINTS = 8000;
     static final int MIN_SOURCE_BODY_CODE_POINTS = 120;
+    private static final int MAX_PROMPT_FILENAME_CODE_POINTS = 180;
+    private static final int MAX_PROMPT_HEADING_CODE_POINTS = 300;
 
     /** 策略 B 为全局竞争预留的名额数（maxSources 的六分之一，至少 1）。 */
     static int globalFillReserve(int maxSources) {
@@ -98,28 +102,36 @@ final class SourceCapStrategyExperiment {
     /** 装配结果：保留的分块/文档身份、上下文字符预算占用与来源数。 */
     record Assembled(List<UUID> chunkIds, Set<UUID> documentIds, int promptCodePoints, int sourceCount) {}
 
-    /**
-     * 测试侧装配器：对给定<b>有序选择</b>施加与生产 {@code buildDiverse} 相同的公平预算分配。
-     * A/B 两种策略共用它，保证“相同最终 source limit、相同正文预算”。
-     */
+    /** Mirrors production buildDiverse assembly; SourceCapStrategyExperimentParityTest locks parity for A. */
     static Assembled assemble(List<DocumentSearchHit> ordered, int maxSources) {
+        if (maxSources < 1 || maxSources > KnowledgeContextBuilder.MAX_SOURCES_LIMIT) {
+            throw new IllegalArgumentException("maxSources 超出生产范围");
+        }
         List<UUID> retainedChunks = new ArrayList<>();
         Set<UUID> retainedDocuments = new LinkedHashSet<>();
         int remaining = MAX_PROMPT_SOURCE_CODE_POINTS;
         for (int index = 0; index < ordered.size() && retainedChunks.size() < maxSources; index++) {
             DocumentSearchHit hit = ordered.get(index);
-            String prefix = "\\n\\n[S" + (retainedChunks.size() + 1) + "]\\n文件：" + safe(hit.originalFilename())
-                    + "\\n标题：" + safe(hit.heading()) + "\\n内容：";
+            String separator = retainedChunks.isEmpty() ? "" : "\n\n";
+            String filename = KnowledgePromptText.escapeXmlText(
+                    hit.originalFilename(), MAX_PROMPT_FILENAME_CODE_POINTS).escaped();
+            String heading = KnowledgePromptText.escapeXmlText(
+                    hit.heading(), MAX_PROMPT_HEADING_CODE_POINTS).escaped();
+            String prefix = separator
+                    + "[S" + (retainedChunks.size() + 1) + "]\n"
+                    + "文件：" + filename + "\n"
+                    + "标题：" + heading + "\n"
+                    + "内容：";
             int prefixLength = prefix.codePointCount(0, prefix.length());
             if (prefixLength >= remaining) break;
             int available = remaining - prefixLength;
             int sourcesLeft = Math.max(1, ordered.size() - index);
             int allowance = available / sourcesLeft;
             if (allowance < MIN_SOURCE_BODY_CODE_POINTS) break;
-            String content = hit.content() == null ? "" : hit.content();
-            int body = Math.min(content.codePointCount(0, content.length()), allowance);
-            if (body <= 0) continue;
-            remaining -= prefixLength + body;
+            KnowledgePromptText.EscapedText content = KnowledgePromptText.escapeXmlText(hit.content(), allowance);
+            if (content.original().isBlank()) continue;
+            int bodyCodePoints = content.escaped().codePointCount(0, content.escaped().length());
+            remaining -= prefixLength + bodyCodePoints;
             retainedChunks.add(hit.id());
             retainedDocuments.add(hit.documentId());
         }
@@ -127,7 +139,4 @@ final class SourceCapStrategyExperiment {
                 MAX_PROMPT_SOURCE_CODE_POINTS - remaining, retainedChunks.size());
     }
 
-    private static String safe(String value) {
-        return value == null ? "" : value;
-    }
 }

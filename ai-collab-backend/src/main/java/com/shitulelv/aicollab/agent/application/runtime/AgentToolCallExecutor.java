@@ -123,7 +123,7 @@ public class AgentToolCallExecutor {
         }
         AgentToolContext toolCtx = new AgentToolContext(
                 run.id(), run.projectId(), run.requesterId(),
-                ctx.projectRole(), run.scheduled(), run.depth());
+                ctx.projectRole(), run.scheduled(), run.depth(), null, run.goal());
 
         // ===== 阶段 1：验证所有工具调用（快速，无 I/O） =====
         List<ValidatedToolCall> validated = new ArrayList<>();

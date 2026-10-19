@@ -158,9 +158,11 @@ class KiloGatewayModelTest {
         when(client.chat(any())).thenThrow(new KiloGatewayException(429, "poolside", "quota"));
         var transport = new KiloGatewayClientTransport(client);
         assertThatThrownBy(() -> transport.chat(mapper.createObjectNode()))
-                .isInstanceOf(BusinessException.class)
-                .extracting(failure -> ((BusinessException) failure).getErrorCode())
-                .isEqualTo(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED);
+                .isInstanceOfSatisfying(ExternalProviderFailure.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED);
+                    assertThat(failure.kind()).isEqualTo(ExternalProviderFailure.Kind.RATE_LIMITED);
+                    assertThat(failure.statusCode()).isEqualTo(429);
+                });
     }
 
     @Test void onlyRootCauseTimeoutIsReportedAsTimeout() {
@@ -168,8 +170,10 @@ class KiloGatewayModelTest {
         when(timedOut.chat(any())).thenThrow(new KiloGatewayException(-1, "",
                 "Kilo API connection failed", new java.net.http.HttpTimeoutException("read timeout")));
         assertThatThrownBy(() -> new KiloGatewayClientTransport(timedOut).chat(mapper.createObjectNode()))
-                .extracting(failure -> ((BusinessException) failure).getErrorCode())
-                .isEqualTo(ErrorCode.AI_MODEL_TIMEOUT);
+                .isInstanceOfSatisfying(ExternalProviderFailure.class, failure -> {
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_MODEL_TIMEOUT);
+                    assertThat(failure.kind()).isEqualTo(ExternalProviderFailure.Kind.UPSTREAM_TIMEOUT);
+                });
 
         // 连接失败 / SSE 中断 / 解码失败同样报告 -1，不得伪装成超时。
         var interrupted = mock(KiloGatewayClient.class);
@@ -179,6 +183,18 @@ class KiloGatewayModelTest {
                 .streamChat(mapper.createObjectNode(), chunk -> { }))
                 .extracting(failure -> ((BusinessException) failure).getErrorCode())
                 .isEqualTo(ErrorCode.AI_PROVIDER_ERROR);
+    }
+
+    @Test void upstream5xxIsTypedAsAnExternalProviderFailure() {
+        var client = mock(KiloGatewayClient.class);
+        when(client.chat(any())).thenThrow(new KiloGatewayException(503, "poolside", "unavailable"));
+
+        assertThatThrownBy(() -> new KiloGatewayClientTransport(client).chat(mapper.createObjectNode()))
+                .isInstanceOfSatisfying(ExternalProviderFailure.class, failure -> {
+                    assertThat(failure.kind()).isEqualTo(ExternalProviderFailure.Kind.UPSTREAM_5XX);
+                    assertThat(failure.statusCode()).isEqualTo(503);
+                    assertThat(failure.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_ERROR);
+                });
     }
 
     @Test void incompleteStreamMapsToInvalidResponse() {

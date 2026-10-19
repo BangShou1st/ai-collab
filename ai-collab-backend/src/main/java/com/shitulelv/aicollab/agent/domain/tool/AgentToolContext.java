@@ -9,9 +9,16 @@ public record AgentToolContext(
         String role,
         boolean scheduled,
         int depth,
-        UUID invocationId) {
+        UUID invocationId,
+        String userGoal) {
     public AgentToolContext(UUID runId,UUID projectId,UUID userId,String role,boolean scheduled,int depth) {
-        this(runId,projectId,userId,role,scheduled,depth,null);
+        this(runId,projectId,userId,role,scheduled,depth,null,null);
     }
-    public AgentToolContext withInvocationId(UUID id) {return new AgentToolContext(runId,projectId,userId,role,scheduled,depth,id);}
+    public AgentToolContext(UUID runId, UUID projectId, UUID userId, String role,
+                            boolean scheduled, int depth, UUID invocationId) {
+        this(runId, projectId, userId, role, scheduled, depth, invocationId, null);
+    }
+    public AgentToolContext withInvocationId(UUID id) {
+        return new AgentToolContext(runId, projectId, userId, role, scheduled, depth, id, userGoal);
+    }
 }
