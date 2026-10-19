@@ -5,7 +5,8 @@
 - 验收基线：`df330bace37d41a59798e39c42e5f7cf81c9d130`，分支 `dev`。
 - 环境：Windows；前端 `http://localhost:5173`，后端 `http://localhost:8080`；PostgreSQL 17/pgvector、Redis、MinIO 使用现有 Docker 容器与数据卷。
 - 浏览器验收：BrowserSkill CLI/扩展 `0.3.3`，Microsoft Edge `155`。真实浏览器操作分别使用 BSK session `woiv`、`yjqw`；Ollama 配置及复测 run 为 `de4e739a44050`。
-- 最终提交 SHA 与 GitHub Actions URL 在推送后由提交记录及 CI 结果补充到最终报告。
+- 本轮代码与验收资料提交：`005edffa0534d282ec5a1177e3469c3f7a706fd6`（分支 `dev`）。
+- GitHub Actions CI：成功，run [39219465802](https://github.com/BangShou1st/ai-collab/actions/runs/39219465802)，前端及后端 Maven/Testcontainers 检查全部通过。
 - 所有新建项目、文档、任务、账户均为合成验收数据。文档正文和网络请求正文不提交。
 
 ## Ollama 与文档分块
@@ -85,7 +86,7 @@
 - 后端：`.\mvnw.cmd clean verify`，`BUILD SUCCESS`；1,516 项，0 失败，0 错误，18 跳过。Postgres/pgvector Testcontainers 集成用例运行通过；18 项均要求显式设置 `AI_*` opt-in 开关（含 `AI_OLLAMA_SMOKE`、真实 Agent/检索和可靠性验收），本轮未启用这些专用烟测。
 - 前端：`pnpm lint` 通过，0 errors、79 warnings；`pnpm typecheck` 通过；`pnpm test` 通过，41 个测试文件、239 项；`pnpm build` 通过。构建仅有现存的 PURE 注释及大 chunk 提示。
 - `git diff --check`：通过。
-- GitHub Actions：推送 `dev` 后等待实际 CI 结果，并以最终报告中的 Actions 链接为准。
+- GitHub Actions：提交 `005edffa0534d282ec5a1177e3469c3f7a706fd6` 对应的 [CI run 39219465802](https://github.com/BangShou1st/ai-collab/actions/runs/39219465802) 成功；前端和后端 Maven/Testcontainers job 均通过。
 
 ## 结论
 
