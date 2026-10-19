@@ -134,4 +134,6 @@ RAG 和 Agent 本轮没有代码修改；没有数据库迁移或依赖变更。
 ## Git 与 CI 交付
 
 - 开工时本地 `dev` 与 `origin/dev` 均为 `80dc61b1150256491a90d2d2f9c3de403b609d52`，无预存工作区修改。
-- 修复、报告、脱敏网络记录会按用户授权提交并推送到 `dev`；提交 SHA、远端 SHA、最终 GitHub Actions run 与工作区状态将在最终提交及 CI 完成后补入本节。
+- 修复代码、截图及脱敏网络证据提交：`c0effb878f27e367590b0274053f4c0c9b474016`，分支 `dev`；推送后远端 `origin/dev` 与该提交一致。
+- 对应 GitHub Actions [CI run 39261506192](https://github.com/BangShou1st/ai-collab/actions/runs/39261506192) 成功，head SHA 为 `c0effb878f27e367590b0274053f4c0c9b474016`。Frontend (pnpm) 与 Backend (Maven verify) 两个 job 均通过；后端 Testcontainers + Flyway 构建及容器测试断言通过。
+- 本节在上述代码提交 CI 结束后补记。报告元数据的后续 README-only 提交及其 CI 状态记入最终交付消息；不改变代码验收结果。
