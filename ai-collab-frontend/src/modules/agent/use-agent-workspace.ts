@@ -12,10 +12,17 @@ import { reduceAgentActivities, currentModelFromEvents } from './agent-activity'
 import { buildConversationBlocks, type ConversationBlock } from './conversation-blocks'
 import { RUN_STATUS_LABEL } from './agent-labels'
 import { useAuthStore } from '../../stores/auth-store'
+import { AgentSseDiagnosticTracker, describeAgentSseDisconnect, emitAgentSseDiagnostic, type AgentSseDiagnosticSnapshot } from './agent-sse-diagnostics'
 import type { AgentApproval, AgentContentFrame, AgentMessage, AgentPageContext, AgentPlanView, AgentRun, AgentRunDetail, AgentRunEvent, AgentSession, AgentSessionSummary, AgentSkill } from './types'
 
 /** 正文预览展示上限：到限仅停止追加展示，不影响后台生成与持久化。 */
 const CONTENT_PREVIEW_MAX_CHARS = 8000
+
+/** 流可正常结束的运行状态：这些状态下服务端送出终态事件后关闭连接，不算意外断线。 */
+const SETTLED_RUN_STATUSES = new Set([
+  'SUCCEEDED', 'FAILED', 'FAILED_RETRYABLE', 'CANCELED', 'BUDGET_EXCEEDED',
+  'WAITING_FOR_APPROVAL', 'WAITING_FOR_USER_INPUT', 'PAUSED',
+])
 
 export interface ContentPreviewState {
   runId: string
@@ -194,6 +201,15 @@ export function useAgentWorkspace() {
   let streamController: AbortController | undefined
   // 组件卸载后到达的响应不得再触碰任何页面状态或重启事件订阅
   let disposed = false
+  // SSE 断线诊断（脱敏）：只记录非本地取消的意外断线与其恢复结果，用于归因历史 ERR_ABORTED。
+  // 本地主动取消（切会话/切项目/新建运行/暂停/卸载）不产生记录——浏览器网络层仍会显示
+  // ERR_ABORTED，因此"有记录"＝意外断线，"无记录 + 网络 ERR_ABORTED"＝客户端主动取消或页面卸载。
+  const sseTracker = new AgentSseDiagnosticTracker()
+  const sseDiagnostics = ref<AgentSseDiagnosticSnapshot>(sseTracker.snapshot())
+  function resetSseDiagnostics(): void {
+    sseTracker.reset()
+    sseDiagnostics.value = sseTracker.snapshot()
+  }
 
   function fail(reason: unknown, action: string): void {
     showApiError(reason, action)
@@ -250,6 +266,7 @@ export function useAgentWorkspace() {
     const pid = projectId.value
     const fresh = () => token === restoreSeq && projectId.value === pid && sessionId.value === id
     streamController?.abort()
+    resetSseDiagnostics()
     runDetail.value = null
     approvals.value = []
     timeline.value = emptyAgentTimeline()
@@ -457,6 +474,7 @@ export function useAgentWorkspace() {
   }
   function startEventStream(run: AgentRun) {
     streamController?.abort()
+    resetSseDiagnostics()
     streamController = new AbortController()
     timeline.value = emptyAgentTimeline(run)
     contentPreview.value = null
@@ -466,7 +484,6 @@ export function useAgentWorkspace() {
     const fresh = () => !controller.signal.aborted && timeline.value.run?.id === runId
     try {
       if (!fresh()) return
-      timeline.value.connected = true
       await streamAgentEvents(
         `/api/v1/projects/${projectId.value}/agent/runs/${runId}/events`,
         timeline.value.lastSequence,
@@ -478,9 +495,23 @@ export function useAgentWorkspace() {
           if (applyAgentEvent(timeline.value, event)) applyPreviewEvent(event)
         },
         frame => applyContentFrame(frame, fresh),
+        () => {
+          // 流已建立：只有拿到响应才标记"已连接"，并记录断线后是否已恢复
+          if (!fresh()) return
+          const recovered = sseTracker.opened(runId, timeline.value.lastSequence)
+          if (recovered) emitAgentSseDiagnostic(recovered)
+          timeline.value.connected = true
+          sseDiagnostics.value = sseTracker.snapshot()
+        },
       )
       if (!fresh()) return
       timeline.value.connected = false
+      // 运行尚未进入可正常结束的状态却收到流正常结束：服务端/代理提前关闭连接，也按意外断线记录
+      if (!controller.signal.aborted && !SETTLED_RUN_STATUSES.has(timeline.value.run?.status ?? '')) {
+        const ended = sseTracker.endedUnexpectedly(runId, timeline.value.lastSequence)
+        if (ended) emitAgentSseDiagnostic(ended)
+        sseDiagnostics.value = sseTracker.snapshot()
+      }
       if (!controller.signal.aborted) {
         const persisted = (await agentApi.run(projectId.value, runId)).data
         if (!fresh()) return
@@ -505,7 +536,11 @@ export function useAgentWorkspace() {
       if (!controller.signal.aborted) void consumeEventStream(runId, controller, Math.min(delayMs * 2, 5000))
     } catch (reason) {
       timeline.value.connected = false
+      // 本地主动取消是正常控制流，不产生诊断记录；只有意外断线才记录类别、序号与恢复结果
       if (controller.signal.aborted) return
+      const diagnostic = sseTracker.disconnected(runId, reason, false, timeline.value.lastSequence)
+      if (diagnostic) emitAgentSseDiagnostic(diagnostic)
+      sseDiagnostics.value = sseTracker.snapshot()
       await new Promise(resolve => window.setTimeout(resolve, delayMs))
       if (!controller.signal.aborted) void consumeEventStream(runId, controller, Math.min(delayMs * 2, 5000))
     }
@@ -678,6 +713,7 @@ export function useAgentWorkspace() {
     if (!next) return
     if (prev !== undefined && next !== prev) {
       streamController?.abort()
+      resetSseDiagnostics()
       sessionId.value = ''
       messages.value = []
       runDetail.value = null
@@ -703,6 +739,7 @@ export function useAgentWorkspace() {
     summaryOf, isCreator, relativeTime, runStatusLabel, evidenceTitle, evidenceDetail,
     statusDot, members, skills, selectedSkillCode, question, busy, sending,
     activeRun, timeline, activeRunState, pageContext, hasPageContext, contentPreview,
+    sseDiagnostics, describeAgentSseDisconnect,
     load, newSession, renameSession, deleteSession, send, removeContext, clearContext,
     approve, reject, approvalBusy, continueRunHandler, retryActiveRun, cancelActiveRun,
     pauseActiveRun, pauseBusy, pausePending, canPause, time,
