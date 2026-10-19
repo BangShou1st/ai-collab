@@ -77,6 +77,9 @@ jobs:
           # 覆盖上下文压缩、Flyway 迁移与运行恢复的关键真实 PostgreSQL 用例。
           # RetrievalCoveragePostgresTest 是 D-RAG-01A 的检索覆盖基线：用真实 pgvector
           # 观察向量候选与上下文保留；整类被跳过时同样判失败。
+          # RetrievalQualityHardGatePostgresTest 是 D-RAG-01C 第二轮的确定性质量硬门槛，
+          # AgentResearchQualityPostgresTest 是直接研究/委派同题对照（真实 PostgreSQL + 真实工具），
+          # 两者都必须真实执行，不得整类跳过（真实 Ollama 门槛为 Opt-in，不在此列）。
           # KiloGatewayPresetIsolationIntegrationTest 验证 V65 迁移与双预设隔离：同样不得整类跳过。
           required = [
               "com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest",
@@ -84,7 +87,9 @@ jobs:
               "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest",
               "com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest",
               "com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest",
+              "com.shitulelv.aicollab.retrieval.RetrievalQualityHardGatePostgresTest",
               "com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest",
+              "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest",
               "com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetIsolationIntegrationTest",
           ]
 

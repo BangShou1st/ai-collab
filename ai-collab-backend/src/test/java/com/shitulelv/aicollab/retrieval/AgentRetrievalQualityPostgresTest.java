@@ -37,9 +37,11 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,11 +58,17 @@ import static org.mockito.Mockito.when;
  * {@link ProjectEmbeddingGateway} 连本地 Ollama 取<b>真实语义向量</b>，回答
  * “真实模型下全项目范围证据召回、跨文档覆盖、来源身份保留、尾部截断、无答案行为如何”。</p>
  *
- * <p>合成数字与真实数字<b>分开统计</b>，绝不混算；本份一切召回率只代表这 16 条手写中文
+ * <p>合成数字与真实数字<b>分开统计</b>，绝不混算；本份一切召回率只代表这组手写中文
  * 查询与小型合成语料，不代表生产语义质量，更不代表生成答案质量。</p>
  *
+ * <p><b>范围维度（第二轮修正）</b>：把 {@code ALL_PROJECT}（用户未指定文档）与
+ * {@code DOCUMENT_SCOPED}（用户问题明确点名某份文档）拆成两个<b>互不混算</b>的评估维度。
+ * 只有问题本身明确要求指定文档时才传 documentIds，绝不把参考答案里的文档 ID 当作用户范围；
+ * 指定范围问题可额外跑一次全项目检索作为对照，但对照结果单独归入
+ * {@code scopedAllProjectReference}，不并入任一样本主口径。</p>
+ *
  * <p>整类由 {@code AI_REAL_OLLAMA_RETRIEVAL=true} 门控：未启用时整类跳过（不启动容器、
- * 不访问 Ollama）；启用时逐用例测量并写入 {@code target/retrieval-baseline/2026-10-18/}。
+ * 不访问 Ollama）；启用时逐用例测量并写入 {@code target/retrieval-baseline/2026-10-19/}。
  * 不读写生产数据库，不覆盖仓库里既有的验收快照。</p>
  */
 @SpringBootTest(properties = {
@@ -87,9 +95,23 @@ class AgentRetrievalQualityPostgresTest {
     private static final String PROVIDER = "OLLAMA";
     private static final String DEFAULT_MODEL = "qwen3-embedding:0.6b";
 
-    /** 诊断 JSON 只落 Maven target/，绝不写回仓库里既有的验收快照。 */
-    static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "2026-10-18",
-            "real-retrieval-quality.json");
+    // ---- B2：版本化模型质量回归门槛（2026-10-19 修正口径后的新基线） ----
+    // 基线（qwen3-embedding:0.6b，本合成语料）：
+    //   ALL_PROJECT      recallAt20=27/28=0.9643，retentionDiverseAt20=25/28=0.8929，覆盖=0.9583
+    //   DOCUMENT_SCOPED  recallAt20=6/6=1.0，retentionDiverseAt20=6/6=1.0，覆盖=1.0
+    // 门槛 = 基线向下留出退化容忍度（不是把 22/23 这类旧数字当无条件断言）：
+    //   ALL_PROJECT  退化容忍约 6.4 个百分点 / 9.3 个百分点；DOCUMENT_SCOPED 容忍 5~10 个百分点。
+    // 这是“模型相关的质量回归门槛”，只在 AI_REAL_OLLAMA_RETRIEVAL=true 时生效；环境不可用则整类跳过。
+    private static final double ALL_PROJECT_RECALL_AT20_FLOOR = 0.90d;
+    private static final double ALL_PROJECT_RETENTION_AT20_FLOOR = 0.80d;
+    private static final double ALL_PROJECT_COVERAGE_AT20_FLOOR = 0.85d;
+    private static final double DOCUMENT_SCOPED_RECALL_AT20_FLOOR = 0.95d;
+    private static final double DOCUMENT_SCOPED_RETENTION_AT20_FLOOR = 0.90d;
+    private static final double DOCUMENT_SCOPED_COVERAGE_AT20_FLOOR = 0.90d;
+
+    /** 诊断 JSON 只落 Maven target/，绝不写回仓库里既有的验收快照（第二轮：新路径，不覆盖 2026-10-18 旧证据）。 */
+    static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "2026-10-19",
+            "real-retrieval-quality-scoped.json");
 
     private record ChunkSeed(String heading, String content) {}
 
@@ -99,16 +121,24 @@ class AgentRetrievalQualityPostgresTest {
     private record Evidence(int docIndex, int chunkNo, String label) {}
 
     /**
-     * 一个固定用例：覆盖 D-RAG-01C 要求的 16 类场景之一（或组合）。
+     * 一个固定用例。
      *
-     * @param scope     指定检索文档范围（docIndex）；为空表示“全项目检索”
+     * <p>{@code scope} 只在<b>用户问题本身明确点名某份文档</b>时才设置（DOCUMENT_SCOPED）；
+     * 为空表示用户没有指定文档，只能按全项目范围评估（ALL_PROJECT）。绝不为了让 Recall 好看，
+     * 把参考答案里出现过的文档 ID 反填成“用户指定范围”。</p>
+     *
+     * @param scope      用户明确指定的检索文档范围（docIndex）；为空表示“全项目检索”
      * @param tailMarker 只对“关键条件位于长分块尾部”用例设置：断言该尾标记是否随正文保留
      * @param noEvidence true 表示语料中本就没有可回答该问题的证据（应如实判定未定义，不补造）
      */
     private record Case(
             String name, String scenario, String query,
             List<Integer> scope, List<Evidence> expected,
-            String tailMarker, boolean noEvidence) {}
+            String tailMarker, boolean noEvidence) {
+        boolean documentScoped() {
+            return scope != null;
+        }
+    }
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Map<String, Map<String, Object>> EVIDENCE = new LinkedHashMap<>();
@@ -229,8 +259,8 @@ class AgentRetrievalQualityPostgresTest {
             new Case("中文同义与口语描述", "中文别名、缩写及同义词",
                     "一个租户同时最多能并行跑多少个数据导出作业？",
                     null, List.of(new Evidence(4, 0, "租户并发上限")), null, false),
-            new Case("指定文档范围检索", "用户只询问指定文档",
-                    "已完成的导出文件会保留多久？",
+            new Case("指定文档范围检索", "用户问题明确点名《批量导出规范》",
+                    "根据《批量导出规范》，已完成的导出文件会在临时存储区保留多久？",
                     List.of(3), List.of(new Evidence(3, 5, "文件保留")), null, false),
             new Case("全项目范围检索", "用户未指定文档，需全项目搜索",
                     "已完成的导出文件会保留多久？",
@@ -250,7 +280,23 @@ class AgentRetrievalQualityPostgresTest {
             new Case("多源综合", "父子研究完成后综合多个独立来源",
                     "上线、灰度观察和回滚三个环节分别由哪份规程约束？",
                     null, List.of(new Evidence(0, 0, "上线门禁"), new Evidence(0, 2, "灰度观察"),
-                            new Evidence(1, 0, "回滚触发条件")), null, false));
+                            new Evidence(1, 0, "回滚触发条件")), null, false),
+            // ---- 指定文档范围（DOCUMENT_SCOPED）对照：问题明确点名某份文档，具有真实业务意义 ----
+            new Case("指定-回滚触发条件", "用户点名《发布回滚预案》询问回滚条件",
+                    "根据《发布回滚预案》，满足什么条件时必须暂停发布并回滚？",
+                    List.of(1), List.of(new Evidence(1, 0, "回滚触发条件")), null, false),
+            new Case("指定-只读下载权限", "用户点名《安全与脱敏规范》询问下载权限",
+                    "按照《安全与脱敏规范》，只读成员能不能下载文档的原始文件？",
+                    List.of(9), List.of(new Evidence(9, 1, "权限分级")), null, false),
+            new Case("指定-性能指标", "用户点名《容量与性能约束》询问性能指标",
+                    "《容量与性能约束》里，知识检索接口的响应时间与吞吐量指标分别是多少？",
+                    List.of(8), List.of(new Evidence(8, 1, "性能指标")), null, false),
+            new Case("指定-运行期预算额度", "用户点名《任务预算规则》询问运行期额度",
+                    "在《任务预算规则》中，任务运行期间可以临时增加预算额度吗？",
+                    List.of(2), List.of(new Evidence(2, 0, "预算确认")), null, false),
+            new Case("指定-合同审批主体", "用户点名《合同模板甲》询问审批主体",
+                    "只在《合同模板甲》里，重大变更需要由谁批准？",
+                    List.of(5), List.of(new Evidence(5, 0, "合同模板甲")), null, false));
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES =
@@ -346,14 +392,44 @@ class AgentRetrievalQualityPostgresTest {
             return new EmbeddingBatch(PROVIDER, model, dimension, vectors, fingerprint, generationId);
         });
 
-        List<Map<String, Object>> measuredCases = new ArrayList<>();
+        List<CaseMeasurement> measurements = new ArrayList<>();
         for (Case testCase : CASES) {
-            measuredCases.add(runCase(testCase, documentIds, chunkIds));
+            measurements.add(runCase(testCase, documentIds, chunkIds));
         }
+        List<Map<String, Object>> measuredCases = measurements.stream()
+                .map(CaseMeasurement::item).toList();
+
+        // 汇总按范围维度分开：绝不把同一查询的重复测量当成两组独立实验。
+        List<Map<String, Object>> allLegacyAllProject = measurements.stream()
+                .map(CaseMeasurement::allProjectTop8).toList();
+        List<Map<String, Object>> allDiverseAllProject = measurements.stream()
+                .map(CaseMeasurement::allProjectTop20).toList();
+        List<Map<String, Object>> scopedLegacy = measurements.stream()
+                .filter(measurement -> measurement.scopedTop8() != null)
+                .map(CaseMeasurement::scopedTop8).toList();
+        List<Map<String, Object>> scopedDiverse = measurements.stream()
+                .filter(measurement -> measurement.scopedTop20() != null)
+                .map(CaseMeasurement::scopedTop20).toList();
+        // 指定范围问题的“全项目对照”单独一桶：既不并入全项目主口径，也不并入指定范围主口径。
+        List<Map<String, Object>> scopedReferenceLegacy = measurements.stream()
+                .filter(measurement -> measurement.scopedTop8() != null)
+                .map(CaseMeasurement::allProjectTop8).toList();
+        List<Map<String, Object>> scopedReferenceDiverse = measurements.stream()
+                .filter(measurement -> measurement.scopedTop20() != null)
+                .map(CaseMeasurement::allProjectTop20).toList();
+
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("allProject", summarizeDimension(allLegacyAllProject, allDiverseAllProject));
+        summary.put("documentScoped", summarizeDimension(scopedLegacy, scopedDiverse));
+        summary.put("scopedAllProjectReference", summarizeDimension(scopedReferenceLegacy, scopedReferenceDiverse));
+        summary.put("sourceCapStrategyAllProject", summarizeSourceCapStrategy(measuredCases, "ALL_PROJECT"));
+        summary.put("sourceCapStrategyDocumentScoped", summarizeSourceCapStrategy(measuredCases, "DOCUMENT_SCOPED"));
 
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("evaluation", "real local Ollama embeddings on disposable Testcontainers pgvector database");
-        evidence.put("baseline", "D-RAG-01C agent retrieval quality, dev @ 6386c411");
+        evidence.put("baseline", "D-RAG-01C agent retrieval quality round 2 (scope-corrected), dev @ 2026-10-19");
+        evidence.put("scopeDimensions", "ALL_PROJECT and DOCUMENT_SCOPED are separate measurement dimensions; "
+                + "documentIds are used only when the question itself names a document");
         evidence.put("model", model);
         evidence.put("dimension", dimension);
         evidence.put("fingerprint", fingerprint);
@@ -363,8 +439,9 @@ class AgentRetrievalQualityPostgresTest {
         evidence.put("documentCount", CORPUS.size());
         evidence.put("indexingChunkCount", flatChunks.size());
         evidence.put("caseCount", measuredCases.size());
+        evidence.put("allProjectCaseCount", allDiverseAllProject.size());
+        evidence.put("documentScopedCaseCount", scopedDiverse.size());
         evidence.put("cases", measuredCases);
-        Map<String, Object> summary = summarize(measuredCases);
         evidence.put("summary", summary);
         Files.createDirectories(EVIDENCE_PATH.getParent());
         Files.writeString(EVIDENCE_PATH,
@@ -372,12 +449,62 @@ class AgentRetrievalQualityPostgresTest {
         System.out.println("AGENT_RETRIEVAL_QUALITY_EVIDENCE=" + EVIDENCE_PATH.toAbsolutePath());
 
         assertThat(measuredCases).hasSize(CASES.size());
+        assertThat(scopedDiverse).as("必须有指定文档范围样本")
+                .hasSize((int) CASES.stream().filter(Case::documentScoped).count());
+        assertThat(scopedDiverse.size()).as("指定文档范围样本数必须在 3~5 之上").isGreaterThanOrEqualTo(3);
+
+        // 两个范围维度必须真的一分为二：全项目样本数 = 全部用例，指定范围样本数 = 只含点名文档的用例。
+        assertModelQualityGate(summary, "allProject", CASES.size(),
+                ALL_PROJECT_RECALL_AT20_FLOOR, ALL_PROJECT_RETENTION_AT20_FLOOR,
+                ALL_PROJECT_COVERAGE_AT20_FLOOR);
+        assertModelQualityGate(summary, "documentScoped", scopedDiverse.size(),
+                DOCUMENT_SCOPED_RECALL_AT20_FLOOR, DOCUMENT_SCOPED_RETENTION_AT20_FLOOR,
+                DOCUMENT_SCOPED_COVERAGE_AT20_FLOOR);
+    }
+
+    /**
+     * B2 的模型质量回归门槛：断言某一范围维度的样本数、Recall@20、Context Retention 与 Document Coverage
+     * 不低于版本化基线向下留出容忍度后的下限。门槛为 null（期望证据为空）时明确失败，不静默放过。
+     */
+    private static void assertModelQualityGate(Map<String, Object> summary, String dimension,
+                                               int expectedSamples, double recallFloor,
+                                               double retentionFloor, double coverageFloor) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> bucket = (Map<String, Object>) summary.get(dimension);
+        assertThat(bucket).as("%s 维度汇总必须存在", dimension).isNotNull();
+        assertThat(number(bucket.get("sampleCount")))
+                .as("%s：样本数必须等于该范围的用例数（不得把相同查询重复测量成两组）", dimension)
+                .isEqualTo(expectedSamples);
+        Object recall = bucket.get("recallAt20");
+        Object retention = bucket.get("retentionDiverseAt20");
+        assertThat(recall).as("%s：Recall@20 必须有定义", dimension).isInstanceOf(Number.class);
+        assertThat(retention).as("%s：Context Retention 必须有定义", dimension).isInstanceOf(Number.class);
+        assertThat(((Number) recall).doubleValue())
+                .as("%s：Recall@20 不得低于版本化质量门槛 %.2f", dimension, recallFloor)
+                .isGreaterThanOrEqualTo(recallFloor);
+        assertThat(((Number) retention).doubleValue())
+                .as("%s：Context Retention 不得低于版本化质量门槛 %.2f", dimension, retentionFloor)
+                .isGreaterThanOrEqualTo(retentionFloor);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> coverage = (Map<String, Object>) bucket.get("documentCoverageAt20");
+        assertThat(coverage).as("%s：Document Coverage 必须可计算", dimension).isNotNull();
+        assertThat(((Number) coverage.get("retainedRatio")).doubleValue())
+                .as("%s：Document Coverage（保留侧）不得低于版本化质量门槛 %.2f", dimension, coverageFloor)
+                .isGreaterThanOrEqualTo(coverageFloor);
     }
 
     // ---- 单用例测量 ----
 
-    private Map<String, Object> runCase(Case testCase, Map<Integer, UUID> documentIds,
-                                        Map<String, UUID> chunkIds) {
+    /** 一个用例的两种范围维度的测量结果：全项目口径恒有；指定范围口径仅 DOCUMENT_SCOPED 用例有。 */
+    private record CaseMeasurement(
+            Map<String, Object> item,
+            Map<String, Object> allProjectTop8,
+            Map<String, Object> allProjectTop20,
+            Map<String, Object> scopedTop8,
+            Map<String, Object> scopedTop20) {}
+
+    private CaseMeasurement runCase(Case testCase, Map<Integer, UUID> documentIds,
+                                    Map<String, UUID> chunkIds) {
         List<UUID> scopeIds = testCase.scope() == null ? null
                 : testCase.scope().stream().map(documentIds::get).toList();
         List<ExpectedEvidence> expected = testCase.expected().stream()
@@ -386,95 +513,124 @@ class AgentRetrievalQualityPostgresTest {
                         evidence.docIndex(), evidence.chunkNo())), evidence.label()))
                 .toList();
 
-        // 指定范围/全项目 × Top8/Top20 四次候选检索，分别计时。
-        Timed scopedTop8 = searchWithScope(testCase.query(), scopeIds, TOP_8);
-        Timed scopedTop20 = searchWithScope(testCase.query(), scopeIds, TOP_20);
+        // 全项目口径恒测一次（每个用例都贡献一份全项目样本）。
         Timed allTop8 = searchWithScope(testCase.query(), null, TOP_8);
         Timed allTop20 = searchWithScope(testCase.query(), null, TOP_20);
-
-        var legacyResult = builder.buildWithDiagnostics(scopedTop8.hits(), AGENT_LIMIT);
-        var diverseResult = builder.buildDiverseWithDiagnostics(scopedTop20.hits(), AGENT_LIMIT);
-
-        Map<String, Object> scopedLegacy = RetrievalCoverage.measure(
-                TOP_8, AGENT_LIMIT, expected, scopedTop8.hits(), legacyResult);
-        Map<String, Object> scopedDiverse = RetrievalCoverage.measure(
-                TOP_20, AGENT_LIMIT, expected, scopedTop20.hits(), diverseResult);
+        var allLegacyResult = builder.buildWithDiagnostics(allTop8.hits(), AGENT_LIMIT);
+        var allDiverseResult = builder.buildDiverseWithDiagnostics(allTop20.hits(), AGENT_LIMIT);
         Map<String, Object> allLegacy = RetrievalCoverage.measure(
-                TOP_8, AGENT_LIMIT, expected, allTop8.hits(), builder.buildWithDiagnostics(allTop8.hits(), AGENT_LIMIT));
+                TOP_8, AGENT_LIMIT, expected, allTop8.hits(), allLegacyResult);
         Map<String, Object> allDiverse = RetrievalCoverage.measure(
-                TOP_20, AGENT_LIMIT, expected, allTop20.hits(),
-                builder.buildDiverseWithDiagnostics(allTop20.hits(), AGENT_LIMIT));
+                TOP_20, AGENT_LIMIT, expected, allTop20.hits(), allDiverseResult);
 
-        KnowledgeContext diverseContext = diverseResult.context();
+        // 指定范围口径：只有问题本身点名文档时才跑（并额外保留一份全项目对照，不与主口径混算）。
+        Timed scopedTop8 = null;
+        Timed scopedTop20 = null;
+        Map<String, Object> scopedLegacy = null;
+        Map<String, Object> scopedDiverse = null;
+        KnowledgeContext primaryContext = allDiverseResult.context();
+        Timed primaryTop20 = allTop20;
+        Map<String, Object> primaryDiverse = allDiverse;
+        if (testCase.documentScoped()) {
+            scopedTop8 = searchWithScope(testCase.query(), scopeIds, TOP_8);
+            scopedTop20 = searchWithScope(testCase.query(), scopeIds, TOP_20);
+            var scopedLegacyResult = builder.buildWithDiagnostics(scopedTop8.hits(), AGENT_LIMIT);
+            var scopedDiverseResult = builder.buildDiverseWithDiagnostics(scopedTop20.hits(), AGENT_LIMIT);
+            scopedLegacy = RetrievalCoverage.measure(
+                    TOP_8, AGENT_LIMIT, expected, scopedTop8.hits(), scopedLegacyResult);
+            scopedDiverse = RetrievalCoverage.measure(
+                    TOP_20, AGENT_LIMIT, expected, scopedTop20.hits(), scopedDiverseResult);
+            primaryContext = scopedDiverseResult.context();
+            primaryTop20 = scopedTop20;
+            primaryDiverse = scopedDiverse;
+        }
 
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("case", testCase.name());
         item.put("scenario", testCase.scenario());
         item.put("query", testCase.query());
-        item.put("scope", testCase.scope() == null ? "ALL_PROJECT" : "DOCUMENT_SCOPED");
+        item.put("scope", testCase.documentScoped() ? "DOCUMENT_SCOPED" : "ALL_PROJECT");
+        // 阶段 D：在<b>同一批真实候选</b>上与同一 source limit/正文预算下对照两种选择策略。
+        item.put("sourceCapStrategy", compareSourceCapStrategies(primaryTop20.hits(), expected));
         item.put("expectedEvidence", testCase.expected().stream().map(evidence -> Map.of(
                 "label", evidence.label(),
                 "documentId", documentIds.get(evidence.docIndex()).toString(),
                 "chunkId", chunkIds.get(key(evidence.docIndex(), evidence.chunkNo())).toString()))
                 .toList());
         item.put("noExpectedEvidence", testCase.noEvidence());
-        item.put("expectedEvidenceCount", scopedDiverse.get("expectedEvidenceCount"));
-        item.put("retrievalStatus", scopedDiverse.get("retrievalStatus"));
-        item.put("notRecalledInTopK", scopedDiverse.get("notRecalledInTopK"));
-        item.put("recallAt8Scoped", scopedLegacy.get("retrievalRecall"));
-        item.put("recallAt20Scoped", scopedDiverse.get("retrievalRecall"));
-        item.put("recallAt8AllProject", allLegacy.get("retrievalRecall"));
-        item.put("recallAt20AllProject", allDiverse.get("retrievalRecall"));
-        item.put("retentionLegacyScoped", scopedLegacy.get("contextEvidenceRetention"));
-        item.put("retentionDiverseScoped", scopedDiverse.get("contextEvidenceRetention"));
-        item.put("retentionLegacyAllProject", allLegacy.get("contextEvidenceRetention"));
-        item.put("retentionDiverseAllProject", allDiverse.get("contextEvidenceRetention"));
-        item.put("documentCoverageDiverse", scopedDiverse.get("documentCoverage"));
-        item.put("candidateRankOfExpected", rankOfExpected(scopedTop20.hits(), expected));
-        item.put("unexpectedSourcesRetained", scopedDiverse.get("unexpectedSourcesRetained"));
-        item.put("droppedByContext", scopedDiverse.get("droppedByContext"));
-        item.put("dropReasons", dropReasons(scopedDiverse));
-        item.put("retainedSourceCount", diverseContext.sources().size());
-        item.put("contextPromptCodePoints", promptCodePoints(diverseContext));
-        item.put("latencyMsTop8", scopedTop8.latencyMs());
-        item.put("latencyMsTop20", scopedTop20.latencyMs());
+        // 主口径 = 指定范围（若指定）否则全项目。
+        item.put("expectedEvidenceCount", primaryDiverse.get("expectedEvidenceCount"));
+        item.put("retrievalStatus", primaryDiverse.get("retrievalStatus"));
+        item.put("notRecalledInTopK", primaryDiverse.get("notRecalledInTopK"));
+        item.put("recallAt8", scopedLegacy != null ? scopedLegacy.get("retrievalRecall")
+                : allLegacy.get("retrievalRecall"));
+        item.put("recallAt20", primaryDiverse.get("retrievalRecall"));
+        item.put("retentionLegacy", scopedLegacy != null ? scopedLegacy.get("contextEvidenceRetention")
+                : allLegacy.get("contextEvidenceRetention"));
+        item.put("retentionDiverse", primaryDiverse.get("contextEvidenceRetention"));
+        item.put("documentCoverage", primaryDiverse.get("documentCoverage"));
+        item.put("candidateRankOfExpected", rankOfExpected(primaryTop20.hits(), expected));
+        item.put("unexpectedSourcesRetained", primaryDiverse.get("unexpectedSourcesRetained"));
+        item.put("droppedByContext", primaryDiverse.get("droppedByContext"));
+        item.put("dropReasons", dropReasons(primaryDiverse));
+        item.put("retainedSourceCount", primaryContext.sources().size());
+        item.put("contextPromptCodePoints", promptCodePoints(primaryContext));
+        item.put("latencyMsTop8", (scopedTop8 != null ? scopedTop8 : allTop8).latencyMs());
+        item.put("latencyMsTop20", primaryTop20.latencyMs());
         item.put("tailMarker", testCase.tailMarker());
-        item.put("tailPreserved", tailPreserved(diverseContext, testCase, chunkIds));
-        item.put("retainedSources", retainedSources(diverseContext, expected));
+        item.put("tailPreserved", tailPreserved(primaryContext, testCase, chunkIds));
+        item.put("retainedSources", retainedSources(primaryContext, expected));
+        if (testCase.documentScoped()) {
+            // 对照：同一指定范围问题的全项目搜索，单独记录、不与主口径混算。
+            item.put("referenceAllProjectRecallAt20", allDiverse.get("retrievalRecall"));
+            item.put("referenceAllProjectRetentionDiverse", allDiverse.get("contextEvidenceRetention"));
+            item.put("scopeViolationCount", scopeViolationCount(scopedTop20.hits(), scopeIds));
+        }
         EVIDENCE.put(testCase.name(), item);
 
-        // ---- L1 硬性不变量（必须通过） ----
+        // ---- L1 硬性不变量（必须通过，主口径） ----
         // 1. 丢弃归因互斥且合计恒等于 droppedByContext：不得出现无归因的静默丢弃。
         assertThat(sumDropReasons(item))
                 .as("%s：丢弃归因之和必须等于 droppedByContext", testCase.name())
-                .isEqualTo(scopedDiverse.get("droppedByContext"));
+                .isEqualTo(primaryDiverse.get("droppedByContext"));
         // 2. 正文预算硬上限 8000 code point：公平预算不得超限。
-        assertThat(promptCodePoints(diverseContext))
+        assertThat(promptCodePoints(primaryContext))
                 .as("%s：上下文正文预算不得超过 8000 code point", testCase.name())
                 .isLessThanOrEqualTo(8000);
-        // 3. 指定文档范围时，召回候选不得越界（ACL/范围隔离）。
-        if (scopeIds != null) {
-            assertThat(scopedTop20.hits()).extracting(DocumentSearchHit::documentId)
-                    .as("%s：指定范围检索不得返回范围外文档", testCase.name())
-                    .allMatch(scopeIds::contains);
-        }
-        // 4. 保留来源的身份必须与证据一致：不得张冠李戴。
-        for (KnowledgeSource source : diverseContext.sources()) {
+        // 3. 保留来源的身份必须与证据一致：不得张冠李戴。
+        for (KnowledgeSource source : primaryContext.sources()) {
             expected.stream()
                     .filter(evidence -> evidence.chunkId().equals(source.chunkId()))
                     .forEach(evidence -> assertThat(source.documentId())
                             .as("%s：保留来源 %s 的 documentId 必须与其 chunkId 归属一致", testCase.name(), evidence.label())
                             .isEqualTo(evidence.documentId()));
         }
+        // 4. 指定文档范围时，召回候选不得越界（ACL/范围隔离），且必须真的跑过指定范围检索。
+        if (testCase.documentScoped()) {
+            assertThat(scopedTop20.hits()).extracting(DocumentSearchHit::documentId)
+                    .as("%s：指定范围检索不得返回范围外文档", testCase.name())
+                    .allMatch(scopeIds::contains);
+            assertThat(scopedDiverse).as("指定范围样本必须真的执行了指定范围检索").isNotNull();
+        }
         // 5. 无期望证据时必须判定为未定义并如实留空，不得伪装成召回失败或补造来源。
         if (testCase.noEvidence()) {
-            assertThat(scopedDiverse.get("retrievalStatus"))
+            assertThat(primaryDiverse.get("retrievalStatus"))
                     .as("%s：没有可回答证据时必须判为未定义", testCase.name())
                     .isEqualTo(RetrievalCoverage.UNDEFINED_NO_EXPECTED_EVIDENCE);
-            assertThat(RetrievalCoverage.classify(testCase.name(), scopedLegacy, scopedDiverse).get("verdict"))
+            assertThat(RetrievalCoverage.classify(testCase.name(),
+                    scopedLegacy != null ? scopedLegacy : allLegacy, primaryDiverse).get("verdict"))
                     .isEqualTo(RetrievalCoverage.UNDEFINED_NO_EXPECTED_EVIDENCE);
         }
-        return item;
+        return new CaseMeasurement(item, allLegacy, allDiverse, scopedLegacy, scopedDiverse);
+    }
+
+    private static int scopeViolationCount(List<DocumentSearchHit> hits, List<UUID> scope) {
+        if (scope == null) return 0;
+        int violations = 0;
+        for (DocumentSearchHit hit : hits) {
+            if (!scope.contains(hit.documentId())) violations++;
+        }
+        return violations;
     }
 
     /**
@@ -565,56 +721,118 @@ class AgentRetrievalQualityPostgresTest {
         assertThat(hits).hasSize(1);
     }
 
-    // ---- 汇总 ----
+    // ---- 范围维度的汇总 ----
 
-    private static Map<String, Object> summarize(List<Map<String, Object>> cases) {
+    /**
+     * 单一范围维度的汇总：用 {@link RetrievalCoverage#aggregate} 按计数加权，避免“按用例平均”掩盖样本量差异。
+     * Top8 口径给 Recall@8 与旧入口保留率；Top20 口径给 Recall@20 与新入口（跨文档）保留率与文档覆盖。
+     */
+    private static Map<String, Object> summarizeDimension(
+            List<Map<String, Object>> top8, List<Map<String, Object>> top20) {
+        Map<String, Object> at8 = RetrievalCoverage.aggregate(top8);
+        Map<String, Object> at20 = RetrievalCoverage.aggregate(top20);
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("sampleCount", at20.get("caseCount"));
+        summary.put("undefinedSampleCount", at20.get("undefinedCaseCount"));
+        summary.put("expectedEvidenceCount", at20.get("expectedEvidenceCount"));
+        summary.put("recallAt8", at8.get("retrievalRecall"));
+        summary.put("recallAt20", at20.get("retrievalRecall"));
+        summary.put("retentionLegacyAt8", at8.get("contextEvidenceRetention"));
+        summary.put("retentionDiverseAt20", at20.get("contextEvidenceRetention"));
+        summary.put("documentCoverageAt20", at20.get("documentCoverage"));
+        summary.put("sourceCapDropAt20", at20.get("sourceCapDrop"));
+        summary.put("budgetDropAt20", at20.get("budgetDrop"));
+        summary.put("dbMissAt20", at20.get("notRecalledInTopK"));
+        return summary;
+    }
+
+    // ---- 阶段 D：SOURCE_CAP 策略对照（同一批真实候选、同一 limit、同一正文预算） ----
+
+    private static Map<String, Object> compareSourceCapStrategies(
+            List<DocumentSearchHit> candidates, List<ExpectedEvidence> expected) {
+        Set<UUID> expectedChunks = new LinkedHashSet<>();
+        for (ExpectedEvidence evidence : expected) {
+            expectedChunks.add(evidence.chunkId());
+        }
+        var current = SourceCapStrategyExperiment.assemble(
+                SourceCapStrategyExperiment.selectCurrent(candidates, AGENT_LIMIT), AGENT_LIMIT);
+        var protectedStrategy = SourceCapStrategyExperiment.assemble(
+                SourceCapStrategyExperiment.selectRelevanceProtected(candidates, AGENT_LIMIT), AGENT_LIMIT);
+
+        Map<String, Object> comparison = new LinkedHashMap<>();
+        comparison.put("expectedEvidenceCount", expectedChunks.size());
+        comparison.put("currentExpectedRetained", retainedCount(current.chunkIds(), expectedChunks));
+        comparison.put("protectedExpectedRetained", retainedCount(protectedStrategy.chunkIds(), expectedChunks));
+        comparison.put("currentDocumentsCovered", coveredExpectedDocuments(current.chunkIds(), expected));
+        comparison.put("protectedDocumentsCovered", coveredExpectedDocuments(protectedStrategy.chunkIds(), expected));
+        comparison.put("currentUnexpectedSources", unexpectedCount(current.chunkIds(), expectedChunks));
+        comparison.put("protectedUnexpectedSources", unexpectedCount(protectedStrategy.chunkIds(), expectedChunks));
+        comparison.put("currentPromptCodePoints", current.promptCodePoints());
+        comparison.put("protectedPromptCodePoints", protectedStrategy.promptCodePoints());
+        return comparison;
+    }
+
+    private static int retainedCount(List<UUID> retained, Set<UUID> expectedChunks) {
+        int count = 0;
+        for (UUID chunk : expectedChunks) if (retained.contains(chunk)) count++;
+        return count;
+    }
+
+    private static int coveredExpectedDocuments(List<UUID> retained, List<ExpectedEvidence> expected) {
+        Set<UUID> covered = new LinkedHashSet<>();
+        for (ExpectedEvidence evidence : expected) {
+            if (retained.contains(evidence.chunkId())) covered.add(evidence.documentId());
+        }
+        return covered.size();
+    }
+
+    private static int unexpectedCount(List<UUID> retained, Set<UUID> expectedChunks) {
+        int count = 0;
+        for (UUID chunk : retained) if (!expectedChunks.contains(chunk)) count++;
+        return count;
+    }
+
+    private static double ratioOrZero(int numerator, int denominator) {
+        return denominator == 0 ? 0d : Math.round(((double) numerator / denominator) * 10_000d) / 10_000d;
+    }
+
+    /** 汇总某一范围维度下 A/B 两种 SOURCE_CAP 策略的期望证据保留与文档覆盖（同一批真实候选）。 */
+    private static Map<String, Object> summarizeSourceCapStrategy(
+            List<Map<String, Object>> items, String scopeLabel) {
+        int cases = 0;
         int expected = 0;
-        int recalledScoped = 0;
-        int retainedDiverse = 0;
-        int recalledAll = 0;
-        int retainedAll = 0;
-        int undefined = 0;
-        int tailPreservedCount = 0;
-        int tailCaseCount = 0;
-        int totalPrompt = 0;
-        long latencyTop8 = 0;
-        long latencyTop20 = 0;
-        for (Map<String, Object> item : cases) {
-            int itemExpected = number(item.get("expectedEvidenceCount"));
-            if (itemExpected == 0) undefined++;
-            expected += itemExpected;
-            recalledScoped += (itemExpected - number(item.get("notRecalledInTopK")));
-            retainedDiverse += (itemExpected - number(item.get("notRecalledInTopK"))
-                    - number(item.get("droppedByContext")));
-            Object allRecalled = item.get("recallAt20AllProject");
-            if (allRecalled instanceof Number number) {
-                recalledAll += (int) Math.round(number.doubleValue() * itemExpected);
-            }
-            Object allRetained = item.get("retentionDiverseAllProject");
-            if (allRetained instanceof Number number) {
-                retainedAll += (int) Math.round(number.doubleValue() * itemExpected);
-            }
-            if (item.get("tailMarker") != null) {
-                tailCaseCount++;
-                if (Boolean.TRUE.equals(item.get("tailPreserved"))) tailPreservedCount++;
-            }
-            totalPrompt += number(item.get("contextPromptCodePoints"));
-            latencyTop8 += number(item.get("latencyMsTop8"));
-            latencyTop20 += number(item.get("latencyMsTop20"));
+        int currentRetained = 0;
+        int protectedRetained = 0;
+        int currentDocs = 0;
+        int protectedDocs = 0;
+        int currentUnexpected = 0;
+        int protectedUnexpected = 0;
+        for (Map<String, Object> item : items) {
+            if (!scopeLabel.equals(item.get("scope"))) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> strategy = (Map<String, Object>) item.get("sourceCapStrategy");
+            cases++;
+            expected += number(strategy.get("expectedEvidenceCount"));
+            currentRetained += number(strategy.get("currentExpectedRetained"));
+            protectedRetained += number(strategy.get("protectedExpectedRetained"));
+            currentDocs += number(strategy.get("currentDocumentsCovered"));
+            protectedDocs += number(strategy.get("protectedDocumentsCovered"));
+            currentUnexpected += number(strategy.get("currentUnexpectedSources"));
+            protectedUnexpected += number(strategy.get("protectedUnexpectedSources"));
         }
         Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put("caseCount", cases.size());
-        summary.put("undefinedCaseCount", undefined);
+        summary.put("caseCount", cases);
         summary.put("expectedEvidenceCount", expected);
-        summary.put("recallScoped", ratio(recalledScoped, expected));
-        summary.put("retentionDiverseScoped", ratio(retainedDiverse, expected));
-        summary.put("recallAllProject", ratio(recalledAll, expected));
-        summary.put("retentionDiverseAllProject", ratio(retainedAll, expected));
-        summary.put("tailCaseCount", tailCaseCount);
-        summary.put("tailPreservedCount", tailPreservedCount);
-        summary.put("averageContextPromptCodePoints", ratio(totalPrompt, cases.size()));
-        summary.put("averageLatencyMsTop8", ratioOf(latencyTop8, cases.size()));
-        summary.put("averageLatencyMsTop20", ratioOf(latencyTop20, cases.size()));
+        summary.put("currentExpectedRetained", currentRetained);
+        summary.put("protectedExpectedRetained", protectedRetained);
+        summary.put("deltaExpectedRetained", protectedRetained - currentRetained);
+        summary.put("currentExpectedRetention", ratioOrZero(currentRetained, expected));
+        summary.put("protectedExpectedRetention", ratioOrZero(protectedRetained, expected));
+        summary.put("currentDocumentsCovered", currentDocs);
+        summary.put("protectedDocumentsCovered", protectedDocs);
+        summary.put("deltaDocumentsCovered", protectedDocs - currentDocs);
+        summary.put("currentUnexpectedSources", currentUnexpected);
+        summary.put("protectedUnexpectedSources", protectedUnexpected);
         return summary;
     }
 
@@ -650,14 +868,6 @@ class AgentRetrievalQualityPostgresTest {
 
     private static int number(Object value) {
         return value instanceof Number numberValue ? numberValue.intValue() : 0;
-    }
-
-    private static Double ratio(int numerator, int denominator) {
-        return denominator == 0 ? null : Math.round(((double) numerator / denominator) * 10_000d) / 10_000d;
-    }
-
-    private static Double ratioOf(long numerator, int denominator) {
-        return denominator == 0 ? null : Math.round(((double) numerator / denominator) * 10_000d) / 10_000d;
     }
 
     private static List<Map<String, Object>> rankOfExpected(
