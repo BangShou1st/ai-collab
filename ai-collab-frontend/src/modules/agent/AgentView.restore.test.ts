@@ -120,6 +120,19 @@ const sseResponse = (frames: string[]) => {
   return Promise.resolve({ ok: true, body })
 }
 
+const sseDisconnectAfter = (frames: string[]) => {
+  const enc = new TextEncoder()
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const frame of frames) controller.enqueue(enc.encode(`data: ${frame}\n\n`))
+    },
+    pull(controller) {
+      controller.error(new Error('synthetic SSE disconnect'))
+    },
+  })
+  return Promise.resolve({ ok: true, body })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   delete g.__testFetch
@@ -180,6 +193,36 @@ describe('AgentView restore', () => {
     expect(conversationText).toContain('检查里程碑')
     // 完整过程只在对话主区展示；检查器不再重复渲染工具执行列表
     expect(wrapper.find('[aria-label="实际工具执行"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('reconnects after an SSE disconnect from the last accepted event sequence', async () => {
+    mocks.latestRun.mockResolvedValue(response({
+      run: runOf('run-1', 'session-1', 'RUNNING'), plan: null, lastEventSequence: 5, pendingApprovalId: null,
+    }))
+    mocks.runEvents.mockResolvedValue(response([]))
+    const fetchCalls: Array<{ input: string; options?: RequestInit }> = []
+    g.__testFetch = (input: string, options?: RequestInit) => {
+      fetchCalls.push({ input, options })
+      return fetchCalls.length === 1
+        ? sseDisconnectAfter([JSON.stringify(evt(6, 'TOOL_CALL_STARTED', { callId: 'c2', toolName: 'list_tasks' }))])
+        : sseResponse([JSON.stringify(evt(7, 'TOOL_CALL_COMPLETED', { callId: 'c2', toolName: 'list_tasks' }))])
+    }
+    mocks.run.mockResolvedValue(response({ run: runOf('run-1', 'session-1', 'SUCCEEDED') }))
+
+    const wrapper = mountView()
+    await flushPromises()
+    for (let i = 0; i < 30 && (fetchCalls.length < 2 || mocks.run.mock.calls.length < 1); i++) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      await flushPromises()
+    }
+
+    expect(fetchCalls).toHaveLength(2)
+    expect(fetchCalls[0].input).toContain('afterSequence=5')
+    expect(fetchCalls[1].input).toContain('afterSequence=6')
+    expect((fetchCalls[0].options?.headers as Record<string, string>)['Last-Event-ID']).toBe('5')
+    expect((fetchCalls[1].options?.headers as Record<string, string>)['Last-Event-ID']).toBe('6')
+    expect(mocks.run).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
 

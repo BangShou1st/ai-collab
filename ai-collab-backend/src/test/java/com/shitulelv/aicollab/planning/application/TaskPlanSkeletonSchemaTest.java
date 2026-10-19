@@ -42,7 +42,7 @@ class TaskPlanSkeletonSchemaTest {
         JsonNode first = json.readTree(TaskPlanGenerationOrchestrator.skeletonBatchSchema(4, 1, 2));
         JsonNode afterMilestoneLimit = json.readTree(TaskPlanGenerationOrchestrator.skeletonBatchSchema(4, 0, 0));
 
-        assertThat(first.at("/properties/tasks/minItems").intValue()).isEqualTo(4);
+        assertThat(first.at("/properties/tasks/minItems").intValue()).isEqualTo(1);
         assertThat(first.at("/properties/tasks/maxItems").intValue()).isEqualTo(4);
         assertThat(first.at("/properties/milestones/minItems").intValue()).isEqualTo(1);
         assertThat(first.at("/properties/milestones/maxItems").intValue()).isEqualTo(2);

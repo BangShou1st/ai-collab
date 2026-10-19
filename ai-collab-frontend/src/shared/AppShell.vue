@@ -71,6 +71,9 @@ const projectId = computed(() =>
 const projectAccessDenied = computed(() =>
   Boolean(projectId.value) && projectCtx.accessDeniedProjectId === projectId.value,
 )
+const projectAccessReady = computed(() =>
+  Boolean(projectId.value) && projectCtx.currentProjectId === projectId.value,
+)
 
 watch(
   projectId,
@@ -210,6 +213,15 @@ async function logout(): Promise<void> {
         <h1>项目不存在或无权访问</h1>
         <p>该项目不存在，或当前账号没有访问权限。</p>
         <router-link to="/projects">返回我的项目</router-link>
+      </section>
+      <section
+        v-else-if="projectId && !projectAccessReady"
+        class="project-access-denied"
+        role="status"
+        aria-live="polite"
+      >
+        <h1>{{ projectCtx.loading ? '正在确认项目访问权限' : '无法确认项目访问权限' }}</h1>
+        <p>{{ projectCtx.loading ? '请稍候。' : '请刷新页面重试。' }}</p>
       </section>
       <slot v-else />
     </div>

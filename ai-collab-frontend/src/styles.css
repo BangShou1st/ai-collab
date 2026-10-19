@@ -679,7 +679,9 @@
   .mobile-topbar {
     display: flex; align-items: center; gap: 12px;
     position: sticky; top: 0; z-index: 45;
-    padding: 10px 16px;
+    padding: calc(10px + env(safe-area-inset-top, 0px))
+      calc(16px + env(safe-area-inset-right, 0px))
+      10px calc(16px + env(safe-area-inset-left, 0px));
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
   }
@@ -691,8 +693,15 @@
   .mobile-brand { font-weight: 700; font-size: 14px; }
   .app-shell { display: block; }
   .app-sidebar {
-    position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
+    position: fixed; inset: 0 auto 0 0; height: auto; min-height: 0; z-index: 60;
     width: min(84vw, 320px);
+    padding: calc(16px + env(safe-area-inset-top, 0px))
+      calc(12px + env(safe-area-inset-right, 0px))
+      calc(16px + env(safe-area-inset-bottom, 0px))
+      calc(12px + env(safe-area-inset-left, 0px));
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    background: var(--color-surface);
     transform: translateX(-105%);
     transition: transform 200ms ease;
     box-shadow: none;

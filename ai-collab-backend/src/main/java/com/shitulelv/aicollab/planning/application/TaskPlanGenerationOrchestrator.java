@@ -401,7 +401,7 @@ public class TaskPlanGenerationOrchestrator {
         return SKELETON_SCHEMA_TEMPLATE
                 .replace("{{MIN_MILESTONES}}", Integer.toString(minMilestones))
                 .replace("{{MAX_MILESTONES}}", Integer.toString(maxMilestones))
-                .replace("{{MIN_TASKS}}", Integer.toString(taskCount))
+                .replace("{{MIN_TASKS}}", "1")
                 .replace("{{MAX_TASKS}}", Integer.toString(taskCount));
     }
 
@@ -500,6 +500,7 @@ public class TaskPlanGenerationOrchestrator {
             for (var milestone : batch.output().milestones()) milestoneKeys.add(milestone.tempKey());
             for (var task : batch.output().tasks()) taskKeys.add(task.tempKey());
             milestoneSortOffset += MAX_MODEL_TASKS_PER_BATCH;
+            if (batch.output().tasks().size() < taskCount) break;
         }
 
         SkeletonModelOutput first = outputs.getFirst();
@@ -575,9 +576,9 @@ public class TaskPlanGenerationOrchestrator {
             Set<String> priorMilestoneKeys, Set<String> priorTaskKeys) {
         if (output == null || output.milestones() == null
                 || output.milestones().size() < minMilestones || output.milestones().size() > maxMilestones
-                || output.tasks() == null || output.tasks().size() != taskCount) {
+                || output.tasks() == null || output.tasks().isEmpty() || output.tasks().size() > taskCount) {
             throw new ModelOutputContractException("BATCH_COUNT_MISMATCH", "tasks",
-                    List.of("EXPECTED_TASKS_" + taskCount));
+                    List.of("EXPECTED_ONE_TO_" + taskCount + "_TASKS"));
         }
         Set<String> milestoneKeys = new HashSet<>(priorMilestoneKeys);
         for (int i = 0; i < output.milestones().size(); i++) {
@@ -613,9 +614,9 @@ public class TaskPlanGenerationOrchestrator {
         } catch (JsonProcessingException impossible) {
             throw new IllegalStateException(impossible);
         }
-        return prompt + "\n本次分批范围：最多任务数为 " + plan.maxTaskCount() + "；只生成全局序号 "
-                + taskOffset + " 到 " + (taskOffset + taskCount - 1) + " 的 " + taskCount + " 个任务，必须恰好输出这些任务。"
-                + "任务 sortOrder 必须使用上述全局序号。里程碑 sortOrder 必须在 " + milestoneSortOffset + " 到 "
+        return prompt + "\n本次分批范围：最多任务数为 " + plan.maxTaskCount() + "；本批最多生成 "
+                + taskCount + " 个任务，sortOrder 从 " + taskOffset + " 开始连续递增；输出少于本批上限时表示规划规模已确定，不再生成后续批次。"
+                + "里程碑 sortOrder 必须在 " + milestoneSortOffset + " 到 "
                 + (milestoneSortOffset + MAX_MODEL_TASKS_PER_BATCH - 1) + " 之间。"
                 + "本批任务可以引用本批里程碑或 PREVIOUS_SKELETON 中已有里程碑；新 tempKey 不得复用之前批次的值。"
                 + "不要重复之前批次的任务和里程碑；根据已有规划保持主题连续。\n<PREVIOUS_SKELETON>\n"
@@ -788,10 +789,12 @@ public class TaskPlanGenerationOrchestrator {
                 throw new ModelOutputContractException("DOMAIN_VALIDATION_FAILED", null, assessment.errorCodes());
             }
 
-            UUID repairAttempt = repository.startRepair(plan.id(), plan.generationSeq(), activeAttempt,
+            UUID previousAttempt = activeAttempt;
+            UUID repairAttempt = repository.startRepair(plan.id(), plan.generationSeq(), previousAttempt,
                     expectedStatus, actor);
             if (repairAttempt == null) throw new GenerationHandledException();
-            rekeyFuture(activeAttempt, repairAttempt, plan.generationSeq());
+            activeAttempt = repairAttempt;
+            rekeyFuture(previousAttempt, repairAttempt, plan.generationSeq());
             RepairScope scope = repairScope(assessment);
             if (scope.targetTempKeys().isEmpty()) {
                 repository.fail(plan.id(), plan.generationSeq(), repairAttempt, expectedStatus,

@@ -10,9 +10,14 @@ import com.shitulelv.aicollab.planning.infrastructure.TaskPlanIssueRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRecord;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepository;
 import com.shitulelv.aicollab.planning.infrastructure.TaskPlanVersionRecord;
+import com.shitulelv.aicollab.planning.domain.ValidationAssessment;
+import com.shitulelv.aicollab.planning.domain.ValidationContext;
+import com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -41,6 +46,8 @@ import static org.mockito.Mockito.*;
  */
 @Testcontainers(disabledWithoutDocker = true)
 class TaskPlanGenerationOrchestratorIntegrationTest {
+    private enum BatchedRepairFailure { MODEL_CALL, FORMAT, DOMAIN_VALIDATION }
+
     @Container
     static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>("pgvector/pgvector:pg17");
@@ -416,7 +423,7 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
                 .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED))
                 .thenReturn(new GenerationResult(detailBatchJsonRange(0, 2, 0, 2), "test-provider", "test-model", 100, 50, 200))
                 .thenReturn(new GenerationResult(detailBatchJsonRange(2, 2, 2, 2), "test-provider", "test-model", 100, 50, 200))
-                .thenReturn(new GenerationResult(detailBatchJsonRange(0, 0, 4, 4), "test-provider", "test-model", 100, 50, 200));
+                .thenReturn(new GenerationResult(detailBatchJsonWithCrossBatchDependency(), "test-provider", "test-model", 100, 50, 200));
 
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
         when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
@@ -443,6 +450,7 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
         TaskPlanDraft completed = repository.draft(versions.getFirst());
         assertThat(completed.tasks()).extracting(PlanTask::tempKey)
                 .containsExactly("t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8");
+        assertThat(completed.tasks().get(4).dependencyTempKeys()).containsExactly("t1");
         assertThat(completed.tasks()).allSatisfy(task -> assertThat(task.description()).isNotBlank());
         assertThat(completed.milestones()).extracting(PlanMilestone::tempKey)
                 .containsExactly("m1", "m2", "m3", "m4");
@@ -451,6 +459,277 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
         verify(modelClient, times(4)).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
         verify(modelClient, never()).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH_REPAIR"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
         verify(modelClient, times(1)).generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
+    }
+
+    @Test
+    void truncatedLargePlanMayGenerateFewerTasksThanItsMaximum() throws Exception {
+        UUID userId = insertUser("batch-under-limit");
+        UUID projectId = insertProject("Batch Under Limit Project", userId);
+        insertMember(projectId, userId, "OWNER");
+        String shortSkeletonBatch = """
+                {"summary":"A focused plan","assumptions":[],"risks":[],
+                "milestones":[{"tempKey":"m1","title":"Phase 1","objective":"Complete phase 1","targetDate":null,"sortOrder":0}],
+                "tasks":[
+                  {"tempKey":"t1","milestoneTempKey":"m1","title":"Task 1","objective":"Complete task 1","sortOrder":0},
+                  {"tempKey":"t2","milestoneTempKey":"m1","title":"Task 2","objective":"Complete task 2","sortOrder":1}]}
+                """;
+        String details = detailBatchJsonRange(0, 1, 0, 2);
+        TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED));
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(new GenerationResult(shortSkeletonBatch, "test", "test", 10, 10, 10));
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(new GenerationResult(details, "test", "test", 10, 10, 10));
+        TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
+        when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
+                "<PROJECT_DATA>synthetic batch test</PROJECT_DATA>", List.of()));
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
+        TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
+                Runnable::run, repository, modelClient, parser, validator, json, contexts,
+                promptPolicy, outcomeDecider, normalizer, commitService);
+        TaskPlanRecord plan = repository.create(projectId, userId, new CreateTaskPlanRequest(
+                "At most eight tasks", "A two task plan is acceptable", null,
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), 8, List.of()));
+
+        orchestrator.dispatch(plan, userId, false);
+
+        TaskPlanRecord finished = repository.require(projectId, plan.id());
+        assertThat(finished.status()).isEqualTo(TaskPlanStatus.READY);
+        TaskPlanDraft generated = repository.draft(repository.requireVersion(projectId, plan.id(), finished.latestVersionId()));
+        assertThat(generated.tasks()).extracting(PlanTask::tempKey).containsExactly("t1", "t2");
+        verify(modelClient, times(1)).generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
+    }
+
+    private static String detailBatchJsonWithCrossBatchDependency() throws Exception {
+        return detailBatchJsonRangeWithDependency(0, 0, 4, 4, "t5", "t1");
+    }
+
+    private static String detailBatchJsonRangeWithDependency(int milestoneStart, int milestoneCount,
+            int taskStart, int taskCount, String taskTempKey, String dependencyTempKey) throws Exception {
+        var root = (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree(
+                detailBatchJsonRange(milestoneStart, milestoneCount, taskStart, taskCount));
+        for (var value : root.withArray("tasks")) {
+            var task = (com.fasterxml.jackson.databind.node.ObjectNode) value;
+            if (!taskTempKey.equals(task.path("tempKey").asText())) continue;
+            task.put("startDate", LocalDate.now().plusDays(11).toString());
+            task.put("dueDate", LocalDate.now().plusDays(15).toString());
+            task.putArray("dependencyTempKeys").add(dependencyTempKey);
+            break;
+        }
+        return json.writeValueAsString(root);
+    }
+
+    @ParameterizedTest
+    @EnumSource(BatchedRepairFailure.class)
+    void batchedDetailRepairFailureClosesTheActiveRepairAttemptAndCanRetry(
+            BatchedRepairFailure failureMode) throws Exception {
+        UUID userId = insertUser("brf-" + failureMode.name().toLowerCase(java.util.Locale.ROOT));
+        UUID projectId = insertProject("Batch Repair Failure Project", userId);
+        insertMember(projectId, userId, "OWNER");
+        TaskPlanRecord plan = repository.create(projectId, userId, new CreateTaskPlanRequest(
+                "Five task plan", "Validate batched repair failure", null,
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), 5, List.of()));
+
+        List<PlanTask> skeletonTasks = java.util.stream.IntStream.range(0, 5)
+                .mapToObj(i -> new PlanTask("t" + (i + 1), "m1", "Task " + (i + 1), "Objective " + (i + 1),
+                        null, null, null, null, null, null, null, List.of(), List.of(), i))
+                .toList();
+        TaskPlanDraft skeleton = new TaskPlanDraft("Five task plan", List.of(), List.of(),
+                List.of(new PlanMilestone("m1", "Phase 1", "Complete phase 1", null,
+                        LocalDate.now().plusDays(20), 0, List.of())), skeletonTasks, List.of());
+        UUID skeletonVersion = repository.appendGeneratedVersion(projectId, plan.id(), plan.generationSeq(),
+                plan.activeAttemptId(), TaskPlanStatus.SKELETON_GENERATING, "AI_SKELETON", null, skeleton, userId,
+                validator.validate(repository.validationContext(plan), skeleton,
+                        TaskPlanDraftValidator.ValidationMode.AI_SKELETON), TaskPlanStatus.DETAIL_GENERATING);
+        assertThat(skeletonVersion).isNotNull();
+        UUID detailAttempt = repository.startDetailAfterSkeleton(projectId, plan.id(), userId);
+        TaskPlanRecord detailPlan = repository.require(projectId, plan.id());
+
+        String firstBatch = detailBatchJsonRange(0, 1, 0, 4);
+        String secondBatch = detailBatchJsonRange(1, 0, 4, 1);
+        TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(new GenerationResult(firstBatch, "test", "test", 10, 10, 10))
+                .thenReturn(new GenerationResult(secondBatch, "test", "test", 10, 10, 10));
+        if (failureMode == BatchedRepairFailure.MODEL_CALL) {
+            when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                    .thenThrow(new IllegalStateException("synthetic repair provider failure"));
+        } else {
+            String repairOutput = failureMode == BatchedRepairFailure.FORMAT
+                    ? "not-json"
+                    : "{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"t1\",\"startDate\":\""
+                            + LocalDate.now().plusDays(3) + "\"}]}";
+            when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                    .thenReturn(new GenerationResult(repairOutput, "test", "test", 10, 10, 10));
+        }
+
+        TaskPlanDraftValidator failAfterRepairValidation = new TaskPlanDraftValidator() {
+            private int completeAssessments;
+
+            @Override
+            public ValidationAssessment assess(ValidationContext context, TaskPlanDraft draft,
+                    TaskPlanDraftValidator.ValidationMode mode, boolean aiGenerated) {
+                if (mode != TaskPlanDraftValidator.ValidationMode.COMPLETE) {
+                    return super.assess(context, draft, mode, aiGenerated);
+                }
+                if (++completeAssessments == 1) {
+                    return new ValidationAssessment(List.of(new StructuredValidationIssue(
+                            "TASK_DATE_INVALID", ValidationIssueSeverity.BLOCKING_EDITABLE,
+                            "TASK", "t1", "startDate", null, java.util.Map.of())));
+                }
+                return new ValidationAssessment(List.of(new StructuredValidationIssue(
+                        "TASK_TEXT_INVALID", ValidationIssueSeverity.HARD,
+                        "TASK", "t1", "description", null, java.util.Map.of())));
+            }
+        };
+        TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
+        when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
+                "<PROJECT_DATA>synthetic batch test</PROJECT_DATA>", List.of()));
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
+        TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
+                Runnable::run, repository, modelClient, parser, failAfterRepairValidation, json, contexts,
+                promptPolicy, outcomeDecider, normalizer, commitService);
+
+        orchestrator.dispatch(detailPlan, userId, true);
+
+        TaskPlanRecord failedPlan = repository.require(projectId, plan.id());
+        assertThat(failedPlan.status()).isEqualTo(TaskPlanStatus.DETAIL_GENERATION_FAILED);
+        assertThat(failedPlan.activeAttemptId()).isNull();
+        assertThat(failedPlan.lastErrorCode()).isEqualTo("PLAN_GENERATION_FAILED");
+        assertThat(failedPlan.lastErrorSummary()).isNotBlank();
+        if (failureMode == BatchedRepairFailure.DOMAIN_VALIDATION) {
+            assertThat(failedPlan.lastErrorSummary()).contains("TASK_TEXT_INVALID");
+        }
+        UUID retryAttempt = repository.startGeneration(projectId, plan.id(), userId, true).activeAttemptId();
+        assertThat(retryAttempt).isNotNull().isNotEqualTo(detailAttempt);
+    }
+
+    @Test
+    void sixteenTaskBatchesPreserveCrossBatchDependenciesAndRecoverAfterCancellation() throws Exception {
+        UUID userId = insertUser("batch-sixteen-cancel-retry");
+        UUID projectId = insertProject("Sixteen Task Batch Project", userId);
+        insertMember(projectId, userId, "OWNER");
+        TaskPlanRecord plan = repository.create(projectId, userId, new CreateTaskPlanRequest(
+                "Sixteen task plan", "Validate large batched planning", null,
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(40), 16, List.of()));
+
+        TaskPlanDraft initialSkeleton = skeletonDraftForTaskCount(16);
+        UUID skeletonVersion = repository.appendGeneratedVersion(projectId, plan.id(), plan.generationSeq(),
+                plan.activeAttemptId(), TaskPlanStatus.SKELETON_GENERATING, "AI_SKELETON", null, initialSkeleton,
+                userId, validator.validate(repository.validationContext(plan), initialSkeleton,
+                        TaskPlanDraftValidator.ValidationMode.AI_SKELETON), TaskPlanStatus.DETAIL_GENERATING);
+        assertThat(skeletonVersion).isNotNull();
+        UUID initialDetailAttempt = repository.startDetailAfterSkeleton(projectId, plan.id(), userId);
+        TaskPlanRecord detailPlan = repository.require(projectId, plan.id());
+
+        TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED));
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(new GenerationResult(skeletonBatchJsonRange(0, 4), "test", "test", 10, 10, 10))
+                .thenReturn(new GenerationResult(skeletonBatchJsonRange(4, 4), "test", "test", 10, 10, 10))
+                .thenReturn(new GenerationResult(skeletonBatchJsonRange(8, 4), "test", "test", 10, 10, 10))
+                .thenReturn(new GenerationResult(skeletonBatchJsonRange(12, 4), "test", "test", 10, 10, 10));
+        java.util.concurrent.atomic.AtomicInteger detailBatchCalls = new java.util.concurrent.atomic.AtomicInteger();
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenAnswer(invocation -> {
+                    int call = detailBatchCalls.incrementAndGet();
+                    if (call == 1) {
+                        repository.cancel(projectId, plan.id());
+                        return new GenerationResult(detailBatchJsonRange(0, 4, 0, 4), "test", "test", 10, 10, 10);
+                    }
+                    int batchIndex = call - 2;
+                    int taskStart = batchIndex * 4;
+                    int milestoneCount = batchIndex == 0 ? 4 : 0;
+                    String detailJson = batchIndex == 3
+                            ? detailBatchJsonRangeWithDependency(0, milestoneCount, taskStart, 4, "t13", "t1")
+                            : detailBatchJsonRange(0, milestoneCount, taskStart, 4);
+                    return new GenerationResult(detailJson, "test", "test", 10, 10, 10);
+                });
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH_REPAIR"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenAnswer(invocation -> {
+                    String repairPrompt = invocation.getArgument(1);
+                    int categoryStart = repairPrompt.lastIndexOf("category=");
+                    int categoryEnd = categoryStart < 0 ? -1 : repairPrompt.indexOf('\n', categoryStart);
+                    String category = categoryStart < 0 ? "unknown"
+                            : repairPrompt.substring(categoryStart, categoryEnd < 0 ? repairPrompt.length() : categoryEnd);
+                    throw new IllegalStateException("unexpected detail batch repair after call "
+                            + detailBatchCalls.get() + ": " + category);
+                });
+
+        TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
+        when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
+                "<PROJECT_DATA>synthetic sixteen task batch test</PROJECT_DATA>", List.of()));
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
+        TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
+                Runnable::run, repository, modelClient, parser, validator, json, contexts,
+                promptPolicy, outcomeDecider, normalizer, commitService);
+
+        orchestrator.dispatch(detailPlan, userId, true);
+
+        TaskPlanRecord canceled = repository.require(projectId, plan.id());
+        assertThat(canceled.status()).isEqualTo(TaskPlanStatus.CANCELED);
+        assertThat(canceled.activeAttemptId()).isNull();
+        assertThat(repository.versions(projectId, plan.id())).hasSize(1);
+        assertThat(detailBatchCalls).hasValue(1);
+        assertThat(canceled.generationSeq()).isGreaterThan(detailPlan.generationSeq());
+
+        TaskPlanRecord retryPlan = repository.startGeneration(projectId, plan.id(), userId, false);
+        orchestrator.dispatch(retryPlan, userId, false);
+
+        TaskPlanRecord completed = repository.require(projectId, plan.id());
+        assertThat(completed.status())
+                .as("lastErrorCode=%s, summary=%s", completed.lastErrorCode(), completed.lastErrorSummary())
+                .isIn(TaskPlanStatus.READY, TaskPlanStatus.READY_WITH_ISSUES);
+        assertThat(completed.activeAttemptId()).isNull();
+        assertThat(completed.generationSeq()).isEqualTo(retryPlan.generationSeq());
+        List<TaskPlanVersionRecord> versions = repository.versions(projectId, plan.id());
+        assertThat(versions).hasSize(3);
+        TaskPlanDraft finalDraft = repository.draft(versions.getFirst());
+        assertThat(finalDraft.tasks()).hasSize(16);
+        assertThat(finalDraft.tasks().get(12).dependencyTempKeys()).containsExactly("t1");
+        verify(modelClient, times(5)).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
+    }
+
+    private static TaskPlanDraft skeletonDraftForTaskCount(int taskCount) {
+        List<PlanMilestone> milestones = java.util.stream.IntStream.range(0, taskCount / 4)
+                .mapToObj(index -> new PlanMilestone("m" + (index + 1), "Phase " + (index + 1),
+                        "Complete phase " + (index + 1), null, null, index, List.of()))
+                .toList();
+        List<PlanTask> tasks = java.util.stream.IntStream.range(0, taskCount)
+                .mapToObj(index -> new PlanTask("t" + (index + 1), "m" + (index / 4 + 1),
+                        "Task " + (index + 1), "Complete validation step " + (index + 1),
+                        null, null, null, null, null, null, null, List.of(), List.of(), index))
+                .toList();
+        return new TaskPlanDraft("Sixteen task plan", List.of(), List.of(), milestones, tasks, List.of());
+    }
+
+    private static String skeletonBatchJsonRange(int taskStart, int taskCount) throws Exception {
+        int batchIndex = taskStart / 4;
+        var root = json.createObjectNode();
+        root.put("summary", "Sixteen task plan");
+        root.putArray("assumptions");
+        root.putArray("risks");
+        var milestone = root.putArray("milestones").addObject();
+        milestone.put("tempKey", "m" + (batchIndex + 1));
+        milestone.put("title", "Phase " + (batchIndex + 1));
+        milestone.put("objective", "Complete phase " + (batchIndex + 1));
+        milestone.putNull("targetDate");
+        milestone.put("sortOrder", taskStart);
+        var tasks = root.putArray("tasks");
+        for (int i = taskStart; i < taskStart + taskCount; i++) {
+            var task = tasks.addObject();
+            task.put("tempKey", "t" + (i + 1));
+            task.put("milestoneTempKey", "m" + (batchIndex + 1));
+            task.put("title", "Task " + (i + 1));
+            task.put("objective", "Complete validation step " + (i + 1));
+            task.put("sortOrder", i);
+        }
+        return json.writeValueAsString(root);
     }
 
     private static String skeletonBatchJson(int batchIndex) throws Exception {
