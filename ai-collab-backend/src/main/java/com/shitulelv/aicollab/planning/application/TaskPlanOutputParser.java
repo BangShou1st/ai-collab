@@ -49,10 +49,13 @@ public class TaskPlanOutputParser {
     /** Parse skeleton output with strict contract validation. */
     public SkeletonModelOutput parseSkeleton(String output) {
         String value = clean(output);
-        try { return strictSkeleton.readValue(value, SkeletonModelOutput.class); }
+        SkeletonModelOutput result;
+        try { result = strictSkeleton.readValue(value, SkeletonModelOutput.class); }
         catch (JsonProcessingException exception) {
             throw toContractException(exception);
         }
+        validateSkeletonOutputLimits(result);
+        return result;
     }
 
     /** Parse detail output with strict contract + required field validation. */
@@ -66,7 +69,65 @@ public class TaskPlanOutputParser {
             throw toContractException(exception);
         }
         validateDetailRequiredFields(result);
+        validateDetailDescriptionLimits(result);
         return result;
+    }
+
+    private static void validateSkeletonOutputLimits(SkeletonModelOutput output) {
+        if (output == null) return;
+        requireLengthAtMost(output.summary(), 300, "summary");
+        requireListSizeAtMost(output.assumptions(), 8, "assumptions");
+        requireListSizeAtMost(output.risks(), 8, "risks");
+        if (output.assumptions() != null) {
+            for (int i = 0; i < output.assumptions().size(); i++)
+                requireLengthAtMost(output.assumptions().get(i), 160, "assumptions[" + i + "]");
+        }
+        if (output.risks() != null) {
+            for (int i = 0; i < output.risks().size(); i++)
+                requireLengthAtMost(output.risks().get(i), 160, "risks[" + i + "]");
+        }
+        if (output.milestones() != null) {
+            for (int i = 0; i < output.milestones().size(); i++) {
+                var milestone = output.milestones().get(i);
+                if (milestone == null) continue;
+                String path = "milestones[" + i + "]";
+                requireLengthAtMost(milestone.tempKey(), 40, path + ".tempKey");
+                requireLengthAtMost(milestone.title(), 80, path + ".title");
+                requireLengthAtMost(milestone.objective(), 180, path + ".objective");
+            }
+        }
+        if (output.tasks() != null) {
+            for (int i = 0; i < output.tasks().size(); i++) {
+                var task = output.tasks().get(i);
+                if (task == null) continue;
+                String path = "tasks[" + i + "]";
+                requireLengthAtMost(task.tempKey(), 40, path + ".tempKey");
+                requireLengthAtMost(task.milestoneTempKey(), 40, path + ".milestoneTempKey");
+                requireLengthAtMost(task.title(), 80, path + ".title");
+                requireLengthAtMost(task.objective(), 180, path + ".objective");
+            }
+        }
+    }
+
+    private static void validateDetailDescriptionLimits(DetailModelOutput output) {
+        for (int i = 0; i < output.milestones().size(); i++)
+            requireLengthAtMost(output.milestones().get(i).description(), 400,
+                    "milestones[" + i + "].description");
+        for (int i = 0; i < output.tasks().size(); i++)
+            requireLengthAtMost(output.tasks().get(i).description(), 400,
+                    "tasks[" + i + "].description");
+    }
+
+    private static void requireListSizeAtMost(List<?> value, int maximum, String path) {
+        if (value != null && value.size() > maximum)
+            throw new ModelOutputContractException("OUTPUT_LIMIT_EXCEEDED", path,
+                    List.of("MAX_ITEMS_" + maximum));
+    }
+
+    private static void requireLengthAtMost(String value, int maximum, String path) {
+        if (value != null && value.length() > maximum)
+            throw new ModelOutputContractException("OUTPUT_LIMIT_EXCEEDED", path,
+                    List.of("MAX_LENGTH_" + maximum));
     }
 
     /**
