@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
 import { projectApi } from '../modules/project/project-api'
+import { normalizeApiError } from '../api/api-result'
 import type { Project, ProjectRole } from '../modules/project/types'
 
 export const useProjectContextStore = defineStore('projectContext', {
   state: () => ({
     currentProjectId: null as string | null,
     project: null as Project | null,
+    accessDeniedProjectId: null as string | null,
     loading: false,
   }),
 
@@ -19,13 +21,23 @@ export const useProjectContextStore = defineStore('projectContext', {
 
   actions: {
     async loadProject(projectId: string): Promise<void> {
-      if (this.currentProjectId === projectId && this.project) {
+      if (this.currentProjectId === projectId && this.project
+          || this.accessDeniedProjectId === projectId) {
         return
       }
+      this.currentProjectId = null
+      this.project = null
+      this.accessDeniedProjectId = null
       this.loading = true
       try {
         this.project = (await projectApi.get(projectId)).data
         this.currentProjectId = projectId
+      } catch (error) {
+        if (isProjectNotFound(error)) {
+          this.accessDeniedProjectId = projectId
+          return
+        }
+        throw error
       } finally {
         this.loading = false
       }
@@ -36,6 +48,14 @@ export const useProjectContextStore = defineStore('projectContext', {
       try {
         this.project = (await projectApi.get(projectId)).data
         this.currentProjectId = projectId
+        this.accessDeniedProjectId = null
+      } catch (error) {
+        if (isProjectNotFound(error)) {
+          this.clear()
+          this.accessDeniedProjectId = projectId
+          return
+        }
+        throw error
       } finally {
         this.loading = false
       }
@@ -44,6 +64,12 @@ export const useProjectContextStore = defineStore('projectContext', {
     clear(): void {
       this.currentProjectId = null
       this.project = null
+      this.accessDeniedProjectId = null
     },
   },
 })
+
+function isProjectNotFound(error: unknown): boolean {
+  const normalized = normalizeApiError(error)
+  return normalized.httpStatus === 404 || normalized.code === 'PROJECT_NOT_FOUND'
+}

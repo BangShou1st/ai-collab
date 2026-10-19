@@ -109,6 +109,27 @@ class KiloGatewayModelTest {
                 .contains("只输出合法 JSON 对象");
     }
 
+    @Test void completeSendsNativeJsonSchemaWhenPlanningSchemaIsProvided() throws Exception {
+        var transport = mock(KiloGatewayTransport.class);
+        when(transport.chat(any())).thenReturn(mapper.readTree(
+                "{\"model\":\"m:free\",\"choices\":[{\"message\":{\"content\":\"{\\\"ok\\\":true}\"},\"finish_reason\":\"stop\"}]}"));
+        var exec = new KiloGatewayModelExecution(new ProviderPresetRegistry(), mapper, transport);
+        var schema = mapper.readTree("""
+                {"type":"object","required":["tasks"],"properties":{"tasks":{"type":"array","items":{"type":"string"}}},"additionalProperties":false}
+                """);
+        var command = new ChatCompletionCommand(null, "system", "return schema JSON",
+                ChatCompletionCommand.OutputFormat.JSON_OBJECT, ModelPurpose.PLANNING, schema, List.of(), UUID.randomUUID());
+
+        exec.complete(kiloProvider("m:free", "x", "y"), command);
+
+        ArgumentCaptor<ObjectNode> body = ArgumentCaptor.forClass(ObjectNode.class);
+        verify(transport).chat(body.capture());
+        assertThat(body.getValue().path("response_format").path("type").asText()).isEqualTo("json_schema");
+        assertThat(body.getValue().path("response_format").path("json_schema").path("strict").asBoolean()).isTrue();
+        assertThat(body.getValue().path("response_format").path("json_schema").path("schema").path("required").get(0).asText())
+                .isEqualTo("tasks");
+    }
+
     @Test void completeStreamAggregatesTokensAndUsage() throws Exception {
         var transport = mock(KiloGatewayTransport.class);
         doAnswer(invocation -> {

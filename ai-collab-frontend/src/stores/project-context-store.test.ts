@@ -78,4 +78,39 @@ describe('project context store', () => {
     expect(projectApi.get).toHaveBeenCalledTimes(2)
     expect(store.currentUserRole).toBe('MEMBER')
   })
+
+  it('turns a project 404 into a denied state and clears stale project data', async () => {
+    vi.mocked(projectApi.get)
+      .mockResolvedValueOnce({ httpStatus: 200, code: 'SUCCESS', message: '操作成功', data: project })
+      .mockRejectedValueOnce(Object.assign(new Error('not found'), {
+        isAxiosError: true,
+        response: {
+          status: 404,
+          data: { code: 'PROJECT_NOT_FOUND', message: '项目不存在或你无权访问' },
+        },
+      }))
+    const store = useProjectContextStore()
+    await store.loadProject('project-1')
+
+    await expect(store.loadProject('private-project')).resolves.toBeUndefined()
+
+    expect(store.currentProjectId).toBeNull()
+    expect(store.project).toBeNull()
+    expect(store.accessDeniedProjectId).toBe('private-project')
+    expect(store.loading).toBe(false)
+  })
+
+  it('does not retry the same denied project until navigation changes', async () => {
+    vi.mocked(projectApi.get).mockRejectedValue(Object.assign(new Error('not found'), {
+      isAxiosError: true,
+      response: { status: 404, data: { code: 'PROJECT_NOT_FOUND' } },
+    }))
+    const store = useProjectContextStore()
+
+    await store.loadProject('private-project')
+    await store.loadProject('private-project')
+
+    expect(projectApi.get).toHaveBeenCalledTimes(1)
+    expect(store.accessDeniedProjectId).toBe('private-project')
+  })
 })

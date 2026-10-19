@@ -102,11 +102,11 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         // Catch-all first (lenient) — specific stubs take precedence
-        lenient().when(modelClient.generate(anyString(), anyString(), anyString(), any(), any(), any(), any()))
+        lenient().when(modelClient.generate(anyString(), anyString(), anyString(), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(null);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(skeletonJson, "test-provider", "test-model", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(detailJson, "test-provider", "test-model", 100, 50, 200));
 
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
@@ -158,7 +158,8 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         assertThat(finalDraft.sources().getFirst().ref()).isEqualTo("S1");
 
         // Verify attempt metrics
-verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), any(), any(), any(), any());
+verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), any(), any(), any(), any(),
+                any(com.fasterxml.jackson.databind.JsonNode.class));
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -195,12 +196,12 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         // First skeleton call returns bad output, repair returns good output
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(badSkeleton, "p", "m", 100, 50, 200))
                 .thenReturn(new GenerationResult(goodSkeleton, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(detailJson, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(goodSkeleton, "p", "m", 100, 50, 200));
 
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
@@ -248,9 +249,9 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         // Both attempts return bad output
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(badSkeleton, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(badSkeleton, "p", "m", 100, 50, 200));
 
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
@@ -296,7 +297,7 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
         // Simulate truncated output by throwing OUTPUT_TRUNCATED
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED));
 
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
@@ -312,7 +313,7 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
 
         CreateTaskPlanRequest request = new CreateTaskPlanRequest(
                 "O4 Plan", "Goal", null,
-                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), 10, List.of());
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), 4, List.of());
         TaskPlanRecord plan = repository.create(projectId, userId, request);
 
         orchestrator.dispatch(plan, userId, false);
@@ -322,6 +323,191 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
         TaskPlanRecord finalPlan = repository.require(projectId, plan.id());
         assertThat(finalPlan.status()).isEqualTo(TaskPlanStatus.FAILED);
         assertThat(finalPlan.lastErrorCode()).isEqualTo("PLANNING_MODEL_OUTPUT_TRUNCATED");
+    }
+
+    @Test
+    void detailTruncationRetainsSkeletonAndRetryCompletesSameTasks() throws Exception {
+        UUID userId = insertUser("detail-retry");
+        UUID projectId = insertProject("Detail Retry Project", userId);
+        insertMember(projectId, userId, "OWNER");
+
+        String skeletonJson = """
+                {"summary":"Stable plan","assumptions":[],"risks":[],
+                "milestones":[{"tempKey":"m1","title":"Phase 1","objective":"Verify release readiness","targetDate":null,"sortOrder":0}],
+                "tasks":[
+                  {"tempKey":"t1","milestoneTempKey":"m1","title":"Check API thresholds","objective":"Validate p95 and error rate","sortOrder":0},
+                  {"tempKey":"t2","milestoneTempKey":"m1","title":"Check rollback evidence","objective":"Verify rollback criteria","sortOrder":1}]}
+                """;
+        String detailJson = """
+                {"milestones":[{"tempKey":"m1","description":"Release readiness phase","sourceRefs":[]}],
+                "tasks":[
+                  {"tempKey":"t1","description":"Measure API p95 and error rate against release thresholds.","priority":"HIGH",
+                   "estimatedHours":4,"startDate":"$S","dueDate":"$D","suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]},
+                  {"tempKey":"t2","description":"Verify rollback triggers and record the recovery procedure.","priority":"MEDIUM",
+                   "estimatedHours":3,"startDate":"$S","dueDate":"$D","suggestedAssigneeId":null,"dependencyTempKeys":["t1"],"sourceRefs":[]}]}
+                """.replace("$S", LocalDate.now().plusDays(2).toString())
+                .replace("$D", LocalDate.now().plusDays(10).toString());
+
+        TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(new GenerationResult(skeletonJson, "test-provider", "test-model", 100, 50, 200));
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED))
+                .thenReturn(new GenerationResult(detailJson, "test-provider", "test-model", 100, 50, 200));
+
+        TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
+        when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
+                "<PROJECT_DATA>test</PROJECT_DATA>", List.of()));
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
+        TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
+                Runnable::run, repository, modelClient, parser, validator, json, contexts,
+                promptPolicy, outcomeDecider, normalizer, commitService);
+
+        TaskPlanRecord plan = repository.create(projectId, userId, new CreateTaskPlanRequest(
+                "Detail retry plan", "Verify release readiness", null,
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), 4, List.of()));
+
+        orchestrator.dispatch(plan, userId, false);
+
+        TaskPlanRecord failedPlan = repository.require(projectId, plan.id());
+        assertThat(failedPlan.status()).isEqualTo(TaskPlanStatus.DETAIL_GENERATION_FAILED);
+        assertThat(failedPlan.lastErrorCode()).isEqualTo("PLANNING_MODEL_OUTPUT_TRUNCATED");
+        assertThat(repository.versions(projectId, plan.id())).hasSize(1);
+        TaskPlanDraft retainedSkeleton = repository.draft(
+                repository.requireVersion(projectId, plan.id(), failedPlan.latestVersionId()));
+        assertThat(retainedSkeleton.milestones()).extracting(PlanMilestone::tempKey).containsExactly("m1");
+        assertThat(retainedSkeleton.tasks()).extracting(PlanTask::tempKey).containsExactly("t1", "t2");
+        assertThat(retainedSkeleton.tasks()).allSatisfy(task -> assertThat(task.description()).isNull());
+
+        TaskPlanRecord retryPlan = repository.startGeneration(projectId, plan.id(), userId, true);
+        UUID retryAttempt = retryPlan.activeAttemptId();
+        assertThat(retryAttempt).isNotNull();
+        orchestrator.dispatch(retryPlan, userId, true);
+
+        TaskPlanRecord readyPlan = repository.require(projectId, plan.id());
+        assertThat(readyPlan.status()).isIn(TaskPlanStatus.READY, TaskPlanStatus.READY_WITH_ISSUES);
+        List<TaskPlanVersionRecord> versions = repository.versions(projectId, plan.id());
+        assertThat(versions).hasSize(2);
+        TaskPlanDraft completed = repository.draft(versions.getFirst());
+        assertThat(completed.milestones()).extracting(PlanMilestone::tempKey).containsExactly("m1");
+        assertThat(completed.tasks()).extracting(PlanTask::tempKey).containsExactly("t1", "t2");
+        assertThat(completed.tasks()).extracting(PlanTask::title)
+                .containsExactly("Check API thresholds", "Check rollback evidence");
+        verify(modelClient, times(1)).generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(),
+                any(com.fasterxml.jackson.databind.JsonNode.class));
+        verify(modelClient, times(2)).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(),
+                any(com.fasterxml.jackson.databind.JsonNode.class));
+    }
+
+    @Test
+    void eightTaskPlanBatchesSplitTruncatedDetailsAndKeepStableIdentity() throws Exception {
+        UUID userId = insertUser("batch-eight");
+        UUID projectId = insertProject("Batch Eight Project", userId);
+        insertMember(projectId, userId, "OWNER");
+
+        TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED));
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(new GenerationResult(skeletonBatchJson(0), "test-provider", "test-model", 100, 50, 200))
+                .thenReturn(new GenerationResult(skeletonBatchJson(1), "test-provider", "test-model", 100, 50, 200));
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED))
+                .thenReturn(new GenerationResult(detailBatchJsonRange(0, 2, 0, 2), "test-provider", "test-model", 100, 50, 200))
+                .thenReturn(new GenerationResult(detailBatchJsonRange(2, 2, 2, 2), "test-provider", "test-model", 100, 50, 200))
+                .thenReturn(new GenerationResult(detailBatchJsonRange(0, 0, 4, 4), "test-provider", "test-model", 100, 50, 200));
+
+        TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
+        when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
+                "<PROJECT_DATA>synthetic batch test</PROJECT_DATA>", List.of()));
+        when(contexts.memberSnapshot(any())).thenReturn(
+                new TaskPlanContextAssembler.MemberSnapshot("成员列表", Set.of()));
+        TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
+                Runnable::run, repository, modelClient, parser, validator, json, contexts,
+                promptPolicy, outcomeDecider, normalizer, commitService);
+
+        TaskPlanRecord plan = repository.create(projectId, userId, new CreateTaskPlanRequest(
+                "Eight task batch plan", "Validate batched planning", null,
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), 8, List.of()));
+
+        orchestrator.dispatch(plan, userId, false);
+
+        TaskPlanRecord readyPlan = repository.require(projectId, plan.id());
+        assertThat(readyPlan.status())
+                .as("plan status=%s, error=%s, summary=%s", readyPlan.status(),
+                        readyPlan.lastErrorCode(), readyPlan.lastErrorSummary())
+                .isIn(TaskPlanStatus.READY, TaskPlanStatus.READY_WITH_ISSUES);
+        List<TaskPlanVersionRecord> versions = repository.versions(projectId, plan.id());
+        assertThat(versions).hasSize(2);
+        TaskPlanDraft completed = repository.draft(versions.getFirst());
+        assertThat(completed.tasks()).extracting(PlanTask::tempKey)
+                .containsExactly("t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8");
+        assertThat(completed.tasks()).allSatisfy(task -> assertThat(task.description()).isNotBlank());
+        assertThat(completed.milestones()).extracting(PlanMilestone::tempKey)
+                .containsExactly("m1", "m2", "m3", "m4");
+
+        verify(modelClient, times(2)).generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
+        verify(modelClient, times(4)).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
+        verify(modelClient, never()).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH_REPAIR"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
+        verify(modelClient, times(1)).generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
+    }
+
+    private static String skeletonBatchJson(int batchIndex) throws Exception {
+        int taskStart = batchIndex * 4;
+        int milestoneStart = batchIndex == 0 ? 0 : 3;
+        int milestoneCount = batchIndex == 0 ? 3 : 1;
+        var root = json.createObjectNode();
+        root.put("summary", "Eight task plan");
+        root.putArray("assumptions");
+        root.putArray("risks");
+        var milestones = root.putArray("milestones");
+        for (int offset = 0; offset < milestoneCount; offset++) {
+            int i = milestoneStart + offset;
+            var milestone = milestones.addObject();
+            milestone.put("tempKey", "m" + (i + 1));
+            milestone.put("title", "Phase " + (i + 1));
+            milestone.put("objective", "Complete phase " + (i + 1));
+            milestone.putNull("targetDate");
+            milestone.put("sortOrder", batchIndex * 4 + offset);
+        }
+        var tasks = root.putArray("tasks");
+        for (int i = taskStart; i < taskStart + 4; i++) {
+            var task = tasks.addObject();
+            task.put("tempKey", "t" + (i + 1));
+            int milestoneIndex = i < 2 ? 0 : i == 2 ? 1 : batchIndex == 0 ? 2 : 3;
+            task.put("milestoneTempKey", "m" + (milestoneIndex + 1));
+            task.put("title", "Task " + (i + 1));
+            task.put("objective", "Complete validation step " + (i + 1));
+            task.put("sortOrder", i);
+        }
+        return json.writeValueAsString(root);
+    }
+
+    private static String detailBatchJsonRange(int milestoneStart, int milestoneCount,
+            int taskStart, int taskCount) throws Exception {
+        var root = json.createObjectNode();
+        var milestones = root.putArray("milestones");
+        for (int i = milestoneStart; i < milestoneStart + milestoneCount; i++) {
+            var milestone = milestones.addObject();
+            milestone.put("tempKey", "m" + (i + 1));
+            milestone.put("description", "Complete validation phase " + (i + 1));
+            milestone.putArray("sourceRefs");
+        }
+        var tasks = root.putArray("tasks");
+        for (int i = taskStart; i < taskStart + taskCount; i++) {
+            var task = tasks.addObject();
+            task.put("tempKey", "t" + (i + 1));
+            task.put("description", "Complete validation step " + (i + 1) + " and record the outcome.");
+            task.put("priority", "MEDIUM");
+            task.put("estimatedHours", 2);
+            task.put("startDate", LocalDate.now().plusDays(2).toString());
+            task.put("dueDate", LocalDate.now().plusDays(10).toString());
+            task.putNull("suggestedAssigneeId");
+            task.putArray("dependencyTempKeys");
+            task.putArray("sourceRefs");
+        }
+        return json.writeValueAsString(root);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
@@ -399,9 +585,9 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
                 """.replace("$TGT", LocalDate.now().plusDays(20).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(detailJson, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(skeletonJson, "p", "m", 100, 50, 200));
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
         when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(

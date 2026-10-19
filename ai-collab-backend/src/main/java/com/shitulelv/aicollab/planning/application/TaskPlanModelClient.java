@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.planning.application;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
 import com.shitulelv.aicollab.infrastructure.ai.AiCallLogWriter;
@@ -55,15 +56,17 @@ public class TaskPlanModelClient {
      */
     public GenerationResult generate(String system, String user, String feature,
                                      UUID actor, UUID projectId, UUID attemptId, UUID correlationId) {
+        return generate(system, user, feature, actor, projectId, attemptId, correlationId, null);
+    }
+
+    public GenerationResult generate(String system, String user, String feature,
+                                     UUID actor, UUID projectId, UUID attemptId, UUID correlationId,
+                                     JsonNode outputSchema) {
         long started = System.nanoTime();
         String correlation = correlationId != null ? correlationId.toString()
                 : (attemptId != null ? attemptId.toString() : java.util.UUID.randomUUID().toString());
         com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider selected = null;
         try {
-            ChatCompletionCommand command = new ChatCompletionCommand(
-                    projectId, system, user,
-                    ChatCompletionCommand.OutputFormat.PROMPT_JSON,
-                    ModelPurpose.PLANNING, null, java.util.List.of(), actor);
             var metadata = new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata(correlation);
             ChatCompletionResult result;
             if (providers != null && gateway instanceof com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGateway routing) {
@@ -71,8 +74,11 @@ public class TaskPlanModelClient {
                 if (pinned == null) {
                     if (configurationStore == null) {
                         var provider = providers.resolve(actor, ModelPurpose.PLANNING);
-                        pinned = new PlanningModelConfigurationStore.Snapshot(provider, properties.maxOutputTokens() == null ? provider.maxOutputTokens() : properties.maxOutputTokens());
-                    } else pinned = configurationStore.requireSnapshot(actor, UUID.fromString(correlation), properties.maxOutputTokens());
+                        Integer outputBudget = properties.maxOutputTokens() == null
+                                ? provider.maxOutputTokens() : properties.maxOutputTokens();
+                        pinned = new PlanningModelConfigurationStore.Snapshot(provider, outputBudget);
+                    } else pinned = configurationStore.requireSnapshot(actor, UUID.fromString(correlation),
+                            properties.maxOutputTokens());
                     snapshot.set(pinned);
                 }
                 selected = pinned.provider();
@@ -80,8 +86,14 @@ public class TaskPlanModelClient {
                         feature, selected.id(), selected.providerType(), selected.modelName(),
                         pinned.maxOutputTokens(),
                         !"OPENCODE_ZEN_FREE".equals(selected.presetCode()));
+                ChatCompletionCommand command = command(projectId, system, user, actor, selected, outputSchema);
                 result = routing.completeWithSnapshot(command, metadata, selected, pinned.maxOutputTokens());
-            } else result = gateway.complete(command, metadata);
+            } else {
+                ChatCompletionCommand command = new ChatCompletionCommand(
+                        projectId, system, user, ChatCompletionCommand.OutputFormat.PROMPT_JSON,
+                        ModelPurpose.PLANNING, null, java.util.List.of(), actor);
+                result = gateway.complete(command, metadata);
+            }
             safeLog(feature, actor, projectId, attemptId, result.provider(), result.model(),
                     "SUCCESS", result.latencyMs(), result.promptTokens(), result.completionTokens(), null);
             return new GenerationResult(result.content(), result.provider(), result.model(),
@@ -104,6 +116,15 @@ public class TaskPlanModelClient {
             throw responseFailure == null ? new BusinessException(mapped)
                     : new BusinessException(mapped, responseFailure.getMessage());
         }
+    }
+
+    private static ChatCompletionCommand command(UUID projectId, String system, String user, UUID actor,
+            com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider selected, JsonNode outputSchema) {
+        boolean nativeSchema = "KILO_GATEWAY_FREE".equals(selected.presetCode()) && outputSchema != null;
+        return new ChatCompletionCommand(projectId, system, user,
+                nativeSchema ? ChatCompletionCommand.OutputFormat.JSON_OBJECT
+                        : ChatCompletionCommand.OutputFormat.PROMPT_JSON,
+                ModelPurpose.PLANNING, nativeSchema ? outputSchema : null, java.util.List.of(), actor);
     }
 
     private void safeLog(String feature, UUID actor, UUID projectId, UUID attemptId,

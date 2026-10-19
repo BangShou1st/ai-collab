@@ -27,8 +27,8 @@ import org.springframework.stereotype.Component;
  * 端点与模型策略来自 {@link ProviderPresetRegistry}，HTTP/SSE/免费模型判定由共享库负责，
  * 这里只负责把统一轮次合同映射成网关 OpenAI 兼容 wire，并把网关 JSON 映射回合同。
  *
- * <p>与 Zen 不同：免费模型匿名调用不发送 Authorization，因此没有凭证与会话信封；
- * 结构化输出按提示词约束 JSON 而不使用 {@code response_format}，严格校验仍由应用侧负责。</p>
+ * <p>免费模型匿名调用不发送 Authorization，因此没有凭证与会话信封。规划可附带网关
+ * 支持的 JSON Schema 响应格式；应用仍会执行完整的解析和业务校验。</p>
  */
 @Component
 public class KiloGatewayModelExecution {
@@ -75,9 +75,18 @@ public class KiloGatewayModelExecution {
     public ChatCompletionResult complete(UserAiProvider provider, ChatCompletionCommand command) {
         long started = System.nanoTime();
         ModelConfiguration config = runtimeConfig(provider);
-        // 结构化输出按提示词强制 JSON（不使用 response_format），与 Zen 预设同一策略。
-        ChatCompletionCommand effective = command.outputFormat() != ChatCompletionCommand.OutputFormat.TEXT
-                ? ZenModelExecution.forceJson(command) : command;
+        // 所有结构化结果均由应用解析校验；只有显式传入 schema 时才启用网关原生 Schema 模式。
+        ChatCompletionCommand effective;
+        if (command.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT
+                && command.outputSchema() != null) {
+            ChatCompletionCommand forced = ZenModelExecution.forceJson(command);
+            effective = new ChatCompletionCommand(forced.projectId(), forced.systemPrompt(), forced.userPrompt(),
+                    ChatCompletionCommand.OutputFormat.JSON_OBJECT, forced.purpose(), command.outputSchema(),
+                    forced.tools(), forced.callerUserId());
+        } else {
+            effective = command.outputFormat() != ChatCompletionCommand.OutputFormat.TEXT
+                    ? ZenModelExecution.forceJson(command) : command;
+        }
         JsonNode response = transport.chat(completionRequest(config, effective, false));
         return parseCompletion(config, response, started);
     }
@@ -148,6 +157,15 @@ public class KiloGatewayModelExecution {
         ArrayNode messages = body.putArray("messages");
         messages.addObject().put("role", "system").put("content", command.systemPrompt());
         messages.addObject().put("role", "user").put("content", command.userPrompt());
+        if (command.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT
+                && command.outputSchema() != null) {
+            ObjectNode responseFormat = body.putObject("response_format");
+            responseFormat.put("type", "json_schema");
+            ObjectNode schema = responseFormat.putObject("json_schema");
+            schema.put("name", "planning_output");
+            schema.put("strict", true);
+            schema.set("schema", command.outputSchema());
+        }
         appendTools(body, command.tools(), false, false);
         return body;
     }

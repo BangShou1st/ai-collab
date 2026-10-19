@@ -7,6 +7,17 @@
 .app-content {
   width: 100%;
 }
+.project-access-denied {
+  width: min(640px, calc(100% - 48px));
+  margin: 64px auto;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+.project-access-denied h1 { margin: 0 0 8px; font-size: 20px; }
+.project-access-denied p { margin: 0 0 16px; color: var(--color-text-secondary); }
+.project-access-denied a { color: var(--color-primary-hover); font-weight: 600; }
 /* ===== V2.1 GLOBAL PAGE GEOMETRY CONTRACT (highest priority) ===== */
 /* Desktop 1440: sidebar 248 / collapsed 72, gutter 40, top 32, max-width 1240.
    No page may override padding-top / header margin-top / top spacer. */
