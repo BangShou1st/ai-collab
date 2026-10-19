@@ -1,0 +1,73 @@
+{
+  "capture": {
+    "runId": "de4e739a44050",
+    "sessionId": "yjqw",
+    "browser": "Microsoft Edge 155",
+    "browserSkillExtension": "0.3.3",
+    "state": "stopped",
+    "requestsObserved": 600,
+    "operationsObserved": 36,
+    "errors": 0,
+    "droppedRequests": 0,
+    "droppedOperations": 0,
+    "droppedConsoleEntries": 0
+  },
+  "keyRequests": [
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/embedding-config",
+      "status": 200,
+      "state": "complete"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/admin/embedding-config/test-candidate",
+      "status": 200,
+      "durationMs": 2695.87,
+      "state": "complete"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/embedding-config",
+      "status": 200,
+      "state": "complete"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects",
+      "status": 201,
+      "state": "complete"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/[ID]/documents",
+      "status": 202,
+      "state": "complete"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/[ID]/documents",
+      "status": 200,
+      "state": "complete",
+      "uiResult": "可检索, 3 chunks, version v0"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/[ID]/documents/[ID]/reindex",
+      "status": 202,
+      "state": "complete"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/[ID]/documents",
+      "status": 200,
+      "state": "complete",
+      "uiResult": "可检索, 3 chunks, version v1 after page reload"
+    }
+  ],
+  "redactions": [
+    "Request and response bodies, headers, cookies, and field-value chains omitted",
+    "Project and document UUIDs replaced with [ID]",
+    "Query strings omitted"
+  ]
+}

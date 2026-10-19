@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
+import PageHeader from '../../shared/PageHeader.vue'
 import {
   taskPriorityLabel,
   taskStatusLabel,

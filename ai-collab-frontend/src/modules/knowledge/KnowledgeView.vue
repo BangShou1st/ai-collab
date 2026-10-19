@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../../shared/PageHeader.vue'
 import { useKnowledgeView } from './use-knowledge-view'
 import { formatTime, markdown, similarity } from './knowledge-render'
 import { isFeedbackEligible } from './knowledge-feedback'
