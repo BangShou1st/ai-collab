@@ -40,6 +40,7 @@ import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.application.view.DocumentView;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayModelExecution;
+import com.shitulelv.aicollab.infrastructure.ai.model.ExternalProviderFailure;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
 import com.shitulelv.aicollab.infrastructure.ai.model.ProviderPresetRegistry;
@@ -55,9 +56,13 @@ import com.sharedlibs.kilogateway.KiloGatewayClient;
 import com.sharedlibs.kilogateway.autoconfigure.KiloGatewayAutoConfiguration;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -83,7 +88,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
@@ -91,6 +101,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -114,6 +125,7 @@ import static org.mockito.Mockito.when;
  */
 @Testcontainers(disabledWithoutDocker = true)
 @EnabledIfEnvironmentVariable(named = "AI_REAL_AGENT_LOOP", matches = "true")
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class RealAgentLoopPostgresTest {
     private static final String MODEL = System.getenv().getOrDefault(
             "AI_REAL_AGENT_LOOP_MODEL", "nvidia/nemotron-3-super-120b-a12b:free");
@@ -135,12 +147,12 @@ class RealAgentLoopPostgresTest {
     private AgentApprovalService approvals;
     private RoutingAgentModelExecutor modelExecutor;
     private AgentRuntimeCoordinator coordinator;
+    private RealAgentLoopBudget scenarioBudget;
+    private ExecutorService providerExecutor;
     private AgentRecoveryJob recovery;
     private DocumentContentService content;
     private DocumentApplicationService documents;
 
-    /** 真实外部模型调用计数（有界保护）。 */
-    private final AtomicInteger modelCalls = new AtomicInteger();
     private Function<String, List<DocumentSearchHit>> searchResolver = query -> List.of();
 
     private UUID user;
@@ -148,13 +160,17 @@ class RealAgentLoopPostgresTest {
     private UUID session;
     private final Map<String, UUID> documentIds = new LinkedHashMap<>();
     private final Map<String, UUID> chunkIds = new LinkedHashMap<>();
+    private final AtomicReference<ExternalProviderFailure> supplierFailure = new AtomicReference<>();
 
     private static final Map<String, Map<String, Object>> SCENARIOS = new LinkedHashMap<>();
+    private static final AtomicReference<String> EXTERNAL_BLOCK = new AtomicReference<>();
     static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "2026-10-19",
             "real-agent-loop.json");
 
     @BeforeAll
     static void migrate() {
+        SCENARIOS.clear();
+        EXTERNAL_BLOCK.set(null);
         var dataSource = new DriverManagerDataSource(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
@@ -174,7 +190,9 @@ class RealAgentLoopPostgresTest {
                 "document_chunk", "project_document", "project_member", "project", "app_user")) {
             jdbc.update("DELETE FROM " + table);
         }
-        modelCalls.set(0);
+        scenarioBudget = null;
+        providerExecutor = null;
+        supplierFailure.set(null);
         searchResolver = query -> List.of();
 
         assembler = mock(AgentContextAssembler.class);
@@ -196,7 +214,9 @@ class RealAgentLoopPostgresTest {
     // ============================================================ 真实 Agent-loop 场景
 
     @Test
+    @Order(1)
     void realModelDrivesSearchThenSynthesizesWithRealCitations() {
+        skipAfterExternalBlock("R1");
         searchResolver = query -> List.of(
                 hit("上线验收规程.md", 0, "上线门禁",
                         "生产发布前必须完成核心业务流程的自动化验收，所有阻断级缺陷必须关闭。", 0.9),
@@ -207,13 +227,24 @@ class RealAgentLoopPostgresTest {
                 "结合项目文档说明上线验收需要满足的条件，以及上线后指标不达标时该如何处理。"
                         + "请调用检索工具获取真实来源后再回答。设定：一个检索工具调用即可。");
 
-        assertTerminal(result);
+        assertRealScenarioSucceeded(result);
         assertRealToolCall(result, "search_project_knowledge");
-        assertNoFabricatedCitations(result);
+        assertAnswerContains(result, "自动化验收", "阻断", "连续两次", "回滚");
+        assertCitationsAllowed(result, Set.of(
+                documentIds.get("上线验收规程.md").toString(),
+                documentIds.get("发布回滚预案.md").toString(),
+                chunkIds.get("上线验收规程.md#0").toString(),
+                chunkIds.get("发布回滚预案.md#0").toString()));
+        assertCitationChunksPresent(result, Set.of(
+                chunkIds.get("上线验收规程.md#0").toString(),
+                chunkIds.get("发布回滚预案.md#0").toString()));
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    @Order(2)
     void realModelAnswersDocumentScopedQuestionWithoutLeakingOtherDocuments() {
+        skipAfterExternalBlock("R2");
         searchResolver = query -> List.of(
                 hit("批量导出规范.md", 0, "文件保留",
                         "已完成的导出文件在临时存储区保存二十四小时，过期后自动清理。", 0.9),
@@ -222,19 +253,33 @@ class RealAgentLoopPostgresTest {
         Map<String, Object> result = runScenario("R2-指定文档范围",
                 "根据《批量导出规范》回答：已完成的导出文件会在临时存储区保留多久？请调用检索工具取得真实来源。");
 
-        assertTerminal(result);
-        assertNoFabricatedCitations(result);
+        assertRealScenarioSucceeded(result);
+        assertRealToolCall(result, "search_project_knowledge");
+        assertAnswerContains(result, "二十四小时|24\\s*小时");
+        assertCitationsAllowed(result, Set.of(
+                documentIds.get("批量导出规范.md").toString(),
+                chunkIds.get("批量导出规范.md#0").toString()));
+        assertCitationChunksPresent(result, Set.of(chunkIds.get("批量导出规范.md#0").toString()));
+        assertThat((List<String>) result.get("citationIds")).as("R2 不得持久化引用归档通告")
+                .doesNotContain(documentIds.get("数据归档通告.md").toString(),
+                        chunkIds.get("数据归档通告.md#0").toString());
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    @Order(3)
     void realModelRefusesWhenMaterialIsInsufficient() {
+        skipAfterExternalBlock("R3");
         searchResolver = query -> List.of();
 
         Map<String, Object> result = runScenario("R3-资料不足拒绝编造",
                 "项目文档里有没有规定审计日志必须保留多少年？如果没有依据，请如实说明资料不足，不要编造年限。");
 
-        assertTerminal(result);
-        assertNoFabricatedCitations(result);
+        assertRealScenarioSucceeded(result);
+        assertRealToolCall(result, "search_project_knowledge");
+        assertAnswerContains(result, "资料不足|未找到|无法确定|没有依据");
+        assertThat((List<String>) result.get("citationIds"))
+                .as("R3 无证据时不得有任何持久化引用").isEmpty();
     }
 
     // ============================================================ 有界驱动
@@ -246,8 +291,15 @@ class RealAgentLoopPostgresTest {
         item.put("provider", "KILO_GATEWAY_FREE");
         item.put("model", MODEL);
         long started = System.nanoTime();
+        scenarioBudget = new RealAgentLoopBudget(started,
+                TimeUnit.MILLISECONDS.toNanos(SCENARIO_TIMEOUT_MS), MAX_MODEL_CALLS_PER_SCENARIO);
+        providerExecutor = Executors.newSingleThreadExecutor(task -> {
+            Thread thread = new Thread(task, "real-agent-loop-provider-call");
+            thread.setDaemon(true);
+            return thread;
+        });
         String status = "UNKNOWN";
-        String blockedReason = null;
+        Throwable internalFailure = null;
         try {
             AgentRunView run = newRun(goal);
             AgentWorkerOutcome outcome = drive(run);
@@ -259,29 +311,59 @@ class RealAgentLoopPostgresTest {
             item.put("citationChunkIds", citations.stream().filter(chunkIdSet()::contains).toList());
             item.put("searchToolInvocations", toolInvocations(run, "search_project_knowledge"));
             item.put("toolErrorInvocations", toolInvocationsWithReason(run, "TOOL_ERROR"));
-        } catch (RuntimeException failure) {
-            blockedReason = classifyUpstream(failure);
+        } catch (ExternalProviderFailure failure) {
             status = "BLOCKED_EXTERNAL";
             item.put("runStatus", status);
-            item.put("blockedReason", blockedReason);
+            item.put("blockedReason", failure.kind().name());
+            item.put("providerStatusCode", failure.statusCode());
+            EXTERNAL_BLOCK.compareAndSet(null, failure.kind().name());
+        } catch (RuntimeException | Error failure) {
+            status = "TEST_FAILED";
+            item.put("runStatus", status);
+            item.put("failureType", failure.getClass().getName());
+            internalFailure = failure;
+        } finally {
+            if (providerExecutor != null) providerExecutor.shutdownNow();
         }
-        item.put("modelCalls", modelCalls.get());
+        item.put("modelCalls", scenarioBudget.modelCalls());
         item.put("elapsedMs", (System.nanoTime() - started) / 1_000_000);
+        assertThat((int) item.get("modelCalls"))
+                .as("失败与成功路径的真实模型调用次数都必须服从同一上限")
+                .isLessThanOrEqualTo(MAX_MODEL_CALLS_PER_SCENARIO);
+        assertThat((long) item.get("elapsedMs"))
+                .as("失败与成功路径的总耗时都必须服从同一墙钟上限")
+                .isLessThanOrEqualTo(SCENARIO_TIMEOUT_MS);
         SCENARIOS.put(name, item);
+        if (internalFailure instanceof RuntimeException runtimeFailure) throw runtimeFailure;
+        if (internalFailure instanceof Error errorFailure) throw errorFailure;
         return item;
     }
 
     private AgentWorkerOutcome drive(AgentRunView parent) {
-        AgentWorkerOutcome last = coordinator.advance(repository.findRun(project, parent.id()).orElseThrow());
-        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(SCENARIO_TIMEOUT_MS);
+        AgentWorkerOutcome last = advanceChecked(repository.findRun(project, parent.id()).orElseThrow());
         for (int round = 0; round < 24; round++) {
-            if (allTerminal(parent) || System.nanoTime() > deadline) break;
-            if (modelCalls.get() > MAX_MODEL_CALLS_PER_SCENARIO) break;
+            if (allTerminal(parent)) return last;
+            scenarioBudget.remainingNanos(System.nanoTime());
+            if (scenarioBudget.modelCalls() >= MAX_MODEL_CALLS_PER_SCENARIO) {
+                throw new RealAgentLoopBudget.LimitExceededException("scenario model-call limit exceeded");
+            }
             var claimed = recovery.claim("w-real-" + round, Duration.ofMinutes(3)).orElse(null);
-            if (claimed == null) break;
-            last = coordinator.advance(repository.findRun(project, claimed.id()).orElseThrow());
+            if (claimed == null) {
+                throw new IllegalStateException("real Agent run did not produce a recoverable step");
+            }
+            last = advanceChecked(repository.findRun(project, claimed.id()).orElseThrow());
+        }
+        if (!allTerminal(parent)) {
+            throw new RealAgentLoopBudget.LimitExceededException("real Agent loop exceeded the bounded round count");
         }
         return last;
+    }
+
+    private AgentWorkerOutcome advanceChecked(AgentRunView run) {
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+        ExternalProviderFailure external = supplierFailure.get();
+        if (external != null) throw external;
+        return outcome;
     }
 
     private boolean allTerminal(AgentRunView parent) {
@@ -299,38 +381,89 @@ class RealAgentLoopPostgresTest {
         return repository.findRun(project, run.id()).orElseThrow();
     }
 
-    private static String classifyUpstream(RuntimeException failure) {
+    static String classifyUpstream(Throwable failure) {
         Throwable cause = failure;
         while (cause != null) {
-            if (cause instanceof com.shitulelv.aicollab.common.exception.BusinessException business) {
-                return business.getErrorCode().name();
-            }
+            if (cause instanceof ExternalProviderFailure external) return external.kind().name();
             cause = cause.getCause();
         }
-        return "UPSTREAM_ERROR";
+        return null;
     }
 
     // ============================================================ 断言辅助
 
-    private void assertTerminal(Map<String, Object> result) {
+    static boolean isSuccessfulStatus(String status) {
+        return "SUCCEEDED".equals(status);
+    }
+
+    static boolean assertSuccessfulStatus(Map<String, Object> result) {
         assertThat(result.get("runStatus"))
-                .as("%s：运行必须在有界预算内到达终态或如实 BLOCKED_EXTERNAL", result.get("scenario"))
-                .isIn("SUCCEEDED", "BUDGET_EXCEEDED", "FAILED", "CANCELED", "BLOCKED_EXTERNAL");
+                .as("%s：业务成功验收必须为 SUCCEEDED", result.get("scenario"))
+                .isEqualTo("SUCCEEDED");
+        return true;
+    }
+
+    private void assertRealScenarioSucceeded(Map<String, Object> result) {
+        if ("BLOCKED_EXTERNAL".equals(result.get("runStatus"))) {
+            Assumptions.abort("真实模型供应商外部阻断（" + result.get("blockedReason")
+                    + "），已记录为未完成并跳过业务成功验收");
+        }
+        assertSuccessfulStatus(result);
         assertThat((int) result.get("modelCalls"))
                 .as("%s：模型调用次数必须有界", result.get("scenario"))
                 .isLessThanOrEqualTo(MAX_MODEL_CALLS_PER_SCENARIO);
+        assertThat((String) result.get("finalAnswer"))
+                .as("%s：成功运行必须持久化真实模型最终输出", result.get("scenario"))
+                .isNotBlank();
     }
 
     @SuppressWarnings("unchecked")
     private void assertRealToolCall(Map<String, Object> result, String tool) {
-        if ("BLOCKED_EXTERNAL".equals(result.get("runStatus"))) {
-            return; // 上游不可用：如实记录，不伪造工具调用
-        }
         List<String> invocations = (List<String>) result.get("searchToolInvocations");
         assertThat(invocations).as("%s：真实模型必须经生产工具路由调用 %s", result.get("scenario"), tool)
                 .isNotEmpty();
         assertThat(invocations).as("%s：真实工具调用必须成功（不得把失败当成功）", result.get("scenario"))
                 .allMatch(status -> "SUCCEEDED".equals(status));
+    }
+
+    private static void assertAnswerContains(Map<String, Object> result, String... regexes) {
+        String answer = (String) result.get("finalAnswer");
+        for (String regex : regexes) {
+            assertThat(answerMatches(answer, regex))
+                    .as("%s：最终回答必须包含 /%s/", result.get("scenario"), regex).isTrue();
+        }
+    }
+
+    static boolean answerMatches(String answer, String regex) {
+        return answer != null && java.util.regex.Pattern.compile("(?s).*(?:" + regex + ").*")
+                .matcher(answer).matches();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void assertCitationsAllowed(Map<String, Object> result, Set<String> allowed) {
+        List<String> citations = (List<String>) result.get("citationIds");
+        assertThat(citations).as("%s：持久化来源必须满足场景范围", result.get("scenario"))
+                .allMatch(allowed::contains);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void assertCitationChunksPresent(Map<String, Object> result, Set<String> expected) {
+        List<String> chunkCitations = (List<String>) result.get("citationChunkIds");
+        assertThat(chunkCitations).as("%s：必要证据分块必须出现在持久化引用中", result.get("scenario"))
+                .containsAll(expected);
+    }
+
+    private void skipAfterExternalBlock(String scenario) {
+        String reason = EXTERNAL_BLOCK.get();
+        if (reason == null) return;
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("scenario", scenario);
+        item.put("runStatus", "NOT_RUN_AFTER_EXTERNAL_BLOCK");
+        item.put("blockedReason", reason);
+        item.put("modelCalls", 0);
+        item.put("elapsedMs", 0);
+        SCENARIOS.put(scenario, item);
+        Assumptions.abort("前一真实模型场景已遇到供应商故障 " + reason + "；停止后续外部调用");
     }
 
     private void assertNoFabricatedCitations(Map<String, Object> result) {
@@ -407,11 +540,26 @@ class RealAgentLoopPostgresTest {
         ModelTurnGateway turnGateway = new ModelTurnGateway() {
             @Override
             public com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult turn(ModelTurnCommand command) {
-                if (modelCalls.incrementAndGet() > MAX_MODEL_CALLS_PER_SCENARIO) {
-                    throw new com.shitulelv.aicollab.common.exception.BusinessException(
-                            com.shitulelv.aicollab.common.exception.ErrorCode.AI_PROVIDER_ERROR);
+                long remainingNanos = scenarioBudget.beginModelCall(System.nanoTime());
+                Future<com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult> request =
+                        providerExecutor.submit(() -> kiloExecution.turn(provider, command));
+                try {
+                    return request.get(remainingNanos, TimeUnit.NANOSECONDS);
+                } catch (TimeoutException expired) {
+                    request.cancel(true);
+                    throw new RealAgentLoopBudget.LimitExceededException(
+                            "provider request reached the remaining scenario wall-clock limit");
+                } catch (InterruptedException interrupted) {
+                    request.cancel(true);
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("real Agent-loop test interrupted", interrupted);
+                } catch (ExecutionException failed) {
+                    Throwable cause = failed.getCause();
+                    if (cause instanceof ExternalProviderFailure external) supplierFailure.set(external);
+                    if (cause instanceof RuntimeException runtime) throw runtime;
+                    if (cause instanceof Error error) throw error;
+                    throw new IllegalStateException("real provider request failed", cause);
                 }
-                return kiloExecution.turn(provider, command);
             }
         };
         var nativeExecutor = new NativeToolCallingExecutor(turnGateway);
@@ -427,6 +575,7 @@ class RealAgentLoopPostgresTest {
         AtomicReference<KiloGatewayClient> reference = new AtomicReference<>();
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(KiloGatewayAutoConfiguration.class))
+                .withPropertyValues("kilo.gateway.request-timeout=90s")
                 .run(context -> reference.set(context.getBean(KiloGatewayClient.class)));
         KiloGatewayClient client = reference.get();
         assertThat(client).as("共享库 Kilo 客户端必须可用（kilo.gateway.enabled 默认 true）").isNotNull();
@@ -437,6 +586,13 @@ class RealAgentLoopPostgresTest {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         lenient().when(access.requireMember(any(), any())).thenReturn(ProjectRole.OWNER);
         DocumentSearchService search = mock(DocumentSearchService.class);
+        when(search.resolveNamedDocumentIds(any(), anyList())).thenAnswer(invocation -> {
+            List<String> names = invocation.getArgument(1);
+            return documentIds.entrySet().stream()
+                    .filter(entry -> names.stream().anyMatch(name -> name.equals(entry.getKey())
+                            || name.equals(entry.getKey().replaceFirst("\\.[^.]+$", ""))))
+                    .map(Map.Entry::getValue).toList();
+        });
         lenient().when(search.search(any(), anyString(), any(), anyInt())).thenAnswer(invocation -> {
             String query = invocation.getArgument(1);
             List<UUID> scope = invocation.getArgument(2);
@@ -555,7 +711,8 @@ class RealAgentLoopPostgresTest {
         document.put("note", "D-RAG-01C 第二轮 阶段 C2：真实 Chat 模型的完整 Agent-loop 验收（Opt-in，"
                 + "AI_REAL_AGENT_LOOP=true）。通过生产 Agent 模型路由穿过真实 Kilo 免费模型，"
                 + "驱动“问题→决策→真实工具调用→证据回收→综合→持久化引用”。检索后端为确定性关键词解析。"
-                + "上游不可用时如实标记 BLOCKED_EXTERNAL，不伪造工具调用成功。");
+                + "只有结构化识别的外部供应商故障才记为 BLOCKED_EXTERNAL 并跳过；内部失败为测试失败。"
+                + "每场景模型调用轮数和总墙钟均受限。");
         document.put("provider", "KILO_GATEWAY_FREE");
         document.put("model", MODEL);
         document.put("scenarios", SCENARIOS);

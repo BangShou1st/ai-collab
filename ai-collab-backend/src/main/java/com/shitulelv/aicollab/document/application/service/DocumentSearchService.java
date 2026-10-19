@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.document.application.service;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
+import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
@@ -10,6 +11,8 @@ import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGatewa
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -50,6 +53,36 @@ public class DocumentSearchService {
         return documents.search(projectId, queryEmbedding.vectors().getFirst(),
                 queryEmbedding.provider(), queryEmbedding.model(), queryEmbedding.dimension(),
                 queryEmbedding.fingerprint(), scopedIds, topK);
+    }
+
+    /** Resolves only exact document names from the current project, never model-generated IDs. */
+    public List<UUID> resolveNamedDocumentIds(UUID projectId, List<String> explicitNames) {
+        if (projectId == null || explicitNames == null || explicitNames.isEmpty()) return List.of();
+        Set<String> requested = explicitNames.stream()
+                .map(DocumentSearchService::normalizedDocumentName)
+                .filter(name -> !name.isEmpty())
+                .collect(java.util.stream.Collectors.toSet());
+        if (requested.isEmpty()) return List.of();
+        return documents.list(projectId).stream()
+                .filter(document -> document.getStatus() == DocumentStatus.READY)
+                .filter(document -> requested.contains(normalizedDocumentName(document.getOriginalFilename()))
+                        || requested.contains(normalizedDocumentName(document.getDisplayName()))
+                        || requested.contains(normalizedDocumentName(withoutExtension(document.getOriginalFilename())))
+                        || requested.contains(normalizedDocumentName(withoutExtension(document.getDisplayName()))))
+                .map(com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity::getId)
+                .distinct()
+                .toList();
+    }
+
+    private static String normalizedDocumentName(String name) {
+        if (name == null) return "";
+        return name.strip().replace('\\', '/').replaceAll("^.*/", "").toLowerCase(Locale.ROOT);
+    }
+
+    private static String withoutExtension(String name) {
+        if (name == null) return "";
+        int dot = name.lastIndexOf('.');
+        return dot > 0 ? name.substring(0, dot) : name;
     }
 
     private static String validateQuery(String query) {

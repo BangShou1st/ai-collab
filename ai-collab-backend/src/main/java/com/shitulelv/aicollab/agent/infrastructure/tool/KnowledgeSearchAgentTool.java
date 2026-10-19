@@ -18,8 +18,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class KnowledgeSearchAgentTool implements AgentTool {
@@ -31,6 +35,7 @@ public class KnowledgeSearchAgentTool implements AgentTool {
      * 这是一次带 {@code LIMIT 20} 的有界检索，不是无界查询，也不产生 N+1。
      */
     private static final int MAX_CANDIDATE_POOL = 20;
+    private static final Pattern EXPLICIT_DOCUMENT_NAME = Pattern.compile("《([^《》]{1,200})》");
     private final ProjectAccessGuard access;
     private final DocumentSearchService search;
     private final KnowledgeContextBuilder contextBuilder;
@@ -54,6 +59,7 @@ public class KnowledgeSearchAgentTool implements AgentTool {
     public AgentToolDefinition definition() {
         return AgentToolDefinition.fromJson(name(),
                 "按语义检索当前项目已索引的文档，返回相关摘录、来源身份（documentId/chunkId/文件名/标题/页码）与相似度。"
+                        + "若用户原始请求用《文档名》明确限定来源，工具会按该原始请求精确限定文档范围；模型不能扩大该范围。"
                         + "返回结果只是相关片段（coverage=RELEVANT_EXCERPTS_ONLY），不代表全文已读；"
                         + "需要上下文时用 get_document_outline / read_document_section 续读。"
                         + "结果为空说明检索未命中，不等于项目资料不存在。",
@@ -74,14 +80,41 @@ public class KnowledgeSearchAgentTool implements AgentTool {
     public AgentToolResult execute(AgentToolContext context, JsonNode arguments) {
         AgentToolArguments.requireFields(arguments, Set.of("query", "documentIds", "limit"));
         String query = AgentToolArguments.text(arguments, "query", 1000, true);
-        var documentIds = AgentToolArguments.uuidList(arguments, "documentIds", 20);
+        List<UUID> requestedDocumentIds = AgentToolArguments.uuidList(arguments, "documentIds", 20);
+        boolean modelSpecifiedScope = arguments.has("documentIds") && !arguments.get("documentIds").isNull();
         int limit = AgentToolArguments.integer(arguments, "limit", 8, 1, 12);
         access.requireMember(context.projectId(), context.userId());
+        List<String> explicitNames = explicitDocumentNames(context.userGoal());
+        boolean userSpecifiedScope = !explicitNames.isEmpty();
+        List<UUID> effectiveDocumentIds = requestedDocumentIds;
+        boolean unresolvedUserScope = false;
+        if (userSpecifiedScope) {
+            List<UUID> resolvedUserScope = search.resolveNamedDocumentIds(context.projectId(), explicitNames);
+            if (resolvedUserScope.isEmpty()) {
+                unresolvedUserScope = true;
+                effectiveDocumentIds = List.of();
+            } else if (modelSpecifiedScope) {
+                effectiveDocumentIds = resolvedUserScope.stream()
+                        .filter(requestedDocumentIds::contains)
+                        .toList();
+            } else {
+                effectiveDocumentIds = resolvedUserScope;
+            }
+        }
         // D-RAG-01B：候选池固定为有界 20（绝对上限），limit（1–12）只决定最终来源数；
         // 选择走跨文档入口：剔除不合格候选后跨文档优先、文档感知去重、并公平分配 8000 字符正文预算。
         // 知识问答仍走 KnowledgeContextBuilder 的默认上限（5）与默认入口，行为逐字不变。
-        var knowledge = contextBuilder.buildDiverse(
-                search.search(context.projectId(), query, documentIds, MAX_CANDIDATE_POOL), limit);
+        List<com.shitulelv.aicollab.document.application.view.DocumentSearchHit> hits =
+                unresolvedUserScope || (userSpecifiedScope && effectiveDocumentIds.isEmpty())
+                        ? List.of()
+                        : search.search(context.projectId(), query,
+                                userSpecifiedScope ? effectiveDocumentIds : requestedDocumentIds,
+                                MAX_CANDIDATE_POOL);
+        if (userSpecifiedScope) {
+            List<UUID> enforcedScope = effectiveDocumentIds;
+            hits = hits.stream().filter(hit -> enforcedScope.contains(hit.documentId())).toList();
+        }
+        var knowledge = contextBuilder.buildDiverse(hits, limit);
         ArrayNode sources = json.createArrayNode();
         List<AgentCitation> citations = knowledge.sources().stream().map(source -> {
             ObjectNode item = sources.addObject();
@@ -99,7 +132,20 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         data.set("sources", sources);
         data.put("coverage","RELEVANT_EXCERPTS_ONLY");
         data.put("fullDocumentRead",false);
+        data.put("userScopeEnforced", userSpecifiedScope);
+        if (userSpecifiedScope) data.set("effectiveDocumentIds", json.valueToTree(effectiveDocumentIds));
         return new AgentToolResult(data, citations, List.of());
+    }
+
+    static List<String> explicitDocumentNames(String userGoal) {
+        if (userGoal == null || userGoal.isBlank()) return List.of();
+        Matcher matcher = EXPLICIT_DOCUMENT_NAME.matcher(userGoal);
+        List<String> names = new ArrayList<>();
+        while (matcher.find()) {
+            String name = matcher.group(1).strip();
+            if (!name.isEmpty() && !names.contains(name)) names.add(name);
+        }
+        return List.copyOf(names);
     }
 
     private static AgentCitation citation(KnowledgeSource source) {

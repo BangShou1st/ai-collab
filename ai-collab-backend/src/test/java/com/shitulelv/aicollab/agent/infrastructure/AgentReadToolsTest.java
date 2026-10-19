@@ -81,6 +81,77 @@ class AgentReadToolsTest {
     }
 
     @Test
+    void knowledgeSearchEnforcesExactUserNamedDocumentWhenModelOmitsDocumentIds() {
+        ProjectAccessGuard access = mock(ProjectAccessGuard.class);
+        when(access.requireMember(context.projectId(), context.userId())).thenReturn(ProjectRole.MEMBER);
+        DocumentSearchService search = mock(DocumentSearchService.class);
+        UUID exports = UUID.randomUUID();
+        UUID exportsChunk = UUID.randomUUID();
+        UUID archive = UUID.randomUUID();
+        when(search.resolveNamedDocumentIds(context.projectId(), List.of("批量导出规范")))
+                .thenReturn(List.of(exports));
+        when(search.search(eq(context.projectId()), eq("导出文件保留多久"), eq(List.of(exports)), eq(20)))
+                .thenReturn(List.of(new DocumentSearchHit(exportsChunk, exports, "批量导出规范.md",
+                                "文件保留", "临时存储区保存二十四小时。", "export-hash", 0.9),
+                        new DocumentSearchHit(UUID.randomUUID(), archive, "数据归档通告.md",
+                                "归档周期", "归档副本保存五年。", "archive-hash", 0.8)));
+        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
+                access, search, new KnowledgeContextBuilder(), json);
+        AgentToolContext scoped = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
+                context.role(), false, 0, null,
+                "根据《批量导出规范》回答导出文件保留多久？");
+
+        var result = tool.execute(scoped, json.createObjectNode().put("query", "导出文件保留多久"));
+
+        verify(search).search(context.projectId(), "导出文件保留多久", List.of(exports), 20);
+        assertThat(result.data().path("userScopeEnforced").asBoolean()).isTrue();
+        assertThat(result.citations()).extracting(com.shitulelv.aicollab.agent.domain.model.AgentCitation::documentId)
+                .containsExactly(exports);
+        assertThat(result.citations()).extracting(com.shitulelv.aicollab.agent.domain.model.AgentCitation::documentId)
+                .doesNotContain(archive);
+    }
+
+    @Test
+    void unresolvedUserNamedDocumentCannotFallBackToAllProjectSearch() {
+        ProjectAccessGuard access = mock(ProjectAccessGuard.class);
+        when(access.requireMember(context.projectId(), context.userId())).thenReturn(ProjectRole.MEMBER);
+        DocumentSearchService search = mock(DocumentSearchService.class);
+        when(search.resolveNamedDocumentIds(context.projectId(), List.of("不存在的规范"))).thenReturn(List.of());
+        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
+                access, search, new KnowledgeContextBuilder(), json);
+        AgentToolContext scoped = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
+                context.role(), false, 0, null, "根据《不存在的规范》回答保留多久？");
+
+        var result = tool.execute(scoped, json.createObjectNode().put("query", "保留多久"));
+
+        verify(search, org.mockito.Mockito.never()).search(any(), anyString(), any(), anyInt());
+        assertThat(result.data().path("userScopeEnforced").asBoolean()).isTrue();
+        assertThat(result.data().path("sources").size()).isZero();
+    }
+
+    @Test
+    void modelSuppliedDocumentIdsCannotWidenExplicitUserScope() {
+        ProjectAccessGuard access = mock(ProjectAccessGuard.class);
+        when(access.requireMember(context.projectId(), context.userId())).thenReturn(ProjectRole.MEMBER);
+        DocumentSearchService search = mock(DocumentSearchService.class);
+        UUID exports = UUID.randomUUID();
+        UUID archive = UUID.randomUUID();
+        when(search.resolveNamedDocumentIds(context.projectId(), List.of("批量导出规范")))
+                .thenReturn(List.of(exports));
+        KnowledgeSearchAgentTool tool = new KnowledgeSearchAgentTool(
+                access, search, new KnowledgeContextBuilder(), json);
+        AgentToolContext scoped = new AgentToolContext(context.runId(), context.projectId(), context.userId(),
+                context.role(), false, 0, null, "根据《批量导出规范》回答保留多久？");
+
+        var result = tool.execute(scoped, json.createObjectNode().put("query", "保留多久")
+                .set("documentIds", json.createArrayNode().add(archive.toString())));
+
+        verify(search, org.mockito.Mockito.never()).search(any(), anyString(), any(), anyInt());
+        assertThat(result.data().path("effectiveDocumentIds").size()).isZero();
+        assertThat(result.data().path("sources").size()).isZero();
+    }
+
+    @Test
     void knowledgeSearchHonoursRequestedLimitUpToTwelve() {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         when(access.requireMember(any(), any())).thenReturn(ProjectRole.MEMBER);

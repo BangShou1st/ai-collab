@@ -96,18 +96,20 @@ class AgentRetrievalQualityPostgresTest {
     private static final String DEFAULT_MODEL = "qwen3-embedding:0.6b";
 
     // ---- B2：版本化模型质量回归门槛（2026-10-19 修正口径后的新基线） ----
-    // 基线（qwen3-embedding:0.6b，本合成语料）：
-    //   ALL_PROJECT      recallAt20=27/28=0.9643，retentionDiverseAt20=25/28=0.8929，覆盖=0.9583
-    //   DOCUMENT_SCOPED  recallAt20=6/6=1.0，retentionDiverseAt20=6/6=1.0，覆盖=1.0
-    // 门槛 = 基线向下留出退化容忍度（不是把 22/23 这类旧数字当无条件断言）：
-    //   ALL_PROJECT  退化容忍约 6.4 个百分点 / 9.3 个百分点；DOCUMENT_SCOPED 容忍 5~10 个百分点。
+    // 基线（qwen3-embedding:0.6b，本合成语料；范围修正后的主口径）：
+    //   ALL_PROJECT_PRIMARY: 14 题 / 22 项证据；Recall@8=Recall@20=21/22，Retention@8/20=19/22，Coverage@20=17/18
+    //   DOCUMENT_SCOPED_PRIMARY: 6 题 / 6 项证据；Recall@8/20=6/6，Retention@8/20=6/6，Coverage@20=6/6
+    //   SCOPED_ALL_PROJECT_REFERENCE: 6 题 / 6 项证据；配对反事实，明确不计入上述主口径。
+    // 门槛按小样本可解释的离散步长设置，允许每个主指标再损失一项证据/一个文档覆盖：
+    //   ALL_PROJECT_PRIMARY 最低 20/22 recall、18/22 retention、16/18 coverage；DOCUMENT_SCOPED_PRIMARY 最低 5/6。
     // 这是“模型相关的质量回归门槛”，只在 AI_REAL_OLLAMA_RETRIEVAL=true 时生效；环境不可用则整类跳过。
-    private static final double ALL_PROJECT_RECALL_AT20_FLOOR = 0.90d;
-    private static final double ALL_PROJECT_RETENTION_AT20_FLOOR = 0.80d;
-    private static final double ALL_PROJECT_COVERAGE_AT20_FLOOR = 0.85d;
-    private static final double DOCUMENT_SCOPED_RECALL_AT20_FLOOR = 0.95d;
-    private static final double DOCUMENT_SCOPED_RETENTION_AT20_FLOOR = 0.90d;
-    private static final double DOCUMENT_SCOPED_COVERAGE_AT20_FLOOR = 0.90d;
+    private static final double ALL_PROJECT_RECALL_AT20_FLOOR = 20d / 22d;
+    private static final double ALL_PROJECT_RETENTION_AT20_FLOOR = 18d / 22d;
+    private static final double ALL_PROJECT_COVERAGE_AT20_FLOOR = 16d / 18d;
+    // Stored ratios round to four decimals, so use the representable 5/6 floor.
+    private static final double DOCUMENT_SCOPED_RECALL_AT20_FLOOR = 0.8333d;
+    private static final double DOCUMENT_SCOPED_RETENTION_AT20_FLOOR = 0.8333d;
+    private static final double DOCUMENT_SCOPED_COVERAGE_AT20_FLOOR = 0.8333d;
 
     /** 诊断 JSON 只落 Maven target/，绝不写回仓库里既有的验收快照（第二轮：新路径，不覆盖 2026-10-18 旧证据）。 */
     static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "2026-10-19",
@@ -399,37 +401,52 @@ class AgentRetrievalQualityPostgresTest {
         List<Map<String, Object>> measuredCases = measurements.stream()
                 .map(CaseMeasurement::item).toList();
 
-        // 汇总按范围维度分开：绝不把同一查询的重复测量当成两组独立实验。
-        List<Map<String, Object>> allLegacyAllProject = measurements.stream()
+        // 主口径按用户原始问题的范围划分。指定文档问题的全项目检索只进入配对反事实对照。
+        List<CaseMeasurement> allProjectPrimaryCases = measurements.stream()
+                .filter(measurement -> "ALL_PROJECT".equals(measurement.item().get("scope")))
+                .toList();
+        List<Map<String, Object>> allProjectPrimaryTop8 = allProjectPrimaryCases.stream()
                 .map(CaseMeasurement::allProjectTop8).toList();
-        List<Map<String, Object>> allDiverseAllProject = measurements.stream()
+        List<Map<String, Object>> allProjectPrimaryTop20 = allProjectPrimaryCases.stream()
                 .map(CaseMeasurement::allProjectTop20).toList();
-        List<Map<String, Object>> scopedLegacy = measurements.stream()
+        List<Map<String, Object>> documentScopedPrimaryTop8 = measurements.stream()
                 .filter(measurement -> measurement.scopedTop8() != null)
                 .map(CaseMeasurement::scopedTop8).toList();
-        List<Map<String, Object>> scopedDiverse = measurements.stream()
+        List<Map<String, Object>> documentScopedPrimaryTop20 = measurements.stream()
                 .filter(measurement -> measurement.scopedTop20() != null)
                 .map(CaseMeasurement::scopedTop20).toList();
-        // 指定范围问题的“全项目对照”单独一桶：既不并入全项目主口径，也不并入指定范围主口径。
-        List<Map<String, Object>> scopedReferenceLegacy = measurements.stream()
+        // 六条指定范围问题移除 scope 后的配对全项目搜索，只作为反事实参考。
+        List<Map<String, Object>> scopedReferenceTop8 = measurements.stream()
                 .filter(measurement -> measurement.scopedTop8() != null)
                 .map(CaseMeasurement::allProjectTop8).toList();
-        List<Map<String, Object>> scopedReferenceDiverse = measurements.stream()
+        List<Map<String, Object>> scopedReferenceTop20 = measurements.stream()
                 .filter(measurement -> measurement.scopedTop20() != null)
+                .map(CaseMeasurement::allProjectTop20).toList();
+        // 历史 20 样本全项目汇总保留为探索指标，其中包含上面六条指定范围问题的反事实搜索。
+        List<Map<String, Object>> allProjectCounterfactualTop8 = measurements.stream()
+                .map(CaseMeasurement::allProjectTop8).toList();
+        List<Map<String, Object>> allProjectCounterfactualTop20 = measurements.stream()
                 .map(CaseMeasurement::allProjectTop20).toList();
 
         Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put("allProject", summarizeDimension(allLegacyAllProject, allDiverseAllProject));
-        summary.put("documentScoped", summarizeDimension(scopedLegacy, scopedDiverse));
-        summary.put("scopedAllProjectReference", summarizeDimension(scopedReferenceLegacy, scopedReferenceDiverse));
-        summary.put("sourceCapStrategyAllProject", summarizeSourceCapStrategy(measuredCases, "ALL_PROJECT"));
-        summary.put("sourceCapStrategyDocumentScoped", summarizeSourceCapStrategy(measuredCases, "DOCUMENT_SCOPED"));
+        summary.put("allProjectPrimary", summarizeDimension(allProjectPrimaryTop8, allProjectPrimaryTop20));
+        summary.put("documentScopedPrimary", summarizeDimension(documentScopedPrimaryTop8, documentScopedPrimaryTop20));
+        summary.put("scopedAllProjectReference", summarizeDimension(scopedReferenceTop8, scopedReferenceTop20));
+        summary.put("allProjectCounterfactualIncludingDocumentScopedPrompts",
+                summarizeDimension(allProjectCounterfactualTop8, allProjectCounterfactualTop20));
+        summary.put("sourceCapStrategyApproximateAllProjectPrimary",
+                summarizeSourceCapStrategy(measuredCases, "ALL_PROJECT", "sourceCapStrategyApproximate"));
+        summary.put("sourceCapStrategyApproximateDocumentScopedPrimary",
+                summarizeSourceCapStrategy(measuredCases, "DOCUMENT_SCOPED", "sourceCapStrategyApproximate"));
+        summary.put("sourceCapStrategyApproximateScopedAllProjectReference",
+                summarizeSourceCapStrategy(measuredCases, "DOCUMENT_SCOPED", "sourceCapStrategyAllProjectReferenceApproximate"));
 
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("evaluation", "real local Ollama embeddings on disposable Testcontainers pgvector database");
         evidence.put("baseline", "D-RAG-01C agent retrieval quality round 2 (scope-corrected), dev @ 2026-10-19");
-        evidence.put("scopeDimensions", "ALL_PROJECT and DOCUMENT_SCOPED are separate measurement dimensions; "
-                + "documentIds are used only when the question itself names a document");
+        evidence.put("scopeDimensions", "ALL_PROJECT_PRIMARY contains only questions without a user-named document; "
+                + "DOCUMENT_SCOPED_PRIMARY contains only explicitly scoped questions; "
+                + "SCOPED_ALL_PROJECT_REFERENCE is the paired all-project counterfactual and is excluded from both primary buckets");
         evidence.put("model", model);
         evidence.put("dimension", dimension);
         evidence.put("fingerprint", fingerprint);
@@ -439,8 +456,15 @@ class AgentRetrievalQualityPostgresTest {
         evidence.put("documentCount", CORPUS.size());
         evidence.put("indexingChunkCount", flatChunks.size());
         evidence.put("caseCount", measuredCases.size());
-        evidence.put("allProjectCaseCount", allDiverseAllProject.size());
-        evidence.put("documentScopedCaseCount", scopedDiverse.size());
+        evidence.put("allProjectPrimaryCaseCount", allProjectPrimaryTop20.size());
+        evidence.put("documentScopedPrimaryCaseCount", documentScopedPrimaryTop20.size());
+        evidence.put("scopedAllProjectReferenceCaseCount", scopedReferenceTop20.size());
+        evidence.put("allProjectCounterfactualCaseCount", allProjectCounterfactualTop20.size());
+        evidence.put("allProjectCounterfactualNote",
+                "该 20 样本探索汇总包含六条用户已指定文档问题的全项目反事实搜索，不代表独立全项目问题集。");
+        evidence.put("sourceCapStrategySemantics",
+                "A 使用生产 CrossDocumentSourceSelector，且装配预算通过 buildDiverse parity test；"
+                        + "B 是测试侧候选选择模拟，其结果属于近似实验指标，不代表生产上下文提升。");
         evidence.put("cases", measuredCases);
         evidence.put("summary", summary);
         Files.createDirectories(EVIDENCE_PATH.getParent());
@@ -449,17 +473,21 @@ class AgentRetrievalQualityPostgresTest {
         System.out.println("AGENT_RETRIEVAL_QUALITY_EVIDENCE=" + EVIDENCE_PATH.toAbsolutePath());
 
         assertThat(measuredCases).hasSize(CASES.size());
-        assertThat(scopedDiverse).as("必须有指定文档范围样本")
+        assertThat(documentScopedPrimaryTop20).as("必须有指定文档范围样本")
                 .hasSize((int) CASES.stream().filter(Case::documentScoped).count());
-        assertThat(scopedDiverse.size()).as("指定文档范围样本数必须在 3~5 之上").isGreaterThanOrEqualTo(3);
+        assertThat(documentScopedPrimaryTop20.size()).as("指定文档范围样本数必须在 3~5 之上").isGreaterThanOrEqualTo(3);
+        assertThat(allProjectPrimaryTop20).as("ALL_PROJECT_PRIMARY 只含用户未指定文档的用例")
+                .hasSize((int) CASES.stream().filter(testCase -> !testCase.documentScoped()).count());
+        assertThat(scopedReferenceTop20).as("指定范围问题的全项目配对对照数")
+                .hasSize(documentScopedPrimaryTop20.size());
 
-        // 两个范围维度必须真的一分为二：全项目样本数 = 全部用例，指定范围样本数 = 只含点名文档的用例。
-        assertModelQualityGate(summary, "allProject", CASES.size(),
+        assertModelQualityGate(summary, "allProjectPrimary", 14, 22,
                 ALL_PROJECT_RECALL_AT20_FLOOR, ALL_PROJECT_RETENTION_AT20_FLOOR,
                 ALL_PROJECT_COVERAGE_AT20_FLOOR);
-        assertModelQualityGate(summary, "documentScoped", scopedDiverse.size(),
+        assertModelQualityGate(summary, "documentScopedPrimary", 6, 6,
                 DOCUMENT_SCOPED_RECALL_AT20_FLOOR, DOCUMENT_SCOPED_RETENTION_AT20_FLOOR,
                 DOCUMENT_SCOPED_COVERAGE_AT20_FLOOR);
+        assertDimensionCounts(summary, "scopedAllProjectReference", 6, 6);
     }
 
     /**
@@ -467,7 +495,7 @@ class AgentRetrievalQualityPostgresTest {
      * 不低于版本化基线向下留出容忍度后的下限。门槛为 null（期望证据为空）时明确失败，不静默放过。
      */
     private static void assertModelQualityGate(Map<String, Object> summary, String dimension,
-                                               int expectedSamples, double recallFloor,
+                                               int expectedSamples, int expectedEvidence, double recallFloor,
                                                double retentionFloor, double coverageFloor) {
         @SuppressWarnings("unchecked")
         Map<String, Object> bucket = (Map<String, Object>) summary.get(dimension);
@@ -475,6 +503,9 @@ class AgentRetrievalQualityPostgresTest {
         assertThat(number(bucket.get("sampleCount")))
                 .as("%s：样本数必须等于该范围的用例数（不得把相同查询重复测量成两组）", dimension)
                 .isEqualTo(expectedSamples);
+        assertThat(number(bucket.get("expectedEvidenceCount")))
+                .as("%s：期望证据数必须等于固定语料事实数", dimension)
+                .isEqualTo(expectedEvidence);
         Object recall = bucket.get("recallAt20");
         Object retention = bucket.get("retentionDiverseAt20");
         assertThat(recall).as("%s：Recall@20 必须有定义", dimension).isInstanceOf(Number.class);
@@ -491,6 +522,15 @@ class AgentRetrievalQualityPostgresTest {
         assertThat(((Number) coverage.get("retainedRatio")).doubleValue())
                 .as("%s：Document Coverage（保留侧）不得低于版本化质量门槛 %.2f", dimension, coverageFloor)
                 .isGreaterThanOrEqualTo(coverageFloor);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void assertDimensionCounts(Map<String, Object> summary, String dimension,
+                                              int expectedSamples, int expectedEvidence) {
+        Map<String, Object> bucket = (Map<String, Object>) summary.get(dimension);
+        assertThat(bucket).as("%s 维度汇总必须存在", dimension).isNotNull();
+        assertThat(number(bucket.get("sampleCount"))).isEqualTo(expectedSamples);
+        assertThat(number(bucket.get("expectedEvidenceCount"))).isEqualTo(expectedEvidence);
     }
 
     // ---- 单用例测量 ----
@@ -550,8 +590,8 @@ class AgentRetrievalQualityPostgresTest {
         item.put("scenario", testCase.scenario());
         item.put("query", testCase.query());
         item.put("scope", testCase.documentScoped() ? "DOCUMENT_SCOPED" : "ALL_PROJECT");
-        // 阶段 D：在<b>同一批真实候选</b>上与同一 source limit/正文预算下对照两种选择策略。
-        item.put("sourceCapStrategy", compareSourceCapStrategies(primaryTop20.hits(), expected));
+        // 阶段 D：A 与生产选择器对齐；B 是测试侧选择器模拟，明确标为近似上下文收益。
+        item.put("sourceCapStrategyApproximate", compareSourceCapStrategies(primaryTop20.hits(), expected));
         item.put("expectedEvidence", testCase.expected().stream().map(evidence -> Map.of(
                 "label", evidence.label(),
                 "documentId", documentIds.get(evidence.docIndex()).toString(),
@@ -585,6 +625,8 @@ class AgentRetrievalQualityPostgresTest {
             item.put("referenceAllProjectRecallAt20", allDiverse.get("retrievalRecall"));
             item.put("referenceAllProjectRetentionDiverse", allDiverse.get("contextEvidenceRetention"));
             item.put("scopeViolationCount", scopeViolationCount(scopedTop20.hits(), scopeIds));
+            item.put("sourceCapStrategyAllProjectReferenceApproximate",
+                    compareSourceCapStrategies(allTop20.hits(), expected));
         }
         EVIDENCE.put(testCase.name(), item);
 
@@ -798,7 +840,7 @@ class AgentRetrievalQualityPostgresTest {
 
     /** 汇总某一范围维度下 A/B 两种 SOURCE_CAP 策略的期望证据保留与文档覆盖（同一批真实候选）。 */
     private static Map<String, Object> summarizeSourceCapStrategy(
-            List<Map<String, Object>> items, String scopeLabel) {
+            List<Map<String, Object>> items, String scopeLabel, String strategyField) {
         int cases = 0;
         int expected = 0;
         int currentRetained = 0;
@@ -810,7 +852,7 @@ class AgentRetrievalQualityPostgresTest {
         for (Map<String, Object> item : items) {
             if (!scopeLabel.equals(item.get("scope"))) continue;
             @SuppressWarnings("unchecked")
-            Map<String, Object> strategy = (Map<String, Object>) item.get("sourceCapStrategy");
+            Map<String, Object> strategy = (Map<String, Object>) item.get(strategyField);
             cases++;
             expected += number(strategy.get("expectedEvidenceCount"));
             currentRetained += number(strategy.get("currentExpectedRetained"));

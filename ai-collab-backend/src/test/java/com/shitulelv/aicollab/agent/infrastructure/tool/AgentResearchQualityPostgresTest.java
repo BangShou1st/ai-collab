@@ -80,6 +80,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -504,6 +505,14 @@ class AgentResearchQualityPostgresTest {
                     .isEqualTo("SUCCEEDED");
             assertThat(delegated.status()).as("%s：委派研究必须成功", scenario.name())
                     .isEqualTo("SUCCEEDED");
+            if (!scenario.facts().isEmpty()) {
+                assertThat(direct.factsCovered())
+                        .as("%s：factsTotal>0 时直接研究必须覆盖全部期望事实", scenario.name())
+                        .isEqualTo(direct.factsTotal());
+                assertThat(delegated.factsCovered())
+                        .as("%s：factsTotal>0 时委派研究必须覆盖全部期望事实", scenario.name())
+                        .isEqualTo(delegated.factsTotal());
+            }
             assertThat(direct.factsCovered())
                     .as("%s：两种模式必须覆盖同一组输入事实", scenario.name())
                     .isEqualTo(delegated.factsCovered());
@@ -552,16 +561,9 @@ class AgentResearchQualityPostgresTest {
         String rawAnswer = finalAnswer(run);
         String answer = rawAnswer == null ? "" : rawAnswer;
         // 引用载荷同时包含 documentId 与 chunkId：只把“真实来源分块（chunkId）”计为来源引用。
-        java.util.Set<UUID> allChunks = new java.util.LinkedHashSet<>(chunkIds.values());
-        java.util.Set<UUID> citations = new java.util.LinkedHashSet<>();
         String rawCitations = finalCitations(run);
-        java.util.regex.Matcher matcher = java.util.regex.Pattern
-                .compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-                .matcher(rawCitations == null ? "[]" : rawCitations);
-        while (matcher.find()) {
-            UUID cited = UUID.fromString(matcher.group());
-            if (allChunks.contains(cited)) citations.add(cited);
-        }
+        java.util.Set<UUID> allChunks = new java.util.LinkedHashSet<>(chunkIds.values());
+        java.util.Set<UUID> allDocuments = new java.util.LinkedHashSet<>(documentIds.values());
 
         java.util.Set<UUID> allowed = new java.util.LinkedHashSet<>();
         for (Fact fact : scenario.facts()) {
@@ -570,19 +572,16 @@ class AgentResearchQualityPostgresTest {
                 if (id != null) allowed.add(id);
             }
         }
+        CitationMetrics citationMetrics = measureCitationMetrics(
+                rawCitations, allChunks, allDocuments, allowed);
         int covered = 0;
         int unsupported = 0;
         for (Fact fact : scenario.facts()) {
             if (!answer.contains(fact.marker())) continue;
             covered++;
-            boolean backed = fact.chunkKeys().stream().map(chunkIds::get).anyMatch(citations::contains);
+            boolean backed = fact.chunkKeys().stream().map(chunkIds::get)
+                    .anyMatch(citationMetrics.chunkIds()::contains);
             if (!backed) unsupported++;
-        }
-        int supported = 0;
-        int wrong = 0;
-        for (UUID citation : citations) {
-            if (allowed.contains(citation)) supported++;
-            else wrong++;
         }
         var view = repository.findRun(project, run.id()).orElseThrow();
         int childRuns = repository.childRuns(project, run.id()).size();
@@ -592,9 +591,75 @@ class AgentResearchQualityPostgresTest {
         return new PairedMetrics(delegated ? "DELEGATED" : "DIRECT",
                 outcome == null ? "NULL" : outcome.status().name(),
                 scenario.facts().size(), covered, unsupported,
-                citations.size(), supported, wrong, gaps,
+                citationMetrics.total(), citationMetrics.supported(), citationMetrics.wrong(), gaps,
                 modelCallsUsed, view.toolCallsUsed(), childRuns, collectionComplete,
                 view.stepsUsed(), view.inputTokensUsed(), view.outputTokensUsed(), elapsedMs);
+    }
+
+    record CitationMetrics(java.util.Set<UUID> chunkIds, int total, int supported, int wrong) {}
+
+    /** Counts unknown or malformed persisted citation identities as wrong instead of dropping them. */
+    static CitationMetrics measureCitationMetrics(String raw,
+                                                  java.util.Set<UUID> allChunks,
+                                                  java.util.Set<UUID> allDocuments,
+                                                  java.util.Set<UUID> allowedChunks) {
+        java.util.Set<UUID> chunkCitations = new java.util.LinkedHashSet<>();
+        java.util.Set<String> wrongIdentities = new java.util.LinkedHashSet<>();
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = new ObjectMapper().readTree(raw == null ? "[]" : raw);
+            if (!root.isArray()) {
+                wrongIdentities.add("citation-payload-not-array");
+            } else {
+                int index = 0;
+                for (com.fasterxml.jackson.databind.JsonNode citation : root) {
+                    if (citation.isObject()) {
+                        String documentText = citation.path("documentId").asText(null);
+                        String chunkText = citation.path("chunkId").asText(null);
+                        if (documentText != null && !knownUuid(documentText, allDocuments)) {
+                            wrongIdentities.add("document:" + documentText);
+                        }
+                        if (chunkText == null) {
+                            wrongIdentities.add("missing-chunk:" + index);
+                        } else {
+                            UUID chunk = parseUuid(chunkText);
+                            if (chunk == null || !allChunks.contains(chunk)) {
+                                wrongIdentities.add("chunk:" + chunkText);
+                            } else {
+                                chunkCitations.add(chunk);
+                            }
+                        }
+                    } else if (citation.isTextual()) {
+                        String value = citation.asText();
+                        UUID chunk = parseUuid(value);
+                        if (chunk == null || !allChunks.contains(chunk)) wrongIdentities.add("chunk:" + value);
+                        else chunkCitations.add(chunk);
+                    } else {
+                        wrongIdentities.add("malformed:" + index);
+                    }
+                    index++;
+                }
+            }
+        } catch (java.io.IOException malformedJson) {
+            wrongIdentities.add("invalid-citation-json");
+        }
+        int supported = (int) chunkCitations.stream().filter(allowedChunks::contains).count();
+        int unsupportedKnown = chunkCitations.size() - supported;
+        int wrong = wrongIdentities.size() + unsupportedKnown;
+        return new CitationMetrics(java.util.Set.copyOf(chunkCitations),
+                chunkCitations.size() + wrongIdentities.size(), supported, wrong);
+    }
+
+    private static boolean knownUuid(String value, java.util.Set<UUID> known) {
+        UUID parsed = parseUuid(value);
+        return parsed != null && known.contains(parsed);
+    }
+
+    private static UUID parseUuid(String value) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException | NullPointerException malformed) {
+            return null;
+        }
     }
 
     private int coverageGapCount(AgentRunView run) {
@@ -676,6 +741,13 @@ class AgentResearchQualityPostgresTest {
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         lenient().when(access.requireMember(any(), any())).thenReturn(ProjectRole.OWNER);
         DocumentSearchService search = mock(DocumentSearchService.class);
+        lenient().when(search.resolveNamedDocumentIds(any(), anyList())).thenAnswer(invocation -> {
+            List<String> names = invocation.getArgument(1);
+            return documentIds.entrySet().stream()
+                    .filter(entry -> names.stream().anyMatch(name -> name.equals(entry.getKey())
+                            || name.equals(entry.getKey().replaceFirst("\\.[^.]+$", ""))))
+                    .map(Map.Entry::getValue).toList();
+        });
         lenient().when(search.search(any(), anyString(), any(), anyInt())).thenAnswer(invocation -> {
             String query = invocation.getArgument(1);
             List<UUID> scope = invocation.getArgument(2);

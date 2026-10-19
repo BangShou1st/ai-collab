@@ -114,14 +114,27 @@ public class KiloGatewayClientTransport implements KiloGatewayTransport {
     private static BusinessException translate(KiloGatewayException failure) {
         log.warn("Kilo gateway call failed: status={}, class={}, incompleteStream={}",
                 failure.getStatusCode(), classification(failure), failure.isIncompleteStream());
+        if (failure.getStatusCode() == 429) {
+            return new ExternalProviderFailure(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED,
+                    ExternalProviderFailure.Kind.RATE_LIMITED, 429);
+        }
+        if (isTimeout(failure)) {
+            return new ExternalProviderFailure(ErrorCode.AI_MODEL_TIMEOUT,
+                    ExternalProviderFailure.Kind.UPSTREAM_TIMEOUT, failure.getStatusCode());
+        }
+        if (failure.getStatusCode() >= 500) {
+            return new ExternalProviderFailure(ErrorCode.AI_PROVIDER_ERROR,
+                    ExternalProviderFailure.Kind.UPSTREAM_5XX, failure.getStatusCode());
+        }
+        if (isTransportFailure(failure)) {
+            return new ExternalProviderFailure(ErrorCode.AI_PROVIDER_ERROR,
+                    ExternalProviderFailure.Kind.UPSTREAM_TRANSPORT, failure.getStatusCode());
+        }
         return switch (failure.getStatusCode()) {
             case 401, 403 -> new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID);
-            case 429 -> new BusinessException(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED);
             case KiloGatewayException.STATUS_INCOMPLETE_STREAM ->
                     new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE);
-            default -> isTimeout(failure)
-                    ? new BusinessException(ErrorCode.AI_MODEL_TIMEOUT)
-                    : new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
+            default -> new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
         };
     }
 
@@ -143,7 +156,17 @@ public class KiloGatewayClientTransport implements KiloGatewayTransport {
 
     private static boolean isTimeout(KiloGatewayException failure) {
         for (Throwable cause = failure.getCause(); cause != null; cause = cause.getCause()) {
-            if (cause instanceof java.net.http.HttpTimeoutException) return true;
+            if (cause instanceof java.net.http.HttpTimeoutException
+                    || cause instanceof java.net.SocketTimeoutException) return true;
+        }
+        return false;
+    }
+
+    private static boolean isTransportFailure(KiloGatewayException failure) {
+        for (Throwable cause = failure.getCause(); cause != null; cause = cause.getCause()) {
+            if (cause instanceof java.net.ConnectException
+                    || cause instanceof java.net.UnknownHostException
+                    || cause instanceof java.net.NoRouteToHostException) return true;
         }
         return false;
     }
