@@ -37,4 +37,3 @@ dist/assets/index-BYWAt4mw.js   1,494.50 kB │ gzip: 483.37 kB
 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
 ✓ built in 6.57s
-
