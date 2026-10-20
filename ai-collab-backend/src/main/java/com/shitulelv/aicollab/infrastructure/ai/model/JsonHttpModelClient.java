@@ -142,7 +142,16 @@ public class JsonHttpModelClient {
             Map<String, String> headers,
             JsonNode body,
             BiConsumer<String, JsonNode> onEvent) {
-        stream(url, headers, body, null, onEvent);
+        stream(url, headers, body, null, onEvent, true);
+    }
+
+    public void stream(
+            String url,
+            Map<String, String> headers,
+            JsonNode body,
+            BiConsumer<String, JsonNode> onEvent,
+            boolean requireDoneSentinel) {
+        stream(url, headers, body, null, onEvent, requireDoneSentinel);
     }
 
     /** Streams SSE through a request builder supplied by the caller. */
@@ -151,15 +160,25 @@ public class JsonHttpModelClient {
             java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
             JsonNode body,
             BiConsumer<String, JsonNode> onEvent) {
-        stream(url, Map.of(), body, requestBuilderFactory, onEvent);
+        stream(url, Map.of(), body, requestBuilderFactory, onEvent, true);
+    }
+
+    public void streamWithRequestBuilder(
+            String url,
+            java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
+            JsonNode body,
+            BiConsumer<String, JsonNode> onEvent,
+            boolean requireDoneSentinel) {
+        stream(url, Map.of(), body, requestBuilderFactory, onEvent, requireDoneSentinel);
     }
 
     private void stream(String url, Map<String, String> headers, JsonNode body,
             java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
-            BiConsumer<String, JsonNode> onEvent) {
+            BiConsumer<String, JsonNode> onEvent,
+            boolean requireDoneSentinel) {
         java.util.concurrent.atomic.AtomicReference<java.io.InputStream> input = new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.Future<?> task;
-        try { task = streams.submit(() -> readStream(url, headers, body, onEvent, requestBuilderFactory, input)); }
+        try { task = streams.submit(() -> readStream(url, headers, body, onEvent, requestBuilderFactory, input, requireDoneSentinel)); }
         catch (java.util.concurrent.RejectedExecutionException busy) { throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE); }
         try {
             task.get(AiRequestDeadline.timeoutMillis(timeout), java.util.concurrent.TimeUnit.MILLISECONDS);
@@ -181,7 +200,8 @@ public class JsonHttpModelClient {
     private void readStream(String url, Map<String, String> headers, JsonNode body,
             BiConsumer<String, JsonNode> onEvent,
             java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
-            java.util.concurrent.atomic.AtomicReference<java.io.InputStream> input) {
+            java.util.concurrent.atomic.AtomicReference<java.io.InputStream> input,
+            boolean requireDoneSentinel) {
         try {
             log.debug("Model API stream request: model={}", body.path("model").asText());
             HttpResponse<java.io.InputStream> response = client.send(request(url, headers, body, requestBuilderFactory),
@@ -226,7 +246,9 @@ public class JsonHttpModelClient {
                 }
                 var finalFrame = decoder.finish();
                 if (finalFrame.isPresent() && dispatchSsePayload(finalFrame.get(), event, onEvent)) return;
-                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE, "PROVIDER_STREAM / MISSING_DONE", null, null);
+                if (requireDoneSentinel) {
+                    throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE, "PROVIDER_STREAM / MISSING_DONE", null, null);
+                }
             }
         } catch (BusinessException exception) {
             throw exception;

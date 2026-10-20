@@ -32,6 +32,23 @@ class ModelTurnContractTest {
         assertThat(call.name()).isEqualTo("test_tool");
         assertThat(call.arguments().isObject()).isTrue();
         assertThat(call.arguments().path("key").asText()).isEqualTo("value");
+        assertThat(call.thoughtSignature()).isNull();
+    }
+
+    @Test
+    void toolCallWithThoughtSignature() {
+        ObjectNode args = mapper.createObjectNode().put("key", "value");
+        ModelToolCall call = new ModelToolCall("call-1", "test_tool", args, "sig-abc-123");
+        assertThat(call.thoughtSignature()).isEqualTo("sig-abc-123");
+    }
+
+    @Test
+    void toolCallWithBlankThoughtSignatureNormalizesToNull() {
+        ObjectNode args = mapper.createObjectNode().put("key", "value");
+        ModelToolCall call1 = new ModelToolCall("call-1", "test_tool", args, "   ");
+        assertThat(call1.thoughtSignature()).isNull();
+        ModelToolCall call2 = new ModelToolCall("call-2", "test_tool", args, null);
+        assertThat(call2.thoughtSignature()).isNull();
     }
 
     @Test
