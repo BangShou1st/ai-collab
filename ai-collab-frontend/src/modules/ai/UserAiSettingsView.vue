@@ -56,6 +56,8 @@ const probeModes = reactive<Record<string, ProbeMode>>({})
 const probeOutcomes = reactive<Record<string, ProbeOutcome>>({})
 /** 递增请求令牌：晚到的加载响应不得覆盖新状态或回填旧用户数据。 */
 let loadToken = 0
+/** 当前已加载数据的账号；变化时丢弃旧数据并重新加载。 */
+let ownerUserId: string | null = null
 
 const form = reactive({
   name: '',
@@ -427,7 +429,32 @@ async function saveOverride(purpose: AiPurpose): Promise<void> {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  ownerUserId = auth.currentUser?.id ?? null
+  void load()
+})
+
+/** 清空仅属于当前会话的测试结果与选择的能力，避免跨账号复用。 */
+function resetProbeState(): void {
+  for (const key of Object.keys(probeModes)) delete probeModes[key]
+  for (const key of Object.keys(probeOutcomes)) delete probeOutcomes[key]
+}
+
+// 账号切换（登录/退出/换人）时丢弃上一个用户的配置、覆盖与测试结果，绝不显示他人的 Provider。
+auth.$subscribe(() => {
+  const currentId = auth.currentUser?.id ?? null
+  if (currentId === ownerUserId) return
+  ownerUserId = currentId
+  loadToken += 1
+  providers.value = []
+  zen.value = null
+  kilo.value = null
+  overrides.KNOWLEDGE_CHAT = ''
+  overrides.PLANNING = ''
+  overrides.AGENT = ''
+  resetProbeState()
+  if (currentId) void load()
+})
 </script>
 <template>
   <main class="workspace-page">
