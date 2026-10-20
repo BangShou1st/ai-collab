@@ -30,7 +30,7 @@
 | pnpm lint | exit 0，0 errors、78 warnings；改动诊断文件无新 warning |
 | pnpm typecheck | exit 0 |
 | pnpm build | exit 0；既有 PURE 注释、大 chunk 提示保留 |
-| git diff --check | 提交前执行，结果随提交检查确认 |
+| git diff --check | 通过；新增文档本地 Markdown 链接目标也已全部核对存在 |
 | 后端 | 本机未重跑（无后端变更）；完整 Maven/PG 回归由本提交 CI 核实 |
 | 浏览器/真实模型 | 本轮未执行；盘点引用旧证据，T-01/T-02 的新增边界仅自动化验证 |
 
@@ -38,4 +38,6 @@
 
 ## Git 与 CI
 
-按仓库分支策略在 dev 提交并普通推送；代码/文档提交 SHA 和对应 CI 链接在完成后补记本节。CI 全绿才判本轮代码交付完成，不使用基线历史 CI 代替。
+代码与规划提交：`d34e55379e943aaf88f7521d5b027a9a544a398b`，已按仓库分支策略普通推送至 dev（`09d8063..d34e553`）。对应 [CI run 39384684083](https://github.com/BangShou1st/ai-collab/actions/runs/39384684083)，head SHA 与本提交一致；前端 lint/typecheck/test/build、后端 Maven verify/Testcontainers 守卫均由该工作流执行。CI 的最终核对结论在最终交付消息记录，不能使用基线历史 CI 代替。
+
+本节为独立的文档元数据补记，不包含新运行代码。补记提交的最终 SHA/CI 同样在最终交付消息列明。不合并 main、不 force push、不改写历史或用户数据。诊断修复可通过回退 d34e553 中两处诊断文件变更撤销，不需要数据库回滚。
