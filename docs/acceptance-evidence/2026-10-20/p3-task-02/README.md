@@ -77,4 +77,6 @@ PostgreSQL 测试覆盖：已读后新 session 的个人/项目/实体查询正�
 
 ## Git 与 CI
 
-功能提交、最终交付提交及对应 CI 在推送后补记。只有最终交付 SHA 的 Frontend / Backend 两项成功才作为交付通过；不使用基线绿色 CI 替代。最终交付消息另行给出经核对的完整 SHA、CI 链接与工作区状态。
+功能、测试、规划更新和 9 张真实截图已普通推送 dev：`453ca3066d3b479e6c763475e6fbf41b0d926c32`，对应 [CI run 39395338419](https://github.com/BangShou1st/ai-collab/actions/runs/39395338419)。回退功能可使用 `git revert 453ca3066d3b479e6c763475e6fbf41b0d926c32`，再正常推送。
+
+本报告补记提交只记录上述 SHA/CI，无运行代码变化。最终交付 SHA 是包含本次补记的提交，可用 `git log -1 --format=%H -- docs/acceptance-evidence/2026-10-20/p3-task-02/README.md` 定位；其完整 SHA、精确匹配 headSha 的 CI run、Frontend / Backend 结论和工作区状态在最终交付消息中核对。仅最终交付提交的两项 CI 均成功后交付，不以功能提交或基线绿色 CI 替代。
