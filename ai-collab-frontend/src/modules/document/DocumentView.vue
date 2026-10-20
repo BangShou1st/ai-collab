@@ -478,6 +478,7 @@ onUnmounted(() => {
 
     <el-drawer v-model="drawerVisible" title="文档详情" size="min(520px, 100vw)">
       <template v-if="selected">
+        <el-alert v-if="listLoadFailed" title="文档状态加载失败，当前状态未知；下方为上次状态，可能已过时。请关闭详情后刷新状态。" type="warning" :closable="false" show-icon />
         <section v-if="selected.status === 'FAILED'" class="document-failure-guide" aria-label="失败处理建议">
           <h3>{{ documentFailureGuide(selected.errorMessage).title }}</h3>
           <p>{{ documentFailureGuide(selected.errorMessage).next }}</p>
@@ -485,13 +486,13 @@ onUnmounted(() => {
           <p v-else-if="projectReadOnly">当前项目只读，请先联系项目所有者确认项目状态。</p>
           <p v-else>重试只处理此文档，不会自动重试其他失败资料；提交成功不代表处理完成。</p>
         </section>
-        <p v-if="selected.status === 'UPLOADED' || selected.status === 'PARSING' || selected.status === 'INDEXING'" role="status">文档正在后台处理，状态会自动更新；刷新页面可查看最新状态。</p>
+        <p v-if="!listLoadFailed && (selected.status === 'UPLOADED' || selected.status === 'PARSING' || selected.status === 'INDEXING')" role="status">文档正在后台处理，状态会自动更新；刷新页面可查看最新状态。</p>
         <p v-if="retryFeedback" role="status" class="retry-feedback">{{ retryFeedback }}</p>
         <DocumentBodyReader :project-id="projectId" :document-id="selected.id" />
         <dl class="document-detail">
           <dt>显示名称</dt><dd>{{ selected.displayName }}</dd>
           <dt>原始文件名</dt><dd>{{ selected.originalFilename }}</dd>
-          <dt>处理状态</dt>
+          <dt>{{ listLoadFailed ? '上次状态（可能过时）' : '处理状态' }}</dt>
           <dd>
             <el-tag :type="documentStatusType(selected.status)">
               {{ documentStatusLabel(selected.status) }}
