@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.project.application.service;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.testing.MinioTestImage;
+import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
 import com.shitulelv.aicollab.project.application.view.DashboardView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -93,6 +95,7 @@ class ProjectDashboardAuditPostgresIntegrationTest {
     @Autowired ProjectDashboardQueryService dashboard;
     @Autowired AuditLogQueryService audit;
     @Autowired JdbcTemplate jdbc;
+    @MockitoBean TaskPlanRecoveryJob taskPlanRecoveryJob;
 
     @BeforeEach
     void seedTwoProjects() {

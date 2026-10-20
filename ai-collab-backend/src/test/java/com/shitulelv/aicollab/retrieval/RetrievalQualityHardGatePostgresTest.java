@@ -8,6 +8,7 @@ import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGatewa
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeContext;
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
+import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
 import com.shitulelv.aicollab.retrieval.RetrievalCoverage.ExpectedEvidence;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,6 +89,8 @@ class RetrievalQualityHardGatePostgresTest {
 
     @MockitoBean
     ProjectEmbeddingGateway embeddings;
+    @MockitoBean
+    TaskPlanRecoveryJob taskPlanRecoveryJob;
 
     @Autowired
     JdbcTemplate jdbc;
