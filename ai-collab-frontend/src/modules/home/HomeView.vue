@@ -8,7 +8,7 @@ import PageHeader from '../../shared/PageHeader.vue'
 import EmptyState from '../../shared/EmptyState.vue'
 import StatusBadge from '../../shared/StatusBadge.vue'
 import { homeApi, type HomeData } from '../../api/home-api'
-import { activityDisplayLabel, formatDateTime, projectStatusLabel, roleLabel, taskStatusLabel, taskPriorityLabel } from '../../shared/display-labels'
+import { activityDisplayLabel, formatDate, formatDateTime, projectStatusLabel, roleLabel, taskStatusLabel, taskPriorityLabel } from '../../shared/display-labels'
 
 const auth = useAuthStore()
 const home = ref<HomeData | null>(null)
@@ -85,14 +85,22 @@ onMounted(load)
             <h2 class="section-title">行动中心</h2>
             <div class="home-activity">
               <div class="compact-row">
-                <strong>临期任务</strong>
-                <span class="row-meta">{{ home.myTasks.length }} 个</span>
+                <strong>我的待办</strong>
+                <span class="row-meta">最多展示 5 项</span>
               </div>
-              <div v-if="!home.myTasks.length" class="compact-empty">暂无临期任务，享受清晰的工作台</div>
-              <div v-for="task in home.myTasks.slice(0, 5)" :key="task.id" class="compact-row">
-                <span class="next-task-title">{{ task.title }}</span>
+              <div v-if="!home.myTasks.length" class="compact-empty">暂无待办任务，享受清晰的工作台</div>
+              <router-link
+                v-for="task in home.myTasks.slice(0, 5)" :key="task.id"
+                class="compact-row home-task-link"
+                :to="{ path: `/projects/${task.projectId}/board`, query: { taskId: task.id } }"
+              >
+                <span class="home-task-copy">
+                  <strong>{{ task.title }}</strong>
+                  <span>{{ task.projectName }}</span>
+                  <span>{{ task.dueDate ? `截止日期：${formatDate(task.dueDate)}` : '未设置截止日期' }}</span>
+                </span>
                 <StatusBadge :label="taskStatusLabel(task.status)" />
-              </div>
+              </router-link>
               <div class="compact-row">
                 <strong>待审批 Agent</strong>
                 <span>{{ home.pendingApprovals }} 个</span>
@@ -120,3 +128,21 @@ onMounted(load)
     </div>
   </main>
 </template>
+
+<style scoped>
+.home-grid { grid-template-columns: minmax(0, 1fr); }
+.home-main > * { min-width: 0; }
+.home-row-card { overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .home-main { grid-template-columns: minmax(0, 1fr); }
+  .ai-status-strip { flex-wrap: wrap; }
+  .ai-status-strip > div { flex-basis: calc(100% - 64px); }
+  .compact-row { flex-wrap: wrap; }
+}
+
+.home-task-link { color: inherit; text-decoration: none; gap: 12px; }
+.home-task-link:hover { background: var(--color-primary-soft); }
+.home-task-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.home-task-copy { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.home-task-copy > span { font-size: 12px; color: var(--color-text-secondary); }
+</style>

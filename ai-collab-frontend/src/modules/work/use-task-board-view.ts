@@ -1,5 +1,5 @@
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { normalizeApiError, showApiError } from '../../api/api-result'
 import {
@@ -27,8 +27,9 @@ export function useTaskBoardView() {
   const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE', 'CANCELED']
   const priorities: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
   const route = useRoute()
+  const router = useRouter()
   const auth = useAuthStore()
-  const projectId = route.params.projectId as string
+  const projectId = computed(() => String(route.params.projectId ?? ''))
   const highlightedSourcePlanId = computed(() => typeof route.query.sourcePlanId === 'string' ? route.query.sourcePlanId : '')
   const project = ref<Project | null>(null)
   const members = ref<ProjectMember[]>([])
@@ -36,7 +37,33 @@ export function useTaskBoardView() {
   const tasks = ref<Task[]>([])
   const selected = ref<Task | null>(null)
   const comments = ref<TaskComment[]>([])
-  const drawerVisible = ref(false)
+  const detailVisible = ref(false)
+  const detailError = ref('')
+  let detailGeneration = 0
+  let boardGeneration = 0
+  let listGeneration = 0
+  let disposed = false
+  const drawerVisible = computed({
+    get: () => detailVisible.value,
+    set: (visible: boolean) => { if (!visible) void closeTask() },
+  })
+  function detailContext() {
+    const generation = detailGeneration
+    const id = projectId.value
+    return () => !disposed && generation === detailGeneration && id === projectId.value
+  }
+  async function closeTask(): Promise<void> {
+    ++detailGeneration
+    detailVisible.value = false
+    selected.value = null
+    comments.value = []
+    commentContent.value = ''
+    detailError.value = ''
+    openingTaskId.value = ''
+    const query = { ...route.query }
+    delete query.taskId
+    await router.push({ query })
+  }
   const createVisible = ref(false)
   const editVisible = ref(false)
   const commentContent = ref('')
@@ -237,7 +264,7 @@ export function useTaskBoardView() {
         return
       }
 
-      await workApi.batchUpdate(projectId, items)
+      await workApi.batchUpdate(projectId.value, items)
       batchOperationVisible.value = false
       selectedTaskIds.value = new Set()
       await refreshTaskData()
@@ -257,35 +284,47 @@ export function useTaskBoardView() {
   }
 
   async function loadTasks(): Promise<void> {
-    tasks.value = (await workApi.tasks(projectId, taskQueryParams())).data
+    const generation = ++listGeneration
+    const id = projectId.value
+    const result = await workApi.tasks(id, taskQueryParams())
+    if (!disposed && id === projectId.value && generation === listGeneration) tasks.value = result.data
+  }
+  function clearUnavailableDetail(): void {
+    selected.value = null
+    comments.value = []
+    commentContent.value = ''
+    detailError.value = '任务不存在或无权访问，请关闭详情后选择其他任务'
   }
 
   async function refreshTaskData(selectedTaskId?: string): Promise<void> {
-    const [freshTasks, freshSelected] = await Promise.all([
-      workApi.tasks(projectId, taskQueryParams()),
-      selectedTaskId ? workApi.task(projectId, selectedTaskId) : Promise.resolve(null),
+    const current = detailContext()
+    const id = projectId.value
+    await Promise.all([
+      loadTasks(),
+      selectedTaskId ? workApi.task(id, selectedTaskId).then(result => {
+        if (current() && selected.value?.id === selectedTaskId) selected.value = result.data
+      }).catch(error => {
+        if (current() && selected.value?.id === selectedTaskId) clearUnavailableDetail()
+        throw error
+      }) : Promise.resolve(),
     ])
-    tasks.value = freshTasks.data
-    if (freshSelected) selected.value = freshSelected.data
   }
-
   async function load(): Promise<void> {
+    const generation = ++boardGeneration
+    const id = projectId.value
     loading.value = true
     try {
-      const [projectResult, memberResult, milestoneResult, taskResult] = await Promise.all([
-        projectApi.get(projectId),
-        projectApi.listMembers(projectId),
-        workApi.milestones(projectId),
-        workApi.tasks(projectId, taskQueryParams()),
+      const [projectResult, memberResult, milestoneResult] = await Promise.all([
+        projectApi.get(id), projectApi.listMembers(id), workApi.milestones(id), loadTasks(),
       ])
+      if (disposed || generation !== boardGeneration || id !== projectId.value) return
       project.value = projectResult.data
       members.value = memberResult.data
       milestones.value = milestoneResult.data
-      tasks.value = taskResult.data
     } catch (error) {
-      showApiError(error, '任务看板加载')
+      if (!disposed && generation === boardGeneration && id === projectId.value) showApiError(error, '任务看板加载')
     } finally {
-      loading.value = false
+      if (!disposed && generation === boardGeneration && id === projectId.value) loading.value = false
     }
   }
 
@@ -294,7 +333,9 @@ export function useTaskBoardView() {
   }
 
   async function reloadSelectedTask(taskId: string): Promise<void> {
-    const fresh = (await workApi.task(projectId, taskId)).data
+    const current = detailContext()
+    const fresh = (await workApi.task(projectId.value, taskId)).data
+    if (!current() || selected.value?.id !== taskId) return
     selected.value = fresh
     tasks.value = tasks.value.map(item => item.id === taskId ? fresh : item)
   }
@@ -305,12 +346,15 @@ export function useTaskBoardView() {
       || !allowedTaskStatusTransitions(task.status).includes(status)
     ) return
     updatingTaskId.value = task.id
+    const current = detailContext()
     const selectedTaskId = drawerVisible.value ? selected.value?.id : undefined
     try {
-      await workApi.updateStatus(projectId, task, status, canManage.value)
+      await workApi.updateStatus(projectId.value, task, status, canManage.value)
+      if (!current()) return
       await refreshTaskData(selectedTaskId)
       ElMessage.success('任务状态已更新')
     } catch (error) {
+      if (!current()) return
       await Promise.allSettled([refreshTaskData(selectedTaskId)])
       showApiError(error, '任务状态更新')
     } finally {
@@ -322,7 +366,7 @@ export function useTaskBoardView() {
     if (createValidationMessage.value || creatingTask.value) return
     creatingTask.value = true
     try {
-      await workApi.createTask(projectId, {
+      await workApi.createTask(projectId.value, {
         title: form.title.trim(),
         description: form.description,
         assigneeId: form.assigneeId || null,
@@ -363,8 +407,9 @@ export function useTaskBoardView() {
   async function saveTask(): Promise<void> {
     if (!selected.value || editValidationMessage.value || savingTask.value) return
     savingTask.value = true
+    const current = detailContext()
     try {
-      selected.value = (await workApi.updateTask(projectId, selected.value.id, {
+      const result = (await workApi.updateTask(projectId.value, selected.value.id, {
         title: editForm.title.trim(),
         description: editForm.description,
         milestoneId: editForm.milestoneId || null,
@@ -376,10 +421,13 @@ export function useTaskBoardView() {
         dueDate: editForm.dueDate || null,
         version: selected.value.version,
       })).data
+      if (!current()) return
+      selected.value = result
       editVisible.value = false
       await refreshTaskData(selected.value.id)
       ElMessage.success('任务已更新')
     } catch (error) {
+      if (!current()) return
       const safeError = normalizeApiError(error)
       showApiError(error, '任务保存')
       if (safeError.code === 'VERSION_CONFLICT' && selected.value) {
@@ -392,17 +440,19 @@ export function useTaskBoardView() {
 
   async function deleteTask(): Promise<void> {
     if (!selected.value || deletingTask.value) return
+    const current = detailContext()
+    const taskId = selected.value.id
     try {
       await ElMessageBox.confirm(
         `确认删除任务“${selected.value.title}”吗？`,
         '删除任务',
         { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' },
       )
+      if (!current()) return
       deletingTask.value = true
-      await workApi.deleteTask(projectId, selected.value.id)
-      drawerVisible.value = false
-      selected.value = null
-      comments.value = []
+      await workApi.deleteTask(projectId.value, taskId)
+      if (!current()) return
+      await closeTask()
       await loadTasks()
       ElMessage.success('任务已删除')
     } catch (error) {
@@ -414,28 +464,54 @@ export function useTaskBoardView() {
   }
 
   async function openTask(task: Task): Promise<void> {
-    if (openingTaskId.value) return
-    openingTaskId.value = task.id
+    await router.push({ query: { ...route.query, taskId: task.id } })
+  }
+  async function loadDetail(): Promise<void> {
+    const generation = ++detailGeneration
+    const id = projectId.value
+    const taskId = route.query.taskId
+    selected.value = null
+    comments.value = []
+    commentContent.value = ''
+    editVisible.value = false
+    detailError.value = ''
+    openingTaskId.value = ''
+    detailVisible.value = taskId !== undefined
+    if (taskId === undefined) return
+    const unavailable = '任务不存在或无权访问，请关闭详情后选择其他任务'
+    // Backend IDs are UUIDs; ambiguous/repeated query values are rejected locally.
+    if (typeof taskId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(taskId)) {
+      detailError.value = unavailable
+      return
+    }
+    openingTaskId.value = taskId
+    const current = () => !disposed && generation === detailGeneration && id === projectId.value
     try {
-      selected.value = (await workApi.task(projectId, task.id)).data
-      comments.value = (await workApi.comments(projectId, task.id)).data
-      drawerVisible.value = true
-    } catch (error) {
-      showApiError(error, '任务详情加载')
+      const task = (await workApi.task(id, taskId)).data
+      if (!current()) return
+      const taskComments = (await workApi.comments(id, taskId)).data
+      if (!current()) return
+      selected.value = task
+      comments.value = taskComments
+    } catch {
+      if (current()) detailError.value = unavailable
     } finally {
-      openingTaskId.value = ''
+      if (current()) openingTaskId.value = ''
     }
   }
 
   async function saveDependencies(ids: string[]): Promise<void> {
     if (!selected.value || savingDependencies.value) return
+    const current = detailContext()
     const taskId = selected.value.id
     savingDependencies.value = true
     try {
-      await workApi.replaceDependencies(projectId, taskId, ids)
+      await workApi.replaceDependencies(projectId.value, taskId, ids)
+      if (!current()) return
       await refreshTaskData(taskId)
       ElMessage.success('前置任务已更新')
     } catch (error) {
+      if (!current()) return
       await Promise.allSettled([refreshTaskData(taskId)])
       showApiError(error, '任务依赖保存')
     } finally {
@@ -446,8 +522,10 @@ export function useTaskBoardView() {
   async function addComment(): Promise<void> {
     if (!selected.value || commentValidationMessage.value || addingComment.value) return
     addingComment.value = true
+    const current = detailContext()
     try {
-      await workApi.createComment(projectId, selected.value.id, commentContent.value.trim())
+      await workApi.createComment(projectId.value, selected.value.id, commentContent.value.trim())
+      if (!current()) return
       commentContent.value = ''
       await reloadComments()
     } catch (error) {
@@ -459,7 +537,9 @@ export function useTaskBoardView() {
 
   async function reloadComments(): Promise<void> {
     if (!selected.value) return
-    comments.value = (await workApi.comments(projectId, selected.value.id)).data
+    const current = detailContext()
+    const result = await workApi.comments(projectId.value, selected.value.id)
+    if (current()) comments.value = result.data
   }
 
   async function editComment(comment: TaskComment): Promise<void> {
@@ -468,6 +548,8 @@ export function useTaskBoardView() {
       || comment.authorId !== auth.currentUser?.id
       || commentOperationId.value
     ) return
+    const current = detailContext()
+    const taskId = selected.value.id
     try {
       const { value } = await ElMessageBox.prompt(
         '请输入修改后的评论',
@@ -484,8 +566,10 @@ export function useTaskBoardView() {
           cancelButtonText: '取消',
         },
       )
+      if (!current()) return
       commentOperationId.value = comment.id
-      await workApi.updateComment(projectId, selected.value.id, comment.id, value.trim())
+      await workApi.updateComment(projectId.value, taskId, comment.id, value.trim())
+      if (!current()) return
       await reloadComments()
       ElMessage.success('评论已更新')
     } catch (error) {
@@ -498,14 +582,18 @@ export function useTaskBoardView() {
 
   async function deleteComment(comment: TaskComment): Promise<void> {
     if (!selected.value || commentOperationId.value) return
+    const current = detailContext()
+    const taskId = selected.value.id
     try {
       await ElMessageBox.confirm(
         '确认删除该评论吗？',
         '删除评论',
         { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' },
       )
+      if (!current()) return
       commentOperationId.value = comment.id
-      await workApi.deleteComment(projectId, selected.value.id, comment.id)
+      await workApi.deleteComment(projectId.value, taskId, comment.id)
+      if (!current()) return
       await reloadComments()
       ElMessage.success('评论已删除')
     } catch (error) {
@@ -529,11 +617,30 @@ export function useTaskBoardView() {
       }
     },
   )
-  onMounted(load)
+  watch(projectId, () => {
+    project.value = null
+    members.value = []
+    milestones.value = []
+    tasks.value = []
+    selectedTaskIds.value = new Set()
+    createVisible.value = false
+    batchOperationVisible.value = false
+    filters.assigneeId = ''
+    filters.milestoneId = ''
+    filters.priority = ''
+    void load()
+  }, { immediate: true, flush: 'sync' })
+  watch([projectId, () => route.query.taskId], () => { void loadDetail() }, { immediate: true, flush: 'sync' })
+  onBeforeUnmount(() => {
+    disposed = true
+    ++detailGeneration
+    ++boardGeneration
+    ++listGeneration
+  })
 
   return {
     auth, statuses, priorities, project, members, milestones, tasks, selected, comments,
-    drawerVisible, createVisible, editVisible, commentContent, loading,
+    drawerVisible, detailError, createVisible, editVisible, commentContent, loading,
     openingTaskId, updatingTaskId, creatingTask, savingTask, deletingTask,
     savingDependencies, addingComment, commentOperationId, editTargetStatus,
     filters, draggedTask, dragOverColumn, selectedTaskIds,
