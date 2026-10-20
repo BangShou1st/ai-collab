@@ -1,5 +1,19 @@
 # 能力矩阵
 
+## 2026-10-20 当前基线与 P3 规划入口
+
+当前研究基线 `dev@09d80639185fbb89e74b71d37d3af272bf43ad5f`。最新能力/验证分层、候选需求与 P2 风险以 [P3-SCOPE-01](p3-scope-01.md) 为入口；下文 2026-10-03～05 的 P1–P4 为历史交付编号，不是新 P3 待办。历史静态缺口必须先核对后续实现，不能直接重复开发。
+
+| 当前增量事实 | 验证层级与限制 | 证据 |
+| --- | --- | --- |
+| RAG、Agent 检索来源、AI 规划8任务编辑确认及刷新已通过 | 真实模型+浏览器；并发/所有异常不外推 | [P2闭环](acceptance-evidence/2026-10-19/p2-business-e2e-02/README.md) |
+| Member 私有项目中性404、Ollama停机/恢复已复验 | 真实浏览器/本机服务；历史6份文档未代操作 | [HARDEN](acceptance-evidence/2026-10-19/p2-harden-01/README.md) |
+| Agent SSE同页断线→传输重连→事件对齐已通过 | 受控真实Edge/后端/免费模型；历史ERR_ABORTED仍未归因 | [OBS-02](acceptance-evidence/2026-10-20/p3-obs-02/README.md) |
+| 无本地证据AbortError归UNKNOWN；重连未对齐再断开退回RECONNECTING | 本轮测试先红后绿；仅诊断模块，不宣称新增浏览器验收 | [SCOPE记录](acceptance-evidence/2026-10-20/p3-scope-01/README.md) |
+| 工作台待办直达详情是候选U-01，尚未实现 | 源码确认入口缺口；首轮提示词不等于实施批准 | [P3路线图](p3-scope-01.md)、[实施提示词](p3-first-batch-prompt.md) |
+
+以下保留原历史矩阵；其中“最后更新”只描述当时快照。
+
 维护约定（依据 [ai-next-stage-blueprint.md](ai-next-stage-blueprint.md) 8.3）：
 
 - 本表记录**当前 checkout** 的能力状态；历史审查（`ai-capability-review.md`）与验收报告只作为证据链接，不混列成当前待办。

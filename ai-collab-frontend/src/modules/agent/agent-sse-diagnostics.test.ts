@@ -12,9 +12,11 @@ describe('SSE 断线归类', () => {
     expect(classifySseDisconnect(new Error('boom'), true)).toEqual({ category: 'CLIENT_ABORT' })
   })
 
-  it('AbortError 归类为 CLIENT_ABORT', () => {
+  it('AbortError 缺少显式本地取消证据时保持 UNKNOWN', () => {
     const abort = Object.assign(new Error('aborted'), { name: 'AbortError' })
-    expect(classifySseDisconnect(abort, false)).toEqual({ category: 'CLIENT_ABORT' })
+    expect(classifySseDisconnect(abort, false)).toEqual({ category: 'UNKNOWN' })
+    expect(classifySseDisconnect(abort, true)).toEqual({ category: 'CLIENT_ABORT' })
+    expect(classifySseDisconnect(new DOMException('aborted', 'AbortError'), false)).toEqual({ category: 'UNKNOWN' })
   })
 
   it('HTTP 非 2xx 归类为 HTTP_ERROR 并保留状态码', () => {
@@ -85,6 +87,22 @@ describe('SSE 断线诊断跟踪器', () => {
     })
     // 已恢复后再次对齐不重复产出
     expect(tracker.aligned()).toBeNull()
+  })
+
+  it.each(['error', 'end'] as const)('传输重连但未对齐时再次断开（%s）回到重连中，且不重复区间记录', failure => {
+    const tracker = new AgentSseDiagnosticTracker()
+    expect(tracker.disconnected('run-1', new TypeError('net'), false, 7)).toMatchObject({ phase: 'disconnect' })
+    tracker.opened('run-1', 7)
+    const record = failure === 'error'
+      ? tracker.disconnected('run-1', new TypeError('net'), false, 7)
+      : tracker.endedUnexpectedly('run-1', 7)
+    expect(record).toBeNull()
+    expect(tracker.snapshot()).toMatchObject({ state: 'RECONNECTING', category: 'NETWORK', attempts: 2, recovered: false })
+    expect(tracker.aligned()).toBeNull()
+    expect(tracker.opened('run-1', 7)).toMatchObject({ phase: 'transport_reconnected', attempt: 2 })
+    expect(tracker.aligned()).toMatchObject({ phase: 'recovered', attempt: 2 })
+    expect(tracker.aligned()).toBeNull()
+    expect(tracker.snapshot()).toMatchObject({ state: 'RECOVERED', attempts: 0, recovered: true })
   })
 
   it('未进入"传输已重连"状态时不对齐，避免把普通连接误标为恢复', () => {
