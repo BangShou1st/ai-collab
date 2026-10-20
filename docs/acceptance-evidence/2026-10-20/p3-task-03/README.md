@@ -138,6 +138,17 @@
 
 回退功能可使用 `git revert 18f2287` 与 `git revert 5a9b526`，再正常推送 `dev`。
 
+**非阻断 CI 稳定性风险复现（与 P3-TASK-02 同类）**：`e6d4e5f` 的 Backend 作业在 `Build & verify (Testcontainers + Flyway)` 失败，唯一错误为
+`RetrievalCoveragePostgresTest.reset:139 » PessimisticLockingFailure`，SQL 为
+`TRUNCATE document_chunk, project_document, project_member, project, app_user, embedding_index_generation, system_embedding_config CASCADE`，
+数据库返回 `ERROR: deadlock detected`，Detail 为
+`Process 69 waits for AccessExclusiveLock on relation 17321 of database 16384; blocked by process 68.` 与
+`Process 68 waits for RowExclusiveLock on relation 17236 of database 16384; blocked by process 69.`；
+结果摘要 `Tests run: 1543, Failures: 0, Errors: 1, Skipped: 18`，并伴随 HikariPool 连接校验告警与
+`Surefire is going to kill self fork JVM. The exit has elapsed 30 seconds after System.exit(0)`。
+
+该失败与本轮改动无关：本轮未改任何 PostgreSQL 测试类，且同一条分支的上一次运行（`37a368f`）1543 项后端测试全部通过。按既有先例对同一提交重跑，**未禁用测试、未跳过容器守卫、未降低覆盖率、未放宽断言**。重跑结论记录于最终交付消息。
+
 本报告补记提交只记录上述 SHA/CI，无运行代码变化。最终交付 SHA 是包含本次补记的提交，可用 `git log -1 --format=%H -- docs/acceptance-evidence/2026-10-20/p3-task-03/README.md` 定位；其完整 SHA、精确匹配 headSha 的 CI run 与 Frontend / Backend 结论在工作区状态核对后的最终交付消息中说明。仅当最终交付提交的两项 CI 均成功后交付。
 
 ## 七、最终必答问题
