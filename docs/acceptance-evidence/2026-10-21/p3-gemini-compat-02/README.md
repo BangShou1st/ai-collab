@@ -83,7 +83,28 @@
 
 ---
 
-## 六、交付总结
+## 六、CI 运行与交付状态确认
 
-- 交付提交严格限定在 dev 分支，无任何多余无意义代码变更。
-- 完整闭环“先调查、再复现、再最小修复”，保障了 Gemini 原生协议的高可用与高稳定性。
+- **交付分支**：`dev`
+- **起始 SHA**：`25d86b7e628689502d9f27a17fa50d96c9f3b34a`
+- **修复提交 SHA**：`872a7ad6c9d9b005223b717700449eaf50e0850c`
+- **提交信息**：`fix(ai): harden Gemini tool call ID isolation, alternating role contract and SSE safety termination`
+- **GitHub Actions CI 结果**：
+  - Run ID：`39497711679`
+  - Run 链接：https://github.com/BangShou1st/ai-collab/actions/runs/39497711679
+  - 状态：**Completed Success**（全绿）
+  - 各 Job 执行情况：
+    - `✓ Frontend (pnpm)`：耗时 1m19s（ID 118886961816）
+    - `✓ Backend (Maven verify)`：耗时 6m23s（ID 118886961572）
+  - 容器测试守卫：10/10 个 required 测试类均在 CI runner 真实执行，无整类跳过。
+
+---
+
+## 七、开放风险、未验证事项与回退方式
+
+1. **未验证事项**：
+   - 本轮未主动调用真实 Gemini 消耗免费模型额度，未人为打满免费层 429 真实配额（429、503 等已由轻量模拟 HTTP 服务与 Mockito 定向单元测试覆盖）。
+2. **回退方式**：
+   - 若需回退本阶段修改，执行 `git revert 872a7ad6c9d9b005223b717700449eaf50e0850c` 即可干净回退至上一阶段基线 `25d86b7`，不产生冲突。
+3. **后续建议**：
+   - 保持当前基线，后续如需接入 Gemini 3.x 图像/多模态输入，可沿用本轮规范化后的 alternating role 与 parts 结构。
