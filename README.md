@@ -201,7 +201,7 @@ docker compose --env-file .env -f ai-collab-deploy/docker-compose.yml up -d --no
 
 ```bash
 cd ai-collab-backend
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+bash ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
 Windows:
@@ -293,7 +293,7 @@ ai-collab/
 │   │       ├── notification/    # 通知
 │   │       ├── common/          # 公共组件
 │   │       └── infrastructure/  # AI 网关、存储
-│   ├── src/main/resources/db/   # Flyway 迁移 (V1-V38)
+│   ├── src/main/resources/db/   # Flyway 仓库迁移文件 (V1–V65)
 │   └── src/test/                # 测试
 ├── ai-collab-frontend/          # Vue 3 前端
 │   └── src/modules/             # 功能模块
@@ -305,13 +305,15 @@ ai-collab/
 └── README.md                    # 本文件
 ```
 
+截至 2026-10-20，仓库 `ai-collab-backend/src/main/resources/db/migration/` 包含连续的 V1–V65，共 65 个版本迁移文件，最高版本为 V65。这是仓库文件版本；各环境实际已执行的版本须分别核对其 `flyway_schema_history`，不能据此认定所有环境均已迁移到 V65。
+
 ## 开发
 
 ### 后端测试
 
 ```bash
 cd ai-collab-backend
-./mvnw test
+bash ./mvnw test
 ```
 
 ### 前端测试
@@ -327,7 +329,7 @@ pnpm typecheck
 ```bash
 # 后端
 cd ai-collab-backend
-./mvnw clean package -DskipTests
+bash ./mvnw clean package -DskipTests
 
 # 前端
 cd ai-collab-frontend
