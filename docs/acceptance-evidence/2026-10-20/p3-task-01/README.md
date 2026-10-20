@@ -27,7 +27,7 @@
 | impeccable detect（入口/抽屉） | 空结果；辅助检查，不替代真实 UI |
 | 本地 Maven | 未重复执行；无后端改动，最终后端 CI 仍为交付门槛 |
 
-日志：[lint](frontend-lint.log)、[typecheck](frontend-typecheck.log)、[test](frontend-test.log)、[build](frontend-build.log)。首次类型检查因新增测试夹具缺少 Task 字段失败，已补全并重跑成功；一次测试因卸载 Router 重置路径失败，改为卸载前保存 URL，保留刷新断言。
+最终命令结果摘录：[frontend-checks.txt](frontend-checks.txt)。完整运行日志仅在本地保留（仓库忽略 *.log）。首次类型检查因新增测试夹具缺少 Task 字段失败，已补全并重跑成功；一次测试因卸载 Router 重置路径失败，改为卸载前保存 URL，保留刷新断言。
 
 17 项路由用例覆盖：深链初始化、列表外目标、无 taskId、普通卡片、query 切换、返回/前进、关闭保留 sourcePlanId/其他 query、重挂载恢复、非法/空/重复 ID、403/404、评论拒绝不展示标题、任务/评论迟到、关闭/卸载/项目切换、旧列表迟到、无关 query/筛选不重读详情、撤权读取失败清内容、迟到状态写入不覆盖新详情。Home 测试覆盖原生链接 href、真实状态、项目/日期信息、五项预览和空态。
 
@@ -75,4 +75,6 @@
 
 ## Git 与 CI
 
-实现、19 项新增测试、截图与本报告将共同提交并普通推送 `dev`；不合并 main。最终提交 SHA 及对应 GitHub Actions Frontend / Backend 结果在交付消息核对，不能引用基线绿色 CI 代替。若另有报告元数据补记，最终消息同时记录该最终 SHA 的 CI。
+功能、19 项新增测试、五张真实 BSK 截图和报告已提交为 `09d60e6aabfb1fb839129d5f033f628c47b2f0c1`，普通推送 `dev`，对应 [CI run 39391002945](https://github.com/BangShou1st/ai-collab/actions/runs/39391002945)。
+
+本次报告补记只修正文档状态、将被 *.log 忽略的本地日志替换为可随仓库复现的检查结果摘录；无运行代码变化。最终补记提交 SHA 及其 Frontend / Backend 两项 CI 结果在最终交付消息核对，不能用功能提交或基线绿色 CI 替代最终 SHA 的 CI。不合并 main。
