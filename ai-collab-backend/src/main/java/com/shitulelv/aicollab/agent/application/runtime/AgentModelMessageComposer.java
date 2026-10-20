@@ -605,7 +605,8 @@ public class AgentModelMessageComposer {
     private void appendToolPair(AgentRunView run, AgentStepView step, JsonNode output, List<ModelMessage> messages) {
         String toolCallId = extractToolCallId(step.input(), step.sequence());
         JsonNode arguments = extractArguments(step.input());
-        ModelToolCall toolCall = new ModelToolCall(toolCallId, step.toolName(), arguments);
+        String thoughtSignature = extractThoughtSignature(step.input());
+        ModelToolCall toolCall = new ModelToolCall(toolCallId, step.toolName(), arguments, thoughtSignature);
         messages.add(new ModelMessage.Assistant("", List.of(toolCall)));
         boolean stale = output.path("status").asText("").equals("REJECTED")
                 && output.path("error").asText("").equals("STALE_OBSERVATION");
@@ -633,10 +634,12 @@ public class AgentModelMessageComposer {
 
                 // 重建 Assistant Tool Call 消息
                 JsonNode arguments = extractArguments(inputJson);
+                String thoughtSignature = extractThoughtSignature(inputJson);
                 ModelToolCall toolCall = new ModelToolCall(
                         toolCallId,
                         step.toolName(),
-                        arguments);
+                        arguments,
+                        thoughtSignature);
                 toolMessages.add(new ModelMessage.Assistant("", List.of(toolCall)));
 
                 // 重建 Tool Result 消息
@@ -678,6 +681,19 @@ public class AgentModelMessageComposer {
             return inputJson.get("arguments");
         }
         return inputJson != null ? inputJson : json.createObjectNode();
+    }
+
+    /**
+     * 从 input_json 中提取 thoughtSignature（如果存在）。
+     */
+    private String extractThoughtSignature(JsonNode inputJson) {
+        if (inputJson != null && inputJson.hasNonNull("thoughtSignature")) {
+            return inputJson.get("thoughtSignature").asText();
+        }
+        if (inputJson != null && inputJson.hasNonNull("thought_signature")) {
+            return inputJson.get("thought_signature").asText();
+        }
+        return null;
     }
 
     private String buildSystemPrompt(AgentRunView run, AgentSkill skill, AgentPlan plan, boolean legacyMode) {

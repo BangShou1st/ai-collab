@@ -656,9 +656,7 @@ public class AgentToolCallExecutor {
                 JsonNode resultJson = json.valueToTree(er.result());
                 JsonNode sanitizedResult = sanitizer.sanitize(resultJson);
 
-                ObjectNode inputWithId = json.createObjectNode();
-                inputWithId.put("toolCallId", er.toolCall().id());
-                inputWithId.set("arguments", er.toolCall().arguments());
+                ObjectNode inputWithId = input(er.toolCall());
 
                 boolean failed = er.result().status() != AgentToolResult.Status.SUCCEEDED;
                 run = repository.recordToolResult(run, er.toolCall().name(), inputWithId, sanitizedResult, failed);
@@ -691,9 +689,7 @@ public class AgentToolCallExecutor {
         errorResult.put("message", "工具执行超时");
         JsonNode sanitizedError = sanitizer.sanitize(errorResult);
 
-        ObjectNode inputWithId = json.createObjectNode();
-        inputWithId.put("toolCallId", toolCall.id());
-        inputWithId.set("arguments", toolCall.arguments());
+        ObjectNode inputWithId = input(toolCall);
 
         run = repository.recordToolResult(run, toolCall.name(), inputWithId, sanitizedError, true);
         emit(run, AgentEventType.TOOL_CALL_FAILED,
@@ -745,9 +741,7 @@ public class AgentToolCallExecutor {
         JsonNode sanitizedError = sanitizer.sanitize(errorResult);
 
         // 保存原始 toolCallId 到 input_json
-        ObjectNode inputWithId = json.createObjectNode();
-        inputWithId.put("toolCallId", toolCall.id());
-        inputWithId.set("arguments", toolCall.arguments());
+        ObjectNode inputWithId = input(toolCall);
 
         run = repository.recordToolResult(run, toolCall.name(), inputWithId, sanitizedError, true);
         emit(run, AgentEventType.TOOL_CALL_FAILED,
@@ -766,6 +760,9 @@ public class AgentToolCallExecutor {
     private ObjectNode input(ModelToolCall call) {
         ObjectNode input = json.createObjectNode().put("toolCallId", call.id());
         input.set("arguments", call.arguments());
+        if (call.thoughtSignature() != null && !call.thoughtSignature().isBlank()) {
+            input.put("thoughtSignature", call.thoughtSignature());
+        }
         return input;
     }
 

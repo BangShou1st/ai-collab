@@ -287,6 +287,223 @@ class GeminiTurnContractTest {
                 .isNotEqualTo("gemini-call-0");
     }
 
+    @Test
+    void parseFunctionCallWithThoughtSignature() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        ObjectNode response = mapper.createObjectNode();
+        response.put("modelVersion", "gemini-3.1-flash-lite");
+        ObjectNode candidate = response.putArray("candidates").addObject();
+        candidate.put("finishReason", "STOP");
+        ObjectNode content = candidate.putObject("content").put("role", "model");
+        ObjectNode part = content.putArray("parts").addObject();
+        part.putObject("functionCall").put("name", "list_tasks").set("args", mapper.createObjectNode().put("status", "OPEN"));
+        part.put("thoughtSignature", "sig-part-camel-123");
+
+        when(http.post(anyString(), anyMap(), any())).thenReturn(response);
+
+        ModelTurnResult result = new GeminiModelAdapter(mapper, http)
+                .turn(config(), "key", singleToolCommand());
+
+        assertThat(result.toolCalls()).hasSize(1);
+        ModelToolCall tc = result.toolCalls().getFirst();
+        assertThat(tc.name()).isEqualTo("list_tasks");
+        assertThat(tc.thoughtSignature()).isEqualTo("sig-part-camel-123");
+    }
+
+    @Test
+    void parseFunctionCallWithSnakeCaseThoughtSignature() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        ObjectNode response = mapper.createObjectNode();
+        response.put("modelVersion", "gemini-3.1-flash-lite");
+        ObjectNode candidate = response.putArray("candidates").addObject();
+        candidate.put("finishReason", "STOP");
+        ObjectNode content = candidate.putObject("content").put("role", "model");
+        ObjectNode part = content.putArray("parts").addObject();
+        part.putObject("functionCall").put("name", "list_tasks").set("args", mapper.createObjectNode());
+        part.put("thought_signature", "sig-part-snake-456");
+
+        when(http.post(anyString(), anyMap(), any())).thenReturn(response);
+
+        ModelTurnResult result = new GeminiModelAdapter(mapper, http)
+                .turn(config(), "key", singleToolCommand());
+
+        assertThat(result.toolCalls()).hasSize(1);
+        assertThat(result.toolCalls().getFirst().thoughtSignature()).isEqualTo("sig-part-snake-456");
+    }
+
+    @Test
+    void parseFunctionCallWithNestedThoughtSignature() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        ObjectNode response = mapper.createObjectNode();
+        response.put("modelVersion", "gemini-3.1-flash-lite");
+        ObjectNode candidate = response.putArray("candidates").addObject();
+        candidate.put("finishReason", "STOP");
+        ObjectNode content = candidate.putObject("content").put("role", "model");
+        ObjectNode part = content.putArray("parts").addObject();
+        ObjectNode fc = part.putObject("functionCall");
+        fc.put("name", "list_tasks").set("args", mapper.createObjectNode());
+        fc.put("thoughtSignature", "sig-fc-nested-789");
+
+        when(http.post(anyString(), anyMap(), any())).thenReturn(response);
+
+        ModelTurnResult result = new GeminiModelAdapter(mapper, http)
+                .turn(config(), "key", singleToolCommand());
+
+        assertThat(result.toolCalls()).hasSize(1);
+        assertThat(result.toolCalls().getFirst().thoughtSignature()).isEqualTo("sig-fc-nested-789");
+    }
+
+    @Test
+    void parseMultipleFunctionCallsWithThoughtSignatures() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        ObjectNode response = mapper.createObjectNode();
+        response.put("modelVersion", "gemini-3.1-flash-lite");
+        ObjectNode candidate = response.putArray("candidates").addObject();
+        candidate.put("finishReason", "STOP");
+        ObjectNode content = candidate.putObject("content").put("role", "model");
+        ArrayNode parts = content.putArray("parts");
+
+        ObjectNode p1 = parts.addObject();
+        p1.putObject("functionCall").put("name", "list_tasks").set("args", mapper.createObjectNode());
+        p1.put("thoughtSignature", "sig-parallel-1");
+
+        ObjectNode p2 = parts.addObject();
+        p2.putObject("functionCall").put("name", "list_milestones").set("args", mapper.createObjectNode());
+        p2.put("thoughtSignature", "sig-parallel-2");
+
+        when(http.post(anyString(), anyMap(), any())).thenReturn(response);
+
+        ModelTurnResult result = new GeminiModelAdapter(mapper, http)
+                .turn(config(), "key", multiToolCommand());
+
+        assertThat(result.toolCalls()).hasSize(2);
+        assertThat(result.toolCalls().get(0).thoughtSignature()).isEqualTo("sig-parallel-1");
+        assertThat(result.toolCalls().get(1).thoughtSignature()).isEqualTo("sig-parallel-2");
+    }
+
+    @Test
+    void sendsFunctionCallWithThoughtSignatureInNextTurn() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        when(http.post(anyString(), anyMap(), any())).thenReturn(createTextResponse("STOP", "ok"));
+
+        ObjectNode args = mapper.createObjectNode().put("status", "OPEN");
+        ModelToolCall tc = new ModelToolCall("gemini-call-0", "list_tasks", args, "sig-echo-back-abc");
+        ModelTurnCommand cmd = new ModelTurnCommand(
+                ModelPurpose.AGENT,
+                List.of(
+                        new ModelMessage.System("sys"),
+                        new ModelMessage.User("查任务"),
+                        new ModelMessage.Assistant("", List.of(tc)),
+                        new ModelMessage.ToolResult("gemini-call-0", "list_tasks",
+                                mapper.createObjectNode().put("count", 3), false)),
+                List.of(),
+                false);
+
+        new GeminiModelAdapter(mapper, http).turn(config(), "key", cmd);
+
+        JsonNode body = capturedBody(http);
+        JsonNode contents = body.path("contents");
+        assertThat(contents).hasSize(3); // user, model, user(functionResponse)
+
+        JsonNode modelMsg = contents.path(1);
+        assertThat(modelMsg.path("role").asText()).isEqualTo("model");
+        JsonNode modelPart0 = modelMsg.path("parts").path(0);
+        assertThat(modelPart0.path("functionCall").path("name").asText()).isEqualTo("list_tasks");
+        assertThat(modelPart0.path("thoughtSignature").asText()).isEqualTo("sig-echo-back-abc");
+    }
+
+    @Test
+    void sendsFunctionCallWithoutThoughtSignatureOmitted() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        when(http.post(anyString(), anyMap(), any())).thenReturn(createTextResponse("STOP", "ok"));
+
+        ObjectNode args = mapper.createObjectNode().put("status", "OPEN");
+        ModelToolCall tc = new ModelToolCall("gemini-call-0", "list_tasks", args, null);
+        ModelTurnCommand cmd = new ModelTurnCommand(
+                ModelPurpose.AGENT,
+                List.of(
+                        new ModelMessage.System("sys"),
+                        new ModelMessage.User("查任务"),
+                        new ModelMessage.Assistant("", List.of(tc)),
+                        new ModelMessage.ToolResult("gemini-call-0", "list_tasks",
+                                mapper.createObjectNode().put("count", 3), false)),
+                List.of(),
+                false);
+
+        new GeminiModelAdapter(mapper, http).turn(config(), "key", cmd);
+
+        JsonNode body = capturedBody(http);
+        JsonNode modelPart0 = body.path("contents").path(1).path("parts").path(0);
+        assertThat(modelPart0.has("thoughtSignature")).isFalse();
+    }
+
+    @Test
+    void multiTurnSequentialToolCallsPreservesDistinctSignatures() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        when(http.post(anyString(), anyMap(), any())).thenReturn(createTextResponse("STOP", "最终完成"));
+
+        ModelToolCall call1 = new ModelToolCall("gemini-call-0", "search_repo",
+                mapper.createObjectNode().put("q", "pom.xml"), "sig-turn-1");
+        ModelToolCall call2 = new ModelToolCall("gemini-call-1", "read_file",
+                mapper.createObjectNode().put("path", "pom.xml"), "sig-turn-2");
+
+        ModelTurnCommand cmd = new ModelTurnCommand(
+                ModelPurpose.AGENT,
+                List.of(
+                        new ModelMessage.System("sys"),
+                        new ModelMessage.User("分析项目"),
+                        new ModelMessage.Assistant("第一步检索", List.of(call1)),
+                        new ModelMessage.ToolResult("gemini-call-0", "search_repo", mapper.createObjectNode().put("found", true), false),
+                        new ModelMessage.Assistant("第二步读取", List.of(call2)),
+                        new ModelMessage.ToolResult("gemini-call-1", "read_file", mapper.createObjectNode().put("bytes", 100), false)),
+                List.of(new ModelToolDefinition("search_repo", "检索", schema),
+                        new ModelToolDefinition("read_file", "读取", schema)),
+                false);
+
+        ModelTurnResult result = new GeminiModelAdapter(mapper, http).turn(config(), "key", cmd);
+
+        assertThat(result.content()).isEqualTo("最终完成");
+        assertThat(result.toolCalls()).isEmpty();
+
+        JsonNode body = capturedBody(http);
+        JsonNode contents = body.path("contents");
+        assertThat(contents).hasSize(5); // user, model1, tool1, model2, tool2
+
+        // Verify Model Turn 1
+        JsonNode model1 = contents.path(1);
+        assertThat(model1.path("parts").path(0).path("text").asText()).isEqualTo("第一步检索");
+        assertThat(model1.path("parts").path(1).path("thoughtSignature").asText()).isEqualTo("sig-turn-1");
+
+        // Verify Model Turn 2
+        JsonNode model2 = contents.path(3);
+        assertThat(model2.path("parts").path(0).path("text").asText()).isEqualTo("第二步读取");
+        assertThat(model2.path("parts").path(1).path("thoughtSignature").asText()).isEqualTo("sig-turn-2");
+    }
+
+    @Test
+    void ignoresThoughtBlockTextInContent() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        ObjectNode response = mapper.createObjectNode();
+        response.put("modelVersion", "gemini-3.1-flash-lite");
+        ObjectNode candidate = response.putArray("candidates").addObject();
+        candidate.put("finishReason", "STOP");
+        ObjectNode content = candidate.putObject("content").put("role", "model");
+        ArrayNode parts = content.putArray("parts");
+
+        // part 1: reasoning scratchpad (thought: true)
+        parts.addObject().put("text", "Let me think carefully about the architecture.").put("thought", true);
+        // part 2: user-facing final text
+        parts.addObject().put("text", "这是最终的正式回答。");
+
+        when(http.post(anyString(), anyMap(), any())).thenReturn(response);
+
+        ModelTurnResult result = new GeminiModelAdapter(mapper, http)
+                .turn(config(), "key", textOnlyCommand());
+
+        assertThat(result.content()).isEqualTo("这是最终的正式回答。");
+        assertThat(result.content()).doesNotContain("Let me think carefully");
+    }
+
     // ========== 旧接口不回归 ==========
 
     @Test

@@ -51,11 +51,22 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
             AtomicReference<Integer> input = new AtomicReference<>();
             AtomicReference<Integer> output = new AtomicReference<>();
             AtomicReference<String> model = new AtomicReference<>(config.modelName());
+            AtomicReference<String> finishReason = new AtomicReference<>(null);
+            java.util.concurrent.atomic.AtomicInteger chunkCount = new java.util.concurrent.atomic.AtomicInteger(0);
             http.stream(modelEndpoint(config, true), headers(apiKey), request(config, command), (event, data) -> {
                 if (data == null) return;
-                String finish = data.path("candidates").path(0).path("finishReason").asText("");
+                chunkCount.incrementAndGet();
+                JsonNode candidate = data.path("candidates").path(0);
+                String finish = candidate.path("finishReason").asText("");
+                if (!finish.isBlank()) {
+                    finishReason.set(finish);
+                }
                 if ("MAX_TOKENS".equals(finish)) {
                     throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
+                }
+                if ("SAFETY".equals(finish) || "RECITATION".equals(finish)) {
+                    throw new BusinessException(ErrorCode.AI_PROVIDER_REQUEST_REJECTED,
+                            "Gemini 流因安全策略终止: " + finish);
                 }
                 String token = text(data);
                 if (!token.isEmpty()) {
@@ -63,10 +74,29 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
                     onToken.accept(token);
                 }
                 JsonNode usage = data.path("usageMetadata");
-                input.set(integer(usage.path("promptTokenCount")));
-                output.set(integer(usage.path("candidatesTokenCount")));
+                if (!usage.isMissingNode() && !usage.isNull()) {
+                    if (usage.hasNonNull("promptTokenCount")) {
+                        input.set(integer(usage.path("promptTokenCount")));
+                    }
+                    if (usage.hasNonNull("candidatesTokenCount")) {
+                        output.set(integer(usage.path("candidatesTokenCount")));
+                    }
+                }
                 if (data.hasNonNull("modelVersion")) model.set(data.path("modelVersion").asText());
-            });
+            }, false);
+
+            if (chunkCount.get() == 0) {
+                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "PROVIDER_STREAM / EMPTY_STREAM", input.get(), output.get());
+            }
+            if (finishReason.get() == null) {
+                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "PROVIDER_STREAM / TRUNCATED_BEFORE_FINISH", input.get(), output.get());
+            }
+            if (content.toString().isBlank()) {
+                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "PROVIDER_STREAM / EMPTY_CONTENT / finish=" + finishReason.get(), input.get(), output.get());
+            }
             onDone.accept(result(config, content.toString(), model.get(), input.get(), output.get(), started));
         }, onError);
     }
@@ -99,7 +129,7 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
         List<ModelToolCall> toolCalls = new ArrayList<>();
         int partIndex = 0;
         for (JsonNode part : response.path("candidates").path(0).path("content").path("parts")) {
-            if (part.hasNonNull("text")) {
+            if (part.hasNonNull("text") && !part.path("thought").asBoolean(false)) {
                 textContent.append(part.path("text").asText());
             }
             if (part.hasNonNull("functionCall")) {
@@ -109,10 +139,20 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
                 if (args == null || args.isNull() || args.isMissingNode()) {
                     args = mapper.createObjectNode();
                 }
+                String thoughtSignature = null;
+                if (part.hasNonNull("thoughtSignature")) {
+                    thoughtSignature = part.path("thoughtSignature").asText();
+                } else if (part.hasNonNull("thought_signature")) {
+                    thoughtSignature = part.path("thought_signature").asText();
+                } else if (fc.hasNonNull("thoughtSignature")) {
+                    thoughtSignature = fc.path("thoughtSignature").asText();
+                } else if (fc.hasNonNull("thought_signature")) {
+                    thoughtSignature = fc.path("thought_signature").asText();
+                }
                 // Gemini 没有稳定的 tool call ID，生成内部稳定 ID
                 // 偏移已有 functionCall 数量，确保跨轮次唯一
                 String id = "gemini-call-" + (existingFunctionCalls + partIndex);
-                toolCalls.add(new ModelToolCall(id, name, args));
+                toolCalls.add(new ModelToolCall(id, name, args, thoughtSignature));
             }
             partIndex++;
         }
@@ -173,6 +213,9 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
                         ObjectNode fc = fcPart.putObject("functionCall");
                         fc.put("name", call.name());
                         fc.set("args", call.arguments());
+                        if (call.thoughtSignature() != null && !call.thoughtSignature().isBlank()) {
+                            fcPart.put("thoughtSignature", call.thoughtSignature());
+                        }
                     }
                 }
                 case ModelMessage.ToolResult m -> {
@@ -254,7 +297,9 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
     private static String text(JsonNode response) {
         StringBuilder content = new StringBuilder();
         response.path("candidates").path(0).path("content").path("parts").forEach(part -> {
-            if (part.hasNonNull("text")) content.append(part.path("text").asText());
+            if (part.hasNonNull("text") && !part.path("thought").asBoolean(false)) {
+                content.append(part.path("text").asText());
+            }
         });
         return content.toString();
     }
