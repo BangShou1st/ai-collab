@@ -201,9 +201,10 @@ export function useAgentWorkspace() {
   let streamController: AbortController | undefined
   // 组件卸载后到达的响应不得再触碰任何页面状态或重启事件订阅
   let disposed = false
-  // SSE 断线诊断（脱敏）：只记录非本地取消的意外断线与其恢复结果，用于归因历史 ERR_ABORTED。
-  // 本地主动取消（切会话/切项目/新建运行/暂停/卸载）不产生记录——浏览器网络层仍会显示
-  // ERR_ABORTED，因此"有记录"＝意外断线，"无记录 + 网络 ERR_ABORTED"＝客户端主动取消或页面卸载。
+  // SSE 断线诊断（脱敏）：记录意外断线的类别、断线前序号、重连尝试与恢复结果。
+  // 归因规则（P3-OBS-02 修正）：缺少诊断记录本身不构成证据——"无记录 + 网络 ERR_ABORTED"
+  // 不得判定为客户端主动取消。只有显式的本地取消证据（本端 AbortController 被中止 / 页面
+  // 生命周期 / 用户操作）才算 CLIENT_ABORT，其余证据不足的一律 UNKNOWN。历史 ERR_ABORTED 保持未归因。
   const sseTracker = new AgentSseDiagnosticTracker()
   const sseDiagnostics = ref<AgentSseDiagnosticSnapshot>(sseTracker.snapshot())
   function resetSseDiagnostics(): void {
@@ -492,14 +493,23 @@ export function useAgentWorkspace() {
           if (!fresh()) return
           // 只有本次被时间线接受的持久事件才推进预览生命周期：
           // 旧序号/重复序号/其他运行的事件由同一套接受判断拒绝，预览不得被其回退
-          if (applyAgentEvent(timeline.value, event)) applyPreviewEvent(event)
+          if (applyAgentEvent(timeline.value, event)) {
+            applyPreviewEvent(event)
+            // 持久事件续接成功＝断线区间真正恢复；仅拿到 HTTP 200 只算传输已重连，不在此判定
+            const recovered = sseTracker.aligned()
+            if (recovered) {
+              emitAgentSseDiagnostic(recovered)
+              sseDiagnostics.value = sseTracker.snapshot()
+            }
+          }
         },
         frame => applyContentFrame(frame, fresh),
         () => {
-          // 流已建立：只有拿到响应才标记"已连接"，并记录断线后是否已恢复
+          // 流已建立：只有拿到响应才标记"已连接"。断线区间内重新建立只记"传输已重连"，
+          // 是否恢复取决于后续持久事件能否成功续接
           if (!fresh()) return
-          const recovered = sseTracker.opened(runId, timeline.value.lastSequence)
-          if (recovered) emitAgentSseDiagnostic(recovered)
+          const opened = sseTracker.opened(runId, timeline.value.lastSequence)
+          if (opened) emitAgentSseDiagnostic(opened)
           timeline.value.connected = true
           sseDiagnostics.value = sseTracker.snapshot()
         },
@@ -536,7 +546,8 @@ export function useAgentWorkspace() {
       if (!controller.signal.aborted) void consumeEventStream(runId, controller, Math.min(delayMs * 2, 5000))
     } catch (reason) {
       timeline.value.connected = false
-      // 本地主动取消是正常控制流，不产生诊断记录；只有意外断线才记录类别、序号与恢复结果
+      // 本端 AbortController 被中止＝显式本地取消证据，属正常控制流，不产生诊断记录；
+      // 其余（含无记录的浏览器 ERR_ABORTED）不得据此判定客户端取消，只记录实际观察到的类别
       if (controller.signal.aborted) return
       const diagnostic = sseTracker.disconnected(runId, reason, false, timeline.value.lastSequence)
       if (diagnostic) emitAgentSseDiagnostic(diagnostic)

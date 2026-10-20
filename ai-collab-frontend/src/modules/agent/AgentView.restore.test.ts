@@ -268,4 +268,52 @@ describe('AgentView restore', () => {
     expect(wrapper.text()).not.toContain('A 的问题')
     wrapper.unmount()
   })
+
+  it('区分"传输已重连"与"已恢复"：事件续接后才在 UI 展示已恢复', async () => {
+    mocks.latestRun.mockResolvedValue(response({
+      run: runOf('run-1', 'session-1', 'RUNNING'), plan: null, lastEventSequence: 5, pendingApprovalId: null,
+    }))
+    mocks.runEvents.mockResolvedValue(response([]))
+    const fetchCalls: Array<{ input: string; options?: RequestInit }> = []
+    g.__testFetch = (input: string, options?: RequestInit) => {
+      fetchCalls.push({ input, options })
+      if (fetchCalls.length === 1) {
+        const enc = new TextEncoder()
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(enc.encode(`data: ${JSON.stringify(evt(6, 'TOOL_CALL_STARTED', { callId: 'c2', toolName: 'list_tasks' }))}\n\n`))
+          },
+          pull(controller) { controller.error(new TypeError('Failed to fetch')) },
+        })
+        return Promise.resolve({ ok: true, body })
+      }
+      // 第二次流：HTTP 200 建立传输，随后续接事件 7，并以终态事件 8 正常收口
+      return sseResponse([
+        JSON.stringify(evt(7, 'TOOL_CALL_STARTED', { callId: 'c3', toolName: 'list_tasks' })),
+        JSON.stringify(evt(8, 'RUN_SUCCEEDED')),
+      ])
+    }
+    mocks.run.mockResolvedValue(response({ run: runOf('run-1', 'session-1', 'SUCCEEDED') }))
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const wrapper = mountView()
+    try {
+      await flushPromises()
+      for (let i = 0; i < 60 && mocks.run.mock.calls.length < 1; i++) {
+        await new Promise(resolve => setTimeout(resolve, 50))
+        await flushPromises()
+      }
+      const phases = info.mock.calls
+        .filter(([tag]) => tag === '[agent-sse]')
+        .map(([, json]) => (JSON.parse(String(json)) as { phase: string }).phase)
+      // 依次经历：断线 → 传输重连（仅 HTTP 200，不等于恢复）→ 持久事件续接后恢复
+      expect(phases).toEqual(['disconnect', 'transport_reconnected', 'recovered'])
+      // 恢复后 category 不为空，UI 能展示"已恢复"（此前 category=null 导致无法展示）
+      const diag = wrapper.get('[data-test="agent-sse-diagnostic"]').text()
+      expect(diag).toContain('已恢复')
+      expect(diag).toContain('传输中断')
+    } finally {
+      info.mockRestore()
+      wrapper.unmount()
+    }
+  })
 })
