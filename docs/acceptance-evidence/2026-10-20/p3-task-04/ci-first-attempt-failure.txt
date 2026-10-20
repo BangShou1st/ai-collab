@@ -1,0 +1,42 @@
+Source: https://github.com/BangShou1st/ai-collab/actions/runs/39420753335/attempts/1
+SHA: 4bf14af8495dad01fb2674a93c0f4cb09ecd28c6
+Artifact: backend-surefire-reports (12263544039)
+
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest
+-------------------------------------------------------------------------------
+Tests run: 16, Failures: 0, Errors: 1, Skipped: 1, Time elapsed: 4.145 s <<< FAILURE! -- in com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest
+com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest.retiredGenerationChunksAreNeverSearched -- Time elapsed: 1.013 s <<< ERROR!
+org.springframework.dao.PessimisticLockingFailureException: 
+StatementCallback; SQL [TRUNCATE document_chunk, project_document, project_member, project, app_user,
+         embedding_index_generation, system_embedding_config CASCADE
+]; ERROR: deadlock detected
+  Detail: Process 69 waits for AccessExclusiveLock on relation 17321 of database 16384; blocked by process 68.
+Process 68 waits for RowExclusiveLock on relation 17236 of database 16384; blocked by process 69.
+  Hint: See server log for query details.
+	at org.springframework.jdbc.support.SQLStateSQLExceptionTranslator.doTranslate(SQLStateSQLExceptionTranslator.java:146)
+	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:102)
+	at org.springframework.jdbc.support.AbstractFallbackSQLExceptionTranslator.translate(AbstractFallbackSQLExceptionTranslator.java:111)
+	at org.springframework.jdbc.core.JdbcTemplate.translateException(JdbcTemplate.java:1549)
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:427)
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:461)
+	at com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest.reset(RetrievalCoveragePostgresTest.java:139)
+Caused by: org.postgresql.util.PSQLException: ERROR: deadlock detected
+  Detail: Process 69 waits for AccessExclusiveLock on relation 17321 of database 16384; blocked by process 68.
+Process 68 waits for RowExclusiveLock on relation 17236 of database 16384; blocked by process 69.
+  Hint: See server log for query details.
+	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2904)
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2589)
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:431)
+	at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:534)
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:437)
+	at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:359)
+	at org.postgresql.jdbc.PgStatement.executeCachedSql(PgStatement.java:344)
+	at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:320)
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:315)
+	at com.zaxxer.hikari.pool.ProxyStatement.execute(ProxyStatement.java:95)
+	at com.zaxxer.hikari.pool.HikariProxyStatement.execute(HikariProxyStatement.java)
+	at org.springframework.jdbc.core.JdbcTemplate$1ExecuteStatementCallback.doInStatement(JdbcTemplate.java:452)
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:412)
+	... 2 more
+
