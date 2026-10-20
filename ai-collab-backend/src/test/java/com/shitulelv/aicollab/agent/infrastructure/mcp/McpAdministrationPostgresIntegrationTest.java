@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionRequest;
 import com.shitulelv.aicollab.agent.infrastructure.mcp.api.McpConnectionView;
 import com.shitulelv.aicollab.common.testing.MinioTestImage;
+import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,6 +73,7 @@ class McpAdministrationPostgresIntegrationTest {
     @Autowired McpAdministrationService service;
     @Autowired JdbcTemplate jdbc;
     @MockitoBean McpClientFactory clients;
+    @MockitoBean TaskPlanRecoveryJob taskPlanRecoveryJob;
 
     @BeforeEach
     void seedData() {

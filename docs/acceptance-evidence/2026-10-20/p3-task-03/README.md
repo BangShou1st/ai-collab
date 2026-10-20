@@ -159,3 +159,31 @@
 4. **是否产生未经授权的真实模型调用或费用？** 没有。本轮零真实模型调用；页面初始化/刷新/用途切换均不探测；自动化断言挂载与刷新不调用 `test`/`testCapability`。
 5. **Member 权限与凭据隐私是否保持安全？** 是。仅读取本人配置；未暴露 API Key（只有“已配置/未配置”）、鉴权头或内部错误正文；Member 无系统 Embedding 入口且 `/admin/embedding` 被守卫拒绝。
 6. **自动化、真实浏览器、最终 SHA 和 CI 结论？** 自动化：lint 0 error、typecheck、348 项前端测试、build、后端 9 项聚合测试全部 PASS。真实浏览器：Edge+BSK，12 张脱敏截图覆盖三态、默认/覆盖、两种加载失败、390px、键盘与权限入口，均为 PASS；真实模型探测分支为 NOT_TESTED。最终 SHA 与 CI 结论见第六节与最终交付消息。
+
+## CI-RELIABILITY-02 追加验收（2026-10-21）
+
+开工复核：当前分支 `dev`，HEAD 与 `origin/dev` 均为 `85b459adcf858efd196da64598305e7ab63de9e7`，`origin/main` 为 `6303b4a8011ebb1b3f9617df3e910ef7c7f65df7`，工作区干净。最新既有 CI 是 run `39450637035`，两端成功；基线 Surefire 为 1547 项、0 failures、0 errors、18 skipped。
+
+### 修改前证据（源代码基线 `85b459a`）
+
+六类均使用完整 `@SpringBootTest`，测试属性虽为 `planning.enabled=false`，但 `TaskPlanRecoveryJob` 是无条件 `@Component`，其 `recoverStaleWork` 带 `@Scheduled`；应用入口启用了调度。因此该属性并未从这些上下文中移除该任务。各类的 `@BeforeEach` 清理如下：
+
+| 测试类 | 修改前清理 SQL |
+| --- | --- |
+| `McpAdministrationPostgresIntegrationTest` | `TRUNCATE TABLE app_user CASCADE`；`TRUNCATE TABLE project CASCADE`；`TRUNCATE TABLE project_member CASCADE` |
+| `DocumentRecoveryPostgresIntegrationTest` | `TRUNCATE TABLE app_user CASCADE` |
+| `ProjectDashboardAuditPostgresIntegrationTest` | `TRUNCATE TABLE app_user CASCADE` |
+| `ProjectOwnershipTransferPostgresIntegrationTest` | `TRUNCATE TABLE app_user CASCADE` |
+| `AgentRetrievalQualityPostgresTest` | `TRUNCATE document_chunk, project_document, project_member, project, app_user, embedding_index_generation, system_embedding_config CASCADE` |
+| `RetrievalQualityHardGatePostgresTest` | `TRUNCATE document_chunk, project_document, project_member, project, app_user, embedding_index_generation, system_embedding_config CASCADE` |
+
+以上清理通过 `CASCADE` 锁定项目/用户相关表；计划表通过 `project` / `app_user` 外键进入清理锁集。六类均只测 MCP 管理、文档恢复查询、项目审计/所有权或检索质量，没有断言 `TaskPlanRecoveryJob` 行为，因此隔离它不会削弱这些业务断言。没有不适用类。
+
+### 修改与验证
+
+- 六类均按已有 `RetrievalCoveragePostgresTest`、`DocumentRegistrationStatusIntegrationTest` 的测试模式添加 `@MockitoBean TaskPlanRecoveryJob`；清理 SQL 与测试断言未改。`AgentRetrievalQualityPostgresTest` 仍保持 `AI_REAL_OLLAMA_RETRIEVAL` opt-in，本轮没有启用。
+- 独立 `TaskPlanRecoveryPostgresIntegrationTest` 使用自己的 `@SpringJUnitConfig`，显式创建真实 `TaskPlanRecoveryJob` 并直接执行恢复逻辑；未 mock、未改动，4 项 PostgreSQL 测试真实通过。
+- 定向 PostgreSQL 测试：48 项、0 failures、0 errors、4 skipped；4 项跳过来自既有 AI 检索门控，未打开任何 `AI_*` opt-in。
+- 完整后端 `mvn -B -ntp verify`：1547 项、0 failures、0 errors、18 skipped，203 个测试类；本地执行的 CI 容器测试守卫 10/10 必需类通过。skipped 测试类及逐类数量与 run `39450637035` 上传的 Surefire 基线完全一致。
+- 完整验证日志没有新的 `deadlock detected` 或 `40P01`。验证只连接本轮 Testcontainers 创建的临时 PostgreSQL；测试上下文按 CI 配置在该临时库运行 Flyway，不连接生产/预发数据库或业务数据。
+- 历史失败证据、原始 Surefire 报告与上一节的死锁记录均未删除或改写。推送后的两次同 SHA 完整 CI 精确 run ID、attempt、head SHA 和结果由本任务最终交付摘要记录。
