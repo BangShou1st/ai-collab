@@ -215,4 +215,6 @@ if (!d.category) return timeline.value.connected ? '已连接' : '未连接'
 - 开工基线：`969ab82ed8343dddc685a197562c68e5a3d03792`。
 - 变更文件：`ai-collab-frontend/src/modules/agent/`（`agent-sse-diagnostics.ts`、`use-agent-workspace.ts`、`AgentView.vue` 及对应测试）、`docs/acceptance-evidence/2026-10-20/p3-entry-01/`（勘误）、新增 `docs/acceptance-evidence/2026-10-20/p3-obs-02/`。
 - 测试夹具（受控 SSE 故障代理 `sse-fault-app.cjs`）位于仓库外，方法已在 §3.2 完整记录以便复现，未进入仓库。
-- 提交与 CI 结果见交付消息（commit SHA、GitHub Actions run）。
+- 本轮代码与验收资料提交：`66e2cf02a4b8d057307d94ec76d269ce0b18dcca`，普通快进推送至 `dev`（`969ab82..66e2cf0`），**未 force push、未硬重置、未清理数据卷**。
+- 代码提交对应 CI：[CI run 39379109051](https://github.com/BangShou1st/ai-collab/actions/runs/39379109051)，head SHA `66e2cf02a4b8d057307d94ec76d269ce0b18dcca`，整体 **success**：`Frontend (pnpm)` 与 `Backend (Maven verify)` 两个 job 均 `success`。
+- 本 README 的元数据补记提交 CI 状态，在其推送后由最终交付消息列明。
