@@ -286,4 +286,18 @@ class GeminiStreamContractTest {
         BusinessException be = (BusinessException) recorder.error.get();
         assertThat(be.getErrorCode()).isEqualTo(ErrorCode.AI_MODEL_TIMEOUT);
     }
+
+    @Test
+    void finishReasonBlocklistThrowsRequestRejected() throws Exception {
+        // 当模型因 BLOCKLIST、PROHIBITED_CONTENT 或 SPII 终止时，必须抛出 AI_PROVIDER_REQUEST_REJECTED，绝不能被误判为成功
+        String sse = "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"敏感词开头...\"}]},\"finishReason\":\"BLOCKLIST\",\"index\":0}]}\n\n";
+        replySse(sse);
+
+        StreamRecorder recorder = runStream();
+
+        assertThat(recorder.doneCount.get()).isZero();
+        assertThat(recorder.error.get()).isNotNull().isInstanceOf(BusinessException.class);
+        BusinessException be = (BusinessException) recorder.error.get();
+        assertThat(be.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_REQUEST_REJECTED);
+    }
 }

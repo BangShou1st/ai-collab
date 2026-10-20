@@ -579,6 +579,135 @@ class GeminiTurnContractTest {
                 false);
     }
 
+    @Test
+    void multiTurnSequentialToolCallsWithThoughtBlockDoesNotDuplicateToolCallId() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+
+        // 第一轮：parts[0] 是思考草稿块 (thought: true)，parts[1] 是 functionCall
+        ObjectNode turn1Response = mapper.createObjectNode();
+        turn1Response.put("modelVersion", "gemini-3.1-flash-lite");
+        ObjectNode candidate1 = turn1Response.putArray("candidates").addObject();
+        candidate1.put("finishReason", "STOP");
+        ObjectNode content1 = candidate1.putObject("content").put("role", "model");
+        ArrayNode parts1 = content1.putArray("parts");
+        parts1.addObject().put("text", "正在规划检索...").put("thought", true);
+        ObjectNode fc1 = parts1.addObject().putObject("functionCall");
+        fc1.put("name", "search_repo").set("args", mapper.createObjectNode().put("q", "pom.xml"));
+
+        when(http.post(anyString(), anyMap(), any())).thenReturn(turn1Response);
+
+        ModelTurnResult result1 = new GeminiModelAdapter(mapper, http)
+                .turn(config(), "key", singleToolCommand());
+
+        assertThat(result1.toolCalls()).hasSize(1);
+        ModelToolCall call1 = result1.toolCalls().getFirst();
+        // 第一轮生成的 toolCall ID 应该是内部稳定的第 0 个调用：gemini-call-0
+        assertThat(call1.id()).isEqualTo("gemini-call-0");
+
+        // 第二轮：带着第一轮的 call1，模型直接返回 1 个 part（直接是 functionCall）
+        ObjectNode turn2Response = mapper.createObjectNode();
+        turn2Response.put("modelVersion", "gemini-3.1-flash-lite");
+        ObjectNode candidate2 = turn2Response.putArray("candidates").addObject();
+        candidate2.put("finishReason", "STOP");
+        ObjectNode content2 = candidate2.putObject("content").put("role", "model");
+        ArrayNode parts2 = content2.putArray("parts");
+        ObjectNode fc2 = parts2.addObject().putObject("functionCall");
+        fc2.put("name", "read_file").set("args", mapper.createObjectNode().put("path", "pom.xml"));
+
+        when(http.post(anyString(), anyMap(), any())).thenReturn(turn2Response);
+
+        ModelTurnCommand secondTurnCmd = new ModelTurnCommand(
+                ModelPurpose.AGENT,
+                List.of(
+                        new ModelMessage.System("sys"),
+                        new ModelMessage.User("查任务"),
+                        new ModelMessage.Assistant("", List.of(call1)),
+                        new ModelMessage.ToolResult(call1.id(), "search_repo", mapper.createObjectNode().put("found", true), false)),
+                List.of(new ModelToolDefinition("search_repo", "检索", schema),
+                        new ModelToolDefinition("read_file", "读取", schema)),
+                false);
+
+        ModelTurnResult result2 = new GeminiModelAdapter(mapper, http)
+                .turn(config(), "key", secondTurnCmd);
+
+        assertThat(result2.toolCalls()).hasSize(1);
+        ModelToolCall call2 = result2.toolCalls().getFirst();
+        // 第二轮生成的 toolCall ID 必须是 gemini-call-1，绝不能与 call1 重复！
+        assertThat(call2.id()).isEqualTo("gemini-call-1");
+        assertThat(call2.id()).isNotEqualTo(call1.id());
+    }
+
+    @Test
+    void turnRequestMergesConsecutiveSameRoleMessagesAndParallelToolResponses() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        when(http.post(anyString(), anyMap(), any())).thenReturn(createTextResponse("STOP", "ok"));
+
+        ModelToolCall call1 = new ModelToolCall("gemini-call-0", "list_tasks",
+                mapper.createObjectNode().put("status", "OPEN"), "sig-parallel-1");
+        ModelToolCall call2 = new ModelToolCall("gemini-call-1", "list_milestones",
+                mapper.createObjectNode(), "sig-parallel-2");
+
+        // 连续 2 个 User 消息，接着 1 个 Assistant（含并行 2 个工具调用），再接连续 2 个 ToolResult
+        ModelTurnCommand cmd = new ModelTurnCommand(
+                ModelPurpose.AGENT,
+                List.of(
+                        new ModelMessage.System("sys"),
+                        new ModelMessage.User("用户目标"),
+                        new ModelMessage.User("页面附加上下文"),
+                        new ModelMessage.Assistant("", List.of(call1, call2)),
+                        new ModelMessage.ToolResult("gemini-call-0", "list_tasks",
+                                mapper.createObjectNode().put("tasks", 2), false),
+                        new ModelMessage.ToolResult("gemini-call-1", "list_milestones",
+                                mapper.createObjectNode().put("milestones", 1), false)),
+                List.of(),
+                false);
+
+        new GeminiModelAdapter(mapper, http).turn(config(), "key", cmd);
+
+        JsonNode body = capturedBody(http);
+        JsonNode contents = body.path("contents");
+
+        // 必须严格交替为 user -> model -> user，总共 3 个 content
+        assertThat(contents).hasSize(3);
+
+        // Content 0: role "user"，合并了 2 个 user 消息的 text parts
+        JsonNode c0 = contents.path(0);
+        assertThat(c0.path("role").asText()).isEqualTo("user");
+        assertThat(c0.path("parts")).hasSize(2);
+        assertThat(c0.path("parts").path(0).path("text").asText()).isEqualTo("用户目标");
+        assertThat(c0.path("parts").path(1).path("text").asText()).isEqualTo("页面附加上下文");
+
+        // Content 1: role "model"，包含 2 个 functionCall parts
+        JsonNode c1 = contents.path(1);
+        assertThat(c1.path("role").asText()).isEqualTo("model");
+        assertThat(c1.path("parts")).hasSize(2);
+        assertThat(c1.path("parts").path(0).path("functionCall").path("name").asText()).isEqualTo("list_tasks");
+        assertThat(c1.path("parts").path(0).path("thoughtSignature").asText()).isEqualTo("sig-parallel-1");
+        assertThat(c1.path("parts").path(1).path("functionCall").path("name").asText()).isEqualTo("list_milestones");
+        assertThat(c1.path("parts").path(1).path("thoughtSignature").asText()).isEqualTo("sig-parallel-2");
+
+        // Content 2: role "user"，合并了并行执行的 2 个 ToolResult (functionResponse)
+        JsonNode c2 = contents.path(2);
+        assertThat(c2.path("role").asText()).isEqualTo("user");
+        assertThat(c2.path("parts")).hasSize(2);
+        assertThat(c2.path("parts").path(0).path("functionResponse").path("name").asText()).isEqualTo("list_tasks");
+        assertThat(c2.path("parts").path(1).path("functionResponse").path("name").asText()).isEqualTo("list_milestones");
+    }
+
+    @Test
+    void turnWithSafetyFinishReasonThrowsRequestRejected() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        ObjectNode response = createTextResponse("SAFETY", "");
+
+        when(http.post(anyString(), anyMap(), any())).thenReturn(response);
+
+        assertThatThrownBy(() -> new GeminiModelAdapter(mapper, http)
+                .turn(config(), "key", textOnlyCommand()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AI_PROVIDER_REQUEST_REJECTED));
+    }
+
     private ChatCompletionCommand legacyCommand() {
         return new ChatCompletionCommand(
                 null, "system", "user", ChatCompletionCommand.OutputFormat.TEXT,
