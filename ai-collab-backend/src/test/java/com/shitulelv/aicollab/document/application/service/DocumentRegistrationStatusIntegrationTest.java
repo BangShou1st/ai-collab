@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
+import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,6 +58,8 @@ class DocumentRegistrationStatusIntegrationTest {
     DocumentRegistrationService registration;
     @MockitoBean
     DocumentTaskDispatcher dispatcher;
+    @MockitoBean
+    TaskPlanRecoveryJob taskPlanRecoveryJob;
 
     private UUID ownerId;
 

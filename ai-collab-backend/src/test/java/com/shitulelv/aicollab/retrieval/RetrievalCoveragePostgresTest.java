@@ -12,6 +12,7 @@ import com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingConfigR
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeContext;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
+import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
 import com.shitulelv.aicollab.retrieval.RetrievalCoverage.ExpectedEvidence;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -123,6 +124,8 @@ class RetrievalCoveragePostgresTest {
 
     @MockitoBean
     ProjectEmbeddingGateway embeddings;
+    @MockitoBean
+    TaskPlanRecoveryJob taskPlanRecoveryJob;
 
     @Autowired
     JdbcTemplate jdbc;
