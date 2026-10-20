@@ -84,7 +84,7 @@ export function classifySseDisconnect(
 ): { category: AgentSseDisconnectCategory; httpStatus?: number } {
   if (localAbort) return { category: 'CLIENT_ABORT' }
   if (reason instanceof Error) {
-    if (reason.name === 'AbortError') return { category: 'CLIENT_ABORT' }
+    if (reason.name === 'AbortError') return { category: 'UNKNOWN' }
     const match = HTTP_STATUS_PATTERN.exec(reason.message)
     if (match) return { category: 'HTTP_ERROR', httpStatus: Number(match[1]) }
     if (reason instanceof TypeError) return { category: 'NETWORK' }
@@ -175,7 +175,11 @@ export class AgentSseDiagnosticTracker {
     this.runId = runId
     this.lastSequence = lastSequence
     this.attempts += 1
-    if (this.episodeActive) return null
+    if (this.episodeActive) {
+      // 传输重连后尚未对齐便再次断开：区间继续，但传输已不再连接。
+      this.state = 'RECONNECTING'
+      return null
+    }
     this.category = category
     this.state = 'RECONNECTING'
     this.recovered = false
