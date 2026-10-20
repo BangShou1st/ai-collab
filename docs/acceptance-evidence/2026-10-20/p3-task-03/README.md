@@ -132,10 +132,13 @@
 
 - 功能与契约：`18f2287`（`feat(ai): report AI configuration state honestly`）
 - 账号切换守卫与补充测试：`5a9b526`（`test(ai): cover account switching and per-capability probe results`）
+- 本报告：`37a368f`（`docs(p3): record P3 task 03 AI configuration status acceptance`）
 
-`18f2287` 的 Frontend 作业已通过（[CI run 39410574118](https://github.com/BangShou1st/ai-collab/actions/runs/39410574118)，Frontend PASS）。
+`37a368f` 的 [CI run 39411180854](https://github.com/BangShou1st/ai-collab/actions/runs/39411180854)：**Frontend PASS、Backend PASS**（Backend 5m47s，`Assert container tests actually ran` 通过；本轮未复现 P3-TASK-02 的 PostgreSQL 清理死锁，非阻断风险维持观察）。
 
-本报告提交后，最终交付 SHA 与其 Frontend / Backend 结论在最终交付消息中核对，并以该 SHA 的 CI 两项均成功作为交付前提。
+回退功能可使用 `git revert 18f2287` 与 `git revert 5a9b526`，再正常推送 `dev`。
+
+本报告补记提交只记录上述 SHA/CI，无运行代码变化。最终交付 SHA 是包含本次补记的提交，可用 `git log -1 --format=%H -- docs/acceptance-evidence/2026-10-20/p3-task-03/README.md` 定位；其完整 SHA、精确匹配 headSha 的 CI run 与 Frontend / Backend 结论在工作区状态核对后的最终交付消息中说明。仅当最终交付提交的两项 CI 均成功后交付。
 
 ## 七、最终必答问题
 
