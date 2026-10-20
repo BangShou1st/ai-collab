@@ -1,12 +1,24 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import HomeView from './HomeView.vue'
 import { homeApi } from '../../api/home-api'
 
+const authState = vi.hoisted(() => ({
+  currentUser: { id: 'user-1', displayName: '测试用户' } as { id: string; displayName: string } | null,
+  listeners: [] as Array<() => void>,
+}))
+
 vi.mock('../../stores/auth-store', () => ({
-  useAuthStore: () => ({ currentUser: { id: 'user-1', displayName: '测试用户' }, $subscribe: () => undefined }),
+  useAuthStore: () => ({
+    get currentUser() {
+      return authState.currentUser
+    },
+    $subscribe: (cb: () => void) => {
+      authState.listeners.push(cb)
+    },
+  }),
 }))
 vi.mock('../../api/home-api', () => ({ homeApi: { get: vi.fn() } }))
 
@@ -42,6 +54,12 @@ async function render(data: unknown = payload({}, 0)) {
   await flushPromises()
   return wrapper
 }
+
+beforeEach(() => {
+  authState.currentUser = { id: 'user-1', displayName: '测试用户' }
+  authState.listeners = []
+  vi.mocked(homeApi.get).mockReset()
+})
 
 describe('home task preview', () => {
   it('exposes five native links with projects, real status and due date fallback, without a total count', async () => {
@@ -125,6 +143,24 @@ describe('home AI configuration status', () => {
     // 迟到的“未配置”响应不得覆盖更新后的状态
     expect(wrapper.text()).toContain('AI 配置已保存')
     expect(wrapper.text()).not.toContain('还没有保存任何 AI 模型配置')
+    wrapper.unmount()
+  })
+
+  it('drops the previous user state when the account changes', async () => {
+    let resolveSecond: (value: unknown) => void = () => {}
+    const wrapper = await render(payload({ configured: true, providerCount: 1, anyPurposeUsable: true }))
+    expect(wrapper.text()).toContain('AI 配置已保存')
+
+    vi.mocked(homeApi.get).mockReturnValueOnce(new Promise((resolve) => { resolveSecond = resolve }) as never)
+    authState.currentUser = { id: 'user-2', displayName: '另一用户' }
+    authState.listeners.forEach((cb) => cb())
+    await flushPromises()
+    // 新账号数据返回前，不得继续显示上一个账号的 AI 状态
+    expect(wrapper.text()).not.toContain('AI 配置已保存')
+
+    resolveSecond({ data: payload({ configured: true, providerCount: 3, anyPurposeUsable: true }) })
+    await flushPromises()
+    expect(wrapper.text()).toContain('已保存 3 个模型配置')
     wrapper.unmount()
   })
 })

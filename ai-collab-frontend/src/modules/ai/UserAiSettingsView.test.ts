@@ -6,7 +6,12 @@ import type { UserAiProvider } from "./user-ai-api"
 
 const authState = vi.hoisted(() => ({
   currentUser: { id: "u-1", systemAdmin: false } as { id: string; systemAdmin: boolean } | null,
+  listeners: [] as Array<() => void>,
 }))
+function switchUser(user: { id: string; systemAdmin: boolean } | null) {
+  authState.currentUser = user;
+  authState.listeners.forEach((cb) => cb());
+}
 
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
@@ -21,7 +26,16 @@ const mocks = vi.hoisted(() => ({
   success: vi.fn(),
 }));
 
-vi.mock("../../stores/auth-store", () => ({ useAuthStore: () => authState }));
+vi.mock("../../stores/auth-store", () => ({
+  useAuthStore: () => ({
+    get currentUser() {
+      return authState.currentUser;
+    },
+    $subscribe: (cb: () => void) => {
+      authState.listeners.push(cb);
+    },
+  }),
+}));
 vi.mock("./user-ai-api", () => ({
   userAiApi: {
     list: mocks.list, listPurposes: mocks.listPurposes,
@@ -107,6 +121,7 @@ function probeSelect(wrapper: ReturnType<typeof mountView>) {
 beforeEach(() => {
   vi.resetAllMocks();
   authState.currentUser = { id: "u-1", systemAdmin: false };
+  authState.listeners = [];
   mocks.list.mockResolvedValue(response([]));
   mocks.listPurposes.mockResolvedValue(response({}));
   mocks.presets.mockResolvedValueOnce(response([zen(), kilo()]));
@@ -271,6 +286,58 @@ describe("UserAiSettingsView state accuracy", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("前往系统 Embedding 管理");
     expect(wrapper.findAll('a[href="/admin/embedding"]')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it("marks a probe failure and allows re-testing", async () => {
+    mocks.list.mockResolvedValue(response([customProvider()]));
+    mocks.test.mockRejectedValueOnce(new Error("boom"));
+    const wrapper = mountView();
+    await flushPromises();
+    await buttonByText(wrapper, "测试")?.trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("连接：本次会话测试失败");
+
+    mocks.test.mockResolvedValue(response({}));
+    await buttonByText(wrapper, "测试")?.trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("连接：本次会话测试通过");
+    wrapper.unmount();
+  });
+
+  it("does not carry a session test result across a remount (no persisted history)", async () => {
+    mocks.list.mockResolvedValue(response([customProvider()]));
+    const first = mountView();
+    await flushPromises();
+    await buttonByText(first, "测试")?.trigger("click");
+    await flushPromises();
+    expect(first.text()).toContain("连接：本次会话测试通过");
+    first.unmount();
+
+    const second = mountView();
+    await flushPromises();
+    expect(second.text()).toContain("未测试");
+    expect(second.text()).not.toContain("连接：本次会话测试通过");
+    second.unmount();
+  });
+
+  it("drops the previous user's configuration and probe results on account switch", async () => {
+    mocks.list.mockResolvedValue(response([customProvider()]));
+    const wrapper = mountView();
+    await flushPromises();
+    await buttonByText(wrapper, "测试")?.trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("我的网关");
+    expect(wrapper.text()).toContain("连接：本次会话测试通过");
+
+    mocks.list.mockResolvedValue(response([]));
+    mocks.listPurposes.mockResolvedValue(response({}));
+    switchUser({ id: "u-2", systemAdmin: false });
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain("我的网关");
+    expect(wrapper.text()).not.toContain("连接：本次会话测试通过");
+    expect(wrapper.text()).toContain("还没有保存任何模型配置");
     wrapper.unmount();
   });
 });
