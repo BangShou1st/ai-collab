@@ -7,6 +7,8 @@ import { useTaskBoardView } from './use-task-board-view'
 import { workApi } from './work-api'
 import { projectApi } from '../project/project-api'
 import type { Task } from './types'
+import { notificationTaskRoute } from '../notification/notification-task-route'
+import type { Notification } from '../notification/types'
 
 vi.mock('../../stores/auth-store', () => ({ useAuthStore: () => ({ currentUser: { id: 'member' } }) }))
 vi.mock('./work-api', () => ({ workApi: { tasks: vi.fn(), task: vi.fn(), comments: vi.fn(), milestones: vi.fn(), createComment: vi.fn(), updateStatus: vi.fn() } }))
@@ -25,7 +27,7 @@ function deferred<T>() {
 }
 const cleanups: Array<() => void> = []
 async function setup(url = '/projects/p1/board') {
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/projects/:projectId/board', component: { template: '<div />' } }] })
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/projects/:projectId/board', component: { template: '<div />' } }, { path: '/notifications', component: { template: '<div />' } }] })
   await router.push(url)
   await router.isReady()
   let board!: ReturnType<typeof useTaskBoardView>
@@ -46,6 +48,38 @@ beforeEach(() => {
 afterEach(() => { cleanups.splice(0).forEach(cleanup => cleanup()) })
 
 describe('task URL state with the real router', () => {
+  it('does not request an empty project while returning to notifications before unmount', async () => {
+    const { board, router } = await setup(`/projects/p1/board?taskId=${A}`)
+    board.filters.assigneeId = 'member'; await flushPromises()
+    vi.mocked(workApi.tasks).mockClear()
+    vi.mocked(workApi.milestones).mockClear()
+    vi.mocked(projectApi.get).mockClear()
+    vi.mocked(projectApi.listMembers).mockClear()
+    await router.push('/notifications'); await flushPromises()
+    expect(workApi.tasks).not.toHaveBeenCalled()
+    expect(workApi.milestones).not.toHaveBeenCalled()
+    expect(projectApi.get).not.toHaveBeenCalled()
+    expect(projectApi.listMembers).not.toHaveBeenCalled()
+    expect(board.selected.value).toBeNull()
+    expect(board.comments.value).toEqual([])
+  })
+  it.each([200, 403, 404])('consumes the notification destination through the existing detail flow (%s)', async status => {
+    const { board, router } = await setup()
+    const projectId = '33333333-3333-4333-8333-333333333333'
+    const destination = notificationTaskRoute({ entityType: 'TASK', entityId: A, projectId } as Notification)
+    if (status !== 200) vi.mocked(workApi.task).mockRejectedValueOnce({ status })
+    await router.push(destination!); await flushPromises()
+    expect(workApi.task).toHaveBeenCalledExactlyOnceWith(projectId, A)
+    if (status === 200) {
+      expect(board.selected.value?.id).toBe(A)
+      expect(board.selected.value?.projectId).toBe(projectId)
+      expect(workApi.comments).toHaveBeenCalledExactlyOnceWith(projectId, A)
+    } else {
+      expect(board.selected.value).toBeNull()
+      expect(board.comments.value).toEqual([])
+      expect(board.detailError.value).toContain('任务不存在或无权访问')
+    }
+  })
   it('initializes an out-of-list detail, including comments, without widening member permissions', async () => {
     const { board } = await setup(`/projects/p1/board?taskId=${A}`)
     expect(board.tasks.value).toEqual([])
