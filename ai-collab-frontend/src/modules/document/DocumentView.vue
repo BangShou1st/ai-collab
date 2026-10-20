@@ -20,6 +20,7 @@ import {
 } from './document-upload'
 import type { ProjectDocument } from './types'
 import DocumentBodyReader from './DocumentBodyReader.vue'
+import { documentFailureGuide } from './document-failure'
 
 const route = useRoute()
 const projectId = String(route.params.projectId)
@@ -31,6 +32,9 @@ const drawerVisible = ref(false)
 const uploadVisible = ref(false)
 const uploading = ref(false)
 const operationId = ref('')
+const retryingId = ref('')
+const retryFeedback = ref('')
+const listLoadFailed = ref(false)
 const uploadCandidates = ref<UploadCandidate[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 const dragging = ref(false)
@@ -38,6 +42,8 @@ let pollTimer: number | null = null
 let active = true
 
 const canManage = computed(() => project.value?.role === 'OWNER' || project.value?.role === 'ADMIN')
+const projectReadOnly = computed(() => project.value?.status === 'COMPLETED' || project.value?.status === 'ARCHIVED')
+const canRetry = computed(() => canManage.value && !projectReadOnly.value)
 const readyDocuments = computed(() => documents.value.filter(d => d.status === 'READY'))
 const batchReindexing = ref(false)
 const reindexProgress = ref<{ total: number; completed: number; failed: number; inProgress: number } | null>(null)
@@ -67,12 +73,16 @@ async function load(showLoading = true): Promise<void> {
     if (projectResult.status === 'fulfilled') {
       project.value = projectResult.value.data
     } else {
+      project.value = null
       showApiError(projectResult.reason, '项目信息加载')
     }
     if (documentResult.status === 'fulfilled') {
       documents.value = documentResult.value.data
+      listLoadFailed.value = false
     } else {
-      documents.value = []
+      listLoadFailed.value = true
+      const failure = normalizeApiError(documentResult.reason)
+      if (failure.httpStatus !== null && [401, 403, 404].includes(failure.httpStatus)) documents.value = []
       showApiError(documentResult.reason, '文档列表加载')
     }
     if (selected.value) {
@@ -171,16 +181,25 @@ async function download(item: ProjectDocument): Promise<void> {
 }
 
 async function retry(item: ProjectDocument): Promise<void> {
-  if (!canManage.value || item.status !== 'FAILED' || operationId.value) return
+  if (!canRetry.value || item.status !== 'FAILED' || operationId.value || listLoadFailed.value) return
   operationId.value = item.id
+  retryingId.value = item.id
+  retryFeedback.value = `正在提交“${item.displayName}”的单项重试…`
   try {
-    await documentApi.retry(projectId, item.id)
+    const result = await documentApi.retry(projectId, item.id)
+    if (!active) return
+    documents.value = documents.value.map(document => document.id === item.id ? result.data : document)
+    if (selected.value?.id === item.id) selected.value = result.data
+    retryFeedback.value = `“${item.displayName}”已提交处理，请以下方最新状态为准；仅“可检索”表示处理完成。`
     await load(false)
-    ElMessage.success('已重新提交处理')
   } catch (error) {
+    if (!active) return
+    retryFeedback.value = `“${item.displayName}”的重试请求未确认成功，请刷新状态后再决定是否重试。`
     showApiError(error, '文档处理重试')
+    await load(false)
   } finally {
     operationId.value = ''
+    retryingId.value = ''
   }
 }
 
@@ -293,10 +312,15 @@ onUnmounted(() => {
       show-icon
     />
 
+    <p v-if="retryFeedback" role="status" class="retry-feedback">{{ retryFeedback }}</p>
+    <el-alert v-if="listLoadFailed" title="文档状态加载失败，当前状态未知；已有内容可能已过时。请刷新后再操作。" type="warning" :closable="false" show-icon />
+    <el-alert v-if="projectReadOnly" title="当前项目只读，不能重试文档；请联系项目所有者确认项目状态。" type="info" :closable="false" />
+
     <el-card v-loading="loading" class="document-list-card">
       <template #header>
         <div class="document-card-header">
           <span>项目文档</span>
+          <el-button :loading="loading" :disabled="Boolean(operationId)" @click="load()">刷新状态</el-button>
           <el-button
             v-if="canManage && readyDocuments.length > 0"
             type="warning"
@@ -322,6 +346,9 @@ onUnmounted(() => {
             <div class="document-name">
               <strong>{{ row.displayName }}</strong>
               <small>{{ row.originalFilename }}</small>
+              <button v-if="row.status === 'FAILED'" type="button" class="document-failure-summary" @click.stop="openDetail(row)">
+                {{ documentFailureGuide(row.errorMessage).title }}；查看处理建议
+              </button>
             </div>
           </template>
         </el-table-column>
@@ -359,9 +386,11 @@ onUnmounted(() => {
               v-if="canManage && row.status === 'FAILED'"
               text
               aria-label="重试文档处理"
+              :loading="retryingId === row.id"
+              :disabled="!canRetry || Boolean(operationId) || listLoadFailed"
               @click.stop="retry(row)"
             >
-              重试
+              {{ retryingId === row.id ? '提交中' : '重试处理' }}
             </el-button>
             <el-button
               v-if="canManage && row.status === 'READY'"
@@ -447,8 +476,17 @@ onUnmounted(() => {
       </el-form>
     </el-dialog>
 
-    <el-drawer v-model="drawerVisible" title="文档详情" size="520px">
+    <el-drawer v-model="drawerVisible" title="文档详情" size="min(520px, 100vw)">
       <template v-if="selected">
+        <section v-if="selected.status === 'FAILED'" class="document-failure-guide" aria-label="失败处理建议">
+          <h3>{{ documentFailureGuide(selected.errorMessage).title }}</h3>
+          <p>{{ documentFailureGuide(selected.errorMessage).next }}</p>
+          <p v-if="!canManage">你当前不能重试文档，请联系项目所有者或管理员处理。</p>
+          <p v-else-if="projectReadOnly">当前项目只读，请先联系项目所有者确认项目状态。</p>
+          <p v-else>重试只处理此文档，不会自动重试其他失败资料；提交成功不代表处理完成。</p>
+        </section>
+        <p v-if="selected.status === 'UPLOADED' || selected.status === 'PARSING' || selected.status === 'INDEXING'" role="status">文档正在后台处理，状态会自动更新；刷新页面可查看最新状态。</p>
+        <p v-if="retryFeedback" role="status" class="retry-feedback">{{ retryFeedback }}</p>
         <DocumentBodyReader :project-id="projectId" :document-id="selected.id" />
         <dl class="document-detail">
           <dt>显示名称</dt><dd>{{ selected.displayName }}</dd>
@@ -470,22 +508,17 @@ onUnmounted(() => {
           <dt>上传时间</dt><dd>{{ formatDateTime(selected.createdAt) }}</dd>
           <dt>索引完成时间</dt><dd>{{ formatDateTime(selected.indexedAt) }}</dd>
         </dl>
-        <el-alert
-          v-if="selected.errorMessage"
-          :title="selected.errorMessage"
-          type="error"
-          :closable="false"
-          show-icon
-        />
         <div class="actions">
           <el-button @click="download(selected)">下载原文件</el-button>
           <router-link :to="`/projects/${projectId}/agent?document=${selected.id}`"><el-button text type="primary">交给 Agent</el-button></router-link>
           <el-button
             v-if="canManage && selected.status === 'FAILED'"
             type="warning"
+            :loading="retryingId === selected.id"
+            :disabled="!canRetry || Boolean(operationId) || listLoadFailed"
             @click="retry(selected)"
           >
-            重新处理
+            {{ retryingId === selected.id ? '提交中' : '重试处理' }}
           </el-button>
           <el-button v-if="canManage" type="danger" @click="remove(selected)">
             删除文档
@@ -495,3 +528,11 @@ onUnmounted(() => {
     </el-drawer>
   </main>
 </template>
+
+<style scoped>
+.document-failure-summary { color: var(--el-color-danger-dark-2); font: inherit; font-size: 12px; text-align: start; text-decoration: underline; text-underline-offset: 3px; background: transparent; border: 0; padding: 0; cursor: pointer; }
+.document-failure-guide { margin-block: 16px; overflow-wrap: anywhere; }
+.document-failure-guide h3 { margin-block: 0 8px; font-size: 16px; }
+.document-failure-guide p, .retry-feedback { line-height: 1.6; overflow-wrap: anywhere; }
+.document-detail dd { min-width: 0; overflow-wrap: anywhere; }
+</style>
