@@ -10,6 +10,8 @@
 
 > 本报告不复述任何文档正文、Owner 身份、邀请链接、Token、Cookie、API Key 或请求/响应正文。所有涉及的业务对象以脱敏标签（`D-01`…）或类别描述出现。
 
+> **勘误（2026-10-20，`p3-obs-02`）**：本报告 §3.2 / §6.3 / §7 曾以"没有诊断记录 + 浏览器网络层 `ERR_ABORTED`"作为**客户端主动取消**的可判定依据，属**证据不足下的过度归因**。依据 `p3-obs-02` 修订的归因规则：缺少诊断记录本身**不构成证据**；只有存在显式的本地取消证据（本端 AbortController 被中止 / 页面生命周期 / 用户操作）时才可判定 `CLIENT_ABORT`，其余一律 `UNKNOWN`。因此本报告相关处**更正为未归因（`UNKNOWN`）**，历史 `ERR_ABORTED` 保持未归因。其余结论与证据不变。详见 `docs/acceptance-evidence/2026-10-20/p3-obs-02/README.md`。
+
 ---
 
 ## 0. 本报告要回答的问题（对应任务）
@@ -124,7 +126,7 @@ P2 **不能正式关闭**。以下为需显式接受或继续跟踪的遗留项�
 3. `ERR_ABORTED` 在浏览器网络层**既可能**由客户端主动取消（切会话/切项目/重开运行/暂停/卸载）产生，**也可能**由意外传输中断产生；没有服务端/客户端侧记录时两者不可区分。
 4. 因此**不得**推断为主动取消、页面切换、网络断线、SSE 超时或服务端失败的任一具体成因。
 
-**归因路径（本轮起）**：见 §4 的脱敏诊断。补上"有记录＝意外断线 / 无记录＋网络 ERR_ABORTED＝客户端主动取消或卸载"的可判定规则后，未来同类事件可在首次发生时被归类。
+**归因路径（修订后，见 `p3-obs-02`）**：见 §4 的脱敏诊断。归因规则**不得**以"没有诊断记录 + 网络 `ERR_ABORTED`"直接判定客户端主动取消——缺少记录本身不构成证据；只有存在显式的本地取消证据（本端 AbortController 被中止 / 页面生命周期 / 用户操作）时才可判定 `CLIENT_ABORT`，其余证据不足的情形一律 `UNKNOWN`。因此未来同类事件仅在具备上述证据时才可被归类，否则保持未归因。
 
 ### 3.3 有限验证计划（Provider 429 / Agent SSE 断线恢复 / opt-in 测试）
 
@@ -165,7 +167,7 @@ P2 **不能正式关闭**。以下为需显式接受或继续跟踪的遗留项�
 
 **修改** `use-agent-workspace.ts`：
 - 接入 tracker；`connected` 改为在 `onOpen` 中置真（不再乐观置真）。
-- **只有意外断线**（非本地取消）产出诊断记录；本地主动取消不记录。
+- **只有意外断线**（非本地取消）产出诊断记录；本地主动取消不记录。**注意（勘误）**：\"不记录\"本身**不等于**已判定客户端取消——缺少记录不构成证据，见 §3.2 修订归因规则。
 - 切换项目/会话/运行、恢复会话时复位 tracking 区间，避免跨运行串用。
 
 **修改** `AgentView.vue`：在既有「诊断与资源」区与运行状态行展示脱敏断线诊断（类别 · 断线前 seq · 第 N 次尝试 · 已恢复/重连中）。
@@ -211,11 +213,11 @@ P2 **不能正式关闭**。以下为需显式接受或继续跟踪的遗留项�
 | 场景 | 结果 | 证据 |
 |---|---|---|
 | 真实 Agent 运行 + SSE 已连接 | PASS | 截图 [02-agent-running-sses-connected.png](screenshots/02-agent-running-sses-connected.png) |
-| 真实 `net::ERR_ABORTED` 再现与归因 | PASS（归因可判定） | 网络记录 [agent-sse-break-sanitized.json](network/agent-sse-break-sanitized.json) §S1；运行中真实免费模型 SSE 流返回 `200 text/event-stream`，页面重载触发 `net::ERR_ABORTED` |
+| 真实 `net::ERR_ABORTED` 再现 | PASS（现象再现）· **归因 UNKNOWN（勘误）** | 网络记录 [agent-sse-break-sanitized.json](network/agent-sse-break-sanitized.json) §S1；运行中真实免费模型 SSE 流返回 `200 text/event-stream`，页面重载触发 `net::ERR_ABORTED`。**勘误**：本行原判"归因可判定＝客户端主动取消"证据不足，改判 `UNKNOWN`（仅现象再现，不作确定性归因） |
 | 受控 SSE 传输中断 → 脱敏断线诊断 | PASS | 截图 [03-agent-sse-reconnecting-network.png](screenshots/03-agent-sse-reconnecting-network.png)；UI 显示 `SSE 重连中（传输中断 · 断线前 seq 12 · 第 5 次尝试）`；控制台 `[agent-sse] {"scope":"agent.sse","phase":"disconnect","category":"NETWORK","runId":"<redacted>","lastSequence":12,"attempt":1}` |
 | 断线记录区间收敛（不刷屏） | PASS | 传输中断期间浏览器出现多次 `ERR_CONNECTION_RESET` / `ERR_CONNECTION_REFUSED`（多次重连失败），`[agent-sse]` 只输出 **1 条** `disconnect` |
 | 恢复后功能正确（真实回答 + 无重复终态消息） | PASS | 截图 [04-agent-recovered-answer-with-sources.png](screenshots/04-agent-recovered-answer-with-sources.png)；回答含 `project-release-standards.md`、`rollback-rules.md` 真实来源标记，该运行最终回答仅出现一次 |
-| 同页 `phase=recovered` 记录 | **NOT_TESTED（环境限制）** | 见下方说明 |
+| 同页 `phase=recovered` 记录 | **NOT_TESTED（环境限制）** | 见下方说明；本项在 `p3-obs-02` 重新设计验证后另行判定 |
 | 真实 Provider 429 注入 | **NOT_TESTED** | 不以耗尽额度制造错误；仅自动化类别映射通过 |
 
 **关于 `recovered` 记录未能复现（诚实记录）**：本环境唯一能造成客户端可见 SSE 断开的受控手段是停止承载页面的前端开发服务器（Vite 代理）。已用页面内标记验证：重启该服务器会**重载页面**（标记在重启后丢失），因此同一页面内的断线区间被重置，`phase=recovered` 记录无法在该环境复现。该路径（`opened()` → recovered 记录、区间复位）由单元测试覆盖。另一手段（停止后端进程）经 Vite 代理**不会**使客户端 SSE 断开（代理保持下游连接），同样无法产生客户端可见断线。**不将单元测试结果冒充为浏览器证据。**
@@ -228,8 +230,8 @@ P2 **不能正式关闭**。以下为需显式接受或继续跟踪的遗留项�
 
 **1. P2 遗留风险是否已进一步收敛？**
 部分收敛，未掩盖：
-- R-2（Agent 历史 `ERR_ABORTED` 未归因）：**收敛一步**。新增可判定规则并在真实浏览器再现同类事件，判定其为**客户端主动取消（页面重载）**，同时用传输中断场景证明"意外断线会有记录"。但历史那次事件因原始逐事件证据缺失，**仍为未归因**。
-- R-3（Agent SSE 断线恢复）：**收敛一步**。真实传输中断下断线被正确分类、记录并在 UI 展示；恢复后功能正确（真实来源回答、无重复终态消息）。同页 `recovered` 记录的浏览器复现受环境限制，标记 NOT_TESTED。
+- R-2（Agent 历史 `ERR_ABORTED` 未归因）：**收敛一步（勘误）**。新增脱敏断线诊断并在真实浏览器再现同类事件，但当时的"归因可判定＝客户端主动取消（页面重载）"依据不足，**勘误后改判 `UNKNOWN`（未归因）**；历史那次事件因原始逐事件证据缺失，**仍为未归因**。`p3-obs-02` 修订归因规则：缺少诊断记录不构成证据，仅显式本地取消证据（AbortController / 页面生命周期 / 用户操作）才可判定 `CLIENT_ABORT`。
+- R-3（Agent SSE 断线恢复）：**收敛一步**。真实传输中断下断线被正确分类、记录并在 UI 展示；恢复后功能正确（真实来源回答、无重复终态消息）。同页 `recovered` 记录的浏览器复现受环境限制，标记 NOT_TESTED，并在 `p3-obs-02` 重新设计验证。
 - R-1（6 份文档）、R-4（真实 429）、R-5（18 项 opt-in）：**未变**，仍 BLOCKED / NOT_TESTED，不因本轮绿色全量测试而视为通过。
 
 **2. P3 哪些工作可以正式启动？**

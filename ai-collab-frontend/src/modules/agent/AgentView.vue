@@ -92,14 +92,19 @@ const tokenUsageLine = computed(() => {
   return `Tokens ${inputPart} · ${outputPart}${selfScope} · Run ${runDetail.value?.run.id ?? run.id}`
 })
 /**
- * SSE 连接状态说明：正常时只显示"已连接/未连接"；发生意外断线后显示脱敏类别、断线前序号、
- * 尝试次数与是否已恢复，便于把浏览器 ERR_ABORTED 归因到"本地取消"还是"传输中断"。
+ * SSE 连接状态说明：区分「已连接 / 重连中 / 传输已重连（等待事件续接）/ 已恢复」。
+ * "已恢复"只在持久事件或运行状态对齐后才显示——仅收到 HTTP 200 只算"传输已重连"，
+ * 避免把传输重建误报成完整事件恢复；证据不足的情形不在此给出确定性归因。
  */
 const sseStatusLine = computed(() => {
   const d = sseDiagnostics.value
-  if (!d.category) return timeline.value.connected ? '已连接' : '未连接'
-  const state = d.recovered ? '已恢复' : '重连中'
-  return `${state}（${describeAgentSseDisconnect(d.category)} · 断线前 seq ${d.lastSequence} · 第 ${d.attempts} 次尝试）`
+  const detail = d.category
+    ? `${describeAgentSseDisconnect(d.category)} · 断线前 seq ${d.lastSequence}`
+    : ''
+  if (d.state === 'RECONNECTING') return `重连中（${detail} · 第 ${d.attempts} 次尝试）`
+  if (d.state === 'TRANSPORT_RECONNECTED') return `传输已重连 · 等待事件续接（${detail}）`
+  if (d.state === 'RECOVERED') return `已恢复（${detail}）`
+  return timeline.value.connected ? '已连接' : '未连接'
 })
 const grouped = (items: AgentActivity[]): ConversationActivity[] => groupAgentActivities(items)
 function activityTech(act: AgentActivity): string {
@@ -386,8 +391,7 @@ watch(sessionId, () => {
           <p class="inspector-meta">{{ tokenUsageLine }}</p>
           <p class="inspector-meta">Sequence {{ runDetail?.lastEventSequence }} · SSE {{ timeline.connected ? '已连接' : '未连接' }}</p>
           <p v-if="sseDiagnostics.category" class="inspector-meta" data-test="agent-sse-diagnostic">
-            断线诊断：{{ describeAgentSseDisconnect(sseDiagnostics.category) }} · 断线前 seq {{ sseDiagnostics.lastSequence }}
-            · {{ sseDiagnostics.recovered ? '已恢复' : `重连中（第 ${sseDiagnostics.attempts} 次）` }}
+            断线诊断：{{ sseStatusLine }}
           </p>
         </details>
       </aside>
