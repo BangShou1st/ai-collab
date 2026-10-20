@@ -286,6 +286,7 @@ export function useTaskBoardView() {
   async function loadTasks(): Promise<void> {
     const generation = ++listGeneration
     const id = projectId.value
+    if (!id || disposed) return
     const result = await workApi.tasks(id, taskQueryParams())
     if (!disposed && id === projectId.value && generation === listGeneration) tasks.value = result.data
   }
@@ -312,6 +313,8 @@ export function useTaskBoardView() {
   async function load(): Promise<void> {
     const generation = ++boardGeneration
     const id = projectId.value
+    // Route params clear before this component unmounts on Back to notifications.
+    if (!id || disposed) return
     loading.value = true
     try {
       const [projectResult, memberResult, milestoneResult] = await Promise.all([

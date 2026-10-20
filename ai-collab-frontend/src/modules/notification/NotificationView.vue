@@ -1,65 +1,85 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import { notificationLabel } from '../../shared/display-labels'
 import PageHeader from '../../shared/PageHeader.vue'
 import { notificationApi } from './notification-api'
+import { notificationTaskRoute } from './notification-task-route'
 import type { Notification } from './types'
 
+const router = useRouter()
+const route = useRoute()
 const notifications = ref<Notification[]>([])
 const loading = ref(false)
 const page = ref(0)
 const hasMore = ref(true)
-const loadingMore = ref(false)
-
-async function load(): Promise<void> {
-  loading.value = true
-  try {
-    const result = await notificationApi.list(0, 20)
-    notifications.value = result.data
-    hasMore.value = result.data.length === 20
-    page.value = 0
-  } catch (error) {
-    showApiError(error, '通知列表加载')
-  } finally {
-    loading.value = false
-  }
+// Serialize paging and writes so read-all cannot race an older page response.
+const busy = ref(false)
+let generation = 0
+let disposed = false
+watch(() => route.fullPath, () => { ++generation })
+onBeforeUnmount(() => { disposed = true; ++generation })
+function context() {
+  const current = generation
+  return () => !disposed && generation === current
 }
 
-async function loadMore(): Promise<void> {
-  if (loadingMore.value || !hasMore.value) return
-  loadingMore.value = true
+async function load(more = false): Promise<void> {
+  if (busy.value || (more && !hasMore.value)) return
+  busy.value = true
+  loading.value = !more
+  const active = context()
   try {
-    const nextPage = page.value + 1
+    const nextPage = more ? page.value + 1 : 0
     const result = await notificationApi.list(nextPage, 20)
-    notifications.value.push(...result.data)
+    if (!active()) return
+    notifications.value = more ? [...notifications.value, ...result.data] : result.data
     hasMore.value = result.data.length === 20
     page.value = nextPage
   } catch (error) {
-    showApiError(error, '更多通知加载')
+    if (active()) showApiError(error, more ? '更多通知加载' : '通知列表加载')
   } finally {
-    loadingMore.value = false
+    if (!disposed) { busy.value = false; loading.value = false }
   }
 }
 
-async function markAsRead(notification: Notification): Promise<void> {
-  if (notification.read) return
+async function operate(notification: Notification, openTask = false): Promise<void> {
+  if (busy.value) return
+  const target = openTask ? notificationTaskRoute(notification) : null
+  if (openTask && !target) return
+  busy.value = true
+  const active = context()
+  let action = '通知标记已读'
   try {
-    await notificationApi.markAsRead(notification.id)
-    notification.read = true
+    if (!notification.read) {
+      await notificationApi.markAsRead(notification.id)
+      if (!active()) return
+      notification.read = true
+    }
+    action = '打开任务'
+    if (target && active()) await router.push(target)
   } catch (error) {
-    showApiError(error, '通知标记已读')
+    if (active()) showApiError(error, action)
+  } finally {
+    if (!disposed) busy.value = false
   }
 }
 
 async function markAllAsRead(): Promise<void> {
+  if (busy.value) return
+  busy.value = true
+  const active = context()
   try {
     await notificationApi.markAllAsRead()
+    if (!active()) return
     notifications.value.forEach(n => { n.read = true })
     ElMessage.success('已全部标记为已读')
   } catch (error) {
-    showApiError(error, '全部通知标记已读')
+    if (active()) showApiError(error, '全部通知标记已读')
+  } finally {
+    if (!disposed) busy.value = false
   }
 }
 
@@ -78,7 +98,7 @@ function formatTime(dateStr: string): string {
   return date.toLocaleDateString('zh-CN')
 }
 
-onMounted(load)
+onMounted(() => load())
 </script>
 
 <template>
@@ -88,7 +108,7 @@ onMounted(load)
       title="通知中心"
     >
       <template #actions>
-        <el-button @click="markAllAsRead">全部已读</el-button>
+        <el-button :disabled="busy" @click="markAllAsRead">全部已读</el-button>
       </template>
     </PageHeader>
     <section v-loading="loading" class="notification-list">
@@ -98,7 +118,6 @@ onMounted(load)
         :key="notification.id"
         class="notification-item"
         :class="{ unread: !notification.read }"
-        @click="markAsRead(notification)"
       >
         <div class="notification-header">
           <el-tag :type="notification.read ? 'info' : 'primary'" size="small">
@@ -109,12 +128,19 @@ onMounted(load)
         <div class="notification-title">{{ notification.title }}</div>
         <div v-if="notification.content" class="notification-content">{{ notification.content }}</div>
         <div class="notification-project">{{ notification.projectName }}</div>
+        <div class="notification-actions">
+          <el-button v-if="notificationTaskRoute(notification)" :disabled="busy" @click="operate(notification, true)">
+            {{ notification.read ? '打开任务' : '标为已读并打开任务' }}
+          </el-button>
+          <el-button v-if="!notification.read" :disabled="busy" @click="operate(notification)">标为已读</el-button>
+          <span v-else class="notification-project">已读</span>
+        </div>
       </div>
       <el-button
         v-if="hasMore && !loading"
-        :loading="loadingMore"
+        :disabled="busy"
         class="load-more"
-        @click="loadMore"
+        @click="load(true)"
       >
         加载更多
       </el-button>
@@ -128,16 +154,12 @@ onMounted(load)
 }
 
 .notification-item {
+  overflow-wrap: anywhere;
   padding: 16px;
   margin-bottom: 8px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  cursor: pointer;
   transition: all 0.2s;
-}
-
-.notification-item:hover {
-  border-color: var(--color-primary);
 }
 
 .notification-item.unread {
@@ -171,6 +193,18 @@ onMounted(load)
 .notification-project {
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+.notification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.notification-actions .el-button + .el-button {
+  margin-left: 0;
 }
 
 .load-more {
