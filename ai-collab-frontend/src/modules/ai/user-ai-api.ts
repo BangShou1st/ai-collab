@@ -63,7 +63,8 @@ export const userAiApi = {
   async unassignPurpose(purpose: AiPurpose): Promise<void> {
     await httpClient.delete(`/user/ai-providers/purposes/${purpose}`)
   },
-  async listPurposes(): Promise<ApiResult<Record<AiPurpose, string>>> {
-    return apiResultFromResponse(await httpClient.get<ApiResponse<Record<AiPurpose, string>>>('/user/ai-providers/purposes'))
+  /** 仅返回已保存覆盖的用途；缺失的用途表示回退到默认模型。 */
+  async listPurposes(): Promise<ApiResult<Partial<Record<AiPurpose, string>>>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<Partial<Record<AiPurpose, string>>>>('/user/ai-providers/purposes'))
   },
 }

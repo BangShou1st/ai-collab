@@ -3878,11 +3878,16 @@ components:
         pendingApprovals: { type: integer }
         aiConfigSummary:
           type: object
-          required: [configured, defaultModel, providerCount]
+          description: >-
+            AI 配置状态摘要。configured 仅表示保存了配置；defaultModel 仅在存在已启用默认模型时给出；
+            anyPurposeUsable 表示知识问答/规划/Agent 中至少一个用途可解析到已启用模型。
+            该摘要不触发模型调用，也不代表调用成功或服务健康。
+          required: [configured, defaultModel, providerCount, anyPurposeUsable]
           properties:
             configured: { type: boolean }
             defaultModel: { type: string, nullable: true }
             providerCount: { type: integer }
+            anyPurposeUsable: { type: boolean }
         recentActivity:
           type: array
           items:
