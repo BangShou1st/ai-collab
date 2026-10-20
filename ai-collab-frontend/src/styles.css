@@ -149,6 +149,16 @@
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: var(--radius-card); padding: 16px 20px;
 }
+.ai-warning-card, .ai-status-error {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  border-radius: var(--radius-card); padding: 16px 20px;
+}
+.ai-warning-card { background: var(--color-warning-soft); border: 1px solid var(--color-warning); }
+.ai-status-error { background: var(--color-danger-soft); border: 1px solid var(--color-danger); }
+.ai-warning-card h2, .ai-status-error h2 { margin: 0 0 2px; font-size: 14px; }
+.ai-warning-card p, .ai-status-error p { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
+.ai-status-error .ai-strip-icon { background: var(--color-danger-soft); color: var(--color-danger); }
+.ai-warning-card .ai-strip-icon { background: var(--color-warning-soft); color: var(--color-warning); }
 .ai-onboard-card h2, .ai-ready-card h2 { margin: 0 0 2px; font-size: 14px; }
 .ai-onboard-card p, .ai-ready-card p { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
 .home-main { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: start; }
