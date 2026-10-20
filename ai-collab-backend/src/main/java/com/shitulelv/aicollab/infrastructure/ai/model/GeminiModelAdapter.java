@@ -64,7 +64,7 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
                 if ("MAX_TOKENS".equals(finish)) {
                     throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
                 }
-                if ("SAFETY".equals(finish) || "RECITATION".equals(finish)) {
+                if (isSafetyFinishReason(finish)) {
                     throw new BusinessException(ErrorCode.AI_PROVIDER_REQUEST_REJECTED,
                             "Gemini 流因安全策略终止: " + finish);
                 }
@@ -93,6 +93,10 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
                 throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                         "PROVIDER_STREAM / TRUNCATED_BEFORE_FINISH", input.get(), output.get());
             }
+            if (!"STOP".equals(finishReason.get())) {
+                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "PROVIDER_STREAM / UNEXPECTED_FINISH_REASON / finish=" + finishReason.get(), input.get(), output.get());
+            }
             if (content.toString().isBlank()) {
                 throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                         "PROVIDER_STREAM / EMPTY_CONTENT / finish=" + finishReason.get(), input.get(), output.get());
@@ -111,6 +115,10 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
 
         // 解析 finishReason
         String finishReasonText = response.path("candidates").path(0).path("finishReason").asText("");
+        if (isSafetyFinishReason(finishReasonText)) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_REQUEST_REJECTED,
+                    "Gemini 因安全策略终止: " + finishReasonText);
+        }
         ModelFinishReason finishReason = mapFinishReason(finishReasonText);
         if (finishReason == ModelFinishReason.LENGTH) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
@@ -127,7 +135,6 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
         // 遍历 parts，同时收集文本和 functionCall
         StringBuilder textContent = new StringBuilder();
         List<ModelToolCall> toolCalls = new ArrayList<>();
-        int partIndex = 0;
         for (JsonNode part : response.path("candidates").path(0).path("content").path("parts")) {
             if (part.hasNonNull("text") && !part.path("thought").asBoolean(false)) {
                 textContent.append(part.path("text").asText());
@@ -150,11 +157,10 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
                     thoughtSignature = fc.path("thought_signature").asText();
                 }
                 // Gemini 没有稳定的 tool call ID，生成内部稳定 ID
-                // 偏移已有 functionCall 数量，确保跨轮次唯一
-                String id = "gemini-call-" + (existingFunctionCalls + partIndex);
+                // 偏移已有 functionCall 数量，当前轮次内部基于已生成的 toolCalls 数量编号，确保跨轮次与多调用全局唯一
+                String id = "gemini-call-" + (existingFunctionCalls + toolCalls.size());
                 toolCalls.add(new ModelToolCall(id, name, args, thoughtSignature));
             }
-            partIndex++;
         }
 
         String content = textContent.toString();
@@ -193,19 +199,34 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
         StringBuilder systemPrompt = new StringBuilder();
         ArrayNode contents = body.putArray("contents");
 
+        ObjectNode lastContent = null;
         for (ModelMessage message : command.messages()) {
             switch (message) {
                 case ModelMessage.System m -> {
                     if (!systemPrompt.isEmpty()) systemPrompt.append("\n");
                     systemPrompt.append(m.content());
                 }
-                case ModelMessage.User m -> contents.addObject()
-                        .put("role", "user").putArray("parts").addObject()
-                        .put("text", m.content());
+                case ModelMessage.User m -> {
+                    if (m.content() == null || m.content().isBlank()) break;
+                    if (lastContent != null && "user".equals(lastContent.path("role").asText())) {
+                        ((ArrayNode) lastContent.path("parts")).addObject().put("text", m.content());
+                    } else {
+                        lastContent = contents.addObject().put("role", "user");
+                        lastContent.putArray("parts").addObject().put("text", m.content());
+                    }
+                }
                 case ModelMessage.Assistant m -> {
-                    ObjectNode assistantContent = contents.addObject().put("role", "model");
-                    ArrayNode parts = assistantContent.putArray("parts");
-                    if (!m.content().isBlank()) {
+                    boolean hasText = !m.content().isBlank();
+                    boolean hasTools = !m.toolCalls().isEmpty();
+                    if (!hasText && !hasTools) break; // 避免生成 parts: [] 空 content
+                    ArrayNode parts;
+                    if (lastContent != null && "model".equals(lastContent.path("role").asText())) {
+                        parts = (ArrayNode) lastContent.path("parts");
+                    } else {
+                        lastContent = contents.addObject().put("role", "model");
+                        parts = lastContent.putArray("parts");
+                    }
+                    if (hasText) {
                         parts.addObject().put("text", m.content());
                     }
                     for (ModelToolCall call : m.toolCalls()) {
@@ -219,8 +240,13 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
                     }
                 }
                 case ModelMessage.ToolResult m -> {
-                    ObjectNode functionResponseContent = contents.addObject().put("role", "user");
-                    ArrayNode parts = functionResponseContent.putArray("parts");
+                    ArrayNode parts;
+                    if (lastContent != null && "user".equals(lastContent.path("role").asText())) {
+                        parts = (ArrayNode) lastContent.path("parts");
+                    } else {
+                        lastContent = contents.addObject().put("role", "user");
+                        parts = lastContent.putArray("parts");
+                    }
                     ObjectNode frPart = parts.addObject();
                     ObjectNode fr = frPart.putObject("functionResponse");
                     fr.put("name", m.toolName());
@@ -289,6 +315,10 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
         if ("MAX_TOKENS".equals(finish)) {
             throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
         }
+        if (isSafetyFinishReason(finish)) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_REQUEST_REJECTED,
+                    "Gemini 因安全策略终止: " + finish);
+        }
         JsonNode usage = response.path("usageMetadata");
         return result(config, text(response), response.path("modelVersion").asText(config.modelName()),
                 integer(usage.path("promptTokenCount")), integer(usage.path("candidatesTokenCount")), started);
@@ -312,6 +342,15 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
             case "SAFETY" -> ModelFinishReason.CONTENT_FILTER;
             default -> ModelFinishReason.UNKNOWN;
         };
+    }
+
+    private static boolean isSafetyFinishReason(String reason) {
+        if (reason == null || reason.isBlank()) return false;
+        return "SAFETY".equals(reason)
+                || "RECITATION".equals(reason)
+                || "BLOCKLIST".equals(reason)
+                || "PROHIBITED_CONTENT".equals(reason)
+                || "SPII".equals(reason);
     }
 
     private static Map<String, String> headers(String apiKey) {
