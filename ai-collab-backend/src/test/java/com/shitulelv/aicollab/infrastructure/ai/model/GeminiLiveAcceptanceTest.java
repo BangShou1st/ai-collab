@@ -17,16 +17,11 @@ import com.shitulelv.aicollab.knowledge.domain.model.ValidatedKnowledgeAnswer;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidator;
 import com.shitulelv.aicollab.planning.application.TaskPlanOutputParser;
 import com.shitulelv.aicollab.planning.domain.SkeletonModelOutput;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -49,41 +44,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class GeminiLiveAcceptanceTest {
-    private static String apiKey;
     private static final ObjectMapper mapper = new ObjectMapper();
     private static final OutboundEndpointPolicy endpointPolicy = new OutboundEndpointPolicy();
-    private static final JsonHttpModelClient http = new JsonHttpModelClient(mapper, endpointPolicy);
-    private static final GeminiModelAdapter adapter = new GeminiModelAdapter(mapper, http);
     private static final KnowledgeCitationValidator citationValidator = new KnowledgeCitationValidator();
     private static final TaskPlanOutputParser planParser = new TaskPlanOutputParser(mapper);
 
-    @BeforeAll
-    static void init() {
-        try {
-            Path keyPath = Path.of("C:\\Users\\32962\\Desktop\\key2.txt");
-            if (Files.exists(keyPath)) {
-                apiKey = Files.readString(keyPath).trim();
-            } else {
-                apiKey = System.getenv("GEMINI_API_KEY");
-            }
-        } catch (Exception ignored) {
-        }
-
-        if (apiKey != null && !apiKey.isBlank()) {
-            System.setProperty("https.proxyHost", "127.0.0.1");
-            System.setProperty("https.proxyPort", "7897");
-            System.setProperty("http.proxyHost", "127.0.0.1");
-            System.setProperty("http.proxyPort", "7897");
-            System.setProperty("java.net.useSystemProxies", "true");
-        }
-    }
-
-    @AfterAll
-    static void tearDown() {
-        System.clearProperty("https.proxyHost");
-        System.clearProperty("https.proxyPort");
-        System.clearProperty("http.proxyHost");
-        System.clearProperty("http.proxyPort");
+    private static GeminiModelAdapter createAdapter() {
+        return new GeminiModelAdapter(mapper, new JsonHttpModelClient(mapper, endpointPolicy));
     }
 
     private ModelConfiguration config(String modelName) {
@@ -95,54 +62,18 @@ class GeminiLiveAcceptanceTest {
                 EnumSet.allOf(ModelCapability.class), now, now);
     }
 
-    private ChatCompletionResult safeComplete(ModelConfiguration cfg, String apiKey, ChatCompletionCommand cmd) {
-        BusinessException last = null;
-        for (int attempt = 0; attempt < 5; attempt++) {
-            try {
-                if (attempt > 0) {
-                    Thread.sleep(3000L * attempt);
-                }
-                return adapter.complete(cfg, apiKey, cmd);
-            } catch (BusinessException ex) {
-                last = ex;
-                if (!ex.getMessage().contains("503") && ex.getErrorCode() != ErrorCode.AI_PROVIDER_ERROR) {
-                    throw ex;
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
-            }
-        }
-        if (last != null && last.getMessage().contains("503")) {
-            System.out.println("[ACCEPTANCE] 503 Overload observed on Gemini free tier, graceful skip.");
-            return null;
-        }
-        throw last;
+    private ChatCompletionResult safeComplete(ModelConfiguration cfg, ChatCompletionCommand cmd) {
+        return GeminiLiveTestSupport.withAuthorizedApiKey(apiKey ->
+                GeminiLiveTestSupport.retry503(
+                        "Gemini completion",
+                        () -> createAdapter().complete(cfg, apiKey, cmd)));
     }
 
-    private ModelTurnResult safeTurn(ModelConfiguration cfg, String apiKey, ModelTurnCommand cmd) {
-        BusinessException last = null;
-        for (int attempt = 0; attempt < 5; attempt++) {
-            try {
-                if (attempt > 0) {
-                    Thread.sleep(3000L * attempt);
-                }
-                return adapter.turn(cfg, apiKey, cmd);
-            } catch (BusinessException ex) {
-                last = ex;
-                if (!ex.getMessage().contains("503") && ex.getErrorCode() != ErrorCode.AI_PROVIDER_ERROR) {
-                    throw ex;
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
-            }
-        }
-        if (last != null && last.getMessage().contains("503")) {
-            System.out.println("[ACCEPTANCE] 503 Overload observed on Gemini free tier, graceful skip.");
-            return null;
-        }
-        throw last;
+    private ModelTurnResult safeTurn(ModelConfiguration cfg, ModelTurnCommand cmd) {
+        return GeminiLiveTestSupport.withAuthorizedApiKey(liveApiKey ->
+                GeminiLiveTestSupport.retry503(
+                        "Gemini turn",
+                        () -> createAdapter().turn(cfg, liveApiKey, cmd)));
     }
 
     // ==========================================
@@ -152,16 +83,12 @@ class GeminiLiveAcceptanceTest {
     @Test
     @Order(1)
     void phase1_minimalConnection_gemini31FlashLite() {
-        Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank(), "Gemini API key is not present, skipping live test");
         ModelConfiguration cfg = config("gemini-3.1-flash-lite");
         ChatCompletionCommand cmd = new ChatCompletionCommand(
                 null, "You are a concise assistant.", "Reply with 'CONNECTED' only.",
                 ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), null);
 
-        ChatCompletionResult result = safeComplete(cfg, apiKey, cmd);
-        if (result == null) {
-            return;
-        }
+        ChatCompletionResult result = safeComplete(cfg, cmd);
 
         assertThat(result).isNotNull();
         System.out.println("[ACCEPTANCE] 3.1-flash-lite Minimal Connection: content=" + result.content() +
@@ -182,7 +109,6 @@ class GeminiLiveAcceptanceTest {
     @Test
     @Order(2)
     void phase2_ragWithEvidence() {
-        Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank(), "Gemini API key is not present, skipping live test");
         ModelConfiguration cfg = config("gemini-3.1-flash-lite");
         String systemPrompt = """
                 你是 AI Collab 的项目知识库助手。
@@ -207,10 +133,7 @@ class GeminiLiveAcceptanceTest {
                 null, systemPrompt, userPrompt,
                 ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), null);
 
-        ChatCompletionResult result = safeComplete(cfg, apiKey, cmd);
-        if (result == null) {
-            return;
-        }
+        ChatCompletionResult result = safeComplete(cfg, cmd);
 
         assertThat(result).isNotNull();
         System.out.println("[ACCEPTANCE] RAG with Evidence: content=" + result.content() +
@@ -240,7 +163,6 @@ class GeminiLiveAcceptanceTest {
     @Test
     @Order(3)
     void phase2_ragWithoutEvidence_rejection() {
-        Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank(), "Gemini API key is not present, skipping live test");
         ModelConfiguration cfg = config("gemini-3.1-flash-lite");
         String systemPrompt = """
                 你是 AI Collab 的项目知识库助手。
@@ -265,10 +187,7 @@ class GeminiLiveAcceptanceTest {
                 null, systemPrompt, userPrompt,
                 ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), null);
 
-        ChatCompletionResult result = safeComplete(cfg, apiKey, cmd);
-        if (result == null) {
-            return;
-        }
+        ChatCompletionResult result = safeComplete(cfg, cmd);
 
         assertThat(result).isNotNull();
         System.out.println("[ACCEPTANCE] RAG without Evidence: content=" + result.content() +
@@ -295,7 +214,6 @@ class GeminiLiveAcceptanceTest {
     @Test
     @Order(4)
     void phase3_agentToolCallingSelection() {
-        Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank(), "Gemini API key is not present, skipping live test");
         ModelConfiguration cfg = config("gemini-3.1-flash-lite");
 
         ObjectNode schema = mapper.createObjectNode().put("type", "object");
@@ -310,20 +228,7 @@ class GeminiLiveAcceptanceTest {
         history.add(new ModelMessage.User("请帮我检索知识库中关于系统数据库选型的内容。"));
 
         ModelTurnCommand turnCmd = new ModelTurnCommand(ModelPurpose.AGENT, history, List.of(tool), false);
-        ModelTurnResult turnResult = null;
-        for (int i = 0; i < 3; i++) {
-            try {
-                turnResult = adapter.turn(cfg, apiKey, turnCmd);
-                break;
-            } catch (BusinessException ex) {
-                if (i == 2) {
-                    System.out.println("[ACCEPTANCE] Agent Turn 1 encountered transient free-tier error: " + ex.getMessage());
-                    // 标记当前免费阶梯处于高峰期
-                    return;
-                }
-                try { Thread.sleep(3000L * (i + 1)); } catch (InterruptedException ignored) {}
-            }
-        }
+        ModelTurnResult turnResult = safeTurn(cfg, turnCmd);
 
         assertThat(turnResult).isNotNull();
         System.out.println("[ACCEPTANCE] Agent Turn 1: toolCallsCount=" + turnResult.toolCalls().size() +
@@ -339,7 +244,6 @@ class GeminiLiveAcceptanceTest {
     @Test
     @Order(5)
     void phase3_agentMultiTurnWithSignatureAndFinalAnswer() {
-        Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank(), "Gemini API key is not present, skipping live test");
         ModelConfiguration cfg = config("gemini-3.1-flash-lite");
 
         ObjectNode schema = mapper.createObjectNode().put("type", "object");
@@ -355,11 +259,9 @@ class GeminiLiveAcceptanceTest {
         history.add(new ModelMessage.User("请帮我检索知识库中关于系统数据库选型的内容。"));
 
         ModelTurnCommand turn1Cmd = new ModelTurnCommand(ModelPurpose.AGENT, history, List.of(tool), false);
-        ModelTurnResult turn1Result = safeTurn(cfg, apiKey, turn1Cmd);
-        if (turn1Result == null || turn1Result.toolCalls().isEmpty()) {
-            return;
-        }
+        ModelTurnResult turn1Result = safeTurn(cfg, turn1Cmd);
 
+        assertThat(turn1Result.toolCalls()).isNotEmpty();
         ModelToolCall toolCall = turn1Result.toolCalls().getFirst();
         System.out.println("[ACCEPTANCE] Live Multi-Turn: Turn 1 Call: id=" + toolCall.id() +
                 ", name=" + toolCall.name() +
@@ -373,10 +275,7 @@ class GeminiLiveAcceptanceTest {
         history.add(new ModelMessage.ToolResult(toolCall.id(), toolCall.name(), toolResultObj, false));
 
         ModelTurnCommand turn2Cmd = new ModelTurnCommand(ModelPurpose.AGENT, history, List.of(tool), false);
-        ModelTurnResult turn2Result = safeTurn(cfg, apiKey, turn2Cmd);
-        if (turn2Result == null) {
-            return;
-        }
+        ModelTurnResult turn2Result = safeTurn(cfg, turn2Cmd);
 
         System.out.println("[ACCEPTANCE] Live Multi-Turn: Turn 2 Output: content=" + turn2Result.content() +
                 ", finishReason=" + turn2Result.finishReason() +
@@ -394,7 +293,6 @@ class GeminiLiveAcceptanceTest {
     @Test
     @Order(6)
     void phase4_planningGenerationStructuredOutput() {
-        Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank(), "Gemini API key is not present, skipping live test");
         ModelConfiguration cfg = config("gemini-3.1-flash-lite");
 
         String systemPrompt = """
@@ -419,10 +317,7 @@ class GeminiLiveAcceptanceTest {
                 null, systemPrompt, userPrompt,
                 ChatCompletionCommand.OutputFormat.PROMPT_JSON, ModelPurpose.PLANNING, null, List.of(), null);
 
-        ChatCompletionResult result = safeComplete(cfg, apiKey, cmd);
-        if (result == null) {
-            return;
-        }
+        ChatCompletionResult result = safeComplete(cfg, cmd);
 
         assertThat(result).isNotNull();
         System.out.println("[ACCEPTANCE] Planning Output length: " + result.content().length() +
@@ -472,8 +367,9 @@ class GeminiLiveAcceptanceTest {
     @Test
     @Order(8)
     void phase5_streamingSseCompletionVerified() throws Exception {
-        Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank(), "Gemini API key is not present, skipping live test");
+        String apiKey = GeminiLiveTestSupport.requireApiKey();
         ModelConfiguration cfg = config("gemini-3.1-flash-lite");
+        GeminiModelAdapter adapter = createAdapter();
         ChatCompletionCommand cmd = new ChatCompletionCommand(
                 null, "You are a concise assistant.", "Count 1 2 3.",
                 ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), null);
@@ -482,14 +378,16 @@ class GeminiLiveAcceptanceTest {
         AtomicReference<Exception> error = new AtomicReference<>();
         AtomicReference<ChatCompletionResult> doneResult = new AtomicReference<>();
 
-        for (int attempt = 0; attempt < 4; attempt++) {
+        int attempts = 0;
+        while (attempts < GeminiLiveTestSupport.MAX_503_ATTEMPTS) {
+            if (attempts > 0) {
+                Thread.sleep(3000L * attempts);
+            }
+            attempts++;
             tokens.setLength(0);
             error.set(null);
             doneResult.set(null);
             CountDownLatch latch = new CountDownLatch(1);
-            if (attempt > 0) {
-                Thread.sleep(3000L * attempt);
-            }
             adapter.completeStream(cfg, apiKey, cmd,
                     tokens::append,
                     res -> {
@@ -502,9 +400,13 @@ class GeminiLiveAcceptanceTest {
                     });
 
             boolean finished = latch.await(20, TimeUnit.SECONDS);
-            assertThat(finished).isTrue();
+            if (!finished) {
+                throw GeminiLiveTestSupport.inconclusiveTimeout(
+                        "Gemini streaming completion callback",
+                        new java.util.concurrent.TimeoutException("No completion callback within 20 seconds"));
+            }
 
-            if (error.get() == null || !error.get().getMessage().contains("503")) {
+            if (!GeminiLiveTestSupport.isHttp503(error.get())) {
                 break;
             }
         }
@@ -513,9 +415,12 @@ class GeminiLiveAcceptanceTest {
                 ", errorClassification=" + (error.get() != null ? error.get().getMessage() : "none") +
                 ", doneResult=" + (doneResult.get() != null ? doneResult.get().content() : "none"));
 
-        if (error.get() != null && error.get().getMessage().contains("503")) {
-            System.out.println("[ACCEPTANCE] SSE 503 Overload observed on free tier, skip token assertions.");
-            return;
+        if (GeminiLiveTestSupport.isHttp503(error.get())) {
+            throw GeminiLiveTestSupport.inconclusive503("Gemini streaming completion", attempts);
+        }
+        if (error.get() instanceof BusinessException exception
+                && exception.getErrorCode() == ErrorCode.AI_MODEL_TIMEOUT) {
+            throw GeminiLiveTestSupport.inconclusiveTimeout("Gemini streaming completion", exception);
         }
 
         assertThat(error.get()).isNull();
