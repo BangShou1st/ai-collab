@@ -8,14 +8,11 @@ COPY ai-collab-backend/pom.xml ./ai-collab-backend/pom.xml
 COPY ai-collab-backend/mvnw ./ai-collab-backend/mvnw
 COPY ai-collab-backend/.mvn ./ai-collab-backend/.mvn
 WORKDIR /workspace/ai-collab-backend
-# OpenCode Zen 共享库来自私有 GitHub Packages 仓库：以 BuildKit secret 挂载本机 ~/.m2/settings.xml
-# （server id = github），凭据不写入镜像层。compose 通过 ZEN_MAVEN_SETTINGS_FILE 指定该文件路径。
-RUN --mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml \
-    bash ./mvnw -B -q dependency:go-offline
+# Zen / Kilo 共享库经公开 JitPack 解析，无需 Maven 私服凭据。
+RUN bash ./mvnw -B -q dependency:go-offline
 
 COPY ai-collab-backend/src ./src
-RUN --mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml \
-    bash ./mvnw -B -DskipTests package
+RUN bash ./mvnw -B -DskipTests package
 
 # ---- 运行阶段 ----
 FROM eclipse-temurin:21-jre-alpine

@@ -77,9 +77,6 @@ services:
     build:
       context: ..
       dockerfile: ai-collab-backend/Dockerfile
-      # OpenCode Zen 共享库来自私有 GitHub Packages 仓库：构建时以 BuildKit secret 挂载 Maven settings.xml。
-      secrets:
-        - maven_settings
     image: ai-collab-backend:local
     container_name: ai-collab-app
     restart: unless-stopped
@@ -121,9 +118,3 @@ volumes:
   ai_collab_postgres_data:
   ai_collab_redis_data:
   ai_collab_minio_data:
-
-secrets:
-  # 私有私服凭据不入库：指向本机 Maven settings.xml（server id = github）。
-  # 仅构建 app 镜像时需要；设置 ZEN_MAVEN_SETTINGS_FILE 后 docker compose build app 才能解析私服依赖。
-  maven_settings:
-    file: ${ZEN_MAVEN_SETTINGS_FILE:-./maven-settings.xml}

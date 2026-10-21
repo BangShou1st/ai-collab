@@ -574,7 +574,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         }
         OpenCodeZenRequestFactory factory = userAgent == null || userAgent.equals(zenRequestFactory.userAgent())
                 ? zenRequestFactory : new OpenCodeZenRequestFactory(userAgent);
-        // 标识与身份头统一由共享请求工厂生成：同一对话复用 ses_、每次请求新 msg_；
+        // 标识与身份头统一由共享请求工厂生成：同一对话复用 ses_，两个 session 头一致；
         // 无对话键（一次性探测/发现）用 newEphemeralRequest。业务关联 id 绝不直接成为 wire 会话 id。
         UUID conversationKey = conversationKey(metadata);
         return endpoint -> conversationKey == null
@@ -658,13 +658,13 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                         "业务工具与 Zen 传输保留名称冲突");
         }
-        // 免费额度要求完整的 CLI core 工具信封（bash/edit/glob/grep/read）；缺任一项上游即判 403 FreeTierError。
+        // 共享库提供当前 OpenCode 2.x shell/read 信封及原始措辞；占位工具不可执行。
         for (JsonNode declaration : mapper.valueToTree(OpenCodeZenProtocolPolicy.reservedToolDeclarations())) {
             tools.add(declaration);
         }
     }
 
-    /** 传输保留名称以共享策略为准（bash/edit/glob/grep/read），业务工具不得占用。 */
+    /** 传输保留名称以共享策略为准（shell/read），业务工具不得占用。 */
     private static boolean isZenReservedTool(String name) {
         return name != null && OpenCodeZenProtocolPolicy.reservedToolNames().contains(name);
     }

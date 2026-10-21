@@ -9,6 +9,7 @@ import com.sun.net.httpserver.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.net.*;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
@@ -54,12 +55,12 @@ class ModelProtocolHttpTest {
     private ChatCompletionResult complete() {
         return adapter.completeStreamingSyncWithSession(config, "synthetic-key",
                 new ChatCompletionCommand("system", "输出 JSON", ChatCompletionCommand.OutputFormat.PROMPT_JSON),
-                AiRequestMetadata.of("synthetic-session"), "opencode/1.18.21");
+                AiRequestMetadata.of("synthetic-session"), "opencode/latest/2.0.29/cli");
     }
     private ModelTurnResult turn() {
         return adapter.turnWithSession(config, "synthetic-key", new ModelTurnCommand(ModelPurpose.AGENT,
                 List.of(new ModelMessage.User("query")), List.of(new ModelToolDefinition("get_task", "query", json.createObjectNode().put("type", "object"))), false),
-                AiRequestMetadata.of("synthetic-session"), "opencode/1.18.21");
+                AiRequestMetadata.of("synthetic-session"), "opencode/latest/2.0.29/cli");
     }
     @Test void zen_wire_and_content_fragments_without_usage() {
         reply(200, "text/event-stream", ": comment\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"{\\\"ok\\\":\"}}]}\n\n"
@@ -71,12 +72,12 @@ class ModelProtocolHttpTest {
         assertThat(request.get().has("response_format")).isFalse();
         assertThat(request.get().has("max_tokens")).isFalse();
         assertThat(headers.get().getFirst("Authorization")).isEqualTo("Bearer synthetic-key");
-        assertThat(headers.get().getFirst("User-Agent")).isEqualTo("opencode/1.18.21");
+        assertThat(headers.get().getFirst("User-Agent")).isEqualTo("opencode/latest/2.0.29/cli");
         assertThat(headers.get().getFirst("x-opencode-session")).isNotBlank();
         assertThat(headers.get().getFirst("x-opencode-client")).isEqualTo("cli");
         assertThat(headers.get().getFirst("x-opencode-project")).isEqualTo("global");
-        assertThat(headers.get().getFirst("x-opencode-request")).isNotBlank();
-        assertThat(request.get().path("tools").findValuesAsText("name")).containsExactly("bash", "edit", "glob", "grep", "read");
+        assertThat(headers.get().getFirst("x-opencode-request")).isNull();
+        assertThat(request.get().path("tools").findValuesAsText("name")).containsExactly("shell", "read");
     }
     private ModelConfiguration configFor(String model) {
         return new ModelConfiguration(UUID.randomUUID(), UUID.randomUUID(), "test", ModelProviderType.OPENAI_COMPATIBLE,
@@ -84,23 +85,29 @@ class ModelProtocolHttpTest {
                 model, true, 0, 6000, EnumSet.allOf(ModelCapability.class), OffsetDateTime.now(), OffsetDateTime.now());
     }
     /** 已评审白名单内的模型：没有 API Key 也走公共凭证，wire 上是 {@code Bearer public}。 */
-    @Test void whitelistedFreeModelUsesPublicCredentialWithoutKey() {
+    @ParameterizedTest
+    @ValueSource(strings = {"beam-free", "big-pickle", "deepseek-v4.1-flash-free", "glm-5.3-flash-free",
+            "longcat-2.5-preview-free", "mimo-v2.6-flash-free", "minimax-m3.1-flash-free",
+            "nemotron-3.5-lightning-free", "nemotron-3.5-super-vl-free"})
+    void whitelistedFreeModelUsesPublicCredentialWithoutKey(String model) {
         reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n");
-        var result = adapter.completeStreamingSyncWithSession(configFor("big-pickle"), null,
-                new ChatCompletionCommand("system", "query"), AiRequestMetadata.of("free-session"), "opencode/1.18.21");
+        var result = adapter.completeStreamingSyncWithSession(configFor(model), null,
+                new ChatCompletionCommand("system", "query"), AiRequestMetadata.of("free-session"), "opencode/latest/2.0.29/cli");
         assertThat(result.content()).isEqualTo("ok");
         assertThat(headers.get().getFirst("Authorization")).isEqualTo("Bearer public");
         assertThat(requests.get()).isEqualTo(1);
     }
     /** 白名单之外的模型在无 Key 时 fail-closed：不发出任何上游请求。 */
-    @Test void modelOutsideWhitelistWithoutKeyIsRejectedBeforeHttp() {
-        assertThatThrownBy(() -> adapter.completeStreamingSyncWithSession(configFor("gpt-4"), null,
-                new ChatCompletionCommand("system", "query"), AiRequestMetadata.of("paid-session"), "opencode/1.18.21"))
+    @ParameterizedTest
+    @ValueSource(strings = {"gpt-4", "space-bunny-free", "jev-1.13-free"})
+    void modelOutsideWhitelistWithoutKeyIsRejectedBeforeHttp(String model) {
+        assertThatThrownBy(() -> adapter.completeStreamingSyncWithSession(configFor(model), null,
+                new ChatCompletionCommand("system", "query"), AiRequestMetadata.of("paid-session"), "opencode/latest/2.0.29/cli"))
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AI_MODEL_CREDENTIAL_INVALID));
         assertThat(requests.get()).isZero();
     }
-    /** Zen wire 身份来自共享请求工厂：User-Agent 取策略值；同一对话复用 ses_、每次请求新 msg_。 */
+    /** Zen wire 身份来自共享请求工厂：User-Agent 取策略值；同一对话复用 ses_，两个 session 头一致，不发送 request 头。 */
     @Test void zenWireUsesPolicyUserAgentAndStableConversationSession() {
         reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n");
         var pol = new ProviderPresetRegistry().require(ProviderPresetCode.OPENCODE_ZEN_FREE);
@@ -108,16 +115,16 @@ class ModelProtocolHttpTest {
         var first = adapter.completeStreamingSyncWithSession(configFor("big-pickle"), null,
                 new ChatCompletionCommand("system", "query"), metadata, pol.userAgent());
         String session = headers.get().getFirst("x-opencode-session");
-        String request = headers.get().getFirst("x-opencode-request");
+        String request = headers.get().getFirst("x-opencode-session-id");
         assertThat(first.content()).isEqualTo("ok");
         assertThat(headers.get().getFirst("User-Agent")).isEqualTo(pol.userAgent());
         assertThat(session).matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
-        assertThat(request).matches("msg_[0-9a-f]{12}[A-Za-z0-9]{14}");
+        assertThat(request).isEqualTo(session);
 
         adapter.completeStreamingSyncWithSession(configFor("big-pickle"), null,
                 new ChatCompletionCommand("system", "query"), metadata, pol.userAgent());
         assertThat(headers.get().getFirst("x-opencode-session")).isEqualTo(session);
-        assertThat(headers.get().getFirst("x-opencode-request")).isNotEqualTo(request);
+        assertThat(headers.get().getFirst("x-opencode-session-id")).isEqualTo(request);
     }
     @Test void tool_arguments_are_assembled_before_return() {
         reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call-1\",\"function\":{\"name\":\"get_task\",\"arguments\":\"{\\\"taskId\\\":\"}}]}}]}\n\n"
@@ -126,7 +133,7 @@ class ModelProtocolHttpTest {
         assertThat(result.toolCalls()).hasSize(1);
         assertThat(result.toolCalls().getFirst().arguments().path("taskId").asText()).isEqualTo("123");
         assertThat(request.get().path("stream").asBoolean()).isTrue();
-        assertThat(request.get().path("tools").findValuesAsText("name")).containsExactly("get_task", "bash", "edit", "glob", "grep", "read");
+        assertThat(request.get().path("tools").findValuesAsText("name")).containsExactly("get_task", "shell", "read");
     }
     @ParameterizedTest @CsvSource({"401,AI_MODEL_CREDENTIAL_INVALID","403,AI_PROVIDER_REQUEST_REJECTED","429,AI_PROVIDER_QUOTA_EXCEEDED","500,AI_PROVIDER_ERROR","408,AI_MODEL_TIMEOUT","504,AI_MODEL_TIMEOUT"})
     void status_mapping_never_retries_zen(int status, ErrorCode code) {
@@ -143,7 +150,7 @@ class ModelProtocolHttpTest {
         assertThat(requests.get()).isEqualTo(1);
     }
     @Test void transport_reserved_tool_calls_are_rejected_before_entering_the_runtime() {
-        reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"reserved-1\",\"function\":{\"name\":\"bash\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n");
+        reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"reserved-1\",\"function\":{\"name\":\"shell\",\"arguments\":\"{}\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n");
         assertThatThrownBy(this::turn).isInstanceOfSatisfying(BusinessException.class,
                 e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_INVALID_RESPONSE));
     }
@@ -157,9 +164,9 @@ class ModelProtocolHttpTest {
         new HttpOpenCodeZenTransport(json, mock(OutboundEndpointPolicy.class), registry, client, client)
                 .validateCredential("synthetic-key", "synthetic-model", AiRequestMetadata.of("probe"));
         assertThat(request.get().path("stream").asBoolean()).isTrue();
-        assertThat(request.get().path("tools").findValuesAsText("name")).containsExactly("bash", "edit", "glob", "grep", "read");
+        assertThat(request.get().path("tools").findValuesAsText("name")).containsExactly("shell", "read");
         assertThat(headers.get().getFirst("x-opencode-session")).matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
-        assertThat(headers.get().getFirst("x-opencode-request")).matches("msg_[0-9a-f]{12}[A-Za-z0-9]{14}");
+        assertThat(headers.get().getFirst("x-opencode-request")).isNull();
     }
     @Test void custom_model_streams_do_not_receive_the_zen_envelope() {
         reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n");
@@ -172,7 +179,7 @@ class ModelProtocolHttpTest {
     @Test void business_tools_cannot_claim_a_reserved_transport_name() {
         assertThatThrownBy(() -> adapter.turnWithSession(config, "synthetic-key",
                 new ModelTurnCommand(ModelPurpose.AGENT, List.of(new ModelMessage.User("query")),
-                        List.of(new ModelToolDefinition("bash", "business tool", json.createObjectNode().put("type", "object"))), false),
+                        List.of(new ModelToolDefinition("shell", "business tool", json.createObjectNode().put("type", "object"))), false),
                 AiRequestMetadata.of("collision"), "synthetic-client"))
                 .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_INVALID_RESPONSE));
         assertThat(requests.get()).isZero();
@@ -180,6 +187,10 @@ class ModelProtocolHttpTest {
     @Test void incomplete_stream_is_rejected() {
         reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n");
         assertThatThrownBy(this::complete).isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_INVALID_RESPONSE));
+    }
+    @Test void complete_stream_without_trailing_blank_line_is_accepted() {
+        reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]");
+        assertThat(complete().content()).isEqualTo("ok");
     }
     @Test void truncated_stream_is_not_a_complete_answer() {
         reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n");

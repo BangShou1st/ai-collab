@@ -168,6 +168,11 @@ if (!(Test-Path .env)) { Copy-Item .env.example .env }
 
 编辑 `.env`，替换所有 `change-me` 占位符。
 
+后端的 OpenCode Zen 共享库使用公开 JitPack 坐标
+`com.github.BangShou1st.opencode-zen:opencode-zen-spring-boot-starter:v1.4.2`，
+与 Kilo Gateway 共用 `https://jitpack.io` 仓库。本地开发、CI 和 Docker 构建均无需
+GitHub Packages Token、Maven 私服 settings 或本地发布共享库。首次解析可能需要等待 JitPack 构建。
+
 ### 3. Windows 本地开发入口（推荐）
 
 在仓库根目录执行，Docker 只运行 PostgreSQL、Redis、MinIO，本机运行后端源码与 Vite：

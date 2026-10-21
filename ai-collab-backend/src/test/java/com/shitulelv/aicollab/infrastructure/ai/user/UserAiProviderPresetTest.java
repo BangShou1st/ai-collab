@@ -13,7 +13,7 @@ import static org.mockito.Mockito.*;
 class UserAiProviderPresetTest {
     /** 共享库白名单内的模型：无需 API Key 即可作为免费 Chat 模型准入。 */
     private static final String WHITELISTED = "big-pickle";
-    private static final String ALSO_WHITELISTED = "space-bunny-free";
+    private static final String ALSO_WHITELISTED = "beam-free";
 
     private UserAiProvider row(UUID user, String enc, String model, boolean def) {
         return new UserAiProvider(UUID.randomUUID(), user, "OpenCode Zen Free", ModelProviderType.OPENAI_COMPATIBLE,

@@ -38,7 +38,7 @@ class ZenModelWiringTest {
         assertThat(pol.protocol()).isEqualTo(ModelProviderType.OPENAI_COMPATIBLE);
         assertThat(reg.completionEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/chat/completions");
         assertThat(reg.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/models");
-        assertThat(pol.userAgent()).isEqualTo("opencode/1.19.0 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14");
+        assertThat(pol.userAgent()).isEqualTo("opencode/latest/2.0.29/cli");
     }
     @Test void runtimeConfigIgnoresPersistedUrls() {
         ZenModelExecution exec = new ZenModelExecution(new ProviderPresetRegistry(), mapper, new OutboundEndpointPolicy());
@@ -71,12 +71,13 @@ class ZenModelWiringTest {
     @Test void admittedListingIsTheReviewedWhitelistIntersectedWithTheLiveUpstream() {
         // 上游仍在服务白名单内的两个模型；非白名单模型与白名单内但上游已下线的模型都被排除。
         assertThat(HttpOpenCodeZenTransport.intersectWithAdmitted(
-                List.of("big-pickle", "space-bunny-free", "some-new-free", "gpt-4")))
-                .containsExactly("big-pickle", "space-bunny-free");
+                List.of("big-pickle", "beam-free", "space-bunny-free", "jev-1.13-free", "some-new-free", "gpt-4")))
+                .containsExactly("beam-free", "big-pickle");
         // 上游不可用：保守退回已评审白名单本身（准入始终以白名单为准，不臆测可用性）。
         assertThat(HttpOpenCodeZenTransport.intersectWithAdmitted(null))
-                .containsExactly("big-pickle", "longcat-2.5-preview-free", "mimo-v2.6-flash-free",
-                        "nemotron-3.5-lightning-free", "space-bunny-free");
+                .containsExactly("beam-free", "big-pickle", "deepseek-v4.1-flash-free",
+                        "glm-5.3-flash-free", "longcat-2.5-preview-free", "mimo-v2.6-flash-free",
+                        "minimax-m3.1-flash-free", "nemotron-3.5-lightning-free", "nemotron-3.5-super-vl-free");
     }
     @Test void turnRoutingKeepsStableSession() {
         var provider = zenProvider();
