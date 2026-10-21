@@ -66,7 +66,7 @@ class ZenKnowledgeStreamContractTest {    private final ObjectMapper mapper = ne
         }).when(http).streamWithRequestBuilder(anyString(), any(), any(JsonNode.class), any(BiConsumer.class));
         OpenAiCompatibleModelAdapter adapter = new OpenAiCompatibleModelAdapter(mapper, http);
         ChatCompletionResult result = adapter.completeStreamingSyncWithSession(
-                zenConfig(), "k", textCommand(), AiRequestMetadata.of("corr-1"), "opencode/1.18.21");
+                zenConfig(), "k", textCommand(), AiRequestMetadata.of("corr-1"), "opencode/latest/2.0.29/cli");
         assertThat(result.content()).isEqualTo("answer");
         JsonNode body = captured[0];
         assertThat(body.path("stream").asBoolean()).isTrue();
@@ -83,7 +83,7 @@ class ZenKnowledgeStreamContractTest {    private final ObjectMapper mapper = ne
         var built = factoryRef[0].apply(java.net.URI.create("https://opencode.ai/zen/v1/chat/completions"))
                 .POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build();
         assertThat(built.headers().firstValue("Authorization")).contains("Bearer k");
-        assertThat(built.headers().firstValue("User-Agent")).contains("opencode/1.18.21");
+        assertThat(built.headers().firstValue("User-Agent")).contains("opencode/latest/2.0.29/cli");
         assertThat(built.headers().firstValue(OpenCodeZenTransport.SESSION_HEADER).orElseThrow())
                 .matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
     }
