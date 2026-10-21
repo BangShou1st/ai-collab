@@ -124,7 +124,7 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
             throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
         }
 
-        // 统计消息历史中已有的 functionCall 数量，确保 ID 跨轮次唯一
+        // 统计本次请求仍可见的历史调用，仅用于适配器阶段的临时 ID；运行级 ID 在持久化前由 Coordinator 重定界。
         int existingFunctionCalls = 0;
         for (ModelMessage msg : command.messages()) {
             if (msg instanceof ModelMessage.Assistant a) {
@@ -156,8 +156,8 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
                 } else if (fc.hasNonNull("thought_signature")) {
                     thoughtSignature = fc.path("thought_signature").asText();
                 }
-                // Gemini 没有稳定的 tool call ID，生成内部稳定 ID
-                // 偏移已有 functionCall 数量，当前轮次内部基于已生成的 toolCalls 数量编号，确保跨轮次与多调用全局唯一
+                // Gemini 没有原生 tool call ID。这里生成基于可见历史的临时值；
+                // 上下文裁剪可能隐藏旧调用，运行级唯一值由 AgentRuntimeCoordinator 按持久化调用计数赋予。
                 String id = "gemini-call-" + (existingFunctionCalls + toolCalls.size());
                 toolCalls.add(new ModelToolCall(id, name, args, thoughtSignature));
             }
