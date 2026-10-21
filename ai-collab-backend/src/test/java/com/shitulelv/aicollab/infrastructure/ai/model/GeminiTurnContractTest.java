@@ -601,7 +601,7 @@ class GeminiTurnContractTest {
 
         assertThat(result1.toolCalls()).hasSize(1);
         ModelToolCall call1 = result1.toolCalls().getFirst();
-        // 第一轮生成的 toolCall ID 应该是内部稳定的第 0 个调用：gemini-call-0
+        // 第一轮可见历史为空，适配器阶段的临时 ID 为 gemini-call-0
         assertThat(call1.id()).isEqualTo("gemini-call-0");
 
         // 第二轮：带着第一轮的 call1，模型直接返回 1 个 part（直接是 functionCall）
@@ -632,9 +632,28 @@ class GeminiTurnContractTest {
 
         assertThat(result2.toolCalls()).hasSize(1);
         ModelToolCall call2 = result2.toolCalls().getFirst();
-        // 第二轮生成的 toolCall ID 必须是 gemini-call-1，绝不能与 call1 重复！
+        // 旧调用仍在本次请求中可见，因此适配器阶段的临时 ID 顺延为 gemini-call-1
         assertThat(call2.id()).isEqualTo("gemini-call-1");
         assertThat(call2.id()).isNotEqualTo(call1.id());
+    }
+
+    @Test
+    void adapterVisibleIdCounterRestartsWhenRunContextHidesPriorCall() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        when(http.post(anyString(), anyMap(), any())).thenReturn(createFunctionCallResponse(
+                "STOP", "list_tasks", mapper.createObjectNode().put("status", "OPEN")));
+        ModelTurnCommand command = new ModelTurnCommand(
+                ModelPurpose.AGENT,
+                List.of(new ModelMessage.System("sys"),
+                        new ModelMessage.User("<RUN_CONTEXT_SUMMARY>已压缩早期调用</RUN_CONTEXT_SUMMARY>"),
+                        new ModelMessage.User("继续核对任务")),
+                List.of(new ModelToolDefinition("list_tasks", "列出任务", schema)), false);
+
+        ModelTurnResult result = new GeminiModelAdapter(mapper, http).turn(config(), "key", command);
+
+        // 原调用已被压缩，不在本次消息列表中；适配器重新从可见序号 0 起步。
+        // AgentRuntimeCoordinator 会在持久化前用 Run 的 tool_calls_used 重定界此临时 ID。
+        assertThat(result.toolCalls()).extracting(ModelToolCall::id).containsExactly("gemini-call-0");
     }
 
     @Test

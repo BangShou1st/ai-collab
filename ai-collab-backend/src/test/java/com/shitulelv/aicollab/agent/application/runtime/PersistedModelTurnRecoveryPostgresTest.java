@@ -20,6 +20,7 @@ import com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolRegistry;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelUsage;
@@ -82,6 +83,7 @@ class PersistedModelTurnRecoveryPostgresTest {
     private AgentRuntimeCoordinator pairCoordinator;
     /** 工具批次补修回归用：真实工具执行器 + 安全替身工具（记录真实执行次数）。 */
     private AgentRuntimeCoordinator realToolCoordinator;
+    private AgentToolRegistry realToolRegistry;
     private final java.util.List<String> executedToolCalls = new java.util.concurrent.CopyOnWriteArrayList<>();
     private AgentRecoveryJob recovery;
 
@@ -122,12 +124,12 @@ class PersistedModelTurnRecoveryPostgresTest {
         pairCoordinator = coordinator(toolExecutor,
                 new AgentContextProperties(false, 20_000, 4_000, 2_000, java.util.Map.of()));
         approvals = mock(AgentApprovalService.class);
-        var stubRegistry = new AgentToolRegistry(java.util.List.of(listTasksStub(), startTaskPlanStub()));
-        var realToolExecutor = new AgentToolCallExecutor(repository, stubRegistry,
+        realToolRegistry = new AgentToolRegistry(java.util.List.of(listTasksStub(), startTaskPlanStub()));
+        var realToolExecutor = new AgentToolCallExecutor(repository, realToolRegistry,
                 new AgentCancellationService(repository), new AgentLoopGuard(), approvals, modelExecutor,
                 new AgentToolResultSanitizer(json), json, events, new AgentToolScheduler());
         realToolCoordinator = coordinator(realToolExecutor,
-                new AgentContextProperties(false, 20_000, 4_000, 2_000, java.util.Map.of()), stubRegistry);
+                new AgentContextProperties(false, 20_000, 4_000, 2_000, java.util.Map.of()), realToolRegistry);
     }
 
     /** 安全替身：只读查询工具，记录真实执行次数（执行一次记一次参数标记）。 */
@@ -895,10 +897,136 @@ class PersistedModelTurnRecoveryPostgresTest {
         assertThat(runStatus(saved.id())).isEqualTo("BUDGET_EXCEEDED");
     }
 
+    /**
+     * Gemini 的消息可见调用计数在 RUN_CONTEXT 覆盖后会回到 0。新轮次必须改用
+     * 持久化的 run.toolCallsUsed 分配 ID；接管未消费的轮次必须继续沿用已保存 ID。
+     */
+    @Test
+    void geminiToolCallIdRemainsUniqueAfterRunContextCoversPreviousCallAndRecoveryReusesIt() {
+        Fixture fixture = fixture("验证 Gemini 工具调用身份");
+        AgentRunView run = runningRun(fixture);
+
+        ModelToolCall firstCall = toolCall("gemini-call-0", "first-query");
+        run = repository.recordModelTurn(run, geminiToolCallTurn(firstCall), "NATIVE_TOOLS");
+        run = repository.recordToolResult(run, firstCall.name(), toolInput(firstCall),
+                json.createObjectNode().put("status", "SUCCEEDED").put("marker", "first-result"), false);
+        jdbc.update("""
+                UPDATE agent_step SET output_json=jsonb_set(output_json,'{batchHandled}','true'::jsonb)
+                WHERE run_id=? AND type='MODEL_TURN'
+                """, run.id());
+
+        int coveredThrough = jdbc.queryForObject("""
+                SELECT max(sequence_no) FROM agent_step
+                WHERE run_id=? AND type='TOOL_CALL_COMPLETED' AND input_json->>'toolCallId'='gemini-call-0'
+                """, Integer.class, run.id());
+        UUID summaryAttempt = repository.beginRunContextAttempt(run, 1, 1, coveredThrough, 0);
+        repository.completeRunContextAttempt(summaryAttempt, "COMMITTED", "test-summary",
+                new AgentRunEventRecorder.UsageSettlement(1, 1, "PROVIDER", "PROVIDER", 1L),
+                "RUN_CONTEXT_COMMITTED", json.createObjectNode()
+                        .put("scope", "RUN_CONTEXT")
+                        .put("text", "已压缩第一轮工具观察")
+                        .put("sourceFromSequence", 1)
+                        .put("sourceThroughSequence", coveredThrough)
+                        .put("sourcePartialSequence", 0)
+                        .put("sourcePartialChars", 0)
+                        .put("cycle", 1), 0);
+
+        run = repository.findRun(fixture.project(), run.id()).orElseThrow();
+        repository.requeueRun(run);
+        recovery.claim("worker-gemini-next", Duration.ofMinutes(6)).orElseThrow();
+        run = reload(fixture, run);
+
+        ModelToolCall rawSecondCall = toolCall("gemini-call-0", "second-query");
+        ModelToolCall rawParallelCall = new ModelToolCall("gemini-call-1", "list_tasks",
+                json.createObjectNode().put("query", "parallel-query"), "sig-parallel-gemini-call");
+        List<List<ModelMessage>> requests = new ArrayList<>();
+        when(modelExecutor.resolveRequest(any())).thenReturn(AgentRuntimeBehaviorTest.resolved(true));
+        when(modelExecutor.callModel(any(), any(), any(), anyBoolean(), any())).thenAnswer(invocation -> {
+            requests.add(invocation.getArgument(1));
+            return geminiToolCallTurn(List.of(rawSecondCall, rawParallelCall));
+        });
+        List<ModelTurnResult> dispatchedTurns = new ArrayList<>();
+        org.mockito.Mockito.doAnswer(invocation -> {
+            dispatchedTurns.add(invocation.getArgument(3));
+            return new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, null, null);
+        }).when(toolExecutor).executeCalls(any(), any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+        AgentRuntimeCoordinator v2Coordinator = coordinator(toolExecutor,
+                new AgentContextProperties(true, 50_000, 8_000, 2_000, java.util.Map.of()), realToolRegistry);
+
+        v2Coordinator.advance(run);
+
+        assertThat(repository.latestRunContextSummary(fixture.project(), run.id())
+                .path("sourceThroughSequence").asInt()).isEqualTo(coveredThrough);
+        assertThat(requests).hasSize(1);
+        assertThat(requests.getFirst()).anyMatch(message -> message instanceof ModelMessage.User user
+                && user.content().contains("RUN_CONTEXT_SUMMARY"));
+        assertThat(requests.getFirst()).noneMatch(message -> message instanceof ModelMessage.Assistant assistant
+                && assistant.toolCalls().stream().anyMatch(call -> call.id().equals("gemini-call-0")));
+
+        AgentRunView afterSave = reload(fixture, run);
+        ModelTurnResult persisted = repository.pendingModelTurn(afterSave).orElseThrow();
+        assertThat(persisted.toolCalls()).extracting(ModelToolCall::id)
+                .containsExactly("gemini-call-1", "gemini-call-2");
+        assertThat(persisted.toolCalls().get(1).thoughtSignature()).isEqualTo("sig-parallel-gemini-call");
+        assertThat(dispatchedTurns).extracting(turn -> turn.toolCalls().getFirst().id())
+                .containsExactly("gemini-call-1");
+        assertThat(dispatchedTurns.getFirst().toolCalls()).extracting(ModelToolCall::id)
+                .containsExactly("gemini-call-1", "gemini-call-2");
+
+        // 接管同一已提交轮次时不请求模型，也不改写本轮的原始调用身份。
+        v2Coordinator.advance(afterSave);
+        assertThat(requests).hasSize(1);
+        assertThat(dispatchedTurns).extracting(turn -> turn.toolCalls().getFirst().id())
+                .containsExactly("gemini-call-1", "gemini-call-1");
+        assertThat(dispatchedTurns.get(1).toolCalls()).extracting(ModelToolCall::id)
+                .containsExactly("gemini-call-1", "gemini-call-2");
+        verify(modelExecutor, times(1)).callModel(any(), any(), any(), anyBoolean(), any());
+
+        ModelToolCall persistedSecondCall = persisted.toolCalls().getFirst();
+        assertThat(repository.knownInvocationResult(afterSave, persistedSecondCall)).isEmpty();
+        afterSave = repository.recordToolResult(afterSave, persistedSecondCall.name(),
+                toolInput(persistedSecondCall),
+                json.createObjectNode().put("status", "SUCCEEDED").put("marker", "second-result"), false);
+        ModelToolCall persistedParallelCall = persisted.toolCalls().get(1);
+        assertThat(repository.knownInvocationResult(afterSave, persistedParallelCall)).isEmpty();
+        afterSave = repository.recordToolResult(afterSave, persistedParallelCall.name(),
+                toolInput(persistedParallelCall),
+                json.createObjectNode().put("status", "SUCCEEDED").put("marker", "parallel-result"), false);
+        assertThat(repository.knownInvocationResult(afterSave, persistedSecondCall))
+                .get().extracting(result -> result.path("marker").asText()).isEqualTo("second-result");
+        assertThat(repository.knownInvocationResult(afterSave, persistedParallelCall))
+                .get().extracting(result -> result.path("marker").asText()).isEqualTo("parallel-result");
+
+        assertThat(jdbc.queryForList("""
+                SELECT tool_call_id FROM agent_tool_invocation
+                WHERE run_id=? ORDER BY turn_sequence,ordinal
+                """, String.class, run.id())).containsExactly("gemini-call-0", "gemini-call-1", "gemini-call-2");
+        assertThat(jdbc.queryForList("""
+                SELECT arguments_json->>'query' FROM agent_tool_invocation
+                WHERE run_id=? ORDER BY turn_sequence,ordinal
+                """, String.class, run.id())).containsExactly("first-query", "second-query", "parallel-query");
+        assertThat(jdbc.queryForList("""
+                SELECT result_json->>'marker' FROM agent_tool_invocation
+                WHERE run_id=? ORDER BY turn_sequence,ordinal
+                """, String.class, run.id())).containsExactly("first-result", "second-result", "parallel-result");
+        assertThat(jdbc.queryForObject("""
+                SELECT count(DISTINCT invocation_id) FROM agent_tool_invocation WHERE run_id=?
+                """, Integer.class, run.id())).isEqualTo(3);
+    }
+
     // ---------- 工具批次补修的现场构造 ----------
 
     private ModelToolCall toolCall(String id, String query) {
         return new ModelToolCall(id, "list_tasks", json.createObjectNode().put("query", query));
+    }
+
+    private ModelTurnResult geminiToolCallTurn(ModelToolCall call) {
+        return geminiToolCallTurn(List.of(call));
+    }
+
+    private ModelTurnResult geminiToolCallTurn(List<ModelToolCall> calls) {
+        return new ModelTurnResult("先核对工具结果", calls, ModelFinishReason.TOOL_CALLS,
+                null, "GEMINI", "gemini-test", 120L);
     }
 
     private ModelToolCall planningCall(String id) {
