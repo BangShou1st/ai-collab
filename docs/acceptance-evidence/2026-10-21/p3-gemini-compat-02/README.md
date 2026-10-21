@@ -76,7 +76,7 @@
 | --- | --- | --- | --- |
 | 定向回归与新增复现套件 | `mvnw.cmd test -Dtest=GeminiTurnContractTest,GeminiStreamContractTest,ModelTurnContractTest,AgentModelMessageComposerV2Test` | **95/95 通过**（0 失败，0 错误） | 19.69s |
 | 现有 Provider 回归套件（8 类） | `mvnw.cmd test -Dtest=ModelProtocolHttpTest,KiloGatewayModelExecutionStreamContractTest,KiloGatewayModelTest,ZenKnowledgeStreamContractTest,AnthropicTurnContractTest,OpenAiTurnContractTest,OpenAiTurnStreamingTest,ModelProviderAdapterContractTest` | **92/92 通过**（0 失败，0 错误） | 12.46s |
-| **后端全量验证** | `mvnw.cmd -B -ntp verify` | **1580/1580 通过**（0 失败，0 错误，18 正常跳过） | 7m39s |
+| **后端全量验证** | `mvnw.cmd -B -ntp verify` | **1580 项：1555 通过，0 失败，0 错误，25 跳过** | 7m39s |
 | **真实容器守卫核对** | 校验 10 个 required Testcontainers 用例 Surefire XML 报告 | **10/10 全部真实执行**（0 失败，无整类跳过） | 瞬时 |
 | **前端构建巡检** | `pnpm run build` | **通过**（1835 modules transformed，0 errors） | 4.91s |
 | 代码格式与差异检查 | `git diff --check` | **通过**（无 trailing whitespace，无空白冲突） | 瞬时 |
@@ -90,21 +90,18 @@
 - **修复提交 SHA**：`872a7ad6c9d9b005223b717700449eaf50e0850c`
 - **提交信息**：`fix(ai): harden Gemini tool call ID isolation, alternating role contract and SSE safety termination`
 - **GitHub Actions CI 结果**：
-  - Run ID：`39497711679`
-  - Run 链接：https://github.com/BangShou1st/ai-collab/actions/runs/39497711679
-  - 状态：**Completed Success**（全绿）
-  - 各 Job 执行情况：
-    - `✓ Frontend (pnpm)`：耗时 1m19s（ID 118886961816）
-    - `✓ Backend (Maven verify)`：耗时 6m23s（ID 118886961572）
-  - 容器测试守卫：10/10 个 required 测试类均在 CI runner 真实执行，无整类跳过。
+  - **代码提交 CI**：[Run `39497711679`](https://github.com/BangShou1st/ai-collab/actions/runs/39497711679)，attempt 1，head SHA `872a7ad6c9d9b005223b717700449eaf50e0850c`，Frontend 与 Backend Job 均成功。
+  - **文档提交 CI**：[Run `39498724955`](https://github.com/BangShou1st/ai-collab/actions/runs/39498724955)，attempt 1，head SHA `0bbfd38f5f8ab4fd5a533d542a48878d774a5d1b`，Frontend 与 Backend Job 均成功；此 SHA 是实际文档提交 SHA。
+  - 两次 Backend Job 的 Surefire 统计均为 **1580 项、1555 通过、0 失败、0 错误、25 跳过**。其中原有 18 项环境门控测试跳过；`GeminiLiveAcceptanceTest` 共 8 项，7 项真实 Gemini 测试因未提供 key 而跳过，1 项本地错误分类测试执行通过。普通 CI 未产生真实 Gemini 调用证据。
+  - 两次 CI 的容器测试守卫均通过：10/10 个 required 测试类实际执行，无整类跳过。
 
 ---
 
 ## 七、开放风险、未验证事项与回退方式
 
 1. **未验证事项**：
-   - 本轮未主动调用真实 Gemini 消耗免费模型额度，未人为打满免费层 429 真实配额（429、503 等已由轻量模拟 HTTP 服务与 Mockito 定向单元测试覆盖）。
+   - P3-GEMINI-COMPAT-02 的两次普通 CI 均未调用真实 Gemini；`GeminiLiveAcceptanceTest` 的 7 项真实调用因未提供 key 而跳过。429、503 等错误仍由模拟 HTTP 服务与 Mockito 定向单元测试覆盖。
 2. **回退方式**：
-   - 若需回退本阶段修改，执行 `git revert 872a7ad6c9d9b005223b717700449eaf50e0850c` 即可干净回退至上一阶段基线 `25d86b7`，不产生冲突。
+   - 若需回退本阶段代码，普通回退命令为 `git revert 872a7ad6c9d9b005223b717700449eaf50e0850c`。执行前应检查差异；若后续提交改动了相同位置，需按实际冲突解决。该命令不保证无冲突，也不保证工作树精确恢复到某个历史快照。
 3. **后续建议**：
    - 保持当前基线，后续如需接入 Gemini 3.x 图像/多模态输入，可沿用本轮规范化后的 alternating role 与 parts 结构。
