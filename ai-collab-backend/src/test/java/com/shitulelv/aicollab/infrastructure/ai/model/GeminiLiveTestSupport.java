@@ -12,6 +12,8 @@ import java.util.function.Supplier;
 final class GeminiLiveTestSupport {
     static final String LIVE_TESTS_ENV = "AI_GEMINI_LIVE_TESTS";
     static final String API_KEY_ENV = "GEMINI_API_KEY";
+    static final String SUREFIRE_TEST_SELECTOR_PROPERTY = "test";
+    static final String LIVE_TEST_CLASS = "com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveAcceptanceTest";
     static final int MAX_503_ATTEMPTS = 3;
 
     private GeminiLiveTestSupport() {
@@ -20,18 +22,25 @@ final class GeminiLiveTestSupport {
     static <T> T withAuthorizedApiKey(Function<String, T> liveCall) {
         return withAuthorizedApiKey(
                 System.getenv(LIVE_TESTS_ENV),
+                System.getProperty(SUREFIRE_TEST_SELECTOR_PROPERTY),
                 () -> System.getenv(API_KEY_ENV),
                 liveCall);
     }
 
     static String requireApiKey() {
-        return requireApiKey(System.getenv(LIVE_TESTS_ENV), () -> System.getenv(API_KEY_ENV));
+        return requireApiKey(
+                System.getenv(LIVE_TESTS_ENV),
+                System.getProperty(SUREFIRE_TEST_SELECTOR_PROPERTY),
+                () -> System.getenv(API_KEY_ENV));
     }
 
-    static String requireApiKey(String optIn, Supplier<String> apiKeySource) {
+    static String requireApiKey(String optIn, String testSelector, Supplier<String> apiKeySource) {
         Assumptions.assumeTrue(
                 "true".equals(optIn),
                 "SKIPPED: set AI_GEMINI_LIVE_TESTS=true to authorize real Gemini acceptance calls");
+        Assumptions.assumeTrue(
+                selectsLiveTestTarget(testSelector),
+                "SKIPPED: select GeminiLiveAcceptanceTest explicitly with -Dtest=GeminiLiveAcceptanceTest");
 
         String apiKey = apiKeySource.get();
         Assumptions.assumeTrue(
@@ -43,9 +52,27 @@ final class GeminiLiveTestSupport {
 
     static <T> T withAuthorizedApiKey(
             String optIn,
+            String testSelector,
             Supplier<String> apiKeySource,
             Function<String, T> liveCall) {
-        return liveCall.apply(requireApiKey(optIn, apiKeySource));
+        return liveCall.apply(requireApiKey(optIn, testSelector, apiKeySource));
+    }
+
+    static boolean selectsLiveTestTarget(String testSelector) {
+        if (testSelector == null || testSelector.isBlank()) {
+            return false;
+        }
+        for (String selection : testSelector.split(",")) {
+            String selectedClass = selection.strip();
+            int methodSeparator = selectedClass.indexOf('#');
+            if (methodSeparator >= 0) {
+                selectedClass = selectedClass.substring(0, methodSeparator);
+            }
+            if (selectedClass.equals("GeminiLiveAcceptanceTest") || selectedClass.equals(LIVE_TEST_CLASS)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static <T> T retry503(String operation, Supplier<T> request) {

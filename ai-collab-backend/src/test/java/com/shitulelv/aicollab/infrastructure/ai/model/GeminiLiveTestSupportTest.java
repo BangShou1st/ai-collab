@@ -23,6 +23,7 @@ class GeminiLiveTestSupportTest {
 
         assertThatThrownBy(() -> GeminiLiveTestSupport.withAuthorizedApiKey(
                 null,
+                "GeminiLiveAcceptanceTest",
                 () -> {
                     keyReads.incrementAndGet();
                     return "synthetic-key";
@@ -46,6 +47,7 @@ class GeminiLiveTestSupportTest {
 
         assertThatThrownBy(() -> GeminiLiveTestSupport.withAuthorizedApiKey(
                 optIn,
+                "GeminiLiveAcceptanceTest",
                 () -> {
                     keyReads.incrementAndGet();
                     return "synthetic-key";
@@ -66,6 +68,7 @@ class GeminiLiveTestSupportTest {
 
         assertThatThrownBy(() -> GeminiLiveTestSupport.withAuthorizedApiKey(
                 "true",
+                "GeminiLiveAcceptanceTest",
                 () -> "  ",
                 key -> {
                     providerCalls.incrementAndGet();
@@ -83,6 +86,7 @@ class GeminiLiveTestSupportTest {
 
         String result = GeminiLiveTestSupport.withAuthorizedApiKey(
                 "true",
+                "GeminiLiveAcceptanceTest",
                 () -> " synthetic-key ",
                 key -> {
                     providerCalls.incrementAndGet();
@@ -91,6 +95,39 @@ class GeminiLiveTestSupportTest {
 
         assertThat(result).isEqualTo("synthetic-key");
         assertThat(providerCalls).hasValue(1);
+    }
+
+    @Test
+    void anExplicitFlagDoesNotAuthorizeTheSuiteDuringAnUnfilteredVerify() {
+        AtomicInteger keyReads = new AtomicInteger();
+        AtomicInteger providerCalls = new AtomicInteger();
+
+        assertThatThrownBy(() -> GeminiLiveTestSupport.withAuthorizedApiKey(
+                "true",
+                "*Test",
+                () -> {
+                    keyReads.incrementAndGet();
+                    return "synthetic-key";
+                },
+                key -> {
+                    providerCalls.incrementAndGet();
+                    return key;
+                }))
+                .isInstanceOf(TestAbortedException.class)
+                .hasMessageContaining("-Dtest=GeminiLiveAcceptanceTest");
+
+        assertThat(keyReads).hasValue(0);
+        assertThat(providerCalls).hasValue(0);
+    }
+
+    @Test
+    void theSurefireSelectorMustNameTheLiveClassRatherThanAWildcard() {
+        assertThat(GeminiLiveTestSupport.selectsLiveTestTarget("GeminiLiveAcceptanceTest")).isTrue();
+        assertThat(GeminiLiveTestSupport.selectsLiveTestTarget(
+                "com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveAcceptanceTest#phase1_minimalConnection_gemini31FlashLite"))
+                .isTrue();
+        assertThat(GeminiLiveTestSupport.selectsLiveTestTarget("*Test")).isFalse();
+        assertThat(GeminiLiveTestSupport.selectsLiveTestTarget(null)).isFalse();
     }
 
     @Test
