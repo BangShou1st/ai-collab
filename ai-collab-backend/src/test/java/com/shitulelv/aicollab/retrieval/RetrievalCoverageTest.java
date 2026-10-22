@@ -1,6 +1,9 @@
 package com.shitulelv.aicollab.retrieval;
 
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
+import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeContext;
+import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource;
+import com.shitulelv.aicollab.knowledge.domain.service.ContextDropReason;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
 import com.shitulelv.aicollab.retrieval.RetrievalCoverage.ExpectedEvidence;
 import org.junit.jupiter.api.Test;
@@ -262,7 +265,7 @@ class RetrievalCoverageTest {
     // ---- D-RAG-01B：把“候选命中但上下文没保留”拆成互不重叠的四类 ----
 
     @Test
-    void crossDocumentDedupLossIsDistinguishedAndRemovedByTheDiverseEntry() {
+    void crossDocumentDedupLossIsDistinguishedAndEliminatedInBothEntries() {
         UUID documentA = UUID.randomUUID();
         UUID documentB = UUID.randomUUID();
         DocumentSearchHit first = hit(documentA, "两件文档相同的条款", "same-hash", 0.9);
@@ -272,17 +275,28 @@ class RetrievalCoverageTest {
                 new ExpectedEvidence(documentA, first.id(), "原始件"),
                 new ExpectedEvidence(documentB, second.id(), "复印件"));
 
-        // 旧入口：全局 contentHash 去重把两份文档合并成一条来源——跨文档引用身份丢失。
-        var oldMeasured = RetrievalCoverage.measure(8, 12, expected, candidates,
-                builder.buildWithDiagnostics(candidates, 12));
-        assertThat(oldMeasured.get("droppedByContext")).isEqualTo(1);
-        assertThat(oldMeasured.get("crossDocumentDedupLoss")).isEqualTo(1);
-        assertThat(oldMeasured.get("intraDocumentDedupLoss")).isEqualTo(0);
-        assertThat(oldMeasured.get("budgetDrop")).isEqualTo(0);
-        assertThat(RetrievalCoverage.classify("跨文档去重", oldMeasured, oldMeasured).get("retentionVerdict"))
+        // 验证 RetrievalCoverage 对 CROSS_DOCUMENT_DUPLICATE 归因的度量与分类逻辑仍能准确识别
+        KnowledgeContext simulatedLegacyContext = new KnowledgeContext(List.of(
+                new KnowledgeSource(first.id(), documentA, "原始件.md", "标题", first.content(), "same-hash", 0.9, 1)),
+                "[S1]\n文件：原始件.md\n内容：两件文档相同的条款");
+        Map<UUID, ContextDropReason> simulatedLegacyDrops = Map.of(
+                second.id(), ContextDropReason.CROSS_DOCUMENT_DUPLICATE);
+        var simulatedLegacyMeasured = RetrievalCoverage.measure(8, 12, expected, candidates,
+                simulatedLegacyContext, simulatedLegacyDrops);
+        assertThat(simulatedLegacyMeasured.get("droppedByContext")).isEqualTo(1);
+        assertThat(simulatedLegacyMeasured.get("crossDocumentDedupLoss")).isEqualTo(1);
+        assertThat(simulatedLegacyMeasured.get("intraDocumentDedupLoss")).isEqualTo(0);
+        assertThat(simulatedLegacyMeasured.get("budgetDrop")).isEqualTo(0);
+        assertThat(RetrievalCoverage.classify("跨文档去重", simulatedLegacyMeasured, simulatedLegacyMeasured).get("retentionVerdict"))
                 .isEqualTo("CROSS_DOCUMENT_DEDUP");
 
-        // 新入口：两份文档各自保留，引用身份可追溯。
+        // 真实构建器行为：普通入口与 Agent 跨文档入口均保留两份文档的独立引用身份
+        var defaultMeasured = RetrievalCoverage.measure(8, 12, expected, candidates,
+                builder.buildWithDiagnostics(candidates, 12));
+        assertThat(defaultMeasured.get("droppedByContext")).isEqualTo(0);
+        assertThat(defaultMeasured.get("crossDocumentDedupLoss")).isEqualTo(0);
+        assertThat(defaultMeasured.get("contextEvidenceRetention")).isEqualTo(1.0d);
+
         var diverseMeasured = RetrievalCoverage.measure(8, 12, expected, candidates,
                 builder.buildDiverseWithDiagnostics(candidates, 12));
         assertThat(diverseMeasured.get("droppedByContext")).isEqualTo(0);

@@ -48,8 +48,8 @@ public class KnowledgeContextBuilder {
     public BuildResult buildWithDiagnostics(List<DocumentSearchHit> hits, int maxSources) {
         validateMaxSources(maxSources);
         List<KnowledgeSource> sources = new ArrayList<>();
-        Set<String> hashes = new HashSet<>();
-        Map<String, UUID> hashOwners = new HashMap<>();
+        Set<UUID> retainedChunkIds = new HashSet<>();
+        Map<UUID, Set<String>> hashesByDocument = new HashMap<>();
         Map<UUID, ContextDropReason> dropped = new LinkedHashMap<>();
         StringBuilder prompt = new StringBuilder();
         int remaining = MAX_PROMPT_SOURCE_CODE_POINTS;
@@ -65,10 +65,10 @@ public class KnowledgeContextBuilder {
                 continue;
             }
             String hash = hit.contentHash();
-            if (hashes.contains(hash)) {
-                dropped.put(hit.id(), Objects.equals(hashOwners.get(hash), hit.documentId())
-                        ? ContextDropReason.INTRA_DOCUMENT_DUPLICATE
-                        : ContextDropReason.CROSS_DOCUMENT_DUPLICATE);
+            Set<String> documentHashes = hashesByDocument.get(hit.documentId());
+            if (retainedChunkIds.contains(hit.id())
+                    || (hash != null && documentHashes != null && documentHashes.contains(hash))) {
+                dropped.put(hit.id(), ContextDropReason.INTRA_DOCUMENT_DUPLICATE);
                 continue;
             }
             if (hit.content() == null || hit.content().isBlank()) {
@@ -91,7 +91,7 @@ public class KnowledgeContextBuilder {
             if (prefixLength >= remaining) {
                 dropped.put(hit.id(), ContextDropReason.BODY_BUDGET);
                 classifyCandidatesAfterBudgetStop(
-                        hits, index + 1, maxSources, sources.size(), hashes, hashOwners, dropped);
+                        hits, index + 1, maxSources, sources.size(), retainedChunkIds, hashesByDocument, dropped);
                 break;
             }
 
@@ -108,9 +108,10 @@ public class KnowledgeContextBuilder {
                     hit.id(), hit.documentId(), hit.originalFilename(), hit.heading(),
                     content.original(), hit.contentHash(), hit.similarity(), rank,
                     hit.metadata() != null ? hit.metadata() : Map.of()));
-            // Preserve main behavior: only a successfully assembled source reserves its hash.
-            hashes.add(hash);
-            hashOwners.put(hash, hit.documentId());
+            retainedChunkIds.add(hit.id());
+            if (hash != null) {
+                hashesByDocument.computeIfAbsent(hit.documentId(), ignored -> new HashSet<>()).add(hash);
+            }
         }
         return new BuildResult(new KnowledgeContext(List.copyOf(sources), prompt.toString()), dropped);
     }
@@ -185,19 +186,19 @@ public class KnowledgeContextBuilder {
             int start,
             int maxSources,
             int retainedSourceCount,
-            Set<String> hashes,
-            Map<String, UUID> hashOwners,
+            Set<UUID> retainedChunkIds,
+            Map<UUID, Set<String>> hashesByDocument,
             Map<UUID, ContextDropReason> dropped) {
         for (int index = start; index < hits.size(); index++) {
             DocumentSearchHit hit = hits.get(index);
+            Set<String> documentHashes = hashesByDocument.get(hit.documentId());
             if (hit.similarity() < MIN_SIMILARITY) {
                 dropped.put(hit.id(), ContextDropReason.BELOW_SIMILARITY_THRESHOLD);
             } else if (retainedSourceCount >= maxSources) {
                 dropped.put(hit.id(), ContextDropReason.SOURCE_CAP);
-            } else if (hashes.contains(hit.contentHash())) {
-                dropped.put(hit.id(), Objects.equals(hashOwners.get(hit.contentHash()), hit.documentId())
-                        ? ContextDropReason.INTRA_DOCUMENT_DUPLICATE
-                        : ContextDropReason.CROSS_DOCUMENT_DUPLICATE);
+            } else if (retainedChunkIds.contains(hit.id())
+                    || (hit.contentHash() != null && documentHashes != null && documentHashes.contains(hit.contentHash()))) {
+                dropped.put(hit.id(), ContextDropReason.INTRA_DOCUMENT_DUPLICATE);
             } else if (hit.content() == null || hit.content().isBlank()) {
                 dropped.put(hit.id(), ContextDropReason.EMPTY_BODY);
             } else {
