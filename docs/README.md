@@ -42,6 +42,7 @@
 包含按日期严格组织的交付证据目录（测试结果、BSK 浏览器截图、回归基准与脱敏元数据）：
 
 - 目录格式：`docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`
+- [P4-RAG-QUALITY-02：长文档召回参数成对复验](acceptance-evidence/2026-10-22/p4-rag-quality-02/README.md)：真实本地 Embedding 对照、生产准入判断与索引引用兼容性。
 - 注意：该目录下的部分基准 JSON 由自动化回归测试（如 `RealRetrievalBaselineTest` 等）作为只读断言基准直接引用，**严禁随意改名或删除**。
 
 ---

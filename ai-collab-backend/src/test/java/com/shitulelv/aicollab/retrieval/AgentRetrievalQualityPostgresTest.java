@@ -2,6 +2,9 @@ package com.shitulelv.aicollab.retrieval;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
+import com.shitulelv.aicollab.document.domain.model.DocumentChunk;
+import com.shitulelv.aicollab.document.domain.service.DocumentChunker;
+import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
@@ -765,6 +768,189 @@ class AgentRetrievalQualityPostgresTest {
         List<DocumentSearchHit> hits = search.search(project, query, null, TOP_20);
         assertThat(hits).extracting(DocumentSearchHit::id).contains(activeChunk);
         assertThat(hits).hasSize(1);
+    }
+
+    /**
+     * P4-RAG-QUALITY-02: prebuilt chunks are a historical reference, never a production baseline.
+     * Reconstruct ALL seed sections with original headings and bodies, including all distractors.
+     * The two raw-document plans differ only in target/overlap. Real calls remain class-level opt-in.
+     */
+    @Test
+    void pairedProductionChunkingOnHistoricalCorpus() throws Exception {
+        String model = DEFAULT_MODEL;
+        OffsetDateTime now = OffsetDateTime.now();
+        ProjectEmbeddingGateway live = ollamaGateway(model, 0,
+                EmbeddingFingerprints.fingerprint(PROVIDER, model, 0), null, now);
+        EmbeddingBatch probe = live.embed(project, List.of("维度检查"), EmbeddingProgressListener.NONE);
+        int dimension = probe.dimension();
+        assertThat(dimension).isEqualTo(1024);
+        String fingerprint = EmbeddingFingerprints.fingerprint(PROVIDER, model, dimension);
+        UUID generation = UUID.randomUUID();
+        Map<String, List<Double>> cache = new LinkedHashMap<>();
+        List<Case> cases = new ArrayList<>(CASES);
+        cases.add(new Case("精确编号", "REQ-7741", "变更申请 REQ-7741 的具体授权条款是什么？",
+                null, List.of(new Evidence(7, 2, "REQ-7741")), null, false));
+        cases.add(new Case("长文中部步骤", "重复背景中部", "回滚演练步骤包含哪些操作？",
+                null, List.of(new Evidence(1, 3, "演练步骤")), "准备环境、冻结写入、切换流量", false));
+        cases.add(new Case("边界附近续发事实", "尾部事实靠近候选重叠边界",
+                "最近一次回滚演练没有通过，还能继续发布吗？",
+                null, List.of(new Evidence(1, 3, "续发前提")), "回滚演练通过", false));
+        for (Case c : cases) cacheVector(live, cache, c.query());
+        when(embeddings.embed(any(), anyList(), any())).thenAnswer(invocation -> {
+            List<String> inputs = invocation.getArgument(1);
+            return new EmbeddingBatch(PROVIDER, model, dimension,
+                    inputs.stream().map(cache::get).toList(), fingerprint, generation);
+        });
+        List<String> rawDocuments = CORPUS.stream().map(doc -> doc.chunks().stream()
+                .map(chunk -> "## " + chunk.heading() + "\n\n" + chunk.content())
+                .collect(java.util.stream.Collectors.joining("\n\n"))).toList();
+        Map<String, Object> report = new LinkedHashMap<>();
+        report.put("model", model); report.put("dimension", dimension); report.put("fingerprint", fingerprint);
+        report.put("rawDocumentHashes", rawDocuments.stream().map(AgentRetrievalQualityPostgresTest::sha256).toList());
+        report.put("reconstruction", "13 seed documents, each seed becomes a Markdown section; no body deleted");
+        report.put("topK", 20); report.put("maxSources", AGENT_LIMIT);
+        Map<String, Object> plans = new LinkedHashMap<>();
+        Map<String, List<Map<String, Object>>> measurements = new LinkedHashMap<>();
+        for (String plan : List.of("HISTORICAL_PREBUILT", "A_1200_150", "B_800_120")) {
+            reset();
+            insertOllamaGeneration(model, dimension, fingerprint, generation);
+            List<UUID> ids = new ArrayList<>();
+            List<Map<String, Object>> inventory = new ArrayList<>();
+            int cacheBefore = cache.size();
+            int chunkCount = 0, inputCodePoints = 0;
+            for (int docIndex = 0; docIndex < CORPUS.size(); docIndex++) {
+                DocSeed doc = CORPUS.get(docIndex);
+                String raw = rawDocuments.get(docIndex);
+                List<DocumentChunk> chunks;
+                if (plan.equals("HISTORICAL_PREBUILT")) {
+                    chunks = new ArrayList<>();
+                    for (ChunkSeed seed : doc.chunks()) chunks.add(new DocumentChunk(chunks.size(),
+                            seed.heading(), seed.content(), sha256(seed.content()), 1));
+                } else {
+                    List<DocumentChunk> baseline = new DocumentChunker().split(raw);
+                    // Guard the copied experiment algorithm against production drift on every raw input.
+                    assertThat(new RealChunkingRetrievalComparisonPostgresTest.ParametricChunker(1200, 150)
+                            .split(raw)).isEqualTo(baseline);
+                    chunks = plan.startsWith("A_") ? baseline
+                            : new RealChunkingRetrievalComparisonPostgresTest.ParametricChunker(800, 120).split(raw);
+                    for (DocumentChunk chunk : chunks) {
+                        int from = (int) chunk.metadata().get("charFrom");
+                        int through = (int) chunk.metadata().get("charThrough");
+                        assertThat(raw.substring(from, through)).isEqualTo(chunk.content());
+                        assertThat(chunk.contentHash()).isEqualTo(sha256(chunk.content()));
+                        assertThat(chunk.metadata().get("offsetCoordinate")).isEqualTo("CLEANED_TEXT_UTF16_V2");
+                    }
+                }
+                UUID id = insertOllamaDocument(doc.filename(), model, dimension, fingerprint);
+                ids.add(id);
+                List<List<Double>> vectors = new ArrayList<>();
+                for (DocumentChunk chunk : chunks) {
+                    vectors.add(cacheVector(live, cache, chunk.content()));
+                    inputCodePoints += chunk.content().codePointCount(0, chunk.content().length());
+                }
+                pairedDocuments.replaceChunks(project, id, chunks, vectors,
+                        PROVIDER, model, dimension, doc.filename(), fingerprint, generation);
+                jdbc.update("UPDATE project_document SET chunk_count=? WHERE id=?", chunks.size(), id);
+                chunkCount += chunks.size();
+                inventory.add(Map.of("filename", doc.filename(), "chunks", chunks));
+            }
+            List<Map<String, Object>> results = new ArrayList<>();
+            for (Case c : cases) {
+                List<UUID> scope = c.scope() == null ? null : c.scope().stream().map(ids::get).toList();
+                long started = System.nanoTime();
+                List<DocumentSearchHit> hits = search.search(project, c.query(), scope, TOP_20);
+                long latency = elapsedMillis(started);
+                // Diagnostic full ranking ONLY: never supplied to context or counted as Top20 recall.
+                List<DocumentSearchHit> diagnosticRanking = pairedDocuments.search(project, cache.get(c.query()),
+                        PROVIDER, model, dimension, fingerprint, scope, 1000, generation);
+                var built = builder.buildDiverseWithDiagnostics(hits, AGENT_LIMIT);
+                KnowledgeContext context = built.context();
+                assertThat(promptCodePoints(context)).isLessThanOrEqualTo(8000);
+                assertThat(context.sources()).hasSizeLessThanOrEqualTo(AGENT_LIMIT);
+                if (scope != null) assertThat(hits).allMatch(hit -> scope.contains(hit.documentId()));
+                for (KnowledgeSource source : context.sources()) {
+                    assertThat(hits).anyMatch(hit -> hit.id().equals(source.chunkId())
+                            && hit.documentId().equals(source.documentId()) && hit.content().startsWith(source.content())
+                            && hit.metadata().equals(source.metadata()));
+                }
+                List<Map<String, Object>> targets = new ArrayList<>();
+                Set<UUID> expectedDocs = new LinkedHashSet<>(), coveredDocs = new LinkedHashSet<>();
+                int recalled8 = 0, recalled20 = 0, retained = 0;
+                for (Evidence e : c.expected()) {
+                    UUID documentId = ids.get(e.docIndex());
+                    expectedDocs.add(documentId);
+                    String marker = c.tailMarker() != null ? c.tailMarker()
+                            : CORPUS.get(e.docIndex()).chunks().get(e.chunkNo()).content();
+                    DocumentSearchHit match = hits.stream().filter(hit -> hit.documentId().equals(documentId)
+                            && hit.content().contains(marker)).findFirst().orElse(null);
+                    int rank = match == null ? 0 : hits.indexOf(match) + 1;
+                    boolean kept = context.sources().stream().anyMatch(source -> source.documentId().equals(documentId)
+                            && source.content().contains(marker));
+                    if (rank > 0 && rank <= 8) recalled8++;
+                    if (rank > 0) recalled20++;
+                    if (kept) { retained++; coveredDocs.add(documentId); }
+                    Map<String, Object> target = new LinkedHashMap<>();
+                    target.put("document", CORPUS.get(e.docIndex()).filename()); target.put("marker", marker);
+                    target.put("rankInTop20", rank == 0 ? null : rank);
+                    DocumentSearchHit diagnostic = diagnosticRanking.stream()
+                            .filter(hit -> hit.documentId().equals(documentId) && hit.content().contains(marker))
+                            .findFirst().orElse(null);
+                    target.put("diagnosticFullRank", diagnostic == null ? null : diagnosticRanking.indexOf(diagnostic) + 1);
+                    target.put("similarity", diagnostic == null ? null : diagnostic.similarity());
+                    target.put("metadata", diagnostic == null ? null : diagnostic.metadata());
+                    target.put("chunkLength", diagnostic == null ? null : diagnostic.content().length());
+                    target.put("markerOffsetInChunk", diagnostic == null ? null : diagnostic.content().indexOf(marker));
+                    target.put("dropReason", match == null ? "DB_MISS"
+                            : kept ? "RETAINED" : String.valueOf(built.dropReasons().get(match.id())));
+                    target.put("retained", kept);
+                    targets.add(target);
+                }
+                Map<String, Object> result = new LinkedHashMap<>();
+                result.put("name", c.name()); result.put("query", c.query());
+                result.put("scope", c.documentScoped() ? "DOCUMENT_SCOPED" : "ALL_PROJECT");
+                int expected = c.expected().size();
+                result.put("expected", expected);
+                result.put("recall8", expected == 0 ? null : ratioOrZero(recalled8, expected));
+                result.put("recall20", expected == 0 ? null : ratioOrZero(recalled20, expected));
+                result.put("retention", expected == 0 ? null : ratioOrZero(retained, expected));
+                result.put("coverage", expected == 0 ? null : ratioOrZero(coveredDocs.size(), expectedDocs.size()));
+                result.put("latencyMs", latency); result.put("contextCodePoints", promptCodePoints(context));
+                result.put("candidateCount", hits.size()); result.put("sourceCount", context.sources().size());
+                result.put("targets", targets); results.add(result);
+            }
+            plans.put(plan, Map.of("totalChunks", chunkCount, "embeddingInputCodePoints", inputCodePoints,
+                    "embeddingCallsWithoutCache", chunkCount, "actualUncachedTextCalls", cache.size() - cacheBefore,
+                    "inventory", inventory, "cases", results));
+            measurements.put(plan, results);
+        }
+        report.put("plans", plans);
+        List<Map<String, Object>> baseline = measurements.get("A_1200_150");
+        List<Map<String, Object>> candidate = measurements.get("B_800_120");
+        report.put("strictTailGatePassed", (double) baseline.get(6).get("recall20") == 0d
+                && (double) candidate.get(6).get("recall20") == 1d
+                && (double) candidate.get(6).get("retention") == 1d);
+        List<String> regressions = new ArrayList<>();
+        for (int i = 0; i < baseline.size(); i++) {
+            if ((int) baseline.get(i).get("expected") == 0) continue;
+            for (String metric : List.of("recall8", "recall20", "retention", "coverage")) {
+                if ((double) candidate.get(i).get(metric) < (double) baseline.get(i).get(metric)) {
+                    regressions.add(baseline.get(i).get("name") + ": " + metric);
+                }
+            }
+        }
+        report.put("regressions", regressions);
+        report.put("embeddingCachePolicy", "one HTTP call per unique chunk/query; shared across plans; queries prewarmed");
+        Path path = Path.of("target/retrieval-baseline/p4-rag-quality-02/paired-chunking.json");
+        Files.createDirectories(path.getParent());
+        Files.writeString(path, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(report));
+    }
+
+    @Autowired
+    DocumentRepository pairedDocuments;
+
+    private List<Double> cacheVector(ProjectEmbeddingGateway gateway, Map<String, List<Double>> cache, String text) {
+        return cache.computeIfAbsent(text, input -> gateway.embed(project, List.of(input),
+                EmbeddingProgressListener.NONE).vectors().getFirst());
     }
 
     // ---- 范围维度的汇总 ----
