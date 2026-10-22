@@ -811,6 +811,7 @@ class AgentRetrievalQualityPostgresTest {
         report.put("topK", 20); report.put("maxSources", AGENT_LIMIT);
         Map<String, Object> plans = new LinkedHashMap<>();
         Map<String, List<Map<String, Object>>> measurements = new LinkedHashMap<>();
+        List<Map<String, Object>> selectionResults = new ArrayList<>();
         for (String plan : List.of("HISTORICAL_PREBUILT", "A_1200_150", "B_800_120")) {
             reset();
             insertOllamaGeneration(model, dimension, fingerprint, generation);
@@ -863,6 +864,11 @@ class AgentRetrievalQualityPostgresTest {
                 // Diagnostic full ranking ONLY: never supplied to context or counted as Top20 recall.
                 List<DocumentSearchHit> diagnosticRanking = pairedDocuments.search(project, cache.get(c.query()),
                         PROVIDER, model, dimension, fingerprint, scope, 1000, generation);
+                evaluateSelection(plan, c, ids, hits, selectionResults, false);
+                if (c.documentScoped()) {
+                    var allProject = search.search(project, c.query(), null, TOP_20);
+                    evaluateSelection(plan, c, ids, allProject, selectionResults, true);
+                }
                 var built = builder.buildDiverseWithDiagnostics(hits, AGENT_LIMIT);
                 KnowledgeContext context = built.context();
                 assertThat(promptCodePoints(context)).isLessThanOrEqualTo(8000);
@@ -917,6 +923,20 @@ class AgentRetrievalQualityPostgresTest {
                 result.put("latencyMs", latency); result.put("contextCodePoints", promptCodePoints(context));
                 result.put("candidateCount", hits.size()); result.put("sourceCount", context.sources().size());
                 result.put("targets", targets); results.add(result);
+                if (c.name().equals("长分块尾部条件")) {
+                    Map<String, Object> trace = new LinkedHashMap<>();
+                    trace.put("query", c.query()); trace.put("candidates", hits);
+                    trace.put("fullRanking", diagnosticRanking.stream().map(h -> Map.of(
+                            "chunkId", h.id(), "documentId", h.documentId(), "similarity", h.similarity())).toList());
+                    for (int limit : List.of(8, 12)) {
+                        var diagnostic = builder.buildDiverseWithDiagnostics(hits, limit);
+                        trace.put("limit" + limit, Map.of("context", diagnostic.context(),
+                                "drops", diagnostic.dropReasons()));
+                    }
+                    Path tracePath = Path.of("target/retrieval-baseline/p4-rag-quality-03", plan + "-tail.json");
+                    Files.createDirectories(tracePath.getParent());
+                    Files.writeString(tracePath, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(trace));
+                }
             }
             plans.put(plan, Map.of("totalChunks", chunkCount, "embeddingInputCodePoints", inputCodePoints,
                     "embeddingCallsWithoutCache", chunkCount, "actualUncachedTextCalls", cache.size() - cacheBefore,
@@ -940,9 +960,33 @@ class AgentRetrievalQualityPostgresTest {
         }
         report.put("regressions", regressions);
         report.put("embeddingCachePolicy", "one HTTP call per unique chunk/query; shared across plans; queries prewarmed");
+        Path selectionPath = Path.of("target/retrieval-baseline/p4-rag-quality-03/real-selection.json");
+        Files.createDirectories(selectionPath.getParent());
+        Files.writeString(selectionPath, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(Map.of(
+                "model", model, "dimension", dimension, "fingerprint", fingerprint,
+                "rawDocumentHashes", report.get("rawDocumentHashes"), "results", selectionResults)));
         Path path = Path.of("target/retrieval-baseline/p4-rag-quality-02/paired-chunking.json");
         Files.createDirectories(path.getParent());
         Files.writeString(path, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(report));
+    }
+
+    private void evaluateSelection(String plan, Case c, List<UUID> ids, List<DocumentSearchHit> hits,
+                                   List<Map<String, Object>> results, boolean reference) {
+        List<EvidenceValueExperiment.Target> targets = c.expected().stream().map(e ->
+                new EvidenceValueExperiment.Target(ids.get(e.docIndex()), c.tailMarker() != null ? c.tailMarker()
+                        : CORPUS.get(e.docIndex()).chunks().get(e.chunkNo()).content())).toList();
+        for (int limit : List.of(8, 12)) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("plan", plan); row.put("name", c.name()); row.put("query", c.query()); row.put("limit", limit);
+            row.put("bucket", reference ? "SCOPED_ALL_PROJECT_REFERENCE" : c.documentScoped()
+                    ? "DOCUMENT_SCOPED_PRIMARY" : "ALL_PROJECT_PRIMARY");
+            row.put("targets", targets);
+            row.put("candidateIds", hits.stream().map(DocumentSearchHit::id).toList());
+            for (var strategy : EvidenceValueExperiment.Strategy.values()) {
+                row.put(strategy.name(), EvidenceValueExperiment.measure(strategy, c.query(), hits, limit, targets));
+            }
+            results.add(row);
+        }
     }
 
     @Autowired
