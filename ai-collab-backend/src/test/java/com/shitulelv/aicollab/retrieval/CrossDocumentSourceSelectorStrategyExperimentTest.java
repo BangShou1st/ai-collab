@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CrossDocumentSourceSelectorStrategyExperimentTest {
     private static final int MAX_SOURCES = KnowledgeContextBuilder.MAX_SOURCES_LIMIT;
     private static final ObjectMapper JSON = new ObjectMapper();
-    static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "2026-10-19",
+    static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "p4-rag-quality-01",
             "sourcecap-strategy-experiment.json");
 
     private static final Map<String, Map<String, Object>> EXPERIMENTS = new LinkedHashMap<>();
@@ -68,21 +68,30 @@ class CrossDocumentSourceSelectorStrategyExperimentTest {
                 crossDocumentCoverageGuarantee());
 
         for (Case testCase : cases) {
-            StrategyMetric current = measure("A-coverage-first", testCase, false);
-            StrategyMetric protectedStrategy = measure("B-relevance-protected", testCase, true);
+            StrategyMetric current = measure("A-coverage-first", testCase, 0);
+            StrategyMetric protectedStrategy = measure("B-relevance-protected", testCase, 1);
+            StrategyMetric compromiseStrategy = measure("C-conservative-compromise", testCase, 2);
             Map<String, Object> experiment = new LinkedHashMap<>();
             experiment.put("case", testCase.name());
             experiment.put("note", testCase.note());
             experiment.put("maxSources", testCase.maxSources());
             experiment.put("A_coverageFirst", describe(current));
             experiment.put("B_relevanceProtected", describe(protectedStrategy));
+            experiment.put("C_conservativeCompromise", describe(compromiseStrategy));
+            experiment.put("deltaExpectedRetained_B", protectedStrategy.expectedRetained() - current.expectedRetained());
+            experiment.put("deltaDocumentsCovered_B", protectedStrategy.documentsCovered() - current.documentsCovered());
+            experiment.put("deltaUnexpectedSources_B", protectedStrategy.unexpectedSources() - current.unexpectedSources());
+            experiment.put("deltaExpectedRetained_C", compromiseStrategy.expectedRetained() - current.expectedRetained());
+            experiment.put("deltaDocumentsCovered_C", compromiseStrategy.documentsCovered() - current.documentsCovered());
+            experiment.put("deltaUnexpectedSources_C", compromiseStrategy.unexpectedSources() - current.unexpectedSources());
+            // 保留旧字段以便兼容
             experiment.put("deltaExpectedRetained", protectedStrategy.expectedRetained() - current.expectedRetained());
             experiment.put("deltaDocumentsCovered", protectedStrategy.documentsCovered() - current.documentsCovered());
             experiment.put("deltaUnexpectedSources", protectedStrategy.unexpectedSources() - current.unexpectedSources());
             EXPERIMENTS.put(testCase.name(), experiment);
 
-            // 硬不变量：两策略都不得超过名额与预算，且来源身份必须自洽。
-            for (StrategyMetric metric : List.of(current, protectedStrategy)) {
+            // 硬不变量：三策略都不得超过名额与预算，且来源身份必须自洽。
+            for (StrategyMetric metric : List.of(current, protectedStrategy, compromiseStrategy)) {
                 assertThat(metric.sourceCount()).as("%s/%s：不得超过 source limit", testCase.name(), metric.strategy())
                         .isLessThanOrEqualTo(testCase.maxSources());
                 assertThat(metric.promptCodePoints()).as("%s/%s：正文预算不得超限", testCase.name(), metric.strategy())
@@ -92,19 +101,26 @@ class CrossDocumentSourceSelectorStrategyExperimentTest {
             }
         }
 
-        // E1 必须真的产生可测量的差异，否则实验形同虚设。
+        // E1 必须真的产生可测量的差异：B 和 C 都能保留被弱代表挤掉的更相关证据
         var crowded = EXPERIMENTS.get("E1-弱代表挤占第二分块");
-        assertThat((int) crowded.get("deltaExpectedRetained"))
-                .as("E1：相关度保护策略应能保留被弱代表挤掉的更相关证据")
+        assertThat((int) crowded.get("deltaExpectedRetained_B"))
+                .as("E1：相关度保护策略 B 应能保留被弱代表挤掉的更相关证据")
+                .isGreaterThan(0);
+        assertThat((int) crowded.get("deltaExpectedRetained_C"))
+                .as("E1：保守折中策略 C 应能保留被弱代表挤掉的更相关证据")
                 .isGreaterThan(0);
 
-        // E6 反向：相关度保护策略在 D-RAG-01B 的“覆盖保证”场景上会退化——取舍必须如实记录。
+        // E6 反向：相关度保护策略 B 牺牲次文档覆盖保证（退化），但保守折中策略 C 完整保住次文档证据（不退化）
         var guarantee = EXPERIMENTS.get("E6-次文档证据不可被高分文档挤掉");
-        assertThat((int) guarantee.get("deltaExpectedRetained"))
-                .as("E6：相关度保护策略会牺牲次文档覆盖保证（取舍，不直接改生产）")
+        assertThat((int) guarantee.get("deltaExpectedRetained_B"))
+                .as("E6：相关度保护策略 B 会牺牲次文档覆盖保证（取舍，不直接改生产）")
                 .isLessThan(0);
         assertThat(currentRetained(guarantee))
-                .as("E6：生产既定策略必须保住次文档证据（D-RAG-01B 保证成立）").isEqualTo(1);
+                .as("E6：生产既定策略 A 必须保住次文档证据（D-RAG-01B 保证成立）").isEqualTo(1);
+        assertThat((int) ((Map<String, Object>) guarantee.get("C_conservativeCompromise")).get("expectedRetained"))
+                .as("E6：保守折中策略 C 必须保住次文档证据（与 A 相同，无退化）").isEqualTo(1);
+        assertThat((int) guarantee.get("deltaExpectedRetained_C"))
+                .as("E6：保守折中策略 C 相比 A 净损失为 0").isEqualTo(0);
     }
 
     @SuppressWarnings("unchecked")
@@ -191,11 +207,14 @@ class CrossDocumentSourceSelectorStrategyExperimentTest {
                 3, candidates, List.of(evidenceB), List.of(documentB));
     }
 
-    private StrategyMetric measure(String strategy, Case testCase, boolean useProtected) {
+    private StrategyMetric measure(String strategy, Case testCase, int strategyMode) {
         int limit = testCase.maxSources();
-        List<DocumentSearchHit> ordered = useProtected
-                ? SourceCapStrategyExperiment.selectRelevanceProtected(testCase.candidates(), limit)
-                : SourceCapStrategyExperiment.selectCurrent(testCase.candidates(), limit);
+        List<DocumentSearchHit> ordered = switch (strategyMode) {
+            case 0 -> SourceCapStrategyExperiment.selectCurrent(testCase.candidates(), limit);
+            case 1 -> SourceCapStrategyExperiment.selectRelevanceProtected(testCase.candidates(), limit);
+            case 2 -> SourceCapStrategyExperiment.selectConservativeCompromise(testCase.candidates(), limit);
+            default -> throw new IllegalArgumentException("Unknown strategy mode: " + strategyMode);
+        };
         var assembled = SourceCapStrategyExperiment.assemble(ordered, limit);
         Set<UUID> retained = new LinkedHashSet<>(assembled.chunkIds());
 
@@ -234,9 +253,9 @@ class CrossDocumentSourceSelectorStrategyExperimentTest {
     @AfterAll
     static void writeEvidence() throws Exception {
         Map<String, Object> document = new LinkedHashMap<>();
-        document.put("note", "D-RAG-01C 第二轮阶段 D：SOURCE_CAP 选择策略对照（确定性，纯函数）。"
-                + "A=生产既定两阶段覆盖优先；B=测试侧相关度保护实验策略。"
-                + "两者候选输入、source limit、正文预算完全相同；本实验不改变生产默认算法。");
+        document.put("note", "P4-RAG-QUALITY-01 阶段四：SOURCE_CAP 选择策略对照（确定性，纯函数）。"
+                + "A=生产既定两阶段覆盖优先；B=测试侧相关度保护实验策略；C=保守折中方案（保留E6覆盖保证同时消除弱代表占满名额）。"
+                + "三者候选输入、source limit、正文预算完全相同；本实验不改变生产默认算法。");
         document.put("maxSources", MAX_SOURCES);
         document.put("experiments", EXPERIMENTS);
         Files.createDirectories(EVIDENCE_PATH.getParent());

@@ -99,6 +99,69 @@ final class SourceCapStrategyExperiment {
         return selected;
     }
 
+    /**
+     * 策略 C：保守折中方案（测试侧候选选择模拟）。
+     *
+     * <p>目标：在彻底保留 D-RAG-01B 跨文档覆盖保证（E6 必须通过，次文档代表不被高分主文档挤掉）
+     * 的前提下，消除弱相关文档代表对主文档高价值第二分块的过度挤占（解决 E1、真实基线 #2 与 #15）。</p>
+     *
+     * <p>规则：
+     * 1. 当候选文档数不超过 maxSources 时，所有文档代表天然均有充足名额，不设代表上限与相对阈值，
+     *    完整保留每个文档的最高代表分块（确保 E6 次文档覆盖 100% 成立）；
+     * 2. 当候选文档数超过 maxSources 时，代表名额上限设为 maxSources - reserve（reserve = max(1, maxSources / 6)），
+     *    优先按文档最佳分块的相似度选出前 representativeCap 个文档的代表；
+     * 3. 剩余名额一律按全局相似度补齐，使主文档的高分第二分块（如 E1 的 0.59、#2 的 rank 8、#15 的 rank 6）
+     *    得以通过全局竞争进入上下文。</p>
+     */
+    static List<DocumentSearchHit> selectConservativeCompromise(List<DocumentSearchHit> hits, int maxSources) {
+        if (hits == null || hits.isEmpty() || maxSources < 1) return List.of();
+        List<DocumentSearchHit> eligible = new ArrayList<>();
+        for (DocumentSearchHit hit : hits) {
+            if (hit == null) continue;
+            if (hit.similarity() < KnowledgeContextBuilder.MIN_SIMILARITY) continue;
+            if (hit.content() == null || hit.content().isBlank()) continue;
+            eligible.add(hit);
+        }
+        eligible.sort(Comparator
+                .comparingDouble(DocumentSearchHit::similarity).reversed()
+                .thenComparing(DocumentSearchHit::id));
+
+        Map<UUID, List<DocumentSearchHit>> byDocument = new LinkedHashMap<>();
+        Map<UUID, Set<String>> hashesByDocument = new HashMap<>();
+        List<DocumentSearchHit> unique = new ArrayList<>();
+        for (DocumentSearchHit hit : eligible) {
+            Set<String> hashes = hashesByDocument.computeIfAbsent(hit.documentId(), ignored -> new HashSet<>());
+            String hash = hit.contentHash();
+            if (hash != null && !hashes.add(hash)) continue;
+            unique.add(hit);
+            byDocument.computeIfAbsent(hit.documentId(), ignored -> new ArrayList<>()).add(hit);
+        }
+
+        List<DocumentSearchHit> selected = new ArrayList<>();
+        Set<UUID> selectedIds = new LinkedHashSet<>();
+        // 如果候选文档数严格小于 maxSources（如 E6：2 文档 < 3 名额），
+        // 则每个文档代表都能入选，且自然留出至少 1 个名额给全局补齐（主文档第二分块），次文档与主文档兼得；
+        // 如果候选文档数 >= maxSources（如 E1：13 文档 >= 12 名额；真实基线 #2/#15：12 文档 >= 12 名额），
+        // 则绝不能把名额全部分配给单文档代表，必须将代表上限限制为 maxSources - reserve，
+        // 确保至少 reserve 个名额留给全局高分竞争，避免高相关第二分块被弱代表挤占。
+        int representativeCap = byDocument.size() < maxSources
+                ? byDocument.size()
+                : maxSources - globalFillReserve(maxSources);
+
+        for (List<DocumentSearchHit> documentHits : byDocument.values()) {
+            if (selected.size() >= representativeCap) break;
+            DocumentSearchHit representative = documentHits.getFirst();
+            selected.add(representative);
+            selectedIds.add(representative.id());
+        }
+
+        for (DocumentSearchHit hit : unique) {
+            if (selected.size() == maxSources) break;
+            if (selectedIds.add(hit.id())) selected.add(hit);
+        }
+        return selected;
+    }
+
     /** 装配结果：保留的分块/文档身份、上下文字符预算占用与来源数。 */
     record Assembled(List<UUID> chunkIds, Set<UUID> documentIds, int promptCodePoints, int sourceCount) {}
 

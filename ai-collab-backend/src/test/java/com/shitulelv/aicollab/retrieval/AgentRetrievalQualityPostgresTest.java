@@ -112,8 +112,8 @@ class AgentRetrievalQualityPostgresTest {
     private static final double DOCUMENT_SCOPED_RETENTION_AT20_FLOOR = 0.8333d;
     private static final double DOCUMENT_SCOPED_COVERAGE_AT20_FLOOR = 0.8333d;
 
-    /** 诊断 JSON 只落 Maven target/，绝不写回仓库里既有的验收快照（第二轮：新路径，不覆盖 2026-10-18 旧证据）。 */
-    static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "2026-10-19",
+    /** 诊断 JSON 只落 Maven target/，绝不写回仓库里既有的验收快照（P4-RAG-QUALITY-01：新路径，不覆盖 2026-10-19 旧证据）。 */
+    static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "p4-rag-quality-01",
             "real-retrieval-quality-scoped.json");
 
     private record ChunkSeed(String heading, String content) {}
@@ -467,7 +467,8 @@ class AgentRetrievalQualityPostgresTest {
                 "该 20 样本探索汇总包含六条用户已指定文档问题的全项目反事实搜索，不代表独立全项目问题集。");
         evidence.put("sourceCapStrategySemantics",
                 "A 使用生产 CrossDocumentSourceSelector，且装配预算通过 buildDiverse parity test；"
-                        + "B 是测试侧候选选择模拟，其结果属于近似实验指标，不代表生产上下文提升。");
+                        + "B 是测试侧相关度保护候选选择模拟；C 是测试侧保守折中候选选择模拟（保留 E6 覆盖保证同时消除弱代表占位）。"
+                        + "B 和 C 的结果属于近似实验指标，不代表生产上下文提升。");
         evidence.put("cases", measuredCases);
         evidence.put("summary", summary);
         Files.createDirectories(EVIDENCE_PATH.getParent());
@@ -803,17 +804,23 @@ class AgentRetrievalQualityPostgresTest {
                 SourceCapStrategyExperiment.selectCurrent(candidates, AGENT_LIMIT), AGENT_LIMIT);
         var protectedStrategy = SourceCapStrategyExperiment.assemble(
                 SourceCapStrategyExperiment.selectRelevanceProtected(candidates, AGENT_LIMIT), AGENT_LIMIT);
+        var compromiseStrategy = SourceCapStrategyExperiment.assemble(
+                SourceCapStrategyExperiment.selectConservativeCompromise(candidates, AGENT_LIMIT), AGENT_LIMIT);
 
         Map<String, Object> comparison = new LinkedHashMap<>();
         comparison.put("expectedEvidenceCount", expectedChunks.size());
         comparison.put("currentExpectedRetained", retainedCount(current.chunkIds(), expectedChunks));
         comparison.put("protectedExpectedRetained", retainedCount(protectedStrategy.chunkIds(), expectedChunks));
+        comparison.put("compromiseExpectedRetained", retainedCount(compromiseStrategy.chunkIds(), expectedChunks));
         comparison.put("currentDocumentsCovered", coveredExpectedDocuments(current.chunkIds(), expected));
         comparison.put("protectedDocumentsCovered", coveredExpectedDocuments(protectedStrategy.chunkIds(), expected));
+        comparison.put("compromiseDocumentsCovered", coveredExpectedDocuments(compromiseStrategy.chunkIds(), expected));
         comparison.put("currentUnexpectedSources", unexpectedCount(current.chunkIds(), expectedChunks));
         comparison.put("protectedUnexpectedSources", unexpectedCount(protectedStrategy.chunkIds(), expectedChunks));
+        comparison.put("compromiseUnexpectedSources", unexpectedCount(compromiseStrategy.chunkIds(), expectedChunks));
         comparison.put("currentPromptCodePoints", current.promptCodePoints());
         comparison.put("protectedPromptCodePoints", protectedStrategy.promptCodePoints());
+        comparison.put("compromisePromptCodePoints", compromiseStrategy.promptCodePoints());
         return comparison;
     }
 
@@ -841,17 +848,20 @@ class AgentRetrievalQualityPostgresTest {
         return denominator == 0 ? 0d : Math.round(((double) numerator / denominator) * 10_000d) / 10_000d;
     }
 
-    /** 汇总某一范围维度下 A/B 两种 SOURCE_CAP 策略的期望证据保留与文档覆盖（同一批真实候选）。 */
+    /** 汇总某一范围维度下 A/B/C 三种 SOURCE_CAP 策略的期望证据保留与文档覆盖（同一批真实候选）。 */
     private static Map<String, Object> summarizeSourceCapStrategy(
             List<Map<String, Object>> items, String scopeLabel, String strategyField) {
         int cases = 0;
         int expected = 0;
         int currentRetained = 0;
         int protectedRetained = 0;
+        int compromiseRetained = 0;
         int currentDocs = 0;
         int protectedDocs = 0;
+        int compromiseDocs = 0;
         int currentUnexpected = 0;
         int protectedUnexpected = 0;
+        int compromiseUnexpected = 0;
         for (Map<String, Object> item : items) {
             if (!scopeLabel.equals(item.get("scope"))) continue;
             @SuppressWarnings("unchecked")
@@ -860,24 +870,33 @@ class AgentRetrievalQualityPostgresTest {
             expected += number(strategy.get("expectedEvidenceCount"));
             currentRetained += number(strategy.get("currentExpectedRetained"));
             protectedRetained += number(strategy.get("protectedExpectedRetained"));
+            compromiseRetained += number(strategy.get("compromiseExpectedRetained"));
             currentDocs += number(strategy.get("currentDocumentsCovered"));
             protectedDocs += number(strategy.get("protectedDocumentsCovered"));
+            compromiseDocs += number(strategy.get("compromiseDocumentsCovered"));
             currentUnexpected += number(strategy.get("currentUnexpectedSources"));
             protectedUnexpected += number(strategy.get("protectedUnexpectedSources"));
+            compromiseUnexpected += number(strategy.get("compromiseUnexpectedSources"));
         }
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("caseCount", cases);
         summary.put("expectedEvidenceCount", expected);
         summary.put("currentExpectedRetained", currentRetained);
         summary.put("protectedExpectedRetained", protectedRetained);
-        summary.put("deltaExpectedRetained", protectedRetained - currentRetained);
+        summary.put("compromiseExpectedRetained", compromiseRetained);
+        summary.put("deltaExpectedRetained_B", protectedRetained - currentRetained);
+        summary.put("deltaExpectedRetained_C", compromiseRetained - currentRetained);
         summary.put("currentExpectedRetention", ratioOrZero(currentRetained, expected));
         summary.put("protectedExpectedRetention", ratioOrZero(protectedRetained, expected));
+        summary.put("compromiseExpectedRetention", ratioOrZero(compromiseRetained, expected));
         summary.put("currentDocumentsCovered", currentDocs);
         summary.put("protectedDocumentsCovered", protectedDocs);
-        summary.put("deltaDocumentsCovered", protectedDocs - currentDocs);
+        summary.put("compromiseDocumentsCovered", compromiseDocs);
+        summary.put("deltaDocumentsCovered_B", protectedDocs - currentDocs);
+        summary.put("deltaDocumentsCovered_C", compromiseDocs - currentDocs);
         summary.put("currentUnexpectedSources", currentUnexpected);
         summary.put("protectedUnexpectedSources", protectedUnexpected);
+        summary.put("compromiseUnexpectedSources", compromiseUnexpected);
         return summary;
     }
 
