@@ -136,6 +136,102 @@ class GeminiLiveAcceptanceTest {
     }
 
     @Test
+    void networkRecovery_boundedRetriesWithResponseDiagnostics() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                "network-recovery-02".equals(System.getenv("AI_GEMINI_ACCEPTANCE_RETRY")), "Explicit bounded retry opt-in required");
+        java.nio.file.Path evidence = java.nio.file.Path.of("target/rag-answer-quality-01/network-recovery-02/connectivity.json");
+        org.junit.jupiter.api.Assumptions.assumeFalse(java.nio.file.Files.exists(evidence), "Do not repeat reserved requests");
+        GeminiLiveTestSupport.withAuthorizedApiKey(apiKey -> {
+            ObjectNode record = mapper.createObjectNode();
+            record.put("priorGenerationAttempts", 5).put("cumulativeLimit", 24).put("additionalAttemptLimit", 3);
+            record.put("model", "gemini-3.1-flash-lite").put("maxOutputTokens", 2048).put("query", "请只回答 OK");
+            var attempts = record.putArray("attempts");
+            OffsetDateTime now = OffsetDateTime.now();
+            ModelConfiguration cfg = new ModelConfiguration(UUID.randomUUID(), UUID.randomUUID(), "Gemini bounded recovery",
+                    ModelProviderType.GEMINI, "https://generativelanguage.googleapis.com", "/v1beta/models/{model}:generateContent",
+                    "unused-encrypted-placeholder", "gemini-3.1-flash-lite", true, 0.2, 2048,
+                    EnumSet.allOf(ModelCapability.class), now, now);
+            for (int attempt = 1; attempt <= 3; attempt++) {
+                ObjectNode row = attempts.addObject().put("requestNumber", 5 + attempt).put("status", "REQUEST_RESERVED");
+                row.put("startedAt", OffsetDateTime.now().toString());
+                var real = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(15))
+                        .followRedirects(java.net.http.HttpClient.Redirect.NEVER).build();
+                String proxy = real.proxy().orElse(java.net.ProxySelector.getDefault())
+                        .select(java.net.URI.create(cfg.baseUrl())).toString();
+                row.put("selectedJavaProxy", proxy);
+                assertThat(proxy).contains("7897");
+                writeRecoveryRecord(evidence, record);
+                JsonHttpModelClient http = new JsonHttpModelClient(mapper, endpointPolicy, new RecordingHttpClient(real, row, apiKey));
+                try {
+                    ChatCompletionResult result = new GeminiModelAdapter(mapper, http).complete(cfg, apiKey,
+                            new ChatCompletionCommand(null, "You are a concise assistant.", "请只回答 OK",
+                                    ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), null));
+                    row.set("completion", mapper.valueToTree(result));
+                    row.put("status", "COMPLETED");
+                    writeRecoveryRecord(evidence, record);
+                    assertThat(result.content().strip()).isEqualTo("OK");
+                    row.put("status", "PASS");
+                    writeRecoveryRecord(evidence, record);
+                    return null;
+                } catch (BusinessException failure) {
+                    row.put("status", "INCONCLUSIVE").put("errorCode", failure.getErrorCode().name());
+                    writeRecoveryRecord(evidence, record);
+                    if (!GeminiLiveTestSupport.isHttp503(failure) || attempt == 3) break;
+                    try { Thread.sleep(3_000L * attempt); }
+                    catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); break; }
+                } finally { http.close(); }
+            }
+            org.junit.jupiter.api.Assumptions.abort("INCONCLUSIVE: bounded connectivity attempts did not complete");
+            return null;
+        });
+    }
+
+    /** Delegates actual requests unchanged; only allowlisted response diagnostics are recorded. */
+    private static final class RecordingHttpClient extends java.net.http.HttpClient {
+        private final java.net.http.HttpClient real;
+        private final ObjectNode record;
+        private final String credential;
+        RecordingHttpClient(java.net.http.HttpClient real, ObjectNode record, String credential) {
+            this.real = real; this.record = record; this.credential = credential;
+        }
+        @Override public <T> java.net.http.HttpResponse<T> send(java.net.http.HttpRequest request,
+                java.net.http.HttpResponse.BodyHandler<T> handler) throws java.io.IOException, InterruptedException {
+            var response = real.send(request, handler);
+            record.put("httpStatus", response.statusCode()).put("httpVersion", response.version().name());
+            record.put("responseAt", OffsetDateTime.now().toString());
+            var headers = record.putObject("responseHeaders");
+            for (String name : List.of("server", "content-type", "retry-after", "via")) {
+                response.headers().firstValue(name).ifPresent(value -> headers.put(name, value.replace(credential, "[REDACTED]")));
+            }
+            if (response.statusCode() >= 400 && response.body() instanceof String body) {
+                try {
+                    var error = mapper.readTree(body).path("error");
+                    var safe = record.putObject("providerError");
+                    for (String name : List.of("code", "status", "message")) {
+                        String value = error.path(name).asText("").replace(credential, "[REDACTED]");
+                        safe.put(name, value.substring(0, Math.min(1500, value.length())));
+                    }
+                } catch (java.io.IOException invalidJson) { record.put("providerErrorFormat", "NON_JSON_BODY_NOT_SAVED"); }
+            }
+            return response;
+        }
+        @Override public java.util.Optional<java.net.CookieHandler> cookieHandler() { return real.cookieHandler(); }
+        @Override public java.util.Optional<java.time.Duration> connectTimeout() { return real.connectTimeout(); }
+        @Override public Redirect followRedirects() { return real.followRedirects(); }
+        @Override public java.util.Optional<java.net.ProxySelector> proxy() { return real.proxy(); }
+        @Override public javax.net.ssl.SSLContext sslContext() { return real.sslContext(); }
+        @Override public javax.net.ssl.SSLParameters sslParameters() { return real.sslParameters(); }
+        @Override public java.util.Optional<java.net.Authenticator> authenticator() { return real.authenticator(); }
+        @Override public Version version() { return real.version(); }
+        @Override public java.util.Optional<java.util.concurrent.Executor> executor() { return real.executor(); }
+        @Override public <T> java.util.concurrent.CompletableFuture<java.net.http.HttpResponse<T>> sendAsync(
+                java.net.http.HttpRequest request, java.net.http.HttpResponse.BodyHandler<T> handler) { return real.sendAsync(request, handler); }
+        @Override public <T> java.util.concurrent.CompletableFuture<java.net.http.HttpResponse<T>> sendAsync(
+                java.net.http.HttpRequest request, java.net.http.HttpResponse.BodyHandler<T> handler,
+                java.net.http.HttpResponse.PushPromiseHandler<T> push) { return real.sendAsync(request, handler, push); }
+    }
+
+    @Test
     @Order(1)
     void phase1_minimalConnection_gemini31FlashLite() {
         ModelConfiguration cfg = config("gemini-3.1-flash-lite");
