@@ -1,0 +1,102 @@
+{
+  "evidence": "BSK real Edge capture; metadata only",
+  "bsk_version": "0.3.3",
+  "run_name": "p2-e2e-02-planning-scale",
+  "requests": 122,
+  "operations": 14,
+  "errors": 0,
+  "dropped_requests": 0,
+  "dropped_operations": 0,
+  "dropped_console": 0,
+  "coverage": [
+    "from_start",
+    "task_tab",
+    "text_bodies_bounded",
+    "time_window_not_causality",
+    "page_main_frame",
+    "worker_targets_not_captured",
+    "manual_main_frame_only",
+    "initial_load_not_recorded"
+  ],
+  "routes": [
+    {
+      "method": "GET",
+      "route": "/api/v1/projects/{projectId}/ai/task-plans",
+      "count": 43,
+      "statuses": {
+        "200": 43
+      },
+      "failed": 0,
+      "http_errors": 0,
+      "slow": 0,
+      "p95_ms": 21.21,
+      "mean_ms": 16.04
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/projects/{projectId}/ai/task-plans/{planId}",
+      "count": 22,
+      "statuses": {
+        "200": 22
+      },
+      "failed": 0,
+      "http_errors": 0,
+      "slow": 0,
+      "p95_ms": 22.31,
+      "mean_ms": 17.09
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/projects/{projectId}/ai/task-plans/{planId}/events",
+      "count": 22,
+      "statuses": {
+        "200": 22
+      },
+      "failed": 0,
+      "http_errors": 0,
+      "slow": 0,
+      "p95_ms": 22.85,
+      "mean_ms": 14.0
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/projects/{projectId}/ai/task-plans/{planId}/versions",
+      "count": 22,
+      "statuses": {
+        "200": 22
+      },
+      "failed": 0,
+      "http_errors": 0,
+      "slow": 0,
+      "p95_ms": 17.88,
+      "mean_ms": 13.35
+    },
+    {
+      "method": "GET",
+      "route": "/api/v1/projects/{projectId}/ai/task-plans/{planId}/versions/{versionId}",
+      "count": 11,
+      "statuses": {
+        "200": 11
+      },
+      "failed": 0,
+      "http_errors": 0,
+      "slow": 0,
+      "p95_ms": 34.82,
+      "mean_ms": 15.85
+    },
+    {
+      "method": "POST",
+      "route": "/api/v1/projects/{projectId}/ai/task-plans",
+      "count": 1,
+      "statuses": {
+        "202": 1
+      },
+      "failed": 0,
+      "http_errors": 0,
+      "slow": 0,
+      "p95_ms": 389.29,
+      "mean_ms": 389.29
+    }
+  ],
+  "ui_business_outcome": "DETAIL_GENERATION_FAILED: 8-task skeleton persisted as v1; no detailed plan or official tasks were committed"
+}

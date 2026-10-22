@@ -1,5 +1,25 @@
 # 能力矩阵
 
+## 2026-10-20 当前基线与 P3 规划入口
+
+当前研究基线 `dev@09d80639185fbb89e74b71d37d3af272bf43ad5f`。最新能力/验证分层、候选需求与 P2 风险以 [P3-SCOPE-01](p3-scope-01.md) 为入口；下文 2026-10-03～05 的 P1–P4 为历史交付编号，不是新 P3 待办。历史静态缺口必须先核对后续实现，不能直接重复开发。
+
+| 当前增量事实 | 验证层级与限制 | 证据 |
+| --- | --- | --- |
+| RAG、Agent 检索来源、AI 规划8任务编辑确认及刷新已通过 | 真实模型+浏览器；并发/所有异常不外推 | [P2闭环](acceptance-evidence/2026-10-19/p2-business-e2e-02/README.md) |
+| Member 私有项目中性404、Ollama停机/恢复已复验 | 真实浏览器/本机服务；历史6份文档未代操作 | [HARDEN](acceptance-evidence/2026-10-19/p2-harden-01/README.md) |
+| Agent SSE同页断线→传输重连→事件对齐已通过 | 受控真实Edge/后端/免费模型；历史ERR_ABORTED仍未归因 | [OBS-02](acceptance-evidence/2026-10-20/p3-obs-02/README.md) |
+| 无本地证据AbortError归UNKNOWN；重连未对齐再断开退回RECONNECTING | 本轮测试先红后绿；仅诊断模块，不宣称新增浏览器验收 | [SCOPE记录](acceptance-evidence/2026-10-20/p3-scope-01/README.md) |
+| 工作台我的待办直达任务详情 U-01 已批准并实现 | 路由/竞态自动化 + 真实 Edge 桌面/窄屏与 MEMBER 权限；无模型调用；后续 U-02/U-03 独立交付见下行，U-04 后续最小增量见下行，U-05 未实施 | [TASK-01 验收](acceptance-evidence/2026-10-20/p3-task-01/README.md) |
+
+| 任务通知直达任务详情 U-02 已批准并实现 | 27 项通知测试、4 项深链衔接/离页回归、3 项真实 PostgreSQL 测试；真实 Edge 桌面/390px/键盘、删除与跨项目目标、Owner 移除 Member；无模型调用。已读失败/网络乱序为自动化证据 | [TASK-02 验收](acceptance-evidence/2026-10-20/p3-task-02/README.md) |
+
+| AI 配置状态准确性 U-03 已批准并实现 | 工作台不再把“存在配置”显示为“已就绪”；个人 AI 设置按用途显示解析状态与“未验证/本次会话测试”；加载失败显示未知而非未配置；无自动模型探测；Member 无系统 Embedding 入口。自动化 + 真实 Edge；未注入真实 Provider 429 | [TASK-03 验收](acceptance-evidence/2026-10-20/p3-task-03/README.md) |
+
+| 资料失败恢复指引 U-04 最小增量已批准并实现 | 已有安全文案精确映射原因与责任角色；未知错误不回显原文；单项重试防重复、提交与最终状态分离、刷新失败未知、只读禁用。自动化 + 真实 Edge/后端解析失败与 Owner/Admin 重试、Member 403、撤权中性 404；Embedding/未知错误仅受控响应，不宣称真实索引恢复 | [TASK-04 验收](acceptance-evidence/2026-10-20/p3-task-04/README.md) |
+
+以下保留原历史矩阵；其中“最后更新”只描述当时快照。
+
 维护约定（依据 [ai-next-stage-blueprint.md](ai-next-stage-blueprint.md) 8.3）：
 
 - 本表记录**当前 checkout** 的能力状态；历史审查（`ai-capability-review.md`）与验收报告只作为证据链接，不混列成当前待办。

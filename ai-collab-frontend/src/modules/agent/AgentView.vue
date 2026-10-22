@@ -21,6 +21,7 @@ const {
   summaryOf, isCreator, relativeTime, runStatusLabel, evidenceTitle, evidenceDetail,
   statusDot, members, skills, selectedSkillCode, question, busy, sending,
   activeRun, timeline, activeRunState, pageContext, hasPageContext,
+  sseDiagnostics, describeAgentSseDisconnect,
   newSession, renameSession, deleteSession, send, removeContext, clearContext,
   approve, reject, approvalBusy, continueRunHandler, retryActiveRun, cancelActiveRun,
   pauseActiveRun, pauseBusy, pausePending, canPause, time,
@@ -89,6 +90,21 @@ const tokenUsageLine = computed(() => {
     : `输出 ${run.outputTokensUsed}/${run.maxOutputTokens}${basis}`
   const selfScope = run.contextPolicyVersion === 2 ? ' · 本运行自身执行额度（不含子运行）' : ''
   return `Tokens ${inputPart} · ${outputPart}${selfScope} · Run ${runDetail.value?.run.id ?? run.id}`
+})
+/**
+ * SSE 连接状态说明：区分「已连接 / 重连中 / 传输已重连（等待事件续接）/ 已恢复」。
+ * "已恢复"只在持久事件或运行状态对齐后才显示——仅收到 HTTP 200 只算"传输已重连"，
+ * 避免把传输重建误报成完整事件恢复；证据不足的情形不在此给出确定性归因。
+ */
+const sseStatusLine = computed(() => {
+  const d = sseDiagnostics.value
+  const detail = d.category
+    ? `${describeAgentSseDisconnect(d.category)} · 断线前 seq ${d.lastSequence}`
+    : ''
+  if (d.state === 'RECONNECTING') return `重连中（${detail} · 第 ${d.attempts} 次尝试）`
+  if (d.state === 'TRANSPORT_RECONNECTED') return `传输已重连 · 等待事件续接（${detail}）`
+  if (d.state === 'RECOVERED') return `已恢复（${detail}）`
+  return timeline.value.connected ? '已连接' : '未连接'
 })
 const grouped = (items: AgentActivity[]): ConversationActivity[] => groupAgentActivities(items)
 function activityTech(act: AgentActivity): string {
@@ -341,7 +357,7 @@ watch(sessionId, () => {
           />
           <div class="inspector-meta-lines">
             <span v-if="activeModel" class="inspector-meta">模型 {{ activeModel.model }}</span>
-            <p class="inspector-meta">SSE {{ activeRun?.status === 'PAUSED' ? '已暂停（无需实时连接）' : (timeline.connected ? '已连接' : '未连接') }}</p>
+            <p class="inspector-meta">SSE {{ activeRun?.status === 'PAUSED' ? '已暂停（无需实时连接）' : sseStatusLine }}</p>
             <p class="inspector-meta">Steps {{ activeRun.stepsUsed }}/{{ activeRun.maxSteps }} · Tools {{ activeRun.toolCallsUsed }}/{{ activeRun.maxToolCalls }}{{ activeRun.contextPolicyVersion === 2 ? ' · 本运行自身（子运行额度独立，不从此处扣减）' : '' }}</p>
           </div>
           <div v-if="activeRunState?.canRetry" class="inspector-actions">
@@ -374,6 +390,9 @@ watch(sessionId, () => {
           <p v-if="runDetail?.recoveryCounters" class="inspector-meta">模型重试 {{ runDetail.recoveryCounters.MODEL_RETRY ?? 0 }} · 格式修复 {{ runDetail.recoveryCounters.FORMAT_REPAIR ?? 0 }} · 参数纠正 {{ runDetail.recoveryCounters.PARAMETER_CORRECTION ?? 0 }}</p>
           <p class="inspector-meta">{{ tokenUsageLine }}</p>
           <p class="inspector-meta">Sequence {{ runDetail?.lastEventSequence }} · SSE {{ timeline.connected ? '已连接' : '未连接' }}</p>
+          <p v-if="sseDiagnostics.category" class="inspector-meta" data-test="agent-sse-diagnostic">
+            断线诊断：{{ sseStatusLine }}
+          </p>
         </details>
       </aside>
     </div>

@@ -45,6 +45,7 @@ public class DocumentResearchDelegateAgentTool implements AgentTool {
         return AgentToolDefinition.fromJson(name(),
                 "把需要多次检索与正文对照的文档研究任务委派给只读研究子 Agent；"
                         + "受理后本运行暂停等待，子 Agent 完成后其发现、来源与覆盖缺口会返回给你，由你综合回答。"
+                        + "子 Agent 继承根用户请求的明确来源限制；委派 objective 不能扩大授权范围。"
                         + "只在确需多轮资料研究时使用：简单检索直接用 search_project_knowledge，单个任务事实用 list_tasks/get_task。",
                 """
                 {"type":"object","additionalProperties":false,"required":["objective"],

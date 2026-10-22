@@ -1,0 +1,363 @@
+{
+  "scope": "U-04 only; real Edge + real backend; controlled responses labelled separately",
+  "captures": [
+    {
+      "runId": "d280b39553bad",
+      "requests": [
+        {
+          "id": "d280b39553bad:n1",
+          "method": "POST",
+          "status": 202,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents"
+        },
+        {
+          "id": "d280b39553bad:n2",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7"
+        },
+        {
+          "id": "d280b39553bad:n3",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents"
+        },
+        {
+          "id": "d280b39553bad:n4",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2"
+        },
+        {
+          "id": "d280b39553bad:n5",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2/reading"
+        },
+        {
+          "id": "d280b39553bad:n8",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7"
+        },
+        {
+          "id": "d280b39553bad:n9",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents"
+        },
+        {
+          "id": "d280b39553bad:n10",
+          "method": "POST",
+          "status": 202,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2/retry"
+        },
+        {
+          "id": "d280b39553bad:n11",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7"
+        },
+        {
+          "id": "d280b39553bad:n12",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents"
+        },
+        {
+          "id": "d280b39553bad:n13",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2"
+        },
+        {
+          "id": "d280b39553bad:n14",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2/reading"
+        },
+        {
+          "id": "d280b39553bad:n17",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7"
+        },
+        {
+          "id": "d280b39553bad:n18",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents"
+        },
+        {
+          "id": "d280b39553bad:n19",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2"
+        },
+        {
+          "id": "d280b39553bad:n20",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2/reading"
+        },
+        {
+          "id": "d280b39553bad:n21",
+          "method": "GET",
+          "state": "failed",
+          "error": "net::ERR_ABORTED",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2",
+          "intervention": {
+            "type": "modify",
+            "state": "failed",
+            "error": "request control failed; request aborted"
+          }
+        },
+        {
+          "id": "d280b39553bad:n22",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2"
+        },
+        {
+          "id": "d280b39553bad:n23",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2",
+          "intervention": {
+            "type": "mock",
+            "state": "applied"
+          }
+        },
+        {
+          "id": "d280b39553bad:n24",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2",
+          "intervention": {
+            "type": "mock",
+            "state": "applied"
+          }
+        },
+        {
+          "id": "d280b39553bad:n25",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7"
+        },
+        {
+          "id": "d280b39553bad:n26",
+          "method": "GET",
+          "state": "failed",
+          "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents",
+          "intervention": {
+            "type": "block",
+            "state": "applied"
+          }
+        },
+        {
+          "id": "d280b39553bad:n27",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7"
+        },
+        {
+          "id": "d280b39553bad:n28",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents"
+        }
+      ],
+      "droppedRequests": 0,
+      "droppedOperations": 0
+    },
+    {
+      "runId": "d6bfd68a837c1",
+      "requests": [
+        {
+          "id": "d6bfd68a837c1:n1",
+          "method": "POST",
+          "status": 202,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2/retry"
+        },
+        {
+          "id": "d6bfd68a837c1:n2",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7"
+        },
+        {
+          "id": "d6bfd68a837c1:n3",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents"
+        },
+        {
+          "id": "d6bfd68a837c1:n4",
+          "method": "POST",
+          "status": 403,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2/retry"
+        },
+        {
+          "id": "d6bfd68a837c1:n5",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7"
+        },
+        {
+          "id": "d6bfd68a837c1:n6",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents"
+        },
+        {
+          "id": "d6bfd68a837c1:n7",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2"
+        },
+        {
+          "id": "d6bfd68a837c1:n8",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2/reading"
+        },
+        {
+          "id": "d6bfd68a837c1:n9",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents"
+        },
+        {
+          "id": "d6bfd68a837c1:n157",
+          "method": "GET",
+          "status": 404,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7"
+        }
+      ],
+      "droppedRequests": 0,
+      "droppedOperations": 0
+    },
+    {
+      "runId": "d3915353778ff",
+      "requests": [
+        {
+          "id": "d3915353778ff:n1",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2"
+        },
+        {
+          "id": "d3915353778ff:n2",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2/reading"
+        },
+        {
+          "id": "d3915353778ff:n3",
+          "method": "POST",
+          "status": 202,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents/ea834b6a-a88a-4899-a581-868faf942ab2/retry"
+        },
+        {
+          "id": "d3915353778ff:n4",
+          "method": "GET",
+          "status": 200,
+          "state": "complete",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7"
+        },
+        {
+          "id": "d3915353778ff:n5",
+          "method": "GET",
+          "state": "failed",
+          "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector",
+          "path": "/api/v1/projects/6dcfcf68-5a3e-4d8d-b030-2181dcffbee7/documents",
+          "intervention": {
+            "type": "block",
+            "state": "applied"
+          }
+        }
+      ],
+      "droppedRequests": 0,
+      "droppedOperations": 0
+    }
+  ],
+  "domChecks": {
+    "unknown-dom.json": {
+      "guide": "处理失败，原因暂不明确\n\n请联系项目所有者或管理员检查原文件并尝试单项重试；若持续失败，再联系服务维护者排查。\n\n重试只处理此文档，不会自动重试其他失败资料；提交成功不代表处理完成。",
+      "rawVisible": false
+    },
+    "outage-dom.json": {
+      "unknown": true,
+      "stale": true,
+      "retryDisabled": true
+    },
+    "readonly-dom.json": {
+      "readonly": true,
+      "retryDisabled": true
+    },
+    "admin-retry-dom.json": {
+      "feedback": "“invalid-utf8”已提交处理，请以下方最新状态为准；仅“可检索”表示处理完成。",
+      "retryButtons": 1
+    },
+    "member-denied-dom.json": {
+      "feedback": "“invalid-utf8”的重试请求未确认成功，请刷新状态后再决定是否重试。",
+      "retryButtons": 0,
+      "memberHint": true
+    },
+    "member-detail-dom.json": {
+      "guide": "文件编码不受支持\n\n请上传者将文件保存为 UTF-8 编码，再由项目所有者或管理员重新上传；直接重试不会修正文件编码。\n\n你当前不能重试文档，请联系项目所有者或管理员处理。",
+      "buttons": [
+        "",
+        "下载原文件",
+        "交给 Agent"
+      ]
+    },
+    "revoked-dom.json": {
+      "neutralDenial": true,
+      "oldDocumentVisible": false,
+      "retryButtons": 0
+    },
+    "detail-outage-dom.json": {
+      "drawerUnknown": true,
+      "staleLabel": true,
+      "falseProcessingClaim": false,
+      "feedback": "“invalid-utf8”已提交处理，请以下方最新状态为准；仅“可检索”表示处理完成。"
+    }
+  }
+}

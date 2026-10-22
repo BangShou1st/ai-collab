@@ -1,0 +1,98 @@
+{
+  "source": "BrowserSkill debug metadata",
+  "captureRunId": "d3215f1846183",
+  "browserSkillVersion": "0.3.3",
+  "browser": "Microsoft Edge 155",
+  "captureStartedBefore": "retry-detail UI action",
+  "captureStoppedAfter": "confirmation, page reload, and task detail verification",
+  "captureIntegrity": {
+    "networkErrors": 0,
+    "droppedRequests": 0,
+    "droppedOperations": 0,
+    "droppedConsoleRecords": 0,
+    "bodiesHeadersCookiesAndQueryStringsStored": false,
+    "identifiersInPaths": "replaced with {id}"
+  },
+  "browserOperationNotes": {
+    "failedUiAttempts": 2,
+    "reason": "BSK could not click or scroll to the hidden native checkbox input",
+    "recovery": "Clicked the visible label using its observed CSS selector; checkbox became checked and confirm button enabled",
+    "businessActionSucceeded": true
+  },
+  "businessRequests": [
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{id}/ai/task-plans/{id}/retry-detail",
+      "status": 202,
+      "durationMs": 141.07,
+      "result": "Real model retry accepted; page reached READY state with a new complete detail version"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{id}/ai/task-plans/{id}/versions",
+      "status": 200,
+      "durationMs": 100.34,
+      "result": "Owner-edited version v3 saved"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/projects/{id}/ai/task-plans/{id}/confirm",
+      "status": 200,
+      "durationMs": 65.07,
+      "result": "One confirmation created official tasks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{id}/ai/task-plans",
+      "status": 200,
+      "result": "Plan list reloaded after confirmation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{id}/ai/task-plans/{id}",
+      "status": 200,
+      "result": "Reloaded plan detail retained confirmed status and v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{id}/ai/task-plans/{id}/versions",
+      "status": 200,
+      "result": "Reloaded version list retained v3"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{id}/ai/task-plans/{id}/versions/{id}",
+      "status": 200,
+      "result": "Reloaded saved plan version"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{id}/ai/task-plans/{id}/events",
+      "status": 200,
+      "result": "Reloaded plan event history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{id}/tasks",
+      "status": 200,
+      "durationMs": 61.3,
+      "result": "Board loaded with 12 pending tasks: 4 pre-existing tasks plus 8 from this plan"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects/{id}/tasks",
+      "status": 200,
+      "durationMs": 27.02,
+      "result": "Board reloaded with the same 12 pending tasks"
+    }
+  ],
+  "reloadVerification": {
+    "planStatus": "已创建正式任务",
+    "planVersion": "v3 用户修改",
+    "taskCountFromPlan": 8,
+    "milestoneCountFromPlan": 3,
+    "dependencyCountFromPlan": 3,
+    "editedDescriptionPresentInOfficialTaskDetail": true,
+    "duplicateConfirmationSubmitted": false
+  }
+}

@@ -165,6 +165,8 @@ class AgentDelegationPostgresTest {
         var access = mock(ProjectAccessGuard.class);
         Mockito.lenient().when(access.requireMember(any(), any())).thenReturn(ProjectRole.OWNER);
         var search = mock(DocumentSearchService.class);
+        Mockito.lenient().when(search.resolveUserDocumentScope(any(), any()))
+                .thenReturn(DocumentSearchService.UserDocumentScope.unrestricted());
         Mockito.lenient().when(search.search(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(List.of());
         var knowledgeTool = new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), json);
@@ -498,6 +500,9 @@ class AgentDelegationPostgresTest {
         org.mockito.Mockito.lenient().when(access.requireMember(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(com.shitulelv.aicollab.project.domain.model.ProjectRole.OWNER);
         var search = org.mockito.Mockito.mock(DocumentSearchService.class);
+        org.mockito.Mockito.lenient().when(search.resolveUserDocumentScope(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(DocumentSearchService.UserDocumentScope.unrestricted());
         org.mockito.Mockito.lenient().when(search.search(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(List.of());
         var knowledgeTool = new KnowledgeSearchAgentTool(access, search, new KnowledgeContextBuilder(), json);

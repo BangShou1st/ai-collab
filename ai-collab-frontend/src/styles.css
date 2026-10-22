@@ -7,6 +7,17 @@
 .app-content {
   width: 100%;
 }
+.project-access-denied {
+  width: min(640px, calc(100% - 48px));
+  margin: 64px auto;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+.project-access-denied h1 { margin: 0 0 8px; font-size: 20px; }
+.project-access-denied p { margin: 0 0 16px; color: var(--color-text-secondary); }
+.project-access-denied a { color: var(--color-primary-hover); font-weight: 600; }
 /* ===== V2.1 GLOBAL PAGE GEOMETRY CONTRACT (highest priority) ===== */
 /* Desktop 1440: sidebar 248 / collapsed 72, gutter 40, top 32, max-width 1240.
    No page may override padding-top / header margin-top / top spacer. */
@@ -138,6 +149,16 @@
   background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: var(--radius-card); padding: 16px 20px;
 }
+.ai-warning-card, .ai-status-error {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  border-radius: var(--radius-card); padding: 16px 20px;
+}
+.ai-warning-card { background: var(--color-warning-soft); border: 1px solid var(--color-warning); }
+.ai-status-error { background: var(--color-danger-soft); border: 1px solid var(--color-danger); }
+.ai-warning-card h2, .ai-status-error h2 { margin: 0 0 2px; font-size: 14px; }
+.ai-warning-card p, .ai-status-error p { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
+.ai-status-error .ai-strip-icon { background: var(--color-danger-soft); color: var(--color-danger); }
+.ai-warning-card .ai-strip-icon { background: var(--color-warning-soft); color: var(--color-warning); }
 .ai-onboard-card h2, .ai-ready-card h2 { margin: 0 0 2px; font-size: 14px; }
 .ai-onboard-card p, .ai-ready-card p { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
 .home-main { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: start; }
@@ -668,7 +689,9 @@
   .mobile-topbar {
     display: flex; align-items: center; gap: 12px;
     position: sticky; top: 0; z-index: 45;
-    padding: 10px 16px;
+    padding: calc(10px + env(safe-area-inset-top, 0px))
+      calc(16px + env(safe-area-inset-right, 0px))
+      10px calc(16px + env(safe-area-inset-left, 0px));
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
   }
@@ -680,8 +703,15 @@
   .mobile-brand { font-weight: 700; font-size: 14px; }
   .app-shell { display: block; }
   .app-sidebar {
-    position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
+    position: fixed; inset: 0 auto 0 0; height: auto; min-height: 0; z-index: 60;
     width: min(84vw, 320px);
+    padding: calc(16px + env(safe-area-inset-top, 0px))
+      calc(12px + env(safe-area-inset-right, 0px))
+      calc(16px + env(safe-area-inset-bottom, 0px))
+      calc(12px + env(safe-area-inset-left, 0px));
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    background: var(--color-surface);
     transform: translateX(-105%);
     transition: transform 200ms ease;
     box-shadow: none;

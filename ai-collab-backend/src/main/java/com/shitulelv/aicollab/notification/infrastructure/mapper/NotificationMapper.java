@@ -14,7 +14,7 @@ import java.util.UUID;
 @Mapper
 public interface NotificationMapper extends BaseMapper<NotificationEntity> {
     String SELECT_VIEW = """
-            SELECT n.*, p.name AS project_name
+            SELECT n.*, n.is_read AS read, p.name AS project_name
             FROM notification n
             JOIN project p ON p.id = n.project_id
             """;
@@ -50,7 +50,7 @@ public interface NotificationMapper extends BaseMapper<NotificationEntity> {
     int markAllAsRead(@Param("userId") UUID userId);
 
     @Select("""
-            SELECT n.* FROM notification n
+            SELECT n.*, n.is_read AS read FROM notification n
             WHERE n.user_id = #{userId} AND n.entity_type = #{entityType} AND n.entity_id = #{entityId}
             ORDER BY n.created_at DESC LIMIT 1
             """)

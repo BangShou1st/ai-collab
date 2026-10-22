@@ -1,18 +1,17 @@
 name: CI
 
-# PR 面向 main 与 main 自身 push 触发；workflow_dispatch 供手动复跑。
+# PR 面向 main、main 与 dev 自身 push 触发；workflow_dispatch 供手动复跑。
 # 不使用 pull_request_target：本流水线会检出并执行提交内的构建脚本与测试。
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
     branches: [main]
   workflow_dispatch:
 
-# 最小权限：只读仓库内容与私有 GitHub Packages（OpenCode Zen 共享库），不上传/写入任何仓库状态。
+# 最小权限：只读仓库内容；共享库通过公开 JitPack 解析。
 permissions:
   contents: read
-  packages: read
 
 # 同一 PR 的旧运行可取消；main 上的运行不互相取消，避免丢失主干验证结果。
 concurrency:
@@ -35,17 +34,6 @@ jobs:
         working-directory: .
         run: docker info
 
-      # 私有 GitHub Packages（OpenCode Zen 共享库）解析凭据：优先用仓库 Secret ZEN_REPO_TOKEN（PAT），
-      # 未配置时回退到自动 GITHUB_TOKEN（此路径需在 opencode-zen 包的 Actions access 里加入本仓库）。
-      - name: Resolve private registry credential
-        env:
-          PRIVATE_REGISTRY_PAT: ${{ secrets.ZEN_REPO_TOKEN }}
-          WORKFLOW_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          token="$PRIVATE_REGISTRY_PAT"
-          if [ -z "$token" ]; then token="$WORKFLOW_TOKEN"; fi
-          echo "ZEN_REPO_TOKEN=$token" >> "$GITHUB_ENV"
-
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -53,12 +41,6 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: ai-collab-backend/pom.xml
-          # 在 ~/.m2/settings.xml 写入 github server（id 与 pom 中的 repository id 一致）。
-          server-id: github
-          server-username: ZEN_REPO_USER
-          server-password: ZEN_REPO_TOKEN
-        env:
-          ZEN_REPO_USER: BangShou1st
 
       # 仓库中 mvnw 的 Git 权限位是 100644，用 bash 显式调用以避开执行位问题。
       - name: Build & verify (Testcontainers + Flyway)
@@ -77,12 +59,21 @@ jobs:
           # 覆盖上下文压缩、Flyway 迁移与运行恢复的关键真实 PostgreSQL 用例。
           # RetrievalCoveragePostgresTest 是 D-RAG-01A 的检索覆盖基线：用真实 pgvector
           # 观察向量候选与上下文保留；整类被跳过时同样判失败。
+          # RetrievalQualityHardGatePostgresTest 是 D-RAG-01C 第二轮的确定性质量硬门槛，
+          # AgentResearchQualityPostgresTest 是直接研究/委派同题对照（真实 PostgreSQL + 真实工具），
+          # 两者都必须真实执行，不得整类跳过（真实 Ollama 门槛为 Opt-in，不在此列）。
+          # KiloGatewayPresetIsolationIntegrationTest 验证 V65 迁移与双预设隔离：同样不得整类跳过。
           required = [
               "com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest",
               "com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest",
               "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest",
               "com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest",
               "com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest",
+              "com.shitulelv.aicollab.retrieval.RetrievalQualityHardGatePostgresTest",
+              "com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest",
+              "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest",
+              "com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetIsolationIntegrationTest",
+              "com.shitulelv.aicollab.notification.NotificationNavigationPostgresTest",
           ]
 
           stats = {}

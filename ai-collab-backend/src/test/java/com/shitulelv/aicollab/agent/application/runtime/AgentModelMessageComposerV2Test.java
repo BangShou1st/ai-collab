@@ -167,6 +167,28 @@ class AgentModelMessageComposerV2Test {
     }
 
     @Test
+    void toolStepPreservesThoughtSignatureInComposedMessages() {
+        ObjectNode input = json.createObjectNode()
+                .put("toolCallId", "call-gemini-1")
+                .put("thoughtSignature", "sig-encrypted-token-xyz");
+        input.putObject("arguments").put("query", "architecture");
+
+        AgentStepView step = new AgentStepView(UUID.randomUUID(), 1, AgentStepType.TOOL_CALL_COMPLETED,
+                "search_knowledge", input,
+                json.createObjectNode().put("status", "SUCCESS").put("docId", "doc-1"),
+                "TOOL_SUCCESS", null, null, false, null, null, OffsetDateTime.now());
+
+        var composition = composer.composeV2(run("查询项目资料"), context(), skill(),
+                AgentPlan.create("查询", List.of()), List.of(step), 30_000, 1.0, false);
+
+        ModelMessage.Assistant assistant = (ModelMessage.Assistant) composition.messages().stream()
+                .filter(m -> m instanceof ModelMessage.Assistant a && !a.toolCalls().isEmpty())
+                .findFirst().orElseThrow();
+        assertThat(assistant.toolCalls()).hasSize(1);
+        assertThat(assistant.toolCalls().getFirst().thoughtSignature()).isEqualTo("sig-encrypted-token-xyz");
+    }
+
+    @Test
     void smallToolOutputsRemainUnprojected() {
         AgentStepView step = new AgentStepView(UUID.randomUUID(), 1, AgentStepType.TOOL_CALL_COMPLETED,
                 "get_tasks", json.createObjectNode().put("toolCallId", "call-1"),

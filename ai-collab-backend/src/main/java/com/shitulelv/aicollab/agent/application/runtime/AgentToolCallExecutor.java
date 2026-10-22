@@ -121,9 +121,10 @@ public class AgentToolCallExecutor {
             repository.recordFailure(run, "TOOL_CALL_PROTOCOL_INVALID", false);
             return new AgentWorkerOutcome(AgentRunStatus.FAILED, null, null, "TOOL_CALL_PROTOCOL_INVALID");
         }
+        String trustedUserGoal = trustedUserGoal(run, repository);
         AgentToolContext toolCtx = new AgentToolContext(
                 run.id(), run.projectId(), run.requesterId(),
-                ctx.projectRole(), run.scheduled(), run.depth());
+                ctx.projectRole(), run.scheduled(), run.depth(), null, trustedUserGoal);
 
         // ===== 阶段 1：验证所有工具调用（快速，无 I/O） =====
         List<ValidatedToolCall> validated = new ArrayList<>();
@@ -406,6 +407,14 @@ public class AgentToolCallExecutor {
         }
     }
 
+    static String trustedUserGoal(AgentRunView run, AgentRepository repository) {
+        if (run.parentRunId() == null) return run.goal();
+        AgentRunView root = repository.findRun(run.projectId(), run.parentRunId())
+                .filter(parent -> parent.depth() == 0)
+                .orElseThrow(() -> new IllegalStateException("委派子运行缺少可信根请求，拒绝执行文档工具"));
+        return root.goal();
+    }
+
     /**
      * 记录一次<b>可预期</b>的委派受理拒绝并按真实调用身份消费本模型轮次。
      *
@@ -647,9 +656,7 @@ public class AgentToolCallExecutor {
                 JsonNode resultJson = json.valueToTree(er.result());
                 JsonNode sanitizedResult = sanitizer.sanitize(resultJson);
 
-                ObjectNode inputWithId = json.createObjectNode();
-                inputWithId.put("toolCallId", er.toolCall().id());
-                inputWithId.set("arguments", er.toolCall().arguments());
+                ObjectNode inputWithId = input(er.toolCall());
 
                 boolean failed = er.result().status() != AgentToolResult.Status.SUCCEEDED;
                 run = repository.recordToolResult(run, er.toolCall().name(), inputWithId, sanitizedResult, failed);
@@ -682,9 +689,7 @@ public class AgentToolCallExecutor {
         errorResult.put("message", "工具执行超时");
         JsonNode sanitizedError = sanitizer.sanitize(errorResult);
 
-        ObjectNode inputWithId = json.createObjectNode();
-        inputWithId.put("toolCallId", toolCall.id());
-        inputWithId.set("arguments", toolCall.arguments());
+        ObjectNode inputWithId = input(toolCall);
 
         run = repository.recordToolResult(run, toolCall.name(), inputWithId, sanitizedError, true);
         emit(run, AgentEventType.TOOL_CALL_FAILED,
@@ -736,9 +741,7 @@ public class AgentToolCallExecutor {
         JsonNode sanitizedError = sanitizer.sanitize(errorResult);
 
         // 保存原始 toolCallId 到 input_json
-        ObjectNode inputWithId = json.createObjectNode();
-        inputWithId.put("toolCallId", toolCall.id());
-        inputWithId.set("arguments", toolCall.arguments());
+        ObjectNode inputWithId = input(toolCall);
 
         run = repository.recordToolResult(run, toolCall.name(), inputWithId, sanitizedError, true);
         emit(run, AgentEventType.TOOL_CALL_FAILED,
@@ -757,6 +760,9 @@ public class AgentToolCallExecutor {
     private ObjectNode input(ModelToolCall call) {
         ObjectNode input = json.createObjectNode().put("toolCallId", call.id());
         input.set("arguments", call.arguments());
+        if (call.thoughtSignature() != null && !call.thoughtSignature().isBlank()) {
+            input.put("thoughtSignature", call.thoughtSignature());
+        }
         return input;
     }
 

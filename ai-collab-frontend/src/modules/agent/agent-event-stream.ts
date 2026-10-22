@@ -10,6 +10,11 @@ export async function streamAgentEvents(
   signal: AbortSignal,
   onEvent: (event: AgentRunEvent) => void,
   onContent?: (frame: AgentContentFrame) => void,
+  /**
+   * 流已建立（HTTP 2xx 且拿到正文）时回调，供调用方把"已连接/已恢复"作为事实记录。
+   * 只在拿到响应后触发，因此不会把失败的连接尝试误报为已连接。
+   */
+  onOpen?: () => void,
 ): Promise<void> {
   const separator = url.includes('?') ? '&' : '?'
   const response = await authenticatedFetch(`${url}${separator}afterSequence=${afterSequence}`, {
@@ -17,6 +22,7 @@ export async function streamAgentEvents(
     signal,
   })
   if (!response.ok || !response.body) throw new Error(`SSE ${response.status}`)
+  onOpen?.()
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()

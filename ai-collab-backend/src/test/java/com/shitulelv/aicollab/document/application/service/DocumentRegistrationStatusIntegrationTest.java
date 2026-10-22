@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
+import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -54,6 +56,10 @@ class DocumentRegistrationStatusIntegrationTest {
     JdbcTemplate jdbc;
     @Autowired
     DocumentRegistrationService registration;
+    @MockitoBean
+    DocumentTaskDispatcher dispatcher;
+    @MockitoBean
+    TaskPlanRecoveryJob taskPlanRecoveryJob;
 
     private UUID ownerId;
 

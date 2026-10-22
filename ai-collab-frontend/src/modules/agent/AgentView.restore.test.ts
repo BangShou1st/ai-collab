@@ -120,6 +120,19 @@ const sseResponse = (frames: string[]) => {
   return Promise.resolve({ ok: true, body })
 }
 
+const sseDisconnectAfter = (frames: string[]) => {
+  const enc = new TextEncoder()
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const frame of frames) controller.enqueue(enc.encode(`data: ${frame}\n\n`))
+    },
+    pull(controller) {
+      controller.error(new Error('synthetic SSE disconnect'))
+    },
+  })
+  return Promise.resolve({ ok: true, body })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   delete g.__testFetch
@@ -183,6 +196,36 @@ describe('AgentView restore', () => {
     wrapper.unmount()
   })
 
+  it('reconnects after an SSE disconnect from the last accepted event sequence', async () => {
+    mocks.latestRun.mockResolvedValue(response({
+      run: runOf('run-1', 'session-1', 'RUNNING'), plan: null, lastEventSequence: 5, pendingApprovalId: null,
+    }))
+    mocks.runEvents.mockResolvedValue(response([]))
+    const fetchCalls: Array<{ input: string; options?: RequestInit }> = []
+    g.__testFetch = (input: string, options?: RequestInit) => {
+      fetchCalls.push({ input, options })
+      return fetchCalls.length === 1
+        ? sseDisconnectAfter([JSON.stringify(evt(6, 'TOOL_CALL_STARTED', { callId: 'c2', toolName: 'list_tasks' }))])
+        : sseResponse([JSON.stringify(evt(7, 'TOOL_CALL_COMPLETED', { callId: 'c2', toolName: 'list_tasks' }))])
+    }
+    mocks.run.mockResolvedValue(response({ run: runOf('run-1', 'session-1', 'SUCCEEDED') }))
+
+    const wrapper = mountView()
+    await flushPromises()
+    for (let i = 0; i < 30 && (fetchCalls.length < 2 || mocks.run.mock.calls.length < 1); i++) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      await flushPromises()
+    }
+
+    expect(fetchCalls).toHaveLength(2)
+    expect(fetchCalls[0].input).toContain('afterSequence=5')
+    expect(fetchCalls[1].input).toContain('afterSequence=6')
+    expect((fetchCalls[0].options?.headers as Record<string, string>)['Last-Event-ID']).toBe('5')
+    expect((fetchCalls[1].options?.headers as Record<string, string>)['Last-Event-ID']).toBe('6')
+    expect(mocks.run).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
   it('drops the old session when switching projects', async () => {
     mocks.sessions.mockImplementation((pid: string) =>
       response(pid === 'project-1' ? [session('session-1', '会话一')] : [session('session-2', '会话二', 'project-2')]),
@@ -224,5 +267,53 @@ describe('AgentView restore', () => {
     expect(wrapper.text()).toContain('B 的问题')
     expect(wrapper.text()).not.toContain('A 的问题')
     wrapper.unmount()
+  })
+
+  it('区分"传输已重连"与"已恢复"：事件续接后才在 UI 展示已恢复', async () => {
+    mocks.latestRun.mockResolvedValue(response({
+      run: runOf('run-1', 'session-1', 'RUNNING'), plan: null, lastEventSequence: 5, pendingApprovalId: null,
+    }))
+    mocks.runEvents.mockResolvedValue(response([]))
+    const fetchCalls: Array<{ input: string; options?: RequestInit }> = []
+    g.__testFetch = (input: string, options?: RequestInit) => {
+      fetchCalls.push({ input, options })
+      if (fetchCalls.length === 1) {
+        const enc = new TextEncoder()
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(enc.encode(`data: ${JSON.stringify(evt(6, 'TOOL_CALL_STARTED', { callId: 'c2', toolName: 'list_tasks' }))}\n\n`))
+          },
+          pull(controller) { controller.error(new TypeError('Failed to fetch')) },
+        })
+        return Promise.resolve({ ok: true, body })
+      }
+      // 第二次流：HTTP 200 建立传输，随后续接事件 7，并以终态事件 8 正常收口
+      return sseResponse([
+        JSON.stringify(evt(7, 'TOOL_CALL_STARTED', { callId: 'c3', toolName: 'list_tasks' })),
+        JSON.stringify(evt(8, 'RUN_SUCCEEDED')),
+      ])
+    }
+    mocks.run.mockResolvedValue(response({ run: runOf('run-1', 'session-1', 'SUCCEEDED') }))
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const wrapper = mountView()
+    try {
+      await flushPromises()
+      for (let i = 0; i < 60 && mocks.run.mock.calls.length < 1; i++) {
+        await new Promise(resolve => setTimeout(resolve, 50))
+        await flushPromises()
+      }
+      const phases = info.mock.calls
+        .filter(([tag]) => tag === '[agent-sse]')
+        .map(([, json]) => (JSON.parse(String(json)) as { phase: string }).phase)
+      // 依次经历：断线 → 传输重连（仅 HTTP 200，不等于恢复）→ 持久事件续接后恢复
+      expect(phases).toEqual(['disconnect', 'transport_reconnected', 'recovered'])
+      // 恢复后 category 不为空，UI 能展示"已恢复"（此前 category=null 导致无法展示）
+      const diag = wrapper.get('[data-test="agent-sse-diagnostic"]').text()
+      expect(diag).toContain('已恢复')
+      expect(diag).toContain('传输中断')
+    } finally {
+      info.mockRestore()
+      wrapper.unmount()
+    }
   })
 })

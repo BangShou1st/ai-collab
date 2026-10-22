@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
+import PageHeader from '../../shared/PageHeader.vue'
 import {
   taskPriorityLabel,
   taskStatusLabel,
@@ -11,7 +12,7 @@ import TaskDetailDrawer from './TaskDetailDrawer.vue'
 
 const {
   auth, statuses, priorities, project, members, milestones, tasks, selected, comments,
-  drawerVisible, createVisible, editVisible, commentContent, loading,
+  drawerVisible, detailError, createVisible, editVisible, commentContent, loading,
   openingTaskId, updatingTaskId, creatingTask, savingTask, deletingTask,
   savingDependencies, addingComment, commentOperationId, editTargetStatus,
   filters, draggedTask, dragOverColumn, selectedTaskIds,
@@ -109,6 +110,8 @@ const {
       v-model:visible="drawerVisible"
       v-model:comment-content="commentContent"
       :selected="selected"
+      :loading="Boolean(openingTaskId)"
+      :error="detailError"
       :tasks="tasks"
       :comments="comments"
       :can-manage="canManage"

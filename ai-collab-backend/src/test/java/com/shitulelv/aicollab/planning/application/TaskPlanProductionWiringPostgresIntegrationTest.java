@@ -121,9 +121,9 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 .replace("$D", LocalDate.now().plusDays(10).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(skeletonJson, "test-provider", "test-model", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(detailJson, "test-provider", "test-model", 100, 50, 200));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -185,12 +185,12 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 .replace("$D", LocalDate.now().plusDays(10).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(badSkeleton, "p", "m", 100, 50, 200))
                 .thenReturn(new GenerationResult(goodSkeleton, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(detailJson, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(goodSkeleton, "p", "m", 100, 50, 200));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -243,12 +243,12 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 .replace("$D2", LocalDate.now().plusDays(8).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(skeletonJson, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(detailWithConflict, "p", "m", 100, 50, 200));
         // Scoped patch changes nothing → the latest candidate still has BLOCKING_EDITABLE issues.
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(
                         """
                         {"milestonePatches":[],"taskPatches":[
@@ -308,12 +308,12 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 """;
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(skeletonJson, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(badDetail, "p", "m", 100, 50, 200));
         // Repair also returns bad detail
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(badDetail, "p", "m", 100, 50, 200));
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -369,11 +369,11 @@ class TaskPlanProductionWiringPostgresIntegrationTest {
                 .replace("$D2", LocalDate.now().plusDays(8).toString());
 
         TaskPlanModelClient modelClient = mock(TaskPlanModelClient.class);
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(skeletonJson, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(detailWithConflict, "p", "m", 100, 50, 200));
-        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(
                         "{\"milestonePatches\":[],\"taskPatches\":[]}", "p", "m", 100, 50, 200));
 

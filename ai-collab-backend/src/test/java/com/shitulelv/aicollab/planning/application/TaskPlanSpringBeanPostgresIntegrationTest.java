@@ -137,6 +137,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         agentRecovery.recover();
         var failed=awaitStatus(f.project(),plan.id(),Set.of(TaskPlanStatus.DETAIL_GENERATION_FAILED));
         agentRecovery.recover();
+        org.mockito.Mockito.verify(model,org.mockito.Mockito.never()).generate(anyString(),anyString(),anyString(),any(),any(),any(),any(),any(com.fasterxml.jackson.databind.JsonNode.class));
         org.mockito.Mockito.verify(model,org.mockito.Mockito.never()).generate(anyString(),anyString(),anyString(),any(),any(),any(),any());
         assertThat(failed.latestVersionId()).isEqualTo(version);
         assertThat(repository.versions(f.project(),plan.id())).hasSize(1);
@@ -245,7 +246,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     @Test
     void failedSkeletonOperationDoesNotBorrowLaterRetryVersion() throws Exception {
         var f=fixture("failed-agent-retry");
-        when(model.generate(anyString(),anyString(),eq("TASK_PLAN_SKELETON"),any(),any(),any(),any()))
+        when(model.generate(anyString(),anyString(),eq("TASK_PLAN_SKELETON"),any(),any(),any(),any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_INVALID_OUTPUT));
         var session=agents.createSession(f.project(),f.user(),"原失败规划");
         var request=json.valueToTree(request("原失败规划"));
@@ -287,7 +288,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     @Test void agentCancelIsAttemptScopedAndMemberCannotStartPlanning() throws Exception {
         var f=fixture("agent-cancel");stubLegalGeneration();var session=agents.createSession(f.project(),f.user(),"取消规划");
         var started=new java.util.concurrent.CountDownLatch(1);var finish=new java.util.concurrent.CountDownLatch(1);
-        when(model.generate(anyString(),anyString(),eq("TASK_PLAN_SKELETON"),any(),any(),any(),any())).thenAnswer(i->{started.countDown();finish.await(3,TimeUnit.SECONDS);return result(skeleton());});
+        when(model.generate(anyString(),anyString(),eq("TASK_PLAN_SKELETON"),any(),any(),any(),any(), any(com.fasterxml.jackson.databind.JsonNode.class))).thenAnswer(i->{started.countDown();finish.await(3,TimeUnit.SECONDS);return result(skeleton());});
         var request=json.valueToTree(request("取消规划"));var ctx=agentInvocation(f,session.id(),"start_task_plan",request);
         var op=agentOperations.mutate(ctx,"start_task_plan",request);assertThat(started.await(3,TimeUnit.SECONDS)).isTrue();
         var wrong=json.createObjectNode().put("operationId",op.path("operationId").asText()).put("attemptId",UUID.randomUUID().toString());
@@ -459,7 +460,7 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
         var created = commands.create(fixture.project(), request("Model switch"), fixture.user());
         var ready = awaitStatus(fixture.project(), created.id(), Set.of(TaskPlanStatus.READY));
         var before = repository.requireVersion(fixture.project(), created.id(), ready.latestVersionId());
-        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenThrow(new BusinessException(com.shitulelv.aicollab.common.exception.ErrorCode.AI_MODEL_CREDENTIAL_INVALID));
         commands.regenerate(fixture.project(), created.id(), fixture.user());
         var failed = awaitStatus(fixture.project(), created.id(), Set.of(TaskPlanStatus.FAILED));
@@ -556,9 +557,9 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     }
 
     private void stubLegalGeneration() {
-        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(result(skeleton()));
-        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(result(legalDetail()));
     }
 
@@ -586,13 +587,14 @@ class TaskPlanSpringBeanPostgresIntegrationTest {
     }
 
     private void stubDegradedGenerationThenPartialRepair() {
-        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any()))
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(result(skeleton()));
-        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any()))
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(result(conflictingDetail()));
+        when(model.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(result("{\"milestonePatches\":[],\"taskPatches\":[]}"));
         when(model.generate(anyString(), anyString(), eq("TASK_PLAN_REPAIR_PATCH"), any(), any(), any(), any()))
-                .thenReturn(result("{\"milestonePatches\":[],\"taskPatches\":[]}"),
-                        result("{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"t2\",\"startDate\":\"2026-08-16\"}]}"));
+                .thenReturn(result("{\"milestonePatches\":[],\"taskPatches\":[{\"tempKey\":\"t2\",\"startDate\":\"2026-08-16\"}]}"));
     }
 
     private static GenerationResult result(String content) {
