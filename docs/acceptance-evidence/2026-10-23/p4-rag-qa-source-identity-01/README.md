@@ -13,6 +13,7 @@
 - **任务编号**：`P4-RAG-QA-SOURCE-IDENTITY-01`
 - **任务工作分支**：`dev`
 - **起始基线 SHA**：`ef3baf9e943a3c1078b21ed675c5c7af3e3c24c6`
+- **本轮交付 SHA**：`45cf97fd2269aee6dd5cebc616e25776d4a520ec`
 - **主干基线 `main` / `origin/main`**：`9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7`（全程保持不变，未触碰 main）
 - **生产修改范围（单文件）**：
   - [`ai-collab-backend/src/main/java/com/shitulelv/aicollab/knowledge/domain/service/KnowledgeContextBuilder.java`](file:///E:/project/ai-collab/ai-collab-backend/src/main/java/com/shitulelv/aicollab/knowledge/domain/service/KnowledgeContextBuilder.java)
@@ -184,6 +185,10 @@ if (hash != null) {
    - `P4RagQaSourceIdentityAcceptancePostgresTest`: 1 passed, 0 failures, 0 skipped
 4. **全量相关测试集**：
    - `Knowledge*Test`, `CrossDocument*Test`, `Retrieval*Test`: 92 passed, 0 failures, 1 skipped
+5. **CI 状态**：
+   - GitHub Actions Run ID: `39821215674`
+   - Head SHA: `45cf97fd2269aee6dd5cebc616e25776d4a520ec`
+   - Initial Status: `queued`（已由推送触发，按工程规范不阻塞交付）
 
 ---
 
