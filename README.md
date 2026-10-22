@@ -23,7 +23,7 @@
 
 ---
 
-[功能特性](#-核心功能) • [系统架构](#-系统架构) • [技术栈](#-技术栈) • [快速开始](#-快速开始) • [AI 模型接入](#-ai-模型接入) • [分支与开发规范](#-分支与开发规范)
+[功能特性](#-核心功能) • [界面预览](#-界面预览) • [系统架构](#-系统架构) • [技术栈](#-技术栈) • [快速开始](#-快速开始) • [AI 模型接入](#-ai-模型接入) • [分支与开发规范](#-分支与开发规范)
 
 </div>
 
@@ -39,6 +39,22 @@
 * **AI 协助无序**：公网大模型仅能提供泛化建议，不了解具体项目上下文；且模型写操作缺乏有效审计与拦截机制。
 
 **AI Collab** 为高校竞赛与软件课程团队量身打造，将**敏捷任务看板**、**基于 pgvector 的企业级 RAG 知识库**、**两阶段自省式 AI 任务规划**以及**带人机审批机制的受控 Agent**无缝融合，提供全流程、可追溯、高可靠的智能协作体验。
+
+---
+
+## 📸 界面预览
+
+<div align="center">
+
+| 任务看板与依赖协同 | RAG 知识库问答与精准溯源 |
+| :---: | :---: |
+| <img src="docs/images/01-task-board.png" alt="任务看板" width="100%" /> | <img src="docs/images/02-knowledge-rag.png" alt="知识问答" width="100%" /> |
+| **两阶段自省式 AI 任务规划** | **协作 Agent 与原生 Tool Calling 运行时** |
+| <img src="docs/images/03-task-planning.png" alt="任务规划" width="100%" /> | <img src="docs/images/04-agent-workspace.png" alt="协作 Agent" width="100%" /> |
+| **项目文档切块与知识资产管理** | **多模型提供商与免费聚合网关配置** |
+| <img src="docs/images/05-document-assets.png" alt="文档资产" width="100%" /> | <img src="docs/images/06-ai-settings.png" alt="AI 设置" width="100%" /> |
+
+</div>
 
 ---
 
