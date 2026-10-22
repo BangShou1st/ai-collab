@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CrossDocumentSourceSelectorStrategyExperimentTest {
     private static final int MAX_SOURCES = KnowledgeContextBuilder.MAX_SOURCES_LIMIT;
     private static final ObjectMapper JSON = new ObjectMapper();
-    static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "p4-rag-quality-01b",
+    static final Path EVIDENCE_PATH = Path.of("target", "retrieval-baseline", "p4-rag-quality-03",
             "sourcecap-strategy-experiment.json");
 
     private static final Map<String, Map<String, Object>> EXPERIMENTS = new LinkedHashMap<>();
@@ -99,6 +99,13 @@ class CrossDocumentSourceSelectorStrategyExperimentTest {
             experiment.put("deltaExpectedRetained", protectedStrategy.expectedRetained() - current.expectedRetained());
             experiment.put("deltaDocumentsCovered", protectedStrategy.documentsCovered() - current.documentsCovered());
             experiment.put("deltaUnexpectedSources", protectedStrategy.unexpectedSources() - current.unexpectedSources());
+            List<EvidenceValueExperiment.Target> valueTargets = testCase.expectedChunkIds().stream()
+                    .map(id -> testCase.candidates().stream().filter(h -> h.id().equals(id)).findFirst().orElseThrow())
+                    .map(h -> new EvidenceValueExperiment.Target(h.documentId(), h.content())).toList();
+            for (var strategy : EvidenceValueExperiment.Strategy.values()) {
+                experiment.put(strategy.name() + "_bodyEvidence", EvidenceValueExperiment.measure(strategy,
+                        "哪些约束与关键条款需要满足？", testCase.candidates(), testCase.maxSources(), valueTargets));
+            }
             EXPERIMENTS.put(testCase.name(), experiment);
 
             // 硬不变量：三策略都不得超过名额与预算，且来源身份必须自洽。
