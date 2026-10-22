@@ -51,6 +51,23 @@ class GeminiAnswerQualityFixtureTest {
         }
     }
 
+    @Test void concurrentReservationsNeverExceedAuthorizedBudget() throws Exception {
+        var counter = new java.util.concurrent.atomic.AtomicInteger(20);
+        var ordinals = java.util.concurrent.ConcurrentHashMap.<Integer>newKeySet();
+        var rejected = new java.util.concurrent.atomic.AtomicInteger();
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(8)) {
+            var jobs = new java.util.ArrayList<java.util.concurrent.Future<?>>();
+            for (int index = 0; index < 8; index++) jobs.add(executor.submit(() -> {
+                try { ordinals.add(GeminiKnowledgeAnswerQualityPostgresTest.reserveGenerationAttempt(counter)); }
+                catch (IllegalStateException exhausted) { rejected.incrementAndGet(); }
+            }));
+            for (var job : jobs) job.get();
+        }
+        assertThat(counter.get()).isEqualTo(24);
+        assertThat(ordinals).containsExactlyInAnyOrder(21, 22, 23, 24);
+        assertThat(rejected.get()).isEqualTo(4);
+    }
+
     private static List<List<Object>> bodies(List<DocumentChunk> chunks) {
         // Source offsets legitimately differ; headings, bodies, content hashes and chunk numbers must not.
         return chunks.stream().map(chunk -> List.<Object>of(chunk.chunkNo(), chunk.heading(), chunk.content(), chunk.contentHash())).toList();
