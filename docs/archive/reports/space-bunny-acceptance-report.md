@@ -1,6 +1,6 @@
 # space-bunny-free 真实验收补充报告
 
-日期：2026-10-03（北京时间）。执行依据：[验收交接](space-bunny-acceptance-handoff.md)。本轮已完成工具数值类型修复，并在受限业务库副本中完成真实修订、审批、幂等和只读事实查询。创建提案沿用交接中已成功的真实记录；没有把历史失败覆写成成功。
+日期：2026-10-03（北京时间）。执行依据：[验收交接](../handoffs/space-bunny-acceptance-handoff.md)。本轮已完成工具数值类型修复，并在受限业务库副本中完成真实修订、审批、幂等和只读事实查询。创建提案沿用交接中已成功的真实记录；没有把历史失败覆写成成功。
 
 ## 修复与自动化证据
 
@@ -33,7 +33,7 @@
 
 ## 收尾轮（同日）：浏览器链路与回答范围
 
-沿用隔离副本与真实验收宿主（18080）+ Vite（15173），模型显式 `space-bunny-free`，完成后已恢复 `mimo-v2.5-free`。前端修复先行，再以双页面浏览器场景验收；证据见 [space-bunny-browser-summary.json](acceptance-evidence/2026-10-03/space-bunny-browser-summary.json)。
+沿用隔离副本与真实验收宿主（18080）+ Vite（15173），模型显式 `space-bunny-free`，完成后已恢复 `mimo-v2.5-free`。前端修复先行，再以双页面浏览器场景验收；证据见 [space-bunny-browser-summary.json](../../acceptance-evidence/2026-10-03/space-bunny-browser-summary.json)。
 
 1. 前端修复：批准/拒绝失败后刷新审批列表到服务端最新状态——提案已修订但当前版本仍待审批时展示最新版本供重新确认，只有已批准/已拒绝/已过期等不再待审批的记录移出待审批列表；刷新失败不覆盖原始审批错误。防重入锁在打开确认弹窗前占用，取消、失败、成功统一释放；提交期间批准、拒绝按钮同时禁用，loading 只出现在实际提交的按钮上。针对性组件测试覆盖：冲突刷新展示最新版本、非待审批移出、弹窗未完成时重复触发拦截、提交期间重复点击只发一次请求、拒绝冲突刷新、`AGENT_APPROVAL_EXPIRED` 过期文案与移出、刷新失败不覆盖原始错误；前端测试 **135 项全部通过**，`vue-tsc` 类型检查与 `vite build` 生产构建通过（日志已存证）。
 2. 浏览器双页面旧版本场景（页面 A 持旧卡片、页面 B 完成修订）：页面 A 用旧 revision 批准得到提示“Agent 提案批准失败：提案已修订，请刷新并确认当前版本”，随后待审批列表自动展示最新版本（修订 #2）卡片；确认当前版本后任务创建，快速双击确认仅一次请求、无重复任务；刷新页面后任务看板与详情（标题/负责人 Local Owner/待处理/高/3 小时）与 API 一致。关键截图与请求/运行记录已存证。
@@ -50,14 +50,14 @@
 
 ## 证据与环境恢复
 
-证据目录：[2026-10-03](acceptance-evidence/2026-10-03/)。
+证据目录：[2026-10-03](../../acceptance-evidence/2026-10-03/)。
 
-- [真实复验 JSON](acceptance-evidence/2026-10-03/space-bunny-retest.json)：请求文本、完整 Run/工具结果、前后提案、旧版本 409、同键批准结果、正式任务和只读回答。
-- [原始真实证据快照](acceptance-evidence/2026-10-03/space-bunny-original.json)：原始创建与失败修订，原 backend/target 文件亦保留。
+- [真实复验 JSON](../../acceptance-evidence/2026-10-03/space-bunny-retest.json)：请求文本、完整 Run/工具结果、前后提案、旧版本 409、同键批准结果、正式任务和只读回答。
+- [原始真实证据快照](../../acceptance-evidence/2026-10-03/space-bunny-original.json)：原始创建与失败修订，原 backend/target 文件亦保留。
 - 数值失败回归、展示元数据失败回归、80 项受影响测试日志：`ai-space-bunny-validator-red.log`、`ai-space-bunny-metadata-red.log`、`ai-space-bunny-targeted-final.log`。
 - 两次真实宿主日志：`ai-space-bunny-retest-host.log`、`ai-space-bunny-retest-host-final.log`。初次 API 登录未携带合法 Origin，被本地安全过滤器拒绝；补上该应用要求的 Origin 后登录成功。这不是 Zen 403，也没有触发模型请求。
-- [全量测试与打包日志](acceptance-evidence/2026-10-03/ai-space-bunny-full.log)、[逐类测试统计](acceptance-evidence/2026-10-03/space-bunny-backend-tests.json)。5 项默认 opt-in 外部验收测试跳过；本轮真实宿主通过显式 opt-in 单独启动，真实链路结果来自上述 JSON，不将默认跳过计作通过。
-- 收尾轮浏览器证据：[浏览器链路汇总](acceptance-evidence/2026-10-03/space-bunny-browser-summary.json)、[查询运行完整记录](acceptance-evidence/2026-10-03/space-bunny-browser-query-run.json)、[最终任务表](acceptance-evidence/2026-10-03/browser-final-tasks.json)、宿主/前端日志（`ai-space-bunny-browser-host.log`、`ai-space-bunny-browser-vite.log`）及截图（`space-bunny-browser-B-revision2-pending.png`、`space-bunny-browser-A-stale-approve-conflict-refresh.png`、`space-bunny-browser-A-current-approved.png`、`space-bunny-browser-board-task-after-refresh.png`）。
+- [全量测试与打包日志](../../acceptance-evidence/2026-10-03/ai-space-bunny-full.log)、[逐类测试统计](../../acceptance-evidence/2026-10-03/space-bunny-backend-tests.json)。5 项默认 opt-in 外部验收测试跳过；本轮真实宿主通过显式 opt-in 单独启动，真实链路结果来自上述 JSON，不将默认跳过计作通过。
+- 收尾轮浏览器证据：[浏览器链路汇总](../../acceptance-evidence/2026-10-03/space-bunny-browser-summary.json)、[查询运行完整记录](../../acceptance-evidence/2026-10-03/space-bunny-browser-query-run.json)、[最终任务表](../../acceptance-evidence/2026-10-03/browser-final-tasks.json)、宿主/前端日志（`ai-space-bunny-browser-host.log`、`ai-space-bunny-browser-vite.log`）及截图（`space-bunny-browser-B-revision2-pending.png`、`space-bunny-browser-A-stale-approve-conflict-refresh.png`、`space-bunny-browser-A-current-approved.png`、`space-bunny-browser-board-task-after-refresh.png`）。
 - 收尾轮最终构建证据（早于本轮的旧全量日志以本轮为准）：后端全量 `mvnw package` 日志 `ai-space-bunny-closeout-full.log`；前端测试、类型检查、生产构建日志 `space-bunny-closeout-frontend-tests.log`、`space-bunny-closeout-typecheck.log`、`space-bunny-closeout-frontend-build.log`。
 
 所有业务写入限制在 `127.0.0.1:55432` 的既有离线副本及其合成项目，测试集成用临时隔离容器。原 `ai-collab-postgres` 未启动、未迁移、未写入；没有复制其他项目凭据或输出密钥。副本模型恢复为原 `mimo-v2.5-free`；真实验收宿主、Vite 和专用副本 PostgreSQL/MinIO/Redis 已停止。合成数据与日志保留，既有未提交修改未清理或覆盖。

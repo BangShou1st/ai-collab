@@ -70,7 +70,7 @@
 - 参数校验仅在暴露目录找到定义时执行，未找到时没有在该分支拒绝。目标设计要求本轮未暴露即拒绝；尚未构造完整越权调用链，不能直接认定可绕过最终业务权限。
 - `AgentRuntimeCoordinator` 通过正文开头的 `[QUESTIONS]` 判断澄清，依赖模型格式习惯。目标设计增加类型化交互动作并兼容旧标记。
 
-对应细化规则见 [Agent 执行设计](agent-runtime-design.md)，Ollama 配置与访问策略见 [全局设计第 8.1 节](backend-agent-redesign.md#81-ollama-本地-embedding)。以上尚未实施修复。
+对应细化规则见 [Agent 执行设计](../../design/agent-runtime-design.md)，Ollama 配置与访问策略见 [全局设计第 8.1 节](../../backend-agent-redesign.md#81-ollama-本地-embedding)。以上尚未实施修复。
 
 ## 4. 应保留的现有能力
 
@@ -97,4 +97,4 @@
 4. 按用户最终决定，本轮不引入框架或安排框架试点，继续完善现有 Java 网关与编排；框架适配仅保留为未来参考。
 5. 完成知识问答、任务规划、Agent 提案审批三条真实链路后，形成可演示、可写简历的证据。
 
-目标架构和分阶段退出条件见 [重构设计](backend-agent-redesign.md)。
+目标架构和分阶段退出条件见 [重构设计](../../backend-agent-redesign.md)。
