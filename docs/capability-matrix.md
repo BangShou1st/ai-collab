@@ -2,7 +2,7 @@
 
 ## 2026-10-20 当前基线与 P3 规划入口
 
-当前研究基线 `dev@09d80639185fbb89e74b71d37d3af272bf43ad5f`。最新能力/验证分层、候选需求与 P2 风险以 [P3-SCOPE-01](p3-scope-01.md) 为入口；下文 2026-10-03～05 的 P1–P4 为历史交付编号，不是新 P3 待办。历史静态缺口必须先核对后续实现，不能直接重复开发。
+当前研究基线 `dev@09d80639185fbb89e74b71d37d3af272bf43ad5f`。最新能力/验证分层、候选需求与 P2 风险以 [P3-SCOPE-01](./archive/research/p3-scope-01.md) 为入口；下文 2026-10-03～05 的 P1–P4 为历史交付编号，不是新 P3 待办。历史静态缺口必须先核对后续实现，不能直接重复开发。
 
 | 当前增量事实 | 验证层级与限制 | 证据 |
 | --- | --- | --- |
@@ -20,7 +20,7 @@
 
 以下保留原历史矩阵；其中“最后更新”只描述当时快照。
 
-维护约定（依据 [ai-next-stage-blueprint.md](ai-next-stage-blueprint.md) 8.3）：
+维护约定（依据 [ai-next-stage-blueprint.md](./design/ai-next-stage-blueprint.md) 8.3）：
 
 - 本表记录**当前 checkout** 的能力状态；历史审查（`ai-capability-review.md`）与验收报告只作为证据链接，不混列成当前待办。
 - 验证层级：`单测`（Mockito 纯单测）→ `集成`（Testcontainers 真实 PostgreSQL）→ `真实模型`（授权副本上的真实提供商验收）→ `浏览器`（产品界面实际操作）。高层级不自动覆盖低层级未覆盖的分支。
@@ -34,7 +34,7 @@
 
 | 功能 | 关键组件 | 模型要求 | 状态 | 验证层级 | 证据 |
 | --- | --- | --- | --- | --- | --- |
-| 多提供商模型路由（OpenAI 兼容 / OpenCode Zen / Ollama） | `infrastructure/ai/model/Routing*`、`ProviderPresetRegistry` | 按用户与用途路由 | 已验收 | 集成 + 真实模型 | [space-bunny-acceptance-report](space-bunny-acceptance-report.md) |
+| 多提供商模型路由（OpenAI 兼容 / OpenCode Zen / Ollama） | `infrastructure/ai/model/Routing*`、`ProviderPresetRegistry` | 按用户与用途路由 | 已验收 | 集成 + 真实模型 | [space-bunny-acceptance-report](./archive/reports/space-bunny-acceptance-report.md) |
 | 模型配置快照与凭据加密 | V51 迁移、`ModelSecretCipher` | 无 | 已验收 | 集成 | 同上 |
 | 模型能力探测 | `AiCapabilityProbeService` | 无 | 已实现 | 单测/集成 | 本轮快照代码 |
 | Ollama 本地 Embedding（含本地目标白名单） | `EmbeddingEndpointPolicy`、`embedding.local-allowed-targets` | 无 | 已验收 | 集成 + 真实模型 | `real-ollama-index-active.png` |
@@ -110,7 +110,7 @@ P1 补充验收（本轮修订新增口径）：
 
 ## 7. 历史证据索引
 
-- 最新验收：[space-bunny-acceptance-report.md](space-bunny-acceptance-report.md)（2026-10-03；后端 904 项：899 通过 5 跳过，前端 135 项 + vue-tsc + vite build）
+- 最新验收：[space-bunny-acceptance-report.md](./archive/reports/space-bunny-acceptance-report.md)（2026-10-03；后端 904 项：899 通过 5 跳过，前端 135 项 + vue-tsc + vite build）
 - 证据附件：`docs/acceptance-evidence/2026-10-03/`（隔离副本脱敏产物，无凭据；内含 localhost 副本端口属预期）
 - 更早轮次：`ai-refactor-real-acceptance-report.md`（真实 Zen JSON、原生工具、双模型规划、真实文档 RAG）、`ai-refactor-quality-report.md`（负责人建议、V53）
 - 遗留未验证项（承接上一阶段）：`AGENT_APPROVAL_EXPIRED` 浏览器提示、拒绝路径浏览器冲突、大规模并发/长时评测、正式环境发布与迁移
@@ -119,9 +119,9 @@ P1 补充验收（本轮修订新增口径）：
 
 | 能力 | 当前状态 | 验证 | 证据 |
 | --- | --- | --- | --- |
-| P1 摘要持续覆盖与窗口外续读 | 已实现；策略 v4，偏移合并、完成前缀压缩、删除终止、重读鉴权 | 单测 + 真实隔离 PostgreSQL 数据流，61 项通过 | [P1 修复](p1-context-foundation-report.md#11-剩余覆盖修复2026-10-04) |
-| P2 任务搜索分页、文档目录/提纲/正文续读、可靠来源 | 已实现；任务 keyset 实时分页，正文独立于 embedding；V54，旧来源兼容读取 | 43 项后端针对性（含 PostgreSQL），137 项前端；类型检查通过 | [连续交付报告](next-stage-delivery-report.md) |
-| P3 Agent 接通规划生成/查询/修复/取消 | 已实现；V55 操作身份、提交后 dispatch、同 attempt 恢复；原规划页人工确认 | 93 项针对性（含 PostgreSQL）、139 项前端、类型检查；真实模型另记 | [连续交付报告](next-stage-delivery-report.md#p3) |
-| P4 业务评测、相关记忆、追问与质量收敛 | 已实现 17 场景评测；修复真实规划链路预算/身份/修订意图/延迟事件关联；未引入无证据的检索融合 | 最终 962 后端：956 通过/6 跳过，139 前端及构建；真实 space-bunny-free 生成/修订、API 用户确认、PG 不变量；真实向量 4/4；浏览器未验证 | [交付与限制](next-stage-delivery-report.md#p4)、[执行清单](acceptance-evidence/2026-10-04/p4-backend-test-manifest.json) |
-| 复核边界修复：详情恢复鉴权、持久输出预算、卡片退避、列表同步范围 | 已实施；先前未验证记录保留为历史，浏览器指定链路已补验收 | PostgreSQL 撤权恢复/网关实际预算参数/列表隔离；真实内置浏览器 503 自动恢复、失败上限、手动恢复 | [复核修复](next-stage-delivery-report.md#复核后的边界修复2026-10-04)、[浏览器补验收](next-stage-delivery-report.md#内置浏览器补验收2026-10-04) |
-| 浏览器资料→Agent 规划→同规划局部修订→人工确认→刷新核对 | 已通过所列链路；修复原生来源卡片持久化及修复工具 mode/字段契约 | 生产适配器 space-bunny-free，真实浏览器人工确认 v4；PG 4 任务/2 里程碑/3 依赖；最终 966 后端：960 通过/6 跳过，142 前端及构建 | [操作、截图、API 与 PG 证据](acceptance-evidence/2026-10-04/browser/)、[范围与未验证项](next-stage-delivery-report.md#内置浏览器补验收2026-10-04) |
+| P1 摘要持续覆盖与窗口外续读 | 已实现；策略 v4，偏移合并、完成前缀压缩、删除终止、重读鉴权 | 单测 + 真实隔离 PostgreSQL 数据流，61 项通过 | [P1 修复](./archive/reports/p1-context-foundation-report.md#11-剩余覆盖修复2026-10-04) |
+| P2 任务搜索分页、文档目录/提纲/正文续读、可靠来源 | 已实现；任务 keyset 实时分页，正文独立于 embedding；V54，旧来源兼容读取 | 43 项后端针对性（含 PostgreSQL），137 项前端；类型检查通过 | [连续交付报告](./archive/reports/next-stage-delivery-report.md) |
+| P3 Agent 接通规划生成/查询/修复/取消 | 已实现；V55 操作身份、提交后 dispatch、同 attempt 恢复；原规划页人工确认 | 93 项针对性（含 PostgreSQL）、139 项前端、类型检查；真实模型另记 | [连续交付报告](./archive/reports/next-stage-delivery-report.md#p3) |
+| P4 业务评测、相关记忆、追问与质量收敛 | 已实现 17 场景评测；修复真实规划链路预算/身份/修订意图/延迟事件关联；未引入无证据的检索融合 | 最终 962 后端：956 通过/6 跳过，139 前端及构建；真实 space-bunny-free 生成/修订、API 用户确认、PG 不变量；真实向量 4/4；浏览器未验证 | [交付与限制](./archive/reports/next-stage-delivery-report.md#p4)、[执行清单](acceptance-evidence/2026-10-04/p4-backend-test-manifest.json) |
+| 复核边界修复：详情恢复鉴权、持久输出预算、卡片退避、列表同步范围 | 已实施；先前未验证记录保留为历史，浏览器指定链路已补验收 | PostgreSQL 撤权恢复/网关实际预算参数/列表隔离；真实内置浏览器 503 自动恢复、失败上限、手动恢复 | [复核修复](./archive/reports/next-stage-delivery-report.md#复核后的边界修复2026-10-04)、[浏览器补验收](./archive/reports/next-stage-delivery-report.md#内置浏览器补验收2026-10-04) |
+| 浏览器资料→Agent 规划→同规划局部修订→人工确认→刷新核对 | 已通过所列链路；修复原生来源卡片持久化及修复工具 mode/字段契约 | 生产适配器 space-bunny-free，真实浏览器人工确认 v4；PG 4 任务/2 里程碑/3 依赖；最终 966 后端：960 通过/6 跳过，142 前端及构建 | [操作、截图、API 与 PG 证据](acceptance-evidence/2026-10-04/browser/)、[范围与未验证项](./archive/reports/next-stage-delivery-report.md#内置浏览器补验收2026-10-04) |

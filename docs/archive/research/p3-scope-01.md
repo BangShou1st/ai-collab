@@ -6,7 +6,7 @@
 
 P3 的目标是缩短高校竞赛团队、软件课程项目用户从“看到待办/资料/AI 结果”到“完成下一步协作”的路径。保留现有模块化单体、Vue SPA、权限和人工确认边界。
 
-本次正式交付的是范围基线、候选需求、优先级建议、验收合同和开发交接。**初始规划时 U 系列均为候选；2026-10-20 用户先批准 U-01（P3-TASK-01），随后明确批准 U-02（P3-TASK-02），再批准 U-03（P3-TASK-03），三项均已实现。随后用户批准 U-04 最小增量（P3-TASK-04），已实现失败处理指引与单项重试反馈；U-05 仍待批准。** SCOPE-01 原轮次实施两项诊断技术债 T-01/T-02；后续 TASK-01 已实施 U-01，详见 [TASK-01 验收记录](acceptance-evidence/2026-10-20/p3-task-01/README.md)；U-02 详见 [TASK-02 验收记录](acceptance-evidence/2026-10-20/p3-task-02/README.md)；U-03 详见 [TASK-03 验收记录](acceptance-evidence/2026-10-20/p3-task-03/README.md)。未做用户访谈，频率、转化率和节省时间均未知，不虚构用户研究结论。
+本次正式交付的是范围基线、候选需求、优先级建议、验收合同和开发交接。**初始规划时 U 系列均为候选；2026-10-20 用户先批准 U-01（P3-TASK-01），随后明确批准 U-02（P3-TASK-02），再批准 U-03（P3-TASK-03），三项均已实现。随后用户批准 U-04 最小增量（P3-TASK-04），已实现失败处理指引与单项重试反馈；U-05 仍待批准。** SCOPE-01 原轮次实施两项诊断技术债 T-01/T-02；后续 TASK-01 已实施 U-01，详见 [TASK-01 验收记录](../../../README.md)；U-02 详见 [TASK-02 验收记录](../../../README.md)；U-03 详见 [TASK-03 验收记录](../../../README.md)。未做用户访谈，频率、转化率和节省时间均未知，不虚构用户研究结论。
 
 本文件是新 P3 的规划入口。旧蓝图中的 P0–P4 是历史交付编号，与本文件的需求优先级 P0/P1/P2 无关。历史验收的后续勘误和最新专项结果优先，不能把旧建议直接搬成新需求。
 
@@ -30,7 +30,7 @@ P3 的目标是缩短高校竞赛团队、软件课程项目用户从“看到�
 | Agent 工作区/研究委派/工具契约 | 旧路线图 §15–17 已记录改版、13 工具契约、depth=1 研究委派和真实对照；后续质量专项继续交付 | 旧文首“尚未接入/建议试点”已被后文替代 | 禁止重复启动工作区大改或子 Agent 首次接入 |
 | 个人 AI、系统 Embedding、MCP | UserAiSettingsView 用途覆盖/能力测试已存在；Embedding 系统管理员、MCP 项目管理员各有入口 | TASK-03 前首页 configured 仅判断 Provider 列表非空；现已按解析规则区分“已保存/可解析/未验证”，并标注未测试与本次会话测试结果；真实 429 仍未注入 | U-03 已实现信息准确性，不新建模型配置系统或健康监控 |
 
-源码路径均相对于仓库：前端 `ai-collab-frontend/src/modules/`，后端 `ai-collab-backend/src/main/java/com/shitulelv/aicollab/`。矩阵总入口见 [能力矩阵](capability-matrix.md)。截至 2026-10-20，仓库 `ai-collab-backend/src/main/resources/db/migration/` 包含连续的 V1–V65，共 65 个版本迁移文件，最高版本为 V65；README/架构已同步此仓库文件范围。各环境实际已执行版本须分别核对其 `flyway_schema_history`，不能由仓库文件推断；本次文档纠偏不新增或执行数据库迁移。
+源码路径均相对于仓库：前端 `ai-collab-frontend/src/modules/`，后端 `ai-collab-backend/src/main/java/com/shitulelv/aicollab/`。矩阵总入口见 [能力矩阵](../../capability-matrix.md)。截至 2026-10-20，仓库 `ai-collab-backend/src/main/resources/db/migration/` 包含连续的 V1–V65，共 65 个版本迁移文件，最高版本为 V65；README/架构已同步此仓库文件范围。各环境实际已执行版本须分别核对其 `flyway_schema_history`，不能由仓库文件推断；本次文档纠偏不新增或执行数据库迁移。
 
 ## 3. 候选需求与推荐排序
 
@@ -72,7 +72,7 @@ E-02 本次批准范围仅为 `README.md`、`docs/architecture.md`、本文件�
 | M1 首轮（P3-TASK-01） | **仅 U-01 已批准并实现** | 满足 U-01 和提示词矩阵；相关自动化+BSK 真实页面证据；无需重跑全部真实 AI 核心闭环 |
 | M2（P3-TASK-02） | **当轮仅 U-02 获批并实现**；U-03 后续另行获批并由 P3-TASK-03 交付 | U-02 复用 M1；TASK 通知、已读/分页、真实 Member 移除、桌面/窄屏/键盘通过；未验项见专项记录 |
 | M3（P3-TASK-03） | **当轮仅 U-03 获批并实现**；U-04 最小增量后续另行获批并由 P3-TASK-04 交付；U-05 仍待批准 | U-03 先定状态契约再改 UI；工作台不再宣称“已就绪”，个人设置页按用途显示解析状态与“未验证/本次会话测试”，无自动模型探测，Member 无系统 Embedding 入口；详见专项记录 |
-| M4（P3-TASK-04） | **仅 U-04 最小增量已批准并实现** | 已知安全原因指引、未知原因兜底、单项重试反馈、只读/权限边界；见 [TASK-04 验收](acceptance-evidence/2026-10-20/p3-task-04/README.md) |
+| M4（P3-TASK-04） | **仅 U-04 最小增量已批准并实现** | 已知安全原因指引、未知原因兜底、单项重试反馈、只读/权限边界；见 [TASK-04 验收](../../../README.md) |
 | M5 按反馈选择 | U-05/E 系列；无强制日期 | 有明确用户收益再立项；发现已满足就取消，不用新功能凑进度 |
 
 每轮必须记录批准范围、实现差异、实际命令和结果、未验项、提交 SHA、CI 链接和回退方式。前端改动跑 lint/typecheck/test/build；后端只有触及时才增加对应测试，本轮后端完整回归由 CI 执行。不得削弱已有 Testcontainers 守卫。浏览器统一 browser-skill/bsk，完整验收前不结束 session。功能改动撤回只回退对应提交，保留用户数据。
@@ -96,7 +96,7 @@ E-02 本次批准范围仅为 `README.md`、`docs/architecture.md`、本文件�
 - **T-01：已证实并最小修复。** 原 `classifySseDisconnect` 在 localAbort=false 时凭 error.name=AbortError 判 CLIENT_ABORT，与 OBS-02 规则矛盾。测试先改为 UNKNOWN 并复现失败；实现仅修该分支。显式 localAbort=true 仍 CLIENT_ABORT，DOMException 同样无证据则 UNKNOWN。
 - **T-02：已证实并最小修复。** 原 beginEpisode 在活跃区间提前返回，导致 TRANSPORT_RECONNECTED 后再次错误/提前结束仍显示传输重连。新增参数化测试两分支先失败；实现仅在活跃区间退回 RECONNECTING，保留首次类别、累计次数、区间内不重复 disconnect；重新 opened 后 aligned 才 recovered。
 
-两项仅修改 `agent-sse-diagnostics.ts` 和对应测试；不变更 Runtime、SSE 游标/退避、后端/数据库/工具/模型策略。新增边界为自动化验证，未冒充本轮真实浏览器故障注入。详细执行记录见 [本轮验收记录](acceptance-evidence/2026-10-20/p3-scope-01/README.md)。
+两项仅修改 `agent-sse-diagnostics.ts` 和对应测试；不变更 Runtime、SSE 游标/退避、后端/数据库/工具/模型策略。新增边界为自动化验证，未冒充本轮真实浏览器故障注入。详细执行记录见 [本轮验收记录](../../../README.md)。
 
 ## 8. 非目标
 
@@ -104,7 +104,7 @@ E-02 本次批准范围仅为 `README.md`、`docs/architecture.md`、本文件�
 
 ## 9. 证据与下一轮入口
 
-- [P2 核心闭环](acceptance-evidence/2026-10-19/p2-business-e2e-02/README.md)、[P2 HARDEN](acceptance-evidence/2026-10-19/p2-harden-01/README.md)。
-- [P3 ENTRY（含勘误）](acceptance-evidence/2026-10-20/p3-entry-01/README.md)、[P3 OBS-02](acceptance-evidence/2026-10-20/p3-obs-02/README.md)。
-- [架构](architecture.md)、[历史蓝图及实施进度](ai-next-stage-blueprint.md)、[旧 Agent 路线图 §15–17](agent-system-research-and-roadmap-20261007.md)、[后续检索质量验收](acceptance-evidence/2026-10-19/agent-retrieval-quality/README.md)。
-- **可复制的首轮实施提示词：[P3-TASK-01 工作台待办直达任务详情](p3-first-batch-prompt.md)。** 使用该提示词发起实施表示选择 U-01；该历史提示词不自动批准其他候选；U-02 后续已获独立批准并以 P3-TASK-02 实现；U-03 后续已独立交付，U-04 最小增量见 TASK-04，U-05 仍待批准。
+- [P2 核心闭环](../../../README.md)、[P2 HARDEN](../../../README.md)。
+- [P3 ENTRY（含勘误）](../../../README.md)、[P3 OBS-02](../../../README.md)。
+- [架构](../../architecture.md)、[历史蓝图及实施进度](../../design/ai-next-stage-blueprint.md)、[旧 Agent 路线图 §15–17](agent-system-research-and-roadmap-20261007.md)、[后续检索质量验收](../../../README.md)。
+- **可复制的首轮实施提示词：[P3-TASK-01 工作台待办直达任务详情](../prompts/p3-first-batch-prompt.md)。** 使用该提示词发起实施表示选择 U-01；该历史提示词不自动批准其他候选；U-02 后续已获独立批准并以 P3-TASK-02 实现；U-03 后续已独立交付，U-04 最小增量见 TASK-04，U-05 仍待批准。

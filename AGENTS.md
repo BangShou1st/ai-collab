@@ -135,18 +135,32 @@ Controller → Application Service → Domain Policy/Model → Repository 接口
 - **禁止 force push、禁止改写历史、禁止删除 `main`**；删除临时分支前先确认提交已成为 `dev`/`main` 的祖先，否则先打 `archive/<日期>/<分支>` tag 归档。
 - 提交信息沿用 Conventional Commits（`feat:` / `fix:` / `docs:` / `test:` / `chore:` / `refactor:`），正文用中文说明动机与影响面。
 
-## 9. 文档
+## 9. 文档与临时资产规范（硬规则）
 
-- 长期有效的文档放 `docs/`，按主题分目录（`docs/development/`、`docs/deployment/`）。
-- 一次性评审/验收报告可留在 `docs/` 但命名带日期（如 `*-20261005.md`），不要混入长期文档。
-- 改动功能时同步更新对应文档；改依赖版本、端口、命令、迁移数量时**必须**回改 README，避免文档漂移。
-- 文档引用的事实（版本号、路径、端口、迁移数）必须核对代码后再写。
+- **技术文档分类存放（严禁 docs/ 根目录平铺过程文档）**：
+  - 长期有效的系统级架构与核心指南保留在 `docs/` 顶层（`architecture.md`、`capability-matrix.md`、`local-development.md`、`deployment-recovery.md`、`backend-agent-redesign.md`）。文档总导航见 `docs/README.md`。
+  - 模块设计与技术方案放 `docs/design/`；接口契约放 `docs/api/`；运维部署放 `docs/deployment/`；开发规范放 `docs/development/`。
+  - 任务交接（handoff）、审查复核（review）、阶段交付报告（report）、专项研究（research）、临时 Prompt **必须存入 `docs/archive/<类型>/`**，严禁在 `docs/` 根目录直接平铺创建新文档。
+- **验收证据统一受控**：
+  - 自动化与端到端验收证据统一按日期归入 `docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`（含 BSK 截图、脱敏数据、断言基准），严禁在项目根目录散落。
+- **测试语料（Fixtures）统一收归**：
+  - 用于 RAG 检索、文件解析、业务测试的静态文档语料统一存放于 `tests/fixtures/documents/`（统一使用 UTF-8 无 BOM 编码，并在其 `README.md` 中登记用途），禁止在根目录下随意新建 `test-*` 临时目录。
+- **日志生成与临时产物红线**：
+  - 测试命令与构建命令的输出日志**严禁直接生成在项目根目录或前后端源码目录下**。
+  - 临时日志重定向输出至 `target/` 或指定受控目录；任务交付前必须清理本地临时生成的 `*.log` 文件。
+- **凭据与敏感信息零容忍**：
+  - 禁止在项目任何目录（包括受忽略的文本文件）存放明文 Token、API Key、密码等长期凭据。
+- **文档维护与事实一致性**：
+  - 改动功能时同步更新对应文档；改依赖版本、端口、命令、迁移数量时**必须**回改 README 与核心文档，避免文档漂移。
+  - 涉及文档移动或重命名时，必须全局检查并修正 Markdown 链接与代码注释中的引用路径。
 
 ## 10. 交付前检查清单
 
 - [ ] 改动范围符合任务；没有夹带无关重构
 - [ ] 后端 `mvnw verify`、前端 `lint/typecheck/test/build` 全绿
 - [ ] 新增数据库变更用新迁移文件，未改历史迁移
-- [ ] 权限在服务端校验；Agent 写操作走审批；密钥不进日志
+- [ ] 权限在服务端校验；Agent 写操作走审批；密钥不进日志与文本
+- [ ] 文档与过程记录按规范存放于对应子目录，`docs/` 顶层未平铺新增过程文档
+- [ ] 本地临时生成的 `*.log` 与调试产物已清理干净，未污染代码库
 - [ ] README / 相关文档已同步，链接可用
 - [ ] 提交落在 `dev`；合并到 `main` 走 PR 并等 CI 绿

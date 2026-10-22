@@ -40,4 +40,4 @@ Git 交付须经过现有 `Backend (Maven verify)`、`Frontend (pnpm)` 两个 re
 - 未升级旧 MinIO，未把新镜像连接旧业务卷；旧数据升级兼容仍未验证，不把前轮空卷验证当成通过。
 - 未验证公网生产部署或新增 Agent 实验；当前地址仅供本地开发。
 
-日常操作与日志位置见 [本地开发维护说明](local-development.md)。
+日常操作与日志位置见 [本地开发维护说明](../../local-development.md)。

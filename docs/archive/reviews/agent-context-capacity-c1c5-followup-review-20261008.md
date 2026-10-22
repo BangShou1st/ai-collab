@@ -5,8 +5,8 @@
 - 实际分支：`codex/context-foundation`；实际 HEAD：`2cf4c51`，前置代码/测试提交为 `492fddf`、`03df846`。
 - 开始检查时工作区仅有既有未跟踪目录 `.dsh-acl-recovery/`、`.freebuff/`，未修改。
 - 本轮为只读源码复核与隔离探针验证，不修改生产源码，不提交、不 push，不操作生产数据库或现有服务。
-- 依据：[本轮交付报告](agent-context-capacity-c1c5-delivery-20261008.md)、[上一轮审查](agent-context-capacity-review-20261008.md)。历史文档保留原始时点，不用新结论覆盖历史证据。
-- 探针源码与本轮实际运行日志见[证据目录](acceptance-evidence/2026-10-08/c1c5-followup-review/README.md)。
+- 依据：[本轮交付报告](../reports/agent-context-capacity-c1c5-delivery-20261008.md)、[上一轮审查](agent-context-capacity-review-20261008.md)。历史文档保留原始时点，不用新结论覆盖历史证据。
+- 探针源码与本轮实际运行日志见[证据目录](../../../README.md)。
 
 ## 2. 总结
 

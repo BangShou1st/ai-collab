@@ -3,9 +3,9 @@
 ## 0. 状态
 
 - 分支 `codex/context-foundation`，起点 HEAD `ef2a514`（前置 `de9f70d`、`9c823bb`）。
-- 依据：[补充审查](agent-context-capacity-review-20261008.md)（C1–C5 发现）、
-  [容量设计](agent-context-capacity-design-20261008.md)、[维护入口](agent-runtime-maintenance.md) 第 14 节。
-- 红绿证据：[acceptance-evidence/2026-10-08/agent-capacity-review](acceptance-evidence/2026-10-08/agent-capacity-review/README.md)。
+- 依据：[补充审查](../reviews/agent-context-capacity-review-20261008.md)（C1–C5 发现）、
+  [容量设计](../research/agent-context-capacity-design-20261008.md)、[维护入口](../../design/agent-runtime-maintenance.md) 第 14 节。
+- 红绿证据：[acceptance-evidence/2026-10-08/agent-capacity-review](../../../README.md)。
 - 本轮只修 C1–C5 与其直接配套；不迁移框架、不建第二套摘要/编排平台、不重做前端、不重开 SSE。
 - 已确定方向不变：累计输入/输出仅统计；父子执行额度独立；根 45 分钟/子 30 分钟、
   模型单请求 10 分钟、连接 15 秒；旧 v1 运行按旧语义恢复。
@@ -90,7 +90,7 @@
 | largeWindowKeepsOlderRawEvidenceWithoutPressureProjection | FAIL（无压力裁正文） | 通过 |
 | compactionTriggersOnPreClipActiveSources… | FAIL（按裁后体积不触发） | 通过 |
 
-完整失败输出见 [baseline-red-run.log](acceptance-evidence/2026-10-08/agent-capacity-review/baseline-red-run.log)
+完整失败输出见 [baseline-red-run.log](../../acceptance-evidence/2026-10-08/agent-capacity-review/baseline-red-run.log)
 （`Tests run: 4, Failures: 4`）。worktree 内两处编译适配见证据 README，断言语义不变。
 
 ### 2.2 C4/C1 隔离 PostgreSQL 回归（新增，真实持久化）
@@ -162,7 +162,7 @@
 ### 4.3 浏览器验收（bsk，真实模型，受控窗口）
 
 完整记录见
-[acceptance-evidence/2026-10-08/c1c5-browser/browser-acceptance.md](acceptance-evidence/2026-10-08/c1c5-browser/browser-acceptance.md)。要点：
+[acceptance-evidence/2026-10-08/c1c5-browser/browser-acceptance.md](../../acceptance-evidence/2026-10-09/e1e3/browser-acceptance.md)。要点：
 
 - **简单事实查询**：1 次工具调用，total=0 如实回答，无扩容。
 - **四文档直接研究**：`来源（15）`，引用带章节定位，`SOURCE_DATA_ONLY` 边界如实标注。
@@ -179,5 +179,5 @@
 
 - [上轮交付报告](agent-context-capacity-delivery-20261008.md) 中"提交后协调器重新组装主请求"
   "至少两次研究窗口压缩可推进""长请求配套有界租约续期"等表述在 `ef2a514` 时点仅有
-  部分实现/静态依据，实际缺陷见[补充审查](agent-context-capacity-review-20261008.md)；
+  部分实现/静态依据，实际缺陷见[补充审查](../reviews/agent-context-capacity-review-20261008.md)；
   本轮修复与实测以本报告为准。
