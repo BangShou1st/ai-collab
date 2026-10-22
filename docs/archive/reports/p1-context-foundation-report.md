@@ -1,6 +1,6 @@
 # P1 交付报告：上下文基础（基线整理与上下文基础）
 
-日期：2026-10-04。依据 [ai-next-stage-blueprint.md](ai-next-stage-blueprint.md) P0＋P1 及最终批准计划的七项修订与五条补充口径执行。分支 `codex/context-foundation`，仅本地提交未推送。
+日期：2026-10-04。依据 [ai-next-stage-blueprint.md](../../design/ai-next-stage-blueprint.md) P0＋P1 及最终批准计划的七项修订与五条补充口径执行。分支 `codex/context-foundation`，仅本地提交未推送。
 
 ## 1. 提交清单
 
@@ -57,7 +57,7 @@
 ## 4. 实际执行的验证
 
 - **P0 基线**（提交前）：`test-compile` 通过；agent 包 46 类 341 项测试 0 失败 0 跳过；surefire 报告与源码类清单逐一核对（CLASSES_MATCH）；Testcontainers（pgvector pg17 + MinIO）确认执行。
-- **P1 各提交**：agent 包从基线 46 类逐步增至 **49 类 370 项测试全绿**（新增 3 个测试类、29 项测试：预算 7、Composer v2 11、摘要单测 5、工作状态/摘要集成 6）。P1 验收用例登记见 [capability-matrix.md](capability-matrix.md) 第 6 节。
+- **P1 各提交**：agent 包从基线 46 类逐步增至 **49 类 370 项测试全绿**（新增 3 个测试类、29 项测试：预算 7、Composer v2 11、摘要单测 5、工作状态/摘要集成 6）。P1 验收用例登记见 [capability-matrix.md](../../capability-matrix.md) 第 6 节。
 - **交付前全量**：全量后端测试（mvnw test）结果见第 7 节（运行中/结果补记）。
 - Docker 29.8.0 可用，集成测试为完整执行。
 

@@ -101,7 +101,6 @@ docs/superpowers/
 docs/SESSION_HANDOFF.md
 docs/feature-matrix.md
 docs/database.md
-docs/README.md
 # docs/development 下的本地笔记不入库；
 # 分支策略是仓库级约定文档，显式跟踪（负向规则必须放在非目录型排除之后才生效）。
 docs/development/*
@@ -122,9 +121,12 @@ start-backend.bat
 start-frontend.bat
 
 # ===========================
-# Machine-specific files
+# Machine-specific credentials and tokens (never commit)
 # ===========================
-机器码.txt
+*token*.txt
+*key*.txt
+*secret*.txt
+*credential*.txt
 
 # ===========================
 # Visual acceptance screenshots (local only, never commit)

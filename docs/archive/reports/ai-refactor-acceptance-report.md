@@ -41,16 +41,16 @@
 
 断线期间还发生前端热更新，因此同时观察到页面恢复后的结果回放；本轮不宣称覆盖所有网络竞争情形。测试后端重启使用新的临时对象存储，未验收重启后原上传对象下载。合成文档的数据库分块、引用及候选索引流程已验证。
 
-截图保存在 [验收证据目录](acceptance-evidence/2026-10-03)：
+截图保存在 [验收证据目录](../../acceptance-evidence/2026-10-03)：
 
-- [知识问答追问](acceptance-evidence/2026-10-03/knowledge-followup.png)
-- [规划认证失败且草稿保留](acceptance-evidence/2026-10-03/planning-auth-failure-draft-preserved.png)
-- [审批执行成功，历史截图含未收尾的 Plan 展示](acceptance-evidence/2026-10-03/agent-approved.png)
-- [收尾后的真实工具执行与参考步骤](acceptance-evidence/2026-10-03/agent-plan-execution.png)
-- [部分工具失败](acceptance-evidence/2026-10-03/agent-partial-failure.png)
-- [取消后的终态](acceptance-evidence/2026-10-03/agent-canceled.png)
-- [断线恢复](acceptance-evidence/2026-10-03/agent-reconnected.png)
-- [候选代际显式激活](acceptance-evidence/2026-10-03/index-generation-active.png)
+- [知识问答追问](../../acceptance-evidence/2026-10-03/knowledge-followup.png)
+- [规划认证失败且草稿保留](../../acceptance-evidence/2026-10-03/planning-auth-failure-draft-preserved.png)
+- [审批执行成功，历史截图含未收尾的 Plan 展示](../../acceptance-evidence/2026-10-03/agent-approved.png)
+- [收尾后的真实工具执行与参考步骤](../../acceptance-evidence/2026-10-03/agent-plan-execution.png)
+- [部分工具失败](../../acceptance-evidence/2026-10-03/agent-partial-failure.png)
+- [取消后的终态](../../acceptance-evidence/2026-10-03/agent-canceled.png)
+- [断线恢复](../../acceptance-evidence/2026-10-03/agent-reconnected.png)
+- [候选代际显式激活](../../acceptance-evidence/2026-10-03/index-generation-active.png)
 
 ## 已有数据升级演练
 

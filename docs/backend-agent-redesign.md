@@ -2,7 +2,7 @@
 
 日期：2026-10-03。状态：已按全项目 AI 审查及模型切换问题修订，目标设计待分阶段实现与验证。
 
-本文依据当前工作区的模型接入、文档与 RAG、任务规划、Agent、MCP 和前端链路审查修订。相关测试结果、已确认问题及未验证范围见 [AI 能力审查报告](ai-capability-review.md)。工具调用、异常决策、取消恢复与具体实施包见 [Agent 执行设计](agent-runtime-design.md)。测试通过不代表本文目标已全部实现。工作区已有多处进行中的修改，本文以当前文件为基线，不覆盖这些修改。现有架构说明见 [architecture.md](architecture.md)。
+本文依据当前工作区的模型接入、文档与 RAG、任务规划、Agent、MCP 和前端链路审查修订。相关测试结果、已确认问题及未验证范围见 [AI 能力审查报告](./archive/reviews/ai-capability-review.md)。工具调用、异常决策、取消恢复与具体实施包见 [Agent 执行设计](./design/agent-runtime-design.md)。测试通过不代表本文目标已全部实现。工作区已有多处进行中的修改，本文以当前文件为基线，不覆盖这些修改。现有架构说明见 [architecture.md](architecture.md)。
 
 ## 0. 全局定案
 

@@ -1,7 +1,7 @@
 # D1-D8 收口红绿证据
 
 - 日期：2026-10-08/09；分支 `codex/context-foundation`；基线 HEAD `2cf4c51`。
-- 报告：[D1-D8 交付](../../../agent-context-capacity-d1d8-delivery-20261008.md)。
+- 报告：[D1-D8 交付](../../../archive/reports/agent-context-capacity-d1d8-delivery-20261008.md)。
 - 上轮探针证据（只读复核）：[c1c5-followup-review](../c1c5-followup-review/README.md)、
   [c1c5-expanded-review](../c1c5-expanded-review/README.md)。本轮把其中 9 个探针断言
   正式化为行为回归，并在未修基线上实测红灯（见 `baseline-red-run.log`）。

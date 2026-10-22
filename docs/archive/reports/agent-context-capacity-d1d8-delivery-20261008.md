@@ -3,10 +3,10 @@
 ## 0. 状态
 
 - 分支 `codex/context-foundation`，起点 HEAD `2cf4c51`（代码/测试前置 `492fddf`、`03df846`）。
-- 依据：[D1-D8 扩展复核](agent-context-capacity-expanded-review-20261008.md)、
-  [D1/D2 后续复核](agent-context-capacity-c1c5-followup-review-20261008.md)、
-  [衔接提示词](agent-context-capacity-d1d8-handoff-20261008.md)、维护文档第 14/15 节。
-- 红绿证据：[acceptance-evidence/2026-10-08/d1d8-delivery](acceptance-evidence/2026-10-08/d1d8-delivery/README.md)。
+- 依据：[D1-D8 扩展复核](../reviews/agent-context-capacity-expanded-review-20261008.md)、
+  [D1/D2 后续复核](../reviews/agent-context-capacity-c1c5-followup-review-20261008.md)、
+  [衔接提示词](../handoffs/agent-context-capacity-d1d8-handoff-20261008.md)、维护文档第 14/15 节。
+- 红绿证据：[acceptance-evidence/2026-10-08/d1d8-delivery](../../../README.md)。
 - 本轮范围：三个开发包收口 D1-D8；不新增累计 token 限制、不迁框架、不重开 SSE、不重做 UI。
   暂停仍走明确输入续跑；已受理后台规划/摘要按既有契约完成。
 

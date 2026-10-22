@@ -1,7 +1,7 @@
 # C1-C5 扩展复核证据（D3-D8）
 
 - 日期：2026-10-08；分支 `codex/context-foundation`；HEAD `2cf4c51`。
-- 报告：[扩展复核](../../../agent-context-capacity-expanded-review-20261008.md)。
+- 报告：[扩展复核](../../../archive/reviews/agent-context-capacity-expanded-review-20261008.md)。
 - 上一条答复的 D1/D2 三探针：[先前证据](../c1c5-followup-review/README.md)，本目录不冒充重跑那些探针。
 
 ## 本次新增探针

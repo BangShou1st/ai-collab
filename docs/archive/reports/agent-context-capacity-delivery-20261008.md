@@ -3,7 +3,7 @@
 ## 0. 状态
 
 > **2026-10-08 第二轮更正**：本文写作时点的以下表述超出实际实现，已被同日
-> [补充审查](agent-context-capacity-review-20261008.md)（C1–C5）证实并在
+> [补充审查](../reviews/agent-context-capacity-review-20261008.md)（C1–C5）证实并在
 > [C1–C5 修复交付报告](agent-context-capacity-c1c5-delivery-20261008.md)中修复与实测：
 > ① 1.7 节"提交后协调器重新组装主请求"——实际仅重发摘要前旧 composition，
 > Composer 不读取 RUN_CONTEXT（C1）；② 1.7 节"多周期"推进——截断来源按 step ID
@@ -13,8 +13,8 @@
 > 时长）的真实交付记录，压缩闭环与出站边界以修复报告为准。
 
 - 分支 `codex/context-foundation`，起点 HEAD `c911a8518c68ee363855497cd51ab96e2fd9449b`。
-- 依据：[容量设计](agent-context-capacity-design-20261008.md)、
-  [全面审查](agent-comprehensive-review-20261008.md)、[维护入口](agent-runtime-maintenance.md) 第 14 节。
+- 依据：[容量设计](../research/agent-context-capacity-design-20261008.md)、
+  [全面审查](../reviews/agent-comprehensive-review-20261008.md)、[维护入口](../../design/agent-runtime-maintenance.md) 第 14 节。
 - 本文记录**实际实现**、**实际执行过的验证**与**未验证项**，不把设计意图写成实测结果。
 
 ## 1. 已实现范围
@@ -220,7 +220,7 @@ F6：修复前口径由 `AgentDelegationAdmissionTest.f6VisibilityReservesTheUpc
 ### 4.4 浏览器验收（bsk，真实模型）
 
 完整记录见
-[acceptance-evidence/2026-10-08/agent-context-capacity/browser-acceptance.md](acceptance-evidence/2026-10-08/agent-context-capacity/browser-acceptance.md)。
+[acceptance-evidence/2026-10-08/agent-context-capacity/browser-acceptance.md](../../acceptance-evidence/2026-10-09/e1e3/browser-acceptance.md)。
 要点：
 
 - **简单问答**：1 次工具调用，正确任务事实与状态汇总，不为扩容增加无关请求。
