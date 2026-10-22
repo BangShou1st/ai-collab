@@ -1,0 +1,91 @@
+{
+  "historicalDocuments": 13,
+  "additionalDocuments": 1,
+  "encoding": "UTF-8 without BOM; LF",
+  "liveRunLineEndingNote": "Initial Windows materialization used CRLF. The normalized text matched all historical hashes before invocation. Files were subsequently normalized to LF for byte-identical archival. A deterministic production-chunker parity regression verifies body and heading equality across LF and CRLF.",
+  "documents": [
+    {
+      "filename": "上线验收规程.md",
+      "sha256": "31e365fc319847681d2d9cadccfbe1e8480466eb3ae3fe21f6617ed5f7f4f696",
+      "historicalIndex": 0,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "发布回滚预案.md",
+      "sha256": "fdf5669968a644986a61d4a464b11d327eadfe204f69ec3257301512e5fc7b18",
+      "historicalIndex": 1,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "任务预算规则.md",
+      "sha256": "3e66b1ae633142db11d123efb91342e432dfcc8ec2c5122fdd9fac0a82048453",
+      "historicalIndex": 2,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "批量导出规范.md",
+      "sha256": "36f5a6b26447f032026c25d743414913a186b4f35503c3ae1068bb2ec60c322d",
+      "historicalIndex": 3,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "租户并发限制.md",
+      "sha256": "b10de525ac4c543147f631d007ba8de2bb6cf8df823f13828ca18d4b1f4a6da8",
+      "historicalIndex": 4,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "合同模板甲.md",
+      "sha256": "39fa36c36a8531aa0b8855a3aba9e7717b0657d5f9c1b0e05bc229192c9d3210",
+      "historicalIndex": 5,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "合同模板乙.md",
+      "sha256": "39fa36c36a8531aa0b8855a3aba9e7717b0657d5f9c1b0e05bc229192c9d3210",
+      "historicalIndex": 6,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "需求变更单.md",
+      "sha256": "9716fe920f3192187f88faed0d045da0237412692f25f6b5ba2a0d9c7eda6789",
+      "historicalIndex": 7,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "容量与性能约束.md",
+      "sha256": "abae34e3df6f6d070a88dd5834caea9de41790c992ea957083689acc89a17a3d",
+      "historicalIndex": 8,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "安全与脱敏规范.md",
+      "sha256": "268f2fae2f4932f56741dcf54e81a4815cc7d191c9252849e0e2eaaf7b3f4046",
+      "historicalIndex": 9,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "数据归档通告.md",
+      "sha256": "0a6b67140dbd42e48ed97ac5801b127feab976297483dcdd2bcff980acbb8027",
+      "historicalIndex": 10,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "检索性能测试手册.md",
+      "sha256": "5e5870e81e26ebc6fa9e4d0e0d417078603665dae10066bb698c84456c3c8b15",
+      "historicalIndex": 11,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "长文附录.md",
+      "sha256": "bd454640aa9eba546ef65b61bc2ab42d82c81cdffb91d891f78f126ac3897d2a",
+      "historicalIndex": 12,
+      "matchesP4RagQuality02": true
+    },
+    {
+      "filename": "不可信资料测试.md",
+      "sha256": "7aa85e901cf6305a704e225c4c65d0624988a804e1e2d97259e291e1f74573b3",
+      "additionalSyntheticInjectionFixture": true
+    }
+  ]
+}
