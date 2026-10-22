@@ -70,4 +70,4 @@ PID、创建时间、可执行文件、命令摘要、管理标记与日志位�
 | 前端失败 | 先用锁文件安装依赖，检查 Vite 日志和代理覆盖；不会自动跳到 5174 |
 | 状态文件丢失 | 同仓库健康进程会被借用；入口不擅自重新认领其停止权限 |
 
-本轮实际验收范围与限制见 [验收记录](local-development-acceptance.md)。
+本轮实际验收范围与限制见 [验收记录](./archive/reports/local-development-acceptance.md)。

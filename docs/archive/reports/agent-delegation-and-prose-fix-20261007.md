@@ -1,7 +1,7 @@
 # 委派边界与回答展示修复交付记录（2026-10-07 第二轮）
 
 > 基线：`codex/context-foundation` / `00a85fe` + 未提交的 A/B/C 交付。
-> 本轮按 [工具契约、工作区与子 Agent 交付代码审查](agent-tool-workspace-delegation-review-20261007.md)（R1–R11）完成生产修复、正式回归测试与浏览器验收。
+> 本轮按 [工具契约、工作区与子 Agent 交付代码审查](../reviews/agent-tool-workspace-delegation-review-20261007.md)（R1–R11）完成生产修复、正式回归测试与浏览器验收。
 > 证据类型：[测试] 为自动测试，[浏览器] 为 browser-skill 实测截图，[环境] 为运行环境事实。
 
 ## 1. 后端修复（R1–R5、R7–R9）

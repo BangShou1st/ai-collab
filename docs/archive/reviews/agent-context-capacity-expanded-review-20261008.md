@@ -10,8 +10,8 @@
 - 下一轮可在三个开发包中收口，主要修改既有五个模块及直接仓库协作，不需要迁移、框架或新编排平台。
 
 上一条答复的详细复核：[D1/D2](agent-context-capacity-c1c5-followup-review-20261008.md)。
-本次新探针与正式测试日志：[扩展证据](acceptance-evidence/2026-10-08/c1c5-expanded-review/README.md)。
-下一轮完整开发任务：[衔接提示词](agent-context-capacity-d1d8-handoff-20261008.md)。
+本次新探针与正式测试日志：[扩展证据](../../../README.md)。
+下一轮完整开发任务：[衔接提示词](../handoffs/agent-context-capacity-d1d8-handoff-20261008.md)。
 
 ## 2. 发现表
 

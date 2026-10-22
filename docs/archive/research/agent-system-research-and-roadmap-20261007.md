@@ -45,7 +45,7 @@
 | 29 轮摘要质量报告 | 旧原始消息退出近期窗口后，更正后的目标仍能延续 | 部分信息来自待审批记忆或近期消息，不能全部归功于摘要 |
 | 本文 | 当前源码调用关系、持久事实、限制和待验证风险 | 没有新增运行验收，没有访问业务数据库或调用模型 |
 
-优先资料：[运行时维护](agent-runtime-maintenance.md)、[SSE 最新独立复核](agent-sse-lifecycle-review-20261006.md)、[真实检索与流式](agent-real-use-and-streaming-report-20261006.md)、[回答与摘要质量](agent-baseline-quality-report-20261006.md)、[暂停与续跑](agent-pause-resume-report.md)、[恢复可靠性](agent-recovery-reliability-report.md)、[维护与课程对照](agent-maintainability-and-course-review-20261005.md)。
+优先资料：[运行时维护](../../design/agent-runtime-maintenance.md)、[SSE 最新独立复核](../reviews/agent-sse-lifecycle-review-20261006.md)、[真实检索与流式](../reports/agent-real-use-and-streaming-report-20261006.md)、[回答与摘要质量](../reports/agent-baseline-quality-report-20261006.md)、[暂停与续跑](../reports/agent-pause-resume-report.md)、[恢复可靠性](../reports/agent-recovery-reliability-report.md)、[维护与课程对照](../reviews/agent-maintainability-and-course-review-20261005.md)。
 
 ## 3. Tool、Skill 与子 Agent：不要混为一层
 
@@ -280,8 +280,8 @@ AgentView 使用共享 marked + DOMPurify 渲染最终 Markdown，去掉 [QUESTI
 
 用户明确认为现有 Agent 对话页面很丑，并确认优化整个对话工作区。本轮读取当前 AgentView 源码，并查看了以下历史截图；没有将其冒充当前浏览器实测：
 
-- [2026-10-06 桌面最终状态](acceptance-evidence/2026-10-06/real-use-streaming/shots/14-fixed-final.png)。
-- [2026-10-06 窄屏暂停状态](acceptance-evidence/2026-10-06/pause-resume/shots/08-narrow-paused.png)。
+- [2026-10-06 桌面最终状态](../../acceptance-evidence/2026-10-06/real-use-streaming/shots/14-fixed-final.png)。
+- [2026-10-06 窄屏暂停状态](../../acceptance-evidence/2026-10-06/pause-resume/shots/08-narrow-paused.png)。
 
 源码中仍有可定位的阅读问题：工作区桌面会话栏/检查栏为 232px/328px，中间回答又受 article max-width:78% 限制；所有 h1-h4 均设为 15px，标题层级较弱；最终回答沿用气泡边框/背景，较长分析容易像挤在卡片中的文档；参考步骤、状态和空区占用侧栏空间，信息主次需要重排。这些是布局/层级判断，不是模型回答事实错误，也不是宣布当前页面完全不支持 Markdown。
 
@@ -364,7 +364,7 @@ M1-M4 已完成，不重复当作待办：生产装配唯一、请求快照贯�
 
 ## 15. 2026-10-07 实现轮更新（交付 A/B/C 已落地）
 
-本文第 5/6/12/13 节描述的三项后续工作已于同日实现批次完成；变化的事实以 [交付报告](agent-tool-contract-workspace-delegation-report-20261007.md) 为准，要点：
+本文第 5/6/12/13 节描述的三项后续工作已于同日实现批次完成；变化的事实以 [交付报告](../reports/agent-tool-contract-workspace-delegation-report-20261007.md) 为准，要点：
 
 - **交付 A**：第 11 节所列"部分 Tool 参数定义不完整"已修复（get_task、知识检索及别名、审计、周报、里程碑/任务审批提案等 13 个工具补齐契约）；新增跨场景基础只读集合，暴露与执行复核共用同一规则；审批提案修订（x-approval-patch）语义保留并有契约测试。Skill.inputSchema 仍为场景元数据。
 - **交付 B**：对话工作区已按第 10.3 节方向改版（正文行宽、标题分级、过程折叠、侧栏可收起、右栏聚焦审批、移动端三视图），桌面/窄屏浏览器验收完成；流式预览改走同一 Markdown 渲染管线（修复源码闪现）；[QUESTIONS] 中间标记泄漏已修复。
@@ -375,7 +375,7 @@ M1-M4 已完成，不重复当作待办：生产装配唯一、请求快照贯�
 
 ## 16. 2026-10-07 第二轮更新（审查 R1–R11 已修复）
 
-第 15 节的交付 A/B/C 经独立代码审查发现 R1–R11 实际缺陷（见 [审查文档](agent-tool-workspace-delegation-review-20261007.md)）；同日第二轮已完成修复、正式回归测试与浏览器验收，细节见 [修复交付记录](agent-delegation-and-prose-fix-20261007.md)。变化的事实：
+第 15 节的交付 A/B/C 经独立代码审查发现 R1–R11 实际缺陷（见 [审查文档](../reviews/agent-tool-workspace-delegation-review-20261007.md)）；同日第二轮已完成修复、正式回归测试与浏览器验收，细节见 [修复交付记录](../reports/agent-delegation-and-prose-fix-20261007.md)。变化的事实：
 
 - 委派子运行的隔离（R1）、主运行恢复身份（R2）、受限白名单（R3）、混合批次（R4）、暂停用量回收（R5）、引用移交（R7）、配额（R8）、上下文隔离（R9）已修复并有 14 项真实 PostgreSQL 回归证明。
 - 电脑端中等窗口遮挡（R6）、正文转义改写（R10）、章节/步骤/追问层级混淆（R11）已修复；输出约定改为 Markdown 小标题分节、步骤与追问独立编号；浏览器验收含 1100px 中等窗口与审查固定样本。
@@ -384,7 +384,7 @@ M1-M4 已完成，不重复当作待办：生产装配唯一、请求快照贯�
 
 ## 17. 2026-10-07 第三轮更新（预算语义分离）
 
-第 7.4 节的"步骤/调用"预算与第 15/16 节委派链路的遗留问题（并行工具逐项消耗推进步、批次超额度直接硬停）已于同日第三轮完成修复，细节见 [预算语义交付记录](agent-budget-semantics-acceptance-20261007.md)。变化的事实：
+第 7.4 节的"步骤/调用"预算与第 15/16 节委派链路的遗留问题（并行工具逐项消耗推进步、批次超额度直接硬停）已于同日第三轮完成修复，细节见 [预算语义交付记录](../reports/agent-budget-semantics-acceptance-20261007.md)。变化的事实：
 
 - `agent_run.budget_semantics`（V63）区分 `COMBINED`（旧语义，历史运行保持）与 `SEPARATED`（新运行）：模型轮 +1 推进、最终回答落库 +1 收口，工具结果只计 `tool_calls_used`，持久化步骤与事件不减；子运行继承父语义，旧运行恢复/暂停续跑不重算历史。
 - 委派切分为子总结与父综合分别预留（父收尾 2 步、子输入/输出取父剩余一半），剩余不足时明确拒绝受理；批次超额度且有可信证据时进入无工具总结而非硬停。

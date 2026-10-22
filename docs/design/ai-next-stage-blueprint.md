@@ -14,7 +14,7 @@
 - 已有业务库及未提交修改保持原状。开发与真实写入验证继续使用隔离副本，正式发布不属于本蓝图的自动授权范围。
 - 后续执行 AI 按本文分段交付；本会话只负责设计与审查，不执行产品开发。
 
-原 [能力审查](ai-capability-review.md)、[全局重构设计](backend-agent-redesign.md) 和 [开发交接](development-handoff.md) 包含上一阶段的历史问题及演进意见，不是当前未完成事项清单。当前完成状态以最新 [太空兔验收报告](space-bunny-acceptance-report.md) 为准；下一阶段范围以本文为准。不得据旧文档重新引入框架或重复实施已完成修复。
+原 [能力审查](../archive/reviews/ai-capability-review.md)、[全局重构设计](../backend-agent-redesign.md) 和 [开发交接](../archive/handoffs/development-handoff.md) 包含上一阶段的历史问题及演进意见，不是当前未完成事项清单。当前完成状态以最新 [太空兔验收报告](../archive/reports/space-bunny-acceptance-report.md) 为准；下一阶段范围以本文为准。不得据旧文档重新引入框架或重复实施已完成修复。
 
 ## 2. 当前状态与具体缺口
 
@@ -292,7 +292,7 @@ P1 与 P2 不要求完成“完美记忆”和“完整文档平台”才能进�
 
 ## 11. 实施进度（2026-10-04）
 
-本轮由用户授权连续完成 P1 剩余修复与 P2/P3/P4。本蓝图范围和架构边界继续有效；实际状态、测试层级及限制统一记录在 [连续交付报告](next-stage-delivery-report.md) 和 [能力矩阵](capability-matrix.md)，不将本文初始静态缺口视为仍未修复。
+本轮由用户授权连续完成 P1 剩余修复与 P2/P3/P4。本蓝图范围和架构边界继续有效；实际状态、测试层级及限制统一记录在 [连续交付报告](../archive/reports/next-stage-delivery-report.md) 和 [能力矩阵](../capability-matrix.md)，不将本文初始静态缺口视为仍未修复。
 
 P1 剩余覆盖修复已提交 5f8d7fa。P2 已实施任务搜索分页、文档按需正文读取、来源身份和页边界/偏移修复，见交付报告。
 

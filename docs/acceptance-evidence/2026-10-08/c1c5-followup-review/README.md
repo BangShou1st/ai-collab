@@ -5,7 +5,7 @@
 - 日期：2026-10-08。
 - 分支：`codex/context-foundation`。
 - HEAD：`2cf4c51`；生产修复 `492fddf`，测试 `03df846`。
-- 结论见 [复核文档](../../../agent-context-capacity-c1c5-followup-review-20261008.md)。
+- 结论见 [复核文档](../../../archive/reviews/agent-context-capacity-c1c5-followup-review-20261008.md)。
 
 ## 归档内容
 
