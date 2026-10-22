@@ -81,6 +81,61 @@ class GeminiLiveAcceptanceTest {
     // ==========================================
 
     @Test
+    void networkRecovery_minimalOkWithoutRetry() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                "network-recovery-01".equals(System.getenv("AI_GEMINI_ACCEPTANCE_RECOVERY")),
+                "Explicit network recovery opt-in required");
+        java.nio.file.Path evidence = java.nio.file.Path.of("target/rag-answer-quality-01/network-recovery-01/connectivity.json");
+        org.junit.jupiter.api.Assumptions.assumeFalse(java.nio.file.Files.exists(evidence), "Do not repeat a reserved connectivity request");
+        GeminiLiveTestSupport.withAuthorizedApiKey(apiKey -> {
+            ObjectNode record = mapper.createObjectNode();
+            record.put("priorGenerationAttempts", 4).put("requestNumber", 5).put("cumulativeLimit", 24);
+            record.put("model", "gemini-3.1-flash-lite").put("maxOutputTokens", 2048);
+            record.put("query", "请只回答 OK").put("automaticRetries", 0);
+            record.put("httpsProxyHost", System.getProperty("https.proxyHost", ""));
+            record.put("httpsProxyPort", System.getProperty("https.proxyPort", ""));
+            String selectedProxy = java.net.ProxySelector.getDefault()
+                    .select(java.net.URI.create("https://generativelanguage.googleapis.com")).toString();
+            record.put("selectedJavaProxy", selectedProxy);
+            assertThat(selectedProxy).contains("7897");
+            record.put("status", "REQUEST_RESERVED");
+            writeRecoveryRecord(evidence, record);
+            OffsetDateTime now = OffsetDateTime.now();
+            ModelConfiguration cfg = new ModelConfiguration(UUID.randomUUID(), UUID.randomUUID(), "Gemini recovery",
+                    ModelProviderType.GEMINI, "https://generativelanguage.googleapis.com", "/v1beta/models/{model}:generateContent",
+                    "unused-encrypted-placeholder", "gemini-3.1-flash-lite", true, 0.2, 2048,
+                    EnumSet.allOf(ModelCapability.class), now, now);
+            try {
+                ChatCompletionResult result = createAdapter().complete(cfg, apiKey, new ChatCompletionCommand(
+                        null, "You are a concise assistant.", "请只回答 OK", ChatCompletionCommand.OutputFormat.TEXT,
+                        ModelPurpose.KNOWLEDGE_CHAT, null, List.of(), null));
+                record.set("completion", mapper.valueToTree(result));
+                record.put("status", "COMPLETED_REQUIRES_CHECK");
+                writeRecoveryRecord(evidence, record);
+                assertThat(result.content()).isNotBlank();
+                assertThat(result.content().strip()).isEqualTo("OK");
+                record.put("status", "PASS");
+                writeRecoveryRecord(evidence, record);
+            } catch (BusinessException failure) {
+                record.put("status", "INCONCLUSIVE").put("errorCode", failure.getErrorCode().name());
+                record.put("http503", GeminiLiveTestSupport.isHttp503(failure));
+                writeRecoveryRecord(evidence, record);
+                org.junit.jupiter.api.Assumptions.abort("INCONCLUSIVE: recovery connectivity failed; no retry or bulk requests");
+            }
+            return null;
+        });
+    }
+
+    private static void writeRecoveryRecord(java.nio.file.Path path, ObjectNode record) {
+        try {
+            java.nio.file.Files.createDirectories(path.getParent());
+            mapper.writerWithDefaultPrettyPrinter().writeValue(path.toFile(), record);
+        } catch (java.io.IOException failure) {
+            throw new java.io.UncheckedIOException(failure);
+        }
+    }
+
+    @Test
     @Order(1)
     void phase1_minimalConnection_gemini31FlashLite() {
         ModelConfiguration cfg = config("gemini-3.1-flash-lite");

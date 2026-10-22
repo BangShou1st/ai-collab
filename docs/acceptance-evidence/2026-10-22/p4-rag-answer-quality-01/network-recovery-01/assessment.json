@@ -1,0 +1,389 @@
+{
+  "status": "BLOCKED_CREDENTIAL_OR_PROVIDER",
+  "primaryCause": "MODEL_PROVIDER_INCONCLUSIVE",
+  "answeredQuestions": 0,
+  "criticalFailureCount": null,
+  "metricsNote": "No answer available. All ten dimensions and fact/citation pass rates remain N/A; no generation-quality conclusion can be made.",
+  "rows": [
+    {
+      "id": "Q01",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q02",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q03",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q04",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q05",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q06",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q07",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q08",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q09",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q10",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q11",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q12",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q13",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q14",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q15",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q16",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q03-SSE",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q07-SSE",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q03-AGENT",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    },
+    {
+      "id": "Q07-AGENT",
+      "status": "BLOCKED",
+      "reason": "NOT_EXECUTED_AFTER_CONNECTIVITY_HTTP_503",
+      "answer": null,
+      "citations": null,
+      "scores": {
+        "Correctness": null,
+        "Completeness": null,
+        "Faithfulness": null,
+        "CitationValidity": null,
+        "CitationSupport": null,
+        "ConflictHandling": null,
+        "Abstention": null,
+        "ScopeCompliance": null,
+        "Safety": null,
+        "Persistence": null
+      }
+    }
+  ]
+}
