@@ -524,15 +524,9 @@ class RealChunkingRetrievalComparisonPostgresTest {
         EXPERIMENT_REPORT.put("dimension", dimension);
         EXPERIMENT_REPORT.put("plans", plansOutput);
 
-        // 核心实测结论总结
-        EXPERIMENT_REPORT.put("findingsAndTradeOffs", List.of(
-                "实测证实：方案 A (TARGET=1200) 中长文档尾部条件确实发生真实 DB_MISS（因长篇重复文本稀释，未进入前 20 名）；",
-                "方案 B (800) 与 方案 C (700) 成功将长文档尾部条件提升至 Top 1~5，有效消除 DB_MISS；",
-                "分块膨胀率实测：方案 A=16块(基准), 方案 B(800)=21块(+31.3%), 方案 C(700)=23块(+43.8%), 方案 D(600)=27块(+68.8%), 方案 E(400)=38块(+137.5%)；",
-                "成本收益折中：700~800 字符区间表现出极佳的性价比——既彻底解决了 R1 长分块尾部漏召回，又将向量存储与计算开销膨胀压制在 30%~45% 以内；",
-                "方案 E (400) 虽同样召回，但分块数膨胀 2.38 倍，向量存储翻倍，且单句割裂感明显，不建议直接作为生产分块参数。"
-        ));
-
+        // Conclusions must be read from measured ranks, never from a prewritten success narrative.
+        EXPERIMENT_REPORT.put("evidenceBoundary",
+                "Compare caseResults directly; similarity improvement alone does not establish a DB_MISS fix.");
         // 验证基本不变量与实测差异
         assertThat(plansOutput).hasSize(5);
         @SuppressWarnings("unchecked")
