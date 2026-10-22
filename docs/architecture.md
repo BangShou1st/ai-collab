@@ -48,10 +48,10 @@ AI Collab 采用模块化单体架构，后端为 Spring Boot 模块化单体，
 | `document` | 文档上传、解析、向量化 | `DocumentController` |
 | `knowledge` | RAG 问答、SSE 流式输出 | `KnowledgeController` |
 | `planning` | AI 任务规划生成、确认 | `TaskPlanController` |
-| `agent` | 协作 Agent、Tool Calling、MCP | `AgentSessionController`, `ProjectMcpController` |
+| `agent` | 协作 Agent、Tool Calling、审批与记忆、MCP | `AgentSessionController`, `AgentApprovalController`, `AgentMemoryController`, `ProjectMcpController` |
 | `notification` | 站内通知 | `NotificationController` |
-| `common` | 公共组件、异常处理 | - |
-| `infrastructure` | AI 网关、存储适配 | `ProjectModelController`, `ProjectEmbeddingController` |
+| `common` | 公共组件、异常处理、持久化转换 | `GlobalExceptionHandler` |
+| `infrastructure` | AI 网关 (OpenAI/Claude/Gemini/Zen)、存储与配置 | `UserAiProviderController`, `UserAiProviderPresetController`, `SystemEmbeddingAdminController` |
 
 ### 调用链路
 
