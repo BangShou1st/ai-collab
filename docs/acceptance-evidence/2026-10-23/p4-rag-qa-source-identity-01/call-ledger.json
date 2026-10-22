@@ -1,0 +1,34 @@
+[
+  {
+    "requestNumber": 1,
+    "questionId": "Q09",
+    "purpose": "KNOWLEDGE_CHAT",
+    "model": "gemini-3.5-flash-lite",
+    "status": "200_OK",
+    "promptTokens": 526,
+    "completionTokens": 69,
+    "latencyMs": 30131
+  },
+  {
+    "requestNumber": 2,
+    "questionId": "Q01",
+    "purpose": "KNOWLEDGE_CHAT",
+    "model": "gemini-3.5-flash-lite",
+    "status": "HTTP_503_FAIL",
+    "promptTokens": null,
+    "completionTokens": null,
+    "latencyMs": null,
+    "retryAttempt": 1
+  },
+  {
+    "requestNumber": 3,
+    "questionId": "Q01",
+    "purpose": "KNOWLEDGE_CHAT",
+    "model": "gemini-3.5-flash-lite",
+    "status": "200_OK",
+    "promptTokens": 517,
+    "completionTokens": 55,
+    "latencyMs": 8685,
+    "retryAttempt": 2
+  }
+]
