@@ -17,6 +17,11 @@
 
 ## 2. 规范与维护约定
 
+`p4-rag-answer-quality-01/`：真实 Gemini 回答质量验收专用公开合成语料。13 篇历史文档由
+`AgentRetrievalQualityPostgresTest.CORPUS` 完整重建，SHA-256 与 P4-RAG-QUALITY-02 一致；
+另有一篇明确标注的提示注入检测资料。只允许上传此目录的必要摘录到获授权的 Gemini。
+问题与人工事实基准见 `docs/acceptance-evidence/2026-10-22/p4-rag-answer-quality-01/questions.json`。
+
 1. **统一编码**：
    - 所有测试语料文件必须使用 **UTF-8（无 BOM）** 编码保存，避免在 Windows 与 Linux/CI 环境间产生跨平台字符集差异。
 2. **只读保护与测试隔离**：
