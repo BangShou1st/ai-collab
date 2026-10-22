@@ -137,22 +137,28 @@ class GeminiLiveAcceptanceTest {
 
     @Test
     void networkRecovery_boundedRetriesWithResponseDiagnostics() {
+        String recovery = System.getenv("AI_GEMINI_ACCEPTANCE_RETRY");
         org.junit.jupiter.api.Assumptions.assumeTrue(
-                "network-recovery-02".equals(System.getenv("AI_GEMINI_ACCEPTANCE_RETRY")), "Explicit bounded retry opt-in required");
-        java.nio.file.Path evidence = java.nio.file.Path.of("target/rag-answer-quality-01/network-recovery-02/connectivity.json");
+                "network-recovery-02".equals(recovery) || "network-recovery-03".equals(recovery), "Explicit bounded retry opt-in required");
+        boolean alternateAuthorized = "network-recovery-03".equals(recovery);
+        int priorAttempts = alternateAuthorized ? 8 : 5;
+        List<String> models = alternateAuthorized ? List.of("gemini-3.1-flash-lite", "gemini-3.5-flash-lite")
+                : List.of("gemini-3.1-flash-lite", "gemini-3.1-flash-lite", "gemini-3.1-flash-lite");
+        java.nio.file.Path evidence = java.nio.file.Path.of("target/rag-answer-quality-01", recovery, "connectivity.json");
         org.junit.jupiter.api.Assumptions.assumeFalse(java.nio.file.Files.exists(evidence), "Do not repeat reserved requests");
         GeminiLiveTestSupport.withAuthorizedApiKey(apiKey -> {
             ObjectNode record = mapper.createObjectNode();
-            record.put("priorGenerationAttempts", 5).put("cumulativeLimit", 24).put("additionalAttemptLimit", 3);
+            record.put("priorGenerationAttempts", priorAttempts).put("cumulativeLimit", 24).put("additionalAttemptLimit", models.size());
             record.put("model", "gemini-3.1-flash-lite").put("maxOutputTokens", 2048).put("query", "请只回答 OK");
             var attempts = record.putArray("attempts");
             OffsetDateTime now = OffsetDateTime.now();
-            ModelConfiguration cfg = new ModelConfiguration(UUID.randomUUID(), UUID.randomUUID(), "Gemini bounded recovery",
-                    ModelProviderType.GEMINI, "https://generativelanguage.googleapis.com", "/v1beta/models/{model}:generateContent",
-                    "unused-encrypted-placeholder", "gemini-3.1-flash-lite", true, 0.2, 2048,
-                    EnumSet.allOf(ModelCapability.class), now, now);
-            for (int attempt = 1; attempt <= 3; attempt++) {
-                ObjectNode row = attempts.addObject().put("requestNumber", 5 + attempt).put("status", "REQUEST_RESERVED");
+            for (int attempt = 1; attempt <= models.size(); attempt++) {
+                String model = models.get(attempt - 1);
+                ModelConfiguration cfg = new ModelConfiguration(UUID.randomUUID(), UUID.randomUUID(), "Gemini bounded recovery",
+                        ModelProviderType.GEMINI, "https://generativelanguage.googleapis.com", "/v1beta/models/{model}:generateContent",
+                        "unused-encrypted-placeholder", model, true, 0.2, 2048,
+                        EnumSet.allOf(ModelCapability.class), now, now);
+                ObjectNode row = attempts.addObject().put("requestNumber", priorAttempts + attempt).put("model", model).put("status", "REQUEST_RESERVED");
                 row.put("startedAt", OffsetDateTime.now().toString());
                 var real = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(15))
                         .followRedirects(java.net.http.HttpClient.Redirect.NEVER).build();
@@ -171,12 +177,13 @@ class GeminiLiveAcceptanceTest {
                     writeRecoveryRecord(evidence, record);
                     assertThat(result.content().strip()).isEqualTo("OK");
                     row.put("status", "PASS");
+                    record.put("selectedModel", model);
                     writeRecoveryRecord(evidence, record);
                     return null;
                 } catch (BusinessException failure) {
                     row.put("status", "INCONCLUSIVE").put("errorCode", failure.getErrorCode().name());
                     writeRecoveryRecord(evidence, record);
-                    if (!GeminiLiveTestSupport.isHttp503(failure) || attempt == 3) break;
+                    if (!GeminiLiveTestSupport.isHttp503(failure) || attempt == models.size()) break;
                     try { Thread.sleep(3_000L * attempt); }
                     catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); break; }
                 } finally { http.close(); }

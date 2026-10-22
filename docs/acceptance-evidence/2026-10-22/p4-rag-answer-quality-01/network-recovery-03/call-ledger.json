@@ -1,0 +1,189 @@
+{
+  "baselineDev": "b2d4d3e30f45f37669ccc567eee9e881dbb0a682",
+  "priorGenerationAttempts": 8,
+  "newGenerationAttempts": 16,
+  "cumulativeGenerationAttempts": 24,
+  "cumulativeLimit": 24,
+  "maxOutputTokens": 2048,
+  "originalRoundAttempts": 4,
+  "newAttemptsSinceOriginalRound": 20,
+  "newCompleted": 15,
+  "newProviderInconclusive": 1,
+  "cumulativeCompleted": 15,
+  "cumulativeProviderInconclusive": 9,
+  "providerFailuresIncludedInInconclusive": 9,
+  "unexecutedCasesAreNotProviderFailures": true,
+  "automaticGenerationRetriesThisContinuation": 0,
+  "selectedModel": "gemini-3.5-flash-lite",
+  "attempts": [
+    {
+      "requestNumber": 9,
+      "scenario": "MINIMAL_CONNECTIVITY",
+      "model": "gemini-3.1-flash-lite",
+      "status": "INCONCLUSIVE",
+      "httpStatus": 503,
+      "providerError": {
+        "code": "503",
+        "status": "UNAVAILABLE",
+        "message": "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+      }
+    },
+    {
+      "requestNumber": 10,
+      "scenario": "MINIMAL_CONNECTIVITY",
+      "model": "gemini-3.5-flash-lite",
+      "status": "PASS",
+      "httpStatus": 200,
+      "completion": {
+        "content": "OK",
+        "provider": "GEMINI",
+        "model": "gemini-3.5-flash-lite",
+        "promptTokens": 11,
+        "completionTokens": 1,
+        "latencyMs": 15824
+      }
+    },
+    {
+      "requestNumber": 11,
+      "scenario": "Q01",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "PASS",
+      "promptTokens": 517,
+      "outputTokens": 77,
+      "latencyMs": 199241
+    },
+    {
+      "requestNumber": 12,
+      "scenario": "Q03",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "GAP_FOUND",
+      "promptTokens": 1094,
+      "outputTokens": 315,
+      "latencyMs": 155941
+    },
+    {
+      "requestNumber": 13,
+      "scenario": "Q02",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "GAP_FOUND",
+      "promptTokens": 535,
+      "outputTokens": 217,
+      "latencyMs": 42169
+    },
+    {
+      "requestNumber": 14,
+      "scenario": "Q04",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "PASS",
+      "promptTokens": 502,
+      "outputTokens": 135,
+      "latencyMs": 45851
+    },
+    {
+      "requestNumber": 15,
+      "scenario": "Q05",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "PASS",
+      "promptTokens": 548,
+      "outputTokens": 193,
+      "latencyMs": 37604
+    },
+    {
+      "requestNumber": 16,
+      "scenario": "Q06",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "PASS",
+      "promptTokens": 527,
+      "outputTokens": 43,
+      "latencyMs": 69096
+    },
+    {
+      "requestNumber": 17,
+      "scenario": "Q07",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "PASS",
+      "promptTokens": 507,
+      "outputTokens": 78,
+      "latencyMs": 61376
+    },
+    {
+      "requestNumber": 18,
+      "scenario": "Q08",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "PASS",
+      "promptTokens": 545,
+      "outputTokens": 65,
+      "latencyMs": 58351
+    },
+    {
+      "requestNumber": 19,
+      "scenario": "Q09",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "GAP_FOUND",
+      "promptTokens": 545,
+      "outputTokens": 92,
+      "latencyMs": 65779
+    },
+    {
+      "requestNumber": 20,
+      "scenario": "Q10",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "PASS",
+      "promptTokens": 341,
+      "outputTokens": 23,
+      "latencyMs": 44648
+    },
+    {
+      "requestNumber": 21,
+      "scenario": "Q16",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "PASS",
+      "promptTokens": 406,
+      "outputTokens": 97,
+      "latencyMs": 167000
+    },
+    {
+      "requestNumber": 22,
+      "scenario": "Q11",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "PASS",
+      "promptTokens": 390,
+      "outputTokens": 39,
+      "latencyMs": 144475
+    },
+    {
+      "requestNumber": 23,
+      "scenario": "Q12",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "PASS",
+      "promptTokens": 454,
+      "outputTokens": 136,
+      "latencyMs": 196331
+    },
+    {
+      "requestNumber": 24,
+      "scenario": "Q13",
+      "model": "gemini-3.5-flash-lite",
+      "status": "COMPLETED",
+      "quality": "PASS",
+      "promptTokens": 397,
+      "outputTokens": 24,
+      "latencyMs": 122535
+    }
+  ],
+  "knownSuccessfulPromptTokens": 7319,
+  "knownSuccessfulOutputTokens": 1535
+}

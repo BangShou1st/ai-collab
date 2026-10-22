@@ -1,0 +1,50 @@
+{
+  "priorGenerationAttempts" : 8,
+  "cumulativeLimit" : 24,
+  "additionalAttemptLimit" : 2,
+  "model" : "gemini-3.1-flash-lite",
+  "maxOutputTokens" : 2048,
+  "query" : "请只回答 OK",
+  "attempts" : [ {
+    "requestNumber" : 9,
+    "model" : "gemini-3.1-flash-lite",
+    "status" : "INCONCLUSIVE",
+    "startedAt" : "2026-10-22T23:37:23.890919600+08:00",
+    "selectedJavaProxy" : "[HTTP @ 127.0.0.1/<unresolved>:7897]",
+    "httpStatus" : 503,
+    "httpVersion" : "HTTP_2",
+    "responseAt" : "2026-10-22T23:37:31.022907400+08:00",
+    "responseHeaders" : {
+      "server" : "scaffolding on HTTPServer2",
+      "content-type" : "application/json; charset=UTF-8"
+    },
+    "providerError" : {
+      "code" : "503",
+      "status" : "UNAVAILABLE",
+      "message" : "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+    },
+    "errorCode" : "AI_PROVIDER_ERROR"
+  }, {
+    "requestNumber" : 10,
+    "model" : "gemini-3.5-flash-lite",
+    "status" : "PASS",
+    "startedAt" : "2026-10-22T23:37:34.051460200+08:00",
+    "selectedJavaProxy" : "[HTTP @ 127.0.0.1/<unresolved>:7897]",
+    "httpStatus" : 200,
+    "httpVersion" : "HTTP_2",
+    "responseAt" : "2026-10-22T23:37:49.877906700+08:00",
+    "responseHeaders" : {
+      "server" : "scaffolding on HTTPServer2",
+      "content-type" : "application/json; charset=UTF-8"
+    },
+    "completion" : {
+      "content" : "OK",
+      "provider" : "GEMINI",
+      "model" : "gemini-3.5-flash-lite",
+      "promptTokens" : 11,
+      "completionTokens" : 1,
+      "latencyMs" : 15824
+    }
+  } ],
+  "selectedModel" : "gemini-3.5-flash-lite"
+}

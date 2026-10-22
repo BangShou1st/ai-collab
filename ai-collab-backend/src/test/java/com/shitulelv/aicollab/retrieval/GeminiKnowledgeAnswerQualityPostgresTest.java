@@ -102,19 +102,25 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
     private static final Path ROOT = Path.of("..").toAbsolutePath().normalize();
     private static final Path FIXTURES = ROOT.resolve("tests/fixtures/documents/p4-rag-answer-quality-01");
     private static final Path QUESTIONS = ROOT.resolve("docs/acceptance-evidence/2026-10-22/p4-rag-answer-quality-01/questions.json");
-    private static final Path OUTPUT = Path.of("target/rag-answer-quality-01/results.json");
+    private static final boolean RECOVERY = "network-recovery-03".equals(System.getenv("AI_GEMINI_ACCEPTANCE_RECOVERY"));
+    private static final Path OUTPUT = Path.of("target/rag-answer-quality-01")
+            .resolve(RECOVERY ? "network-recovery-03/results.json" : "results.json");
     private static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules();
     private static final String EMBEDDING_MODEL = "qwen3-embedding:0.6b";
     private static final String FINGERPRINT = EmbeddingFingerprints.fingerprint("OLLAMA", EMBEDDING_MODEL, 1024);
     private final AtomicInteger requests = new AtomicInteger();
-    private final List<Map<String, Object>> rows = new ArrayList<>();
+    private final List<Map<String, Object>> rows = new CopyOnWriteArrayList<>();
     private final Map<String, UUID> documents = new LinkedHashMap<>();
-    private final Map<String, UUID> sessions = new LinkedHashMap<>();
+    private final Map<String, UUID> sessions = new java.util.concurrent.ConcurrentHashMap<>();
     private volatile Map<String, Object> current;
     private UUID user;
     private UUID project;
     private UUID generation;
-    private boolean providerBlocked;
+    private volatile boolean providerBlocked;
+    private final ThreadLocal<Map<String, Object>> activeRecording = new ThreadLocal<>();
+    private Map<String, Object> recording() {
+        return activeRecording.get() == null ? current : activeRecording.get();
+    }
     private int priorFailedAttempts;
 
     @Container static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("pgvector/pgvector:pg17");
@@ -132,7 +138,9 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
                 "Explicit -Dtest=GeminiKnowledgeAnswerQualityPostgresTest required");
         Assumptions.assumeTrue(System.getenv("GEMINI_API_KEY") != null && !System.getenv("GEMINI_API_KEY").isBlank(),
                 "GEMINI_API_KEY required; no filesystem credential reads in test");
-        Assumptions.assumeTrue("gemini-3.1-flash-lite".equals(System.getenv("GEMINI_MODEL")), "Explicit approved GEMINI_MODEL required");
+        String model = System.getenv("GEMINI_MODEL");
+        Assumptions.assumeTrue("gemini-3.1-flash-lite".equals(model)
+                || (RECOVERY && "gemini-3.5-flash-lite".equals(model)), "Explicit approved GEMINI_MODEL required");
     }
     @Autowired JdbcTemplate jdbc;
     @Autowired ProjectEmbeddingGateway embeddings;
@@ -152,7 +160,27 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
     @MockitoSpyBean AgentToolRegistry toolRegistry;
 
     @Test @Order(1) void productionKnowledgeAnswersAndStreams() throws Exception {
-        if (Files.exists(OUTPUT)) {
+        String stage = System.getenv("AI_GEMINI_ACCEPTANCE_STAGE");
+        if (RECOVERY) {
+            JsonNode connectivity = JSON.readTree(OUTPUT.resolveSibling("connectivity.json").toFile());
+            JsonNode last = connectivity.path("attempts").get(connectivity.path("attempts").size() - 1);
+            Assumptions.assumeTrue("PASS".equals(last.path("status").asText()), "Connectivity must succeed first");
+            assertThat(System.getenv("GEMINI_MODEL")).isEqualTo(connectivity.path("selectedModel").asText());
+            if ("q01".equals(stage)) {
+                Assumptions.assumeFalse(Files.exists(OUTPUT), "Do not repeat Q01");
+                requests.set(last.path("requestNumber").asInt());
+                priorFailedAttempts = requests.get() - 1;
+            } else {
+                Assumptions.assumeTrue("remaining".equals(stage), "Explicit recovery stage required");
+                JsonNode review = JSON.readTree(OUTPUT.resolveSibling("q01-review.json").toFile());
+                Assumptions.assumeTrue(review.path("qualityGatePassed").asBoolean(), "Q01 independent source review required");
+                JsonNode prior = JSON.readTree(OUTPUT.toFile());
+                assertThat(prior.path("rows").size()).isEqualTo(1);
+                requests.set(prior.path("generationRequests").asInt());
+                priorFailedAttempts = prior.path("priorFailedAttempts").asInt();
+                rows.addAll(JSON.convertValue(prior.path("rows"), new TypeReference<List<Map<String, Object>>>() {}));
+            }
+        } else if (Files.exists(OUTPUT)) {
             JsonNode prior = JSON.readTree(OUTPUT.toFile());
             Assumptions.assumeTrue("true".equals(System.getenv("AI_GEMINI_ACCEPTANCE_RESUME_TRANSPORT"))
                             && prior.path("generationRequests").asInt() <= 2
@@ -166,7 +194,18 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
         installObservers();
         seed();
         JsonNode cases = JSON.readTree(QUESTIONS.toFile());
-        for (JsonNode testCase : cases) {
+        if (RECOVERY && "remaining".equals(stage)) {
+            executeIndependentRecovery(cases);
+        } else for (JsonNode testCase : cases) {
+            String id = testCase.path("id").asText();
+            if (RECOVERY && "q01".equals(stage) && !id.equals("Q01")) continue;
+            if (RECOVERY && "remaining".equals(stage) && id.equals("Q01")) continue;
+            if (RECOVERY && (id.equals("Q14") || id.equals("Q15"))) {
+                Map<String, Object> deferred = new LinkedHashMap<>();
+                deferred.put("id", id); deferred.put("annotation", testCase);
+                deferred.put("executionStatus", "DEFERRED_BUDGET_PRIORITY");
+                deferred.put("reviewStatus", "NOT_EXECUTED"); rows.add(deferred); continue;
+            }
             if (testCase.path("id").asText().equals("Q13")) {
                 indexDocument(FIXTURES.resolve("不可信资料测试.md"));
             }
@@ -176,15 +215,46 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
                 jdbc.update("UPDATE project_document SET status='FAILED' WHERE id=?", documents.get("不可信资料测试.md"));
             }
         }
-        for (String id : List.of("Q03", "Q07")) {
-            for (JsonNode testCase : cases) if (id.equals(testCase.path("id").asText())) execute(testCase, true);
+        if (!RECOVERY || "remaining".equals(stage)) {
+            for (String id : List.of("Q03", "Q07")) {
+                for (JsonNode testCase : cases) if (id.equals(testCase.path("id").asText())) execute(testCase, true);
+            }
         }
         save();
         assertThat(requests.get()).isLessThanOrEqualTo(24);
-        assertThat(rows).hasSize(18);
+        assertThat(rows).hasSize(RECOVERY && "q01".equals(stage) ? 1 : 18);
         // These assertions check the experiment mechanics, never semantic acceptance by keyword.
-        assertThat(rows).allSatisfy(row -> assertThat(row.get("reviewStatus")).isEqualTo("NEEDS_MANUAL_REVIEW"));
+        assertThat(rows).allSatisfy(row -> assertThat(row.get("reviewStatus")).isIn("NEEDS_MANUAL_REVIEW", "NOT_EXECUTED"));
         Assumptions.assumeFalse(providerBlocked, "INCONCLUSIVE: provider failed; inspect saved evidence, not a quality pass");
+    }
+
+    private void executeIndependentRecovery(JsonNode cases) throws Exception {
+        // Every parallel question creates its own session. Follow-ups and injection remain serial.
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var jobs = new ArrayList<java.util.concurrent.Future<?>>();
+            for (JsonNode testCase : cases) {
+                String id = testCase.path("id").asText();
+                if (List.of("Q01", "Q11", "Q12", "Q13", "Q14", "Q15").contains(id)) continue;
+                jobs.add(executor.submit(() -> {
+                    try { execute(testCase, false); }
+                    catch (Exception failure) { throw new java.util.concurrent.CompletionException(failure); }
+                }));
+            }
+            for (var job : jobs) job.get();
+        }
+        for (String id : List.of("Q11", "Q12", "Q13", "Q14", "Q15")) {
+            for (JsonNode testCase : cases) if (id.equals(testCase.path("id").asText())) {
+                if (id.equals("Q14") || id.equals("Q15")) {
+                    var deferred = new LinkedHashMap<String, Object>();
+                    deferred.put("id", id); deferred.put("annotation", testCase);
+                    deferred.put("executionStatus", "DEFERRED_BUDGET_PRIORITY");
+                    deferred.put("reviewStatus", "NOT_EXECUTED"); rows.add(deferred); continue;
+                }
+                if (id.equals("Q13")) indexDocument(FIXTURES.resolve("不可信资料测试.md"));
+                execute(testCase, false);
+                if (id.equals("Q13")) jdbc.update("UPDATE project_document SET status='FAILED' WHERE id=?", documents.get("不可信资料测试.md"));
+            }
+        }
     }
 
     @Test @Order(2) void agentRepresentativesWithinRemainingBudget() throws Exception {
@@ -260,6 +330,7 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
     private void installObservers() {
         doAnswer(invocation -> {
             @SuppressWarnings("unchecked") List<DocumentSearchHit> candidates = (List<DocumentSearchHit>) invocation.callRealMethod();
+            Map<String, Object> current = recording();
             current.put("retrievalQuery", invocation.getArgument(1));
             current.put("candidates", candidates);
             var built = new KnowledgeContextBuilder().buildWithDiagnostics(candidates, 5);
@@ -271,12 +342,14 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
             return candidates;
         }).when(search).search(any(UUID.class), anyString(), anyList(), anyInt());
         doAnswer(invocation -> {
+            Map<String, Object> current = recording();
             beforeRequest(invocation.getArgument(2));
             ChatCompletionResult result = (ChatCompletionResult) invocation.callRealMethod();
             current.put("rawCompletion", result);
             return result;
         }).when(gemini).complete(any(), anyString(), any());
         doAnswer(invocation -> {
+            Map<String, Object> current = recording();
             beforeRequest(invocation.getArgument(2));
             Consumer<ChatCompletionResult> done = invocation.getArgument(4);
             invocation.getArguments()[4] = (Consumer<ChatCompletionResult>) result -> {
@@ -288,12 +361,13 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
     }
 
     private void beforeRequest(ChatCompletionCommand command) {
-        reserveRequest();
+        Map<String, Object> current = recording();
+        int ordinal = reserveRequest();
         @SuppressWarnings("unchecked") List<Integer> attempts = (List<Integer>) current.computeIfAbsent("requestNumbers", ignored -> new ArrayList<Integer>());
-        attempts.add(requests.get());
+        attempts.add(ordinal);
         assertThat(command.purpose().name()).isEqualTo("KNOWLEDGE_CHAT");
         assertThat(command.callerUserId()).isEqualTo(user);
-        current.put("requestNumber", requests.get());
+        current.put("requestNumber", ordinal);
         current.put("systemPrompt", command.systemPrompt());
         current.put("systemPromptSha256", hash(command.systemPrompt()));
         current.put("userPrompt", command.userPrompt());
@@ -301,24 +375,31 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
         try { save(); } catch (Exception failure) { throw new IllegalStateException("Cannot persist request ledger", failure); }
     }
 
-    private void reserveRequest() {
-        if (requests.get() >= 24) throw new IllegalStateException("External generation request budget exhausted");
-        requests.incrementAndGet();
+    static int reserveGenerationAttempt(AtomicInteger counter) {
+        return counter.updateAndGet(value -> {
+            if (value >= 24) throw new IllegalStateException("External generation request budget exhausted");
+            return value + 1;
+        });
     }
+    private int reserveRequest() { return reserveGenerationAttempt(requests); }
 
     private void execute(JsonNode testCase, boolean stream) throws Exception {
-        current = new LinkedHashMap<>();
+        Map<String, Object> current = new java.util.concurrent.ConcurrentHashMap<>();
+        this.current = current;
+        activeRecording.set(current);
         current.put("id", testCase.path("id").asText() + (stream ? "-SSE" : ""));
         current.put("mode", stream ? "STREAM_SERVICE" : "QUESTION_SERVICE");
         current.put("annotation", testCase);
         current.put("reviewStatus", "NEEDS_MANUAL_REVIEW");
         rows.add(current);
-        if (providerBlocked) { current.put("executionStatus", "BLOCKED"); save(); return; }
+        if (providerBlocked) { current.put("executionStatus", "BLOCKED"); save(); activeRecording.remove(); return; }
+        if (requests.get() >= 24) { current.put("executionStatus", "BLOCKED_BUDGET_LIMIT"); save(); activeRecording.remove(); return; }
         String id = testCase.path("id").asText();
         UUID session;
         if (testCase.has("followup") && !stream) session = sessions.get(testCase.path("followup").asText());
         else session = sessionService.create(project, new CreateKnowledgeSessionRequest(id), user).id();
         if (!stream) sessions.put(id, session);
+        current.put("sessionId", session);
         List<UUID> scope = new ArrayList<>();
         testCase.path("scope").forEach(name -> scope.add(documents.get(name.asText())));
         current.put("scopeDocumentIds", scope);
@@ -369,10 +450,12 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
         } finally {
             current.put("latencyMs", (System.nanoTime() - started) / 1_000_000L);
             save();
+            activeRecording.remove();
         }
     }
 
     private KnowledgeAnswerView askWithBounded503Retry(UUID session, KnowledgeQuestionRequest request) throws InterruptedException {
+        if (RECOVERY) return questions.ask(project, session, request, user);
         // Q01 already received one 503 in the transport preflight; at most two further attempts.
         int attempts = "Q01".equals(current.get("id")) && requests.get() == 2 ? 2 : 3;
         for (int attempt = 1; ; attempt++) {
@@ -424,7 +507,7 @@ class GeminiKnowledgeAnswerQualityPostgresTest {
         }
     }
 
-    private void save() throws Exception {
+    private synchronized void save() throws Exception {
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("model", System.getenv("GEMINI_MODEL"));
         report.put("embeddingModel", EMBEDDING_MODEL); report.put("dimensions", 1024);
