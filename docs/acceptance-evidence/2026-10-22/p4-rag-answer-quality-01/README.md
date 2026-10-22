@@ -1,5 +1,7 @@
 # P4-RAG-ANSWER-QUALITY-01：真实 Gemini 回答质量验收
 
+> 网络恢复后的续跑见 [network-recovery-01](network-recovery-01/README.md)。新增一次真实最小生成请求仍返回 HTTP 503，最新累计 5/24 次；下文及原始 JSON 保留上轮 4 次尝试的历史记录。
+
 **最终状态：BLOCKED_CREDENTIAL_OR_PROVIDER（Provider 阻断，凭据有效）。**
 
 2026-10-22，Asia/Shanghai。官方模型列表成功返回；但真实知识库业务调用先连接超时，

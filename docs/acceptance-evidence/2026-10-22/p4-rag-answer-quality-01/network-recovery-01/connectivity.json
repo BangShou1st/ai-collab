@@ -1,0 +1,15 @@
+{
+  "priorGenerationAttempts" : 4,
+  "requestNumber" : 5,
+  "cumulativeLimit" : 24,
+  "model" : "gemini-3.1-flash-lite",
+  "maxOutputTokens" : 2048,
+  "query" : "请只回答 OK",
+  "automaticRetries" : 0,
+  "httpsProxyHost" : "127.0.0.1",
+  "httpsProxyPort" : "7897",
+  "selectedJavaProxy" : "[HTTP @ 127.0.0.1/<unresolved>:7897]",
+  "status" : "INCONCLUSIVE",
+  "errorCode" : "AI_PROVIDER_ERROR",
+  "http503" : true
+}
