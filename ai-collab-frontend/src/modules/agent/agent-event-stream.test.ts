@@ -68,6 +68,31 @@ describe('agent event stream', () => {
     expect(frames).toEqual([{ modelCallId: 'call-1', revision: 1, text: '正在生成', final: false }])
   })
 
+  it('只在拿到 2xx 响应后触发 onOpen，把"已连接"作为事实记录', async () => {
+    const encoder = new TextEncoder()
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"id":"e6","projectId":"p","runId":"r","sequence":6,"type":"RUN_SUCCEEDED","payload":{},"createdAt":"now"}\n\n'))
+        controller.close()
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, body }))
+    const opened = vi.fn()
+
+    await streamAgentEvents('/events', 5, new AbortController().signal, () => {}, undefined, opened)
+
+    expect(opened).toHaveBeenCalledTimes(1)
+  })
+
+  it('响应非 2xx 时抛出并保留状态码，且不触发 onOpen', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, body: null }))
+    const opened = vi.fn()
+
+    await expect(streamAgentEvents('/events', 5, new AbortController().signal, () => {}, undefined, opened))
+      .rejects.toThrow('SSE 503')
+    expect(opened).not.toHaveBeenCalled()
+  })
+
   it('skips invalid content frames and keeps routing persistent events', async () => {
     const encoder = new TextEncoder()
     const badContent = 'event: MODEL_CONTENT\ndata: {"revision":"x"}\n\n'

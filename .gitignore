@@ -92,7 +92,6 @@ minio-data/
 # Local AI Coding Instructions
 # ===========================
 CLAUDE.md
-AGENTS.md
 
 # ===========================
 # Local Learning Materials (NOT for GitHub)
@@ -103,7 +102,10 @@ docs/SESSION_HANDOFF.md
 docs/feature-matrix.md
 docs/database.md
 docs/README.md
-docs/development/
+# docs/development 下的本地笔记不入库；
+# 分支策略是仓库级约定文档，显式跟踪（负向规则必须放在非目录型排除之后才生效）。
+docs/development/*
+!docs/development/branch-policy.md
 docs/agent/
 
 # ===========================
@@ -135,3 +137,4 @@ docs/shots/
 .zcode/
 .zcodeignore
 .workbuddy/
+.freebuff/

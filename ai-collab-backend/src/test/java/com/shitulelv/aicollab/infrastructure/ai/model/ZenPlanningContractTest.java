@@ -52,7 +52,7 @@ class ZenPlanningContractTest {
         OpenAiCompatibleModelAdapter adapter = new OpenAiCompatibleModelAdapter(mapper, http);
         ChatCompletionCommand forced = ZenModelExecution.forceJson(jsonCommand());
         ChatCompletionResult result = adapter.completeStreamingSyncWithSession(
-                zenConfig(), "k", forced, AiRequestMetadata.of("corr"), "opencode/1.18.21");
+                zenConfig(), "k", forced, AiRequestMetadata.of("corr"), "opencode/latest/2.0.29/cli");
         assertThat(result.content()).isEqualTo("{\"ok\":true}");
         assertThat(captured[0].path("stream").asBoolean()).isTrue();
         assertThat(captured[0].has("response_format")).isFalse();

@@ -1,0 +1,18 @@
+P3-TASK-02 / 2026-10-20 / Asia/Shanghai
+Frontend (final source):
+  pnpm lint: exit 0; 0 errors, 78 existing warnings
+  pnpm typecheck: exit 0
+  pnpm test: exit 0; 46 files, 321 tests passed
+    baseline 45 files / 290 tests; added 27 notification + 4 task route tests
+  pnpm build: exit 0; existing PURE annotations / chunk-size notices remain
+Backend:
+  mvnw.cmd -B -ntp -Dtest=NotificationNavigationPostgresTest test
+  Before mapper fix: Tests run 3, failures 3, errors 0, skipped 0
+  After mapper fix: Tests run 3, failures 0, errors 0, skipped 0; BUILD SUCCESS
+  Real Testcontainers pgvector/pgvector:pg17 + Flyway; no application DB mutation
+Task board regression:
+  Before empty-project guard: 1 failed, 20 passed
+  After guard: included in final 321 passing frontend tests
+Git diff --check: PASS
+CI full Maven verify / frontend checks: see README Git & CI and final delivery.
+No model call, no DB migration, no forced push/reset/data-volume deletion.

@@ -7,6 +7,8 @@ const route = useRoute()
 const projectId = computed(() => String(route.params.projectId ?? ''))
 
 const props = defineProps<{
+  loading?: boolean
+  error?: string
   visible: boolean
   selected: Task | null
   tasks: Task[]
@@ -41,10 +43,12 @@ function dependencyName(dependencyId: string): string {
   <el-drawer
     :model-value="visible"
     title="任务详情"
-    size="560px"
+    size="min(560px, 100vw)"
     @update:model-value="$emit('update:visible', $event)"
   >
-    <template v-if="selected">
+    <p v-if="loading" role="status">正在加载任务详情…</p>
+    <el-alert v-else-if="error" :title="error" type="warning" :closable="false" show-icon role="alert" />
+    <template v-else-if="selected">
       <div v-if="canManage" class="actions task-detail-actions">
         <el-button type="primary" :disabled="deletingTask" @click="$emit('editTask')">编辑任务</el-button>
         <el-button type="danger" plain :loading="deletingTask" @click="$emit('deleteTask')">删除任务</el-button>

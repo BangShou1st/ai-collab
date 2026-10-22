@@ -41,6 +41,32 @@ class TaskPlanOutputParserTest {
     }
 
     @Test
+    void skeletonRejectsFieldsOutsideTheCompactGenerationContract() {
+        String json = """
+                {"summary":"%s","assumptions":[],"risks":[],
+                "milestones":[{"tempKey":"m1","title":"M","objective":"O","targetDate":null,"sortOrder":0}],
+                "tasks":[{"tempKey":"t1","milestoneTempKey":"m1","title":"T","objective":"O","sortOrder":0}]}
+                """.formatted("x".repeat(301));
+
+        assertThatThrownBy(() -> parser.parseSkeleton(json))
+                .isInstanceOf(ModelOutputContractException.class)
+                .hasMessageContaining("summary");
+    }
+
+    @Test
+    void skeletonRejectsMoreThanEightAssumptionsOrRisks() {
+        String json = """
+                {"summary":"s","assumptions":["a","b","c","d","e","f","g","h","i"],"risks":[],
+                "milestones":[{"tempKey":"m1","title":"M","objective":"O","targetDate":null,"sortOrder":0}],
+                "tasks":[{"tempKey":"t1","milestoneTempKey":"m1","title":"T","objective":"O","sortOrder":0}]}
+                """;
+
+        assertThatThrownBy(() -> parser.parseSkeleton(json))
+                .isInstanceOf(ModelOutputContractException.class)
+                .hasMessageContaining("assumptions");
+    }
+
+    @Test
     void skeletonWithTopLevelSourcesIsRejected() {
         // S2: Skeleton must NOT have sources — design says identity-only
         String json = """
@@ -185,6 +211,20 @@ class TaskPlanOutputParserTest {
         assertThat(result.tasks().getFirst().estimatedHours()).isNull();
         assertThat(result.tasks().getFirst().startDate()).isNull();
         assertThat(result.tasks().getFirst().suggestedAssigneeId()).isNull();
+    }
+
+    @Test
+    void detailRejectsDescriptionLongerThanTheGenerationContract() {
+        String json = """
+                {"milestones":[{"tempKey":"m1","description":"short","sourceRefs":[]}],
+                "tasks":[{"tempKey":"t1","description":"%s","priority":"HIGH",
+                "estimatedHours":null,"startDate":null,"dueDate":null,
+                "suggestedAssigneeId":null,"dependencyTempKeys":[],"sourceRefs":[]}]}
+                """.formatted("x".repeat(401));
+
+        assertThatThrownBy(() -> parser.parseDetail(json))
+                .isInstanceOf(ModelOutputContractException.class)
+                .hasMessageContaining("tasks[0].description");
     }
 
     // ════════════════════════════════════════════════════════════════

@@ -26,6 +26,7 @@ import java.util.UUID;
 public class DocumentProcessingService {
     private static final Logger log = LoggerFactory.getLogger(DocumentProcessingService.class);
     private static final int MAX_SOURCE_BYTES = 20 * 1024 * 1024;
+    private static final String SYSTEM_EMBEDDING_NOT_CONFIGURED_PREFIX = "系统未配置嵌入模型";
     private final DocumentRepository documents;
     private final DocumentStorageGateway storage;
     private final DocumentParser parser;
@@ -116,12 +117,20 @@ public class DocumentProcessingService {
         }
     }
 
-    private static String safeMessage(BusinessException exception) {
+    static String safeMessage(BusinessException exception) {
         return switch (exception.getErrorCode()) {
             case DOCUMENT_EMBEDDING_FAILED -> "文档向量化失败，请检查模型配置后重试";
             case DOCUMENT_STORAGE_UNAVAILABLE -> "文件存储服务暂时不可用，请重试";
             case DOCUMENT_PARSE_FAILED -> exception.getMessage();
+            case VALIDATION_ERROR -> isSystemEmbeddingNotConfigured(exception)
+                    ? "文档索引暂不可用：系统尚未配置嵌入模型，请联系管理员在管理中心配置后重试"
+                    : "文档处理失败，请重试";
             default -> "文档处理失败，请重试";
         };
+    }
+
+    private static boolean isSystemEmbeddingNotConfigured(BusinessException exception) {
+        return exception.getMessage() != null
+                && exception.getMessage().startsWith(SYSTEM_EMBEDDING_NOT_CONFIGURED_PREFIX);
     }
 }

@@ -48,10 +48,10 @@ AI Collab 采用模块化单体架构，后端为 Spring Boot 模块化单体，
 | `document` | 文档上传、解析、向量化 | `DocumentController` |
 | `knowledge` | RAG 问答、SSE 流式输出 | `KnowledgeController` |
 | `planning` | AI 任务规划生成、确认 | `TaskPlanController` |
-| `agent` | 协作 Agent、Tool Calling、MCP | `AgentSessionController`, `ProjectMcpController` |
+| `agent` | 协作 Agent、Tool Calling、审批与记忆、MCP | `AgentSessionController`, `AgentApprovalController`, `AgentMemoryController`, `ProjectMcpController` |
 | `notification` | 站内通知 | `NotificationController` |
-| `common` | 公共组件、异常处理 | - |
-| `infrastructure` | AI 网关、存储适配 | `ProjectModelController`, `ProjectEmbeddingController` |
+| `common` | 公共组件、异常处理、持久化转换 | `GlobalExceptionHandler` |
+| `infrastructure` | AI 网关 (OpenAI/Claude/Gemini/Zen)、存储与配置 | `UserAiProviderController`, `UserAiProviderPresetController`, `SystemEmbeddingAdminController` |
 
 ### 调用链路
 
@@ -238,7 +238,8 @@ AgentEventStreamService (SSE 推送)
 
 - 主业务数据库
 - pgvector 扩展用于向量存储
-- Flyway 管理迁移 (V1-V38)
+- Flyway 管理迁移，文件位于 `ai-collab-backend/src/main/resources/db/migration/`；截至 2026-10-20，仓库包含连续的 V1–V65，共 65 个版本迁移文件，最高版本为 V65
+- 仓库文件版本不代表各环境实际已执行版本；须分别核对各环境的 `flyway_schema_history`，不能认定所有环境均已迁移到 V65
 
 ### Redis
 

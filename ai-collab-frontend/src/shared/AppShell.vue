@@ -68,12 +68,22 @@ onBeforeUnmount(() => {
 const projectId = computed(() =>
   typeof route.params.projectId === 'string' ? route.params.projectId : '',
 )
+const projectAccessDenied = computed(() =>
+  Boolean(projectId.value) && projectCtx.accessDeniedProjectId === projectId.value,
+)
+const projectAccessReady = computed(() =>
+  Boolean(projectId.value) && projectCtx.currentProjectId === projectId.value,
+)
 
 watch(
   projectId,
   async (id) => {
     if (id) {
-      await projectCtx.loadProject(id)
+      try {
+        await projectCtx.loadProject(id)
+      } catch (error) {
+        showApiError(error, '加载项目')
+      }
     } else {
       projectCtx.clear()
     }
@@ -134,7 +144,7 @@ async function logout(): Promise<void> {
         <router-link v-if="auth.currentUser?.systemAdmin" to="/admin" title="管理中心" aria-label="管理中心"><el-icon><Setting /></el-icon><span>管理中心</span></router-link>
       </nav>
 
-      <nav v-if="projectId" class="side-group" aria-label="项目导航">
+      <nav v-if="projectId && !projectAccessDenied" class="side-group" aria-label="项目导航">
         <p class="side-title">{{ projectCtx.project?.name ?? '当前项目' }}</p>
         <router-link :to="`/projects/${projectId}/dashboard`" title="项目概览" aria-label="项目概览"><el-icon><DataBoard /></el-icon><span>项目概览</span></router-link>
         <router-link :to="`/projects/${projectId}/board`" title="任务看板" aria-label="任务看板"><el-icon><Tickets /></el-icon><span>任务看板</span></router-link>
@@ -199,7 +209,21 @@ async function logout(): Promise<void> {
     </aside>
 
     <div class="app-content" @click="closeMobileNav">
-      <slot />
+      <section v-if="projectAccessDenied" class="project-access-denied" role="alert">
+        <h1>项目不存在或无权访问</h1>
+        <p>该项目不存在，或当前账号没有访问权限。</p>
+        <router-link to="/projects">返回我的项目</router-link>
+      </section>
+      <section
+        v-else-if="projectId && !projectAccessReady"
+        class="project-access-denied"
+        role="status"
+        aria-live="polite"
+      >
+        <h1>{{ projectCtx.loading ? '正在确认项目访问权限' : '无法确认项目访问权限' }}</h1>
+        <p>{{ projectCtx.loading ? '请稍候。' : '请刷新页面重试。' }}</p>
+      </section>
+      <slot v-else />
     </div>
   </div>
 </template>

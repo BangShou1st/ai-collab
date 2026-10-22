@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.document.application.service;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRecoveryCandidate;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -62,6 +64,8 @@ class DocumentRecoveryPostgresIntegrationTest {
     JdbcTemplate jdbc;
     @Autowired
     DocumentRepository documents;
+    @MockitoBean
+    TaskPlanRecoveryJob taskPlanRecoveryJob;
 
     private UUID ownerId;
     private UUID projectId;

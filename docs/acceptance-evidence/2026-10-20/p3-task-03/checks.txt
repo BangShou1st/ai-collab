@@ -1,0 +1,24 @@
+# P3-TASK-03 验收命令输出（截取）
+
+## pnpm lint
+✖ 77 problems (0 errors, 77 warnings)
+  0 errors and 24 warnings potentially fixable with the `--fix` option.
+
+## pnpm typecheck
+$ vue-tsc -b
+(无输出即通过)
+
+## pnpm test
+ Test Files  47 passed (47)
+      Tests  348 passed (348)
+
+## pnpm build
+✓ built in 6.45s
+(既有提示：@vueuse PURE 注释与大 chunk 体积警告，与本轮无关)
+
+## backend: .\mvnw.cmd -B -ntp -Dtest=HomeAggregateTest test
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+
+## git diff --check
+(无输出：无空白错误)

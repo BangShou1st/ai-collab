@@ -1,0 +1,42 @@
+# P3-TASK-04 actual checks (2026-10-20 Asia/Shanghai)
+
+pnpm exec vitest run
+Test Files  49 passed (49)
+Tests       373 passed (373)
+
+pnpm lint
+77 problems (0 errors, 77 warnings)
+
+pnpm typecheck
+vue-tsc -b: exit 0
+
+pnpm build
+1835 modules transformed; built in 10.83s
+Existing PURE-comment / chunk-size warnings retained.
+
+git diff --check
+PASS (exit 0)
+
+impeccable detect --json ai-collab-frontend/src/modules/document/DocumentView.vue
+[]
+
+Browser: BSK session kaxj, real Edge 155 + backend localhost:8080 + Vite localhost:5173.
+Owner double-click: one POST retry, HTTP 202.
+Admin retry: HTTP 202. After demotion: HTTP 403, retry action removed.
+After member removal: project GET HTTP 404, neutral denial, old document hidden.
+Controlled list outage: unknown=true, stale=true, retryDisabled=true.
+Read-only COMPLETED project: readonly=true, retryDisabled=true.
+Unknown controlled error: rawVisible=false.
+390px: document scrollWidth=390, drawerWidth=374, guideVisible=true.
+See browser-checks.json and README.md for evidence boundaries and NOT_TESTED items.
+
+Feature CI attempt 1: 39420753335 / 4bf14af8495dad01fb2674a93c0f4cb09ecd28c6
+Frontend PASS; Backend FAIL: RetrievalCoveragePostgresTest.reset:139 deadlock.
+Tests run: 1543, Failures: 0, Errors: 1, Skipped: 18.
+Same SHA/run attempt 2: Frontend PASS; Backend FAIL.
+DocumentRegistrationStatusIntegrationTest.resetDatabase:65: TRUNCATE TABLE app_user CASCADE deadlock.
+Tests run: 1543, Failures: 0, Errors: 1, Skipped: 18.
+
+Final drawer supplement: real retry + controlled list outage.
+drawerUnknown=true, staleLabel=true, falseProcessingClaim=false.
+After supplement: 49 frontend files / 373 tests PASS; lint/typecheck/build PASS.

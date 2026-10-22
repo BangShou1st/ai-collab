@@ -1,0 +1,42 @@
+{
+  "evidence": "BrowserSkill debug metadata only",
+  "runId": "dee2a2a633ea1",
+  "browserSkillVersion": "0.3.3",
+  "browser": "Microsoft Edge 155",
+  "captureStartedBefore": "reload of an already completed Agent run",
+  "captureStartedAfter": "initial model generation and tool calls",
+  "captureIntegrity": {
+    "totalRequests": 153,
+    "operations": 2,
+    "runReportedErrors": 0,
+    "droppedRequests": 0,
+    "droppedOperations": 0,
+    "droppedConsoleRecords": 0,
+    "apiRequestsExamined": 13,
+    "apiRequestListTruncated": false,
+    "requestAndResponseBodiesHeadersCookiesAndQueryStringsStored": false,
+    "identifiersInPaths": "replaced with {id}"
+  },
+  "reloadRequests": [
+    { "method": "GET", "path": "/api/v1/auth/me", "count": 1, "status": 200 },
+    { "method": "GET", "path": "/api/v1/projects/{id}", "count": 1, "status": 200 },
+    { "method": "GET", "path": "/api/v1/projects/{id}/agent/runs/{id}/approvals", "count": 1, "status": 200 },
+    { "method": "GET", "path": "/api/v1/projects/{id}/agent/runs/{id}/events-history", "count": 1, "status": 200 },
+    { "method": "GET", "path": "/api/v1/projects/{id}/agent/session-summaries", "count": 1, "status": 200 },
+    { "method": "GET", "path": "/api/v1/projects/{id}/agent/sessions", "count": 1, "status": 200 },
+    { "method": "GET", "path": "/api/v1/projects/{id}/agent/sessions/{id}/latest-run", "count": 1, "status": 200 },
+    { "method": "GET", "path": "/api/v1/projects/{id}/agent/sessions/{id}/messages", "count": 1, "status": 200 },
+    { "method": "GET", "path": "/api/v1/projects/{id}/agent/sessions/{id}/planning-operations", "count": 2, "status": 200 },
+    { "method": "GET", "path": "/api/v1/projects/{id}/agent/skills", "count": 1, "status": 200 },
+    { "method": "GET", "path": "/api/v1/projects/{id}/members", "count": 1, "status": 200 },
+    { "method": "POST", "path": "/api/v1/auth/refresh", "count": 1, "status": 200 }
+  ],
+  "businessResultObservedInBrowser": {
+    "model": "cohere/north-mini-code:free",
+    "searchProjectKnowledgeToolCalls": 2,
+    "citationsVisible": 6,
+    "citedDocuments": 2,
+    "completedRunAndSourcesRestoredAfterReload": true,
+    "projectModifiedByAgent": false
+  }
+}

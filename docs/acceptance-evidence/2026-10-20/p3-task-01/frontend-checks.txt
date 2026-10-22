@@ -1,0 +1,39 @@
+P3-TASK-01 local frontend checks — 2026-10-20 Asia/Shanghai
+cwd: ai-collab-frontend
+Final executions: all four exit 0; no backend source changes.
+
+COMMAND: pnpm lint
+  6:3  warning  'taskPriorityLabel' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+E:\project\ai-collab\ai-collab-frontend\src\shared\AppShell.vue
+  176:85   warning  Attribute ":aria-label" should go before "@click"  vue/attributes-order
+  176:127  warning  Attribute ":title" should go before "@click"       vue/attributes-order
+
+✖ 78 problems (0 errors, 78 warnings)
+  0 errors and 24 warnings potentially fixable with the `--fix` option.
+
+
+COMMAND: pnpm typecheck
+$ vue-tsc -b
+
+COMMAND: pnpm test
+ ✓ src/modules/work/PlanComparisonView.test.ts (1 test) 59ms
+ ✓ src/modules/home/HomeView.test.ts (2 tests) 99ms
+ ✓ src/modules/work/TaskBoardView.test.ts (2 tests) 69ms
+
+ Test Files  45 passed (45)
+      Tests  290 passed (290)
+   Start at  15:58:43
+   Duration  10.68s (transform 13.45s, setup 0ms, collect 103.56s, tests 8.51s, environment 98.15s, prepare 13.55s)
+
+
+COMMAND: pnpm build
+dist/index.html                     0.55 kB │ gzip:   0.37 kB
+dist/assets/index-2glilsjA.css    433.77 kB │ gzip:  61.24 kB
+dist/assets/index-BYWAt4mw.js   1,494.50 kB │ gzip: 483.37 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 6.57s

@@ -1,0 +1,73 @@
+{
+  "note": "P3-OBS-02 受控真实验证的脱敏证据。已移除 Cookie、请求/响应头、查询串、正文与完整业务 UUID：运行 ID 一律以占位符替代。",
+  "environment": {
+    "browser": "Microsoft Edge 155.0.0.0（BrowserSkill 扩展 0.3.3，Agent Window 会话 phei）",
+    "pageOrigin": "http://localhost:5175（由本机受控故障代理静态托管真实构建产物 dist）",
+    "pageServedFrom": "production build（dist），不使用 Vite 开发服务器，因此不存在 HMR / 页面重载路径",
+    "backend": "http://localhost:8080（真实后端，local profile）",
+    "model": "cohere/north-mini-code:free（真实免费模型，Kilo Gateway，匿名无付费凭据）",
+    "viewport": "1506x707（Agent Window，标准桌面）",
+    "probe": "window.__p3marker（页面内标记，用于证明未发生页面重载）"
+  },
+  "method": {
+    "faultProxy": "本机 127.0.0.1:5175：静态托管 dist + /api 反向代理到真实后端，并在反代时把 Origin 覆写为后端 allowlist 中的 http://localhost:5173。只对 text/event-stream 响应注入传输中断（断开浏览器侧 SSE socket / 拒绝新的 SSE 连接）。",
+    "controlEndpoints": ["GET /__fault/break?holdMs=N", "GET /__fault/restore", "GET /__fault/status"],
+    "safety": [
+      "保留真实 Edge 页面（同一 Agent Window、同一 tab）",
+      "保留真实后端 Agent 运行（真实免费模型、真实工具调用）",
+      "不使用模拟模型回答冒充真实模型",
+      "不修改生产业务数据（仅使用既有合成验收项目 P2-E2E-02）",
+      "不耗尽真实 Provider 配额（免费模型、逐次单轮运行）",
+      "不触发页面重载（marker 全程保持 keep）"
+    ],
+    "limitation": "本环境未注入真实 Provider 429，也未通过耗尽额度制造错误；429 仍为 NOT_TESTED。"
+  },
+  "markerProof": "三轮测试前后 window.__p3marker 均为 keep（页面未重载），证明断线注入未触发 Vite HMR 或页面重载。",
+  "runs": [
+    {
+      "id": "<redacted-run-A>",
+      "separateReconnectAttemptsObserved": "多次 events?afterSequence=5 重连请求（被拒绝）",
+      "records": [
+        { "phase": "disconnect", "category": "NETWORK", "lastSequence": 4, "attempt": 1 },
+        { "phase": "transport_reconnected", "category": "NETWORK", "lastSequence": 4, "attempt": 1 },
+        { "phase": "recovered", "category": "NETWORK", "lastSequence": 4, "attempt": 1 }
+      ],
+      "uiDuringOutage": "SSE 重连中（传输中断 · 断线前 seq 4 · 第 1 次尝试）",
+      "uiAfterRestore": "SSE 已恢复（传输中断 · 断线前 seq 4）",
+      "outcome": "该运行随后因 Agent 重复操作保护而失败（业务行为，与 SSE 恢复无关）"
+    },
+    {
+      "id": "<redacted-run-B>",
+      "separateReconnectAttemptsObserved": "4 次 events?afterSequence=5 重连请求（被拒绝），随后第 5 次成功",
+      "records": [
+        { "phase": "disconnect", "category": "NETWORK", "lastSequence": 5, "attempt": 1 },
+        { "phase": "transport_reconnected", "category": "NETWORK", "lastSequence": 5, "attempt": 5 },
+        { "phase": "recovered", "category": "NETWORK", "lastSequence": 5, "attempt": 5 }
+      ],
+      "uiDuringOutage": "重连中（传输中断 · 断线前 seq 5 · 第 5 次尝试）",
+      "uiAfterRestore": "SSE 已恢复（传输中断 · 断线前 seq 5）",
+      "outcome": "运行完成（SUCCEEDED）；最终回答在会话中仅出现一次"
+    },
+    {
+      "id": "<redacted-run-C>",
+      "separateReconnectAttemptsObserved": "多次 events?afterSequence=5 重连请求（被拒绝），随后成功",
+      "records": [
+        { "phase": "disconnect", "category": "NETWORK", "lastSequence": 5, "attempt": 1 },
+        { "phase": "transport_reconnected", "category": "NETWORK", "lastSequence": 5, "attempt": 6 },
+        { "phase": "recovered", "category": "NETWORK", "lastSequence": 5, "attempt": 6 }
+      ],
+      "uiDuringOutage": "SSE 重连中（传输中断 · 断线前 seq 5 · 第 5 次尝试）",
+      "uiAfterRestore": "SSE 已恢复（传输中断 · 断线前 seq 5）",
+      "outcome": "运行完成（SUCCEEDED）；最终回答在会话中仅出现一次（含真实来源标记）"
+    }
+  ],
+  "bounding": "每个断线区间只产出 1 条 disconnect；区间内多次重连失败只累加 attempt，不重复记录；恢复后同一运行再次断线可重新记录（单元测试覆盖）。",
+  "replay": {
+    "cursor": "断线前 lastSequence 记入后续请求 afterSequence（Last-Event-ID），恢复后从该游标续接。",
+    "duplicateCheck": "断开到恢复全过程 lastSequence 始终锚定同一位点；恢复后事件按严格递增序号接受，会话中同一运行的最终 ASSISTANT 消息只出现一次。"
+  },
+  "screenshots": {
+    "reconnecting": "screenshots/02-agent-sse-reconnecting.png（右侧显示 SSE 重连中（传输中断 · 断线前 seq 5 · 第 5 次尝试）与断线诊断：重连中）",
+    "recovered": "screenshots/03-agent-sse-recovered.png（右侧显示 SSE 已恢复（传输中断 · 断线前 seq 5）与断线诊断：已恢复；左侧最终回答仅一次，带真实来源标记）"
+  }
+}

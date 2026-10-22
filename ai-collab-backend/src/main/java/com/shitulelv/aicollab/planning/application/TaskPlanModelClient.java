@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.planning.application;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand;
 import com.shitulelv.aicollab.infrastructure.ai.ChatModelGateway;
 import com.shitulelv.aicollab.infrastructure.ai.AiCallLogWriter;
@@ -55,15 +56,24 @@ public class TaskPlanModelClient {
      */
     public GenerationResult generate(String system, String user, String feature,
                                      UUID actor, UUID projectId, UUID attemptId, UUID correlationId) {
+        return generate(system, user, feature, actor, projectId, attemptId, correlationId, null);
+    }
+
+    /**
+     * 兼容入口：{@code outputSchema} 不再参与出站决策。
+     *
+     * <p>规划已统一使用提示词 JSON（见 {@link #command}），schema 由提示词的
+     * {@code <JSON_SCHEMA>} 段承载，因此这里保留该参数只为兼容既有调用签名，
+     * 其值不会转换成任何上游的原生 JSON 模式。</p>
+     */
+    public GenerationResult generate(String system, String user, String feature,
+                                     UUID actor, UUID projectId, UUID attemptId, UUID correlationId,
+                                     JsonNode outputSchema) {
         long started = System.nanoTime();
         String correlation = correlationId != null ? correlationId.toString()
                 : (attemptId != null ? attemptId.toString() : java.util.UUID.randomUUID().toString());
         com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider selected = null;
         try {
-            ChatCompletionCommand command = new ChatCompletionCommand(
-                    projectId, system, user,
-                    ChatCompletionCommand.OutputFormat.PROMPT_JSON,
-                    ModelPurpose.PLANNING, null, java.util.List.of(), actor);
             var metadata = new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata(correlation);
             ChatCompletionResult result;
             if (providers != null && gateway instanceof com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGateway routing) {
@@ -71,8 +81,11 @@ public class TaskPlanModelClient {
                 if (pinned == null) {
                     if (configurationStore == null) {
                         var provider = providers.resolve(actor, ModelPurpose.PLANNING);
-                        pinned = new PlanningModelConfigurationStore.Snapshot(provider, properties.maxOutputTokens() == null ? provider.maxOutputTokens() : properties.maxOutputTokens());
-                    } else pinned = configurationStore.requireSnapshot(actor, UUID.fromString(correlation), properties.maxOutputTokens());
+                        Integer outputBudget = properties.maxOutputTokens() == null
+                                ? provider.maxOutputTokens() : properties.maxOutputTokens();
+                        pinned = new PlanningModelConfigurationStore.Snapshot(provider, outputBudget);
+                    } else pinned = configurationStore.requireSnapshot(actor, UUID.fromString(correlation),
+                            properties.maxOutputTokens());
                     snapshot.set(pinned);
                 }
                 selected = pinned.provider();
@@ -80,8 +93,14 @@ public class TaskPlanModelClient {
                         feature, selected.id(), selected.providerType(), selected.modelName(),
                         pinned.maxOutputTokens(),
                         !"OPENCODE_ZEN_FREE".equals(selected.presetCode()));
+                ChatCompletionCommand command = command(projectId, system, user, actor);
                 result = routing.completeWithSnapshot(command, metadata, selected, pinned.maxOutputTokens());
-            } else result = gateway.complete(command, metadata);
+            } else {
+                ChatCompletionCommand command = new ChatCompletionCommand(
+                        projectId, system, user, ChatCompletionCommand.OutputFormat.PROMPT_JSON,
+                        ModelPurpose.PLANNING, null, java.util.List.of(), actor);
+                result = gateway.complete(command, metadata);
+            }
             safeLog(feature, actor, projectId, attemptId, result.provider(), result.model(),
                     "SUCCESS", result.latencyMs(), result.promptTokens(), result.completionTokens(), null);
             return new GenerationResult(result.content(), result.provider(), result.model(),
@@ -104,6 +123,23 @@ public class TaskPlanModelClient {
             throw responseFailure == null ? new BusinessException(mapped)
                     : new BusinessException(mapped, responseFailure.getMessage());
         }
+    }
+
+    private static ChatCompletionCommand command(UUID projectId, String system, String user, UUID actor) {
+        // 规划统一走提示词强制 JSON（PROMPT_JSON），不向任何上游发送原生 json_schema。
+        //
+        // 原因：原生 json_schema 要求上游实现完整 JSON Schema 语法子集，而免费聚合网关上的
+        // 模型并不都支持。实测（Kilo 免费目录 13 个模型）两类路径的合规率：
+        // 原生 json_schema 6/13，提示词 JSON 8/13。原生路径更差，且会在网关直接拒绝请求
+        // （MiniMax 拒绝 union 类型 "type":["string","null"]；部分模型静默忽略 schema 并返回
+        // 不合规 JSON），导致规划整体不可用。
+        //
+        // 提示词路径的输出契约由应用侧保证：schema 随提示词下发（见 skeletonPrompt/detailPrompt
+        // 的 <JSON_SCHEMA> 段），并由 TaskPlanOutputParser 做严格解析与业务校验。
+        // 这也是 Zen 预设一直采用的同一策略（见 ZenModelExecution.forceJson 及其契约测试）。
+        return new ChatCompletionCommand(projectId, system, user,
+                ChatCompletionCommand.OutputFormat.PROMPT_JSON,
+                ModelPurpose.PLANNING, null, java.util.List.of(), actor);
     }
 
     private void safeLog(String feature, UUID actor, UUID projectId, UUID attemptId,

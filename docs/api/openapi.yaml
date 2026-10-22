@@ -2104,6 +2104,40 @@ paths:
         required: false
         content: { application/json: { schema: { $ref: '#/components/schemas/TestZenPresetRequest' } } }
       responses: { '200': { description: Connection succeeded } }
+  /user/ai-provider-presets/KILO_GATEWAY_FREE/models:
+    get:
+      tags: [User AI]
+      summary: List current Kilo Gateway free models (anonymous discovery)
+      parameters:
+        - { name: refresh, in: query, required: false, schema: { type: boolean } }
+      responses:
+        '200':
+          description: Kilo free model ids currently served by the gateway
+          content: { application/json: { schema: { $ref: '#/components/schemas/FreeModelListEnvelope' } } }
+  /user/ai-provider-presets/KILO_GATEWAY_FREE:
+    put:
+      tags: [User AI]
+      summary: Save my Kilo Gateway connection (anonymous; model must be a current free model)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SaveKiloPresetRequest' } } }
+      responses:
+        '200':
+          description: Kilo Gateway connection saved
+          content: { application/json: { schema: { $ref: '#/components/schemas/ProviderPresetEnvelope' } } }
+    delete:
+      tags: [User AI]
+      summary: Disconnect the current user's Kilo Gateway connection (idempotent)
+      description: Deletes only the caller's KILO_GATEWAY_FREE row. No credential is stored. Purpose assignments cascade. A deleted default is not replaced and custom providers are untouched. Missing connection returns 204.
+      responses: { '204': { description: Kilo Gateway disconnected (or already absent) } }
+  /user/ai-provider-presets/KILO_GATEWAY_FREE/test:
+    post:
+      tags: [User AI]
+      summary: Test the Kilo Gateway connection (saved or provided model, live catalog check)
+      requestBody:
+        required: false
+        content: { application/json: { schema: { $ref: '#/components/schemas/TestKiloPresetRequest' } } }
+      responses: { '200': { description: Connection succeeded } }
   /user/ai-providers/defaults:
     put:
       tags: [User AI]
@@ -3672,7 +3706,7 @@ components:
       required: [id, name, providerType, baseUrl, apiPath, hasApiKey, modelName, enabled, isDefault, temperature, maxOutputTokens, capabilities, updatedAt]
       properties:
         id: { type: string, format: uuid }
-        presetCode: { type: string, nullable: true, enum: [OPENCODE_ZEN_FREE], description: Null means custom provider }
+        presetCode: { type: string, nullable: true, enum: [OPENCODE_ZEN_FREE, KILO_GATEWAY_FREE], description: Null means custom provider }
         name: { type: string }
         providerType: { type: string, enum: [OPENAI_COMPATIBLE, ANTHROPIC, GEMINI] }
         baseUrl: { type: string }
@@ -3719,7 +3753,7 @@ components:
       type: object
       required: [code, displayName, connected, enabled, isDefault, hasApiKey]
       properties:
-        code: { type: string, enum: [OPENCODE_ZEN_FREE] }
+        code: { type: string, enum: [OPENCODE_ZEN_FREE, KILO_GATEWAY_FREE] }
         displayName: { type: string }
         connected: { type: boolean }
         modelName: { type: string, nullable: true }
@@ -3756,6 +3790,17 @@ components:
       type: object
       properties:
         apiKey: { type: string, maxLength: 1000 }
+        modelName: { type: string, maxLength: 160 }
+    SaveKiloPresetRequest:
+      type: object
+      required: [modelName]
+      properties:
+        modelName: { type: string, maxLength: 160, description: Must be a current Kilo free model; no credential is stored }
+        enabled: { type: boolean }
+        setDefault: { type: boolean }
+    TestKiloPresetRequest:
+      type: object
+      properties:
         modelName: { type: string, maxLength: 160 }
     AgentSessionSummaryListEnvelope:
       allOf:
@@ -3833,11 +3878,16 @@ components:
         pendingApprovals: { type: integer }
         aiConfigSummary:
           type: object
-          required: [configured, defaultModel, providerCount]
+          description: >-
+            AI 配置状态摘要。configured 仅表示保存了配置；defaultModel 仅在存在已启用默认模型时给出；
+            anyPurposeUsable 表示知识问答/规划/Agent 中至少一个用途可解析到已启用模型。
+            该摘要不触发模型调用，也不代表调用成功或服务健康。
+          required: [configured, defaultModel, providerCount, anyPurposeUsable]
           properties:
             configured: { type: boolean }
             defaultModel: { type: string, nullable: true }
             providerCount: { type: integer }
+            anyPurposeUsable: { type: boolean }
         recentActivity:
           type: array
           items:

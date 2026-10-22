@@ -20,6 +20,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelContentPreview;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -481,6 +482,7 @@ public class AgentRuntimeCoordinator {
                                 repository, run.projectId(), run.id());
                          var outputCap = new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestOutputCap(requestMaxOutput)) {
                         turn = modelExecutor.callModel(run, messages, exposed, run.correctionAttempted(), resolved);
+                        turn = scopeGeminiToolCallIds(turn, run.toolCallsUsed());
                     }
                 } finally {
                     ModelContentPreview.clear();
@@ -1014,6 +1016,24 @@ public class AgentRuntimeCoordinator {
         if (clause.contains("是否") || clause.contains("要不要") || clause.contains("需不需要")
                 || clause.contains("能不能") || clause.contains("会不会") || clause.endsWith("吗")) return true;
         return clause.contains("如果") || clause.contains("假如") || clause.contains("假设") || clause.contains("要是");
+    }
+
+    /**
+     * Gemini 内部 ID 必须按持久化的 Run 调用计数定界，不能依赖可能被摘要或预算裁掉的消息。
+     * 该转换发生在 MODEL_TURN 入库前；已提交轮次的恢复直接读取持久化响应，沿用原 ID。
+     */
+    private ModelTurnResult scopeGeminiToolCallIds(ModelTurnResult turn, int priorToolCalls) {
+        if (turn == null || turn.toolCalls().isEmpty() || !"GEMINI".equalsIgnoreCase(turn.provider())) {
+            return turn;
+        }
+        List<ModelToolCall> scopedCalls = new ArrayList<>(turn.toolCalls().size());
+        for (int index = 0; index < turn.toolCalls().size(); index++) {
+            ModelToolCall call = turn.toolCalls().get(index);
+            String id = "gemini-call-" + ((long) priorToolCalls + index);
+            scopedCalls.add(new ModelToolCall(id, call.name(), call.arguments(), call.thoughtSignature()));
+        }
+        return new ModelTurnResult(turn.content(), scopedCalls, turn.finishReason(), turn.usage(),
+                turn.provider(), turn.model(), turn.latencyMs(), turn.finalizing());
     }
 
     /** 结算值与来源：来源按原始 usage 判定；缺失侧用实际请求/响应证据估算，不冒充零消耗。 */
