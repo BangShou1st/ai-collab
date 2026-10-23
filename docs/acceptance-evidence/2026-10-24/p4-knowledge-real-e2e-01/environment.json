@@ -1,0 +1,47 @@
+{
+  "task": "P4-KNOWLEDGE-REAL-E2E-01",
+  "executedAt": "2026-10-24 (Asia/Shanghai)",
+  "frontend": {
+    "mode": "vite dev server (pnpm dev --port 5173 --strictPort)",
+    "url": "http://localhost:5173",
+    "startedBy": "persistent host task (this acceptance round)"
+  },
+  "backend": {
+    "mode": "local profile via classpath launch (java @java.args AiCollabBackendApplication)",
+    "port": 8080,
+    "health": "/actuator/health UP",
+    "extraJvmArgs": "-Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=7897 -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=7897",
+    "reason": "本机无法直连 generativelanguage.googleapis.com，系统代理为 127.0.0.1:7897；dev.ps1 通过 WMI 分离启动无法继承该环境变量，故本轮由前台会话携带代理参数启动后端。localhost/数据库/Ollama 访问不受影响。",
+    "startedBy": "persistent host task (this acceptance round)"
+  },
+  "infrastructure": {
+    "postgres": "docker ai-collab-postgres (pgvector/pgvector:pg17, PostgreSQL 17.11, localhost:5432)",
+    "redis": "docker ai-collab-redis (healthy)",
+    "minio": "docker ai-collab-minio (healthy)",
+    "startedBy": "dev.ps1 start (pre-existing dev entry)"
+  },
+  "embedding": {
+    "provider": "OLLAMA",
+    "baseUrl": "http://127.0.0.1:11434",
+    "model": "qwen3-embedding:0.6b",
+    "dimensions": 1024,
+    "verifiedBy": "system_embedding_config 读取 + document_chunk 向量 vector_dims(embedding)=1024 实测"
+  },
+  "chatModel": {
+    "provider": "GEMINI",
+    "model": "gemini-3.5-flash-lite",
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+    "apiKeyStorage": "user_ai_provider.encrypted_api_key（只写不读，密钥不出现在任何证据文件）",
+    "connectivityTest": "UI 测试按钮 200 OK，回答“连接成功”，promptTokens=15, completionTokens=2, latencyMs=6954"
+  },
+  "browser": {
+    "tool": "browser-skill (bsk 0.3.3) + Edge 155.0.0.0",
+    "session": "vdeb（验收会话，复用既有登录态）",
+    "account": "U04 合成管理员（历史验收专用合成账户，非真实用户）"
+  },
+  "isolation": {
+    "project": "P4-KNOWLEDGE-REAL-E2E-01 隔离验收项目",
+    "projectId": "4dde7a2e-f26e-43a0-ae1f-51caeaa29d76",
+    "note": "独立隔离项目，未触碰其他项目数据；未执行任何 DROP/TRUNCATE/批量删除/Flyway repair"
+  }
+}

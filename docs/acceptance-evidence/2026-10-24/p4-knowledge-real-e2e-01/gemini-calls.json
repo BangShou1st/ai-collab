@@ -1,0 +1,65 @@
+{
+  "budget": {
+    "authorizedModel": "gemini-3.5-flash-lite",
+    "authorizedMaxCalls": 10,
+    "maxOutputTokensPerCall": 2048,
+    "serial": true
+  },
+  "calls": [
+    {
+      "seq": 1,
+      "phase": "provider-connectivity",
+      "trigger": "AI 设置「测试」按钮",
+      "result": "200 OK / “连接成功”",
+      "promptTokens": 15,
+      "completionTokens": 2,
+      "latencyMs": 6954
+    },
+    {
+      "seq": 2,
+      "phase": "failed-precondition-attempt",
+      "trigger": "Q-E2E-01 首次提交（配置 capabilities 缺 STREAMING，服务端拒绝，未到达 Gemini）",
+      "result": "SSE error：当前模型调用不支持 STREAMING",
+      "geminiReached": false
+    },
+    {
+      "seq": 3,
+      "phase": "Q-E2E-01",
+      "trigger": "知识问答页面提问「项目生产发布前必须完成哪些验收条件？」",
+      "result": "200 OK（SSE 流式完成）",
+      "latencyMs": 1152,
+      "insufficientEvidence": false
+    },
+    {
+      "seq": 4,
+      "phase": "Q-E2E-02",
+      "trigger": "「合同模板甲和合同模板乙关于重大变更审批的要求是否一致？请分别指出来源。」",
+      "result": "200 OK（SSE 流式完成）",
+      "insufficientEvidence": false
+    },
+    {
+      "seq": 5,
+      "phase": "Q-E2E-03",
+      "trigger": "「项目审计日志必须保存八十年吗？」",
+      "result": "200 OK，服务端判定证据不足，前端展示“资料不足”",
+      "insufficientEvidence": true
+    },
+    {
+      "seq": 6,
+      "phase": "Q-E2E-04a",
+      "trigger": "「任务运行期间可以增加预算吗？」",
+      "result": "200 OK",
+      "insufficientEvidence": false
+    },
+    {
+      "seq": 7,
+      "phase": "Q-E2E-04b",
+      "trigger": "「如果负责人批准了呢？」",
+      "result": "200 OK",
+      "insufficientEvidence": false
+    }
+  ],
+  "totalGeminiGenerations": 6,
+  "failedGeminiCalls": 0,
+  "note": "第 2 次尝试未到达 Gemini（服务端能力门控拒绝），不计入真实生成；密钥仅通过用户授权文件进入浏览器表单，未写入任何日志或证据。"
+}

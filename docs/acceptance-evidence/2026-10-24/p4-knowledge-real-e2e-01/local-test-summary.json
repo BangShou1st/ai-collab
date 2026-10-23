@@ -1,0 +1,27 @@
+{
+  "frontend": {
+    "lint": { "result": "0 errors, 77 warnings (既有警告)" },
+    "typecheck": { "result": "PASS (vue-tsc -b)" },
+    "test": { "result": "49 files / 373 tests passed" },
+    "build": { "result": "PASS (vite build, 既有 chunk 体积警告)" }
+  },
+  "backend": {
+    "verify": {
+      "executed": false,
+      "reason": "本轮零后端代码改动；上一轮同命令 CI 全绿（Run 39821215674），无需重复 1600+ Testcontainers 用例"
+    }
+  },
+  "codeChanges": {
+    "productionCode": "无",
+    "touchedFiles": [
+      "tests/fixtures/documents/README.md",
+      "tests/fixtures/documents/p4-rag-answer-quality-01/灰度发布与回滚规范.md",
+      "docs/acceptance-evidence/2026-10-24/p4-knowledge-real-e2e-01/*"
+    ],
+    "newFixture": "tests/fixtures/documents/p4-rag-answer-quality-01/灰度发布与回滚规范.md"
+  },
+  "ci": {
+    "status": "PENDING_AT_DELIVERY",
+    "note": "推送后由 GitHub Actions 自动运行，未长期轮询"
+  }
+}

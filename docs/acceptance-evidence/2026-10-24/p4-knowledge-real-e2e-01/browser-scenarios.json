@@ -1,0 +1,60 @@
+{
+  "scenarios": [
+    {
+      "id": "S1",
+      "name": "登录态进入工作台",
+      "operation": "打开 http://localhost:5173（共享既有会话 cookie），确认工作台渲染",
+      "expected": "登录态有效，页面可导航",
+      "actual": "以 U04 合成管理员身份进入工作台",
+      "status": "PASS"
+    },
+    {
+      "id": "S2",
+      "name": "创建隔离项目",
+      "operation": "我的项目 → 新建项目 → 填写名称/描述 → 新建",
+      "expected": "项目创建成功并进入项目",
+      "actual": "P4-KNOWLEDGE-REAL-E2E-01 隔离验收项目创建成功（projectId 4dde7a2e-f26e-43a0-ae1f-51caeaa29d76）",
+      "status": "PASS"
+    },
+    {
+      "id": "S3",
+      "name": "配置 Gemini Provider",
+      "operation": "AI 设置 → 添加自定义 Provider（GEMINI + Key + 模型名）→ 高级设置修正端点 → 测试",
+      "expected": "连通性测试通过",
+      "actual": "首次测试 SSL 握手失败（前端 Gemini 预设未带官方端点）；经高级设置改为官方端点后 200 OK；另发现 {model} 占位符无法保存（后端 URI 校验），以“模型名写进 path”等价方式落地",
+      "status": "PASS_WITH_FINDINGS"
+    },
+    {
+      "id": "S4",
+      "name": "绑定知识问答用途",
+      "operation": "AI 设置 → 按用途覆盖 → 知识问答选 Gemini",
+      "expected": "覆盖保存成功",
+      "actual": "“已保存覆盖”，解析状态显示 Gemini 3.5 Flash Lite",
+      "status": "PASS"
+    },
+    {
+      "id": "S5",
+      "name": "浏览器上传 5 篇文档并自动索引",
+      "operation": "项目文档 → 上传文档 → 逐个上传 → 等待可检索",
+      "expected": "全部 READY 且向量落库",
+      "actual": "5/5 READY，document_chunk 向量 1024 维全量非空",
+      "status": "PASS"
+    },
+    {
+      "id": "S6",
+      "name": "知识问答 SSE 提问与引用",
+      "operation": "知识问答 → 新建会话 → 依次提交 Q-E2E-01/02/03/04",
+      "expected": "流式回答 + 引用按钮 + 抽屉",
+      "actual": "全部按预期（除首次 STREAMING 能力门控失败）",
+      "status": "PASS_WITH_FINDINGS"
+    },
+    {
+      "id": "S7",
+      "name": "刷新持久化",
+      "operation": "问答页与文档页各 reload",
+      "expected": "消息/引用/文档状态完整保留",
+      "actual": "10 条消息顺序正确、无重复、双来源引用保留、5 文档可检索",
+      "status": "PASS"
+    }
+  ]
+}
