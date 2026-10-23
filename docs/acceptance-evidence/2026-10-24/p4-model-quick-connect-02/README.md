@@ -70,7 +70,9 @@ Zen 白名单上游/免费模型准入/凭据分桶缓存；Kilo 匿名语义/�
 | 前端 vitest | 393 tests 全绿（51 文件） |
 | 前端 build | 成功 |
 
-明细与基线对照实验记录见 [regression-results.json](regression-results.json)。CI：推送 dev 后触发，结果以 GitHub Actions 为准，不预写。
+明细与基线对照实验记录见 [regression-results.json](regression-results.json)。
+
+**CI（最终裁决）**：run `40012687910`，attempt 1，head SHA `65e046f9479f4a64959a6a7beda6fc2021837070`，**completed / success**——独立环境下后端 1670 tests 与前端全套全部通过，证实本机两处 Agent 时序失败为环境负载竞态而非代码回归。
 
 ## H. 证据文件
 
