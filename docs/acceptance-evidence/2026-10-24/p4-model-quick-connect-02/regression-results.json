@@ -57,5 +57,5 @@
     "Q09 双文档来源身份": "未触碰（知识问答仅改错误反馈路径），既有测试全绿",
     "Zen/Kilo 预设协议契约": "ZenUpstreamRoutingTest / ZenModelWiringTest / KiloGatewayModelTest / 预设契约测试全绿（断言迁移到等价 API 后语义不变）"
   },
-  "ci": "推送 dev 后由 GitHub Actions 触发（push 事件）；结果以 Actions 运行为准，不预写"
+  "CI run 40012687910 / attempt 1 / head 65e046f9479f4a64959a6a7beda6fc2021837070：completed / success（后端 1670 tests + 前端全套全绿，证实本机 Agent 时序失败为环境负载竞态）"
 }
