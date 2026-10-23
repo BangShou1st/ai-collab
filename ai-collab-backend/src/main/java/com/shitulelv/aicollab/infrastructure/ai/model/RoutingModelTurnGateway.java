@@ -19,7 +19,6 @@ import java.util.Map;
  */
 @Component
 public class RoutingModelTurnGateway implements ModelTurnGateway {
-    private final ModelConfigurationRepository configurations;
     private final UserAiProviderService userProviders;
     private final ModelSecretCipher secrets;
     private final Map<ModelProviderType, ModelTurnProviderAdapter> adapters;
@@ -28,13 +27,11 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
 
     @org.springframework.beans.factory.annotation.Autowired
     public RoutingModelTurnGateway(
-            ModelConfigurationRepository configurations,
             UserAiProviderService userProviders,
             ModelSecretCipher secrets,
             List<ModelTurnProviderAdapter> adapters,
             ZenModelExecution zen,
             KiloGatewayModelExecution kilo) {
-        this.configurations = configurations;
         this.userProviders = userProviders;
         this.secrets = secrets;
         EnumMap<ModelProviderType, ModelTurnProviderAdapter> indexed = new EnumMap<>(ModelProviderType.class);
@@ -47,20 +44,18 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
     }
 
     public RoutingModelTurnGateway(
-            ModelConfigurationRepository configurations,
             UserAiProviderService userProviders,
             ModelSecretCipher secrets,
             List<ModelTurnProviderAdapter> adapters,
             ZenModelExecution zen) {
-        this(configurations, userProviders, secrets, adapters, zen, KiloGatewayModelExecution.standalone());
+        this(userProviders, secrets, adapters, zen, KiloGatewayModelExecution.standalone());
     }
 
     public RoutingModelTurnGateway(
-            ModelConfigurationRepository configurations,
             UserAiProviderService userProviders,
             ModelSecretCipher secrets,
             List<ModelTurnProviderAdapter> adapters) {
-        this(configurations, userProviders, secrets, adapters,
+        this(userProviders, secrets, adapters,
                 new ZenModelExecution(new ProviderPresetRegistry(), new com.fasterxml.jackson.databind.ObjectMapper(),
                         new com.shitulelv.aicollab.common.security.OutboundEndpointPolicy()),
                 KiloGatewayModelExecution.standalone());
@@ -86,21 +81,10 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
                 if (!provider.enabled()) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
                 return kilo.turn(provider, command);
             }
-            ModelConfiguration config = provider.toModelConfiguration();
-            return turnWithConfig(config, command);
-        } else if (command.configurationId() != null) {
-            ModelConfiguration config = configurations.findById(command.configurationId())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "指定的模型配置不存在"));
-            return turnWithConfig(config, command);
-        } else {
-            if (command.projectId() == null) {
-                throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
-                        "未指定项目，无法查找模型配置");
-            }
-            ModelConfiguration config = configurations.findAssigned(command.projectId(), command.purpose())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "项目未配置 " + command.purpose() + " 模型"));
-            return turnWithConfig(config, command);
+            return turnWithConfig(provider.toModelConfiguration(), command);
         }
+        throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE,
+                "未指定调用用户，无法查找模型配置");
     }
 
     private ModelTurnResult turnWithConfig(ModelConfiguration config, ModelTurnCommand command) {

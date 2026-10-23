@@ -89,7 +89,7 @@ class ZenModelWiringTest {
         when(zen.isZen(any())).thenReturn(true);
         var expected = mock(ModelTurnResult.class);
         when(zen.turn(any(), any(), any(), any())).thenReturn(expected);
-        var gw = new RoutingModelTurnGateway(mock(ModelConfigurationRepository.class), svc, secrets, List.of(), zen);
+        var gw = new RoutingModelTurnGateway(svc, secrets, List.of(), zen);
         var cmd = new ModelTurnCommand(ModelPurpose.AGENT, null, null, List.of(new ModelMessage.User("hi")), List.of(), false, provider.userId());
         var md = AiRequestMetadata.of("stable-session");
         assertThat(gw.turn(cmd, md)).isEqualTo(expected);

@@ -34,7 +34,7 @@ class ZenUpstreamRoutingTest {
         ProviderPresetRegistry registry = new ProviderPresetRegistry();
         var pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
 
-        assertThat(registry.zenBaseUrl()).isEqualTo("https://opencode.ai/inference/v1");
+        assertThat(pol.baseUrl()).isEqualTo("https://opencode.ai/inference/v1");
         assertThat(registry.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/models");
         assertThat(registry.completionEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/chat/completions");
     }
@@ -61,8 +61,8 @@ class ZenUpstreamRoutingTest {
                 .isInstanceOf(IllegalStateException.class);
         assertThat(ProviderPresetRegistry.approveZenUpstream("https://opencode.ai/inference/v1/"))
                 .isEqualTo("https://opencode.ai/inference/v1");
-        assertThat(new ProviderPresetRegistry().approvedBaseUrls())
-                .containsExactly("https://opencode.ai/inference/v1");
+        assertThat(new ProviderPresetRegistry().require(ProviderPresetCode.OPENCODE_ZEN_FREE).baseUrl())
+                .isEqualTo("https://opencode.ai/inference/v1");
     }
 
     @Test

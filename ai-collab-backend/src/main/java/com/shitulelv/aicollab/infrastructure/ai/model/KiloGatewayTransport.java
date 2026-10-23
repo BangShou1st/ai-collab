@@ -15,9 +15,6 @@ public interface KiloGatewayTransport {
     /** 网关当前在服务的免费模型 id：共享库免费模型判定与上游实时目录的交集，按 id 稳定排序。 */
     List<String> admittedModels();
 
-    /** 校验所选模型为当前免费模型且网关可达（真实网络调用，不消耗额度）。 */
-    void validateModel(String model);
-
     /** 非流式 OpenAI 兼容请求；返回网关原始 JSON（含 tool_calls）。 */
     JsonNode chat(ObjectNode request);
 

@@ -154,20 +154,6 @@ class ModelProtocolHttpTest {
         assertThatThrownBy(this::turn).isInstanceOfSatisfying(BusinessException.class,
                 e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AI_PROVIDER_INVALID_RESPONSE));
     }
-    @Test void connection_probe_uses_the_same_free_tier_envelope_and_sse_parser() {
-        reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n");
-        var registry = mock(ProviderPresetRegistry.class);
-        var policy = new ProviderPresetRegistry.PresetPolicy(ProviderPresetCode.OPENCODE_ZEN_FREE, "test", config.providerType(),
-                config.baseUrl(), config.apiPath(), "/models", "synthetic-client", true, config.capabilities(), 0, 256);
-        when(registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE)).thenReturn(policy);
-        var client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
-        new HttpOpenCodeZenTransport(json, mock(OutboundEndpointPolicy.class), registry, client, client)
-                .validateCredential("synthetic-key", "synthetic-model", AiRequestMetadata.of("probe"));
-        assertThat(request.get().path("stream").asBoolean()).isTrue();
-        assertThat(request.get().path("tools").findValuesAsText("name")).containsExactly("shell", "read");
-        assertThat(headers.get().getFirst("x-opencode-session")).matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
-        assertThat(headers.get().getFirst("x-opencode-request")).isNull();
-    }
     @Test void custom_model_streams_do_not_receive_the_zen_envelope() {
         reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n");
         var error = new AtomicReference<Exception>();

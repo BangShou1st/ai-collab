@@ -32,13 +32,6 @@ export interface KnowledgeSessionDetail {
   messages: KnowledgeMessage[]
 }
 
-export interface KnowledgeAnswer {
-  messageId: string
-  answer: string
-  insufficientEvidence: boolean
-  model: string | null
-  citations: KnowledgeCitation[]
-}
 
 export interface KnowledgeFeedback {
   myFeedback: boolean | null

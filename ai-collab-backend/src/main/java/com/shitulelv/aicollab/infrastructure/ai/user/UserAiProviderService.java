@@ -168,18 +168,61 @@ public class UserAiProviderService {
                 EnumSet.copyOf(request.capabilities()), isDefault, createdAt, updatedAt, null);
     }
 
+    /** API Path 中唯一允许的占位符：由 GeminiModelAdapter 在出站前替换为模型 ID。 */
+    static final String MODEL_PLACEHOLDER = "{model}";
+    /** 占位符的 URI 安全校验替身：仅含 URI 路径合法字符，长度与真实模型 ID 同量级。 */
+    private static final String MODEL_PLACEHOLDER_PROBE = "model-placeholder";
+
+    /**
+     * 校验 Base URL 与 API Path。
+     *
+     * <p>API Path 允许携带至多一个 {@code {model}} 占位符（Gemini 官方路径依赖它）；
+     * 占位符先被替换为 URI 合法 token 再做文法校验，因此花括号本身不会破坏
+     * URI 解析，其余任何花括号组合仍然被拒绝。出站安全策略（HTTPS/公网/防 SSRF）
+     * 保持不变：占位符替换发生在安全校验之前，校验对象覆盖完整路径。</p>
+     */
     private void validateEndpoint(String baseUrl, String apiPath) {
+        String baseText = baseUrl == null ? "" : baseUrl.strip();
+        String pathText = apiPath == null ? "" : apiPath.strip();
+        URI base;
         try {
-            URI base = URI.create(baseUrl.strip());
-            URI path = URI.create(apiPath.strip());
-            if (!base.isAbsolute() || base.getHost() == null || base.getUserInfo() != null
-                    || path.isAbsolute() || path.getRawAuthority() != null
-                    || apiPath.isBlank()) {
-                throw new IllegalArgumentException();
-            }
+            base = URI.create(baseText);
+        } catch (RuntimeException malformed) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Base URL 格式无效，请填写完整的 HTTPS 地址");
+        }
+        if (!base.isAbsolute() || base.getHost() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Base URL 必须是带主机的绝对地址");
+        }
+        if (base.getUserInfo() != null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Base URL 不允许携带用户凭据信息（user@host）");
+        }
+        if (pathText.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Path 不能为空");
+        }
+        int placeholderCount = pathText.split(java.util.regex.Pattern.quote(MODEL_PLACEHOLDER), -1).length - 1;
+        String sanitizedPath = pathText.replace(MODEL_PLACEHOLDER, MODEL_PLACEHOLDER_PROBE);
+        if (sanitizedPath.indexOf('{') >= 0 || sanitizedPath.indexOf('}') >= 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "API Path 仅支持 {model} 占位符，不支持其他花括号表达式");
+        }
+        if (placeholderCount > 1) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Path 中的 {model} 占位符至多出现一次");
+        }
+        URI path;
+        try {
+            path = URI.create(sanitizedPath);
+        } catch (RuntimeException malformed) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "API Path 格式无效：必须是相对路径（以 / 开头，不含主机名）");
+        }
+        if (path.isAbsolute() || path.getRawAuthority() != null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Path 必须是相对路径，完整地址请填写在 Base URL");
+        }
+        try {
             endpoints.requirePublicHttps(base);
-        } catch (RuntimeException exception) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型接口地址无效");
+        } catch (RuntimeException unsafe) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Base URL 不符合出站安全策略：仅允许公网 HTTPS 地址（禁止内网、环回与链路本地地址）");
         }
     }
 

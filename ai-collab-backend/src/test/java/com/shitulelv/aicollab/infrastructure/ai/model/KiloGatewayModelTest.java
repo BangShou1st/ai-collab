@@ -165,15 +165,6 @@ class KiloGatewayModelTest {
         assertThat(transport.admittedModels()).containsExactly("kilo-auto/free", "poolside/laguna-s-2.1:free");
     }
 
-    @Test void validateModelRequiresLiveFreeModel() throws Exception {
-        var client = mock(KiloGatewayClient.class);
-        when(client.freeModels()).thenReturn(List.of(mapper.readTree("{\"id\":\"m:free\"}")));
-        var transport = new KiloGatewayClientTransport(client);
-        transport.validateModel("m:free");
-        assertThatThrownBy(() -> transport.validateModel("paid")).isInstanceOf(BusinessException.class);
-        assertThatThrownBy(() -> transport.validateModel("absent:free")).isInstanceOf(BusinessException.class);
-    }
-
     @Test void transportErrorsAreTranslated() {
         var client = mock(KiloGatewayClient.class);
         when(client.chat(any())).thenThrow(new KiloGatewayException(429, "poolside", "quota"));
@@ -299,7 +290,7 @@ class KiloGatewayModelTest {
         when(kilo.isKilo(any())).thenReturn(true);
         var expected = org.mockito.Mockito.mock(ModelTurnResult.class);
         when(kilo.turn(any(), any())).thenReturn(expected);
-        var gateway = new RoutingModelTurnGateway(mock(ModelConfigurationRepository.class), service,
+        var gateway = new RoutingModelTurnGateway(service,
                 mock(ModelSecretCipher.class), List.of(), zen, kilo);
         var command = new ModelTurnCommand(ModelPurpose.AGENT, null, null,
                 List.of(new ModelMessage.User("hi")), List.of(), false, provider.userId());

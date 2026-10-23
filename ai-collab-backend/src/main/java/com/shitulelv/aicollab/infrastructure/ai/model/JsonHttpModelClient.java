@@ -73,6 +73,33 @@ public class JsonHttpModelClient {
         return post(url, headers, body, 1);
     }
 
+    /**
+     * 只读 GET 请求（模型发现等）：与 POST 同一条出站安全与错误分类链路。
+     * GET 不携带请求体，失败不重试——发现失败应立即降级为手动填写模型 ID。
+     */
+    public JsonNode get(String url, Map<String, String> headers) {
+        try {
+            URI endpoint = URI.create(url.strip());
+            endpoints.requirePublicHttps(endpoint);
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(endpoint)
+                    .timeout(java.time.Duration.ofSeconds(20))
+                    .header("Accept", "application/json")
+                    .GET();
+            headers.forEach(builder::header);
+            HttpResponse<String> response = sendBounded(builder.build());
+            checkStatus(response.statusCode(), response.body(), mapper);
+            return parse(response.body());
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (java.net.http.HttpTimeoutException timeout) {
+            throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
+        } catch (Exception exception) {
+            log.warn("Model API GET failed: {}", exception.getMessage());
+            throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "模型列表获取失败，请检查网络或手动填写模型 ID");
+        }
+    }
+
     public JsonNode post(String url, Map<String, String> headers, JsonNode body, int maxAttempts) {
         return post(url, headers, body, maxAttempts, null);
     }
@@ -349,6 +376,9 @@ public class JsonHttpModelClient {
         if (status == 401) {
             throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID,
                     "模型 API Key 无效或无权访问 (HTTP " + status + ")");
+        }
+        if (status == 404) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_NOT_FOUND);
         }
         if (status < 200 || status >= 300) {
             log.warn("Model API returned HTTP {}", status);
