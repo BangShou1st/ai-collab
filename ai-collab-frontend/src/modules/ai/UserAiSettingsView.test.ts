@@ -16,11 +16,13 @@ function switchUser(user: { id: string; systemAdmin: boolean } | null) {
 const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   listPurposes: vi.fn(),
-  test: vi.fn(),
   testCapability: vi.fn(),
+  probeResults: vi.fn(),
+  providerModels: vi.fn(),
+  profiles: vi.fn(),
   presets: vi.fn(),
   models: vi.fn(),
-  presetTest: vi.fn(),
+  save: vi.fn(),
   disconnect: vi.fn(),
   confirm: vi.fn(),
   success: vi.fn(),
@@ -39,16 +41,17 @@ vi.mock("../../stores/auth-store", () => ({
 vi.mock("./user-ai-api", () => ({
   userAiApi: {
     list: mocks.list, listPurposes: mocks.listPurposes,
-    test: mocks.test, testCapability: mocks.testCapability,
-    create: vi.fn(), update: vi.fn(), remove: vi.fn(), setDefault: vi.fn(),
+    testCapability: mocks.testCapability, probeResults: mocks.probeResults,
+    models: mocks.providerModels, profiles: mocks.profiles,
+    create: vi.fn(), update: vi.fn(), remove: vi.fn(), setDefault: vi.fn(), test: vi.fn(),
     assignPurpose: vi.fn(), unassignPurpose: vi.fn(),
   },
 }));
 vi.mock("./ai-preset-api", () => ({
-  aiPresetApi: { presets: mocks.presets, models: mocks.models, test: mocks.presetTest, save: vi.fn(), disconnect: mocks.disconnect },
+  aiPresetApi: { presets: mocks.presets, models: mocks.models, save: mocks.save, disconnect: mocks.disconnect },
 }));
 vi.mock("element-plus", () => ({
-  ElMessage: { success: mocks.success, error: vi.fn() },
+  ElMessage: { success: mocks.success, error: vi.fn(), warning: vi.fn() },
   ElMessageBox: { confirm: mocks.confirm },
 }));
 
@@ -67,43 +70,24 @@ const customProvider = (over: Partial<UserAiProvider> = {}): UserAiProvider => (
   id: "c-1", name: "我的网关", presetCode: null, providerType: "OPENAI_COMPATIBLE",
   baseUrl: "https://api.example.com", apiPath: "/v1/chat/completions", hasApiKey: true,
   modelName: "my-model", enabled: true, isDefault: true, temperature: 0.2, maxOutputTokens: 1200,
-  capabilities: ["CHAT"], updatedAt: "2026-10-20T00:00:00Z", ...over,
+  capabilities: ["CHAT", "STREAMING"], updatedAt: "2026-10-20T00:00:00Z", ...over,
 });
 
-// 命名 stub 便于按 aria-label 定位“测试能力”选择器。
-const ElSelect = {
-  name: "ElSelect",
-  inheritAttrs: false,
-  props: ["modelValue"],
-  emits: ["update:modelValue"],
-  template: '<div v-bind="$attrs" class="el-select-stub"><slot /></div>',
-};
-const ElTag = { name: "ElTag", props: ["type", "size"], template: '<span class="el-tag-stub"><slot /></span>' };
-const ElAlert = {
-  name: "ElAlert",
-  props: ["title", "description", "type"],
-  template: '<div class="el-alert-stub">{{ title }} {{ description }}<slot /></div>',
-};
 const stubs = {
   PageHeader: { template: "<header />" },
   EmptyState: { template: "<div />" },
   ElButton: { inheritAttrs: false, template: '<button v-bind="$attrs"><slot /></button>' },
   ElCard: { template: '<section><slot name="header" /><slot /></section>' },
   ElInput: { template: "<textarea />" },
-  ElSelect,
-  ElOption: { name: "ElOption", props: ["label", "value", "disabled"], template: '<span class="el-option-stub">{{ label }}</span>' },
+  "el-select": { inheritAttrs: false, template: '<div v-bind="$attrs"><slot /></div>' },
+  "el-option": { props: ["label", "value", "disabled"], template: '<span>{{ label }}</span>' },
   ElSkeleton: { template: "<div />" },
-  ElCheckbox: { template: "<span><slot /></span>" },
-  ElDialog: { template: "<div><slot /></div>" },
-  ElForm: { template: "<form><slot /></form>" },
-  ElFormItem: { template: "<label><slot /></label>" },
-  ElSwitch: { template: "<span />" },
-  ElCollapse: { template: "<div><slot /></div>" },
-  ElCollapseItem: { template: "<div><slot /></div>" },
-  ElInputNumber: { template: "<input />" },
-  ElTag,
-  ElAlert,
+  "el-checkbox": { inheritAttrs: false, template: '<label v-bind="$attrs"><slot /></label>' },
+  "el-checkbox-group": { template: "<div><slot /></div>" },
+  ElTag: { props: ["type", "size"], template: '<span class="el-tag-stub"><slot /></span>' },
+  ElAlert: { props: ["title", "description", "type"], template: '<div>{{ title }} {{ description }}<slot /></div>' },
   RouterLink: { props: ["to"], template: '<a :href="typeof to === \'string\' ? to : to?.path"><slot /></a>' },
+  ProviderFormDialog: { template: "<div />" },
 };
 
 function mountView() {
@@ -114,22 +98,19 @@ function buttonByText(wrapper: ReturnType<typeof mountView>, text: string) {
   return wrapper.findAll("button").find((b) => b.text() === text);
 }
 
-function probeSelect(wrapper: ReturnType<typeof mountView>) {
-  return wrapper.findAllComponents(ElSelect).find((c) => c.attributes("aria-label") === "测试能力");
-}
-
 beforeEach(() => {
   vi.resetAllMocks();
   authState.currentUser = { id: "u-1", systemAdmin: false };
   authState.listeners = [];
   mocks.list.mockResolvedValue(response([]));
   mocks.listPurposes.mockResolvedValue(response({}));
+  mocks.probeResults.mockResolvedValue(response([]));
+  mocks.providerModels.mockResolvedValue(response(["my-model"]));
+  mocks.profiles.mockRejectedValue(new Error("profiles unavailable"));
   mocks.presets.mockResolvedValueOnce(response([zen(), kilo()]));
   mocks.presets.mockResolvedValue(response([zen({ connected: false, modelName: null, hasApiKey: false, isDefault: false }), kilo()]));
   mocks.models.mockResolvedValue(response(["mimo-v2.5-free"]));
-  mocks.test.mockResolvedValue(response({}));
   mocks.testCapability.mockResolvedValue(response({}));
-  mocks.presetTest.mockResolvedValue(response(null));
   mocks.disconnect.mockResolvedValue(undefined);
   mocks.confirm.mockResolvedValue(true);
 });
@@ -144,8 +125,7 @@ describe("UserAiSettingsView connectivity/disconnect", () => {
     await flushPromises();
     expect(mocks.confirm).toHaveBeenCalledTimes(1);
     expect(mocks.disconnect).toHaveBeenCalledTimes(1);
-    expect(mocks.success).toHaveBeenCalledWith("已断开 OpenCode Zen 连接");
-    expect(buttonByText(wrapper, "断开连接")).toBeFalsy();
+    expect(mocks.success).toHaveBeenCalledWith("已断开 OpenCode Zen Free 连接");
     wrapper.unmount();
   });
 
@@ -153,9 +133,9 @@ describe("UserAiSettingsView connectivity/disconnect", () => {
     mocks.presets.mockReset();
     mocks.presets.mockResolvedValue(response([
       zen({ connected: false, modelName: null, hasApiKey: false, isDefault: false }),
-      kilo({ connected: true, modelName: "poolside/laguna-s-2.1:free", isDefault: true }),
+      kilo({ connected: true, modelName: "poolside/laguna-s.1:free", isDefault: true }),
     ]));
-    mocks.models.mockResolvedValue(response(["poolside/laguna-s-2.1:free"]));
+    mocks.models.mockResolvedValue(response(["poolside/laguna-s.1:free"]));
     const wrapper = mountView();
     await flushPromises();
     expect(mocks.models).toHaveBeenCalledWith("KILO_GATEWAY_FREE", false);
@@ -165,7 +145,7 @@ describe("UserAiSettingsView connectivity/disconnect", () => {
     await disconnectButtons[0]!.trigger("click");
     await flushPromises();
     expect(mocks.disconnect).toHaveBeenCalledWith("KILO_GATEWAY_FREE");
-    expect(mocks.success).toHaveBeenCalledWith("已断开 Kilo Gateway 连接");
+    expect(mocks.success).toHaveBeenCalledWith("已断开 Kilo Gateway Free 连接");
     wrapper.unmount();
   });
 
@@ -190,7 +170,6 @@ describe("UserAiSettingsView state accuracy", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("AI 配置加载失败，当前状态未知");
     expect(wrapper.text()).not.toContain("还没有自定义模型");
-    expect(wrapper.text()).not.toContain("未配置");
     wrapper.unmount();
   });
 
@@ -203,21 +182,49 @@ describe("UserAiSettingsView state accuracy", () => {
     await buttonByText(wrapper, "重试")?.trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("默认模型：我的网关 · my-model")
-    expect(mocks.test).not.toHaveBeenCalled();
     expect(mocks.testCapability).not.toHaveBeenCalled();
-    expect(mocks.presetTest).not.toHaveBeenCalled();
-    // 模型目录列举不是真实补全探测
+    // 模型目录列举不是真实生成探测
     expect(mocks.models).toHaveBeenCalled();
     wrapper.unmount();
   });
 
-  it("describes the resolved default per purpose and marks it unverified", async () => {
+  it("describes the resolved default per purpose with readiness derived from probe evidence", async () => {
+    // 未测过任何探针：知识问答显示“未验证”（不是可用，也不是不可用）。
     mocks.list.mockResolvedValue(response([customProvider()]));
     const wrapper = mountView();
     await flushPromises();
-    expect(wrapper.text()).toContain("默认模型：我的网关 · my-model · 已启用 · 可用性未验证");
-    expect(wrapper.text()).toContain("未测试");
-    expect(wrapper.text()).not.toContain("已就绪");
+    expect(wrapper.text()).toContain("默认模型：我的网关 · my-model · 已启用");
+    expect(wrapper.text()).toContain("未验证");
+    expect(wrapper.text()).not.toContain("知识问答我的网关默认模型：我的网关 · my-model · 已启用 可用");
+    wrapper.unmount();
+  });
+
+  it("marks a purpose READY only when its required probe passed, not on connectivity alone", async () => {
+    mocks.list.mockResolvedValue(response([customProvider()]));
+    // 连接通过 + 流式通过 → 知识问答“可用”；规划（依赖 PLANNING_JSON）仍“未验证”。
+    mocks.probeResults.mockResolvedValue(response([
+      { mode: "CONNECTIVITY", status: "PASS", model: "my-model", detail: null, errorCode: null, latencyMs: 80, testedAt: "2026-10-24T00:00:00Z", stale: false },
+      { mode: "STREAMING", status: "PASS", model: "my-model", detail: null, errorCode: null, latencyMs: 220, testedAt: "2026-10-24T00:00:00Z", stale: false },
+    ]));
+    const wrapper = mountView();
+    await flushPromises();
+    const knowledgeRow = wrapper.text().match(/知识问答[\s\S]*?(可用|未验证|不可用|未声明所需能力)/)?.[1] ?? "";
+    expect(knowledgeRow).toBe("可用");
+    const planningRow = wrapper.text().match(/AI 规划[\s\S]*?(可用|未验证|不可用|未声明所需能力)/)?.[1] ?? "";
+    expect(planningRow).toBe("未验证");
+    wrapper.unmount();
+  });
+
+  it("marks readiness stale when the config changed after the probe", async () => {
+    mocks.list.mockResolvedValue(response([customProvider()]));
+    mocks.probeResults.mockResolvedValue(response([
+      { mode: "STREAMING", status: "PASS", model: "my-model", detail: null, errorCode: null, latencyMs: 220, testedAt: "2026-10-23T00:00:00Z", stale: true },
+    ]));
+    const wrapper = mountView();
+    await flushPromises();
+    const knowledgeRow = wrapper.text().match(/知识问答[\s\S]*?(可用|未验证|不可用|未声明所需能力)/)?.[1] ?? "";
+    expect(knowledgeRow).toBe("未验证");
+    expect(wrapper.text()).toContain("已过期（配置已变更）");
     wrapper.unmount();
   });
 
@@ -238,36 +245,35 @@ describe("UserAiSettingsView state accuracy", () => {
     const wrapper = mountView();
     await flushPromises();
     expect(wrapper.text()).toContain("用途覆盖指向已停用的模型“停用覆盖”，该用途当前不可用");
-    // 失效覆盖显示可读名称，而不是原始 Provider ID
     expect(wrapper.text()).toContain("停用覆盖（已停用）");
     expect(wrapper.text()).not.toContain("o-1");
     wrapper.unmount();
   });
 
-  it("does not let one capability result stand in for another", async () => {
+  it("runs the unified capability suite on one explicit click for a custom provider", async () => {
     mocks.list.mockResolvedValue(response([customProvider()]));
     const wrapper = mountView();
     await flushPromises();
-    await buttonByText(wrapper, "测试")?.trigger("click");
+    await buttonByText(wrapper, "测试连接与能力")?.trigger("click");
     await flushPromises();
-    expect(mocks.test).toHaveBeenCalledWith("c-1");
-    expect(wrapper.text()).toContain("连接：本次会话测试通过");
+    expect(mocks.testCapability.mock.calls.map((c) => c[1])).toEqual(["CONNECTIVITY", "STREAMING"]);
+    expect(wrapper.text()).toContain("连接（真实生成）");
+    expect(wrapper.text()).toContain("流式输出");
+    wrapper.unmount();
+  });
 
-    const select = probeSelect(wrapper);
-    expect(select).toBeTruthy();
-    select!.vm.$emit("update:modelValue", "STREAMING");
+  it("offers the unified capability suite for connected presets too", async () => {
+    // Zen 已连接：预设卡片渲染同一套测试入口，能力测试走统一 test-capability 通道。
+    mocks.list.mockResolvedValue(response([customProvider({
+      id: "zen-row", presetCode: "OPENCODE_ZEN_FREE", isDefault: false,
+    })]));
+    const wrapper = mountView();
     await flushPromises();
-    // 切换能力后，连接结果不再代表当前能力
-    expect(wrapper.text()).toContain("未测试");
-
-    await buttonByText(wrapper, "测试")?.trigger("click");
+    const suiteButtons = wrapper.findAll("button").filter((b) => b.text() === "测试连接与能力");
+    expect(suiteButtons.length).toBeGreaterThanOrEqual(1);
+    await suiteButtons[0]!.trigger("click");
     await flushPromises();
-    expect(mocks.testCapability).toHaveBeenCalledWith("c-1", "STREAMING");
-    expect(wrapper.text()).toContain("流式：本次会话测试通过");
-
-    select!.vm.$emit("update:modelValue", "CONNECTIVITY");
-    await flushPromises();
-    expect(wrapper.text()).toContain("连接：本次会话测试通过");
+    expect(mocks.testCapability.mock.calls.map((c) => c[1])).toEqual(["CONNECTIVITY", "STREAMING"]);
     wrapper.unmount();
   });
 
@@ -289,46 +295,11 @@ describe("UserAiSettingsView state accuracy", () => {
     wrapper.unmount();
   });
 
-  it("marks a probe failure and allows re-testing", async () => {
-    mocks.list.mockResolvedValue(response([customProvider()]));
-    mocks.test.mockRejectedValueOnce(new Error("boom"));
-    const wrapper = mountView();
-    await flushPromises();
-    await buttonByText(wrapper, "测试")?.trigger("click");
-    await flushPromises();
-    expect(wrapper.text()).toContain("连接：本次会话测试失败");
-
-    mocks.test.mockResolvedValue(response({}));
-    await buttonByText(wrapper, "测试")?.trigger("click");
-    await flushPromises();
-    expect(wrapper.text()).toContain("连接：本次会话测试通过");
-    wrapper.unmount();
-  });
-
-  it("does not carry a session test result across a remount (no persisted history)", async () => {
-    mocks.list.mockResolvedValue(response([customProvider()]));
-    const first = mountView();
-    await flushPromises();
-    await buttonByText(first, "测试")?.trigger("click");
-    await flushPromises();
-    expect(first.text()).toContain("连接：本次会话测试通过");
-    first.unmount();
-
-    const second = mountView();
-    await flushPromises();
-    expect(second.text()).toContain("未测试");
-    expect(second.text()).not.toContain("连接：本次会话测试通过");
-    second.unmount();
-  });
-
-  it("drops the previous user's configuration and probe results on account switch", async () => {
+  it("drops the previous user's configuration on account switch", async () => {
     mocks.list.mockResolvedValue(response([customProvider()]));
     const wrapper = mountView();
-    await flushPromises();
-    await buttonByText(wrapper, "测试")?.trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("我的网关");
-    expect(wrapper.text()).toContain("连接：本次会话测试通过");
 
     mocks.list.mockResolvedValue(response([]));
     mocks.listPurposes.mockResolvedValue(response({}));
@@ -336,7 +307,6 @@ describe("UserAiSettingsView state accuracy", () => {
     await flushPromises();
 
     expect(wrapper.text()).not.toContain("我的网关");
-    expect(wrapper.text()).not.toContain("连接：本次会话测试通过");
     expect(wrapper.text()).toContain("还没有保存任何模型配置");
     wrapper.unmount();
   });

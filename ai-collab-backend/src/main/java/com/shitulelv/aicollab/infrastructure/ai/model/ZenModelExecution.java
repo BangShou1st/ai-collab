@@ -54,9 +54,6 @@ public class ZenModelExecution {
     public boolean isZen(UserAiProvider p) {
         return p != null && ProviderPresetCode.OPENCODE_ZEN_FREE.name().equals(p.presetCode());
     }
-    public boolean isZenConfig(ModelConfiguration c, String presetCode) {
-        return ProviderPresetCode.OPENCODE_ZEN_FREE.name().equals(presetCode);
-    }
     public ModelConfiguration runtimeConfig(UserAiProvider p) {
         ProviderPresetRegistry.PresetPolicy pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
         return new ModelConfiguration(p.id(), p.userId(), pol.displayName(), pol.protocol(),

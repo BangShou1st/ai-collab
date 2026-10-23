@@ -18,6 +18,4 @@ public interface OpenCodeZenTransport {
      * 上游列表不可用时退回白名单本身（准入始终以白名单为准，不臆测可用性）。
      */
     List<String> admittedModels(String apiKey, AiRequestMetadata metadata);
-
-    void validateCredential(String apiKey, String model, AiRequestMetadata metadata);
 }

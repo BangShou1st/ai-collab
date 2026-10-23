@@ -37,25 +37,109 @@ public class AiCapabilityProbeService {
 
     public enum Mode { CONNECTIVITY, PLANNING_JSON, STREAMING, NATIVE_TOOLS }
     public record Evidence(Mode mode, String provider, String model, long latencyMs, boolean verified) {}
+
+    /**
+     * 对外暴露的探针结果（含读取时判定的 STALE）。
+     * status 为落库原值；stale=true 表示配置已变更，结论不再描述当前配置。
+     */
+    public record ProbeResultView(
+            String mode, String status, String model, String detail, String errorCode,
+            Long latencyMs, java.time.OffsetDateTime testedAt, boolean stale) {}
+
     private final UserAiProviderService providers;
     private final ChatModelGateway chat;
     private final ModelTurnGateway turns;
     private final ObjectMapper json;
     private final PlanningJsonContract planningContract;
-    public AiCapabilityProbeService(UserAiProviderService providers, ChatModelGateway chat, ModelTurnGateway turns, ObjectMapper json) {
-        this(providers, chat, turns, json, null);
-    }
+    private final UserAiProviderProbeResultRepository probeResults;
+
     @org.springframework.beans.factory.annotation.Autowired
     public AiCapabilityProbeService(UserAiProviderService providers, ChatModelGateway chat, ModelTurnGateway turns,
-            ObjectMapper json, PlanningJsonContract planningContract) {
+            ObjectMapper json, PlanningJsonContract planningContract,
+            UserAiProviderProbeResultRepository probeResults) {
         this.providers=providers; this.chat=chat; this.turns=turns; this.json=json;
         this.planningContract=planningContract;
+        this.probeResults=probeResults;
     }
+
+    /**
+     * 执行一次能力探针并落库结果；异常原样抛出（前端仍拿到分类错误），失败结论同时持久化。
+     */
     public Evidence test(UUID user, UUID id, Mode mode) {
-        var selected = providers.requireRuntimeConfiguration(user,id);
+        var selected = providers.requireRuntimeConfiguration(user, id);
         providers.requireSnapshotAuthorized(selected);
+        long startedAt = System.currentTimeMillis();
         try (var snapshot = new AiConfigurationContext(selected)) {
-            if (mode == Mode.NATIVE_TOOLS) {
+            Evidence evidence = execute(selected, user, mode);
+            record(selected, mode, UserAiProviderProbeResultRepository.PASS,
+                    evidence.model(), null, null, evidence.latencyMs());
+            return evidence;
+        } catch (Exception failure) {
+            String status = classify(failure);
+            String detail = failure instanceof BusinessException business && business.getMessage() != null
+                    ? business.getMessage() : "所选能力测试未满足输出契约";
+            String errorCode = failure instanceof BusinessException business
+                    ? business.getErrorCode().name() : null;
+            record(selected, mode, status, selected.modelName(), detail, errorCode,
+                    System.currentTimeMillis() - startedAt);
+            throw failure;
+        }
+    }
+
+    /** 该 Provider 各探针模式的最新落库结果；配置变更后的旧结果以 stale 标记。 */
+    public List<ProbeResultView> results(UUID user, UUID id) {
+        var provider = providers.requireRuntimeConfiguration(user, id);
+        return probeResults.findAllByProviderId(id).stream()
+                .map(row -> new ProbeResultView(row.mode(), row.status(), row.modelName(), row.detail(),
+                        row.errorCode(), row.latencyMs(), row.testedAt(),
+                        !provider.updatedAt().equals(row.testedConfigUpdatedAt())))
+                .toList();
+    }
+
+    private void record(UserAiProvider provider, Mode mode, String status, String model,
+            String detail, String errorCode, Long latencyMs) {
+        try {
+            probeResults.upsert(new UserAiProviderProbeResultRepository.ProbeResultRow(
+                    provider.id(), mode.name(), status, model, detail, errorCode, latencyMs,
+                    provider.updatedAt(), null));
+        } catch (RuntimeException persistenceFailure) {
+            // 结果落库失败不影响探针结论本身：调用方已拿到真实结果/错误。
+            org.slf4j.LoggerFactory.getLogger(AiCapabilityProbeService.class)
+                    .warn("Failed to persist probe result for provider {}: {}", provider.id(),
+                            persistenceFailure.getMessage());
+        }
+    }
+
+    /**
+     * 失败分类：临时故障（网络/超时/限流/5xx）不形成能力结论，记 INCONCLUSIVE；
+     * 鉴权/路径/契约问题记 FAIL；能力未声明（生产门控拒绝）记 NOT_SUPPORTED。
+     */
+    static String classify(Throwable failure) {
+        if (failure instanceof BusinessException business) {
+            ErrorCode code = business.getErrorCode();
+            if (code == ErrorCode.AI_PROVIDER_UNAVAILABLE) {
+                String message = String.valueOf(business.getMessage());
+                if (message.contains("不支持") || message.contains("必须支持")) {
+                    return UserAiProviderProbeResultRepository.NOT_SUPPORTED;
+                }
+                return UserAiProviderProbeResultRepository.INCONCLUSIVE;
+            }
+            if (code == ErrorCode.AI_MODEL_CREDENTIAL_INVALID
+                    || code == ErrorCode.AI_PROVIDER_REQUEST_REJECTED
+                    || code == ErrorCode.AI_PROVIDER_NOT_FOUND
+                    || code == ErrorCode.AI_PROVIDER_INVALID_RESPONSE
+                    || code == ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED
+                    || code == ErrorCode.VALIDATION_ERROR) {
+                return UserAiProviderProbeResultRepository.FAIL;
+            }
+        }
+        // 超时/限流/HTTP 5xx/未知故障：未能形成能力结论。
+        return UserAiProviderProbeResultRepository.INCONCLUSIVE;
+    }
+
+    private Evidence execute(UserAiProvider selected, UUID user, Mode mode) {
+        // AiConfigurationContext 已由 test() 建立（ThreadLocal 钉住本 provider）。
+        if (mode == Mode.NATIVE_TOOLS) {
                 var schema = json.createObjectNode().put("type","object");
                 schema.set("properties",json.createObjectNode().set("value",json.createObjectNode().put("type","string").put("const","probe")));
                 schema.set("required",json.createArrayNode().add("value"));
@@ -87,7 +171,6 @@ public class AiCapabilityProbeService {
                 verifyPlanningDetail(skeleton, user);
             }
             return new Evidence(mode,result.provider(),result.model(),result.latencyMs(),true);
-        }
     }
 
     /**

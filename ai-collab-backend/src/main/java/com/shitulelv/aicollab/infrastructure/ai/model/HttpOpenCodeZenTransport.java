@@ -134,33 +134,7 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
         }
     }
 
-    @Override
-    public void validateCredential(String apiKey, String model, AiRequestMetadata metadata) {
-        if (model == null || model.isBlank()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model required");
-        // Use the same client envelope and SSE parser as inference, with a bounded
-        // settings deadline. A completion probe does not certify tools or planning.
-        try (var probe = new ProbeClient(mapper, endpoints, settings)) {
-            var pol = policy();
-            var now = java.time.OffsetDateTime.now();
-            var config = new ModelConfiguration(null, null, pol.displayName(), pol.protocol(),
-                    pol.baseUrl(), pol.completionPath(), null, model.strip(), true, 0, 256, pol.capabilities(), now, now);
-            new OpenAiCompatibleModelAdapter(mapper, probe.client, requestFactory)
-                    .completeStreamingSyncWithSession(config,
-                    apiKey == null ? null : apiKey.strip(), new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand(
-                            "Synthetic connection probe.", "Return only {\"action\":\"finish\"}."), metadata, pol.userAgent());
-        } catch (BusinessException e) { throw e; }
-        catch (Exception e) { throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR); }
-    }
-
     public static ProxySelector directSelector() { return HttpClient.Builder.NO_PROXY; }
 
     public static Proxy directProxy() { return Proxy.NO_PROXY; }
-
-    private static final class ProbeClient implements AutoCloseable {
-        final JsonHttpModelClient client;
-        ProbeClient(ObjectMapper mapper, OutboundEndpointPolicy endpoints, HttpClient http) {
-            client = new JsonHttpModelClient(mapper, endpoints, http, Duration.ofSeconds(45));
-        }
-        @Override public void close() { client.close(); }
-    }
 }

@@ -68,6 +68,8 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   AI_MODEL_CREDENTIAL_INVALID: '模型凭据无法解密，请在系统管理中重新填写 API Key',
   AI_MODEL_TIMEOUT: '模型服务响应超时，请重试',
   AI_PROVIDER_ERROR: '模型服务调用失败，请稍后再试',
+  AI_PROVIDER_NOT_FOUND: '模型或接口路径不存在 (HTTP 404)，请检查模型 ID 与 API Path',
+  AI_PROVIDER_REQUEST_REJECTED: '模型服务拒绝请求 (403)，请检查访问权限与请求方式',
   AI_PROVIDER_INVALID_RESPONSE: '模型服务返回内容无效，请重试',
   AI_PROVIDER_OUTPUT_TRUNCATED: '模型输出被截断，请缩小问题范围后重试',
   TASK_PLAN_NOT_FOUND: 'AI 任务规划不存在或你无权访问',

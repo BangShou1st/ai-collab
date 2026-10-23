@@ -2002,6 +2002,87 @@ paths:
       tags: [Agent MCP]
       summary: Remove project MCP binding (project OWNER only)
       responses: { '204': { description: Binding removed }, '403': { $ref: '#/components/responses/Forbidden' } }
+  /user/ai-providers/profiles:
+    get:
+      tags: [User AI]
+      summary: Provider onboarding profiles (default endpoints, capability candidates, discovery support)
+      responses:
+        '200':
+          description: One profile per custom provider protocol; the single source of truth for form defaults
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProviderProfile' }
+  /user/ai-providers/{id}/test-capability:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: mode
+        in: query
+        required: true
+        schema: { type: string, enum: [CONNECTIVITY, PLANNING_JSON, STREAMING, NATIVE_TOOLS] }
+    post:
+      tags: [User AI]
+      summary: Run one real capability probe (custom providers and presets share this endpoint)
+      description: >-
+        Executes a real outbound request through the routing gateway and persists the
+        verdict. Failures are classified as FAIL (deterministic), NOT_SUPPORTED
+        (capability not declared) or INCONCLUSIVE (transient upstream trouble).
+      responses:
+        '200':
+          description: Probe passed; evidence includes model and latency
+        '400':
+          description: Probe failed or capability not declared; verdict is persisted and returned via error envelope
+  /user/ai-providers/{id}/probe-results:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [User AI]
+      summary: Latest persisted probe verdicts (read-only)
+      description: >-
+        Results whose tested config version no longer matches the provider row are
+        flagged stale=true (shown as expired by clients).
+      responses:
+        '200':
+          description: Latest verdict per probe mode
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProbeResult' }
+  /user/ai-providers/{id}/models:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: refresh
+        in: query
+        required: false
+        schema: { type: boolean }
+    get:
+      tags: [User AI]
+      summary: Discover models for a custom provider (read-only GET, cached 5 minutes)
+      description: >-
+        Preset rows are rejected here on purpose; presets keep their own admitted
+        discovery. Discovery failure must degrade to manual model entry, never to a
+        generation verdict.
+      responses:
+        '200':
+          description: Discovered model ids (sorted)
+          content: { application/json: { schema: { $ref: '#/components/schemas/FreeModelListEnvelope' } } }
   /user/ai-providers:
     get:
       tags: [User AI]
@@ -2096,14 +2177,6 @@ paths:
       summary: Disconnect the current user's Zen connection (idempotent)
       description: Deletes only the caller's OPENCODE_ZEN_FREE row including the saved key. Purpose assignments cascade. A deleted default is not replaced and custom providers are untouched. Missing connection returns 204.
       responses: { '204': { description: Zen disconnected (or already absent) } }
-  /user/ai-provider-presets/OPENCODE_ZEN_FREE/test:
-    post:
-      tags: [User AI]
-      summary: Test Zen connection (saved or provided key, fresh correlation id)
-      requestBody:
-        required: false
-        content: { application/json: { schema: { $ref: '#/components/schemas/TestZenPresetRequest' } } }
-      responses: { '200': { description: Connection succeeded } }
   /user/ai-provider-presets/KILO_GATEWAY_FREE/models:
     get:
       tags: [User AI]
@@ -2130,14 +2203,6 @@ paths:
       summary: Disconnect the current user's Kilo Gateway connection (idempotent)
       description: Deletes only the caller's KILO_GATEWAY_FREE row. No credential is stored. Purpose assignments cascade. A deleted default is not replaced and custom providers are untouched. Missing connection returns 204.
       responses: { '204': { description: Kilo Gateway disconnected (or already absent) } }
-  /user/ai-provider-presets/KILO_GATEWAY_FREE/test:
-    post:
-      tags: [User AI]
-      summary: Test the Kilo Gateway connection (saved or provided model, live catalog check)
-      requestBody:
-        required: false
-        content: { application/json: { schema: { $ref: '#/components/schemas/TestKiloPresetRequest' } } }
-      responses: { '200': { description: Connection succeeded } }
   /user/ai-providers/defaults:
     put:
       tags: [User AI]
@@ -3731,6 +3796,30 @@ components:
         - type: object
           required: [data]
           properties: { data: { type: array, items: { $ref: '#/components/schemas/UserAiProvider' } } }
+    ProviderProfile:
+      type: object
+      properties:
+        providerType: { type: string, enum: [OPENAI_COMPATIBLE, ANTHROPIC, GEMINI] }
+        label: { type: string }
+        defaultBaseUrl: { type: string }
+        defaultApiPath: { type: string, description: 'Gemini default carries the {model} placeholder' }
+        apiKeyRequired: { type: boolean }
+        modelDiscovery: { type: boolean }
+        candidateCapabilities:
+          type: array
+          items: { type: string }
+        apiPathHint: { type: string }
+    ProbeResult:
+      type: object
+      properties:
+        mode: { type: string, enum: [CONNECTIVITY, PLANNING_JSON, STREAMING, NATIVE_TOOLS] }
+        status: { type: string, enum: [PASS, FAIL, NOT_SUPPORTED, INCONCLUSIVE] }
+        model: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        errorCode: { type: string, nullable: true }
+        latencyMs: { type: integer, nullable: true }
+        testedAt: { type: string, format: date-time, nullable: true }
+        stale: { type: boolean, description: true when the config changed after this verdict }
     UserAiProviderRequest:
       type: object
       required: [name, providerType, baseUrl, apiPath, modelName, enabled, temperature, maxOutputTokens, capabilities]

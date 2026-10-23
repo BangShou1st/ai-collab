@@ -3,68 +3,6 @@ import { ApiContractError, apiResultFromResponse } from '../../api/api-result'
 import type { ApiResponse, ApiResult } from '../../api/types'
 import type { AxiosResponse } from 'axios'
 
-// ─── Model Types ───
-
-export type ModelProviderType = 'OPENAI_COMPATIBLE' | 'ANTHROPIC' | 'GEMINI'
-export type ModelPurpose = 'KNOWLEDGE_CHAT' | 'AGENT' | 'PLANNING'
-export type ModelCapability = 'CHAT' | 'STREAMING' | 'STRUCTURED_OUTPUT' | 'NATIVE_TOOLS' | 'USAGE'
-
-export interface ModelConfiguration {
-  id: string
-  name: string
-  providerType: ModelProviderType
-  baseUrl: string
-  apiPath: string
-  hasApiKey: boolean
-  modelName: string
-  enabled: boolean
-  temperature: number
-  maxOutputTokens: number
-  capabilities: ModelCapability[]
-  updatedAt: string
-}
-
-export interface ModelConfigurationInput {
-  name: string
-  providerType: ModelProviderType
-  baseUrl: string
-  apiPath: string
-  apiKey: string | null
-  modelName: string
-  enabled: boolean
-  temperature: number
-  maxOutputTokens: number
-  capabilities: ModelCapability[]
-}
-
-export interface ModelAssignment {
-  purpose: ModelPurpose
-  configurationId: string
-}
-
-// ─── Embedding Types ───
-
-export interface EmbeddingConfig {
-  provider: ModelProviderType | null
-  baseUrl: string | null
-  apiPath: string | null
-  hasApiKey: boolean
-  modelName: string | null
-  dimensions: number
-  batchSize: number
-  enabled: boolean
-}
-
-export interface EmbeddingConfigInput {
-  provider: ModelProviderType
-  baseUrl: string
-  apiPath: string
-  apiKey: string | null
-  modelName: string
-  dimensions: number
-  batchSize: number
-}
-
 // ─── MCP Types ───
 
 export type McpTransport = 'STDIO' | 'SSE' | 'STREAMABLE_HTTP'
@@ -232,58 +170,6 @@ function mcpListResult(response: AxiosResponse<ApiResponse<unknown>>): ApiResult
 const projectRoot = (projectId: string) => `/projects/${projectId}`
 
 export const projectModelApi = {
-  // ─── Model CRUD ───
-  async listModels(projectId: string): Promise<ApiResult<ModelConfiguration[]>> {
-    return apiResultFromResponse(
-      await httpClient.get<ApiResponse<ModelConfiguration[]>>(`${projectRoot(projectId)}/models`),
-    )
-  },
-  async createModel(projectId: string, input: ModelConfigurationInput): Promise<ApiResult<ModelConfiguration>> {
-    return apiResultFromResponse(
-      await httpClient.post<ApiResponse<ModelConfiguration>>(`${projectRoot(projectId)}/models`, input),
-    )
-  },
-  async updateModel(
-    projectId: string,
-    id: string,
-    input: ModelConfigurationInput,
-  ): Promise<ApiResult<ModelConfiguration>> {
-    return apiResultFromResponse(
-      await httpClient.put<ApiResponse<ModelConfiguration>>(`${projectRoot(projectId)}/models/${id}`, input),
-    )
-  },
-  async deleteModel(projectId: string, id: string): Promise<void> {
-    await httpClient.delete(`${projectRoot(projectId)}/models/${id}`)
-  },
-  async testModel(projectId: string, id: string): Promise<void> {
-    await httpClient.post(`${projectRoot(projectId)}/models/${id}/test`)
-  },
-
-  // ─── Model Assignments ───
-  async listAssignments(projectId: string): Promise<ApiResult<ModelAssignment[]>> {
-    return apiResultFromResponse(
-      await httpClient.get<ApiResponse<ModelAssignment[]>>(`${projectRoot(projectId)}/models/assignments`),
-    )
-  },
-  async assign(projectId: string, purpose: ModelPurpose, configurationId: string): Promise<void> {
-    await httpClient.put(`${projectRoot(projectId)}/models/assignments/${purpose}`, { configurationId })
-  },
-
-  // ─── Embedding Config ───
-  async getEmbeddingConfig(projectId: string): Promise<ApiResult<EmbeddingConfig>> {
-    return apiResultFromResponse(
-      await httpClient.get<ApiResponse<EmbeddingConfig>>(`${projectRoot(projectId)}/embedding-config`),
-    )
-  },
-  async saveEmbeddingConfig(projectId: string, input: EmbeddingConfigInput): Promise<ApiResult<EmbeddingConfig>> {
-    return apiResultFromResponse(
-      await httpClient.put<ApiResponse<EmbeddingConfig>>(`${projectRoot(projectId)}/embedding-config`, input),
-    )
-  },
-  async testEmbeddingConfig(projectId: string): Promise<void> {
-    await httpClient.post(`${projectRoot(projectId)}/embedding-config/test`)
-  },
-
   // ─── MCP Connections ───
   async listMcpConnections(projectId: string): Promise<ApiResult<McpConnection[]>> {
     return mcpListResult(await httpClient.get<ApiResponse<unknown>>(`${projectRoot(projectId)}/agent/mcp-connections`))

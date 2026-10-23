@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.infrastructure.ai.user.api;
 import com.shitulelv.aicollab.common.api.ApiResponse;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelPurpose;
+import com.shitulelv.aicollab.infrastructure.ai.user.ProviderProfileCatalog;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -20,11 +21,22 @@ import java.util.UUID;
 @RequestMapping("/api/v1/user/ai-providers")
 public class UserAiProviderController {
     private final UserAiProviderService providers;
-    @org.springframework.beans.factory.annotation.Autowired
-    private com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbeService probes;
+    private final com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbeService probes;
+    private final com.shitulelv.aicollab.infrastructure.ai.user.ProviderModelDiscoveryService discovery;
 
-    public UserAiProviderController(UserAiProviderService providers) {
+    public UserAiProviderController(
+            UserAiProviderService providers,
+            com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbeService probes,
+            com.shitulelv.aicollab.infrastructure.ai.user.ProviderModelDiscoveryService discovery) {
         this.providers = providers;
+        this.probes = probes;
+        this.discovery = discovery;
+    }
+
+    /** 三种自定义协议的接入档案：前端表单默认端点与能力候选的唯一事实源。 */
+    @GetMapping("/profiles")
+    public ApiResponse<List<ProviderProfileCatalog.ProviderProfile>> profiles() {
+        return ApiResponse.success(ProviderProfileCatalog.all());
     }
 
     @GetMapping
@@ -65,6 +77,22 @@ public class UserAiProviderController {
             @RequestParam com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbeService.Mode mode,
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(probes.test(userId(jwt),id,mode));
+    }
+
+    /** 各探针模式最新结果；配置变更后的旧结论以 stale 标记（前端展示为“已过期”）。 */
+    @GetMapping("/{id}/probe-results")
+    public ApiResponse<List<com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbeService.ProbeResultView>> probeResults(
+            @PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(probes.results(userId(jwt), id));
+    }
+
+    /** 模型列表发现（只读 GET，不消耗推理）；失败时前端降级为手动填写模型 ID。 */
+    @GetMapping("/{id}/models")
+    public ApiResponse<List<String>> models(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "false") boolean refresh,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(discovery.models(userId(jwt), id, refresh));
     }
 
     @PutMapping("/defaults")
