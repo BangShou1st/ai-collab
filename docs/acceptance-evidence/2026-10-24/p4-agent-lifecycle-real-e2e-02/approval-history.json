@@ -1,0 +1,43 @@
+{
+  "task": "P4-AGENT-LIFECYCLE-REAL-E2E-02",
+  "date": "2026-10-24",
+  "evidence_type": ["REAL_BROWSER", "REAL_DATABASE"],
+  "screenshot": "screenshots/01-approval-history-after-refresh.png",
+  "context": {
+    "session": "491262c1-e562-45fc-ac73-afe4099583cf（U04 隔离验收项目）",
+    "runs": [
+      { "id": "24b71f55", "status": "FAILED", "approval": null },
+      { "id": "ea469167", "status": "FAILED", "approval": null },
+      { "id": "2dd168bb", "status": "SUCCEEDED", "approval": "35bb4b90 APPROVED（create_task_after_approval）" },
+      { "id": "a9625ab7（最新）", "status": "SUCCEEDED", "approval": "5f2a8487 REJECTED（create_memory_after_approval）" }
+    ]
+  },
+  "browser_observation": [
+    {
+      "step": "刷新页面（restoreSession 恢复最新 Run a9625ab7）",
+      "observed": [
+        "最新 Run 的已拒绝审批卡正确展示：页面 tag 仅「Agent 已完成」「已拒绝」，与 DB 一致",
+        "无任何 PENDING 卡片、无可操作的批准/拒绝按钮（两个审批均已解决）",
+        "历史 ASSISTANT 消息中的「当前审批状态：待审批」摘要文本保持创建时刻快照：已批准的 35bb4b90 消息文本仍显示待审批（实测确认，line 273-280 observe 记录）"
+      ]
+    },
+    {
+      "step": "切换 Run（仅能恢复 latestRun，无 Run 切换入口）",
+      "observed": "旧 Run（2dd168bb）的已批准审批卡刷新后不在页面展示——refreshApprovals 按 runId 拉取（GET /projects/{pid}/agent/runs/{rid}/approvals），与上轮观察项一致；服务端记录完整（DB APPROVED + resolved_at），未丢失"
+    }
+  ],
+  "consistency_check": {
+    "db_authoritative": [
+      "35bb4b90-85b5-4642-a1d5-a27aabaa1dca: APPROVED, resolved 2026-10-24 02:45:19",
+      "5f2a8487-3f7a-4b9f-a21e-6bfaa765002e: REJECTED, resolved 2026-10-24 02:47:12"
+    ],
+    "ui_matches_db": true,
+    "misleading_risk": "用户滚动历史消息会看到「当前审批状态：待审批」字样，但该消息仅为提案创建时刻的确定性摘要快照，旁边不渲染可操作审批卡（仅 PENDING 审批渲染按钮，AgentApprovalCard.vue:69-73），不会导致重复处理；权威状态以审批卡 tag 与「已处理提案」区块为准。前端 statusLabel 为响应式 el-tag（approval-presentation.ts:27-33），当前 Run 内状态更新实时。"
+  },
+  "verdict": "PASS（权威状态一致；历史静态文案属上轮已知观察项，非缺陷，维持不重写历史消息的设计）",
+  "ux_observations": [
+    "非最新 Run 的已处理审批在刷新后不可见（服务端完整），轻微 UX 局限，维持上轮记录",
+    "cancelActiveRun 无 loading/防重状态（use-agent-workspace.ts:660-666），与 pause/retry 不一致，记录为观察项",
+    "agentApi.resume 为死代码（无调用点），记录为清理建议"
+  ]
+}
