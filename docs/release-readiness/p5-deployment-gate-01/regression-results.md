@@ -38,4 +38,7 @@
 
 ## CI
 
-见 README.md 的 CI 记录（push 后补记，若在运行则为 `CI_PENDING`）。
+| Run | 触发 | 结论 | Job 明细 |
+| --- | --- | --- | --- |
+| `40109053755` | dev push（a19ae2d） | ✅ success | Backend ✅ / Frontend ✅ / Image 按既有条件 skip |
+| `40109057039` | PR #18（dev→main，Draft） | ✅ success | Backend ✅ / Frontend ✅ / **Image build & container smoke ✅（含新增契约回归步骤）** |

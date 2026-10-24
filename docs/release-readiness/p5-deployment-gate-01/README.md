@@ -43,7 +43,12 @@ app 容器透传 Embedding 与 Planning 相关配置。
 
 ## CI 记录
 
-- 待 push 后补记（若在运行记 `CI_PENDING`）。
+- dev push run `40109053755`：**success**（Backend / Frontend 全绿；Image Job 按
+  既有触发条件在 dev push 跳过，非本轮改动）。
+- PR #18 run `40109057039`：**success**——Backend / Frontend / **Image build &
+  container smoke** 全部真实执行并通过，Image Job 的 `Validate compose config`
+  步骤已包含新增的 `compose-config-contract.sh` 契约回归。
+- 最终 dev SHA：`a19ae2d7ee3f7e244b97f0ed067ddf11a91cb866`（含 CI 补记提交后见下）。
 
 ## 后续不在本任务范围
 
