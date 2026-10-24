@@ -20,6 +20,7 @@
 
 长期有效的系统子模块方案与机制设计：
 
+- [Agent 工具并发隔离与有界准入 (`design/agent-tool-concurrency.md`)](design/agent-tool-concurrency.md)：单 JVM 精确配额、两层轮转、取消安全与指标。
 - [Agent 运行时设计 (`design/agent-runtime-design.md`)](design/agent-runtime-design.md)：工具契约、批次执行、中断决策与取消恢复机制。
 - [Agent 运行时维护手册 (`design/agent-runtime-maintenance.md`)](design/agent-runtime-maintenance.md)：运行时状态机、核心类调用图与故障排查清单。
 - [Agent 交互体验设计 (`design/agent-experience-design.md`)](design/agent-experience-design.md)：模型配置切换、执行过程卡片、人工审批与流式输出体验。

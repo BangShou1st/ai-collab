@@ -64,6 +64,10 @@ jobs:
           # 两者都必须真实执行，不得整类跳过（真实 Ollama 门槛为 Opt-in，不在此列）。
           # KiloGatewayPresetIsolationIntegrationTest 验证 V65 迁移与双预设隔离：同样不得整类跳过。
           required = [
+              "com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerTest",
+              "com.shitulelv.aicollab.agent.application.runtime.AgentPauseResumePostgresTest",
+              "com.shitulelv.aicollab.agent.application.runtime.PersistedModelTurnRecoveryPostgresTest",
+              "com.shitulelv.aicollab.acceptance.LegacyApprovalCitationUpgradeTest",
               "com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest",
               "com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest",
               "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest",
@@ -241,4 +245,3 @@ jobs:
           # 版本可追踪：镜像 revision 标签必须等于本次构建的 commit。
           rev=$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' ai-collab-backend:rc-${GITHUB_SHA::12})
           [ "$rev" = "$GITHUB_SHA" ]
-

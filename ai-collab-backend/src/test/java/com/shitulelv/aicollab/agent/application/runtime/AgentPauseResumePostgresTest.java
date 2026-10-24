@@ -58,7 +58,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -342,6 +341,15 @@ class AgentPauseResumePostgresTest {
 
     @Test
     void queuedCallsBehindSemaphoreDoNotStartAfterPause() throws Exception {
+        queuedCallsPause(false);
+    }
+
+    @Test
+    void queuedDeadlineAndPausePreservePendingUntilResume() throws Exception {
+        queuedCallsPause(true);
+    }
+
+    private void queuedCallsPause(boolean expireQueued) throws Exception {
         Fixture fixture = fixture("信号量排队暂停");
         AgentRunView run = runningRun(fixture);
         CountDownLatch firstAdmitted = new CountDownLatch(1);
@@ -367,13 +375,18 @@ class AgentPauseResumePostgresTest {
             }
         };
         // 单许可调度器：q-1 确定性持锁，q-2/q-3 确定性排队，不依赖线程时序
-        AgentToolScheduler singlePermit = new AgentToolScheduler() {
-            private final Semaphore one = new Semaphore(1, true);
-            @Override AutoCloseable acquire(AgentToolContext ctx) throws InterruptedException {
-                one.acquire();
-                return one::release;
+        List<AgentToolScheduler.Ticket<?>> tickets = new CopyOnWriteArrayList<>();
+        CountDownLatch submitted = new CountDownLatch(3);
+        AgentToolScheduler singlePermit = new AgentToolScheduler(16, 4, 1, 64,
+                AgentToolScheduler.pool(16), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()) {
+            @Override <T> Ticket<T> submit(AgentToolContext ctx, long deadline, java.util.concurrent.Callable<T> task) {
+                int index = tickets.size();
+                Ticket<T> ticket = super.submit(ctx, expireQueued && index > 0 && index < 3
+                        ? System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(100) : deadline, task);
+                tickets.add(ticket); submitted.countDown(); return ticket;
             }
         };
+        try {
         var gatedExecutor = new AgentToolCallExecutor(repository,
                 new AgentToolRegistry(List.of(gatedRead)), new AgentCancellationService(repository),
                 new AgentLoopGuard(), approvals, modelExecutor, new AgentToolResultSanitizer(json),
@@ -392,7 +405,17 @@ class AgentPauseResumePostgresTest {
                 () -> gatedCoordinator.advance(run));
         assertThat(firstAdmitted.await(10, TimeUnit.SECONDS))
                 .as("q-1 应已获得限流许可并开始执行").isTrue();
+        assertThat(submitted.await(5, TimeUnit.SECONDS)).isTrue();
         jdbc.update("UPDATE agent_run SET pause_requested_at=now() WHERE id=?", run.id());
+        if (expireQueued) {
+            for (int index : List.of(1, 2)) {
+                var queued = tickets.get(index);
+                assertThatThrownBy(() -> queued.get(5, TimeUnit.SECONDS))
+                        .isInstanceOf(java.util.concurrent.ExecutionException.class)
+                        .hasCauseInstanceOf(java.util.concurrent.TimeoutException.class);
+            }
+            assertThat(singlePermit.snapshot().pending()).isZero();
+        }
         proceed.countDown();
         AgentWorkerOutcome outcome = outcomeFuture.get(30, TimeUnit.SECONDS);
 
@@ -410,8 +433,63 @@ class AgentPauseResumePostgresTest {
         assertThat(resumed.status()).isEqualTo(AgentRunStatus.QUEUED);
         assertThat(executedToolCalls).containsExactly("q-1", "q-2", "q-3");
         assertThat(toolCallsUsed(run.id())).isEqualTo(3);
+        } finally { proceed.countDown(); singlePermit.close(); }
     }
 
+    @Test
+    void queuedCallsCannotPersistAfterCancellationOrLeaseLoss() throws Exception {
+        for (boolean takeover : List.of(false, true)) {
+            Fixture fixture = fixture("排队取消与租约失效 " + takeover);
+            AgentRunView run = runningRun(fixture);
+            int epoch = jdbc.queryForObject("SELECT claim_version FROM agent_run WHERE id=?", Integer.class, run.id());
+            CountDownLatch started = new CountDownLatch(1), release = new CountDownLatch(1), submitted = new CountDownLatch(3);
+            AgentTool read = new AgentTool() {
+                public String name() { return "list_tasks"; }
+                public boolean writesBusinessData() { return false; }
+                public AgentToolResult execute(AgentToolContext ctx, com.fasterxml.jackson.databind.JsonNode args) {
+                    if (args.path("query").asText().equals("q-1")) {
+                        started.countDown();
+                        try { assertThat(release.await(10, TimeUnit.SECONDS)).isTrue(); }
+                        catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+                    }
+                    executedToolCalls.add(args.path("query").asText());
+                    return new AgentToolResult(successResult(), List.of(), List.of());
+                }
+            };
+            AgentToolScheduler scheduler = new AgentToolScheduler(16, 4, 1, 64,
+                    AgentToolScheduler.pool(16), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()) {
+                @Override <T> Ticket<T> submit(AgentToolContext ctx, long deadline, java.util.concurrent.Callable<T> task) {
+                    var ticket = super.submit(ctx, deadline, task); submitted.countDown(); return ticket;
+                }
+            };
+            try {
+                var coordinated = realExecutorCoordinator(new AgentToolRegistry(List.of(read)), scheduler);
+                when(modelExecutor.resolveRequest(any())).thenReturn(AgentRuntimeBehaviorTest.resolved(true));
+                when(modelExecutor.callModel(any(), any(), any(), anyBoolean(), any())).thenReturn(new ModelTurnResult("竞争",
+                        List.of(call("race-1", "q-1"), call("race-2", "q-2"), call("race-3", "q-3")),
+                        ModelFinishReason.TOOL_CALLS, null, "OPENAI_COMPATIBLE", "model-a", 120L));
+                var result = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                    try (var scope = new AgentLeaseScope(epoch)) { return coordinated.advance(run); }
+                });
+                assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+                assertThat(submitted.await(5, TimeUnit.SECONDS)).isTrue();
+                assertThat(scheduler.snapshot().pending()).isEqualTo(2);
+                if (takeover) jdbc.update("UPDATE agent_run SET claim_version=claim_version+1 WHERE id=?", run.id());
+                else jdbc.update("UPDATE agent_run SET cancel_requested_at=now() WHERE id=?", run.id());
+                release.countDown();
+                if (takeover) assertThatThrownBy(() -> result.get(10, TimeUnit.SECONDS))
+                        .isInstanceOf(java.util.concurrent.ExecutionException.class).hasCauseInstanceOf(IllegalStateException.class);
+                else assertThat(result.get(10, TimeUnit.SECONDS).status()).isEqualTo(AgentRunStatus.CANCELED);
+                assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_tool_invocation WHERE run_id=? AND status='SUCCEEDED'",
+                        Integer.class, run.id())).isZero();
+                assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_step WHERE run_id=? AND type='TOOL_RESULT'",
+                        Integer.class, run.id())).isZero();
+                assertThat(invocationStatuses(run.id())).containsExactly(takeover ? new String[]{"PENDING", "PENDING", "PENDING"}
+                        : new String[]{"CANCELED", "CANCELED", "CANCELED"});
+                if (!takeover) assertThat(executedToolCalls).containsExactly("q-1");
+            } finally { release.countDown(); scheduler.close(); executedToolCalls.clear(); }
+        }
+    }
     // ========== 7. 业务受理边界：暂停意图先落库则不受理；已受理的恢复零重复 ==========
 
     @Test

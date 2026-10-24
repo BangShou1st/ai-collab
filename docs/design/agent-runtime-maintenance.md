@@ -631,3 +631,16 @@ CI 是 `.github/workflows/ci.yml` 单一流水线，复用既有 `backend` / `fr
 - 本地无法用 `bash ./mvnw` 复现容器用例：WSL 侧没有 Docker socket，Testcontainers
   会静默全跳过。要在本机真正跑容器用例，用 Windows 侧 `.\mvnw.cmd -B -ntp verify`
   （走 Docker Desktop 的 npipe）。
+
+## 20. 工具并发隔离与有界准入（2026-10-25）
+
+`AgentToolScheduler` 已从哈希槽 Semaphore 改为单 JVM 精确 UUID 账本，global16 / user4 / run2 / pending64。
+用户与 Run 两层轮转，只有原子获得三层额度的任务进入固定执行池；排队不占工具线程。
+`AgentToolCallExecutor` 通过 submit(ctx, deadline, callable) 获得 Ticket，按显式调用/截止/句柄记录顺序结算。
+截止时间提交前起算；未开始任务到期被主动移出，暂停意图下保留 PENDING；取消优先于暂停。
+运行中取消仅请求中断，真实退出前继续占额度，不能根据 Future.isDone 推断网络已经停止。
+排查依次查看 `agent.tool.scheduler.pending/active`、queue.wait/execution、rejected(reason)、cancelled/timeout(phase)。
+指标不带用户/Run/工具名标签；权限沿用现有 Actuator 策略。单实例限额不等于集群限流。
+参见 [完整设计](agent-tool-concurrency.md)、[交付报告](../archive/reports/p6-agent-concurrency-01-delivery-20261025.md)。
+回归入口：AgentToolSchedulerTest（C01–C10）、AgentPauseResumePostgresTest（暂停/截止/取消/旧 claim）、
+PersistedModelTurnRecoveryPostgresTest（持久化调用恢复），全部 verify 继续覆盖审批与 SSE。

@@ -1,0 +1,8 @@
+java=21.0.10+8-LTS-217
+os=Windows 11
+processors=32
+io_ms=4
+rounds_per_worker=10
+batch=4
+repeats=3
+seed=UUID literals / deterministic sequence
