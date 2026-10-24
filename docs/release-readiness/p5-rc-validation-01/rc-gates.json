@@ -1,0 +1,74 @@
+{
+  "task": "P5-RC-VALIDATION-01",
+  "date": "2026-10-24",
+  "gates": [
+    {
+      "id": "G-01",
+      "name": "dev→main PR 已建立且保持未合并（Draft）",
+      "result": "PASS",
+      "evidence": "PR #18 isDraft=true, base=main@9b4f7c5, head=dev@9ef7550; 未合并、未转 Ready、未启用自动合并"
+    },
+    {
+      "id": "G-02",
+      "name": "Backend Job PASS",
+      "result": "PASS",
+      "evidence": "run 40103355487 job 120899851685 success; 1688 tests / 0 failures; container test guard passed"
+    },
+    {
+      "id": "G-03",
+      "name": "Frontend Job PASS",
+      "result": "PASS",
+      "evidence": "run 40103355487 job 120899851774 success; 51 test files passed; lint 0 errors"
+    },
+    {
+      "id": "G-04",
+      "name": "Image Job 实际执行并 PASS（非 skipped）",
+      "result": "PASS",
+      "evidence": "run 40103355487 job 120899851810 success; event=pull_request; 全部步骤 executed+success"
+    },
+    {
+      "id": "G-05",
+      "name": "镜像 revision 可追溯",
+      "result": "PASS",
+      "evidence": "revision=281fdbee998edfc2d2a93d2bbae024e18c2bbc1f（PR 检出 merge commit，其树与 dev 9ef7550 逐字节一致，父提交链已核验）；CI 内断言通过"
+    },
+    {
+      "id": "G-06",
+      "name": "容器真实启动成功（pgvector/Redis/MinIO + app）",
+      "result": "PASS",
+      "evidence": "image job 冒烟步骤：4 个临时容器在独立网络启动，应用容器从本次构建镜像启动"
+    },
+    {
+      "id": "G-07",
+      "name": "Flyway 初始化成功（空库 V1–V66）",
+      "result": "PASS",
+      "evidence": "冒烟空库启动后 /actuator/health UP（含 DataSource 聚合）；Backend container test guard 确认迁移类真实执行未跳过"
+    },
+    {
+      "id": "G-08",
+      "name": "健康与敏感端点门禁通过",
+      "result": "PASS",
+      "evidence": "health UP + liveness UP；actuator/env=401 metrics=401 info=401（日志原文）"
+    },
+    {
+      "id": "G-09",
+      "name": "无未解决的 P0/P1 软件阻断问题",
+      "result": "PASS",
+      "evidence": "release-risk-register.json new_p0_p1=[]；四项 P1 运维风险全部 FIXED_AND_VERIFIED"
+    },
+    {
+      "id": "G-10",
+      "name": "发布与回滚 Runbook 可操作",
+      "result": "PASS",
+      "evidence": "release-runbook-review.md 逐条核对通过；剩余为 [部署环境补充] 项"
+    },
+    {
+      "id": "G-11",
+      "name": "未完成的正式部署环境条件明确列出",
+      "result": "PASS",
+      "evidence": "rc-configuration-review.md 汇总表：TLS 代理/密钥通道/出网白名单/日志采集与告警/备份位置与责任人"
+    }
+  ],
+  "verdict": "RC_VALIDATION_ACCEPTED",
+  "verdict_note": "RC 构建与发布前技术验证通过；不代表生产部署获批，不构成本 PR 的合并授权"
+}
