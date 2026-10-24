@@ -34,7 +34,7 @@
 | 验证项 | 方式 | 结果 |
 | --- | --- | --- |
 | Compose 配置校验 | `docker compose --env-file .env.example config -q` | PASS |
-| 镜像构建验证 | CI 新增 `image` job（**PR 与 main push 触发**，dev 日常 push 不触发以省成本）：构建 Dockerfile + revision label 断言 + 起临时 pg/redis/minio 做容器级冒烟（health UP、敏感端点拒绝、版本可追踪） | CI_PENDING（将在下一次 PR→main 或 main push 时真实执行；本地已通过 compose 校验与生产形态实例真实启动佐证容器配置路径） |
+| 镜像构建验证 | CI 新增 `image` job（**PR 与 main push 触发**，dev 日常 push 不触发以省成本）：构建 Dockerfile + revision label 断言 + 起临时 pg/redis/minio 做容器级冒烟（health UP、敏感端点拒绝、版本可追踪） | 已实现；真实执行将在下一次 PR→main 或 main push 时进行（本地佐证：compose 校验通过 + 生产形态实例真实启动成功） |
 | 版本标识 | 镜像 OCI label `org.opencontainers.image.revision` == commit SHA；冒烟 job 中断言 | CI_PENDING |
 | Runbook | release-runbook.md / rollback-runbook.md / backup-restore-runbook.md | 已交付，含前置检查、密钥、备份、迁移、启动、健康、冒烟、停止条件、回滚、一致性核对、日志检查；待真实部署环境回填项均已标注 |
 
@@ -62,4 +62,8 @@
 ## 回归
 
 - 定向回归：auth + common + storage 相关 49 个测试全部通过（BUILD SUCCESS）。
-- 全量后端 `mvnw verify`、前端 lint/typecheck/test/build 由 CI 执行（前端本轮零改动，预期无影响）。
+- 全量后端 `mvnw verify`（含 Testcontainers）+ 前端 lint/typecheck/test/build：CI 全绿。
+  - run 40099513838（attempt 1，head `7624c44`）：success
+  - run 40099657460（attempt 1，head `a9f2c03`）：success —— https://github.com/BangShou1st/ai-collab/actions/runs/40099657460
+- 前端本轮零改动，CI frontend job 佐证无影响。
+- image job 未在 dev push 执行（触发条件为 PR→main / main push），其首次真实执行记录待 PR→main 时补记。
