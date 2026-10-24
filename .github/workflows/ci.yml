@@ -180,7 +180,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Validate compose config
-        run: docker compose --env-file .env.example -f ai-collab-deploy/docker-compose.yml config -q
+        run: |
+          docker compose --env-file .env.example -f ai-collab-deploy/docker-compose.yml config -q
+          # P5-DEPLOYMENT-GATE-01：配置契约回归（仅渲染配置，不启动容器、全合成值）
+          bash ai-collab-deploy/scripts/compose-config-contract.sh
 
       - name: Build backend image
         run: |
