@@ -48,6 +48,11 @@
     "Compose 透传 AUTH_ALLOWED_ORIGINS 并写入 .env.example",
     "新增 /backups/ 到 .gitignore"
   ],
+  "risk_status": "R-01/R-02/R-04 FIXED_AND_VERIFIED；R-03 IMPLEMENTED_NOT_FULLY_VERIFIED（image job 待 PR→main 首次真实执行）；CI 已全绿（run 40099513838 / 40099657460 均 success），RC 运维阻断条件已清除",
+  "ci": [
+    { "run": 40099513838, "attempt": 1, "head_sha": "7624c449bdd08011aedf61b080d0c4cad49f2518", "conclusion": "success" },
+    { "run": 40099657460, "attempt": 1, "head_sha": "a9f2c038e2ffd62501617d34b17b6566849b7295", "conclusion": "success", "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40099657460" }
+  ],
   "new_p0_p1": [],
-  "overall": "R-01/R-02/R-04 FIXED_AND_VERIFIED；R-03 IMPLEMENTED_NOT_FULLY_VERIFIED（CI_PENDING）；RC 运维阻断条件已清除，待 CI 全绿后可进入 RC"
+  "overall": "R-01/R-02/R-04 FIXED_AND_VERIFIED；R-03 IMPLEMENTED_NOT_FULLY_VERIFIED（image job 待 PR→main 首次真实执行）；CI 已全绿，RC 运维阻断条件已清除"
 }
