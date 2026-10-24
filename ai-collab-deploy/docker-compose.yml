@@ -110,7 +110,13 @@ services:
       AGENT_MCP_ALLOWED_HOSTS: ${AGENT_MCP_ALLOWED_HOSTS}
       KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR: ${KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR}
       PLANNING_GENERATION_LIMIT_PER_USER_HOUR: ${PLANNING_GENERATION_LIMIT_PER_USER_HOUR}
-      REFRESH_COOKIE_SECURE: "false"
+      # 生产基线：Refresh Cookie 默认 Secure（需 HTTPS / TLS 终止代理）。
+      # 仅在明确搭建纯 HTTP 演练环境时才允许同时设置 REFRESH_COOKIE_SECURE=false
+      # 与 REFRESH_COOKIE_ALLOW_INSECURE=true，否则应用启动即失败（绑定校验）。
+      REFRESH_COOKIE_SECURE: "${REFRESH_COOKIE_SECURE:-true}"
+      REFRESH_COOKIE_ALLOW_INSECURE: "${REFRESH_COOKIE_ALLOW_INSECURE:-false}"
+      # 认证端点 CORS 白名单：生产必须显式设置为前端站点 Origin（逗号分隔），不能用默认值上生产。
+      AUTH_ALLOWED_ORIGINS: "${AUTH_ALLOWED_ORIGINS:-http://localhost:5173}"
     ports:
       - "8080:8080"
 
