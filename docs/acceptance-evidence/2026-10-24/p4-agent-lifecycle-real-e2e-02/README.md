@@ -10,7 +10,7 @@
 
 - 起始基线：`e1d276557573f3a8f013ce98d4e93af6a5ff9d16`（dev = origin/dev，工作区干净）
 - `main` / `origin/main`：`9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7`（全程未触碰）
-- 本轮改动：仅本证据目录新增（无生产代码、无迁移）；基线 CI 已全绿（run [40057902680](https://github.com/BangShou1st/ai-collab/actions/runs/40057902680) · head `e1d2765` · success）
+- 本轮改动：仅本证据目录新增（无生产代码、无迁移）；提交 `eef4d12` CI 全绿（run [40061629863](https://github.com/BangShou1st/ai-collab/actions/runs/40061629863) · success）；基线 run 40057902680 · `e1d2765` · success
 
 ## B. 环境与模型
 
@@ -109,6 +109,6 @@ UI 局限如实记录：重试/暂停按钮仅作用于 activeRun（最新 Run�
 13. 历史审批正确展示：是（权威 tag 与 DB 一致；静态快照文案为已知设计）。
 14. 本轮修复代码：无（零生产代码修改）。
 15. 自动化测试：定向 123 用例全绿。
-16. CI：run 40057902680 / attempt 1 / `e1d2765` / success（基线）；本轮提交后 CI 待查（见提交后补记）。
+16. CI：本轮证据提交 run [40061629863](https://github.com/BangShou1st/ai-collab/actions/runs/40061629863) / attempt 1 / head `eef4d12` / **completed success**；基线 run 40057902680 / `e1d2765` / success。
 17. 发布前缺口：K 节 5 项观察项，均非阻断。
 18. **Agent 可进入发布准备评估：是。**
