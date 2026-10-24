@@ -1,0 +1,30 @@
+{
+  "task": "P4-AGENT-REAL-E2E-01",
+  "generated_at": "2026-10-24",
+  "readonly_run": {
+    "run_id": "82f16d75-8cf4-4b89-85bd-6d3b91704c20",
+    "goal": "请检查这个测试项目目前的整体状态，指出已有任务与潜在风险，并说明判断依据。不要修改任何项目数据。",
+    "skill": "自动识别",
+    "status": "SUCCEEDED",
+    "duration_s": 36.9,
+    "tools": [
+      { "tool": "get_project_overview", "source_mode": "NATIVE_TOOLS", "status": "SUCCEEDED", "batch": "并行" },
+      { "tool": "check_project_progress", "source_mode": "NATIVE_TOOLS", "status": "SUCCEEDED", "batch": "并行" },
+      { "tool": "list_tasks", "source_mode": "NATIVE_TOOLS", "status": "SUCCEEDED", "batch": "并行" },
+      { "tool": "analyze_project_risks", "source_mode": "NATIVE_TOOLS", "status": "SUCCEEDED", "batch": "并行" }
+    ],
+    "model_turns": [
+      { "turn": 1, "input_tokens": 11329, "output_tokens": 1318, "latency_ms": 14261, "produced": "4 个工具调用" },
+      { "turn": 2, "input_tokens": 14294, "output_tokens": 1630, "latency_ms": 20621, "produced": "最终回答（依据工具结果）" }
+    ],
+    "tool_result_feedback_proof": "第 2 轮输入 14294 tokens > 第 1 轮 11329（+工具结果注入）；最终回答含 list_tasks 真实返回的任务 UUID 与状态、assigneeId 为 null 的事实、analyze_project_risks 的统计口径",
+    "grounding_check": "回答中 3 条任务（4e52306c…TODO / 4e8e96f0…IN_PROGRESS / ffcacd3c…TODO）与 project_task 表逐条一致；进度统计 0% 完成 / 33.3% 进行中与 DB 一致；无编造",
+    "no_unrequested_writes": "Run 前后 project_task=3、agent_approval=0、agent_memory=0"
+  },
+  "proposal_runs": [
+    { "run_id": "2dd168bb-351f-42a0-8bb8-dc217b900be6", "tool": "create_task_after_approval", "status": "SUCCEEDED", "tools": 1, "note": "提案创建（create_task_after_approval 正常受理，TOOL_CALL_COMPLETED status SUCCEEDED + effect PROPOSAL_PENDING）" },
+    { "run_id": "a9625ab7-f46e-4c61-9778-ceb9ef1c3fb0", "tool": "create_memory", "status": "SUCCEEDED", "tools": 1, "note": "记忆提案创建" }
+  ],
+  "tool_invocation_table_evidence": "agent_tool_invocation 表 8 行（4 只读 + 2 提案受理 + 2 失败复现），invocation_id 唯一、toolCallId 与模型返回一致",
+  "steps_persistence": "agent_step 与事件一一对应；MODEL_TURN 行记录 prompt/completion_tokens 与 latency_ms"
+}

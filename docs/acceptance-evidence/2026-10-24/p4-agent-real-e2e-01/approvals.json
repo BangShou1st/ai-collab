@@ -1,0 +1,34 @@
+{
+  "task": "P4-AGENT-REAL-E2E-01",
+  "generated_at": "2026-10-24",
+  "mechanism_audited": {
+    "mode": "提案-解耦（审批与 Run 生命周期解耦）",
+    "detail": "写提案工具执行时仅创建 PENDING 审批提案，Run 随即 SUCCEEDED；用户批准/拒绝由 AgentApprovalService 在同事务完成业务写入与事件落库；approve 前置 9 步校验（requireAdmin → 行锁 → revision → PENDING+未过期 → nonce → run 状态 → 工具类型 → revalidate → execute）；nonce 明文不落库（nonce_hash=SHA-256）；resolve 需 Idempotency-Key（UNIQUE(project_id, idempotency_key)）+ expectedRevision 乐观锁"
+  },
+  "approve_scenario": {
+    "run_id": "2dd168bb-351f-42a0-8bb8-dc217b900be6",
+    "approval_id": "35bb4b90-85b5-4642-a1d5-a27aabaa1dca",
+    "tool": "create_task_after_approval",
+    "arguments": { "title": "撰写 Agent 真实E2E验收结论报告", "priority": "HIGH", "assigneeId": null, "status": null },
+    "before_approval": { "project_task_count": 3, "approval_status": "PENDING", "revision": 1, "nonce_hash_present": true, "expires_at_present": true },
+    "ui_interaction": ["审批卡展示字段/处理期限/批准并执行/拒绝按钮（截图 03）", "批准 → ElMessageBox 确认「确认按此差异写入项目数据？」（截图 04）", "确定后批准成功"],
+    "after_approval": { "approval_status": "APPROVED", "resolved_at": "2026-10-24T02:45:19Z", "idempotency_key_recorded": true, "task_created": { "title": "撰写 Agent 真实E2E验收结论报告", "status": "TODO", "priority": "HIGH", "created_by": "审批人 userId（9c1cf139…）" }, "execution_count": 1, "event": "APPROVAL_APPROVED (sequence 10)" }
+  },
+  "reject_scenario": {
+    "run_id": "a9625ab7-f46e-4c61-9778-ceb9ef1c3fb0",
+    "approval_id": "5f2a8487-3f7a-4b9f-a21e-6bfaa765002e",
+    "tool": "create_memory",
+    "before_rejection": { "agent_memory_count": 0, "approval_status": "PENDING" },
+    "ui_interaction": ["拒绝 → ElMessageBox.prompt 强制输入原因（截图 06）", "提交原因后拒绝成功"],
+    "after_rejection": { "approval_status": "REJECTED", "rejection_reason": "验收拒绝场景：该记忆内容为合成验收数据，无需保存到项目记忆", "agent_memory_count": 0, "event": "APPROVAL_REJECTED (sequence 10)", "no_bypass_writes": true }
+  },
+  "persistence_after_refresh": {
+    "verified": true,
+    "detail": "刷新后「已处理提案（1）」+「已拒绝」标签正常展示（截图 07）；已批准提案的卡片因前端 refreshApprovals 仅加载 activeRun（最新 Run）的审批而不在当前视图展示（服务端记录完整），记录为轻微 UX 观察项"
+  },
+  "offline_contract_evidence": {
+    "AgentApprovalServiceTest": "11 用例全绿：Idempotency-Key 幂等、nonce 恒时比较、revision 冲突、已解决重复提交冲突、过期收口、requireAdmin",
+    "ApprovalToolRevalidationTest": "12 用例全绿：批准时 revalidate（目标实体存在/版本/前置条件）"
+  },
+  "notes": "审批幂等性未通过浏览器重复点击制造真实业务污染（遵守任务书第九节），以离线契约测试为准。"
+}

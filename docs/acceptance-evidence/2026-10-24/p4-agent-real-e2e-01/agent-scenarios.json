@@ -1,0 +1,108 @@
+{
+  "task": "P4-AGENT-REAL-E2E-01",
+  "generated_at": "2026-10-24",
+  "evidence_types": { "REAL_BROWSER": "browser-skill + Edge 真实操作", "REAL_MODEL": "Kilo nvidia/nemotron-3.5-lightning:free 真实生成", "REAL_DATABASE": "PostgreSQL 直查核对", "OFFLINE_CONTRACT": "确定性单元/集成测试", "MOCKED_INTEGRATION": "Mock 模型的集成测试" },
+  "scenarios": [
+    {
+      "id": "E2E-01", "name": "真实浏览器创建 Agent 会话", "importance": "必须",
+      "result": "PASS", "evidence": ["REAL_BROWSER", "REAL_DATABASE"],
+      "detail": "Agent 页面发送首条消息时隐式创建会话（POST /sessions）；agent_session 落库 1 行（id=491262c1-e562-45fc-ac73-afe4099583cf，project_id=b4b55544）；页面会话列表显示「项目协作 2026/10/24」"
+    },
+    {
+      "id": "E2E-02", "name": "Kilo 真实生成工具调用（NATIVE_TOOLS 全链路）", "importance": "必须",
+      "result": "PASS", "evidence": ["REAL_BROWSER", "REAL_MODEL", "REAL_DATABASE"],
+      "detail": "提交只读任务后 AgentRuntimeJob 每秒轮询领取（QUEUED→RUNNING）；RoutingAgentModelExecutor 解析 U04 用户 AGENT 用途→is_default→Kilo；agent_tool_invocation 4 行 source_mode=NATIVE_TOOLS status=SUCCEEDED；模型真实返回 toolCalls 数组（call-9613… 等 toolCallId 落库）"
+    },
+    {
+      "id": "E2E-03", "name": "真实只读工具执行", "importance": "必须",
+      "result": "PASS", "evidence": ["REAL_MODEL", "REAL_DATABASE"],
+      "detail": "get_project_overview / check_project_progress / list_tasks / analyze_project_risks 四个只读工具真实执行（TOOL_CALL_STARTED/COMPLETED 事件 sequence 7–14，只读并行批次）；agent_step 4 行 TOOL_CALL_COMPLETED"
+    },
+    {
+      "id": "E2E-04", "name": "工具结果进入下一轮模型", "importance": "必须",
+      "result": "PASS", "evidence": ["REAL_MODEL", "REAL_DATABASE"],
+      "detail": "第 2 轮 MODEL_TURN input_tokens=14294（第 1 轮 11329 + 工具结果注入）；最终回答包含工具返回的真实数据：3 条任务的真实 UUID、TODO/IN_PROGRESS 状态、负责人未分配（assigneeId null）、完成率 0%"
+    },
+    {
+      "id": "E2E-05", "name": "最终回答与真实数据一致（无编造）", "importance": "必须",
+      "result": "PASS", "evidence": ["REAL_BROWSER", "REAL_DATABASE"],
+      "detail": "页面回答的任务清单与 project_task 表逐条一致（ID/标题/状态/优先级/负责人）；进度统计 3 总数/1 进行中/2 待处理与 DB 一致；无编造任务"
+    },
+    {
+      "id": "E2E-06", "name": "SSE 时间线与状态更新", "importance": "必须",
+      "result": "PASS", "evidence": ["REAL_BROWSER", "REAL_DATABASE"],
+      "detail": "页面实时显示「Agent 正在处理」→ 执行过程折叠块（查阅项目资料 3 项查询 / 分析项目风险）→ 最终回答；页面模型芯片显示 nvidia/nemotron-3.5-lightning:free；事件 sequence 1–17 连续唯一（UNIQUE(run_id, sequence_no)），类型含 RUN_CREATED/CONTEXT_CAPTURED/SKILL_SELECTED/PLAN_CREATED/MODEL_STARTED/COMPLETED/TOOL_CALL_*/RUN_SUCCEEDED"
+    },
+    {
+      "id": "E2E-07", "name": "消息与事件持久化", "importance": "必须",
+      "result": "PASS", "evidence": ["REAL_DATABASE"],
+      "detail": "agent_message USER+ASSISTANT 两行落库（ASSISTANT 内容与页面回答一致）；agent_step 7 行（2 MODEL_TURN + 4 TOOL_CALL_COMPLETED + 1 FINAL_ANSWER）；token 结算 input 25623/output 2948（actual=used）；Run 耗时 36.9s"
+    },
+    {
+      "id": "E2E-08", "name": "刷新持久化（权威状态恢复）", "importance": "必须",
+      "result": "PASS", "evidence": ["REAL_BROWSER"],
+      "detail": "真实刷新页面后：会话仍在、状态「Agent 已完成」（非运行中）、时间线 4 项不重复、回答完整、右栏显示 Steps 2/64 · Tools 1/64 与「SSE 未连接」（终态不重连，符合设计）"
+    },
+    {
+      "id": "APPROVE-01", "name": "审批提案创建（批准前无写入）", "importance": "必须",
+      "result": "PASS", "evidence": ["REAL_BROWSER", "REAL_MODEL", "REAL_DATABASE"],
+      "detail": "真实模型调用 create_task_after_approval 创建提案；提案创建时 project_task 仍为 3（无写入）；agent_approval PENDING/revision=1/nonce_hash 落库/24h 过期；Run SUCCEEDED + APPROVAL_REQUESTED 事件；页面审批卡展示字段、处理期限、「批准并执行」「拒绝」按钮"
+    },
+    {
+      "id": "APPROVE-02", "name": "审批通过并真实写入", "importance": "高",
+      "result": "PASS", "evidence": ["REAL_BROWSER", "REAL_DATABASE"],
+      "detail": "UI 批准 → 确认对话框「确认按此差异写入项目数据？」→ 确定后：approval APPROVED + resolved_at；project_task 新增 1 行（撰写 Agent 真实E2E验收结论报告，TODO/HIGH，created_by=审批人 userId）；APPROVAL_APPROVED 事件 sequence 10；工具只执行一次（created_tasks=1）"
+    },
+    {
+      "id": "APPROVE-03", "name": "审批拒绝（无写入）", "importance": "高",
+      "result": "PASS", "evidence": ["REAL_BROWSER", "REAL_DATABASE"],
+      "detail": "另起 Run 创建 create_memory 提案（agent_memory 0 行）；UI 拒绝 → 强制输入原因 → 提交后 approval REJECTED + rejection_reason 落库；agent_memory 仍为 0（无绕过审批的写入）；APPROVAL_REJECTED 事件 sequence 10；刷新后「已处理提案（1）」+「已拒绝」标签展示"
+    },
+    {
+      "id": "PAUSE-01", "name": "真实浏览器暂停/恢复", "importance": "高",
+      "result": "NOT_EXECUTED", "evidence": ["OFFLINE_CONTRACT"],
+      "detail": "真实模型单轮 4–6s、本轮 Run 最短 10s 完成，RUNNING 窗口内暂停确认时机的验证需更长 Run；剩余预算 1 次无法保证安全制造状态。离线证据：AgentPauseResumePostgresTest 19 用例全绿（暂停意图落库/动作边界确认/恢复不重复执行工具/序号防回退）"
+    },
+    {
+      "id": "CANCEL-01", "name": "真实浏览器取消", "importance": "高",
+      "result": "NOT_EXECUTED", "evidence": ["OFFLINE_CONTRACT"],
+      "detail": "取消 RUNNING 竞速最坏消耗 2 次真实生成（>剩余 1 次），按预算规则不启动。离线证据：AgentWorkerTest/AgentRuntimeJobSchedulerTest 覆盖取消信号注册、cancel_requested_at 边界收口、CANCELED 后不再执行新工具"
+    },
+    {
+      "id": "RETRY-01", "name": "真实浏览器重试", "importance": "高",
+      "result": "NOT_EXECUTED", "evidence": ["OFFLINE_CONTRACT"],
+      "detail": "重试 FAILED Run 会派生新 Run 并触发真实模型调用（≥2 次），超出剩余预算。离线证据：AgentRunRetryPostgresIntegrationTest 6 + AgentRunServiceRetryTest 6 全绿（FAILED_RETRYABLE 原地重排队/终态派生 retried_from_run_id 部分唯一索引幂等/预算重置）"
+    },
+    {
+      "id": "BUDGET-01", "name": "预算与循环保护（离线）", "importance": "高",
+      "result": "PASS", "evidence": ["OFFLINE_CONTRACT"],
+      "detail": "AgentConvergencePolicyTest 8（EXHAUSTED/FINALIZE 准入）、AgentLoopGuardTest 13（签名重复检测 AGENT_NO_PROGRESS）、AgentResourcePolicyTest 10（v1/v2 策略）、AgentRuntimeLimitsTest 13（maxSteps/maxModelTurns/maxToolCalls/超时）、AgentStateMachine（AgentRuntimeDomainTest 5，非法跃迁拒绝）。真实 Run 验证 v2 额度展示 Steps 2/64 · Tools 1/64"
+    },
+    {
+      "id": "LEASE-01", "name": "Worker 租约与崩溃恢复（离线）", "importance": "高",
+      "result": "PASS", "evidence": ["OFFLINE_CONTRACT"],
+      "detail": "AgentCrashRecoveryTimingPostgresTest 5 全绿：claim_version fencing、过期租约接管、closeUnresolvedModelCalls 收口 UNKNOWN、agent_tool_invocation 幂等复用防重复执行"
+    },
+    {
+      "id": "PERM-01", "name": "权限与项目隔离", "importance": "高",
+      "result": "PASS", "evidence": ["OFFLINE_CONTRACT"],
+      "detail": "本轮无第二个可用合法账户登录态（不伪造身份、不读取凭据），真实跨账户浏览器场景 NOT_EXECUTED。离线证据：Agent 全部入口 requireMember / 审批 requireAdmin 由 AgentRuntimeBehaviorTest 25 用例、AgentApprovalServiceTest 11 用例（含非管理员拒绝）、AgentBusinessEvaluationTest 覆盖；子运行禁写/规划操作仅 OWNER+depth=0 由 AgentToolContractTest/RealAgentLoopOutcomePolicyTest 覆盖"
+    },
+    {
+      "id": "PLAN-01", "name": "PLANNING_JSON 能力探针", "importance": "条件性",
+      "result": "NOT_EXECUTED", "evidence": [],
+      "detail": "本轮 Agent 场景不依赖 AI 规划（自动识别 + 只读 + 提案链路均未走规划）；统一套件无单步跳过（规划探针需连带 ≥2 次其他探针），剩余 1 次预算不足。维持上一轮 NOT_EXECUTED 结论，AI 规划用途就绪度仍为「未验证」"
+    },
+    {
+      "id": "IDEM-01", "name": "审批幂等/nonce/revision（离线）", "importance": "高",
+      "result": "PASS", "evidence": ["OFFLINE_CONTRACT"],
+      "detail": "AgentApprovalServiceTest 11 用例覆盖：重复 Idempotency-Key 幂等返回、nonce 恒时比较、expectedRevision 冲突、已解决审批重复提交冲突、过期审批收口；ApprovalToolRevalidationTest 12 用例覆盖批准时 revalidate"
+    },
+    {
+      "id": "DEFECT-01", "name": "缺陷：无效 UUID 参数穿透 Schema 校验导致运行失败", "importance": "高",
+      "result": "FAIL_FIXED", "evidence": ["REAL_MODEL", "REAL_DATABASE", "OFFLINE_CONTRACT"],
+      "detail": "复现（run 24b71f55）：模型传 assigneeId=\"None\" 穿透 ToolArgumentValidator（不支持 format）→ Jackson UUID 反序列化失败 → AGENT_TOOL_EXECUTION_FAILED → Run FAILED 且模型无纠正机会；同 Run 中无效枚举值却被正常拒绝并给模型纠正，行为不一致。最小修复：ToolArgumentValidator.validateString 增加 format uuid/date 校验（与 DTO UUID/LocalDate 字段类型一致）；回归：ToolArgumentValidatorTest 新增 2 用例；真实复验：修复后 assigneeId=\"None\" 在 Schema 阶段被拒（.assigneeId必须是合法的 UUID），模型获得纠正轮"
+    }
+  ],
+  "summary": { "PASS": 12, "FAIL_FIXED": 1, "NOT_EXECUTED": 5, "FAIL": 0, "INCONCLUSIVE": 0, "BLOCKED": 0, "FEATURE_MISSING": 0 }
+}

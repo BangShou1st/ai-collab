@@ -1,0 +1,31 @@
+{
+  "task": "P4-AGENT-REAL-E2E-01",
+  "generated_at": "2026-10-24",
+  "real_browser_scenarios": {
+    "pause_resume": "NOT_EXECUTED（真实 Run 10–37s 即完成，RUNNING 窗口内验证暂停边界需更长 Run；剩余预算 1 次不足以安全制造；UI 入口已确认存在：暂停按钮仅 canPause 时显示、「正在暂停」中间态横幅、输入「继续」走 pausedRunId 分流）",
+    "cancel": "NOT_EXECUTED（取消 RUNNING 竞速最坏消耗 2 次真实生成，超出剩余预算；UI 入口已确认存在：非终态显示「结束本次运行」）",
+    "retry": "NOT_EXECUTED（重试终态 Run 派生新 Run 需 ≥2 次真实生成；UI 入口已确认存在：FAILED/BUDGET_EXCEEDED/CANCELED 显示「重试」；本轮 DB 中已有 2 个真实 FAILED Run 可供未来复验）"
+  },
+  "offline_contract_evidence": {
+    "pause_resume": [
+      { "test": "AgentPauseResumePostgresTest", "cases": 19, "result": "全绿", "coverage": "暂停意图落库（RUNNING 仅 pause_requested_at）/QUEUED 直接 PAUSED/Worker 动作边界确认/恢复 PAUSED→QUEUED 保留原 Run 额度/不重复执行已完成工具/暂停回包序号防回退" }
+    ],
+    "cancel": [
+      { "test": "AgentWorkerTest / AgentRuntimeJobSchedulerTest", "result": "全绿（含于 Agent 模块 762 用例）", "coverage": "取消信号注册、cancel_requested_at 边界收口、取消后结算已发生消耗、CANCELED 终态无出边" }
+    ],
+    "retry": [
+      { "test": "AgentRunRetryPostgresIntegrationTest", "cases": 6, "result": "全绿", "coverage": "FAILED_RETRYABLE 原地重排队（retry_after）/终态派生新 Run（retried_from_run_id 部分唯一索引幂等）/预算重置" },
+      { "test": "AgentRunServiceRetryTest", "cases": 6, "result": "全绿", "coverage": "重试入口状态校验与权限" }
+    ],
+    "lease_recovery": [
+      { "test": "AgentCrashRecoveryTimingPostgresTest", "cases": 5, "result": "全绿", "coverage": "6 分钟租约过期接管、claim_version fencing 拒绝旧 epoch 写入、closeUnresolvedModelCalls 收口 UNKNOWN、agent_tool_invocation 幂等复用防重复执行副作用工具" }
+    ]
+  },
+  "ui_entry_audit": {
+    "source": "AgentView.vue / use-agent-workspace.ts（前端审计确认）",
+    "pause": "@e agent-pause 按钮，仅 QUEUED/RUNNING/FAILED_RETRYABLE 且未在暂停中显示",
+    "resume": "无独立按钮，输入「继续」自动带 pausedRunId 走同一提交入口",
+    "cancel": "非终态且非等待输入时显示「结束本次运行」",
+    "retry": "右栏 agent-retry 按钮，仅 FAILED/BUDGET_EXCEEDED/CANCELED"
+  }
+}

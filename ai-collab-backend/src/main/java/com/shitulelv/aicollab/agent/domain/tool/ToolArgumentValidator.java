@@ -155,6 +155,30 @@ public final class ToolArgumentValidator {
             return path + "字符串长度不能超过 " + maxLength.asInt();
         }
 
+        // format：uuid 与 date 在工具 Schema 中声明，对应 DTO 的 UUID/LocalDate 字段；
+        // 不在这里拦截会让非法值深入到反序列化阶段以 AGENT_TOOL_EXECUTION_FAILED 终止整个运行，
+        // 而 Schema 阶段拒绝可让模型获得纠正机会（与 enum 错误的处理一致）。
+        JsonNode format = schema.path("format");
+        if (format.isTextual()) {
+            switch (format.asText()) {
+                case "uuid" -> {
+                    try {
+                        java.util.UUID.fromString(text);
+                    } catch (IllegalArgumentException ignored) {
+                        return path + "必须是合法的 UUID";
+                    }
+                }
+                case "date" -> {
+                    try {
+                        java.time.LocalDate.parse(text);
+                    } catch (java.time.format.DateTimeParseException ignored) {
+                        return path + "必须是 ISO 格式日期（yyyy-MM-dd）";
+                    }
+                }
+                default -> { }
+            }
+        }
+
         return null;
     }
 

@@ -1,0 +1,38 @@
+{
+  "task": "P4-AGENT-REAL-E2E-01",
+  "generated_at": "2026-10-24",
+  "git": {
+    "start_dev_sha": "3b87d7646ddb1835f97a147a7e2512d01298700e",
+    "start_main_sha": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
+    "branch": "dev",
+    "workspace_clean_at_start": true
+  },
+  "environment": {
+    "frontend": "Vite dev http://localhost:5173",
+    "backend": "Spring Boot local profile http://localhost:8080（验收中途因缺陷修复重启一次以加载新代码）",
+    "database": "PostgreSQL 17 + pgvector（Docker ai-collab-postgres，healthy）",
+    "redis": "Redis 7（Docker，healthy）",
+    "minio": "MinIO（Docker，healthy）",
+    "flyway": "全部迁移已应用（含 V66 探针结果表）"
+  },
+  "browser": {
+    "tool": "browser-skill（bsk）+ Edge，复用既有登录态",
+    "account": "U04 合成管理员（p3u04_admin，历史验收专用合成账户）",
+    "sessions_started": ["jskx", "rptp"]
+  },
+  "model": {
+    "provider": "Kilo Gateway Free（内置预设，匿名，共享库网关）",
+    "model_id": "nvidia/nemotron-3.5-lightning:free",
+    "provider_id": "6854fb22-0cdc-4c09-989f-69f9aebb0055",
+    "resolution": "U04 用户未设 AGENT 用途显式分配 → 落到 is_default 配置（Kilo），与上一轮 P4-MODEL-QUICK-CONNECT-REAL-ACCEPTANCE-01 结论一致",
+    "probe_freshness": "落库探针 CONNECTIVITY/STREAMING/NATIVE_TOOLS 全部 PASS 且 tested_config_updated_at == 配置 updated_at（fresh，未 STALE）",
+    "model_call_budget": { "authorized": 12, "used": 11, "unused": 1 }
+  },
+  "isolated_project": {
+    "name": "P4-AGENT-REAL-E2E-01 隔离验收项目",
+    "project_id": "b4b55544-dab6-43f1-9b5b-c20b1d79ac59",
+    "agent_session_id": "491262c1-e562-45fc-ac73-afe4099583cf",
+    "synthetic_data": "3 条合成任务（1 IN_PROGRESS + 2 TODO，均为未分配负责人），全部通过真实浏览器任务看板创建",
+    "baseline_before_agent": { "project_task": 3, "agent_approval": 0, "agent_memory": 0 }
+  }
+}
