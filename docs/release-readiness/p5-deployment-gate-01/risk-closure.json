@@ -1,0 +1,57 @@
+{
+  "task_id": "P5-DEPLOYMENT-GATE-01",
+  "date": "2026-10-24",
+  "baseline_dev_sha": "b0c5dcac97fd5162733f2b2b5de3a1bb49d7ec4a",
+  "main_sha": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
+  "g1_root_cause": {
+    "original_claim": "app environment 缺 EMBEDDING_*/PLANNING_* 条目，.env 配置无法到达容器，RAG 知识库生产不可用",
+    "verified_truth": [
+      "误判部分：生产 Embedding 配置不来自环境变量。V2 运行时 ProjectEmbeddingGateway 只读数据库 system_embedding_config（管理端「AI Infrastructure」配置，密钥经 MODEL_CONFIG_MASTER_KEY 加密）；绑定 EMBEDDING_* 的 OpenAiCompatibleEmbeddingGateway 是无注入点的死代码。缺 EMBEDDING_* 透传不影响知识库可用性",
+      "成立部分：7 个真实生效的 Planning 调优变量（PLANNING_MAX_OUTPUT_TOKENS/MAX_SOURCES/SOURCE_CODEPOINT_BUDGET/RETRIEVAL_THRESHOLD/EXECUTOR_CORE_SIZE/EXECUTOR_MAX_SIZE/EXECUTOR_QUEUE_CAPACITY）未透传，生产无法经 .env 覆盖；且 .env.example 把遗留变量展示为有效配置，构成部署误导",
+      "EMBEDDING_LOCAL_ALLOWED_TARGETS 与 PLANNING_GENERATION_LIMIT_PER_USER_HOUR 在修复前已透传"
+    ]
+  },
+  "changes": [
+    {
+      "file": "ai-collab-deploy/docker-compose.yml",
+      "change": "app environment 新增 7 个真实生效的 Planning 调优变量（${VAR:-默认值} 形式，默认与 application.yml 一致），并附遗留变量与 Ollama 地址原则说明；未新增任何遗留 EMBEDDING_*/PLANNING_* 条目"
+    },
+    {
+      "file": ".env.example",
+      "change": "第 6/7 段重写：移除历史遗留的 EMBEDDING_ENABLED/PROVIDER/BASE_URL/API_KEY/MODEL/DIMENSIONS/BATCH_SIZE 与 PLANNING_ENABLED/PROVIDER/BASE_URL/API_KEY/MODEL，注明其无运行时消费点；补充真实生效的调优参数（注释形态）与 EMBEDDING_LOCAL_ALLOWED_TARGETS 说明"
+    },
+    {
+      "file": "ai-collab-deploy/scripts/compose-config-contract.sh",
+      "change": "新增 Compose 配置契约回归（仅渲染配置、全合成值）：正向透传/默认值/遗留变量不注入/Refresh Cookie 安全基线/特殊字符 URL 五类断言"
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "change": "image job 的 Validate compose config 步骤追加运行契约回归脚本；未删除任何既有 job、未放宽任何必需检查"
+    },
+    {
+      "file": "docs/release-readiness/p5-deployment-readiness-01/deployment-gates.json",
+      "change": "G-1 状态 NOT_VERIFIED → VERIFIED，从 blocking_gate_ids 移除"
+    }
+  ],
+  "verifications": {
+    "compose_config_q": "PASS（本地与 CI 同命令 docker compose --env-file .env.example -f ai-collab-deploy/docker-compose.yml config -q）",
+    "config_contract_regression": "PASS（4 场景全绿，输出见 acceptance-evidence/2026-10-24/p5-deployment-gate-01/compose-config-contract-output.log）",
+    "isolated_container_env_injection": "PASS（p5gate01 隔离 Compose 项目 + 合成 env，真实容器 printenv 断言 11 个变量值与输入一致、遗留变量不存在；证据 isolated-container-env.txt；验证后 down -v 清理）",
+    "spring_boot_container_boot": "NOT_EXECUTED（本机无法访问 auth.docker.io，Dockerfile # syntax=docker/dockerfile:1 前端镜像无法拉取，应用镜像无法本地构建；Spring Boot 启动冒烟由 CI image job 既有步骤在 GitHub runner 上覆盖，其中包含 Compose config 校验与本契约回归）",
+    "synthetic_data_only": true,
+    "local_profile_regression": "NOT_AFFECTED（未修改任何 Spring 代码与 local profile 配置；Compose 仅新增 app 服务环境变量条目）",
+    "security_baseline": "NOT_WEAKENED（契约回归断言 REFRESH_COOKIE_SECURE=true / REFRESH_COOKIE_ALLOW_INSECURE=false 默认不被覆盖；AUTH_ALLOWED_ORIGINS/JWT/MODEL_CONFIG_MASTER_KEY 条目未改动）",
+    "model_purpose_routing": "NOT_AFFECTED（规划模型仍走用户级 AI Provider 分配 TaskPlanModelClient.providers.resolve(ModelPurpose.PLANNING)，未引入任何环境变量绕过）"
+  },
+  "legacy_variables_confirmed": [
+    "EMBEDDING_ENABLED", "EMBEDDING_PROVIDER", "EMBEDDING_BASE_URL", "EMBEDDING_PATH",
+    "EMBEDDING_API_KEY", "EMBEDDING_MODEL", "EMBEDDING_DIMENSIONS", "EMBEDDING_BATCH_SIZE",
+    "EMBEDDING_CONNECT_TIMEOUT", "EMBEDDING_READ_TIMEOUT",
+    "PLANNING_ENABLED", "PLANNING_PROVIDER", "PLANNING_BASE_URL", "PLANNING_PATH",
+    "PLANNING_API_KEY", "PLANNING_MODEL", "PLANNING_CONNECT_TIMEOUT", "PLANNING_READ_TIMEOUT",
+    "PLANNING_TEMPERATURE"
+  ],
+  "new_release_blockers_found": [],
+  "pr_18": { "state": "OPEN", "draft": true, "merged": false },
+  "verdict": "DEPLOYMENT_GATE_G1_ACCEPTED"
+}

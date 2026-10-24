@@ -45,8 +45,8 @@
     {
       "id": "G-1",
       "name": "compose 透传 Embedding/Planning 配置（RAG 知识库生产可用）",
-      "status": "NOT_VERIFIED",
-      "note": "app environment 缺 EMBEDDING_*/PLANNING_* 条目，.env 配置无法到达容器；最小修复待提交",
+      "status": "VERIFIED",
+      "note": "P5-DEPLOYMENT-GATE-01 关闭：源码审计证实 EMBEDDING_*（除 LOCAL_ALLOWED_TARGETS）与 PLANNING_PROVIDER/MODEL/API_KEY/ENABLED 为历史遗留（消费它们的是无注入点的死代码），Embedding 生产配置走管理端入库、规划模型走用户级 Provider 分配；真实生效的 7 个 Planning 调优变量已补透传，compose 契约回归 + 隔离容器冒烟通过。详见 docs/release-readiness/p5-deployment-gate-01/",
       "blocking": true
     },
     {
@@ -116,6 +116,6 @@
   "verdict": {
     "deployment_readiness_plan": "READY",
     "actual_deployment": "NOT_GO_UNTIL_GATES_CLOSED",
-    "blocking_gate_ids": ["G-1", "G-2", "G-TLS", "G-SECRETS", "G-FRONTEND-HOSTING", "G-BACKUP-OPS", "G-REGRESSION-ITEMS"]
+    "blocking_gate_ids": ["G-2", "G-TLS", "G-SECRETS", "G-FRONTEND-HOSTING", "G-BACKUP-OPS", "G-REGRESSION-ITEMS"]
   }
 }
