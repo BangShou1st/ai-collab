@@ -1,0 +1,44 @@
+{
+  "task": "P4-MODEL-QUICK-CONNECT-REAL-ACCEPTANCE-01",
+  "generated_at": "2026-10-24",
+  "kilo_discovery": {
+    "method": "AI 设置页 Kilo 卡片内置「刷新模型」按钮（服务端 ProviderModelDiscoveryService，只读 GET，匿名，免费目录准入后返回）",
+    "discovered_at": "2026-10-24T08:14+08:00（Asia/Shanghai，浏览器实测）",
+    "free_catalog": [
+      "cohere/north-mini-code:free",
+      "dots-studio/dots-3-note-preview:free",
+      "kilo-auto/free",
+      "liquid/lfm-2.5-2.6b:free",
+      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "nvidia/nemotron-3.5-content-safety:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "nvidia/nemotron-3.5-super-vl:free",
+      "poolside/laguna-s-2.1:free",
+      "poolside/laguna-xs-2.1:free",
+      "recursive/flint-v1.0:free",
+      "xingchen-agi/xing4.0-29b-a4b:free"
+    ],
+    "note": "模型出现在目录中不等于实际生成成功；最终以真实 CONNECTIVITY/STREAMING 探针确认。"
+  },
+  "selection": {
+    "selected_model_id": "nvidia/nemotron-3.5-lightning:free",
+    "admission_basis": "套件「模型发现 / 准入」步骤 PASS：模型在服务端 FreeModelPolicy 准入列表中（浏览器展示原文：nvidia/nemotron-3.5-lightning:free 在准入列表中）",
+    "rationale": "当前目录中稳定、具备聊天与流式能力、轻量低成本的通用 instruct 模型；排除 kilo-auto/free（自动路由非具体模型）与 nemotron-3.5-content-safety:free（内容安全分类器，非对话模型）",
+    "fallback_candidates": [
+      "cohere/north-mini-code:free",
+      "liquid/lfm-2.5-2.6b:free",
+      "poolside/laguna-xs-2.1:free"
+    ],
+    "fallback_used": "未触发（首选模型一次成功，0 次替代替换）"
+  },
+  "original_config_record": {
+    "provider_row": "U04 合成管理员（p3u04_admin）Kilo Gateway Free 预设行",
+    "provider_id": "6854fb22-0cdc-4c09-989f-69f9aebb0055",
+    "original_model_name": "minimax/minimax-m3.1-flash:free",
+    "original_state": "enabled=true, is_default=true, capabilities=CHAT,STREAMING,STRUCTURED_OUTPUT,NATIVE_TOOLS,USAGE, encrypted_api_key=null（匿名）",
+    "disposition": "model_name 经 UI 保存更新为 nvidia/nemotron-3.5-lightning:free（免费准入校验通过，配置版本 2026-10-24T00:15:07Z）；is_default/capabilities/Key 未动；未回滚原因：原模型已被上游从当前免费目录移除，回滚将留下必然失败的配置并使全部 PASS 结论立即 STALE"
+  },
+  "boundary": "仅改动 U04 测试用户自己的 Kilo 预设行；其他用户（owner/p2e2e_*/p3task3_*/probe_new_*）的 Kilo 配置与全部业务数据未触碰。"
+}

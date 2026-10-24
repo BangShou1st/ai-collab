@@ -13,7 +13,8 @@
 - 任务起始基线：`71939d015bb23d9c78693d5f9b8173af5d05f42c`（dev = origin/dev，工作区干净）
 - `main` / `origin/main`：`9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7`（全程未触碰）
 - 本轮交付 SHA：见提交历史（本文档随最后一笔提交固定）
-- 改动规模：46 文件，+818 / -2133（净删 1315 行，维护复杂度下降）
+- 改动规模（整轮 Git 口径，`71939d0..44dfc5e` 含证据文档）：70 files，+3196 / -2133，净增 1063 行
+- 生产代码局部口径（不含本轮新增证据文档）：46 文件，+818 / -2133，局部净删 1315 行（该数字仅为重构部分统计，不是整轮 Git 净变化）
 
 ## B. 生产代码修改清单
 
@@ -57,7 +58,7 @@ Zen 白名单上游/免费模型准入/凭据分桶缓存；Kilo 匿名语义/�
 | Zen 真实生成/流式 | NOT_EXECUTED（待授权） |
 | Kilo 真实生成/流式 | NOT_EXECUTED（待授权） |
 | Zen/Kilo 真实模型发现（只读，无生成） | PASS（真实目录返回） |
-| 真实浏览器 E2E（无生成场景 9 项） | 9 PASS / 0 FAIL（[browser-e2e.json](browser-e2e.json)） |
+| 真实浏览器 E2E（无生成场景 10 项，E2E-01 至 E2E-10） | 10 PASS / 0 FAIL（[browser-e2e.json](browser-e2e.json)） |
 
 本轮实际发起的生成请求数：**0**。唯一外呼为 IANA 保留域 example.com（套件错误路径）与 Zen/Kilo 只读模型目录。
 
@@ -80,7 +81,7 @@ Zen 白名单上游/免费模型准入/凭据分桶缓存；Kilo 匿名语义/�
 - [code-cleanup.md](code-cleanup.md) — 删除清单与逐项依据
 - [provider-matrix.json](provider-matrix.json) — 五通道验收矩阵（未执行项如实标注）
 - [capability-probes.json](capability-probes.json) — 探针架构、分类规则与浏览器实测套件记录
-- [browser-e2e.json](browser-e2e.json) — 9 项浏览器场景
+- [browser-e2e.json](browser-e2e.json) — 10 项浏览器场景（E2E-01 至 E2E-10）
 - [regression-results.json](regression-results.json) — 全量回归
 - screenshots/ — 3 张原始截图（占位符保存、套件执行、SSE 错误气泡）
 
