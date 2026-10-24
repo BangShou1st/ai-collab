@@ -168,6 +168,11 @@ public class AgentRuntimeCoordinator {
             // 1. 取消检查
             cancellation.throwIfRequested(run);
 
+            if (repository.hasUnknownInvocation(run)) {
+                repository.recordFailure(run, "TOOL_OUTCOME_UNKNOWN", false);
+                return new AgentWorkerOutcome(AgentRunStatus.FAILED, null, null, "TOOL_OUTCOME_UNKNOWN");
+            }
+
             // 1b. 暂停意图检查：意图已落库则结清当前 claim 并转 PAUSED，不开始任何推进
             if (repository.pauseIfRequested(run)) {
                 return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");

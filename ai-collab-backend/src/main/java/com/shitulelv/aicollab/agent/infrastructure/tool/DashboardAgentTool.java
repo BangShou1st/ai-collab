@@ -24,6 +24,9 @@ public class DashboardAgentTool implements AgentTool {
 
     @Override public String name() { return "get_project_dashboard"; }
     @Override public boolean writesBusinessData() { return false; }
+    @Override public com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety executionSafety() {
+        return com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety.SAFE_READ;
+    }
 
     @Override
     public AgentToolDefinition definition() {

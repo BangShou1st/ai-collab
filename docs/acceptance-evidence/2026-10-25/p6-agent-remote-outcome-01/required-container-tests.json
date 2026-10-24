@@ -1,0 +1,98 @@
+[
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest",
+    "tests": 21,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeMigrationPostgresTest",
+    "tests": 1,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerTest",
+    "tests": 13,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentPauseResumePostgresTest",
+    "tests": 21,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.PersistedModelTurnRecoveryPostgresTest",
+    "tests": 24,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.acceptance.LegacyApprovalCitationUpgradeTest",
+    "tests": 1,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest",
+    "tests": 10,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest",
+    "tests": 6,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest",
+    "tests": 6,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest",
+    "tests": 1,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest",
+    "tests": 16,
+    "skipped": 1,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.retrieval.RetrievalQualityHardGatePostgresTest",
+    "tests": 7,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest",
+    "tests": 40,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest",
+    "tests": 7,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetIsolationIntegrationTest",
+    "tests": 4,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  {
+    "name": "com.shitulelv.aicollab.notification.NotificationNavigationPostgresTest",
+    "tests": 3,
+    "skipped": 0,
+    "result": "PASS"
+  }
+]

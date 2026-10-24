@@ -27,6 +27,9 @@ public class WeeklyReportDraftAgentTool implements AgentTool {
 
     @Override public String name() { return "draft_weekly_report"; }
     @Override public boolean writesBusinessData() { return false; }
+    @Override public com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety executionSafety() {
+        return com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety.SAFE_READ;
+    }
 
     /**
      * 返回确定性的周报统计事实（任务/里程碑统计、贡献者、亮点、风险），

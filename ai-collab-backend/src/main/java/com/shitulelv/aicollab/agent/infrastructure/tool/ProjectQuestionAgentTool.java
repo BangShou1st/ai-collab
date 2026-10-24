@@ -17,6 +17,9 @@ public class ProjectQuestionAgentTool implements AgentTool {
 
     @Override public String name() { return "answer_project_question_with_sources"; }
     @Override public boolean writesBusinessData() { return false; }
+    @Override public com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety executionSafety() {
+        return com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety.SAFE_READ;
+    }
 
     /**
      * search_project_knowledge 的兼容别名：参数与返回完全一致（历史调用名保留，

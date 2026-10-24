@@ -446,6 +446,9 @@ class AgentPauseResumePostgresTest {
             AgentTool read = new AgentTool() {
                 public String name() { return "list_tasks"; }
                 public boolean writesBusinessData() { return false; }
+                public com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety executionSafety() {
+                    return com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety.SAFE_READ;
+                }
                 public AgentToolResult execute(AgentToolContext ctx, com.fasterxml.jackson.databind.JsonNode args) {
                     if (args.path("query").asText().equals("q-1")) {
                         started.countDown();

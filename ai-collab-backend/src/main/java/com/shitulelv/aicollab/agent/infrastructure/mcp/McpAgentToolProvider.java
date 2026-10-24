@@ -115,7 +115,9 @@ public class McpAgentToolProvider implements AgentToolProvider {
             }
             McpClientFacade.CallResult raw = clients.requireClient(current).callTool(
                     serverName, arguments, Duration.ofMillis(current.timeoutMs()));
-            if (raw.error()) return AgentToolResult.failed("MCP_TOOL_ERROR", "外部 MCP 工具返回失败", false);
+            // MCP isError does not establish that no partial side effect occurred.
+            if (raw.error()) return new AgentToolResult(null, List.of(), List.of(), AgentToolResult.Status.UNKNOWN,
+                    new AgentToolResult.ToolError("MCP_OUTCOME_UNKNOWN", "外部 MCP 返回错误，执行结果需核对", false));
             return new AgentToolResult(sanitizer.sanitize(raw.content(), current.maxResultBytes()), List.of(), List.of());
         }
 

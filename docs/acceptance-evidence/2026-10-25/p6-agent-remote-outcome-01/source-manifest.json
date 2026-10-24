@@ -1,0 +1,131 @@
+{
+  "task": "P6_AGENT_REMOTE_OUTCOME_01",
+  "baseline": "968db8ce0f50d6a028793002386cb23cfb9a2024",
+  "schedulerUnchanged": true,
+  "files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "033cc5eb965c6425ce9337a602608e5912804c5437b625df768567426771c650"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/application/AgentPlanningOperationService.java",
+      "sha256": "08a3b00938016babe68c98562eaae61a8ba1376da468ebcf18b61184b616e79b"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/application/runtime/AgentRuntimeCoordinator.java",
+      "sha256": "5dba5caa07de71d3b6194e48c6a8e3aa89a96ffcc638df8ffd87fb33098502b0"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/application/runtime/AgentToolCallExecutor.java",
+      "sha256": "b296a7d05c11d32a16e7c0f6f519c6f34615746493122537beec845775f5574e"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/domain/tool/AgentTool.java",
+      "sha256": "68c61f071576608d66f74b61a71907933c466803ecc844a7ff2a94f892abac3c"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/domain/tool/AgentToolExecutionSafety.java",
+      "sha256": "612109b776087de41a431ec139a877dd0f119f79ff28c59ccb08ddaa90a15bde"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/mcp/McpAgentToolProvider.java",
+      "sha256": "874fab02839889a0b21de4b723f2fe8b6c2d7c8b69601ad5c197a2a7f03d75e8"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/repository/AgentRepository.java",
+      "sha256": "b9e6ba8201793c68a59575b15537e1dfbdc521ba1b2f26ae9b8def274669601b"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/repository/AgentRunEventRecorder.java",
+      "sha256": "fba8e70ba6def84c1202ca278061ce8e9ed2eaa1ed69e618709474c54e2cc552"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/AuditSummaryAgentTool.java",
+      "sha256": "8a102a4eb6eccc23d3d1858c36b6ea2c60d86d2bfb9605c776c20b8da1e54928"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/DashboardAgentTool.java",
+      "sha256": "7dba6714c1a7726a179b14fde2d7edac0066e66cb6e63b991fe39b3317f6bf11"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/DocumentAgentTools.java",
+      "sha256": "5305888c052247d05f9960c8ce40e7c53d38db05bc4c85215a08be5fdab52de8"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/KnowledgeSearchAgentTool.java",
+      "sha256": "b4b6667be5b45adbea00ab6abb2c55b6523b51eac07046c0844a889ccee58b46"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/ListMemoriesAgentTool.java",
+      "sha256": "77a778f87856294753fc1627caf7220a9afac09d502bcbf8c9aab77f6b7b78f5"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/MilestoneListAgentTool.java",
+      "sha256": "37c872f735c6ae1bddf02b5f5d54cfd3cffbabc82abb6be992450096eabf7764"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/PlanningAgentTools.java",
+      "sha256": "9a94b44ab190971796431adbdd39bb2f7701a85cdf5405e26940719b8de17da8"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/ProjectMemberListAgentTool.java",
+      "sha256": "794d9811a2c441c94ad73ee48d0d4ed9b0d945cbe47b56ede69b8ba48fa5e9df"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/ProjectOverviewAgentTool.java",
+      "sha256": "41617be6a4ee8fd1921f94d55500d5a8a9e3c45f6ff849e03030062680a8681a"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/ProjectProgressAgentTool.java",
+      "sha256": "62cb55c9721107c4f2199e2e0e2121baac9897b2205d554d5e63129cfac4ad47"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/ProjectQuestionAgentTool.java",
+      "sha256": "d1a55b98306c75af8d030b234ffa3716b0fed6e80e466e34337308965b42e329"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/ProjectRiskAgentTool.java",
+      "sha256": "5b1148d50916ae1683b306f1a267895cd6fc8154ad91a25728170cb6f245ebf3"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/RequestUserInputAgentTool.java",
+      "sha256": "4fc10e73a8ff9b72d5f68f4f3b242d360c5596e8aa49d790471a5b73db03f54b"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/TaskGetAgentTool.java",
+      "sha256": "789c11580cb7976a7ade90c1e41b66eb57aee175ae4d8ca33ff64b35a57240b5"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/TaskListAgentTool.java",
+      "sha256": "5cda1e67203d63815d66a540e284cd4b3b3e30e53b5eed301c1da97d5b183cf9"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/tool/WeeklyReportDraftAgentTool.java",
+      "sha256": "a078dd57b89e47ff81d792b1093cdb9ab492a8a2227f3c34120f49bbe02d2018"
+    },
+    {
+      "path": "ai-collab-backend/src/main/resources/db/migration/V67__agent_invocation_dispatch_evidence.sql",
+      "sha256": "7b83ae3bcc0c96a30eb1f4c6c3c16fec96c7c7d87818859e9e7b0a6a9408795d"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentPauseResumePostgresTest.java",
+      "sha256": "ec7e81edd6664dc0bc352ecc717d145a44afdbe08d6b37651e3042c978f85dc5"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentRemoteOutcomeMigrationPostgresTest.java",
+      "sha256": "3a6a217a7b3deb73ffade9163fe23e7c6a999290def2d96aeab88a9ee37c0fb6"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentRemoteOutcomePostgresTest.java",
+      "sha256": "6fcc3b0e590761c16379503bf9fc58a70be487d32bf9c6cd58bfb45ee38c39b4"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentRemoteOutcomeTest.java",
+      "sha256": "040e3b7cd17fad880412bb22f0cf9b50ab7e7d5d5a8efb84bd7c48ef1fa8e90a"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/infrastructure/mcp/McpAgentToolProviderTest.java",
+      "sha256": "a66eaa85b052c5cc56843adfa587411cc3beda7cabc79d0a4440faf13e85b5b3"
+    }
+  ]
+}
