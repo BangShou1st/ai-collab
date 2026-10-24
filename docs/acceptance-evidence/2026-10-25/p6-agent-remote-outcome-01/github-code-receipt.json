@@ -1,0 +1,67 @@
+{
+  "task": "P6_AGENT_REMOTE_OUTCOME_01",
+  "codeCommit": "19eaa2fb900c2e244572d0e705f529e68224adcc",
+  "commitUrl": "https://github.com/BangShou1st/ai-collab/commit/19eaa2fb900c2e244572d0e705f529e68224adcc",
+  "verdict": "P6_AGENT_REMOTE_OUTCOME_01_CI_PENDING",
+  "runs": [
+    {
+      "id": 40119378640,
+      "event": "push",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40119378640",
+      "status": "in_progress",
+      "jobs": [
+        {
+          "id": 120947377210,
+          "name": "Frontend (pnpm)",
+          "status": "in_progress",
+          "conclusion": null
+        },
+        {
+          "id": 120947377418,
+          "name": "Backend (Maven verify)",
+          "status": "in_progress",
+          "conclusion": null
+        },
+        {
+          "id": 120947378257,
+          "name": "Image build & container smoke",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "id": 40119381651,
+      "event": "pull_request",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40119381651",
+      "status": "in_progress",
+      "jobs": [
+        {
+          "id": 120947386601,
+          "name": "Frontend (pnpm)",
+          "status": "in_progress",
+          "conclusion": null
+        },
+        {
+          "id": 120947386817,
+          "name": "Image build & container smoke",
+          "status": "in_progress",
+          "conclusion": null
+        },
+        {
+          "id": 120947386823,
+          "name": "Backend (Maven verify)",
+          "status": "in_progress",
+          "conclusion": null
+        }
+      ]
+    }
+  ],
+  "main": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
+  "pr18": {
+    "draft": true,
+    "state": "OPEN",
+    "merged": false
+  },
+  "note": "Snapshot for the tested implementation commit. The final delivery report is a subsequent documentation-only commit; latest head CI is checked in the final delivery response. No workflow rerun or dispatch was requested."
+}

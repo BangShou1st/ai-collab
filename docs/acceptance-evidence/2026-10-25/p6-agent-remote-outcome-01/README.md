@@ -8,6 +8,7 @@
 - [关键容器类守卫](required-container-tests.json)：16 类实际执行。
 - [Source Manifest](source-manifest.json)：最终生产/测试/CI 文件 SHA-256；不包含自引用文档哈希。
 - [Git 与前端检查](safety-audit.json)：基线、调度器 blob 一致性、前端 393 项、main/PR 开工状态及外部验证边界。
+- [实现提交的 GitHub 回执](github-code-receipt.json)：完整 SHA、实际 Actions 链接和记录时 Job 状态；最终文档提交的 CI 按最终回复核实。
 
 交付正文见 [A–F 报告](../../../archive/reports/p6-agent-remote-outcome-01-delivery-20261025.md)。
 真实外部 Provider / MCP 取消确认：`LIVE_NOT_RUN`；不声称远端撤销或跨系统 Exactly-Once。
