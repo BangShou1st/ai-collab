@@ -1,0 +1,32 @@
+{
+  "task": "P4-AGENT-REAL-E2E-01",
+  "generated_at": "2026-10-24",
+  "budget": {
+    "authorized_max_generation_requests": 12,
+    "used": 11,
+    "unused": 1,
+    "scope": "仅 Kilo Gateway Free（nvidia/nemotron-3.5-lightning:free）；Zen 预算 0；无收费模型调用",
+    "counting_rule": "按真实到达模型 Provider 的生成请求计（每轮 MODEL_TURN 计 1 次，与 agent_step MODEL_TURN 行一一对应）；失败与重试计入"
+  },
+  "generation_requests": [
+    { "seq": 1, "run_id": "82f16d75-8cf4-4b89-85bd-6d3b91704c20", "purpose": "只读 E2E：第 1 轮模型决策（产生 4 个只读工具调用）", "result": "PASS", "input_tokens": 11329, "output_tokens": 1318, "latency_ms": 14261, "at": "2026-10-24T02:28:09Z" },
+    { "seq": 2, "run_id": "82f16d75-8cf4-4b89-85bd-6d3b91704c20", "purpose": "只读 E2E：第 2 轮模型（依据工具结果生成最终回答）", "result": "PASS", "input_tokens": 14294, "output_tokens": 1630, "latency_ms": 20621, "at": "2026-10-24T02:28:46Z" },
+    { "seq": 3, "run_id": "24b71f55-64b4-45d5-88c4-038d6d9abdfe", "purpose": "审批提案：第 1 轮（先调 list_project_members）", "result": "PASS", "input_tokens": 12660, "output_tokens": 246, "latency_ms": 4354, "at": "2026-10-24T02:31:01Z" },
+    { "seq": 4, "run_id": "24b71f55-64b4-45d5-88c4-038d6d9abdfe", "purpose": "审批提案：第 2 轮（create_task_after_approval 传 status=\"None\" 被枚举校验拒绝）", "result": "TOOL_ARGUMENT_INVALID（按设计拒绝）", "input_tokens": 12870, "output_tokens": 781, "latency_ms": 10552, "at": "2026-10-24T02:31:12Z" },
+    { "seq": 5, "run_id": "24b71f55-64b4-45d5-88c4-038d6d9abdfe", "purpose": "审批提案：第 3 轮（assigneeId=\"None\" 穿透 Schema 校验 → 反序列化失败 → 运行 FAILED，触发缺陷修复）", "result": "DEFECT_REPRODUCED", "input_tokens": 13001, "output_tokens": 803, "latency_ms": 12252, "at": "2026-10-24T02:31:23Z" },
+    { "seq": 6, "run_id": "ea469167-3ed9-42af-b6e9-4dc56ef02172", "purpose": "修复后复验：第 1 轮（assigneeId=\"None\" 在 Schema 阶段被拒，模型获纠正机会）", "result": "FIX_VERIFIED_REJECTED_AT_SCHEMA", "input_tokens": 12731, "output_tokens": 423, "latency_ms": 5629, "at": "2026-10-24T02:42:49Z" },
+    { "seq": 7, "run_id": "ea469167-3ed9-42af-b6e9-4dc56ef02172", "purpose": "修复后复验：第 2 轮（模型再次传非法 assigneeId，参数纠正预算耗尽 PARAMETER_CORRECTION_EXHAUSTED，运行按设计终止）", "result": "MODEL_QUALITY_LIMIT（非后端缺陷）", "input_tokens": 12848, "output_tokens": 334, "latency_ms": 3666, "at": "2026-10-24T02:42:55Z" },
+    { "seq": 8, "run_id": "2dd168bb-351f-42a0-8bb8-dc217b900be6", "purpose": "审批通过场景：第 1 轮（创建 create_task_after_approval 提案成功）", "result": "PASS", "input_tokens": null, "output_tokens": null, "latency_ms": null, "at": "2026-10-24T02:44:07Z" },
+    { "seq": 9, "run_id": "2dd168bb-351f-42a0-8bb8-dc217b900be6", "purpose": "审批通过场景：第 2 轮（确定性提案摘要回答）", "result": "PASS", "input_tokens": null, "output_tokens": null, "latency_ms": null, "at": "2026-10-24T02:44:20Z" },
+    { "seq": 10, "run_id": "a9625ab7-f46e-4c61-9778-ceb9ef1c3fb0", "purpose": "审批拒绝场景：第 1 轮（创建 create_memory 提案成功）", "result": "PASS", "input_tokens": null, "output_tokens": null, "latency_ms": null, "at": "2026-10-24T02:46:01Z" },
+    { "seq": 11, "run_id": "a9625ab7-f46e-4c61-9778-ceb9ef1c3fb0", "purpose": "审批拒绝场景：第 2 轮（确定性提案摘要回答）", "result": "PASS", "input_tokens": null, "output_tokens": null, "latency_ms": null, "at": "2026-10-24T02:46:28Z" }
+  ],
+  "run_summary": [
+    { "run_id": "82f16d75-8cf4-4b89-85bd-6d3b91704c20", "status": "SUCCEEDED", "model_calls": 2, "input_tokens_actual": 25623, "output_tokens_actual": 2948, "duration_s": 37 },
+    { "run_id": "24b71f55-64b4-45d5-88c4-038d6d9abdfe", "status": "FAILED", "model_calls": 3, "input_tokens_actual": 38531, "output_tokens_actual": 1830, "duration_s": 29, "note": "触发 assigneeId 校验缺陷（已修复）" },
+    { "run_id": "ea469167-3ed9-42af-b6e9-4dc56ef02172", "status": "FAILED", "model_calls": 2, "input_tokens_actual": 25579, "output_tokens_actual": 757, "duration_s": 10, "note": "修复生效；模型连续两次传非法 assigneeId，纠正预算耗尽" },
+    { "run_id": "2dd168bb-351f-42a0-8bb8-dc217b900be6", "status": "SUCCEEDED", "model_calls": 2, "input_tokens_actual": 12819, "output_tokens_actual": 1172, "duration_s": 13 },
+    { "run_id": "a9625ab7-f46e-4c61-9778-ceb9ef1c3fb0", "status": "SUCCEEDED", "model_calls": 2, "input_tokens_actual": 13688, "output_tokens_actual": 2167, "duration_s": 27 }
+  ],
+  "notes": "seq 8–11 的分轮 token 明细未逐轮记录（Run 汇总 input_tokens_actual/actual 已落库），不影响总量核对。剩余 1 次预算未使用：按任务书规则，无法保证不超预算的高风险场景（取消竞速最坏需 2 次）不启动。"
+}

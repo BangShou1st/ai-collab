@@ -1,0 +1,34 @@
+{
+  "task": "P4-AGENT-REAL-E2E-01",
+  "generated_at": "2026-10-24",
+  "sse": {
+    "implementation": "前端 fetch-stream（authenticatedFetch）+ 后端 SSE（专用发送线程、游标追赶、heartbeat 20s、终态收口）",
+    "real_run_observation": [
+      "提交后页面即时显示「Agent 正在处理」与执行过程计数增长（1 项 → 4 项）",
+      "MODEL_CONTENT 临时正文帧进入流式预览，最终 ASSISTANT 消息落库后预览收口，回答只出现一次",
+      "事件 sequence 1–17 连续且与 agent_run_event 表一一对应",
+      "终态 RUN_SUCCEEDED 后连接正常收口；刷新后右栏显示「SSE 未连接」（终态不重连，符合设计）"
+    ],
+    "event_types_observed": ["RUN_CREATED", "CONTEXT_CAPTURED", "SKILL_SELECTED", "PLAN_CREATED", "MODEL_STARTED", "MODEL_COMPLETED", "TOOL_CALL_STARTED", "TOOL_CALL_COMPLETED", "APPROVAL_REQUESTED", "APPROVAL_APPROVED", "APPROVAL_REJECTED", "RUN_SUCCEEDED"],
+    "last_event_id": "前端断线重连带 afterSequence + Last-Event-ID 双通道，从 timeline.lastSequence 续传（agent-event-stream.ts:20-22；本轮未人为破坏网络，未触发真实断线重连）"
+  },
+  "persistence": {
+    "refresh_check": {
+      "result": "PASS",
+      "detail": "真实刷新页面：会话保留、最终回答完整、执行过程 4 项不重复、状态「Agent 已完成」、右栏权威快照 Steps 2/64 · Tools 1/64 · 模型芯片正确",
+      "mechanism": "restoreSession 并行拉 messages + latest-run（权威）+ events-history 全量重放，applyAgentEvent 拒绝 sequence <= lastSequence 的事件（天然去重）"
+    },
+    "db_alignment": {
+      "agent_session": 1,
+      "agent_run": 5,
+      "agent_step_rows_run1": 7,
+      "agent_message_rows_run1": 2,
+      "agent_run_event_sequence": "每 Run 连续唯一（UNIQUE(run_id, sequence_no)，行内自增 last_event_sequence）",
+      "token_settlement": "input_tokens_actual == input_tokens_used（25623/2948 等），无估算残留（token_usage_estimated=false 路径）"
+    }
+  },
+  "observations": [
+    "历史 ASSISTANT 消息中的「当前审批状态：待审批」为提案创建时刻的确定性摘要文本（历史记录），不代表实时状态；实时状态以审批卡为准——语义上可接受，记录为观察项",
+    "agent_run.model_name/model_provider 列与 model_configuration_snapshot 在部分 Run 上为空（页面模型芯片来自事件流/运行详情，正常展示）；快照写入时机待后续核对，不影响验收结论"
+  ]
+}
