@@ -39,6 +39,8 @@
 
 - [P5 发布准备审计一轮（`release-readiness/p5-release-readiness-01/`](release-readiness/p5-release-readiness-01/README.md)）：全系统发布准备审查，裁决 `RELEASE_CONDITIONAL_GO`，识别四项运维 P1。
 - [P5 发布运维阻断项整改（`release-readiness/p5-release-readiness-02/`](release-readiness/p5-release-readiness-02/README.md)）：R-01 备份恢复演练（`ai-collab-deploy/backup/`）、R-02 可观测性基线、R-03 发布流水线与 Runbook、R-04 Refresh Cookie TLS 安全基线，逐项状态见其 `risk-status.json`。
+- [P5 RC 构建验证（`release-readiness/p5-rc-validation-01/`](release-readiness/p5-rc-validation-01/README.md)）：Image Job 真实执行验证与 RC 配置复核，裁决 `RC_VALIDATION_ACCEPTED`。
+- [P5 部署准备与生产运行方案（`release-readiness/p5-deployment-readiness-01/`](release-readiness/p5-deployment-readiness-01/README.md)）：生产拓扑、密钥与 TLS 方案、14 步部署流程、回滚恢复边界与部署门禁（`deployment-gates.json`），裁决：准备方案就绪、实际部署待环境参数回填。
 
 ---
 

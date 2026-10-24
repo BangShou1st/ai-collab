@@ -1,0 +1,121 @@
+{
+  "task_id": "P5-DEPLOYMENT-READINESS-01",
+  "date": "2026-10-24",
+  "baseline": {
+    "dev_head": "436d06eada58b34f0328b60f07957f8c1e48ba3c",
+    "dev_synced_with_origin": true,
+    "main_head": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
+    "pr_18": {
+      "state": "OPEN",
+      "draft": true,
+      "head": "dev@436d06e",
+      "base": "main",
+      "mergeable": "MERGEABLE",
+      "ci": "ALL_GREEN (runs 40104720601 / 40104717941)",
+      "note": "DO NOT MERGE 约定保持；合并须用户批准并人工触发"
+    },
+    "worktree_clean": true
+  },
+  "evidence_status_legend": ["VERIFIED", "DOCUMENTED", "ENVIRONMENT_DEPENDENT", "NOT_VERIFIED"],
+  "gates": [
+    {
+      "id": "G-CI",
+      "name": "目标 SHA 的 CI 三 Job 全绿（Backend / Frontend / Image）",
+      "status": "VERIFIED",
+      "note": "PR #18 最新 run 全绿；Image Job 在 PR→main 触发的 run 真实执行"
+    },
+    {
+      "id": "G-BACKUP-SCRIPTS",
+      "name": "备份/恢复/一致性校验脚本就绪且经隔离演练",
+      "status": "VERIFIED",
+      "note": "ai-collab-deploy/backup/ 7 脚本；同机演练 54 表 + 15 对象恢复成功"
+    },
+    {
+      "id": "G-RUNBOOK",
+      "name": "发布/回滚/备份恢复 Runbook 完整可执行",
+      "status": "DOCUMENTED",
+      "note": "release-runbook-review.md 逐条核对通过；生产真实回滚演练未执行"
+    },
+    {
+      "id": "G-COMPOSE",
+      "name": "compose 生产形态可启动（默认 profile JWT/CORS 已补齐）",
+      "status": "VERIFIED",
+      "note": "P5-02 补 security.jwt/security.cors；CI image job 真实拉起容器冒烟通过"
+    },
+    {
+      "id": "G-1",
+      "name": "compose 透传 Embedding/Planning 配置（RAG 知识库生产可用）",
+      "status": "NOT_VERIFIED",
+      "note": "app environment 缺 EMBEDDING_*/PLANNING_* 条目，.env 配置无法到达容器；最小修复待提交",
+      "blocking": true
+    },
+    {
+      "id": "G-2",
+      "name": "N-02 forward-headers 决策落定（注册限流反代场景退化问题）",
+      "status": "ENVIRONMENT_DEPENDENT",
+      "note": "AuthRateLimiter 注册限流 key 只含 RemoteAddr，反代下全局 10 次/小时；需确认代理拓扑后显式配置或缓解",
+      "blocking": true
+    },
+    {
+      "id": "G-TLS",
+      "name": "TLS 证书与反向代理就绪",
+      "status": "ENVIRONMENT_DEPENDENT",
+      "note": "域名/证书/反代实现待用户环境（open-questions Q1/Q2/Q11）",
+      "blocking": true
+    },
+    {
+      "id": "G-SECRETS",
+      "name": "生产 .env 与密钥下发（含 master key 离线归档）",
+      "status": "ENVIRONMENT_DEPENDENT",
+      "note": "密钥生成/注入/轮换方案已写入 secrets-and-configuration.md；实际下发待环境",
+      "blocking": true
+    },
+    {
+      "id": "G-FRONTEND-HOSTING",
+      "name": "前端静态产物托管方案落地（反代配置）",
+      "status": "ENVIRONMENT_DEPENDENT",
+      "note": "仓库无 nginx 配置/前端容器；设计假设外部反代托管 dist/（.env.production 同源注释）",
+      "blocking": true
+    },
+    {
+      "id": "G-OBSERVABILITY",
+      "name": "日志采集与告警通道接通",
+      "status": "ENVIRONMENT_DEPENDENT",
+      "note": "健康探针/日志基线已具备；采集与告警为 [部署环境补充]",
+      "blocking": false,
+      "note2": "不阻断首署启动，但阻断生产就绪结论"
+    },
+    {
+      "id": "G-BACKUP-OPS",
+      "name": "备份定时调度、生产备份位置与异地副本",
+      "status": "ENVIRONMENT_DEPENDENT",
+      "note": "无 cron 配置；异机恢复未演练",
+      "blocking": true
+    },
+    {
+      "id": "G-N01",
+      "name": "N-01：Image Job 列入 main required checks（需管理员授权）",
+      "status": "VERIFIED_NOT_DONE",
+      "note": "已读保护配置：required 仅 Backend/Frontend；修改需用户授权，未改动",
+      "blocking": false
+    },
+    {
+      "id": "G-N02",
+      "name": "N-02 处置（同 G-2）",
+      "status": "ENVIRONMENT_DEPENDENT",
+      "blocking": true
+    },
+    {
+      "id": "G-REGRESSION-ITEMS",
+      "name": "历史遗留风险知情接受（R-10 Zen 限流未复验、R-13 MinIO 旧卷升级未验证、R-11 无压测、MCP 实验特性、可视化域低置信度）",
+      "status": "ENVIRONMENT_DEPENDENT",
+      "note": "需用户明确接受后方可发布",
+      "blocking": true
+    }
+  ],
+  "verdict": {
+    "deployment_readiness_plan": "READY",
+    "actual_deployment": "NOT_GO_UNTIL_GATES_CLOSED",
+    "blocking_gate_ids": ["G-1", "G-2", "G-TLS", "G-SECRETS", "G-FRONTEND-HOSTING", "G-BACKUP-OPS", "G-REGRESSION-ITEMS"]
+  }
+}
