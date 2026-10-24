@@ -1,0 +1,17 @@
+{
+  "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeTest",
+  "tests": "2",
+  "failures": "1",
+  "errors": "0",
+  "skipped": "0",
+  "cases": [
+    {
+      "name": "responseLostAfterDispatchMustNotBecomeRetryableFailure",
+      "failure": "\nexpected: \"UNKNOWN\"\n but was: \"FAILED\""
+    },
+    {
+      "name": "canceledFutureDoesNotStopAnInterruptIgnoringRemoteEffect",
+      "failure": null
+    }
+  ]
+}

@@ -126,6 +126,8 @@ public class AgentToolCallExecutor {
                 run.id(), run.projectId(), run.requesterId(),
                 ctx.projectRole(), run.scheduled(), run.depth(), null, trustedUserGoal);
 
+        if (repository.hasUnknownInvocation(run)) return failUnknown(run);
+
         // ===== 阶段 1：验证所有工具调用（快速，无 I/O） =====
         List<ValidatedToolCall> validated = new ArrayList<>();
         List<JsonNode> recovered = new ArrayList<>();
@@ -137,6 +139,24 @@ public class AgentToolCallExecutor {
             var known = repository.knownInvocationResult(run, toolCall);
             if (known != null && known.isPresent()) { recovered.add(known.get()); continue; }
             ValidatedToolCall vtc = validateToolCall(run, toolCall, ctx, skill, exposed, steps, toolCtx, recoveryBatch, requestLegacyMode);
+            if (repository.dispatchedUnsafe(run, toolCall)) {
+                // The persisted call may already have produced effects. Never execute it again.
+                java.util.Optional<AgentToolResult> reconciled = java.util.Optional.empty();
+                if (vtc.error() == null && vtc.tool().executionSafety()
+                        == com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety.IDEMPOTENT_OR_RECONCILABLE) {
+                    try {
+                        reconciled = vtc.tool().reconcile(toolCtx.withInvocationId(repository.invocationId(run, toolCall)), toolCall.arguments());
+                    } catch (RuntimeException unavailable) {
+                        // A failed query is not evidence that the original operation failed.
+                        log.warn("Agent reconciliation unavailable: runId={}, tool={}, type={}", run.id(), toolCall.name(), unavailable.getClass().getSimpleName());
+                    }
+                }
+                JsonNode outcome = reconciled.isPresent() ? sanitizer.sanitize(json.valueToTree(reconciled.get())) : unknownResult();
+                boolean error = !"SUCCEEDED".equals(outcome.path("status").asText());
+                run = repository.recordToolResult(run, toolCall.name(), input(toolCall), outcome, error);
+                recovered.add(outcome);
+                continue;
+            }
             if (vtc.error()==null && com.shitulelv.aicollab.agent.infrastructure.tool.RequestUserInputAgentTool.NAME.equals(toolCall.name())) {
                 if (clarificationSeen) vtc=new ValidatedToolCall(null,toolCall,createError("CLARIFICATION_BATCH_LIMIT","每批仅允许一次澄清动作"),false);
                 clarificationSeen=true;
@@ -162,6 +182,8 @@ public class AgentToolCallExecutor {
                 }
             }
         }
+
+        if (repository.hasUnknownInvocation(run)) return failUnknown(run);
 
         // ===== 阶段 2：分区执行 — 只读并行，写/审批串行 =====
         if (validated.stream().anyMatch(ValidatedToolCall::fatal)) {
@@ -210,6 +232,7 @@ public class AgentToolCallExecutor {
             BatchOutcome outcome = executeToolBatch(run, readOnlyBatch, toolCtx, ctx.limits());
             if (outcome.paused()) return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
             run = outcome.run();
+            if (repository.hasUnknownInvocation(run)) return failUnknown(run);
         }
         readOnlyBatch.clear();
         var clarification = validated.stream().filter(v -> v.error() == null
@@ -240,6 +263,7 @@ public class AgentToolCallExecutor {
                 BatchOutcome controlledOutcome = executeToolBatch(run,controlled,toolCtx,ctx.limits());
                 if (controlledOutcome.paused()) return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
                 run = controlledOutcome.run();
+                if (repository.hasUnknownInvocation(run)) return failUnknown(run);
                 var recorded=repository.listSteps(run.projectId(),run.id());
                 boolean accepted=recorded.stream().anyMatch(s->controlled.getFirst().toolCall().name().equals(s.toolName()) && s.output()!=null && s.output().path("data").has("operationId"));
                 if(accepted) {
@@ -568,6 +592,7 @@ public class AgentToolCallExecutor {
 
         // 并行执行所有只读工具
         List<ScheduledToolCall> scheduled = new ArrayList<>();
+        Integer claimEpoch = com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope.currentEpoch();
         boolean pauseRequested = false;
         try {
         for (ValidatedToolCall vtc : batch) {
@@ -579,13 +604,15 @@ public class AgentToolCallExecutor {
             AgentRunView executingRun = run;
             try {
             scheduled.add(new ScheduledToolCall(toolCall, deadline, scheduler.submit(toolCtx, deadline, () -> {
-                try {
+                try (var lease = claimEpoch == null ? null
+                        : new com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope(claimEpoch)) {
                     cancellation.throwIfRequested(executingRun);
                     // 限流等待之后的准入复核：暂停意图先落库则本调用不启动
                     if (repository.isPauseRequested(executingRun.projectId(), executingRun.id())) {
                         return new ToolExecutionResult(toolCall, null, PAUSE_ADMISSION);
                     }
                     tools.checkPolicy(tool, toolCtx);
+                    repository.recordInvocationDispatch(executingRun, toolCall, tool.executionSafety());
                     emit(executingRun, AgentEventType.TOOL_CALL_STARTED, json.createObjectNode()
                             .put("callId", toolCall.id()).put("toolName", toolCall.name())
                             .put("invocationId",java.util.Objects.toString(repository.invocationId(executingRun,toolCall),"")));
@@ -616,7 +643,7 @@ public class AgentToolCallExecutor {
                 er = future.get(Math.max(0, remaining), TimeUnit.NANOSECONDS);
             } catch (TimeoutException e) {
                 if (notStartedTimeoutWhilePausing(run, future)) pauseRequested = true;
-                else run = recordToolTimeout(run, call.toolCall());
+                else run = recordToolTimeout(run, call.toolCall(), batch, toolCtx);
                 continue;
             } catch (java.util.concurrent.CancellationException e) {
                 throw new BusinessException(ErrorCode.AGENT_RUN_CANCELED);
@@ -629,7 +656,7 @@ public class AgentToolCallExecutor {
                 ModelToolCall failedCall = call.toolCall();
                 if (cause instanceof TimeoutException) {
                     if (notStartedTimeoutWhilePausing(run, future)) pauseRequested = true;
-                    else run = recordToolTimeout(run, failedCall);
+                    else run = recordToolTimeout(run, failedCall, batch, toolCtx);
                     continue;
                 }
                 if (cause instanceof java.util.concurrent.RejectedExecutionException) {
@@ -696,6 +723,8 @@ public class AgentToolCallExecutor {
         return !started && repository.isPauseRequested(run.projectId(), run.id());
     }
     private AgentRunView recordToolTimeout(AgentRunView run, ModelToolCall toolCall) {
+        if (repository.dispatchedUnsafe(run, toolCall))
+            return repository.recordToolResult(run, toolCall.name(), input(toolCall), unknownResult(), true);
         ObjectNode errorResult = json.createObjectNode();
         errorResult.put("status", "FAILED");
         errorResult.put("retryable", true);
@@ -713,6 +742,27 @@ public class AgentToolCallExecutor {
                         .put("errorCode", "TOOL_EXECUTION_TIMEOUT")
                         .put("retryable", true));
         return run;
+    }
+
+    private AgentRunView recordToolTimeout(AgentRunView run, ModelToolCall call,
+            List<ValidatedToolCall> batch, AgentToolContext ctx) {
+        AgentTool tool = batch.stream().filter(v -> v.toolCall().id().equals(call.id())).findFirst().orElseThrow().tool();
+        if (repository.dispatchedUnsafe(run, call) && tool.executionSafety()
+                == com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety.IDEMPOTENT_OR_RECONCILABLE) {
+            try {
+                tools.checkPolicy(tool, ctx);
+                var known = tool.reconcile(ctx.withInvocationId(repository.invocationId(run, call)), call.arguments());
+                if (known.isPresent()) {
+                    var result = sanitizer.sanitize(json.valueToTree(known.get()));
+                    return repository.recordToolResult(run, call.name(), input(call), result,
+                            known.get().status() != AgentToolResult.Status.SUCCEEDED);
+                }
+            } catch (RuntimeException unavailable) {
+                log.warn("Agent timeout reconciliation unavailable: runId={}, tool={}, type={}",
+                        run.id(), call.name(), unavailable.getClass().getSimpleName());
+            }
+        }
+        return recordToolTimeout(run, call);
     }
 
     private record ValidatedToolCall(
@@ -740,6 +790,8 @@ public class AgentToolCallExecutor {
 
     private AgentRunView recordToolFailure(
             AgentRunView run, ModelToolCall toolCall, RuntimeException failure) {
+        if (repository.dispatchedUnsafe(run, toolCall))
+            return repository.recordToolResult(run, toolCall.name(), input(toolCall), unknownResult(), true);
         ObjectNode errorResult = json.createObjectNode();
         String code = failure instanceof BusinessException business ? business.getErrorCode().name() : "TOOL_EXECUTION_FAILED";
         errorResult.put("error", code);
@@ -765,6 +817,17 @@ public class AgentToolCallExecutor {
                         .put("errorCode", code)
                         .put("retryable", false));
         return run;
+    }
+
+    private ObjectNode unknownResult() {
+        return json.createObjectNode().put("status", "UNKNOWN").put("retryable", false)
+                .put("error", "TOOL_OUTCOME_UNKNOWN")
+                .put("message", "工具可能已执行，请人工核对；系统不会自动重发");
+    }
+
+    private AgentWorkerOutcome failUnknown(AgentRunView run) {
+        repository.recordFailure(run, "TOOL_OUTCOME_UNKNOWN", false);
+        return new AgentWorkerOutcome(AgentRunStatus.FAILED, null, null, "TOOL_OUTCOME_UNKNOWN");
     }
 
     private static AgentDecision.CallTool toCallTool(ModelToolCall toolCall) {

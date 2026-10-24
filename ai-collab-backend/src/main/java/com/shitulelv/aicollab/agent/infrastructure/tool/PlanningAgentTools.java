@@ -33,6 +33,8 @@ public class PlanningAgentTools {
         """,Set.of("operationId","attemptId"));}
     private AgentTool write(String name,String description,String schema,Set<String> fields){return new ControlledWriteAgentTool(){
         public String name(){return name;}public AgentToolDefinition definition(){return AgentToolDefinition.fromJson(name,description,schema,true);}
+        public AgentToolExecutionSafety executionSafety(){return AgentToolExecutionSafety.IDEMPOTENT_OR_RECONCILABLE;}
+        public Optional<AgentToolResult> reconcile(AgentToolContext ctx,JsonNode args){return operations.reconcile(ctx,name,args).map(data->new AgentToolResult(data,List.of(),List.of()));}
         public AgentToolResult execute(AgentToolContext ctx,JsonNode args){AgentToolArguments.requireFields(args,fields);return new AgentToolResult(operations.mutate(ctx,name,args),List.of(),List.of());}
     };}
     private interface Read {JsonNode apply(AgentToolContext ctx,JsonNode args);}
@@ -60,6 +62,7 @@ public class PlanningAgentTools {
         var node=json.createObjectNode();node.put("id",v.id().toString());node.put("versionNo",v.versionNo());node.put("sourceType",v.sourceType());node.put("basedOnVersionId",Objects.toString(v.basedOnVersionId(),null));node.put("createdAt",v.createdAt().toString());return node;
     }
     private AgentTool read(String name,String description,String schema,Read read){return new AgentTool(){
+        public AgentToolExecutionSafety executionSafety(){return AgentToolExecutionSafety.SAFE_READ;}
         public String name(){return name;}public boolean writesBusinessData(){return false;}public AgentToolDefinition definition(){return AgentToolDefinition.fromJson(name,description,schema,false);}
         public AgentToolResult execute(AgentToolContext ctx,JsonNode args){return new AgentToolResult(read.apply(ctx,args),List.of(),List.of());}
     };}

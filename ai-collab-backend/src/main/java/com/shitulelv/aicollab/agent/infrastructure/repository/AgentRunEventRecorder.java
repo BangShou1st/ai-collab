@@ -647,6 +647,10 @@ public class AgentRunEventRecorder {
     @Transactional
     public void recordFailure(AgentRunView run, String errorCode, boolean retryable) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        if (hasUnconfirmedInvocation(run.id())) {
+            retryable = false;
+            errorCode = "TOOL_OUTCOME_UNKNOWN";
+        }
         accountActiveTime(run.id());
         appendErrorStep(run, errorCode);
         // retry_count 记录可重试模型失败次数（含最终失败），最多安排两次自动重试。
@@ -689,6 +693,7 @@ public class AgentRunEventRecorder {
         if (findRun(run.projectId(), run.id()).map(AgentRunView::status).orElse(null) == AgentRunStatus.CANCELED) return;
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), true);
         accountActiveTime(run.id());
+        preserveUnconfirmedDispatches(run.id());
         jdbc.update("UPDATE agent_tool_invocation SET status='CANCELED',result_json='{\"status\":\"CANCELED\"}'::jsonb WHERE run_id=? AND status='PENDING'", run.id());
         markBatchHandled(run.id());
         int updated = jdbc.update("""
@@ -1037,6 +1042,10 @@ public class AgentRunEventRecorder {
     @Transactional
     public void requeueRun(AgentRunView run) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        if (hasUnconfirmedInvocation(run.id())) {
+            recordFailure(run, "TOOL_OUTCOME_UNKNOWN", false);
+            return;
+        }
         accountActiveTime(run.id());
         markBatchHandled(run.id());
         requireRunUpdate(jdbc.update("""
@@ -1156,6 +1165,21 @@ public class AgentRunEventRecorder {
     public AgentRunView recordToolResult(AgentRunView run, String toolName,
                                   JsonNode arguments, JsonNode result, boolean isError) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        if (arguments.hasNonNull("toolCallId")) {
+            var states = jdbc.queryForList("""
+                    SELECT status,tool_name,arguments_json::text AS arguments_json FROM agent_tool_invocation WHERE run_id=? AND tool_call_id=?
+                      AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
+                    FOR UPDATE
+                    """, run.id(), arguments.path("toolCallId").asText(), run.id());
+            if (!states.isEmpty()) {
+                var state = states.getFirst();
+                if (!"PENDING".equals(state.get("status")))
+                    throw new IllegalStateException("Settled invocation cannot be overwritten");
+                if (!toolName.equals(state.get("tool_name"))
+                        || !arguments.path("arguments").equals(parseJsonOrNull(state.get("arguments_json").toString())))
+                    throw new IllegalStateException("Invocation identity does not match result");
+            }
+        }
         markProgress(run.id());
         // 先验证版本和状态，避免版本冲突时留下孤立 Step。
         // 工具结果只计工具额度；推进步按预算语义分支（COMBINED 旧语义逐项占用，SEPARATED 不占）
@@ -1181,6 +1205,7 @@ public class AgentRunEventRecorder {
             jdbc.update("""
                     UPDATE agent_tool_invocation SET status=?,result_json=?::jsonb,updated_at=now()
                     WHERE run_id=? AND tool_call_id=? AND tool_name=? AND arguments_json=?::jsonb
+                      AND status='PENDING'
                       AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
                     """, isError ? result.path("status").asText("FAILED") : "SUCCEEDED", result.toString(),
                     run.id(), arguments.path("toolCallId").asText(), toolName, arguments.path("arguments").toString(), run.id());
@@ -1215,6 +1240,8 @@ public class AgentRunEventRecorder {
     public AgentRunView recordFinal(AgentRunView run, String content, List<AgentCitation> citations,
             boolean consumePersistedTurn) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        if (hasUnconfirmedInvocation(run.id()))
+            throw new IllegalStateException("Unconfirmed tool outcome cannot become run success");
         accountActiveTime(run.id());
         markBatchHandled(run.id());
         if (consumePersistedTurn) markModelTurnConsumed(run.id());
@@ -1353,8 +1380,34 @@ public class AgentRunEventRecorder {
     }
 
     private void markBatchHandled(UUID runId) {
+        preserveUnconfirmedDispatches(runId);
         jdbc.update("UPDATE agent_step SET output_json=jsonb_set(output_json,'{batchHandled}','true'::jsonb) WHERE run_id=? AND type='MODEL_TURN' AND output_json IS NOT NULL", runId);
         jdbc.update("UPDATE agent_tool_invocation SET status='SKIPPED',result_json='{\"status\":\"SKIPPED\",\"error\":\"BATCH_ENDED\"}'::jsonb,updated_at=now() WHERE run_id=? AND status='PENDING'", runId);
+    }
+
+    private boolean hasUnconfirmedInvocation(UUID runId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS(SELECT 1 FROM agent_tool_invocation WHERE run_id=? AND
+                  (status='UNKNOWN' OR (status='PENDING' AND dispatch_started_at IS NOT NULL AND execution_safety<>'SAFE_READ')))
+                """, Boolean.class, runId));
+    }
+
+    /** Cancellation/batch termination is not evidence that a dispatched operation had no effect. */
+    public void preserveUnconfirmedDispatches(UUID runId) {
+        var rows = jdbc.queryForList("""
+                UPDATE agent_tool_invocation SET status='UNKNOWN',
+                  result_json='{"status":"UNKNOWN","retryable":false,"error":"TOOL_OUTCOME_UNKNOWN","message":"工具可能已执行，请人工核对；系统不会自动重发"}'::jsonb,
+                  updated_at=now()
+                WHERE run_id=? AND status='PENDING' AND dispatch_started_at IS NOT NULL AND execution_safety<>'SAFE_READ'
+                RETURNING invocation_id,tool_call_id,tool_name
+                """, runId);
+        for (var row : rows) {
+            UUID project = jdbc.queryForObject("SELECT project_id FROM agent_run WHERE id=?", UUID.class, runId);
+            event(project, runId, "TOOL_CALL_FAILED", json.createObjectNode()
+                    .put("invocationId", row.get("invocation_id").toString())
+                    .put("callId", row.get("tool_call_id").toString()).put("toolName", row.get("tool_name").toString())
+                    .put("status", "UNKNOWN").put("retryable", false).put("errorCode", "TOOL_OUTCOME_UNKNOWN"));
+        }
     }
     private void accountActiveTime(UUID runId) {
         jdbc.update("UPDATE agent_run SET active_elapsed_ms=active_elapsed_ms+CASE WHEN claim_started_at IS NULL THEN 0 ELSE GREATEST(0,(extract(epoch FROM(now()-claim_started_at))*1000)::bigint) END,claim_started_at=NULL,last_progress_at=NULL WHERE id=?",runId);

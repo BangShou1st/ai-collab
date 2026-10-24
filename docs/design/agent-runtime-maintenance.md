@@ -20,12 +20,14 @@
 - `AgentModelMessageComposer`（消息组装器）与 `AgentToolCallExecutor`（工具执行器）在此注册为容器单例；
 - `AgentContextSummarizer`（摘要器）是 `@Component` 单例；
 - `AgentRuntimeCoordinator` 的主构造函数显式接收这三个协作者，**不再自行 `new`**；
-- `AgentToolCallExecutor` 构造时接收 `AgentToolScheduler`（专用线程池 + 用户/运行信号量限流），没有 commonPool 默认值；
+- `AgentToolCallExecutor` 构造时接收 `AgentToolScheduler`（专用线程池、精确身份配额与有界公平队列），没有 commonPool 默认值；
 - `RoutingAgentModelExecutor` 构造时接收 `AgentModelConfigurationStore`（唯一配置来源），没有后置 setter，也没有 store 为 null 时的旁路解析。
 
 单元测试用协调器的两个标注"测试便捷装配"的构造函数（内部显式构造三个协作者，依赖全部来自测试传入的受控对象）；需要自定义 `AgentContextProperties` 或逐个替换协作者时，直接用主构造函数（参考 `AgentRuntimeCoordinatorTest.coordinatorWithLargeToolDefinition`）。装配回归：`AgentWriteProposalSpringIntegrationTest.productionAssemblyInjectsContainerCollaboratorsWithoutDuplicates`。
 
 ## 3. 核心调用图
+
+工具结果不确定时，按 [远端结果与恢复设计](agent-remote-outcome.md) 排查 invocation 的 dispatch_started_at、execution_safety、dispatch_claim_version 与原业务 Operation。UNKNOWN 禁止盲目重发、普通结果覆盖和自动成功收口；需人工核对远端事实。V67 升级会按旧 TOOL_CALL_STARTED 事件回填出站证据，历史未知 claim 使用 -1。不要以 Future 已取消推断远端撤销。
 
 ```
 AgentRuntimeJob（内嵌 worker，租约 claimNext）
