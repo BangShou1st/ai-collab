@@ -567,18 +567,19 @@ public class AgentToolCallExecutor {
             AgentToolContext toolCtx, AgentRuntimeLimits limits) {
 
         // 并行执行所有只读工具
-        List<java.util.concurrent.Future<ToolExecutionResult>> futures = new ArrayList<>();
-        List<Long> deadlines = new ArrayList<>();
+        List<ScheduledToolCall> scheduled = new ArrayList<>();
+        boolean pauseRequested = false;
+        try {
         for (ValidatedToolCall vtc : batch) {
             AgentTool tool = vtc.tool();
             ModelToolCall toolCall = vtc.toolCall();
-            deadlines.add(System.nanoTime() + (toolCall.name().startsWith("mcp.")
-                    ? limits.mcpToolTimeout() : limits.internalToolTimeout()).toNanos());
+            long deadline = System.nanoTime() + (toolCall.name().startsWith("mcp.")
+                    ? limits.mcpToolTimeout() : limits.internalToolTimeout()).toNanos();
             cancellation.throwIfRequested(run);
             AgentRunView executingRun = run;
             try {
-            futures.add(scheduler.executor().submit(() -> {
-                try (var permit = scheduler.acquire(toolCtx)) {
+            scheduled.add(new ScheduledToolCall(toolCall, deadline, scheduler.submit(toolCtx, deadline, () -> {
+                try {
                     cancellation.throwIfRequested(executingRun);
                     // 限流等待之后的准入复核：暂停意图先落库则本调用不启动
                     if (repository.isPauseRequested(executingRun.projectId(), executingRun.id())) {
@@ -598,39 +599,43 @@ public class AgentToolCallExecutor {
                     if (e instanceof InterruptedException) Thread.currentThread().interrupt();
                     return new ToolExecutionResult(toolCall, null, new BusinessException(ErrorCode.AGENT_RUN_CANCELED));
                 }
-            }));
+            })));
             } catch (java.util.concurrent.RejectedExecutionException busy) {
-                futures.add(CompletableFuture.completedFuture(new ToolExecutionResult(toolCall,
-                        AgentToolResult.failed("TOOL_EXECUTOR_BUSY", "工具队列已满", true), null)));
+                scheduled.add(new ScheduledToolCall(toolCall, deadline, CompletableFuture.completedFuture(new ToolExecutionResult(toolCall,
+                        AgentToolResult.failed("TOOL_EXECUTOR_BUSY", "工具队列已满", true), null))));
             }
         }
 
         // 顺序记录结果（保证 run 状态一致性），带超时保护
-        boolean pauseRequested = false;
-        try {
-        for (java.util.concurrent.Future<ToolExecutionResult> future : futures) {
+        for (ScheduledToolCall call : scheduled) {
+            var future = call.future();
             ToolExecutionResult er;
             try {
                 // 根据工具类型选择超时时间：MCP 工具 15s，内部工具 10s
-                long remaining = deadlines.get(futures.indexOf(future)) - System.nanoTime();
+                long remaining = call.deadline() - System.nanoTime();
                 er = future.get(Math.max(0, remaining), TimeUnit.NANOSECONDS);
             } catch (TimeoutException e) {
-                // 超时：取消任务并记录超时错误
-                future.cancel(true);
-                ModelToolCall timedOutCall = futures.indexOf(future) >= 0 ?
-                        batch.get(futures.indexOf(future)).toolCall() : null;
-                if (timedOutCall != null) {
-                    run = recordToolTimeout(run, timedOutCall);
-                }
+                if (notStartedTimeoutWhilePausing(run, future)) pauseRequested = true;
+                else run = recordToolTimeout(run, call.toolCall());
                 continue;
+            } catch (java.util.concurrent.CancellationException e) {
+                throw new BusinessException(ErrorCode.AGENT_RUN_CANCELED);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new BusinessException(ErrorCode.AGENT_RUN_CANCELED);
             } catch (java.util.concurrent.ExecutionException e) {
                 // 执行异常：提取内部异常
                 Throwable cause = e.getCause();
-                ModelToolCall failedCall = batch.get(futures.indexOf(future)).toolCall();
-                if (cause instanceof BusinessException be) {
+                ModelToolCall failedCall = call.toolCall();
+                if (cause instanceof TimeoutException) {
+                    if (notStartedTimeoutWhilePausing(run, future)) pauseRequested = true;
+                    else run = recordToolTimeout(run, failedCall);
+                    continue;
+                }
+                if (cause instanceof java.util.concurrent.RejectedExecutionException) {
+                    er = new ToolExecutionResult(failedCall,
+                            AgentToolResult.failed("TOOL_EXECUTOR_BUSY", "工具执行器不可用", true), null);
+                } else if (cause instanceof BusinessException be) {
                     er = new ToolExecutionResult(failedCall, null, be);
                 } else if (cause instanceof RuntimeException re) {
                     er = new ToolExecutionResult(failedCall, null, re);
@@ -669,7 +674,7 @@ public class AgentToolCallExecutor {
                                 .put("summary", er.result().data() == null ? "工具执行完成" : "工具执行完成"));
             }
         }
-        } finally { futures.forEach(f -> { if (!f.isDone()) f.cancel(true); }); }
+        } finally { scheduled.forEach(c -> { if (!c.future().isDone()) c.future().cancel(true); }); }
 
         if (pauseRequested) {
             // 结清已准入调用的结果后确认暂停：未启动调用保持 PENDING，恢复后按原身份继续
@@ -681,6 +686,15 @@ public class AgentToolCallExecutor {
     /**
      * 记录工具执行超时。
      */
+    private record ScheduledToolCall(ModelToolCall toolCall, long deadline,
+                                     java.util.concurrent.Future<ToolExecutionResult> future) { }
+
+    private boolean notStartedTimeoutWhilePausing(AgentRunView run,
+            java.util.concurrent.Future<ToolExecutionResult> future) {
+        boolean started = future instanceof AgentToolScheduler.Ticket<?> ticket && ticket.timeout();
+        cancellation.throwIfRequested(run);
+        return !started && repository.isPauseRequested(run.projectId(), run.id());
+    }
     private AgentRunView recordToolTimeout(AgentRunView run, ModelToolCall toolCall) {
         ObjectNode errorResult = json.createObjectNode();
         errorResult.put("status", "FAILED");

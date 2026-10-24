@@ -472,3 +472,5 @@ ai-collab/
 ## 📄 开源许可证
 
 本项目采用 [MIT 许可证](LICENSE)。欢迎高校师生、开发者参与交流与二次构建。
+
+Agent 工具调度使用单 JVM 精确身份配额与有界准入（16 全局 / 4 用户 / 2 Run / 64 等待），详见 [调度设计](docs/design/agent-tool-concurrency.md)。
