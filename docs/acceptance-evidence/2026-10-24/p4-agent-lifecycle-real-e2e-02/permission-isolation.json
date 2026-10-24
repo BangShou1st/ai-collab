@@ -1,0 +1,37 @@
+{
+  "task": "P4-AGENT-LIFECYCLE-REAL-E2E-02",
+  "date": "2026-10-24",
+  "evidence_type": ["REAL_DATABASE", "OFFLINE_CONTRACT"],
+  "method_note": "负面测试经真实 HTTP API（本机后端 8080）执行：账户 B 为本轮经公开注册接口（POST /api/v1/auth/register，Origin 校验通过）新建的合法合成账户 p4life_member_20261024（userId 884ef7cf-e586-4d0d-9183-7e5469099cae），非任何项目成员。未伪造 JWT、未修改任何用户角色、未读取任何凭据。浏览器级负面操作未执行（真实浏览器登录态为 U04，不切换登录态），以 API 级真实请求 + 后端鉴权源码为证据。",
+  "accounts": {
+    "A": { "username": "p3u04_admin", "userId": "9c1cf139-f2d7-429a-8a26-780fc64175b2", "role": "项目 OWNER", "project": "b4b55544-dab6-43f1-9b5b-c20b1d79ac59" },
+    "B": { "username": "p4life_member_20261024", "userId": "884ef7cf-e586-4d0d-9183-7e5469099cae", "role": "无项目成员关系", "created_via": "公开注册接口（真实注册流程）" }
+  },
+  "negative_tests": [
+    { "id": "PERM-01", "action": "B 列出自己的项目", "expect": "不含 A 的项目", "result": "PASS", "detail": "data=[]，项目列表为空" },
+    { "id": "PERM-02", "action": "B GET /projects/{A项目}/agent/sessions", "expect": "拒绝且不泄露存在性", "result": "PASS", "detail": "HTTP 404 PROJECT_NOT_FOUND" },
+    { "id": "PERM-03", "action": "B GET /projects/{A项目}/agent/runs/24b71f55-...", "result": "PASS", "detail": "HTTP 404 PROJECT_NOT_FOUND" },
+    { "id": "PERM-04", "action": "B GET /projects/{A项目}/agent/runs/{id}/events?afterSequence=0（SSE）", "result": "PASS", "detail": "HTTP 404" },
+    { "id": "PERM-05", "action": "B GET /projects/{A项目}/agent/runs/{id}/approvals", "result": "PASS", "detail": "HTTP 404" },
+    { "id": "PERM-06", "action": "B GET /projects/{A项目}/agent/approvals（项目级）", "result": "PASS", "detail": "HTTP 404" },
+    { "id": "PERM-07", "action": "B POST pause / cancel / retry 到 A 的 Run 24b71f55", "result": "PASS", "detail": "三个控制接口均 HTTP 404 PROJECT_NOT_FOUND，无状态变化（DB 复核 Run 仍为 FAILED 未被触碰）" },
+    { "id": "PERM-08", "action": "B POST /agent/approvals/35bb4b90-.../approve（带 Idempotency-Key 与请求体）", "result": "PASS", "detail": "HTTP 404 PROJECT_NOT_FOUND；该审批 DB 状态保持 APPROVED 未被改写" },
+    { "id": "PERM-09", "action": "匿名（无 Authorization）GET sessions", "result": "PASS", "detail": "HTTP 401" },
+    { "id": "PERM-10", "action": "B GET /projects/{A项目}/tasks（非 Agent 资源对照）", "result": "PASS", "detail": "HTTP 404，ProjectAccessGuard 全局生效" }
+  ],
+  "cross_project_tool_execution": {
+    "evidence_type": "OFFLINE_CONTRACT",
+    "conclusion": "模型参数无法注入 projectId/userId/role：AgentToolContext 构造使用 run.projectId()/run.requesterId()/ctx.projectRole()（AgentToolCallExecutor.java:125-127），role 由 ProjectAccessGuard.requireMember 从成员关系解析（AgentContextAssembler.java:97-100），并明确约定忽略模型参数中的身份字段（AgentContextAssembler.java:32-33）。",
+    "status": "PASS（源码审计 + AgentRuntimeBehaviorTest 25 用例绿）"
+  },
+  "intra_project_visibility": {
+    "conclusion": "会话列表为项目级共享设计：AgentRepository.listSessions 按 project_id 查询不过滤 creator（AgentRepository.java:82-88），同项目成员互相可见会话；跨项目由 requireMember 全量拦截。属协作产品设计，非隔离缺陷。",
+    "status": "PASS（设计确认）"
+  },
+  "approval_authority": {
+    "evidence_type": "OFFLINE_CONTRACT",
+    "conclusion": "approve/reject 首行 access.requireAdmin(projectId, approverId)（AgentApprovalService.java:321/380），仅 OWNER/ADMIN 可解决审批；非成员 404、普通成员 PROJECT_ADMIN_REQUIRED；重复解决按 idempotencyKey+approverId+nonceHash 幂等，冲突抛 AGENT_APPROVAL_CONFLICT；nonce 常量时间比较；expectedRevision 乐观并发校验。",
+    "status": "PASS（源码审计 + AgentApprovalServiceTest 11 用例绿）"
+  },
+  "summary": { "total": 10, "pass": 10, "fail": 0, "not_executed_browser_level": true }
+}

@@ -1,0 +1,34 @@
+{
+  "task": "P4-AGENT-LIFECYCLE-REAL-E2E-02",
+  "date": "2026-10-24",
+  "status": "PASS",
+  "evidence_type": ["REAL_MODEL", "REAL_DATABASE"],
+  "model_id": "nvidia/nemotron-3.5-lightning:free",
+  "configuration_id": "6854fb22-0cdc-4c09-989f-69f9aebb0055",
+  "entry": "POST /api/v1/user/ai-providers/6854fb22-.../test-capability?mode=PLANNING_JSON（单步模式互斥，未连带重跑 CONNECTIVITY/STREAMING——源码确认 AiCapabilityProbeService 各模式互斥分支；API 直调属真实能力探针，非浏览器端到端操作，如实标注）",
+  "attempts": [
+    {
+      "attempt": 1, "time_utc": "04:10:55",
+      "result": "INCONCLUSIVE",
+      "failure_stage": "骨架生成",
+      "error": "HTTP 504 AI_MODEL_TIMEOUT（上游免费模型超时，transient）",
+      "generation_calls": 1
+    },
+    {
+      "attempt": 2, "time_utc": "04:11:55",
+      "result": "PASS",
+      "failure_stage": null,
+      "schema_errors": [],
+      "generation_calls_min": 2,
+      "generation_calls_worst": 4,
+      "detail": "骨架与细节链路完整通过生产 PlanningJsonContract（探针与生产 generateSkeletonWithOneRepair 同口径，含临时 ID/合并关系校验）；probe 落库 PASS、latency 20088ms、verified=true；本轮无需定向修复轮（如触发内部修复则计入 worst 口径）"
+    }
+  ],
+  "final": {
+    "satisfies_production_contract": true,
+    "generation_calls_total": { "min": 3, "worst": 5, "note": "attempt1=1 + attempt2 min2/worst4" },
+    "readiness_ui_after": "AI 设置页「AI 规划」用途由「未验证」翻转为「可用」（截图 06-planning-ready.png）",
+    "probe_row": "user_ai_provider_probe_result: PLANNING_JSON / PASS / model=nvidia/nemotron-3.5-lightning:free / latency 20088ms"
+  },
+  "caveat": "PLANNING_JSON 为独立能力探针，未在本轮执行端到端「任务规划页两阶段生成落库」浏览器场景（上轮与本轮任务书均未要求）；免费模型存在瞬态超时（第 1 次尝试 504），生产使用建议保留重试入口"
+}
