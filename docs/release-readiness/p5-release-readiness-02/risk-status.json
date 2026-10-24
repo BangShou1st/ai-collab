@@ -25,7 +25,7 @@
     },
     "R-03-release-pipeline-runbook": {
       "status": "IMPLEMENTED_NOT_FULLY_VERIFIED",
-      "summary": "CI 新增 image job（PR/main：Dockerfile 构建 + revision label 断言 + 临时依赖容器冒烟：health UP、敏感端点拒绝、版本可追踪）；发布/回滚/备份恢复三份 Runbook 交付。镜像构建与容器冒烟的真实执行以本次推送触发的 CI 为准。",
+      "summary": "CI 新增 image job（PR/main：Dockerfile 构建 + revision label 断言 + 临时依赖容器冒烟：health UP、敏感端点拒绝、版本可追踪；dev 日常 push 不触发）；发布/回滚/备份恢复三份 Runbook 交付。镜像构建与容器冒烟的真实执行将在下一次 PR→main 时进行。",
       "evidence": [
         ".github/workflows/ci.yml image job",
         "docs/release-readiness/p5-release-readiness-02/release-runbook.md",
