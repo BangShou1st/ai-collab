@@ -96,7 +96,11 @@ security:
     cookie-name: ai_collab_refresh_token
     cookie-path: /api/v1/auth
     same-site: Strict
-    cookie-secure: "${REFRESH_COOKIE_SECURE:false}"
+    # 本地开发固定走 HTTP：Secure 固定 false 且不受 .env 的 REFRESH_COOKIE_SECURE 影响，
+    # 避免部署侧变量误入开发环境；生产（默认 profile）默认 true。需真实测 Secure Cookie 时
+    # 用命令行参数临时覆盖 --security.refresh-token.cookie-secure=true。
+    cookie-secure: false
+    allow-insecure-cookie: true
   cors:
     allowed-origins: "${AUTH_ALLOWED_ORIGINS:http://localhost:5173}"
 

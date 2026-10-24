@@ -22,7 +22,8 @@ public record RefreshTokenProperties(
         @DefaultValue("ai_collab_refresh_token") @NotBlank String cookieName,
         @DefaultValue("/api/v1/auth") @NotBlank String cookiePath,
         @DefaultValue("Strict") @NotBlank @Pattern(regexp = "Strict") String sameSite,
-        @NotNull Boolean cookieSecure) {
+        @NotNull Boolean cookieSecure,
+        @DefaultValue("false") @NotNull Boolean allowInsecureCookie) {
 
     private static final Duration MAX_TOKEN_LIFETIME = Duration.ofDays(14);
     private static final Duration MAX_SESSION_LIFETIME = Duration.ofDays(30);
@@ -38,5 +39,19 @@ public record RefreshTokenProperties(
                 && tokenLifetime.compareTo(MAX_TOKEN_LIFETIME) <= 0
                 && sessionLifetime.compareTo(MAX_SESSION_LIFETIME) <= 0
                 && sessionLifetime.compareTo(tokenLifetime) >= 0;
+    }
+
+    /**
+     * 禁用 Cookie 的 Secure 属性属于仅限本地 HTTP 开发的显式让步：必须同时把
+     * allow-insecure-cookie 置为 true（环境变量 REFRESH_COOKIE_ALLOW_INSECURE），
+     * 否则绑定阶段即拒绝启动，避免生产配置缺失或抄错模板时静默降级为不安全 Cookie。
+     * Cookie 安全属性只来自本配置，不读取任何客户端请求头（如 X-Forwarded-Proto）。
+     */
+    @AssertTrue(message = "cookie-secure=false 会被拒绝启动：仅限本地 HTTP 开发，"
+            + "且必须同时设置 security.refresh-token.allow-insecure-cookie=true"
+            + "（环境变量 REFRESH_COOKIE_ALLOW_INSECURE=true）显式确认")
+    public boolean isInsecureCookieExplicitlyAllowed() {
+        return cookieSecure != null && cookieSecure
+                || Boolean.TRUE.equals(allowInsecureCookie);
     }
 }

@@ -140,3 +140,6 @@ docs/shots/
 .zcodeignore
 .workbuddy/
 .freebuff/
+
+# 本地备份产物（ai-collab-deploy/backup 脚本输出）
+/backups/

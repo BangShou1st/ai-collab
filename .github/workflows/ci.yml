@@ -168,3 +168,74 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  # 镜像构建与容器级冒烟：验证 Dockerfile 路径真实可用（不推送到任何仓库，
+  # 镜像仅存在于本次 runner）。PR 与 main push 触发；dev 每日 push 不付这份成本。
+  image:
+    name: Image build & container smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate compose config
+        run: docker compose --env-file .env.example -f ai-collab-deploy/docker-compose.yml config -q
+
+      - name: Build backend image
+        run: |
+          docker build \
+            -f ai-collab-backend/Dockerfile \
+            -t ai-collab-backend:rc-${GITHUB_SHA::12} \
+            --label org.opencontainers.image.revision=${GITHUB_SHA} \
+            --label org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY} \
+            .
+
+      - name: Boot container with dependencies and smoke test
+        run: |
+          docker network create smoke
+          docker run -d --name smoke-pg --network smoke \
+            -e POSTGRES_DB=ai_collab -e POSTGRES_USER=smoke -e POSTGRES_PASSWORD=smoke-only \
+            pgvector/pgvector:pg17 >/dev/null
+          docker run -d --name smoke-redis --network smoke redis:7-alpine \
+            redis-server --requirepass smoke-only >/dev/null
+          docker run -d --name smoke-minio --network smoke -v smoke-minio-data:/data \
+            -e MINIO_ROOT_USER=smoke -e MINIO_ROOT_PASSWORD=smoke-only-minio \
+            cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18 \
+            server /data >/dev/null
+          docker run -d --name smoke-app --network smoke -p 8080:8080 \
+            -e SPRING_DATASOURCE_URL=jdbc:postgresql://smoke-pg:5432/ai_collab \
+            -e SPRING_DATASOURCE_USERNAME=smoke \
+            -e SPRING_DATASOURCE_PASSWORD=smoke-only \
+            -e SPRING_DATA_REDIS_HOST=smoke-redis \
+            -e SPRING_DATA_REDIS_PASSWORD=smoke-only \
+            -e MINIO_ENDPOINT=http://smoke-minio:9000 \
+            -e MINIO_ACCESS_KEY=smoke \
+            -e MINIO_SECRET_KEY=smoke-only-minio \
+            -e MINIO_BUCKET=ai-collab \
+            -e JWT_SECRET=smoke-only-secret-at-least-32-bytes-long!! \
+            -e MODEL_CONFIG_MASTER_KEY=0123456789abcdef0123456789abcdef \
+            -e REFRESH_COOKIE_SECURE=true \
+            ai-collab-backend:rc-${GITHUB_SHA::12} >/dev/null
+
+          # 就绪等待（Flyway 迁移 + Spring 启动，上限 120s）
+          for i in $(seq 1 60); do
+            status=$(docker exec smoke-app wget -qO- http://127.0.0.1:8080/actuator/health 2>/dev/null || true)
+            echo "$status" | grep -q '"UP"' && break
+            [ "$i" = 60 ] && { docker logs --tail 80 smoke-app; exit 1; }
+            sleep 2
+          done
+
+          # 健康与存活探针必须 UP；敏感与非暴露端点必须拒绝匿名访问。
+          curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '"UP"'
+          curl -fsS http://127.0.0.1:8080/actuator/health/liveness | grep -q '"UP"'
+          code_env=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/actuator/env)
+          code_metrics=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/actuator/metrics)
+          code_info=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/actuator/info)
+          echo "actuator/env=$code_env actuator/metrics=$code_metrics actuator/info=$code_info"
+          [ "$code_env" != "200" ] && [ "$code_metrics" != "200" ] && [ "$code_info" != "200" ]
+
+          # 版本可追踪：镜像 revision 标签必须等于本次构建的 commit。
+          rev=$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' ai-collab-backend:rc-${GITHUB_SHA::12})
+          [ "$rev" = "$GITHUB_SHA" ]
+

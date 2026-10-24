@@ -35,6 +35,11 @@
 - **部署指南**：[`docs/deployment/`](deployment/) —— 包含网关部署、环境依赖配置等。
 - **自动化测试语料**：[`tests/fixtures/documents/`](../tests/fixtures/documents/) —— 用于知识库 RAG 评测与端到端测试的标准原件。
 
+### 3.1 发布就绪与运维 Runbook (`docs/release-readiness/`)
+
+- [P5 发布准备审计一轮（`release-readiness/p5-release-readiness-01/`](release-readiness/p5-release-readiness-01/README.md)）：全系统发布准备审查，裁决 `RELEASE_CONDITIONAL_GO`，识别四项运维 P1。
+- [P5 发布运维阻断项整改（`release-readiness/p5-release-readiness-02/`](release-readiness/p5-release-readiness-02/README.md)）：R-01 备份恢复演练（`ai-collab-deploy/backup/`）、R-02 可观测性基线、R-03 发布流水线与 Runbook、R-04 Refresh Cookie TLS 安全基线，逐项状态见其 `risk-status.json`。
+
 ---
 
 ## 4. 自动化验收证据与基准 (`docs/acceptance-evidence/`)

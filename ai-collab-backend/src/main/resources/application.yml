@@ -63,8 +63,16 @@ mybatis-plus:
     type-handlers-package: com.shitulelv.aicollab.common.persistence
 
 security:
+    jwt:
+        secret: "${JWT_SECRET:}"
+        access-token-minutes: "${JWT_ACCESS_TOKEN_MINUTES:30}"
+    cors:
+        allowed-origins: "${AUTH_ALLOWED_ORIGINS:http://localhost:5173}"
     refresh-token:
         cookie-secure: "${REFRESH_COOKIE_SECURE:true}"
+        # 默认强制 Secure Cookie；仅当显式确认（本地 HTTP 开发）时才允许 cookie-secure=false，
+        # 否则绑定校验失败、应用拒绝启动。见 RefreshTokenProperties。
+        allow-insecure-cookie: "${REFRESH_COOKIE_ALLOW_INSECURE:false}"
 
 auth:
     public-registration:
@@ -105,3 +113,36 @@ agent:
 model:
   config:
     master-key: "${MODEL_CONFIG_MASTER_KEY:}"
+
+# 生产（默认 profile）可观测性基线：
+# - 仅暴露 health/info；metrics 等需运维时通过 MANAGEMENT_ENDPOINTS_EXPOSURE 显式打开，
+#   且即便暴露，除 health 外的所有 Actuator 端点都受 SecurityConfig 的 JWT 认证保护。
+# - show-details=never：/actuator/health 匿名可访问（容器 HEALTHCHECK 与负载探针用），
+#   但不向未授权方泄露组件明细；组件级状态经授权通道（如临时打开 details 或读日志）诊断。
+# - probes 开启 /actuator/health/liveness 与 /actuator/health/readiness：
+#   liveness 只反映进程存活，整体 health 聚合数据源、Redis、MinIO 等关键依赖；
+#   AI 模型（Chat/Planning/Embedding）是按需外部服务，刻意不纳入健康聚合，避免上游抖动误判应用死亡。
+management:
+    endpoints:
+        web:
+            exposure:
+                include: "${MANAGEMENT_ENDPOINTS_EXPOSURE:health,info}"
+    endpoint:
+        health:
+            show-details: never
+            show-components: never
+            probes:
+                enabled: true
+
+logging:
+    # 控制台单行输出（容器标准 stdout，由部署侧日志系统收集），并携带请求关联 ID。
+    pattern:
+        console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [requestId=%X{requestId:-none}] %logger{40} - %msg%n"
+    level:
+        root: INFO
+        # 与 local profile 相同的敏感参数防泄漏基线：以下 Mapper 的 DEBUG 输出可能包含
+        # password_hash / token_hash / 分块正文与向量，任何环境都禁止降到 DEBUG。
+        com.shitulelv.aicollab.user.mapper: INFO
+        com.shitulelv.aicollab.auth.refresh.mapper: INFO
+        com.shitulelv.aicollab.document.infrastructure.mapper: INFO
+        com.shitulelv.aicollab.knowledge.infrastructure.mapper: INFO
