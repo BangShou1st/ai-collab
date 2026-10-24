@@ -84,7 +84,7 @@ nemotron-3.5-lightning:free 倾向把「负责人留空」实现为 `assigneeId:
 - 后端 Agent 模块定向测试：762 用例全绿（3 跳过为历史即跳过的 RealAgentLoopPostgresTest）。
 - 完整 `mvnw verify`：**BUILD SUCCESS**（含 Testcontainers 集成测试，11 分 57 秒，与 CI 同命令）。
 - 前端（无代码改动）：lint 0 errors / typecheck 通过 / Vitest 393 全绿 / build 成功。
-- CI：<推送后补记 run id / attempt / head SHA / 状态>。
+- CI：run [`40057436278`](https://github.com/BangShou1st/ai-collab/actions/runs/40057436278) · attempt 1 · head SHA `536ca3ada735fed5b1cf306e43dad37cad62836c` · **completed / success**（Backend Maven verify ✓ · Frontend pnpm ✓）。
 
 ## J. 观察项（非阻断）
 
