@@ -52,6 +52,12 @@
     "PLANNING_TEMPERATURE"
   ],
   "new_release_blockers_found": [],
+  "ci": {
+    "dev_push_run": { "id": "40109053755", "conclusion": "success", "note": "Backend/Frontend 全绿；Image Job 按既有触发条件在 dev push 跳过" },
+    "pr_run": { "id": "40109057039", "conclusion": "success", "note": "Backend/Frontend/Image build & container smoke 全部真实执行并通过；Image Job Validate compose config 步骤含新增契约回归" }
+  },
+  "final_dev_sha": "a19ae2d7ee3f7e244b97f0ed067ddf11a91cb866",
+  "main_unchanged": true,
   "pr_18": { "state": "OPEN", "draft": true, "merged": false },
   "verdict": "DEPLOYMENT_GATE_G1_ACCEPTED"
 }
