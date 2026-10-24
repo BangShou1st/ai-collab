@@ -1,0 +1,42 @@
+{
+  "task": "P5-RC-VALIDATION-01",
+  "date": "2026-10-24",
+  "baseline": "P5-RELEASE-READINESS-02 (9ef7550, R-01/R-02/R-04 FIXED_AND_VERIFIED; R-03 IMPLEMENTED_NOT_FULLY_VERIFIED)",
+  "updated_risks": {
+    "R-03-release-pipeline-runbook": {
+      "previous_status": "IMPLEMENTED_NOT_FULLY_VERIFIED",
+      "status": "FIXED_AND_VERIFIED",
+      "summary": "Image build & container smoke job 在真实 PR CI（run 40103355487, event=pull_request, attempt 1）首次实际执行且 PASS：镜像真实构建（Docker 内 BUILD SUCCESS）、revision label 与检出 commit 一致（断言通过）、pgvector/Redis/MinIO 临时依赖容器 + 应用容器启动、health 与 liveness UP、env/metrics/info 匿名 401。发布/回滚/备份三份 Runbook 逐条核对可执行。"
+    }
+  },
+  "unchanged_risks": {
+    "R-01-postgresql-minio-backup-restore": "FIXED_AND_VERIFIED（复用 P5-RELEASE-READINESS-02 证据，本轮未重复演练真实业务数据）",
+    "R-02-production-observability": "FIXED_AND_VERIFIED（复用既有证据；生产告警通道仍为部署环境补充项）",
+    "R-04-refresh-cookie-tls-baseline": "FIXED_AND_VERIFIED（复用既有证据；本轮 CI 冒烟再次覆盖生产 Secure 基线下的容器启动）"
+  },
+  "new_risks": [
+    {
+      "id": "N-01-image-job-not-required-check",
+      "severity": "P3",
+      "title": "main 分支保护的 required checks 仅含 Backend/Frontend，Image Job 不在其中",
+      "detail": "PR 的 Image Job 可能失败但仍可被合并（分支保护不阻断）。本轮 PR 由人工把关，风险有限；建议后续由管理员将 'Image build & container smoke' 加入 required status checks。",
+      "mitigation": "合并前人工核对三 Job 全绿；已在 rc-go-no-go.md 合并检查单中列明。"
+    },
+    {
+      "id": "N-02-forward-headers-strategy",
+      "severity": "P3",
+      "title": "compose 未显式配置 server.forward-headers-strategy，TLS 终止代理场景的转发头信任边界待真实环境确认",
+      "detail": "本地与 CI 冒烟（直连 8080）不受影响；生产经反代终止 HTTPS 后，协议/主机相关功能（如绝对链接、Cookie domain 判定）需在部署日验证。",
+      "mitigation": "已列入 rc-configuration-review.md 部署准备清单。"
+    }
+  ],
+  "p2_handling": {
+    "MCP 集成": "发布范围声明为实验特性（IMPLEMENTED_OFFLINE_ONLY，无真实连接验收），不纳入 RC 必测范围",
+    "Work 可视化域与通知中心": "发布范围声明为低置信度区域（有实现无完整业务验收），RC 期间按 S2 冒烟清单补验",
+    "历史 Agent FAILED Run 重试入口": "有『重新发消息』兜底与完备后端 API，延期到 RC 期间 UX 批次",
+    "跨 Run 审批历史展示限制": "功能限制声明，延期"
+  },
+  "new_p0_p1": [],
+  "risk_status": "R-01/R-02/R-03/R-04 全部 FIXED_AND_VERIFIED；新发现风险仅 P3 两项，均不阻断 RC",
+  "overall": "RC 四项运维风险全部闭环；镜像构建与容器冒烟经真实 PR CI 验证通过；无新 P0/P1"
+}
