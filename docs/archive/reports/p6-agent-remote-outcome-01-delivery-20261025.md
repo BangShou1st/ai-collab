@@ -2,6 +2,10 @@
 
 日期：2026-10-25。任务范围：工具出站结果确认、UNKNOWN 与安全恢复；不扩展 P6-A 调度架构。
 
+后续并发复核发现并补充修复了未提交 dispatch 的 TOCTOU 与缺失 Invocation 的孤立结果问题，详见
+[并发复核补充报告](../reviews/p6-agent-remote-outcome-01-toctou-review-20261025.md)。下文统计及 SHA 保留为首轮交付快照；
+最新补丁验收与源码 Manifest 以补充报告为准，最终裁决仍为 CI_PENDING。
+
 ## A. 根因与安全不变量
 
 旧超时记录统一为 FAILED/retryable=true，不能证明远端未成功。PENDING 没有出站阶段，崩溃后可能重发；

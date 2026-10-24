@@ -475,4 +475,145 @@ class AgentRemoteOutcomePostgresTest {
             assertThat(run.toolCallsUsed()).isEqualTo(1);
         } finally { release.countDown(); scheduler.close(); }
     }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"timeout", "provider_failure", "runtime_failure",
+            "safe_read_timeout", "rolled_back_timeout", "timeout_without_scope"})
+    void uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String kind) throws Exception {
+        boolean safeRead = "safe_read_timeout".equals(kind);
+        boolean rollback = "rolled_back_timeout".equals(kind);
+        boolean unknown = !safeRead && !rollback;
+        var marked = new java.util.concurrent.CountDownLatch(1);
+        var commit = new java.util.concurrent.CountDownLatch(1);
+        var settling = new java.util.concurrent.CountDownLatch(1);
+        var pid = new java.util.concurrent.atomic.AtomicInteger();
+        var effects = new java.util.concurrent.atomic.AtomicInteger();
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var outbound = pool.submit(() -> {
+                tx.executeWithoutResult(s -> {
+                    dispatch(safeRead ? AgentToolExecutionSafety.SAFE_READ : AgentToolExecutionSafety.UNCONFIRMABLE_SIDE_EFFECT);
+                    marked.countDown();
+                    awaitLatch(commit);
+                    if (rollback) s.setRollbackOnly();
+                });
+                if (unknown) effects.incrementAndGet(); // Potential side effect only after dispatch commit.
+            });
+            assertThat(marked.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            // READ COMMITTED cannot see the writer's dispatch marker yet.
+            assertThat(repository.dispatchedUnsafe(run, call)).isFalse();
+            var settlement = pool.submit(() -> tx.execute(s -> {
+                pid.set(jdbc.queryForObject("SELECT pg_backend_pid()", Integer.class));
+                settling.countDown();
+                try (var lease = "timeout_without_scope".equals(kind) ? null : new AgentLeaseScope(1)) {
+                    return settleExecutionFailure(kind.endsWith("timeout") || "timeout_without_scope".equals(kind) ? "timeout" : kind);
+                }
+            }));
+            assertThat(settling.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            awaitDatabaseBlock(pid.get());
+            commit.countDown();
+            outbound.get(10, java.util.concurrent.TimeUnit.SECONDS);
+            run = settlement.get(10, java.util.concurrent.TimeUnit.SECONDS);
+            assertThat(effects).hasValue(unknown ? 1 : 0);
+            String expectedStatus = unknown ? "UNKNOWN" : "FAILED";
+            assertThat(status()).isEqualTo(expectedStatus);
+            var persisted = repository.knownInvocationResult(run, call).orElseThrow();
+            assertThat(persisted.path("retryable").asBoolean()).isEqualTo(!unknown);
+            assertThat(run.toolCallsUsed()).isEqualTo(1);
+            assertThat(run.status()).isEqualTo(AgentRunStatus.RUNNING); // This test stops at tool settlement, before Run finalization.
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_step WHERE run_id=? AND output_json->>'status'=? AND reason='TOOL_ERROR'", Integer.class, run.id(), expectedStatus)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_run_event WHERE run_id=? AND type='TOOL_CALL_FAILED' AND payload_json->>'status'=?", Integer.class, run.id(), expectedStatus)).isEqualTo(1);
+        } finally {
+            commit.countDown();
+            pool.shutdownNow();
+            assertThat(pool.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    @Test void settlementCommittedBeforeDispatchMustRejectDispatchCas() throws Exception {
+        var settled = new java.util.concurrent.CountDownLatch(1);
+        var commit = new java.util.concurrent.CountDownLatch(1);
+        var dispatching = new java.util.concurrent.CountDownLatch(1);
+        var pid = new java.util.concurrent.atomic.AtomicInteger();
+        var effects = new java.util.concurrent.atomic.AtomicInteger();
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var settlement = pool.submit(() -> tx.execute(s -> {
+                AgentRunView result;
+                try (var lease = new AgentLeaseScope(1)) { result = settleExecutionFailure("timeout"); }
+                settled.countDown();
+                awaitLatch(commit);
+                return result;
+            }));
+            assertThat(settled.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            var outbound = pool.submit(() -> {
+                tx.executeWithoutResult(s -> {
+                    pid.set(jdbc.queryForObject("SELECT pg_backend_pid()", Integer.class));
+                    dispatching.countDown();
+                    dispatch(AgentToolExecutionSafety.UNCONFIRMABLE_SIDE_EFFECT);
+                });
+                effects.incrementAndGet();
+            });
+            assertThat(dispatching.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            awaitDatabaseBlock(pid.get());
+            commit.countDown();
+            run = settlement.get(10, java.util.concurrent.TimeUnit.SECONDS);
+            assertThatThrownBy(() -> outbound.get(10, java.util.concurrent.TimeUnit.SECONDS))
+                    .isInstanceOf(java.util.concurrent.ExecutionException.class).hasCauseInstanceOf(IllegalStateException.class);
+            assertThat(effects).hasValue(0);
+            assertThat(status()).isEqualTo("FAILED");
+            assertThat(repository.knownInvocationResult(run, call).orElseThrow().path("retryable").asBoolean()).isTrue();
+            assertThat(jdbc.queryForObject("SELECT dispatch_started_at IS NULL FROM agent_tool_invocation WHERE run_id=?", Boolean.class, run.id())).isTrue();
+            assertThat(run.toolCallsUsed()).isEqualTo(1);
+        } finally {
+            commit.countDown();
+            pool.shutdownNow();
+            assertThat(pool.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"missing", "previous-turn"})
+    void missingCurrentInvocationMustNotCreateStepEventOrSpendBudget(String kind) {
+        if ("previous-turn".equals(kind)) {
+            run = repository.recordModelTurn(run, turn(new ModelToolCall("current", call.name(), call.arguments())));
+        }
+        var before = run;
+        var input = json.createObjectNode().put("toolCallId", "missing".equals(kind) ? "does-not-exist" : call.id())
+                .set("arguments", call.arguments());
+        Throwable error = catchThrowable(() -> repository.recordToolResult(run, call.name(), input,
+                json.createObjectNode().put("status", "SUCCEEDED"), false));
+        var after = repository.findRun(run.projectId(), run.id()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertAll(
+                () -> assertThat(error).isInstanceOf(IllegalStateException.class),
+                () -> assertThat(after.toolCallsUsed()).isEqualTo(before.toolCallsUsed()),
+                () -> assertThat(after.version()).isEqualTo(before.version()),
+                () -> assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_step WHERE run_id=? AND type='TOOL_CALL_COMPLETED'", Integer.class, run.id())).isZero(),
+                () -> assertThat(jdbc.queryForObject("SELECT count(*) FROM agent_run_event WHERE run_id=? AND type IN ('TOOL_CALL_COMPLETED','TOOL_CALL_FAILED')", Integer.class, run.id())).isZero());
+    }
+
+    AgentRunView settleExecutionFailure(String kind) {
+        var executor = new AgentToolCallExecutor(repository, null, null, null, null, null,
+                new AgentToolResultSanitizer(json), json, events, null);
+        if ("timeout".equals(kind))
+            return org.springframework.test.util.ReflectionTestUtils.invokeMethod(executor, "recordToolTimeout", run, call);
+        RuntimeException failure = "provider_failure".equals(kind)
+                ? new com.shitulelv.aicollab.common.exception.BusinessException(com.shitulelv.aicollab.common.exception.ErrorCode.AI_PROVIDER_ERROR)
+                : new IllegalStateException("simulated response loss");
+        return org.springframework.test.util.ReflectionTestUtils.invokeMethod(executor, "recordToolFailure", run, call, failure);
+    }
+
+    static void awaitLatch(java.util.concurrent.CountDownLatch latch) {
+        try { assertThat(latch.await(20, java.util.concurrent.TimeUnit.SECONDS)).isTrue(); }
+        catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw new IllegalStateException(interrupted); }
+    }
+
+    static void awaitDatabaseBlock(int pid) {
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline) {
+            if (Boolean.TRUE.equals(jdbc.queryForObject("SELECT cardinality(pg_blocking_pids(?))>0", Boolean.class, pid))) return;
+            Thread.yield();
+        }
+        fail("Settlement/dispatch did not reach the observed PostgreSQL lock wait");
+    }
 }

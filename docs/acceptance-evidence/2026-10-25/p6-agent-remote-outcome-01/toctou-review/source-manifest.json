@@ -1,0 +1,32 @@
+{
+  "task": "P6_AGENT_REMOTE_OUTCOME_01_TOCTOU_REVIEW",
+  "baseline": "d694c1adbe80a1c29003d9db45942556e7fdea96",
+  "files": [
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/application/runtime/AgentToolCallExecutor.java",
+      "sha256": "cd58aa303cd1bc8c808ec65fe302b00962eacbcb2f4a8fc81b3b8874860cd009"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/repository/AgentRepository.java",
+      "sha256": "f93795443026283f6112ed14333026f65e6757b97d1990b1dc2b0c7a2a41e337"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/repository/AgentRunEventRecorder.java",
+      "sha256": "ba7d25bdea5188a39b754c9c9206194b123a21783db3d5c2a34eb006ffa4531f"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentRemoteOutcomePostgresTest.java",
+      "sha256": "6fb3f4408311626729e905dd02a964e11766ad39682a5f3d679341b47c04e461"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/AgentRemoteOutcomeTest.java",
+      "sha256": "044ad336035b812cf5a95c0b28fbf191a64d67019463cf48b5312ef9941e4898"
+    }
+  ],
+  "schedulerBaselineBlob": "4638e4324eefc9b8de3a9d66c9235377e513b9d2",
+  "schedulerCurrentBlob": "4638e4324eefc9b8de3a9d66c9235377e513b9d2",
+  "migrationChanged": false,
+  "frontendChanged": false,
+  "fullVerifyRerun": false,
+  "reason": "User explicitly requested targeted tests and necessary regressions only"
+}
