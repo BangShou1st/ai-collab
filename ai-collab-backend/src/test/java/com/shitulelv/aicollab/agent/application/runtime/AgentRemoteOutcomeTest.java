@@ -42,18 +42,20 @@ class AgentRemoteOutcomeTest {
     }
 
     @Test
-    void responseLostAfterDispatchMustNotBecomeRetryableFailure() {
+    void timeoutFallbackEventUsesAuthoritativeUnknownDisposition() {
         var json = new ObjectMapper();
         var repository = mock(AgentRepository.class);
         var run = mock(AgentRunView.class);
         var call = new ModelToolCall("lost", "remote_effect", json.createObjectNode());
-        when(repository.dispatchedUnsafe(run, call)).thenReturn(true);
-        when(repository.recordToolResult(any(), anyString(), any(), any(), anyBoolean())).thenReturn(run);
+        var unknown = json.createObjectNode().put("status", "UNKNOWN").put("retryable", false).put("error", "TOOL_OUTCOME_UNKNOWN");
+        when(repository.recordToolExecutionFailure(any(), anyString(), any(), any())).thenReturn(run);
+        when(repository.knownInvocationResult(run, call)).thenReturn(java.util.Optional.of(unknown));
+        var events = mock(AgentEventService.class);
         var executor = new AgentToolCallExecutor(repository, null, null, null, null, null,
-                new AgentToolResultSanitizer(json), json, mock(AgentEventService.class), null);
+                new AgentToolResultSanitizer(json), json, events, null);
         ReflectionTestUtils.invokeMethod(executor, "recordToolTimeout", run, call);
         var result = org.mockito.ArgumentCaptor.forClass(JsonNode.class);
-        verify(repository).recordToolResult(eq(run), eq(call.name()), any(), result.capture(), eq(true));
+        verify(events).append(any(), any(), eq(com.shitulelv.aicollab.agent.domain.model.AgentEventType.TOOL_CALL_FAILED), result.capture());
         assertThat(result.getValue().path("status").asText()).isEqualTo("UNKNOWN");
         assertThat(result.getValue().path("retryable").asBoolean()).isFalse();
     }

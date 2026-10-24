@@ -16,6 +16,13 @@ Scheduler 的线程不继承 ThreadLocal claim；必须在调用闭包内显式�
 必须保证：先提交出站标记才调用工具；失权 Worker 不得提交结果；任何取消/中断不证明远端撤销；
 UNKNOWN 不可被普通结果写入覆盖；同 Run 有不确定操作时停止自动业务推进；只读工具保留有界重试。
 
+并发结算的最终分类必须在 `recordToolExecutionFailure` 事务中完成：先锁 Run，再锁当前轮次 Invocation，
+取得最新已提交的 dispatch_started_at / execution_safety 后判断 UNKNOWN；事务外的 dispatchedUnsafe 只能用于恢复/规划查询提示。
+不能把先前的“未出站”读值直接当作 FAILED/retryable 的落库依据。出站事务先提交则不确定异常落 UNKNOWN；
+结算先提交则原 Invocation 已非 PENDING，后续 dispatch CAS 失败。出站事务回滚或可信 SAFE_READ 仍保留正常失败/重试语义。
+携带 toolCallId 的结果必须命中当前模型轮次的唯一 Invocation，身份匹配且为 PENDING，并检查最终 UPDATE 恰好影响一行；
+缺失、旧轮次、终态或参数冲突均在记账前拒绝，事务回滚不留下孤立 Step/Event 或额度消耗。
+
 ## 可信能力分类
 
 | 类别 | 声明与策略 |

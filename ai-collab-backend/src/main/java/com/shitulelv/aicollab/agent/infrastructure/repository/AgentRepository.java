@@ -867,6 +867,12 @@ public class AgentRepository {
         return recorder.recordToolResult(run, toolName, arguments, result, isError);
     }
 
+    @Transactional
+    public AgentRunView recordToolExecutionFailure(AgentRunView run, String toolName,
+            JsonNode arguments, JsonNode failure) {
+        return recorder.recordToolExecutionFailure(run, toolName, arguments, failure);
+    }
+
     /**
      * 记录最终答案。使用 ObjectMapper 序列化 JSONB，确保中文、引号、换行等正确保存。
      * 先检查版本，再写入数据，避免版本冲突时留下孤立数据。

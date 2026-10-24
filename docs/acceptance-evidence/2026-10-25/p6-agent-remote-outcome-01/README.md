@@ -1,5 +1,8 @@
 # P6-B 验收证据
 
+最新并发复核：[`toctou-review/`](toctou-review/)；初轮 Source Manifest 和完整 verify 记录保留为历史基线，
+补丁最终源码与定向回归使用该子目录的新回执。复核说明见 [补充报告](../../../archive/reviews/p6-agent-remote-outcome-01-toctou-review-20261025.md)。
+
 - [修复前单测](before-unit.json)：FAILED 与 UNKNOWN 的真实失败，以及取消后仍有副作用的刻画。
 - [修复前 PostgreSQL](before-postgres.json)：新 ToolCall 的额外执行、UNKNOWN 覆盖风险；原恢复防护通过情况。
 - [状态机 / T01–T14](state-machine-matrix.md)：方法、操作次数、Invocation/Run/事件断言与保证边界。

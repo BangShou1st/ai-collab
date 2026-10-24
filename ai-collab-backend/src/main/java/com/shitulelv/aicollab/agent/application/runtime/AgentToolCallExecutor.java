@@ -723,8 +723,6 @@ public class AgentToolCallExecutor {
         return !started && repository.isPauseRequested(run.projectId(), run.id());
     }
     private AgentRunView recordToolTimeout(AgentRunView run, ModelToolCall toolCall) {
-        if (repository.dispatchedUnsafe(run, toolCall))
-            return repository.recordToolResult(run, toolCall.name(), input(toolCall), unknownResult(), true);
         ObjectNode errorResult = json.createObjectNode();
         errorResult.put("status", "FAILED");
         errorResult.put("retryable", true);
@@ -734,13 +732,8 @@ public class AgentToolCallExecutor {
 
         ObjectNode inputWithId = input(toolCall);
 
-        run = repository.recordToolResult(run, toolCall.name(), inputWithId, sanitizedError, true);
-        emit(run, AgentEventType.TOOL_CALL_FAILED,
-                json.createObjectNode()
-                        .put("callId", toolCall.id())
-                        .put("toolName", toolCall.name())
-                        .put("errorCode", "TOOL_EXECUTION_TIMEOUT")
-                        .put("retryable", true));
+        run = repository.recordToolExecutionFailure(run, toolCall.name(), inputWithId, sanitizedError);
+        emitExecutionFailure(run, toolCall, sanitizedError);
         return run;
     }
 
@@ -790,8 +783,6 @@ public class AgentToolCallExecutor {
 
     private AgentRunView recordToolFailure(
             AgentRunView run, ModelToolCall toolCall, RuntimeException failure) {
-        if (repository.dispatchedUnsafe(run, toolCall))
-            return repository.recordToolResult(run, toolCall.name(), input(toolCall), unknownResult(), true);
         ObjectNode errorResult = json.createObjectNode();
         String code = failure instanceof BusinessException business ? business.getErrorCode().name() : "TOOL_EXECUTION_FAILED";
         errorResult.put("error", code);
@@ -809,14 +800,22 @@ public class AgentToolCallExecutor {
         // 保存原始 toolCallId 到 input_json
         ObjectNode inputWithId = input(toolCall);
 
-        run = repository.recordToolResult(run, toolCall.name(), inputWithId, sanitizedError, true);
+        run = repository.recordToolExecutionFailure(run, toolCall.name(), inputWithId, sanitizedError);
+        emitExecutionFailure(run, toolCall, sanitizedError);
+        return run;
+    }
+
+    private void emitExecutionFailure(AgentRunView run, ModelToolCall toolCall, JsonNode candidate) {
+        if (repository.atomicEventsEnabled()) return; // Recorder committed the authoritative event atomically.
+        var persisted = repository.knownInvocationResult(run, toolCall);
+        JsonNode outcome = persisted == null ? candidate : persisted.orElse(candidate);
         emit(run, AgentEventType.TOOL_CALL_FAILED,
                 json.createObjectNode()
                         .put("callId", toolCall.id())
                         .put("toolName", toolCall.name())
-                        .put("errorCode", code)
-                        .put("retryable", false));
-        return run;
+                        .put("status", outcome.path("status").asText())
+                        .put("errorCode", outcome.path("error").isObject() ? outcome.path("error").path("code").asText() : outcome.path("error").asText())
+                        .put("retryable", outcome.path("retryable").asBoolean() || outcome.path("error").path("retryable").asBoolean()));
     }
 
     private ObjectNode unknownResult() {

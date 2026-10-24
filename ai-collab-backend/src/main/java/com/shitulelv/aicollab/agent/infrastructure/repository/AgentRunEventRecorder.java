@@ -1164,21 +1164,43 @@ public class AgentRunEventRecorder {
     @Transactional
     public AgentRunView recordToolResult(AgentRunView run, String toolName,
                                   JsonNode arguments, JsonNode result, boolean isError) {
+        return recordToolResult(run, toolName, arguments, result, isError, false);
+    }
+
+    /** Local exceptions are not remote outcomes; classify only after serializing with dispatch. */
+    @Transactional
+    public AgentRunView recordToolExecutionFailure(AgentRunView run, String toolName,
+            JsonNode arguments, JsonNode failure) {
+        if (!arguments.hasNonNull("toolCallId")) throw new IllegalStateException("Execution failure requires invocation identity");
+        return recordToolResult(run, toolName, arguments, failure, true, true);
+    }
+
+    private AgentRunView recordToolResult(AgentRunView run, String toolName,
+            JsonNode arguments, JsonNode result, boolean isError, boolean uncertainFailure) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        // Worker scopes already lock the run. Keep the same run -> invocation lock order
+        // for callers without a scope too; dispatch uses this order in its own transaction.
+        if (AgentLeaseScope.currentEpoch() == null && jdbc.queryForList(
+                "SELECT id FROM agent_run WHERE project_id=? AND id=? FOR UPDATE", UUID.class, run.projectId(), run.id()).size() != 1)
+            throw new IllegalStateException("Agent run does not exist");
         if (arguments.hasNonNull("toolCallId")) {
             var states = jdbc.queryForList("""
-                    SELECT status,tool_name,arguments_json::text AS arguments_json FROM agent_tool_invocation WHERE run_id=? AND tool_call_id=?
+                    SELECT status,tool_name,arguments_json::text AS arguments_json,dispatch_started_at,execution_safety
+                    FROM agent_tool_invocation WHERE run_id=? AND tool_call_id=?
                       AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
                     FOR UPDATE
                     """, run.id(), arguments.path("toolCallId").asText(), run.id());
-            if (!states.isEmpty()) {
-                var state = states.getFirst();
-                if (!"PENDING".equals(state.get("status")))
-                    throw new IllegalStateException("Settled invocation cannot be overwritten");
-                if (!toolName.equals(state.get("tool_name"))
-                        || !arguments.path("arguments").equals(parseJsonOrNull(state.get("arguments_json").toString())))
-                    throw new IllegalStateException("Invocation identity does not match result");
-            }
+            if (states.size() != 1) throw new IllegalStateException("Invocation does not exist in current model turn");
+            var state = states.getFirst();
+            if (!"PENDING".equals(state.get("status")))
+                throw new IllegalStateException("Settled invocation cannot be overwritten");
+            if (!toolName.equals(state.get("tool_name"))
+                    || !arguments.path("arguments").equals(parseJsonOrNull(state.get("arguments_json").toString())))
+                throw new IllegalStateException("Invocation identity does not match result");
+            if (uncertainFailure && state.get("dispatch_started_at") != null && !"SAFE_READ".equals(state.get("execution_safety")))
+                result = json.createObjectNode().put("status", "UNKNOWN").put("retryable", false)
+                        .put("error", "TOOL_OUTCOME_UNKNOWN")
+                        .put("message", "工具可能已执行，请人工核对；系统不会自动重发");
         }
         markProgress(run.id());
         // 先验证版本和状态，避免版本冲突时留下孤立 Step。
@@ -1202,13 +1224,13 @@ public class AgentRunEventRecorder {
                 result.toString(),
                 isError ? "TOOL_ERROR" : "TOOL_SUCCESS");
         if (arguments.hasNonNull("toolCallId")) {
-            jdbc.update("""
+            requireRunUpdate(jdbc.update("""
                     UPDATE agent_tool_invocation SET status=?,result_json=?::jsonb,updated_at=now()
                     WHERE run_id=? AND tool_call_id=? AND tool_name=? AND arguments_json=?::jsonb
                       AND status='PENDING'
                       AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
                     """, isError ? result.path("status").asText("FAILED") : "SUCCEEDED", result.toString(),
-                    run.id(), arguments.path("toolCallId").asText(), toolName, arguments.path("arguments").toString(), run.id());
+                    run.id(), arguments.path("toolCallId").asText(), toolName, arguments.path("arguments").toString(), run.id()));
         }
         event(run,isError ? "TOOL_CALL_FAILED" : "TOOL_CALL_COMPLETED",json.createObjectNode()
                 .put("callId",arguments.path("toolCallId").asText()).put("toolName",toolName)
