@@ -9,6 +9,23 @@ PR [#18](https://github.com/BangShou1st/ai-collab/pull/18) 开工时 OPEN / Draf
 本报告、设计、源码及本地证据一起提交到 dev。最终提交本身的 SHA 无法自包含于自身文件；完整最终 dev SHA、远端一致性、同 SHA Actions run/job/步骤核对及最终裁决由聊天交付回执附在本报告之后。
 最终 CI 复核以前不得仅凭本报告宣称 ACCEPTED。可独立用交付回执 SHA 检出本报告，核对 [源码 blob 清单](../../acceptance-evidence/2026-10-25/p6-agent-concurrency-01/source-manifest.json) 与 [全部证据](../../acceptance-evidence/2026-10-25/p6-agent-concurrency-01/README.md)。
 
+## 已实核对的实现版本 CI 回执
+
+实现提交：`9783a0fb2e5e51c2af8257a540fb1f3b0c9626cc`，已同步 origin/dev。
+[dev push CI](https://github.com/BangShou1st/ai-collab/actions/runs/40113819565)：Backend/Frontend通过，Image按dev push既定条件跳过。
+[PR #18 CI](https://github.com/BangShou1st/ai-collab/actions/runs/40113822547)：Backend/Frontend/Image全部通过。
+两轮运行元数据的head_sha均为上述实现提交，已核对实际日志而非只看job名称。
+
+- Backend：确实执行 `bash ./mvnw -B -ntp verify`，1706项、0失败/错误、34显式opt-in跳过。
+  AgentToolSchedulerTest=13/0跳过，AgentPauseResumePostgresTest=21/0跳过，PersistedModelTurnRecoveryPostgresTest=24/0跳过，
+  LegacyApprovalCitationUpgradeTest=1/0跳过；日志明确记录 `Container test guard passed for all required classes`。
+- Frontend：安装冻结lockfile、lint/typecheck/test/build均执行，51文件393项测试通过。
+- Image：实际Docker构建和容器冒烟执行成功，敏感Actuator env/metrics/info均401。
+- PR实际checkout为`a91b7f42efe82cf91acdea6ac45e034c563670dd`，合并9783a0f到未改动main的校验提交；
+  其Git tree与实现提交完全相同，均为`168027e41f42f15317d3f4e9f3842ac62fbe4edd`。
+- main/origin/main仍为`9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7`；PR #18仍OPEN、Draft、未合并；工作区干净，临时任务日志已清理。
+
+此补记只修改交付报告，不修改生产/测试或原始证据。本报告所在最终文档提交的完整SHA与再次CI结果，仍在聊天最终回执中给出，避免把已验证实现SHA误称为之后的文档提交SHA。
 ## S0：旧缺陷与实验基线
 
 修改生产代码前实际运行：`AgentToolSchedulerBaselineTest#collisionAndWorkerStarvation`，1/1通过（测试断言的是缺陷复现），原始输出见 s0-baseline.txt。
@@ -71,7 +88,7 @@ AgentToolCallExecutor 使用 ScheduledToolCall 显式绑定工具调用、绝对
 
 条件：Windows11、Oracle Java21.0.10、32可见逻辑核，未改变CPU配额；同JVM交替old/new，每条件3次新调度器实例。
 REALISTIC分别2/4个Worker，每Run每批4项、10批，每项模拟4ms I/O；覆盖同用户、多用户。STRESS一次112项、前16项热点Run，先闭锁提交再放行。
-原始每项延迟、30组成对试验数量见CSV；延迟从提交至实际结束，拒绝不计成功延迟。吞吐按成功完成/整次墙钟，拒绝率=拒绝/提交。
+原始每项延迟、15组成对（30次单版）试验数量见CSV；延迟从提交至实际结束，拒绝不计成功延迟。吞吐按成功完成/整次墙钟，拒绝率=拒绝/提交。
 
 | 条件 | 旧 P95 ms（3次） | 新 P95 ms（3次） | 旧/新吞吐范围（项/s） |
 | --- | --- | --- | --- |
