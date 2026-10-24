@@ -1,0 +1,65 @@
+{
+  "task": "P4-MODEL-QUICK-CONNECT-REAL-ACCEPTANCE-01",
+  "generated_at": "2026-10-24",
+  "provider": "Google Gemini（用户自定义配置，官方端点）",
+  "config": {
+    "provider_id": "b89ec1b4-e25a-4dd0-b0ef-a934ca9f7082",
+    "name": "Gemini 3.5 Flash Lite",
+    "provider_type": "GEMINI",
+    "base_url": "https://generativelanguage.googleapis.com/v1beta/models",
+    "api_path": "/gemini-3.5-flash-lite:generateContent",
+    "note": "上一轮历史遗留旧格式（硬编码 path，无 {model} 占位符）；E2E-09（上轮）已验证旧格式兼容加载与保存，本轮未改动该配置",
+    "model_name": "gemini-3.5-flash-lite",
+    "capabilities": "CHAT,STREAMING",
+    "api_key_status": "已配置（加密落库，只写不读，任何证据文件不含明文）",
+    "config_version": "2026-10-23T18:47:42.992618Z（本轮全程未变更，探针结论保持 fresh）"
+  },
+  "network": "本机无法直连 generativelanguage.googleapis.com（curl 直连 10s 超时）；后端以历史验收已获用户允许的 JVM 参数 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=7897（http 同参）启动执行真实出站；未修改全局网络设置，验收后已恢复常规启动",
+  "connectivity_probe": {
+    "mode": "POST /api/v1/user/ai-providers/b89ec1b4-e25a-4dd0-b0ef-a934ca9f7082/test-capability?mode=CONNECTIVITY（经统一套件 UI 触发）",
+    "status": "PASS",
+    "real_generation": "真实出站请求到达 Gemini 官方端点并返回非空有效正文",
+    "model": "gemini-3.5-flash-lite（与配置一致）",
+    "latency_ms": 608,
+    "tested_at": "2026-10-24T00:16:46.254006Z",
+    "persisted": "user_ai_provider_probe_result (CONNECTIVITY, PASS)，tested_config_updated_at 与配置版本一致"
+  },
+  "streaming_probe": {
+    "mode": "test-capability?mode=STREAMING（同一套件）",
+    "status": "PASS",
+    "real_streaming": "收到真实 token 与正常结束事件，无错误事件、无截断误判",
+    "model": "gemini-3.5-flash-lite",
+    "latency_ms": 477,
+    "tested_at": "2026-10-24T00:16:46.773542Z",
+    "persisted": "user_ai_provider_probe_result (STREAMING, PASS)",
+    "knowledge_chat_ready": "AI 设置页「知识问答」用途就绪状态由 未验证 → 可用"
+  },
+  "discovery_note": "套件「模型发现 / 准入」步骤 INCONCLUSIVE：旧格式硬编码 api_path 下发现 GET 返回 404（AI_PROVIDER_NOT_FOUND 分类文案），按设计不影响后续生成测试；该分类与降级提示为上一轮修复项的真实正向验证",
+  "browser_knowledge_qa": {
+    "project": "P4-KNOWLEDGE-REAL-E2E-01 隔离验收项目（4dde7a2e-f26e-43a0-ae1f-51caeaa29d76，历史验收专用隔离项目，复用既有合成语料）",
+    "question": "哪些缺陷必须在生产发布前关闭？",
+    "answer": "根据项目资料，所有**阻断级缺陷**必须在生产发布前关闭 [S1]。",
+    "model": "gemini-3.5-flash-lite（UI 回答气泡展示模型标识）",
+    "sse": "流式完整结束（消息区出现回答与反馈按钮，无错误气泡）",
+    "citations": [
+      {
+        "id": "S1",
+        "document": "上线验收规程.md",
+        "section": "上线门禁",
+        "similarity": 0.702,
+        "quote": "生产发布前必须完成核心业务流程的自动化验收，所有阻断级缺陷必须关闭，并核对数据迁移结果无误。",
+        "consistency": "回答与引用原文语义一致，引用真实可溯源"
+      }
+    ],
+    "persistence": {
+      "table": "knowledge_message",
+      "rows": [
+        { "role": "USER", "content_head": "哪些缺陷必须在生产发布前关闭？", "created_at": "2026-10-24T00:18:55.56639Z" },
+        { "role": "ASSISTANT", "model_name": "gemini-3.5-flash-lite", "latency_ms": 913, "prompt_tokens": 755, "completion_tokens": 21, "created_at": "2026-10-24T00:18:55.566391Z" }
+      ]
+    },
+    "refresh_check": "页面刷新（重新导航 /projects/:id/knowledge）后 08:18 问答与 [S1] 引用完整可再次查看",
+    "rag_note": "未调整任何 RAG 检索算法；仅复用既有合成语料验证链路"
+  },
+  "screenshots": ["screenshots/02-gemini-suite-pass.png", "screenshots/03-gemini-knowledge-qa-sse.png", "screenshots/05-purpose-readiness.png"]
+}

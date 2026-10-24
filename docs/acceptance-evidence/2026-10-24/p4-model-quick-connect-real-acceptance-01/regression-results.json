@@ -1,0 +1,45 @@
+{
+  "task": "P4-MODEL-QUICK-CONNECT-REAL-ACCEPTANCE-01",
+  "generated_at": "2026-10-24",
+  "change_scope": "本轮零生产代码修改；仅文档改动（上一轮证据修正 + 本轮证据），无数据库迁移、无依赖变更",
+  "previous_evidence_fixes": {
+    "regression-results_json_parse": {
+      "fix": "末尾缺字段名的字符串改为合法 ci 字段（run 40012687910 / attempt 1 / head 65e046f… / completed success），原有测试事实未改写",
+      "verification": "Node JSON.parse 通过"
+    },
+    "browser_e2e_count": {
+      "fix": "summary 由 9 PASS 改为 10 PASS（实际记录 E2E-01 至 E2E-10 共 10 项全 PASS）；p4-model-quick-connect-02/README.md 两处同步（10 项浏览器场景 / 10 PASS / 0 FAIL）",
+      "verification": "JSON.parse 通过；未修改任何原始场景结论"
+    },
+    "git_stats_scope": {
+      "fix": "p4-model-quick-connect-02/README.md 第 A 节补写整轮口径 70 files / +3196 / -2133 / 净增 1063（git diff 71939d0..44dfc5e --shortstat 实测）；局部净删 1315 行保留并标注为生产代码局部口径"
+    }
+  },
+  "json_validation": {
+    "command": "Node JSON.parse 逐文件校验",
+    "files": [
+      "docs/acceptance-evidence/2026-10-24/p4-model-quick-connect-02/regression-results.json",
+      "docs/acceptance-evidence/2026-10-24/p4-model-quick-connect-02/browser-e2e.json",
+      "docs/acceptance-evidence/2026-10-24/p4-model-quick-connect-02/capability-probes.json",
+      "docs/acceptance-evidence/2026-10-24/p4-model-quick-connect-02/provider-matrix.json",
+      "本轮新增全部 JSON"
+    ],
+    "result": "全部解析通过"
+  },
+  "test_policy": "按任务书第十三节：仅证据文档修改，不无理由重跑 1600+ 后端测试；生产代码未变，上一轮全量回归与 CI（run 40012687910 / 40013560421）结论继续有效",
+  "environment_operations": {
+    "backend_proxy_relaunch": "验收期间后端以 JVM 参数 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=7897（http 同参）+ 既有 classpath 启动（与历史验收 p4-knowledge-real-e2e-01 相同方式）；验收结束后已恢复常规启动（dev.ps1 同款 java.args，无代理），/actuator/health UP",
+    "logs": "后端启动日志位于 ai-collab-backend/target/local-dev/（受控目录），项目根与源码目录无临时 *.log 残留",
+    "frontend": "Vite dev 5173 全程运行（本轮验收使用）",
+    "browser_session": "bsk 会话 nrzf 验收结束后已 stop 归还"
+  },
+  "data_hygiene": {
+    "temporary_config": "STALE 验收假端点配置已删除，user_ai_provider_probe_result 级联清理（残留 0）",
+    "user_data": "仅 U04 合成管理员（历史验收专用合成账户）Kilo 预设行 model_name 变更（原模型已被上游下线，处置依据见 README 第 G 节）；其他用户与业务数据未触碰",
+    "secrets": "全程未输出、未记录、未提交任何 API Key / Authorization Header / Cookie；API Key 仅以「已配置」状态呈现"
+  },
+  "ci": {
+    "note": "普通提交推送 dev；CI 结果待推送后由 GitHub Actions 出具，pending 状态如实交付",
+    "run": "见最终报告"
+  }
+}
