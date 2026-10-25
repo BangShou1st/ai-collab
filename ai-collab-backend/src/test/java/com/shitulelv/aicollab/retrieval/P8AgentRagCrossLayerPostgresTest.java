@@ -37,9 +37,10 @@ import static org.mockito.Mockito.*;
  * are substituted. Real tool registry/executor, composer, runtime guards, database access
  * guard and persistence execute. Scripted answers copy ONLY actual tool quotes, so this
  * proves transport/identity contracts, never autonomous reasoning or answer quality.
- * Inherits the local embedding opt-in and isolated container; no external model client.
+ * Explicit local embedding opt-in (JUnit's condition is not inherited); no external model client.
  */
 @Timeout(value = 12, unit = TimeUnit.MINUTES)
+@org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="AI_REAL_OLLAMA_RETRIEVAL",matches="true")
 class P8AgentRagCrossLayerPostgresTest extends P6RagQualityBaselinePostgresTest {
     @Autowired ProjectAccessGuard access;
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();

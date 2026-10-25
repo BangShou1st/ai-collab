@@ -1,0 +1,50 @@
+{
+  "sourceSha": "d380b21e24aeffbfe85bb61bd9cd7c1f931c9e9f",
+  "runs": [
+    {
+      "runId": 40213214858,
+      "headSha": "d380b21e24aeffbfe85bb61bd9cd7c1f931c9e9f",
+      "jobs": [
+        {
+          "name": "Backend (Maven verify)",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "name": "Image build & container smoke",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Frontend (pnpm)",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "runId": 40213208683,
+      "headSha": "d380b21e24aeffbfe85bb61bd9cd7c1f931c9e9f",
+      "jobs": [
+        {
+          "name": "Backend (Maven verify)",
+          "status": "completed",
+          "conclusion": "failure"
+        },
+        {
+          "name": "Frontend (pnpm)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "Image build & container smoke",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    }
+  ],
+  "rootCause": "P8AgentRagCrossLayerPostgresTest did not explicitly declare the non-inherited JUnit local Ollama condition. Ordinary CI executed real embedding and failed. This is not waived.",
+  "error": "P8AgentRagCrossLayerPostgresTest > P6RagQualityBaselinePostgresTest.seedCorpus: document embedding failed",
+  "rawOutput": "ai-collab-backend/target/p8-rag-quality-fix-01-ci-gate/push-initial-output.txt"
+}
