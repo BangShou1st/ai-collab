@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   listPurposes: vi.fn(),
   testCapability: vi.fn(),
+  detectAndConfigure: vi.fn(),
   probeResults: vi.fn(),
   providerModels: vi.fn(),
   profiles: vi.fn(),
@@ -41,10 +42,11 @@ vi.mock("../../stores/auth-store", () => ({
 vi.mock("./user-ai-api", () => ({
   userAiApi: {
     list: mocks.list, listPurposes: mocks.listPurposes,
-    testCapability: mocks.testCapability, probeResults: mocks.probeResults,
+    testCapability: mocks.testCapability, detectAndConfigure: mocks.detectAndConfigure,
+    probeResults: mocks.probeResults,
     models: mocks.providerModels, profiles: mocks.profiles,
     create: vi.fn(), update: vi.fn(), remove: vi.fn(), setDefault: vi.fn(), test: vi.fn(),
-    assignPurpose: vi.fn(), unassignPurpose: vi.fn(),
+    assignPurpose: vi.fn(), unassignPurpose: vi.fn(), discoverUnsavedModels: vi.fn(),
   },
 }));
 vi.mock("./ai-preset-api", () => ({
@@ -111,6 +113,14 @@ beforeEach(() => {
   mocks.presets.mockResolvedValue(response([zen({ connected: false, modelName: null, hasApiKey: false, isDefault: false }), kilo()]));
   mocks.models.mockResolvedValue(response(["mimo-v2.5-free"]));
   mocks.testCapability.mockResolvedValue(response({}));
+  mocks.detectAndConfigure.mockResolvedValue(response({
+    steps: [
+      { mode: "CONNECTIVITY", status: "PASS", detail: null, errorCode: null, latencyMs: 30 },
+      { mode: "STREAMING", status: "PASS", detail: null, errorCode: null, latencyMs: 40 },
+    ],
+    writeBack: { applied: true, reason: null, capabilitiesAfter: ["CHAT", "STREAMING"] },
+    generationRequests: 2,
+  }));
   mocks.disconnect.mockResolvedValue(undefined);
   mocks.confirm.mockResolvedValue(true);
 });
@@ -208,9 +218,9 @@ describe("UserAiSettingsView state accuracy", () => {
     ]));
     const wrapper = mountView();
     await flushPromises();
-    const knowledgeRow = wrapper.text().match(/知识问答[\s\S]*?(可用|未验证|不可用|未声明所需能力)/)?.[1] ?? "";
+    const knowledgeRow = wrapper.text().match(/知识问答[\s\S]*?(可用|未验证|不可用|未启用所需能力)/)?.[1] ?? "";
     expect(knowledgeRow).toBe("可用");
-    const planningRow = wrapper.text().match(/AI 规划[\s\S]*?(可用|未验证|不可用|未声明所需能力)/)?.[1] ?? "";
+    const planningRow = wrapper.text().match(/AI 规划[\s\S]*?(可用|未验证|不可用|未启用所需能力)/)?.[1] ?? "";
     expect(planningRow).toBe("未验证");
     wrapper.unmount();
   });
@@ -222,7 +232,7 @@ describe("UserAiSettingsView state accuracy", () => {
     ]));
     const wrapper = mountView();
     await flushPromises();
-    const knowledgeRow = wrapper.text().match(/知识问答[\s\S]*?(可用|未验证|不可用|未声明所需能力)/)?.[1] ?? "";
+    const knowledgeRow = wrapper.text().match(/知识问答[\s\S]*?(可用|未验证|不可用|未启用所需能力)/)?.[1] ?? "";
     expect(knowledgeRow).toBe("未验证");
     expect(wrapper.text()).toContain("已过期（配置已变更）");
     wrapper.unmount();
@@ -254,26 +264,29 @@ describe("UserAiSettingsView state accuracy", () => {
     mocks.list.mockResolvedValue(response([customProvider()]));
     const wrapper = mountView();
     await flushPromises();
-    await buttonByText(wrapper, "测试连接与能力")?.trigger("click");
+    await buttonByText(wrapper, "检测并配置")?.trigger("click");
     await flushPromises();
-    expect(mocks.testCapability.mock.calls.map((c) => c[1])).toEqual(["CONNECTIVITY", "STREAMING"]);
+    // 一次确认只发起一次后端编排调用（串行步骤在后端执行）
+    expect(mocks.detectAndConfigure).toHaveBeenCalledTimes(1);
+    expect(mocks.detectAndConfigure).toHaveBeenCalledWith("c-1", { planning: false, nativeTools: false });
+    expect(mocks.testCapability).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("连接（真实生成）");
     expect(wrapper.text()).toContain("流式输出");
     wrapper.unmount();
   });
 
   it("offers the unified capability suite for connected presets too", async () => {
-    // Zen 已连接：预设卡片渲染同一套测试入口，能力测试走统一 test-capability 通道。
+    // Zen 已连接：预设卡片渲染同一套检测入口，能力检测走统一编排通道（写回由服务端策略守卫）。
     mocks.list.mockResolvedValue(response([customProvider({
       id: "zen-row", presetCode: "OPENCODE_ZEN_FREE", isDefault: false,
     })]));
     const wrapper = mountView();
     await flushPromises();
-    const suiteButtons = wrapper.findAll("button").filter((b) => b.text() === "测试连接与能力");
+    const suiteButtons = wrapper.findAll("button").filter((b) => b.text() === "检测并配置");
     expect(suiteButtons.length).toBeGreaterThanOrEqual(1);
     await suiteButtons[0]!.trigger("click");
     await flushPromises();
-    expect(mocks.testCapability.mock.calls.map((c) => c[1])).toEqual(["CONNECTIVITY", "STREAMING"]);
+    expect(mocks.detectAndConfigure).toHaveBeenCalledTimes(1);
     wrapper.unmount();
   });
 

@@ -89,7 +89,10 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
 
     private ModelTurnResult turnWithConfig(ModelConfiguration config, ModelTurnCommand command) {
         if (!config.enabled()) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
-        if (!config.capabilities().contains(ModelCapability.NATIVE_TOOLS))
+        // 能力探针上下文中允许测试尚未声明 NATIVE_TOOLS 的模型（真实合成工具请求）；
+        // 生产 Agent 路径永不处于该上下文，声明门控保持不变。
+        if (!config.capabilities().contains(ModelCapability.NATIVE_TOOLS)
+                && !CapabilityProbeContext.activeFor(AiConfigurationContext.current()))
             throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "Agent 模型必须支持 NATIVE_TOOLS");
         ModelTurnProviderAdapter adapter = adapters.get(config.providerType());
         if (adapter == null) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);

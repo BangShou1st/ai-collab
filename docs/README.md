@@ -29,6 +29,7 @@
 - [Agent 预算与暂停恢复设计 (`design/agent-budget-and-resume-design.md`)](design/agent-budget-and-resume-design.md)：Token 预算控制、用户主动暂停与恢复设计。
 - [AI 能力下一阶段总设计 (`design/ai-next-stage-blueprint.md`)](design/ai-next-stage-blueprint.md)：长上下文压缩、多轮对话与知识库联动演进蓝图。
 - [RAG 检索质量、证据与成本优化 (`design/rag-quality-and-evidence.md`)](design/rag-quality-and-evidence.md)：QA 与 Agent 双路径检索基线、候选召回/上下文选择受控实验、引用契约与生产准入门槛（P6-RAG-QUALITY-01）。
+- [Provider 接入自动化与能力发现 (`design/provider-onboarding-and-capability-detection.md`)](design/provider-onboarding-and-capability-detection.md)：服务商档案、URL/Path 组合规则、探针专用执行边界、检测并配置与 CAS 写回（P7-PROVIDER-ONBOARDING-01）。
 
 ---
 
@@ -54,6 +55,7 @@
 
 - 目录格式：`docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`
 - [P7-BUSINESS-E2E-01：真实业务链路与发布前验收](acceptance-evidence/2026-10-25/p7-business-e2e-01/README.md)：E01–E12 真实浏览器验收矩阵、SSE 断线恢复复现、审批/权限后端强制证据、魔搭 ModelScope 自定义 Provider 与模型发现实测、404 错误映射与 Provider 卡片布局修复。
+- [P7-PROVIDER-ONBOARDING-01：AI 模型接入自动化与能力发现](acceptance-evidence/2026-10-25/p7-provider-onboarding-01/README.md)：探针专用执行边界（未声明能力真实可测）、检测并配置与 CAS 写回、URL/Path 重复前缀自动修正、ModelScope/Gemini 真实接入验收与 T01–T10 矩阵。
 - [P6-C：Agent 可观测性与可靠性诊断](acceptance-evidence/2026-10-25/p6-agent-observability-01/README.md)：状态快照、UNKNOWN索引、提交一致指标、MDC与Actuator安全验收。
 - [P6-RAG-QUALITY-01：RAG 检索质量、证据与引用契约](acceptance-evidence/2026-10-25/p6-rag-quality-01/README.md)：QA/Agent 双路径真实基线复现（Q02/Q03/Q09）、受控候选补充与选择实验、QA 每文档名额均衡准入与分组引用契约修复。
 - [P4-RAG-QUALITY-02：长文档召回参数成对复验](acceptance-evidence/2026-10-22/p4-rag-quality-02/README.md)：真实本地 Embedding 对照、生产准入判断与索引引用兼容性。

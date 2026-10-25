@@ -44,15 +44,18 @@ public class ProviderModelDiscoveryService {
     }
 
     private final UserAiProviderRepository repository;
+    private final UserAiProviderService providers;
     private final ModelSecretCipher secrets;
     private final JsonHttpModelClient http;
     private final Map<UUID, CacheEntry> cache = new ConcurrentHashMap<>();
 
     public ProviderModelDiscoveryService(
             UserAiProviderRepository repository,
+            UserAiProviderService providers,
             ModelSecretCipher secrets,
             JsonHttpModelClient http) {
         this.repository = repository;
+        this.providers = providers;
         this.secrets = secrets;
         this.http = http;
     }
@@ -82,8 +85,34 @@ public class ProviderModelDiscoveryService {
         return models;
     }
 
+    /**
+     * 未保存配置的模型发现：用户在表单里输入 Key 后即可一键获取模型列表，
+     * 无需先保存 Provider。只读 GET、不落库、不缓存、不消耗推理配额。
+     *
+     * <p>端点校验（HTTPS/公网/防 SSRF/重复版本前缀）与保存校验完全同口径；
+     * 传入的 Key 只用于本次出站请求，不写入任何存储，也不进日志。</p>
+     */
+    public List<String> discoverUnsaved(UUID userId, ModelProviderType providerType,
+            String baseUrl, String apiPath, String apiKey) {
+        providers.validateEndpoint(baseUrl, apiPath);
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "API Key 不能为空");
+        }
+        JsonNode response = http.get(
+                discoveryUrl(baseUrl, apiPath),
+                discoveryHeaders(providerType, apiKey));
+        List<String> models = parseModels(providerType, response);
+        if (models.isEmpty()) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                    "模型列表为空或格式无法识别，请手动填写模型 ID");
+        }
+        log.info("Discovered {} models for unsaved {} configuration of user {}",
+                models.size(), providerType, userId);
+        return models.stream().sorted().toList();
+    }
+
     private List<String> fetchModels(UserAiProvider provider) {
-        String url = discoveryUrl(provider);
+        String url = discoveryUrl(provider.baseUrl(), provider.apiPath());
         String apiKey = secrets.decrypt(provider.encryptedApiKey());
         JsonNode response = http.get(url, discoveryHeaders(provider.providerType(), apiKey));
         List<String> models = parseModels(provider.providerType(), response);
@@ -96,18 +125,22 @@ public class ProviderModelDiscoveryService {
 
     /** 拼接发现端点：与推理端点同前缀，出站安全校验由 JsonHttpModelClient 统一执行。 */
     static String discoveryUrl(UserAiProvider provider) {
-        String base = provider.baseUrl().strip();
+        return discoveryUrl(provider.baseUrl(), provider.apiPath());
+    }
+
+    static String discoveryUrl(String baseUrl, String apiPath) {
+        String base = baseUrl.strip();
         while (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }
-        String apiPath = provider.apiPath().strip();
-        Matcher modelsSegment = MODELS_SEGMENT.matcher(apiPath);
+        String path = apiPath.strip();
+        Matcher modelsSegment = MODELS_SEGMENT.matcher(path);
         if (modelsSegment.find()) {
-            return base + apiPath.substring(0, modelsSegment.end() - suffixLength(apiPath, modelsSegment.end()));
+            return base + path.substring(0, modelsSegment.end() - suffixLength(path, modelsSegment.end()));
         }
         for (String suffix : CHAT_COMPLETIONS_SUFFIXES) {
-            if (apiPath.endsWith(suffix)) {
-                return base + apiPath.substring(0, apiPath.length() - suffix.length()) + "/models";
+            if (path.endsWith(suffix)) {
+                return base + path.substring(0, path.length() - suffix.length()) + "/models";
             }
         }
         return base + "/models";

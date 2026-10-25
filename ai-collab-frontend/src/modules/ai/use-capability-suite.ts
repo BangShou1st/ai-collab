@@ -3,21 +3,20 @@ import { normalizeApiError } from '../../api/api-result'
 import { userAiApi, type UserAiProvider } from './user-ai-api'
 import {
   probeResultsFromViews,
-  type ProbeDisplayStatus,
   type ProbeMode,
   type ProbeResultState,
 } from './ai-purpose-status'
 
 /**
- * 统一“测试连接与能力”套件：三个接入入口（自定义 / Zen / Kilo）共用同一编排。
+ * 统一“检测并配置”编排：三个接入入口（自定义 / Zen / Kilo）共用同一面板。
  *
- * 步骤串行执行、逐步上报：静态检查（本地，无出站）→ 模型发现/准入（只读 GET）
- * → 连接（真实生成）→ 流式 → 规划（按需）→ 原生工具（按需）。
- * 只有用户点击按钮才发起；套件内每一步真实生成请求各至多一次（规划探针
- * 后端按生产口径含一次定向修复，最多两阶段共 4 次请求）。
+ * 用户一次确认后，前端只发起一次后端编排调用；串行步骤（静态检查 → 模型发现/准入
+ * → 连接 → 流式 →（可选）规划 →（可选）原生工具）与 PASS 能力的 CAS 写回都在后端
+ * 执行——同一 Provider 同时只允许一个检测任务由后端互斥保证，前端仅做防重复点击。
  *
- * FAIL（确定失败）会停止后续步骤并标记 SKIPPED；INCONCLUSIVE（临时故障）
- * 不中断——临时网络问题不代表后续能力结论。探针结论以后端落库分类为准。
+ * 出站预算（与后端一致）：连接 1 次、流式 1 次、规划最多 4 次（骨架+修复+细节+修复）、
+ * 原生工具 1 次；模型发现为只读 HTTP 请求另计。FAIL/NOT_SUPPORTED 中止后续步骤，
+ * INCONCLUSIVE（临时故障）继续；探针结论以后端落库分类为准。
  */
 export type SuiteStepKind = 'STATIC' | 'DISCOVERY' | 'PROBE'
 
@@ -53,6 +52,11 @@ export const SUITE_STEPS: SuiteStep[] = [
   { key: 'NATIVE_TOOLS', kind: 'PROBE', label: '原生工具调用', requestBudget: 1, optional: true },
 ]
 
+/** 按用户选择的深度能力给出真实生成请求预算（与后端编排一致）。 */
+export function suiteRequestBudget(options: SuiteOptions): number {
+  return 2 + (options.planning ? 4 : 0) + (options.nativeTools ? 1 : 0)
+}
+
 /** 套件步骤 → 对应探针模式（静态/发现无对应探针）。 */
 function probeModeOf(step: SuiteStep): ProbeMode | null {
   return step.kind === 'PROBE' ? (step.key as ProbeMode) : null
@@ -63,6 +67,8 @@ export interface SuiteRunState {
   steps: Record<string, SuiteStepState>
   /** 套件完成后刷新的落库探针结果（含 STALE 判定）。 */
   persisted: Record<ProbeMode, ProbeResultState | null>
+  /** 能力自动写回结果（applied=false 时 reason 说明原因）。 */
+  writeBack: { applied: boolean; reason: string | null } | null
 }
 
 export interface StaticConfigInput {
@@ -96,7 +102,12 @@ export function useCapabilitySuite() {
 
   function runState(providerId: string): SuiteRunState {
     if (!runs[providerId]) {
-      runs[providerId] = { running: false, steps: {}, persisted: probeResultsFromViews([]) }
+      runs[providerId] = {
+        running: false,
+        steps: {},
+        persisted: probeResultsFromViews([]),
+        writeBack: null,
+      }
     }
     return runs[providerId]
   }
@@ -114,28 +125,15 @@ export function useCapabilitySuite() {
     }
   }
 
-  /** 失败异常 → 步骤终态：优先采用后端落库分类（重新拉取），否则用错误码推导。 */
-  async function classifyFailure(providerId: string, step: SuiteStep, error: unknown): Promise<SuiteStepState> {
+  /** 静态/发现步骤（无落库）的失败归入临时故障口径：无法发现 ≠ 生成不可用。 */
+  function inconclusive(error: unknown): SuiteStepState {
     const normalized = normalizeApiError(error)
-    const mode = probeModeOf(step)
-    if (mode) {
-      // 后端已把失败分类落库；以后端分类为准。
-      await refreshPersisted(providerId)
-      const persisted = runState(providerId).persisted[mode]
-      if (persisted && persisted.status !== 'NOT_TESTED' && persisted.status !== 'STALE') {
-        return {
-          status: persisted.status as 'FAIL' | 'INCONCLUSIVE' | 'NOT_SUPPORTED',
-          detail: persisted.detail ?? normalized.message,
-          errorCode: persisted.errorCode ?? normalized.code,
-        }
-      }
-    }
-    // 静态/发现步骤（无落库）按错误码归入临时故障口径：无法发现 ≠ 生成不可用。
     return { status: 'INCONCLUSIVE', detail: normalized.message, errorCode: normalized.code }
   }
 
   /**
-   * 执行套件。串行逐步执行；provider 为 null 表示行尚未保存（静态检查仍可运行）。
+   * 执行「检测并配置」。provider 为 null 表示行尚未保存（仅静态检查可运行）；
+   * 运行中重复调用直接忽略（后端另有互斥兜底）。
    */
   async function run(
     providerId: string | null,
@@ -151,53 +149,80 @@ export function useCapabilitySuite() {
     const state = runState(stateKey)
     if (state.running) return
     state.running = true
-    const selected = SUITE_STEPS.filter((step) => {
-      if (!step.optional) return true
-      if (step.key === 'PLANNING_JSON') return options.planning
-      if (step.key === 'NATIVE_TOOLS') return options.nativeTools
-      return false
-    })
-    for (const step of SUITE_STEPS) {
-      state.steps[step.key] = selected.includes(step)
-        ? { status: 'PENDING' }
-        : { status: 'SKIPPED', detail: step.key === 'PLANNING_JSON' ? '未选择规划测试' : '未选择工具测试' }
-    }
+    state.writeBack = null
     try {
-      let hardStop = false
-      for (const step of selected) {
-        if (hardStop) {
-          state.steps[step.key] = { status: 'SKIPPED', detail: '前序步骤已确认失败，本步骤不再发起请求' }
-          continue
+      for (const step of SUITE_STEPS) {
+        const selected =
+          (step.kind !== 'PROBE') ||
+          (step.key === 'PLANNING_JSON' && options.planning) ||
+          (step.key === 'NATIVE_TOOLS' && options.nativeTools)
+        state.steps[step.key] = selected
+          ? { status: 'PENDING' }
+          : { status: 'SKIPPED', detail: step.key === 'PLANNING_JSON' ? '未选择规划测试' : '未选择工具测试' }
+      }
+      // 静态检查（0 次模型请求）
+      state.steps.STATIC = { status: 'RUNNING' }
+      const check = staticCheck(context.staticConfig)
+      state.steps.STATIC = check.ok ? { status: 'PASS' } : { status: 'FAIL', detail: check.detail ?? '静态配置不完整' }
+      if (!check.ok || !providerId) {
+        if (!providerId && check.ok) state.steps.DISCOVERY = { status: 'SKIPPED', detail: '配置尚未保存，请先保存再测试' }
+        for (const step of SUITE_STEPS) {
+          if (step.kind === 'PROBE' && state.steps[step.key].status === 'PENDING') {
+            state.steps[step.key] = { status: 'SKIPPED', detail: check.ok ? '配置尚未保存，请先保存再测试' : '静态检查未通过，未发起请求' }
+          }
         }
-        state.steps[step.key] = { status: 'RUNNING' }
-        if (step.kind === 'STATIC') {
-          const check = staticCheck(context.staticConfig)
-          state.steps[step.key] = check.ok
-            ? { status: 'PASS' }
-            : { status: 'FAIL', detail: check.detail ?? '静态配置不完整' }
-          if (!check.ok) hardStop = true
-          continue
+        if (providerId) await refreshPersisted(providerId)
+        return
+      }
+      // 模型发现/准入（只读请求）
+      state.steps.DISCOVERY = await runDiscovery(providerId, context)
+      // 探针编排：后端串行执行并写回，前端按步骤映射展示
+      for (const step of SUITE_STEPS) {
+        if (probeModeOf(step)) state.steps[step.key] = { status: 'RUNNING' }
+      }
+      try {
+        const result = await userAiApi.detectAndConfigure(providerId, {
+          planning: options.planning,
+          nativeTools: options.nativeTools,
+        })
+        const steps = result.data?.steps ?? []
+        for (const step of steps) {
+          const suiteStep = SUITE_STEPS.find((item) => item.key === step.mode)
+          if (!suiteStep) continue
+          if (step.status === 'PASS') {
+            state.steps[step.mode] = { status: 'PASS', latencyMs: step.latencyMs ?? undefined }
+          } else if (step.status === 'SKIPPED') {
+            state.steps[step.mode] = { status: 'SKIPPED', detail: step.detail ?? '前序步骤确认失败，未发起请求' }
+          } else {
+            state.steps[step.mode] = {
+              status: step.status,
+              detail: step.detail ?? '所选能力测试未满足输出契约',
+              errorCode: step.errorCode ?? undefined,
+            }
+          }
         }
-        if (!providerId) {
-          state.steps[step.key] = { status: 'SKIPPED', detail: '配置尚未保存，请先保存再测试' }
-          continue
+        // 后端只返回被选中的模式：未选中的保持“已跳过”，不得停留在 RUNNING
+        for (const suiteStep of SUITE_STEPS) {
+          const mode = probeModeOf(suiteStep)
+          if (!mode) continue
+          const current = state.steps[suiteStep.key]
+          if (current.status === 'RUNNING' || current.status === 'PENDING') {
+            state.steps[suiteStep.key] = { status: 'SKIPPED', detail: '未选择该能力测试' }
+          }
         }
-        if (step.kind === 'DISCOVERY') {
-          state.steps[step.key] = await runDiscovery(providerId, context)
-          continue
-        }
-        const mode = probeModeOf(step)
-        if (!mode) continue
-        try {
-          await userAiApi.testCapability(providerId, mode)
-          state.steps[step.key] = { status: 'PASS' }
-        } catch (error) {
-          const failure = await classifyFailure(providerId, step, error)
-          state.steps[step.key] = failure
-          if (failure.status === 'FAIL' || failure.status === 'NOT_SUPPORTED') hardStop = true
+        state.writeBack = result.data?.writeBack ?? null
+      } catch (error) {
+        // 后端编排整体失败（如并发互斥拒绝）：全部探针步骤标记为该错误
+        const normalized = normalizeApiError(error)
+        for (const step of SUITE_STEPS) {
+          if (!probeModeOf(step)) continue
+          const current = state.steps[step.key]
+          if (current.status === 'RUNNING' || current.status === 'PENDING') {
+            state.steps[step.key] = { status: 'INCONCLUSIVE', detail: normalized.message, errorCode: normalized.code }
+          }
         }
       }
-      if (providerId) await refreshPersisted(providerId)
+      await refreshPersisted(providerId)
     } finally {
       state.running = false
     }
@@ -235,11 +260,7 @@ export function useCapabilitySuite() {
       }
       return { status: 'PASS', detail: `发现 ${models.length} 个模型` }
     } catch (error) {
-      const normalized = normalizeApiError(error)
-      return {
-        status: 'INCONCLUSIVE',
-        detail: `模型列表不可用（${normalized.message}）；不影响后续生成测试，可手动确认模型 ID`,
-      }
+      return inconclusive(error)
     }
   }
 

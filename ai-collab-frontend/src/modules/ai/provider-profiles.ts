@@ -7,6 +7,7 @@ import { userAiApi, type AiProviderType, type ProviderProfile } from './user-ai-
  */
 export const BUILTIN_PROVIDER_PROFILES: ProviderProfile[] = [
   {
+    code: 'OPENAI_COMPATIBLE',
     providerType: 'OPENAI_COMPATIBLE',
     label: 'OpenAI 兼容',
     defaultBaseUrl: 'https://api.openai.com',
@@ -17,6 +18,18 @@ export const BUILTIN_PROVIDER_PROFILES: ProviderProfile[] = [
     apiPathHint: '推理端点路径，通常为 /v1/chat/completions；模型发现自动使用同前缀的 /models',
   },
   {
+    code: 'MODELSCOPE',
+    providerType: 'OPENAI_COMPATIBLE',
+    label: '魔搭 ModelScope',
+    defaultBaseUrl: 'https://api-inference.modelscope.cn',
+    defaultApiPath: '/v1/chat/completions',
+    apiKeyRequired: true,
+    modelDiscovery: true,
+    candidateCapabilities: ['CHAT', 'STREAMING', 'STRUCTURED_OUTPUT', 'NATIVE_TOOLS'],
+    apiPathHint: '官方 OpenAI 兼容路径 /v1/chat/completions；Base URL 无需再带 /v1（默认已按此拆分，避免 /v1/v1 重复）',
+  },
+  {
+    code: 'ANTHROPIC',
     providerType: 'ANTHROPIC',
     label: 'Anthropic',
     defaultBaseUrl: 'https://api.anthropic.com',
@@ -27,6 +40,7 @@ export const BUILTIN_PROVIDER_PROFILES: ProviderProfile[] = [
     apiPathHint: '推理端点路径，官方为 /v1/messages；模型发现自动使用同前缀的 /models',
   },
   {
+    code: 'GEMINI',
     providerType: 'GEMINI',
     label: 'Google Gemini',
     defaultBaseUrl: 'https://generativelanguage.googleapis.com',
@@ -41,8 +55,17 @@ export const BUILTIN_PROVIDER_PROFILES: ProviderProfile[] = [
 /** 表单新配置的安全初始能力：所有协议都支持，用户可再勾选其余候选。 */
 export const DEFAULT_DECLARED_CAPABILITIES = ['CHAT', 'STREAMING']
 
+/** 按档案 code 查找；编辑既有配置时按协议类型匹配主档案（code 与类型同名）。 */
+export function profileByCode(profiles: ProviderProfile[], code: string): ProviderProfile | undefined {
+  return profiles.find((profile) => profile.code === code)
+}
+
 export function profileByType(profiles: ProviderProfile[], type: AiProviderType): ProviderProfile {
-  return profiles.find((profile) => profile.providerType === type) ?? BUILTIN_PROVIDER_PROFILES[0]
+  return (
+    profileByCode(profiles, type) ??
+    profiles.find((profile) => profile.providerType === type && profile.code === type) ??
+    BUILTIN_PROVIDER_PROFILES[0]
+  )
 }
 
 /**

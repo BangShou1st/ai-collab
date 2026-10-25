@@ -93,7 +93,7 @@ class AiCapabilityProbePlanningContractTest {
         var parser = new TaskPlanOutputParser(json);
         var contract = new PlanningJsonContract(parser, json);
         probe = new AiCapabilityProbeService(providers, gateway, mock(ModelTurnGateway.class), json, contract,
-                mock(UserAiProviderProbeResultRepository.class));
+                mock(UserAiProviderProbeResultRepository.class), mock(UserAiProviderRepository.class));
     }
 
     private UserAiProvider provider() {
