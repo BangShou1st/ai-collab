@@ -54,6 +54,7 @@
 
 - 目录格式：`docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`
 - [P6-C：Agent 可观测性与可靠性诊断](acceptance-evidence/2026-10-25/p6-agent-observability-01/README.md)：状态快照、UNKNOWN索引、提交一致指标、MDC与Actuator安全验收。
+- [P6-RAG-QUALITY-01：RAG 检索质量、证据与引用契约](acceptance-evidence/2026-10-25/p6-rag-quality-01/README.md)：QA/Agent 双路径真实基线复现（Q02/Q03/Q09）、受控候选补充与选择实验、QA 每文档名额均衡准入与分组引用契约修复。
 - [P4-RAG-QUALITY-02：长文档召回参数成对复验](acceptance-evidence/2026-10-22/p4-rag-quality-02/README.md)：真实本地 Embedding 对照、生产准入判断与索引引用兼容性。
 - 注意：该目录下的部分基准 JSON 由自动化回归测试（如 `RealRetrievalBaselineTest` 等）作为只读断言基准直接引用，**严禁随意改名或删除**。
 

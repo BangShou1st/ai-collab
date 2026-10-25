@@ -1,7 +1,9 @@
 # P6-RAG-QUALITY-01 — 真实检索、证据保留、引用支持与成本优化设计
 
-> **状态：IN_REPOSITORY / 实施与验证进行中（阶段结果见 `docs/acceptance-evidence/2026-10-25/p6-rag-quality-01/`）**
+> **状态：IMPLEMENTED / `P6_RAG_QUALITY_01_ACCEPTED`（限检索/证据/引用契约层；生成层 NOT_EXECUTED，见验收证据）**
 > **设计基线：** `dev@d9554c301a8a82c986630ba085e97ea6e1e7fcdf`（2026-10-25）
+> **实施结论：** QA 每文档名额均衡选择（S2）与分组引用解析准入生产；Q02 召回与 Agent limit=8 挤压如实遗留。
+> **验收证据：** `docs/acceptance-evidence/2026-10-25/p6-rag-quality-01/README.md`
 > **范围：** Project Knowledge QA + Agent `search_project_knowledge` 的检索质量、上下文证据保留、引用有效性及成本测量。
 > **原则：** 不先改生产参数，不盲目引入重排模型；先复现问题，按证据批准改动。
 
