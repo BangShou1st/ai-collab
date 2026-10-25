@@ -1288,9 +1288,17 @@ public class AgentRunEventRecorder {
         // citations 参数是协调器移交的结构化来源（已完成委派子运行的持久引用投影），
         // 与本运行自己的持久证据合并——两者都来自持久化工具结果，不接受模型编造的 ID。
         var evidence = collectEvidence(run.id(), run.projectId());
-        if (citations != null) {
-            for (AgentCitation handed : citations) {
-                if (handed != null) evidence.putIfAbsent(handed.chunkId(), handed);
+        if (citations != null && !citations.isEmpty()) {
+            // A child may become stale after delegation completes. Revalidate against the parent's
+            // persisted handoff and current document identity; never trust handed text. A child
+            // failure does not invalidate sources from its earlier successful tool reads.
+            var delegated = collectDelegatedEvidence(run.id(), run.projectId(), citations);
+            for (AgentCitation handed : citations.stream().limit(50).toList()) {
+                if (handed == null) continue;
+                AgentCitation persisted = delegated.get(handed.chunkId());
+                if (persisted != null && persisted.documentId().equals(handed.documentId())) {
+                    evidence.putIfAbsent(persisted.chunkId(), persisted);
+                }
             }
         }
         // Source cards describe material actually read this run, never model-invented identifiers.
@@ -1803,6 +1811,39 @@ public class AgentRunEventRecorder {
                 """, String.class, runId, projectId, projectId)) {
             try { var citation = json.readValue(value, AgentCitation.class); evidence.putIfAbsent(citation.chunkId(), citation); }
             catch (JsonProcessingException malformed) { /* Only persisted, structured source identities are exposed. */ }
+        }
+        return evidence;
+    }
+
+    /** One bounded query, only this parent's persisted handoffs of successful tool reads; cards are available
+     * sources, not proof that the final text explicitly cited or semantically used them. */
+    private java.util.Map<UUID, AgentCitation> collectDelegatedEvidence(
+            UUID runId, UUID projectId, List<AgentCitation> handed) {
+        var evidence = new java.util.HashMap<UUID, AgentCitation>();
+        String requestedIds = handed.stream().limit(50).filter(java.util.Objects::nonNull)
+                .map(AgentCitation::chunkId).filter(java.util.Objects::nonNull).distinct()
+                .map(UUID::toString).collect(java.util.stream.Collectors.joining(",", "{", "}"));
+        for (String value : jdbc.queryForList("""
+                SELECT DISTINCT ON (c.value->>'chunkId') c.value::text
+                FROM agent_step s
+                CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(s.output_json->'citations')='array'
+                    THEN s.output_json->'citations' ELSE '[]'::jsonb END) c(value)
+                WHERE s.run_id=? AND s.type='DELEGATION_COMPLETED'
+                  AND c.value->>'chunkId'=ANY(?::text[])
+                  AND EXISTS (
+                    SELECT b.id FROM document_body_chunk b JOIN project_document d ON d.id=b.document_id
+                    WHERE b.id=ANY(?::uuid[]) AND b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId'
+                      AND d.project_id=? AND d.status<>'DELETING'
+                    UNION ALL SELECT b.id FROM document_chunk b JOIN project_document d ON d.id=b.document_id
+                    WHERE b.id=ANY(?::uuid[]) AND b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId'
+                      AND d.project_id=? AND d.status='READY')
+                ORDER BY c.value->>'chunkId', s.sequence_no
+                LIMIT 50
+                """, String.class, runId, requestedIds, requestedIds, projectId, requestedIds, projectId)) {
+            try {
+                var citation = json.readValue(value, AgentCitation.class);
+                evidence.putIfAbsent(citation.chunkId(), citation);
+            } catch (JsonProcessingException malformed) { /* Malformed identities cannot supply cards. */ }
         }
         return evidence;
     }

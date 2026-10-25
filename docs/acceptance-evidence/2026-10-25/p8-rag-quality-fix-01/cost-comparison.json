@@ -1,0 +1,1642 @@
+{
+  "units": "code points are not model tokens. No Chat generation calls; Chat input/output token usage is unavailable, not zero tokens.",
+  "tokenUsage": null,
+  "externalChatCalls": 0,
+  "paidEmbeddingCalls": 0,
+  "newModels": 0,
+  "baselineDataQueries": {
+    "unscopedCandidateSql": 1,
+    "scopedCandidateSql": 1,
+    "scopedValidationSql": 2,
+    "note": "Candidate/validation SQL counts from actual service path; configuration/cache/transport internals not globally instrumented."
+  },
+  "retrievalVariants": {
+    "extraCandidateSqlPerPath": 1,
+    "maxExtraRows": 4,
+    "maxMatchedDocuments": 2,
+    "supplementOnlyEmbeddingGatewayInvocations": 0,
+    "pairedObserverEmbeddingGatewayInvocationsPerQuestion": 3,
+    "totalIncludingInheritedDiagnosticBaselinePerQuestion": 6,
+    "productionVectorReuse": "NOT_IMPLEMENTED",
+    "note": "Similarity requires the query vector. The current public search API does not return it; this harness additionally invokes the real gateway to obtain it. Each question adds two search gateway invocations and one explicit gateway invocation, besides three inherited baseline/diagnostic invocations. R1/R2 consume this shared measured vector and make no further gateway call. No claim that the current production API could adopt the experiment at zero extra embedding calls. HTTP/cache hit counts are not measured.",
+    "metadataScanBound": "At most two already-hit documents; DocumentChunker rejects >1000 chunks/document; heading comparisons inspect <=150 bigram positions per heading. Query plan is only for the small frozen corpus, not a scale benchmark.",
+    "latency": "one sample per variant, SQL microseconds include first-use EXPLAIN overhead; no P95 or speedup claim"
+  },
+  "citationFix": {
+    "extraSqlPerFinalWithHandedSources": 1,
+    "maxRequestedIdentities": 50,
+    "maxReturnedIdentities": 50,
+    "extraModelCalls": 0,
+    "extraSources": 0,
+    "sourceCap": 50,
+    "note": "Parameterized run_id + at most50 chunk IDs + project filters; existing direct-source query unchanged; no migration/index added. New query uses existing agent_step(run_id,sequence_no) and source identity keys."
+  },
+  "selectionVariants": {
+    "S1ExtraSql": 0,
+    "S2ExtraSql": 0,
+    "extraVectorCalls": 0,
+    "sourceLimit": 8
+  },
+  "questions": [
+    {
+      "id": "Q01",
+      "latencyMs": 1167,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 8,
+          "documents": 8,
+          "contextCodePoints": 509,
+          "quoteCodePoints": 257
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 8,
+          "documents": 4,
+          "contextCodePoints": 521,
+          "quoteCodePoints": 271
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 8,
+          "documents": 5,
+          "contextCodePoints": 494,
+          "quoteCodePoints": 246
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 12,
+          "documents": 10,
+          "contextCodePoints": 1284,
+          "quoteCodePoints": 902
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 9,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 20815,
+          "normal": {
+            "context": 317,
+            "quote": 163
+          },
+          "window": {
+            "context": 1103,
+            "quote": 950
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 5322,
+          "normal": {
+            "context": 509,
+            "quote": 257
+          },
+          "window": {
+            "context": 521,
+            "quote": 271
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 9,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 6535,
+          "normal": {
+            "context": 317,
+            "quote": 163
+          },
+          "window": {
+            "context": 1103,
+            "quote": 950
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 5185,
+          "normal": {
+            "context": 509,
+            "quote": 257
+          },
+          "window": {
+            "context": 521,
+            "quote": 271
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q02",
+      "latencyMs": 468,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 8,
+          "documents": 8,
+          "contextCodePoints": 549,
+          "quoteCodePoints": 294
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 8,
+          "documents": 6,
+          "contextCodePoints": 538,
+          "quoteCodePoints": 285
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 8,
+          "documents": 6,
+          "contextCodePoints": 538,
+          "quoteCodePoints": 285
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 12,
+          "documents": 9,
+          "contextCodePoints": 798,
+          "quoteCodePoints": 415
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 12,
+          "supplementRows": 4,
+          "extraSql": 1,
+          "sqlMicros": 4756,
+          "normal": {
+            "context": 330,
+            "quote": 173
+          },
+          "window": {
+            "context": 339,
+            "quote": 183
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 22,
+          "supplementRows": 2,
+          "extraSql": 1,
+          "sqlMicros": 3407,
+          "normal": {
+            "context": 549,
+            "quote": 294
+          },
+          "window": {
+            "context": 1314,
+            "quote": 853
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 12,
+          "supplementRows": 4,
+          "extraSql": 1,
+          "sqlMicros": 61218,
+          "normal": {
+            "context": 330,
+            "quote": 173
+          },
+          "window": {
+            "context": 1116,
+            "quote": 960
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 22,
+          "supplementRows": 2,
+          "extraSql": 1,
+          "sqlMicros": 2407,
+          "normal": {
+            "context": 549,
+            "quote": 294
+          },
+          "window": {
+            "context": 1314,
+            "quote": 853
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q03",
+      "latencyMs": 249,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 8,
+          "documents": 8,
+          "contextCodePoints": 535,
+          "quoteCodePoints": 282
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 8,
+          "documents": 4,
+          "contextCodePoints": 1333,
+          "quoteCodePoints": 874
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 8,
+          "documents": 4,
+          "contextCodePoints": 577,
+          "quoteCodePoints": 325
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 12,
+          "documents": 9,
+          "contextCodePoints": 1579,
+          "quoteCodePoints": 988
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 8,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1643,
+          "normal": {
+            "context": 370,
+            "quote": 212
+          },
+          "window": {
+            "context": 1113,
+            "quote": 958
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 2134,
+          "normal": {
+            "context": 535,
+            "quote": 282
+          },
+          "window": {
+            "context": 1335,
+            "quote": 876
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 8,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 2098,
+          "normal": {
+            "context": 370,
+            "quote": 212
+          },
+          "window": {
+            "context": 1113,
+            "quote": 958
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1707,
+          "normal": {
+            "context": 535,
+            "quote": 282
+          },
+          "window": {
+            "context": 1335,
+            "quote": 876
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q04",
+      "latencyMs": 209,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 8,
+          "documents": 8,
+          "contextCodePoints": 559,
+          "quoteCodePoints": 309
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 8,
+          "documents": 4,
+          "contextCodePoints": 507,
+          "quoteCodePoints": 259
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 8,
+          "documents": 5,
+          "contextCodePoints": 547,
+          "quoteCodePoints": 295
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 12,
+          "documents": 9,
+          "contextCodePoints": 1314,
+          "quoteCodePoints": 937
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 9,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 2676,
+          "normal": {
+            "context": 310,
+            "quote": 155
+          },
+          "window": {
+            "context": 302,
+            "quote": 149
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 21,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 1804,
+          "normal": {
+            "context": 559,
+            "quote": 309
+          },
+          "window": {
+            "context": 496,
+            "quote": 248
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 9,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 2164,
+          "normal": {
+            "context": 310,
+            "quote": 155
+          },
+          "window": {
+            "context": 302,
+            "quote": 149
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 21,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 1429,
+          "normal": {
+            "context": 559,
+            "quote": 309
+          },
+          "window": {
+            "context": 496,
+            "quote": 248
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q05",
+      "latencyMs": 263,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 8,
+          "documents": 8,
+          "contextCodePoints": 521,
+          "quoteCodePoints": 271
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 8,
+          "documents": 5,
+          "contextCodePoints": 560,
+          "quoteCodePoints": 305
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 8,
+          "documents": 6,
+          "contextCodePoints": 541,
+          "quoteCodePoints": 289
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 12,
+          "documents": 9,
+          "contextCodePoints": 833,
+          "quoteCodePoints": 450
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 8,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 2258,
+          "normal": {
+            "context": 320,
+            "quote": 163
+          },
+          "window": {
+            "context": 339,
+            "quote": 179
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1581,
+          "normal": {
+            "context": 521,
+            "quote": 271
+          },
+          "window": {
+            "context": 560,
+            "quote": 305
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 8,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1610,
+          "normal": {
+            "context": 320,
+            "quote": 163
+          },
+          "window": {
+            "context": 339,
+            "quote": 179
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1595,
+          "normal": {
+            "context": 521,
+            "quote": 271
+          },
+          "window": {
+            "context": 560,
+            "quote": 305
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q06",
+      "latencyMs": 300,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 8,
+          "documents": 8,
+          "contextCodePoints": 492,
+          "quoteCodePoints": 239
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 8,
+          "documents": 6,
+          "contextCodePoints": 511,
+          "quoteCodePoints": 258
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 8,
+          "documents": 6,
+          "contextCodePoints": 511,
+          "quoteCodePoints": 258
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 12,
+          "documents": 10,
+          "contextCodePoints": 1930,
+          "quoteCodePoints": 953
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 9,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 2663,
+          "normal": {
+            "context": 323,
+            "quote": 164
+          },
+          "window": {
+            "context": 339,
+            "quote": 179
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 63024,
+          "normal": {
+            "context": 492,
+            "quote": 239
+          },
+          "window": {
+            "context": 511,
+            "quote": 258
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 9,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 6895,
+          "normal": {
+            "context": 323,
+            "quote": 164
+          },
+          "window": {
+            "context": 339,
+            "quote": 179
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 9629,
+          "normal": {
+            "context": 492,
+            "quote": 239
+          },
+          "window": {
+            "context": 511,
+            "quote": 258
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q07",
+      "latencyMs": 251,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 8,
+          "documents": 8,
+          "contextCodePoints": 1679,
+          "quoteCodePoints": 835
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 8,
+          "documents": 4,
+          "contextCodePoints": 496,
+          "quoteCodePoints": 250
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 8,
+          "documents": 4,
+          "contextCodePoints": 496,
+          "quoteCodePoints": 250
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 12,
+          "documents": 10,
+          "contextCodePoints": 1842,
+          "quoteCodePoints": 972
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 12,
+          "supplementRows": 4,
+          "extraSql": 1,
+          "sqlMicros": 2656,
+          "normal": {
+            "context": 306,
+            "quote": 153
+          },
+          "window": {
+            "context": 311,
+            "quote": 158
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 21,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 1909,
+          "normal": {
+            "context": 1679,
+            "quote": 835
+          },
+          "window": {
+            "context": 494,
+            "quote": 248
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 12,
+          "supplementRows": 4,
+          "extraSql": 1,
+          "sqlMicros": 2934,
+          "normal": {
+            "context": 306,
+            "quote": 153
+          },
+          "window": {
+            "context": 311,
+            "quote": 158
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 21,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 2157,
+          "normal": {
+            "context": 1679,
+            "quote": 835
+          },
+          "window": {
+            "context": 494,
+            "quote": 248
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q08",
+      "latencyMs": 353,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 8,
+          "documents": 6,
+          "contextCodePoints": 567,
+          "quoteCodePoints": 307
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 8,
+          "documents": 4,
+          "contextCodePoints": 557,
+          "quoteCodePoints": 295
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 8,
+          "documents": 5,
+          "contextCodePoints": 531,
+          "quoteCodePoints": 275
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 12,
+          "documents": 6,
+          "contextCodePoints": 862,
+          "quoteCodePoints": 463
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 11,
+          "supplementRows": 3,
+          "extraSql": 1,
+          "sqlMicros": 1943,
+          "normal": {
+            "context": 352,
+            "quote": 188
+          },
+          "window": {
+            "context": 352,
+            "quote": 188
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 2093,
+          "normal": {
+            "context": 567,
+            "quote": 307
+          },
+          "window": {
+            "context": 582,
+            "quote": 314
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 11,
+          "supplementRows": 3,
+          "extraSql": 1,
+          "sqlMicros": 2210,
+          "normal": {
+            "context": 352,
+            "quote": 188
+          },
+          "window": {
+            "context": 363,
+            "quote": 197
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 2234,
+          "normal": {
+            "context": 567,
+            "quote": 307
+          },
+          "window": {
+            "context": 582,
+            "quote": 314
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q09",
+      "latencyMs": 211,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 8,
+          "documents": 8,
+          "contextCodePoints": 998,
+          "quoteCodePoints": 748
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 8,
+          "documents": 5,
+          "contextCodePoints": 1046,
+          "quoteCodePoints": 793
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 8,
+          "documents": 6,
+          "contextCodePoints": 1026,
+          "quoteCodePoints": 774
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 12,
+          "documents": 9,
+          "contextCodePoints": 1302,
+          "quoteCodePoints": 921
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 8,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1950,
+          "normal": {
+            "context": 326,
+            "quote": 167
+          },
+          "window": {
+            "context": 326,
+            "quote": 167
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1803,
+          "normal": {
+            "context": 998,
+            "quote": 748
+          },
+          "window": {
+            "context": 1046,
+            "quote": 793
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 8,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1541,
+          "normal": {
+            "context": 326,
+            "quote": 167
+          },
+          "window": {
+            "context": 326,
+            "quote": 167
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 20,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1782,
+          "normal": {
+            "context": 998,
+            "quote": 748
+          },
+          "window": {
+            "context": 1046,
+            "quote": 793
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q10",
+      "latencyMs": 204,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 1,
+          "documents": 1,
+          "contextCodePoints": 51,
+          "quoteCodePoints": 21
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 1,
+          "documents": 1,
+          "contextCodePoints": 51,
+          "quoteCodePoints": 21
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 1,
+          "documents": 1,
+          "contextCodePoints": 51,
+          "quoteCodePoints": 21
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 1,
+          "documents": 1,
+          "contextCodePoints": 51,
+          "quoteCodePoints": 21
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 1,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 4211,
+          "normal": {
+            "context": 51,
+            "quote": 21
+          },
+          "window": {
+            "context": 51,
+            "quote": 21
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 1,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1370,
+          "normal": {
+            "context": 51,
+            "quote": 21
+          },
+          "window": {
+            "context": 51,
+            "quote": 21
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 1,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 3322,
+          "normal": {
+            "context": 51,
+            "quote": 21
+          },
+          "window": {
+            "context": 51,
+            "quote": 21
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 1,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1767,
+          "normal": {
+            "context": 51,
+            "quote": 21
+          },
+          "window": {
+            "context": 51,
+            "quote": 21
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q11",
+      "latencyMs": 211,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 133,
+          "quoteCodePoints": 73
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 133,
+          "quoteCodePoints": 73
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 133,
+          "quoteCodePoints": 73
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 133,
+          "quoteCodePoints": 73
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 3688,
+          "normal": {
+            "context": 133,
+            "quote": 73
+          },
+          "window": {
+            "context": 133,
+            "quote": 73
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1218,
+          "normal": {
+            "context": 133,
+            "quote": 73
+          },
+          "window": {
+            "context": 133,
+            "quote": 73
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 3681,
+          "normal": {
+            "context": 133,
+            "quote": 73
+          },
+          "window": {
+            "context": 133,
+            "quote": 73
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1428,
+          "normal": {
+            "context": 133,
+            "quote": 73
+          },
+          "window": {
+            "context": 133,
+            "quote": 73
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q12",
+      "latencyMs": 238,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 133,
+          "quoteCodePoints": 73
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 133,
+          "quoteCodePoints": 73
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 133,
+          "quoteCodePoints": 73
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 133,
+          "quoteCodePoints": 73
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1861,
+          "normal": {
+            "context": 133,
+            "quote": 73
+          },
+          "window": {
+            "context": 133,
+            "quote": 73
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1807,
+          "normal": {
+            "context": 133,
+            "quote": 73
+          },
+          "window": {
+            "context": 133,
+            "quote": 73
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1770,
+          "normal": {
+            "context": 133,
+            "quote": 73
+          },
+          "window": {
+            "context": 133,
+            "quote": 73
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 2361,
+          "normal": {
+            "context": 133,
+            "quote": 73
+          },
+          "window": {
+            "context": 133,
+            "quote": 73
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q13",
+      "latencyMs": 402,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 141,
+          "quoteCodePoints": 76
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 141,
+          "quoteCodePoints": 76
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 141,
+          "quoteCodePoints": 76
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 141,
+          "quoteCodePoints": 76
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1836,
+          "normal": {
+            "context": 141,
+            "quote": 76
+          },
+          "window": {
+            "context": 141,
+            "quote": 76
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1640,
+          "normal": {
+            "context": 141,
+            "quote": 76
+          },
+          "window": {
+            "context": 141,
+            "quote": 76
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1440,
+          "normal": {
+            "context": 141,
+            "quote": 76
+          },
+          "window": {
+            "context": 141,
+            "quote": 76
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1412,
+          "normal": {
+            "context": 141,
+            "quote": 76
+          },
+          "window": {
+            "context": 141,
+            "quote": 76
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q14",
+      "latencyMs": 211,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 8,
+          "documents": 7,
+          "contextCodePoints": 533,
+          "quoteCodePoints": 278
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 8,
+          "documents": 5,
+          "contextCodePoints": 510,
+          "quoteCodePoints": 257
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 8,
+          "documents": 5,
+          "contextCodePoints": 535,
+          "quoteCodePoints": 282
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 12,
+          "documents": 7,
+          "contextCodePoints": 800,
+          "quoteCodePoints": 416
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 9,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 1879,
+          "normal": {
+            "context": 331,
+            "quote": 173
+          },
+          "window": {
+            "context": 320,
+            "quote": 162
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 21,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 1776,
+          "normal": {
+            "context": 533,
+            "quote": 278
+          },
+          "window": {
+            "context": 509,
+            "quote": 256
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 9,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 1790,
+          "normal": {
+            "context": 331,
+            "quote": 173
+          },
+          "window": {
+            "context": 320,
+            "quote": 162
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 21,
+          "supplementRows": 1,
+          "extraSql": 1,
+          "sqlMicros": 2146,
+          "normal": {
+            "context": 533,
+            "quote": 278
+          },
+          "window": {
+            "context": 509,
+            "quote": 256
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q15",
+      "latencyMs": 312,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 3,
+          "documents": 1,
+          "contextCodePoints": 190,
+          "quoteCodePoints": 96
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 3,
+          "documents": 1,
+          "contextCodePoints": 190,
+          "quoteCodePoints": 96
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 3,
+          "documents": 1,
+          "contextCodePoints": 190,
+          "quoteCodePoints": 96
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 3,
+          "documents": 1,
+          "contextCodePoints": 190,
+          "quoteCodePoints": 96
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 3,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 4387,
+          "normal": {
+            "context": 190,
+            "quote": 96
+          },
+          "window": {
+            "context": 190,
+            "quote": 96
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 3,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1830,
+          "normal": {
+            "context": 190,
+            "quote": 96
+          },
+          "window": {
+            "context": 190,
+            "quote": 96
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 3,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 4379,
+          "normal": {
+            "context": 190,
+            "quote": 96
+          },
+          "window": {
+            "context": 190,
+            "quote": 96
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 3,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1594,
+          "normal": {
+            "context": 190,
+            "quote": 96
+          },
+          "window": {
+            "context": 190,
+            "quote": 96
+          }
+        }
+      ]
+    },
+    {
+      "id": "Q16",
+      "latencyMs": 193,
+      "selection": [
+        {
+          "strategy": "S0",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 125,
+          "quoteCodePoints": 63
+        },
+        {
+          "strategy": "S1_PROTECT_4",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 125,
+          "quoteCodePoints": 63
+        },
+        {
+          "strategy": "S2_CAP_2",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 125,
+          "quoteCodePoints": 63
+        },
+        {
+          "strategy": "S3_LIMIT_12",
+          "sources": 2,
+          "documents": 1,
+          "contextCodePoints": 125,
+          "quoteCodePoints": 63
+        }
+      ],
+      "retrieval": [
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "QA",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 2242,
+          "normal": {
+            "context": 125,
+            "quote": 63
+          },
+          "window": {
+            "context": 125,
+            "quote": 63
+          }
+        },
+        {
+          "strategy": "R1_NEIGHBOR",
+          "path": "AGENT",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1699,
+          "normal": {
+            "context": 125,
+            "quote": 63
+          },
+          "window": {
+            "context": 125,
+            "quote": 63
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "QA",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1676,
+          "normal": {
+            "context": 125,
+            "quote": 63
+          },
+          "window": {
+            "context": 125,
+            "quote": 63
+          }
+        },
+        {
+          "strategy": "R2_HEADING_BIGRAM",
+          "path": "AGENT",
+          "candidates": 2,
+          "supplementRows": 0,
+          "extraSql": 1,
+          "sqlMicros": 1442,
+          "normal": {
+            "context": 125,
+            "quote": 63
+          },
+          "window": {
+            "context": 125,
+            "quote": 63
+          }
+        }
+      ]
+    }
+  ]
+}

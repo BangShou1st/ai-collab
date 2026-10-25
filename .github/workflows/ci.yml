@@ -82,6 +82,7 @@ jobs:
               "com.shitulelv.aicollab.retrieval.RetrievalQualityHardGatePostgresTest",
               "com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest",
               "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest",
+              "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
               "com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetIsolationIntegrationTest",
               "com.shitulelv.aicollab.notification.NotificationNavigationPostgresTest",
           ]
