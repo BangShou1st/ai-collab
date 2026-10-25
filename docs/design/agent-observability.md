@@ -67,17 +67,17 @@
   能力                    当前事实                                                                                设计影响
   ----------------------- --------------------------------------------------------------------------------------- --------------------------------------------------
   P6-A 调度指标           已有 queue wait / execution Timer、active / pending Gauge、rejected / cancelled /       保留并复用，不重复注册
-                          timeout Counter                                                                         
+                          timeout Counter
 
   持久化事实              `agent_run`、`agent_step`、`agent_run_event` 保存运行状态、步骤、事件及部分延迟 / Token 作为 Run 诊断来源
-                          数据                                                                                    
+                          数据
 
   Invocation              `agent_tool_invocation`                                                                 可以计算 UNKNOWN 当前积压与年龄
-                          保存状态、`dispatch_started_at`、`dispatch_claim_version`、`execution_safety`，状态含   
-                          UNKNOWN                                                                                 
+                          保存状态、`dispatch_started_at`、`dispatch_claim_version`、`execution_safety`，状态含
+                          UNKNOWN
 
   模型出站                `RoutingAgentModelExecutor.callModel` 与 `callModelWithoutTools` 是主要 Agent           在真实出站边界计时
-                          模型调用入口                                                                            
+                          模型调用入口
 
   Worker 饱和             `AgentRuntimeJob.tick()` 捕获 `TaskRejectedException` 后仅 debug 记录                   增加拒绝计数
 
@@ -223,7 +223,7 @@ FAILED。`safety` 只允许 `AgentToolExecutionSafety`
   指标                                            类型              标签              口径
   ----------------------------------------------- ----------------- ----------------- ------------------------------
   `agent.run.status.count`                        Gauge             `status`          各持久化 Run 状态当前数量
-                                                                    固定状态集合      
+                                                                    固定状态集合
 
   `agent.run.lease.expired.count`                 Gauge             无                `RUNNING` 且 Lease 已过期的
                                                                                       Run 数
@@ -347,13 +347,13 @@ LIMIT 100;
   UNKNOWN 积压            count \> 0 持续 1 分钟  人工核对；不自动重试
 
   工具队列拥堵            pending ≥ 56（64 的     检查下游耗时与调度公平性，不先扩大配额
-                          87.5%）持续 5 分钟      
+                          87.5%）持续 5 分钟
 
   调度器拒绝              rejected 在 5           区分 queue_full / shutdown /
                           分钟内持续增长          executor_rejected
 
   Lease 过期              expired count \> 0      检查 Worker、恢复调度与数据库锁
-                          持续超过两个快照周期    
+                          持续超过两个快照周期
 
   模型错误率              5 分钟失败率            区分 timeout / provider_error /
                           \>10%，且样本 ≥20       invalid_response
