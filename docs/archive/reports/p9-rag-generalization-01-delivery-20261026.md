@@ -56,8 +56,11 @@
 
 ## 6. Git 与 CI
 
-- 提交在 `dev`；`main` 未动；PR #18 保持 OPEN/Draft/未合并；无 force push；未部署。
-- 最终提交 SHA 与 Push/PR CI 回执在推送后补记于 `docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01/README.md`（同 SHA 核实）。
+- 提交在 `dev`；`main` 未动（9b4f7c5）；PR #18 保持 OPEN/Draft/未合并；无 force push；未部署。
+- 最终 SHA：`52bdb68ed566f167e0b5130598d7ca0657b89cb9`（dev = origin/dev）。
+- CI 回执（同 SHA）：Push run [40223943044](https://github.com/BangShou1st/ai-collab/actions/runs/40223943044) success；
+  PR #18 run [40223947743](https://github.com/BangShou1st/ai-collab/actions/runs/40223947743) success
+  （Backend verify / Frontend / Image build & container smoke 全部 pass）。详见证据 README。
 
 ## 7. 遗留与边界
 
