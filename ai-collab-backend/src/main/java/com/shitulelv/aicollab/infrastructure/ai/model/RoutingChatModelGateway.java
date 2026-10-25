@@ -97,8 +97,10 @@ public class RoutingChatModelGateway implements ChatModelGateway {
             validateStructured(command, result);
             return result;
         }
-        ModelConfiguration configuration = provider.toModelConfiguration();
-        ModelCapabilityPolicy.require(configuration, command, false);
+            ModelConfiguration configuration = provider.toModelConfiguration();
+            if (!CapabilityProbeContext.activeFor(provider)) {
+                ModelCapabilityPolicy.require(configuration, command, false);
+            }
         ChatCompletionResult result = adapter(configuration).complete(
                 configuration, secrets.decrypt(configuration.encryptedApiKey()), command);
         validateStructured(command, result);
@@ -143,7 +145,9 @@ public class RoutingChatModelGateway implements ChatModelGateway {
                 return;
             }
             ModelConfiguration configuration = provider.toModelConfiguration();
-            ModelCapabilityPolicy.require(configuration, command, true);
+            if (!CapabilityProbeContext.activeFor(provider)) {
+                ModelCapabilityPolicy.require(configuration, command, true);
+            }
             adapter(configuration).completeStream(
                     configuration, secrets.decrypt(configuration.encryptedApiKey()),
                     command, onToken, result -> {

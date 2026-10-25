@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { staticCheck, useCapabilitySuite, SUITE_STEPS } from './use-capability-suite'
+import { staticCheck, useCapabilitySuite, SUITE_STEPS, suiteRequestBudget } from './use-capability-suite'
 import type { UserAiProvider } from './user-ai-api'
 
 const apiMocks = vi.hoisted(() => ({
-  testCapability: vi.fn(),
+  detectAndConfigure: vi.fn(),
   probeResults: vi.fn(),
   models: vi.fn(),
 }))
 
 vi.mock('./user-ai-api', () => ({
   userAiApi: {
-    testCapability: apiMocks.testCapability,
+    detectAndConfigure: apiMocks.detectAndConfigure,
     probeResults: apiMocks.probeResults,
     models: apiMocks.models,
   },
@@ -35,6 +35,7 @@ const staticConfig = {
 beforeEach(() => {
   vi.resetAllMocks()
   apiMocks.probeResults.mockResolvedValue({ data: [] })
+  apiMocks.models.mockResolvedValue({ data: ['my-model'] })
 })
 
 describe('staticCheck', () => {
@@ -59,12 +60,21 @@ describe('staticCheck', () => {
   })
 })
 
-describe('capability suite', () => {
-  it('runs static → discovery → connectivity → streaming in order on one confirmation', async () => {
-    apiMocks.models.mockResolvedValue({ data: ['my-model'] })
-    apiMocks.testCapability.mockResolvedValue({ data: {} })
+describe('detect-and-configure suite', () => {
+  it('issues one backend orchestration call and maps per-step verdicts', async () => {
+    apiMocks.detectAndConfigure.mockResolvedValue({
+      data: {
+        steps: [
+          { mode: 'CONNECTIVITY', status: 'PASS', detail: null, errorCode: null, latencyMs: 42 },
+          { mode: 'STREAMING', status: 'PASS', detail: null, errorCode: null, latencyMs: 60 },
+          { mode: 'NATIVE_TOOLS', status: 'PASS', detail: null, errorCode: null, latencyMs: 88 },
+        ],
+        writeBack: { applied: true, reason: null, capabilitiesAfter: ['CHAT', 'STREAMING', 'NATIVE_TOOLS'] },
+        generationRequests: 3,
+      },
+    })
     const suite = useCapabilitySuite()
-    await suite.run('p-1', { planning: false, nativeTools: false }, {
+    await suite.run('p-1', { planning: false, nativeTools: true }, {
       provider: provider(), staticConfig,
     })
     const steps = suite.runs['p-1']!.steps
@@ -72,37 +82,51 @@ describe('capability suite', () => {
     expect(steps.DISCOVERY).toMatchObject({ status: 'PASS' })
     expect(steps.CONNECTIVITY).toMatchObject({ status: 'PASS' })
     expect(steps.STREAMING).toMatchObject({ status: 'PASS' })
-    expect(apiMocks.models).toHaveBeenCalledWith('p-1', false)
-    expect(apiMocks.testCapability.mock.calls.map((c) => c[1])).toEqual(['CONNECTIVITY', 'STREAMING'])
-    // 未勾选的可选步骤被显式跳过，不发起请求
-    expect(apiMocks.testCapability).not.toHaveBeenCalledWith('p-1', 'PLANNING_JSON')
+    expect(steps.NATIVE_TOOLS).toMatchObject({ status: 'PASS' })
     expect(steps.PLANNING_JSON).toMatchObject({ status: 'SKIPPED' })
+    expect(apiMocks.detectAndConfigure).toHaveBeenCalledTimes(1)
+    expect(apiMocks.detectAndConfigure).toHaveBeenCalledWith('p-1', { planning: false, nativeTools: true })
+    expect(suite.runs['p-1']!.writeBack).toMatchObject({ applied: true })
   })
 
-  it('stops after a confirmed connectivity failure and marks the rest skipped', async () => {
-    apiMocks.models.mockResolvedValue({ data: [] })
-    apiMocks.testCapability.mockRejectedValueOnce(Object.assign(new Error('401'), {
-      isAxiosError: true, response: { status: 401, data: { code: 'AI_MODEL_CREDENTIAL_INVALID', message: 'Key 无效' } },
-    }))
-    apiMocks.probeResults.mockResolvedValue({
-      data: [{ mode: 'CONNECTIVITY', status: 'FAIL', model: 'my-model', detail: 'Key 无效', errorCode: 'AI_MODEL_CREDENTIAL_INVALID', latencyMs: 12, testedAt: '2026-10-24T00:00:00Z', stale: false }],
+  it('maps SKIPPED steps and failed verdicts from the backend result', async () => {
+    apiMocks.detectAndConfigure.mockResolvedValue({
+      data: {
+        steps: [
+          { mode: 'CONNECTIVITY', status: 'PASS', detail: null, errorCode: null, latencyMs: 30 },
+          { mode: 'STREAMING', status: 'FAIL', detail: 'Key 无效', errorCode: 'AI_MODEL_CREDENTIAL_INVALID', latencyMs: 12 },
+          { mode: 'PLANNING_JSON', status: 'SKIPPED', detail: '前序步骤确认失败，本步骤未发起请求', errorCode: null, latencyMs: null },
+          { mode: 'NATIVE_TOOLS', status: 'SKIPPED', detail: '前序步骤确认失败，本步骤未发起请求', errorCode: null, latencyMs: null },
+        ],
+        writeBack: { applied: false, reason: '检测期间配置已变更', capabilitiesAfter: ['CHAT'] },
+        generationRequests: 2,
+      },
     })
     const suite = useCapabilitySuite()
-    await suite.run('p-1', { planning: true, nativeTools: false }, {
+    await suite.run('p-1', { planning: true, nativeTools: true }, {
       provider: provider(), staticConfig,
     })
     const steps = suite.runs['p-1']!.steps
-    expect(steps.CONNECTIVITY).toMatchObject({ status: 'FAIL' })
-    expect(steps.STREAMING).toMatchObject({ status: 'SKIPPED' })
+    expect(steps.STREAMING).toMatchObject({ status: 'FAIL', detail: 'Key 无效' })
     expect(steps.PLANNING_JSON).toMatchObject({ status: 'SKIPPED' })
-    expect(apiMocks.testCapability).toHaveBeenCalledTimes(1)
+    expect(steps.NATIVE_TOOLS).toMatchObject({ status: 'SKIPPED' })
+    expect(suite.runs['p-1']!.writeBack).toMatchObject({ applied: false, reason: '检测期间配置已变更' })
   })
 
-  it('keeps going after an inconclusive step (transient failures are not verdicts)', async () => {
+  it('keeps discovery failure non-blocking: generation tests still run', async () => {
     apiMocks.models.mockRejectedValue(Object.assign(new Error('timeout'), {
       isAxiosError: true, response: { status: 504, data: { code: 'AI_MODEL_TIMEOUT', message: '超时' } },
     }))
-    apiMocks.testCapability.mockResolvedValue({ data: {} })
+    apiMocks.detectAndConfigure.mockResolvedValue({
+      data: {
+        steps: [
+          { mode: 'CONNECTIVITY', status: 'PASS', detail: null, errorCode: null, latencyMs: 30 },
+          { mode: 'STREAMING', status: 'PASS', detail: null, errorCode: null, latencyMs: 40 },
+        ],
+        writeBack: { applied: true, reason: null, capabilitiesAfter: ['CHAT', 'STREAMING'] },
+        generationRequests: 2,
+      },
+    })
     const suite = useCapabilitySuite()
     await suite.run('p-1', { planning: false, nativeTools: false }, {
       provider: provider(), staticConfig,
@@ -111,22 +135,7 @@ describe('capability suite', () => {
     // 发现失败不判 FAIL，也不阻断后续生成测试
     expect(steps.DISCOVERY).toMatchObject({ status: 'INCONCLUSIVE' })
     expect(steps.STREAMING).toMatchObject({ status: 'PASS' })
-  })
-
-  it('classifies undeclared capability as NOT_SUPPORTED via persisted verdict', async () => {
-    apiMocks.models.mockResolvedValue({ data: ['my-model'] })
-    apiMocks.testCapability.mockResolvedValueOnce({ data: {} })
-    apiMocks.testCapability.mockRejectedValueOnce(Object.assign(new Error('policy'), {
-      isAxiosError: true, response: { status: 503, data: { code: 'AI_PROVIDER_UNAVAILABLE', message: '当前模型配置不支持 STREAMING' } },
-    }))
-    apiMocks.probeResults.mockResolvedValue({
-      data: [{ mode: 'STREAMING', status: 'NOT_SUPPORTED', model: 'my-model', detail: '当前模型配置不支持 STREAMING', errorCode: 'AI_PROVIDER_UNAVAILABLE', latencyMs: 3, testedAt: '2026-10-24T00:00:00Z', stale: false }],
-    })
-    const suite = useCapabilitySuite()
-    await suite.run('p-1', { planning: false, nativeTools: false }, {
-      provider: provider({ capabilities: ['CHAT'] }), staticConfig,
-    })
-    expect(suite.runs['p-1']!.steps.STREAMING).toMatchObject({ status: 'NOT_SUPPORTED' })
+    expect(apiMocks.detectAndConfigure).toHaveBeenCalledTimes(1)
   })
 
   it('stops at static failure without any outbound request', async () => {
@@ -137,10 +146,40 @@ describe('capability suite', () => {
     const steps = suite.runs['p-1']!.steps
     expect(steps.STATIC).toMatchObject({ status: 'FAIL' })
     expect(apiMocks.models).not.toHaveBeenCalled()
-    expect(apiMocks.testCapability).not.toHaveBeenCalled()
+    expect(apiMocks.detectAndConfigure).not.toHaveBeenCalled()
+  })
+
+  it('unsaved providers only run the static check', async () => {
+    const suite = useCapabilitySuite()
+    await suite.run(null, { planning: false, nativeTools: false }, {
+      provider: null, staticConfig,
+    })
+    const steps = suite.runs['__unsaved__']!.steps
+    expect(steps.STATIC).toMatchObject({ status: 'PASS' })
+    expect(steps.DISCOVERY).toMatchObject({ status: 'SKIPPED' })
+    expect(steps.CONNECTIVITY).toMatchObject({ status: 'SKIPPED' })
+    expect(apiMocks.detectAndConfigure).not.toHaveBeenCalled()
+  })
+
+  it('ignores re-entrant invocation while a run is in flight', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
+    apiMocks.detectAndConfigure.mockImplementation(() => gate.then(() => ({
+      data: { steps: [], writeBack: { applied: false, reason: null, capabilitiesAfter: [] }, generationRequests: 0 },
+    })))
+    const suite = useCapabilitySuite()
+    const first = suite.run('p-1', { planning: false, nativeTools: false }, { provider: provider(), staticConfig })
+    await Promise.resolve()
+    const second = suite.run('p-1', { planning: false, nativeTools: false }, { provider: provider(), staticConfig })
+    release()
+    await Promise.all([first, second])
+    expect(apiMocks.detectAndConfigure).toHaveBeenCalledTimes(1)
   })
 
   it('verifies preset admission against the admitted model list', async () => {
+    apiMocks.detectAndConfigure.mockResolvedValue({
+      data: { steps: [], writeBack: { applied: true, reason: null, capabilitiesAfter: [] }, generationRequests: 0 },
+    })
     const suite = useCapabilitySuite()
     await suite.run('p-1', { planning: false, nativeTools: false }, {
       provider: provider({ presetCode: 'OPENCODE_ZEN_FREE', modelName: 'mimo-v2.5-free' }),
@@ -156,5 +195,12 @@ describe('capability suite', () => {
     // 每个真实生成步骤的预算必须显式声明，供 UI 展示请求量。
     const budgets = Object.fromEntries(SUITE_STEPS.map((s) => [s.key, s.requestBudget]))
     expect(budgets).toEqual({ STATIC: 0, DISCOVERY: 0, CONNECTIVITY: 1, STREAMING: 1, PLANNING_JSON: 4, NATIVE_TOOLS: 1 })
+  })
+
+  it('computes the total generation budget from selected deep probes', () => {
+    expect(suiteRequestBudget({ planning: false, nativeTools: false })).toBe(2)
+    expect(suiteRequestBudget({ planning: true, nativeTools: false })).toBe(6)
+    expect(suiteRequestBudget({ planning: false, nativeTools: true })).toBe(3)
+    expect(suiteRequestBudget({ planning: true, nativeTools: true })).toBe(7)
   })
 })

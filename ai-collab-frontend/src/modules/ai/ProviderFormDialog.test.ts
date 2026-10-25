@@ -8,15 +8,22 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   update: vi.fn(),
   models: vi.fn(),
+  discoverUnsavedModels: vi.fn(),
   success: vi.fn(),
+  warning: vi.fn(),
   error: vi.fn(),
 }))
 
 vi.mock("./user-ai-api", () => ({
-  userAiApi: { create: mocks.create, update: mocks.update, models: mocks.models },
+  userAiApi: {
+    create: mocks.create,
+    update: mocks.update,
+    models: mocks.models,
+    discoverUnsavedModels: mocks.discoverUnsavedModels,
+  },
 }))
 vi.mock("element-plus", () => ({
-  ElMessage: { success: mocks.success, warning: vi.fn(), error: mocks.error },
+  ElMessage: { success: mocks.success, warning: mocks.warning, error: mocks.error },
 }))
 vi.mock("../../api/api-result", () => ({
   showApiError: vi.fn((error: unknown, action: string) => `${action}失败`),
@@ -39,6 +46,7 @@ const stubs = {
   ElFormItem: { props: ["label"], template: '<label class="el-form-item-stub">{{ label }}<slot /></label>' },
   ElCollapse: { template: "<div><slot /></div>" },
   ElCollapseItem: { template: "<div><slot /></div>" },
+  ElAlert: { props: ["title", "description"], template: '<div class="el-alert-stub">{{ title }}<slot /></div>' },
 }
 
 function mountDialog(props: { visible: boolean; editing: any; profiles?: any }) {
@@ -48,38 +56,54 @@ function mountDialog(props: { visible: boolean; editing: any; profiles?: any }) 
   })
 }
 
+// 字段顺序（无发现列表时）：0 名称、1 API Key、2 模型、3 Base URL（高级）、4 API Path（高级）
 beforeEach(() => {
   vi.resetAllMocks()
   mocks.create.mockResolvedValue({ data: {} })
   mocks.update.mockResolvedValue({ data: {} })
   mocks.models.mockResolvedValue({ data: ["m1", "m2"] })
+  mocks.discoverUnsavedModels.mockResolvedValue({ data: ["m1", "m2"] })
 })
 
-describe("ProviderFormDialog provider presets", () => {
+describe("ProviderFormDialog provider profiles", () => {
   it("prefills the OpenAI-compatible defaults when opened for creation", async () => {
     const wrapper = mountDialog({ visible: true, editing: null })
     await flushPromises()
-    const baseInput = wrapper.findAll("input.el-input-stub")[1]!
+    const baseInput = wrapper.findAll("input.el-input-stub")[3]!
     expect((baseInput.element as HTMLInputElement).value).toBe("https://api.openai.com")
     wrapper.unmount()
   })
 
-  it("switches default endpoints when the provider type changes to GEMINI", async () => {
+  it("switches default endpoints when the provider profile changes to GEMINI", async () => {
     const wrapper = mountDialog({ visible: true, editing: null })
     await flushPromises()
     const select = wrapper.find("select.el-select-stub")
     await select.setValue("GEMINI")
     await flushPromises()
-    // Base URL 输入框（名称之后）应随 Gemini 档案切换
-    const baseInput = wrapper.findAll("input.el-input-stub")[1]!
+    const baseInput = wrapper.findAll("input.el-input-stub")[3]!
     expect((baseInput.element as HTMLInputElement).value).toBe("https://generativelanguage.googleapis.com")
     wrapper.unmount()
   })
 
-  it("does not overwrite a user-edited base URL when switching provider type", async () => {
+  it("prefills ModelScope defaults that avoid the duplicated /v1 junction", async () => {
     const wrapper = mountDialog({ visible: true, editing: null })
     await flushPromises()
-    const baseInput = wrapper.findAll("input.el-input-stub")[1]!
+    const select = wrapper.find("select.el-select-stub")
+    await select.setValue("MODELSCOPE")
+    await flushPromises()
+    const baseInput = wrapper.findAll("input.el-input-stub")[3]!
+    const apiPathInput = wrapper.findAll("input.el-input-stub")[4]!
+    expect((baseInput.element as HTMLInputElement).value).toBe("https://api-inference.modelscope.cn")
+    expect((apiPathInput.element as HTMLInputElement).value).toBe("/v1/chat/completions")
+    // 预填组合不得触发重复版本前缀警告
+    expect(wrapper.find(".el-alert-stub").exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it("does not overwrite a user-edited base URL when switching provider profile", async () => {
+    const wrapper = mountDialog({ visible: true, editing: null })
+    await flushPromises()
+    const baseInput = wrapper.findAll("input.el-input-stub")[3]!
     await baseInput.setValue("https://my-gateway.example.com/v1")
     const select = wrapper.find("select.el-select-stub")
     await select.setValue("ANTHROPIC")
@@ -89,10 +113,9 @@ describe("ProviderFormDialog provider presets", () => {
     wrapper.unmount()
   })
 
-  it("does not overwrite a user-edited api path when switching provider type", async () => {
+  it("does not overwrite a user-edited api path when switching provider profile", async () => {
     const wrapper = mountDialog({ visible: true, editing: null })
     await flushPromises()
-    // 高级设置里的 API Path：名称/Base URL/Key/模型之后的第五个 el-input-stub
     const apiPathInput = wrapper.findAll("input.el-input-stub")[4]!
     await apiPathInput.setValue("/custom/path")
     const select = wrapper.find("select.el-select-stub")
@@ -113,7 +136,7 @@ describe("ProviderFormDialog provider presets", () => {
       },
     })
     await flushPromises()
-    const baseInput = wrapper.findAll("input.el-input-stub")[1]!
+    const baseInput = wrapper.findAll("input.el-input-stub")[3]!
     expect((baseInput.element as HTMLInputElement).value).toBe("https://custom.example.com")
     const select = wrapper.find("select.el-select-stub")
     await select.setValue("GEMINI")
@@ -135,7 +158,7 @@ describe("ProviderFormDialog provider presets", () => {
     })
     await flushPromises()
     // 编辑时 Key 留空 → 提交 null（后端保留原 Key）
-    const keyInput = wrapper.findAll("input.el-input-stub")[2]!
+    const keyInput = wrapper.findAll("input.el-input-stub")[1]!
     expect((keyInput.element as HTMLInputElement).value).toBe("")
     const saveButton = wrapper.findAll("button").find((b) => b.text() === "保存")
     await saveButton!.trigger("click")
@@ -148,11 +171,10 @@ describe("ProviderFormDialog provider presets", () => {
     const wrapper = mountDialog({ visible: true, editing: null })
     await flushPromises()
     const nameInput = wrapper.findAll("input.el-input-stub")[0]!
-    // 字段顺序：名称、Base URL、API Key、模型
     await nameInput.setValue("网关")
-    const keyInput = wrapper.findAll("input.el-input-stub")[2]!
+    const keyInput = wrapper.findAll("input.el-input-stub")[1]!
     await keyInput.setValue("sk-test")
-    const modelInput = wrapper.findAll("input.el-input-stub")[3]!
+    const modelInput = wrapper.findAll("input.el-input-stub")[2]!
     await modelInput.setValue("my-model")
     const saveButton = wrapper.findAll("button").find((b) => b.text() === "保存")
     await saveButton!.trigger("click")
@@ -165,24 +187,68 @@ describe("ProviderFormDialog provider presets", () => {
     wrapper.unmount()
   })
 
-  it("falls back to manual model input when discovery fails", async () => {
-    mocks.models.mockRejectedValue(new Error("boom"))
-    const wrapper = mountDialog({
-      visible: true,
-      editing: {
-        id: "c-1", name: "n", presetCode: null, providerType: "OPENAI_COMPATIBLE",
-        baseUrl: "https://api.example.com", apiPath: "/v1/chat/completions",
-        hasApiKey: true, modelName: "my-model", enabled: true, isDefault: false,
-        temperature: 0.2, maxOutputTokens: 1200, capabilities: ["CHAT"], updatedAt: "2026-10-20T00:00:00Z",
-      },
-    })
+  it("discovers models for an unsaved config via the typed key", async () => {
+    const wrapper = mountDialog({ visible: true, editing: null })
     await flushPromises()
+    const keyInput = wrapper.findAll("input.el-input-stub")[1]!
+    await keyInput.setValue("sk-test")
     const discoverButton = wrapper.findAll("button").find((b) => (b.attributes("title") ?? "").includes("获取模型列表"))
-    expect(discoverButton).toBeTruthy()
     await discoverButton!.trigger("click")
     await flushPromises()
-    // 发现失败不阻断：模型字段回到手动输入（页面只剩 Provider 类型一个下拉）
+    expect(mocks.discoverUnsavedModels).toHaveBeenCalledWith({
+      providerType: "OPENAI_COMPATIBLE",
+      baseUrl: "https://api.openai.com",
+      apiPath: "/v1/chat/completions",
+      apiKey: "sk-test",
+    })
+    // 发现成功后模型字段变为可搜索选择
+    expect(wrapper.findAll("select.el-select-stub").length).toBe(2)
+    wrapper.unmount()
+  })
+
+  it("falls back to manual model input when discovery fails", async () => {
+    mocks.discoverUnsavedModels.mockRejectedValue(new Error("boom"))
+    const wrapper = mountDialog({ visible: true, editing: null })
+    await flushPromises()
+    const keyInput = wrapper.findAll("input.el-input-stub")[1]!
+    await keyInput.setValue("sk-test")
+    const discoverButton = wrapper.findAll("button").find((b) => (b.attributes("title") ?? "").includes("获取模型列表"))
+    await discoverButton!.trigger("click")
+    await flushPromises()
+    // 发现失败不阻断：模型字段回到手动输入（页面只剩服务商一个下拉）
     expect(wrapper.findAll("select.el-select-stub").length).toBe(1)
+    wrapper.unmount()
+  })
+})
+
+describe("ProviderFormDialog duplicate version prefix warning", () => {
+  it("warns before save and offers one-click fixes for the /v1 + /v1 combination", async () => {
+    const wrapper = mountDialog({ visible: true, editing: null })
+    await flushPromises()
+    const baseInput = wrapper.findAll("input.el-input-stub")[3]!
+    await baseInput.setValue("https://api-inference.modelscope.cn/v1")
+    await flushPromises()
+    // 保存前即出现明确提示（0 次网络请求）
+    expect(wrapper.find(".el-alert-stub").exists()).toBe(true)
+    const fixBase = wrapper.findAll("button").find((b) => b.text().includes("Base URL 不带"))
+    const fixPath = wrapper.findAll("button").find((b) => b.text().includes("API Path 不带"))
+    expect(fixBase).toBeTruthy()
+    expect(fixPath).toBeTruthy()
+    // 一键修正（API Path 方向）：去掉重复版本前缀
+    await fixPath!.trigger("click")
+    await flushPromises()
+    expect((wrapper.findAll("input.el-input-stub")[4]!.element as HTMLInputElement).value).toBe("/chat/completions")
+    expect(wrapper.find(".el-alert-stub").exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it("keeps the endpoint preview visible in advanced settings", async () => {
+    const wrapper = mountDialog({ visible: true, editing: null })
+    await flushPromises()
+    const preview = wrapper.find('[data-test="endpoint-preview"]')
+    expect(preview.exists()).toBe(true)
+    expect(preview.text()).toContain("https://api.openai.com/v1/chat/completions")
+    expect(preview.text()).toContain("https://api.openai.com/v1/models")
     wrapper.unmount()
   })
 })

@@ -181,7 +181,8 @@ public class UserAiProviderService {
      * URI 解析，其余任何花括号组合仍然被拒绝。出站安全策略（HTTPS/公网/防 SSRF）
      * 保持不变：占位符替换发生在安全校验之前，校验对象覆盖完整路径。</p>
      */
-    private void validateEndpoint(String baseUrl, String apiPath) {
+    /** 保存与未保存模型发现共用的端点校验（同包内复用）。 */
+    void validateEndpoint(String baseUrl, String apiPath) {
         String baseText = baseUrl == null ? "" : baseUrl.strip();
         String pathText = apiPath == null ? "" : apiPath.strip();
         URI base;
@@ -224,6 +225,16 @@ public class UserAiProviderService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "Base URL 不符合出站安全策略：仅允许公网 HTTPS 地址（禁止内网、环回与链路本地地址）");
         }
+        ProviderEndpointRules.duplicateVersionJunction(baseText, pathText).ifPresent(duplicate ->
+                throwDuplicateVersionJunction(baseText, pathText, duplicate));
+    }
+
+    /** Base URL 末段与 API Path 首段重复版本前缀（如 /v1 + /v1/... → /v1/v1/...）：发请求前直接拒绝并给出修正方向。 */
+    private static void throwDuplicateVersionJunction(String baseUrl, String apiPath, String duplicate) {
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                "Base URL 与 API Path 拼接后会重复版本前缀 /" + duplicate
+                        + "（最终端点：" + ProviderEndpointRules.inferenceUrlPreview(baseUrl, apiPath) + "）。"
+                        + "请删除其一：Base URL 末尾的 /" + duplicate + "，或 API Path 开头的 /" + duplicate + "。");
     }
 
     private static void validateModelParameters(UserAiProvider provider) {

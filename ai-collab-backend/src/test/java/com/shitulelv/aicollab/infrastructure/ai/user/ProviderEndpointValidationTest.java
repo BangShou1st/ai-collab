@@ -103,10 +103,28 @@ class ProviderEndpointValidationTest {
         verify(repo).save(any());
     }
 
+    @Test void duplicatedVersionPrefixIsRejectedBeforeAnyRequest() {
+        // T04：Base URL 带 /v1 + 默认 API Path 以 /v1 开头 → 保存前即拒绝并给出修正方向
+        var repo = saving();
+        assertThatThrownBy(() -> svc(repo, new OutboundEndpointPolicy()).create(UUID.randomUUID(),
+                req("https://api-inference.modelscope.cn/v1", "/v1/chat/completions")))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("重复版本前缀")
+                .hasMessageContaining("/v1/v1");
+        verify(repo, never()).save(any());
+    }
+
     @Test void profilesCoverAllCustomProviderTypes() {
         var types = ProviderProfileCatalog.all().stream().map(ProviderProfileCatalog.ProviderProfile::providerType).toList();
-        assertThat(types).containsExactlyInAnyOrder(ModelProviderType.OPENAI_COMPATIBLE,
+        assertThat(types).contains(ModelProviderType.OPENAI_COMPATIBLE,
                 ModelProviderType.ANTHROPIC, ModelProviderType.GEMINI);
+        // 档案 code 唯一；ModelScope 兼容网关档案存在且走 OPENAI_COMPATIBLE 协议
+        var codes = ProviderProfileCatalog.all().stream().map(ProviderProfileCatalog.ProviderProfile::code).toList();
+        assertThat(codes).doesNotHaveDuplicates();
+        var modelscope = ProviderProfileCatalog.ofCode("MODELSCOPE").orElseThrow();
+        assertThat(modelscope.providerType()).isEqualTo(ModelProviderType.OPENAI_COMPATIBLE);
+        assertThat(modelscope.defaultBaseUrl()).isEqualTo("https://api-inference.modelscope.cn");
+        assertThat(modelscope.defaultApiPath()).isEqualTo("/v1/chat/completions");
         var gemini = ProviderProfileCatalog.of(ModelProviderType.GEMINI).orElseThrow();
         assertThat(gemini.defaultBaseUrl()).isEqualTo("https://generativelanguage.googleapis.com");
         assertThat(gemini.defaultApiPath()).isEqualTo("/v1beta/models/{model}:generateContent");

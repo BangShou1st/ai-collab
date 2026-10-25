@@ -87,7 +87,7 @@ class ProviderModelDiscoveryServiceTest {
                 EnumSet.of(ModelCapability.CHAT), false, OffsetDateTime.now(), OffsetDateTime.now(), "OPENCODE_ZEN_FREE");
         var repo = mock(UserAiProviderRepository.class);
         when(repo.findByIdAndUserId(preset.id(), preset.userId())).thenReturn(Optional.of(preset));
-        var service = new ProviderModelDiscoveryService(repo, mock(ModelSecretCipher.class), mock(JsonHttpModelClient.class));
+        var service = new ProviderModelDiscoveryService(repo, mock(UserAiProviderService.class), mock(ModelSecretCipher.class), mock(JsonHttpModelClient.class));
         assertThatThrownBy(() -> service.models(preset.userId(), preset.id(), false))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("预置连接");
@@ -101,7 +101,7 @@ class ProviderModelDiscoveryServiceTest {
         when(secrets.decrypt(anyString())).thenReturn("key");
         var http = mock(JsonHttpModelClient.class);
         when(http.get(anyString(), any())).thenReturn(JSON.readTree("{\"data\":[{\"id\":\"gpt-x\"}]}"));
-        var service = new ProviderModelDiscoveryService(repo, secrets, http);
+        var service = new ProviderModelDiscoveryService(repo, mock(UserAiProviderService.class), secrets, http);
         assertThat(service.models(provider.userId(), provider.id(), false)).containsExactly("gpt-x");
         assertThat(service.models(provider.userId(), provider.id(), false)).containsExactly("gpt-x");
         verify(http, times(1)).get(anyString(), any());
@@ -117,7 +117,7 @@ class ProviderModelDiscoveryServiceTest {
         when(secrets.decrypt(anyString())).thenReturn("key");
         var http = mock(JsonHttpModelClient.class);
         when(http.get(anyString(), any())).thenReturn(JSON.readTree("{\"data\":[]}"));
-        var service = new ProviderModelDiscoveryService(repo, secrets, http);
+        var service = new ProviderModelDiscoveryService(repo, mock(UserAiProviderService.class), secrets, http);
         assertThatThrownBy(() -> service.models(provider.userId(), provider.id(), true))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("手动填写");

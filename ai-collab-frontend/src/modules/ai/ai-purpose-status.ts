@@ -23,6 +23,70 @@ export type ProbeOutcomeStatus = 'PASS' | 'FAIL' | 'NOT_SUPPORTED' | 'INCONCLUSI
 /** 前端展示态：落库状态之外，还有“未测试”与“已过期”（配置变更后旧结论失效）。 */
 export type ProbeDisplayStatus = ProbeOutcomeStatus | 'NOT_TESTED' | 'STALE'
 
+/**
+ * 业务能力维度的证据状态（任务 E 的检测结果表）。
+ * 与探针落库状态的区别：声明与验证彻底分离——“已声明但未验证”永远不能
+ * 显示为可用，探针 PASS 也不能被未声明状态冒充。
+ */
+export type CapabilityEvidenceStatus =
+  | 'VERIFIED'
+  | 'NOT_TESTED'
+  | 'DECLARED_UNVERIFIED'
+  | 'STALE'
+  | 'FAIL'
+  | 'INCONCLUSIVE'
+  | 'NOT_SUPPORTED'
+  | 'NOT_DECLARED'
+
+export const CAPABILITY_EVIDENCE_LABELS: Record<CapabilityEvidenceStatus, string> = {
+  VERIFIED: '已验证可用',
+  NOT_TESTED: '未测试',
+  DECLARED_UNVERIFIED: '已声明（未验证）',
+  STALE: '配置已变更，需重测',
+  FAIL: '真实测试失败',
+  INCONCLUSIVE: '暂时无法判断',
+  NOT_SUPPORTED: '已确认不支持',
+  NOT_DECLARED: '未启用（未声明）',
+}
+
+/** 能力证据表展示的四项业务能力及其依赖声明与探针。 */
+export type CapabilityKey = 'CHAT' | 'STREAMING' | 'PLANNING' | 'NATIVE_TOOLS'
+
+export const CAPABILITY_EVIDENCE_ROWS: {
+  key: CapabilityKey
+  label: string
+  description: string
+  requires: string[]
+  probe: ProbeMode
+}[] = [
+  { key: 'CHAT', label: '对话', description: '是否可进行普通对话', requires: ['CHAT'], probe: 'CONNECTIVITY' },
+  { key: 'STREAMING', label: '流式输出', description: '是否可用于流式知识问答', requires: ['STREAMING'], probe: 'STREAMING' },
+  { key: 'PLANNING', label: 'AI 规划', description: '是否通过规划结构校验', requires: ['CHAT'], probe: 'PLANNING_JSON' },
+  { key: 'NATIVE_TOOLS', label: 'Agent 工具调用', description: '是否返回有效 Tool Calling', requires: ['NATIVE_TOOLS'], probe: 'NATIVE_TOOLS' },
+]
+
+/**
+ * 单项业务能力的真实验证状态：探针结论优先（stale 优先于落库状态），
+ * 无探针证据时区分“已声明未验证”与“未声明”——两者都不是可用。
+ */
+export function capabilityEvidence(
+  row: (typeof CAPABILITY_EVIDENCE_ROWS)[number],
+  provider: UserAiProvider | null,
+  probeResults: Record<ProbeMode, ProbeResultState | null>,
+): CapabilityEvidenceStatus {
+  if (!provider) return 'NOT_DECLARED'
+  const probe = probeResults[row.probe]
+  if (probe) {
+    if (probe.status === 'STALE') return 'STALE'
+    if (probe.status === 'PASS') return 'VERIFIED'
+    if (probe.status === 'FAIL') return 'FAIL'
+    if (probe.status === 'NOT_SUPPORTED') return 'NOT_SUPPORTED'
+    return 'INCONCLUSIVE'
+  }
+  const declared = row.requires.every((capability) => provider.capabilities.includes(capability))
+  return declared ? 'DECLARED_UNVERIFIED' : 'NOT_DECLARED'
+}
+
 export interface ProbeResultState {
   mode: ProbeMode
   status: ProbeDisplayStatus
@@ -92,8 +156,14 @@ export interface PurposeStatus {
 /**
  * 用途就绪度：配置解析之上叠加“能力声明 + 探针证据”。
  * CONNECTIVITY 通过不外推——每个用途只认它依赖的那项探针。
+ * 声明与验证分开表达：未声明 ≠ 不支持；已验证但未声明也不能直接使用。
  */
-export type PurposeReadiness = 'READY' | 'UNAVAILABLE' | 'UNVERIFIED' | 'NOT_SUPPORTED'
+export type PurposeReadiness =
+  | 'READY'
+  | 'UNAVAILABLE'
+  | 'UNVERIFIED'
+  | 'NOT_DECLARED'
+  | 'VERIFIED_NOT_ENABLED'
 
 /** 各用途依赖的能力声明与探针（与后端 ModelCapabilityPolicy 门控一致）。 */
 export const PURPOSE_REQUIREMENTS: Record<AiPurpose, { capabilities: string[]; probe: ProbeMode }> = {
@@ -109,13 +179,15 @@ export const READINESS_LABELS: Record<PurposeReadiness, string> = {
   READY: '可用',
   UNAVAILABLE: '不可用',
   UNVERIFIED: '未验证',
-  NOT_SUPPORTED: '未声明所需能力',
+  NOT_DECLARED: '未启用所需能力',
+  VERIFIED_NOT_ENABLED: '已验证未启用',
 }
 
 /**
- * 计算单个用途的就绪度：先看能力声明（声明缺失=NOT_SUPPORTED，探针也测不了），
- * 再看该用途依赖的探针结果（PASS=READY；FAIL=UNAVAILABLE；其余=UNVERIFIED）。
- * 探针结果过期（STALE）或无结论（INCONCLUSIVE）都算 UNVERIFIED，不能算可用。
+ * 计算单个用途的就绪度。声明与验证分开：
+ * - 未声明且无探针证据 → NOT_DECLARED（引导去“检测并配置”，探针会真实测试并自动启用）；
+ * - 探针已 PASS 但声明缺失（如自动写回被并发修改打断）→ VERIFIED_NOT_ENABLED；
+ * - 已声明 → 只认该用途依赖的探针结果（PASS=READY；FAIL=UNAVAILABLE；其余=UNVERIFIED）。
  */
 export function purposeReadiness(
   purpose: AiPurpose,
@@ -125,8 +197,9 @@ export function purposeReadiness(
   if (!provider) return null
   const requirement = PURPOSE_REQUIREMENTS[purpose]
   const declared = requirement.capabilities.every((capability) => provider.capabilities.includes(capability))
-  if (!declared) return 'NOT_SUPPORTED'
   const probe = probeResults[requirement.probe]
+  const verified = Boolean(probe && probe.status === 'PASS')
+  if (!declared) return verified ? 'VERIFIED_NOT_ENABLED' : 'NOT_DECLARED'
   if (!probe || probe.status === 'NOT_TESTED' || probe.status === 'STALE' || probe.status === 'INCONCLUSIVE') {
     return 'UNVERIFIED'
   }

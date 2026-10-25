@@ -42,7 +42,7 @@ class AiCapabilityProbeResultTest {
             ChatModelGateway chat, UserAiProviderProbeResultRepository results) {
         var service = mock(UserAiProviderService.class);
         when(service.requireRuntimeConfiguration(any(), any())).thenAnswer(i -> provider(OffsetDateTime.now()));
-        return new AiCapabilityProbeService(service, chat, mock(ModelTurnGateway.class), JSON, null, results);
+        return new AiCapabilityProbeService(service, chat, mock(ModelTurnGateway.class), JSON, null, results, mock(UserAiProviderRepository.class));
     }
 
     private ChatCompletionResult completion() {
@@ -66,7 +66,7 @@ class AiCapabilityProbeResultTest {
             ChatModelGateway chat, UserAiProviderProbeResultRepository results) {
         var service = mock(UserAiProviderService.class);
         when(service.requireRuntimeConfiguration(any(), any())).thenReturn(provider);
-        return new AiCapabilityProbeService(service, chat, mock(ModelTurnGateway.class), JSON, null, results);
+        return new AiCapabilityProbeService(service, chat, mock(ModelTurnGateway.class), JSON, null, results, mock(UserAiProviderRepository.class));
     }
 
     @Test void transientFailureIsInconclusiveWhileCredentialFailureIsFail() {
@@ -127,7 +127,7 @@ class AiCapabilityProbeResultTest {
                         UserAiProviderProbeResultRepository.PASS, "m", null, null, 120L,
                         testedAt, testedAt)));
         var views = new AiCapabilityProbeService(service, mock(ChatModelGateway.class),
-                mock(ModelTurnGateway.class), JSON, null, results)
+                mock(ModelTurnGateway.class), JSON, null, results, mock(UserAiProviderRepository.class))
                 .results(provider.userId(), provider.id());
         assertThat(views).hasSize(1);
         assertThat(views.getFirst().status()).isEqualTo("PASS");
@@ -145,7 +145,7 @@ class AiCapabilityProbeResultTest {
                         UserAiProviderProbeResultRepository.PASS, "m", null, null, 120L,
                         provider.updatedAt(), testedAt)));
         var views = new AiCapabilityProbeService(service, mock(ChatModelGateway.class),
-                mock(ModelTurnGateway.class), JSON, null, results)
+                mock(ModelTurnGateway.class), JSON, null, results, mock(UserAiProviderRepository.class))
                 .results(provider.userId(), provider.id());
         assertThat(views.getFirst().stale()).isFalse();
     }

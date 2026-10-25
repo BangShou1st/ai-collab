@@ -61,7 +61,7 @@ function readinessOf(status: PurposeStatus): PurposeReadiness | null {
 function readinessTagType(readiness: PurposeReadiness | null): 'success' | 'danger' | 'warning' | 'info' {
   if (readiness === 'READY') return 'success'
   if (readiness === 'UNAVAILABLE') return 'danger'
-  if (readiness === 'UNVERIFIED' || readiness === 'NOT_SUPPORTED') return 'warning'
+  if (readiness === 'UNVERIFIED' || readiness === 'VERIFIED_NOT_ENABLED') return 'warning'
   return 'info'
 }
 
@@ -179,8 +179,14 @@ async function load(): Promise<void> {
   await Promise.all([zenConnection.loadModels(false), kiloConnection.loadModels(false)])
 }
 
-/** 能力套件完成后刷新落库结论（用途就绪随之更新）。 */
+/** 能力套件完成后刷新落库结论与配置列表（写回可能已更新能力声明），用途就绪随之更新。 */
 async function onSuiteCompleted(): Promise<void> {
+  try {
+    const result = await userAiApi.list()
+    if (result.data) providers.value = result.data
+  } catch {
+    // 列表刷新失败不阻断：探针结论仍会刷新
+  }
   await loadPersistedProbes()
 }
 

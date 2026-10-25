@@ -86,6 +86,28 @@ public class UserAiProviderController {
         return ApiResponse.success(probes.results(userId(jwt), id));
     }
 
+    /**
+     * 一键「检测并配置」：静态绑定版本 → 串行真实探针 → PASS 能力 CAS 写回。
+     * 用户一次确认即授权本次列出的全部请求（连接 1 + 流式 1 + 规划最多 4 + 工具 1）。
+     */
+    @PostMapping("/{id}/detect-and-configure")
+    public ApiResponse<com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbeService.DetectAndConfigureResult> detectAndConfigure(
+            @PathVariable UUID id,
+            @RequestBody DetectAndConfigureRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(probes.detectAndConfigure(
+                userId(jwt), id, Boolean.TRUE.equals(request.planning()), Boolean.TRUE.equals(request.nativeTools())));
+    }
+
+    /** 未保存配置的模型发现：输入 Key 后即可一键获取模型列表；Key 只用于本次只读请求，不落库。 */
+    @PostMapping("/model-discovery")
+    public ApiResponse<List<String>> discoverUnsavedModels(
+            @Valid @RequestBody UnsavedModelDiscoveryRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(discovery.discoverUnsaved(
+                userId(jwt), request.providerType(), request.baseUrl(), request.apiPath(), request.apiKey()));
+    }
+
     /** 模型列表发现（只读 GET，不消耗推理）；失败时前端降级为手动填写模型 ID。 */
     @GetMapping("/{id}/models")
     public ApiResponse<List<String>> models(
@@ -131,5 +153,16 @@ public class UserAiProviderController {
     }
 
     public record AssignPurposeRequest(UUID providerId) {
+    }
+
+    /** 可选深度能力测试开关：规划契约与原生工具探针。 */
+    public record DetectAndConfigureRequest(Boolean planning, Boolean nativeTools) {
+    }
+
+    public record UnsavedModelDiscoveryRequest(
+            @jakarta.validation.constraints.NotNull com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType providerType,
+            @jakarta.validation.constraints.NotBlank String baseUrl,
+            @jakarta.validation.constraints.NotBlank String apiPath,
+            @jakarta.validation.constraints.NotBlank String apiKey) {
     }
 }
