@@ -20,9 +20,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 阶段四：冻结质量回归测试（离线、确定性、无外部模型调用）。
  * 复用 network-recovery-03 真实评测沉淀的 14 道题候选集合，
- * 验证生产去重规则修改后：
+ * 走当前生产 QA 入口（P6-RAG-QUALITY-01 起为每文档名额均衡 buildBalanced），验证：
  * 1. Q09 成功获得两份合同的独立来源；
- * 2. 其它冻结问题（Q01, Q03, Q05, Q10, Q11, Q12, Q13, Q16 等）核心必要证据无新增退化。
+ * 2. Q03 上线门禁（历史 Rank 6 被 SOURCE_CAP 挤掉）经名额均衡后保留；
+ * 3. 其它冻结问题（Q01, Q05, Q10, Q11, Q12, Q13, Q16 等）核心必要证据无新增退化。
  */
 class FrozenKnowledgeQualityRegressionTest {
 
@@ -64,7 +65,7 @@ class FrozenKnowledgeQualityRegressionTest {
     @DisplayName("Q09：修复后合同模板乙与合同模板甲同时保留为独立来源S1和S2")
     void q09_retainsBothContractSources() {
         List<DocumentSearchHit> candidates = extractCandidates("Q09");
-        KnowledgeContext context = builder.build(candidates);
+        KnowledgeContext context = builder.buildBalanced(candidates);
 
         assertThat(context.sources()).hasSize(5);
         assertThat(context.sources().get(0).originalFilename()).isEqualTo("合同模板乙.md");
@@ -89,7 +90,7 @@ class FrozenKnowledgeQualityRegressionTest {
     @DisplayName("Q01：上线门禁核心证据（自动化验收、阻断缺陷关闭、迁移核对）必须保留")
     void q01_gateConditionsRetained() {
         List<DocumentSearchHit> candidates = extractCandidates("Q01");
-        KnowledgeContext context = builder.build(candidates);
+        KnowledgeContext context = builder.buildBalanced(candidates);
 
         assertThat(context.sources()).isNotEmpty();
         assertThat(context.sources().getFirst().originalFilename()).isEqualTo("上线验收规程.md");
@@ -101,34 +102,38 @@ class FrozenKnowledgeQualityRegressionTest {
     }
 
     @Test
-    @DisplayName("Q03：既有缺陷归因保持不变，来源名额限制依然导致上线门禁未进入上下文，但无新增证据退化")
-    void q03_preservesBaselineBehaviorWithoutNewLoss() {
+    @DisplayName("Q03：P6-RAG-QUALITY-01 每文档名额均衡后，上线门禁进入上下文，三阶段证据齐全")
+    void q03_gateConditionNowRetainedAfterPerDocumentBalancing() {
         List<DocumentSearchHit> candidates = extractCandidates("Q03");
-        KnowledgeContext context = builder.build(candidates);
+        KnowledgeContext context = builder.buildBalanced(candidates);
 
-        // Q03 在前一轮中保留了5条来源，上线门禁在 Rank 6 未能进入（既有 SOURCE_CAP 缺陷）
+        // 历史：上线门禁在 Rank 6 被单文档名额洪泛挤掉（SOURCE_CAP 缺陷）；
+        // P6 每文档名额均衡（cap=2）后必须保留，且灰度观察与回滚触发条件不回退。
         assertThat(context.sources()).hasSize(5);
         assertThat(context.sources()).extracting(KnowledgeSource::originalFilename)
                 .contains("上线验收规程.md", "发布回滚预案.md");
         assertThat(context.sources()).extracting(KnowledgeSource::heading)
-                .contains("灰度观察", "回滚演练", "回滚触发条件");
+                .contains("上线门禁", "灰度观察", "回滚触发条件");
     }
 
     @Test
     @DisplayName("Q05：需求变更单 v1.9 与 v2.1 两个版本的关键证据完整留存")
     void q05_bothVersionEvidencesRetained() {
         List<DocumentSearchHit> candidates = extractCandidates("Q05");
-        KnowledgeContext context = builder.build(candidates);
+        KnowledgeContext context = builder.buildBalanced(candidates);
 
         List<String> headings = context.sources().stream().map(KnowledgeSource::heading).toList();
-        assertThat(headings).contains("当前版本修正", "早期版本说明", "REQ-7741");
+        assertThat(headings).contains("当前版本修正", "早期版本说明");
+        // CE3 确定性权衡：需求变更单在候选中占前三名时，其第 3 条（REQ-7741）让位给其他文档代表；
+        // 冻结题集 Q05 的必要事实只有两个版本条款，REQ-7741 属补充背景（Q06 单独可召回）。
+        assertThat(headings).as("同文档第 3 条按 cap=2 让位是已记录的权衡").doesNotContain("REQ-7741");
     }
 
     @Test
     @DisplayName("Q10：限定单文档范围时，仅合同模板甲保留，绝不泄露合同模板乙")
     void q10_strictlySingleDocumentScoped() {
         List<DocumentSearchHit> candidates = extractCandidates("Q10");
-        KnowledgeContext context = builder.build(candidates);
+        KnowledgeContext context = builder.buildBalanced(candidates);
 
         assertThat(context.sources()).hasSize(1);
         assertThat(context.sources().getFirst().originalFilename()).isEqualTo("合同模板甲.md");
@@ -152,7 +157,7 @@ class FrozenKnowledgeQualityRegressionTest {
     @DisplayName("Q13：Prompt Injection 语料来源正常构建且注入内容作为资料呈现")
     void q13_injectionCorpusAssembledWithoutBreakingSecurity() {
         List<DocumentSearchHit> candidates = extractCandidates("Q13");
-        KnowledgeContext context = builder.build(candidates);
+        KnowledgeContext context = builder.buildBalanced(candidates);
 
         assertThat(context.sources()).extracting(KnowledgeSource::originalFilename)
                 .contains("不可信资料测试.md");
@@ -162,7 +167,7 @@ class FrozenKnowledgeQualityRegressionTest {
     @DisplayName("Q16：权限分级与数据脱敏规则完整留存")
     void q16_maskingAndPermissionRulesRetained() {
         List<DocumentSearchHit> candidates = extractCandidates("Q16");
-        KnowledgeContext context = builder.build(candidates);
+        KnowledgeContext context = builder.buildBalanced(candidates);
 
         assertThat(context.sources()).hasSize(2);
         assertThat(context.sources()).extracting(KnowledgeSource::originalFilename)
