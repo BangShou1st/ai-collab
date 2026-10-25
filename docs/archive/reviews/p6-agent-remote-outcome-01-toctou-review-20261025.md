@@ -66,3 +66,16 @@
 提交前工作区原本干净，dev 与 origin/dev 同步；main 本地/远端均为 `9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7`，
 PR #18 复核为 OPEN / Draft / 未合并。本轮未生成 *.log，测试输出仅写入受控 target。
 真实外部 MCP/Provider 取消确认仍为 `LIVE_NOT_RUN`，不声称跨服务 Exactly-Once。
+
+## 后续 CI 测试适配修复
+
+`097f23955991f9c3c3c94ea4333ba2846a03d453` 的 push/PR CI 均为 Backend 失败；Frontend 均成功，PR Image Job 成功。
+定位到 `CrossTickToolCallTest.toolExecutionFailureReturnsSafeErrorResult` 沿用旧仓储 mock：新异常结算方法未打桩，返回 null，且 verify 仍指向旧方法。
+本次只为 recordToolExecutionFailure 补充返回传入 Run 的默认行为，并同步 verify；保留 QUEUED 与错误结果断言，
+进一步验证通用错误码、脱敏文案、不可重试标记和 requeueRun 调用。没有改动生产 TOCTOU 修复或放宽断言。
+
+按顺序先跑 CrossTickToolCallTest：7 项全部通过；再跑必要 P6-B 定向回归：120 项全部通过。
+合计 8 类、127 项，0 失败/错误/跳过；包括真实 PostgreSQL 交错与恢复场景，见
+[CI 修复验证回执](../../acceptance-evidence/2026-10-25/p6-agent-remote-outcome-01/toctou-review/cross-tick-ci-fix.json)。
+不重跑完整 Maven/前端、不手动重跑 GitHub CI。正常提交推送 dev 后核对新 SHA 的 push/PR 流水线，成功前保持 CI_PENDING。
+Scheduler、配额、审批、迁移、前端和其他生产源码均无变更；main 不变，PR #18 保持 Draft/未合并。

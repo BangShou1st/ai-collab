@@ -71,8 +71,10 @@ class CrossTickToolCallTest {
                 repository, contextAssembler, skillRegistry, planService,
                 tools, cancellation, loopGuard, approvals, modelExecutor, sanitizer, json);
 
-        // 设置默认返回值：recordToolResult 和 recordModelTurn 返回传入的 run
+        // 结果/异常结算和模型轮次记录均返回传入的 run
         when(repository.recordToolResult(any(), any(), any(), any(), anyBoolean()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(repository.recordToolExecutionFailure(any(), any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(repository.recordModelTurnWithSettlement(any(), any(), any(), any(), any(), any(), any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -275,8 +277,12 @@ class CrossTickToolCallTest {
 
         // 执行失败返回错误，然后重新排队
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.QUEUED);
-        verify(repository).recordToolResult(eq(run), eq("list_tasks"), any(),
-                argThat(node -> node.has("error")), eq(true));
+        verify(repository).recordToolExecutionFailure(eq(run), eq("list_tasks"), any(),
+                argThat(node -> node.has("error")
+                        && "TOOL_EXECUTION_FAILED".equals(node.path("error").asText())
+                        && "工具执行失败".equals(node.path("message").asText())
+                        && !node.path("retryable").asBoolean()));
+        verify(repository).requeueRun(run);
     }
 
     /**
