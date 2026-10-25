@@ -30,6 +30,7 @@
 - [AI 能力下一阶段总设计 (`design/ai-next-stage-blueprint.md`)](design/ai-next-stage-blueprint.md)：长上下文压缩、多轮对话与知识库联动演进蓝图。
 - [RAG 检索质量、证据与成本优化 (`design/rag-quality-and-evidence.md`)](design/rag-quality-and-evidence.md)：QA 与 Agent 双路径检索基线、候选召回/上下文选择受控实验、引用契约与生产准入门槛（P6-RAG-QUALITY-01）。
 - [独立 RAG 泛化评测基准 (`design/rag-generalization-benchmark.md`)](design/rag-generalization-benchmark.md)：独立于 P4～P8 冻结集的 23 篇合成语料与 39 道评测题（dev/holdout 划分与冻结）、八个泛化失效维度、QA/Agent 双路径测量协议与指标（P9-RAG-GENERALIZATION-01）。
+- [真实回答质量与引用可信度评测 (`design/rag-answer-quality-evaluation.md`)](design/rag-answer-quality-evaluation.md)：两层评测架构（离线契约/真实生成）、版本冲突与拒答判定规则、QA 与 Agent 引用协议差异、机械可判与人工审查边界（P10-RAG-ANSWER-QUALITY-01）。
 - [Agent 最终来源与引用契约 (`design/agent-source-citation-contract.md`)](design/agent-source-citation-contract.md)：已读来源、显式引用与语义支持的边界，子来源收口时的身份与原摘录校验。
 - [Provider 接入自动化与能力发现 (`design/provider-onboarding-and-capability-detection.md`)](design/provider-onboarding-and-capability-detection.md)：服务商档案、URL/Path 组合规则、探针专用执行边界、检测并配置与 CAS 写回（P7-PROVIDER-ONBOARDING-01）。
 
@@ -60,6 +61,7 @@
 - [P8-RAG-QUALITY-FIX-01 CI门控补充验收](acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/README.md)：首次正式CI失败的原始回执、本地模型测试显式门控、默认禁用/显式启用双路径与源码版本映射；[补充报告](archive/reports/p8-rag-quality-fix-01-ci-gate-20261026.md)。
 - [P8-AGENT-RAG-E2E-QUALITY-01：Agent 与 RAG 跨层质量评测](acceptance-evidence/2026-10-25/p8-agent-rag-e2e-quality-01/README.md)：冻结题集真实 Ollama/pgvector 复测、脚本模型驱动的实际工具与持久化链路、失败分层及独立修复证据；真实生成层另列授权限制。
 - [P9-RAG-GENERALIZATION-01 统计口径 Errata](acceptance-evidence/2026-10-26/p9-rag-generalization-01-errata/README.md)：长文档实际 721–3,353 code points（6,000+ 未覆盖）、唯一 23 篇/161 chunks（175 为累计入库事件）、泛化结论边界收敛；冻结原始证据未改动；[errata 报告](archive/reports/p9-rag-generalization-01-errata-20261026.md)。
+- [P10-RAG-ANSWER-QUALITY-01：回答质量离线契约评测](acceptance-evidence/2026-10-26/p10-rag-answer-quality-01/README.md)：14 题冻结评测子集、机械评分器与 Rubric、8 类高严重度失败模式确定性检出、QA/Agent 引用协议差异与未定义行为；真实生成层未授权未执行；[交付报告](archive/reports/p10-rag-answer-quality-01-delivery-20261026.md)。
 - [P7-BUSINESS-E2E-01：真实业务链路与发布前验收](acceptance-evidence/2026-10-25/p7-business-e2e-01/README.md)：E01–E12 真实浏览器验收矩阵、SSE 断线恢复复现、审批/权限后端强制证据、魔搭 ModelScope 自定义 Provider 与模型发现实测、404 错误映射与 Provider 卡片布局修复。
 - [P7-PROVIDER-ONBOARDING-01：AI 模型接入自动化与能力发现](acceptance-evidence/2026-10-25/p7-provider-onboarding-01/README.md)：探针专用执行边界（未声明能力真实可测）、检测并配置与 CAS 写回、URL/Path 重复前缀自动修正、ModelScope/Gemini 真实接入验收与 T01–T10 矩阵。
 - [P6-C：Agent 可观测性与可靠性诊断](acceptance-evidence/2026-10-25/p6-agent-observability-01/README.md)：状态快照、UNKNOWN索引、提交一致指标、MDC与Actuator安全验收。

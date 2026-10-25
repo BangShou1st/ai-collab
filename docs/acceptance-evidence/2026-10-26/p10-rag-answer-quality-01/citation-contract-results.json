@@ -1,0 +1,15 @@
+{
+  "qaProtocol": {
+    "deterministicTests": "P10AnswerQualityOfflineEvaluationTest（默认 CI）：分组引用合法成员保留、非法成员移除并计数、编造编号高严重度、无引用实质回答被生产 validator 替换为统一拒答（CONTRACT_FORCED_ABSTENTION）",
+    "existingRegression": "KnowledgeCitationValidatorTest（既有，继续执行）",
+    "p9RealIdentityCheck": "P9 实测 identityViolation=0 / scopeViolation=0（39 题 × 真实工具输出 vs 数据库）"
+  },
+  "agentProtocol": {
+    "deterministicTests": "P10AnswerQualityOfflineEvaluationTest：伪造 documentId/chunkId 高严重度、合法身份通过",
+    "existingRegression": "AgentFinalCitationContractPostgresTest 11 项（默认 CI 真实 PostgreSQL 执行）：未知身份不可造来源卡、失效引用剔除、跨项目排除等"
+  },
+  "undefinedBehaviors": [
+    "Agent 正文与来源卡解耦：正文逐句是否被来源支持无机械绑定（available-but-uncited 是既有契约行为）",
+    "QA validator 只证编号合法（citation_number_valid），语义支持（citation_claim_supported）须人工审查"
+  ]
+}

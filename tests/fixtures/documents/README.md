@@ -30,6 +30,9 @@
 `holdout-integrity.json`（Holdout 方法学保留集，冻结后不得依据其结果调整生产规则或评测参数）。
 评测标注（facts/distractFacts marker）只允许用于离线评分，严禁参与检索、来源选择或查询构造。
 生成脚本与逐字校验见 `docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01/generate-manifests.cjs`。
+统计口径修正见 `docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01-errata/`。
+`p10-evaluation-question-set.json`：P10-RAG-ANSWER-QUALITY-01 冻结回答质量评测子集
+（14 题，派生自上述 P9 冻结标注，未改动原标注；机械评分规则内嵌）。
 
 1. **统一编码**：
    - 所有测试语料文件必须使用 **UTF-8（无 BOM）** 编码保存，避免在 Windows 与 Linux/CI 环境间产生跨平台字符集差异。

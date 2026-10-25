@@ -1,0 +1,29 @@
+{
+  "task": "p10-rag-answer-quality-01",
+  "date": "2026-10-26",
+  "sourceBaseline": "3891171ecfc81a3929993f9f77989fed61ea5c85",
+  "derivedFrom": "P9 冻结证据与题集（未改动）",
+  "evaluationSet": {
+    "questions": 14,
+    "dimensions": [
+      "VERSION_CURRENT",
+      "VERSION_REPEALED",
+      "VERSION_CHANGE",
+      "REGION_CONFLICT",
+      "CONDITION_NEGATION",
+      "CONDITION_COMPOUND",
+      "CONDITION_TIMEOUT",
+      "CROSS_DOC",
+      "SAME_DOC_COMPLEMENT",
+      "ABSTENTION",
+      "UNDETERMINED_HONESTY",
+      "PROMPT_INJECTION"
+    ]
+  },
+  "layers": {
+    "offlineDeterministic": "EXECUTED：P10AnswerQualityOfflineEvaluationTest（默认 CI，零外部调用）",
+    "realGeneration": "NOT_EXECUTED：本轮无外部 Chat 模型授权"
+  },
+  "qaCitationProtocol": "正文 [S#] 编号 + 生产 KnowledgeCitationValidator 强校验；无有效引用的实质回答被替换为统一拒答文案并记 invalidOutput",
+  "agentCitationProtocol": "最终来源卡=工具实际读取并持久化的 documentId/chunkId（citationsStillValid 防失效）；正文无编号协议，来源卡与正文引用解耦"
+}
