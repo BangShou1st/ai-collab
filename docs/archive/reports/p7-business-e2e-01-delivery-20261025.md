@@ -68,5 +68,5 @@
 
 ## 补记（提交后填写）
 
-- 代码+证据提交 SHA：`<待提交后填写>`
-- CI run：<推送后填写>
+- 代码+证据提交 SHA：`d730259720753addc2d575c09f72ecf2bd017957`
+- CI run：run 40172638404（dev push）与 40172641726（PR #18 同步）：**success** —— Frontend (pnpm) 与 Backend (Maven verify) 两 job 均通过（backend 全量 verify + Testcontainers 完成；Image job 在 dev push 触发下按设计 skip，PR→main 时真实执行）。同 SHA CI 证据成立，最终裁决 ACCEPTED 维持。
