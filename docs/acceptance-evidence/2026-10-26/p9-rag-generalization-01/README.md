@@ -48,6 +48,13 @@ node docs/acceptance-evidence/<date>/p9-rag-generalization-01/finalize-evidence.
 
 默认 CI（无 `AI_REAL_OLLAMA_RETRIEVAL`）中该测试类显式跳过（本地验证：Tests run: 1, Skipped: 1）。
 
+## CI 回执（最终 SHA 52bdb68 同 SHA 核实，2026-10-26）
+
+| 触发 | Run | 结论 | 任务 |
+| --- | --- | --- | --- |
+| Push `dev` | [40223943044](https://github.com/BangShou1st/ai-collab/actions/runs/40223943044) | success | Backend (Maven verify) pass · Frontend (pnpm) pass |
+| PR #18（Draft） | [40223947743](https://github.com/BangShou1st/ai-collab/actions/runs/40223947743) | success | Backend verify pass · Frontend pass · Image build & container smoke pass |
+
 ## 边界
 
 - 不调用外部 Chat/付费模型；生成层结论恒为 `REAL_GENERATION_NOT_EXECUTED`。
