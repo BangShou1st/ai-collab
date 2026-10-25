@@ -51,4 +51,8 @@
 
 ## 5. Git 与 CI
 
-提交于 `dev`；`main` 未动；PR #18 保持 OPEN/Draft；最终 SHA 与 CI 回执推送后补记于证据 README。
+- 提交于 `dev`：`36d27da`（P9 errata 独立补记）→ `33fe569`（P10 交付）；
+  `main` 未动（9b4f7c5）；PR #18 保持 OPEN/Draft/未合并；无 force push；未部署。
+- 同 SHA CI（33fe569）：Push run [40229147671](https://github.com/BangShou1st/ai-collab/actions/runs/40229147671) success；
+  PR #18 run [40229152629](https://github.com/BangShou1st/ai-collab/actions/runs/40229152629) success。
+- 本地完整 verify：BUILD SUCCESS（默认 CI 语义下新增 4 项离线测试全部执行）。
