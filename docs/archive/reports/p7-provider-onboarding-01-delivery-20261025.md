@@ -73,5 +73,5 @@
 
 ## 补记（提交后填写）
 
-- 代码+证据提交 SHA：待填写
-- CI run：待填写
+- 代码+证据提交 SHA：`54464b10d68d66f6987858576e6a87b95d89271b`（dev）
+- CI：push run [40183059841](https://github.com/BangShou1st/ai-collab/actions/runs/40183059841) **success**（Frontend 1m21s + Backend Maven verify 6m57s；Image job 在 dev push 按设计 skip）；PR #18 同步 run [40183063269](https://github.com/BangShou1st/ai-collab/actions/runs/40183063269) **success**。同 SHA CI 证据成立，最终裁决 `P7_PROVIDER_ONBOARDING_01_ACCEPTED` 生效。
