@@ -39,6 +39,9 @@ cd ai-collab-backend && bash ./mvnw -B -ntp test -Dtest=P10AnswerQualityOfflineE
 node docs/acceptance-evidence/2026-10-26/p10-rag-answer-quality-01/build-evidence.cjs
 ```
 
-## CI 回执
+## CI 回执（最终 SHA 33fe569 同 SHA 核实，2026-10-26）
 
-见本目录 `README.md` 更新段（最终 SHA 推送后补记）。
+| 触发 | Run | 结论 |
+| --- | --- | --- |
+| Push `dev` | [40229147671](https://github.com/BangShou1st/ai-collab/actions/runs/40229147671) | success（Backend verify / Frontend pass） |
+| PR #18（Draft） | [40229152629](https://github.com/BangShou1st/ai-collab/actions/runs/40229152629) | success（Backend verify / Frontend / Image build & smoke pass） |
