@@ -65,10 +65,13 @@ public class KiloGatewayClientTransport implements KiloGatewayTransport {
     @Override
     public JsonNode chat(ObjectNode request) {
         try {
-            return client().chat(request);
+            var outbound = client();
+            AiOutboundObservation.markStarted(AiOutboundObservation.current());
+            return outbound.chat(request);
         } catch (KiloGatewayException failure) {
             throw translate(failure);
         } catch (IllegalArgumentException invalidRequest) {
+            AiOutboundObservation.markNotStarted(AiOutboundObservation.current());
             rejectRequest();
             throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
         }

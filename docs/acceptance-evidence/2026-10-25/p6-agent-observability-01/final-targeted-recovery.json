@@ -1,0 +1,118 @@
+{
+  "result": "BUILD SUCCESS",
+  "tests": 47,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "classes": [
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.PersistedModelTurnRecoveryPostgresTest",
+      "tests": "24",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "32.993",
+      "methods": [
+        "needsFinalRequestIntentSurvivesTakeoverAsBudgetPartial",
+        "persistedPlainTextTurnIsReusedWithoutAnotherModelCall",
+        "legacyReadOnlyWriteCallStillRejected",
+        "postSaveRecountDoesNotRewriteNonFinalizingIntent",
+        "staleClaimCannotConsumeTheSavedTurnAfterTakeover",
+        "modelTurnBoundaryFinalizeAnswerSurvivesTakeoverOnBothPaths",
+        "canceledRunStillEndsAsCanceledWithoutConsumingTheSavedTurn",
+        "legacyTurnWithoutIntentMetadataFallsBackConservatively",
+        "geminiToolCallIdRemainsUniqueAfterRunContextCoversPreviousCallAndRecoveryReusesIt",
+        "persistedQuestionsTurnRecoversIntoWaitingForUserInput",
+        "actualInputOversetStopsToolBatchOnBothPaths",
+        "legacyNativePlanningCallEntersRecoveryChain",
+        "explicitFinalizingToolResponseStillRejected",
+        "persistedBudgetFinalizeTurnKeepsPartialAnswerSemantics",
+        "fullyCompletedToolBatchRecoveryReusesAllResultsWithoutRecharge",
+        "trulyOverBudgetRemainingCallsStillRejected",
+        "savedResultSurvivesRemovedModelConfiguration",
+        "stepBoundaryFinalizeAnswerSurvivesTakeoverOnBothPaths",
+        "repeatedTakeoverDoesNotConsumeTheSavedTurnTwice",
+        "overSingleTurnLimitBatchStillRejected",
+        "actualInputOversetStopsTextAnswerOnBothPaths",
+        "blankTextTurnIsNotTreatedAsAReusableResult",
+        "partialToolBatchRecoveryExecutesOnlyTheRemainingCalls",
+        "persistedToolBatchStillRecoversThroughTheToolExecutor"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.RoutingAgentModelExecutorRequestConsistencyTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.19",
+      "methods": [
+        "c03MetricsCountRealRoutingCallsAndExcludeConfigurationRejection",
+        "switchedLegacyConfigurationRoutesNextRequestThroughLegacyExecutor",
+        "configurationResolvedOncePerRequestSurvivesMidFlightSwitch"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentActuatorSecurityTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "2.602",
+      "methods": [
+        "c09DefaultHealthIsAnonymousAndMetricsAreNotExposed",
+        "c09ExplicitMetricsExposureStillRequiresValidJwt"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentModelTransportMetricsTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.27",
+      "methods": [
+        "c03LocalEndpointRejectionDoesNotCountAsOutbound",
+        "c03ActualTransportSignalCrossesPostAndStreamExecutorBoundaries",
+        "c03KiloTransportCountsAfterClientAvailabilityCheck",
+        "c03KiloLocalRequestPreparationRejectionIsNotAnOutboundRequest"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentObservabilityPostgresTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "6.318",
+      "methods": [
+        "i01UpgradePreservesEveryExistingRowAndUsesPartialIndex",
+        "i02i03SnapshotMatchesDurableFactsAndLeaseRecovery",
+        "i04RollbackNeverCountsAndCommittedReplayCannotCountAgain",
+        "i04BatchCleanupUnknownAndCanceledCommitExactlyOnce"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetricsTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.454",
+      "methods": [
+        "c02AttemptAllReturnOutcomesAndUnexpectedExit",
+        "c03ModelSuccessAndBoundedFailureClassification",
+        "c06SnapshotFailureNeverFakesZeroAndScrapeNeverQueriesDatabase",
+        "c08FailureLogsNeverIncludeSensitiveExceptionText",
+        "c02c07WorkerReturnAndCancellationPathsPreserveCorrelation",
+        "c02c07ActualWorkerExceptionCleansMdcAndCountsOnce",
+        "c10RealExecutorSaturationButIdlePollDoesNotCount",
+        "c01c04FixedInvocationOutcomesAndPrivateTags",
+        "c01MetricBackendFailureNeverChangesBusinessResults",
+        "c07ThreadReuseAndNestedScopeRestoreOnExceptionAndCancellation"
+      ]
+    }
+  ],
+  "postgres_recovery_class_no_runtime_restart_observed": true,
+  "unresolved": "Initial full-run PostgreSQL restart root cause not established; final full verify required"
+}

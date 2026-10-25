@@ -630,9 +630,9 @@ CI 是 `.github/workflows/ci.yml` 单一流水线，复用既有 `backend` / `fr
   lint、typecheck、test、build。
 - 产物只归档 Surefire 报告与 JaCoCo（保留 14 天）；**不上传**真实模型调用捕获
   （如 `model-calls-private.jsonl`）或任何环境/凭据文件。
-- 本地无法用 `bash ./mvnw` 复现容器用例：WSL 侧没有 Docker socket，Testcontainers
-  会静默全跳过。要在本机真正跑容器用例，用 Windows 侧 `.\mvnw.cmd -B -ntp verify`
-  （走 Docker Desktop 的 npipe）。
+- 本机默认 `bash.exe` 指向 WSL；当前 WSL 无 Docker socket，不能据此声称容器测试通过。
+  Windows 可用 Git Bash 的 `E:\Git\bin\bash.exe ./mvnw -B -ntp verify` 或 `.\mvnw.cmd -B -ntp verify`，
+  由 Windows JDK/Testcontainers 连接 Docker Desktop npipe。P6-C 已实际验证 Git Bash 路径；仍须检查容器类无跳过。
 
 ## 20. 工具并发隔离与有界准入（2026-10-25）
 
@@ -646,3 +646,40 @@ CI 是 `.github/workflows/ci.yml` 单一流水线，复用既有 `backend` / `fr
 参见 [完整设计](agent-tool-concurrency.md)、[交付报告](../archive/reports/p6-agent-concurrency-01-delivery-20261025.md)。
 回归入口：AgentToolSchedulerTest（C01–C10）、AgentPauseResumePostgresTest（暂停/截止/取消/旧 claim）、
 PersistedModelTurnRecoveryPostgresTest（持久化调用恢复），全部 verify 继续覆盖审批与 SSE。
+
+
+## 21. Agent 可靠性诊断（P6-C）
+
+完整指标目录、类型、固定标签与统计口径见 [可观测性设计](agent-observability.md)。Counter/Timer 为单 JVM 生命周期数据，重启重置；不能用累计成功率推算持久化 UNKNOWN。默认 health/info 暴露，metrics 未暴露；运维确需按需读取时显式配置 `MANAGEMENT_ENDPOINTS_EXPOSURE=health,info,metrics`，仍须有效 JWT。不要改成匿名开放，也不要在日志或证据保存 Bearer Token。
+
+按顺序排查：
+
+1. 查看 scheduler active/pending、queue.wait/execution、rejected(reason)、cancelled/timeout(phase)。active 包含未退出的调用，Future 取消不等于远端停止。
+2. 查看 `agent.worker.dispatch.rejected{reason=executor_full}` 与 attempt/duration(outcome)，区分 Worker 满载、无任务轮询和暂停/等待/重试；attempt 不代表 Run 最终完成。
+3. 查看 `agent.run.status.count{status}` 与 `agent.run.lease.expired.count`，先核对快照新鲜度。过期 Lease 持续超过两个刷新周期时检查 Worker、恢复调度及 DB 锁；不得手动跳过 claim/fencing。
+4. 查看 `agent.invocation.unknown.count/oldest.age` 和 `agent.diagnostics.snapshot.age`。首次无成功快照为 NaN，不能解释为空积压；失败时旧值保留、age 增长，refresh.failures 增长；默认30秒刷新，失败日志五分钟限频、恢复单次提示。刷新失败时先查 DB 与连接池，不自动清零。
+5. 用日志 `agentRunId/agentClaimVersion/agentInvocationId` 定位，再以数据库状态、出站证据和最后事件核对。后台 requestId 默认 none，不假设 HTTP 上下文自动传播。新日志只含固定状态、耗时、异常类型，不输出异常正文、Prompt、参数、原始结果或凭据。
+6. 模型慢时比较 `agent.model.request.duration{purpose=turn|summary,outcome}`，区分 timeout/provider_error/invalid_response/interrupted/other。Provider 故障不等于应用健康探针失败。
+7. Invocation Counter 在提交后计数；Timer 仅统计本 Worker 已提交 Scheduler 且能确定提交时间的调用。未调度/跨重启恢复收口无 Timer 样本，不应将 Timer.count 当成所有 Invocation 总数。
+8. UNKNOWN 缺少可信远端核对能力时遵循 [P6-B](agent-remote-outcome.md) 人工核对，不自动重试、补写成功或复活终态 Run。
+
+受控只读 SQL（不得选择 arguments_json、完整 result_json 或敏感业务正文）：
+
+```sql
+SELECT count(*) AS unknown_count,
+       min(COALESCE(dispatch_started_at, updated_at)) AS oldest_since,
+       extract(epoch FROM (now() - min(COALESCE(dispatch_started_at, updated_at)))) AS oldest_age_seconds
+FROM agent_tool_invocation WHERE status = 'UNKNOWN';
+
+SELECT run_id, invocation_id, turn_sequence, ordinal, tool_name, status,
+       dispatch_started_at, dispatch_claim_version, execution_safety, updated_at
+FROM agent_tool_invocation WHERE invocation_id = :invocation_id;
+
+SELECT id, status, claim_version, lease_expires_at, updated_at, error_code
+FROM agent_run WHERE status = 'RUNNING' AND lease_expires_at < now()
+ORDER BY lease_expires_at LIMIT 100;
+```
+
+V68 的 UNKNOWN 部分索引使用 COALESCE(dispatch_started_at, updated_at)，历史缺失出站时间保守用 updated_at。索引不收口 UNKNOWN；数据库积压远大于代表性样本时应重新 EXPLAIN/ANALYZE 并观察刷新耗时。
+
+告警仅为未来接入候选：UNKNOWN>0 持续一分钟、pending≥56 持续五分钟、rejected 五分钟增长、过期 Lease 超两个刷新周期、模型五分钟失败率>10%且样本≥20。阈值待真实流量校准；当前没有 Prometheus/OTel/exporter/scrape target/外部告警平台，不能宣称告警已启用。

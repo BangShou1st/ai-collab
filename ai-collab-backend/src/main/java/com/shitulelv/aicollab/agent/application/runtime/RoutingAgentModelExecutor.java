@@ -10,8 +10,6 @@ import com.shitulelv.aicollab.infrastructure.ai.model.ZenModelExecution;
 import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -25,7 +23,8 @@ import java.util.UUID;
  */
 @Component
 public class RoutingAgentModelExecutor {
-    private static final Logger log = LoggerFactory.getLogger(RoutingAgentModelExecutor.class);
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics;
 
     private final NativeToolCallingExecutor nativeExecutor;
     private final LegacyReadOnlyAgentExecutor legacyExecutor;
@@ -91,18 +90,16 @@ public class RoutingAgentModelExecutor {
         boolean hasChat = config.capabilities().contains(ModelCapability.CHAT);
 
         if (hasNativeTools) {
-            log.debug("使用 Native Tool Calling 执行器: model={}, configurationId={}",
-                    config.modelName(), config.id());
+
             try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
-                return nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId(), run.sessionId());
+                return measured("turn", () -> nativeExecutor.callModel(messages, exposed, run.projectId(), run.requesterId(), run.sessionId()));
             }
         }
 
         if (hasChat) {
-            log.debug("使用 Legacy 只读执行器: model={}, configurationId={}",
-                    config.modelName(), config.id());
+
             try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
-                return fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(), correctionAttempted);
+                return measured("turn", () -> fallbackToLegacy(messages, exposed, run.projectId(), run.requesterId(), run.sessionId(), correctionAttempted));
             }
         }
 
@@ -169,8 +166,12 @@ public class RoutingAgentModelExecutor {
                     "当前模型不支持原生调用，无法执行摘要任务");
         }
         try (var scope = new com.shitulelv.aicollab.infrastructure.ai.model.AiConfigurationContext(resolved.provider())) {
-            return nativeExecutor.callModel(messages, List.of(), run.projectId(), run.requesterId(), run.sessionId());
+            return measured("summary", () -> nativeExecutor.callModel(messages, List.of(), run.projectId(), run.requesterId(), run.sessionId()));
         }
+    }
+
+    private ModelTurnResult measured(String purpose, java.util.function.Supplier<ModelTurnResult> call) {
+        return metrics == null ? call.get() : metrics.model(purpose, call);
     }
 
     public record ProviderIdentity(String providerType, String modelName) {

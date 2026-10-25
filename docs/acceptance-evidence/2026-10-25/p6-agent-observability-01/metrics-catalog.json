@@ -1,0 +1,159 @@
+{
+  "jvm_reset": "Counter/Timer restart with JVM; Gauge reloaded from PostgreSQL",
+  "never_refreshed": "NaN for all state Gauges",
+  "refresh_ms": 30000,
+  "allowed_values": {
+    "worker_outcome": [
+      "success",
+      "failed",
+      "failed_retryable",
+      "canceled",
+      "paused",
+      "budget_exceeded",
+      "waiting_for_approval",
+      "waiting_for_user_input",
+      "queued",
+      "unexpected_error"
+    ],
+    "model_purpose": [
+      "turn",
+      "summary"
+    ],
+    "model_outcome": [
+      "success",
+      "timeout",
+      "provider_error",
+      "invalid_response",
+      "interrupted",
+      "other"
+    ],
+    "invocation_safety": [
+      "SAFE_READ",
+      "IDEMPOTENT_OR_RECONCILABLE",
+      "UNCONFIRMABLE_SIDE_EFFECT"
+    ],
+    "invocation_outcome": [
+      "succeeded",
+      "failed",
+      "rejected",
+      "canceled",
+      "skipped",
+      "unknown"
+    ],
+    "run_status": [
+      "CREATED",
+      "QUEUED",
+      "RUNNING",
+      "PAUSED",
+      "WAITING_FOR_APPROVAL",
+      "WAITING_FOR_USER_INPUT",
+      "SUCCEEDED",
+      "FAILED_RETRYABLE",
+      "FAILED",
+      "CANCELED",
+      "BUDGET_EXCEEDED"
+    ]
+  },
+  "metrics": [
+    {
+      "name": "agent.worker.attempt",
+      "type": "Counter",
+      "tags": [
+        "outcome"
+      ],
+      "semantics": "一次已领取 Worker attempt 返回/异常；非 Run 最终完成"
+    },
+    {
+      "name": "agent.worker.attempt.duration",
+      "type": "Timer",
+      "tags": [
+        "outcome"
+      ],
+      "semantics": "process 入口至返回/异常"
+    },
+    {
+      "name": "agent.worker.dispatch.rejected",
+      "type": "Counter",
+      "tags": [
+        "reason=executor_full"
+      ],
+      "semantics": "TaskRejectedException；空轮询不计"
+    },
+    {
+      "name": "agent.model.request",
+      "type": "Counter",
+      "tags": [
+        "purpose",
+        "outcome"
+      ],
+      "semantics": "路由作用域且传输层确实开始出站；无出站不计"
+    },
+    {
+      "name": "agent.model.request.duration",
+      "type": "Timer",
+      "tags": [
+        "purpose",
+        "outcome"
+      ],
+      "semantics": "首次实际出站至路由调用返回/异常，包括 Legacy 响应解析"
+    },
+    {
+      "name": "agent.tool.invocation.outcome",
+      "type": "Counter",
+      "tags": [
+        "safety",
+        "outcome"
+      ],
+      "semantics": "实际 PENDING 状态转换提交后；含取消/批次/委派/UNKNOWN"
+    },
+    {
+      "name": "agent.tool.invocation.duration",
+      "type": "Timer",
+      "tags": [
+        "safety",
+        "outcome"
+      ],
+      "semantics": "当前 Worker Scheduler 提交前至结果提交；未调度/跨重启无样本"
+    },
+    {
+      "name": "agent.run.status.count",
+      "type": "Gauge",
+      "tags": [
+        "status"
+      ],
+      "semantics": "DB 各持久化 Run 状态数量"
+    },
+    {
+      "name": "agent.run.lease.expired.count",
+      "type": "Gauge",
+      "tags": [],
+      "semantics": "RUNNING 且 lease_expires_at < DB now()"
+    },
+    {
+      "name": "agent.invocation.unknown.count",
+      "type": "Gauge",
+      "tags": [],
+      "semantics": "DB UNKNOWN 数量"
+    },
+    {
+      "name": "agent.invocation.unknown.oldest.age",
+      "type": "Gauge",
+      "tags": [],
+      "semantics": "now - min(COALESCE(dispatch_started_at,updated_at))，秒；无 UNKNOWN 为0"
+    },
+    {
+      "name": "agent.diagnostics.snapshot.age",
+      "type": "Gauge",
+      "tags": [],
+      "semantics": "距最近成功快照秒数，首次无快照 NaN"
+    },
+    {
+      "name": "agent.diagnostics.snapshot.refresh.failures",
+      "type": "Counter",
+      "tags": [],
+      "semantics": "查询失败次数，保留 last-good"
+    }
+  ],
+  "no_external_alerting": true,
+  "no_ids_model_or_tool_names_in_tags": true
+}

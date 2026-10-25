@@ -305,9 +305,7 @@ public class AgentToolCallExecutor {
                     }
                     return failWriteProposal(run, vtc.toolCall(), failure.getErrorCode().name());
                 } catch (RuntimeException failure) {
-                    log.warn("Agent proposal failed: runId={}, tool={}, type={}, reason={}",
-                            run.id(), vtc.toolCall().name(), failure.getClass().getSimpleName(),
-                            failure.getMessage());
+                    log.warn("Agent proposal failed: type={}", failure.getClass().getSimpleName());
                     return failWriteProposal(run, vtc.toolCall(), "AGENT_TOOL_EXECUTION_FAILED");
                 }
 
@@ -425,8 +423,7 @@ public class AgentToolCallExecutor {
             }
             return failWriteProposal(run, toolCall, failure.getErrorCode().name());
         } catch (RuntimeException failure) {
-            log.warn("Agent delegation failed: runId={}, tool={}, reason={}",
-                    run.id(), toolCall.name(), failure.getMessage());
+            log.warn("Agent delegation failed: type={}", failure.getClass().getSimpleName());
             return failWriteProposal(run, toolCall, "AGENT_TOOL_EXECUTION_FAILED");
         }
     }
@@ -598,13 +595,15 @@ public class AgentToolCallExecutor {
         for (ValidatedToolCall vtc : batch) {
             AgentTool tool = vtc.tool();
             ModelToolCall toolCall = vtc.toolCall();
+            com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentDiagnosticScope.submitted(toolCall.id());
             long deadline = System.nanoTime() + (toolCall.name().startsWith("mcp.")
                     ? limits.mcpToolTimeout() : limits.internalToolTimeout()).toNanos();
             cancellation.throwIfRequested(run);
             AgentRunView executingRun = run;
             try {
             scheduled.add(new ScheduledToolCall(toolCall, deadline, scheduler.submit(toolCtx, deadline, () -> {
-                try (var lease = claimEpoch == null ? null
+                try (var diagnostic = new com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentDiagnosticScope(executingRun.id(), claimEpoch, repository.invocationId(executingRun, toolCall));
+                     var lease = claimEpoch == null ? null
                         : new com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope(claimEpoch)) {
                     cancellation.throwIfRequested(executingRun);
                     // 限流等待之后的准入复核：暂停意图先落库则本调用不启动
