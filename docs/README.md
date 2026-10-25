@@ -28,6 +28,7 @@
 - [Agent 交互体验设计 (`design/agent-experience-design.md`)](design/agent-experience-design.md)：模型配置切换、执行过程卡片、人工审批与流式输出体验。
 - [Agent 预算与暂停恢复设计 (`design/agent-budget-and-resume-design.md`)](design/agent-budget-and-resume-design.md)：Token 预算控制、用户主动暂停与恢复设计。
 - [AI 能力下一阶段总设计 (`design/ai-next-stage-blueprint.md`)](design/ai-next-stage-blueprint.md)：长上下文压缩、多轮对话与知识库联动演进蓝图。
+- [RAG 检索质量、证据与成本优化 (`design/rag-quality-and-evidence.md`)](design/rag-quality-and-evidence.md)：QA 与 Agent 双路径检索基线、候选召回/上下文选择受控实验、引用契约与生产准入门槛（P6-RAG-QUALITY-01）。
 
 ---
 
