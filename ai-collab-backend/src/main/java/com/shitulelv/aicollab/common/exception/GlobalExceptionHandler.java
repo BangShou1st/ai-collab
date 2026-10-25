@@ -74,6 +74,13 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ErrorCode.DOCUMENT_TOO_LARGE));
     }
 
+    /** 未知路径（含未暴露的 Actuator 端点）按 404 返回，不落入 500。 */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(org.springframework.web.servlet.resource.NoResourceFoundException exception) {
+        return ResponseEntity.status(ErrorCode.RESOURCE_NOT_FOUND.httpStatus())
+                .body(ApiResponse.error(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpectedException(Exception exception) {
         log.error("未处理的系统异常，type={}", exception.getClass().getSimpleName(), exception);
