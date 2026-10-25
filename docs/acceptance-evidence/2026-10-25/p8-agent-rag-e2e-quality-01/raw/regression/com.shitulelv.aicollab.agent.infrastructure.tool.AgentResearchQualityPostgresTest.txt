@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest
+-------------------------------------------------------------------------------
+Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 42.55 s -- in com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest

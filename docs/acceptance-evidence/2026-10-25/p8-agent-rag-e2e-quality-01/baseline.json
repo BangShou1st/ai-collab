@@ -1,0 +1,84 @@
+{
+  "capturedAt": "2026-10-25T14:11:42.575Z",
+  "branch": "dev",
+  "head": "f11939e336e3bb72abdcdb6e2db2fd4cc0d0fd3b",
+  "originDev": "f11939e336e3bb72abdcdb6e2db2fd4cc0d0fd3b",
+  "initialWorktree": "clean (observed before test-only edits)",
+  "worktreeAtCapture": "M ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P6RagQualityBaselinePostgresTest.java\n?? docs/acceptance-evidence/2026-10-25/p8-agent-rag-e2e-quality-01/",
+  "environment": {
+    "java": "21.0.10 (Maven -v captured this value; java -version writes to stderr)",
+    "maven": "Apache Maven 3.9.16 (2bdd9fddda4b155ebf8000e807eb73fd829a51d5)\r\nMaven home: C:\\Users\\32962\\.m2\\wrapper\\dists\\apache-maven-3.9.16\\0daed3be3ebd1c706f0e69e8b07c6b73f5cc4ea3dfce72a8d0ec2e849ca2ddb0\r\nJava version: 21.0.10, vendor: Oracle Corporation, runtime: E:\\Java\\jdk-21.0.10\r\nDefault locale: zh_CN, platform encoding: UTF-8\r\nOS name: \"windows 11\", version: \"10.0\", arch: \"amd64\", family: \"windows\"",
+    "docker": "29.8.0 29.8.0",
+    "postgres": "postgres (PostgreSQL) 17.11 (Debian 17.11-1.pgdg12+2)",
+    "node": "v24.14.0",
+    "ollama": "{\"version\":\"0.40.6\"}",
+    "backendHealth": "{\"groups\":[\"liveness\",\"readiness\"],\"status\":\"UP\"}",
+    "frontendStatus": "200",
+    "backend": "Spring Boot 4.1.0; Flyway V1–V68 in isolated DB",
+    "frontend": {
+      "@types/node": "^24.0.0",
+      "@vitejs/plugin-vue": "^6.0.1",
+      "@vue/eslint-config-typescript": "^14.9.0",
+      "@vue/test-utils": "^2.4.11",
+      "eslint": "^10.11.0",
+      "eslint-config-prettier": "^10.1.8",
+      "eslint-plugin-vue": "^10.11.1",
+      "jsdom": "^29.1.1",
+      "prettier": "^3.9.9",
+      "typescript": "~5.8.3",
+      "vite": "^7.1.3",
+      "vitest": "^3.2.4",
+      "vue-tsc": "^3.0.5",
+      "@element-plus/icons-vue": "^2.3.2",
+      "axios": "^1.11.0",
+      "dompurify": "^3.4.12",
+      "element-plus": "^2.10.7",
+      "marked": "^18.0.7",
+      "pinia": "^3.0.3",
+      "vue": "^3.5.18",
+      "vue-router": "^4.5.1"
+    }
+  },
+  "frozenFiles": {
+    "docs/acceptance-evidence/2026-10-22/p4-rag-answer-quality-01/corpus-manifest.json": "b556c9cc405a44106b4c85ff2d686aabfa7320c05b8bc6dc0e957311c0b9c195",
+    "docs/acceptance-evidence/2026-10-22/p4-rag-answer-quality-01/questions.json": "556a1547b73f8356f8aa19952964435445ed33b93aa93a3acfd0a63eb2f3597a",
+    "docs/acceptance-evidence/2026-10-22/p4-rag-answer-quality-01/rubric.md": "ffb71b38b58d339d1fd53434bc6dbe27ecb04242e4557785100864742cba3c37"
+  },
+  "dataBoundary": "应用数据库仅只读选择 Embedding 非敏感元数据及向量配置分组计数；无文档正文、凭据或用户身份读取。所有测试写入只在一次性 Testcontainers DB。",
+  "externalChatAuthorization": false,
+  "embedding": {
+    "provider": "OLLAMA",
+    "model": "qwen3-embedding:0.6b",
+    "dimension": 1024,
+    "fingerprint": "20f29e8d94afc1eb2f5de49d3f4c81f548881de08e7aa4acb955ec87f5face75",
+    "isolatedIndexGeneration": "b47d1af8-b7eb-460b-9b67-bb24fecfb734",
+    "configurationBoundary": "测试中显式建立独立配置，未读取或修改应用数据库配置",
+    "modelDigest": "ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d",
+    "fingerprintBoundary": "本轮冻结夹具指纹20f29e...与本地应用371934...不同；SystemEmbeddingService把baseUrl/apiPath纳入配置指纹，冻结P6测试用provider/model/dimension指纹。相同Ollama模型/1024维但不同独立索引命名空间；不把夹具generation当成本地应用generation。"
+  },
+  "testOnlySourceHashes": {
+    "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P6RagQualityBaselinePostgresTest.java": "e619182aa45979d2e8910106eaaa0c110170cae284aec27708ca1e9fbcf3844b",
+    "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P8AgentRagCrossLayerPostgresTest.java": "6123092051299c65f2a0a6f8a098142165675c42ecf59f7aa8840f64dfd89e07"
+  },
+  "originDevMeaning": "本地 origin/dev 跟踪引用；未 fetch，不宣称实时远端状态",
+  "localApplicationEmbeddingConfiguration": [
+    {
+      "provider": "OLLAMA",
+      "model_name": "qwen3-embedding:0.6b",
+      "dimensions": 1024,
+      "fingerprint": "371934bd5ee45222ab06b7cad4af2e2582c0659e289d138c10ad6706c0019700",
+      "generation_id": null,
+      "enabled": true
+    }
+  ],
+  "localApplicationIndexSummary": [
+    {
+      "embedding_provider": "OLLAMA",
+      "embedding_model": "qwen3-embedding:0.6b",
+      "embedding_dimension": 1024,
+      "embedding_fingerprint": "371934bd5ee45222ab06b7cad4af2e2582c0659e289d138c10ad6706c0019700",
+      "generation_id": null,
+      "chunk_count": 29
+    }
+  ]
+}

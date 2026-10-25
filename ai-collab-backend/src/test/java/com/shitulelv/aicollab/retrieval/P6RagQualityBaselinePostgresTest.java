@@ -111,7 +111,8 @@ class P6RagQualityBaselinePostgresTest {
     private static final Path MANIFEST =
             ROOT.resolve("docs/acceptance-evidence/2026-10-22/p4-rag-answer-quality-01/corpus-manifest.json");
     /** 只写入 target/，绝不覆盖仓库里 2026-10-22 的冻结验收快照。 */
-    private static final Path OUTPUT = Path.of("target", "retrieval-baseline", "p6-rag-quality-01", "d0-d2-real.json");
+    private static final Path OUTPUT = Path.of(System.getProperty("rag.baseline.output",
+            "target/retrieval-baseline/p6-rag-quality-01/d0-d2-real.json"));
     private static final ObjectMapper JSON = new ObjectMapper();
 
     /** 一条冻结事实：目标文档 + 语料 verbatim 标记（按 marker 定位 chunk，可容忍分块标题合并）。 */
@@ -184,10 +185,10 @@ class P6RagQualityBaselinePostgresTest {
     @Autowired DocumentChunker chunker;
 
     private final KnowledgeContextBuilder builder = new KnowledgeContextBuilder();
-    private UUID user;
-    private UUID project;
+    protected UUID user;
+    protected UUID project;
     private UUID generation;
-    private final Map<String, UUID> documentIds = new LinkedHashMap<>();
+    protected final Map<String, UUID> documentIds = new LinkedHashMap<>();
     private final List<Map<String, Object>> corpus = new ArrayList<>();
     private long indexLatencyMs;
     private long indexInputCodePoints;
@@ -202,7 +203,9 @@ class P6RagQualityBaselinePostgresTest {
         for (JsonNode question : questions) {
             String id = question.path("id").asText();
             if ("Q13".equals(id)) indexDocument(FIXTURES.resolve("不可信资料测试.md"));
-            questionRows.add(measureQuestion(question));
+            Map<String, Object> measured = measureQuestion(question);
+            questionRows.add(measured);
+            observeQuestion(question, measured);
             if ("Q13".equals(id)) {
                 // 与历史协议一致：注入样本仅存在于 Q13 期间，保持其余问题的候选竞争不变。
                 jdbc.update("UPDATE project_document SET status='FAILED' WHERE id=?",
@@ -213,7 +216,8 @@ class P6RagQualityBaselinePostgresTest {
         Map<String, Object> summary = summarize(questionRows);
         Map<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("evaluation", "P6-RAG-QUALITY-01 D0/D1/D2 frozen-question real baseline and controlled experiments");
-        evidence.put("baseline", "dev@d9554c301a8a82c986630ba085e97ea6e1e7fcdf (2026-10-25)");
+        evidence.put("baseline", System.getProperty("rag.baseline.sha",
+                "UNSPECIFIED: supply -Drag.baseline.sha=<current HEAD>"));
         evidence.put("model", EMBEDDING_MODEL);
         evidence.put("dimension", 1024);
         evidence.put("fingerprint", FINGERPRINT);
@@ -281,6 +285,10 @@ class P6RagQualityBaselinePostgresTest {
         assertThat(facts(q03)).extracting(fact -> fact.get("qaStage"))
                 .as("Q03：名额均衡后三阶段证据（含历史被挤掉的上线门禁）全部进入 QA 上下文")
                 .containsOnly("RETAINED");
+    }
+
+    /** Test-only extension point: observe the same live index before Q13 is deactivated. */
+    protected void observeQuestion(JsonNode question, Map<String, Object> measured) throws Exception {
     }
 
     // ---- 语料装载 ----
@@ -453,6 +461,7 @@ class P6RagQualityBaselinePostgresTest {
         row.put("facts", factRows);
         row.put("qaCandidateCount", qaCandidates.size());
         row.put("qaCandidates", candidateSummary(qaCandidates));
+        row.put("diagnosticFullRanking", candidateSummary(fullRanking));
         row.put("qaDropReasons", dropSummary(qaBuild));
         row.put("qaLegacyDropReasons", dropSummary(qaLegacyBuild));
         row.put("qaLegacyFactStages", factStages(factRows, "qaLegacyStage"));
@@ -460,12 +469,14 @@ class P6RagQualityBaselinePostgresTest {
         row.put("qaS1FactStages", factStages(factRows, "qaS1Stage"));
         row.put("qaSourceCount", qaContext.sources().size());
         row.put("qaSources", sourceSummary(qaContext));
+        row.put("qaPromptSources", qaContext.promptSources());
         row.put("qaPromptCodePoints", promptCodePoints(qaContext));
         row.put("agentCandidateCount", agentCandidates.size());
         row.put("agentCandidates", candidateSummary(agentCandidates));
         row.put("agentDropReasons", dropSummary(agentBuild));
         row.put("agentSourceCount", agentContext.sources().size());
         row.put("agentSources", sourceSummary(agentContext));
+        row.put("agentPromptSources", agentContext.promptSources());
         row.put("agentPromptCodePoints", promptCodePoints(agentContext));
         row.put("agent12SourceCount", agent12Build.context().sources().size());
         row.put("agent12FactStages", factStages(factRows, "agent12Stage"));
@@ -638,7 +649,10 @@ class P6RagQualityBaselinePostgresTest {
         for (DocumentSearchHit hit : withTrueSimilarity) {
             reportItems.add(Map.of(
                     "chunkId", hit.id().toString(),
+                    "documentId", hit.documentId().toString(),
                     "document", hit.originalFilename(),
+                    "content", hit.content() == null ? "" : hit.content(),
+                    "contentHash", hit.contentHash() == null ? "" : hit.contentHash(),
                     "heading", hit.heading() == null ? "" : hit.heading(),
                     "vectorSimilarity", similarity(hit.id(), fullRanking),
                     "diagnosticFullRank", rank(hit.id(), fullRanking)));
@@ -787,7 +801,9 @@ class P6RagQualityBaselinePostgresTest {
             items.add(Map.of(
                     "rank", source.rank(),
                     "chunkId", source.chunkId().toString(),
+                    "documentId", source.documentId().toString(),
                     "document", source.originalFilename(),
+                    "content", source.content() == null ? "" : source.content(),
                     "heading", source.heading() == null ? "" : source.heading(),
                     "similarity", Math.round(source.similarity() * 10_000d) / 10_000d,
                     "retainedCodePoints", source.content() == null ? 0
