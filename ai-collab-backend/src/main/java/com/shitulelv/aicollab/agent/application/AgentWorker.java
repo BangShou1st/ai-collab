@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class AgentWorker {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics;
     private final AgentRepository repository;
     private final AgentRuntimeCoordinator coordinator;
     private final AgentEventService events;
@@ -48,13 +50,25 @@ public class AgentWorker {
     }
 
     public AgentWorkerOutcome process(ClaimedAgentRun claimed) {
-        try (var registration = cancellation == null ? null : cancellation.register(claimed.id());
-             var scope = new com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope(claimed.version())) {
-            return processOwned(claimed);
-        } catch (RuntimeException failure) {
-            throw failure;
-        } catch (Exception failure) {
-            throw new IllegalStateException(failure);
+        long start = System.nanoTime();
+        AgentWorkerOutcome outcome = null;
+        try (var diagnostic = new com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentDiagnosticScope(
+                claimed.id(), claimed.version(), null)) {
+            try (var registration = cancellation == null ? null : cancellation.register(claimed.id());
+                 var scope = new com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope(claimed.version())) {
+                outcome = processOwned(claimed);
+                return outcome;
+            } catch (RuntimeException failure) {
+                throw failure;
+            } catch (Exception failure) {
+                throw new IllegalStateException(failure);
+            } finally {
+                long elapsed = System.nanoTime() - start;
+                if (metrics != null) metrics.worker(outcome, elapsed);
+                org.slf4j.LoggerFactory.getLogger(AgentWorker.class).debug(
+                        "Agent worker attempt ended, status={}, durationNanos={}",
+                        outcome == null ? "unexpected_error" : outcome.status(), elapsed);
+            }
         }
     }
 

@@ -33,6 +33,8 @@ import java.util.UUID;
  */
 @Repository
 public class AgentRunEventRecorder {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics;
     /**
      * 推进步记账（V63 预算语义兼容标记）：COMBINED（旧语义，既有行默认）下工具结果
      * 逐项占用推进步；SEPARATED（新语义，新根运行默认）下一次模型轮计一次推进、
@@ -694,7 +696,7 @@ public class AgentRunEventRecorder {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), true);
         accountActiveTime(run.id());
         preserveUnconfirmedDispatches(run.id());
-        jdbc.update("UPDATE agent_tool_invocation SET status='CANCELED',result_json='{\"status\":\"CANCELED\"}'::jsonb WHERE run_id=? AND status='PENDING'", run.id());
+        invocationMetrics(jdbc.queryForList("UPDATE agent_tool_invocation SET status='CANCELED',result_json='{\"status\":\"CANCELED\"}'::jsonb WHERE run_id=? AND status='PENDING' RETURNING invocation_id,tool_call_id,execution_safety,status", run.id()));
         markBatchHandled(run.id());
         int updated = jdbc.update("""
                 UPDATE agent_run SET status='CANCELED', error_code='RUN_CANCELLED',
@@ -1224,13 +1226,16 @@ public class AgentRunEventRecorder {
                 result.toString(),
                 isError ? "TOOL_ERROR" : "TOOL_SUCCESS");
         if (arguments.hasNonNull("toolCallId")) {
-            requireRunUpdate(jdbc.update("""
+            var changedInvocations = jdbc.queryForList("""
                     UPDATE agent_tool_invocation SET status=?,result_json=?::jsonb,updated_at=now()
                     WHERE run_id=? AND tool_call_id=? AND tool_name=? AND arguments_json=?::jsonb
                       AND status='PENDING'
                       AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
+                    RETURNING invocation_id,tool_call_id,execution_safety,status
                     """, isError ? result.path("status").asText("FAILED") : "SUCCEEDED", result.toString(),
-                    run.id(), arguments.path("toolCallId").asText(), toolName, arguments.path("arguments").toString(), run.id()));
+                    run.id(), arguments.path("toolCallId").asText(), toolName, arguments.path("arguments").toString(), run.id());
+            requireRunUpdate(changedInvocations.size());
+            invocationMetrics(changedInvocations);
         }
         event(run,isError ? "TOOL_CALL_FAILED" : "TOOL_CALL_COMPLETED",json.createObjectNode()
                 .put("callId",arguments.path("toolCallId").asText()).put("toolName",toolName)
@@ -1401,10 +1406,18 @@ public class AgentRunEventRecorder {
                 AgentRunMappers.runMapper(), projectId, runId).stream().findFirst();
     }
 
+    private void invocationMetrics(java.util.List<java.util.Map<String,Object>> rows) {
+        if (metrics == null) return;
+        for (var row : rows) metrics.invocation(
+                java.util.Objects.toString(row.get("execution_safety"), "UNCONFIRMABLE_SIDE_EFFECT"),
+                row.get("status").toString(),
+                com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentDiagnosticScope.elapsed(row.get("tool_call_id").toString()));
+    }
+
     private void markBatchHandled(UUID runId) {
         preserveUnconfirmedDispatches(runId);
         jdbc.update("UPDATE agent_step SET output_json=jsonb_set(output_json,'{batchHandled}','true'::jsonb) WHERE run_id=? AND type='MODEL_TURN' AND output_json IS NOT NULL", runId);
-        jdbc.update("UPDATE agent_tool_invocation SET status='SKIPPED',result_json='{\"status\":\"SKIPPED\",\"error\":\"BATCH_ENDED\"}'::jsonb,updated_at=now() WHERE run_id=? AND status='PENDING'", runId);
+        invocationMetrics(jdbc.queryForList("UPDATE agent_tool_invocation SET status='SKIPPED',result_json='{\"status\":\"SKIPPED\",\"error\":\"BATCH_ENDED\"}'::jsonb,updated_at=now() WHERE run_id=? AND status='PENDING' RETURNING invocation_id,tool_call_id,execution_safety,status", runId));
     }
 
     private boolean hasUnconfirmedInvocation(UUID runId) {
@@ -1421,8 +1434,9 @@ public class AgentRunEventRecorder {
                   result_json='{"status":"UNKNOWN","retryable":false,"error":"TOOL_OUTCOME_UNKNOWN","message":"工具可能已执行，请人工核对；系统不会自动重发"}'::jsonb,
                   updated_at=now()
                 WHERE run_id=? AND status='PENDING' AND dispatch_started_at IS NOT NULL AND execution_safety<>'SAFE_READ'
-                RETURNING invocation_id,tool_call_id,tool_name
+                RETURNING invocation_id,tool_call_id,tool_name,execution_safety,status
                 """, runId);
+        invocationMetrics(rows);
         for (var row : rows) {
             UUID project = jdbc.queryForObject("SELECT project_id FROM agent_run WHERE id=?", UUID.class, runId);
             event(project, runId, "TOOL_CALL_FAILED", json.createObjectNode()
@@ -1915,11 +1929,12 @@ public class AgentRunEventRecorder {
                   updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, run.projectId(), run.id(), run.version()));
-        jdbc.update("""
+        invocationMetrics(jdbc.queryForList("""
                 UPDATE agent_tool_invocation SET status='SUCCEEDED',
                   result_json=?::jsonb,updated_at=now()
                 WHERE run_id=? AND invocation_id=? AND status='PENDING'
-                """, jsonString(result), run.id(), UUID.fromString(invocationId));
+                RETURNING invocation_id,tool_call_id,execution_safety,status
+                """, jsonString(result), run.id(), UUID.fromString(invocationId)));
         // 委派批次全部完成：标记本运行最近模型轮次已消费，恢复路径不再重放委派调用
         markBatchHandled(run.id());
         return result;

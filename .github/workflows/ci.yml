@@ -64,6 +64,10 @@ jobs:
           # 两者都必须真实执行，不得整类跳过（真实 Ollama 门槛为 Opt-in，不在此列）。
           # KiloGatewayPresetIsolationIntegrationTest 验证 V65 迁移与双预设隔离：同样不得整类跳过。
           required = [
+              "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentObservabilityPostgresTest",
+              "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetricsTest",
+              "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentActuatorSecurityTest",
+              "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentModelTransportMetricsTest",
               "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest",
               "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeMigrationPostgresTest",
               "com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerTest",

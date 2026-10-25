@@ -1,0 +1,58 @@
+{
+  "result": "BUILD FAILURE",
+  "total_tests": 1760,
+  "failures": 0,
+  "errors": 9,
+  "skipped": 34,
+  "error_class": "com.shitulelv.aicollab.agent.application.runtime.PersistedModelTurnRecoveryPostgresTest",
+  "cases": [
+    {
+      "method": "trulyOverBudgetRemainingCallsStillRejected",
+      "type": "org.springframework.dao.DataAccessResourceFailureException",
+      "diagnostic": "PostgreSQL connection EOF followed by database recovery mode/refused connections"
+    },
+    {
+      "method": "savedResultSurvivesRemovedModelConfiguration",
+      "type": "org.springframework.jdbc.CannotGetJdbcConnectionException",
+      "diagnostic": "PostgreSQL connection EOF followed by database recovery mode/refused connections"
+    },
+    {
+      "method": "stepBoundaryFinalizeAnswerSurvivesTakeoverOnBothPaths",
+      "type": "org.springframework.jdbc.CannotGetJdbcConnectionException",
+      "diagnostic": "PostgreSQL connection EOF followed by database recovery mode/refused connections"
+    },
+    {
+      "method": "repeatedTakeoverDoesNotConsumeTheSavedTurnTwice",
+      "type": "org.springframework.jdbc.CannotGetJdbcConnectionException",
+      "diagnostic": "PostgreSQL connection EOF followed by database recovery mode/refused connections"
+    },
+    {
+      "method": "overSingleTurnLimitBatchStillRejected",
+      "type": "org.springframework.jdbc.CannotGetJdbcConnectionException",
+      "diagnostic": "PostgreSQL connection EOF followed by database recovery mode/refused connections"
+    },
+    {
+      "method": "actualInputOversetStopsTextAnswerOnBothPaths",
+      "type": "org.springframework.jdbc.CannotGetJdbcConnectionException",
+      "diagnostic": "PostgreSQL connection EOF followed by database recovery mode/refused connections"
+    },
+    {
+      "method": "blankTextTurnIsNotTreatedAsAReusableResult",
+      "type": "org.springframework.jdbc.CannotGetJdbcConnectionException",
+      "diagnostic": "PostgreSQL connection EOF followed by database recovery mode/refused connections"
+    },
+    {
+      "method": "partialToolBatchRecoveryExecutesOnlyTheRemainingCalls",
+      "type": "org.springframework.jdbc.CannotGetJdbcConnectionException",
+      "diagnostic": "PostgreSQL connection EOF followed by database recovery mode/refused connections"
+    },
+    {
+      "method": "persistedToolBatchStillRecoversThroughTheToolExecutor",
+      "type": "org.springframework.jdbc.CannotGetJdbcConnectionException",
+      "diagnostic": "PostgreSQL connection EOF followed by database recovery mode/refused connections"
+    }
+  ],
+  "root_cause_status": "PostgreSQL restarted during claim query; no Docker oom event observed; root cause not yet established",
+  "not_accepted_as_pass": true,
+  "code_followup": "Kilo local preparation failure counter refinement also requires final full verify"
+}

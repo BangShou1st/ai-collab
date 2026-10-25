@@ -137,7 +137,7 @@ management:
 logging:
     # 控制台单行输出（容器标准 stdout，由部署侧日志系统收集），并携带请求关联 ID。
     pattern:
-        console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [requestId=%X{requestId:-none}] %logger{40} - %msg%n"
+        console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [requestId=%X{requestId:-none}] [agentRunId=%X{agentRunId:-none} agentClaimVersion=%X{agentClaimVersion:-none} agentInvocationId=%X{agentInvocationId:-none}] %logger{40} - %msg%n"
     level:
         root: INFO
         # 与 local profile 相同的敏感参数防泄漏基线：以下 Mapper 的 DEBUG 输出可能包含

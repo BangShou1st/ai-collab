@@ -127,4 +127,30 @@ class RoutingAgentModelExecutorRequestConsistencyTest {
         verify(legacyExecutor).callModel(anyList(), anyList(),
                 eq(run.projectId()), eq(run.requesterId()), eq(false), any());
     }
+    @Test
+    void c03MetricsCountRealRoutingCallsAndExcludeConfigurationRejection() {
+        var registry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        org.springframework.test.util.ReflectionTestUtils.setField(executor, "metrics",
+                new com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics(registry));
+        when(store.require(run)).thenThrow(new com.shitulelv.aicollab.common.exception.BusinessException(
+                com.shitulelv.aicollab.common.exception.ErrorCode.AI_PROVIDER_UNAVAILABLE));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> executor.resolveRequest(run))
+                .isInstanceOf(com.shitulelv.aicollab.common.exception.BusinessException.class);
+        assertThat(registry.find("agent.model.request").counter()).isNull();
+        org.mockito.Mockito.doReturn(provider("private-model", true)).when(store).require(run);
+        var resolved = executor.resolveRequest(run);
+        when(nativeExecutor.callModel(anyList(),anyList(),any(),any(),any()))
+                .thenAnswer(call -> {
+                    com.shitulelv.aicollab.infrastructure.ai.model.AiOutboundObservation.markStarted(
+                            com.shitulelv.aicollab.infrastructure.ai.model.AiOutboundObservation.current());
+                    return new ModelTurnResult("private",List.of(),
+                            com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason.STOP,null,"FAKE","private-model",1L);
+                });
+        executor.callModel(run,List.of(),List.of(),false,resolved);
+        executor.callModelWithoutTools(run,List.of(),resolved);
+        assertThat(registry.get("agent.model.request").tags("purpose","turn","outcome","success").counter().count()).isEqualTo(1);
+        assertThat(registry.get("agent.model.request").tags("purpose","summary","outcome","success").counter().count()).isEqualTo(1);
+        assertThat(registry.getMeters().toString()).doesNotContain("private-model");
+    }
+
 }

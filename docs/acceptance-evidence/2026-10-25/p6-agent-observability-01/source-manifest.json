@@ -1,0 +1,105 @@
+{
+  "normalization": "UTF-8 source bytes with CRLF normalized to LF; Git blob uses repository attributes",
+  "files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256_lf": "8ba8bc506a168567aa34e28aa814efb7c33fe8de89832dde4e1f7e4014af1902",
+      "git_blob": "057b41affddfa177fb6a741dd840c05929b2d311"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/application/AgentRuntimeJob.java",
+      "sha256_lf": "6a293f7119d9a1cfbda05e3c64d1ba1ab5642dbddf9214bb6f4f673880cd34d3",
+      "git_blob": "56734aaecbcf442b75311d28d3d14f89aab1e8b5"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/application/AgentWorker.java",
+      "sha256_lf": "5efd191df4d08597c314602c5033ce12ca67ffce225df8a2ea41d96179d4c7ac",
+      "git_blob": "9b966d69120e21e9789eccd7e8789576f0073b28"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/application/runtime/AgentToolCallExecutor.java",
+      "sha256_lf": "4b508e94c88799de2369479b3325f57d4bffc28d806c68bc2cd099e3b86c63d3",
+      "git_blob": "5df57b679f1eb11c9709fc9e223e88aa29b52315"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/application/runtime/RoutingAgentModelExecutor.java",
+      "sha256_lf": "f7bf010082a9e1faf821d385ab894e6be152e95873393ff491cb04b43fe3158d",
+      "git_blob": "d521ae39cbf275608e1af1f510c6823217d0e69b"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/diagnostics/AgentDiagnosticScope.java",
+      "sha256_lf": "0ad693a9c45f07ccd58439429ad163e9eb63172d6527575388a6dc678ad4b5f3",
+      "git_blob": "da8953d4a0101eec5d6494b040861ff6a42e96cf"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/diagnostics/AgentRuntimeMetrics.java",
+      "sha256_lf": "5e49e62a9f2aa9ae49b289e48a50847503777503fc44827180a719f0035f09d9",
+      "git_blob": "dbafc57eff0e377d616869befd0ad71e1cc74c59"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/diagnostics/AgentRuntimeStateMetrics.java",
+      "sha256_lf": "d1c6eae2441c034fa4ae2b9bca398dba6bcbcf418175e7443c42eb4204c88350",
+      "git_blob": "6d39d430bb4c871c65c5bb368eb83ede94a67aee"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/repository/AgentRunEventRecorder.java",
+      "sha256_lf": "dd65e13e544735296b5b753e02670431f7acaf49ee2fddaf567e1e046968b480",
+      "git_blob": "9da7e8cc0cb0467fce148fd341dc2a9a4483617a"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/infrastructure/repository/AgentRuntimeStateRepository.java",
+      "sha256_lf": "50a1a5e9c8495f747690562fc7c3bb15076ca9e58475a2831bcc32b0504313da",
+      "git_blob": "9923f3ad1fa46e6808d1599bd0fa7e9fd2dc0f2c"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/infrastructure/ai/model/AiOutboundObservation.java",
+      "sha256_lf": "62fe18118d38882582cab7acd3d6c5902ae0c793f2f3235988c0bb7027f09dd5",
+      "git_blob": "462c61abcc1143063a58018c1deeb0844a8205b9"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/infrastructure/ai/model/JsonHttpModelClient.java",
+      "sha256_lf": "fc06c5c90eba36a7d99bbe90a2d8f5a80fad0c86cf76d3402651dd8cd86965c9",
+      "git_blob": "03bcaffe402916446ec8105683d5ce3db4a26d8f"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/infrastructure/ai/model/KiloGatewayClientTransport.java",
+      "sha256_lf": "7ee1108d2ae756493dfbcb2714936e2ad2cf5da376503591fd719b1432b6271a",
+      "git_blob": "eb5280b0328092a3f81147ab52b33fb8bbcc997c"
+    },
+    {
+      "path": "ai-collab-backend/src/main/resources/application.yml",
+      "sha256_lf": "db5d7724daa8a3ca0593ea2e3156f2dbe76b10ae84ea09b92aa5f9236f94418b",
+      "git_blob": "782f8031d9b9f162e3f87edaa4b0d0677bbe368a"
+    },
+    {
+      "path": "ai-collab-backend/src/main/resources/db/migration/V68__agent_observability_unknown_index.sql",
+      "sha256_lf": "630adffc08c1081895ec75ad538492f066edfbaf9c1f3be211dedb085e60d134",
+      "git_blob": "9a3fd182eb8bdff934843db90cf1a6f8d240e8e3"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/RoutingAgentModelExecutorRequestConsistencyTest.java",
+      "sha256_lf": "5734fa26743ba6d8b091cb3dc31b856c26be7adba1f24e06951ff02fcc0250ef",
+      "git_blob": "a9886e92230c258c45f19cc257f243f6aef4a796"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/infrastructure/diagnostics/AgentActuatorSecurityTest.java",
+      "sha256_lf": "d3ff9c686657c6b63b5806923aad673bdae2d9306b8ec4df4954061be9dc8b92",
+      "git_blob": "93943c93951f6cdd3b3d0d68b4a373d1cbe296a3"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/infrastructure/diagnostics/AgentModelTransportMetricsTest.java",
+      "sha256_lf": "9ae1997be87ec1ed51905608b80cd033186fd1a27b15359ee54242943603603f",
+      "git_blob": "d94ebecc2c199196401609a71df2ace7ae506397"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/infrastructure/diagnostics/AgentObservabilityPostgresTest.java",
+      "sha256_lf": "867af674ff986fb13373cffd8dc3d82900a68d0ca60b6bd2c92f890bd0d04277",
+      "git_blob": "8d29bb43c89ee53955651b6190c6377b7ba9f1d4"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/infrastructure/diagnostics/AgentRuntimeMetricsTest.java",
+      "sha256_lf": "d69eb8ceb98a5bcdd1128cf594c9028d2ec9b7138d55b44c1d733d94960eb215",
+      "git_blob": "c919ea43e14ff79cff9d08431e583548ccc87c37"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "dev": "0e489824358046443429ad32d53b7143c51979cc",
+  "origin_dev": "0e489824358046443429ad32d53b7143c51979cc",
+  "main": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
+  "workspace_at_start": "clean",
+  "pr18": {
+    "state": "OPEN",
+    "draft": true,
+    "merged": false
+  },
+  "existing_registry": "Spring Actuator MeterRegistry; no Prometheus dependency/exporter",
+  "scheduler_metrics": [
+    "agent.tool.scheduler.queue.wait",
+    "agent.tool.scheduler.execution",
+    "agent.tool.scheduler.active",
+    "agent.tool.scheduler.pending",
+    "agent.tool.scheduler.rejected",
+    "agent.tool.scheduler.cancelled",
+    "agent.tool.scheduler.timeout"
+  ],
+  "unknown_persistence": "V47 status; V67 dispatch_started_at/dispatch_claim_version/execution_safety",
+  "actuator": {
+    "default_exposure": "health,info",
+    "health_details": "never",
+    "metrics_authentication": "JWT"
+  },
+  "mdc_baseline": "requestId only; no automatic propagation to Worker"
+}

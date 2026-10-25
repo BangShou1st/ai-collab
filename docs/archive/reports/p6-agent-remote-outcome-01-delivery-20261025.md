@@ -118,3 +118,17 @@ PR #18 开工核实为 OPEN / Draft / 未合并；不改 Ready、不合并、不
 没有新增分布式配额或跨服务 Exactly-Once 承诺。
 缺少可信幂等/查询能力时保持 UNKNOWN，需要人工核对；规划查询时受理事务若尚未提交也保守 UNKNOWN，
 不自动复活已终结 Run，不用迟到 HTTP 200 覆盖新状态，不提供通用远端补偿接口。
+
+
+## G. P6-C 开工补记：P6-B 最终 CI 回执（2026-10-25）
+
+本节覆盖 E/F 中当时 CI_PENDING 的时间点裁决，不改写历史测试证据与运行快照。
+P6-B 最终 SHA `0e489824358046443429ad32d53b7143c51979cc` 已正常同步 dev/origin/dev。
+同 SHA [push CI 40150763652](https://github.com/BangShou1st/ai-collab/actions/runs/40150763652) 为 completed/success；
+[Draft PR CI 40150767089](https://github.com/BangShou1st/ai-collab/actions/runs/40150767089) 为 completed/success。
+PR 的 Backend verify/容器执行守卫、Frontend lint/typecheck/test/build、Image 构建与容器冒烟各步骤均 success。
+元数据回执见 [P6-C 保存的 P6-B CI 回执](../../acceptance-evidence/2026-10-25/p6-agent-observability-01/p6b-final-ci-receipt.json)。
+
+最终裁决：`P6_AGENT_REMOTE_OUTCOME_01_ACCEPTED`（限定本地恢复协议与同 SHA CI）。
+真实外部 Provider/MCP 取消确认仍 `LIVE_NOT_RUN`，不扩大为远端取消或跨系统 Exactly-Once 保证。
+开工核对 main 仍 `9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7`；PR #18 OPEN / Draft / 未合并。

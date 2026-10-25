@@ -1,0 +1,82 @@
+{
+  "command": "Git Bash: bash ./mvnw -B -ntp -Dtest=AgentRuntimeMetricsTest,AgentObservabilityPostgresTest,AgentActuatorSecurityTest,AgentModelTransportMetricsTest,RoutingAgentModelExecutorRequestConsistencyTest test",
+  "result": "BUILD SUCCESS",
+  "tests": 22,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "classes": [
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.RoutingAgentModelExecutorRequestConsistencyTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "1.449",
+      "methods": [
+        "c03MetricsCountRealRoutingCallsAndExcludeConfigurationRejection",
+        "switchedLegacyConfigurationRoutesNextRequestThroughLegacyExecutor",
+        "configurationResolvedOncePerRequestSurvivesMidFlightSwitch"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentActuatorSecurityTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "2.952",
+      "methods": [
+        "c09DefaultHealthIsAnonymousAndMetricsAreNotExposed",
+        "c09ExplicitMetricsExposureStillRequiresValidJwt"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentModelTransportMetricsTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.388",
+      "methods": [
+        "c03LocalEndpointRejectionDoesNotCountAsOutbound",
+        "c03ActualTransportSignalCrossesPostAndStreamExecutorBoundaries",
+        "c03KiloTransportCountsAfterClientAvailabilityCheck"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentObservabilityPostgresTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "7.065",
+      "methods": [
+        "i01UpgradePreservesEveryExistingRowAndUsesPartialIndex",
+        "i02i03SnapshotMatchesDurableFactsAndLeaseRecovery",
+        "i04RollbackNeverCountsAndCommittedReplayCannotCountAgain",
+        "i04BatchCleanupUnknownAndCanceledCommitExactlyOnce"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetricsTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.443",
+      "methods": [
+        "c02AttemptAllReturnOutcomesAndUnexpectedExit",
+        "c03ModelSuccessAndBoundedFailureClassification",
+        "c06SnapshotFailureNeverFakesZeroAndScrapeNeverQueriesDatabase",
+        "c08FailureLogsNeverIncludeSensitiveExceptionText",
+        "c02c07WorkerReturnAndCancellationPathsPreserveCorrelation",
+        "c02c07ActualWorkerExceptionCleansMdcAndCountsOnce",
+        "c10RealExecutorSaturationButIdlePollDoesNotCount",
+        "c01c04FixedInvocationOutcomesAndPrivateTags",
+        "c01MetricBackendFailureNeverChangesBusinessResults",
+        "c07ThreadReuseAndNestedScopeRestoreOnExceptionAndCancellation"
+      ]
+    }
+  ]
+}

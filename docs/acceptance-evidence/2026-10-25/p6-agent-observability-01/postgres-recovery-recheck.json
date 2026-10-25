@@ -1,0 +1,8 @@
+{
+  "isolated_recovery_tests": 24,
+  "final_full_recovery_tests": 24,
+  "both_zero_failure_error_skip": true,
+  "runtime_restart_observed_in_rechecks": false,
+  "initial_restart_cause": "NOT_ESTABLISHED",
+  "initial_failure_record": "initial-full-verify-failure.json"
+}

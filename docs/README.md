@@ -20,6 +20,7 @@
 
 长期有效的系统子模块方案与机制设计：
 
+- [Agent 可观测性与可靠性诊断 (`design/agent-observability.md`)](design/agent-observability.md)：持久化状态快照、UNKNOWN 年龄、提交一致指标与安全日志关联。
 - [Agent 工具并发隔离与有界准入 (`design/agent-tool-concurrency.md`)](design/agent-tool-concurrency.md)：单 JVM 精确配额、两层轮转、取消安全与指标。
 - [Agent 远端结果确认与安全恢复 (`design/agent-remote-outcome.md`)](design/agent-remote-outcome.md)：持久化出站证据、UNKNOWN、规划核对与 Lease fencing。
 - [Agent 运行时设计 (`design/agent-runtime-design.md`)](design/agent-runtime-design.md)：工具契约、批次执行、中断决策与取消恢复机制。
@@ -51,6 +52,7 @@
 包含按日期严格组织的交付证据目录（测试结果、BSK 浏览器截图、回归基准与脱敏元数据）：
 
 - 目录格式：`docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`
+- [P6-C：Agent 可观测性与可靠性诊断](acceptance-evidence/2026-10-25/p6-agent-observability-01/README.md)：状态快照、UNKNOWN索引、提交一致指标、MDC与Actuator安全验收。
 - [P4-RAG-QUALITY-02：长文档召回参数成对复验](acceptance-evidence/2026-10-22/p4-rag-quality-02/README.md)：真实本地 Embedding 对照、生产准入判断与索引引用兼容性。
 - 注意：该目录下的部分基准 JSON 由自动化回归测试（如 `RealRetrievalBaselineTest` 等）作为只读断言基准直接引用，**严禁随意改名或删除**。
 

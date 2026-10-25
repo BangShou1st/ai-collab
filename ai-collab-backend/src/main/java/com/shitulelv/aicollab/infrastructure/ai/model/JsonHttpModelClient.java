@@ -157,7 +157,7 @@ public class JsonHttpModelClient {
                 Thread.currentThread().interrupt();
                 throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
             } catch (Exception exception) {
-                log.error("Model API call failed: {}", exception.getMessage(), exception);
+                log.error("Model API call failed: type={}", exception.getClass().getSimpleName());
                 throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
             }
         }
@@ -205,7 +205,8 @@ public class JsonHttpModelClient {
             boolean requireDoneSentinel) {
         java.util.concurrent.atomic.AtomicReference<java.io.InputStream> input = new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.Future<?> task;
-        try { task = streams.submit(() -> readStream(url, headers, body, onEvent, requestBuilderFactory, input, requireDoneSentinel)); }
+        var observation = AiOutboundObservation.current();
+        try { task = streams.submit(() -> readStream(url, headers, body, onEvent, requestBuilderFactory, input, requireDoneSentinel, observation)); }
         catch (java.util.concurrent.RejectedExecutionException busy) { throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE); }
         try {
             task.get(AiRequestDeadline.timeoutMillis(timeout), java.util.concurrent.TimeUnit.MILLISECONDS);
@@ -228,10 +229,11 @@ public class JsonHttpModelClient {
             BiConsumer<String, JsonNode> onEvent,
             java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
             java.util.concurrent.atomic.AtomicReference<java.io.InputStream> input,
-            boolean requireDoneSentinel) {
+            boolean requireDoneSentinel, AiOutboundObservation observation) {
         try {
-            log.debug("Model API stream request: model={}", body.path("model").asText());
-            HttpResponse<java.io.InputStream> response = client.send(request(url, headers, body, requestBuilderFactory),
+            HttpRequest outbound = request(url, headers, body, requestBuilderFactory);
+            AiOutboundObservation.markStarted(observation);
+            HttpResponse<java.io.InputStream> response = client.send(outbound,
                     HttpResponse.BodyHandlers.ofInputStream());
             input.set(response.body());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -312,7 +314,11 @@ public class JsonHttpModelClient {
         }
     }
     private HttpResponse<String> sendBounded(HttpRequest request) throws java.io.IOException, InterruptedException {
-        var pending=streams.submit(() -> client.send(request,HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));
+        var observation = AiOutboundObservation.current();
+        var pending=streams.submit(() -> {
+            AiOutboundObservation.markStarted(observation);
+            return client.send(request,HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        });
         try { return pending.get(AiRequestDeadline.timeoutMillis(timeout),java.util.concurrent.TimeUnit.MILLISECONDS); }
         catch (java.util.concurrent.TimeoutException elapsed) { throw new java.net.http.HttpTimeoutException("模型正文读取超时"); }
         catch (java.util.concurrent.ExecutionException failed) {
