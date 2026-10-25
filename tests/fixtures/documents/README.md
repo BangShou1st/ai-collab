@@ -13,6 +13,7 @@
 | `竞赛评分模块技术方案.md` | 架构方案、模块设计 | 评分流水线、评审权限、双盲打分与结果汇总架构 | 架构方案知识检索与问答验收 |
 | `验收标准v2.1.md` | 验收交付、质量指标 | 功能点覆盖要求、P0/P1/P2 指标与测试回归标准 | 端到端验收标准对比 |
 | `p4-rag-answer-quality-01/灰度发布与回滚规范.md` | 发布管理 | 灰度发布流程、核心指标观察、回滚触发条件 | P4-KNOWLEDGE-REAL-E2E-01 浏览器 E2E 引用与多文档验收 |
+| `p9-rag-generalization-01/`（23 篇） | 设备维护 / 服务交接 / 资产盘点 / 审批与合同 / 技术变更 / 审计核对（全新业务域，独立于 P4 冻结集） | G01–G08 泛化维度合成语料：长文档信息稀释、跨文档组合、同文档互补、多版本冲突、条件与例外、相似文本不同来源、无答案与注入、自然语言改写 | `P9RagGeneralizationPostgresTest` 独立泛化基准（`AI_REAL_OLLAMA_RETRIEVAL=true` 门控） |
 
 ---
 
@@ -22,6 +23,13 @@
 `AgentRetrievalQualityPostgresTest.CORPUS` 完整重建，SHA-256 与 P4-RAG-QUALITY-02 一致；
 另有一篇明确标注的提示注入检测资料。只允许上传此目录的必要摘录到获授权的 Gemini。
 问题与人工事实基准见 `docs/acceptance-evidence/2026-10-22/p4-rag-answer-quality-01/questions.json`。
+
+`p9-rag-generalization-01/`：P9-RAG-GENERALIZATION-01 独立 RAG 泛化评测基准，23 篇合成文档
+（UTF-8 无 BOM）+ 39 道问题（dev 21 / holdout 18，共 54 条必答事实标注）。冻结清单为
+`corpus-manifest.json`、`question-manifest.json`、`question-manifest-holdout.json` 与
+`holdout-integrity.json`（Holdout 方法学保留集，冻结后不得依据其结果调整生产规则或评测参数）。
+评测标注（facts/distractFacts marker）只允许用于离线评分，严禁参与检索、来源选择或查询构造。
+生成脚本与逐字校验见 `docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01/generate-manifests.cjs`。
 
 1. **统一编码**：
    - 所有测试语料文件必须使用 **UTF-8（无 BOM）** 编码保存，避免在 Windows 与 Linux/CI 环境间产生跨平台字符集差异。
