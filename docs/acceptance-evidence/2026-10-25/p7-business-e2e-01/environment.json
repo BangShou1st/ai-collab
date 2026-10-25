@@ -1,0 +1,32 @@
+{
+  "task_id": "P7-BUSINESS-E2E-01",
+  "date": "2026-10-25",
+  "git": {
+    "initial_dev": "5aa30bac09061e51f9abbb6a2c5e496e0221deb0",
+    "initial_main": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
+    "pr_18": "OPEN / Draft / 未合并",
+    "worktree_initial": "clean"
+  },
+  "services": {
+    "start_method": "dev.ps1 start（复用既有 postgres/redis/minio 容器，未清卷、未重建）",
+    "backend": "Spring Boot local profile, http://localhost:8080",
+    "frontend": "Vite dev server http://localhost:5173",
+    "postgres": "pgvector/pgvector:pg17 (existing container)",
+    "ollama": "http://127.0.0.1:11434"
+  },
+  "browser": {
+    "tool": "browser-skill (bsk) v0.3.3 + Microsoft Edge（真实用户浏览器）",
+    "viewport": "1566x848 / 1582x848"
+  },
+  "models": {
+    "embedding": "系统级 Ollama qwen3-embedding:0.6b (1024 维, fingerprint 371934bd...)，真实调用",
+    "chat_qa_agent_e05": "Kilo Gateway 免费 cohere/north-mini-code:free（owner 账号既有配置，匿名免费，与 P2/P3 轮口径一致）",
+    "chat_planning_e07": "魔搭 ModelScope deepseek-ai/DeepSeek-V4.1-Flash-1017（用户当轮提供的 Key 与明确授权；能力探针 4/4 通过）",
+    "gemini": "未调用（无新授权）"
+  },
+  "notes": [
+    "文档上传/分块/向量索引走真实 Tika + Ollama Embedding 链路",
+    "E05 SSE 故障注入复用 p3-obs-02 方法：仓库外受控代理 (127.0.0.1:5175) 托管 dist 构建产物并仅对 text/event-stream 注入传输中断",
+    "Member 账号 p7e2e_member_20261025 为本轮注册的合成账号"
+  ]
+}

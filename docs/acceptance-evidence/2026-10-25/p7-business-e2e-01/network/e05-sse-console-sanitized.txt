@@ -1,0 +1,3 @@
+#46 info console http://127.0.0.1:5175/assets/index-CaKw74Jm.js:137:4551 [agent-sse] {"scope":"agent.sse","phase":"disconnect","category":"NETWORK","runId":"54dd25f6-98ca-48bb-b73a-89940ebe1080","lastSequence":5,"attempt":1}
+#52 info console http://127.0.0.1:5175/assets/index-CaKw74Jm.js:137:4551 [agent-sse] {"scope":"agent.sse","phase":"transport_reconnected","category":"NETWORK","runId":"54dd25f6-98ca-48bb-b73a-89940ebe1080","lastSequence":5,"attempt":6}
+#53 info console http://127.0.0.1:5175/assets/index-CaKw74Jm.js:137:4551 [agent-sse] {"scope":"agent.sse","phase":"recovered","category":"NETWORK","runId":"54dd25f6-98ca-48bb-b73a-89940ebe1080","lastSequence":5,"attempt":6}

@@ -135,6 +135,7 @@ public enum ErrorCode {
     AGENT_NO_PROGRESS(HttpStatus.CONFLICT, "Agent 无进展循环"),
     TOOL_ARGUMENT_INVALID(HttpStatus.BAD_REQUEST, "工具参数校验失败"),
     TOOL_EXECUTION_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "工具执行超时"),
+    RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "请求路径不存在"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "系统内部错误");
 
     private final HttpStatus httpStatus;
