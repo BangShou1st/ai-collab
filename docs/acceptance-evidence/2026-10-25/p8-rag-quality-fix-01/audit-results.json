@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-10-25T16:44:13.510Z",
+  "status": "PASS",
+  "errors": [],
+  "historicalFiles": 1479,
+  "inheritedManifestFiles": 290,
+  "verifyTotals": {
+    "tests": 1808,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 36
+  },
+  "limitations": [
+    "CI receipt is independently queried after the final commit; ordinary CI skips local Ollama by design.",
+    "No real Chat generation or semantic-support acceptance."
+  ]
+}

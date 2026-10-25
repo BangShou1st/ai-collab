@@ -1,0 +1,10 @@
+{
+  "baseline": "f11939e336e3bb72abdcdb6e2db2fd4cc0d0fd3b",
+  "inheritedP8Commit": "3a3293770273dc85a4085bd2d0fae0dffbf1ee19",
+  "branch": "dev",
+  "mainUnchanged": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
+  "submission": "The next dev commit contains only this task production recorder fix, tests, CI container guard, documents and evidence. The original P8 commit is separate.",
+  "ciReceipt": "Final commit SHA and Push/PR run URLs are queried after push and supplied in the final delivery response; live receipt is also saved under ignored target/p8-rag-quality-fix-01/final-ci.json. No self-referential SHA is fabricated in this commit.",
+  "productionDeployment": false,
+  "realChatGeneration": false
+}

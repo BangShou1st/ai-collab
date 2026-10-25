@@ -1,0 +1,3079 @@
+{
+  "evaluation" : "real local Ollama embeddings on disposable Testcontainers pgvector database",
+  "baseline" : "D-RAG-01C agent retrieval quality round 2 (scope-corrected), dev @ 2026-10-19",
+  "scopeDimensions" : "ALL_PROJECT_PRIMARY contains only questions without a user-named document; DOCUMENT_SCOPED_PRIMARY contains only explicitly scoped questions; SCOPED_ALL_PROJECT_REFERENCE is the paired all-project counterfactual and is excluded from both primary buckets",
+  "model" : "qwen3-embedding:0.6b",
+  "dimension" : 1024,
+  "fingerprint" : "20f29e8d94afc1eb2f5de49d3f4c81f548881de08e7aa4acb955ec87f5face75",
+  "generationId" : "dab71b69-0d45-4204-8c9b-0599fe95fe12",
+  "probeLatencyMs" : 420,
+  "corpusAndQueryEmbeddingLatencyMs" : 6255,
+  "documentCount" : 13,
+  "indexingChunkCount" : 38,
+  "caseCount" : 20,
+  "allProjectPrimaryCaseCount" : 14,
+  "documentScopedPrimaryCaseCount" : 6,
+  "scopedAllProjectReferenceCaseCount" : 6,
+  "allProjectCounterfactualCaseCount" : 20,
+  "allProjectCounterfactualNote" : "该 20 样本探索汇总包含六条用户已指定文档问题的全项目反事实搜索，不代表独立全项目问题集。",
+  "sourceCapStrategySemantics" : "A 使用生产 CrossDocumentSourceSelector，且装配预算通过 buildDiverse parity test；B 是测试侧相关度保护候选选择模拟；C 是测试侧保守折中候选选择模拟（保留 E6 覆盖保证同时消除弱代表占位）。B 和 C 的结果属于近似实验指标，不代表生产上下文提升。",
+  "cases" : [ {
+    "case" : "上线与回退条件",
+    "scenario" : "两份文档分别提供上线和回退条件",
+    "query" : "正式发布前上线验收需要满足哪些条件？上线后指标不达标该如何处理？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 2,
+      "currentExpectedRetained" : 2,
+      "protectedExpectedRetained" : 2,
+      "compromiseExpectedRetained" : 2,
+      "currentDocumentsCovered" : 2,
+      "protectedDocumentsCovered" : 2,
+      "compromiseDocumentsCovered" : 2,
+      "currentUnexpectedSources" : 10,
+      "protectedUnexpectedSources" : 10,
+      "compromiseUnexpectedSources" : 10,
+      "currentPromptCodePoints" : 2273,
+      "protectedPromptCodePoints" : 1592,
+      "compromisePromptCodePoints" : 2273
+    },
+    "expectedEvidence" : [ {
+      "label" : "上线门禁",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "chunkId" : "374bca87-8193-48c9-a857-48cd99374eae"
+    }, {
+      "label" : "回滚触发条件",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "chunkId" : "c411b6de-bf0c-4def-be76-cae42ced0324"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 2,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 2,
+      "candidateDocumentsWithEvidence" : 2,
+      "retainedDocumentsWithEvidence" : 2,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "上线门禁",
+      "candidateRank" : 2,
+      "similarity" : 0.6294
+    }, {
+      "label" : "回滚触发条件",
+      "candidateRank" : 1,
+      "similarity" : 0.6409
+    } ],
+    "unexpectedSourcesRetained" : 10,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 2273,
+    "latencyMsTop8" : 221,
+    "latencyMsTop20" : 10,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "c411b6de-bf0c-4def-be76-cae42ced0324",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "similarity" : 0.6409,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "374bca87-8193-48c9-a857-48cd99374eae",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "similarity" : 0.6294,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 3,
+      "chunkId" : "09523123-e340-4439-be5a-a116f8c4effa",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "similarity" : 0.4742,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "0ba20cf1-fc3a-46d0-92b1-f2585cbdc5e6",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "similarity" : 0.4717,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "f128b699-700a-493a-b4ff-194cb377efbf",
+      "documentId" : "474884cb-320f-49ae-ace8-8d6ee9989c56",
+      "filename" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.4679,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "6bfec92b-e173-4e79-b794-5beb578e16f8",
+      "documentId" : "07cde7af-abc1-4229-a8e7-bde58e23224a",
+      "filename" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.4679,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "07893944-255e-47f9-8db5-855ef65a60eb",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "similarity" : 0.4599,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.4083,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "d405ed19-12d9-4602-b26a-fdcb44a51280",
+      "documentId" : "52de53c9-4f2b-4904-b4d4-702d141d818f",
+      "filename" : "检索性能测试手册.md",
+      "heading" : "测试用例2",
+      "similarity" : 0.3966,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "fd5012b0-d3e7-496e-9e67-fb40f53cee5a",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "similarity" : 0.621,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "d912ad07-3c98-44c4-a70d-4c3c1f9ac24d",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "similarity" : 0.5412,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "6bc4e61e-b233-494d-8711-d3a666b77924",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "similarity" : 0.5271,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "容量权限性能约束",
+    "scenario" : "多文档分别提供容量、权限与性能约束",
+    "query" : "系统在容量、访问权限和性能上分别有哪些硬性约束？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 3,
+      "currentExpectedRetained" : 2,
+      "protectedExpectedRetained" : 3,
+      "compromiseExpectedRetained" : 2,
+      "currentDocumentsCovered" : 2,
+      "protectedDocumentsCovered" : 2,
+      "compromiseDocumentsCovered" : 2,
+      "currentUnexpectedSources" : 10,
+      "protectedUnexpectedSources" : 9,
+      "compromiseUnexpectedSources" : 10,
+      "currentPromptCodePoints" : 830,
+      "protectedPromptCodePoints" : 801,
+      "compromisePromptCodePoints" : 830
+    },
+    "expectedEvidence" : [ {
+      "label" : "容量规划",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "chunkId" : "9788c951-5fc8-403e-a045-69145947158a"
+    }, {
+      "label" : "性能指标",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "chunkId" : "e1b0192e-32c7-4139-95a6-b0bbfc7f1ad7"
+    }, {
+      "label" : "数据范围权限",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "chunkId" : "a74806cc-3c9d-4341-83af-4cb95c0e5410"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 3,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 0.6667,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 2,
+      "candidateDocumentsWithEvidence" : 2,
+      "retainedDocumentsWithEvidence" : 2,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "容量规划",
+      "candidateRank" : 8,
+      "similarity" : 0.4503
+    }, {
+      "label" : "性能指标",
+      "candidateRank" : 5,
+      "similarity" : 0.48
+    }, {
+      "label" : "数据范围权限",
+      "candidateRank" : 6,
+      "similarity" : 0.4707
+    } ],
+    "unexpectedSourcesRetained" : 10,
+    "droppedByContext" : 1,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 1,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 830,
+    "latencyMsTop8" : 5,
+    "latencyMsTop20" : 6,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "62dec26a-bb36-4ede-bbe0-181c48f7ec0a",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "similarity" : 0.5172,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 2,
+      "chunkId" : "0a650d49-5dc5-440c-b9a2-11fb95d1c3c1",
+      "documentId" : "e01bf314-2b9d-469f-9369-4fb9aa9bbcd5",
+      "filename" : "租户并发限制.md",
+      "heading" : "资源告警",
+      "similarity" : 0.508,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "e1b0192e-32c7-4139-95a6-b0bbfc7f1ad7",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "similarity" : 0.48,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 4,
+      "chunkId" : "a74806cc-3c9d-4341-83af-4cb95c0e5410",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "similarity" : 0.4707,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 5,
+      "chunkId" : "c411b6de-bf0c-4def-be76-cae42ced0324",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "similarity" : 0.4277,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "44e3b147-4b9e-4e4f-995e-b8a0c7d9d562",
+      "documentId" : "52de53c9-4f2b-4904-b4d4-702d141d818f",
+      "filename" : "检索性能测试手册.md",
+      "heading" : "测试用例3",
+      "similarity" : 0.4171,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "fd5012b0-d3e7-496e-9e67-fb40f53cee5a",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "similarity" : 0.4088,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "c4e6d29b-4493-4bb2-9b88-af9ab885e408",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "filename" : "安全与脱敏规范.md",
+      "heading" : "脱敏规则",
+      "similarity" : 0.4023,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "eef9b800-659e-4146-9a09-634f81f850c3",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "similarity" : 0.4023,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "a0f1c6ea-61f8-4320-9163-e99dc7449e32",
+      "documentId" : "e01bf314-2b9d-469f-9369-4fb9aa9bbcd5",
+      "filename" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "similarity" : 0.4901,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "09523123-e340-4439-be5a-a116f8c4effa",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "similarity" : 0.4839,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "bae4134b-aa3b-48d7-8a18-4ad5e5c1fb6a",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "similarity" : 0.468,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "相同审批条款来源身份",
+    "scenario" : "相同审批条款出现在不同合同，来源不能混淆",
+    "query" : "合同资料里关于重大变更的审批要求是什么？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 2,
+      "currentExpectedRetained" : 2,
+      "protectedExpectedRetained" : 2,
+      "compromiseExpectedRetained" : 2,
+      "currentDocumentsCovered" : 2,
+      "protectedDocumentsCovered" : 2,
+      "compromiseDocumentsCovered" : 2,
+      "currentUnexpectedSources" : 10,
+      "protectedUnexpectedSources" : 10,
+      "compromiseUnexpectedSources" : 10,
+      "currentPromptCodePoints" : 2245,
+      "protectedPromptCodePoints" : 2276,
+      "compromisePromptCodePoints" : 2245
+    },
+    "expectedEvidence" : [ {
+      "label" : "合同模板甲",
+      "documentId" : "07cde7af-abc1-4229-a8e7-bde58e23224a",
+      "chunkId" : "6bfec92b-e173-4e79-b794-5beb578e16f8"
+    }, {
+      "label" : "合同模板乙",
+      "documentId" : "474884cb-320f-49ae-ace8-8d6ee9989c56",
+      "chunkId" : "f128b699-700a-493a-b4ff-194cb377efbf"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 2,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 2,
+      "candidateDocumentsWithEvidence" : 2,
+      "retainedDocumentsWithEvidence" : 2,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "合同模板甲",
+      "candidateRank" : 1,
+      "similarity" : 0.8059
+    }, {
+      "label" : "合同模板乙",
+      "candidateRank" : 2,
+      "similarity" : 0.8059
+    } ],
+    "unexpectedSourcesRetained" : 10,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 2245,
+    "latencyMsTop8" : 5,
+    "latencyMsTop20" : 7,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "f128b699-700a-493a-b4ff-194cb377efbf",
+      "documentId" : "474884cb-320f-49ae-ace8-8d6ee9989c56",
+      "filename" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.8059,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "6bfec92b-e173-4e79-b794-5beb578e16f8",
+      "documentId" : "07cde7af-abc1-4229-a8e7-bde58e23224a",
+      "filename" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.8059,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 3,
+      "chunkId" : "069efb46-0338-464d-b233-199c5800ba44",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "similarity" : 0.5305,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "62dec26a-bb36-4ede-bbe0-181c48f7ec0a",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "similarity" : 0.4547,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "d912ad07-3c98-44c4-a70d-4c3c1f9ac24d",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "similarity" : 0.4484,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "bae4134b-aa3b-48d7-8a18-4ad5e5c1fb6a",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "similarity" : 0.4159,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "37d3f8de-0015-4ecd-a55b-c9c9f5145c4c",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "验收记录",
+      "similarity" : 0.4136,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.3918,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "a74806cc-3c9d-4341-83af-4cb95c0e5410",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "similarity" : 0.3905,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "2c8c32b5-ca07-4c13-a285-52b12abca301",
+      "documentId" : "fb512d7f-e1b8-409a-9c40-86d3087b78ce",
+      "filename" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "similarity" : 0.3627,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "fa719f36-f630-42eb-87de-188938fa1483",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "filename" : "安全与脱敏规范.md",
+      "heading" : "权限分级",
+      "similarity" : 0.3446,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "eef9b800-659e-4146-9a09-634f81f850c3",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "similarity" : 0.5172,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "相互矛盾的版本说明",
+    "scenario" : "多文档存在相互矛盾的版本说明",
+    "query" : "索引调整应该在哪一个阶段执行？不同版本的说法是否有冲突？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 2,
+      "currentExpectedRetained" : 2,
+      "protectedExpectedRetained" : 2,
+      "compromiseExpectedRetained" : 2,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 10,
+      "protectedUnexpectedSources" : 10,
+      "compromiseUnexpectedSources" : 10,
+      "currentPromptCodePoints" : 2029,
+      "protectedPromptCodePoints" : 2047,
+      "compromisePromptCodePoints" : 2029
+    },
+    "expectedEvidence" : [ {
+      "label" : "早期版本 v1.9",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "chunkId" : "069efb46-0338-464d-b233-199c5800ba44"
+    }, {
+      "label" : "当前版本 v2.1",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "chunkId" : "0ba20cf1-fc3a-46d0-92b1-f2585cbdc5e6"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 2,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "早期版本 v1.9",
+      "candidateRank" : 2,
+      "similarity" : 0.8061
+    }, {
+      "label" : "当前版本 v2.1",
+      "candidateRank" : 1,
+      "similarity" : 0.8081
+    } ],
+    "unexpectedSourcesRetained" : 10,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 2029,
+    "latencyMsTop8" : 5,
+    "latencyMsTop20" : 7,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "0ba20cf1-fc3a-46d0-92b1-f2585cbdc5e6",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "similarity" : 0.8081,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "f128b699-700a-493a-b4ff-194cb377efbf",
+      "documentId" : "474884cb-320f-49ae-ace8-8d6ee9989c56",
+      "filename" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.474,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "6bfec92b-e173-4e79-b794-5beb578e16f8",
+      "documentId" : "07cde7af-abc1-4229-a8e7-bde58e23224a",
+      "filename" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.474,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "6bc4e61e-b233-494d-8711-d3a666b77924",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "similarity" : 0.4477,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "fd5012b0-d3e7-496e-9e67-fb40f53cee5a",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "similarity" : 0.429,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "2c8c32b5-ca07-4c13-a285-52b12abca301",
+      "documentId" : "fb512d7f-e1b8-409a-9c40-86d3087b78ce",
+      "filename" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "similarity" : 0.4265,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.4068,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "50bbad79-c7df-4e6b-b891-60557151646f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "similarity" : 0.3919,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "9788c951-5fc8-403e-a045-69145947158a",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "similarity" : 0.3835,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "62dec26a-bb36-4ede-bbe0-181c48f7ec0a",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "similarity" : 0.374,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "069efb46-0338-464d-b233-199c5800ba44",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "similarity" : 0.8061,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 12,
+      "chunkId" : "eef9b800-659e-4146-9a09-634f81f850c3",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "similarity" : 0.742,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "深排位证据",
+    "scenario" : "正确证据位于 Top8 之后、Top20 以内",
+    "query" : "知识检索接口对响应时间和吞吐量有什么具体指标要求？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 11,
+      "protectedUnexpectedSources" : 11,
+      "compromiseUnexpectedSources" : 11,
+      "currentPromptCodePoints" : 862,
+      "protectedPromptCodePoints" : 841,
+      "compromisePromptCodePoints" : 862
+    },
+    "expectedEvidence" : [ {
+      "label" : "性能指标",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "chunkId" : "e1b0192e-32c7-4139-95a6-b0bbfc7f1ad7"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "性能指标",
+      "candidateRank" : 1,
+      "similarity" : 0.8822
+    } ],
+    "unexpectedSourcesRetained" : 11,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 862,
+    "latencyMsTop8" : 5,
+    "latencyMsTop20" : 12,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "e1b0192e-32c7-4139-95a6-b0bbfc7f1ad7",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "similarity" : 0.8822,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "1537de12-003f-48cf-953c-bd5201b86dda",
+      "documentId" : "52de53c9-4f2b-4904-b4d4-702d141d818f",
+      "filename" : "检索性能测试手册.md",
+      "heading" : "测试用例8",
+      "similarity" : 0.7415,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "f4db6dd5-862d-4af1-8436-bcd7a20c0099",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "similarity" : 0.5051,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "fd5012b0-d3e7-496e-9e67-fb40f53cee5a",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "similarity" : 0.4916,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "a0f1c6ea-61f8-4320-9163-e99dc7449e32",
+      "documentId" : "e01bf314-2b9d-469f-9369-4fb9aa9bbcd5",
+      "filename" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "similarity" : 0.4831,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "c411b6de-bf0c-4def-be76-cae42ced0324",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "similarity" : 0.437,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "44e3b147-4b9e-4e4f-995e-b8a0c7d9d562",
+      "documentId" : "52de53c9-4f2b-4904-b4d4-702d141d818f",
+      "filename" : "检索性能测试手册.md",
+      "heading" : "测试用例3",
+      "similarity" : 0.7414,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "285e43d4-ab0f-4775-a616-c35f95e67fc5",
+      "documentId" : "52de53c9-4f2b-4904-b4d4-702d141d818f",
+      "filename" : "检索性能测试手册.md",
+      "heading" : "测试用例6",
+      "similarity" : 0.7383,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "6d1ee413-e8e6-4b37-920c-94b17dfb09f9",
+      "documentId" : "52de53c9-4f2b-4904-b4d4-702d141d818f",
+      "filename" : "检索性能测试手册.md",
+      "heading" : "测试用例5",
+      "similarity" : 0.737,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "d405ed19-12d9-4602-b26a-fdcb44a51280",
+      "documentId" : "52de53c9-4f2b-4904-b4d4-702d141d818f",
+      "filename" : "检索性能测试手册.md",
+      "heading" : "测试用例2",
+      "similarity" : 0.7356,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "073ecd10-272e-4e85-86a0-63b345f6111f",
+      "documentId" : "52de53c9-4f2b-4904-b4d4-702d141d818f",
+      "filename" : "检索性能测试手册.md",
+      "heading" : "测试用例4",
+      "similarity" : 0.7335,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "472d9c1a-a3b7-4520-8829-b927a7afc606",
+      "documentId" : "52de53c9-4f2b-4904-b4d4-702d141d818f",
+      "filename" : "检索性能测试手册.md",
+      "heading" : "测试用例7",
+      "similarity" : 0.7297,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "同文档互补事实",
+    "scenario" : "同一文档不同 chunk 的互补事实",
+    "query" : "导出任务失败之后应该如何处理？系统会保留哪些信息？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 2,
+      "currentExpectedRetained" : 2,
+      "protectedExpectedRetained" : 2,
+      "compromiseExpectedRetained" : 2,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 10,
+      "protectedUnexpectedSources" : 10,
+      "compromiseUnexpectedSources" : 10,
+      "currentPromptCodePoints" : 1637,
+      "protectedPromptCodePoints" : 1628,
+      "compromisePromptCodePoints" : 1637
+    },
+    "expectedEvidence" : [ {
+      "label" : "失败重试",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "chunkId" : "07893944-255e-47f9-8db5-855ef65a60eb"
+    }, {
+      "label" : "导出审计",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "chunkId" : "f4db6dd5-862d-4af1-8436-bcd7a20c0099"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 2,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "失败重试",
+      "candidateRank" : 1,
+      "similarity" : 0.8934
+    }, {
+      "label" : "导出审计",
+      "candidateRank" : 5,
+      "similarity" : 0.6214
+    } ],
+    "unexpectedSourcesRetained" : 10,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 1637,
+    "latencyMsTop8" : 7,
+    "latencyMsTop20" : 10,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "07893944-255e-47f9-8db5-855ef65a60eb",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "similarity" : 0.8934,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "a0f1c6ea-61f8-4320-9163-e99dc7449e32",
+      "documentId" : "e01bf314-2b9d-469f-9369-4fb9aa9bbcd5",
+      "filename" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "similarity" : 0.6289,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "d912ad07-3c98-44c4-a70d-4c3c1f9ac24d",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "similarity" : 0.5468,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.5222,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "374bca87-8193-48c9-a857-48cd99374eae",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "similarity" : 0.4768,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "62dec26a-bb36-4ede-bbe0-181c48f7ec0a",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "similarity" : 0.4704,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "0ba20cf1-fc3a-46d0-92b1-f2585cbdc5e6",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "similarity" : 0.4667,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "c4e6d29b-4493-4bb2-9b88-af9ab885e408",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "filename" : "安全与脱敏规范.md",
+      "heading" : "脱敏规则",
+      "similarity" : 0.4478,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "2c8c32b5-ca07-4c13-a285-52b12abca301",
+      "documentId" : "fb512d7f-e1b8-409a-9c40-86d3087b78ce",
+      "filename" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "similarity" : 0.4362,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "50bbad79-c7df-4e6b-b891-60557151646f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "similarity" : 0.6772,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "24ccdc72-701b-498e-9b98-8305c37c0939",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "similarity" : 0.6494,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "f4db6dd5-862d-4af1-8436-bcd7a20c0099",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "similarity" : 0.6214,
+      "expectedEvidence" : true
+    } ]
+  }, {
+    "case" : "长分块尾部条件",
+    "scenario" : "关键条件位于长分块的尾部",
+    "query" : "继续发布需要满足什么前提条件？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 0,
+      "protectedExpectedRetained" : 0,
+      "compromiseExpectedRetained" : 0,
+      "currentDocumentsCovered" : 0,
+      "protectedDocumentsCovered" : 0,
+      "compromiseDocumentsCovered" : 0,
+      "currentUnexpectedSources" : 12,
+      "protectedUnexpectedSources" : 12,
+      "compromiseUnexpectedSources" : 12,
+      "currentPromptCodePoints" : 2264,
+      "protectedPromptCodePoints" : 817,
+      "compromisePromptCodePoints" : 2264
+    },
+    "expectedEvidence" : [ {
+      "label" : "续发前提",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "chunkId" : "1c37934a-56d0-465b-9396-37643467c3c2"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 1,
+    "recallAt8" : 0.0,
+    "recallAt20" : 0.0,
+    "retentionLegacy" : 0.0,
+    "retentionDiverse" : 0.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 0,
+      "retainedDocumentsWithEvidence" : 0,
+      "candidateRatio" : 0.0,
+      "retainedRatio" : 0.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "续发前提",
+      "candidateRank" : null,
+      "similarity" : 0.0
+    } ],
+    "unexpectedSourcesRetained" : 12,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 2264,
+    "latencyMsTop8" : 7,
+    "latencyMsTop20" : 10,
+    "tailMarker" : "回滚演练通过",
+    "tailPreserved" : false,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "c411b6de-bf0c-4def-be76-cae42ced0324",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "similarity" : 0.5068,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 2,
+      "chunkId" : "50bbad79-c7df-4e6b-b891-60557151646f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "similarity" : 0.5032,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "374bca87-8193-48c9-a857-48cd99374eae",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "similarity" : 0.4885,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "f128b699-700a-493a-b4ff-194cb377efbf",
+      "documentId" : "474884cb-320f-49ae-ace8-8d6ee9989c56",
+      "filename" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.4883,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "6bfec92b-e173-4e79-b794-5beb578e16f8",
+      "documentId" : "07cde7af-abc1-4229-a8e7-bde58e23224a",
+      "filename" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.4883,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "eef9b800-659e-4146-9a09-634f81f850c3",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "similarity" : 0.4852,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "62dec26a-bb36-4ede-bbe0-181c48f7ec0a",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "similarity" : 0.4577,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.4236,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "a0f1c6ea-61f8-4320-9163-e99dc7449e32",
+      "documentId" : "e01bf314-2b9d-469f-9369-4fb9aa9bbcd5",
+      "filename" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "similarity" : 0.3997,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "bae4134b-aa3b-48d7-8a18-4ad5e5c1fb6a",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "similarity" : 0.3879,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "fd5012b0-d3e7-496e-9e67-fb40f53cee5a",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "similarity" : 0.4749,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "07893944-255e-47f9-8db5-855ef65a60eb",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "similarity" : 0.4732,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "中文同义与口语描述",
+    "scenario" : "中文别名、缩写及同义词",
+    "query" : "一个租户同时最多能并行跑多少个数据导出作业？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 11,
+      "protectedUnexpectedSources" : 11,
+      "compromiseUnexpectedSources" : 11,
+      "currentPromptCodePoints" : 1718,
+      "protectedPromptCodePoints" : 1697,
+      "compromisePromptCodePoints" : 1718
+    },
+    "expectedEvidence" : [ {
+      "label" : "租户并发上限",
+      "documentId" : "e01bf314-2b9d-469f-9369-4fb9aa9bbcd5",
+      "chunkId" : "a0f1c6ea-61f8-4320-9163-e99dc7449e32"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "租户并发上限",
+      "candidateRank" : 1,
+      "similarity" : 0.8854
+    } ],
+    "unexpectedSourcesRetained" : 11,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 1718,
+    "latencyMsTop8" : 9,
+    "latencyMsTop20" : 10,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "a0f1c6ea-61f8-4320-9163-e99dc7449e32",
+      "documentId" : "e01bf314-2b9d-469f-9369-4fb9aa9bbcd5",
+      "filename" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "similarity" : 0.8854,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "50bbad79-c7df-4e6b-b891-60557151646f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "similarity" : 0.6786,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "9788c951-5fc8-403e-a045-69145947158a",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "similarity" : 0.547,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "62dec26a-bb36-4ede-bbe0-181c48f7ec0a",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "similarity" : 0.4975,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.4555,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "0ba20cf1-fc3a-46d0-92b1-f2585cbdc5e6",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "similarity" : 0.4384,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "073ecd10-272e-4e85-86a0-63b345f6111f",
+      "documentId" : "52de53c9-4f2b-4904-b4d4-702d141d818f",
+      "filename" : "检索性能测试手册.md",
+      "heading" : "测试用例4",
+      "similarity" : 0.4283,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "07893944-255e-47f9-8db5-855ef65a60eb",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "similarity" : 0.6158,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "4776d0be-a97f-4cf9-9aee-bf87cc405b8f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "similarity" : 0.608,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "f4db6dd5-862d-4af1-8436-bcd7a20c0099",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "similarity" : 0.6039,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "24ccdc72-701b-498e-9b98-8305c37c0939",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "similarity" : 0.5684,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "a74806cc-3c9d-4341-83af-4cb95c0e5410",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "similarity" : 0.5492,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "指定文档范围检索",
+    "scenario" : "用户问题明确点名《批量导出规范》",
+    "query" : "根据《批量导出规范》，已完成的导出文件会在临时存储区保留多久？",
+    "scope" : "DOCUMENT_SCOPED",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 5,
+      "protectedUnexpectedSources" : 5,
+      "compromiseUnexpectedSources" : 5,
+      "currentPromptCodePoints" : 366,
+      "protectedPromptCodePoints" : 366,
+      "compromisePromptCodePoints" : 366
+    },
+    "expectedEvidence" : [ {
+      "label" : "文件保留",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "chunkId" : "24ccdc72-701b-498e-9b98-8305c37c0939"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "文件保留",
+      "candidateRank" : 1,
+      "similarity" : 0.8801
+    } ],
+    "unexpectedSourcesRetained" : 5,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 6,
+    "contextPromptCodePoints" : 366,
+    "latencyMsTop8" : 39,
+    "latencyMsTop20" : 9,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "24ccdc72-701b-498e-9b98-8305c37c0939",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "similarity" : 0.8801,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "4776d0be-a97f-4cf9-9aee-bf87cc405b8f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "similarity" : 0.6604,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "50bbad79-c7df-4e6b-b891-60557151646f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "similarity" : 0.6541,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "f4db6dd5-862d-4af1-8436-bcd7a20c0099",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "similarity" : 0.6378,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "07893944-255e-47f9-8db5-855ef65a60eb",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "similarity" : 0.6056,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "a74806cc-3c9d-4341-83af-4cb95c0e5410",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "similarity" : 0.5702,
+      "expectedEvidence" : false
+    } ],
+    "referenceAllProjectRecallAt20" : 1.0,
+    "referenceAllProjectRetentionDiverse" : 1.0,
+    "scopeViolationCount" : 0,
+    "sourceCapStrategyAllProjectReferenceApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 11,
+      "protectedUnexpectedSources" : 11,
+      "compromiseUnexpectedSources" : 11,
+      "currentPromptCodePoints" : 1456,
+      "protectedPromptCodePoints" : 1445,
+      "compromisePromptCodePoints" : 1456
+    }
+  }, {
+    "case" : "全项目范围检索",
+    "scenario" : "用户未指定文档，需全项目搜索",
+    "query" : "已完成的导出文件会保留多久？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 11,
+      "protectedUnexpectedSources" : 11,
+      "compromiseUnexpectedSources" : 11,
+      "currentPromptCodePoints" : 1467,
+      "protectedPromptCodePoints" : 1440,
+      "compromisePromptCodePoints" : 1467
+    },
+    "expectedEvidence" : [ {
+      "label" : "文件保留",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "chunkId" : "24ccdc72-701b-498e-9b98-8305c37c0939"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "文件保留",
+      "candidateRank" : 1,
+      "similarity" : 0.8975
+    } ],
+    "unexpectedSourcesRetained" : 11,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 1467,
+    "latencyMsTop8" : 9,
+    "latencyMsTop20" : 8,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "24ccdc72-701b-498e-9b98-8305c37c0939",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "similarity" : 0.8975,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.6464,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "7563d36c-e2b5-4ce9-b2b4-9cf767702a45",
+      "documentId" : "fb512d7f-e1b8-409a-9c40-86d3087b78ce",
+      "filename" : "数据归档通告.md",
+      "heading" : "归档周期",
+      "similarity" : 0.5997,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "a0f1c6ea-61f8-4320-9163-e99dc7449e32",
+      "documentId" : "e01bf314-2b9d-469f-9369-4fb9aa9bbcd5",
+      "filename" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "similarity" : 0.5892,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "d912ad07-3c98-44c4-a70d-4c3c1f9ac24d",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "similarity" : 0.4868,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "c4e6d29b-4493-4bb2-9b88-af9ab885e408",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "filename" : "安全与脱敏规范.md",
+      "heading" : "脱敏规则",
+      "similarity" : 0.4746,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "e1b0192e-32c7-4139-95a6-b0bbfc7f1ad7",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "similarity" : 0.444,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "0ba20cf1-fc3a-46d0-92b1-f2585cbdc5e6",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "similarity" : 0.4422,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "fd5012b0-d3e7-496e-9e67-fb40f53cee5a",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "similarity" : 0.4326,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "f4db6dd5-862d-4af1-8436-bcd7a20c0099",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "similarity" : 0.685,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "4776d0be-a97f-4cf9-9aee-bf87cc405b8f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "similarity" : 0.6744,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "07893944-255e-47f9-8db5-855ef65a60eb",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "similarity" : 0.6627,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "不存在的事实",
+    "scenario" : "明确不存在的事实，应拒绝补造",
+    "query" : "审计日志必须保留多少年？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 0,
+      "currentExpectedRetained" : 0,
+      "protectedExpectedRetained" : 0,
+      "compromiseExpectedRetained" : 0,
+      "currentDocumentsCovered" : 0,
+      "protectedDocumentsCovered" : 0,
+      "compromiseDocumentsCovered" : 0,
+      "currentUnexpectedSources" : 12,
+      "protectedUnexpectedSources" : 12,
+      "compromiseUnexpectedSources" : 12,
+      "currentPromptCodePoints" : 1542,
+      "protectedPromptCodePoints" : 1532,
+      "compromisePromptCodePoints" : 1542
+    },
+    "expectedEvidence" : [ ],
+    "noExpectedEvidence" : true,
+    "expectedEvidenceCount" : 0,
+    "retrievalStatus" : "UNDEFINED_NO_EXPECTED_EVIDENCE",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : null,
+    "recallAt20" : null,
+    "retentionLegacy" : null,
+    "retentionDiverse" : null,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 0,
+      "candidateDocumentsWithEvidence" : 0,
+      "retainedDocumentsWithEvidence" : 0,
+      "candidateRatio" : null,
+      "retainedRatio" : null
+    },
+    "candidateRankOfExpected" : [ ],
+    "unexpectedSourcesRetained" : 12,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 1542,
+    "latencyMsTop8" : 8,
+    "latencyMsTop20" : 9,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "7563d36c-e2b5-4ce9-b2b4-9cf767702a45",
+      "documentId" : "fb512d7f-e1b8-409a-9c40-86d3087b78ce",
+      "filename" : "数据归档通告.md",
+      "heading" : "归档周期",
+      "similarity" : 0.771,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 2,
+      "chunkId" : "24ccdc72-701b-498e-9b98-8305c37c0939",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "similarity" : 0.5498,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.5098,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "6bc4e61e-b233-494d-8711-d3a666b77924",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "similarity" : 0.4768,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "37d3f8de-0015-4ecd-a55b-c9c9f5145c4c",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "验收记录",
+      "similarity" : 0.4404,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "0ba20cf1-fc3a-46d0-92b1-f2585cbdc5e6",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "similarity" : 0.3942,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "e1b0192e-32c7-4139-95a6-b0bbfc7f1ad7",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "similarity" : 0.3872,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "a0f1c6ea-61f8-4320-9163-e99dc7449e32",
+      "documentId" : "e01bf314-2b9d-469f-9369-4fb9aa9bbcd5",
+      "filename" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "similarity" : 0.3682,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "c4e6d29b-4493-4bb2-9b88-af9ab885e408",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "filename" : "安全与脱敏规范.md",
+      "heading" : "脱敏规则",
+      "similarity" : 0.3532,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "2c8c32b5-ca07-4c13-a285-52b12abca301",
+      "documentId" : "fb512d7f-e1b8-409a-9c40-86d3087b78ce",
+      "filename" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "similarity" : 0.732,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "f4db6dd5-862d-4af1-8436-bcd7a20c0099",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "similarity" : 0.4638,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "d912ad07-3c98-44c4-a70d-4c3c1f9ac24d",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "similarity" : 0.4454,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "高相似无关片段",
+    "scenario" : "与当前问题无关的高相似片段",
+    "query" : "普通成员能不能直接下载文档的原始文件？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 11,
+      "protectedUnexpectedSources" : 11,
+      "compromiseUnexpectedSources" : 11,
+      "currentPromptCodePoints" : 1586,
+      "protectedPromptCodePoints" : 1554,
+      "compromisePromptCodePoints" : 1586
+    },
+    "expectedEvidence" : [ {
+      "label" : "权限分级",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "chunkId" : "fa719f36-f630-42eb-87de-188938fa1483"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "权限分级",
+      "candidateRank" : 1,
+      "similarity" : 0.7819
+    } ],
+    "unexpectedSourcesRetained" : 11,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 1586,
+    "latencyMsTop8" : 7,
+    "latencyMsTop20" : 10,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "fa719f36-f630-42eb-87de-188938fa1483",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "filename" : "安全与脱敏规范.md",
+      "heading" : "权限分级",
+      "similarity" : 0.7819,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "bae4134b-aa3b-48d7-8a18-4ad5e5c1fb6a",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "similarity" : 0.6405,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "4776d0be-a97f-4cf9-9aee-bf87cc405b8f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "similarity" : 0.5945,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.4771,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "f128b699-700a-493a-b4ff-194cb377efbf",
+      "documentId" : "474884cb-320f-49ae-ace8-8d6ee9989c56",
+      "filename" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.4227,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "6bfec92b-e173-4e79-b794-5beb578e16f8",
+      "documentId" : "07cde7af-abc1-4229-a8e7-bde58e23224a",
+      "filename" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.4227,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "2c8c32b5-ca07-4c13-a285-52b12abca301",
+      "documentId" : "fb512d7f-e1b8-409a-9c40-86d3087b78ce",
+      "filename" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "similarity" : 0.4027,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "eef9b800-659e-4146-9a09-634f81f850c3",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "similarity" : 0.3954,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "a0f1c6ea-61f8-4320-9163-e99dc7449e32",
+      "documentId" : "e01bf314-2b9d-469f-9369-4fb9aa9bbcd5",
+      "filename" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "similarity" : 0.3681,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "d912ad07-3c98-44c4-a70d-4c3c1f9ac24d",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "similarity" : 0.3505,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "a74806cc-3c9d-4341-83af-4cb95c0e5410",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "similarity" : 0.567,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "f4db6dd5-862d-4af1-8436-bcd7a20c0099",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "similarity" : 0.5629,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "多轮追问沿用来源",
+    "scenario" : "多轮追问，沿用已确认的来源与用户约束",
+    "query" : "两份合同模板中关于重大变更的审批要求是否完全一致？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 2,
+      "currentExpectedRetained" : 2,
+      "protectedExpectedRetained" : 2,
+      "compromiseExpectedRetained" : 2,
+      "currentDocumentsCovered" : 2,
+      "protectedDocumentsCovered" : 2,
+      "compromiseDocumentsCovered" : 2,
+      "currentUnexpectedSources" : 10,
+      "protectedUnexpectedSources" : 10,
+      "compromiseUnexpectedSources" : 10,
+      "currentPromptCodePoints" : 1844,
+      "protectedPromptCodePoints" : 1860,
+      "compromisePromptCodePoints" : 1844
+    },
+    "expectedEvidence" : [ {
+      "label" : "合同模板甲",
+      "documentId" : "07cde7af-abc1-4229-a8e7-bde58e23224a",
+      "chunkId" : "6bfec92b-e173-4e79-b794-5beb578e16f8"
+    }, {
+      "label" : "合同模板乙",
+      "documentId" : "474884cb-320f-49ae-ace8-8d6ee9989c56",
+      "chunkId" : "f128b699-700a-493a-b4ff-194cb377efbf"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 2,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 2,
+      "candidateDocumentsWithEvidence" : 2,
+      "retainedDocumentsWithEvidence" : 2,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "合同模板甲",
+      "candidateRank" : 1,
+      "similarity" : 0.7155
+    }, {
+      "label" : "合同模板乙",
+      "candidateRank" : 2,
+      "similarity" : 0.7155
+    } ],
+    "unexpectedSourcesRetained" : 10,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 1844,
+    "latencyMsTop8" : 8,
+    "latencyMsTop20" : 10,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "f128b699-700a-493a-b4ff-194cb377efbf",
+      "documentId" : "474884cb-320f-49ae-ace8-8d6ee9989c56",
+      "filename" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.7155,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "6bfec92b-e173-4e79-b794-5beb578e16f8",
+      "documentId" : "07cde7af-abc1-4229-a8e7-bde58e23224a",
+      "filename" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.7155,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 3,
+      "chunkId" : "069efb46-0338-464d-b233-199c5800ba44",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "similarity" : 0.534,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "62dec26a-bb36-4ede-bbe0-181c48f7ec0a",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "similarity" : 0.4419,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "d912ad07-3c98-44c4-a70d-4c3c1f9ac24d",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "similarity" : 0.419,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.4114,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "bae4134b-aa3b-48d7-8a18-4ad5e5c1fb6a",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "similarity" : 0.3995,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "374bca87-8193-48c9-a857-48cd99374eae",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "similarity" : 0.3931,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "a74806cc-3c9d-4341-83af-4cb95c0e5410",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "similarity" : 0.386,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "2c8c32b5-ca07-4c13-a285-52b12abca301",
+      "documentId" : "fb512d7f-e1b8-409a-9c40-86d3087b78ce",
+      "filename" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "similarity" : 0.3681,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "fa719f36-f630-42eb-87de-188938fa1483",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "filename" : "安全与脱敏规范.md",
+      "heading" : "权限分级",
+      "similarity" : 0.3559,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "eef9b800-659e-4146-9a09-634f81f850c3",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "similarity" : 0.4992,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "大工具结果预算",
+    "scenario" : "大型工具结果可能消耗上下文预算",
+    "query" : "临时存储区里的导出文件在多久之后被自动清理？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 11,
+      "protectedUnexpectedSources" : 11,
+      "compromiseUnexpectedSources" : 11,
+      "currentPromptCodePoints" : 1467,
+      "protectedPromptCodePoints" : 1460,
+      "compromisePromptCodePoints" : 1467
+    },
+    "expectedEvidence" : [ {
+      "label" : "文件保留",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "chunkId" : "24ccdc72-701b-498e-9b98-8305c37c0939"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "文件保留",
+      "candidateRank" : 1,
+      "similarity" : 0.9228
+    } ],
+    "unexpectedSourcesRetained" : 11,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 1467,
+    "latencyMsTop8" : 8,
+    "latencyMsTop20" : 10,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "24ccdc72-701b-498e-9b98-8305c37c0939",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "similarity" : 0.9228,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.5912,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "a0f1c6ea-61f8-4320-9163-e99dc7449e32",
+      "documentId" : "e01bf314-2b9d-469f-9369-4fb9aa9bbcd5",
+      "filename" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "similarity" : 0.5747,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "7563d36c-e2b5-4ce9-b2b4-9cf767702a45",
+      "documentId" : "fb512d7f-e1b8-409a-9c40-86d3087b78ce",
+      "filename" : "数据归档通告.md",
+      "heading" : "归档周期",
+      "similarity" : 0.5522,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "0ba20cf1-fc3a-46d0-92b1-f2585cbdc5e6",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "similarity" : 0.4588,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "6bc4e61e-b233-494d-8711-d3a666b77924",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "similarity" : 0.4557,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "c4e6d29b-4493-4bb2-9b88-af9ab885e408",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "filename" : "安全与脱敏规范.md",
+      "heading" : "脱敏规则",
+      "similarity" : 0.4456,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "e1b0192e-32c7-4139-95a6-b0bbfc7f1ad7",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "similarity" : 0.4392,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "fd5012b0-d3e7-496e-9e67-fb40f53cee5a",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "similarity" : 0.436,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "f4db6dd5-862d-4af1-8436-bcd7a20c0099",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "similarity" : 0.6179,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 11,
+      "chunkId" : "4776d0be-a97f-4cf9-9aee-bf87cc405b8f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "similarity" : 0.6049,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "50bbad79-c7df-4e6b-b891-60557151646f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "similarity" : 0.5858,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "多源综合",
+    "scenario" : "父子研究完成后综合多个独立来源",
+    "query" : "上线、灰度观察和回滚三个环节分别由哪份规程约束？",
+    "scope" : "ALL_PROJECT",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 3,
+      "currentExpectedRetained" : 2,
+      "protectedExpectedRetained" : 3,
+      "compromiseExpectedRetained" : 2,
+      "currentDocumentsCovered" : 2,
+      "protectedDocumentsCovered" : 2,
+      "compromiseDocumentsCovered" : 2,
+      "currentUnexpectedSources" : 10,
+      "protectedUnexpectedSources" : 9,
+      "compromiseUnexpectedSources" : 10,
+      "currentPromptCodePoints" : 2797,
+      "protectedPromptCodePoints" : 1623,
+      "compromisePromptCodePoints" : 2797
+    },
+    "expectedEvidence" : [ {
+      "label" : "上线门禁",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "chunkId" : "374bca87-8193-48c9-a857-48cd99374eae"
+    }, {
+      "label" : "灰度观察",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "chunkId" : "fd5012b0-d3e7-496e-9e67-fb40f53cee5a"
+    }, {
+      "label" : "回滚触发条件",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "chunkId" : "c411b6de-bf0c-4def-be76-cae42ced0324"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 3,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 0.6667,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 2,
+      "candidateDocumentsWithEvidence" : 2,
+      "retainedDocumentsWithEvidence" : 2,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "上线门禁",
+      "candidateRank" : 6,
+      "similarity" : 0.5521
+    }, {
+      "label" : "灰度观察",
+      "candidateRank" : 1,
+      "similarity" : 0.7317
+    }, {
+      "label" : "回滚触发条件",
+      "candidateRank" : 3,
+      "similarity" : 0.6299
+    } ],
+    "unexpectedSourcesRetained" : 10,
+    "droppedByContext" : 1,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 1,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 12,
+    "contextPromptCodePoints" : 2797,
+    "latencyMsTop8" : 7,
+    "latencyMsTop20" : 8,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "fd5012b0-d3e7-496e-9e67-fb40f53cee5a",
+      "documentId" : "80c74207-08c6-40bc-95a5-d5a436356c45",
+      "filename" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "similarity" : 0.7317,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "6bc4e61e-b233-494d-8711-d3a666b77924",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "similarity" : 0.6607,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "2c8c32b5-ca07-4c13-a285-52b12abca301",
+      "documentId" : "fb512d7f-e1b8-409a-9c40-86d3087b78ce",
+      "filename" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "similarity" : 0.5326,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "eef9b800-659e-4146-9a09-634f81f850c3",
+      "documentId" : "6d3b5934-5ebf-4e77-b8b9-41334a97e672",
+      "filename" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "similarity" : 0.5288,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 5,
+      "chunkId" : "50bbad79-c7df-4e6b-b891-60557151646f",
+      "documentId" : "5020d744-c24d-46f1-bff5-15e70af21061",
+      "filename" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "similarity" : 0.5054,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 6,
+      "chunkId" : "62dec26a-bb36-4ede-bbe0-181c48f7ec0a",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "similarity" : 0.4958,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 7,
+      "chunkId" : "3e5f113c-99be-4e66-83f3-1137e7fba34b",
+      "documentId" : "624a4a89-24e4-43cb-af57-305930622325",
+      "filename" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "similarity" : 0.4843,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 8,
+      "chunkId" : "f128b699-700a-493a-b4ff-194cb377efbf",
+      "documentId" : "474884cb-320f-49ae-ace8-8d6ee9989c56",
+      "filename" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.4719,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 9,
+      "chunkId" : "6bfec92b-e173-4e79-b794-5beb578e16f8",
+      "documentId" : "07cde7af-abc1-4229-a8e7-bde58e23224a",
+      "filename" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.4719,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 10,
+      "chunkId" : "c411b6de-bf0c-4def-be76-cae42ced0324",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "similarity" : 0.6299,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 11,
+      "chunkId" : "1c37934a-56d0-465b-9396-37643467c3c2",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "续发前提",
+      "similarity" : 0.6016,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 12,
+      "chunkId" : "d912ad07-3c98-44c4-a70d-4c3c1f9ac24d",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "similarity" : 0.6001,
+      "expectedEvidence" : false
+    } ]
+  }, {
+    "case" : "指定-回滚触发条件",
+    "scenario" : "用户点名《发布回滚预案》询问回滚条件",
+    "query" : "根据《发布回滚预案》，满足什么条件时必须暂停发布并回滚？",
+    "scope" : "DOCUMENT_SCOPED",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 3,
+      "protectedUnexpectedSources" : 3,
+      "compromiseUnexpectedSources" : 3,
+      "currentPromptCodePoints" : 1049,
+      "protectedPromptCodePoints" : 1049,
+      "compromisePromptCodePoints" : 1049
+    },
+    "expectedEvidence" : [ {
+      "label" : "回滚触发条件",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "chunkId" : "c411b6de-bf0c-4def-be76-cae42ced0324"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "回滚触发条件",
+      "candidateRank" : 1,
+      "similarity" : 0.7381
+    } ],
+    "unexpectedSourcesRetained" : 3,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 4,
+    "contextPromptCodePoints" : 1049,
+    "latencyMsTop8" : 9,
+    "latencyMsTop20" : 9,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "c411b6de-bf0c-4def-be76-cae42ced0324",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "similarity" : 0.7381,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "6bc4e61e-b233-494d-8711-d3a666b77924",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "similarity" : 0.6777,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "1c37934a-56d0-465b-9396-37643467c3c2",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "续发前提",
+      "similarity" : 0.5989,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 4,
+      "chunkId" : "d912ad07-3c98-44c4-a70d-4c3c1f9ac24d",
+      "documentId" : "4a481bf3-3a85-464f-b59c-9c61c961567b",
+      "filename" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "similarity" : 0.5978,
+      "expectedEvidence" : false
+    } ],
+    "referenceAllProjectRecallAt20" : 1.0,
+    "referenceAllProjectRetentionDiverse" : 1.0,
+    "scopeViolationCount" : 0,
+    "sourceCapStrategyAllProjectReferenceApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 11,
+      "protectedUnexpectedSources" : 11,
+      "compromiseUnexpectedSources" : 11,
+      "currentPromptCodePoints" : 2633,
+      "protectedPromptCodePoints" : 2643,
+      "compromisePromptCodePoints" : 2633
+    }
+  }, {
+    "case" : "指定-只读下载权限",
+    "scenario" : "用户点名《安全与脱敏规范》询问下载权限",
+    "query" : "按照《安全与脱敏规范》，只读成员能不能下载文档的原始文件？",
+    "scope" : "DOCUMENT_SCOPED",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 1,
+      "protectedUnexpectedSources" : 1,
+      "compromiseUnexpectedSources" : 1,
+      "currentPromptCodePoints" : 125,
+      "protectedPromptCodePoints" : 125,
+      "compromisePromptCodePoints" : 125
+    },
+    "expectedEvidence" : [ {
+      "label" : "权限分级",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "chunkId" : "fa719f36-f630-42eb-87de-188938fa1483"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "权限分级",
+      "candidateRank" : 1,
+      "similarity" : 0.7857
+    } ],
+    "unexpectedSourcesRetained" : 1,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 2,
+    "contextPromptCodePoints" : 125,
+    "latencyMsTop8" : 7,
+    "latencyMsTop20" : 7,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "fa719f36-f630-42eb-87de-188938fa1483",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "filename" : "安全与脱敏规范.md",
+      "heading" : "权限分级",
+      "similarity" : 0.7857,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "c4e6d29b-4493-4bb2-9b88-af9ab885e408",
+      "documentId" : "f5865f4b-492d-4753-a3c6-0e2c62cc49d0",
+      "filename" : "安全与脱敏规范.md",
+      "heading" : "脱敏规则",
+      "similarity" : 0.5183,
+      "expectedEvidence" : false
+    } ],
+    "referenceAllProjectRecallAt20" : 1.0,
+    "referenceAllProjectRetentionDiverse" : 1.0,
+    "scopeViolationCount" : 0,
+    "sourceCapStrategyAllProjectReferenceApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 11,
+      "protectedUnexpectedSources" : 11,
+      "compromiseUnexpectedSources" : 11,
+      "currentPromptCodePoints" : 1590,
+      "protectedPromptCodePoints" : 1564,
+      "compromisePromptCodePoints" : 1590
+    }
+  }, {
+    "case" : "指定-性能指标",
+    "scenario" : "用户点名《容量与性能约束》询问性能指标",
+    "query" : "《容量与性能约束》里，知识检索接口的响应时间与吞吐量指标分别是多少？",
+    "scope" : "DOCUMENT_SCOPED",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 2,
+      "protectedUnexpectedSources" : 2,
+      "compromiseUnexpectedSources" : 2,
+      "currentPromptCodePoints" : 190,
+      "protectedPromptCodePoints" : 190,
+      "compromisePromptCodePoints" : 190
+    },
+    "expectedEvidence" : [ {
+      "label" : "性能指标",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "chunkId" : "e1b0192e-32c7-4139-95a6-b0bbfc7f1ad7"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "性能指标",
+      "candidateRank" : 1,
+      "similarity" : 0.8234
+    } ],
+    "unexpectedSourcesRetained" : 2,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 3,
+    "contextPromptCodePoints" : 190,
+    "latencyMsTop8" : 7,
+    "latencyMsTop20" : 6,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "e1b0192e-32c7-4139-95a6-b0bbfc7f1ad7",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "similarity" : 0.8234,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "9788c951-5fc8-403e-a045-69145947158a",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "similarity" : 0.5475,
+      "expectedEvidence" : false
+    }, {
+      "rank" : 3,
+      "chunkId" : "bae4134b-aa3b-48d7-8a18-4ad5e5c1fb6a",
+      "documentId" : "82c7908f-4a89-4e09-a7cd-f59229b4469a",
+      "filename" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "similarity" : 0.4654,
+      "expectedEvidence" : false
+    } ],
+    "referenceAllProjectRecallAt20" : 1.0,
+    "referenceAllProjectRetentionDiverse" : 1.0,
+    "scopeViolationCount" : 0,
+    "sourceCapStrategyAllProjectReferenceApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 11,
+      "protectedUnexpectedSources" : 11,
+      "compromiseUnexpectedSources" : 11,
+      "currentPromptCodePoints" : 2078,
+      "protectedPromptCodePoints" : 846,
+      "compromisePromptCodePoints" : 2078
+    }
+  }, {
+    "case" : "指定-运行期预算额度",
+    "scenario" : "用户点名《任务预算规则》询问运行期额度",
+    "query" : "在《任务预算规则》中，任务运行期间可以临时增加预算额度吗？",
+    "scope" : "DOCUMENT_SCOPED",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 1,
+      "protectedUnexpectedSources" : 1,
+      "compromiseUnexpectedSources" : 1,
+      "currentPromptCodePoints" : 133,
+      "protectedPromptCodePoints" : 133,
+      "compromisePromptCodePoints" : 133
+    },
+    "expectedEvidence" : [ {
+      "label" : "预算确认",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "chunkId" : "62dec26a-bb36-4ede-bbe0-181c48f7ec0a"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "预算确认",
+      "candidateRank" : 1,
+      "similarity" : 0.8177
+    } ],
+    "unexpectedSourcesRetained" : 1,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 2,
+    "contextPromptCodePoints" : 133,
+    "latencyMsTop8" : 7,
+    "latencyMsTop20" : 6,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "62dec26a-bb36-4ede-bbe0-181c48f7ec0a",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "similarity" : 0.8177,
+      "expectedEvidence" : true
+    }, {
+      "rank" : 2,
+      "chunkId" : "09523123-e340-4439-be5a-a116f8c4effa",
+      "documentId" : "419b7f7f-7600-4245-836a-8a372e621a1c",
+      "filename" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "similarity" : 0.722,
+      "expectedEvidence" : false
+    } ],
+    "referenceAllProjectRecallAt20" : 1.0,
+    "referenceAllProjectRetentionDiverse" : 1.0,
+    "scopeViolationCount" : 0,
+    "sourceCapStrategyAllProjectReferenceApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 11,
+      "protectedUnexpectedSources" : 11,
+      "compromiseUnexpectedSources" : 11,
+      "currentPromptCodePoints" : 2607,
+      "protectedPromptCodePoints" : 791,
+      "compromisePromptCodePoints" : 2607
+    }
+  }, {
+    "case" : "指定-合同审批主体",
+    "scenario" : "用户点名《合同模板甲》询问审批主体",
+    "query" : "只在《合同模板甲》里，重大变更需要由谁批准？",
+    "scope" : "DOCUMENT_SCOPED",
+    "sourceCapStrategyApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 0,
+      "protectedUnexpectedSources" : 0,
+      "compromiseUnexpectedSources" : 0,
+      "currentPromptCodePoints" : 51,
+      "protectedPromptCodePoints" : 51,
+      "compromisePromptCodePoints" : 51
+    },
+    "expectedEvidence" : [ {
+      "label" : "合同模板甲",
+      "documentId" : "07cde7af-abc1-4229-a8e7-bde58e23224a",
+      "chunkId" : "6bfec92b-e173-4e79-b794-5beb578e16f8"
+    } ],
+    "noExpectedEvidence" : false,
+    "expectedEvidenceCount" : 1,
+    "retrievalStatus" : "MEASURED",
+    "notRecalledInTopK" : 0,
+    "recallAt8" : 1.0,
+    "recallAt20" : 1.0,
+    "retentionLegacy" : 1.0,
+    "retentionDiverse" : 1.0,
+    "documentCoverage" : {
+      "expectedDocumentCount" : 1,
+      "candidateDocumentsWithEvidence" : 1,
+      "retainedDocumentsWithEvidence" : 1,
+      "candidateRatio" : 1.0,
+      "retainedRatio" : 1.0
+    },
+    "candidateRankOfExpected" : [ {
+      "label" : "合同模板甲",
+      "candidateRank" : 1,
+      "similarity" : 0.7849
+    } ],
+    "unexpectedSourcesRetained" : 0,
+    "droppedByContext" : 0,
+    "dropReasons" : {
+      "crossDocumentDedupLoss" : 0,
+      "intraDocumentDedupLoss" : 0,
+      "sourceCapDrop" : 0,
+      "budgetDrop" : 0,
+      "belowSimilarityThresholdDrop" : 0,
+      "emptyBodyDrop" : 0,
+      "unattributedDrop" : 0
+    },
+    "retainedSourceCount" : 1,
+    "contextPromptCodePoints" : 51,
+    "latencyMsTop8" : 7,
+    "latencyMsTop20" : 5,
+    "tailMarker" : null,
+    "tailPreserved" : null,
+    "retainedSources" : [ {
+      "rank" : 1,
+      "chunkId" : "6bfec92b-e173-4e79-b794-5beb578e16f8",
+      "documentId" : "07cde7af-abc1-4229-a8e7-bde58e23224a",
+      "filename" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "similarity" : 0.7849,
+      "expectedEvidence" : true
+    } ],
+    "referenceAllProjectRecallAt20" : 1.0,
+    "referenceAllProjectRetentionDiverse" : 1.0,
+    "scopeViolationCount" : 0,
+    "sourceCapStrategyAllProjectReferenceApproximate" : {
+      "expectedEvidenceCount" : 1,
+      "currentExpectedRetained" : 1,
+      "protectedExpectedRetained" : 1,
+      "compromiseExpectedRetained" : 1,
+      "currentDocumentsCovered" : 1,
+      "protectedDocumentsCovered" : 1,
+      "compromiseDocumentsCovered" : 1,
+      "currentUnexpectedSources" : 11,
+      "protectedUnexpectedSources" : 11,
+      "compromiseUnexpectedSources" : 11,
+      "currentPromptCodePoints" : 2017,
+      "protectedPromptCodePoints" : 2016,
+      "compromisePromptCodePoints" : 2017
+    }
+  } ],
+  "summary" : {
+    "allProjectPrimary" : {
+      "sampleCount" : 14,
+      "undefinedSampleCount" : 1,
+      "expectedEvidenceCount" : 22,
+      "recallAt8" : 0.9545,
+      "recallAt20" : 0.9545,
+      "retentionLegacyAt8" : 0.9545,
+      "retentionDiverseAt20" : 0.8636,
+      "documentCoverageAt20" : {
+        "expectedDocumentCount" : 18,
+        "candidateDocumentsWithEvidence" : 17,
+        "retainedDocumentsWithEvidence" : 17,
+        "candidateRatio" : 0.9444,
+        "retainedRatio" : 0.9444
+      },
+      "sourceCapDropAt20" : 2,
+      "budgetDropAt20" : 0,
+      "dbMissAt20" : 1
+    },
+    "documentScopedPrimary" : {
+      "sampleCount" : 6,
+      "undefinedSampleCount" : 0,
+      "expectedEvidenceCount" : 6,
+      "recallAt8" : 1.0,
+      "recallAt20" : 1.0,
+      "retentionLegacyAt8" : 1.0,
+      "retentionDiverseAt20" : 1.0,
+      "documentCoverageAt20" : {
+        "expectedDocumentCount" : 6,
+        "candidateDocumentsWithEvidence" : 6,
+        "retainedDocumentsWithEvidence" : 6,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 1.0
+      },
+      "sourceCapDropAt20" : 0,
+      "budgetDropAt20" : 0,
+      "dbMissAt20" : 0
+    },
+    "scopedAllProjectReference" : {
+      "sampleCount" : 6,
+      "undefinedSampleCount" : 0,
+      "expectedEvidenceCount" : 6,
+      "recallAt8" : 1.0,
+      "recallAt20" : 1.0,
+      "retentionLegacyAt8" : 1.0,
+      "retentionDiverseAt20" : 1.0,
+      "documentCoverageAt20" : {
+        "expectedDocumentCount" : 6,
+        "candidateDocumentsWithEvidence" : 6,
+        "retainedDocumentsWithEvidence" : 6,
+        "candidateRatio" : 1.0,
+        "retainedRatio" : 1.0
+      },
+      "sourceCapDropAt20" : 0,
+      "budgetDropAt20" : 0,
+      "dbMissAt20" : 0
+    },
+    "allProjectCounterfactualIncludingDocumentScopedPrompts" : {
+      "sampleCount" : 20,
+      "undefinedSampleCount" : 1,
+      "expectedEvidenceCount" : 28,
+      "recallAt8" : 0.9643,
+      "recallAt20" : 0.9643,
+      "retentionLegacyAt8" : 0.9643,
+      "retentionDiverseAt20" : 0.8929,
+      "documentCoverageAt20" : {
+        "expectedDocumentCount" : 24,
+        "candidateDocumentsWithEvidence" : 23,
+        "retainedDocumentsWithEvidence" : 23,
+        "candidateRatio" : 0.9583,
+        "retainedRatio" : 0.9583
+      },
+      "sourceCapDropAt20" : 2,
+      "budgetDropAt20" : 0,
+      "dbMissAt20" : 1
+    },
+    "sourceCapStrategyApproximateAllProjectPrimary" : {
+      "caseCount" : 14,
+      "expectedEvidenceCount" : 22,
+      "currentExpectedRetained" : 19,
+      "protectedExpectedRetained" : 21,
+      "compromiseExpectedRetained" : 19,
+      "deltaExpectedRetained_B" : 2,
+      "deltaExpectedRetained_C" : 0,
+      "currentExpectedRetention" : 0.8636,
+      "protectedExpectedRetention" : 0.9545,
+      "compromiseExpectedRetention" : 0.8636,
+      "currentDocumentsCovered" : 17,
+      "protectedDocumentsCovered" : 17,
+      "compromiseDocumentsCovered" : 17,
+      "deltaDocumentsCovered_B" : 0,
+      "deltaDocumentsCovered_C" : 0,
+      "currentUnexpectedSources" : 149,
+      "protectedUnexpectedSources" : 147,
+      "compromiseUnexpectedSources" : 149
+    },
+    "sourceCapStrategyApproximateDocumentScopedPrimary" : {
+      "caseCount" : 6,
+      "expectedEvidenceCount" : 6,
+      "currentExpectedRetained" : 6,
+      "protectedExpectedRetained" : 6,
+      "compromiseExpectedRetained" : 6,
+      "deltaExpectedRetained_B" : 0,
+      "deltaExpectedRetained_C" : 0,
+      "currentExpectedRetention" : 1.0,
+      "protectedExpectedRetention" : 1.0,
+      "compromiseExpectedRetention" : 1.0,
+      "currentDocumentsCovered" : 6,
+      "protectedDocumentsCovered" : 6,
+      "compromiseDocumentsCovered" : 6,
+      "deltaDocumentsCovered_B" : 0,
+      "deltaDocumentsCovered_C" : 0,
+      "currentUnexpectedSources" : 12,
+      "protectedUnexpectedSources" : 12,
+      "compromiseUnexpectedSources" : 12
+    },
+    "sourceCapStrategyApproximateScopedAllProjectReference" : {
+      "caseCount" : 6,
+      "expectedEvidenceCount" : 6,
+      "currentExpectedRetained" : 6,
+      "protectedExpectedRetained" : 6,
+      "compromiseExpectedRetained" : 6,
+      "deltaExpectedRetained_B" : 0,
+      "deltaExpectedRetained_C" : 0,
+      "currentExpectedRetention" : 1.0,
+      "protectedExpectedRetention" : 1.0,
+      "compromiseExpectedRetention" : 1.0,
+      "currentDocumentsCovered" : 6,
+      "protectedDocumentsCovered" : 6,
+      "compromiseDocumentsCovered" : 6,
+      "deltaDocumentsCovered_B" : 0,
+      "deltaDocumentsCovered_C" : 0,
+      "currentUnexpectedSources" : 66,
+      "protectedUnexpectedSources" : 66,
+      "compromiseUnexpectedSources" : 66
+    }
+  }
+}
