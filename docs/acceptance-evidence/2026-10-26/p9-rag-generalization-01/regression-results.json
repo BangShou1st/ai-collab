@@ -1,0 +1,66 @@
+{
+  "purpose": "P4～P8 旧冻结集回归保护：同 SHA（3891171）重跑 P6RagQualityBaselinePostgresTest 并与 2026-10-25 冻结基线逐事实对比",
+  "baselineSha": "3891171ecfc81a3929993f9f77989fed61ea5c85",
+  "hardAssertionsPassed": true,
+  "stageComparison": [
+    {
+      "stage": "qaStage",
+      "current": {
+        "ratio": 0.963,
+        "total": 27,
+        "retained": 26
+      },
+      "historical": {
+        "retained": 26,
+        "ratio": 0.963,
+        "total": 27
+      },
+      "identical": true
+    },
+    {
+      "stage": "qaLegacyStage",
+      "current": {
+        "ratio": 0.9259,
+        "total": 27,
+        "retained": 25
+      },
+      "historical": {
+        "retained": 25,
+        "ratio": 0.9259,
+        "total": 27
+      },
+      "identical": true
+    },
+    {
+      "stage": "agentStage",
+      "current": {
+        "ratio": 0.8148,
+        "total": 27,
+        "retained": 22
+      },
+      "historical": {
+        "retained": 22,
+        "ratio": 0.8148,
+        "total": 27
+      },
+      "identical": true
+    },
+    {
+      "stage": "agent12Stage",
+      "current": {
+        "ratio": 0.9259,
+        "total": 27,
+        "retained": 25
+      },
+      "historical": {
+        "retained": 25,
+        "ratio": 0.9259,
+        "total": 27
+      },
+      "identical": true
+    }
+  ],
+  "perFactDiffs": 0,
+  "verdict": "REGRESSION_CLEAN",
+  "historicalReference": "docs/acceptance-evidence/2026-10-25/p6-rag-quality-01/d0-d2-final.json"
+}

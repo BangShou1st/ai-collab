@@ -1,0 +1,72 @@
+{
+  "benchmark": "p9-rag-generalization-01",
+  "frozenAt": "2026-10-26",
+  "methodNote": "Holdout 为方法学保留集（非密码学盲测）：冻结后不得依据其测量结果调整生产检索规则、评测参数或标注。若任何候选方案消费过 Holdout 结果，必须标记该保留集已消费并另建新集。",
+  "holdoutDocuments": [
+    {
+      "filename": "D1-差旅费管理办法V1.md",
+      "sha256": "54a8f0f39eac7e44a35095818e6629fabda1ae4eb67d3ad014d0f519d3fa8b42",
+      "codePoints": 997
+    },
+    {
+      "filename": "D2-差旅费管理办法V2.md",
+      "sha256": "c22d6dbc52a38dd1e7dbc5d108f9929708d8eedfe91be0a72a52e05d5b50c6af",
+      "codePoints": 993
+    },
+    {
+      "filename": "D3-差旅费管理补充通知.md",
+      "sha256": "49275a920f75beca599de63273a25a550abe2355cb1806c4d60987d50051f155",
+      "codePoints": 597
+    },
+    {
+      "filename": "D4-培训服务合同管理办法.md",
+      "sha256": "5793f298740cd663155adc87bf5177860842f6590b9a22a5e93fb35e701973c2",
+      "codePoints": 940
+    },
+    {
+      "filename": "E1-技术变更管理规程.md",
+      "sha256": "ecd96ac0813c1cc8a6ec006d35a1861a34a534cdc65a6e5948c037c79524c7b8",
+      "codePoints": 1406
+    },
+    {
+      "filename": "E2-技术变更评审细则.md",
+      "sha256": "32f64e2506b4dd6df4e09f429faae177927a2e54b6a03bd7bdfcb2ee31f67dcb",
+      "codePoints": 701
+    },
+    {
+      "filename": "E3-紧急变更处理办法.md",
+      "sha256": "a4b2bb6dc01bb977f597e5dbeece1d8bff20ef4786c5716ba77b9d988d254641",
+      "codePoints": 754
+    },
+    {
+      "filename": "F1-审计核对工作指引.md",
+      "sha256": "d3ce81edde3cf6793d70ab6c6794fc8178b00ebbc0cd976d21c3777737f6414e",
+      "codePoints": 695
+    },
+    {
+      "filename": "F2-审计证据管理规范.md",
+      "sha256": "d043dbe5f550339d34df4ff675081a4149b8363d52019b4b141c86061307e371",
+      "codePoints": 610
+    },
+    {
+      "filename": "F3-审计待定事项备忘.md",
+      "sha256": "049abb1bd8f42c83de4e0bc553653b3b1f2ed02625eefa2828285ab328441031",
+      "codePoints": 575
+    },
+    {
+      "filename": "F4-外部审计参考摘录-未审核来源.md",
+      "sha256": "8f77935fdc57976e0945f80ae1029c079717128523451b8cd7d421516f1b7c14",
+      "codePoints": 630
+    }
+  ],
+  "holdoutQuestionFile": {
+    "filename": "question-manifest-holdout.json",
+    "sha256": "34241f3867546cb8794384ccad8887c59e36be59f255a4b5863c2a43cb562e9c"
+  },
+  "devQuestionFile": {
+    "filename": "question-manifest.json",
+    "sha256": "638c6d82120039189e6157e4699c842379867d5c8b04f615423bf0f572dfcef5"
+  },
+  "holdoutQuestionCount": 18,
+  "devQuestionCount": 21
+}

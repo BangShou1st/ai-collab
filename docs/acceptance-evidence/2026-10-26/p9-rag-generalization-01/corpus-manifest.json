@@ -1,0 +1,169 @@
+{
+  "benchmark": "p9-rag-generalization-01",
+  "createdAt": "2026-10-26",
+  "chunker": "production DocumentChunker 1200/150",
+  "encoding": "UTF-8 无 BOM",
+  "documents": [
+    {
+      "filename": "A1-设备巡检维护简则.md",
+      "family": "A",
+      "set": "dev",
+      "codePoints": 721,
+      "sha256": "ca014c21cd9fc69740c0fa19e0e5b5c9b194e54e5f3904c1cc7646c44b483fcd"
+    },
+    {
+      "filename": "A2-设备维护管理细则.md",
+      "family": "A",
+      "set": "dev",
+      "codePoints": 1436,
+      "sha256": "f57e67711b4dc8ee335a1fd88d8cbbe32cbe299a7dff40a4a60fccefd35875a8"
+    },
+    {
+      "filename": "A3-中央机组维护手册.md",
+      "family": "A",
+      "set": "dev",
+      "codePoints": 2633,
+      "sha256": "b425a8479214d2fd4a35bbdb8992f9faa0005a262c5f83f2a1d38f7b77d0fbcf"
+    },
+    {
+      "filename": "A4-全厂设施维护总册.md",
+      "family": "A",
+      "set": "dev",
+      "codePoints": 3353,
+      "sha256": "7ace0a792dd52aca5851e343ae1092cd4c814e8d732108d62bcefda58780aa70"
+    },
+    {
+      "filename": "B1-服务交接申请条件.md",
+      "family": "B",
+      "set": "dev",
+      "codePoints": 628,
+      "sha256": "ff70529ca2d1c24a33415c2df4de79adfa0c5ba1cd7c10eab2d829cbe2ee1b00"
+    },
+    {
+      "filename": "B2-服务交接审批流程.md",
+      "family": "B",
+      "set": "dev",
+      "codePoints": 811,
+      "sha256": "74f025a531ed122ddf1bb31a1f6a719119986a28b2519e1501a2a1af79430f30"
+    },
+    {
+      "filename": "B3-服务交接时限规定.md",
+      "family": "B",
+      "set": "dev",
+      "codePoints": 709,
+      "sha256": "a7758a2c7cb37a92f75eefbd757125615efe991eb09b32396ed73fc8cce27798"
+    },
+    {
+      "filename": "B4-服务交接例外情形.md",
+      "family": "B",
+      "set": "dev",
+      "codePoints": 718,
+      "sha256": "a78cb11884aaacd218368121283815e227daac9726d4853f9431c63dc61bc339"
+    },
+    {
+      "filename": "C1-资产盘点操作规范-华东中心.md",
+      "family": "C",
+      "set": "dev",
+      "codePoints": 769,
+      "sha256": "a4d1d0771471d64785522bb33289f70b86cb60f61c4ec365bad05d9835506c9f"
+    },
+    {
+      "filename": "C2-资产盘点操作规范-华南中心.md",
+      "family": "C",
+      "set": "dev",
+      "codePoints": 825,
+      "sha256": "99728707a75283bc9cf5f49100c28df734a22e22d773e6df4b172b6a4532137a"
+    },
+    {
+      "filename": "C3-资产盘点操作规范-总部本部.md",
+      "family": "C",
+      "set": "dev",
+      "codePoints": 753,
+      "sha256": "f78537ce6e3097af415ca819037e049757b5dc4327f44c6d138abb15489ff26b"
+    },
+    {
+      "filename": "C4-资产盘点争议处理补充.md",
+      "family": "C",
+      "set": "dev",
+      "codePoints": 546,
+      "sha256": "edaf4ea85dee336658b1ea160e236e7c817c7da4f0b191fa60473445362332f6"
+    },
+    {
+      "filename": "D1-差旅费管理办法V1.md",
+      "family": "D",
+      "set": "holdout",
+      "codePoints": 997,
+      "sha256": "54a8f0f39eac7e44a35095818e6629fabda1ae4eb67d3ad014d0f519d3fa8b42"
+    },
+    {
+      "filename": "D2-差旅费管理办法V2.md",
+      "family": "D",
+      "set": "holdout",
+      "codePoints": 993,
+      "sha256": "c22d6dbc52a38dd1e7dbc5d108f9929708d8eedfe91be0a72a52e05d5b50c6af"
+    },
+    {
+      "filename": "D3-差旅费管理补充通知.md",
+      "family": "D",
+      "set": "holdout",
+      "codePoints": 597,
+      "sha256": "49275a920f75beca599de63273a25a550abe2355cb1806c4d60987d50051f155"
+    },
+    {
+      "filename": "D4-培训服务合同管理办法.md",
+      "family": "D",
+      "set": "holdout",
+      "codePoints": 940,
+      "sha256": "5793f298740cd663155adc87bf5177860842f6590b9a22a5e93fb35e701973c2"
+    },
+    {
+      "filename": "E1-技术变更管理规程.md",
+      "family": "E",
+      "set": "holdout",
+      "codePoints": 1406,
+      "sha256": "ecd96ac0813c1cc8a6ec006d35a1861a34a534cdc65a6e5948c037c79524c7b8"
+    },
+    {
+      "filename": "E2-技术变更评审细则.md",
+      "family": "E",
+      "set": "holdout",
+      "codePoints": 701,
+      "sha256": "32f64e2506b4dd6df4e09f429faae177927a2e54b6a03bd7bdfcb2ee31f67dcb"
+    },
+    {
+      "filename": "E3-紧急变更处理办法.md",
+      "family": "E",
+      "set": "holdout",
+      "codePoints": 754,
+      "sha256": "a4b2bb6dc01bb977f597e5dbeece1d8bff20ef4786c5716ba77b9d988d254641"
+    },
+    {
+      "filename": "F1-审计核对工作指引.md",
+      "family": "F",
+      "set": "holdout",
+      "codePoints": 695,
+      "sha256": "d3ce81edde3cf6793d70ab6c6794fc8178b00ebbc0cd976d21c3777737f6414e"
+    },
+    {
+      "filename": "F2-审计证据管理规范.md",
+      "family": "F",
+      "set": "holdout",
+      "codePoints": 610,
+      "sha256": "d043dbe5f550339d34df4ff675081a4149b8363d52019b4b141c86061307e371"
+    },
+    {
+      "filename": "F3-审计待定事项备忘.md",
+      "family": "F",
+      "set": "holdout",
+      "codePoints": 575,
+      "sha256": "049abb1bd8f42c83de4e0bc553653b3b1f2ed02625eefa2828285ab328441031"
+    },
+    {
+      "filename": "F4-外部审计参考摘录-未审核来源.md",
+      "family": "F",
+      "set": "holdout",
+      "codePoints": 630,
+      "sha256": "8f77935fdc57976e0945f80ae1029c079717128523451b8cd7d421516f1b7c14"
+    }
+  ]
+}
