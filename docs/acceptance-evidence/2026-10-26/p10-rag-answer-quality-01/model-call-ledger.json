@@ -1,0 +1,17 @@
+{
+  "task": "p10-rag-answer-quality-01",
+  "date": "2026-10-26",
+  "authorization": {
+    "granted": false,
+    "note": "本轮未获得外部 Chat 模型调用授权；P7 历史授权不自动延续"
+  },
+  "actualCalls": {
+    "externalChat": 0,
+    "externalEmbedding": 0,
+    "localOllama": 0
+  },
+  "executedPaths": [
+    "离线确定性评测（真实生产 KnowledgeCitationValidator + P9 冻结检索结果 + 语料全文，零模型调用）"
+  ],
+  "realGenerationVerdict": "REAL_GENERATION_NOT_EXECUTED"
+}
