@@ -97,7 +97,7 @@ public class KnowledgeQuestionApplicationService {
         KnowledgeConversationContext conversation = KnowledgeConversationContext.from(repository.recentContext(projectId, sessionId, userId), question);
         List<DocumentSearchHit> candidates = search.search(projectId, conversation.retrievalQuery(), documentIds, TOP_K);
         long retrievalMs = elapsedMs(retrievalStarted);
-        KnowledgeContext context = contextBuilder.build(candidates);
+        KnowledgeContext context = contextBuilder.buildBalanced(candidates);
         double highestSimilarity = candidates.isEmpty() ? 0d : candidates.getFirst().similarity();
         if (context.sources().isEmpty()) {
             KnowledgeAnswerView view = persistence.saveExchange(
