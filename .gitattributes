@@ -34,3 +34,7 @@
 *.zip binary
 *.7z binary
 *.jar binary
+
+# P8 冻结证据按原始字节校验，保留历史产物的换行，避免 Git 改变 SHA-256。
+docs/acceptance-evidence/2026-10-25/p8-agent-rag-e2e-quality-01/** -text
+docs/acceptance-evidence/2026-10-25/p8-rag-quality-fix-01/** -text

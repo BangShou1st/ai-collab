@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.document.infrastructure.DocumentRepositoryIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.966 s -- in com.shitulelv.aicollab.document.infrastructure.DocumentRepositoryIntegrationTest

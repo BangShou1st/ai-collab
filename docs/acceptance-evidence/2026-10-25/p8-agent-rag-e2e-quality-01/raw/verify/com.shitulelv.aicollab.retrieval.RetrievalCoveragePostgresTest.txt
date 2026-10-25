@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest
+-------------------------------------------------------------------------------
+Tests run: 16, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 13.10 s -- in com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest

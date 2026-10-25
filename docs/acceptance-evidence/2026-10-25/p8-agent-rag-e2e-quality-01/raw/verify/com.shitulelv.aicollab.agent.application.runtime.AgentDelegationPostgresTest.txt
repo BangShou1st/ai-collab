@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest
+-------------------------------------------------------------------------------
+Tests run: 40, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 44.39 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest

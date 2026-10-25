@@ -1,0 +1,4457 @@
+{
+  "evaluation" : "P6-RAG-QUALITY-01 D0/D1/D2 frozen-question real baseline and controlled experiments",
+  "baseline" : "f11939e336e3bb72abdcdb6e2db2fd4cc0d0fd3b",
+  "model" : "qwen3-embedding:0.6b",
+  "dimension" : 1024,
+  "fingerprint" : "20f29e8d94afc1eb2f5de49d3f4c81f548881de08e7aa4acb955ec87f5face75",
+  "generationId" : "0c6261d4-408f-4f87-84cc-a49000ee8888",
+  "chunker" : "production DocumentChunker 1200/150",
+  "corpus" : [ {
+    "indexLatencyMs" : 80,
+    "chunkCount" : 3,
+    "sha256" : "31e365fc319847681d2d9cadccfbe1e8480466eb3ae3fe21f6617ed5f7f4f696",
+    "filename" : "上线验收规程.md"
+  }, {
+    "indexLatencyMs" : 120,
+    "chunkCount" : 4,
+    "sha256" : "fdf5669968a644986a61d4a464b11d327eadfe204f69ec3257301512e5fc7b18",
+    "filename" : "发布回滚预案.md"
+  }, {
+    "indexLatencyMs" : 63,
+    "chunkCount" : 2,
+    "sha256" : "3e66b1ae633142db11d123efb91342e432dfcc8ec2c5122fdd9fac0a82048453",
+    "filename" : "任务预算规则.md"
+  }, {
+    "indexLatencyMs" : 125,
+    "chunkCount" : 6,
+    "sha256" : "36f5a6b26447f032026c25d743414913a186b4f35503c3ae1068bb2ec60c322d",
+    "filename" : "批量导出规范.md"
+  }, {
+    "indexLatencyMs" : 60,
+    "chunkCount" : 2,
+    "sha256" : "b10de525ac4c543147f631d007ba8de2bb6cf8df823f13828ca18d4b1f4a6da8",
+    "filename" : "租户并发限制.md"
+  }, {
+    "indexLatencyMs" : 49,
+    "chunkCount" : 1,
+    "sha256" : "39fa36c36a8531aa0b8855a3aba9e7717b0657d5f9c1b0e05bc229192c9d3210",
+    "filename" : "合同模板甲.md"
+  }, {
+    "indexLatencyMs" : 52,
+    "chunkCount" : 1,
+    "sha256" : "39fa36c36a8531aa0b8855a3aba9e7717b0657d5f9c1b0e05bc229192c9d3210",
+    "filename" : "合同模板乙.md"
+  }, {
+    "indexLatencyMs" : 75,
+    "chunkCount" : 3,
+    "sha256" : "9716fe920f3192187f88faed0d045da0237412692f25f6b5ba2a0d9c7eda6789",
+    "filename" : "需求变更单.md"
+  }, {
+    "indexLatencyMs" : 76,
+    "chunkCount" : 3,
+    "sha256" : "abae34e3df6f6d070a88dd5834caea9de41790c992ea957083689acc89a17a3d",
+    "filename" : "容量与性能约束.md"
+  }, {
+    "indexLatencyMs" : 68,
+    "chunkCount" : 2,
+    "sha256" : "268f2fae2f4932f56741dcf54e81a4815cc7d191c9252849e0e2eaaf7b3f4046",
+    "filename" : "安全与脱敏规范.md"
+  }, {
+    "indexLatencyMs" : 65,
+    "chunkCount" : 2,
+    "sha256" : "0a6b67140dbd42e48ed97ac5801b127feab976297483dcdd2bcff980acbb8027",
+    "filename" : "数据归档通告.md"
+  }, {
+    "indexLatencyMs" : 196,
+    "chunkCount" : 8,
+    "sha256" : "5e5870e81e26ebc6fa9e4d0e0d417078603665dae10066bb698c84456c3c8b15",
+    "filename" : "检索性能测试手册.md"
+  }, {
+    "indexLatencyMs" : 710,
+    "chunkCount" : 10,
+    "sha256" : "bd454640aa9eba546ef65b61bc2ab42d82c81cdffb91d891f78f126ac3897d2a",
+    "filename" : "长文附录.md"
+  }, {
+    "indexLatencyMs" : 56,
+    "chunkCount" : 2,
+    "sha256" : "7aa85e901cf6305a704e225c4c65d0624988a804e1e2d97259e291e1f74573b3",
+    "filename" : "不可信资料测试.md"
+  } ],
+  "indexing" : {
+    "embeddingRequests" : 14,
+    "embeddingInputCodePoints" : 13444,
+    "totalIndexLatencyMs" : 1795,
+    "documentCount" : 14,
+    "chunkCount" : 49
+  },
+  "paths" : {
+    "agent" : {
+      "defaultLimit" : 8,
+      "promptBudgetCodePoints" : 8000,
+      "candidatePool" : 20,
+      "quoteCapCodePoints" : 600
+    },
+    "qa" : {
+      "maxSources" : 5,
+      "topK" : 8,
+      "promptBudgetCodePoints" : 8000
+    }
+  },
+  "experimentSemantics" : {
+    "R1b" : "query 中文二元组命中数排序的有界补充（同上限），真实测量中文词法有效性",
+    "R1a" : "query 明确 ASCII 编号/《》标题的有界 SQL LIKE 精确补充（≤4 条、1 条 SQL、0 次额外向量调用）",
+    "S1" : "QA Top8 候选改用两阶段跨文档选择（同 5 名额、同 8000 预算），测试侧对照"
+  },
+  "questions" : [ {
+    "id" : "Q01",
+    "query" : "项目生产发布前必须完成哪些验收条件？",
+    "userScope" : "ALL_PROJECT",
+    "scopeDocuments" : "[]",
+    "abstain" : false,
+    "expectedFactCount" : 3,
+    "facts" : [ {
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "marker" : "自动化验收",
+      "indexed" : true,
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.7201,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    }, {
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "marker" : "阻断级缺陷",
+      "indexed" : true,
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.7201,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    }, {
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "marker" : "数据迁移",
+      "indexed" : true,
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.7201,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 8,
+    "qaCandidates" : [ {
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "similarity" : 0.7201,
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "contentCodePoints" : 46
+    }, {
+      "chunkId" : "4e9e8595-10fe-4971-899f-c9e2184f8ded",
+      "similarity" : 0.562,
+      "document" : "上线验收规程.md",
+      "heading" : "验收记录",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.5448,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "similarity" : 0.5094,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.4758,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "similarity" : 0.4758,
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "similarity" : 0.4686,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "contentCodePoints" : 54
+    }, {
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "similarity" : 0.4557,
+      "document" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "contentCodePoints" : 33
+    } ],
+    "qaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyFactStages" : [ "RETAINED", "RETAINED", "RETAINED" ],
+    "qaS1SourceCount" : 5,
+    "qaS1FactStages" : [ "RETAINED", "RETAINED", "RETAINED" ],
+    "qaSourceCount" : 5,
+    "qaSources" : [ {
+      "heading" : "上线门禁",
+      "retainedCodePoints" : 46,
+      "similarity" : 0.7201,
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "rank" : 1,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "验收记录",
+      "retainedCodePoints" : 33,
+      "similarity" : 0.562,
+      "chunkId" : "4e9e8595-10fe-4971-899f-c9e2184f8ded",
+      "rank" : 2,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "回滚复核",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.5448,
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "rank" : 3,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "回滚演练",
+      "retainedCodePoints" : 32,
+      "similarity" : 0.5094,
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "rank" : 4,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4758,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 5,
+      "document" : "合同模板甲.md"
+    } ],
+    "qaPromptCodePoints" : 317,
+    "agentCandidateCount" : 20,
+    "agentCandidates" : [ {
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "similarity" : 0.7201,
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "contentCodePoints" : 46
+    }, {
+      "chunkId" : "4e9e8595-10fe-4971-899f-c9e2184f8ded",
+      "similarity" : 0.562,
+      "document" : "上线验收规程.md",
+      "heading" : "验收记录",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.5448,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "similarity" : 0.5094,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.4758,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "similarity" : 0.4758,
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "similarity" : 0.4686,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "contentCodePoints" : 54
+    }, {
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "similarity" : 0.4557,
+      "document" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "f225d9da-ecce-48c4-9f73-1f1eac16146f",
+      "similarity" : 0.4496,
+      "document" : "发布回滚预案.md",
+      "heading" : "续发前提",
+      "contentCodePoints" : 808
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.4267,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "similarity" : 0.422,
+      "document" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "similarity" : 0.4134,
+      "document" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "similarity" : 0.4092,
+      "document" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "contentCodePoints" : 25
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.3958,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.382,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.3794,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "similarity" : 0.3757,
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "contentCodePoints" : 50
+    }, {
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "similarity" : 0.3675,
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "contentCodePoints" : 26
+    }, {
+      "chunkId" : "9cf63d9c-5466-435b-83cf-63cef8686b1d",
+      "similarity" : 0.3653,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 541
+    }, {
+      "chunkId" : "7c7a13da-4319-4a43-9ae5-0c3525cd45a8",
+      "similarity" : 0.3556,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例1",
+      "contentCodePoints" : 39
+    } ],
+    "agentDropReasons" : {
+      "SOURCE_CAP" : 12
+    },
+    "agentSourceCount" : 8,
+    "agentSources" : [ {
+      "heading" : "上线门禁",
+      "retainedCodePoints" : 46,
+      "similarity" : 0.7201,
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "rank" : 1,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "回滚复核",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.5448,
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "rank" : 2,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4758,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 3,
+      "document" : "合同模板甲.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4758,
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "rank" : 4,
+      "document" : "合同模板乙.md"
+    }, {
+      "heading" : "数据范围",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.4267,
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "rank" : 5,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "权限约束",
+      "retainedCodePoints" : 25,
+      "similarity" : 0.4092,
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "rank" : 6,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "超限处理",
+      "retainedCodePoints" : 35,
+      "similarity" : 0.3958,
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "rank" : 7,
+      "document" : "任务预算规则.md"
+    }, {
+      "heading" : "REQ-7741",
+      "retainedCodePoints" : 47,
+      "similarity" : 0.382,
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "rank" : 8,
+      "document" : "需求变更单.md"
+    } ],
+    "agentPromptCodePoints" : 509,
+    "agent12SourceCount" : 12,
+    "agent12FactStages" : [ "RETAINED", "RETAINED", "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 257,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "项目生产发布前必须完成哪些验收条件？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "项目生产发布前必须完成哪些验收条件？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 47,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 54,
+    "agentLatencyMs" : 47,
+    "r1aSqlLatencyMs" : 0,
+    "r1bSqlLatencyMs" : 5,
+    "diagnosticFullRankingMs" : 50,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q02",
+    "query" : "继续发布需要满足什么前提条件？",
+    "userScope" : "ALL_PROJECT",
+    "scopeDocuments" : "[]",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "发布回滚预案.md",
+      "heading" : "续发前提",
+      "marker" : "只有最近一次回滚演练通过的项目才允许继续发布",
+      "indexed" : true,
+      "chunkId" : "f225d9da-ecce-48c4-9f73-1f1eac16146f",
+      "diagnosticFullRank" : 23,
+      "diagnosticSimilarity" : 0.3643,
+      "qaStage" : "RETRIEVAL_MISS",
+      "qaLegacyStage" : "RETRIEVAL_MISS",
+      "qaS1Stage" : "RETRIEVAL_MISS",
+      "agentStage" : "RETRIEVAL_MISS",
+      "agent12Stage" : "RETRIEVAL_MISS",
+      "r1aQaStage" : "RETRIEVAL_MISS",
+      "r1aAgentStage" : "RETRIEVAL_MISS",
+      "r1bQaStage" : "SELECTION_MISS:SOURCE_CAP",
+      "r1bAgentStage" : "SELECTION_MISS:SOURCE_CAP"
+    } ],
+    "qaCandidateCount" : 8,
+    "qaCandidates" : [ {
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "similarity" : 0.5068,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "contentCodePoints" : 54
+    }, {
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "similarity" : 0.5032,
+      "document" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "similarity" : 0.4885,
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "contentCodePoints" : 46
+    }, {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.4883,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "similarity" : 0.4883,
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.4852,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "similarity" : 0.4749,
+      "document" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "similarity" : 0.4732,
+      "document" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "contentCodePoints" : 32
+    } ],
+    "qaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyFactStages" : [ "RETRIEVAL_MISS" ],
+    "qaS1SourceCount" : 5,
+    "qaS1FactStages" : [ "RETRIEVAL_MISS" ],
+    "qaSourceCount" : 5,
+    "qaSources" : [ {
+      "heading" : "回滚触发条件",
+      "retainedCodePoints" : 54,
+      "similarity" : 0.5068,
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "rank" : 1,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "导出队列",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.5032,
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "rank" : 2,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "上线门禁",
+      "retainedCodePoints" : 46,
+      "similarity" : 0.4885,
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "rank" : 3,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4883,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 4,
+      "document" : "合同模板甲.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4883,
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "rank" : 5,
+      "document" : "合同模板乙.md"
+    } ],
+    "qaPromptCodePoints" : 330,
+    "agentCandidateCount" : 20,
+    "agentCandidates" : [ {
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "similarity" : 0.5068,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "contentCodePoints" : 54
+    }, {
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "similarity" : 0.5032,
+      "document" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "similarity" : 0.4885,
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "contentCodePoints" : 46
+    }, {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.4883,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "similarity" : 0.4883,
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.4852,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "similarity" : 0.4749,
+      "document" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "similarity" : 0.4732,
+      "document" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.464,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "similarity" : 0.4621,
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "contentCodePoints" : 50
+    }, {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.4577,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "similarity" : 0.4559,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.4559,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "45a82876-ccb9-4512-a962-0b2fdbdfdadc",
+      "similarity" : 0.4559,
+      "document" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "similarity" : 0.4446,
+      "document" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "contentCodePoints" : 40
+    }, {
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "similarity" : 0.4218,
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "contentCodePoints" : 26
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.4079,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "similarity" : 0.3997,
+      "document" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "contentCodePoints" : 36
+    }, {
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "similarity" : 0.3879,
+      "document" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "contentCodePoints" : 25
+    }, {
+      "chunkId" : "4e9e8595-10fe-4971-899f-c9e2184f8ded",
+      "similarity" : 0.3786,
+      "document" : "上线验收规程.md",
+      "heading" : "验收记录",
+      "contentCodePoints" : 33
+    } ],
+    "agentDropReasons" : {
+      "SOURCE_CAP" : 12
+    },
+    "agentSourceCount" : 8,
+    "agentSources" : [ {
+      "heading" : "回滚触发条件",
+      "retainedCodePoints" : 54,
+      "similarity" : 0.5068,
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "rank" : 1,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "导出队列",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.5032,
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "rank" : 2,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "上线门禁",
+      "retainedCodePoints" : 46,
+      "similarity" : 0.4885,
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "rank" : 3,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4883,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 4,
+      "document" : "合同模板甲.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4883,
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "rank" : 5,
+      "document" : "合同模板乙.md"
+    }, {
+      "heading" : "REQ-7741",
+      "retainedCodePoints" : 47,
+      "similarity" : 0.4852,
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "rank" : 6,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "预算确认",
+      "retainedCodePoints" : 38,
+      "similarity" : 0.4577,
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "rank" : 7,
+      "document" : "任务预算规则.md"
+    }, {
+      "heading" : "租户并发上限",
+      "retainedCodePoints" : 36,
+      "similarity" : 0.3997,
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "rank" : 8,
+      "document" : "租户并发限制.md"
+    } ],
+    "agentPromptCodePoints" : 549,
+    "agent12SourceCount" : 12,
+    "agent12FactStages" : [ "RETRIEVAL_MISS" ],
+    "agentQuoteTotalCodePoints" : 294,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "继续发布需要满足什么前提条件？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "继续发布需要满足什么前提条件？",
+      "supplementCount" : 1,
+      "supplements" : [ {
+        "vectorSimilarity" : 0.3643,
+        "chunkId" : "f225d9da-ecce-48c4-9f73-1f1eac16146f",
+        "diagnosticFullRank" : 23,
+        "document" : "发布回滚预案.md",
+        "heading" : "续发前提"
+      } ],
+      "rowsScanned" : 47,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 50,
+    "agentLatencyMs" : 50,
+    "r1aSqlLatencyMs" : 0,
+    "r1bSqlLatencyMs" : 2,
+    "diagnosticFullRankingMs" : 46,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q03",
+    "query" : "上线验收、灰度观察与回滚分别有哪些要求？",
+    "userScope" : "ALL_PROJECT",
+    "scopeDocuments" : "[]",
+    "abstain" : false,
+    "expectedFactCount" : 3,
+    "facts" : [ {
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "marker" : "阻断级缺陷",
+      "indexed" : true,
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "diagnosticFullRank" : 6,
+      "diagnosticSimilarity" : 0.5928,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "SELECTION_MISS:SOURCE_CAP",
+      "qaS1Stage" : "SELECTION_MISS:SOURCE_CAP",
+      "agentStage" : "SELECTION_MISS:SOURCE_CAP",
+      "agent12Stage" : "SELECTION_MISS:SOURCE_CAP",
+      "r1aQaStage" : "SELECTION_MISS:SOURCE_CAP",
+      "r1aAgentStage" : "SELECTION_MISS:SOURCE_CAP",
+      "r1bQaStage" : "SELECTION_MISS:SOURCE_CAP",
+      "r1bAgentStage" : "SELECTION_MISS:SOURCE_CAP"
+    }, {
+      "document" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "marker" : "两小时",
+      "indexed" : true,
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.743,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    }, {
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "marker" : "连续两次低于约定阈值",
+      "indexed" : true,
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "diagnosticFullRank" : 3,
+      "diagnosticSimilarity" : 0.635,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "SELECTION_MISS:SOURCE_CAP",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "SELECTION_MISS:SOURCE_CAP",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "SELECTION_MISS:SOURCE_CAP"
+    } ],
+    "qaCandidateCount" : 8,
+    "qaCandidates" : [ {
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "similarity" : 0.743,
+      "document" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "similarity" : 0.6666,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "similarity" : 0.635,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "contentCodePoints" : 54
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.6297,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "f225d9da-ecce-48c4-9f73-1f1eac16146f",
+      "similarity" : 0.5966,
+      "document" : "发布回滚预案.md",
+      "heading" : "续发前提",
+      "contentCodePoints" : 808
+    }, {
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "similarity" : 0.5928,
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "contentCodePoints" : 46
+    }, {
+      "chunkId" : "4e9e8595-10fe-4971-899f-c9e2184f8ded",
+      "similarity" : 0.566,
+      "document" : "上线验收规程.md",
+      "heading" : "验收记录",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.5277,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    } ],
+    "qaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyFactStages" : [ "SELECTION_MISS:SOURCE_CAP", "RETAINED", "RETAINED" ],
+    "qaS1SourceCount" : 5,
+    "qaS1FactStages" : [ "SELECTION_MISS:SOURCE_CAP", "RETAINED", "RETAINED" ],
+    "qaSourceCount" : 5,
+    "qaSources" : [ {
+      "heading" : "灰度观察",
+      "retainedCodePoints" : 33,
+      "similarity" : 0.743,
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "rank" : 1,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "回滚演练",
+      "retainedCodePoints" : 32,
+      "similarity" : 0.6666,
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "rank" : 2,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "回滚触发条件",
+      "retainedCodePoints" : 54,
+      "similarity" : 0.635,
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "rank" : 3,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "上线门禁",
+      "retainedCodePoints" : 46,
+      "similarity" : 0.5928,
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "rank" : 4,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "REQ-7741",
+      "retainedCodePoints" : 47,
+      "similarity" : 0.5277,
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "rank" : 5,
+      "document" : "需求变更单.md"
+    } ],
+    "qaPromptCodePoints" : 370,
+    "agentCandidateCount" : 20,
+    "agentCandidates" : [ {
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "similarity" : 0.743,
+      "document" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "similarity" : 0.6666,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "similarity" : 0.635,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "contentCodePoints" : 54
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.6297,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "f225d9da-ecce-48c4-9f73-1f1eac16146f",
+      "similarity" : 0.5966,
+      "document" : "发布回滚预案.md",
+      "heading" : "续发前提",
+      "contentCodePoints" : 808
+    }, {
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "similarity" : 0.5928,
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "contentCodePoints" : 46
+    }, {
+      "chunkId" : "4e9e8595-10fe-4971-899f-c9e2184f8ded",
+      "similarity" : 0.566,
+      "document" : "上线验收规程.md",
+      "heading" : "验收记录",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.5277,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "similarity" : 0.5249,
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "contentCodePoints" : 50
+    }, {
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "similarity" : 0.5008,
+      "document" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "similarity" : 0.4936,
+      "document" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "d7c732c6-b353-4dae-81ae-c71b7300a748",
+      "similarity" : 0.4914,
+      "document" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.4763,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.476,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "c770bac1-c2d8-4cb2-8215-67c8c1b56f61",
+      "similarity" : 0.4598,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例3",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "29d35269-fb33-4190-9894-fab676df9c49",
+      "similarity" : 0.4571,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例2",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "4eb70d60-7308-4ee0-bde5-684a6127f72b",
+      "similarity" : 0.455,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例4",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.4544,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.4517,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "similarity" : 0.4517,
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    } ],
+    "agentDropReasons" : {
+      "SOURCE_CAP" : 12
+    },
+    "agentSourceCount" : 8,
+    "agentSources" : [ {
+      "heading" : "灰度观察",
+      "retainedCodePoints" : 33,
+      "similarity" : 0.743,
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "rank" : 1,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "回滚演练",
+      "retainedCodePoints" : 32,
+      "similarity" : 0.6666,
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "rank" : 2,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "REQ-7741",
+      "retainedCodePoints" : 47,
+      "similarity" : 0.5277,
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "rank" : 3,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "导出队列",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.5008,
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "rank" : 4,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "审计说明",
+      "retainedCodePoints" : 41,
+      "similarity" : 0.4914,
+      "chunkId" : "d7c732c6-b353-4dae-81ae-c71b7300a748",
+      "rank" : 5,
+      "document" : "数据归档通告.md"
+    }, {
+      "heading" : "预算确认",
+      "retainedCodePoints" : 38,
+      "similarity" : 0.476,
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "rank" : 6,
+      "document" : "任务预算规则.md"
+    }, {
+      "heading" : "测试用例3",
+      "retainedCodePoints" : 39,
+      "similarity" : 0.4598,
+      "chunkId" : "c770bac1-c2d8-4cb2-8215-67c8c1b56f61",
+      "rank" : 7,
+      "document" : "检索性能测试手册.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4517,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 8,
+      "document" : "合同模板甲.md"
+    } ],
+    "agentPromptCodePoints" : 535,
+    "agent12SourceCount" : 12,
+    "agent12FactStages" : [ "SELECTION_MISS:SOURCE_CAP", "RETAINED", "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 282,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "上线验收、灰度观察与回滚分别有哪些要求？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "上线验收、灰度观察与回滚分别有哪些要求？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 47,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 47,
+    "agentLatencyMs" : 43,
+    "r1aSqlLatencyMs" : 0,
+    "r1bSqlLatencyMs" : 3,
+    "diagnosticFullRankingMs" : 49,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q04",
+    "query" : "导出任务失败之后可以怎样处理？系统保留哪些失败运行信息，每次导出还记录哪些审计字段？",
+    "userScope" : "ALL_PROJECT",
+    "scopeDocuments" : "[]",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "marker" : "重新提交",
+      "indexed" : true,
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.8691,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    }, {
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "marker" : "发起人、筛选条件、文件大小和下载时间",
+      "indexed" : true,
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "diagnosticFullRank" : 2,
+      "diagnosticSimilarity" : 0.6679,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "SELECTION_MISS:SOURCE_CAP",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "SELECTION_MISS:SOURCE_CAP",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "SELECTION_MISS:SOURCE_CAP"
+    } ],
+    "qaCandidateCount" : 8,
+    "qaCandidates" : [ {
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "similarity" : 0.8691,
+      "document" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "similarity" : 0.6679,
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "contentCodePoints" : 26
+    }, {
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "similarity" : 0.6661,
+      "document" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "ea40a4e4-fb0d-4f21-8d14-46af478e305a",
+      "similarity" : 0.6308,
+      "document" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "45a82876-ccb9-4512-a962-0b2fdbdfdadc",
+      "similarity" : 0.6169,
+      "document" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "similarity" : 0.6013,
+      "document" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "contentCodePoints" : 36
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.5906,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.5258,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    } ],
+    "qaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyFactStages" : [ "RETAINED", "RETAINED" ],
+    "qaS1SourceCount" : 5,
+    "qaS1FactStages" : [ "RETAINED", "RETAINED" ],
+    "qaSourceCount" : 5,
+    "qaSources" : [ {
+      "heading" : "失败重试",
+      "retainedCodePoints" : 32,
+      "similarity" : 0.8691,
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "rank" : 1,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "导出审计",
+      "retainedCodePoints" : 26,
+      "similarity" : 0.6679,
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "rank" : 2,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "租户并发上限",
+      "retainedCodePoints" : 36,
+      "similarity" : 0.6013,
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "rank" : 3,
+      "document" : "租户并发限制.md"
+    }, {
+      "heading" : "回滚复核",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.5258,
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "rank" : 4,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "导出队列",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.6661,
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "rank" : 5,
+      "document" : "批量导出规范.md"
+    } ],
+    "qaPromptCodePoints" : 311,
+    "agentCandidateCount" : 20,
+    "agentCandidates" : [ {
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "similarity" : 0.8691,
+      "document" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "similarity" : 0.6679,
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "contentCodePoints" : 26
+    }, {
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "similarity" : 0.6661,
+      "document" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "ea40a4e4-fb0d-4f21-8d14-46af478e305a",
+      "similarity" : 0.6308,
+      "document" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "45a82876-ccb9-4512-a962-0b2fdbdfdadc",
+      "similarity" : 0.6169,
+      "document" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "similarity" : 0.6013,
+      "document" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "contentCodePoints" : 36
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.5906,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.5258,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "d7c732c6-b353-4dae-81ae-c71b7300a748",
+      "similarity" : 0.5035,
+      "document" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "similarity" : 0.488,
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "contentCodePoints" : 50
+    }, {
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "similarity" : 0.4812,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "similarity" : 0.4719,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "contentCodePoints" : 54
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.4717,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "similarity" : 0.4652,
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "contentCodePoints" : 46
+    }, {
+      "chunkId" : "f225d9da-ecce-48c4-9f73-1f1eac16146f",
+      "similarity" : 0.4611,
+      "document" : "发布回滚预案.md",
+      "heading" : "续发前提",
+      "contentCodePoints" : 808
+    }, {
+      "chunkId" : "4e9e8595-10fe-4971-899f-c9e2184f8ded",
+      "similarity" : 0.4549,
+      "document" : "上线验收规程.md",
+      "heading" : "验收记录",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.4508,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.4461,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "9c69bfc6-6500-4717-a674-5c0ab9438928",
+      "similarity" : 0.4385,
+      "document" : "安全与脱敏规范.md",
+      "heading" : "脱敏规则",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "9cf63d9c-5466-435b-83cf-63cef8686b1d",
+      "similarity" : 0.4208,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 541
+    } ],
+    "agentDropReasons" : {
+      "SOURCE_CAP" : 12
+    },
+    "agentSourceCount" : 8,
+    "agentSources" : [ {
+      "heading" : "失败重试",
+      "retainedCodePoints" : 32,
+      "similarity" : 0.8691,
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "rank" : 1,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "租户并发上限",
+      "retainedCodePoints" : 36,
+      "similarity" : 0.6013,
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "rank" : 2,
+      "document" : "租户并发限制.md"
+    }, {
+      "heading" : "回滚复核",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.5258,
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "rank" : 3,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "审计说明",
+      "retainedCodePoints" : 41,
+      "similarity" : 0.5035,
+      "chunkId" : "d7c732c6-b353-4dae-81ae-c71b7300a748",
+      "rank" : 4,
+      "document" : "数据归档通告.md"
+    }, {
+      "heading" : "当前版本修正",
+      "retainedCodePoints" : 50,
+      "similarity" : 0.488,
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "rank" : 5,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "上线门禁",
+      "retainedCodePoints" : 46,
+      "similarity" : 0.4652,
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "rank" : 6,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "预算确认",
+      "retainedCodePoints" : 38,
+      "similarity" : 0.4508,
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "rank" : 7,
+      "document" : "任务预算规则.md"
+    }, {
+      "heading" : "脱敏规则",
+      "retainedCodePoints" : 35,
+      "similarity" : 0.4385,
+      "chunkId" : "9c69bfc6-6500-4717-a674-5c0ab9438928",
+      "rank" : 8,
+      "document" : "安全与脱敏规范.md"
+    } ],
+    "agentPromptCodePoints" : 559,
+    "agent12SourceCount" : 12,
+    "agent12FactStages" : [ "RETAINED", "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 309,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "导出任务失败之后可以怎样处理？系统保留哪些失败运行信息，每次导出还记录哪些审计字段？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "导出任务失败之后可以怎样处理？系统保留哪些失败运行信息，每次导出还记录哪些审计字段？",
+      "supplementCount" : 1,
+      "supplements" : [ {
+        "vectorSimilarity" : 0.3959,
+        "chunkId" : "442e8ab4-dbb7-4a40-a86b-6d4eac402655",
+        "diagnosticFullRank" : 21,
+        "document" : "数据归档通告.md",
+        "heading" : "归档周期"
+      } ],
+      "rowsScanned" : 47,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 53,
+    "agentLatencyMs" : 52,
+    "r1aSqlLatencyMs" : 0,
+    "r1bSqlLatencyMs" : 2,
+    "diagnosticFullRankingMs" : 62,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q05",
+    "query" : "索引调整应该在数据库结构冻结之前还是之后执行？不同版本的规定和附加条件是什么？",
+    "userScope" : "ALL_PROJECT",
+    "scopeDocuments" : "[]",
+    "abstain" : false,
+    "expectedFactCount" : 3,
+    "facts" : [ {
+      "document" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "marker" : "冻结窗口开始之前",
+      "indexed" : true,
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "diagnosticFullRank" : 2,
+      "diagnosticSimilarity" : 0.8585,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "SELECTION_MISS:SOURCE_CAP",
+      "agentStage" : "SELECTION_MISS:SOURCE_CAP",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "SELECTION_MISS:SOURCE_CAP",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "SELECTION_MISS:SOURCE_CAP"
+    }, {
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "marker" : "冻结窗口结束之后",
+      "indexed" : true,
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.8839,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    }, {
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "marker" : "先完成一次回滚演练",
+      "indexed" : true,
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.8839,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 8,
+    "qaCandidates" : [ {
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "similarity" : 0.8839,
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "contentCodePoints" : 50
+    }, {
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "similarity" : 0.8585,
+      "document" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "contentCodePoints" : 40
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.8337,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.4801,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "similarity" : 0.4801,
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.4492,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "similarity" : 0.4492,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "contentCodePoints" : 54
+    }, {
+      "chunkId" : "d7c732c6-b353-4dae-81ae-c71b7300a748",
+      "similarity" : 0.4357,
+      "document" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "contentCodePoints" : 41
+    } ],
+    "qaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyFactStages" : [ "RETAINED", "RETAINED", "RETAINED" ],
+    "qaS1SourceCount" : 5,
+    "qaS1FactStages" : [ "SELECTION_MISS:SOURCE_CAP", "RETAINED", "RETAINED" ],
+    "qaSourceCount" : 5,
+    "qaSources" : [ {
+      "heading" : "当前版本修正",
+      "retainedCodePoints" : 50,
+      "similarity" : 0.8839,
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "rank" : 1,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "早期版本说明",
+      "retainedCodePoints" : 40,
+      "similarity" : 0.8585,
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "rank" : 2,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4801,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 3,
+      "document" : "合同模板甲.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4801,
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "rank" : 4,
+      "document" : "合同模板乙.md"
+    }, {
+      "heading" : "回滚复核",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.4492,
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "rank" : 5,
+      "document" : "发布回滚预案.md"
+    } ],
+    "qaPromptCodePoints" : 320,
+    "agentCandidateCount" : 20,
+    "agentCandidates" : [ {
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "similarity" : 0.8839,
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "contentCodePoints" : 50
+    }, {
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "similarity" : 0.8585,
+      "document" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "contentCodePoints" : 40
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.8337,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.4801,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "similarity" : 0.4801,
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.4492,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "similarity" : 0.4492,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "contentCodePoints" : 54
+    }, {
+      "chunkId" : "d7c732c6-b353-4dae-81ae-c71b7300a748",
+      "similarity" : 0.4357,
+      "document" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "similarity" : 0.42,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.397,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "similarity" : 0.3937,
+      "document" : "上线验收规程.md",
+      "heading" : "上线门禁",
+      "contentCodePoints" : 46
+    }, {
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "similarity" : 0.3925,
+      "document" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "similarity" : 0.3911,
+      "document" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "similarity" : 0.3911,
+      "document" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "similarity" : 0.3868,
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "contentCodePoints" : 26
+    }, {
+      "chunkId" : "ea40a4e4-fb0d-4f21-8d14-46af478e305a",
+      "similarity" : 0.3819,
+      "document" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "similarity" : 0.3745,
+      "document" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "similarity" : 0.3707,
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.3665,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "f225d9da-ecce-48c4-9f73-1f1eac16146f",
+      "similarity" : 0.3645,
+      "document" : "发布回滚预案.md",
+      "heading" : "续发前提",
+      "contentCodePoints" : 808
+    } ],
+    "agentDropReasons" : {
+      "SOURCE_CAP" : 12
+    },
+    "agentSourceCount" : 8,
+    "agentSources" : [ {
+      "heading" : "当前版本修正",
+      "retainedCodePoints" : 50,
+      "similarity" : 0.8839,
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "rank" : 1,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4801,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 2,
+      "document" : "合同模板甲.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.4801,
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "rank" : 3,
+      "document" : "合同模板乙.md"
+    }, {
+      "heading" : "回滚复核",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.4492,
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "rank" : 4,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "审计说明",
+      "retainedCodePoints" : 41,
+      "similarity" : 0.4357,
+      "chunkId" : "d7c732c6-b353-4dae-81ae-c71b7300a748",
+      "rank" : 5,
+      "document" : "数据归档通告.md"
+    }, {
+      "heading" : "数据范围",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.397,
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "rank" : 6,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "上线门禁",
+      "retainedCodePoints" : 46,
+      "similarity" : 0.3937,
+      "chunkId" : "4eedd50b-0723-4388-a9f8-a29088c0fc0f",
+      "rank" : 7,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "容量规划",
+      "retainedCodePoints" : 30,
+      "similarity" : 0.3911,
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "rank" : 8,
+      "document" : "容量与性能约束.md"
+    } ],
+    "agentPromptCodePoints" : 521,
+    "agent12SourceCount" : 12,
+    "agent12FactStages" : [ "RETAINED", "RETAINED", "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 271,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "索引调整应该在数据库结构冻结之前还是之后执行？不同版本的规定和附加条件是什么？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "索引调整应该在数据库结构冻结之前还是之后执行？不同版本的规定和附加条件是什么？",
+      "supplementCount" : 1,
+      "supplements" : [ {
+        "vectorSimilarity" : 0.3261,
+        "chunkId" : "4e9e8595-10fe-4971-899f-c9e2184f8ded",
+        "diagnosticFullRank" : 26,
+        "document" : "上线验收规程.md",
+        "heading" : "验收记录"
+      } ],
+      "rowsScanned" : 47,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 52,
+    "agentLatencyMs" : 51,
+    "r1aSqlLatencyMs" : 0,
+    "r1bSqlLatencyMs" : 3,
+    "diagnosticFullRankingMs" : 53,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q06",
+    "query" : "变更申请 REQ-7741 的具体授权条款是什么？",
+    "userScope" : "ALL_PROJECT",
+    "scopeDocuments" : "[]",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "marker" : "REQ-7741",
+      "indexed" : true,
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.6941,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 8,
+    "qaCandidates" : [ {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.6941,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.6095,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "similarity" : 0.6095,
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "similarity" : 0.5548,
+      "document" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "contentCodePoints" : 40
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.514,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.4816,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "similarity" : 0.476,
+      "document" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "contentCodePoints" : 25
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.4745,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    } ],
+    "qaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyFactStages" : [ "RETAINED" ],
+    "qaS1SourceCount" : 5,
+    "qaS1FactStages" : [ "RETAINED" ],
+    "qaSourceCount" : 5,
+    "qaSources" : [ {
+      "heading" : "REQ-7741",
+      "retainedCodePoints" : 47,
+      "similarity" : 0.6941,
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "rank" : 1,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.6095,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 2,
+      "document" : "合同模板甲.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.6095,
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "rank" : 3,
+      "document" : "合同模板乙.md"
+    }, {
+      "heading" : "早期版本说明",
+      "retainedCodePoints" : 40,
+      "similarity" : 0.5548,
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "rank" : 4,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "超限处理",
+      "retainedCodePoints" : 35,
+      "similarity" : 0.514,
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "rank" : 5,
+      "document" : "任务预算规则.md"
+    } ],
+    "qaPromptCodePoints" : 323,
+    "agentCandidateCount" : 20,
+    "agentCandidates" : [ {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.6941,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.6095,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "similarity" : 0.6095,
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "similarity" : 0.5548,
+      "document" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "contentCodePoints" : 40
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.514,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.4816,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "similarity" : 0.476,
+      "document" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "contentCodePoints" : 25
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.4745,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "similarity" : 0.4678,
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "contentCodePoints" : 50
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.4181,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "similarity" : 0.4176,
+      "document" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "068e5868-45ec-433b-8a73-0c2954d9f4b1",
+      "similarity" : 0.4144,
+      "document" : "安全与脱敏规范.md",
+      "heading" : "权限分级",
+      "contentCodePoints" : 28
+    }, {
+      "chunkId" : "7b2d6123-c74f-47a9-8fc8-bde0dc98361d",
+      "similarity" : 0.4102,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 1194
+    }, {
+      "chunkId" : "45a82876-ccb9-4512-a962-0b2fdbdfdadc",
+      "similarity" : 0.4089,
+      "document" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "similarity" : 0.3992,
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "similarity" : 0.3962,
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "contentCodePoints" : 26
+    }, {
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "similarity" : 0.3949,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "contentCodePoints" : 54
+    }, {
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "similarity" : 0.3848,
+      "document" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "similarity" : 0.3807,
+      "document" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "contentCodePoints" : 36
+    }, {
+      "chunkId" : "9cf63d9c-5466-435b-83cf-63cef8686b1d",
+      "similarity" : 0.3746,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 541
+    } ],
+    "agentDropReasons" : {
+      "SOURCE_CAP" : 12
+    },
+    "agentSourceCount" : 8,
+    "agentSources" : [ {
+      "heading" : "REQ-7741",
+      "retainedCodePoints" : 47,
+      "similarity" : 0.6941,
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "rank" : 1,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.6095,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 2,
+      "document" : "合同模板甲.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.6095,
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "rank" : 3,
+      "document" : "合同模板乙.md"
+    }, {
+      "heading" : "超限处理",
+      "retainedCodePoints" : 35,
+      "similarity" : 0.514,
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "rank" : 4,
+      "document" : "任务预算规则.md"
+    }, {
+      "heading" : "权限约束",
+      "retainedCodePoints" : 25,
+      "similarity" : 0.476,
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "rank" : 5,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "数据范围",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.4745,
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "rank" : 6,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "回滚复核",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.4181,
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "rank" : 7,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "权限分级",
+      "retainedCodePoints" : 28,
+      "similarity" : 0.4144,
+      "chunkId" : "068e5868-45ec-433b-8a73-0c2954d9f4b1",
+      "rank" : 8,
+      "document" : "安全与脱敏规范.md"
+    } ],
+    "agentPromptCodePoints" : 492,
+    "agent12SourceCount" : 12,
+    "agent12FactStages" : [ "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 239,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "变更申请 REQ-7741 的具体授权条款是什么？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 1,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "变更申请 REQ-7741 的具体授权条款是什么？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 47,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 48,
+    "agentLatencyMs" : 56,
+    "r1aSqlLatencyMs" : 1,
+    "r1bSqlLatencyMs" : 3,
+    "diagnosticFullRankingMs" : 59,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q07",
+    "query" : "审计日志必须保存八十年吗？",
+    "userScope" : "ALL_PROJECT",
+    "scopeDocuments" : "[]",
+    "abstain" : true,
+    "expectedFactCount" : 0,
+    "facts" : [ ],
+    "qaCandidateCount" : 8,
+    "qaCandidates" : [ {
+      "chunkId" : "442e8ab4-dbb7-4a40-a86b-6d4eac402655",
+      "similarity" : 0.7439,
+      "document" : "数据归档通告.md",
+      "heading" : "归档周期",
+      "contentCodePoints" : 24
+    }, {
+      "chunkId" : "d7c732c6-b353-4dae-81ae-c71b7300a748",
+      "similarity" : 0.743,
+      "document" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "ea40a4e4-fb0d-4f21-8d14-46af478e305a",
+      "similarity" : 0.5624,
+      "document" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "similarity" : 0.4802,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "similarity" : 0.4753,
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "contentCodePoints" : 26
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.4438,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "4e9e8595-10fe-4971-899f-c9e2184f8ded",
+      "similarity" : 0.4363,
+      "document" : "上线验收规程.md",
+      "heading" : "验收记录",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "similarity" : 0.4129,
+      "document" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "contentCodePoints" : 33
+    } ],
+    "qaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyFactStages" : [ ],
+    "qaS1SourceCount" : 5,
+    "qaS1FactStages" : [ ],
+    "qaSourceCount" : 5,
+    "qaSources" : [ {
+      "heading" : "归档周期",
+      "retainedCodePoints" : 24,
+      "similarity" : 0.7439,
+      "chunkId" : "442e8ab4-dbb7-4a40-a86b-6d4eac402655",
+      "rank" : 1,
+      "document" : "数据归档通告.md"
+    }, {
+      "heading" : "审计说明",
+      "retainedCodePoints" : 41,
+      "similarity" : 0.743,
+      "chunkId" : "d7c732c6-b353-4dae-81ae-c71b7300a748",
+      "rank" : 2,
+      "document" : "数据归档通告.md"
+    }, {
+      "heading" : "文件保留",
+      "retainedCodePoints" : 30,
+      "similarity" : 0.5624,
+      "chunkId" : "ea40a4e4-fb0d-4f21-8d14-46af478e305a",
+      "rank" : 3,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "回滚演练",
+      "retainedCodePoints" : 32,
+      "similarity" : 0.4802,
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "rank" : 4,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "导出审计",
+      "retainedCodePoints" : 26,
+      "similarity" : 0.4753,
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "rank" : 5,
+      "document" : "批量导出规范.md"
+    } ],
+    "qaPromptCodePoints" : 306,
+    "agentCandidateCount" : 20,
+    "agentCandidates" : [ {
+      "chunkId" : "442e8ab4-dbb7-4a40-a86b-6d4eac402655",
+      "similarity" : 0.7439,
+      "document" : "数据归档通告.md",
+      "heading" : "归档周期",
+      "contentCodePoints" : 24
+    }, {
+      "chunkId" : "d7c732c6-b353-4dae-81ae-c71b7300a748",
+      "similarity" : 0.743,
+      "document" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "ea40a4e4-fb0d-4f21-8d14-46af478e305a",
+      "similarity" : 0.5624,
+      "document" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "similarity" : 0.4802,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚演练",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "similarity" : 0.4753,
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "contentCodePoints" : 26
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.4438,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "4e9e8595-10fe-4971-899f-c9e2184f8ded",
+      "similarity" : 0.4363,
+      "document" : "上线验收规程.md",
+      "heading" : "验收记录",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "similarity" : 0.4129,
+      "document" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "similarity" : 0.3973,
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "contentCodePoints" : 50
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.3838,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "913d2d25-7f1d-4f57-b7d3-bed6ca63c22d",
+      "similarity" : 0.3777,
+      "document" : "批量导出规范.md",
+      "heading" : "失败重试",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.3728,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "7b2d6123-c74f-47a9-8fc8-bde0dc98361d",
+      "similarity" : 0.3716,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 1194
+    }, {
+      "chunkId" : "45a82876-ccb9-4512-a962-0b2fdbdfdadc",
+      "similarity" : 0.3667,
+      "document" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "similarity" : 0.3632,
+      "document" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "similarity" : 0.3628,
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "similarity" : 0.3597,
+      "document" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "contentCodePoints" : 36
+    }, {
+      "chunkId" : "9c69bfc6-6500-4717-a674-5c0ab9438928",
+      "similarity" : 0.3539,
+      "document" : "安全与脱敏规范.md",
+      "heading" : "脱敏规则",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "similarity" : 0.3525,
+      "document" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "contentCodePoints" : 40
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.3437,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    } ],
+    "agentDropReasons" : {
+      "SOURCE_CAP" : 12
+    },
+    "agentSourceCount" : 8,
+    "agentSources" : [ {
+      "heading" : "归档周期",
+      "retainedCodePoints" : 24,
+      "similarity" : 0.7439,
+      "chunkId" : "442e8ab4-dbb7-4a40-a86b-6d4eac402655",
+      "rank" : 1,
+      "document" : "数据归档通告.md"
+    }, {
+      "heading" : "文件保留",
+      "retainedCodePoints" : 30,
+      "similarity" : 0.5624,
+      "chunkId" : "ea40a4e4-fb0d-4f21-8d14-46af478e305a",
+      "rank" : 2,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "回滚演练",
+      "retainedCodePoints" : 32,
+      "similarity" : 0.4802,
+      "chunkId" : "1dbb59ad-4273-4dfc-8b15-e7edff83349a",
+      "rank" : 3,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "验收记录",
+      "retainedCodePoints" : 33,
+      "similarity" : 0.4363,
+      "chunkId" : "4e9e8595-10fe-4971-899f-c9e2184f8ded",
+      "rank" : 4,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "当前版本修正",
+      "retainedCodePoints" : 50,
+      "similarity" : 0.3973,
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "rank" : 5,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "保留策略附录",
+      "retainedCodePoints" : 1194,
+      "similarity" : 0.3716,
+      "chunkId" : "7b2d6123-c74f-47a9-8fc8-bde0dc98361d",
+      "rank" : 6,
+      "document" : "长文附录.md"
+    }, {
+      "heading" : "容量规划",
+      "retainedCodePoints" : 30,
+      "similarity" : 0.3632,
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "rank" : 7,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "租户并发上限",
+      "retainedCodePoints" : 36,
+      "similarity" : 0.3597,
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "rank" : 8,
+      "document" : "租户并发限制.md"
+    } ],
+    "agentPromptCodePoints" : 1679,
+    "agent12SourceCount" : 12,
+    "agent12FactStages" : [ ],
+    "agentQuoteTotalCodePoints" : 835,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "审计日志必须保存八十年吗？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "审计日志必须保存八十年吗？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 47,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 59,
+    "agentLatencyMs" : 56,
+    "r1aSqlLatencyMs" : 0,
+    "r1bSqlLatencyMs" : 2,
+    "diagnosticFullRankingMs" : 49,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q08",
+    "query" : "知识检索接口对响应时间和吞吐量有什么具体硬指标？",
+    "userScope" : "ALL_PROJECT",
+    "scopeDocuments" : "[]",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "marker" : "百分之九十五",
+      "indexed" : true,
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.8493,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    }, {
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "marker" : "不得超过五十次",
+      "indexed" : true,
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.8493,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 8,
+    "qaCandidates" : [ {
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "similarity" : 0.8493,
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "626fbc0b-18e1-4430-a7ea-996c355cd91a",
+      "similarity" : 0.7428,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例8",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "c770bac1-c2d8-4cb2-8215-67c8c1b56f61",
+      "similarity" : 0.7397,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例3",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "4c4a7214-ffb8-446f-99ca-aa9a48bc7e35",
+      "similarity" : 0.7363,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例5",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "106dd770-6448-4dc2-b6f4-a2fff90b0ba7",
+      "similarity" : 0.7357,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例6",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "29d35269-fb33-4190-9894-fab676df9c49",
+      "similarity" : 0.7355,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例2",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "4eb70d60-7308-4ee0-bde5-684a6127f72b",
+      "similarity" : 0.7317,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例4",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "5f8d21aa-b58c-452c-96cf-8dc9102ecece",
+      "similarity" : 0.7285,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例7",
+      "contentCodePoints" : 39
+    } ],
+    "qaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyFactStages" : [ "RETAINED", "RETAINED" ],
+    "qaS1SourceCount" : 5,
+    "qaS1FactStages" : [ "RETAINED", "RETAINED" ],
+    "qaSourceCount" : 5,
+    "qaSources" : [ {
+      "heading" : "性能指标",
+      "retainedCodePoints" : 41,
+      "similarity" : 0.8493,
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "rank" : 1,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "测试用例8",
+      "retainedCodePoints" : 39,
+      "similarity" : 0.7428,
+      "chunkId" : "626fbc0b-18e1-4430-a7ea-996c355cd91a",
+      "rank" : 2,
+      "document" : "检索性能测试手册.md"
+    }, {
+      "heading" : "测试用例3",
+      "retainedCodePoints" : 39,
+      "similarity" : 0.7397,
+      "chunkId" : "c770bac1-c2d8-4cb2-8215-67c8c1b56f61",
+      "rank" : 3,
+      "document" : "检索性能测试手册.md"
+    }, {
+      "heading" : "测试用例5",
+      "retainedCodePoints" : 39,
+      "similarity" : 0.7363,
+      "chunkId" : "4c4a7214-ffb8-446f-99ca-aa9a48bc7e35",
+      "rank" : 4,
+      "document" : "检索性能测试手册.md"
+    }, {
+      "heading" : "测试用例6",
+      "retainedCodePoints" : 39,
+      "similarity" : 0.7357,
+      "chunkId" : "106dd770-6448-4dc2-b6f4-a2fff90b0ba7",
+      "rank" : 5,
+      "document" : "检索性能测试手册.md"
+    } ],
+    "qaPromptCodePoints" : 363,
+    "agentCandidateCount" : 20,
+    "agentCandidates" : [ {
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "similarity" : 0.8493,
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "626fbc0b-18e1-4430-a7ea-996c355cd91a",
+      "similarity" : 0.7428,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例8",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "c770bac1-c2d8-4cb2-8215-67c8c1b56f61",
+      "similarity" : 0.7397,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例3",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "4c4a7214-ffb8-446f-99ca-aa9a48bc7e35",
+      "similarity" : 0.7363,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例5",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "106dd770-6448-4dc2-b6f4-a2fff90b0ba7",
+      "similarity" : 0.7357,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例6",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "29d35269-fb33-4190-9894-fab676df9c49",
+      "similarity" : 0.7355,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例2",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "4eb70d60-7308-4ee0-bde5-684a6127f72b",
+      "similarity" : 0.7317,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例4",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "5f8d21aa-b58c-452c-96cf-8dc9102ecece",
+      "similarity" : 0.7285,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例7",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "7c7a13da-4319-4a43-9ae5-0c3525cd45a8",
+      "similarity" : 0.7208,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例1",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "similarity" : 0.49,
+      "document" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "similarity" : 0.4849,
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "contentCodePoints" : 26
+    }, {
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "similarity" : 0.4789,
+      "document" : "上线验收规程.md",
+      "heading" : "灰度观察",
+      "contentCodePoints" : 33
+    }, {
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "similarity" : 0.4743,
+      "document" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "contentCodePoints" : 36
+    }, {
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "similarity" : 0.4621,
+      "document" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.4542,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "similarity" : 0.4303,
+      "document" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "contentCodePoints" : 25
+    }, {
+      "chunkId" : "45a82876-ccb9-4512-a962-0b2fdbdfdadc",
+      "similarity" : 0.4254,
+      "document" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "similarity" : 0.4243,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚触发条件",
+      "contentCodePoints" : 54
+    }, {
+      "chunkId" : "ea40a4e4-fb0d-4f21-8d14-46af478e305a",
+      "similarity" : 0.4019,
+      "document" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "facf4f2e-7d7d-4663-8240-d7037b244e94",
+      "similarity" : 0.4006,
+      "document" : "租户并发限制.md",
+      "heading" : "资源告警",
+      "contentCodePoints" : 30
+    } ],
+    "agentDropReasons" : {
+      "SOURCE_CAP" : 12
+    },
+    "agentSourceCount" : 8,
+    "agentSources" : [ {
+      "heading" : "性能指标",
+      "retainedCodePoints" : 41,
+      "similarity" : 0.8493,
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "rank" : 1,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "测试用例8",
+      "retainedCodePoints" : 39,
+      "similarity" : 0.7428,
+      "chunkId" : "626fbc0b-18e1-4430-a7ea-996c355cd91a",
+      "rank" : 2,
+      "document" : "检索性能测试手册.md"
+    }, {
+      "heading" : "导出审计",
+      "retainedCodePoints" : 26,
+      "similarity" : 0.4849,
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "rank" : 3,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "灰度观察",
+      "retainedCodePoints" : 33,
+      "similarity" : 0.4789,
+      "chunkId" : "fce7621f-55dc-427e-9678-6fdce47389de",
+      "rank" : 4,
+      "document" : "上线验收规程.md"
+    }, {
+      "heading" : "租户并发上限",
+      "retainedCodePoints" : 36,
+      "similarity" : 0.4743,
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "rank" : 5,
+      "document" : "租户并发限制.md"
+    }, {
+      "heading" : "回滚触发条件",
+      "retainedCodePoints" : 54,
+      "similarity" : 0.4243,
+      "chunkId" : "489db9f7-4d5b-4a0a-9b6b-ffa492833402",
+      "rank" : 6,
+      "document" : "发布回滚预案.md"
+    }, {
+      "heading" : "测试用例3",
+      "retainedCodePoints" : 39,
+      "similarity" : 0.7397,
+      "chunkId" : "c770bac1-c2d8-4cb2-8215-67c8c1b56f61",
+      "rank" : 7,
+      "document" : "检索性能测试手册.md"
+    }, {
+      "heading" : "测试用例5",
+      "retainedCodePoints" : 39,
+      "similarity" : 0.7363,
+      "chunkId" : "4c4a7214-ffb8-446f-99ca-aa9a48bc7e35",
+      "rank" : 8,
+      "document" : "检索性能测试手册.md"
+    } ],
+    "agentPromptCodePoints" : 567,
+    "agent12SourceCount" : 12,
+    "agent12FactStages" : [ "RETAINED", "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 307,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "知识检索接口对响应时间和吞吐量有什么具体硬指标？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "知识检索接口对响应时间和吞吐量有什么具体硬指标？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 47,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 56,
+    "agentLatencyMs" : 54,
+    "r1aSqlLatencyMs" : 0,
+    "r1bSqlLatencyMs" : 2,
+    "diagnosticFullRankingMs" : 49,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q09",
+    "query" : "合同模板甲和合同模板乙关于重大变更审批的要求是否一致？请分别指出来源。",
+    "userScope" : "ALL_PROJECT",
+    "scopeDocuments" : "[]",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "marker" : "项目负责人书面批准",
+      "indexed" : true,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.6751,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    }, {
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "marker" : "项目负责人书面批准",
+      "indexed" : true,
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "diagnosticFullRank" : 2,
+      "diagnosticSimilarity" : 0.6751,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 8,
+    "qaCandidates" : [ {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.6751,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "similarity" : 0.6751,
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "similarity" : 0.5226,
+      "document" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "contentCodePoints" : 40
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.4892,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.4093,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "similarity" : 0.393,
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "contentCodePoints" : 50
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.3919,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "9cf63d9c-5466-435b-83cf-63cef8686b1d",
+      "similarity" : 0.3884,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 541
+    } ],
+    "qaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyFactStages" : [ "RETAINED", "RETAINED" ],
+    "qaS1SourceCount" : 5,
+    "qaS1FactStages" : [ "RETAINED", "RETAINED" ],
+    "qaSourceCount" : 5,
+    "qaSources" : [ {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.6751,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 1,
+      "document" : "合同模板甲.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.6751,
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "rank" : 2,
+      "document" : "合同模板乙.md"
+    }, {
+      "heading" : "早期版本说明",
+      "retainedCodePoints" : 40,
+      "similarity" : 0.5226,
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "rank" : 3,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "REQ-7741",
+      "retainedCodePoints" : 47,
+      "similarity" : 0.4892,
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "rank" : 4,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "预算确认",
+      "retainedCodePoints" : 38,
+      "similarity" : 0.4093,
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "rank" : 5,
+      "document" : "任务预算规则.md"
+    } ],
+    "qaPromptCodePoints" : 326,
+    "agentCandidateCount" : 20,
+    "agentCandidates" : [ {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.6751,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "similarity" : 0.6751,
+      "document" : "合同模板乙.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    }, {
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "similarity" : 0.5226,
+      "document" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "contentCodePoints" : 40
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.4892,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.4093,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "similarity" : 0.393,
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "contentCodePoints" : 50
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.3919,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "9cf63d9c-5466-435b-83cf-63cef8686b1d",
+      "similarity" : 0.3884,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 541
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.384,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "similarity" : 0.379,
+      "document" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "contentCodePoints" : 25
+    }, {
+      "chunkId" : "01dd627d-93ce-4bd5-9f02-f0258133190b",
+      "similarity" : 0.3695,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 1195
+    }, {
+      "chunkId" : "0da87211-f13b-47cb-9cdc-7c97fe5601e8",
+      "similarity" : 0.3695,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 1195
+    }, {
+      "chunkId" : "7d623156-f154-4d5e-898d-be90dbef54dc",
+      "similarity" : 0.3695,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 1195
+    }, {
+      "chunkId" : "c7cd0fa8-dffa-4069-8eff-44127f1460b9",
+      "similarity" : 0.3695,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 1195
+    }, {
+      "chunkId" : "d19ce406-029c-4dcf-b8c4-9d5a3217d846",
+      "similarity" : 0.3695,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 1195
+    }, {
+      "chunkId" : "d3b1d23e-a861-485a-81fd-674455fa61d6",
+      "similarity" : 0.3695,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 1195
+    }, {
+      "chunkId" : "e5d00875-ba5f-424e-8982-3fbbf305c29e",
+      "similarity" : 0.3695,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 1195
+    }, {
+      "chunkId" : "f8fec75b-30bf-4a29-9121-807d8ee488ca",
+      "similarity" : 0.3695,
+      "document" : "长文附录.md",
+      "heading" : "保留策略附录",
+      "contentCodePoints" : 1195
+    }, {
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "similarity" : 0.3687,
+      "document" : "发布回滚预案.md",
+      "heading" : "回滚复核",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "d7c732c6-b353-4dae-81ae-c71b7300a748",
+      "similarity" : 0.3625,
+      "document" : "数据归档通告.md",
+      "heading" : "审计说明",
+      "contentCodePoints" : 41
+    } ],
+    "agentDropReasons" : {
+      "INTRA_DOCUMENT_DUPLICATE" : 7,
+      "SOURCE_CAP" : 5
+    },
+    "agentSourceCount" : 8,
+    "agentSources" : [ {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.6751,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 1,
+      "document" : "合同模板甲.md"
+    }, {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.6751,
+      "chunkId" : "4ce655cf-954e-438e-b27a-82313dcd7a27",
+      "rank" : 2,
+      "document" : "合同模板乙.md"
+    }, {
+      "heading" : "早期版本说明",
+      "retainedCodePoints" : 40,
+      "similarity" : 0.5226,
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "rank" : 3,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "预算确认",
+      "retainedCodePoints" : 38,
+      "similarity" : 0.4093,
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "rank" : 4,
+      "document" : "任务预算规则.md"
+    }, {
+      "heading" : "保留策略附录",
+      "retainedCodePoints" : 541,
+      "similarity" : 0.3884,
+      "chunkId" : "9cf63d9c-5466-435b-83cf-63cef8686b1d",
+      "rank" : 5,
+      "document" : "长文附录.md"
+    }, {
+      "heading" : "数据范围",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.384,
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "rank" : 6,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "权限约束",
+      "retainedCodePoints" : 25,
+      "similarity" : 0.379,
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "rank" : 7,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "回滚复核",
+      "retainedCodePoints" : 31,
+      "similarity" : 0.3687,
+      "chunkId" : "4680e1f4-25b3-41c5-8fe4-97136377c7a8",
+      "rank" : 8,
+      "document" : "发布回滚预案.md"
+    } ],
+    "agentPromptCodePoints" : 998,
+    "agent12SourceCount" : 12,
+    "agent12FactStages" : [ "RETAINED", "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 748,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "合同模板甲和合同模板乙关于重大变更审批的要求是否一致？请分别指出来源。",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "合同模板甲和合同模板乙关于重大变更审批的要求是否一致？请分别指出来源。",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 47,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 55,
+    "agentLatencyMs" : 56,
+    "r1aSqlLatencyMs" : 0,
+    "r1bSqlLatencyMs" : 2,
+    "diagnosticFullRankingMs" : 49,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q10",
+    "query" : "仅根据《合同模板甲》，重大变更由谁以什么方式批准后才能实施？",
+    "userScope" : "DOCUMENT_SCOPED",
+    "scopeDocuments" : "[\"合同模板甲.md\"]",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "marker" : "项目负责人书面批准",
+      "indexed" : true,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.7758,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 1,
+    "qaCandidates" : [ {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.7758,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    } ],
+    "qaDropReasons" : { },
+    "qaLegacyDropReasons" : { },
+    "qaLegacyFactStages" : [ "RETAINED" ],
+    "qaS1SourceCount" : 1,
+    "qaS1FactStages" : [ "RETAINED" ],
+    "qaSourceCount" : 1,
+    "qaSources" : [ {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.7758,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 1,
+      "document" : "合同模板甲.md"
+    } ],
+    "qaPromptCodePoints" : 51,
+    "agentCandidateCount" : 1,
+    "agentCandidates" : [ {
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "similarity" : 0.7758,
+      "document" : "合同模板甲.md",
+      "heading" : "重大变更审批",
+      "contentCodePoints" : 21
+    } ],
+    "agentDropReasons" : { },
+    "agentSourceCount" : 1,
+    "agentSources" : [ {
+      "heading" : "重大变更审批",
+      "retainedCodePoints" : 21,
+      "similarity" : 0.7758,
+      "chunkId" : "3f3f14ab-2f7d-4cff-b216-6976f513e66d",
+      "rank" : 1,
+      "document" : "合同模板甲.md"
+    } ],
+    "agentPromptCodePoints" : 51,
+    "agent12SourceCount" : 1,
+    "agent12FactStages" : [ "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 21,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "仅根据《合同模板甲》，重大变更由谁以什么方式批准后才能实施？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "仅根据《合同模板甲》，重大变更由谁以什么方式批准后才能实施？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 1,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 54,
+    "agentLatencyMs" : 48,
+    "r1aSqlLatencyMs" : 1,
+    "r1bSqlLatencyMs" : 1,
+    "diagnosticFullRankingMs" : 48,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q11",
+    "query" : "仅根据《任务预算规则》，任务运行期间可以临时增加预算额度吗？",
+    "userScope" : "DOCUMENT_SCOPED",
+    "scopeDocuments" : "[\"任务预算规则.md\"]",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "marker" : "禁止修改预算上限",
+      "indexed" : true,
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.8028,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 2,
+    "qaCandidates" : [ {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.8028,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.7245,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    } ],
+    "qaDropReasons" : { },
+    "qaLegacyDropReasons" : { },
+    "qaLegacyFactStages" : [ "RETAINED" ],
+    "qaS1SourceCount" : 2,
+    "qaS1FactStages" : [ "RETAINED" ],
+    "qaSourceCount" : 2,
+    "qaSources" : [ {
+      "heading" : "预算确认",
+      "retainedCodePoints" : 38,
+      "similarity" : 0.8028,
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "rank" : 1,
+      "document" : "任务预算规则.md"
+    }, {
+      "heading" : "超限处理",
+      "retainedCodePoints" : 35,
+      "similarity" : 0.7245,
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "rank" : 2,
+      "document" : "任务预算规则.md"
+    } ],
+    "qaPromptCodePoints" : 133,
+    "agentCandidateCount" : 2,
+    "agentCandidates" : [ {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.8028,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.7245,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    } ],
+    "agentDropReasons" : { },
+    "agentSourceCount" : 2,
+    "agentSources" : [ {
+      "heading" : "预算确认",
+      "retainedCodePoints" : 38,
+      "similarity" : 0.8028,
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "rank" : 1,
+      "document" : "任务预算规则.md"
+    }, {
+      "heading" : "超限处理",
+      "retainedCodePoints" : 35,
+      "similarity" : 0.7245,
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "rank" : 2,
+      "document" : "任务预算规则.md"
+    } ],
+    "agentPromptCodePoints" : 133,
+    "agent12SourceCount" : 2,
+    "agent12FactStages" : [ "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 73,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "仅根据《任务预算规则》，任务运行期间可以临时增加预算额度吗？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "仅根据《任务预算规则》，任务运行期间可以临时增加预算额度吗？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 2,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 48,
+    "agentLatencyMs" : 51,
+    "r1aSqlLatencyMs" : 1,
+    "r1bSqlLatencyMs" : 1,
+    "diagnosticFullRankingMs" : 50,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q12",
+    "query" : "它的例外条件是什么？负责人批准后就能在运行期间加预算吗？",
+    "userScope" : "DOCUMENT_SCOPED",
+    "scopeDocuments" : "[\"任务预算规则.md\"]",
+    "abstain" : true,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "marker" : "不得自动超支",
+      "indexed" : true,
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "diagnosticFullRank" : 2,
+      "diagnosticSimilarity" : 0.7037,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 2,
+    "qaCandidates" : [ {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.7174,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.7037,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    } ],
+    "qaDropReasons" : { },
+    "qaLegacyDropReasons" : { },
+    "qaLegacyFactStages" : [ "RETAINED" ],
+    "qaS1SourceCount" : 2,
+    "qaS1FactStages" : [ "RETAINED" ],
+    "qaSourceCount" : 2,
+    "qaSources" : [ {
+      "heading" : "预算确认",
+      "retainedCodePoints" : 38,
+      "similarity" : 0.7174,
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "rank" : 1,
+      "document" : "任务预算规则.md"
+    }, {
+      "heading" : "超限处理",
+      "retainedCodePoints" : 35,
+      "similarity" : 0.7037,
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "rank" : 2,
+      "document" : "任务预算规则.md"
+    } ],
+    "qaPromptCodePoints" : 133,
+    "agentCandidateCount" : 2,
+    "agentCandidates" : [ {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.7174,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.7037,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    } ],
+    "agentDropReasons" : { },
+    "agentSourceCount" : 2,
+    "agentSources" : [ {
+      "heading" : "预算确认",
+      "retainedCodePoints" : 38,
+      "similarity" : 0.7174,
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "rank" : 1,
+      "document" : "任务预算规则.md"
+    }, {
+      "heading" : "超限处理",
+      "retainedCodePoints" : 35,
+      "similarity" : 0.7037,
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "rank" : 2,
+      "document" : "任务预算规则.md"
+    } ],
+    "agentPromptCodePoints" : 133,
+    "agent12SourceCount" : 2,
+    "agent12FactStages" : [ "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 73,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "它的例外条件是什么？负责人批准后就能在运行期间加预算吗？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "它的例外条件是什么？负责人批准后就能在运行期间加预算吗？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 2,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 54,
+    "agentLatencyMs" : 48,
+    "r1aSqlLatencyMs" : 0,
+    "r1bSqlLatencyMs" : 1,
+    "diagnosticFullRankingMs" : 43,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q13",
+    "query" : "仅根据《不可信资料测试》，本合成测试项目的紧急发布需要什么授权？",
+    "userScope" : "DOCUMENT_SCOPED",
+    "scopeDocuments" : "[\"不可信资料测试.md\"]",
+    "abstain" : false,
+    "expectedFactCount" : 1,
+    "facts" : [ {
+      "document" : "不可信资料测试.md",
+      "heading" : "发布授权",
+      "marker" : "书面批准",
+      "indexed" : true,
+      "chunkId" : "5ddd9d0f-0c6e-483e-acd3-3316e5be04fe",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.8327,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 2,
+    "qaCandidates" : [ {
+      "chunkId" : "5ddd9d0f-0c6e-483e-acd3-3316e5be04fe",
+      "similarity" : 0.8327,
+      "document" : "不可信资料测试.md",
+      "heading" : "发布授权",
+      "contentCodePoints" : 24
+    }, {
+      "chunkId" : "aba3df49-439b-467a-94c8-6329f4d05903",
+      "similarity" : 0.4893,
+      "document" : "不可信资料测试.md",
+      "heading" : "非可信注入样本",
+      "contentCodePoints" : 52
+    } ],
+    "qaDropReasons" : { },
+    "qaLegacyDropReasons" : { },
+    "qaLegacyFactStages" : [ "RETAINED" ],
+    "qaS1SourceCount" : 2,
+    "qaS1FactStages" : [ "RETAINED" ],
+    "qaSourceCount" : 2,
+    "qaSources" : [ {
+      "heading" : "发布授权",
+      "retainedCodePoints" : 24,
+      "similarity" : 0.8327,
+      "chunkId" : "5ddd9d0f-0c6e-483e-acd3-3316e5be04fe",
+      "rank" : 1,
+      "document" : "不可信资料测试.md"
+    }, {
+      "heading" : "非可信注入样本",
+      "retainedCodePoints" : 52,
+      "similarity" : 0.4893,
+      "chunkId" : "aba3df49-439b-467a-94c8-6329f4d05903",
+      "rank" : 2,
+      "document" : "不可信资料测试.md"
+    } ],
+    "qaPromptCodePoints" : 141,
+    "agentCandidateCount" : 2,
+    "agentCandidates" : [ {
+      "chunkId" : "5ddd9d0f-0c6e-483e-acd3-3316e5be04fe",
+      "similarity" : 0.8327,
+      "document" : "不可信资料测试.md",
+      "heading" : "发布授权",
+      "contentCodePoints" : 24
+    }, {
+      "chunkId" : "aba3df49-439b-467a-94c8-6329f4d05903",
+      "similarity" : 0.4893,
+      "document" : "不可信资料测试.md",
+      "heading" : "非可信注入样本",
+      "contentCodePoints" : 52
+    } ],
+    "agentDropReasons" : { },
+    "agentSourceCount" : 2,
+    "agentSources" : [ {
+      "heading" : "发布授权",
+      "retainedCodePoints" : 24,
+      "similarity" : 0.8327,
+      "chunkId" : "5ddd9d0f-0c6e-483e-acd3-3316e5be04fe",
+      "rank" : 1,
+      "document" : "不可信资料测试.md"
+    }, {
+      "heading" : "非可信注入样本",
+      "retainedCodePoints" : 52,
+      "similarity" : 0.4893,
+      "chunkId" : "aba3df49-439b-467a-94c8-6329f4d05903",
+      "rank" : 2,
+      "document" : "不可信资料测试.md"
+    } ],
+    "agentPromptCodePoints" : 141,
+    "agent12SourceCount" : 2,
+    "agent12FactStages" : [ "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 76,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "仅根据《不可信资料测试》，本合成测试项目的紧急发布需要什么授权？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "仅根据《不可信资料测试》，本合成测试项目的紧急发布需要什么授权？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 2,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 55,
+    "agentLatencyMs" : 56,
+    "r1aSqlLatencyMs" : 1,
+    "r1bSqlLatencyMs" : 0,
+    "diagnosticFullRankingMs" : 46,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q14",
+    "query" : "单项目已索引文档数量和单份文档正文大小上限分别是多少？",
+    "userScope" : "ALL_PROJECT",
+    "scopeDocuments" : "[]",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "marker" : "五百份",
+      "indexed" : true,
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.9211,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    }, {
+      "document" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "marker" : "二十兆字节",
+      "indexed" : true,
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.9211,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 8,
+    "qaCandidates" : [ {
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "similarity" : 0.9211,
+      "document" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "similarity" : 0.6085,
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "similarity" : 0.5755,
+      "document" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "contentCodePoints" : 25
+    }, {
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "similarity" : 0.5647,
+      "document" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "contentCodePoints" : 36
+    }, {
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "similarity" : 0.5644,
+      "document" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "contentCodePoints" : 40
+    }, {
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "similarity" : 0.556,
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "contentCodePoints" : 26
+    }, {
+      "chunkId" : "068e5868-45ec-433b-8a73-0c2954d9f4b1",
+      "similarity" : 0.5535,
+      "document" : "安全与脱敏规范.md",
+      "heading" : "权限分级",
+      "contentCodePoints" : 28
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.5399,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    } ],
+    "qaDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyDropReasons" : {
+      "SOURCE_CAP" : 3
+    },
+    "qaLegacyFactStages" : [ "RETAINED", "RETAINED" ],
+    "qaS1SourceCount" : 5,
+    "qaS1FactStages" : [ "RETAINED", "RETAINED" ],
+    "qaSourceCount" : 5,
+    "qaSources" : [ {
+      "heading" : "容量规划",
+      "retainedCodePoints" : 30,
+      "similarity" : 0.9211,
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "rank" : 1,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "性能指标",
+      "retainedCodePoints" : 41,
+      "similarity" : 0.6085,
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "rank" : 2,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "租户并发上限",
+      "retainedCodePoints" : 36,
+      "similarity" : 0.5647,
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "rank" : 3,
+      "document" : "租户并发限制.md"
+    }, {
+      "heading" : "早期版本说明",
+      "retainedCodePoints" : 40,
+      "similarity" : 0.5644,
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "rank" : 4,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "导出审计",
+      "retainedCodePoints" : 26,
+      "similarity" : 0.556,
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "rank" : 5,
+      "document" : "批量导出规范.md"
+    } ],
+    "qaPromptCodePoints" : 331,
+    "agentCandidateCount" : 20,
+    "agentCandidates" : [ {
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "similarity" : 0.9211,
+      "document" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "similarity" : 0.6085,
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "similarity" : 0.5755,
+      "document" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "contentCodePoints" : 25
+    }, {
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "similarity" : 0.5647,
+      "document" : "租户并发限制.md",
+      "heading" : "租户并发上限",
+      "contentCodePoints" : 36
+    }, {
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "similarity" : 0.5644,
+      "document" : "需求变更单.md",
+      "heading" : "早期版本说明",
+      "contentCodePoints" : 40
+    }, {
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "similarity" : 0.556,
+      "document" : "批量导出规范.md",
+      "heading" : "导出审计",
+      "contentCodePoints" : 26
+    }, {
+      "chunkId" : "068e5868-45ec-433b-8a73-0c2954d9f4b1",
+      "similarity" : 0.5535,
+      "document" : "安全与脱敏规范.md",
+      "heading" : "权限分级",
+      "contentCodePoints" : 28
+    }, {
+      "chunkId" : "e19f49de-cf18-4584-9a5d-5824bb43d8fb",
+      "similarity" : 0.5399,
+      "document" : "批量导出规范.md",
+      "heading" : "数据范围",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "0e06cd23-82c4-466a-93e4-fcb1cbf5451f",
+      "similarity" : 0.5301,
+      "document" : "需求变更单.md",
+      "heading" : "当前版本修正",
+      "contentCodePoints" : 50
+    }, {
+      "chunkId" : "45a82876-ccb9-4512-a962-0b2fdbdfdadc",
+      "similarity" : 0.5142,
+      "document" : "批量导出规范.md",
+      "heading" : "导出格式",
+      "contentCodePoints" : 32
+    }, {
+      "chunkId" : "dfa8b5c5-5bbe-4ed3-88d3-b82039f181c5",
+      "similarity" : 0.4876,
+      "document" : "需求变更单.md",
+      "heading" : "REQ-7741",
+      "contentCodePoints" : 47
+    }, {
+      "chunkId" : "ea40a4e4-fb0d-4f21-8d14-46af478e305a",
+      "similarity" : 0.4793,
+      "document" : "批量导出规范.md",
+      "heading" : "文件保留",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "similarity" : 0.4649,
+      "document" : "任务预算规则.md",
+      "heading" : "预算确认",
+      "contentCodePoints" : 38
+    }, {
+      "chunkId" : "1e95272c-82f2-4583-8280-4609768fb951",
+      "similarity" : 0.4552,
+      "document" : "批量导出规范.md",
+      "heading" : "导出队列",
+      "contentCodePoints" : 31
+    }, {
+      "chunkId" : "1da4e28b-ed82-42cc-ac49-ce5223f9d846",
+      "similarity" : 0.4521,
+      "document" : "任务预算规则.md",
+      "heading" : "超限处理",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "4c4a7214-ffb8-446f-99ca-aa9a48bc7e35",
+      "similarity" : 0.45,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例5",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "c770bac1-c2d8-4cb2-8215-67c8c1b56f61",
+      "similarity" : 0.4464,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例3",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "29d35269-fb33-4190-9894-fab676df9c49",
+      "similarity" : 0.4455,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例2",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "626fbc0b-18e1-4430-a7ea-996c355cd91a",
+      "similarity" : 0.4429,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例8",
+      "contentCodePoints" : 39
+    }, {
+      "chunkId" : "4eb70d60-7308-4ee0-bde5-684a6127f72b",
+      "similarity" : 0.4397,
+      "document" : "检索性能测试手册.md",
+      "heading" : "测试用例4",
+      "contentCodePoints" : 39
+    } ],
+    "agentDropReasons" : {
+      "SOURCE_CAP" : 12
+    },
+    "agentSourceCount" : 8,
+    "agentSources" : [ {
+      "heading" : "容量规划",
+      "retainedCodePoints" : 30,
+      "similarity" : 0.9211,
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "rank" : 1,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "租户并发上限",
+      "retainedCodePoints" : 36,
+      "similarity" : 0.5647,
+      "chunkId" : "0acaad3b-6f0e-49f2-acd9-3f2c94271fb5",
+      "rank" : 2,
+      "document" : "租户并发限制.md"
+    }, {
+      "heading" : "早期版本说明",
+      "retainedCodePoints" : 40,
+      "similarity" : 0.5644,
+      "chunkId" : "afb6b831-4cda-4ca9-9c55-ef621b5ff40d",
+      "rank" : 3,
+      "document" : "需求变更单.md"
+    }, {
+      "heading" : "导出审计",
+      "retainedCodePoints" : 26,
+      "similarity" : 0.556,
+      "chunkId" : "a70fd64c-c9e7-4084-971b-20861ff3d310",
+      "rank" : 4,
+      "document" : "批量导出规范.md"
+    }, {
+      "heading" : "权限分级",
+      "retainedCodePoints" : 28,
+      "similarity" : 0.5535,
+      "chunkId" : "068e5868-45ec-433b-8a73-0c2954d9f4b1",
+      "rank" : 5,
+      "document" : "安全与脱敏规范.md"
+    }, {
+      "heading" : "预算确认",
+      "retainedCodePoints" : 38,
+      "similarity" : 0.4649,
+      "chunkId" : "6fe3325f-ec0f-4cf6-9b79-4bb58d002511",
+      "rank" : 6,
+      "document" : "任务预算规则.md"
+    }, {
+      "heading" : "测试用例5",
+      "retainedCodePoints" : 39,
+      "similarity" : 0.45,
+      "chunkId" : "4c4a7214-ffb8-446f-99ca-aa9a48bc7e35",
+      "rank" : 7,
+      "document" : "检索性能测试手册.md"
+    }, {
+      "heading" : "性能指标",
+      "retainedCodePoints" : 41,
+      "similarity" : 0.6085,
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "rank" : 8,
+      "document" : "容量与性能约束.md"
+    } ],
+    "agentPromptCodePoints" : 533,
+    "agent12SourceCount" : 12,
+    "agent12FactStages" : [ "RETAINED", "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 278,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "单项目已索引文档数量和单份文档正文大小上限分别是多少？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "单项目已索引文档数量和单份文档正文大小上限分别是多少？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 47,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 49,
+    "agentLatencyMs" : 39,
+    "r1aSqlLatencyMs" : 0,
+    "r1bSqlLatencyMs" : 2,
+    "diagnosticFullRankingMs" : 46,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q15",
+    "query" : "仅根据《容量与性能约束》，知识检索接口响应时间和吞吐量硬指标是什么？",
+    "userScope" : "DOCUMENT_SCOPED",
+    "scopeDocuments" : "[\"容量与性能约束.md\"]",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "marker" : "百分之九十五",
+      "indexed" : true,
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.7584,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    }, {
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "marker" : "不得超过五十次",
+      "indexed" : true,
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.7584,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 3,
+    "qaCandidates" : [ {
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "similarity" : 0.7584,
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "similarity" : 0.5344,
+      "document" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "similarity" : 0.4617,
+      "document" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "contentCodePoints" : 25
+    } ],
+    "qaDropReasons" : { },
+    "qaLegacyDropReasons" : { },
+    "qaLegacyFactStages" : [ "RETAINED", "RETAINED" ],
+    "qaS1SourceCount" : 3,
+    "qaS1FactStages" : [ "RETAINED", "RETAINED" ],
+    "qaSourceCount" : 3,
+    "qaSources" : [ {
+      "heading" : "性能指标",
+      "retainedCodePoints" : 41,
+      "similarity" : 0.7584,
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "rank" : 1,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "容量规划",
+      "retainedCodePoints" : 30,
+      "similarity" : 0.5344,
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "rank" : 2,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "权限约束",
+      "retainedCodePoints" : 25,
+      "similarity" : 0.4617,
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "rank" : 3,
+      "document" : "容量与性能约束.md"
+    } ],
+    "qaPromptCodePoints" : 190,
+    "agentCandidateCount" : 3,
+    "agentCandidates" : [ {
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "similarity" : 0.7584,
+      "document" : "容量与性能约束.md",
+      "heading" : "性能指标",
+      "contentCodePoints" : 41
+    }, {
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "similarity" : 0.5344,
+      "document" : "容量与性能约束.md",
+      "heading" : "容量规划",
+      "contentCodePoints" : 30
+    }, {
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "similarity" : 0.4617,
+      "document" : "容量与性能约束.md",
+      "heading" : "权限约束",
+      "contentCodePoints" : 25
+    } ],
+    "agentDropReasons" : { },
+    "agentSourceCount" : 3,
+    "agentSources" : [ {
+      "heading" : "性能指标",
+      "retainedCodePoints" : 41,
+      "similarity" : 0.7584,
+      "chunkId" : "7488605e-592e-4bd4-a09e-7086d405dd60",
+      "rank" : 1,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "容量规划",
+      "retainedCodePoints" : 30,
+      "similarity" : 0.5344,
+      "chunkId" : "dc10b7b2-8198-4e02-acb1-3237a325a7b9",
+      "rank" : 2,
+      "document" : "容量与性能约束.md"
+    }, {
+      "heading" : "权限约束",
+      "retainedCodePoints" : 25,
+      "similarity" : 0.4617,
+      "chunkId" : "05549f8e-bc6c-49cc-b3bb-498a2b42d281",
+      "rank" : 3,
+      "document" : "容量与性能约束.md"
+    } ],
+    "agentPromptCodePoints" : 190,
+    "agent12SourceCount" : 3,
+    "agent12FactStages" : [ "RETAINED", "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 96,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "仅根据《容量与性能约束》，知识检索接口响应时间和吞吐量硬指标是什么？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "仅根据《容量与性能约束》，知识检索接口响应时间和吞吐量硬指标是什么？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 3,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 49,
+    "agentLatencyMs" : 48,
+    "r1aSqlLatencyMs" : 1,
+    "r1bSqlLatencyMs" : 0,
+    "diagnosticFullRankingMs" : 43,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  }, {
+    "id" : "Q16",
+    "query" : "仅根据《安全与脱敏规范》，只读成员可以下载文档原始文件吗？敏感号码展示时保留哪几位？",
+    "userScope" : "DOCUMENT_SCOPED",
+    "scopeDocuments" : "[\"安全与脱敏规范.md\"]",
+    "abstain" : false,
+    "expectedFactCount" : 2,
+    "facts" : [ {
+      "document" : "安全与脱敏规范.md",
+      "heading" : "权限分级",
+      "marker" : "不能下载文档的原始文件",
+      "indexed" : true,
+      "chunkId" : "068e5868-45ec-433b-8a73-0c2954d9f4b1",
+      "diagnosticFullRank" : 2,
+      "diagnosticSimilarity" : 0.6788,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    }, {
+      "document" : "安全与脱敏规范.md",
+      "heading" : "脱敏规则",
+      "marker" : "保留首尾各两位",
+      "indexed" : true,
+      "chunkId" : "9c69bfc6-6500-4717-a674-5c0ab9438928",
+      "diagnosticFullRank" : 1,
+      "diagnosticSimilarity" : 0.7321,
+      "qaStage" : "RETAINED",
+      "qaLegacyStage" : "RETAINED",
+      "qaS1Stage" : "RETAINED",
+      "agentStage" : "RETAINED",
+      "agent12Stage" : "RETAINED",
+      "r1aQaStage" : "RETAINED",
+      "r1aAgentStage" : "RETAINED",
+      "r1bQaStage" : "RETAINED",
+      "r1bAgentStage" : "RETAINED"
+    } ],
+    "qaCandidateCount" : 2,
+    "qaCandidates" : [ {
+      "chunkId" : "9c69bfc6-6500-4717-a674-5c0ab9438928",
+      "similarity" : 0.7321,
+      "document" : "安全与脱敏规范.md",
+      "heading" : "脱敏规则",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "068e5868-45ec-433b-8a73-0c2954d9f4b1",
+      "similarity" : 0.6788,
+      "document" : "安全与脱敏规范.md",
+      "heading" : "权限分级",
+      "contentCodePoints" : 28
+    } ],
+    "qaDropReasons" : { },
+    "qaLegacyDropReasons" : { },
+    "qaLegacyFactStages" : [ "RETAINED", "RETAINED" ],
+    "qaS1SourceCount" : 2,
+    "qaS1FactStages" : [ "RETAINED", "RETAINED" ],
+    "qaSourceCount" : 2,
+    "qaSources" : [ {
+      "heading" : "脱敏规则",
+      "retainedCodePoints" : 35,
+      "similarity" : 0.7321,
+      "chunkId" : "9c69bfc6-6500-4717-a674-5c0ab9438928",
+      "rank" : 1,
+      "document" : "安全与脱敏规范.md"
+    }, {
+      "heading" : "权限分级",
+      "retainedCodePoints" : 28,
+      "similarity" : 0.6788,
+      "chunkId" : "068e5868-45ec-433b-8a73-0c2954d9f4b1",
+      "rank" : 2,
+      "document" : "安全与脱敏规范.md"
+    } ],
+    "qaPromptCodePoints" : 125,
+    "agentCandidateCount" : 2,
+    "agentCandidates" : [ {
+      "chunkId" : "9c69bfc6-6500-4717-a674-5c0ab9438928",
+      "similarity" : 0.7321,
+      "document" : "安全与脱敏规范.md",
+      "heading" : "脱敏规则",
+      "contentCodePoints" : 35
+    }, {
+      "chunkId" : "068e5868-45ec-433b-8a73-0c2954d9f4b1",
+      "similarity" : 0.6788,
+      "document" : "安全与脱敏规范.md",
+      "heading" : "权限分级",
+      "contentCodePoints" : 28
+    } ],
+    "agentDropReasons" : { },
+    "agentSourceCount" : 2,
+    "agentSources" : [ {
+      "heading" : "脱敏规则",
+      "retainedCodePoints" : 35,
+      "similarity" : 0.7321,
+      "chunkId" : "9c69bfc6-6500-4717-a674-5c0ab9438928",
+      "rank" : 1,
+      "document" : "安全与脱敏规范.md"
+    }, {
+      "heading" : "权限分级",
+      "retainedCodePoints" : 28,
+      "similarity" : 0.6788,
+      "chunkId" : "068e5868-45ec-433b-8a73-0c2954d9f4b1",
+      "rank" : 2,
+      "document" : "安全与脱敏规范.md"
+    } ],
+    "agentPromptCodePoints" : 125,
+    "agent12SourceCount" : 2,
+    "agent12FactStages" : [ "RETAINED", "RETAINED" ],
+    "agentQuoteTotalCodePoints" : 63,
+    "r1a" : {
+      "label" : "R1a",
+      "query" : "仅根据《安全与脱敏规范》，只读成员可以下载文档原始文件吗？敏感号码展示时保留哪几位？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 0,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1b" : {
+      "label" : "R1b",
+      "query" : "仅根据《安全与脱敏规范》，只读成员可以下载文档原始文件吗？敏感号码展示时保留哪几位？",
+      "supplementCount" : 0,
+      "supplements" : [ ],
+      "rowsScanned" : 2,
+      "extraEmbeddingCalls" : 0,
+      "poolSemantics" : "QA 池=Top8+补充按尾插（保持向量序）；Agent 池=Top20+补充由选择器按真实相似度排序"
+    },
+    "r1SupplementCapExceeded" : 0,
+    "scopeViolationCount" : 0,
+    "qaLatencyMs" : 45,
+    "agentLatencyMs" : 46,
+    "r1aSqlLatencyMs" : 1,
+    "r1bSqlLatencyMs" : 1,
+    "diagnosticFullRankingMs" : 43,
+    "queryEmbeddingCallsProduction" : 2,
+    "queryEmbeddingCallsDiagnosticOnly" : 1
+  } ],
+  "summary" : {
+    "qaStage" : {
+      "retained" : 26,
+      "ratio" : 0.963,
+      "total" : 27
+    },
+    "qaLegacyStage" : {
+      "retained" : 25,
+      "ratio" : 0.9259,
+      "total" : 27
+    },
+    "qaS1Stage" : {
+      "retained" : 24,
+      "ratio" : 0.8889,
+      "total" : 27
+    },
+    "agentStage" : {
+      "retained" : 22,
+      "ratio" : 0.8148,
+      "total" : 27
+    },
+    "agent12Stage" : {
+      "retained" : 25,
+      "ratio" : 0.9259,
+      "total" : 27
+    },
+    "r1aQaStage" : {
+      "retained" : 25,
+      "ratio" : 0.9259,
+      "total" : 27
+    },
+    "r1aAgentStage" : {
+      "retained" : 22,
+      "ratio" : 0.8148,
+      "total" : 27
+    },
+    "r1bQaStage" : {
+      "retained" : 25,
+      "ratio" : 0.9259,
+      "total" : 27
+    },
+    "r1bAgentStage" : {
+      "retained" : 22,
+      "ratio" : 0.8148,
+      "total" : 27
+    }
+  }
+}
