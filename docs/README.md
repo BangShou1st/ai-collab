@@ -56,6 +56,7 @@
 
 - 目录格式：`docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`
 - [P8-RAG-QUALITY-FIX-01：有界补读、互补事实与引用契约实验](acceptance-evidence/2026-10-25/p8-rag-quality-fix-01/README.md)：Q02与固定8来源候选的收益/退化、生产策略保留、子来源失效与摘录投影最小修复；[研究](archive/research/p8-rag-quality-fix-01-research-20261025.md)与[交付](archive/reports/p8-rag-quality-fix-01-delivery-20261025.md)。
+- [P8-RAG-QUALITY-FIX-01 CI门控补充验收](acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/README.md)：首次正式CI失败的原始回执、本地模型测试显式门控、默认禁用/显式启用双路径与源码版本映射；[补充报告](archive/reports/p8-rag-quality-fix-01-ci-gate-20261026.md)。
 - [P8-AGENT-RAG-E2E-QUALITY-01：Agent 与 RAG 跨层质量评测](acceptance-evidence/2026-10-25/p8-agent-rag-e2e-quality-01/README.md)：冻结题集真实 Ollama/pgvector 复测、脚本模型驱动的实际工具与持久化链路、失败分层及独立修复证据；真实生成层另列授权限制。
 - [P7-BUSINESS-E2E-01：真实业务链路与发布前验收](acceptance-evidence/2026-10-25/p7-business-e2e-01/README.md)：E01–E12 真实浏览器验收矩阵、SSE 断线恢复复现、审批/权限后端强制证据、魔搭 ModelScope 自定义 Provider 与模型发现实测、404 错误映射与 Provider 卡片布局修复。
 - [P7-PROVIDER-ONBOARDING-01：AI 模型接入自动化与能力发现](acceptance-evidence/2026-10-25/p7-provider-onboarding-01/README.md)：探针专用执行边界（未声明能力真实可测）、检测并配置与 CAS 写回、URL/Path 重复前缀自动修正、ModelScope/Gemini 真实接入验收与 T01–T10 矩阵。

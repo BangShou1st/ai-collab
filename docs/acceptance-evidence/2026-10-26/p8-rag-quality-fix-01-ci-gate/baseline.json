@@ -1,0 +1,15 @@
+{
+  "capturedAt": "2026-10-25T16:55:16.763Z",
+  "head": "d380b21e24aeffbfe85bb61bd9cd7c1f931c9e9f",
+  "branch": "dev",
+  "remote": "d380b21e24aeffbfe85bb61bd9cd7c1f931c9e9f\trefs/heads/dev\n9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7\trefs/heads/main",
+  "worktree": "M .gitattributes\n M .github/workflows/ci.yml\n M ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P8AgentRagCrossLayerPostgresTest.java\n?? docs/acceptance-evidence/2026-10-26/",
+  "staged": "",
+  "ownership": "Existing P8 test/evidence/navigation WIP identified by content and P8 source hashes; preserved separately, not authored by this task.",
+  "wipHashes": {
+    "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P6RagQualityBaselinePostgresTest.java": "e619182aa45979d2e8910106eaaa0c110170cae284aec27708ca1e9fbcf3844b",
+    "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P8AgentRagCrossLayerPostgresTest.java": "71e1d4d8d69366d144ac21b33b5e359a246c77e2fb69a704e6ff1fc134392baa",
+    "docs/README.md": "60ddd6735d362d69dcd54ae6d21f2ef59ae581bc916d4a7da4f97006aab98b08"
+  },
+  "externalChatCalls": 0
+}
