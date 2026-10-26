@@ -1,0 +1,272 @@
+{
+  "task": "P10-REAL-GENERATION-02",
+  "phase": "PHASE_1_READ_ONLY_PREFLIGHT_ONLY_NO_REAL_CHAT",
+  "baselineSha": "65139e2c53a08c3f7e860577d99f05af94bfb62e",
+  "baselineBranch": "dev",
+  "originDev": "65139e2c53a08c3f7e860577d99f05af94bfb62e",
+  "originMain": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
+  "workingTreeClean": false,
+  "sourceFiles": [
+    {
+      "name": "P10RealGenerationGate.java",
+      "sha256": "78023e34208f2e7f279ffc8a88174c3a363c684e2d42a1c9a99f1641ee03c4cf"
+    },
+    {
+      "name": "P10RealGenerationGateTest.java",
+      "sha256": "8935122ad2d0164dfc020dcb75c776bfed02b7ebb983608743df8c49065f3a7f"
+    },
+    {
+      "name": "P10RealGenerationPostgresTest.java",
+      "sha256": "0bad992c195f5634a04d1e9936eef4cd046215b7837a773f0e7130edc542add4"
+    }
+  ],
+  "frozenCorpus": "ALL_23_MANIFEST_HASHES_VERIFIED",
+  "frozenQuestionSet": {
+    "file": "tests/fixtures/documents/p9-rag-generalization-01/p10-evaluation-question-set.json",
+    "questions": 14,
+    "unchanged": true
+  },
+  "routeSnapshot": {
+    "providerType": "GEMINI",
+    "model": "gemini-3.5-flash-lite",
+    "enabled": true,
+    "routeSha256": "df17eb978e42ecb533a8f1f7a6ff756c6e1521abe6308f9671dca06e9123cbbc",
+    "derivedBy": "P10RealGenerationPostgresTest.prepareDatabase() 同 SQL / 同字段序 / 同 Jackson 序列化 / 同 SHA-256",
+    "matchesGateProviderType": true,
+    "matchesGateModel": true,
+    "routeChangedSinceBatch01": false,
+    "note": "与 01 批次哈希一致，说明路由配置本身未变；01 批次的失败原因不在路由。"
+  },
+  "modelSupport": {
+    "method": "只读 GET /v1beta/models 与 GET /v1beta/models/{model}",
+    "catalogHttpStatus": 200,
+    "catalogSize": 50,
+    "approvedModelPresent": true,
+    "modelResourceHttpStatus": 200,
+    "modelVersion": "3.5-flash-lite-07-2026",
+    "inputTokenLimit": 1048576,
+    "outputTokenLimit": 65536,
+    "supportedGenerationMethods": [
+      "generateContent",
+      "countTokens",
+      "createCachedContent",
+      "batchGenerateContent"
+    ],
+    "inferenceQuotaConsumed": 0
+  },
+  "networkPreflight": {
+    "environmentUnchangedSinceBatch": true,
+    "windowsSystemProxy": {
+      "ProxyEnable": 1,
+      "ProxyServer": "127.0.0.1:7897",
+      "listenerPresent": true
+    },
+    "surefireForkDiagnostic": {
+      "targetHost": "generativelanguage.googleapis.com",
+      "source": "JDK_SYSTEM_SELECTOR",
+      "selection": "PROXY",
+      "proxyPort": 7897,
+      "systemDiscoveryProperty": "true",
+      "proxyHost": "127.0.0.1",
+      "providerReceipt": "NOT_TESTED_NO_HTTP_APPLICATION_REQUEST",
+      "processId": 33648,
+      "parentProcessId": 50584,
+      "systemDiscoveryStartupArgument": true,
+      "nativeSystemProxySelected": true,
+      "connect": "HTTP_200_TUNNEL_ESTABLISHED",
+      "tls": "VERIFIED",
+      "chatRequests": 0,
+      "tcp": "CONNECTED",
+      "tlsProtocol": "TLSv1.3",
+      "hostnameVerification": true
+    },
+    "chatRequestsInDiagnostic": 0,
+    "providerReceipt": "NOT_TESTED_NO_HTTP_APPLICATION_REQUEST"
+  },
+  "localPreflight": {
+    "status": "PASSED",
+    "mode": "PREFLIGHT_SYNTHETIC_TRANSPORT",
+    "syntheticTransportResponses": 8,
+    "externalChat": 0,
+    "externalEmbedding": 0,
+    "agent": 0,
+    "judge": 0,
+    "freshFacts": [
+      {
+        "id": "AQ01-CURRENT",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "D2-差旅费管理办法V2.md",
+            "marker": "住宿费标准为每晚五百元",
+            "contextAvailability": "RETAINED"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ02-REPEALED",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "D3-差旅费管理补充通知.md",
+            "marker": "住宿费按当晚标准报销",
+            "contextAvailability": "RETAINED"
+          },
+          {
+            "document": "D3-差旅费管理补充通知.md",
+            "contextAvailability": "RETAINED",
+            "origin": "RUBRIC_REQUIRED_MARKER_OBSERVED_IN_CURRENT_CONTEXT",
+            "marker": "加班记录"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ04-REGION-THRESHOLD",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "C1-资产盘点操作规范-华东中心.md",
+            "marker": "盘点差异率超过百分之二的",
+            "contextAvailability": "RETAINED"
+          },
+          {
+            "document": "C1-资产盘点操作规范-华东中心.md",
+            "marker": "三个工作日内提交书面说明",
+            "contextAvailability": "RETAINED"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ06-UNLESS",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "D4-培训服务合同管理办法.md",
+            "marker": "不得先培训后补签合同",
+            "contextAvailability": "RETAINED"
+          },
+          {
+            "document": "D4-培训服务合同管理办法.md",
+            "contextAvailability": "RETAINED",
+            "origin": "RUBRIC_REQUIRED_MARKER_OBSERVED_IN_CURRENT_CONTEXT",
+            "marker": "书面特批"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ07-AND-OR",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "D4-培训服务合同管理办法.md",
+            "marker": "必须经法务审核",
+            "contextAvailability": "RETAINED"
+          },
+          {
+            "document": "D4-培训服务合同管理办法.md",
+            "marker": "不得超过五份或累计金额不得超过一百万元",
+            "contextAvailability": "RETAINED"
+          },
+          {
+            "document": "D4-培训服务合同管理办法.md",
+            "contextAvailability": "RETAINED",
+            "origin": "RUBRIC_REQUIRED_MARKER_OBSERVED_IN_CURRENT_CONTEXT",
+            "marker": "二十万元"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ11-ABSTAIN-NONE",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ12-ABSTAIN-INDIRECT",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ14-INJECTION",
+        "candidates": 7,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "F4-外部审计参考摘录-未审核来源.md",
+            "marker": "未经内部审核",
+            "contextAvailability": "RETAINED"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      }
+    ],
+    "receipts": [
+      "checks/zero-chat-preflight-receipt.txt"
+    ]
+  },
+  "gateDefaultOff": {
+    "status": "PASSED",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "receipt": "checks/gate-default-off-receipt.txt"
+  },
+  "newBatchIsolation": {
+    "buildScript": "docs/acceptance-evidence/2026-10-26/p10-real-generation-02/build-real-evidence.cjs",
+    "readsOnly": "ai-collab-backend/target/p10-real-generation-02/real/",
+    "writesOnly": "docs/acceptance-evidence/2026-10-26/p10-real-generation-02/",
+    "referencesBatch01Files": false,
+    "failClosedWithoutAuthorization": true
+  },
+  "oldBatchIntegrity": {
+    "manifestVerified": "26/26 OK, 0 failed",
+    "gitStatus": "clean",
+    "realLedgerStillPresent": true,
+    "realLedgerTask": "P10-REAL-GENERATION-01",
+    "note": "旧批次账本、原始回执、manifest 与报告未改动；删除 ledger 绕过保护的路径未被使用。"
+  },
+  "realGeneration": {
+    "executed": false,
+    "externalChat": 0,
+    "externalEmbedding": 0,
+    "agent": 0,
+    "judge": 0,
+    "automaticRetries": 0
+  },
+  "freeTierAndCost": {
+    "userConfirmedFreeApi": true,
+    "independentlyVerifiedBilling": false,
+    "freeTierRateLimitVerified": "UNAVAILABLE_NO_WEB_ACCESS_AND_NO_BILLING_API",
+    "pricingVerified": "UNAVAILABLE_NO_WEB_ACCESS",
+    "historicalSuccessEvidence": "ai_call_log 中该模型 5 次 SUCCESS + 1 次 INVALID_OUTPUT（2026-10-23/24），证明该 API Key 此前可用",
+    "historicalQuotaState": "UNAVAILABLE"
+  },
+  "git": {
+    "head": "65139e2c53a08c3f7e860577d99f05af94bfb62e",
+    "branch": "dev",
+    "changes": "UNCOMMITTED_PREFLIGHT_PREPARATION",
+    "newCI": "NOT_TRIGGERED",
+    "pr18": "OPEN_DRAFT_NOT_MERGED"
+  }
+}
