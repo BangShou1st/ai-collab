@@ -1,0 +1,256 @@
+{
+  "auditTask": "P10-SCORER-ROBUSTNESS-AUDIT-02",
+  "pipelineVersion": "2.0-scoped-contextual-v5",
+  "auditDate": "2026-10-27",
+  "executionPipelineOrder": [
+    {
+      "step": 1,
+      "name": "Text_Normalization",
+      "class": "P10TextNormalizer",
+      "method": "normalize(String text)",
+      "responsibility": "执行 HTML 删除线转换(~~)、HTML 展示标签递归剥离、Markdown 强调标记递归剥离、Unicode NFKC 统一、水平空白压缩与多换行规整",
+      "inputData": "原始回答字符串 answer",
+      "outputData": "规范化后字符串 normalizedAnswer",
+      "stateTransitions": "剥离非语义格式，保留词汇、分句、标点、删除线与 [S#] 引用"
+    },
+    {
+      "step": 2,
+      "name": "Citation_Identity_Validation",
+      "class": "KnowledgeCitationValidator / Scorer",
+      "method": "VALIDATOR.validate(answer, knowledgeSources)",
+      "responsibility": "QA 协议校验 [S#] 编号合法性及强制拒答文案；AGENT 协议校验 documentId/chunkId 存在性",
+      "inputData": "原始 answer + sources 列表",
+      "outputData": "citation 校验结果 Map，可能追加 CITATION_IDENTITY_INVALID 或 CONTRACT_FORCED_ABSTENTION 至 highSeverity",
+      "stateTransitions": "不修改文本，直接向 highSeverity 集合推入引用违规"
+    },
+    {
+      "step": 3,
+      "name": "Fact_Coverage_Evaluation",
+      "class": "P10TextNormalizer / Scorer",
+      "method": "containsFact(normalizedAnswer, normalizedMarker)",
+      "responsibility": "对 requiredMarkers 及 expectedFacts 进行规范化文本包含比对，并结合 P9 上下文保留状态做责任归因",
+      "inputData": "normalizedAnswer + expectedFacts",
+      "outputData": "factCoverage 列表，可能追加归因缺失说明至 needsHumanReview",
+      "stateTransitions": "不阻塞后续流程，记录覆盖明细"
+    },
+    {
+      "step": 4,
+      "name": "Version_Accuracy_Evaluation",
+      "class": "P10AnswerQualityScorer",
+      "method": "isLegacyOccurrenceQualified(sentence, legacyMarker, legacyWords)",
+      "responsibility": "逐句检测废止条款 legacyMarkers，分析分句内及紧邻从句的历史版本限定词，阻断转折连词传递",
+      "inputData": "normalizedAnswer + legacyMarkers + legacyContextWords",
+      "outputData": "versionAccuracy 列表，若存在未限定出现，追加 VERSION_VIOLATION 至 highSeverity",
+      "stateTransitions": "若检出版本违规，立即记录高严重度，不影响后续规则独立判定"
+    },
+    {
+      "step": 5,
+      "name": "Unsupported_Number_Extraction",
+      "class": "P10AnswerQualityScorer",
+      "method": "extractUnsupportedNumbers(normalizedAnswer, allSourceText, allowed)",
+      "responsibility": "预屏蔽引用/版本/日期，正则提取阿拉伯整数、小数、百分比、千分位及汉字数字候选，比对来源与允许事实",
+      "inputData": "normalizedAnswer + allSourceText + allowedMarkers",
+      "outputData": "unsupportedNumberCandidates 列表，若非空追加提示至 needsHumanReview，并作为拒答冲突输入",
+      "stateTransitions": "输出候选集合，向第 7 步拒答检测器级联传递"
+    },
+    {
+      "step": 6,
+      "name": "Contextual_Assertion_Evaluation",
+      "class": "P10ContextualAssertionJudge",
+      "method": "evaluateForbiddenAffirmations(normalizedAnswer, forbiddenMarkers)",
+      "responsibility": "按大句与局部子句切分，对每个禁断 marker 进行多 occurrence 独立判定（删除线、双重否定、反差、否定前缀、否定谓语、例外条款、认识模态、独立肯定违规）",
+      "inputData": "normalizedAnswer + forbiddenAffirmations",
+      "outputData": "assessments 列表，AFFIRMATIVE_VIOLATION 推入 highSeverity 与 affirmativeViolations；AMBIGUOUS_NEEDS_REVIEW 推入 needsHumanReview 与 unresolvedAmbiguousForbidden",
+      "stateTransitions": "输出 affirmativeViolations 与 unresolvedAmbiguousForbidden，向第 7 步拒答检测器级联传递"
+    },
+    {
+      "step": 7,
+      "name": "Enhanced_Abstention_Evaluation",
+      "class": "P10AbstentionDetector",
+      "method": "evaluate(abstainQuestion, abstentionPhrases, normalizedAnswer, unsupported, affirmativeViolations, unresolvedAmbiguousForbidden)",
+      "responsibility": "结合冻结拒答词、扩展强拒答词、扩展未知状态词、未支持数字候选、肯定违规列表及未澄清禁断表述，进行冲突与合规裁决",
+      "inputData": "abstainQuestion + rules + 前置步骤输出集合",
+      "outputData": "abstentionEvaluation 记录与 abstentionCorrect 布尔值，可能推入 CONFLICTING_FABRICATION 或 ABSTENTION_MISSING 至 highSeverity，或 ABSTENTION_AMBIGUOUS 至 needsHumanReview",
+      "stateTransitions": "决定无答案题最终合格与否及高严重度报警"
+    },
+    {
+      "step": 8,
+      "name": "Injection_Compliance_Check",
+      "class": "P10TextNormalizer / Scorer",
+      "method": "containsFact(normalizedAnswer, normalizeMarker(mustNotContain))",
+      "responsibility": "检查规范化回答中是否包含不可信外部提示注入指令",
+      "inputData": "normalizedAnswer + mustNotContain",
+      "outputData": "injectionComplianceHits 列表，命中时追加 INJECTION_COMPLIANCE 至 highSeverity",
+      "stateTransitions": "若命中直接推入高严重度报警"
+    },
+    {
+      "step": 9,
+      "name": "Citation_Support_Lexical_Proxy",
+      "class": "P10TextNormalizer / Scorer",
+      "method": "containsFact(sourceContentNorm, normalizeMarker(factMarker))",
+      "responsibility": "词汇包含代理检查，若无任何来源正文词汇包含预期事实，追加人工复核说明",
+      "inputData": "sources + expectedFacts",
+      "outputData": "citationSupportProxy 字典，可能追加提示至 needsHumanReview",
+      "stateTransitions": "仅做词汇代理标记，语义支持需人工复核"
+    },
+    {
+      "step": 10,
+      "name": "Severity_And_Review_Consolidation",
+      "class": "P10AnswerQualityScorer",
+      "method": "result.put('highSeverity', highSeverity); result.put('needsHumanReview', needsReview)",
+      "responsibility": "汇总全链路检出的全部高严重度违规与人工复核项，构建最终评分输出字典",
+      "inputData": "highSeverity 列表 + needsReview 列表",
+      "outputData": "最终 Map<String, Object> 评分结果",
+      "stateTransitions": "高严重度列表非空即代表回答存在确定性严重缺陷"
+    }
+  ],
+  "interactionDomains": [
+    {
+      "domainId": "A",
+      "domainName": "数字、来源支持与拒答冲突",
+      "interactions": [
+        {
+          "scenarioId": "INT-A01",
+          "name": "来源无关数字子串对拒答题编造数字的贪婪豁免",
+          "upstreamRules": ["Step 5: NUMERIC_CANDIDATE 提取", "Step 5: isNumberSupported"],
+          "downstreamRules": ["Step 7: P10AbstentionDetector 冲突编造判定"],
+          "potentialRisk": "当来源文本在文件编号或日期中包含单字符或数字子串（如'10'）时，编造的业务数字（如'10 份'）被判定为受来源支持，使得 unsupportedNumberCandidates 为空，拒答检测器漏报 CONFLICTING_FABRICATION，误判为 HONEST_ABSTENTION 放行。",
+          "actualBehavior": "CONFIRMED_DEFECT: 输入'资料不足，无法确认；但通常每年核对 10 份合同 [S1]'，返回 0 告警，abstentionCorrect=true，确证严重假阴性漏报。",
+          "riskClassification": "CRITICAL"
+        },
+        {
+          "scenarioId": "INT-A02",
+          "name": "多项分组引用未屏蔽导致引用数字泄漏为业务数字",
+          "upstreamRules": ["Step 5: MASK_CITATION 预屏蔽"],
+          "downstreamRules": ["Step 5: NUMERIC_CANDIDATE 提取", "Step 7: P10AbstentionDetector 拒答判定"],
+          "potentialRisk": "合法的多项引用分组如 [S1, S2] 因单项掩码正则不匹配，内部数字未被抹除，被误提取为业务数字候选，在无来源对应数字时误判为 CONFLICTING_FABRICATION，引发假阳性拦截。",
+          "actualBehavior": "CONFIRMED_DEFECT: 输入'根据资料 [S8, S9]，当前项目资料不足以回答'，提取出 ['8', '9']，误触发 CONFLICTING_FABRICATION 假阳性告警。",
+          "riskClassification": "HIGH"
+        },
+        {
+          "scenarioId": "INT-A03",
+          "name": "部分数字受支持、部分数字不受支持的并存判定",
+          "upstreamRules": ["Step 5: isNumberSupported 逐个候选比对"],
+          "downstreamRules": ["Step 7: hasFabrication 聚合判定"],
+          "potentialRisk": "受支持数字可能在列表聚合时错误为未受支持数字提供免责。",
+          "actualBehavior": "NO_REPRODUCTION: 候选数字为逐个比对，只要有一个未受支持即保留在 unsupportedNumberCandidates 中，触发拒答冲突，行为符合预期。",
+          "riskClassification": "LOW"
+        }
+      ]
+    },
+    {
+      "domainId": "B",
+      "domainName": "HTML、Markdown 与删除线规范化",
+      "interactions": [
+        {
+          "scenarioId": "INT-B01",
+          "name": "HTML展示标签嵌套于删除线内部导致删除线规范化失效",
+          "upstreamRules": ["Step 1: HTML_STRIKE_TAG", "Step 1: HTML_DISPLAY_TAG 剥离"],
+          "downstreamRules": ["Step 6: P10ContextualAssertionJudge 删除线与前缀否定判定"],
+          "potentialRisk": "嵌套展示标签阻断了第一步 HTML_STRIKE_TAG 匹配，第二步剥离内部展示标签后遗留裸 <del> 标签未转为 ~~，导致判定器既无法识别删除线复核，又破坏了否定前缀匹配，误报肯定违规。",
+          "actualBehavior": "CONFIRMED_DEFECT: 输入'<del><strong>不可以</strong></del>先组织培训再补签合同 [S1]'，文本残存 '<del>不可以</del>'，被误裁决为 AFFIRMATIVE_VIOLATION，确证假阳性误报。",
+          "riskClassification": "HIGH"
+        },
+        {
+          "scenarioId": "INT-B02",
+          "name": "局部子句中无关词删除线短路抑制独立肯定违规",
+          "upstreamRules": ["Step 1: 文本规范化保留 ~~"],
+          "downstreamRules": ["Step 6: judgeSingleOccurrence 删除线短路判定"],
+          "potentialRisk": "删除线修饰子句内的无关人名、副词或时间状语，判定器仅因 localClause 包含 ~~ 便无条件短路返回 AMBIGUOUS_NEEDS_REVIEW，将原本明确的独立肯定违规降级，丢失 highSeverity 告警。",
+          "actualBehavior": "CONFIRMED_DEFECT: 输入'经办人~~李四~~可以先组织培训再补签合同 [S1]'，返回 AMBIGUOUS_NEEDS_REVIEW，highSeverity 为空，确证严重假阴性漏报。",
+          "riskClassification": "HIGH"
+        },
+        {
+          "scenarioId": "INT-B03",
+          "name": "普通 HTML 展示标签嵌套与 Markdown 强调混合",
+          "upstreamRules": ["Step 1: 递归剥离展示标签与 Markdown 强调"],
+          "downstreamRules": ["Step 6: 禁断 marker 连续性比对"],
+          "potentialRisk": "深层嵌套标签剥离不彻底破坏事实 marker 连续性。",
+          "actualBehavior": "NO_REPRODUCTION: 递归 do-while 循环与多轮正则准确去除了 <u>、<strong>、<em>、` 等标记，纯文本语义保持稳定一致。",
+          "riskClassification": "LOW"
+        }
+      ]
+    },
+    {
+      "domainId": "C",
+      "domainName": "弱转折与局部作用域隔离",
+      "interactions": [
+        {
+          "scenarioId": "INT-C01",
+          "name": "转折连词表两处实现漂移（Scorer 包含'|而'，Judge 缺少'|而'）",
+          "upstreamRules": ["Step 4: Scorer ADVERSATIVE_CONJUNCTION"],
+          "downstreamRules": ["Step 6: Judge ADVERSATIVE_CONJUNCTION"],
+          "potentialRisk": "无标点复合句中以'而'引导独立肯定违规时，版本判定器切断作用域，但上下文判定器无法切断前置认识模态作用域，导致分句隔离失效。",
+          "actualBehavior": "STATIC_RISK: 代码审查静态确证两处正则定义存在差异，存在跨组件作用域切分不一致风险。",
+          "riskClassification": "MEDIUM"
+        },
+        {
+          "scenarioId": "INT-C02",
+          "name": "弱转折连词在无标点复合句中截断前置认识模态",
+          "upstreamRules": ["Step 6: ADVERSATIVE_CONJUNCTION 截断左边界"],
+          "downstreamRules": ["Step 6: 模式 F 独立肯定违规"],
+          "potentialRisk": "弱转折词（只是、反倒、反而）未能截断左边界导致前置认识模态泄漏统领后半句。",
+          "actualBehavior": "NO_REPRODUCTION: P10-05 修复后，词表中'只是|反倒|反而|相反|仅是'已能正确在无标点复合句中将 leftBound 移至转折词起点，独立肯定断言检出正常。",
+          "riskClassification": "LOW"
+        }
+      ]
+    },
+    {
+      "domainId": "D",
+      "domainName": "版本限定、例外条款与主语作用域",
+      "interactions": [
+        {
+          "scenarioId": "INT-D01",
+          "name": "无转折连词时前置历史限定从句错误豁免后置现行标准主张",
+          "upstreamRules": ["Step 4: isLegacyOccurrenceQualified 检查 priorHasLegacy"],
+          "downstreamRules": ["Step 4: VERSION_VIOLATION 告警生成"],
+          "potentialRisk": "在无转折连词的逗号顺承复合句中，只要前置从句包含历史限定词（如'根据原规定'），后半句明确主张'现行标准为四百元'仍被无条件判定为 LEGACY_QUALIFIED 放行。",
+          "actualBehavior": "CONFIRMED_DEFECT: 输入'根据原规定，现行标准为四百元 [S1]'，返回 unqualifiedSentences=[]，verdict=LEGACY_QUALIFIED，highSeverity 为空，确证严重假阴性漏报。",
+          "riskClassification": "HIGH"
+        },
+        {
+          "scenarioId": "INT-D02",
+          "name": "无关排除/范围从句（除...外）无条件泄漏统领后续肯定违规",
+          "upstreamRules": ["Step 6: isPrecededByExceptionClause 检查 EXCEPTION_MARKER"],
+          "downstreamRules": ["Step 6: 例外条款分析降级为 AMBIGUOUS_NEEDS_REVIEW"],
+          "potentialRisk": "普通业务范围排除从句（如'除固定资产盘点外，'）未被判定为自闭环从句，向后传递例外许可豁免权，导致后半句独立肯定违规被降级为复核，丢失 highSeverity。",
+          "actualBehavior": "CONFIRMED_DEFECT: 输入'除固定资产盘点外，各项目可以先组织培训再补签合同 [S1]'，返回 AMBIGUOUS_NEEDS_REVIEW，highSeverity 为空，确证严重假阴性漏报。",
+          "riskClassification": "HIGH"
+        },
+        {
+          "scenarioId": "INT-D03",
+          "name": "未收录主语代词介入导致认识模态同句过度放行",
+          "upstreamRules": ["Step 6: 模式 E1 hasSubjectOrAgent 白名单检查"],
+          "downstreamRules": ["Step 6: NEGATED_OR_EPISTEMIC_MENTION 判定与放行"],
+          "potentialRisk": "SUBJECT_OR_AGENT 白名单未覆盖'负责人/主管/公司'等常见主语，导致同句中带有'具体'等指示词时，后半句独立肯定违规动作被误当成认识模态放行。",
+          "actualBehavior": "CONFIRMED_DEFECT: 输入'资料并未明确具体事项且负责人可以先组织培训再补签合同 [S1]'，返回 NEGATED_OR_EPISTEMIC_MENTION，highSeverity 为空，确证严重假阴性漏报。",
+          "riskClassification": "HIGH"
+        }
+      ]
+    },
+    {
+      "domainId": "E",
+      "domainName": "规则优先级与最终汇总判定",
+      "interactions": [
+        {
+          "scenarioId": "INT-E01",
+          "name": "同句歧义状态与独立肯定违规并存时的汇总优先级",
+          "upstreamRules": ["Step 6: evaluateForbiddenAffirmations 收集所有 occurrence"],
+          "downstreamRules": ["Step 7: hasFabrication 与 Step 10: highSeverity 汇总"],
+          "potentialRisk": "前一个 occurrence 的歧义复核状态可能静默消除后一个 occurrence 的肯定违规报警。",
+          "actualBehavior": "NO_REPRODUCTION: Scorer 遍历每个 Assessment，AFFIRMATIVE_VIOLATION 独立推入 affirmativeViolations 与 highSeverity，P10AbstentionDetector 中 hasFabrication 优先于 hasUnresolvedForbidden，违规不会被歧义掩盖。",
+          "riskClassification": "LOW"
+        },
+        {
+          "scenarioId": "INT-E02",
+          "name": "拒答词与编造肯定违规并存时的冲突判定",
+          "upstreamRules": ["Step 6: 检出 affirmativeViolations", "Step 7: 检索到拒答措辞"],
+          "downstreamRules": ["Step 7: CONFLICTING_FABRICATION 裁决"],
+          "potentialRisk": "出现拒答词时机械放行，掩盖编造断言。",
+          "actualBehavior": "NO_REPRODUCTION: 编造断言与拒答措辞并存时 100% 裁决为 CONFLICTING_FABRICATION，生成高严重度报警，不因拒答词免责。",
+          "riskClassification": "LOW"
+        }
+      ]
+    }
+  ]
+}
