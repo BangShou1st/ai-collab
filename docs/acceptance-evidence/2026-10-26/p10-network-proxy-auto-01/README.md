@@ -22,6 +22,7 @@
 | [call-ledger.json](call-ledger.json) | 零模型调用、3 次目标 CONNECT/TLS 探针、费用核实边界 |
 | [old-evidence-integrity.json](old-evidence-integrity.json) | 旧批次所有文件与基线 Git blob 逐字节一致、旧 manifest 校验 |
 | [source-snapshot.json](source-snapshot.json) | 本轮本地源码快照，哈希基于工作区字节 |
+| [git-ci-receipt.json](git-ci-receipt.json) | 实现提交实际 push/PR CI 成功、PR Draft/main 状态，最终文档提交单独核实 |
 | [manifest.sha256](manifest.sha256) | 本目录文件 SHA-256，排除 manifest 自身 |
 
 当前观察到的本地代理端口仅记录在诊断 JSON，是系统选择结果；未写入项目默认值。CONNECT/TLS 探针使用实际客户端选中的策略及 JDK 默认 TLS socket，不发送 Provider 应用层 HTTP、API Key 或 Prompt；它不是一次成功的 Chat 请求。
@@ -39,6 +40,8 @@
 全量后端 verify：1830 项，0 失败、0 错误、40 项跳过。随后增加了旧 Chat 超时兼容分支/测试和显式 fork 参数测试；最终 113 项 verify 重新编译、打包这些最终源文件，CI 检查提交树的全量测试。首轮全量覆盖率读取历史 target/jacoco.exec 出现旧类版本警告；后续定向 verify 使用独立 JaCoCo 文件，没有该警告。均保留原回执，不覆盖历史。
 
 首次定向 81 项出现 1 个**测试夹具断言失败**：SSE 的 DONE 帧被计为 JSON 内容。修正夹具分别计数后 82 项通过，不把夹具失败归因于模型或网络；原始失败见 [checks/targeted-01-failure-original.txt](checks/targeted-01-failure-original.txt)。默认 CI 不运行外部探针/真实模型测试；所有新普通测试只用隔离本地服务或纯选择器。
+
+上述文件是原始 Surefire 单类失败报告；另保留逐字节完整 [Maven 首轮 stdout](checks/targeted-01-original-stdout.txt)，两者是不同输出，不覆盖任一文件。实现提交的 CI 全量后端已确认 1832 项、0 失败/错误、41 跳过，见 [CI 后端回执](checks/ci-implementation-backend-receipt.txt)；push/PR 均成功。
 
 本轮没有前端实现改动；正常 CI 仍验证前端。所有 Maven 状态回执位于 checks/，本地任务日志交付前清理，原始失败另存受控 txt。
 

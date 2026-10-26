@@ -21,4 +21,6 @@
 - [本轮调用账本](../../acceptance-evidence/2026-10-26/p10-network-proxy-auto-01/call-ledger.json)
 - [旧证据完整性](../../acceptance-evidence/2026-10-26/p10-network-proxy-auto-01/old-evidence-integrity.json)
 
-仅提交/推送 dev；最终提交 SHA、push/PR CI 状态及线上链接以最终交付答复的实际查询为准，不在提交前伪造尚未发生的 CI 成功。
+实现提交 dev@e7bc96a35657ace7598df342fe81a374d3bc60ef 已推送： [push CI](https://github.com/BangShou1st/ai-collab/actions/runs/40280461517)、[PR CI](https://github.com/BangShou1st/ai-collab/actions/runs/40280469726) 均 completed/success。PR 后端原始回执为 1832 项、0 失败/错误、41 跳过；最终新增的兼容分支与实际应用装配断言已被全量 CI 验证。
+
+[Git/CI 回执](../../acceptance-evidence/2026-10-26/p10-network-proxy-auto-01/git-ci-receipt.json) 与证据 manifest 随后单独作为文档提交，不再改实现或账本。包含该回执的最终提交 SHA 和它自己的 push/PR CI 在最终交付答复中实际查询确认，避免把实现提交的 CI 冒充后续提交的结果。仅推送 dev，main 保持 9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7；PR #18 仍 open/Draft/未合并。

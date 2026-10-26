@@ -1,0 +1,81 @@
+{
+  "task": "P10-NETWORK-PROXY-AUTO-01",
+  "baseline": "fca8860a4f9f83e726f532985db83214bed43c16",
+  "implementationCommit": "e7bc96a35657ace7598df342fe81a374d3bc60ef",
+  "branch": "dev",
+  "implementationCi": [
+    {
+      "event": "push",
+      "runId": 40280461517,
+      "headSha": "e7bc96a35657ace7598df342fe81a374d3bc60ef",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40280461517",
+      "createdAt": "2026-10-26T06:32:49Z",
+      "updatedAt": "2026-10-26T06:39:55Z",
+      "jobs": [
+        {
+          "name": "Backend (Maven verify)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40280461517/job/121432387545"
+        },
+        {
+          "name": "Frontend (pnpm)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40280461517/job/121432387828"
+        },
+        {
+          "name": "Image build & container smoke",
+          "status": "completed",
+          "conclusion": "skipped",
+          "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40280461517/job/121432389423"
+        }
+      ]
+    },
+    {
+      "event": "pull_request",
+      "runId": 40280469726,
+      "headSha": "e7bc96a35657ace7598df342fe81a374d3bc60ef",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40280469726",
+      "createdAt": "2026-10-26T06:32:54Z",
+      "updatedAt": "2026-10-26T06:40:34Z",
+      "jobs": [
+        {
+          "name": "Image build & container smoke",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40280469726/job/121432411246"
+        },
+        {
+          "name": "Backend (Maven verify)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40280469726/job/121432411564"
+        },
+        {
+          "name": "Frontend (pnpm)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40280469726/job/121432411700"
+        }
+      ]
+    }
+  ],
+  "pr18": {
+    "baseRefName": "main",
+    "headRefOid": "e7bc96a35657ace7598df342fe81a374d3bc60ef",
+    "isDraft": true,
+    "mergedAt": null,
+    "state": "OPEN",
+    "url": "https://github.com/BangShou1st/ai-collab/pull/18"
+  },
+  "mainUnchangedAtCapture": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
+  "worktreeCleanAfterImplementationPush": true,
+  "chatRequests": 0,
+  "ledgerUnchangedAfterNetworkEvidenceAssembly": true,
+  "finalReceiptCommit": "Resolve with git log -1 --format=%H -- this file. This later commit changes documentation only; its own live push/PR CI must be verified separately in the final delivery response. Implementation CI above is not claimed as that later commit CI."
+}
