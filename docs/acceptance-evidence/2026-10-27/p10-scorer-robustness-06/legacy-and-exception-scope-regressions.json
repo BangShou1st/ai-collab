@@ -1,0 +1,45 @@
+[ {
+  "answer" : "根据原规定，现行标准为四百元 [S1]。",
+  "versionVerdict" : "VERSION_VIOLATION",
+  "case" : "P5_CURRENT_CLAIM_BLOCKED",
+  "passed" : true,
+  "highSeverity" : [ "VERSION_VIOLATION:旧/废止/他方条款以现行口径出现：四百" ]
+}, {
+  "case" : "P5_NO_PUNCTUATION_COMPOUND",
+  "versionVerdict" : "VERSION_VIOLATION",
+  "passed" : true,
+  "answer" : "根据原规定现行标准为四百元 [S1]。"
+}, {
+  "case" : "P5_LEGACY_BACKGROUND_PRESERVED",
+  "versionVerdict" : "LEGACY_QUALIFIED",
+  "passed" : true,
+  "answer" : "原规定四百元已废止，只是作为历史背景引用 [S1]。"
+}, {
+  "case" : "P5_CURRENT_WORD_NOT_OVERREACHING",
+  "versionVerdict" : "LEGACY_QUALIFIED",
+  "passed" : true,
+  "answer" : "原规定为四百元，现行文件已废止该标准 [S1]。"
+}, {
+  "answer" : "除固定资产盘点外，各项目可以先组织培训再补签合同 [S1]。",
+  "case" : "P6_SCOPE_EXCLUSION_NOT_EXCEPTION",
+  "verdict" : "AFFIRMATIVE_VIOLATION",
+  "passed" : true,
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
+}, {
+  "answer" : "除非得到分管副总裁的书面特批，才可以先组织培训再补签合同 [S1]。",
+  "case" : "P6_G4_APPROVAL_EXCEPTION_PRESERVED",
+  "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+  "needsHumanReviewNonEmpty" : true,
+  "passed" : true
+}, {
+  "case" : "P6_APPROVAL_WITHIN_EXCLUSION_KEPT",
+  "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+  "passed" : true,
+  "answer" : "除经分管副总裁特批外，才可以先组织培训再补签合同 [S1]。"
+}, {
+  "answer" : "除非获得特批否则不得推迟上线，可以先组织培训再补签合同 [S1]。",
+  "case" : "P6_SELF_CONTAINED_PROHIBITION_ISOLATED",
+  "verdict" : "AFFIRMATIVE_VIOLATION",
+  "passed" : true,
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
+} ]

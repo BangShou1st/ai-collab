@@ -1,0 +1,30 @@
+[ {
+  "passed" : true,
+  "abstentionVerdict" : "CONFLICTING_FABRICATION",
+  "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[10 份]" ],
+  "case" : "P1_REAL_CORPUS_DURATION",
+  "unsupportedNumberCandidates" : [ "10 份" ],
+  "answer" : "资料不足，无法确认；但通常每年核对 10 份合同 [S1]。"
+}, {
+  "answer" : "资料不足，无法确认；但通常每年核对 10 份合同 [S1]。",
+  "unsupportedNumberCandidates" : [ "10 份" ],
+  "case" : "P1_UNRELATED_DATE",
+  "abstentionVerdict" : "CONFLICTING_FABRICATION",
+  "passed" : true
+}, {
+  "case" : "P1_EQUIVALENT_500_SUPPORTED",
+  "passed" : true,
+  "answer" : "一线城市住宿费标准为 500 元 [S1]。",
+  "unsupportedNumberCandidates" : [ ]
+}, {
+  "case" : "P1_PARTIAL_SUPPORT_SEPARATE_JUDGMENT",
+  "passed" : true,
+  "answer" : "资料不足，无法确认；但每年核对 50 份合同且合规费用为五百元 [S1]。",
+  "unsupportedNumberCandidates" : [ "50 份" ]
+}, {
+  "answer" : "根据 2026年10月26日的规定，资料不足无法确认 [S1]。",
+  "unsupportedNumberCandidates" : [ ],
+  "case" : "P1_METADATA_NOT_FLAGGED",
+  "passed" : true,
+  "abstentionCorrect" : true
+} ]

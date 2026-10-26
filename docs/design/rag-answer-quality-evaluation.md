@@ -1,7 +1,7 @@
 # P10-RAG-ANSWER-QUALITY-01 — 真实回答质量、版本冲突与引用可信度评测设计
 
-> **状态：OFFLINE 层 IMPLEMENTED / `P10_OFFLINE_EVALUATION_ACCEPTED`；P10-REAL 第 2 轮已授权并完成；P10-SCORER-ROBUSTNESS-01~05 已完成评分器 2.0-scoped-contextual-v5 稳健性重构（已证实假阳性全部确定性修复，肯定违规反例 100% 检出，数字编造、HTML/删除线及弱转折全面受控）**
-> **基线：** `dev@2c1ee3e`（P10-04 证据之上）　**证据：** `docs/acceptance-evidence/2026-10-26/p10-rag-answer-quality-01/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02-errata/`、`docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-01/`、`docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-04/`、`docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-05/`
+> **状态：OFFLINE 层 IMPLEMENTED / `P10_OFFLINE_EVALUATION_ACCEPTED`；P10-REAL 第 2 轮已授权并完成；P10-SCORER-ROBUSTNESS-01~06 已完成评分器 2.1-scoped-contextual-v6 稳健性重构（Audit-02 确证的 7 项缺陷全部修复，已证实假阳性全部确定性修复，肯定违规反例 100% 检出，数字编造、HTML/删除线及弱转折全面受控）**
+> **基线：** `dev@2c1ee3e`（P10-04 证据之上）　**证据：** `docs/acceptance-evidence/2026-10-26/p10-rag-answer-quality-01/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02-errata/`、`docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-01/`、`docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-04/`、`docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-05/`、`docs/acceptance-evidence/2026-10-27/p10-scorer-robustness-06/`
 > **范围：** 从"检索到了什么"进入"模型最终回答得对不对"的可验证工程阶段。不修改生产回答算法。
 
 ## 1. 两层评测架构
@@ -191,3 +191,18 @@ cd ai-collab-backend && bash ./mvnw -B -ntp test -Dtest=P10AnswerQualityOfflineE
 
 
 
+
+## 16. 全链路审计确证缺陷修复专项（P10-SCORER-ROBUSTNESS-06）
+
+新增独立[评分器七项确证缺陷修复证据目录](../acceptance-evidence/2026-10-27/p10-scorer-robustness-06/README.md)。
+
+**核心成果：演进至评分器 2.1-scoped-contextual-v6 确定性架构**（全部改动限定于 test scope，`src/main/` 零改动）：
+1. **数字来源支持判定绑定化（RISK-AUDIT2-001，CRITICAL）**：废除 `allSourceText.contains(digits)` 与裸汉字数字子串免责，改为"数值核心 + 业务单位 + 词边界"绑定比对；汉字等值（五百↔500）与百分比等值（百分之五↔5%）绑定单位后双向支持；无单位裸数值保守判为不受支持；来源中日期、文件编号、期限（如"十个工作日"的"十"）不再能支持编造的业务数字。
+2. **分组引用掩码契约对齐（RISK-AUDIT2-002）**：`MASK_CITATION` 升级为 `\[S\d+(?:\s*,\s*S\d+)*\]`，与生产 `KnowledgeCitationValidator` 一致；不完整引用不被整体吞掉，引用身份校验不削弱。
+3. **富文本多轮规整（RISK-AUDIT2-003）**：`stripMarkdownFormatting` 改为先剥展示标签、再转删除线标签，循环至不动点；`<del><strong>不可以</strong></del>` 正确规范化为 `~~不可以~~` 并进入人工复核。
+4. **删除线靶向修饰绑定（RISK-AUDIT2-004）**：仅当删除线与禁断命题区间相交、或包裹否定/禁止语义词、或孤立 `~~` 紧邻命题区间时转人工复核；无关成分（人名等）删除线不再抑制独立肯定违规。
+5. **现行主张阻断（RISK-AUDIT2-006）**：`isLegacyOccurrenceQualified` 逐 occurrence 检查旧标准数值紧邻前方（窗口 6 字符）是否声称"现行/目前/当前"口径，是则前置历史限定不得豁免；真正历史背景引用与"现行"非主张用法保持豁免。
+6. **范围排除与特批例外解耦（RISK-AUDIT2-007）**：`EXCEPTION_MARKER` 移除泛化 `除.*外`，保留制度性特批词（除非/特批/例外/特殊情况/经.*批准）；普通业务范围排除不再向后传递例外豁免权。
+7. **认识模态并列连词截断（RISK-AUDIT2-008）**：E1 模态统领范围止于最后一个并列连词（且/同时/并且/而且/以及），连词后为独立命题；以命题结构修复替代封闭主语词表扩张，避免"主语+并未明确"合法认识模态误伤。
+8. **静态风险最小附带修复（RISK-AUDIT2-005/009）**：Judge 转折连词词表补齐 `而` 与 Scorer 对齐；汉字数字映射补充整十组合与单字兜底，支持"二十份"↔"20 份"等值反向比对。
+9. **确定性指标验证**：专项 32 项测试全绿（含 9 组跨规则组合场景）；历史健壮性 33 项与离线评测 4 项保持全绿；7/7 历史反例 100% 检出，AQ06/AQ12 假阳性 0 反弹；修复前基线证据于基线 commit 的 git worktree 中以探针真实重建（before-after 全程可追溯）；外部真实模型调用数为 0，生产代码与冻结题集零修改。

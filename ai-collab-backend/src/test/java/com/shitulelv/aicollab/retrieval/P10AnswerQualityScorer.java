@@ -26,12 +26,14 @@ import java.util.regex.Pattern;
 final class P10AnswerQualityScorer {
     static final String QA = "QA";
     static final String AGENT = "AGENT";
-    static final String SCORER_VERSION = "2.0-scoped-contextual-v5";
+    static final String SCORER_VERSION = "2.1-scoped-contextual-v6";
 
     private static final Pattern SENTENCE = Pattern.compile("[^。！？；\\n]+[。！？；\\n]?");
     private static final Pattern ADVERSATIVE_CONJUNCTION = Pattern.compile(
             "但(?:是)?|然而|不过|可是|却|实际上|其实|事实是|实质上|反之|反倒|反而|相反|只是|仅是|而");
-    private static final Pattern MASK_CITATION = Pattern.compile("\\[S\\d+\\]", Pattern.CASE_INSENSITIVE);
+    // 与生产 KnowledgeCitationValidator 的引用契约对齐：单项 [S1] 与逗号分组 [S1, S2]（成员间可有空白）
+    private static final Pattern MASK_CITATION = Pattern.compile(
+            "\\[S\\d+(?:\\s*,\\s*S\\d+)*\\]", Pattern.CASE_INSENSITIVE);
     private static final Pattern MASK_VERSION = Pattern.compile("(?i)[vV]\\d+(?:\\.\\d+)*");
     private static final Pattern MASK_DATE = Pattern.compile(
             "\\b\\d{4}[-/年]\\d{1,2}(?:[-/月]\\d{1,2}(?:日)?)?|\\b\\d{1,2}月\\d{1,2}日?|\\b(?:19|20)\\d{2}年?");
@@ -265,6 +267,10 @@ final class P10AnswerQualityScorer {
         return result;
     }
 
+    // 现行口径主张词：出现在局部子句中紧邻旧标准数值时，构成“以现行口径断言旧标准”的违规主张，
+    // 前置历史限定从句不得豁免（RISK-AUDIT2-006）
+    private static final Pattern CURRENT_STANDARD_CLAIM = Pattern.compile("现行|目前|当前|现在|如今|现今");
+
     private static boolean isLegacyOccurrenceQualified(String sentence, String legacyMarker, List<String> legacyWords) {
         List<String> normalizedLegacyWords = legacyWords == null ? List.of() :
                 legacyWords.stream().map(P10TextNormalizer::normalizeMarker).filter(w -> !w.isBlank()).toList();
@@ -319,6 +325,16 @@ final class P10AnswerQualityScorer {
             }
 
             String localClause = sentence.substring(leftBound, rightBound).strip();
+
+            // 0. 现行主张阻断：局部子句在旧标准数值紧邻前方（窗口 6 字符）声称“现行/目前/当前”口径时，
+            //    该 occurrence 构成现行违规主张，局部与前置历史限定均不得豁免（RISK-AUDIT2-006）
+            int localMarkerIdx = localClause.indexOf(legacyMarker);
+            if (localMarkerIdx > 0) {
+                int windowStart = Math.max(0, localMarkerIdx - 6);
+                if (CURRENT_STANDARD_CLAIM.matcher(localClause.substring(windowStart, localMarkerIdx)).find()) {
+                    return false;
+                }
+            }
 
             // 1. 局部子句本身包含版本限定词（如“原规定中...四百元”、“废止前四百元”）
             boolean localHasLegacy = normalizedLegacyWords.stream().anyMatch(localClause::contains);
@@ -396,6 +412,14 @@ final class P10AnswerQualityScorer {
         return unsupported;
     }
 
+    /**
+     * 判定回答中的数字候选是否获得来源或预期事实支持。
+     *
+     * <p>修复 RISK-AUDIT2-001：废除对来源全文的裸数字子串包含（contains(digits)/contains(汉字数字)），
+     * 改为“数值核心 + 业务单位 + 词边界”绑定比对——来源中日期、文件编号、期限等无关数字
+     * 因缺乏相同业务单位而无法成为业务数字的支持证据；等值表达（500↔五百）经绑定单位后的
+     * 双向变体保持支持能力。无法可靠归一化的表达保守判为不受支持（进入人工复核）。</p>
+     */
     private static boolean isNumberSupported(String phrase, String allSourceText, List<String> allowed) {
         if (allSourceText.contains(phrase)) {
             return true;
@@ -413,33 +437,70 @@ final class P10AnswerQualityScorer {
             return true;
         }
 
-        // 提取阿拉伯数字与小数核心
+        // 拆分数值核心与业务单位
         String digits = clean.replaceAll("[^0-9.]", "");
+        String unit = clean.replaceAll("[0-9.]", "");
+
         if (!digits.isEmpty()) {
-            if (allSourceText.contains(digits)) {
+            // 阿拉伯候选：来源中必须出现词边界的同一数值，且紧随相同业务单位（单位为空时按不支持处理，
+            // 因为裸数值与来源中的日期/编号等元数据无法机械区分）
+            if (!unit.isEmpty() && containsBoundNumber(allSourceText, digits, unit)) {
                 return true;
             }
+            // 汉字等值变体（绑定同一单位）：来源“五百元” 支持 回答“500 元”
             String chineseNum = toSimpleChineseNumber(digits);
-            if (!chineseNum.isEmpty() && allSourceText.contains(chineseNum)) {
+            if (!chineseNum.isEmpty()) {
+                if (!unit.isEmpty() && allSourceText.contains(chineseNum + unit)) {
+                    return true;
+                }
+                // 百分比等值：“5%” ↔ “百分之五”
+                if ("%".equals(unit) && allSourceText.contains("百分之" + chineseNum)) {
+                    return true;
+                }
+            }
+            // 预期事实为受控标注，保留宽松包含路径
+            if (allowed.stream().anyMatch(a -> a.contains(digits)
+                    || (!chineseNum.isEmpty() && a.contains(chineseNum)))) {
                 return true;
             }
-            if (allowed.stream().anyMatch(a -> a.contains(digits) || (!chineseNum.isEmpty() && a.contains(chineseNum)))) {
-                return true;
-            }
+            return false;
         }
 
-        // 提取汉字数字核心
-        String hanDigits = toArabicDigits(clean);
-        if (!hanDigits.isEmpty()) {
-            if (allSourceText.contains(hanDigits)) {
-                return true;
-            }
-            if (allowed.stream().anyMatch(a -> a.contains(hanDigits))) {
-                return true;
-            }
+        // 汉字候选：核心转阿拉伯后按“数值 + 单位”绑定比对（“二十份” ↔ “20 份”）
+        String arabic = toArabicDigits(clean);
+        if (arabic.isEmpty()) {
+            return false;
         }
+        String hanUnit = hanUnitOf(clean);
+        String arabicCore = arabic.endsWith("%") ? arabic.substring(0, arabic.length() - 1) : arabic;
+        String arabicUnit = arabic.endsWith("%") ? "%" : hanUnit;
+        if (arabicUnit.isEmpty()) {
+            return false;
+        }
+        if (containsBoundNumber(allSourceText, arabicCore, arabicUnit)) {
+            return true;
+        }
+        // 汉字百分比等值：“百分之五” ↔ “5%”（来源以阿拉伯百分比表达时）
+        if ("%".equals(arabicUnit) && containsBoundNumber(allSourceText, arabicCore, "%")) {
+            return true;
+        }
+        return allowed.stream().anyMatch(a -> a.contains(arabicCore));
+    }
 
-        return false;
+    /** 来源中是否出现词边界的数值且紧随指定单位（允许空白间隔）。 */
+    private static boolean containsBoundNumber(String sourceText, String digits, String unit) {
+        Pattern bound = Pattern.compile(
+                "(?<![0-9.])" + Pattern.quote(digits) + "(?![0-9.])\\s*" + Pattern.quote(unit));
+        return bound.matcher(sourceText).find();
+    }
+
+    /** 汉字候选中数值核心之后的单位部分；无阿拉伯核心可提取时返回空。 */
+    private static String hanUnitOf(String clean) {
+        Matcher hanCore = Pattern.compile("^(?:百分之)?[零一二三四五六七八九十百千万]+").matcher(clean);
+        if (!hanCore.find()) {
+            return "";
+        }
+        return clean.substring(hanCore.end());
     }
 
     private static String toSimpleChineseNumber(String digits) {
@@ -452,17 +513,42 @@ final class P10AnswerQualityScorer {
             case "5" -> "五";
             case "3" -> "三";
             case "10" -> "十";
+            case "20" -> "二十";
+            case "30" -> "三十";
+            case "40" -> "四十";
+            case "60" -> "六十";
+            case "70" -> "七十";
+            case "80" -> "八十";
+            case "90" -> "九十";
             case "5.5" -> "五点五";
             default -> "";
         };
     }
 
     private static String toArabicDigits(String text) {
+        if (text.startsWith("百分之")) {
+            String han = text.substring("百分之".length());
+            String num = hanIntegerToArabic(han);
+            return num.isEmpty() ? "" : num + "%";
+        }
+        return hanIntegerToArabic(text);
+    }
+
+    private static String hanIntegerToArabic(String text) {
         if (text.contains("五十")) return "50";
         if (text.contains("五百")) return "500";
         if (text.contains("四百")) return "400";
         if (text.contains("一百")) return "100";
-        if (text.contains("百分之五")) return "5%";
+        if (text.contains("二十")) return "20";
+        if (text.contains("三十")) return "30";
+        if (text.contains("四十")) return "40";
+        if (text.contains("六十")) return "60";
+        if (text.contains("七十")) return "70";
+        if (text.contains("八十")) return "80";
+        if (text.contains("九十")) return "90";
+        // 单字兜底置于组合之后，保证“五百”“五十”等优先按组合命中
+        if (text.startsWith("十")) return "10";
+        if (text.startsWith("五")) return "5";
         return "";
     }
 

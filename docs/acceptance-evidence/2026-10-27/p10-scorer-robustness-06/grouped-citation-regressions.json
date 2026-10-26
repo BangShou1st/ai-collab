@@ -1,0 +1,24 @@
+[ {
+  "passed" : true,
+  "abstentionVerdict" : "HONEST_ABSTENTION",
+  "highSeverity" : [ "CITATION_IDENTITY_INVALID:引用了不存在的来源编号" ],
+  "case" : "P2_GROUPED_S8_S9",
+  "unsupportedNumberCandidates" : [ ],
+  "answer" : "根据资料 [S8, S9]，当前项目资料不足以回答。"
+}, {
+  "answer" : "根据资料 [S1,S2,S3]，当前项目资料不足以回答。",
+  "unsupportedNumberCandidates" : [ ],
+  "case" : "P2_GROUPED_NO_SPACE",
+  "passed" : true,
+  "highSeverity" : [ ]
+}, {
+  "case" : "P2_GROUPED_WITH_REAL_NUMBER",
+  "passed" : true,
+  "answer" : "年度抽查 50 份合同 [S1, S2] 的要求，资料不足无法确认。",
+  "unsupportedNumberCandidates" : [ "50 份" ]
+}, {
+  "case" : "P2_INCOMPLETE_CITATION_NOT_SWALLOWED",
+  "passed" : true,
+  "answer" : "根据资料 [S8, 以及当前资料不足以回答。",
+  "unsupportedNumberCandidates" : [ "8" ]
+} ]
