@@ -1,20 +1,20 @@
 {
   "task": "P10-REAL-GENERATION-02",
-  "phase": "PHASE_1_PREFLIGHT_ONLY_NO_REAL_CHAT",
-  "finalSha": "ac1d3ba4ab51e5400bd35fabf6279cadba22f4bf",
+  "phase": "PHASE_2_REAL_GENERATION_EXECUTED",
+  "finalSha": "38dde3ee2109211a1c1748ea7c0824936ffc5bad",
   "pushedTo": "origin/dev",
-  "originDev": "ac1d3ba4ab51e5400bd35fabf6279cadba22f4bf",
+  "originDev": "38dde3ee2109211a1c1748ea7c0824936ffc5bad",
   "originMain": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
   "branch": "dev",
   "workingTreeClean": true,
   "ci": [
     {
-      "run": 40291404865,
+      "run": 40296834234,
       "event": "push",
-      "headSha": "ac1d3ba4ab51e5400bd35fabf6279cadba22f4bf",
+      "headSha": "38dde3ee2109211a1c1748ea7c0824936ffc5bad",
       "status": "completed",
       "conclusion": "success",
-      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40291404865",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40296834234",
       "jobs": {
         "Backend (Maven verify)": "success",
         "Frontend (pnpm)": "success",
@@ -22,20 +22,20 @@
       }
     },
     {
-      "run": 40291415733,
+      "run": 40296838674,
       "event": "pull_request",
-      "headSha": "ac1d3ba4ab51e5400bd35fabf6279cadba22f4bf",
+      "headSha": "38dde3ee2109211a1c1748ea7c0824936ffc5bad",
       "status": "completed",
       "conclusion": "success",
-      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40291415733"
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40296838674"
     }
   ],
   "supersededRun": {
-    "run": 40290449308,
+    "run": 40292376248,
     "event": "pull_request",
-    "headSha": "5314f83b1cf8a9bc6d3a4265b3451dbfa8d811aa",
+    "headSha": "d6bd5d7eaf058591230c53f470b1e48872f7ccc0",
     "conclusion": "success",
-    "note": "前一提交自身的 CI 亦为 success；本回执随最后一次纯文档提交更新，其 SHA 只前进不回退"
+    "note": "阶段一预检提交的 CI 亦为 success；本回执替换为承载真实运行证据的提交"
   },
   "cancelledRun": {
     "run": 40287664480,
@@ -51,19 +51,26 @@
     "state": "OPEN",
     "isDraft": true,
     "mergedAt": null,
-    "headRefOid": "ac1d3ba4ab51e5400bd35fabf6279cadba22f4bf"
+    "headRefOid": "38dde3ee2109211a1c1748ea7c0824936ffc5bad"
   },
   "realGeneration": {
-    "executed": false,
-    "externalChat": 0,
+    "executed": true,
+    "externalChat": 8,
+    "providerResponses": 8,
+    "completedAnswers": 8,
+    "failures": 0,
+    "notRun": 0,
     "externalEmbedding": 0,
     "agent": 0,
     "judge": 0,
-    "automaticRetries": 0
+    "automaticRetries": 0,
+    "executionVerdict": "MEASUREMENT_EXECUTED",
+    "qualityVerdict": "PASS_WITH_SCORER_LIMITATIONS",
+    "independentHumanReview": 0
   },
   "deployment": "NONE",
   "paidBilling": "NONE",
   "mainModified": false,
   "pr18Merged": false,
-  "note": "本文件记录的是最后一个含代码/证据的提交及其 CI 回执。承载本文件的那次纯文档提交 SHA 只比 finalSha 前进，CI 同为 success；最终交付 SHA 与 CI 以交付答复为准。"
+  "note": "承载本回执的那次纯文档提交 SHA 只比 finalSha 前进，CI 同为 success；最终交付 SHA 与 CI 以交付答复为准。"
 }
