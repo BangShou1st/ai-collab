@@ -43,3 +43,6 @@ docs/acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/** -text
 docs/acceptance-evidence/2026-10-26/p10-real-generation-01/** -text whitespace=blank-at-eol,space-before-tab,cr-at-eol
 # 原始构建/终端回执的尾空格属于采集字节，不能当作代码空白修复。
 docs/acceptance-evidence/2026-10-26/p10-real-generation-01/checks/** -whitespace
+# 系统代理专项也保留原始诊断与测试回执字节。
+docs/acceptance-evidence/2026-10-26/p10-network-proxy-auto-01/** -text whitespace=blank-at-eol,space-before-tab,cr-at-eol
+docs/acceptance-evidence/2026-10-26/p10-network-proxy-auto-01/checks/** -whitespace

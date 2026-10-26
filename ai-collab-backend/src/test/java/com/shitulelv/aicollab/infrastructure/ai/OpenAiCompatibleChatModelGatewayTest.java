@@ -20,6 +20,27 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class OpenAiCompatibleChatModelGatewayTest {
 
     @Test
+    void jdkReadTimeoutKeepsTheExistingTimeoutErrorAndDoesNotRetryWhenDisabled() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/chat", exchange -> {
+            calls.incrementAndGet();
+            exchange.getRequestBody().readAllBytes();
+            try { Thread.sleep(1000); } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+            exchange.close();
+        });
+        server.start();
+        try {
+            var properties = new ChatModelProperties(true, "fake", "http://127.0.0.1:" + server.getAddress().getPort(),
+                    "/chat", "test-key", "fake-model", Duration.ofSeconds(1), Duration.ofMillis(500), 0.2, 1000, false);
+            var gateway = new OpenAiCompatibleChatModelGateway(properties, false);
+            assertThatThrownBy(() -> gateway.complete(new ChatCompletionCommand(null, "sys", "usr")))
+                    .isInstanceOfSatisfying(BusinessException.class, error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.AI_MODEL_TIMEOUT));
+            assertThat(calls).hasValue(1);
+        } finally { server.stop(0); }
+    }
+
+    @Test
     void jsonModeCapabilityCanOmitResponseFormat() throws Exception {
         AtomicReference<String> capturedBody = new AtomicReference<>();
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);

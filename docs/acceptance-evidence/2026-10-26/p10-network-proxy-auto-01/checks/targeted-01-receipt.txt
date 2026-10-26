@@ -1,0 +1,30 @@
+Command: test: initial network selection/security/protocol set
+Expected/observed success: false
+Original private stdout SHA-256: a555d6f8f79e8f5f618f4d057d0caf8ee128c4f2a44e237bb2461e335c612173
+Receipt extracts only Maven status/test/coverage lines; failure original is separately preserved.
+
+[INFO] Running com.shitulelv.aicollab.common.net.EnvironmentProxySelectorTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.269 s -- in com.shitulelv.aicollab.common.net.EnvironmentProxySelectorTest
+[INFO] Running com.shitulelv.aicollab.common.net.ModelHttpProxyTest
+[ERROR] Tests run: 3, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 2.067 s <<< FAILURE! -- in com.shitulelv.aicollab.common.net.ModelHttpProxyTest
+[INFO] Running com.shitulelv.aicollab.common.net.ProxyForkStartupTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.019 s -- in com.shitulelv.aicollab.common.net.ProxyForkStartupTest
+[INFO] Running com.shitulelv.aicollab.common.security.OutboundEndpointPolicyTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in com.shitulelv.aicollab.common.security.OutboundEndpointPolicyTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.GeminiStreamContractTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.090 s -- in com.shitulelv.aicollab.infrastructure.ai.model.GeminiStreamContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClientSecurityTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.336 s -- in com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClientSecurityTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ModelProtocolHttpTest
+[INFO] Tests run: 35, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.329 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ModelProtocolHttpTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ZenModelWiringTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.276 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ZenModelWiringTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ZenUpstreamRoutingTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ZenUpstreamRoutingTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P10RealGenerationGateTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.shitulelv.aicollab.retrieval.P10RealGenerationGateTest
+[ERROR] Tests run: 81, Failures: 1, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+[INFO] Total time:  44.674 s
+[INFO] Finished at: 2026-10-26T13:44:48+08:00
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test (default-test) on project ai-collab-backend: There are test failures.

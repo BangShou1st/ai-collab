@@ -9,6 +9,7 @@ pnpm 11+、Docker Desktop（Compose）。首次在 `ai-collab-frontend` 执行
 .\dev.ps1 status
 .\dev.ps1 stop
 .\dev.ps1 stop-infra  # 明确独立操作；不删除容器、镜像、卷
+.\dev.ps1 diagnose-proxy  # 独立 Java 选路/CONNECT/TLS；不启动应用、不发 Chat
 ```
 
 `start` 检查配置、依赖、两端端口，复用现有基础设施，等待健康，然后通过现有 Maven wrapper
@@ -16,6 +17,11 @@ pnpm 11+、Docker Desktop（Compose）。首次在 `ai-collab-frontend` 执行
 首次解析依赖可能需要网络，进度在 `build.log`。不会启动 compose 的 `app`，不会构建后端容器。
 重复执行保留健康进程的 PID；同仓库的既有健康进程可借用，并标为不受本入口管理。
 并发入口操作通过文件锁串行化；启动失败保留已启动的进程供诊断，可执行 `stop` 收尾。
+
+新后端 JVM 在启动前启用 `java.net.useSystemProxies=true`，自动使用 JDK 识别的系统代理；
+无需在项目中写本机代理端口。旧进程被复用时启动参数不会追溯生效，需按入口管理规则重启一次。
+Maven/Surefire 的 fork、IDE VM options、环境变量回退和本地服务排除见[模型网络代理](development/model-network-proxy.md)。
+`diagnose-proxy` 不加载 `.env` 或 Provider 凭据，只编译并启动独立诊断程序。
 
 | 服务 | 地址 / 健康检查 |
 | --- | --- |

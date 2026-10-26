@@ -1,0 +1,43 @@
+Command: verify: network, protocol, legacy Chat timeout, Ollama, Kilo, gate; isolated jacoco-final.exec
+Expected/observed success: true
+Original private stdout SHA-256: 7406652c91409453b0fdf3daeb8fc580b30132b2f67d83714258c558c585d054
+Receipt extracts only Maven status/test/coverage lines; failure original is separately preserved.
+
+[INFO] Running com.shitulelv.aicollab.common.net.EnvironmentProxySelectorTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.182 s -- in com.shitulelv.aicollab.common.net.EnvironmentProxySelectorTest
+[INFO] Running com.shitulelv.aicollab.common.net.ModelHttpProxyTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.167 s -- in com.shitulelv.aicollab.common.net.ModelHttpProxyTest
+[INFO] Running com.shitulelv.aicollab.common.net.ProxyForkStartupTest
+[WARNING] Tests run: 2, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.026 s -- in com.shitulelv.aicollab.common.net.ProxyForkStartupTest
+[INFO] Running com.shitulelv.aicollab.common.net.ProxyTlsValidationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.867 s -- in com.shitulelv.aicollab.common.net.ProxyTlsValidationTest
+[INFO] Running com.shitulelv.aicollab.common.security.OutboundEndpointPolicyTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in com.shitulelv.aicollab.common.security.OutboundEndpointPolicyTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.embedding.OllamaEmbeddingHttpTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.230 s -- in com.shitulelv.aicollab.infrastructure.ai.embedding.OllamaEmbeddingHttpTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.GeminiStreamContractTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.806 s -- in com.shitulelv.aicollab.infrastructure.ai.model.GeminiStreamContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClientSecurityTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.171 s -- in com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClientSecurityTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayStarterWiringTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.657 s -- in com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayStarterWiringTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayTransportLogSafetyTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.059 s -- in com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayTransportLogSafetyTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ModelProtocolHttpTest
+[INFO] Tests run: 35, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.721 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ModelProtocolHttpTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGatewayKiloDisabledTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.174 s -- in com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGatewayKiloDisabledTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ZenModelWiringTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.074 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ZenModelWiringTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ZenUpstreamRoutingTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.019 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ZenUpstreamRoutingTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.OpenAiCompatibleChatModelGatewayTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.176 s -- in com.shitulelv.aicollab.infrastructure.ai.OpenAiCompatibleChatModelGatewayTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P10NetworkProxyDiagnosticTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0 s -- in com.shitulelv.aicollab.retrieval.P10NetworkProxyDiagnosticTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P10RealGenerationGateTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in com.shitulelv.aicollab.retrieval.P10RealGenerationGateTest
+[INFO] Tests run: 113, Failures: 0, Errors: 0, Skipped: 2
+[INFO] BUILD SUCCESS
+[INFO] Total time:  40.018 s
+[INFO] Finished at: 2026-10-26T14:10:16+08:00

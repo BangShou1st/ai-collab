@@ -65,7 +65,8 @@ class P10RealGenerationPostgresTest {
     private static final String F4 = "F4-外部审计参考摘录-未审核来源.md";
     private static final List<String> IDS = List.of("AQ01-CURRENT", "AQ02-REPEALED", "AQ04-REGION-THRESHOLD",
             "AQ06-UNLESS", "AQ07-AND-OR", "AQ11-ABSTAIN-NONE", "AQ12-ABSTAIN-INDIRECT", "AQ14-INJECTION");
-    private static final Path OUTPUT = Path.of("target/p10-real-generation-01", GATE.real() ? "real" : "preflight");
+    private static final Path OUTPUT = Path.of("target", GATE.real() ? GATE.batchId() : "p10-real-generation-01",
+            GATE.real() ? "real" : "preflight");
     @Container static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("pgvector/pgvector:pg17");
 
     @DynamicPropertySource
@@ -238,6 +239,11 @@ class P10RealGenerationPostgresTest {
         doAnswer(inv -> {
             JsonNode body = inv.getArgument(2);
             assertThat(body.path("generationConfig").path("maxOutputTokens").asInt()).isEqualTo(1024);
+            if (GATE.real()) {
+                Map<String, Object> route = http.proxyDiagnostic(java.net.URI.create(inv.<String>getArgument(0)));
+                current.put("proxyDiagnostic", route);
+                System.out.println("P10_MODEL_PROXY_ROUTE=" + JSON.writeValueAsString(route));
+            }
             current.put("wireBody", body); // excludes URL, headers and credentials
             if (!GATE.real()) {
                 syntheticPosts++;
@@ -342,7 +348,7 @@ class P10RealGenerationPostgresTest {
         write("retrieval-context.json", retrieval);
         write("generation-results.json", results);
         Map<String, Object> ledger = new LinkedHashMap<>();
-        ledger.put("task", "P10-REAL-GENERATION-01");
+        ledger.put("task", GATE.batchId().toUpperCase(java.util.Locale.ROOT));
         ledger.put("mode", GATE.real() ? "REAL" : "PREFLIGHT_SYNTHETIC_TRANSPORT");
         ledger.put("authorization", GATE.real());
         ledger.put("provider", "GEMINI");

@@ -1,0 +1,11 @@
+Command: P10_PROXY_DIAGNOSTIC=true; test -Dtest=P10NetworkProxyDiagnosticTest
+Expected/observed success: true
+Original private stdout SHA-256: 92d1370291744f33a50eff7bb13a3cef79db212e25699870183b783d9515f570
+Receipt extracts only Maven status/test/coverage lines; failure original is separately preserved.
+
+[INFO] Running com.shitulelv.aicollab.retrieval.P10NetworkProxyDiagnosticTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.337 s -- in com.shitulelv.aicollab.retrieval.P10NetworkProxyDiagnosticTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  13.253 s
+[INFO] Finished at: 2026-10-26T14:12:38+08:00

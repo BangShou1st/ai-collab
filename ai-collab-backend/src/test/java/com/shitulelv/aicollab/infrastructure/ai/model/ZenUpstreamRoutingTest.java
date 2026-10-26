@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Zen 上游端点管理：模型列表、连接测试与正式推理必须路由到同一个被选择的上游；
  * 上游只能是代码白名单内的 HTTPS Zen 地址，且不能被用户请求 / 持久化 baseUrl 覆盖；
- * 出站防护（DIRECT、无代理回退）保持不变。
+ * 出站防护（HTTPS 白名单、禁止重定向）保持不变；代理统一交给共享网络策略。
  */
 class ZenUpstreamRoutingTest {
     private final ObjectMapper mapper = new ObjectMapper();
@@ -89,8 +89,8 @@ class ZenUpstreamRoutingTest {
         HttpOpenCodeZenTransport transport = new HttpOpenCodeZenTransport(
                 mapper, new OutboundEndpointPolicy(), new ProviderPresetRegistry());
 
-        assertThat(HttpOpenCodeZenTransport.isDirect(transport.productionClient())).isTrue();
-        assertThat(HttpOpenCodeZenTransport.directSelector()).isEqualTo(java.net.http.HttpClient.Builder.NO_PROXY);
-        assertThat(HttpOpenCodeZenTransport.directProxy()).isEqualTo(java.net.Proxy.NO_PROXY);
+        assertThat(transport.productionClient().proxy().orElseThrow())
+                .isInstanceOf(com.shitulelv.aicollab.common.net.EnvironmentProxySelector.class);
+        assertThat(transport.productionClient().followRedirects()).isEqualTo(java.net.http.HttpClient.Redirect.NEVER);
     }
 }

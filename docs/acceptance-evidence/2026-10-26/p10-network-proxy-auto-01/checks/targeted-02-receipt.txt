@@ -1,0 +1,31 @@
+Command: test: corrected SSE fixture and TLS validation
+Expected/observed success: true
+Original private stdout SHA-256: 483423d9206dd3481494985279aa9be8235feb013f4f96f54bd05bf9d096506f
+Receipt extracts only Maven status/test/coverage lines; failure original is separately preserved.
+
+[INFO] Running com.shitulelv.aicollab.common.net.EnvironmentProxySelectorTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.188 s -- in com.shitulelv.aicollab.common.net.EnvironmentProxySelectorTest
+[INFO] Running com.shitulelv.aicollab.common.net.ModelHttpProxyTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.781 s -- in com.shitulelv.aicollab.common.net.ModelHttpProxyTest
+[INFO] Running com.shitulelv.aicollab.common.net.ProxyForkStartupTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in com.shitulelv.aicollab.common.net.ProxyForkStartupTest
+[INFO] Running com.shitulelv.aicollab.common.net.ProxyTlsValidationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.365 s -- in com.shitulelv.aicollab.common.net.ProxyTlsValidationTest
+[INFO] Running com.shitulelv.aicollab.common.security.OutboundEndpointPolicyTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.016 s -- in com.shitulelv.aicollab.common.security.OutboundEndpointPolicyTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.GeminiStreamContractTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.945 s -- in com.shitulelv.aicollab.infrastructure.ai.model.GeminiStreamContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClientSecurityTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.170 s -- in com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClientSecurityTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ModelProtocolHttpTest
+[INFO] Tests run: 35, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.896 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ModelProtocolHttpTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ZenModelWiringTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.353 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ZenModelWiringTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ZenUpstreamRoutingTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.023 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ZenUpstreamRoutingTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P10RealGenerationGateTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in com.shitulelv.aicollab.retrieval.P10RealGenerationGateTest
+[INFO] Tests run: 82, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  38.502 s
+[INFO] Finished at: 2026-10-26T13:47:06+08:00
