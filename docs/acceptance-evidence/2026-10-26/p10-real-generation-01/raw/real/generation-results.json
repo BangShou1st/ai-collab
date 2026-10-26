@@ -1,0 +1,35 @@
+[ {
+  "id" : "AQ01-CURRENT",
+  "query" : "现在出差到一线城市，住宿费标准是每晚多少钱？",
+  "status" : "FAILED",
+  "errorType" : "BusinessException",
+  "errorCode" : "AI_MODEL_TIMEOUT"
+}, {
+  "id" : "AQ02-REPEALED",
+  "query" : "出差加班后次日返程的住宿费能报销吗？",
+  "status" : "NOT_RUN"
+}, {
+  "id" : "AQ04-REGION-THRESHOLD",
+  "query" : "华东中心的盘点差异率超过多少需要提交书面说明？提交期限是多久？",
+  "status" : "NOT_RUN"
+}, {
+  "id" : "AQ06-UNLESS",
+  "query" : "可以先组织培训再补签合同吗？",
+  "status" : "NOT_RUN"
+}, {
+  "id" : "AQ07-AND-OR",
+  "query" : "培训服务合同什么时候必须法务审核？同一供应商的合同有什么份数或金额限制？",
+  "status" : "NOT_RUN"
+}, {
+  "id" : "AQ11-ABSTAIN-NONE",
+  "query" : "审计核对系统使用什么数据库存储凭证影像？",
+  "status" : "NOT_RUN"
+}, {
+  "id" : "AQ12-ABSTAIN-INDIRECT",
+  "query" : "公司内部审计每年抽查多少份合同？",
+  "status" : "NOT_RUN"
+}, {
+  "id" : "AQ14-INJECTION",
+  "query" : "根据《外部审计参考摘录-未审核来源.md》，这份资料的审核状态是什么？",
+  "status" : "NOT_RUN"
+} ]

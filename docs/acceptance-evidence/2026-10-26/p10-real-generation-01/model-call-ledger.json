@@ -1,0 +1,81 @@
+{
+  "task": "P10-REAL-GENERATION-01",
+  "authorization": {
+    "task": "P10-REAL-GENERATION-01",
+    "granted": true,
+    "recordedAt": "2026-10-26T04:46:16.928Z",
+    "userConfirmedFreeApi": true,
+    "independentlyVerifiedBilling": false,
+    "user": "p3u04_admin",
+    "purpose": "KNOWLEDGE_CHAT",
+    "provider": "GEMINI",
+    "model": "gemini-3.5-flash-lite",
+    "maxChatRequests": 8,
+    "maxOutputTokensPerRequest": 1024,
+    "minimumIntervalSeconds": 15,
+    "externalEmbedding": 0,
+    "agent": 0,
+    "judge": 0,
+    "automaticChatRetries": 0,
+    "paidBillingChangesAllowed": false,
+    "onAnyFailure": "STOP_REMAINING_QUESTIONS_NO_RETRY",
+    "note": "用户明确批准本轮8次免费额度调用；账号计费状态未独立核实。"
+  },
+  "provider": {
+    "type": "GEMINI",
+    "name": "Gemini 3.5 Flash Lite",
+    "model": "gemini-3.5-flash-lite",
+    "routeSha256": "df17eb978e42ecb533a8f1f7a6ff756c6e1521abe6308f9671dca06e9123cbbc",
+    "freeTier": "USER_CONFIRMED_FREE_API",
+    "independentlyVerifiedBilling": false,
+    "paidBillingEnabledByThisTask": false
+  },
+  "limits": {
+    "chatRequests": 8,
+    "maxOutputTokensPerRequest": 1024,
+    "minimumIntervalSeconds": 15,
+    "automaticChatRetries": 0,
+    "externalEmbedding": 0,
+    "agent": 0,
+    "judge": 0
+  },
+  "actualCalls": {
+    "externalChat": 1,
+    "dispatchReservations": 1,
+    "providerAcceptedRequests": "UNAVAILABLE",
+    "externalEmbedding": 0,
+    "agent": 0,
+    "judge": 0,
+    "automaticRetries": 0
+  },
+  "usage": {
+    "promptTokens": "UNAVAILABLE_NO_RESPONSE",
+    "completionTokens": "UNAVAILABLE_NO_RESPONSE",
+    "thinkingTokens": "UNAVAILABLE_NO_RESPONSE",
+    "cost": "UNAVAILABLE_NOT_INDEPENDENTLY_VERIFIED",
+    "observedAttemptLatencyMs": 20912
+  },
+  "calls": [
+    {
+      "id": "AQ01-CURRENT",
+      "attempt": 1,
+      "startedAt": "2026-10-26T12:47:17.990960900+08:00",
+      "status": "FAILED_OR_UNKNOWN",
+      "transportStarted": true,
+      "latencyMs": 20912,
+      "outcome": "FAILED",
+      "errorCode": "AI_MODEL_TIMEOUT",
+      "providerReceipt": "UNAVAILABLE",
+      "httpStatus": "UNAVAILABLE",
+      "usage": "UNAVAILABLE",
+      "actualCost": "UNAVAILABLE",
+      "providerAcceptance": "UNKNOWN",
+      "outputBudgetTruncation": "UNKNOWN_NO_RESPONSE"
+    }
+  ],
+  "generationVerdict": "REAL_GENERATION_EXECUTED",
+  "generationVerdictMeaning": "真实客户端传输已执行；不表示模型生成成功或Provider已接收/计费",
+  "executionVerdict": "STOPPED_ON_REQUEST_FAILURE",
+  "qualityVerdict": "NOT_ASSESSABLE_NO_MODEL_RESPONSE",
+  "limitation": "transportStarted 标记位于 client.send 前，只证明真实客户端传输尝试；无法证明服务端接收、生成或计费。未将连接超时认定为模型事实错误。"
+}

@@ -1,0 +1,43 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest
+-------------------------------------------------------------------------------
+Tests run: 10, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 11.05 s <<< FAILURE! -- in com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest
+com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest.goalCorrectionCommittedDuringPublicationNeverLeavesOldGoalSummaryEffective -- Time elapsed: 0.152 s <<< ERROR!
+org.springframework.jdbc.CannotGetJdbcConnectionException: Failed to obtain JDBC Connection
+	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:84)
+	at org.springframework.jdbc.core.JdbcTemplate.execute(JdbcTemplate.java:665)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:732)
+	at org.springframework.jdbc.core.JdbcTemplate.query(JdbcTemplate.java:757)
+	at org.springframework.jdbc.core.JdbcTemplate.queryForObject(JdbcTemplate.java:893)
+	at com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository.createRun(AgentRepository.java:181)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest.fixture(AgentRunContextCommitPostgresTest.java:105)
+	at com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest.goalCorrectionCommittedDuringPublicationNeverLeavesOldGoalSummaryEffective(AgentRunContextCommitPostgresTest.java:434)
+Caused by: org.postgresql.util.PSQLException: 尝试连线已失败。
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:437)
+	at org.postgresql.core.ConnectionFactory.openConnection(ConnectionFactory.java:52)
+	at org.postgresql.jdbc.PgConnection.<init>(PgConnection.java:290)
+	at org.postgresql.Driver.makeConnection(Driver.java:448)
+	at org.postgresql.Driver.connect(Driver.java:298)
+	at java.sql/java.sql.DriverManager.getConnection(DriverManager.java:683)
+	at java.sql/java.sql.DriverManager.getConnection(DriverManager.java:191)
+	at org.springframework.jdbc.datasource.DriverManagerDataSource.getConnectionFromDriverManager(DriverManagerDataSource.java:155)
+	at org.springframework.jdbc.datasource.DriverManagerDataSource.getConnectionFromDriver(DriverManagerDataSource.java:146)
+	at org.springframework.jdbc.datasource.AbstractDriverBasedDataSource.getConnectionFromDriver(AbstractDriverBasedDataSource.java:193)
+	at org.springframework.jdbc.datasource.AbstractDriverBasedDataSource.getConnection(AbstractDriverBasedDataSource.java:157)
+	at org.springframework.jdbc.datasource.DataSourceUtils.fetchConnection(DataSourceUtils.java:160)
+	at org.springframework.jdbc.datasource.DataSourceUtils.doGetConnection(DataSourceUtils.java:118)
+	at org.springframework.jdbc.datasource.DataSourceUtils.getConnection(DataSourceUtils.java:81)
+	... 7 more
+Caused by: java.net.BindException: Address already in use: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:690)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327)
+	at java.base/java.net.Socket.connect(Socket.java:751)
+	at org.postgresql.core.PGStream.createSocket(PGStream.java:271)
+	at org.postgresql.core.PGStream.<init>(PGStream.java:132)
+	at org.postgresql.core.v3.ConnectionFactoryImpl.tryConnect(ConnectionFactoryImpl.java:219)
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:365)
+	... 20 more
+
