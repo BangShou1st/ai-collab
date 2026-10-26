@@ -1,20 +1,20 @@
 {
   "task": "P10-REAL-GENERATION-02",
   "phase": "PHASE_1_PREFLIGHT_ONLY_NO_REAL_CHAT",
-  "finalSha": "4a6ca5a7569fdc74ece05fdbff2c7bd0686cba68",
+  "finalSha": "5314f83b1cf8a9bc6d3a4265b3451dbfa8d811aa",
   "pushedTo": "origin/dev",
-  "originDev": "4a6ca5a7569fdc74ece05fdbff2c7bd0686cba68",
+  "originDev": "5314f83b1cf8a9bc6d3a4265b3451dbfa8d811aa",
   "originMain": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
   "branch": "dev",
   "workingTreeClean": true,
   "ci": [
     {
-      "run": 40289393725,
+      "run": 40290441538,
       "event": "push",
-      "headSha": "4a6ca5a7569fdc74ece05fdbff2c7bd0686cba68",
+      "headSha": "5314f83b1cf8a9bc6d3a4265b3451dbfa8d811aa",
       "status": "completed",
       "conclusion": "success",
-      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40289393725",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40290441538",
       "jobs": {
         "Backend (Maven verify)": "success",
         "Frontend (pnpm)": "success",
@@ -22,18 +22,18 @@
       }
     },
     {
-      "run": 40289402207,
+      "run": 40290449308,
       "event": "pull_request",
-      "headSha": "4a6ca5a7569fdc74ece05fdbff2c7bd0686cba68",
+      "headSha": "5314f83b1cf8a9bc6d3a4265b3451dbfa8d811aa",
       "status": "completed",
       "conclusion": "success",
-      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40289402207"
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40290449308"
     }
   ],
   "supersededRun": {
-    "run": 40287996349,
+    "run": 40289402207,
     "event": "pull_request",
-    "headSha": "b052527bf1d1279036b810290f65ccc2c4f68c7d",
+    "headSha": "4a6ca5a7569fdc74ece05fdbff2c7bd0686cba68",
     "conclusion": "success",
     "note": "前一提交自身的 CI 亦为 success；本次仅替换为最终交付 SHA 的回执"
   },
@@ -51,7 +51,7 @@
     "state": "OPEN",
     "isDraft": true,
     "mergedAt": null,
-    "headRefOid": "4a6ca5a7569fdc74ece05fdbff2c7bd0686cba68"
+    "headRefOid": "5314f83b1cf8a9bc6d3a4265b3451dbfa8d811aa"
   },
   "realGeneration": {
     "executed": false,
