@@ -1,6 +1,6 @@
 # P10-RAG-ANSWER-QUALITY-01 — 真实回答质量、版本冲突与引用可信度评测设计
 
-> **状态：OFFLINE 层 IMPLEMENTED / `P10_OFFLINE_EVALUATION_ACCEPTED`；真实生成层 `REAL_GENERATION_NOT_EXECUTED`（本轮无外部 Chat 授权）**
+> **状态：OFFLINE 层 IMPLEMENTED / `P10_OFFLINE_EVALUATION_ACCEPTED`；P10-REAL 首轮已授权，真实传输尝试 1 次超时、7 题未运行，模型质量 `NOT_ASSESSABLE_NO_MODEL_RESPONSE`**
 > **基线：** `dev@efafbc2`（P9 证据之上）　**证据：** `docs/acceptance-evidence/2026-10-26/p10-rag-answer-quality-01/`
 > **范围：** 从"检索到了什么"进入"模型最终回答得对不对"的可验证工程阶段。不修改生产回答算法。
 
@@ -9,9 +9,10 @@
 | 层 | 内容 | 执行条件 |
 | --- | --- | --- |
 | 离线契约层（本轮完成） | 问题→Prompt 证据映射（P9 冻结）、冲突标注、Rubric、评分器、拒答/注入判定、脚本化回答确定性回归 | 默认 CI，零外部调用 |
-| 真实生成层（本轮未执行） | 真实 Chat 模型按题集生成，机械+人工双层评分 | 显式 opt-in + 用户明确授权（Provider/模型/题集/请求上限/Token 预算/重试策略） |
+| 真实生成层（P10-REAL 首轮受控中止） | 真实 QA 生产链路已到 Gemini 传输，首题超时，无答案可评分 | 显式 opt-in + 用户明确授权（Provider/模型/题集/请求上限/Token 预算/重试策略） |
 
-`model-call-ledger.json` 记账：本轮 authorized=false、外部调用 0。P7 历史授权不自动延续。
+历史 P10 离线目录的 `model-call-ledger.json` 仍记录 authorized=false、外部调用 0，历史证据不改写。
+后续 P10-REAL 获得独立明确授权，记账见第 8 节；P7 历史授权不自动延续。
 
 ## 2. 评测子集与冻结
 
@@ -58,11 +59,26 @@ cd ai-collab-backend && bash ./mvnw -B -ntp test -Dtest=P10AnswerQualityOfflineE
 # 默认 CI 执行（无外部依赖）；结果写 target/p10-rag-answer-quality-01/
 ```
 
-真实层实现为后续扩展点：`AI_REAL_CHAT_ANSWER_QUALITY=true` 显式门控 + 授权参数校验
-（超出即停止），沿用 P8/P9 的 opt-in 模式；本轮未获授权故未启用任何外部调用。
+真实层由 `P10RealGenerationPostgresTest` 实现：`P10_LOCAL_PREFLIGHT=true` 开启隔离环境，
+`AI_REAL_CHAT_ANSWER_QUALITY=true` 再加授权/模型/预算/免费边界/路由快照参数才可真实出站。
+默认 CI 整类跳过真实路径；已有真实 ledger 时拒绝自动重跑。
 
 ## 7. 最小真实评测预算建议（供授权决策，未执行）
 
 14 题 × 1 次 QA 调用 = **14 次请求**（覆盖版本/冲突/否定/拒答/注入全部风险类别）；
 若加 Agent 路径另计 14 次 + 少量工具轮次（≈20 次模型调用）。
 输出上限建议 1024 token/题。总计 ≤34 次请求、≈50k output token 以内可完成首轮全量机械+人工评分。
+
+## 8. 真实 QA 首轮（P10-REAL-GENERATION-01）
+
+新增独立[真实运行证据目录](../acceptance-evidence/2026-10-26/p10-real-generation-01/README.md)，
+首轮固定 8 题 QA、每题最多 1024 输出 tokens；不执行 Agent 或裁判模型。
+`P10RealGenerationPostgresTest` 默认跳过；本地预检只调用 Ollama，通过合成 HTTP 响应验证生产链路采集。
+额外真实门禁必须校验授权、用户现有路由、模型、请求预算、费用及速率确认。
+用户已确认免费 API 并明确批准；未独立核实账号计费状态。
+实际首题发生一次客户端传输尝试，20,912 ms 后 AI_MODEL_TIMEOUT；按失败即停规则其余 7 题 NOT_RUN，无自动重试。
+没有模型响应、Token、费用或最终落库回答；执行 `STOPPED_ON_REQUEST_FAILURE`，质量 `NOT_ASSESSABLE_NO_MODEL_RESPONSE`。
+来源身份核验和五百/四百冲突证据可见不能替代回答引用语义支持。
+用户指出 7897 代理后，核实默认 JVM 为 DIRECT，显式经 7897 的 CONNECT/TLSv1.3 成功（无应用 HTTP/Chat）。
+下一步先修正测量进程出站代理和传输可观测性；没有证据支持改 Prompt、Token 上限或检索算法。
+本次不改变历史 P10 离线结果或 P9 冻结事实；首次 verify 错误与后续全量通过独立保留。

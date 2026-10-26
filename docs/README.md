@@ -57,6 +57,7 @@
 包含按日期严格组织的交付证据目录（测试结果、BSK 浏览器截图、回归基准与脱敏元数据）：
 
 - 目录格式：`docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`
+- [P10-REAL-GENERATION-01：真实 QA 生成受控执行](acceptance-evidence/2026-10-26/p10-real-generation-01/README.md)：已授权，首题一次真实客户端传输超时，后续 7 题按规则停止，模型质量不可评估；7897 代理排查、默认关闭门禁与独立回归回执；[研究](archive/research/p10-real-generation-01-research-20261026.md)与[交付](archive/reports/p10-real-generation-01-delivery-20261026.md)。
 - [P8-RAG-QUALITY-FIX-01：有界补读、互补事实与引用契约实验](acceptance-evidence/2026-10-25/p8-rag-quality-fix-01/README.md)：Q02与固定8来源候选的收益/退化、生产策略保留、子来源失效与摘录投影最小修复；[研究](archive/research/p8-rag-quality-fix-01-research-20261025.md)与[交付](archive/reports/p8-rag-quality-fix-01-delivery-20261025.md)。
 - [P8-RAG-QUALITY-FIX-01 CI门控补充验收](acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/README.md)：首次正式CI失败的原始回执、本地模型测试显式门控、默认禁用/显式启用双路径与源码版本映射；[补充报告](archive/reports/p8-rag-quality-fix-01-ci-gate-20261026.md)。
 - [P8-AGENT-RAG-E2E-QUALITY-01：Agent 与 RAG 跨层质量评测](acceptance-evidence/2026-10-25/p8-agent-rag-e2e-quality-01/README.md)：冻结题集真实 Ollama/pgvector 复测、脚本模型驱动的实际工具与持久化链路、失败分层及独立修复证据；真实生成层另列授权限制。

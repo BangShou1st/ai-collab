@@ -1,0 +1,4 @@
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.303 s -- in com.shitulelv.aicollab.retrieval.P10RealGenerationGateTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.001 s -- in com.shitulelv.aicollab.retrieval.P10RealGenerationPostgresTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 1
+[INFO] BUILD SUCCESS

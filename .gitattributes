@@ -39,3 +39,7 @@
 docs/acceptance-evidence/2026-10-25/p8-agent-rag-e2e-quality-01/** -text
 docs/acceptance-evidence/2026-10-25/p8-rag-quality-fix-01/** -text
 docs/acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/** -text
+# 本轮真实 QA 证据包含原始 Windows 输出，禁止 Git 换行转换破坏 manifest。
+docs/acceptance-evidence/2026-10-26/p10-real-generation-01/** -text whitespace=blank-at-eol,space-before-tab,cr-at-eol
+# 原始构建/终端回执的尾空格属于采集字节，不能当作代码空白修复。
+docs/acceptance-evidence/2026-10-26/p10-real-generation-01/checks/** -whitespace

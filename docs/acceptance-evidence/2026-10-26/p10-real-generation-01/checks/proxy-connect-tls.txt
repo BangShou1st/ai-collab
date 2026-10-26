@@ -1,0 +1,4 @@
+jshell> jshell> jshell> jshell> jshell> jshell> jshell> jshell> jshell> jshell> jshell> jshell> proxyTunnel=HTTP/1.1 200 Connection established
+jshell> jshell> jshell> jshell> tlsHandshake=TLSv1.3
+jshell> jshell> No HTTP application request, API key, or Chat request sent by this diagnostic.
+jshell> 

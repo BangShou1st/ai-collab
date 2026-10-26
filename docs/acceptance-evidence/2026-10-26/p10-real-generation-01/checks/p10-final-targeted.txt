@@ -1,0 +1,8 @@
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 20.49 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.083 s -- in com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.107 s -- in com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilderTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.255 s -- in com.shitulelv.aicollab.retrieval.P10AnswerQualityOfflineEvaluationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.019 s -- in com.shitulelv.aicollab.retrieval.P10RealGenerationGateTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 30.76 s -- in com.shitulelv.aicollab.retrieval.P10RealGenerationPostgresTest
+[INFO] Tests run: 53, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
