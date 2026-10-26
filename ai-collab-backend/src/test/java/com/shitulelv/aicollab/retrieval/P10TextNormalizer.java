@@ -45,14 +45,16 @@ public final class P10TextNormalizer {
             return "";
         }
         String s = text;
-        // 1. 将 HTML 删除线标签统一规范为 Markdown 删除线 ~~text~~，保留删除语义
-        s = HTML_STRIKE_TAG.matcher(s).replaceAll("~~$1~~");
-
-        // 2. 剥离 HTML 展示标签（支持属性及多层嵌套如 <span ...><u>...</u></span>）
+        // 1. 富文本多轮规整：先剥离展示型标签、再将删除线标签规范为 ~~text~~，循环至不动点。
+        //    顺序不可颠倒：<del><strong>x</strong></del> 须先剥离内部 <strong> 才能被删除线规则命中，
+        //    否则 <del> 因内容含 '<' 而永久残留，删除线语义丢失。
         String prev;
         do {
             prev = s;
+            // 1a. 剥离 HTML 展示标签（支持属性及多层嵌套如 <span ...><u>...</u></span>）
             s = HTML_DISPLAY_TAG.matcher(s).replaceAll("");
+            // 1b. 将 HTML 删除线标签统一规范为 Markdown 删除线 ~~text~~，保留删除语义
+            s = HTML_STRIKE_TAG.matcher(s).replaceAll("~~$1~~");
         } while (!s.equals(prev));
 
         // 3. 递归/多轮剥离嵌套强调

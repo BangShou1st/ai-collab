@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  */
 public final class P10ContextualAssertionJudge {
 
-    public static final String RULE_VERSION = "2.0-scoped-contextual-v5";
+    public static final String RULE_VERSION = "2.1-scoped-contextual-v6";
 
     public enum AssertionVerdict {
         /** 有充分机械证据表明回答肯定了被禁止的命题（生成高严重度违规）。 */
@@ -55,9 +55,13 @@ public final class P10ContextualAssertionJudge {
             "并未明确|未明确|尚未确定|尚未明确|未提及|未载明|没有明确|没有说明|没有载明|" +
             "未作规定|未有规定|无法确认|不能确认|资料不足|材料不足|当前资料不足|现有资料无法|不知|未知|未载|没有给出");
 
-    // 转折连词正则（用于分句隔离与作用域截断，包含强转折与引导独立命题的弱转折）
+    // 转折连词正则（用于分句隔离与作用域截断，包含强转折与引导独立命题的弱转折；
+    // 与 P10AnswerQualityScorer.ADVERSATIVE_CONJUNCTION 保持一致，含“而”——静态风险 RISK-AUDIT2-005 对齐）
     private static final Pattern ADVERSATIVE_CONJUNCTION = Pattern.compile(
-            "但(?:是)?|然而|不过|可是|却|实际上|其实|事实是|实质上|反之|反倒|反而|相反|只是|仅是");
+            "但(?:是)?|然而|不过|可是|却|实际上|其实|事实是|实质上|反之|反倒|反而|相反|只是|仅是|而");
+
+    // 并列连词（认识模态统领范围在其处截断：连词后为独立命题，前置模态不再跨域放行——RISK-AUDIT2-008）
+    private static final Pattern COORDINATING_CONJUNCTION = Pattern.compile("并且|而且|同时|以及|且");
 
     // 前置直接否定词与助词（紧邻修饰动词命题）
     private static final Pattern DIRECT_NEGATION_PREFIX = Pattern.compile(
@@ -76,9 +80,16 @@ public final class P10ContextualAssertionJudge {
     private static final Pattern UNKNOWN_INDICATOR = Pattern.compile(
             "多少|何种|具体|是否|比例|数量|范围|何时|哪|怎样");
 
-    // 例外条款引导词
+    // 例外条款引导词（制度性特批/授权例外；普通业务范围排除“除...外”不构成例外许可——RISK-AUDIT2-007。
+    // 注意不得收录“经.*同意”这类宽模式：“经办人不同意”会被“经”+“同意”跨字误匹配）
     private static final Pattern EXCEPTION_MARKER = Pattern.compile(
-            "除非|特批|例外|特殊情况|经.*批准后方可|除.*外");
+            "除非|特批|例外|特殊情况|经.*批准后方可|经.*批准");
+
+    // 删除线片段（成对 ~~text~~）
+    private static final Pattern STRIKETHROUGH_SPAN = Pattern.compile("~~([^~\\n]+)~~");
+    // 删除线内否定/禁止语义词：被删除的否定词使命题语义效力存疑
+    private static final Pattern NEGATION_IN_STRIKE = Pattern.compile(
+            "不|未|无|没有|并非|绝非|禁止|严禁|切勿");
 
     private P10ContextualAssertionJudge() {
     }
@@ -247,13 +258,15 @@ public final class P10ContextualAssertionJudge {
         boolean isAdversative = ADVERSATIVE_CONJUNCTION.matcher(localPrefix).find()
                 || (leftBound > 0 && ADVERSATIVE_CONJUNCTION.matcher(sentence.substring(Math.max(0, leftBound - 4), leftBound)).find());
 
-        // A00. 局部子句删除线检测：修饰当前命题或否定词，语义效力未知，转人工复核
-        if (localClause.contains("~~")) {
+        // A00. 局部子句删除线检测（RISK-AUDIT2-004）：仅当删除线与当前禁断命题相关——
+        // 覆盖/打断命题区间，或包裹否定/禁止语义词使命题否定效力存疑——才转人工复核；
+        // 修饰无关成分（人名、修饰语等）的删除线不得抑制独立肯定违规。
+        if (strikethroughRelevantToProposition(localClause, localMarkerIdx, marker.length())) {
             return new Assessment(
                     marker,
                     AssertionVerdict.AMBIGUOUS_NEEDS_REVIEW,
                     localClause,
-                    "局部子句检测到删除线（~~）修饰当前命题或否定词，语义效力存疑，转人工复核",
+                    "局部子句检测到与当前命题相关的删除线（~~）修饰，语义效力存疑，转人工复核",
                     RULE_VERSION
             );
         }
@@ -370,21 +383,23 @@ public final class P10ContextualAssertionJudge {
         }
 
         // E. 认识模态与未知状态表达（收紧到实际修饰作用域）
-        // 模式 E1：同分句直接修饰（localPrefix 包含认识模态短语，且带未知指示词或紧邻 marker，无主语代词介入）
-        if (EPISTEMIC_UNKNOWN.matcher(localPrefix).find()) {
-            boolean hasSubjectOrAgent = SUBJECT_OR_AGENT.matcher(localPrefix).find();
+        // 模式 E1：同分句直接修饰（localPrefix 包含认识模态短语，且带未知指示词或紧邻 marker，无主语代词介入）。
+        // 并列连词（且/同时/并且/而且/以及）之后是独立命题，前置认识模态不得跨域统领（RISK-AUDIT2-008）
+        String epistemicScopePrefix = truncateAtLastCoordinatingConjunction(localPrefix);
+        if (EPISTEMIC_UNKNOWN.matcher(epistemicScopePrefix).find()) {
+            boolean hasSubjectOrAgent = SUBJECT_OR_AGENT.matcher(epistemicScopePrefix).find();
             if (!hasSubjectOrAgent) {
-                boolean hasUnknownIndicator = UNKNOWN_INDICATOR.matcher(localPrefix).find()
+                boolean hasUnknownIndicator = UNKNOWN_INDICATOR.matcher(epistemicScopePrefix).find()
                         || UNKNOWN_INDICATOR.matcher(localSuffix).find();
-                boolean directlyModifiesClause = localPrefix.endsWith("明确")
-                        || localPrefix.endsWith("确定")
-                        || localPrefix.endsWith("提及")
-                        || localPrefix.endsWith("载明")
-                        || localPrefix.endsWith("说明")
-                        || localPrefix.endsWith("确认")
-                        || localPrefix.endsWith("规定")
-                        || localPrefix.endsWith("是否")
-                        || localPrefix.endsWith("关于");
+                boolean directlyModifiesClause = epistemicScopePrefix.endsWith("明确")
+                        || epistemicScopePrefix.endsWith("确定")
+                        || epistemicScopePrefix.endsWith("提及")
+                        || epistemicScopePrefix.endsWith("载明")
+                        || epistemicScopePrefix.endsWith("说明")
+                        || epistemicScopePrefix.endsWith("确认")
+                        || epistemicScopePrefix.endsWith("规定")
+                        || epistemicScopePrefix.endsWith("是否")
+                        || epistemicScopePrefix.endsWith("关于");
 
                 if (hasUnknownIndicator || directlyModifiesClause) {
                     return new Assessment(
@@ -472,6 +487,56 @@ public final class P10ContextualAssertionJudge {
         }
 
         return false;
+    }
+
+    /**
+     * 判断局部子句内的删除线是否与当前禁断命题相关（RISK-AUDIT2-004 靶向绑定）。
+     * <p>相关判定：
+     * 1. 成对删除线片段与当前 marker 区间相交（覆盖/打断命题）；
+     * 2. 删除线片段内部包裹否定/禁止语义词（否定效力被删除，命题语义存疑）；
+     * 3. 存在未配对的孤立 ~~ 且紧邻命题区间（作用范围无法确定，保守复核）。
+     * 修饰无关成分（人名、独立修饰语等）的成对删除线不触发复核。</p>
+     */
+    private static boolean strikethroughRelevantToProposition(String localClause, int localMarkerStart, int markerLength) {
+        if (!localClause.contains("~~")) {
+            return false;
+        }
+        int localMarkerEnd = localMarkerStart + markerLength;
+        Matcher span = STRIKETHROUGH_SPAN.matcher(localClause);
+        boolean foundPaired = false;
+        while (span.find()) {
+            foundPaired = true;
+            if (span.start() < localMarkerEnd && span.end() > localMarkerStart) {
+                return true;
+            }
+            if (NEGATION_IN_STRIKE.matcher(span.group(1)).find()) {
+                return true;
+            }
+        }
+        if (foundPaired) {
+            return false;
+        }
+        int loneIdx = localClause.indexOf("~~");
+        while (loneIdx != -1) {
+            if (loneIdx < localMarkerEnd + 2 && loneIdx + 2 > localMarkerStart - 2) {
+                return true;
+            }
+            loneIdx = localClause.indexOf("~~", loneIdx + 1);
+        }
+        return false;
+    }
+
+    /**
+     * 截取并列连词（且/同时/并且/而且/以及）之后的部分：连词后为独立命题，
+     * 前置认识模态的统领范围止于连词（RISK-AUDIT2-008）。无并列连词时原样返回。
+     */
+    private static String truncateAtLastCoordinatingConjunction(String prefix) {
+        Matcher matcher = COORDINATING_CONJUNCTION.matcher(prefix);
+        int lastStart = -1;
+        while (matcher.find()) {
+            lastStart = matcher.start();
+        }
+        return lastStart == -1 ? prefix : prefix.substring(lastStart + 1);
     }
 
     /**

@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  */
 public final class P10AbstentionDetector {
 
-    public static final String RULE_VERSION = "2.0-scoped-contextual-v5";
+    public static final String RULE_VERSION = "2.1-scoped-contextual-v6";
 
     public enum AbstentionVerdict {
         /** 明确拒答或明确承认资料不足。 */
