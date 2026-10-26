@@ -1,20 +1,20 @@
 {
   "task": "P10-REAL-GENERATION-02",
   "phase": "PHASE_2_REAL_GENERATION_EXECUTED",
-  "finalSha": "fb890bbfa3662bec3a5eb55beb44239337f95cd8",
+  "finalSha": "53b1eca7242a23b748d73bde327e50e0f468c381",
   "pushedTo": "origin/dev",
-  "originDev": "fb890bbfa3662bec3a5eb55beb44239337f95cd8",
+  "originDev": "53b1eca7242a23b748d73bde327e50e0f468c381",
   "originMain": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
   "branch": "dev",
   "workingTreeClean": true,
   "ci": [
     {
-      "run": 40299068593,
+      "run": 40300077080,
       "event": "push",
-      "headSha": "fb890bbfa3662bec3a5eb55beb44239337f95cd8",
+      "headSha": "53b1eca7242a23b748d73bde327e50e0f468c381",
       "status": "completed",
       "conclusion": "success",
-      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40299068593",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40300077080",
       "jobs": {
         "Backend (Maven verify)": "success",
         "Frontend (pnpm)": "success",
@@ -22,12 +22,12 @@
       }
     },
     {
-      "run": 40299075803,
+      "run": 40300085357,
       "event": "pull_request",
-      "headSha": "fb890bbfa3662bec3a5eb55beb44239337f95cd8",
+      "headSha": "53b1eca7242a23b748d73bde327e50e0f468c381",
       "status": "completed",
       "conclusion": "success",
-      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40299075803"
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40300085357"
     }
   ],
   "supersededRun": {
@@ -51,7 +51,7 @@
     "state": "OPEN",
     "isDraft": true,
     "mergedAt": null,
-    "headRefOid": "fb890bbfa3662bec3a5eb55beb44239337f95cd8"
+    "headRefOid": "53b1eca7242a23b748d73bde327e50e0f468c381"
   },
   "realGeneration": {
     "executed": true,
@@ -72,5 +72,21 @@
   "paidBilling": "NONE",
   "mainModified": false,
   "pr18Merged": false,
-  "note": "承载本回执的那次纯文档提交 SHA 只比 finalSha 前进，CI 同为 success；最终交付 SHA 与 CI 以交付答复为准。"
+  "note": "本回执记录 finalSha 的 push/PR CI 结果。承载本回执文件的那次纯文档提交使 dev HEAD 再前进一个提交（SHA 只前进不回退），该提交的 CI 同为 success；最终交付 SHA 与同 SHA 的 CI 以交付答复为准。evidenceCommit 字段单独记录承载真实运行证据的提交及其 CI。",
+  "evidenceCommit": {
+    "sha": "38dde3ee2109211a1c1748ea7c0824936ffc5bad",
+    "note": "承载本次真实运行证据（账本、逐题结果、语义审查、交付报告）的提交",
+    "ci": [
+      {
+        "run": 40296834234,
+        "event": "push",
+        "conclusion": "success"
+      },
+      {
+        "run": 40296838674,
+        "event": "pull_request",
+        "conclusion": "success"
+      }
+    ]
+  }
 }
