@@ -1,0 +1,13 @@
+[ {
+  "legacyHighSeverity" : [ "FORBIDDEN_AFFIRMATION:可以先组织培训再补签" ],
+  "text" : "根据项目资料，通常**不可以**先组织培训再补签合同。\n\n培训合同的签订实行\"先合同、后培训\"的基本顺序。除非得到分管副总裁的书面特批，任何部门不得先培训后补签合同 [S1]。",
+  "case" : "AQ06_BOLD_NEGATION",
+  "remedy" : "P10TextNormalizer 剥离 Markdown 粗体，P10ContextualAssertionJudge 识别前置否定动词修饰",
+  "v2HighSeverity" : [ ]
+}, {
+  "legacyHighSeverity" : [ "FORBIDDEN_AFFIRMATION:每年抽查", "ABSTENTION_MISSING" ],
+  "text" : "根据项目资料，年度专项核对的抽查样本量的最终比例尚未确定，需等待管理层审批后另行通知；现阶段各项目要求按不低于历史抽样水平执行 [S1]。因此，资料中并未明确具体每年抽查多少份合同。",
+  "case" : "AQ12_EPISTEMIC_UNKNOWN_AND_REFUSAL",
+  "remedy" : "识别“并未明确”认识模态语境消除否定从句误报；识别“尚未确定/并未明确”未知状态消除拒答误报",
+  "v2HighSeverity" : [ ]
+} ]

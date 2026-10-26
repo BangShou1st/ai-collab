@@ -120,3 +120,14 @@ cd ai-collab-backend && bash ./mvnw -B -ntp test -Dtest=P10AnswerQualityOfflineE
 3. **增强拒答与未知状态检测（`P10AbstentionDetector`）**：保留题集冻结 `abstentionPhrases` 命中追溯（`frozenPhraseHit`），扩展识别“尚未确定”、“并未明确”等合法未知表达（`QUALIFIED_UNKNOWN`），并新增带有未支持编造的冲突拒答检测（`CONFLICTING_FABRICATION`）；
 4. **人工复核边界清晰受控（`manual-review-boundaries.md`）**：双重否定、复杂例外条款等机械不可可靠判定场景统一转入 `needsHumanReview`，绝不擅自放行或盲目报警；
 5. **确定性指标验证**：3 项已证实假阳性全部清零，7 项肯定违规反例保持 100% 检出率（0 漏报），14 题模范回答误报数为 0。全部运行于默认离线 CI，零外部真实调用，生产链路代码零修改。
+
+## 11. 评分器作用域与转折分句修复专项（P10-SCORER-ROBUSTNESS-02）
+
+新增独立[评分器作用域与转折修复证据目录](../acceptance-evidence/2026-10-26/p10-scorer-robustness-02/README.md)。
+
+**核心成果：落地评分器 2.0-scoped-contextual 架构**：
+1. **转折连词与分句作用域隔离**：在 `P10ContextualAssertionJudge` 中引入子句标点与转折词（“但”、“但是”、“然而”、“实际上”等）硬性边界切分，解决“资料中并未明确合同抽查比例，但制度要求每年抽查所有合同”因前半句认识模态导致后半句肯定违规被抑制的漏报缺陷；
+2. **多出现位置（Multiple Occurrences）独立评估**：支持单句中同一禁断 marker 的多次独立扫描与判定，对确凿违规断言赋予最高判定优先级；
+3. **认识模态判断范围收紧**：移除整句宽泛检查，严格限定在同分句直接修饰（含未知指示词或紧邻动词）或无转折跨从句修饰；
+4. **复杂转折反差安全转复核**：对“并未明确……但实际上可以……”等灰色口径冲突，安全进入 `AMBIGUOUS_NEEDS_REVIEW` 并记录于 `needsHumanReview`，绝不直接放行；
+5. **确定性指标验证**：新增 6 类回归场景（A-F，7 个子案例）100% 通过；7/7 既有肯定违规反例保持 100% 检出率；AQ06/AQ12 历史假阳性保持为 0；外部模型调用数为 0，生产代码零修改。

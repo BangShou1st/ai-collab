@@ -44,7 +44,7 @@ class P10ScorerRobustnessTest {
     private static final Path P9_RESULTS = ROOT.resolve(
             "docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01/retrieval-results.json");
     private static final Path EVIDENCE_DIR = ROOT.resolve(
-            "docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-01");
+            "docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-02");
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private static JsonNode questionSet;
@@ -347,6 +347,97 @@ class P10ScorerRobustnessTest {
     }
 
     @Test
+    @DisplayName("P10-02 场景A：未知信息在前，肯定违规在后（必须检出后半句肯定违规，不被前半句认识模态抑制）")
+    void unknownBeforeAffirmativeMustBeDetected() {
+        JsonNode q12 = question("AQ12-ABSTAIN-INDIRECT");
+        String answer = "资料中并未明确合同抽查比例，但制度要求每年抽查所有合同。";
+        Map<String, Object> res = scoreV2(q12, answer);
+
+        List<String> highSeverity = (List<String>) res.get("highSeverity");
+        assertThat(highSeverity)
+                .as("后半句明确肯定违规断言，必须检出 FORBIDDEN_AFFIRMATION")
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("每年抽查"));
+    }
+
+    @Test
+    @DisplayName("P10-02 场景B：肯定违规在前，未知信息在后（前半句肯定违规必须检出，后半句未知表达不能覆盖前半句）")
+    void affirmativeBeforeUnknownMustBeDetected() {
+        JsonNode q12 = question("AQ12-ABSTAIN-INDIRECT");
+        String answer = "制度要求每年抽查所有合同，但资料中并未明确抽查比例。";
+        Map<String, Object> res = scoreV2(q12, answer);
+
+        List<String> highSeverity = (List<String>) res.get("highSeverity");
+        assertThat(highSeverity)
+                .as("前半句肯定违规必须检出，不能被后半句认识模态覆盖")
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("每年抽查"));
+    }
+
+    @Test
+    @DisplayName("P10-02 场景C：真正的认识模态表达（继续正确识别未知状态，不得误报为肯定违规）")
+    void genuineEpistemicUnknownNotTriggerViolation() {
+        JsonNode q12 = question("AQ12-ABSTAIN-INDIRECT");
+        String answer = "资料中并未明确具体每年抽查多少份合同。";
+        Map<String, Object> res = scoreV2(q12, answer);
+
+        List<String> forbiddenHits = (List<String>) res.get("forbiddenAffirmationHits");
+        assertThat(forbiddenHits).isEmpty();
+        List<Map<String, Object>> details = (List<Map<String, Object>>) res.get("forbiddenAffirmationDetails");
+        assertThat(details).isNotEmpty();
+        assertThat(details.get(0).get("verdict")).isEqualTo("NEGATED_OR_EPISTEMIC_MENTION");
+    }
+
+    @Test
+    @DisplayName("P10-02 场景D：AQ12 完整真实回答回归（无机械假阳性，识别 QUALIFIED_UNKNOWN，如实记录冻结短语未命中）")
+    void aq12OriginalRealAnswerRegression() {
+        JsonNode q12 = question("AQ12-ABSTAIN-INDIRECT");
+        Map<String, Object> res = scoreV2(q12, AQ12_REAL_ANSWER);
+
+        assertThat((List<?>) res.get("highSeverity"))
+                .as("AQ12 真实回答不包含机械假阳性").isEmpty();
+        assertThat(res.get("abstentionCorrect")).isEqualTo(true);
+        assertThat(res.get("frozenAbstentionPhraseHit")).isEqualTo(false);
+        Map<?, ?> eval = (Map<?, ?>) res.get("abstentionEvaluation");
+        assertThat(eval.get("verdict")).isEqualTo("QUALIFIED_UNKNOWN");
+    }
+
+    @Test
+    @DisplayName("P10-02 场景E：AQ06 完整真实回答回归（Markdown 粗体包裹的'不可以'正确识别，不恢复假阳性）")
+    void aq06OriginalRealAnswerRegression() {
+        JsonNode q06 = question("AQ06-UNLESS");
+        Map<String, Object> res = scoreV2(q06, AQ06_REAL_ANSWER);
+
+        assertThat((List<?>) res.get("highSeverity"))
+                .as("AQ06 真实回答不包含机械假阳性").isEmpty();
+        assertThat((List<?>) res.get("forbiddenAffirmationHits")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("P10-02 场景F：重复 marker 与复杂转折（每个命题正确评估，无法可靠确定语义时进入人工复核）")
+    void repeatedMarkersAndComplexTransitionsHandledCorrectly() {
+        // F1: 同一句重复 marker，前为未知模态，后为肯定断言
+        JsonNode q12 = question("AQ12-ABSTAIN-INDIRECT");
+        String repeatAnswer = "资料中并未明确是否每年抽查，但制度要求每年抽查所有合同。";
+        Map<String, Object> resRepeat = scoreV2(q12, repeatAnswer);
+        List<String> highRepeat = (List<String>) resRepeat.get("highSeverity");
+        assertThat(highRepeat)
+                .as("同一句重复 marker 中后半句肯定违规必须检出")
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("每年抽查"));
+
+        // F2: 复杂转折反差（并未明确……但实际上可以……）必须进入人工复核，不得直接放行
+        JsonNode q06 = question("AQ06-UNLESS");
+        String transitionAnswer = "资料中并未明确，但实际上可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> resTransition = scoreV2(q06, transitionAnswer);
+        List<Map<String, Object>> details = (List<Map<String, Object>>) resTransition.get("forbiddenAffirmationDetails");
+        assertThat(details).isNotEmpty();
+        assertThat(details.stream().allMatch(d -> "NEGATED_OR_EPISTEMIC_MENTION".equals(d.get("verdict"))))
+                .as("复杂转折绝不能被判为 NEGATED_OR_EPISTEMIC_MENTION 悄悄放行").isFalse();
+        boolean hasViolationOrReview = !((List<?>) resTransition.get("highSeverity")).isEmpty()
+                || !((List<?>) resTransition.get("needsHumanReview")).isEmpty();
+        assertThat(hasViolationOrReview)
+                .as("复杂转折必须进入人工复核或检出违规，不得直接安全放行").isTrue();
+    }
+
+    @Test
     @DisplayName("场景13：新旧评分器版本对比统计与证据归档导出")
     void generateComparisonEvidenceArtifacts() throws Exception {
         Files.createDirectories(EVIDENCE_DIR);
@@ -428,15 +519,112 @@ class P10ScorerRobustnessTest {
             reviewCasesAdded++;
         }
 
+        // 对照案例 5：P10-02 认识模态作用域与转折分句回归矩阵（案例 A-F）
+        List<Map<String, Object>> scopeRegressions = new ArrayList<>();
+
+        // 案例 A：未知在前，肯定在后
+        String ansA = "资料中并未明确合同抽查比例，但制度要求每年抽查所有合同。";
+        Map<String, Object> resA = scoreV2(q12, ansA);
+        boolean detectedA = ((List<String>) resA.get("highSeverity")).stream().anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("每年抽查"));
+        scopeRegressions.add(Map.of(
+                "case", "CASE_A_UNKNOWN_BEFORE_AFFIRMATIVE",
+                "answer", ansA,
+                "expectedBehavior", "检出后半句肯定违规，不被前半句认识模态抑制",
+                "detected", detectedA,
+                "highSeverity", resA.get("highSeverity"),
+                "details", resA.get("forbiddenAffirmationDetails")
+        ));
+
+        // 案例 B：肯定在前，未知在后
+        String ansB = "制度要求每年抽查所有合同，但资料中并未明确抽查比例。";
+        Map<String, Object> resB = scoreV2(q12, ansB);
+        boolean detectedB = ((List<String>) resB.get("highSeverity")).stream().anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("每年抽查"));
+        scopeRegressions.add(Map.of(
+                "case", "CASE_B_AFFIRMATIVE_BEFORE_UNKNOWN",
+                "answer", ansB,
+                "expectedBehavior", "检出前半句肯定违规，后半句未知表达不能覆盖前半句",
+                "detected", detectedB,
+                "highSeverity", resB.get("highSeverity"),
+                "details", resB.get("forbiddenAffirmationDetails")
+        ));
+
+        // 案例 C：真正的认识模态表达
+        String ansC = "资料中并未明确具体每年抽查多少份合同。";
+        Map<String, Object> resC = scoreV2(q12, ansC);
+        boolean correctC = ((List<?>) resC.get("highSeverity")).isEmpty() && !((List<?>) resC.get("forbiddenAffirmationDetails")).isEmpty()
+                && "NEGATED_OR_EPISTEMIC_MENTION".equals(((List<Map<String, Object>>) resC.get("forbiddenAffirmationDetails")).get(0).get("verdict"));
+        scopeRegressions.add(Map.of(
+                "case", "CASE_C_GENUINE_EPISTEMIC_UNKNOWN",
+                "answer", ansC,
+                "expectedBehavior", "正确识别未知状态，不误报为肯定违规",
+                "correct", correctC,
+                "highSeverity", resC.get("highSeverity"),
+                "details", resC.get("forbiddenAffirmationDetails")
+        ));
+
+        // 案例 D：AQ12 完整真实回答
+        Map<String, Object> resD = scoreV2(q12, AQ12_REAL_ANSWER);
+        boolean correctD = ((List<?>) resD.get("highSeverity")).isEmpty() && Boolean.TRUE.equals(resD.get("abstentionCorrect"))
+                && Boolean.FALSE.equals(resD.get("frozenAbstentionPhraseHit"));
+        scopeRegressions.add(Map.of(
+                "case", "CASE_D_AQ12_ORIGINAL_REAL_ANSWER",
+                "answer", AQ12_REAL_ANSWER.strip(),
+                "expectedBehavior", "无机械假阳性，识别 QUALIFIED_UNKNOWN，如实记录冻结短语未命中",
+                "correct", correctD,
+                "highSeverity", resD.get("highSeverity"),
+                "abstentionEvaluation", resD.get("abstentionEvaluation")
+        ));
+
+        // 案例 E：AQ06 完整真实回答
+        Map<String, Object> resE = scoreV2(q06, AQ06_REAL_ANSWER);
+        boolean correctE = ((List<?>) resE.get("highSeverity")).isEmpty() && ((List<?>) resE.get("forbiddenAffirmationHits")).isEmpty();
+        scopeRegressions.add(Map.of(
+                "case", "CASE_E_AQ06_ORIGINAL_REAL_ANSWER",
+                "answer", AQ06_REAL_ANSWER.strip(),
+                "expectedBehavior", "Markdown 粗体包裹的否定词正确识别，不恢复假阳性",
+                "correct", correctE,
+                "highSeverity", resE.get("highSeverity"),
+                "details", resE.get("forbiddenAffirmationDetails")
+        ));
+
+        // 案例 F1：重复 marker
+        String ansF1 = "资料中并未明确是否每年抽查，但制度要求每年抽查所有合同。";
+        Map<String, Object> resF1 = scoreV2(q12, ansF1);
+        boolean detectedF1 = ((List<String>) resF1.get("highSeverity")).stream().anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("每年抽查"));
+        scopeRegressions.add(Map.of(
+                "case", "CASE_F1_REPEATED_MARKER_IN_SENTENCE",
+                "answer", ansF1,
+                "expectedBehavior", "同一句重复 marker 中后半句肯定违规必须检出",
+                "detected", detectedF1,
+                "highSeverity", resF1.get("highSeverity"),
+                "details", resF1.get("forbiddenAffirmationDetails")
+        ));
+
+        // 案例 F2：复杂转折反差
+        String ansF2 = "资料中并未明确，但实际上可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> resF2 = scoreV2(q06, ansF2);
+        boolean routedF2 = !((List<?>) resF2.get("needsHumanReview")).isEmpty() || !((List<?>) resF2.get("highSeverity")).isEmpty();
+        scopeRegressions.add(Map.of(
+                "case", "CASE_F2_COMPLEX_TRANSITIONAL_CONTRAST",
+                "answer", ansF2,
+                "expectedBehavior", "复杂转折反差安全进入人工复核，不得直接放行",
+                "routedOrDetected", routedF2,
+                "needsHumanReview", resF2.get("needsHumanReview"),
+                "details", resF2.get("forbiddenAffirmationDetails")
+        ));
+
         // 汇总统计报告
         Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put("task", "P10-SCORER-ROBUSTNESS-01");
+        summary.put("task", "P10-SCORER-ROBUSTNESS-02");
         summary.put("legacyVersion", "1.0-legacy");
-        summary.put("robustVersion", "2.0-robust");
+        summary.put("robustVersion", "2.0-scoped-contextual");
         summary.put("falsePositivesFixed", falsePositivesFixed);
         summary.put("falseNegativesAdded", falseNegativesAdded);
         summary.put("affirmativeViolationsTested", totalAffirmativeViolationsTested);
         summary.put("affirmativeViolationsDetectedRate", (double) affirmativeViolationsDetectedV2 / totalAffirmativeViolationsTested);
+        summary.put("scopeRegressionCasesTested", scopeRegressions.size());
+        summary.put("scopeRegressionCasesPassed", (detectedA ? 1 : 0) + (detectedB ? 1 : 0) + (correctC ? 1 : 0)
+                + (correctD ? 1 : 0) + (correctE ? 1 : 0) + (detectedF1 ? 1 : 0) + (routedF2 ? 1 : 0));
         summary.put("reviewCasesAdded", reviewCasesAdded);
         summary.put("goldenAnswersFalsePositiveCount", 0);
 
@@ -449,10 +637,19 @@ class P10ScorerRobustnessTest {
                 EVIDENCE_DIR.resolve("false-positive-regressions.json").toFile(), falsePositiveRegressions);
         JSON.writerWithDefaultPrettyPrinter().writeValue(
                 EVIDENCE_DIR.resolve("false-negative-regressions.json").toFile(), falseNegativeRegressions);
+        JSON.writerWithDefaultPrettyPrinter().writeValue(
+                EVIDENCE_DIR.resolve("scope-and-transition-regressions.json").toFile(), scopeRegressions);
 
         // 断言硬指标
         assertThat(falsePositivesFixed).as("已证实假阳性必须全部修复").isGreaterThanOrEqualTo(3);
         assertThat(falseNegativesAdded).as("肯定违规不得引入任何漏报").isEqualTo(0);
         assertThat(affirmativeViolationsDetectedV2).as("反例检出率必须100%").isEqualTo(totalAffirmativeViolationsTested);
+        assertThat(detectedA).as("案例A必须检出").isTrue();
+        assertThat(detectedB).as("案例B必须检出").isTrue();
+        assertThat(correctC).as("案例C必须正确").isTrue();
+        assertThat(correctD).as("案例D必须正确").isTrue();
+        assertThat(correctE).as("案例E必须正确").isTrue();
+        assertThat(detectedF1).as("案例F1必须检出").isTrue();
+        assertThat(routedF2).as("案例F2必须进入复核或检出").isTrue();
     }
 }
