@@ -1,20 +1,20 @@
 {
   "task": "P10-REAL-GENERATION-02",
   "phase": "PHASE_2_REAL_GENERATION_EXECUTED",
-  "finalSha": "51aeacf07389ef4b01992b317dd67b452f2790b7",
+  "finalSha": "fb890bbfa3662bec3a5eb55beb44239337f95cd8",
   "pushedTo": "origin/dev",
-  "originDev": "51aeacf07389ef4b01992b317dd67b452f2790b7",
+  "originDev": "fb890bbfa3662bec3a5eb55beb44239337f95cd8",
   "originMain": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
   "branch": "dev",
   "workingTreeClean": true,
   "ci": [
     {
-      "run": 40298025663,
+      "run": 40299068593,
       "event": "push",
-      "headSha": "51aeacf07389ef4b01992b317dd67b452f2790b7",
+      "headSha": "fb890bbfa3662bec3a5eb55beb44239337f95cd8",
       "status": "completed",
       "conclusion": "success",
-      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40298025663",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40299068593",
       "jobs": {
         "Backend (Maven verify)": "success",
         "Frontend (pnpm)": "success",
@@ -22,20 +22,20 @@
       }
     },
     {
-      "run": 40298033402,
+      "run": 40299075803,
       "event": "pull_request",
-      "headSha": "51aeacf07389ef4b01992b317dd67b452f2790b7",
+      "headSha": "fb890bbfa3662bec3a5eb55beb44239337f95cd8",
       "status": "completed",
       "conclusion": "success",
-      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40298033402"
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40299075803"
     }
   ],
   "supersededRun": {
-    "run": 40296838674,
+    "run": 40298033402,
     "event": "pull_request",
-    "headSha": "38dde3ee2109211a1c1748ea7c0824936ffc5bad",
+    "headSha": "51aeacf07389ef4b01992b317dd67b452f2790b7",
     "conclusion": "success",
-    "note": "承载真实运行证据的提交其 CI 亦为 success；本回执随最后一次纯文档提交更新，SHA 只前进不回退"
+    "note": "前一提交自身的 CI 亦为 success；本回执随最后一次纯文档提交更新，SHA 只前进不回退"
   },
   "cancelledRun": {
     "run": 40287664480,
@@ -51,7 +51,7 @@
     "state": "OPEN",
     "isDraft": true,
     "mergedAt": null,
-    "headRefOid": "51aeacf07389ef4b01992b317dd67b452f2790b7"
+    "headRefOid": "fb890bbfa3662bec3a5eb55beb44239337f95cd8"
   },
   "realGeneration": {
     "executed": true,
