@@ -83,14 +83,14 @@
 
 | 项 | 值 |
 | --- | --- |
-| 最终 SHA | `5314f83b1cf8a9bc6d3a4265b3451dbfa8d811aa` |
+| 最终 SHA | `ac1d3ba4ab51e5400bd35fabf6279cadba22f4bf` |
 | 分支 | `dev`，`origin/dev` 已同步 |
 | `main` | `9b4f7c5`，**未修改** |
 | 工作区 | 干净 |
-| push CI | [40290441538](https://github.com/BangShou1st/ai-collab/actions/runs/40290441538) — **success**（Backend success / Frontend success / Image skipped） |
-| PR CI | [40290449308](https://github.com/BangShou1st/ai-collab/actions/runs/40290449308) — **success** |
+| push CI | [40291404865](https://github.com/BangShou1st/ai-collab/actions/runs/40291404865) — **success**（Backend success / Frontend success / Image skipped） |
+| PR CI | [40291415733](https://github.com/BangShou1st/ai-collab/actions/runs/40291415733) — **success** |
 | CI 内真实模型调用 | **0**（`P10RealGenerationPostgresTest` 记为 Skipped:1；`P10RealGenerationGateTest` 2 项通过） |
-| PR #18 | OPEN / Draft / 未合并，headRefOid = `5314f83` |
+| PR #18 | OPEN / Draft / 未合并，headRefOid = `ac1d3ba` |
 | 部署 / 付费 / 套餐升级 | 无 |
 
 被 supersede 的 `6b5bf4b` PR CI（40287664480）为 **cancelled**，原因是 CI 自身
