@@ -1,0 +1,61 @@
+{
+  "task": "P10-REAL-GENERATION-02",
+  "phase": "PHASE_1_PREFLIGHT_ONLY_NO_REAL_CHAT",
+  "finalSha": "b052527bf1d1279036b810290f65ccc2c4f68c7d",
+  "pushedTo": "origin/dev",
+  "originDev": "b052527bf1d1279036b810290f65ccc2c4f68c7d",
+  "originMain": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
+  "branch": "dev",
+  "workingTreeClean": true,
+  "ci": [
+    {
+      "run": 40287990145,
+      "event": "push",
+      "headSha": "b052527bf1d1279036b810290f65ccc2c4f68c7d",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40287990145",
+      "jobs": {
+        "Backend (Maven verify)": "success",
+        "Frontend (pnpm)": "success",
+        "Image build & container smoke": "skipped"
+      }
+    },
+    {
+      "run": 40287996349,
+      "event": "pull_request",
+      "headSha": "b052527bf1d1279036b810290f65ccc2c4f68c7d",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40287996349"
+    }
+  ],
+  "supersededRun": {
+    "run": 40287664480,
+    "event": "pull_request",
+    "headSha": "6b5bf4b29728151dcbe9a82a7aa9e05ce40de484",
+    "conclusion": "cancelled",
+    "reason": "CI concurrency cancel-in-progress：新提交 supersede，非失败"
+  },
+  "ciRealModelCalls": 0,
+  "ciP10RealGenerationPostgresTest": "SKIPPED (Tests run: 1, Skipped: 1)",
+  "ciP10RealGenerationGateTest": "PASSED (Tests run: 2, Failures: 0)",
+  "pr18": {
+    "state": "OPEN",
+    "isDraft": true,
+    "mergedAt": null,
+    "headRefOid": "b052527bf1d1279036b810290f65ccc2c4f68c7d"
+  },
+  "realGeneration": {
+    "executed": false,
+    "externalChat": 0,
+    "externalEmbedding": 0,
+    "agent": 0,
+    "judge": 0,
+    "automaticRetries": 0
+  },
+  "deployment": "NONE",
+  "paidBilling": "NONE",
+  "mainModified": false,
+  "pr18Merged": false
+}
