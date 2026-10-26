@@ -35,7 +35,7 @@ class ModelProtocolHttpTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.start();
         transport = new JsonHttpModelClient(json, mock(OutboundEndpointPolicy.class),
-                HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build(), Duration.ofSeconds(2));
+                com.shitulelv.aicollab.common.net.OutboundHttpClients.builder().build(), Duration.ofSeconds(2));
         adapter = new OpenAiCompatibleModelAdapter(json, transport);
         config = new ModelConfiguration(UUID.randomUUID(), UUID.randomUUID(), "test", ModelProviderType.OPENAI_COMPATIBLE,
                 "http://127.0.0.1:" + server.getAddress().getPort(), "/chat/completions", null,

@@ -19,10 +19,10 @@ class P10RealGenerationGateTest {
     @Test
     void eachAuthorizationFieldIsRequiredAndFailedAttemptsConsumeBudget() {
         Map<String, String> env = Map.of("AI_REAL_CHAT_ANSWER_QUALITY", "true",
-                "P10_APPROVAL", "P10-REAL-GENERATION-01", "P10_MAX_REQUESTS", "8",
+                "P10_APPROVAL", "P10-REAL-GENERATION-02", "P10_MAX_REQUESTS", "8",
                 "P10_MAX_OUTPUT_TOKENS", "1024", "P10_APPROVED_MODEL", "gemini-3.5-flash-lite",
                 "P10_COST_AUTHORIZATION", "FREE_ONLY_CONFIRMED", "P10_INTERVAL_SECONDS", "15",
-                "P10_APPROVED_ROUTE_SHA256", "a".repeat(64));
+                "P10_APPROVED_ROUTE_SHA256", "a".repeat(64), "P10_REAL_BATCH_ID", "p10-real-generation-02");
         for (String field : env.keySet()) {
             if (field.equals("AI_REAL_CHAT_ANSWER_QUALITY")) continue;
             var missing = new HashMap<>(env);
@@ -33,5 +33,9 @@ class P10RealGenerationGateTest {
         for (int i = 0; i < 8; i++) gate.reserve();
         assertThatThrownBy(gate::reserve).isInstanceOf(IllegalStateException.class);
         assertThat(gate.attempts()).isEqualTo(8);
+        var oldBatch = new HashMap<>(env);
+        oldBatch.put("P10_REAL_BATCH_ID", "p10-real-generation-01");
+        oldBatch.put("P10_APPROVAL", "P10-REAL-GENERATION-01");
+        assertThatThrownBy(() -> new P10RealGenerationGate(oldBatch)).isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -278,12 +278,19 @@ cd ..
 
 # （可选）完全停止后台 Postgres/Redis/MinIO 容器
 .\dev.ps1 stop-infra
+
+# （可选）检查实际 Java 代理选路与 CONNECT/TLS，不发送模型请求
+.\dev.ps1 diagnose-proxy
 ```
 
 > **`dev.ps1` 的优势**：
 > 1. 后台静默运行后端与前端，不抢占焦点、不弹多余黑窗。
 > 2. 自动检查端口占用，自动进行 `/actuator/health` 探针轮询检测。
 > 3. 严格复用已有数据容器，防止由于频繁 `down` 导致卷冲突。
+
+后端启动入口和 Maven/Surefire 已默认在 JVM 启动前开启 JDK 系统代理发现，无需每次填写本机代理端口。
+IDE 直接运行请设置 VM option `-Djava.net.useSystemProxies=true`；已有 JVM 需重启一次。
+优先级、环境变量/NO_PROXY 语法、脱敏诊断和限制见[模型网络代理指南](docs/development/model-network-proxy.md)。
 
 ---
 

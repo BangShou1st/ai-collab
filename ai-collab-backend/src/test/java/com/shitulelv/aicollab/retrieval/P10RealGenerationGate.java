@@ -6,10 +6,14 @@ import java.util.Map;
 final class P10RealGenerationGate {
     private int attempts;
     private final boolean real;
+    private final String batchId;
 
     P10RealGenerationGate(Map<String, String> env) {
         real = "true".equals(env.get("AI_REAL_CHAT_ANSWER_QUALITY"));
-        if (real && !("P10-REAL-GENERATION-01".equals(env.get("P10_APPROVAL"))
+        batchId = env.getOrDefault("P10_REAL_BATCH_ID", "p10-real-generation-01");
+        if (real && !(batchId.matches("p10-real-generation-[a-z0-9-]+")
+                && !batchId.equals("p10-real-generation-01")
+                && batchId.toUpperCase(java.util.Locale.ROOT).equals(env.get("P10_APPROVAL"))
                 && "8".equals(env.get("P10_MAX_REQUESTS"))
                 && "1024".equals(env.get("P10_MAX_OUTPUT_TOKENS"))
                 && "gemini-3.5-flash-lite".equals(env.get("P10_APPROVED_MODEL"))
@@ -21,6 +25,7 @@ final class P10RealGenerationGate {
     }
 
     boolean real() { return real; }
+    String batchId() { return batchId; }
 
     synchronized void reserve() {
         if (!real || attempts >= 8) throw new IllegalStateException("P10 request denied by budget/authorization");

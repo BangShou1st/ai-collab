@@ -48,8 +48,8 @@ public class KiloGatewayModelExecution {
     /** 无 Spring 上下文时的最小可执行实例（测试与默认构造使用）：仅构造客户端，不发起网络请求。 */
     public static KiloGatewayModelExecution standalone() {
         return new KiloGatewayModelExecution(new ProviderPresetRegistry(), new ObjectMapper(),
-                new KiloGatewayClientTransport(new com.sharedlibs.kilogateway.KiloGatewayClient(
-                        new com.sharedlibs.kilogateway.autoconfigure.KiloGatewayProperties())));
+                new KiloGatewayClientTransport(ModelTransportConfiguration.configuredKiloClient(
+                        new com.sharedlibs.kilogateway.autoconfigure.KiloGatewayProperties(), new ObjectMapper())));
     }
 
     public boolean isKilo(UserAiProvider provider) {

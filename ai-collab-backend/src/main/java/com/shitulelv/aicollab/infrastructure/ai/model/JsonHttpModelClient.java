@@ -39,7 +39,7 @@ public class JsonHttpModelClient {
 
     @Autowired
     public JsonHttpModelClient(ObjectMapper mapper, OutboundEndpointPolicy endpoints) {
-        this(mapper, endpoints, HttpClient.newBuilder()
+        this(mapper, endpoints, com.shitulelv.aicollab.common.net.OutboundHttpClients.builder()
                 // 连接超时保持短（15 秒）：连不上应快速失败，不占满单次请求预算
                 .connectTimeout(CONNECT_TIMEOUT)
                 .followRedirects(HttpClient.Redirect.NEVER)
@@ -69,6 +69,11 @@ public class JsonHttpModelClient {
     @jakarta.annotation.PreDestroy
     public void close() { streams.shutdownNow(); }
 
+    public Map<String, Object> proxyDiagnostic(URI target) {
+        endpoints.requirePublicHttps(target);
+        return com.shitulelv.aicollab.common.net.ProxyRouteDiagnostics.describe(client, target);
+    }
+
     public JsonNode post(String url, Map<String, String> headers, JsonNode body) {
         return post(url, headers, body, 1);
     }
@@ -95,7 +100,7 @@ public class JsonHttpModelClient {
         } catch (java.net.http.HttpTimeoutException timeout) {
             throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
         } catch (Exception exception) {
-            log.warn("Model API GET failed: {}", exception.getMessage());
+            log.warn("Model API GET failed: type={}", exception.getClass().getSimpleName());
             throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "模型列表获取失败，请检查网络或手动填写模型 ID");
         }
     }

@@ -160,12 +160,12 @@ class GeminiLiveAcceptanceTest {
                         EnumSet.allOf(ModelCapability.class), now, now);
                 ObjectNode row = attempts.addObject().put("requestNumber", priorAttempts + attempt).put("model", model).put("status", "REQUEST_RESERVED");
                 row.put("startedAt", OffsetDateTime.now().toString());
-                var real = java.net.http.HttpClient.newBuilder().connectTimeout(java.time.Duration.ofSeconds(15))
+                var real = com.shitulelv.aicollab.common.net.OutboundHttpClients.builder().connectTimeout(java.time.Duration.ofSeconds(15))
                         .followRedirects(java.net.http.HttpClient.Redirect.NEVER).build();
                 String proxy = real.proxy().orElse(java.net.ProxySelector.getDefault())
                         .select(java.net.URI.create(cfg.baseUrl())).toString();
                 row.put("selectedJavaProxy", proxy);
-                assertThat(proxy).contains("7897");
+                assertThat(real.proxy().orElseThrow()).isInstanceOf(com.shitulelv.aicollab.common.net.EnvironmentProxySelector.class);
                 writeRecoveryRecord(evidence, record);
                 JsonHttpModelClient http = new JsonHttpModelClient(mapper, endpointPolicy, new RecordingHttpClient(real, row, apiKey));
                 try {

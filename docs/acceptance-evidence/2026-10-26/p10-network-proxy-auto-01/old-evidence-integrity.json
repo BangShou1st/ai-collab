@@ -1,0 +1,9 @@
+{
+  "baseline": "fca8860a4f9f83e726f532985db83214bed43c16",
+  "oldDirectory": "docs/acceptance-evidence/2026-10-26/p10-real-generation-01/",
+  "trackedFilesByteEqualToBaseline": 27,
+  "oldManifestEntriesValidated": 26,
+  "oldManifestSha256": "5bd64e1ae118b3c229a1b6e37e933b61af9f059cd4d19c826794b86dbb2317c9",
+  "changedFiles": [],
+  "previousOutcome": "AQ01 timeout 20912ms; AQ02–AQ08 NOT_RUN; no answer, quality NOT_ASSESSABLE; first Maven database failure retained unchanged."
+}

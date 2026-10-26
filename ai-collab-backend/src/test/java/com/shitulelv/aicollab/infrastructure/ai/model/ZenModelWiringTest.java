@@ -48,12 +48,14 @@ class ZenModelWiringTest {
         assertThat(cfg.providerType()).isEqualTo(ModelProviderType.OPENAI_COMPATIBLE);
         assertThat(cfg.modelName()).isEqualTo("mimo-test-free");
     }
-    @Test void zenHttpIsDirectAndCustomUnaffected() {
+    @Test void zenHttpUsesSharedNetworkPolicyAndCustomRoutingIsUnaffected() {
         var registry = new ProviderPresetRegistry();
         ZenModelExecution exec = new ZenModelExecution(registry, mapper, new OutboundEndpointPolicy());
         assertThat(exec.zenHttp()).isNotNull();
         HttpOpenCodeZenTransport t = new HttpOpenCodeZenTransport(mapper, new OutboundEndpointPolicy(), registry);
-        assertThat(t.productionClient().proxy().orElse(null)).isEqualTo(HttpClient.Builder.NO_PROXY);
+        assertThat(t.productionClient().proxy().orElseThrow())
+                .isInstanceOf(com.shitulelv.aicollab.common.net.EnvironmentProxySelector.class);
+        assertThat(t.productionClient().followRedirects()).isEqualTo(HttpClient.Redirect.NEVER);
         assertThat(exec.isZen(zenProvider())).isTrue();
         assertThat(exec.isZen(customProvider())).isFalse();
     }

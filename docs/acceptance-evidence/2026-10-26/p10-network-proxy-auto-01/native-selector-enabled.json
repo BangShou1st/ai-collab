@@ -1,0 +1,28 @@
+{
+  "systemDiscoveryProperty": "true",
+  "nativeSelectorClass": "sun.net.spi.DefaultProxySelector",
+  "startupArgumentPresent": true,
+  "chatRequests": 0,
+  "tcp": "NOT_TESTED",
+  "tls": "NOT_TESTED",
+  "routes": [
+    {
+      "targetHost": "generativelanguage.googleapis.com",
+      "selection": "HTTP",
+      "proxyHost": "127.0.0.1",
+      "proxyPort": 7897
+    },
+    {
+      "targetHost": "127.0.0.1",
+      "selection": "HTTP",
+      "proxyHost": "127.0.0.1",
+      "proxyPort": 7897
+    },
+    {
+      "targetHost": "localhost",
+      "selection": "DIRECT",
+      "proxyHost": "",
+      "proxyPort": 0
+    }
+  ]
+}

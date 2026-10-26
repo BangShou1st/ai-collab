@@ -38,6 +38,8 @@
 
 ## 3. 标准与规范目录
 
+- [模型 HTTP 网络代理](development/model-network-proxy.md)：JDK 原生 OS 发现、JVM/Surefire/IDE 启动参数、客户端级环境变量回退、本地排除与无 Chat 诊断（P10-NETWORK-PROXY-AUTO-01）。
+
 - **接口定义**：[`docs/api/`](api/) —— 包含 OpenAPI 契约与接口文档。
 - **开发规范**：[`docs/development/`](development/) —— 包含代码分支策略、提交约定等。
 - **部署指南**：[`docs/deployment/`](deployment/) —— 包含网关部署、环境依赖配置等。

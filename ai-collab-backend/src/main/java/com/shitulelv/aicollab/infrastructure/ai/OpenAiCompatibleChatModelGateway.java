@@ -7,7 +7,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -53,9 +53,9 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
     public OpenAiCompatibleChatModelGateway(ChatModelProperties properties, boolean retryTransientFailures) {
         this.properties = properties;
         this.retryTransientFailures = retryTransientFailures;
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(boundedDuration(
-                properties.connectTimeout(), DEFAULT_CONNECT_TIMEOUT, MAX_CONNECT_TIMEOUT));
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
+                com.shitulelv.aicollab.common.net.OutboundHttpClients.builder().connectTimeout(boundedDuration(
+                        properties.connectTimeout(), DEFAULT_CONNECT_TIMEOUT, MAX_CONNECT_TIMEOUT)).build());
         factory.setReadTimeout(boundedDuration(
                 properties.readTimeout(), DEFAULT_READ_TIMEOUT, MAX_READ_TIMEOUT));
         this.restClient = RestClient.builder().requestFactory(factory).build();
@@ -153,7 +153,7 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
                     true,
                     null));
 
-            HttpClient httpClient = HttpClient.newBuilder()
+            HttpClient httpClient = com.shitulelv.aicollab.common.net.OutboundHttpClients.builder()
                     .connectTimeout(boundedDuration(
                             properties.connectTimeout(), DEFAULT_CONNECT_TIMEOUT, MAX_CONNECT_TIMEOUT))
                     .build();
@@ -311,7 +311,8 @@ public class OpenAiCompatibleChatModelGateway implements ChatModelGateway {
     private static boolean causedByTimeout(Throwable exception) {
         Throwable current = exception;
         while (current != null) {
-            if (current instanceof SocketTimeoutException) {
+            if (current instanceof SocketTimeoutException || current instanceof java.net.http.HttpTimeoutException
+                    || current instanceof java.util.concurrent.TimeoutException) {
                 return true;
             }
             current = current.getCause();
