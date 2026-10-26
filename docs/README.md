@@ -59,6 +59,8 @@
 包含按日期严格组织的交付证据目录（测试结果、BSK 浏览器截图、回归基准与脱敏元数据）：
 
 - 目录格式：`docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`
+- [P10-SCORER-ROBUSTNESS-01：真实回答评分器稳健性专项](acceptance-evidence/2026-10-26/p10-scorer-robustness-01/README.md)：评分器 2.0-robust 重构，解决 Markdown 强调、否定语境（AQ06 粗体否定）与认识模态（AQ12 否定从句）导致的机械假阳性误报；7/7 肯定违规反例 100% 检出率，双重否定/复杂例外转人工复核；零外部模型调用，零生产代码变更；[研究](archive/research/p10-scorer-robustness-01-research-20261026.md)与[交付](archive/reports/p10-scorer-robustness-01-delivery-20261026.md)。
+- [P10-REAL-GENERATION-02 文档与证据一致性勘误（Errata）](acceptance-evidence/2026-10-26/p10-real-generation-02-errata/README.md)：澄清 P10-02 README 批次对比表预检阶段遗留草稿原因，界定自动化工具链阶段裁决（`REQUIRES_PER_QUESTION_REVIEW`）与人工复核阶段裁决（`PASS_WITH_SCORER_LIMITATIONS`）的演进关系，未破坏原冻结证据与 manifest。
 - [P10-REAL-GENERATION-01：真实 QA 生成受控执行](acceptance-evidence/2026-10-26/p10-real-generation-01/README.md)：已授权，首题一次真实客户端传输超时，后续 7 题按规则停止，模型质量不可评估；7897 代理排查、默认关闭门禁与独立回归回执；[研究](archive/research/p10-real-generation-01-research-20261026.md)与[交付](archive/reports/p10-real-generation-01-delivery-20261026.md)。
 - [P10-REAL-GENERATION-02：真实模型端到端验收](acceptance-evidence/2026-10-26/p10-real-generation-02/README.md)：独立新批次，已获授权执行 8 次真实 Chat 并全部取得回答——执行 `MEASUREMENT_EXECUTED`、质量 `PASS_WITH_SCORER_LIMITATIONS`（3 项机械高严重度复核为评分器字面匹配假阳性，无模型事实错误）；首次取得可复核的真实回答质量基线，独立人工复核 0 题；[研究](archive/research/p10-real-generation-02-research-20261026.md)与[交付](archive/reports/p10-real-generation-02-delivery-20261026.md)。
 - [P8-RAG-QUALITY-FIX-01：有界补读、互补事实与引用契约实验](acceptance-evidence/2026-10-25/p8-rag-quality-fix-01/README.md)：Q02与固定8来源候选的收益/退化、生产策略保留、子来源失效与摘录投影最小修复；[研究](archive/research/p8-rag-quality-fix-01-research-20261025.md)与[交付](archive/reports/p8-rag-quality-fix-01-delivery-20261025.md)。

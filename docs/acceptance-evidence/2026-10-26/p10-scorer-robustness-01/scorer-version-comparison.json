@@ -1,0 +1,11 @@
+{
+  "task" : "P10-SCORER-ROBUSTNESS-01",
+  "legacyVersion" : "1.0-legacy",
+  "robustVersion" : "2.0-robust",
+  "falsePositivesFixed" : 3,
+  "falseNegativesAdded" : 0,
+  "affirmativeViolationsTested" : 7,
+  "affirmativeViolationsDetectedRate" : 1.0,
+  "reviewCasesAdded" : 1,
+  "goldenAnswersFalsePositiveCount" : 0
+}
