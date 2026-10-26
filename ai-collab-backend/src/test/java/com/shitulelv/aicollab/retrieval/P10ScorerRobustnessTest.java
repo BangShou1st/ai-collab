@@ -44,7 +44,7 @@ class P10ScorerRobustnessTest {
     private static final Path P9_RESULTS = ROOT.resolve(
             "docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01/retrieval-results.json");
     private static final Path EVIDENCE_DIR = ROOT.resolve(
-            "docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-03");
+            "docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-04");
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private static JsonNode questionSet;
@@ -498,11 +498,191 @@ class P10ScorerRobustnessTest {
         Map<String, Object> occ2 = details.get(1);
         assertThat(occ2.get("verdict")).isEqualTo("AFFIRMATIVE_VIOLATION");
         assertThat(String.valueOf(occ2.get("sentence"))).contains("肯定声称可以");
-        assertThat(String.valueOf(occ2.get("ruleVersion"))).isEqualTo("2.0-contextual");
+        assertThat(String.valueOf(occ2.get("ruleVersion"))).isEqualTo(P10ContextualAssertionJudge.RULE_VERSION);
 
         List<String> high = (List<String>) res.get("highSeverity");
         assertThat(high)
                 .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("可以先组织培训再补签"));
+    }
+
+    @Test
+    @DisplayName("P10-04 风险1复现：双重否定全局短路导致独立肯定违规降级为复核（RISK-P10-001）")
+    void risk001_doubleNegationShouldNotShortCircuitIndependentAffirmativeViolation() {
+        JsonNode q06 = question("AQ06-UNLESS");
+        String answer = "我们不得不承认前期沟通存在问题，但是实际操作中可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> res = scoreV2(q06, answer);
+
+        List<String> highSeverity = (List<String>) res.get("highSeverity");
+        assertThat(highSeverity)
+                .as("后半句独立肯定违规必须进入 highSeverity")
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("可以先组织培训再补签"));
+
+        List<String> hits = (List<String>) res.get("forbiddenAffirmationHits");
+        assertThat(hits).contains("可以先组织培训再补签");
+
+        // 配对用例：同句先双重否定后转折肯定违规（同一 marker）
+        String repeatAnswer = "虽然并非不可以先组织培训再补签合同，但部门明确声称可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> repeatRes = scoreV2(q06, repeatAnswer);
+        List<Map<String, Object>> details = (List<Map<String, Object>>) repeatRes.get("forbiddenAffirmationDetails");
+        assertThat(details).hasSize(2);
+        assertThat(details.get(0).get("verdict")).isEqualTo("AMBIGUOUS_NEEDS_REVIEW");
+        assertThat(details.get(1).get("verdict")).isEqualTo("AFFIRMATIVE_VIOLATION");
+        assertThat((List<String>) repeatRes.get("highSeverity"))
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("可以先组织培训再补签"));
+
+        // 配对用例：仅有双重否定的单句进入人工复核
+        String pureDoubleNegation = "根据资料，并非不可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> pureRes = scoreV2(q06, pureDoubleNegation);
+        assertThat((List<?>) pureRes.get("highSeverity")).isEmpty();
+        assertThat((List<String>) pureRes.get("needsHumanReview"))
+                .anyMatch(r -> r.contains("FORBIDDEN_AFFIRMATION_AMBIGUOUS"));
+    }
+
+    @Test
+    @DisplayName("P10-04 风险2复现：拒答词与编造事实并存不得误判为诚实拒答（RISK-P10-002）")
+    void risk002_abstentionWithFabricationMustNotBeHonestAbstention() {
+        JsonNode q11 = question("AQ11-ABSTAIN-NONE");
+        String answer = "虽然我们不得不承认资料不足、无法确认，但是该系统目前确定使用 MySQL 存储凭证影像 [S1]。";
+        Map<String, Object> res = scoreV2(q11, answer);
+
+        assertThat(res.get("abstentionCorrect")).isEqualTo(false);
+        Map<?, ?> eval = (Map<?, ?>) res.get("abstentionEvaluation");
+        assertThat(eval.get("verdict")).isEqualTo("CONFLICTING_FABRICATION");
+        List<String> highSeverity = (List<String>) res.get("highSeverity");
+        assertThat(highSeverity)
+                .as("拒答题编造事实必须报告 highSeverity")
+                .isNotEmpty();
+
+        // 配对用例：合法诚实拒答无冲突编造
+        String honestAnswer = "根据现有资料，项目资料中未提及凭证影像的具体存储数据库，无法确认该系统的数据库类型。";
+        Map<String, Object> honestRes = scoreV2(q11, honestAnswer);
+        assertThat(honestRes.get("abstentionCorrect")).isEqualTo(true);
+        Map<?, ?> honestEval = (Map<?, ?>) honestRes.get("abstentionEvaluation");
+        assertThat(honestEval.get("verdict")).isEqualTo("HONEST_ABSTENTION");
+        assertThat((List<?>) honestRes.get("highSeverity")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("P10-04 风险3复现：反差转折规则全局污染导致独立肯定违规降级（RISK-P10-003）")
+    void risk003_rhetoricalHypotheticalMustNotPolluteIndependentClause() {
+        JsonNode q04 = question("AQ04-REGION-THRESHOLD");
+        String answer = "理论上应该在三个工作日内完成，实际上华东中心盘点差异率超过百分之五时需要提交说明 [S1]。";
+        Map<String, Object> res = scoreV2(q04, answer);
+
+        List<String> highSeverity = (List<String>) res.get("highSeverity");
+        assertThat(highSeverity)
+                .as("后半句独立肯定违规必须进入 highSeverity")
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("华东中心盘点差异率超过百分之五"));
+
+        List<Map<String, Object>> details = (List<Map<String, Object>>) res.get("forbiddenAffirmationDetails");
+        assertThat(details).isNotEmpty();
+        assertThat(details.get(0).get("verdict")).isEqualTo("AFFIRMATIVE_VIOLATION");
+
+        // 配对用例：真正的复杂转折反差（并未明确……但实际上可以……）仍需人工复核
+        JsonNode q06 = question("AQ06-UNLESS");
+        String genuineHypothetical = "资料中并未明确，但实际上可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> reviewRes = scoreV2(q06, genuineHypothetical);
+        List<Map<String, Object>> reviewDetails = (List<Map<String, Object>>) reviewRes.get("forbiddenAffirmationDetails");
+        assertThat(reviewDetails.get(0).get("verdict")).isEqualTo("AMBIGUOUS_NEEDS_REVIEW");
+    }
+
+    @Test
+    @DisplayName("P10-04 风险4复现：认识模态短前缀错误放行肯定动作（RISK-P10-004）")
+    void risk004_epistemicUnknownShortPrefixMustNotExemptAffirmativeAction() {
+        JsonNode q06 = question("AQ06-UNLESS");
+        String answer = "资料不足我们可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> res = scoreV2(q06, answer);
+
+        List<String> highSeverity = (List<String>) res.get("highSeverity");
+        assertThat(highSeverity)
+                .as("具有主语的肯定动作不得仅因前缀有认识模态词而放行")
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("可以先组织培训再补签"));
+
+        List<Map<String, Object>> details = (List<Map<String, Object>>) res.get("forbiddenAffirmationDetails");
+        assertThat(details).isNotEmpty();
+        assertThat(details.get(0).get("verdict")).isEqualTo("AFFIRMATIVE_VIOLATION");
+
+        // 配对用例：合法认识模态未知表达不报违规
+        JsonNode q12 = question("AQ12-ABSTAIN-INDIRECT");
+        String validUnknown = "资料中并未明确具体每年抽查多少份合同。";
+        Map<String, Object> validRes = scoreV2(q12, validUnknown);
+        assertThat((List<?>) validRes.get("highSeverity")).isEmpty();
+        List<Map<String, Object>> validDetails = (List<Map<String, Object>>) validRes.get("forbiddenAffirmationDetails");
+        assertThat(validDetails.get(0).get("verdict")).isEqualTo("NEGATED_OR_EPISTEMIC_MENTION");
+    }
+
+    @Test
+    @DisplayName("P10-04 风险5复现：后置否定谓语被误报为肯定违规（RISK-P10-005）")
+    void risk005_suffixNegationShouldBeRecognizedAndNotReportViolation() {
+        JsonNode q04 = question("AQ04-REGION-THRESHOLD");
+        List<String> suffixNegationAnswers = List.of(
+                "华东中心盘点差异率超过百分之五是不允许的 [S1]。",
+                "华东中心盘点差异率超过百分之五是禁止的 [S1]。",
+                "华东中心盘点差异率超过百分之五是不合规的 [S1]。",
+                "华东中心盘点差异率超过百分之五是不适用的 [S1]。",
+                "华东中心盘点差异率超过百分之五不被允许 [S1]。",
+                "华东中心盘点差异率超过百分之五严禁执行 [S1]。"
+        );
+
+        for (String ans : suffixNegationAnswers) {
+            Map<String, Object> res = scoreV2(q04, ans);
+            List<String> highSeverity = (List<String>) res.get("highSeverity");
+            assertThat(highSeverity)
+                    .as("后置否定修饰语不得产生高严重度告警: " + ans)
+                    .isEmpty();
+
+            List<Map<String, Object>> details = (List<Map<String, Object>>) res.get("forbiddenAffirmationDetails");
+            assertThat(details).isNotEmpty();
+            assertThat(details.get(0).get("verdict")).isEqualTo("NEGATED_OR_EPISTEMIC_MENTION");
+        }
+
+        // 肯定对照用例：后接肯定谓语必须检出违规
+        String affirmativeSuffix = "华东中心盘点差异率超过百分之五是必须申报的 [S1]。";
+        Map<String, Object> affRes = scoreV2(q04, affirmativeSuffix);
+        assertThat((List<String>) affRes.get("highSeverity"))
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("华东中心盘点差异率超过百分之五"));
+        List<Map<String, Object>> affDetails = (List<Map<String, Object>>) affRes.get("forbiddenAffirmationDetails");
+        assertThat(affDetails.get(0).get("verdict")).isEqualTo("AFFIRMATIVE_VIOLATION");
+    }
+
+    @Test
+    @DisplayName("P10-04 风险6复现：版本限定词跨分句泄漏导致旧标准违规被放行（RISK-P10-006）")
+    void risk006_legacyVersionQualifierMustNotLeakAcrossAdversativeClause() {
+        JsonNode q01 = question("AQ01-CURRENT");
+        String answer = "虽然原规定已经废止，但一线城市住宿费标准仍为四百元 [S1]。";
+        Map<String, Object> res = scoreV2(q01, answer);
+
+        List<String> highSeverity = (List<String>) res.get("highSeverity");
+        assertThat(highSeverity)
+                .as("同句转折后仍肯定旧标准为现行标准，必须报告 VERSION_VIOLATION")
+                .anyMatch(h -> h.contains("VERSION_VIOLATION") && h.contains("四百"));
+
+        List<Map<String, Object>> versionAccuracy = (List<Map<String, Object>>) res.get("versionAccuracy");
+        assertThat(versionAccuracy).isNotEmpty();
+        assertThat(versionAccuracy.get(0).get("verdict")).isEqualTo("VERSION_VIOLATION");
+
+        // 配对用例：合法历史与废止背景说明
+        String validLegacyAnswer = "原规定废止前一线城市住宿费标准为每晚四百元，现行标准已调整为五百元 [S1]。";
+        Map<String, Object> validRes = scoreV2(q01, validLegacyAnswer);
+        List<Map<String, Object>> validVersion = (List<Map<String, Object>>) validRes.get("versionAccuracy");
+        assertThat(validVersion.get(0).get("verdict")).isEqualTo("LEGACY_QUALIFIED");
+    }
+
+    @Test
+    @DisplayName("P10-04 风险7复现：无关事项例外条款污染后置独立命题（RISK-P10-007）")
+    void risk007_exceptionClauseMustNotPolluteUnrelatedProposition() {
+        JsonNode q06 = question("AQ06-UNLESS");
+        String answer = "除非获得特批否则不得推迟上线，可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> res = scoreV2(q06, answer);
+
+        List<String> highSeverity = (List<String>) res.get("highSeverity");
+        assertThat(highSeverity)
+                .as("无关前置从句的例外条件不得污染后半句独立肯定违规")
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("可以先组织培训再补签"));
+
+        List<Map<String, Object>> details = (List<Map<String, Object>>) res.get("forbiddenAffirmationDetails");
+        assertThat(details).isNotEmpty();
+        assertThat(details.get(0).get("verdict")).isEqualTo("AFFIRMATIVE_VIOLATION");
     }
 
     @Test
@@ -735,9 +915,9 @@ class P10ScorerRobustnessTest {
 
         // 汇总统计报告
         Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put("task", "P10-SCORER-ROBUSTNESS-03");
+        summary.put("task", "P10-SCORER-ROBUSTNESS-04");
         summary.put("legacyVersion", "1.0-legacy");
-        summary.put("robustVersion", "2.0-scoped-contextual-v3");
+        summary.put("robustVersion", "2.0-scoped-contextual-v4");
         summary.put("falsePositivesFixed", falsePositivesFixed);
         summary.put("falseNegativesAdded", falseNegativesAdded);
         summary.put("affirmativeViolationsTested", totalAffirmativeViolationsTested);

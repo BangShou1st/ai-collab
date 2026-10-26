@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  */
 public final class P10AbstentionDetector {
 
-    public static final String RULE_VERSION = "2.0-abstention";
+    public static final String RULE_VERSION = "2.0-scoped-contextual-v4";
 
     public enum AbstentionVerdict {
         /** 明确拒答或明确承认资料不足。 */
@@ -73,6 +73,16 @@ public final class P10AbstentionDetector {
             String normalizedAnswer,
             List<String> unsupportedNumbers,
             List<String> affirmativeViolations) {
+        return evaluate(abstainQuestion, frozenPhrases, normalizedAnswer, unsupportedNumbers, affirmativeViolations, List.of());
+    }
+
+    public static AbstentionEvaluation evaluate(
+            boolean abstainQuestion,
+            List<String> frozenPhrases,
+            String normalizedAnswer,
+            List<String> unsupportedNumbers,
+            List<String> affirmativeViolations,
+            List<String> unresolvedAmbiguousForbidden) {
 
         if (!abstainQuestion) {
             return new AbstentionEvaluation(
@@ -123,6 +133,19 @@ public final class P10AbstentionDetector {
                     matchedPhrases,
                     "回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：" +
                             (affirmativeViolations != null && !affirmativeViolations.isEmpty() ? affirmativeViolations : unsupportedNumbers),
+                    RULE_VERSION
+            );
+        }
+
+        // 防御性安全加固：回答包含拒答措辞，但同时存在未澄清的禁断 marker（歧义/复核），不得直接认定为 HONEST_ABSTENTION
+        boolean hasUnresolvedForbidden = unresolvedAmbiguousForbidden != null && !unresolvedAmbiguousForbidden.isEmpty();
+        if (hasAnyRefusalMention && hasUnresolvedForbidden) {
+            return new AbstentionEvaluation(
+                    true,
+                    frozenHit,
+                    AbstentionVerdict.AMBIGUOUS_NEEDS_REVIEW,
+                    matchedPhrases,
+                    "回答虽包含拒答措辞，但同时存在处于复杂语境中未澄清的禁断表述，存在潜在冲突编造嫌疑，转人工复核：" + unresolvedAmbiguousForbidden,
                     RULE_VERSION
             );
         }
