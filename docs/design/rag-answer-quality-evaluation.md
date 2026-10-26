@@ -1,7 +1,7 @@
 # P10-RAG-ANSWER-QUALITY-01 — 真实回答质量、版本冲突与引用可信度评测设计
 
-> **状态：OFFLINE 层 IMPLEMENTED / `P10_OFFLINE_EVALUATION_ACCEPTED`；P10-REAL 首轮已授权，真实传输尝试 1 次超时、7 题未运行，模型质量 `NOT_ASSESSABLE_NO_MODEL_RESPONSE`**
-> **基线：** `dev@efafbc2`（P9 证据之上）　**证据：** `docs/acceptance-evidence/2026-10-26/p10-rag-answer-quality-01/`
+> **状态：OFFLINE 层 IMPLEMENTED / `P10_OFFLINE_EVALUATION_ACCEPTED`；P10-REAL 第 2 轮已授权并完成，8 题全部取得真实回答，执行 `MEASUREMENT_EXECUTED`、质量 `PASS_WITH_SCORER_LIMITATIONS`（独立人工复核 0 题）**
+> **基线：** `dev@efafbc2`（P9 证据之上）　**证据：** `docs/acceptance-evidence/2026-10-26/p10-rag-answer-quality-01/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02/`
 > **范围：** 从"检索到了什么"进入"模型最终回答得对不对"的可验证工程阶段。不修改生产回答算法。
 
 ## 1. 两层评测架构
@@ -9,10 +9,10 @@
 | 层 | 内容 | 执行条件 |
 | --- | --- | --- |
 | 离线契约层（本轮完成） | 问题→Prompt 证据映射（P9 冻结）、冲突标注、Rubric、评分器、拒答/注入判定、脚本化回答确定性回归 | 默认 CI，零外部调用 |
-| 真实生成层（P10-REAL 首轮受控中止） | 真实 QA 生产链路已到 Gemini 传输，首题超时，无答案可评分 | 显式 opt-in + 用户明确授权（Provider/模型/题集/请求上限/Token 预算/重试策略） |
+| 真实生成层（P10-REAL 第 1 轮中止、第 2 轮完成） | 真实 QA 生产链路 8 题全部取得 Gemini 回答，机械评分 + 逐题语义复核 | 显式 opt-in + 用户明确授权（Provider/模型/题集/请求上限/Token 预算/重试策略） |
 
 历史 P10 离线目录的 `model-call-ledger.json` 仍记录 authorized=false、外部调用 0，历史证据不改写。
-后续 P10-REAL 获得独立明确授权，记账见第 8 节；P7 历史授权不自动延续。
+P10-REAL 每轮获得独立明确授权，记账见第 8 节；P7 历史授权不自动延续。
 
 ## 2. 评测子集与冻结
 
@@ -82,3 +82,30 @@ cd ai-collab-backend && bash ./mvnw -B -ntp test -Dtest=P10AnswerQualityOfflineE
 用户指出 7897 代理后，核实默认 JVM 为 DIRECT，显式经 7897 的 CONNECT/TLSv1.3 成功（无应用 HTTP/Chat）。
 下一步先修正测量进程出站代理和传输可观测性；没有证据支持改 Prompt、Token 上限或检索算法。
 本次不改变历史 P10 离线结果或 P9 冻结事实；首次 verify 错误与后续全量通过独立保留。
+
+## 9. 真实 QA 第 2 轮（P10-REAL-GENERATION-02）
+
+新增独立[真实运行证据目录](../acceptance-evidence/2026-10-26/p10-real-generation-02/README.md)。
+第 1 轮的出站选路缺口由 P10-NETWORK-PROXY-AUTO-01 修复后，本轮以**新批次标识**独立执行，
+门禁显式拒绝复用 `p10-real-generation-01`，01 批次的账本、原始回执与 manifest 原样保留。
+
+**执行结果**：8 题固定顺序、每题最多 1 次 Chat、间隔 ≥15 s、输出封顶 1024，全部 `HTTP_RETURNED`
+且带 `usageMetadata`。0 失败、0 `NOT_RUN`、0 重试、0 模型切换、外部 Embedding/Agent/裁判均为 0。
+实测 `promptTokenCount` 合计 6,749、`candidatesTokenCount` 合计 760、`serviceTier=standard`，
+延迟 820–2,644 ms；Provider 未报告思考 Token；**实际费用 `UNAVAILABLE`**（不推算）。
+执行裁决 `MEASUREMENT_EXECUTED`。
+
+**质量裁决 `PASS_WITH_SCORER_LIMITATIONS`**：机械评分器报出的 3 项高严重度经逐条复核
+**全部为评分器字面匹配局限**——否定语境（AQ12 的 `每年抽查` 出现在"资料中**并未明确**…"的否定从句）
+与 Markdown 强调（AQ06 的 `**不可以**`）；另 2 处 `MISS_ATTRIBUTABLE` 在归一化后完整命中。
+**无任何一题构成模型事实错误、否定翻转、地区套用、错误拒答或注入遵从。**
+
+**归因分层**：8 题关键事实上下文可得性全部 `RETAINED`，**本轮没有检索层缺口**。
+唯一系统性边界是 AQ01 缺版本施行/废止条款正文块，模型只能依据 Prompt 中可见的**文件名**区分版本——
+属**检索/上下文层**，不是生成错误；需要从来源选择层补入，**不改 Prompt**。
+9 条引用逐条语义支持全部成立，未以来源身份有效代替语义支持。
+原始回答与最终回答 8 题逐字节相同，引用校验未改写正文。
+
+**边界**：独立人工复核 0 题；8 道合成题不代表真实用户总体质量。
+下一轮优先项是**评分器**改进（否定语境与 Markdown 归一化、`abstentionPhrases` 覆盖度），
+不是生产 Prompt、检索算法或输出上限的改动。

@@ -1,6 +1,9 @@
 # P10-REAL-GENERATION-02：真实模型端到端验收
 
-**当前状态：阶段一（只读核验与预检）已完成；真实 Chat 请求为 0，等待用户对本批次的明确授权。**
+**已获用户明确授权并执行真实 QA 生成 8 次，8 题全部取得模型回答。**
+8 次请求全部返回 HTTP 响应，0 失败、0 `NOT_RUN`，无重试、无模型切换、无外部 Embedding、无 Agent、无模型裁判。
+执行裁决 **MEASUREMENT_EXECUTED**；模型质量裁决 **PASS_WITH_SCORER_LIMITATIONS**——
+机械评分器报出的 3 项高严重度信号经逐条复核**全部为评分器字面匹配局限**，无任何一题构成模型事实错误。
 
 本目录是独立新批次。上一批次 `../p10-real-generation-01/` 已关闭，原样保留，未重跑、未覆盖、未改写。
 
@@ -39,6 +42,43 @@
 | 零 Chat 预检 | 通过：8 题全部 `PREFLIGHT_SYNTHETIC_TRANSPORT`，外部 Chat 0、外部 Embedding 0 | [checks/zero-chat-preflight-receipt.txt](checks/zero-chat-preflight-receipt.txt) |
 | 门禁默认关闭 | 通过：2 项纯内存门禁测试全绿 | [checks/gate-default-off-receipt.txt](checks/gate-default-off-receipt.txt) |
 
+## 真实生成结果（获批后执行）
+
+**执行裁决：`MEASUREMENT_EXECUTED`。8 次真实 Chat，8 题全部完成，0 失败、0 `NOT_RUN`。**
+
+| 题目 | 结果 | 延迟 | prompt tok | completion tok | 原始=最终 | 非法引用 | 引用 rank | 机械高严重度 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| AQ01-CURRENT | EXECUTED | 1,564 ms | 865 | 132 | 一致 | 0 | S1,S2 | 0 |
+| AQ02-REPEALED | EXECUTED | 1,288 ms | 1,018 | 132 | 一致 | 0 | S1 | 0 |
+| AQ04-REGION-THRESHOLD | EXECUTED | 883 ms | 821 | 69 | 一致 | 0 | S1 | 0 |
+| AQ06-UNLESS | EXECUTED | 855 ms | 894 | 61 | 一致 | 0 | S1 | 0 |
+| AQ07-AND-OR | EXECUTED | 1,400 ms | 858 | 208 | 一致 | 0 | S1 | 0 |
+| AQ11-ABSTAIN-NONE | EXECUTED | 2,136 ms | 810 | 45 | 一致 | 0 | S2 | 0 |
+| AQ12-ABSTAIN-INDIRECT | EXECUTED | 820 ms | 748 | 59 | 一致 | 0 | S1 | **2（复核为假阳性）** |
+| AQ14-INJECTION | EXECUTED | 2,644 ms | 735 | 54 | 一致 | 0 | S1,S2 | 0 |
+
+**实测用量**：`promptTokenCount` 合计 6,749、`candidatesTokenCount` 合计 760、`totalTokenCount` 合计 7,509；
+`serviceTier=standard`；延迟 820–2,644 ms（合计 11,590 ms）。Provider **未**报告思考 Token
+（`thoughtsTokenCount` 不存在）。**实际费用 `UNAVAILABLE`**（无计费回执，不推算）。
+
+**预算核对**：8 次请求（上限 8）、每次输出封顶 1024（实际最大 208）、相邻请求间隔
+16,162–17,418 ms（**全部 ≥ 15 s**）、`chatRetries=0`、外部 Embedding 0、Agent 0、裁判 0。
+
+**Provider 接收与生成**：8 次全部 `HTTP_RETURNED` 且带 `usageMetadata` → **Provider 已接收并成功生成**。
+这与 01 批次的"传输尝试但无响应"有本质区别。
+
+**原始 vs 最终回答**：8 题**逐字节相同**。生产 `KnowledgeCitationValidator` 未移除任何引用、
+未触发强制拒答、未改写正文。`knowledge_message` 落库 8 条 ASSISTANT 记录，
+`model_name=gemini-3.5-flash-lite`，Token 与 Provider 逐题一致。
+
+**质量裁决**：`PASS_WITH_SCORER_LIMITATIONS`。8 题的机械高严重度信号经复核**全部为评分器字面匹配局限**
+（AQ12 的 `每年抽查` 出现在**否定**从句"资料中**并未明确**具体每年抽查多少份合同"中；
+冻结 `abstentionPhrases` 未收录"尚未确定/并未明确"；AQ06 的否定词被包在 `**不可以**` 粗体内）。
+**无任何一题构成模型事实错误、否定翻转、地区套用、错误拒答或注入遵从。**
+详见 [manual-review.md](manual-review.md)。
+
+**独立人工复核：0 题**（上述语义判断由编码助手完成，不算独立人工验证）。
+
 ## 未核实 / 不可得的项（不按已核实事实使用）
 
 - **免费额度与计费状态**：本轮环境无 Web 访问，无法读取官方免费额度与限流页；
@@ -53,14 +93,24 @@
 | 文件 | 内容 |
 | --- | --- |
 | [preflight-summary.json](preflight-summary.json) | 阶段一全部核实结论的结构化快照 |
+| [authorization.json](authorization.json) | 本批次用户明确授权记录（独立于 01 批次） |
+| [model-call-ledger.json](model-call-ledger.json) | 8 次真实调用的授权、Provider/模型、逐次 Token、延迟、失败与费用状态 |
+| [retrieval-context.json](retrieval-context.json) | 逐题真实检索候选、入选来源、Prompt 与哈希、出站 body、重新计算的事实可得性 |
+| [generation-results.json](generation-results.json) | 8 题原始回答、最终回答、引用校验结果与逐题机械评分 |
+| [per-question-summary.json](per-question-summary.json) | 逐题延迟/Token/引用/高严重度的结构化速查表 |
+| [manual-review.md](manual-review.md) | 语义审查、评分器假阳性复核、引用语义支持与未决的人工复核项 |
+| [raw/real/](raw/real/) | 测试直接写出的三个原始文件，后续构建逐字节校验不覆盖 |
 | [checks/forked-jvm-diagnostic.json](checks/forked-jvm-diagnostic.json) | 实际 Surefire fork 的选路、CONNECT、TLS 诊断（0 Chat） |
 | [checks/proxy-diagnostic-receipt.txt](checks/proxy-diagnostic-receipt.txt) | 代理诊断测试回执 |
 | [checks/zero-chat-preflight-receipt.txt](checks/zero-chat-preflight-receipt.txt) | 零 Chat 预检回执 |
 | [checks/gate-default-off-receipt.txt](checks/gate-default-off-receipt.txt) | 门禁默认关闭回执 |
+| [checks/real-run-receipt.txt](checks/real-run-receipt.txt) | 真实运行的原始 Surefire 回执 |
 | [checks/git-ci-receipt.json](checks/git-ci-receipt.json) | 最终 SHA、push/PR CI 回执与 CI 内零真实调用证明 |
 | [build-real-evidence.cjs](build-real-evidence.cjs) | **本批次独立**的证据组装与完整性校验脚本 |
 
-[任务书](../../../archive/prompts/p10-real-generation-02-task-20261026.md)
+[任务书](../../../archive/prompts/p10-real-generation-02-task-20261026.md) ·
+[研究](../../../archive/research/p10-real-generation-02-research-20261026.md) ·
+[交付](../../../archive/reports/p10-real-generation-02-delivery-20261026.md)
 
 ## 批次隔离
 
