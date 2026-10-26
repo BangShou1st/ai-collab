@@ -44,7 +44,7 @@ class P10ScorerRobustnessTest {
     private static final Path P9_RESULTS = ROOT.resolve(
             "docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01/retrieval-results.json");
     private static final Path EVIDENCE_DIR = ROOT.resolve(
-            "docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-02");
+            "docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-03");
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private static JsonNode questionSet;
@@ -438,6 +438,74 @@ class P10ScorerRobustnessTest {
     }
 
     @Test
+    @DisplayName("P10-03 反例复现：例外条款后出现独立肯定违规，必须检出肯定违规")
+    void exceptionFollowedByAffirmativeViolationMustBeDetected() {
+        JsonNode q06 = question("AQ06-UNLESS");
+        String answer = "除非获得分管副总裁的书面特批，否则不可以先组织培训再补签合同，但该回答又肯定声称可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> res = scoreV2(q06, answer);
+
+        List<String> highSeverity = (List<String>) res.get("highSeverity");
+        assertThat(highSeverity)
+                .as("例外条款后出现独立肯定违规，必须检出 FORBIDDEN_AFFIRMATION")
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("可以先组织培训再补签"));
+    }
+
+    @Test
+    @DisplayName("P10-03 反例复现：肯定违规在前，例外禁止条款在后，肯定违规不得被后半句覆盖")
+    void affirmativeBeforeExceptionClauseMustBeDetected() {
+        JsonNode q06 = question("AQ06-UNLESS");
+        String answer = "该回答肯定声称可以先组织培训再补签合同，除非获得分管副总裁的书面特批，否则不可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> res = scoreV2(q06, answer);
+
+        List<String> highSeverity = (List<String>) res.get("highSeverity");
+        assertThat(highSeverity)
+                .as("肯定违规在前，例外禁止条款在后，必须检出 FORBIDDEN_AFFIRMATION")
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("可以先组织培训再补签"));
+    }
+
+    @Test
+    @DisplayName("P10-03 场景：例外条件与双重否定组合（不确定语义时进入人工复核，不得机械放行）")
+    void exceptionWithDoubleNegationRoutedToReview() {
+        JsonNode q06 = question("AQ06-UNLESS");
+        String answer = "除非获得分管副总裁的书面特批，否则并非不可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> res = scoreV2(q06, answer);
+
+        List<String> review = (List<String>) res.get("needsHumanReview");
+        assertThat(review)
+                .as("例外条件与双重否定组合必须进入人工复核")
+                .isNotEmpty();
+        assertThat(String.valueOf(review)).contains("FORBIDDEN_AFFIRMATION_AMBIGUOUS");
+        assertThat((List<?>) res.get("highSeverity"))
+                .as("双重否定需人工判定，不机械断言肯定违规").isEmpty();
+    }
+
+    @Test
+    @DisplayName("P10-03 场景：同一句同一 marker 多次出现，逐个 occurrence 独立评估且保留完整审计明细")
+    void multipleOccurrencesIndependentlyAssessedWithAuditDetails() {
+        JsonNode q06 = question("AQ06-UNLESS");
+        String answer = "除非获得分管副总裁的书面特批，否则不可以先组织培训再补签合同，但该回答又肯定声称可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> res = scoreV2(q06, answer);
+
+        List<Map<String, Object>> details = (List<Map<String, Object>>) res.get("forbiddenAffirmationDetails");
+        assertThat(details)
+                .as("应记录两个 occurrence 的评估明细")
+                .hasSize(2);
+
+        Map<String, Object> occ1 = details.get(0);
+        assertThat(occ1.get("verdict")).isEqualTo("NEGATED_OR_EPISTEMIC_MENTION");
+        assertThat(String.valueOf(occ1.get("sentence"))).contains("否则不可以");
+
+        Map<String, Object> occ2 = details.get(1);
+        assertThat(occ2.get("verdict")).isEqualTo("AFFIRMATIVE_VIOLATION");
+        assertThat(String.valueOf(occ2.get("sentence"))).contains("肯定声称可以");
+        assertThat(String.valueOf(occ2.get("ruleVersion"))).isEqualTo("2.0-contextual");
+
+        List<String> high = (List<String>) res.get("highSeverity");
+        assertThat(high)
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("可以先组织培训再补签"));
+    }
+
+    @Test
     @DisplayName("场景13：新旧评分器版本对比统计与证据归档导出")
     void generateComparisonEvidenceArtifacts() throws Exception {
         Files.createDirectories(EVIDENCE_DIR);
@@ -519,7 +587,7 @@ class P10ScorerRobustnessTest {
             reviewCasesAdded++;
         }
 
-        // 对照案例 5：P10-02 认识模态作用域与转折分句回归矩阵（案例 A-F）
+        // 对照案例 5：P10-02/P10-03 认识模态与例外条款作用域回归矩阵（案例 A-G）
         List<Map<String, Object>> scopeRegressions = new ArrayList<>();
 
         // 案例 A：未知在前，肯定在后
@@ -613,19 +681,73 @@ class P10ScorerRobustnessTest {
                 "details", resF2.get("forbiddenAffirmationDetails")
         ));
 
+        // 案例 G1：例外条款后出现独立肯定违规（P10-03 核心反例）
+        String ansG1 = "除非获得分管副总裁的书面特批，否则不可以先组织培训再补签合同，但该回答又肯定声称可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> resG1 = scoreV2(q06, ansG1);
+        boolean detectedG1 = ((List<String>) resG1.get("highSeverity")).stream().anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("可以先组织培训再补签"));
+        scopeRegressions.add(Map.of(
+                "case", "CASE_G1_EXCEPTION_FOLLOWED_BY_AFFIRMATIVE",
+                "answer", ansG1,
+                "expectedBehavior", "前半句例外禁止不得抑制转折后独立肯定违规，必须检出违规",
+                "detected", detectedG1,
+                "highSeverity", resG1.get("highSeverity"),
+                "details", resG1.get("forbiddenAffirmationDetails")
+        ));
+
+        // 案例 G2：肯定违规在前，例外禁止条款在后
+        String ansG2 = "该回答肯定声称可以先组织培训再补签合同，除非获得分管副总裁的书面特批，否则不可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> resG2 = scoreV2(q06, ansG2);
+        boolean detectedG2 = ((List<String>) resG2.get("highSeverity")).stream().anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("可以先组织培训再补签"));
+        scopeRegressions.add(Map.of(
+                "case", "CASE_G2_AFFIRMATIVE_BEFORE_EXCEPTION",
+                "answer", ansG2,
+                "expectedBehavior", "前半句独立肯定违规不得被后半句例外条款覆盖，必须检出违规",
+                "detected", detectedG2,
+                "highSeverity", resG2.get("highSeverity"),
+                "details", resG2.get("forbiddenAffirmationDetails")
+        ));
+
+        // 案例 G3：例外条件与双重否定组合
+        String ansG3 = "除非获得分管副总裁的书面特批，否则并非不可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> resG3 = scoreV2(q06, ansG3);
+        boolean routedG3 = !((List<?>) resG3.get("needsHumanReview")).isEmpty() && ((List<?>) resG3.get("highSeverity")).isEmpty();
+        scopeRegressions.add(Map.of(
+                "case", "CASE_G3_EXCEPTION_WITH_DOUBLE_NEGATION",
+                "answer", ansG3,
+                "expectedBehavior", "例外条件与双重否定组合进入人工复核，不得机械放行",
+                "routed", routedG3,
+                "needsHumanReview", resG3.get("needsHumanReview"),
+                "details", resG3.get("forbiddenAffirmationDetails")
+        ));
+
+        // 案例 G4：特批条件许可单句
+        String ansG4 = "除非得到分管副总裁的书面特批，才可以先组织培训再补签合同 [S1]。";
+        Map<String, Object> resG4 = scoreV2(q06, ansG4);
+        boolean routedG4 = !((List<?>) resG4.get("needsHumanReview")).isEmpty() && ((List<?>) resG4.get("highSeverity")).isEmpty();
+        scopeRegressions.add(Map.of(
+                "case", "CASE_G4_STANDALONE_CONDITIONAL_EXCEPTION",
+                "answer", ansG4,
+                "expectedBehavior", "单独特批条件许可进入人工复核，保留人工定夺边界",
+                "routed", routedG4,
+                "needsHumanReview", resG4.get("needsHumanReview"),
+                "details", resG4.get("forbiddenAffirmationDetails")
+        ));
+
         // 汇总统计报告
         Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put("task", "P10-SCORER-ROBUSTNESS-02");
+        summary.put("task", "P10-SCORER-ROBUSTNESS-03");
         summary.put("legacyVersion", "1.0-legacy");
-        summary.put("robustVersion", "2.0-scoped-contextual");
+        summary.put("robustVersion", "2.0-scoped-contextual-v3");
         summary.put("falsePositivesFixed", falsePositivesFixed);
         summary.put("falseNegativesAdded", falseNegativesAdded);
         summary.put("affirmativeViolationsTested", totalAffirmativeViolationsTested);
         summary.put("affirmativeViolationsDetectedRate", (double) affirmativeViolationsDetectedV2 / totalAffirmativeViolationsTested);
         summary.put("scopeRegressionCasesTested", scopeRegressions.size());
-        summary.put("scopeRegressionCasesPassed", (detectedA ? 1 : 0) + (detectedB ? 1 : 0) + (correctC ? 1 : 0)
-                + (correctD ? 1 : 0) + (correctE ? 1 : 0) + (detectedF1 ? 1 : 0) + (routedF2 ? 1 : 0));
-        summary.put("reviewCasesAdded", reviewCasesAdded);
+        int passedCount = (detectedA ? 1 : 0) + (detectedB ? 1 : 0) + (correctC ? 1 : 0)
+                + (correctD ? 1 : 0) + (correctE ? 1 : 0) + (detectedF1 ? 1 : 0) + (routedF2 ? 1 : 0)
+                + (detectedG1 ? 1 : 0) + (detectedG2 ? 1 : 0) + (routedG3 ? 1 : 0) + (routedG4 ? 1 : 0);
+        summary.put("scopeRegressionCasesPassed", passedCount);
+        summary.put("reviewCasesAdded", reviewCasesAdded + (routedG3 ? 1 : 0) + (routedG4 ? 1 : 0));
         summary.put("goldenAnswersFalsePositiveCount", 0);
 
         versionComparison.add(summary);
@@ -639,6 +761,10 @@ class P10ScorerRobustnessTest {
                 EVIDENCE_DIR.resolve("false-negative-regressions.json").toFile(), falseNegativeRegressions);
         JSON.writerWithDefaultPrettyPrinter().writeValue(
                 EVIDENCE_DIR.resolve("scope-and-transition-regressions.json").toFile(), scopeRegressions);
+        JSON.writerWithDefaultPrettyPrinter().writeValue(
+                EVIDENCE_DIR.resolve("exception-scope-regression-matrix.json").toFile(), List.of(
+                        scopeRegressions.get(7), scopeRegressions.get(8), scopeRegressions.get(9), scopeRegressions.get(10)
+                ));
 
         // 断言硬指标
         assertThat(falsePositivesFixed).as("已证实假阳性必须全部修复").isGreaterThanOrEqualTo(3);
@@ -651,5 +777,9 @@ class P10ScorerRobustnessTest {
         assertThat(correctE).as("案例E必须正确").isTrue();
         assertThat(detectedF1).as("案例F1必须检出").isTrue();
         assertThat(routedF2).as("案例F2必须进入复核或检出").isTrue();
+        assertThat(detectedG1).as("案例G1必须检出肯定违规").isTrue();
+        assertThat(detectedG2).as("案例G2必须检出肯定违规").isTrue();
+        assertThat(routedG3).as("案例G3必须进入人工复核").isTrue();
+        assertThat(routedG4).as("案例G4必须进入人工复核").isTrue();
     }
 }
