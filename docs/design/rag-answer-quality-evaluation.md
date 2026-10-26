@@ -1,7 +1,7 @@
 # P10-RAG-ANSWER-QUALITY-01 — 真实回答质量、版本冲突与引用可信度评测设计
 
-> **状态：OFFLINE 层 IMPLEMENTED / `P10_OFFLINE_EVALUATION_ACCEPTED`；P10-REAL 第 2 轮已授权并完成；P10-SCORER-ROBUSTNESS-01 已完成评分器 2.0-robust 稳健性重构（已证实假阳性全部确定性修复，肯定违规反例 100% 检出）**
-> **基线：** `dev@0b31d12`（P10-02 证据之上）　**证据：** `docs/acceptance-evidence/2026-10-26/p10-rag-answer-quality-01/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02-errata/`、`docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-01/`
+> **状态：OFFLINE 层 IMPLEMENTED / `P10_OFFLINE_EVALUATION_ACCEPTED`；P10-REAL 第 2 轮已授权并完成；P10-SCORER-ROBUSTNESS-01~05 已完成评分器 2.0-scoped-contextual-v5 稳健性重构（已证实假阳性全部确定性修复，肯定违规反例 100% 检出，数字编造、HTML/删除线及弱转折全面受控）**
+> **基线：** `dev@2c1ee3e`（P10-04 证据之上）　**证据：** `docs/acceptance-evidence/2026-10-26/p10-rag-answer-quality-01/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02-errata/`、`docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-01/`、`docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-04/`、`docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-05/`
 > **范围：** 从"检索到了什么"进入"模型最终回答得对不对"的可验证工程阶段。不修改生产回答算法。
 
 ## 1. 两层评测架构
@@ -165,5 +165,29 @@ cd ai-collab-backend && bash ./mvnw -B -ntp test -Dtest=P10AnswerQualityOfflineE
 6. **版本限定分句作用域隔离**：重构为逐 occurrence 的 `isLegacyOccurrenceQualified()`，转折连词切断前置分句废止词跨句传递，旧标准冒充现行口径准确判定为 `VERSION_VIOLATION`（RISK-P10-006）；
 7. **例外从句自闭环判定**：引入 `isSelfContainedExceptionClause()`，前置从句若已包含完整禁止谓语主干（已自闭环），禁止向后污染无关独立命题（RISK-P10-007）；
 8. **确定性指标验证**：7 项确证缺陷复现测试 100% 通过；29 项稳健性测试全绿；7/7 历史肯定违规反例保持 100% 检出率；AQ06/AQ12 历史假阳性保持为 0；G1–G4 语义边界保持有效；外部真实模型调用数为 0，生产代码与冻结题集零修改。
+
+## 15. 数字编造检测、富文本归一化与弱转折作用域专项（P10-SCORER-ROBUSTNESS-05）
+
+新增独立[评分器数字编造、富文本归一化与弱转折修复证据目录](../acceptance-evidence/2026-10-26/p10-scorer-robustness-05/README.md)。
+
+**核心成果：演进至评分器 2.0-scoped-contextual-v5 确定性架构**：
+1. **阿拉伯数字候选提取与拒答冲突闭环（RISK-P10-008）**：
+   - 确证原 `HAN_NUMBER` 仅覆盖汉字数字，遗漏阿拉伯数字导致“拒答 + 阿拉伯数字编造”被误判为 `HONEST_ABSTENTION`；
+   - 实现 `NUMERIC_CANDIDATE` 正则，支持阿拉伯整数、小数、百分比及千分位数值；
+   - 引入预屏蔽机制安全过滤 `[S#]` 引用编号、`V1.0` 版本号与 `YYYY-MM-DD` 日期；
+   - 建立双向汉字/阿拉伯数字来源支持比对，合法数字不误报，未经支持且伴随拒答的数字事实可靠报告 `CONFLICTING_FABRICATION`。
+2. **富文本 HTML 标签剥离与删除线效力未知复核分流（RISK-P10-009）**：
+   - 确证内联 HTML 标签破坏字符连续性导致禁断 marker 漏检，或阻断直接否定识别；
+   - 在 `P10TextNormalizer` 中实现展示型 HTML 标签（`<u>`、`<strong>`、`<em>`、`<span>` 等）递归剥离，支持标签属性与嵌套结构；
+   - 对删除线（`~~`、`<del>`、`<s>`、`<strike>`），统一规范化并在 `P10ContextualAssertionJudge` 中建立删除线专属分流机制：当删除线修饰/打断否定词或命题时，判定为 `AMBIGUOUS_NEEDS_REVIEW`，杜绝将已删除否定词误当作有效否定机械放行。
+3. **弱转折连词引导独立命题的作用域截断（RISK-P10-010）**：
+   - 确证无标点复合句中缺少弱转折连词会导致前置认识模态越界统领后半句的独立肯定断言；
+   - 扩充 `ADVERSATIVE_CONJUNCTION` 词表收录 `只是|反倒|反而|相反|仅是`，在无标点复合句中准确重置子句左边界，恢复后置肯定违规检出；
+   - 保持对解释性历史背景语句（如“只是作为历史背景引用”）不误报现行违规的语义约束。
+4. **确定性指标与交互验证**：
+   - 4 项定向与交互回归测试 100% 通过；`P10ScorerRobustnessTest` 33 项测试全绿；
+   - 7/7 历史肯定违规反例保持 100% 检出率；AQ06/AQ12 历史假阳性保持为 0；G1–G4 语义边界保持有效；
+   - 外部真实模型调用数始终为 0，生产代码与冻结题集零修改。
+
 
 

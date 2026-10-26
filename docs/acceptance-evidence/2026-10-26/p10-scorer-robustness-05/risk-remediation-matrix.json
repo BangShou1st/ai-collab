@@ -1,0 +1,34 @@
+[ {
+  "finalStatus" : "RESOLVED_VERIFIED",
+  "riskId" : "RISK-P10-008",
+  "ruleVersion" : "2.0-scoped-contextual-v5",
+  "remediationDetails" : "实现多模式数字候选提取 NUMERIC_CANDIDATE，支持阿拉伯数字、小数、百分比与千分位数值；引入预屏蔽机制（过滤 [S#] 引用编号、V1.0 版本号、YYYY-MM-DD/YYYY年 日期）；建立双向汉字/阿拉伯数字来源支持比对，避免合法数字误报。",
+  "category" : "NUMBER_CANDIDATE_REGEX_GAP",
+  "initialStatus" : "STATIC_RISK",
+  "confirmedInBaseline" : true,
+  "initialSeverity" : "LOW",
+  "rootCause" : "原 HAN_NUMBER 正则仅匹配汉字数字（零一二...），未提取阿拉伯数字（\\d+）；在无答案题中导致数字编造无法进入 unsupportedNumberCandidates，进而使得包含伪造具体数字指标的回答被误判为诚实拒答放行。",
+  "title" : "阿拉伯数字整数、小数、百分比及千分位数值候选识别与拒答冲突检测"
+}, {
+  "finalStatus" : "RESOLVED_VERIFIED",
+  "riskId" : "RISK-P10-009",
+  "ruleVersion" : "2.0-scoped-contextual-v5",
+  "remediationDetails" : "在 P10TextNormalizer 中实现 HTML_DISPLAY_TAG 递归剥离与属性支持；将 <del>、<s>、<strike> 统一规范为 ~~text~~；在 P10ContextualAssertionJudge 中建立删除线专属复核分流机制，当否定词或命题被删除线修饰/打断时，转入 AMBIGUOUS_NEEDS_REVIEW，杜绝机械放行。",
+  "category" : "TEXT_NORMALIZATION_GAP",
+  "initialStatus" : "STATIC_RISK",
+  "confirmedInBaseline" : true,
+  "initialSeverity" : "LOW",
+  "rootCause" : "P10TextNormalizer 仅剥离 Markdown 强调（*、_、`），未处理 HTML 标签（<u>、<strong>、<em>、<span> 等）；内联标签插入在词语中间破坏了连续性导致禁断 marker 无法被定位。此外，删除线未作语义区分，若直接抹除可能将已删除否定词误当作有效否定放行。",
+  "title" : "HTML 标签剥离与删除线效力未知人工复核分流"
+}, {
+  "finalStatus" : "RESOLVED_VERIFIED",
+  "riskId" : "RISK-P10-010",
+  "ruleVersion" : "2.0-scoped-contextual-v5",
+  "remediationDetails" : "扩充 ADVERSATIVE_CONJUNCTION 正则词表，支持 只是|反倒|反而|相反|仅是；在局部子句划分时精准截断分句，使后置独立肯定断言不受前置认识模态抑制；同时保持对历史背景解释性语句（如“只是作为历史背景引用”）不误报现行违规的语义约束。",
+  "category" : "ADVERSATIVE_CONJUNCTION_VOCABULARY",
+  "initialStatus" : "STATIC_RISK",
+  "confirmedInBaseline" : true,
+  "initialSeverity" : "LOW",
+  "rootCause" : "ADVERSATIVE_CONJUNCTION 正则仅包含常见书面转折词，缺少弱转折连词；在无逗号标点的复合句中，左边界无法重置，导致前置分句的认识模态词越界统领后半句的独立肯定断言，造成肯定违规漏报。",
+  "title" : "弱转折连词（只是、反倒、反而、相反）引导独立命题的作用域截断"
+} ]

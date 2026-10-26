@@ -1,0 +1,69 @@
+[ {
+  "questionId" : "AQ12-ABSTAIN-INDIRECT",
+  "testMethod" : "risk008_arabicNumberCandidateDetectionAndConflictingFabrication",
+  "riskId" : "RISK-P10-008",
+  "beforeFixActual" : {
+    "highSeverity" : [ ],
+    "unsupportedNumberCandidates" : [ ],
+    "abstentionVerdict" : "HONEST_ABSTENTION",
+    "testResult" : "FAILED (AssertionError: Expecting any elements of: [] to match given predicate)",
+    "abstentionCorrect" : true
+  },
+  "expected" : {
+    "highSeverityContains" : "CONFLICTING_FABRICATION",
+    "abstentionVerdict" : "CONFLICTING_FABRICATION",
+    "abstentionCorrect" : false,
+    "unsupportedNumberCandidates" : [ "50 份" ]
+  },
+  "afterFixActual" : {
+    "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[50 份]" ],
+    "unsupportedNumberCandidates" : [ "50 份" ],
+    "abstentionVerdict" : "CONFLICTING_FABRICATION",
+    "testResult" : "PASSED",
+    "abstentionCorrect" : false
+  },
+  "inputAnswer" : "资料不足，无法确认；但通常每年核对 50 份合同 [S1]。"
+}, {
+  "questionId" : "AQ06-UNLESS",
+  "testMethod" : "risk009_richTextHtmlAndStrikethroughNormalization",
+  "riskId" : "RISK-P10-009",
+  "beforeFixActual" : {
+    "highSeverity" : [ ],
+    "testResult" : "FAILED (AssertionError: [定位禁断 marker] Expecting actual not to be empty)",
+    "forbiddenAffirmationDetails" : [ ],
+    "normalizedAnswer" : "根据项目资料，通常<u>不可以</u>先组织培训再补签合同 [S1]。"
+  },
+  "expected" : {
+    "normalizedAnswer" : "根据项目资料，通常不可以先组织培训再补签合同 [S1]。",
+    "highSeverity" : [ ],
+    "verdict" : "NEGATED_OR_EPISTEMIC_MENTION"
+  },
+  "afterFixActual" : {
+    "highSeverity" : [ ],
+    "testResult" : "PASSED",
+    "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+    "normalizedAnswer" : "根据项目资料，通常不可以先组织培训再补签合同 [S1]。"
+  },
+  "inputAnswer" : "根据项目资料，通常<u>不可以</u>先组织培训再补签合同 [S1]。"
+}, {
+  "questionId" : "AQ12-ABSTAIN-INDIRECT",
+  "testMethod" : "risk010_weakAdversativeConjunctionScopeIsolation",
+  "riskId" : "RISK-P10-010",
+  "beforeFixActual" : {
+    "highSeverity" : [ ],
+    "testResult" : "FAILED (AssertionError: [无标点'只是'引导独立断言] Expecting any elements of: [] to match given predicate)",
+    "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+    "reason" : "命题处于明确的资料未明确/尚未确定等认识模态修饰语境中，非肯定断言"
+  },
+  "expected" : {
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "highSeverityContains" : "FORBIDDEN_AFFIRMATION"
+  },
+  "afterFixActual" : {
+    "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：每年抽查", "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[每年抽查]" ],
+    "testResult" : "PASSED",
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "reason" : "转折分句独立肯定断言禁断命题，不受其他分句认识模态影响"
+  },
+  "inputAnswer" : "资料中未明确具体比例只是制度要求每年抽查所有合同 [S1]。"
+} ]

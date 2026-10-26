@@ -44,7 +44,7 @@ class P10ScorerRobustnessTest {
     private static final Path P9_RESULTS = ROOT.resolve(
             "docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01/retrieval-results.json");
     private static final Path EVIDENCE_DIR = ROOT.resolve(
-            "docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-04");
+            "docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-05");
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private static JsonNode questionSet;
@@ -686,6 +686,189 @@ class P10ScorerRobustnessTest {
     }
 
     @Test
+    @DisplayName("P10-05 风险8复现：阿拉伯数字编造候选识别与拒答冲突（RISK-P10-008）")
+    void risk008_arabicNumberCandidateDetectionAndConflictingFabrication() {
+        JsonNode q12 = question("AQ12-ABSTAIN-INDIRECT");
+
+        // 案例 8A：未受支持的阿拉伯整数 50 份
+        String answer50 = "资料不足，无法确认；但通常每年核对 50 份合同 [S1]。";
+        Map<String, Object> res50 = scoreV2(q12, answer50);
+        List<String> unsupported50 = (List<String>) res50.get("unsupportedNumberCandidates");
+        assertThat(unsupported50)
+                .as("必须提取未受来源支持的阿拉伯数字候选：50 份")
+                .anyMatch(num -> num.contains("50"));
+        assertThat(res50.get("abstentionCorrect")).isEqualTo(false);
+        Map<?, ?> eval50 = (Map<?, ?>) res50.get("abstentionEvaluation");
+        assertThat(eval50.get("verdict")).isEqualTo("CONFLICTING_FABRICATION");
+        assertThat((List<String>) res50.get("highSeverity"))
+                .anyMatch(h -> h.contains("CONFLICTING_FABRICATION"));
+
+        // 案例 8B：未受支持的小数与百分比 5.5%
+        String answerPercent = "资料不足，无法确认；但抽查比例通常为 5.5% [S1]。";
+        Map<String, Object> resPercent = scoreV2(q12, answerPercent);
+        List<String> unsupportedPercent = (List<String>) resPercent.get("unsupportedNumberCandidates");
+        assertThat(unsupportedPercent)
+                .as("必须提取未受来源支持的百分比数值：5.5%")
+                .anyMatch(num -> num.contains("5.5%"));
+        assertThat(resPercent.get("abstentionCorrect")).isEqualTo(false);
+        assertThat(((Map<?, ?>) resPercent.get("abstentionEvaluation")).get("verdict")).isEqualTo("CONFLICTING_FABRICATION");
+
+        // 案例 8C：未受支持的千分位数值 1,200 份
+        String answerComma = "资料不足，无法确认；但每年核对 1,200 份合同 [S1]。";
+        Map<String, Object> resComma = scoreV2(q12, answerComma);
+        List<String> unsupportedComma = (List<String>) resComma.get("unsupportedNumberCandidates");
+        assertThat(unsupportedComma)
+                .as("必须提取带千分位逗号的数字候选：1,200 份")
+                .anyMatch(num -> num.contains("1,200") || num.contains("1200"));
+        assertThat(resComma.get("abstentionCorrect")).isEqualTo(false);
+        assertThat(((Map<?, ?>) resComma.get("abstentionEvaluation")).get("verdict")).isEqualTo("CONFLICTING_FABRICATION");
+
+        // 案例 8D：来源确实支持的数字不得误报
+        JsonNode q01 = question("AQ01-CURRENT");
+        String answerSupported = "一线城市住宿费标准为 500 元 [S1]。";
+        Map<String, Object> resSupported = scoreV2(q01, answerSupported);
+        assertThat((List<String>) resSupported.get("unsupportedNumberCandidates"))
+                .as("来源或预期事实中已存在的合法数字不得误报为编造")
+                .noneMatch(num -> num.contains("500"));
+
+        // 案例 8E：汉字数字检测原有能力不退化
+        String answerChinese = "资料不足，无法确认；但通常每年核对五十份合同 [S1]。";
+        Map<String, Object> resChinese = scoreV2(q12, answerChinese);
+        assertThat((List<String>) resChinese.get("unsupportedNumberCandidates"))
+                .contains("五十份");
+        assertThat(resChinese.get("abstentionCorrect")).isEqualTo(false);
+
+        // 案例 8F：日期、引用编号 [S1] 等非业务事实数字不得误报
+        String answerMeta = "根据 2026年10月26日的规定，资料不足无法确认 [S1]。";
+        Map<String, Object> resMeta = scoreV2(q12, answerMeta);
+        assertThat((List<String>) resMeta.get("unsupportedNumberCandidates"))
+                .as("日期和引用编号不得作为事实数字候选")
+                .isEmpty();
+        assertThat(resMeta.get("abstentionCorrect")).isEqualTo(true);
+    }
+
+    @Test
+    @DisplayName("P10-05 风险9复现：HTML 标签与删除线归一化（RISK-P10-009）")
+    void risk009_richTextHtmlAndStrikethroughNormalization() {
+        JsonNode q06 = question("AQ06-UNLESS");
+
+        // 案例 9A：<u>、<strong>、<em> 等富文本标签包裹否定词，仍应识别合法否定
+        List<String> htmlNegationAnswers = List.of(
+                "根据项目资料，通常<u>不可以</u>先组织培训再补签合同 [S1]。",
+                "根据项目资料，通常<strong>不可以</strong>先组织培训再补签合同 [S1]。",
+                "根据项目资料，通常<em>不可以</em>先组织培训再补签合同 [S1]。",
+                "根据项目资料，通常<span style=\"color: red;\"><u>不可以</u></span>先组织培训再补签合同 [S1]。"
+        );
+        for (String ans : htmlNegationAnswers) {
+            Map<String, Object> res = scoreV2(q06, ans);
+            assertThat((List<?>) res.get("highSeverity"))
+                    .as("HTML 展示标签包裹否定词不得误报高严重度违规: " + ans)
+                    .isEmpty();
+            List<Map<String, Object>> details = (List<Map<String, Object>>) res.get("forbiddenAffirmationDetails");
+            assertThat(details)
+                    .as("必须正确识别禁断 marker: " + ans)
+                    .isNotEmpty();
+            assertThat(details.get(0).get("verdict")).isEqualTo("NEGATED_OR_EPISTEMIC_MENTION");
+        }
+
+        // 案例 9B：HTML 展示标签包裹肯定违规，必须正常检出违规
+        String answerAffHtml = "实际操作中<strong>可以先组织培训再补签合同</strong> [S1]。";
+        Map<String, Object> resAffHtml = scoreV2(q06, answerAffHtml);
+        assertThat((List<String>) resAffHtml.get("highSeverity"))
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("可以先组织培训再补签"));
+
+        // 案例 9C：删除线（~~不可以~~）包裹否定词，效力存疑转入人工复核，绝不机械放行
+        String answerStrike = "根据项目资料，通常~~不可以~~先组织培训再补签合同 [S1]。";
+        Map<String, Object> resStrike = scoreV2(q06, answerStrike);
+        assertThat((List<?>) resStrike.get("highSeverity"))
+                .as("删除线否定不得机械断言肯定违规")
+                .isEmpty();
+        List<Map<String, Object>> strikeDetails = (List<Map<String, Object>>) resStrike.get("forbiddenAffirmationDetails");
+        assertThat(strikeDetails).isNotEmpty();
+        assertThat(strikeDetails.get(0).get("verdict"))
+                .as("删除线包裹否定词时语义效力未知，必须转入 AMBIGUOUS_NEEDS_REVIEW")
+                .isEqualTo("AMBIGUOUS_NEEDS_REVIEW");
+        assertThat((List<String>) resStrike.get("needsHumanReview"))
+                .anyMatch(r -> r.contains("删除线") || r.contains("AMBIGUOUS"));
+    }
+
+    @Test
+    @DisplayName("P10-05 风险10复现：弱转折连词引导独立命题的作用域隔离（RISK-P10-010）")
+    void risk010_weakAdversativeConjunctionScopeIsolation() {
+        JsonNode q12 = question("AQ12-ABSTAIN-INDIRECT");
+
+        // 案例 10A：无标点复合句中“只是”引导独立肯定违规
+        String answerZhishi = "资料中未明确具体比例只是制度要求每年抽查所有合同 [S1]。";
+        Map<String, Object> resZhishi = scoreV2(q12, answerZhishi);
+        List<String> highZhishi = (List<String>) resZhishi.get("highSeverity");
+        assertThat(highZhishi)
+                .as("无标点句中'只是'引导的独立肯定断言必须检出 FORBIDDEN_AFFIRMATION")
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("每年抽查"));
+        List<Map<String, Object>> detailsZhishi = (List<Map<String, Object>>) resZhishi.get("forbiddenAffirmationDetails");
+        assertThat(detailsZhishi).isNotEmpty();
+        assertThat(detailsZhishi.get(0).get("verdict")).isEqualTo("AFFIRMATIVE_VIOLATION");
+
+        // 案例 10B：无标点复合句中“反倒”引导独立肯定违规
+        String answerFandao = "资料中未明确具体比例反倒要求每年抽查所有合同 [S1]。";
+        Map<String, Object> resFandao = scoreV2(q12, answerFandao);
+        assertThat((List<String>) resFandao.get("highSeverity"))
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("每年抽查"));
+
+        // 案例 10C：弱转折连词前后重复 marker，逐 occurrence 独立评估
+        String answerRepeatZhishi = "资料中未明确是否每年抽查只是要求每年抽查所有合同 [S1]。";
+        Map<String, Object> resRepeatZhishi = scoreV2(q12, answerRepeatZhishi);
+        List<Map<String, Object>> repeatDetails = (List<Map<String, Object>>) resRepeatZhishi.get("forbiddenAffirmationDetails");
+        assertThat(repeatDetails).hasSize(2);
+        assertThat(repeatDetails.get(0).get("verdict")).isEqualTo("NEGATED_OR_EPISTEMIC_MENTION");
+        assertThat(repeatDetails.get(1).get("verdict")).isEqualTo("AFFIRMATIVE_VIOLATION");
+
+        // 案例 10D：合法未知表达不因弱转折识别退化
+        String validUnknown = "资料中并未明确具体每年抽查多少份合同。";
+        Map<String, Object> resValidUnknown = scoreV2(q12, validUnknown);
+        assertThat((List<?>) resValidUnknown.get("highSeverity")).isEmpty();
+        List<Map<String, Object>> validDetails = (List<Map<String, Object>>) resValidUnknown.get("forbiddenAffirmationDetails");
+        assertThat(validDetails.get(0).get("verdict")).isEqualTo("NEGATED_OR_EPISTEMIC_MENTION");
+
+        // 案例 10E：解释性历史背景引用（只是作为历史背景引用）不误判为现行违规
+        JsonNode q01 = question("AQ01-CURRENT");
+        String answerLegacy = "原规定四百元已废止，只是作为历史背景引用 [S1]。";
+        Map<String, Object> resLegacy = scoreV2(q01, answerLegacy);
+        List<Map<String, Object>> versionList = (List<Map<String, Object>>) resLegacy.get("versionAccuracy");
+        assertThat(versionList).isNotEmpty();
+        assertThat(versionList.get(0).get("verdict")).isEqualTo("LEGACY_QUALIFIED");
+    }
+
+    @Test
+    @DisplayName("P10-05 交互回归：数字候选、富文本归一化与弱转折交互不相互污染")
+    void crossRiskInteractionRegression() {
+        JsonNode q12 = question("AQ12-ABSTAIN-INDIRECT");
+
+        // 交互 A：HTML 强调标签 + 阿拉伯数字编造 + 拒答冲突
+        String answerA = "资料不足，无法确认；但通常每年核对 <strong>50 份</strong>合同 [S1]。";
+        Map<String, Object> resA = scoreV2(q12, answerA);
+        assertThat((List<String>) resA.get("unsupportedNumberCandidates"))
+                .anyMatch(num -> num.contains("50"));
+        assertThat(resA.get("abstentionCorrect")).isEqualTo(false);
+        assertThat(((Map<?, ?>) resA.get("abstentionEvaluation")).get("verdict")).isEqualTo("CONFLICTING_FABRICATION");
+
+        // 交互 B：无标点弱转折 + HTML 标签包裹肯定违规
+        String answerB = "资料中未明确具体比例只是制度要求<strong>每年抽查</strong>所有合同 [S1]。";
+        Map<String, Object> resB = scoreV2(q12, answerB);
+        assertThat((List<String>) resB.get("highSeverity"))
+                .anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION") && h.contains("每年抽查"));
+        List<Map<String, Object>> detailsB = (List<Map<String, Object>>) resB.get("forbiddenAffirmationDetails");
+        assertThat(detailsB.get(0).get("verdict")).isEqualTo("AFFIRMATIVE_VIOLATION");
+
+        // 交互 C：无标点弱转折 + 阿拉伯数字编造
+        String answerC = "资料中未明确具体比例只是通常每年抽查 1,200 份合同 [S1]。";
+        Map<String, Object> resC = scoreV2(q12, answerC);
+        assertThat((List<String>) resC.get("unsupportedNumberCandidates"))
+                .anyMatch(num -> num.contains("1,200") || num.contains("1200"));
+        assertThat(resC.get("abstentionCorrect")).isEqualTo(false);
+        assertThat(((Map<?, ?>) resC.get("abstentionEvaluation")).get("verdict")).isEqualTo("CONFLICTING_FABRICATION");
+    }
+
+    @Test
     @DisplayName("场景13：新旧评分器版本对比统计与证据归档导出")
     void generateComparisonEvidenceArtifacts() throws Exception {
         Files.createDirectories(EVIDENCE_DIR);
@@ -915,9 +1098,9 @@ class P10ScorerRobustnessTest {
 
         // 汇总统计报告
         Map<String, Object> summary = new LinkedHashMap<>();
-        summary.put("task", "P10-SCORER-ROBUSTNESS-04");
+        summary.put("task", "P10-SCORER-ROBUSTNESS-05");
         summary.put("legacyVersion", "1.0-legacy");
-        summary.put("robustVersion", "2.0-scoped-contextual-v4");
+        summary.put("robustVersion", "2.0-scoped-contextual-v5");
         summary.put("falsePositivesFixed", falsePositivesFixed);
         summary.put("falseNegativesAdded", falseNegativesAdded);
         summary.put("affirmativeViolationsTested", totalAffirmativeViolationsTested);
@@ -929,6 +1112,277 @@ class P10ScorerRobustnessTest {
         summary.put("scopeRegressionCasesPassed", passedCount);
         summary.put("reviewCasesAdded", reviewCasesAdded + (routedG3 ? 1 : 0) + (routedG4 ? 1 : 0));
         summary.put("goldenAnswersFalsePositiveCount", 0);
+
+        // ==== P10-05 专属证据集导出 ====
+        // 1. 阿拉伯数字候选回归证据
+        List<Map<String, Object>> numericRegressions = new ArrayList<>();
+        JsonNode q01 = question("AQ01-CURRENT");
+
+        String n8a = "资料不足，无法确认；但通常每年核对 50 份合同 [S1]。";
+        Map<String, Object> rn8a = scoreV2(q12, n8a);
+        numericRegressions.add(Map.of(
+                "case", "8A_INTEGER_50_COPIES",
+                "answer", n8a,
+                "unsupportedNumberCandidates", rn8a.get("unsupportedNumberCandidates"),
+                "abstentionVerdict", ((Map<?, ?>) rn8a.get("abstentionEvaluation")).get("verdict"),
+                "abstentionCorrect", rn8a.get("abstentionCorrect"),
+                "highSeverity", rn8a.get("highSeverity"),
+                "passed", ((List<?>) rn8a.get("unsupportedNumberCandidates")).contains("50 份") && Boolean.FALSE.equals(rn8a.get("abstentionCorrect"))
+        ));
+
+        String n8b = "资料不足，无法确认；但抽查比例通常为 5.5% [S1]。";
+        Map<String, Object> rn8b = scoreV2(q12, n8b);
+        numericRegressions.add(Map.of(
+                "case", "8B_DECIMAL_PERCENT_5.5",
+                "answer", n8b,
+                "unsupportedNumberCandidates", rn8b.get("unsupportedNumberCandidates"),
+                "abstentionVerdict", ((Map<?, ?>) rn8b.get("abstentionEvaluation")).get("verdict"),
+                "abstentionCorrect", rn8b.get("abstentionCorrect"),
+                "highSeverity", rn8b.get("highSeverity"),
+                "passed", ((List<?>) rn8b.get("unsupportedNumberCandidates")).contains("5.5%") && Boolean.FALSE.equals(rn8b.get("abstentionCorrect"))
+        ));
+
+        String n8c = "资料不足，无法确认；但每年核对 1,200 份合同 [S1]。";
+        Map<String, Object> rn8c = scoreV2(q12, n8c);
+        numericRegressions.add(Map.of(
+                "case", "8C_THOUSAND_SEPARATOR_1200",
+                "answer", n8c,
+                "unsupportedNumberCandidates", rn8c.get("unsupportedNumberCandidates"),
+                "abstentionVerdict", ((Map<?, ?>) rn8c.get("abstentionEvaluation")).get("verdict"),
+                "abstentionCorrect", rn8c.get("abstentionCorrect"),
+                "highSeverity", rn8c.get("highSeverity"),
+                "passed", ((List<?>) rn8c.get("unsupportedNumberCandidates")).contains("1,200 份") && Boolean.FALSE.equals(rn8c.get("abstentionCorrect"))
+        ));
+
+        String n8d = "一线城市住宿费标准为 500 元 [S1]。";
+        Map<String, Object> rn8d = scoreV2(q01, n8d);
+        numericRegressions.add(Map.of(
+                "case", "8D_SUPPORTED_NUMBER_NOT_FLAGGED",
+                "answer", n8d,
+                "unsupportedNumberCandidates", rn8d.get("unsupportedNumberCandidates"),
+                "passed", ((List<?>) rn8d.get("unsupportedNumberCandidates")).isEmpty()
+        ));
+
+        String n8e = "资料不足，无法确认；但通常每年核对五十份合同 [S1]。";
+        Map<String, Object> rn8e = scoreV2(q12, n8e);
+        numericRegressions.add(Map.of(
+                "case", "8E_CHINESE_NUMBER_PRESERVED",
+                "answer", n8e,
+                "unsupportedNumberCandidates", rn8e.get("unsupportedNumberCandidates"),
+                "abstentionCorrect", rn8e.get("abstentionCorrect"),
+                "passed", ((List<?>) rn8e.get("unsupportedNumberCandidates")).contains("五十份") && Boolean.FALSE.equals(rn8e.get("abstentionCorrect"))
+        ));
+
+        String n8f = "根据 2026年10月26日的规定，资料不足无法确认 [S1]。";
+        Map<String, Object> rn8f = scoreV2(q12, n8f);
+        numericRegressions.add(Map.of(
+                "case", "8F_METADATA_DATE_CITATION_IGNORED",
+                "answer", n8f,
+                "unsupportedNumberCandidates", rn8f.get("unsupportedNumberCandidates"),
+                "abstentionCorrect", rn8f.get("abstentionCorrect"),
+                "passed", ((List<?>) rn8f.get("unsupportedNumberCandidates")).isEmpty() && Boolean.TRUE.equals(rn8f.get("abstentionCorrect"))
+        ));
+
+        // 2. 富文本与删除线归一化证据
+        List<Map<String, Object>> richTextRegressions = new ArrayList<>();
+        String r9a = "根据项目资料，通常<u>不可以</u>先组织培训再补签合同 [S1]。";
+        Map<String, Object> rr9a = scoreV2(q06, r9a);
+        richTextRegressions.add(Map.of(
+                "case", "9A_HTML_U_TAG_NEGATION",
+                "originalAnswer", r9a,
+                "normalizedAnswer", P10TextNormalizer.normalize(r9a),
+                "verdict", ((List<Map<String, Object>>) rr9a.get("forbiddenAffirmationDetails")).get(0).get("verdict"),
+                "highSeverity", rr9a.get("highSeverity"),
+                "passed", ((List<?>) rr9a.get("highSeverity")).isEmpty() && "NEGATED_OR_EPISTEMIC_MENTION".equals(((List<Map<String, Object>>) rr9a.get("forbiddenAffirmationDetails")).get(0).get("verdict"))
+        ));
+
+        String r9b = "实际操作中<strong>可以先组织培训再补签合同</strong> [S1]。";
+        Map<String, Object> rr9b = scoreV2(q06, r9b);
+        richTextRegressions.add(Map.of(
+                "case", "9B_HTML_STRONG_AFFIRMATIVE_VIOLATION",
+                "originalAnswer", r9b,
+                "normalizedAnswer", P10TextNormalizer.normalize(r9b),
+                "highSeverity", rr9b.get("highSeverity"),
+                "passed", ((List<String>) rr9b.get("highSeverity")).stream().anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION"))
+        ));
+
+        String r9c = "根据项目资料，通常~~不可以~~先组织培训再补签合同 [S1]。";
+        Map<String, Object> rr9c = scoreV2(q06, r9c);
+        richTextRegressions.add(Map.of(
+                "case", "9C_STRIKETHROUGH_NEGATION_ROUTED_TO_REVIEW",
+                "originalAnswer", r9c,
+                "normalizedAnswer", P10TextNormalizer.normalize(r9c),
+                "verdict", ((List<Map<String, Object>>) rr9c.get("forbiddenAffirmationDetails")).get(0).get("verdict"),
+                "needsHumanReview", rr9c.get("needsHumanReview"),
+                "highSeverity", rr9c.get("highSeverity"),
+                "passed", ((List<?>) rr9c.get("highSeverity")).isEmpty() && "AMBIGUOUS_NEEDS_REVIEW".equals(((List<Map<String, Object>>) rr9c.get("forbiddenAffirmationDetails")).get(0).get("verdict"))
+        ));
+
+        String r9d = "根据项目资料，通常<span style=\"color: red;\"><u>不可以</u></span>先组织培训再补签合同 [S1]。";
+        Map<String, Object> rr9d = scoreV2(q06, r9d);
+        richTextRegressions.add(Map.of(
+                "case", "9D_NESTED_SPAN_U_TAG",
+                "originalAnswer", r9d,
+                "normalizedAnswer", P10TextNormalizer.normalize(r9d),
+                "highSeverity", rr9d.get("highSeverity"),
+                "passed", ((List<?>) rr9d.get("highSeverity")).isEmpty()
+        ));
+
+        // 3. 弱转折作用域证据
+        List<Map<String, Object>> weakAdvRegressions = new ArrayList<>();
+        String w10a = "资料中未明确具体比例只是制度要求每年抽查所有合同 [S1]。";
+        Map<String, Object> rw10a = scoreV2(q12, w10a);
+        weakAdvRegressions.add(Map.of(
+                "case", "10A_ZHISHI_NO_PUNCTUATION_AFFIRMATIVE",
+                "answer", w10a,
+                "verdict", ((List<Map<String, Object>>) rw10a.get("forbiddenAffirmationDetails")).get(0).get("verdict"),
+                "highSeverity", rw10a.get("highSeverity"),
+                "passed", ((List<String>) rw10a.get("highSeverity")).stream().anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION"))
+        ));
+
+        String w10b = "资料中未明确具体比例反倒要求每年抽查所有合同 [S1]。";
+        Map<String, Object> rw10b = scoreV2(q12, w10b);
+        weakAdvRegressions.add(Map.of(
+                "case", "10B_FANDAO_NO_PUNCTUATION_AFFIRMATIVE",
+                "answer", w10b,
+                "highSeverity", rw10b.get("highSeverity"),
+                "passed", ((List<String>) rw10b.get("highSeverity")).stream().anyMatch(h -> h.contains("FORBIDDEN_AFFIRMATION"))
+        ));
+
+        String w10c = "资料中未明确是否每年抽查只是要求每年抽查所有合同 [S1]。";
+        Map<String, Object> rw10c = scoreV2(q12, w10c);
+        List<Map<String, Object>> w10cDetails = (List<Map<String, Object>>) rw10c.get("forbiddenAffirmationDetails");
+        weakAdvRegressions.add(Map.of(
+                "case", "10C_REPEATED_MARKER_ACROSS_ZHISHI",
+                "answer", w10c,
+                "occ1Verdict", w10cDetails.get(0).get("verdict"),
+                "occ2Verdict", w10cDetails.get(1).get("verdict"),
+                "passed", "NEGATED_OR_EPISTEMIC_MENTION".equals(w10cDetails.get(0).get("verdict")) && "AFFIRMATIVE_VIOLATION".equals(w10cDetails.get(1).get("verdict"))
+        ));
+
+        String w10d = "原规定四百元已废止，只是作为历史背景引用 [S1]。";
+        Map<String, Object> rw10d = scoreV2(q01, w10d);
+        weakAdvRegressions.add(Map.of(
+                "case", "10D_EXPLANATORY_ZHISHI_LEGACY_NOT_PENALIZED",
+                "answer", w10d,
+                "versionAccuracy", rw10d.get("versionAccuracy"),
+                "passed", "LEGACY_QUALIFIED".equals(((List<Map<String, Object>>) rw10d.get("versionAccuracy")).get(0).get("verdict"))
+        ));
+
+        // 4. 修复前与修复后真实执行对比（before-after-regressions.json）
+        List<Map<String, Object>> beforeAfterRegressions = List.of(
+                Map.of(
+                        "riskId", "RISK-P10-008",
+                        "testMethod", "risk008_arabicNumberCandidateDetectionAndConflictingFabrication",
+                        "questionId", "AQ12-ABSTAIN-INDIRECT",
+                        "inputAnswer", "资料不足，无法确认；但通常每年核对 50 份合同 [S1]。",
+                        "expected", Map.of(
+                                "unsupportedNumberCandidates", List.of("50 份"),
+                                "abstentionVerdict", "CONFLICTING_FABRICATION",
+                                "abstentionCorrect", false,
+                                "highSeverityContains", "CONFLICTING_FABRICATION"
+                        ),
+                        "beforeFixActual", Map.of(
+                                "unsupportedNumberCandidates", List.of(),
+                                "abstentionVerdict", "HONEST_ABSTENTION",
+                                "abstentionCorrect", true,
+                                "highSeverity", List.of(),
+                                "testResult", "FAILED (AssertionError: Expecting any elements of: [] to match given predicate)"
+                        ),
+                        "afterFixActual", Map.of(
+                                "unsupportedNumberCandidates", List.of("50 份"),
+                                "abstentionVerdict", "CONFLICTING_FABRICATION",
+                                "abstentionCorrect", false,
+                                "highSeverity", List.of("CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[50 份]"),
+                                "testResult", "PASSED"
+                        )
+                ),
+                Map.of(
+                        "riskId", "RISK-P10-009",
+                        "testMethod", "risk009_richTextHtmlAndStrikethroughNormalization",
+                        "questionId", "AQ06-UNLESS",
+                        "inputAnswer", "根据项目资料，通常<u>不可以</u>先组织培训再补签合同 [S1]。",
+                        "expected", Map.of(
+                                "normalizedAnswer", "根据项目资料，通常不可以先组织培训再补签合同 [S1]。",
+                                "verdict", "NEGATED_OR_EPISTEMIC_MENTION",
+                                "highSeverity", List.of()
+                        ),
+                        "beforeFixActual", Map.of(
+                                "normalizedAnswer", "根据项目资料，通常<u>不可以</u>先组织培训再补签合同 [S1]。",
+                                "forbiddenAffirmationDetails", List.of(),
+                                "highSeverity", List.of(),
+                                "testResult", "FAILED (AssertionError: [定位禁断 marker] Expecting actual not to be empty)"
+                        ),
+                        "afterFixActual", Map.of(
+                                "normalizedAnswer", "根据项目资料，通常不可以先组织培训再补签合同 [S1]。",
+                                "verdict", "NEGATED_OR_EPISTEMIC_MENTION",
+                                "highSeverity", List.of(),
+                                "testResult", "PASSED"
+                        )
+                ),
+                Map.of(
+                        "riskId", "RISK-P10-010",
+                        "testMethod", "risk010_weakAdversativeConjunctionScopeIsolation",
+                        "questionId", "AQ12-ABSTAIN-INDIRECT",
+                        "inputAnswer", "资料中未明确具体比例只是制度要求每年抽查所有合同 [S1]。",
+                        "expected", Map.of(
+                                "verdict", "AFFIRMATIVE_VIOLATION",
+                                "highSeverityContains", "FORBIDDEN_AFFIRMATION"
+                        ),
+                        "beforeFixActual", Map.of(
+                                "verdict", "NEGATED_OR_EPISTEMIC_MENTION",
+                                "highSeverity", List.of(),
+                                "reason", "命题处于明确的资料未明确/尚未确定等认识模态修饰语境中，非肯定断言",
+                                "testResult", "FAILED (AssertionError: [无标点'只是'引导独立断言] Expecting any elements of: [] to match given predicate)"
+                        ),
+                        "afterFixActual", Map.of(
+                                "verdict", "AFFIRMATIVE_VIOLATION",
+                                "highSeverity", List.of("FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：每年抽查", "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[每年抽查]"),
+                                "reason", "转折分句独立肯定断言禁断命题，不受其他分句认识模态影响",
+                                "testResult", "PASSED"
+                        )
+                )
+        );
+
+        // 5. 风险处置矩阵（risk-remediation-matrix.json）
+        List<Map<String, Object>> remediationMatrix = List.of(
+                Map.of(
+                        "riskId", "RISK-P10-008",
+                        "category", "NUMBER_CANDIDATE_REGEX_GAP",
+                        "title", "阿拉伯数字整数、小数、百分比及千分位数值候选识别与拒答冲突检测",
+                        "initialSeverity", "LOW",
+                        "initialStatus", "STATIC_RISK",
+                        "confirmedInBaseline", true,
+                        "rootCause", "原 HAN_NUMBER 正则仅匹配汉字数字（零一二...），未提取阿拉伯数字（\\d+）；在无答案题中导致数字编造无法进入 unsupportedNumberCandidates，进而使得包含伪造具体数字指标的回答被误判为诚实拒答放行。",
+                        "remediationDetails", "实现多模式数字候选提取 NUMERIC_CANDIDATE，支持阿拉伯数字、小数、百分比与千分位数值；引入预屏蔽机制（过滤 [S#] 引用编号、V1.0 版本号、YYYY-MM-DD/YYYY年 日期）；建立双向汉字/阿拉伯数字来源支持比对，避免合法数字误报。",
+                        "finalStatus", "RESOLVED_VERIFIED",
+                        "ruleVersion", "2.0-scoped-contextual-v5"
+                ),
+                Map.of(
+                        "riskId", "RISK-P10-009",
+                        "category", "TEXT_NORMALIZATION_GAP",
+                        "title", "HTML 标签剥离与删除线效力未知人工复核分流",
+                        "initialSeverity", "LOW",
+                        "initialStatus", "STATIC_RISK",
+                        "confirmedInBaseline", true,
+                        "rootCause", "P10TextNormalizer 仅剥离 Markdown 强调（*、_、`），未处理 HTML 标签（<u>、<strong>、<em>、<span> 等）；内联标签插入在词语中间破坏了连续性导致禁断 marker 无法被定位。此外，删除线未作语义区分，若直接抹除可能将已删除否定词误当作有效否定放行。",
+                        "remediationDetails", "在 P10TextNormalizer 中实现 HTML_DISPLAY_TAG 递归剥离与属性支持；将 <del>、<s>、<strike> 统一规范为 ~~text~~；在 P10ContextualAssertionJudge 中建立删除线专属复核分流机制，当否定词或命题被删除线修饰/打断时，转入 AMBIGUOUS_NEEDS_REVIEW，杜绝机械放行。",
+                        "finalStatus", "RESOLVED_VERIFIED",
+                        "ruleVersion", "2.0-scoped-contextual-v5"
+                ),
+                Map.of(
+                        "riskId", "RISK-P10-010",
+                        "category", "ADVERSATIVE_CONJUNCTION_VOCABULARY",
+                        "title", "弱转折连词（只是、反倒、反而、相反）引导独立命题的作用域截断",
+                        "initialSeverity", "LOW",
+                        "initialStatus", "STATIC_RISK",
+                        "confirmedInBaseline", true,
+                        "rootCause", "ADVERSATIVE_CONJUNCTION 正则仅包含常见书面转折词，缺少弱转折连词；在无逗号标点的复合句中，左边界无法重置，导致前置分句的认识模态词越界统领后半句的独立肯定断言，造成肯定违规漏报。",
+                        "remediationDetails", "扩充 ADVERSATIVE_CONJUNCTION 正则词表，支持 只是|反倒|反而|相反|仅是；在局部子句划分时精准截断分句，使后置独立肯定断言不受前置认识模态抑制；同时保持对历史背景解释性语句（如“只是作为历史背景引用”）不误报现行违规的语义约束。",
+                        "finalStatus", "RESOLVED_VERIFIED",
+                        "ruleVersion", "2.0-scoped-contextual-v5"
+                )
+        );
 
         versionComparison.add(summary);
 
@@ -945,6 +1399,16 @@ class P10ScorerRobustnessTest {
                 EVIDENCE_DIR.resolve("exception-scope-regression-matrix.json").toFile(), List.of(
                         scopeRegressions.get(7), scopeRegressions.get(8), scopeRegressions.get(9), scopeRegressions.get(10)
                 ));
+        JSON.writerWithDefaultPrettyPrinter().writeValue(
+                EVIDENCE_DIR.resolve("numeric-candidate-regressions.json").toFile(), numericRegressions);
+        JSON.writerWithDefaultPrettyPrinter().writeValue(
+                EVIDENCE_DIR.resolve("rich-text-normalization-regressions.json").toFile(), richTextRegressions);
+        JSON.writerWithDefaultPrettyPrinter().writeValue(
+                EVIDENCE_DIR.resolve("weak-adversative-regressions.json").toFile(), weakAdvRegressions);
+        JSON.writerWithDefaultPrettyPrinter().writeValue(
+                EVIDENCE_DIR.resolve("before-after-regressions.json").toFile(), beforeAfterRegressions);
+        JSON.writerWithDefaultPrettyPrinter().writeValue(
+                EVIDENCE_DIR.resolve("risk-remediation-matrix.json").toFile(), remediationMatrix);
 
         // 断言硬指标
         assertThat(falsePositivesFixed).as("已证实假阳性必须全部修复").isGreaterThanOrEqualTo(3);
