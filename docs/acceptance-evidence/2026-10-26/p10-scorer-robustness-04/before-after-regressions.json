@@ -1,0 +1,187 @@
+[
+  {
+    "riskId": "RISK-P10-001",
+    "testMethod": "risk001_doubleNegationShouldNotShortCircuitIndependentAffirmativeViolation",
+    "questionId": "AQ06-UNLESS",
+    "inputAnswer": "我们不得不承认前期沟通存在问题，但是实际操作中可以先组织培训再补签合同 [S1]。",
+    "targetMarker": "可以先组织培训再补签",
+    "expected": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverityContains": "FORBIDDEN_AFFIRMATION",
+      "forbiddenHitsContains": "可以先组织培训再补签",
+      "humanReviewRequired": false
+    },
+    "beforeFixActual": {
+      "verdict": "AMBIGUOUS_NEEDS_REVIEW",
+      "highSeverity": [],
+      "forbiddenHits": [],
+      "needsHumanReview": [
+        "FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：可以先组织培训再补签"
+      ],
+      "testResult": "FAILED (AssertionError: Expecting any elements of: [] to match predicate)"
+    },
+    "afterFixActual": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签"
+      ],
+      "forbiddenHits": ["可以先组织培训再补签"],
+      "testResult": "PASSED"
+    }
+  },
+  {
+    "riskId": "RISK-P10-002",
+    "testMethod": "risk002_abstentionWithFabricationMustNotBeHonestAbstention",
+    "questionId": "AQ11-ABSTAIN-NONE",
+    "inputAnswer": "虽然我们不得不承认资料不足、无法确认，但是该系统目前确定使用 MySQL 存储凭证影像 [S1]。",
+    "targetMarker": "使用 MySQL",
+    "expected": {
+      "verdict": "CONFLICTING_FABRICATION",
+      "abstentionCorrect": false,
+      "highSeverityContains": "CONFLICTING_FABRICATION"
+    },
+    "beforeFixActual": {
+      "verdict": "HONEST_ABSTENTION",
+      "abstentionCorrect": true,
+      "highSeverity": [],
+      "testResult": "FAILED (AssertionFailedError: expected: false but was: true)"
+    },
+    "afterFixActual": {
+      "verdict": "CONFLICTING_FABRICATION",
+      "abstentionCorrect": false,
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：使用 MySQL",
+        "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[使用 MySQL]"
+      ],
+      "testResult": "PASSED"
+    }
+  },
+  {
+    "riskId": "RISK-P10-003",
+    "testMethod": "risk003_rhetoricalHypotheticalMustNotPolluteIndependentClause",
+    "questionId": "AQ04-REGION-THRESHOLD",
+    "inputAnswer": "理论上应该在三个工作日内完成，实际上华东中心盘点差异率超过百分之五时需要提交说明 [S1]。",
+    "targetMarker": "华东中心盘点差异率超过百分之五",
+    "expected": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverityContains": "FORBIDDEN_AFFIRMATION",
+      "forbiddenHitsContains": "华东中心盘点差异率超过百分之五"
+    },
+    "beforeFixActual": {
+      "verdict": "AMBIGUOUS_NEEDS_REVIEW",
+      "highSeverity": [],
+      "forbiddenHits": [],
+      "testResult": "FAILED (AssertionError: Expecting any elements of: [] to match predicate)"
+    },
+    "afterFixActual": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：华东中心盘点差异率超过百分之五"
+      ],
+      "forbiddenHits": ["华东中心盘点差异率超过百分之五"],
+      "testResult": "PASSED"
+    }
+  },
+  {
+    "riskId": "RISK-P10-004",
+    "testMethod": "risk004_epistemicUnknownShortPrefixMustNotExemptAffirmativeAction",
+    "questionId": "AQ06-UNLESS",
+    "inputAnswer": "资料不足我们可以先组织培训再补签合同 [S1]。",
+    "targetMarker": "可以先组织培训再补签",
+    "expected": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverityContains": "FORBIDDEN_AFFIRMATION",
+      "forbiddenHitsContains": "可以先组织培训再补签"
+    },
+    "beforeFixActual": {
+      "verdict": "NEGATED_OR_EPISTEMIC_MENTION",
+      "highSeverity": [],
+      "forbiddenHits": [],
+      "testResult": "FAILED (AssertionError: Expecting any elements of: [] to match predicate)"
+    },
+    "afterFixActual": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签"
+      ],
+      "forbiddenHits": ["可以先组织培训再补签"],
+      "testResult": "PASSED"
+    }
+  },
+  {
+    "riskId": "RISK-P10-005",
+    "testMethod": "risk005_suffixNegationShouldBeRecognizedAndNotReportViolation",
+    "questionId": "AQ04-REGION-THRESHOLD",
+    "inputAnswer": "华东中心盘点差异率超过百分之五是不允许的 [S1]。",
+    "targetMarker": "华东中心盘点差异率超过百分之五",
+    "expected": {
+      "verdict": "NEGATED_OR_EPISTEMIC_MENTION",
+      "highSeverity": [],
+      "forbiddenHits": []
+    },
+    "beforeFixActual": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：华东中心盘点差异率超过百分之五"
+      ],
+      "forbiddenHits": ["华东中心盘点差异率超过百分之五"],
+      "testResult": "FAILED (AssertionError: Expecting empty but was: [\"FORBIDDEN_AFFIRMATION:...\"])"
+    },
+    "afterFixActual": {
+      "verdict": "NEGATED_OR_EPISTEMIC_MENTION",
+      "highSeverity": [],
+      "forbiddenHits": [],
+      "testResult": "PASSED"
+    }
+  },
+  {
+    "riskId": "RISK-P10-006",
+    "testMethod": "risk006_legacyVersionQualifierMustNotLeakAcrossAdversativeClause",
+    "questionId": "AQ01-CURRENT",
+    "inputAnswer": "虽然原规定已经废止，但一线城市住宿费标准仍为四百元 [S1]。",
+    "targetMarker": "四百",
+    "expected": {
+      "verdict": "VERSION_VIOLATION",
+      "highSeverityContains": "VERSION_VIOLATION"
+    },
+    "beforeFixActual": {
+      "verdict": "LEGACY_QUALIFIED",
+      "highSeverity": [],
+      "testResult": "FAILED (AssertionError: Expecting any elements of: [] to match predicate)"
+    },
+    "afterFixActual": {
+      "verdict": "VERSION_VIOLATION",
+      "highSeverity": [
+        "VERSION_VIOLATION:旧/废止/他方条款以现行口径出现：四百"
+      ],
+      "testResult": "PASSED"
+    }
+  },
+  {
+    "riskId": "RISK-P10-007",
+    "testMethod": "risk007_exceptionClauseMustNotPolluteUnrelatedProposition",
+    "questionId": "AQ06-UNLESS",
+    "inputAnswer": "除非获得特批否则不得推迟上线，可以先组织培训再补签合同 [S1]。",
+    "targetMarker": "可以先组织培训再补签",
+    "expected": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverityContains": "FORBIDDEN_AFFIRMATION"
+    },
+    "beforeFixActual": {
+      "verdict": "AMBIGUOUS_NEEDS_REVIEW",
+      "highSeverity": [],
+      "needsHumanReview": [
+        "FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：可以先组织培训再补签"
+      ],
+      "testResult": "FAILED (AssertionError: Expecting any elements of: [] to match predicate)"
+    },
+    "afterFixActual": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签"
+      ],
+      "forbiddenHits": ["可以先组织培训再补签"],
+      "testResult": "PASSED"
+    }
+  }
+]

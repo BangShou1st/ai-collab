@@ -59,6 +59,7 @@
 包含按日期严格组织的交付证据目录（测试结果、BSK 浏览器截图、回归基准与脱敏元数据）：
 
 - 目录格式：`docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`
+- [P10-SCORER-ROBUSTNESS-04：已确证缺陷修复与逐项回归](acceptance-evidence/2026-10-26/p10-scorer-robustness-04/README.md)：针对 Audit-01 确证的 7 项缺陷（双重否定全局短路、拒答级联失守、反差转折跨句污染、认识模态短前缀放行、后置否定谓语误报、版本限定跨分句泄漏、例外条款污染无关命题）实施测试驱动修复与逐项回归；29 项稳健性测试全绿，历史反例 100% 保持，静态风险受控界定；零外部模型调用，零生产代码变更；[研究](archive/research/p10-scorer-robustness-04-research-20261026.md)与[交付](archive/reports/p10-scorer-robustness-04-delivery-20261026.md)。
 - [P10-SCORER-ROBUSTNESS-AUDIT-01：评分器全规则组合与作用域风险审计](acceptance-evidence/2026-10-26/p10-scorer-robustness-audit-01/README.md)：系统性只读审计，建立 20 项规则交互矩阵与 10 项风险登记；确证全局双重否定检测导致独立违规漏报与拒答冲突检测失守等 7 项已复现缺陷；零生产代码变更，零外部模型调用；[研究](archive/research/p10-scorer-robustness-audit-01-research-20261026.md)与[交付](archive/reports/p10-scorer-robustness-audit-01-delivery-20261026.md)。
 - [P10-SCORER-ROBUSTNESS-03：例外条款作用域隔离与漏报防护](acceptance-evidence/2026-10-26/p10-scorer-robustness-03/README.md)：彻底修复例外条款分支全句级扫描缺陷，建立局部子句绑定与紧邻从句修饰范围界定，禁止词限定局部子句，阻断转折渗透与逆向覆盖，特批条件许可安全转人工复核；零外部模型调用，零生产代码变更。
 - [P10-SCORER-ROBUSTNESS-02：认识模态作用域与转折分句漏报修复](acceptance-evidence/2026-10-26/p10-scorer-robustness-02/README.md)：修复评分器认识模态判断作用域过宽缺陷，隔离转折连词前后的独立分句主张，支持同句多 occurrence 判定，复杂反差安全转人工复核；零外部模型调用，零生产代码变更。

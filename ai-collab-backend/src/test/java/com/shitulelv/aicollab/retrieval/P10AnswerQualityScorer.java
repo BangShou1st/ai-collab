@@ -26,9 +26,11 @@ import java.util.regex.Pattern;
 final class P10AnswerQualityScorer {
     static final String QA = "QA";
     static final String AGENT = "AGENT";
-    static final String SCORER_VERSION = "2.0-robust";
+    static final String SCORER_VERSION = "2.0-scoped-contextual-v4";
 
     private static final Pattern SENTENCE = Pattern.compile("[^。！？；\\n]+[。！？；\\n]?");
+    private static final Pattern ADVERSATIVE_CONJUNCTION = Pattern.compile(
+            "但(?:是)?|然而|不过|可是|却|实际上|其实|事实是|实质上|反之|而");
     private static final Pattern HAN_NUMBER = Pattern.compile(
             "[零一二三四五六七八九十百千万]{1,10}(?:元|个工作日|个工作小时|小时|日|天|年|份|%|成)|百分之[零一二三四五六七八九十]{1,3}");
     private static final KnowledgeCitationValidator VALIDATOR = new KnowledgeCitationValidator();
@@ -137,7 +139,7 @@ final class P10AnswerQualityScorer {
             while (sentences.find()) {
                 String sentence = sentences.group();
                 if (P10TextNormalizer.containsFact(sentence, legacyMarker)
-                        && legacyWords.stream().map(P10TextNormalizer::normalizeMarker).noneMatch(sentence::contains)) {
+                        && !isLegacyOccurrenceQualified(sentence, legacyMarker, legacyWords)) {
                     unqualified.add(sentence.strip());
                 }
             }
@@ -175,6 +177,7 @@ final class P10AnswerQualityScorer {
                 P10ContextualAssertionJudge.evaluateForbiddenAffirmations(normalizedAnswer, forbidden);
 
         List<String> affirmativeViolations = new ArrayList<>();
+        List<String> unresolvedAmbiguousForbidden = new ArrayList<>();
         List<Map<String, Object>> details = new ArrayList<>();
 
         for (P10ContextualAssertionJudge.Assessment assessment : assessments) {
@@ -192,6 +195,9 @@ final class P10AnswerQualityScorer {
                     highSeverity.add("FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：" + assessment.marker());
                 }
             } else if (assessment.verdict() == P10ContextualAssertionJudge.AssertionVerdict.AMBIGUOUS_NEEDS_REVIEW) {
+                if (!unresolvedAmbiguousForbidden.contains(assessment.marker())) {
+                    unresolvedAmbiguousForbidden.add(assessment.marker());
+                }
                 needsReview.add("FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：" +
                         assessment.marker() + " | 句: " + assessment.sentence() + " | 理由: " + assessment.reason());
             }
@@ -201,7 +207,7 @@ final class P10AnswerQualityScorer {
 
         // ---- 增强拒答检测（保留冻结短语追溯 + 扩展未知状态 + 编造冲突防范）----
         P10AbstentionDetector.AbstentionEvaluation abstentionEval =
-                P10AbstentionDetector.evaluate(abstainQuestion, abstentionPhrases, normalizedAnswer, unsupported, affirmativeViolations);
+                P10AbstentionDetector.evaluate(abstainQuestion, abstentionPhrases, normalizedAnswer, unsupported, affirmativeViolations, unresolvedAmbiguousForbidden);
 
         result.put("frozenAbstentionPhraseHit", abstentionEval.frozenPhraseHit());
         Map<String, Object> abstentionDetails = new LinkedHashMap<>();
@@ -259,6 +265,109 @@ final class P10AnswerQualityScorer {
         result.put("highSeverity", highSeverity);
         result.put("needsHumanReview", needsReview);
         return result;
+    }
+
+    private static boolean isLegacyOccurrenceQualified(String sentence, String legacyMarker, List<String> legacyWords) {
+        List<String> normalizedLegacyWords = legacyWords == null ? List.of() :
+                legacyWords.stream().map(P10TextNormalizer::normalizeMarker).filter(w -> !w.isBlank()).toList();
+
+        if (normalizedLegacyWords.isEmpty()) {
+            return false;
+        }
+
+        int idx = 0;
+        while ((idx = sentence.indexOf(legacyMarker, idx)) != -1) {
+            int occStart = idx;
+            int occEnd = idx + legacyMarker.length();
+            idx = occEnd;
+
+            // 向左寻找局部子句边界（遇到子句标点或转折连词）
+            int leftBound = 0;
+            for (int i = occStart - 1; i >= 0; i--) {
+                char c = sentence.charAt(i);
+                if (c == '，' || c == ',' || c == '、' || c == ':' || c == '：' || c == ';' || c == '；') {
+                    leftBound = i + 1;
+                    break;
+                }
+            }
+
+            // 检查在 [leftBound, occStart) 区间内是否存在转折连词
+            String prefixZone = sentence.substring(leftBound, occStart);
+            Matcher advMatcher = ADVERSATIVE_CONJUNCTION.matcher(prefixZone);
+            int lastAdvIndex = -1;
+            while (advMatcher.find()) {
+                lastAdvIndex = leftBound + advMatcher.start();
+            }
+            boolean isAdversative = false;
+            if (lastAdvIndex != -1) {
+                leftBound = lastAdvIndex;
+                isAdversative = true;
+            } else if (leftBound > 0) {
+                String leftContext = sentence.substring(Math.max(0, leftBound - 6), leftBound);
+                if (ADVERSATIVE_CONJUNCTION.matcher(leftContext).find()) {
+                    isAdversative = true;
+                }
+            }
+
+            // 向右寻找局部子句边界（遇到标点）
+            int rightBound = sentence.length();
+            for (int i = occEnd; i < sentence.length(); i++) {
+                char c = sentence.charAt(i);
+                if (c == '，' || c == ',' || c == '、' || c == ':' || c == '：' || c == ';' || c == '；'
+                        || c == '。' || c == '！' || c == '？') {
+                    rightBound = i;
+                    break;
+                }
+            }
+
+            String localClause = sentence.substring(leftBound, rightBound).strip();
+
+            // 1. 局部子句本身包含版本限定词（如“原规定中...四百元”、“废止前四百元”）
+            boolean localHasLegacy = normalizedLegacyWords.stream().anyMatch(localClause::contains);
+            if (localHasLegacy) {
+                continue;
+            }
+
+            // 2. 如果当前子句是由转折连词引导的（如“但一线城市住宿费标准仍为四百元”）：
+            // 转折切断了前置分句的历史/废止背景词传递，转折分句缺乏自身的限定词，判定为违规放行旧标准
+            if (isAdversative) {
+                return false;
+            }
+
+            // 3. 非转折语境下，检查紧邻前置从句是否为合法的限定状语
+            String priorText = sentence.substring(0, leftBound).strip();
+            boolean priorHasLegacy = false;
+            if (!priorText.isEmpty()) {
+                if (priorText.endsWith("，") || priorText.endsWith(",")) {
+                    priorText = priorText.substring(0, priorText.length() - 1).strip();
+                }
+                String[] priorClauses = priorText.split("[，,；;：:]");
+                if (priorClauses.length > 0) {
+                    String lastPriorClause = priorClauses[priorClauses.length - 1].strip();
+                    priorHasLegacy = normalizedLegacyWords.stream().anyMatch(lastPriorClause::contains);
+                }
+            }
+
+            // 4. 检查紧邻后置从句是否为后置限定说明（如“...四百元，此为原规定/已废止”）
+            String restText = sentence.substring(rightBound).strip();
+            boolean nextHasLegacy = false;
+            if (!restText.isEmpty()) {
+                if (restText.startsWith("，") || restText.startsWith(",")) {
+                    restText = restText.substring(1).strip();
+                }
+                String[] nextClauses = restText.split("[，,；;：:。！？]");
+                if (nextClauses.length > 0) {
+                    String firstNextClause = nextClauses[0].strip();
+                    nextHasLegacy = normalizedLegacyWords.stream().anyMatch(firstNextClause::contains);
+                }
+            }
+
+            if (!priorHasLegacy && !nextHasLegacy) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static List<String> distinct(List<String> values) {

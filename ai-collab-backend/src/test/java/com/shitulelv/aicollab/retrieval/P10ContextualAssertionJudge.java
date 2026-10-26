@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  */
 public final class P10ContextualAssertionJudge {
 
-    public static final String RULE_VERSION = "2.0-contextual";
+    public static final String RULE_VERSION = "2.0-scoped-contextual-v4";
 
     public enum AssertionVerdict {
         /** 有充分机械证据表明回答肯定了被禁止的命题（生成高严重度违规）。 */
@@ -62,6 +62,15 @@ public final class P10ContextualAssertionJudge {
     // 前置直接否定词与助词（紧邻修饰动词命题）
     private static final Pattern DIRECT_NEGATION_PREFIX = Pattern.compile(
             "(?:通常|一般|原则上|一律|均)?(?:不|未|不得|不能|禁止|严禁|切勿|不允许|并未|绝不)$");
+
+    // 后置否定谓语修饰（主语命题 + 紧邻后置否定动词/形容词）
+    private static final Pattern SUFFIX_NEGATION = Pattern.compile(
+            "^(?:是|为)?(?:不(?:被)?允许|禁止|严禁|不合规|违规|不适用|不被认可|不成立|不被采纳|不可行|不得行|不行)" +
+            "(?:的|执行|操作|采用)?");
+
+    // 主语代词/主体（用于识别新动作主干，防止认识模态错误跨界修饰）
+    private static final Pattern SUBJECT_OR_AGENT = Pattern.compile(
+            "我们|部门|各部门|项目组|团队|员工|人员|大家|经办人|各项目|管理层");
 
     // 疑问/未知指示词（常跟在认知模态后修饰抽查、数量、标准等）
     private static final Pattern UNKNOWN_INDICATOR = Pattern.compile(
@@ -158,19 +167,7 @@ public final class P10ContextualAssertionJudge {
             return results;
         }
 
-        // 1. 全局双重否定检测：若整句存在强双重否定结构，反转概率极高，必须人工复核
-        if (DOUBLE_NEGATION.matcher(cleanSentence).find()) {
-            results.add(new Assessment(
-                    marker,
-                    AssertionVerdict.AMBIGUOUS_NEEDS_REVIEW,
-                    cleanSentence,
-                    "检测到双重否定结构，语义可能翻转，机械规则无法可靠保证，转人工复核",
-                    RULE_VERSION
-            ));
-            return results;
-        }
-
-        // 2. 对每个出现位置进行局部分句作用域判定
+        // 对每个出现位置进行局部分句作用域独立判定（杜绝全局整句短路导致多 occurrence 丢失或跨分句违规被降级）
         for (int occStart : occurrenceIndices) {
             int occEnd = occStart + marker.length();
             Assessment assessment = judgeSingleOccurrence(cleanSentence, marker, occStart, occEnd);
@@ -241,10 +238,37 @@ public final class P10ContextualAssertionJudge {
         boolean isAdversative = ADVERSATIVE_CONJUNCTION.matcher(localPrefix).find()
                 || (leftBound > 0 && ADVERSATIVE_CONJUNCTION.matcher(sentence.substring(Math.max(0, leftBound - 4), leftBound)).find());
 
-        // A. 复杂转折反差模式检测（如“并未明确……但实际上可以……”）
-        if (RHETORICAL_OR_HYPOTHETICAL.matcher(sentence).find()) {
-            // 如果涉及认识模态转折反差，且当前命题位于转折后
-            if (sentence.contains("实际上") || sentence.contains("其实") || sentence.contains("虽") || sentence.contains("尽管")) {
+        // A0. 局部双重否定检测：绑定当前局部子句，杜绝跨分句全局短路
+        if (DOUBLE_NEGATION.matcher(localClause).find()) {
+            return new Assessment(
+                    marker,
+                    AssertionVerdict.AMBIGUOUS_NEEDS_REVIEW,
+                    localClause,
+                    "局部子句检测到双重否定结构，语义可能翻转，机械规则无法可靠保证，转人工复核",
+                    RULE_VERSION
+            );
+        }
+
+        // A. 复杂转折反差/反问模式检测（局部化修饰：杜绝无关事项的前置“理论上...实际上...”污染独立分句违规）
+        // 模式 A1：反问句式直接修饰当前命题所在子句（如“难道可以...吗”）
+        boolean rhetoricalInClause = localClause.contains("难道")
+                || localClause.contains("岂能")
+                || (localClause.contains("如果") && localClause.contains("吗"));
+        if (rhetoricalInClause) {
+            return new Assessment(
+                    marker,
+                    AssertionVerdict.AMBIGUOUS_NEEDS_REVIEW,
+                    localClause,
+                    "局部子句包含反问或疑问假设语气，机械规则无法可靠保证肯定真实性，转人工复核",
+                    RULE_VERSION
+            );
+        }
+
+        // 模式 A2：前置认知模态 + 紧随转折反差修饰当前动作（如 Case F2: “并未明确……但实际上可以……”）
+        if (isAdversative && EPISTEMIC_UNKNOWN.matcher(priorText).find()) {
+            boolean transitionContrast = localClause.contains("实际上") || localClause.contains("其实")
+                    || localClause.contains("事实是") || localClause.contains("实质上");
+            if (transitionContrast) {
                 return new Assessment(
                         marker,
                         AssertionVerdict.AMBIGUOUS_NEEDS_REVIEW,
@@ -282,6 +306,20 @@ public final class P10ContextualAssertionJudge {
             }
         }
 
+        // C2. 局部后缀紧邻后置否定谓语（如 marker + "是不允许的" / "是禁止的" / "是不合规的" / "是不适用的"）
+        if (!localSuffix.isEmpty()) {
+            Matcher suffixNegMatcher = SUFFIX_NEGATION.matcher(localSuffix);
+            if (suffixNegMatcher.find()) {
+                return new Assessment(
+                        marker,
+                        AssertionVerdict.NEGATED_OR_EPISTEMIC_MENTION,
+                        localClause,
+                        "命题紧邻后置否定谓语修饰（如'是不允许的'、'是禁止的'、'是不合规的'），构成命题否定",
+                        RULE_VERSION
+                );
+            }
+        }
+
         // D. 例外条款分析（如特批例外，绑定当前局部子句与紧邻从句作用域，杜绝全句污染）
         boolean inLocalException = EXCEPTION_MARKER.matcher(localClause).find();
         boolean inExceptionScope = inLocalException || isPrecededByExceptionClause(sentence, leftBound, isAdversative);
@@ -312,18 +350,31 @@ public final class P10ContextualAssertionJudge {
         }
 
         // E. 认识模态与未知状态表达（收紧到实际修饰作用域）
-        // 模式 E1：同分句直接修饰（localPrefix 包含认识模态短语，且带未知指示词或紧邻 marker）
+        // 模式 E1：同分句直接修饰（localPrefix 包含认识模态短语，且带未知指示词或紧邻 marker，无主语代词介入）
         if (EPISTEMIC_UNKNOWN.matcher(localPrefix).find()) {
-            if (UNKNOWN_INDICATOR.matcher(localPrefix).find() || UNKNOWN_INDICATOR.matcher(localSuffix).find()
-                    || localPrefix.endsWith("明确") || localPrefix.endsWith("确定") || localPrefix.endsWith("不足")
-                    || localPrefix.length() <= 6) {
-                return new Assessment(
-                        marker,
-                        AssertionVerdict.NEGATED_OR_EPISTEMIC_MENTION,
-                        localClause,
-                        "命题处于明确的资料未明确/尚未确定等认识模态修饰语境中，非肯定断言",
-                        RULE_VERSION
-                );
+            boolean hasSubjectOrAgent = SUBJECT_OR_AGENT.matcher(localPrefix).find();
+            if (!hasSubjectOrAgent) {
+                boolean hasUnknownIndicator = UNKNOWN_INDICATOR.matcher(localPrefix).find()
+                        || UNKNOWN_INDICATOR.matcher(localSuffix).find();
+                boolean directlyModifiesClause = localPrefix.endsWith("明确")
+                        || localPrefix.endsWith("确定")
+                        || localPrefix.endsWith("提及")
+                        || localPrefix.endsWith("载明")
+                        || localPrefix.endsWith("说明")
+                        || localPrefix.endsWith("确认")
+                        || localPrefix.endsWith("规定")
+                        || localPrefix.endsWith("是否")
+                        || localPrefix.endsWith("关于");
+
+                if (hasUnknownIndicator || directlyModifiesClause) {
+                    return new Assessment(
+                            marker,
+                            AssertionVerdict.NEGATED_OR_EPISTEMIC_MENTION,
+                            localClause,
+                            "命题处于明确的资料未明确/尚未确定等认识模态修饰语境中，非肯定断言",
+                            RULE_VERSION
+                    );
+                }
             }
         }
 
@@ -380,17 +431,41 @@ public final class P10ContextualAssertionJudge {
         }
 
         String lastClause = priorClauses[priorClauses.length - 1].strip();
+
+        // 如果紧邻前置从句自身已经形成闭合的禁止/动作结构（如“除非...否则不得推迟上线”），不得向后传递到无关命题
+        if (isSelfContainedExceptionClause(lastClause)) {
+            return false;
+        }
+
         if (EXCEPTION_MARKER.matcher(lastClause).find()) {
             return true;
         }
 
         if (lastClause.length() <= 6 && priorClauses.length >= 2) {
             String secondLastClause = priorClauses[priorClauses.length - 2].strip();
+            if (isSelfContainedExceptionClause(secondLastClause)) {
+                return false;
+            }
             if (EXCEPTION_MARKER.matcher(secondLastClause).find()) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * 判断前置例外从句是否已经在其自身分句内形成了完整闭合的禁止/动作结构（如“除非...否则不得推迟上线”）。
+     */
+    private static boolean isSelfContainedExceptionClause(String clause) {
+        if (!EXCEPTION_MARKER.matcher(clause).find()) {
+            return false;
+        }
+        // 同时包含条件引导与内部禁止谓语（例如“否则不得”、“不得”、“禁止”、“不能”后接动作）
+        return clause.contains("否则不得")
+                || clause.contains("否则不能")
+                || clause.contains("否则禁止")
+                || clause.contains("否则不可以")
+                || Pattern.compile("(?:不得|禁止|严禁|不能|不可以)\\S{2,}").matcher(clause).find();
     }
 }
