@@ -25,10 +25,10 @@
 
 | 核实项 | 结论 | 证据 |
 | --- | --- | --- |
-| 本地分支 / HEAD | `dev@65139e2c53a08c3f7e860577d99f05af94bfb62e`（开工时）；交付时 `fb890bbfa3662bec3a5eb55beb44239337f95cd8` | `preflight-summary.json`、`checks/git-ci-receipt.json` |
+| 本地分支 / HEAD | `dev@65139e2c53a08c3f7e860577d99f05af94bfb62e`（开工时）；交付时 `53b1eca7242a23b748d73bde327e50e0f468c381` | `preflight-summary.json`、`checks/git-ci-receipt.json` |
 | `origin/dev` / `origin/main` | 与本地一致（`0 0`）；`main` 未修改 | `preflight-summary.json` |
 | PR #18 | OPEN / Draft / 未合并 | `gh pr view 18` |
-| CI | 交付 SHA `fb890bb`：push `40299068593` 与 PR `40299075803` 均 success；CI 内真实模型调用 0 | `checks/git-ci-receipt.json` |
+| CI | 交付 SHA `53b1eca`：push `40300077080` 与 PR `40300085357` 均 success；CI 内真实模型调用 0 | `checks/git-ci-receipt.json` |
 | 实际模型路由 | `p3u04_admin` → `KNOWLEDGE_CHAT` → GEMINI / `gemini-3.5-flash-lite`，`enabled=true` | `preflight-summary.json` |
 | 路由 SHA-256 | `df17eb978e42ecb533a8f1f7a6ff756c6e1521abe6308f9671dca06e9123cbbc` | `checks/` + 生产代码路径复算 |
 | 模型是否仍受支持 | **是**。只读 `GET /v1beta/models` → HTTP 200，目录 50 个模型，含 `gemini-3.5-flash-lite`；`GET /v1beta/models/{model}` → HTTP 200，`version=3.5-flash-lite-07-2026`，支持 `generateContent` | `preflight-summary.json` |
