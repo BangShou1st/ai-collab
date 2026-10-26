@@ -1,7 +1,7 @@
 # P10-RAG-ANSWER-QUALITY-01 — 真实回答质量、版本冲突与引用可信度评测设计
 
-> **状态：OFFLINE 层 IMPLEMENTED / `P10_OFFLINE_EVALUATION_ACCEPTED`；P10-REAL 第 2 轮已授权并完成，8 题全部取得真实回答，执行 `MEASUREMENT_EXECUTED`、质量 `PASS_WITH_SCORER_LIMITATIONS`（独立人工复核 0 题）**
-> **基线：** `dev@efafbc2`（P9 证据之上）　**证据：** `docs/acceptance-evidence/2026-10-26/p10-rag-answer-quality-01/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02/`
+> **状态：OFFLINE 层 IMPLEMENTED / `P10_OFFLINE_EVALUATION_ACCEPTED`；P10-REAL 第 2 轮已授权并完成；P10-SCORER-ROBUSTNESS-01 已完成评分器 2.0-robust 稳健性重构（已证实假阳性全部确定性修复，肯定违规反例 100% 检出）**
+> **基线：** `dev@0b31d12`（P10-02 证据之上）　**证据：** `docs/acceptance-evidence/2026-10-26/p10-rag-answer-quality-01/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02/`、`docs/acceptance-evidence/2026-10-26/p10-real-generation-02-errata/`、`docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-01/`
 > **范围：** 从"检索到了什么"进入"模型最终回答得对不对"的可验证工程阶段。不修改生产回答算法。
 
 ## 1. 两层评测架构
@@ -109,3 +109,14 @@ cd ai-collab-backend && bash ./mvnw -B -ntp test -Dtest=P10AnswerQualityOfflineE
 **边界**：独立人工复核 0 题；8 道合成题不代表真实用户总体质量。
 下一轮优先项是**评分器**改进（否定语境与 Markdown 归一化、`abstentionPhrases` 覆盖度），
 不是生产 Prompt、检索算法或输出上限的改动。
+
+## 10. 评分器稳健性专项（P10-SCORER-ROBUSTNESS-01）
+
+新增独立[评分器稳健性证据目录](../acceptance-evidence/2026-10-26/p10-scorer-robustness-01/README.md)与[P10-02 文档勘误](../acceptance-evidence/2026-10-26/p10-real-generation-02-errata/README.md)。
+
+**核心成果：落地评分器 2.0-robust 确定性架构**：
+1. **统一文本规范化机制（`P10TextNormalizer`）**：剥离 Markdown `**`、`*`、`__`、`_`、``` ` ``` 强调标记，统一 Unicode (NFKC) 兼容形式与连续空白换行，消除格式变体导致的匹配差异；
+2. **上下文肯定性判定器（`P10ContextualAssertionJudge`）**：严格区分肯定断言（`AFFIRMATIVE_VIOLATION`）、明确否定与认识模态（`NEGATED_OR_EPISTEMIC_MENTION`）以及复杂双重否定/转折/例外（`AMBIGUOUS_NEEDS_REVIEW`），从根源上消除了 AQ06 粗体否定与 AQ12 否定从句的误报；
+3. **增强拒答与未知状态检测（`P10AbstentionDetector`）**：保留题集冻结 `abstentionPhrases` 命中追溯（`frozenPhraseHit`），扩展识别“尚未确定”、“并未明确”等合法未知表达（`QUALIFIED_UNKNOWN`），并新增带有未支持编造的冲突拒答检测（`CONFLICTING_FABRICATION`）；
+4. **人工复核边界清晰受控（`manual-review-boundaries.md`）**：双重否定、复杂例外条款等机械不可可靠判定场景统一转入 `needsHumanReview`，绝不擅自放行或盲目报警；
+5. **确定性指标验证**：3 项已证实假阳性全部清零，7 项肯定违规反例保持 100% 检出率（0 漏报），14 题模范回答误报数为 0。全部运行于默认离线 CI，零外部真实调用，生产链路代码零修改。
