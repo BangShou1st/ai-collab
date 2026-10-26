@@ -1,0 +1,177 @@
+{
+  "auditTask": "P10-SCORER-ROBUSTNESS-AUDIT-02",
+  "auditDate": "2026-10-27",
+  "scorerVersionUnderAudit": "2.0-scoped-contextual-v5",
+  "summary": {
+    "totalRisksTracked": 9,
+    "confirmedDefects": 7,
+    "staticRisks": 2,
+    "noReproduction": 0,
+    "regressions": 0,
+    "notVerified": 0,
+    "severityBreakdown": {
+      "CRITICAL": 1,
+      "HIGH": 6,
+      "MEDIUM": 1,
+      "LOW": 1
+    }
+  },
+  "risks": [
+    {
+      "riskId": "RISK-AUDIT2-001",
+      "title": "数字来源比对单字符及子串贪婪匹配导致拒答题数字编造级联失守放行",
+      "severity": "CRITICAL",
+      "status": "CONFIRMED_DEFECT",
+      "domain": "A_NUMERIC_AND_ABSTENTION",
+      "codeLocation": "P10AnswerQualityScorer.java:417-429",
+      "description": "isNumberSupported 提取候选数字核心 digits = clean.replaceAll('[^0-9.]', '') 后直接执行 allSourceText.contains(digits)。当无答案题回答编造阿拉伯数字（如 10 份、20 份、5 份等）时，只要来源正文中的年份、日期、编号或章节序号（如 2025-10-01、十个工作日、第10条）包含该数字子串，即被直接判定为受来源支持，unsupportedNumberCandidates 被置空，拒答检测器误判为 HONEST_ABSTENTION，高严重度告警完全漏报。",
+      "triggerCondition": "无答案题中出现来源正文未支持的业务数字断言，且该数字字符在来源正文中作为非业务事实子串存在",
+      "inputAnswer": "资料不足，无法确认；但通常每年核对 10 份合同 [S1]。",
+      "expectedBehavior": "提取不受支持数字候选 ['10 份']，abstentionVerdict 判定为 CONFLICTING_FABRICATION，报告高严重度告警",
+      "actualOutput": {
+        "unsupportedNumberCandidates": [],
+        "abstentionVerdict": "HONEST_ABSTENTION",
+        "abstentionCorrect": true,
+        "highSeverity": []
+      },
+      "remediationRecommendation": "禁止对全篇来源文本执行裸数字子串 contains(digits) 匹配；改为词边界与业务单位联合匹配（如匹配 '10 份' 或 '10份'），并排除日期编号中的数字残留。"
+    },
+    {
+      "riskId": "RISK-AUDIT2-002",
+      "title": "多项分组引用 [S1, S2] 无法被 MASK_CITATION 匹配导致引用序号泄漏为业务数字候选",
+      "severity": "HIGH",
+      "status": "CONFIRMED_DEFECT",
+      "domain": "A_NUMERIC_AND_ABSTENTION",
+      "codeLocation": "P10AnswerQualityScorer.java:34, 378",
+      "description": "MASK_CITATION 正则定义为 \\\\[S\\\\d+\\\\]，仅支持单项引用。对于 KnowledgeCitationValidator 合法支持的分组引用 [S1, S2]，掩码完全无法匹配，方括号及数字未被替换为空白，被 NUMERIC_CANDIDATE 误提取为业务数字候选。当引用序号在来源文本中未以字符形式出现时，将把合规拒答回答误判为 CONFLICTING_FABRICATION，造成假阳性拦截。",
+      "triggerCondition": "回答包含逗号分隔的多项引用分组（如 [S1, S2] 或 [S8, S9]）",
+      "inputAnswer": "根据资料 [S8, S9]，当前项目资料不足以回答。",
+      "expectedBehavior": "MASK_CITATION 完整屏蔽分组引用内容，unsupportedNumberCandidates 为空，判定为 HONEST_ABSTENTION",
+      "actualOutput": {
+        "unsupportedNumberCandidates": ["8", "9"],
+        "abstentionVerdict": "CONFLICTING_FABRICATION",
+        "highSeverity": ["CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：...[8, 9]"]
+      },
+      "remediationRecommendation": "将 MASK_CITATION 正则升级与生产 KnowledgeCitationValidator 契约对齐：Pattern.compile('\\\\[S\\\\d+(?:\\\\s*,\\\\s*S\\\\d+)*\\\\]', Pattern.CASE_INSENSITIVE)。"
+    },
+    {
+      "riskId": "RISK-AUDIT2-003",
+      "title": "HTML展示标签嵌套于删除线标签内部时删除线规范化失效并误报肯定违规",
+      "severity": "HIGH",
+      "status": "CONFIRMED_DEFECT",
+      "domain": "B_HTML_AND_STRIKETHROUGH",
+      "codeLocation": "P10TextNormalizer.java:17-18, 48-56",
+      "description": "stripMarkdownFormatting 管道在第一步使用 HTML_STRIKE_TAG（匹配模式为 ([^<\\n]+)）单次替换删除线。当删除线标签内部嵌套展示标签（如 <del><strong>不可以</strong></del>）时，因内容含 '<' 无法在首步命中；随后 HTML_DISPLAY_TAG 剥离了 <strong> 标签，残存裸 <del>不可以</del>。归一化结果未转换为 ~~不可以~~，localClause.contains('~~') 判定失败，且结尾 </del> 破坏了 DIRECT_NEGATION_PREFIX 匹配，最终将已删除否定词误报为 AFFIRMATIVE_VIOLATION。",
+      "triggerCondition": "输入文本中删除线标签内部嵌套了 HTML 展示标签（如 <strong>、<em>、<u>）",
+      "inputAnswer": "根据资料，<del><strong>不可以</strong></del>先组织培训再补签合同 [S1]。",
+      "expectedBehavior": "规范化为包含 ~~不可以~~，并在判定器中转入 AMBIGUOUS_NEEDS_REVIEW 进行人工复核，不得误报肯定违规",
+      "actualOutput": {
+        "normalizedAnswer": "根据资料，<del>不可以</del>先组织培训再补签合同 [S1]。",
+        "verdict": "AFFIRMATIVE_VIOLATION",
+        "highSeverity": ["FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签"]
+      },
+      "remediationRecommendation": "调整规范化顺序：先循环剥离内部展示标签直至收敛，再将外层 HTML 删除线标签统一规范为 ~~；或支持递归/多轮删除线标签规整。"
+    },
+    {
+      "riskId": "RISK-AUDIT2-004",
+      "title": "局部子句内无关词删除线短路修饰导致独立肯定违规被错误抑制为人工复核",
+      "severity": "HIGH",
+      "status": "CONFIRMED_DEFECT",
+      "domain": "B_HTML_AND_STRIKETHROUGH",
+      "codeLocation": "P10ContextualAssertionJudge.java:251-259",
+      "description": "judgeSingleOccurrence 中只要检测到 localClause.contains('~~') 便直接短路返回 AMBIGUOUS_NEEDS_REVIEW，未验证删除线修饰的是否为当前禁断 marker 或关键否定词。当删除线修饰的是子句内无关词语（如人名、副词、时间状语、错别字或引用文本，如经办人~~李四~~可以先组织培训再补签合同），独立的肯定违规被错误降级为复核，导致 highSeverity 违规告警丢失。",
+      "triggerCondition": "同一局部子句中包含删除线，但删除线修饰的仅是主语、时间或无关副词，后置动作主干明确肯定违规",
+      "inputAnswer": "根据项目制度，经办人~~李四~~可以先组织培训再补签合同 [S1]。",
+      "expectedBehavior": "删除线未修饰禁断命题与否定词，独立肯定断言应判定为 AFFIRMATIVE_VIOLATION，报告 highSeverity 告警",
+      "actualOutput": {
+        "verdict": "AMBIGUOUS_NEEDS_REVIEW",
+        "reason": "局部子句检测到删除线（~~）修饰当前命题或否定词，语义效力存疑，转人工复核",
+        "highSeverity": []
+      },
+      "remediationRecommendation": "细化删除线修饰靶向判定：仅当删除线直接包裹禁断 marker、打断禁断 marker，或修饰紧邻前置/后置否定词时转入复核；修饰无关主语或修饰成分时不抑制独立违规。"
+    },
+    {
+      "riskId": "RISK-AUDIT2-005",
+      "title": "ADVERSATIVE_CONJUNCTION 在 Scorer 与 Judge 两处定义不一致",
+      "severity": "MEDIUM",
+      "status": "STATIC_RISK",
+      "domain": "C_WEAK_ADVERSATIVE_AND_SCOPE",
+      "codeLocation": "P10AnswerQualityScorer.java:33 vs P10ContextualAssertionJudge.java:60",
+      "description": "P10AnswerQualityScorer 中的 ADVERSATIVE_CONJUNCTION 包含 '|而'，而 P10ContextualAssertionJudge 中的正则缺少 '|而'。在无标点复合句中（如'资料中未明确具体抽查比例而各项目可以先组织培训再补签合同'），'而' 引导的独立命题在 Judge 中无法被识别为转折分句起点，导致分句隔离失效。",
+      "triggerCondition": "无标点复合句中使用'而'引导独立肯定违规分句",
+      "inputAnswer": "资料中未明确具体抽查比例而各项目可以先组织培训再补签合同 [S1]。",
+      "expectedBehavior": "两处转折连词定义保持严格一致，'而' 引导的分句能够独立切分并判定肯定违规",
+      "actualOutput": "静态代码审查确证两处词表不一致，存在作用域切分语义不对称风险",
+      "remediationRecommendation": "提取共享的转折连词正则常量，统一纳入 '而' 等连词，杜绝两处实现漂移。"
+    },
+    {
+      "riskId": "RISK-AUDIT2-006",
+      "title": "无转折连词时前置历史限定从句错误豁免后置现行标准主张",
+      "severity": "HIGH",
+      "status": "CONFIRMED_DEFECT",
+      "domain": "D_VERSION_AND_EXCEPTION",
+      "codeLocation": "P10AnswerQualityScorer.java:335-347",
+      "description": "isLegacyOccurrenceQualified 仅在当前子句由转折词引导时切断前置历史限定。在无转折连词的逗号顺承复合句中（如'根据原规定，现行标准为四百元 [S1]'），priorHasLegacy 为 true，使得以现行口径套用废止标准的严重违规被前置从句无条件豁免，VERSION_VIOLATION 漏报。",
+      "triggerCondition": "句子无转折连词，前置从句包含历史限定词（如'原规定'），后半句顺承断言现行标准",
+      "inputAnswer": "根据原规定，现行标准为四百元 [S1]。",
+      "expectedBehavior": "后半句明确断言'现行标准'，前置历史限定不得豁免，应判定为 VERSION_VIOLATION 并报告高严重度告警",
+      "actualOutput": {
+        "legacyMarker": "四百",
+        "unqualifiedSentences": [],
+        "verdict": "LEGACY_QUALIFIED",
+        "highSeverity": []
+      },
+      "remediationRecommendation": "在检查 priorHasLegacy 时，增加对当前局部子句是否包含现行断言关键词（如'现行标准'、'目前执行'、'仍按'）的反向排查，若当前子句声称现行口径，前置限定不予豁免。"
+    },
+    {
+      "riskId": "RISK-AUDIT2-007",
+      "title": "无关排除/范围从句（除...外）无条件泄漏统领后续独立肯定违规",
+      "severity": "HIGH",
+      "status": "CONFIRMED_DEFECT",
+      "domain": "D_VERSION_AND_EXCEPTION",
+      "codeLocation": "P10ContextualAssertionJudge.java:436-475, 480-490",
+      "description": "EXCEPTION_MARKER 包含泛化的 '除.*外'。isSelfContainedExceptionClause 仅对包含'否则不得/禁止'等否定谓语的从句认定为闭合；对于普通的事项排除从句（如'除固定资产盘点外，'），isSelfContainedExceptionClause 返回 false，导致 isPrecededByExceptionClause 返回 true。后续独立的肯定违规分句被错误判定为处于例外作用域，降级为 AMBIGUOUS_NEEDS_REVIEW，消除 highSeverity 告警。",
+      "triggerCondition": "句子以无关业务的排除从句开头（如'除固定资产盘点外，'），后续紧跟独立肯定违规",
+      "inputAnswer": "除固定资产盘点外，各项目可以先组织培训再补签合同 [S1]。",
+      "expectedBehavior": "排除从句仅排除无关业务，后续违规命题独立判定为 AFFIRMATIVE_VIOLATION，报告 highSeverity 告警",
+      "actualOutput": {
+        "verdict": "AMBIGUOUS_NEEDS_REVIEW",
+        "reason": "局部子句包含例外条件许可或特殊结构（如'除非...才可以...'），需人工复核是否合规",
+        "highSeverity": []
+      },
+      "remediationRecommendation": "将制度性特批例外（除非...特批）与普通业务范围排除（除...外）区分；普通业务范围排除不向后传递例外许可豁免权。"
+    },
+    {
+      "riskId": "RISK-AUDIT2-008",
+      "title": "未收录主语代词介入导致认识模态同句过度放行独立肯定违规",
+      "severity": "HIGH",
+      "status": "CONFIRMED_DEFECT",
+      "domain": "D_VERSION_AND_EXCEPTION",
+      "codeLocation": "P10ContextualAssertionJudge.java:72, 375",
+      "description": "SUBJECT_OR_AGENT 采用封闭白名单（仅含我们/部门/员工等）。当句式为'资料并未明确具体事项且负责人可以先组织培训再补签合同'时，'负责人/主管/经办人/公司'等常见主语未命中词表，hasSubjectOrAgent 为 false，加之分句包含'具体'触发了 hasUnknownIndicator = true，使模式 E1 错误判定为 NEGATED_OR_EPISTEMIC_MENTION 并放行。",
+      "triggerCondition": "同句认识模态后带有'具体'等指示词，接未收录在主语词表中的业务主体代词及肯定违规动作",
+      "inputAnswer": "资料并未明确具体事项且负责人可以先组织培训再补签合同 [S1]。",
+      "expectedBehavior": "识别出后半句具有独立主谓宾肯定动作，判定为 AFFIRMATIVE_VIOLATION 并报告高严重度告警",
+      "actualOutput": {
+        "verdict": "NEGATED_OR_EPISTEMIC_MENTION",
+        "reason": "命题处于明确的资料未明确/尚未确定等认识模态修饰语境中，非肯定断言",
+        "highSeverity": []
+      },
+      "remediationRecommendation": "扩充 SUBJECT_OR_AGENT 词表收录'负责人|主管|经办人|公司|各单位|承办人'，并在并列连词（如'且'、'同时'、'并'）后阻断认识模态的宾语从句统领范围。"
+    },
+    {
+      "riskId": "RISK-AUDIT2-009",
+      "title": "汉字数字转阿拉伯数字映射表覆盖有限",
+      "severity": "LOW",
+      "status": "STATIC_RISK",
+      "domain": "A_NUMERIC_AND_ABSTENTION",
+      "codeLocation": "P10AnswerQualityScorer.java:460-467",
+      "description": "toArabicDigits 仅枚举了少量固定汉字数字（'五十'->'50'、'五百'->'500'、'四百'->'400'、'一百'->'100'、'百分之五'->'5%'），非枚举的汉字数字（如'二十'、'三十五'、'千分之三'）无法实现反向阿拉伯数字比对，存在局部漏检风险。",
+      "triggerCondition": "回答中出现非白名单枚举范围的汉字业务数字",
+      "inputAnswer": "静态代码审查确证",
+      "expectedBehavior": "支持通用汉字数字解析器或扩大常用业务数字映射表",
+      "actualOutput": "静态分析确认存在词表边界限制",
+      "remediationRecommendation": "引入通用的中文数字解析工具方法（如支持一至九十九及常见百分比通用转换）。"
+    }
+  ]
+}

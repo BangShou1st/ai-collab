@@ -1,0 +1,18 @@
+[ {
+  "highSeverityCount" : 0,
+  "needsReviewCount" : 4,
+  "name" : "弱转折截断 + 无关删除线交互",
+  "caseId" : "CROSS-01",
+  "input" : "并未明确规定，只是经办人~~李四~~可以先组织培训再补签合同 [S1]。",
+  "verdictActual" : "AMBIGUOUS_NEEDS_REVIEW",
+  "defectTriggered" : true,
+  "verdictExpected" : "AFFIRMATIVE_VIOLATION"
+}, {
+  "caseId" : "CROSS-02",
+  "unsupportedNumberCandidates" : [ "5.5%" ],
+  "defectTriggered" : false,
+  "hasHighSeverity" : true,
+  "abstentionVerdict" : "CONFLICTING_FABRICATION",
+  "name" : "拒答词 + 多项引用 + 阿拉伯数字编造交互",
+  "input" : "资料不足，无法确认 [S1, S2]；但抽查比例为 5.5%。"
+} ]
