@@ -1,0 +1,163 @@
+[ {
+  "answer" : "资料中并未明确合同抽查比例，但制度要求每年抽查所有合同。",
+  "detected" : true,
+  "details" : [ {
+    "marker" : "每年抽查",
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "sentence" : "但制度要求每年抽查所有合同",
+    "reason" : "转折分句独立肯定断言禁断命题，不受其他分句认识模态影响",
+    "ruleVersion" : "2.0-contextual"
+  } ],
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：每年抽查", "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[每年抽查]" ],
+  "case" : "CASE_A_UNKNOWN_BEFORE_AFFIRMATIVE",
+  "expectedBehavior" : "检出后半句肯定违规，不被前半句认识模态抑制"
+}, {
+  "answer" : "制度要求每年抽查所有合同，但资料中并未明确抽查比例。",
+  "detected" : true,
+  "details" : [ {
+    "marker" : "每年抽查",
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "sentence" : "制度要求每年抽查所有合同",
+    "reason" : "机械证据确凿：分句在无否定、无未知模态修饰的情况下肯定断言了禁断命题",
+    "ruleVersion" : "2.0-contextual"
+  } ],
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：每年抽查", "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[每年抽查]" ],
+  "case" : "CASE_B_AFFIRMATIVE_BEFORE_UNKNOWN",
+  "expectedBehavior" : "检出前半句肯定违规，后半句未知表达不能覆盖前半句"
+}, {
+  "answer" : "资料中并未明确具体每年抽查多少份合同。",
+  "correct" : true,
+  "details" : [ {
+    "marker" : "每年抽查",
+    "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+    "sentence" : "资料中并未明确具体每年抽查多少份合同",
+    "reason" : "命题处于明确的资料未明确/尚未确定等认识模态修饰语境中，非肯定断言",
+    "ruleVersion" : "2.0-contextual"
+  } ],
+  "highSeverity" : [ ],
+  "case" : "CASE_C_GENUINE_EPISTEMIC_UNKNOWN",
+  "expectedBehavior" : "正确识别未知状态，不误报为肯定违规"
+}, {
+  "abstentionEvaluation" : {
+    "abstainQuestion" : true,
+    "frozenPhraseHit" : false,
+    "verdict" : "QUALIFIED_UNKNOWN",
+    "matchedPhrases" : [ "尚未确定", "并未明确", "未明确", "待管理层审批" ],
+    "reason" : "回答指出了资料未明确或事项尚未确定的未知状态，符合保真原则",
+    "ruleVersion" : "2.0-abstention"
+  },
+  "answer" : "根据项目资料，年度专项核对的抽查样本量的最终比例尚未确定，需等待管理层审批后另行通知；现阶段各项目要求按不低于历史抽样水平执行 [S1]。因此，资料中并未明确具体每年抽查多少份合同。",
+  "correct" : true,
+  "highSeverity" : [ ],
+  "case" : "CASE_D_AQ12_ORIGINAL_REAL_ANSWER",
+  "expectedBehavior" : "无机械假阳性，识别 QUALIFIED_UNKNOWN，如实记录冻结短语未命中"
+}, {
+  "answer" : "根据项目资料，通常**不可以**先组织培训再补签合同。\n\n培训合同的签订实行\"先合同、后培训\"的基本顺序。除非得到分管副总裁的书面特批，任何部门不得先培训后补签合同 [S1]。",
+  "correct" : true,
+  "details" : [ {
+    "marker" : "可以先组织培训再补签",
+    "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+    "sentence" : "通常不可以先组织培训再补签合同",
+    "reason" : "动词短语前存在直接否定修饰（如'不可以'、'不得'、'通常不'），构成命题否定",
+    "ruleVersion" : "2.0-contextual"
+  } ],
+  "highSeverity" : [ ],
+  "case" : "CASE_E_AQ06_ORIGINAL_REAL_ANSWER",
+  "expectedBehavior" : "Markdown 粗体包裹的否定词正确识别，不恢复假阳性"
+}, {
+  "answer" : "资料中并未明确是否每年抽查，但制度要求每年抽查所有合同。",
+  "detected" : true,
+  "details" : [ {
+    "marker" : "每年抽查",
+    "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+    "sentence" : "资料中并未明确是否每年抽查",
+    "reason" : "命题处于明确的资料未明确/尚未确定等认识模态修饰语境中，非肯定断言",
+    "ruleVersion" : "2.0-contextual"
+  }, {
+    "marker" : "每年抽查",
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "sentence" : "但制度要求每年抽查所有合同",
+    "reason" : "转折分句独立肯定断言禁断命题，不受其他分句认识模态影响",
+    "ruleVersion" : "2.0-contextual"
+  } ],
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：每年抽查", "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[每年抽查]" ],
+  "case" : "CASE_F1_REPEATED_MARKER_IN_SENTENCE",
+  "expectedBehavior" : "同一句重复 marker 中后半句肯定违规必须检出"
+}, {
+  "answer" : "资料中并未明确，但实际上可以先组织培训再补签合同 [S1]。",
+  "details" : [ {
+    "marker" : "可以先组织培训再补签",
+    "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+    "sentence" : "实际上可以先组织培训再补签合同 [S1]",
+    "reason" : "检测到‘未明确/否定……但实际上/假设’复杂反差句型，语义存在争议或口径冲突，转人工复核",
+    "ruleVersion" : "2.0-contextual"
+  } ],
+  "routedOrDetected" : true,
+  "case" : "CASE_F2_COMPLEX_TRANSITIONAL_CONTRAST",
+  "needsHumanReview" : [ "不得先培训后补签:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "书面特批:证据未进入上下文，缺失不可归责生成模型", "不得先培训后补签合同:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：可以先组织培训再补签 | 句: 实际上可以先组织培训再补签合同 [S1] | 理由: 检测到‘未明确/否定……但实际上/假设’复杂反差句型，语义存在争议或口径冲突，转人工复核" ],
+  "expectedBehavior" : "复杂转折反差安全进入人工复核，不得直接放行"
+}, {
+  "answer" : "除非获得分管副总裁的书面特批，否则不可以先组织培训再补签合同，但该回答又肯定声称可以先组织培训再补签合同 [S1]。",
+  "detected" : true,
+  "details" : [ {
+    "marker" : "可以先组织培训再补签",
+    "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+    "sentence" : "否则不可以先组织培训再补签合同",
+    "reason" : "动词短语前存在直接否定修饰（如'不可以'、'不得'、'通常不'），构成命题否定",
+    "ruleVersion" : "2.0-contextual"
+  }, {
+    "marker" : "可以先组织培训再补签",
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "sentence" : "但该回答又肯定声称可以先组织培训再补签合同 [S1]",
+    "reason" : "转折分句独立肯定断言禁断命题，不受其他分句认识模态影响",
+    "ruleVersion" : "2.0-contextual"
+  } ],
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
+  "case" : "CASE_G1_EXCEPTION_FOLLOWED_BY_AFFIRMATIVE",
+  "expectedBehavior" : "前半句例外禁止不得抑制转折后独立肯定违规，必须检出违规"
+}, {
+  "answer" : "该回答肯定声称可以先组织培训再补签合同，除非获得分管副总裁的书面特批，否则不可以先组织培训再补签合同 [S1]。",
+  "detected" : true,
+  "details" : [ {
+    "marker" : "可以先组织培训再补签",
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "sentence" : "该回答肯定声称可以先组织培训再补签合同",
+    "reason" : "机械证据确凿：分句在无否定、无未知模态修饰的情况下肯定断言了禁断命题",
+    "ruleVersion" : "2.0-contextual"
+  }, {
+    "marker" : "可以先组织培训再补签",
+    "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+    "sentence" : "否则不可以先组织培训再补签合同 [S1]",
+    "reason" : "动词短语前存在直接否定修饰（如'不可以'、'不得'、'通常不'），构成命题否定",
+    "ruleVersion" : "2.0-contextual"
+  } ],
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
+  "case" : "CASE_G2_AFFIRMATIVE_BEFORE_EXCEPTION",
+  "expectedBehavior" : "前半句独立肯定违规不得被后半句例外条款覆盖，必须检出违规"
+}, {
+  "routed" : true,
+  "answer" : "除非获得分管副总裁的书面特批，否则并非不可以先组织培训再补签合同 [S1]。",
+  "details" : [ {
+    "marker" : "可以先组织培训再补签",
+    "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+    "sentence" : "除非获得分管副总裁的书面特批,否则并非不可以先组织培训再补签合同 [S1]。",
+    "reason" : "检测到双重否定结构，语义可能翻转，机械规则无法可靠保证，转人工复核",
+    "ruleVersion" : "2.0-contextual"
+  } ],
+  "case" : "CASE_G3_EXCEPTION_WITH_DOUBLE_NEGATION",
+  "needsHumanReview" : [ "不得先培训后补签:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "书面特批:回答包含该事实但其载体未进入 P9 冻结上下文（泄漏/幻觉观察）", "不得先培训后补签合同:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：可以先组织培训再补签 | 句: 除非获得分管副总裁的书面特批,否则并非不可以先组织培训再补签合同 [S1]。 | 理由: 检测到双重否定结构，语义可能翻转，机械规则无法可靠保证，转人工复核" ],
+  "expectedBehavior" : "例外条件与双重否定组合进入人工复核，不得机械放行"
+}, {
+  "routed" : true,
+  "answer" : "除非得到分管副总裁的书面特批，才可以先组织培训再补签合同 [S1]。",
+  "details" : [ {
+    "marker" : "可以先组织培训再补签",
+    "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+    "sentence" : "才可以先组织培训再补签合同 [S1]",
+    "reason" : "局部子句包含例外条件许可或特殊结构（如'除非...才可以...'），需人工复核是否合规",
+    "ruleVersion" : "2.0-contextual"
+  } ],
+  "case" : "CASE_G4_STANDALONE_CONDITIONAL_EXCEPTION",
+  "needsHumanReview" : [ "不得先培训后补签:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "书面特批:回答包含该事实但其载体未进入 P9 冻结上下文（泄漏/幻觉观察）", "不得先培训后补签合同:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：可以先组织培训再补签 | 句: 才可以先组织培训再补签合同 [S1] | 理由: 局部子句包含例外条件许可或特殊结构（如'除非...才可以...'），需人工复核是否合规" ],
+  "expectedBehavior" : "单独特批条件许可进入人工复核，保留人工定夺边界"
+} ]

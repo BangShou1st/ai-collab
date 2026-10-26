@@ -282,15 +282,22 @@ public final class P10ContextualAssertionJudge {
             }
         }
 
-        // D. 例外条款分析（如特批例外）
-        if (EXCEPTION_MARKER.matcher(localClause).find() || EXCEPTION_MARKER.matcher(sentence).find()) {
-            if (localClause.contains("不得") || localClause.contains("不能") || localClause.contains("不可以") || localClause.contains("禁止")
-                    || sentence.contains("不得") || sentence.contains("不能") || sentence.contains("不可以") || sentence.contains("禁止")) {
+        // D. 例外条款分析（如特批例外，绑定当前局部子句与紧邻从句作用域，杜绝全句污染）
+        boolean inLocalException = EXCEPTION_MARKER.matcher(localClause).find();
+        boolean inExceptionScope = inLocalException || isPrecededByExceptionClause(sentence, leftBound, isAdversative);
+        if (inExceptionScope) {
+            boolean hasLocalNegation = localClause.contains("不得")
+                    || localClause.contains("不能")
+                    || localClause.contains("不可以")
+                    || localClause.contains("禁止")
+                    || DIRECT_NEGATION_PREFIX.matcher(localPrefix).find();
+
+            if (hasLocalNegation) {
                 return new Assessment(
                         marker,
                         AssertionVerdict.NEGATED_OR_EPISTEMIC_MENTION,
                         localClause,
-                        "句子陈述制度例外条款与禁止性主干（如'除非...不得...'），非肯定违规",
+                        "局部子句陈述制度例外条款与禁止性主干（如'除非...不得/不可以...'），非肯定违规",
                         RULE_VERSION
                 );
             } else {
@@ -298,7 +305,7 @@ public final class P10ContextualAssertionJudge {
                         marker,
                         AssertionVerdict.AMBIGUOUS_NEEDS_REVIEW,
                         localClause,
-                        "句子包含例外条款但结构特殊，需人工复核是否合规",
+                        "局部子句包含例外条件许可或特殊结构（如'除非...才可以...'），需人工复核是否合规",
                         RULE_VERSION
                 );
             }
@@ -346,5 +353,44 @@ public final class P10ContextualAssertionJudge {
                 reason,
                 RULE_VERSION
         );
+    }
+
+    /**
+     * 判断当前子句是否处于前置例外条件从句的直接修饰范围下。
+     * <p>必须满足：
+     * 1. 当前子句非转折连词引导（转折连词切断前置修饰）；
+     * 2. 紧邻前置分句（或经短状语修饰的前置分句）包含例外条款标记；
+     * 3. 避免跨越已闭合的完整主干从句产生长程污染。</p>
+     */
+    private static boolean isPrecededByExceptionClause(String sentence, int leftBound, boolean isAdversative) {
+        if (isAdversative || leftBound <= 0) {
+            return false;
+        }
+        String priorText = sentence.substring(0, leftBound).strip();
+        if (priorText.endsWith("，") || priorText.endsWith(",")) {
+            priorText = priorText.substring(0, priorText.length() - 1).strip();
+        }
+        if (priorText.isEmpty()) {
+            return false;
+        }
+
+        String[] priorClauses = priorText.split("[，,；;：:]");
+        if (priorClauses.length == 0) {
+            return false;
+        }
+
+        String lastClause = priorClauses[priorClauses.length - 1].strip();
+        if (EXCEPTION_MARKER.matcher(lastClause).find()) {
+            return true;
+        }
+
+        if (lastClause.length() <= 6 && priorClauses.length >= 2) {
+            String secondLastClause = priorClauses[priorClauses.length - 2].strip();
+            if (EXCEPTION_MARKER.matcher(secondLastClause).find()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
