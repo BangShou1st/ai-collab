@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  */
 public final class P10ContextualAssertionJudge {
 
-    public static final String RULE_VERSION = "2.0-scoped-contextual-v4";
+    public static final String RULE_VERSION = "2.0-scoped-contextual-v5";
 
     public enum AssertionVerdict {
         /** 有充分机械证据表明回答肯定了被禁止的命题（生成高严重度违规）。 */
@@ -55,9 +55,9 @@ public final class P10ContextualAssertionJudge {
             "并未明确|未明确|尚未确定|尚未明确|未提及|未载明|没有明确|没有说明|没有载明|" +
             "未作规定|未有规定|无法确认|不能确认|资料不足|材料不足|当前资料不足|现有资料无法|不知|未知|未载|没有给出");
 
-    // 转折连词正则（用于分句隔离与作用域截断）
+    // 转折连词正则（用于分句隔离与作用域截断，包含强转折与引导独立命题的弱转折）
     private static final Pattern ADVERSATIVE_CONJUNCTION = Pattern.compile(
-            "但(?:是)?|然而|不过|可是|却|实际上|其实|事实是|实质上|反之");
+            "但(?:是)?|然而|不过|可是|却|实际上|其实|事实是|实质上|反之|反倒|反而|相反|只是|仅是");
 
     // 前置直接否定词与助词（紧邻修饰动词命题）
     private static final Pattern DIRECT_NEGATION_PREFIX = Pattern.compile(
@@ -164,6 +164,15 @@ public final class P10ContextualAssertionJudge {
         }
 
         if (occurrenceIndices.isEmpty()) {
+            if (cleanSentence.contains("~~") && cleanSentence.replace("~~", "").contains(marker)) {
+                results.add(new Assessment(
+                        marker,
+                        AssertionVerdict.AMBIGUOUS_NEEDS_REVIEW,
+                        cleanSentence,
+                        "检测到删除线（~~）修饰或打断当前禁断命题，语义效力存疑，转人工复核",
+                        RULE_VERSION
+                ));
+            }
             return results;
         }
 
@@ -237,6 +246,17 @@ public final class P10ContextualAssertionJudge {
         // 检查是否由转折词引导
         boolean isAdversative = ADVERSATIVE_CONJUNCTION.matcher(localPrefix).find()
                 || (leftBound > 0 && ADVERSATIVE_CONJUNCTION.matcher(sentence.substring(Math.max(0, leftBound - 4), leftBound)).find());
+
+        // A00. 局部子句删除线检测：修饰当前命题或否定词，语义效力未知，转人工复核
+        if (localClause.contains("~~")) {
+            return new Assessment(
+                    marker,
+                    AssertionVerdict.AMBIGUOUS_NEEDS_REVIEW,
+                    localClause,
+                    "局部子句检测到删除线（~~）修饰当前命题或否定词，语义效力存疑，转人工复核",
+                    RULE_VERSION
+            );
+        }
 
         // A0. 局部双重否定检测：绑定当前局部子句，杜绝跨分句全局短路
         if (DOUBLE_NEGATION.matcher(localClause).find()) {

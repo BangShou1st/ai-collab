@@ -13,6 +13,12 @@ import java.util.regex.Pattern;
  */
 public final class P10TextNormalizer {
 
+    // 匹配 HTML 展示标签与删除线标签
+    private static final Pattern HTML_STRIKE_TAG = Pattern.compile(
+            "<(?:del|strike|s)(?:\\s+[^>]*)?>([^<\\n]+)</(?:del|strike|s)>", Pattern.CASE_INSENSITIVE);
+    private static final Pattern HTML_DISPLAY_TAG = Pattern.compile(
+            "</?(?:u|b|strong|em|i|span|font|p|div|br)(?:\\s+[^>]*)?>", Pattern.CASE_INSENSITIVE);
+
     // 匹配成对的 Markdown 强调标记：***text***, **text**, *text*, ___text___, __text__, _text_, `code`
     // 注意：不破坏 [S1] 等方括号引用，不破坏中文字符与标点
     private static final Pattern BOLD_ITALIC_STAR = Pattern.compile("\\*{3}([^*\\n]+)\\*{3}");
@@ -39,7 +45,17 @@ public final class P10TextNormalizer {
             return "";
         }
         String s = text;
-        // 递归/多轮剥离嵌套强调
+        // 1. 将 HTML 删除线标签统一规范为 Markdown 删除线 ~~text~~，保留删除语义
+        s = HTML_STRIKE_TAG.matcher(s).replaceAll("~~$1~~");
+
+        // 2. 剥离 HTML 展示标签（支持属性及多层嵌套如 <span ...><u>...</u></span>）
+        String prev;
+        do {
+            prev = s;
+            s = HTML_DISPLAY_TAG.matcher(s).replaceAll("");
+        } while (!s.equals(prev));
+
+        // 3. 递归/多轮剥离嵌套强调
         s = BOLD_ITALIC_STAR.matcher(s).replaceAll("$1");
         s = BOLD_ITALIC_UNDER.matcher(s).replaceAll("$1");
         s = BOLD_STAR.matcher(s).replaceAll("$1");
@@ -101,6 +117,14 @@ public final class P10TextNormalizer {
         // 如果 marker 内部包含空格，或者回答在相应位置存在换行，测试紧凑对比
         String compactAnswer = normalizedAnswer.replaceAll("\\s+", "");
         String compactMarker = normalizedMarker.replaceAll("\\s+", "");
-        return !compactMarker.isEmpty() && compactAnswer.contains(compactMarker);
+        if (!compactMarker.isEmpty() && compactAnswer.contains(compactMarker)) {
+            return true;
+        }
+        // 若回答包含删除线，支持识别被删除线覆盖的事实命中（用于后续上下文判定）
+        if (compactAnswer.contains("~~")) {
+            String strikeFreeAnswer = compactAnswer.replace("~~", "");
+            return !compactMarker.isEmpty() && strikeFreeAnswer.contains(compactMarker);
+        }
+        return false;
     }
 }

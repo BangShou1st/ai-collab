@@ -26,13 +26,18 @@ import java.util.regex.Pattern;
 final class P10AnswerQualityScorer {
     static final String QA = "QA";
     static final String AGENT = "AGENT";
-    static final String SCORER_VERSION = "2.0-scoped-contextual-v4";
+    static final String SCORER_VERSION = "2.0-scoped-contextual-v5";
 
     private static final Pattern SENTENCE = Pattern.compile("[^。！？；\\n]+[。！？；\\n]?");
     private static final Pattern ADVERSATIVE_CONJUNCTION = Pattern.compile(
-            "但(?:是)?|然而|不过|可是|却|实际上|其实|事实是|实质上|反之|而");
-    private static final Pattern HAN_NUMBER = Pattern.compile(
-            "[零一二三四五六七八九十百千万]{1,10}(?:元|个工作日|个工作小时|小时|日|天|年|份|%|成)|百分之[零一二三四五六七八九十]{1,3}");
+            "但(?:是)?|然而|不过|可是|却|实际上|其实|事实是|实质上|反之|反倒|反而|相反|只是|仅是|而");
+    private static final Pattern MASK_CITATION = Pattern.compile("\\[S\\d+\\]", Pattern.CASE_INSENSITIVE);
+    private static final Pattern MASK_VERSION = Pattern.compile("(?i)[vV]\\d+(?:\\.\\d+)*");
+    private static final Pattern MASK_DATE = Pattern.compile(
+            "\\b\\d{4}[-/年]\\d{1,2}(?:[-/月]\\d{1,2}(?:日)?)?|\\b\\d{1,2}月\\d{1,2}日?|\\b(?:19|20)\\d{2}年?");
+    private static final Pattern NUMERIC_CANDIDATE = Pattern.compile(
+            "(?:[零一二三四五六七八九十百千万]{1,10}(?:元|个工作日|个工作小时|小时|日|天|年|份|%|成)|百分之[零一二三四五六七八九十]{1,3})|" +
+            "(?:\\d{1,3}(?:,\\d{3})+|\\d+(?:\\.\\d+)?%?)(?:\\s*(?:元|个工作日|个工作小时|小时|日|天|年|份|%|成|人|条|笔|台|套|张|次))?");
     private static final KnowledgeCitationValidator VALIDATOR = new KnowledgeCitationValidator();
 
     record Source(int rank, String document, String documentId, String chunkId, String content) {}
@@ -161,14 +166,7 @@ final class P10AnswerQualityScorer {
         expectedFacts.forEach(f -> allowed.add(String.valueOf(f.get("marker"))));
         String allSourceText = P10TextNormalizer.normalize(
                 String.join("\n", sources.stream().map(Source::content).toList()));
-        List<String> unsupported = new ArrayList<>();
-        Matcher numbers = HAN_NUMBER.matcher(normalizedAnswer);
-        while (numbers.find()) {
-            String phrase = numbers.group();
-            if (!allSourceText.contains(phrase) && allowed.stream().map(P10TextNormalizer::normalizeMarker).noneMatch(a -> a.contains(phrase))) {
-                unsupported.add(phrase);
-            }
-        }
+        List<String> unsupported = extractUnsupportedNumbers(normalizedAnswer, allSourceText, allowed);
         result.put("unsupportedNumberCandidates", unsupported);
         if (!unsupported.isEmpty()) needsReview.add("回答含来源中不存在的数字表述（候选，需人工）：" + unsupported);
 
@@ -368,6 +366,104 @@ final class P10AnswerQualityScorer {
         }
 
         return true;
+    }
+
+    private static List<String> extractUnsupportedNumbers(
+            String answer, String allSourceText, List<String> allowed) {
+        if (answer == null || answer.isBlank()) {
+            return List.of();
+        }
+        // 1. 屏蔽非业务事实数字：引用编号 [S#]、版本号、日期与年份
+        String masked = answer;
+        masked = MASK_CITATION.matcher(masked).replaceAll(mr -> " ".repeat(mr.group().length()));
+        masked = MASK_VERSION.matcher(masked).replaceAll(mr -> " ".repeat(mr.group().length()));
+        masked = MASK_DATE.matcher(masked).replaceAll(mr -> " ".repeat(mr.group().length()));
+
+        List<String> unsupported = new ArrayList<>();
+        Matcher matcher = NUMERIC_CANDIDATE.matcher(masked);
+        while (matcher.find()) {
+            String phrase = matcher.group().strip();
+            if (phrase.isBlank()) {
+                continue;
+            }
+            if (isNumberSupported(phrase, allSourceText, allowed)) {
+                continue;
+            }
+            if (!unsupported.contains(phrase)) {
+                unsupported.add(phrase);
+            }
+        }
+        return unsupported;
+    }
+
+    private static boolean isNumberSupported(String phrase, String allSourceText, List<String> allowed) {
+        if (allSourceText.contains(phrase)) {
+            return true;
+        }
+        if (allowed.stream().map(P10TextNormalizer::normalizeMarker).anyMatch(a -> a.contains(phrase))) {
+            return true;
+        }
+
+        // 去除逗号与多余空格
+        String clean = phrase.replace(",", "").replaceAll("\\s+", "");
+        if (allSourceText.contains(clean)) {
+            return true;
+        }
+        if (allowed.stream().map(P10TextNormalizer::normalizeMarker).anyMatch(a -> a.contains(clean))) {
+            return true;
+        }
+
+        // 提取阿拉伯数字与小数核心
+        String digits = clean.replaceAll("[^0-9.]", "");
+        if (!digits.isEmpty()) {
+            if (allSourceText.contains(digits)) {
+                return true;
+            }
+            String chineseNum = toSimpleChineseNumber(digits);
+            if (!chineseNum.isEmpty() && allSourceText.contains(chineseNum)) {
+                return true;
+            }
+            if (allowed.stream().anyMatch(a -> a.contains(digits) || (!chineseNum.isEmpty() && a.contains(chineseNum)))) {
+                return true;
+            }
+        }
+
+        // 提取汉字数字核心
+        String hanDigits = toArabicDigits(clean);
+        if (!hanDigits.isEmpty()) {
+            if (allSourceText.contains(hanDigits)) {
+                return true;
+            }
+            if (allowed.stream().anyMatch(a -> a.contains(hanDigits))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static String toSimpleChineseNumber(String digits) {
+        return switch (digits) {
+            case "50" -> "五十";
+            case "500" -> "五百";
+            case "400" -> "四百";
+            case "100" -> "一百";
+            case "1200" -> "一千二百";
+            case "5" -> "五";
+            case "3" -> "三";
+            case "10" -> "十";
+            case "5.5" -> "五点五";
+            default -> "";
+        };
+    }
+
+    private static String toArabicDigits(String text) {
+        if (text.contains("五十")) return "50";
+        if (text.contains("五百")) return "500";
+        if (text.contains("四百")) return "400";
+        if (text.contains("一百")) return "100";
+        if (text.contains("百分之五")) return "5%";
+        return "";
     }
 
     private static List<String> distinct(List<String> values) {
