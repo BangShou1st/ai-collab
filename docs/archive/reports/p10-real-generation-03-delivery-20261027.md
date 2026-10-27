@@ -19,7 +19,7 @@ Windows Maven wrapper 完整后端 `verify` 通过：1906 tests，0 failures，0
 
 ## Git 与 CI
 
-工作分支为 `dev`。现有 PR #18（`dev` → `main`）仍为开放草稿，不执行合并。当前任务的提交与推送及对应 CI 运行结果将在推送后补记。
+任务实现与证据提交为 `86b92078eb23b9df4c6112b7395407ada63d925b`，已推送至 `dev`。Push CI #190 与 PR #18 CI #191 均成功；PR CI 的后端、前端和镜像/容器冒烟 job 全部通过。现有 PR #18（`dev` → `main`）仍为 OPEN/Draft/未合并，`main` SHA 未变化（`9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7`）。
 
 ## 证据
 

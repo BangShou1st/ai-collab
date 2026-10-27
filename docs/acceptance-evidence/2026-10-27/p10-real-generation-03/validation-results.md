@@ -13,4 +13,12 @@
 
 Docker Desktop 由主程序启动（没有使用 Windows 服务）；恢复后 Windows `docker version` 显示 Server 29.8.0、`docker-desktop` WSL 发行版为 Running，但 Docker CLI 未集成到 Ubuntu。切换到 Windows Maven wrapper 后，完整后端校验通过。
 
-各轮完整控制台输出临时写入被忽略的 `ai-collab-backend/target/p10-real-generation-03/validation/`。本文件保留首轮失败和最终完整通过的测试计数及原因；没有把选择性重跑描述为完整验证通过。提交后的 GitHub CI 结果另行登记。
+各轮完整控制台输出临时写入被忽略的 `ai-collab-backend/target/p10-real-generation-03/validation/`。本文件保留首轮失败和最终完整通过的测试计数及原因；没有把选择性重跑描述为完整验证通过。
+
+## GitHub CI
+
+任务实现与证据提交 `86b92078eb23b9df4c6112b7395407ada63d925b` 已推送到 `dev`：
+
+- [Push CI #190](https://github.com/BangShou1st/ai-collab/actions/runs/40446233253)：**success**。Backend Maven verify 与 Frontend job 通过；push 事件下的镜像/容器 job 按 workflow 条件跳过。
+- [PR #18 CI #191](https://github.com/BangShou1st/ai-collab/actions/runs/40446239782)：**success**。Backend Maven verify、Frontend 和 Image build & container smoke 全部通过。
+- 检查时 PR #18 仍为 OPEN/Draft/未合并；`main` SHA 仍为 `9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7`，PR head 与 `dev` 为 `86b92078eb23b9df4c6112b7395407ada63d925b`。

@@ -22,7 +22,7 @@
 | `judge-results.json`、`judge/` | 裁判输入覆盖审计、原批次摘要和修正后的本地复核 |
 | `manual-review.md` | 编码助手逐项复核；明确标注独立人类复核为 0 |
 | `failure-analysis.md`、`comparison-report.md` | 失败归因、对比与结论边界 |
-| `validation-results.md` | 本地后端/前端验证结果及 Docker/Testcontainers 限制 |
+| `validation-results.md` | 本地与 GitHub 后端/前端验证结果及 Docker/Testcontainers 限制 |
 | `raw/` | QA、Agent 的原始运行结果、检索上下文和模型调用账本 |
 | `frozen-inputs.sha256`、`scorer-and-corpus.sha256`、`manifest.sha256` | 冻结输入、评分器/语料和本目录文件的 SHA-256 |
 
