@@ -1,0 +1,890 @@
+{
+  "task" : "P10-REAL-AGENT-03",
+  "mode" : "REAL",
+  "authorization" : true,
+  "provider" : "KILO_GATEWAY_FREE",
+  "model" : "nvidia/nemotron-3.5-lightning:free",
+  "routeSnapshotSha256" : "486c26c61debb202ab8696f6e7e3280c23c2c8a629f34c552497eb1972b161e7",
+  "scenarioReservations" : 20,
+  "modelCallCount" : 53,
+  "syntheticTransportTurns" : 0,
+  "externalEmbedding" : 0,
+  "judge" : 0,
+  "chatRetries" : 0,
+  "actualCost" : "UNAVAILABLE",
+  "calls" : [ {
+    "scenario" : "AG01",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:43:21.154671600+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2523,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6590,
+      "outputTokens" : 113
+    },
+    "wallMs" : 2525
+  }, {
+    "scenario" : "AG01",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:43:24.171113500+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 23603,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11729,
+      "outputTokens" : 1938
+    },
+    "wallMs" : 23603
+  }, {
+    "scenario" : "AG02",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:43:48.181790200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2189,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6611,
+      "outputTokens" : 155
+    },
+    "wallMs" : 2190
+  }, {
+    "scenario" : "AG02",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:43:50.747607100+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 27279,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 13051,
+      "outputTokens" : 1962
+    },
+    "wallMs" : 27280
+  }, {
+    "scenario" : "AG03",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:44:18.871001300+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 1719,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6603,
+      "outputTokens" : 143
+    },
+    "wallMs" : 1720
+  }, {
+    "scenario" : "AG03",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:44:20.920733200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 26761,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11381,
+      "outputTokens" : 864
+    },
+    "wallMs" : 26761
+  }, {
+    "scenario" : "AG04",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:44:48.476801400+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2100,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6647,
+      "outputTokens" : 173
+    },
+    "wallMs" : 2101
+  }, {
+    "scenario" : "AG04",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:44:51.024196800+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 6082,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 12770,
+      "outputTokens" : 532
+    },
+    "wallMs" : 6083
+  }, {
+    "scenario" : "AG04",
+    "attempt" : 3,
+    "startedAt" : "2026-10-27T04:44:57.661456200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 11,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 27468,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 19069,
+      "outputTokens" : 1596
+    },
+    "wallMs" : 27468
+  }, {
+    "scenario" : "AG05",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:45:25.811213500+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 20168,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6554,
+      "outputTokens" : 1448
+    },
+    "wallMs" : 20169
+  }, {
+    "scenario" : "AG05",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:45:46.234394200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 3192,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6782,
+      "outputTokens" : 179
+    },
+    "wallMs" : 3193
+  }, {
+    "scenario" : "AG05",
+    "attempt" : 3,
+    "startedAt" : "2026-10-27T04:45:49.826980500+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 11,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 13608,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11935,
+      "outputTokens" : 1202
+    },
+    "wallMs" : 13609
+  }, {
+    "scenario" : "AG06",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:46:04.158561300+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2122,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6546,
+      "outputTokens" : 155
+    },
+    "wallMs" : 2122
+  }, {
+    "scenario" : "AG06",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:46:06.698309+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "ProviderResponseFailure",
+    "wallMs" : 26825
+  }, {
+    "scenario" : "AG07",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:46:33.835727800+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 1974,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6578,
+      "outputTokens" : 118
+    },
+    "wallMs" : 1975
+  }, {
+    "scenario" : "AG07",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:46:35.886247900+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 9934,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 12902,
+      "outputTokens" : 905
+    },
+    "wallMs" : 9935
+  }, {
+    "scenario" : "AG08",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:46:46.126111500+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2376,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6563,
+      "outputTokens" : 161
+    },
+    "wallMs" : 2377
+  }, {
+    "scenario" : "AG08",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:46:48.688983900+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 11467,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 13651,
+      "outputTokens" : 940
+    },
+    "wallMs" : 11468
+  }, {
+    "scenario" : "AG09",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:47:00.978210500+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 2,
+    "toolDefinitionCount" : 0,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "ProviderResponseFailure",
+    "wallMs" : 19458
+  }, {
+    "scenario" : "AG09",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:47:20.450717700+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2769,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6542,
+      "outputTokens" : 136
+    },
+    "wallMs" : 2770
+  }, {
+    "scenario" : "AG09",
+    "attempt" : 3,
+    "startedAt" : "2026-10-27T04:47:23.498084200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2430,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6770,
+      "outputTokens" : 207
+    },
+    "wallMs" : 2431
+  }, {
+    "scenario" : "AG09",
+    "attempt" : 4,
+    "startedAt" : "2026-10-27T04:47:26.066545100+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 11,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 5700,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11458,
+      "outputTokens" : 578
+    },
+    "wallMs" : 5701
+  }, {
+    "scenario" : "AG09",
+    "attempt" : 5,
+    "startedAt" : "2026-10-27T04:47:32.216846200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 13,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 8658,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 16437,
+      "outputTokens" : 582
+    },
+    "wallMs" : 8659
+  }, {
+    "scenario" : "AG10",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:47:41.430829600+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2253,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6555,
+      "outputTokens" : 182
+    },
+    "wallMs" : 2254
+  }, {
+    "scenario" : "AG10",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:47:43.962807200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 13370,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 12610,
+      "outputTokens" : 1277
+    },
+    "wallMs" : 13370
+  }, {
+    "scenario" : "AG11",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:47:57.760177100+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2182,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6557,
+      "outputTokens" : 167
+    },
+    "wallMs" : 2183
+  }, {
+    "scenario" : "AG11",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:48:00.311363900+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2678,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 12131,
+      "outputTokens" : 178
+    },
+    "wallMs" : 2678
+  }, {
+    "scenario" : "AG11",
+    "attempt" : 3,
+    "startedAt" : "2026-10-27T04:48:03.351987700+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 11,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2807,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 17033,
+      "outputTokens" : 208
+    },
+    "wallMs" : 2808
+  }, {
+    "scenario" : "AG11",
+    "attempt" : 4,
+    "startedAt" : "2026-10-27T04:48:06.430491700+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 13,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 17529,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 21935,
+      "outputTokens" : 489
+    },
+    "wallMs" : 17530
+  }, {
+    "scenario" : "AG11",
+    "attempt" : 5,
+    "startedAt" : "2026-10-27T04:48:24.303230900+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 16,
+    "toolDefinitionCount" : 0,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 25426,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 22913,
+      "outputTokens" : 1981
+    },
+    "wallMs" : 25427
+  }, {
+    "scenario" : "AG12",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:48:50.352896700+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 1837,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6545,
+      "outputTokens" : 126
+    },
+    "wallMs" : 1837
+  }, {
+    "scenario" : "AG12",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:48:52.407051400+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 6527,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11762,
+      "outputTokens" : 775
+    },
+    "wallMs" : 6528
+  }, {
+    "scenario" : "AG13",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:49:00.101570300+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2047,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6694,
+      "outputTokens" : 113
+    },
+    "wallMs" : 2047
+  }, {
+    "scenario" : "AG13",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:49:02.664530200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 6996,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11570,
+      "outputTokens" : 699
+    },
+    "wallMs" : 6997
+  }, {
+    "scenario" : "AG14",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:49:09.825152400+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 1607,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6608,
+      "outputTokens" : 123
+    },
+    "wallMs" : 1607
+  }, {
+    "scenario" : "AG14",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:49:11.860189400+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 26501,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 10046,
+      "outputTokens" : 1205
+    },
+    "wallMs" : 26501
+  }, {
+    "scenario" : "AG15",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:49:38.954070+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2517,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6603,
+      "outputTokens" : 132
+    },
+    "wallMs" : 2517
+  }, {
+    "scenario" : "AG15",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:49:42.022881300+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2351,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 12088,
+      "outputTokens" : 172
+    },
+    "wallMs" : 2352
+  }, {
+    "scenario" : "AG15",
+    "attempt" : 3,
+    "startedAt" : "2026-10-27T04:49:44.569898300+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 11,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "ProviderResponseFailure",
+    "wallMs" : 19269
+  }, {
+    "scenario" : "AG16",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:50:04.506900200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2607,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6632,
+      "outputTokens" : 159
+    },
+    "wallMs" : 2608
+  }, {
+    "scenario" : "AG16",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:50:07.571301900+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 9120,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11154,
+      "outputTokens" : 799
+    },
+    "wallMs" : 9120
+  }, {
+    "scenario" : "AG17",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:50:17.273489500+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 1705,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6569,
+      "outputTokens" : 130
+    },
+    "wallMs" : 1705
+  }, {
+    "scenario" : "AG17",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:50:19.323776900+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 19399,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11870,
+      "outputTokens" : 1912
+    },
+    "wallMs" : 19399
+  }, {
+    "scenario" : "AG18",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:50:39.246449900+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2063,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6644,
+      "outputTokens" : 184
+    },
+    "wallMs" : 2065
+  }, {
+    "scenario" : "AG18",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:50:41.784987600+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2552,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6884,
+      "outputTokens" : 245
+    },
+    "wallMs" : 2553
+  }, {
+    "scenario" : "AG18",
+    "attempt" : 3,
+    "startedAt" : "2026-10-27T04:50:44.855893300+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 11,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 7149,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 7310,
+      "outputTokens" : 639
+    },
+    "wallMs" : 7150
+  }, {
+    "scenario" : "AG18",
+    "attempt" : 4,
+    "startedAt" : "2026-10-27T04:50:52.504857700+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 13,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 6467,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 8306,
+      "outputTokens" : 477
+    },
+    "wallMs" : 6467
+  }, {
+    "scenario" : "AG19",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:50:59.681201+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2309,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6605,
+      "outputTokens" : 139
+    },
+    "wallMs" : 2309
+  }, {
+    "scenario" : "AG19",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:51:02.223875900+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 6092,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11556,
+      "outputTokens" : 501
+    },
+    "wallMs" : 6092
+  }, {
+    "scenario" : "AG19",
+    "attempt" : 3,
+    "startedAt" : "2026-10-27T04:51:08.877643500+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 11,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 3829,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 16508,
+      "outputTokens" : 364
+    },
+    "wallMs" : 3829
+  }, {
+    "scenario" : "AG19",
+    "attempt" : 4,
+    "startedAt" : "2026-10-27T04:51:12.976403200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 13,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "ProviderResponseFailure",
+    "wallMs" : 32110
+  }, {
+    "scenario" : "AG20",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:51:45.694156300+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 29,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 11311,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11297,
+      "outputTokens" : 902
+    },
+    "wallMs" : 11311
+  }, {
+    "scenario" : "AG20",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:51:57.458440200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 29,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 9875,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11436,
+      "outputTokens" : 946
+    },
+    "wallMs" : 9876
+  } ],
+  "executionVerdict" : "REAL_AGENT_ATTEMPTED_SEE_SCENARIO_OUTCOMES"
+}

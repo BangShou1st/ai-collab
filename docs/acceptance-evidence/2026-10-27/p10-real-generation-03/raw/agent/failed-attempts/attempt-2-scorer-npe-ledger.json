@@ -1,0 +1,51 @@
+{
+  "task" : "P10-REAL-AGENT-03",
+  "mode" : "REAL",
+  "authorization" : true,
+  "provider" : "KILO_GATEWAY_FREE",
+  "model" : "nvidia/nemotron-3.5-lightning:free",
+  "routeSnapshotSha256" : "9c281c7a21865cd02404d2849f544d9609bd11e9dae8f613cb00f6e1b0ed649e",
+  "scenarioReservations" : 1,
+  "modelCallCount" : 2,
+  "syntheticTransportTurns" : 0,
+  "externalEmbedding" : 0,
+  "judge" : 0,
+  "chatRetries" : 0,
+  "actualCost" : "UNAVAILABLE",
+  "calls" : [ {
+    "scenario" : "AG01",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:37:53.255741700+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "TOOL_CALLS",
+    "latencyMs" : 2965,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 6589,
+      "outputTokens" : 134
+    },
+    "wallMs" : 2966
+  }, {
+    "scenario" : "AG01",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:37:56.799509300+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 9,
+    "toolDefinitionCount" : 18,
+    "status" : "HTTP_RETURNED",
+    "finishReason" : "STOP",
+    "latencyMs" : 10521,
+    "provider" : "OPENAI_COMPATIBLE",
+    "model" : "nvidia/nemotron-3.5-lightning:free",
+    "usage" : {
+      "inputTokens" : 11644,
+      "outputTokens" : 1139
+    },
+    "wallMs" : 10522
+  } ],
+  "executionVerdict" : "REAL_AGENT_ATTEMPTED_SEE_SCENARIO_OUTCOMES"
+}

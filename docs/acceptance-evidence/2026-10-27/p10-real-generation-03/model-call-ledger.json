@@ -1,0 +1,214 @@
+{
+  "task": "P10-REAL-GENERATION-03",
+  "batch": "p10-real-generation-03",
+  "authorization": {
+    "qa": "用户任务书明确授权（不再沿用 8 次上限）",
+    "agent": "同上",
+    "judge": "同上",
+    "costConfirmation": "FREE_ONLY_CONFIRMED（用户自述免费 API；账号计费状态仍 UNAVAILABLE 未独立核实）"
+  },
+  "routes": {
+    "qa": {
+      "provider": "GEMINI",
+      "model": "gemini-3.5-flash-lite",
+      "purpose": "KNOWLEDGE_CHAT"
+    },
+    "agent": {
+      "provider": "KILO_GATEWAY_FREE",
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "purpose": "AGENT"
+    },
+    "judgeAInitial": {
+      "provider": "GEMINI",
+      "model": "gemini-3.5-flash-lite",
+      "sourceCoverage": "PARTIAL; 22 of 34 judged rows lacked complete sources"
+    },
+    "judgeBInitialAttempt": {
+      "provider": "KILO_GATEWAY_FREE",
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "sourceCoverage": "PARTIAL; 22 of 34 judged rows lacked complete sources"
+    },
+    "judgeBFinalOriginal": {
+      "provider": "OLLAMA_LOCAL",
+      "model": "qwen2.5:7b-instruct",
+      "sourceCoverage": "PARTIAL; 22 of 34 judged rows lacked complete sources"
+    },
+    "correctedLocalReview": {
+      "provider": "OLLAMA_LOOPBACK",
+      "externalModelApiCalls": 0
+    }
+  },
+  "qaChatCalls": {
+    "attempts": 17,
+    "httpReturned": 17,
+    "failedOrUnknown": 0,
+    "retries": 0,
+    "promptTokens": 14383,
+    "completionTokens": 1740,
+    "actualCost": "UNAVAILABLE"
+  },
+  "agentModelCalls": {
+    "attempts": 53,
+    "httpReturned": 49,
+    "failedOrUnknown": 4,
+    "usageMissingOnHttpReturned": 0,
+    "knownUsage": {
+      "promptTokens": 501590,
+      "completionTokens": 29311,
+      "callsWithKnownUsage": 45
+    },
+    "scenarioReservations": 20,
+    "succeededScenarios": 17,
+    "failedScenarios": 3,
+    "actualCost": "UNAVAILABLE"
+  },
+  "failedAttempts": {
+    "attempt1": "Agent 全场景 BusinessException（测试夹具 presetCode 缺失致本地凭据分类错误；本地拒绝，未出网，20 次即时失败已记账）",
+    "attempt2": "AG01 真实执行成功后评分回放 NPE（测量工具缺陷）",
+    "attempt3": "编译失败 0 调用",
+    "detail": "见 raw/agent/failed-attempts/"
+  },
+  "judgeCalls": {
+    "externalEndpointAttempts": 124,
+    "externalInferenceAttempts": 120,
+    "externalModelListAttempts": 4,
+    "externalEmbedding": 0,
+    "actualCost": "UNAVAILABLE",
+    "externalBatches": [
+      {
+        "batch": "judge-a-defective-input",
+        "model": "gemini-3.5-flash-lite",
+        "endpointAttempts": 70,
+        "inferenceAttempts": 68,
+        "modelListAttempts": 2,
+        "httpStatuses": {
+          "200": 36,
+          "429": 31,
+          "503": 3
+        },
+        "judgedRows": 34,
+        "noAnswerRows": 3
+      },
+      {
+        "batch": "judge-a-source-incomplete-final",
+        "model": "gemini-3.5-flash-lite",
+        "endpointAttempts": 35,
+        "inferenceAttempts": 34,
+        "modelListAttempts": 1,
+        "judgedRows": 34
+      },
+      {
+        "batch": "judge-b-defective-input-kilo",
+        "model": "nvidia/nemotron-3.5-lightning:free",
+        "endpointAttempts": 19,
+        "inferenceAttempts": 18,
+        "modelListAttempts": 1,
+        "httpStatuses": {
+          "200": 19
+        },
+        "judgedRows": 18
+      }
+    ],
+    "localInferenceBatches": [
+      {
+        "batch": "judge-b-source-incomplete-final",
+        "model": "qwen2.5:7b-instruct",
+        "inferenceAttempts": 34,
+        "modelListAttempts": 1,
+        "judgedRows": 34
+      },
+      {
+        "batch": "corrected-prototype-01",
+        "model": "qwen2.5:7b-instruct",
+        "inferenceAttempts": 12,
+        "statuses": {
+          "JUDGED": 3,
+          "PARSE_FAILED": 9
+        },
+        "externalModelApiCalls": 0
+      },
+      {
+        "batch": "corrected-review-02",
+        "inferenceAttempts": 26,
+        "statuses": {
+          "JUDGED": 22,
+          "PARSE_FAILED": 4
+        },
+        "models": {
+          "qwen2.5:7b-instruct": 22,
+          "qwen3.5:4b": 4
+        },
+        "externalModelApiCalls": 0
+      },
+      {
+        "batch": "corrected-review-03",
+        "model": "qwen3.5:4b",
+        "planned": 22,
+        "inferenceAttempts": 13,
+        "statuses": {
+          "JUDGED": 5,
+          "PARSE_FAILED": 4,
+          "TRUNCATED_EMPTY": 4
+        },
+        "notRun": 9,
+        "stoppedAfterConsecutiveEmptyTruncations": true,
+        "externalModelApiCalls": 0
+      }
+    ],
+    "sourceCoverageAudit": {
+      "originalJudgedRowsPerJudge": 34,
+      "sourceCompleteRowsPerJudge": 12,
+      "sourceIncompleteRowsPerJudge": 22,
+      "qaMissingSourceRunIds": [
+        "Q10",
+        "Q11",
+        "Q12",
+        "Q13",
+        "R3"
+      ],
+      "successfulAgentRowsWithoutSources": 17,
+      "agentNoAnswerRows": 3
+    }
+  },
+  "externalEmbedding": 0,
+  "actualCost": "UNAVAILABLE",
+  "generationVerdict": "REAL_GENERATION_EXECUTED_QA_17_OF_17; AGENT_17_OF_20_SUCCEEDED; ORIGINAL_JUDGE_SOURCE_COVERAGE_PARTIAL; CORRECTED_LOCAL_REVIEW_22_QWEN25_VALID; QWEN35_PARTIAL",
+  "externalModelInferenceCount": 190,
+  "externalModelListCount": 4,
+  "localJudgeInferenceCountTotal": 85,
+  "totalExternalEndpointAttempts": 194,
+  "correctedLocalSupplementInferenceCount": 51,
+  "validation": {
+    "realP10EnvironmentVariablesSet": false,
+    "externalModelCallsDuringDefaultValidation": 0,
+    "backend": {
+      "command": ".\\mvnw.cmd -B -ntp verify",
+      "status": "BUILD_SUCCESS",
+      "tests": 1906,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 43,
+      "gateTestsPassed": 6,
+      "p10ScorerReplayTestsPassed": 1
+    },
+    "frontend": {
+      "lint": {
+        "status": "PASS",
+        "errors": 0,
+        "warnings": 76
+      },
+      "typecheck": "PASS",
+      "test": {
+        "status": "PASS",
+        "files": 52,
+        "tests": 409
+      },
+      "build": "PASS"
+    }
+  },
+  "agentRouteGate": {
+    "approvedModel": "nvidia/nemotron-3.5-lightning:free",
+    "requiresApprovedRouteSha256": true,
+    "routeSnapshotComparedBeforeAnyRealModelCall": true
+  }
+}

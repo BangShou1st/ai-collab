@@ -1,0 +1,227 @@
+{
+  "task" : "P10-REAL-AGENT-03",
+  "mode" : "REAL",
+  "authorization" : true,
+  "provider" : "KILO_GATEWAY_FREE",
+  "model" : "nvidia/nemotron-3.5-lightning:free",
+  "routeSnapshotSha256" : "1ed80df1d3a1c182fcfbeb55e8e2d1d7ac835323c6048ce1f92a97f4589c1012",
+  "scenarioReservations" : 20,
+  "modelCallCount" : 21,
+  "syntheticTransportTurns" : 0,
+  "externalEmbedding" : 0,
+  "judge" : 0,
+  "chatRetries" : 0,
+  "actualCost" : "UNAVAILABLE",
+  "calls" : [ {
+    "scenario" : "AG01",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:45.416071100+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 4
+  }, {
+    "scenario" : "AG02",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:45.804183800+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG03",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:46.314071400+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG04",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:46.825815300+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG05",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:47.333935500+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG06",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:47.841691300+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG07",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:48.353488900+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG08",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:48.870010600+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG09",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:49.372082600+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 2,
+    "toolDefinitionCount" : 0,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG09",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:33:49.389194100+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG10",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:49.880025600+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG11",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:50.392766800+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG12",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:50.900931200+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG13",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:51.413297900+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG14",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:51.932896400+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG15",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:52.438690900+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG16",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:52.950944300+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG17",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:53.480592+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG18",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:53.986561400+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG19",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:54.490554700+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 18,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  }, {
+    "scenario" : "AG20",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:33:54.998013500+08:00",
+    "purpose" : "AGENT",
+    "messageCount" : 7,
+    "toolDefinitionCount" : 29,
+    "status" : "FAILED_OR_UNKNOWN",
+    "errorType" : "BusinessException",
+    "wallMs" : 0
+  } ],
+  "executionVerdict" : "REAL_AGENT_ATTEMPTED_SEE_SCENARIO_OUTCOMES"
+}
