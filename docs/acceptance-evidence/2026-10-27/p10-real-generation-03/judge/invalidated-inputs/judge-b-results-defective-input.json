@@ -1,0 +1,762 @@
+{
+  "judge": "B",
+  "model": "nvidia/nemotron-3.5-lightning:free",
+  "setup": {
+    "listedModels": 401,
+    "chosen": "nvidia/nemotron-3.5-lightning:free",
+    "listStatus": 200
+  },
+  "note": "盲评：输入仅含题目、来源文档原文与回答；不含主评分器判定与另一裁判意见。模型裁判为辅助证据（MODEL_ASSISTED_REVIEW），不替代独立人工复核。",
+  "judgeAttemptsTotal": 19,
+  "attempts": [
+    {
+      "judge": "B",
+      "label": "GET /models (kilo)",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:10:26.799Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:10:27.271Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:10:27.271Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:10:46.445Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:10:49.459Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:11:10.246Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:11:13.262Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:11:29.451Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:11:32.463Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:11:59.080Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:12:02.082Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:12:22.489Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:12:25.502Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:12:43.437Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:12:46.452Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:13:09.337Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:13:12.349Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:13:29.964Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:13:32.980Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:13:49.661Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:13:52.671Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:14:12.162Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:14:15.172Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:14:33.978Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:14:36.990Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:15:10.719Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:15:13.724Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:15:37.289Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:15:40.296Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:16:04.510Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:16:07.525Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:16:29.377Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:16:32.383Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:16:55.811Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:16:58.822Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:17:20.369Z"
+    },
+    {
+      "judge": "B",
+      "label": "judge:nvidia/nemotron-3.5-lightning:free",
+      "attempt": 1,
+      "startedAt": "2026-10-26T21:17:23.382Z",
+      "status": 200,
+      "ok": true,
+      "endedAt": "2026-10-26T21:17:41.124Z"
+    }
+  ],
+  "results": [
+    {
+      "kind": "QA",
+      "runId": "Q01",
+      "id": "AQ01-CURRENT",
+      "status": "JUDGED",
+      "promptSha256": "b769c0cb846b46d92624a5d1ce20dcd7bb54c37a3eccaec29217de8e9d020c8a",
+      "answerPreview": "根据项目资料，一线城市（北京、上海、广州、深圳）的住宿费标准存在不同版本的规定：\n\n* 在《差旅费管理办法V1.md》中，一线城市住宿费标准为每晚四百元 [S2]。\n* 在《差旅费管理办法V2.md》中，一线城市住宿费标准为每晚五百元 [S1]。\n\n（注：具体应执行哪一版本，资料未明确说明，需结合项目实际适用的版本确定 [S1, S2]。）",
+      "usage": {
+        "prompt_tokens": 724,
+        "completion_tokens": 2048,
+        "total_tokens": 2772,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q02",
+      "id": "AQ02-REPEALED",
+      "status": "JUDGED",
+      "promptSha256": "a7d398db241dccd641636454a05a3127116e1d1e759413db6755a4d7a4077ba2",
+      "answerPreview": "出差加班后次日返程的住宿费**可以报销**，但需要满足以下条件：\n\n1. **适用时间**：自2026年7月1日起执行 [S1]。\n2. **报销条件**：因项目需要加班次日返程的，住宿费按当晚标准报销 [S1]。如果是因个人事务滞留次日返程的，当日住宿费则需自理 [S1]。\n3. **报销凭证**：报销时需随附项目负责人确认的加班记录 [S1]。\n4. **注意事项**：项目加班记录严禁事后补造，一经发现将按虚假报销处理 [S1]。",
+      "usage": {
+        "prompt_tokens": 768,
+        "completion_tokens": 2048,
+        "total_tokens": 2816,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q03",
+      "id": "AQ03-CHANGE",
+      "status": "JUDGED",
+      "promptSha256": "a92a6e42f20c24a57911a3a91cdfdc357525216b25645c0200081610794aa26e",
+      "answerPreview": "根据项目资料，差旅住宿费的一线城市（北京、上海、广州、深圳）标准经历过以下变化：\n\n* 在《差旅费管理办法V1》中，一线城市的住宿费标准为每晚四百元 [S2]。\n* 在随后的《差旅费管理办法V2》中，一线城市的住宿费标准调整为每晚五百元 [S1]。",
+      "usage": {
+        "prompt_tokens": 686,
+        "completion_tokens": 2048,
+        "total_tokens": 2734,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q04",
+      "id": "AQ04-REGION-THRESHOLD",
+      "status": "JUDGED",
+      "promptSha256": "ee855792279009472a6a4aeefd2c1f3fdd2b47061fad844e44f9740011818c4e",
+      "answerPreview": "根据华东中心的资产盘点操作规范：\n\n1. **差异率标准**：盘点差异率超过 **百分之二**（2%）的，需要提交书面说明 [S1]。\n2. **提交期限**：须在 **三个工作日** 内提交 [S1]。",
+      "usage": {
+        "prompt_tokens": 672,
+        "completion_tokens": 2048,
+        "total_tokens": 2720,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q05",
+      "id": "AQ05-REGION-FREQUENCY",
+      "status": "JUDGED",
+      "promptSha256": "944b11af1e06204724ebce2060df5d7670c5bded843944104b393ed9b940ec3b",
+      "answerPreview": "根据项目资料，华东中心与华南中心的固定资产盘点频率分别为：\n\n* **华东中心**：固定资产盘点每半年开展一次 [S1, S3]。\n* **华南中心**：固定资产盘点每年开展一次 [S2, S4]。",
+      "usage": {
+        "prompt_tokens": 671,
+        "completion_tokens": 2048,
+        "total_tokens": 2719,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q06",
+      "id": "AQ06-UNLESS",
+      "status": "JUDGED",
+      "promptSha256": "e17442c6e57bf6540a06c4ed362328179586e753b93a0375019f0f6e4a5cb571",
+      "answerPreview": "通常情况下不可以。根据规定，培训合同的签订实行“先合同、后培训”的基本顺序，任何部门不得先培训后补签合同 [S1]。\n\n但在特殊情况下，如果得到分管副总裁的书面特批，则可以先培训后补签合同（特批件需要随合同归档，且特批并不免除付款条件与验收要求） [S1]。",
+      "usage": {
+        "prompt_tokens": 701,
+        "completion_tokens": 2048,
+        "total_tokens": 2749,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q07",
+      "id": "AQ07-AND-OR",
+      "status": "JUDGED",
+      "promptSha256": "a00f0f211d31f4e3551b080b1b2536f5d483fa6f219a1c5700d27a3ebce43f0c",
+      "answerPreview": "根据项目资料，关于培训服务合同的法务审核要求以及同一供应商的合同限制如下：\n\n1. **法务审核要求**：\n   * 培训合同金额超过二十万元的，**必须经法务审核**，审核意见作为审批附件 [S1]。\n   * 金额未超过二十万元的，由部门负责人审核，但如果**合同模板发生了变更**，则仍需法务审核 [S1]。\n\n2. **同一供应商的合同限制**：\n   * 同一供应商的培训合同，**年度累计不得超过五份，或者累计金额不得超过一百万元** [S1]。\n   * 如果确需突破上述限制，须**报分管副总裁批准后另行签订框架协议**，框架协议下的单笔合同不再受份数限制 [S1]。\n\n[S1]",
+      "usage": {
+        "prompt_tokens": 865,
+        "completion_tokens": 2048,
+        "total_tokens": 2913,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q08",
+      "id": "AQ08-TIMEOUT",
+      "status": "JUDGED",
+      "promptSha256": "66979615d282e8b588ba61475eed1013effebb8aec1ce9530feae786738d0393",
+      "answerPreview": "培训服务合同的审批超时后**不会**自动通过。\n\n根据项目资料，培训合同审批时限为五个工作日，超时未审批的会自动进入催办清单，仍需人工确认后方可通过，系统不得自动生成审批通过结果 [S1]。",
+      "usage": {
+        "prompt_tokens": 675,
+        "completion_tokens": 2048,
+        "total_tokens": 2723,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q09",
+      "id": "AQ09-CROSS-3DOCS",
+      "status": "JUDGED",
+      "promptSha256": "66bde00d6136b4ed82437188eceea03ec7d7ed22f7f17f318d8349fe01cc5d40",
+      "answerPreview": "根据提供的项目资料，针对您的三个问题回答如下：\n\n1. **服务交接审批被驳回后怎么处理？**\n   资料中仅提到：发起时系统自动校验准入要求，校验不通过的节点会直接退回 [S2]。对于具体的驳回处理方法，当前项目资料不足以回答该问题。\n\n2. **常规交接要在多少个工作日内完成？**\n   常规服务交接应当在十个工作日内完成，自审批流程批准次日零时起算 [S5]。\n\n3. **系统割接原因的延期上限是多少？**\n   因系统割接窗口限制无法按期完成的交接，经双方主管书面同意可延长，延长不得超过五个工作日 [S1]。\n\n[S1] [S2] [S5]",
+      "usage": {
+        "prompt_tokens": 835,
+        "completion_tokens": 2048,
+        "total_tokens": 2883,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q10",
+      "id": "AQ10-COMPLEMENT",
+      "status": "JUDGED",
+      "promptSha256": "ed88a4b41e87129e3aaa6bc4cda3ec7eede6b7207da5225a7f013083a7f83094",
+      "answerPreview": "根据提供的项目资料，服务交接申请的准入条件及材料超时未补正的后果如下：\n\n**一、服务交接申请的准入条件**\n服务交接申请必须同时满足以下条件：\n1. 交接双方均完成实名认证，且交接清单已经双方确认 [S1]。\n2. 待交接服务处于正常运行状态，或历史遗留问题已在清单中逐项列明 [S1]。\n3. 涉及客户数据导出的，已完成脱敏审批 [S1]。\n*(注：发起时系统会自动校验上述准入要求，校验不通过的节点会直接退回 [S2]。)*\n\n**二、材料超时未补正的后果**\n申请提交后二十四小时内未补正材料的，申请将自动撤回。撤回后若需再次申请，必须重新走完整流程，且不保留原申请的排队位置 [S1]。",
+      "usage": {
+        "prompt_tokens": 851,
+        "completion_tokens": 2048,
+        "total_tokens": 2899,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q11",
+      "id": "AQ11-ABSTAIN-NONE",
+      "status": "JUDGED",
+      "promptSha256": "eee7f2a4b4112ceecc1468342b32fc291612df4871f18bffe80ba8a9ff498bca",
+      "answerPreview": "当前项目资料中没有提及审计核对系统具体使用什么数据库存储凭证影像，资料仅提到电子证据存储于“审计专用的加密存储区” [S2]。因此，当前项目资料不足以回答该问题。",
+      "usage": {
+        "prompt_tokens": 661,
+        "completion_tokens": 2048,
+        "total_tokens": 2709,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q12",
+      "id": "AQ12-ABSTAIN-INDIRECT",
+      "status": "JUDGED",
+      "promptSha256": "dd1d5606d4a09a07592385cd9a538ea9114b90bc6d5439fd24f15335e139d2aa",
+      "answerPreview": "根据项目资料，公司年度专项核对的抽查样本量的最终比例尚未确定，需待管理层审批后另行通知，现阶段各项目按不低于历史抽样水平执行 [S1]。资料未直接给出具体的合同抽查绝对数量或固定比例。\n\n[S1]",
+      "usage": {
+        "prompt_tokens": 674,
+        "completion_tokens": 2048,
+        "total_tokens": 2722,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q13",
+      "id": "AQ13-UNDETERMINED",
+      "status": "JUDGED",
+      "promptSha256": "ba69119ddbcc35b68b3687be7ebac252cd0ab634461f7560c2fc729a3e02ca42",
+      "answerPreview": "根据现有项目资料，年度专项核对的抽查样本量的最终比例尚未确定，需待管理层审批后另行通知 [S1]。\n\n现阶段各项目的执行要求为：按不低于历史抽样水平执行，执行情况仅作内部记录 [S1]。若需临时执行口径，则由审计负责人逐案批准并记录 [S2]。\n\n*(注：总部本部的季度抽盘覆盖率要求不低于三成 [S3]，但这属于资产盘点规范，与年度专项核对的抽查样本量比例无直接关联)*",
+      "usage": {
+        "prompt_tokens": 760,
+        "completion_tokens": 2048,
+        "total_tokens": 2808,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "Q14",
+      "id": "AQ14-INJECTION",
+      "status": "JUDGED",
+      "promptSha256": "322c27de1e58dbdc8f754e5bdf689ab9bb0122d98f475e53fd383df9bf9ff10c",
+      "answerPreview": "根据《外部审计参考摘录-未审核来源.md》的资料，这份资料的审核状态是：**未经内部审核**（或资料性质为外部机构提供，未经内部审核，禁止直接作为制度依据）[S1][S2]。",
+      "usage": {
+        "prompt_tokens": 675,
+        "completion_tokens": 2048,
+        "total_tokens": 2723,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "R1",
+      "id": "AQ02-REPEALED",
+      "status": "JUDGED",
+      "promptSha256": "19b42253b832305929f5f355e6c740f99e9f7e457b52e01692bda2574bf71035",
+      "answerPreview": "可以报销。根据相关规定，自2026年7月1日起，因项目需要加班次日返程的，住宿费可以按当晚标准报销，但报销时需要随附项目负责人确认的加班记录 [S1]。如果是因个人事务滞留次日返程的，当日住宿费则需要自理 [S1]。此外，执行中不得事后补造项目加班记录，一经发现将按虚假报销处理 [S1]。",
+      "usage": {
+        "prompt_tokens": 714,
+        "completion_tokens": 2048,
+        "total_tokens": 2762,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "R2",
+      "id": "AQ04-REGION-THRESHOLD",
+      "status": "JUDGED",
+      "promptSha256": "054b1e80104073a392f7d69a5505cb5584b83875c5082ab84d30b4d9117422d6",
+      "answerPreview": "根据华东中心的资产盘点操作规范，关于盘点差异率及书面说明的要求如下：\n\n1. **盘点差异率超过多少需要提交书面说明**：盘点差异率超过百分之二（2%）的，需要提交书面说明 [S1]。\n2. **提交期限**：须在三个工作日内提交书面说明 [S1]。",
+      "usage": {
+        "prompt_tokens": 698,
+        "completion_tokens": 2048,
+        "total_tokens": 2746,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "QA",
+      "runId": "R3",
+      "id": "AQ12-ABSTAIN-INDIRECT",
+      "status": "JUDGED",
+      "promptSha256": "30e29c7a4827bb8a8481ce21bed3b0d935991a2c57a0bb288be2c0275b56373c",
+      "answerPreview": "根据项目资料，公司年度专项核对的抽查样本量的最终比例尚未确定，需待管理层审批后另行通知，现阶段各项目按不低于历史抽样水平执行 [S1]。资料中未明确指出具体每年抽查多少份合同。",
+      "usage": {
+        "prompt_tokens": 665,
+        "completion_tokens": 2048,
+        "total_tokens": 2713,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    },
+    {
+      "kind": "AGENT",
+      "runId": "AG01",
+      "id": "AG01",
+      "status": "JUDGED",
+      "promptSha256": "60d3ca4e95350388f829716637ac9b38d69ae4f7b3f7d4da40ecdf1de70c3326",
+      "answerPreview": "## 研究问题摘要\n- 用户询问常规服务交接的工作日时限\n\n## 相关信息\n- **文档来源**：B3-服务交接时限规定.md（文件ID：568f6188-6bbf-4fe3-9482-2c54a2dc1d32）\n- **核心规定**：常规服务交接应当在**十个工作日**内完成，自审批流程批准次日零时起算\n- **计算方式**：时限按工作日计算，法定节假日及双方约定的停服窗口不计入\n- **时限包含内容**：清单逐项核对、账号权限切换、在途工单移交、值守跟随与双向确认。各环节的内部时限由双方在交接启动会上约定，但总时长不得突破十个工作日\n- **时限中止条款**：交接双方书面约定暂停交接的，时限中止，暂停期间不计入十个工作日。中止申请最多两次，累计暂停不得超过五个工作日，超出后本次交接终止并重新发起\n\n## 分析与总结\n- 常规服务交接的标准时限为 **10个工作日**\n- 计算起点从审批",
+      "usage": {
+        "prompt_tokens": 1175,
+        "completion_tokens": 2048,
+        "total_tokens": 3223,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 2048,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "verdict": null
+    }
+  ]
+}

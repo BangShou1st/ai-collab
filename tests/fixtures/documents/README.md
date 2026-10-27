@@ -33,6 +33,7 @@
 统计口径修正见 `docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01-errata/`。
 `p10-evaluation-question-set.json`：P10-RAG-ANSWER-QUALITY-01 冻结回答质量评测子集
 （14 题，派生自上述 P9 冻结标注，未改动原标注；机械评分规则内嵌）。
+`p10-real-generation-03-agent-scenarios.json`：P10-REAL-GENERATION-03 冻结 Agent 场景清单（20 个场景），供受门禁保护的 PostgreSQL 端到端评测读取；不含凭据。
 
 1. **统一编码**：
    - 所有测试语料文件必须使用 **UTF-8（无 BOM）** 编码保存，避免在 Windows 与 Linux/CI 环境间产生跨平台字符集差异。
