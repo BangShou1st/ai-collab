@@ -1,55 +1,55 @@
 [ {
   "passed" : true,
-  "abstentionVerdict" : "CONFLICTING_FABRICATION",
-  "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[10 份]" ],
-  "case" : "COMBO1_DATE_NUMBER_REFUSAL",
+  "answer" : "资料不足，无法确认；但根据 2026-10-01 的备忘，通常每年核对 10 份合同 [S1]。",
   "unsupportedNumberCandidates" : [ "10 份" ],
-  "answer" : "资料不足，无法确认；但根据 2026-10-01 的备忘，通常每年核对 10 份合同 [S1]。"
+  "case" : "COMBO1_DATE_NUMBER_REFUSAL",
+  "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[10 份]" ],
+  "abstentionVerdict" : "CONFLICTING_FABRICATION"
 }, {
-  "answer" : "根据资料 [S1, S2]，当前项目资料不足以回答。",
-  "unsupportedNumberCandidates" : [ ],
-  "case" : "COMBO2_GROUPED_CITATION_ABSTENTION",
+  "passed" : true,
   "abstentionVerdict" : "HONEST_ABSTENTION",
-  "passed" : true
+  "case" : "COMBO2_GROUPED_CITATION_ABSTENTION",
+  "unsupportedNumberCandidates" : [ ],
+  "answer" : "根据资料 [S1, S2]，当前项目资料不足以回答。"
 }, {
-  "answer" : "根据资料，<del><strong>不可以</strong></del>先组织培训再补签合同 [S1]。",
-  "case" : "COMBO3_NESTED_HTML_NEGATION_MARKER",
+  "highSeverity" : [ ],
+  "passed" : true,
   "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
-  "passed" : true,
-  "highSeverity" : [ ]
+  "case" : "COMBO3_NESTED_HTML_NEGATION_MARKER",
+  "answer" : "根据资料，<del><strong>不可以</strong></del>先组织培训再补签合同 [S1]。"
 }, {
-  "answer" : "经办人~~李四~~可以先组织培训再补签合同，但领导仍可以先组织培训再补签合同 [S1]。",
-  "verdicts" : [ "AFFIRMATIVE_VIOLATION", "AFFIRMATIVE_VIOLATION" ],
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
+  "passed" : true,
   "case" : "COMBO4_NAME_STRIKE_REPEATED_MARKER",
-  "passed" : true,
-  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
+  "verdicts" : [ "AFFIRMATIVE_VIOLATION", "AFFIRMATIVE_VIOLATION" ],
+  "answer" : "经办人~~李四~~可以先组织培训再补签合同，但领导仍可以先组织培训再补签合同 [S1]。"
 }, {
-  "answer" : "根据原规定，现行标准为四百元 [S1]。",
-  "versionVerdict" : "VERSION_VIOLATION",
+  "highSeverity" : [ "VERSION_VIOLATION:旧/废止/他方条款以现行口径出现：四百" ],
+  "passed" : true,
   "case" : "COMBO5_LEGACY_CURRENT_CITATION",
-  "passed" : true,
-  "highSeverity" : [ "VERSION_VIOLATION:旧/废止/他方条款以现行口径出现：四百" ]
+  "versionVerdict" : "VERSION_VIOLATION",
+  "answer" : "根据原规定，现行标准为四百元 [S1]。"
 }, {
-  "answer" : "除固定资产盘点外，资料并未明确具体事项且各项目可以先组织培训再补签合同 [S1]。",
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
+  "passed" : true,
+  "verdict" : "AFFIRMATIVE_VIOLATION",
   "case" : "COMBO6_SCOPE_EPISTEMIC_AFFIRMATIVE",
-  "verdict" : "AFFIRMATIVE_VIOLATION",
-  "passed" : true,
-  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
+  "answer" : "除固定资产盘点外，资料并未明确具体事项且各项目可以先组织培训再补签合同 [S1]。"
 }, {
-  "case" : "COMBO7_UNKNOWN_CONJUNCTION_SUBJECT",
-  "verdict" : "AFFIRMATIVE_VIOLATION",
+  "answer" : "资料并未明确具体事项且负责人可以先组织培训再补签合同 [S1]。",
   "passed" : true,
-  "answer" : "资料并未明确具体事项且负责人可以先组织培训再补签合同 [S1]。"
+  "verdict" : "AFFIRMATIVE_VIOLATION",
+  "case" : "COMBO7_UNKNOWN_CONJUNCTION_SUBJECT"
 }, {
-  "answer" : "通常不可以先组织培训再补签合同，资料也未明确具体比例，但华东中心可以先组织培训再补签合同 [S1]。",
-  "verdicts" : [ "NEGATED_OR_EPISTEMIC_MENTION", "AFFIRMATIVE_VIOLATION" ],
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
+  "passed" : true,
   "case" : "COMBO9_NEGATION_UNKNOWN_VIOLATION_COEXIST",
-  "passed" : true,
-  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
+  "verdicts" : [ "NEGATED_OR_EPISTEMIC_MENTION", "AFFIRMATIVE_VIOLATION" ],
+  "answer" : "通常不可以先组织培训再补签合同，资料也未明确具体比例，但华东中心可以先组织培训再补签合同 [S1]。"
 }, {
-  "answer" : "资料不足，无法确认；但每年核对 50 份合同、约 1,200 份底稿，且合规费用为五百元 [S1]。",
-  "unsupportedNumberCandidates" : [ "50 份", "1,200 份" ],
-  "case" : "COMBO10_PARTIAL_SUPPORTED_CANDIDATES",
+  "passed" : true,
   "abstentionVerdict" : "CONFLICTING_FABRICATION",
-  "passed" : true
+  "case" : "COMBO10_PARTIAL_SUPPORTED_CANDIDATES",
+  "unsupportedNumberCandidates" : [ "50 份", "1,200 份" ],
+  "answer" : "资料不足，无法确认；但每年核对 50 份合同、约 1,200 份底稿，且合规费用为五百元 [S1]。"
 } ]

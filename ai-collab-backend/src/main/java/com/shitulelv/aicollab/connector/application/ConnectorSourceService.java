@@ -116,10 +116,6 @@ public class ConnectorSourceService {
         accessGuard.requireAdmin(projectId, userId);
         writeGuard.requireWritable(projectId);
         ConnectorRows.SourceRow source = requireSourceInProject(projectId, sourceId);
-        if (!"ACTIVE".equals(source.status)) {
-            throw new BusinessException(ErrorCode.CONNECTOR_FOLDER_NOT_ACCESSIBLE,
-                    "知识源处于阻断状态，请先处理失败原因后重试");
-        }
         UUID jobId = syncService.trigger(sourceId, triggerType);
         return new SyncAccepted(jobId, "RUNNING");
     }

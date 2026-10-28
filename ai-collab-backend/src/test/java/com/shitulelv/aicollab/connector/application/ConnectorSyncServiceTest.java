@@ -197,6 +197,7 @@ class ConnectorSyncServiceTest {
         service.trigger(sourceId, "MANUAL");
 
         ArgumentCaptor<UUID> removed = ArgumentCaptor.forClass(UUID.class);
+        verify(documents).markDeleting(projectId, documentId);
         verify(documents).deleteRows(eq(projectId), removed.capture());
         assertThat(removed.getValue()).isEqualTo(documentId);
         verify(jobs).finish(any(), eq("SUCCESS"), eq(0), eq(0), eq(0), eq(0), eq(1), any());
@@ -227,6 +228,7 @@ class ConnectorSyncServiceTest {
 
         service.trigger(sourceId, "MANUAL");
 
+        verify(documents).markDeleting(projectId, documentId);
         verify(documents).deleteRows(projectId, documentId);
         verify(externalDocs).updateStatus(any(), eq("BLOCKED"));
         verify(sources).updateStatus(sourceId, "BLOCKED", null);
@@ -248,6 +250,27 @@ class ConnectorSyncServiceTest {
 
         verify(dispatcher, never()).dispatch(any(), any());
         verify(jobs).finish(any(), eq("PARTIAL_FAILED"), eq(1), eq(0), eq(0), eq(1), eq(0), anyString());
+    }
+
+    @Test
+    void blockedDocumentIsReactivatedAfterAccessRestored() {
+        stubHappyPath();
+        UUID documentId = UUID.randomUUID();
+        ConnectorRows.ExternalDocRow blocked = knownDoc("docToken1", 2000L, documentId);
+        blocked.status = "BLOCKED";
+        blocked.documentStatus = null;
+        when(feishu.listFolderDocx(anyString(), eq("fld123"))).thenReturn(List.of(
+                new FeishuFile("docToken1", "项目A", "docx", null, 3000L)));
+        when(externalDocs.listBySource(sourceId)).thenReturn(List.of(blocked));
+        when(feishu.docxRawContent(anyString(), eq("docToken1"))).thenReturn("正文内容");
+        when(revisions.maxRevisionNo(blocked.id)).thenReturn(2);
+
+        service.trigger(sourceId, "MANUAL");
+
+        verify(registration).registerUploadedDocument(any());
+        verify(externalDocs).updateDocumentRef(eq(blocked.id), any(), eq("ACTIVE"), eq("项目A"), any());
+        verify(revisions).insert(any(), eq(blocked.id), eq(3), eq(3000L), anyString(), any(), eq("ACTIVE"));
+        verify(jobs).finish(any(), eq("SUCCESS"), eq(1), eq(1), eq(0), eq(0), eq(0), any());
     }
 
     private ConnectorRows.JobRow runningJob() {

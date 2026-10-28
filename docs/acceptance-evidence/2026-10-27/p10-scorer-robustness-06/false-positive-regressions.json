@@ -1,29 +1,29 @@
 [ {
-  "passed" : true,
+  "case" : "AQ06_BOLD_NEGATION",
   "highSeverity" : [ ],
-  "case" : "AQ06_BOLD_NEGATION"
+  "passed" : true
 }, {
-  "case" : "AQ12_REAL_ANSWER",
-  "passed" : true,
+  "highSeverity" : [ ],
   "abstentionVerdict" : "QUALIFIED_UNKNOWN",
-  "highSeverity" : [ ]
+  "passed" : true,
+  "case" : "AQ12_REAL_ANSWER"
 }, {
-  "case" : "LEGACY_BACKGROUND_EXPLANATION",
+  "highSeverity" : [ ],
+  "passed" : true,
   "versionVerdict" : "LEGACY_QUALIFIED",
-  "passed" : true,
-  "highSeverity" : [ ]
+  "case" : "LEGACY_BACKGROUND_EXPLANATION"
 }, {
-  "case" : "G1_APPROVAL_PROHIBITION",
+  "highSeverity" : [ ],
+  "passed" : true,
   "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
-  "passed" : true,
-  "highSeverity" : [ ]
+  "case" : "G1_APPROVAL_PROHIBITION"
 }, {
-  "case" : "GROUPED_CITATION_NOT_FABRICATION",
-  "passed" : true,
+  "highSeverity" : [ ],
   "abstentionVerdict" : "HONEST_ABSTENTION",
-  "highSeverity" : [ ]
-}, {
-  "unsupportedNumberCandidates" : [ ],
   "passed" : true,
-  "case" : "METADATA_DATE_NOT_FABRICATION"
+  "case" : "GROUPED_CITATION_NOT_FABRICATION"
+}, {
+  "case" : "METADATA_DATE_NOT_FABRICATION",
+  "passed" : true,
+  "unsupportedNumberCandidates" : [ ]
 } ]

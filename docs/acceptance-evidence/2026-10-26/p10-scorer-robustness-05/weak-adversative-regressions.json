@@ -1,27 +1,27 @@
 [ {
   "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：每年抽查", "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[每年抽查]" ],
-  "answer" : "资料中未明确具体比例只是制度要求每年抽查所有合同 [S1]。",
-  "case" : "10A_ZHISHI_NO_PUNCTUATION_AFFIRMATIVE",
+  "passed" : true,
   "verdict" : "AFFIRMATIVE_VIOLATION",
-  "passed" : true
+  "case" : "10A_ZHISHI_NO_PUNCTUATION_AFFIRMATIVE",
+  "answer" : "资料中未明确具体比例只是制度要求每年抽查所有合同 [S1]。"
 }, {
   "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：每年抽查", "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[每年抽查]" ],
-  "case" : "10B_FANDAO_NO_PUNCTUATION_AFFIRMATIVE",
+  "answer" : "资料中未明确具体比例反倒要求每年抽查所有合同 [S1]。",
   "passed" : true,
-  "answer" : "资料中未明确具体比例反倒要求每年抽查所有合同 [S1]。"
+  "case" : "10B_FANDAO_NO_PUNCTUATION_AFFIRMATIVE"
 }, {
   "occ1Verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
-  "answer" : "资料中未明确是否每年抽查只是要求每年抽查所有合同 [S1]。",
-  "case" : "10C_REPEATED_MARKER_ACROSS_ZHISHI",
+  "passed" : true,
   "occ2Verdict" : "AFFIRMATIVE_VIOLATION",
-  "passed" : true
+  "case" : "10C_REPEATED_MARKER_ACROSS_ZHISHI",
+  "answer" : "资料中未明确是否每年抽查只是要求每年抽查所有合同 [S1]。"
 }, {
-  "case" : "10D_EXPLANATORY_ZHISHI_LEGACY_NOT_PENALIZED",
+  "answer" : "原规定四百元已废止，只是作为历史背景引用 [S1]。",
+  "passed" : true,
   "versionAccuracy" : [ {
     "legacyMarker" : "四百",
     "unqualifiedSentences" : [ ],
     "verdict" : "LEGACY_QUALIFIED"
   } ],
-  "passed" : true,
-  "answer" : "原规定四百元已废止，只是作为历史背景引用 [S1]。"
+  "case" : "10D_EXPLANATORY_ZHISHI_LEGACY_NOT_PENALIZED"
 } ]
