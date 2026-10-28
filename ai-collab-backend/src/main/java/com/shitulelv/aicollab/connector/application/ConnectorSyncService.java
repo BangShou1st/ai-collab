@@ -171,7 +171,8 @@ public class ConnectorSyncService {
             toRemove.removeIf(row -> row.externalKey.equals(file.token()));
             try {
                 if (existing != null && existing.latestModifyTime != null
-                        && existing.latestModifyTime.equals(file.modifiedTime())) {
+                        && existing.latestModifyTime.equals(file.modifiedTime())
+                        && !"BLOCKED".equals(existing.status)) {
                     counters.skipped++;
                     continue;
                 }
@@ -185,7 +186,8 @@ public class ConnectorSyncService {
                     continue;
                 }
                 String hash = sha256(content);
-                if (existing != null && hash.equals(existing.contentHash)) {
+                if (existing != null && hash.equals(existing.contentHash)
+                        && !"BLOCKED".equals(existing.status)) {
                     externalDocs.updateContent(existing.id, safeTitle(file), file.url(),
                             file.modifiedTime(), existing.contentHash);
                     counters.skipped++;

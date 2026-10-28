@@ -256,9 +256,10 @@ class ConnectorSyncServiceTest {
     void blockedDocumentIsReactivatedAfterAccessRestored() {
         stubHappyPath();
         UUID documentId = UUID.randomUUID();
-        ConnectorRows.ExternalDocRow blocked = knownDoc("docToken1", 2000L, documentId);
+        ConnectorRows.ExternalDocRow blocked = knownDoc("docToken1", 3000L, documentId);
         blocked.status = "BLOCKED";
         blocked.documentStatus = null;
+        blocked.contentHash = ConnectorSyncServiceTestAccess.sha256("正文内容");
         when(feishu.listFolderDocx(anyString(), eq("fld123"))).thenReturn(List.of(
                 new FeishuFile("docToken1", "项目A", "docx", null, 3000L)));
         when(externalDocs.listBySource(sourceId)).thenReturn(List.of(blocked));
