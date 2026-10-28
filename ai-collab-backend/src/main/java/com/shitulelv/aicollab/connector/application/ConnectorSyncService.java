@@ -156,8 +156,10 @@ public class ConnectorSyncService {
         sources.updateStatus(source.id, "ACTIVE", java.time.OffsetDateTime.now());
         feishu.folderPermissionMembers(token, source.folderToken);
 
+        // BLOCKED rows re-join the diff so re-granted access restores them; only
+        // rows already proven REMOVED stay out of consideration.
         List<ConnectorRows.ExternalDocRow> known = externalDocs.listBySource(source.id).stream()
-                .filter(row -> "ACTIVE".equals(row.status)).toList();
+                .filter(row -> !"REMOVED".equals(row.status)).toList();
         Set<String> listedTokens = new HashSet<>();
         List<ConnectorRows.ExternalDocRow> toRemove = new ArrayList<>(known);
 
@@ -221,7 +223,10 @@ public class ConnectorSyncService {
     private void upsertDocument(ConnectorRows.SourceRow source, FeishuFile file,
                                 String content, String hash, ConnectorRows.ExternalDocRow existing) {
         String displayName = safeTitle(file);
-        if (existing == null) {
+        // A BLOCKED row means access was revoked earlier and its indexed document
+        // was removed; on re-grant it must be re-registered and re-bound.
+        boolean reactivating = existing != null && "BLOCKED".equals(existing.status);
+        if (existing == null || reactivating) {
             UUID documentId = UUID.randomUUID();
             String objectKey = objectKey(source.projectId, documentId);
             byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
@@ -244,9 +249,15 @@ public class ConnectorSyncService {
                 throw exception;
             }
             UUID externalId = UUID.randomUUID();
-            externalDocs.insert(externalId, source.id, file.token(), file.type(), displayName,
-                    file.url(), file.modifiedTime(), hash, documentId);
-            revisions.insert(UUID.randomUUID(), externalId, 1, file.modifiedTime(), hash, documentId, "ACTIVE");
+            if (reactivating) {
+                externalDocs.updateDocumentRef(existing.id, documentId, "ACTIVE", displayName, file.url());
+                revisions.insert(UUID.randomUUID(), existing.id,
+                        revisions.maxRevisionNo(existing.id) + 1, file.modifiedTime(), hash, documentId, "ACTIVE");
+            } else {
+                externalDocs.insert(externalId, source.id, file.token(), file.type(), displayName,
+                        file.url(), file.modifiedTime(), hash, documentId);
+                revisions.insert(UUID.randomUUID(), externalId, 1, file.modifiedTime(), hash, documentId, "ACTIVE");
+            }
         } else {
             if (!"READY".equals(existing.documentStatus)) {
                 throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY,
@@ -269,6 +280,8 @@ public class ConnectorSyncService {
 
     private void removeIndexedDocument(ConnectorRows.SourceRow source, ConnectorRows.ExternalDocRow stale) {
         if (stale.documentId != null) {
+            // project_document rows are only removable in DELETING state; mark first.
+            documents.markDeleting(source.projectId, stale.documentId);
             documents.deleteRows(source.projectId, stale.documentId);
             try {
                 storage.delete(objectKey(source.projectId, stale.documentId));

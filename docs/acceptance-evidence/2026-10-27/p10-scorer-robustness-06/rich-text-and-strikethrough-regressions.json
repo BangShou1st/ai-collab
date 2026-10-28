@@ -1,47 +1,47 @@
 [ {
   "passed" : true,
-  "highSeverity" : [ ],
-  "case" : "P3_DEL_STRONG_NESTED",
-  "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+  "answer" : "根据资料，<del><strong>不可以</strong></del>先组织培训再补签合同 [S1]。",
   "normalizedAnswer" : "根据资料,~~不可以~~先组织培训再补签合同 [S1]。",
-  "answer" : "根据资料，<del><strong>不可以</strong></del>先组织培训再补签合同 [S1]。"
+  "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+  "case" : "P3_DEL_STRONG_NESTED",
+  "highSeverity" : [ ]
 }, {
-  "answer" : "根据项目资料，通常<del><span style=\"color:red\"><em>不可以</em></span></del>先组织培训再补签合同 [S1]。",
-  "normalizedAnswer" : "根据项目资料,通常~~不可以~~先组织培训再补签合同 [S1]。",
+  "passed" : true,
+  "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
   "case" : "P3_DEL_SPAN_EM_ATTR",
-  "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
-  "passed" : true
+  "normalizedAnswer" : "根据项目资料,通常~~不可以~~先组织培训再补签合同 [S1]。",
+  "answer" : "根据项目资料，通常<del><span style=\"color:red\"><em>不可以</em></span></del>先组织培训再补签合同 [S1]。"
 }, {
-  "answer" : "根据项目资料，通常<u><strong>不可以</strong></u>先组织培训再补签合同 [S1]。",
-  "normalizedAnswer" : "根据项目资料,通常不可以先组织培训再补签合同 [S1]。",
+  "passed" : true,
+  "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
   "case" : "P3_U_STRONG_NO_AMBIGUITY",
-  "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
-  "passed" : true
+  "normalizedAnswer" : "根据项目资料,通常不可以先组织培训再补签合同 [S1]。",
+  "answer" : "根据项目资料，通常<u><strong>不可以</strong></u>先组织培训再补签合同 [S1]。"
 }, {
-  "case" : "P3_INCOMPLETE_TAG_NEGATION_KEPT",
-  "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+  "answer" : "根据项目资料，通常<del>不可以先组织培训再补签合同 [S1]。",
   "passed" : true,
-  "answer" : "根据项目资料，通常<del>不可以先组织培训再补签合同 [S1]。"
+  "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+  "case" : "P3_INCOMPLETE_TAG_NEGATION_KEPT"
 }, {
-  "answer" : "根据项目制度，经办人~~李四~~可以先组织培训再补签合同 [S1]。",
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
+  "passed" : true,
+  "verdict" : "AFFIRMATIVE_VIOLATION",
   "case" : "P4_IRRELEVANT_NAME_STRIKE",
-  "verdict" : "AFFIRMATIVE_VIOLATION",
-  "passed" : true,
-  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
+  "answer" : "根据项目制度，经办人~~李四~~可以先组织培训再补签合同 [S1]。"
 }, {
-  "case" : "P4_NEGATION_IN_STRIKE_REVIEWED",
+  "answer" : "根据项目资料，通常~~不可以~~先组织培训再补签合同 [S1]。",
+  "passed" : true,
   "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
-  "passed" : true,
-  "answer" : "根据项目资料，通常~~不可以~~先组织培训再补签合同 [S1]。"
+  "case" : "P4_NEGATION_IN_STRIKE_REVIEWED"
 }, {
-  "answer" : "~~旧方案已废止~~，现行规定可以先组织培训再补签合同 [S1]。",
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
+  "passed" : true,
+  "verdict" : "AFFIRMATIVE_VIOLATION",
   "case" : "P4_PRIOR_CLAUSE_STRIKE_NO_POLLUTION",
-  "verdict" : "AFFIRMATIVE_VIOLATION",
-  "passed" : true,
-  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
+  "answer" : "~~旧方案已废止~~，现行规定可以先组织培训再补签合同 [S1]。"
 }, {
-  "case" : "P4_FULL_PROPOSITION_IN_STRIKE",
-  "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+  "answer" : "根据项目资料，~~可以先组织培训再补签合同~~，旧规已废止 [S1]。",
   "passed" : true,
-  "answer" : "根据项目资料，~~可以先组织培训再补签合同~~，旧规已废止 [S1]。"
+  "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+  "case" : "P4_FULL_PROPOSITION_IN_STRIKE"
 } ]

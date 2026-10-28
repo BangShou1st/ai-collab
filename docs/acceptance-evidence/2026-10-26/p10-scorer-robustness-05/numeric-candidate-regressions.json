@@ -1,42 +1,42 @@
 [ {
+  "abstentionVerdict" : "CONFLICTING_FABRICATION",
   "answer" : "资料不足，无法确认；但通常每年核对 50 份合同 [S1]。",
-  "abstentionVerdict" : "CONFLICTING_FABRICATION",
-  "case" : "8A_INTEGER_50_COPIES",
-  "passed" : true,
-  "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[50 份]" ],
+  "abstentionCorrect" : false,
   "unsupportedNumberCandidates" : [ "50 份" ],
-  "abstentionCorrect" : false
+  "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[50 份]" ],
+  "passed" : true,
+  "case" : "8A_INTEGER_50_COPIES"
 }, {
+  "abstentionVerdict" : "CONFLICTING_FABRICATION",
   "answer" : "资料不足，无法确认；但抽查比例通常为 5.5% [S1]。",
-  "abstentionVerdict" : "CONFLICTING_FABRICATION",
-  "case" : "8B_DECIMAL_PERCENT_5.5",
-  "passed" : true,
-  "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[5.5%]" ],
+  "abstentionCorrect" : false,
   "unsupportedNumberCandidates" : [ "5.5%" ],
-  "abstentionCorrect" : false
+  "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[5.5%]" ],
+  "passed" : true,
+  "case" : "8B_DECIMAL_PERCENT_5.5"
 }, {
-  "answer" : "资料不足，无法确认；但每年核对 1,200 份合同 [S1]。",
   "abstentionVerdict" : "CONFLICTING_FABRICATION",
-  "case" : "8C_THOUSAND_SEPARATOR_1200",
-  "passed" : true,
-  "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[1,200 份]" ],
+  "answer" : "资料不足，无法确认；但每年核对 1,200 份合同 [S1]。",
+  "abstentionCorrect" : false,
   "unsupportedNumberCandidates" : [ "1,200 份" ],
-  "abstentionCorrect" : false
+  "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[1,200 份]" ],
+  "passed" : true,
+  "case" : "8C_THOUSAND_SEPARATOR_1200"
 }, {
   "unsupportedNumberCandidates" : [ ],
-  "case" : "8D_SUPPORTED_NUMBER_NOT_FLAGGED",
+  "answer" : "一线城市住宿费标准为 500 元 [S1]。",
   "passed" : true,
-  "answer" : "一线城市住宿费标准为 500 元 [S1]。"
+  "case" : "8D_SUPPORTED_NUMBER_NOT_FLAGGED"
 }, {
-  "answer" : "资料不足，无法确认；但通常每年核对五十份合同 [S1]。",
-  "unsupportedNumberCandidates" : [ "五十份" ],
+  "abstentionCorrect" : false,
+  "passed" : true,
   "case" : "8E_CHINESE_NUMBER_PRESERVED",
-  "passed" : true,
-  "abstentionCorrect" : false
+  "unsupportedNumberCandidates" : [ "五十份" ],
+  "answer" : "资料不足，无法确认；但通常每年核对五十份合同 [S1]。"
 }, {
-  "answer" : "根据 2026年10月26日的规定，资料不足无法确认 [S1]。",
-  "unsupportedNumberCandidates" : [ ],
-  "case" : "8F_METADATA_DATE_CITATION_IGNORED",
+  "abstentionCorrect" : true,
   "passed" : true,
-  "abstentionCorrect" : true
+  "case" : "8F_METADATA_DATE_CITATION_IGNORED",
+  "unsupportedNumberCandidates" : [ ],
+  "answer" : "根据 2026年10月26日的规定，资料不足无法确认 [S1]。"
 } ]

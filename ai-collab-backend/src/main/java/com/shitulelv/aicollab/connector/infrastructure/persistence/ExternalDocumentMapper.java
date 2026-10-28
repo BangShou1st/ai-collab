@@ -64,6 +64,15 @@ public interface ExternalDocumentMapper {
     int updateStatus(@Param("id") UUID id, @Param("status") String status);
 
     @Update("""
+            UPDATE external_document SET document_id=#{documentId}::uuid, status=#{status},
+                title=#{title}, source_url=#{sourceUrl}, updated_at=now()
+            WHERE id=#{id}::uuid
+            """)
+    int updateDocumentRef(@Param("id") UUID id, @Param("documentId") UUID documentId,
+                          @Param("status") String status, @Param("title") String title,
+                          @Param("sourceUrl") String sourceUrl);
+
+    @Update("""
             UPDATE external_document SET status='BLOCKED', updated_at=now()
             WHERE source_id=#{sourceId}::uuid AND status='ACTIVE'
             """)

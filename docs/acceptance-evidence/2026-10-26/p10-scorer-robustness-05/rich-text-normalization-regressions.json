@@ -1,28 +1,28 @@
 [ {
-  "originalAnswer" : "根据项目资料，通常<u>不可以</u>先组织培训再补签合同 [S1]。",
   "passed" : true,
-  "highSeverity" : [ ],
-  "case" : "9A_HTML_U_TAG_NEGATION",
+  "originalAnswer" : "根据项目资料，通常<u>不可以</u>先组织培训再补签合同 [S1]。",
+  "normalizedAnswer" : "根据项目资料,通常不可以先组织培训再补签合同 [S1]。",
   "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
-  "normalizedAnswer" : "根据项目资料,通常不可以先组织培训再补签合同 [S1]。"
+  "case" : "9A_HTML_U_TAG_NEGATION",
+  "highSeverity" : [ ]
 }, {
   "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
-  "normalizedAnswer" : "实际操作中可以先组织培训再补签合同 [S1]。",
-  "case" : "9B_HTML_STRONG_AFFIRMATIVE_VIOLATION",
+  "originalAnswer" : "实际操作中<strong>可以先组织培训再补签合同</strong> [S1]。",
   "passed" : true,
-  "originalAnswer" : "实际操作中<strong>可以先组织培训再补签合同</strong> [S1]。"
+  "case" : "9B_HTML_STRONG_AFFIRMATIVE_VIOLATION",
+  "normalizedAnswer" : "实际操作中可以先组织培训再补签合同 [S1]。"
 }, {
   "needsHumanReview" : [ "不得先培训后补签:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "书面特批:证据未进入上下文，缺失不可归责生成模型", "不得先培训后补签合同:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：可以先组织培训再补签 | 句: 根据项目资料,通常~~不可以~~先组织培训再补签合同 [S1]。 | 理由: 检测到删除线（~~）修饰或打断当前禁断命题，语义效力存疑，转人工复核" ],
-  "case" : "9C_STRIKETHROUGH_NEGATION_ROUTED_TO_REVIEW",
-  "originalAnswer" : "根据项目资料，通常~~不可以~~先组织培训再补签合同 [S1]。",
-  "normalizedAnswer" : "根据项目资料,通常~~不可以~~先组织培训再补签合同 [S1]。",
-  "passed" : true,
+  "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
   "highSeverity" : [ ],
-  "verdict" : "AMBIGUOUS_NEEDS_REVIEW"
+  "passed" : true,
+  "normalizedAnswer" : "根据项目资料,通常~~不可以~~先组织培训再补签合同 [S1]。",
+  "originalAnswer" : "根据项目资料，通常~~不可以~~先组织培训再补签合同 [S1]。",
+  "case" : "9C_STRIKETHROUGH_NEGATION_ROUTED_TO_REVIEW"
 }, {
   "highSeverity" : [ ],
-  "normalizedAnswer" : "根据项目资料,通常不可以先组织培训再补签合同 [S1]。",
-  "case" : "9D_NESTED_SPAN_U_TAG",
+  "originalAnswer" : "根据项目资料，通常<span style=\"color: red;\"><u>不可以</u></span>先组织培训再补签合同 [S1]。",
   "passed" : true,
-  "originalAnswer" : "根据项目资料，通常<span style=\"color: red;\"><u>不可以</u></span>先组织培训再补签合同 [S1]。"
+  "case" : "9D_NESTED_SPAN_U_TAG",
+  "normalizedAnswer" : "根据项目资料,通常不可以先组织培训再补签合同 [S1]。"
 } ]
