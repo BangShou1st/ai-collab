@@ -15,6 +15,7 @@ import ProjectMembersView from './modules/project/ProjectMembersView.vue'
 import InvitationAcceptView from './modules/project/InvitationAcceptView.vue'
 import DocumentView from './modules/document/DocumentView.vue'
 import KnowledgeView from './modules/knowledge/KnowledgeView.vue'
+import KnowledgeSourceView from './modules/knowledge-source/KnowledgeSourceView.vue'
 import PlanningView from './modules/planning/PlanningView.vue'
 import AuditLogView from './modules/audit/AuditLogView.vue'
 import NotificationView from './modules/notification/NotificationView.vue'
@@ -53,6 +54,7 @@ export const router = createRouter({
     { path: '/projects/:projectId/members', component: ProjectMembersView, meta: { title: '成员管理' } },
     { path: '/projects/:projectId/documents', component: DocumentView, meta: { title: '项目文档' } },
     { path: '/projects/:projectId/knowledge', component: KnowledgeView, meta: { title: '知识问答' } },
+    { path: '/projects/:projectId/knowledge-source', component: KnowledgeSourceView, meta: { title: '飞书知识源' } },
     { path: '/projects/:projectId/ai-planning', component: PlanningView, meta: { title: 'AI 任务规划' } },
     { path: '/projects/:projectId/agent', component: AgentView, meta: { title: '项目协作 Agent' } },
     { path: '/projects/:projectId/integrations', component: ProjectIntegrationsView, meta: { title: '集成与 MCP' } },
