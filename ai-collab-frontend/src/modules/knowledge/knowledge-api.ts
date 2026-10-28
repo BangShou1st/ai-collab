@@ -3,7 +3,6 @@ import { authenticatedFetch } from '../../api/authenticated-fetch'
 import { httpClient } from '../../api/http-client'
 import type { ApiResponse, ApiResult } from '../../api/types'
 import type {
-  KnowledgeAnswer,
   KnowledgeCitation,
   KnowledgeFeedback,
   KnowledgeSession,
@@ -14,7 +13,20 @@ export interface StreamCallbacks {
   onToken: (text: string) => void
   onCitations: (citations: KnowledgeCitation[]) => void
   onDone: (messageId: string) => void
-  onError: (code: string, message: string) => void
+}
+
+/**
+ * 流式问答失败的统一错误：携带后端错误码与可读信息。
+ * 所有失败路径（HTTP 错误、SSE error 事件、流提前结束）都抛出该异常，
+ * 由调用方决定如何呈现——绝不静默返回，否则成功续流程会照常执行。
+ */
+export class KnowledgeStreamError extends Error {
+  readonly code: string
+  constructor(code: string, message: string) {
+    super(message)
+    this.name = 'KnowledgeStreamError'
+    this.code = code
+  }
 }
 
 export const knowledgeApi = {
@@ -53,19 +65,6 @@ export const knowledgeApi = {
   async deleteSession(projectId: string, sessionId: string): Promise<void> {
     await httpClient.delete(`/projects/${projectId}/knowledge/sessions/${sessionId}`)
   },
-  async ask(
-    projectId: string,
-    sessionId: string,
-    question: string,
-    documentIds: string[],
-  ): Promise<ApiResult<KnowledgeAnswer>> {
-    return apiResultFromResponse(
-      await httpClient.post<ApiResponse<KnowledgeAnswer>>(
-        `/projects/${projectId}/knowledge/sessions/${sessionId}/questions`,
-        { question, documentIds },
-      ),
-    )
-  },
   async askStream(
     projectId: string,
     sessionId: string,
@@ -83,16 +82,23 @@ export const knowledgeApi = {
         },
         body: JSON.stringify({ question, documentIds }),
         signal,
-      },
+      }
     )
     if (!response.ok) {
-      callbacks.onError('HTTP_ERROR', `请求失败 (${response.status})`)
-      return
+      // 优先读取后端结构化错误（ApiResponse）；读不到时给出可读的 HTTP 状态。
+      let message = `请求失败 (HTTP ${response.status})`
+      try {
+        const body = await response.text()
+        const parsed = JSON.parse(body)
+        if (parsed?.message) message = parsed.message
+      } catch {
+        // 非 JSON 响应体，保持默认文案
+      }
+      throw new KnowledgeStreamError(`HTTP_${response.status}`, message)
     }
     const reader = response.body?.getReader()
     if (!reader) {
-      callbacks.onError('NO_BODY', '无法读取响应流')
-      return
+      throw new KnowledgeStreamError('NO_BODY', '无法读取响应流')
     }
     const decoder = new TextDecoder()
     let buffer = ''
@@ -124,11 +130,11 @@ export const knowledgeApi = {
             break
           case 'error':
             terminalReceived = true
-            callbacks.onError(parsed.code ?? 'UNKNOWN', parsed.message ?? '未知错误')
-            break
+            throw new KnowledgeStreamError(parsed.code ?? 'UNKNOWN', parsed.message ?? '未知错误')
         }
-      } catch {
-        // 忽略无法解析的单条事件，连接结束时仍会检查是否收到终止事件。
+      } catch (error) {
+        // 流错误事件是终止性结论，必须向上传播；只忽略无法解析的单条事件。
+        if (error instanceof KnowledgeStreamError) throw error
       } finally {
         eventType = ''
       }
@@ -145,7 +151,7 @@ export const knowledgeApi = {
       buffer += decoder.decode()
       if (buffer) buffer.split('\n').forEach(consumeLine)
       if (!terminalReceived) {
-        callbacks.onError('STREAM_INCOMPLETE', '回答连接提前结束，请重试')
+        throw new KnowledgeStreamError('STREAM_INCOMPLETE', '回答连接提前结束，请重试')
       }
     } finally {
       reader.releaseLock()

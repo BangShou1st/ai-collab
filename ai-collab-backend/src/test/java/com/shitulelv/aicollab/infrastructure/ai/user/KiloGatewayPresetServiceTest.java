@@ -79,12 +79,4 @@ class KiloGatewayPresetServiceTest {
                 .isInstanceOf(BusinessException.class);
         verify(repo, never()).save(any());
     }
-
-    @Test void testValidatesThroughTransport() {
-        var repo = mock(UserAiProviderRepository.class);
-        var user = UUID.randomUUID();
-        var transport = transportListing(FREE);
-        service(repo, transport).test(user, FREE);
-        verify(transport).validateModel(FREE);
-    }
 }

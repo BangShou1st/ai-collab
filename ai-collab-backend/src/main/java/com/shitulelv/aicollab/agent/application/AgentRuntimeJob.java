@@ -25,6 +25,8 @@ import java.util.UUID;
 @Component
 @ConditionalOnProperty(prefix = "agent", name = "enabled", havingValue = "true")
 public class AgentRuntimeJob {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics;
     private static final Logger log = LoggerFactory.getLogger(AgentRuntimeJob.class);
     private static final Duration CLAIM_LEASE = Duration.ofMinutes(6);
 
@@ -50,6 +52,7 @@ public class AgentRuntimeJob {
         try {
             agentRunTaskExecutor.execute(this::runOnce);
         } catch (TaskRejectedException rejected) {
+            if (metrics != null) metrics.dispatchRejected();
             // 执行器满载：立即结束本轮 tick，不领取数据库任务、不写失败状态。
             // 等待中的 Run 保持原状态，由后续 tick 或租约过期恢复接管；
             // 用 debug 记录以避免满载时每秒刷出大量 WARN。

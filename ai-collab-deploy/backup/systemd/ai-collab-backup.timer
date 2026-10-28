@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily AI Collab backup
+
+[Timer]
+OnCalendar=*-*-* 02:15:00
+Persistent=true
+RandomizedDelaySec=5m
+
+[Install]
+WantedBy=timers.target

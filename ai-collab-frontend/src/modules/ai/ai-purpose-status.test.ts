@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { probeKey, resolvePurposeStatuses } from './ai-purpose-status'
+import {
+  capabilityEvidence,
+  CAPABILITY_EVIDENCE_ROWS,
+  purposeReadiness,
+  probeKey,
+  resolvePurposeStatuses,
+  emptyProbeResults,
+} from './ai-purpose-status'
+import type { ProbeMode, ProbeResultState } from './ai-purpose-status'
 import type { UserAiProvider } from './user-ai-api'
 
 function provider(over: Partial<UserAiProvider> = {}): UserAiProvider {
@@ -84,5 +92,55 @@ describe('resolvePurposeStatuses', () => {
   it('keeps probe outcomes keyed per provider and per capability', () => {
     expect(probeKey('p1', 'CONNECTIVITY')).not.toBe(probeKey('p1', 'STREAMING'))
     expect(probeKey('p1', 'CONNECTIVITY')).not.toBe(probeKey('p2', 'CONNECTIVITY'))
+  })
+})
+
+describe('capabilityEvidence / purposeReadiness（声明与验证分离）', () => {
+  const row = (key: 'CHAT' | 'STREAMING' | 'PLANNING' | 'NATIVE_TOOLS') =>
+    CAPABILITY_EVIDENCE_ROWS.find((item) => item.key === key)!
+
+  const probe = (mode: ProbeMode, status: ProbeResultState['status']): Record<ProbeMode, ProbeResultState | null> => ({
+    ...emptyProbeResults(),
+    [mode]: {
+      mode, status, model: 'm1', detail: null, errorCode: null,
+      latencyMs: 10, testedAt: '2026-10-24T00:00:00Z',
+    },
+  })
+
+  it('undeclared capability with no evidence shows NOT_DECLARED, never "unsupported"', () => {
+    // T01 语义：未勾选 NATIVE_TOOLS 不再被显示为“模型不支持”
+    const status = capabilityEvidence(row('NATIVE_TOOLS'), provider({ capabilities: ['CHAT'] }), emptyProbeResults())
+    expect(status).toBe('NOT_DECLARED')
+  })
+
+  it('declared but unverified capability is labeled as such, not verified', () => {
+    const status = capabilityEvidence(row('NATIVE_TOOLS'), provider({ capabilities: ['CHAT', 'NATIVE_TOOLS'] }), emptyProbeResults())
+    expect(status).toBe('DECLARED_UNVERIFIED')
+  })
+
+  it('real probe PASS means VERIFIED; stale evidence means re-test needed', () => {
+    const p = provider({ capabilities: ['CHAT'] })
+    expect(capabilityEvidence(row('CHAT'), p, probe('CONNECTIVITY', 'PASS'))).toBe('VERIFIED')
+    const stale = probe('CONNECTIVITY', 'PASS')
+    stale.CONNECTIVITY = { ...stale.CONNECTIVITY!, status: 'STALE' }
+    expect(capabilityEvidence(row('CHAT'), p, stale)).toBe('STALE')
+    expect(capabilityEvidence(row('CHAT'), p, probe('CONNECTIVITY', 'INCONCLUSIVE'))).toBe('INCONCLUSIVE')
+  })
+
+  it('agent purpose: undeclared without evidence → NOT_DECLARED; verified but undeclared → VERIFIED_NOT_ENABLED', () => {
+    const p = provider({ capabilities: ['CHAT'] })
+    expect(purposeReadiness('AGENT', p, emptyProbeResults())).toBe('NOT_DECLARED')
+    expect(purposeReadiness('AGENT', p, probe('NATIVE_TOOLS', 'PASS'))).toBe('VERIFIED_NOT_ENABLED')
+  })
+
+  it('agent purpose: declared + probe PASS → READY; declared + probe FAIL → UNAVAILABLE', () => {
+    const p = provider({ capabilities: ['CHAT', 'NATIVE_TOOLS'] })
+    expect(purposeReadiness('AGENT', p, probe('NATIVE_TOOLS', 'PASS'))).toBe('READY')
+    expect(purposeReadiness('AGENT', p, probe('NATIVE_TOOLS', 'FAIL'))).toBe('UNAVAILABLE')
+  })
+
+  it('agent purpose: declared without evidence → UNVERIFIED (declared never masquerades as verified)', () => {
+    const p = provider({ capabilities: ['CHAT', 'NATIVE_TOOLS'] })
+    expect(purposeReadiness('AGENT', p, emptyProbeResults())).toBe('UNVERIFIED')
   })
 })

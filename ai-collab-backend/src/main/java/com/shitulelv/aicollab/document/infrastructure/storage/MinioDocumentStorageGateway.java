@@ -41,6 +41,10 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
 
     @EventListener(ApplicationReadyEvent.class)
     public void ensurePrivateBucket() {
+        if (Boolean.FALSE.equals(properties.manageBucket())) {
+            // 生产账号只访问预先由管理员创建的私有桶，不授予桶策略管理权限。
+            return;
+        }
         try {
             if (!client.bucketExists(BucketExistsArgs.builder().bucket(properties.bucket()).build())) {
                 client.makeBucket(MakeBucketArgs.builder().bucket(properties.bucket()).build());
@@ -89,14 +93,29 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
             int seconds = Math.toIntExact(duration.toSeconds());
             String disposition = "attachment; filename*=UTF-8''"
                     + URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
-            String url = client.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+            boolean viaProxy = properties.publicEndpoint() != null && !properties.publicEndpoint().isBlank();
+            MinioClient signingClient = viaProxy ? MinioClient.builder()
+                    .endpoint(properties.publicEndpoint())
+                    // 生产预建桶使用 us-east-1；签名时不向公网端点探测 bucket location。
+                    .region("us-east-1")
+                    .credentials(properties.accessKey(), properties.secretKey()).build() : client;
+            String url = signingClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET).bucket(properties.bucket()).object(objectKey)
                     .expiry(seconds).extraQueryParams(Map.of("response-content-disposition", disposition))
                     .build());
-            return new DownloadUrlView(url, OffsetDateTime.now().plusSeconds(seconds));
+            return new DownloadUrlView(viaProxy ? addProxyPrefix(url) : url,
+                    OffsetDateTime.now().plusSeconds(seconds));
         } catch (Exception exception) {
             throw storageUnavailable("生成下载地址", objectKey, exception);
         }
+    }
+
+    static String addProxyPrefix(String signedUrl) {
+        int authorityEnd = signedUrl.indexOf('/', signedUrl.indexOf("://") + 3);
+        if (authorityEnd < 0) {
+            throw new IllegalArgumentException("预签名地址缺少对象路径");
+        }
+        return signedUrl.substring(0, authorityEnd) + "/storage" + signedUrl.substring(authorityEnd);
     }
 
     @Override

@@ -1,0 +1,10 @@
+{
+  "scheduler_baseline_git_blob": "4638e4324eefc9b8de3a9d66c9235377e513b9d2",
+  "scheduler_current_git_blob": "4638e4324eefc9b8de3a9d66c9235377e513b9d2",
+  "historical_migration_diff": "",
+  "frontend_diff": "",
+  "security_config_diff": "",
+  "new_migration": "V68__agent_observability_unknown_index.sql",
+  "metrics_no_new_dependencies": true,
+  "no_log_files_created_by_task": true
+}

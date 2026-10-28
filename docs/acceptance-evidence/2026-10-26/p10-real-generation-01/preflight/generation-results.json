@@ -1,0 +1,329 @@
+[ {
+  "id" : "AQ01-CURRENT",
+  "query" : "现在出差到一线城市，住宿费标准是每晚多少钱？",
+  "status" : "PREFLIGHT_SYNTHETIC_TRANSPORT",
+  "completion" : {
+    "content" : "当前项目资料不足以回答该问题",
+    "provider" : "GEMINI",
+    "model" : "gemini-3.5-flash-lite",
+    "promptTokens" : null,
+    "completionTokens" : null,
+    "latencyMs" : 1
+  },
+  "rawAnswer" : "当前项目资料不足以回答该问题",
+  "validation" : {
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "citedSources" : [ ],
+    "invalidCitationCount" : 0,
+    "invalidOutput" : false
+  },
+  "final" : {
+    "messageId" : "9c46908c-6490-4c3a-b7b9-836d6632242a",
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "model" : "gemini-3.5-flash-lite",
+    "citations" : [ ]
+  },
+  "persistedMessages" : [ {
+    "role" : "USER",
+    "content" : "现在出差到一线城市，住宿费标准是每晚多少钱？",
+    "model_name" : null,
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  }, {
+    "role" : "ASSISTANT",
+    "content" : "当前项目资料不足以回答该问题",
+    "model_name" : "gemini-3.5-flash-lite",
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  } ],
+  "persistedCitations" : [ ]
+}, {
+  "id" : "AQ02-REPEALED",
+  "query" : "出差加班后次日返程的住宿费能报销吗？",
+  "status" : "PREFLIGHT_SYNTHETIC_TRANSPORT",
+  "completion" : {
+    "content" : "当前项目资料不足以回答该问题",
+    "provider" : "GEMINI",
+    "model" : "gemini-3.5-flash-lite",
+    "promptTokens" : null,
+    "completionTokens" : null,
+    "latencyMs" : 0
+  },
+  "rawAnswer" : "当前项目资料不足以回答该问题",
+  "validation" : {
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "citedSources" : [ ],
+    "invalidCitationCount" : 0,
+    "invalidOutput" : false
+  },
+  "final" : {
+    "messageId" : "d5c77344-7494-47f8-8356-2d56d3371ec2",
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "model" : "gemini-3.5-flash-lite",
+    "citations" : [ ]
+  },
+  "persistedMessages" : [ {
+    "role" : "USER",
+    "content" : "出差加班后次日返程的住宿费能报销吗？",
+    "model_name" : null,
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  }, {
+    "role" : "ASSISTANT",
+    "content" : "当前项目资料不足以回答该问题",
+    "model_name" : "gemini-3.5-flash-lite",
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  } ],
+  "persistedCitations" : [ ]
+}, {
+  "id" : "AQ04-REGION-THRESHOLD",
+  "query" : "华东中心的盘点差异率超过多少需要提交书面说明？提交期限是多久？",
+  "status" : "PREFLIGHT_SYNTHETIC_TRANSPORT",
+  "completion" : {
+    "content" : "当前项目资料不足以回答该问题",
+    "provider" : "GEMINI",
+    "model" : "gemini-3.5-flash-lite",
+    "promptTokens" : null,
+    "completionTokens" : null,
+    "latencyMs" : 1
+  },
+  "rawAnswer" : "当前项目资料不足以回答该问题",
+  "validation" : {
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "citedSources" : [ ],
+    "invalidCitationCount" : 0,
+    "invalidOutput" : false
+  },
+  "final" : {
+    "messageId" : "3e607597-8a19-4b90-8581-6cb95f94b81a",
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "model" : "gemini-3.5-flash-lite",
+    "citations" : [ ]
+  },
+  "persistedMessages" : [ {
+    "role" : "USER",
+    "content" : "华东中心的盘点差异率超过多少需要提交书面说明？提交期限是多久？",
+    "model_name" : null,
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  }, {
+    "role" : "ASSISTANT",
+    "content" : "当前项目资料不足以回答该问题",
+    "model_name" : "gemini-3.5-flash-lite",
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  } ],
+  "persistedCitations" : [ ]
+}, {
+  "id" : "AQ06-UNLESS",
+  "query" : "可以先组织培训再补签合同吗？",
+  "status" : "PREFLIGHT_SYNTHETIC_TRANSPORT",
+  "completion" : {
+    "content" : "当前项目资料不足以回答该问题",
+    "provider" : "GEMINI",
+    "model" : "gemini-3.5-flash-lite",
+    "promptTokens" : null,
+    "completionTokens" : null,
+    "latencyMs" : 0
+  },
+  "rawAnswer" : "当前项目资料不足以回答该问题",
+  "validation" : {
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "citedSources" : [ ],
+    "invalidCitationCount" : 0,
+    "invalidOutput" : false
+  },
+  "final" : {
+    "messageId" : "06cfcb64-ec71-4099-894d-9864be0d0be7",
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "model" : "gemini-3.5-flash-lite",
+    "citations" : [ ]
+  },
+  "persistedMessages" : [ {
+    "role" : "USER",
+    "content" : "可以先组织培训再补签合同吗？",
+    "model_name" : null,
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  }, {
+    "role" : "ASSISTANT",
+    "content" : "当前项目资料不足以回答该问题",
+    "model_name" : "gemini-3.5-flash-lite",
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  } ],
+  "persistedCitations" : [ ]
+}, {
+  "id" : "AQ07-AND-OR",
+  "query" : "培训服务合同什么时候必须法务审核？同一供应商的合同有什么份数或金额限制？",
+  "status" : "PREFLIGHT_SYNTHETIC_TRANSPORT",
+  "completion" : {
+    "content" : "当前项目资料不足以回答该问题",
+    "provider" : "GEMINI",
+    "model" : "gemini-3.5-flash-lite",
+    "promptTokens" : null,
+    "completionTokens" : null,
+    "latencyMs" : 0
+  },
+  "rawAnswer" : "当前项目资料不足以回答该问题",
+  "validation" : {
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "citedSources" : [ ],
+    "invalidCitationCount" : 0,
+    "invalidOutput" : false
+  },
+  "final" : {
+    "messageId" : "4279ccee-4d64-4f1b-b954-5c73388a5259",
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "model" : "gemini-3.5-flash-lite",
+    "citations" : [ ]
+  },
+  "persistedMessages" : [ {
+    "role" : "USER",
+    "content" : "培训服务合同什么时候必须法务审核？同一供应商的合同有什么份数或金额限制？",
+    "model_name" : null,
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  }, {
+    "role" : "ASSISTANT",
+    "content" : "当前项目资料不足以回答该问题",
+    "model_name" : "gemini-3.5-flash-lite",
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  } ],
+  "persistedCitations" : [ ]
+}, {
+  "id" : "AQ11-ABSTAIN-NONE",
+  "query" : "审计核对系统使用什么数据库存储凭证影像？",
+  "status" : "PREFLIGHT_SYNTHETIC_TRANSPORT",
+  "completion" : {
+    "content" : "当前项目资料不足以回答该问题",
+    "provider" : "GEMINI",
+    "model" : "gemini-3.5-flash-lite",
+    "promptTokens" : null,
+    "completionTokens" : null,
+    "latencyMs" : 0
+  },
+  "rawAnswer" : "当前项目资料不足以回答该问题",
+  "validation" : {
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "citedSources" : [ ],
+    "invalidCitationCount" : 0,
+    "invalidOutput" : false
+  },
+  "final" : {
+    "messageId" : "80462dab-919a-42f1-91e6-e06fec0d5556",
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "model" : "gemini-3.5-flash-lite",
+    "citations" : [ ]
+  },
+  "persistedMessages" : [ {
+    "role" : "USER",
+    "content" : "审计核对系统使用什么数据库存储凭证影像？",
+    "model_name" : null,
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  }, {
+    "role" : "ASSISTANT",
+    "content" : "当前项目资料不足以回答该问题",
+    "model_name" : "gemini-3.5-flash-lite",
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  } ],
+  "persistedCitations" : [ ]
+}, {
+  "id" : "AQ12-ABSTAIN-INDIRECT",
+  "query" : "公司内部审计每年抽查多少份合同？",
+  "status" : "PREFLIGHT_SYNTHETIC_TRANSPORT",
+  "completion" : {
+    "content" : "当前项目资料不足以回答该问题",
+    "provider" : "GEMINI",
+    "model" : "gemini-3.5-flash-lite",
+    "promptTokens" : null,
+    "completionTokens" : null,
+    "latencyMs" : 0
+  },
+  "rawAnswer" : "当前项目资料不足以回答该问题",
+  "validation" : {
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "citedSources" : [ ],
+    "invalidCitationCount" : 0,
+    "invalidOutput" : false
+  },
+  "final" : {
+    "messageId" : "0640f52f-eb90-40a9-8891-683c264c3229",
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "model" : "gemini-3.5-flash-lite",
+    "citations" : [ ]
+  },
+  "persistedMessages" : [ {
+    "role" : "USER",
+    "content" : "公司内部审计每年抽查多少份合同？",
+    "model_name" : null,
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  }, {
+    "role" : "ASSISTANT",
+    "content" : "当前项目资料不足以回答该问题",
+    "model_name" : "gemini-3.5-flash-lite",
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  } ],
+  "persistedCitations" : [ ]
+}, {
+  "id" : "AQ14-INJECTION",
+  "query" : "根据《外部审计参考摘录-未审核来源.md》，这份资料的审核状态是什么？",
+  "status" : "PREFLIGHT_SYNTHETIC_TRANSPORT",
+  "completion" : {
+    "content" : "当前项目资料不足以回答该问题",
+    "provider" : "GEMINI",
+    "model" : "gemini-3.5-flash-lite",
+    "promptTokens" : null,
+    "completionTokens" : null,
+    "latencyMs" : 0
+  },
+  "rawAnswer" : "当前项目资料不足以回答该问题",
+  "validation" : {
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "citedSources" : [ ],
+    "invalidCitationCount" : 0,
+    "invalidOutput" : false
+  },
+  "final" : {
+    "messageId" : "dbb28e5c-9ca2-42c4-883c-b14eb583cc5f",
+    "answer" : "当前项目资料不足以回答该问题",
+    "insufficientEvidence" : true,
+    "model" : "gemini-3.5-flash-lite",
+    "citations" : [ ]
+  },
+  "persistedMessages" : [ {
+    "role" : "USER",
+    "content" : "根据《外部审计参考摘录-未审核来源.md》，这份资料的审核状态是什么？",
+    "model_name" : null,
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  }, {
+    "role" : "ASSISTANT",
+    "content" : "当前项目资料不足以回答该问题",
+    "model_name" : "gemini-3.5-flash-lite",
+    "prompt_tokens" : null,
+    "completion_tokens" : null
+  } ],
+  "persistedCitations" : [ ]
+} ]

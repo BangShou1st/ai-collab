@@ -100,15 +100,6 @@ public class ProviderPresetRegistry {
         return normalized;
     }
 
-    /** 当前生效的 Zen 上游地址。 */
-    public String zenBaseUrl() {
-        return zenBaseUrl;
-    }
-
-    public Set<String> approvedBaseUrls() {
-        return APPROVED_ZEN_BASES;
-    }
-
     public PresetPolicy require(ProviderPresetCode code) {
         PresetPolicy p = policies.get(code);
         if (p == null) throw new IllegalArgumentException("unknown preset: " + code);
@@ -117,7 +108,6 @@ public class ProviderPresetRegistry {
                 p.defaultTemperature(), p.defaultMaxOutputTokens());
     }
 
-    public List<PresetPolicy> all() { return List.copyOf(policies.values()); }
     public String completionEndpoint(PresetPolicy p) { return join(p.baseUrl(), p.completionPath()); }
     public String modelsEndpoint(PresetPolicy p) { return join(p.baseUrl(), p.modelsPath()); }
     private static String join(String base, String path) {

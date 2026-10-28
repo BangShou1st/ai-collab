@@ -32,6 +32,46 @@ import java.util.UUID;
  */
 @Repository
 public class AgentRepository {
+    /** Must commit before invoking the tool. A crash after this commit is conservatively uncertain. */
+    @Transactional
+    public void recordInvocationDispatch(AgentRunView run,
+            com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall call,
+            com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety safety) {
+        AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        var current = jdbc.queryForMap("""
+                SELECT status,requester_id,cancel_requested_at,pause_requested_at,claim_version,
+                  lease_expires_at > now() AS valid
+                FROM agent_run WHERE project_id=? AND id=? FOR UPDATE
+                """, run.projectId(), run.id());
+        if (!"RUNNING".equals(current.get("status")) || !run.requesterId().equals(current.get("requester_id"))
+                || current.get("cancel_requested_at") != null)
+            throw new BusinessException(ErrorCode.AGENT_RUN_CANCELED);
+        if (!Boolean.TRUE.equals(current.get("valid"))) throw new IllegalStateException("Agent worker lease expired before dispatch");
+        if (current.get("pause_requested_at") != null) throw new BusinessException(ErrorCode.AGENT_RUN_PAUSED);
+        if (hasUnknownInvocation(run)) throw new IllegalStateException("Unconfirmed tool outcome requires manual reconciliation");
+        int changed = jdbc.update("""
+                UPDATE agent_tool_invocation SET dispatch_started_at=now(),dispatch_claim_version=?,execution_safety=?,updated_at=now()
+                WHERE run_id=? AND tool_call_id=? AND tool_name=? AND arguments_json=?::jsonb AND status='PENDING'
+                  AND (dispatch_started_at IS NULL OR execution_safety='SAFE_READ')
+                  AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
+                """, current.get("claim_version"), safety.name(), run.id(), call.id(), call.name(), call.arguments().toString(), run.id());
+        if (changed != 1) throw new IllegalStateException("Invocation already dispatched or settled");
+    }
+
+    public boolean dispatchedUnsafe(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall call) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS(SELECT 1 FROM agent_tool_invocation WHERE run_id=? AND tool_call_id=?
+                  AND dispatch_started_at IS NOT NULL AND execution_safety<>'SAFE_READ'
+                  AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN'))
+                """, Boolean.class, run.id(), call.id(), run.id()));
+    }
+
+    public boolean hasUnknownInvocation(AgentRunView run) {
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT EXISTS(SELECT 1 FROM agent_tool_invocation WHERE run_id=? AND status='UNKNOWN')",
+                Boolean.class, run.id()));
+    }
+
     public boolean atomicEventsEnabled() { return recorder.atomicEventsEnabled(); }
     public long activeElapsedMillis(AgentRunView run) {
         return jdbc.queryForObject("SELECT active_elapsed_ms+CASE WHEN claim_started_at IS NULL THEN 0 ELSE GREATEST(0,(extract(epoch FROM(now()-claim_started_at))*1000)::bigint) END FROM agent_run WHERE project_id=? AND id=?",Long.class,run.projectId(),run.id());
@@ -322,6 +362,7 @@ public class AgentRepository {
                 """, target.name(), target.name(), target.name(), target.name(),
                 projectId, runId, current.status().name());
         requireRunUpdate(updated);
+        if (target == AgentRunStatus.CANCELED) recorder.preserveUnconfirmedDispatches(runId);
         return target;
     }
 
@@ -373,7 +414,7 @@ public class AgentRepository {
 
     public Optional<JsonNode> knownInvocationResult(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall call) {
         return jdbc.query("""
-                SELECT i.arguments_json::text,CASE WHEN i.proposal_id IS NOT NULL
+                SELECT i.arguments_json::text,CASE WHEN i.proposal_id IS NOT NULL AND i.status<>'UNKNOWN'
                   THEN jsonb_build_object('status','SUCCEEDED','effect','PROPOSAL_PENDING','proposalId',i.proposal_id,'revision',a.revision)::text
                   ELSE i.result_json::text END AS result, i.tool_name FROM agent_tool_invocation i LEFT JOIN agent_approval a ON a.id=i.proposal_id
                 WHERE i.run_id=? AND i.tool_call_id=? AND (i.status<>'PENDING' OR i.proposal_id IS NOT NULL)
@@ -824,6 +865,12 @@ public class AgentRepository {
     public AgentRunView recordToolResult(AgentRunView run, String toolName,
                                   JsonNode arguments, JsonNode result, boolean isError) {
         return recorder.recordToolResult(run, toolName, arguments, result, isError);
+    }
+
+    @Transactional
+    public AgentRunView recordToolExecutionFailure(AgentRunView run, String toolName,
+            JsonNode arguments, JsonNode failure) {
+        return recorder.recordToolExecutionFailure(run, toolName, arguments, failure);
     }
 
     /**

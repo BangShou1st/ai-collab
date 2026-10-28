@@ -1,0 +1,142 @@
+{
+  "baseline": "fca8860a4f9f83e726f532985db83214bed43c16",
+  "hashBasis": "Local working-tree bytes before Git normalization",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "sha256": "7e0557efd6d5fb3cf6b2ab57ab26afb6bbe2bed6a980b3f6fa4bc3a6fc103f98"
+    },
+    {
+      "path": "README.md",
+      "sha256": "6784fce589e1933d3c5dfa0bcdf0604771dd47e3136340f2ce33f4c57aad87a9"
+    },
+    {
+      "path": "ai-collab-backend/.mvn/jvm.config",
+      "sha256": "0538bce773d47def8333a23cdab4a3ca55fc9d305bf34280c82e36d7b342ce59"
+    },
+    {
+      "path": "ai-collab-backend/pom.xml",
+      "sha256": "5ac9819b76b784e16f4c6a88e33ca85cf91e503728881166a2a01016a3932e33"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/net/EnvironmentProxySelector.java",
+      "sha256": "cdcd1295dbcdb13928b9a5b3d21b5866671d2c701d94d4f00a3c0e0e81c22f50"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/net/OutboundHttpClients.java",
+      "sha256": "57f689259aab76aae24abc7422db0e7d7e10cb4d2c3771a99f51c4b7342b062f"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/common/net/ProxyRouteDiagnostics.java",
+      "sha256": "4cb70b46f250fa68d9717ed66b8ec55bda1e531e0548397e36fc00f24e31eeb9"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/document/infrastructure/ai/OpenAiCompatibleEmbeddingGateway.java",
+      "sha256": "752612c65b67f3cd77aedca98880bd84130e5cbe79c21a5c000a7e73ade1d6ea"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/infrastructure/ai/OpenAiCompatibleChatModelGateway.java",
+      "sha256": "35e978879b60c80288fd3f68916486ea416777262f11f35d25201cf1016a8a70"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/infrastructure/ai/embedding/ProjectEmbeddingGateway.java",
+      "sha256": "95410c6bc1b8dc7d92de9642c957530f55b4acb5ee61791add4bc63a33bdb9d2"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/infrastructure/ai/model/HttpOpenCodeZenTransport.java",
+      "sha256": "d44d77f8f02f7ef5a4dce9454337b003ab5eb14d6e38f8f676e4b61cf39d360f"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/infrastructure/ai/model/JsonHttpModelClient.java",
+      "sha256": "e436cc4d7de02d2d5c3306b0c0cd93e465f6873eae254ed68e29ecf900c70ec9"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/infrastructure/ai/model/KiloGatewayModelExecution.java",
+      "sha256": "bf68807b5d37a077e56a78ee05ee29408054332638dd430743fc7fa6a5dbaf98"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/infrastructure/ai/model/ModelTransportConfiguration.java",
+      "sha256": "f9b5ba70afdcf7d3b36ff05ff3e1a36d298972f59d5b36b62f3e90a6d4ea8eae"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/infrastructure/ai/model/ZenModelExecution.java",
+      "sha256": "245ded664e0a618e1be9f4f571248b365356b35ad79eebbe216235644d1fe394"
+    },
+    {
+      "path": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/infrastructure/storage/MinioConfiguration.java",
+      "sha256": "0a50aa137e519fbb556c739aa5d5708cec40017dfa070050570de31de48581ee"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/common/net/EnvironmentProxySelectorTest.java",
+      "sha256": "7759c6b21919f3c473d52a980088fac16b005d8d1b35ae464fe165d3bc07e700"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/common/net/ModelHttpProxyTest.java",
+      "sha256": "47c64e5d524c0ca65d09e8e786a4d775511080201931c48612ac1f90e961c452"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/common/net/ProxyForkStartupTest.java",
+      "sha256": "c07f8173d4a478c5ea89724d6b2b4f0c8336c512879b166d0c6b29ca9efcffdf"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/common/net/ProxyTlsValidationTest.java",
+      "sha256": "eb85c23d86221c84ce917dbbbbc854d878da68ab24fac757a9def452e836b606"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/OpenAiCompatibleChatModelGatewayTest.java",
+      "sha256": "febda629c8f279b9cd1dbeef485206961d3ba0d7388d2a1679d7b4a7a7090eed"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/model/GeminiLiveAcceptanceTest.java",
+      "sha256": "6cc10fd0cd148b05ef5cda19be6b77bdbc040b0802417b423c9dcb4c2dc3a25d"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/model/GeminiStreamContractTest.java",
+      "sha256": "004bab2ebeec7f2204e07522c8860fa95dd22c5c0b9917ca6c174401c25c88ed"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/model/KiloGatewayStarterWiringTest.java",
+      "sha256": "d87f6a9a9c2ae78af4424d14f09e8960fae413e1dc938e5a6e3b12698269595a"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/model/ModelProtocolHttpTest.java",
+      "sha256": "bfb5b98dcfd65253b81c8d7f6b5996fe6e1df4d3c0a752dbb73c59a517dbca86"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/model/ZenModelWiringTest.java",
+      "sha256": "ca19caf7c662cc2f1b6b90514b1d409563ce9ca89d8f1180ced4a1bd1dc5682f"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/infrastructure/ai/model/ZenUpstreamRoutingTest.java",
+      "sha256": "5ea1624ef6c63e52b2c6a2ef63751a3bb7aa92d68169d1e42ae4fe9a824cc348"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10NetworkProxyDiagnosticTest.java",
+      "sha256": "f347d04b4703fbf07617cbf0925dd69759c07d03049ac282aa77842856ba968b"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10RealGenerationGate.java",
+      "sha256": "78023e34208f2e7f279ffc8a88174c3a363c684e2d42a1c9a99f1641ee03c4cf"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10RealGenerationGateTest.java",
+      "sha256": "8935122ad2d0164dfc020dcb75c776bfed02b7ebb983608743df8c49065f3a7f"
+    },
+    {
+      "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10RealGenerationPostgresTest.java",
+      "sha256": "0bad992c195f5634a04d1e9936eef4cd046215b7837a773f0e7130edc542add4"
+    },
+    {
+      "path": "dev.ps1",
+      "sha256": "8d7653ba0d2f993f43d8b2804d5e52ac37634ef8157a2225baeeed0a32b163ec"
+    },
+    {
+      "path": "docs/README.md",
+      "sha256": "9209a8a353224a55d3d65ac47582fa3584c23e41dbbc5b61e32978d0a2fa8c70"
+    },
+    {
+      "path": "docs/local-development.md",
+      "sha256": "326f2396a24b17cb0976e39016d3e5d853f4ab6ebfafa7f45b533d658cb7a073"
+    }
+  ]
+}

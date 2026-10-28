@@ -1,0 +1,89 @@
+{
+  "task": "P4-MODEL-QUICK-CONNECT-02",
+  "generated_at": "2026-10-24",
+  "browser": "Edge 155（bsk 0.3.3 Agent Window，会话 mmrz）",
+  "account": "U04 合成管理员（历史验收专用合成账户）",
+  "environment": "前端 Vite dev 5173（源码热更新）；后端 local profile 8080（本轮新代码重启，携带 JVM 代理用于只读外呼；结束后恢复常规启动）",
+  "authorization_note": "未获得真实生成授权：本组场景均不产生模型生成。唯一外呼为 IANA 保留域 example.com（套件错误路径验证）与 Zen/Kilo 只读模型目录发现。",
+  "scenarios": [
+    {
+      "id": "E2E-01",
+      "name": "Gemini 选择后默认端点正确预设（上一轮缺陷 1）",
+      "steps": "添加 AI 配置 → Provider 切到 Google Gemini",
+      "result": "PASS",
+      "evidence": "Base URL 自动切换为 https://generativelanguage.googleapis.com；高级设置 API Path 预填 /v1beta/models/{model}:generateContent 并展示占位符说明；能力候选同步切换为 CHAT/STREAMING/NATIVE_TOOLS",
+      "screenshot": "screenshots/01-gemini-placeholder-saved.png"
+    },
+    {
+      "id": "E2E-02",
+      "name": "切换 Provider 不覆盖用户已编辑的 Base URL",
+      "steps": "Base URL 改为 https://my-gateway.example.com → 切 Anthropic → 观察",
+      "result": "PASS",
+      "evidence": "自定义 Base URL 原样保留，未被档案默认值覆盖"
+    },
+    {
+      "id": "E2E-03",
+      "name": "能力勾选默认 CHAT+STREAMING（上一轮缺陷 3 表单侧）",
+      "result": "PASS",
+      "evidence": "新建表单默认勾选 CHAT 与 STREAMING；勾选提示明确“知识问答（流式）需要 CHAT + STREAMING”；UI 创建的配置不再天生缺 STREAMING"
+    },
+    {
+      "id": "E2E-04",
+      "name": "{model} 占位符通过保存校验（上一轮缺陷 2）",
+      "steps": "填写 Gemini 配置（官方端点 + 占位符 path + 假 Key + 模型 gemini-2.0-flash）→ 保存",
+      "result": "PASS",
+      "evidence": "保存成功（配置数 2→3）；上一轮同一路径被“模型接口地址无效”拒绝、用户只能硬编码模型名",
+      "screenshot": "screenshots/01-gemini-placeholder-saved.png"
+    },
+    {
+      "id": "E2E-05",
+      "name": "出站安全策略拒绝不可解析端点并给出分类错误",
+      "steps": "Base URL 填 https://invalid-model-endpoint.example → 保存",
+      "result": "PASS",
+      "evidence": "被拒并显示“Base URL 不符合出站安全策略：仅允许公网 HTTPS 地址（禁止内网、环回与链路本地地址）”——SSRF 策略未因占位符放行而放松"
+    },
+    {
+      "id": "E2E-06",
+      "name": "统一能力套件编排与错误分类展示",
+      "steps": "对假端点配置（example.com）点击“测试连接与能力”",
+      "result": "PASS",
+      "evidence": "静态检查 PASS → 模型发现 INCONCLUSIVE（HTTP 404 分类文案 + “可手动确认模型 ID”降级提示）→ 连接 INCONCLUSIVE（HTTP 405）→ 流式 INCONCLUSIVE（未中断）→ 规划/工具 SKIPPED（未勾选）；落库结论显示分类 + 测试时间戳",
+      "screenshot": "screenshots/02-capability-suite-fake-endpoint.png"
+    },
+    {
+      "id": "E2E-07",
+      "name": "知识问答 SSE 失败在消息区可见（上一轮缺陷 3 SSE 侧）",
+      "steps": "知识问答用途临时指向假端点配置 → 隔离验收项目会话提问",
+      "result": "PASS",
+      "evidence": "消息区渲染错误气泡：「知识库助手 回答失败 / 模型服务调用失败 / 错误码 AI_PROVIDER_ERROR · 请检查个人 AI 设置中的模型连接与能力测试结果，然后重试」+ 关闭按钮；不再出现“提交后空白、只有标题更新”",
+      "screenshot": "screenshots/03-sse-error-visible-in-messages.png"
+    },
+    {
+      "id": "E2E-08",
+      "name": "Zen / Kilo 真实模型发现（只读，无生成）",
+      "steps": "两个预设卡片分别点击“刷新模型”",
+      "result": "PASS",
+      "evidence": "Zen 返回真实免费目录（beam-free 等）；Kilo 返回真实目录（minimax/minimax-m3.1-flash:free 等）；统一测试入口在两个预设卡片均存在"
+    },
+    {
+      "id": "E2E-09",
+      "name": "旧配置兼容加载与 Key 留空保留",
+      "steps": "编辑上一轮遗留的 Gemini 配置（旧格式硬编码 path）→ 直接保存",
+      "result": "PASS",
+      "evidence": "旧格式 baseUrl/apiPath 正确回填；API Key 留空保存后行状态仍为“API Key 已配置”（留空=保留原 Key）；老用户配置不退化"
+    },
+    {
+      "id": "E2E-10",
+      "name": "测试数据清理与环境还原",
+      "result": "PASS",
+      "evidence": "假端点测试配置已删除（配置数回到 2）；知识问答用途覆盖恢复为 Gemini 3.5 Flash Lite；未触碰其他用户/项目数据"
+    }
+  ],
+  "not_executed_scenarios": [
+    "真实 Gemini 普通生成与流式（待授权）",
+    "真实 Gemini 编辑配置后探针结论 STALE 展示（STALE 逻辑已由离线测试覆盖：AiCapabilityProbeResultTest.resultsAreStaleWhenConfigChangedAfterTest）",
+    "Zen/Kilo 真实生成/流式/规划/工具探针（待授权）",
+    "知识问答真实回答全链路（待授权；上一轮验收已证明链路可用，本轮仅修复其错误反馈路径）"
+  ],
+  "summary": "10 PASS / 0 FAIL（实际记录 E2E-01 至 E2E-10 共 10 个场景）/ 4 类待授权场景（NOT_EXECUTED，不冒充通过）"
+}

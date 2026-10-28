@@ -1,0 +1,27 @@
+{
+  "status": "BLOCKED_CREDENTIAL_OR_PROVIDER",
+  "credentialVerifiedByOfficialModelList": true,
+  "approvedModel": "gemini-3.1-flash-lite",
+  "modelListRequests": 1,
+  "modelListed": true,
+  "generationAttemptBudget": 24,
+  "generationAttempts": 4,
+  "generationResponsesCompleted": 0,
+  "transportTimeouts": 1,
+  "http503Responses": 3,
+  "retryAttemptsIncludingTransportRestart": 3,
+  "automatic503RetriesInFinalProcess": 1,
+  "maxOutputTokensPerRequest": 2048,
+  "providerReportedInputTokens": null,
+  "providerReportedOutputTokens": null,
+  "cost": null,
+  "costExplanation": "User identifies this credential as free tier; no completed response usage or billing data was available. Do not infer a measured zero charge.",
+  "attempts": [
+    {"requestNumber":1,"question":"Q01","proxy":false,"outcome":"INCONCLUSIVE","errorCode":"AI_MODEL_TIMEOUT","evidence":"transport-attempt-1.json"},
+    {"requestNumber":2,"question":"Q01","proxy":true,"outcome":"INCONCLUSIVE","httpStatus":503,"errorCode":"AI_PROVIDER_ERROR","evidence":"transport-attempt-2.json"},
+    {"requestNumber":3,"question":"Q01","proxy":true,"outcome":"INCONCLUSIVE","httpStatus":503,"observedAt":"2026-10-22T22:30:38.635+08:00","evidence":"business-results.json"},
+    {"requestNumber":4,"question":"Q01","proxy":true,"outcome":"INCONCLUSIVE","httpStatus":503,"observedAt":"2026-10-22T22:30:44.921+08:00","evidence":"business-results.json"}
+  ],
+  "stopReason": "Three HTTP 503 attempts exhausted the bounded provider retry policy. Remaining budget is not authorization to keep retrying indefinitely.",
+  "requestCountingBoundary": "Adapter invocation slots count conservatively toward budget. Attempt 1 timed out while connecting and is not evidence that Google received the generation request. Attempts 2-4 returned official endpoint HTTP 503."
+}

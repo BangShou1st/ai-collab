@@ -1,0 +1,28 @@
+[ {
+  "answer" : "资料并未明确具体事项且负责人可以先组织培训再补签合同 [S1]。",
+  "case" : "P7_CONJUNCTION_TRUNCATION",
+  "verdict" : "AFFIRMATIVE_VIOLATION",
+  "passed" : true,
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
+}, {
+  "case" : "P7_TONGLINGSHI_CONJUNCTION",
+  "verdict" : "AFFIRMATIVE_VIOLATION",
+  "passed" : true,
+  "answer" : "资料并未明确具体事项同时负责人可以先组织培训再补签合同 [S1]。"
+}, {
+  "case" : "P7_STATIC_005_ER_ALIGNED",
+  "verdict" : "AFFIRMATIVE_VIOLATION",
+  "passed" : true,
+  "answer" : "资料中未明确具体抽查比例而负责人可以先组织培训再补签合同 [S1]。"
+}, {
+  "answer" : "资料中并未明确具体每年抽查多少份合同。",
+  "abstentionVerdict" : "QUALIFIED_UNKNOWN",
+  "case" : "P7_GENUINE_UNKNOWN_PRESERVED",
+  "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+  "passed" : true
+}, {
+  "case" : "P7_MODIFIER_BETWEEN_SUBJECT_AND_VERB",
+  "verdict" : "AFFIRMATIVE_VIOLATION",
+  "passed" : true,
+  "answer" : "资料并未明确具体事项且负责人按公司流程可以先组织培训再补签合同 [S1]。"
+} ]

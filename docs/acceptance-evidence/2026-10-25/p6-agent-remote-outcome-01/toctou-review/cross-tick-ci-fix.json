@@ -1,0 +1,237 @@
+{
+  "baseline": "097f23955991f9c3c3c94ea4333ba2846a03d453",
+  "reason": "CrossTick mock and verification were not updated for recordToolExecutionFailure",
+  "testOrder": [
+    "CrossTickToolCallTest: 7 passed",
+    "P6-B targeted regression: 120 passed"
+  ],
+  "commands": [
+    "bash ./mvnw -B -ntp -Dtest=CrossTickToolCallTest test",
+    "bash ./mvnw -B -ntp -Dtest=AgentRemoteOutcomePostgresTest,AgentRemoteOutcomeTest,AgentRuntimeBehaviorTest,AgentWorkerNativeTurnTest,AgentToolSchedulerTest,AgentPauseResumePostgresTest,PersistedModelTurnRecoveryPostgresTest test"
+  ],
+  "tests": 127.0,
+  "failures": 0.0,
+  "errors": 0.0,
+  "skipped": 0.0,
+  "classes": [
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.CrossTickToolCallTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "crossTickToolResultsNotDuplicated",
+        "crossTickToolCallThenFinalAnswer",
+        "consecutiveDifferentTools",
+        "unknownToolReturnsErrorResult",
+        "singleRoundMultipleToolCalls",
+        "toolExecutionFailureReturnsSafeErrorResult",
+        "toolResultMatchesToolCallId"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.AgentWorkerNativeTurnTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "stepBudgetExceededStopsBeforeCoordinator",
+        "v2CumulativeTokensNeverBlockNextRequest",
+        "inputTokenBudgetExceededStopsBeforeCoordinator",
+        "withinBudgetDelegatesToCoordinator",
+        "outputTokenBudgetExceededStopsBeforeCoordinator"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.AgentPauseResumePostgresTest",
+      "tests": 21,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "queuedRunPausesAndResumesWithIdempotentCommands",
+        "savedTextAnswerSurvivesPauseAndWorkerBudgetPrecheck",
+        "runWithoutPauseIntentReportsNullPauseTime",
+        "queuedCallsBehindSemaphoreDoNotStartAfterPause",
+        "planningAcceptanceRespectsPauseIntentAndRecoversTheSameOperation",
+        "terminalAndWaitingStatesRejectPauseAndResume",
+        "coordinatorSettlesPauseAfterSummaryAdmissionWithoutMainRequest",
+        "boundInputOnActiveRunNeverFallsIntoCreateRun",
+        "queuedDeadlineAndPausePreservePendingUntilResume",
+        "staleClaimCannotConfirmPauseAfterTakeover",
+        "summaryFirstRequestIsAdmittedThroughPauseBoundary",
+        "inFlightSummaryWithPauseIntentDoesNotStartRecompress",
+        "resumeIssuesNextRequestWithCurrentConfiguration",
+        "summaryAdmissionRejectsExpiredClaim",
+        "partialToolBatchPauseKeepsPendingAndResumeExecutesOnlyRemaining",
+        "staleBoundResumeInputOnTerminalRunStaysInControlScope",
+        "queuedCallsCannotPersistAfterCancellationOrLeaseLoss",
+        "inFlightResponseIsSavedThenRunPausesWithPendingTools",
+        "controlTransactionFailureRollsBackStateMarkerAndEvent",
+        "submitEntryRoutesResumeIntentsWithoutTouchingTheGoal",
+        "retryableRunPauseBlocksSchedulingAndResumeKeepsRetryCount"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest",
+      "tests": 30,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "t01NeverStartedTimeoutHasNoEffect",
+        "t13ResultTransactionConflictCannotLeaveFalseSuccess",
+        "t06CancelAfterDispatchPreservesUncertainEffect",
+        "t09AcceptedPlanningOperationIsReconciledByOriginalInvocation",
+        "requeueCannotTurnUnconfirmedDispatchIntoSkippedOrRetryableFailure",
+        "settlementCommittedBeforeDispatchMustRejectDispatchCas",
+        "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[1]",
+        "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[2]",
+        "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[3]",
+        "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[4]",
+        "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[5]",
+        "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[6]",
+        "t12PartialBatchKeepsSuccessAndUnknownDistinct",
+        "t03ExplicitRemoteRejectionIsNotUnknown",
+        "missingCurrentInvocationMustNotCreateStepEventOrSpendBudget(String)[1]",
+        "missingCurrentInvocationMustNotCreateStepEventOrSpendBudget(String)[2]",
+        "batchSettlementMustPreserveUnknown",
+        "newToolCallIdMustNotRepeatAnUnconfirmedEffect",
+        "t11SafeReadFailureRetainsBoundedRetry",
+        "t04CrashAfterDispatchNeverRedispatchesSameInvocation",
+        "conflictingResultIdentityCannotCreateSuccessOrSpendBudget",
+        "t02SuccessfulRemoteEffectWithLostResponseIsUnknown",
+        "unknownCannotBeOverwrittenByLateSuccess",
+        "t14UnknownBlocksFinalSuccessAndModelContinuation",
+        "t08PauseBeforeDispatchKeepsPendingAndResumeExecutesOnce",
+        "cancelBeforeDispatchNeverStartsTool",
+        "t07OldClaimIsFencedAndTakeoverDoesNotResend",
+        "t06TimeoutThenLateRemoteSuccessDoesNotOverwriteUnknown",
+        "t10McpWithoutTrustedIdempotencyDoesNotResend",
+        "acceptedResultCanBeQueriedWhileOriginalResponseIsStillBlocked"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "timeoutFallbackEventUsesAuthoritativeUnknownDisposition",
+        "canceledFutureDoesNotStopAnInterruptIgnoringRemoteEffect"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest",
+      "tests": 25,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "differentToolHasIndependentCorrectionCount",
+        "persistedProposalWithIntegerHoursSucceedsWithoutParameterCorrection",
+        "firstInvalidArgumentsDoesNotCreateApproval",
+        "readsOnBothSidesOfProposalCompleteAndExtraProposalIsRejected",
+        "persistedProposalRevisionEmitsApprovalUpdatedAndSucceeds",
+        "multiRoundInputTokenAccumulation",
+        "overBudgetRejectsExecution",
+        "withinBudgetAllowsExecution",
+        "toolResultNotDuplicated",
+        "firstInvalidArgumentsDoesNotExecuteTool",
+        "invalidFinalTurnRetainsPartialEvidenceWithoutClaimingSuccess",
+        "outOfRangeNumericArgumentsAreRejectedBeforeToolOrApprovalExecution",
+        "multiRoundOutputTokenAccumulation",
+        "firstInvalidArgumentAllowsCorrection",
+        "recoveryReusesKnownReadResultWithoutCallingModelOrTool",
+        "multiRoundStepAccumulation",
+        "typedClarificationPersistsWaitingState",
+        "multiRoundToolCallAccumulation",
+        "nativeModeDoesNotUseDecisionParser",
+        "schemaValidationBeforeApprovalCreation",
+        "secondInvalidArgumentFails",
+        "duplicateProtocolCallIdsRejectWholeBatch",
+        "legacyWriteToolRuntimeRejection",
+        "schemaValidationBeforeReadOnlyToolExecution",
+        "invalidFinalTurnStillFailsWithoutEvidence"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "c04RoundRobinUsersAndRunsWithoutHeadBlocking",
+        "c02c03AtomicRunAndUserAdmission",
+        "c10MetricsBoundedAndTimeoutCountedOnce",
+        "c06CancelDispatchRace",
+        "c07RejectAndShutdown",
+        "c01ExactCollisionIsolation",
+        "c09TenThousandIdentitiesReclaimed",
+        "c08PendingExpiresWhileCapacityRemainsOccupied",
+        "c05CapacityAndReadyBypassFullPending",
+        "c06RunningIgnoresInterruptUntilActualExit",
+        "c06PendingReservedCancellation",
+        "c07ShutdownKeepsRunningCapacityUntilExit",
+        "c08ExpiredReservedAndPendingNeverStart"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.PersistedModelTurnRecoveryPostgresTest",
+      "tests": 24,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "needsFinalRequestIntentSurvivesTakeoverAsBudgetPartial",
+        "persistedPlainTextTurnIsReusedWithoutAnotherModelCall",
+        "legacyReadOnlyWriteCallStillRejected",
+        "postSaveRecountDoesNotRewriteNonFinalizingIntent",
+        "staleClaimCannotConsumeTheSavedTurnAfterTakeover",
+        "modelTurnBoundaryFinalizeAnswerSurvivesTakeoverOnBothPaths",
+        "canceledRunStillEndsAsCanceledWithoutConsumingTheSavedTurn",
+        "legacyTurnWithoutIntentMetadataFallsBackConservatively",
+        "geminiToolCallIdRemainsUniqueAfterRunContextCoversPreviousCallAndRecoveryReusesIt",
+        "persistedQuestionsTurnRecoversIntoWaitingForUserInput",
+        "actualInputOversetStopsToolBatchOnBothPaths",
+        "legacyNativePlanningCallEntersRecoveryChain",
+        "explicitFinalizingToolResponseStillRejected",
+        "persistedBudgetFinalizeTurnKeepsPartialAnswerSemantics",
+        "fullyCompletedToolBatchRecoveryReusesAllResultsWithoutRecharge",
+        "trulyOverBudgetRemainingCallsStillRejected",
+        "savedResultSurvivesRemovedModelConfiguration",
+        "stepBoundaryFinalizeAnswerSurvivesTakeoverOnBothPaths",
+        "repeatedTakeoverDoesNotConsumeTheSavedTurnTwice",
+        "overSingleTurnLimitBatchStillRejected",
+        "actualInputOversetStopsTextAnswerOnBothPaths",
+        "blankTextTurnIsNotTreatedAsAReusableResult",
+        "partialToolBatchRecoveryExecutesOnlyTheRemainingCalls",
+        "persistedToolBatchStillRecoversThroughTheToolExecutor"
+      ]
+    }
+  ],
+  "source": {
+    "path": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/application/runtime/CrossTickToolCallTest.java",
+    "sha256": "dc997d003857f53666214ecf1d282269d36a7a510d1409f76ad2bd0e899b2b40"
+  },
+  "productionChanged": false,
+  "baselineCi": {
+    "pr": {
+      "id": 40121459012,
+      "image": "success",
+      "frontend": "success",
+      "backend": "failure"
+    },
+    "push": {
+      "id": 40121455679,
+      "image": "skipped",
+      "frontend": "success",
+      "backend": "failure"
+    }
+  },
+  "verdict": "P6_AGENT_REMOTE_OUTCOME_01_CI_PENDING"
+}

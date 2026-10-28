@@ -1,0 +1,87 @@
+{
+  "live": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "result": "INCONCLUSIVE_HTTP_503",
+    "generationAttempts": 3,
+    "durationSeconds": 37.354,
+    "explicitTarget": "GeminiLiveAcceptanceTest#networkRecovery_boundedRetriesWithResponseDiagnostics"
+  },
+  "offline": {
+    "tests": 85,
+    "passed": 84,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "exitCode": 0,
+    "durationSeconds": 11.34,
+    "externalLiveOptIn": false,
+    "classes": [
+      {
+        "name": "com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveAcceptanceTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1
+      },
+      {
+        "name": "com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveTestSupportTest",
+        "tests": 16,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.infrastructure.ai.model.GeminiStreamContractTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.infrastructure.ai.model.GeminiTurnContractTest",
+        "tests": 26,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGatewayTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilderTest",
+        "tests": 18,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.retrieval.GeminiAnswerQualityFixtureTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ]
+  },
+  "fullVerifyRerun": false,
+  "productionModified": false,
+  "frontendModified": false,
+  "frozenInputChecks": {
+    "documentHashesMatched": 14,
+    "questionsAndRubric": "unchanged"
+  }
+}

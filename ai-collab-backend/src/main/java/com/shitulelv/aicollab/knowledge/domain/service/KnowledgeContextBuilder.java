@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,6 +24,13 @@ public class KnowledgeContextBuilder {
     public static final int DEFAULT_MAX_SOURCES = 5;
     /** Public source limit shared with the bounded Agent tool. */
     public static final int MAX_SOURCES_LIMIT = 12;
+    /**
+     * Knowledge Q&A 每文档来源名额均衡上限（P6-RAG-QUALITY-01 S2）：
+     * 候选顺序装配前，单份文档在第一遍最多占用 2 个来源名额，防止单文档候选洪泛
+     * 挤掉其他文档的关键事实（历史 Q03：上线门禁候选第 6 名被同文档名额挤掉）。
+     * 只使用候选的 documentId 身份信号，不做标题/正文字面匹配。
+     */
+    public static final int PER_DOCUMENT_SOURCE_CAP = 2;
     private static final int MAX_PROMPT_SOURCE_CODE_POINTS = 8000;
     private static final int MAX_PROMPT_FILENAME_CODE_POINTS = 180;
     private static final int MAX_PROMPT_HEADING_CODE_POINTS = 300;
@@ -33,6 +41,56 @@ public class KnowledgeContextBuilder {
     /** Knowledge Q&A entry: at most five sources and an 8000 code point prompt budget. */
     public KnowledgeContext build(List<DocumentSearchHit> hits) {
         return build(hits, DEFAULT_MAX_SOURCES);
+    }
+
+    /**
+     * Knowledge Q&A balanced entry（生产 QA 入口）：候选顺序 + 每文档名额均衡后走既有装配。
+     * 名额、预算、候选集合与用户 scope 均不变；候选数不超过名额时与 {@link #build(List)} 完全一致。
+     */
+    public KnowledgeContext buildBalanced(List<DocumentSearchHit> hits) {
+        return buildBalancedWithDiagnostics(hits, DEFAULT_MAX_SOURCES).context();
+    }
+
+    public BuildResult buildBalancedWithDiagnostics(List<DocumentSearchHit> hits, int maxSources) {
+        validateMaxSources(maxSources);
+        return buildWithDiagnostics(
+                reorderPerDocumentCap(hits, maxSources, PER_DOCUMENT_SOURCE_CAP), maxSources);
+    }
+
+    /**
+     * 每文档名额均衡的两遍重排：第一遍按候选顺序为每文档至多取 cap 条；第二遍按候选顺序补齐剩余名额。
+     * 返回全量候选的重排（均衡入选者在前、其余候选按原顺序在后），因此装配阶段的
+     * 阈值/同文去重/预算淘汰仍保留后备候选回填语义。候选数不超过名额时恒等返回原顺序。
+     */
+    private static List<DocumentSearchHit> reorderPerDocumentCap(
+            List<DocumentSearchHit> hits, int maxSources, int perDocumentCap) {
+        if (hits.size() <= maxSources) {
+            return hits;
+        }
+        List<DocumentSearchHit> balanced = new ArrayList<>(maxSources);
+        Map<UUID, Integer> usedByDocument = new HashMap<>();
+        Set<UUID> selected = new LinkedHashSet<>();
+        for (DocumentSearchHit hit : hits) {
+            if (balanced.size() == maxSources) break;
+            int used = usedByDocument.getOrDefault(hit.documentId(), 0);
+            if (used < perDocumentCap) {
+                usedByDocument.put(hit.documentId(), used + 1);
+                balanced.add(hit);
+                selected.add(hit.id());
+            }
+        }
+        for (DocumentSearchHit hit : hits) {
+            if (balanced.size() == maxSources) break;
+            if (selected.add(hit.id())) {
+                balanced.add(hit);
+            }
+        }
+        List<DocumentSearchHit> reordered = new ArrayList<>(hits.size());
+        reordered.addAll(balanced);
+        for (DocumentSearchHit hit : hits) {
+            if (!selected.contains(hit.id())) reordered.add(hit);
+        }
+        return reordered;
     }
 
     /** The legacy entry preserves main's per-candidate filtering, deduplication and assembly order. */
@@ -48,8 +106,8 @@ public class KnowledgeContextBuilder {
     public BuildResult buildWithDiagnostics(List<DocumentSearchHit> hits, int maxSources) {
         validateMaxSources(maxSources);
         List<KnowledgeSource> sources = new ArrayList<>();
-        Set<String> hashes = new HashSet<>();
-        Map<String, UUID> hashOwners = new HashMap<>();
+        Set<UUID> retainedChunkIds = new HashSet<>();
+        Map<UUID, Set<String>> hashesByDocument = new HashMap<>();
         Map<UUID, ContextDropReason> dropped = new LinkedHashMap<>();
         StringBuilder prompt = new StringBuilder();
         int remaining = MAX_PROMPT_SOURCE_CODE_POINTS;
@@ -65,10 +123,10 @@ public class KnowledgeContextBuilder {
                 continue;
             }
             String hash = hit.contentHash();
-            if (hashes.contains(hash)) {
-                dropped.put(hit.id(), Objects.equals(hashOwners.get(hash), hit.documentId())
-                        ? ContextDropReason.INTRA_DOCUMENT_DUPLICATE
-                        : ContextDropReason.CROSS_DOCUMENT_DUPLICATE);
+            Set<String> documentHashes = hashesByDocument.get(hit.documentId());
+            if (retainedChunkIds.contains(hit.id())
+                    || (hash != null && documentHashes != null && documentHashes.contains(hash))) {
+                dropped.put(hit.id(), ContextDropReason.INTRA_DOCUMENT_DUPLICATE);
                 continue;
             }
             if (hit.content() == null || hit.content().isBlank()) {
@@ -91,7 +149,7 @@ public class KnowledgeContextBuilder {
             if (prefixLength >= remaining) {
                 dropped.put(hit.id(), ContextDropReason.BODY_BUDGET);
                 classifyCandidatesAfterBudgetStop(
-                        hits, index + 1, maxSources, sources.size(), hashes, hashOwners, dropped);
+                        hits, index + 1, maxSources, sources.size(), retainedChunkIds, hashesByDocument, dropped);
                 break;
             }
 
@@ -108,9 +166,10 @@ public class KnowledgeContextBuilder {
                     hit.id(), hit.documentId(), hit.originalFilename(), hit.heading(),
                     content.original(), hit.contentHash(), hit.similarity(), rank,
                     hit.metadata() != null ? hit.metadata() : Map.of()));
-            // Preserve main behavior: only a successfully assembled source reserves its hash.
-            hashes.add(hash);
-            hashOwners.put(hash, hit.documentId());
+            retainedChunkIds.add(hit.id());
+            if (hash != null) {
+                hashesByDocument.computeIfAbsent(hit.documentId(), ignored -> new HashSet<>()).add(hash);
+            }
         }
         return new BuildResult(new KnowledgeContext(List.copyOf(sources), prompt.toString()), dropped);
     }
@@ -185,19 +244,19 @@ public class KnowledgeContextBuilder {
             int start,
             int maxSources,
             int retainedSourceCount,
-            Set<String> hashes,
-            Map<String, UUID> hashOwners,
+            Set<UUID> retainedChunkIds,
+            Map<UUID, Set<String>> hashesByDocument,
             Map<UUID, ContextDropReason> dropped) {
         for (int index = start; index < hits.size(); index++) {
             DocumentSearchHit hit = hits.get(index);
+            Set<String> documentHashes = hashesByDocument.get(hit.documentId());
             if (hit.similarity() < MIN_SIMILARITY) {
                 dropped.put(hit.id(), ContextDropReason.BELOW_SIMILARITY_THRESHOLD);
             } else if (retainedSourceCount >= maxSources) {
                 dropped.put(hit.id(), ContextDropReason.SOURCE_CAP);
-            } else if (hashes.contains(hit.contentHash())) {
-                dropped.put(hit.id(), Objects.equals(hashOwners.get(hit.contentHash()), hit.documentId())
-                        ? ContextDropReason.INTRA_DOCUMENT_DUPLICATE
-                        : ContextDropReason.CROSS_DOCUMENT_DUPLICATE);
+            } else if (retainedChunkIds.contains(hit.id())
+                    || (hit.contentHash() != null && documentHashes != null && documentHashes.contains(hit.contentHash()))) {
+                dropped.put(hit.id(), ContextDropReason.INTRA_DOCUMENT_DUPLICATE);
             } else if (hit.content() == null || hit.content().isBlank()) {
                 dropped.put(hit.id(), ContextDropReason.EMPTY_BODY);
             } else {

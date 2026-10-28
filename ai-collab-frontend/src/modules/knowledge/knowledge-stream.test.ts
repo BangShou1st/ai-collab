@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../../stores/auth-store'
-import { knowledgeApi } from './knowledge-api'
+import { knowledgeApi, KnowledgeStreamError } from './knowledge-api'
 
 beforeEach(() => {
   setActivePinia(createPinia())
@@ -45,7 +45,6 @@ describe('knowledge stream parser', () => {
         onToken: vi.fn(),
         onCitations: vi.fn(),
         onDone: vi.fn(),
-        onError: vi.fn(),
       },
     )
 
@@ -79,7 +78,6 @@ describe('knowledge stream parser', () => {
         onToken: text => tokens.push(text),
         onCitations: vi.fn(),
         onDone: done,
-        onError: vi.fn(),
       },
     )
 
@@ -87,7 +85,7 @@ describe('knowledge stream parser', () => {
     expect(done).toHaveBeenCalledWith('m1')
   })
 
-  it('reports a stream that closes without a terminal event', async () => {
+  it('throws when the stream closes without a terminal event', async () => {
     const encoder = new TextEncoder()
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -96,22 +94,51 @@ describe('knowledge stream parser', () => {
       },
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, body }))
-    const onError = vi.fn()
 
-    await knowledgeApi.askStream(
+    // 错误必须以异常抛出：静默返回会让成功续流程照常执行（历史缺陷的根源）。
+    await expect(knowledgeApi.askStream(
       'project-1',
       'session-1',
       '问题',
       [],
-      {
-        onToken: vi.fn(),
-        onCitations: vi.fn(),
-        onDone: vi.fn(),
-        onError,
-      },
-    )
+      { onToken: vi.fn(), onCitations: vi.fn(), onDone: vi.fn() },
+    )).rejects.toMatchObject({ code: 'STREAM_INCOMPLETE', message: '回答连接提前结束，请重试' })
+  })
 
-    expect(onError).toHaveBeenCalledWith('STREAM_INCOMPLETE', '回答连接提前结束，请重试')
+  it('throws a KnowledgeStreamError with backend message on SSE error event', async () => {
+    const encoder = new TextEncoder()
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('event: error\ndata: {"type":"error","code":"AI_PROVIDER_QUOTA_EXCEEDED","message":"模型服务额度不足"}\n\n'))
+        controller.close()
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, body }))
+
+    await expect(knowledgeApi.askStream(
+      'project-1',
+      'session-1',
+      '问题',
+      [],
+      { onToken: vi.fn(), onCitations: vi.fn(), onDone: vi.fn() },
+    )).rejects.toBeInstanceOf(KnowledgeStreamError)
+  })
+
+  it('throws with the backend message when HTTP responds an error status', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      body: null,
+      text: async () => JSON.stringify({ code: 'AI_RATE_LIMIT_EXCEEDED', message: '问答请求过于频繁' }),
+    }))
+
+    await expect(knowledgeApi.askStream(
+      'project-1',
+      'session-1',
+      '问题',
+      [],
+      { onToken: vi.fn(), onCitations: vi.fn(), onDone: vi.fn() },
+    )).rejects.toMatchObject({ code: 'HTTP_429', message: '问答请求过于频繁' })
   })
 
   it('processes a terminal event left in the final buffer', async () => {
@@ -124,7 +151,6 @@ describe('knowledge stream parser', () => {
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, body }))
     const onDone = vi.fn()
-    const onError = vi.fn()
 
     await knowledgeApi.askStream(
       'project-1',
@@ -135,13 +161,11 @@ describe('knowledge stream parser', () => {
         onToken: vi.fn(),
         onCitations: vi.fn(),
         onDone,
-        onError,
       },
     )
 
     expect(onDone).toHaveBeenCalledOnce()
     expect(onDone).toHaveBeenCalledWith('m1')
-    expect(onError).not.toHaveBeenCalled()
   })
 
   it('accepts CRLF and an event type carried by the JSON payload', async () => {
@@ -154,7 +178,6 @@ describe('knowledge stream parser', () => {
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, body }))
     const onDone = vi.fn()
-    const onError = vi.fn()
 
     await knowledgeApi.askStream(
       'project-1',
@@ -165,12 +188,10 @@ describe('knowledge stream parser', () => {
         onToken: vi.fn(),
         onCitations: vi.fn(),
         onDone,
-        onError,
       },
     )
 
     expect(onDone).toHaveBeenCalledOnce()
     expect(onDone).toHaveBeenCalledWith('m2')
-    expect(onError).not.toHaveBeenCalled()
   })
 })

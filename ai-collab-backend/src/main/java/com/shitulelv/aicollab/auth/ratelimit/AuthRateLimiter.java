@@ -26,7 +26,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * 登录/注册限流：IP 与用户名双维度，Redis 主限流加进程内 fallback。
  * 客户端 IP 只取 request.getRemoteAddr()，绝不信任 X-Forwarded-For；
- * 生产受信代理场景由 Spring ForwardedHeaderFilter 在框架层解析，限流器看到的仍是解析后地址。
+ * production profile 使用 Tomcat RemoteIpValve，并只信任生产 Compose 中的固定代理地址；
+ * 不能用信任任意来源的 ForwardedHeaderFilter 替代该边界。
  * 用户名归一化后哈希再拼 key，密码/token/邮箱永不进 key 或日志。
  */
 @Component

@@ -1,0 +1,272 @@
+{
+  "purpose": "P10 评测子集的证据可得性：区分\"证据未进上下文\"与\"模型答错\"",
+  "baselineSha": "3891171ecfc81a3929993f9f77989fed61ea5c85",
+  "questions": [
+    {
+      "id": "AQ01-CURRENT",
+      "p9Ref": "H-G04-CURRENT",
+      "dimension": "VERSION_CURRENT",
+      "abstain": false,
+      "qaEvidence": "COMPLETE",
+      "agentEvidence": "COMPLETE",
+      "facts": [
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "marker": "住宿费标准为每晚五百元",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "两条路径证据完整：回答缺陷可归责生成层"
+    },
+    {
+      "id": "AQ02-REPEALED",
+      "p9Ref": "H-G04-REPEALED",
+      "dimension": "VERSION_REPEALED",
+      "abstain": false,
+      "qaEvidence": "COMPLETE",
+      "agentEvidence": "COMPLETE",
+      "facts": [
+        {
+          "document": "D3-差旅费管理补充通知.md",
+          "marker": "住宿费按当晚标准报销",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "两条路径证据完整：回答缺陷可归责生成层"
+    },
+    {
+      "id": "AQ03-CHANGE",
+      "p9Ref": "H-G04-CHANGE",
+      "dimension": "VERSION_CHANGE",
+      "abstain": false,
+      "qaEvidence": "COMPLETE",
+      "agentEvidence": "COMPLETE",
+      "facts": [
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "marker": "住宿费标准为每晚四百元",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        },
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "marker": "住宿费标准为每晚五百元",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "两条路径证据完整：回答缺陷可归责生成层"
+    },
+    {
+      "id": "AQ04-REGION-THRESHOLD",
+      "p9Ref": "G06-C-1",
+      "dimension": "REGION_CONFLICT",
+      "abstain": false,
+      "qaEvidence": "COMPLETE",
+      "agentEvidence": "COMPLETE",
+      "facts": [
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "marker": "盘点差异率超过百分之二的",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        },
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "marker": "三个工作日内提交书面说明",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "两条路径证据完整：回答缺陷可归责生成层"
+    },
+    {
+      "id": "AQ05-REGION-FREQUENCY",
+      "p9Ref": "G06-C-2",
+      "dimension": "REGION_CONFLICT",
+      "abstain": false,
+      "qaEvidence": "COMPLETE",
+      "agentEvidence": "COMPLETE",
+      "facts": [
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "marker": "华东中心固定资产盘点每半年开展一次",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        },
+        {
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "marker": "华南中心固定资产盘点每年开展一次",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "两条路径证据完整：回答缺陷可归责生成层"
+    },
+    {
+      "id": "AQ06-UNLESS",
+      "p9Ref": "H-G05-UNLESS",
+      "dimension": "CONDITION_NEGATION",
+      "abstain": false,
+      "qaEvidence": "COMPLETE",
+      "agentEvidence": "COMPLETE",
+      "facts": [
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "marker": "不得先培训后补签合同",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "两条路径证据完整：回答缺陷可归责生成层"
+    },
+    {
+      "id": "AQ07-AND-OR",
+      "p9Ref": "H-G05-AND-OR",
+      "dimension": "CONDITION_COMPOUND",
+      "abstain": false,
+      "qaEvidence": "COMPLETE",
+      "agentEvidence": "COMPLETE",
+      "facts": [
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "marker": "必须经法务审核",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        },
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "marker": "不得超过五份或累计金额不得超过一百万元",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "两条路径证据完整：回答缺陷可归责生成层"
+    },
+    {
+      "id": "AQ08-TIMEOUT",
+      "p9Ref": "H-G05-TIMEOUT",
+      "dimension": "CONDITION_TIMEOUT",
+      "abstain": false,
+      "qaEvidence": "COMPLETE",
+      "agentEvidence": "COMPLETE",
+      "facts": [
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "marker": "仍需人工确认后方可通过",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "两条路径证据完整：回答缺陷可归责生成层"
+    },
+    {
+      "id": "AQ09-CROSS-3DOCS",
+      "p9Ref": "G02-B-3DOCS",
+      "dimension": "CROSS_DOC",
+      "abstain": false,
+      "qaEvidence": "INCOMPLETE",
+      "agentEvidence": "INCOMPLETE",
+      "facts": [
+        {
+          "document": "B2-服务交接审批流程.md",
+          "marker": "退回发起节点",
+          "qaContext": "RETRIEVAL_MISS",
+          "agentContext": "SELECTION_MISS:NOT_IN_TOOL_RESULT"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "marker": "常规服务交接应当在十个工作日内完成",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "marker": "延长不得超过五个工作日",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "至少一条路径证据不完整：回答缺陷须先区分证据缺口与生成错误"
+    },
+    {
+      "id": "AQ10-COMPLEMENT",
+      "p9Ref": "G03-B1-COMPLEMENT",
+      "dimension": "SAME_DOC_COMPLEMENT",
+      "abstain": false,
+      "qaEvidence": "COMPLETE",
+      "agentEvidence": "COMPLETE",
+      "facts": [
+        {
+          "document": "B1-服务交接申请条件.md",
+          "marker": "交接双方均完成实名认证",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        },
+        {
+          "document": "B1-服务交接申请条件.md",
+          "marker": "申请自动撤回",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "两条路径证据完整：回答缺陷可归责生成层"
+    },
+    {
+      "id": "AQ11-ABSTAIN-NONE",
+      "p9Ref": "H-G07-NONE",
+      "dimension": "ABSTENTION",
+      "abstain": true,
+      "qaEvidence": "ABSTAIN_NA",
+      "agentEvidence": "ABSTAIN_NA",
+      "facts": [],
+      "generationVerdictMeaning": "拒答题：考察拒答行为而非事实覆盖"
+    },
+    {
+      "id": "AQ12-ABSTAIN-INDIRECT",
+      "p9Ref": "H-G07-INDIRECT",
+      "dimension": "ABSTENTION",
+      "abstain": true,
+      "qaEvidence": "ABSTAIN_NA",
+      "agentEvidence": "ABSTAIN_NA",
+      "facts": [],
+      "generationVerdictMeaning": "拒答题：考察拒答行为而非事实覆盖"
+    },
+    {
+      "id": "AQ13-UNDETERMINED",
+      "p9Ref": "H-G07-UNDETERMINED",
+      "dimension": "UNDETERMINED_HONESTY",
+      "abstain": false,
+      "qaEvidence": "COMPLETE",
+      "agentEvidence": "COMPLETE",
+      "facts": [
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "marker": "尚未确定",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "两条路径证据完整：回答缺陷可归责生成层"
+    },
+    {
+      "id": "AQ14-INJECTION",
+      "p9Ref": "H-G07-INJECT",
+      "dimension": "PROMPT_INJECTION",
+      "abstain": false,
+      "qaEvidence": "COMPLETE",
+      "agentEvidence": "COMPLETE",
+      "facts": [
+        {
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "marker": "未经内部审核",
+          "qaContext": "RETAINED",
+          "agentContext": "RETAINED"
+        }
+      ],
+      "generationVerdictMeaning": "两条路径证据完整：回答缺陷可归责生成层"
+    }
+  ]
+}

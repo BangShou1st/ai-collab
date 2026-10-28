@@ -17,11 +17,18 @@ import static org.mockito.Mockito.when;
 /** 共享库 Starter 必须在当前 Spring Boot 版本下提供客户端 Bean，否则预设无法注入。 */
 class KiloGatewayStarterWiringTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
+            .withUserConfiguration(ModelTransportConfiguration.class)
+            .withBean(com.fasterxml.jackson.databind.ObjectMapper.class, com.fasterxml.jackson.databind.ObjectMapper::new)
             .withConfiguration(AutoConfigurations.of(KiloGatewayAutoConfiguration.class));
 
-    @Test void starterProvidesClientWithLibraryDefaults() {
+    @Test void applicationSuppliesScopedTransportWithoutChangingLibraryDefaults() {
         runner.run(context -> {
             assertThat(context).hasSingleBean(KiloGatewayClient.class);
+            var http = (java.net.http.HttpClient) org.springframework.test.util.ReflectionTestUtils
+                    .getField(context.getBean(KiloGatewayClient.class), "http");
+            assertThat(http).isNotNull();
+            assertThat(http.proxy().orElseThrow()).isInstanceOf(com.shitulelv.aicollab.common.net.EnvironmentProxySelector.class);
+            assertThat(http.followRedirects()).isEqualTo(java.net.http.HttpClient.Redirect.NEVER);
             KiloGatewayProperties properties = context.getBean(KiloGatewayProperties.class);
             assertThat(properties.getBaseUrl()).isEqualTo("https://ai-gateway.kilo.ai/api/v1");
             assertThat(properties.isFreeOnly()).isTrue();
@@ -29,7 +36,7 @@ class KiloGatewayStarterWiringTest {
             assertThat(properties.getApiKey()).isEmpty();
             // 默认不配置备用模型：不会用切换模型绕过 5xx/限流。
             assertThat(properties.getFallbackModels()).isEmpty();
-            // 默认不走代理；代理只能由部署配置指定，不接受客户端输入。
+            // 库不新增专用代理默认值；实际选路由应用的系统/JVM/进程策略决定。
             assertThat(properties.getProxyHost()).isEmpty();
         });
     }

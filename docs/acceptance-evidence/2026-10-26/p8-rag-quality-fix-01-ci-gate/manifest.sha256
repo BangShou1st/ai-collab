@@ -1,0 +1,9 @@
+5eeaf3e294475cdec143c6dd495fcf6d01f624a1584d7382919851a14aeddc55  docs/acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/README.md
+f2f8d003453b73243ea792bcb8e5e7e93d2ca8c75f16b27bf17b1554b6049d4a  docs/acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/baseline.json
+3e9601b393bce007538a0ba36799494ca391fd968d0b3dbec8b248681d6aad1c  docs/acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/ci-failure.json
+e7018ee9f1f27a4a82ee4e9ee28e95c7ae9fda97b2853db631e5818c754fbe75  docs/acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/gate-results.json
+e7712ba814ef4435e73090682a086c8c44cfbf0d2ab9a4a67091219b7e65c7b8  docs/acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/historical-integrity.json
+1ed09eb50653d5ee03105bea0c5c404bbb31aa6989da4ebb6dd0121930637f08  docs/acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/integration-results.json
+e07dc29eb25eac337986c35fbf6fb42d778dfe1017c279f98f136cfdb42a91c8  docs/acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/regression-results.json
+bd3b77abd502d7159b4cc2c5fc0a8d702cafc840a7dde45fd6bdfd658304b81b  docs/acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/source-manifest.json
+701ea892a759fa702b65adfcda01f1355f155d36310770600def6ef177fc11a2  docs/acceptance-evidence/2026-10-26/p8-rag-quality-fix-01-ci-gate/source-versions.json

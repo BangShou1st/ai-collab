@@ -73,9 +73,10 @@
 /* Mobile topbar hamburger: always visible <=760px */
 .mobile-topbar { display: none; }
 .model-rows { display: grid; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); overflow: hidden; }
-.model-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.model-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 14px; }
 .model-row + .model-row { border-top: 1px solid var(--color-border); }
-.model-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+/* 模型名较长时保持文字块可读宽度，能力测试面板换行显示，避免按钮叠在文字上 */
+.model-main { flex: 1 1 240px; min-width: 0; display: grid; gap: 2px; }
 .model-main strong { font-size: 14px; }
 .setting-row { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 12px; }
 .model-select-row { display: flex; align-items: center; gap: 4px; }

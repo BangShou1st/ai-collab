@@ -1,0 +1,23 @@
+{
+  "task": "P4-AGENT-REAL-E2E-01",
+  "generated_at": "2026-10-24",
+  "resource_policy": {
+    "active_version": "v2（新根运行 createRun 写 context_policy_version=2，budget_semantics=SEPARATED，max_input/output_tokens=NULL）",
+    "v2_limits": { "root": "24 模型轮 / 64 步 / 64 工具 / 45min 活跃时长", "child": "12 / 16 / 24 / 30min", "per_turn_tools": 4, "internal_tool_timeout": "30s", "mcp_tool_timeout": "120s", "max_tool_result_bytes": "256KB" },
+    "v1_vs_v2": "v1 累计 token 上限参与准入/收敛/停机；v2 累计 token 只统计不限额，单次请求守模型真实窗口；防失控由有限轮次/步数/工具/活跃时长/循环检测承担",
+    "real_run_confirmation": "本轮 5 个 Run 全部 v2；右栏权威快照显示 Steps 2/64 · Tools 1/64；v1 不再是新运行的默认路径"
+  },
+  "protection_mechanisms_offline_evidence": [
+    { "test": "AgentConvergencePolicyTest", "cases": 8, "coverage": "remainingSteps<2 或 modelTurns 用尽 → EXHAUSTED；临界轮次 → FINALIZE；工具批次单轮/总额准入" },
+    { "test": "AgentLoopGuardTest", "cases": 13, "coverage": "滑动窗口(6)签名重复(≥3)与下一步命中已有签名 → AGENT_NO_PROGRESS 致命停止" },
+    { "test": "AgentResourcePolicyTest", "cases": 10, "coverage": "v1/v2 纯函数准入与上限" },
+    { "test": "AgentRuntimeLimitsTest", "cases": 13, "coverage": "maxSteps/maxModelTurns/maxToolCalls/maxToolCallsPerTurn/maxRunDuration/工具超时/结果字节上限" },
+    { "test": "AgentRuntimeDomainTest（含 AgentStateMachine）", "cases": 5, "coverage": "状态机合法跃迁表、非法跃迁抛异常、终态无出边" },
+    { "test": "RealAgentLoopOutcomePolicyTest", "cases": 5, "coverage": "真实循环结局策略" }
+  ],
+  "real_run_evidence": {
+    "parameter_correction_budget": "run ea469167 实证：同一参数错误第 2 次触发 PARAMETER_CORRECTION_EXHAUSTED，运行按设计终止而非无限重试（真实模型行为下的预算保护）",
+    "enum_rejection_recovery": "run 24b71f55 实证：无效 status 枚举被拒后模型成功纠正（删除该字段重试），证明 TOOL_ARGUMENT_INVALID 反馈回路有效"
+  },
+  "not_done_with_paid_or_looping_models": "未为证明限额而用真实模型进行循环消耗；预算异常场景以确定性测试为准"
+}

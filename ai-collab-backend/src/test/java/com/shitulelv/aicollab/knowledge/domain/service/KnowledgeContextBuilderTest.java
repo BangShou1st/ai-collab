@@ -24,8 +24,12 @@ class KnowledgeContextBuilderTest {
     private final KnowledgeContextBuilder builder = new KnowledgeContextBuilder();
 
     private static DocumentSearchHit hit(String content, String hash, double similarity) {
+        return hit(UUID.randomUUID(), content, hash, similarity);
+    }
+
+    private static DocumentSearchHit hit(UUID documentId, String content, String hash, double similarity) {
         return new DocumentSearchHit(
-                UUID.randomUUID(), UUID.randomUUID(), "文档.pdf", "标题",
+                UUID.randomUUID(), documentId, "文档.pdf", "标题",
                 content, hash, similarity, Map.of("pageNumber", 1));
     }
 
@@ -88,11 +92,12 @@ class KnowledgeContextBuilderTest {
     }
 
     @Test
-    void duplicateContentHashIsCountedOnce() {
+    void duplicateContentHashWithinSameDocumentIsCountedOnce() {
+        UUID doc = UUID.randomUUID();
         List<DocumentSearchHit> hits = List.of(
-                hit("同一条证据", "same-hash", 0.9),
-                hit("同一条证据（不同文档副本）", "same-hash", 0.8),
-                hit("另一条证据", "other-hash", 0.7));
+                hit(doc, "同一条证据", "same-hash", 0.9),
+                hit(doc, "同一条证据（同文档分块副本）", "same-hash", 0.8),
+                hit(doc, "另一条证据", "other-hash", 0.7));
 
         var context = builder.build(hits, 12);
 
@@ -103,12 +108,31 @@ class KnowledgeContextBuilderTest {
     }
 
     @Test
+    void identicalContentAcrossDocumentsKeepsDistinctSourcesInDefaultEntry() {
+        UUID docA = UUID.randomUUID();
+        UUID docB = UUID.randomUUID();
+        List<DocumentSearchHit> hits = List.of(
+                hit(docA, "同一条证据", "same-hash", 0.9),
+                hit(docB, "同一条证据（不同文档副本）", "same-hash", 0.8),
+                hit(docA, "另一条证据", "other-hash", 0.7));
+
+        var context = builder.build(hits, 12);
+
+        // 跨文档相同内容在默认入口也保留独立来源身份，不被全局 contentHash 吞掉
+        assertThat(context.sources()).hasSize(3);
+        assertThat(context.sources()).extracting(KnowledgeSource::contentHash)
+                .containsExactly("same-hash", "same-hash", "other-hash");
+        assertThat(context.promptSources()).contains("[S1]").contains("[S2]").contains("[S3]");
+    }
+
+    @Test
     void duplicatesDoNotConsumeTheRequestedSourceSlots() {
-        // 前 12 条两两重复：去重后只有 6 个真实来源，limit=12 时应保留 6 个而不是空出名额。
+        // 前 12 条两两重复（每对属于同一文档的重复分块）：去重后只有 6 个真实来源，limit=12 时应保留 6 个而不是空出名额。
         List<DocumentSearchHit> hits = new ArrayList<>();
         for (int i = 1; i <= 6; i++) {
-            hits.add(hit("证据" + i, "dup-" + i, 0.9));
-            hits.add(hit("证据" + i + "（副本）", "dup-" + i, 0.8));
+            UUID doc = UUID.randomUUID();
+            hits.add(hit(doc, "证据" + i, "dup-" + i, 0.9));
+            hits.add(hit(doc, "证据" + i + "（副本）", "dup-" + i, 0.8));
         }
 
         var context = builder.build(hits, 12);

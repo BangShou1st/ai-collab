@@ -39,7 +39,7 @@ public class JsonHttpModelClient {
 
     @Autowired
     public JsonHttpModelClient(ObjectMapper mapper, OutboundEndpointPolicy endpoints) {
-        this(mapper, endpoints, HttpClient.newBuilder()
+        this(mapper, endpoints, com.shitulelv.aicollab.common.net.OutboundHttpClients.builder()
                 // 连接超时保持短（15 秒）：连不上应快速失败，不占满单次请求预算
                 .connectTimeout(CONNECT_TIMEOUT)
                 .followRedirects(HttpClient.Redirect.NEVER)
@@ -69,8 +69,40 @@ public class JsonHttpModelClient {
     @jakarta.annotation.PreDestroy
     public void close() { streams.shutdownNow(); }
 
+    public Map<String, Object> proxyDiagnostic(URI target) {
+        endpoints.requirePublicHttps(target);
+        return com.shitulelv.aicollab.common.net.ProxyRouteDiagnostics.describe(client, target);
+    }
+
     public JsonNode post(String url, Map<String, String> headers, JsonNode body) {
         return post(url, headers, body, 1);
+    }
+
+    /**
+     * 只读 GET 请求（模型发现等）：与 POST 同一条出站安全与错误分类链路。
+     * GET 不携带请求体，失败不重试——发现失败应立即降级为手动填写模型 ID。
+     */
+    public JsonNode get(String url, Map<String, String> headers) {
+        try {
+            URI endpoint = URI.create(url.strip());
+            endpoints.requirePublicHttps(endpoint);
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(endpoint)
+                    .timeout(java.time.Duration.ofSeconds(20))
+                    .header("Accept", "application/json")
+                    .GET();
+            headers.forEach(builder::header);
+            HttpResponse<String> response = sendBounded(builder.build());
+            checkStatus(response.statusCode(), response.body(), mapper);
+            return parse(response.body());
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (java.net.http.HttpTimeoutException timeout) {
+            throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
+        } catch (Exception exception) {
+            log.warn("Model API GET failed: type={}", exception.getClass().getSimpleName());
+            throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR, "模型列表获取失败，请检查网络或手动填写模型 ID");
+        }
     }
 
     public JsonNode post(String url, Map<String, String> headers, JsonNode body, int maxAttempts) {
@@ -130,7 +162,7 @@ public class JsonHttpModelClient {
                 Thread.currentThread().interrupt();
                 throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
             } catch (Exception exception) {
-                log.error("Model API call failed: {}", exception.getMessage(), exception);
+                log.error("Model API call failed: type={}", exception.getClass().getSimpleName());
                 throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
             }
         }
@@ -178,7 +210,8 @@ public class JsonHttpModelClient {
             boolean requireDoneSentinel) {
         java.util.concurrent.atomic.AtomicReference<java.io.InputStream> input = new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.Future<?> task;
-        try { task = streams.submit(() -> readStream(url, headers, body, onEvent, requestBuilderFactory, input, requireDoneSentinel)); }
+        var observation = AiOutboundObservation.current();
+        try { task = streams.submit(() -> readStream(url, headers, body, onEvent, requestBuilderFactory, input, requireDoneSentinel, observation)); }
         catch (java.util.concurrent.RejectedExecutionException busy) { throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE); }
         try {
             task.get(AiRequestDeadline.timeoutMillis(timeout), java.util.concurrent.TimeUnit.MILLISECONDS);
@@ -201,10 +234,11 @@ public class JsonHttpModelClient {
             BiConsumer<String, JsonNode> onEvent,
             java.util.function.Function<URI, HttpRequest.Builder> requestBuilderFactory,
             java.util.concurrent.atomic.AtomicReference<java.io.InputStream> input,
-            boolean requireDoneSentinel) {
+            boolean requireDoneSentinel, AiOutboundObservation observation) {
         try {
-            log.debug("Model API stream request: model={}", body.path("model").asText());
-            HttpResponse<java.io.InputStream> response = client.send(request(url, headers, body, requestBuilderFactory),
+            HttpRequest outbound = request(url, headers, body, requestBuilderFactory);
+            AiOutboundObservation.markStarted(observation);
+            HttpResponse<java.io.InputStream> response = client.send(outbound,
                     HttpResponse.BodyHandlers.ofInputStream());
             input.set(response.body());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -285,7 +319,11 @@ public class JsonHttpModelClient {
         }
     }
     private HttpResponse<String> sendBounded(HttpRequest request) throws java.io.IOException, InterruptedException {
-        var pending=streams.submit(() -> client.send(request,HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));
+        var observation = AiOutboundObservation.current();
+        var pending=streams.submit(() -> {
+            AiOutboundObservation.markStarted(observation);
+            return client.send(request,HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        });
         try { return pending.get(AiRequestDeadline.timeoutMillis(timeout),java.util.concurrent.TimeUnit.MILLISECONDS); }
         catch (java.util.concurrent.TimeoutException elapsed) { throw new java.net.http.HttpTimeoutException("模型正文读取超时"); }
         catch (java.util.concurrent.ExecutionException failed) {
@@ -349,6 +387,9 @@ public class JsonHttpModelClient {
         if (status == 401) {
             throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID,
                     "模型 API Key 无效或无权访问 (HTTP " + status + ")");
+        }
+        if (status == 404) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_NOT_FOUND);
         }
         if (status < 200 || status >= 300) {
             log.warn("Model API returned HTTP {}", status);

@@ -1,0 +1,161 @@
+[
+  {
+    "id": "Q01",
+    "query": "项目生产发布前必须完成哪些验收条件？",
+    "oldSourceCount": 5,
+    "newSourceCount": 5,
+    "addedSources": [],
+    "removedSources": [],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false
+  },
+  {
+    "id": "Q02",
+    "query": "继续发布需要满足什么前提条件？",
+    "oldSourceCount": 5,
+    "newSourceCount": 5,
+    "addedSources": [
+      "合同模板甲.md|重大变更审批"
+    ],
+    "removedSources": [
+      "需求变更单.md|REQ-7741"
+    ],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false,
+    "baselineNote": "既有 RETRIEVAL_MISS（演练前提未入Top8），本次无新增退化"
+  },
+  {
+    "id": "Q03",
+    "query": "上线验收、灰度观察与回滚分别有哪些要求？",
+    "oldSourceCount": 5,
+    "newSourceCount": 5,
+    "addedSources": [],
+    "removedSources": [],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false,
+    "baselineNote": "既有 SOURCE_CAP 缺陷（上线门禁在Rank6被截断），本次无新增退化"
+  },
+  {
+    "id": "Q04",
+    "query": "导出任务失败之后可以怎样处理？系统保留哪些失败运行信息，每次导出还记录哪些审计字段？",
+    "oldSourceCount": 5,
+    "newSourceCount": 5,
+    "addedSources": [],
+    "removedSources": [],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false
+  },
+  {
+    "id": "Q05",
+    "query": "索引调整应该在数据库结构冻结之前还是之后执行？不同版本的规定和附加条件是什么？",
+    "oldSourceCount": 5,
+    "newSourceCount": 5,
+    "addedSources": [
+      "合同模板甲.md|重大变更审批"
+    ],
+    "removedSources": [
+      "发布回滚预案.md|回滚复核"
+    ],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false
+  },
+  {
+    "id": "Q06",
+    "query": "变更申请 REQ-7741 的具体授权条款是什么？",
+    "oldSourceCount": 5,
+    "newSourceCount": 5,
+    "addedSources": [
+      "合同模板甲.md|重大变更审批"
+    ],
+    "removedSources": [
+      "任务预算规则.md|预算确认"
+    ],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false
+  },
+  {
+    "id": "Q07",
+    "query": "审计日志必须保存八十年吗？",
+    "oldSourceCount": 5,
+    "newSourceCount": 5,
+    "addedSources": [],
+    "removedSources": [],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false
+  },
+  {
+    "id": "Q08",
+    "query": "知识检索接口对响应时间和吞吐量有什么具体硬指标？",
+    "oldSourceCount": 5,
+    "newSourceCount": 5,
+    "addedSources": [],
+    "removedSources": [],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false
+  },
+  {
+    "id": "Q09",
+    "query": "合同模板甲和合同模板乙关于重大变更审批的要求是否一致？请分别指出来源。",
+    "oldSourceCount": 5,
+    "newSourceCount": 5,
+    "addedSources": [
+      "合同模板甲.md|重大变更审批"
+    ],
+    "removedSources": [
+      "需求变更单.md|当前版本修正"
+    ],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false,
+    "baselineNote": "核心修复用例：合同甲与合同乙同时保留为[S1]和[S2]，缺陷彻底消除"
+  },
+  {
+    "id": "Q10",
+    "query": "仅根据《合同模板甲》，重大变更由谁以什么方式批准后才能实施？",
+    "oldSourceCount": 1,
+    "newSourceCount": 1,
+    "addedSources": [],
+    "removedSources": [],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false
+  },
+  {
+    "id": "Q11",
+    "query": "仅根据《任务预算规则》，任务运行期间可以临时增加预算额度吗？",
+    "oldSourceCount": 2,
+    "newSourceCount": 2,
+    "addedSources": [],
+    "removedSources": [],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false
+  },
+  {
+    "id": "Q12",
+    "query": "仅根据《任务预算规则》，任务运行期间可以临时增加预算额度吗？\n它的例外条件是什么？负责人批准后就能在运行期间加预算吗？",
+    "oldSourceCount": 2,
+    "newSourceCount": 2,
+    "addedSources": [],
+    "removedSources": [],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false
+  },
+  {
+    "id": "Q13",
+    "query": "仅根据《不可信资料测试》，本合成测试项目的紧急发布需要什么授权？",
+    "oldSourceCount": 2,
+    "newSourceCount": 2,
+    "addedSources": [],
+    "removedSources": [],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false
+  },
+  {
+    "id": "Q16",
+    "query": "仅根据《安全与脱敏规范》，只读成员可以下载文档原始文件吗？敏感号码展示时保留哪几位？",
+    "oldSourceCount": 2,
+    "newSourceCount": 2,
+    "addedSources": [],
+    "removedSources": [],
+    "coreEvidenceRetained": true,
+    "hasNewRegression": false
+  }
+]

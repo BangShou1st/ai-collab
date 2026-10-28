@@ -1,0 +1,11 @@
+Command: -o test -Dtest=ProxyForkStartupTest -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=3128 -Dp10.proxy.expectedHost=127.0.0.1 -Dp10.proxy.expectedPort=3128 -Djava.net.useSystemProxies=false (selection only; no connection)
+Expected/observed success: true
+Original private stdout SHA-256: bc60b508389bfe7aa5772efbfa7c05de45aadede17c1b0cfc09f3797e2a2507f
+Receipt extracts only Maven status/test/coverage lines; failure original is separately preserved.
+
+[INFO] Running com.shitulelv.aicollab.common.net.ProxyForkStartupTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.222 s -- in com.shitulelv.aicollab.common.net.ProxyForkStartupTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  6.235 s
+[INFO] Finished at: 2026-10-26T14:11:23+08:00

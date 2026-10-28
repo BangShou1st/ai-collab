@@ -22,6 +22,7 @@ public class AgentPlanningOperationService {
     }
     @Transactional
     public ObjectNode mutate(AgentToolContext ctx,String tool,JsonNode args) {
+        com.shitulelv.aicollab.agent.infrastructure.repository.AgentLeaseScope.verify(jdbc,ctx.projectId(),ctx.runId(),false);
         access.requireAdmin(ctx.projectId(),ctx.userId());
         if(ctx.invocationId()==null || ctx.scheduled() || ctx.depth()!=0) throw new BusinessException(ErrorCode.AGENT_TOOL_NOT_ALLOWED);
         var identities=jdbc.queryForList("SELECT tool_name,arguments_json::text FROM agent_tool_invocation WHERE invocation_id=? AND run_id=? FOR UPDATE",ctx.invocationId(),ctx.runId());
@@ -56,6 +57,19 @@ public class AgentPlanningOperationService {
         UUID operation=UUID.randomUUID();
         jdbc.update("INSERT INTO agent_planning_operation(id,invocation_id,project_id,requester_id,session_id,origin_run_id,goal_revision,kind,request_json,target_version_id,plan_id,attempt_id,generation_seq) VALUES (?,?,?,?,?,?,?, ?,?::jsonb,?,?,?,?)",operation,ctx.invocationId(),ctx.projectId(),ctx.userId(),run.get("session_id"),ctx.runId(),Integer.parseInt(Objects.toString(run.get("goal_revision"),"0")),tool,args.toString(),targetVersion,plan.id(),ownedAttempt,plan.generationSeq());
         return get(ctx.projectId(),operation,ctx.userId());
+    }
+    /** Trusted, read-only reconciliation by the original invocation; never creates an operation. */
+    public Optional<ObjectNode> reconcile(AgentToolContext ctx, String tool, JsonNode args) {
+        access.requireAdmin(ctx.projectId(), ctx.userId());
+        var ids = jdbc.queryForList("""
+                SELECT o.id FROM agent_planning_operation o
+                JOIN agent_tool_invocation i ON i.invocation_id=o.invocation_id
+                JOIN agent_run r ON r.id=i.run_id
+                WHERE i.invocation_id=? AND i.run_id=? AND i.tool_name=? AND i.arguments_json=?::jsonb
+                  AND o.project_id=? AND o.requester_id=? AND r.project_id=? AND r.requester_id=?
+                """, UUID.class, ctx.invocationId(), ctx.runId(), tool, args.toString(),
+                ctx.projectId(), ctx.userId(), ctx.projectId(), ctx.userId());
+        return ids.stream().findFirst().map(id -> readOperation(ctx.projectId(), id));
     }
     public ObjectNode get(UUID project,UUID operation,UUID user) {
         access.requireMember(project,user);

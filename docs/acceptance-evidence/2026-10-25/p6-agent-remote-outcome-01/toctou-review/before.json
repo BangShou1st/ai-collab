@@ -1,0 +1,33 @@
+{
+  "baseline": "d694c1adbe80a1c29003d9db45942556e7fdea96",
+  "tests": 6,
+  "failures": 5,
+  "errors": 0,
+  "skipped": 0,
+  "cases": [
+    {
+      "name": "settlementCommittedBeforeDispatchMustRejectDispatchCas",
+      "failure": null
+    },
+    {
+      "name": "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[1]",
+      "failure": "\nexpected: \"UNKNOWN\"\n but was: \"FAILED\""
+    },
+    {
+      "name": "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[2]",
+      "failure": "\nexpected: \"UNKNOWN\"\n but was: \"FAILED\""
+    },
+    {
+      "name": "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[3]",
+      "failure": "\nexpected: \"UNKNOWN\"\n but was: \"FAILED\""
+    },
+    {
+      "name": "missingCurrentInvocationMustNotCreateStepEventOrSpendBudget(String)[1]",
+      "failure": "Multiple Failures (5 failures)\n java.lang.AssertionError: \nExpecting actual not to be null\n org.opentest4j.AssertionFailedError: \nexpected: 0\n but was: 1\n org.opentest4j.AssertionFailedError: \nexpected: 1\n but was: 2\n org.opentest4j.AssertionFailedError: \nexpected: 0\n but was: 1\n org.opentest4j.AssertionFailedError: \nexpected: 0\n but was: 1"
+    },
+    {
+      "name": "missingCurrentInvocationMustNotCreateStepEventOrSpendBudget(String)[2]",
+      "failure": "Multiple Failures (5 failures)\n java.lang.AssertionError: \nExpecting actual not to be null\n org.opentest4j.AssertionFailedError: \nexpected: 0\n but was: 1\n org.opentest4j.AssertionFailedError: \nexpected: 2\n but was: 3\n org.opentest4j.AssertionFailedError: \nexpected: 0\n but was: 1\n org.opentest4j.AssertionFailedError: \nexpected: 0\n but was: 1"
+    }
+  ]
+}

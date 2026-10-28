@@ -1,0 +1,1 @@
+[{"embedding_provider":"OLLAMA","embedding_model":"qwen3-embedding:0.6b","embedding_dimension":1024,"embedding_fingerprint":"371934bd5ee45222ab06b7cad4af2e2582c0659e289d138c10ad6706c0019700","generation_id":null,"chunk_count":29}]

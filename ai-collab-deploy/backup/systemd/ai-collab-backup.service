@@ -1,0 +1,11 @@
+[Unit]
+Description=AI Collab PostgreSQL and MinIO backup
+After=docker.service
+
+[Service]
+Type=oneshot
+User=ai-collab-backup
+EnvironmentFile=/etc/ai-collab/backup.env
+UMask=0077
+NoNewPrivileges=true
+ExecStart=/bin/bash /opt/ai-collab/ai-collab-deploy/backup/scheduled-backup.sh

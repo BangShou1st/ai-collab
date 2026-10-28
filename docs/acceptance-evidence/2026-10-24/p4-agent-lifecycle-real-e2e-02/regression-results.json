@@ -1,0 +1,37 @@
+{
+  "task": "P4-AGENT-LIFECYCLE-REAL-E2E-02",
+  "date": "2026-10-24",
+  "production_code_changed": false,
+  "targeted_offline_contract_tests": {
+    "command": "mvnw -B -ntp test -Dtest='AgentPauseResumePostgresTest,AgentRunRetryPostgresIntegrationTest,AgentRunServiceRetryTest,AgentCrashRecoveryTimingPostgresTest,AgentApprovalServiceTest,AgentRuntimeBehaviorTest,AgentResourcePolicyTest,AgentLoopGuardTest,ToolArgumentValidatorTest'",
+    "log": "ai-collab-backend/target/local-dev/p4lifecycle-offline-tests.log",
+    "result": "BUILD SUCCESS",
+    "total": { "run": 123, "failures": 0, "errors": 0, "skipped": 0 },
+    "by_class": [
+      { "test": "AgentApprovalServiceTest", "cases": 11, "result": "绿" },
+      { "test": "AgentRunRetryPostgresIntegrationTest", "cases": 6, "result": "绿" },
+      { "test": "AgentRunServiceRetryTest", "cases": 6, "result": "绿" },
+      { "test": "AgentCrashRecoveryTimingPostgresTest", "cases": 5, "result": "绿" },
+      { "test": "AgentLoopGuardTest", "cases": 13, "result": "绿" },
+      { "test": "AgentPauseResumePostgresTest", "cases": 19, "result": "绿" },
+      { "test": "AgentRuntimeBehaviorTest", "cases": 25, "result": "绿" },
+      { "test": "AgentResourcePolicyTest", "cases": 10, "result": "绿" },
+      { "test": "ToolArgumentValidatorTest", "cases": 28, "result": "绿（上轮 uuid/date format 修复回归保留）" }
+    ]
+  },
+  "full_regression": {
+    "backend_mvnw_verify": "未重复执行：本轮未修改任何生产代码，上一基线 e1d2765 的 CI 已全绿（run 40057902680，与上轮 verify 同命令）；若后续产生生产代码改动将补跑完整 verify",
+    "frontend": "未执行：本轮无前端代码改动"
+  },
+  "ci_baseline": {
+    "run": 40057902680,
+    "branch": "dev",
+    "head_sha": "e1d276557573f3a8f013ce98d4e93af6a5ff9d16",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "previous_fix_preserved": {
+    "fix": "ToolArgumentValidator uuid/date format 校验（P4-AGENT-REAL-E2E-01 DEFECT-01）",
+    "verified": "ToolArgumentValidatorTest 28 用例全绿，含 format 校验用例"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "task": "P10-REAL-GENERATION-02",
+  "granted": true,
+  "recordedAt": "2026-10-26T08:46:33.000Z",
+  "userConfirmedFreeApi": true,
+  "independentlyVerifiedBilling": false,
+  "billingNote": "用户在本次授权中确认按现有免费 API 额度执行；明确不授权付费、升级套餐或切换到收费路由。账号计费状态未独立核实，且不得因此擅自开启付费。",
+  "user": "p3u04_admin",
+  "purpose": "KNOWLEDGE_CHAT",
+  "provider": {
+    "type": "GEMINI",
+    "name": "Gemini 3.5 Flash Lite",
+    "model": "gemini-3.5-flash-lite",
+    "routeSha256": "df17eb978e42ecb533a8f1f7a6ff756c6e1521abe6308f9671dca06e9123cbbc",
+    "routeSha256Source": "PRODUCTION_CODE_PATH_RECOMPUTED_IN_PHASE_1_PREFLIGHT",
+    "freeTier": "USER_CONFIRMED_FREE_API",
+    "independentlyVerifiedBilling": false,
+    "paidBillingEnabledByThisTask": false
+  },
+  "maxChatRequests": 8,
+  "maxOutputTokensPerRequest": 1024,
+  "minimumIntervalSeconds": 15,
+  "externalEmbedding": 0,
+  "agent": 0,
+  "judge": 0,
+  "automaticChatRetries": 0,
+  "paidBillingChangesAllowed": false,
+  "providerSwitchAllowed": false,
+  "extraQuotaProbingAllowed": false,
+  "onAnyFailure": "STOP_REMAINING_QUESTIONS_NO_RETRY",
+  "onPossibleCost": "STOP_IMMEDIATELY_SEND_NO_FURTHER_REQUESTS",
+  "note": "上一批次 P10-REAL-GENERATION-01 的授权不适用于本批次；本批次为独立授权。"
+}

@@ -1,0 +1,30 @@
+{
+  "sourceTest": "RealChunkingRetrievalComparisonPostgresTest",
+  "corpus": "existing 8-document synthetic raw corpus; independent supplementary regression, not historical DB_MISS reproduction",
+  "model": "qwen3-embedding:0.6b",
+  "dimension": 1024,
+  "A_1200_150": {
+    "caseName": "长文档中部条款（解除监控）",
+    "query": "系统在什么情况下可以解除重点监控级别？",
+    "rankInTop20": 1,
+    "similarity": 0.7095,
+    "recalledInTop8": true,
+    "recalledInTop20": true,
+    "retainedInContext": true,
+    "lossAttribution": "RETAINED",
+    "matchedChunkSnippet": "重点监控管理办法：生产系统在重大版本升级后，应设立专项监控小组，密切跟踪接口吞吐量与连接池状态。重点监控管理办法：生产系统在重大版本升级后，应设立专项监控小组，密切跟踪接口吞吐量与连接池状态。重点监控",
+    "matchedChunkLength": 784
+  },
+  "B_800_120": {
+    "caseName": "长文档中部条款（解除监控）",
+    "query": "系统在什么情况下可以解除重点监控级别？",
+    "rankInTop20": 1,
+    "similarity": 0.7095,
+    "recalledInTop8": true,
+    "recalledInTop20": true,
+    "retainedInContext": true,
+    "lossAttribution": "RETAINED",
+    "matchedChunkSnippet": "重点监控管理办法：生产系统在重大版本升级后，应设立专项监控小组，密切跟踪接口吞吐量与连接池状态。重点监控管理办法：生产系统在重大版本升级后，应设立专项监控小组，密切跟踪接口吞吐量与连接池状态。重点监控",
+    "matchedChunkLength": 784
+  }
+}

@@ -1,0 +1,373 @@
+{
+  "probe" : "P10-SCORER-ROBUSTNESS-06 baseline probe (TDD red phase)",
+  "baselineCommit" : "953fe978e471a8ab1a36494cac8b94756aa929f2",
+  "scorerVersion" : "2.0-scoped-contextual-v5",
+  "judgeRuleVersion" : "2.0-scoped-contextual-v5",
+  "probes" : [ {
+    "answer" : "资料不足，无法确认；但通常每年核对 10 份合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-001",
+    "sourceNote" : "AQ12 冻结来源（F1 含“十个工作日”）",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "HONEST_ABSTENTION",
+      "abstentionCorrect" : true,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "1A_REAL_CORPUS_DURATION_SUBSTRING"
+  }, {
+    "answer" : "资料不足，无法确认；但通常每年核对 10 份合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-001",
+    "sourceNote" : "自定义来源含无关日期 2025-10-01",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "HONEST_ABSTENTION",
+      "abstentionCorrect" : true,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "1B_UNRELATED_DATE_SOURCE"
+  }, {
+    "answer" : "资料不足，无法确认；但通常每年核对 10 份合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-001",
+    "sourceNote" : "来源仅支持“10 个工作日”，回答声称“10 份合同”",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "HONEST_ABSTENTION",
+      "abstentionCorrect" : true,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "1C_DURATION_ONLY_SOURCE"
+  }, {
+    "answer" : "一线城市住宿费标准为 500 元 [S1]。",
+    "riskId" : "RISK-AUDIT2-001",
+    "sourceNote" : "来源 D2 使用汉字“五百元”，等值支持不得误报",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "1D_SUPPORTED_500_YUAN_NOT_FLAGGED"
+  }, {
+    "answer" : "资料不足，无法确认；但每年核对 50 份合同且合规费用为五百元 [S1]。",
+    "riskId" : "RISK-AUDIT2-001",
+    "sourceNote" : "来源支持五百元但不支持 50 份，必须分别判定",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ "50 份" ],
+      "abstentionEvaluation" : "CONFLICTING_FABRICATION",
+      "abstentionCorrect" : false,
+      "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[50 份]" ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "1E_PARTIAL_SUPPORT_MULTI_CANDIDATES"
+  }, {
+    "answer" : "根据资料 [S8, S9]，当前项目资料不足以回答。",
+    "riskId" : "RISK-AUDIT2-002",
+    "sourceNote" : "分组引用 [S8, S9] 数字不得泄漏为业务数字候选",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ "8", "9" ],
+      "abstentionEvaluation" : "CONFLICTING_FABRICATION",
+      "abstentionCorrect" : false,
+      "highSeverity" : [ "CITATION_IDENTITY_INVALID:引用了不存在的来源编号", "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[8, 9]" ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "2A_GROUPED_CITATION_S8_S9"
+  }, {
+    "answer" : "根据资料 [S1,S2,S3]，当前项目资料不足以回答。",
+    "riskId" : "RISK-AUDIT2-002",
+    "sourceNote" : "无空格分组引用",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "HONEST_ABSTENTION",
+      "abstentionCorrect" : true,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "2B_GROUPED_NO_SPACE_S1_S2_S3"
+  }, {
+    "answer" : "年度抽查 50 份合同 [S1, S2] 的要求，资料不足无法确认。",
+    "riskId" : "RISK-AUDIT2-002",
+    "sourceNote" : "合法分组引用与真实编造数字共存：仅数字候选应被检出",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ "50 份" ],
+      "abstentionEvaluation" : "CONFLICTING_FABRICATION",
+      "abstentionCorrect" : false,
+      "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[50 份]" ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "2C_GROUPED_CITATION_WITH_REAL_NUMBER"
+  }, {
+    "answer" : "根据资料，<del><strong>不可以</strong></del>先组织培训再补签合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-003",
+    "sourceNote" : "删除线内嵌展示标签，删除线语义不得丢失",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ ],
+      "normalizedAnswer" : "根据资料,<del>不可以</del>先组织培训再补签合同 [S1]。"
+    },
+    "case" : "3A_DEL_STRONG_NESTED_NEGATION"
+  }, {
+    "answer" : "根据项目资料，通常<u><strong>不可以</strong></u>先组织培训再补签合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-003",
+    "sourceNote" : "展示标签嵌套不得产生删除线歧义",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ {
+        "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+        "sentence" : "通常不可以先组织培训再补签合同 [S1]"
+      } ],
+      "normalizedAnswer" : "根据项目资料,通常不可以先组织培训再补签合同 [S1]。"
+    },
+    "case" : "3B_U_STRONG_NO_STRIKETHROUGH"
+  }, {
+    "answer" : "根据项目制度，经办人~~李四~~可以先组织培训再补签合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-004",
+    "sourceNote" : "无关人名删除线不得抑制独立肯定违规",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ {
+        "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+        "sentence" : "经办人~~李四~~可以先组织培训再补签合同 [S1]"
+      } ]
+    },
+    "case" : "4A_IRRELEVANT_NAME_STRIKETHROUGH"
+  }, {
+    "answer" : "根据项目资料，通常~~不可以~~先组织培训再补签合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-004",
+    "sourceNote" : "删除线包裹否定词保持人工复核",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ {
+        "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+        "sentence" : "根据项目资料,通常~~不可以~~先组织培训再补签合同 [S1]。"
+      } ]
+    },
+    "case" : "4B_NEGATION_WRAPPED_IN_STRIKETHROUGH"
+  }, {
+    "answer" : "~~旧方案已废止~~，现行规定可以先组织培训再补签合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-004",
+    "sourceNote" : "前置无关分句删除线不得污染后置独立命题",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ {
+        "verdict" : "AFFIRMATIVE_VIOLATION",
+        "sentence" : "现行规定可以先组织培训再补签合同 [S1]"
+      } ]
+    },
+    "case" : "4C_STRIKETHROUGH_IN_PRIOR_CLAUSE"
+  }, {
+    "answer" : "根据原规定，现行标准为四百元 [S1]。",
+    "riskId" : "RISK-AUDIT2-006",
+    "sourceNote" : "前置历史限定不得豁免后置现行标准主张",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ {
+        "legacyMarker" : "四百",
+        "unqualifiedSentences" : [ ],
+        "verdict" : "LEGACY_QUALIFIED"
+      } ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "5A_LEGACY_QUALIFIER_BEFORE_CURRENT_CLAIM"
+  }, {
+    "answer" : "原规定四百元已废止，只是作为历史背景引用 [S1]。",
+    "riskId" : "RISK-AUDIT2-006",
+    "sourceNote" : "真正历史背景引用保持豁免",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ {
+        "legacyMarker" : "四百",
+        "unqualifiedSentences" : [ ],
+        "verdict" : "LEGACY_QUALIFIED"
+      } ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "5B_LEGACY_BACKGROUND_PRESERVED"
+  }, {
+    "answer" : "根据原规定现行标准为四百元 [S1]。",
+    "riskId" : "RISK-AUDIT2-006",
+    "sourceNote" : "无标点复合句同样隔离现行主张",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ {
+        "legacyMarker" : "四百",
+        "unqualifiedSentences" : [ ],
+        "verdict" : "LEGACY_QUALIFIED"
+      } ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "5C_NO_PUNCTUATION_COMPOUND"
+  }, {
+    "answer" : "除固定资产盘点外，各项目可以先组织培训再补签合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-007",
+    "sourceNote" : "普通业务范围排除不得获得特批例外豁免权",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ {
+        "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+        "sentence" : "各项目可以先组织培训再补签合同 [S1]"
+      } ]
+    },
+    "case" : "6A_BUSINESS_SCOPE_EXCLUSION"
+  }, {
+    "answer" : "除非得到分管副总裁的书面特批，才可以先组织培训再补签合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-007",
+    "sourceNote" : "真正特批例外保持人工复核边界（G4）",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ {
+        "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+        "sentence" : "才可以先组织培训再补签合同 [S1]"
+      } ]
+    },
+    "case" : "6B_G4_APPROVAL_EXCEPTION_PRESERVED"
+  }, {
+    "answer" : "除经分管副总裁特批外，才可以先组织培训再补签合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-007",
+    "sourceNote" : "排除从句内含真实特批语义时保持例外处理",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ {
+        "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+        "sentence" : "才可以先组织培训再补签合同 [S1]"
+      } ]
+    },
+    "case" : "6C_APPROVAL_INSIDE_EXCLUSION_KEPT"
+  }, {
+    "answer" : "资料并未明确具体事项且负责人可以先组织培训再补签合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-008",
+    "sourceNote" : "且连接的未枚举主语肯定动作不得被前置模态放行",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ {
+        "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+        "sentence" : "资料并未明确具体事项且负责人可以先组织培训再补签合同 [S1]"
+      } ]
+    },
+    "case" : "7A_UNENUMERATED_SUBJECT_AFTER_CONJUNCTION"
+  }, {
+    "answer" : "资料中并未明确具体每年抽查多少份合同。",
+    "riskId" : "RISK-AUDIT2-008",
+    "sourceNote" : "真正认识模态陈述保持合法未知（AQ12 场景C）",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "QUALIFIED_UNKNOWN",
+      "abstentionCorrect" : true,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ {
+        "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+        "sentence" : "资料中并未明确具体每年抽查多少份合同"
+      } ]
+    },
+    "case" : "7B_GENUINE_UNKNOWN_PRESERVED"
+  }, {
+    "answer" : "资料中未明确具体抽查比例而负责人可以先组织培训再补签合同 [S1]。",
+    "riskId" : "RISK-AUDIT2-008",
+    "sourceNote" : "静态风险 005：“而”引导分句的作用域切分一致性",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ ],
+      "abstentionEvaluation" : "NOT_APPLICABLE",
+      "abstentionCorrect" : null,
+      "highSeverity" : [ ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ {
+        "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+        "sentence" : "资料中未明确具体抽查比例而负责人可以先组织培训再补签合同 [S1]"
+      } ]
+    },
+    "case" : "7C_STATIC_RISK_005_ER_CONJUNCTION"
+  }, {
+    "answer" : "资料不足，无法确认；但每年核对二十份合同 [S1]。",
+    "riskId" : "STATIC-RISK-AUDIT2-009",
+    "sourceNote" : "来源含 20 份，回答二十份：等值表达不得误报候选",
+    "output" : {
+      "scorerVersion" : "2.0-scoped-contextual-v5",
+      "unsupportedNumberCandidates" : [ "二十份" ],
+      "abstentionEvaluation" : "CONFLICTING_FABRICATION",
+      "abstentionCorrect" : false,
+      "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[二十份]" ],
+      "versionAccuracy" : [ ],
+      "forbiddenAffirmationDetails" : [ ]
+    },
+    "case" : "9A_HAN_TWENTY_VS_ARABIC_20"
+  } ]
+}

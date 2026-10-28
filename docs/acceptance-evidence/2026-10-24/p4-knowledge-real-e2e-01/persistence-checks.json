@@ -1,0 +1,25 @@
+{
+  "documentListAfterRefresh": {
+    "expected": 5,
+    "actual": 5,
+    "allReady": true,
+    "screenshot": "screenshots/documents-after-refresh.png"
+  },
+  "sessionAfterReload": {
+    "messages": 10,
+    "orderPreserved": true,
+    "duplicateMessages": false,
+    "completedAnswerNotStreaming": true,
+    "citationsPreserved": {
+      "qE2E02DualSourcesVisible": true
+    },
+    "screenshot": "screenshots/persistence-after-refresh.png"
+  },
+  "database": {
+    "knowledgeMessageRows": 10,
+    "modelOnAssistantRows": "gemini-3.5-flash-lite",
+    "citationRowsForProject": 4,
+    "quoteTextsMatchUi": true
+  },
+  "status": "PASS"
+}

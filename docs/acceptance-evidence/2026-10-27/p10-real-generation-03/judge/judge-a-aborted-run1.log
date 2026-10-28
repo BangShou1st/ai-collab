@@ -1,0 +1,25 @@
+judged QA Q07: 200
+judged QA Q08: 503
+judged QA Q09: 200
+judged QA Q10: 200
+judged QA Q11: 200
+judged QA Q12: 200
+judged QA Q13: 200
+judged QA Q14: 200
+judged QA R1: 200
+judged QA R2: 200
+judged QA R3: 200
+node:fs:2413
+    return binding.writeFileUtf8(
+                   ^
+
+Error: ENOENT: no such file or directory, open 'E:\project\ai-collab\ai-collab-backend\target\p10-real-generation-03\judge\judge-a-results.json'
+    at writeFileSync (node:fs:2413:20)
+    at file:///E:/project/ai-collab/target/p10-real-generation-03/judge/judge.mjs:208:1 {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'E:\\project\\ai-collab\\ai-collab-backend\\target\\p10-real-generation-03\\judge\\judge-a-results.json'
+}
+
+Node.js v24.14.0

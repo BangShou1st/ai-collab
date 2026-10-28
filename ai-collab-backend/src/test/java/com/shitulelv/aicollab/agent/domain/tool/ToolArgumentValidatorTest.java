@@ -306,6 +306,42 @@ class ToolArgumentValidatorTest {
         assertThat(ToolArgumentValidator.validate(args, schema)).isNull();
     }
 
+    // ========== format 校验 ==========
+
+    @Test
+    void uuidFormatRejectsNonUuidString() {
+        // 回归：真实模型会把字面量 "None" 传给 uuid 字段；
+        // 必须在 Schema 阶段以 TOOL_ARGUMENT_INVALID 拒绝，而不是深入反序列化后终止整个运行
+        ObjectNode assigneeProp = mapper.createObjectNode();
+        assigneeProp.set("type", mapper.createArrayNode().add("string").add("null"));
+        assigneeProp.put("format", "uuid");
+        ObjectNode schema = schemaWith("properties", props("assigneeId", assigneeProp));
+        for (String bad : new String[]{"None", "null", "unknown", "123", ""}) {
+            assertThat(ToolArgumentValidator.validate(
+                    mapper.createObjectNode().put("assigneeId", bad), schema))
+                    .as("assigneeId=" + bad).contains("UUID");
+        }
+        assertThat(ToolArgumentValidator.validate(
+                mapper.createObjectNode().put("assigneeId", "4e52306c-7a11-4b92-b73f-665684e69d2a"), schema))
+                .isNull();
+        assertThat(ToolArgumentValidator.validate(
+                mapper.createObjectNode().putNull("assigneeId"), schema)).isNull();
+    }
+
+    @Test
+    void dateFormatRejectsNonIsoDate() {
+        ObjectNode startProp = mapper.createObjectNode();
+        startProp.set("type", mapper.createArrayNode().add("string").add("null"));
+        startProp.put("format", "date");
+        ObjectNode schema = schemaWith("properties", props("startDate", startProp));
+        assertThat(ToolArgumentValidator.validate(
+                mapper.createObjectNode().put("startDate", "None"), schema)).contains("日期");
+        assertThat(ToolArgumentValidator.validate(
+                mapper.createObjectNode().put("startDate", "2026-10-24"), schema)).isNull();
+        assertThat(ToolArgumentValidator.validate(
+                mapper.createObjectNode().putNull("startDate"), schema)).isNull();
+    }
+
     // ========== 辅助方法 ==========
 
     private ObjectNode schemaWith(String key, JsonNode value) {

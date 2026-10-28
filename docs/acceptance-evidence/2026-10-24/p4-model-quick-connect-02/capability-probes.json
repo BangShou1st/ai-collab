@@ -1,0 +1,43 @@
+{
+  "task": "P4-MODEL-QUICK-CONNECT-02",
+  "generated_at": "2026-10-24",
+  "authorization": {
+    "requested": "本轮已向用户发起真实外部模型调用授权请求（Gemini + Zen + Kilo，总预算 14 次生成）",
+    "granted": false,
+    "outcome": "用户未响应授权请求；按任务书第十三节约束，真实外部生成验收全部标记 NOT_EXECUTED，历史任务授权不自动延续",
+    "executed_real_generation_calls": 0
+  },
+  "capability_probe_architecture": {
+    "service": "AiCapabilityProbeService（复用既有探针，不新建并行体系）",
+    "modes": ["CONNECTIVITY(真实生成)", "STREAMING(真实流式)", "PLANNING_JSON(生产契约骨架+细节+一次定向修复)", "NATIVE_TOOLS(合成工具 capability_probe，只验名称与参数，绝不执行)"],
+    "persistence": "V66 新表 user_ai_provider_probe_result，每 (provider, mode) 一行；status ∈ PASS/FAIL/NOT_SUPPORTED/INCONCLUSIVE",
+    "stale_mechanism": "读取时比对 user_ai_provider.updated_at 与 tested_config_updated_at，不一致动态判 STALE（不落库），前端展示为“已过期（配置已变更）”",
+    "failure_classification": {
+      "FAIL": "AI_MODEL_CREDENTIAL_INVALID(401) / AI_PROVIDER_REQUEST_REJECTED(403) / AI_PROVIDER_NOT_FOUND(404) / AI_PROVIDER_INVALID_RESPONSE / OUTPUT_TRUNCATED / VALIDATION_ERROR",
+      "NOT_SUPPORTED": "能力未声明（ModelCapabilityPolicy 与 turn 网关的生产门控拒绝）",
+      "INCONCLUSIVE": "AI_MODEL_TIMEOUT / AI_PROVIDER_QUOTA_EXCEEDED(429) / AI_PROVIDER_ERROR(5xx/网络) / 未知故障"
+    },
+    "unified_entry": "POST /api/v1/user/ai-providers/{id}/test-capability?mode= 对自定义 Provider 与 Zen/Kilo 预设行同一端点（预设保存后即为 user_ai_provider 行，经 AiConfigurationContext 钉住后走 zen/kilo/自定义三分支真实出站）",
+    "legacy_endpoints_removed": ["POST /user/ai-provider-presets/OPENCODE_ZEN_FREE/test", "POST /user/ai-provider-presets/KILO_GATEWAY_FREE/test"]
+  },
+  "browser_observed_suite_run": {
+    "provider": "假端点 Gemini 配置（https://example.com，本轮浏览器 E2E）",
+    "note": "唯一一次经统一套件触发的出站尝试，目标为 IANA 保留域 example.com（非模型服务，无任何生成成功、无费用）",
+    "steps": [
+      { "step": "静态配置检查", "result": "PASS" },
+      { "step": "模型发现 / 准入", "result": "INCONCLUSIVE", "detail": "模型列表不可用（HTTP 404，AI_PROVIDER_NOT_FOUND 分类文案）；不影响后续生成测试，可手动确认模型 ID" },
+      { "step": "连接（真实生成）", "result": "INCONCLUSIVE", "detail": "模型服务返回 HTTP 405（example.com 对 POST 的真实响应；按临时故障归类，未误判 FAIL）" },
+      { "step": "流式输出", "result": "INCONCLUSIVE", "detail": "HTTP 405；INCONCLUSIVE 未中断套件，符合“临时故障不代表能力结论”的设计" },
+      { "step": "规划 JSON", "result": "SKIPPED", "detail": "未勾选" },
+      { "step": "原生工具调用", "result": "SKIPPED", "detail": "未勾选" }
+    ],
+    "persisted_verdict_displayed": "已保存的验证结论显示 INCONCLUSIVE + 测试时间戳（落库与读取链路真实工作）"
+  },
+  "real_generation_acceptance": {
+    "gemini": "NOT_EXECUTED（待授权；能力链路的离线契约测试与上一轮真实浏览器验收覆盖的 UI 缺陷已全部修复并有测试）",
+    "opencode_zen_free": "NOT_EXECUTED（生成与流式待授权；真实只读模型发现已在浏览器 E2E 验证：refresh 返回真实免费目录）",
+    "kilo_gateway_free": "NOT_EXECUTED（生成与流式待授权；真实只读模型发现已在浏览器 E2E 验证）",
+    "planning_json_probe": "NOT_EXECUTED（离线契约：AiCapabilityProbePlanningContractTest 保持全绿，生产 PlanningJsonContract 复用未改动）",
+    "native_tools_probe": "NOT_EXECUTED（离线契约：探针工具契约测试保持全绿；探针仅校验工具名与参数，不执行模型提出的工具）"
+  }
+}

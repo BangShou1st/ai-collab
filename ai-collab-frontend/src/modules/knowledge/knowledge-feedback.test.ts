@@ -64,10 +64,12 @@ describe('knowledge feedback', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 503,
+      body: null,
+      text: async () => '',
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    await knowledgeApi.askStream(
+    await expect(knowledgeApi.askStream(
       'project-1',
       'session-1',
       '项目进度如何',
@@ -76,9 +78,8 @@ describe('knowledge feedback', () => {
         onToken: vi.fn(),
         onCitations: vi.fn(),
         onDone: vi.fn(),
-        onError: vi.fn(),
       },
-    )
+    )).rejects.toMatchObject({ code: 'HTTP_503' })
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/projects/project-1/knowledge/sessions/session-1/questions/stream',

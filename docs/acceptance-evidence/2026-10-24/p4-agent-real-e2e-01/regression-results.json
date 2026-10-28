@@ -1,0 +1,26 @@
+{
+  "task": "P4-AGENT-REAL-E2E-01",
+  "generated_at": "2026-10-24",
+  "production_code_changes": [
+    {
+      "file": "ai-collab-backend/src/main/java/com/shitulelv/aicollab/agent/domain/tool/ToolArgumentValidator.java",
+      "change": "validateString 增加 format 校验：uuid（UUID.fromString 解析）与 date（LocalDate.parse ISO 解析）；null 值在 type 阶段已放行（联合类型），不影响既有 null 语义",
+      "reason": "缺陷 DEFECT-01：schema 声明 format: uuid（29 处）/date（12 处）但校验器不校验，非法值（如模型幻觉 \"None\"）穿透到反序列化阶段以 AGENT_TOOL_EXECUTION_FAILED 终止整个运行且模型无纠正机会",
+      "scope": "最小修复，仅新增两条格式校验分支，未改动任何既有校验行为"
+    },
+    {
+      "file": "ai-collab-backend/src/test/java/com/shitulelv/aicollab/agent/domain/tool/ToolArgumentValidatorTest.java",
+      "change": "新增 uuidFormatRejectsNonUuidString / dateFormatRejectsNonIsoDate 两个回归用例（含 null 放行与合法值放行断言）"
+    }
+  ],
+  "targeted_tests_after_fix": [
+    { "suite": "ToolArgumentValidatorTest + AgentToolContractTest + DocumentAgentToolContractTest", "result": "43 用例全绿（首轮 2 个新用例因测试写法未用联合类型失败，修正后全绿；生产代码无返工）" }
+  ],
+  "regression_after_real_reverification": {
+    "real_browser": "修复重启后端后，审批提案真实链路复验通过（run 2dd168bb / a9625ab7），且非法 assigneeId 在 Schema 阶段被正确拒绝（run ea469167 事件与步骤证据）",
+    "agent_module_offline": "com.shitulelv.aicollab.agent.** 全量 762 用例，0 失败 0 错误，3 跳过（RealAgentLoopPostgresTest 需专用 Testcontainers 配置，历史即跳过）",
+    "frontend": "lint 0 errors（75 条既有 warnings）/ typecheck 通过 / Vitest 51 文件 393 用例全绿 / build 成功（前端无代码改动）",
+    "full_maven_verify": "执行中，结果见 README 更新（CI 同命令）"
+  },
+  "historical_timing_test_policy": "本轮未观察到 Agent 时序类测试失败；AgentPauseResumePostgresTest/AgentCrashRecoveryTimingPostgresTest 等 Testcontainers 用例在本机 Docker 环境稳定通过"
+}

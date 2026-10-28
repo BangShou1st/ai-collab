@@ -1,0 +1,53 @@
+{
+  "session": {
+    "sessionId": "c27f2815-c808-4f40-81eb-aaaf0d29bc61",
+    "projectId": "4dde7a2e-f26e-43a0-ae1f-51caeaa29d76",
+    "title": "项目生产发布前必须完成哪些验收条件？",
+    "streaming": "SSE（POST /knowledge/sessions/{id}/questions/stream，event: token/citations/done）"
+  },
+  "results": [
+    {
+      "id": "Q-E2E-01",
+      "question": "项目生产发布前必须完成哪些验收条件？",
+      "answerSummary": "列出三个门禁：核心业务流程自动化验收、阻断级缺陷关闭、数据迁移核对无误 [S1]；并补充灰度发布要求 [S3]。",
+      "citations": ["[S1] 上线验收规程.md 上线门禁 72.0%", "[S3] 灰度发布与回滚规范.md 灰度发布 54.0%"],
+      "factsComplete": true,
+      "fabrication": false,
+      "model": "gemini-3.5-flash-lite",
+      "status": "PASS"
+    },
+    {
+      "id": "Q-E2E-02",
+      "question": "合同模板甲和合同模板乙关于重大变更审批的要求是否一致？请分别指出来源。",
+      "answerSummary": "认定一致；甲=[S2]，乙=[S1]，均引用“重大变更须经项目负责人书面批准后方可实施”。",
+      "citations": [
+        "[S1] 合同模板乙.md chunk 03b59141-b9df-4fa7-9f45-12de1a038cad doc a2f68fe7-50e7-4004-b487-09f58c1cdd82",
+        "[S2] 合同模板甲.md chunk 555def5c-e5c9-44ae-b917-3e76d3bf3ac5 doc cee75da1-932d-4b19-8329-651924431d1b"
+      ],
+      "twoIndependentSources": true,
+      "quoteSupportsConclusion": true,
+      "q09RegressionVerified": true,
+      "status": "PASS"
+    },
+    {
+      "id": "Q-E2E-03",
+      "question": "项目审计日志必须保存八十年吗？",
+      "answerSummary": "“当前项目资料不足以回答该问题”，页面带警示条，无编造、无假来源。",
+      "insufficientEvidence": true,
+      "status": "PASS"
+    },
+    {
+      "id": "Q-E2E-04",
+      "question": "任务运行期间可以增加预算吗？→ 如果负责人批准了呢？",
+      "answerSummary": "第一问明确不可以 [S1]（任务预算规则.md，77.6%）；追问正确理解为预算例外场景，回答“即使负责人批准，运行期间也不可以增加”[S5]，未编造例外规则。",
+      "sameSession": true,
+      "status": "PASS"
+    },
+    {
+      "id": "Q-E2E-05",
+      "question": "多文档综合（上线/灰度/回滚三阶段）",
+      "note": "Q-E2E-01 回答已自然覆盖上线门禁 + 灰度发布两份文档；未单独执行第三问，避免超出预算",
+      "status": "NOT_EXECUTED"
+    }
+  ]
+}

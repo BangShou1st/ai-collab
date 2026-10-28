@@ -9,11 +9,11 @@ const {
   selectedSessionId, selectedDocumentIds, question,
   loading, creating, submitting, deletingId,
   citationDrawer, selectedCitation,
-  messageArea, editingSessionId, editingSessionTitle, streamingMessage,
+  messageArea, editingSessionId, editingSessionTitle, streamingMessage, streamError,
   feedbackMap, feedbackSubmittingIds,
   readyDocuments, questionLength, canSubmit,
   selectSession, createSession, startEditSession, cancelEditSession, saveSessionTitle,
-  removeSession, submitQuestion, cancelStream, onQuestionKeydown,
+  removeSession, submitQuestion, cancelStream, dismissStreamError, onQuestionKeydown,
   openCitation, downloadCitation,
   removeFeedback, toggleFeedback,
 } = useKnowledgeView()
@@ -119,7 +119,10 @@ const {
           </header>
 
           <div ref="messageArea" class="message-area" aria-live="polite">
-            <el-empty v-if="!detail.messages.length && !streamingMessage" description="输入问题开始基于项目资料问答" />
+            <el-empty
+              v-if="!detail.messages.length && !streamingMessage && !streamError"
+              description="输入问题开始基于项目资料问答"
+            />
             <article
               v-for="message in detail.messages"
               :key="message.id"
@@ -218,6 +221,19 @@ const {
                   <p>{{ citation.quote }}</p>
                 </button>
               </div>
+            </article>
+
+            <!-- 流式失败：错误必须留在消息区，不允许提交后只看到空白 -->
+            <article v-if="streamError" class="message assistant stream-failure" role="alert">
+              <div class="message-meta">
+                <strong>知识库助手</strong>
+                <el-tag size="small" type="danger">回答失败</el-tag>
+              </div>
+              <div class="stream-failure__body">
+                <p>{{ streamError.message }}</p>
+                <small>错误码 {{ streamError.code }} · 请检查个人 AI 设置中的模型连接与能力测试结果，然后重试</small>
+              </div>
+              <el-button size="small" text @click="dismissStreamError">关闭</el-button>
             </article>
           </div>
 
@@ -352,6 +368,9 @@ const {
 .message { max-width: min(780px, 92%); border-radius: 14px; padding: 12px 14px; }
 .message.user { justify-self: end; background: #eef2ff; }
 .message.assistant { justify-self: start; background: var(--color-surface-raised); border: 1px solid var(--color-border); }
+.message.stream-failure { border-color: var(--color-danger); background: var(--color-danger-soft); }
+.stream-failure__body p { margin: 0 0 4px; font-size: 14px; }
+.stream-failure__body small { color: var(--color-text-secondary); }
 .message-meta { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; font-size: 13px; }
 .user-content { white-space: pre-wrap; margin: 0; line-height: 1.7; }
 .markdown-content { line-height: 1.72; overflow-wrap: anywhere; }

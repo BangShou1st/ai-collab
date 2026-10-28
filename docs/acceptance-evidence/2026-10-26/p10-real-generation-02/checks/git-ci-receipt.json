@@ -1,0 +1,92 @@
+{
+  "task": "P10-REAL-GENERATION-02",
+  "phase": "PHASE_2_REAL_GENERATION_EXECUTED",
+  "finalSha": "53b1eca7242a23b748d73bde327e50e0f468c381",
+  "pushedTo": "origin/dev",
+  "originDev": "53b1eca7242a23b748d73bde327e50e0f468c381",
+  "originMain": "9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7",
+  "branch": "dev",
+  "workingTreeClean": true,
+  "ci": [
+    {
+      "run": 40300077080,
+      "event": "push",
+      "headSha": "53b1eca7242a23b748d73bde327e50e0f468c381",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40300077080",
+      "jobs": {
+        "Backend (Maven verify)": "success",
+        "Frontend (pnpm)": "success",
+        "Image build & container smoke": "skipped"
+      }
+    },
+    {
+      "run": 40300085357,
+      "event": "pull_request",
+      "headSha": "53b1eca7242a23b748d73bde327e50e0f468c381",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40300085357"
+    }
+  ],
+  "supersededRun": {
+    "run": 40298033402,
+    "event": "pull_request",
+    "headSha": "51aeacf07389ef4b01992b317dd67b452f2790b7",
+    "conclusion": "success",
+    "note": "前一提交自身的 CI 亦为 success；本回执随最后一次纯文档提交更新，SHA 只前进不回退"
+  },
+  "cancelledRun": {
+    "run": 40287664480,
+    "event": "pull_request",
+    "headSha": "6b5bf4b29728151dcbe9a82a7aa9e05ce40de484",
+    "conclusion": "cancelled",
+    "reason": "CI concurrency cancel-in-progress：新提交 supersede，非失败"
+  },
+  "ciRealModelCalls": 0,
+  "ciP10RealGenerationPostgresTest": "SKIPPED (Tests run: 1, Skipped: 1)",
+  "ciP10RealGenerationGateTest": "PASSED (Tests run: 2, Failures: 0)",
+  "pr18": {
+    "state": "OPEN",
+    "isDraft": true,
+    "mergedAt": null,
+    "headRefOid": "53b1eca7242a23b748d73bde327e50e0f468c381"
+  },
+  "realGeneration": {
+    "executed": true,
+    "externalChat": 8,
+    "providerResponses": 8,
+    "completedAnswers": 8,
+    "failures": 0,
+    "notRun": 0,
+    "externalEmbedding": 0,
+    "agent": 0,
+    "judge": 0,
+    "automaticRetries": 0,
+    "executionVerdict": "MEASUREMENT_EXECUTED",
+    "qualityVerdict": "PASS_WITH_SCORER_LIMITATIONS",
+    "independentHumanReview": 0
+  },
+  "deployment": "NONE",
+  "paidBilling": "NONE",
+  "mainModified": false,
+  "pr18Merged": false,
+  "note": "本回执记录 finalSha 的 push/PR CI 结果。承载本回执文件的那次纯文档提交使 dev HEAD 再前进一个提交（SHA 只前进不回退），该提交的 CI 同为 success；最终交付 SHA 与同 SHA 的 CI 以交付答复为准。evidenceCommit 字段单独记录承载真实运行证据的提交及其 CI。",
+  "evidenceCommit": {
+    "sha": "38dde3ee2109211a1c1748ea7c0824936ffc5bad",
+    "note": "承载本次真实运行证据（账本、逐题结果、语义审查、交付报告）的提交",
+    "ci": [
+      {
+        "run": 40296834234,
+        "event": "push",
+        "conclusion": "success"
+      },
+      {
+        "run": 40296838674,
+        "event": "pull_request",
+        "conclusion": "success"
+      }
+    ]
+  }
+}

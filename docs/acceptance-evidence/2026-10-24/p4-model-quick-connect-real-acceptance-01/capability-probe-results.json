@@ -1,0 +1,36 @@
+{
+  "task": "P4-MODEL-QUICK-CONNECT-REAL-ACCEPTANCE-01",
+  "generated_at": "2026-10-24",
+  "persistence_model": "V66 表 user_ai_provider_probe_result，每 (provider_id, probe_mode) 一行；status ∈ PASS/FAIL/NOT_SUPPORTED/INCONCLUSIVE；读取时比对 tested_config_updated_at 与配置 updated_at 动态判 STALE",
+  "final_rows": [
+    { "provider": "Gemini 3.5 Flash Lite", "provider_id": "b89ec1b4-e25a-4dd0-b0ef-a934ca9f7082", "probe_mode": "CONNECTIVITY", "status": "PASS", "model_name": "gemini-3.5-flash-lite", "error_code": null, "latency_ms": 608, "tested_at": "2026-10-24T00:16:46.254006Z", "tested_config_updated_at": "2026-10-23T18:47:42.992618Z", "fresh": true },
+    { "provider": "Gemini 3.5 Flash Lite", "provider_id": "b89ec1b4-e25a-4dd0-b0ef-a934ca9f7082", "probe_mode": "STREAMING", "status": "PASS", "model_name": "gemini-3.5-flash-lite", "error_code": null, "latency_ms": 477, "tested_at": "2026-10-24T00:16:46.773542Z", "tested_config_updated_at": "2026-10-23T18:47:42.992618Z", "fresh": true },
+    { "provider": "Kilo Gateway Free", "provider_id": "6854fb22-0cdc-4c09-989f-69f9aebb0055", "probe_mode": "CONNECTIVITY", "status": "PASS", "model_name": "nvidia/nemotron-3.5-lightning:free", "error_code": null, "latency_ms": 17608, "tested_at": "2026-10-24T00:22:00.066361Z", "tested_config_updated_at": "2026-10-24T00:15:07.173934Z", "fresh": true },
+    { "provider": "Kilo Gateway Free", "provider_id": "6854fb22-0cdc-4c09-989f-69f9aebb0055", "probe_mode": "STREAMING", "status": "PASS", "model_name": "nvidia/nemotron-3.5-lightning:free", "error_code": null, "latency_ms": 14091, "tested_at": "2026-10-24T00:22:14.187922Z", "tested_config_updated_at": "2026-10-24T00:15:07.173934Z", "fresh": true },
+    { "provider": "Kilo Gateway Free", "provider_id": "6854fb22-0cdc-4c09-989f-69f9aebb0055", "probe_mode": "NATIVE_TOOLS", "status": "PASS", "model_name": "nvidia/nemotron-3.5-lightning:free", "error_code": null, "latency_ms": 1051, "tested_at": "2026-10-24T00:22:15.295214Z", "tested_config_updated_at": "2026-10-24T00:15:07.173934Z", "fresh": true }
+  ],
+  "checks": {
+    "pass_displayed_after_real_success": "真实探针通过后 UI「已保存的验证结论」显示 通过 + 测试时间戳（Gemini 08:16:46、Kilo 08:22:00/14/15）",
+    "connectivity_not_extrapolated": "CONNECTIVITY 与 STREAMING 分别独立落库与展示，未互相冒充；UI 就绪度按用途所需探针分别计算",
+    "stale_dynamic": {
+      "method": "隔离假端点配置（https://example.com，名称「STALE验收-假端点-临时」，未使用任何真实用户 Key）",
+      "sequence": [
+        "统一套件执行：发现 INCONCLUSIVE(404)、连接 INCONCLUSIVE(405)、流式 INCONCLUSIVE(405)，落库 2 行",
+        "编辑配置（model gpt-4o-mini → gpt-4o）并保存，updated_at 前移",
+        "数据库复核 tested_config_updated_at = updated_at 为 false（动态 STALE 条件成立，STALE 不落库、读取时计算）",
+        "刷新页面后 UI 展示「已过期（配置已变更）」（连接与流式两处）",
+        "删除临时配置，user_ai_provider_probe_result 级联清理（残留 0）"
+      ],
+      "result": "PASS",
+      "screenshot": "screenshots/04-stale-after-config-change.png"
+    },
+    "refresh_consistency": "页面刷新后 Gemini/Kilo 探针结论与时间戳原样可读（服务端持久化，非前端内存态）",
+    "user_isolation": "探针数据经 user_ai_provider 归属隔离（GET /user/ai-providers/{id}/probe-results 服务端校验所有权）；跨用户隔离由离线契约测试覆盖（UserAiProviderOwnershipTest 等，本轮未在真实浏览器做双账号交叉读取）"
+  },
+  "purpose_readiness_after_probes": {
+    "KNOWLEDGE_CHAT": { "model": "Gemini 3.5 Flash Lite", "readiness": "可用", "basis": "STREAMING PASS" },
+    "PLANNING": { "model": "Kilo Gateway Free（默认）", "readiness": "未验证", "basis": "PLANNING_JSON NOT_EXECUTED（如实展示，CHAT 成功未外推）" },
+    "AGENT": { "model": "Kilo Gateway Free（默认）", "readiness": "可用", "basis": "NATIVE_TOOLS PASS" }
+  },
+  "screenshots": ["screenshots/01-kilo-suite-pass.png", "screenshots/02-gemini-suite-pass.png", "screenshots/04-stale-after-config-change.png", "screenshots/05-purpose-readiness.png"]
+}

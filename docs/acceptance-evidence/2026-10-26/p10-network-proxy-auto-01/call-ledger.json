@@ -1,0 +1,28 @@
+{
+  "task": "P10-NETWORK-PROXY-AUTO-01",
+  "status": "NETWORK_ONLY_NO_CHAT",
+  "authorization": "用户已确认使用免费 API；本专项不发送新的真实 Chat。未独立核实账号计费状态。",
+  "route": "p3u04_admin → KNOWLEDGE_CHAT → GEMINI / gemini-3.5-flash-lite (not modified)",
+  "actualExternalRequests": {
+    "chat": 0,
+    "embedding": 0,
+    "agent": 0,
+    "modelJudge": 0,
+    "automaticChatRetry": 0
+  },
+  "externalTargetTransportProbes": {
+    "connectAttempts": 3,
+    "successfulConnect": 3,
+    "tlsHandshakeAttempts": 3,
+    "successfulVerifiedTls": 3,
+    "explanation": "Initial opt-in Surefire diagnostic, final opt-in Surefire diagnostic, dev launcher diagnostic; each one CONNECT plus TLS. Raw JDK and standalone selection observations make no target connection."
+  },
+  "providerApplicationHttpRequests": 0,
+  "providerReceipt": "NOT_TESTED_NO_HTTP_APPLICATION_REQUEST",
+  "modelUsage": "NOT_APPLICABLE_NO_GENERATION_REQUEST",
+  "paidBillingEnabled": false,
+  "paidTierUpgrade": false,
+  "independentBillingVerification": false,
+  "priorBatch": "p10-real-generation-01 remains ended and byte-preserved; no ledger reset/retry.",
+  "nextBatch": "Separate new batch identifier, matching approval and budget/free-tier gates required; network success does not prove Provider/model/quota acceptance."
+}

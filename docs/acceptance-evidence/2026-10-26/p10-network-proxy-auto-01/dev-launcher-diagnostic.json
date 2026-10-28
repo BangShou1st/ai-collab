@@ -1,0 +1,19 @@
+{
+  "systemDiscoveryProperty": "true",
+  "proxyHost": "127.0.0.1",
+  "providerReceipt": "NOT_TESTED_NO_HTTP_APPLICATION_REQUEST",
+  "targetHost": "generativelanguage.googleapis.com",
+  "source": "JDK_SYSTEM_SELECTOR",
+  "selection": "PROXY",
+  "proxyPort": 7897,
+  "processId": 47880,
+  "parentProcessId": 2140,
+  "systemDiscoveryStartupArgument": true,
+  "nativeSystemProxySelected": true,
+  "connect": "HTTP_200_TUNNEL_ESTABLISHED",
+  "tls": "VERIFIED",
+  "chatRequests": 0,
+  "tcp": "CONNECTED",
+  "tlsProtocol": "TLSv1.3",
+  "hostnameVerification": true
+}

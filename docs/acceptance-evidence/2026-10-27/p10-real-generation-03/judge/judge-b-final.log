@@ -1,0 +1,1 @@
+judge B: model=nvidia/nemotron-3.5-lightning:free setup= {"listedModels":401,"chosen":"nvidia/nemotron-3.5-lightning:free","listStatus":200}

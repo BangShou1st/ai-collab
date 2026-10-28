@@ -110,7 +110,33 @@ services:
       AGENT_MCP_ALLOWED_HOSTS: ${AGENT_MCP_ALLOWED_HOSTS}
       KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR: ${KNOWLEDGE_RATE_LIMIT_PER_USER_HOUR}
       PLANNING_GENERATION_LIMIT_PER_USER_HOUR: ${PLANNING_GENERATION_LIMIT_PER_USER_HOUR}
-      REFRESH_COOKIE_SECURE: "false"
+      # Planning 真实生效的调优参数（源码消费点：TaskPlanModelClient /
+      # PlanningModelConfigurationStore / TaskPlanContextAssembler /
+      # PlanningAsyncConfiguration）。注意：规划模型本体不走 PLANNING_PROVIDER /
+      # PLANNING_MODEL 等变量（历史遗留，已无运行时消费点），而是按用户级
+      # AI Provider 分配（个人设置 -> AI 设置）解析，此处无需也不应透传。
+      PLANNING_MAX_OUTPUT_TOKENS: "${PLANNING_MAX_OUTPUT_TOKENS:-6000}"
+      PLANNING_MAX_SOURCES: "${PLANNING_MAX_SOURCES:-12}"
+      PLANNING_SOURCE_CODEPOINT_BUDGET: "${PLANNING_SOURCE_CODEPOINT_BUDGET:-16000}"
+      PLANNING_RETRIEVAL_THRESHOLD: "${PLANNING_RETRIEVAL_THRESHOLD:-0.55}"
+      PLANNING_EXECUTOR_CORE_SIZE: "${PLANNING_EXECUTOR_CORE_SIZE:-2}"
+      PLANNING_EXECUTOR_MAX_SIZE: "${PLANNING_EXECUTOR_MAX_SIZE:-4}"
+      PLANNING_EXECUTOR_QUEUE_CAPACITY: "${PLANNING_EXECUTOR_QUEUE_CAPACITY:-20}"
+      # Embedding 说明：生产运行的向量模型配置不来自 EMBEDDING_* 环境变量
+      # （除下方 LOCAL_ALLOWED_TARGETS 外均为历史遗留，无运行时消费点），
+      # 而是由系统管理员在「AI Infrastructure」界面配置并加密入库
+      # （system_embedding_config，密钥经 MODEL_CONFIG_MASTER_KEY 加密）。
+      # EMBEDDING_LOCAL_ALLOWED_TARGETS 是 Ollama 本地 endpoint 白名单，真实生效：
+      # app 容器访问宿主机 Ollama 用 host.docker.internal，不是 127.0.0.1
+      # （容器内 127.0.0.1 指容器自身）；使用 Compose 网络内服务名或外部
+      # Embedding Endpoint 时改为对应 host:port。
+      # 生产基线：Refresh Cookie 默认 Secure（需 HTTPS / TLS 终止代理）。
+      # 仅在明确搭建纯 HTTP 演练环境时才允许同时设置 REFRESH_COOKIE_SECURE=false
+      # 与 REFRESH_COOKIE_ALLOW_INSECURE=true，否则应用启动即失败（绑定校验）。
+      REFRESH_COOKIE_SECURE: "${REFRESH_COOKIE_SECURE:-true}"
+      REFRESH_COOKIE_ALLOW_INSECURE: "${REFRESH_COOKIE_ALLOW_INSECURE:-false}"
+      # 认证端点 CORS 白名单：生产必须显式设置为前端站点 Origin（逗号分隔），不能用默认值上生产。
+      AUTH_ALLOWED_ORIGINS: "${AUTH_ALLOWED_ORIGINS:-http://localhost:5173}"
     ports:
       - "8080:8080"
 

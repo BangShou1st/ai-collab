@@ -1,0 +1,29 @@
+[ {
+  "passed" : true,
+  "highSeverity" : [ ],
+  "case" : "AQ06_BOLD_NEGATION"
+}, {
+  "case" : "AQ12_REAL_ANSWER",
+  "passed" : true,
+  "abstentionVerdict" : "QUALIFIED_UNKNOWN",
+  "highSeverity" : [ ]
+}, {
+  "case" : "LEGACY_BACKGROUND_EXPLANATION",
+  "versionVerdict" : "LEGACY_QUALIFIED",
+  "passed" : true,
+  "highSeverity" : [ ]
+}, {
+  "case" : "G1_APPROVAL_PROHIBITION",
+  "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+  "passed" : true,
+  "highSeverity" : [ ]
+}, {
+  "case" : "GROUPED_CITATION_NOT_FABRICATION",
+  "passed" : true,
+  "abstentionVerdict" : "HONEST_ABSTENTION",
+  "highSeverity" : [ ]
+}, {
+  "unsupportedNumberCandidates" : [ ],
+  "passed" : true,
+  "case" : "METADATA_DATE_NOT_FABRICATION"
+} ]

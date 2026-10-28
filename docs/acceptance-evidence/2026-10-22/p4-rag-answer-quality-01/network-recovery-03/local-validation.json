@@ -1,0 +1,66 @@
+{
+  "backend": {
+    "command": ".\\mvnw.cmd -B -ntp verify",
+    "result": "PASS",
+    "tests": 1636,
+    "passed": 1604,
+    "skipped": 32,
+    "failures": 0,
+    "errors": 0,
+    "duration": "07:10",
+    "finishedAt": "2026-10-23T00:11:28+08:00",
+    "liveOptInDisabled": true,
+    "notes": "All test sources recompiled; GeminiAnswerQualityFixtureTest 3/3, including concurrent budget reservations. Conditional skips do not establish real model quality."
+  },
+  "frontend": {
+    "lint": {
+      "result": "PASS",
+      "errors": 0,
+      "warnings": 77
+    },
+    "typecheck": {
+      "result": "PASS"
+    },
+    "test": {
+      "result": "PASS",
+      "files": 49,
+      "tests": 373
+    },
+    "build": {
+      "result": "PASS",
+      "notes": "Existing chunk-size warning; no frontend changes."
+    }
+  },
+  "live": {
+    "connectivity": "PASS at attempt10 after attempt9 HTTP503",
+    "q01": "PASS mechanical assertions and independent semantic review",
+    "remaining": "PASS test mechanics; 3 semantic incomplete answers separately recorded",
+    "businessCompleted": 14,
+    "notExecuted": 6
+  },
+  "frozenFixtures": {
+    "result": "PASS",
+    "archivedDocuments": 14,
+    "historicalHashes": 13,
+    "bomAndLineEndingCheck": "PASS",
+    "windowsChunkParity": "PASS"
+  },
+  "security": {
+    "exactCredentialMatch": "PASS; checked in memory without printing credential",
+    "noPlaintextCredentialsPersisted": true
+  },
+  "logs": {
+    "policy": "Temporary logs deleted after recording summarized results and hashes",
+    "sha256": {
+      "p4-rag-recovery03-backend-verify.log": "9df1180a9994d005be7ba84cb1dda8e260423b8ec1e96499da35e9db7f8cc41e",
+      "p4-rag-recovery03-connectivity.log": "a9dc71544af37f52374fc841df81f23ca9876c652ec17617a04460980d7298f7",
+      "p4-rag-recovery03-frontend-build.log": "f4fe991a8915cbf1fbb64eb6ee38540986478822940eb2d4f78dbbc72776a65c",
+      "p4-rag-recovery03-frontend-lint.log": "0d95e005f3b19b2b3fef336377203f61bd07b65000df0794a455d76d42d19561",
+      "p4-rag-recovery03-frontend-test.log": "b430bf31d5963d9bf647cd7692b3497b57ff7c2d1eea138246e7fbce65dbc8b8",
+      "p4-rag-recovery03-frontend-typecheck.log": "e4bfbbdeb60249ed62c24441f53bcc909161b576e27e323f5bee5d3727bd7770",
+      "p4-rag-recovery03-offline.log": "7ed5137887e16f5646c8a9dce15349f499d07e40a350591112211b306075ab7e",
+      "p4-rag-recovery03-q01.log": "5680c3646343e7736b388bfc020a5f3fb6978b1452de52294aa44dc199edfeca",
+      "p4-rag-recovery03-remaining.log": "6c9e519be766487ba6f010fd0a0a2e6dd6ed88d8417681760087ce928efccc44"
+    }
+  }
+}

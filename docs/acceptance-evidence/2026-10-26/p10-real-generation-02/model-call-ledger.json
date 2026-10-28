@@ -1,0 +1,293 @@
+{
+  "task": "P10-REAL-GENERATION-02",
+  "authorization": {
+    "task": "P10-REAL-GENERATION-02",
+    "granted": true,
+    "recordedAt": "2026-10-26T08:46:33.000Z",
+    "userConfirmedFreeApi": true,
+    "independentlyVerifiedBilling": false,
+    "billingNote": "用户在本次授权中确认按现有免费 API 额度执行；明确不授权付费、升级套餐或切换到收费路由。账号计费状态未独立核实，且不得因此擅自开启付费。",
+    "user": "p3u04_admin",
+    "purpose": "KNOWLEDGE_CHAT",
+    "provider": {
+      "type": "GEMINI",
+      "name": "Gemini 3.5 Flash Lite",
+      "model": "gemini-3.5-flash-lite",
+      "routeSha256": "df17eb978e42ecb533a8f1f7a6ff756c6e1521abe6308f9671dca06e9123cbbc",
+      "routeSha256Source": "PRODUCTION_CODE_PATH_RECOMPUTED_IN_PHASE_1_PREFLIGHT",
+      "freeTier": "USER_CONFIRMED_FREE_API",
+      "independentlyVerifiedBilling": false,
+      "paidBillingEnabledByThisTask": false
+    },
+    "maxChatRequests": 8,
+    "maxOutputTokensPerRequest": 1024,
+    "minimumIntervalSeconds": 15,
+    "externalEmbedding": 0,
+    "agent": 0,
+    "judge": 0,
+    "automaticChatRetries": 0,
+    "paidBillingChangesAllowed": false,
+    "providerSwitchAllowed": false,
+    "extraQuotaProbingAllowed": false,
+    "onAnyFailure": "STOP_REMAINING_QUESTIONS_NO_RETRY",
+    "onPossibleCost": "STOP_IMMEDIATELY_SEND_NO_FURTHER_REQUESTS",
+    "note": "上一批次 P10-REAL-GENERATION-01 的授权不适用于本批次；本批次为独立授权。"
+  },
+  "provider": {
+    "type": "GEMINI",
+    "name": "Gemini 3.5 Flash Lite",
+    "model": "gemini-3.5-flash-lite",
+    "routeSha256": "df17eb978e42ecb533a8f1f7a6ff756c6e1521abe6308f9671dca06e9123cbbc",
+    "freeTier": "USER_CONFIRMED_FREE_API",
+    "independentlyVerifiedBilling": false,
+    "paidBillingEnabledByThisTask": false
+  },
+  "limits": {
+    "chatRequests": 8,
+    "maxOutputTokensPerRequest": 1024,
+    "minimumIntervalSeconds": 15,
+    "automaticChatRetries": 0,
+    "externalEmbedding": 0,
+    "agent": 0,
+    "judge": 0
+  },
+  "actualCalls": {
+    "externalChat": 8,
+    "dispatchReservations": 8,
+    "providerAcceptedRequests": 8,
+    "externalEmbedding": 0,
+    "agent": 0,
+    "judge": 0,
+    "automaticRetries": 0
+  },
+  "usage": {
+    "promptTokens": "SEE_CALL_USAGE",
+    "completionTokens": "SEE_CALL_USAGE",
+    "thinkingTokens": "UNAVAILABLE_NOT_REPORTED_BY_PROVIDER",
+    "cost": "UNAVAILABLE_NOT_INDEPENDENTLY_VERIFIED",
+    "observedAttemptLatencyMs": 11590
+  },
+  "calls": [
+    {
+      "id": "AQ01-CURRENT",
+      "attempt": 1,
+      "startedAt": "2026-10-26T16:50:41.622365600+08:00",
+      "status": "HTTP_RETURNED",
+      "usage": {
+        "promptTokenCount": 865,
+        "candidatesTokenCount": 132,
+        "totalTokenCount": 997,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 865
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "transportStarted": true,
+      "latencyMs": 1564,
+      "outcome": "EXECUTED",
+      "errorCode": null,
+      "providerReceipt": "RESPONSE_CAPTURED",
+      "httpStatus": "200_OR_2XX_RESPONSE_RETURNED",
+      "actualCost": "UNAVAILABLE",
+      "providerAcceptance": "RESPONSE_RETURNED",
+      "outputBudgetTruncation": "NOT_OBSERVED"
+    },
+    {
+      "id": "AQ02-REPEALED",
+      "attempt": 2,
+      "startedAt": "2026-10-26T16:50:58.552172800+08:00",
+      "status": "HTTP_RETURNED",
+      "usage": {
+        "promptTokenCount": 1018,
+        "candidatesTokenCount": 132,
+        "totalTokenCount": 1150,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 1018
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "transportStarted": true,
+      "latencyMs": 1288,
+      "outcome": "EXECUTED",
+      "errorCode": null,
+      "providerReceipt": "RESPONSE_CAPTURED",
+      "httpStatus": "200_OR_2XX_RESPONSE_RETURNED",
+      "actualCost": "UNAVAILABLE",
+      "providerAcceptance": "RESPONSE_RETURNED",
+      "outputBudgetTruncation": "NOT_OBSERVED"
+    },
+    {
+      "id": "AQ04-REGION-THRESHOLD",
+      "attempt": 3,
+      "startedAt": "2026-10-26T16:51:15.182214100+08:00",
+      "status": "HTTP_RETURNED",
+      "usage": {
+        "promptTokenCount": 821,
+        "candidatesTokenCount": 69,
+        "totalTokenCount": 890,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 821
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "transportStarted": true,
+      "latencyMs": 883,
+      "outcome": "EXECUTED",
+      "errorCode": null,
+      "providerReceipt": "RESPONSE_CAPTURED",
+      "httpStatus": "200_OR_2XX_RESPONSE_RETURNED",
+      "actualCost": "UNAVAILABLE",
+      "providerAcceptance": "RESPONSE_RETURNED",
+      "outputBudgetTruncation": "NOT_OBSERVED"
+    },
+    {
+      "id": "AQ06-UNLESS",
+      "attempt": 4,
+      "startedAt": "2026-10-26T16:51:31.416753500+08:00",
+      "status": "HTTP_RETURNED",
+      "usage": {
+        "promptTokenCount": 894,
+        "candidatesTokenCount": 61,
+        "totalTokenCount": 955,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 894
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "transportStarted": true,
+      "latencyMs": 855,
+      "outcome": "EXECUTED",
+      "errorCode": null,
+      "providerReceipt": "RESPONSE_CAPTURED",
+      "httpStatus": "200_OR_2XX_RESPONSE_RETURNED",
+      "actualCost": "UNAVAILABLE",
+      "providerAcceptance": "RESPONSE_RETURNED",
+      "outputBudgetTruncation": "NOT_OBSERVED"
+    },
+    {
+      "id": "AQ07-AND-OR",
+      "attempt": 5,
+      "startedAt": "2026-10-26T16:51:47.578075+08:00",
+      "status": "HTTP_RETURNED",
+      "usage": {
+        "promptTokenCount": 858,
+        "candidatesTokenCount": 208,
+        "totalTokenCount": 1066,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 858
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "transportStarted": true,
+      "latencyMs": 1400,
+      "outcome": "EXECUTED",
+      "errorCode": null,
+      "providerReceipt": "RESPONSE_CAPTURED",
+      "httpStatus": "200_OR_2XX_RESPONSE_RETURNED",
+      "actualCost": "UNAVAILABLE",
+      "providerAcceptance": "RESPONSE_RETURNED",
+      "outputBudgetTruncation": "NOT_OBSERVED"
+    },
+    {
+      "id": "AQ11-ABSTAIN-NONE",
+      "attempt": 6,
+      "startedAt": "2026-10-26T16:52:04.565455700+08:00",
+      "status": "HTTP_RETURNED",
+      "usage": {
+        "promptTokenCount": 810,
+        "candidatesTokenCount": 45,
+        "totalTokenCount": 855,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 810
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "transportStarted": true,
+      "latencyMs": 2136,
+      "outcome": "EXECUTED",
+      "errorCode": null,
+      "providerReceipt": "RESPONSE_CAPTURED",
+      "httpStatus": "200_OR_2XX_RESPONSE_RETURNED",
+      "actualCost": "UNAVAILABLE",
+      "providerAcceptance": "RESPONSE_RETURNED",
+      "outputBudgetTruncation": "NOT_OBSERVED"
+    },
+    {
+      "id": "AQ12-ABSTAIN-INDIRECT",
+      "attempt": 7,
+      "startedAt": "2026-10-26T16:52:21.983518100+08:00",
+      "status": "HTTP_RETURNED",
+      "usage": {
+        "promptTokenCount": 748,
+        "candidatesTokenCount": 59,
+        "totalTokenCount": 807,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 748
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "transportStarted": true,
+      "latencyMs": 820,
+      "outcome": "EXECUTED",
+      "errorCode": null,
+      "providerReceipt": "RESPONSE_CAPTURED",
+      "httpStatus": "200_OR_2XX_RESPONSE_RETURNED",
+      "actualCost": "UNAVAILABLE",
+      "providerAcceptance": "RESPONSE_RETURNED",
+      "outputBudgetTruncation": "NOT_OBSERVED"
+    },
+    {
+      "id": "AQ14-INJECTION",
+      "attempt": 8,
+      "startedAt": "2026-10-26T16:52:38.366886700+08:00",
+      "status": "HTTP_RETURNED",
+      "usage": {
+        "promptTokenCount": 735,
+        "candidatesTokenCount": 54,
+        "totalTokenCount": 789,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 735
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "transportStarted": true,
+      "latencyMs": 2644,
+      "outcome": "EXECUTED",
+      "errorCode": null,
+      "providerReceipt": "RESPONSE_CAPTURED",
+      "httpStatus": "200_OR_2XX_RESPONSE_RETURNED",
+      "actualCost": "UNAVAILABLE",
+      "providerAcceptance": "RESPONSE_RETURNED",
+      "outputBudgetTruncation": "NOT_OBSERVED"
+    }
+  ],
+  "generationVerdict": "REAL_GENERATION_EXECUTED",
+  "generationVerdictMeaning": "真实客户端传输已执行；不表示模型生成成功或Provider已接收/计费",
+  "executionVerdict": "MEASUREMENT_EXECUTED",
+  "qualityVerdict": "REQUIRES_PER_QUESTION_REVIEW",
+  "limitation": "transportStarted 标记位于 client.send 前，只证明真实客户端传输尝试；无法证明服务端接收、生成或计费。"
+}

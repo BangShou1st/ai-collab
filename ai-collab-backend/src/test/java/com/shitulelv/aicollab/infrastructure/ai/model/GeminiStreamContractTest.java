@@ -48,7 +48,7 @@ class GeminiStreamContractTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.start();
         transport = new JsonHttpModelClient(json, mock(OutboundEndpointPolicy.class),
-                HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build(), Duration.ofSeconds(2));
+                com.shitulelv.aicollab.common.net.OutboundHttpClients.builder().build(), Duration.ofSeconds(2));
         adapter = new GeminiModelAdapter(json, transport);
         config = new ModelConfiguration(UUID.randomUUID(), UUID.randomUUID(), "test", ModelProviderType.GEMINI,
                 "http://127.0.0.1:" + server.getAddress().getPort(), "/v1beta/models/{model}:generateContent", null,

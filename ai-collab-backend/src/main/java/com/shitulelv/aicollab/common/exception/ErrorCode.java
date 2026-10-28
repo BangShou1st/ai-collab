@@ -66,6 +66,7 @@ public enum ErrorCode {
     AI_MODEL_CREDENTIAL_INVALID(HttpStatus.SERVICE_UNAVAILABLE, "模型凭据无效或授权不足，请检查个人 AI 配置"),
     AI_MODEL_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "模型服务响应超时"),
     AI_PROVIDER_ERROR(HttpStatus.BAD_GATEWAY, "模型服务调用失败"),
+    AI_PROVIDER_NOT_FOUND(HttpStatus.BAD_GATEWAY, "模型或接口路径不存在 (HTTP 404)，请检查模型 ID 与 API Path"),
     AI_PROVIDER_REQUEST_REJECTED(HttpStatus.BAD_GATEWAY, "模型服务拒绝请求，请检查访问权限与请求方式"),
     AI_PROVIDER_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "模型服务返回了无效响应"),
     AI_PROVIDER_OUTPUT_TRUNCATED(HttpStatus.BAD_GATEWAY, "模型输出被截断"),
@@ -134,6 +135,7 @@ public enum ErrorCode {
     AGENT_NO_PROGRESS(HttpStatus.CONFLICT, "Agent 无进展循环"),
     TOOL_ARGUMENT_INVALID(HttpStatus.BAD_REQUEST, "工具参数校验失败"),
     TOOL_EXECUTION_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "工具执行超时"),
+    RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "请求路径不存在"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "系统内部错误");
 
     private final HttpStatus httpStatus;

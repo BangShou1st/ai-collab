@@ -86,14 +86,6 @@ public class KiloGatewayPresetService {
         repository.deleteByUserAndPreset(userId, PRESET);
     }
 
-    public void test(UUID userId, String modelName) {
-        String model = modelName != null && !modelName.isBlank() ? modelName.strip()
-                : repository.findByUserAndPreset(userId, PRESET).map(UserAiProvider::modelName)
-                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "model required"));
-        requireAdmittedModel(model, models(false));
-        transport.validateModel(model);
-    }
-
     /** 只允许当前网关仍在服务的免费模型；{@code :free} 后缀本身不构成证据，须以上游实时目录为准。 */
     private void requireAdmittedModel(String model, List<String> admitted) {
         String candidate = model == null ? "" : model.strip();

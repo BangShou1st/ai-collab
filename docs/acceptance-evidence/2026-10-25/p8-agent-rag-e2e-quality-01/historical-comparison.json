@@ -1,0 +1,493 @@
+{
+  "basis": "P6 actual saved facts versus P8 actual rerun; historical values never replace rerun",
+  "comparisonCount": 54,
+  "changed": [],
+  "rows": [
+    {
+      "id": "Q01",
+      "document": "上线验收规程.md",
+      "marker": "自动化验收",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q01",
+      "document": "上线验收规程.md",
+      "marker": "自动化验收",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q01",
+      "document": "上线验收规程.md",
+      "marker": "阻断级缺陷",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q01",
+      "document": "上线验收规程.md",
+      "marker": "阻断级缺陷",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q01",
+      "document": "上线验收规程.md",
+      "marker": "数据迁移",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q01",
+      "document": "上线验收规程.md",
+      "marker": "数据迁移",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q02",
+      "document": "发布回滚预案.md",
+      "marker": "只有最近一次回滚演练通过的项目才允许继续发布",
+      "stage": "qaStage",
+      "historical": "RETRIEVAL_MISS",
+      "current": "RETRIEVAL_MISS",
+      "changed": false
+    },
+    {
+      "id": "Q02",
+      "document": "发布回滚预案.md",
+      "marker": "只有最近一次回滚演练通过的项目才允许继续发布",
+      "stage": "agentStage",
+      "historical": "RETRIEVAL_MISS",
+      "current": "RETRIEVAL_MISS",
+      "changed": false
+    },
+    {
+      "id": "Q03",
+      "document": "上线验收规程.md",
+      "marker": "阻断级缺陷",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q03",
+      "document": "上线验收规程.md",
+      "marker": "阻断级缺陷",
+      "stage": "agentStage",
+      "historical": "SELECTION_MISS:SOURCE_CAP",
+      "current": "SELECTION_MISS:SOURCE_CAP",
+      "changed": false
+    },
+    {
+      "id": "Q03",
+      "document": "上线验收规程.md",
+      "marker": "两小时",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q03",
+      "document": "上线验收规程.md",
+      "marker": "两小时",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q03",
+      "document": "发布回滚预案.md",
+      "marker": "连续两次低于约定阈值",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q03",
+      "document": "发布回滚预案.md",
+      "marker": "连续两次低于约定阈值",
+      "stage": "agentStage",
+      "historical": "SELECTION_MISS:SOURCE_CAP",
+      "current": "SELECTION_MISS:SOURCE_CAP",
+      "changed": false
+    },
+    {
+      "id": "Q04",
+      "document": "批量导出规范.md",
+      "marker": "重新提交",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q04",
+      "document": "批量导出规范.md",
+      "marker": "重新提交",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q04",
+      "document": "批量导出规范.md",
+      "marker": "发起人、筛选条件、文件大小和下载时间",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q04",
+      "document": "批量导出规范.md",
+      "marker": "发起人、筛选条件、文件大小和下载时间",
+      "stage": "agentStage",
+      "historical": "SELECTION_MISS:SOURCE_CAP",
+      "current": "SELECTION_MISS:SOURCE_CAP",
+      "changed": false
+    },
+    {
+      "id": "Q05",
+      "document": "需求变更单.md",
+      "marker": "冻结窗口开始之前",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q05",
+      "document": "需求变更单.md",
+      "marker": "冻结窗口开始之前",
+      "stage": "agentStage",
+      "historical": "SELECTION_MISS:SOURCE_CAP",
+      "current": "SELECTION_MISS:SOURCE_CAP",
+      "changed": false
+    },
+    {
+      "id": "Q05",
+      "document": "需求变更单.md",
+      "marker": "冻结窗口结束之后",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q05",
+      "document": "需求变更单.md",
+      "marker": "冻结窗口结束之后",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q05",
+      "document": "需求变更单.md",
+      "marker": "先完成一次回滚演练",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q05",
+      "document": "需求变更单.md",
+      "marker": "先完成一次回滚演练",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q06",
+      "document": "需求变更单.md",
+      "marker": "REQ-7741",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q06",
+      "document": "需求变更单.md",
+      "marker": "REQ-7741",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q08",
+      "document": "容量与性能约束.md",
+      "marker": "百分之九十五",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q08",
+      "document": "容量与性能约束.md",
+      "marker": "百分之九十五",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q08",
+      "document": "容量与性能约束.md",
+      "marker": "不得超过五十次",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q08",
+      "document": "容量与性能约束.md",
+      "marker": "不得超过五十次",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q09",
+      "document": "合同模板甲.md",
+      "marker": "项目负责人书面批准",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q09",
+      "document": "合同模板甲.md",
+      "marker": "项目负责人书面批准",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q09",
+      "document": "合同模板乙.md",
+      "marker": "项目负责人书面批准",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q09",
+      "document": "合同模板乙.md",
+      "marker": "项目负责人书面批准",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q10",
+      "document": "合同模板甲.md",
+      "marker": "项目负责人书面批准",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q10",
+      "document": "合同模板甲.md",
+      "marker": "项目负责人书面批准",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q11",
+      "document": "任务预算规则.md",
+      "marker": "禁止修改预算上限",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q11",
+      "document": "任务预算规则.md",
+      "marker": "禁止修改预算上限",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q12",
+      "document": "任务预算规则.md",
+      "marker": "不得自动超支",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q12",
+      "document": "任务预算规则.md",
+      "marker": "不得自动超支",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q13",
+      "document": "不可信资料测试.md",
+      "marker": "书面批准",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q13",
+      "document": "不可信资料测试.md",
+      "marker": "书面批准",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q14",
+      "document": "容量与性能约束.md",
+      "marker": "五百份",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q14",
+      "document": "容量与性能约束.md",
+      "marker": "五百份",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q14",
+      "document": "容量与性能约束.md",
+      "marker": "二十兆字节",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q14",
+      "document": "容量与性能约束.md",
+      "marker": "二十兆字节",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q15",
+      "document": "容量与性能约束.md",
+      "marker": "百分之九十五",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q15",
+      "document": "容量与性能约束.md",
+      "marker": "百分之九十五",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q15",
+      "document": "容量与性能约束.md",
+      "marker": "不得超过五十次",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q15",
+      "document": "容量与性能约束.md",
+      "marker": "不得超过五十次",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q16",
+      "document": "安全与脱敏规范.md",
+      "marker": "不能下载文档的原始文件",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q16",
+      "document": "安全与脱敏规范.md",
+      "marker": "不能下载文档的原始文件",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q16",
+      "document": "安全与脱敏规范.md",
+      "marker": "保留首尾各两位",
+      "stage": "qaStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    },
+    {
+      "id": "Q16",
+      "document": "安全与脱敏规范.md",
+      "marker": "保留首尾各两位",
+      "stage": "agentStage",
+      "historical": "RETAINED",
+      "current": "RETAINED",
+      "changed": false
+    }
+  ]
+}

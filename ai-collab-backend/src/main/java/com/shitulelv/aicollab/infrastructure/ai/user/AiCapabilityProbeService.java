@@ -10,7 +10,9 @@ import com.shitulelv.aicollab.planning.domain.PlanMilestone;
 import com.shitulelv.aicollab.planning.domain.PlanTask;
 import com.shitulelv.aicollab.planning.domain.SkeletonModelOutput;
 import org.springframework.stereotype.Service;
+import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -37,29 +39,237 @@ public class AiCapabilityProbeService {
 
     public enum Mode { CONNECTIVITY, PLANNING_JSON, STREAMING, NATIVE_TOOLS }
     public record Evidence(Mode mode, String provider, String model, long latencyMs, boolean verified) {}
+
+    /**
+     * 对外暴露的探针结果（含读取时判定的 STALE）。
+     * status 为落库原值；stale=true 表示配置已变更，结论不再描述当前配置。
+     */
+    public record ProbeResultView(
+            String mode, String status, String model, String detail, String errorCode,
+            Long latencyMs, java.time.OffsetDateTime testedAt, boolean stale) {}
+
     private final UserAiProviderService providers;
     private final ChatModelGateway chat;
     private final ModelTurnGateway turns;
     private final ObjectMapper json;
     private final PlanningJsonContract planningContract;
-    public AiCapabilityProbeService(UserAiProviderService providers, ChatModelGateway chat, ModelTurnGateway turns, ObjectMapper json) {
-        this(providers, chat, turns, json, null);
-    }
+    private final UserAiProviderProbeResultRepository probeResults;
+    private final UserAiProviderRepository repository;
+    /** 每 Provider 至多一个能力检测任务（JVM 内互斥；当前部署为单体应用）。 */
+    private final Map<UUID, java.util.concurrent.locks.ReentrantLock> probeLocks = new ConcurrentHashMap<>();
+
     @org.springframework.beans.factory.annotation.Autowired
     public AiCapabilityProbeService(UserAiProviderService providers, ChatModelGateway chat, ModelTurnGateway turns,
-            ObjectMapper json, PlanningJsonContract planningContract) {
+            ObjectMapper json, PlanningJsonContract planningContract,
+            UserAiProviderProbeResultRepository probeResults, UserAiProviderRepository repository) {
         this.providers=providers; this.chat=chat; this.turns=turns; this.json=json;
         this.planningContract=planningContract;
+        this.probeResults=probeResults;
+        this.repository=repository;
     }
+
+    /**
+     * 执行一次能力探针并落库结果；异常原样抛出（前端仍拿到分类错误），失败结论同时持久化。
+     *
+     * <p>探针在专用 {@link com.shitulelv.aicollab.infrastructure.ai.model.CapabilityProbeContext}
+     * 中执行：允许测试尚未声明的能力（真实合成请求），“尚未声明”不再被当成
+     * “模型不支持”。生产路径永不处于该上下文，声明门控保持不变。</p>
+     */
     public Evidence test(UUID user, UUID id, Mode mode) {
-        var selected = providers.requireRuntimeConfiguration(user,id);
+        var selected = providers.requireRuntimeConfiguration(user, id);
         providers.requireSnapshotAuthorized(selected);
-        try (var snapshot = new AiConfigurationContext(selected)) {
-            if (mode == Mode.NATIVE_TOOLS) {
+        long startedAt = System.currentTimeMillis();
+        try (var snapshot = new AiConfigurationContext(selected);
+             var probeContext = new com.shitulelv.aicollab.infrastructure.ai.model.CapabilityProbeContext(selected)) {
+            Evidence evidence = execute(selected, user, mode);
+            record(selected, mode, UserAiProviderProbeResultRepository.PASS,
+                    evidence.model(), null, null, evidence.latencyMs());
+            return evidence;
+        } catch (Exception failure) {
+            String status = classify(failure);
+            String detail = failure instanceof BusinessException business && business.getMessage() != null
+                    ? business.getMessage() : "所选能力测试未满足输出契约";
+            String errorCode = failure instanceof BusinessException business
+                    ? business.getErrorCode().name() : null;
+            record(selected, mode, status, selected.modelName(), detail, errorCode,
+                    System.currentTimeMillis() - startedAt);
+            throw failure;
+        }
+    }
+
+    /** 该 Provider 各探针模式的最新落库结果；配置变更后的旧结果以 stale 标记。 */
+    public List<ProbeResultView> results(UUID user, UUID id) {
+        var provider = providers.requireRuntimeConfiguration(user, id);
+        return probeResults.findAllByProviderId(id).stream()
+                .map(row -> new ProbeResultView(row.mode(), row.status(), row.modelName(), row.detail(),
+                        row.errorCode(), row.latencyMs(), row.testedAt(),
+                        !provider.updatedAt().equals(row.testedConfigUpdatedAt())))
+                .toList();
+    }
+
+    /** 单步检测结果（SKIPPED 表示前序确认失败后未发起请求）。 */
+    public record DetectStepResult(Mode mode, String status, String detail, String errorCode, Long latencyMs) {}
+
+    /**
+     * 能力自动写回结果。applied=false 时 reason 说明原因（配置版本变化等），
+     * 绝不虚报保存成功。
+     */
+    public record CapabilityWriteBack(boolean applied, String reason,
+            java.util.Set<ModelCapability> capabilitiesAfter) {}
+
+    /** 「检测并配置」整体结果：逐步结论 + 写回结果 + 消耗的真实生成请求数。 */
+    public record DetectAndConfigureResult(
+            List<DetectStepResult> steps, CapabilityWriteBack writeBack, int generationRequests) {}
+
+    /**
+     * 一键「检测并配置」：串行执行连接 → 流式 →（可选）规划 →（可选）原生工具，
+     * 探针 PASS 后把对应能力 CAS 写回模型配置。
+     *
+     * <p>并发约束：同一 Provider 同时只允许一个检测任务（JVM 内互斥锁，前端
+     * 防重复点击之外的后端防线）；探针绑定检测开始时的配置版本（updated_at），
+     * 写回用条件更新做乐观并发——检测期间改了模型/Base URL/Key/能力声明或
+     * 另一窗口并发修改时拒绝覆盖并明确报错。写回成功后把本次运行落库结论的
+     * 版本锚点迁移到新版本，避免「刚通过就过期」。规划探针通过只记录规划契约
+     * 证据，不启用 STRUCTURED_OUTPUT（规划走 PROMPT_JSON，不触发该门控）。</p>
+     *
+     * <p>预算：连接 1 + 流式 1 + 规划最多 4 + 原生工具 1（与前端展示一致）；
+     * FAIL/NOT_SUPPORTED 中止后续步骤（不再消耗请求），INCONCLUSIVE 继续。
+     * 自动写回只增加能力，绝不移除用户已声明的其他能力。</p>
+     */
+    public DetectAndConfigureResult detectAndConfigure(UUID user, UUID id, boolean planning, boolean nativeTools) {
+        var lock = probeLocks.computeIfAbsent(id, key -> new java.util.concurrent.locks.ReentrantLock());
+        if (!lock.tryLock()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "该模型配置已有能力检测任务在进行中，请等待完成后再试");
+        }
+        try {
+            UserAiProvider current = providers.requireRuntimeConfiguration(user, id);
+            OffsetDateTime configVersion = current.updatedAt();
+            boolean preset = current.isPreset();
+            List<Mode> planned = new ArrayList<>(List.of(Mode.CONNECTIVITY, Mode.STREAMING));
+            if (planning) planned.add(Mode.PLANNING_JSON);
+            if (nativeTools) planned.add(Mode.NATIVE_TOOLS);
+
+            List<DetectStepResult> steps = new ArrayList<>();
+            Set<Mode> passed = EnumSet.noneOf(Mode.class);
+            int requests = 0;
+            boolean hardStop = false;
+            for (Mode mode : planned) {
+                if (hardStop) {
+                    steps.add(new DetectStepResult(mode, "SKIPPED",
+                            "前序步骤确认失败，本步骤未发起请求", null, null));
+                    continue;
+                }
+                long startedAt = System.currentTimeMillis();
+                try {
+                    Evidence evidence = test(user, id, mode);
+                    requests += mode == Mode.PLANNING_JSON ? 4 : 1;
+                    steps.add(new DetectStepResult(mode, UserAiProviderProbeResultRepository.PASS,
+                            null, null, evidence.latencyMs()));
+                    passed.add(mode);
+                } catch (Exception failure) {
+                    requests += mode == Mode.PLANNING_JSON ? 4 : 1;
+                    String status = classify(failure);
+                    String detail = failure instanceof BusinessException business && business.getMessage() != null
+                            ? business.getMessage() : "所选能力测试未满足输出契约";
+                    steps.add(new DetectStepResult(mode, status, detail,
+                            failure instanceof BusinessException business ? business.getErrorCode().name() : null,
+                            System.currentTimeMillis() - startedAt));
+                    if (UserAiProviderProbeResultRepository.FAIL.equals(status)
+                            || UserAiProviderProbeResultRepository.NOT_SUPPORTED.equals(status)) {
+                        hardStop = true;
+                    }
+                }
+            }
+            return new DetectAndConfigureResult(steps,
+                    preset ? new CapabilityWriteBack(true,
+                            "预置连接的能力由服务端策略管理，探针结论仅作展示", current.capabilities())
+                            : writeBack(user, id, configVersion, passed),
+                    requests);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * 按真实探针结论 CAS 写回能力。只增不减：写回失败或部分失败不影响
+     * 已保存的合法配置；探针结论照常落库展示（用户可据此手动调整）。
+     */
+    private CapabilityWriteBack writeBack(UUID user, UUID id, OffsetDateTime configVersion, Set<Mode> passed) {
+        Set<ModelCapability> toAdd = EnumSet.noneOf(ModelCapability.class);
+        if (passed.contains(Mode.CONNECTIVITY)) toAdd.add(ModelCapability.CHAT);
+        if (passed.contains(Mode.STREAMING)) toAdd.add(ModelCapability.STREAMING);
+        if (passed.contains(Mode.NATIVE_TOOLS)) toAdd.add(ModelCapability.NATIVE_TOOLS);
+        // PLANNING_JSON 通过只记录规划契约证据，不映射 STRUCTURED_OUTPUT（见方法注释）。
+        UserAiProvider current = providers.requireRuntimeConfiguration(user, id);
+        if (toAdd.isEmpty() || current.capabilities().containsAll(toAdd)) {
+            // 无新增能力时不推进配置版本：避免同轮落库的 INCONCLUSIVE 结论被误标 STALE。
+            return new CapabilityWriteBack(true, null, current.capabilities());
+        }
+        Optional<OffsetDateTime> newVersion =
+                repository.addCapabilitiesIfVersionMatches(id, user, toAdd, configVersion);
+        if (newVersion.isEmpty()) {
+            return new CapabilityWriteBack(false,
+                    "检测期间配置已变更（模型、Key、端点或能力声明），探针结论未自动写入；请确认配置后重新检测",
+                    providers.requireRuntimeConfiguration(user, id).capabilities());
+        }
+        List<String> modes = passed.stream().map(Enum::name).toList();
+        repository.rebaseProbeTestedVersion(id, configVersion, newVersion.get(), modes);
+        return new CapabilityWriteBack(true, null,
+                providers.requireRuntimeConfiguration(user, id).capabilities());
+    }
+
+    private void record(UserAiProvider provider, Mode mode, String status, String model,
+            String detail, String errorCode, Long latencyMs) {
+        try {
+            probeResults.upsert(new UserAiProviderProbeResultRepository.ProbeResultRow(
+                    provider.id(), mode.name(), status, model, detail, errorCode, latencyMs,
+                    provider.updatedAt(), null));
+        } catch (RuntimeException persistenceFailure) {
+            // 结果落库失败不影响探针结论本身：调用方已拿到真实结果/错误。
+            org.slf4j.LoggerFactory.getLogger(AiCapabilityProbeService.class)
+                    .warn("Failed to persist probe result for provider {}: {}", provider.id(),
+                            persistenceFailure.getMessage());
+        }
+    }
+
+    /**
+     * 失败分类：临时故障（网络/超时/限流/5xx）不形成能力结论，记 INCONCLUSIVE；
+     * 鉴权/路径/契约问题记 FAIL。探针已在专用上下文中豁免用户声明门控，
+     * 该消息启发式仅兜底预设（服务端策略）的真实拒绝——不再把“用户未勾选声明”
+     * 误报为“模型不支持”。
+     */
+    static String classify(Throwable failure) {
+        if (failure instanceof BusinessException business) {
+            ErrorCode code = business.getErrorCode();
+            if (code == ErrorCode.AI_PROVIDER_UNAVAILABLE) {
+                String message = String.valueOf(business.getMessage());
+                if (message.contains("不支持") || message.contains("必须支持")) {
+                    return UserAiProviderProbeResultRepository.NOT_SUPPORTED;
+                }
+                return UserAiProviderProbeResultRepository.INCONCLUSIVE;
+            }
+            if (code == ErrorCode.AI_MODEL_CREDENTIAL_INVALID
+                    || code == ErrorCode.AI_PROVIDER_REQUEST_REJECTED
+                    || code == ErrorCode.AI_PROVIDER_NOT_FOUND
+                    || code == ErrorCode.AI_PROVIDER_INVALID_RESPONSE
+                    || code == ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED
+                    || code == ErrorCode.VALIDATION_ERROR) {
+                return UserAiProviderProbeResultRepository.FAIL;
+            }
+        }
+        // 超时/限流/HTTP 5xx/未知故障：未能形成能力结论。
+        return UserAiProviderProbeResultRepository.INCONCLUSIVE;
+    }
+
+    private Evidence execute(UserAiProvider selected, UUID user, Mode mode) {
+        // AiConfigurationContext 已由 test() 建立（ThreadLocal 钉住本 provider）。
+        if (mode == Mode.NATIVE_TOOLS) {
+                // schema 刻意保持 Gemini OpenAPI 子集兼容（不用 const/additionalProperties）：
+                // 探针要在同一 schema 下覆盖全部协议（T09）；参数值正确性由响应侧校验兜底。
                 var schema = json.createObjectNode().put("type","object");
-                schema.set("properties",json.createObjectNode().set("value",json.createObjectNode().put("type","string").put("const","probe")));
+                schema.set("properties",json.createObjectNode().set("value",json.createObjectNode().put("type","string")));
                 schema.set("required",json.createArrayNode().add("value"));
-                schema.put("additionalProperties",false);
                 var result = turns.turn(new ModelTurnCommand(ModelPurpose.AGENT,null,null,
                         List.of(new ModelMessage.User("必须调用 capability_probe，value 为 probe。不要执行任何其他操作。")),
                         List.of(new ModelToolDefinition("capability_probe","Synthetic capability test",schema)),true,user));
@@ -87,7 +297,6 @@ public class AiCapabilityProbeService {
                 verifyPlanningDetail(skeleton, user);
             }
             return new Evidence(mode,result.provider(),result.model(),result.latencyMs(),true);
-        }
     }
 
     /**

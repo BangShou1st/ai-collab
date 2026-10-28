@@ -1,20 +1,26 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import { useAuthStore } from '../../stores/auth-store'
 import PageHeader from '../../shared/PageHeader.vue'
 import EmptyState from '../../shared/EmptyState.vue'
-import { userAiApi, type AiProviderType, type AiPurpose, type UserAiProvider } from './user-ai-api'
+import { userAiApi, type AiPurpose, type ProviderProfile, type UserAiProvider } from './user-ai-api'
 import { aiPresetApi, type PresetStatus } from './ai-preset-api'
+import { loadProviderProfiles } from './provider-profiles'
+import { usePresetConnection } from './use-preset-connection'
+import ProviderFormDialog from './ProviderFormDialog.vue'
+import CapabilitySuitePanel from './CapabilitySuitePanel.vue'
 import {
   AI_PURPOSES,
-  PROBE_MODES,
-  probeKey,
+  READINESS_LABELS,
+  purposeReadiness,
+  probeResultsFromViews,
   resolvePurposeStatuses,
   type ProbeMode,
-  type ProbeOutcome,
+  type ProbeResultState,
+  type PurposeReadiness,
   type PurposeStatus,
 } from './ai-purpose-status'
 
@@ -24,60 +30,40 @@ const loading = ref(false)
 /** 配置加载失败：状态未知，不得显示为“未配置”。 */
 const loadFailed = ref(false)
 const zen = ref<PresetStatus | null>(null)
-const zenModels = ref<string[]>([])
-const zenLoading = ref(false)
-const zenKey = ref('')
-const zenModel = ref('')
-const zenEnabled = ref(true)
-const zenDefault = ref(false)
 const kilo = ref<PresetStatus | null>(null)
-const kiloModels = ref<string[]>([])
-const kiloLoading = ref(false)
-const kiloModel = ref('')
-const kiloEnabled = ref(true)
-const kiloDefault = ref(false)
-const saving = ref(false)
-const savingKilo = ref(false)
-const disconnecting = ref(false)
-const disconnectingKilo = ref(false)
-const testingId = ref('')
+const profiles = ref<ProviderProfile[]>([])
 const dialogVisible = ref(false)
-const purposesFailed = ref(false)
 const editing = ref<UserAiProvider | null>(null)
-const showAdvanced = ref('')
+const purposesFailed = ref(false)
+/** 落库探针结果（providerId → 各模式最新结论，含 STALE 判定）。 */
+const persistedProbes = reactive<Record<string, Record<ProbeMode, ProbeResultState | null>>>({})
 const overrides = reactive<Record<AiPurpose, string>>({
   KNOWLEDGE_CHAT: '',
   PLANNING: '',
   AGENT: '',
 })
-/** 每次测试按钮对应的能力，按 Provider 独立保存（不同能力不互相替代）。 */
-const probeModes = reactive<Record<string, ProbeMode>>({})
-/** 仅当前会话内的测试结果，不落库、不显示历史成功，避免被当成持续健康。 */
-const probeOutcomes = reactive<Record<string, ProbeOutcome>>({})
 /** 递增请求令牌：晚到的加载响应不得覆盖新状态或回填旧用户数据。 */
 let loadToken = 0
 /** 当前已加载数据的账号；变化时丢弃旧数据并重新加载。 */
 let ownerUserId: string | null = null
 
-const form = reactive({
-  name: '',
-  providerType: 'OPENAI_COMPATIBLE' as AiProviderType,
-  baseUrl: 'https://api.openai.com',
-  apiPath: '/v1/chat/completions',
-  apiKey: '',
-  modelName: '',
-  enabled: true,
-  temperature: 0.2,
-  maxOutputTokens: 1200,
-  capabilities: ['CHAT'] as string[],
-})
-const dialogTitle = computed(() => (editing.value ? '编辑 AI 配置' : '添加 AI 配置'))
 const customProviders = computed(() => providers.value.filter((p) => !p.presetCode))
 const enabledProviderCount = computed(() => providers.value.filter((p) => p.enabled).length)
-const zenProviderId = computed(() => providers.value.find((p) => p.presetCode === 'OPENCODE_ZEN_FREE')?.id ?? '')
-const kiloProviderId = computed(() => providers.value.find((p) => p.presetCode === 'KILO_GATEWAY_FREE')?.id ?? '')
-const canSave = computed(() => Boolean(form.name.trim() && form.modelName.trim() && (form.apiKey.trim() || editing.value)))
+const zenProvider = computed(() => providers.value.find((p) => p.presetCode === 'OPENCODE_ZEN_FREE') ?? null)
+const kiloProvider = computed(() => providers.value.find((p) => p.presetCode === 'KILO_GATEWAY_FREE') ?? null)
 const purposeStatuses = computed<PurposeStatus[]>(() => resolvePurposeStatuses(providers.value, overrides))
+
+/** 用途就绪 = 配置解析 × 能力声明 × 探针证据；CONNECTIVITY 通过不外推到任何用途。 */
+function readinessOf(status: PurposeStatus): PurposeReadiness | null {
+  return purposeReadiness(status.purpose, status.provider, persistedProbes[status.provider?.id ?? ''] ?? probeResultsFromViews([]))
+}
+
+function readinessTagType(readiness: PurposeReadiness | null): 'success' | 'danger' | 'warning' | 'info' {
+  if (readiness === 'READY') return 'success'
+  if (readiness === 'UNAVAILABLE') return 'danger'
+  if (readiness === 'UNVERIFIED' || readiness === 'VERIFIED_NOT_ENABLED') return 'warning'
+  return 'info'
+}
 
 /**
  * 覆盖指向的 Provider 若已停用或已从可选列表移除，选择器会回退成原始 ID；
@@ -104,31 +90,19 @@ function purposeLabel(purpose: AiPurpose): string {
   return AI_PURPOSES.find((item) => item.value === purpose)?.label ?? purpose
 }
 
-function modeFor(id: string): ProbeMode {
-  return probeModes[id] ?? 'CONNECTIVITY'
-}
-
-function outcomeFor(id: string): ProbeOutcome | null {
-  return probeOutcomes[probeKey(id, modeFor(id))] ?? null
-}
-
-function probeLabel(id: string): string {
-  const outcome = outcomeFor(id)
-  if (!outcome) return '未测试'
-  const label = PROBE_MODES.find((item) => item.value === outcome.mode)?.label ?? outcome.mode
-  return outcome.ok ? `${label}：本次会话测试通过` : `${label}：本次会话测试失败`
-}
-
-function probeTagType(id: string): 'success' | 'danger' | 'info' {
-  const outcome = outcomeFor(id)
-  if (!outcome) return 'info'
-  return outcome.ok ? 'success' : 'danger'
-}
-
-/** 测试结论只覆盖被测试的单项能力，不外推到规划 JSON、流式或原生工具。 */
-function probeSuccessMessage(mode: ProbeMode): string {
-  const label = PROBE_MODES.find((item) => item.value === mode)?.label ?? mode
-  return `${label}能力测试通过（仅该能力，其他能力需分别测试）`
+/** 用途选择器的选项组：两张卡片（解析状态/覆盖）共用同一组装配逻辑。 */
+function purposeOptions(purpose: AiPurpose) {
+  const extra = overrideExtras.value[purpose]
+  return {
+    extras: extra ? [{ label: extra.label, value: extra.id }] : [],
+    zen: zen.value?.connected && zenProvider.value
+      ? [{ label: `OpenCode Zen Free · ${zen.value?.modelName ?? ''}`, value: zenProvider.value.id }]
+      : [],
+    kilo: kilo.value?.connected && kiloProvider.value
+      ? [{ label: `Kilo Gateway Free · ${kilo.value?.modelName ?? ''}`, value: kiloProvider.value.id }]
+      : [],
+    custom: customProviders.value.filter((c) => c.enabled).map((c) => ({ label: c.name, value: c.id })),
+  }
 }
 
 function purposeStatusText(status: PurposeStatus): string {
@@ -145,7 +119,7 @@ function purposeStatusText(status: PurposeStatus): string {
   }
   const stale = status.staleOverride ? '用途覆盖已失效（对应模型已删除），已回退到默认模型 · ' : ''
   const source = status.resolution === 'OVERRIDE' ? '用途覆盖' : '默认模型'
-  return `${stale}${source}：${name} · 已启用 · 可用性未验证`
+  return `${stale}${source}：${name} · 已启用`
 }
 
 async function loadPurposes(): Promise<void> {
@@ -162,23 +136,37 @@ async function loadPurposes(): Promise<void> {
   }
 }
 
+/** 拉取全部 Provider 的落库探针结果（只读查询，不触发任何模型请求）。 */
+async function loadPersistedProbes(): Promise<void> {
+  await Promise.all(providers.value.map(async (provider) => {
+    try {
+      const result = await userAiApi.probeResults(provider.id)
+      persistedProbes[provider.id] = probeResultsFromViews(result.data ?? [])
+    } catch {
+      // 单个 Provider 的历史结果读取失败不阻塞整页
+    }
+  }))
+}
+
 async function load(): Promise<void> {
   const token = ++loadToken
   loading.value = true
   loadFailed.value = false
   try {
-    const [custom, presetList] = await Promise.all([userAiApi.list(), aiPresetApi.presets()])
+    const [custom, presetList, profileList] = await Promise.all([
+      userAiApi.list(),
+      aiPresetApi.presets(),
+      loadProviderProfiles(),
+    ])
     if (token !== loadToken) return
     providers.value = custom.data
     zen.value = presetList.data.find((p) => p.code === 'OPENCODE_ZEN_FREE') ?? null
     kilo.value = presetList.data.find((p) => p.code === 'KILO_GATEWAY_FREE') ?? null
-    if (zen.value?.modelName) zenModel.value = zen.value.modelName
-    if (kilo.value?.modelName) kiloModel.value = kilo.value.modelName
-    zenEnabled.value = zen.value?.enabled ?? true
-    kiloEnabled.value = kilo.value?.enabled ?? true
-    zenDefault.value = !custom.data.some((p) => p.isDefault) || (zen.value?.isDefault ?? false)
-    kiloDefault.value = !custom.data.some((p) => p.isDefault) || (kilo.value?.isDefault ?? false)
+    profiles.value = profileList
+    zenConnection.syncFromStatus(zen.value, '')
+    kiloConnection.syncFromStatus(kilo.value, '')
     await loadPurposes()
+    await loadPersistedProbes()
   } catch (error) {
     if (token !== loadToken) return
     loadFailed.value = true
@@ -188,196 +176,48 @@ async function load(): Promise<void> {
   }
   if (token !== loadToken) return
   // 免费模型列表走独立 skeleton，不阻塞整页：先让预设配置/模型/覆盖可见
-  await Promise.all([loadZenModels(false), loadKiloModels(false)])
+  await Promise.all([zenConnection.loadModels(false), kiloConnection.loadModels(false)])
 }
 
-async function loadZenModels(refresh: boolean): Promise<void> {
-  zenLoading.value = true
+/** 能力套件完成后刷新落库结论与配置列表（写回可能已更新能力声明），用途就绪随之更新。 */
+async function onSuiteCompleted(): Promise<void> {
   try {
-    zenModels.value = (await aiPresetApi.models('OPENCODE_ZEN_FREE', refresh)).data
-    if (!zenModel.value && zenModels.value[0]) zenModel.value = zenModels.value[0]
-  } catch (error) {
-    showApiError(error, '免费模型加载，可点击重试')
-  } finally {
-    zenLoading.value = false
+    const result = await userAiApi.list()
+    if (result.data) providers.value = result.data
+  } catch {
+    // 列表刷新失败不阻断：探针结论仍会刷新
   }
+  await loadPersistedProbes()
 }
 
-async function loadKiloModels(refresh: boolean): Promise<void> {
-  kiloLoading.value = true
-  try {
-    kiloModels.value = (await aiPresetApi.models('KILO_GATEWAY_FREE', refresh)).data
-    if (!kiloModel.value && kiloModels.value[0]) kiloModel.value = kiloModels.value[0]
-  } catch (error) {
-    showApiError(error, 'Kilo 免费模型加载，可点击重试')
-  } finally {
-    kiloLoading.value = false
-  }
-}
+const zenConnection = usePresetConnection({
+  code: 'OPENCODE_ZEN_FREE',
+  displayName: 'OpenCode Zen Free',
+  supportsApiKey: true,
+  disconnectWarning: '断开后将删除已保存的 Zen API Key，用途覆盖会回退到默认模型。确定断开吗？',
+  onSaved: load,
+})
 
-/**
- * 真实模型探测只在此函数被用户点击时触发；页面初始化、刷新和用途切换都不会调用它。
- * 结果仅记录在当前会话，用于区分“未测试 / 测试失败 / 测试通过”，不表示持续健康。
- */
-async function runProbe(id: string, mode: ProbeMode, action: () => Promise<unknown>): Promise<void> {
-  testingId.value = id
-  try {
-    await action()
-    probeOutcomes[probeKey(id, mode)] = { mode, ok: true, at: Date.now() }
-    ElMessage.success(probeSuccessMessage(mode))
-  } catch (error) {
-    const detail = showApiError(error, '连接测试')
-    probeOutcomes[probeKey(id, mode)] = { mode, ok: false, at: Date.now(), detail }
-  } finally {
-    testingId.value = ''
-  }
-}
-
-async function saveZen(): Promise<void> {
-  if (!zenModel.value || saving.value) return
-  saving.value = true
-  try {
-    zen.value = (await aiPresetApi.save('OPENCODE_ZEN_FREE', { apiKey: zenKey.value || undefined, modelName: zenModel.value, enabled: zenEnabled.value, setDefault: zenDefault.value })).data
-    zenKey.value = ''
-    await load()
-    ElMessage.success('OpenCode Zen Free 已保存并启用')
-  } catch (error) {
-    showApiError(error, 'Zen 保存')
-  } finally {
-    saving.value = false
-  }
-}
-
-async function testZen(): Promise<void> {
-  await runProbe('zen', 'CONNECTIVITY', () => aiPresetApi.test('OPENCODE_ZEN_FREE', { apiKey: zenKey.value || undefined, modelName: zenModel.value || undefined }))
-}
-
-async function disconnectZen(): Promise<void> {
-  if (disconnecting.value) return
-  try {
-    await ElMessageBox.confirm('断开后将删除已保存的 Zen API Key，用途覆盖会回退到默认模型。确定断开吗？', '断开 OpenCode Zen', {
-      confirmButtonText: '断开连接', cancelButtonText: '取消', type: 'warning',
-    })
-  } catch { return }
-  disconnecting.value = true
-  try {
-    await aiPresetApi.disconnect('OPENCODE_ZEN_FREE')
-    zenKey.value = ''
-    delete probeOutcomes[probeKey('zen', 'CONNECTIVITY')]
-    await load()
-    ElMessage.success('已断开 OpenCode Zen 连接')
-  } catch (error) {
-    showApiError(error, '断开连接')
-  } finally {
-    disconnecting.value = false
-  }
-}
-
-async function saveKilo(): Promise<void> {
-  if (!kiloModel.value || savingKilo.value) return
-  savingKilo.value = true
-  try {
-    kilo.value = (await aiPresetApi.save('KILO_GATEWAY_FREE', { modelName: kiloModel.value, enabled: kiloEnabled.value, setDefault: kiloDefault.value })).data
-    await load()
-    ElMessage.success('Kilo Gateway Free 已保存并启用')
-  } catch (error) {
-    showApiError(error, 'Kilo 保存')
-  } finally {
-    savingKilo.value = false
-  }
-}
-
-async function testKilo(): Promise<void> {
-  await runProbe('kilo', 'CONNECTIVITY', () => aiPresetApi.test('KILO_GATEWAY_FREE', { modelName: kiloModel.value || undefined }))
-}
-
-async function disconnectKilo(): Promise<void> {
-  if (disconnectingKilo.value) return
-  try {
-    await ElMessageBox.confirm('断开后将删除已保存的 Kilo Gateway 连接，用途覆盖会回退到默认模型。确定断开吗？', '断开 Kilo Gateway', {
-      confirmButtonText: '断开连接', cancelButtonText: '取消', type: 'warning',
-    })
-  } catch { return }
-  disconnectingKilo.value = true
-  try {
-    await aiPresetApi.disconnect('KILO_GATEWAY_FREE')
-    delete probeOutcomes[probeKey('kilo', 'CONNECTIVITY')]
-    await load()
-    ElMessage.success('已断开 Kilo Gateway 连接')
-  } catch (error) {
-    showApiError(error, '断开连接')
-  } finally {
-    disconnectingKilo.value = false
-  }
-}
-
-function resetForm(): void {
-  editing.value = null
-  showAdvanced.value = ''
-  Object.assign(form, {
-    name: '',
-    providerType: 'OPENAI_COMPATIBLE',
-    baseUrl: 'https://api.openai.com',
-    apiPath: '/v1/chat/completions',
-    apiKey: '',
-    modelName: '',
-    enabled: true,
-    temperature: 0.2,
-    maxOutputTokens: 1200,
-    capabilities: ['CHAT'],
-  })
-}
+const kiloConnection = usePresetConnection({
+  code: 'KILO_GATEWAY_FREE',
+  displayName: 'Kilo Gateway Free',
+  supportsApiKey: false,
+  disconnectWarning: '断开后将删除已保存的 Kilo Gateway 连接，用途覆盖会回退到默认模型。确定断开吗？',
+  onSaved: load,
+})
 
 function openCreate(): void {
-  resetForm()
+  editing.value = null
   dialogVisible.value = true
 }
 
 function openEdit(provider: UserAiProvider): void {
   editing.value = provider
-  showAdvanced.value = ''
-  Object.assign(form, {
-    name: provider.name,
-    providerType: provider.providerType,
-    baseUrl: provider.baseUrl,
-    apiPath: provider.apiPath,
-    apiKey: '',
-    modelName: provider.modelName,
-    enabled: provider.enabled,
-    temperature: provider.temperature,
-    maxOutputTokens: provider.maxOutputTokens,
-    capabilities: [...provider.capabilities],
-  })
   dialogVisible.value = true
 }
 
-async function save(): Promise<void> {
-  if (!canSave.value || saving.value) return
-  saving.value = true
-  try {
-    const payload = {
-      name: form.name.trim(),
-      providerType: form.providerType,
-      baseUrl: form.baseUrl.trim(),
-      apiPath: form.apiPath.trim(),
-      apiKey: form.apiKey.trim() || null,
-      modelName: form.modelName.trim(),
-      enabled: form.enabled,
-      temperature: form.temperature,
-      maxOutputTokens: form.maxOutputTokens,
-      capabilities: form.capabilities,
-    }
-    if (editing.value) await userAiApi.update(editing.value.id, payload)
-    else await userAiApi.create(payload)
-    dialogVisible.value = false
-    resetForm()
-    await load()
-    ElMessage.success('已保存')
-  } catch (error) {
-    showApiError(error, 'AI 配置保存')
-  } finally {
-    saving.value = false
-  }
+async function onFormSaved(): Promise<void> {
+  await load()
 }
 
 async function remove(provider: UserAiProvider): Promise<void> {
@@ -393,23 +233,15 @@ async function remove(provider: UserAiProvider): Promise<void> {
   try {
     await userAiApi.remove(provider.id)
     await load()
-    ElMessage.success('已删除')
   } catch (error) {
     showApiError(error, 'AI 配置删除')
   }
-}
-
-async function testConnection(provider: UserAiProvider): Promise<void> {
-  const mode = modeFor(provider.id)
-  await runProbe(provider.id, mode,
-    () => (mode === 'CONNECTIVITY' ? userAiApi.test(provider.id) : userAiApi.testCapability(provider.id, mode)))
 }
 
 async function setDefault(provider: UserAiProvider): Promise<void> {
   try {
     await userAiApi.setDefault(provider.id)
     await load()
-    ElMessage.success('已设为默认')
   } catch (error) {
     showApiError(error, '设置默认')
   }
@@ -423,7 +255,6 @@ async function saveOverride(purpose: AiPurpose): Promise<void> {
   try {
     if (providerId) await userAiApi.assignPurpose(purpose, providerId)
     else await userAiApi.unassignPurpose(purpose)
-    ElMessage.success('已保存覆盖')
   } catch (error) {
     showApiError(error, '用途覆盖保存')
   }
@@ -433,12 +264,6 @@ onMounted(() => {
   ownerUserId = auth.currentUser?.id ?? null
   void load()
 })
-
-/** 清空仅属于当前会话的测试结果与选择的能力，避免跨账号复用。 */
-function resetProbeState(): void {
-  for (const key of Object.keys(probeModes)) delete probeModes[key]
-  for (const key of Object.keys(probeOutcomes)) delete probeOutcomes[key]
-}
 
 // 账号切换（登录/退出/换人）时丢弃上一个用户的配置、覆盖与测试结果，绝不显示他人的 Provider。
 auth.$subscribe(() => {
@@ -452,7 +277,7 @@ auth.$subscribe(() => {
   overrides.KNOWLEDGE_CHAT = ''
   overrides.PLANNING = ''
   overrides.AGENT = ''
-  resetProbeState()
+  for (const key of Object.keys(persistedProbes)) delete persistedProbes[key]
   if (currentId) void load()
 })
 </script>
@@ -480,7 +305,7 @@ auth.$subscribe(() => {
       <el-card v-if="!loadFailed" shadow="never">
         <template #header>
           <div class="header-row">
-            <strong>按用途的解析状态</strong>
+            <strong>按用途的解析与就绪状态</strong>
             <el-button v-if="purposesFailed" text type="primary" size="small" @click="loadPurposes">重试</el-button>
           </div>
         </template>
@@ -490,12 +315,34 @@ auth.$subscribe(() => {
           <div v-for="status in purposeStatuses" :key="status.purpose" class="purpose-row">
             <span class="override-label">{{ purposeLabel(status.purpose) }}</span>
             <el-select v-model="overrides[status.purpose]" placeholder="使用默认" clearable @change="saveOverride(status.purpose)">
-              <el-option v-if="overrideExtras[status.purpose]" :key="'assigned'" :label="overrideExtras[status.purpose]!.label" :value="overrideExtras[status.purpose]!.id" disabled />
-              <el-option v-if="zen?.connected" :key="'zen'" :label="`OpenCode Zen Free · ${zen?.modelName ?? ''}`" :value="zenProviderId" />
-              <el-option v-if="kilo?.connected" :key="'kilo'" :label="`Kilo Gateway Free · ${kilo?.modelName ?? ''}`" :value="kiloProviderId" />
-              <el-option v-for="p in customProviders.filter((c) => c.enabled)" :key="p.id" :label="p.name" :value="p.id" />
+              <el-option
+                v-for="option in purposeOptions(status.purpose).extras"
+                :key="`extra-${option.value}`" :label="`${option.label}（已停用）`" :value="option.value" disabled
+              />
+              <el-option
+                v-for="option in purposeOptions(status.purpose).zen"
+                :key="`zen-${option.value}`" :label="option.label" :value="option.value"
+              />
+              <el-option
+                v-for="option in purposeOptions(status.purpose).kilo"
+                :key="`kilo-${option.value}`" :label="option.label" :value="option.value"
+              />
+              <el-option
+                v-for="option in purposeOptions(status.purpose).custom"
+                :key="option.value" :label="option.label" :value="option.value"
+              />
             </el-select>
-            <span class="purpose-status" :class="{ 'purpose-status--blocked': !status.resolvable }">{{ purposeStatusText(status) }}</span>
+            <span class="purpose-status" :class="{ 'purpose-status--blocked': !status.resolvable }">
+              {{ purposeStatusText(status) }}
+              <el-tag
+                v-if="status.resolvable"
+                :type="readinessTagType(readinessOf(status))"
+                size="small"
+                class="purpose-readiness"
+              >
+                {{ readinessOf(status) ? READINESS_LABELS[readinessOf(status)!] : '状态未知' }}
+              </el-tag>
+            </span>
           </div>
         </template>
       </el-card>
@@ -515,23 +362,28 @@ auth.$subscribe(() => {
           <div>
             <div v-if="zen?.connected" class="provider-tile__current-row">
               <span class="provider-tile__current">{{ zen?.modelName }}</span>
-              <el-button text type="danger" size="small" :loading="disconnecting" @click="disconnectZen">断开连接</el-button>
+              <el-button text type="danger" size="small" :loading="zenConnection.disconnecting.value" @click="zenConnection.disconnect()">断开连接</el-button>
             </div>
-            <el-skeleton v-if="zenLoading" :rows="2" animated />
+            <el-skeleton v-if="zenConnection.modelsLoading.value" :rows="2" animated />
             <div v-else class="zen-form">
-              <el-input v-model="zenKey" type="password" show-password placeholder="API Key（免费模型可留空；留空则保留已保存 Key）" />
+              <el-input v-model="zenConnection.apiKey.value" type="password" show-password placeholder="API Key（免费模型可留空；留空则保留已保存 Key）" />
               <div class="model-select-row">
-                <el-select v-model="zenModel" placeholder="选择免费模型" filterable>
-                  <el-option v-for="m in zenModels" :key="m" :label="m" :value="m" />
+                <el-select v-model="zenConnection.model.value" placeholder="选择免费模型" filterable>
+                  <el-option v-for="m in zenConnection.models.value" :key="m" :label="m" :value="m" />
                 </el-select>
-                <el-button text :icon="Refresh" aria-label="刷新模型" title="刷新模型" @click="loadZenModels(true)" />
+                <el-button text :icon="Refresh" aria-label="刷新模型" title="刷新模型" @click="zenConnection.loadModels(true)" />
               </div>
               <div class="zen-actions">
-                <el-checkbox v-model="zenDefault">设为默认模型</el-checkbox>
-                <el-button :loading="testingId === 'zen'" @click="testZen">测试连接</el-button>
-                <el-tag :type="probeTagType('zen')" size="small" class="probe-status">{{ probeLabel('zen') }}</el-tag>
-                <el-button type="primary" :loading="saving" :disabled="!zenModel" @click="saveZen">保存</el-button>
+                <el-checkbox v-model="zenConnection.setDefault.value">设为默认模型</el-checkbox>
+                <el-button type="primary" :loading="zenConnection.saving.value" :disabled="!zenConnection.model.value" @click="zenConnection.save()">保存连接</el-button>
               </div>
+              <CapabilitySuitePanel
+                v-if="zenProvider && zen?.connected"
+                :provider="zenProvider"
+                :admitted-models="zenConnection.models.value"
+                @completed="onSuiteCompleted"
+              />
+              <p v-else class="preset-suite-hint">保存连接后可执行统一能力测试（真实生成 + 流式）</p>
             </div>
           </div>
         </div>
@@ -550,22 +402,27 @@ auth.$subscribe(() => {
           <div>
             <div v-if="kilo?.connected" class="provider-tile__current-row">
               <span class="provider-tile__current">{{ kilo?.modelName }}</span>
-              <el-button text type="danger" size="small" :loading="disconnectingKilo" @click="disconnectKilo">断开连接</el-button>
+              <el-button text type="danger" size="small" :loading="kiloConnection.disconnecting.value" @click="kiloConnection.disconnect()">断开连接</el-button>
             </div>
-            <el-skeleton v-if="kiloLoading" :rows="2" animated />
+            <el-skeleton v-if="kiloConnection.modelsLoading.value" :rows="2" animated />
             <div v-else class="zen-form">
               <div class="model-select-row">
-                <el-select v-model="kiloModel" placeholder="选择免费模型" filterable>
-                  <el-option v-for="m in kiloModels" :key="m" :label="m" :value="m" />
+                <el-select v-model="kiloConnection.model.value" placeholder="选择免费模型" filterable>
+                  <el-option v-for="m in kiloConnection.models.value" :key="m" :label="m" :value="m" />
                 </el-select>
-                <el-button text :icon="Refresh" aria-label="刷新模型" title="刷新模型" @click="loadKiloModels(true)" />
+                <el-button text :icon="Refresh" aria-label="刷新模型" title="刷新模型" @click="kiloConnection.loadModels(true)" />
               </div>
               <div class="zen-actions">
-                <el-checkbox v-model="kiloDefault">设为默认模型</el-checkbox>
-                <el-button :loading="testingId === 'kilo'" @click="testKilo">测试连接</el-button>
-                <el-tag :type="probeTagType('kilo')" size="small" class="probe-status">{{ probeLabel('kilo') }}</el-tag>
-                <el-button type="primary" :loading="savingKilo" :disabled="!kiloModel" @click="saveKilo">保存</el-button>
+                <el-checkbox v-model="kiloConnection.setDefault.value">设为默认模型</el-checkbox>
+                <el-button type="primary" :loading="kiloConnection.saving.value" :disabled="!kiloConnection.model.value" @click="kiloConnection.save()">保存连接</el-button>
               </div>
+              <CapabilitySuitePanel
+                v-if="kiloProvider && kilo?.connected"
+                :provider="kiloProvider"
+                :admitted-models="kiloConnection.models.value"
+                @completed="onSuiteCompleted"
+              />
+              <p v-else class="preset-suite-hint">保存连接后可执行统一能力测试（真实生成 + 流式）</p>
             </div>
           </div>
         </div>
@@ -588,18 +445,12 @@ auth.$subscribe(() => {
             <el-tag v-if="provider.isDefault" type="success" size="small">默认</el-tag>
             <el-tag :type="provider.enabled ? '' : 'info'" size="small">{{ provider.enabled ? '启用' : '停用' }}</el-tag>
           </span>
-          <span class="provider-probe">
-            <el-select v-model="probeModes[provider.id]" size="small" style="width: 130px" aria-label="测试能力">
-              <el-option v-for="mode in PROBE_MODES" :key="mode.value" :label="mode.label" :value="mode.value" />
-            </el-select>
-            <el-button size="small" :loading="testingId === provider.id" @click="testConnection(provider)">测试</el-button>
-            <el-tag :type="probeTagType(provider.id)" size="small" class="probe-status">{{ probeLabel(provider.id) }}</el-tag>
-          </span>
           <div class="provider-actions">
             <el-button v-if="!provider.isDefault" size="small" @click="setDefault(provider)">设为默认</el-button>
             <el-button size="small" @click="openEdit(provider)">编辑</el-button>
             <el-button size="small" type="danger" text @click="remove(provider)">删除</el-button>
           </div>
+          <CapabilitySuitePanel :provider="provider" @completed="onSuiteCompleted" />
         </div>
       </div>
 
@@ -613,10 +464,22 @@ auth.$subscribe(() => {
         <div v-for="purpose in AI_PURPOSES" :key="purpose.value" class="override-row setting-row">
           <span class="override-label">{{ purpose.label }}</span>
           <el-select v-model="overrides[purpose.value]" placeholder="使用默认" clearable :disabled="purposesFailed" @change="saveOverride(purpose.value)">
-            <el-option v-if="overrideExtras[purpose.value]" :key="'assigned'" :label="overrideExtras[purpose.value]!.label" :value="overrideExtras[purpose.value]!.id" disabled />
-            <el-option v-if="zen?.connected" :key="'zen'" :label="`OpenCode Zen Free · ${zen?.modelName ?? ''}`" :value="zenProviderId" />
-            <el-option v-if="kilo?.connected" :key="'kilo'" :label="`Kilo Gateway Free · ${kilo?.modelName ?? ''}`" :value="kiloProviderId" />
-            <el-option v-for="p in customProviders.filter((c) => c.enabled)" :key="p.id" :label="p.name" :value="p.id" />
+            <el-option
+              v-for="option in purposeOptions(purpose.value).extras"
+              :key="`extra-${option.value}`" :label="`${option.label}（已停用）`" :value="option.value" disabled
+            />
+            <el-option
+              v-for="option in purposeOptions(purpose.value).zen"
+              :key="`zen-${option.value}`" :label="option.label" :value="option.value"
+            />
+            <el-option
+              v-for="option in purposeOptions(purpose.value).kilo"
+              :key="`kilo-${option.value}`" :label="option.label" :value="option.value"
+            />
+            <el-option
+              v-for="option in purposeOptions(purpose.value).custom"
+              :key="option.value" :label="option.label" :value="option.value"
+            />
           </el-select>
         </div>
       </el-card>
@@ -633,35 +496,12 @@ auth.$subscribe(() => {
       </p>
     </section>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px">
-      <el-form label-position="top">
-        <el-form-item label="名称"><el-input v-model="form.name" maxlength="80" /></el-form-item>
-        <el-form-item label="Provider">
-          <el-select v-model="form.providerType">
-            <el-option label="OpenAI 兼容" value="OPENAI_COMPATIBLE" />
-            <el-option label="Anthropic" value="ANTHROPIC" />
-            <el-option label="Gemini" value="GEMINI" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="API Key">
-          <el-input v-model="form.apiKey" type="password" show-password placeholder="只写不读，编辑时留空则不修改" />
-        </el-form-item>
-        <el-form-item label="模型"><el-input v-model="form.modelName" maxlength="160" /></el-form-item>
-        <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
-        <el-collapse v-model="showAdvanced" accordion>
-          <el-collapse-item title="高级设置" name="advanced">
-            <el-form-item label="Base URL"><el-input v-model="form.baseUrl" /></el-form-item>
-            <el-form-item label="API Path"><el-input v-model="form.apiPath" /></el-form-item>
-            <el-form-item label="Temperature"><el-input-number v-model="form.temperature" :min="0" :max="2" :step="0.1" /></el-form-item>
-            <el-form-item label="Max Output Tokens"><el-input-number v-model="form.maxOutputTokens" :min="1" :max="131072" /></el-form-item>
-          </el-collapse-item>
-        </el-collapse>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" :disabled="!canSave" @click="save">保存</el-button>
-      </template>
-    </el-dialog>
+    <ProviderFormDialog
+      v-model:visible="dialogVisible"
+      :editing="editing"
+      :profiles="profiles"
+      @saved="onFormSaved"
+    />
   </main>
 </template>
 
@@ -676,12 +516,12 @@ auth.$subscribe(() => {
 .ai-config-summary { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
 .purpose-row { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 8px 0; }
 .purpose-row + .purpose-row { border-top: 1px solid var(--color-border); }
-.purpose-status { grid-column: 2; color: var(--color-text-secondary); font-size: 12px; }
+.purpose-status { grid-column: 2; color: var(--color-text-secondary); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .purpose-status--blocked { color: var(--color-danger); }
+.purpose-readiness { flex: none; }
 .purpose-failure { margin: 0 0 8px; color: var(--color-danger); font-size: 13px; }
 .purpose-empty { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
-.provider-probe { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.probe-status { flex: none; }
+.preset-suite-hint { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 12px; }
 .admin-link { margin: 0; font-size: 13px; }
 @media (max-width: 760px) {
   .purpose-row { grid-template-columns: 1fr; }

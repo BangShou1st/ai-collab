@@ -1,0 +1,31 @@
+{
+  "result": "PASS",
+  "businessCompletions": 14,
+  "distinctSessions": 13,
+  "onlySharedSession": [
+    "Q11",
+    "Q12"
+  ],
+  "maxParallelIndependentQuestions": 2,
+  "sameSessionQuestionsSerial": true,
+  "uniqueRequestNumbers": [
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24
+  ],
+  "promptContainsOwnContextAndQuestion": true,
+  "persistenceMatchesValidationForEveryCompletion": true,
+  "modelMatchesEveryCompletion": true,
+  "checks": "Read-only post-run checks against actual business-results.json"
+}

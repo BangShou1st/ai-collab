@@ -31,9 +31,9 @@
 | AI 接入 | OpenAI 兼容 / Anthropic Claude / Google Gemini · OpenCode Zen & Kilo Gateway 共享库（公开 JitPack） |
 
 ```
-ai-collab-backend/    Spring Boot 后端（546 主源文件 / 约 4.2 万行）
+ai-collab-backend/    Spring Boot 后端（553 主源文件 / 约 4.2 万行）
   src/main/java/com/shitulelv/aicollab/<module>/
-  src/main/resources/db/migration/    Flyway V1–V65
+  src/main/resources/db/migration/    Flyway V1–V68
   src/test/java/                      单元 + Testcontainers 集成测试（1600+ 测试用例）
 ai-collab-frontend/   Vue 3 前端（161 源文件 / 约 2.2 万行）
   src/{api,auth,shared,stores,router.ts,styles}/

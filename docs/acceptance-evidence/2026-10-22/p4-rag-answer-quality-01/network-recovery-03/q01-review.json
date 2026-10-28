@@ -1,0 +1,11 @@
+{
+  "qualityGatePassed": true,
+  "reviewMethod": "Independent source and persisted result review by assistant; no additional model request",
+  "factsCorrect": 3,
+  "factsRequired": 3,
+  "citationSupported": true,
+  "invalidCitations": 0,
+  "persistenceMatchesValidation": true,
+  "source": "上线验收规程.md|上线门禁",
+  "decision": "Continue remaining stage; no repeat of Q01"
+}

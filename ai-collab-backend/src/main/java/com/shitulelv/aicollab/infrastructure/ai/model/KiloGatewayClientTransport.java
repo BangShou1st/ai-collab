@@ -63,26 +63,15 @@ public class KiloGatewayClientTransport implements KiloGatewayTransport {
     }
 
     @Override
-    public void validateModel(String model) {
-        String candidate = model == null ? "" : model.strip();
-        if (candidate.isEmpty()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model required");
-        if (!FreeModelPolicy.isFreeModelId(candidate)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model must be a Kilo free model");
-        }
-        // 真实网络调用：目录可达即证明网关连通；模型必须仍在免费目录内。
-        if (!admittedModels().contains(candidate)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                    "model is not currently served by the Kilo gateway");
-        }
-    }
-
-    @Override
     public JsonNode chat(ObjectNode request) {
         try {
-            return client().chat(request);
+            var outbound = client();
+            AiOutboundObservation.markStarted(AiOutboundObservation.current());
+            return outbound.chat(request);
         } catch (KiloGatewayException failure) {
             throw translate(failure);
         } catch (IllegalArgumentException invalidRequest) {
+            AiOutboundObservation.markNotStarted(AiOutboundObservation.current());
             rejectRequest();
             throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
         }

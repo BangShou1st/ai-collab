@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.ai.EmbeddingProperties;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -22,8 +22,8 @@ public class OpenAiCompatibleEmbeddingGateway implements EmbeddingGateway {
 
     public OpenAiCompatibleEmbeddingGateway(EmbeddingProperties properties) {
         this.properties = properties;
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.connectTimeout());
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
+                com.shitulelv.aicollab.common.net.OutboundHttpClients.builder().connectTimeout(properties.connectTimeout()).build());
         factory.setReadTimeout(properties.readTimeout());
         this.restClient = RestClient.builder().requestFactory(factory).build();
     }

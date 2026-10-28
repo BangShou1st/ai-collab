@@ -1,0 +1,50 @@
+{
+  "status": "PASS",
+  "defaultVerify": {
+    "tests": 1808,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 37
+  },
+  "defaultLocalModelGates": [
+    {
+      "name": "com.shitulelv.aicollab.retrieval.P6RagQualityBaselinePostgresTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    {
+      "name": "com.shitulelv.aicollab.retrieval.P8AgentRagCrossLayerPostgresTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    {
+      "name": "com.shitulelv.aicollab.retrieval.P8RagQualityFixExperimentPostgresTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    }
+  ],
+  "mandatoryCitationTests": {
+    "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "optInIntegration": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "optInQuestions": 16,
+  "realChatCalls": 0,
+  "productionJavaChanged": false,
+  "thresholdsRelaxed": false,
+  "finalCi": "Must query final Push/PR head SHA after push; receipt is supplied in final delivery and ignored target/final-ci.json."
+}

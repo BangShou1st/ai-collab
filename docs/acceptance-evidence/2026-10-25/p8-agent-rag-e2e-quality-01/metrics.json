@@ -1,0 +1,431 @@
+{
+  "verdict": "P8_PARTIAL_ACCEPTANCE",
+  "basis": {
+    "retrieval": "本轮真实本地 Ollama + pgvector；冻结 16 题、P6 27 个事实 marker；不重新定义冻结语义评分",
+    "mechanical": "真实工具/Runtime/数据库与脚本模型；不同于真实生成评分",
+    "history": "仅用于选题和对照，未混入当前分母",
+    "generation": "NOT_MEASURED"
+  },
+  "retrieval": {
+    "recallAt8": 0.9629629629629629,
+    "recallAt20": 0.9629629629629629,
+    "denominator": 27,
+    "definition": "沿用 P6 逐事实 chunk 命中口径；一块可承载多事实；无期望证据的 Q07 不进入分母；原始候选列表可独立核对",
+    "byScope": {
+      "ALL_PROJECT": {
+        "questions": 10,
+        "expectedFacts": 19,
+        "recallAt8": 0.9473684210526315,
+        "recallAt20": 0.9473684210526315,
+        "qaRetained": 18,
+        "agentRetained": 14
+      },
+      "DOCUMENT_SCOPED": {
+        "questions": 6,
+        "expectedFacts": 8,
+        "recallAt8": 1,
+        "recallAt20": 1,
+        "qaRetained": 8,
+        "agentRetained": 8
+      }
+    },
+    "q02Rank": 23
+  },
+  "context": {
+    "qa": {
+      "retained": 26,
+      "total": 27,
+      "ratio": 0.963
+    },
+    "agent8": {
+      "retained": 22,
+      "total": 27,
+      "ratio": 0.8148
+    },
+    "agent12Diagnostic": {
+      "retained": 25,
+      "total": 27,
+      "ratio": 0.9259
+    },
+    "qaDocumentCoverage": {
+      "expectedDocumentQuestionPairs": 17,
+      "retainedDocumentQuestionPairs": 16,
+      "ratio": 0.9411764705882353,
+      "definition": "每题每个期望文档至少一条已标注事实在截断后保留；不是全事实完整率"
+    },
+    "agentDocumentCoverage": {
+      "expectedDocumentQuestionPairs": 17,
+      "retainedDocumentQuestionPairs": 15,
+      "ratio": 0.8823529411764706,
+      "definition": "每题每个期望文档至少一条已标注事实在截断后保留；不是全事实完整率"
+    },
+    "qaDropReasons": {
+      "SOURCE_CAP": 30
+    },
+    "agentDropReasons": {
+      "SOURCE_CAP": 113,
+      "INTRA_DOCUMENT_DUPLICATE": 7
+    },
+    "qaMaxPromptCodePoints": 370,
+    "agentMaxPromptCodePoints": 1679,
+    "budgetCodePoints": 8000,
+    "scopeViolations": 0,
+    "q03FineGrained": [
+      {
+        "marker": "自动化验收",
+        "qaPrompt": true,
+        "agentToolQuote": false
+      },
+      {
+        "marker": "阻断级缺陷必须关闭",
+        "qaPrompt": true,
+        "agentToolQuote": false
+      },
+      {
+        "marker": "数据迁移结果无误",
+        "qaPrompt": true,
+        "agentToolQuote": false
+      },
+      {
+        "marker": "两小时",
+        "qaPrompt": true,
+        "agentToolQuote": true
+      },
+      {
+        "marker": "核心业务指标与错误率",
+        "qaPrompt": true,
+        "agentToolQuote": true
+      },
+      {
+        "marker": "连续两次低于约定阈值",
+        "qaPrompt": true,
+        "agentToolQuote": false
+      },
+      {
+        "marker": "或者出现不可恢复的数据异常",
+        "qaPrompt": true,
+        "agentToolQuote": false
+      },
+      {
+        "marker": "立即暂停发布",
+        "qaPrompt": true,
+        "agentToolQuote": false
+      },
+      {
+        "marker": "回滚到最近一次稳定版本",
+        "qaPrompt": true,
+        "agentToolQuote": false
+      }
+    ]
+  },
+  "agent": {
+    "scenarios": 16,
+    "succeeded": 16,
+    "mainScriptedModelCalls": 32,
+    "auxiliaryScriptedModelCalls": 2,
+    "totalScriptedModelCalls": 34,
+    "toolCalls": 16,
+    "toolSuccessRate": 1,
+    "actualQuoteFactsRetained": 22,
+    "expectedFacts": 27,
+    "evidenceRecoveryDefinition": "工具/清洗/消息组装未再丢失来源；语义事实保留率仍为22/27",
+    "parentChildEvidenceRecovery": "见 raw/agent-research-quality-paired.json；搜索候选注入，非真实向量父子贯通",
+    "maxScenarioElapsedMs": 336,
+    "maxScriptedCallsPerScenario": 3,
+    "maxSteps": 3
+  },
+  "citation": {
+    "identitiesChecked": 92,
+    "persistenceIdentityPass": true,
+    "unknownIdentitiesPersisted": 0,
+    "nonMemberDenied": 16,
+    "fabricatedIdentityRejected": 16,
+    "numberValidity": {
+      "basis": "SCRIPTED_OUTPUT_MECHANICAL",
+      "invalidMarkers": 1,
+      "cases": [
+        {
+          "id": "Q01",
+          "numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q02",
+          "numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q03",
+          "numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q04",
+          "numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q05",
+          "numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q06",
+          "numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q07",
+          "numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q08",
+          "numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q09",
+          "numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q10",
+          "numbers": [
+            1
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q11",
+          "numbers": [
+            1,
+            2
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q12",
+          "numbers": [
+            1,
+            2
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q13",
+          "numbers": [
+            1,
+            999,
+            2
+          ],
+          "invalid": [
+            999
+          ],
+          "sourceOrderMatches": true,
+          "status": "FAIL",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q14",
+          "numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q15",
+          "numbers": [
+            1,
+            2,
+            3
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        },
+        {
+          "id": "Q16",
+          "numbers": [
+            1,
+            2
+          ],
+          "invalid": [],
+          "sourceOrderMatches": true,
+          "status": "PASS",
+          "basis": "SCRIPTED_OUTPUT_MECHANICAL; not real generation"
+        }
+      ]
+    },
+    "numberValidityNote": "Q13 copies literal S999 from untrusted source. Text is persisted unchanged; no fabricated structured citation is persisted. Real model behavior NOT_MEASURED",
+    "semanticSupport": "NOT_MEASURED for real generation; copied quote transport only",
+    "q07RelatedCitations": 8,
+    "q07Sufficiency": "NOT_ESTABLISHED: related citations do not establish eighty years"
+  },
+  "generation": {
+    "correctness": "NOT_MEASURED",
+    "completeness": "NOT_MEASURED",
+    "unsupportedClaims": "NOT_MEASURED",
+    "abstention": "SCRIPTED_ONLY",
+    "injectionResistance": "NOT_MEASURED: copying Q13 source text does not prove resistance"
+  },
+  "cost": {
+    "externalChatRequests": 0,
+    "realChatTokens": "NOT_MEASURED",
+    "embeddingModel": "qwen3-embedding:0.6b",
+    "dimension": 1024,
+    "fingerprint": "20f29e8d94afc1eb2f5de49d3f4c81f548881de08e7aa4acb955ec87f5face75",
+    "indexing": {
+      "embeddingInputCodePoints": 13444,
+      "embeddingRequests": 14,
+      "chunkCount": 49,
+      "documentCount": 14,
+      "totalIndexLatencyMs": 2747
+    },
+    "perFrozenRetrievalRunLogicalEmbeddingCalls": {
+      "index": 14,
+      "qaQueries": 16,
+      "agentQueries": 16,
+      "diagnosticQueries": 16
+    },
+    "perFinalIntegratedRunAdditionalLogicalEmbeddingCalls": {
+      "actualAgentSearches": 16,
+      "q10DisjointScope": 0,
+      "nonMemberDenials": 0
+    },
+    "embeddingHttpRequests": "UNKNOWN: gateway batching/retries were not instrumented; logical calls are not HTTP attempts",
+    "embeddingTokenUsage": "UNKNOWN",
+    "embeddingRetries": "UNKNOWN",
+    "realModelCurrencyCost": "UNKNOWN (no external request; local resource cost not priced)",
+    "timingBasis": "单机顺序样本；仅用于复现，不推导 P95 或性能承诺"
+  },
+  "repairReadiness": "已具备独立修复专项的可复现输入、失败分层、反例和可量化目标；尚不具备生产改动准入的端到端生成证据"
+}

@@ -153,18 +153,6 @@ public class UserAiProviderPresetService {
         repository.deleteByUserAndPreset(userId, PRESET);
     }
 
-    public void test(UUID userId, String apiKey, String modelName) {
-        var existing = repository.findByUserAndPreset(userId, PRESET);
-        String key = apiKey != null && !apiKey.isBlank() ? apiKey.strip()
-                : existing.map(c -> secrets.decryptOptional(c.encryptedApiKey())).orElse(null);
-        String model = modelName != null && !modelName.isBlank() ? modelName.strip()
-                : existing.map(UserAiProvider::modelName)
-                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "model required"));
-        requireAdmittedModel(model, admittedModels(key, false));
-        requireCredentialForModel(key, model);
-        transport.validateCredential(key, model, AiRequestMetadata.fresh());
-    }
-
     /**
      * 只有共享库白名单内、且当前上游仍在服务的模型才可作为 Zen 预设。
      * 白名单以已评审证据为准，{@code -free} 后缀本身不构成证据。

@@ -1,0 +1,32 @@
+{
+  "status": "BLOCKED_CREDENTIAL_OR_PROVIDER",
+  "startingSha": "f2f8cfc6901115a5eb9fd9bf99f4c126b5abfc83",
+  "priorGenerationAttempts": 5,
+  "newGenerationAttempts": 3,
+  "cumulativeGenerationAttempts": 8,
+  "limit": 24,
+  "remainingUnused": 16,
+  "newCompleted": 0,
+  "newProviderFailures": 3,
+  "newInconclusive": 3,
+  "newRetriesAfterFirstAttempt": 2,
+  "cumulativeHttp503Responses": 7,
+  "cumulativeConnectionTimeouts": 1,
+  "requestedModel": "gemini-3.1-flash-lite",
+  "responseModelVersion": null,
+  "maxOutputTokens": 2048,
+  "tokenUsage": null,
+  "cost": null,
+  "reason": "All three responses carry Google error.status=UNAVAILABLE, code=503, message explicitly identifies high model demand. Not a 429 quota response.",
+  "authorization": "User explicitly requested several more attempts after network-recovery-01; original cumulative 24 attempt cap preserved.",
+  "sourceEvidence": "connectivity.json",
+  "frozenFileSha256": {
+    "questions.json": "556a1547b73f8356f8aa19952964435445ed33b93aa93a3acfd0a63eb2f3597a",
+    "rubric.md": "ffb71b38b58d339d1fd53434bc6dbe27ecb04242e4557785100864742cba3c37",
+    "corpus-manifest.json": "b556c9cc405a44106b4c85ff2d686aabfa7320c05b8bc6dc0e957311c0b9c195"
+  },
+  "ordinaryQaExecutedThisContinuation": 0,
+  "sseExecutedThisContinuation": 0,
+  "agentExecutedThisContinuation": 0,
+  "qualityScores": "N/A: no model answer available; no semantic or persistence acceptance claim."
+}

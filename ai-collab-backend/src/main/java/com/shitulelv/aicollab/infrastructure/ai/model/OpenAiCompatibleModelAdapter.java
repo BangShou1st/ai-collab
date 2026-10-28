@@ -83,45 +83,6 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         }
     }
 
-    private ChatCompletionResult completeStreamingSync(
-            ModelConfiguration config, String apiKey, ChatCompletionCommand command) {
-        long started = System.nanoTime();
-        StringBuilder content = new StringBuilder();
-        java.util.concurrent.atomic.AtomicReference<String> model =
-                new java.util.concurrent.atomic.AtomicReference<>(config.modelName());
-        java.util.concurrent.atomic.AtomicReference<Integer> input = new java.util.concurrent.atomic.AtomicReference<>();
-        java.util.concurrent.atomic.AtomicReference<Integer> output = new java.util.concurrent.atomic.AtomicReference<>();
-        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
-        java.util.concurrent.atomic.AtomicReference<Exception> errorRef = new java.util.concurrent.atomic.AtomicReference<>();
-
-        completeStream(config, apiKey, command,
-                token -> content.append(token),
-                result -> {
-                    model.set(result.model());
-                    input.set(result.promptTokens());
-                    output.set(result.completionTokens());
-                    latch.countDown();
-                },
-                error -> {
-                    errorRef.set(error);
-                    latch.countDown();
-                });
-
-        try {
-            latch.await(60, java.util.concurrent.TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
-        }
-
-        if (errorRef.get() != null) {
-            throw errorRef.get() instanceof BusinessException be
-                    ? be : new BusinessException(ErrorCode.AI_PROVIDER_ERROR);
-        }
-
-        return result(config, content.toString(), model.get(), input.get(), output.get(), started);
-    }
-
     @Override
     public void completeStream(
             ModelConfiguration config, String apiKey, ChatCompletionCommand command,
@@ -272,88 +233,6 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         } catch (BusinessException e) {
             throw e;
         }
-    }
-
-    private ModelTurnResult turnStreamingSync(
-            ModelConfiguration config, String apiKey, ModelTurnCommand command) {
-        long started = System.nanoTime();
-        StringBuilder content = new StringBuilder();
-        java.util.concurrent.atomic.AtomicReference<String> model =
-                new java.util.concurrent.atomic.AtomicReference<>(config.modelName());
-        java.util.concurrent.atomic.AtomicReference<ModelFinishReason> finishReason =
-                new java.util.concurrent.atomic.AtomicReference<>(ModelFinishReason.UNKNOWN);
-        java.util.concurrent.atomic.AtomicReference<ModelUsage> usage =
-                new java.util.concurrent.atomic.AtomicReference<>();
-        // delta.tool_calls 按 index 聚合：id / name / arguments 可能分片到达
-        java.util.Map<Integer, DeltaToolCall> deltas = new java.util.TreeMap<>();
-
-        // JsonHttpModelClient.stream() 本身同步读取 SSE 直到结束，返回时流已完成，
-        // 不需要 CountDownLatch 等待。之前 latch 从未 countDown 会导致固定 60s 等待。
-        http.stream(endpoint(config), headers(apiKey), turnRequest(config, command, true), (event, data) -> {
-            if (data == null) return;
-            if (data.hasNonNull("model")) model.set(data.path("model").asText());
-            JsonNode usageNode = data.path("usage");
-            if (!usageNode.isMissingNode() && !usageNode.isNull()) {
-                usage.set(new ModelUsage(
-                        integer(usageNode.path("prompt_tokens")),
-                        integer(usageNode.path("completion_tokens"))));
-            }
-            JsonNode choice = data.path("choices").path(0);
-            if (choice.isMissingNode()) return;
-            JsonNode delta = choice.path("delta");
-            // 文本增量
-            String token = delta.path("content").asText("");
-            if (!token.isEmpty()) {
-                content.append(token);
-            }
-            // 原生 tool_calls 增量聚合
-            JsonNode toolCallsNode = delta.path("tool_calls");
-            if (toolCallsNode.isArray()) {
-                for (JsonNode node : toolCallsNode) {
-                    if (!node.path("index").isInt() || node.path("index").asInt()<0)
-                        throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,"工具分片缺少有效 index");
-                    int index = node.path("index").asInt();
-                    DeltaToolCall acc = deltas.computeIfAbsent(index, k -> new DeltaToolCall());
-                    String idFrag = node.path("id").asText("");
-                    if (!idFrag.isEmpty() && !idFrag.contentEquals(acc.id)) acc.id.append(idFrag);
-                    JsonNode fn = node.path("function");
-                    String nameFrag = fn.path("name").asText("");
-                    if (!nameFrag.isEmpty() && !nameFrag.contentEquals(acc.name)) acc.name.append(nameFrag);
-                    String argsFrag = fn.path("arguments").asText("");
-                    if (!argsFrag.isEmpty()) acc.arguments.append(argsFrag);
-                }
-            }
-            // 解析 finish_reason
-            String finish = choice.path("finish_reason").asText("");
-            if (!finish.isEmpty()) {
-                finishReason.set(mapFinishReason(finish));
-            }
-        });
-
-        if (finishReason.get()==ModelFinishReason.LENGTH) throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
-        List<ModelToolCall> toolCalls = buildDeltaToolCallsCarryingUsage(deltas, usage);
-
-        long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
-
-        // 既没有文本也没有 tool_calls 是协议错误
-        if (content.isEmpty() && toolCalls.isEmpty()) {
-            throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                    "模型既没有返回文本也没有返回工具调用");
-        }
-
-        // finish_reason=length 表示截断
-        if (finishReason.get() == ModelFinishReason.LENGTH) {
-            throw new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED);
-        }
-
-        return new ModelTurnResult(
-                content.isEmpty() ? null : content.toString(),
-                toolCalls,
-                finishReason.get(),
-                usage.get(),
-                providerType().name(),
-                model.get(),
-                latencyMs);
     }
 
     /** 工具参数解析在握有 usage 的边界包装：已收到的提供商用量随异常携带，错误码与消息保留。 */
@@ -792,24 +671,5 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
     private Integer carriedCompletion(java.util.concurrent.atomic.AtomicReference<ModelUsage> usage) {
         ModelUsage u = usage.get();
         return u == null ? null : u.outputTokens();
-    }
-
-    private ModelTurnResult parseTurnResponse(ModelConfiguration config, JsonNode response, long started) {
-        JsonNode choice = response.path("choices").path(0);
-        JsonNode message = choice.path("message");
-        String content = message.has("content") && !message.get("content").isNull() ? message.path("content").asText(null) : null;
-        List<ModelToolCall> toolCalls = parseToolCalls(message);
-        ModelFinishReason fr = mapFinishReason(choice.path("finish_reason").asText(""));
-        JsonNode usageNode = response.path("usage");
-        ModelUsage usage = null;
-        if (!usageNode.isMissingNode() && !usageNode.isNull()) usage = new ModelUsage(integer(usageNode.path("prompt_tokens")), integer(usageNode.path("completion_tokens")));
-        if ((content == null || content.isBlank()) && toolCalls.isEmpty())
-            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE, "PROVIDER / EMPTY_RESPONSE",
-                    usage == null ? null : usage.inputTokens(), usage == null ? null : usage.outputTokens());
-        if (fr == ModelFinishReason.LENGTH)
-            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED, "PROVIDER / OUTPUT_TRUNCATED",
-                    usage == null ? null : usage.inputTokens(), usage == null ? null : usage.outputTokens());
-        long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
-        return new ModelTurnResult(content, toolCalls, fr, usage, providerType().name(), response.path("model").asText(config.modelName()), latencyMs);
     }
 }

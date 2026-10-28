@@ -1,0 +1,101 @@
+{
+  "task": "P4-AGENT-LIFECYCLE-REAL-E2E-02",
+  "date": "2026-10-24",
+  "scenarios": [
+    {
+      "id": "LIFE-CANCEL-01",
+      "name": "RUNNING 真实浏览器取消",
+      "status": "PASS",
+      "evidence_type": ["REAL_BROWSER", "REAL_DATABASE", "REAL_MODEL"],
+      "run_id": "4a42e54a-1faa-40b0-b1fa-0f23555a8831",
+      "steps": [
+        "真实浏览器（bsk+Edge，U04 会话）新建会话并提交只读任务 → Agent 正在处理（RUNNING）",
+        "第 1 轮模型请求出站期间（约 3s）点击「结束本次运行」",
+        "UI 立即收敛：「本次运行已取消」/「运行 · 已取消」/出现重试按钮；截图 02-cancel-running-refresh.png",
+        "DB：status=CANCELED、error_code=RUN_CANCELLED、cancel_requested_at=t、finished_at=t、lease 清空",
+        "事件 1-6：…MODEL_STARTED(seq5)→RUN_CANCELED(seq6)；模型请求出站后中断，无任何 TOOL_CALL_* 事件",
+        "结算诚实：agent_usage_settlement MODEL_TURN input=3759(ESTIMATED)/0，不虚构 Provider 用量、不删除已发生消耗记录",
+        "agent_step 仅 1 行 ERROR（中断记录）、agent_tool_invocation=0：取消后 Worker 未执行任何新工具、未产生写入（project_task 不变）",
+        "页面刷新后状态一致（已取消 + SSE 未连接）"
+      ],
+      "generation_calls": 1
+    },
+    {
+      "id": "LIFE-PAUSE-RUNNING-01",
+      "name": "RUNNING 真实浏览器暂停",
+      "status": "PASS",
+      "evidence_type": ["REAL_BROWSER", "REAL_DATABASE", "REAL_MODEL"],
+      "run_id": "c41b484c-3229-434d-8b09-d6ded24f4484",
+      "steps": [
+        "提交只读任务 → RUNNING（模型第 1 轮出站中，seq5 MODEL_STARTED）",
+        "点击「暂停」→ UI 立即显示黄色横幅「正在暂停，当前步骤完成后保留进度」（pausePending 由 RUN_PAUSE_REQUESTED 驱动，非乐观写）",
+        "DB：pause_requested_at 落库且不递增 version（与设计一致）",
+        "第 1 轮响应真实返回但输出触及 4000 上限截断 → FORMAT_REPAIR_REQUESTED（FAILED_RETRYABLE, seq7）——暂停意图未丢失",
+        "Worker 在 FAILED_RETRYABLE 状态确认暂停：RUN_PAUSED(seq8)，status=PAUSED；QUEUED/FAILED_RETRYABLE 直接暂停路径实证",
+        "暂停后无新的工具副作用；截图 03-paused-state.png；UI 输入框切换为「输入\"继续\"，接着完成当前任务」"
+      ],
+      "generation_calls": 1
+    },
+    {
+      "id": "LIFE-RESUME-01",
+      "name": "PAUSED 恢复（同一 Run 续跑）",
+      "status": "PASS",
+      "evidence_type": ["REAL_BROWSER", "REAL_DATABASE", "REAL_MODEL"],
+      "run_id": "c41b484c-3229-434d-8b09-d6ded24f4484（与暂停同一 Run）",
+      "steps": [
+        "输入「继续」→ RUN_RESUMED(seq9)，PAUSED→QUEUED，run id 不变（同一 Run，非派生）",
+        "恢复后第 1 轮为 FORMAT_REPAIR 轮（call b6c5c4c5，input 11430≈原轮 11379+修复提示）：模型上下文按持久化轮次正确恢复，暂停前的第 1 轮（9038a3c3）未重复执行、结算仅一次",
+        "工具批次 4 调用（seq12-17：list_tasks FAILED 如实标记、check_project_progress/list_milestones SUCCEEDED）→ 最终轮（ca9b776c）→ RUN_SUCCEEDED(seq20)",
+        "额度累计：steps_used=3、output_tokens_actual=6410（暂停前 4000 + 恢复后 2410），预算未被重置",
+        "SSE 顺序无回退（seq 1→20 单调）；刷新后「Agent 已完成」一致；无新审批、project_task 仍 4（零写入）",
+        "截图 04-resumed-succeeded.png"
+      ],
+      "generation_calls": 2
+    },
+    {
+      "id": "LIFE-RETRY-01",
+      "name": "历史 FAILED Run 真实重试",
+      "status": "PASS",
+      "evidence_type": ["REAL_DATABASE", "REAL_MODEL", "REAL_BROWSER"],
+      "run_id": "ec75239c-48f0-420d-8ab6-00273e47db0e（派生自 24b71f55-64b4-45d5-88c4-038d6d9abdfe）",
+      "steps": [
+        "24b71f55（FAILED/AGENT_TOOL_EXECUTION_FAILED，修复前 Schema 缺陷所致）满足重试前置：无派生 Run、无未完成审批、目标副作用可控",
+        "UI 局限如实记录：重试按钮仅对 activeRun（最新 Run）显示，历史 FAILED Run 无 UI 入口——经页面上下文以应用自身认证会话调用 POST /runs/24b71f55/retry（HTTP 200，点击等价操作，未提取任何凭据）",
+        "服务端合法转换：派生新 Run ec75239c，retried_from_run_id=24b71f55（部分唯一索引幂等锚点），预算从默认值开始",
+        "模型经 TRUSTED_PROPOSALS 上下文识别该任务已由历史审批 35bb4b90 创建（任务 1d9af5e2），单轮即 SUCCEEDED，正确拒绝重复创建——0 工具调用、0 新审批、0 新任务写入（重试幂等，不重复执行已成功的写副作用）",
+        "UI 在原会话中正确展示派生 Run 回答；截图 05-retry-idempotent-answer.png"
+      ],
+      "generation_calls": 1,
+      "note": "ea469167（PARAMETER_CORRECTION_EXHAUSTED）保留未重试：其目标与 24b71f55 相同，同一结论已由 24b71f55 派生验证，节省预算"
+    },
+    {
+      "id": "LIFE-PAUSE-QUEUED-01",
+      "name": "QUEUED 状态暂停（场景 A）",
+      "status": "INCONCLUSIVE",
+      "evidence_type": ["OFFLINE_CONTRACT"],
+      "detail": "Worker 每秒领取，QUEUED 窗口约 1s，真实浏览器无法稳定捕获；不为抢窗口破坏生产调度配置。路径已由 AgentPauseResumePostgresTest 覆盖（QUEUED 直接转 PAUSED），且本轮实证了其兄弟路径：FAILED_RETRYABLE 直接暂停（LIFE-PAUSE-RUNNING-01 seq7→8）"
+    },
+    {
+      "id": "LIFE-BUDGET-01",
+      "name": "Agent 任务预算与模型调用次数真实受控",
+      "status": "PASS",
+      "evidence_type": ["OFFLINE_CONTRACT", "REAL_DATABASE"],
+      "detail": "本轮 5 个真实 Run 的 turns/steps/tool_calls/token 全部在 V2 策略内收敛（DB 实测）；暂停恢复未重置额度；重试派生预算从默认开始；AgentRuntimeLimits 硬编码且 yml 无覆盖项；离线 123 用例全绿"
+    },
+    {
+      "id": "LIFE-SSE-REPLAY-01",
+      "name": "事件与数据库一致性 / SSE 重放",
+      "status": "PASS",
+      "evidence_type": ["REAL_BROWSER", "REAL_DATABASE"],
+      "detail": "3 个真实 Run 的事件序号与 agent_run_event 一一对应且单调（4a42e54a:1-6；c41b484c:1-20 无回退含暂停/恢复/失败/继续；ec75239c:1-7）；刷新恢复一致；Last-Event-ID/afterSequence 游标与防回退机制源码复核（AgentEventStreamService.sendDurable 只发 sequence>cursor）"
+    },
+    {
+      "id": "LIFE-LEASE-01",
+      "name": "租约/claim_version 隔离与终态禁写",
+      "status": "PASS",
+      "evidence_type": ["OFFLINE_CONTRACT"],
+      "detail": "AgentCrashRecoveryTimingPostgresTest 5 用例绿（6min 租约接管、fencing 拒绝旧 epoch、closeUnresolvedModelCalls、invocation 幂等复用）；本轮取消/暂停/恢复 Run 的 lease_owner 均在终态/暂停正确清空（DB 实测）"
+    }
+  ],
+  "execution_order_note": "执行顺序按成本调整：取消（最省）→ 暂停/恢复 → 重试 → 规划探针；QUEUED 暂停因窗口无法稳定捕获记 INCONCLUSIVE；ea469167 未重试（同目标已验证，节省预算）"
+}

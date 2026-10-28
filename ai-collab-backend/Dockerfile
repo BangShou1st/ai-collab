@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ---- 构建阶段 ----
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-21@sha256:99e61abcff91a9b1333463bd8451fb18495d6eba9250ac66a338b518f8278320 AS build
 WORKDIR /workspace
 
 # 先拷贝构建描述文件，利用镜像层缓存依赖下载
@@ -15,7 +15,7 @@ COPY ai-collab-backend/src ./src
 RUN bash ./mvnw -B -DskipTests package
 
 # ---- 运行阶段 ----
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-alpine@sha256:b48e02e0ea88d7bfb305335df94923bdef394905f4147dccd52e873cf17b1088
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 

@@ -1,0 +1,17 @@
+{
+  "task" : "P10-REAL-GENERATION-01",
+  "mode" : "PREFLIGHT_SYNTHETIC_TRANSPORT",
+  "authorization" : false,
+  "provider" : "GEMINI",
+  "model" : "gemini-3.5-flash-lite",
+  "routeSha256" : "df17eb978e42ecb533a8f1f7a6ff756c6e1521abe6308f9671dca06e9123cbbc",
+  "chatDispatchReservations" : 0,
+  "syntheticTransportResponses" : 8,
+  "externalEmbedding" : 0,
+  "agent" : 0,
+  "judge" : 0,
+  "chatRetries" : 0,
+  "actualCost" : "UNAVAILABLE",
+  "calls" : [ ],
+  "generationVerdict" : "REAL_GENERATION_NOT_EXECUTED"
+}

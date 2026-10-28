@@ -1,0 +1,62 @@
+{
+  "task": "P4-MODEL-QUICK-CONNECT-REAL-ACCEPTANCE-01",
+  "generated_at": "2026-10-24",
+  "browser": "Edge 155（bsk 0.3.3，会话 nrzf，复用既有登录态）",
+  "account": "U04 合成管理员（p3u04_admin，历史验收专用合成账户）",
+  "environment": "前端 Vite dev 5173；后端 local profile 8080（真实探针阶段携带 JVM 代理 127.0.0.1:7897，验收后恢复常规启动）",
+  "scenarios": [
+    {
+      "id": "REAL-01",
+      "name": "Kilo 当前免费目录发现与模型选择",
+      "steps": "AI 设置 → Kilo 卡片「刷新模型」→ 下拉展开 → 选择 nvidia/nemotron-3.5-lightning:free → 保存连接",
+      "result": "PASS",
+      "evidence": "返回真实当前免费目录 14 项；确认原保存模型 minimax/minimax-m3.1-flash:free 已不在目录（上游下线）；新模型保存成功（配置数不变，model_name 落库，配置版本 00:15:07Z）；套件准入步骤确认模型在准入列表",
+      "screenshot": "screenshots/01-kilo-suite-pass.png"
+    },
+    {
+      "id": "REAL-02",
+      "name": "Kilo 统一能力套件真实生成 + 流式 + 原生工具",
+      "steps": "Kilo 卡片点击「测试连接与能力」（含原生工具勾选）",
+      "result": "PASS",
+      "evidence": "静态 PASS → 准入 PASS → 连接（真实生成）PASS → 流式 PASS → 原生工具 PASS；落库三行 PASS 并展示时间戳；套件运行两次结论一致（幂等）",
+      "screenshot": "screenshots/01-kilo-suite-pass.png"
+    },
+    {
+      "id": "REAL-03",
+      "name": "Gemini 统一能力套件真实生成 + 流式",
+      "steps": "「你的模型」Gemini 卡片点击「测试连接与能力」（能力声明仅 CHAT,STREAMING，规划/工具未勾选）",
+      "result": "PASS",
+      "evidence": "连接（真实生成）PASS（608ms）→ 流式 PASS（477ms）；模型发现 INCONCLUSIVE（旧格式硬编码 path 404 分类文案 + 手输降级提示，按设计不阻断）；规划/工具按未声明如实跳过",
+      "screenshot": "screenshots/02-gemini-suite-pass.png"
+    },
+    {
+      "id": "REAL-04",
+      "name": "Gemini 真实浏览器知识问答（SSE + 引用 + 持久化 + 刷新复核）",
+      "steps": "隔离验收项目 → 知识问答 → 提问「哪些缺陷必须在生产发布前关闭？」→ 等待 SSE 完成 → 刷新页面复核",
+      "result": "PASS",
+      "evidence": "回答非空且由 gemini-3.5-flash-lite 生成；引用 [S1]=上线验收规程.md（相似度 70.2%）真实且与回答语义一致；knowledge_message 双行落库（755/21 tokens）；刷新后问答与引用完整可再次查看；SSE 完整结束无错误气泡",
+      "screenshot": "screenshots/03-gemini-knowledge-qa-sse.png"
+    },
+    {
+      "id": "REAL-05",
+      "name": "探针结论 STALE 动态判定（隔离配置，零生成）",
+      "steps": "新建假端点配置（example.com）→ 运行套件（INCONCLUSIVE 落库）→ 编辑模型字段保存 → 刷新页面",
+      "result": "PASS",
+      "evidence": "配置变更后 UI 展示「已过期（配置已变更）」；数据库 tested_config_updated_at != updated_at 证实动态判定；未触碰任何真实用户 Key；临时配置已删除且探针行级联清理（残留 0）",
+      "screenshot": "screenshots/04-stale-after-config-change.png"
+    },
+    {
+      "id": "REAL-06",
+      "name": "用途就绪度聚合展示与测试数据清理",
+      "steps": "探针完成后检查 AI 设置「按用途的解析与就绪状态」→ 确认临时配置清理",
+      "result": "PASS",
+      "evidence": "知识问答=可用（Gemini STREAMING PASS）、Agent=可用（Kilo NATIVE_TOOLS PASS）、AI 规划=未验证（PLANNING_JSON 未执行，CHAT 成功未外推）；假端点临时配置已删除，配置数回到 2；其他用户/项目数据未触碰",
+      "screenshot": "screenshots/05-purpose-readiness.png"
+    }
+  ],
+  "summary": "6 PASS / 0 FAIL（本轮全部场景含真实模型生成；生成请求台账见 request-ledger.json）",
+  "not_executed_scenarios": [
+    "PLANNING_JSON 真实探针（预算优先级约束，如实标记 NOT_EXECUTED；AI 规划用途就绪度保持「未验证」）",
+    "Zen 真实生成/流式（上游限流，本轮授权 0 预算，UPSTREAM_RATE_LIMITED_NOT_RETESTED）"
+  ]
+}

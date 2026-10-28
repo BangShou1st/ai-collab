@@ -1,0 +1,12 @@
+{
+  "scope": "本轮新增测试全部为默认 CI 执行的确定性测试；既有质量门槛未关闭",
+  "newTests": [
+    "com.shitulelv.aicollab.retrieval.P10AnswerQualityOfflineEvaluationTest（4 项）"
+  ],
+  "existingGatesUntouched": [
+    "P6/P8/P9 显式 opt-in 门控（默认跳过，本地已验证）",
+    "AgentFinalCitationContractPostgresTest（默认执行）",
+    "KnowledgeCitationValidatorTest（默认执行）"
+  ],
+  "productionJavaChanged": false
+}

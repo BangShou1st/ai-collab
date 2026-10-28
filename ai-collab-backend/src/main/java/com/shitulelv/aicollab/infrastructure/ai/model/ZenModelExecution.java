@@ -13,7 +13,7 @@ import java.time.Duration;
 import java.util.function.Consumer;
 import org.springframework.stereotype.Component;
 
-/** Zen preset runtime execution. Single place where preset branches to DIRECT transport + registry authority. */
+/** Zen preset runtime execution with shared network policy and registry authority. */
 @Component
 public class ZenModelExecution {
     private final ProviderPresetRegistry registry;
@@ -45,7 +45,7 @@ public class ZenModelExecution {
         this.registry = registry;
         this.mapper = mapper;
         this.endpoints = endpoints;
-        HttpClient direct = HttpClient.newBuilder().proxy(HttpClient.Builder.NO_PROXY)
+        HttpClient direct = com.shitulelv.aicollab.common.net.OutboundHttpClients.builder()
                 .followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(10)).build();
         this.zenHttp = new JsonHttpModelClient(mapper, endpoints, direct);
         this.zenAdapter = zenAdapter != null ? zenAdapter
@@ -53,9 +53,6 @@ public class ZenModelExecution {
     }
     public boolean isZen(UserAiProvider p) {
         return p != null && ProviderPresetCode.OPENCODE_ZEN_FREE.name().equals(p.presetCode());
-    }
-    public boolean isZenConfig(ModelConfiguration c, String presetCode) {
-        return ProviderPresetCode.OPENCODE_ZEN_FREE.name().equals(presetCode);
     }
     public ModelConfiguration runtimeConfig(UserAiProvider p) {
         ProviderPresetRegistry.PresetPolicy pol = registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);

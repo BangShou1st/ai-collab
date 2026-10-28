@@ -1,0 +1,6 @@
+959a888cf8cc4313343d881b1075d9d6cd6f897ea4f1624c2a104406fb786cfd *ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10AnswerQualityScorer.java
+bf74855b3966b2ed510c2dcc9a74eed0ceebf96a75c44c2c113a0cbcf43d6e6b *ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10ContextualAssertionJudge.java
+bfd0b997b50ee1040bb3ca8f175848145ade7140ad3baf0093a25b47a943876f *ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10TextNormalizer.java
+3d9ca399eb853be3c198ae228857122d34d23eda0f43a7b7b7a2694b66fc5824 *ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10AbstentionDetector.java
+54d2cad9a8e3fee2ca0a6fe86ca1fce625b38bfadf1578111ab6da5688293c78 *tests/fixtures/documents/p9-rag-generalization-01/p10-evaluation-question-set.json
+568dac59ebfa3b90f89f47b87a237c7d9631bbe9b9eb89b22365d3f41573df81 *tests/fixtures/documents/p9-rag-generalization-01/corpus-manifest.json

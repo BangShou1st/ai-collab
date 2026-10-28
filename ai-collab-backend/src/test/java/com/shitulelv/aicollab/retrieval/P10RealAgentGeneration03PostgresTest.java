@@ -1,0 +1,550 @@
+package com.shitulelv.aicollab.retrieval;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shitulelv.aicollab.agent.application.AgentRecoveryJob;
+import com.shitulelv.aicollab.agent.application.runtime.AgentCancellationService;
+import com.shitulelv.aicollab.agent.application.view.AgentRunView;
+import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
+import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
+import com.shitulelv.aicollab.document.application.service.DocumentContentService;
+import com.shitulelv.aicollab.document.application.service.DocumentIndexWriter;
+import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
+import com.shitulelv.aicollab.document.domain.service.DocumentChunker;
+import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
+import com.shitulelv.aicollab.document.infrastructure.parser.DocumentParser;
+import com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprints;
+import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGateway;
+import com.shitulelv.aicollab.infrastructure.ai.model.ExternalProviderFailure;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelCapability;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderType;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelToolCall;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnCommand;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnGateway;
+import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProvider;
+import com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderRepository;
+import com.shitulelv.aicollab.planning.application.TaskPlanRecoveryJob;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.time.OffsetDateTime;
+import java.util.*;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+
+/**
+ * P10-REAL-GENERATION-03 Agent 侧：20 个冻结逻辑场景经真实生产 Agent 链路执行。
+ *
+ * <p>真实部分：真实 PostgreSQL（Flyway 真实 schema）、真实 Agent 持久化引擎与生产调度
+ * （AgentRuntimeJob 自动领取驱动）、真实生产 Agent 模型路由（AGENT purpose 未分配 →
+ * 用户默认 Provider，与生产一致）、真实 SAFE_READ 工具执行（真实向量检索 + 真实来源
+ * 身份持久化）、真实引用持久化。语料为 P9 冻结语料（SHA-256 校验后真实入库索引）。</p>
+ *
+ * <p>默认 CI 整类跳过；真实模式需 P10_LOCAL_PREFLIGHT + P10_REAL_AGENT_03 双门禁，且须批准固定 Kilo 免费模型与路由快照 SHA-256。
+ * 每场景有界（模型调用 ≤12、墙钟 ≤180s）；外部供应商故障如实标记 BLOCKED_EXTERNAL。</p>
+ */
+@SpringBootTest(properties = {
+        "spring.flyway.enabled=true", "embedding.enabled=false", "chat.enabled=false",
+        "planning.enabled=false", "agent.enabled=true",
+        "agent.worker-delay-ms=500", "agent.planning.recovery-delay-ms=120000",
+        "security.jwt.secret=test-only-secret-with-at-least-thirty-two-characters",
+        "security.jwt.access-token-minutes=30", "spring.data.redis.port=1",
+        "spring.data.redis.connect-timeout=100ms", "spring.data.redis.timeout=100ms",
+        "storage.minio.endpoint=http://127.0.0.1:1", "storage.minio.access-key=test-access",
+        "storage.minio.secret-key=test-secret", "storage.minio.bucket=test-bucket"
+})
+@ActiveProfiles("test")
+@EnabledIfEnvironmentVariable(named = "P10_LOCAL_PREFLIGHT", matches = "true")
+@Testcontainers
+class P10RealAgentGeneration03PostgresTest {
+    private static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules();
+    private static final Path ROOT = Path.of("..").toAbsolutePath().normalize();
+    private static final Path FIXTURES = ROOT.resolve("tests/fixtures/documents/p9-rag-generalization-01");
+    private static final P10RealAgent03Gate GATE = new P10RealAgent03Gate(System.getenv());
+    private static final String EMBED_MODEL = "qwen3-embedding:0.6b";
+    private static final String FP = EmbeddingFingerprints.fingerprint("OLLAMA", EMBED_MODEL, 1024);
+    private static final String F4 = "F4-外部审计参考摘录-未审核来源.md";
+    private static final long SCENARIO_TIMEOUT_MS = 180_000;
+    private static final Path OUTPUT = Path.of("target",
+            GATE.real() ? GATE.batchId() : "p10-real-agent-03-preflight",
+            GATE.real() ? "real" : "preflight");
+
+    @Container static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("pgvector/pgvector:pg17");
+
+    @DynamicPropertySource
+    static void properties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+        registry.add("spring.datasource.username", POSTGRES::getUsername);
+        registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("model.config.master-key", () -> {
+            try {
+                for (String line : Files.readAllLines(ROOT.resolve(".env"))) {
+                    if (line.startsWith("MODEL_CONFIG_MASTER_KEY=")) {
+                        String value = line.substring(line.indexOf('=') + 1).strip();
+                        if (value.length() >= 2 && ((value.startsWith("\"") && value.endsWith("\""))
+                                || (value.startsWith("'") && value.endsWith("'")))) value = value.substring(1, value.length() - 1);
+                        return value;
+                    }
+                }
+            } catch (Exception ignored) { /* fail closed without printing configuration */ }
+            throw new IllegalStateException("Local master key unavailable");
+        });
+    }
+
+    @MockitoBean TaskPlanRecoveryJob planningRecovery;
+    @Autowired JdbcTemplate jdbc;
+    @Autowired DocumentParser parser;
+    @Autowired DocumentChunker chunker;
+    @Autowired DocumentIndexWriter writer;
+    @Autowired ProjectEmbeddingGateway embeddings;
+    @Autowired DocumentContentService content;
+    @Autowired AgentRepository repository;
+    @Autowired AgentCancellationService cancellation;
+    @Autowired UserAiProviderRepository providers;
+    @MockitoSpyBean DocumentSearchService search;
+    @MockitoSpyBean ModelTurnGateway modelTurn;
+
+    private UUID user, project;
+    private final Map<String, UUID> documents = new LinkedHashMap<>();
+    private final List<Map<String, Object>> scenarioResults = new ArrayList<>();
+    private final List<Map<String, Object>> modelCalls = new ArrayList<>();
+    private JsonNode scenarios;
+    private String currentScenario;
+    private int currentScenarioModelCalls;
+    private int syntheticTurns;
+    private String routeSnapshot;
+
+    @Test
+    void executeTwentyFrozenScenariosThroughProductionAgentLoop() throws Exception {
+        Files.createDirectories(OUTPUT);
+        if (GATE.real() && Files.exists(OUTPUT.resolve("model-call-ledger.json")))
+            throw new IllegalStateException("Existing real ledger: no automatic rerun");
+        scenarios = JSON.readTree(FIXTURES.resolve("p10-real-generation-03-agent-scenarios.json").toFile()).path("scenarios");
+        prepareDatabase();
+        boolean externalBlocked = false;
+        String blockedReason = null;
+        for (JsonNode scenario : scenarios) {
+            String id = scenario.path("id").asText();
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", id);
+            row.put("dimension", scenario.path("dimension").asText());
+            row.put("status", "NOT_RUN");
+            scenarioResults.add(row);
+            if (GATE.real()) {
+                if (externalBlocked) {
+                    row.put("status", "NOT_RUN_AFTER_EXTERNAL_BLOCK");
+                    row.put("blockedReason", blockedReason);
+                    continue;
+                }
+                GATE.reserveScenario();
+            }
+            try {
+                executeScenario(scenario, row);
+            } catch (ExternalBlock block) {
+                externalBlocked = true;
+                blockedReason = block.reason;
+                row.put("status", "BLOCKED_EXTERNAL");
+                row.put("blockedReason", block.reason);
+            } finally {
+                flush();
+            }
+        }
+        flush();
+        assertThat(scenarioResults).noneMatch(r -> "FAILED".equals(r.get("status")));
+        if (!GATE.real()) assertThat(syntheticTurns).as("preflight must use synthetic transport only").isGreaterThan(0);
+    }
+
+    // ============================================================ 场景执行
+
+    private void executeScenario(JsonNode scenario, Map<String, Object> row) throws Exception {
+        currentScenario = scenario.path("id").asText();
+        currentScenarioModelCalls = 0;
+        List<String> temporary = new ArrayList<>();
+        for (JsonNode name : scenario.path("temporaryDocuments")) {
+            if (!documents.containsKey(name.asText())) index(name.asText());
+            temporary.add(name.asText());
+        }
+        long businessRowsBefore = countBusinessRows();
+        UUID session = UUID.randomUUID();
+        jdbc.update("INSERT INTO agent_session(id,project_id,creator_id,title) VALUES (?,?,?,?)", session, project, user, currentScenario);
+        String goal = scenario.path("goal").asText();
+        AgentRunView run = repository.createRun(project, session, user, goal, false, null, null);
+        jdbc.update("UPDATE agent_run SET max_steps=6, max_tool_calls=4, max_children=1 WHERE id=?", run.id());
+        row.put("runId", run.id().toString());
+        row.put("goal", goal);
+        long started = System.nanoTime();
+        AgentRunStatus status = waitTerminal(run.id(), started);
+        long elapsedMs = (System.nanoTime() - started) / 1_000_000;
+        try {
+            row.put("status", "EXECUTED");
+            row.put("runStatus", status.name());
+            var runRow = jdbc.queryForMap("SELECT status, COALESCE(error_code,'') AS err FROM agent_run WHERE id=?", run.id());
+            row.put("runStatus", String.valueOf(runRow.get("status")));
+            row.put("runError", String.valueOf(runRow.get("err")));
+            row.put("elapsedMs", elapsedMs);
+            row.put("modelCalls", currentScenarioModelCalls);
+            row.put("finalAnswer", safeAnswer(run.id()));
+            row.put("citations", citationsOf(run.id()));
+            row.put("toolInvocations", toolInvocations(run.id()));
+            verifySourceIdentity(row);
+            if (GATE.real() && row.get("finalAnswer") instanceof String answer && !answer.isBlank()) {
+                row.put("mechanicalScore", scoreAgentAnswer(scenario, row, answer, run.id()));
+                row.put("humanReview", "PENDING_INDEPENDENT_HUMAN_REVIEW");
+            }
+            assertNoBusinessWrites(row, businessRowsBefore);
+        } finally {
+            for (String name : temporary)
+                jdbc.update("UPDATE project_document SET status='FAILED' WHERE id=?", documents.get(name));
+        }
+    }
+
+    private AgentRunStatus waitTerminal(UUID runId, long startedNanos) throws InterruptedException {
+        while ((System.nanoTime() - startedNanos) / 1_000_000 < SCENARIO_TIMEOUT_MS) {
+            Optional<AgentRunView> view = repository.findRun(project, runId);
+            if (view.isPresent() && view.get().status().terminal()) return view.get().status();
+            Thread.sleep(400);
+        }
+        cancellation.interrupt(runId);
+        for (int i = 0; i < 60; i++) {
+            Optional<AgentRunView> view = repository.findRun(project, runId);
+            if (view.isPresent() && view.get().status().terminal()) return view.get().status();
+            Thread.sleep(500);
+        }
+        throw new IllegalStateException("scenario run did not reach terminal state within wall-clock budget");
+    }
+
+    private String safeAnswer(UUID runId) {
+        try {
+            return jdbc.queryForObject("""
+                    SELECT content FROM agent_message WHERE run_id=? AND role='ASSISTANT'
+                    ORDER BY created_at DESC LIMIT 1
+                    """, String.class, runId);
+        } catch (org.springframework.dao.EmptyResultDataAccessException none) {
+            return null;
+        }
+    }
+
+    private List<String> citationsOf(UUID runId) {
+        String raw;
+        try {
+            raw = jdbc.queryForObject("""
+                    SELECT COALESCE(citations_json::text,'[]') FROM agent_message
+                    WHERE run_id=? AND role='ASSISTANT' ORDER BY created_at DESC LIMIT 1
+                    """, String.class, runId);
+        } catch (org.springframework.dao.EmptyResultDataAccessException none) {
+            return new ArrayList<>();
+        }
+        List<String> found = new ArrayList<>();
+        if (raw == null) return found;
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+                .matcher(raw);
+        while (matcher.find()) found.add(matcher.group());
+        return found.stream().distinct().toList();
+    }
+
+    private List<Map<String, Object>> toolInvocations(UUID runId) {
+        return jdbc.queryForList("""
+                SELECT sequence_no, type, tool_name, input_json::text AS input,
+                       COALESCE(output_json->>'status','UNKNOWN') AS tool_status,
+                       output_json::text AS output, reason
+                FROM agent_step WHERE run_id=? AND type IN ('TOOL_CALL_COMPLETED','TOOL_CALL_FAILED')
+                ORDER BY sequence_no
+                """, runId);
+    }
+
+    /** 工具返回的每个来源身份必须与隔离库真实分块一致（documentId/chunkId/content 前缀）。 */
+    @SuppressWarnings("unchecked")
+    private void verifySourceIdentity(Map<String, Object> row) {
+        var invocations = (List<Map<String, Object>>) row.get("toolInvocations");
+        int verified = 0;
+        for (Map<String, Object> invocation : invocations) {
+            Object output = invocation.get("output");
+            if (output == null) continue;
+            JsonNode sources;
+            try {
+                JsonNode root = JSON.readTree(String.valueOf(output));
+                sources = root.path("sources");
+                if (!sources.isArray()) sources = root.path("data").path("sources");
+            } catch (Exception parse) { continue; }
+            for (JsonNode source : sources) {
+                String chunkId = source.path("chunkId").asText(null);
+                String documentId = source.path("documentId").asText(null);
+                if (chunkId == null || documentId == null) continue;
+                var actual = jdbc.queryForMap("SELECT document_id::text AS doc, content FROM document_chunk WHERE id=?::uuid", chunkId);
+                assertThat(actual.get("doc")).as("source documentId must match isolated database").isEqualTo(documentId);
+                String content = source.path("content").asText("");
+                if (!content.isEmpty())
+                    assertThat(String.valueOf(actual.get("content"))).startsWith(content.substring(0, Math.min(content.length(), 40)));
+                verified++;
+            }
+        }
+        row.put("sourceIdentityVerifications", verified);
+        row.put("sourceIdentity", verified > 0 ? "VERIFIED_AGAINST_ISOLATED_DATABASE" : "NO_TOOL_SOURCES_RETURNED");
+    }
+
+    private long countBusinessRows() {
+        return jdbc.queryForObject("SELECT (SELECT count(*) FROM project_task WHERE project_id=?) + (SELECT count(*) FROM milestone WHERE project_id=?) + (SELECT count(*) FROM agent_memory WHERE project_id=?)", Long.class, project, project, project);
+    }
+
+    private void assertNoBusinessWrites(Map<String, Object> row, long before) {
+        long after = countBusinessRows();
+        row.put("businessRowsBefore", before);
+        row.put("businessRowsAfter", after);
+        assertThat(after).as("Agent 必须只读：业务表不得出现新行").isEqualTo(before);
+    }
+
+    /** 用冻结场景预期对 Agent 最终回答执行评分器 v6（AGENT 协议）。 */
+    private Map<String, Object> scoreAgentAnswer(JsonNode scenario, Map<String, Object> row, String answer, UUID runId) {
+        List<P10AnswerQualityScorer.Source> sources = toolSources(row);
+        List<Map<String, String>> persistedCitations = new ArrayList<>();
+        String raw = jdbc.queryForObject("SELECT citations_json::text FROM agent_message WHERE run_id=? AND role='ASSISTANT' ORDER BY created_at DESC LIMIT 1", String.class, runId);
+        JsonNode citationItems = JSON.createObjectNode();
+        try {
+            citationItems = JSON.readTree(raw == null ? "[]" : raw);
+        } catch (Exception parse) { /* empty citation list */ }
+        for (JsonNode item : citationItems) {
+            if (item.hasNonNull("documentId") && item.hasNonNull("chunkId")) {
+                Map<String, String> pair = new LinkedHashMap<>();
+                pair.put("documentId", item.path("documentId").asText());
+                pair.put("chunkId", item.path("chunkId").asText());
+                persistedCitations.add(pair);
+            }
+        }
+        List<Map<String, Object>> facts = new ArrayList<>();
+        for (JsonNode fact : scenario.path("expectedFacts")) {
+            Map<String, Object> item = JSON.convertValue(fact, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+            boolean present = sources.stream().anyMatch(s -> s.document().equals(fact.path("document").asText()) && s.content().contains(fact.path("marker").asText()));
+            item.put("contextAvailability", present ? "RETAINED" : "CONTEXT_MISS");
+            facts.add(item);
+        }
+        Map<String, Object> rules = new LinkedHashMap<>();
+        List<String> forbidden = new ArrayList<>();
+        scenario.path("forbidden").forEach(f -> forbidden.add(f.asText()));
+        rules.put("forbiddenAffirmations", forbidden);
+        rules.put("requiredMarkers", List.of());
+        rules.put("legacyMarkers", List.of());
+        rules.put("legacyContextWords", List.of());
+        return P10AnswerQualityScorer.score(currentScenario, scenario.path("dimension").asText(),
+                scenario.path("abstain").asBoolean(false), facts, rules, answer, sources, P10AnswerQualityScorer.AGENT, persistedCitations);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<P10AnswerQualityScorer.Source> toolSources(Map<String, Object> row) {
+        List<P10AnswerQualityScorer.Source> sources = new ArrayList<>();
+        int rank = 1;
+        for (Map<String, Object> invocation : (List<Map<String, Object>>) row.get("toolInvocations")) {
+            Object output = invocation.get("output");
+            if (output == null) continue;
+            JsonNode items;
+            try {
+                JsonNode root = JSON.readTree(String.valueOf(output));
+                items = root.path("sources");
+                if (!items.isArray()) items = root.path("data").path("sources");
+                if (!items.isArray()) items = root.path("results");
+            } catch (Exception parse) { continue; }
+            for (JsonNode item : items) {
+                String filename = item.path("originalFilename").asText(item.path("filename").asText(item.path("document").asText("")));
+                if (filename.isBlank()) continue;
+                String content = item.path("content").asText(item.path("quote").asText(item.path("excerpt").asText("")));
+                sources.add(new P10AnswerQualityScorer.Source(rank++, filename,
+                        item.path("documentId").asText(""), item.path("chunkId").asText(""), content));
+            }
+        }
+        return sources;
+    }
+
+    // ============================================================ 装配与索引
+
+    private void prepareDatabase() throws Exception {
+        // 生产默认路由快照（AGENT purpose 未分配 → default Provider），SELECT only。
+        String sql = "SELECT row_to_json(p) FROM user_ai_provider p JOIN app_user u ON u.id=p.user_id "
+                + "WHERE u.username='p3u04_admin' AND p.is_default";
+        Process names = new ProcessBuilder("docker", "exec", "ai-collab-postgres", "printenv", "POSTGRES_USER", "POSTGRES_DB").start();
+        String[] databaseNames = new String(names.getInputStream().readAllBytes(), StandardCharsets.UTF_8).strip().split("\\R");
+        if (names.waitFor() != 0 || databaseNames.length != 2) throw new IllegalStateException("Local database unavailable");
+        Process process = new ProcessBuilder("docker", "exec", "-i", "ai-collab-postgres", "psql", "-X", "-q", "-t", "-A",
+                "-v", "ON_ERROR_STOP=1", "-U", databaseNames[0], "-d", databaseNames[1]).start();
+        process.getOutputStream().write((sql + ";\n").getBytes(StandardCharsets.UTF_8));
+        process.getOutputStream().close();
+        String source = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).strip();
+        if (process.waitFor() != 0 || source.isBlank()) throw new IllegalStateException("Default route unavailable");
+        JsonNode p = JSON.readTree(source);
+        if (GATE.real()) {
+            String model = p.path("model_name").asText();
+            if (!GATE.model().equals(model) || !"OPENAI_COMPATIBLE".equals(p.path("provider_type").asText()) || !p.path("enabled").asBoolean())
+                throw new IllegalStateException("Default agent route changed; re-review required");
+        }
+        Map<String, String> route = new TreeMap<>();
+        route.put("provider_type", p.path("provider_type").asText());
+        route.put("base_url", p.path("base_url").asText());
+        route.put("model_name", p.path("model_name").asText());
+        route.put("enabled", p.path("enabled").asText());
+        routeSnapshot = hash(JSON.writeValueAsString(route));
+        if (GATE.real() && !GATE.approvedRouteSha256().equals(routeSnapshot))
+            throw new IllegalStateException("Agent route snapshot changed after approval");
+        user = UUID.fromString(p.path("user_id").asText());
+        project = UUID.randomUUID();
+        jdbc.update("INSERT INTO app_user(id,username,password_hash,display_name) VALUES (?,?,?,?)", user, "p10-agent-03", "test-only-hash", "P10 agent isolated");
+        jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,?,?,?)", project, "P10 agent isolated", user, user);
+        jdbc.update("INSERT INTO project_member(project_id,user_id,role) VALUES (?,?,'OWNER')", project, user);
+        providers.save(new UserAiProvider(UUID.fromString(p.path("id").asText()), user, p.path("name").asText(), ModelProviderType.OPENAI_COMPATIBLE,
+                p.path("base_url").asText(), p.path("api_path").asText(), null,
+                p.path("model_name").asText(), true, 0.2, 2000,
+                EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING, ModelCapability.NATIVE_TOOLS),
+                true, OffsetDateTime.now(), OffsetDateTime.now(), "KILO_GATEWAY_FREE"));
+        UUID config = UUID.randomUUID();
+        jdbc.update("INSERT INTO system_embedding_config(id,provider,base_url,api_path,model_name,dimensions,batch_size,fingerprint,enabled) VALUES (?,'OLLAMA','http://127.0.0.1:11434','/v1/embeddings',?,1024,32,?,TRUE)", config, EMBED_MODEL, FP);
+        UUID generation = UUID.randomUUID();
+        jdbc.update("INSERT INTO embedding_index_generation(id,config_id,state) VALUES (?,?,'ACTIVE')", generation, config);
+        jdbc.update("UPDATE system_embedding_config SET generation_id=? WHERE id=?", generation, config);
+        Set<String> seeds = new LinkedHashSet<>();
+        for (JsonNode scenario : scenarios) {
+            scenario.path("seedScope").forEach(n -> seeds.add(n.asText()));
+            scenario.path("temporaryDocuments").forEach(n -> seeds.add(n.asText()));
+        }
+        for (JsonNode entry : JSON.readTree(FIXTURES.resolve("corpus-manifest.json").toFile()).path("documents")) {
+            String name = entry.path("filename").asText();
+            assertThat(hash(Files.readString(FIXTURES.resolve(name)))).isEqualTo(entry.path("sha256").asText());
+            if (seeds.contains(name) && !name.equals(F4)) index(name);
+        }
+    }
+
+    private void index(String filename) throws Exception {
+        byte[] bytes = Files.readAllBytes(FIXTURES.resolve(filename));
+        var parsed = parser.parse(bytes, filename, "text/markdown");
+        var chunks = chunker.split(parsed.text());
+        var vectors = embeddings.embed(project, chunks.stream().map(c -> c.content()).toList(), EmbeddingProgressListener.NONE);
+        assertThat(vectors.dimension()).isEqualTo(1024);
+        assertThat(vectors.fingerprint()).isEqualTo(FP);
+        UUID document = UUID.randomUUID(), token = UUID.randomUUID();
+        jdbc.update("INSERT INTO project_document(id,project_id,display_name,original_filename,mime_type,size_bytes,object_key,status,processing_token,uploaded_by) VALUES (?,?,?,?,'text/markdown',?,?,'INDEXING',?,?)",
+                document, project, filename, filename, bytes.length, "p10/" + document, token, user);
+        assertThat(writer.replaceAndComplete(project, document, token, chunks, vectors, filename)).isTrue();
+        documents.put(filename, document);
+    }
+
+    // ============================================================ 模型网关记账与合成
+
+    @BeforeEach
+    void resetScenarioCounters() {
+        currentScenario = null;
+        currentScenarioModelCalls = 0;
+    }
+
+    @jakarta.annotation.PostConstruct
+    void instrumentModelTurn() {
+        // 生产 RoutingModelTurnGateway 重写的是两参 turn(command, metadata)；必须在同一重载上拦截，
+        // 否则预检模式会漏过 spy 直接外呼。
+        doAnswer(inv -> {
+            ModelTurnCommand command = inv.getArgument(0);
+            assertThat(command.callerUserId()).as("模型调用必须归属隔离用户").isEqualTo(user);
+            Map<String, Object> call = new LinkedHashMap<>();
+            call.put("scenario", currentScenario);
+            call.put("attempt", ++currentScenarioModelCalls);
+            call.put("startedAt", OffsetDateTime.now().toString());
+            call.put("purpose", command.purpose().name());
+            call.put("messageCount", command.messages().size());
+            call.put("toolDefinitionCount", command.tools().size());
+            modelCalls.add(call);
+            if (GATE.real()) {
+                if (currentScenarioModelCalls > P10RealAgent03Gate.MAX_MODEL_CALLS_PER_SCENARIO)
+                    throw new IllegalStateException("scenario model-call limit exceeded");
+                long start = System.nanoTime();
+                try {
+                    ModelTurnResult result = (ModelTurnResult) inv.callRealMethod();
+                    call.put("status", "HTTP_RETURNED");
+                    call.put("finishReason", String.valueOf(result.finishReason()));
+                    call.put("latencyMs", result.latencyMs());
+                    call.put("provider", result.provider());
+                    call.put("model", result.model());
+                    if (result.usage() != null) call.put("usage", result.usage());
+                    return result;
+                } catch (ExternalProviderFailure failure) {
+                    call.put("status", "BLOCKED_EXTERNAL");
+                    call.put("blockedReason", failure.kind().name());
+                    call.put("providerStatusCode", failure.statusCode());
+                    throw new ExternalBlock(failure.kind().name() + (failure.statusCode() > 0 ? ":" + failure.statusCode() : ""));
+                } catch (Exception failure) {
+                    call.put("status", "FAILED_OR_UNKNOWN");
+                    call.put("errorType", failure.getClass().getSimpleName());
+                    throw failure;
+                } finally {
+                    call.put("wallMs", (System.nanoTime() - start) / 1_000_000);
+                    flush();
+                }
+            }
+            syntheticTurns++;
+            if (currentScenarioModelCalls == 1 && command.tools().isEmpty())
+                throw new IllegalStateException("first agent turn must expose the production tool registry");
+            if (currentScenarioModelCalls == 1) {
+                var arguments = JSON.createObjectNode().put("query", "项目资料");
+                call.put("status", "SYNTHETIC_TRANSPORT");
+                return new ModelTurnResult("", List.of(new ModelToolCall("synthetic-1", "search_project_knowledge", arguments)),
+                        ModelFinishReason.TOOL_CALLS, null, "SYNTHETIC", "preflight", 0, false);
+            }
+            call.put("status", "SYNTHETIC_TRANSPORT");
+            return new ModelTurnResult("当前项目资料不足以回答该问题。", List.of(), ModelFinishReason.STOP, null, "SYNTHETIC", "preflight", 0, false);
+        }).when(modelTurn).turn(any(ModelTurnCommand.class), any(com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata.class));
+    }
+
+    // ============================================================ 持久化证据
+
+    private void flush() throws Exception {
+        write("agent-execution-results.json", scenarioResults);
+        Map<String, Object> ledger = new LinkedHashMap<>();
+        ledger.put("task", GATE.batchId().toUpperCase(Locale.ROOT));
+        ledger.put("mode", GATE.real() ? "REAL" : "PREFLIGHT_SYNTHETIC_TRANSPORT");
+        ledger.put("authorization", GATE.real());
+        ledger.put("provider", "KILO_GATEWAY_FREE");
+        ledger.put("model", GATE.model());
+        ledger.put("routeSnapshotSha256", routeSnapshot);
+        ledger.put("scenarioReservations", GATE.scenarios());
+        ledger.put("modelCallCount", modelCalls.size());
+        ledger.put("syntheticTransportTurns", syntheticTurns);
+        ledger.put("externalEmbedding", 0);
+        ledger.put("judge", 0);
+        ledger.put("chatRetries", 0);
+        ledger.put("actualCost", "UNAVAILABLE");
+        ledger.put("calls", modelCalls);
+        ledger.put("executionVerdict", GATE.real() ? "REAL_AGENT_ATTEMPTED_SEE_SCENARIO_OUTCOMES" : "REAL_AGENT_NOT_EXECUTED");
+        write("model-call-ledger.json", ledger);
+    }
+
+    private static void write(String name, Object value) throws Exception {
+        Path staging = OUTPUT.resolve(name + ".tmp");
+        JSON.writerWithDefaultPrettyPrinter().writeValue(staging.toFile(), value);
+        Files.move(staging, OUTPUT.resolve(name), StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private static String hash(String value) throws Exception {
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    /** 结构化识别的外部供应商故障：停止后续外部场景，不把失败当成功。 */
+    private static final class ExternalBlock extends RuntimeException {
+        final String reason;
+        ExternalBlock(String reason) { super(reason); this.reason = reason; }
+    }
+}

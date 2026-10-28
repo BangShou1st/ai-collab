@@ -1,0 +1,67 @@
+{
+  "task": "P4-MODEL-QUICK-CONNECT-02",
+  "generated_at": "2026-10-24",
+  "backend": {
+    "command": "mvnw -B -ntp verify（含 Testcontainers 集成测试，CI 同命令）",
+    "runs": [
+      {
+        "run": 1,
+        "result": "1670 tests, 0 Failures, 1 Error（本轮引入：openapi.yaml 中 {model} 描述未加引号，PlanningOpenApiContractTest YAML 解析失败）",
+        "fix": "加引号后单测复跑通过；后续轮次该测试全绿"
+      },
+      {
+        "run": 2,
+        "result": "1670 tests, 0 Failures, 1 Error（AgentCrashRecoveryTimingPostgresTest:184，非本轮依赖链）",
+        "follow_up": "单独复跑 5/5 全绿"
+      },
+      {
+        "run": 3,
+        "result": "1670 tests, 0 Failures, 1 Error（AgentRepositoryIntegrationTest:804，非本轮依赖链；本轮改动链上的全部模块三轮全绿）",
+        "follow_up": "单独复跑 40/40 全绿；Agent 全包连跑可复现"
+      }
+    ],
+    "baseline_control_experiment": {
+      "method": "git worktree 检出本轮基线 71939d0，在同一台机器上执行完全相同的 Agent 全包测试（-Dtest='com.shitulelv.aicollab.agent.**'）",
+      "baseline_result": "760 tests, 2 Errors —— 同样是 AgentCrashRecoveryTimingPostgresTest:184 与 AgentRepositoryIntegrationTest:804，NoSuchElement 模式完全一致（基线失败数 ≥ 本轮的 1 个）",
+      "conclusion": "两处失败为本机环境下 Agent 租约/时序类 Postgres 集成测试在连续高负载下的存量竞态，与本轮改动无关（本轮未触碰 agent 运行时/仓储任何代码）；本轮改动依赖链上的全部测试（infrastructure.ai.**、planning 契约、预设协议契约等）三轮全绿。CI（GitHub Actions 独立环境）结果为最终裁决"
+    },
+    "skipped": "33 项为既有基线（GeminiLiveAcceptanceTest 等需真实外部凭据的测试，与本轮改动无关；上一轮 CI 全绿时同样跳过）",
+    "migration": "V66 user_ai_provider_probe_result 在 Testcontainers 环境随全量 verify 首次应用成功（Flyway: now at version v66）"
+  },
+  "frontend": {
+    "lint": "0 errors（75 warnings 均为存量文件基线，本轮改动文件无新增 warning）",
+    "typecheck": "vue-tsc -b 通过",
+    "vitest": "393 tests / 51 files 全绿",
+    "build": "vite build 成功（18.6s）"
+  },
+  "targeted_new_tests": {
+    "backend": {
+      "ProviderEndpointValidationTest": "8 项：{model} 放行/重复拒绝/非法表达式拒绝/不成对花括号拒绝/内网与 http 拒绝（含分类文案）/绝对 path 拒绝/旧硬编码格式兼容/档案完整性（含 STREAMING 必在候选）",
+      "ProviderModelDiscoveryServiceTest": "8 项：三种协议发现 URL 推导（含占位符与硬编码 path）/三协议响应解析/预设拒绝自定义发现通道/缓存与强制刷新/空列表可读失败",
+      "AiCapabilityProbeResultTest": "7 项：PASS 落库/失败分类矩阵（超时-限流-5xx=INCONCLUSIVE；401-404-契约=FAIL）/未声明能力=NOT_SUPPORTED（两种生产门控文案）/失败落库并重抛/STALE 动态判定（配置变更前后）/落库失败不影响探针结论"
+    },
+    "frontend": {
+      "use-capability-suite.test.ts": "9 项：套件顺序与单次确认/FAIL 停断并标记 SKIPPED/INCONCLUSIVE 续行/NOT_SUPPORTED 落库分类/静态失败零出站/预设准入核对/请求预算声明 + staticCheck 2 项",
+      "ProviderFormDialog.test.ts": "8 项：OpenAI 默认预填/GEMINI 切换联动/用户编辑不覆盖（URL 与 path）/存量编辑不重置/Key 留空提交 null/新建默认能力/发现失败降级手输",
+      "UserAiSettingsView.test.ts": "13 项：断开与重载/无 Key 连接断开/用途失败态/加载失败态/无点击零探测/就绪度展示（探针证据驱动、CONNECTIVITY 不外推）/STALE 展示/无默认不可用/停用覆盖阻塞/统一套件（自定义+预设）/管理员入口/账号切换清理",
+      "knowledge-stream.test.ts": "7 项：token 刷新/跨 chunk 事件名/无终止事件 throw（不再静默）/SSE error 事件 throw/HTTP 错误携带后端消息/末缓冲终止/CRLF",
+      "ai-purpose-status.test.ts": "10 项既有 + 就绪度规则（本轮扩展）"
+    }
+  },
+  "regression_guards": {
+    "知识问答与 SSE": "knowledge-stream/feedback 测试全绿；SSE 契约（token/citations/done/error/终止检查）不变",
+    "AI 规划": "AiCapabilityProbePlanningContractTest（生产 PlanningJsonContract 复用）与规划套件全绿",
+    "Agent 模型路由": "RoutingModelTurnGateway 分支重构后 zen/kilo/自定义路由与 NATIVE_TOOLS 门控测试全绿（KiloGatewayModelTest/ZenModelWiringTest/OpenAiTurnContractTest 等）",
+    "用户配置权限": "UserAiProviderOwnershipTest / UserAiProviderPresetGuardTest / KiloGatewayPresetIsolationIntegrationTest 全绿",
+    "系统 Embedding": "未触碰，相关测试全绿",
+    "Q09 双文档来源身份": "未触碰（知识问答仅改错误反馈路径），既有测试全绿",
+    "Zen/Kilo 预设协议契约": "ZenUpstreamRoutingTest / ZenModelWiringTest / KiloGatewayModelTest / 预设契约测试全绿（断言迁移到等价 API 后语义不变）"
+  },
+  "ci": {
+    "run": 40012687910,
+    "attempt": 1,
+    "head_sha": "65e046f9479f4a64959a6a7beda6fc2021837070",
+    "status": "completed / success",
+    "conclusion": "后端 1670 tests + 前端全套全绿，证实本机 Agent 时序失败为环境负载竞态"
+  }
+}

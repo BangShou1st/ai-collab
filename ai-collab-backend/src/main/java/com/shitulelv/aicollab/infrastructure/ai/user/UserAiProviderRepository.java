@@ -13,6 +13,7 @@ import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -180,6 +181,49 @@ public class UserAiProviderRepository {
 
     public void deleteByIdAndUserId(UUID id, UUID userId) {
         jdbc.update("DELETE FROM user_ai_provider WHERE id = ? AND user_id = ?", id, userId);
+    }
+
+    /**
+     * 探针写回的乐观并发（CAS）更新：仅当配置仍停留在探针开始时的版本
+     * （{@code updated_at} 未变）时追加能力，返回新版本时间戳。
+     *
+     * <p>版本不匹配（检测期间改了模型/Base URL/Key/能力声明，或另一窗口并发修改）
+     * 返回空——旧探针结论不得覆盖新配置。合并采用数组并集去重，
+     * 不触碰用户保留的其他能力声明。</p>
+     */
+    public Optional<OffsetDateTime> addCapabilitiesIfVersionMatches(
+            UUID id, UUID userId, java.util.Set<ModelCapability> capabilitiesToAdd, OffsetDateTime expectedUpdatedAt) {
+        List<String> merged = capabilitiesToAdd.stream().map(Enum::name).toList();
+        List<OffsetDateTime> updated = jdbc.query("""
+                UPDATE user_ai_provider SET
+                    capabilities = (
+                        SELECT string_agg(DISTINCT cap, ',' ORDER BY cap)
+                        FROM unnest(string_to_array(COALESCE(capabilities, ''), ',') || ?::text[]) AS cap
+                        WHERE cap <> ''
+                    ),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND user_id = ? AND updated_at = ?
+                RETURNING updated_at
+                """,
+                (rs, row) -> rs.getObject("updated_at", OffsetDateTime.class),
+                merged.toArray(String[]::new), id, userId, expectedUpdatedAt);
+        return updated.stream().findFirst();
+    }
+
+    /**
+     * 写回成功后，把本次运行落库的探针结论的版本锚点迁移到新配置版本，
+     * 避免「刚探针通过并写回，结论立即被判 STALE」。只迁移仍锚定在旧版本上的
+     * 行（检测期间被其他结论覆盖的行不受影响），且仅限本次运行覆盖的模式。
+     */
+    public void rebaseProbeTestedVersion(
+            UUID providerId, OffsetDateTime oldVersion, OffsetDateTime newVersion, List<String> modes) {
+        var named = new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(jdbc);
+        named.update(
+                "UPDATE user_ai_provider_probe_result SET tested_config_updated_at = :newVersion "
+                        + "WHERE provider_id = :providerId AND tested_config_updated_at = :oldVersion "
+                        + "AND probe_mode IN (:modes)",
+                Map.of("newVersion", newVersion, "providerId", providerId,
+                        "oldVersion", oldVersion, "modes", modes));
     }
 
     public int deleteByUserAndPreset(UUID userId, String presetCode) {
