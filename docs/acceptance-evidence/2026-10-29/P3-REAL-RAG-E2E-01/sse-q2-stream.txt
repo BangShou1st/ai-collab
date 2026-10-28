@@ -1,0 +1,84 @@
+event:token
+data:{"type":"token","text":"蓝鲸协议"}
+
+event:token
+data:{"type":"token","text":"是"}
+
+event:token
+data:{"type":"token","text":"文档中虚构的"}
+
+event:token
+data:{"type":"token","text":"“"}
+
+event:token
+data:{"type":"token","text":"文档隔离规则”"}
+
+event:token
+data:{"type":"token","text":"："}
+
+event:token
+data:{"type":"token","text":"任何项目外的成员"}
+
+event:token
+data:{"type":"token","text":"都"}
+
+event:token
+data:{"type":"token","text":"不得读取本项目私有"}
+
+event:token
+data:{"type":"token","text":"文档；唯一例外"}
+
+event:token
+data:{"type":"token","text":"是系统管理员的"}
+
+event:token
+data:{"type":"token","text":"合规审计通道 ["}
+
+event:token
+data:{"type":"token","text":"S1]。"}
+
+event:token
+data:{"type":"token","text":"\n\n累计"}
+
+event:token
+data:{"type":"token","text":"积分达到 **4"}
+
+event:token
+data:{"type":"token","text":"7 "}
+
+event:token
+data:{"type":"token","text":"分** 时"}
+
+event:token
+data:{"type":"token","text":"，验收流程进入"}
+
+event:token
+data:{"type":"token","text":"收尾阶段 [S"}
+
+event:token
+data:{"type":"token","text":"2]"}
+
+event:token
+data:{"type":"token","text":"。\n\n这些规则"}
+
+event:token
+data:{"type":"token","text":"与数字均为"}
+
+event:token
+data:{"type":"token","text":"虚构，仅用于"}
+
+event:token
+data:{"type":"token","text":"验收测试 [S"}
+
+event:token
+data:{"type":"token","text":"5"}
+
+event:token
+data:{"type":"token","text":"]。"}
+
+event:citations
+data:{"type":"citations","citations":[{"documentId":"db66c265-5cb4-419b-b24e-7494aac32e18","filename":"合成文档B-测试指南.md","chunkId":"74d0d88f-2ea9-45dd-bb16-b73711c0c8db","heading":"特殊术语","quote":"- 「蓝鲸协议」指本文虚构的文档隔离规则：任何项目外的成员都不得读取本项目私有文档。\n- 蓝鲸协议的唯一例外是系统管理员的合规审计通道。","similarity":0.7269804003800515,"rank":1},{"documentId":"db66c265-5cb4-419b-b24e-7494aac32e18","filename":"合成文档B-测试指南.md","chunkId":"b032465d-db0c-4906-bdb9-ccf1a08e34d5","heading":"积分规则（虚构）","quote":"- 每完成一次真实向量检索召回，记 3 分。\n- 每通过一次来源引用核验，记 5 分。\n- 当累计积分达到 47 分时，验收流程进入收尾阶段。","similarity":0.700133872558007,"rank":2},{"documentId":"db66c265-5cb4-419b-b24e-7494aac32e18","filename":"合成文档B-测试指南.md","chunkId":"55b0d07d-5141-4f3a-88ed-33267bf09cd7","heading":"免责说明","quote":"本文所有规则与数字均为虚构，仅用于验收测试。","similarity":0.5636423015550374,"rank":5}]}
+
+event:done
+data:{"type":"done","messageId":"dd41cde2-dd54-4004-9571-03e82730c806"}
+

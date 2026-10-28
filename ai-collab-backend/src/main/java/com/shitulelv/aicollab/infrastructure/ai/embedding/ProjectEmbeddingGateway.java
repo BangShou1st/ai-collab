@@ -120,14 +120,25 @@ public class ProjectEmbeddingGateway {
                 var response = request.body(body)
                         .retrieve().body(EmbeddingResponse.class);
                 if (response == null || response.data() == null) throw failure();
-                if (response.data().stream().anyMatch(item -> item == null || item.index() == null)) {
+                if (response.data().stream().anyMatch(java.util.Objects::isNull)) {
                     throw failure();
                 }
-                var ordered = response.data().stream()
-                        .sorted(Comparator.comparingInt(EmbeddingData::index)).toList();
+                // OpenAI 规范要求 data[].index；Gemini OpenAI 兼容端点不返回该字段。
+                // 全部缺失时按响应顺序对齐输入（部分缺失仍视为响应不合规）。
+                boolean positional = response.data().stream().allMatch(item -> item.index() == null);
+                if (!positional && response.data().stream().anyMatch(item -> item.index() == null)) {
+                    log.warn("Embedding API response has partially missing data[].index");
+                    throw failure();
+                }
+                List<EmbeddingData> ordered = positional
+                        ? response.data()
+                        : response.data().stream()
+                                .sorted(Comparator.comparingInt(EmbeddingData::index)).toList();
                 if (ordered.size() != batch.size()) throw failure();
-                for (int i = 0; i < ordered.size(); i++) {
-                    if (ordered.get(i).index() != i) throw failure();
+                if (!positional) {
+                    for (int i = 0; i < ordered.size(); i++) {
+                        if (ordered.get(i).index() != i) throw failure();
+                    }
                 }
                 List<List<Double>> vectors = ordered.stream().map(EmbeddingData::embedding).toList();
                 validateVectors(vectors, batch.size(), config.dimensions() == 0 && !vectors.isEmpty()
@@ -146,10 +157,10 @@ public class ProjectEmbeddingGateway {
                 log.warn("Embedding API server error (attempt {}): {}", attempt + 1, e.getStatusCode().value());
                 last = e;
             } catch (ResourceAccessException e) {
-                log.warn("Embedding API connection error (attempt {}): {}", attempt + 1, e.getMessage());
+                log.warn("Embedding API connection error (attempt {})", attempt + 1, e);
                 last = e;
             } catch (RuntimeException e) {
-                log.warn("Embedding API unexpected error (attempt {}): {}", attempt + 1, e.getMessage());
+                log.warn("Embedding API unexpected error (attempt {})", attempt + 1, e);
                 throw failure();
             }
             if (attempt < 2) {

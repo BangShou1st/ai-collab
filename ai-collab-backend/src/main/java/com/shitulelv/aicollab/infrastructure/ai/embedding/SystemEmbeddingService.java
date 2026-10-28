@@ -122,7 +122,8 @@ public class SystemEmbeddingService {
         long started = System.nanoTime();
         String encrypted = resolveKey(request, repository.findActive().orElse(null));
         ProjectEmbeddingConfig candidate = new ProjectEmbeddingConfig(null, request.provider(), request.baseUrl(),
-                request.apiPath(), encrypted, request.modelName(), 0, 1, true, OffsetDateTime.now(), OffsetDateTime.now());
+                request.apiPath(), encrypted, request.modelName(), request.dimensions(), 1, true,
+                OffsetDateTime.now(), OffsetDateTime.now());
         var result = gateway.embedWithConfig(candidate, List.of("合成文本：嵌入维度探测"), EmbeddingProgressListener.NONE);
         return new TestResult(result.provider(), result.model(), result.dimension(), (System.nanoTime() - started) / 1_000_000);
     }

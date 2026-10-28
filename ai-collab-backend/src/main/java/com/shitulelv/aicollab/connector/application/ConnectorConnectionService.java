@@ -1,0 +1,92 @@
+package com.shitulelv.aicollab.connector.application;
+
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.connector.application.view.ConnectorViews.ConnectionView;
+import com.shitulelv.aicollab.connector.infrastructure.feishu.FeishuApiException;
+import com.shitulelv.aicollab.connector.infrastructure.feishu.FeishuClient;
+import com.shitulelv.aicollab.connector.infrastructure.persistence.ConnectorConnectionMapper;
+import com.shitulelv.aicollab.connector.infrastructure.persistence.ConnectorRows.ConnectionRow;
+import com.shitulelv.aicollab.connector.infrastructure.persistence.ConnectorSourceMapper;
+import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
+import com.shitulelv.aicollab.user.service.UserService;
+import org.springframework.stereotype.Service;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Service
+public class ConnectorConnectionService {
+    private final ConnectorConnectionMapper connections;
+    private final ConnectorSourceMapper sources;
+    private final FeishuClient feishu;
+    private final ModelSecretCipher secrets;
+    private final UserService users;
+
+    public ConnectorConnectionService(ConnectorConnectionMapper connections, ConnectorSourceMapper sources,
+                                      FeishuClient feishu, ModelSecretCipher secrets, UserService users) {
+        this.connections = connections;
+        this.sources = sources;
+        this.feishu = feishu;
+        this.secrets = secrets;
+        this.users = users;
+    }
+
+    public ConnectionView create(UUID userId, String name, String appId, String appSecret) {
+        users.requireSystemAdmin(userId);
+        if (name == null || name.isBlank() || appId == null || appId.isBlank()
+                || appSecret == null || appSecret.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "连接名称、App ID 与 App Secret 不能为空");
+        }
+        // checkConnection: only accept credentials that can actually fetch a token.
+        try {
+            feishu.tenantAccessToken(appId.trim(), appSecret.trim());
+        } catch (FeishuApiException exception) {
+            throw new BusinessException(ErrorCode.CONNECTOR_CREDENTIAL_INVALID, exception.getMessage());
+        }
+        UUID id = UUID.randomUUID();
+        connections.insert(id, "feishu", name.trim(), appId.trim(), secrets.encrypt(appSecret.trim()),
+                "ACTIVE", OffsetDateTime.now(), userId);
+        return view(connections.find(id));
+    }
+
+    public List<ConnectionView> list(UUID userId) {
+        users.requireSystemAdmin(userId);
+        return connections.listAll().stream().map(ConnectorConnectionService::view).toList();
+    }
+
+    public ConnectionView verify(UUID userId, UUID connectionId) {
+        users.requireSystemAdmin(userId);
+        ConnectionRow row = require(connectionId);
+        try {
+            feishu.tenantAccessToken(row.appId, secrets.decrypt(row.appSecretCipher));
+            connections.updateStatus(connectionId, "ACTIVE", null, OffsetDateTime.now());
+        } catch (FeishuApiException exception) {
+            feishu.invalidateToken(row.appId);
+            connections.updateStatus(connectionId, "INVALID", exception.getMessage(), null);
+            throw new BusinessException(ErrorCode.CONNECTOR_CREDENTIAL_INVALID, exception.getMessage());
+        }
+        return view(connections.find(connectionId));
+    }
+
+    public void delete(UUID userId, UUID connectionId) {
+        users.requireSystemAdmin(userId);
+        require(connectionId);
+        if (sources.countByConnection(connectionId) > 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "该连接仍被知识源引用，请先删除对应知识源");
+        }
+        connections.delete(connectionId);
+    }
+
+    ConnectionRow require(UUID id) {
+        ConnectionRow row = connections.find(id);
+        if (row == null) throw new BusinessException(ErrorCode.CONNECTOR_CONNECTION_NOT_FOUND);
+        return row;
+    }
+
+    private static ConnectionView view(ConnectionRow row) {
+        return new ConnectionView(row.id, row.name, row.appId, row.status,
+                row.lastVerifiedAt, row.lastError, row.createdAt);
+    }
+}

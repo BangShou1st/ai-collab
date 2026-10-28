@@ -9,13 +9,16 @@ import com.shitulelv.aicollab.user.service.UserService;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import org.mockito.ArgumentCaptor;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SystemEmbeddingGuardTest {
@@ -32,6 +35,15 @@ class SystemEmbeddingGuardTest {
                 mock(ProjectEmbeddingGateway.class));
     }
 
+    private SystemEmbeddingService service(SystemEmbeddingConfigRepository repository,
+            UserService users, ProjectEmbeddingGateway gateway) {
+        return new SystemEmbeddingService(repository, mock(ModelSecretCipher.class),
+                mock(com.shitulelv.aicollab.common.security.OutboundEndpointPolicy.class),
+                users, mock(com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository.class),
+                mock(com.shitulelv.aicollab.document.application.service.BatchReindexService.class),
+                gateway);
+    }
+
     private SystemEmbeddingConfig active() {
         OffsetDateTime now = OffsetDateTime.now();
         return new SystemEmbeddingConfig(UUID.randomUUID(), "OPENAI_COMPATIBLE",
@@ -42,6 +54,32 @@ class SystemEmbeddingGuardTest {
     private SystemEmbeddingConfigRequest request(String model, int dimensions) {
         return new SystemEmbeddingConfigRequest("OPENAI_COMPATIBLE", "https://api.openai.com",
                 "/v1/embeddings", null, model, dimensions, 16);
+    }
+
+    @Test
+    void test_candidate_probes_requested_dimensions() {
+        ProjectEmbeddingGateway gateway = mock(ProjectEmbeddingGateway.class);
+        when(gateway.embedWithConfig(any(), any(), any())).thenReturn(
+                new com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch(
+                        "OPENAI_COMPATIBLE", "gemini-embedding-001", 768,
+                        List.of(List.of(0.1, 0.2, 0.3))));
+        SystemEmbeddingService service = service(mock(SystemEmbeddingConfigRepository.class),
+                adminUsers(), gateway);
+
+        service.testCandidate(admin, new SystemEmbeddingConfigRequest("OPENAI_COMPATIBLE",
+                "https://api.openai.com", "/v1/embeddings", "key", "gemini-embedding-001", 768, 16));
+
+        ArgumentCaptor<ProjectEmbeddingConfig> captor =
+                ArgumentCaptor.forClass(ProjectEmbeddingConfig.class);
+        verify(gateway).embedWithConfig(captor.capture(), any(), any());
+        assertThat(captor.getValue().dimensions()).isEqualTo(768);
+    }
+
+    private UserService adminUsers() {
+        UserService users = mock(UserService.class);
+        when(users.requireSystemAdmin(admin))
+                .thenReturn(mock(com.shitulelv.aicollab.user.entity.UserEntity.class));
+        return users;
     }
 
     @Test

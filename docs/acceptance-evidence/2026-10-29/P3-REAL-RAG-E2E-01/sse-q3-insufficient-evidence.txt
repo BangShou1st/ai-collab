@@ -1,0 +1,63 @@
+event:token
+data:{"type":"token","text":"当前项目资料不足以"}
+
+event:token
+data:{"type":"token","text":"回答该问题"}
+
+event:token
+data:{"type":"token","text":"。\n\n本轮 SOUR"}
+
+event:token
+data:{"type":"token","text":"CES "}
+
+event:token
+data:{"type":"token","text":"仅包含合成测试"}
+
+event:token
+data:{"type":"token","text":"文档的免责说明"}
+
+event:token
+data:{"type":"token","text":"、平台旗舰特性"}
+
+event:token
+data:{"type":"token","text":"与测试指南"}
+
+event:token
+data:{"type":"token","text":"信息，未提及"}
+
+event:token
+data:{"type":"token","text":"爱因斯坦、19"}
+
+event:token
+data:{"type":"token","text":"55 年"}
+
+event:token
+data:{"type":"token","text":"访问火星或"}
+
+event:token
+data:{"type":"token","text":"相关火箭型号 ["}
+
+event:token
+data:{"type":"token","text":"S"}
+
+event:token
+data:{"type":"token","text":"1][S2"}
+
+event:token
+data:{"type":"token","text":"][S3]["}
+
+event:token
+data:{"type":"token","text":"S4"}
+
+event:token
+data:{"type":"token","text":"][S5]"}
+
+event:token
+data:{"type":"token","text":"。"}
+
+event:citations
+data:{"type":"citations","citations":[{"documentId":"8f1d959a-3d20-43aa-8006-17c8964e2f91","filename":"合成文档A-产品白皮书.md","chunkId":"219e3e96-15bb-4862-bc39-970cebac890f","heading":"免责说明","quote":"本文所有人物、代号与日期均为虚构，仅用于验收测试。","similarity":0.5240768278967181,"rank":1},{"documentId":"8f1d959a-3d20-43aa-8006-17c8964e2f91","filename":"合成文档A-产品白皮书.md","chunkId":"59bbd9d7-04f5-4eab-87ba-dd21783e1d35","heading":"旗舰特性","quote":"AI-Collab 平台的内部旗舰特性代号为「星桥 StarBridge」，用于演示跨文档语义检索。\n星桥特性的唯一负责人是合成角色「验收工程师阿灵」。","similarity":0.5119953163198611,"rank":2},{"documentId":"db66c265-5cb4-419b-b24e-7494aac32e18","filename":"合成文档B-测试指南.md","chunkId":"55b0d07d-5141-4f3a-88ed-33267bf09cd7","heading":"免责说明","quote":"本文所有规则与数字均为虚构，仅用于验收测试。","similarity":0.4963002864046896,"rank":3},{"documentId":"db66c265-5cb4-419b-b24e-7494aac32e18","filename":"合成文档B-测试指南.md","chunkId":"d4778c6d-d5e5-4851-94ea-ef52b0337a86","heading":"竞赛团队知识库测试指南（合成测试文档 B）","quote":"本文档为 P3 真实 RAG 验收专用合成文档，不含任何真实敏感信息。","similarity":0.4854396856660377,"rank":4},{"documentId":"8f1d959a-3d20-43aa-8006-17c8964e2f91","filename":"合成文档A-产品白皮书.md","chunkId":"579be471-5de4-42d3-9a77-93ad67a207c9","heading":"AI-Collab 协作平台产品白皮书（合成测试文档 A）","quote":"本文档为 P3 真实 RAG 验收专用合成文档，不含任何真实敏感信息。","similarity":0.4854396856660377,"rank":5}]}
+
+event:done
+data:{"type":"done","messageId":"a96ab9d2-fe13-44e9-a004-3161deb1be0c"}
+
