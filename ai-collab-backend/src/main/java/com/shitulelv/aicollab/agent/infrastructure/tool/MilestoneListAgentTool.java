@@ -29,6 +29,9 @@ public class MilestoneListAgentTool implements AgentTool {
 
     @Override public String name() { return "list_milestones"; }
     @Override public boolean writesBusinessData() { return false; }
+    @Override public com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety executionSafety() {
+        return com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety.SAFE_READ;
+    }
 
     @Override
     public com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition definition() {

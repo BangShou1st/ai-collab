@@ -1,0 +1,2 @@
+judge A: model=gemini-3.5-flash-lite setup= {"listedModels":60,"chosen":"gemini-3.5-flash-lite","listStatus":200}
+judged QA Q01: 200

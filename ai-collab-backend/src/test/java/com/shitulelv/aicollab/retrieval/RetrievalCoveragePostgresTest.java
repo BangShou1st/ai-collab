@@ -283,7 +283,7 @@ class RetrievalCoveragePostgresTest {
     }
 
     @Test
-    void legacyGlobalHashDedupCollapsesCrossDocumentIdentityOnRealPgvector() {
+    void defaultEntryPreservesCrossDocumentIdentityOnRealPgvector() {
         UUID first = insertDocument("原始件.md");
         UUID second = insertDocument("复印件.md");
         UUID firstChunk = insertChunk(first, 0, "条款",
@@ -294,18 +294,17 @@ class RetrievalCoveragePostgresTest {
                 "shared clause text duplicated across documents", null,
                 List.of(first, second), TOP_8);
 
-        // 旧入口（全局 contentHash 去重）会丢掉另一份文档的引用身份——这是本任务要消除的基线缺陷。
-        var legacy = builder.buildWithDiagnostics(candidates, AGENT_LIMIT);
+        // 默认入口（普通知识库问答）：本次修复后不再按全局 contentHash 丢弃另一份文档的引用身份。
+        var built = builder.buildWithDiagnostics(candidates, AGENT_LIMIT);
         var measured = RetrievalCoverage.measure(TOP_8, AGENT_LIMIT,
                 List.of(new ExpectedEvidence(first, firstChunk, "原始件条款"),
                         new ExpectedEvidence(second, secondChunk, "复印件条款")),
-                candidates, legacy);
-        record("同内容不同文档(旧入口)", measured);
+                candidates, built);
+        record("同内容不同文档(默认入口)", measured);
 
-        assertThat(measured.get("contextEvidenceRetention")).isEqualTo(0.5d);
-        assertThat(measured.get("crossDocumentDedupLoss")).isEqualTo(1);
-        assertThat(RetrievalCoverage.classify("同内容不同文档", measured, measured)
-                .get("retentionVerdict")).isEqualTo("CROSS_DOCUMENT_DEDUP");
+        assertThat(measured.get("contextEvidenceRetention")).isEqualTo(1.0d);
+        assertThat(measured.get("crossDocumentDedupLoss")).isEqualTo(0);
+        assertThat(measured.get("droppedByContext")).isEqualTo(0);
     }
 
     // ---- 5. 无有效证据 ----

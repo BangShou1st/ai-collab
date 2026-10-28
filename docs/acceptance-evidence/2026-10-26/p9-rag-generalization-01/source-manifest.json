@@ -1,0 +1,38 @@
+{
+  "purpose": "版本绑定证据：本轮评测实现、冻结清单与文档的 SHA-256",
+  "baselineSha": "3891171ecfc81a3929993f9f77989fed61ea5c85",
+  "files": [
+    {
+      "file": "ai-collab-backend\\src\\test\\java\\com\\shitulelv\\aicollab\\retrieval\\P9RagGeneralizationPostgresTest.java",
+      "sha256": "6a9097efd344964ceb383d5ad78c27236845a6df58c6ec3bf7071133e54410b9"
+    },
+    {
+      "file": "tests\\fixtures\\documents\\p9-rag-generalization-01\\corpus-manifest.json",
+      "sha256": "568dac59ebfa3b90f89f47b87a237c7d9631bbe9b9eb89b22365d3f41573df81"
+    },
+    {
+      "file": "tests\\fixtures\\documents\\p9-rag-generalization-01\\question-manifest.json",
+      "sha256": "638c6d82120039189e6157e4699c842379867d5c8b04f615423bf0f572dfcef5"
+    },
+    {
+      "file": "tests\\fixtures\\documents\\p9-rag-generalization-01\\question-manifest-holdout.json",
+      "sha256": "34241f3867546cb8794384ccad8887c59e36be59f255a4b5863c2a43cb562e9c"
+    },
+    {
+      "file": "tests\\fixtures\\documents\\p9-rag-generalization-01\\holdout-integrity.json",
+      "sha256": "e6f073bd14fa4fb682dc222d30a3e60487d9a90d0bb83941f4363cc57f06de36"
+    },
+    {
+      "file": "docs\\design\\rag-generalization-benchmark.md",
+      "sha256": "52ccff47ae106b3b646f34ff8af966d7d27b7a356e0cbf86b1853671f983c4aa"
+    },
+    {
+      "file": "docs\\acceptance-evidence\\2026-10-26\\p9-rag-generalization-01\\generate-manifests.cjs",
+      "sha256": "597d20e5828d5fdca035f0f34f7da4157bb2631c9570437675b8d79834c4587e"
+    },
+    {
+      "file": "docs\\acceptance-evidence\\2026-10-26\\p9-rag-generalization-01\\compute-metrics.cjs",
+      "sha256": "3c4073acf6e8abc2b6dc72ddc9031c4f46683336116fda382f0a51b27baa1a21"
+    }
+  ]
+}

@@ -1,0 +1,306 @@
+{
+  "task" : "P10-REAL-GENERATION-03",
+  "mode" : "REAL",
+  "authorization" : true,
+  "provider" : "GEMINI",
+  "model" : "gemini-3.5-flash-lite",
+  "routeSha256" : "df17eb978e42ecb533a8f1f7a6ff756c6e1521abe6308f9671dca06e9123cbbc",
+  "chatDispatchReservations" : 17,
+  "syntheticTransportResponses" : 0,
+  "externalEmbedding" : 0,
+  "agent" : 0,
+  "judge" : 0,
+  "chatRetries" : 0,
+  "actualCost" : "UNAVAILABLE",
+  "calls" : [ {
+    "id" : "Q01",
+    "attempt" : 1,
+    "startedAt" : "2026-10-27T04:28:35.820897800+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 865,
+      "candidatesTokenCount" : 118,
+      "totalTokenCount" : 983,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 865
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 1154
+  }, {
+    "id" : "Q02",
+    "attempt" : 2,
+    "startedAt" : "2026-10-27T04:28:52.211402400+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 1018,
+      "candidatesTokenCount" : 157,
+      "totalTokenCount" : 1175,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 1018
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 960
+  }, {
+    "id" : "Q03",
+    "attempt" : 3,
+    "startedAt" : "2026-10-27T04:29:08.322785200+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 862,
+      "candidatesTokenCount" : 87,
+      "totalTokenCount" : 949,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 862
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 885
+  }, {
+    "id" : "Q04",
+    "attempt" : 4,
+    "startedAt" : "2026-10-27T04:29:24.338411900+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 821,
+      "candidatesTokenCount" : 65,
+      "totalTokenCount" : 886,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 821
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 682
+  }, {
+    "id" : "Q05",
+    "attempt" : 5,
+    "startedAt" : "2026-10-27T04:29:40.163308600+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 986,
+      "candidatesTokenCount" : 63,
+      "totalTokenCount" : 1049,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 986
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 769
+  }, {
+    "id" : "Q06",
+    "attempt" : 6,
+    "startedAt" : "2026-10-27T04:29:56.065540600+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 894,
+      "candidatesTokenCount" : 85,
+      "totalTokenCount" : 979,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 894
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 1340
+  }, {
+    "id" : "Q07",
+    "attempt" : 7,
+    "startedAt" : "2026-10-27T04:30:12.555192100+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 858,
+      "candidatesTokenCount" : 182,
+      "totalTokenCount" : 1040,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 858
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 1376
+  }, {
+    "id" : "Q08",
+    "attempt" : 8,
+    "startedAt" : "2026-10-27T04:30:29.061482600+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 778,
+      "candidatesTokenCount" : 57,
+      "totalTokenCount" : 835,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 778
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 757
+  }, {
+    "id" : "Q09",
+    "attempt" : 9,
+    "startedAt" : "2026-10-27T04:30:44.972849200+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 846,
+      "candidatesTokenCount" : 181,
+      "totalTokenCount" : 1027,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 846
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 1016
+  }, {
+    "id" : "Q10",
+    "attempt" : 10,
+    "startedAt" : "2026-10-27T04:31:01.132282300+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 817,
+      "candidatesTokenCount" : 206,
+      "totalTokenCount" : 1023,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 817
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 1240
+  }, {
+    "id" : "Q11",
+    "attempt" : 11,
+    "startedAt" : "2026-10-27T04:31:17.732996500+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 810,
+      "candidatesTokenCount" : 49,
+      "totalTokenCount" : 859,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 810
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 836
+  }, {
+    "id" : "Q12",
+    "attempt" : 12,
+    "startedAt" : "2026-10-27T04:31:33.729319700+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 748,
+      "candidatesTokenCount" : 64,
+      "totalTokenCount" : 812,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 748
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 823
+  }, {
+    "id" : "Q13",
+    "attempt" : 13,
+    "startedAt" : "2026-10-27T04:31:49.689817300+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 758,
+      "candidatesTokenCount" : 123,
+      "totalTokenCount" : 881,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 758
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 1469
+  }, {
+    "id" : "Q14",
+    "attempt" : 14,
+    "startedAt" : "2026-10-27T04:32:06.341965600+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 735,
+      "candidatesTokenCount" : 55,
+      "totalTokenCount" : 790,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 735
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 729
+  }, {
+    "id" : "R1",
+    "attempt" : 15,
+    "startedAt" : "2026-10-27T04:32:22.223403+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 1018,
+      "candidatesTokenCount" : 106,
+      "totalTokenCount" : 1124,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 1018
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 828
+  }, {
+    "id" : "R2",
+    "attempt" : 16,
+    "startedAt" : "2026-10-27T04:32:38.190064800+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 821,
+      "candidatesTokenCount" : 84,
+      "totalTokenCount" : 905,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 821
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 1200
+  }, {
+    "id" : "R3",
+    "attempt" : 17,
+    "startedAt" : "2026-10-27T04:32:54.539734500+08:00",
+    "status" : "HTTP_RETURNED",
+    "usage" : {
+      "promptTokenCount" : 748,
+      "candidatesTokenCount" : 58,
+      "totalTokenCount" : 806,
+      "promptTokensDetails" : [ {
+        "modality" : "TEXT",
+        "tokenCount" : 748
+      } ],
+      "serviceTier" : "standard"
+    },
+    "transportStarted" : true,
+    "latencyMs" : 718
+  } ],
+  "generationVerdict" : "REAL_GENERATION_ATTEMPTED_SEE_CALL_OUTCOMES"
+}

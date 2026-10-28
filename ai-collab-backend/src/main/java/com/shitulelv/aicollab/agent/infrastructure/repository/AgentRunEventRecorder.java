@@ -33,6 +33,8 @@ import java.util.UUID;
  */
 @Repository
 public class AgentRunEventRecorder {
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics;
     /**
      * 推进步记账（V63 预算语义兼容标记）：COMBINED（旧语义，既有行默认）下工具结果
      * 逐项占用推进步；SEPARATED（新语义，新根运行默认）下一次模型轮计一次推进、
@@ -647,6 +649,10 @@ public class AgentRunEventRecorder {
     @Transactional
     public void recordFailure(AgentRunView run, String errorCode, boolean retryable) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        if (hasUnconfirmedInvocation(run.id())) {
+            retryable = false;
+            errorCode = "TOOL_OUTCOME_UNKNOWN";
+        }
         accountActiveTime(run.id());
         appendErrorStep(run, errorCode);
         // retry_count 记录可重试模型失败次数（含最终失败），最多安排两次自动重试。
@@ -689,7 +695,8 @@ public class AgentRunEventRecorder {
         if (findRun(run.projectId(), run.id()).map(AgentRunView::status).orElse(null) == AgentRunStatus.CANCELED) return;
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), true);
         accountActiveTime(run.id());
-        jdbc.update("UPDATE agent_tool_invocation SET status='CANCELED',result_json='{\"status\":\"CANCELED\"}'::jsonb WHERE run_id=? AND status='PENDING'", run.id());
+        preserveUnconfirmedDispatches(run.id());
+        invocationMetrics(jdbc.queryForList("UPDATE agent_tool_invocation SET status='CANCELED',result_json='{\"status\":\"CANCELED\"}'::jsonb WHERE run_id=? AND status='PENDING' RETURNING invocation_id,tool_call_id,execution_safety,status", run.id()));
         markBatchHandled(run.id());
         int updated = jdbc.update("""
                 UPDATE agent_run SET status='CANCELED', error_code='RUN_CANCELLED',
@@ -1037,6 +1044,10 @@ public class AgentRunEventRecorder {
     @Transactional
     public void requeueRun(AgentRunView run) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        if (hasUnconfirmedInvocation(run.id())) {
+            recordFailure(run, "TOOL_OUTCOME_UNKNOWN", false);
+            return;
+        }
         accountActiveTime(run.id());
         markBatchHandled(run.id());
         requireRunUpdate(jdbc.update("""
@@ -1155,7 +1166,44 @@ public class AgentRunEventRecorder {
     @Transactional
     public AgentRunView recordToolResult(AgentRunView run, String toolName,
                                   JsonNode arguments, JsonNode result, boolean isError) {
+        return recordToolResult(run, toolName, arguments, result, isError, false);
+    }
+
+    /** Local exceptions are not remote outcomes; classify only after serializing with dispatch. */
+    @Transactional
+    public AgentRunView recordToolExecutionFailure(AgentRunView run, String toolName,
+            JsonNode arguments, JsonNode failure) {
+        if (!arguments.hasNonNull("toolCallId")) throw new IllegalStateException("Execution failure requires invocation identity");
+        return recordToolResult(run, toolName, arguments, failure, true, true);
+    }
+
+    private AgentRunView recordToolResult(AgentRunView run, String toolName,
+            JsonNode arguments, JsonNode result, boolean isError, boolean uncertainFailure) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        // Worker scopes already lock the run. Keep the same run -> invocation lock order
+        // for callers without a scope too; dispatch uses this order in its own transaction.
+        if (AgentLeaseScope.currentEpoch() == null && jdbc.queryForList(
+                "SELECT id FROM agent_run WHERE project_id=? AND id=? FOR UPDATE", UUID.class, run.projectId(), run.id()).size() != 1)
+            throw new IllegalStateException("Agent run does not exist");
+        if (arguments.hasNonNull("toolCallId")) {
+            var states = jdbc.queryForList("""
+                    SELECT status,tool_name,arguments_json::text AS arguments_json,dispatch_started_at,execution_safety
+                    FROM agent_tool_invocation WHERE run_id=? AND tool_call_id=?
+                      AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
+                    FOR UPDATE
+                    """, run.id(), arguments.path("toolCallId").asText(), run.id());
+            if (states.size() != 1) throw new IllegalStateException("Invocation does not exist in current model turn");
+            var state = states.getFirst();
+            if (!"PENDING".equals(state.get("status")))
+                throw new IllegalStateException("Settled invocation cannot be overwritten");
+            if (!toolName.equals(state.get("tool_name"))
+                    || !arguments.path("arguments").equals(parseJsonOrNull(state.get("arguments_json").toString())))
+                throw new IllegalStateException("Invocation identity does not match result");
+            if (uncertainFailure && state.get("dispatch_started_at") != null && !"SAFE_READ".equals(state.get("execution_safety")))
+                result = json.createObjectNode().put("status", "UNKNOWN").put("retryable", false)
+                        .put("error", "TOOL_OUTCOME_UNKNOWN")
+                        .put("message", "工具可能已执行，请人工核对；系统不会自动重发");
+        }
         markProgress(run.id());
         // 先验证版本和状态，避免版本冲突时留下孤立 Step。
         // 工具结果只计工具额度；推进步按预算语义分支（COMBINED 旧语义逐项占用，SEPARATED 不占）
@@ -1178,12 +1226,16 @@ public class AgentRunEventRecorder {
                 result.toString(),
                 isError ? "TOOL_ERROR" : "TOOL_SUCCESS");
         if (arguments.hasNonNull("toolCallId")) {
-            jdbc.update("""
+            var changedInvocations = jdbc.queryForList("""
                     UPDATE agent_tool_invocation SET status=?,result_json=?::jsonb,updated_at=now()
                     WHERE run_id=? AND tool_call_id=? AND tool_name=? AND arguments_json=?::jsonb
+                      AND status='PENDING'
                       AND turn_sequence=(SELECT max(sequence_no) FROM agent_step WHERE run_id=? AND type='MODEL_TURN')
+                    RETURNING invocation_id,tool_call_id,execution_safety,status
                     """, isError ? result.path("status").asText("FAILED") : "SUCCEEDED", result.toString(),
                     run.id(), arguments.path("toolCallId").asText(), toolName, arguments.path("arguments").toString(), run.id());
+            requireRunUpdate(changedInvocations.size());
+            invocationMetrics(changedInvocations);
         }
         event(run,isError ? "TOOL_CALL_FAILED" : "TOOL_CALL_COMPLETED",json.createObjectNode()
                 .put("callId",arguments.path("toolCallId").asText()).put("toolName",toolName)
@@ -1215,6 +1267,8 @@ public class AgentRunEventRecorder {
     public AgentRunView recordFinal(AgentRunView run, String content, List<AgentCitation> citations,
             boolean consumePersistedTurn) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
+        if (hasUnconfirmedInvocation(run.id()))
+            throw new IllegalStateException("Unconfirmed tool outcome cannot become run success");
         accountActiveTime(run.id());
         markBatchHandled(run.id());
         if (consumePersistedTurn) markModelTurnConsumed(run.id());
@@ -1234,9 +1288,17 @@ public class AgentRunEventRecorder {
         // citations 参数是协调器移交的结构化来源（已完成委派子运行的持久引用投影），
         // 与本运行自己的持久证据合并——两者都来自持久化工具结果，不接受模型编造的 ID。
         var evidence = collectEvidence(run.id(), run.projectId());
-        if (citations != null) {
-            for (AgentCitation handed : citations) {
-                if (handed != null) evidence.putIfAbsent(handed.chunkId(), handed);
+        if (citations != null && !citations.isEmpty()) {
+            // A child may become stale after delegation completes. Revalidate against the parent's
+            // persisted handoff and current document identity; never trust handed text. A child
+            // failure does not invalidate sources from its earlier successful tool reads.
+            var delegated = collectDelegatedEvidence(run.id(), run.projectId(), citations);
+            for (AgentCitation handed : citations.stream().limit(50).toList()) {
+                if (handed == null) continue;
+                AgentCitation persisted = delegated.get(handed.chunkId());
+                if (persisted != null && persisted.documentId().equals(handed.documentId())) {
+                    evidence.putIfAbsent(persisted.chunkId(), persisted);
+                }
             }
         }
         // Source cards describe material actually read this run, never model-invented identifiers.
@@ -1352,9 +1414,44 @@ public class AgentRunEventRecorder {
                 AgentRunMappers.runMapper(), projectId, runId).stream().findFirst();
     }
 
+    private void invocationMetrics(java.util.List<java.util.Map<String,Object>> rows) {
+        if (metrics == null) return;
+        for (var row : rows) metrics.invocation(
+                java.util.Objects.toString(row.get("execution_safety"), "UNCONFIRMABLE_SIDE_EFFECT"),
+                row.get("status").toString(),
+                com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentDiagnosticScope.elapsed(row.get("tool_call_id").toString()));
+    }
+
     private void markBatchHandled(UUID runId) {
+        preserveUnconfirmedDispatches(runId);
         jdbc.update("UPDATE agent_step SET output_json=jsonb_set(output_json,'{batchHandled}','true'::jsonb) WHERE run_id=? AND type='MODEL_TURN' AND output_json IS NOT NULL", runId);
-        jdbc.update("UPDATE agent_tool_invocation SET status='SKIPPED',result_json='{\"status\":\"SKIPPED\",\"error\":\"BATCH_ENDED\"}'::jsonb,updated_at=now() WHERE run_id=? AND status='PENDING'", runId);
+        invocationMetrics(jdbc.queryForList("UPDATE agent_tool_invocation SET status='SKIPPED',result_json='{\"status\":\"SKIPPED\",\"error\":\"BATCH_ENDED\"}'::jsonb,updated_at=now() WHERE run_id=? AND status='PENDING' RETURNING invocation_id,tool_call_id,execution_safety,status", runId));
+    }
+
+    private boolean hasUnconfirmedInvocation(UUID runId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS(SELECT 1 FROM agent_tool_invocation WHERE run_id=? AND
+                  (status='UNKNOWN' OR (status='PENDING' AND dispatch_started_at IS NOT NULL AND execution_safety<>'SAFE_READ')))
+                """, Boolean.class, runId));
+    }
+
+    /** Cancellation/batch termination is not evidence that a dispatched operation had no effect. */
+    public void preserveUnconfirmedDispatches(UUID runId) {
+        var rows = jdbc.queryForList("""
+                UPDATE agent_tool_invocation SET status='UNKNOWN',
+                  result_json='{"status":"UNKNOWN","retryable":false,"error":"TOOL_OUTCOME_UNKNOWN","message":"工具可能已执行，请人工核对；系统不会自动重发"}'::jsonb,
+                  updated_at=now()
+                WHERE run_id=? AND status='PENDING' AND dispatch_started_at IS NOT NULL AND execution_safety<>'SAFE_READ'
+                RETURNING invocation_id,tool_call_id,tool_name,execution_safety,status
+                """, runId);
+        invocationMetrics(rows);
+        for (var row : rows) {
+            UUID project = jdbc.queryForObject("SELECT project_id FROM agent_run WHERE id=?", UUID.class, runId);
+            event(project, runId, "TOOL_CALL_FAILED", json.createObjectNode()
+                    .put("invocationId", row.get("invocation_id").toString())
+                    .put("callId", row.get("tool_call_id").toString()).put("toolName", row.get("tool_name").toString())
+                    .put("status", "UNKNOWN").put("retryable", false).put("errorCode", "TOOL_OUTCOME_UNKNOWN"));
+        }
     }
     private void accountActiveTime(UUID runId) {
         jdbc.update("UPDATE agent_run SET active_elapsed_ms=active_elapsed_ms+CASE WHEN claim_started_at IS NULL THEN 0 ELSE GREATEST(0,(extract(epoch FROM(now()-claim_started_at))*1000)::bigint) END,claim_started_at=NULL,last_progress_at=NULL WHERE id=?",runId);
@@ -1718,6 +1815,39 @@ public class AgentRunEventRecorder {
         return evidence;
     }
 
+    /** One bounded query, only this parent's persisted handoffs of successful tool reads; cards are available
+     * sources, not proof that the final text explicitly cited or semantically used them. */
+    private java.util.Map<UUID, AgentCitation> collectDelegatedEvidence(
+            UUID runId, UUID projectId, List<AgentCitation> handed) {
+        var evidence = new java.util.HashMap<UUID, AgentCitation>();
+        String requestedIds = handed.stream().limit(50).filter(java.util.Objects::nonNull)
+                .map(AgentCitation::chunkId).filter(java.util.Objects::nonNull).distinct()
+                .map(UUID::toString).collect(java.util.stream.Collectors.joining(",", "{", "}"));
+        for (String value : jdbc.queryForList("""
+                SELECT DISTINCT ON (c.value->>'chunkId') c.value::text
+                FROM agent_step s
+                CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(s.output_json->'citations')='array'
+                    THEN s.output_json->'citations' ELSE '[]'::jsonb END) c(value)
+                WHERE s.run_id=? AND s.type='DELEGATION_COMPLETED'
+                  AND c.value->>'chunkId'=ANY(?::text[])
+                  AND EXISTS (
+                    SELECT b.id FROM document_body_chunk b JOIN project_document d ON d.id=b.document_id
+                    WHERE b.id=ANY(?::uuid[]) AND b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId'
+                      AND d.project_id=? AND d.status<>'DELETING'
+                    UNION ALL SELECT b.id FROM document_chunk b JOIN project_document d ON d.id=b.document_id
+                    WHERE b.id=ANY(?::uuid[]) AND b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId'
+                      AND d.project_id=? AND d.status='READY')
+                ORDER BY c.value->>'chunkId', s.sequence_no
+                LIMIT 50
+                """, String.class, runId, requestedIds, requestedIds, projectId, requestedIds, projectId)) {
+            try {
+                var citation = json.readValue(value, AgentCitation.class);
+                evidence.putIfAbsent(citation.chunkId(), citation);
+            } catch (JsonProcessingException malformed) { /* Malformed identities cannot supply cards. */ }
+        }
+        return evidence;
+    }
+
     private static int estimateInputTokens(ModelTurnResult turn) {
         if (turn.usage() != null && turn.usage().inputTokens() != null) {
             return turn.usage().inputTokens();
@@ -1840,11 +1970,12 @@ public class AgentRunEventRecorder {
                   updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, run.projectId(), run.id(), run.version()));
-        jdbc.update("""
+        invocationMetrics(jdbc.queryForList("""
                 UPDATE agent_tool_invocation SET status='SUCCEEDED',
                   result_json=?::jsonb,updated_at=now()
                 WHERE run_id=? AND invocation_id=? AND status='PENDING'
-                """, jsonString(result), run.id(), UUID.fromString(invocationId));
+                RETURNING invocation_id,tool_call_id,execution_safety,status
+                """, jsonString(result), run.id(), UUID.fromString(invocationId)));
         // 委派批次全部完成：标记本运行最近模型轮次已消费，恢复路径不再重放委派调用
         markBatchHandled(run.id());
         return result;

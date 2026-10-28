@@ -1,0 +1,404 @@
+{
+  "verdict": "CITATION_CONTRACT_FIXED",
+  "sets": {
+    "AVAILABLE_SOURCE": "successful persisted actual read, valid at final projection; not proof of use",
+    "EXPLICITLY_CITED_SOURCE": "Agent has no global numbered mapping; not inferred from card order",
+    "CLAIM_SUPPORTED_SOURCE": "NOT_MEASURED: requires independent semantic review"
+  },
+  "qa": "[S1] / [S1, S2] existing validator; regression suite unchanged",
+  "initialExpectationCorrection": "Of the initial five failed assertions, four exposed real identity/provenance/quote defects. The failed-child exclusion expectation was overrestrictive: successful reads remain AVAILABLE even if the child later fails. Original attempt statistics are preserved; corrected behavior has a dedicated final test.",
+  "agent": "identity fields preserved, body unchanged, current direct source cards not dependent on textual citation",
+  "repro": [
+    {
+      "startedAt": "2026-10-25T15:48:49.026Z",
+      "exitCode": 1,
+      "totals": {
+        "tests": 8,
+        "failures": 0,
+        "errors": 8,
+        "skipped": 0
+      },
+      "suites": [
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 8,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "name": "validDelegatedIdentityKeepsPersistedQuoteRatherThanHandedText",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "failedToolCannotSupplySuccessfulSource",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "unknownHandedIdentityCannotCreateSourceCard",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "delegatedSourceBecomingStaleBeforeParentFinalIsExcluded",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "availableButUncitedSourceRemainsAvailableWithoutRewritingAnswer",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "validIdentityWithoutPersistedReadCannotCreateSourceCard",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "repeatedDirectAndDelegatedSourceRetainsSingleIdentity",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "failedDelegationCannotSupplySuccessfulSource",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-10-25T15:50:24.056Z",
+      "exitCode": 1,
+      "totals": {
+        "tests": 8,
+        "failures": 0,
+        "errors": 8,
+        "skipped": 0
+      },
+      "suites": [
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 8,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "name": "validDelegatedIdentityKeepsPersistedQuoteRatherThanHandedText",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "failedToolCannotSupplySuccessfulSource",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "unknownHandedIdentityCannotCreateSourceCard",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "delegatedSourceBecomingStaleBeforeParentFinalIsExcluded",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "availableButUncitedSourceRemainsAvailableWithoutRewritingAnswer",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "validIdentityWithoutPersistedReadCannotCreateSourceCard",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "repeatedDirectAndDelegatedSourceRetainsSingleIdentity",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            },
+            {
+              "name": "failedDelegationCannotSupplySuccessfulSource",
+              "type": "SETUP_OR_EXECUTION_ERROR"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-10-25T15:51:55.701Z",
+      "exitCode": 1,
+      "totals": {
+        "tests": 8,
+        "failures": 5,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suites": [
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
+          "tests": 8,
+          "failures": 5,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "name": "validDelegatedIdentityKeepsPersistedQuoteRatherThanHandedText",
+              "type": "ASSERTION_FAILURE"
+            },
+            {
+              "name": "unknownHandedIdentityCannotCreateSourceCard",
+              "type": "ASSERTION_FAILURE"
+            },
+            {
+              "name": "delegatedSourceBecomingStaleBeforeParentFinalIsExcluded",
+              "type": "ASSERTION_FAILURE"
+            },
+            {
+              "name": "validIdentityWithoutPersistedReadCannotCreateSourceCard",
+              "type": "ASSERTION_FAILURE"
+            },
+            {
+              "name": "failedDelegationCannotSupplySuccessfulSource",
+              "type": "ASSERTION_FAILURE"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-10-25T15:53:42.792Z",
+      "exitCode": 0,
+      "totals": {
+        "tests": 8,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suites": [
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-10-25T16:18:42.194Z",
+      "exitCode": 0,
+      "totals": {
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suites": [
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "startedAt": "2026-10-25T16:26:54.843Z",
+      "exitCode": 0,
+      "totals": {
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "suites": [
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    }
+  ],
+  "finalRegression": [
+    {
+      "mode": "regression",
+      "exitCode": 0,
+      "suites": [
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchCitationMetricsTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest",
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest",
+          "tests": 17,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "mode": "verify",
+      "exitCode": 1,
+      "suites": [
+        {
+          "name": "com.shitulelv.aicollab.acceptance.LegacyApprovalCitationUpgradeTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchCitationMetricsTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest",
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest",
+          "tests": 17,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "mode": "verify",
+      "exitCode": 1,
+      "suites": [
+        {
+          "name": "com.shitulelv.aicollab.acceptance.LegacyApprovalCitationUpgradeTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchCitationMetricsTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest",
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest",
+          "tests": 17,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "mode": "verify",
+      "exitCode": 0,
+      "suites": [
+        {
+          "name": "com.shitulelv.aicollab.acceptance.LegacyApprovalCitationUpgradeTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchCitationMetricsTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest",
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest",
+          "tests": 17,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "A literal [S999] is neither an Agent verified reference nor proof of semantic support. It remains unchanged.",
+    "No new numbered-reference schema or frontend feature.",
+    "No real Chat generation or browser UI validation.",
+    "Identity/status checks follow existing body/vector source rules; not semantic version validity or a perpetual snapshot guarantee."
+  ]
+}

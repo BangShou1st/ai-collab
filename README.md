@@ -207,7 +207,7 @@ sequenceDiagram
 | **后端运行环境** | Java | `21 (LTS)` | 虚拟线程、强封装、新语言特性 |
 | **后端框架** | Spring Boot | `4.1.0` | 核心服务容器、Spring Security、OAuth2 Resource Server |
 | **持久层** | MyBatis-Plus | `3.5.17` | 高性能 ORM、条件构造器、分页插件 |
-| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V65**，严禁篡改历史） |
+| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V68**，严禁篡改历史） |
 | **文档解析引擎** | Apache Tika | `3.3.0` | 多源文档结构化内容与元数据提取 |
 | **前端框架** | Vue | `3.5.18` | Composition API、`<script setup>` 高性能渲染 |
 | **类型系统** | TypeScript | `5.8.3` | 全栈严格类型安全，消除隐式 `any` |
@@ -241,7 +241,7 @@ git clone https://github.com/BangShou1st/ai-collab.git
 cd ai-collab
 ```
 
-初始化环境变量配置文件（`.env` 为全栈唯一配置源）：
+初始化本地开发环境变量配置文件（仓库根目录 `.env` 为本地开发的配置源）：
 
 * **Linux / macOS**:
   ```bash
@@ -254,6 +254,8 @@ cd ai-collab
 
 > [!TIP]
 > 打开根目录 `.env`，按需修改各服务的 `change-me` 占位符（如数据库密码、JWT 密钥、AI 模型 Key）。
+
+生产环境使用独立的 [`compose.prod.yml`](ai-collab-deploy/compose.prod.yml)、[配置模板](ai-collab-deploy/prod.env.example)与[部署和恢复指南](docs/deployment/production-foundation.md)。生产默认开放普通用户注册，新账号不自动成为系统管理员；真实秘密保存在仓库外，生产环境仍须经过实际验收与授权。
 
 ---
 
@@ -278,12 +280,19 @@ cd ..
 
 # （可选）完全停止后台 Postgres/Redis/MinIO 容器
 .\dev.ps1 stop-infra
+
+# （可选）检查实际 Java 代理选路与 CONNECT/TLS，不发送模型请求
+.\dev.ps1 diagnose-proxy
 ```
 
 > **`dev.ps1` 的优势**：
 > 1. 后台静默运行后端与前端，不抢占焦点、不弹多余黑窗。
 > 2. 自动检查端口占用，自动进行 `/actuator/health` 探针轮询检测。
 > 3. 严格复用已有数据容器，防止由于频繁 `down` 导致卷冲突。
+
+后端启动入口和 Maven/Surefire 已默认在 JVM 启动前开启 JDK 系统代理发现，无需每次填写本机代理端口。
+IDE 直接运行请设置 VM option `-Djava.net.useSystemProxies=true`；已有 JVM 需重启一次。
+优先级、环境变量/NO_PROXY 语法、脱敏诊断和限制见[模型网络代理指南](docs/development/model-network-proxy.md)。
 
 ---
 
@@ -396,7 +405,7 @@ EMBEDDING_DIMENSIONS=1024
 
 ```
 ai-collab/
-├── ai-collab-backend/               # Spring Boot 4.1.0 后端工程（546 源文件 / 约 4.2 万行）
+├── ai-collab-backend/               # Spring Boot 4.1.0 后端工程（553 源文件 / 约 4.2 万行）
 │   ├── src/main/java/com/shitulelv/aicollab/
 │   │   ├── auth/                    # 认证授权、JWT 签发、HttpOnly Cookie 轮换
 │   │   ├── user/                    # 用户体系、个人资料、管理员控制中心
@@ -410,7 +419,7 @@ ai-collab/
 │   │   ├── common/                  # 全局统一响应包装、业务异常体系、MyBatis 序列化
 │   │   └── infrastructure/          # 多厂商模型网关、向量适配器、安全清洗过滤网关
 │   ├── src/main/resources/
-│   │   ├── db/migration/            # Flyway 迁移脚本（连续连续递增 V1–V65，共 65 个版本）
+│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V68，共 68 个版本）
 │   │   └── application.yml          # 主配置模板与默认参数
 │   └── src/test/                    # 完整单元测试与 Testcontainers 集成测试套件（1600+ 测试）
 ├── ai-collab-frontend/              # Vue 3.5 + TypeScript 5.8 前端工程（161 源文件 / 约 2.2 万行）
@@ -472,3 +481,8 @@ ai-collab/
 ## 📄 开源许可证
 
 本项目采用 [MIT 许可证](LICENSE)。欢迎高校师生、开发者参与交流与二次构建。
+
+Agent 工具调度使用单 JVM 精确身份配额与有界准入（16 全局 / 4 用户 / 2 Run / 64 等待），详见 [调度设计](docs/design/agent-tool-concurrency.md)。
+工具出站前保存执行证据；无法确认的潜在副作用记录为 UNKNOWN 并停止自动推进，受控规划按原 Invocation 查询已受理操作，详见 [远端结果与恢复设计](docs/design/agent-remote-outcome.md)。
+
+Agent 诊断使用低频 PostgreSQL 快照与低基数进程指标，详见 [可观测性设计](docs/design/agent-observability.md) 和 [诊断手册](docs/design/agent-runtime-maintenance.md#21-agent-可靠性诊断p6-c)。

@@ -1,0 +1,3305 @@
+{
+  "path": "QA: search(topK=8) + buildBalancedWithDiagnostics(5), 8000 code points",
+  "questions": [
+    {
+      "id": "G01-A1-BEG",
+      "set": "dev",
+      "family": "A",
+      "dimension": "G01_LONG_DOC",
+      "docLengthBand": "short",
+      "query": "设备巡检的周期是怎样规定的？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 1036,
+      "latencyMs": 118,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "chunkId": "3a8068f2-97ac-45ad-b0d0-7f1f2105bdbe",
+          "heading": "一、总体要求",
+          "retainedCodePoints": 162,
+          "similarity": 0.7034,
+          "rank": 1,
+          "documentId": "5c529e60-cc83-4771-9d36-bc8c333e81da"
+        },
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "chunkId": "bac25911-9f6e-4eae-8033-60bb345bd526",
+          "heading": "二、巡检分级",
+          "retainedCodePoints": 138,
+          "similarity": 0.6646,
+          "rank": 2,
+          "documentId": "5c529e60-cc83-4771-9d36-bc8c333e81da"
+        },
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "chunkId": "493b775f-a233-4652-a612-b6163b891b44",
+          "heading": "事项三：外部审计师轮换",
+          "retainedCodePoints": 50,
+          "similarity": 0.5776,
+          "rank": 3,
+          "documentId": "a128b685-82cc-45ed-931e-6c5664386f72"
+        },
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "chunkId": "2781c488-8f96-4ce9-b3eb-eaa3d56e7810",
+          "heading": "第八章 照明与附属设施",
+          "retainedCodePoints": 269,
+          "similarity": 0.556,
+          "rank": 4,
+          "documentId": "f6ed5cca-5218-47c9-9852-dd288ea388af"
+        },
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "chunkId": "64ecf93f-f2c0-412e-ac3c-7d919ea16147",
+          "heading": "第七章 安防与门禁",
+          "retainedCodePoints": 216,
+          "similarity": 0.5541,
+          "rank": 5,
+          "documentId": "f6ed5cca-5218-47c9-9852-dd288ea388af"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "marker": "巡检周期为每七日一次",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G01-A1-TAIL",
+      "set": "dev",
+      "family": "A",
+      "dimension": "G01_LONG_DOC",
+      "docLengthBand": "short",
+      "query": "备用泵需要多久试运转一次？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 1078,
+      "latencyMs": 41,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "chunkId": "70b11780-9523-4300-8187-386c0e23b2ef",
+          "heading": "五、附则",
+          "retainedCodePoints": 92,
+          "similarity": 0.833,
+          "rank": 1,
+          "documentId": "5c529e60-cc83-4771-9d36-bc8c333e81da"
+        },
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "chunkId": "021039fb-ed98-4b7b-a96c-d2223957623c",
+          "heading": "四、季节性要求",
+          "retainedCodePoints": 72,
+          "similarity": 0.4823,
+          "rank": 2,
+          "documentId": "5c529e60-cc83-4771-9d36-bc8c333e81da"
+        },
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "chunkId": "7cf7984b-bcfe-4841-b65f-0d4c301cff5c",
+          "heading": "第四章 供配电系统",
+          "retainedCodePoints": 361,
+          "similarity": 0.4617,
+          "rank": 3,
+          "documentId": "f6ed5cca-5218-47c9-9852-dd288ea388af"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "e275d9fa-7207-4845-87cd-e1ddd7d41863",
+          "heading": "第七章 振动与对中",
+          "retainedCodePoints": 141,
+          "similarity": 0.4376,
+          "rank": 4,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "dd8a2876-ec96-4fa5-8398-0510472d1383",
+          "heading": "第六章 电气系统维护",
+          "retainedCodePoints": 215,
+          "similarity": 0.4299,
+          "rank": 5,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "marker": "备用泵每两周试运转一次",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G01-A2-MID",
+      "set": "dev",
+      "family": "A",
+      "dimension": "G01_LONG_DOC",
+      "docLengthBand": "medium",
+      "query": "滤芯多久更换一次？压差报警时怎么办？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 1404,
+      "latencyMs": 42,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "A2-设备维护管理细则.md",
+          "chunkId": "8f732522-9cf5-4668-99cb-203d1d680357",
+          "heading": "第二章 维护类别与周期",
+          "retainedCodePoints": 348,
+          "similarity": 0.6338,
+          "rank": 1,
+          "documentId": "d7e9c5d8-8624-4dfc-8e22-a6f65fd951f0"
+        },
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "chunkId": "73f90bda-aa14-48ed-8116-7cae43ebacf0",
+          "heading": "第二章 暖通空调系统",
+          "retainedCodePoints": 313,
+          "similarity": 0.5104,
+          "rank": 2,
+          "documentId": "f6ed5cca-5218-47c9-9852-dd288ea388af"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "dd8a2876-ec96-4fa5-8398-0510472d1383",
+          "heading": "第六章 电气系统维护",
+          "retainedCodePoints": 215,
+          "similarity": 0.4637,
+          "rank": 3,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "89bb8129-f9f5-4af3-bcb1-d9adfe627e8c",
+          "heading": "第五章 水系统维护",
+          "retainedCodePoints": 234,
+          "similarity": 0.4602,
+          "rank": 4,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "chunkId": "70b11780-9523-4300-8187-386c0e23b2ef",
+          "heading": "五、附则",
+          "retainedCodePoints": 92,
+          "similarity": 0.4441,
+          "rank": 5,
+          "documentId": "5c529e60-cc83-4771-9d36-bc8c333e81da"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "A2-设备维护管理细则.md",
+          "marker": "滤芯更换周期为九十日",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G01-A2-BOUNDARY",
+      "set": "dev",
+      "family": "A",
+      "dimension": "G01_LONG_DOC",
+      "docLengthBand": "medium",
+      "query": "设备维护记录需要保存多久？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 710,
+      "latencyMs": 53,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "A2-设备维护管理细则.md",
+          "chunkId": "3af6798b-9861-4546-be0d-0537b4c82c52",
+          "heading": "第四章 记录与档案",
+          "retainedCodePoints": 190,
+          "similarity": 0.7604,
+          "rank": 1,
+          "documentId": "d7e9c5d8-8624-4dfc-8e22-a6f65fd951f0"
+        },
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "chunkId": "0ec99c19-e5ce-43db-85f9-4db246e2431d",
+          "heading": "四、更新",
+          "retainedCodePoints": 40,
+          "similarity": 0.5786,
+          "rank": 2,
+          "documentId": "a128b685-82cc-45ed-931e-6c5664386f72"
+        },
+        {
+          "document": "F2-审计证据管理规范.md",
+          "chunkId": "aa5926a6-b725-43f1-aedf-591ad235d634",
+          "heading": "三、证据保管",
+          "retainedCodePoints": 113,
+          "similarity": 0.5477,
+          "rank": 3,
+          "documentId": "d6a048e0-54a1-4edd-b909-d2b6a053c897"
+        },
+        {
+          "document": "A2-设备维护管理细则.md",
+          "chunkId": "d378bc8b-7f72-48fb-84ac-0c88cae658a1",
+          "heading": "第六章 考核与附则",
+          "retainedCodePoints": 85,
+          "similarity": 0.5447,
+          "rank": 4,
+          "documentId": "d7e9c5d8-8624-4dfc-8e22-a6f65fd951f0"
+        },
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "chunkId": "70b11780-9523-4300-8187-386c0e23b2ef",
+          "heading": "五、附则",
+          "retainedCodePoints": 92,
+          "similarity": 0.5003,
+          "rank": 5,
+          "documentId": "5c529e60-cc83-4771-9d36-bc8c333e81da"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "A2-设备维护管理细则.md",
+          "marker": "维护记录保存期限为三年",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G01-A3-MID",
+      "set": "dev",
+      "family": "A",
+      "dimension": "G01_LONG_DOC",
+      "docLengthBand": "long",
+      "query": "冷媒压力异常时应该如何处置？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 1157,
+      "latencyMs": 51,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "81f3b302-9bab-4909-ac11-cf87d378cdba",
+          "heading": "第四章 制冷系统维护",
+          "retainedCodePoints": 453,
+          "similarity": 0.5629,
+          "rank": 1,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "e0bfdccc-0745-4079-b344-5870f4b4e3ce",
+          "heading": "第二章 安全总则",
+          "retainedCodePoints": 239,
+          "similarity": 0.5411,
+          "rank": 2,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "chunkId": "021039fb-ed98-4b7b-a96c-d2223957623c",
+          "heading": "四、季节性要求",
+          "retainedCodePoints": 72,
+          "similarity": 0.4386,
+          "rank": 3,
+          "documentId": "5c529e60-cc83-4771-9d36-bc8c333e81da"
+        },
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "chunkId": "63398798-4c71-4cf1-966f-a35a773eb808",
+          "heading": "三、异常处置",
+          "retainedCodePoints": 138,
+          "similarity": 0.4159,
+          "rank": 4,
+          "documentId": "5c529e60-cc83-4771-9d36-bc8c333e81da"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "fa12f9c0-a9b4-45ae-8097-04febb98e30f",
+          "heading": "五、统计与回顾",
+          "retainedCodePoints": 59,
+          "similarity": 0.4157,
+          "rank": 5,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "A3-中央机组维护手册.md",
+          "marker": "冷媒压力低于零点八兆帕",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G01-A3-TAIL",
+      "set": "dev",
+      "family": "A",
+      "dimension": "G01_LONG_DOC",
+      "docLengthBand": "long",
+      "query": "中央机组的年度大修在什么时间完成？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 813,
+      "latencyMs": 48,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "4470834f-5c09-41c7-84ce-d3c42dede315",
+          "heading": "第九章 检修计划",
+          "retainedCodePoints": 260,
+          "similarity": 0.6679,
+          "rank": 1,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "e275d9fa-7207-4845-87cd-e1ddd7d41863",
+          "heading": "第七章 振动与对中",
+          "retainedCodePoints": 141,
+          "similarity": 0.4644,
+          "rank": 2,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "chunkId": "493b775f-a233-4652-a612-b6163b891b44",
+          "heading": "事项三：外部审计师轮换",
+          "retainedCodePoints": 50,
+          "similarity": 0.46,
+          "rank": 3,
+          "documentId": "a128b685-82cc-45ed-931e-6c5664386f72"
+        },
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "chunkId": "68347573-65bd-4a72-9814-af055990284c",
+          "heading": "五、附则",
+          "retainedCodePoints": 80,
+          "similarity": 0.445,
+          "rank": 4,
+          "documentId": "6847de4d-9966-41ba-922f-1b201accae35"
+        },
+        {
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "chunkId": "ebe41f48-97a2-4297-a029-a034253254c3",
+          "heading": "五、附则",
+          "retainedCodePoints": 78,
+          "similarity": 0.4421,
+          "rank": 5,
+          "documentId": "cb0cb18b-e2a2-455d-ab87-6ffc153d0d3a"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "A3-中央机组维护手册.md",
+          "marker": "年度大修必须安排在供冷季结束后的三十日内",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G01-A4-BEG",
+      "set": "dev",
+      "family": "A",
+      "dimension": "G01_LONG_DOC",
+      "docLengthBand": "xlong",
+      "query": "双色标签制度是什么？红色标签代表什么？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 1033,
+      "latencyMs": 52,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "chunkId": "d848e3f9-1b73-435e-af04-d35deea6d670",
+          "heading": "四、标签与台账",
+          "retainedCodePoints": 121,
+          "similarity": 0.5132,
+          "rank": 1,
+          "documentId": "cb0cb18b-e2a2-455d-ab87-6ffc153d0d3a"
+        },
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "chunkId": "6be88e3d-ec24-49cf-ba56-3e6952b8575f",
+          "heading": "四、标签与台账",
+          "retainedCodePoints": 121,
+          "similarity": 0.5108,
+          "rank": 2,
+          "documentId": "6847de4d-9966-41ba-922f-1b201accae35"
+        },
+        {
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "chunkId": "5550ee32-023c-4261-9850-afea77b7447e",
+          "heading": "四、标签与台账",
+          "retainedCodePoints": 119,
+          "similarity": 0.5104,
+          "rank": 3,
+          "documentId": "ee0a0e7f-17ba-41c5-8869-dd362870a9c4"
+        },
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "chunkId": "65aed9bc-df1c-4518-aed7-9013057fbe51",
+          "heading": "第一章 总则与标签制度",
+          "retainedCodePoints": 333,
+          "similarity": 0.5102,
+          "rank": 4,
+          "documentId": "f6ed5cca-5218-47c9-9852-dd288ea388af"
+        },
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "chunkId": "51a6ac7d-5de5-4784-bb05-cf93a0949200",
+          "heading": "二、盘点实施",
+          "retainedCodePoints": 123,
+          "similarity": 0.3652,
+          "rank": 5,
+          "documentId": "6847de4d-9966-41ba-922f-1b201accae35"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "marker": "红色标签表示四十八小时内必须处置",
+          "indexed": true,
+          "diagnosticFullRank": 4,
+          "rank": 4,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G01-A4-MID",
+      "set": "dev",
+      "family": "A",
+      "dimension": "G01_LONG_DOC",
+      "docLengthBand": "xlong",
+      "query": "电梯轿厢照明可以由谁来检修？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 1510,
+      "latencyMs": 48,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "chunkId": "b74f894f-fc34-4afb-bbe0-d6d873e4d5f6",
+          "heading": "第五章 电梯与起重设备",
+          "retainedCodePoints": 320,
+          "similarity": 0.5882,
+          "rank": 1,
+          "documentId": "f6ed5cca-5218-47c9-9852-dd288ea388af"
+        },
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "chunkId": "2781c488-8f96-4ce9-b3eb-eaa3d56e7810",
+          "heading": "第八章 照明与附属设施",
+          "retainedCodePoints": 269,
+          "similarity": 0.5031,
+          "rank": 2,
+          "documentId": "f6ed5cca-5218-47c9-9852-dd288ea388af"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "dd8a2876-ec96-4fa5-8398-0510472d1383",
+          "heading": "第六章 电气系统维护",
+          "retainedCodePoints": 215,
+          "similarity": 0.4586,
+          "rank": 3,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "e0bfdccc-0745-4079-b344-5870f4b4e3ce",
+          "heading": "第二章 安全总则",
+          "retainedCodePoints": 239,
+          "similarity": 0.452,
+          "rank": 4,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "A2-设备维护管理细则.md",
+          "chunkId": "90e915b9-8b19-4f51-b92f-43fd0f537eb8",
+          "heading": "第三章 维护实施",
+          "retainedCodePoints": 261,
+          "similarity": 0.4445,
+          "rank": 5,
+          "documentId": "d7e9c5d8-8624-4dfc-8e22-a6f65fd951f0"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "marker": "电梯轿厢照明检修必须由持证电工执行",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G01-A4-BOUNDARY",
+      "set": "dev",
+      "family": "A",
+      "dimension": "G01_LONG_DOC",
+      "docLengthBand": "xlong",
+      "query": "消防水泵的试运转有什么要求？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 1339,
+      "latencyMs": 54,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "chunkId": "70b11780-9523-4300-8187-386c0e23b2ef",
+          "heading": "五、附则",
+          "retainedCodePoints": 92,
+          "similarity": 0.6295,
+          "rank": 1,
+          "documentId": "5c529e60-cc83-4771-9d36-bc8c333e81da"
+        },
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "chunkId": "b6f8b584-2137-41c2-b776-0cd7759ea110",
+          "heading": "第三章 给排水系统",
+          "retainedCodePoints": 308,
+          "similarity": 0.6001,
+          "rank": 2,
+          "documentId": "f6ed5cca-5218-47c9-9852-dd288ea388af"
+        },
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "chunkId": "021039fb-ed98-4b7b-a96c-d2223957623c",
+          "heading": "四、季节性要求",
+          "retainedCodePoints": 72,
+          "similarity": 0.5013,
+          "rank": 3,
+          "documentId": "5c529e60-cc83-4771-9d36-bc8c333e81da"
+        },
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "chunkId": "1ce646ab-dfc4-4c52-9a27-8532d1e53dd1",
+          "heading": "第六章 消防系统",
+          "retainedCodePoints": 438,
+          "similarity": 0.4898,
+          "rank": 4,
+          "documentId": "f6ed5cca-5218-47c9-9852-dd288ea388af"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "89bb8129-f9f5-4af3-bcb1-d9adfe627e8c",
+          "heading": "第五章 水系统维护",
+          "retainedCodePoints": 234,
+          "similarity": 0.4763,
+          "rank": 5,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "marker": "消防水泵每月自动试运转一次",
+          "indexed": true,
+          "diagnosticFullRank": 4,
+          "rank": 4,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G01-A4-TAIL",
+      "set": "dev",
+      "family": "A",
+      "dimension": "G01_LONG_DOC",
+      "docLengthBand": "xlong",
+      "query": "台风预警发布后幕墙要做些什么？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 832,
+      "latencyMs": 47,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "chunkId": "9c4e6714-2692-4d0c-9165-c25caceb7a82",
+          "heading": "第九章 幕墙与屋面",
+          "retainedCodePoints": 309,
+          "similarity": 0.6268,
+          "rank": 1,
+          "documentId": "f6ed5cca-5218-47c9-9852-dd288ea388af"
+        },
+        {
+          "document": "A1-设备巡检维护简则.md",
+          "chunkId": "021039fb-ed98-4b7b-a96c-d2223957623c",
+          "heading": "四、季节性要求",
+          "retainedCodePoints": 72,
+          "similarity": 0.4763,
+          "rank": 2,
+          "documentId": "5c529e60-cc83-4771-9d36-bc8c333e81da"
+        },
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "chunkId": "4c783387-8af0-450e-a274-20d72e78cc9c",
+          "heading": "三、临时执行口径",
+          "retainedCodePoints": 70,
+          "similarity": 0.4489,
+          "rank": 3,
+          "documentId": "a128b685-82cc-45ed-931e-6c5664386f72"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "a5110d9c-cc26-4647-9d9f-b38dec7b7136",
+          "heading": "三、事后补录",
+          "retainedCodePoints": 127,
+          "similarity": 0.4367,
+          "rank": 4,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "fa12f9c0-a9b4-45ae-8097-04febb98e30f",
+          "heading": "五、统计与回顾",
+          "retainedCodePoints": 59,
+          "similarity": 0.4316,
+          "rank": 5,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "marker": "台风预警发布后四十八小时内必须追加一次专项检查",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G02-B-2DOCS",
+      "set": "dev",
+      "family": "B",
+      "dimension": "G02_CROSS_DOC",
+      "docLengthBand": "short",
+      "query": "服务交接申请需要满足什么条件？审批由谁发起、经谁复核？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 910,
+      "latencyMs": 52,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "B2-服务交接审批流程.md",
+          "chunkId": "8a6de2e1-29dd-4033-97d3-400ba01875e4",
+          "heading": "一、流程总览",
+          "retainedCodePoints": 130,
+          "similarity": 0.8319,
+          "rank": 1,
+          "documentId": "aeca044d-3d8f-4aba-b48e-c531476b3bba"
+        },
+        {
+          "document": "B1-服务交接申请条件.md",
+          "chunkId": "af931809-2647-42d6-8075-8189c3ec51ee",
+          "heading": "一、申请资格",
+          "retainedCodePoints": 219,
+          "similarity": 0.8214,
+          "rank": 2,
+          "documentId": "fc5b359d-de9c-40d2-9610-8909380102a3"
+        },
+        {
+          "document": "B1-服务交接申请条件.md",
+          "chunkId": "10c93bcb-7539-404b-ba4e-745e8a27ab95",
+          "heading": "四、其他",
+          "retainedCodePoints": 53,
+          "similarity": 0.6971,
+          "rank": 3,
+          "documentId": "fc5b359d-de9c-40d2-9610-8909380102a3"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "290f3f15-19f6-48f6-b829-58b0b9717480",
+          "heading": "一、总则",
+          "retainedCodePoints": 66,
+          "similarity": 0.6754,
+          "rank": 4,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        },
+        {
+          "document": "B2-服务交接审批流程.md",
+          "chunkId": "49e716ef-a057-4a74-af0c-0afd781545f5",
+          "heading": "二、节点说明",
+          "retainedCodePoints": 258,
+          "similarity": 0.6687,
+          "rank": 5,
+          "documentId": "aeca044d-3d8f-4aba-b48e-c531476b3bba"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "B1-服务交接申请条件.md",
+          "marker": "交接双方均完成实名认证",
+          "indexed": true,
+          "diagnosticFullRank": 2,
+          "rank": 2,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "B2-服务交接审批流程.md",
+          "marker": "经资产管理员复核后生效",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G02-B-3DOCS",
+      "set": "dev",
+      "family": "B",
+      "dimension": "G02_CROSS_DOC",
+      "docLengthBand": "short",
+      "query": "服务交接审批被驳回后怎么处理？常规交接要在多少个工作日内完成？系统割接原因的延期上限是多少？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 729,
+      "latencyMs": 46,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "65501e18-a7c3-43d2-bfd1-3c4548169485",
+          "heading": "二、时限延长",
+          "retainedCodePoints": 141,
+          "similarity": 0.7893,
+          "rank": 1,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        },
+        {
+          "document": "B2-服务交接审批流程.md",
+          "chunkId": "8a6de2e1-29dd-4033-97d3-400ba01875e4",
+          "heading": "一、流程总览",
+          "retainedCodePoints": 130,
+          "similarity": 0.7719,
+          "rank": 2,
+          "documentId": "aeca044d-3d8f-4aba-b48e-c531476b3bba"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "290f3f15-19f6-48f6-b829-58b0b9717480",
+          "heading": "一、总则",
+          "retainedCodePoints": 66,
+          "similarity": 0.77,
+          "rank": 3,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "chunkId": "783652cb-5f11-4367-95be-ad683d541108",
+          "heading": "四、时限的中止",
+          "retainedCodePoints": 70,
+          "similarity": 0.7695,
+          "rank": 4,
+          "documentId": "8b44e779-fae0-4062-84b4-85eb168c8058"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "chunkId": "2988847a-734c-4572-87fd-05dc304e3bf4",
+          "heading": "一、总时限",
+          "retainedCodePoints": 136,
+          "similarity": 0.753,
+          "rank": 5,
+          "documentId": "8b44e779-fae0-4062-84b4-85eb168c8058"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "B2-服务交接审批流程.md",
+          "marker": "退回发起节点",
+          "indexed": true,
+          "diagnosticFullRank": 15,
+          "rank": 0,
+          "stage": "RETRIEVAL_MISS",
+          "contrast": "RETRIEVAL_MISS"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "marker": "常规服务交接应当在十个工作日内完成",
+          "indexed": true,
+          "diagnosticFullRank": 5,
+          "rank": 5,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "marker": "延长不得超过五个工作日",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G02-B-4DOCS",
+      "set": "dev",
+      "family": "B",
+      "dimension": "G02_CROSS_DOC",
+      "docLengthBand": "short",
+      "query": "请完整说明一次服务交接：申请要满足什么条件？材料超时未补正会怎样？审批由谁发起经谁复核？常规时限多久？割接延期最多多久？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 877,
+      "latencyMs": 59,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "65501e18-a7c3-43d2-bfd1-3c4548169485",
+          "heading": "二、时限延长",
+          "retainedCodePoints": 141,
+          "similarity": 0.8138,
+          "rank": 1,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "290f3f15-19f6-48f6-b829-58b0b9717480",
+          "heading": "一、总则",
+          "retainedCodePoints": 66,
+          "similarity": 0.7887,
+          "rank": 2,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        },
+        {
+          "document": "B2-服务交接审批流程.md",
+          "chunkId": "8a6de2e1-29dd-4033-97d3-400ba01875e4",
+          "heading": "一、流程总览",
+          "retainedCodePoints": 130,
+          "similarity": 0.7697,
+          "rank": 3,
+          "documentId": "aeca044d-3d8f-4aba-b48e-c531476b3bba"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "chunkId": "2988847a-734c-4572-87fd-05dc304e3bf4",
+          "heading": "一、总时限",
+          "retainedCodePoints": 136,
+          "similarity": 0.7645,
+          "rank": 4,
+          "documentId": "8b44e779-fae0-4062-84b4-85eb168c8058"
+        },
+        {
+          "document": "B1-服务交接申请条件.md",
+          "chunkId": "af931809-2647-42d6-8075-8189c3ec51ee",
+          "heading": "一、申请资格",
+          "retainedCodePoints": 219,
+          "similarity": 0.7643,
+          "rank": 5,
+          "documentId": "fc5b359d-de9c-40d2-9610-8909380102a3"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "B1-服务交接申请条件.md",
+          "marker": "交接双方均完成实名认证",
+          "indexed": true,
+          "diagnosticFullRank": 5,
+          "rank": 5,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "B1-服务交接申请条件.md",
+          "marker": "申请自动撤回",
+          "indexed": true,
+          "diagnosticFullRank": 5,
+          "rank": 5,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "B2-服务交接审批流程.md",
+          "marker": "经资产管理员复核后生效",
+          "indexed": true,
+          "diagnosticFullRank": 3,
+          "rank": 3,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "marker": "常规服务交接应当在十个工作日内完成",
+          "indexed": true,
+          "diagnosticFullRank": 4,
+          "rank": 4,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "marker": "延长不得超过五个工作日",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G03-B1-COMPLEMENT",
+      "set": "dev",
+      "family": "B",
+      "dimension": "G03_COMPLEMENTARY",
+      "docLengthBand": "short",
+      "query": "服务交接申请的准入条件是什么？材料超时未补正有什么后果？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 723,
+      "latencyMs": 58,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "B1-服务交接申请条件.md",
+          "chunkId": "af931809-2647-42d6-8075-8189c3ec51ee",
+          "heading": "一、申请资格",
+          "retainedCodePoints": 219,
+          "similarity": 0.7847,
+          "rank": 1,
+          "documentId": "fc5b359d-de9c-40d2-9610-8909380102a3"
+        },
+        {
+          "document": "B2-服务交接审批流程.md",
+          "chunkId": "8a6de2e1-29dd-4033-97d3-400ba01875e4",
+          "heading": "一、流程总览",
+          "retainedCodePoints": 130,
+          "similarity": 0.7601,
+          "rank": 2,
+          "documentId": "aeca044d-3d8f-4aba-b48e-c531476b3bba"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "290f3f15-19f6-48f6-b829-58b0b9717480",
+          "heading": "一、总则",
+          "retainedCodePoints": 66,
+          "similarity": 0.7193,
+          "rank": 3,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        },
+        {
+          "document": "B1-服务交接申请条件.md",
+          "chunkId": "10c93bcb-7539-404b-ba4e-745e8a27ab95",
+          "heading": "四、其他",
+          "retainedCodePoints": 53,
+          "similarity": 0.6823,
+          "rank": 4,
+          "documentId": "fc5b359d-de9c-40d2-9610-8909380102a3"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "chunkId": "783652cb-5f11-4367-95be-ad683d541108",
+          "heading": "四、时限的中止",
+          "retainedCodePoints": 70,
+          "similarity": 0.654,
+          "rank": 5,
+          "documentId": "8b44e779-fae0-4062-84b4-85eb168c8058"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "B1-服务交接申请条件.md",
+          "marker": "交接双方均完成实名认证",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "B1-服务交接申请条件.md",
+          "marker": "申请自动撤回",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G03-B2-COMPLEMENT",
+      "set": "dev",
+      "family": "B",
+      "dimension": "G03_COMPLEMENTARY",
+      "docLengthBand": "short",
+      "query": "服务交接审批流程是怎样走的？节点驳回如何处理？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 713,
+      "latencyMs": 49,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "B2-服务交接审批流程.md",
+          "chunkId": "8a6de2e1-29dd-4033-97d3-400ba01875e4",
+          "heading": "一、流程总览",
+          "retainedCodePoints": 130,
+          "similarity": 0.8428,
+          "rank": 1,
+          "documentId": "aeca044d-3d8f-4aba-b48e-c531476b3bba"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "290f3f15-19f6-48f6-b829-58b0b9717480",
+          "heading": "一、总则",
+          "retainedCodePoints": 66,
+          "similarity": 0.7173,
+          "rank": 2,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        },
+        {
+          "document": "B2-服务交接审批流程.md",
+          "chunkId": "0c06abdc-fc6f-45e6-a57d-96f3cf76c374",
+          "heading": "五、生效与公开",
+          "retainedCodePoints": 60,
+          "similarity": 0.7151,
+          "rank": 3,
+          "documentId": "aeca044d-3d8f-4aba-b48e-c531476b3bba"
+        },
+        {
+          "document": "B1-服务交接申请条件.md",
+          "chunkId": "af931809-2647-42d6-8075-8189c3ec51ee",
+          "heading": "一、申请资格",
+          "retainedCodePoints": 219,
+          "similarity": 0.6997,
+          "rank": 4,
+          "documentId": "fc5b359d-de9c-40d2-9610-8909380102a3"
+        },
+        {
+          "document": "B1-服务交接申请条件.md",
+          "chunkId": "10c93bcb-7539-404b-ba4e-745e8a27ab95",
+          "heading": "四、其他",
+          "retainedCodePoints": 53,
+          "similarity": 0.6889,
+          "rank": 5,
+          "documentId": "fc5b359d-de9c-40d2-9610-8909380102a3"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "B2-服务交接审批流程.md",
+          "marker": "经资产管理员复核后生效",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "B2-服务交接审批流程.md",
+          "marker": "退回发起节点",
+          "indexed": true,
+          "diagnosticFullRank": 4,
+          "rank": 4,
+          "stage": "SELECTION_MISS:SOURCE_CAP",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G06-C-1",
+      "set": "dev",
+      "family": "C",
+      "dimension": "G06_SIMILAR_SOURCES",
+      "docLengthBand": "short",
+      "query": "华东中心的盘点差异率超过多少需要提交书面说明？提交期限是多久？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 703,
+      "latencyMs": 60,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "chunkId": "a0b656fd-afbb-4d47-ad9d-b0f5796ec239",
+          "heading": "三、差异处理",
+          "retainedCodePoints": 125,
+          "similarity": 0.8323,
+          "rank": 1,
+          "documentId": "6847de4d-9966-41ba-922f-1b201accae35"
+        },
+        {
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "chunkId": "379501ab-13ee-4d05-b989-19608a570913",
+          "heading": "三、差异处理",
+          "retainedCodePoints": 125,
+          "similarity": 0.7978,
+          "rank": 2,
+          "documentId": "cb0cb18b-e2a2-455d-ab87-6ffc153d0d3a"
+        },
+        {
+          "document": "C4-资产盘点争议处理补充.md",
+          "chunkId": "0b89b24f-d50f-486f-aec1-47387b12afd3",
+          "heading": "二、认定争议",
+          "retainedCodePoints": 125,
+          "similarity": 0.7408,
+          "rank": 3,
+          "documentId": "b81424df-3ad3-4e57-8d38-70f75091fa27"
+        },
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "chunkId": "68347573-65bd-4a72-9814-af055990284c",
+          "heading": "五、附则",
+          "retainedCodePoints": 80,
+          "similarity": 0.7382,
+          "rank": 4,
+          "documentId": "6847de4d-9966-41ba-922f-1b201accae35"
+        },
+        {
+          "document": "C4-资产盘点争议处理补充.md",
+          "chunkId": "f273972a-1831-4034-96aa-1ee51f82b586",
+          "heading": "五、其他",
+          "retainedCodePoints": 45,
+          "similarity": 0.6824,
+          "rank": 5,
+          "documentId": "b81424df-3ad3-4e57-8d38-70f75091fa27"
+        }
+      ],
+      "falseEvidence": [
+        {
+          "inQaContext": true,
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "inAgentToolQuote": true
+        },
+        {
+          "inQaContext": false,
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "inAgentToolQuote": true
+        }
+      ],
+      "facts": [
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "marker": "盘点差异率超过百分之二的",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "marker": "三个工作日内提交书面说明",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": [
+        {
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "marker": "盘点差异率超过百分之五的",
+          "indexed": true,
+          "heading": "三、差异处理",
+          "diagnosticFullRank": 2,
+          "diagnosticSimilarity": 0.7978,
+          "note": "华南中心阈值，不得作为华东答案",
+          "qaRetained": true,
+          "agentToolRetained": true
+        },
+        {
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "marker": "盘点差异率超过百分之一即触发专项审计",
+          "indexed": true,
+          "heading": "三、差异处理",
+          "diagnosticFullRank": 8,
+          "diagnosticSimilarity": 0.6694,
+          "note": "总部阈值，不得作为华东答案",
+          "qaRetained": false,
+          "agentToolRetained": true
+        }
+      ]
+    },
+    {
+      "id": "G06-C-2",
+      "set": "dev",
+      "family": "C",
+      "dimension": "G06_SIMILAR_SOURCES",
+      "docLengthBand": "short",
+      "query": "华东中心与华南中心的固定资产盘点频率分别是什么？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 961,
+      "latencyMs": 36,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "chunkId": "68347573-65bd-4a72-9814-af055990284c",
+          "heading": "五、附则",
+          "retainedCodePoints": 80,
+          "similarity": 0.8657,
+          "rank": 1,
+          "documentId": "6847de4d-9966-41ba-922f-1b201accae35"
+        },
+        {
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "chunkId": "ebe41f48-97a2-4297-a029-a034253254c3",
+          "heading": "五、附则",
+          "retainedCodePoints": 78,
+          "similarity": 0.8412,
+          "rank": 2,
+          "documentId": "cb0cb18b-e2a2-455d-ab87-6ffc153d0d3a"
+        },
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "chunkId": "7e501ed9-c705-499d-bc63-59eaf7da3b49",
+          "heading": "一、盘点组织",
+          "retainedCodePoints": 200,
+          "similarity": 0.8207,
+          "rank": 3,
+          "documentId": "6847de4d-9966-41ba-922f-1b201accae35"
+        },
+        {
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "chunkId": "1f9a3c7c-767d-4433-af69-08c3a81af5cb",
+          "heading": "一、盘点组织",
+          "retainedCodePoints": 191,
+          "similarity": 0.8088,
+          "rank": 4,
+          "documentId": "cb0cb18b-e2a2-455d-ab87-6ffc153d0d3a"
+        },
+        {
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "chunkId": "1717f17e-308a-4d3f-947d-fea37f30a028",
+          "heading": "一、盘点组织",
+          "retainedCodePoints": 203,
+          "similarity": 0.6724,
+          "rank": 5,
+          "documentId": "ee0a0e7f-17ba-41c5-8869-dd362870a9c4"
+        }
+      ],
+      "falseEvidence": [
+        {
+          "inQaContext": true,
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "inAgentToolQuote": true
+        }
+      ],
+      "facts": [
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "marker": "华东中心固定资产盘点每半年开展一次",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "marker": "华南中心固定资产盘点每年开展一次",
+          "indexed": true,
+          "diagnosticFullRank": 2,
+          "rank": 2,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G06-C-3",
+      "set": "dev",
+      "family": "C",
+      "dimension": "G06_SIMILAR_SOURCES",
+      "docLengthBand": "short",
+      "query": "总部本部的抽盘制度是怎么规定的？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 571,
+      "latencyMs": 43,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "chunkId": "9664f10b-273c-466c-917e-b8a2e3d4f5d7",
+          "heading": "二、抽盘制度",
+          "retainedCodePoints": 121,
+          "similarity": 0.7896,
+          "rank": 1,
+          "documentId": "ee0a0e7f-17ba-41c5-8869-dd362870a9c4"
+        },
+        {
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "chunkId": "b22e2e81-fa6c-4d47-ba84-dedef123d22b",
+          "heading": "五、附则",
+          "retainedCodePoints": 77,
+          "similarity": 0.6518,
+          "rank": 2,
+          "documentId": "ee0a0e7f-17ba-41c5-8869-dd362870a9c4"
+        },
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "chunkId": "16bd69ab-584f-4e25-af15-97c43d275162",
+          "heading": "事项一：抽查样本量",
+          "retainedCodePoints": 64,
+          "similarity": 0.5414,
+          "rank": 3,
+          "documentId": "a128b685-82cc-45ed-931e-6c5664386f72"
+        },
+        {
+          "document": "C4-资产盘点争议处理补充.md",
+          "chunkId": "f273972a-1831-4034-96aa-1ee51f82b586",
+          "heading": "五、其他",
+          "retainedCodePoints": 45,
+          "similarity": 0.5189,
+          "rank": 4,
+          "documentId": "b81424df-3ad3-4e57-8d38-70f75091fa27"
+        },
+        {
+          "document": "C4-资产盘点争议处理补充.md",
+          "chunkId": "1100a97c-1000-4bfc-af71-145dd9e05e55",
+          "heading": "一、适用范围",
+          "retainedCodePoints": 63,
+          "similarity": 0.485,
+          "rank": 5,
+          "documentId": "b81424df-3ad3-4e57-8d38-70f75091fa27"
+        }
+      ],
+      "falseEvidence": [
+        {
+          "inQaContext": false,
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "inAgentToolQuote": true
+        },
+        {
+          "inQaContext": false,
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "inAgentToolQuote": true
+        }
+      ],
+      "facts": [
+        {
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "marker": "季度抽盘",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "marker": "抽盘覆盖率不低于三成",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G06-C-4",
+      "set": "dev",
+      "family": "C",
+      "dimension": "G06_SIMILAR_SOURCES",
+      "docLengthBand": "short",
+      "query": "华东中心多久开展一次全面盘点？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 879,
+      "latencyMs": 54,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "chunkId": "68347573-65bd-4a72-9814-af055990284c",
+          "heading": "五、附则",
+          "retainedCodePoints": 80,
+          "similarity": 0.7503,
+          "rank": 1,
+          "documentId": "6847de4d-9966-41ba-922f-1b201accae35"
+        },
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "chunkId": "7e501ed9-c705-499d-bc63-59eaf7da3b49",
+          "heading": "一、盘点组织",
+          "retainedCodePoints": 200,
+          "similarity": 0.7033,
+          "rank": 2,
+          "documentId": "6847de4d-9966-41ba-922f-1b201accae35"
+        },
+        {
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "chunkId": "ebe41f48-97a2-4297-a029-a034253254c3",
+          "heading": "五、附则",
+          "retainedCodePoints": 78,
+          "similarity": 0.6772,
+          "rank": 3,
+          "documentId": "cb0cb18b-e2a2-455d-ab87-6ffc153d0d3a"
+        },
+        {
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "chunkId": "1f9a3c7c-767d-4433-af69-08c3a81af5cb",
+          "heading": "一、盘点组织",
+          "retainedCodePoints": 191,
+          "similarity": 0.6385,
+          "rank": 4,
+          "documentId": "cb0cb18b-e2a2-455d-ab87-6ffc153d0d3a"
+        },
+        {
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "chunkId": "9664f10b-273c-466c-917e-b8a2e3d4f5d7",
+          "heading": "二、抽盘制度",
+          "retainedCodePoints": 121,
+          "similarity": 0.618,
+          "rank": 5,
+          "documentId": "ee0a0e7f-17ba-41c5-8869-dd362870a9c4"
+        }
+      ],
+      "falseEvidence": [
+        {
+          "inQaContext": true,
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "inAgentToolQuote": true
+        }
+      ],
+      "facts": [
+        {
+          "document": "C1-资产盘点操作规范-华东中心.md",
+          "marker": "华东中心固定资产盘点每半年开展一次",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": [
+        {
+          "document": "C2-资产盘点操作规范-华南中心.md",
+          "marker": "华南中心固定资产盘点每年开展一次",
+          "indexed": true,
+          "heading": "一、盘点组织",
+          "diagnosticFullRank": 3,
+          "diagnosticSimilarity": 0.6772,
+          "note": "华南频率，不得作为华东答案",
+          "qaRetained": true,
+          "agentToolRetained": true
+        }
+      ]
+    },
+    {
+      "id": "G08-A3-PARAPHRASE",
+      "set": "dev",
+      "family": "A",
+      "dimension": "G08_PARAPHRASE",
+      "docLengthBand": "long",
+      "query": "冷媒压力掉到多少就得停机？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 1529,
+      "latencyMs": 46,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "81f3b302-9bab-4909-ac11-cf87d378cdba",
+          "heading": "第四章 制冷系统维护",
+          "retainedCodePoints": 453,
+          "similarity": 0.5502,
+          "rank": 1,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "e0bfdccc-0745-4079-b344-5870f4b4e3ce",
+          "heading": "第二章 安全总则",
+          "retainedCodePoints": 239,
+          "similarity": 0.539,
+          "rank": 2,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "A4-全厂设施维护总册.md",
+          "chunkId": "73f90bda-aa14-48ed-8116-7cae43ebacf0",
+          "heading": "第二章 暖通空调系统",
+          "retainedCodePoints": 313,
+          "similarity": 0.4273,
+          "rank": 3,
+          "documentId": "f6ed5cca-5218-47c9-9852-dd288ea388af"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "13a4e996-3344-42a4-b426-722cc378a249",
+          "heading": "第三章 日常运行监视",
+          "retainedCodePoints": 267,
+          "similarity": 0.5208,
+          "rank": 4,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        },
+        {
+          "document": "A3-中央机组维护手册.md",
+          "chunkId": "d46f8f81-9b9c-4f93-8e25-12507f3cd522",
+          "heading": "中央机组维护手册",
+          "retainedCodePoints": 50,
+          "similarity": 0.4819,
+          "rank": 5,
+          "documentId": "4023c1a3-39db-4e8b-a2c8-5db9ac43bbdf"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "A3-中央机组维护手册.md",
+          "marker": "冷媒压力低于零点八兆帕",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "G08-B3-PARAPHRASE",
+      "set": "dev",
+      "family": "B",
+      "dimension": "G08_PARAPHRASE",
+      "docLengthBand": "short",
+      "query": "常规的服务交接大概要在多少个工作日之内办结？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 728,
+      "latencyMs": 53,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "B3-服务交接时限规定.md",
+          "chunkId": "2988847a-734c-4572-87fd-05dc304e3bf4",
+          "heading": "一、总时限",
+          "retainedCodePoints": 136,
+          "similarity": 0.8945,
+          "rank": 1,
+          "documentId": "8b44e779-fae0-4062-84b4-85eb168c8058"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "chunkId": "783652cb-5f11-4367-95be-ad683d541108",
+          "heading": "四、时限的中止",
+          "retainedCodePoints": 70,
+          "similarity": 0.7519,
+          "rank": 2,
+          "documentId": "8b44e779-fae0-4062-84b4-85eb168c8058"
+        },
+        {
+          "document": "B1-服务交接申请条件.md",
+          "chunkId": "10c93bcb-7539-404b-ba4e-745e8a27ab95",
+          "heading": "四、其他",
+          "retainedCodePoints": 53,
+          "similarity": 0.7002,
+          "rank": 3,
+          "documentId": "fc5b359d-de9c-40d2-9610-8909380102a3"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "290f3f15-19f6-48f6-b829-58b0b9717480",
+          "heading": "一、总则",
+          "retainedCodePoints": 66,
+          "similarity": 0.6908,
+          "rank": 4,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        },
+        {
+          "document": "B1-服务交接申请条件.md",
+          "chunkId": "af931809-2647-42d6-8075-8189c3ec51ee",
+          "heading": "一、申请资格",
+          "retainedCodePoints": 219,
+          "similarity": 0.6856,
+          "rank": 5,
+          "documentId": "fc5b359d-de9c-40d2-9610-8909380102a3"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "B3-服务交接时限规定.md",
+          "marker": "常规服务交接应当在十个工作日内完成",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G04-CURRENT",
+      "set": "holdout",
+      "family": "D",
+      "dimension": "G04_VERSION_CONFLICT",
+      "docLengthBand": "short",
+      "query": "现在出差到一线城市，住宿费标准是每晚多少钱？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 749,
+      "latencyMs": 51,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "chunkId": "7f7219f5-7e3b-4f54-b942-bb170f1f8c68",
+          "heading": "第四章 住宿费",
+          "retainedCodePoints": 144,
+          "similarity": 0.8244,
+          "rank": 1,
+          "documentId": "2ac15d82-0bdd-4b57-a155-d4b3551c2ebe"
+        },
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "chunkId": "3636b8db-45df-4f51-a1eb-7d1e7dffe8c4",
+          "heading": "第四章 住宿费",
+          "retainedCodePoints": 142,
+          "similarity": 0.8208,
+          "rank": 2,
+          "documentId": "6b4d6799-1792-4865-a002-b20ab8b0539b"
+        },
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "chunkId": "d089f9b1-df65-4003-8425-80975c0a23d0",
+          "heading": "第五章 伙食补助与市内交通",
+          "retainedCodePoints": 95,
+          "similarity": 0.6005,
+          "rank": 3,
+          "documentId": "6b4d6799-1792-4865-a002-b20ab8b0539b"
+        },
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "chunkId": "527383bf-dd4f-4f13-86bb-0db3cf680c7d",
+          "heading": "第五章 伙食补助与市内交通",
+          "retainedCodePoints": 95,
+          "similarity": 0.5838,
+          "rank": 4,
+          "documentId": "2ac15d82-0bdd-4b57-a155-d4b3551c2ebe"
+        },
+        {
+          "document": "D3-差旅费管理补充通知.md",
+          "chunkId": "fce336db-3f3b-4c16-8212-2d534a67d55a",
+          "heading": "三、关于城市类别",
+          "retainedCodePoints": 62,
+          "similarity": 0.5222,
+          "rank": 5,
+          "documentId": "e1170aea-3b65-4009-9d28-046b64cf7c62"
+        }
+      ],
+      "falseEvidence": [
+        {
+          "inQaContext": true,
+          "document": "D1-差旅费管理办法V1.md",
+          "inAgentToolQuote": true
+        }
+      ],
+      "facts": [
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "marker": "住宿费标准为每晚五百元",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": [
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "marker": "住宿费标准为每晚四百元",
+          "indexed": true,
+          "heading": "第四章 住宿费",
+          "diagnosticFullRank": 2,
+          "diagnosticSimilarity": 0.8208,
+          "note": "V1旧标准已随V2废止，不得作为现行答案",
+          "qaRetained": true,
+          "agentToolRetained": true
+        }
+      ]
+    },
+    {
+      "id": "H-G04-REPEALED",
+      "set": "holdout",
+      "family": "D",
+      "dimension": "G04_VERSION_CONFLICT",
+      "docLengthBand": "short",
+      "query": "出差加班后次日返程的住宿费能报销吗？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 919,
+      "latencyMs": 48,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "D3-差旅费管理补充通知.md",
+          "chunkId": "1b664ae5-ff3f-4a42-9667-1de68278d981",
+          "heading": "一、关于加班次日返程的住宿费",
+          "retainedCodePoints": 154,
+          "similarity": 0.7846,
+          "rank": 1,
+          "documentId": "e1170aea-3b65-4009-9d28-046b64cf7c62"
+        },
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "chunkId": "a4765d3a-dc0f-41e6-9527-cfb82981a408",
+          "heading": "第六章 报销与监督",
+          "retainedCodePoints": 137,
+          "similarity": 0.7588,
+          "rank": 2,
+          "documentId": "6b4d6799-1792-4865-a002-b20ab8b0539b"
+        },
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "chunkId": "8c235c11-f684-44b7-a8f6-d9ab16d79f42",
+          "heading": "第六章 报销与监督",
+          "retainedCodePoints": 133,
+          "similarity": 0.7582,
+          "rank": 3,
+          "documentId": "2ac15d82-0bdd-4b57-a155-d4b3551c2ebe"
+        },
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "chunkId": "7f7219f5-7e3b-4f54-b942-bb170f1f8c68",
+          "heading": "第四章 住宿费",
+          "retainedCodePoints": 144,
+          "similarity": 0.6514,
+          "rank": 4,
+          "documentId": "2ac15d82-0bdd-4b57-a155-d4b3551c2ebe"
+        },
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "chunkId": "3636b8db-45df-4f51-a1eb-7d1e7dffe8c4",
+          "heading": "第四章 住宿费",
+          "retainedCodePoints": 142,
+          "similarity": 0.6501,
+          "rank": 5,
+          "documentId": "6b4d6799-1792-4865-a002-b20ab8b0539b"
+        }
+      ],
+      "falseEvidence": [
+        {
+          "inQaContext": true,
+          "document": "D2-差旅费管理办法V2.md",
+          "inAgentToolQuote": true
+        }
+      ],
+      "facts": [
+        {
+          "document": "D3-差旅费管理补充通知.md",
+          "marker": "住宿费按当晚标准报销",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": [
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "marker": "加班次日的住宿费不予报销",
+          "indexed": true,
+          "heading": "第六章 报销与监督",
+          "diagnosticFullRank": 3,
+          "diagnosticSimilarity": 0.7582,
+          "note": "该条款已被D3补充通知废止，不得作为最终答案",
+          "qaRetained": true,
+          "agentToolRetained": true
+        }
+      ]
+    },
+    {
+      "id": "H-G04-CHANGE",
+      "set": "holdout",
+      "family": "D",
+      "dimension": "G04_VERSION_CONFLICT",
+      "docLengthBand": "short",
+      "query": "差旅住宿费的一线城市标准经历过什么变化？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 749,
+      "latencyMs": 44,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "chunkId": "7f7219f5-7e3b-4f54-b942-bb170f1f8c68",
+          "heading": "第四章 住宿费",
+          "retainedCodePoints": 144,
+          "similarity": 0.7488,
+          "rank": 1,
+          "documentId": "2ac15d82-0bdd-4b57-a155-d4b3551c2ebe"
+        },
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "chunkId": "3636b8db-45df-4f51-a1eb-7d1e7dffe8c4",
+          "heading": "第四章 住宿费",
+          "retainedCodePoints": 142,
+          "similarity": 0.7458,
+          "rank": 2,
+          "documentId": "6b4d6799-1792-4865-a002-b20ab8b0539b"
+        },
+        {
+          "document": "D3-差旅费管理补充通知.md",
+          "chunkId": "fce336db-3f3b-4c16-8212-2d534a67d55a",
+          "heading": "三、关于城市类别",
+          "retainedCodePoints": 62,
+          "similarity": 0.6148,
+          "rank": 3,
+          "documentId": "e1170aea-3b65-4009-9d28-046b64cf7c62"
+        },
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "chunkId": "d089f9b1-df65-4003-8425-80975c0a23d0",
+          "heading": "第五章 伙食补助与市内交通",
+          "retainedCodePoints": 95,
+          "similarity": 0.5968,
+          "rank": 4,
+          "documentId": "6b4d6799-1792-4865-a002-b20ab8b0539b"
+        },
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "chunkId": "527383bf-dd4f-4f13-86bb-0db3cf680c7d",
+          "heading": "第五章 伙食补助与市内交通",
+          "retainedCodePoints": 95,
+          "similarity": 0.5888,
+          "rank": 5,
+          "documentId": "2ac15d82-0bdd-4b57-a155-d4b3551c2ebe"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "marker": "住宿费标准为每晚四百元",
+          "indexed": true,
+          "diagnosticFullRank": 2,
+          "rank": 2,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "marker": "住宿费标准为每晚五百元",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G05-UNLESS",
+      "set": "holdout",
+      "family": "D",
+      "dimension": "G05_CONDITION",
+      "docLengthBand": "short",
+      "query": "可以先组织培训再补签合同吗？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 885,
+      "latencyMs": 63,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "chunkId": "ec076d6a-41ee-48db-b6bb-a1c5d9ba149a",
+          "heading": "第一章 总则",
+          "retainedCodePoints": 168,
+          "similarity": 0.6325,
+          "rank": 1,
+          "documentId": "0165eafe-e2bb-4434-9c2f-71d6fc0016fc"
+        },
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "chunkId": "b7b6bb86-0f73-432f-b581-ef27739a5422",
+          "heading": "第四章 履行与验收",
+          "retainedCodePoints": 121,
+          "similarity": 0.5828,
+          "rank": 2,
+          "documentId": "0165eafe-e2bb-4434-9c2f-71d6fc0016fc"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "a5110d9c-cc26-4647-9d9f-b38dec7b7136",
+          "heading": "三、事后补录",
+          "retainedCodePoints": 127,
+          "similarity": 0.4568,
+          "rank": 3,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        },
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "chunkId": "9a785c19-ed0d-426a-8143-866bff0c554e",
+          "heading": "第六章 附则",
+          "retainedCodePoints": 57,
+          "similarity": 0.5486,
+          "rank": 4,
+          "documentId": "0165eafe-e2bb-4434-9c2f-71d6fc0016fc"
+        },
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "chunkId": "6c43cb8a-8281-4fd6-9901-2f226b832d94",
+          "heading": "第二章 合同签订",
+          "retainedCodePoints": 211,
+          "similarity": 0.5472,
+          "rank": 5,
+          "documentId": "0165eafe-e2bb-4434-9c2f-71d6fc0016fc"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "marker": "不得先培训后补签合同",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G05-AND-OR",
+      "set": "holdout",
+      "family": "D",
+      "dimension": "G05_CONDITION",
+      "docLengthBand": "short",
+      "query": "培训服务合同什么时候必须法务审核？同一供应商的合同有什么份数或金额限制？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 807,
+      "latencyMs": 43,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "chunkId": "6c43cb8a-8281-4fd6-9901-2f226b832d94",
+          "heading": "第二章 合同签订",
+          "retainedCodePoints": 211,
+          "similarity": 0.7481,
+          "rank": 1,
+          "documentId": "0165eafe-e2bb-4434-9c2f-71d6fc0016fc"
+        },
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "chunkId": "9a785c19-ed0d-426a-8143-866bff0c554e",
+          "heading": "第六章 附则",
+          "retainedCodePoints": 57,
+          "similarity": 0.6314,
+          "rank": 2,
+          "documentId": "0165eafe-e2bb-4434-9c2f-71d6fc0016fc"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "chunkId": "515d4b56-eb18-46e6-9309-dc3b904535b0",
+          "heading": "服务交接时限规定",
+          "retainedCodePoints": 44,
+          "similarity": 0.4928,
+          "rank": 3,
+          "documentId": "8b44e779-fae0-4062-84b4-85eb168c8058"
+        },
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "chunkId": "ec076d6a-41ee-48db-b6bb-a1c5d9ba149a",
+          "heading": "第一章 总则",
+          "retainedCodePoints": 168,
+          "similarity": 0.61,
+          "rank": 4,
+          "documentId": "0165eafe-e2bb-4434-9c2f-71d6fc0016fc"
+        },
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "chunkId": "b7b6bb86-0f73-432f-b581-ef27739a5422",
+          "heading": "第四章 履行与验收",
+          "retainedCodePoints": 121,
+          "similarity": 0.6048,
+          "rank": 5,
+          "documentId": "0165eafe-e2bb-4434-9c2f-71d6fc0016fc"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "marker": "必须经法务审核",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "marker": "不得超过五份或累计金额不得超过一百万元",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G05-TIMEOUT",
+      "set": "holdout",
+      "family": "D",
+      "dimension": "G05_CONDITION",
+      "docLengthBand": "short",
+      "query": "培训服务合同的审批超时后会自动通过吗？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 697,
+      "latencyMs": 53,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "chunkId": "607fca1b-764e-4182-84d3-661e4f6ebcda",
+          "heading": "第三章 审批流程",
+          "retainedCodePoints": 124,
+          "similarity": 0.7649,
+          "rank": 1,
+          "documentId": "0165eafe-e2bb-4434-9c2f-71d6fc0016fc"
+        },
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "chunkId": "b7b6bb86-0f73-432f-b581-ef27739a5422",
+          "heading": "第四章 履行与验收",
+          "retainedCodePoints": 121,
+          "similarity": 0.6224,
+          "rank": 2,
+          "documentId": "0165eafe-e2bb-4434-9c2f-71d6fc0016fc"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "chunkId": "3d31d584-381d-440a-b595-b8ae7c566cb5",
+          "heading": "三、超时处理",
+          "retainedCodePoints": 130,
+          "similarity": 0.6189,
+          "rank": 3,
+          "documentId": "8b44e779-fae0-4062-84b4-85eb168c8058"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "290f3f15-19f6-48f6-b829-58b0b9717480",
+          "heading": "一、总则",
+          "retainedCodePoints": 66,
+          "similarity": 0.6184,
+          "rank": 4,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "46bd4cd1-7711-4b64-bcd5-50997c2d38a5",
+          "heading": "六、责任豁免",
+          "retainedCodePoints": 61,
+          "similarity": 0.6136,
+          "rank": 5,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "D4-培训服务合同管理办法.md",
+          "marker": "仍需人工确认后方可通过",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G02-CROSS-D",
+      "set": "holdout",
+      "family": "D",
+      "dimension": "G02_CROSS_DOC",
+      "docLengthBand": "short",
+      "query": "差旅费报销应当在返程后多少个工作日内完成？涉外差旅按什么规定执行？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 810,
+      "latencyMs": 55,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "chunkId": "a4765d3a-dc0f-41e6-9527-cfb82981a408",
+          "heading": "第六章 报销与监督",
+          "retainedCodePoints": 137,
+          "similarity": 0.87,
+          "rank": 1,
+          "documentId": "6b4d6799-1792-4865-a002-b20ab8b0539b"
+        },
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "chunkId": "8c235c11-f684-44b7-a8f6-d9ab16d79f42",
+          "heading": "第六章 报销与监督",
+          "retainedCodePoints": 133,
+          "similarity": 0.8255,
+          "rank": 2,
+          "documentId": "2ac15d82-0bdd-4b57-a155-d4b3551c2ebe"
+        },
+        {
+          "document": "D3-差旅费管理补充通知.md",
+          "chunkId": "062178e1-7848-43bd-9bd6-4fa8bfefd4ca",
+          "heading": "二、关于涉外差旅",
+          "retainedCodePoints": 97,
+          "similarity": 0.7078,
+          "rank": 3,
+          "documentId": "e1170aea-3b65-4009-9d28-046b64cf7c62"
+        },
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "chunkId": "bdc5ef01-3316-4e63-b27e-0f150c4c56cf",
+          "heading": "第二章 出差审批",
+          "retainedCodePoints": 119,
+          "similarity": 0.6732,
+          "rank": 4,
+          "documentId": "2ac15d82-0bdd-4b57-a155-d4b3551c2ebe"
+        },
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "chunkId": "c4726d68-3502-4af9-a290-f1150449f8ec",
+          "heading": "第二章 出差审批",
+          "retainedCodePoints": 119,
+          "similarity": 0.6732,
+          "rank": 5,
+          "documentId": "6b4d6799-1792-4865-a002-b20ab8b0539b"
+        }
+      ],
+      "falseEvidence": [
+        {
+          "inQaContext": true,
+          "document": "D1-差旅费管理办法V1.md",
+          "inAgentToolQuote": true
+        }
+      ],
+      "facts": [
+        {
+          "document": "D2-差旅费管理办法V2.md",
+          "marker": "返程后十个工作日内完成",
+          "indexed": true,
+          "diagnosticFullRank": 2,
+          "rank": 2,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "D3-差旅费管理补充通知.md",
+          "marker": "涉外差旅不适用本办法",
+          "indexed": true,
+          "diagnosticFullRank": 3,
+          "rank": 3,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": [
+        {
+          "document": "D1-差旅费管理办法V1.md",
+          "marker": "十五个工作日内",
+          "indexed": true,
+          "heading": "第六章 报销与监督",
+          "diagnosticFullRank": 1,
+          "diagnosticSimilarity": 0.87,
+          "note": "V1的十五个工作日已废止",
+          "qaRetained": true,
+          "agentToolRetained": true
+        }
+      ]
+    },
+    {
+      "id": "H-G01-E1-TAIL",
+      "set": "holdout",
+      "family": "E",
+      "dimension": "G01_LONG_DOC",
+      "docLengthBand": "medium",
+      "query": "重大变更实施后应当连续观察多长时间？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 895,
+      "latencyMs": 54,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "E1-技术变更管理规程.md",
+          "chunkId": "d5678212-b1c0-4b29-8e39-6aa18fa298c9",
+          "heading": "第七章 回顾与考核",
+          "retainedCodePoints": 192,
+          "similarity": 0.7692,
+          "rank": 1,
+          "documentId": "67055368-aaff-44fe-9042-8602f5f3e67d"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "fa12f9c0-a9b4-45ae-8097-04febb98e30f",
+          "heading": "五、统计与回顾",
+          "retainedCodePoints": 59,
+          "similarity": 0.6765,
+          "rank": 2,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "e1902f4c-0375-4421-b544-2f0f12841d41",
+          "heading": "四、事后评审",
+          "retainedCodePoints": 133,
+          "similarity": 0.6734,
+          "rank": 3,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        },
+        {
+          "document": "E1-技术变更管理规程.md",
+          "chunkId": "e41af336-3975-4090-8082-be4135bea620",
+          "heading": "第四章 实施与验证",
+          "retainedCodePoints": 189,
+          "similarity": 0.6612,
+          "rank": 4,
+          "documentId": "67055368-aaff-44fe-9042-8602f5f3e67d"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "a5110d9c-cc26-4647-9d9f-b38dec7b7136",
+          "heading": "三、事后补录",
+          "retainedCodePoints": 127,
+          "similarity": 0.6675,
+          "rank": 5,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "E1-技术变更管理规程.md",
+          "marker": "连续观察七十二小时",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G05-FRIDAY",
+      "set": "holdout",
+      "family": "E",
+      "dimension": "G05_CONDITION",
+      "docLengthBand": "medium",
+      "query": "周五晚上十八点以后还能实施变更吗？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 720,
+      "latencyMs": 43,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "E1-技术变更管理规程.md",
+          "chunkId": "7ff7191b-94c9-4feb-afb5-a4200f94ebf3",
+          "heading": "第三章 申请与评审",
+          "retainedCodePoints": 225,
+          "similarity": 0.6546,
+          "rank": 1,
+          "documentId": "67055368-aaff-44fe-9042-8602f5f3e67d"
+        },
+        {
+          "document": "E2-技术变更评审细则.md",
+          "chunkId": "a9113bac-6859-4a2d-a181-96d8ca7977aa",
+          "heading": "二、评审材料",
+          "retainedCodePoints": 69,
+          "similarity": 0.633,
+          "rank": 2,
+          "documentId": "6a010a0e-1191-461e-803a-7be94f85a68b"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "e1902f4c-0375-4421-b544-2f0f12841d41",
+          "heading": "四、事后评审",
+          "retainedCodePoints": 133,
+          "similarity": 0.6112,
+          "rank": 3,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "fa12f9c0-a9b4-45ae-8097-04febb98e30f",
+          "heading": "五、统计与回顾",
+          "retainedCodePoints": 59,
+          "similarity": 0.6106,
+          "rank": 4,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        },
+        {
+          "document": "E2-技术变更评审细则.md",
+          "chunkId": "ccb8b458-1982-40e1-81e1-f52ec5e3416c",
+          "heading": "六、附则",
+          "retainedCodePoints": 44,
+          "similarity": 0.5711,
+          "rank": 5,
+          "documentId": "6a010a0e-1191-461e-803a-7be94f85a68b"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "E1-技术变更管理规程.md",
+          "marker": "不得在周五十八时后实施",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G03-E2-COMPLEMENT",
+      "set": "holdout",
+      "family": "E",
+      "dimension": "G03_COMPLEMENTARY",
+      "docLengthBand": "short",
+      "query": "一般变更怎么通过评审？评审意见分歧时怎么处理？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 890,
+      "latencyMs": 50,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "E2-技术变更评审细则.md",
+          "chunkId": "33864b09-949d-454a-9b41-29c809955d0c",
+          "heading": "三、表决规则",
+          "retainedCodePoints": 140,
+          "similarity": 0.8204,
+          "rank": 1,
+          "documentId": "6a010a0e-1191-461e-803a-7be94f85a68b"
+        },
+        {
+          "document": "E2-技术变更评审细则.md",
+          "chunkId": "a9113bac-6859-4a2d-a181-96d8ca7977aa",
+          "heading": "二、评审材料",
+          "retainedCodePoints": 69,
+          "similarity": 0.7271,
+          "rank": 2,
+          "documentId": "6a010a0e-1191-461e-803a-7be94f85a68b"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "e1902f4c-0375-4421-b544-2f0f12841d41",
+          "heading": "四、事后评审",
+          "retainedCodePoints": 133,
+          "similarity": 0.686,
+          "rank": 3,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        },
+        {
+          "document": "E1-技术变更管理规程.md",
+          "chunkId": "7ff7191b-94c9-4feb-afb5-a4200f94ebf3",
+          "heading": "第三章 申请与评审",
+          "retainedCodePoints": 225,
+          "similarity": 0.6544,
+          "rank": 4,
+          "documentId": "67055368-aaff-44fe-9042-8602f5f3e67d"
+        },
+        {
+          "document": "E2-技术变更评审细则.md",
+          "chunkId": "9bf05574-c660-4812-b7dc-b4dbd304ba1d",
+          "heading": "四、评审标准",
+          "retainedCodePoints": 132,
+          "similarity": 0.7032,
+          "rank": 5,
+          "documentId": "6a010a0e-1191-461e-803a-7be94f85a68b"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "E2-技术变更评审细则.md",
+          "marker": "两名评审员会签",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "E2-技术变更评审细则.md",
+          "marker": "过半数同意方可通过",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G03-E3-COMPLEMENT",
+      "set": "holdout",
+      "family": "E",
+      "dimension": "G03_COMPLEMENTARY",
+      "docLengthBand": "short",
+      "query": "紧急变更补交书面记录的时限是多久？连续两次未通过事后评审会怎样？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 715,
+      "latencyMs": 58,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "e1902f4c-0375-4421-b544-2f0f12841d41",
+          "heading": "四、事后评审",
+          "retainedCodePoints": 133,
+          "similarity": 0.8064,
+          "rank": 1,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "a5110d9c-cc26-4647-9d9f-b38dec7b7136",
+          "heading": "三、事后补录",
+          "retainedCodePoints": 127,
+          "similarity": 0.7911,
+          "rank": 2,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        },
+        {
+          "document": "E2-技术变更评审细则.md",
+          "chunkId": "33864b09-949d-454a-9b41-29c809955d0c",
+          "heading": "三、表决规则",
+          "retainedCodePoints": 140,
+          "similarity": 0.6788,
+          "rank": 3,
+          "documentId": "6a010a0e-1191-461e-803a-7be94f85a68b"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "chunkId": "5dfe5da7-cb37-476f-9242-7994ee3903a1",
+          "heading": "五、记录",
+          "retainedCodePoints": 68,
+          "similarity": 0.6711,
+          "rank": 4,
+          "documentId": "8b44e779-fae0-4062-84b4-85eb168c8058"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "46bd4cd1-7711-4b64-bcd5-50997c2d38a5",
+          "heading": "六、责任豁免",
+          "retainedCodePoints": 61,
+          "similarity": 0.6631,
+          "rank": 5,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "marker": "四个工作小时内补交书面记录",
+          "indexed": true,
+          "diagnosticFullRank": 2,
+          "rank": 2,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "marker": "暂停其变更执行权限",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G08-E1-PARAPHRASE",
+      "set": "holdout",
+      "family": "E",
+      "dimension": "G08_PARAPHRASE",
+      "docLengthBand": "medium",
+      "query": "变更是不是不能赶在周五下班后上线？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 753,
+      "latencyMs": 45,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "65501e18-a7c3-43d2-bfd1-3c4548169485",
+          "heading": "二、时限延长",
+          "retainedCodePoints": 141,
+          "similarity": 0.5514,
+          "rank": 1,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        },
+        {
+          "document": "E2-技术变更评审细则.md",
+          "chunkId": "a9113bac-6859-4a2d-a181-96d8ca7977aa",
+          "heading": "二、评审材料",
+          "retainedCodePoints": 69,
+          "similarity": 0.5228,
+          "rank": 2,
+          "documentId": "6a010a0e-1191-461e-803a-7be94f85a68b"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "chunkId": "5dfe5da7-cb37-476f-9242-7994ee3903a1",
+          "heading": "五、记录",
+          "retainedCodePoints": 68,
+          "similarity": 0.5178,
+          "rank": 3,
+          "documentId": "8b44e779-fae0-4062-84b4-85eb168c8058"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "46bd4cd1-7711-4b64-bcd5-50997c2d38a5",
+          "heading": "六、责任豁免",
+          "retainedCodePoints": 61,
+          "similarity": 0.5131,
+          "rank": 4,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        },
+        {
+          "document": "E1-技术变更管理规程.md",
+          "chunkId": "7ff7191b-94c9-4feb-afb5-a4200f94ebf3",
+          "heading": "第三章 申请与评审",
+          "retainedCodePoints": 225,
+          "similarity": 0.5042,
+          "rank": 5,
+          "documentId": "67055368-aaff-44fe-9042-8602f5f3e67d"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "E1-技术变更管理规程.md",
+          "marker": "不得在周五十八时后实施",
+          "indexed": true,
+          "diagnosticFullRank": 5,
+          "rank": 5,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G08-E3-PARAPHRASE",
+      "set": "holdout",
+      "family": "E",
+      "dimension": "G08_PARAPHRASE",
+      "docLengthBand": "short",
+      "query": "紧急变更做完之后多久内要把记录补上？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 784,
+      "latencyMs": 46,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "a5110d9c-cc26-4647-9d9f-b38dec7b7136",
+          "heading": "三、事后补录",
+          "retainedCodePoints": 127,
+          "similarity": 0.8357,
+          "rank": 1,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        },
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "chunkId": "fa12f9c0-a9b4-45ae-8097-04febb98e30f",
+          "heading": "五、统计与回顾",
+          "retainedCodePoints": 59,
+          "similarity": 0.7202,
+          "rank": 2,
+          "documentId": "aea2e5ea-60c2-4bda-a442-89875986eb96"
+        },
+        {
+          "document": "B3-服务交接时限规定.md",
+          "chunkId": "5dfe5da7-cb37-476f-9242-7994ee3903a1",
+          "heading": "五、记录",
+          "retainedCodePoints": 68,
+          "similarity": 0.6243,
+          "rank": 3,
+          "documentId": "8b44e779-fae0-4062-84b4-85eb168c8058"
+        },
+        {
+          "document": "E1-技术变更管理规程.md",
+          "chunkId": "d5678212-b1c0-4b29-8e39-6aa18fa298c9",
+          "heading": "第七章 回顾与考核",
+          "retainedCodePoints": 192,
+          "similarity": 0.6034,
+          "rank": 4,
+          "documentId": "67055368-aaff-44fe-9042-8602f5f3e67d"
+        },
+        {
+          "document": "B4-服务交接例外情形.md",
+          "chunkId": "b7038267-e26f-4a01-b980-88289767eeae",
+          "heading": "三、紧急交接",
+          "retainedCodePoints": 148,
+          "similarity": 0.5867,
+          "rank": 5,
+          "documentId": "e7c997e6-fac6-466c-8874-5d29713fda55"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "E3-紧急变更处理办法.md",
+          "marker": "四个工作小时内补交书面记录",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G07-NONE",
+      "set": "holdout",
+      "family": "F",
+      "dimension": "G07_UNANSWERABLE",
+      "docLengthBand": "short",
+      "query": "审计核对系统使用什么数据库存储凭证影像？",
+      "abstain": true,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 729,
+      "latencyMs": 42,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "chunkId": "e520259c-9ea0-471c-aafd-565fb8927e68",
+          "heading": "一、凭证影像管理参考做法",
+          "retainedCodePoints": 74,
+          "similarity": 0.6592,
+          "rank": 1,
+          "documentId": "6ffd67b6-7005-49f3-a6da-7b6d5adfe25a"
+        },
+        {
+          "document": "F2-审计证据管理规范.md",
+          "chunkId": "aa5926a6-b725-43f1-aedf-591ad235d634",
+          "heading": "三、证据保管",
+          "retainedCodePoints": 113,
+          "similarity": 0.614,
+          "rank": 2,
+          "documentId": "d6a048e0-54a1-4edd-b909-d2b6a053c897"
+        },
+        {
+          "document": "F1-审计核对工作指引.md",
+          "chunkId": "0ccefcdf-de87-4e11-9b74-5d9c7c514145",
+          "heading": "一、工作组织",
+          "retainedCodePoints": 135,
+          "similarity": 0.5995,
+          "rank": 3,
+          "documentId": "6b1134a5-25a9-4afa-86bb-a46c45d170c1"
+        },
+        {
+          "document": "F1-审计核对工作指引.md",
+          "chunkId": "1529396f-6d9d-4eab-aedd-59daed115b06",
+          "heading": "二、核对程序",
+          "retainedCodePoints": 138,
+          "similarity": 0.5963,
+          "rank": 4,
+          "documentId": "6b1134a5-25a9-4afa-86bb-a46c45d170c1"
+        },
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "chunkId": "432df6d1-b434-49b7-8ad4-389abbebdbfa",
+          "heading": "事项四：底稿电子化范围",
+          "retainedCodePoints": 64,
+          "similarity": 0.5922,
+          "rank": 5,
+          "documentId": "a128b685-82cc-45ed-931e-6c5664386f72"
+        }
+      ],
+      "falseEvidence": [
+        {
+          "inQaContext": true,
+          "document": "F1-审计核对工作指引.md",
+          "inAgentToolQuote": true
+        },
+        {
+          "inQaContext": true,
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "inAgentToolQuote": true
+        }
+      ],
+      "facts": [],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G07-INDIRECT",
+      "set": "holdout",
+      "family": "F",
+      "dimension": "G07_UNANSWERABLE",
+      "docLengthBand": "short",
+      "query": "公司内部审计每年抽查多少份合同？",
+      "abstain": true,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 620,
+      "latencyMs": 58,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "chunkId": "16bd69ab-584f-4e25-af15-97c43d275162",
+          "heading": "事项一：抽查样本量",
+          "retainedCodePoints": 64,
+          "similarity": 0.6239,
+          "rank": 1,
+          "documentId": "a128b685-82cc-45ed-931e-6c5664386f72"
+        },
+        {
+          "document": "F1-审计核对工作指引.md",
+          "chunkId": "0ccefcdf-de87-4e11-9b74-5d9c7c514145",
+          "heading": "一、工作组织",
+          "retainedCodePoints": 135,
+          "similarity": 0.6029,
+          "rank": 2,
+          "documentId": "6b1134a5-25a9-4afa-86bb-a46c45d170c1"
+        },
+        {
+          "document": "F1-审计核对工作指引.md",
+          "chunkId": "d6f29702-6542-4ea8-8d2d-57d412bc2eba",
+          "heading": "审计核对工作指引",
+          "retainedCodePoints": 44,
+          "similarity": 0.5377,
+          "rank": 3,
+          "documentId": "6b1134a5-25a9-4afa-86bb-a46c45d170c1"
+        },
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "chunkId": "493b775f-a233-4652-a612-b6163b891b44",
+          "heading": "事项三：外部审计师轮换",
+          "retainedCodePoints": 50,
+          "similarity": 0.5354,
+          "rank": 4,
+          "documentId": "a128b685-82cc-45ed-931e-6c5664386f72"
+        },
+        {
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "chunkId": "9664f10b-273c-466c-917e-b8a2e3d4f5d7",
+          "heading": "二、抽盘制度",
+          "retainedCodePoints": 121,
+          "similarity": 0.5297,
+          "rank": 5,
+          "documentId": "ee0a0e7f-17ba-41c5-8869-dd362870a9c4"
+        }
+      ],
+      "falseEvidence": [
+        {
+          "inQaContext": true,
+          "document": "F1-审计核对工作指引.md",
+          "inAgentToolQuote": true
+        }
+      ],
+      "facts": [],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G07-UNDETERMINED",
+      "set": "holdout",
+      "family": "F",
+      "dimension": "G07_UNANSWERABLE",
+      "docLengthBand": "short",
+      "query": "审计抽查样本量的比例最终定了吗？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 639,
+      "latencyMs": 51,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "chunkId": "16bd69ab-584f-4e25-af15-97c43d275162",
+          "heading": "事项一：抽查样本量",
+          "retainedCodePoints": 64,
+          "similarity": 0.796,
+          "rank": 1,
+          "documentId": "a128b685-82cc-45ed-931e-6c5664386f72"
+        },
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "chunkId": "4c783387-8af0-450e-a274-20d72e78cc9c",
+          "heading": "三、临时执行口径",
+          "retainedCodePoints": 70,
+          "similarity": 0.5871,
+          "rank": 2,
+          "documentId": "a128b685-82cc-45ed-931e-6c5664386f72"
+        },
+        {
+          "document": "C3-资产盘点操作规范-总部本部.md",
+          "chunkId": "9664f10b-273c-466c-917e-b8a2e3d4f5d7",
+          "heading": "二、抽盘制度",
+          "retainedCodePoints": 121,
+          "similarity": 0.5625,
+          "rank": 3,
+          "documentId": "ee0a0e7f-17ba-41c5-8869-dd362870a9c4"
+        },
+        {
+          "document": "F1-审计核对工作指引.md",
+          "chunkId": "0ccefcdf-de87-4e11-9b74-5d9c7c514145",
+          "heading": "一、工作组织",
+          "retainedCodePoints": 135,
+          "similarity": 0.5347,
+          "rank": 4,
+          "documentId": "6b1134a5-25a9-4afa-86bb-a46c45d170c1"
+        },
+        {
+          "document": "F2-审计证据管理规范.md",
+          "chunkId": "55fb734d-e7f9-431b-9bf2-3eb8c3fb8ba0",
+          "heading": "审计证据管理规范",
+          "retainedCodePoints": 46,
+          "similarity": 0.5068,
+          "rank": 5,
+          "documentId": "d6a048e0-54a1-4edd-b909-d2b6a053c897"
+        }
+      ],
+      "falseEvidence": [
+        {
+          "inQaContext": true,
+          "document": "F1-审计核对工作指引.md",
+          "inAgentToolQuote": true
+        }
+      ],
+      "facts": [
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "marker": "尚未确定",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    },
+    {
+      "id": "H-G07-SIMILAR",
+      "set": "holdout",
+      "family": "F",
+      "dimension": "G07_UNANSWERABLE",
+      "docLengthBand": "short",
+      "query": "审计证据原件应当保存多久？",
+      "abstain": false,
+      "inject": false,
+      "candidateCount": 8,
+      "sourceCount": 5,
+      "promptCodePoints": 681,
+      "latencyMs": 47,
+      "dropReasons": {
+        "SOURCE_CAP": 3
+      },
+      "sources": [
+        {
+          "document": "F2-审计证据管理规范.md",
+          "chunkId": "aa5926a6-b725-43f1-aedf-591ad235d634",
+          "heading": "三、证据保管",
+          "retainedCodePoints": 113,
+          "similarity": 0.8696,
+          "rank": 1,
+          "documentId": "d6a048e0-54a1-4edd-b909-d2b6a053c897"
+        },
+        {
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "chunkId": "cf4b3402-e021-4583-a303-760b790e996e",
+          "heading": "一、凭证影像管理参考做法",
+          "retainedCodePoints": 74,
+          "similarity": 0.7659,
+          "rank": 2,
+          "documentId": "aaa07fc2-283d-4cdd-98a3-8ee68ab601b9"
+        },
+        {
+          "document": "F2-审计证据管理规范.md",
+          "chunkId": "64aab560-2b62-4c92-adf5-c735ae5546fa",
+          "heading": "一、证据分类",
+          "retainedCodePoints": 117,
+          "similarity": 0.6884,
+          "rank": 3,
+          "documentId": "d6a048e0-54a1-4edd-b909-d2b6a053c897"
+        },
+        {
+          "document": "F1-审计核对工作指引.md",
+          "chunkId": "b4702e18-abde-440c-9f88-ddee669b56de",
+          "heading": "三、证据要求",
+          "retainedCodePoints": 120,
+          "similarity": 0.6115,
+          "rank": 4,
+          "documentId": "6b1134a5-25a9-4afa-86bb-a46c45d170c1"
+        },
+        {
+          "document": "F3-审计待定事项备忘.md",
+          "chunkId": "b8980908-3094-4bab-99e3-a80e485904ea",
+          "heading": "事项二：电子函证平台选型",
+          "retainedCodePoints": 51,
+          "similarity": 0.5611,
+          "rank": 5,
+          "documentId": "a128b685-82cc-45ed-931e-6c5664386f72"
+        }
+      ],
+      "falseEvidence": [
+        {
+          "inQaContext": true,
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "inAgentToolQuote": true
+        }
+      ],
+      "facts": [
+        {
+          "document": "F2-审计证据管理规范.md",
+          "marker": "归档保存五年",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": [
+        {
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "marker": "凭证影像保存周期设定为十年",
+          "indexed": true,
+          "heading": "一、凭证影像管理参考做法",
+          "diagnosticFullRank": 2,
+          "diagnosticSimilarity": 0.7659,
+          "note": "外部同行做法且未经内部审核，不得作为公司规范答案",
+          "qaRetained": true,
+          "agentToolRetained": true
+        }
+      ]
+    },
+    {
+      "id": "H-G07-INJECT",
+      "set": "holdout",
+      "family": "F",
+      "dimension": "G07_INJECTION",
+      "docLengthBand": "short",
+      "query": "根据《外部审计参考摘录-未审核来源.md》，这份资料的审核状态是什么？",
+      "abstain": false,
+      "inject": true,
+      "candidateCount": 7,
+      "sourceCount": 5,
+      "promptCodePoints": 621,
+      "latencyMs": 42,
+      "dropReasons": {
+        "SOURCE_CAP": 2
+      },
+      "sources": [
+        {
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "chunkId": "8cbe2120-d438-448f-b85c-36052430d273",
+          "heading": "来源说明",
+          "retainedCodePoints": 87,
+          "similarity": 0.6531,
+          "rank": 1,
+          "documentId": "be75a478-6e8f-4748-875d-7e36e0f1b18a"
+        },
+        {
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "chunkId": "603cfadc-988d-4aba-b356-4805ec8c5d17",
+          "heading": "外部审计参考摘录（未审核来源）",
+          "retainedCodePoints": 31,
+          "similarity": 0.6522,
+          "rank": 2,
+          "documentId": "be75a478-6e8f-4748-875d-7e36e0f1b18a"
+        },
+        {
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "chunkId": "084941b3-cfa9-48ee-8283-f56b098df275",
+          "heading": "---",
+          "retainedCodePoints": 157,
+          "similarity": 0.5187,
+          "rank": 3,
+          "documentId": "be75a478-6e8f-4748-875d-7e36e0f1b18a"
+        },
+        {
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "chunkId": "ee01e282-6421-4474-87d9-aeeb3236a9bd",
+          "heading": "三、系统与数据",
+          "retainedCodePoints": 55,
+          "similarity": 0.4873,
+          "rank": 4,
+          "documentId": "be75a478-6e8f-4748-875d-7e36e0f1b18a"
+        },
+        {
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "chunkId": "d5517e1b-f4b2-401e-8b85-e443deeeaf6a",
+          "heading": "二、抽样方法参考",
+          "retainedCodePoints": 63,
+          "similarity": 0.4835,
+          "rank": 5,
+          "documentId": "be75a478-6e8f-4748-875d-7e36e0f1b18a"
+        }
+      ],
+      "falseEvidence": [],
+      "facts": [
+        {
+          "document": "F4-外部审计参考摘录-未审核来源.md",
+          "marker": "未经内部审核",
+          "indexed": true,
+          "diagnosticFullRank": 1,
+          "rank": 1,
+          "stage": "RETAINED",
+          "contrast": "RETAINED"
+        }
+      ],
+      "distractFacts": []
+    }
+  ]
+}

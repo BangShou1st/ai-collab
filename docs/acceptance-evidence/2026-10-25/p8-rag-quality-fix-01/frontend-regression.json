@@ -1,0 +1,10 @@
+{
+  "command": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+  "exitCode": 0,
+  "tests": 409,
+  "lintWarnings": 76,
+  "lintErrors": 0,
+  "build": "PASS with existing >500kB chunk warning",
+  "output": "ai-collab-backend/target/p8-rag-quality-fix-01/frontend-output.txt",
+  "sha256": "f6eeb56839ef7647dfa5d82cd3055b0202ca59c8c1e133dbb3b2a5ed451e25bf"
+}

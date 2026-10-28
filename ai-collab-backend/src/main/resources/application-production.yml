@@ -1,0 +1,9 @@
+# 唯一受信任的转发方是 compose.prod.yml 的 Nginx。不得直接切换为 framework
+# ForwardedHeaderFilter：它会信任来自任意直连方的头部。
+server:
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      internal-proxies: '172[.]30[.]173[.]2'
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto

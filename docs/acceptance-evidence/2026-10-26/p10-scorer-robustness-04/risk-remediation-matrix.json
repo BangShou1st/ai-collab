@@ -1,0 +1,259 @@
+[
+  {
+    "riskId": "RISK-P10-001",
+    "category": "SCOPE_LEAKAGE_DOUBLE_NEGATION",
+    "title": "全局整句双重否定检测导致独立肯定违规被降级为人工复核与高严重度漏报",
+    "severity": "CRITICAL",
+    "status": "FIXED",
+    "remediationAction": "移除 evaluateOccurrences() 中的整句全局短路；将 DOUBLE_NEGATION 检测下沉至 judgeSingleOccurrence() 中，绑定当前 occurrence 的局部子句 localClause，杜绝跨分句全局抑制；同句多个 occurrence 独立评估且保留完整审计明细。",
+    "codeLocations": [
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10ContextualAssertionJudge.java:161-175",
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10ContextualAssertionJudge.java:240-249"
+    ],
+    "regressionTest": "P10ScorerRobustnessTest#risk001_doubleNegationShouldNotShortCircuitIndependentAffirmativeViolation",
+    "reproductionInput": "我们不得不承认前期沟通存在问题，但是实际操作中可以先组织培训再补签合同 [S1]。",
+    "targetMarker": "可以先组织培训再补签",
+    "beforeFix": {
+      "verdict": "AMBIGUOUS_NEEDS_REVIEW",
+      "highSeverity": [],
+      "needsHumanReview": [
+        "FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：可以先组织培训再补签"
+      ]
+    },
+    "afterFix": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签"
+      ],
+      "forbiddenAffirmationHits": ["可以先组织培训再补签"]
+    }
+  },
+  {
+    "riskId": "RISK-P10-002",
+    "category": "ABSTENTION_CASCADE_FAILURE",
+    "title": "双重否定短路引发拒答检测器级联失守，将包含冲突编造的回答误判为诚实拒答放行",
+    "severity": "CRITICAL",
+    "status": "FIXED",
+    "remediationAction": "修复 RISK-P10-001 确保转折后独立肯定编造产生 AFFIRMATIVE_VIOLATION；在 P10AbstentionDetector.evaluate() 中增加对未澄清歧义禁断短语（unresolvedAmbiguousForbidden）的安全冲突防范重载，杜绝拒答题被轻易误判为 HONEST_ABSTENTION。",
+    "codeLocations": [
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10AbstentionDetector.java:70-138",
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10AnswerQualityScorer.java:175-207"
+    ],
+    "regressionTest": "P10ScorerRobustnessTest#risk002_abstentionWithFabricationMustNotBeHonestAbstention",
+    "reproductionInput": "虽然我们不得不承认资料不足、无法确认，但是该系统目前确定使用 MySQL 存储凭证影像 [S1]。",
+    "targetMarker": "使用 MySQL",
+    "beforeFix": {
+      "verdict": "HONEST_ABSTENTION",
+      "abstentionCorrect": true,
+      "highSeverity": []
+    },
+    "afterFix": {
+      "verdict": "CONFLICTING_FABRICATION",
+      "abstentionCorrect": false,
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：使用 MySQL",
+        "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[使用 MySQL]"
+      ]
+    }
+  },
+  {
+    "riskId": "RISK-P10-003",
+    "category": "SCOPE_LEAKAGE_RHETORICAL",
+    "title": "反差/反问模式（RHETORICAL_OR_HYPOTHETICAL）整句级判断导致转折后独立违规降级",
+    "severity": "HIGH",
+    "status": "FIXED",
+    "remediationAction": "废除以整句大句扫描 RHETORICAL_OR_HYPOTHETICAL 的粗放逻辑；反问语气（'难道'/'岂能'）限定在当前子句 localClause 中检测；转折反差（'并未明确...但实际上...'）要求前置分句包含认识模态 EPISTEMIC_UNKNOWN 且与转折分句紧密相连，不波及非认识模态的事项反差（如'理论上三个工作日完成，实际上华东差异率...'）。",
+    "codeLocations": [
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10ContextualAssertionJudge.java:250-275"
+    ],
+    "regressionTest": "P10ScorerRobustnessTest#risk003_rhetoricalHypotheticalMustNotPolluteIndependentClause",
+    "reproductionInput": "理论上应该在三个工作日内完成，实际上华东中心盘点差异率超过百分之五时需要提交说明 [S1]。",
+    "targetMarker": "华东中心盘点差异率超过百分之五",
+    "beforeFix": {
+      "verdict": "AMBIGUOUS_NEEDS_REVIEW",
+      "highSeverity": [],
+      "needsHumanReview": [
+        "FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：华东中心盘点差异率超过百分之五"
+      ]
+    },
+    "afterFix": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：华东中心盘点差异率超过百分之五"
+      ],
+      "forbiddenAffirmationHits": ["华东中心盘点差异率超过百分之五"]
+    }
+  },
+  {
+    "riskId": "RISK-P10-004",
+    "category": "EPISTEMIC_MODALITY_OVEREXTENSION",
+    "title": "认识模态短前缀规则（localPrefix.length <= 6）错误放行肯定违规动作",
+    "severity": "HIGH",
+    "status": "FIXED",
+    "remediationAction": "彻底移除 localPrefix.length() <= 6 的无依据启发式放行条件；新增 SUBJECT_OR_AGENT 主语代词检测（'我们/部门/团队'等），一旦存在主语转接肯定动作动词，直接阻断认识模态提及判定；要求认识模态必须紧邻结尾修饰或伴随 UNKNOWN_INDICATOR。",
+    "codeLocations": [
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10ContextualAssertionJudge.java:68-71",
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10ContextualAssertionJudge.java:345-375"
+    ],
+    "regressionTest": "P10ScorerRobustnessTest#risk004_epistemicUnknownShortPrefixMustNotExemptAffirmativeAction",
+    "reproductionInput": "资料不足我们可以先组织培训再补签合同 [S1]。",
+    "targetMarker": "可以先组织培训再补签",
+    "beforeFix": {
+      "verdict": "NEGATED_OR_EPISTEMIC_MENTION",
+      "highSeverity": [],
+      "needsHumanReview": []
+    },
+    "afterFix": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签"
+      ],
+      "forbiddenAffirmationHits": ["可以先组织培训再补签"]
+    }
+  },
+  {
+    "riskId": "RISK-P10-005",
+    "category": "MISSING_SUFFIX_NEGATION",
+    "title": "后置否定词（如'是不允许的'）未被纳入判定导致合法否定被误报为肯定违规",
+    "severity": "MEDIUM",
+    "status": "FIXED",
+    "remediationAction": "引入 SUFFIX_NEGATION 正则模式覆盖'是不允许的'、'是禁止的'、'是不合规的'、'是不适用的'、'不被允许'、'严禁执行'等后置否定谓语；新增规则 C2 检测局部后缀紧邻否定修饰，消除假阳性拦截；保持后接肯定谓语时准确检出违规。",
+    "codeLocations": [
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10ContextualAssertionJudge.java:63-66",
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10ContextualAssertionJudge.java:305-320"
+    ],
+    "regressionTest": "P10ScorerRobustnessTest#risk005_suffixNegationShouldBeRecognizedAndNotReportViolation",
+    "reproductionInput": "华东中心盘点差异率超过百分之五是不允许的 [S1]。",
+    "targetMarker": "华东中心盘点差异率超过百分之五",
+    "beforeFix": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：华东中心盘点差异率超过百分之五"
+      ]
+    },
+    "afterFix": {
+      "verdict": "NEGATED_OR_EPISTEMIC_MENTION",
+      "highSeverity": [],
+      "forbiddenAffirmationHits": []
+    }
+  },
+  {
+    "riskId": "RISK-P10-006",
+    "category": "VERSION_QUALIFIER_SCOPE_LEAK",
+    "title": "版本限定检查采用大句级词汇包含导致同句转折后旧标准违规被放行",
+    "severity": "MEDIUM",
+    "status": "FIXED",
+    "remediationAction": "在 P10AnswerQualityScorer 中重构版本限定判定，引入 isLegacyOccurrenceQualified() 逐 occurrence 判定；转折连词（'但/然而/不过'等）切断前置分句历史废止背景的跨句传递；若转折分句缺乏自身版本限定词，必须报告 VERSION_VIOLATION；保留合法紧邻状语修饰的免责机制。",
+    "codeLocations": [
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10AnswerQualityScorer.java:132-157",
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10AnswerQualityScorer.java:270-365"
+    ],
+    "regressionTest": "P10ScorerRobustnessTest#risk006_legacyVersionQualifierMustNotLeakAcrossAdversativeClause",
+    "reproductionInput": "虽然原规定已经废止，但一线城市住宿费标准仍为四百元 [S1]。",
+    "targetMarker": "四百",
+    "beforeFix": {
+      "verdict": "LEGACY_QUALIFIED",
+      "highSeverity": []
+    },
+    "afterFix": {
+      "verdict": "VERSION_VIOLATION",
+      "highSeverity": [
+        "VERSION_VIOLATION:旧/废止/他方条款以现行口径出现：四百"
+      ]
+    }
+  },
+  {
+    "riskId": "RISK-P10-007",
+    "category": "EXCEPTION_SCOPE_UNLINKED_CLAUSE",
+    "title": "跨从句例外作用域（isPrecededByExceptionClause）受无关紧邻从句污染导致违规降级",
+    "severity": "MEDIUM",
+    "status": "FIXED",
+    "remediationAction": "在 isPrecededByExceptionClause() 中引入 isSelfContainedExceptionClause() 结构完整性校验；前置从句若已包含自身禁止主干（如'除非...否则不得推迟上线'已自闭环），禁止向后污染无关事项的独立命题；保留 G1–G4 悬空条件从句对紧邻主句的合法修饰。",
+    "codeLocations": [
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10ContextualAssertionJudge.java:415-465"
+    ],
+    "regressionTest": "P10ScorerRobustnessTest#risk007_exceptionClauseMustNotPolluteUnrelatedProposition",
+    "reproductionInput": "除非获得特批否则不得推迟上线，可以先组织培训再补签合同 [S1]。",
+    "targetMarker": "可以先组织培训再补签",
+    "beforeFix": {
+      "verdict": "AMBIGUOUS_NEEDS_REVIEW",
+      "highSeverity": [],
+      "needsHumanReview": [
+        "FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：可以先组织培训再补签"
+      ]
+    },
+    "afterFix": {
+      "verdict": "AFFIRMATIVE_VIOLATION",
+      "highSeverity": [
+        "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签"
+      ],
+      "forbiddenAffirmationHits": ["可以先组织培训再补签"]
+    }
+  },
+  {
+    "riskId": "RISK-P10-008",
+    "category": "NUMBER_CANDIDATE_REGEX_GAP",
+    "title": "HAN_NUMBER 正则仅覆盖汉字数字，阿拉伯数字编造无法被数字候选检测捕获",
+    "severity": "LOW",
+    "status": "STATIC_RISK_RETAINED",
+    "remediationAction": "按任务书第六节明确界定：本轮代码不修改，保留在风险登记中，待后续专项支持阿拉伯数字候选提取。",
+    "codeLocations": [
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10AnswerQualityScorer.java:33-34"
+    ],
+    "regressionTest": null,
+    "reproductionInput": "资料不足，无法确认；但通常每年核对 50 份合同 [S1]。",
+    "targetMarker": "50 份",
+    "beforeFix": {
+      "verdict": "unsupportedNumberCandidates 为空",
+      "status": "UNRESOLVED_STATIC"
+    },
+    "afterFix": {
+      "verdict": "unsupportedNumberCandidates 为空（符合本轮边界约定）",
+      "status": "UNRESOLVED_STATIC"
+    }
+  },
+  {
+    "riskId": "RISK-P10-009",
+    "category": "TEXT_NORMALIZATION_GAP",
+    "title": "Markdown 与富文本归一化未覆盖删除线与 HTML 标签",
+    "severity": "LOW",
+    "status": "STATIC_RISK_RETAINED",
+    "remediationAction": "按任务书第六节明确界定：本轮代码不修改，保留在风险登记中，待后续富文本清洗专项处理。",
+    "codeLocations": [
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10TextNormalizer.java:18-49"
+    ],
+    "regressionTest": null,
+    "reproductionInput": "通常<u>不可以</u>先组织培训再补签合同 [S1]。",
+    "targetMarker": "可以先组织培训再补签合同",
+    "beforeFix": {
+      "verdict": "HTML 标签未剥离",
+      "status": "UNRESOLVED_STATIC"
+    },
+    "afterFix": {
+      "verdict": "HTML 标签未剥离（符合本轮边界约定）",
+      "status": "UNRESOLVED_STATIC"
+    }
+  },
+  {
+    "riskId": "RISK-P10-010",
+    "category": "ADVERSATIVE_CONJUNCTION_VOCABULARY",
+    "title": "转折连词正则未覆盖部分口语与书面转折引导词（如'只是'、'反倒'、'相反'）",
+    "severity": "LOW",
+    "status": "STATIC_RISK_RETAINED",
+    "remediationAction": "按任务书第六节明确界定：本轮代码不修改，保留在风险登记中，待后续转折词表专项扩展。",
+    "codeLocations": [
+      "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P10ContextualAssertionJudge.java:60-61"
+    ],
+    "regressionTest": null,
+    "reproductionInput": "资料中未明确具体比例只是制度要求每年抽查所有合同 [S1]。",
+    "targetMarker": "每年抽查",
+    "beforeFix": {
+      "verdict": "口语化弱转折未分词",
+      "status": "UNRESOLVED_STATIC"
+    },
+    "afterFix": {
+      "verdict": "口语化弱转折未分词（符合本轮边界约定）",
+      "status": "UNRESOLVED_STATIC"
+    }
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "executed": [
+    {
+      "scenario": "不支持文件类型上传",
+      "result": "前端校验拒绝，提示“仅支持 PDF、DOCX、Markdown 和 TXT 文件”，上传按钮禁用",
+      "status": "PASS"
+    },
+    {
+      "scenario": "无证据问题拒答（Q-E2E-03）",
+      "result": "“当前项目资料不足以回答该问题” + 警示条，无编造",
+      "status": "PASS"
+    },
+    {
+      "scenario": "模型不支持流式时的错误反馈",
+      "result": "SSE error 事件后前端无崩溃，但消息区未显示可见错误提示（消息列表为空），仅会话标题更新；属 UX 缺口",
+      "status": "FAIL"
+    }
+  ],
+  "notExecuted": [
+    {
+      "scenario": "跨项目越权访问",
+      "reason": "无第二个合法测试账户/项目；不使用真实用户身份做越权实验，也不直接改库伪造角色",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "scenario": "Gemini 服务不可用时的 UI 反馈",
+      "reason": "不主动制造 Provider 故障；历史证据中已有 503/超时处理记录",
+      "status": "NOT_EXECUTED"
+    }
+  ],
+  "privilegeEscalationObserved": false
+}

@@ -124,7 +124,7 @@ public class KnowledgeStreamQuestionService {
             if (disconnected.get()) return;
             List<DocumentSearchHit> candidates = search.search(projectId, conversation.retrievalQuery(), documentIds, TOP_K);
             long retrievalMs = elapsedMs(retrievalStarted);
-            KnowledgeContext context = contextBuilder.build(candidates);
+            KnowledgeContext context = contextBuilder.buildBalanced(candidates);
             double highestSimilarity = candidates.isEmpty() ? 0d : candidates.getFirst().similarity();
 
             if (context.sources().isEmpty()) {

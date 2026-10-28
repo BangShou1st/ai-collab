@@ -9,15 +9,46 @@ import io.minio.PutObjectArgs;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class MinioDocumentStorageGatewayTest {
+
+    @Test
+    void productionAccountDoesNotManageBucketPolicy() {
+        MinioClient client = mock(MinioClient.class);
+        MinioDocumentStorageGateway gateway = new MinioDocumentStorageGateway(client,
+                new MinioProperties("http://minio:9000", "access", "secret", "documents", "", false));
+        gateway.ensurePrivateBucket();
+        verifyNoInteractions(client);
+    }
+
+    @Test
+    void publicProxyPrefixPreservesSignedPathAndQuery() {
+        String signed = "https://collab.example.org/documents/a%20b.txt?X-Amz-Signature=synthetic";
+        assertEquals("https://collab.example.org/storage/documents/a%20b.txt?X-Amz-Signature=synthetic",
+                MinioDocumentStorageGateway.addProxyPrefix(signed));
+    }
+
+    @Test
+    void publicSigningUsesConfiguredRegionWithoutCallingExternalHost() {
+        MinioClient client = mock(MinioClient.class);
+        MinioDocumentStorageGateway gateway = new MinioDocumentStorageGateway(client,
+                new MinioProperties("http://minio:9000", "access", "secret", "documents",
+                        "https://collab.example.org", false));
+        String url = gateway.presign("projects/synthetic/source.txt", "report.txt", Duration.ofMinutes(5)).url();
+        assertTrue(url.startsWith("https://collab.example.org/storage/documents/projects/synthetic/source.txt?"));
+        assertTrue(url.contains("X-Amz-Signature="));
+        verifyNoInteractions(client);
+    }
 
     @Test
     void unavailableMinioDoesNotAbortApplicationReadyEvent() throws Exception {
@@ -53,6 +84,6 @@ class MinioDocumentStorageGatewayTest {
     private MinioDocumentStorageGateway gateway(MinioClient client) {
         return new MinioDocumentStorageGateway(
                 client,
-                new MinioProperties("http://localhost:9000", "access", "secret", "documents"));
+                new MinioProperties("http://localhost:9000", "access", "secret", "documents", "", true));
     }
 }

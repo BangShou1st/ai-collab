@@ -1,0 +1,5 @@
+Command: dev.ps1 diagnose-proxy (compile/dependency classpath then standalone JVM)
+Original build stdout SHA-256: 09f98ec37d71f424edf1bdf6c749d6aa35e07483119034684e4c475dfc95e175
+[INFO] BUILD SUCCESS
+[INFO] Total time:  8.287 s
+[INFO] Finished at: 2026-10-26T14:13:21+08:00

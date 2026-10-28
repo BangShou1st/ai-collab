@@ -1,0 +1,197 @@
+{
+  "task": "P10-REAL-GENERATION-01",
+  "baselineSha": "d1a45ce93181fb8178f708d1611e6d3852ba059c",
+  "sourceFiles": [
+    {
+      "name": "P10RealGenerationGate.java",
+      "sha256": "7c9737e4de116317f21ad5cee356a5116bc8bdd27ef475a3c9781fe28d4e9ada"
+    },
+    {
+      "name": "P10RealGenerationGateTest.java",
+      "sha256": "dbe6e2d2be15594b4e490585d7b062eea001c02aba00cae9f483f97c2d7212aa"
+    },
+    {
+      "name": "P10RealGenerationPostgresTest.java",
+      "sha256": "3d01c8be199b6b1a721c1fa0f4b167dce170d7f1facb520cc747ff544ecd125a"
+    }
+  ],
+  "frozenCorpus": "ALL_MANIFEST_HASHES_VERIFIED",
+  "productionJavaChanged": false,
+  "localPreflight": {
+    "status": "PASSED",
+    "syntheticResponses": 8,
+    "externalChat": 0,
+    "externalEmbedding": 0,
+    "freshFacts": [
+      {
+        "id": "AQ01-CURRENT",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "D2-差旅费管理办法V2.md",
+            "marker": "住宿费标准为每晚五百元",
+            "contextAvailability": "RETAINED"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ02-REPEALED",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "D3-差旅费管理补充通知.md",
+            "marker": "住宿费按当晚标准报销",
+            "contextAvailability": "RETAINED"
+          },
+          {
+            "marker": "加班记录",
+            "origin": "RUBRIC_REQUIRED_MARKER_OBSERVED_IN_CURRENT_CONTEXT",
+            "contextAvailability": "RETAINED",
+            "document": "D3-差旅费管理补充通知.md"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ04-REGION-THRESHOLD",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "C1-资产盘点操作规范-华东中心.md",
+            "marker": "盘点差异率超过百分之二的",
+            "contextAvailability": "RETAINED"
+          },
+          {
+            "document": "C1-资产盘点操作规范-华东中心.md",
+            "marker": "三个工作日内提交书面说明",
+            "contextAvailability": "RETAINED"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ06-UNLESS",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "D4-培训服务合同管理办法.md",
+            "marker": "不得先培训后补签合同",
+            "contextAvailability": "RETAINED"
+          },
+          {
+            "marker": "书面特批",
+            "origin": "RUBRIC_REQUIRED_MARKER_OBSERVED_IN_CURRENT_CONTEXT",
+            "contextAvailability": "RETAINED",
+            "document": "D4-培训服务合同管理办法.md"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ07-AND-OR",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "D4-培训服务合同管理办法.md",
+            "marker": "必须经法务审核",
+            "contextAvailability": "RETAINED"
+          },
+          {
+            "document": "D4-培训服务合同管理办法.md",
+            "marker": "不得超过五份或累计金额不得超过一百万元",
+            "contextAvailability": "RETAINED"
+          },
+          {
+            "marker": "二十万元",
+            "origin": "RUBRIC_REQUIRED_MARKER_OBSERVED_IN_CURRENT_CONTEXT",
+            "contextAvailability": "RETAINED",
+            "document": "D4-培训服务合同管理办法.md"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ11-ABSTAIN-NONE",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ12-ABSTAIN-INDIRECT",
+        "candidates": 8,
+        "sources": 5,
+        "facts": [],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      },
+      {
+        "id": "AQ14-INJECTION",
+        "candidates": 7,
+        "sources": 5,
+        "facts": [
+          {
+            "document": "F4-外部审计参考摘录-未审核来源.md",
+            "marker": "未经内部审核",
+            "contextAvailability": "RETAINED"
+          }
+        ],
+        "outputCap": 1024,
+        "sourceIdentity": "VERIFIED_AGAINST_ISOLATED_DATABASE"
+      }
+    ]
+  },
+  "defaultMode": {
+    "integrationClass": "SKIPPED_WITHOUT_OPT_IN",
+    "externalRequestsFromNewTests": 0
+  },
+  "backendVerify": {
+    "status": "FAILED",
+    "summary": {
+      "tests": 1816,
+      "failures": 0,
+      "errors": 1,
+      "skipped": 39
+    },
+    "initialError": "AgentRunContextCommitPostgresTest: PostgreSQL connection failed; nested BindException Address already in use",
+    "originalErrorEvidence": "checks/backend-verify-initial-error.txt"
+  },
+  "finalTargetedAndFailedClassRerun": {
+    "status": "PASSED",
+    "summary": {
+      "tests": 53,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "finalDefaultOffVerification": {
+    "status": "PASSED",
+    "summary": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    }
+  },
+  "frontend": "NOT_RUN_NO_FRONTEND_CHANGES_PER_TASK_SCOPE",
+  "git": {
+    "head": "d1a45ce93181fb8178f708d1611e6d3852ba059c",
+    "branch": "dev",
+    "changes": "UNCOMMITTED_AUTHORIZATION_STAGE_PREPARATION",
+    "newCI": "NOT_TRIGGERED",
+    "pr18": "OPEN_DRAFT_NOT_MERGED_AT_PREFLIGHT"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "task": "P10-REAL-GENERATION-01",
+  "granted": true,
+  "recordedAt": "2026-10-26T04:46:16.928Z",
+  "userConfirmedFreeApi": true,
+  "independentlyVerifiedBilling": false,
+  "user": "p3u04_admin",
+  "purpose": "KNOWLEDGE_CHAT",
+  "provider": "GEMINI",
+  "model": "gemini-3.5-flash-lite",
+  "maxChatRequests": 8,
+  "maxOutputTokensPerRequest": 1024,
+  "minimumIntervalSeconds": 15,
+  "externalEmbedding": 0,
+  "agent": 0,
+  "judge": 0,
+  "automaticChatRetries": 0,
+  "paidBillingChangesAllowed": false,
+  "onAnyFailure": "STOP_REMAINING_QUESTIONS_NO_RETRY",
+  "note": "用户明确批准本轮8次免费额度调用；账号计费状态未独立核实。"
+}

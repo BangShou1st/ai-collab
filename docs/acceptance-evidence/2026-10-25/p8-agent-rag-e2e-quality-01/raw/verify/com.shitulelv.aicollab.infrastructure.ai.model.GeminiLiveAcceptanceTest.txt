@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveAcceptanceTest
+-------------------------------------------------------------------------------
+Tests run: 10, Failures: 0, Errors: 0, Skipped: 9, Time elapsed: 0.074 s -- in com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveAcceptanceTest

@@ -1,0 +1,491 @@
+{
+  "benchmark": "p9-rag-generalization-01",
+  "baselineSha": "3891171ecfc81a3929993f9f77989fed61ea5c85",
+  "measuredAt": "2026-10-26",
+  "embedding": {
+    "provider": "OLLAMA",
+    "model": "qwen3-embedding:0.6b",
+    "dimension": 1024,
+    "fingerprint": "20f29e8d94afc1eb2f5de49d3f4c81f548881de08e7aa4acb955ec87f5face75"
+  },
+  "generationId": "32edd427-70e8-4ece-8311-a1284b199ba2",
+  "chunker": "production DocumentChunker 1200/150",
+  "corpus": {
+    "documents": 25,
+    "chunks": 175
+  },
+  "questions": {
+    "total": 39,
+    "dev": 21,
+    "holdout": 18
+  },
+  "paths": {
+    "agent": {
+      "candidatePool": 20,
+      "quoteCapCodePoints": 600,
+      "defaultLimit": 8,
+      "promptBudgetCodePoints": 8000
+    },
+    "qa": {
+      "promptBudgetCodePoints": 8000,
+      "maxSources": 5,
+      "topK": 8
+    }
+  },
+  "summary": {
+    "qaStage": {
+      "ratio": 0.963,
+      "total": 54,
+      "retained": 52
+    },
+    "qaLegacyStage": {
+      "ratio": 0.9815,
+      "total": 54,
+      "retained": 53
+    },
+    "agentStage": {
+      "ratio": 0.9444,
+      "total": 54,
+      "retained": 51
+    },
+    "agentToolStage": {
+      "ratio": 0.9444,
+      "total": 54,
+      "retained": 51
+    },
+    "agent12Stage": {
+      "ratio": 0.9815,
+      "total": 54,
+      "retained": 53
+    },
+    "completeCoverage:qaStage": {
+      "ratio": 0.9459,
+      "answerable": 37,
+      "questions": 35
+    },
+    "completeCoverage:agentToolStage": {
+      "ratio": 0.9189,
+      "answerable": 37,
+      "questions": 34
+    }
+  },
+  "setSummary": {
+    "dev": {
+      "qaStage": {
+        "ratio": 0.9394,
+        "total": 33,
+        "retained": 31
+      },
+      "qaLegacyStage": {
+        "ratio": 0.9697,
+        "total": 33,
+        "retained": 32
+      },
+      "agentStage": {
+        "ratio": 0.9394,
+        "total": 33,
+        "retained": 31
+      },
+      "agentToolStage": {
+        "ratio": 0.9394,
+        "total": 33,
+        "retained": 31
+      },
+      "agent12Stage": {
+        "ratio": 0.9697,
+        "total": 33,
+        "retained": 32
+      },
+      "completeCoverage:qaStage": {
+        "ratio": 0.9048,
+        "answerable": 21,
+        "questions": 19
+      },
+      "completeCoverage:agentToolStage": {
+        "ratio": 0.9048,
+        "answerable": 21,
+        "questions": 19
+      }
+    },
+    "holdout": {
+      "qaStage": {
+        "ratio": 1,
+        "total": 21,
+        "retained": 21
+      },
+      "qaLegacyStage": {
+        "ratio": 1,
+        "total": 21,
+        "retained": 21
+      },
+      "agentStage": {
+        "ratio": 0.9524,
+        "total": 21,
+        "retained": 20
+      },
+      "agentToolStage": {
+        "ratio": 0.9524,
+        "total": 21,
+        "retained": 20
+      },
+      "agent12Stage": {
+        "ratio": 1,
+        "total": 21,
+        "retained": 21
+      },
+      "completeCoverage:qaStage": {
+        "ratio": 1,
+        "answerable": 16,
+        "questions": 16
+      },
+      "completeCoverage:agentToolStage": {
+        "ratio": 0.9375,
+        "answerable": 16,
+        "questions": 15
+      }
+    }
+  },
+  "dimensionSummary": {
+    "G01_LONG_DOC": {
+      "qaStage": {
+        "ratio": 1,
+        "total": 11,
+        "retained": 11
+      },
+      "qaLegacyStage": {
+        "ratio": 1,
+        "total": 11,
+        "retained": 11
+      },
+      "agentStage": {
+        "ratio": 0.9091,
+        "total": 11,
+        "retained": 10
+      },
+      "agentToolStage": {
+        "ratio": 0.9091,
+        "total": 11,
+        "retained": 10
+      },
+      "agent12Stage": {
+        "ratio": 1,
+        "total": 11,
+        "retained": 11
+      },
+      "completeCoverage:qaStage": {
+        "ratio": 1,
+        "answerable": 11,
+        "questions": 11
+      },
+      "completeCoverage:agentToolStage": {
+        "ratio": 0.9091,
+        "answerable": 11,
+        "questions": 10
+      }
+    },
+    "G02_CROSS_DOC": {
+      "qaStage": {
+        "ratio": 0.9167,
+        "total": 12,
+        "retained": 11
+      },
+      "qaLegacyStage": {
+        "ratio": 0.9167,
+        "total": 12,
+        "retained": 11
+      },
+      "agentStage": {
+        "ratio": 0.9167,
+        "total": 12,
+        "retained": 11
+      },
+      "agentToolStage": {
+        "ratio": 0.9167,
+        "total": 12,
+        "retained": 11
+      },
+      "agent12Stage": {
+        "ratio": 0.9167,
+        "total": 12,
+        "retained": 11
+      },
+      "completeCoverage:qaStage": {
+        "ratio": 0.75,
+        "answerable": 4,
+        "questions": 3
+      },
+      "completeCoverage:agentToolStage": {
+        "ratio": 0.75,
+        "answerable": 4,
+        "questions": 3
+      }
+    },
+    "G03_COMPLEMENTARY": {
+      "qaStage": {
+        "ratio": 0.875,
+        "total": 8,
+        "retained": 7
+      },
+      "qaLegacyStage": {
+        "ratio": 1,
+        "total": 8,
+        "retained": 8
+      },
+      "agentStage": {
+        "ratio": 0.875,
+        "total": 8,
+        "retained": 7
+      },
+      "agentToolStage": {
+        "ratio": 0.875,
+        "total": 8,
+        "retained": 7
+      },
+      "agent12Stage": {
+        "ratio": 1,
+        "total": 8,
+        "retained": 8
+      },
+      "completeCoverage:qaStage": {
+        "ratio": 0.75,
+        "answerable": 4,
+        "questions": 3
+      },
+      "completeCoverage:agentToolStage": {
+        "ratio": 0.75,
+        "answerable": 4,
+        "questions": 3
+      }
+    },
+    "G06_SIMILAR_SOURCES": {
+      "qaStage": {
+        "ratio": 1,
+        "total": 7,
+        "retained": 7
+      },
+      "qaLegacyStage": {
+        "ratio": 1,
+        "total": 7,
+        "retained": 7
+      },
+      "agentStage": {
+        "ratio": 1,
+        "total": 7,
+        "retained": 7
+      },
+      "agentToolStage": {
+        "ratio": 1,
+        "total": 7,
+        "retained": 7
+      },
+      "agent12Stage": {
+        "ratio": 1,
+        "total": 7,
+        "retained": 7
+      },
+      "completeCoverage:qaStage": {
+        "ratio": 1,
+        "answerable": 4,
+        "questions": 4
+      },
+      "completeCoverage:agentToolStage": {
+        "ratio": 1,
+        "answerable": 4,
+        "questions": 4
+      }
+    },
+    "G08_PARAPHRASE": {
+      "qaStage": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "qaLegacyStage": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "agentStage": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "agentToolStage": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "agent12Stage": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "completeCoverage:qaStage": {
+        "ratio": 1,
+        "answerable": 4,
+        "questions": 4
+      },
+      "completeCoverage:agentToolStage": {
+        "ratio": 1,
+        "answerable": 4,
+        "questions": 4
+      }
+    },
+    "G04_VERSION_CONFLICT": {
+      "qaStage": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "qaLegacyStage": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "agentStage": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "agentToolStage": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "agent12Stage": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "completeCoverage:qaStage": {
+        "ratio": 1,
+        "answerable": 3,
+        "questions": 3
+      },
+      "completeCoverage:agentToolStage": {
+        "ratio": 1,
+        "answerable": 3,
+        "questions": 3
+      }
+    },
+    "G05_CONDITION": {
+      "qaStage": {
+        "ratio": 1,
+        "total": 5,
+        "retained": 5
+      },
+      "qaLegacyStage": {
+        "ratio": 1,
+        "total": 5,
+        "retained": 5
+      },
+      "agentStage": {
+        "ratio": 1,
+        "total": 5,
+        "retained": 5
+      },
+      "agentToolStage": {
+        "ratio": 1,
+        "total": 5,
+        "retained": 5
+      },
+      "agent12Stage": {
+        "ratio": 1,
+        "total": 5,
+        "retained": 5
+      },
+      "completeCoverage:qaStage": {
+        "ratio": 1,
+        "answerable": 4,
+        "questions": 4
+      },
+      "completeCoverage:agentToolStage": {
+        "ratio": 1,
+        "answerable": 4,
+        "questions": 4
+      }
+    },
+    "G07_UNANSWERABLE": {
+      "qaStage": {
+        "ratio": 1,
+        "total": 2,
+        "retained": 2
+      },
+      "qaLegacyStage": {
+        "ratio": 1,
+        "total": 2,
+        "retained": 2
+      },
+      "agentStage": {
+        "ratio": 1,
+        "total": 2,
+        "retained": 2
+      },
+      "agentToolStage": {
+        "ratio": 1,
+        "total": 2,
+        "retained": 2
+      },
+      "agent12Stage": {
+        "ratio": 1,
+        "total": 2,
+        "retained": 2
+      },
+      "completeCoverage:qaStage": {
+        "ratio": 1,
+        "answerable": 2,
+        "questions": 2
+      },
+      "completeCoverage:agentToolStage": {
+        "ratio": 1,
+        "answerable": 2,
+        "questions": 2
+      }
+    },
+    "G07_INJECTION": {
+      "qaStage": {
+        "ratio": 1,
+        "total": 1,
+        "retained": 1
+      },
+      "qaLegacyStage": {
+        "ratio": 1,
+        "total": 1,
+        "retained": 1
+      },
+      "agentStage": {
+        "ratio": 1,
+        "total": 1,
+        "retained": 1
+      },
+      "agentToolStage": {
+        "ratio": 1,
+        "total": 1,
+        "retained": 1
+      },
+      "agent12Stage": {
+        "ratio": 1,
+        "total": 1,
+        "retained": 1
+      },
+      "completeCoverage:qaStage": {
+        "ratio": 1,
+        "answerable": 1,
+        "questions": 1
+      },
+      "completeCoverage:agentToolStage": {
+        "ratio": 1,
+        "answerable": 1,
+        "questions": 1
+      }
+    }
+  },
+  "stability": {
+    "note": "主测量为事实级定位的第 2 次运行；第 1 次（chunk 级定位，已废弃口径）与第 3 次运行用于跨运行稳定性观察",
+    "thirdRunSummary": {
+      "qaRetained": 52,
+      "agentRetained": 51,
+      "factStageDiffsVsPrimary": 0
+    }
+  }
+}

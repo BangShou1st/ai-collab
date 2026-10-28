@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-10-26T04:53:05.799Z",
+  "localProxy": {
+    "host": "127.0.0.1",
+    "port": 7897,
+    "listening": true
+  },
+  "freshJvmDefaultProxySelector": "DIRECT",
+  "jvmProxyProperties": {
+    "http.proxyHost": "UNSET",
+    "http.proxyPort": "UNSET",
+    "https.proxyHost": "UNSET",
+    "https.proxyPort": "UNSET",
+    "java.net.useSystemProxies": "UNSET"
+  },
+  "realTestSurefireProxyProperties": "NO_PROXY_HOST_OR_PORT_PROPERTIES_CAPTURED",
+  "explicitProxyDiagnostic": {
+    "target": "generativelanguage.googleapis.com:443",
+    "connect": "HTTP/1.1 200 Connection established",
+    "tls": "TLSv1.3",
+    "hostnameVerification": true,
+    "httpApplicationRequestSent": false,
+    "apiKeySent": false,
+    "chatCalls": 0
+  },
+  "interpretation": "用户指出7897代理后，确认默认JVM直连且显式代理TLS可达；这是超时排查方向，不等于独立证明本次超时根因、HTTP状态或Provider是否已接收。",
+  "nextRunJvmOptions": [
+    "-Dhttps.proxyHost=127.0.0.1",
+    "-Dhttps.proxyPort=7897"
+  ],
+  "currentBatchRetried": false
+}

@@ -13,6 +13,10 @@ public class MinioConfiguration {
         return MinioClient.builder()
                 .endpoint(properties.endpoint())
                 .credentials(properties.accessKey(), properties.secretKey())
+                // Native Windows proxy bypass can omit loopback literals; preserve SDK defaults,
+                // but keep local object storage out of the proxy without a global selector change.
+                .httpClient(io.minio.Http.newDefaultClient().newBuilder()
+                        .proxySelector(com.shitulelv.aicollab.common.net.EnvironmentProxySelector.system()).build())
                 .build();
     }
 }

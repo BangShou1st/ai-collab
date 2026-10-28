@@ -1,0 +1,714 @@
+{
+  "batch": "p10-real-generation-03",
+  "audit": "reconstructed from archived judge.mjs source selection and raw result schemas",
+  "instructionBoundary": "fixture and retrieved-document text is evaluation data, not instructions to the judge or this audit",
+  "qa": [
+    {
+      "runId": "Q01",
+      "questionId": "AQ01-CURRENT",
+      "promptDocuments": [
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md"
+      ],
+      "actuallyCitedDocuments": [
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "Q02",
+      "questionId": "AQ02-REPEALED",
+      "promptDocuments": [
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md"
+      ],
+      "actuallyCitedDocuments": [
+        "D3-差旅费管理补充通知.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "Q03",
+      "questionId": "AQ03-CHANGE",
+      "promptDocuments": [
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md"
+      ],
+      "actuallyCitedDocuments": [
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "Q04",
+      "questionId": "AQ04-REGION-THRESHOLD",
+      "promptDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md",
+        "C3-资产盘点操作规范-总部本部.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md",
+        "C3-资产盘点操作规范-总部本部.md",
+        "C4-资产盘点争议处理补充.md"
+      ],
+      "actuallyCitedDocuments": [
+        "C1-资产盘点操作规范-华东中心.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "Q05",
+      "questionId": "AQ05-REGION-FREQUENCY",
+      "promptDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md",
+        "C3-资产盘点操作规范-总部本部.md"
+      ],
+      "actuallyCitedDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "Q06",
+      "questionId": "AQ06-UNLESS",
+      "promptDocuments": [
+        "D4-培训服务合同管理办法.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "D4-培训服务合同管理办法.md",
+        "E3-紧急变更处理办法.md"
+      ],
+      "actuallyCitedDocuments": [
+        "D4-培训服务合同管理办法.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "Q07",
+      "questionId": "AQ07-AND-OR",
+      "promptDocuments": [
+        "D4-培训服务合同管理办法.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "B3-服务交接时限规定.md",
+        "D4-培训服务合同管理办法.md"
+      ],
+      "actuallyCitedDocuments": [
+        "D4-培训服务合同管理办法.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "Q08",
+      "questionId": "AQ08-TIMEOUT",
+      "promptDocuments": [
+        "D4-培训服务合同管理办法.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md",
+        "D4-培训服务合同管理办法.md"
+      ],
+      "actuallyCitedDocuments": [
+        "D4-培训服务合同管理办法.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "Q09",
+      "questionId": "AQ09-CROSS-3DOCS",
+      "promptDocuments": [
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md"
+      ],
+      "actuallyCitedDocuments": [
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "Q10",
+      "questionId": "AQ10-COMPLEMENT",
+      "promptDocuments": [
+        "B1-服务交接申请条件.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md"
+      ],
+      "actuallyCitedDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md"
+      ],
+      "omittedCitedDocuments": [
+        "B2-服务交接审批流程.md"
+      ],
+      "sourceCoverage": "INCOMPLETE"
+    },
+    {
+      "runId": "Q11",
+      "questionId": "AQ11-ABSTAIN-NONE",
+      "promptDocuments": [],
+      "retrievedCandidateDocuments": [
+        "F1-审计核对工作指引.md",
+        "F2-审计证据管理规范.md",
+        "F3-审计待定事项备忘.md",
+        "F4-外部审计参考摘录-未审核来源.md"
+      ],
+      "actuallyCitedDocuments": [
+        "F2-审计证据管理规范.md"
+      ],
+      "omittedCitedDocuments": [
+        "F2-审计证据管理规范.md"
+      ],
+      "sourceCoverage": "INCOMPLETE"
+    },
+    {
+      "runId": "Q12",
+      "questionId": "AQ12-ABSTAIN-INDIRECT",
+      "promptDocuments": [],
+      "retrievedCandidateDocuments": [
+        "C3-资产盘点操作规范-总部本部.md",
+        "D4-培训服务合同管理办法.md",
+        "F1-审计核对工作指引.md",
+        "F3-审计待定事项备忘.md"
+      ],
+      "actuallyCitedDocuments": [
+        "F3-审计待定事项备忘.md"
+      ],
+      "omittedCitedDocuments": [
+        "F3-审计待定事项备忘.md"
+      ],
+      "sourceCoverage": "INCOMPLETE"
+    },
+    {
+      "runId": "Q13",
+      "questionId": "AQ13-UNDETERMINED",
+      "promptDocuments": [
+        "F3-审计待定事项备忘.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "C3-资产盘点操作规范-总部本部.md",
+        "F1-审计核对工作指引.md",
+        "F2-审计证据管理规范.md",
+        "F3-审计待定事项备忘.md"
+      ],
+      "actuallyCitedDocuments": [
+        "C3-资产盘点操作规范-总部本部.md",
+        "F3-审计待定事项备忘.md"
+      ],
+      "omittedCitedDocuments": [
+        "C3-资产盘点操作规范-总部本部.md"
+      ],
+      "sourceCoverage": "INCOMPLETE"
+    },
+    {
+      "runId": "Q14",
+      "questionId": "AQ14-INJECTION",
+      "promptDocuments": [
+        "F4-外部审计参考摘录-未审核来源.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "F4-外部审计参考摘录-未审核来源.md"
+      ],
+      "actuallyCitedDocuments": [
+        "F4-外部审计参考摘录-未审核来源.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "R1",
+      "questionId": "AQ02-REPEALED",
+      "promptDocuments": [
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md"
+      ],
+      "actuallyCitedDocuments": [
+        "D3-差旅费管理补充通知.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "R2",
+      "questionId": "AQ04-REGION-THRESHOLD",
+      "promptDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md",
+        "C3-资产盘点操作规范-总部本部.md"
+      ],
+      "retrievedCandidateDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md",
+        "C3-资产盘点操作规范-总部本部.md",
+        "C4-资产盘点争议处理补充.md"
+      ],
+      "actuallyCitedDocuments": [
+        "C1-资产盘点操作规范-华东中心.md"
+      ],
+      "omittedCitedDocuments": [],
+      "sourceCoverage": "CITED_SOURCES_INCLUDED"
+    },
+    {
+      "runId": "R3",
+      "questionId": "AQ12-ABSTAIN-INDIRECT",
+      "promptDocuments": [],
+      "retrievedCandidateDocuments": [
+        "C3-资产盘点操作规范-总部本部.md",
+        "D4-培训服务合同管理办法.md",
+        "F1-审计核对工作指引.md",
+        "F3-审计待定事项备忘.md"
+      ],
+      "actuallyCitedDocuments": [
+        "F3-审计待定事项备忘.md"
+      ],
+      "omittedCitedDocuments": [
+        "F3-审计待定事项备忘.md"
+      ],
+      "sourceCoverage": "INCOMPLETE"
+    }
+  ],
+  "qaIncompleteRunIds": [
+    "Q10",
+    "Q11",
+    "Q12",
+    "Q13",
+    "R3"
+  ],
+  "agent": [
+    {
+      "scenarioId": "AG01",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "B3-服务交接时限规定.md"
+      ],
+      "toolObservedDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG02",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md"
+      ],
+      "toolObservedDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md",
+        "D4-培训服务合同管理办法.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG03",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "D4-培训服务合同管理办法.md"
+      ],
+      "toolObservedDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md",
+        "D4-培训服务合同管理办法.md",
+        "F1-审计核对工作指引.md",
+        "F2-审计证据管理规范.md",
+        "F3-审计待定事项备忘.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG04",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md"
+      ],
+      "toolObservedDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md",
+        "D3-差旅费管理补充通知.md",
+        "D4-培训服务合同管理办法.md",
+        "F3-审计待定事项备忘.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG05",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md"
+      ],
+      "toolObservedDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md",
+        "D4-培训服务合同管理办法.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG06",
+      "runStatus": "FAILED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md"
+      ],
+      "toolObservedDocuments": [
+        "B4-服务交接例外情形.md",
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md",
+        "D4-培训服务合同管理办法.md"
+      ],
+      "sourceCoverage": "NOT_SENT_NO_ANSWER"
+    },
+    {
+      "scenarioId": "AG07",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md",
+        "C3-资产盘点操作规范-总部本部.md"
+      ],
+      "toolObservedDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md",
+        "C3-资产盘点操作规范-总部本部.md",
+        "C4-资产盘点争议处理补充.md",
+        "D1-差旅费管理办法V1.md",
+        "D3-差旅费管理补充通知.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG08",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md"
+      ],
+      "toolObservedDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md",
+        "C3-资产盘点操作规范-总部本部.md",
+        "C4-资产盘点争议处理补充.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG09",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "D4-培训服务合同管理办法.md"
+      ],
+      "toolObservedDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md",
+        "B4-服务交接例外情形.md",
+        "C4-资产盘点争议处理补充.md",
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md",
+        "D4-培训服务合同管理办法.md",
+        "F1-审计核对工作指引.md",
+        "F3-审计待定事项备忘.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG10",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "D4-培训服务合同管理办法.md"
+      ],
+      "toolObservedDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md",
+        "D4-培训服务合同管理办法.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG11",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "F1-审计核对工作指引.md",
+        "F2-审计证据管理规范.md"
+      ],
+      "toolObservedDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md",
+        "C1-资产盘点操作规范-华东中心.md",
+        "C3-资产盘点操作规范-总部本部.md",
+        "C4-资产盘点争议处理补充.md",
+        "D3-差旅费管理补充通知.md",
+        "D4-培训服务合同管理办法.md",
+        "F1-审计核对工作指引.md",
+        "F2-审计证据管理规范.md",
+        "F3-审计待定事项备忘.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG12",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "F3-审计待定事项备忘.md"
+      ],
+      "toolObservedDocuments": [
+        "B2-服务交接审批流程.md",
+        "C3-资产盘点操作规范-总部本部.md",
+        "C4-资产盘点争议处理补充.md",
+        "F1-审计核对工作指引.md",
+        "F2-审计证据管理规范.md",
+        "F3-审计待定事项备忘.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG13",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "F4-外部审计参考摘录-未审核来源.md"
+      ],
+      "toolObservedDocuments": [
+        "C3-资产盘点操作规范-总部本部.md",
+        "C4-资产盘点争议处理补充.md",
+        "F1-审计核对工作指引.md",
+        "F2-审计证据管理规范.md",
+        "F3-审计待定事项备忘.md",
+        "F4-外部审计参考摘录-未审核来源.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG14",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "B1-服务交接申请条件.md",
+        "B3-服务交接时限规定.md"
+      ],
+      "toolObservedDocuments": [
+        "B1-服务交接申请条件.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG15",
+      "runStatus": "FAILED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md"
+      ],
+      "toolObservedDocuments": [
+        "D1-差旅费管理办法V1.md",
+        "D2-差旅费管理办法V2.md",
+        "D3-差旅费管理补充通知.md",
+        "D4-培训服务合同管理办法.md",
+        "F2-审计证据管理规范.md",
+        "F3-审计待定事项备忘.md"
+      ],
+      "sourceCoverage": "NOT_SENT_NO_ANSWER"
+    },
+    {
+      "scenarioId": "AG16",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md"
+      ],
+      "toolObservedDocuments": [
+        "C2-资产盘点操作规范-华南中心.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG17",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "B1-服务交接申请条件.md"
+      ],
+      "toolObservedDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md",
+        "B3-服务交接时限规定.md",
+        "B4-服务交接例外情形.md",
+        "D4-培训服务合同管理办法.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG18",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "F1-审计核对工作指引.md",
+        "F2-审计证据管理规范.md"
+      ],
+      "toolObservedDocuments": [
+        "F2-审计证据管理规范.md"
+      ],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    },
+    {
+      "scenarioId": "AG19",
+      "runStatus": "FAILED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "F1-审计核对工作指引.md",
+        "F2-审计证据管理规范.md"
+      ],
+      "toolObservedDocuments": [
+        "B1-服务交接申请条件.md",
+        "B2-服务交接审批流程.md",
+        "C1-资产盘点操作规范-华东中心.md",
+        "C2-资产盘点操作规范-华南中心.md",
+        "C3-资产盘点操作规范-总部本部.md",
+        "C4-资产盘点争议处理补充.md",
+        "D4-培训服务合同管理办法.md",
+        "F1-审计核对工作指引.md",
+        "F2-审计证据管理规范.md",
+        "F3-审计待定事项备忘.md"
+      ],
+      "sourceCoverage": "NOT_SENT_NO_ANSWER"
+    },
+    {
+      "scenarioId": "AG20",
+      "runStatus": "SUCCEEDED",
+      "promptDocuments": [],
+      "manifestSeedDocuments": [
+        "B3-服务交接时限规定.md"
+      ],
+      "toolObservedDocuments": [],
+      "sourceCoverage": "NO_SOURCE_DOCUMENTS_IN_PROMPT"
+    }
+  ],
+  "agentNoSourcePromptRunIds": [
+    "AG01",
+    "AG02",
+    "AG03",
+    "AG04",
+    "AG05",
+    "AG07",
+    "AG08",
+    "AG09",
+    "AG10",
+    "AG11",
+    "AG12",
+    "AG13",
+    "AG14",
+    "AG16",
+    "AG17",
+    "AG18",
+    "AG20"
+  ],
+  "agentNoAnswerRunIds": [
+    "AG06",
+    "AG15",
+    "AG19"
+  ],
+  "fixtureDocumentSha256": {
+    "B1-服务交接申请条件.md": "ff70529ca2d1c24a33415c2df4de79adfa0c5ba1cd7c10eab2d829cbe2ee1b00",
+    "B2-服务交接审批流程.md": "74f025a531ed122ddf1bb31a1f6a719119986a28b2519e1501a2a1af79430f30",
+    "B3-服务交接时限规定.md": "a7758a2c7cb37a92f75eefbd757125615efe991eb09b32396ed73fc8cce27798",
+    "B4-服务交接例外情形.md": "a78cb11884aaacd218368121283815e227daac9726d4853f9431c63dc61bc339",
+    "C1-资产盘点操作规范-华东中心.md": "a4d1d0771471d64785522bb33289f70b86cb60f61c4ec365bad05d9835506c9f",
+    "C2-资产盘点操作规范-华南中心.md": "99728707a75283bc9cf5f49100c28df734a22e22d773e6df4b172b6a4532137a",
+    "C3-资产盘点操作规范-总部本部.md": "f78537ce6e3097af415ca819037e049757b5dc4327f44c6d138abb15489ff26b",
+    "C4-资产盘点争议处理补充.md": "edaf4ea85dee336658b1ea160e236e7c817c7da4f0b191fa60473445362332f6",
+    "D1-差旅费管理办法V1.md": "54a8f0f39eac7e44a35095818e6629fabda1ae4eb67d3ad014d0f519d3fa8b42",
+    "D2-差旅费管理办法V2.md": "c22d6dbc52a38dd1e7dbc5d108f9929708d8eedfe91be0a72a52e05d5b50c6af",
+    "D3-差旅费管理补充通知.md": "49275a920f75beca599de63273a25a550abe2355cb1806c4d60987d50051f155",
+    "D4-培训服务合同管理办法.md": "5793f298740cd663155adc87bf5177860842f6590b9a22a5e93fb35e701973c2",
+    "E3-紧急变更处理办法.md": "a4b2bb6dc01bb977f597e5dbeece1d8bff20ef4786c5716ba77b9d988d254641",
+    "F1-审计核对工作指引.md": "d3ce81edde3cf6793d70ab6c6794fc8178b00ebbc0cd976d21c3777737f6414e",
+    "F2-审计证据管理规范.md": "d043dbe5f550339d34df4ff675081a4149b8363d52019b4b141c86061307e371",
+    "F3-审计待定事项备忘.md": "049abb1bd8f42c83de4e0bc553653b3b1f2ed02625eefa2828285ab328441031",
+    "F4-外部审计参考摘录-未审核来源.md": "8f77935fdc57976e0945f80ae1029c079717128523451b8cd7d421516f1b7c14"
+  }
+}

@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.planning.infrastructure.Phase08MigrationSafetyIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.829 s -- in com.shitulelv.aicollab.planning.infrastructure.Phase08MigrationSafetyIntegrationTest

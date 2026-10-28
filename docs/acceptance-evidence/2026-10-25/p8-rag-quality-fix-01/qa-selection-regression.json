@@ -1,0 +1,281 @@
+{
+  "evaluation" : "P6-RAG-QUALITY-01 D2 frozen-replay selection comparison on real historical candidates",
+  "source" : "..\\docs\\acceptance-evidence\\2026-10-22\\p4-rag-answer-quality-01\\network-recovery-03\\business-results.json",
+  "totals" : {
+    "S1" : 20,
+    "S2" : 22,
+    "S3" : 22,
+    "A" : 21,
+    "facts" : 23
+  },
+  "s1Regressions" : [ "Q05/冻结窗口开始之前" ],
+  "s2Regressions" : [ ],
+  "s3Regressions" : [ ],
+  "s2Gains" : [ "Q03/阻断级缺陷" ],
+  "rows" : [ {
+    "s2Sources" : 5,
+    "s3Sources" : 5,
+    "id" : "Q01",
+    "s1Sources" : 5,
+    "facts" : [ {
+      "marker" : "自动化验收",
+      "A" : true,
+      "S1" : true,
+      "document" : "上线验收规程.md",
+      "S2" : true,
+      "S3" : true
+    }, {
+      "marker" : "阻断级缺陷",
+      "A" : true,
+      "S1" : true,
+      "document" : "上线验收规程.md",
+      "S2" : true,
+      "S3" : true
+    }, {
+      "marker" : "数据迁移",
+      "A" : true,
+      "S1" : true,
+      "document" : "上线验收规程.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 8,
+    "aSources" : 5
+  }, {
+    "s2Sources" : 5,
+    "s3Sources" : 5,
+    "id" : "Q02",
+    "s1Sources" : 5,
+    "facts" : [ {
+      "marker" : "只有最近一次回滚演练通过的项目才允许继续发布",
+      "A" : false,
+      "S1" : false,
+      "document" : "发布回滚预案.md",
+      "S2" : false,
+      "S3" : false
+    } ],
+    "candidateCount" : 8,
+    "aSources" : 5
+  }, {
+    "s2Sources" : 5,
+    "s3Sources" : 5,
+    "id" : "Q03",
+    "s1Sources" : 5,
+    "facts" : [ {
+      "marker" : "阻断级缺陷",
+      "A" : false,
+      "S1" : false,
+      "document" : "上线验收规程.md",
+      "S2" : true,
+      "S3" : true
+    }, {
+      "marker" : "两小时",
+      "A" : true,
+      "S1" : true,
+      "document" : "上线验收规程.md",
+      "S2" : true,
+      "S3" : true
+    }, {
+      "marker" : "连续两次低于约定阈值",
+      "A" : true,
+      "S1" : true,
+      "document" : "发布回滚预案.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 8,
+    "aSources" : 5
+  }, {
+    "s2Sources" : 5,
+    "s3Sources" : 5,
+    "id" : "Q04",
+    "s1Sources" : 5,
+    "facts" : [ {
+      "marker" : "重新提交",
+      "A" : true,
+      "S1" : true,
+      "document" : "批量导出规范.md",
+      "S2" : true,
+      "S3" : true
+    }, {
+      "marker" : "发起人、筛选条件、文件大小和下载时间",
+      "A" : true,
+      "S1" : true,
+      "document" : "批量导出规范.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 8,
+    "aSources" : 5
+  }, {
+    "s2Sources" : 5,
+    "s3Sources" : 5,
+    "id" : "Q05",
+    "s1Sources" : 5,
+    "facts" : [ {
+      "marker" : "冻结窗口开始之前",
+      "A" : true,
+      "S1" : false,
+      "document" : "需求变更单.md",
+      "S2" : true,
+      "S3" : true
+    }, {
+      "marker" : "冻结窗口结束之后",
+      "A" : true,
+      "S1" : true,
+      "document" : "需求变更单.md",
+      "S2" : true,
+      "S3" : true
+    }, {
+      "marker" : "先完成一次回滚演练",
+      "A" : true,
+      "S1" : true,
+      "document" : "需求变更单.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 8,
+    "aSources" : 5
+  }, {
+    "s2Sources" : 5,
+    "s3Sources" : 5,
+    "id" : "Q06",
+    "s1Sources" : 5,
+    "facts" : [ {
+      "marker" : "REQ-7741",
+      "A" : true,
+      "S1" : true,
+      "document" : "需求变更单.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 8,
+    "aSources" : 5
+  }, {
+    "s2Sources" : 5,
+    "s3Sources" : 5,
+    "id" : "Q08",
+    "s1Sources" : 5,
+    "facts" : [ {
+      "marker" : "百分之九十五",
+      "A" : true,
+      "S1" : true,
+      "document" : "容量与性能约束.md",
+      "S2" : true,
+      "S3" : true
+    }, {
+      "marker" : "不得超过五十次",
+      "A" : true,
+      "S1" : true,
+      "document" : "容量与性能约束.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 8,
+    "aSources" : 5
+  }, {
+    "s2Sources" : 5,
+    "s3Sources" : 5,
+    "id" : "Q09",
+    "s1Sources" : 5,
+    "facts" : [ {
+      "marker" : "项目负责人书面批准",
+      "A" : true,
+      "S1" : true,
+      "document" : "合同模板甲.md",
+      "S2" : true,
+      "S3" : true
+    }, {
+      "marker" : "项目负责人书面批准",
+      "A" : true,
+      "S1" : true,
+      "document" : "合同模板乙.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 8,
+    "aSources" : 5
+  }, {
+    "s2Sources" : 1,
+    "s3Sources" : 1,
+    "id" : "Q10",
+    "s1Sources" : 1,
+    "facts" : [ {
+      "marker" : "项目负责人书面批准",
+      "A" : true,
+      "S1" : true,
+      "document" : "合同模板甲.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 1,
+    "aSources" : 1
+  }, {
+    "s2Sources" : 2,
+    "s3Sources" : 2,
+    "id" : "Q11",
+    "s1Sources" : 2,
+    "facts" : [ {
+      "marker" : "禁止修改预算上限",
+      "A" : true,
+      "S1" : true,
+      "document" : "任务预算规则.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 2,
+    "aSources" : 2
+  }, {
+    "s2Sources" : 2,
+    "s3Sources" : 2,
+    "id" : "Q12",
+    "s1Sources" : 2,
+    "facts" : [ {
+      "marker" : "不得自动超支",
+      "A" : true,
+      "S1" : true,
+      "document" : "任务预算规则.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 2,
+    "aSources" : 2
+  }, {
+    "s2Sources" : 2,
+    "s3Sources" : 2,
+    "id" : "Q13",
+    "s1Sources" : 2,
+    "facts" : [ {
+      "marker" : "书面批准",
+      "A" : true,
+      "S1" : true,
+      "document" : "不可信资料测试.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 2,
+    "aSources" : 2
+  }, {
+    "s2Sources" : 2,
+    "s3Sources" : 2,
+    "id" : "Q16",
+    "s1Sources" : 2,
+    "facts" : [ {
+      "marker" : "不能下载文档的原始文件",
+      "A" : true,
+      "S1" : true,
+      "document" : "安全与脱敏规范.md",
+      "S2" : true,
+      "S3" : true
+    }, {
+      "marker" : "保留首尾各两位",
+      "A" : true,
+      "S1" : true,
+      "document" : "安全与脱敏规范.md",
+      "S2" : true,
+      "S3" : true
+    } ],
+    "candidateCount" : 2,
+    "aSources" : 2
+  } ]
+}

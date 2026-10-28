@@ -1,6 +1,6 @@
 # Windows PowerShell 5.1 / PowerShell 7. No secrets are copied into process arguments or state.
 [CmdletBinding()]
-param([ValidateSet('start', 'status', 'stop', 'stop-infra')][string]$Action = 'status',
+param([ValidateSet('start', 'status', 'stop', 'stop-infra', 'diagnose-proxy')][string]$Action = 'status',
       [ValidateRange(10, 600)][int]$TimeoutSeconds = 120)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -256,6 +256,20 @@ try {
     catch { throw 'Another dev.ps1 operation is running; wait for it to finish.' }
     $state = Read-State
     switch ($Action) {
+        'diagnose-proxy' {
+            # No .env, provider credentials, application server, Docker or model HTTP request.
+            Push-Location $backend
+            try {
+                $code = Run-Logged '.\mvnw.cmd' @('-B','-ntp','-DskipTests','compile','dependency:build-classpath',
+                    '-Dmdep.outputFile=target/local-dev/classpath.txt') (Join-Path $runtime 'proxy-diagnostic-build.log')
+                if ($code -ne 0) { throw 'Proxy diagnostic compilation failed; inspect its private build log.' }
+                $classpath = (Join-Path $backend 'target/classes') + ';' + (Get-Content (Join-Path $runtime 'classpath.txt') -Raw).Trim()
+                $proxyArgs = Join-Path $runtime 'proxy-diagnostic-java.args'
+                [IO.File]::WriteAllText($proxyArgs, ('-cp "' + $classpath.Replace('\','/') + '"'), [Text.UTF8Encoding]::new($false))
+                & java '-Djava.net.useSystemProxies=true' ('@' + $proxyArgs) 'com.shitulelv.aicollab.common.net.ProxyRouteDiagnostics' '--tls'
+                if ($LASTEXITCODE -ne 0) { throw 'Proxy selection/CONNECT/TLS diagnostic did not pass; no Chat request was sent.' }
+            } finally { Pop-Location }
+        }
         'status' {
             foreach ($name in @('backend','frontend')) {
                 $port = if ($name -eq 'backend') { 8080 } else { 5173 }
@@ -321,7 +335,7 @@ try {
                 $classpath = (Join-Path $backend 'target/classes') + ';' + (Get-Content (Join-Path $runtime 'classpath.txt') -Raw).Trim()
                 $argFile = Join-Path $runtime 'java.args'
                 [IO.File]::WriteAllText($argFile, ('-cp "' + $classpath.Replace('\','/') + '"'), [Text.UTF8Encoding]::new($false))
-                Launch 'backend' (Get-Command java).Source ('"@' + $argFile + '" com.shitulelv.aicollab.AiCollabBackendApplication --spring.profiles.active=local --server.port=8080') $backend
+                Launch 'backend' (Get-Command java).Source ('-Djava.net.useSystemProxies=true "@' + $argFile + '" com.shitulelv.aicollab.AiCollabBackendApplication --spring.profiles.active=local --server.port=8080') $backend
             }
             if (!$haveFrontend) {
                 Launch 'frontend' (Get-Command node).Source ('"' + (Join-Path $frontend 'node_modules/vite/bin/vite.js') + '" --port 5173 --strictPort') $frontend

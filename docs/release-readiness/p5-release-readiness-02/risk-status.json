@@ -1,0 +1,58 @@
+{
+  "task": "P5-RELEASE-READINESS-02",
+  "date": "2026-10-24",
+  "baseline": "P5-RELEASE-READINESS-01 (d04ace4, RELEASE_CONDITIONAL_GO)",
+  "risks": {
+    "R-01-postgresql-minio-backup-restore": {
+      "status": "FIXED_AND_VERIFIED",
+      "summary": "备份/恢复/一致性核验脚本集交付并真实执行：隔离演练恢复 54 表 + 15 对象，关键表行数与 object_key↔对象一一对应核验通过；恢复守卫负向验证通过（拒绝指向业务容器）。",
+      "evidence": [
+        "ai-collab-deploy/backup/（7 个脚本 + README）",
+        "docs/release-readiness/p5-release-readiness-02/backup-restore-runbook.md §4",
+        "run-restore-drill.sh 全流程真实执行输出（2026-10-24T21:25-21:26）"
+      ],
+      "boundary": "演练为同机 Docker 内隔离（独立容器/网络/卷），跨机异地恢复待部署环境"
+    },
+    "R-02-production-observability": {
+      "status": "FIXED_AND_VERIFIED",
+      "summary": "默认 profile 补齐 management 基线（exposure/show-details=never/probes），新增 MinioHealthIndicator 与 RequestIdMdcFilter；敏感端点匿名全部 401；真实停 Redis/MinIO 验证 DOWN 分类且 liveness 不受影响；日志无凭据、请求关联 ID 生效。未新增依赖。",
+      "evidence": [
+        "ai-collab-backend/src/main/resources/application.yml management/logging 段",
+        "infrastructure/storage/MinioHealthIndicator.java + 测试",
+        "common/web/RequestIdMdcFilter.java + 测试",
+        "verification-results.md R-02 表"
+      ]
+    },
+    "R-03-release-pipeline-runbook": {
+      "status": "IMPLEMENTED_NOT_FULLY_VERIFIED",
+      "summary": "CI 新增 image job（PR/main：Dockerfile 构建 + revision label 断言 + 临时依赖容器冒烟：health UP、敏感端点拒绝、版本可追踪；dev 日常 push 不触发）；发布/回滚/备份恢复三份 Runbook 交付。镜像构建与容器冒烟的真实执行将在下一次 PR→main 时进行。",
+      "evidence": [
+        ".github/workflows/ci.yml image job",
+        "docs/release-readiness/p5-release-readiness-02/release-runbook.md",
+        "docs/release-readiness/p5-release-readiness-02/rollback-runbook.md"
+      ],
+      "boundary": "无公共镜像仓库与真实生产部署目标，Runbook 中的 [部署环境补充] 项待回填"
+    },
+    "R-04-refresh-cookie-tls-baseline": {
+      "status": "FIXED_AND_VERIFIED",
+      "summary": "Compose 移除硬编码 REFRESH_COOKIE_SECURE=false（默认 true + 透传）；新增绑定校验守卫：cookie-secure=false 必须显式 allow-insecure-cookie=true 否则拒绝启动；本地 HTTP 开发固定 false 且与部署变量解耦；真实启动验证生产 Secure Cookie、本地 HTTP 可用、不安全配置拒绝启动、客户端头不影响属性。",
+      "evidence": [
+        "common/security/RefreshTokenProperties.java（isInsecureCookieExplicitlyAllowed）",
+        "docker-compose.yml REFRESH_COOKIE_* 透传",
+        "verification-results.md R-04 表（含真实启动/登录证据）"
+      ]
+    }
+  },
+  "incidental_fixes": [
+    "默认 profile 补齐 security.jwt / security.cors 配置块：容器化部署此前启动即失败（JwtProperties 绑定错误），已修复并经真实启动验证",
+    "Compose 透传 AUTH_ALLOWED_ORIGINS 并写入 .env.example",
+    "新增 /backups/ 到 .gitignore"
+  ],
+  "risk_status": "R-01/R-02/R-04 FIXED_AND_VERIFIED；R-03 IMPLEMENTED_NOT_FULLY_VERIFIED（image job 待 PR→main 首次真实执行）；CI 已全绿（run 40099513838 / 40099657460 均 success），RC 运维阻断条件已清除",
+  "ci": [
+    { "run": 40099513838, "attempt": 1, "head_sha": "7624c449bdd08011aedf61b080d0c4cad49f2518", "conclusion": "success" },
+    { "run": 40099657460, "attempt": 1, "head_sha": "a9f2c038e2ffd62501617d34b17b6566849b7295", "conclusion": "success", "url": "https://github.com/BangShou1st/ai-collab/actions/runs/40099657460" }
+  ],
+  "new_p0_p1": [],
+  "overall": "R-01/R-02/R-04 FIXED_AND_VERIFIED；R-03 IMPLEMENTED_NOT_FULLY_VERIFIED（image job 待 PR→main 首次真实执行）；CI 已全绿，RC 运维阻断条件已清除"
+}

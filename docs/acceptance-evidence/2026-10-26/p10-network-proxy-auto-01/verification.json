@@ -1,0 +1,80 @@
+{
+  "baseline": "fca8860a4f9f83e726f532985db83214bed43c16",
+  "receipts": [
+    {
+      "name": "targeted-01",
+      "command": "test: initial network selection/security/protocol set",
+      "status": "FAIL",
+      "originalStdoutSha256": "a555d6f8f79e8f5f618f4d057d0caf8ee128c4f2a44e237bb2461e335c612173",
+      "summary": "[ERROR] Tests run: 81, Failures: 1, Errors: 0, Skipped: 0",
+      "artifact": "checks/targeted-01-receipt.txt"
+    },
+    {
+      "name": "targeted-02",
+      "command": "test: corrected SSE fixture and TLS validation",
+      "status": "PASS",
+      "originalStdoutSha256": "483423d9206dd3481494985279aa9be8235feb013f4f96f54bd05bf9d096506f",
+      "summary": "[INFO] Tests run: 82, Failures: 0, Errors: 0, Skipped: 0",
+      "artifact": "checks/targeted-02-receipt.txt"
+    },
+    {
+      "name": "native-diagnostic-first",
+      "command": "P10_PROXY_DIAGNOSTIC=true; test -Dtest=P10NetworkProxyDiagnosticTest",
+      "status": "PASS",
+      "originalStdoutSha256": "b4da8aee679beea5bee3dc694de77ccb5930762bebeeb5620a9cdc45c3dba95e",
+      "summary": "[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0",
+      "artifact": "checks/native-diagnostic-first-receipt.txt"
+    },
+    {
+      "name": "backend-full-verify",
+      "command": "verify (complete default suite, live opt-ins absent)",
+      "status": "PASS",
+      "originalStdoutSha256": "8e1745899573cb5c7a403751d4726fa7386fbd9349628f60c672bd10a9092415",
+      "summary": "[INFO] Tests run: 1830, Failures: 0, Errors: 0, Skipped: 40",
+      "artifact": "checks/backend-full-verify-receipt.txt"
+    },
+    {
+      "name": "final-affected-verify",
+      "command": "verify: network, protocol, legacy Chat timeout, Ollama, Kilo, gate; isolated jacoco-final.exec",
+      "status": "PASS",
+      "originalStdoutSha256": "7406652c91409453b0fdf3daeb8fc580b30132b2f67d83714258c558c585d054",
+      "summary": "[INFO] Tests run: 113, Failures: 0, Errors: 0, Skipped: 2",
+      "artifact": "checks/final-affected-verify-receipt.txt"
+    },
+    {
+      "name": "maven-explicit-properties",
+      "command": "-o test -Dtest=ProxyForkStartupTest -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=3128 -Dp10.proxy.expectedHost=127.0.0.1 -Dp10.proxy.expectedPort=3128 -Djava.net.useSystemProxies=false (selection only; no connection)",
+      "status": "PASS",
+      "originalStdoutSha256": "bc60b508389bfe7aa5772efbfa7c05de45aadede17c1b0cfc09f3797e2a2507f",
+      "summary": "[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0",
+      "artifact": "checks/maven-explicit-properties-receipt.txt"
+    },
+    {
+      "name": "native-diagnostic-final",
+      "command": "P10_PROXY_DIAGNOSTIC=true; test -Dtest=P10NetworkProxyDiagnosticTest",
+      "status": "PASS",
+      "originalStdoutSha256": "92d1370291744f33a50eff7bb13a3cef79db212e25699870183b783d9515f570",
+      "summary": "[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0",
+      "artifact": "checks/native-diagnostic-final-receipt.txt"
+    },
+    {
+      "name": "kilo-application-wiring-final",
+      "status": "PASS",
+      "summary": "[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0",
+      "artifact": "checks/kilo-application-wiring-final-receipt.txt",
+      "originalStdoutSha256": "0967ae41ed12fd5aff41432974957d7e1415481636e5e2b70f45d40c40651b56"
+    }
+  ],
+  "fullSuiteScope": "1830 tests before the final additive legacy timeout mapping/test and explicit fork property test; final affected verify compiles and packages final sources (113 tests). CI validates the committed final tree.",
+  "fullSuiteCoverageWarning": "Historical target/jacoco.exec contained previous class versions; Maven reported mismatches while all tests passed. Final affected verify uses isolated coverage data and has no mismatch warning.",
+  "frontend": "No frontend change; frontend verification remains in normal CI.",
+  "finalTestOnlyStrengthening": "Actual application Kilo transport configuration loaded together with library auto-configuration; 4 tests independently passed after the 113-test affected verify. Production sources unchanged.",
+  "initialFailurePreservation": {
+    "firstTextSnapshot": "checks/targeted-01-failure-original.txt",
+    "byteIdenticalStdout": "checks/targeted-01-original-stdout.txt",
+    "originalStdoutSha256": "a555d6f8f79e8f5f618f4d057d0caf8ee128c4f2a44e237bb2461e335c612173",
+    "firstTextSnapshotEquivalentIgnoringEncodingAndLineEndings": false,
+    "previousSnapshotNotOverwritten": true,
+    "firstTextSnapshotFormat": "Original Surefire per-class failure report, distinct from full Maven stdout; non-equality is expected."
+  }
+}

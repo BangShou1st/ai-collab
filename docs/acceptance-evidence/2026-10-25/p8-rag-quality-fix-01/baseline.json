@@ -1,0 +1,15 @@
+{
+  "capturedAt": "2026-10-25T15:44:40.191Z",
+  "head": "f11939e336e3bb72abdcdb6e2db2fd4cc0d0fd3b",
+  "branch": "dev",
+  "remote": "f11939e336e3bb72abdcdb6e2db2fd4cc0d0fd3b\trefs/heads/dev\n9b4f7c53e505cb8d5fcc99600900e3ab92ffcdb7\trefs/heads/main",
+  "worktree": "M ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P6RagQualityBaselinePostgresTest.java\n M docs/README.md\n?? ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P8AgentRagCrossLayerPostgresTest.java\n?? ai-collab-backend/src/test/p8-quality-fix-run.cjs\n?? docs/acceptance-evidence/2026-10-25/p8-agent-rag-e2e-quality-01/\n?? docs/acceptance-evidence/2026-10-25/p8-rag-quality-fix-01/",
+  "staged": "",
+  "ownership": "Existing P8 test/evidence/navigation WIP identified by content and P8 source hashes; preserved separately, not authored by this task.",
+  "wipHashes": {
+    "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P6RagQualityBaselinePostgresTest.java": "e619182aa45979d2e8910106eaaa0c110170cae284aec27708ca1e9fbcf3844b",
+    "ai-collab-backend/src/test/java/com/shitulelv/aicollab/retrieval/P8AgentRagCrossLayerPostgresTest.java": "6123092051299c65f2a0a6f8a098142165675c42ecf59f7aa8840f64dfd89e07",
+    "docs/README.md": "65ff56afff929ce829e70f75eaa33715540676c299106be765e1ca88d6997486"
+  },
+  "externalChatCalls": 0
+}

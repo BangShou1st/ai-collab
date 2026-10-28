@@ -1,0 +1,32 @@
+{
+  "command": "bash ./mvnw -B -ntp -Dtest=AgentRemoteOutcomeMigrationPostgresTest,McpAgentToolProviderTest test",
+  "result": "BUILD SUCCESS",
+  "tests": 4,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "classes": [
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeMigrationPostgresTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "v66StartedCallsRemainProtectedWhenDispatchColumnsAreIntroduced"
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.infrastructure.mcp.McpAgentToolProviderTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        "executionFailsClosedWhenConnectionWasDisabledAfterToolExposure",
+        "readOnlyHintAndMcpErrorDoNotProveAbsenceOfSideEffects",
+        "exposesOnlyToolsExplicitlyConfirmedReadOnlyByBothServerAndAdministrators"
+      ]
+    }
+  ]
+}

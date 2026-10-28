@@ -1,0 +1,67 @@
+{
+  "priorGenerationAttempts": 5,
+  "cumulativeLimit": 24,
+  "additionalAttemptLimit": 3,
+  "model": "gemini-3.1-flash-lite",
+  "maxOutputTokens": 2048,
+  "query": "请只回答 OK",
+  "attempts": [
+    {
+      "requestNumber": 6,
+      "status": "INCONCLUSIVE",
+      "startedAt": "2026-10-22T23:17:35.432997700+08:00",
+      "selectedJavaProxy": "[HTTP @ 127.0.0.1/<unresolved>:7897]",
+      "httpStatus": 503,
+      "httpVersion": "HTTP_2",
+      "responseAt": "2026-10-22T23:17:42.868381700+08:00",
+      "responseHeaders": {
+        "server": "scaffolding on HTTPServer2",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "providerError": {
+        "code": "503",
+        "status": "UNAVAILABLE",
+        "message": "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+      },
+      "errorCode": "AI_PROVIDER_ERROR"
+    },
+    {
+      "requestNumber": 7,
+      "status": "INCONCLUSIVE",
+      "startedAt": "2026-10-22T23:17:45.895506900+08:00",
+      "selectedJavaProxy": "[HTTP @ 127.0.0.1/<unresolved>:7897]",
+      "httpStatus": 503,
+      "httpVersion": "HTTP_2",
+      "responseAt": "2026-10-22T23:17:46.810329900+08:00",
+      "responseHeaders": {
+        "server": "scaffolding on HTTPServer2",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "providerError": {
+        "code": "503",
+        "status": "UNAVAILABLE",
+        "message": "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+      },
+      "errorCode": "AI_PROVIDER_ERROR"
+    },
+    {
+      "requestNumber": 8,
+      "status": "INCONCLUSIVE",
+      "startedAt": "2026-10-22T23:17:52.818895+08:00",
+      "selectedJavaProxy": "[HTTP @ 127.0.0.1/<unresolved>:7897]",
+      "httpStatus": 503,
+      "httpVersion": "HTTP_2",
+      "responseAt": "2026-10-22T23:17:54.099414500+08:00",
+      "responseHeaders": {
+        "server": "scaffolding on HTTPServer2",
+        "content-type": "application/json; charset=UTF-8"
+      },
+      "providerError": {
+        "code": "503",
+        "status": "UNAVAILABLE",
+        "message": "This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later."
+      },
+      "errorCode": "AI_PROVIDER_ERROR"
+    }
+  ]
+}

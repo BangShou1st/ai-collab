@@ -181,7 +181,7 @@ public class ProjectEmbeddingGateway {
     }
 
     private static RestClient createRestClient() {
-        HttpClient http = HttpClient.newBuilder()
+        HttpClient http = com.shitulelv.aicollab.common.net.OutboundHttpClients.builder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();

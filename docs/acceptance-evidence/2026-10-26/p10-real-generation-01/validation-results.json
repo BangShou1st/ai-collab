@@ -1,0 +1,57 @@
+{
+  "task": "P10-REAL-GENERATION-01",
+  "initialVerify": {
+    "status": "FAILED",
+    "summary": {
+      "tests": 1816,
+      "failures": 0,
+      "errors": 1,
+      "skipped": 39
+    },
+    "initialError": "AgentRunContextCommitPostgresTest: PostgreSQL connection failed; nested BindException Address already in use",
+    "originalErrorEvidence": "checks/backend-verify-initial-error.txt"
+  },
+  "preflightTargeted": {
+    "status": "PASSED",
+    "summary": {
+      "tests": 53,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "defaultOffBeforeApproval": {
+    "status": "PASSED",
+    "summary": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    }
+  },
+  "realOptInMeasurement": {
+    "status": "FAILED",
+    "tests": 1,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "classification": "FAILURE_IS_REQUEST_TIMEOUT_NOT_ANSWER_QUALITY",
+    "externalChatTransportAttempts": 1,
+    "retries": 0,
+    "evidence": "checks/real-run-timeout-original.txt"
+  },
+  "afterRealDefaultBackendVerify": {
+    "status": "PASSED",
+    "tests": 1816,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 39,
+    "command": "mvnw.cmd -B -ntp verify",
+    "realGenerationOptIn": false,
+    "externalRequestsFromNewTests": 0,
+    "evidence": "checks/p10-backend-verify-after-real.txt"
+  },
+  "frontend": "NOT_RUN_NO_FRONTEND_CHANGE_PER_TASK",
+  "productionAlgorithmsPromptsFixturesAndScorer": "UNCHANGED",
+  "initialFailureHistoryPreserved": true
+}

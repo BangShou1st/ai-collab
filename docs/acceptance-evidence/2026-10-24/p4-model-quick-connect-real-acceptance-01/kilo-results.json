@@ -1,0 +1,58 @@
+{
+  "task": "P4-MODEL-QUICK-CONNECT-REAL-ACCEPTANCE-01",
+  "generated_at": "2026-10-24",
+  "provider": "Kilo Gateway Free（内置预设，匿名，共享库网关）",
+  "config": {
+    "provider_id": "6854fb22-0cdc-4c09-989f-69f9aebb0055",
+    "name": "Kilo Gateway Free",
+    "provider_type": "OPENAI_COMPATIBLE",
+    "base_url": "https://ai-gateway.kilo.ai/api/v1",
+    "api_path": "/chat/completions",
+    "model_name": "nvidia/nemotron-3.5-lightning:free",
+    "capabilities": "CHAT,STREAMING,STRUCTURED_OUTPUT,NATIVE_TOOLS,USAGE",
+    "api_key": "无（匿名语义，无需 Key）",
+    "config_version": "2026-10-24T00:15:07.173934Z（本轮经 UI 保存模型后固定）"
+  },
+  "runs": [
+    {
+      "run": 1,
+      "trigger": "统一能力套件（Kilo 卡片「测试连接与能力」，含原生工具勾选）",
+      "steps": [
+        { "step": "静态配置检查", "result": "PASS" },
+        { "step": "模型发现 / 准入", "result": "PASS", "detail": "nvidia/nemotron-3.5-lightning:free 在准入列表中（只读 GET，不计生成）" },
+        { "step": "连接（真实生成）", "result": "PASS", "latency_ms": 10165, "tested_at": "2026-10-24T00:15:27.697619Z" },
+        { "step": "流式输出", "result": "PASS", "latency_ms": 16428, "tested_at": "2026-10-24T00:15:44.180375Z" },
+        { "step": "规划 JSON", "result": "SKIPPED", "detail": "未选择规划测试" },
+        { "step": "原生工具调用", "result": "PASS", "latency_ms": 1708, "tested_at": "2026-10-24T00:15:45.977404Z" }
+      ],
+      "generation_requests": 3
+    },
+    {
+      "run": 2,
+      "trigger": "复查运行（同套件重复执行；规划/工具勾选切换操作因元素不在视口未生效，按原勾选组合重跑）",
+      "steps": [
+        { "step": "静态配置检查", "result": "PASS" },
+        { "step": "模型发现 / 准入", "result": "PASS", "detail": "nvidia/nemotron-3.5-lightning:free 在准入列表中" },
+        { "step": "连接（真实生成）", "result": "PASS", "latency_ms": 17608, "tested_at": "2026-10-24T00:22:00.066361Z" },
+        { "step": "流式输出", "result": "PASS", "latency_ms": 14091, "tested_at": "2026-10-24T00:22:14.187922Z" },
+        { "step": "规划 JSON", "result": "SKIPPED", "detail": "未选择规划测试" },
+        { "step": "原生工具调用", "result": "PASS", "latency_ms": 1051, "tested_at": "2026-10-24T00:22:15.295214Z" }
+      ],
+      "generation_requests": 3,
+      "note": "落库行按 (provider, mode) 唯一约束被第二次运行覆盖，两次结论完全一致（重复探针幂等）"
+    }
+  ],
+  "final_persisted_state": {
+    "CONNECTIVITY": { "status": "PASS", "model_name": "nvidia/nemotron-3.5-lightning:free", "latency_ms": 17608, "tested_at": "2026-10-24T00:22:00.066361Z", "fresh": true },
+    "STREAMING": { "status": "PASS", "model_name": "nvidia/nemotron-3.5-lightning:free", "latency_ms": 14091, "tested_at": "2026-10-24T00:22:14.187922Z", "fresh": true },
+    "NATIVE_TOOLS": { "status": "PASS", "model_name": "nvidia/nemotron-3.5-lightning:free", "latency_ms": 1051, "tested_at": "2026-10-24T00:22:15.295214Z", "fresh": true }
+  },
+  "verification_highlights": {
+    "production_transport": "真实请求走 ai-gateway.kilo.ai 生产网关（本机直连可达性已单独验证 HTTP 200），模型 ID 与选择一致",
+    "legacy_endpoint": "未依赖已删除的旧 Kilo /test 端点（统一 test-capability 端点）",
+    "agent_purpose_ready": "AI 设置页「Agent」用途就绪状态由 未验证 → 可用（NATIVE_TOOLS 真实 PASS）",
+    "replacement_models": "无替代尝试（首选模型一次成功，失败候选 0 个）"
+  },
+  "verdict": "KILLO_REAL_GENERATION_ACCEPTED（nvidia/nemotron-3.5-lightning:free）",
+  "screenshots": ["screenshots/01-kilo-suite-pass.png"]
+}

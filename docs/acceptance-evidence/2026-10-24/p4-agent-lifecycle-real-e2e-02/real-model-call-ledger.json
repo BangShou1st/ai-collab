@@ -1,0 +1,69 @@
+{
+  "task": "P4-AGENT-LIFECYCLE-REAL-E2E-02",
+  "date": "2026-10-24",
+  "budget_status": {
+    "requested": "12 次真实生成请求（Kilo Gateway Free · nvidia/nemotron-3.5-lightning:free）",
+    "authorization": "用户于 2026-10-24 会话内明确批准（AskUserQuestion 二次询问，选项「批准 12 次（推荐）」）",
+    "hard_cap": 12,
+    "used_min": 8,
+    "used_upper_bound": 10,
+    "counting_rule": "每次真实到达 Provider 的生成请求计 1（MODEL_STARTED/出站即计，含超时与中断）；规划探针第二次运行内部为骨架+细节 2 次起步，若触发内部修复最坏 4 次，故给出 min/upper_bound 双口径"
+  },
+  "model": {
+    "provider": "Kilo Gateway Free（ai-gateway.kilo.ai）",
+    "model_id": "nvidia/nemotron-3.5-lightning:free",
+    "admission_recheck": "本轮经已登录 UI「刷新模型」实时目录确认仍在当前免费目录（目录含 14 个 free 模型）；配置 6854fb22 探针 fresh（tested_config_updated_at == cfg.updated_at，无 STALE）",
+    "configuration_id": "6854fb22-0cdc-4c09-989f-69f9aebb0055"
+  },
+  "calls": [
+    {
+      "seq": 1, "scenario": "LIFE-CANCEL-01", "run_id": "4a42e54a-1faa-40b0-b1fa-0f23555a8831",
+      "call_id": "ac37a502-35fb-47e6-9b58-a48fc34131a4", "stage": "第 1 轮（RUNNING 中被用户取消中断）",
+      "outcome": "出站后被中断；结算 input_tokens_actual=3759(ESTIMATED)/0，无完成响应",
+      "evidence": "agent_run_event seq5 MODEL_STARTED → seq6 RUN_CANCELED；agent_usage_settlement 行"
+    },
+    {
+      "seq": 2, "scenario": "LIFE-PAUSE-RUNNING-01", "run_id": "c41b484c-3229-434d-8b09-d6ded24f4484",
+      "call_id": "9038a3c3-a4be-4f99-a4b0-5571d18292fc", "stage": "第 1 轮（输出触及 4000 上限截断 → FORMAT_REPAIR_REQUESTED）",
+      "outcome": "PROVIDER 结算 11379/4000；暂停请求在其后于 FAILED_RETRYABLE 状态被确认（RUN_PAUSED）",
+      "evidence": "agent_run_event seq5 MODEL_STARTED/seq6 RUN_PAUSE_REQUESTED/seq7 RUN_FAILED/seq8 RUN_PAUSED；agent_step MODEL_TURN"
+    },
+    {
+      "seq": 3, "scenario": "LIFE-RESUME-01", "run_id": "c41b484c（同一 Run）",
+      "call_id": "b6c5c4c5（修复轮）", "stage": "恢复后 FORMAT_REPAIR 轮",
+      "outcome": "PROVIDER 结算 11430/1284；RUN_RESUMED(seq9)→MODEL_STARTED(seq10)→MODEL_COMPLETED(seq11)",
+      "evidence": "agent_usage_settlement + 事件流"
+    },
+    {
+      "seq": 4, "scenario": "LIFE-RESUME-01", "run_id": "c41b484c（同一 Run）",
+      "call_id": "ca9b776c（最终轮）", "stage": "工具批次后最终回答轮",
+      "outcome": "PROVIDER 结算 13541/1126；RUN_SUCCEEDED(seq20)",
+      "evidence": "agent_usage_settlement + 事件流"
+    },
+    {
+      "seq": 5, "scenario": "LIFE-RETRY-01", "run_id": "ec75239c-48f0-420d-8ab6-00273e47db0e（派生自 24b71f55）",
+      "call_id": "见 agent_usage_settlement（本轮 1 个 MODEL_TURN）", "stage": "单轮：模型经 TRUSTED_PROPOSALS 识别任务已创建并批准，正确拒绝重复创建",
+      "outcome": "SUCCEEDED，0 工具调用、0 新审批、0 新任务写入（幂等）",
+      "evidence": "agent_run_event seq5 MODEL_STARTED/seq6 MODEL_COMPLETED/seq7 RUN_SUCCEEDED"
+    },
+    {
+      "seq": 6, "scenario": "PLANNING-PROBE-01", "run_id": null,
+      "call_id": null, "stage": "PLANNING_JSON 骨架生成（第 1 次探针）",
+      "outcome": "HTTP 504 AI_MODEL_TIMEOUT → 落库 INCONCLUSIVE（transient 上游超时）",
+      "evidence": "user_ai_provider_probe_result (tested 04:10:55Z)；页面响应 {http:504, code:AI_MODEL_TIMEOUT}"
+    },
+    {
+      "seq": 7, "scenario": "PLANNING-PROBE-02", "run_id": null,
+      "call_id": null, "stage": "骨架生成（第 2 次探针）",
+      "outcome": "成功",
+      "evidence": "probe PASS latency 20088ms"
+    },
+    {
+      "seq": 8, "scenario": "PLANNING-PROBE-02", "run_id": null,
+      "call_id": null, "stage": "细节生成与校验（第 2 次探针）",
+      "outcome": "PASS verified=true（若内部触发修复则第 2 次探针最坏 4 次，总上限 10 仍 ≤ 硬上限 12）",
+      "evidence": "probe 行 + 响应 {mode:PLANNING_JSON, verified:true, latencyMs:20088}"
+    }
+  ],
+  "discipline": "未自动切换收费模型、未更换用户身份、未并发多个验收 Run、未通过换账号绕过上游限制、未修改 Agent 内部限制规避预算"
+}

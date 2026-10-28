@@ -39,13 +39,6 @@ public class UserAiProviderPresetController {
         return ApiResponse.success(presets.save(userId(jwt), request.apiKey(), request.modelName(),
                 request.enabled() == null || request.enabled(), request.setDefault() != null && request.setDefault()));
     }
-    @PostMapping("/OPENCODE_ZEN_FREE/test")
-    public ApiResponse<Void> test(@AuthenticationPrincipal Jwt jwt,
-            @RequestBody(required = false) TestZenRequest request) {
-        presets.test(userId(jwt), request == null ? null : request.apiKey(),
-                request == null ? null : request.modelName());
-        return ApiResponse.success(null);
-    }
     @DeleteMapping("/OPENCODE_ZEN_FREE")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void disconnect(@AuthenticationPrincipal Jwt jwt) {
@@ -61,12 +54,6 @@ public class UserAiProviderPresetController {
         return ApiResponse.success(kilo.save(userId(jwt), request.modelName(),
                 request.enabled() == null || request.enabled(), request.setDefault() != null && request.setDefault()));
     }
-    @PostMapping("/KILO_GATEWAY_FREE/test")
-    public ApiResponse<Void> testKilo(@AuthenticationPrincipal Jwt jwt,
-            @RequestBody(required = false) TestKiloRequest request) {
-        kilo.test(userId(jwt), request == null ? null : request.modelName());
-        return ApiResponse.success(null);
-    }
     @DeleteMapping("/KILO_GATEWAY_FREE")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void disconnectKilo(@AuthenticationPrincipal Jwt jwt) {
@@ -74,7 +61,5 @@ public class UserAiProviderPresetController {
     }
     private static UUID userId(Jwt jwt) { return UUID.fromString(jwt.getSubject()); }
     public record SaveZenRequest(@Size(max = 1000) String apiKey, @NotBlank @Size(max = 160) String modelName, Boolean enabled, Boolean setDefault) {}
-    public record TestZenRequest(@Size(max = 1000) String apiKey, @Size(max = 160) String modelName) {}
     public record SaveKiloRequest(@NotBlank @Size(max = 160) String modelName, Boolean enabled, Boolean setDefault) {}
-    public record TestKiloRequest(@Size(max = 160) String modelName) {}
 }

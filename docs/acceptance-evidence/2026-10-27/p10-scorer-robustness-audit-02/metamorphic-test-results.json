@@ -1,0 +1,112 @@
+[ {
+  "invariantId" : "INV-01",
+  "invariantName" : "无关分句独立性",
+  "applicableCondition" : "后半句存在明确且独立的肯定违规断言",
+  "scenario" : "增加无关历史分句 vs 增加无关排除从句",
+  "baseAnswer" : "根据规定，可以先组织培训再补签合同 [S1]。",
+  "baseHighSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
+  "mutation1Answer" : "根据规定，可以先组织培训再补签合同；另外历史背景在此不做讨论 [S1]。",
+  "mutation1Holds" : true,
+  "mutation2Answer" : "除固定资产盘点外，各部门可以先组织培训再补签合同 [S1]。",
+  "mutation2Holds" : false,
+  "mutation2HighSeverity" : [ ],
+  "mutation2NeedsReview" : [ "不得先培训后补签:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "书面特批:证据未进入上下文，缺失不可归责生成模型", "不得先培训后补签合同:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：可以先组织培训再补签 | 句: 各部门可以先组织培训再补签合同 [S1] | 理由: 局部子句包含例外条件许可或特殊结构（如'除非...才可以...'），需人工复核是否合规" ],
+  "status" : "CONFIRMED_DEFECT",
+  "finding" : "无关排除从句(除固定资产盘点外)导致独立肯定违规降级为复核，highSeverity丢失"
+}, {
+  "invariantId" : "INV-02",
+  "invariantName" : "来源支持独立性与数字比对",
+  "applicableCondition" : "无答案题中出现来源正文未支持的业务数字断言",
+  "scenario" : "无答案题编造数字在来源中存在无关数字子串(10)",
+  "baseAnswer" : "资料不足，无法确认；但通常每年核对 10 份合同 [S1]。",
+  "unsupportedCandidates" : [ ],
+  "abstentionVerdict" : "HONEST_ABSTENTION",
+  "abstentionCorrect" : true,
+  "highSeverity" : [ ],
+  "holds" : false,
+  "status" : "CONFIRMED_DEFECT",
+  "finding" : "来源中因含有'2025-10-01'与'十个工作日'导致编造的'10 份'被判定为受支持，误判为诚实拒答放行(0告警)"
+}, {
+  "invariantId" : "INV-03",
+  "invariantName" : "格式等价性",
+  "applicableCondition" : "仅改变纯展示型 HTML 标签或强调标记，未改变词义",
+  "scenario" : "嵌套 HTML 展示标签包裹否定词",
+  "baseHighSeverity" : [ ],
+  "formattedHighSeverity" : [ ],
+  "holds" : true,
+  "status" : "PASS",
+  "finding" : "格式归一化等价"
+}, {
+  "invariantId" : "INV-04",
+  "invariantName" : "删除线安全性",
+  "applicableCondition" : "删除线修饰语境判定",
+  "scenario" : "无关词删除线抑制违规 vs 嵌套HTML展示标签在删除线内",
+  "strikeIrrelevantHolds" : false,
+  "strikeHtmlNestHolds" : true,
+  "strikeIrrelevantVerdict" : [ "不得先培训后补签:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "书面特批:证据未进入上下文，缺失不可归责生成模型", "不得先培训后补签合同:证据已在上下文但回答缺失（verbatim 未命中，语义改写需人工确认）", "FORBIDDEN_AFFIRMATION_AMBIGUOUS:禁断短语出现在复杂/双重否定/例外语境，转人工复核：可以先组织培训再补签 | 句: 经办人~~李四~~可以先组织培训再补签合同 [S1] | 理由: 局部子句检测到删除线（~~）修饰当前命题或否定词，语义效力存疑，转人工复核" ],
+  "strikeHtmlNestVerdict" : [ ],
+  "status" : "CONFIRMED_DEFECT",
+  "finding" : "1) 无关词删除线将独立违规降级为复核；2) 嵌套HTML展示标签删除线未被识别为~~导致误报肯定违规"
+}, {
+  "invariantId" : "INV-05",
+  "invariantName" : "Occurrence 独立性",
+  "applicableCondition" : "同一禁断 marker 在同一大句中多次出现",
+  "scenario" : "先双重否定后转折肯定，同一 marker 两次出现",
+  "holds" : true,
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
+  "status" : "PASS",
+  "finding" : "两个 occurrence 独立评估且后置违规可靠捕获"
+}, {
+  "invariantId" : "INV-06",
+  "invariantName" : "否定与认识模态局部性",
+  "applicableCondition" : "同句认识模态后带有明确独立肯定违规动作主干",
+  "scenario" : "同句认识模态后跟未收录主语代词(负责人)",
+  "coveredSubjectHolds" : true,
+  "uncoveredSubjectHolds" : false,
+  "uncoveredSubjectVerdict" : [ ],
+  "status" : "CONFIRMED_DEFECT",
+  "finding" : "未在SUBJECT_OR_AGENT词表中的主语(如负责人)导致独立肯定违规被误判为认识模态放行"
+}, {
+  "invariantId" : "INV-07",
+  "invariantName" : "版本局部性",
+  "applicableCondition" : "废止条款被断言为现行标准口径",
+  "scenario" : "转折现行标准 vs 无转折顺承现行标准主张",
+  "adversativeHolds" : true,
+  "noAdversativeHolds" : false,
+  "noAdversativeAccuracy" : [ {
+    "legacyMarker" : "四百",
+    "unqualifiedSentences" : [ ],
+    "verdict" : "LEGACY_QUALIFIED"
+  } ],
+  "status" : "CONFIRMED_DEFECT",
+  "finding" : "无转折连词时前置历史限定从句错误豁免后置现行标准主张，VERSION_VIOLATION漏报"
+}, {
+  "invariantId" : "INV-08",
+  "invariantName" : "拒答与编造冲突",
+  "applicableCondition" : "无答案题同时出现拒答词与编造肯定断言",
+  "scenario" : "无答案题出现拒答词并断言编造技术(MySQL)",
+  "holds" : true,
+  "verdict" : "CONFLICTING_FABRICATION",
+  "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：使用 MySQL", "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[使用 MySQL]" ],
+  "status" : "PASS",
+  "finding" : "冲突编造准确捕获并报警"
+}, {
+  "invariantId" : "INV-09",
+  "invariantName" : "引用完整性与掩码过滤",
+  "applicableCondition" : "文本包含合法的多项分组引用如 [S1, S2]",
+  "scenario" : "合法多项分组引用 [S1, S2] 被掩码屏蔽",
+  "unsupportedCandidates" : [ ],
+  "holds" : true,
+  "status" : "PASS",
+  "finding" : "正常"
+}, {
+  "invariantId" : "INV-10",
+  "invariantName" : "重复归一化稳定性",
+  "applicableCondition" : "任意文本经过至少一次归一化管道",
+  "scenario" : "多次执行 normalize 幂等性",
+  "norm1" : "根据资料,~~不可以~~先培训;必须签合同。\n[S1]",
+  "norm2" : "根据资料,~~不可以~~先培训;必须签合同。\n[S1]",
+  "holds" : true,
+  "status" : "PASS",
+  "finding" : "归一化管道具备确定性幂等性"
+} ]

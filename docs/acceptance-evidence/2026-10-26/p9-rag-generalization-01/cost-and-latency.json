@@ -1,0 +1,460 @@
+{
+  "benchmark": "p9-rag-generalization-01",
+  "indexing": {
+    "totalIndexLatencyMs": 3845,
+    "documentCount": 25,
+    "embeddingInputCodePoints": 21500,
+    "chunkCount": 175
+  },
+  "queryLatency": {
+    "qaAvgMs": 51,
+    "agentCandidateAvgMs": 50,
+    "agentToolAvgMs": 50,
+    "diagnosticFullRankingAvgMs": 50,
+    "note": "诊断全量排序不计入生产成本"
+  },
+  "contextCost": {
+    "qaPromptCodePointsAvg": 869,
+    "agentPromptCodePointsAvg": 1229,
+    "agentToolQuoteCodePointsAvg": 911,
+    "qaSourceCountAvg": 5,
+    "agentSourceCountAvg": 7.97
+  },
+  "embeddingCalls": {
+    "productionPerQuestion": 2,
+    "diagnosticOnlyPerQuestion": 1,
+    "note": "QA 与 Agent 各一次查询嵌入；诊断排序一次，不计入生产成本"
+  },
+  "units": "code points，非 token；quote 为 600 code point 前缀截断",
+  "perQuestion": [
+    {
+      "id": "G01-A1-BEG",
+      "set": "dev",
+      "dimension": "G01_LONG_DOC",
+      "qaLatencyMs": 118,
+      "agentToolLatencyMs": 63,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 1036,
+      "agentToolQuoteTotalCodePoints": 967
+    },
+    {
+      "id": "G01-A1-TAIL",
+      "set": "dev",
+      "dimension": "G01_LONG_DOC",
+      "qaLatencyMs": 41,
+      "agentToolLatencyMs": 44,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 1078,
+      "agentToolQuoteTotalCodePoints": 1105
+    },
+    {
+      "id": "G01-A2-MID",
+      "set": "dev",
+      "dimension": "G01_LONG_DOC",
+      "qaLatencyMs": 42,
+      "agentToolLatencyMs": 48,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 1404,
+      "agentToolQuoteTotalCodePoints": 1383
+    },
+    {
+      "id": "G01-A2-BOUNDARY",
+      "set": "dev",
+      "dimension": "G01_LONG_DOC",
+      "qaLatencyMs": 53,
+      "agentToolLatencyMs": 47,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 710,
+      "agentToolQuoteTotalCodePoints": 1031
+    },
+    {
+      "id": "G01-A3-MID",
+      "set": "dev",
+      "dimension": "G01_LONG_DOC",
+      "qaLatencyMs": 51,
+      "agentToolLatencyMs": 48,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 1157,
+      "agentToolQuoteTotalCodePoints": 1291
+    },
+    {
+      "id": "G01-A3-TAIL",
+      "set": "dev",
+      "dimension": "G01_LONG_DOC",
+      "qaLatencyMs": 48,
+      "agentToolLatencyMs": 50,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 813,
+      "agentToolQuoteTotalCodePoints": 1066
+    },
+    {
+      "id": "G01-A4-BEG",
+      "set": "dev",
+      "dimension": "G01_LONG_DOC",
+      "qaLatencyMs": 52,
+      "agentToolLatencyMs": 62,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 1033,
+      "agentToolQuoteTotalCodePoints": 999
+    },
+    {
+      "id": "G01-A4-MID",
+      "set": "dev",
+      "dimension": "G01_LONG_DOC",
+      "qaLatencyMs": 48,
+      "agentToolLatencyMs": 51,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 1510,
+      "agentToolQuoteTotalCodePoints": 1133
+    },
+    {
+      "id": "G01-A4-BOUNDARY",
+      "set": "dev",
+      "dimension": "G01_LONG_DOC",
+      "qaLatencyMs": 54,
+      "agentToolLatencyMs": 54,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 1339,
+      "agentToolQuoteTotalCodePoints": 954
+    },
+    {
+      "id": "G01-A4-TAIL",
+      "set": "dev",
+      "dimension": "G01_LONG_DOC",
+      "qaLatencyMs": 47,
+      "agentToolLatencyMs": 50,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 832,
+      "agentToolQuoteTotalCodePoints": 1195
+    },
+    {
+      "id": "G02-B-2DOCS",
+      "set": "dev",
+      "dimension": "G02_CROSS_DOC",
+      "qaLatencyMs": 52,
+      "agentToolLatencyMs": 59,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 910,
+      "agentToolQuoteTotalCodePoints": 1012
+    },
+    {
+      "id": "G02-B-3DOCS",
+      "set": "dev",
+      "dimension": "G02_CROSS_DOC",
+      "qaLatencyMs": 46,
+      "agentToolLatencyMs": 50,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 729,
+      "agentToolQuoteTotalCodePoints": 1019
+    },
+    {
+      "id": "G02-B-4DOCS",
+      "set": "dev",
+      "dimension": "G02_CROSS_DOC",
+      "qaLatencyMs": 59,
+      "agentToolLatencyMs": 44,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 877,
+      "agentToolQuoteTotalCodePoints": 883
+    },
+    {
+      "id": "G03-B1-COMPLEMENT",
+      "set": "dev",
+      "dimension": "G03_COMPLEMENTARY",
+      "qaLatencyMs": 58,
+      "agentToolLatencyMs": 49,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 723,
+      "agentToolQuoteTotalCodePoints": 812
+    },
+    {
+      "id": "G03-B2-COMPLEMENT",
+      "set": "dev",
+      "dimension": "G03_COMPLEMENTARY",
+      "qaLatencyMs": 49,
+      "agentToolLatencyMs": 51,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 713,
+      "agentToolQuoteTotalCodePoints": 998
+    },
+    {
+      "id": "G06-C-1",
+      "set": "dev",
+      "dimension": "G06_SIMILAR_SOURCES",
+      "qaLatencyMs": 60,
+      "agentToolLatencyMs": 48,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 703,
+      "agentToolQuoteTotalCodePoints": 794
+    },
+    {
+      "id": "G06-C-2",
+      "set": "dev",
+      "dimension": "G06_SIMILAR_SOURCES",
+      "qaLatencyMs": 36,
+      "agentToolLatencyMs": 47,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 961,
+      "agentToolQuoteTotalCodePoints": 1051
+    },
+    {
+      "id": "G06-C-3",
+      "set": "dev",
+      "dimension": "G06_SIMILAR_SOURCES",
+      "qaLatencyMs": 43,
+      "agentToolLatencyMs": 46,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 571,
+      "agentToolQuoteTotalCodePoints": 527
+    },
+    {
+      "id": "G06-C-4",
+      "set": "dev",
+      "dimension": "G06_SIMILAR_SOURCES",
+      "qaLatencyMs": 54,
+      "agentToolLatencyMs": 52,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 879,
+      "agentToolQuoteTotalCodePoints": 654
+    },
+    {
+      "id": "G08-A3-PARAPHRASE",
+      "set": "dev",
+      "dimension": "G08_PARAPHRASE",
+      "qaLatencyMs": 46,
+      "agentToolLatencyMs": 48,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 1529,
+      "agentToolQuoteTotalCodePoints": 1583
+    },
+    {
+      "id": "G08-B3-PARAPHRASE",
+      "set": "dev",
+      "dimension": "G08_PARAPHRASE",
+      "qaLatencyMs": 53,
+      "agentToolLatencyMs": 52,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 728,
+      "agentToolQuoteTotalCodePoints": 826
+    },
+    {
+      "id": "H-G04-CURRENT",
+      "set": "holdout",
+      "dimension": "G04_VERSION_CONFLICT",
+      "qaLatencyMs": 51,
+      "agentToolLatencyMs": 43,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 749,
+      "agentToolQuoteTotalCodePoints": 769
+    },
+    {
+      "id": "H-G04-REPEALED",
+      "set": "holdout",
+      "dimension": "G04_VERSION_CONFLICT",
+      "qaLatencyMs": 48,
+      "agentToolLatencyMs": 44,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 919,
+      "agentToolQuoteTotalCodePoints": 923
+    },
+    {
+      "id": "H-G04-CHANGE",
+      "set": "holdout",
+      "dimension": "G04_VERSION_CONFLICT",
+      "qaLatencyMs": 44,
+      "agentToolLatencyMs": 56,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 749,
+      "agentToolQuoteTotalCodePoints": 707
+    },
+    {
+      "id": "H-G05-UNLESS",
+      "set": "holdout",
+      "dimension": "G05_CONDITION",
+      "qaLatencyMs": 63,
+      "agentToolLatencyMs": 52,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 885,
+      "agentToolQuoteTotalCodePoints": 739
+    },
+    {
+      "id": "H-G05-AND-OR",
+      "set": "holdout",
+      "dimension": "G05_CONDITION",
+      "qaLatencyMs": 43,
+      "agentToolLatencyMs": 55,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 807,
+      "agentToolQuoteTotalCodePoints": 568
+    },
+    {
+      "id": "H-G05-TIMEOUT",
+      "set": "holdout",
+      "dimension": "G05_CONDITION",
+      "qaLatencyMs": 53,
+      "agentToolLatencyMs": 50,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 697,
+      "agentToolQuoteTotalCodePoints": 905
+    },
+    {
+      "id": "H-G02-CROSS-D",
+      "set": "holdout",
+      "dimension": "G02_CROSS_DOC",
+      "qaLatencyMs": 55,
+      "agentToolLatencyMs": 54,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 810,
+      "agentToolQuoteTotalCodePoints": 888
+    },
+    {
+      "id": "H-G01-E1-TAIL",
+      "set": "holdout",
+      "dimension": "G01_LONG_DOC",
+      "qaLatencyMs": 54,
+      "agentToolLatencyMs": 46,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 895,
+      "agentToolQuoteTotalCodePoints": 841
+    },
+    {
+      "id": "H-G05-FRIDAY",
+      "set": "holdout",
+      "dimension": "G05_CONDITION",
+      "qaLatencyMs": 43,
+      "agentToolLatencyMs": 48,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 720,
+      "agentToolQuoteTotalCodePoints": 965
+    },
+    {
+      "id": "H-G03-E2-COMPLEMENT",
+      "set": "holdout",
+      "dimension": "G03_COMPLEMENTARY",
+      "qaLatencyMs": 50,
+      "agentToolLatencyMs": 60,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 890,
+      "agentToolQuoteTotalCodePoints": 922
+    },
+    {
+      "id": "H-G03-E3-COMPLEMENT",
+      "set": "holdout",
+      "dimension": "G03_COMPLEMENTARY",
+      "qaLatencyMs": 58,
+      "agentToolLatencyMs": 55,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 715,
+      "agentToolQuoteTotalCodePoints": 870
+    },
+    {
+      "id": "H-G08-E1-PARAPHRASE",
+      "set": "holdout",
+      "dimension": "G08_PARAPHRASE",
+      "qaLatencyMs": 45,
+      "agentToolLatencyMs": 45,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 753,
+      "agentToolQuoteTotalCodePoints": 955
+    },
+    {
+      "id": "H-G08-E3-PARAPHRASE",
+      "set": "holdout",
+      "dimension": "G08_PARAPHRASE",
+      "qaLatencyMs": 46,
+      "agentToolLatencyMs": 47,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 784,
+      "agentToolQuoteTotalCodePoints": 736
+    },
+    {
+      "id": "H-G07-NONE",
+      "set": "holdout",
+      "dimension": "G07_UNANSWERABLE",
+      "qaLatencyMs": 42,
+      "agentToolLatencyMs": 50,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 729,
+      "agentToolQuoteTotalCodePoints": 767
+    },
+    {
+      "id": "H-G07-INDIRECT",
+      "set": "holdout",
+      "dimension": "G07_UNANSWERABLE",
+      "qaLatencyMs": 58,
+      "agentToolLatencyMs": 51,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 620,
+      "agentToolQuoteTotalCodePoints": 595
+    },
+    {
+      "id": "H-G07-UNDETERMINED",
+      "set": "holdout",
+      "dimension": "G07_UNANSWERABLE",
+      "qaLatencyMs": 51,
+      "agentToolLatencyMs": 50,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 639,
+      "agentToolQuoteTotalCodePoints": 753
+    },
+    {
+      "id": "H-G07-SIMILAR",
+      "set": "holdout",
+      "dimension": "G07_UNANSWERABLE",
+      "qaLatencyMs": 47,
+      "agentToolLatencyMs": 48,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 8,
+      "qaPromptCodePoints": 681,
+      "agentToolQuoteTotalCodePoints": 835
+    },
+    {
+      "id": "H-G07-INJECT",
+      "set": "holdout",
+      "dimension": "G07_INJECTION",
+      "qaLatencyMs": 42,
+      "agentToolLatencyMs": 33,
+      "qaSourceCount": 5,
+      "agentToolSourceCount": 7,
+      "qaPromptCodePoints": 621,
+      "agentToolQuoteTotalCodePoints": 518
+    }
+  ]
+}

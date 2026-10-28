@@ -2,6 +2,10 @@
 
 ## 2026-10-20 当前基线与 P3 规划入口
 
+| 当前增量事实 | 验证层级与限制 | 证据 |
+| --- | --- | --- |
+| P7 Provider 接入自动化：探针专用执行边界（未声明能力真实可测、声明与验证分离）、「检测并配置」编排 + CAS 写回（只增不减、版本锚点 rebase）、URL/Path 重复版本前缀三层防线、ModelScope 档案与未保存模型发现、能力验证状态表七态展示 | 单测 + 真实 PostgreSQL 集成 + 真实浏览器/真实 ModelScope/Gemini（未声明 NATIVE_TOOLS 真实探针 PASS 并自动启用）；Anthropic/OpenAI 真实付费调用未执行；检测锁为 JVM 内实现 | [P7-PROVIDER-ONBOARDING-01 验收](acceptance-evidence/2026-10-25/p7-provider-onboarding-01/README.md) |
+
 当前研究基线 `dev@09d80639185fbb89e74b71d37d3af272bf43ad5f`。最新能力/验证分层、候选需求与 P2 风险以 [P3-SCOPE-01](./archive/research/p3-scope-01.md) 为入口；下文 2026-10-03～05 的 P1–P4 为历史交付编号，不是新 P3 待办。历史静态缺口必须先核对后续实现，不能直接重复开发。
 
 | 当前增量事实 | 验证层级与限制 | 证据 |

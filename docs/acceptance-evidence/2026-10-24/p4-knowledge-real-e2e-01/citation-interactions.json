@@ -1,0 +1,27 @@
+{
+  "citationDisplay": {
+    "inlineMarkers": "回答正文含 [S1]/[S2]/[S3]/[S5] 标记",
+    "sourceButtons": "每条引用渲染为可交互按钮：来源编号 + 文件名 + 分块标题 + 相似度 + 原文摘录"
+  },
+  "drawer": {
+    "opened": "点击来源按钮打开「引用来源」抽屉",
+    "fields": ["来源编号", "文件名", "标题", "相似度", "引用内容"],
+    "actions": ["下载原文"],
+    "verifiedFor": ["[S1] 上线验收规程.md", "[S2] 合同模板甲.md"]
+  },
+  "backendIdentityMatch": {
+    "checked": "knowledge_citation join document_chunk/project_document",
+    "qE2E02": {
+      "rank1": "合同模板乙 doc a2f68fe7-50e7-4004-b487-09f58c1cdd82 chunk 03b59141-b9df-4fa7-9f45-12de1a038cad",
+      "rank2": "合同模板甲 doc cee75da1-932d-4b19-8329-651924431d1b chunk 555def5c-e5c9-44ae-b917-3e76d3bf3ac5"
+    },
+    "consistentWithUi": true
+  },
+  "capabilityBoundary": {
+    "preciseChunkAnchorOrHighlight": false,
+    "actualLevel": "来源卡片（编号/文件名/标题/相似度/原文摘录）+ 下载原文入口；不支持页面内滚动定位或高亮引用分块",
+    "userImpact": "可通过摘录与下载原文人工核对引用真实性；长文档场景核对成本较高",
+    "releaseBlocking": false
+  },
+  "status": "PASS_WITH_CAPABILITY_NOTE"
+}

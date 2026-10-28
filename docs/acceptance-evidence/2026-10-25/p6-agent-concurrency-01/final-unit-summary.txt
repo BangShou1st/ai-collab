@@ -1,0 +1,5 @@
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.796 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerTest
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+[INFO] Total time:  55.608 s
+[INFO] Finished at: 2026-10-25T00:54:51+08:00

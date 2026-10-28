@@ -1,0 +1,530 @@
+Command: verify (complete default suite, live opt-ins absent)
+Expected/observed success: true
+Original private stdout SHA-256: 8e1745899573cb5c7a403751d4726fa7386fbd9349628f60c672bd10a9092415
+Receipt extracts only Maven status/test/coverage lines; failure original is separately preserved.
+
+[INFO] Running com.shitulelv.aicollab.acceptance.BrowserAcceptanceHostTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.021 s -- in com.shitulelv.aicollab.acceptance.BrowserAcceptanceHostTest
+[INFO] Running com.shitulelv.aicollab.acceptance.ExistingDataUpgradeRehearsalTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.016 s -- in com.shitulelv.aicollab.acceptance.ExistingDataUpgradeRehearsalTest
+[INFO] Running com.shitulelv.aicollab.acceptance.JsonNodeHttpContractTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.563 s -- in com.shitulelv.aicollab.acceptance.JsonNodeHttpContractTest
+[INFO] Running com.shitulelv.aicollab.acceptance.LegacyApprovalCitationUpgradeTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.88 s -- in com.shitulelv.aicollab.acceptance.LegacyApprovalCitationUpgradeTest
+[INFO] Running com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.43 s -- in com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest
+[INFO] Running com.shitulelv.aicollab.acceptance.RealAcceptanceHostTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.001 s -- in com.shitulelv.aicollab.acceptance.RealAcceptanceHostTest
+[INFO] Running com.shitulelv.aicollab.acceptance.RealRetrievalBaselineTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0 s -- in com.shitulelv.aicollab.acceptance.RealRetrievalBaselineTest
+[INFO] Running com.shitulelv.aicollab.acceptance.ReliabilityAcceptanceHostTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0 s -- in com.shitulelv.aicollab.acceptance.ReliabilityAcceptanceHostTest
+[INFO] Running com.shitulelv.aicollab.acceptance.ReliabilityOperationDatabaseTest
+[WARNING] Tests run: 4, Failures: 0, Errors: 0, Skipped: 4, Time elapsed: 0.001 s -- in com.shitulelv.aicollab.acceptance.ReliabilityOperationDatabaseTest
+[INFO] Running com.shitulelv.aicollab.agent.api.controller.AgentEventControllerTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.024 s -- in com.shitulelv.aicollab.agent.api.controller.AgentEventControllerTest
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentApprovalServiceTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.552 s -- in com.shitulelv.aicollab.agent.application.AgentApprovalServiceTest
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentBusinessEvaluationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.187 s -- in com.shitulelv.aicollab.agent.application.AgentBusinessEvaluationTest
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRunRestoreTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.574 s -- in com.shitulelv.aicollab.agent.application.AgentRunRestoreTest
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.209 s -- in com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRunServiceRetryTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.055 s -- in com.shitulelv.aicollab.agent.application.AgentRunServiceRetryTest
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.316 s -- in com.shitulelv.aicollab.agent.application.AgentRuntimeJobSchedulerTest
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentWorkerNativeTurnTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.192 s -- in com.shitulelv.aicollab.agent.application.AgentWorkerNativeTurnTest
+[INFO] Running com.shitulelv.aicollab.agent.application.AgentWorkerTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.030 s -- in com.shitulelv.aicollab.agent.application.AgentWorkerTest
+[INFO] Running com.shitulelv.aicollab.agent.application.ResumeIntentRecognizerTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.023 s -- in com.shitulelv.aicollab.agent.application.ResumeIntentRecognizerTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentAuxiliaryOutboundRegressionTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.688 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentAuxiliaryOutboundRegressionTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentContentPreviewPublisherTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.022 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentContentPreviewPublisherTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentContentPreviewStreamIsolationTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.402 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentContentPreviewStreamIsolationTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentContextAssemblerTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.831 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentContextAssemblerTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentContextBudgetTest
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.053 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentContextBudgetTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentContextReliabilityD1D8RegressionTest
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.191 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentContextReliabilityD1D8RegressionTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizerTest
+[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.246 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentContextSummarizerTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentConvergencePolicyTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.015 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentConvergencePolicyTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.21 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentCrashRecoveryTimingPostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest
+[INFO] Tests run: 40, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 54.60 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentListPaginationChainTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.108 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentListPaginationChainTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentLoopGuardTest
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.015 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentLoopGuardTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentModelConfigurationSwitchPostgresIntegrationTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 15.10 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentModelConfigurationSwitchPostgresIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposerPromptTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.026 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposerPromptTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposerRequestConsistencyTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.134 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposerRequestConsistencyTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposerV2Test
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.203 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentModelMessageComposerV2Test
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentPauseResumePostgresTest
+[INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 72.71 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentPauseResumePostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeMigrationPostgresTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.52 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeMigrationPostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest
+[INFO] Tests run: 30, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 26.68 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 16.39 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCompactionRegressionTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.045 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCompactionRegressionTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest
+[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.210 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinatorTest
+[INFO] Tests run: 32, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.735 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeCoordinatorTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeRequestSnapshotTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.174 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeRequestSnapshotTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentToolCallExecutorSourceScopeTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.011 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentToolCallExecutorSourceScopeTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentToolOutputProjectorTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentToolOutputProjectorTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerBaselineTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.605 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerBaselineTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerBenchmarkTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerBenchmarkTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerTest
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.630 s -- in com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.CrossTickToolCallTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.326 s -- in com.shitulelv.aicollab.agent.application.runtime.CrossTickToolCallTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.LegacyReadOnlyAgentExecutorTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.039 s -- in com.shitulelv.aicollab.agent.application.runtime.LegacyReadOnlyAgentExecutorTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.ListFactsQuestionCoverageTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.104 s -- in com.shitulelv.aicollab.agent.application.runtime.ListFactsQuestionCoverageTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.NativeToolCallingExecutorTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.037 s -- in com.shitulelv.aicollab.agent.application.runtime.NativeToolCallingExecutorTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.PersistedModelTurnRecoveryPostgresTest
+[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 69.41 s -- in com.shitulelv.aicollab.agent.application.runtime.PersistedModelTurnRecoveryPostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.PresetAwareRoutingTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.725 s -- in com.shitulelv.aicollab.agent.application.runtime.PresetAwareRoutingTest
+[INFO] Running com.shitulelv.aicollab.agent.application.runtime.RoutingAgentModelExecutorRequestConsistencyTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.026 s -- in com.shitulelv.aicollab.agent.application.runtime.RoutingAgentModelExecutorRequestConsistencyTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.AgentApprovalPolicyTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in com.shitulelv.aicollab.agent.domain.AgentApprovalPolicyTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.AgentRuntimeDomainTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in com.shitulelv.aicollab.agent.domain.AgentRuntimeDomainTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmissionTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.011 s -- in com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmissionTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.model.AgentExecutionContextTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.013 s -- in com.shitulelv.aicollab.agent.domain.model.AgentExecutionContextTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.model.AgentPageContextTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.036 s -- in com.shitulelv.aicollab.agent.domain.model.AgentPageContextTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicyTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicyTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimitsTest
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.025 s -- in com.shitulelv.aicollab.agent.domain.model.AgentRuntimeLimitsTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistryTest
+[INFO] Tests run: 36, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.044 s -- in com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistryTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.model.AgentSkillToolMappingTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.430 s -- in com.shitulelv.aicollab.agent.domain.model.AgentSkillToolMappingTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.model.DelegatedResearchCoverageTest
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.033 s -- in com.shitulelv.aicollab.agent.domain.model.DelegatedResearchCoverageTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.policy.AgentProposalArgumentMergerTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.013 s -- in com.shitulelv.aicollab.agent.domain.policy.AgentProposalArgumentMergerTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizerTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.049 s -- in com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizerTest
+[INFO] Running com.shitulelv.aicollab.agent.domain.tool.ToolArgumentValidatorTest
+[INFO] Tests run: 28, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.492 s -- in com.shitulelv.aicollab.agent.domain.tool.ToolArgumentValidatorTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentActualTokenUsageIntegrationTest
+[INFO] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 15.79 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentActualTokenUsageIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentAnalysisToolsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.166 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentAnalysisToolsTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentEventRepositoryIntegrationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.403 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentEventRepositoryIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentMigrationChecksumTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentMigrationChecksumTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.576 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentProposalContinuityIntegrationTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.074 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentProposalContinuityIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentReadToolsTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.058 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentReadToolsTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest
+[INFO] Tests run: 40, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 28.35 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryDepthTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.026 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryDepthTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.016 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentToolRegistryTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.AgentWriteProposalSpringIntegrationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 31.02 s -- in com.shitulelv.aicollab.agent.infrastructure.AgentWriteProposalSpringIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentActuatorSecurityTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.206 s -- in com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentActuatorSecurityTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentModelTransportMetricsTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.210 s -- in com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentModelTransportMetricsTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentObservabilityPostgresTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.807 s -- in com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentObservabilityPostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetricsTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.585 s -- in com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetricsTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.mcp.HttpMcpClientFacadeTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.015 s -- in com.shitulelv.aicollab.agent.infrastructure.mcp.HttpMcpClientFacadeTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.mcp.McpAdministrationPostgresIntegrationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 15.46 s -- in com.shitulelv.aicollab.agent.infrastructure.mcp.McpAdministrationPostgresIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.mcp.McpAdministrationTransactionBoundaryTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.shitulelv.aicollab.agent.infrastructure.mcp.McpAdministrationTransactionBoundaryTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.mcp.McpAgentToolProviderTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.321 s -- in com.shitulelv.aicollab.agent.infrastructure.mcp.McpAgentToolProviderTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.mcp.McpConnectionViewSerializationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.031 s -- in com.shitulelv.aicollab.agent.infrastructure.mcp.McpConnectionViewSerializationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.mcp.McpEndpointPolicyTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.009 s -- in com.shitulelv.aicollab.agent.infrastructure.mcp.McpEndpointPolicyTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.mcp.McpResultSanitizerTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.003 s -- in com.shitulelv.aicollab.agent.infrastructure.mcp.McpResultSanitizerTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.ProjectMemberListAgentToolTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.202 s -- in com.shitulelv.aicollab.agent.infrastructure.ProjectMemberListAgentToolTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.07 s -- in com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.repository.AgentWorkingStateConstraintIntegrationTest
+[INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.33 s -- in com.shitulelv.aicollab.agent.infrastructure.repository.AgentWorkingStateConstraintIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchCitationMetricsTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchCitationMetricsTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 65.86 s -- in com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolContractTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.439 s -- in com.shitulelv.aicollab.agent.infrastructure.tool.AgentToolContractTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.tool.ApprovalToolRevalidationTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.477 s -- in com.shitulelv.aicollab.agent.infrastructure.tool.ApprovalToolRevalidationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.tool.DocumentAgentToolContractTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.069 s -- in com.shitulelv.aicollab.agent.infrastructure.tool.DocumentAgentToolContractTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.tool.DocumentAgentToolsSourceScopeTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.024 s -- in com.shitulelv.aicollab.agent.infrastructure.tool.DocumentAgentToolsSourceScopeTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.tool.DocumentBodyPageBudgetIntegrationTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 38.58 s -- in com.shitulelv.aicollab.agent.infrastructure.tool.DocumentBodyPageBudgetIntegrationTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.tool.RealAgentLoopOutcomePolicyTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.025 s -- in com.shitulelv.aicollab.agent.infrastructure.tool.RealAgentLoopOutcomePolicyTest
+[INFO] Running com.shitulelv.aicollab.agent.infrastructure.tool.RealAgentLoopPostgresTest
+[WARNING] Tests run: 3, Failures: 0, Errors: 0, Skipped: 3, Time elapsed: 0 s -- in com.shitulelv.aicollab.agent.infrastructure.tool.RealAgentLoopPostgresTest
+[INFO] Running com.shitulelv.aicollab.auth.ratelimit.AuthRateLimiterTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.469 s -- in com.shitulelv.aicollab.auth.ratelimit.AuthRateLimiterTest
+[INFO] Running com.shitulelv.aicollab.auth.service.AccessTokenServiceTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.278 s -- in com.shitulelv.aicollab.auth.service.AccessTokenServiceTest
+[INFO] Running com.shitulelv.aicollab.auth.service.AuthServiceTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.858 s -- in com.shitulelv.aicollab.auth.service.AuthServiceTest
+[INFO] Running com.shitulelv.aicollab.auth.service.RefreshTokenCookieServiceTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.017 s -- in com.shitulelv.aicollab.auth.service.RefreshTokenCookieServiceTest
+[INFO] Running com.shitulelv.aicollab.auth.service.RefreshTokenHashServiceTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in com.shitulelv.aicollab.auth.service.RefreshTokenHashServiceTest
+[INFO] Running com.shitulelv.aicollab.auth.service.RegistrationPolicyTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.184 s -- in com.shitulelv.aicollab.auth.service.RegistrationPolicyTest
+[INFO] Running com.shitulelv.aicollab.common.api.JsonApiValueTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.015 s -- in com.shitulelv.aicollab.common.api.JsonApiValueTest
+[INFO] Running com.shitulelv.aicollab.common.net.EnvironmentProxySelectorTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.039 s -- in com.shitulelv.aicollab.common.net.EnvironmentProxySelectorTest
+[INFO] Running com.shitulelv.aicollab.common.net.ModelHttpProxyTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.754 s -- in com.shitulelv.aicollab.common.net.ModelHttpProxyTest
+[INFO] Running com.shitulelv.aicollab.common.net.ProxyForkStartupTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.036 s -- in com.shitulelv.aicollab.common.net.ProxyForkStartupTest
+[INFO] Running com.shitulelv.aicollab.common.net.ProxyTlsValidationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.839 s -- in com.shitulelv.aicollab.common.net.ProxyTlsValidationTest
+[INFO] Running com.shitulelv.aicollab.common.security.OutboundEndpointPolicyTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.036 s -- in com.shitulelv.aicollab.common.security.OutboundEndpointPolicyTest
+[INFO] Running com.shitulelv.aicollab.common.security.RefreshTokenPropertiesTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.306 s -- in com.shitulelv.aicollab.common.security.RefreshTokenPropertiesTest
+[INFO] Running com.shitulelv.aicollab.common.web.RequestIdMdcFilterTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.016 s -- in com.shitulelv.aicollab.common.web.RequestIdMdcFilterTest
+[INFO] Running com.shitulelv.aicollab.document.application.service.BatchReindexAuthorizationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.616 s -- in com.shitulelv.aicollab.document.application.service.BatchReindexAuthorizationTest
+[INFO] Running com.shitulelv.aicollab.document.application.service.DocumentApplicationServiceWriteStatusTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.268 s -- in com.shitulelv.aicollab.document.application.service.DocumentApplicationServiceWriteStatusTest
+[INFO] Running com.shitulelv.aicollab.document.application.service.DocumentProcessingServiceMessageTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in com.shitulelv.aicollab.document.application.service.DocumentProcessingServiceMessageTest
+[INFO] Running com.shitulelv.aicollab.document.application.service.DocumentRecoveryPostgresIntegrationTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.65 s -- in com.shitulelv.aicollab.document.application.service.DocumentRecoveryPostgresIntegrationTest
+[INFO] Running com.shitulelv.aicollab.document.application.service.DocumentRecoveryServiceTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.563 s -- in com.shitulelv.aicollab.document.application.service.DocumentRecoveryServiceTest
+[INFO] Running com.shitulelv.aicollab.document.application.service.DocumentRegistrationStatusIntegrationTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.54 s -- in com.shitulelv.aicollab.document.application.service.DocumentRegistrationStatusIntegrationTest
+[INFO] Running com.shitulelv.aicollab.document.application.service.DocumentSearchServiceScopeTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.233 s -- in com.shitulelv.aicollab.document.application.service.DocumentSearchServiceScopeTest
+[INFO] Running com.shitulelv.aicollab.document.application.service.DocumentTaskDispatcherTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.024 s -- in com.shitulelv.aicollab.document.application.service.DocumentTaskDispatcherTest
+[INFO] Running com.shitulelv.aicollab.document.infrastructure.DocumentRepositoryIntegrationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.70 s -- in com.shitulelv.aicollab.document.infrastructure.DocumentRepositoryIntegrationTest
+[INFO] Running com.shitulelv.aicollab.document.infrastructure.DocumentSourceOffsetTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.260 s -- in com.shitulelv.aicollab.document.infrastructure.DocumentSourceOffsetTest
+[INFO] Running com.shitulelv.aicollab.document.infrastructure.storage.MinioDocumentStorageGatewayTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.032 s -- in com.shitulelv.aicollab.document.infrastructure.storage.MinioDocumentStorageGatewayTest
+[INFO] Running com.shitulelv.aicollab.home.application.service.HomeAggregateTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.698 s -- in com.shitulelv.aicollab.home.application.service.HomeAggregateTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.AiInvocationRoutingTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.419 s -- in com.shitulelv.aicollab.infrastructure.ai.AiInvocationRoutingTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprintSearchTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 10.43 s -- in com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingFingerprintSearchTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingGenerationIntegrationTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.896 s -- in com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingGenerationIntegrationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.embedding.LegacyEmbeddingMigrationTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 13.35 s -- in com.shitulelv.aicollab.infrastructure.ai.embedding.LegacyEmbeddingMigrationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.embedding.OllamaEmbeddingHttpTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.549 s -- in com.shitulelv.aicollab.infrastructure.ai.embedding.OllamaEmbeddingHttpTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.embedding.OllamaEmbeddingSmokeTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.002 s -- in com.shitulelv.aicollab.infrastructure.ai.embedding.OllamaEmbeddingSmokeTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingAuthTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.174 s -- in com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingAuthTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGatewaySecurityTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.236 s -- in com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGatewaySecurityTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingGuardTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.240 s -- in com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingGuardTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingMigrationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.229 s -- in com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingMigrationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.embedding.V44MigrationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.127 s -- in com.shitulelv.aicollab.infrastructure.ai.embedding.V44MigrationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.AnthropicTurnContractTest
+[INFO] Tests run: 13, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.227 s -- in com.shitulelv.aicollab.infrastructure.ai.model.AnthropicTurnContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.CapabilityProbeBoundaryTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.255 s -- in com.shitulelv.aicollab.infrastructure.ai.model.CapabilityProbeBoundaryTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveAcceptanceTest
+[WARNING] Tests run: 10, Failures: 0, Errors: 0, Skipped: 9, Time elapsed: 0.059 s -- in com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveAcceptanceTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveTestSupportTest
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.039 s -- in com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveTestSupportTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.GeminiStreamContractTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.813 s -- in com.shitulelv.aicollab.infrastructure.ai.model.GeminiStreamContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.GeminiTurnContractTest
+[INFO] Tests run: 26, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.071 s -- in com.shitulelv.aicollab.infrastructure.ai.model.GeminiTurnContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClientSecurityTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in com.shitulelv.aicollab.infrastructure.ai.model.JsonHttpModelClientSecurityTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayModelExecutionStreamContractTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.207 s -- in com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayModelExecutionStreamContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayModelTest
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.499 s -- in com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayModelTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayStarterWiringTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.265 s -- in com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayStarterWiringTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayTransportLogSafetyTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.025 s -- in com.shitulelv.aicollab.infrastructure.ai.model.KiloGatewayTransportLogSafetyTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ModelCapabilityPolicyTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ModelCapabilityPolicyTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ModelContentPreviewObservationTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.032 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ModelContentPreviewObservationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ModelMasterKeyFailFastTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ModelMasterKeyFailFastTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ModelProtocolHttpTest
+[INFO] Tests run: 35, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.290 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ModelProtocolHttpTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderAdapterContractTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.011 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ModelProviderAdapterContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipherTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipherTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.OpenAiTurnContractTest
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.036 s -- in com.shitulelv.aicollab.infrastructure.ai.model.OpenAiTurnContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.OpenAiTurnStreamingTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.210 s -- in com.shitulelv.aicollab.infrastructure.ai.model.OpenAiTurnStreamingTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.OpenCodeZenSmokeTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.002 s -- in com.shitulelv.aicollab.infrastructure.ai.model.OpenCodeZenSmokeTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGatewayKiloDisabledTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.026 s -- in com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGatewayKiloDisabledTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGatewayTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.024 s -- in com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGatewayTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ZenKnowledgeStreamContractTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.471 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ZenKnowledgeStreamContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ZenModelWiringTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.042 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ZenModelWiringTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ZenPlanningContractTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.043 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ZenPlanningContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ZenStarterWiringTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.029 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ZenStarterWiringTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.model.ZenUpstreamRoutingTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.025 s -- in com.shitulelv.aicollab.infrastructure.ai.model.ZenUpstreamRoutingTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.OpenAiCompatibleChatModelGatewayTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.238 s -- in com.shitulelv.aicollab.infrastructure.ai.OpenAiCompatibleChatModelGatewayTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnContractTest
+[INFO] Tests run: 42, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.048 s -- in com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityDetectAndConfigureTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.383 s -- in com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityDetectAndConfigureTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbePlanningContractTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.058 s -- in com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbePlanningContractTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbeResultTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.014 s -- in com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityProbeResultTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityWriteBackIntegrationTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.120 s -- in com.shitulelv.aicollab.infrastructure.ai.user.AiCapabilityWriteBackIntegrationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetIsolationIntegrationTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.691 s -- in com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetIsolationIntegrationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetServiceTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetServiceTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.ProjectModelToUserMigrationTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.725 s -- in com.shitulelv.aicollab.infrastructure.ai.user.ProjectModelToUserMigrationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.ProviderEndpointRulesTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in com.shitulelv.aicollab.infrastructure.ai.user.ProviderEndpointRulesTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.ProviderEndpointValidationTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.010 s -- in com.shitulelv.aicollab.infrastructure.ai.user.ProviderEndpointValidationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.ProviderModelDiscoveryServiceTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.021 s -- in com.shitulelv.aicollab.infrastructure.ai.user.ProviderModelDiscoveryServiceTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.UserAiMigrationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.516 s -- in com.shitulelv.aicollab.infrastructure.ai.user.UserAiMigrationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderOwnershipTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.033 s -- in com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderOwnershipTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderPresetGuardTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderPresetGuardTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderPresetTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.203 s -- in com.shitulelv.aicollab.infrastructure.ai.user.UserAiProviderPresetTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.UserModelPurposeAssignmentMigrationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.777 s -- in com.shitulelv.aicollab.infrastructure.ai.user.UserModelPurposeAssignmentMigrationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.ai.user.ZenDisconnectIntegrationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.080 s -- in com.shitulelv.aicollab.infrastructure.ai.user.ZenDisconnectIntegrationTest
+[INFO] Running com.shitulelv.aicollab.infrastructure.storage.MinioHealthIndicatorTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.008 s -- in com.shitulelv.aicollab.infrastructure.storage.MinioHealthIndicatorTest
+[INFO] Running com.shitulelv.aicollab.knowledge.application.service.KnowledgeRateLimiterTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in com.shitulelv.aicollab.knowledge.application.service.KnowledgeRateLimiterTest
+[INFO] Running com.shitulelv.aicollab.knowledge.domain.service.CrossDocumentSourceIdentityFixTest
+[INFO] Running B. ͬ�ĵ������ظ��۵�
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in B. ͬ�ĵ������ظ��۵�
+[INFO] Running E. ��Ŀ�������ĵ���Χ��֤
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in E. ��Ŀ�������ĵ���Χ��֤
+[INFO] Running C. ��Դ�����������Դ����
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in C. ��Դ�����������Դ����
+[INFO] Running F. �ȶ�������߽�����
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in F. �ȶ�������߽�����
+[INFO] Running D. ��Դ����������У��
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.004 s -- in D. ��Դ����������У��
+[INFO] Running A. Q09 ԭʼ�����������޸���֤
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in A. Q09 ԭʼ�����������޸���֤
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.041 s -- in com.shitulelv.aicollab.knowledge.domain.service.CrossDocumentSourceIdentityFixTest
+[INFO] Running com.shitulelv.aicollab.knowledge.domain.service.CrossDocumentSourceSelectorTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.019 s -- in com.shitulelv.aicollab.knowledge.domain.service.CrossDocumentSourceSelectorTest
+[INFO] Running com.shitulelv.aicollab.knowledge.domain.service.FrozenKnowledgeQualityRegressionTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.043 s -- in com.shitulelv.aicollab.knowledge.domain.service.FrozenKnowledgeQualityRegressionTest
+[INFO] Running com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.021 s -- in com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest
+[INFO] Running com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilderTest
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.039 s -- in com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilderTest
+[INFO] Running com.shitulelv.aicollab.notification.NotificationNavigationPostgresTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.199 s -- in com.shitulelv.aicollab.notification.NotificationNavigationPostgresTest
+[INFO] Running com.shitulelv.aicollab.planning.api.PlanningOpenApiContractTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.285 s -- in com.shitulelv.aicollab.planning.api.PlanningOpenApiContractTest
+[INFO] Running com.shitulelv.aicollab.planning.application.GenerationOutcomeDeciderTest
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.027 s -- in com.shitulelv.aicollab.planning.application.GenerationOutcomeDeciderTest
+[INFO] Running com.shitulelv.aicollab.planning.application.KiloPlanningJsonContractTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in com.shitulelv.aicollab.planning.application.KiloPlanningJsonContractTest
+[INFO] Running com.shitulelv.aicollab.planning.application.Phase08EditableDegradationIntegrationTest
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.622 s -- in com.shitulelv.aicollab.planning.application.Phase08EditableDegradationIntegrationTest
+[INFO] Running com.shitulelv.aicollab.planning.application.PlanningGenerationQuotaServiceTest
+[INFO] Tests run: 22, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.245 s -- in com.shitulelv.aicollab.planning.application.PlanningGenerationQuotaServiceTest
+[INFO] Running com.shitulelv.aicollab.planning.application.PlanningPromptPolicyTest
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.018 s -- in com.shitulelv.aicollab.planning.application.PlanningPromptPolicyTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanActionPolicyTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in com.shitulelv.aicollab.planning.application.TaskPlanActionPolicyTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanEditTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.282 s -- in com.shitulelv.aicollab.planning.application.TaskPlanEditTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanEventViewTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.010 s -- in com.shitulelv.aicollab.planning.application.TaskPlanEventViewTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorIntegrationTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 17.84 s -- in com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorIntegrationTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.565 s -- in com.shitulelv.aicollab.planning.application.TaskPlanGenerationOrchestratorTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanModelClientTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.160 s -- in com.shitulelv.aicollab.planning.application.TaskPlanModelClientTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanOutputParserTest
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.092 s -- in com.shitulelv.aicollab.planning.application.TaskPlanOutputParserTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanPartialRegenerateTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.016 s -- in com.shitulelv.aicollab.planning.application.TaskPlanPartialRegenerateTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanProductionWiringPostgresIntegrationTest
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 15.61 s -- in com.shitulelv.aicollab.planning.application.TaskPlanProductionWiringPostgresIntegrationTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanQueryServiceTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.014 s -- in com.shitulelv.aicollab.planning.application.TaskPlanQueryServiceTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanRecoveryPostgresIntegrationTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 11.11 s -- in com.shitulelv.aicollab.planning.application.TaskPlanRecoveryPostgresIntegrationTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanSkeletonSchemaTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in com.shitulelv.aicollab.planning.application.TaskPlanSkeletonSchemaTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 15.58 s -- in com.shitulelv.aicollab.planning.application.TaskPlanSpringBeanPostgresIntegrationTest
+[INFO] Running com.shitulelv.aicollab.planning.application.TaskPlanVersionCommitServiceTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.025 s -- in com.shitulelv.aicollab.planning.application.TaskPlanVersionCommitServiceTest
+[INFO] Running com.shitulelv.aicollab.planning.domain.TaskPlanDomainTest
+[INFO] Tests run: 26, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.031 s -- in com.shitulelv.aicollab.planning.domain.TaskPlanDomainTest
+[INFO] Running com.shitulelv.aicollab.planning.domain.TaskPlanDraftNormalizerTest
+[INFO] Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.015 s -- in com.shitulelv.aicollab.planning.domain.TaskPlanDraftNormalizerTest
+[INFO] Running com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidatorRuleCatalogTest
+[INFO] Tests run: 16, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in com.shitulelv.aicollab.planning.domain.TaskPlanDraftValidatorRuleCatalogTest
+[INFO] Running com.shitulelv.aicollab.planning.domain.TaskPlanRepairPatchTest
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.064 s -- in com.shitulelv.aicollab.planning.domain.TaskPlanRepairPatchTest
+[INFO] Running com.shitulelv.aicollab.planning.domain.ValidationIssueCatalogTest
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.022 s -- in com.shitulelv.aicollab.planning.domain.ValidationIssueCatalogTest
+[INFO] Running com.shitulelv.aicollab.planning.infrastructure.Phase08MigrationSafetyIntegrationTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.919 s -- in com.shitulelv.aicollab.planning.infrastructure.Phase08MigrationSafetyIntegrationTest
+[INFO] Running com.shitulelv.aicollab.planning.infrastructure.PlanningMigrationIntegrationTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.902 s -- in com.shitulelv.aicollab.planning.infrastructure.PlanningMigrationIntegrationTest
+[INFO] Running com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepositoryIntegrationTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.336 s -- in com.shitulelv.aicollab.planning.infrastructure.TaskPlanRepositoryIntegrationTest
+[INFO] Running com.shitulelv.aicollab.project.application.service.AuditServiceTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.842 s -- in com.shitulelv.aicollab.project.application.service.AuditServiceTest
+[INFO] Running com.shitulelv.aicollab.project.application.service.AuditSummaryFormatterTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.030 s -- in com.shitulelv.aicollab.project.application.service.AuditSummaryFormatterTest
+[INFO] Running com.shitulelv.aicollab.project.application.service.ProjectDashboardAuditPostgresIntegrationTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 36.65 s -- in com.shitulelv.aicollab.project.application.service.ProjectDashboardAuditPostgresIntegrationTest
+[INFO] Running com.shitulelv.aicollab.project.application.service.ProjectOwnershipTransferPostgresIntegrationTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.647 s -- in com.shitulelv.aicollab.project.application.service.ProjectOwnershipTransferPostgresIntegrationTest
+[INFO] Running com.shitulelv.aicollab.project.domain.policy.ProjectWritePolicyTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.shitulelv.aicollab.project.domain.policy.ProjectWritePolicyTest
+[INFO] Running com.shitulelv.aicollab.retrieval.AgentRetrievalQualityPostgresTest
+[WARNING] Tests run: 4, Failures: 0, Errors: 0, Skipped: 4, Time elapsed: 0 s -- in com.shitulelv.aicollab.retrieval.AgentRetrievalQualityPostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.CrossDocumentSourceSelectorStrategyExperimentTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.026 s -- in com.shitulelv.aicollab.retrieval.CrossDocumentSourceSelectorStrategyExperimentTest
+[INFO] Running com.shitulelv.aicollab.retrieval.EvidenceValueExperimentTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.020 s -- in com.shitulelv.aicollab.retrieval.EvidenceValueExperimentTest
+[INFO] Running com.shitulelv.aicollab.retrieval.GeminiAnswerQualityFixtureTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.023 s -- in com.shitulelv.aicollab.retrieval.GeminiAnswerQualityFixtureTest
+[INFO] Running com.shitulelv.aicollab.retrieval.GeminiKnowledgeAnswerQualityPostgresTest
+[WARNING] Tests run: 2, Failures: 0, Errors: 0, Skipped: 2, Time elapsed: 0 s -- in com.shitulelv.aicollab.retrieval.GeminiKnowledgeAnswerQualityPostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.LongDocumentChunkingExperimentTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in com.shitulelv.aicollab.retrieval.LongDocumentChunkingExperimentTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P10AnswerQualityOfflineEvaluationTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.036 s -- in com.shitulelv.aicollab.retrieval.P10AnswerQualityOfflineEvaluationTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P10NetworkProxyDiagnosticTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0 s -- in com.shitulelv.aicollab.retrieval.P10NetworkProxyDiagnosticTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P10RealGenerationGateTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.shitulelv.aicollab.retrieval.P10RealGenerationGateTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P10RealGenerationPostgresTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0 s -- in com.shitulelv.aicollab.retrieval.P10RealGenerationPostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P4RagQaSourceIdentityAcceptancePostgresTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0 s -- in com.shitulelv.aicollab.retrieval.P4RagQaSourceIdentityAcceptancePostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P4RagQualityDiagnosticPostgresTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.495 s -- in com.shitulelv.aicollab.retrieval.P4RagQualityDiagnosticPostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P6QaSourceSelectionExperimentTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.012 s -- in com.shitulelv.aicollab.retrieval.P6QaSourceSelectionExperimentTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P6RagQualityBaselinePostgresTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0 s -- in com.shitulelv.aicollab.retrieval.P6RagQualityBaselinePostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P8AgentRagCrossLayerPostgresTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.001 s -- in com.shitulelv.aicollab.retrieval.P8AgentRagCrossLayerPostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P8EvidenceStrategyCounterexampleTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in com.shitulelv.aicollab.retrieval.P8EvidenceStrategyCounterexampleTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P8RagQualityFixExperimentPostgresTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0 s -- in com.shitulelv.aicollab.retrieval.P8RagQualityFixExperimentPostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.P9RagGeneralizationPostgresTest
+[WARNING] Tests run: 1, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0 s -- in com.shitulelv.aicollab.retrieval.P9RagGeneralizationPostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.RealChunkingRetrievalComparisonPostgresTest
+[WARNING] Tests run: 2, Failures: 0, Errors: 0, Skipped: 2, Time elapsed: 0 s -- in com.shitulelv.aicollab.retrieval.RealChunkingRetrievalComparisonPostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest
+[WARNING] Tests run: 16, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 9.715 s -- in com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.RetrievalCoverageTest
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.007 s -- in com.shitulelv.aicollab.retrieval.RetrievalCoverageTest
+[INFO] Running com.shitulelv.aicollab.retrieval.RetrievalQualityHardGatePostgresTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.203 s -- in com.shitulelv.aicollab.retrieval.RetrievalQualityHardGatePostgresTest
+[INFO] Running com.shitulelv.aicollab.retrieval.SourceCapStrategyExperimentParityTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.001 s -- in com.shitulelv.aicollab.retrieval.SourceCapStrategyExperimentParityTest
+[INFO] Running com.shitulelv.aicollab.user.service.AccountServiceTest
+[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.005 s -- in com.shitulelv.aicollab.user.service.AccountServiceTest
+[INFO] Running com.shitulelv.aicollab.user.service.AdminServiceAuthorizationTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.108 s -- in com.shitulelv.aicollab.user.service.AdminServiceAuthorizationTest
+[INFO] Running com.shitulelv.aicollab.work.application.service.MilestoneApplicationServiceTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.127 s -- in com.shitulelv.aicollab.work.application.service.MilestoneApplicationServiceTest
+[INFO] Running com.shitulelv.aicollab.work.application.service.ProjectDateRangePolicyTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.002 s -- in com.shitulelv.aicollab.work.application.service.ProjectDateRangePolicyTest
+[INFO] Tests run: 1830, Failures: 0, Errors: 0, Skipped: 40
+[WARNING] Classes in bundle 'ai-collab-backend' do not match with execution data. For report generation the same class files must be used as at runtime.
+[WARNING] Execution data for class com/shitulelv/aicollab/common/net/ProxyRouteDiagnostics$SocketAddressChoice does not match.
+[WARNING] Execution data for class com/shitulelv/aicollab/common/net/ProxyRouteDiagnostics does not match.
+[INFO] BUILD SUCCESS
+[INFO] Total time:  16:38 min
+[INFO] Finished at: 2026-10-26T14:06:50+08:00

@@ -7,8 +7,6 @@ import com.sharedlibs.opencodezen.autoconfigure.OpenCodeZenRequestFactory;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
-import java.net.Proxy;
-import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -23,7 +21,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * JDK HttpClient Zen transport. Policy (endpoint/identity) comes from {@link ProviderPresetRegistry}.
- * Explicit DIRECT (NO_PROXY), Redirect.NEVER, runtime endpoint validation.
+ * Shared client-scoped proxy policy, Redirect.NEVER, runtime endpoint validation.
  *
  * <p>免费准入由共享库 {@code OpenCodeZenFreeAdmissionPolicy} 决定；本类只把白名单与上游实时列表相交，
  * 供界面列出可选模型。凭证无关的公共模型目录不再被抓取。</p>
@@ -44,8 +42,8 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
         this.endpoints = endpoints;
         this.registry = registry;
         this.requestFactory = requestFactory;
-        this.production = HttpClient.newBuilder().proxy(HttpClient.Builder.NO_PROXY).followRedirects(HttpClient.Redirect.NEVER).build();
-        this.settings = HttpClient.newBuilder().proxy(HttpClient.Builder.NO_PROXY).followRedirects(HttpClient.Redirect.NEVER).connectTimeout(Duration.ofSeconds(45)).build();
+        this.production = com.shitulelv.aicollab.common.net.OutboundHttpClients.builder().build();
+        this.settings = com.shitulelv.aicollab.common.net.OutboundHttpClients.builder().connectTimeout(Duration.ofSeconds(45)).build();
     }
 
     public HttpOpenCodeZenTransport(ObjectMapper mapper, OutboundEndpointPolicy endpoints, ProviderPresetRegistry registry) {
@@ -72,8 +70,6 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
     ProviderPresetRegistry.PresetPolicy policy() {
         return registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE);
     }
-
-    public static boolean isDirect(HttpClient client) { return client.proxy().map(s -> s == HttpClient.Builder.NO_PROXY).orElse(false); }
 
     public HttpClient productionClient() { return production; }
 
@@ -134,33 +130,4 @@ public class HttpOpenCodeZenTransport implements OpenCodeZenTransport {
         }
     }
 
-    @Override
-    public void validateCredential(String apiKey, String model, AiRequestMetadata metadata) {
-        if (model == null || model.isBlank()) throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model required");
-        // Use the same client envelope and SSE parser as inference, with a bounded
-        // settings deadline. A completion probe does not certify tools or planning.
-        try (var probe = new ProbeClient(mapper, endpoints, settings)) {
-            var pol = policy();
-            var now = java.time.OffsetDateTime.now();
-            var config = new ModelConfiguration(null, null, pol.displayName(), pol.protocol(),
-                    pol.baseUrl(), pol.completionPath(), null, model.strip(), true, 0, 256, pol.capabilities(), now, now);
-            new OpenAiCompatibleModelAdapter(mapper, probe.client, requestFactory)
-                    .completeStreamingSyncWithSession(config,
-                    apiKey == null ? null : apiKey.strip(), new com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand(
-                            "Synthetic connection probe.", "Return only {\"action\":\"finish\"}."), metadata, pol.userAgent());
-        } catch (BusinessException e) { throw e; }
-        catch (Exception e) { throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR); }
-    }
-
-    public static ProxySelector directSelector() { return HttpClient.Builder.NO_PROXY; }
-
-    public static Proxy directProxy() { return Proxy.NO_PROXY; }
-
-    private static final class ProbeClient implements AutoCloseable {
-        final JsonHttpModelClient client;
-        ProbeClient(ObjectMapper mapper, OutboundEndpointPolicy endpoints, HttpClient http) {
-            client = new JsonHttpModelClient(mapper, endpoints, http, Duration.ofSeconds(45));
-        }
-        @Override public void close() { client.close(); }
-    }
 }

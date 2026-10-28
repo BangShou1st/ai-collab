@@ -1,0 +1,53 @@
+{
+  "benchmark": "p9-rag-generalization-01",
+  "errataId": "p9-rag-generalization-01-errata-20261026",
+  "issuedAt": "2026-10-26",
+  "sourceBaselineSha": "3891171ecfc81a3929993f9f77989fed61ea5c85",
+  "evidenceCommits": ["52bdb68", "efafbc2"],
+  "corrections": [
+    {
+      "id": "E1-LONG-DOC-SIZE",
+      "incorrectClaim": "G01 覆盖约 1,000 / 3,000 / 6,000 / 10,000 字长文档压力分层",
+      "actual": {
+        "A1-设备巡检维护简则.md": 721,
+        "A2-设备维护管理细则.md": 1436,
+        "A3-中央机组维护手册.md": 2633,
+        "A4-全厂设施维护总册.md": 3353
+      },
+      "unit": "unicode code points（corpus-manifest.json 冻结值）",
+      "correctStatement": "已覆盖不同长度与事实位置的合成文档，最长约 3,353 cp；6,000～10,000 量级长文档压力验证尚未执行"
+    },
+    {
+      "id": "E2-CHUNK-COUNTING",
+      "incorrectClaim": "175 chunks 作为语料规模（未区分事件与唯一）",
+      "actual": {
+        "uniqueCorpus": { "documents": 23, "chunks": 161 },
+        "residentIndex": { "documents": 22, "chunks": 154 },
+        "tempIndexEvents": { "document": "F4-外部审计参考摘录-未审核来源.md", "times": 3, "chunksPerIndexing": 7 },
+        "cumulativeWorkload": { "documentInsertionEvents": 25, "chunkInsertionEvents": 175 }
+      },
+      "correctStatement": "同一时刻参与检索的唯一分块最多 161（注入期）或 154（常驻）；175 为累计 chunk 入库事件"
+    },
+    {
+      "id": "E3-GENERALIZATION-BOUNDARY",
+      "incorrectClaim": "旧冻结集显著低估 Agent 泛化水平",
+      "correctStatement": "新独立合成集上的 Agent 保留率明显高于旧冻结集，说明旧集结果不能直接代表其他语料的典型表现；但单一新合成集无法估计真实用户文档总体的平均泛化水平",
+      "unchangedSupportingData": { "oldSetAgentRetention": "22/27", "p9AgentRetention": "51/54", "sameSha": "3891171" }
+    }
+  ],
+  "unchangedConclusions": [
+    "QA 52/54、Agent 51/54、agent12 53/54、Recall@8 53/54、Recall@20 54/54",
+    "失败 4 例：Agent 名额 ×2、QA 名额 ×1、QA 召回+名额 ×1；BODY_TRUNCATION/身份/越界 0",
+    "冲突条款暴露 QA 6/7、Agent 7/7",
+    "P6 旧冻结集回归逐事实零差异（REGRESSION_CLEAN）"
+  ],
+  "verificationNote": "全部数字由冻结文件直接读取核对：corpus-manifest.json（长度/哈希）与 retrieval-results.json corpus[]（25 条事件、F4×3、chunkCount 求和 175；唯一求和 161）。本 errata 未重新运行任何测量、未修改任何冻结文件。",
+  "affectedLivingDocs": [
+    "docs/design/rag-generalization-benchmark.md（长度分层表述已同步修正）"
+  ],
+  "frozenDocsUntouched": [
+    "docs/archive/research/p9-rag-generalization-01-research-20261026.md",
+    "docs/archive/reports/p9-rag-generalization-01-delivery-20261026.md",
+    "docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01/（全部原始 JSON/manifest/README/failure-analysis）"
+  ]
+}

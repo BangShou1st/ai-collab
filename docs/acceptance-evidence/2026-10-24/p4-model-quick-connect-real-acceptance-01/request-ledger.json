@@ -1,0 +1,39 @@
+{
+  "task": "P4-MODEL-QUICK-CONNECT-REAL-ACCEPTANCE-01",
+  "generated_at": "2026-10-24",
+  "budget": {
+    "authorized_max_generation_requests": 14,
+    "used": 9,
+    "unused": 5,
+    "scope": "仅 Gemini 与 Kilo（按本轮授权调整；Zen 预算 0）"
+  },
+  "generation_requests": [
+    { "seq": 1, "provider": "Kilo Gateway Free", "model": "nvidia/nemotron-3.5-lightning:free", "purpose": "CONNECTIVITY 探针", "result": "PASS", "at": "2026-10-24T00:15:27Z" },
+    { "seq": 2, "provider": "Kilo Gateway Free", "model": "nvidia/nemotron-3.5-lightning:free", "purpose": "STREAMING 探针", "result": "PASS", "at": "2026-10-24T00:15:44Z" },
+    { "seq": 3, "provider": "Kilo Gateway Free", "model": "nvidia/nemotron-3.5-lightning:free", "purpose": "NATIVE_TOOLS 探针", "result": "PASS", "at": "2026-10-24T00:15:45Z" },
+    { "seq": 4, "provider": "Gemini", "model": "gemini-3.5-flash-lite", "purpose": "CONNECTIVITY 探针", "result": "PASS", "at": "2026-10-24T00:16:46Z" },
+    { "seq": 5, "provider": "Gemini", "model": "gemini-3.5-flash-lite", "purpose": "STREAMING 探针", "result": "PASS", "at": "2026-10-24T00:16:46Z" },
+    { "seq": 6, "provider": "Gemini", "model": "gemini-3.5-flash-lite", "purpose": "浏览器知识问答（真实 SSE）", "result": "PASS", "at": "2026-10-24T00:18:55Z" },
+    { "seq": 7, "provider": "Kilo Gateway Free", "model": "nvidia/nemotron-3.5-lightning:free", "purpose": "CONNECTIVITY 探针（复查运行）", "result": "PASS", "at": "2026-10-24T00:22:00Z" },
+    { "seq": 8, "provider": "Kilo Gateway Free", "model": "nvidia/nemotron-3.5-lightning:free", "purpose": "STREAMING 探针（复查运行）", "result": "PASS", "at": "2026-10-24T00:22:14Z" },
+    { "seq": 9, "provider": "Kilo Gateway Free", "model": "nvidia/nemotron-3.5-lightning:free", "purpose": "NATIVE_TOOLS 探针（复查运行）", "result": "PASS", "at": "2026-10-24T00:22:15Z" }
+  ],
+  "failed_or_retried_generation_requests": 0,
+  "non_generation_outbound": [
+    { "type": "模型发现（只读 GET，单独记录，不计生成）", "target": "Kilo Gateway 免费目录", "count": 3, "detail": "手动刷新 1 次 + 两次套件准入核对 2 次" },
+    { "type": "模型发现（只读 GET）", "target": "Gemini models 端点（旧格式硬编码 path 推导 404）", "count": 2, "detail": "两次套件发现步骤，分类 INCONCLUSIVE" },
+    { "type": "探针出站（非模型服务）", "target": "example.com（IANA 保留域，STALE 隔离配置）", "count": 3, "detail": "发现 GET 404 + 连接 POST 405 + 流式 405，全部 INCONCLUSIVE，不产生任何模型生成" }
+  ],
+  "zen": {
+    "generation_requests": 0,
+    "status": "UPSTREAM_RATE_LIMITED_NOT_RETESTED",
+    "note": "按本轮授权约束未向 Zen 发起任何真实生成请求；未高频刷新 Zen 目录、未重复失败探针、未换模型/身份绕过限流。该状态为上游真实外部可用性限制，不代表统一接入框架失败。"
+  },
+  "planning_json": {
+    "requests": 0,
+    "status": "NOT_EXECUTED",
+    "reason": "预算优先级约束：套件无单步跳过机制，执行规划探针需连带 CONNECTIVITY+STREAMING（2 次）+ 规划契约（≤4 次），剩余预算 5 次无法保证不突破 14 次硬上限；按任务书优先级先保证连接/流式/知识问答"
+  },
+  "native_tools": { "requests": 3, "status": "PASS（Kilo，两次运行）", "detail": "合成工具 capability_probe，仅校验名称与参数，未执行任何有副作用工具" },
+  "guard_note": "全部 9 次生成均由人工/浏览器明确触发（统一套件按钮或知识问答提交），无测试套件自动调用，无后台重试放大；台账为逐请求记录而非手工估算"
+}

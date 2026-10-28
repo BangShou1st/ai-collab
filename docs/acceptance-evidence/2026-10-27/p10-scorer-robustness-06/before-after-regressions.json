@@ -1,0 +1,157 @@
+[ {
+  "riskId" : "RISK-AUDIT2-001",
+  "baselineCase" : "1A_REAL_CORPUS_DURATION_SUBSTRING",
+  "baselineAnswer" : "资料不足，无法确认；但通常每年核对 10 份合同 [S1]。",
+  "beforeFixActual" : {
+    "scorerVersion" : "2.0-scoped-contextual-v5",
+    "unsupportedNumberCandidates" : [ ],
+    "abstentionEvaluation" : "HONEST_ABSTENTION",
+    "abstentionCorrect" : true,
+    "highSeverity" : [ ],
+    "versionAccuracy" : [ ],
+    "forbiddenAffirmationDetails" : [ ]
+  }
+}, {
+  "riskId" : "RISK-AUDIT2-002",
+  "baselineCase" : "2A_GROUPED_CITATION_S8_S9",
+  "baselineAnswer" : "根据资料 [S8, S9]，当前项目资料不足以回答。",
+  "beforeFixActual" : {
+    "scorerVersion" : "2.0-scoped-contextual-v5",
+    "unsupportedNumberCandidates" : [ "8", "9" ],
+    "abstentionEvaluation" : "CONFLICTING_FABRICATION",
+    "abstentionCorrect" : false,
+    "highSeverity" : [ "CITATION_IDENTITY_INVALID:引用了不存在的来源编号", "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[8, 9]" ],
+    "versionAccuracy" : [ ],
+    "forbiddenAffirmationDetails" : [ ]
+  }
+}, {
+  "riskId" : "RISK-AUDIT2-003",
+  "baselineCase" : "3A_DEL_STRONG_NESTED_NEGATION",
+  "baselineAnswer" : "根据资料，<del><strong>不可以</strong></del>先组织培训再补签合同 [S1]。",
+  "beforeFixActual" : {
+    "scorerVersion" : "2.0-scoped-contextual-v5",
+    "unsupportedNumberCandidates" : [ ],
+    "abstentionEvaluation" : "NOT_APPLICABLE",
+    "abstentionCorrect" : null,
+    "highSeverity" : [ ],
+    "versionAccuracy" : [ ],
+    "forbiddenAffirmationDetails" : [ ],
+    "normalizedAnswer" : "根据资料,<del>不可以</del>先组织培训再补签合同 [S1]。"
+  }
+}, {
+  "riskId" : "RISK-AUDIT2-004",
+  "baselineCase" : "4A_IRRELEVANT_NAME_STRIKETHROUGH",
+  "baselineAnswer" : "根据项目制度，经办人~~李四~~可以先组织培训再补签合同 [S1]。",
+  "beforeFixActual" : {
+    "scorerVersion" : "2.0-scoped-contextual-v5",
+    "unsupportedNumberCandidates" : [ ],
+    "abstentionEvaluation" : "NOT_APPLICABLE",
+    "abstentionCorrect" : null,
+    "highSeverity" : [ ],
+    "versionAccuracy" : [ ],
+    "forbiddenAffirmationDetails" : [ {
+      "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+      "sentence" : "经办人~~李四~~可以先组织培训再补签合同 [S1]"
+    } ]
+  }
+}, {
+  "riskId" : "RISK-AUDIT2-006",
+  "baselineCase" : "5A_LEGACY_QUALIFIER_BEFORE_CURRENT_CLAIM",
+  "baselineAnswer" : "根据原规定，现行标准为四百元 [S1]。",
+  "beforeFixActual" : {
+    "scorerVersion" : "2.0-scoped-contextual-v5",
+    "unsupportedNumberCandidates" : [ ],
+    "abstentionEvaluation" : "NOT_APPLICABLE",
+    "abstentionCorrect" : null,
+    "highSeverity" : [ ],
+    "versionAccuracy" : [ {
+      "legacyMarker" : "四百",
+      "unqualifiedSentences" : [ ],
+      "verdict" : "LEGACY_QUALIFIED"
+    } ],
+    "forbiddenAffirmationDetails" : [ ]
+  }
+}, {
+  "riskId" : "RISK-AUDIT2-007",
+  "baselineCase" : "6A_BUSINESS_SCOPE_EXCLUSION",
+  "baselineAnswer" : "除固定资产盘点外，各项目可以先组织培训再补签合同 [S1]。",
+  "beforeFixActual" : {
+    "scorerVersion" : "2.0-scoped-contextual-v5",
+    "unsupportedNumberCandidates" : [ ],
+    "abstentionEvaluation" : "NOT_APPLICABLE",
+    "abstentionCorrect" : null,
+    "highSeverity" : [ ],
+    "versionAccuracy" : [ ],
+    "forbiddenAffirmationDetails" : [ {
+      "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+      "sentence" : "各项目可以先组织培训再补签合同 [S1]"
+    } ]
+  }
+}, {
+  "riskId" : "RISK-AUDIT2-008",
+  "baselineCase" : "7A_UNENUMERATED_SUBJECT_AFTER_CONJUNCTION",
+  "baselineAnswer" : "资料并未明确具体事项且负责人可以先组织培训再补签合同 [S1]。",
+  "beforeFixActual" : {
+    "scorerVersion" : "2.0-scoped-contextual-v5",
+    "unsupportedNumberCandidates" : [ ],
+    "abstentionEvaluation" : "NOT_APPLICABLE",
+    "abstentionCorrect" : null,
+    "highSeverity" : [ ],
+    "versionAccuracy" : [ ],
+    "forbiddenAffirmationDetails" : [ {
+      "verdict" : "NEGATED_OR_EPISTEMIC_MENTION",
+      "sentence" : "资料并未明确具体事项且负责人可以先组织培训再补签合同 [S1]"
+    } ]
+  }
+}, {
+  "afterFixCase" : "1A_REAL_CORPUS_DURATION_SUBSTRING",
+  "afterFixActual" : {
+    "unsupportedNumberCandidates" : [ "10 份" ],
+    "abstentionVerdict" : "CONFLICTING_FABRICATION",
+    "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[10 份]" ]
+  },
+  "riskId" : "RISK-AUDIT2-001"
+}, {
+  "afterFixCase" : "2A_GROUPED_CITATION_S8_S9",
+  "afterFixActual" : {
+    "unsupportedNumberCandidates" : [ ],
+    "abstentionVerdict" : "HONEST_ABSTENTION"
+  },
+  "riskId" : "RISK-AUDIT2-002"
+}, {
+  "afterFixCase" : "3A_DEL_STRONG_NESTED_NEGATION",
+  "afterFixActual" : {
+    "normalizedAnswer" : "根据资料,~~不可以~~先组织培训再补签合同 [S1]。",
+    "highSeverity" : [ ],
+    "verdict" : "AMBIGUOUS_NEEDS_REVIEW"
+  },
+  "riskId" : "RISK-AUDIT2-003"
+}, {
+  "afterFixCase" : "4A_IRRELEVANT_NAME_STRIKETHROUGH",
+  "afterFixActual" : {
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
+  },
+  "riskId" : "RISK-AUDIT2-004"
+}, {
+  "afterFixCase" : "5A_LEGACY_QUALIFIER_BEFORE_CURRENT_CLAIM",
+  "afterFixActual" : {
+    "versionVerdict" : "VERSION_VIOLATION",
+    "highSeverity" : [ "VERSION_VIOLATION:旧/废止/他方条款以现行口径出现：四百" ]
+  },
+  "riskId" : "RISK-AUDIT2-006"
+}, {
+  "afterFixCase" : "6A_BUSINESS_SCOPE_EXCLUSION",
+  "afterFixActual" : {
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
+  },
+  "riskId" : "RISK-AUDIT2-007"
+}, {
+  "afterFixCase" : "7A_UNENUMERATED_SUBJECT_AFTER_CONJUNCTION",
+  "afterFixActual" : {
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
+  },
+  "riskId" : "RISK-AUDIT2-008"
+} ]

@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.agent.infrastructure.tool.ApprovalToolRevalidationTest
+-------------------------------------------------------------------------------
+Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.229 s -- in com.shitulelv.aicollab.agent.infrastructure.tool.ApprovalToolRevalidationTest

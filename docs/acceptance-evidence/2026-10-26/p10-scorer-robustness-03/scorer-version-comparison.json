@@ -1,0 +1,13 @@
+{
+  "task" : "P10-SCORER-ROBUSTNESS-03",
+  "legacyVersion" : "1.0-legacy",
+  "robustVersion" : "2.0-scoped-contextual-v3",
+  "falsePositivesFixed" : 3,
+  "falseNegativesAdded" : 0,
+  "affirmativeViolationsTested" : 7,
+  "affirmativeViolationsDetectedRate" : 1.0,
+  "scopeRegressionCasesTested" : 11,
+  "scopeRegressionCasesPassed" : 11,
+  "reviewCasesAdded" : 3,
+  "goldenAnswersFalsePositiveCount" : 0
+}

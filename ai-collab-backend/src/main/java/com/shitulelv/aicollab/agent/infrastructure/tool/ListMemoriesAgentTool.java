@@ -18,6 +18,9 @@ public class ListMemoriesAgentTool implements AgentTool {
     }
     @Override public String name() { return "list_project_memories"; }
     @Override public boolean writesBusinessData() { return false; }
+    @Override public com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety executionSafety() {
+        return com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety.SAFE_READ;
+    }
     @Override public AgentToolDefinition definition() {
         return AgentToolDefinition.fromJson(name(), "读取当前项目最多 10 条有效记忆",
                 "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{}}", false);

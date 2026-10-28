@@ -26,7 +26,6 @@ import WeeklyReportView from './modules/work/WeeklyReportView.vue'
 import RiskAnalysisView from './modules/work/RiskAnalysisView.vue'
 import PlanComparisonView from './modules/work/PlanComparisonView.vue'
 import AgentView from './modules/agent/AgentView.vue'
-import ProjectModelSettings from './modules/project/ProjectModelSettings.vue'
 import AdminView from './modules/admin/AdminView.vue'
 
 export const router = createRouter({
@@ -56,7 +55,6 @@ export const router = createRouter({
     { path: '/projects/:projectId/knowledge', component: KnowledgeView, meta: { title: '知识问答' } },
     { path: '/projects/:projectId/ai-planning', component: PlanningView, meta: { title: 'AI 任务规划' } },
     { path: '/projects/:projectId/agent', component: AgentView, meta: { title: '项目协作 Agent' } },
-    { path: '/projects/:projectId/model-settings', component: ProjectModelSettings, meta: { title: '模型配置' } },
     { path: '/projects/:projectId/integrations', component: ProjectIntegrationsView, meta: { title: '集成与 MCP' } },
     { path: '/projects/:projectId/audit-logs', component: AuditLogView, meta: { title: '操作日志' } },
     { path: '/notifications', component: NotificationView, meta: { title: '通知中心' } },

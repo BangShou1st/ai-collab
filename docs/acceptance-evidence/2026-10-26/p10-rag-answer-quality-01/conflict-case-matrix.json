@@ -1,0 +1,109 @@
+{
+  "purpose": "版本/跨来源冲突题矩阵：正确条款、干扰条款与 P9 冲突暴露实测",
+  "keyFinding": "P9 实测中全部干扰条款几乎都与正确条款同时可见（QA 6/7、Agent 7/7），冲突辨别责任在生成层",
+  "cases": [
+    {
+      "id": "AQ01-CURRENT",
+      "dimension": "VERSION_CURRENT",
+      "conflictType": "VERSION",
+      "expectedFacts": [
+        "住宿费标准为每晚五百元"
+      ],
+      "conflictingClaims": [
+        {
+          "marker": "住宿费标准为每晚四百元",
+          "note": "V1 已废止旧标准，不得作为现行答案"
+        }
+      ],
+      "legacyRule": {
+        "legacyMarkers": [
+          "四百"
+        ],
+        "requiredContextWords": [
+          "V1",
+          "旧",
+          "原",
+          "2024",
+          "曾经",
+          "废止",
+          "此前",
+          "调整前",
+          "原来是"
+        ]
+      },
+      "p9Exposure": [
+        {
+          "marker": "住宿费标准为每晚四百元",
+          "qaVisible": true,
+          "agentVisible": true
+        }
+      ]
+    },
+    {
+      "id": "AQ02-REPEALED",
+      "dimension": "VERSION_REPEALED",
+      "conflictType": "VERSION",
+      "expectedFacts": [
+        "住宿费按当晚标准报销"
+      ],
+      "conflictingClaims": [
+        {
+          "marker": "加班次日的住宿费不予报销",
+          "note": "该条款已被 D3 废止，不得作为现行答案"
+        }
+      ],
+      "legacyRule": {
+        "legacyMarkers": [
+          "不予报销"
+        ],
+        "requiredContextWords": [
+          "已废止",
+          "原",
+          "此前",
+          "V2.0 办法第六章",
+          "不再",
+          "曾经"
+        ]
+      },
+      "p9Exposure": [
+        {
+          "marker": "加班次日的住宿费不予报销",
+          "qaVisible": true,
+          "agentVisible": true
+        }
+      ]
+    },
+    {
+      "id": "AQ04-REGION-THRESHOLD",
+      "dimension": "REGION_CONFLICT",
+      "conflictType": "CROSS_SOURCE",
+      "expectedFacts": [
+        "盘点差异率超过百分之二的",
+        "三个工作日内提交书面说明"
+      ],
+      "conflictingClaims": [
+        {
+          "marker": "盘点差异率超过百分之五的",
+          "note": "华南阈值"
+        },
+        {
+          "marker": "盘点差异率超过百分之一即触发专项审计",
+          "note": "总部阈值"
+        }
+      ],
+      "legacyRule": null,
+      "p9Exposure": [
+        {
+          "marker": "盘点差异率超过百分之五的",
+          "qaVisible": true,
+          "agentVisible": true
+        },
+        {
+          "marker": "盘点差异率超过百分之一即触发专项审计",
+          "qaVisible": false,
+          "agentVisible": true
+        }
+      ]
+    }
+  ]
+}

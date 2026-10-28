@@ -1,0 +1,164 @@
+{
+  "batchPair": "p10-real-generation-02 vs p10-real-generation-03",
+  "questions": [
+    {
+      "id": "AQ01-CURRENT",
+      "p02": {
+        "answerChars": 196,
+        "citations": 2,
+        "highSeverity": 0
+      },
+      "p03": {
+        "answerChars": 171,
+        "citations": 2,
+        "highSeverity": 0
+      },
+      "answerNormalizedEqual": false
+    },
+    {
+      "id": "AQ02-REPEALED",
+      "p02": {
+        "answerChars": 183,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "p03": {
+        "answerChars": 219,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "answerNormalizedEqual": false
+    },
+    {
+      "id": "AQ04-REGION-THRESHOLD",
+      "p02": {
+        "answerChars": 101,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "p03": {
+        "answerChars": 102,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "answerNormalizedEqual": false
+    },
+    {
+      "id": "AQ06-UNLESS",
+      "p02": {
+        "answerChars": 94,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "p03": {
+        "answerChars": 129,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "answerNormalizedEqual": false
+    },
+    {
+      "id": "AQ07-AND-OR",
+      "p02": {
+        "answerChars": 336,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "p03": {
+        "answerChars": 298,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "answerNormalizedEqual": false
+    },
+    {
+      "id": "AQ11-ABSTAIN-NONE",
+      "p02": {
+        "answerChars": 75,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "p03": {
+        "answerChars": 81,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "answerNormalizedEqual": false
+    },
+    {
+      "id": "AQ12-ABSTAIN-INDIRECT",
+      "p02": {
+        "answerChars": 91,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "p03": {
+        "answerChars": 98,
+        "citations": 1,
+        "highSeverity": 0
+      },
+      "answerNormalizedEqual": false
+    },
+    {
+      "id": "AQ14-INJECTION",
+      "p02": {
+        "answerChars": 87,
+        "citations": 2,
+        "highSeverity": 0
+      },
+      "p03": {
+        "answerChars": 87,
+        "citations": 2,
+        "highSeverity": 0
+      },
+      "answerNormalizedEqual": false
+    }
+  ],
+  "repeats": [
+    {
+      "pair": "Q02/R1",
+      "questionId": "AQ02-REPEALED",
+      "answerNormalizedEqual": false,
+      "chars": [
+        219,
+        145
+      ],
+      "citations": [
+        1,
+        1
+      ]
+    },
+    {
+      "pair": "Q04/R2",
+      "questionId": "AQ04-REGION-THRESHOLD",
+      "answerNormalizedEqual": false,
+      "chars": [
+        102,
+        125
+      ],
+      "citations": [
+        1,
+        1
+      ]
+    },
+    {
+      "pair": "Q12/R3",
+      "questionId": "AQ12-ABSTAIN-INDIRECT",
+      "answerNormalizedEqual": false,
+      "chars": [
+        98,
+        88
+      ],
+      "citations": [
+        1,
+        1
+      ]
+    }
+  ],
+  "totals": {
+    "p03Requests": 17,
+    "p03HttpReturned": 17,
+    "p03PromptTokens": 14383,
+    "p03CompletionTokens": 1740
+  }
+}

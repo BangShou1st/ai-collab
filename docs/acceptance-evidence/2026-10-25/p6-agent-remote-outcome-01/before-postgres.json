@@ -1,0 +1,221 @@
+[
+  {
+    "name": "AgentRemoteOutcomePostgresTest",
+    "tests": "3",
+    "failures": "2",
+    "errors": "0",
+    "skipped": "0",
+    "cases": [
+      {
+        "name": "batchSettlementMustPreserveUnknown",
+        "failure": null
+      },
+      {
+        "name": "newToolCallIdMustNotRepeatAnUnconfirmedEffect",
+        "failure": "\nExpecting AtomicInteger(1) to have value:\n  0\nbut did not."
+      },
+      {
+        "name": "unknownCannotBeOverwrittenByLateSuccess",
+        "failure": "\nExpecting code to raise a throwable."
+      }
+    ]
+  },
+  {
+    "name": "AgentPauseResumePostgresTest",
+    "tests": "21",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "cases": [
+      {
+        "name": "queuedRunPausesAndResumesWithIdempotentCommands",
+        "failure": null
+      },
+      {
+        "name": "savedTextAnswerSurvivesPauseAndWorkerBudgetPrecheck",
+        "failure": null
+      },
+      {
+        "name": "runWithoutPauseIntentReportsNullPauseTime",
+        "failure": null
+      },
+      {
+        "name": "queuedCallsBehindSemaphoreDoNotStartAfterPause",
+        "failure": null
+      },
+      {
+        "name": "planningAcceptanceRespectsPauseIntentAndRecoversTheSameOperation",
+        "failure": null
+      },
+      {
+        "name": "terminalAndWaitingStatesRejectPauseAndResume",
+        "failure": null
+      },
+      {
+        "name": "coordinatorSettlesPauseAfterSummaryAdmissionWithoutMainRequest",
+        "failure": null
+      },
+      {
+        "name": "boundInputOnActiveRunNeverFallsIntoCreateRun",
+        "failure": null
+      },
+      {
+        "name": "queuedDeadlineAndPausePreservePendingUntilResume",
+        "failure": null
+      },
+      {
+        "name": "staleClaimCannotConfirmPauseAfterTakeover",
+        "failure": null
+      },
+      {
+        "name": "summaryFirstRequestIsAdmittedThroughPauseBoundary",
+        "failure": null
+      },
+      {
+        "name": "inFlightSummaryWithPauseIntentDoesNotStartRecompress",
+        "failure": null
+      },
+      {
+        "name": "resumeIssuesNextRequestWithCurrentConfiguration",
+        "failure": null
+      },
+      {
+        "name": "summaryAdmissionRejectsExpiredClaim",
+        "failure": null
+      },
+      {
+        "name": "partialToolBatchPauseKeepsPendingAndResumeExecutesOnlyRemaining",
+        "failure": null
+      },
+      {
+        "name": "staleBoundResumeInputOnTerminalRunStaysInControlScope",
+        "failure": null
+      },
+      {
+        "name": "queuedCallsCannotPersistAfterCancellationOrLeaseLoss",
+        "failure": null
+      },
+      {
+        "name": "inFlightResponseIsSavedThenRunPausesWithPendingTools",
+        "failure": null
+      },
+      {
+        "name": "controlTransactionFailureRollsBackStateMarkerAndEvent",
+        "failure": null
+      },
+      {
+        "name": "submitEntryRoutesResumeIntentsWithoutTouchingTheGoal",
+        "failure": null
+      },
+      {
+        "name": "retryableRunPauseBlocksSchedulingAndResumeKeepsRetryCount",
+        "failure": null
+      }
+    ]
+  },
+  {
+    "name": "PersistedModelTurnRecoveryPostgresTest",
+    "tests": "24",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "cases": [
+      {
+        "name": "needsFinalRequestIntentSurvivesTakeoverAsBudgetPartial",
+        "failure": null
+      },
+      {
+        "name": "persistedPlainTextTurnIsReusedWithoutAnotherModelCall",
+        "failure": null
+      },
+      {
+        "name": "legacyReadOnlyWriteCallStillRejected",
+        "failure": null
+      },
+      {
+        "name": "postSaveRecountDoesNotRewriteNonFinalizingIntent",
+        "failure": null
+      },
+      {
+        "name": "staleClaimCannotConsumeTheSavedTurnAfterTakeover",
+        "failure": null
+      },
+      {
+        "name": "modelTurnBoundaryFinalizeAnswerSurvivesTakeoverOnBothPaths",
+        "failure": null
+      },
+      {
+        "name": "canceledRunStillEndsAsCanceledWithoutConsumingTheSavedTurn",
+        "failure": null
+      },
+      {
+        "name": "legacyTurnWithoutIntentMetadataFallsBackConservatively",
+        "failure": null
+      },
+      {
+        "name": "geminiToolCallIdRemainsUniqueAfterRunContextCoversPreviousCallAndRecoveryReusesIt",
+        "failure": null
+      },
+      {
+        "name": "persistedQuestionsTurnRecoversIntoWaitingForUserInput",
+        "failure": null
+      },
+      {
+        "name": "actualInputOversetStopsToolBatchOnBothPaths",
+        "failure": null
+      },
+      {
+        "name": "legacyNativePlanningCallEntersRecoveryChain",
+        "failure": null
+      },
+      {
+        "name": "explicitFinalizingToolResponseStillRejected",
+        "failure": null
+      },
+      {
+        "name": "persistedBudgetFinalizeTurnKeepsPartialAnswerSemantics",
+        "failure": null
+      },
+      {
+        "name": "fullyCompletedToolBatchRecoveryReusesAllResultsWithoutRecharge",
+        "failure": null
+      },
+      {
+        "name": "trulyOverBudgetRemainingCallsStillRejected",
+        "failure": null
+      },
+      {
+        "name": "savedResultSurvivesRemovedModelConfiguration",
+        "failure": null
+      },
+      {
+        "name": "stepBoundaryFinalizeAnswerSurvivesTakeoverOnBothPaths",
+        "failure": null
+      },
+      {
+        "name": "repeatedTakeoverDoesNotConsumeTheSavedTurnTwice",
+        "failure": null
+      },
+      {
+        "name": "overSingleTurnLimitBatchStillRejected",
+        "failure": null
+      },
+      {
+        "name": "actualInputOversetStopsTextAnswerOnBothPaths",
+        "failure": null
+      },
+      {
+        "name": "blankTextTurnIsNotTreatedAsAReusableResult",
+        "failure": null
+      },
+      {
+        "name": "partialToolBatchRecoveryExecutesOnlyTheRemainingCalls",
+        "failure": null
+      },
+      {
+        "name": "persistedToolBatchStillRecoversThroughTheToolExecutor",
+        "failure": null
+      }
+    ]
+  }
+]

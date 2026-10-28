@@ -84,3 +84,13 @@ agent.enabled=false 关闭 Agent；agent.capabilities.planning=false 关闭规�
   无法取得旧版二进制来产出旧格式数据。上述空卷验证不能代表生产数据兼容。
   正式部署前须用隔离 fixture 单独验证旧数据升级。
 - 本轮未执行正式部署、未操作业务数据卷、未改动业务库或用户 AI 配置。
+
+## 备份与恢复工具集（2026-10-24 增补）
+
+`ai-collab-deploy/backup/` 提供可执行、可验证、不触碰业务数据的备份/恢复脚本：
+`backup-postgres.sh`（pg_dump -Fc + 完整性校验 + SHA256 + 保留策略）、`backup-minio.sh`
+（mc mirror + mc diff 校验 + 清单）、`restore-postgres.sh` / `restore-minio.sh`（显式目标 +
+业务容器守卫）、`verify-restore-consistency.sh`（关键表行数 + `project_document.object_key`
+↔ 对象文件对应核验）、`run-restore-drill.sh`（一键隔离演练）。用法、配置变量与隔离演练
+结论见 `ai-collab-deploy/backup/README.md` 与
+`docs/release-readiness/p5-release-readiness-02/backup-restore-runbook.md`。

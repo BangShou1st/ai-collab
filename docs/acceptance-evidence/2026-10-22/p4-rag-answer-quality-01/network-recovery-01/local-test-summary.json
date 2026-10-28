@@ -1,0 +1,93 @@
+{
+  "liveConnectivity": {
+    "command": "AI_GEMINI_LIVE_TESTS=true AI_GEMINI_ACCEPTANCE_RECOVERY=network-recovery-01 mvnw.cmd -B -ntp -Dtest=GeminiLiveAcceptanceTest#networkRecovery_minimalOkWithoutRetry -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=7897 test",
+    "tests": 1,
+    "passed": 0,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "exitCode": 0,
+    "providerOutcome": "INCONCLUSIVE_HTTP_503",
+    "generationAttempts": 1,
+    "durationSeconds": 17.486
+  },
+  "offline": {
+    "command": "AI_GEMINI_LIVE_TESTS=false mvnw.cmd -B -ntp -Dtest=GeminiLiveTestSupportTest,GeminiTurnContractTest,GeminiStreamContractTest,KnowledgeContextBuilderTest,KnowledgeCitationValidatorTest,RoutingChatModelGatewayTest,GeminiAnswerQualityFixtureTest,GeminiLiveAcceptanceTest#networkRecovery_minimalOkWithoutRetry test",
+    "tests": 85,
+    "passed": 84,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "exitCode": 0,
+    "durationSeconds": 9.022,
+    "classes": [
+      {
+        "name": "com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveAcceptanceTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1
+      },
+      {
+        "name": "com.shitulelv.aicollab.infrastructure.ai.model.GeminiLiveTestSupportTest",
+        "tests": 16,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.infrastructure.ai.model.GeminiStreamContractTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.infrastructure.ai.model.GeminiTurnContractTest",
+        "tests": 26,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.infrastructure.ai.model.RoutingChatModelGatewayTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidatorTest",
+        "tests": 9,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilderTest",
+        "tests": 18,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "com.shitulelv.aicollab.retrieval.GeminiAnswerQualityFixtureTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ]
+  },
+  "fullVerifyRerun": false,
+  "frontendChanged": false,
+  "frontendTestsRerun": false,
+  "testcontainersStartedThisContinuation": false,
+  "artifactChecks": {
+    "credentialScanFiles": 9,
+    "credentialMatches": 0,
+    "frozenInputsUnchanged": true,
+    "localMarkdownLinks": "passed",
+    "gitDiffCheck": "passed"
+  }
+}

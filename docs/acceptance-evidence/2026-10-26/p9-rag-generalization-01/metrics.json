@@ -1,0 +1,672 @@
+{
+  "benchmark": "p9-rag-generalization-01",
+  "generatedAt": "2026-10-25",
+  "baselineSha": "3891171ecfc81a3929993f9f77989fed61ea5c85",
+  "embeddingModel": "qwen3-embedding:0.6b",
+  "corpus": {
+    "documents": 25,
+    "chunks": 175,
+    "embeddingInputCodePoints": 21500
+  },
+  "productionGeneration": "REAL_GENERATION_NOT_EXECUTED",
+  "recall": {
+    "at8": {
+      "indexedFacts": 54,
+      "hits": 53,
+      "ratio": 0.9815
+    },
+    "at20": {
+      "indexedFacts": 54,
+      "hits": 54,
+      "ratio": 1
+    }
+  },
+  "overall": {
+    "qa": {
+      "retained": 52,
+      "truncation": 0,
+      "retrievalMiss": 1,
+      "selectionMiss": 1,
+      "indexMiss": 0,
+      "total": 54,
+      "ratio": 0.963
+    },
+    "qaLegacy": {
+      "retained": 53,
+      "truncation": 0,
+      "retrievalMiss": 1,
+      "selectionMiss": 0,
+      "indexMiss": 0,
+      "total": 54,
+      "ratio": 0.9815
+    },
+    "agent": {
+      "retained": 51,
+      "truncation": 0,
+      "retrievalMiss": 0,
+      "selectionMiss": 3,
+      "indexMiss": 0,
+      "total": 54,
+      "ratio": 0.9444
+    },
+    "agentLimit12": {
+      "retained": 53,
+      "truncation": 0,
+      "retrievalMiss": 0,
+      "selectionMiss": 1,
+      "indexMiss": 0,
+      "total": 54,
+      "ratio": 0.9815
+    },
+    "completeCoverageQa": {
+      "questions": 35,
+      "answerable": 37,
+      "ratio": 0.9459
+    },
+    "completeCoverageAgent": {
+      "questions": 34,
+      "answerable": 37,
+      "ratio": 0.9189
+    }
+  },
+  "bySet": {
+    "dev": {
+      "qa": {
+        "ratio": 0.9394,
+        "total": 33,
+        "retained": 31
+      },
+      "agent": {
+        "ratio": 0.9394,
+        "total": 33,
+        "retained": 31
+      },
+      "completeCoverageQa": {
+        "ratio": 0.9048,
+        "answerable": 21,
+        "questions": 19
+      },
+      "completeCoverageAgent": {
+        "ratio": 0.9048,
+        "answerable": 21,
+        "questions": 19
+      }
+    },
+    "holdout": {
+      "qa": {
+        "ratio": 1,
+        "total": 21,
+        "retained": 21
+      },
+      "agent": {
+        "ratio": 0.9524,
+        "total": 21,
+        "retained": 20
+      },
+      "completeCoverageQa": {
+        "ratio": 1,
+        "answerable": 16,
+        "questions": 16
+      },
+      "completeCoverageAgent": {
+        "ratio": 0.9375,
+        "answerable": 16,
+        "questions": 15
+      }
+    }
+  },
+  "byDimension": {
+    "G01_LONG_DOC": {
+      "qa": {
+        "ratio": 1,
+        "total": 11,
+        "retained": 11
+      },
+      "agent": {
+        "ratio": 0.9091,
+        "total": 11,
+        "retained": 10
+      },
+      "completeCoverageAgent": {
+        "ratio": 0.9091,
+        "answerable": 11,
+        "questions": 10
+      }
+    },
+    "G02_CROSS_DOC": {
+      "qa": {
+        "ratio": 0.9167,
+        "total": 12,
+        "retained": 11
+      },
+      "agent": {
+        "ratio": 0.9167,
+        "total": 12,
+        "retained": 11
+      },
+      "completeCoverageAgent": {
+        "ratio": 0.75,
+        "answerable": 4,
+        "questions": 3
+      }
+    },
+    "G03_COMPLEMENTARY": {
+      "qa": {
+        "ratio": 0.875,
+        "total": 8,
+        "retained": 7
+      },
+      "agent": {
+        "ratio": 0.875,
+        "total": 8,
+        "retained": 7
+      },
+      "completeCoverageAgent": {
+        "ratio": 0.75,
+        "answerable": 4,
+        "questions": 3
+      }
+    },
+    "G06_SIMILAR_SOURCES": {
+      "qa": {
+        "ratio": 1,
+        "total": 7,
+        "retained": 7
+      },
+      "agent": {
+        "ratio": 1,
+        "total": 7,
+        "retained": 7
+      },
+      "completeCoverageAgent": {
+        "ratio": 1,
+        "answerable": 4,
+        "questions": 4
+      }
+    },
+    "G08_PARAPHRASE": {
+      "qa": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "agent": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "completeCoverageAgent": {
+        "ratio": 1,
+        "answerable": 4,
+        "questions": 4
+      }
+    },
+    "G04_VERSION_CONFLICT": {
+      "qa": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "agent": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "completeCoverageAgent": {
+        "ratio": 1,
+        "answerable": 3,
+        "questions": 3
+      }
+    },
+    "G05_CONDITION": {
+      "qa": {
+        "ratio": 1,
+        "total": 5,
+        "retained": 5
+      },
+      "agent": {
+        "ratio": 1,
+        "total": 5,
+        "retained": 5
+      },
+      "completeCoverageAgent": {
+        "ratio": 1,
+        "answerable": 4,
+        "questions": 4
+      }
+    },
+    "G07_UNANSWERABLE": {
+      "qa": {
+        "ratio": 1,
+        "total": 2,
+        "retained": 2
+      },
+      "agent": {
+        "ratio": 1,
+        "total": 2,
+        "retained": 2
+      },
+      "completeCoverageAgent": {
+        "ratio": 1,
+        "answerable": 2,
+        "questions": 2
+      }
+    },
+    "G07_INJECTION": {
+      "qa": {
+        "ratio": 1,
+        "total": 1,
+        "retained": 1
+      },
+      "agent": {
+        "ratio": 1,
+        "total": 1,
+        "retained": 1
+      },
+      "completeCoverageAgent": {
+        "ratio": 1,
+        "answerable": 1,
+        "questions": 1
+      }
+    }
+  },
+  "byDocLength": {
+    "short": {
+      "qa": {
+        "ratio": 0.9524,
+        "total": 42,
+        "retained": 40
+      },
+      "agent": {
+        "ratio": 0.9524,
+        "total": 42,
+        "retained": 40
+      }
+    },
+    "medium": {
+      "qa": {
+        "ratio": 1,
+        "total": 5,
+        "retained": 5
+      },
+      "agent": {
+        "ratio": 1,
+        "total": 5,
+        "retained": 5
+      }
+    },
+    "long": {
+      "qa": {
+        "ratio": 1,
+        "total": 3,
+        "retained": 3
+      },
+      "agent": {
+        "ratio": 1,
+        "total": 3,
+        "retained": 3
+      }
+    },
+    "xlong": {
+      "qa": {
+        "ratio": 1,
+        "total": 4,
+        "retained": 4
+      },
+      "agent": {
+        "ratio": 0.75,
+        "total": 4,
+        "retained": 3
+      }
+    }
+  },
+  "byCrossDocCount": {
+    "1": {
+      "qa": {
+        "ratio": 0.9737,
+        "total": 38,
+        "retained": 37
+      },
+      "agent": {
+        "ratio": 0.9474,
+        "total": 38,
+        "retained": 36
+      }
+    },
+    "2docs": {
+      "qa": {
+        "ratio": 1,
+        "total": 8,
+        "retained": 8
+      },
+      "agent": {
+        "ratio": 1,
+        "total": 8,
+        "retained": 8
+      }
+    },
+    "3docs": {
+      "qa": {
+        "ratio": 0.6667,
+        "total": 3,
+        "retained": 2
+      },
+      "agent": {
+        "ratio": 0.6667,
+        "total": 3,
+        "retained": 2
+      }
+    },
+    "4docs": {
+      "qa": {
+        "ratio": 1,
+        "total": 5,
+        "retained": 5
+      },
+      "agent": {
+        "ratio": 1,
+        "total": 5,
+        "retained": 5
+      }
+    }
+  },
+  "byFactCount": {
+    "0": {
+      "qa": {
+        "ratio": 0,
+        "total": 0,
+        "retained": 0
+      },
+      "agent": {
+        "ratio": 0,
+        "total": 0,
+        "retained": 0
+      }
+    },
+    "1": {
+      "qa": {
+        "ratio": 1,
+        "total": 24,
+        "retained": 24
+      },
+      "agent": {
+        "ratio": 0.9583,
+        "total": 24,
+        "retained": 23
+      }
+    },
+    "2": {
+      "qa": {
+        "ratio": 0.9545,
+        "total": 22,
+        "retained": 21
+      },
+      "agent": {
+        "ratio": 0.9545,
+        "total": 22,
+        "retained": 21
+      }
+    },
+    "3+": {
+      "qa": {
+        "ratio": 0.875,
+        "total": 8,
+        "retained": 7
+      },
+      "agent": {
+        "ratio": 0.875,
+        "total": 8,
+        "retained": 7
+      }
+    }
+  },
+  "conflictExposure": {
+    "definition": "已废止/他方干扰条款同时保留为最终可见证据的比例（数值高=识别冲突的负担全部落在生成端）",
+    "distractFacts": [
+      {
+        "question": "G06-C-1",
+        "marker": "盘点差异率超过百分之五的",
+        "note": "华南中心阈值，不得作为华东答案",
+        "qaRetained": true,
+        "agentToolRetained": true
+      },
+      {
+        "question": "G06-C-1",
+        "marker": "盘点差异率超过百分之一即触发专项审计",
+        "note": "总部阈值，不得作为华东答案",
+        "qaRetained": false,
+        "agentToolRetained": true
+      },
+      {
+        "question": "G06-C-4",
+        "marker": "华南中心固定资产盘点每年开展一次",
+        "note": "华南频率，不得作为华东答案",
+        "qaRetained": true,
+        "agentToolRetained": true
+      },
+      {
+        "question": "H-G04-CURRENT",
+        "marker": "住宿费标准为每晚四百元",
+        "note": "V1旧标准已随V2废止，不得作为现行答案",
+        "qaRetained": true,
+        "agentToolRetained": true
+      },
+      {
+        "question": "H-G04-REPEALED",
+        "marker": "加班次日的住宿费不予报销",
+        "note": "该条款已被D3补充通知废止，不得作为最终答案",
+        "qaRetained": true,
+        "agentToolRetained": true
+      },
+      {
+        "question": "H-G02-CROSS-D",
+        "marker": "十五个工作日内",
+        "note": "V1的十五个工作日已废止",
+        "qaRetained": true,
+        "agentToolRetained": true
+      },
+      {
+        "question": "H-G07-SIMILAR",
+        "marker": "凭证影像保存周期设定为十年",
+        "note": "外部同行做法且未经内部审核，不得作为公司规范答案",
+        "qaRetained": true,
+        "agentToolRetained": true
+      }
+    ]
+  },
+  "falseEvidenceProxy": {
+    "definition": "拒答题/干扰题中干扰文档进入最终上下文或工具摘录（覆盖语义为 RELEVANT_EXCERPTS_ONLY，诚实拒答责任在生成端）",
+    "questions": [
+      {
+        "question": "G06-C-1",
+        "abstain": false,
+        "evidence": [
+          {
+            "inQaContext": true,
+            "document": "C2-资产盘点操作规范-华南中心.md",
+            "inAgentToolQuote": true
+          },
+          {
+            "inQaContext": false,
+            "document": "C3-资产盘点操作规范-总部本部.md",
+            "inAgentToolQuote": true
+          }
+        ]
+      },
+      {
+        "question": "G06-C-2",
+        "abstain": false,
+        "evidence": [
+          {
+            "inQaContext": true,
+            "document": "C3-资产盘点操作规范-总部本部.md",
+            "inAgentToolQuote": true
+          }
+        ]
+      },
+      {
+        "question": "G06-C-3",
+        "abstain": false,
+        "evidence": [
+          {
+            "inQaContext": false,
+            "document": "C1-资产盘点操作规范-华东中心.md",
+            "inAgentToolQuote": true
+          },
+          {
+            "inQaContext": false,
+            "document": "C2-资产盘点操作规范-华南中心.md",
+            "inAgentToolQuote": true
+          }
+        ]
+      },
+      {
+        "question": "G06-C-4",
+        "abstain": false,
+        "evidence": [
+          {
+            "inQaContext": true,
+            "document": "C2-资产盘点操作规范-华南中心.md",
+            "inAgentToolQuote": true
+          }
+        ]
+      },
+      {
+        "question": "H-G04-CURRENT",
+        "abstain": false,
+        "evidence": [
+          {
+            "inQaContext": true,
+            "document": "D1-差旅费管理办法V1.md",
+            "inAgentToolQuote": true
+          }
+        ]
+      },
+      {
+        "question": "H-G04-REPEALED",
+        "abstain": false,
+        "evidence": [
+          {
+            "inQaContext": true,
+            "document": "D2-差旅费管理办法V2.md",
+            "inAgentToolQuote": true
+          }
+        ]
+      },
+      {
+        "question": "H-G02-CROSS-D",
+        "abstain": false,
+        "evidence": [
+          {
+            "inQaContext": true,
+            "document": "D1-差旅费管理办法V1.md",
+            "inAgentToolQuote": true
+          }
+        ]
+      },
+      {
+        "question": "H-G07-NONE",
+        "abstain": true,
+        "evidence": [
+          {
+            "inQaContext": true,
+            "document": "F1-审计核对工作指引.md",
+            "inAgentToolQuote": true
+          },
+          {
+            "inQaContext": true,
+            "document": "F4-外部审计参考摘录-未审核来源.md",
+            "inAgentToolQuote": true
+          }
+        ]
+      },
+      {
+        "question": "H-G07-INDIRECT",
+        "abstain": true,
+        "evidence": [
+          {
+            "inQaContext": true,
+            "document": "F1-审计核对工作指引.md",
+            "inAgentToolQuote": true
+          }
+        ]
+      },
+      {
+        "question": "H-G07-UNDETERMINED",
+        "abstain": false,
+        "evidence": [
+          {
+            "inQaContext": true,
+            "document": "F1-审计核对工作指引.md",
+            "inAgentToolQuote": true
+          }
+        ]
+      },
+      {
+        "question": "H-G07-SIMILAR",
+        "abstain": false,
+        "evidence": [
+          {
+            "inQaContext": true,
+            "document": "F4-外部审计参考摘录-未审核来源.md",
+            "inAgentToolQuote": true
+          }
+        ]
+      }
+    ]
+  },
+  "integrity": {
+    "identityViolations": 0,
+    "scopeViolations": 0
+  },
+  "failures": [
+    {
+      "question": "G01-A4-BOUNDARY",
+      "dimension": "G01_LONG_DOC",
+      "document": "A4-全厂设施维护总册.md",
+      "marker": "消防水泵每月自动试运转一次",
+      "diagnosticFullRank": 4,
+      "top8Rank": 4,
+      "top20Rank": 4,
+      "primaryCause": "SELECTION_MISS:SOURCE_CAP(agent名额)",
+      "agentToolStage": "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "agent12Stage": "RETAINED"
+    },
+    {
+      "question": "G02-B-3DOCS",
+      "dimension": "G02_CROSS_DOC",
+      "document": "B2-服务交接审批流程.md",
+      "marker": "退回发起节点",
+      "diagnosticFullRank": 15,
+      "top8Rank": 0,
+      "top20Rank": 15,
+      "primaryCause": "RETRIEVAL_MISS",
+      "agentToolStage": "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "agent12Stage": "SELECTION_MISS:SOURCE_CAP"
+    },
+    {
+      "question": "G03-B2-COMPLEMENT",
+      "dimension": "G03_COMPLEMENTARY",
+      "document": "B2-服务交接审批流程.md",
+      "marker": "退回发起节点",
+      "diagnosticFullRank": 4,
+      "top8Rank": 4,
+      "top20Rank": 4,
+      "primaryCause": "SELECTION_MISS:SOURCE_CAP",
+      "agentToolStage": "RETAINED",
+      "agent12Stage": "RETAINED"
+    },
+    {
+      "question": "H-G03-E3-COMPLEMENT",
+      "dimension": "G03_COMPLEMENTARY",
+      "document": "E3-紧急变更处理办法.md",
+      "marker": "四个工作小时内补交书面记录",
+      "diagnosticFullRank": 2,
+      "top8Rank": 2,
+      "top20Rank": 2,
+      "primaryCause": "SELECTION_MISS:SOURCE_CAP(agent名额)",
+      "agentToolStage": "SELECTION_MISS:NOT_IN_TOOL_RESULT",
+      "agent12Stage": "RETAINED"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "providerReceipt": "NOT_TESTED_NO_HTTP_APPLICATION_REQUEST",
+  "targetHost": "generativelanguage.googleapis.com",
+  "source": "JDK_SYSTEM_SELECTOR",
+  "selection": "PROXY",
+  "proxyPort": 7897,
+  "connectTls": "NOT_TESTED_BY_SELECTION",
+  "systemDiscoveryProperty": "true",
+  "proxyHost": "127.0.0.1",
+  "processId": 35216,
+  "parentProcessId": 34920,
+  "systemDiscoveryStartupArgument": true,
+  "nativeSystemProxySelected": true,
+  "connect": "NOT_TESTED",
+  "tls": "NOT_TESTED",
+  "chatRequests": 0
+}

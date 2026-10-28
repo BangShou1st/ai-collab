@@ -113,4 +113,85 @@ class KnowledgeCitationValidatorTest {
         assertThat(result.citedSources().get(1).chunkId()).isEqualTo(chunkA);
         assertThat(result.citedSources().get(1).documentId()).isEqualTo(documentA);
     }
+
+    // ---- P6-RAG-QUALITY-01 D3：受限分组引用格式的确定性契约 ----
+    // 边界口径：本类只断言 citation_number_valid（编号合法、身份映射正确、持久化引用集合）；
+    // 引文正文是否语义支持结论（citation_claim_supported）属于人工审查维度，不在机械校验范围内。
+
+    @Test
+    void grouped_citations_all_valid_are_kept_and_persist_both_sources() {
+        List<KnowledgeSource> sources = List.of(source(1), source(2));
+        ValidatedKnowledgeAnswer result = validator.validate("灰度要求见 [S1, S2]。", sources);
+
+        assertThat(result.insufficientEvidence()).isFalse();
+        assertThat(result.invalidCitationCount()).isZero();
+        assertThat(result.answer()).isEqualTo("灰度要求见 [S1, S2]。");
+        assertThat(result.citedSources()).extracting(KnowledgeSource::rank).containsExactly(1, 2);
+    }
+
+    @Test
+    void grouped_citations_without_spaces_and_with_many_members_are_supported() {
+        ValidatedKnowledgeAnswer result =
+                validator.validate("结论 [S2,S3] 成立。", List.of(source(1), source(2), source(3)));
+
+        assertThat(result.citedSources()).extracting(KnowledgeSource::rank).containsExactly(2, 3);
+        assertThat(result.answer()).isEqualTo("结论 [S2,S3] 成立。");
+    }
+
+    @Test
+    void grouped_citations_with_partial_invalid_members_drop_only_the_invalid_numbers() {
+        ValidatedKnowledgeAnswer result =
+                validator.validate("结论 [S1, S9] 与 [S8, S2]。", List.of(source(1), source(2)));
+
+        assertThat(result.invalidCitationCount()).isEqualTo(2);
+        assertThat(result.citedSources()).extracting(KnowledgeSource::rank).containsExactly(1, 2);
+        assertThat(result.answer()).isEqualTo("结论 [S1] 与 [S2]。");
+    }
+
+    @Test
+    void grouped_citations_all_invalid_are_removed_entirely() {
+        ValidatedKnowledgeAnswer result = validator.validate("仅分组 [S8, S9]。", List.of(source(1)));
+
+        assertThat(result.insufficientEvidence()).isTrue();
+        assertThat(result.invalidCitationCount()).isEqualTo(2);
+        assertThat(result.citedSources()).isEmpty();
+    }
+
+    @Test
+    void grouped_citations_with_duplicate_members_keep_one_persisted_citation() {
+        ValidatedKnowledgeAnswer result = validator.validate("重复分组 [S1, S1]。", List.of(source(1)));
+
+        assertThat(result.citedSources()).extracting(KnowledgeSource::rank).containsExactly(1);
+        assertThat(result.answer()).isEqualTo("重复分组 [S1, S1]。");
+    }
+
+    @Test
+    void zero_rank_and_out_of_range_numbers_are_invalid_in_groups_too() {
+        ValidatedKnowledgeAnswer result =
+                validator.validate("无效分组 [S0, S1, S999]。", List.of(source(1)));
+
+        assertThat(result.invalidCitationCount()).isEqualTo(2);
+        assertThat(result.citedSources()).extracting(KnowledgeSource::rank).containsExactly(1);
+        assertThat(result.answer()).isEqualTo("无效分组 [S1]。");
+    }
+
+    @Test
+    void malformed_brackets_are_not_citation_tokens_and_never_counted_as_invalid() {
+        // []、[S]、[S1a]、[ S1 ]、[S1, <script>] 不匹配受限引用格式：原文保留、不计非法、不产生持久化引用。
+        String answer = "畸形 [] [S] [S1a] [ S1 ] [S1, <script>] 与合法 [S1]。";
+        ValidatedKnowledgeAnswer result = validator.validate(answer, List.of(source(1)));
+
+        assertThat(result.insufficientEvidence()).isFalse();
+        assertThat(result.invalidCitationCount()).isZero();
+        assertThat(result.citedSources()).extracting(KnowledgeSource::rank).containsExactly(1);
+        assertThat(result.answer()).contains("[S1a]").contains("[ S1 ]");
+    }
+
+    @Test
+    void single_citation_normalization_is_preserved_for_zero_padded_ranks() {
+        ValidatedKnowledgeAnswer result = validator.validate("旧式补零 [S01]。", List.of(source(1)));
+
+        assertThat(result.citedSources()).extracting(KnowledgeSource::rank).containsExactly(1);
+        assertThat(result.answer()).isEqualTo("旧式补零 [S1]。");
+    }
 }

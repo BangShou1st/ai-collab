@@ -77,6 +77,23 @@ class McpAgentToolProviderTest {
         return new Fixture(provider, repository, clients, connection, context);
     }
 
+    @Test
+    void readOnlyHintAndMcpErrorDoNotProveAbsenceOfSideEffects() {
+        Fixture fixture = fixture("""
+                [{"name":"read_issue","annotations":{"readOnlyHint":true},"inputSchema":{"type":"object"}}]
+                """, List.of("read_issue"));
+        AgentTool tool = fixture.provider.tools(fixture.context).getFirst();
+        assertThat(tool.executionSafety()).isEqualTo(
+                com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety.UNCONFIRMABLE_SIDE_EFFECT);
+        var client = mock(McpClientFacade.class);
+        when(fixture.clients.requireClient(fixture.connection)).thenReturn(client);
+        when(client.callTool(anyString(), any(), any())).thenReturn(
+                new McpClientFacade.CallResult(true, json.createArrayNode()));
+        var result = tool.execute(toolContext(fixture.context), json.createObjectNode());
+        assertThat(result.status()).isEqualTo(com.shitulelv.aicollab.agent.domain.tool.AgentToolResult.Status.UNKNOWN);
+        assertThat(result.error().retryable()).isFalse();
+    }
+
     private McpConnection connection(UUID projectId, String tools, List<String> allowedTools) {
         OffsetDateTime now = OffsetDateTime.now();
         String allowlist;

@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.planning.application.TaskPlanRecoveryPostgresIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.596 s -- in com.shitulelv.aicollab.planning.application.TaskPlanRecoveryPostgresIntegrationTest

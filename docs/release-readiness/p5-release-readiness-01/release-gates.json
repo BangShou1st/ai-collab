@@ -1,0 +1,58 @@
+{
+  "task_id": "P5-RELEASE-READINESS-01",
+  "generated_at": "2026-10-24",
+  "gates": [
+    {
+      "gate": "A. 开发功能完成度",
+      "result": "PASS",
+      "basis": "核心四域（项目协作、知识库、模型接入、规划、Agent）代码完整且经真实端到端验收；AGENTS.md 第 1 节能力矩阵全部有对应实现。已知未验证区域为 work 可视化域与通知中心（R-06）、MCP 真实连接（R-05），均为补充验收项而非缺失功能。详见 feature-inventory.md。",
+      "blocking": false
+    },
+    {
+      "gate": "B. 测试成熟度",
+      "result": "PASS",
+      "basis": "CI 于当前 HEAD 15f4905 全绿（run 40062189574）：后端 mvnw verify（含 Testcontainers，1670+ 用例，含防整类跳过断言）+ 前端 lint/typecheck/Vitest 393/build。五份 P4 真实验收（知识库/模型×2/Agent×2）覆盖主链路与生命周期。缺口：可视化域无专项验收（R-06）、Zen 未复验（R-10）。详见 test-and-ci-coverage.md。",
+      "blocking": false
+    },
+    {
+      "gate": "C. 数据安全",
+      "result": "PASS",
+      "basis": "安全门禁审计无 P0/P1 产品缺陷：默认拒绝路由 + 全量 ProjectAccessGuard 覆盖 + 审批三因子（nonce/revision/Idempotency-Key）+ API Key AES-256-GCM 加密零回显 + SSRF 出站全拒策略 + Agent 永久禁止工具集与预算控制。发现项：compose REFRESH_COOKIE_SECURE=false 属部署配置问题（R-04，P1 部署条件）。详见 security-review.md。",
+      "blocking": false
+    },
+    {
+      "gate": "D. 运行可靠性",
+      "result": "PASS_WITH_CONDITIONS",
+      "basis": "本地基础设施 13 小时健康运行；后端 /actuator/health UP；Flyway V1–V66 全部 success；Agent 状态机 11 态、租约恢复、崩溃恢复有离线+真实双重证据；失败反馈路径（Provider 失败分类、SSE 错误气泡）经真实验收。条件：重启/恢复的生产级演练依赖 R-01 备份恢复闭环。",
+      "blocking": false
+    },
+    {
+      "gate": "E. 可运维性",
+      "result": "FAIL（发布部署前必须补齐）",
+      "basis": "备份/恢复 DOCUMENTED_NOT_DRILLED（R-01）；无 metrics/日志文件策略（R-02）；无发布流水线与 runbook（R-03）。此三项为进入发布候选（RC）阶段前必须完成的整改，是本轮唯一 FAIL 门禁。",
+      "blocking": true
+    },
+    {
+      "gate": "F. 用户体验",
+      "result": "PASS_WITH_NOTES",
+      "basis": "高频路径加载/空/错三态与防重复提交覆盖率高；v-html 全部经 DOMPurify；token 仅内存态；SSE 卸载清理合规。已知体验缺口：历史 FAILED Run 无重试入口（R-07）、跨 Run 审批可见性（R-08），均评定 P2 有兜底路径，不阻断。详见 ux-readiness.md。",
+      "blocking": false
+    },
+    {
+      "gate": "G. 发布操作准备",
+      "result": "FAIL（同门禁 E）",
+      "basis": "Dockerfile/compose 结构合格，.env.example 覆盖主链路变量；但缺发布负责人/上线步骤/备份/回滚条件/冒烟清单成套 runbook（R-03/R-12/R-13）。release-checklist.md 已产出模板，待责任人确认与演练。",
+      "blocking": true
+    }
+  ],
+  "decision": "RELEASE_CONDITIONAL_GO",
+  "decision_rationale": "核心产品功能与安全门禁全部达标（A/B/C/D/F 通过，无 P0，无产品类 P1）；唯一不达标项是发布操作面（E/G：备份恢复、可观测性、发布流水线、TLS 安全基线），属于可在有限工作量内补齐的外部条件而非产品缺陷。允许以限定范围进入发布候选阶段，条件见 go-no-go-decision.md。",
+  "conditions": [
+    "R-01 备份脚本 + 隔离环境真实恢复演练",
+    "R-02 生产 profile 可观测性基线（health/metrics + 日志文件策略）",
+    "R-03 发布 runbook + 可追溯镜像（CI 构建或脚本化）",
+    "R-04 compose REFRESH_COOKIE_SECURE 改为环境变量注入 + TLS/内网暴露要求写入部署文档",
+    "发布范围声明：MCP（R-05）与 Zen Free（R-10）标注为实验/上游依赖特性"
+  ],
+  "auto_fail_conditions": "上述条件任一无法在计划窗口内完成，或出现新的 P0/P1 产品缺陷，自动转为 RELEASE_NOT_READY"
+}

@@ -1,0 +1,63 @@
+{
+  "uploads": [
+    {
+      "file": "上线验收规程.md",
+      "sha256": "31e365fc319847681d2d9cadccfbe1e8480466eb3ae3fe21f6617ed5f7f4f696",
+      "size": 391,
+      "documentId": "ac7a22a6-a151-4227-a0b0-63a54c949f6c",
+      "status": "READY",
+      "chunks": 3,
+      "embeddedChunks": 3
+    },
+    {
+      "file": "合同模板甲.md",
+      "sha256": "39fa36c36a8531aa0b8855a3aba9e7717b0657d5f9c1b0e05bc229192c9d3210",
+      "size": 86,
+      "documentId": "cee75da1-932d-4b19-8329-651924431d1b",
+      "status": "READY",
+      "chunks": 1,
+      "embeddedChunks": 1
+    },
+    {
+      "file": "合同模板乙.md",
+      "sha256": "39fa36c36a8531aa0b8855a3aba9e7717b0657d5f9c1b0e05bc229192c9d3210",
+      "size": 86,
+      "documentId": "a2f68fe7-50e7-4004-b487-09f58c1cdd82",
+      "status": "READY",
+      "chunks": 1,
+      "embeddedChunks": 1
+    },
+    {
+      "file": "任务预算规则.md",
+      "sha256": "3e66b1ae633142db11d123efb91342e432dfcc8ec2c5122fdd9fac0a82048453",
+      "size": 255,
+      "status": "READY",
+      "chunks": 2,
+      "embeddedChunks": 2
+    },
+    {
+      "file": "灰度发布与回滚规范.md",
+      "sha256": "aaa3a66019eb93f3d2dc7ee9b455073300661d0948a68064480484f1bb8a8694",
+      "size": 433,
+      "documentId": "6bb68757-f0aa-4713-ba95-a6891f8c9fe0",
+      "status": "READY",
+      "chunks": 2,
+      "embeddedChunks": 2,
+      "note": "本轮新增合成语料，已登记 tests/fixtures/documents/README.md"
+    }
+  ],
+  "uploadMethod": "真实浏览器上传对话框逐个上传（bsk upload + 页面“上传 N 个文件”按钮）",
+  "indexing": {
+    "mode": "上传后自动异步索引",
+    "embeddingProvider": "OLLAMA qwen3-embedding:0.6b (1024 维)",
+    "verification": "document_chunk.count(embedding) 全量非空；vector_dims=1024；列表状态全部为“可检索”",
+    "waitFor": "页面状态轮询（上传完成提示 + 列表刷新），无硬编码长 sleep"
+  },
+  "refreshCheck": "刷新后 5 篇文档状态仍为“可检索”，截图 documents-after-refresh.png",
+  "unsupportedFile": {
+    "file": "bad.exe（临时合成，已删除）",
+    "result": "前端校验拒绝：“仅支持 PDF、DOCX、Markdown 和 TXT 文件”，上传按钮禁用",
+    "screenshot": "screenshots/upload-unsupported-rejected.png"
+  },
+  "status": "PASS"
+}

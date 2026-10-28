@@ -6,7 +6,7 @@ import { documentApi } from '../document/document-api'
 import type { ProjectDocument } from '../document/types'
 import { projectApi } from '../project/project-api'
 import type { Project } from '../project/types'
-import { knowledgeApi } from './knowledge-api'
+import { knowledgeApi, KnowledgeStreamError } from './knowledge-api'
 import type {
   KnowledgeCitation,
   KnowledgeSession,
@@ -14,10 +14,8 @@ import type {
 } from './types'
 
 export interface StreamingMessage {
-  role: 'ASSISTANT'
   content: string
   citations: KnowledgeCitation[]
-  streaming: boolean
 }
 
 export type KnowledgeFeedbackMap = Record<
@@ -52,6 +50,8 @@ export function useKnowledgeView() {
   const editingSessionId = ref('')
   const editingSessionTitle = ref('')
   const streamingMessage = ref<StreamingMessage | null>(null)
+  /** 最近一次流式问答失败的可见错误（渲染在消息区，直到下一次提问或用户关闭）。 */
+  const streamError = ref<{ code: string; message: string } | null>(null)
   const feedbackMap = ref<KnowledgeFeedbackMap>({})
   const feedbackSubmittingIds = ref<string[]>([])
   let active = true
@@ -300,13 +300,12 @@ export function useKnowledgeView() {
     const generation = projectGeneration
     const targetSessionId = selectedSessionId.value
     submitting.value = true
+    streamError.value = null
 
     // 初始化流式消息
     streamingMessage.value = {
-      role: 'ASSISTANT',
       content: '',
       citations: [],
-      streaming: true,
     }
 
     const abortController = new AbortController()
@@ -332,12 +331,6 @@ export function useKnowledgeView() {
             // 流式完成，清除流式状态
             streamingMessage.value = null
           },
-          onError: (code, message) => {
-            if (isCurrentProject(targetProjectId, generation)) {
-              showApiError(new ApiContractError(message), '知识问答')
-              streamingMessage.value = null
-            }
-          },
         },
         abortController.signal,
       )
@@ -357,17 +350,25 @@ export function useKnowledgeView() {
         await renameSession(currentSession, newTitle)
       }
     } catch (error) {
+      streamingMessage.value = null
       if (error instanceof DOMException && error.name === 'AbortError') {
         // 用户取消，不显示错误
-        streamingMessage.value = null
       } else if (isCurrentProject(targetProjectId, generation)) {
-        showApiError(error, '知识问答')
-        streamingMessage.value = null
+        // 错误必须落到消息区：用户不能只看到空白与标题更新。
+        streamError.value = error instanceof KnowledgeStreamError
+          ? { code: error.code, message: error.message }
+          : { code: 'UNKNOWN', message: '知识问答暂时失败，请稍后重试' }
+        showApiError(error instanceof KnowledgeStreamError ? new ApiContractError(error.message) : error, '知识问答')
       }
     } finally {
       currentAbortController = null
       if (isCurrentProject(targetProjectId, generation)) submitting.value = false
     }
+  }
+
+  /** 关闭消息区的流式错误提示。 */
+  function dismissStreamError(): void {
+    streamError.value = null
   }
 
   function cancelStream(): void {
@@ -493,12 +494,12 @@ export function useKnowledgeView() {
     loading, creating, submitting, deletingId,
     citationDrawer, selectedCitation,
     messageArea: messageArea as Ref<HTMLElement | null>,
-    editingSessionId, editingSessionTitle, streamingMessage,
+    editingSessionId, editingSessionTitle, streamingMessage, streamError,
     feedbackMap, feedbackSubmittingIds,
     readyDocuments, questionLength, canSubmit,
     selectSession, createSession, startEditSession, cancelEditSession, saveSessionTitle,
-    removeSession, submitQuestion, cancelStream, onQuestionKeydown,
+    removeSession, submitQuestion, cancelStream, dismissStreamError, onQuestionKeydown,
     openCitation, downloadCitation,
-    submitFeedback, removeFeedback, toggleFeedback,
+    removeFeedback, toggleFeedback,
   }
 }

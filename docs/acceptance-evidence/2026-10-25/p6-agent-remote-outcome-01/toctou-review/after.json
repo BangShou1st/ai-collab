@@ -1,0 +1,780 @@
+{
+  "baseline": "d694c1adbe80a1c29003d9db45942556e7fdea96",
+  "command": "bash ./mvnw -B -ntp -Dtest=AgentRemoteOutcomeTest,AgentRemoteOutcomePostgresTest,AgentToolSchedulerTest,AgentPauseResumePostgresTest,PersistedModelTurnRecoveryPostgresTest,AgentRepositoryIntegrationTest,AgentRuntimeBehaviorTest,AgentWorkerNativeTurnTest,LegacyApprovalCitationUpgradeTest,AgentWriteProposalSpringIntegrationTest,TaskPlanRecoveryPostgresIntegrationTest test",
+  "result": "BUILD SUCCESS",
+  "tests": 167.0,
+  "failures": 0.0,
+  "errors": 0.0,
+  "skipped": 0.0,
+  "classCount": 11,
+  "duration": "02:27",
+  "classes": [
+    {
+      "name": "com.shitulelv.aicollab.acceptance.LegacyApprovalCitationUpgradeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        {
+          "name": "oldPendingApprovalCanBeResolvedAndLegacyCitationRemainsVisibleAfterUpgrade",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.AgentWorkerNativeTurnTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        {
+          "name": "stepBudgetExceededStopsBeforeCoordinator",
+          "result": "PASS"
+        },
+        {
+          "name": "v2CumulativeTokensNeverBlockNextRequest",
+          "result": "PASS"
+        },
+        {
+          "name": "inputTokenBudgetExceededStopsBeforeCoordinator",
+          "result": "PASS"
+        },
+        {
+          "name": "withinBudgetDelegatesToCoordinator",
+          "result": "PASS"
+        },
+        {
+          "name": "outputTokenBudgetExceededStopsBeforeCoordinator",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.AgentPauseResumePostgresTest",
+      "tests": 21,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        {
+          "name": "queuedRunPausesAndResumesWithIdempotentCommands",
+          "result": "PASS"
+        },
+        {
+          "name": "savedTextAnswerSurvivesPauseAndWorkerBudgetPrecheck",
+          "result": "PASS"
+        },
+        {
+          "name": "runWithoutPauseIntentReportsNullPauseTime",
+          "result": "PASS"
+        },
+        {
+          "name": "queuedCallsBehindSemaphoreDoNotStartAfterPause",
+          "result": "PASS"
+        },
+        {
+          "name": "planningAcceptanceRespectsPauseIntentAndRecoversTheSameOperation",
+          "result": "PASS"
+        },
+        {
+          "name": "terminalAndWaitingStatesRejectPauseAndResume",
+          "result": "PASS"
+        },
+        {
+          "name": "coordinatorSettlesPauseAfterSummaryAdmissionWithoutMainRequest",
+          "result": "PASS"
+        },
+        {
+          "name": "boundInputOnActiveRunNeverFallsIntoCreateRun",
+          "result": "PASS"
+        },
+        {
+          "name": "queuedDeadlineAndPausePreservePendingUntilResume",
+          "result": "PASS"
+        },
+        {
+          "name": "staleClaimCannotConfirmPauseAfterTakeover",
+          "result": "PASS"
+        },
+        {
+          "name": "summaryFirstRequestIsAdmittedThroughPauseBoundary",
+          "result": "PASS"
+        },
+        {
+          "name": "inFlightSummaryWithPauseIntentDoesNotStartRecompress",
+          "result": "PASS"
+        },
+        {
+          "name": "resumeIssuesNextRequestWithCurrentConfiguration",
+          "result": "PASS"
+        },
+        {
+          "name": "summaryAdmissionRejectsExpiredClaim",
+          "result": "PASS"
+        },
+        {
+          "name": "partialToolBatchPauseKeepsPendingAndResumeExecutesOnlyRemaining",
+          "result": "PASS"
+        },
+        {
+          "name": "staleBoundResumeInputOnTerminalRunStaysInControlScope",
+          "result": "PASS"
+        },
+        {
+          "name": "queuedCallsCannotPersistAfterCancellationOrLeaseLoss",
+          "result": "PASS"
+        },
+        {
+          "name": "inFlightResponseIsSavedThenRunPausesWithPendingTools",
+          "result": "PASS"
+        },
+        {
+          "name": "controlTransactionFailureRollsBackStateMarkerAndEvent",
+          "result": "PASS"
+        },
+        {
+          "name": "submitEntryRoutesResumeIntentsWithoutTouchingTheGoal",
+          "result": "PASS"
+        },
+        {
+          "name": "retryableRunPauseBlocksSchedulingAndResumeKeepsRetryCount",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest",
+      "tests": 30,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        {
+          "name": "t01NeverStartedTimeoutHasNoEffect",
+          "result": "PASS"
+        },
+        {
+          "name": "t13ResultTransactionConflictCannotLeaveFalseSuccess",
+          "result": "PASS"
+        },
+        {
+          "name": "t06CancelAfterDispatchPreservesUncertainEffect",
+          "result": "PASS"
+        },
+        {
+          "name": "t09AcceptedPlanningOperationIsReconciledByOriginalInvocation",
+          "result": "PASS"
+        },
+        {
+          "name": "requeueCannotTurnUnconfirmedDispatchIntoSkippedOrRetryableFailure",
+          "result": "PASS"
+        },
+        {
+          "name": "settlementCommittedBeforeDispatchMustRejectDispatchCas",
+          "result": "PASS"
+        },
+        {
+          "name": "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[1]",
+          "result": "PASS"
+        },
+        {
+          "name": "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[2]",
+          "result": "PASS"
+        },
+        {
+          "name": "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[3]",
+          "result": "PASS"
+        },
+        {
+          "name": "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[4]",
+          "result": "PASS"
+        },
+        {
+          "name": "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[5]",
+          "result": "PASS"
+        },
+        {
+          "name": "uncommittedDispatchMustBeReclassifiedAfterSettlementAcquiresLock(String)[6]",
+          "result": "PASS"
+        },
+        {
+          "name": "t12PartialBatchKeepsSuccessAndUnknownDistinct",
+          "result": "PASS"
+        },
+        {
+          "name": "t03ExplicitRemoteRejectionIsNotUnknown",
+          "result": "PASS"
+        },
+        {
+          "name": "missingCurrentInvocationMustNotCreateStepEventOrSpendBudget(String)[1]",
+          "result": "PASS"
+        },
+        {
+          "name": "missingCurrentInvocationMustNotCreateStepEventOrSpendBudget(String)[2]",
+          "result": "PASS"
+        },
+        {
+          "name": "batchSettlementMustPreserveUnknown",
+          "result": "PASS"
+        },
+        {
+          "name": "newToolCallIdMustNotRepeatAnUnconfirmedEffect",
+          "result": "PASS"
+        },
+        {
+          "name": "t11SafeReadFailureRetainsBoundedRetry",
+          "result": "PASS"
+        },
+        {
+          "name": "t04CrashAfterDispatchNeverRedispatchesSameInvocation",
+          "result": "PASS"
+        },
+        {
+          "name": "conflictingResultIdentityCannotCreateSuccessOrSpendBudget",
+          "result": "PASS"
+        },
+        {
+          "name": "t02SuccessfulRemoteEffectWithLostResponseIsUnknown",
+          "result": "PASS"
+        },
+        {
+          "name": "unknownCannotBeOverwrittenByLateSuccess",
+          "result": "PASS"
+        },
+        {
+          "name": "t14UnknownBlocksFinalSuccessAndModelContinuation",
+          "result": "PASS"
+        },
+        {
+          "name": "t08PauseBeforeDispatchKeepsPendingAndResumeExecutesOnce",
+          "result": "PASS"
+        },
+        {
+          "name": "cancelBeforeDispatchNeverStartsTool",
+          "result": "PASS"
+        },
+        {
+          "name": "t07OldClaimIsFencedAndTakeoverDoesNotResend",
+          "result": "PASS"
+        },
+        {
+          "name": "t06TimeoutThenLateRemoteSuccessDoesNotOverwriteUnknown",
+          "result": "PASS"
+        },
+        {
+          "name": "t10McpWithoutTrustedIdempotencyDoesNotResend",
+          "result": "PASS"
+        },
+        {
+          "name": "acceptedResultCanBeQueriedWhileOriginalResponseIsStillBlocked",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        {
+          "name": "timeoutFallbackEventUsesAuthoritativeUnknownDisposition",
+          "result": "PASS"
+        },
+        {
+          "name": "canceledFutureDoesNotStopAnInterruptIgnoringRemoteEffect",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.AgentRuntimeBehaviorTest",
+      "tests": 25,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        {
+          "name": "differentToolHasIndependentCorrectionCount",
+          "result": "PASS"
+        },
+        {
+          "name": "persistedProposalWithIntegerHoursSucceedsWithoutParameterCorrection",
+          "result": "PASS"
+        },
+        {
+          "name": "firstInvalidArgumentsDoesNotCreateApproval",
+          "result": "PASS"
+        },
+        {
+          "name": "readsOnBothSidesOfProposalCompleteAndExtraProposalIsRejected",
+          "result": "PASS"
+        },
+        {
+          "name": "persistedProposalRevisionEmitsApprovalUpdatedAndSucceeds",
+          "result": "PASS"
+        },
+        {
+          "name": "multiRoundInputTokenAccumulation",
+          "result": "PASS"
+        },
+        {
+          "name": "overBudgetRejectsExecution",
+          "result": "PASS"
+        },
+        {
+          "name": "withinBudgetAllowsExecution",
+          "result": "PASS"
+        },
+        {
+          "name": "toolResultNotDuplicated",
+          "result": "PASS"
+        },
+        {
+          "name": "firstInvalidArgumentsDoesNotExecuteTool",
+          "result": "PASS"
+        },
+        {
+          "name": "invalidFinalTurnRetainsPartialEvidenceWithoutClaimingSuccess",
+          "result": "PASS"
+        },
+        {
+          "name": "outOfRangeNumericArgumentsAreRejectedBeforeToolOrApprovalExecution",
+          "result": "PASS"
+        },
+        {
+          "name": "multiRoundOutputTokenAccumulation",
+          "result": "PASS"
+        },
+        {
+          "name": "firstInvalidArgumentAllowsCorrection",
+          "result": "PASS"
+        },
+        {
+          "name": "recoveryReusesKnownReadResultWithoutCallingModelOrTool",
+          "result": "PASS"
+        },
+        {
+          "name": "multiRoundStepAccumulation",
+          "result": "PASS"
+        },
+        {
+          "name": "typedClarificationPersistsWaitingState",
+          "result": "PASS"
+        },
+        {
+          "name": "multiRoundToolCallAccumulation",
+          "result": "PASS"
+        },
+        {
+          "name": "nativeModeDoesNotUseDecisionParser",
+          "result": "PASS"
+        },
+        {
+          "name": "schemaValidationBeforeApprovalCreation",
+          "result": "PASS"
+        },
+        {
+          "name": "secondInvalidArgumentFails",
+          "result": "PASS"
+        },
+        {
+          "name": "duplicateProtocolCallIdsRejectWholeBatch",
+          "result": "PASS"
+        },
+        {
+          "name": "legacyWriteToolRuntimeRejection",
+          "result": "PASS"
+        },
+        {
+          "name": "schemaValidationBeforeReadOnlyToolExecution",
+          "result": "PASS"
+        },
+        {
+          "name": "invalidFinalTurnStillFailsWithoutEvidence",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        {
+          "name": "c04RoundRobinUsersAndRunsWithoutHeadBlocking",
+          "result": "PASS"
+        },
+        {
+          "name": "c02c03AtomicRunAndUserAdmission",
+          "result": "PASS"
+        },
+        {
+          "name": "c10MetricsBoundedAndTimeoutCountedOnce",
+          "result": "PASS"
+        },
+        {
+          "name": "c06CancelDispatchRace",
+          "result": "PASS"
+        },
+        {
+          "name": "c07RejectAndShutdown",
+          "result": "PASS"
+        },
+        {
+          "name": "c01ExactCollisionIsolation",
+          "result": "PASS"
+        },
+        {
+          "name": "c09TenThousandIdentitiesReclaimed",
+          "result": "PASS"
+        },
+        {
+          "name": "c08PendingExpiresWhileCapacityRemainsOccupied",
+          "result": "PASS"
+        },
+        {
+          "name": "c05CapacityAndReadyBypassFullPending",
+          "result": "PASS"
+        },
+        {
+          "name": "c06RunningIgnoresInterruptUntilActualExit",
+          "result": "PASS"
+        },
+        {
+          "name": "c06PendingReservedCancellation",
+          "result": "PASS"
+        },
+        {
+          "name": "c07ShutdownKeepsRunningCapacityUntilExit",
+          "result": "PASS"
+        },
+        {
+          "name": "c08ExpiredReservedAndPendingNeverStart",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.application.runtime.PersistedModelTurnRecoveryPostgresTest",
+      "tests": 24,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        {
+          "name": "needsFinalRequestIntentSurvivesTakeoverAsBudgetPartial",
+          "result": "PASS"
+        },
+        {
+          "name": "persistedPlainTextTurnIsReusedWithoutAnotherModelCall",
+          "result": "PASS"
+        },
+        {
+          "name": "legacyReadOnlyWriteCallStillRejected",
+          "result": "PASS"
+        },
+        {
+          "name": "postSaveRecountDoesNotRewriteNonFinalizingIntent",
+          "result": "PASS"
+        },
+        {
+          "name": "staleClaimCannotConsumeTheSavedTurnAfterTakeover",
+          "result": "PASS"
+        },
+        {
+          "name": "modelTurnBoundaryFinalizeAnswerSurvivesTakeoverOnBothPaths",
+          "result": "PASS"
+        },
+        {
+          "name": "canceledRunStillEndsAsCanceledWithoutConsumingTheSavedTurn",
+          "result": "PASS"
+        },
+        {
+          "name": "legacyTurnWithoutIntentMetadataFallsBackConservatively",
+          "result": "PASS"
+        },
+        {
+          "name": "geminiToolCallIdRemainsUniqueAfterRunContextCoversPreviousCallAndRecoveryReusesIt",
+          "result": "PASS"
+        },
+        {
+          "name": "persistedQuestionsTurnRecoversIntoWaitingForUserInput",
+          "result": "PASS"
+        },
+        {
+          "name": "actualInputOversetStopsToolBatchOnBothPaths",
+          "result": "PASS"
+        },
+        {
+          "name": "legacyNativePlanningCallEntersRecoveryChain",
+          "result": "PASS"
+        },
+        {
+          "name": "explicitFinalizingToolResponseStillRejected",
+          "result": "PASS"
+        },
+        {
+          "name": "persistedBudgetFinalizeTurnKeepsPartialAnswerSemantics",
+          "result": "PASS"
+        },
+        {
+          "name": "fullyCompletedToolBatchRecoveryReusesAllResultsWithoutRecharge",
+          "result": "PASS"
+        },
+        {
+          "name": "trulyOverBudgetRemainingCallsStillRejected",
+          "result": "PASS"
+        },
+        {
+          "name": "savedResultSurvivesRemovedModelConfiguration",
+          "result": "PASS"
+        },
+        {
+          "name": "stepBoundaryFinalizeAnswerSurvivesTakeoverOnBothPaths",
+          "result": "PASS"
+        },
+        {
+          "name": "repeatedTakeoverDoesNotConsumeTheSavedTurnTwice",
+          "result": "PASS"
+        },
+        {
+          "name": "overSingleTurnLimitBatchStillRejected",
+          "result": "PASS"
+        },
+        {
+          "name": "actualInputOversetStopsTextAnswerOnBothPaths",
+          "result": "PASS"
+        },
+        {
+          "name": "blankTextTurnIsNotTreatedAsAReusableResult",
+          "result": "PASS"
+        },
+        {
+          "name": "partialToolBatchRecoveryExecutesOnlyTheRemainingCalls",
+          "result": "PASS"
+        },
+        {
+          "name": "persistedToolBatchStillRecoversThroughTheToolExecutor",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.infrastructure.AgentRepositoryIntegrationTest",
+      "tests": 40,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        {
+          "name": "toolCallsAccumulateAcrossTicks",
+          "result": "PASS"
+        },
+        {
+          "name": "summaryResumesBeyondSixtySegmentsAndRecentWindowAfterDatabaseReload",
+          "result": "PASS"
+        },
+        {
+          "name": "runningCancelCanFinalizeWithClaimedVersionAfterRequestIncrementedVersion",
+          "result": "PASS"
+        },
+        {
+          "name": "proposalRunCanReturnSuccessWhileApprovalRemainsPending",
+          "result": "PASS"
+        },
+        {
+          "name": "legacyWorkingStateIsUpgradedOnWriteWithoutLosingData",
+          "result": "PASS"
+        },
+        {
+          "name": "durableTurnRestoresKnownResultsAndRejectsChangedArguments",
+          "result": "PASS"
+        },
+        {
+          "name": "planUpdateThenRequeueSucceeds",
+          "result": "PASS"
+        },
+        {
+          "name": "ordinaryQuestionsAndTurnRequirementsDoNotAccumulateAsConstraints",
+          "result": "PASS"
+        },
+        {
+          "name": "modelTurnPersistsTokenUsage",
+          "result": "PASS"
+        },
+        {
+          "name": "sessionWithProposalRevisionCanBeDeleted",
+          "result": "PASS"
+        },
+        {
+          "name": "planUpdateThenFinalSucceeds",
+          "result": "PASS"
+        },
+        {
+          "name": "budgetExceededRunCannotBeClaimedAgain",
+          "result": "PASS"
+        },
+        {
+          "name": "finalDecisionPersistsMessageAndCompletesRunAtomically",
+          "result": "PASS"
+        },
+        {
+          "name": "activeConstraintsSurviveConstraintChurnWithoutEviction",
+          "result": "PASS"
+        },
+        {
+          "name": "expiredRunningLeaseCanBeReclaimed",
+          "result": "PASS"
+        },
+        {
+          "name": "sessionAndRunReadsRequireProjectScope",
+          "result": "PASS"
+        },
+        {
+          "name": "constraintUpdateSupersedesOldEntryWithinSameScope",
+          "result": "PASS"
+        },
+        {
+          "name": "concurrentWorkersClaimQueuedRunOnce",
+          "result": "PASS"
+        },
+        {
+          "name": "appendUserAssociatesRealMessageIdWithinTransaction",
+          "result": "PASS"
+        },
+        {
+          "name": "toolResultPersistsAndRequeuesRun",
+          "result": "PASS"
+        },
+        {
+          "name": "legacyCombinedSemanticsStillBumpsStepsOnToolResults",
+          "result": "PASS"
+        },
+        {
+          "name": "summaryAttemptSettlesTokensToOwningRunExactlyOnce",
+          "result": "PASS"
+        },
+        {
+          "name": "refreshedOptimisticVersionCannotBypassOldClaimEpoch",
+          "result": "PASS"
+        },
+        {
+          "name": "minAndMaxTaskCountConstraintsCoexistWithoutSupersedingEachOther",
+          "result": "PASS"
+        },
+        {
+          "name": "canceledWaitingRunCannotExecuteItsPendingApproval",
+          "result": "PASS"
+        },
+        {
+          "name": "budgetPartialAnswerPreservesMessageWithoutSuccessOrWrites",
+          "result": "PASS"
+        },
+        {
+          "name": "staleVersionRollsBackEverything",
+          "result": "PASS"
+        },
+        {
+          "name": "summaryCasCommitOnlyUpdatesSummaryNodeAndRejectsStaleRevision",
+          "result": "PASS"
+        },
+        {
+          "name": "finalAnswerIsValidJsonb",
+          "result": "PASS"
+        },
+        {
+          "name": "approvalIsPersisted",
+          "result": "PASS"
+        },
+        {
+          "name": "recognizedPersistentConstraintsStayActiveAcrossOrdinaryMessages",
+          "result": "PASS"
+        },
+        {
+          "name": "sessionRenameAndDeleteRequireCreatorScope",
+          "result": "PASS"
+        },
+        {
+          "name": "invalidToolCallStillConsumesToolBudget",
+          "result": "PASS"
+        },
+        {
+          "name": "retryableFailureCanBeCanceledWithoutAnotherWorkerClaim",
+          "result": "PASS"
+        },
+        {
+          "name": "userSupplementPreservesGoalAndExplicitReplacementKeepsHistory",
+          "result": "PASS"
+        },
+        {
+          "name": "proposalCreationKeepsRunningLeaseUntilFinalResponse",
+          "result": "PASS"
+        },
+        {
+          "name": "protectiveConstraintsForDifferentObjectsCoexistInsteadOfOverwriting",
+          "result": "PASS"
+        },
+        {
+          "name": "canceledRunCannotBeClaimedAgain",
+          "result": "PASS"
+        },
+        {
+          "name": "nativeFinalPersistsOnlyLiveSourcesActuallyReadInThisRun",
+          "result": "PASS"
+        },
+        {
+          "name": "budgetAccumulatesAcrossSteps",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.agent.infrastructure.AgentWriteProposalSpringIntegrationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        {
+          "name": "productionAssemblyInjectsContainerCollaboratorsWithoutDuplicates",
+          "result": "PASS"
+        },
+        {
+          "name": "createTaskProposalCompletesAndCanBeRevisedThroughUpdateTool",
+          "result": "PASS"
+        }
+      ]
+    },
+    {
+      "name": "com.shitulelv.aicollab.planning.application.TaskPlanRecoveryPostgresIntegrationTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "cases": [
+        {
+          "name": "recoveryTransactionExecutionAndPersistence",
+          "result": "PASS"
+        },
+        {
+          "name": "recoverStaleRepairingPlansWithFallback",
+          "result": "PASS"
+        },
+        {
+          "name": "recoverStaleQueuedAndRunningAttemptsAndClearActiveAttempt",
+          "result": "PASS"
+        },
+        {
+          "name": "recoverStaleConfirmingPlanAndConfirmationRecords",
+          "result": "PASS"
+        }
+      ]
+    }
+  ]
+}

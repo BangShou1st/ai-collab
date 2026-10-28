@@ -10,6 +10,9 @@ public class RequestUserInputAgentTool implements AgentTool {
     public static final String NAME = "request_user_input";
     @Override public String name() { return NAME; }
     @Override public boolean writesBusinessData() { return false; }
+    @Override public com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety executionSafety() {
+        return com.shitulelv.aicollab.agent.domain.tool.AgentToolExecutionSafety.SAFE_READ;
+    }
     @Override public AgentToolDefinition definition() {
         return AgentToolDefinition.fromJson(NAME, "必要信息缺失时向用户提问并等待补充，不得与提案同批。", """
                 {"type":"object","required":["questions"],"additionalProperties":false,"properties":{

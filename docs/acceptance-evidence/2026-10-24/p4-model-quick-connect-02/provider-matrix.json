@@ -1,0 +1,79 @@
+{
+  "task": "P4-MODEL-QUICK-CONNECT-02",
+  "generated_at": "2026-10-24",
+  "legend": {
+    "PASS": "真实执行并通过",
+    "FAIL": "真实执行且失败",
+    "NOT_EXECUTED": "因缺少授权或服务不可用未执行",
+    "OFFLINE_ONLY": "仅离线契约验证（无真实外部调用）",
+    "N/A": "该通道不适用"
+  },
+  "providers": [
+    {
+      "provider": "OpenAI-compatible（自定义）",
+      "static_config": "PASS（表单预设 + {model} 占位符校验 + 出站策略，离线契约测试 8 项）",
+      "model_discovery": "OFFLINE_ONLY（URL 推导/解析/缓存/降级测试；真实网关未接入）",
+      "chat": "NOT_EXECUTED（无已授权测试网关）",
+      "streaming": "NOT_EXECUTED",
+      "planning_json": "NOT_EXECUTED",
+      "native_tools": "NOT_EXECUTED",
+      "error_feedback": "PASS（401/404/429/超时分类映射与前端展示，离线契约测试）",
+      "browser": "NOT_EXECUTED",
+      "real_external_calls": 0
+    },
+    {
+      "provider": "Anthropic（自定义）",
+      "static_config": "PASS（默认端点档案 + 校验，离线契约测试）",
+      "model_discovery": "OFFLINE_ONLY（/v1/messages → /v1/models 推导测试）",
+      "chat": "NOT_EXECUTED（无 Anthropic 凭据）",
+      "streaming": "NOT_EXECUTED",
+      "planning_json": "NOT_EXECUTED",
+      "native_tools": "NOT_EXECUTED",
+      "error_feedback": "PASS（离线契约测试）",
+      "browser": "NOT_EXECUTED",
+      "real_external_calls": 0
+    },
+    {
+      "provider": "Google Gemini（自定义）",
+      "static_config": "PASS（GEMINI 档案默认端点 generativelanguage.googleapis.com + /v1beta/models/{model}:generateContent；占位符放行与非法花括号拒绝均有契约测试）",
+      "model_discovery": "OFFLINE_ONLY（models 段截断推导 + models[].name 解析测试；真实调用待授权）",
+      "chat": "NOT_EXECUTED（真实调用待用户授权；上一轮授权不自动延续）",
+      "streaming": "NOT_EXECUTED（待授权）",
+      "planning_json": "NOT_EXECUTED（待授权）",
+      "native_tools": "NOT_EXECUTED（待授权）",
+      "error_feedback": "PASS（404 专属错误码 AI_PROVIDER_NOT_FOUND 等，离线契约测试）",
+      "browser": "NOT_EXECUTED（待授权；历史验收已证明上一轮 UI 缺陷本轮已修复并覆盖测试）",
+      "real_external_calls": 0
+    },
+    {
+      "provider": "OpenCode Zen Free（内置预设）",
+      "static_config": "PASS（服务端受信上游快照，预设契约测试保持全绿）",
+      "model_discovery": "PASS（凭据分桶缓存 + 白名单 ∩ 实时列表准入，离线契约测试；真实目录调用待授权执行）",
+      "chat": "NOT_EXECUTED（真实生成待用户授权）",
+      "streaming": "NOT_EXECUTED（待授权）",
+      "planning_json": "NOT_EXECUTED（待授权）",
+      "native_tools": "NOT_EXECUTED（待授权）",
+      "error_feedback": "PASS（离线契约测试）",
+      "browser": "NOT_EXECUTED（待授权）",
+      "real_external_calls": 0
+    },
+    {
+      "provider": "Kilo Gateway Free（内置预设）",
+      "static_config": "PASS（匿名语义 + 共享库网关契约，预设契约测试保持全绿）",
+      "model_discovery": "PASS（免费模型目录准入测试；真实目录调用待授权执行）",
+      "chat": "NOT_EXECUTED（真实生成待用户授权；旧 /test 端点已删除，能力测试统一走真实探针）",
+      "streaming": "NOT_EXECUTED（待授权）",
+      "planning_json": "NOT_EXECUTED（待授权）",
+      "native_tools": "NOT_EXECUTED（待授权）",
+      "error_feedback": "PASS（离线契约测试）",
+      "browser": "NOT_EXECUTED（待授权）",
+      "real_external_calls": 0
+    }
+  ],
+  "unified_capability_suite": {
+    "entry_points": ["自定义 Provider 行", "Zen 预设卡片（连接后）", "Kilo 预设卡片（连接后）"],
+    "steps": ["STATIC(0 请求)", "DISCOVERY(只读 GET)", "CONNECTIVITY(1 次生成)", "STREAMING(1 次流式)", "PLANNING_JSON(≤4 次，按需勾选)", "NATIVE_TOOLS(1 次，按需勾选)"],
+    "offline_tests": "PASS（use-capability-suite.test.ts 9 项：顺序执行、FAIL 停断、INCONCLUSIVE 续行、NOT_SUPPORTED 分类、静态失败零出站、预设准入、请求预算）"
+  },
+  "notes": "所有 NOT_EXECUTED 项均因任务书第十三节授权约束：真实外部生成须用户当轮确认，历史授权不自动延续。离线全量回归见 regression-results.json。"
+}

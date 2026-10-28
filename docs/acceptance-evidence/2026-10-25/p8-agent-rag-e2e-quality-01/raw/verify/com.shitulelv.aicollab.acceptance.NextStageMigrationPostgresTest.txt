@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.406 s -- in com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest

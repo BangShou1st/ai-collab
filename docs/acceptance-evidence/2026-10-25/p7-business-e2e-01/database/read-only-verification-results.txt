@@ -1,0 +1,63 @@
+    display_name    | status | chunk_count | actual_chunks |   embedding_model    | embedding_dimension 
+--------------------+--------+-------------+---------------+----------------------+---------------------
+ 上线验收规程       | READY  |           3 |             3 | qwen3-embedding:0.6b |                1024
+ 发布回滚预案       | READY  |           4 |             4 | qwen3-embedding:0.6b |                1024
+ 合同模板乙         | READY  |           1 |             1 | qwen3-embedding:0.6b |                1024
+ 合同模板甲         | READY  |           1 |             1 | qwen3-embedding:0.6b |                1024
+ 灰度发布与回滚规范 | READY  |           2 |             2 | qwen3-embedding:0.6b |                1024
+(5 rows)
+
+ qa_messages | qa_citations 
+-------------+--------------
+          10 |           11
+(1 row)
+
+  status   | runs | events 
+-----------+------+--------
+ SUCCEEDED |    1 |     11
+ SUCCEEDED |    1 |     11
+ SUCCEEDED |    1 |     13
+ SUCCEEDED |    1 |     17
+(4 rows)
+
+ gap_count 
+-----------
+         0
+(1 row)
+
+  status   | count 
+-----------+-------
+ SUCCEEDED |     6
+ REJECTED  |     1
+(2 rows)
+
+ unknown_invocations |        max_age        
+---------------------+-----------------------
+                   1 | 1 day 04:47:38.858617
+(1 row)
+
+  status  | count 
+----------+-------
+ APPROVED |     1
+(1 row)
+
+ tasks | milestones 
+-------+------------
+    16 |          5
+(1 row)
+
+  status   | latest_version_no | confirmed | confirmed_ts 
+-----------+-------------------+-----------+--------------
+ CONFIRMED |                 3 | t         | t
+(1 row)
+
+ username | role  
+----------+-------
+ owner    | OWNER
+(1 row)
+
+ expired_leases 
+----------------
+              0
+(1 row)
+
