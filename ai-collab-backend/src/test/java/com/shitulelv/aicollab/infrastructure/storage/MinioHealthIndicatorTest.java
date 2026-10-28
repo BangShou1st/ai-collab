@@ -15,7 +15,7 @@ class MinioHealthIndicatorTest {
 
     private final MinioClient client = mock(MinioClient.class);
     private final MinioProperties properties = new MinioProperties(
-            "http://localhost:9000", "ak", "sk", "ai-collab");
+            "http://localhost:9000", "ak", "sk", "ai-collab", "", true);
     private final MinioHealthIndicator indicator = new MinioHealthIndicator(client, properties);
 
     @Test

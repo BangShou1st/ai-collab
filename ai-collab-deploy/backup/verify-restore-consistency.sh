@@ -45,6 +45,13 @@ while [ $# -gt 0 ]; do
     esac
 done
 [ -n "$RESTORE_PG_CONTAINER" ] && [ -n "$RESTORE_DB" ] && [ -n "$RESTORE_MINIO_CONTAINER" ] && [ -n "$RESTORE_BUCKET" ] || usage
+validate_database_name "$SOURCE_DB"
+validate_database_name "$RESTORE_DB"
+validate_bucket_name "$SOURCE_BUCKET"
+validate_bucket_name "$RESTORE_BUCKET"
+# 可自定义表/列，但不能把写 SQL 带入声称只读的核验流程。
+[[ "$OBJECT_KEY_SQL" =~ ^[[:space:]]*[Ss][Ee][Ll][Ee][Cc][Tt][[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]+[Ff][Rr][Oo][Mm][[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*$ ]] \
+    || die 3 "对象键查询只允许单表单列 SELECT"
 
 require_container "$SOURCE_PG_CONTAINER" "业务源 PostgreSQL"
 require_container "$RESTORE_PG_CONTAINER" "恢复库 PostgreSQL"
@@ -52,17 +59,22 @@ require_container "$SOURCE_MINIO_CONTAINER" "业务源 MinIO"
 require_container "$RESTORE_MINIO_CONTAINER" "恢复目标 MinIO"
 [ -n "$MINIO_RESTORE_USER" ] && [ -n "$MINIO_RESTORE_PASSWORD" ] || die 3 "恢复 MinIO 凭据未设置"
 
-pg_source_query() { docker exec -e PGPASSWORD="$(get_env POSTGRES_PASSWORD '')" "$SOURCE_PG_CONTAINER" \
+pg_source_query() { PGPASSWORD="$(get_env POSTGRES_PASSWORD '')" docker exec -e PGPASSWORD "$SOURCE_PG_CONTAINER" \
     psql -h localhost -U "$(get_env POSTGRES_USER ai_collab)" -d "$SOURCE_DB" -Atc "$1"; }
-pg_restore_query() { docker exec -e PGPASSWORD="$(get_env POSTGRES_PASSWORD_RESTORE "$(get_env POSTGRES_PASSWORD '')")" "$RESTORE_PG_CONTAINER" \
+pg_restore_query() { PGPASSWORD="$(get_env POSTGRES_PASSWORD_RESTORE "$(get_env POSTGRES_PASSWORD '')")" docker exec -e PGPASSWORD "$RESTORE_PG_CONTAINER" \
     psql -h localhost -U "$(get_env POSTGRES_RESTORE_USER "$(get_env POSTGRES_USER ai_collab)")" -d "$RESTORE_DB" -Atc "$1"; }
 
 DATA_OK=1
 
 log "== 关键表行数比对（源库 $SOURCE_DB vs 恢复库 $RESTORE_DB）=="
 for table in $KEY_TABLES; do
-    src_count="$(pg_source_query "SELECT count(*) FROM $table" 2>/dev/null || echo "QUERY_FAILED")"
-    dst_count="$(pg_restore_query "SELECT count(*) FROM $table" 2>/dev/null || echo "QUERY_FAILED")"
+    [[ "$table" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || die 18 "表名格式无效，拒绝核验"
+    src_count="$(pg_source_query "SELECT count(*) FROM $table" 2>/dev/null)" \
+        || die 18 "源库行数查询失败，不能判定恢复一致"
+    dst_count="$(pg_restore_query "SELECT count(*) FROM $table" 2>/dev/null)" \
+        || die 18 "恢复库行数查询失败，不能判定恢复一致"
+    [[ "$src_count" =~ ^[0-9]+$ && "$dst_count" =~ ^[0-9]+$ ]] \
+        || die 18 "行数查询未返回有效数字"
     if [ "$src_count" = "$dst_count" ]; then
         log "  OK  $table = $src_count"
     else
@@ -73,39 +85,41 @@ done
 [ "$DATA_OK" = "1" ] || die 18 "关键表行数不一致，恢复结果不完整"
 
 log "== 对象引用一致性核验 =="
+umask 077
+VERIFY_TEMP_BASE="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+VERIFY_TMP="$(mktemp -d "$VERIFY_TEMP_BASE/ai-collab-verify.XXXXXXXX")"
+[[ "$VERIFY_TMP" = "$VERIFY_TEMP_BASE"/ai-collab-verify.* ]] || die 3 "核验临时目录不在预期位置"
+trap 'rm -rf -- "$VERIFY_TMP"' EXIT
 # 恢复库中的对象引用集合
-pg_restore_query "$OBJECT_KEY_SQL" | sort > /tmp/restore-object-keys.txt
+pg_restore_query "$OBJECT_KEY_SQL" | sort > "$VERIFY_TMP/restore-object-keys.txt"
 # 恢复 bucket 中的对象键集合（mc ls --recursive --json 提取 key 字段）
 RESTORE_MINIO_IMAGE="$(get_env MINIO_IMAGE "$(docker inspect --format '{{.Config.Image}}' "$RESTORE_MINIO_CONTAINER" 2>/dev/null || true)")"
-MSYS_NO_PATHCONV=1 docker run --rm --network "container:$RESTORE_MINIO_CONTAINER" \
-        -e MC_USER="$MINIO_RESTORE_USER" -e MC_PASS="$MINIO_RESTORE_PASSWORD" \
+MC_USER="$MINIO_RESTORE_USER" MC_PASS="$MINIO_RESTORE_PASSWORD" MSYS_NO_PATHCONV=1 docker run --rm --network "container:$RESTORE_MINIO_CONTAINER" \
+        -e MC_USER -e MC_PASS \
         --entrypoint sh "$RESTORE_MINIO_IMAGE" -c "
             mc alias set dst http://127.0.0.1:9000 \"\$MC_USER\" \"\$MC_PASS\" >/dev/null &&
             mc ls --recursive \"dst/$RESTORE_BUCKET\" --json
-        " | sed -n 's/.*"key"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | sort > /tmp/restore-bucket-objects.txt
+        " | sed -n 's/.*"key"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | sort > "$VERIFY_TMP/restore-bucket-objects.txt"
 
-DB_KEYS="$(wc -l < /tmp/restore-object-keys.txt | tr -d '[:space:]')"
-OBJ_KEYS="$(wc -l < /tmp/restore-bucket-objects.txt | tr -d '[:space:]')"
+DB_KEYS="$(wc -l < "$VERIFY_TMP/restore-object-keys.txt" | tr -d '[:space:]')"
+OBJ_KEYS="$(wc -l < "$VERIFY_TMP/restore-bucket-objects.txt" | tr -d '[:space:]')"
 log "  恢复库对象引用: $DB_KEYS 条；恢复 bucket 对象: $OBJ_KEYS 个"
 
 # 核验 1：恢复库每条引用都必须能在恢复 bucket 中找到对象（缺对象 = 知识库不可用）。
 MISSING=0
 while IFS= read -r key; do
     [ -z "$key" ] && continue
-    if ! grep -Fqx "$key" /tmp/restore-bucket-objects.txt; then
-        log "  MISSING-IN-BUCKET  $key"
+    if ! grep -Fqx -- "$key" "$VERIFY_TMP/restore-bucket-objects.txt"; then
         MISSING=$((MISSING + 1))
     fi
-done < /tmp/restore-object-keys.txt
+done < "$VERIFY_TMP/restore-object-keys.txt"
 [ "$MISSING" = "0" ] || die 19 "恢复库有 $MISSING 条对象引用在恢复 bucket 中无对应文件"
 
 # 核验 2：恢复库引用集合应与业务源一致（证明恢复的是同一时点的关联关系）。
-pg_source_query "$OBJECT_KEY_SQL" | sort > /tmp/source-object-keys.txt
-if ! diff -q /tmp/source-object-keys.txt /tmp/restore-object-keys.txt > /dev/null; then
-    diff /tmp/source-object-keys.txt /tmp/restore-object-keys.txt | sed 's/^/  key-diff: /' >&2
+pg_source_query "$OBJECT_KEY_SQL" | sort > "$VERIFY_TMP/source-object-keys.txt"
+if ! diff -q "$VERIFY_TMP/source-object-keys.txt" "$VERIFY_TMP/restore-object-keys.txt" > /dev/null; then
     die 19 "恢复库对象引用集合与业务源不一致（备份与恢复间数据发生了变化？）"
 fi
 log "  OK  对象引用集合与业务源一致（$DB_KEYS 条），且全部能在恢复 bucket 中找到对应文件"
 
-rm -f /tmp/restore-object-keys.txt /tmp/restore-bucket-objects.txt /tmp/source-object-keys.txt
 log "一致性核验通过：数据库关键表行数与 DB↔MinIO 对象引用均一致"

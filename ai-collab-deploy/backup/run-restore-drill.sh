@@ -22,12 +22,13 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-POSTGRES_IMAGE="$(get_env DRILL_POSTGRES_IMAGE pgvector/pgvector:pg17)"
+POSTGRES_SOURCE_IMAGE="$(docker inspect --format '{{.Config.Image}}' "$(get_env POSTGRES_CONTAINER ai-collab-postgres)" 2>/dev/null || true)"
+POSTGRES_IMAGE="$(get_env DRILL_POSTGRES_IMAGE "${POSTGRES_SOURCE_IMAGE:-pgvector/pgvector:pg17}")"
 MINIO_IMAGE="$(get_env MINIO_IMAGE "$(docker inspect --format '{{.Config.Image}}' "$(get_env MINIO_CONTAINER ai-collab-minio)" 2>/dev/null || true)")"
 [ -n "$MINIO_IMAGE" ] || die 3 "MINIO_IMAGE 无法确定"
 MINIO_BUCKET="$(get_env MINIO_BUCKET ai-collab)"
 
-DRILL_RUN="drill-$(date +%Y%m%dT%H%M%SZ)"
+DRILL_RUN="drill-$(date -u +%Y%m%dT%H%M%SZ)"
 DRILL_PG_CONTAINER="ai-collab-${DRILL_RUN}-pg"
 DRILL_MINIO_CONTAINER="ai-collab-${DRILL_RUN}-minio"
 DRILL_DB="${DRILL_RUN}_db"
@@ -42,8 +43,8 @@ if [ -n "$BACKUP_DIR_ARG" ]; then
 else
     BACKUP_DIR="$BACKUP_ROOT"
     log "[1/5] 现场执行全新备份（只读源）"
-    "$SCRIPT_DIR/backup-postgres.sh"
-    "$SCRIPT_DIR/backup-minio.sh"
+    bash "$SCRIPT_DIR/backup-postgres.sh"
+    bash "$SCRIPT_DIR/backup-minio.sh"
 fi
 DUMP_FILE="$(ls -t "$BACKUP_DIR"/postgres/*.dump 2>/dev/null | head -1 || true)"
 [ -n "$DUMP_FILE" ] || die 3 "$BACKUP_DIR/postgres 下没有 *.dump 备份文件"
@@ -82,16 +83,16 @@ log "演练实例就绪：$DRILL_PG_CONTAINER / $DRILL_MINIO_CONTAINER"
 log "[3/5] 恢复数据库与对象到隔离实例"
 # 恢复目标是非业务容器，安全守卫不会触发；显式传目标容器与库名。
 POSTGRES_RESTORE_USER="$DRILL_PG_USER" POSTGRES_PASSWORD_RESTORE="$DRILL_PG_PASSWORD" \
-    "$SCRIPT_DIR/restore-postgres.sh" --file "$DUMP_FILE" --container "$DRILL_PG_CONTAINER" --db "$DRILL_DB"
+    bash "$SCRIPT_DIR/restore-postgres.sh" --file "$DUMP_FILE" --container "$DRILL_PG_CONTAINER" --db "$DRILL_DB"
 MINIO_RESTORE_USER="$DRILL_MINIO_USER" MINIO_RESTORE_PASSWORD="$DRILL_MINIO_PASSWORD" \
-    "$SCRIPT_DIR/restore-minio.sh" --dir "$MINIO_DIR" --container "$DRILL_MINIO_CONTAINER" --bucket "$MINIO_BUCKET"
+    bash "$SCRIPT_DIR/restore-minio.sh" --dir "$MINIO_DIR" --container "$DRILL_MINIO_CONTAINER" --bucket "$MINIO_BUCKET"
 
 log "[4/5] 一致性核验（源业务 vs 隔离恢复结果）"
 VERIFY_KEY_TABLES="${VERIFY_KEY_TABLES:-app_user project project_member project_task milestone task_comment project_document document_chunk ai_task_plan audit_log}" \
 VERIFY_OBJECT_KEY_SQL="${VERIFY_OBJECT_KEY_SQL:-SELECT object_key FROM project_document}" \
 POSTGRES_RESTORE_USER="$DRILL_PG_USER" POSTGRES_PASSWORD_RESTORE="$DRILL_PG_PASSWORD" \
 MINIO_RESTORE_USER="$DRILL_MINIO_USER" MINIO_RESTORE_PASSWORD="$DRILL_MINIO_PASSWORD" \
-    "$SCRIPT_DIR/verify-restore-consistency.sh" \
+    bash "$SCRIPT_DIR/verify-restore-consistency.sh" \
     --pg-container "$DRILL_PG_CONTAINER" --pg-db "$DRILL_DB" \
     --minio-container "$DRILL_MINIO_CONTAINER" --bucket "$MINIO_BUCKET"
 

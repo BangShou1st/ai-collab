@@ -37,6 +37,15 @@ require_container() {
     docker inspect "$name" >/dev/null 2>&1 || die 3 "$role 容器不存在或未运行: $name（可用环境变量覆盖）"
 }
 
+validate_database_name() {
+    [[ "$1" =~ ^[A-Za-z0-9_][A-Za-z0-9_-]{0,62}$ ]] || die 3 "数据库名格式无效"
+}
+
+validate_bucket_name() {
+    [[ "$1" =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ && "$1" != *..* && "$1" != *.-* && "$1" != *-.* ]] \
+        || die 3 "bucket 名称格式无效"
+}
+
 # docker run -v 的宿主机路径：Git Bash/MSYS 下转为盘符形式（E:/...），
 # 既避免 MSYS 对参数的隐式改写，也让 Docker Desktop 能正确挂载；Linux 原样返回。
 host_path() {

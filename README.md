@@ -241,7 +241,7 @@ git clone https://github.com/BangShou1st/ai-collab.git
 cd ai-collab
 ```
 
-初始化环境变量配置文件（`.env` 为全栈唯一配置源）：
+初始化本地开发环境变量配置文件（仓库根目录 `.env` 为本地开发的配置源）：
 
 * **Linux / macOS**:
   ```bash
@@ -254,6 +254,8 @@ cd ai-collab
 
 > [!TIP]
 > 打开根目录 `.env`，按需修改各服务的 `change-me` 占位符（如数据库密码、JWT 密钥、AI 模型 Key）。
+
+生产环境使用独立的 [`compose.prod.yml`](ai-collab-deploy/compose.prod.yml)、[配置模板](ai-collab-deploy/prod.env.example)与[部署和恢复指南](docs/deployment/production-foundation.md)。生产默认开放普通用户注册，新账号不自动成为系统管理员；真实秘密保存在仓库外，生产环境仍须经过实际验收与授权。
 
 ---
 

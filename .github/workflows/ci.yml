@@ -19,6 +19,19 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  production-contract:
+    name: P0 production configuration and backup contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate production configuration and failure paths
+        run: |
+          docker compose --env-file ai-collab-deploy/prod.env.example -f ai-collab-deploy/compose.prod.yml config --format json | node ai-collab-deploy/scripts/prod-compose-contract.mjs
+          AUTH_PUBLIC_REGISTRATION_ENABLED=false docker compose --env-file ai-collab-deploy/prod.env.example -f ai-collab-deploy/compose.prod.yml config --format json | P0_EXPECT_REGISTRATION=false node ai-collab-deploy/scripts/prod-compose-contract.mjs
+          node --test ai-collab-deploy/scripts/prod-config-check.test.mjs
+          bash ai-collab-deploy/scripts/backup-safety-contract.sh
+
   backend:
     name: Backend (Maven verify)
     runs-on: ubuntu-latest
@@ -197,7 +210,7 @@ jobs:
     name: Image build & container smoke
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     steps:
       - uses: actions/checkout@v4
 
@@ -263,3 +276,12 @@ jobs:
           # 版本可追踪：镜像 revision 标签必须等于本次构建的 commit。
           rev=$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' ai-collab-backend:rc-${GITHUB_SHA::12})
           [ "$rev" = "$GITHUB_SHA" ]
+
+      - name: Isolated production topology and recovery
+        run: |
+          docker tag ai-collab-backend:rc-${GITHUB_SHA::12} ai-collab-p0-isolated:dirty
+          docker pull nginx:1.30.6-alpine
+          docker pull node:24.14.0-alpine
+          mkdir -p ai-collab-frontend/dist
+          printf '<!doctype html><title>synthetic smoke</title>\n' > ai-collab-frontend/dist/index.html
+          bash ai-collab-deploy/scripts/p0-isolated-compose-smoke.sh

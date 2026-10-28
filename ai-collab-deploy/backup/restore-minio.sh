@@ -32,6 +32,7 @@ while [ $# -gt 0 ]; do
     esac
 done
 [ -n "$SOURCE_DIR" ] && [ -n "$TARGET_CONTAINER" ] && [ -n "$TARGET_BUCKET" ] || usage
+validate_bucket_name "$TARGET_BUCKET"
 [ -d "$SOURCE_DIR" ] || die 3 "备份目录不存在: $SOURCE_DIR"
 
 MINIO_USER_RESTORE="$(get_env MINIO_RESTORE_USER "$(get_env MINIO_ROOT_USER '')")"
@@ -50,24 +51,27 @@ fi
 require_container "$TARGET_CONTAINER" "恢复目标 MinIO"
 
 log "开始恢复：dir=$SOURCE_DIR 目标容器=$TARGET_CONTAINER bucket=$TARGET_BUCKET"
-if ! MSYS_NO_PATHCONV=1 docker run --rm --network "container:$TARGET_CONTAINER" \
+export MC_USER="$MINIO_USER_RESTORE" MC_PASS="$MINIO_PASSWORD_RESTORE"
+if ! MSYS_NO_PATHCONV=1 docker run --rm --user "$(id -u):$(id -g)" --network "container:$TARGET_CONTAINER" \
         -v "$(host_path "$SOURCE_DIR"):/restore-src:ro" \
-        -e MC_USER="$MINIO_USER_RESTORE" -e MC_PASS="$MINIO_PASSWORD_RESTORE" \
+        -e MC_USER -e MC_PASS \
         --entrypoint sh "$MINIO_IMAGE" -c "
-            mc alias set dst http://127.0.0.1:9000 \"\$MC_USER\" \"\$MC_PASS\" >/dev/null &&
-            mc mb --ignore-existing \"dst/$TARGET_BUCKET\" >/dev/null &&
-            mc mirror --overwrite /restore-src \"dst/$TARGET_BUCKET\"
-        "; then
+            mc --config-dir /tmp/p0-mc alias set dst http://127.0.0.1:9000 \"\$MC_USER\" \"\$MC_PASS\" >/dev/null &&
+            mc --config-dir /tmp/p0-mc mb --ignore-existing \"dst/$TARGET_BUCKET\" >/dev/null &&
+            mc --config-dir /tmp/p0-mc mirror --overwrite /restore-src \"dst/$TARGET_BUCKET\"
+        " >/dev/null 2>&1; then
     die 17 "mc mirror 恢复执行失败"
 fi
 
 # 恢复后自检：目标 bucket 必须可读且对象数与备份目录一致。
-RESTORED_COUNT="$(MSYS_NO_PATHCONV=1 docker run --rm --network "container:$TARGET_CONTAINER" \
-        -e MC_USER="$MINIO_USER_RESTORE" -e MC_PASS="$MINIO_PASSWORD_RESTORE" \
+if ! RESTORED_COUNT="$(MSYS_NO_PATHCONV=1 docker run --rm --user "$(id -u):$(id -g)" --network "container:$TARGET_CONTAINER" \
+        -e MC_USER -e MC_PASS \
         --entrypoint sh "$MINIO_IMAGE" -c "
-            mc alias set dst http://127.0.0.1:9000 \"\$MC_USER\" \"\$MC_PASS\" >/dev/null &&
-            mc ls --recursive \"dst/$TARGET_BUCKET\" | wc -l
-        " | tr -d '[:space:]')"
+            mc --config-dir /tmp/p0-mc alias set dst http://127.0.0.1:9000 \"\$MC_USER\" \"\$MC_PASS\" >/dev/null &&
+            mc --config-dir /tmp/p0-mc ls --recursive \"dst/$TARGET_BUCKET\" > /tmp/p0-list && wc -l < /tmp/p0-list
+        " | tr -d '[:space:]')"; then
+    die 17 "恢复后对象清单查询失败，不能判定恢复完整"
+fi
 LOCAL_COUNT="$(find "$SOURCE_DIR" -type f | wc -l | tr -d '[:space:]')"
 [ "$RESTORED_COUNT" = "$LOCAL_COUNT" ] \
     || die 17 "恢复后自检失败：目标 bucket 对象数($RESTORED_COUNT) != 备份目录文件数($LOCAL_COUNT)"
