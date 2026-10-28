@@ -15,51 +15,57 @@ BACKUP_ROOT="$(get_env BACKUP_ROOT "$REPO_ROOT/backups")"
 
 [ -n "$MINIO_IMAGE" ] || die 3 "MINIO_IMAGE 无法确定（默认取源容器镜像，亦可显式设置）"
 [ -n "$MINIO_ROOT_USER" ] && [ -n "$MINIO_ROOT_PASSWORD" ] || die 3 "MINIO_ROOT_USER / MINIO_ROOT_PASSWORD 未设置"
+validate_bucket_name "$MINIO_BUCKET"
 require_container "$MINIO_CONTAINER" "MinIO 源"
 
 TARGET_DIR="$BACKUP_ROOT/minio/$MINIO_BUCKET"
 ensure_dir "$TARGET_DIR"
-TIMESTAMP="$(date +%Y%m%dT%H%M%SZ)"
+TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 STARTED_AT="$(date +%s)"
 
 log "开始备份 MinIO：容器=$MINIO_CONTAINER bucket=$MINIO_BUCKET 输出=$TARGET_DIR"
 
 # 借用源容器自身的网络命名空间（127.0.0.1:9000）运行一次性 mc 容器，
 # 不发布端口、不写入源容器文件系统；凭据只进一次性容器进程环境。
-MIRROR_LOG="$TARGET_DIR/../mirror-$TIMESTAMP.log"
-if ! MSYS_NO_PATHCONV=1 docker run --rm --network "container:$MINIO_CONTAINER" \
+umask 077
+MIRROR_LOG="$(mktemp "$TARGET_DIR/../mirror-XXXXXX")"
+trap 'rm -f -- "$MIRROR_LOG"' EXIT
+export MC_ACCESS_KEY="$MINIO_ROOT_USER" MC_SECRET_KEY="$MINIO_ROOT_PASSWORD"
+if ! MSYS_NO_PATHCONV=1 docker run --rm --user "$(id -u):$(id -g)" --network "container:$MINIO_CONTAINER" \
         -v "$(host_path "$TARGET_DIR"):/backup" \
-        -e MC_ACCESS_KEY="$MINIO_ROOT_USER" -e MC_SECRET_KEY="$MINIO_ROOT_PASSWORD" \
+        -e MC_ACCESS_KEY -e MC_SECRET_KEY \
         --entrypoint sh "$MINIO_IMAGE" -c "
-            mc alias set src http://127.0.0.1:9000 \"\$MC_ACCESS_KEY\" \"\$MC_SECRET_KEY\" >/dev/null &&
-            mc mirror --overwrite \"src/$MINIO_BUCKET\" /backup
+            mc --config-dir /tmp/p0-mc alias set src http://127.0.0.1:9000 \"\$MC_ACCESS_KEY\" \"\$MC_SECRET_KEY\" >/dev/null &&
+            mc --config-dir /tmp/p0-mc mirror --overwrite \"src/$MINIO_BUCKET\" /backup
         " > "$MIRROR_LOG" 2>&1; then
-    cat "$MIRROR_LOG" >&2
-    die 12 "mc mirror 执行失败，详见 $MIRROR_LOG"
+    die 12 "mc mirror 执行失败；临时输出已清理，请通过受控运维渠道诊断"
 fi
 
 # 完整性校验：mc diff 比对源 bucket 与本地副本，任何差异（多/少/内容不同）都视为备份无效。
-DIFF_OUTPUT="$(MSYS_NO_PATHCONV=1 docker run --rm --network "container:$MINIO_CONTAINER" \
+if ! DIFF_OUTPUT="$(MSYS_NO_PATHCONV=1 docker run --rm --user "$(id -u):$(id -g)" --network "container:$MINIO_CONTAINER" \
         -v "$(host_path "$TARGET_DIR"):/backup" \
-        -e MC_ACCESS_KEY="$MINIO_ROOT_USER" -e MC_SECRET_KEY="$MINIO_ROOT_PASSWORD" \
+        -e MC_ACCESS_KEY -e MC_SECRET_KEY \
         --entrypoint sh "$MINIO_IMAGE" -c "
-            mc alias set src http://127.0.0.1:9000 \"\$MC_ACCESS_KEY\" \"\$MC_SECRET_KEY\" >/dev/null &&
-            mc diff \"src/$MINIO_BUCKET\" /backup
-        " 2>&1 || true)"
+            mc --config-dir /tmp/p0-mc alias set src http://127.0.0.1:9000 \"\$MC_ACCESS_KEY\" \"\$MC_SECRET_KEY\" >/dev/null &&
+            mc --config-dir /tmp/p0-mc diff \"src/$MINIO_BUCKET\" /backup
+        " 2>&1)"; then
+    die 13 "mc diff 执行失败，不能判定对象备份一致"
+fi
 rm -f "$MIRROR_LOG"
 if [ -n "$DIFF_OUTPUT" ]; then
-    printf '%s\n' "$DIFF_OUTPUT" | sed 's/^/  diff: /' >&2
     die 13 "完整性校验失败：mc diff 在源 bucket 与本地副本之间发现差异"
 fi
 
 # 清单与统计：恢复后据此核对对象数量与总字节。
-MSYS_NO_PATHCONV=1 docker run --rm --network "container:$MINIO_CONTAINER" \
+if ! MSYS_NO_PATHCONV=1 docker run --rm --user "$(id -u):$(id -g)" --network "container:$MINIO_CONTAINER" \
         -v "$(host_path "$TARGET_DIR"):/backup" \
-        -e MC_ACCESS_KEY="$MINIO_ROOT_USER" -e MC_SECRET_KEY="$MINIO_ROOT_PASSWORD" \
+        -e MC_ACCESS_KEY -e MC_SECRET_KEY \
         --entrypoint sh "$MINIO_IMAGE" -c "
-            mc alias set src http://127.0.0.1:9000 \"\$MC_ACCESS_KEY\" \"\$MC_SECRET_KEY\" >/dev/null &&
-            mc ls --recursive \"src/$MINIO_BUCKET\"
-        " > "$TARGET_DIR.manifest.txt" 2>/dev/null || true
+            mc --config-dir /tmp/p0-mc alias set src http://127.0.0.1:9000 \"\$MC_ACCESS_KEY\" \"\$MC_SECRET_KEY\" >/dev/null &&
+            mc --config-dir /tmp/p0-mc ls --recursive \"src/$MINIO_BUCKET\"
+        " > "$TARGET_DIR.manifest.txt" 2>/dev/null; then
+    die 13 "对象清单生成失败，不能判定备份完整"
+fi
 
 OBJECT_COUNT="$(wc -l < "$TARGET_DIR.manifest.txt" | tr -d '[:space:]')"
 LOCAL_FILE_COUNT="$(find "$TARGET_DIR" -type f | wc -l | tr -d '[:space:]')"

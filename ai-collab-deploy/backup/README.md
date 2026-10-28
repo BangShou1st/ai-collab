@@ -21,17 +21,18 @@
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | 取 `.env` | 业务源连接信息 |
 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` / `MINIO_BUCKET` | 取 `.env` | 业务源 MinIO 信息 |
 | `MINIO_IMAGE` | 源容器镜像 | 一次性 mc 容器所用镜像（与运行版本一致） |
+| `DRILL_POSTGRES_IMAGE` | 源容器镜像 | 演练 PostgreSQL 镜像；建议保留源端 digest 以确保版本一致 |
 | `BACKUP_ROOT` | `<仓库根>/backups` | 备份输出根目录（已在 `.gitignore`） |
 | `BACKUP_RETENTION_DAYS` | `14` | 超期备份文件自动删除，`0` 关闭 |
 | `POSTGRES_RESTORE_USER` / `POSTGRES_PASSWORD_RESTORE` | 回退源配置 | 恢复目标容器凭据 |
 | `MINIO_RESTORE_USER` / `MINIO_RESTORE_PASSWORD` | 回退 `MINIO_ROOT_*` | 恢复目标实例凭据 |
 | `ALLOW_SOURCE_OVERWRITE` | `0` | **高危**：显式解除"禁止恢复进业务容器"守卫 |
-| `VERIFY_KEY_TABLES` / `VERIFY_OBJECT_KEY_SQL` | 核心业务表 / `project_document.object_key` | 核验范围可调 |
+| `VERIFY_KEY_TABLES` / `VERIFY_OBJECT_KEY_SQL` | 核心业务表 / `project_document.object_key` | 核验范围可调；对象键查询只允许单表单列 `SELECT` |
 
 ## 日常备份（建议 cron / 计划任务）
 
 ```bash
-ai-collab-deploy/backup/backup-postgres.sh && ai-collab-deploy/backup/backup-minio.sh
+bash ai-collab-deploy/backup/backup-postgres.sh && bash ai-collab-deploy/backup/backup-minio.sh
 ```
 
 产物结构：
@@ -47,7 +48,7 @@ backups/
 ## 恢复演练（一条命令）
 
 ```bash
-ai-collab-deploy/backup/run-restore-drill.sh
+bash ai-collab-deploy/backup/run-restore-drill.sh
 ```
 
 隔离性保证：临时 PostgreSQL / MinIO 容器使用全新匿名卷、不发布端口、不接业务网络；源侧只读导出；结束强制清理临时容器。演练通过标准：关键表行数一致，且恢复库中每条 `object_key` 都能在恢复 bucket 中找到对应对象。
@@ -56,23 +57,27 @@ ai-collab-deploy/backup/run-restore-drill.sh
 
 ```bash
 # 数据库：目标必须是一个隔离容器（如临时演练容器），目标库必须不存在
-ai-collab-deploy/backup/restore-postgres.sh \
+bash ai-collab-deploy/backup/restore-postgres.sh \
   --file backups/postgres/pg_ai_collab_<时间戳>.dump \
   --container <目标容器> --db <新库名>
 
 # 对象：目标必须是隔离实例或独立 bucket
-ai-collab-deploy/backup/restore-minio.sh \
+bash ai-collab-deploy/backup/restore-minio.sh \
   --dir backups/minio/<bucket> \
   --container <目标MinIO容器> --bucket <目标bucket>
 
 # 一致性核验
-ai-collab-deploy/backup/verify-restore-consistency.sh \
+bash ai-collab-deploy/backup/verify-restore-consistency.sh \
   --pg-container <目标容器> --pg-db <新库名> \
   --minio-container <目标容器> --bucket <目标bucket>
 ```
 
 ## 安全说明
 
-- 凭据仅经环境变量 / `.env` 传入，只进一次性容器进程环境，不写日志、不落终端输出。
+- 凭据通过环境变量 / `.env` 传入，不应写入日志或证据；Docker 容器环境、inspect 与宿主机特权主体仍可读取。实际生产配置必须在仓库外安全下发。
 - 恢复类脚本三重守卫：目标容器/实例必须显式指定；目标库必须不存在；目标为业务源容器时直接退出（exit 14）。
 - 备份恢复均不发布宿主机端口；mc 操作经目标容器自身网络命名空间（127.0.0.1）执行。
+
+## 定时与告警
+
+Linux 可参考 `systemd/` 模板；配置、互斥、独立快照、保留及异地复制/告警 hook 的使用约束见 [生产部署基础](../../docs/deployment/production-foundation.md)。`scheduled-backup.sh` 默认保留 14 天，未完成的快照不自动删除；`monitor.sh` 只发送类别，不发送文档对象键或日志内容。备份和对象 mirror 并非跨系统原子快照，不可用一次对账代替业务静默窗口或异机恢复。

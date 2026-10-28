@@ -31,6 +31,7 @@ while [ $# -gt 0 ]; do
     esac
 done
 [ -n "$DUMP_FILE" ] && [ -n "$TARGET_CONTAINER" ] && [ -n "$TARGET_DB" ] || usage
+validate_database_name "$TARGET_DB"
 [ -f "$DUMP_FILE" ] || die 3 "备份文件不存在: $DUMP_FILE"
 
 POSTGRES_USER_RESTORE="$(get_env POSTGRES_RESTORE_USER "$(get_env POSTGRES_USER ai_collab)")"
@@ -56,23 +57,23 @@ log "开始恢复：dump=$(basename "$DUMP_FILE") 目标容器=$TARGET_CONTAINER
 # 校验 dump 可解析后再建库恢复；目标库必须不存在，避免覆盖既有数据。
 docker exec -i "$TARGET_CONTAINER" pg_restore --list < "$DUMP_FILE" > /dev/null 2>&1 \
     || die 16 "备份文件无法被 pg_restore 解析"
-if docker exec -e PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" "$TARGET_CONTAINER" \
+if PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" docker exec -e PGPASSWORD "$TARGET_CONTAINER" \
         psql -h localhost -U "$POSTGRES_USER_RESTORE" -d postgres -Atc \
         "SELECT 1 FROM pg_database WHERE datname='$TARGET_DB'" | grep -q 1; then
     die 14 "目标数据库 $TARGET_DB 已存在，拒绝覆盖。请换库名或先删除隔离容器"
 fi
 
-docker exec -e PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" "$TARGET_CONTAINER" \
+PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" docker exec -e PGPASSWORD "$TARGET_CONTAINER" \
     createdb -h localhost -U "$POSTGRES_USER_RESTORE" "$TARGET_DB" \
     || die 15 "createdb 失败"
-if ! docker exec -i -e PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" "$TARGET_CONTAINER" \
+if ! PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" docker exec -i -e PGPASSWORD "$TARGET_CONTAINER" \
         pg_restore -h localhost -U "$POSTGRES_USER_RESTORE" -d "$TARGET_DB" --no-owner --no-privileges \
         < "$DUMP_FILE" > /dev/null 2>&1; then
     die 15 "pg_restore 执行失败（部分对象可能未恢复，目标库仅用于演练请直接删除容器重试）"
 fi
 
 # 恢复后自检：public schema 下必须存在业务表。
-RESTORED_TABLES="$(docker exec -e PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" "$TARGET_CONTAINER" \
+RESTORED_TABLES="$(PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" docker exec -e PGPASSWORD "$TARGET_CONTAINER" \
     psql -h localhost -U "$POSTGRES_USER_RESTORE" -d "$TARGET_DB" -Atc \
     "SELECT count(*) FROM pg_tables WHERE schemaname='public'")"
 [ "$RESTORED_TABLES" -gt 0 ] || die 16 "恢复后自检失败：public schema 无任何表"

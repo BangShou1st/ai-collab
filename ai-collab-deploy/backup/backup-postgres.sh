@@ -14,17 +14,18 @@ BACKUP_ROOT="$(get_env BACKUP_ROOT "$REPO_ROOT/backups")"
 RETENTION_DAYS="$(get_env BACKUP_RETENTION_DAYS 14)"
 
 [ -n "$POSTGRES_PASSWORD" ] || die 3 "POSTGRES_PASSWORD 未设置（环境变量或 .env）"
+validate_database_name "$POSTGRES_DB"
 require_container "$POSTGRES_CONTAINER" "PostgreSQL 源"
 
 ensure_dir "$BACKUP_ROOT/postgres"
-TIMESTAMP="$(date +%Y%m%dT%H%M%SZ)"
+TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 DUMP_FILE="$BACKUP_ROOT/postgres/pg_${POSTGRES_DB}_${TIMESTAMP}.dump"
 STARTED_AT="$(date +%s)"
 
 log "开始备份 PostgreSQL：容器=$POSTGRES_CONTAINER 数据库=$POSTGRES_DB 输出=$DUMP_FILE"
 
 # pg_dump 经 stdout 流出到宿主机文件；凭据只进容器内进程环境，不落日志。
-if ! docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$POSTGRES_CONTAINER" \
+if ! PGPASSWORD="$POSTGRES_PASSWORD" docker exec -e PGPASSWORD "$POSTGRES_CONTAINER" \
         pg_dump -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc \
         > "$DUMP_FILE"; then
     rm -f "$DUMP_FILE"

@@ -12,6 +12,8 @@ storage:
         access-key: "${MINIO_ACCESS_KEY:}"
         secret-key: "${MINIO_SECRET_KEY:}"
         bucket: "${MINIO_BUCKET:ai-collab}"
+        public-endpoint: "${MINIO_PUBLIC_ENDPOINT:}"
+        manage-bucket: "${MINIO_MANAGE_BUCKET:true}"
 
 embedding:
     local-allowed-targets: "${EMBEDDING_LOCAL_ALLOWED_TARGETS:127.0.0.1:11434,localhost:11434,[::1]:11434}"

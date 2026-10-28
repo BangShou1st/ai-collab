@@ -43,6 +43,7 @@
 - **接口定义**：[`docs/api/`](api/) —— 包含 OpenAPI 契约与接口文档。
 - **开发规范**：[`docs/development/`](development/) —— 包含代码分支策略、提交约定等。
 - **部署指南**：[`docs/deployment/`](deployment/) —— 包含网关部署、环境依赖配置等。
+- [P0 生产部署基础](deployment/production-foundation.md)：独立生产拓扑、代理信任边界、备份/告警及发布回滚要求；真实环境仍需验收。
 - **自动化测试语料**：[`tests/fixtures/documents/`](../tests/fixtures/documents/) —— 用于知识库 RAG 评测与端到端测试的标准原件。
 
 ### 3.1 发布就绪与运维 Runbook (`docs/release-readiness/`)
