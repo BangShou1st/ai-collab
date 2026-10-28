@@ -104,54 +104,54 @@
     } ]
   }
 }, {
-  "riskId" : "RISK-AUDIT2-001",
+  "afterFixCase" : "1A_REAL_CORPUS_DURATION_SUBSTRING",
   "afterFixActual" : {
-    "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[10 份]" ],
+    "unsupportedNumberCandidates" : [ "10 份" ],
     "abstentionVerdict" : "CONFLICTING_FABRICATION",
-    "unsupportedNumberCandidates" : [ "10 份" ]
+    "highSeverity" : [ "CONFLICTING_FABRICATION:无答案题出现拒答措辞但包含冲突编造断言：回答虽然出现拒答/未知措辞，但同时给出了未经支持的编造断言或数字：[10 份]" ]
   },
-  "afterFixCase" : "1A_REAL_CORPUS_DURATION_SUBSTRING"
+  "riskId" : "RISK-AUDIT2-001"
 }, {
-  "riskId" : "RISK-AUDIT2-002",
+  "afterFixCase" : "2A_GROUPED_CITATION_S8_S9",
   "afterFixActual" : {
-    "abstentionVerdict" : "HONEST_ABSTENTION",
-    "unsupportedNumberCandidates" : [ ]
+    "unsupportedNumberCandidates" : [ ],
+    "abstentionVerdict" : "HONEST_ABSTENTION"
   },
-  "afterFixCase" : "2A_GROUPED_CITATION_S8_S9"
+  "riskId" : "RISK-AUDIT2-002"
 }, {
-  "riskId" : "RISK-AUDIT2-003",
+  "afterFixCase" : "3A_DEL_STRONG_NESTED_NEGATION",
   "afterFixActual" : {
-    "verdict" : "AMBIGUOUS_NEEDS_REVIEW",
+    "normalizedAnswer" : "根据资料,~~不可以~~先组织培训再补签合同 [S1]。",
     "highSeverity" : [ ],
-    "normalizedAnswer" : "根据资料,~~不可以~~先组织培训再补签合同 [S1]。"
+    "verdict" : "AMBIGUOUS_NEEDS_REVIEW"
   },
-  "afterFixCase" : "3A_DEL_STRONG_NESTED_NEGATION"
+  "riskId" : "RISK-AUDIT2-003"
 }, {
-  "riskId" : "RISK-AUDIT2-004",
+  "afterFixCase" : "4A_IRRELEVANT_NAME_STRIKETHROUGH",
   "afterFixActual" : {
-    "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
-    "verdict" : "AFFIRMATIVE_VIOLATION"
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
   },
-  "afterFixCase" : "4A_IRRELEVANT_NAME_STRIKETHROUGH"
+  "riskId" : "RISK-AUDIT2-004"
 }, {
-  "riskId" : "RISK-AUDIT2-006",
+  "afterFixCase" : "5A_LEGACY_QUALIFIER_BEFORE_CURRENT_CLAIM",
   "afterFixActual" : {
-    "highSeverity" : [ "VERSION_VIOLATION:旧/废止/他方条款以现行口径出现：四百" ],
-    "versionVerdict" : "VERSION_VIOLATION"
+    "versionVerdict" : "VERSION_VIOLATION",
+    "highSeverity" : [ "VERSION_VIOLATION:旧/废止/他方条款以现行口径出现：四百" ]
   },
-  "afterFixCase" : "5A_LEGACY_QUALIFIER_BEFORE_CURRENT_CLAIM"
+  "riskId" : "RISK-AUDIT2-006"
 }, {
-  "riskId" : "RISK-AUDIT2-007",
+  "afterFixCase" : "6A_BUSINESS_SCOPE_EXCLUSION",
   "afterFixActual" : {
-    "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
-    "verdict" : "AFFIRMATIVE_VIOLATION"
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
   },
-  "afterFixCase" : "6A_BUSINESS_SCOPE_EXCLUSION"
+  "riskId" : "RISK-AUDIT2-007"
 }, {
-  "riskId" : "RISK-AUDIT2-008",
+  "afterFixCase" : "7A_UNENUMERATED_SUBJECT_AFTER_CONJUNCTION",
   "afterFixActual" : {
-    "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ],
-    "verdict" : "AFFIRMATIVE_VIOLATION"
+    "verdict" : "AFFIRMATIVE_VIOLATION",
+    "highSeverity" : [ "FORBIDDEN_AFFIRMATION:出现禁断表述（否定翻转/地区套用/编造）：可以先组织培训再补签" ]
   },
-  "afterFixCase" : "7A_UNENUMERATED_SUBJECT_AFTER_CONJUNCTION"
+  "riskId" : "RISK-AUDIT2-008"
 } ]

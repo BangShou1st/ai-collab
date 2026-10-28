@@ -1,73 +1,73 @@
 [ {
   "finalStatus" : "RESOLVED_VERIFIED",
-  "severity" : "CRITICAL",
-  "ruleVersion" : "2.1-scoped-contextual-v6",
-  "remediation" : "废除裸子串免责；改为“数值核心 + 业务单位 + 词边界”绑定比对；汉字等值变体（五百↔500）与百分比等值（百分之五↔5%）绑定单位后双向支持；无单位裸数值保守判为不受支持；预期事实（受控标注）保留宽松路径。",
-  "initialStatus" : "CONFIRMED_DEFECT",
+  "rootCause" : "isNumberSupported 提取数字核心后对来源全文执行裸子串包含（contains(digits)/contains(汉字数字)），来源中日期、文件编号、期限（如“十个工作日”的“十”）等无关数字被误判为业务数字支持证据。",
   "riskId" : "RISK-AUDIT2-001",
-  "rootCause" : "isNumberSupported 提取数字核心后对来源全文执行裸子串包含（contains(digits)/contains(汉字数字)），来源中日期、文件编号、期限（如“十个工作日”的“十”）等无关数字被误判为业务数字支持证据。"
+  "initialStatus" : "CONFIRMED_DEFECT",
+  "remediation" : "废除裸子串免责；改为“数值核心 + 业务单位 + 词边界”绑定比对；汉字等值变体（五百↔500）与百分比等值（百分之五↔5%）绑定单位后双向支持；无单位裸数值保守判为不受支持；预期事实（受控标注）保留宽松路径。",
+  "ruleVersion" : "2.1-scoped-contextual-v6",
+  "severity" : "CRITICAL"
 }, {
   "finalStatus" : "RESOLVED_VERIFIED",
-  "severity" : "HIGH",
-  "ruleVersion" : "2.1-scoped-contextual-v6",
-  "remediation" : "MASK_CITATION 对齐生产 KnowledgeCitationValidator 契约：\\[S\\d+(?:\\s*,\\s*S\\d+)*\\]（CASE_INSENSITIVE）；不完整引用不被吞掉，其内部数字不享受掩码豁免。",
-  "initialStatus" : "CONFIRMED_DEFECT",
+  "rootCause" : "MASK_CITATION 仅匹配单项 [S#]，分组引用 [S8, S9] 的序号泄漏为业务数字候选，合规拒答被误判 CONFLICTING_FABRICATION。",
   "riskId" : "RISK-AUDIT2-002",
-  "rootCause" : "MASK_CITATION 仅匹配单项 [S#]，分组引用 [S8, S9] 的序号泄漏为业务数字候选，合规拒答被误判 CONFLICTING_FABRICATION。"
+  "initialStatus" : "CONFIRMED_DEFECT",
+  "remediation" : "MASK_CITATION 对齐生产 KnowledgeCitationValidator 契约：\\[S\\d+(?:\\s*,\\s*S\\d+)*\\]（CASE_INSENSITIVE）；不完整引用不被吞掉，其内部数字不享受掩码豁免。",
+  "ruleVersion" : "2.1-scoped-contextual-v6",
+  "severity" : "HIGH"
 }, {
   "finalStatus" : "RESOLVED_VERIFIED",
-  "severity" : "HIGH",
-  "ruleVersion" : "2.1-scoped-contextual-v6",
-  "remediation" : "stripMarkdownFormatting 改为多轮规整：先剥离展示标签、再转换删除线标签，循环至不动点；删除线语义统一规范为 ~~text~~。",
-  "initialStatus" : "CONFIRMED_DEFECT",
+  "rootCause" : "HTML_STRIKE_TAG 的内容模式 ([^<\\n]+) 不允许内部出现 '<'，<del><strong>x</strong></del> 在展示标签剥离前无法命中，残留裸 <del> 使删除线语义丢失。",
   "riskId" : "RISK-AUDIT2-003",
-  "rootCause" : "HTML_STRIKE_TAG 的内容模式 ([^<\\n]+) 不允许内部出现 '<'，<del><strong>x</strong></del> 在展示标签剥离前无法命中，残留裸 <del> 使删除线语义丢失。"
+  "initialStatus" : "CONFIRMED_DEFECT",
+  "remediation" : "stripMarkdownFormatting 改为多轮规整：先剥离展示标签、再转换删除线标签，循环至不动点；删除线语义统一规范为 ~~text~~。",
+  "ruleVersion" : "2.1-scoped-contextual-v6",
+  "severity" : "HIGH"
 }, {
   "finalStatus" : "RESOLVED_VERIFIED",
-  "severity" : "HIGH",
-  "ruleVersion" : "2.1-scoped-contextual-v6",
-  "remediation" : "删除线靶向绑定：仅当删除线片段与 marker 区间相交、或片段内包裹否定/禁止语义词、或孤立 ~~ 紧邻命题区间时转人工复核；无关删除线不抑制独立违规；marker 被删除线打断时仍经 containsFact 定位并进入复核。",
-  "initialStatus" : "CONFIRMED_DEFECT",
+  "rootCause" : "judgeSingleOccurrence 的 A00 检查用 localClause.contains(\"~~\") 粗粒度短路，无关成分（人名等）的删除线抑制同分句独立肯定违规。",
   "riskId" : "RISK-AUDIT2-004",
-  "rootCause" : "judgeSingleOccurrence 的 A00 检查用 localClause.contains(\"~~\") 粗粒度短路，无关成分（人名等）的删除线抑制同分句独立肯定违规。"
+  "initialStatus" : "CONFIRMED_DEFECT",
+  "remediation" : "删除线靶向绑定：仅当删除线片段与 marker 区间相交、或片段内包裹否定/禁止语义词、或孤立 ~~ 紧邻命题区间时转人工复核；无关删除线不抑制独立违规；marker 被删除线打断时仍经 containsFact 定位并进入复核。",
+  "ruleVersion" : "2.1-scoped-contextual-v6",
+  "severity" : "HIGH"
 }, {
   "finalStatus" : "RESOLVED_VERIFIED",
-  "severity" : "HIGH",
-  "ruleVersion" : "2.1-scoped-contextual-v6",
-  "remediation" : "逐 occurrence 增加“现行主张阻断”：局部子句在旧标准数值紧邻前方（窗口 6 字符）出现现行/目前/当前/现在等口径词时，局部与前置历史限定均不得豁免。",
-  "initialStatus" : "CONFIRMED_DEFECT",
+  "rootCause" : "isLegacyOccurrenceQualified 在无转折连词的顺承复合句中，前置历史限定从句无条件豁免后置“现行标准”主张。",
   "riskId" : "RISK-AUDIT2-006",
-  "rootCause" : "isLegacyOccurrenceQualified 在无转折连词的顺承复合句中，前置历史限定从句无条件豁免后置“现行标准”主张。"
+  "initialStatus" : "CONFIRMED_DEFECT",
+  "remediation" : "逐 occurrence 增加“现行主张阻断”：局部子句在旧标准数值紧邻前方（窗口 6 字符）出现现行/目前/当前/现在等口径词时，局部与前置历史限定均不得豁免。",
+  "ruleVersion" : "2.1-scoped-contextual-v6",
+  "severity" : "HIGH"
 }, {
   "finalStatus" : "RESOLVED_VERIFIED",
-  "severity" : "HIGH",
-  "ruleVersion" : "2.1-scoped-contextual-v6",
-  "remediation" : "移除 “除.*外”，特批词表保留 除非|特批|例外|特殊情况|经.*批准后方可|经.*批准；“除经…特批/批准外” 等含真实审批语义的表达仍由特批词命中；自闭合禁止从句判定保持不变。",
-  "initialStatus" : "CONFIRMED_DEFECT",
+  "rootCause" : "EXCEPTION_MARKER 含泛化 “除.*外”，普通业务范围排除从句获得特批例外豁免权，长程传递降级后续独立违规。",
   "riskId" : "RISK-AUDIT2-007",
-  "rootCause" : "EXCEPTION_MARKER 含泛化 “除.*外”，普通业务范围排除从句获得特批例外豁免权，长程传递降级后续独立违规。"
-}, {
-  "finalStatus" : "RESOLVED_VERIFIED",
-  "severity" : "HIGH",
-  "ruleVersion" : "2.1-scoped-contextual-v6",
-  "remediation" : "在 E1 引入并列连词（且/同时/并且/而且/以及）截断：模态统领范围止于最后一个连词，连词后为独立命题；主语与指示词检查均基于截断后的有效作用域；不扩张封闭主语词表，避免“主语+并未明确”合法认识模态误伤。",
   "initialStatus" : "CONFIRMED_DEFECT",
+  "remediation" : "移除 “除.*外”，特批词表保留 除非|特批|例外|特殊情况|经.*批准后方可|经.*批准；“除经…特批/批准外” 等含真实审批语义的表达仍由特批词命中；自闭合禁止从句判定保持不变。",
+  "ruleVersion" : "2.1-scoped-contextual-v6",
+  "severity" : "HIGH"
+}, {
+  "finalStatus" : "RESOLVED_VERIFIED",
+  "rootCause" : "模式 E1 依赖封闭主语白名单判定模态作用范围，未枚举主语（负责人等）+ “具体”指示词使同句认识模态跨域放行后置肯定动作。",
   "riskId" : "RISK-AUDIT2-008",
-  "rootCause" : "模式 E1 依赖封闭主语白名单判定模态作用范围，未枚举主语（负责人等）+ “具体”指示词使同句认识模态跨域放行后置肯定动作。"
+  "initialStatus" : "CONFIRMED_DEFECT",
+  "remediation" : "在 E1 引入并列连词（且/同时/并且/而且/以及）截断：模态统领范围止于最后一个连词，连词后为独立命题；主语与指示词检查均基于截断后的有效作用域；不扩张封闭主语词表，避免“主语+并未明确”合法认识模态误伤。",
+  "ruleVersion" : "2.1-scoped-contextual-v6",
+  "severity" : "HIGH"
 }, {
   "finalStatus" : "RESOLVED_VERIFIED",
-  "severity" : "MEDIUM",
-  "ruleVersion" : "2.1-scoped-contextual-v6",
-  "remediation" : "Judge 词表补齐 “而” 与 Scorer 对齐；以 “资料中未明确具体抽查比例而负责人可以先组织培训再补签合同” 确定性复现基线假阴性并验证修复。",
-  "initialStatus" : "STATIC_RISK",
+  "rootCause" : "Scorer 与 Judge 两处 ADVERSATIVE_CONJUNCTION 定义漂移（Judge 缺 “而”），无标点复合句作用域切分不一致。",
   "riskId" : "RISK-AUDIT2-005",
-  "rootCause" : "Scorer 与 Judge 两处 ADVERSATIVE_CONJUNCTION 定义漂移（Judge 缺 “而”），无标点复合句作用域切分不一致。"
+  "initialStatus" : "STATIC_RISK",
+  "remediation" : "Judge 词表补齐 “而” 与 Scorer 对齐；以 “资料中未明确具体抽查比例而负责人可以先组织培训再补签合同” 确定性复现基线假阴性并验证修复。",
+  "ruleVersion" : "2.1-scoped-contextual-v6",
+  "severity" : "MEDIUM"
 }, {
   "finalStatus" : "RESOLVED_VERIFIED",
-  "severity" : "LOW",
-  "ruleVersion" : "2.1-scoped-contextual-v6",
-  "remediation" : "最小附带修复：补充整十组合（二十/三十/四十/六十/七十/八十/九十）与单字兜底（十/五），支持 “二十份”↔“20 份” 与 “百分之二十”↔“20%”；超出映射的汉字数字保持保守检出（人工复核），不做无边界词表扩张。",
-  "initialStatus" : "STATIC_RISK",
+  "rootCause" : "toArabicDigits 汉字数字映射表仅枚举少量固定值，非枚举汉字数字（如“二十”）无法完成反向阿拉伯比对，来源等值支持被误报为候选。",
   "riskId" : "RISK-AUDIT2-009",
-  "rootCause" : "toArabicDigits 汉字数字映射表仅枚举少量固定值，非枚举汉字数字（如“二十”）无法完成反向阿拉伯比对，来源等值支持被误报为候选。"
+  "initialStatus" : "STATIC_RISK",
+  "remediation" : "最小附带修复：补充整十组合（二十/三十/四十/六十/七十/八十/九十）与单字兜底（十/五），支持 “二十份”↔“20 份” 与 “百分之二十”↔“20%”；超出映射的汉字数字保持保守检出（人工复核），不做无边界词表扩张。",
+  "ruleVersion" : "2.1-scoped-contextual-v6",
+  "severity" : "LOW"
 } ]
