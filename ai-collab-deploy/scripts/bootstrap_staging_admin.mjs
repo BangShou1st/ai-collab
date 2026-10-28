@@ -1,6 +1,6 @@
 /**
  * 受控的 Staging 首管理员初始化脚本
- * 1. 通过常规公开注册接口创建 staging-admin 账号
+ * 1. 通过常规公开注册接口创建 staging_admin 账号
  * 2. 验证新注册用户绝非管理员 (systemAdmin === false)
  * 3. 通过本地直接执行受控 SQL 赋予系统管理员权限 (system_admin = true)
  * 4. 重新认证登录并请求 /api/v1/auth/me，断言已成功获得系统管理员权限
@@ -27,8 +27,8 @@ async function bootstrap() {
     return;
   }
 
-  // 2. 生成安全随机凭据
-  const adminUsername = 'staging-admin';
+  // 2. 生成安全随机凭据（用户名仅字母、数字与下划线）
+  const adminUsername = 'staging_admin';
   const adminPassword = 'Admin_' + crypto.randomBytes(12).toString('hex') + '!';
   
   console.log('[2] 通过公开注册接口创建账号:', adminUsername);
@@ -58,7 +58,7 @@ async function bootstrap() {
   }
 
   // 3. 通过受控本地 SQL 将首个管理员提权
-  console.log('[4] 执行受控 SQL 提权: UPDATE app_user SET system_admin = true WHERE username = staging-admin');
+  console.log('[4] 执行受控 SQL 提权: UPDATE app_user SET system_admin = true WHERE username = staging_admin');
   execSync(
     `docker exec ai-collab-staging-postgres-1 psql -U ai_collab_staging -d ai_collab_staging -c "UPDATE app_user SET system_admin = true WHERE username = '${adminUsername}';"`
   );
