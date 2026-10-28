@@ -66,16 +66,27 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     // 复制响应头，保持 Set-Cookie、Content-Type 与 SSE 流式
     const responseHeaders = new Headers()
     for (const [key, value] of upstreamResponse.headers.entries()) {
-      if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
+      const lower = key.toLowerCase()
+      if (!HOP_BY_HOP_HEADERS.has(lower) && lower !== 'set-cookie') {
         responseHeaders.append(key, value)
       }
     }
 
-    // 确保 API/认证接口不被 Cloudflare 缓存
-    if (url.pathname.startsWith('/api/v1/auth')) {
-      responseHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-      responseHeaders.set('Pragma', 'no-cache')
+    // 正确保留 Set-Cookie，优先使用 WinterCG / Workers 标准的 getSetCookie()
+    if (typeof upstreamResponse.headers.getSetCookie === 'function') {
+      for (const cookie of upstreamResponse.headers.getSetCookie()) {
+        responseHeaders.append('set-cookie', cookie)
+      }
+    } else {
+      const rawCookie = upstreamResponse.headers.get('set-cookie')
+      if (rawCookie) {
+        responseHeaders.append('set-cookie', rawCookie)
+      }
     }
+
+    // API 响应一律禁止 Cloudflare 边缘缓存，避免动态数据被缓存为静态内容
+    responseHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+    responseHeaders.set('Pragma', 'no-cache')
 
     return new Response(upstreamResponse.body, {
       status: upstreamResponse.status,
