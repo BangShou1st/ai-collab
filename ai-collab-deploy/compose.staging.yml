@@ -1,0 +1,117 @@
+# 独立 Staging 拓扑；持久化在 /data/ai-collab-staging/
+services:
+  postgres:
+    image: pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?required}
+      POSTGRES_USER: ${POSTGRES_USER:?required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes:
+      - /data/ai-collab-staging/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [data]
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  redis:
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes"]
+    volumes:
+      - /data/ai-collab-staging/redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [data]
+    logging: *logging
+
+  minio:
+    image: cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?required}
+    volumes:
+      - /data/ai-collab-staging/minio:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [data]
+    logging: *logging
+
+  app:
+    image: ${APP_IMAGE:-ai-collab-backend:staging-39988959}
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      minio: {condition: service_healthy}
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?required}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?required}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?required}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?required}
+      MINIO_BUCKET: ${MINIO_BUCKET:?required}
+      MINIO_PUBLIC_ENDPOINT: ${AUTH_ALLOWED_ORIGINS:?required}
+      MINIO_MANAGE_BUCKET: "true"
+      JWT_SECRET: ${JWT_SECRET:?required}
+      MODEL_CONFIG_MASTER_KEY: ${MODEL_CONFIG_MASTER_KEY:?required}
+      AUTH_ALLOWED_ORIGINS: ${AUTH_ALLOWED_ORIGINS:?required}
+      AUTH_PUBLIC_REGISTRATION_ENABLED: "true"
+      REFRESH_COOKIE_SECURE: "true"
+      REFRESH_COOKIE_ALLOW_INSECURE: "false"
+      CHAT_ENABLED: "false"
+      AGENT_ENABLED: "false"
+      AGENT_MCP_ALLOWED_HOSTS: ""
+    networks:
+      edge:
+        aliases: [app-edge]
+      data: {}
+    logging: *logging
+
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      app: {condition: service_started}
+    ports:
+      - "${STAGING_PORT:-8443}:80"
+    volumes:
+      - ./nginx/staging.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../ai-collab-frontend/dist:/usr/share/nginx/html:ro
+    networks:
+      edge:
+        ipv4_address: 172.30.173.2
+      data: {}
+    logging: *logging
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: 172.30.173.0/24
+          ip_range: 172.30.173.128/25
+          gateway: 172.30.173.1
+  data:
+    internal: true
