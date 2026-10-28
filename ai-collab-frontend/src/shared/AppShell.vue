@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import {
-  Bell, ChatDotRound, Cpu, DataBoard, Document, Expand, Fold, Folder, House, List,
+  Bell, ChatDotRound, Connection, Cpu, DataBoard, Document, Expand, Fold, Folder, House, List,
   MagicStick, MoreFilled, Setting, Tickets, User,
 } from '@element-plus/icons-vue'
 import { showApiError } from '../api/api-result'
@@ -150,6 +150,7 @@ async function logout(): Promise<void> {
         <router-link :to="`/projects/${projectId}/board`" title="任务看板" aria-label="任务看板"><el-icon><Tickets /></el-icon><span>任务看板</span></router-link>
         <router-link :to="`/projects/${projectId}/documents`" title="项目文档" aria-label="项目文档"><el-icon><Document /></el-icon><span>项目文档</span></router-link>
         <router-link :to="`/projects/${projectId}/knowledge`" title="知识问答" aria-label="知识问答"><el-icon><ChatDotRound /></el-icon><span>知识问答</span></router-link>
+        <router-link :to="`/projects/${projectId}/knowledge-source`" title="飞书知识源" aria-label="飞书知识源"><el-icon><Connection /></el-icon><span>飞书知识源</span></router-link>
         <router-link :to="`/projects/${projectId}/ai-planning`" title="任务规划" aria-label="任务规划"><el-icon><MagicStick /></el-icon><span>任务规划</span></router-link>
         <router-link :to="`/projects/${projectId}/agent`" title="协作 Agent" aria-label="协作 Agent"><el-icon><Cpu /></el-icon><span>协作 Agent</span></router-link>
         <details class="side-details">
