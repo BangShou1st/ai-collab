@@ -1,0 +1,51 @@
+event:token
+data:{"type":"token","text":"AI"}
+
+event:token
+data:{"type":"token","text":"-Collab "}
+
+event:token
+data:{"type":"token","text":"平台的旗舰特性代号"}
+
+event:token
+data:{"type":"token","text":"是「星桥"}
+
+event:token
+data:{"type":"token","text":" StarBridge」，"}
+
+event:token
+data:{"type":"token","text":"其唯一负责人是"}
+
+event:token
+data:{"type":"token","text":"合成角色「验收"}
+
+event:token
+data:{"type":"token","text":"工程师阿"}
+
+event:token
+data:{"type":"token","text":"灵」。\n\n根据"}
+
+event:token
+data:{"type":"token","text":"资料说明，这些"}
+
+event:token
+data:{"type":"token","text":"人物与代号"}
+
+event:token
+data:{"type":"token","text":"均为虚构，仅"}
+
+event:token
+data:{"type":"token","text":"用于验收测试"}
+
+event:token
+data:{"type":"token","text":" [S1]["}
+
+event:token
+data:{"type":"token","text":"S5]。"}
+
+event:citations
+data:{"type":"citations","citations":[{"documentId":"8f1d959a-3d20-43aa-8006-17c8964e2f91","filename":"合成文档A-产品白皮书.md","chunkId":"59bbd9d7-04f5-4eab-87ba-dd21783e1d35","heading":"旗舰特性","quote":"AI-Collab 平台的内部旗舰特性代号为「星桥 StarBridge」，用于演示跨文档语义检索。\n星桥特性的唯一负责人是合成角色「验收工程师阿灵」。","similarity":0.7797171410170239,"rank":1},{"documentId":"8f1d959a-3d20-43aa-8006-17c8964e2f91","filename":"合成文档A-产品白皮书.md","chunkId":"219e3e96-15bb-4862-bc39-970cebac890f","heading":"免责说明","quote":"本文所有人物、代号与日期均为虚构，仅用于验收测试。","similarity":0.513453493664578,"rank":5}]}
+
+event:done
+data:{"type":"done","messageId":"8078f0f6-f8f3-4276-9bd7-ae8cc1eebbd1"}
+
