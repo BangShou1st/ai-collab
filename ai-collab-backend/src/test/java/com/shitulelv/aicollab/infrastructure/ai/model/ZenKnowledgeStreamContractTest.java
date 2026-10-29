@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
+import com.sharedlibs.opencodezen.OpenCodeZenProtocolPolicy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -66,7 +67,7 @@ class ZenKnowledgeStreamContractTest {    private final ObjectMapper mapper = ne
         }).when(http).streamWithRequestBuilder(anyString(), any(), any(JsonNode.class), any(BiConsumer.class));
         OpenAiCompatibleModelAdapter adapter = new OpenAiCompatibleModelAdapter(mapper, http);
         ChatCompletionResult result = adapter.completeStreamingSyncWithSession(
-                zenConfig(), "k", textCommand(), AiRequestMetadata.of("corr-1"), "opencode/latest/2.0.29/cli");
+                zenConfig(), "k", textCommand(), AiRequestMetadata.of("corr-1"), OpenCodeZenProtocolPolicy.USER_AGENT);
         assertThat(result.content()).isEqualTo("answer");
         JsonNode body = captured[0];
         assertThat(body.path("stream").asBoolean()).isTrue();
@@ -74,16 +75,16 @@ class ZenKnowledgeStreamContractTest {    private final ObjectMapper mapper = ne
         assertThat(body.has("messages")).isTrue();
         assertThat(body.has("temperature")).isFalse();
         assertThat(body.has("max_tokens")).isFalse();
-        assertThat(body.has("max_completion_tokens")).isFalse();
+        assertThat(body.has("max_completion_tokens")).isTrue();
         assertThat(body.has("response_format")).isFalse();
-        assertThat(body.has("stream_options")).isFalse();
+        assertThat(body.has("stream_options")).isTrue();
         assertThat(body.has("reasoning_effort")).isFalse();
         assertThat(body.has("thinking")).isFalse();
         // Zen 身份头由共享请求工厂注入：把捕获到的 builder 应用于一个真实端点来核对头部。
         var built = factoryRef[0].apply(java.net.URI.create("https://opencode.ai/zen/v1/chat/completions"))
                 .POST(java.net.http.HttpRequest.BodyPublishers.noBody()).build();
         assertThat(built.headers().firstValue("Authorization")).contains("Bearer k");
-        assertThat(built.headers().firstValue("User-Agent")).contains("opencode/latest/2.0.29/cli");
+        assertThat(built.headers().firstValue("User-Agent")).contains(OpenCodeZenProtocolPolicy.USER_AGENT);
         assertThat(built.headers().firstValue(OpenCodeZenTransport.SESSION_HEADER).orElseThrow())
                 .matches("ses_[0-9a-f]{12}[A-Za-z0-9]{14}");
     }

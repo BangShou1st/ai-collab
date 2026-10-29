@@ -17,6 +17,7 @@
 3. PostgreSQL、Redis、MinIO 管理员及应用密码各自使用密码管理器生成的独立高强度随机值；JWT 和模型主密钥各使用至少 32 随机字节编码为不少于 43 个 base64url 字符。检查器只能识别格式、重复值和常见占位符，**不能证明随机熵**。
 4. `AUTH_ALLOWED_ORIGINS` 是允许的前端 HTTPS Origin 列表，多个值用逗号分隔；`MINIO_PUBLIC_ENDPOINT` 独立设置为可访问 `/storage/` 的单个 HTTPS 下载 Origin。生产入口固定 443，使用其他端口须重新设计并验证转发端口和跳转。准备匹配下载域名、未过期的证书和私钥，续签后重新检查并安全重载代理。生产默认开放公开注册（`AUTH_PUBLIC_REGISTRATION_ENABLED=true`），必要时可在受控环境中关闭；不初始化 local 演示管理员，Cookie 固定 Secure/HttpOnly/SameSite=Strict。
 5. 模型凭据由管理员在系统中配置并使用 `MODEL_CONFIG_MASTER_KEY` 加密入库；保管并离线加密备份原主密钥。改变该环境变量不会自动迁移已有密文，遗失密钥将使原凭据不可解密。禁止把实际密码、API Key、备份或证书私钥写入仓库或验收证据。
+6. OpenCode Zen 免费预设经共享库（`com.github.BangShou1st.opencode-zen` v1.6.1 起）的本地 Bun 中继出站：免费档读取传输指纹，JVM 直连会被 429 拒绝。`OPENCODE_ZEN_RELAY_URL` 留空表示 auto（优先复用已在监听的 `127.0.0.1:18992`，否则用本机 Bun 启动内置中继脚本，JVM 退出时回收）；`none` 表示 JVM 直连（当前会破坏免费档调用）；也可显式指定中继地址。**Linux 服务器没有 Bun 自动下载兜底（仅 Windows x64 内置）**：应用镜像或宿主必须预装 Bun（`ZEN_BUN`、`~/.bun/bin/bun` 或 `PATH` 任一），中继只绑定回环地址，不需要额外开放端口。镜像构建时应安装并固定 Bun 版本，部署验收时用真实 Zen 调用（如 `AI_ZEN_SMOKE=true` 冒烟路径）确认免费模型列表与推理可用。
 
 运行 `node ai-collab-deploy/scripts/prod-config-check.mjs /etc/ai-collab/production.env`。它校验实际生效的进程环境覆盖、密钥格式、账号分离、精确 HTTPS Origin、证书域名/有效期与私钥匹配，**不验证公共 CA 证书链或自动续签**；随后用 `bash ai-collab-deploy/scripts/prod-compose.sh /etc/ai-collab/production.env config` 检查 Compose。不要将包含秘密的 `docker compose config` 完整输出写入终端日志或工单。
 

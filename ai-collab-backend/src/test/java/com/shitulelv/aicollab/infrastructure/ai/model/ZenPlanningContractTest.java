@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
+import com.sharedlibs.opencodezen.OpenCodeZenProtocolPolicy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -52,7 +53,7 @@ class ZenPlanningContractTest {
         OpenAiCompatibleModelAdapter adapter = new OpenAiCompatibleModelAdapter(mapper, http);
         ChatCompletionCommand forced = ZenModelExecution.forceJson(jsonCommand());
         ChatCompletionResult result = adapter.completeStreamingSyncWithSession(
-                zenConfig(), "k", forced, AiRequestMetadata.of("corr"), "opencode/latest/2.0.29/cli");
+                zenConfig(), "k", forced, AiRequestMetadata.of("corr"), OpenCodeZenProtocolPolicy.USER_AGENT);
         assertThat(result.content()).isEqualTo("{\"ok\":true}");
         assertThat(captured[0].path("stream").asBoolean()).isTrue();
         assertThat(captured[0].has("response_format")).isFalse();
@@ -91,8 +92,9 @@ class ZenPlanningContractTest {
         var result = new OpenAiCompatibleModelAdapter(mapper, http).turnWithSession(zenConfig(), "key", command, AiRequestMetadata.of("s"), "client");
         assertThat(result.content()).contains("已读部分");
         assertThat(captured[0].path("tool_choice").asText()).isEqualTo("none");
-        assertThat(captured[0].path("messages").size()).isEqualTo(3);
-        assertThat(captured[0].path("messages").get(2).path("tool_call_id").asText()).isEqualTo("c1");
+        // 官方 2.x 系统提示由共享库塑形时注入为第一条消息，宿主消息整体后移。
+        assertThat(captured[0].path("messages").size()).isEqualTo(4);
+        assertThat(captured[0].path("messages").get(3).path("tool_call_id").asText()).isEqualTo("c1");
     }
 
     @Test void registryOwnsPresetCapabilities() {

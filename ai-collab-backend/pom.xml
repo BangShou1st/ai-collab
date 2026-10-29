@@ -31,7 +31,7 @@
         <java.net.useSystemProxies>true</java.net.useSystemProxies>
         <argLine/>
         <!-- OpenCode Zen 共享库版本（公开 JitPack 坐标，版本与 Git tag 一致）。 -->
-        <opencode-zen.version>v1.4.2</opencode-zen.version>
+        <opencode-zen.version>v1.6.1</opencode-zen.version>
         <!-- Kilo Gateway 共享库版本（公开仓库经 JitPack 解析，随 Git 标签 v0.2.3）。 -->
         <kilo-gateway.version>v0.2.3</kilo-gateway.version>
         <minio.version>9.0.2</minio.version>
