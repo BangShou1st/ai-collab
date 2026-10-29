@@ -53,7 +53,7 @@ class AgentApprovalServiceTest {
         when(repository.lockRunStatus(projectId, runId))
                 .thenReturn(Optional.of(AgentRunStatus.WAITING_FOR_APPROVAL));
         service = new AgentApprovalService(repository, new AgentToolRegistry(List.of(tool)),
-                access, json, Clock.fixed(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC), events);
+                access, json, Clock.fixed(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC), events, mock(AgentHistoryVisibilityService.class));
     }
 
     @Test
@@ -153,7 +153,7 @@ class AgentApprovalServiceTest {
         ApprovalWriteAgentTool revisionTool = passThroughTool(AgentProposalFamily.TASK_CREATE);
         AgentApprovalService revisionService = new AgentApprovalService(
                 repository, new AgentToolRegistry(List.of(revisionTool)), access, json,
-                Clock.fixed(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC), events);
+                Clock.fixed(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC), events, mock(AgentHistoryVisibilityService.class));
         UUID newAssignee = UUID.randomUUID();
         JsonNode patch = json.createObjectNode()
                 .put("approvalId", existingId.toString())
@@ -191,7 +191,7 @@ class AgentApprovalServiceTest {
                 "update_task_after_approval", AgentProposalFamily.TASK_UPDATE);
         AgentApprovalService revisionService = new AgentApprovalService(
                 repository, new AgentToolRegistry(List.of(createTool, updateTool)), access, json,
-                Clock.fixed(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC), events);
+                Clock.fixed(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC), events, mock(AgentHistoryVisibilityService.class));
         UUID newAssignee = UUID.randomUUID();
         JsonNode arguments = json.createObjectNode()
                 .put("approvalId", existingId.toString())
@@ -224,7 +224,7 @@ class AgentApprovalServiceTest {
                 "update_milestone_after_approval", AgentProposalFamily.MILESTONE_UPDATE);
         AgentApprovalService revisionService = new AgentApprovalService(
                 repository, new AgentToolRegistry(List.of(createTool, milestoneUpdateTool)), access, json,
-                Clock.fixed(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC), events);
+                Clock.fixed(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC), events, mock(AgentHistoryVisibilityService.class));
         JsonNode arguments = json.createObjectNode()
                 .put("approvalId", existingId.toString())
                 .set("changes", json.createObjectNode().put("title", "错误修改"));
@@ -247,7 +247,7 @@ class AgentApprovalServiceTest {
         ApprovalWriteAgentTool createTool = passThroughTool(AgentProposalFamily.TASK_CREATE);
         AgentApprovalService createService = new AgentApprovalService(
                 repository, new AgentToolRegistry(List.of(createTool)), access, json,
-                Clock.fixed(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC), events);
+                Clock.fixed(Instant.parse("2026-08-05T06:00:00Z"), ZoneOffset.UTC), events, mock(AgentHistoryVisibilityService.class));
         JsonNode arguments = json.createObjectNode().put("title", "另一个独立任务");
         AgentApprovalView created = mock(AgentApprovalView.class);
         when(created.id()).thenReturn(UUID.randomUUID());

@@ -60,6 +60,7 @@ public class KnowledgeQuestionApplicationService {
     private final AiCallLogService aiLogs;
     private final KnowledgeCitationValidator citationValidator;
     private final KnowledgePersistenceService persistence;
+    private final KnowledgeVisibilityGuard visibility;
 
     public KnowledgeQuestionApplicationService(
             ProjectAccessGuard access,
@@ -70,7 +71,7 @@ public class KnowledgeQuestionApplicationService {
             ChatModelGateway chat,
             AiCallLogService aiLogs,
             KnowledgeCitationValidator citationValidator,
-            KnowledgePersistenceService persistence) {
+            KnowledgePersistenceService persistence, KnowledgeVisibilityGuard visibility) {
         this.access = access;
         this.repository = repository;
         this.rateLimiter = rateLimiter;
@@ -80,6 +81,7 @@ public class KnowledgeQuestionApplicationService {
         this.aiLogs = aiLogs;
         this.citationValidator = citationValidator;
         this.persistence = persistence;
+        this.visibility = visibility;
     }
 
     public KnowledgeAnswerView ask(
@@ -127,6 +129,8 @@ public class KnowledgeQuestionApplicationService {
             throw exception;
         }
 
+        KnowledgeAnswerView[] result = new KnowledgeAnswerView[1];
+        visibility.whileVisible(projectId, context.sources(), () -> {
         ValidatedKnowledgeAnswer validated =
                 citationValidator.validate(completion.content(), context.sources());
         if (validated.invalidOutput()) {
@@ -146,7 +150,9 @@ public class KnowledgeQuestionApplicationService {
                 "Knowledge QA completed candidateCount={} retainedSourceCount={} highestSimilarity={} retrievalLatencyMs={} chatLatencyMs={} totalLatencyMs={} requestId={}",
                 candidates.size(), context.sources().size(), highestSimilarity, retrievalMs,
                 completion.latencyMs(), elapsedMs(totalStarted), requestId);
-        return view;
+        result[0] = view;
+        });
+        return result[0];
     }
 
     private static String validateQuestion(KnowledgeQuestionRequest request) {

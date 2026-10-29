@@ -36,13 +36,14 @@ public class AgentRunService {
     private final AgentEventService events;
     private final AgentEventRepository eventRepository;
     private final AgentApprovalRepository approvalRepository;
+    private final AgentHistoryVisibilityService visibility;
     @org.springframework.beans.factory.annotation.Autowired
     private com.shitulelv.aicollab.agent.application.runtime.AgentCancellationService cancellationSignal;
 
     public AgentRunService(ProjectAccessGuard access, AgentRepository repository,
                           AgentSkillRegistry skillRegistry, ObjectMapper json,
                           AgentEventService events, AgentEventRepository eventRepository,
-                          AgentApprovalRepository approvalRepository) {
+                          AgentApprovalRepository approvalRepository, AgentHistoryVisibilityService visibility) {
         this.access = access;
         this.repository = repository;
         this.skillRegistry = skillRegistry;
@@ -50,6 +51,7 @@ public class AgentRunService {
         this.events = events;
         this.eventRepository = eventRepository;
         this.approvalRepository = approvalRepository;
+        this.visibility = visibility;
     }
 
     @Transactional
@@ -62,13 +64,15 @@ public class AgentRunService {
     @Transactional(readOnly = true)
     public List<AgentSessionView> listSessions(UUID projectId, UUID userId) {
         access.requireMember(projectId, userId);
-        return repository.listSessions(projectId, MAX_SESSIONS);
+        return repository.listSessions(projectId, MAX_SESSIONS).stream()
+                .filter(session -> visibility.visible(projectId, session.id())).toList();
     }
 
     @Transactional(readOnly = true)
     public List<AgentSessionSummaryView> listSessionSummaries(UUID projectId, UUID userId) {
         access.requireMember(projectId, userId);
-        return repository.listSessionSummaries(projectId, MAX_SESSIONS);
+        return repository.listSessionSummaries(projectId, MAX_SESSIONS).stream()
+                .filter(session -> visibility.visible(projectId, session.id())).toList();
     }
 
     @Transactional(readOnly = true)
@@ -76,6 +80,7 @@ public class AgentRunService {
         access.requireMember(projectId, userId);
         if (repository.findSession(projectId, sessionId).isEmpty())
             throw new BusinessException(ErrorCode.AGENT_SESSION_NOT_FOUND);
+        visibility.requireSession(projectId, sessionId);
         return repository.findLatestRun(projectId, sessionId).map(run -> getRun(projectId, run.id(), userId)).orElse(null);
     }
 
@@ -84,6 +89,7 @@ public class AgentRunService {
             UUID projectId, UUID runId, long afterSequence, UUID userId) {
         access.requireMember(projectId, userId);
         repository.findRun(projectId, runId).orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        visibility.requireRun(projectId, runId);
         return eventRepository.list(projectId, runId, Math.max(0, afterSequence), 500);
     }
 
@@ -91,12 +97,14 @@ public class AgentRunService {
     public List<AgentApprovalView> runApprovals(UUID projectId, UUID runId, UUID userId) {
         access.requireMember(projectId, userId);
         repository.findRun(projectId, runId).orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        visibility.requireRun(projectId, runId);
         return approvalRepository.listByRun(projectId, runId);
     }
 
     @Transactional(readOnly = true)
     public AgentSessionView getSession(UUID projectId, UUID sessionId, UUID userId) {
         access.requireMember(projectId, userId);
+        visibility.requireSession(projectId, sessionId);
         return repository.findSession(projectId, sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_SESSION_NOT_FOUND));
     }
@@ -136,6 +144,7 @@ public class AgentRunService {
         if (repository.findSession(projectId, sessionId).isEmpty()) {
             throw new BusinessException(ErrorCode.AGENT_SESSION_NOT_FOUND);
         }
+        visibility.requireSession(projectId, sessionId);
 
         // 暂停/暂停等待期的输入分流（后端统一入口，权威运行状态判定）：
         // 明确续跑表达恢复同一个运行（控制操作，不追加 USER 目标消息、不改 latestRequest/
@@ -238,6 +247,7 @@ public class AgentRunService {
         if (repository.findSession(projectId, sessionId).isEmpty()) {
             throw new BusinessException(ErrorCode.AGENT_SESSION_NOT_FOUND);
         }
+        visibility.requireSession(projectId, sessionId);
         return repository.listMessages(projectId, sessionId, MAX_MESSAGES);
     }
 
@@ -246,6 +256,7 @@ public class AgentRunService {
         access.requireMember(projectId, userId);
         AgentRunView run = repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        visibility.requireSession(projectId, run.sessionId());
         com.fasterxml.jackson.databind.JsonNode plan = null;
         try { if (run.planJson() != null) plan = json.readTree(run.planJson()); }
         catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
@@ -267,6 +278,7 @@ public class AgentRunService {
         access.requireMember(projectId, userId);
         repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        visibility.requireRun(projectId, runId);
         AgentRunView run = repository.requestPause(projectId, runId);
         return runDetail(run);
     }
@@ -280,6 +292,7 @@ public class AgentRunService {
         access.requireMember(projectId, userId);
         repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        visibility.requireRun(projectId, runId);
         AgentRunView run = repository.requestResume(projectId, runId);
         return runDetail(run);
     }
@@ -322,6 +335,7 @@ public class AgentRunService {
         access.requireMember(projectId, userId);
         AgentRunView run = repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        visibility.requireSession(projectId, run.sessionId());
         if (run.status() == AgentRunStatus.FAILED || run.status() == AgentRunStatus.CANCELED
                 || run.status() == AgentRunStatus.BUDGET_EXCEEDED) {
             AgentRepository.RetryRunDerivation derivation = repository.createRetryRun(
@@ -358,6 +372,7 @@ public class AgentRunService {
         access.requireMember(projectId, userId);
         AgentRunView run = repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        visibility.requireSession(projectId, run.sessionId());
 
         // 验证状态必须是 WAITING_FOR_USER_INPUT
         if (run.status() != AgentRunStatus.WAITING_FOR_USER_INPUT) {

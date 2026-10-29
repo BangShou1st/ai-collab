@@ -53,6 +53,8 @@ export function validate(values, { checkCertificate = true } = {}) {
   bad(!['true', 'false', ''].includes(values.AGENT_ENABLED || ''), 'AGENT_ENABLED 必须是 true 或 false')
   bad(!['true', 'false'].includes(values.AUTH_PUBLIC_REGISTRATION_ENABLED || 'true'),
     'AUTH_PUBLIC_REGISTRATION_ENABLED 必须是 true 或 false')
+  bad(!['true', 'false'].includes(values.CONNECTOR_CLEANUP_ENABLED || 'true'),
+    'CONNECTOR_CLEANUP_ENABLED 必须是 true 或 false')
 
   const dnsName = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
   const parseOrigin = value => {
@@ -75,6 +77,16 @@ export function validate(values, { checkCertificate = true } = {}) {
   } catch {
     errors.push('MINIO_PUBLIC_ENDPOINT 必须是与下载网关端口匹配的单个 HTTPS 域名 Origin')
     origin = undefined
+  }
+  if (values.FEISHU_OAUTH_REDIRECT_URI) {
+    try {
+      const callback = new URL(values.FEISHU_OAUTH_REDIRECT_URI)
+      parseOrigin(callback.origin)
+      if (callback.username || callback.password || callback.search || callback.hash ||
+          callback.pathname !== '/api/v1/connector/oauth/callback') throw new Error()
+    } catch {
+      errors.push('FEISHU_OAUTH_REDIRECT_URI 必须是安全的 HTTPS 授权回调地址')
+    }
   }
   for (const name of ['TLS_CERT_FILE', 'TLS_KEY_FILE']) {
     bad(!isAbsolute(values[name] || ''), `${name} 必须是证书文件的绝对路径`)

@@ -54,6 +54,15 @@ test('环境文件拒绝重复项、shell 展开及引号', () => {
   for (const text of ['A=x\nA=y', 'A=$HOME', 'A="quoted"']) assert.throws(() => parseEnv(text))
 })
 
+test('飞书回调和恢复期清理开关单独校验', () => {
+  assert.deepEqual(check({ ...valid(), FEISHU_OAUTH_REDIRECT_URI: 'https://api.example.org/api/v1/connector/oauth/callback', CONNECTOR_CLEANUP_ENABLED: 'false' }), [])
+  for (const callback of ['http://api.example.org/api/v1/connector/oauth/callback',
+    'https://api.example.org/api/v1/connector/oauth/callback?code=unsafe', 'https://api.example.org/other']) {
+    assert.ok(check({ ...valid(), FEISHU_OAUTH_REDIRECT_URI: callback }).some(s => s.includes('FEISHU_OAUTH_REDIRECT_URI')))
+  }
+  assert.ok(check({ ...valid(), CONNECTOR_CLEANUP_ENABLED: 'yes' }).some(s => s.includes('CONNECTOR_CLEANUP_ENABLED')))
+})
+
 test('实际证书和私钥匹配，且环境变量覆盖不安全值时 CLI 拒绝', () => {
   const tempRoot = realpathSync(tmpdir())
   const dir = mkdtempSync(join(tempRoot, 'p0-config-'))

@@ -51,7 +51,13 @@ public class DocumentContentService {
                 SELECT d.id,d.status,d.version,d.error_message,d.parser_type,b.snapshot_id,b.original_content_hash,b.parse_version,
                   (SELECT count(*) FROM document_body_chunk c WHERE c.document_id=d.id) AS body_count,
                   (SELECT count(*) FROM document_chunk c WHERE c.document_id=d.id) AS legacy_count
-                FROM project_document d LEFT JOIN document_body b ON b.document_id=d.id WHERE d.project_id=? AND d.id=? AND d.status<>'DELETING'
+                FROM project_document d LEFT JOIN document_body b ON b.document_id=d.id
+                WHERE d.project_id=? AND d.id=? AND d.status<>'DELETING' AND NOT d.access_blocked
+                  AND NOT EXISTS (SELECT 1 FROM external_document e
+                    JOIN connector_source s ON s.id=e.source_id AND s.project_id=d.project_id
+                    LEFT JOIN connector_oauth_authorization a ON a.id=s.user_authorization_id AND a.project_id=s.project_id
+                    WHERE e.document_id=d.id AND (e.status<>'ACTIVE' OR s.status<>'ACTIVE'
+                      OR (s.user_authorization_id IS NOT NULL AND (a.id IS NULL OR a.status<>'ACTIVE' OR a.access_expires_at<=now()))))
                 """,project,document);
         if(rows.isEmpty()) throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
         var row=rows.getFirst(); var value=json.createObjectNode();
@@ -68,9 +74,11 @@ public class DocumentContentService {
         return value;
     }
 
-    @Transactional(readOnly=true,isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    @Transactional(isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public ObjectNode read(UUID project,UUID document,UUID user,UUID snapshot,Integer from,int fromOffset,int maxChars,String heading,UUID chunkId) {
         if(from==null || from<0 || fromOffset<0 || maxChars<MIN_MAX_CHARS || maxChars>MAX_MAX_CHARS || (heading!=null && heading.length()>300)) throw new IllegalArgumentException("文档范围或预算无效");
+        access.requireMember(project,user);
+        lockVisibility(project,document);
         var state=status(project,document,user);
         if(snapshot!=null && !snapshot.toString().equals(state.path("snapshotId").asText())) throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT,"来源已更新，请重新选择正文");
         boolean legacy=state.path("legacySource").asBoolean();
@@ -104,11 +112,28 @@ public class DocumentContentService {
         result.put("trust","SOURCE_DATA_ONLY"); return result;
     }
 
-    @Transactional(readOnly=true)
+    @Transactional
     public ObjectNode outline(UUID project,UUID document,UUID user) {
+        access.requireMember(project,user);
+        lockVisibility(project,document);
         var result=status(project,document,user); String table=result.path("legacySource").asBoolean() ? "document_chunk" : "document_body_chunk";
         result.set("sections",json.valueToTree(jdbc.queryForList("SELECT heading,min(chunk_no) AS from_chunk,max(chunk_no) AS through_chunk FROM "+table+" WHERE document_id=? GROUP BY heading ORDER BY min(chunk_no) LIMIT 101",document)));
         result.put("structure","HEURISTIC_HEADINGS"); result.put("truncated",result.path("sections").size()>100); return result;
+    }
+
+    private void lockVisibility(UUID project, UUID document) {
+        jdbc.queryForList("""
+                SELECT a.id FROM connector_oauth_authorization a JOIN connector_source s
+                  ON s.user_authorization_id=a.id AND s.project_id=a.project_id
+                JOIN external_document e ON e.source_id=s.id
+                WHERE s.project_id=? AND e.document_id=? ORDER BY a.id FOR SHARE OF a
+                """, UUID.class, project, document);
+        jdbc.queryForList("""
+                SELECT s.id FROM connector_source s JOIN external_document e ON e.source_id=s.id
+                WHERE s.project_id=? AND e.document_id=? ORDER BY s.id FOR SHARE OF s
+                """, UUID.class, project, document);
+        jdbc.queryForList("SELECT id FROM project_document WHERE project_id=? AND id=? FOR SHARE",
+                UUID.class, project, document);
     }
 
     private static String hash(byte[] content) {

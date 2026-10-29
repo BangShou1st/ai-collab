@@ -66,7 +66,7 @@ class AgentRunRetryPostgresIntegrationTest {
         events = mock(AgentEventService.class);
         ProjectAccessGuard access = mock(ProjectAccessGuard.class);
         service = new AgentRunService(access, repository, new AgentSkillRegistry(), json,
-                events, new AgentEventRepository(jdbc, json), new AgentApprovalRepository(jdbc, json));
+                events, new AgentEventRepository(jdbc, json), new AgentApprovalRepository(jdbc, json), mock(AgentHistoryVisibilityService.class));
     }
 
     @BeforeEach

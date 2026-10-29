@@ -5,6 +5,7 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.notification.application.view.NotificationView;
 import com.shitulelv.aicollab.notification.infrastructure.entity.NotificationEntity;
 import com.shitulelv.aicollab.notification.infrastructure.repository.NotificationRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,10 +18,13 @@ import java.util.UUID;
 public class NotificationApplicationService {
     private final NotificationRepository repository;
     private final ProjectAccessGuard access;
+    private final DocumentVisibilityRepository documents;
 
-    public NotificationApplicationService(NotificationRepository repository, ProjectAccessGuard access) {
+    public NotificationApplicationService(NotificationRepository repository, ProjectAccessGuard access,
+                                          DocumentVisibilityRepository documents) {
         this.repository = repository;
         this.access = access;
+        this.documents = documents;
     }
 
     @Transactional(readOnly = true)
@@ -61,6 +65,10 @@ public class NotificationApplicationService {
     @Transactional
     public void create(UUID projectId, UUID userId, String type, String title,
                        String content, String entityType, UUID entityId) {
+        if ("PROJECT_DOCUMENT".equals(entityType) && entityId != null && !documents.lockReadable(projectId,entityId)) {
+            title = "文档通知";
+            content = "关联文档已不可访问";
+        }
         NotificationEntity entity = new NotificationEntity();
         entity.setId(UUID.randomUUID());
         entity.setProjectId(projectId);

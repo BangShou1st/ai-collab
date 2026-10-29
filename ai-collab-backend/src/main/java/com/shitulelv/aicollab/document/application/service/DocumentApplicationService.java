@@ -8,6 +8,7 @@ import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
 import com.shitulelv.aicollab.document.domain.service.DocumentFilePolicy;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository;
 import com.shitulelv.aicollab.document.infrastructure.storage.DocumentStorageGateway;
 import com.shitulelv.aicollab.project.application.service.AuditService;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
@@ -44,6 +45,7 @@ public class DocumentApplicationService {
     private final DocumentDeletionService deletionService;
     private final AuditService audit;
     private final ApplicationEventPublisher events;
+    private final DocumentVisibilityRepository visibility;
 
     public DocumentApplicationService(DocumentRepository documents, DocumentStorageGateway storage,
                                       DocumentFilePolicy filePolicy, ProjectAccessGuard accessGuard,
@@ -52,7 +54,8 @@ public class DocumentApplicationService {
                                       DocumentRetryService retryService,
                                       DocumentDeletionService deletionService,
                                       AuditService audit,
-                                      ApplicationEventPublisher events) {
+                                      ApplicationEventPublisher events,
+                                      DocumentVisibilityRepository visibility) {
         this.documents = documents;
         this.storage = storage;
         this.filePolicy = filePolicy;
@@ -63,18 +66,20 @@ public class DocumentApplicationService {
         this.deletionService = deletionService;
         this.audit = audit;
         this.events = events;
+        this.visibility = visibility;
     }
 
     @Transactional(readOnly = true)
     public List<DocumentView> list(UUID projectId, UUID userId) {
         accessGuard.requireMember(projectId, userId);
-        return documents.list(projectId).stream().map(DocumentApplicationService::view).toList();
+        return documents.list(projectId).stream().filter(document -> visibility.readable(projectId, document.getId()))
+                .map(DocumentApplicationService::view).toList();
     }
 
     @Transactional(readOnly = true)
     public DocumentView get(UUID projectId, UUID documentId, UUID userId) {
         accessGuard.requireMember(projectId, userId);
-        return view(requireDocument(projectId, documentId));
+        return view(requireReadableDocument(projectId, documentId));
     }
 
     public DocumentView upload(UUID projectId, MultipartFile file, String displayName, UUID userId) {
@@ -113,7 +118,7 @@ public class DocumentApplicationService {
     public DocumentView retry(UUID projectId, UUID documentId, UUID userId) {
         accessGuard.requireAdmin(projectId, userId);
         writeGuard.requireWritable(projectId);
-        DocumentEntity document = requireDocument(projectId, documentId);
+        DocumentEntity document = requireReadableDocument(projectId, documentId);
         if (document.getStatus() != DocumentStatus.FAILED) {
             throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT);
         }
@@ -128,7 +133,7 @@ public class DocumentApplicationService {
 
     public DownloadUrlView downloadUrl(UUID projectId, UUID documentId, UUID userId) {
         accessGuard.requireMember(projectId, userId);
-        DocumentEntity document = requireDocument(projectId, documentId);
+        DocumentEntity document = requireReadableDocument(projectId, documentId);
         if (document.getStatus() == DocumentStatus.DELETING) {
             throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY);
         }
@@ -151,7 +156,7 @@ public class DocumentApplicationService {
     public DocumentView reindex(UUID projectId, UUID documentId, UUID userId) {
         accessGuard.requireAdmin(projectId, userId);
         writeGuard.requireWritable(projectId);
-        DocumentEntity document = requireDocument(projectId, documentId);
+        DocumentEntity document = requireReadableDocument(projectId, documentId);
         if (document.getStatus() != DocumentStatus.READY) {
             throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT,
                     "只有已完成索引的文档可以重新索引");
@@ -168,6 +173,12 @@ public class DocumentApplicationService {
     private DocumentEntity requireDocument(UUID projectId, UUID documentId) {
         return documents.find(projectId, documentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND));
+    }
+
+    private DocumentEntity requireReadableDocument(UUID projectId, UUID documentId) {
+        DocumentEntity document = requireDocument(projectId, documentId);
+        if (!visibility.readable(projectId, documentId)) throw new BusinessException(ErrorCode.DOCUMENT_NOT_FOUND);
+        return document;
     }
 
     private void compensateObject(String objectKey) {
