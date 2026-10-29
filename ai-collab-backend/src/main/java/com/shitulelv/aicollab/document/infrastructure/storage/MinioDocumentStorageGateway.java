@@ -14,6 +14,7 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.StatObjectArgs;
 import io.minio.errors.ErrorResponseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,8 +101,19 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
                 throw new BusinessException(ErrorCode.DOCUMENT_STORAGE_CONFIGURATION_ERROR);
             }
         }
+        int seconds;
         try {
-            int seconds = Math.toIntExact(duration.toSeconds());
+            seconds = Math.toIntExact(duration.toSeconds());
+        } catch (RuntimeException exception) {
+            throw storageFailure("生成下载地址", exception, true);
+        }
+        try {
+            // Signing is local and cannot itself detect an unavailable object or bad credentials.
+            client.statObject(StatObjectArgs.builder().bucket(properties.bucket()).object(objectKey).build());
+        } catch (Exception exception) {
+            throw storageFailure("检查下载对象", exception, false);
+        }
+        try {
             String disposition = "attachment; filename*=UTF-8''"
                     + URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
             MinioClient signingClient = viaProxy ? MinioClient.builder()
@@ -148,21 +160,17 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
     private BusinessException storageFailure(String operation, Exception exception, boolean signing) {
         // Exception messages may include a signed URL or credentials; never log them.
         log.warn("MinIO {}失败，异常类型={}", operation, exception.getClass().getSimpleName());
-        if (exception instanceof ErrorResponseException responseException
-                && isCredentialFailure(responseException)) {
-            return new BusinessException(ErrorCode.DOCUMENT_STORAGE_AUTHENTICATION_FAILED);
+        boolean connectionFailure = false;
+        Throwable cause = exception;
+        for (int depth = 0; cause != null && depth < 8; depth++, cause = cause.getCause()) {
+            if (cause instanceof IOException) connectionFailure = true;
+            if (cause instanceof ErrorResponseException responseException && responseException.errorResponse() != null) {
+                if (isCredentialFailure(responseException)) return new BusinessException(ErrorCode.DOCUMENT_STORAGE_AUTHENTICATION_FAILED);
+                if ("NoSuchKey".equals(responseException.errorResponse().code())) return new BusinessException(ErrorCode.DOCUMENT_STORAGE_OBJECT_NOT_FOUND);
+                if ("NoSuchBucket".equals(responseException.errorResponse().code())) return new BusinessException(ErrorCode.DOCUMENT_STORAGE_CONFIGURATION_ERROR);
+            }
         }
-        if (exception instanceof ErrorResponseException responseException
-                && responseException.errorResponse() != null
-                && "NoSuchKey".equals(responseException.errorResponse().code())) {
-            return new BusinessException(ErrorCode.DOCUMENT_STORAGE_OBJECT_NOT_FOUND);
-        }
-        if (exception instanceof ErrorResponseException responseException
-                && responseException.errorResponse() != null
-                && "NoSuchBucket".equals(responseException.errorResponse().code())) {
-            return new BusinessException(ErrorCode.DOCUMENT_STORAGE_CONFIGURATION_ERROR);
-        }
-        if (signing && !(exception instanceof IOException)) {
+        if (signing && !connectionFailure) {
             return new BusinessException(ErrorCode.DOCUMENT_STORAGE_SIGNING_FAILED);
         }
         return new BusinessException(
