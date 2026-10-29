@@ -7,6 +7,7 @@ import io.minio.BucketExistsArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.GetObjectArgs;
+import io.minio.StatObjectArgs;
 import io.minio.errors.ErrorResponseException;
 import io.minio.messages.ErrorResponse;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 class MinioDocumentStorageGatewayTest {
 
@@ -42,7 +44,7 @@ class MinioDocumentStorageGatewayTest {
     }
 
     @Test
-    void publicSigningUsesConfiguredRegionWithoutCallingExternalHost() {
+    void publicSigningChecksObjectInternallyWithoutCallingExternalHost() throws Exception {
         MinioClient client = mock(MinioClient.class);
         MinioDocumentStorageGateway gateway = new MinioDocumentStorageGateway(client,
                 new MinioProperties("http://minio:9000", "access", "secret", "documents",
@@ -50,7 +52,7 @@ class MinioDocumentStorageGatewayTest {
         String url = gateway.presign("projects/synthetic/source.txt", "report.txt", Duration.ofMinutes(5)).url();
         assertTrue(url.startsWith("https://collab.example.org/storage/documents/projects/synthetic/source.txt?"));
         assertTrue(url.contains("X-Amz-Signature="));
-        verifyNoInteractions(client);
+        verify(client).statObject(any(StatObjectArgs.class));
     }
 
     @Test
@@ -87,6 +89,26 @@ class MinioDocumentStorageGatewayTest {
                 assertThrows(BusinessException.class, () -> gateway.open("object-key")).getErrorCode());
         assertEquals(ErrorCode.DOCUMENT_STORAGE_OBJECT_NOT_FOUND,
                 assertThrows(BusinessException.class, () -> gateway.open("object-key")).getErrorCode());
+    }
+
+    @Test
+    void presignDistinguishesInternalCredentialsMissingObjectAndConnectionFailure() throws Exception {
+        MinioClient client = mock(MinioClient.class);
+        ErrorResponseException denied = mock(ErrorResponseException.class);
+        ErrorResponseException missing = mock(ErrorResponseException.class);
+        when(denied.errorResponse()).thenReturn(new ErrorResponse("InvalidAccessKeyId", "ignored", null, null, null, null, null));
+        when(missing.errorResponse()).thenReturn(new ErrorResponse("NoSuchKey", "ignored", null, null, null, null, null));
+        var wrappedDenied = new io.minio.errors.MinioException(denied);
+        var wrappedMissing = new io.minio.errors.MinioException(missing);
+        var wrappedOutage = new io.minio.errors.MinioException(new java.io.IOException("synthetic outage"));
+        when(client.statObject(any(StatObjectArgs.class))).thenThrow(wrappedDenied, wrappedMissing, wrappedOutage);
+        MinioDocumentStorageGateway gateway = gateway(client);
+        assertEquals(ErrorCode.DOCUMENT_STORAGE_AUTHENTICATION_FAILED,
+                assertThrows(BusinessException.class, () -> gateway.presign("object-key","file.txt",Duration.ofMinutes(5))).getErrorCode());
+        assertEquals(ErrorCode.DOCUMENT_STORAGE_OBJECT_NOT_FOUND,
+                assertThrows(BusinessException.class, () -> gateway.presign("object-key","file.txt",Duration.ofMinutes(5))).getErrorCode());
+        assertEquals(ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE,
+                assertThrows(BusinessException.class, () -> gateway.presign("object-key","file.txt",Duration.ofMinutes(5))).getErrorCode());
     }
 
     @Test
