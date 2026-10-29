@@ -28,6 +28,16 @@ GitHub 提交比较显示，远端 `main` 相对基线 `dev` 超前一个提交�
 容器和 Mock 检查不构成真实环境端到端验收。`REMOTE_DOWNLOAD_ACCEPTED` 未通过；知识生命周期验收未通过。
 本地执行了仓库规定的检查命令；因为没有推送分支，GitHub Actions 远端 CI 尚未运行。
 
+## Zen 共享库升级（v1.4.2 → v1.6.1）
+
+应用此前钉在共享库 v1.4.2：JVM 直连出站、2.0.29 客户端身份。免费档自 2026-10 下旬按传输指纹拒绝非 Bun 流量，这正是“服务器上免费模型列表为空/Agent 报模型未配置”的最可能根因。升级（提交 `66e3111`）后：`pom` 钉 v1.6.1（JitPack 已构建）；Zen 请求体经 `OpenCodeZenProtocolPolicy.shapeEnvelope` 统一塑形——注入官方 2.x 系统提示与完整官方工具集、`max_completion_tokens`、`stream_options.include_usage` 与键序指纹；身份头与身份窗口由共享工厂生成，经 `opencode.zen.relay-url`（默认 auto）的本地 Bun 中继出站；业务工具出线为 `clint_` 名，响应侧按 `OpenCodeZenToolRenames.restore` 还原为业务名，官方工具调用仍拒绝进入运行时；`completeWithSession` 统一走流式同步（2.x wire 只有流式出口）；`ProviderPresetRegistry` 的 User-Agent 注解默认值因库侧常量改为方法组合而调整为运行时回退。白名单本身在两个版本间零变化。
+
+本地验证：定向 91 项测试通过（`ModelProtocolHttpTest`、Zen 装配/规划/知识流契约、`ZenUpstreamRoutingTest`、预设与 Kilo 侧无涟漪），并新增 wire 名还原与既有保留名拒绝的断言；最终源码完整回归 **1960 项、0 失败、0 错误、跳过 44 项，BUILD SUCCESS（14:41 min）**，日志 `ai-collab-backend/target/codex-backend-verify-zen2.out`。期间修正一处测试口径：`completeWithSession` 在 2.x wire 下统一走流式，非流式 POST 桩改为流式桩并保留“截断时 usage 随异常携带”的契约。运行时行为变化：Zen 请求体不再“极简”（含补全上限与用量协商），此为 2.x wire 契约要求；本地测试通过 `opencode.zen.relay-url=none` 保持封闭，生产默认 auto 走中继。
+
+部署前提（本地与服务器不同）：本机 Windows 已装 Bun 1.4.4，auto 模式直接复用；**Linux 服务器没有 Bun 自动下载兜底，应用镜像或宿主必须预装 Bun**（`ZEN_BUN`、`~/.bun/bin/bun` 或 `PATH`），中继仅绑定回环 `127.0.0.1:18992`，无需额外开放端口；`OPENCODE_ZEN_RELAY_URL` 可显式指定或置 `none`（当前会破坏免费档调用）。已写入 `docs/deployment/production-foundation.md` 与部署模板。
+
+剩余风险：上游规则近期变动频繁（库注释实测 2026-10-26，上游三天内多个 tag），一次升级不保证长期有效；v1.6.1 的语义同步位落后上游 FreeX 约 5 个 tag；“升级即修复线上”必须在服务器预装 Bun 后以真实 Zen 调用验证；若届时免费模型列表仍为空，则属上游目录真实变化，需按 zen-sync 口径重审白名单并在共享库侧发版。
+
 ## 配置与上线前提
 
 Staging 必须独立配置浏览器可访问的 `MINIO_PUBLIC_ENDPOINT`，并核实外层 HTTPS 网关将 `/storage/` 转发至仓库中的 Nginx；`AUTH_ALLOWED_ORIGINS` 只配置应用认证允许的来源。生产下载 Origin 依实际公网拓扑配置。应用需配置精确的 `FEISHU_OAUTH_REDIRECT_URI`；系统管理员在飞书应用配置所需权限和事件订阅，并通过应用界面加密保存事件凭据。`CONNECTOR_CLEANUP_ENABLED=false` 可用于离线恢复期暂停清理。相关值通过受控配置或密钥系统注入，禁止写入 Git、日志或验收证据。
