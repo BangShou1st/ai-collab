@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
+import com.sharedlibs.opencodezen.OpenCodeZenClientProfile;
 import com.sharedlibs.opencodezen.autoconfigure.OpenCodeZenAutoConfiguration;
 import com.sharedlibs.opencodezen.autoconfigure.OpenCodeZenRequestFactory;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
@@ -21,6 +22,8 @@ class ZenStarterWiringTest {
                 .withBean(OutboundEndpointPolicy.class, OutboundEndpointPolicy::new)
                 .withUserConfiguration(ProviderPresetRegistry.class, ZenModelExecution.class,
                         HttpOpenCodeZenTransport.class)
+                // 保持测试封闭：不探测/拉起本地 Bun 中继，工厂直连（真实部署默认 auto 走中继）。
+                .withPropertyValues("opencode.zen.relay-url=none")
                 .run(context -> {
                     assertThat(context).hasNotFailed().hasSingleBean(OpenCodeZenRequestFactory.class)
                             .hasSingleBean(ZenModelExecution.class).hasSingleBean(HttpOpenCodeZenTransport.class);
@@ -29,7 +32,7 @@ class ZenStarterWiringTest {
                     var endpoint = URI.create(context.getBean(ZenModelExecution.class).runtimeEndpoint());
                     HttpRequest request = factory.newConversationRequest(endpoint, true, null, UUID.randomUUID())
                             .POST(HttpRequest.BodyPublishers.noBody()).build();
-                    assertThat(factory.userAgent()).isEqualTo("opencode/latest/2.0.29/cli")
+                    assertThat(factory.userAgent()).isEqualTo(OpenCodeZenClientProfile.userAgent())
                             .isEqualTo(registry.require(ProviderPresetCode.OPENCODE_ZEN_FREE).userAgent());
                     assertThat(request.headers().firstValue("Authorization")).contains("Bearer public");
                     assertThat(request.headers().firstValue("x-opencode-session-id"))

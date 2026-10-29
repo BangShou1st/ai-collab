@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
+import com.sharedlibs.opencodezen.OpenCodeZenProtocolPolicy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelMessage;
@@ -38,7 +39,7 @@ class ZenModelWiringTest {
         assertThat(pol.protocol()).isEqualTo(ModelProviderType.OPENAI_COMPATIBLE);
         assertThat(reg.completionEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/chat/completions");
         assertThat(reg.modelsEndpoint(pol)).isEqualTo("https://opencode.ai/inference/v1/models");
-        assertThat(pol.userAgent()).isEqualTo("opencode/latest/2.0.29/cli");
+        assertThat(pol.userAgent()).isEqualTo(OpenCodeZenProtocolPolicy.USER_AGENT);
     }
     @Test void runtimeConfigIgnoresPersistedUrls() {
         ZenModelExecution exec = new ZenModelExecution(new ProviderPresetRegistry(), mapper, new OutboundEndpointPolicy());
