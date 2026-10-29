@@ -24,6 +24,7 @@ public final class ConnectorRows {
         public UUID id;
         public UUID projectId;
         public UUID connectionId;
+        public UUID userAuthorizationId;
         public String folderToken;
         public String name;
         public String status;

@@ -8,9 +8,11 @@ import com.shitulelv.aicollab.connector.infrastructure.feishu.FeishuClient;
 import com.shitulelv.aicollab.connector.infrastructure.persistence.ConnectorConnectionMapper;
 import com.shitulelv.aicollab.connector.infrastructure.persistence.ConnectorRows.ConnectionRow;
 import com.shitulelv.aicollab.connector.infrastructure.persistence.ConnectorSourceMapper;
+import com.shitulelv.aicollab.connector.infrastructure.repository.ConnectorEventCredentialRepository;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.user.service.UserService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -23,14 +25,19 @@ public class ConnectorConnectionService {
     private final FeishuClient feishu;
     private final ModelSecretCipher secrets;
     private final UserService users;
+    private final ConnectorEventCredentialRepository eventCredentials;
+    private final ConnectorVisibilityService visibility;
 
     public ConnectorConnectionService(ConnectorConnectionMapper connections, ConnectorSourceMapper sources,
-                                      FeishuClient feishu, ModelSecretCipher secrets, UserService users) {
+                                      FeishuClient feishu, ModelSecretCipher secrets, UserService users,
+                                      ConnectorEventCredentialRepository eventCredentials, ConnectorVisibilityService visibility) {
         this.connections = connections;
         this.sources = sources;
         this.feishu = feishu;
         this.secrets = secrets;
         this.users = users;
+        this.eventCredentials = eventCredentials;
+        this.visibility = visibility;
     }
 
     public ConnectionView create(UUID userId, String name, String appId, String appSecret) {
@@ -56,6 +63,17 @@ public class ConnectorConnectionService {
         return connections.listAll().stream().map(ConnectorConnectionService::view).toList();
     }
 
+    @Transactional
+    public void configureEvents(UUID userId, UUID connectionId, String encryptKey, String verificationToken) {
+        users.requireSystemAdmin(userId);
+        require(connectionId);
+        if (encryptKey == null || encryptKey.length() < 16 || verificationToken == null || verificationToken.length() < 16) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR);
+        }
+        eventCredentials.save(connectionId, secrets.encrypt(encryptKey), secrets.encrypt(verificationToken))
+                .forEach(grant -> visibility.blockAuthorization(grant.projectId(), grant.authorizationId(), false));
+    }
+
     public ConnectionView verify(UUID userId, UUID connectionId) {
         users.requireSystemAdmin(userId);
         ConnectionRow row = require(connectionId);
@@ -64,7 +82,9 @@ public class ConnectorConnectionService {
             connections.updateStatus(connectionId, "ACTIVE", null, OffsetDateTime.now());
         } catch (FeishuApiException exception) {
             feishu.invalidateToken(row.appId);
-            connections.updateStatus(connectionId, "INVALID", exception.getMessage(), null);
+            if (exception.invalidApplicationCredentials()) {
+                connections.updateStatus(connectionId, "INVALID", exception.getMessage(), null);
+            }
             throw new BusinessException(ErrorCode.CONNECTOR_CREDENTIAL_INVALID, exception.getMessage());
         }
         return view(connections.find(connectionId));

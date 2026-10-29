@@ -53,6 +53,8 @@ class ConnectorSyncServiceTest {
     @Mock DocumentRegistrationService registration;
     @Mock DocumentStorageGateway storage;
     @Mock DocumentTaskDispatcher dispatcher;
+    @Mock ConnectorOAuthTokenService userTokens;
+    @Mock ConnectorVisibilityService visibility;
 
     private final UUID projectId = UUID.randomUUID();
     private final UUID sourceId = UUID.randomUUID();
@@ -64,7 +66,12 @@ class ConnectorSyncServiceTest {
     void setUp() {
         TaskExecutor directExecutor = Runnable::run;
         service = new ConnectorSyncService(sources, connections, jobs, externalDocs, revisions,
-                feishu, secrets, documents, registration, storage, dispatcher, directExecutor);
+                feishu, secrets, documents, registration, storage, dispatcher, directExecutor, userTokens, visibility);
+        when(visibility.restoreSource(any(), any())).thenReturn(true);
+        when(visibility.withActiveSource(any(), any(), any())).thenAnswer(invocation -> {
+            invocation.<Runnable>getArgument(2).run();
+            return true;
+        });
     }
 
     private ConnectorRows.SourceRow source() {
@@ -196,10 +203,8 @@ class ConnectorSyncServiceTest {
 
         service.trigger(sourceId, "MANUAL");
 
-        ArgumentCaptor<UUID> removed = ArgumentCaptor.forClass(UUID.class);
-        verify(documents).markDeleting(projectId, documentId);
-        verify(documents).deleteRows(eq(projectId), removed.capture());
-        assertThat(removed.getValue()).isEqualTo(documentId);
+        verify(visibility).blockDocument(eq(projectId), eq(sourceId), any());
+        verify(documents, never()).deleteRows(any(), any());
         verify(jobs).finish(any(), eq("SUCCESS"), eq(0), eq(0), eq(0), eq(0), eq(1), any());
     }
 
@@ -219,7 +224,7 @@ class ConnectorSyncServiceTest {
     }
 
     @Test
-    void forbiddenListingBlocksSourceAndRemovesSearchableDocs() {
+    void forbiddenListingBlocksSourceWithoutDeletingDocuments() {
         stubHappyPath();
         UUID documentId = UUID.randomUUID();
         when(externalDocs.listBySource(sourceId)).thenReturn(List.of(knownDoc("docToken1", 1000L, documentId)));
@@ -228,11 +233,28 @@ class ConnectorSyncServiceTest {
 
         service.trigger(sourceId, "MANUAL");
 
-        verify(documents).markDeleting(projectId, documentId);
-        verify(documents).deleteRows(projectId, documentId);
-        verify(externalDocs).updateStatus(any(), eq("BLOCKED"));
-        verify(sources).updateStatus(sourceId, "BLOCKED", null);
+        verify(visibility).blockSource(projectId, sourceId, false);
+        verify(documents, never()).deleteRows(any(), any());
         verify(jobs).finish(any(), eq("FAILED"), eq(0), eq(0), eq(0), eq(0), eq(0), anyString());
+    }
+
+    @Test
+    void invalidUserTokenBlocksAllSourcesAndAttemptsRefreshWithoutDeletion() {
+        stubHappyPath();
+        UUID authorization = UUID.randomUUID();
+        ConnectorRows.SourceRow source = source();
+        source.userAuthorizationId = authorization;
+        when(sources.find(sourceId)).thenReturn(source);
+        when(userTokens.accessToken(projectId, authorization)).thenReturn("synthetic-user-token");
+        when(feishu.listFolderDocx(anyString(), eq("fld123")))
+                .thenThrow(new FeishuApiException(99991677, "expired"));
+
+        service.trigger(sourceId, "MANUAL");
+
+        verify(visibility).blockAuthorization(projectId, authorization, false);
+        verify(userTokens).forceRefresh(projectId, authorization);
+        verify(documents, never()).deleteRows(any(), any());
+        verify(storage, never()).delete(any());
     }
 
     @Test

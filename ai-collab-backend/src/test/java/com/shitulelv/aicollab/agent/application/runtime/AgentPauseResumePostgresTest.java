@@ -694,7 +694,7 @@ class AgentPauseResumePostgresTest {
         AgentRunService runs = new AgentRunService(access, repository,
                 new AgentSkillRegistry(), json, events,
                 mock(AgentEventRepository.class),
-                mock(AgentApprovalRepository.class));
+                mock(AgentApprovalRepository.class), mock(com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService.class));
         Fixture fixture = fixture("输入续跑");
         AgentRunView run = repository.createRun(fixture.project(), fixture.session(), fixture.user(),
                 fixture.goal(), false, "ITERATION_PLANNING", null);
@@ -792,7 +792,7 @@ class AgentPauseResumePostgresTest {
         AgentRunService runs = new AgentRunService(access, repository,
                 new AgentSkillRegistry(), json, events,
                 mock(AgentEventRepository.class),
-                mock(AgentApprovalRepository.class));
+                mock(AgentApprovalRepository.class), mock(com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService.class));
         Fixture fixture = fixture("恢复后快速完成");
         UUID project = fixture.project();
         UUID session = fixture.session();
@@ -990,7 +990,7 @@ class AgentPauseResumePostgresTest {
         AgentRunService runs = new AgentRunService(access, repository,
                 new AgentSkillRegistry(), json, events,
                 mock(AgentEventRepository.class),
-                mock(AgentApprovalRepository.class));
+                mock(AgentApprovalRepository.class), mock(com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService.class));
         Fixture fixture = fixture("活跃态绑定输入");
         UUID project = fixture.project();
         UUID session = fixture.session();

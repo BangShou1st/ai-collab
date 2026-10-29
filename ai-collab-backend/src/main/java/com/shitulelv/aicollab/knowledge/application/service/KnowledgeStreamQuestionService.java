@@ -68,6 +68,7 @@ public class KnowledgeStreamQuestionService {
     private final AiCallLogService aiLogs;
     private final KnowledgeCitationValidator citationValidator;
     private final KnowledgePersistenceService persistence;
+    private final KnowledgeVisibilityGuard visibility;
     private final ExecutorService streamExecutor = new java.util.concurrent.ThreadPoolExecutor(2, 2, 0,
             java.util.concurrent.TimeUnit.SECONDS, new java.util.concurrent.ArrayBlockingQueue<>(32), r -> {
         Thread t = new Thread(r, "knowledge-stream-" + UUID.randomUUID());
@@ -84,7 +85,7 @@ public class KnowledgeStreamQuestionService {
             ChatModelGateway chat,
             AiCallLogService aiLogs,
             KnowledgeCitationValidator citationValidator,
-            KnowledgePersistenceService persistence) {
+            KnowledgePersistenceService persistence, KnowledgeVisibilityGuard visibility) {
         this.access = access;
         this.repository = repository;
         this.rateLimiter = rateLimiter;
@@ -94,6 +95,7 @@ public class KnowledgeStreamQuestionService {
         this.aiLogs = aiLogs;
         this.citationValidator = citationValidator;
         this.persistence = persistence;
+        this.visibility = visibility;
     }
 
     public void askStream(
@@ -149,16 +151,19 @@ public class KnowledgeStreamQuestionService {
                     new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata(sessionId.toString()),
                     token -> {
                         if (!disconnected.get()) {
-                            if (!sendSse(emitter, KnowledgeStreamEvent.token(token))) {
-                                disconnected.set(true);
-                                throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
-                            }
+                            visibility.whileVisible(projectId, context.sources(), () -> {
+                                if (!sendSse(emitter, KnowledgeStreamEvent.token(token))) {
+                                    disconnected.set(true);
+                                    throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
+                                }
+                            });
                         }
                     },
                     completion -> {
                         if (disconnected.get() || terminal.get()) {
                             return;
                         }
+                        visibility.whileVisible(projectId, context.sources(), () -> {
                         long chatLatencyMs = elapsedMs(chatStarted);
                         ValidatedKnowledgeAnswer validated =
                                 citationValidator.validate(completion.content(), context.sources());
@@ -183,6 +188,7 @@ public class KnowledgeStreamQuestionService {
                                 "Knowledge stream QA completed candidateCount={} retainedSourceCount={} highestSimilarity={} retrievalLatencyMs={} chatLatencyMs={} totalLatencyMs={} requestId={}",
                                 candidates.size(), context.sources().size(), highestSimilarity,
                                 retrievalMs, chatLatencyMs, elapsedMs(totalStarted), requestId);
+                        });
                     },
                     error -> {
                         log.warn("Knowledge stream QA failed requestId={} error={}",

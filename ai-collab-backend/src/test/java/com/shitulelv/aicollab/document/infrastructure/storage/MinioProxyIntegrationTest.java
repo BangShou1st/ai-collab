@@ -1,6 +1,8 @@
 package com.shitulelv.aicollab.document.infrastructure.storage;
 
 import com.shitulelv.aicollab.common.testing.MinioTestImage;
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.infrastructure.storage.MinioProperties;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
@@ -13,6 +15,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
+import org.testcontainers.images.builder.Transferable;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
@@ -27,6 +30,7 @@ import java.time.Duration;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Isolated containers and synthetic objects; no shared database or persistent volume. */
 @Testcontainers(disabledWithoutDocker = true)
@@ -34,6 +38,22 @@ class MinioProxyIntegrationTest {
     private static final String ACCESS = "synthetic-p41-access";
     private static final String SECRET = "synthetic-p41-secret";
     private static final Network NETWORK = Network.newNetwork();
+
+    @Container
+    private static final GenericContainer<?> AUTH = new GenericContainer<>(DockerImageName.parse("nginx:1.30.6-alpine"))
+            .withNetwork(NETWORK).withNetworkAliases("app-edge")
+            .withCopyToContainer(Transferable.of("""
+                    server {
+                      listen 8080;
+                      location = /internal/storage-authorize {
+                        if ($args != "") { return 500; }
+                        if ($http_authorization != "") { return 500; }
+                        if ($http_x_storage_path = "") { return 500; }
+                        if (-f /tmp/p41-block) { return 403; }
+                        return 204;
+                      }
+                    }
+                    """), "/etc/nginx/conf.d/default.conf");
 
     @Container
     private static final GenericContainer<?> MINIO = new GenericContainer<>(DockerImageName.parse(MinioTestImage.IMAGE))
@@ -44,7 +64,7 @@ class MinioProxyIntegrationTest {
 
     @Container
     private static final GenericContainer<?> PROXY = new GenericContainer<>(DockerImageName.parse("nginx:1.30.6-alpine"))
-            .withNetwork(NETWORK).withExposedPorts(80).dependsOn(MINIO)
+            .withNetwork(NETWORK).withExposedPorts(80).dependsOn(MINIO, AUTH)
             .withCopyFileToContainer(MountableFile.forHostPath(
                     Path.of("../ai-collab-deploy/nginx/staging.conf").toAbsolutePath()),
                     "/etc/nginx/conf.d/default.conf");
@@ -62,6 +82,14 @@ class MinioProxyIntegrationTest {
         String origin = "https://127.0.0.1:" + PROXY.getMappedPort(80);
         MinioDocumentStorageGateway gateway = new MinioDocumentStorageGateway(client,
                 new MinioProperties(internal, ACCESS, SECRET, "p41-test", origin, false));
+        assertEquals(ErrorCode.DOCUMENT_STORAGE_OBJECT_NOT_FOUND, assertThrows(BusinessException.class,
+                () -> gateway.presign(key + "-missing", "测试.txt", Duration.ofMinutes(5))).getErrorCode());
+        MinioClient wrongCredentials = MinioClient.builder().endpoint(internal)
+                .credentials("synthetic-invalid-access", "synthetic-invalid-secret").region("us-east-1").build();
+        MinioDocumentStorageGateway rejected = new MinioDocumentStorageGateway(wrongCredentials,
+                new MinioProperties(internal, "synthetic-invalid-access", "synthetic-invalid-secret", "p41-test", origin, false));
+        assertEquals(ErrorCode.DOCUMENT_STORAGE_AUTHENTICATION_FAILED, assertThrows(BusinessException.class,
+                () -> rejected.presign(key, "测试.txt", Duration.ofMinutes(5))).getErrorCode());
         URI signed = URI.create(gateway.presign(key, "测试.txt", Duration.ofMinutes(5)).url());
         HttpResponse<byte[]> response = get(signed, "127.0.0.1", signed.getRawPath(), signed.getRawQuery());
         assertEquals(200, response.statusCode());
@@ -79,6 +107,9 @@ class MinioProxyIntegrationTest {
         URI expired = URI.create(gateway.presign(key, "测试.txt", Duration.ofSeconds(1)).url());
         Thread.sleep(2500);
         assertEquals(403, get(expired, "127.0.0.1", expired.getRawPath(), expired.getRawQuery()).statusCode());
+        // The same unexpired signed URL is rejected as soon as the authorization gate blocks it.
+        AUTH.execInContainer("touch", "/tmp/p41-block");
+        assertEquals(403, get(signed, "127.0.0.1", signed.getRawPath(), signed.getRawQuery()).statusCode());
     }
 
     private static HttpResponse<byte[]> get(URI signed, String host, String path, String query) throws Exception {

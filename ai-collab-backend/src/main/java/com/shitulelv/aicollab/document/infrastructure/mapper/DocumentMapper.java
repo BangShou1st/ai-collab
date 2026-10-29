@@ -38,6 +38,15 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             FROM project_document d
             JOIN app_user u ON u.id=d.uploaded_by
             """;
+    String PROCESSABLE = """
+              AND NOT access_blocked
+              AND NOT EXISTS (SELECT 1 FROM external_document e
+                JOIN connector_source s ON s.id=e.source_id AND s.project_id=project_document.project_id
+                LEFT JOIN connector_oauth_authorization a ON a.id=s.user_authorization_id AND a.project_id=s.project_id
+                WHERE e.document_id=project_document.id AND (e.status<>'ACTIVE' OR s.status<>'ACTIVE'
+                  OR (s.user_authorization_id IS NOT NULL AND
+                    (a.id IS NULL OR a.status<>'ACTIVE' OR a.access_expires_at<=now()))))
+            """;
 
     @Select(VIEW + " WHERE d.project_id=#{projectId} ORDER BY d.created_at DESC")
     List<DocumentEntity> listScoped(@Param("projectId") UUID projectId);
@@ -53,7 +62,7 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             SET status='PARSING', processing_token=#{processingToken},
                 processing_heartbeat_at=now(), error_message=NULL, updated_at=now()
             WHERE project_id=#{projectId} AND id=#{documentId} AND status='UPLOADED'
-            """)
+            """ + PROCESSABLE)
     int claim(@Param("projectId") UUID projectId, @Param("documentId") UUID documentId,
               @Param("processingToken") UUID processingToken);
 
@@ -62,7 +71,7 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             SET processing_heartbeat_at=now(), updated_at=now()
             WHERE project_id=#{projectId} AND id=#{documentId}
               AND status=#{status} AND processing_token=#{processingToken}
-            """)
+            """ + PROCESSABLE)
     int heartbeat(@Param("projectId") UUID projectId, @Param("documentId") UUID documentId,
                   @Param("processingToken") UUID processingToken, @Param("status") DocumentStatus status);
 
@@ -72,7 +81,7 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
                 processing_heartbeat_at=now(), updated_at=now()
             WHERE project_id=#{projectId} AND id=#{documentId} AND status='PARSING'
               AND processing_token=#{processingToken}
-            """)
+            """ + PROCESSABLE)
     int markIndexing(@Param("projectId") UUID projectId, @Param("documentId") UUID documentId,
                      @Param("processingToken") UUID processingToken,
                      @Param("parserType") String parserType);
@@ -85,7 +94,7 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
                 error_message=NULL, processing_token=NULL, processing_heartbeat_at=NULL, updated_at=now()
             WHERE project_id=#{projectId} AND id=#{documentId} AND status='INDEXING'
               AND processing_token=#{processingToken}
-            """)
+            """ + PROCESSABLE)
     int markReady(@Param("projectId") UUID projectId, @Param("documentId") UUID documentId,
                   @Param("processingToken") UUID processingToken,
                   @Param("chunkCount") int chunkCount, @Param("provider") String provider,
@@ -195,7 +204,12 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
                    c.metadata
             FROM document_chunk c
             JOIN project_document d ON d.id=c.document_id AND d.project_id=c.project_id
-            WHERE c.project_id=#{projectId} AND d.status='READY'
+            WHERE c.project_id=#{projectId} AND d.status='READY' AND NOT d.access_blocked
+              AND NOT EXISTS (SELECT 1 FROM external_document e
+                JOIN connector_source s ON s.id=e.source_id AND s.project_id=d.project_id
+                LEFT JOIN connector_oauth_authorization a ON a.id=s.user_authorization_id AND a.project_id=s.project_id
+                WHERE e.document_id=d.id AND (e.status&lt;&gt;'ACTIVE' OR s.status&lt;&gt;'ACTIVE'
+                  OR (s.user_authorization_id IS NOT NULL AND (a.id IS NULL OR a.status&lt;&gt;'ACTIVE' OR a.access_expires_at&lt;=now()))))
               AND c.embedding_provider=#{provider} AND c.embedding_model=#{model}
               AND c.embedding_dimension=#{dimension}
               AND c.embedding_fingerprint=#{fingerprint}

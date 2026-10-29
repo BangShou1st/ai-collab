@@ -38,7 +38,17 @@ export interface ConnectorSource {
   lastSyncedAt: string | null
   documentCount: number
   lastJob: ConnectorSyncJob | null
+  userAuthorizationId?: string | null
 }
+
+export interface ConnectorGrant {
+  id: string
+  connectionId: string
+  status: 'ACTIVE' | 'REFRESHING' | 'REFRESH_UNCERTAIN' | 'REAUTH_REQUIRED' | 'REVOKED'
+  accessExpiresAt: string | null
+}
+
+export interface ConnectorConnectionOption { id: string; name: string }
 
 export interface ExternalDocument {
   id: string
@@ -61,6 +71,7 @@ export interface CreateSourceInput {
   folderToken: string
   name: string
   authorizationConfirmed: boolean
+  userAuthorizationId?: string | null
 }
 
 function root(projectId: string): string {
@@ -68,11 +79,26 @@ function root(projectId: string): string {
 }
 
 export const connectorApi = {
+  async availableConnections(projectId: string): Promise<ApiResult<ConnectorConnectionOption[]>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<ConnectorConnectionOption[]>>(`/projects/${projectId}/connector/available-connections`))
+  },
+  async authorizations(projectId: string): Promise<ApiResult<ConnectorGrant[]>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<ConnectorGrant[]>>(`/projects/${projectId}/connector/authorizations`))
+  },
+  async startAuthorization(projectId: string, connectionId: string): Promise<ApiResult<{ authorizationUrl: string; expiresAt: string }>> {
+    return apiResultFromResponse(await httpClient.post<ApiResponse<{ authorizationUrl: string; expiresAt: string }>>(`/projects/${projectId}/connector/connections/${connectionId}/oauth/start`))
+  },
+  async disconnectAuthorization(projectId: string, authorizationId: string): Promise<void> {
+    await httpClient.delete(`/projects/${projectId}/connector/authorizations/${authorizationId}`)
+  },
   async listConnections(): Promise<ApiResult<ConnectorConnection[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<ConnectorConnection[]>>('/connector/connections'))
   },
   async createConnection(input: CreateConnectionInput): Promise<ApiResult<ConnectorConnection>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<ConnectorConnection>>('/connector/connections', input))
+  },
+  async configureEvents(connectionId: string, encryptKey: string, verificationToken: string): Promise<void> {
+    await httpClient.put(`/connector/connections/${connectionId}/event-credentials`, { encryptKey, verificationToken })
   },
   async verifyConnection(connectionId: string): Promise<ApiResult<ConnectorConnection>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<ConnectorConnection>>(`/connector/connections/${connectionId}/verify`))

@@ -510,7 +510,7 @@ onUnmounted(() => {
           <dt>索引完成时间</dt><dd>{{ formatDateTime(selected.indexedAt) }}</dd>
         </dl>
         <div class="actions">
-          <el-button @click="download(selected)">下载原文件</el-button>
+          <el-button @click="download(selected)">下载已保存文件</el-button>
           <router-link :to="`/projects/${projectId}/agent?document=${selected.id}`"><el-button text type="primary">交给 Agent</el-button></router-link>
           <el-button
             v-if="canManage && selected.status === 'FAILED'"

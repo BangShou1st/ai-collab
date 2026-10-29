@@ -149,7 +149,8 @@ public interface ProjectDashboardMapper {
                    d.created_at AS createdAt
             FROM project_document d
             LEFT JOIN app_user u ON u.id = d.uploaded_by
-            WHERE d.project_id = #{projectId}
+            JOIN connector_document_visibility v ON v.id=d.id AND v.project_id=d.project_id
+            WHERE d.project_id = #{projectId} AND v.readable
             ORDER BY d.created_at DESC, d.id DESC
             LIMIT #{limit}
             """)

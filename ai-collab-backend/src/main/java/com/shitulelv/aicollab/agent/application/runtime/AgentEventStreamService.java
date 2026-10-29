@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.agent.application.runtime;
 
 import com.shitulelv.aicollab.agent.application.view.AgentRunEventView;
+import com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService;
 import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentEventRepository;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -67,6 +68,7 @@ public class AgentEventStreamService {
     private final ProjectAccessGuard access;
     private final AgentRepository runs;
     private final AgentEventRepository events;
+    private final AgentHistoryVisibilityService visibility;
     private final ConcurrentHashMap<UUID, CopyOnWriteArrayList<Subscription>> subscriptions =
             new ConcurrentHashMap<>();
     /** 统一订阅发送线程池：进程内共享、有界，不按运行/连接创建。 */
@@ -80,10 +82,12 @@ public class AgentEventStreamService {
             });
 
     public AgentEventStreamService(
-            ProjectAccessGuard access, AgentRepository runs, AgentEventRepository events) {
+            ProjectAccessGuard access, AgentRepository runs, AgentEventRepository events,
+            AgentHistoryVisibilityService visibility) {
         this.access = access;
         this.runs = runs;
         this.events = events;
+        this.visibility = visibility;
     }
 
     @jakarta.annotation.PreDestroy
@@ -101,6 +105,7 @@ public class AgentEventStreamService {
         access.requireMember(projectId, userId);
         runs.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
+        visibility.requireRun(projectId, runId);
 
         SseEmitter emitter = new SseEmitter(0L);
         Subscription subscription = new Subscription(projectId, runId, emitter, cursor);
@@ -238,9 +243,14 @@ public class AgentEventStreamService {
         Object payload = subscription.pendingContent.getAndSet(null);
         if (payload == null || subscription.closed) return;
         try {
-            subscription.emitter.send(SseEmitter.event().name("MODEL_CONTENT").data(payload));
-        } catch (IOException | IllegalStateException failure) {
-            log.debug("Agent 正文预览写出失败，断开该订阅 runId={}", subscription.runId, failure);
+            visibility.whileRunVisible(subscription.projectId, subscription.runId, () -> {
+                try {
+                    subscription.emitter.send(SseEmitter.event().name("MODEL_CONTENT").data(payload));
+                } catch (IOException | IllegalStateException failure) {
+                    close(subscription);
+                }
+            });
+        } catch (BusinessException failure) {
             close(subscription);
         }
     }
@@ -272,15 +282,19 @@ public class AgentEventStreamService {
     private void sendDurable(Subscription subscription, AgentRunEventView event) {
         if (subscription.closed || event.sequence() <= subscription.lastSequence) return;
         try {
-            subscription.emitter.send(SseEmitter.event()
-                    .id(Long.toString(event.sequence()))
-                    .name(event.type().name())
-                    .data(event));
-        } catch (IOException | IllegalStateException failure) {
-            log.debug("Agent 事件流订阅写出失败，等待客户端按游标重连 runId={}", subscription.runId, failure);
+            visibility.whileRunVisible(subscription.projectId, subscription.runId, () -> {
+                try {
+                    subscription.emitter.send(SseEmitter.event().id(Long.toString(event.sequence()))
+                            .name(event.type().name()).data(event));
+                } catch (IOException | IllegalStateException failure) {
+                    close(subscription);
+                }
+            });
+        } catch (BusinessException failure) {
             close(subscription);
             return;
         }
+        if (subscription.closed) return;
         subscription.lastSequence = event.sequence();
         if (isTerminal(event)) {
             close(subscription);

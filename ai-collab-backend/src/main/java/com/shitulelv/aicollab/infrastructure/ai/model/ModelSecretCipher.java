@@ -77,4 +77,21 @@ public class ModelSecretCipher {
     public String decryptOptional(String encryptedText) {
         return encryptedText == null || encryptedText.isBlank() ? null : decrypt(encryptedText);
     }
+
+    /** Stable, domain-separated lookup digest; inputs are never emitted or logged. */
+    public String subjectDigest(String appId, String tenantId, String openId) {
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key.getEncoded(), "HmacSHA256"));
+            for (String part : new String[] { "feishu-user-v1", appId, tenantId, openId }) {
+                if (part == null || part.isBlank()) throw new IllegalArgumentException("empty identity");
+                byte[] bytes = part.getBytes(StandardCharsets.UTF_8);
+                mac.update(java.nio.ByteBuffer.allocate(Integer.BYTES).putInt(bytes.length).array());
+                mac.update(bytes);
+            }
+            return java.util.HexFormat.of().formatHex(mac.doFinal());
+        } catch (java.security.GeneralSecurityException failure) {
+            throw new IllegalStateException("Unable to compute identity digest");
+        }
+    }
 }

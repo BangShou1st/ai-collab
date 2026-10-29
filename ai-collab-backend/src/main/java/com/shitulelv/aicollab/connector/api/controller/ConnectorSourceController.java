@@ -45,7 +45,7 @@ public class ConnectorSourceController {
                                                           @Valid @RequestBody CreateSourceRequest request,
                                                           @AuthenticationPrincipal Jwt jwt) {
         SourceView view = sources.create(projectId, userId(jwt), request.connectionId(),
-                request.folderToken(), request.name(), request.authorizationConfirmed());
+                request.folderToken(), request.name(), request.authorizationConfirmed(), request.userAuthorizationId());
         return ResponseEntity.created(URI.create("/api/v1/projects/" + projectId + "/connector/sources"))
                 .body(ApiResponse.success(view));
     }

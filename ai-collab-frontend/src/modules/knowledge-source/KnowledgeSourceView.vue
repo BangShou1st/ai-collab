@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
+import { documentApi } from '../document/document-api'
 import { useAuthStore } from '../../stores/auth-store'
 import PageHeader from '../../shared/PageHeader.vue'
 import {
   connectorApi,
   type ConnectorConnection,
   type ConnectorSource,
+  type ConnectorGrant,
+  type ConnectorConnectionOption,
   type ExternalDocument,
 } from '../../api/connector-api'
 
@@ -22,9 +25,11 @@ const isSystemAdmin = computed(() => auth.currentUser?.systemAdmin === true)
 const loading = ref(false)
 const sources = ref<ConnectorSource[]>([])
 const connections = ref<ConnectorConnection[]>([])
+const availableConnections = ref<ConnectorConnectionOption[]>([])
+const grants = ref<ConnectorGrant[]>([])
 
 const createDialog = ref(false)
-const createForm = reactive({ connectionId: '', folderToken: '', name: '', authorizationConfirmed: false })
+const createForm = reactive({ connectionId: '', folderToken: '', name: '', authorizationConfirmed: false, userAuthorizationId: '' })
 const creating = ref(false)
 
 const docsDrawer = ref(false)
@@ -35,10 +40,16 @@ const documents = ref<ExternalDocument[]>([])
 const connectionDialog = ref(false)
 const connectionForm = reactive({ name: '', appId: '', appSecret: '' })
 const connectionSubmitting = ref(false)
+const eventDialog = ref(false)
+const eventConnection = ref<ConnectorConnection | null>(null)
+const eventForm = reactive({ encryptKey: '', verificationToken: '' })
+const eventSubmitting = ref(false)
 const syncingIds = ref<string[]>([])
 
 const statusLabel: Record<string, string> = {
   ACTIVE: '正常', BLOCKED: '已阻断（需重新验证）',
+  REFRESHING: '正在刷新', REFRESH_UNCERTAIN: '刷新结果未知，请重新授权',
+  REAUTH_REQUIRED: '需要重新授权', REVOKED: '已断开',
   RUNNING: '同步中', SUCCESS: '同步成功', PARTIAL_FAILED: '部分失败', FAILED: '同步失败',
 }
 
@@ -48,6 +59,7 @@ async function load(): Promise<void> {
   try {
     const result = await connectorApi.listSources(projectId.value)
     sources.value = result.data ?? []
+    await refreshAuthorizations()
     if (isSystemAdmin.value) {
       const connResult = await connectorApi.listConnections()
       connections.value = connResult.data ?? []
@@ -64,6 +76,17 @@ async function openCreate(): Promise<void> {
   createForm.folderToken = ''
   createForm.name = ''
   createForm.authorizationConfirmed = false
+  createForm.userAuthorizationId = ''
+  try {
+    const [available, authorizations] = await Promise.all([
+      connectorApi.availableConnections(projectId.value), connectorApi.authorizations(projectId.value),
+    ])
+    availableConnections.value = available.data ?? []
+    grants.value = authorizations.data ?? []
+  } catch (error) {
+    showApiError(error, '加载可用连接和授权')
+    return
+  }
   if (isSystemAdmin.value && connections.value.length === 0) {
     try {
       const result = await connectorApi.listConnections()
@@ -82,6 +105,7 @@ async function submitCreate(): Promise<void> {
       folderToken: createForm.folderToken.trim(),
       name: createForm.name.trim(),
       authorizationConfirmed: createForm.authorizationConfirmed,
+      userAuthorizationId: createForm.userAuthorizationId || null,
     })
     createDialog.value = false
     ElMessage.success('知识源已添加，开始首次同步前请点击“同步”')
@@ -90,6 +114,39 @@ async function submitCreate(): Promise<void> {
     showApiError(error, '添加知识源')
   } finally {
     creating.value = false
+  }
+}
+
+async function refreshAuthorizations(): Promise<void> {
+  try { grants.value = (await connectorApi.authorizations(projectId.value)).data ?? [] }
+  catch (error) { showApiError(error, '刷新飞书授权') }
+}
+
+async function startAuthorization(): Promise<void> {
+  if (!projectId.value || !createForm.connectionId) return
+  const popup = window.open('about:blank', '_blank')
+  if (!popup) { ElMessage.warning('请允许弹出窗口后重试'); return }
+  popup.opener = null
+  try {
+    const result = await connectorApi.startAuthorization(projectId.value, createForm.connectionId)
+    popup.location.assign(result.data.authorizationUrl)
+    ElMessage.info('请在新窗口完成授权，然后返回并刷新授权状态')
+  } catch (error) {
+    popup.close()
+    showApiError(error, '发起飞书授权')
+  }
+}
+
+async function disconnectAuthorization(grant: ConnectorGrant): Promise<void> {
+  try {
+    await ElMessageBox.confirm('断开后将立即屏蔽该授权导入的知识，并安排清理文本和索引。', '断开飞书授权',
+      { confirmButtonText: '断开并清理', cancelButtonText: '取消', type: 'warning' })
+    await connectorApi.disconnectAuthorization(projectId.value, grant.id)
+    createForm.userAuthorizationId = ''
+    await load()
+    ElMessage.success('授权已断开，清理任务已安排')
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') showApiError(error, '断开飞书授权')
   }
 }
 
@@ -119,6 +176,16 @@ async function openDocuments(source: ConnectorSource): Promise<void> {
     showApiError(error, '同步文档加载')
   } finally {
     docsLoading.value = false
+  }
+}
+
+async function downloadIndexed(doc: ExternalDocument): Promise<void> {
+  if (!projectId.value || !doc.documentId) return
+  try {
+    const result = await documentApi.downloadUrl(projectId.value, doc.documentId)
+    window.location.assign(result.data.url)
+  } catch (error) {
+    showApiError(error, '下载已索引文本')
   }
 }
 
@@ -153,6 +220,29 @@ async function verifyConnection(connection: ConnectorConnection): Promise<void> 
   }
 }
 
+function openEventConfig(connection: ConnectorConnection): void {
+  eventConnection.value = connection
+  eventForm.encryptKey = ''
+  eventForm.verificationToken = ''
+  eventDialog.value = true
+}
+
+async function submitEventConfig(): Promise<void> {
+  if (!eventConnection.value) return
+  eventSubmitting.value = true
+  try {
+    await connectorApi.configureEvents(eventConnection.value.id, eventForm.encryptKey, eventForm.verificationToken)
+    eventForm.encryptKey = ''
+    eventForm.verificationToken = ''
+    eventDialog.value = false
+    ElMessage.success('事件凭据已加密保存，请在飞书后台完成事件订阅并验证')
+  } catch (error) {
+    showApiError(error, '配置飞书撤权事件')
+  } finally {
+    eventSubmitting.value = false
+  }
+}
+
 function formatTime(value: string | null): string {
   if (!value) return '—'
   return new Date(value).toLocaleString()
@@ -163,10 +253,19 @@ onMounted(load)
 
 <template>
   <div class="knowledge-source">
-    <PageHeader title="飞书知识源" description="把已授权的飞书文件夹同步到项目知识库，检索结果保留飞书来源链接。" />
+    <PageHeader title="飞书知识源" description="把已授权的飞书文件夹同步到项目知识库。飞书原文可在飞书中打开；平台保存和下载的是已索引文本副本，不提供原始二进制文件。" />
     <div class="actions">
       <el-button type="primary" @click="openCreate">添加飞书文件夹</el-button>
     </div>
+
+    <section v-if="grants.some(grant => grant.status !== 'REVOKED')" class="connections">
+      <h3>我的飞书授权</h3>
+      <div v-for="grant in grants.filter(item => item.status !== 'REVOKED')" :key="grant.id">
+        {{ sources.filter(source => source.connectionId === grant.connectionId).map(source => source.name).join('、') || '飞书连接' }} ·
+        {{ statusLabel[grant.status] || grant.status }}
+        <el-button text type="danger" @click="disconnectAuthorization(grant)">断开并清理</el-button>
+      </div>
+    </section>
 
     <el-table v-loading="loading" :data="sources" data-test="source-list">
       <el-table-column prop="name" label="名称" min-width="160" />
@@ -206,16 +305,33 @@ onMounted(load)
 
     <el-dialog v-model="createDialog" title="添加飞书文件夹知识源" width="520">
       <el-alert type="info" :closable="false" class="hint">
-        前置条件：文件夹已把应用「AI-Collab 知识库连接器」添加为协作者（可阅读）。
+        应用身份需要将连接器应用添加为文件夹协作者；用户授权需要当前飞书账号具有读取权限。
       </el-alert>
       <el-form label-width="120px">
         <el-form-item label="连接" required>
-          <el-select v-model="createForm.connectionId" placeholder="选择飞书应用连接" style="width: 100%">
-            <el-option v-for="connection in connections.filter(c => c.status === 'ACTIVE')"
+          <el-select v-model="createForm.connectionId" placeholder="选择飞书应用连接" style="width: 100%" @change="createForm.userAuthorizationId = ''">
+            <el-option
+                       v-for="connection in availableConnections"
                        :key="connection.id" :value="connection.id" :label="connection.name" />
           </el-select>
-          <div v-if="!isSystemAdmin && connections.length === 0" class="hint-text">
+          <div v-if="availableConnections.length === 0" class="hint-text">
             暂无可用连接，请联系系统管理员在「管理中心」创建。
+          </div>
+        </el-form-item>
+        <el-form-item label="授权身份">
+          <el-select v-model="createForm.userAuthorizationId" style="width: 100%">
+            <el-option label="应用身份（已有方式）" value="" />
+            <el-option
+              v-for="grant in grants.filter(g => g.connectionId === createForm.connectionId && g.status === 'ACTIVE')"
+              :key="grant.id" :value="grant.id" label="我的飞书用户授权" />
+          </el-select>
+          <div>
+            <el-button text type="primary" :disabled="!createForm.connectionId" @click="startAuthorization">授权我的飞书账号</el-button>
+            <el-button text @click="refreshAuthorizations">刷新授权状态</el-button>
+          </div>
+          <div v-for="grant in grants.filter(g => g.connectionId === createForm.connectionId && g.status !== 'REVOKED')" :key="grant.id">
+            授权状态：{{ statusLabel[grant.status] || grant.status }}
+            <el-button text type="danger" @click="disconnectAuthorization(grant)">断开并清理</el-button>
           </div>
         </el-form-item>
         <el-form-item label="文件夹 Token" required>
@@ -232,7 +348,8 @@ onMounted(load)
       </el-form>
       <template #footer>
         <el-button @click="createDialog = false">取消</el-button>
-        <el-button type="primary" :loading="creating" :disabled="!createForm.connectionId || !createForm.folderToken || !createForm.name || !createForm.authorizationConfirmed"
+        <el-button
+                   type="primary" :loading="creating" :disabled="!createForm.connectionId || !createForm.folderToken || !createForm.name || !createForm.authorizationConfirmed"
                    @click="submitCreate">验证并添加</el-button>
       </template>
     </el-dialog>
@@ -248,6 +365,7 @@ onMounted(load)
             </el-tag>
           </div>
           <a v-if="doc.sourceUrl" :href="doc.sourceUrl" target="_blank" rel="noopener noreferrer">在飞书中打开</a>
+          <el-button v-if="doc.documentId" text type="primary" @click="downloadIndexed(doc)">下载已索引文本</el-button>
         </div>
         <el-empty v-if="!docsLoading && documents.length === 0" description="尚未同步任何文档" />
       </div>
@@ -269,9 +387,10 @@ onMounted(load)
         <el-table-column label="最近验证" width="170">
           <template #default="{ row }">{{ formatTime(row.lastVerifiedAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="100">
+        <el-table-column label="操作" width="200">
           <template #default="{ row }">
             <el-button size="small" @click="verifyConnection(row)">验证</el-button>
+            <el-button size="small" @click="openEventConfig(row)">撤权事件</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -294,9 +413,36 @@ onMounted(load)
       </el-form>
       <template #footer>
         <el-button @click="connectionDialog = false">取消</el-button>
-        <el-button type="primary" :loading="connectionSubmitting"
+        <el-button
+                   type="primary" :loading="connectionSubmitting"
                    :disabled="!connectionForm.name || !connectionForm.appId || !connectionForm.appSecret"
                    @click="submitConnection">验证并保存</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+               v-model="eventDialog" title="配置飞书撤权事件" width="520"
+               @closed="eventForm.encryptKey = ''; eventForm.verificationToken = ''">
+      <el-alert type="info" :closable="false" class="hint">
+        在飞书后台订阅用户令牌撤销事件，并将请求地址设为后端 HTTPS 网关加以下路径：
+        <code v-if="eventConnection">/api/v1/connector/events/{{ eventConnection.id }}</code>。
+        两项凭据仅加密保存，不会回显。
+        更换凭据会暂时屏蔽关联的用户授权知识，并要求重新授权；已有数据不会因此删除。
+      </el-alert>
+      <el-form label-width="150px">
+        <el-form-item label="Encrypt Key" required>
+          <el-input v-model="eventForm.encryptKey" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="Verification Token" required>
+          <el-input v-model="eventForm.verificationToken" type="password" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="eventDialog = false">取消</el-button>
+        <el-button
+                   type="primary" :loading="eventSubmitting"
+                   :disabled="eventForm.encryptKey.length < 16 || eventForm.verificationToken.length < 16"
+                   @click="submitEventConfig">加密保存</el-button>
       </template>
     </el-dialog>
   </div>

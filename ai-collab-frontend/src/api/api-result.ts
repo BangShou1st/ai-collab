@@ -133,6 +133,7 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   CONNECTOR_CONNECTION_NOT_FOUND: '飞书连接不存在或已被删除',
   CONNECTOR_SOURCE_NOT_FOUND: '知识源不存在或你无权访问',
   CONNECTOR_CREDENTIAL_INVALID: '飞书连接凭据无效，请让系统管理员重新验证',
+  CONNECTOR_EVENT_NOT_CONFIGURED: '请联系系统管理员配置飞书撤权事件后再进行用户授权',
   CONNECTOR_FOLDER_NOT_ACCESSIBLE: '飞书文件夹不可访问，请确认已把应用添加为文件夹协作者',
   CONNECTOR_AUTH_DECLARATION_REQUIRED: '必须先确认文件夹内容已授权项目全体成员访问',
   CONNECTOR_SYNC_ALREADY_RUNNING: '该知识源已有同步任务在运行，请稍后刷新查看结果',
