@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import https from 'node:https'
 import { readFileSync } from 'node:fs'
-import { createHmac } from 'node:crypto'
+import { createHash, createHmac } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 const port = Number(process.env.TEST_PORT)
 const ca = readFileSync(process.env.TEST_CERT)
@@ -60,6 +60,43 @@ const url = new URL(signed.json.data.url)
 assert.equal(url.origin, origin); assert.ok(url.pathname.startsWith('/storage/'))
 const download = await request(url.pathname + url.search)
 assert.equal(download.status, 200); assert.equal(download.text, 'p0-synthetic-object')
+assert.match(download.headers['content-disposition'] || '', /^attachment/i)
+assert.equal(createHash('sha256').update(download.text).digest('hex'),
+  createHash('sha256').update('p0-synthetic-object').digest('hex'))
+assert.ok([403, 404].includes((await request(`/api/v1/projects/${p2}/documents/${doc}/download-url`, { token: memberToken })).status))
+const anonymous = await request(url.pathname)
+assert.equal(anonymous.status, 403)
+assert.match(anonymous.headers['content-type'] || '', /xml/i)
+const tampered = new URL(url)
+const signature = tampered.searchParams.get('X-Amz-Signature')
+assert.ok(signature)
+tampered.searchParams.set('X-Amz-Signature', `${signature[0] === '0' ? '1' : '0'}${signature.slice(1)}`)
+assert.equal((await request(tampered.pathname + tampered.search)).status, 403)
+assert.equal((await request(`${url.pathname}x${url.search}`)).status, 403)
+// 以隔离环境的合成密钥构造过去的有效签名，验证过期本身而非签名损坏。
+const expiredUrl = new URL(url)
+const past = new Date(Date.now() - 3600_000).toISOString().replace(/[:-]|\.\d{3}/g, '')
+const date = past.slice(0, 8)
+expiredUrl.searchParams.set('X-Amz-Date', past)
+expiredUrl.searchParams.set('X-Amz-Expires', '60')
+const credential = expiredUrl.searchParams.get('X-Amz-Credential').split('/')
+credential[1] = date
+expiredUrl.searchParams.set('X-Amz-Credential', credential.join('/'))
+expiredUrl.searchParams.delete('X-Amz-Signature')
+const encodeQuery = value => encodeURIComponent(value).replace(/[!'()*]/g, ch => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`)
+const canonicalQuery = [...expiredUrl.searchParams].map(([key, value]) => [encodeQuery(key), encodeQuery(value)])
+  .sort(([a, av], [b, bv]) => a < b ? -1 : a > b ? 1 : av < bv ? -1 : av > bv ? 1 : 0)
+  .map(pair => pair.join('=')).join('&')
+const digest = value => createHash('sha256').update(value).digest('hex')
+const hmac = (key, value) => createHmac('sha256', key).update(value).digest()
+const canonical = `GET\n${expiredUrl.pathname.slice('/storage'.length)}\n${canonicalQuery}\nhost:${expiredUrl.host}\n\nhost\nUNSIGNED-PAYLOAD`
+const scope = `${date}/us-east-1/s3/aws4_request`
+const stringToSign = `AWS4-HMAC-SHA256\n${past}\n${scope}\n${digest(canonical)}`
+const signingKey = hmac(hmac(hmac(hmac(`AWS4${process.env.MINIO_SECRET_KEY}`, date), 'us-east-1'), 's3'), 'aws4_request')
+expiredUrl.searchParams.set('X-Amz-Signature', createHmac('sha256', signingKey).update(stringToSign).digest('hex'))
+const expiredDownload = await request(expiredUrl.pathname + expiredUrl.search)
+assert.equal(expiredDownload.status, 403)
+assert.match(expiredDownload.text, /Expired|expired/i)
 const encodedLink = await request(`/api/v1/projects/${p1}/documents/88888888-8888-4888-8888-888888888888/download-url`, { token: ownerToken })
 assert.equal(encodedLink.status, 200)
 const encodedUrl = new URL(encodedLink.json.data.url)

@@ -1,0 +1,26 @@
+package com.shitulelv.aicollab.infrastructure.storage;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+class MinioPublicEndpointValidatorTest {
+    @Test
+    void productionRequiresOneHttpsOrigin() {
+        assertDoesNotThrow(() -> MinioPublicEndpointValidator.validate("https://storage.example.org:8443", true));
+        for (String value : new String[] {"", "http://storage.example.org", "https://a.example.org,https://b.example.org",
+                "https://user:password@storage.example.org", "https://storage.example.org/storage",
+                "https://storage.example.org?query=value", "https://storage.example.org#fragment"}) {
+            assertThrows(IllegalArgumentException.class, () -> MinioPublicEndpointValidator.validate(value, true));
+        }
+    }
+
+    @Test
+    void localDevelopmentMayUseItsInternalClientOrLoopbackHttp() {
+        assertDoesNotThrow(() -> MinioPublicEndpointValidator.validate("", false));
+        assertDoesNotThrow(() -> MinioPublicEndpointValidator.validate("http://localhost:9000", false));
+        assertThrows(IllegalArgumentException.class,
+                () -> MinioPublicEndpointValidator.validate("http://storage.example.org", false));
+    }
+}

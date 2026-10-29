@@ -15,7 +15,7 @@
 1. 在仓库外的受控目录（例如 `/etc/ai-collab/`）从 `ai-collab-deploy/prod.env.example` 创建环境文件，属主为部署管理员、权限 0600。该模板只含占位符，原样校验必然失败。
 2. `APP_IMAGE` 与 `PROXY_IMAGE` 使用已审核的不可变 `@sha256:` digest；PostgreSQL、Redis、MinIO 在生产 Compose 中也按 digest 固定，Dockerfile 的构建及运行基础镜像同样固定。记录构建源码 commit、镜像 digest、前端 dist 校验和和配置版本，升级需审查并验证目标 CPU 架构支持。占位模板不指定可被误当成生产凭据的默认值；固定基础镜像并不保证依赖仓库及构建产物完全可复现。
 3. PostgreSQL、Redis、MinIO 管理员及应用密码各自使用密码管理器生成的独立高强度随机值；JWT 和模型主密钥各使用至少 32 随机字节编码为不少于 43 个 base64url 字符。检查器只能识别格式、重复值和常见占位符，**不能证明随机熵**。
-4. `AUTH_ALLOWED_ORIGINS` 是一个规范 HTTPS Origin；生产入口固定 443，使用其他端口须重新设计并验证转发端口和跳转。准备匹配该域名、未过期的证书和私钥，续签后重新检查并安全重载代理。按用户要求，生产默认开放公开注册（`AUTH_PUBLIC_REGISTRATION_ENABLED=true`），必要时可在受控环境中关闭；不初始化 local 演示管理员，Cookie 固定 Secure/HttpOnly/SameSite=Strict。
+4. `AUTH_ALLOWED_ORIGINS` 是允许的前端 HTTPS Origin 列表，多个值用逗号分隔；`MINIO_PUBLIC_ENDPOINT` 独立设置为可访问 `/storage/` 的单个 HTTPS 下载 Origin。生产入口固定 443，使用其他端口须重新设计并验证转发端口和跳转。准备匹配下载域名、未过期的证书和私钥，续签后重新检查并安全重载代理。生产默认开放公开注册（`AUTH_PUBLIC_REGISTRATION_ENABLED=true`），必要时可在受控环境中关闭；不初始化 local 演示管理员，Cookie 固定 Secure/HttpOnly/SameSite=Strict。
 5. 模型凭据由管理员在系统中配置并使用 `MODEL_CONFIG_MASTER_KEY` 加密入库；保管并离线加密备份原主密钥。改变该环境变量不会自动迁移已有密文，遗失密钥将使原凭据不可解密。禁止把实际密码、API Key、备份或证书私钥写入仓库或验收证据。
 
 运行 `node ai-collab-deploy/scripts/prod-config-check.mjs /etc/ai-collab/production.env`。它校验实际生效的进程环境覆盖、密钥格式、账号分离、精确 HTTPS Origin、证书域名/有效期与私钥匹配，**不验证公共 CA 证书链或自动续签**；随后用 `bash ai-collab-deploy/scripts/prod-compose.sh /etc/ai-collab/production.env config` 检查 Compose。不要将包含秘密的 `docker compose config` 完整输出写入终端日志或工单。

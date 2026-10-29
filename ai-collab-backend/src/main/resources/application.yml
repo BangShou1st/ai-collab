@@ -13,6 +13,7 @@ storage:
         secret-key: "${MINIO_SECRET_KEY:}"
         bucket: "${MINIO_BUCKET:ai-collab}"
         public-endpoint: "${MINIO_PUBLIC_ENDPOINT:}"
+        require-public-endpoint: "${MINIO_REQUIRE_PUBLIC_ENDPOINT:false}"
         manage-bucket: "${MINIO_MANAGE_BUCKET:true}"
 
 embedding:
