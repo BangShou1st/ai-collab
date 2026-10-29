@@ -1,11 +1,24 @@
 package com.shitulelv.aicollab.infrastructure.storage;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class MinioPublicEndpointValidatorTest {
+    @Test
+    void productionProfilesEnforcePublicOriginEvenWithoutComposeFlag() {
+        var environment = new MockEnvironment();
+        var config = new MinioConfiguration();
+        var properties = new MinioProperties("http://minio:9000", "synthetic-access", "synthetic-secret", "documents", "", false);
+        for (String profile : new String[]{"prod", "production", "staging"}) {
+            environment.setActiveProfiles(profile);
+            assertThrows(IllegalArgumentException.class, () -> config.minioClient(properties, false, environment));
+        }
+        environment.setActiveProfiles("local");
+        assertDoesNotThrow(() -> config.minioClient(properties, false, environment));
+    }
     @Test
     void productionRequiresOneHttpsOrigin() {
         assertDoesNotThrow(() -> MinioPublicEndpointValidator.validate("https://storage.example.org:8443", true));
