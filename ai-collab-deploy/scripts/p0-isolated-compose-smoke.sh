@@ -27,8 +27,8 @@ for role in postgres_data redis_data minio_data; do
 done
 if docker network inspect "${project}_edge" >/dev/null 2>&1 || docker network inspect "${project}_data" >/dev/null 2>&1; then exit 1; fi
 [ -f "$ROOT/ai-collab-frontend/dist/index.html" ] || { echo '请先构建前端 dist' >&2; exit 1; }
-MSYS_NO_PATHCONV=1 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=localhost' \
-  -addext 'subjectAltName=DNS:localhost' -keyout "$(host_path "$tmp/key.pem")" -out "$(host_path "$tmp/cert.pem")" >/dev/null 2>&1
+MSYS_NO_PATHCONV=1 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=p0.example.test' \
+  -addext 'subjectAltName=DNS:p0.example.test' -keyout "$(host_path "$tmp/key.pem")" -out "$(host_path "$tmp/cert.pem")" >/dev/null 2>&1
 port=$(node -e "const s=require('net').createServer();s.listen(0,'127.0.0.1',()=>{console.log(s.address().port);s.close()})")
 secret() { openssl rand -hex 32; }
 cat > "$tmp/test.env" <<EOF
@@ -38,8 +38,8 @@ PUBLIC_BIND_IP=127.0.0.1
 HTTPS_PORT=$port
 TLS_CERT_FILE=$(host_path "$tmp/cert.pem")
 TLS_KEY_FILE=$(host_path "$tmp/key.pem")
-AUTH_ALLOWED_ORIGINS=https://localhost:$port
-MINIO_PUBLIC_ENDPOINT=https://localhost:$port
+AUTH_ALLOWED_ORIGINS=https://p0.example.test:$port
+MINIO_PUBLIC_ENDPOINT=https://p0.example.test:$port
 AUTH_PUBLIC_REGISTRATION_ENABLED=true
 POSTGRES_DB=p0isolated
 POSTGRES_USER=p0isolated
@@ -141,7 +141,7 @@ node "$ROOT/ai-collab-deploy/scripts/p0-log-scan.mjs" "$project"
 bash "$ROOT/ai-collab-deploy/scripts/p0-dependency-outage.sh" "$project"
 echo 'isolated HTTPS and proxy checks complete'
 if [ "${P0_HOLD_BROWSER:-0}" = 1 ]; then
-  printf 'BROWSER_READY https://localhost:%s user=p0owner synthetic-password=synthetic-p0-password\n' "$port"
+  printf 'BROWSER_READY https://p0.example.test:%s (requires local DNS mapping to 127.0.0.1)\n' "$port"
   read -r -p '浏览器验收结束后继续（Enter）: ' _
 fi
 export VERIFY_KEY_TABLES='app_user project project_member project_document'
