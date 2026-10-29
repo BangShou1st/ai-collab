@@ -19,6 +19,20 @@ FROM eclipse-temurin:21-jre-alpine@sha256:b48e02e0ea88d7bfb305335df94923bdef3949
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
+# Zen v1.6.1 中继依赖本机 Bun（免费档拒绝非 Bun 指纹）；Linux 无自动下载兜底，
+# 镜像内预装固定版本（musl 构建，SHA256 校验），安装后自检版本。
+ARG BUN_VERSION=1.4.4
+ARG BUN_MUSL_SHA256=a5a8ccc5e74dcb883fe974f125a7bdb3b41e5195ed1b870e73f17effd3eb2b2d
+USER root
+RUN apk add --no-cache curl unzip \
+    && curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-x64-musl.zip" -o /tmp/bun.zip \
+    && echo "${BUN_MUSL_SHA256}  /tmp/bun.zip" | sha256sum -c - \
+    && (cd /tmp && unzip -q bun.zip) \
+    && install -m 0755 /tmp/bun-linux-x64-musl/bun /usr/local/bin/bun \
+    && rm -rf /tmp/bun.zip /tmp/bun-linux-x64-musl \
+    && bun --version
+ENV ZEN_BUN=/usr/local/bin/bun
+
 WORKDIR /app
 COPY --from=build /workspace/ai-collab-backend/target/*.jar app.jar
 
