@@ -2,12 +2,12 @@
 import assert from 'node:assert/strict'
 import https from 'node:https'
 const port = Number(process.env.TEST_PORT)
-const origin = `https://localhost:${port}`
-const options = { hostname: '127.0.0.1', servername: 'localhost', port, rejectUnauthorized: false }
+const origin = `https://p0.example.test:${port}`
+const options = { hostname: '127.0.0.1', servername: 'p0.example.test', port, rejectUnauthorized: false }
 const login = await new Promise((resolve, reject) => {
   const body = JSON.stringify({ username: 'p0owner', password: 'synthetic-p0-password' })
   const req = https.request({ ...options, path: '/api/v1/auth/login', method: 'POST',
-    headers: { Host: `localhost:${port}`, Origin: origin, 'Content-Type': 'application/json',
+    headers: { Host: `p0.example.test:${port}`, Origin: origin, 'Content-Type': 'application/json',
       'Content-Length': Buffer.byteLength(body) } }, res => {
     let text = ''; res.on('data', b => { text += b }); res.on('end', () => {
       try { assert.equal(res.statusCode, 200); resolve(JSON.parse(text).data.accessToken) } catch (e) { reject(e) }
@@ -18,7 +18,7 @@ const stream = lastId => new Promise((resolve, reject) => {
   let settled = false; let data = ''
   const timer = setTimeout(() => { if (!settled) { settled = true; req.destroy(); reject(new Error('SSE 首帧超时')) } }, 7000)
   const req = https.request({ ...options, path: '/api/v1/projects/11111111-1111-4111-8111-111111111111/agent/runs/77777777-7777-4777-8777-777777777777/events',
-    headers: { Host: `localhost:${port}`, Origin: origin, Authorization: `Bearer ${login}`,
+    headers: { Host: `p0.example.test:${port}`, Origin: origin, Authorization: `Bearer ${login}`,
       Accept: 'text/event-stream', ...(lastId ? { 'Last-Event-ID': lastId } : {}) } }, res => {
     if (res.statusCode !== 200) { settled = true; clearTimeout(timer); res.destroy(); reject(new Error(`SSE HTTP ${res.statusCode}`)); return }
     res.on('data', chunk => {
