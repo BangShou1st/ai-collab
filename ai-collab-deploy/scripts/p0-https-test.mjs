@@ -6,7 +6,7 @@ import { createHash, createHmac } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 const port = Number(process.env.TEST_PORT)
 const ca = readFileSync(process.env.TEST_CERT)
-const origin = `https://localhost:${port}`
+const origin = `https://p0.example.test:${port}`
 const p1 = '11111111-1111-4111-8111-111111111111'
 const p2 = '22222222-2222-4222-8222-222222222222'
 const member = '44444444-4444-4444-8444-444444444444'
@@ -14,8 +14,8 @@ const doc = '55555555-5555-4555-8555-555555555555'
 function request(path, { method = 'GET', body, token, cookie, source = origin, headers = {} } = {}) {
   return new Promise((resolve, reject) => {
     const data = body === undefined ? undefined : JSON.stringify(body)
-    const req = https.request({ hostname: '127.0.0.1', servername: 'localhost', port, path, method, ca,
-      headers: { Host: `localhost:${port}`, Origin: source, ...headers,
+    const req = https.request({ hostname: '127.0.0.1', servername: 'p0.example.test', port, path, method, ca,
+      headers: { Host: `p0.example.test:${port}`, Origin: source, ...headers,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(cookie ? { Cookie: cookie } : {}),
         ...(data ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } : {}) },
@@ -105,8 +105,8 @@ assert.equal(encodedDownload.status, 200); assert.equal(encodedDownload.text, 'p
 const uploaded = await new Promise((resolve, reject) => {
   const boundary = 'p0-synthetic-boundary'
   const body = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="synthetic.txt"\r\nContent-Type: text/plain\r\n\r\np0-synthetic-upload\r\n--${boundary}--\r\n`
-  const req = https.request({ hostname: '127.0.0.1', servername: 'localhost', port, ca,
-    path: `/api/v1/projects/${p1}/documents`, method: 'POST', headers: { Host: `localhost:${port}`,
+  const req = https.request({ hostname: '127.0.0.1', servername: 'p0.example.test', port, ca,
+    path: `/api/v1/projects/${p1}/documents`, method: 'POST', headers: { Host: `p0.example.test:${port}`,
       Origin: origin, Authorization: `Bearer ${ownerToken}`, 'Content-Type': `multipart/form-data; boundary=${boundary}`,
       'Content-Length': Buffer.byteLength(body) } }, res => {
     let text = ''; res.on('data', b => { text += b }); res.on('end', () => {

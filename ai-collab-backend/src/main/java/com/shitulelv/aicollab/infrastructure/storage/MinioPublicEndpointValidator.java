@@ -26,6 +26,11 @@ public final class MinioPublicEndpointValidator {
                     || uri.getPort() == 0 || uri.getPort() > 65535) {
                 throw new IllegalArgumentException();
             }
+            String host = uri.getHost().toLowerCase(java.util.Locale.ROOT);
+            if (required && (!host.contains(".") || host.matches("[0-9.]+") || host.contains(":")
+                    || host.endsWith(".localhost") || host.endsWith(".local"))) {
+                throw new IllegalArgumentException();
+            }
         } catch (IllegalArgumentException exception) {
             throw new IllegalArgumentException("MINIO_PUBLIC_ENDPOINT 必须配置为单个安全的 Origin");
         }

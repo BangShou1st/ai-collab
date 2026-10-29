@@ -11,7 +11,8 @@ class MinioPublicEndpointValidatorTest {
         assertDoesNotThrow(() -> MinioPublicEndpointValidator.validate("https://storage.example.org:8443", true));
         for (String value : new String[] {"", "http://storage.example.org", "https://a.example.org,https://b.example.org",
                 "https://user:password@storage.example.org", "https://storage.example.org/storage",
-                "https://storage.example.org?query=value", "https://storage.example.org#fragment"}) {
+                "https://storage.example.org?query=value", "https://storage.example.org#fragment",
+                "https://localhost:9000", "https://127.0.0.1:9000", "https://minio:9000", "https://minio.local"}) {
             assertThrows(IllegalArgumentException.class, () -> MinioPublicEndpointValidator.validate(value, true));
         }
     }
