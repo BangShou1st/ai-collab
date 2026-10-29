@@ -39,6 +39,7 @@ HTTPS_PORT=$port
 TLS_CERT_FILE=$(host_path "$tmp/cert.pem")
 TLS_KEY_FILE=$(host_path "$tmp/key.pem")
 AUTH_ALLOWED_ORIGINS=https://localhost:$port
+MINIO_PUBLIC_ENDPOINT=https://localhost:$port
 AUTH_PUBLIC_REGISTRATION_ENABLED=true
 POSTGRES_DB=p0isolated
 POSTGRES_USER=p0isolated

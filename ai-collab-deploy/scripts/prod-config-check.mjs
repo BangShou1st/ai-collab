@@ -54,15 +54,26 @@ export function validate(values, { checkCertificate = true } = {}) {
   bad(!['true', 'false'].includes(values.AUTH_PUBLIC_REGISTRATION_ENABLED || 'true'),
     'AUTH_PUBLIC_REGISTRATION_ENABLED 必须是 true 或 false')
 
+  const dnsName = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
+  const parseOrigin = value => {
+    const parsed = new URL(value)
+    if (parsed.protocol !== 'https:' || parsed.origin !== value ||
+        !dnsName.test(parsed.hostname) || isIP(parsed.hostname) !== 0) throw new Error()
+    return parsed
+  }
+  try {
+    const allowed = (values.AUTH_ALLOWED_ORIGINS || '').split(',')
+    if (new Set(allowed).size !== allowed.length) throw new Error()
+    allowed.forEach(parseOrigin)
+  } catch {
+    errors.push('AUTH_ALLOWED_ORIGINS 必须是逗号分隔的规范 HTTPS 域名 Origin')
+  }
   let origin
   try {
-    origin = new URL(values.AUTH_ALLOWED_ORIGINS)
-    const dnsName = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
-    if (origin.protocol !== 'https:' || origin.origin !== values.AUTH_ALLOWED_ORIGINS ||
-        !dnsName.test(origin.hostname) || isIP(origin.hostname) !== 0 ||
-        Number(origin.port || '443') !== port) throw new Error()
+    origin = parseOrigin(values.MINIO_PUBLIC_ENDPOINT)
+    if (Number(origin.port || '443') !== port) throw new Error()
   } catch {
-    errors.push('AUTH_ALLOWED_ORIGINS 必须是单个规范 HTTPS 域名 Origin')
+    errors.push('MINIO_PUBLIC_ENDPOINT 必须是与下载网关端口匹配的单个 HTTPS 域名 Origin')
     origin = undefined
   }
   for (const name of ['TLS_CERT_FILE', 'TLS_KEY_FILE']) {
