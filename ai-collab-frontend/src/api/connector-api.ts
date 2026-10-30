@@ -64,6 +64,7 @@ export interface CreateConnectionInput {
   name: string
   appId: string
   appSecret: string
+  projectId?: string | null
 }
 
 export interface CreateSourceInput {

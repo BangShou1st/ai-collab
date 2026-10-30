@@ -41,8 +41,8 @@ public class ConnectorConnectionController {
     public ResponseEntity<ApiResponse<ConnectionView>> create(@Valid @RequestBody CreateConnectionRequest request,
                                                               @AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.created(java.net.URI.create("/api/v1/connector/connections"))
-                .body(ApiResponse.success(connections.create(userId(jwt), request.name(),
-                        request.appId(), request.appSecret())));
+                .body(ApiResponse.success(connections.create(userId(jwt), request.projectId(),
+                        request.name(), request.appId(), request.appSecret())));
     }
 
     @PostMapping("/{connectionId}/verify")

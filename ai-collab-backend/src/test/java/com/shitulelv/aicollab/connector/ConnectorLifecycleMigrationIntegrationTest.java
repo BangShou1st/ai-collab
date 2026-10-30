@@ -81,7 +81,8 @@ class ConnectorLifecycleMigrationIntegrationTest {
         @Bean ConnectorConnectionService connectionService(ConnectorConnectionMapper connections,
                 ConnectorEventCredentialRepository credentials, ConnectorVisibilityService visibility) {
             return new ConnectorConnectionService(connections,mock(ConnectorSourceMapper.class),mock(FeishuClient.class),
-                    new ModelSecretCipher("synthetic-test-master-key-only"),mock(UserService.class),credentials,visibility);
+                    new ModelSecretCipher("synthetic-test-master-key-only"),mock(UserService.class),credentials,visibility,
+                    mock(com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard.class));
         }
     }
 

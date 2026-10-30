@@ -24,6 +24,11 @@ const projectId = computed(() =>
 )
 const isSystemAdmin = computed(() => auth.currentUser?.systemAdmin === true)
 const project = ref<Project | null>(null)
+const canManageConnections = computed(() => {
+  const role = project.value?.role
+  return isSystemAdmin.value || role === 'OWNER' || role === 'ADMIN'
+})
+const callbackHint = computed(() => `${window.location.origin}/api/v1/connector/oauth/callback`)
 
 const loading = ref(false)
 const sources = ref<ConnectorSource[]>([])
@@ -43,6 +48,8 @@ const documents = ref<ExternalDocument[]>([])
 const connectionDialog = ref(false)
 const connectionForm = reactive({ name: '', appId: '', appSecret: '' })
 const connectionSubmitting = ref(false)
+const projectConnectionForm = reactive({ name: '', appId: '', appSecret: '' })
+const creatingProjectConnection = ref(false)
 const eventDialog = ref(false)
 const eventConnection = ref<ConnectorConnection | null>(null)
 const eventForm = reactive({ encryptKey: '', verificationToken: '' })
@@ -83,11 +90,7 @@ async function openCreate(): Promise<void> {
   createForm.authorizationConfirmed = false
   createForm.userAuthorizationId = ''
   try {
-    const [available, authorizations] = await Promise.all([
-      connectorApi.availableConnections(projectId.value), connectorApi.authorizations(projectId.value),
-    ])
-    availableConnections.value = available.data ?? []
-    grants.value = authorizations.data ?? []
+    await Promise.all([loadAvailableConnections(), refreshAuthorizations()])
   } catch (error) {
     showApiError(error, '加载可用连接和授权')
     return
@@ -99,6 +102,34 @@ async function openCreate(): Promise<void> {
     } catch { /* 列表加载失败时允许用户手动处理 */ }
   }
   createDialog.value = true
+}
+
+async function loadAvailableConnections(): Promise<void> {
+  const result = await connectorApi.availableConnections(projectId.value)
+  availableConnections.value = result.data ?? []
+}
+
+async function createProjectConnection(): Promise<void> {
+  if (!projectId.value || creatingProjectConnection.value) return
+  creatingProjectConnection.value = true
+  try {
+    await connectorApi.createConnection({
+      name: projectConnectionForm.name.trim(),
+      appId: projectConnectionForm.appId.trim(),
+      appSecret: projectConnectionForm.appSecret.trim(),
+      projectId: projectId.value,
+    })
+    projectConnectionForm.name = ''
+    projectConnectionForm.appId = ''
+    projectConnectionForm.appSecret = ''
+    ElMessage.success('连接已创建（App Secret 已加密保存，仅本项目可用）')
+    createForm.connectionId = ''
+    await loadAvailableConnections()
+  } catch (error) {
+    showApiError(error, '创建连接')
+  } finally {
+    creatingProjectConnection.value = false
+  }
 }
 
 async function submitCreate(): Promise<void> {
@@ -326,8 +357,35 @@ onMounted(load)
                        :key="connection.id" :value="connection.id" :label="connection.name" />
           </el-select>
           <div v-if="availableConnections.length === 0" class="hint-text">
-            暂无可用连接，请联系系统管理员在「管理中心」创建。
+            <template v-if="canManageConnections">
+              暂无可用连接。可在下方录入你自己飞书应用的凭据，创建仅本项目可见的专属连接。
+            </template>
+            <template v-else>暂无可用连接，请联系系统管理员在「管理中心」创建。</template>
           </div>
+          <template v-if="canManageConnections">
+            <el-divider content-position="left">新建本项目专属连接</el-divider>
+            <el-form label-width="120px" @submit.prevent>
+              <el-form-item label="连接名称" required>
+                <el-input v-model="projectConnectionForm.name" maxlength="100" placeholder="如：我的社团飞书应用" />
+              </el-form-item>
+              <el-form-item label="App ID" required>
+                <el-input v-model="projectConnectionForm.appId" placeholder="cli_xxxxxxxx" />
+              </el-form-item>
+              <el-form-item label="App Secret" required>
+                <el-input v-model="projectConnectionForm.appSecret" type="password" show-password placeholder="仅在创建时输入一次" />
+              </el-form-item>
+              <div class="hint-text">
+                创建前请在该飞书应用后台完成：开通文档相关权限，并把
+                <code>{{ callbackHint }}</code> 加入重定向 URL 白名单。
+                凭据加密存储，任何人都无法再次查看。
+              </div>
+              <el-button
+                text type="primary" :loading="creatingProjectConnection"
+                :disabled="!projectConnectionForm.name || !projectConnectionForm.appId || !projectConnectionForm.appSecret"
+                @click="createProjectConnection"
+              >创建并使用该连接</el-button>
+            </el-form>
+          </template>
         </el-form-item>
         <el-form-item label="授权身份">
           <el-select v-model="createForm.userAuthorizationId" style="width: 100%">
