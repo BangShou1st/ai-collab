@@ -33,6 +33,7 @@
 - [真实回答质量与引用可信度评测 (`design/rag-answer-quality-evaluation.md`)](design/rag-answer-quality-evaluation.md)：两层评测架构（离线契约/真实生成）、版本冲突与拒答判定规则、QA 与 Agent 引用协议差异、机械可判与人工审查边界（P10-RAG-ANSWER-QUALITY-01）。
 - [Agent 最终来源与引用契约 (`design/agent-source-citation-contract.md`)](design/agent-source-citation-contract.md)：已读来源、显式引用与语义支持的边界，子来源收口时的身份与原摘录校验。
 - [Provider 接入自动化与能力发现 (`design/provider-onboarding-and-capability-detection.md`)](design/provider-onboarding-and-capability-detection.md)：服务商档案、URL/Path 组合规则、探针专用执行边界、检测并配置与 CAS 写回（P7-PROVIDER-ONBOARDING-01）。
+- [账号生命周期：忘记密码、邮箱验证与统一邮件服务 (`design/account-lifecycle.md`)](design/account-lifecycle.md)：统一可信公开地址 `APP_PUBLIC_URL`、一次性令牌（哈希存储/原子消费）、防枚举响应、AFTER_COMMIT 邮件投递与部署环境矩阵（P7.1-D/E）。
 
 ---
 

@@ -20,7 +20,7 @@ class AuthRateLimiterTest {
 
     @Test
     void login_rate_limited_after_burst() {
-        AuthRateLimiter limiter = new AuthRateLimiter(mock(StringRedisTemplate.class), 3, 10);
+        AuthRateLimiter limiter = new AuthRateLimiter(mock(StringRedisTemplate.class), 3, 10, 10, 30);
         MockHttpServletRequest request = request("10.0.0.9");
 
         limiter.checkLogin(request, "Owner");
@@ -35,7 +35,7 @@ class AuthRateLimiterTest {
 
     @Test
     void register_rate_limited_by_ip() {
-        AuthRateLimiter limiter = new AuthRateLimiter(mock(StringRedisTemplate.class), 30, 2);
+        AuthRateLimiter limiter = new AuthRateLimiter(mock(StringRedisTemplate.class), 30, 2, 10, 30);
         MockHttpServletRequest request = request("10.0.0.10");
 
         limiter.checkRegister(request);
@@ -49,7 +49,7 @@ class AuthRateLimiterTest {
 
     @Test
     void spoofed_forwarded_header_does_not_bypass() {
-        AuthRateLimiter limiter = new AuthRateLimiter(mock(StringRedisTemplate.class), 1, 10);
+        AuthRateLimiter limiter = new AuthRateLimiter(mock(StringRedisTemplate.class), 1, 10, 10, 30);
         MockHttpServletRequest request = request("10.0.0.11");
         request.addHeader("X-Forwarded-For", "1.2.3.4");
         limiter.checkLogin(request, "owner");

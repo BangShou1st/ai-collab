@@ -2,6 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth-store'
 import LoginView from './modules/auth/LoginView.vue'
 import RegisterView from './modules/auth/RegisterView.vue'
+import ForgotPasswordView from './modules/auth/ForgotPasswordView.vue'
+import ResetPasswordView from './modules/auth/ResetPasswordView.vue'
+import VerifyEmailView from './modules/auth/VerifyEmailView.vue'
 import AccountView from './modules/account/AccountView.vue'
 import HomeView from './modules/home/HomeView.vue'
 import UserAiSettingsView from './modules/ai/UserAiSettingsView.vue'
@@ -36,6 +39,9 @@ export const router = createRouter({
     { path: '/', redirect: '/home' },
     { path: '/login', component: LoginView, meta: { public: true, title: '登录' } },
     { path: '/register', component: RegisterView, meta: { public: true, title: '注册账号' } },
+    { path: '/forgot-password', component: ForgotPasswordView, meta: { public: true, title: '忘记密码' } },
+    { path: '/reset-password', component: ResetPasswordView, meta: { public: true, title: '重置密码' } },
+    { path: '/verify-email', component: VerifyEmailView, meta: { public: true, title: '邮箱验证' } },
     { path: '/invite/:code', component: InvitationAcceptView, meta: { public: true, title: '项目邀请' } },
     { path: '/home', component: HomeView, meta: { title: '工作台' } },
     { path: '/settings/ai', component: UserAiSettingsView, meta: { title: 'AI 设置' } },

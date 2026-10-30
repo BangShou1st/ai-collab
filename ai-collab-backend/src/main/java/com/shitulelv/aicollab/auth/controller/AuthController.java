@@ -6,10 +6,15 @@ import com.shitulelv.aicollab.auth.dto.AccessTokenResponse;
 import com.shitulelv.aicollab.auth.dto.LoginRequest;
 import com.shitulelv.aicollab.auth.dto.LoginResponse;
 import com.shitulelv.aicollab.auth.dto.ChangePasswordRequest;
+import com.shitulelv.aicollab.auth.dto.ForgotPasswordRequest;
 import com.shitulelv.aicollab.auth.dto.RegisterRequest;
 import com.shitulelv.aicollab.auth.dto.RegistrationPolicyResponse;
+import com.shitulelv.aicollab.auth.dto.ResetPasswordRequest;
+import com.shitulelv.aicollab.auth.dto.VerifyEmailRequest;
 import com.shitulelv.aicollab.auth.model.AuthenticationResult;
 import com.shitulelv.aicollab.auth.model.RefreshResult;
+import com.shitulelv.aicollab.auth.service.EmailVerificationService;
+import com.shitulelv.aicollab.auth.service.PasswordResetService;
 import com.shitulelv.aicollab.auth.service.AuthService;
 import com.shitulelv.aicollab.auth.service.RefreshTokenCookieService;
 import com.shitulelv.aicollab.auth.service.PublicRegistrationService;
@@ -43,6 +48,8 @@ public class AuthController {
     private final RefreshTokenCookieService refreshTokenCookieService;
     private final PublicRegistrationService registrations;
     private final AccountService accounts;
+    private final PasswordResetService passwordResets;
+    private final EmailVerificationService emailVerifications;
 
     private final AuthRateLimiter rateLimiter;
 
@@ -51,12 +58,16 @@ public class AuthController {
             RefreshTokenCookieService refreshTokenCookieService,
             PublicRegistrationService registrations,
             AccountService accounts,
-            AuthRateLimiter rateLimiter) {
+            AuthRateLimiter rateLimiter,
+            PasswordResetService passwordResets,
+            EmailVerificationService emailVerifications) {
         this.authService = authService;
         this.refreshTokenCookieService = refreshTokenCookieService;
         this.registrations = registrations;
         this.accounts = accounts;
         this.rateLimiter = rateLimiter;
+        this.passwordResets = passwordResets;
+        this.emailVerifications = emailVerifications;
     }
 
     @GetMapping("/registration-policy")
@@ -155,6 +166,38 @@ public class AuthController {
             HttpServletResponse response) {
         accounts.logoutAll(userId(jwt));
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookieService.clearCookie().toString());
+        return ApiResponse.success(null);
+    }
+
+    /**
+     * 忘记密码：无论邮箱是否存在都返回统一响应，防止账号枚举。
+     */
+    @PostMapping("/forgot-password")
+    public ApiResponse<Void> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request,
+            HttpServletRequest httpRequest) {
+        passwordResets.requestReset(httpRequest, request.email());
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResets.reset(request.token(), request.newPassword());
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/verify-email")
+    public ApiResponse<Void> verifyEmail(
+            @Valid @RequestBody VerifyEmailRequest request,
+            HttpServletRequest httpRequest) {
+        rateLimiter.checkVerifyEmail(httpRequest);
+        emailVerifications.verify(request.token());
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/verify-email/request")
+    public ApiResponse<Void> requestEmailVerification(@AuthenticationPrincipal Jwt jwt) {
+        emailVerifications.requestFor(userId(jwt));
         return ApiResponse.success(null);
     }
 

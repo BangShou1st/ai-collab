@@ -65,6 +65,20 @@ planning:
 mybatis-plus:
     type-handlers-package: com.shitulelv.aicollab.common.persistence
 
+app:
+    # 统一可信公开地址（正式前端访问源）。邀请/密码重置/邮箱验证等敏感链接只允许基于
+    # 该配置生成，禁止从 Host 等请求头推断；未配置时相关链接退回前端当前 Origin 拼接。
+    public-url: "${APP_PUBLIC_URL:}"
+    mail:
+        # 邮件发送总开关；false 时使用降级实现（记录收件人与主题后跳过，正文不入日志）。
+        enabled: "${MAIL_ENABLED:false}"
+        host: "${MAIL_HOST:}"
+        port: "${MAIL_PORT:587}"
+        username: "${MAIL_USERNAME:}"
+        password: "${MAIL_PASSWORD:}"
+        from: "${MAIL_FROM:}"
+        starttls: "${MAIL_STARTTLS:true}"
+
 security:
     jwt:
         secret: "${JWT_SECRET:}"

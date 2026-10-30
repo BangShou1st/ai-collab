@@ -40,6 +40,8 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   INVITATION_EXPIRED: '邀请已过期',
   INVITATION_ALREADY_USED: '邀请已被使用',
   INVITATION_EMAIL_MISMATCH: '当前账号与邀请邮箱不匹配',
+  ACCOUNT_TOKEN_INVALID: '链接无效或已过期，请重新发起操作',
+  EMAIL_ALREADY_VERIFIED: '邮箱已验证，无需重复操作',
   MILESTONE_NOT_FOUND: '里程碑不存在',
   TASK_NOT_FOUND: '任务不存在',
   TASK_ASSIGNEE_NOT_MEMBER: '负责人必须是当前项目成员',

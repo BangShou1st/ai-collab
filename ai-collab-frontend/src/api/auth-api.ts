@@ -68,4 +68,31 @@ export const authApi = {
     )
     return apiResultFromResponse(response)
   },
+
+  async forgotPassword(email: string): Promise<ApiResult<null>> {
+    const response = await authClient.post<ApiResponse<null>>('/forgot-password', { email })
+    return apiResultFromResponse(response)
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<ApiResult<null>> {
+    const response = await authClient.post<ApiResponse<null>>(
+      '/reset-password',
+      { token, newPassword },
+    )
+    return apiResultFromResponse(response)
+  },
+
+  async verifyEmail(token: string): Promise<ApiResult<null>> {
+    const response = await authClient.post<ApiResponse<null>>('/verify-email', { token })
+    return apiResultFromResponse(response)
+  },
+
+  async requestEmailVerification(accessToken: string): Promise<ApiResult<null>> {
+    const response = await authClient.post<ApiResponse<null>>(
+      '/verify-email/request',
+      {},
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    )
+    return apiResultFromResponse(response)
+  },
 }

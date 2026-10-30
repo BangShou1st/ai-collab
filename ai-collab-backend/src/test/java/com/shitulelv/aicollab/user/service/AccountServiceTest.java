@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.user.service;
 
 import com.shitulelv.aicollab.auth.dto.ChangePasswordRequest;
 import com.shitulelv.aicollab.auth.service.RefreshTokenService;
+import com.shitulelv.aicollab.auth.service.EmailVerificationService;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.application.service.AuditService;
@@ -31,6 +32,7 @@ class AccountServiceTest {
     private PasswordEncoder passwordEncoder;
     private RefreshTokenService refreshTokens;
     private AuditService audit;
+    private EmailVerificationService emailVerifications;
     private AccountService service;
     private UserEntity user;
 
@@ -40,7 +42,8 @@ class AccountServiceTest {
         passwordEncoder = mock(PasswordEncoder.class);
         refreshTokens = mock(RefreshTokenService.class);
         audit = mock(AuditService.class);
-        service = new AccountService(users, passwordEncoder, refreshTokens, audit);
+        emailVerifications = mock(EmailVerificationService.class);
+        service = new AccountService(users, passwordEncoder, refreshTokens, audit, emailVerifications);
 
         user = new UserEntity();
         user.setId(UUID.randomUUID());

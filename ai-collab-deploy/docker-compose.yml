@@ -138,6 +138,17 @@ services:
       REFRESH_COOKIE_ALLOW_INSECURE: "${REFRESH_COOKIE_ALLOW_INSECURE:-false}"
       # 认证端点 CORS 白名单：生产必须显式设置为前端站点 Origin（逗号分隔），不能用默认值上生产。
       AUTH_ALLOWED_ORIGINS: "${AUTH_ALLOWED_ORIGINS:-http://localhost:5173}"
+      # 统一可信公开地址：邀请/密码重置/邮箱验证等敏感链接的生成源（只允许 origin）。
+      # 本地单机演练可留空（前端回退当前页面 Origin）；服务器部署必须配置为正式前端地址。
+      APP_PUBLIC_URL: "${APP_PUBLIC_URL:-}"
+      # 邮件发送（密码重置/邮箱验证）。false 时仅记录发送意图，不投递，不影响本地演练。
+      MAIL_ENABLED: "${MAIL_ENABLED:-false}"
+      MAIL_HOST: "${MAIL_HOST:-}"
+      MAIL_PORT: "${MAIL_PORT:-587}"
+      MAIL_USERNAME: "${MAIL_USERNAME:-}"
+      MAIL_PASSWORD: "${MAIL_PASSWORD:-}"
+      MAIL_FROM: "${MAIL_FROM:-}"
+      MAIL_STARTTLS: "${MAIL_STARTTLS:-true}"
     ports:
       - "8080:8080"
 
