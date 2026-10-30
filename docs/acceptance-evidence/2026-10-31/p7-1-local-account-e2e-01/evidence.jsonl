@@ -1,0 +1,11 @@
+{"ts":"2026-10-31T01:47Z","scenario":"E01","event":"mailpit_inbox","mail":{"from":"no-reply@local.test","to":"p71e2e_a@local.test","subject":"AI Collab 邮箱验证","link_prefix":"http://localhost:5173/verify-email?token=","token_length":43}}
+{"ts":"2026-10-31T01:49Z","scenario":"E02","event":"ui_assert","page":"/verify-email?token=...","assert":"邮箱验证成功"}
+{"ts":"2026-10-31T01:50Z","scenario":"E03","event":"ui_assert","page":"/verify-email?token=...(replay)","assert":"验证链接无效或已过期"}
+{"ts":"2026-10-31T01:40Z","scenario":"E04","event":"ui_assert","page":"/login","assert":"忘记密码？ 链接存在"}
+{"ts":"2026-10-31T01:52Z","scenario":"E05","event":"mailpit_inbox","mail":{"from":"no-reply@local.test","to":"p71e2e_a@local.test","subject":"AI Collab 密码重置","link_prefix":"http://localhost:5173/reset-password?token=","token_length":43}}
+{"ts":"2026-10-31T01:54Z","scenario":"E05","event":"ui_assert","page":"/reset-password?token=...","assert":"密码已重置 请使用新密码重新登录。为保护账号安全，所有设备的登录会话已退出。"}
+{"ts":"2026-10-31T01:56Z","scenario":"E06","event":"ui_assert","page":"/login → /home","assert":"新密码 P71-Local-E2E-New9! 登录成功，工作台显示 P71 E2E 用户；旧会话已被踢出"}
+{"ts":"2026-10-31T01:55Z","scenario":"E07","event":"ui_assert","page":"/reset-password?token=...(replay+submit)","assert":"重置链接无效或已过期 请重新申请密码重置"}
+{"ts":"2026-10-31T02:10Z","scenario":"E08","event":"ui_assert","page":"/projects/:id/members","assert":"邀请链接展示为 http://localhost:5173/invite/1ie8E4fKGCXuMQmv-fU1VARaWRzUkLqrzp3P95I8QJQ（来自 InvitationView.invitationUrl）"}
+{"ts":"2026-10-31T02:18Z","scenario":"E09","event":"api_assert","request":"GET /api/v1/invitations/1ie8E4fKGCXuMQmv-fU1VARaWRzUkLqrzp3P95I8QJQ (anonymous)","http":200,"body":{"projectName":"P7.1 邮件与账号闭环验证","role":"MEMBER","invitedEmail":null}}
+{"ts":"2026-10-31T02:20Z","scenario":"E10","event":"spa_deeplink","pages":["/verify-email?token=","/reset-password?token=","/forgot-password","/invite/{code}"],"assert":"全部直达不 404"}
