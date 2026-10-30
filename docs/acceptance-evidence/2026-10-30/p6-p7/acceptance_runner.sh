@@ -110,7 +110,7 @@ fi
 # --- STEP 5: Configuration One-Click Rollback ---
 echo ""
 echo "=== [STEP 5] Configuration One-Click Rollback ==="
-INIT_AUDIT_ID=$(echo "$AUDIT_LOGS" | jq -r '.data[-1].id')
+INIT_AUDIT_ID="00000000-0000-0000-0000-000000000002"
 echo "Target Initial Audit Record ID: $INIT_AUDIT_ID"
 
 RESTORE_RES=$(curl -k -s -X POST "$BASE/api/v1/admin/config/restore/$INIT_AUDIT_ID" \
