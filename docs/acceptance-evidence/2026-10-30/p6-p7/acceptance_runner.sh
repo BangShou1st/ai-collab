@@ -214,7 +214,7 @@ echo "Document uploaded successfully, Document ID: $DOC_ID"
 echo "Obtaining presigned download URL (/download-url)..."
 DOWNLOAD_RES=$(curl -k -s -H "Authorization: Bearer $ADMIN_TOKEN" "$BASE/api/v1/projects/$PROJECT_ID/documents/$DOC_ID/download-url")
 echo "Download-URL Response: $DOWNLOAD_RES"
-DOWNLOAD_URL=$(echo "$DOWNLOAD_RES" | jq -r '.data.downloadUrl')
+DOWNLOAD_URL=$(echo "$DOWNLOAD_RES" | jq -r '.data.url')
 echo "Download URL: $DOWNLOAD_URL"
 
 echo "Downloading file via presigned URL over public HTTPS..."
