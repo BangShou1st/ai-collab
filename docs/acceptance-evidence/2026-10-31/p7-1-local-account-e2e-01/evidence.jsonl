@@ -9,3 +9,8 @@
 {"ts":"2026-10-31T02:10Z","scenario":"E08","event":"ui_assert","page":"/projects/:id/members","assert":"邀请链接展示为 http://localhost:5173/invite/1ie8E4fKGCXuMQmv-fU1VARaWRzUkLqrzp3P95I8QJQ（来自 InvitationView.invitationUrl）"}
 {"ts":"2026-10-31T02:18Z","scenario":"E09","event":"api_assert","request":"GET /api/v1/invitations/1ie8E4fKGCXuMQmv-fU1VARaWRzUkLqrzp3P95I8QJQ (anonymous)","http":200,"body":{"projectName":"P7.1 邮件与账号闭环验证","role":"MEMBER","invitedEmail":null}}
 {"ts":"2026-10-31T02:20Z","scenario":"E10","event":"spa_deeplink","pages":["/verify-email?token=","/reset-password?token=","/forgot-password","/invite/{code}"],"assert":"全部直达不 404"}
+{"ts":"2026-10-31T10:46Z","scenario":"E11","event":"real_smtp_send","smtp":"smtp.qq.com:465 SSL","recipient":"3296249574@qq.com","mails":["AI Collab 邮箱验证","AI Collab 密码重置"],"assert":"后端零失败日志；Mailpit 无新邮件；用户确认收到"}
+{"ts":"2026-10-31T10:55Z","scenario":"E12","event":"smtp_protocol_diagnostic","assert":"AUTH LOGIN 235 Authentication successful；MAIL FROM/RCPT/DATA 250 OK"}
+{"ts":"2026-10-31T11:05Z","scenario":"E13","event":"pages_api_probe","url":"https://ai-collab-web.pages.dev/api/v1/auth/registration-policy","http":200,"cors":"Access-Control-Allow-Origin: https://ai-collab-web.pages.dev"}
+{"ts":"2026-10-31T11:06Z","scenario":"E14","event":"pages_register_cookie","http":200,"set_cookie":"ai_collab_refresh_token; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Strict"}
+{"ts":"2026-10-31T11:20Z","scenario":"E15","event":"feishu_redirect_whitelist","app":"AI-Collab 知识库连接器 (cli_aa688d12b778dd0e)","urls":["https://8443-agqyc3kteqehqgazwefpmhwulu.instabox.tech/api/v1/connector/oauth/callback","http://localhost:8080/api/v1/connector/oauth/callback"],"via":"bsk 驱动用户已登录 Edge"}

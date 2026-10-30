@@ -162,6 +162,7 @@ services:
       MAIL_PASSWORD: "${MAIL_PASSWORD:-}"
       MAIL_FROM: "${MAIL_FROM:-}"
       MAIL_STARTTLS: "${MAIL_STARTTLS:-true}"
+      MAIL_SSL: "${MAIL_SSL:-false}"
     ports:
       - "8080:8080"
 
