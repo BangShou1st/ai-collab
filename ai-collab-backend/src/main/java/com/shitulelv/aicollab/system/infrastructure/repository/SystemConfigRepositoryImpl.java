@@ -40,7 +40,7 @@ public class SystemConfigRepositoryImpl implements SystemConfigRepository {
 
     @Override
     public void saveAudit(SystemConfigAudit audit) {
-        auditMapper.insert(SystemConfigAuditEntity.fromDomain(audit));
+        auditMapper.insertWithJsonb(SystemConfigAuditEntity.fromDomain(audit));
     }
 
     @Override
@@ -53,7 +53,7 @@ public class SystemConfigRepositoryImpl implements SystemConfigRepository {
 
     @Override
     public Optional<SystemConfigAudit> findAuditById(UUID id) {
-        SystemConfigAuditEntity entity = auditMapper.selectById(id);
+        SystemConfigAuditEntity entity = auditMapper.selectByIdCustom(id);
         return Optional.ofNullable(entity).map(SystemConfigAuditEntity::toDomain);
     }
 }
