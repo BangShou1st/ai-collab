@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.document.application.service;
 
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.document.application.view.DocumentDownloadResource;
 import com.shitulelv.aicollab.document.application.view.DocumentView;
 import com.shitulelv.aicollab.document.application.view.DownloadUrlView;
 import com.shitulelv.aicollab.document.domain.model.DocumentStatus;
@@ -138,6 +139,17 @@ public class DocumentApplicationService {
             throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY);
         }
         return storage.presign(document.getObjectKey(), document.getOriginalFilename(), Duration.ofMinutes(5));
+    }
+
+    public DocumentDownloadResource download(UUID projectId, UUID documentId, UUID userId) {
+        accessGuard.requireMember(projectId, userId);
+        DocumentEntity document = requireReadableDocument(projectId, documentId);
+        if (document.getStatus() == DocumentStatus.DELETING) {
+            throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY);
+        }
+        InputStream stream = storage.open(document.getObjectKey());
+        return new DocumentDownloadResource(stream, document.getOriginalFilename(),
+                document.getMimeType(), document.getSizeBytes());
     }
 
     public void delete(UUID projectId, UUID documentId, UUID userId) {

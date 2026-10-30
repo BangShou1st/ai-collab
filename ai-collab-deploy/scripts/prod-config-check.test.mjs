@@ -33,6 +33,11 @@ test('接受完整合成配置，拒绝占位符、重复密钥和可变镜像�
   assert.ok(check({ ...values, APP_IMAGE: 'app:latest' }).length)
   assert.ok(check({ ...values, HTTPS_PORT: '8443' }).some(s => s.includes('HTTPS_PORT')))
   assert.ok(check({ ...values, AUTH_PUBLIC_REGISTRATION_ENABLED: 'yes' }).some(s => s.includes('REGISTRATION')))
+  assert.deepEqual(check({ ...values, CHAT_ENABLED: 'false', AGENT_ENABLED: 'false', AGENT_MCP_ALLOWED_HOSTS: '' }), [])
+  assert.deepEqual(check({ ...values, CHAT_ENABLED: 'true', AGENT_ENABLED: 'true', AGENT_MCP_ALLOWED_HOSTS: 'mcp.example.com,api.mcp.internal' }), [])
+  assert.ok(check({ ...values, CHAT_ENABLED: 'invalid' }).some(s => s.includes('CHAT_ENABLED')))
+  assert.ok(check({ ...values, AGENT_MCP_ALLOWED_HOSTS: 'https://unsafe-url-with-scheme.com' }).some(s => s.includes('AGENT_MCP_ALLOWED_HOSTS')))
+  assert.ok(check({ ...values, AGENT_MCP_ALLOWED_HOSTS: 'mcp.example.com/with/path' }).some(s => s.includes('AGENT_MCP_ALLOWED_HOSTS')))
 })
 
 test('认证来源允许多个独立 Origin，下载来源必须为单个安全 Origin', () => {
