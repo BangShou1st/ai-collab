@@ -93,6 +93,7 @@ zen:
 # User-Agent 不在此处重复声明：共享库 OpenCodeZenProperties 的默认值即已验证取值，
 # ProviderPresetRegistry 缺省时同样取该常量。如需覆盖，设置环境变量 OPENCODE_ZEN_USER_AGENT。
 agent:
+  runtime-allowed: ${AGENT_RUNTIME_ALLOWED:true}
   enabled: ${AGENT_ENABLED:${CHAT_ENABLED:false}}
   worker-delay-ms: ${AGENT_WORKER_DELAY_MS:1000}
   schedule-delay-ms: ${AGENT_SCHEDULE_DELAY_MS:30000}

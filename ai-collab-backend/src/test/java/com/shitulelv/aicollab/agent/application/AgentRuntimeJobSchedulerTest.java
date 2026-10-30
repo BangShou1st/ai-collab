@@ -297,7 +297,7 @@ class AgentRuntimeJobSchedulerTest {
     void contextOmitsExecutorWhenAgentDisabled() {
         new ApplicationContextRunner()
                 .withUserConfiguration(AgentRunExecutionConfiguration.class)
-                .withPropertyValues("agent.enabled=false")
+                .withPropertyValues("agent.runtime-allowed=false")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).doesNotHaveBean("agentRunTaskExecutor");

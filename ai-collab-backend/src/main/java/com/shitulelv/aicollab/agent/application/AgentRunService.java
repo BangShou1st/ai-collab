@@ -18,6 +18,7 @@ import com.shitulelv.aicollab.agent.infrastructure.repository.AgentApprovalRepos
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,13 +38,17 @@ public class AgentRunService {
     private final AgentEventRepository eventRepository;
     private final AgentApprovalRepository approvalRepository;
     private final AgentHistoryVisibilityService visibility;
+    private final boolean agentEnabled;
+    private final com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
     @org.springframework.beans.factory.annotation.Autowired
     private com.shitulelv.aicollab.agent.application.runtime.AgentCancellationService cancellationSignal;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AgentRunService(ProjectAccessGuard access, AgentRepository repository,
                           AgentSkillRegistry skillRegistry, ObjectMapper json,
                           AgentEventService events, AgentEventRepository eventRepository,
-                          AgentApprovalRepository approvalRepository, AgentHistoryVisibilityService visibility) {
+                          AgentApprovalRepository approvalRepository, AgentHistoryVisibilityService visibility,
+                          com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService) {
         this.access = access;
         this.repository = repository;
         this.skillRegistry = skillRegistry;
@@ -52,6 +57,32 @@ public class AgentRunService {
         this.eventRepository = eventRepository;
         this.approvalRepository = approvalRepository;
         this.visibility = visibility;
+        this.systemConfigService = systemConfigService;
+        this.agentEnabled = true;
+    }
+
+    public AgentRunService(ProjectAccessGuard access, AgentRepository repository,
+                          AgentSkillRegistry skillRegistry, ObjectMapper json,
+                          AgentEventService events, AgentEventRepository eventRepository,
+                          AgentApprovalRepository approvalRepository, AgentHistoryVisibilityService visibility,
+                          boolean agentEnabled) {
+        this.access = access;
+        this.repository = repository;
+        this.skillRegistry = skillRegistry;
+        this.json = json;
+        this.events = events;
+        this.eventRepository = eventRepository;
+        this.approvalRepository = approvalRepository;
+        this.visibility = visibility;
+        this.systemConfigService = null;
+        this.agentEnabled = agentEnabled;
+    }
+
+    public AgentRunService(ProjectAccessGuard access, AgentRepository repository,
+                          AgentSkillRegistry skillRegistry, ObjectMapper json,
+                          AgentEventService events, AgentEventRepository eventRepository,
+                          AgentApprovalRepository approvalRepository, AgentHistoryVisibilityService visibility) {
+        this(access, repository, skillRegistry, json, events, eventRepository, approvalRepository, visibility, true);
     }
 
     @Transactional
@@ -125,6 +156,13 @@ public class AgentRunService {
         }
     }
 
+    private void requireAgentEnabled() {
+        boolean enabled = systemConfigService != null ? systemConfigService.isAgentEnabled() : agentEnabled;
+        if (!enabled) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "Agent 协作服务当前未开启");
+        }
+    }
+
     /** 绑定控制输入未获处理的业务提示：按权威运行状态指明正确的原入口。 */
     private static String boundInputGuidance(AgentRunStatus status) {
         String guidance = switch (status) {
@@ -171,6 +209,7 @@ public class AgentRunService {
                 }
                 switch (ResumeIntentRecognizer.classify(request.content())) {
                     case RESUME -> {
+                        requireAgentEnabled();
                         return repository.requestResume(projectId, latest.id());
                     }
                     case AMBIGUOUS -> throw new BusinessException(ErrorCode.AGENT_RUN_PAUSED_INPUT,
@@ -205,6 +244,8 @@ public class AgentRunService {
             throw new BusinessException(ErrorCode.AGENT_RUN_NOT_RESUMABLE,
                     boundInputGuidance(latest.status()));
         }
+
+        requireAgentEnabled();
 
         // 验证 skillCode
         String skillCode = request.skillCode();
@@ -293,6 +334,7 @@ public class AgentRunService {
         repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
         visibility.requireRun(projectId, runId);
+        requireAgentEnabled();
         AgentRunView run = repository.requestResume(projectId, runId);
         return runDetail(run);
     }
@@ -336,6 +378,7 @@ public class AgentRunService {
         AgentRunView run = repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
         visibility.requireSession(projectId, run.sessionId());
+        requireAgentEnabled();
         if (run.status() == AgentRunStatus.FAILED || run.status() == AgentRunStatus.CANCELED
                 || run.status() == AgentRunStatus.BUDGET_EXCEEDED) {
             AgentRepository.RetryRunDerivation derivation = repository.createRetryRun(
@@ -373,6 +416,7 @@ public class AgentRunService {
         AgentRunView run = repository.findRun(projectId, runId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
         visibility.requireSession(projectId, run.sessionId());
+        requireAgentEnabled();
 
         // 验证状态必须是 WAITING_FOR_USER_INPUT
         if (run.status() != AgentRunStatus.WAITING_FOR_USER_INPUT) {

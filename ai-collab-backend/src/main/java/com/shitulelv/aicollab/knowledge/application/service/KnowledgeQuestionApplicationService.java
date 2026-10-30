@@ -61,6 +61,8 @@ public class KnowledgeQuestionApplicationService {
     private final KnowledgeCitationValidator citationValidator;
     private final KnowledgePersistenceService persistence;
     private final KnowledgeVisibilityGuard visibility;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
 
     public KnowledgeQuestionApplicationService(
             ProjectAccessGuard access,
@@ -91,6 +93,9 @@ public class KnowledgeQuestionApplicationService {
         access.requireMember(projectId, userId);
         if (repository.findOwn(projectId, sessionId, userId).isEmpty()) {
             throw new BusinessException(ErrorCode.KNOWLEDGE_SESSION_NOT_FOUND);
+        }
+        if (systemConfigService != null && !systemConfigService.isChatEnabled()) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "AI 知识问答服务当前未开启");
         }
         rateLimiter.check(userId);
 

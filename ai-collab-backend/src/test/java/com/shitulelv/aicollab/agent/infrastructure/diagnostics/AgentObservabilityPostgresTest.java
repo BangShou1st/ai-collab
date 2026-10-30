@@ -67,7 +67,7 @@ class AgentObservabilityPostgresTest {
         String plan=String.join("\n",jdbc.queryForList("EXPLAIN (ANALYZE, BUFFERS) SELECT count(*),min(COALESCE(dispatch_started_at,updated_at)) FROM agent_tool_invocation WHERE status='UNKNOWN'",String.class));
         assertThat(plan).contains("idx_agent_tool_invocation_unknown_age");
         Files.writeString(Path.of("target/p6-observability-explain.txt"),plan);
-        assertThat(jdbc.queryForObject("SELECT max(version::int) FROM flyway_schema_history WHERE success",Integer.class)).isEqualTo(70);
+        assertThat(jdbc.queryForObject("SELECT max(version::int) FROM flyway_schema_history WHERE success",Integer.class)).isEqualTo(71);
     }
     @Test @Order(2) void i02i03SnapshotMatchesDurableFactsAndLeaseRecovery() {
         var state=new AgentRuntimeStateMetrics(new AgentRuntimeStateRepository(jdbc),new SimpleMeterRegistry());
