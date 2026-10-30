@@ -15,6 +15,7 @@
 | P7.1-D 忘记密码/邮箱验证 | V72 迁移（令牌哈希表 + email_verified）；30 分钟重置 / 24 小时验证令牌；原子消费防重放；防枚举响应；重置撤销全部会话并递增 tokenVersion；限频 + 审计 | PASS | 单测 3 类 + Testcontainers 集成测试 3 场景全绿 |
 | P7.1-E 统一邮件服务 | `MailService` SMTP/降级双实现；AFTER_COMMIT 投递隔离事务；正文/令牌零日志；Compose 透传全部变量 | PASS | `feat(auth)` d5fe6f4；设计文档 `docs/design/account-lifecycle.md` |
 | P7.1-G 核心回归 | 后端 1998、前端 427 测试；镜像构建冒烟；P0 配置契约 | PASS | CI runs 41088857039 / 41097257803 |
+| P7.1-G2 服务器部署形态（容器路径） | PR #20（dev 当前树）CI 镜像冒烟：env 注入启动（生产 Cookie 基线）→ Flyway 迁移至 V72 → health/liveness UP → 敏感端点拒绝匿名 → 生产拓扑隔离检查；本地镜像构建因 registry 网络污染未重复执行，以 CI 同树证据覆盖 | PASS | CI "Image build & container smoke"（PR #20 两次绿）+ "Isolated production topology and recovery" |
 | P7.1-H 本地真实 E2E | 10 场景真实浏览器 + Mailpit 邮件闭环 | PASS | `docs/acceptance-evidence/2026-10-31/p7-1-local-account-e2e-01/` |
 
 ## 二、本地部署便利性（对应需求"本地部署方便"）
