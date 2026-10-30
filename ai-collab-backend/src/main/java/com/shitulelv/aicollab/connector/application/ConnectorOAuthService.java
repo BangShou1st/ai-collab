@@ -129,7 +129,7 @@ public class ConnectorOAuthService {
 
     public List<ConnectionOption> availableConnections(UUID projectId, UUID userId) {
         access.requireAdmin(projectId, userId);
-        return connections.listAll().stream().filter(row -> "ACTIVE".equals(row.status))
+        return connections.listAvailableForProject(projectId).stream().filter(row -> "ACTIVE".equals(row.status))
                 .map(row -> new ConnectionOption(row.id, row.name)).toList();
     }
 
