@@ -54,6 +54,7 @@ public class InvitationApplicationService {
     private final RefreshTokenService refreshTokens;
     private final AuditService audit;
     private final Clock clock;
+    private final com.shitulelv.aicollab.common.web.PublicAppUrlService publicAppUrls;
 
     public InvitationApplicationService(
             ProjectAccessGuard accessGuard,
@@ -67,7 +68,8 @@ public class InvitationApplicationService {
             AccessTokenService accessTokens,
             RefreshTokenService refreshTokens,
             AuditService audit,
-            Clock clock) {
+            Clock clock,
+            com.shitulelv.aicollab.common.web.PublicAppUrlService publicAppUrls) {
         this.accessGuard = accessGuard;
         this.projects = projects;
         this.members = members;
@@ -80,6 +82,7 @@ public class InvitationApplicationService {
         this.refreshTokens = refreshTokens;
         this.audit = audit;
         this.clock = clock;
+        this.publicAppUrls = publicAppUrls;
     }
 
     @Transactional
@@ -103,7 +106,9 @@ public class InvitationApplicationService {
             try {
                 invitationInsertService.insertWithSavepoint(entity);
                 audit.write(projectId, operatorId, "PROJECT_INVITATION_CREATED", "PROJECT_INVITATION", entity.getId());
-                return new InvitationView(entity.getId(), rawCode, projectId, entity.getRole(), expiresAt);
+                String invitationUrl = publicAppUrls.invitationUrl(rawCode).orElse(null);
+                return new InvitationView(
+                        entity.getId(), rawCode, projectId, entity.getRole(), expiresAt, invitationUrl);
             } catch (DataIntegrityViolationException exception) {
                 if (attempt == MAX_CODE_ATTEMPTS - 1) {
                     throw exception;

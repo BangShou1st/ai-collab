@@ -57,7 +57,8 @@ async function createInvitation(): Promise<void> {
       invitedEmail: invitationForm.invitedEmail.trim() || null,
       expiresInHours: invitationForm.expiresInHours,
     })
-    invitationLink.value = `${window.location.origin}/invite/${result.data.code}`
+    invitationLink.value = result.data.invitationUrl
+      ?? `${window.location.origin}/invite/${result.data.code}`
     ElMessage.success('邀请已创建')
   } catch (error) {
     showApiError(error, '项目邀请创建')
