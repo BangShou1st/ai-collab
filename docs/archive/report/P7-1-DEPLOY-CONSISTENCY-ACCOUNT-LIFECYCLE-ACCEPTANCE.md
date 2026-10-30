@@ -43,9 +43,9 @@
 | 忘记密码 / 密码重置 | PASS（E05–E07 真实邮件） | BLOCKED_EXTERNAL（待 SMTP） | BLOCKED_EXTERNAL |
 | 邮箱验证 | PASS（E01–E03 真实邮件） | BLOCKED_EXTERNAL | BLOCKED_EXTERNAL |
 | 邀请创建 / 链接访问 / 接受 | PASS（E08–E10；接受/并发/过期由集成测试覆盖） | PARTIAL（历史 12 步覆盖邀请创建） | NOT_TESTED |
-| 邮件发送 | PASS（Mailpit 真实 SMTP 投递） | BLOCKED_EXTERNAL（待授权码） | BLOCKED_EXTERNAL |
+| 邮件发送 | PASS（**真实 QQ SMTP 投递**，用户授权码 + 用户确认收信） | PASS（真实授权码验收完成；部署侧填同一组变量即可） | BLOCKED_EXTERNAL（待生产部署） |
 | Pages BACKEND_ORIGIN | N/A | PASS（预览分支回退） | BLOCKED_EXTERNAL（待 Dashboard 回填） |
-| 飞书 OAuth | 模拟/单测覆盖 | BLOCKED_EXTERNAL | BLOCKED_EXTERNAL |
+| 飞书 OAuth | 模拟/单测覆盖 | PARTIAL（重定向白名单已由用户登录态配置完成，含 Staging 与本地回调；端到端点击授权待运行时验证） | BLOCKED_EXTERNAL |
 | Chat / Agent / Worker | 既有 P6/P7 验收维持有效 | PASS（历史 12 步） | NOT_TESTED |
 | 备份恢复 | 既有 R-01 演练 | PASS（历史物理备份） | 独立验证待部署 |
 
@@ -63,8 +63,8 @@
 ## 六、剩余外部阻塞（需用户授权后继续）
 
 1. **SMTP 授权码**（QQ 邮箱等）：用于 Staging/Production 真实投递验收；凭据只写部署环境。
-2. **Cloudflare Dashboard**：为生产 Pages 环境回填 `BACKEND_ORIGIN` 后复验 API 转发与 Cookie 属性。
-3. **飞书开放平台**：多环境 Redirect URI 白名单与真实授权点击。
+2. **Cloudflare**：`BACKEND_ORIGIN` 已由用户在生产 Pages 环境回填（待 dev→main 合并后新代码显式接管）；Pages API 转发/Cookie 复验已 PASS。
+3. **飞书**：重定向白名单已配置完成（E15）；端到端点击授权与撤权事件订阅待运行时验证。
 4. **Staging/Production 部署验收矩阵**：依赖以上三项 + 部署操作授权。
 5. **`dev → main` PR 合并**：CI 已绿，需人工触发合并。
 

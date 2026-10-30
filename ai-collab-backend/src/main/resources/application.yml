@@ -78,6 +78,8 @@ app:
         password: "${MAIL_PASSWORD:}"
         from: "${MAIL_FROM:}"
         starttls: "${MAIL_STARTTLS:true}"
+        # 465 等隐式 SSL 端口（QQ/163 邮箱）置 true；587 STARTTLS 端口保持 false。
+        ssl: "${MAIL_SSL:false}"
 
 security:
     jwt:

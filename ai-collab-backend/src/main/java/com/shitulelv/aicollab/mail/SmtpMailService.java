@@ -22,6 +22,7 @@ public class SmtpMailService implements MailService {
             @Value("${app.mail.username:}") String username,
             @Value("${app.mail.password:}") String password,
             @Value("${app.mail.starttls:true}") boolean starttls,
+            @Value("${app.mail.ssl:false}") boolean ssl,
             @Value("${app.mail.from:}") String from) {
         if (host == null || host.isBlank()) {
             throw new IllegalStateException("MAIL_ENABLED=true 时必须配置 MAIL_HOST");
@@ -41,6 +42,9 @@ public class SmtpMailService implements MailService {
         Properties properties = sender.getJavaMailProperties();
         properties.put("mail.smtp.auth", Boolean.toString(authEnabled));
         properties.put("mail.smtp.starttls.enable", Boolean.toString(starttls));
+        // 465 等隐式 SSL 端口（如 QQ/163 邮箱）需要 ssl.enable；与 starttls 互斥使用。
+        properties.put("mail.smtp.ssl.enable", Boolean.toString(ssl));
+        properties.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
         properties.put("mail.smtp.connectiontimeout", "10000");
         properties.put("mail.smtp.timeout", "15000");
         properties.put("mail.smtp.writetimeout", "15000");
