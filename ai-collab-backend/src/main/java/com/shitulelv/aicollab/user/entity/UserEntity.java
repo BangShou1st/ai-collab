@@ -23,6 +23,7 @@ public class UserEntity {
     private String email;
     private UserStatus status;
     private Boolean systemAdmin;
+    private Boolean emailVerified;
     private Integer tokenVersion;
     private OffsetDateTime lastLoginAt;
     private OffsetDateTime createdAt;
@@ -82,6 +83,14 @@ public class UserEntity {
 
     public void setSystemAdmin(Boolean systemAdmin) {
         this.systemAdmin = systemAdmin;
+    }
+
+    public Boolean getEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(Boolean emailVerified) {
+        this.emailVerified = emailVerified;
     }
 
     public Integer getTokenVersion() {

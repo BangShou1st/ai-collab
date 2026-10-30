@@ -28,6 +28,7 @@ public class PublicRegistrationService {
     private final AccessTokenService accessTokens;
     private final RefreshTokenService refreshTokens;
     private final AuditService audit;
+    private final EmailVerificationService emailVerifications;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
 
@@ -37,13 +38,15 @@ public class PublicRegistrationService {
             PasswordEncoder passwordEncoder,
             AccessTokenService accessTokens,
             RefreshTokenService refreshTokens,
-            AuditService audit) {
+        AuditService audit,
+        EmailVerificationService emailVerifications) {
         this.properties = properties;
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.accessTokens = accessTokens;
         this.refreshTokens = refreshTokens;
         this.audit = audit;
+        this.emailVerifications = emailVerifications;
     }
 
     public boolean isEnabled() {
@@ -80,6 +83,9 @@ public class PublicRegistrationService {
             throw new BusinessException(ErrorCode.USERNAME_ALREADY_EXISTS);
         }
         audit.write(null, user.getId(), "USER_REGISTERED", "USER", user.getId());
+        if (email != null) {
+            emailVerifications.requestFor(user.getId());
+        }
         AccessTokenService.IssuedToken accessToken = accessTokens.createAccessToken(user);
         IssuedRefreshToken refreshToken = refreshTokens.createSession(user);
         return new AuthenticationResult(

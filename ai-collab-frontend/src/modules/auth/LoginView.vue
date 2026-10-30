@@ -61,6 +61,8 @@ async function submit(): Promise<void> {
         </el-button>
         <p class="auth-footer">
           还没有账号？<router-link to="/register">注册账号</router-link>
+          <span aria-hidden="true"> · </span>
+          <router-link to="/forgot-password">忘记密码？</router-link>
         </p>
       </el-form>
       </el-card>

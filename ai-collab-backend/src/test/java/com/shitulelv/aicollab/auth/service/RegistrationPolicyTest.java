@@ -25,7 +25,8 @@ class RegistrationPolicyTest {
         return new PublicRegistrationService(new PublicRegistrationProperties(enabled),
                 mock(UserService.class), mock(PasswordEncoder.class),
                 mock(AccessTokenService.class), mock(RefreshTokenService.class),
-                mock(com.shitulelv.aicollab.project.application.service.AuditService.class));
+                mock(com.shitulelv.aicollab.project.application.service.AuditService.class),
+                mock(EmailVerificationService.class));
     }
 
     private RegisterRequest request() {
@@ -54,7 +55,8 @@ class RegistrationPolicyTest {
         PublicRegistrationService service = new PublicRegistrationService(
                 new PublicRegistrationProperties(true), users, passwords, accessTokens,
                 refreshTokens,
-                mock(com.shitulelv.aicollab.project.application.service.AuditService.class));
+                mock(com.shitulelv.aicollab.project.application.service.AuditService.class),
+                mock(EmailVerificationService.class));
 
         assertThat(service.isEnabled()).isTrue();
         assertThat(service.register(request()).loginResponse().accessToken()).isEqualTo("access");
