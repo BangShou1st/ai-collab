@@ -28,6 +28,8 @@ public class PublicRegistrationService {
     private final AccessTokenService accessTokens;
     private final RefreshTokenService refreshTokens;
     private final AuditService audit;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
 
     public PublicRegistrationService(
             PublicRegistrationProperties properties,
@@ -45,6 +47,9 @@ public class PublicRegistrationService {
     }
 
     public boolean isEnabled() {
+        if (systemConfigService != null) {
+            return systemConfigService.isPublicRegistrationEnabled();
+        }
         return properties.enabled();
     }
 

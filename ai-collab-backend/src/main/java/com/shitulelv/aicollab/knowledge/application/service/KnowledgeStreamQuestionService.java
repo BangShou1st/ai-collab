@@ -69,6 +69,8 @@ public class KnowledgeStreamQuestionService {
     private final KnowledgeCitationValidator citationValidator;
     private final KnowledgePersistenceService persistence;
     private final KnowledgeVisibilityGuard visibility;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
     private final ExecutorService streamExecutor = new java.util.concurrent.ThreadPoolExecutor(2, 2, 0,
             java.util.concurrent.TimeUnit.SECONDS, new java.util.concurrent.ArrayBlockingQueue<>(32), r -> {
         Thread t = new Thread(r, "knowledge-stream-" + UUID.randomUUID());
@@ -107,6 +109,10 @@ public class KnowledgeStreamQuestionService {
         access.requireMember(projectId, userId);
         if (repository.findOwn(projectId, sessionId, userId).isEmpty()) {
             sendErrorAndComplete(emitter, terminal, ErrorCode.KNOWLEDGE_SESSION_NOT_FOUND);
+            return;
+        }
+        if (systemConfigService != null && !systemConfigService.isChatEnabled()) {
+            sendErrorAndComplete(emitter, terminal, ErrorCode.AI_PROVIDER_UNAVAILABLE, "AI 知识问答服务当前未开启");
             return;
         }
         rateLimiter.check(userId);
@@ -232,10 +238,15 @@ public class KnowledgeStreamQuestionService {
 
     private void sendErrorAndComplete(
             SseEmitter emitter, AtomicBoolean terminal, ErrorCode errorCode) {
+        sendErrorAndComplete(emitter, terminal, errorCode, errorCode.message());
+    }
+
+    private void sendErrorAndComplete(
+            SseEmitter emitter, AtomicBoolean terminal, ErrorCode errorCode, String customMessage) {
         if (!terminal.compareAndSet(false, true)) {
             return;
         }
-        sendSse(emitter, KnowledgeStreamEvent.error(errorCode.name(), errorCode.message()));
+        sendSse(emitter, KnowledgeStreamEvent.error(errorCode.name(), customMessage));
         emitter.complete();
     }
 

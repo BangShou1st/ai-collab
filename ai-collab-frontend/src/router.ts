@@ -28,6 +28,7 @@ import RiskAnalysisView from './modules/work/RiskAnalysisView.vue'
 import PlanComparisonView from './modules/work/PlanComparisonView.vue'
 import AgentView from './modules/agent/AgentView.vue'
 import AdminView from './modules/admin/AdminView.vue'
+import SystemConfigAdminView from './modules/admin/SystemConfigAdminView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -61,6 +62,7 @@ export const router = createRouter({
     { path: '/projects/:projectId/audit-logs', component: AuditLogView, meta: { title: '操作日志' } },
     { path: '/notifications', component: NotificationView, meta: { title: '通知中心' } },
     { path: '/admin', component: AdminView, meta: { title: '管理中心', systemAdmin: true } },
+    { path: '/admin/config', component: SystemConfigAdminView, meta: { title: '系统配置中心', systemAdmin: true } },
     { path: '/admin/embedding', component: EmbeddingAdminView, meta: { title: 'AI Infrastructure', systemAdmin: true } },
   ],
 })

@@ -23,10 +23,12 @@ import java.util.UUID;
  * 因此模型网络请求不会阻塞 Spring 定时线程。</p>
  */
 @Component
-@ConditionalOnProperty(prefix = "agent", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "agent", name = "runtime-allowed", havingValue = "true", matchIfMissing = true)
 public class AgentRuntimeJob {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
     private static final Logger log = LoggerFactory.getLogger(AgentRuntimeJob.class);
     private static final Duration CLAIM_LEASE = Duration.ofMinutes(6);
 
@@ -49,6 +51,9 @@ public class AgentRuntimeJob {
     @Scheduled(fixedDelayString = "${agent.worker-delay-ms:1000}")
     public void tick() {
         approvals.expirePending(OffsetDateTime.now(ZoneOffset.UTC));
+        if (systemConfigService != null && !systemConfigService.isAgentEnabled()) {
+            return;
+        }
         try {
             agentRunTaskExecutor.execute(this::runOnce);
         } catch (TaskRejectedException rejected) {

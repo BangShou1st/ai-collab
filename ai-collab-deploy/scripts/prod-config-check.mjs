@@ -52,6 +52,7 @@ export function validate(values, { checkCertificate = true } = {}) {
   bad(port !== 443, '生产 HTTPS_PORT 必须为 443；其他端口需要重新设计和验证代理信任边界')
   bad(!['true', 'false', ''].includes(values.CHAT_ENABLED || ''), 'CHAT_ENABLED 必须是 true 或 false')
   bad(!['true', 'false', ''].includes(values.AGENT_ENABLED || ''), 'AGENT_ENABLED 必须是 true 或 false')
+  bad(!['true', 'false', ''].includes(values.AGENT_RUNTIME_ALLOWED || ''), 'AGENT_RUNTIME_ALLOWED 必须是 true 或 false')
   if (values.AGENT_MCP_ALLOWED_HOSTS) {
     const hosts = values.AGENT_MCP_ALLOWED_HOSTS.split(',').map(s => s.trim()).filter(Boolean)
     for (const host of hosts) {
