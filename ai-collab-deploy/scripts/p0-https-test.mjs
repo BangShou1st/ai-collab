@@ -63,6 +63,16 @@ assert.equal(download.status, 200); assert.equal(download.text, 'p0-synthetic-ob
 assert.match(download.headers['content-disposition'] || '', /^attachment/i)
 assert.equal(createHash('sha256').update(download.text).digest('hex'),
   createHash('sha256').update('p0-synthetic-object').digest('hex'))
+// 回归防护：生产 Nginx 必须丢弃客户端伪造的转发链，不受恶意 X-Forwarded-Host 干扰
+const forgedForwardedHostDownload = await request(url.pathname + url.search, {
+  headers: { 'X-Forwarded-Host': 'evil.attacker.test' }
+})
+assert.equal(forgedForwardedHostDownload.status, 200)
+assert.equal(forgedForwardedHostDownload.text, 'p0-synthetic-object')
+const forgedHostDownload = await request(url.pathname + url.search, {
+  headers: { Host: 'evil.attacker.test' }
+})
+assert.equal(forgedHostDownload.status, 403)
 assert.ok([403, 404].includes((await request(`/api/v1/projects/${p2}/documents/${doc}/download-url`, { token: memberToken })).status))
 const anonymous = await request(url.pathname)
 assert.equal(anonymous.status, 403)
