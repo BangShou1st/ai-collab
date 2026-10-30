@@ -2,7 +2,9 @@
  * Cloudflare Pages Function: 同源反向代理 /api/* -> InstaBox Staging 后端
  * 部署至 Cloudflare Pages 时自动生效，解决跨站点 Strict Cookie 与同源路径约束。
  */
-interface Env {
+import { resolveBackendOrigin, type PagesBackendEnv } from './_lib/backend-origin'
+
+interface Env extends PagesBackendEnv {
   BACKEND_ORIGIN?: string
 }
 
@@ -22,8 +24,25 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context
   const url = new URL(request.url)
 
-  // 默认指向 InstaBox Staging 网关；生产或其它环境可通过 Pages 环境变量 BACKEND_ORIGIN 覆盖
-  const backendOrigin = (env.BACKEND_ORIGIN || 'https://8443-agqyc3kteqehqgazwefpmhwulu.instabox.tech').replace(/\/+$/, '')
+  // 生产分支缺少 BACKEND_ORIGIN 时明确失败；仅预览分支回退 Staging（见 _lib/backend-origin.ts）
+  const resolution = resolveBackendOrigin(env)
+  if (!resolution.ok || !resolution.origin) {
+    return new Response(
+      JSON.stringify({
+        code: 50301,
+        message: resolution.errorMessage ?? 'BACKEND_ORIGIN 配置无效',
+        data: null,
+      }),
+      {
+        status: 503,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store',
+        },
+      },
+    )
+  }
+  const backendOrigin = resolution.origin
   
   // 构造上游 URL（保留完整路径与查询参数）
   const upstreamUrl = new URL(url.pathname + url.search, backendOrigin)
