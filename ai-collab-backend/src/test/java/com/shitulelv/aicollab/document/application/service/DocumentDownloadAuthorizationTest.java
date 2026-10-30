@@ -40,21 +40,34 @@ class DocumentDownloadAuthorizationTest {
         DocumentEntity row = new DocumentEntity();
         row.setStatus(DocumentStatus.READY);
         row.setOriginalFilename("synthetic.txt");
+        row.setMimeType("text/plain");
+        row.setSizeBytes(123L);
         row.setObjectKey("projects/synthetic/source.txt");
         when(documents.find(project,document)).thenReturn(Optional.of(row));
-        when(visibility.readable(project,document)).thenReturn(true,false);
+        when(visibility.readable(project,document)).thenReturn(true,false,true);
         var result = new DownloadUrlView("https://download.example.invalid/storage/synthetic", OffsetDateTime.now().plusMinutes(5));
         when(storage.presign(anyString(),anyString(),eq(Duration.ofMinutes(5)))).thenReturn(result);
         assertThat(service.downloadUrl(project,document,user)).isEqualTo(result);
         assertThatThrownBy(() -> service.downloadUrl(project,document,user)).isInstanceOf(BusinessException.class);
-        verify(access,times(2)).requireMember(project,user);
+        
+        // 测试直接流式下载端点 service.download
+        when(storage.open("projects/synthetic/source.txt")).thenReturn(new java.io.ByteArrayInputStream(new byte[0]));
+        var downloadResource = service.download(project, document, user);
+        assertThat(downloadResource.filename()).isEqualTo("synthetic.txt");
+        assertThat(downloadResource.mimeType()).isEqualTo("text/plain");
+        assertThat(downloadResource.sizeBytes()).isEqualTo(123L);
+        assertThat(downloadResource.stream()).isNotNull();
+
+        verify(access,times(3)).requireMember(project,user);
         verify(storage,times(1)).presign(anyString(),anyString(),eq(Duration.ofMinutes(5)));
+        verify(storage,times(1)).open("projects/synthetic/source.txt");
     }
 
     @Test
     void nonmemberCannotObtainAnAddressOrReachStorage() {
         doThrow(new BusinessException(ErrorCode.AUTH_FORBIDDEN)).when(access).requireMember(project,user);
         assertThatThrownBy(() -> service.downloadUrl(project,document,user)).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.download(project,document,user)).isInstanceOf(BusinessException.class);
         verifyNoInteractions(documents,visibility,storage);
     }
 

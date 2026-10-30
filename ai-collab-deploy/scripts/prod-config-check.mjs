@@ -50,7 +50,16 @@ export function validate(values, { checkCertificate = true } = {}) {
   bad(isIP(values.PUBLIC_BIND_IP || '0.0.0.0') !== 4, 'PUBLIC_BIND_IP 必须是明确的 IPv4 地址')
   const port = Number(values.HTTPS_PORT || '443')
   bad(port !== 443, '生产 HTTPS_PORT 必须为 443；其他端口需要重新设计和验证代理信任边界')
+  bad(!['true', 'false', ''].includes(values.CHAT_ENABLED || ''), 'CHAT_ENABLED 必须是 true 或 false')
   bad(!['true', 'false', ''].includes(values.AGENT_ENABLED || ''), 'AGENT_ENABLED 必须是 true 或 false')
+  if (values.AGENT_MCP_ALLOWED_HOSTS) {
+    const hosts = values.AGENT_MCP_ALLOWED_HOSTS.split(',').map(s => s.trim()).filter(Boolean)
+    for (const host of hosts) {
+      if (!/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(host) && isIP(host) === 0) {
+        errors.push(`AGENT_MCP_ALLOWED_HOSTS 包含无效的主机名或 IP: ${host}`)
+      }
+    }
+  }
   bad(!['true', 'false'].includes(values.AUTH_PUBLIC_REGISTRATION_ENABLED || 'true'),
     'AUTH_PUBLIC_REGISTRATION_ENABLED 必须是 true 或 false')
   bad(!['true', 'false'].includes(values.CONNECTOR_CLEANUP_ENABLED || 'true'),

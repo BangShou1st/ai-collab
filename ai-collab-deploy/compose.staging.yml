@@ -85,9 +85,9 @@ services:
       AUTH_PUBLIC_REGISTRATION_ENABLED: "true"
       REFRESH_COOKIE_SECURE: "true"
       REFRESH_COOKIE_ALLOW_INSECURE: "false"
-      CHAT_ENABLED: "false"
-      AGENT_ENABLED: "false"
-      AGENT_MCP_ALLOWED_HOSTS: ""
+      CHAT_ENABLED: "${CHAT_ENABLED:-false}"
+      AGENT_ENABLED: "${AGENT_ENABLED:-false}"
+      AGENT_MCP_ALLOWED_HOSTS: "${AGENT_MCP_ALLOWED_HOSTS:-}"
     networks:
       edge:
         aliases: [app-edge]

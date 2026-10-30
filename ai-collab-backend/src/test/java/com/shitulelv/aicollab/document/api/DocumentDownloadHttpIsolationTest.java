@@ -31,6 +31,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -94,10 +95,88 @@ class DocumentDownloadHttpIsolationTest {
         assertEquals(404,get(path,token(owner)).statusCode());
     }
 
+    @Test
+    void directStreamDownloadCoversAllSecurityAndIntegrityRequirements() throws Exception {
+        UUID owner = UUID.randomUUID(), outsider = UUID.randomUUID(), project1 = UUID.randomUUID(), project2 = UUID.randomUUID();
+        UUID docChinese = UUID.randomUUID();
+        jdbc.update("INSERT INTO app_user(id,username,password_hash,display_name) VALUES (?,?,'synthetic-hash','test'),(?,?,'synthetic-hash','test')",
+                owner, "http-owner-2", outsider, "http-outsider-2");
+        jdbc.update("INSERT INTO project(id,name,owner_id,created_by) VALUES (?,'project1',?,?),(?,'project2',?,?)",
+                project1, owner, owner, project2, outsider, outsider);
+        jdbc.update("INSERT INTO project_member(project_id,user_id,role) VALUES (?,?,'OWNER'),(?,?,'OWNER')",
+                project1, owner, project2, outsider);
+
+        if (!minio.bucketExists(BucketExistsArgs.builder().bucket("p41-http-test").build())) {
+            minio.makeBucket(MakeBucketArgs.builder().bucket("p41-http-test").build());
+        }
+
+        String chineseFilename = "竞赛规划_2026.txt";
+        byte[] originalBytes = "真实中文文档下载与字节一致性校验内容：abc-123-!@#".getBytes(StandardCharsets.UTF_8);
+        String chineseKey = "projects/" + project1 + "/documents/" + docChinese + "/" + chineseFilename;
+        minio.putObject(PutObjectArgs.builder().bucket("p41-http-test").object(chineseKey)
+                .stream(new ByteArrayInputStream(originalBytes), (long) originalBytes.length, -1L)
+                .contentType("text/plain").build());
+        jdbc.update("INSERT INTO project_document(id,project_id,display_name,original_filename,mime_type,size_bytes,object_key,status,uploaded_by) " +
+                        "VALUES (?,?,?,?,?,?,?,'READY',?)",
+                docChinese, project1, "测试文档", chineseFilename, "text/plain", (long) originalBytes.length, chineseKey, owner);
+
+        String downloadPath = "/api/v1/projects/" + project1 + "/documents/" + docChinese + "/download";
+
+        // 1. 正常用户下载：200 OK，字节一致（SHA-256匹配），响应头完备
+        HttpResponse<byte[]> normal = getBytes(downloadPath, token(owner));
+        assertEquals(200, normal.statusCode());
+        assertArrayEquals(MessageDigest.getInstance("SHA-256").digest(originalBytes),
+                MessageDigest.getInstance("SHA-256").digest(normal.body()));
+        assertEquals("text/plain", normal.headers().firstValue("Content-Type").orElse(""));
+        assertEquals(String.valueOf(originalBytes.length), normal.headers().firstValue("Content-Length").orElse(""));
+        String disposition = normal.headers().firstValue("Content-Disposition").orElse("");
+        assertTrue(disposition.startsWith("attachment"));
+        assertTrue(disposition.contains("filename*="));
+
+        // 2. 未登录下载：401 Unauthorized
+        assertEquals(401, getBytes(downloadPath, null).statusCode());
+
+        // 3. 无权限用户下载：统一按防信息探测规范返回 404 Not Found
+        assertEquals(404, getBytes(downloadPath, token(outsider)).statusCode());
+
+        // 4. 跨项目下载：outsider 试图通过自己有权限的项目 project2 访问 project1 的文档 -> 404
+        String crossProjectPath = "/api/v1/projects/" + project2 + "/documents/" + docChinese + "/download";
+        assertEquals(404, getBytes(crossProjectPath, token(outsider)).statusCode());
+
+        // 5. 文件不存在下载：404 Not Found
+        String notFoundPath = "/api/v1/projects/" + project1 + "/documents/" + UUID.randomUUID() + "/download";
+        assertEquals(404, getBytes(notFoundPath, token(owner)).statusCode());
+
+        // 6. 文档被屏蔽（access_blocked=true）：404 Not Found
+        UUID blockedDoc = UUID.randomUUID();
+        String blockedKey = "projects/" + project1 + "/documents/" + blockedDoc + "/blocked.txt";
+        minio.putObject(PutObjectArgs.builder().bucket("p41-http-test").object(blockedKey)
+                .stream(new ByteArrayInputStream(originalBytes), (long) originalBytes.length, -1L).build());
+        jdbc.update("INSERT INTO project_document(id,project_id,display_name,original_filename,mime_type,size_bytes,object_key,status,uploaded_by,access_blocked) " +
+                        "VALUES (?,?,?,?,?,?,?,'READY',?,true)",
+                blockedDoc, project1, "屏蔽文档", "blocked.txt", "text/plain", (long) originalBytes.length, blockedKey, owner);
+        assertEquals(404, getBytes("/api/v1/projects/" + project1 + "/documents/" + blockedDoc + "/download", token(owner)).statusCode());
+
+        // 7. MinIO 中存储对象丢失时的错误处理：返回 404 DOCUMENT_STORAGE_OBJECT_NOT_FOUND，不泄露存储内部敏感凭据
+        UUID missingStorageDoc = UUID.randomUUID();
+        jdbc.update("INSERT INTO project_document(id,project_id,display_name,original_filename,mime_type,size_bytes,object_key,status,uploaded_by) " +
+                        "VALUES (?,?,?,?,?,?,?,'READY',?)",
+                missingStorageDoc, project1, "丢失文档", "missing.txt", "text/plain", 10L, "projects/missing/object.txt", owner);
+        HttpResponse<String> missingStorageResp = get("/api/v1/projects/" + project1 + "/documents/" + missingStorageDoc + "/download", token(owner));
+        assertEquals(404, missingStorageResp.statusCode());
+        assertTrue(missingStorageResp.body().contains("DOCUMENT_STORAGE_OBJECT_NOT_FOUND"));
+    }
+
     private String token(UUID id) { return accessTokens.createAccessToken(users.findById(id).orElseThrow()).value(); }
     private HttpResponse<String> get(String path, String token) throws Exception {
         var request=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+path)).GET();
         if (token != null) request.header("Authorization","Bearer "+token);
         return http.send(request.build(),HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<byte[]> getBytes(String path, String token) throws Exception {
+        var request=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+path)).GET();
+        if (token != null) request.header("Authorization","Bearer "+token);
+        return http.send(request.build(),HttpResponse.BodyHandlers.ofByteArray());
     }
 }
