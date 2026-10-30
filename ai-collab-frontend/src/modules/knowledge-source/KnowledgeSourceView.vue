@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import { documentApi } from '../document/document-api'
+import { projectApi } from '../project/project-api'
+import type { Project } from '../project/types'
 import { useAuthStore } from '../../stores/auth-store'
 import PageHeader from '../../shared/PageHeader.vue'
 import {
@@ -21,6 +23,7 @@ const projectId = computed(() =>
   typeof route.params.projectId === 'string' ? route.params.projectId : '',
 )
 const isSystemAdmin = computed(() => auth.currentUser?.systemAdmin === true)
+const project = ref<Project | null>(null)
 
 const loading = ref(false)
 const sources = ref<ConnectorSource[]>([])
@@ -57,6 +60,8 @@ async function load(): Promise<void> {
   if (!projectId.value) return
   loading.value = true
   try {
+    const projectResult = await projectApi.get(projectId.value)
+    project.value = projectResult.data
     const result = await connectorApi.listSources(projectId.value)
     sources.value = result.data ?? []
     await refreshAuthorizations()
@@ -252,11 +257,17 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="knowledge-source">
-    <PageHeader title="飞书知识源" description="把已授权的飞书文件夹同步到项目知识库。飞书原文可在飞书中打开；平台保存和下载的是已索引文本副本，不提供原始二进制文件。" />
-    <div class="actions">
+  <main class="workspace-page knowledge-source-page">
+    <PageHeader
+      eyebrow="项目知识库"
+      title="飞书知识源"
+      description="把已授权的飞书文件夹同步到项目知识库。飞书原文可在飞书中打开；平台保存和下载的是已索引文本副本，不提供原始二进制文件。"
+      :context="project?.name"
+    >
+      <template #actions>
       <el-button type="primary" @click="openCreate">添加飞书文件夹</el-button>
-    </div>
+      </template>
+    </PageHeader>
 
     <section v-if="grants.some(grant => grant.status !== 'REVOKED')" class="connections">
       <h3>我的飞书授权</h3>
@@ -445,12 +456,12 @@ onMounted(load)
                    @click="submitEventConfig">加密保存</el-button>
       </template>
     </el-dialog>
-  </div>
+  </main>
 </template>
 
 <style scoped>
-.knowledge-source { display: flex; flex-direction: column; gap: 16px; }
-.actions { display: flex; justify-content: flex-end; }
+.knowledge-source-page { display: flex; flex-direction: column; gap: 16px; }
+.connections h3 { margin: 0 0 8px; font-size: 15px; }
 .job-summary { margin-left: 8px; color: var(--el-text-color-secondary); font-size: 12px; }
 .job-error { color: var(--el-color-danger); font-size: 12px; margin-top: 2px; word-break: break-all; }
 .hint { margin-bottom: 12px; }
