@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import KnowledgeSourceView from './KnowledgeSourceView.vue'
 import { connectorApi } from '../../api/connector-api'
+import { projectApi } from '../project/project-api'
 import { ElMessageBox } from 'element-plus'
 
 vi.mock('vue-router', () => ({ useRoute: () => ({ params: { projectId: 'project-one' } }) }))
@@ -11,6 +12,9 @@ vi.mock('../../api/connector-api', () => ({ connectorApi: {
   listSources: vi.fn(), availableConnections: vi.fn(), authorizations: vi.fn(), startAuthorization: vi.fn(),
   disconnectAuthorization: vi.fn(), createSource: vi.fn(),
 } }))
+vi.mock('../project/project-api', () => ({ projectApi: {
+  get: vi.fn(),
+} }))
 vi.mock('element-plus', () => ({
   ElMessage: { info: vi.fn(), success: vi.fn(), warning: vi.fn(), error: vi.fn() },
   ElMessageBox: { confirm: vi.fn() },
@@ -18,7 +22,7 @@ vi.mock('element-plus', () => ({
 
 const response = <T,>(data: T) => ({ data }) as never
 const stubs = {
-  PageHeader: { template: '<header><slot /></header>' },
+  PageHeader: { template: '<header><slot /><slot name="actions" /></header>' },
   ElButton: { props: ['disabled'], template: '<button :disabled="disabled"><slot /></button>' },
   ElDialog: { props: ['modelValue'], template: '<div v-if="modelValue"><slot /><slot name="footer" /></div>' },
   ElDrawer: { template: '<div><slot /></div>' },
@@ -33,6 +37,8 @@ const stubs = {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  vi.mocked(projectApi.get).mockResolvedValue(
+    response({ id: 'project-one', name: '演示项目', role: 'OWNER' }) as never)
   vi.mocked(connectorApi.listSources).mockResolvedValue(response([]))
   vi.mocked(connectorApi.availableConnections).mockResolvedValue(response([{ id: 'connection-one', name: '飞书连接' }]))
   vi.mocked(connectorApi.authorizations).mockResolvedValue(response([
