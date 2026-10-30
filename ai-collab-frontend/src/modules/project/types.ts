@@ -40,6 +40,7 @@ export interface InvitationAcceptanceResult {
 }
 
 export interface InvitationCreated {
+  invitationUrl: string | null
   id: string
   code: string
   projectId: string
