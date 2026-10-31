@@ -31,6 +31,8 @@ import java.util.UUID;
 
 @Service
 public class ConnectorOAuthService {
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(ConnectorOAuthService.class);
     private static final String AUTHORIZE = "https://accounts.feishu.cn/open-apis/authen/v1/authorize";
     private static final String SCOPE = "offline_access drive:drive:readonly docx:document:readonly";
     private final ConnectorOAuthRepository grants;
@@ -102,8 +104,9 @@ public class ConnectorOAuthService {
         try {
             // Provider event timestamps have millisecond precision and may differ slightly from this clock.
             Instant tokenIssuedAt = Instant.now().minusSeconds(60);
+            var verifier = cipher.decrypt(flow.verifierCipher());
             var token = feishu.exchange(connection.appId, cipher.decrypt(connection.appSecretCipher), code,
-                    flow.redirectUri(), cipher.decrypt(flow.verifierCipher()));
+                    flow.redirectUri(), verifier);
             if (!ConnectorOAuthTokenService.hasRequiredScopes(token.scope())) {
                 throw new BusinessException(ErrorCode.CONNECTOR_REAUTH_REQUIRED, "飞书授权缺少所需的只读或离线访问权限");
             }
