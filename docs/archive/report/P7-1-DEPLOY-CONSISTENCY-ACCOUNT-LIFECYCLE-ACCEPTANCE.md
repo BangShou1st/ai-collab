@@ -73,3 +73,32 @@
 
 - 本地 E2E 截图因 bsk 升级后 Agent 窗口内容脚本注入失败未保留，断言以 observe 文本与 Mailpit API JSON 留证（见证据目录说明）。
 - 邀请页 UI 预览标记 `BLOCKED_TOOLING`，深链与 API 预览证据已覆盖同一验收面。
+
+## 八、增补（2026-10-31 深夜续）：飞书 OAuth 20049 诊断链与当前阻塞
+
+用户真实点击「同意」后回调仍失败，完整诊断链（每步均有日志/指纹证据）：
+
+| # | 已排除的假设 | 证据 |
+| --- | --- | --- |
+| 1 | state 过期 | 用户 5 分钟内完成；回调 state 哈希与 start 日志匹配（e244402ea33f） |
+| 2 | 后端 PKCE 不自洽 | 临时指纹日志：start 发出 challenge 前缀 `VO2_fNDRzz_e` = complete 解密 verifier 重算前缀一致，verifierLen=43 |
+| 3 | 飞书端点/参数格式问题 | 服务器 curl 直连 authorize 端点 302 正常保留 challenge 参数 |
+| 4 | 应用缺 scope | offline_access 已开通（免审即时生效）；drive/docx 只读 P4 已有；授权弹窗 20027 权限不足已通过补 scope 消除 |
+| 5 | 撤权事件未配置 | 事件凭据已配置且**飞书验证通过**（verified=true，用户在控制台重置密钥后同步至后端，保存请求地址时挑战自动通过） |
+
+**当前剩余嫌疑（按优先级）**：
+1. 同应用并发多个授权标签页导致飞书服务端会话 challenge 被最后一个覆盖（残留标签已清理，待单标签复测）；
+2. 用户浏览器扩展在跳转链上篡改参数（待无痕窗口复测）；
+3. 令牌交换请求（FeishuOAuthClient）——已加 WARN 日志记录飞书拒绝的具体 feishuCode/msg，复测一次即可获得（最近一次实测 20049，未捕获到其他错误码）；
+4. 最近一次复测出现 **ERR_CONNECTION_CLOSED**（网关层连接被关闭，未到应用层）——需检查 InstaBox 盒子/端口转发状态（疑似盒子空闲暂停或网络抖动，非应用代码问题）。
+
+**服务器/环境状态备忘（供审查者知情）**：
+- Staging 运行镜像 `ai-collab-backend:staging-b0098bf`（含 PKCE 诊断日志），Flyway V73，healthy；
+- Staging 数据库测试性变更：`p71pages_rehearsal` 被授予 systemAdmin=TRUE（测试账号）、测试用户 qqsmtp_test01、测试项目 P71-staging-smoke、连接 a06dd5fa 的事件凭据已配置；
+- 本地 `.env`（gitignored）含 QQ SMTP 授权码与 Mailpit 备选配置；
+- bsk CLI 已升级 0.3.3 → 0.4.0；本地演示栈（dev.ps1 + Mailpit）仍在运行。
+
+**建议审查者优先核查**：
+1. `ConnectorOAuthService.start/complete` 的 PKCE 实现（`ai-collab-backend/.../ConnectorOAuthService.java`）与 `FeishuEventCrypto.decode`；
+2. 20049 与「同应用并发授权会话覆盖」或「authen/v1/authorize 端点对 PKCE 的支持方式」的关系——建议对照飞书官方文档并抓包浏览器侧 authorize 请求；
+3. ERR_CONNECTION_CLOSED 期间的 InstaBox 盒子状态与端口转发。
