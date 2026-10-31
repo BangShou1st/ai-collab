@@ -518,7 +518,7 @@ defineExpose({ createForm, parsedFolder, submitCreate, startAuthorization, creat
         <el-form-item label="显示名称" required>
           <el-input v-model="createForm.name" maxlength="200" placeholder="如：赛事资料同步" />
         </el-form-item>
-        <el-form-item>
+        <el-form-item class="auth-confirm">
           <el-checkbox v-model="createForm.authorizationConfirmed">
             我确认该文件夹内容已授权给本项目全体成员访问，并愿意为此授权记录负责
           </el-checkbox>
@@ -682,6 +682,8 @@ defineExpose({ createForm, parsedFolder, submitCreate, startAuthorization, creat
 .hint-text code { word-break: break-all; }
 .knowledge-source-page :deep(.el-dialog) { max-width: calc(100vw - 32px); }
 .knowledge-source-page :deep(.el-form-item__content) { min-width: 0; }
+.auth-confirm :deep(.el-checkbox) { white-space: normal; display: flex; align-items: flex-start; height: auto; }
+.auth-confirm :deep(.el-checkbox__label) { word-break: break-word; line-height: 20px; }
 .folder-error { color: var(--el-color-danger); font-size: 12px; margin-top: 4px; }
 .doc-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--el-border-color-lighter); gap: 8px; }
 .doc-title { display: flex; align-items: center; gap: 6px; }
