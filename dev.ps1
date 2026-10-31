@@ -1,6 +1,6 @@
 # Windows PowerShell 5.1 / PowerShell 7. No secrets are copied into process arguments or state.
 [CmdletBinding()]
-param([ValidateSet('start', 'status', 'stop', 'stop-infra', 'diagnose-proxy')][string]$Action = 'status',
+param([ValidateSet('start', 'status', 'stop', 'stop-infra', 'doctor', 'diagnose-proxy')][string]$Action = 'status',
       [ValidateRange(10, 600)][int]$TimeoutSeconds = 120)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -249,6 +249,73 @@ function Validate-Config {
         if ([Environment]::GetEnvironmentVariable($key)) { throw "Inherited $key overrides local files. Use a clean shell or resolve it manually; value not displayed." }
     }
 }
+function Invoke-Doctor {
+    # Read-only environment report. Exit code 1 only when core local development cannot start;
+    # Feishu OAuth is optional locally and is reported as a warning, never a blocker.
+    $fatal = @()
+    $warn = @()
+    foreach ($tool in @('docker', 'java', 'node', 'pnpm')) {
+        if (Get-Command $tool -ErrorAction SilentlyContinue) { Write-Host "OK dependency: $tool" }
+        else { $fatal += "missing dependency $tool" }
+    }
+    if (Get-Command java -ErrorAction SilentlyContinue) {
+        $previous = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $javaVersion = (& java '-version' 2>&1 | ForEach-Object { $_.ToString() }) -join ''
+        } finally { $ErrorActionPreference = $previous }
+        if ($javaVersion -notmatch 'version "21\.') { $fatal += 'JDK 21 required (java on PATH)' }
+        else { Write-Host 'OK java: JDK 21' }
+    }
+    if (Get-Command node -ErrorAction SilentlyContinue) {
+        $nodeVersion = & node --version
+        if ([int]($nodeVersion.TrimStart('v').Split('.')[0]) -lt 22) { $fatal += 'Node.js 22+ required' }
+        else { Write-Host "OK node: $nodeVersion" }
+    }
+    $envFile = Join-Path $root '.env'
+    if (!(Test-Path $envFile)) {
+        $fatal += 'missing root .env (copy .env.example and configure it)'
+    } else {
+        $values = @{}
+        foreach ($line in Get-Content $envFile) {
+            if ($line -match '^\s*([A-Z][A-Z0-9_]*)\s*=(.*)$') { $values[$matches[1]] = $matches[2].Trim() }
+        }
+        foreach ($key in @('POSTGRES_DB','POSTGRES_USER','POSTGRES_PASSWORD','REDIS_PASSWORD','MINIO_ROOT_USER',
+            'MINIO_ROOT_PASSWORD','JWT_SECRET','MODEL_CONFIG_MASTER_KEY','DEMO_OWNER_PASSWORD')) {
+            if (!$values[$key] -or $values[$key] -match '^(change-me|replace-with)') { $fatal += "missing or placeholder $key in .env" }
+        }
+        if ($values['AUTH_ALLOWED_ORIGINS'] -and 'http://localhost:5173' -notin ($values['AUTH_ALLOWED_ORIGINS'] -split ',')) {
+            $warn += 'AUTH_ALLOWED_ORIGINS does not include http://localhost:5173'
+        }
+        $redirect = $values['FEISHU_OAUTH_REDIRECT_URI']
+        if (!$redirect) {
+            Write-Host 'INFO feishu: FEISHU_OAUTH_REDIRECT_URI empty; local Feishu connector disabled (everything else works)'
+        } elseif ($redirect -notmatch '^https://[^/]+/api/v1/connector/oauth/callback$') {
+            $warn += "FEISHU_OAUTH_REDIRECT_URI must be https://<host>/api/v1/connector/oauth/callback (current value not shown); also register it in the Feishu app console"
+        } else {
+            Write-Host 'OK feishu: FEISHU_OAUTH_REDIRECT_URI format valid; verify it is registered in the Feishu app console'
+        }
+    }
+    foreach ($port in @(5432, 6379, 9000, 8080, 5173)) {
+        $owners = Listeners $port
+        if ($owners.Count) { Write-Host "INFO port: $port in use by PID $($owners -join ',')" }
+        else { Write-Host "OK port: $port free" }
+    }
+    if (Get-Command docker -ErrorAction SilentlyContinue) {
+        if ((Run-Logged 'docker' @('info') (Join-Path $runtime 'docker-info.log')) -ne 0) {
+            $warn += 'Docker engine unreachable; start Docker Desktop before dev.ps1 start'
+        } else {
+            foreach ($service in $services) {
+                $c = Inspect-Container "ai-collab-$service"
+                if ($c -and $c.State.Running) { Write-Host "OK infra: $service running health=$($c.State.Health.Status)" }
+                else { $warn += "infra $service not running (dev.ps1 start will create it)" }
+            }
+        }
+    }
+    foreach ($issue in $warn) { Write-Warning $issue }
+    if ($fatal.Count) { throw ($fatal -join '; ') }
+    Write-Host 'doctor: core local development prerequisites satisfied.'
+}
 
 $lock = $null
 try {
@@ -283,6 +350,9 @@ try {
                 }
             }
             Write-Host "Logs and process identity: $runtime"
+        }
+        'doctor' {
+            Invoke-Doctor
         }
         'stop' {
             foreach ($name in @('frontend','backend')) {
