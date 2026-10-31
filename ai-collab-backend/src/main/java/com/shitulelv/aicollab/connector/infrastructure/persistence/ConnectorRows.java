@@ -18,12 +18,15 @@ public final class ConnectorRows {
         public OffsetDateTime lastVerifiedAt;
         public UUID createdBy;
         public OffsetDateTime createdAt;
+        public String visibility;
+        public UUID ownerProjectId;
     }
 
     public static class SourceRow {
         public UUID id;
         public UUID projectId;
         public UUID connectionId;
+        public UUID userAuthorizationId;
         public String folderToken;
         public String name;
         public String status;

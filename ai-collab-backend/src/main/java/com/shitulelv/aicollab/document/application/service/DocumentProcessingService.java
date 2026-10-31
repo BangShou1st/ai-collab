@@ -67,8 +67,10 @@ public class DocumentProcessingService {
             List<DocumentChunk> chunks = chunker.split(parsed.text(), parsed.pageBoundaries());
             if (chunks.isEmpty()) throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED);
             if (readableContent != null) readableContent.saveParsed(projectId,documentId,processingToken,source,chunks);
-            if (!documents.markIndexing(
-                    projectId, documentId, processingToken, parsed.parserType())) return;
+            if (!documents.markIndexing(projectId, documentId, processingToken, parsed.parserType())) {
+                throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT);
+            }
+            requireHeartbeat(projectId, documentId, processingToken, DocumentStatus.INDEXING);
             EmbeddingBatch embeddings = embeddingGateway.embed(projectId,
                     chunks.stream().map(DocumentChunk::content).toList(),
                     () -> requireHeartbeat(

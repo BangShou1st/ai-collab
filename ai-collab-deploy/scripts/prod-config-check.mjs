@@ -50,20 +50,53 @@ export function validate(values, { checkCertificate = true } = {}) {
   bad(isIP(values.PUBLIC_BIND_IP || '0.0.0.0') !== 4, 'PUBLIC_BIND_IP 必须是明确的 IPv4 地址')
   const port = Number(values.HTTPS_PORT || '443')
   bad(port !== 443, '生产 HTTPS_PORT 必须为 443；其他端口需要重新设计和验证代理信任边界')
+  bad(!['true', 'false', ''].includes(values.CHAT_ENABLED || ''), 'CHAT_ENABLED 必须是 true 或 false')
   bad(!['true', 'false', ''].includes(values.AGENT_ENABLED || ''), 'AGENT_ENABLED 必须是 true 或 false')
+  bad(!['true', 'false', ''].includes(values.AGENT_RUNTIME_ALLOWED || ''), 'AGENT_RUNTIME_ALLOWED 必须是 true 或 false')
+  if (values.AGENT_MCP_ALLOWED_HOSTS) {
+    const hosts = values.AGENT_MCP_ALLOWED_HOSTS.split(',').map(s => s.trim()).filter(Boolean)
+    for (const host of hosts) {
+      if (!/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(host) && isIP(host) === 0) {
+        errors.push(`AGENT_MCP_ALLOWED_HOSTS 包含无效的主机名或 IP: ${host}`)
+      }
+    }
+  }
   bad(!['true', 'false'].includes(values.AUTH_PUBLIC_REGISTRATION_ENABLED || 'true'),
     'AUTH_PUBLIC_REGISTRATION_ENABLED 必须是 true 或 false')
+  bad(!['true', 'false'].includes(values.CONNECTOR_CLEANUP_ENABLED || 'true'),
+    'CONNECTOR_CLEANUP_ENABLED 必须是 true 或 false')
 
+  const dnsName = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
+  const parseOrigin = value => {
+    const parsed = new URL(value)
+    if (parsed.protocol !== 'https:' || parsed.origin !== value ||
+        !dnsName.test(parsed.hostname) || isIP(parsed.hostname) !== 0) throw new Error()
+    return parsed
+  }
+  try {
+    const allowed = (values.AUTH_ALLOWED_ORIGINS || '').split(',')
+    if (new Set(allowed).size !== allowed.length) throw new Error()
+    allowed.forEach(parseOrigin)
+  } catch {
+    errors.push('AUTH_ALLOWED_ORIGINS 必须是逗号分隔的规范 HTTPS 域名 Origin')
+  }
   let origin
   try {
-    origin = new URL(values.AUTH_ALLOWED_ORIGINS)
-    const dnsName = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
-    if (origin.protocol !== 'https:' || origin.origin !== values.AUTH_ALLOWED_ORIGINS ||
-        !dnsName.test(origin.hostname) || isIP(origin.hostname) !== 0 ||
-        Number(origin.port || '443') !== port) throw new Error()
+    origin = parseOrigin(values.MINIO_PUBLIC_ENDPOINT)
+    if (Number(origin.port || '443') !== port) throw new Error()
   } catch {
-    errors.push('AUTH_ALLOWED_ORIGINS 必须是单个规范 HTTPS 域名 Origin')
+    errors.push('MINIO_PUBLIC_ENDPOINT 必须是与下载网关端口匹配的单个 HTTPS 域名 Origin')
     origin = undefined
+  }
+  if (values.FEISHU_OAUTH_REDIRECT_URI) {
+    try {
+      const callback = new URL(values.FEISHU_OAUTH_REDIRECT_URI)
+      parseOrigin(callback.origin)
+      if (callback.username || callback.password || callback.search || callback.hash ||
+          callback.pathname !== '/api/v1/connector/oauth/callback') throw new Error()
+    } catch {
+      errors.push('FEISHU_OAUTH_REDIRECT_URI 必须是安全的 HTTPS 授权回调地址')
+    }
   }
   for (const name of ['TLS_CERT_FILE', 'TLS_KEY_FILE']) {
     bad(!isAbsolute(values[name] || ''), `${name} 必须是证书文件的绝对路径`)

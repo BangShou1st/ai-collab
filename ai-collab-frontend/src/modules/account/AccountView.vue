@@ -17,6 +17,7 @@ const profile = reactive({
 const password = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 const savingProfile = ref(false)
 const changingPassword = ref(false)
+const sendingVerification = ref(false)
 const loggingOutCurrent = ref(false)
 const loggingOutAll = ref(false)
 const profileValidationMessage = computed(() => {
@@ -42,6 +43,20 @@ const canChangePassword = computed(() =>
     && !passwordValidationMessage.value,
   ),
 )
+const emailVerified = computed(() => auth.currentUser?.emailVerified === true)
+
+async function sendVerification(): Promise<void> {
+  if (!auth.accessToken || sendingVerification.value) return
+  sendingVerification.value = true
+  try {
+    await authApi.requestEmailVerification(auth.accessToken)
+    ElMessage.success('验证邮件已发送，请查收（24 小时内有效）')
+  } catch (error) {
+    showApiError(error, '验证邮件发送')
+  } finally {
+    sendingVerification.value = false
+  }
+}
 
 function clearPasswordFields(): void {
   password.currentPassword = ''
@@ -166,6 +181,41 @@ onBeforeUnmount(clearPasswordFields)
             保存资料
           </el-button>
         </el-form>
+      </el-card>
+      <el-card>
+        <template #header>
+          <div class="section-card-header">
+            <h2>邮箱验证</h2>
+            <p>验证邮箱后才能接收邀请、密码重置等平台邮件。</p>
+          </div>
+        </template>
+        <el-alert
+          v-if="!auth.currentUser?.email"
+          title="尚未绑定邮箱"
+          description="请在上方“基本资料”中填写并保存邮箱，然后再发送验证邮件。"
+          type="info"
+          :closable="false"
+          show-icon
+        />
+        <template v-else>
+          <p class="readonly-note">
+            当前绑定邮箱：{{ auth.currentUser.email }}
+            <el-tag :type="emailVerified ? 'success' : 'warning'" size="small">
+              {{ emailVerified ? '已验证' : '未验证' }}
+            </el-tag>
+          </p>
+          <div class="actions">
+            <el-button
+              type="primary"
+              plain
+              :loading="sendingVerification"
+              :disabled="sendingVerification || emailVerified"
+              @click="sendVerification"
+            >
+              {{ emailVerified ? '已完成验证' : '发送验证邮件' }}
+            </el-button>
+          </div>
+        </template>
       </el-card>
       <el-card>
         <template #header>

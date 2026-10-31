@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.infrastructure.ai.embedding;
 
 import com.shitulelv.aicollab.common.exception.*;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
+import com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -24,11 +25,14 @@ public class EmbeddingIndexService {
     private final TransactionTemplate transactions;
     private final ExecutorService executor = new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS,
             new ArrayBlockingQueue<>(1), r -> { Thread t = new Thread(r, "embedding-index"); t.setDaemon(true); return t; });
+    private final DocumentVisibilityRepository visibility;
 
     public EmbeddingIndexService(JdbcTemplate jdbc, SystemEmbeddingConfigRepository configs,
-            ProjectEmbeddingGateway embeddings, ApplicationEventPublisher events, PlatformTransactionManager manager) {
+            ProjectEmbeddingGateway embeddings, ApplicationEventPublisher events, PlatformTransactionManager manager,
+            DocumentVisibilityRepository visibility) {
         this.jdbc = jdbc; this.configs = configs; this.embeddings = embeddings;
         this.events = events; this.transactions = new TransactionTemplate(manager);
+        this.visibility = visibility;
     }
 
     @Transactional
@@ -68,6 +72,8 @@ public class EmbeddingIndexService {
             for (UUID document : documents) {
                 if (Thread.currentThread().isInterrupted()) throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
                 jdbc.update("UPDATE embedding_index_document SET state='BUILDING' WHERE generation_id=? AND document_id=?", generation, document);
+                UUID project = jdbc.queryForObject("SELECT project_id FROM project_document WHERE id=?", UUID.class, document);
+                if (!visibility.readable(project,document)) throw new BusinessException(ErrorCode.CONNECTOR_REAUTH_REQUIRED);
                 List<Map<String,Object>> chunks = jdbc.queryForList("SELECT id,content FROM document_chunk WHERE document_id=? AND generation_id IS NOT DISTINCT FROM ? ORDER BY chunk_no", document, sourceGeneration);
                 if (chunks.isEmpty()) throw new BusinessException(ErrorCode.DOCUMENT_NOT_READY);
                 var batch = embeddings.embedWithConfig(ProjectEmbeddingGateway.asProjectConfig(config),
@@ -82,6 +88,7 @@ public class EmbeddingIndexService {
                               AND d.version=i.source_version AND d.indexed_at IS NOT DISTINCT FROM i.source_indexed_at FOR UPDATE OF d
                             """, UUID.class, generation, document);
                     if (current.isEmpty()) throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT);
+                    if (!visibility.readable(project,document)) throw new BusinessException(ErrorCode.CONNECTOR_REAUTH_REQUIRED);
                     for (int n = 0; n < chunks.size(); n++) {
                         int inserted = jdbc.update("""
                                 INSERT INTO document_chunk(id,project_id,document_id,chunk_no,heading,content,content_hash,token_estimate,

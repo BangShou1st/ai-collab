@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.domain.service.DocumentFilePolicy;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository;
 import com.shitulelv.aicollab.document.infrastructure.storage.DocumentStorageGateway;
 import com.shitulelv.aicollab.project.application.service.AuditService;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 class DocumentApplicationServiceWriteStatusTest {
 
     @Mock DocumentRepository documents;
+    @Mock DocumentVisibilityRepository visibility;
     @Mock DocumentStorageGateway storage;
     @Mock DocumentFilePolicy filePolicy;
     @Mock ProjectAccessGuard access;
@@ -46,7 +48,7 @@ class DocumentApplicationServiceWriteStatusTest {
     void setUp() {
         service = new DocumentApplicationService(
                 documents, storage, filePolicy, access, writeGuard,
-                registration, retry, deletion, audit, events);
+                registration, retry, deletion, audit, events, visibility);
         projectId = UUID.randomUUID();
         userId = UUID.randomUUID();
         doThrow(new BusinessException(ErrorCode.PROJECT_READ_ONLY))

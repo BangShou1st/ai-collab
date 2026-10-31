@@ -20,7 +20,13 @@ public interface KnowledgeCitationMapper {
             JOIN knowledge_message m ON m.id=#{messageId}
             JOIN knowledge_session s ON s.id=m.session_id AND s.project_id=c.project_id
             WHERE c.project_id=#{projectId} AND c.id=#{chunkId} AND d.id=#{documentId}
-                AND d.status='READY' FOR SHARE OF d,c
+                AND d.status='READY' AND NOT d.access_blocked
+                AND NOT EXISTS (SELECT 1 FROM external_document e JOIN connector_source cs
+                  ON cs.id=e.source_id AND cs.project_id=d.project_id
+                  LEFT JOIN connector_oauth_authorization a ON a.id=cs.user_authorization_id AND a.project_id=cs.project_id
+                  WHERE e.document_id=d.id AND (e.status<>'ACTIVE' OR cs.status<>'ACTIVE'
+                    OR (cs.user_authorization_id IS NOT NULL AND (a.id IS NULL OR a.status<>'ACTIVE' OR a.access_expires_at<=now()))))
+                FOR SHARE OF d,c
             """)
     int insertScoped(
             @Param("id") UUID id,
@@ -42,7 +48,17 @@ public interface KnowledgeCitationMapper {
             JOIN document_chunk dc ON dc.id=kc.chunk_id AND dc.project_id=ks.project_id
             JOIN project_document pd ON pd.id=dc.document_id AND pd.project_id=ks.project_id
             WHERE ks.project_id=#{projectId} AND ks.id=#{sessionId} AND ks.user_id=#{userId}
-                AND pd.status='READY'
+                AND pd.status='READY' AND NOT pd.access_blocked
+                AND NOT EXISTS (SELECT 1 FROM connector_hidden_answer h WHERE h.project_id=ks.project_id AND h.message_id=km.id AND h.cleared_at IS NULL)
+                AND NOT EXISTS (SELECT 1 FROM connector_source cs LEFT JOIN connector_oauth_authorization a
+                  ON a.id=cs.user_authorization_id AND a.project_id=cs.project_id
+                  WHERE cs.project_id=ks.project_id AND (cs.status<>'ACTIVE' OR (cs.user_authorization_id IS NOT NULL
+                    AND (a.id IS NULL OR a.status<>'ACTIVE' OR a.access_expires_at<=now()))))
+                AND NOT EXISTS (SELECT 1 FROM external_document e JOIN connector_source cs
+                  ON cs.id=e.source_id AND cs.project_id=pd.project_id
+                  LEFT JOIN connector_oauth_authorization a ON a.id=cs.user_authorization_id AND a.project_id=cs.project_id
+                  WHERE e.document_id=pd.id AND (e.status<>'ACTIVE' OR cs.status<>'ACTIVE'
+                    OR (cs.user_authorization_id IS NOT NULL AND (a.id IS NULL OR a.status<>'ACTIVE' OR a.access_expires_at<=now()))))
             ORDER BY km.created_at ASC, km.id ASC, kc.rank ASC
             """)
     List<KnowledgeCitationEntity> listOwn(

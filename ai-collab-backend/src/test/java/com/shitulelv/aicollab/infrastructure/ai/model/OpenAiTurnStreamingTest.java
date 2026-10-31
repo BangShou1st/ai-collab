@@ -158,18 +158,16 @@ class OpenAiTurnStreamingTest {
                 });
     }
 
-    /** 非流式 complete 截断：usage 先于截断判定读取，随异常携带。 */
-    @Test void nonStreamingTruncationCarriesUsage() {
+    /** Zen 2.x wire 只有流式出口：completeWithSession 统一走流式，截断时 usage 随异常携带。 */
+    @Test void completeSessionTruncationCarriesUsage() {
         JsonHttpModelClient http = mock(JsonHttpModelClient.class);
-        ObjectNode response = mapper.createObjectNode();
-        ObjectNode choice = response.putArray("choices").addObject();
-        choice.putObject("message").putObject("content");
-        choice.put("finish_reason", "length");
-        ObjectNode usage = response.putObject("usage");
-        usage.put("prompt_tokens", 800);
-        usage.put("completion_tokens", 1200);
-        org.mockito.Mockito.when(http.postWithRequestBuilder(anyString(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
-                .thenReturn(response);
+        org.mockito.Mockito.doAnswer(inv -> {
+            java.util.function.BiConsumer<String, com.fasterxml.jackson.databind.JsonNode> cb = inv.getArgument(3);
+            cb.accept("message", mapper.readTree(
+                    "{\"choices\":[{\"delta\":{\"content\":\"partial\"}}],\"usage\":{\"prompt_tokens\":800,\"completion_tokens\":1200}}"));
+            cb.accept("message", mapper.readTree("{\"choices\":[{\"finish_reason\":\"length\"}]}"));
+            return null;
+        }).when(http).streamWithRequestBuilder(anyString(), any(), any(com.fasterxml.jackson.databind.JsonNode.class), any(java.util.function.BiConsumer.class));
         assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, http).completeWithSession(
                 config(), "key", org.mockito.Mockito.mock(ChatCompletionCommand.class),
                 AiRequestMetadata.fresh(), "opencode/1.18.21"))

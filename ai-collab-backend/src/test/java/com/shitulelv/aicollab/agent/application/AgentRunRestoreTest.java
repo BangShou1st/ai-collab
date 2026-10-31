@@ -23,7 +23,7 @@ class AgentRunRestoreTest {
     private AgentRunService svc(AgentRepository repo, AgentApprovalRepository approvals) {
         return new AgentRunService(mock(ProjectAccessGuard.class), repo, mock(com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry.class),
                 new ObjectMapper(), mock(com.shitulelv.aicollab.agent.application.runtime.AgentEventService.class),
-                mock(AgentEventRepository.class), approvals);
+                mock(AgentEventRepository.class), approvals, mock(AgentHistoryVisibilityService.class));
     }
     @Test void latestRunReturnsNullWhenNone() {
         var repo = mock(AgentRepository.class);
@@ -37,7 +37,7 @@ class AgentRunRestoreTest {
         doThrow(new BusinessException(com.shitulelv.aicollab.common.exception.ErrorCode.AUTH_FORBIDDEN)).when(access).requireMember(any(), any());
         var svc = new AgentRunService(access, mock(AgentRepository.class), mock(com.shitulelv.aicollab.agent.domain.model.AgentSkillRegistry.class),
                 new ObjectMapper(), mock(com.shitulelv.aicollab.agent.application.runtime.AgentEventService.class),
-                mock(AgentEventRepository.class), mock(AgentApprovalRepository.class));
+                mock(AgentEventRepository.class), mock(AgentApprovalRepository.class), mock(AgentHistoryVisibilityService.class));
         assertThatThrownBy(() -> svc.latestRun(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID())).isInstanceOf(BusinessException.class);
     }
     @Test void runApprovalsScopedAndChecked() {

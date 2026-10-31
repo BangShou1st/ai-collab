@@ -751,7 +751,8 @@ class AgentRepositoryIntegrationTest {
         var access = mock(com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard.class);
         var service = new AgentApprovalService(
                 approvals, new AgentToolRegistry(List.of(tool)), access,
-                new ObjectMapper(), java.time.Clock.systemUTC(), mock(AgentEventService.class));
+                new ObjectMapper(), java.time.Clock.systemUTC(), mock(AgentEventService.class),
+                mock(com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService.class));
 
         assertThatThrownBy(() -> service.approve(
                 fixture.project(), approvalId, fixture.user(), approvalId.toString(), UUID.randomUUID()))

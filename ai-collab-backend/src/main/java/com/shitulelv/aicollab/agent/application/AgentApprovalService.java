@@ -45,17 +45,20 @@ public class AgentApprovalService {
     @org.springframework.beans.factory.annotation.Autowired
     void configureInvocations(org.springframework.jdbc.core.JdbcTemplate jdbc) { this.invocationJdbc = jdbc; }
     private final AgentEventService events;
+    private final AgentHistoryVisibilityService visibility;
     private final AgentApprovalPolicy policy = new AgentApprovalPolicy();
 
     public AgentApprovalService(
             AgentApprovalRepository approvals, AgentToolRegistry tools,
-            ProjectAccessGuard access, ObjectMapper json, Clock clock, AgentEventService events) {
+            ProjectAccessGuard access, ObjectMapper json, Clock clock, AgentEventService events,
+            AgentHistoryVisibilityService visibility) {
         this.approvals = approvals;
         this.tools = tools;
         this.access = access;
         this.json = json;
         this.clock = clock;
         this.events = events;
+        this.visibility = visibility;
     }
 
     /**
@@ -291,7 +294,8 @@ public class AgentApprovalService {
 
     public List<AgentApprovalView> list(UUID projectId, UUID userId, String status) {
         access.requireMember(projectId, userId);
-        return approvals.list(projectId, status);
+        return approvals.list(projectId, status).stream()
+                .filter(approval -> visibility.visibleRun(projectId, approval.runId())).toList();
     }
 
     /**
@@ -320,6 +324,7 @@ public class AgentApprovalService {
         // 1. Approval 存在 + 2. 属于当前项目
         access.requireAdmin(projectId, approverId);
         AgentApprovalView approval = requireLocked(projectId, approvalId);
+        visibility.whileRunVisible(projectId, approval.runId(), () -> { });
         requireRevision(approval, expectedRevision);
 
         // 3. Approval 尚未处理 + 幂等检查
@@ -379,6 +384,7 @@ public class AgentApprovalService {
             String nonce, UUID idempotencyKey, String reason, Integer expectedRevision) {
         access.requireAdmin(projectId, approverId);
         AgentApprovalView approval = requireLocked(projectId, approvalId);
+        visibility.whileRunVisible(projectId, approval.runId(), () -> { });
         requireRevision(approval, expectedRevision);
         if ("REJECTED".equals(approval.status())) {
             if (approvals.matchesIdempotencyKey(projectId, approvalId, idempotencyKey)

@@ -16,13 +16,36 @@ public class AgentMemoryRepository {
     public AgentMemoryRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     public List<AgentMemoryView> list(UUID projectId, boolean activeOnly, int limit) {
-        return jdbc.query("SELECT * FROM agent_memory WHERE project_id=? "
-                        + (activeOnly ? "AND status='ACTIVE' " : "")
-                        + "ORDER BY updated_at DESC,id DESC LIMIT ?", mapper(), projectId, limit);
+        return jdbc.query("""
+                SELECT m.* FROM agent_memory m WHERE m.project_id=? AND (NOT ? OR m.status='ACTIVE')
+                  AND NOT EXISTS (SELECT 1 FROM connector_hidden_agent_memory h WHERE h.project_id=m.project_id AND h.memory_id=m.id AND h.cleared_at IS NULL)
+                  AND NOT EXISTS (SELECT 1 FROM connector_source s LEFT JOIN connector_oauth_authorization a
+                    ON a.id=s.user_authorization_id AND a.project_id=s.project_id
+                    WHERE s.project_id=m.project_id
+                      AND (m.created_at<=GREATEST(s.updated_at,COALESCE(a.updated_at,s.updated_at))
+                        OR (a.access_expires_at<=now() AND m.created_at<=a.access_expires_at))
+                      AND (s.status<>'ACTIVE' OR (s.user_authorization_id IS NOT NULL
+                        AND (a.id IS NULL OR a.status<>'ACTIVE' OR a.access_expires_at<=now()))))
+                  AND NOT EXISTS (SELECT 1 FROM external_document e JOIN connector_source s ON s.id=e.source_id
+                    WHERE s.project_id=m.project_id AND e.status='BLOCKED' AND m.created_at<=e.updated_at)
+                ORDER BY m.updated_at DESC,m.id DESC LIMIT ?
+                """, mapper(), projectId, activeOnly, limit);
     }
 
     public Optional<AgentMemoryView> find(UUID projectId, UUID id) {
-        return jdbc.query("SELECT * FROM agent_memory WHERE project_id=? AND id=?", mapper(), projectId, id)
+        return jdbc.query("""
+                SELECT m.* FROM agent_memory m WHERE m.project_id=? AND m.id=?
+                  AND NOT EXISTS (SELECT 1 FROM connector_hidden_agent_memory h WHERE h.project_id=m.project_id AND h.memory_id=m.id AND h.cleared_at IS NULL)
+                  AND NOT EXISTS (SELECT 1 FROM connector_source s LEFT JOIN connector_oauth_authorization a
+                    ON a.id=s.user_authorization_id AND a.project_id=s.project_id
+                    WHERE s.project_id=m.project_id
+                      AND (m.created_at<=GREATEST(s.updated_at,COALESCE(a.updated_at,s.updated_at))
+                        OR (a.access_expires_at<=now() AND m.created_at<=a.access_expires_at))
+                      AND (s.status<>'ACTIVE' OR (s.user_authorization_id IS NOT NULL
+                        AND (a.id IS NULL OR a.status<>'ACTIVE' OR a.access_expires_at<=now()))))
+                  AND NOT EXISTS (SELECT 1 FROM external_document e JOIN connector_source s ON s.id=e.source_id
+                    WHERE s.project_id=m.project_id AND e.status='BLOCKED' AND m.created_at<=e.updated_at)
+                """, mapper(), projectId, id)
                 .stream().findFirst();
     }
 

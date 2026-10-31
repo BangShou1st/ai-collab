@@ -36,7 +36,8 @@ class EmbeddingGenerationIntegrationTest {
         jdbc.execute("TRUNCATE app_user,system_embedding_config,embedding_index_generation CASCADE");
         tx=new TransactionTemplate(manager); configs=new SystemEmbeddingConfigRepository(jdbc);
         gateway=mock(ProjectEmbeddingGateway.class);
-        indexes=new EmbeddingIndexService(jdbc,configs,gateway,mock(ApplicationEventPublisher.class),manager);
+        indexes=new EmbeddingIndexService(jdbc,configs,gateway,mock(ApplicationEventPublisher.class),manager,
+                new com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository(jdbc));
         active=config("old",true); candidate=config("new",false);
         configs.save(active); configs.save(candidate);
         UUID user=UUID.randomUUID(); project=UUID.randomUUID(); document=UUID.randomUUID();
@@ -76,6 +77,25 @@ class EmbeddingGenerationIntegrationTest {
         tx.executeWithoutResult(status -> indexes.discard(id));
         assertThat(jdbc.queryForObject("SELECT count(*) FROM document_chunk",Integer.class)).isEqualTo(1);
         verify(gateway,times(1)).embedWithConfig(any(),anyList(),any());
+    }
+    @Test void blockedDocumentDoesNotReachEmbedding() {
+        tx.execute(status -> indexes.start(candidate));
+        UUID id=jdbc.queryForObject("SELECT id FROM embedding_index_generation",UUID.class);
+        jdbc.update("UPDATE project_document SET access_blocked=true WHERE id=?",document);
+        indexes.build(id);
+        assertThat(jdbc.queryForObject("SELECT state FROM embedding_index_generation WHERE id=?",String.class,id)).isEqualTo("FAILED");
+        verify(gateway,never()).embedWithConfig(any(),anyList(),any());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM document_chunk",Integer.class)).isEqualTo(1);
+    }
+    @Test void blockDuringEmbeddingDoesNotPublishCandidateVectors() {
+        when(gateway.embedWithConfig(any(),anyList(),any())).thenAnswer(invocation -> {
+            jdbc.update("UPDATE project_document SET access_blocked=true WHERE id=?",document);
+            return new EmbeddingBatch("OLLAMA","new",3,List.of(List.of(1d,0d,0d)),candidate.fingerprint());
+        });
+        UUID id=build();
+        assertThat(jdbc.queryForObject("SELECT state FROM embedding_index_generation WHERE id=?",String.class,id)).isEqualTo("FAILED");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM document_chunk",Integer.class)).isEqualTo(1);
+        assertThat(configs.findActive().orElseThrow().id()).isEqualTo(active.id());
     }
     @Test void changedDocumentRejectsActivation() {
         UUID id=build(); jdbc.update("UPDATE project_document SET version=version+1 WHERE id=?",document);

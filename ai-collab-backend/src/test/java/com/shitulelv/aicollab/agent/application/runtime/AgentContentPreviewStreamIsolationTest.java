@@ -658,8 +658,10 @@ class AgentContentPreviewStreamIsolationTest {
         final UUID runId = UUID.randomUUID();
         final AgentEventRepository repository = mock(AgentEventRepository.class);
         final AgentRepository runs = mock(AgentRepository.class);
+        final com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService visibility =
+                mock(com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService.class);
         final AgentEventStreamService streams = new AgentEventStreamService(
-                mock(ProjectAccessGuard.class), runs, repository);
+                mock(ProjectAccessGuard.class), runs, repository, visibility);
         final AgentEventService events = new AgentEventService(repository, streams);
         final HttpClient transport = mock(HttpClient.class);
         final JsonHttpModelClient http;
@@ -668,6 +670,8 @@ class AgentContentPreviewStreamIsolationTest {
         final ModelTurnCommand command;
 
         Fixture() throws Exception {
+            org.mockito.Mockito.doAnswer(invocation -> { invocation.<Runnable>getArgument(2).run(); return null; })
+                    .when(visibility).whileRunVisible(any(), any(), any());
             http = new JsonHttpModelClient(
                     json, mock(OutboundEndpointPolicy.class), transport, Duration.ofSeconds(1));
             adapter = new OpenAiCompatibleModelAdapter(json, http);

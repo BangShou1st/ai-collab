@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.view.DownloadUrlView;
 import com.shitulelv.aicollab.infrastructure.storage.MinioProperties;
+import com.shitulelv.aicollab.infrastructure.storage.MinioPublicEndpointValidator;
 import io.minio.BucketExistsArgs;
 import io.minio.DeleteBucketPolicyArgs;
 import io.minio.GetObjectArgs;
@@ -13,6 +14,7 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.StatObjectArgs;
 import io.minio.errors.ErrorResponseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +23,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -51,7 +54,7 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
             }
             removePublicBucketPolicy();
         } catch (Exception exception) {
-            log.warn("MinIO bucket 初始化失败，文档存储功能将不可用", exception);
+            log.warn("MinIO bucket 初始化失败，异常类型={}", exception.getClass().getSimpleName());
         }
     }
 
@@ -89,11 +92,30 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
 
     @Override
     public DownloadUrlView presign(String objectKey, String filename, Duration duration) {
+        boolean viaProxy = properties.publicEndpoint() != null && !properties.publicEndpoint().isBlank();
+        if (viaProxy) {
+            try {
+                MinioPublicEndpointValidator.validate(properties.publicEndpoint(), false);
+            } catch (IllegalArgumentException exception) {
+                log.warn("MinIO 下载地址配置无效");
+                throw new BusinessException(ErrorCode.DOCUMENT_STORAGE_CONFIGURATION_ERROR);
+            }
+        }
+        int seconds;
         try {
-            int seconds = Math.toIntExact(duration.toSeconds());
+            seconds = Math.toIntExact(duration.toSeconds());
+        } catch (RuntimeException exception) {
+            throw storageFailure("生成下载地址", exception, true);
+        }
+        try {
+            // Signing is local and cannot itself detect an unavailable object or bad credentials.
+            client.statObject(StatObjectArgs.builder().bucket(properties.bucket()).object(objectKey).build());
+        } catch (Exception exception) {
+            throw storageFailure("检查下载对象", exception, false);
+        }
+        try {
             String disposition = "attachment; filename*=UTF-8''"
                     + URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
-            boolean viaProxy = properties.publicEndpoint() != null && !properties.publicEndpoint().isBlank();
             MinioClient signingClient = viaProxy ? MinioClient.builder()
                     .endpoint(properties.publicEndpoint())
                     // 生产预建桶使用 us-east-1；签名时不向公网端点探测 bucket location。
@@ -106,7 +128,7 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
             return new DownloadUrlView(viaProxy ? addProxyPrefix(url) : url,
                     OffsetDateTime.now().plusSeconds(seconds));
         } catch (Exception exception) {
-            throw storageUnavailable("生成下载地址", objectKey, exception);
+            throw storageFailure("生成下载地址", exception, true);
         }
     }
 
@@ -132,12 +154,24 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
             String operation,
             String objectKey,
             Exception exception) {
-        log.warn("MinIO {}对象失败，objectKey={}", operation, objectKey, exception);
-        if (exception instanceof ErrorResponseException responseException
-                && isCredentialFailure(responseException)) {
-            return new BusinessException(
-                    ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE,
-                    "文件存储凭据无效，请联系管理员检查 MinIO 配置");
+        return storageFailure(operation, exception, false);
+    }
+
+    private BusinessException storageFailure(String operation, Exception exception, boolean signing) {
+        // Exception messages may include a signed URL or credentials; never log them.
+        log.warn("MinIO {}失败，异常类型={}", operation, exception.getClass().getSimpleName());
+        boolean connectionFailure = false;
+        Throwable cause = exception;
+        for (int depth = 0; cause != null && depth < 8; depth++, cause = cause.getCause()) {
+            if (cause instanceof IOException) connectionFailure = true;
+            if (cause instanceof ErrorResponseException responseException && responseException.errorResponse() != null) {
+                if (isCredentialFailure(responseException)) return new BusinessException(ErrorCode.DOCUMENT_STORAGE_AUTHENTICATION_FAILED);
+                if ("NoSuchKey".equals(responseException.errorResponse().code())) return new BusinessException(ErrorCode.DOCUMENT_STORAGE_OBJECT_NOT_FOUND);
+                if ("NoSuchBucket".equals(responseException.errorResponse().code())) return new BusinessException(ErrorCode.DOCUMENT_STORAGE_CONFIGURATION_ERROR);
+            }
+        }
+        if (signing && !connectionFailure) {
+            return new BusinessException(ErrorCode.DOCUMENT_STORAGE_SIGNING_FAILED);
         }
         return new BusinessException(
                 ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE,

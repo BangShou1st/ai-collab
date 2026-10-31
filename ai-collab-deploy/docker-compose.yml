@@ -73,6 +73,19 @@ services:
       retries: 12
       start_period: 20s
 
+  mailpit:
+    # 本地/演练专用 SMTP 假服务器（可选）：`docker compose --profile maildev up -d mailpit`
+    # 后配合 .env 的 MAIL_ENABLED=true / MAIL_HOST=localhost / MAIL_PORT=1025 使用，
+    # 即可在本地完整收发验证邮件与密码重置邮件，无需外部 SMTP 凭据。
+    # 收件箱 UI: http://localhost:8025 。生产严禁启用该 profile 或把 MAIL_HOST 指向它。
+    profiles: ["maildev"]
+    image: axllent/mailpit:latest
+    container_name: ai-collab-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   app:
     build:
       context: ..
@@ -101,6 +114,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       AUTH_PUBLIC_REGISTRATION_ENABLED: ${AUTH_PUBLIC_REGISTRATION_ENABLED}
       MODEL_CONFIG_MASTER_KEY: ${MODEL_CONFIG_MASTER_KEY}
+      AGENT_RUNTIME_ALLOWED: ${AGENT_RUNTIME_ALLOWED:-true}
       CHAT_ENABLED: ${CHAT_ENABLED}
       CHAT_PROVIDER: ${CHAT_PROVIDER}
       CHAT_BASE_URL: ${CHAT_BASE_URL}
@@ -137,6 +151,18 @@ services:
       REFRESH_COOKIE_ALLOW_INSECURE: "${REFRESH_COOKIE_ALLOW_INSECURE:-false}"
       # 认证端点 CORS 白名单：生产必须显式设置为前端站点 Origin（逗号分隔），不能用默认值上生产。
       AUTH_ALLOWED_ORIGINS: "${AUTH_ALLOWED_ORIGINS:-http://localhost:5173}"
+      # 统一可信公开地址：邀请/密码重置/邮箱验证等敏感链接的生成源（只允许 origin）。
+      # 本地单机演练可留空（前端回退当前页面 Origin）；服务器部署必须配置为正式前端地址。
+      APP_PUBLIC_URL: "${APP_PUBLIC_URL:-}"
+      # 邮件发送（密码重置/邮箱验证）。false 时仅记录发送意图，不投递，不影响本地演练。
+      MAIL_ENABLED: "${MAIL_ENABLED:-false}"
+      MAIL_HOST: "${MAIL_HOST:-}"
+      MAIL_PORT: "${MAIL_PORT:-587}"
+      MAIL_USERNAME: "${MAIL_USERNAME:-}"
+      MAIL_PASSWORD: "${MAIL_PASSWORD:-}"
+      MAIL_FROM: "${MAIL_FROM:-}"
+      MAIL_STARTTLS: "${MAIL_STARTTLS:-true}"
+      MAIL_SSL: "${MAIL_SSL:-false}"
     ports:
       - "8080:8080"
 

@@ -54,7 +54,13 @@ public interface AuditLogMapper {
     String AUDIT_COLUMNS = """
              a.id, a.user_id AS "userId", u.display_name AS "userDisplayName",
             a.action, a.entity_type AS "entityType", a.entity_id AS "entityId",
-            a.detail::text AS "detailJson", a.request_id AS "requestId", a.created_at AS "createdAt"
+            CASE WHEN a.entity_type='PROJECT_DOCUMENT' AND (
+              EXISTS (SELECT 1 FROM connector_document_visibility v
+                WHERE v.project_id=a.project_id AND v.id=a.entity_id AND NOT v.readable)
+              OR EXISTS (SELECT 1 FROM connector_deletion_journal j
+                WHERE j.project_id=a.project_id AND j.document_id=a.entity_id)
+            ) THEN '{}' ELSE a.detail::text END AS "detailJson",
+            a.request_id AS "requestId", a.created_at AS "createdAt"
             """;
 
     @Select("""
