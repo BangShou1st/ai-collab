@@ -50,7 +50,7 @@ class AgentRunServiceRetryTest {
         repository = mock(AgentRepository.class);
         events = mock(AgentEventService.class);
         service = new AgentRunService(access, repository, new AgentSkillRegistry(), json,
-                events, mock(AgentEventRepository.class), mock(AgentApprovalRepository.class));
+                events, mock(AgentEventRepository.class), mock(AgentApprovalRepository.class), mock(AgentHistoryVisibilityService.class));
     }
 
     @ParameterizedTest

@@ -22,7 +22,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  * <p>线程池由 Spring 管理生命周期：容器初始化时启动、容器关闭时销毁。</p>
  */
 @Configuration
-@ConditionalOnProperty(prefix = "agent", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "agent", name = "runtime-allowed", havingValue = "true", matchIfMissing = true)
 public class AgentRunExecutionConfiguration {
     static final int DEFAULT_WORKER_CONCURRENCY = 2;
     static final int MIN_WORKER_CONCURRENCY = 1;

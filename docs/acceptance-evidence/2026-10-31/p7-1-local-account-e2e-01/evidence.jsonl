@@ -1,0 +1,16 @@
+{"ts":"2026-10-31T01:47Z","scenario":"E01","event":"mailpit_inbox","mail":{"from":"no-reply@local.test","to":"p71e2e_a@local.test","subject":"AI Collab 邮箱验证","link_prefix":"http://localhost:5173/verify-email?token=","token_length":43}}
+{"ts":"2026-10-31T01:49Z","scenario":"E02","event":"ui_assert","page":"/verify-email?token=...","assert":"邮箱验证成功"}
+{"ts":"2026-10-31T01:50Z","scenario":"E03","event":"ui_assert","page":"/verify-email?token=...(replay)","assert":"验证链接无效或已过期"}
+{"ts":"2026-10-31T01:40Z","scenario":"E04","event":"ui_assert","page":"/login","assert":"忘记密码？ 链接存在"}
+{"ts":"2026-10-31T01:52Z","scenario":"E05","event":"mailpit_inbox","mail":{"from":"no-reply@local.test","to":"p71e2e_a@local.test","subject":"AI Collab 密码重置","link_prefix":"http://localhost:5173/reset-password?token=","token_length":43}}
+{"ts":"2026-10-31T01:54Z","scenario":"E05","event":"ui_assert","page":"/reset-password?token=...","assert":"密码已重置 请使用新密码重新登录。为保护账号安全，所有设备的登录会话已退出。"}
+{"ts":"2026-10-31T01:56Z","scenario":"E06","event":"ui_assert","page":"/login → /home","assert":"新密码 P71-Local-E2E-New9! 登录成功，工作台显示 P71 E2E 用户；旧会话已被踢出"}
+{"ts":"2026-10-31T01:55Z","scenario":"E07","event":"ui_assert","page":"/reset-password?token=...(replay+submit)","assert":"重置链接无效或已过期 请重新申请密码重置"}
+{"ts":"2026-10-31T02:10Z","scenario":"E08","event":"ui_assert","page":"/projects/:id/members","assert":"邀请链接展示为 http://localhost:5173/invite/1ie8E4fKGCXuMQmv-fU1VARaWRzUkLqrzp3P95I8QJQ（来自 InvitationView.invitationUrl）"}
+{"ts":"2026-10-31T02:18Z","scenario":"E09","event":"api_assert","request":"GET /api/v1/invitations/1ie8E4fKGCXuMQmv-fU1VARaWRzUkLqrzp3P95I8QJQ (anonymous)","http":200,"body":{"projectName":"P7.1 邮件与账号闭环验证","role":"MEMBER","invitedEmail":null}}
+{"ts":"2026-10-31T02:20Z","scenario":"E10","event":"spa_deeplink","pages":["/verify-email?token=","/reset-password?token=","/forgot-password","/invite/{code}"],"assert":"全部直达不 404"}
+{"ts":"2026-10-31T10:46Z","scenario":"E11","event":"real_smtp_send","smtp":"smtp.qq.com:465 SSL","recipient":"3296249574@qq.com","mails":["AI Collab 邮箱验证","AI Collab 密码重置"],"assert":"后端零失败日志；Mailpit 无新邮件；用户确认收到"}
+{"ts":"2026-10-31T10:55Z","scenario":"E12","event":"smtp_protocol_diagnostic","assert":"AUTH LOGIN 235 Authentication successful；MAIL FROM/RCPT/DATA 250 OK"}
+{"ts":"2026-10-31T11:05Z","scenario":"E13","event":"pages_api_probe","url":"https://ai-collab-web.pages.dev/api/v1/auth/registration-policy","http":200,"cors":"Access-Control-Allow-Origin: https://ai-collab-web.pages.dev"}
+{"ts":"2026-10-31T11:06Z","scenario":"E14","event":"pages_register_cookie","http":200,"set_cookie":"ai_collab_refresh_token; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Strict"}
+{"ts":"2026-10-31T11:20Z","scenario":"E15","event":"feishu_redirect_whitelist","app":"AI-Collab 知识库连接器 (cli_aa688d12b778dd0e)","urls":["https://8443-agqyc3kteqehqgazwefpmhwulu.instabox.tech/api/v1/connector/oauth/callback","http://localhost:8080/api/v1/connector/oauth/callback"],"via":"bsk 驱动用户已登录 Edge"}

@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sharedlibs.opencodezen.OpenCodeZenCredentialPolicy;
 import com.sharedlibs.opencodezen.OpenCodeZenFreeAdmissionPolicy;
 import com.sharedlibs.opencodezen.OpenCodeZenProtocolPolicy;
+import com.sharedlibs.opencodezen.OpenCodeZenToolRenames;
+import com.sharedlibs.opencodezen.ZenModelProtocol;
 import com.sharedlibs.opencodezen.autoconfigure.OpenCodeZenRequestFactory;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
@@ -164,8 +166,8 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             if (userAgent == null) {
                 http.stream(endpoint(config), headers(apiKey), request(config, command, true), eventHandler);
             } else {
-                http.streamWithRequestBuilder(endpoint(config), zenRequestBuilder(config, apiKey, metadata, userAgent),
-                        zenRequest(config, command, true), eventHandler);
+                ZenWire wire = zenWire(config, apiKey, metadata, userAgent, zenRequest(config, command, true));
+                http.streamWithRequestBuilder(endpoint(config), wire.builderFactory(), wire.body(), eventHandler);
             }
             if (terminal.compareAndSet(false, true)) {
                 if (content.toString().isBlank()) throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
@@ -442,8 +444,12 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         return Map.of("Authorization", "Bearer " + apiKey);
     }
 
-    private Function<URI, HttpRequest.Builder> zenRequestBuilder(
-            ModelConfiguration config, String apiKey, AiRequestMetadata metadata, String userAgent) {
+    /** Zen 2.x wire 请求：塑形（官方提示词、工具集、补全上限）与身份头都由共享库完成。 */
+    private record ZenWire(java.util.function.Function<URI, HttpRequest.Builder> builderFactory,
+            JsonNode body, OpenCodeZenToolRenames renames) {}
+
+    private ZenWire zenWire(ModelConfiguration config, String apiKey, AiRequestMetadata metadata,
+            String userAgent, ObjectNode rawBody) {
         // 免费凭证决策来自共享库的已评审白名单（不是 -free 后缀，也不是运行时目录）。
         boolean freeModel = OpenCodeZenFreeAdmissionPolicy.admitsFreeChatModel(config.modelName());
         try {
@@ -453,12 +459,16 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         }
         OpenCodeZenRequestFactory factory = userAgent == null || userAgent.equals(zenRequestFactory.userAgent())
                 ? zenRequestFactory : new OpenCodeZenRequestFactory(userAgent);
+        java.util.Map<String, Object> payload = mapper.convertValue(rawBody,
+                new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {});
+        OpenCodeZenToolRenames renames = OpenCodeZenProtocolPolicy.shapeEnvelope(payload, ZenModelProtocol.CHAT, true);
         // 标识与身份头统一由共享请求工厂生成：同一对话复用 ses_，两个 session 头一致；
         // 无对话键（一次性探测/发现）用 newEphemeralRequest。业务关联 id 绝不直接成为 wire 会话 id。
         UUID conversationKey = conversationKey(metadata);
-        return endpoint -> conversationKey == null
+        return new ZenWire(endpoint -> conversationKey == null
                 ? factory.newEphemeralRequest(endpoint, freeModel, apiKey)
-                : factory.newConversationRequest(endpoint, freeModel, apiKey, conversationKey);
+                : factory.newConversationRequest(endpoint, freeModel, apiKey, conversationKey),
+                mapper.valueToTree(payload), renames);
     }
 
     /** 业务关联 id → 对话级 UUID：共享请求工厂按它缓存 ses_ 标识（同一对话稳定、跨对话隔离）。 */
@@ -525,25 +535,22 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 body.put("tool_choice", "auto");
             }
         }
-        addZenReservedTools(body);
+        validateNoReservedToolConflict(body);
         if (command.tools().isEmpty()) body.put("tool_choice", "none");
         return body;
     }
 
-    private void addZenReservedTools(ObjectNode body) {
+    /** 业务工具不得占用官方工具名；官方 2.x 工具集由共享库塑形时统一追加。 */
+    private void validateNoReservedToolConflict(ObjectNode body) {
         ArrayNode tools = body.withArray("tools");
         for (JsonNode tool : tools) {
             if (isZenReservedTool(tool.path("function").path("name").asText()))
                 throw new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
                         "业务工具与 Zen 传输保留名称冲突");
         }
-        // 共享库提供当前 OpenCode 2.x shell/read 信封及原始措辞；占位工具不可执行。
-        for (JsonNode declaration : mapper.valueToTree(OpenCodeZenProtocolPolicy.reservedToolDeclarations())) {
-            tools.add(declaration);
-        }
     }
 
-    /** 传输保留名称以共享策略为准（shell/read），业务工具不得占用。 */
+    /** 传输保留名称以共享策略为准（官方 2.x 工具集），业务工具不得占用。 */
     private static boolean isZenReservedTool(String name) {
         return name != null && OpenCodeZenProtocolPolicy.reservedToolNames().contains(name);
     }
@@ -566,27 +573,15 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                 function.set("parameters", tool.inputSchema());
             }
         }
-        addZenReservedTools(body);
+        validateNoReservedToolConflict(body);
         if (command.tools().isEmpty()) body.put("tool_choice", "none");
         return body;
     }
 
     public ChatCompletionResult completeWithSession(ModelConfiguration config, String apiKey,
             com.shitulelv.aicollab.infrastructure.ai.ChatCompletionCommand command, AiRequestMetadata metadata, String userAgent) {
-        long started = System.nanoTime();
-        JsonNode response = http.postWithRequestBuilder(endpoint(config),
-                zenRequestBuilder(config, apiKey, metadata, userAgent), zenRequest(config, command, false));
-        JsonNode choice = response.path("choices").path(0);
-        JsonNode usage = response.path("usage");
-        if ("length".equals(choice.path("finish_reason").asText())) {
-            // 提供商已上报用量随异常携带，结算时保留真实值，不被估算覆盖
-            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
-                    "PROVIDER_STREAM / OUTPUT_TRUNCATED",
-                    integer(usage.path("prompt_tokens")), integer(usage.path("completion_tokens")));
-        }
-        return result(config, choice.path("message").path("content").asText(null),
-                response.path("model").asText(config.modelName()),
-                integer(usage.path("prompt_tokens")), integer(usage.path("completion_tokens")), started);
+        // Zen 2.x wire 只有流式一种合法出口（塑形强制 stream=true），统一走流式同步路径。
+        return completeStreamingSyncWithSession(config, apiKey, command, metadata, userAgent);
     }
 
     public ModelTurnResult turnWithSession(ModelConfiguration config, String apiKey, ModelTurnCommand command,
@@ -608,8 +603,8 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         // 读流回调在 HttpClient 的读流线程上执行,ThreadLocal 观察者不可见:
         // 在发起请求的 worker 线程先捕获,回调线程用捕获值显式推送
         ModelContentPreview.Observer contentObserver = ModelContentPreview.capture();
-        http.streamWithRequestBuilder(endpoint(config), zenRequestBuilder(config, apiKey, metadata, userAgent),
-                zenTurnRequest(config, command, true), (event, data) -> {
+        ZenWire wire = zenWire(config, apiKey, metadata, userAgent, zenTurnRequest(config, command, true));
+        http.streamWithRequestBuilder(endpoint(config), wire.builderFactory(), wire.body(), (event, data) -> {
             if (data == null) return;
             if (data.hasNonNull("model")) model.set(data.path("model").asText());
             JsonNode usageNode = data.path("usage");
@@ -643,6 +638,10 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             if (!finish.isEmpty()) finishReason.set(mapFinishReason(finish));
         });
         List<ModelToolCall> toolCalls = buildDeltaToolCallsCarryingUsage(deltas, usage);
+        // 业务名只在宿主侧存在：出线是 clint_ wire 名，响应时按共享库重命名表还原。
+        toolCalls = toolCalls.stream()
+                .map(call -> new ModelToolCall(call.id(), wire.renames().restore(call.name()), call.arguments()))
+                .toList();
         if (!content.isEmpty()) ModelContentPreview.finish(contentObserver, content.toString());
         if (toolCalls.stream().anyMatch(call -> isZenReservedTool(call.name())))
             throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,

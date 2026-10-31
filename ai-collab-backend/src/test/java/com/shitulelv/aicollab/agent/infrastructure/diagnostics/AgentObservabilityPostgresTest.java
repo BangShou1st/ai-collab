@@ -67,7 +67,15 @@ class AgentObservabilityPostgresTest {
         String plan=String.join("\n",jdbc.queryForList("EXPLAIN (ANALYZE, BUFFERS) SELECT count(*),min(COALESCE(dispatch_started_at,updated_at)) FROM agent_tool_invocation WHERE status='UNKNOWN'",String.class));
         assertThat(plan).contains("idx_agent_tool_invocation_unknown_age");
         Files.writeString(Path.of("target/p6-observability-explain.txt"),plan);
-        assertThat(jdbc.queryForObject("SELECT max(version::int) FROM flyway_schema_history WHERE success",Integer.class)).isEqualTo(69);
+        // 迁移版本锚点：与 db/migration 目录中的最高版本动态对齐，新增迁移无需回改本测试。
+        int latestMigration;
+        var versionPattern=java.util.regex.Pattern.compile("^V(\\d+)__");
+        try (var files=Files.list(Path.of("src/main/resources/db/migration"))) {
+            latestMigration=files.map(p->versionPattern.matcher(p.getFileName().toString()))
+                .filter(java.util.regex.Matcher::find)
+                .mapToInt(m->Integer.parseInt(m.group(1))).max().orElse(0);
+        }
+        assertThat(jdbc.queryForObject("SELECT max(version::int) FROM flyway_schema_history WHERE success",Integer.class)).isEqualTo(latestMigration);
     }
     @Test @Order(2) void i02i03SnapshotMatchesDurableFactsAndLeaseRecovery() {
         var state=new AgentRuntimeStateMetrics(new AgentRuntimeStateRepository(jdbc),new SimpleMeterRegistry());

@@ -40,6 +40,13 @@ export const documentApi = {
       ),
     )
   },
+  async downloadDirect(projectId: string, documentId: string): Promise<Blob> {
+    const response = await httpClient.get<Blob>(
+      `/projects/${projectId}/documents/${documentId}/download`,
+      { responseType: 'blob' },
+    )
+    return response.data
+  },
   async retry(projectId: string, documentId: string): Promise<ApiResult<ProjectDocument>> {
     return apiResultFromResponse(
       await httpClient.post<ApiResponse<ProjectDocument>>(

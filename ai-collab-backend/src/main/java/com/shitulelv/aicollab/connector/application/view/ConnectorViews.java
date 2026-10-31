@@ -21,7 +21,8 @@ public final class ConnectorViews {
     public record SourceView(UUID id, UUID projectId, UUID connectionId, String connectionName,
                              String folderToken, String name, String status,
                              OffsetDateTime authorizationDeclaredAt, OffsetDateTime lastVerifiedAt,
-                             OffsetDateTime lastSyncedAt, long documentCount, SyncJobView lastJob) {
+                             OffsetDateTime lastSyncedAt, long documentCount, SyncJobView lastJob,
+                             UUID userAuthorizationId) {
     }
 
     public record ExternalDocumentView(UUID id, String externalKey, String title, String sourceUrl,

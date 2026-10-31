@@ -77,7 +77,7 @@ class LegacyApprovalCitationUpgradeTest {
         var tool=mock(ApprovalWriteAgentTool.class);
         when(tool.name()).thenReturn("create_task_after_approval");
         when(tool.execute(any(),any())).thenReturn(new AgentToolResult(json.createObjectNode().put("saved",true),List.of(),List.of()));
-        var service=new AgentApprovalService(repository,new AgentToolRegistry(List.of(tool)),mock(ProjectAccessGuard.class),json,Clock.systemUTC(),mock(AgentEventService.class));
+        var service=new AgentApprovalService(repository,new AgentToolRegistry(List.of(tool)),mock(ProjectAccessGuard.class),json,Clock.systemUTC(),mock(AgentEventService.class),mock(com.shitulelv.aicollab.agent.application.AgentHistoryVisibilityService.class));
         var transactions=new TransactionTemplate(new DataSourceTransactionManager(dataSource));
         assertThat(transactions.execute(status->service.approve(project,approval,user,approval.toString(),UUID.randomUUID(),1)).status()).isEqualTo("APPROVED");
         verify(tool,times(1)).execute(any(),any());

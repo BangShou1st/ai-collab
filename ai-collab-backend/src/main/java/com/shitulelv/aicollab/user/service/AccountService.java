@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.user.service;
 
 import com.shitulelv.aicollab.auth.dto.ChangePasswordRequest;
 import com.shitulelv.aicollab.auth.dto.CurrentUserResponse;
+import com.shitulelv.aicollab.auth.service.EmailVerificationService;
 import com.shitulelv.aicollab.auth.service.RefreshTokenService;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -21,22 +23,26 @@ public class AccountService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokens;
     private final AuditService audit;
+    private final EmailVerificationService emailVerifications;
 
     public AccountService(
             UserService users,
             PasswordEncoder passwordEncoder,
             RefreshTokenService refreshTokens,
-            AuditService audit) {
+            AuditService audit,
+            EmailVerificationService emailVerifications) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokens = refreshTokens;
         this.audit = audit;
+        this.emailVerifications = emailVerifications;
     }
 
     @Transactional
     public CurrentUserResponse updateProfile(UUID userId, UpdateCurrentUserRequest request) {
         UserEntity user = requireUser(userId);
         String email = normalizeEmail(request.email());
+        String previousEmail = normalizeEmail(user.getEmail());
         users.findByEmail(email)
                 .filter(existing -> !existing.getId().equals(userId))
                 .ifPresent(existing -> {
@@ -44,6 +50,12 @@ public class AccountService {
                 });
         if (!users.updateProfile(userId, request.displayName().trim(), email)) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        if (!Objects.equals(email, previousEmail)) {
+            users.markEmailUnverified(userId);
+            if (email != null) {
+                emailVerifications.requestFor(userId);
+            }
         }
         audit.write(null, userId, "USER_PROFILE_UPDATED", "USER", userId);
         return CurrentUserResponse.from(requireUser(userId));

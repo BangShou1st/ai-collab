@@ -43,8 +43,7 @@ class P10ScorerRobustnessTest {
     private static final Path QUESTIONS = FIXTURES.resolve("p10-evaluation-question-set.json");
     private static final Path P9_RESULTS = ROOT.resolve(
             "docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01/retrieval-results.json");
-    private static final Path EVIDENCE_DIR = ROOT.resolve(
-            "docs/acceptance-evidence/2026-10-26/p10-scorer-robustness-05");
+    private static final Path EVIDENCE_DIR = Path.of("target", "test-evidence", "p10-scorer-robustness-05");
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private static JsonNode questionSet;

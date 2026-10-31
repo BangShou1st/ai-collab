@@ -15,11 +15,13 @@ public record CurrentUserResponse(
         String displayName,
         String email,
         UserStatus status,
-        boolean systemAdmin) {
+        boolean systemAdmin,
+        boolean emailVerified) {
 
     public static CurrentUserResponse from(UserEntity user) {
         return new CurrentUserResponse(
                 user.getId(), user.getUsername(), user.getDisplayName(), user.getEmail(),
-                user.getStatus(), Boolean.TRUE.equals(user.getSystemAdmin()));
+                user.getStatus(), Boolean.TRUE.equals(user.getSystemAdmin()),
+                Boolean.TRUE.equals(user.getEmailVerified()));
     }
 }

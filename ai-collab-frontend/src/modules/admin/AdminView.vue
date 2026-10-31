@@ -60,6 +60,11 @@ onMounted(load)
     </PageHeader>
     <section v-loading="loading" class="admin-stack">
       <el-card>
+        <template #header><strong>动态配置中心</strong></template>
+        <p>全局 Agent 启停、AI Chat 开关、Worker 并发与调度参数、全局 RAG 策略及版本审计。</p>
+        <router-link to="/admin/config"><el-button type="primary">进入配置中心</el-button></router-link>
+      </el-card>
+      <el-card>
         <template #header><strong>AI Infrastructure</strong></template>
         <p>系统 Embedding 配置、连接测试与知识库索引重建。</p>
         <router-link to="/admin/embedding"><el-button type="primary">进入 AI Infrastructure</el-button></router-link>

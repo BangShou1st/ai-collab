@@ -13,6 +13,8 @@ import com.shitulelv.aicollab.connector.infrastructure.persistence.ConnectorRows
 import com.shitulelv.aicollab.connector.infrastructure.persistence.ConnectorSourceMapper;
 import com.shitulelv.aicollab.connector.infrastructure.persistence.ConnectorSyncJobMapper;
 import com.shitulelv.aicollab.connector.infrastructure.persistence.ExternalDocumentMapper;
+import com.shitulelv.aicollab.connector.infrastructure.repository.ConnectorOAuthRepository;
+import com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository;
 import com.shitulelv.aicollab.project.application.service.AuditService;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.project.domain.policy.ProjectWriteGuard;
@@ -34,13 +36,18 @@ public class ConnectorSourceService {
     private final ProjectWriteGuard writeGuard;
     private final AuditService audit;
     private final ConnectorSyncService syncService;
+    private final ConnectorOAuthRepository grants;
+    private final ConnectorOAuthTokenService userTokens;
+    private final DocumentVisibilityRepository documentVisibility;
 
     public ConnectorSourceService(ConnectorSourceMapper sources, ConnectorConnectionMapper connections,
                                   ConnectorSyncJobMapper jobs, ExternalDocumentMapper externalDocs,
                                   FeishuClient feishu,
                                   com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher secrets,
                                   ProjectAccessGuard accessGuard, ProjectWriteGuard writeGuard,
-                                  AuditService audit, ConnectorSyncService syncService) {
+                                  AuditService audit, ConnectorSyncService syncService,
+                                  ConnectorOAuthRepository grants, ConnectorOAuthTokenService userTokens,
+                                  DocumentVisibilityRepository documentVisibility) {
         this.sources = sources;
         this.connections = connections;
         this.jobs = jobs;
@@ -51,10 +58,13 @@ public class ConnectorSourceService {
         this.writeGuard = writeGuard;
         this.audit = audit;
         this.syncService = syncService;
+        this.grants = grants;
+        this.userTokens = userTokens;
+        this.documentVisibility = documentVisibility;
     }
 
     public SourceView create(UUID projectId, UUID userId, UUID connectionId, String folderToken,
-                             String name, boolean authorizationConfirmed) {
+                             String name, boolean authorizationConfirmed, UUID userAuthorizationId) {
         accessGuard.requireAdmin(projectId, userId);
         writeGuard.requireWritable(projectId);
         if (!authorizationConfirmed) {
@@ -69,10 +79,21 @@ public class ConnectorSourceService {
         }
         String token;
         try {
-            token = feishu.tenantAccessToken(connection.appId, secrets.decrypt(connection.appSecretCipher));
+            if (userAuthorizationId != null) {
+                var grant = grants.find(projectId, userAuthorizationId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.CONNECTOR_REAUTH_REQUIRED));
+                if (!grant.userId().equals(userId) || !grant.connectionId().equals(connectionId)) {
+                    throw new BusinessException(ErrorCode.AUTH_FORBIDDEN);
+                }
+                token = userTokens.accessToken(projectId, userAuthorizationId);
+            } else {
+                token = feishu.tenantAccessToken(connection.appId, secrets.decrypt(connection.appSecretCipher));
+            }
         } catch (FeishuApiException exception) {
             feishu.invalidateToken(connection.appId);
-            connections.updateStatus(connectionId, "INVALID", exception.getMessage(), null);
+            if (exception.invalidApplicationCredentials()) {
+                connections.updateStatus(connectionId, "INVALID", exception.getMessage(), null);
+            }
             throw new BusinessException(ErrorCode.CONNECTOR_CREDENTIAL_INVALID, exception.getMessage());
         }
         try {
@@ -89,8 +110,8 @@ public class ConnectorSourceService {
         UUID id = UUID.randomUUID();
         try {
             sources.insert(id, projectId, connectionId, folderToken.trim(), name.trim(), "ACTIVE",
-                    userId, OffsetDateTime.now());
-        } catch (RuntimeException exception) {
+                    userId, OffsetDateTime.now(), userAuthorizationId);
+        } catch (org.springframework.dao.DuplicateKeyException exception) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "该文件夹已添加为本项目知识源");
         }
         audit.write(projectId, userId, "CONNECTOR_SOURCE_ADDED", "CONNECTOR_SOURCE", id,
@@ -107,6 +128,7 @@ public class ConnectorSourceService {
         accessGuard.requireMember(projectId, userId);
         requireSourceInProject(projectId, sourceId);
         return externalDocs.listBySource(sourceId).stream()
+                .filter(row -> row.documentId != null && documentVisibility.readable(projectId, row.documentId))
                 .map(row -> new ExternalDocumentView(row.id, row.externalKey, row.title, row.sourceUrl,
                         row.status, row.documentId, row.documentStatus))
                 .toList();
@@ -137,12 +159,15 @@ public class ConnectorSourceService {
 
     private SourceView view(ConnectorRows.SourceRow row) {
         ConnectorRows.ConnectionRow connection = connections.find(row.connectionId);
+        boolean visible = "ACTIVE".equals(row.status) && (row.userAuthorizationId == null ||
+                grants.find(row.projectId, row.userAuthorizationId).filter(grant -> "ACTIVE".equals(grant.status())
+                        && grant.accessExpiresAt() != null && grant.accessExpiresAt().isAfter(java.time.Instant.now())).isPresent());
         long count = externalDocs.listBySource(row.id).stream()
-                .filter(doc -> "ACTIVE".equals(doc.status)).count();
+                .filter(doc -> visible && "ACTIVE".equals(doc.status)).count();
         List<ConnectorRows.JobRow> recent = jobs.listRecent(row.id, 1);
         ConnectorViews.SyncJobView lastJob = recent.isEmpty() ? null : ConnectorViews.job(recent.getFirst());
         return new SourceView(row.id, row.projectId, row.connectionId,
-                connection == null ? null : connection.name, row.folderToken, row.name, row.status,
-                row.authorizationDeclaredAt, row.lastVerifiedAt, row.lastSyncedAt, count, lastJob);
+                connection == null ? null : connection.name, visible ? row.folderToken : null, row.name, visible ? row.status : "BLOCKED",
+                row.authorizationDeclaredAt, row.lastVerifiedAt, row.lastSyncedAt, count, lastJob, row.userAuthorizationId);
     }
 }

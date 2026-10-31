@@ -1804,9 +1804,9 @@ public class AgentRunEventRecorder {
                   AND coalesce(s.output_json->>'status','SUCCEEDED')='SUCCEEDED'
                   AND EXISTS (
                     SELECT b.id FROM document_body_chunk b JOIN project_document d ON d.id=b.document_id
-                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status<>'DELETING'
+                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status<>'DELETING' AND NOT d.access_blocked
                     UNION ALL SELECT b.id FROM document_chunk b JOIN project_document d ON d.id=b.document_id
-                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status='READY')
+                    WHERE b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId' AND d.project_id=? AND d.status='READY' AND NOT d.access_blocked)
                 ORDER BY s.sequence_no
                 """, String.class, runId, projectId, projectId)) {
             try { var citation = json.readValue(value, AgentCitation.class); evidence.putIfAbsent(citation.chunkId(), citation); }
@@ -1833,10 +1833,10 @@ public class AgentRunEventRecorder {
                   AND EXISTS (
                     SELECT b.id FROM document_body_chunk b JOIN project_document d ON d.id=b.document_id
                     WHERE b.id=ANY(?::uuid[]) AND b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId'
-                      AND d.project_id=? AND d.status<>'DELETING'
+                      AND d.project_id=? AND d.status<>'DELETING' AND NOT d.access_blocked
                     UNION ALL SELECT b.id FROM document_chunk b JOIN project_document d ON d.id=b.document_id
                     WHERE b.id=ANY(?::uuid[]) AND b.id::text=c.value->>'chunkId' AND d.id::text=c.value->>'documentId'
-                      AND d.project_id=? AND d.status='READY')
+                      AND d.project_id=? AND d.status='READY' AND NOT d.access_blocked)
                 ORDER BY c.value->>'chunkId', s.sequence_no
                 LIMIT 50
                 """, String.class, runId, requestedIds, requestedIds, projectId, requestedIds, projectId)) {

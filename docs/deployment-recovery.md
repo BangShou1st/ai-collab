@@ -94,3 +94,25 @@ agent.enabled=false 关闭 Agent；agent.capabilities.planning=false 关闭规�
 ↔ 对象文件对应核验）、`run-restore-drill.sh`（一键隔离演练）。用法、配置变量与隔离演练
 结论见 `ai-collab-deploy/backup/README.md` 与
 `docs/release-readiness/p5-release-readiness-02/backup-restore-runbook.md`。
+
+## 部署环境变量：统一公开地址与邮件（2026-10-31 增补，P7.1）
+
+服务器部署除既有变量外新增以下配置（`docker-compose.yml` 已透传，只改 `.env` 零代码生效）：
+
+| 变量 | 必填 | 语义与约束 |
+| --- | --- | --- |
+| `APP_PUBLIC_URL` | 是 | 正式前端公开源（仅 origin，无路径/查询参数）。邀请、密码重置、邮箱验证等敏感链接的唯一可信来源；非法值应用拒绝启动。语义上不可用 `AUTH_ALLOWED_ORIGINS`（CORS 白名单）替代。 |
+| `MAIL_ENABLED` | 邮件启用时必填 | `true` 启用 SMTP 投递；`false` 降级为记录发送意图（不投递、正文不入日志）。 |
+| `MAIL_HOST` / `MAIL_PORT` / `MAIL_FROM` | 同上 | `MAIL_ENABLED=true` 时 `MAIL_HOST` 与 `MAIL_FROM` 缺失将拒绝启动。 |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_STARTTLS` | 可选 | SMTP 认证与 TLS；凭据只写部署环境，禁止进 Git 或日志。 |
+
+行为边界：邮件发送在数据库事务提交后异步执行，SMTP 故障仅记错误日志，不回滚注册/重置等业务事务；
+密码重置与邮箱验证令牌只存 SHA-256 哈希、一次性消费、限频并审计（设计细节见
+`docs/design/account-lifecycle.md`，验收报告见
+`docs/archive/report/P7-1-DEPLOY-CONSISTENCY-ACCOUNT-LIFECYCLE-ACCEPTANCE.md`）。
+
+本地/演练联调可用 Compose 可选 profile 拉起 Mailpit 假 SMTP（`--profile maildev`，SMTP :1025 /
+收件箱 UI :8025），配置 `MAIL_ENABLED=true`、`MAIL_HOST=localhost`、`MAIL_PORT=1025`、
+`APP_PUBLIC_URL=http://localhost:5173` 即可零外部凭据完整验证邮件闭环；生产严禁启用该 profile。
+Cloudflare Pages 生产环境必须显式配置 `BACKEND_ORIGIN` 指向后端网关：缺失时 API 请求返回 503
+明确失败（仅预览分支允许回退 Staging），见 `ai-collab-frontend/functions/api/_lib/backend-origin.ts`。

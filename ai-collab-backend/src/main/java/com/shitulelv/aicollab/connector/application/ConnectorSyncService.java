@@ -59,6 +59,8 @@ public class ConnectorSyncService {
     private final DocumentStorageGateway storage;
     private final DocumentTaskDispatcher dispatcher;
     private final TaskExecutor syncExecutor;
+    private final ConnectorOAuthTokenService userTokens;
+    private final ConnectorVisibilityService visibility;
 
     public ConnectorSyncService(ConnectorSourceMapper sources, ConnectorConnectionMapper connections,
                                 ConnectorSyncJobMapper jobs, ExternalDocumentMapper externalDocs,
@@ -66,7 +68,8 @@ public class ConnectorSyncService {
                                 com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher secrets,
                                 DocumentRepository documents, DocumentRegistrationService registration,
                                 DocumentStorageGateway storage, DocumentTaskDispatcher dispatcher,
-                                @Qualifier("connectorSyncExecutor") TaskExecutor syncExecutor) {
+                                @Qualifier("connectorSyncExecutor") TaskExecutor syncExecutor,
+                                ConnectorOAuthTokenService userTokens, ConnectorVisibilityService visibility) {
         this.sources = sources;
         this.connections = connections;
         this.jobs = jobs;
@@ -79,6 +82,8 @@ public class ConnectorSyncService {
         this.storage = storage;
         this.dispatcher = dispatcher;
         this.syncExecutor = syncExecutor;
+        this.userTokens = userTokens;
+        this.visibility = visibility;
     }
 
     /** Claims the run synchronously (fast conflict feedback) and executes the scan async. */
@@ -134,34 +139,46 @@ public class ConnectorSyncService {
         }
         String token;
         try {
-            token = feishu.tenantAccessToken(connection.appId, secrets.decrypt(connection.appSecretCipher));
+            token = source.userAuthorizationId == null
+                    ? feishu.tenantAccessToken(connection.appId, secrets.decrypt(connection.appSecretCipher))
+                    : userTokens.accessToken(source.projectId, source.userAuthorizationId);
         } catch (FeishuApiException exception) {
             feishu.invalidateToken(connection.appId);
-            connections.updateStatus(connection.id, "INVALID", exception.getMessage(), null);
+            if (exception.invalidApplicationCredentials()) {
+                connections.updateStatus(connection.id, "INVALID", exception.getMessage(), null);
+            }
             return "获取飞书访问凭证失败：" + exception.getMessage();
+        } catch (BusinessException exception) {
+            return "飞书用户授权暂不可用，请检查授权状态";
         }
 
         List<FeishuFile> files;
         try {
             files = feishu.listFolderDocx(token, source.folderToken);
         } catch (FeishuApiException exception) {
+            if (source.userAuthorizationId != null && exception.invalidToken()) {
+                blockInvalidUserToken(source);
+                return "飞书用户凭证不可用，知识已屏蔽并等待重新验证";
+            }
             if (exception.forbidden()) {
-                blockSource(source, "文件夹访问被拒绝或授权已撤销，请重新确认共享范围");
+                visibility.blockSource(source.projectId, source.id, false);
                 return "文件夹不可访问：" + exception.getMessage();
             }
             return "扫描文件夹失败：" + exception.getMessage();
         }
 
         // Listing completed in full: verification evidence is fresh.
-        sources.updateStatus(source.id, "ACTIVE", java.time.OffsetDateTime.now());
+        if (!visibility.restoreSource(source.projectId, source.id)) {
+            return "知识源授权不可用或清理任务尚未完成";
+        }
         feishu.folderPermissionMembers(token, source.folderToken);
 
         // BLOCKED rows re-join the diff so re-granted access restores them; only
         // rows already proven REMOVED stay out of consideration.
-        List<ConnectorRows.ExternalDocRow> known = externalDocs.listBySource(source.id).stream()
-                .filter(row -> !"REMOVED".equals(row.status)).toList();
+        List<ConnectorRows.ExternalDocRow> known = externalDocs.listBySource(source.id);
         Set<String> listedTokens = new HashSet<>();
-        List<ConnectorRows.ExternalDocRow> toRemove = new ArrayList<>(known);
+        List<ConnectorRows.ExternalDocRow> toRemove = new ArrayList<>(known.stream()
+                .filter(row -> !"REMOVED".equals(row.status)).toList());
 
         for (FeishuFile file : files) {
             counters.scanned++;
@@ -172,7 +189,7 @@ public class ConnectorSyncService {
             try {
                 if (existing != null && existing.latestModifyTime != null
                         && existing.latestModifyTime.equals(file.modifiedTime())
-                        && !"BLOCKED".equals(existing.status)) {
+                        && "ACTIVE".equals(existing.status)) {
                     counters.skipped++;
                     continue;
                 }
@@ -186,20 +203,39 @@ public class ConnectorSyncService {
                     continue;
                 }
                 String hash = sha256(content);
-                if (existing != null && hash.equals(existing.contentHash)
-                        && !"BLOCKED".equals(existing.status)) {
-                    externalDocs.updateContent(existing.id, safeTitle(file), file.url(),
-                            file.modifiedTime(), existing.contentHash);
+                boolean[] updated = { false };
+                boolean accepted = visibility.withActiveSource(source.projectId, source.id, () -> {
+                    if (existing != null && "BLOCKED".equals(existing.status) && existing.documentStatus != null) {
+                        if (!visibility.restoreDocument(source.projectId, source.id, existing.id)) {
+                            throw new BusinessException(ErrorCode.CONNECTOR_REAUTH_REQUIRED);
+                        }
+                        existing.status = "ACTIVE";
+                    }
+                    if (existing != null && "ACTIVE".equals(existing.status) && hash.equals(existing.contentHash)) {
+                        externalDocs.updateContent(existing.id, safeTitle(file), file.url(),
+                                file.modifiedTime(), existing.contentHash);
+                    } else {
+                        upsertDocument(source, file, content, hash, existing);
+                        updated[0] = true;
+                    }
+                });
+                if (!accepted) {
+                    recordFailure(counters, "知识源授权已变化，请重新同步");
+                } else if (updated[0]) {
+                    counters.updated++;
+                    counters.sawChange = true;
+                } else {
                     counters.skipped++;
-                    continue;
                 }
-                upsertDocument(source, file, content, hash, existing);
-                counters.updated++;
-                counters.sawChange = true;
             } catch (BusinessException exception) {
                 recordFailure(counters, safeMessage(exception));
             } catch (FeishuApiException exception) {
+                if (source.userAuthorizationId != null && exception.invalidToken()) {
+                    blockInvalidUserToken(source);
+                    return "飞书用户凭证不可用，知识已屏蔽并等待重新验证";
+                }
                 if (exception.forbidden()) {
+                    if (existing != null) visibility.blockDocument(source.projectId, source.id, existing.id);
                     recordFailure(counters, "文档读取被拒绝（可能未共享给应用）");
                 } else {
                     throw exception;
@@ -210,8 +246,7 @@ public class ConnectorSyncService {
         // Removal/revocation handling: only after a complete, successful listing.
         for (ConnectorRows.ExternalDocRow stale : toRemove) {
             try {
-                removeIndexedDocument(source, stale);
-                externalDocs.updateStatus(stale.id, "REMOVED");
+                visibility.blockDocument(source.projectId, source.id, stale.id);
                 counters.removed++;
                 counters.sawChange = true;
             } catch (RuntimeException exception) {
@@ -222,12 +257,21 @@ public class ConnectorSyncService {
         return null;
     }
 
+    private void blockInvalidUserToken(ConnectorRows.SourceRow source) {
+        visibility.blockAuthorization(source.projectId, source.userAuthorizationId, false);
+        try {
+            userTokens.forceRefresh(source.projectId, source.userAuthorizationId);
+        } catch (BusinessException failure) {
+            // Temporary and uncertain failures keep the knowledge blocked without deleting it.
+        }
+    }
+
     private void upsertDocument(ConnectorRows.SourceRow source, FeishuFile file,
                                 String content, String hash, ConnectorRows.ExternalDocRow existing) {
         String displayName = safeTitle(file);
         // A BLOCKED row means access was revoked earlier and its indexed document
         // was removed; on re-grant it must be re-registered and re-bound.
-        boolean reactivating = existing != null && "BLOCKED".equals(existing.status);
+        boolean reactivating = existing != null && ("BLOCKED".equals(existing.status) || "REMOVED".equals(existing.status));
         if (existing == null || reactivating) {
             UUID documentId = UUID.randomUUID();
             String objectKey = objectKey(source.projectId, documentId);
@@ -278,30 +322,6 @@ public class ConnectorSyncService {
                     revisions.maxRevisionNo(existing.id) + 1, file.modifiedTime(), hash, documentId, "ACTIVE");
             dispatcher.dispatch(source.projectId, documentId);
         }
-    }
-
-    private void removeIndexedDocument(ConnectorRows.SourceRow source, ConnectorRows.ExternalDocRow stale) {
-        if (stale.documentId != null) {
-            // project_document rows are only removable in DELETING state; mark first.
-            documents.markDeleting(source.projectId, stale.documentId);
-            documents.deleteRows(source.projectId, stale.documentId);
-            try {
-                storage.delete(objectKey(source.projectId, stale.documentId));
-            } catch (RuntimeException exception) {
-                log.warn("删除外部文档对象失败（不影响索引移除），objectKey 前缀已脱敏");
-            }
-        }
-    }
-
-    private void blockSource(ConnectorRows.SourceRow source, String reason) {
-        for (ConnectorRows.ExternalDocRow doc : externalDocs.listBySource(source.id)) {
-            if ("ACTIVE".equals(doc.status)) {
-                removeIndexedDocument(source, doc);
-                externalDocs.updateStatus(doc.id, "BLOCKED");
-            }
-        }
-        sources.updateStatus(source.id, "BLOCKED", null);
-        log.warn("飞书知识源已被阻断：{}，sourceId={}", reason, source.id);
     }
 
     private ConnectorRows.SourceRow requireSource(UUID sourceId) {

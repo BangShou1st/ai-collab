@@ -61,10 +61,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/logout",
                                 "/api/v1/auth/register",
+                                "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
+                                "/api/v1/auth/verify-email",
+                                "/api/v1/connector/events/{connectionId}",
                                 "/api/v1/invitations/{code}/accept").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/invitations/{code}",
-                                "/api/v1/auth/registration-policy").permitAll()
+                                "/api/v1/auth/registration-policy",
+                                "/api/v1/connector/oauth/callback",
+                                "/api/v1/connector/oauth/complete",
+                                "/internal/storage-authorize").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions

@@ -43,6 +43,8 @@ public class AuthRateLimiter {
     private final StringRedisTemplate redis;
     private final int loginLimitPerHour;
     private final int registerLimitPerHour;
+    private final int passwordResetLimitPerHour;
+    private final int verifyEmailLimitPerHour;
     private final ConcurrentHashMap<String, AtomicInteger> fallback = new ConcurrentHashMap<>();
     private final AtomicInteger cleanupTicker = new AtomicInteger();
     private final ZoneId zoneId;
@@ -50,13 +52,18 @@ public class AuthRateLimiter {
     public AuthRateLimiter(
             StringRedisTemplate redis,
             @Value("${auth.rate-limit.login-per-hour:30}") int loginLimitPerHour,
-            @Value("${auth.rate-limit.register-per-hour:10}") int registerLimitPerHour) {
-        if (loginLimitPerHour < 1 || registerLimitPerHour < 1) {
+            @Value("${auth.rate-limit.register-per-hour:10}") int registerLimitPerHour,
+            @Value("${auth.rate-limit.password-reset-per-hour:10}") int passwordResetLimitPerHour,
+            @Value("${auth.rate-limit.verify-email-per-hour:30}") int verifyEmailLimitPerHour) {
+        if (loginLimitPerHour < 1 || registerLimitPerHour < 1
+                || passwordResetLimitPerHour < 1 || verifyEmailLimitPerHour < 1) {
             throw new IllegalArgumentException("auth rate limit 必须大于 0");
         }
         this.redis = redis;
         this.loginLimitPerHour = loginLimitPerHour;
         this.registerLimitPerHour = registerLimitPerHour;
+        this.passwordResetLimitPerHour = passwordResetLimitPerHour;
+        this.verifyEmailLimitPerHour = verifyEmailLimitPerHour;
         this.zoneId = ZoneId.systemDefault();
     }
 
@@ -67,6 +74,15 @@ public class AuthRateLimiter {
 
     public void checkRegister(HttpServletRequest request) {
         check("rate:auth:register:" + clientIp(request), registerLimitPerHour);
+    }
+
+    public void checkPasswordReset(HttpServletRequest request, String email) {
+        check("rate:auth:password-reset:" + clientIp(request) + ":" + hash(normalize(email)),
+                passwordResetLimitPerHour);
+    }
+
+    public void checkVerifyEmail(HttpServletRequest request) {
+        check("rate:auth:verify-email:" + clientIp(request), verifyEmailLimitPerHour);
     }
 
     static String clientIp(HttpServletRequest request) {

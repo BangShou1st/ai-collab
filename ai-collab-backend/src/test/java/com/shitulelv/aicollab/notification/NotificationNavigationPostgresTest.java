@@ -58,7 +58,8 @@ class NotificationNavigationPostgresTest {
     }
     NotificationApplicationService service(SqlSession session) {
         return new NotificationApplicationService(new NotificationRepository(session.getMapper(NotificationMapper.class)),
-                new DatabaseProjectAccessGuard(new ProjectMemberRepository(session.getMapper(ProjectMemberMapper.class))));
+                new DatabaseProjectAccessGuard(new ProjectMemberRepository(session.getMapper(ProjectMemberMapper.class))),
+                new com.shitulelv.aicollab.document.infrastructure.repository.DocumentVisibilityRepository(jdbc));
     }
     @Test void readPersistsInFreshUserAndProjectQueriesAndCannotBeWrittenByAnotherUser() {
         var f = fixture(); UUID id = notification(f);

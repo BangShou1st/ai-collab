@@ -33,8 +33,9 @@ class P10ScorerRobustness06Test {
     private static final Path QUESTIONS = FIXTURES.resolve("p10-evaluation-question-set.json");
     private static final Path P9_RESULTS = ROOT.resolve(
             "docs/acceptance-evidence/2026-10-26/p9-rag-generalization-01/retrieval-results.json");
-    private static final Path EVIDENCE_DIR = ROOT.resolve(
+    private static final Path BASELINE_DIR = ROOT.resolve(
             "docs/acceptance-evidence/2026-10-27/p10-scorer-robustness-06");
+    private static final Path EVIDENCE_DIR = Path.of("target", "test-evidence", "p10-scorer-robustness-06");
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private static JsonNode questionSet;
@@ -964,7 +965,7 @@ class P10ScorerRobustness06Test {
 
         // ---- before-after（before 取基线探针真实输出，after 为本轮真实输出）----
         List<Map<String, Object>> beforeAfter = new ArrayList<>();
-        Path baselineProbe = EVIDENCE_DIR.resolve("baseline-probe.json");
+        Path baselineProbe = BASELINE_DIR.resolve("baseline-probe.json");
         JsonNode baseline = baselineProbe.toFile().exists()
                 ? JSON.readTree(baselineProbe.toFile()) : JSON.nullNode();
         for (String riskId : new String[]{"RISK-AUDIT2-001", "RISK-AUDIT2-002", "RISK-AUDIT2-003",

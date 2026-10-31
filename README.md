@@ -207,7 +207,7 @@ sequenceDiagram
 | **后端运行环境** | Java | `21 (LTS)` | 虚拟线程、强封装、新语言特性 |
 | **后端框架** | Spring Boot | `4.1.0` | 核心服务容器、Spring Security、OAuth2 Resource Server |
 | **持久层** | MyBatis-Plus | `3.5.17` | 高性能 ORM、条件构造器、分页插件 |
-| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V68**，严禁篡改历史） |
+| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V72**，严禁篡改历史） |
 | **文档解析引擎** | Apache Tika | `3.3.0` | 多源文档结构化内容与元数据提取 |
 | **前端框架** | Vue | `3.5.18` | Composition API、`<script setup>` 高性能渲染 |
 | **类型系统** | TypeScript | `5.8.3` | 全栈严格类型安全，消除隐式 `any` |
@@ -419,7 +419,7 @@ ai-collab/
 │   │   ├── common/                  # 全局统一响应包装、业务异常体系、MyBatis 序列化
 │   │   └── infrastructure/          # 多厂商模型网关、向量适配器、安全清洗过滤网关
 │   ├── src/main/resources/
-│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V68，共 68 个版本）
+│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V72，共 72 个版本）
 │   │   └── application.yml          # 主配置模板与默认参数
 │   └── src/test/                    # 完整单元测试与 Testcontainers 集成测试套件（1600+ 测试）
 ├── ai-collab-frontend/              # Vue 3.5 + TypeScript 5.8 前端工程（161 源文件 / 约 2.2 万行）

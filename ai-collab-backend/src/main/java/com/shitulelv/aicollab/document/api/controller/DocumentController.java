@@ -5,8 +5,13 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.service.BatchReindexService;
 import com.shitulelv.aicollab.document.application.service.DocumentApplicationService;
+import com.shitulelv.aicollab.document.application.view.DocumentDownloadResource;
 import com.shitulelv.aicollab.document.application.view.DocumentView;
 import com.shitulelv.aicollab.document.application.view.DownloadUrlView;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -61,6 +66,28 @@ public class DocumentController {
             @PathVariable UUID projectId, @PathVariable UUID documentId,
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(documents.downloadUrl(projectId, documentId, userId(jwt)));
+    }
+
+    @GetMapping("/{documentId}/download")
+    public ResponseEntity<InputStreamResource> download(
+            @PathVariable UUID projectId, @PathVariable UUID documentId,
+            @AuthenticationPrincipal Jwt jwt) {
+        DocumentDownloadResource res = documents.download(projectId, documentId, userId(jwt));
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (res.mimeType() != null && !res.mimeType().isBlank()) {
+            try {
+                mediaType = MediaType.parseMediaType(res.mimeType());
+            } catch (Exception ignored) {
+            }
+        }
+        ContentDisposition disposition = ContentDisposition.attachment()
+                .filename(res.filename(), java.nio.charset.StandardCharsets.UTF_8)
+                .build();
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .contentLength(res.sizeBytes())
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .body(new InputStreamResource(res.stream()));
     }
 
     @PostMapping("/{documentId}/retry")

@@ -14,7 +14,20 @@ import java.util.UUID;
 @Mapper
 public interface NotificationMapper extends BaseMapper<NotificationEntity> {
     String SELECT_VIEW = """
-            SELECT n.*, n.is_read AS read, p.name AS project_name
+            SELECT n.id,n.project_id,n.user_id,n.type,
+              CASE WHEN n.entity_type='PROJECT_DOCUMENT' AND (
+                EXISTS (SELECT 1 FROM connector_document_visibility v
+                  WHERE v.project_id=n.project_id AND v.id=n.entity_id AND NOT v.readable)
+                OR EXISTS (SELECT 1 FROM connector_deletion_journal j
+                  WHERE j.project_id=n.project_id AND j.document_id=n.entity_id)
+              ) THEN '文档通知' ELSE n.title END AS title,
+              CASE WHEN n.entity_type='PROJECT_DOCUMENT' AND (
+                EXISTS (SELECT 1 FROM connector_document_visibility v
+                  WHERE v.project_id=n.project_id AND v.id=n.entity_id AND NOT v.readable)
+                OR EXISTS (SELECT 1 FROM connector_deletion_journal j
+                  WHERE j.project_id=n.project_id AND j.document_id=n.entity_id)
+              ) THEN '关联文档已不可访问' ELSE n.content END AS content,
+              n.entity_type,n.entity_id,n.is_read AS read,n.created_at,p.name AS project_name
             FROM notification n
             JOIN project p ON p.id = n.project_id
             """;
@@ -49,8 +62,7 @@ public interface NotificationMapper extends BaseMapper<NotificationEntity> {
     @Update("UPDATE notification SET is_read = true WHERE user_id = #{userId} AND is_read = false")
     int markAllAsRead(@Param("userId") UUID userId);
 
-    @Select("""
-            SELECT n.*, n.is_read AS read FROM notification n
+    @Select(SELECT_VIEW + """
             WHERE n.user_id = #{userId} AND n.entity_type = #{entityType} AND n.entity_id = #{entityId}
             ORDER BY n.created_at DESC LIMIT 1
             """)

@@ -10,5 +10,6 @@ public record CreateSourceRequest(
         @NotNull UUID connectionId,
         @NotBlank @Size(max = 120) String folderToken,
         @NotBlank @Size(max = 200) String name,
-        @NotNull boolean authorizationConfirmed) {
+        @NotNull boolean authorizationConfirmed,
+        UUID userAuthorizationId) {
 }

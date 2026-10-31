@@ -102,4 +102,18 @@ public class UserService {
                 .set(UserEntity::getStatus, status)
                 .set(UserEntity::getUpdatedAt, OffsetDateTime.now())) == 1;
     }
+
+    public boolean markEmailVerified(UUID userId) {
+        return userMapper.update(null, new LambdaUpdateWrapper<UserEntity>()
+                .eq(UserEntity::getId, userId)
+                .set(UserEntity::getEmailVerified, true)
+                .set(UserEntity::getUpdatedAt, OffsetDateTime.now())) == 1;
+    }
+
+    public boolean markEmailUnverified(UUID userId) {
+        return userMapper.update(null, new LambdaUpdateWrapper<UserEntity>()
+                .eq(UserEntity::getId, userId)
+                .set(UserEntity::getEmailVerified, false)
+                .set(UserEntity::getUpdatedAt, OffsetDateTime.now())) == 1;
+    }
 }

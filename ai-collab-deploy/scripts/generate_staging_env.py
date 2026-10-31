@@ -30,6 +30,7 @@ MINIO_BUCKET=ai-collab-staging
 JWT_SECRET={jwt_secret}
 MODEL_CONFIG_MASTER_KEY={master_key}
 AUTH_ALLOWED_ORIGINS=https://8443-agqyc3kteqehqgazwefpmhwulu.instabox.tech,https://ai-collab-web.pages.dev
+MINIO_PUBLIC_ENDPOINT=https://8443-agqyc3kteqehqgazwefpmhwulu.instabox.tech
 STAGING_PORT=8443
 APP_IMAGE=ai-collab-backend:staging-39988959
 AUTH_PUBLIC_REGISTRATION_ENABLED=true

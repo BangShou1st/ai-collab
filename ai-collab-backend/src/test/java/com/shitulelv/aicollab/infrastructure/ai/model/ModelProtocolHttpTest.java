@@ -1,5 +1,6 @@
 package com.shitulelv.aicollab.infrastructure.ai.model;
 
+import com.sharedlibs.opencodezen.OpenCodeZenProtocolPolicy;
 import com.fasterxml.jackson.databind.*;
 import com.shitulelv.aicollab.common.security.OutboundEndpointPolicy;
 import com.shitulelv.aicollab.common.exception.*;
@@ -55,12 +56,12 @@ class ModelProtocolHttpTest {
     private ChatCompletionResult complete() {
         return adapter.completeStreamingSyncWithSession(config, "synthetic-key",
                 new ChatCompletionCommand("system", "输出 JSON", ChatCompletionCommand.OutputFormat.PROMPT_JSON),
-                AiRequestMetadata.of("synthetic-session"), "opencode/latest/2.0.29/cli");
+                AiRequestMetadata.of("synthetic-session"), OpenCodeZenProtocolPolicy.USER_AGENT);
     }
     private ModelTurnResult turn() {
         return adapter.turnWithSession(config, "synthetic-key", new ModelTurnCommand(ModelPurpose.AGENT,
                 List.of(new ModelMessage.User("query")), List.of(new ModelToolDefinition("get_task", "query", json.createObjectNode().put("type", "object"))), false),
-                AiRequestMetadata.of("synthetic-session"), "opencode/latest/2.0.29/cli");
+                AiRequestMetadata.of("synthetic-session"), OpenCodeZenProtocolPolicy.USER_AGENT);
     }
     @Test void zen_wire_and_content_fragments_without_usage() {
         reply(200, "text/event-stream", ": comment\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"{\\\"ok\\\":\"}}]}\n\n"
@@ -71,13 +72,17 @@ class ModelProtocolHttpTest {
         assertThat(request.get().path("stream").asBoolean()).isTrue();
         assertThat(request.get().has("response_format")).isFalse();
         assertThat(request.get().has("max_tokens")).isFalse();
+        // v2.x wire：共享库塑形会注入 2.x 客户端的补全上限与用量协商，不再是极简 body。
+        assertThat(request.get().has("max_completion_tokens")).isTrue();
+        assertThat(request.get().has("stream_options")).isTrue();
         assertThat(headers.get().getFirst("Authorization")).isEqualTo("Bearer synthetic-key");
-        assertThat(headers.get().getFirst("User-Agent")).isEqualTo("opencode/latest/2.0.29/cli");
+        assertThat(headers.get().getFirst("User-Agent")).isEqualTo(OpenCodeZenProtocolPolicy.USER_AGENT);
         assertThat(headers.get().getFirst("x-opencode-session")).isNotBlank();
         assertThat(headers.get().getFirst("x-opencode-client")).isEqualTo("cli");
-        assertThat(headers.get().getFirst("x-opencode-project")).isEqualTo("global");
+        assertThat(headers.get().getFirst("x-opencode-project")).matches("[0-9a-f]{40}");
         assertThat(headers.get().getFirst("x-opencode-request")).isNull();
-        assertThat(request.get().path("tools").findValuesAsText("name")).containsExactly("shell", "read");
+        assertThat(request.get().path("tools").findValuesAsText("name"))
+                .containsExactlyElementsOf(OpenCodeZenProtocolPolicy.reservedToolNames());
     }
     private ModelConfiguration configFor(String model) {
         return new ModelConfiguration(UUID.randomUUID(), UUID.randomUUID(), "test", ModelProviderType.OPENAI_COMPATIBLE,
@@ -92,7 +97,7 @@ class ModelProtocolHttpTest {
     void whitelistedFreeModelUsesPublicCredentialWithoutKey(String model) {
         reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n");
         var result = adapter.completeStreamingSyncWithSession(configFor(model), null,
-                new ChatCompletionCommand("system", "query"), AiRequestMetadata.of("free-session"), "opencode/latest/2.0.29/cli");
+                new ChatCompletionCommand("system", "query"), AiRequestMetadata.of("free-session"), OpenCodeZenProtocolPolicy.USER_AGENT);
         assertThat(result.content()).isEqualTo("ok");
         assertThat(headers.get().getFirst("Authorization")).isEqualTo("Bearer public");
         assertThat(requests.get()).isEqualTo(1);
@@ -102,7 +107,7 @@ class ModelProtocolHttpTest {
     @ValueSource(strings = {"gpt-4", "space-bunny-free", "jev-1.13-free"})
     void modelOutsideWhitelistWithoutKeyIsRejectedBeforeHttp(String model) {
         assertThatThrownBy(() -> adapter.completeStreamingSyncWithSession(configFor(model), null,
-                new ChatCompletionCommand("system", "query"), AiRequestMetadata.of("paid-session"), "opencode/latest/2.0.29/cli"))
+                new ChatCompletionCommand("system", "query"), AiRequestMetadata.of("paid-session"), OpenCodeZenProtocolPolicy.USER_AGENT))
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.AI_MODEL_CREDENTIAL_INVALID));
         assertThat(requests.get()).isZero();
@@ -133,7 +138,18 @@ class ModelProtocolHttpTest {
         assertThat(result.toolCalls()).hasSize(1);
         assertThat(result.toolCalls().getFirst().arguments().path("taskId").asText()).isEqualTo("123");
         assertThat(request.get().path("stream").asBoolean()).isTrue();
-        assertThat(request.get().path("tools").findValuesAsText("name")).containsExactly("get_task", "shell", "read");
+        var wireNames = new java.util.ArrayList<String>();
+        wireNames.add("clint_get_task");
+        wireNames.addAll(OpenCodeZenProtocolPolicy.reservedToolNames());
+        assertThat(request.get().path("tools").findValuesAsText("name")).containsExactlyElementsOf(wireNames);
+    }
+    @Test void wire_tool_names_are_restored_to_the_declared_business_names() {
+        reply(200, "text/event-stream", "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call-1\",\"function\":{\"name\":\"clint_get_task\",\"arguments\":\"{\\\"taskId\\\":\"}}]}}]}\n\n"
+                + "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"123\\\"}\"}}]},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n");
+        var result = turn();
+        assertThat(result.toolCalls()).hasSize(1);
+        assertThat(result.toolCalls().getFirst().name()).isEqualTo("get_task");
+        assertThat(result.toolCalls().getFirst().arguments().path("taskId").asText()).isEqualTo("123");
     }
     @ParameterizedTest @CsvSource({"401,AI_MODEL_CREDENTIAL_INVALID","403,AI_PROVIDER_REQUEST_REJECTED","429,AI_PROVIDER_QUOTA_EXCEEDED","500,AI_PROVIDER_ERROR","408,AI_MODEL_TIMEOUT","504,AI_MODEL_TIMEOUT"})
     void status_mapping_never_retries_zen(int status, ErrorCode code) {

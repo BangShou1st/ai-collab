@@ -62,9 +62,11 @@ public class ProviderPresetRegistry {
     @org.springframework.beans.factory.annotation.Autowired
     public ProviderPresetRegistry(
             @Value("${zen.upstream:" + ZEN_INFERENCE_BASE + "}") String zenUpstream,
-            @Value("${opencode.zen.user-agent:" + OpenCodeZenProtocolPolicy.USER_AGENT + "}") String zenUserAgent) {
+            // v1.6.1 起 USER_AGENT 由 capture 组合（非编译期常量），注解默认值留空并在运行时回退共享库值。
+            @Value("${opencode.zen.user-agent:}") String zenUserAgent) {
         this.zenBaseUrl = approveZenUpstream(zenUpstream);
-        this.zenUserAgent = zenUserAgent;
+        this.zenUserAgent = zenUserAgent == null || zenUserAgent.isBlank()
+                ? OpenCodeZenProtocolPolicy.USER_AGENT : zenUserAgent;
         this.policies = Map.of(
                 ProviderPresetCode.OPENCODE_ZEN_FREE, zenFree(this.zenBaseUrl, this.zenUserAgent),
                 ProviderPresetCode.KILO_GATEWAY_FREE, kiloFree());

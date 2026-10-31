@@ -1,0 +1,105 @@
+==========================================================
+AI-Collab P6.1-P7 Staging Full Acceptance Test Suite
+Timestamp: 2026-10-30T10:48:44Z
+Base URL: https://8443-agqyc3kteqehqgazwefpmhwulu.instabox.tech
+==========================================================
+
+=== [STEP 1] Admin Authentication and Cookie Verification ===
+Admin User ID: 6624d44a-f0e9-482c-83a3-f390063a7add
+SystemAdmin Flag: true
+[PASS] Admin authenticated successfully
+
+=== [STEP 2] Read Initial Configuration and Runtime Status ===
+Initial Config: {"code":"SUCCESS","message":"操作成功","data":{"id":"00000000-0000-0000-0000-000000000001","agentEnabled":true,"chatEnabled":true,"workerConcurrency":2,"workerDelayMs":1000,"scheduleDelayMs":30000,"systemMaintenanceMode":false,"systemMaintenanceMessage":"","publicRegistrationEnabled":true,"defaultChatModel":"","defaultAgentModel":"","ragRetrievalThreshold":0.55,"ragMaxSources":12,"version":26,"updatedBy":"6624d44a-f0e9-482c-83a3-f390063a7add","createdAt":"2026-10-30T10:02:14.079199Z","updatedAt":"2026-10-30T10:48:16.894995569Z"}}
+Initial Version: 26
+Initial Runtime Status: {"code":"SUCCESS","message":"操作成功","data":{"agentEnabled":true,"chatEnabled":true,"agentRuntimeAllowed":true,"configuredWorkerConcurrency":2,"activeWorkerThreads":0,"queuedAgentRuns":0,"runningAgentRuns":0,"recentFailedAgentRuns":0,"lastExecutionError":null,"maintenanceMode":false,"refreshedAt":"2026-10-30T10:48:45.292540477Z"}}
+[PASS] Initial configuration and runtime query successful
+
+=== [STEP 3] Dynamic Config Update (Enable Agent/Chat, Worker Concurrency=4) ===
+Update Response: {"code":"SUCCESS","message":"操作成功","data":{"id":"00000000-0000-0000-0000-000000000001","agentEnabled":true,"chatEnabled":true,"workerConcurrency":4,"workerDelayMs":1000,"scheduleDelayMs":30000,"systemMaintenanceMode":false,"systemMaintenanceMessage":"","publicRegistrationEnabled":true,"defaultChatModel":"","defaultAgentModel":"","ragRetrievalThreshold":0.55,"ragMaxSources":12,"version":27,"updatedBy":"6624d44a-f0e9-482c-83a3-f390063a7add","createdAt":"2026-10-30T10:02:14.079199Z","updatedAt":"2026-10-30T10:48:45.592545319Z"}}
+New Version: 27
+Runtime Status After Hot Update: {"code":"SUCCESS","message":"操作成功","data":{"agentEnabled":true,"chatEnabled":true,"agentRuntimeAllowed":true,"configuredWorkerConcurrency":4,"activeWorkerThreads":0,"queuedAgentRuns":0,"runningAgentRuns":0,"recentFailedAgentRuns":0,"lastExecutionError":null,"maintenanceMode":false,"refreshedAt":"2026-10-30T10:48:45.727532111Z"}}
+[PASS] Dynamic config hot update took effect in runtime without application restart!
+
+=== [STEP 4] Audit Log and Optimistic Locking Conflict ===
+Audit Log Count: 20
+Latest Audit Summary: Worker并发: 2 -> 4
+Testing stale expectedVersion=26 conflict rejection:
+Conflict Response: {"code":"VERSION_CONFLICT","message":"配置已被修改（当前版本: 27），请刷新后重试","data":null}
+[PASS] Optimistic concurrency control successfully rejected stale version write!
+
+=== [STEP 5] Configuration One-Click Rollback ===
+Target Initial Audit Record ID: 00000000-0000-0000-0000-000000000002
+Restore Response: {"code":"SUCCESS","message":"操作成功","data":{"id":"00000000-0000-0000-0000-000000000001","agentEnabled":false,"chatEnabled":false,"workerConcurrency":2,"workerDelayMs":1000,"scheduleDelayMs":30000,"systemMaintenanceMode":false,"systemMaintenanceMessage":"","publicRegistrationEnabled":true,"defaultChatModel":"","defaultAgentModel":"","ragRetrievalThreshold":0.55,"ragMaxSources":12,"version":28,"updatedBy":"6624d44a-f0e9-482c-83a3-f390063a7add","createdAt":"2026-10-30T10:02:14.079199Z","updatedAt":"2026-10-30T10:48:46.185719144Z"}}
+Restored Version: 28
+Runtime Status After Rollback: {"code":"SUCCESS","message":"操作成功","data":{"agentEnabled":false,"chatEnabled":false,"agentRuntimeAllowed":true,"configuredWorkerConcurrency":2,"activeWorkerThreads":0,"queuedAgentRuns":0,"runningAgentRuns":0,"recentFailedAgentRuns":0,"lastExecutionError":null,"maintenanceMode":false,"refreshedAt":"2026-10-30T10:48:46.316788146Z"}}
+[PASS] One-click rollback successfully restored initial runtime status!
+
+=== [STEP 6] Reopen Services and Stepwise Worker Concurrency Scaling (4 -> 2 -> 1 -> 2) ===
+Worker Concurrency Scaled -> Target: 4, Runtime: 4
+Worker Concurrency Scaled -> Target: 2, Runtime: 2
+Worker Concurrency Scaled -> Target: 1, Runtime: 1
+Worker Concurrency Scaled -> Target: 2, Runtime: 2
+[PASS] Worker concurrency dynamic scaling verified
+
+=== [STEP 7] Project Collaboration, Document Upload, and SHA256 Verification ===
+Project created successfully, ID: 1989cbf7-4706-46e4-902d-aa31c5e2dc67
+Creating project invitation (72h validity):
+[PASS] Project and Invitation created successfully (Invitation ID: e6865725-b76d-4b81-ba07-d809104bf326)
+Uploading synthetic document to MinIO...
+Local document SHA256: e0b792450a08a69ac412117bb573226a71bec99873ace390f0bbae7628091125
+Document uploaded successfully, Document ID: 65b6f230-26bb-4328-9052-ae0254014801
+Obtaining presigned download URL (/download-url)...
+Download-URL Response: {"code":"SUCCESS","message":"操作成功","data":{"url":"https://8443-agqyc3kteqehqgazwefpmhwulu.instabox.tech/storage/ai-collab-staging/projects/1989cbf7-4706-46e4-902d-aa31c5e2dc67/documents/65b6f230-26bb-4328-9052-ae0254014801/source.txt?response-content-disposition=attachment%3B%20filename%2A%3DUTF-8%27%27synthetic_doc.txt&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=minio_staging_admin%2F20261030%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261030T104848Z&X-Amz-Expires=300&X-Amz-SignedHeaders=host&X-Amz-Signature=398ad21952e9ff0e5feb5e211d1429e96e6ea4a9db91e68b2679155349fac1a3","expiresAt":"2026-10-30T10:53:48.842936665Z"}}
+Download URL: https://8443-agqyc3kteqehqgazwefpmhwulu.instabox.tech/storage/ai-collab-staging/projects/1989cbf7-4706-46e4-902d-aa31c5e2dc67/documents/65b6f230-26bb-4328-9052-ae0254014801/source.txt?response-content-disposition=attachment%3B%20filename%2A%3DUTF-8%27%27synthetic_doc.txt&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=minio_staging_admin%2F20261030%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261030T104848Z&X-Amz-Expires=300&X-Amz-SignedHeaders=host&X-Amz-Signature=398ad21952e9ff0e5feb5e211d1429e96e6ea4a9db91e68b2679155349fac1a3
+Downloading file via presigned URL over public HTTPS...
+Presigned URL download SHA256: e0b792450a08a69ac412117bb573226a71bec99873ace390f0bbae7628091125
+Downloading file via direct streaming proxy endpoint (/download)...
+Direct download SHA256: e0b792450a08a69ac412117bb573226a71bec99873ace390f0bbae7628091125
+[PASS] Both presigned URL and direct proxy downloads match local SHA256 exactly!
+
+=== [STEP 8] RBAC and Cross-Project Isolation Verification ===
+Outsider attempting unauthorized document download-url:
+Outsider Response: {"code":"PROJECT_NOT_FOUND","message":"项目不存在","data":null}
+[PASS] Outsider access correctly rejected (PROJECT_NOT_FOUND)
+Unauthenticated request attempting document download-url (expect AUTH_UNAUTHORIZED):
+Anonymous Response: {"code":"AUTH_UNAUTHORIZED","message":"当前登录状态无效，请重新登录","data":null}
+[PASS] Unauthenticated request correctly rejected with AUTH_UNAUTHORIZED
+
+=== [STEP 9] Knowledge Chat Session and Dynamic Switch ===
+Knowledge Chat Session created, ID: 530c2284-56db-4712-b322-2ef51fffdec5
+Disabling Chat service dynamically...
+Asking question while Chat is disabled (expect rejection):
+Blocked Chat Response: {"code":"AI_PROVIDER_UNAVAILABLE","message":"AI 知识问答服务当前未开启","data":null}
+[PASS] Chat correctly blocked with AI_PROVIDER_UNAVAILABLE!
+Re-enabling Chat service...
+[PASS] Chat service re-enabled
+
+=== [STEP 10] Agent Session and Dynamic Switch ===
+Agent Session created, ID: cdc0e48d-1af9-4f12-9708-8d859b7c18de
+Disabling Agent service dynamically...
+Submitting task while Agent is disabled (expect rejection, no dangling QUEUED):
+Blocked Agent Response: {"code":"AI_PROVIDER_UNAVAILABLE","message":"Agent 协作服务当前未开启","data":null}
+[PASS] Agent correctly blocked with AI_PROVIDER_UNAVAILABLE!
+Re-enabling Agent service...
+[PASS] Agent service re-enabled
+
+=== [STEP 11] Container Failure Restart and Config Persistence ===
+Config Version Before Restart: 36
+Restarting ai-collab-staging-app-1 container...
+ai-collab-staging-app-1
+Waiting for container health check...
+Container healthy after ~7 seconds
+Logging back in and verifying state persistence:
+Config Version After Restart: 36
+[PASS] Configuration persisted and restored across container restart!
+
+=== [STEP 12] Backup Asset Physical Integrity Verification ===
+Latest PostgreSQL dump: /data/ai-collab-staging/backups/postgres/pg_ai_collab_staging_20261030T070915Z.dump
+Dump size: 360794 bytes
+[PASS] PostgreSQL physical backup exists and valid (> 200KB)
+
+==========================================================
+AI-Collab P6.1-P7 Staging Full Acceptance COMPLETE!
+All Acceptance Checks PASSED.
+==========================================================
