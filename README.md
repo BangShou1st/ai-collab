@@ -272,16 +272,20 @@ cd ..
 # 2. 一键启动基础设施容器 + 本机运行后端源码与前端 Vite
 .\dev.ps1 start
 
-# 3. 检查各服务运行与健康探针状态
+# 3. 只读环境预检：依赖版本、.env 必填键、端口占用、基础设施健康、
+#    飞书 OAuth 回调格式（未配置飞书仅提示，不阻断本地开发）
+.\dev.ps1 doctor
+
+# 4. 检查各服务运行与健康探针状态
 .\dev.ps1 status
 
-# 4. 开发完成后停止进程（保持数据库容器与数据卷不变）
+# 5. 开发完成后停止进程（保持数据库容器与数据卷不变）
 .\dev.ps1 stop
 
-# （可选）完全停止后台 Postgres/Redis/MinIO 容器
+# 6. （可选）完全停止后台 Postgres/Redis/MinIO 容器
 .\dev.ps1 stop-infra
 
-# （可选）检查实际 Java 代理选路与 CONNECT/TLS，不发送模型请求
+# 7. （可选）检查实际 Java 代理选路与 CONNECT/TLS，不发送模型请求
 .\dev.ps1 diagnose-proxy
 ```
 
