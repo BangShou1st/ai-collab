@@ -678,7 +678,10 @@ defineExpose({ createForm, parsedFolder, submitCreate, startAuthorization, creat
 .job-summary { margin-left: 8px; color: var(--el-text-color-secondary); font-size: 12px; }
 .job-error { color: var(--el-color-danger); font-size: 12px; margin-top: 2px; word-break: break-all; }
 .hint { margin-bottom: 12px; }
-.hint-text { color: var(--el-text-color-secondary); font-size: 12px; }
+.hint-text { color: var(--el-text-color-secondary); font-size: 12px; word-break: break-word; }
+.hint-text code { word-break: break-all; }
+.knowledge-source-page :deep(.el-dialog) { max-width: calc(100vw - 32px); }
+.knowledge-source-page :deep(.el-form-item__content) { min-width: 0; }
 .folder-error { color: var(--el-color-danger); font-size: 12px; margin-top: 4px; }
 .doc-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--el-border-color-lighter); gap: 8px; }
 .doc-title { display: flex; align-items: center; gap: 6px; }
