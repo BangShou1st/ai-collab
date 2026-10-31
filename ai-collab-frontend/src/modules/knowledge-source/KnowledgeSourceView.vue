@@ -15,6 +15,7 @@ import {
   type ConnectorGrant,
   type ConnectorConnectionOption,
   type ExternalDocument,
+  type ConnectorSourceDocuments,
 } from '../../api/connector-api'
 
 const route = useRoute()
@@ -207,7 +208,8 @@ async function openDocuments(source: ConnectorSource): Promise<void> {
   docsLoading.value = true
   try {
     const result = await connectorApi.listSourceDocuments(projectId.value, source.id)
-    documents.value = result.data ?? []
+    const payload: ConnectorSourceDocuments | undefined = result.data
+    documents.value = payload?.documents ?? []
   } catch (error) {
     showApiError(error, '同步文档加载')
   } finally {

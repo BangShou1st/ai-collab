@@ -60,6 +60,10 @@ export interface ExternalDocument {
   documentStatus: string | null
 }
 
+export interface ConnectorSourceDocuments {
+  documents: ExternalDocument[]
+}
+
 export interface CreateConnectionInput {
   name: string
   appId: string
@@ -113,8 +117,8 @@ export const connectorApi = {
   async createSource(projectId: string, input: CreateSourceInput): Promise<ApiResult<ConnectorSource>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<ConnectorSource>>(root(projectId), input))
   },
-  async listSourceDocuments(projectId: string, sourceId: string): Promise<ApiResult<ExternalDocument[]>> {
-    return apiResultFromResponse(await httpClient.get<ApiResponse<ExternalDocument[]>>(`${root(projectId)}/${sourceId}/documents`))
+  async listSourceDocuments(projectId: string, sourceId: string): Promise<ApiResult<ConnectorSourceDocuments>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<ConnectorSourceDocuments>>(`${root(projectId)}/${sourceId}/documents`))
   },
   async syncSource(projectId: string, sourceId: string): Promise<ApiResult<{ jobId: string; status: string }>> {
     return apiResultFromResponse(await httpClient.post<ApiResponse<{ jobId: string; status: string }>>(`${root(projectId)}/${sourceId}/sync`))
