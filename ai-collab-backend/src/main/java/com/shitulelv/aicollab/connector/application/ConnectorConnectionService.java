@@ -129,6 +129,28 @@ public class ConnectorConnectionService {
         return row;
     }
 
+    /**
+     * 项目使用连接的强制作用域校验：SYSTEM 连接对所有项目可用，PROJECT 连接仅归属项目可用。
+     * 不可用（不存在、非 ACTIVE、他项目私有）一律按连接不存在处理，避免泄露其他项目的连接信息。
+     */
+    public ConnectionRow requireAvailableForProject(UUID projectId, UUID connectionId) {
+        ConnectionRow row = require(connectionId);
+        if (!"ACTIVE".equals(row.status)
+                || ("PROJECT".equals(row.visibility) && !projectId.equals(row.ownerProjectId))) {
+            throw new BusinessException(ErrorCode.CONNECTOR_CONNECTION_NOT_FOUND);
+        }
+        return row;
+    }
+
+    /** 项目管理员读取本项目可用连接的事件凭据状态，用于自助判断能否发起用户 OAuth。 */
+    public EventStatusView eventStatus(UUID projectId, UUID userId, UUID connectionId) {
+        access.requireAdmin(projectId, userId);
+        requireAvailableForProject(projectId, connectionId);
+        var credentials = eventCredentials.find(connectionId);
+        return new EventStatusView(credentials.isPresent(),
+                credentials.map(ConnectorEventCredentialRepository.Credentials::verified).orElse(false));
+    }
+
     private void requireManageable(UUID userId, ConnectionRow row) {
         if ("PROJECT".equals(row.visibility)) {
             access.requireAdmin(row.ownerProjectId, userId);
@@ -141,4 +163,6 @@ public class ConnectorConnectionService {
         return new ConnectionView(row.id, row.name, row.appId, row.status,
                 row.lastVerifiedAt, row.lastError, row.createdAt);
     }
+
+    public record EventStatusView(boolean configured, boolean verified) {}
 }
