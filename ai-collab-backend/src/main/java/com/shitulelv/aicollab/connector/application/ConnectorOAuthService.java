@@ -31,6 +31,8 @@ import java.util.UUID;
 
 @Service
 public class ConnectorOAuthService {
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(ConnectorOAuthService.class);
     private static final String AUTHORIZE = "https://accounts.feishu.cn/open-apis/authen/v1/authorize";
     private static final String SCOPE = "offline_access drive:drive:readonly docx:document:readonly";
     private final ConnectorOAuthRepository grants;
@@ -80,6 +82,8 @@ public class ConnectorOAuthService {
         String challenge = Base64.getUrlEncoder().withoutPadding().encodeToString(sha256(verifier));
         Instant expires = Instant.now().plusSeconds(300);
         grants.saveFlow(hash(state), projectId, connectionId, userId, cipher.encrypt(verifier), redirectUri, expires);
+        log.info("PKCE start 诊断: stateHashPrefix={}, challengePrefix={}",
+                hash(state).substring(0, 12), challenge.substring(0, 12));
         String url = AUTHORIZE + "?response_type=code&client_id=" + encode(connection.appId)
                 + "&redirect_uri=" + encode(redirectUri) + "&scope=" + encode(SCOPE)
                 + "&state=" + encode(state) + "&code_challenge=" + encode(challenge)
@@ -102,8 +106,12 @@ public class ConnectorOAuthService {
         try {
             // Provider event timestamps have millisecond precision and may differ slightly from this clock.
             Instant tokenIssuedAt = Instant.now().minusSeconds(60);
+            var verifier = cipher.decrypt(flow.verifierCipher());
+            var recomputedChallenge = Base64.getUrlEncoder().withoutPadding().encodeToString(sha256(verifier));
+            log.info("PKCE complete 诊断: recomputedChallengePrefix={}, verifierLen={}",
+                    recomputedChallenge.substring(0, 12), verifier.length());
             var token = feishu.exchange(connection.appId, cipher.decrypt(connection.appSecretCipher), code,
-                    flow.redirectUri(), cipher.decrypt(flow.verifierCipher()));
+                    flow.redirectUri(), verifier);
             if (!ConnectorOAuthTokenService.hasRequiredScopes(token.scope())) {
                 throw new BusinessException(ErrorCode.CONNECTOR_REAUTH_REQUIRED, "飞书授权缺少所需的只读或离线访问权限");
             }
