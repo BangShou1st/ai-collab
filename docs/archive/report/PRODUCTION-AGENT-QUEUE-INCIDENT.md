@@ -92,7 +92,7 @@
 
 - 前端全量 Vitest：**59 文件 / 441 用例全绿**（含新增 3 用例）；`pnpm lint` 0 errors（改动文件 0 warning）；`pnpm typecheck`（vue-tsc -b）通过；`pnpm build` 成功（`index-B-hlHCDn.js`）。
 - 后端零改动，未重跑（`main f748e80` 已含全绿 CI，事故诊断为环境/显示层，非后端缺陷）。
-- CI：run `41213426252`（dev push `42924aa`）——结果见第 9 节。
+- CI：run `41213426252`（dev push `42924aa`）— **completed / success**（Backend Maven verify ✓ · Frontend pnpm ✓）；本报告提交 `429f730` 另起文档 CI run。
 
 ## 5. Staging 验收
 
@@ -137,7 +137,7 @@
 | 生产后端 | 镜像 `ai-collab-backend:prod-f748e80`（main `f748e80`），**本轮零变更、零重启、零配置改动** |
 | 生产前端 | Cloudflare Pages 生产 bundle `index-BiQtcpCF.js`（f748e80 构建），**未更新**（修复待发布） |
 | 修复提交 | `dev` `42924aa`（fix(agent)），已推送 origin/dev |
-| CI | dev push run `41213426252`（见仓库 Actions；本轮本地 441 用例先行全绿） |
+| CI | 修复提交 `42924aa`：dev push run `41213426252` **success**（Backend Maven verify ✓ · Frontend pnpm ✓）；文档提交 `429f730` 见后续 run |
 | 下一步发布 | `dev → main` PR（需人工合并触发）；合并后 Cloudflare Pages 自动发布前端，后端无需变更 |
 | 回滚 | 前端：Pages 回退到上一生产部署即可；后端：无变更无需回滚 |
 
