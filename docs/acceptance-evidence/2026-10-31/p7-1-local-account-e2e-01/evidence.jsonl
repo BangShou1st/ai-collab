@@ -14,3 +14,8 @@
 {"ts":"2026-10-31T11:05Z","scenario":"E13","event":"pages_api_probe","url":"https://ai-collab-web.pages.dev/api/v1/auth/registration-policy","http":200,"cors":"Access-Control-Allow-Origin: https://ai-collab-web.pages.dev"}
 {"ts":"2026-10-31T11:06Z","scenario":"E14","event":"pages_register_cookie","http":200,"set_cookie":"ai_collab_refresh_token; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Strict"}
 {"ts":"2026-10-31T11:20Z","scenario":"E15","event":"feishu_redirect_whitelist","app":"AI-Collab 知识库连接器 (cli_aa688d12b778dd0e)","urls":["https://8443-agqyc3kteqehqgazwefpmhwulu.instabox.tech/api/v1/connector/oauth/callback","http://localhost:8080/api/v1/connector/oauth/callback"],"via":"bsk 驱动用户已登录 Edge"}
+{"ts":"2026-10-31T09:13Z","scenario":"E16","event":"pre_deploy_backup","postgres":"pg_ai_collab_staging_20261031T011327Z.dump","postgres_bytes":391455,"minio_objects":15,"status":"OK"}
+{"ts":"2026-10-31T09:30Z","scenario":"E17","event":"staging_deploy","image":"ai-collab-backend:staging-cc3ebb1","source":"main 00093d6 + dev compose passthrough","container":"healthy"}
+{"ts":"2026-10-31T09:33Z","scenario":"E18","event":"flyway_verify","max_version":73,"health":"UP"}
+{"ts":"2026-10-31T09:40Z","scenario":"E19","event":"staging_smoke","via":"Pages Origin → 公网网关","steps":["login 200","create project 200","available-connections 200 返回系统连接"]}
+{"ts":"2026-10-31T09:45Z","scenario":"E20","event":"duplicate_app_guard","http":400,"code":"VALIDATION_ERROR","message":"该 App ID 已存在连接，同一飞书应用不能重复创建"}

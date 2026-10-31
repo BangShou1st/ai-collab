@@ -3,26 +3,34 @@ package com.shitulelv.aicollab.connector.infrastructure.feishu;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.net.OutboundHttpClients;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Feishu OAuth v3. A lost response to a single-use token is never blindly replayed. */
+/**
+ * Feishu user_access_token OAuth client. The authorize endpoint
+ * {@code accounts.feishu.cn/open-apis/authen/v1/authorize} pairs with the v2 token
+ * endpoint {@code open.feishu.cn/open-apis/authen/v2/oauth/token}, which is the only
+ * endpoint that validates PKCE (the v3 {@code oauth/v3/token} endpoint is for
+ * app/tenant tokens and rejects PKCE codes with error 20049). A lost response to a
+ * single-use token is never blindly replayed.
+ */
 @Component
 public class FeishuOAuthClient {
-    private static final URI TOKEN_ENDPOINT = URI.create("https://accounts.feishu.cn/oauth/v3/token");
+    private static final Logger log = LoggerFactory.getLogger(FeishuOAuthClient.class);
+    private static final URI TOKEN_ENDPOINT = URI.create("https://open.feishu.cn/open-apis/authen/v2/oauth/token");
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private final HttpClient http;
     private final URI endpoint;
@@ -64,16 +72,15 @@ public class FeishuOAuthClient {
     }
 
     private Tokens request(Map<String, String> form, boolean refresh) {
-        StringBuilder body = new StringBuilder();
+        var body = json.createObjectNode();
         for (var entry : form.entrySet()) {
             if (entry.getValue() == null || entry.getValue().isBlank()) {
                 throw new FeishuOAuthException(FeishuOAuthException.Kind.CONFIGURATION);
             }
-            if (!body.isEmpty()) body.append('&');
-            body.append(encode(entry.getKey())).append('=').append(encode(entry.getValue()));
+            body.put(entry.getKey(), entry.getValue());
         }
         HttpRequest request = HttpRequest.newBuilder(endpoint).timeout(TIMEOUT)
-                .header("Content-Type", "application/x-www-form-urlencoded")
+                .header("Content-Type", "application/json; charset=utf-8")
                 .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
         try {
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
@@ -83,11 +90,21 @@ public class FeishuOAuthClient {
             JsonNode data = json.readTree(response.body());
             int code = data.path("code").asInt(-1);
             if (code != 0 || status < 200 || status >= 300) {
+                // 可观测性：记录飞书返回的错误分类与描述（不含任何令牌或密钥）。
+                log.warn("飞书 OAuth 端点拒绝: status={}, feishuCode={}, msg={}", status, code,
+                        data.path("msg").asText(data.path("error_description").asText("")));
                 if (code == 20064) throw new FeishuOAuthException(FeishuOAuthException.Kind.REVOKED);
                 if (code == 20026 || code == 20037 || code == 20073 || code == 99991669) {
                     throw new FeishuOAuthException(FeishuOAuthException.Kind.REAUTH_REQUIRED);
                 }
                 if (code == 20072) throw new FeishuOAuthException(FeishuOAuthException.Kind.TEMPORARY);
+                if (!refresh && (code == 20003 || code == 20004 || code == 20065)) {
+                    // 单次授权码无效、过期或已被使用：用户必须重新发起授权，同一个 Code 不得重放。
+                    throw new FeishuOAuthException(FeishuOAuthException.Kind.REAUTH_REQUIRED);
+                }
+                if (code == 20071 || code == 20074) {
+                    throw new FeishuOAuthException(FeishuOAuthException.Kind.CONFIGURATION);
+                }
                 throw new FeishuOAuthException(FeishuOAuthException.Kind.CONFIGURATION);
             }
             String access = data.path("access_token").asText("");
@@ -109,10 +126,6 @@ public class FeishuOAuthClient {
             Thread.currentThread().interrupt();
             throw new FeishuOAuthException(FeishuOAuthException.Kind.OUTCOME_UNKNOWN);
         }
-    }
-
-    private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     public record Tokens(String accessToken, String refreshToken, Instant accessExpiresAt,

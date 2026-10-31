@@ -40,6 +40,7 @@
 ## 3. 标准与规范目录
 
 - [模型 HTTP 网络代理](development/model-network-proxy.md)：JDK 原生 OS 发现、JVM/Surefire/IDE 启动参数、客户端级环境变量回退、本地排除与无 Chat 诊断（P10-NETWORK-PROXY-AUTO-01）。
+- [飞书 OAuth 故障排查](development/feishu-oauth-troubleshooting.md)：授权/令牌端点配对、常见错误码（含 20049）与排查步骤。
 
 - **接口定义**：[`docs/api/`](api/) —— 包含 OpenAPI 契约与接口文档。
 - **开发规范**：[`docs/development/`](development/) —— 包含代码分支策略、提交约定等。

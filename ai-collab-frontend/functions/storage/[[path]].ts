@@ -1,10 +1,10 @@
 /**
- * Cloudflare Pages Function: 同源反向代理 /storage/* -> InstaBox Staging / 后端存储代理
+ * Cloudflare Pages Function: 同源反向代理 /storage/* -> 后端存储代理
  * 部署至 Cloudflare Pages 时自动生效，转发预签名下载与二进制流。
  */
-interface Env {
-  BACKEND_ORIGIN?: string
-}
+import { resolveBackendOrigin, type PagesBackendEnv } from '../api/_lib/backend-origin'
+
+type Env = PagesBackendEnv
 
 const HOP_BY_HOP_HEADERS = new Set([
   'connection',
@@ -21,7 +21,25 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context
   const url = new URL(request.url)
 
-  const backendOrigin = (env.BACKEND_ORIGIN || 'https://8443-agqyc3kteqehqgazwefpmhwulu.instabox.tech').replace(/\/+$/, '')
+  // 生产分支缺少 BACKEND_ORIGIN 时明确失败；仅预览分支回退 Staging（见 _lib/backend-origin.ts）
+  const resolution = resolveBackendOrigin(env)
+  if (!resolution.ok || !resolution.origin) {
+    return new Response(
+      JSON.stringify({
+        code: 50302,
+        message: resolution.errorMessage ?? 'BACKEND_ORIGIN 配置无效',
+        data: null,
+      }),
+      {
+        status: 503,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store',
+        },
+      },
+    )
+  }
+  const backendOrigin = resolution.origin
   const upstreamUrl = new URL(url.pathname + url.search, backendOrigin)
 
   const upstreamHeaders = new Headers()

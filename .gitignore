@@ -105,6 +105,7 @@ docs/database.md
 # 分支策略是仓库级约定文档，显式跟踪（负向规则必须放在非目录型排除之后才生效）。
 docs/development/*
 !docs/development/branch-policy.md
+!docs/development/feishu-oauth-troubleshooting.md
 docs/agent/
 
 # ===========================
