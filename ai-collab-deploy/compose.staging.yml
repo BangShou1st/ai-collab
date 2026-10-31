@@ -82,6 +82,17 @@ services:
       JWT_SECRET: ${JWT_SECRET:?required}
       MODEL_CONFIG_MASTER_KEY: ${MODEL_CONFIG_MASTER_KEY:?required}
       AUTH_ALLOWED_ORIGINS: ${AUTH_ALLOWED_ORIGINS:?required}
+      # 统一可信公开地址（P7.1）：邀请/密码重置/邮箱验证敏感链接的生成源。
+      APP_PUBLIC_URL: "${APP_PUBLIC_URL:-}"
+      # 邮件发送（P7.1）：未启用时降级为记录发送意图。
+      MAIL_ENABLED: "${MAIL_ENABLED:-false}"
+      MAIL_HOST: "${MAIL_HOST:-}"
+      MAIL_PORT: "${MAIL_PORT:-587}"
+      MAIL_USERNAME: "${MAIL_USERNAME:-}"
+      MAIL_PASSWORD: "${MAIL_PASSWORD:-}"
+      MAIL_FROM: "${MAIL_FROM:-}"
+      MAIL_STARTTLS: "${MAIL_STARTTLS:-true}"
+      MAIL_SSL: "${MAIL_SSL:-false}"
       AUTH_PUBLIC_REGISTRATION_ENABLED: "true"
       REFRESH_COOKIE_SECURE: "true"
       REFRESH_COOKIE_ALLOW_INSECURE: "false"
