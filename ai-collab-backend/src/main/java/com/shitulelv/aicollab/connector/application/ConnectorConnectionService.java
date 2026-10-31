@@ -12,6 +12,7 @@ import com.shitulelv.aicollab.connector.infrastructure.repository.ConnectorEvent
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.user.service.UserService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,8 +72,13 @@ public class ConnectorConnectionService {
             throw new BusinessException(ErrorCode.CONNECTOR_CREDENTIAL_INVALID, exception.getMessage());
         }
         UUID id = UUID.randomUUID();
-        connections.insert(id, "feishu", name.trim(), appId.trim(), secrets.encrypt(appSecret.trim()),
-                "ACTIVE", OffsetDateTime.now(), userId, visibility, ownerProjectId);
+        try {
+            connections.insert(id, "feishu", name.trim(), appId.trim(), secrets.encrypt(appSecret.trim()),
+                    "ACTIVE", OffsetDateTime.now(), userId, visibility, ownerProjectId);
+        } catch (DataIntegrityViolationException exception) {
+            // (provider, app_id) 全局唯一：同一飞书应用只能有一个连接，无论作用域。
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "该 App ID 已存在连接，同一飞书应用不能重复创建");
+        }
         return view(connections.find(id));
     }
 
