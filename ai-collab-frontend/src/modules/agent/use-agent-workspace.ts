@@ -483,37 +483,62 @@ export function useAgentWorkspace() {
   }
   async function consumeEventStream(runId: string, controller: AbortController, delayMs: number) {
     const fresh = () => !controller.signal.aborted && timeline.value.run?.id === runId
+    // SSE 打开期间服务端只推送事件：若首个模型轮次迟迟不产出事件（辅助摘要或慢模型），
+    // 领取后已翻转为 RUNNING 的权威状态与模型解析快照不会到达前端，页面会一直显示「排队中」。
+    // 周期对账权威运行详情：仅单向前进（QUEUED→RUNNING）并刷新详情，不回退事件已推进的状态。
+    let authorityPoller: number | undefined
+    const stopAuthorityPoller = () => {
+      if (authorityPoller !== undefined) {
+        window.clearInterval(authorityPoller)
+        authorityPoller = undefined
+      }
+    }
     try {
       if (!fresh()) return
-      await streamAgentEvents(
-        `/api/v1/projects/${projectId.value}/agent/runs/${runId}/events`,
-        timeline.value.lastSequence,
-        controller.signal,
-        event => {
+      authorityPoller = window.setInterval(() => {
+        if (!fresh()) { stopAuthorityPoller(); return }
+        void agentApi.run(projectId.value, runId).then((result) => {
           if (!fresh()) return
-          // 只有本次被时间线接受的持久事件才推进预览生命周期：
-          // 旧序号/重复序号/其他运行的事件由同一套接受判断拒绝，预览不得被其回退
-          if (applyAgentEvent(timeline.value, event)) {
-            applyPreviewEvent(event)
-            // 持久事件续接成功＝断线区间真正恢复；仅拿到 HTTP 200 只算传输已重连，不在此判定
-            const recovered = sseTracker.aligned()
-            if (recovered) {
-              emitAgentSseDiagnostic(recovered)
-              sseDiagnostics.value = sseTracker.snapshot()
-            }
+          const persisted = result.data
+          runDetail.value = persisted
+          if (timeline.value.run?.status === 'QUEUED' && persisted.run.status === 'RUNNING') {
+            reconcileAgentRun(timeline.value, persisted.run)
           }
-        },
-        frame => applyContentFrame(frame, fresh),
-        () => {
-          // 流已建立：只有拿到响应才标记"已连接"。断线区间内重新建立只记"传输已重连"，
-          // 是否恢复取决于后续持久事件能否成功续接
-          if (!fresh()) return
-          const opened = sseTracker.opened(runId, timeline.value.lastSequence)
-          if (opened) emitAgentSseDiagnostic(opened)
-          timeline.value.connected = true
-          sseDiagnostics.value = sseTracker.snapshot()
-        },
-      )
+        }).catch(() => { /* 对账失败留待下一次轮询与断线收口路径 */ })
+      }, 5000)
+      try {
+        await streamAgentEvents(
+          `/api/v1/projects/${projectId.value}/agent/runs/${runId}/events`,
+          timeline.value.lastSequence,
+          controller.signal,
+          event => {
+            if (!fresh()) return
+            // 只有本次被时间线接受的持久事件才推进预览生命周期：
+            // 旧序号/重复序号/其他运行的事件由同一套接受判断拒绝，预览不得被其回退
+            if (applyAgentEvent(timeline.value, event)) {
+              applyPreviewEvent(event)
+              // 持久事件续接成功＝断线区间真正恢复；仅拿到 HTTP 200 只算传输已重连，不在此判定
+              const recovered = sseTracker.aligned()
+              if (recovered) {
+                emitAgentSseDiagnostic(recovered)
+                sseDiagnostics.value = sseTracker.snapshot()
+              }
+            }
+          },
+          frame => applyContentFrame(frame, fresh),
+          () => {
+            // 流已建立：只有拿到响应才标记"已连接"。断线区间内重新建立只记"传输已重连"，
+            // 是否恢复取决于后续持久事件能否成功续接
+            if (!fresh()) return
+            const opened = sseTracker.opened(runId, timeline.value.lastSequence)
+            if (opened) emitAgentSseDiagnostic(opened)
+            timeline.value.connected = true
+            sseDiagnostics.value = sseTracker.snapshot()
+          },
+        )
+      } finally {
+        stopAuthorityPoller()
+      }
       if (!fresh()) return
       timeline.value.connected = false
       // 运行尚未进入可正常结束的状态却收到流正常结束：服务端/代理提前关闭连接，也按意外断线记录
