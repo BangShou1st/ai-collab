@@ -82,8 +82,6 @@ public class ConnectorOAuthService {
         String challenge = Base64.getUrlEncoder().withoutPadding().encodeToString(sha256(verifier));
         Instant expires = Instant.now().plusSeconds(300);
         grants.saveFlow(hash(state), projectId, connectionId, userId, cipher.encrypt(verifier), redirectUri, expires);
-        log.info("PKCE start 诊断: stateHashPrefix={}, challengePrefix={}",
-                hash(state).substring(0, 12), challenge.substring(0, 12));
         String url = AUTHORIZE + "?response_type=code&client_id=" + encode(connection.appId)
                 + "&redirect_uri=" + encode(redirectUri) + "&scope=" + encode(SCOPE)
                 + "&state=" + encode(state) + "&code_challenge=" + encode(challenge)
@@ -107,9 +105,6 @@ public class ConnectorOAuthService {
             // Provider event timestamps have millisecond precision and may differ slightly from this clock.
             Instant tokenIssuedAt = Instant.now().minusSeconds(60);
             var verifier = cipher.decrypt(flow.verifierCipher());
-            var recomputedChallenge = Base64.getUrlEncoder().withoutPadding().encodeToString(sha256(verifier));
-            log.info("PKCE complete 诊断: recomputedChallengePrefix={}, verifierLen={}",
-                    recomputedChallenge.substring(0, 12), verifier.length());
             var token = feishu.exchange(connection.appId, cipher.decrypt(connection.appSecretCipher), code,
                     flow.redirectUri(), verifier);
             if (!ConnectorOAuthTokenService.hasRequiredScopes(token.scope())) {
