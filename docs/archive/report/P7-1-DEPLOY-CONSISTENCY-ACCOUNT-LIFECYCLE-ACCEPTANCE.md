@@ -47,7 +47,8 @@
 | Pages BACKEND_ORIGIN | N/A | PASS（预览分支回退） | BLOCKED_EXTERNAL（待 Dashboard 回填） |
 | 飞书 OAuth | 模拟/单测覆盖 | PARTIAL（重定向白名单已由用户登录态配置完成，含 Staging 与本地回调；端到端点击授权待运行时验证） | BLOCKED_EXTERNAL |
 | Chat / Agent / Worker | 既有 P6/P7 验收维持有效 | PASS（历史 12 步） | NOT_TESTED |
-| 备份恢复 | 既有 R-01 演练 | PASS（历史物理备份） | 独立验证待部署 |
+| 备份恢复 | 既有 R-01 演练 | PASS（部署前 E16 备份 + 历史物理备份） | 独立验证待部署 |
+| Staging 部署最新代码 | PASS（E17–E20：V73 迁移 + 冒烟） | PASS | NOT_TESTED |
 
 ## 五、Git 与提交记录
 
@@ -63,8 +64,8 @@
 ## 六、剩余外部阻塞（需用户授权后继续）
 
 1. **SMTP 授权码**（QQ 邮箱等）：用于 Staging/Production 真实投递验收；凭据只写部署环境。
-2. **Cloudflare**：`BACKEND_ORIGIN` 已由用户在生产 Pages 环境回填（待 dev→main 合并后新代码显式接管）；Pages API 转发/Cookie 复验已 PASS。
-3. **飞书**：重定向白名单已配置完成（E15）；端到端点击授权与撤权事件订阅待运行时验证。
+2. **Cloudflare**：`BACKEND_ORIGIN` 已回填且 PR #20 已合并（main=00093d6，CI 含镜像冒烟全绿）；Pages 生产 API 转发/Cookie 复验已 PASS（E13/E14）。
+3. **飞书**：重定向白名单已配置（E15）；端到端点击授权待用户在 Staging 知识源页发起一次真实授权即闭环；正向项目级连接需要第二个未被接入的飞书应用（当前 App ID 已有系统连接，按设计拒绝重复）。
 4. **Staging/Production 部署验收矩阵**：依赖以上三项 + 部署操作授权。
 5. **`dev → main` PR 合并**：CI 已绿，需人工触发合并。
 
