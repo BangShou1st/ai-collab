@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.connector.application;
 
 import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.connector.infrastructure.feishu.FeishuOAuthClient;
 import com.shitulelv.aicollab.connector.infrastructure.feishu.FeishuClient;
 import com.shitulelv.aicollab.connector.infrastructure.persistence.ConnectorConnectionMapper;
@@ -31,6 +32,7 @@ class ConnectorOAuthServiceTest {
     final ProjectWriteGuard writable = mock(ProjectWriteGuard.class);
     final ConnectorVisibilityService visibility = mock(ConnectorVisibilityService.class);
     final ConnectorOAuthTokenService tokens = mock(ConnectorOAuthTokenService.class);
+    final ConnectorConnectionService connectionService = mock(ConnectorConnectionService.class);
     final ModelSecretCipher cipher = new ModelSecretCipher("synthetic-test-master-key-only");
     final UUID project = UUID.randomUUID(), connectionId = UUID.randomUUID(), user = UUID.randomUUID(), grantId = UUID.randomUUID();
     final String scope = "offline_access drive:drive:readonly docx:document:readonly";
@@ -38,13 +40,15 @@ class ConnectorOAuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ConnectorOAuthService(grants, connections, cipher, provider, feishuApi, eventCredentials, access, writable, visibility, tokens,
+        service = new ConnectorOAuthService(grants, connections, cipher, provider, feishuApi, eventCredentials, connectionService, access, writable, visibility, tokens,
                 "https://example.invalid/api/v1/connector/oauth/callback");
         ConnectorRows.ConnectionRow connection = new ConnectorRows.ConnectionRow();
         connection.id = connectionId;
         connection.appId = "synthetic-app";
         connection.appSecretCipher = cipher.encrypt("synthetic-app-secret");
         connection.status = "ACTIVE";
+        connection.visibility = "SYSTEM";
+        when(connectionService.requireAvailableForProject(project,connectionId)).thenReturn(connection);
         when(connections.find(connectionId)).thenReturn(connection);
         when(eventCredentials.find(connectionId)).thenReturn(Optional.of(new ConnectorEventCredentialRepository.Credentials("cipher-a","cipher-b",true)));
         when(feishuApi.currentUser(anyString())).thenReturn(new FeishuClient.UserIdentity("synthetic-open-id","synthetic-tenant"));
@@ -104,5 +108,13 @@ class ConnectorOAuthServiceTest {
         verify(writable,never()).requireWritable(project);
         verify(grants).revoke(project,grantId);
         verify(visibility).blockAuthorization(project,grantId,true);
+    }
+
+    @Test
+    void startRejectsConnectionsOutsideProjectScopeBeforeCreatingFlow() {
+        doThrow(new BusinessException(ErrorCode.CONNECTOR_CONNECTION_NOT_FOUND))
+                .when(connectionService).requireAvailableForProject(project, connectionId);
+        assertThatThrownBy(() -> service.start(project, connectionId, user)).isInstanceOf(BusinessException.class);
+        verify(grants, never()).saveFlow(anyString(), any(), any(), any(), anyString(), anyString(), any());
     }
 }

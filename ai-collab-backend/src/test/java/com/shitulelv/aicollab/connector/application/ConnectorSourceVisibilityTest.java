@@ -34,7 +34,8 @@ class ConnectorSourceVisibilityTest {
         var service=new ConnectorSourceService(sources,mock(ConnectorConnectionMapper.class),mock(ConnectorSyncJobMapper.class),
                 mock(ExternalDocumentMapper.class),mock(FeishuClient.class),new ModelSecretCipher("synthetic-test-master-key-only"),
                 mock(ProjectAccessGuard.class),mock(ProjectWriteGuard.class),mock(AuditService.class),
-                mock(ConnectorSyncService.class),grants,mock(ConnectorOAuthTokenService.class),mock(DocumentVisibilityRepository.class));
+                mock(ConnectorSyncService.class),grants,mock(ConnectorOAuthTokenService.class),mock(DocumentVisibilityRepository.class),
+                mock(ConnectorConnectionService.class));
         var results=service.list(project,user);
         assertThat(results).hasSize(1);
         assertThat(results.getFirst().status()).isEqualTo("BLOCKED");
@@ -51,7 +52,8 @@ class ConnectorSourceVisibilityTest {
         var service=new ConnectorSourceService(sources,mock(ConnectorConnectionMapper.class),mock(ConnectorSyncJobMapper.class),
                 external,mock(FeishuClient.class),new ModelSecretCipher("synthetic-test-master-key-only"),access,
                 mock(ProjectWriteGuard.class),mock(AuditService.class),mock(ConnectorSyncService.class),
-                mock(ConnectorOAuthRepository.class),mock(ConnectorOAuthTokenService.class),visibility);
+                mock(ConnectorOAuthRepository.class),mock(ConnectorOAuthTokenService.class),visibility,
+                mock(ConnectorConnectionService.class));
         UUID project=UUID.randomUUID(), sourceId=UUID.randomUUID(), user=UUID.randomUUID();
         var source=new ConnectorRows.SourceRow(); source.id=sourceId; source.projectId=project;
         var hidden=new ConnectorRows.ExternalDocRow(); hidden.id=UUID.randomUUID(); hidden.documentId=UUID.randomUUID();

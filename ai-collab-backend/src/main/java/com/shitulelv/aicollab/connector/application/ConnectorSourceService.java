@@ -39,6 +39,7 @@ public class ConnectorSourceService {
     private final ConnectorOAuthRepository grants;
     private final ConnectorOAuthTokenService userTokens;
     private final DocumentVisibilityRepository documentVisibility;
+    private final ConnectorConnectionService connectionService;
 
     public ConnectorSourceService(ConnectorSourceMapper sources, ConnectorConnectionMapper connections,
                                   ConnectorSyncJobMapper jobs, ExternalDocumentMapper externalDocs,
@@ -47,7 +48,8 @@ public class ConnectorSourceService {
                                   ProjectAccessGuard accessGuard, ProjectWriteGuard writeGuard,
                                   AuditService audit, ConnectorSyncService syncService,
                                   ConnectorOAuthRepository grants, ConnectorOAuthTokenService userTokens,
-                                  DocumentVisibilityRepository documentVisibility) {
+                                  DocumentVisibilityRepository documentVisibility,
+                                  ConnectorConnectionService connectionService) {
         this.sources = sources;
         this.connections = connections;
         this.jobs = jobs;
@@ -61,6 +63,7 @@ public class ConnectorSourceService {
         this.grants = grants;
         this.userTokens = userTokens;
         this.documentVisibility = documentVisibility;
+        this.connectionService = connectionService;
     }
 
     public SourceView create(UUID projectId, UUID userId, UUID connectionId, String folderToken,
@@ -73,10 +76,13 @@ public class ConnectorSourceService {
         if (folderToken == null || folderToken.isBlank() || name == null || name.isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "文件夹 Token 与名称不能为空");
         }
-        ConnectorRows.ConnectionRow connection = connections.find(connectionId);
-        if (connection == null || !"ACTIVE".equals(connection.status)) {
-            throw new BusinessException(ErrorCode.CONNECTOR_CONNECTION_NOT_FOUND);
+        String trimmedToken = folderToken.trim();
+        // 兼容旧客户端的原始 folderToken；同时拒绝明显的非法输入，真实读取权限仍由飞书接口验证。
+        if (!trimmedToken.matches("[A-Za-z0-9_-]{6,128}")) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "文件夹 Token 格式不正确，请粘贴飞书文件夹链接或输入原始 folderToken");
         }
+        ConnectorRows.ConnectionRow connection = connectionService.requireAvailableForProject(projectId, connectionId);
         String token;
         try {
             if (userAuthorizationId != null) {
@@ -97,7 +103,7 @@ public class ConnectorSourceService {
             throw new BusinessException(ErrorCode.CONNECTOR_CREDENTIAL_INVALID, exception.getMessage());
         }
         try {
-            feishu.listFolderDocx(token, folderToken.trim());
+            feishu.listFolderDocx(token, trimmedToken);
         } catch (FeishuApiException exception) {
             if (exception.forbidden()) {
                 throw new BusinessException(ErrorCode.CONNECTOR_FOLDER_NOT_ACCESSIBLE,
@@ -106,10 +112,10 @@ public class ConnectorSourceService {
             throw new BusinessException(ErrorCode.CONNECTOR_FOLDER_NOT_ACCESSIBLE,
                     "访问飞书失败：" + exception.getMessage());
         }
-        feishu.folderPermissionMembers(token, folderToken.trim());
+        feishu.folderPermissionMembers(token, trimmedToken);
         UUID id = UUID.randomUUID();
         try {
-            sources.insert(id, projectId, connectionId, folderToken.trim(), name.trim(), "ACTIVE",
+            sources.insert(id, projectId, connectionId, trimmedToken, name.trim(), "ACTIVE",
                     userId, OffsetDateTime.now(), userAuthorizationId);
         } catch (org.springframework.dao.DuplicateKeyException exception) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "该文件夹已添加为本项目知识源");
