@@ -50,3 +50,18 @@
 - 应用发出的邮件在应用侧零失败记录；未收到时的第一怀疑点（本地假服务器截留）已被 Mailpit 收件箱证据排除。
 - Staging 后端 `AUTH_ALLOWED_ORIGINS` 已包含 Pages 域名（E13 的 CORS 反射即证），无需改 InstaBox 配置。
 - 飞书 OAuth 的端到端真实点击授权（发起授权 → 回调 → 建立授权）待 `FEISHU_OAUTH_REDIRECT_URI` 与白名单一致性的运行时验证，另飞书「事件与回调 → 订阅方式」当前为未配置，撤权事件需在连接管理里补配。
+
+## 增补（2026-10-31 深夜）：Staging 服务器部署与真库迁移
+
+| # | 场景 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| E16 | Staging 部署前备份（Runbook 纪律） | PASS | `backup-postgres.sh`：`pg_ai_collab_staging_20261031T011327Z.dump` 391455 字节含完整性校验与 SHA256；`backup-minio.sh`：15 对象镜像同步 0 差异 |
+| E17 | Staging 部署最新代码（main=00093d6 + dev 透传） | PASS | 服务器仓库切 main 拉取 → 镜像 `ai-collab-backend:staging-cc3ebb1` 构建 → `compose -p ai-collab-staging up -d app`（env-file `/data/ai-collab-staging/config/.env`，`APP_PUBLIC_URL=https://ai-collab-web.pages.dev`）→ 容器 healthy |
+| E18 | Staging 真库迁移 V72/V73 | PASS | `SELECT max(version::int) FROM flyway_schema_history WHERE success` = **73**；health UP |
+| E19 | Staging 转发链路冒烟（Pages Origin → 公网网关） | PASS | 登录 200（Pages Origin 放行）；建项目 200；`GET /api/v1/projects/{id}/connector/available-connections` 返回系统连接「AI-Collab 知识库连接器」 |
+| E20 | 项目级连接重复 App ID 防护 | PASS | 用 P4 同一 App ID 创建项目级连接 → 400 `VALIDATION_ERROR: 该 App ID 已存在连接，同一飞书应用不能重复创建`（部署前版本为 500，已在 cc3ebb1 修复） |
+
+边界更新（部署矩阵联动）：
+
+- Staging 已运行 V73；`BACKEND_ORIGIN` 已由用户在 Cloudflare 生产 Pages 回填且 PR #20 已合并（main=00093d6），Pages 生产部署从 main 自动发布。
+- 剩余：飞书端到端真实点击授权（发起 → 回调 → 建立授权）；正向项目级连接需要一个未被接入的第二个飞书应用（当前 App ID 已有系统连接，唯一约束按设计拒绝重复）；飞书撤权事件订阅方式未配置。
