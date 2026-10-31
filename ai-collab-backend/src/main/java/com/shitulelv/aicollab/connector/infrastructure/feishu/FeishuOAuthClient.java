@@ -3,6 +3,8 @@ package com.shitulelv.aicollab.connector.infrastructure.feishu;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.common.net.OutboundHttpClients;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +24,7 @@ import java.util.Map;
 /** Feishu OAuth v3. A lost response to a single-use token is never blindly replayed. */
 @Component
 public class FeishuOAuthClient {
+    private static final Logger log = LoggerFactory.getLogger(FeishuOAuthClient.class);
     private static final URI TOKEN_ENDPOINT = URI.create("https://accounts.feishu.cn/oauth/v3/token");
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private final HttpClient http;
@@ -83,6 +86,9 @@ public class FeishuOAuthClient {
             JsonNode data = json.readTree(response.body());
             int code = data.path("code").asInt(-1);
             if (code != 0 || status < 200 || status >= 300) {
+                // 可观测性：记录飞书返回的错误分类与描述（不含任何令牌或密钥）。
+                log.warn("飞书 OAuth 端点拒绝: status={}, feishuCode={}, msg={}", status, code,
+                        data.path("msg").asText(data.path("error_description").asText("")));
                 if (code == 20064) throw new FeishuOAuthException(FeishuOAuthException.Kind.REVOKED);
                 if (code == 20026 || code == 20037 || code == 20073 || code == 99991669) {
                     throw new FeishuOAuthException(FeishuOAuthException.Kind.REAUTH_REQUIRED);
