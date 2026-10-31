@@ -41,6 +41,7 @@ public class ConnectorOAuthService {
     private final FeishuOAuthClient feishu;
     private final FeishuClient feishuApi;
     private final ConnectorEventCredentialRepository eventCredentials;
+    private final ConnectorConnectionService connectionService;
     private final ProjectAccessGuard access;
     private final ProjectWriteGuard writable;
     private final ConnectorVisibilityService visibility;
@@ -50,7 +51,8 @@ public class ConnectorOAuthService {
 
     public ConnectorOAuthService(ConnectorOAuthRepository grants, ConnectorConnectionMapper connections,
                                  ModelSecretCipher cipher, FeishuOAuthClient feishu, FeishuClient feishuApi,
-                                 ConnectorEventCredentialRepository eventCredentials, ProjectAccessGuard access,
+                                 ConnectorEventCredentialRepository eventCredentials, ConnectorConnectionService connectionService,
+                                 ProjectAccessGuard access,
                                  ProjectWriteGuard writable, ConnectorVisibilityService visibility, ConnectorOAuthTokenService tokens,
                                  @Value("${connector.oauth.redirect-uri:${FEISHU_OAUTH_REDIRECT_URI:}}") String redirectUri) {
         this.grants = grants;
@@ -59,6 +61,7 @@ public class ConnectorOAuthService {
         this.feishu = feishu;
         this.feishuApi = feishuApi;
         this.eventCredentials = eventCredentials;
+        this.connectionService = connectionService;
         this.access = access;
         this.writable = writable;
         this.visibility = visibility;
@@ -69,10 +72,7 @@ public class ConnectorOAuthService {
     public StartView start(UUID projectId, UUID connectionId, UUID userId) {
         access.requireAdmin(projectId, userId);
         writable.requireWritable(projectId);
-        var connection = connections.find(connectionId);
-        if (connection == null || !"ACTIVE".equals(connection.status)) {
-            throw new BusinessException(ErrorCode.CONNECTOR_CONNECTION_NOT_FOUND);
-        }
+        var connection = connectionService.requireAvailableForProject(projectId, connectionId);
         if (eventCredentials.find(connectionId).filter(ConnectorEventCredentialRepository.Credentials::verified).isEmpty()) {
             throw new BusinessException(ErrorCode.CONNECTOR_EVENT_NOT_CONFIGURED);
         }
@@ -133,7 +133,7 @@ public class ConnectorOAuthService {
     public List<ConnectionOption> availableConnections(UUID projectId, UUID userId) {
         access.requireAdmin(projectId, userId);
         return connections.listAvailableForProject(projectId).stream().filter(row -> "ACTIVE".equals(row.status))
-                .map(row -> new ConnectionOption(row.id, row.name)).toList();
+                .map(row -> new ConnectionOption(row.id, row.name, row.status, row.visibility)).toList();
     }
 
     @Transactional
@@ -193,5 +193,5 @@ public class ConnectorOAuthService {
         @Override public String toString() { return "StartView[authorizationUrl=redacted,expiresAt=" + expiresAt + "]"; }
     }
     public record GrantView(UUID id, UUID connectionId, String status, Instant accessExpiresAt) {}
-    public record ConnectionOption(UUID id, String name) {}
+    public record ConnectionOption(UUID id, String name, String status, String visibility) {}
 }
