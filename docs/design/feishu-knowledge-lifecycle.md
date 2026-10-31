@@ -58,6 +58,12 @@
 
 目前仓库没有自动向独立不可变归档交付删除记录的实现，也没有完成真实备份/恢复演练。这是发布门禁，不能将本地回放测试当作恢复能力验收。
 
+## 连接作用域与项目隔离
+
+项目使用连接（发起用户 OAuth、创建知识源）必须经过 `ConnectorConnectionService.requireAvailableForProject(projectId, connectionId)`：SYSTEM 连接对所有项目可用，PROJECT 连接仅 `ownerProjectId` 对应项目可用；不存在、非 ACTIVE 或他项目私有的连接一律按 `CONNECTOR_CONNECTION_NOT_FOUND` 处理，避免泄露其他项目的连接信息。管理操作（验证凭据、配置事件凭据、删除）由 `requireManageable` 单独约束：PROJECT 连接要求归属项目 Owner/Admin，SYSTEM 连接要求系统管理员。前端隐藏入口不是权限边界；新增任何接受 `connectionId` 的项目级接口都必须复用该作用域校验，不得直接 `connections.find` 后仅判断状态。
+
+用户授权（grant）本身已按 `projectId + connectionId + userId` 隔离：`list/disconnect` 校验项目成员与所有者，`saveAuthorization` 以三元组唯一约束落库，事件凭据更换会对该连接全部非撤销授权触发 `REAUTH_REQUIRED` 并通过可见性服务屏蔽关联知识源。
+
 ## 官方协议依据
 
 - [飞书用户令牌刷新](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/authentication-management/access-token/refresh-user-access-token-v3)
