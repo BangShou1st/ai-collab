@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.common.api.ApiResponse;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.connector.application.ConnectorOAuthService;
+import com.shitulelv.aicollab.connector.application.ConnectorConnectionService;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,8 +24,12 @@ import java.util.UUID;
 @RequestMapping("/api/v1")
 public class ConnectorOAuthController {
     private final ConnectorOAuthService oauth;
+    private final ConnectorConnectionService connections;
 
-    public ConnectorOAuthController(ConnectorOAuthService oauth) { this.oauth = oauth; }
+    public ConnectorOAuthController(ConnectorOAuthService oauth, ConnectorConnectionService connections) {
+        this.oauth = oauth;
+        this.connections = connections;
+    }
 
     @PostMapping("/projects/{projectId}/connector/connections/{connectionId}/oauth/start")
     public ApiResponse<ConnectorOAuthService.StartView> start(@PathVariable UUID projectId,
@@ -56,6 +61,12 @@ public class ConnectorOAuthController {
     public ApiResponse<List<ConnectorOAuthService.ConnectionOption>> availableConnections(
             @PathVariable UUID projectId, @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(oauth.availableConnections(projectId, userId(jwt)));
+    }
+
+    @GetMapping("/projects/{projectId}/connector/connections/{connectionId}/event-status")
+    public ApiResponse<ConnectorConnectionService.EventStatusView> eventStatus(
+            @PathVariable UUID projectId, @PathVariable UUID connectionId, @AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(connections.eventStatus(projectId, userId(jwt), connectionId));
     }
 
     @DeleteMapping("/projects/{projectId}/connector/authorizations/{authorizationId}")

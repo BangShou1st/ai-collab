@@ -48,7 +48,14 @@ export interface ConnectorGrant {
   accessExpiresAt: string | null
 }
 
-export interface ConnectorConnectionOption { id: string; name: string }
+export interface ConnectorConnectionOption {
+  id: string
+  name: string
+  status: 'ACTIVE' | 'INVALID'
+  visibility: 'SYSTEM' | 'PROJECT'
+}
+
+export interface ConnectorEventStatus { configured: boolean; verified: boolean }
 
 export interface ExternalDocument {
   id: string
@@ -86,6 +93,9 @@ function root(projectId: string): string {
 export const connectorApi = {
   async availableConnections(projectId: string): Promise<ApiResult<ConnectorConnectionOption[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<ConnectorConnectionOption[]>>(`/projects/${projectId}/connector/available-connections`))
+  },
+  async eventStatus(projectId: string, connectionId: string): Promise<ApiResult<ConnectorEventStatus>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<ConnectorEventStatus>>(`/projects/${projectId}/connector/connections/${connectionId}/event-status`))
   },
   async authorizations(projectId: string): Promise<ApiResult<ConnectorGrant[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<ConnectorGrant[]>>(`/projects/${projectId}/connector/authorizations`))
