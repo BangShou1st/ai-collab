@@ -11,6 +11,9 @@
 - 受信任的 TLS 证书与私钥（如 Let's Encrypt `fullchain.pem` / `privkey.pem`，由运维在宿主机准备与续期）。
 - 磁盘剩余 ≥ 5GB。
 - 放行入站 TCP 443（或自定义 HTTPS 端口）；**不要**放行 5432/6379/9000/9001——数据面容器不发布任何公网端口。
+- **镜像为 GHCR Private**：服务器需先 `docker login ghcr.io`（GitHub 用户名 + 具有 `read:packages`
+  权限的 PAT）才能拉取预构建镜像；未登录时安装脚本回退为源码构建（服务器上仍无需 Java/Maven/Node）。
+  公开镜像需仓库所有者在 GitHub Packages 设置中手动改为 Public。
 
 ## 一键安装
 
