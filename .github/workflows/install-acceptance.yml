@@ -5,9 +5,23 @@ name: Install acceptance
 # 不挂到 push/PR：后端源码构建耗时较长，避免阻塞日常 CI；发布前与部署整改后手动执行。
 on:
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'GHCR 镜像标签（留空=验证源码构建回退路径；填 sha-xxxx 验证发布镜像拉取部署）'
+        required: false
+        default: ''
+      backend_digest:
+        description: '期望的后端镜像 digest（可选，用于发布一致性校验）'
+        required: false
+        default: ''
+      frontend_digest:
+        description: '期望的前端镜像 digest（可选）'
+        required: false
+        default: ''
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: install-acceptance-${{ github.ref }}
@@ -26,8 +40,16 @@ jobs:
           docker info
           docker compose version
 
+      - name: Log in to GHCR
+        if: ${{ inputs.image_tag != '' }}
+        run: echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
       # 管理员凭据只在脚本进程内存中流转，不进入任何日志或产物。
       - name: Run install acceptance
+        env:
+          INSTALL_ACCEPTANCE_TAG: ${{ inputs.image_tag }}
+          INSTALL_ACCEPTANCE_EXPECT_BACKEND_DIGEST: ${{ inputs.backend_digest }}
+          INSTALL_ACCEPTANCE_EXPECT_FRONTEND_DIGEST: ${{ inputs.frontend_digest }}
         run: bash ai-collab-deploy/scripts/install-acceptance.sh --port 18080
 
       - name: Upload evidence

@@ -3,6 +3,10 @@
 # 覆盖：环境检查 → 首次安装 → 首管理员初始化/防重复引导 → 登录 → 项目/任务/文档上传下载
 #       → 停止/重启/数据保留 → 备份 → 覆盖式恢复 → server-check 正向/负向配置校验。
 # 用法: bash ai-collab-deploy/scripts/install-acceptance.sh [--port 18080]
+# 环境变量：
+#   INSTALL_ACCEPTANCE_TAG                 GHCR 镜像标签（设置后走「拉取发布镜像」路径，默认空=源码构建回退路径）
+#   INSTALL_ACCEPTANCE_EXPECT_BACKEND_DIGEST 期望的后端镜像 digest（sha256: 后的 hex，仅 TAG 模式校验）
+#   INSTALL_ACCEPTANCE_EXPECT_FRONTEND_DIGEST 期望的前端镜像 digest（同上）
 # 断言失败立即以非 0 退出；管理员凭据只在内存流转，绝不写入输出、日志或文件。
 set -euo pipefail
 
@@ -65,11 +69,37 @@ free -h | awk 'NR<=2 {print "[accept] mem: "$0}'
 step '1. 首次安装（GHCR 无镜像时自动回退源码构建）'
 INSTALL_LOG="$EVIDENCE_DIR/install.log"
 INSTALL_START=$SECONDS
-bash "$INSTALL" install --port "$PORT" >"$INSTALL_LOG" 2>&1 \
+INSTALL_ARGS=(--port "$PORT")
+if [ -n "${INSTALL_ACCEPTANCE_TAG:-}" ]; then INSTALL_ARGS+=(--tag "$INSTALL_ACCEPTANCE_TAG"); fi
+bash "$INSTALL" install "${INSTALL_ARGS[@]}" >"$INSTALL_LOG" 2>&1 \
     || { tail -40 "$INSTALL_LOG" >&2; echo 'install 失败' >&2; exit 1; }
 INSTALL_SECONDS=$((SECONDS - INSTALL_START))
 pass "install exit=0（耗时 ${INSTALL_SECONDS}s）"
 grep -E '安装完成|访问地址' "$INSTALL_LOG" | tail -2
+
+if [ -n "${INSTALL_ACCEPTANCE_TAG:-}" ]; then
+    # 发布镜像路径：必须真实来自 GHCR 拉取，且 digest 与发布记录一致。
+    if grep -q '从本地源码构建' "$INSTALL_LOG"; then
+        echo 'FAIL 发布镜像路径出现源码构建（未命中预构建镜像）' >&2; exit 1
+    fi
+    grep -q '尝试拉取预构建' "$INSTALL_LOG" || { echo 'FAIL 未尝试拉取预构建镜像' >&2; exit 1; }
+    LOCAL_ENV="$REPO_ROOT/ai-collab-deploy/local.env"
+    APP_IMAGE="$(grep -E '^APP_IMAGE=' "$LOCAL_ENV" | head -1 | cut -d= -f2-)"
+    WEB_IMAGE="$(grep -E '^WEB_IMAGE=' "$LOCAL_ENV" | head -1 | cut -d= -f2-)"
+    case "$APP_IMAGE" in ghcr.io/*@sha256:[a-f0-9]*) ;; *) echo "FAIL APP_IMAGE 非注册表 digest 引用: $APP_IMAGE" >&2; exit 1 ;; esac
+    case "$WEB_IMAGE" in ghcr.io/*@sha256:[a-f0-9]*) ;; *) echo "FAIL WEB_IMAGE 非注册表 digest 引用: $WEB_IMAGE" >&2; exit 1 ;; esac
+    if [ -n "${INSTALL_ACCEPTANCE_EXPECT_BACKEND_DIGEST:-}" ]; then
+        docker image inspect "$APP_IMAGE" --format '{{join .RepoDigests ","}}' \
+            | grep -q "sha256:${INSTALL_ACCEPTANCE_EXPECT_BACKEND_DIGEST}" \
+            || { echo "FAIL 后端镜像 digest 与发布记录不符: $APP_IMAGE" >&2; exit 1; }
+    fi
+    if [ -n "${INSTALL_ACCEPTANCE_EXPECT_FRONTEND_DIGEST:-}" ]; then
+        docker image inspect "$WEB_IMAGE" --format '{{join .RepoDigests ","}}' \
+            | grep -q "sha256:${INSTALL_ACCEPTANCE_EXPECT_FRONTEND_DIGEST}" \
+            || { echo "FAIL 前端镜像 digest 与发布记录不符: $WEB_IMAGE" >&2; exit 1; }
+    fi
+    pass "镜像来自 GHCR 拉取且 digest 与发布一致（sha-${INSTALL_ACCEPTANCE_TAG} 对应记录）"
+fi
 
 step '2. status / doctor'
 bash "$INSTALL" status
@@ -153,7 +183,24 @@ curl --noproxy '*' -ksS "$URL3" -o "$EVIDENCE_DIR/restored-doc.md"
 RESTORED_SHA="$(sha256sum "$EVIDENCE_DIR/restored-doc.md" | awk '{print $1}')"
 assert_eq "$RESTORED_SHA" "$DOC_SHA" '恢复后文档内容与原上传一致'
 
-step '11. server-check：正向配置通过 + 非法配置拒绝（不启动任何容器）'
+step '11. 升级失败自动回滚演练（坏镜像，数据卷不动）'
+LOCAL_ENV="$REPO_ROOT/ai-collab-deploy/local.env"
+UPGRADE_HISTORY="$REPO_ROOT/backups/local/upgrade-history.log"
+BAD_BE="ghcr.io/bangshou1st/ai-collab/ai-collab-backend:sha-acceptance-nonexistent"
+BAD_FE="ghcr.io/bangshou1st/ai-collab/ai-collab-frontend:sha-acceptance-nonexistent"
+OLD_BE="$(grep -E '^APP_IMAGE=' "$LOCAL_ENV" | head -1 | cut -d= -f2-)"
+OLD_FE="$(grep -E '^WEB_IMAGE=' "$LOCAL_ENV" | head -1 | cut -d= -f2-)"
+if bash "$INSTALL" upgrade --image "$BAD_BE" --frontend-image "$BAD_FE" >>"$EVIDENCE_DIR/upgrade-rollback.log" 2>&1; then
+    echo 'FAIL 坏镜像升级未被拒绝（预期 exit=10）' >&2; exit 1
+fi
+grep -q 'RESULT=ROLLBACK' "$UPGRADE_HISTORY" || { echo 'FAIL 升级历史缺少 ROLLBACK 记录' >&2; exit 1; }
+RESTORED_BE="$(grep -E '^APP_IMAGE=' "$LOCAL_ENV" | head -1 | cut -d= -f2-)"
+assert_eq "$RESTORED_BE" "$OLD_BE" '升级失败后 APP_IMAGE 自动回滚到升级前镜像'
+HEALTH="$(curl --noproxy '*' -ksS --max-time 10 "$ENTRY/api/v1/auth/registration-policy" 2>/dev/null || true)"
+assert_contains "$HEALTH" '"code"[[:space:]]*:[[:space:]]*"SUCCESS"' '回滚后应用健康'
+pass '坏镜像升级被拒绝且自动回滚（数据卷未动）'
+
+step '12. server-check：正向配置通过 + 非法配置拒绝（不启动任何容器）'
 CERT_DIR="$EVIDENCE_DIR/tls"; mkdir -p "$CERT_DIR"
 openssl req -x509 -newkey rsa:2048 -keyout "$CERT_DIR/key.pem" -out "$CERT_DIR/cert.pem" \
     -days 30 -nodes -subj '/CN=p0.example.test' -addext 'subjectAltName=DNS:p0.example.test' >/dev/null 2>&1
@@ -195,7 +242,7 @@ if bash "$INSTALL" server-check --server --domain other.example.test >/dev/null 
 fi
 pass '非法配置被拒绝（证书域名不匹配）'
 
-step '12. 资源占用与结论'
+step '13. 资源占用与结论'
 docker stats --no-stream --format '{{.Name}}\tCPU={{.CPUPerc}}\tMEM={{.MemUsage}}' \
     | grep -E 'app|postgres|redis|minio|web' || true
 docker system df
