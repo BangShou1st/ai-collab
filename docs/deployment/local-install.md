@@ -13,6 +13,15 @@
 
 磁盘空间建议预留 5GB 以上（镜像约 1GB + 数据）。
 
+## 镜像拉取与可见性（重要）
+
+正式镜像发布在 GHCR 且为 **Private**（`ghcr.io/bangshou1st/ai-collab/ai-collab-backend` 与 `…/ai-collab-frontend`）：
+
+- **匿名拉取会失败**，安装脚本会自动回退为从本地源码构建（容器内完成编译，宿主机仍无需任何工具链，仅耗时数分钟）。
+- 若你具备该仓库的读取权限，建议先登录 GHCR 再安装，可秒级完成镜像拉取：
+  `docker login ghcr.io`（用户名为 GitHub 用户名，密码使用 PAT，需 `read:packages` 权限）。
+- 若需公开下载（免登录安装），由仓库所有者在 GitHub → Packages → 对应镜像 → Package settings 中改为 Public（此操作无 API，只能网页手动执行）。
+
 ## Windows 本地安装
 
 ```powershell
@@ -83,6 +92,20 @@ cd ai-collab
 - **停止 ≠ 删除数据**：`stop`/`uninstall` 都不会删除 Docker 卷。
 - 备份的数据库 dump 与 MinIO 归档是先后生成的，**不是原子快照**；跨系统一致性以恢复演练（restore + `verify-restore-consistency.sh`）为准。
 - 升级若推进了数据库迁移（Flyway），旧镜像可能无法回退运行；升级脚本会自动备份并在失败时回滚镜像，同时明确提示迁移风险。
+
+## 安装回归验收
+
+`ai-collab-deploy/scripts/install-acceptance.sh`（Linux/macOS）对一键安装做全生命周期回归：
+首次安装、防重复引导、登录、项目/任务/文档上传下载（SHA256 一致性）、停止重启数据保留、
+备份与覆盖式恢复、升级失败自动回滚、server-check 正/负向配置校验；管理员凭据零落盘。
+
+```bash
+bash ai-collab-deploy/scripts/install-acceptance.sh --port 18080
+```
+
+同一验收也在 GitHub Actions 以 `install-acceptance.yml`（workflow_dispatch）于干净
+ubuntu Runner 上执行，支持两种路径：不传参数验证「GHCR 拉取失败 → 源码构建兜底」；
+传入 `image_tag` + `backend_digest` / `frontend_digest` 验证「发布镜像拉取部署 + digest 一致性」。
 
 ## 服务器部署
 
