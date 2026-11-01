@@ -134,3 +134,20 @@
 | Git Bash 功能冒烟：status / bootstrap-admin（识别已初始化）/ backup（复用仓库成熟脚本，含 mc diff 校验）/ version | PASS |
 | 真实 Linux 引擎 + 服务器模式端到端 | NOT_TESTED（WSL 服务异常 `Wsl/Service/CreateInstance/0x8007274c` 且无真实服务器；复现命令见 E 节） |
 
+## K. 复审回归（第二轮，2026-11-01 晚；修复六项审查问题后）
+
+| 项 | 结果 | 证据 |
+| --- | --- | --- |
+| stdout 日志污染（resolve_images 命令替换捕获） | PASS（修复） | bash/PS 两次 install 后 local.env 的 APP_IMAGE/WEB_IMAGE 均为纯镜像引用 |
+| GHCR 发布/安装路径一致 | PASS（修复） | 双方统一为 `ghcr.io/bangshou1st/ai-collab/{backend,frontend}`；CI 增加逐字一致性断言 |
+| GHCR 真实发布 + 拉取 | BLOCKED | `docker push ghcr.io/...` 返回 `permission_denied: token does not match expected scopes`（gh OAuth token 缺 `write:packages`）。解锁：`gh auth refresh -h github.com -s write:packages` 后由 CI release job 发布，或手动 push。拉取路径与发布路径已静态一致并受 CI 断言保护 |
+| advisory lock 未被引用（CTE 优化器跳过） | PASS（修复） | 提权 SQL 改为 `lock_holder` 被 `UPDATE ... FROM` 引用；并发双用户引导实测：仅 1 个提权成功（admin=t），另一个保持普通用户（admin2=f）并正确报告竞争失败 |
+| PR→dev 不触发 CI | PASS（修复） | ci.yml `pull_request: branches: [main, dev]` |
+| 服务器安装严格生产配置检查 | PASS（修复） | 新增 `server_strict_check` + `server-check` 独立命令：正向配置 PASS；负向全拒（短 JWT、证书域名不匹配、证书/私钥不匹配、非 443 端口）；grep `\s` 兼容性 bug 一并修复（改 POSIX `[[:space:]]`） |
+| Windows 恢复忽略 pg_restore 失败 | PASS（修复） | 严格检查 pg_restore 退出码；损坏 dump（截断 20KB）实测被拒：`pg_restore 执行失败（exit=1）...could not read from input file`，app 自动重启无残留 |
+| 顺带修复：空桶备份失败 | PASS | mc mirror 前置 mkdir；备份/升级回滚/恢复全流程在本轮重新实测通过（upgrade-history.log：ROLLBACK 与 OK 各一条新增记录） |
+| 契约回归 | PASS | compose-config-contract 4 场景、prod/local compose 契约、backup-safety、prod-config-check 5/5 全过 |
+
+本机清理：测试栈（ai-collab-local）、卷、local.env、backups/local、测试镜像标签与临时证书全部移除。
+
+

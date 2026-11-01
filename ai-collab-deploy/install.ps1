@@ -36,8 +36,9 @@ $BackupRoot = Join-Path $RepoRoot 'backups\local'
 $HistoryLog = Join-Path $BackupRoot 'upgrade-history.log'
 $BackendDevImage = 'ai-collab-backend:local'
 $FrontendDevImage = 'ai-collab-frontend:local'
-$RegistryBackend = "ghcr.io/bangshou1st/ai-collab-backend:$Tag"
-$RegistryFrontend = "ghcr.io/bangshou1st/ai-collab-frontend:$Tag"
+# 与 CI release job 的 GHCR 发布路径保持一致：ghcr.io/<owner>/<repo>/<image>。
+$RegistryBackend = "ghcr.io/bangshou1st/ai-collab/ai-collab-backend:$Tag"
+$RegistryFrontend = "ghcr.io/bangshou1st/ai-collab/ai-collab-frontend:$Tag"
 # 判定占位符（local.env.example 中的 REQUIRED_* 不允许直接使用）。
 $script:ExitCode = 0
 
@@ -88,11 +89,10 @@ function New-Random([int]$bytes) {
     } finally { $rng.Dispose() }
 }
 function Test-PortBusy([int]$p) {
-    # Docker Desktop（WSL2 后端）的端口转发监听不出现在 TCP 连接表，需 TCP 探测兜底。
-    if (@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -eq $p).Count -gt 0) { return $true }
-    & curl.exe --noproxy '*' -s --connect-timeout 2 --max-time 3 "telnet://127.0.0.1:$p" 2>$null
-    # 连接成功会挂起直到超时（28）；连接被拒（7）视为空闲，其余非零码同样按占用处理。
-    return ($LASTEXITCODE -ne 7)
+    # 仅按 TCP 监听表判断。Docker Desktop（WSL2）自身的转发监听不进表——但那正是
+    # 本部署自己的入口；其他程序的真实监听会被检出，漏网冲突由 compose 绑定时
+    # 的明确报错兜底。不要加 TCP 探测兜底：TUN 类代理会接受任意端口的连接，必误报。
+    return @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -eq $p).Count -gt 0
 }
 # 本机 HTTP 探测：绕过继承的系统代理，凭据绝不进入参数。
 function Invoke-Api([string]$method, [string]$path, $body, [string]$token) {
@@ -255,15 +255,21 @@ function Invoke-Backup([switch]$silent) {
 
     # ---- MinIO：容器内 mc mirror 到临时目录 -> docker cp -> tar 归档 ----
     $mcTmp = "/tmp/ai-collab-backup-minio"
-    & docker exec $minioId sh -c "rm -rf $mcTmp && mc alias set bkp http://127.0.0.1:9000 '$($values['MINIO_ROOT_USER'])' '$($values['MINIO_ROOT_PASSWORD'])' >/dev/null && mc mirror --overwrite bkp/$($values['MINIO_BUCKET']) $mcTmp/bucket"
+    # 目标目录必须先建：空桶时 mc mirror 不会创建目标路径，后续 docker cp 会失败。
+    & docker exec $minioId sh -c "rm -rf $mcTmp && mkdir -p $mcTmp/bucket && mc alias set bkp http://127.0.0.1:9000 '$($values['MINIO_ROOT_USER'])' '$($values['MINIO_ROOT_PASSWORD'])' >/dev/null && mc mirror --overwrite bkp/$($values['MINIO_BUCKET']) $mcTmp/bucket"
     if ($LASTEXITCODE -ne 0) { Fail 1 'MinIO 备份（mc mirror）失败' }
     $extractDir = Join-Path $env:TEMP "ai-collab-minio-$ts"
     New-Item -ItemType Directory -Force $extractDir | Out-Null
     & docker cp "${minioId}:$mcTmp/bucket" "$extractDir/bucket" | Out-Null
+    if ($LASTEXITCODE -ne 0) { Fail 1 'MinIO 备份文件复制失败' }
     & docker exec $minioId sh -c "rm -rf $mcTmp" | Out-Null
     $tgz = Join-Path $minioDir "minio_$($values['MINIO_BUCKET'])_$ts.tgz"
     & tar -czf $tgz -C $extractDir bucket
-    if ($LASTEXITCODE -ne 0) { Fail 1 'MinIO 备份归档（tar）失败' }
+    if ($LASTEXITCODE -ne 0 -or !(Test-Path $tgz) -or (Get-Item $tgz).Length -le 0) {
+        Remove-Item $tgz -Force -ErrorAction SilentlyContinue
+        Remove-Item $extractDir -Recurse -Force -ErrorAction SilentlyContinue
+        Fail 1 'MinIO 备份归档（tar）失败或为空，已删除残缺归档'
+    }
     Remove-Item $extractDir -Recurse -Force
     $minioHash = (Get-FileHash $tgz -Algorithm SHA256).Hash.ToLowerInvariant()
     Set-Content -Path "$tgz.sha256" -Value "$minioHash  $(Split-Path -Leaf $tgz)" -Encoding Ascii
@@ -450,9 +456,18 @@ switch ($Command) {
                     if ($expected -ne $actual) { Fail 1 'SHA256 校验失败：备份文件已损坏或不匹配' }
                 }
                 & docker cp $Dump "${pgId}:/tmp/restore.dump" | Out-Null
-                & docker exec $pgId sh -c "pg_restore --clean --if-exists -U '$($values['POSTGRES_USER'])' -d '$($values['POSTGRES_DB'])' /tmp/restore.dump" 2>$null
-                # pg_restore 对已存在对象的 ignore-error 会产生非零码；以能否查询关键表为准。
+                # pg_restore 退出码必须检查：与 backup/restore-postgres.sh 同语义，
+                # 失败立即中止，不把"忽略的恢复错误"当成成功。
+                $pgErr = Join-Path $env:TEMP "ai-collab-pgrestore-$PID.err"
+                & docker exec $pgId sh -c "pg_restore --clean --if-exists -U '$($values['POSTGRES_USER'])' -d '$($values['POSTGRES_DB'])' /tmp/restore.dump" 2>$pgErr
+                $pgCode = $LASTEXITCODE
                 & docker exec $pgId rm -f /tmp/restore.dump | Out-Null
+                if ($pgCode -ne 0) {
+                    $detail = if (Test-Path $pgErr) { (Get-Content $pgErr -ErrorAction SilentlyContinue | Select-Object -First 3) -join '; ' } else { '' }
+                    Remove-Item $pgErr -Force -ErrorAction SilentlyContinue
+                    Fail 1 "pg_restore 执行失败（exit=$pgCode，已中止；部分对象可能未恢复，请用升级前备份处理）。$detail"
+                }
+                Remove-Item $pgErr -Force -ErrorAction SilentlyContinue
                 $check = @(& docker exec $pgId psql -U $values['POSTGRES_USER'] -d $values['POSTGRES_DB'] -t -A -c 'SELECT count(*) FROM flyway_schema_history;')
                 if ($LASTEXITCODE -ne 0 -or !($check | Where-Object { $_ -match '^\d+$' -and [int]$_ -gt 0 })) { Fail 1 '恢复后数据库校验失败' }
                 Info "PostgreSQL 恢复完成（flyway_schema_history 迁移记录 $(@($check)[0]) 条）。"
@@ -465,12 +480,14 @@ switch ($Command) {
                 & tar -xzf $Minio -C $extractDir
                 if ($LASTEXITCODE -ne 0) { Fail 1 'MinIO 归档解压失败' }
                 & docker cp "$extractDir/bucket" "${minioId}:/tmp/restore-bucket" | Out-Null
-                # docker cp 产生的文件归 root，mc 以 65532 运行需要可写权限才能做 --remove 清理。
-                & docker exec $minioId sh -c 'chmod -R a+rwX /tmp/restore-bucket'
+                if ($LASTEXITCODE -ne 0) { Fail 1 '恢复数据复制到容器失败（docker cp）' }
+                # docker cp 产生的目录归 root；服务进程以 65532 运行，chmod/清理必须以容器 root 执行。
+                & docker exec -u root $minioId sh -c 'chmod -R a+rwX /tmp/restore-bucket'
+                if ($LASTEXITCODE -ne 0) { Fail 1 '恢复数据权限准备失败（chmod）' }
                 # 方向：把备份内容镜像进业务桶（--overwrite --remove 使桶与备份完全一致）。
                 & docker exec $minioId sh -c "mc alias set rst http://127.0.0.1:9000 '$($values['MINIO_ROOT_USER'])' '$($values['MINIO_ROOT_PASSWORD'])' >/dev/null && mc mirror --overwrite --remove /tmp/restore-bucket/bucket rst/$($values['MINIO_BUCKET'])"
                 $mcCode = $LASTEXITCODE
-                & docker exec $minioId sh -c "rm -rf /tmp/restore-bucket" | Out-Null
+                & docker exec -u root $minioId sh -c "rm -rf /tmp/restore-bucket" | Out-Null
                 Remove-Item $extractDir -Recurse -Force
                 if ($mcCode -ne 0) { Fail 1 'MinIO 恢复（mc mirror）失败' }
                 Info 'MinIO 恢复完成（与备份归档完全一致的镜像，含删除多余对象）。'

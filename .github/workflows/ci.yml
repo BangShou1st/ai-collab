@@ -1,12 +1,13 @@
 name: CI
 
-# PR 面向 main、main 与 dev 自身 push 触发；workflow_dispatch 供手动复跑。
+# PR 面向 main 与 dev 都触发（开发分支改动同样需要回归）；
+# main 与 dev 自身 push 触发；workflow_dispatch 供手动复跑。
 # 不使用 pull_request_target：本流水线会检出并执行提交内的构建脚本与测试。
 on:
   push:
     branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 # 最小权限：只读仓库内容；共享库通过公开 JitPack 解析。
@@ -49,6 +50,17 @@ jobs:
           MODEL_CONFIG_MASTER_KEY=0123456789abcdef0123456789abcdef
           EOF
           docker compose --env-file local-contract.env -f ai-collab-deploy/compose.local.yml config --format json | node ai-collab-deploy/scripts/local-compose-contract.mjs
+
+      - name: Assert install scripts match GHCR publish targets
+        run: |
+          # 安装脚本的默认镜像引用必须与 release job 的发布目标逐字一致，防止发布/安装漂移。
+          # 安装脚本的默认镜像引用必须与 release job 的发布目标一致（ghcr.io/<owner>/<repo>/<image>），
+          # 防止发布/安装路径漂移；release job 使用 github.repository（即 bangshou1st/ai-collab）。
+          grep -q 'GHCR_BACKEND="ghcr.io/bangshou1st/ai-collab/ai-collab-backend"' ai-collab-deploy/install.sh
+          grep -q 'GHCR_FRONTEND="ghcr.io/bangshou1st/ai-collab/ai-collab-frontend"' ai-collab-deploy/install.sh
+          grep -q 'ghcr.io/bangshou1st/ai-collab/ai-collab-backend' ai-collab-deploy/install.ps1
+          grep -q 'ghcr.io/bangshou1st/ai-collab/ai-collab-frontend' ai-collab-deploy/install.ps1
+          echo "install/publish GHCR targets consistent"
 
   backend:
     name: Backend (Maven verify)
@@ -329,7 +341,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 标签策略：分支构建 -> sha-<short> 与 main；版本标签 -> <版本> 与 sha-<short>。
+      # 标签策略：main 构建 -> sha-<short>、main 与 latest（latest 仅作本地安装的
+      # 便捷默认值，验收追溯以 sha-<short> 或 digest 为准）；版本标签 -> <版本> 与 sha-<short>。
       - name: Derive image tags
         id: tags
         run: |
@@ -339,8 +352,8 @@ jobs:
             echo "backend=${BACKEND_IMAGE}:v${version},${BACKEND_IMAGE}:sha-${short}" >> "$GITHUB_OUTPUT"
             echo "frontend=${FRONTEND_IMAGE}:v${version},${FRONTEND_IMAGE}:sha-${short}" >> "$GITHUB_OUTPUT"
           else
-            echo "backend=${BACKEND_IMAGE}:sha-${short},${BACKEND_IMAGE}:main" >> "$GITHUB_OUTPUT"
-            echo "frontend=${FRONTEND_IMAGE}:sha-${short},${FRONTEND_IMAGE}:main" >> "$GITHUB_OUTPUT"
+            echo "backend=${BACKEND_IMAGE}:sha-${short},${BACKEND_IMAGE}:main,${BACKEND_IMAGE}:latest" >> "$GITHUB_OUTPUT"
+            echo "frontend=${FRONTEND_IMAGE}:sha-${short},${FRONTEND_IMAGE}:main,${FRONTEND_IMAGE}:latest" >> "$GITHUB_OUTPUT"
           fi
         env:
           GITHUB_REF: ${{ github.ref }}
