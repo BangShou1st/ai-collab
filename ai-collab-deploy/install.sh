@@ -14,6 +14,7 @@
 #   服务器模式：./install.sh install --server --domain aicollab.example.org \
 #                 --tls-cert /srv/ai-collab/tls/fullchain.pem --tls-key /srv/ai-collab/tls/privkey.pem
 #   服务器模式的 bootstrap-admin / status / backup 等命令同样需要 --server --domain <域名>。
+#   ./install.sh server-check --server --domain aicollab.example.org  # 仅执行严格生产配置检查
 #
 # 退出码：0 成功；1 一般错误；2 Docker 不可用；3 配置缺失/占位符；
 #         4 端口冲突；10 升级失败（已回滚）。
@@ -27,6 +28,8 @@ COMPOSE_LOCAL="$SCRIPT_DIR/compose.local.yml"
 COMPOSE_PROD="$SCRIPT_DIR/compose.prod.yml"
 BACKUP_ROOT="$REPO_ROOT/backups/local"
 TAG="latest"
+GHCR_BACKEND="ghcr.io/bangshou1st/ai-collab/ai-collab-backend"
+GHCR_FRONTEND="ghcr.io/bangshou1st/ai-collab/ai-collab-frontend"
 USERNAME="admin"
 HTTP_PORT=""
 TLS_CERT=""
@@ -60,7 +63,7 @@ while [ $# -gt 0 ]; do
         --domain) DOMAIN="$2"; shift ;;
         --tls-cert) TLS_CERT="$2"; shift ;;
         --tls-key) TLS_KEY="$2"; shift ;;
-        install|bootstrap-admin|up|stop|restart|status|logs|doctor|backup|restore|upgrade|version|uninstall|help)
+        install|bootstrap-admin|up|stop|restart|status|logs|doctor|backup|restore|upgrade|version|uninstall|server-check|help)
             COMMAND="$1" ;;
         *) usage ;;
     esac
@@ -143,6 +146,12 @@ warn_arch() {
 }
 
 # ---------- 镜像解析 ----------
+pin_image() { # 注册表镜像转 digest 固定引用；本地构建镜像用镜像 ID 固定
+    local rd
+    rd="$(docker inspect --format '{{index .RepoDigests 0}}' "$1" 2>/dev/null || true)"
+    if [ -n "$rd" ]; then printf '%s' "$rd"; return 0; fi
+    docker inspect --format '{{.Id}}' "$1" 2>/dev/null || printf '%s' "$1"
+}
 resolve_images() { # 输出 "<backend> <frontend>"；顺序：参数 > env 已有有效值 > 注册表 > 本地构建
     local env_file; env_file="$(env_file_path)"
     local backend="$IMAGE" frontend="$FRONTEND_IMAGE" rev
@@ -151,9 +160,10 @@ resolve_images() { # 输出 "<backend> <frontend>"；顺序：参数 > env 已�
         case "$backend" in ''|REQUIRED*) backend='' ;; esac
     fi
     if [ -z "$backend" ]; then
-        log "尝试拉取预构建后端镜像 ghcr.io/bangshou1st/ai-collab-backend:$TAG ..."
-        if try_pull "ghcr.io/bangshou1st/ai-collab-backend:$TAG"; then
-            backend="ghcr.io/bangshou1st/ai-collab-backend:$TAG"
+        # 本函数的返回值经命令替换捕获，日志必须走 stderr 以免污染 stdout。
+        log "尝试拉取预构建后端镜像 $GHCR_BACKEND:$TAG ..." >&2
+        if try_pull "$GHCR_BACKEND:$TAG"; then
+            backend="$GHCR_BACKEND:$TAG"
         fi
     fi
     if [ -z "$frontend" ]; then
@@ -166,9 +176,9 @@ resolve_images() { # 输出 "<backend> <frontend>"；顺序：参数 > env 已�
         fi
     fi
     if [ -z "$frontend" ]; then
-        log "尝试拉取预构建前端镜像 ghcr.io/bangshou1st/ai-collab-frontend:$TAG ..."
-        if try_pull "ghcr.io/bangshou1st/ai-collab-frontend:$TAG"; then
-            frontend="ghcr.io/bangshou1st/ai-collab-frontend:$TAG"
+        log "尝试拉取预构建前端镜像 $GHCR_FRONTEND:$TAG ..." >&2
+        if try_pull "$GHCR_FRONTEND:$TAG"; then
+            frontend="$GHCR_FRONTEND:$TAG"
         fi
     fi
     rev="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || true)"
@@ -179,7 +189,7 @@ resolve_images() { # 输出 "<backend> <frontend>"；顺序：参数 > env 已�
         mirror_args=(--build-arg "MAVEN_CENTRAL_MIRROR=$AI_COLLAB_MAVEN_MIRROR" --build-arg "MVNW_REPO_URL=$AI_COLLAB_MAVEN_MIRROR")
     fi
     if [ -z "$backend" ] && [ -f "$REPO_ROOT/ai-collab-backend/Dockerfile" ]; then
-        log "预构建镜像不可用，改为从本地源码构建后端镜像（无需 Java/Maven，约需几分钟）..."
+        log "预构建镜像不可用，改为从本地源码构建后端镜像（无需 Java/Maven，约需几分钟）..." >&2
         if [ -n "$rev" ]; then
             docker build -f "$REPO_ROOT/ai-collab-backend/Dockerfile" -t ai-collab-backend:local \
                 "${mirror_args[@]}" --label "org.opencontainers.image.revision=$rev" "$REPO_ROOT" >/dev/null
@@ -189,7 +199,7 @@ resolve_images() { # 输出 "<backend> <frontend>"；顺序：参数 > env 已�
         backend="ai-collab-backend:local"
     fi
     if [ -z "$frontend" ] && [ -f "$REPO_ROOT/ai-collab-frontend/Dockerfile" ]; then
-        log "从本地源码构建前端镜像（无需 Node/pnpm）..."
+        log "从本地源码构建前端镜像（无需 Node/pnpm）..." >&2
         if [ -n "$rev" ]; then
             docker build -f "$REPO_ROOT/ai-collab-frontend/Dockerfile" -t ai-collab-frontend:local \
                 "${mirror_args[@]}" --label "org.opencontainers.image.revision=$rev" "$REPO_ROOT" >/dev/null
@@ -230,11 +240,12 @@ bootstrap_admin() {
     if printf '%s' "$reg" | grep -q '"systemAdmin"[[:space:]]*:[[:space:]]*true'; then
         fail 1 '安全异常：公开注册用户被自动赋予管理员角色，已中止。'
     fi
-    # 受控提权：单条语句内完成加锁-检查-更新，咨询锁保证并发引导只有一个赢家；
-    # 以返回的获胜数量（1/0）判定，避开 psql 命令标签在不同输出模式下的差异。
+    # 受控提权：lock_holder 被 promoted 的 UPDATE ... FROM 引用，保证咨询锁先于
+    # count 检查执行（未引用的 CTE 会被优化器跳过）；单语句内加锁-检查-更新，
+    # 并发引导只有一个赢家；以返回的获胜数量（1/0）判定。
     local out
     out="$(docker exec "$pg_id" psql -U "$pg_user" -d "$pg_db" -t -A -c \
-        "WITH lock_guard AS (SELECT pg_advisory_xact_lock(917463)), promoted AS (UPDATE app_user SET system_admin = true WHERE username = '$USERNAME' AND (SELECT count(*) FROM app_user WHERE system_admin = true) = 0 RETURNING 1) SELECT count(*) FROM promoted;")" \
+        "WITH lock_holder AS (SELECT pg_advisory_xact_lock(917463) AS locked), promoted AS (UPDATE app_user SET system_admin = true FROM lock_holder WHERE app_user.username = '$USERNAME' AND (SELECT count(*) FROM app_user WHERE system_admin = true) = 0 RETURNING 1) SELECT count(*) FROM promoted;")" \
         || fail 1 '提权 SQL 执行失败，新注册用户保持普通用户状态。'
     if [ "${out// /}" != "1" ]; then
         log '并发竞争中另一位管理员已完成初始化，本次未提权（新注册用户保留为普通用户）。'
@@ -281,6 +292,88 @@ run_backup() {
     log '注意：数据库与对象存储先后备份，非原子快照；跨系统一致性以恢复演练为准。'
 }
 
+# ---------- 服务器模式：严格生产配置检查（镜像 prod-config-check.mjs 的 bash 实现） ----------
+# 只输出错误与结论，绝不打印任何配置值。返回非 0 表示拒绝部署。
+server_strict_check() {
+    local env_file="$PROD_ENV_FILE" errors=()
+    [ -f "$env_file" ] || { fail 3 "缺少 $env_file"; }
+    # 1. 环境文件格式与占位符。
+    local key= line_no=0
+    while IFS= read -r line; do
+        line_no=$((line_no + 1))
+        [ -z "$line" ] && continue
+        case "$line" in \#*) continue ;; esac
+        if ! printf '%s' "$line" | grep -qE '^[A-Z][A-Z0-9_]*=[^[:space:]"'"'"'"$#]*$'; then
+            errors+=("环境文件第 $line_no 行格式无效")
+        fi
+        case "$line" in *REQUIRED_*) errors+=("环境文件第 $line_no 行含未替换占位符") ;; esac
+    done < "$env_file"
+    env_kv() { grep -E "^$1=" "$env_file" | tail -1 | cut -d= -f2-; }
+    # 2. 镜像必须可追溯（注册表 digest 或本地镜像 ID）。
+    for key in APP_IMAGE PROXY_IMAGE; do
+        local img; img="$(env_kv "$key")"
+        if ! printf '%s' "$img" | grep -qE '^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$|^[a-z0-9._:/-]+:sha256:[a-f0-9]{64}$|^sha256:[a-f0-9]{64}$'; then
+            errors+=("$key 不是 digest 固定的镜像引用")
+        fi
+    done
+    # 3. 密钥强度：长度、随机性、互不相同、无占位词。
+    local secrets=(POSTGRES_PASSWORD REDIS_PASSWORD MINIO_ROOT_PASSWORD MINIO_SECRET_KEY JWT_SECRET MODEL_CONFIG_MASTER_KEY)
+    for key in "${secrets[@]}"; do
+        local v min=32; v="$(env_kv "$key")"
+        [ "$key" = JWT_SECRET ] || [ "$key" = MODEL_CONFIG_MASTER_KEY ] && min=43
+        if ! printf '%s' "$v" | grep -qE '^[A-Za-z0-9_-]+$' || [ "${#v}" -lt "$min" ] ||
+            [ "$(printf '%s' "$v" | fold -w1 | sort -u | wc -l)" -lt 12 ] ||
+            printf '%s' "$v" | grep -qiE 'change.?me|replace|placeholder|required'; then
+            errors+=("$key 未满足随机值格式要求")
+        fi
+    done
+    local uniq_count
+    uniq_count="$(for key in "${secrets[@]}"; do env_kv "$key"; done | sort -u | wc -l)"
+    [ "$uniq_count" -eq "${#secrets[@]}" ] || errors+=('各服务密钥必须彼此不同')
+    # 4. 端口与 Origin 一致性（代理信任边界按 443 设计验证）。
+    local port; port="$(env_kv HTTPS_PORT)"
+    [ "$port" = "443" ] || errors+=('生产 HTTPS_PORT 必须为 443；其他端口需要重新设计和验证代理信任边界')
+    local origin; origin="$(env_kv AUTH_ALLOWED_ORIGINS)"
+    local o
+    for o in ${origin//,/ }; do
+        printf '%s' "$o" | grep -qE '^https://[a-zA-Z0-9.-]+(:443)?$' || errors+=('AUTH_ALLOWED_ORIGINS 必须是规范的 HTTPS 域名 Origin')
+    done
+    printf '%s' "$(env_kv MINIO_PUBLIC_ENDPOINT)" | grep -qE "^https://[a-zA-Z0-9.-]+:${port}$|^https://[a-zA-Z0-9.-]+$" \
+        || errors+=('MINIO_PUBLIC_ENDPOINT 必须是与下载网关端口匹配的单个 HTTPS 域名 Origin')
+    [ "$(env_kv MINIO_ROOT_USER)" = "$(env_kv MINIO_ACCESS_KEY)" ] && errors+=('MinIO 应用账号必须独立于管理员账号')
+    # 5. TLS 证书/私钥：绝对路径、存在、匹配、未过期、域名匹配。
+    local cert key
+    cert="$(env_kv TLS_CERT_FILE)"; key="$(env_kv TLS_KEY_FILE)"
+    if printf '%s' "$cert" | grep -q '^/' && printf '%s' "$key" | grep -q '^/' &&
+        [ -f "$cert" ] && [ -f "$key" ]; then
+        local cert_fp key_fp
+        cert_fp="$(openssl x509 -in "$cert" -pubkey -noout 2>/dev/null | openssl pkey -pubin -outform DER 2>/dev/null | openssl dgst -sha256 | awk '{print $NF}')"
+        key_fp="$(openssl pkey -in "$key" -pubout -outform DER 2>/dev/null | openssl dgst -sha256 | awk '{print $NF}')"
+        if [ -z "$cert_fp" ] || [ "$cert_fp" != "$key_fp" ]; then
+            errors+=('TLS 证书与私钥不匹配或不可读取')
+        fi
+        openssl x509 -in "$cert" -checkend 0 -noout >/dev/null 2>&1 || errors+=('TLS 证书已过期')
+        openssl x509 -in "$cert" -checkhost "$DOMAIN" >/dev/null 2>&1 || errors+=("TLS 证书域名不匹配（$DOMAIN）")
+    else
+        errors+=('TLS_CERT_FILE / TLS_KEY_FILE 必须是存在的绝对路径')
+    fi
+    # 6. 官方检查脚本叠加（node 可用且镜像为注册表 digest 时）。
+    if command -v node >/dev/null 2>&1 &&
+        printf '%s' "$(env_kv APP_IMAGE)" | grep -q '@sha256:' &&
+        printf '%s' "$(env_kv PROXY_IMAGE)" | grep -q '@sha256:'; then
+        node "$SCRIPT_DIR/scripts/prod-config-check.mjs" "$env_file" || errors+=('官方 prod-config-check.mjs 检查未通过')
+    else
+        log '提示：node 不可用或镜像非注册表 digest，跳过 prod-config-check.mjs 叠加检查（bash 严格检查已执行）。'
+    fi
+    if [ "${#errors[@]}" -gt 0 ]; then
+        printf '[install] ERROR: 生产配置严格检查失败：\n' >&2
+        local e
+        for e in "${errors[@]}"; do printf '[install]   - %s\n' "$e" >&2; done
+        return 1
+    fi
+    log '生产配置严格检查通过（镜像 digest/密钥强度/端口边界/TLS 证书）。'
+}
+
 # ---------- 服务器模式：MinIO 桶与应用账号初始化（幂等） ----------
 setup_server_storage() {
     local minio_id bucket app_key app_secret
@@ -313,6 +406,9 @@ cmd_install() {
         if [ -z "$TLS_CERT" ] || [ ! -f "$TLS_CERT" ]; then fail 3 "服务器模式需要 --tls-cert <证书文件>（找不到: $TLS_CERT）"; fi
         if [ -z "$TLS_KEY" ] || [ ! -f "$TLS_KEY" ]; then fail 3 "服务器模式需要 --tls-key <私钥文件>（找不到: $TLS_KEY）"; fi
         local https_port="${HTTP_PORT:-443}"
+        if [ "$https_port" != "443" ]; then
+            fail 3 '生产 HTTPS_PORT 必须为 443（代理信任边界按 443 设计并经验证）；非 443 演练请使用 compose.staging.yml。'
+        fi
         local disk_avail; disk_avail="$(df -PG "$SCRIPT_DIR" | tail -1 | awk '{print $4}')"
         if [ "${disk_avail:-0}" -le 5242880 ]; then
             fail 3 "磁盘剩余空间不足 5GB（当前 ${disk_avail}KB）。部署镜像与数据需要至少 5GB。"
@@ -327,6 +423,9 @@ cmd_install() {
             local images backend frontend
             images="$(resolve_images)"
             backend="${images%% *}"; frontend="${images##* }"
+            # 服务器模式要求可追溯镜像：注册表镜像转 digest，本地构建用镜像 ID。
+            backend="$(pin_image "$backend")"
+            frontend="$(pin_image "$frontend")"
             TLS_CERT="$(cd "$(dirname "$TLS_CERT")" && pwd)/$(basename "$TLS_CERT")"
             TLS_KEY="$(cd "$(dirname "$TLS_KEY")" && pwd)/$(basename "$TLS_KEY")"
             cat > "$PROD_ENV_FILE" <<EOF
@@ -355,6 +454,8 @@ EOF
             chmod 600 "$PROD_ENV_FILE"
             log "已生成 $PROD_ENV_FILE（含随机凭据，权限 600；文件已在 .gitignore 中排除，请勿提交或外传）。"
         fi
+        log '执行生产配置严格检查...'
+        server_strict_check || fail 3 '生产配置严格检查未通过；拒绝部署'
         log '校验生产 Compose 配置渲染...'
         docker compose --env-file "$PROD_ENV_FILE" -f "$COMPOSE_PROD" config -q || fail 3 '生产配置渲染失败；请检查 prod.env 完整性'
         log '启动生产拓扑（postgres/redis/minio/app/proxy）...'
@@ -438,15 +539,15 @@ cmd_upgrade() {
     log '[3/6] 解析新镜像...'
     new_backend="$IMAGE"; new_frontend="$FRONTEND_IMAGE"
     if [ -z "$new_backend" ]; then
-        if try_pull "ghcr.io/bangshou1st/ai-collab-backend:$TAG"; then
-            new_backend="ghcr.io/bangshou1st/ai-collab-backend:$TAG"
+        if try_pull "$GHCR_BACKEND:$TAG"; then
+            new_backend="$GHCR_BACKEND:$TAG"
         else
             new_backend="$old_backend"
         fi
     fi
     if [ -z "$new_frontend" ]; then
-        if try_pull "ghcr.io/bangshou1st/ai-collab-frontend:$TAG"; then
-            new_frontend="ghcr.io/bangshou1st/ai-collab-frontend:$TAG"
+        if try_pull "$GHCR_FRONTEND:$TAG"; then
+            new_frontend="$GHCR_FRONTEND:$TAG"
         else
             new_frontend="$old_frontend"
         fi
@@ -532,6 +633,15 @@ cmd_restore() {
     fi
 }
 
+# 服务器模式：执行严格生产配置检查（不启动任何容器）。用法：
+#   ./install.sh server-check --server --domain aicollab.example.org
+server_check_only() {
+    if [ "$SERVER_MODE" != 1 ] || [ -z "$DOMAIN" ]; then
+        fail 3 'server-check 需要 --server --domain <域名>'
+    fi
+    server_strict_check || fail 3 '生产配置严格检查未通过'
+}
+
 case "$COMMAND" in
     help)
         sed -n '2,28p' "$0"
@@ -604,6 +714,9 @@ case "$COMMAND" in
     restore)
         assert_docker
         cmd_restore
+        ;;
+    server-check)
+        server_check_only
         ;;
     upgrade)
         assert_docker

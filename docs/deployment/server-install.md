@@ -31,15 +31,16 @@ sudo ./ai-collab-deploy/install.sh bootstrap-admin --server --domain aicollab.ex
 
 安装脚本会：
 
-1. 检查 Docker/Compose、磁盘空间（≥5GB）、端口占用、证书文件存在性。
-2. 生成 `ai-collab-deploy/prod.env`（权限 600，含随机凭据，已被 `.gitignore` 排除）。
-3. 拉取 GHCR 预构建镜像（或源码构建兜底），`docker compose config -q` 校验渲染。
-4. 启动 `compose.prod.yml` 拓扑：
+1. 检查 Docker/Compose、磁盘空间（≥5GB）、端口占用（强制 443，非 443 拒绝并指引 Staging）、证书文件存在性。
+2. 生成 `ai-collab-deploy/prod.env`（权限 600，含随机凭据，已被 `.gitignore` 排除）；镜像解析为 digest 固定引用（注册表 digest 或本地镜像 ID）。
+3. **执行严格生产配置检查**（`server_strict_check`，bash+openssl 实现，无 node 依赖）：镜像可追溯、密钥强度与互异、Origin/端口一致性、TLS 证书/私钥匹配、未过期与域名匹配；node 可用且镜像为注册表 digest 时叠加官方 `prod-config-check.mjs`。检查未通过则拒绝部署；修改配置后可单独复检：`./install.sh server-check --server --domain <域名>`。
+4. 拉取 GHCR 预构建镜像（或源码构建兜底），`docker compose config -q` 校验渲染。
+5. 启动 `compose.prod.yml` 拓扑：
    - `postgres` / `redis` / `minio` 位于 `internal` 数据网络，无公网端口；
    - `app`（Spring Boot）在 edge+data 双网络，别名 `app-edge`；
    - `proxy`（前端镜像：Nginx + 内置静态资源）仅发布 `HTTPS_PORT`。
-5. 初始化 MinIO 桶与应用专用账号（桶级最小权限策略，幂等）。
-6. 轮询 HTTPS 健康检查并输出访问地址。
+6. 初始化 MinIO 桶与应用专用账号（桶级最小权限策略，幂等）。
+7. 轮询 HTTPS 健康检查并输出访问地址。
 
 ## 安全基线（与本地模式的差异）
 

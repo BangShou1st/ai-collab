@@ -21,7 +21,7 @@
 
 - `compose.prod.yml` 已移除 `../ai-collab-frontend/dist` 挂载；
 - `PROXY_IMAGE` 从裸 Nginx 镜像改为与后端同版本的前端镜像
-  （`ghcr.io/bangshou1st/ai-collab-frontend:v<版本>`，内置静态资源与 production.conf）。
+  （`ghcr.io/bangshou1st/ai-collab/ai-collab-frontend:v<版本>`，内置静态资源与 production.conf）。
 
 迁移步骤（由运维在受控窗口执行）：
 

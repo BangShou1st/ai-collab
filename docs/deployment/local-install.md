@@ -49,7 +49,7 @@ cd ai-collab
 1. 检查 Docker 引擎与 Compose v2 可用性，检查 CPU 架构兼容性。
 2. 检查端口冲突（冲突时明确报错，不会抢占端口）。
 3. 生成 `local.env`：随机 PostgreSQL/Redis/MinIO 密码、JWT_SECRET、模型密钥主密钥（MODEL_CONFIG_MASTER_KEY）。
-4. 解析应用镜像：优先拉取 GHCR 预构建镜像（`ghcr.io/bangshou1st/ai-collab-backend` / `ai-collab-frontend`），不可用时从本地源码用 Docker 多阶段构建（容器内完成 Java/前端编译，宿主机无需任何工具链）。
+4. 解析应用镜像：优先拉取 GHCR 预构建镜像（`ghcr.io/bangshou1st/ai-collab/ai-collab-backend` / `…/ai-collab-frontend`，与 CI 发布路径一致），不可用时从本地源码用 Docker 多阶段构建（容器内完成 Java/前端编译，宿主机无需任何工具链）。
 5. `docker compose up -d` 启动 5 个服务：PostgreSQL(pgvector)、Redis、MinIO、后端、Nginx+前端。
 6. 轮询健康检查（首次启动含 Flyway 数据库迁移，1-3 分钟）。
 7. 输出访问地址与初始化提示。
