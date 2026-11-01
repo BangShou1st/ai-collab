@@ -146,3 +146,6 @@ docs/shots/
 
 # 本地备份产物（ai-collab-deploy/backup 脚本输出）
 /backups/
+# 本地一键部署生成的真实凭据（install.ps1 / install.sh 生成，绝不入库）
+ai-collab-deploy/local.env
+ai-collab-deploy/prod.env
