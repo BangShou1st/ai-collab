@@ -88,13 +88,17 @@ function New-Random([int]$bytes) {
     } finally { $rng.Dispose() }
 }
 function Test-PortBusy([int]$p) {
-    return @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -eq $p).Count -gt 0
+    # Docker Desktop（WSL2 后端）的端口转发监听不出现在 TCP 连接表，需 TCP 探测兜底。
+    if (@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -eq $p).Count -gt 0) { return $true }
+    & curl.exe --noproxy '*' -s --connect-timeout 2 --max-time 3 "telnet://127.0.0.1:$p" 2>$null
+    # 连接成功会挂起直到超时（28）；连接被拒（7）视为空闲，其余非零码同样按占用处理。
+    return ($LASTEXITCODE -ne 7)
 }
 # 本机 HTTP 探测：绕过继承的系统代理，凭据绝不进入参数。
 function Invoke-Api([string]$method, [string]$path, $body, [string]$token) {
     $base = "http://localhost:$($env:AI_PORT)"
     $curlArgs = @('--noproxy', '*', '-s', '-S', '-X', $method, "$base$path",
-        '-H', 'Content-Type: application/json', '--max-time', '30')
+        '-H', 'Content-Type: application/json', '-H', "Origin: $base", '--max-time', '30')
     if ($body) { $curlArgs += @('-d', ($body | ConvertTo-Json -Depth 5 -Compress)) }
     if ($token) { $curlArgs += @('-H', "Authorization: Bearer $token") }
     $raw = & curl.exe @curlArgs
@@ -129,6 +133,9 @@ function Wait-WebHealthy([int]$timeoutSec) {
     Info "等待服务就绪（首次启动需完成数据库迁移，可能需要 1-3 分钟）..."
     $deadline = (Get-Date).AddSeconds($timeoutSec)
     while ((Get-Date) -lt $deadline) {
+        # app 容器已退出时立即失败（坏镜像/启动崩溃的快速回滚路径）。
+        $appHealth = ContainerHealth 'app'
+        if ($appHealth -in @('exited', 'absent')) { Info "app 容器状态异常: $appHealth"; return $false }
         $raw = & curl.exe --noproxy '*' -s --max-time 5 "http://localhost:$($env:AI_PORT)/api/v1/auth/registration-policy" 2>$null
         if ($LASTEXITCODE -eq 0 -and $raw -match '"code"\s*:\s*"SUCCESS"') { return $true }
         Start-Sleep -Seconds 5
@@ -146,6 +153,13 @@ function Wait-ContainerHealthy([string]$service, [int]$timeoutSec) {
 function Try-Pull([string]$ref) {
     & docker pull $ref *> $null
     return ($LASTEXITCODE -eq 0)
+}
+function Get-MirrorBuildArgs {
+    # 网络受限环境可设 AI_COLLAB_MAVEN_MIRROR（如 https://maven.aliyun.com/repository/public），
+    # 同时覆盖 Maven 中央仓库与 Wrapper 发行版下载源；未设置时不影响默认行为。
+    $mirror = $env:AI_COLLAB_MAVEN_MIRROR
+    if ($mirror) { return @('--build-arg', "MAVEN_CENTRAL_MIRROR=$mirror", '--build-arg', "MVNW_REPO_URL=$mirror") }
+    return @()
 }
 function Resolve-Images {
     # 解析顺序：命令行参数 > local.env 已有有效值 > 注册表拉取 > 本地源码构建。
@@ -165,7 +179,7 @@ function Resolve-Images {
     if (!$backend -and (Test-Path (Join-Path $RepoRoot 'ai-collab-backend\Dockerfile'))) {
         Info "预构建镜像不可用，改为从本地源码构建后端镜像（无需 Java/Maven，约需几分钟）..."
         $rev = $null; try { $rev = & git -C $RepoRoot rev-parse HEAD } catch {}
-        $buildArgs = @('build', '-f', (Join-Path $RepoRoot 'ai-collab-backend\Dockerfile'), '-t', $BackendDevImage)
+        $buildArgs = @('build', '-f', (Join-Path $RepoRoot 'ai-collab-backend\Dockerfile'), '-t', $BackendDevImage) + (Get-MirrorBuildArgs)
         if ($rev) { $buildArgs += @('--label', "org.opencontainers.image.revision=$rev") }
         & docker @buildArgs (Join-Path $RepoRoot '.') | ForEach-Object { Write-Verbose $_ }
         if ($LASTEXITCODE -ne 0) { Fail 1 '后端镜像本地构建失败。请检查 Docker 磁盘空间与网络。' }
@@ -174,7 +188,7 @@ function Resolve-Images {
     if (!$frontend -and (Test-Path (Join-Path $RepoRoot 'ai-collab-frontend\Dockerfile'))) {
         Info "从本地源码构建前端镜像（无需 Node/pnpm）..."
         $rev = $null; try { $rev = & git -C $RepoRoot rev-parse HEAD } catch {}
-        $buildArgs = @('build', '-f', (Join-Path $RepoRoot 'ai-collab-frontend\Dockerfile'), '-t', $FrontendDevImage)
+        $buildArgs = @('build', '-f', (Join-Path $RepoRoot 'ai-collab-frontend\Dockerfile'), '-t', $FrontendDevImage) + (Get-MirrorBuildArgs)
         if ($rev) { $buildArgs += @('--label', "org.opencontainers.image.revision=$rev") }
         & docker @buildArgs (Join-Path $RepoRoot '.') | ForEach-Object { Write-Verbose $_ }
         if ($LASTEXITCODE -ne 0) { Fail 1 '前端镜像本地构建失败。请检查 Docker 磁盘空间与网络。' }
@@ -183,15 +197,14 @@ function Resolve-Images {
     if (!$backend -or !$frontend) { Fail 3 '无法解析应用镜像（无预构建镜像且当前目录不含源码）。请用 -Image / -FrontendImage 显式指定。' }
     return @{ backend = $backend; frontend = $frontend }
 }
-function New-EnvFile($images) {
+function New-EnvFile($images, [int]$httpPort) {
     if (Test-Path $EnvFile) {
         Info "已存在 local.env，保留现有凭据与数据配置（幂等安装）。"
-        if ($PSBoundParameters.ContainsKey('Port')) { Set-EnvValue 'HTTP_PORT' "$Port" }
+        if ($httpPort -gt 0) { Set-EnvValue 'HTTP_PORT' "$httpPort" }
         Set-EnvValue 'APP_IMAGE' $images.backend
         Set-EnvValue 'WEB_IMAGE' $images.frontend
         return
     }
-    $httpPort = if ($PSBoundParameters.ContainsKey('Port')) { $Port } else { 8080 }
     $content = @"
 APP_IMAGE=$($images.backend)
 WEB_IMAGE=$($images.frontend)
@@ -292,7 +305,7 @@ switch ($Command) {
             Fail 4 "端口 $httpPort 已被占用（$detail）。请换用其他端口： .\install.ps1 install -Port 8090"
         }
         $images = Resolve-Images
-        New-EnvFile $images
+        New-EnvFile $images $httpPort
         $values = Read-EnvFile
         $env:AI_PORT = $values['HTTP_PORT']
         Info "启动服务（postgres/redis/minio/app/web）..."
@@ -325,13 +338,16 @@ switch ($Command) {
         }
         if (!$reg -or $reg.code -ne 'SUCCESS') { Fail 1 "注册接口调用失败：$($reg | ConvertTo-Json -Depth 5 -Compress)。若系统已关闭公开注册，请先在界面或其他渠道创建普通用户，再联系运维处理。" }
         if ($reg.data.user.systemAdmin) { Fail 1 '安全异常：公开注册用户被自动赋予管理员角色，已中止。' }
-        # 受控提权：PostgreSQL 事务级咨询锁保证并发引导只有一个赢家。
+        # 受控提权：单条语句内完成加锁-检查-更新，咨询锁保证并发引导只有一个赢家；
+        # 以返回的获胜数量（1/0）判定，避开 psql 命令标签在不同输出模式下的差异。
         $u = $Username
-        $sql = "BEGIN; SELECT pg_advisory_xact_lock(917463); " +
-            "UPDATE app_user SET system_admin = true WHERE username = '$u' AND (SELECT count(*) FROM app_user WHERE system_admin = true) = 0; COMMIT;"
-        $out = & docker exec $pgId psql -U $values['POSTGRES_USER'] -d $values['POSTGRES_DB'] -t -A -c $sql
+        $sql = "WITH lock_guard AS (SELECT pg_advisory_xact_lock(917463)), promoted AS (" +
+            "UPDATE app_user SET system_admin = true WHERE username = '$u' AND " +
+            "(SELECT count(*) FROM app_user WHERE system_admin = true) = 0 RETURNING 1) " +
+            "SELECT count(*) FROM promoted;"
+        $out = @(& docker exec $pgId psql -U $values['POSTGRES_USER'] -d $values['POSTGRES_DB'] -t -A -c $sql)
         if ($LASTEXITCODE -ne 0) { Fail 1 '提权 SQL 执行失败，新注册用户保持普通用户状态。' }
-        if ($out -notmatch 'UPDATE 1') {
+        if ("$($out | Where-Object { $_ -ne '' } | Select-Object -First 1)" -ne '1') {
             Info '并发竞争中另一位管理员已完成初始化，本次未提权（新注册用户保留为普通用户）。'
             return
         }
@@ -398,7 +414,7 @@ switch ($Command) {
         }
         $port = if ($values['HTTP_PORT']) { [int]$values['HTTP_PORT'] } else { 8080 }
         if (Test-Path $EnvFile) {
-            if (Test-PortBusy $port) { Info "端口 ${port}: 占用（预期内：本部署入口）" } else { Write-Warning "端口 ${port}: 未监听（web 服务未启动）" }
+            if (Test-PortBusy $port) { Info "端口 ${port}: 监听中（本部署入口）" } else { Write-Warning "端口 ${port}: 未监听（web 服务未启动）" }
         } elseif (Test-PortBusy $port) { Write-Warning "端口 ${port}: 被其他程序占用，安装前请用 -Port 换端口" }
         if (Test-Path $EnvFile) {
             foreach ($svc in @('postgres', 'redis', 'minio', 'app', 'web')) {
@@ -437,9 +453,9 @@ switch ($Command) {
                 & docker exec $pgId sh -c "pg_restore --clean --if-exists -U '$($values['POSTGRES_USER'])' -d '$($values['POSTGRES_DB'])' /tmp/restore.dump" 2>$null
                 # pg_restore 对已存在对象的 ignore-error 会产生非零码；以能否查询关键表为准。
                 & docker exec $pgId rm -f /tmp/restore.dump | Out-Null
-                $check = & docker exec $pgId psql -U $values['POSTGRES_USER'] -d $values['POSTGRES_DB'] -t -A -c 'SELECT count(*) FROM flyway_schema_history;'
-                if ($LASTEXITCODE -ne 0 -or !$check) { Fail 1 '恢复后数据库校验失败' }
-                Info "PostgreSQL 恢复完成（flyway_schema_history 迁移记录 $($check[0]) 条）。"
+                $check = @(& docker exec $pgId psql -U $values['POSTGRES_USER'] -d $values['POSTGRES_DB'] -t -A -c 'SELECT count(*) FROM flyway_schema_history;')
+                if ($LASTEXITCODE -ne 0 -or !($check | Where-Object { $_ -match '^\d+$' -and [int]$_ -gt 0 })) { Fail 1 '恢复后数据库校验失败' }
+                Info "PostgreSQL 恢复完成（flyway_schema_history 迁移记录 $(@($check)[0]) 条）。"
             }
             if ($Minio) {
                 if (!(Test-Path $Minio)) { Fail 3 "找不到 MinIO 归档: $Minio" }
@@ -449,7 +465,10 @@ switch ($Command) {
                 & tar -xzf $Minio -C $extractDir
                 if ($LASTEXITCODE -ne 0) { Fail 1 'MinIO 归档解压失败' }
                 & docker cp "$extractDir/bucket" "${minioId}:/tmp/restore-bucket" | Out-Null
-                & docker exec $minioId sh -c "mc alias set rst http://127.0.0.1:9000 '$($values['MINIO_ROOT_USER'])' '$($values['MINIO_ROOT_PASSWORD'])' >/dev/null && mc mirror --overwrite --remove rst/$($values['MINIO_BUCKET']) /tmp/restore-bucket"
+                # docker cp 产生的文件归 root，mc 以 65532 运行需要可写权限才能做 --remove 清理。
+                & docker exec $minioId sh -c 'chmod -R a+rwX /tmp/restore-bucket'
+                # 方向：把备份内容镜像进业务桶（--overwrite --remove 使桶与备份完全一致）。
+                & docker exec $minioId sh -c "mc alias set rst http://127.0.0.1:9000 '$($values['MINIO_ROOT_USER'])' '$($values['MINIO_ROOT_PASSWORD'])' >/dev/null && mc mirror --overwrite --remove /tmp/restore-bucket/bucket rst/$($values['MINIO_BUCKET'])"
                 $mcCode = $LASTEXITCODE
                 & docker exec $minioId sh -c "rm -rf /tmp/restore-bucket" | Out-Null
                 Remove-Item $extractDir -Recurse -Force

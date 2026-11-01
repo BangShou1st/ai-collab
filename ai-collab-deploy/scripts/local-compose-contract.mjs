@@ -28,6 +28,9 @@ assert.match(app.environment.AUTH_ALLOWED_ORIGINS, /^http:\/\/localhost:\d+$/)
 assert.equal(config.networks.data.internal, true)
 assert.equal(config.networks.edge.ipam.config[0].subnet, '172.30.174.0/24')
 assert.ok(!Object.values(app.networks).some((n) => (n.ipv4_address || '') === '172.30.173.2'), '本地拓扑不得占用生产受信代理地址')
+// 存储鉴权受信代理锚点：web 固定 172.30.174.2，应用显式信任该地址。
+assert.equal(app.environment.STORAGE_MINIO_TRUSTEDPROXYADDRESS, '172.30.174.2')
+assert.equal(web.networks.edge.ipv4_address, '172.30.174.2')
 
 // 基础镜像 digest 固定；数据面与入口有持久化/健康检查。
 for (const service of [postgres, redis, minio]) {
