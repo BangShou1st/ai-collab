@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 只创建随机命名的隔离资源；不使用现有 .env/卷、生产凭据或收费模型。
-# 依赖预先构建的 ai-collab-p0-isolated:dirty、nginx:1.30.6-alpine 和前端 dist。
+# 依赖预先构建的 ai-collab-p0-isolated:dirty；前端镜像在本脚本内构建（验证 Dockerfile 真实可用）。
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 project="p0iso$(date +%s)${RANDOM}"
@@ -9,6 +9,8 @@ tmp=$(mktemp -d "$tmp_base/ai-collab-p0.XXXXXXXX")
 [[ "$tmp" = "$tmp_base"/ai-collab-p0.* ]] || exit 2
 created=0
 host_path() { if command -v cygpath >/dev/null 2>&1; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
+FRONTEND_IMAGE=ai-collab-frontend:p0-isolated
+docker build -f "$ROOT/ai-collab-frontend/Dockerfile" -t "$FRONTEND_IMAGE" "$ROOT" >/dev/null
 compose() { docker compose -p "$project" --env-file "$tmp/test.env" -f "$ROOT/ai-collab-deploy/compose.prod.yml" "$@"; }
 cleanup() {
   if [ "$created" = 1 ]; then
@@ -26,14 +28,13 @@ for role in postgres_data redis_data minio_data; do
   if docker volume inspect "${project}_${role}" >/dev/null 2>&1; then echo '隔离资源名称冲突' >&2; exit 1; fi
 done
 if docker network inspect "${project}_edge" >/dev/null 2>&1 || docker network inspect "${project}_data" >/dev/null 2>&1; then exit 1; fi
-[ -f "$ROOT/ai-collab-frontend/dist/index.html" ] || { echo '请先构建前端 dist' >&2; exit 1; }
 MSYS_NO_PATHCONV=1 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj '/CN=p0.example.test' \
   -addext 'subjectAltName=DNS:p0.example.test' -keyout "$(host_path "$tmp/key.pem")" -out "$(host_path "$tmp/cert.pem")" >/dev/null 2>&1
 port=$(node -e "const s=require('net').createServer();s.listen(0,'127.0.0.1',()=>{console.log(s.address().port);s.close()})")
 secret() { openssl rand -hex 32; }
 cat > "$tmp/test.env" <<EOF
 APP_IMAGE=ai-collab-p0-isolated:dirty
-PROXY_IMAGE=nginx:1.30.6-alpine
+PROXY_IMAGE=$FRONTEND_IMAGE
 PUBLIC_BIND_IP=127.0.0.1
 HTTPS_PORT=$port
 TLS_CERT_FILE=$(host_path "$tmp/cert.pem")
