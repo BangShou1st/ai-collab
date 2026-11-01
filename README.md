@@ -207,7 +207,7 @@ sequenceDiagram
 | **后端运行环境** | Java | `21 (LTS)` | 虚拟线程、强封装、新语言特性 |
 | **后端框架** | Spring Boot | `4.1.0` | 核心服务容器、Spring Security、OAuth2 Resource Server |
 | **持久层** | MyBatis-Plus | `3.5.17` | 高性能 ORM、条件构造器、分页插件 |
-| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V72**，严禁篡改历史） |
+| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V73**，严禁篡改历史） |
 | **文档解析引擎** | Apache Tika | `3.3.0` | 多源文档结构化内容与元数据提取 |
 | **前端框架** | Vue | `3.5.18` | Composition API、`<script setup>` 高性能渲染 |
 | **类型系统** | TypeScript | `5.8.3` | 全栈严格类型安全，消除隐式 `any` |
@@ -241,7 +241,8 @@ sequenceDiagram
 > .\ai-collab-deploy\install.ps1 bootstrap-admin  # 创建首位管理员（密码仅显示一次）
 > ```
 >
-> 详见 [本地一键安装指南](docs/deployment/local-install.md) 与 [服务器部署指南](docs/deployment/server-install.md)。
+> 正式镜像发布在 GHCR 且为 Private：匿名拉取失败时脚本自动回退源码构建（仍只需 Docker，耗时数分钟）；
+> 有仓库读权限可先 `docker login ghcr.io` 加速。详见 [本地一键安装指南](docs/deployment/local-install.md) 与 [服务器部署指南](docs/deployment/server-install.md)。
 
 ---
 
@@ -266,7 +267,7 @@ cd ai-collab
 > [!TIP]
 > 打开根目录 `.env`，按需修改各服务的 `change-me` 占位符（如数据库密码、JWT 密钥、AI 模型 Key）。
 
-生产环境使用独立的 [`compose.prod.yml`](ai-collab-deploy/compose.prod.yml)、[配置模板](ai-collab-deploy/prod.env.example)与[部署和恢复指南](docs/deployment/production-foundation.md)。生产默认开放普通用户注册，新账号不自动成为系统管理员；真实秘密保存在仓库外，生产环境仍须经过实际验收与授权。一键服务器安装见 [server-install.md](docs/deployment/server-install.md)，旧部署迁移见 [migration.md](docs/deployment/migration.md)。
+生产环境使用独立的 [`compose.prod.yml`](ai-collab-deploy/compose.prod.yml)、[配置模板](ai-collab-deploy/prod.env.example)与[部署和恢复指南](docs/deployment/production-foundation.md)。生产默认开放普通用户注册，新账号不自动成为系统管理员；真实秘密保存在仓库外。一键部署工程已通过[最终部署验收](docs/acceptance-evidence/2026-11-01/FINAL-DEPLOY-ACCEPTANCE-01/acceptance-summary.md)（GHCR 镜像发布 + 干净环境部署闭环）；真实公网服务器的端到端验收尚未执行，正式上线前仍须完成。一键服务器安装见 [server-install.md](docs/deployment/server-install.md)，旧部署迁移见 [migration.md](docs/deployment/migration.md)。
 
 ---
 
@@ -420,7 +421,7 @@ EMBEDDING_DIMENSIONS=1024
 
 ```
 ai-collab/
-├── ai-collab-backend/               # Spring Boot 4.1.0 后端工程（553 源文件 / 约 4.2 万行）
+├── ai-collab-backend/               # Spring Boot 4.1.0 后端工程（637 主源文件 / 约 5.0 万行）
 │   ├── src/main/java/com/shitulelv/aicollab/
 │   │   ├── auth/                    # 认证授权、JWT 签发、HttpOnly Cookie 轮换
 │   │   ├── user/                    # 用户体系、个人资料、管理员控制中心
@@ -434,10 +435,10 @@ ai-collab/
 │   │   ├── common/                  # 全局统一响应包装、业务异常体系、MyBatis 序列化
 │   │   └── infrastructure/          # 多厂商模型网关、向量适配器、安全清洗过滤网关
 │   ├── src/main/resources/
-│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V72，共 72 个版本）
+│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V73，共 73 个版本）
 │   │   └── application.yml          # 主配置模板与默认参数
 │   └── src/test/                    # 完整单元测试与 Testcontainers 集成测试套件（1600+ 测试）
-├── ai-collab-frontend/              # Vue 3.5 + TypeScript 5.8 前端工程（161 源文件 / 约 2.2 万行）
+├── ai-collab-frontend/              # Vue 3.5 + TypeScript 5.8 前端工程（182 源文件 / 约 2.5 万行）
 │   ├── src/
 │   │   ├── api/                     # 严格类型定义的 Axios 请求客户端与错误规范化层
 │   │   ├── auth/                    # 内存态访问凭证、自动静默续期协调器
