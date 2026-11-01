@@ -129,7 +129,7 @@ wait_entry_healthy() { # wait_entry_healthy <超时秒>
 port_busy() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null && { exec 3>&- 3<&-; return 0; } || return 1; }
 api_call() { # api_call <method> <path> <json-body 或 ""> <token 或 "">
     local entry; entry="$(resolve_entry)"
-    local args=(--noproxy '*' -ksS -X "$1" "$entry$2" -H 'Content-Type: application/json' --max-time 30)
+    local args=(--noproxy '*' -ksS -X "$1" "$entry$2" -H 'Content-Type: application/json' -H "Origin: $entry" --max-time 30)
     if [ -n "$3" ]; then args+=(-d "$3"); fi
     if [ -n "$4" ]; then args+=(-H "Authorization: Bearer $4"); fi
     curl "${args[@]}" 2>/dev/null || printf ''
@@ -172,13 +172,19 @@ resolve_images() { # 输出 "<backend> <frontend>"；顺序：参数 > env 已�
         fi
     fi
     rev="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || true)"
+    # 网络受限环境可设 AI_COLLAB_MAVEN_MIRROR（如 https://maven.aliyun.com/repository/public），
+    # 同时覆盖 Maven 中央仓库与 Wrapper 发行版下载源；未设置时不影响默认行为。
+    local mirror_args=()
+    if [ -n "${AI_COLLAB_MAVEN_MIRROR:-}" ]; then
+        mirror_args=(--build-arg "MAVEN_CENTRAL_MIRROR=$AI_COLLAB_MAVEN_MIRROR" --build-arg "MVNW_REPO_URL=$AI_COLLAB_MAVEN_MIRROR")
+    fi
     if [ -z "$backend" ] && [ -f "$REPO_ROOT/ai-collab-backend/Dockerfile" ]; then
         log "预构建镜像不可用，改为从本地源码构建后端镜像（无需 Java/Maven，约需几分钟）..."
         if [ -n "$rev" ]; then
             docker build -f "$REPO_ROOT/ai-collab-backend/Dockerfile" -t ai-collab-backend:local \
-                --label "org.opencontainers.image.revision=$rev" "$REPO_ROOT" >/dev/null
+                "${mirror_args[@]}" --label "org.opencontainers.image.revision=$rev" "$REPO_ROOT" >/dev/null
         else
-            docker build -f "$REPO_ROOT/ai-collab-backend/Dockerfile" -t ai-collab-backend:local "$REPO_ROOT" >/dev/null
+            docker build -f "$REPO_ROOT/ai-collab-backend/Dockerfile" -t ai-collab-backend:local "${mirror_args[@]}" "$REPO_ROOT" >/dev/null
         fi
         backend="ai-collab-backend:local"
     fi
@@ -186,9 +192,9 @@ resolve_images() { # 输出 "<backend> <frontend>"；顺序：参数 > env 已�
         log "从本地源码构建前端镜像（无需 Node/pnpm）..."
         if [ -n "$rev" ]; then
             docker build -f "$REPO_ROOT/ai-collab-frontend/Dockerfile" -t ai-collab-frontend:local \
-                --label "org.opencontainers.image.revision=$rev" "$REPO_ROOT" >/dev/null
+                "${mirror_args[@]}" --label "org.opencontainers.image.revision=$rev" "$REPO_ROOT" >/dev/null
         else
-            docker build -f "$REPO_ROOT/ai-collab-frontend/Dockerfile" -t ai-collab-frontend:local "$REPO_ROOT" >/dev/null
+            docker build -f "$REPO_ROOT/ai-collab-frontend/Dockerfile" -t ai-collab-frontend:local "${mirror_args[@]}" "$REPO_ROOT" >/dev/null
         fi
         frontend="ai-collab-frontend:local"
     fi
@@ -224,12 +230,13 @@ bootstrap_admin() {
     if printf '%s' "$reg" | grep -q '"systemAdmin"[[:space:]]*:[[:space:]]*true'; then
         fail 1 '安全异常：公开注册用户被自动赋予管理员角色，已中止。'
     fi
-    # 受控提权：PostgreSQL 事务级咨询锁保证并发引导只有一个赢家。
+    # 受控提权：单条语句内完成加锁-检查-更新，咨询锁保证并发引导只有一个赢家；
+    # 以返回的获胜数量（1/0）判定，避开 psql 命令标签在不同输出模式下的差异。
     local out
     out="$(docker exec "$pg_id" psql -U "$pg_user" -d "$pg_db" -t -A -c \
-        "BEGIN; SELECT pg_advisory_xact_lock(917463); UPDATE app_user SET system_admin = true WHERE username = '$USERNAME' AND (SELECT count(*) FROM app_user WHERE system_admin = true) = 0; COMMIT;")" \
+        "WITH lock_guard AS (SELECT pg_advisory_xact_lock(917463)), promoted AS (UPDATE app_user SET system_admin = true WHERE username = '$USERNAME' AND (SELECT count(*) FROM app_user WHERE system_admin = true) = 0 RETURNING 1) SELECT count(*) FROM promoted;")" \
         || fail 1 '提权 SQL 执行失败，新注册用户保持普通用户状态。'
-    if ! printf '%s' "$out" | grep -q 'UPDATE 1'; then
+    if [ "${out// /}" != "1" ]; then
         log '并发竞争中另一位管理员已完成初始化，本次未提权（新注册用户保留为普通用户）。'
         return 0
     fi
@@ -526,7 +533,10 @@ cmd_restore() {
 }
 
 case "$COMMAND" in
-    help) usage ;;
+    help)
+        sed -n '2,28p' "$0"
+        exit 0
+        ;;
     install) cmd_install ;;
     bootstrap-admin)
         assert_docker

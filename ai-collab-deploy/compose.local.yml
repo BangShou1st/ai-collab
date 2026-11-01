@@ -110,6 +110,9 @@ services:
       CHAT_ENABLED: "${CHAT_ENABLED:-false}"
       AGENT_ENABLED: "${AGENT_ENABLED:-false}"
       AGENT_MCP_ALLOWED_HOSTS: "${AGENT_MCP_ALLOWED_HOSTS:-}"
+      # /internal/storage-authorize 仅信任固定受信代理地址；本地拓扑给 web 固定
+      # 172.30.174.2（见下方 edge ipam），与生产 172.30.173.2 的设计同构。
+      STORAGE_MINIO_TRUSTEDPROXYADDRESS: 172.30.174.2
       # 本地 Ollama 白名单：容器内访问宿主机 Ollama 用 host.docker.internal。
       EMBEDDING_LOCAL_ALLOWED_TARGETS: ${EMBEDDING_LOCAL_ALLOWED_TARGETS:-host.docker.internal:11434}
       MAIL_ENABLED: "${MAIL_ENABLED:-false}"
@@ -143,17 +146,20 @@ services:
       retries: 12
       start_period: 10s
     networks:
-      edge: {}
+      edge:
+        ipv4_address: 172.30.174.2
       data: {}
     logging: *logging
 
 networks:
   # 独立网段：与 compose.prod.yml / compose.staging.yml 的 172.30.173.0/24 不重叠，
   # 允许同一台机器上共存开发 Staging 拓扑与本地一键部署。
+  # web 固定 .2 作为后端受信代理锚点；动态地址从高半段分配。
   edge:
     ipam:
       config:
         - subnet: 172.30.174.0/24
+          ip_range: 172.30.174.128/25
           gateway: 172.30.174.1
   data:
     internal: true
