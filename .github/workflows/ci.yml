@@ -32,6 +32,24 @@ jobs:
           node --test ai-collab-deploy/scripts/prod-config-check.test.mjs
           bash ai-collab-deploy/scripts/backup-safety-contract.sh
 
+      - name: Validate local one-click compose contract
+        run: |
+          cat > local-contract.env <<'EOF'
+          APP_IMAGE=ci/synthetic-backend:contract
+          WEB_IMAGE=ci/synthetic-frontend:contract
+          HTTP_PORT=8080
+          POSTGRES_DB=ai_collab
+          POSTGRES_USER=ai_collab
+          POSTGRES_PASSWORD=ci-synthetic-postgres-password
+          REDIS_PASSWORD=ci-synthetic-redis-password
+          MINIO_ROOT_USER=ci-admin
+          MINIO_ROOT_PASSWORD=ci-synthetic-minio-password
+          MINIO_BUCKET=ai-collab
+          JWT_SECRET=ci-synthetic-jwt-secret-0123456789abcdef0123456789abcdef
+          MODEL_CONFIG_MASTER_KEY=0123456789abcdef0123456789abcdef
+          EOF
+          docker compose --env-file local-contract.env -f ai-collab-deploy/compose.local.yml config --format json | node ai-collab-deploy/scripts/local-compose-contract.mjs
+
   backend:
     name: Backend (Maven verify)
     runs-on: ubuntu-latest
@@ -280,8 +298,82 @@ jobs:
       - name: Isolated production topology and recovery
         run: |
           docker tag ai-collab-backend:rc-${GITHUB_SHA::12} ai-collab-p0-isolated:dirty
-          docker pull nginx:1.30.6-alpine
           docker pull node:24.14.0-alpine
-          mkdir -p ai-collab-frontend/dist
-          printf '<!doctype html><title>synthetic smoke</title>\n' > ai-collab-frontend/dist/index.html
           bash ai-collab-deploy/scripts/p0-isolated-compose-smoke.sh
+
+  # 受控发布：仅 main push / 版本标签 / 手动触发发布镜像到 GHCR；
+  # PR 一律不发布。记录源码 SHA 与镜像 Digest，禁止浮动 latest 作为唯一发布依据
+  # （latest 标签仅作为本地安装的便捷默认值，验收以 digest 为准）。
+  release:
+    name: Publish images to GHCR
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: [production-contract, backend, frontend, image]
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: read
+      packages: write
+    env:
+      BACKEND_IMAGE: ghcr.io/${{ github.repository }}/ai-collab-backend
+      FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/ai-collab-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 标签策略：分支构建 -> sha-<short> 与 main；版本标签 -> <版本> 与 sha-<short>。
+      - name: Derive image tags
+        id: tags
+        run: |
+          short="${GITHUB_SHA::12}"
+          if [[ "$GITHUB_REF" = refs/tags/v* ]]; then
+            version="${GITHUB_REF#refs/tags/v}"
+            echo "backend=${BACKEND_IMAGE}:v${version},${BACKEND_IMAGE}:sha-${short}" >> "$GITHUB_OUTPUT"
+            echo "frontend=${FRONTEND_IMAGE}:v${version},${FRONTEND_IMAGE}:sha-${short}" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend=${BACKEND_IMAGE}:sha-${short},${BACKEND_IMAGE}:main" >> "$GITHUB_OUTPUT"
+            echo "frontend=${FRONTEND_IMAGE}:sha-${short},${FRONTEND_IMAGE}:main" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GITHUB_REF: ${{ github.ref }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ai-collab-backend/Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.backend }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ai-collab-frontend/Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.frontend }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Record source SHA and image digests
+        run: |
+          {
+            echo "## Published images"
+            echo "- source SHA: ${{ github.sha }}"
+            echo '- backend: `${{ steps.tags.outputs.backend }}`'
+            echo '- frontend: `${{ steps.tags.outputs.frontend }}`'
+          } >> "$GITHUB_STEP_SUMMARY"
+          docker buildx imagetools inspect "${BACKEND_IMAGE}:sha-${GITHUB_SHA::12}" | grep -i 'Digest:' || true
+          docker buildx imagetools inspect "${FRONTEND_IMAGE}:sha-${GITHUB_SHA::12}" | grep -i 'Digest:' || true

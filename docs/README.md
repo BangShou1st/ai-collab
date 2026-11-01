@@ -46,6 +46,9 @@
 - **开发规范**：[`docs/development/`](development/) —— 包含代码分支策略、提交约定等。
 - **部署指南**：[`docs/deployment/`](deployment/) —— 包含网关部署、环境依赖配置等。
 - [P0 生产部署基础](deployment/production-foundation.md)：独立生产拓扑、代理信任边界、备份/告警及发布回滚要求；真实环境仍需验收。
+- [本地一键安装指南](deployment/local-install.md)：Windows/Linux/macOS 普通用户一键部署与日常维护（仅需 Docker）。
+- [服务器部署指南](deployment/server-install.md)：单台 Linux 服务器 HTTPS 一键部署、定时备份与受控升级。
+- [旧部署方式迁移指南](deployment/migration.md)：开发环境、旧生产部署、Cloudflare Pages 与管理员初始化的兼容性说明。
 - **自动化测试语料**：[`tests/fixtures/documents/`](../tests/fixtures/documents/) —— 用于知识库 RAG 评测与端到端测试的标准原件。
 
 ### 3.1 发布就绪与运维 Runbook (`docs/release-readiness/`)

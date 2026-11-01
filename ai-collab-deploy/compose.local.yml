@@ -1,0 +1,164 @@
+# 本地一键部署拓扑（Windows 11 / Linux / macOS + Docker）。
+# 与 compose.prod.yml 共用同一批应用镜像，差异仅在：
+#   - 入口只绑定 127.0.0.1（HTTP，不对外暴露）；数据面容器完全不发布端口；
+#   - Refresh Cookie 走显式的本地 HTTP 例外（两项必须同时为真，后端有启动守卫）；
+#   - 数据库/Redis/MinIO 使用独立卷与独立网段，不与开发（ai-collab-deploy）和生产拓扑冲突。
+# 首次安装请使用 install.ps1 / install.sh，不要手工编辑本文件。
+name: ai-collab-local
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?required}
+      POSTGRES_USER: ${POSTGRES_USER:?required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [data]
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  redis:
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+    # shell 使用容器环境变量，避免把密码作为 compose command 参数持久化。
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [data]
+    logging: *logging
+
+  minio:
+    # 与 compose.prod.yml 完全相同的 digest 固定；更新方式见 docs/deployment-recovery.md。
+    image: cgr.dev/chainguard/minio:latest@sha256:f74600a1a46330cdbda1ef760d17a96bd6e0f4a6f0a2c49792ca3ee7e4c6fa18
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?required}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [data]
+    logging: *logging
+
+  mailpit:
+    # 本地/演练专用 SMTP 假服务器（可选 profile）：配合 local.env 的 MAIL_ENABLED=true /
+    # MAIL_HOST=mailpit / MAIL_PORT=1025 使用。收件箱 UI 仅绑定 127.0.0.1。
+    profiles: ["maildev"]
+    image: axllent/mailpit:latest
+    container_name: ai-collab-local-mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+    networks: [edge]
+    logging: *logging
+
+  app:
+    image: ${APP_IMAGE:?required}
+    restart: unless-stopped
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      minio: {condition: service_healthy}
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?required}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?required}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?required}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?required}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?required}
+      MINIO_BUCKET: ${MINIO_BUCKET:?required}
+      # 本地下载走同源代理路径：预签名 URL 指向本机入口，由 web 服务的 /storage 转发。
+      # 空值会导致下载地址指向容器内地址（浏览器不可达），必须配置。
+      MINIO_PUBLIC_ENDPOINT: http://localhost:${HTTP_PORT:?required}
+      MINIO_MANAGE_BUCKET: "true"
+      JWT_SECRET: ${JWT_SECRET:?required}
+      MODEL_CONFIG_MASTER_KEY: ${MODEL_CONFIG_MASTER_KEY:?required}
+      AUTH_ALLOWED_ORIGINS: http://localhost:${HTTP_PORT:?required}
+      AUTH_PUBLIC_REGISTRATION_ENABLED: "${AUTH_PUBLIC_REGISTRATION_ENABLED:-true}"
+      # 本地 HTTP Cookie 例外：两项必须同时设置，否则后端启动即失败（安全守卫）。
+      # 该例外只存在于 compose.local.yml；compose.prod.yml 固定 Secure=true。
+      REFRESH_COOKIE_SECURE: "false"
+      REFRESH_COOKIE_ALLOW_INSECURE: "true"
+      APP_PUBLIC_URL: http://localhost:${HTTP_PORT:?required}
+      AGENT_RUNTIME_ALLOWED: "${AGENT_RUNTIME_ALLOWED:-true}"
+      CHAT_ENABLED: "${CHAT_ENABLED:-false}"
+      AGENT_ENABLED: "${AGENT_ENABLED:-false}"
+      AGENT_MCP_ALLOWED_HOSTS: "${AGENT_MCP_ALLOWED_HOSTS:-}"
+      # 本地 Ollama 白名单：容器内访问宿主机 Ollama 用 host.docker.internal。
+      EMBEDDING_LOCAL_ALLOWED_TARGETS: ${EMBEDDING_LOCAL_ALLOWED_TARGETS:-host.docker.internal:11434}
+      MAIL_ENABLED: "${MAIL_ENABLED:-false}"
+      MAIL_HOST: "${MAIL_HOST:-}"
+      MAIL_PORT: "${MAIL_PORT:-587}"
+      MAIL_USERNAME: "${MAIL_USERNAME:-}"
+      MAIL_PASSWORD: "${MAIL_PASSWORD:-}"
+      MAIL_FROM: "${MAIL_FROM:-AI Collab <no-reply@localhost>}"
+      MAIL_STARTTLS: "${MAIL_STARTTLS:-true}"
+      MAIL_SSL: "${MAIL_SSL:-false}"
+    networks:
+      edge:
+        aliases: [app-edge]
+      data: {}
+    logging: *logging
+
+  web:
+    image: ${WEB_IMAGE:?required}
+    restart: unless-stopped
+    depends_on:
+      app: {condition: service_started}
+    ports:
+      # 仅监听本机回环地址，避免把服务暴露到局域网/公网。
+      - "127.0.0.1:${HTTP_PORT:?required}:80"
+    volumes:
+      - ./nginx/local.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      edge: {}
+      data: {}
+    logging: *logging
+
+networks:
+  # 独立网段：与 compose.prod.yml / compose.staging.yml 的 172.30.173.0/24 不重叠，
+  # 允许同一台机器上共存开发 Staging 拓扑与本地一键部署。
+  edge:
+    ipam:
+      config:
+        - subnet: 172.30.174.0/24
+          gateway: 172.30.174.1
+  data:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

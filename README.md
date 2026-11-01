@@ -232,6 +232,17 @@ sequenceDiagram
 * **pnpm**: 11+
 * **Docker Desktop**: 必须保持后台运行（WSL2 后端），提供 PostgreSQL、Redis、MinIO 容器。
 
+> [!TIP]
+> **只是想直接使用（不是二次开发）？** 不需要 JDK/Node/pnpm，安装 Docker Desktop 后一键部署即可：
+>
+> ```powershell
+> .\ai-collab-deploy\install.ps1 install          # Windows
+> ./ai-collab-deploy/install.sh install           # Linux / macOS
+> .\ai-collab-deploy\install.ps1 bootstrap-admin  # 创建首位管理员（密码仅显示一次）
+> ```
+>
+> 详见 [本地一键安装指南](docs/deployment/local-install.md) 与 [服务器部署指南](docs/deployment/server-install.md)。
+
 ---
 
 ### 1. 克隆代码与配置环境变量
@@ -255,7 +266,7 @@ cd ai-collab
 > [!TIP]
 > 打开根目录 `.env`，按需修改各服务的 `change-me` 占位符（如数据库密码、JWT 密钥、AI 模型 Key）。
 
-生产环境使用独立的 [`compose.prod.yml`](ai-collab-deploy/compose.prod.yml)、[配置模板](ai-collab-deploy/prod.env.example)与[部署和恢复指南](docs/deployment/production-foundation.md)。生产默认开放普通用户注册，新账号不自动成为系统管理员；真实秘密保存在仓库外，生产环境仍须经过实际验收与授权。
+生产环境使用独立的 [`compose.prod.yml`](ai-collab-deploy/compose.prod.yml)、[配置模板](ai-collab-deploy/prod.env.example)与[部署和恢复指南](docs/deployment/production-foundation.md)。生产默认开放普通用户注册，新账号不自动成为系统管理员；真实秘密保存在仓库外，生产环境仍须经过实际验收与授权。一键服务器安装见 [server-install.md](docs/deployment/server-install.md)，旧部署迁移见 [migration.md](docs/deployment/migration.md)。
 
 ---
 
