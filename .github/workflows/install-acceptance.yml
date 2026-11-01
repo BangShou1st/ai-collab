@@ -1,0 +1,40 @@
+name: Install acceptance
+
+# 一键安装工程的 Linux 真实引擎验收与回归：仅在干净的 ubuntu-latest Runner 上
+# 手动触发（workflow_dispatch），执行 install.sh 全生命周期安装验收。
+# 不挂到 push/PR：后端源码构建耗时较长，避免阻塞日常 CI；发布前与部署整改后手动执行。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: install-acceptance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux-install:
+    name: Linux install lifecycle acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Docker availability
+        run: |
+          docker info
+          docker compose version
+
+      # 管理员凭据只在脚本进程内存中流转，不进入任何日志或产物。
+      - name: Run install acceptance
+        run: bash ai-collab-deploy/scripts/install-acceptance.sh --port 18080
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-acceptance-evidence
+          path: target/install-acceptance/
+          retention-days: 14
+          if-no-files-found: ignore
