@@ -60,7 +60,18 @@ docker exec -i "$TARGET_CONTAINER" pg_restore --list < "$DUMP_FILE" > /dev/null 
 if PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" docker exec -e PGPASSWORD "$TARGET_CONTAINER" \
         psql -h localhost -U "$POSTGRES_USER_RESTORE" -d postgres -Atc \
         "SELECT 1 FROM pg_database WHERE datname='$TARGET_DB'" | grep -q 1; then
-    die 14 "目标数据库 $TARGET_DB 已存在，拒绝覆盖。请换库名或先删除隔离容器"
+    if [ "$ALLOW_SOURCE_OVERWRITE" != "1" ]; then
+        die 14 "目标数据库 $TARGET_DB 已存在，拒绝覆盖。请换库名或先删除隔离容器；确要覆盖请设 ALLOW_SOURCE_OVERWRITE=1"
+    fi
+    # 覆盖式恢复（install.sh restore 显式传入 ALLOW_SOURCE_OVERWRITE=1）：
+    # 先终止目标库全部连接再删库重建，避免 pg_restore 与残留连接冲突。
+    log "ALLOW_SOURCE_OVERWRITE=1：覆盖既有目标库 $TARGET_DB（先终止连接）"
+    PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" docker exec -e PGPASSWORD "$TARGET_CONTAINER" \
+        psql -h localhost -U "$POSTGRES_USER_RESTORE" -d postgres -Atc \
+        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$TARGET_DB' AND pid <> pg_backend_pid()" > /dev/null
+    PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" docker exec -e PGPASSWORD "$TARGET_CONTAINER" \
+        psql -h localhost -U "$POSTGRES_USER_RESTORE" -d postgres -c "DROP DATABASE \"$TARGET_DB\"" \
+        || die 14 "删除既有目标库失败，中止恢复（原数据未变动）"
 fi
 
 PGPASSWORD="$POSTGRES_PASSWORD_RESTORE" docker exec -e PGPASSWORD "$TARGET_CONTAINER" \
