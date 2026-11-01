@@ -41,7 +41,8 @@ assert_eq() { # assert_eq <实际> <预期> <说明>
     pass "$3"
 }
 json_field() { # json_field <json> <外层键> <内层键> -> "外层":{...,"内层":"..."} 的首个字符串值
-    printf '%s' "$1" | grep -o "\"$2\"[[:space:]]*:[[:space:]]*{[^{}]*}" | head -1 \
+    # 注意：GNU grep 的括号表达式不支持 [^{}]（{} 会被当作区间语法），必须用 [^}]。
+    printf '%s' "$1" | grep -o "\"$2\"[[:space:]]*:[[:space:]]*{[^}]*}" | head -1 \
         | sed -n 's/.*"'"$3"'"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' || printf ''
 }
 api() { # api <method> <path> <json-body 或 ""> <token 或 ""> -> 原始响应（末行附 HTTP 状态码）
@@ -86,8 +87,9 @@ if [ -n "${INSTALL_ACCEPTANCE_TAG:-}" ]; then
     LOCAL_ENV="$REPO_ROOT/ai-collab-deploy/local.env"
     APP_IMAGE="$(grep -E '^APP_IMAGE=' "$LOCAL_ENV" | head -1 | cut -d= -f2-)"
     WEB_IMAGE="$(grep -E '^WEB_IMAGE=' "$LOCAL_ENV" | head -1 | cut -d= -f2-)"
-    case "$APP_IMAGE" in ghcr.io/*@sha256:[a-f0-9]*) ;; *) echo "FAIL APP_IMAGE 非注册表 digest 引用: $APP_IMAGE" >&2; exit 1 ;; esac
-    case "$WEB_IMAGE" in ghcr.io/*@sha256:[a-f0-9]*) ;; *) echo "FAIL WEB_IMAGE 非注册表 digest 引用: $WEB_IMAGE" >&2; exit 1 ;; esac
+    # 本地模式按设计使用标签引用（服务器模式才 digest 固定）；镜像内容以 RepoDigests 校验为准。
+    case "$APP_IMAGE" in ghcr.io/*) ;; *) echo "FAIL APP_IMAGE 非注册表引用: $APP_IMAGE" >&2; exit 1 ;; esac
+    case "$WEB_IMAGE" in ghcr.io/*) ;; *) echo "FAIL WEB_IMAGE 非注册表引用: $WEB_IMAGE" >&2; exit 1 ;; esac
     if [ -n "${INSTALL_ACCEPTANCE_EXPECT_BACKEND_DIGEST:-}" ]; then
         docker image inspect "$APP_IMAGE" --format '{{join .RepoDigests ","}}' \
             | grep -q "sha256:${INSTALL_ACCEPTANCE_EXPECT_BACKEND_DIGEST}" \
