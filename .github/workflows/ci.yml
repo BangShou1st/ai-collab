@@ -1,12 +1,15 @@
 name: CI
 
-# PR 面向 main、main 与 dev 自身 push 触发；workflow_dispatch 供手动复跑。
+# PR 面向 main 与 dev 都触发（开发分支改动同样需要回归）；
+# main 与 dev 自身 push 触发；workflow_dispatch 供手动复跑。
 # 不使用 pull_request_target：本流水线会检出并执行提交内的构建脚本与测试。
 on:
   push:
     branches: [main, dev]
+    # 受控版本标签触发发布（release job 仅响应 v* 标签）。
+    tags: ['v*']
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 # 最小权限：只读仓库内容；共享库通过公开 JitPack 解析。
@@ -31,6 +34,36 @@ jobs:
           AUTH_PUBLIC_REGISTRATION_ENABLED=false docker compose --env-file ai-collab-deploy/prod.env.example -f ai-collab-deploy/compose.prod.yml config --format json | P0_EXPECT_REGISTRATION=false node ai-collab-deploy/scripts/prod-compose-contract.mjs
           node --test ai-collab-deploy/scripts/prod-config-check.test.mjs
           bash ai-collab-deploy/scripts/backup-safety-contract.sh
+
+      - name: Validate local one-click compose contract
+        run: |
+          cat > local-contract.env <<'EOF'
+          APP_IMAGE=ci/synthetic-backend:contract
+          WEB_IMAGE=ci/synthetic-frontend:contract
+          HTTP_PORT=8080
+          POSTGRES_DB=ai_collab
+          POSTGRES_USER=ai_collab
+          POSTGRES_PASSWORD=ci-synthetic-postgres-password
+          REDIS_PASSWORD=ci-synthetic-redis-password
+          MINIO_ROOT_USER=ci-admin
+          MINIO_ROOT_PASSWORD=ci-synthetic-minio-password
+          MINIO_BUCKET=ai-collab
+          JWT_SECRET=ci-synthetic-jwt-secret-0123456789abcdef0123456789abcdef
+          MODEL_CONFIG_MASTER_KEY=0123456789abcdef0123456789abcdef
+          EOF
+          docker compose --env-file local-contract.env -f ai-collab-deploy/compose.local.yml config --format json | node ai-collab-deploy/scripts/local-compose-contract.mjs
+
+      - name: Assert install scripts match GHCR publish targets
+        run: |
+          # 安装脚本的默认镜像引用必须与 release job 的发布目标一致（ghcr.io/<owner>/<repo>/<image>，
+          # 全小写）；release job 在运行时还会用本仓库实际路径再次校验并执行标签推导测试。
+          grep -q 'GHCR_BACKEND="ghcr.io/bangshou1st/ai-collab/ai-collab-backend"' ai-collab-deploy/install.sh
+          grep -q 'GHCR_FRONTEND="ghcr.io/bangshou1st/ai-collab/ai-collab-frontend"' ai-collab-deploy/install.sh
+          grep -q 'ghcr.io/bangshou1st/ai-collab/ai-collab-backend' ai-collab-deploy/install.ps1
+          grep -q 'ghcr.io/bangshou1st/ai-collab/ai-collab-frontend' ai-collab-deploy/install.ps1
+          echo "install/publish GHCR targets consistent"
+          # 发布标签推导与小写化测试（与 release job 共用同一实现）。
+          bash ai-collab-deploy/scripts/release-tags.test.sh
 
   backend:
     name: Backend (Maven verify)
@@ -205,12 +238,13 @@ jobs:
         run: pnpm build
 
   # 镜像构建与容器级冒烟：验证 Dockerfile 路径真实可用（不推送到任何仓库，
-  # 镜像仅存在于本次 runner）。PR 与 main push 触发；dev 每日 push 不付这份成本。
+  # 镜像仅存在于本次 runner）。PR、main 与版本标签 push 触发（tag 触发时
+  # release job 依赖本 job，必须真实执行而不是跳过）。
   image:
     name: Image build & container smoke
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')))
     steps:
       - uses: actions/checkout@v4
 
@@ -280,8 +314,105 @@ jobs:
       - name: Isolated production topology and recovery
         run: |
           docker tag ai-collab-backend:rc-${GITHUB_SHA::12} ai-collab-p0-isolated:dirty
-          docker pull nginx:1.30.6-alpine
           docker pull node:24.14.0-alpine
-          mkdir -p ai-collab-frontend/dist
-          printf '<!doctype html><title>synthetic smoke</title>\n' > ai-collab-frontend/dist/index.html
           bash ai-collab-deploy/scripts/p0-isolated-compose-smoke.sh
+
+  # 受控发布：仅 main push / 版本标签 / 手动触发发布镜像到 GHCR；
+  # PR 一律不发布。记录源码 SHA 与镜像 Digest，禁止浮动 latest 作为唯一发布依据
+  # （latest 标签仅作为本地安装的便捷默认值，验收以 digest 为准）。
+  release:
+    name: Publish images to GHCR
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: [production-contract, backend, frontend, image]
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # GHCR 镜像路径必须全小写：github.repository 保留原始大小写（BangShou1st/ai-collab），
+      # 直接拼接会触发 "repository name must be lowercase"。此处统一转小写，
+      # 并要求与安装脚本（install.sh/install.ps1）常量逐字一致。
+      - name: Compute lowercase image base
+        id: image-base
+        run: |
+          base="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "backend=${base}/ai-collab-backend" >> "$GITHUB_OUTPUT"
+          echo "frontend=${base}/ai-collab-frontend" >> "$GITHUB_OUTPUT"
+          if [ "$base" != "ghcr.io/bangshou1st/ai-collab" ]; then
+            echo "ERROR: install 脚本内的 GHCR 常量为 bangshou1st/ai-collab，与本仓库不一致" >&2
+            exit 1
+          fi
+          grep -q 'GHCR_BACKEND="ghcr.io/bangshou1st/ai-collab/ai-collab-backend"' ai-collab-deploy/install.sh
+          grep -q 'GHCR_FRONTEND="ghcr.io/bangshou1st/ai-collab/ai-collab-frontend"' ai-collab-deploy/install.sh
+          grep -q 'ghcr.io/bangshou1st/ai-collab/ai-collab-backend' ai-collab-deploy/install.ps1
+          grep -q 'ghcr.io/bangshou1st/ai-collab/ai-collab-frontend' ai-collab-deploy/install.ps1
+          echo "install/publish GHCR targets consistent"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 标签策略（实现单一来源 ai-collab-deploy/scripts/release-tags.sh，
+      # 与 scripts/release-tags.test.sh 共享同一份推导逻辑）：
+      # main 构建 -> sha-<short>、main 与 latest（latest 仅作本地安装的便捷默认值，
+      # 验收追溯以 sha-<short> 或 digest 为准）；版本标签 -> v<版本> 与 sha-<short>。
+      - name: Derive image tags
+        id: tags
+        env:
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          base_be="${{ steps.image-base.outputs.backend }}"
+          base_fe="${{ steps.image-base.outputs.frontend }}"
+          read -r backend_tags frontend_tags < <(bash ai-collab-deploy/scripts/release-tags.sh "$GITHUB_REF" "${GITHUB_SHA::12}")
+          join_tags() {
+            local base="$1" list="$2" out="" t
+            local old_ifs="$IFS"; IFS=','
+            for t in $list; do out="${out}${base}:${t},"; done
+            IFS="$old_ifs"
+            printf '%s' "${out%,}"
+          }
+          echo "backend=$(join_tags "$base_be" "$backend_tags")" >> "$GITHUB_OUTPUT"
+          echo "frontend=$(join_tags "$base_fe" "$frontend_tags")" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ai-collab-backend/Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.backend }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ai-collab-frontend/Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.frontend }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Record source SHA and image digests
+        run: |
+          {
+            echo "## Published images"
+            echo "- source SHA: ${{ github.sha }}"
+            echo '- backend: `${{ steps.tags.outputs.backend }}`'
+            echo '- frontend: `${{ steps.tags.outputs.frontend }}`'
+          } >> "$GITHUB_STEP_SUMMARY"
+          short="${GITHUB_SHA::12}"
+          docker buildx imagetools inspect "${{ steps.image-base.outputs.backend }}:sha-${short}" | grep -i 'Digest:' || true
+          docker buildx imagetools inspect "${{ steps.image-base.outputs.frontend }}:sha-${short}" | grep -i 'Digest:' || true
