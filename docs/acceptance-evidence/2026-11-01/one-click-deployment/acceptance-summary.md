@@ -150,4 +150,17 @@
 
 本机清理：测试栈（ai-collab-local）、卷、local.env、backups/local、测试镜像标签与临时证书全部移除。
 
+## L. 第三轮复审收口（提交 17f811b）
+
+| 项 | 结果 | 证据 |
+| --- | --- | --- |
+| P0 提权事务快照竞态（两平台统一） | PASS（修复） | 单事务（psql -1）三语句：锁 → 独立计数 → 独立提权；先经容器实测确认 psql -1 对多 -c 生效（持锁 4s 期间他人 pg_try_advisory_lock=f）；install.ps1 旧 SQL 引用未定义变量（`$u`）一并修复并实测 |
+| 确定性并发测试 | PASS，连续三遍 | `bootstrap-concurrency-test.sh`：场景 1 持锁 pg_sleep + 阻塞取锁构造精确交错，S2_COUNT=1、UPDATE 0（新快照必然可见他人已提交提权）；场景 2 八个提权事务真并发，赢家数符合起点不变量 |
+| bootstrap-admin 三态实测 | PASS | 正常创建（admin=t）/防重复（已存在退出）/真实双进程并行（一胜一弃） |
+| P1 GHCR 大小写 | PASS（修复） | release job 整体转小写并在运行时校验与 install 常量一致；`release-tags.sh` 单一实现 + `release-tags.test.sh`（v 标签/main/latest、小写化、一致性）接入 CI |
+| P1 push.tags 闭环 | PASS（修复） | `on.push.tags: ['v*']`；image job 条件补 tag push（否则 release 因 needs 跳过）；release 依赖四测试 job |
+| 发布权限结论修正 | 已采纳 | 本地 push 失败仅证明个人 token 受限；CI 用 GITHUB_TOKEN（packages: write），以合并后真实运行为准 |
+| CI 全绿（PR→dev 触发） | PASS | run 41301727881（提交 17f811b）：production-contract / Frontend / Image smoke / Backend verify 全 success；Publish to GHCR 按设计 skipped |
+| workflow 结构验证 | PASS | ruby yaml 解析：5 jobs、release needs 四任务、触发与 if 正确 |
+
 
