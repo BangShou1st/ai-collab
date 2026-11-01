@@ -240,14 +240,24 @@ bootstrap_admin() {
     if printf '%s' "$reg" | grep -q '"systemAdmin"[[:space:]]*:[[:space:]]*true'; then
         fail 1 '安全异常：公开注册用户被自动赋予管理员角色，已中止。'
     fi
-    # 受控提权：lock_holder 被 promoted 的 UPDATE ... FROM 引用，保证咨询锁先于
-    # count 检查执行（未引用的 CTE 会被优化器跳过）；单语句内加锁-检查-更新，
-    # 并发引导只有一个赢家；以返回的获胜数量（1/0）判定。
-    local out
-    out="$(docker exec "$pg_id" psql -U "$pg_user" -d "$pg_db" -t -A -c \
-        "WITH lock_holder AS (SELECT pg_advisory_xact_lock(917463) AS locked), promoted AS (UPDATE app_user SET system_admin = true FROM lock_holder WHERE app_user.username = '$USERNAME' AND (SELECT count(*) FROM app_user WHERE system_admin = true) = 0 RETURNING 1) SELECT count(*) FROM promoted;")" \
-        || fail 1 '提权 SQL 执行失败，新注册用户保持普通用户状态。'
-    if [ "${out// /}" != "1" ]; then
+    # 受控提权：单事务（psql -1）内「先取咨询锁 → 独立语句检查 → 独立语句提权」。
+    # 锁与计数检查不能同处一条 UPDATE 语句：同语句共用旧 MVCC 快照，持锁期间
+    # 他人提交的提权对本语句不可见，并发下可能双提权。READ COMMITTED 下
+    # UPDATE 语句使用自己的新快照，且其他提权事务必须先获得本锁，串行化成立。
+    # 判定用 UPDATE ... RETURNING 的实际行数；检查语句仅用于提前给出友好提示。
+    local out count_line promote_line
+    out="$(docker exec "$pg_id" psql -U "$pg_user" -d "$pg_db" -1 -t -A -v ON_ERROR_STOP=1 \
+        -c 'SELECT pg_advisory_xact_lock(917463);' \
+        -c 'SELECT count(*) FROM app_user WHERE system_admin = true;' \
+        -c "UPDATE app_user SET system_admin = true WHERE username = '$USERNAME' AND (SELECT count(*) FROM app_user WHERE system_admin = true) = 0 RETURNING 1;" 2>&1)" \
+        || fail 1 '提权事务执行失败，新注册用户保持普通用户状态。'
+    count_line="$(printf '%s\n' "$out" | grep -E '^[0-9]+$' | head -1)"
+    promote_line="$(printf '%s\n' "$out" | grep -E '^[0-9]+$' | tail -1)"
+    if [ "${count_line:-0}" != "0" ]; then
+        log '系统已存在管理员，初始化通道保持关闭；本命令不再执行（防重复引导）。'
+        return 0
+    fi
+    if [ "${promote_line:-}" != "1" ]; then
         log '并发竞争中另一位管理员已完成初始化，本次未提权（新注册用户保留为普通用户）。'
         return 0
     fi

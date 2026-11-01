@@ -344,16 +344,25 @@ switch ($Command) {
         }
         if (!$reg -or $reg.code -ne 'SUCCESS') { Fail 1 "注册接口调用失败：$($reg | ConvertTo-Json -Depth 5 -Compress)。若系统已关闭公开注册，请先在界面或其他渠道创建普通用户，再联系运维处理。" }
         if ($reg.data.user.systemAdmin) { Fail 1 '安全异常：公开注册用户被自动赋予管理员角色，已中止。' }
-        # 受控提权：单条语句内完成加锁-检查-更新，咨询锁保证并发引导只有一个赢家；
-        # 以返回的获胜数量（1/0）判定，避开 psql 命令标签在不同输出模式下的差异。
-        $u = $Username
-        $sql = "WITH lock_guard AS (SELECT pg_advisory_xact_lock(917463)), promoted AS (" +
-            "UPDATE app_user SET system_admin = true WHERE username = '$u' AND " +
-            "(SELECT count(*) FROM app_user WHERE system_admin = true) = 0 RETURNING 1) " +
-            "SELECT count(*) FROM promoted;"
-        $out = @(& docker exec $pgId psql -U $values['POSTGRES_USER'] -d $values['POSTGRES_DB'] -t -A -c $sql)
-        if ($LASTEXITCODE -ne 0) { Fail 1 '提权 SQL 执行失败，新注册用户保持普通用户状态。' }
-        if ("$($out | Where-Object { $_ -ne '' } | Select-Object -First 1)" -ne '1') {
+        # 受控提权：单事务（psql -1）内「先取咨询锁 → 独立语句检查 → 独立语句提权」。
+        # 锁与计数检查不能同处一条 UPDATE 语句：同语句共用旧 MVCC 快照，持锁期间
+        # 他人提交的提权对本语句不可见，并发下可能双提权。READ COMMITTED 下
+        # UPDATE 语句使用自己的新快照，且其他提权事务必须先获得本锁，串行化成立。
+        # 判定用 UPDATE ... RETURNING 的实际行数；检查语句仅用于提前给出友好提示。
+        $sqlPromote = "UPDATE app_user SET system_admin = true WHERE username = '$Username' AND (SELECT count(*) FROM app_user WHERE system_admin = true) = 0 RETURNING 1;"
+        $out = @(& docker exec $pgId psql -U $values['POSTGRES_USER'] -d $values['POSTGRES_DB'] -1 -t -A -v ON_ERROR_STOP=1 `
+                -c 'SELECT pg_advisory_xact_lock(917463);' `
+                -c 'SELECT count(*) FROM app_user WHERE system_admin = true;' `
+                -c $sqlPromote 2>&1)
+        if ($LASTEXITCODE -ne 0) { Fail 1 '提权事务执行失败，新注册用户保持普通用户状态。' }
+        $numeric = @($out | Where-Object { $_ -match '^[0-9]+$' })
+        $countLine = if ($numeric.Count -gt 0) { $numeric[0] } else { '0' }
+        $promoteLine = if ($numeric.Count -gt 0) { $numeric[-1] } else { '' }
+        if ($countLine -ne '0') {
+            Info '系统已存在管理员，初始化通道保持关闭；本命令不再执行（防重复引导）。'
+            return
+        }
+        if ($promoteLine -ne '1') {
             Info '并发竞争中另一位管理员已完成初始化，本次未提权（新注册用户保留为普通用户）。'
             return
         }
