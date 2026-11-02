@@ -123,6 +123,18 @@ const draft: TaskPlanDraft = {
   }],
 }
 
+const twoMilestoneDraft: TaskPlanDraft = {
+  ...draft,
+  milestones: [
+    draft.milestones[0],
+    { tempKey: 'm2', title: '第二里程碑', objective: '第二目标', description: '第二描述', targetDate: null, sortOrder: 1, sourceRefs: [] },
+  ],
+  tasks: [
+    draft.tasks[0],
+    { ...draft.tasks[0], tempKey: 't2', milestoneTempKey: 'm2', title: '第二任务' },
+  ],
+}
+
 function plan(overrides: Partial<TaskPlan> = {}): TaskPlan {
   return {
     id: 'plan-1',
@@ -328,8 +340,8 @@ describe('PlanningView real component workflow', () => {
   it('requires explicit adoption and saves the suggested member as the formal assignee', async () => {
     const wrapper = await mounted()
     await openFirst(wrapper)
-    await wrapper.get('.milestone-header').trigger('click')
     expect(wrapper.text()).toContain('未分配')
+    expect(wrapper.find('[id="planning-t1-description"]').exists()).toBe(true)
     const adopt = wrapper.findAll('button').find(button => button.text() === '采纳建议负责人')!
     await adopt.trigger('click')
     const save = wrapper.findAll('button').find(button => button.text() === '保存新版本')!
@@ -352,8 +364,9 @@ describe('PlanningView real component workflow', () => {
   it('uses a bounded custom number input for the maximum task count', async () => {
     const wrapper = await mounted()
 
-    const input = wrapper.find('input[type="number"]')
-    expect(input.exists()).toBe(true)
+    // 主从布局下详情面板还有"预估工时"（min 0.5）输入，按 min=1 精确匹配创建表单的最大任务数
+    const input = wrapper.findAll('input[type="number"]').find(candidate => candidate.attributes('min') === '1')!
+    expect(input).toBeDefined()
     expect(input.attributes('min')).toBe('1')
     expect(input.attributes('max')).toBe('40')
     expect((input.element as HTMLInputElement).value).toBe('20')
@@ -369,7 +382,7 @@ describe('PlanningView real component workflow', () => {
   it('partialRepairUsesTheSeenVersionAndLocksTaskIdentity', async () => {
     const wrapper = await mounted()
     await openFirst(wrapper)
-    await wrapper.get('.milestone-header').trigger('click')
+    await wrapper.get('.task-row').trigger('click')
     await flushPromises()
     const button = wrapper.findAll('button').find(item => item.text() === 'AI 局部修复')
     expect(button).toBeDefined()
@@ -387,8 +400,8 @@ describe('PlanningView real component workflow', () => {
   it('priorityUsesChineseLabels', async () => {
     const wrapper = await mounted()
     await openFirst(wrapper)
-    // 点击里程碑header展开它
-    await wrapper.get('.milestone-header').trigger('click')
+    // 主从布局：点击左侧任务行，在右侧详情中渲染优先级选择
+    await wrapper.get('.task-row').trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-value="HIGH"]').text()).toBe('高')
     expect(wrapper.text()).not.toContain('URGENT')
@@ -441,7 +454,7 @@ describe('PlanningView real component workflow', () => {
     mocks.detail.mockResolvedValue(response(detail(plan(), { structuredIssues: [issue()] })))
     const wrapper = await mounted()
     await openFirst(wrapper)
-    // 点击issue-content会自动展开里程碑
+    // 点击issue-content会展开目标里程碑并选中目标任务（单开主从布局）
     await wrapper.get('.issue-content').trigger('click')
     await flushPromises()
     const target = wrapper.get('#planning-t1-startDate')
@@ -450,6 +463,50 @@ describe('PlanningView real component workflow', () => {
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
     expect(document.activeElement).toBe(input)
     expect(wrapper.text()).toContain('实现登录')
+  })
+
+  it('expandsOnlyOneMilestoneAtATime', async () => {
+    mocks.version.mockImplementation((_project: string, _plan: string, versionId: string) =>
+      Promise.resolve(response({ version: { id: versionId, versionNo: 2, sourceType: 'MANUAL_EDIT' }, draft: twoMilestoneDraft })))
+    const wrapper = await mounted()
+    await openFirst(wrapper)
+    // 自动展开第一个含待处理项的里程碑（m1），右侧详情选中其首个任务
+    expect(wrapper.findAll('.task-row').map(row => row.text())).toEqual([expect.stringContaining('实现登录')])
+    // 展开第二个里程碑时自动收拢第一个（单开）
+    await wrapper.findAll('.milestone-header')[1].trigger('click')
+    await flushPromises()
+    const rows = wrapper.findAll('.task-row')
+    expect(rows.length).toBe(1)
+    expect(rows[0].text()).toContain('第二任务')
+    expect(wrapper.text()).not.toContain('实现登录')
+    // 再次点击同一个里程碑头部则收拢
+    await wrapper.findAll('.milestone-header')[1].trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.task-list').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('autoSelectsTheFirstPendingTaskOnLoad', async () => {
+    const wrapper = await mounted()
+    await openFirst(wrapper)
+    expect(wrapper.findAll('.task-row')[0].classes()).toContain('is-selected')
+    expect(wrapper.text()).toContain('任务详情')
+    expect(wrapper.find('[id="planning-t1-startDate"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('addTaskAutoSelectsTheNewTaskInDetailPanel', async () => {
+    const wrapper = await mounted()
+    await openFirst(wrapper)
+    const add = wrapper.findAll('button').find(item => item.text() === '添加任务')!
+    await add.trigger('click')
+    await flushPromises()
+    const rows = wrapper.findAll('.task-row')
+    expect(rows.length).toBe(2)
+    const newRow = rows.find(row => row.text().includes('新任务'))
+    expect(newRow?.classes()).toContain('is-selected')
+    expect(wrapper.find('[id="planning-t1-description"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 
   it('saveButtonOpensDialogAndCanSave', async () => {
