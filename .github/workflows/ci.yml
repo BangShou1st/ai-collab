@@ -8,6 +8,13 @@ on:
     branches: [main, dev]
     # 受控版本标签触发发布（release job 仅响应 v* 标签）。
     tags: ['v*']
+    # 纯文档/杂项提交不触发 CI（pull_request 不做过滤，保证必需检查总是上报，
+    # 避免"被跳过的必需检查卡住 PR 合并"）。
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
   pull_request:
     branches: [main, dev]
   workflow_dispatch:
@@ -16,10 +23,11 @@ on:
 permissions:
   contents: read
 
-# 同一 PR 的旧运行可取消；main 上的运行不互相取消，避免丢失主干验证结果。
+# 同一 PR 连续推送时只跑最新一次；dev push 同理。main 上的运行不互相取消，
+# 避免丢失主干验证结果。
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/dev') }}
 
 jobs:
   production-contract:
@@ -65,10 +73,17 @@ jobs:
           # 发布标签推导与小写化测试（与 release job 共用同一实现）。
           bash ai-collab-deploy/scripts/release-tags.test.sh
 
-  backend:
-    name: Backend (Maven verify)
+  # Maven verify 是最长的关键路径（约 13 分钟，其中测试占绝大头）。按类名哈希
+  # 把测试拆到 3 台机器并行执行，编译/打包在每个分片重复但相对便宜；
+  # 下方同名聚合 job 保留必需检查名并运行容器测试守卫。
+  backend-shard:
+    name: Backend tests (shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     defaults:
       run:
         working-directory: ai-collab-backend
@@ -88,115 +103,52 @@ jobs:
           cache: maven
           cache-dependency-path: ai-collab-backend/pom.xml
 
+      - name: Compute shard test includes
+        run: bash scripts/shard-test-classes.sh "${{ matrix.shard }}" 3 target/shard
+
       # 仓库中 mvnw 的 Git 权限位是 100644，用 bash 显式调用以避开执行位问题。
       - name: Build & verify (Testcontainers + Flyway)
-        run: bash ./mvnw -B -ntp verify
-
-      # verify 成功不等于容器用例真的跑过：逐类核对关键 Testcontainers 用例的
-      # Surefire 统计，整类被跳过时判定失败，不把"全跳过"当成通过。
-      - name: Assert container tests actually ran
-        if: success()
-        run: |
-          python3 - <<'PY'
-          import glob
-          import sys
-          import xml.etree.ElementTree as ET
-
-          # 覆盖上下文压缩、Flyway 迁移与运行恢复的关键真实 PostgreSQL 用例。
-          # RetrievalCoveragePostgresTest 是 D-RAG-01A 的检索覆盖基线：用真实 pgvector
-          # 观察向量候选与上下文保留；整类被跳过时同样判失败。
-          # RetrievalQualityHardGatePostgresTest 是 D-RAG-01C 第二轮的确定性质量硬门槛，
-          # AgentResearchQualityPostgresTest 是直接研究/委派同题对照（真实 PostgreSQL + 真实工具），
-          # 两者都必须真实执行，不得整类跳过（真实 Ollama 门槛为 Opt-in，不在此列）。
-          # KiloGatewayPresetIsolationIntegrationTest 验证 V65 迁移与双预设隔离：同样不得整类跳过。
-          required = [
-              "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentObservabilityPostgresTest",
-              "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetricsTest",
-              "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentActuatorSecurityTest",
-              "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentModelTransportMetricsTest",
-              "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomePostgresTest",
-              "com.shitulelv.aicollab.agent.application.runtime.AgentRemoteOutcomeMigrationPostgresTest",
-              "com.shitulelv.aicollab.agent.application.runtime.AgentToolSchedulerTest",
-              "com.shitulelv.aicollab.agent.application.runtime.AgentPauseResumePostgresTest",
-              "com.shitulelv.aicollab.agent.application.runtime.PersistedModelTurnRecoveryPostgresTest",
-              "com.shitulelv.aicollab.acceptance.LegacyApprovalCitationUpgradeTest",
-              "com.shitulelv.aicollab.agent.application.runtime.AgentRunContextCommitPostgresTest",
-              "com.shitulelv.aicollab.agent.application.AgentRunRetryPostgresIntegrationTest",
-              "com.shitulelv.aicollab.agent.infrastructure.AgentMigrationIntegrationTest",
-              "com.shitulelv.aicollab.acceptance.NextStageMigrationPostgresTest",
-              "com.shitulelv.aicollab.retrieval.RetrievalCoveragePostgresTest",
-              "com.shitulelv.aicollab.retrieval.RetrievalQualityHardGatePostgresTest",
-              "com.shitulelv.aicollab.agent.application.runtime.AgentDelegationPostgresTest",
-              "com.shitulelv.aicollab.agent.infrastructure.tool.AgentResearchQualityPostgresTest",
-              "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
-              "com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetIsolationIntegrationTest",
-              "com.shitulelv.aicollab.notification.NotificationNavigationPostgresTest",
-          ]
-
-          stats = {}
-          for path in glob.glob("target/surefire-reports/TEST-*.xml"):
-              root = ET.parse(path).getroot()
-              stats[root.get("name")] = {
-                  key: int(root.get(key, 0))
-                  for key in ("tests", "failures", "errors", "skipped")
-              }
-
-          total = sum(item["tests"] for item in stats.values())
-          skipped = sum(item["skipped"] for item in stats.values())
-          print(
-              f"Surefire: {total} tests, {skipped} skipped, "
-              f"{len(stats)} test classes reported"
-          )
-
-          problems = []
-          for name in required:
-              item = stats.get(name)
-              if item is None:
-                  problems.append(f"{name}: no Surefire report (class did not run)")
-              elif item["tests"] == 0:
-                  problems.append(f"{name}: recorded 0 tests")
-              elif item["skipped"] == item["tests"]:
-                  problems.append(
-                      f"{name}: all {item['tests']} tests skipped — "
-                      "container runtime unavailable?"
-                  )
-
-          # Local Ollama experiments must stay explicitly opt-in; a superclass
-          # EnabledIfEnvironmentVariable does not gate a concrete subclass.
-          for name in [
-              "com.shitulelv.aicollab.retrieval.P6RagQualityBaselinePostgresTest",
-              "com.shitulelv.aicollab.retrieval.P8AgentRagCrossLayerPostgresTest",
-              "com.shitulelv.aicollab.retrieval.P8RagQualityFixExperimentPostgresTest",
-          ]:
-              item = stats.get(name)
-              if item is None or item["tests"] == 0 or item["skipped"] != item["tests"]:
-                  problems.append(f"{name}: local-model opt-in guard did not skip the class")
-
-          if problems:
-              print("Container test guard FAILED:", file=sys.stderr)
-              for problem in problems:
-                  print(f"  - {problem}", file=sys.stderr)
-              sys.exit(1)
-          print("Container test guard passed for all required classes.")
-          PY
+        run: bash ./mvnw -B -ntp verify -Dsurefire.includesFile=target/shard/includes-${{ matrix.shard }}.txt
 
       - name: Upload Surefire reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-surefire-reports
+          name: backend-surefire-shard-${{ matrix.shard }}
           path: ai-collab-backend/target/surefire-reports/
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Upload JaCoCo report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-jacoco-report
+          name: backend-jacoco-report-shard-${{ matrix.shard }}
           path: ai-collab-backend/target/site/jacoco/
           retention-days: 14
           if-no-files-found: warn
+
+  # 聚合 job：保留分支保护要求的必需检查名 "Backend (Maven verify)"，
+  # 并在全部分片通过后运行容器测试守卫（verify 成功不等于容器用例真的跑过）。
+  backend:
+    name: Backend (Maven verify)
+    needs: backend-shard
+    if: ${{ !cancelled() && needs.backend-shard.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ai-collab-backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download shard surefire reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: backend-surefire-shard-*
+          merge-multiple: true
+          path: ai-collab-backend/target/surefire-reports
+      - name: Assert container tests actually ran
+        run: python3 scripts/container-test-guard.py
 
   frontend:
     name: Frontend (pnpm)
@@ -254,14 +206,27 @@ jobs:
           # P5-DEPLOYMENT-GATE-01：配置契约回归（仅渲染配置，不启动容器、全合成值）
           bash ai-collab-deploy/scripts/compose-config-contract.sh
 
+      - name: Prepare short SHA
+        id: prep
+        run: echo "short=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      # Buildx + GHA 缓存：同一 Dockerfile 反复构建时跳过未变更层（依赖下载层
+      # 在源码变更时也不会失效）。
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build backend image
-        run: |
-          docker build \
-            -f ai-collab-backend/Dockerfile \
-            -t ai-collab-backend:rc-${GITHUB_SHA::12} \
-            --label org.opencontainers.image.revision=${GITHUB_SHA} \
-            --label org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY} \
-            .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ai-collab-backend/Dockerfile
+          load: true
+          tags: ai-collab-backend:rc-${{ steps.prep.outputs.short }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=image-backend
+          cache-to: type=gha,mode=max,scope=image-backend
 
       - name: Boot container with dependencies and smoke test
         run: |
@@ -393,6 +358,8 @@ jobs:
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=image-backend
+          cache-to: type=gha,mode=max,scope=image-backend
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v6
@@ -404,6 +371,8 @@ jobs:
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=image-frontend
+          cache-to: type=gha,mode=max,scope=image-frontend
 
       - name: Record source SHA and image digests
         run: |

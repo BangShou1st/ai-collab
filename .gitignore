@@ -114,6 +114,8 @@ docs/agent/
 scripts/
 # 部署资产不受上面的本地脚本排除影响（CI 依赖其中的配置契约回归）
 !ai-collab-deploy/scripts/
+# 后端 CI 辅助脚本（测试分片与容器测试守卫）不受本地脚本排除影响
+!ai-collab-backend/scripts/
 
 # ===========================
 # Local Startup Helpers (Windows)
