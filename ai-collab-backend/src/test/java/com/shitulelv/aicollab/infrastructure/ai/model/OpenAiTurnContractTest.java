@@ -216,6 +216,22 @@ class OpenAiTurnContractTest {
                         .isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED));
     }
 
+    @Test
+    void finishReasonLengthWithEmptyContentThrowsTruncated() {
+        JsonHttpModelClient http = mock(JsonHttpModelClient.class);
+        ObjectNode response = createResponse("length");
+        ObjectNode message = getMessage(response);
+        message.put("content", "");
+
+        when(http.post(anyString(), anyMap(), any())).thenReturn(response);
+
+        assertThatThrownBy(() -> new OpenAiCompatibleModelAdapter(mapper, http)
+                .turn(config(), "key", textOnlyCommand()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED));
+    }
+
     // ========== 请求映射 ==========
 
     @Test

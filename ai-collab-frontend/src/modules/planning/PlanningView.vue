@@ -245,9 +245,17 @@ const {
             </div>
           </div>
           <el-button v-if="canEditCurrent" @click="addMilestone">添加里程碑</el-button>
-          <div class="actions"><el-button v-if="permissions?.canEdit && editingLatest" :disabled="!dirty" @click="save">保存新版本</el-button>
+          <div class="actions">
+            <el-tooltip :disabled="dirty" content="草案尚未修改，修改后方可保存新版本" placement="top">
+              <span>
+                <el-button v-if="permissions?.canEdit && editingLatest" :disabled="!dirty" @click="save">保存新版本</el-button>
+              </span>
+            </el-tooltip>
             <el-button v-if="permissions?.canRestore && !editingLatest" @click="restore">恢复为新版本</el-button>
             <template v-if="permissions?.canConfirm && editingLatest"><span>将创建 {{ confirmationSummary.milestones }} 里程碑 / {{ confirmationSummary.tasks }} 任务 / {{ confirmationSummary.dependencies }} 依赖；未分配 {{ confirmationSummary.unassigned }}</span><el-checkbox v-model="checked">我已检查规划</el-checkbox><el-button type="success" :disabled="!checked || dirty" @click="confirm">确认并创建任务</el-button></template>
+            <span v-else-if="editingLatest && !permissions?.canConfirm && structuredIssues.some(i => i.severity === 'BLOCKING_EDITABLE' || i.severity === 'HARD')" class="blocking-hint">
+              存在阻断性问题，请参考上方问题面板修复并保存新版本后即可确认创建任务
+            </span>
           </div>
         </template>
       </el-card>
@@ -442,5 +450,21 @@ const {
 .detail-row {
   margin-bottom: 12px;
   width: 100%;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.blocking-hint {
+  font-size: 13px;
+  color: #c62828;
+  background: #ffebee;
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 </style>
