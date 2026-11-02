@@ -40,7 +40,8 @@ public class UserAiProviderRepository {
                     rs.getBoolean("is_default"),
                     rs.getObject("created_at", OffsetDateTime.class),
                     rs.getObject("updated_at", OffsetDateTime.class),
-                    getPreset(rs));
+                    getPreset(rs),
+                    rs.getLong("capability_config_version"));
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to map user AI provider", exception);
         }
@@ -48,7 +49,7 @@ public class UserAiProviderRepository {
     private static final String COLUMNS = """
             id, user_id, name, provider_type, base_url, api_path, encrypted_api_key,
             model_name, enabled, temperature, max_output_tokens, capabilities,
-            is_default, created_at, updated_at, preset_code""";
+            is_default, created_at, updated_at, preset_code, capability_config_version""";
     private static String getPreset(ResultSet rs) {
         try { return rs.getString("preset_code"); }
         catch (Exception e) {
@@ -59,6 +60,20 @@ public class UserAiProviderRepository {
     }
 
     private final JdbcTemplate jdbc;
+
+    /**
+     * 判定「影响真实模型请求行为的参数」是否变化：模型类型/端点/凭证/模型 ID/温度/输出上限。
+     * 显示名称、启用开关、能力声明、默认标记不属于请求行为，不推进能力配置版本。
+     */
+    private static final String REQUEST_PARAMS_CHANGED = """
+             user_ai_provider.provider_type IS DISTINCT FROM EXCLUDED.provider_type
+                OR user_ai_provider.base_url IS DISTINCT FROM EXCLUDED.base_url
+                OR user_ai_provider.api_path IS DISTINCT FROM EXCLUDED.api_path
+                OR user_ai_provider.encrypted_api_key IS DISTINCT FROM EXCLUDED.encrypted_api_key
+                OR user_ai_provider.model_name IS DISTINCT FROM EXCLUDED.model_name
+                OR user_ai_provider.temperature IS DISTINCT FROM EXCLUDED.temperature
+                OR user_ai_provider.max_output_tokens IS DISTINCT FROM EXCLUDED.max_output_tokens
+            """;
 
     public UserAiProviderRepository(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -88,7 +103,8 @@ public class UserAiProviderRepository {
         return jdbc.query("""
                 SELECT p.id, p.user_id, p.name, p.provider_type, p.base_url, p.api_path,
                        p.encrypted_api_key, p.model_name, p.enabled, p.temperature,
-                       p.max_output_tokens, p.capabilities, p.is_default, p.created_at, p.updated_at, p.preset_code
+                       p.max_output_tokens, p.capabilities, p.is_default, p.created_at, p.updated_at,
+                       p.preset_code, p.capability_config_version
                 FROM user_model_purpose_assignment a
                 JOIN user_ai_provider p ON p.id = a.provider_id
                 WHERE a.user_id = ? AND a.purpose = ?
@@ -106,8 +122,8 @@ public class UserAiProviderRepository {
                 INSERT INTO user_ai_provider (
                     id, user_id, name, provider_type, base_url, api_path, encrypted_api_key,
                     model_name, enabled, temperature, max_output_tokens, capabilities,
-                    is_default, created_at, updated_at, preset_code
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    is_default, created_at, updated_at, preset_code, capability_config_version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (id) DO UPDATE SET
                     user_id = EXCLUDED.user_id,
                     name = EXCLUDED.name,
@@ -122,13 +138,18 @@ public class UserAiProviderRepository {
                     capabilities = EXCLUDED.capabilities,
                     is_default = EXCLUDED.is_default,
                     preset_code = EXCLUDED.preset_code,
-                    updated_at = EXCLUDED.updated_at
+                    capability_config_version = CASE WHEN """ + REQUEST_PARAMS_CHANGED + """
+                        THEN user_ai_provider.capability_config_version + 1
+                        ELSE user_ai_provider.capability_config_version END,
+                    updated_at = CASE WHEN """ + REQUEST_PARAMS_CHANGED + """
+                        THEN CURRENT_TIMESTAMP
+                        ELSE user_ai_provider.updated_at END
                 """,
                 value.id(), value.userId(), value.name(), value.providerType().name(),
                 value.baseUrl(), value.apiPath(), value.encryptedApiKey(), value.modelName(),
                 value.enabled(), value.temperature(), value.maxOutputTokens(),
                 capabilityText(value.capabilities()), value.isDefault(),
-                value.createdAt(), value.updatedAt(), value.presetCode());
+                value.createdAt(), value.updatedAt(), value.presetCode(), value.capabilityConfigVersion());
         return findById(value.id()).orElseThrow();
     }
 
@@ -185,28 +206,29 @@ public class UserAiProviderRepository {
 
     /**
      * 探针写回的乐观并发（CAS）更新：仅当配置仍停留在探针开始时的版本
-     * （{@code updated_at} 未变）时追加能力，返回新版本时间戳。
+     * （能力配置版本未变）时追加能力，返回新的能力配置版本。
      *
      * <p>版本不匹配（检测期间改了模型/Base URL/Key/能力声明，或另一窗口并发修改）
      * 返回空——旧探针结论不得覆盖新配置。合并采用数组并集去重，
      * 不触碰用户保留的其他能力声明。</p>
      */
-    public Optional<OffsetDateTime> addCapabilitiesIfVersionMatches(
-            UUID id, UUID userId, java.util.Set<ModelCapability> capabilitiesToAdd, OffsetDateTime expectedUpdatedAt) {
+    public Optional<Long> addCapabilitiesIfVersionMatches(
+            UUID id, UUID userId, java.util.Set<ModelCapability> capabilitiesToAdd, long expectedConfigVersion) {
         List<String> merged = capabilitiesToAdd.stream().map(Enum::name).toList();
-        List<OffsetDateTime> updated = jdbc.query("""
+        List<Long> updated = jdbc.query("""
                 UPDATE user_ai_provider SET
                     capabilities = (
                         SELECT string_agg(DISTINCT cap, ',' ORDER BY cap)
                         FROM unnest(string_to_array(COALESCE(capabilities, ''), ',') || ?::text[]) AS cap
                         WHERE cap <> ''
                     ),
+                    capability_config_version = capability_config_version + 1,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = ? AND user_id = ? AND updated_at = ?
-                RETURNING updated_at
+                WHERE id = ? AND user_id = ? AND capability_config_version = ?
+                RETURNING capability_config_version
                 """,
-                (rs, row) -> rs.getObject("updated_at", OffsetDateTime.class),
-                merged.toArray(String[]::new), id, userId, expectedUpdatedAt);
+                (rs, row) -> rs.getLong("capability_config_version"),
+                merged.toArray(String[]::new), id, userId, expectedConfigVersion);
         return updated.stream().findFirst();
     }
 
@@ -216,14 +238,14 @@ public class UserAiProviderRepository {
      * 行（检测期间被其他结论覆盖的行不受影响），且仅限本次运行覆盖的模式。
      */
     public void rebaseProbeTestedVersion(
-            UUID providerId, OffsetDateTime oldVersion, OffsetDateTime newVersion, List<String> modes) {
+            UUID providerId, long oldConfigVersion, long newConfigVersion, List<String> modes) {
         var named = new org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate(jdbc);
         named.update(
-                "UPDATE user_ai_provider_probe_result SET tested_config_updated_at = :newVersion "
-                        + "WHERE provider_id = :providerId AND tested_config_updated_at = :oldVersion "
+                "UPDATE user_ai_provider_probe_result SET tested_config_version = :newVersion "
+                        + "WHERE provider_id = :providerId AND tested_config_version = :oldVersion "
                         + "AND probe_mode IN (:modes)",
-                Map.of("newVersion", newVersion, "providerId", providerId,
-                        "oldVersion", oldVersion, "modes", modes));
+                Map.of("newVersion", newConfigVersion, "providerId", providerId,
+                        "oldVersion", oldConfigVersion, "modes", modes));
     }
 
     public int deleteByUserAndPreset(UUID userId, String presetCode) {

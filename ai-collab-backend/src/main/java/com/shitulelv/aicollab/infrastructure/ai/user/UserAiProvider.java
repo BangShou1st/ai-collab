@@ -25,9 +25,24 @@ public record UserAiProvider(
         boolean isDefault,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
-        String presetCode) {
+        String presetCode,
+        long capabilityConfigVersion) {
     public UserAiProvider {
         if (presetCode != null && presetCode.isBlank()) presetCode = null;
+    }
+
+    /**
+     * 兼容旧调用方的便捷构造：能力配置版本以 0 起算。
+     * 仅用于新建行与重建展示快照；更新路径的版本推进由仓储条件更新决定。
+     */
+    public UserAiProvider(UUID id, UUID userId, String name, ModelProviderType providerType,
+            String baseUrl, String apiPath, String encryptedApiKey, String modelName,
+            boolean enabled, double temperature, int maxOutputTokens,
+            EnumSet<ModelCapability> capabilities, boolean isDefault,
+            OffsetDateTime createdAt, OffsetDateTime updatedAt, String presetCode) {
+        this(id, userId, name, providerType, baseUrl, apiPath, encryptedApiKey, modelName,
+                enabled, temperature, maxOutputTokens, capabilities, isDefault,
+                createdAt, updatedAt, presetCode, 0);
     }
     public boolean isPreset() { return presetCode != null; }
 

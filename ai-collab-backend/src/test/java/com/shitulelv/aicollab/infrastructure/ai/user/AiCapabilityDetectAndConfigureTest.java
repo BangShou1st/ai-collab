@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -38,11 +39,11 @@ import static org.mockito.Mockito.when;
 class AiCapabilityDetectAndConfigureTest {
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    private UserAiProvider provider(EnumSet<ModelCapability> capabilities, OffsetDateTime updatedAt) {
+    private UserAiProvider provider(EnumSet<ModelCapability> capabilities, long capabilityConfigVersion) {
         return new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), "c",
                 ModelProviderType.OPENAI_COMPATIBLE, "https://api.example.com", "/v1/chat/completions",
                 "enc", "m", true, 0.2, 1200, capabilities, false,
-                OffsetDateTime.now(), updatedAt, null);
+                OffsetDateTime.now(), OffsetDateTime.now(), null, capabilityConfigVersion);
     }
 
     private ChatCompletionResult completion() {
@@ -83,7 +84,7 @@ class AiCapabilityDetectAndConfigureTest {
 
     @Test void fullSuitePassesAndWritesBackUndeclaredNativeTools() {
         // T01：Provider 仅声明 CHAT，原生工具探针真实执行并通过 → 自动启用 NATIVE_TOOLS
-        OffsetDateTime version = OffsetDateTime.now();
+        long version = 5;
         UserAiProvider snapshot = provider(EnumSet.of(ModelCapability.CHAT), version);
         UserAiProviderService providers = mock(UserAiProviderService.class);
         when(providers.requireRuntimeConfiguration(any(), any())).thenReturn(snapshot);
@@ -93,7 +94,7 @@ class AiCapabilityDetectAndConfigureTest {
         ModelTurnGateway turns = mock(ModelTurnGateway.class);
         when(turns.turn(any())).thenReturn(toolCallResult());
         UserAiProviderRepository repository = mock(UserAiProviderRepository.class);
-        OffsetDateTime newVersion = version.plusSeconds(1);
+        Long newVersion = version + 1;
         when(repository.addCapabilitiesIfVersionMatches(eq(snapshot.id()), eq(snapshot.userId()),
                 anySet(), eq(version))).thenReturn(Optional.of(newVersion));
 
@@ -118,7 +119,7 @@ class AiCapabilityDetectAndConfigureTest {
 
     @Test void nativeToolsRealFailureDoesNotWriteBack() {
         // T02：模型真实不支持工具调用 → 结论 FAIL、不写回 NATIVE_TOOLS、不中止已通过的流式
-        OffsetDateTime version = OffsetDateTime.now();
+        long version = 5;
         UserAiProvider snapshot = provider(EnumSet.of(ModelCapability.CHAT), version);
         UserAiProviderService providers = mock(UserAiProviderService.class);
         when(providers.requireRuntimeConfiguration(any(), any())).thenReturn(snapshot);
@@ -147,7 +148,7 @@ class AiCapabilityDetectAndConfigureTest {
 
     @Test void transientFailuresAreInconclusiveAndDoNotAbortSuite() {
         // T03：连接 429、流式超时 → INCONCLUSIVE，不误报“不支持”，不无界重试（各恰好一次）
-        OffsetDateTime version = OffsetDateTime.now();
+        long version = 5;
         UserAiProvider snapshot = provider(EnumSet.of(ModelCapability.CHAT), version);
         UserAiProviderService providers = mock(UserAiProviderService.class);
         when(providers.requireRuntimeConfiguration(any(), any())).thenReturn(snapshot);
@@ -167,12 +168,12 @@ class AiCapabilityDetectAndConfigureTest {
         verify(chat, times(1)).complete(any()); // 无重试：连接探针恰好一次
         verify(chat, times(1)).completeStream(any(), any(), any(), any()); // 流式探针恰好一次
         verify(repository, org.mockito.Mockito.never())
-                .addCapabilitiesIfVersionMatches(any(), any(), anySet(), any());
+                .addCapabilitiesIfVersionMatches(any(), any(), anySet(), anyLong());
     }
 
     @Test void credentialChangeDuringProbeRejectsWriteBackWithReason() {
         // T05：检测期间配置变更（版本不匹配）→ CAS 失败，明确报错且不覆盖新配置
-        OffsetDateTime version = OffsetDateTime.now();
+        long version = 5;
         UserAiProvider snapshot = provider(EnumSet.of(ModelCapability.CHAT), version);
         UserAiProviderService providers = mock(UserAiProviderService.class);
         when(providers.requireRuntimeConfiguration(any(), any())).thenReturn(snapshot);
@@ -180,7 +181,7 @@ class AiCapabilityDetectAndConfigureTest {
         when(chat.complete(any())).thenReturn(completion());
         stubStreamingSuccess(chat);
         UserAiProviderRepository repository = mock(UserAiProviderRepository.class);
-        when(repository.addCapabilitiesIfVersionMatches(any(), any(), anySet(), any()))
+        when(repository.addCapabilitiesIfVersionMatches(any(), any(), anySet(), anyLong()))
                 .thenReturn(Optional.empty());
 
         var result = service(providers, chat, turns(), repository)
@@ -192,7 +193,7 @@ class AiCapabilityDetectAndConfigureTest {
 
     @Test void concurrentDetectRunsAreRejectedByBackendLock() throws Exception {
         // T07（服务层）：同一 Provider 并发第二个检测任务被后端互斥拒绝（跨线程，模拟双窗口）
-        OffsetDateTime version = OffsetDateTime.now();
+        long version = 5;
         UserAiProvider snapshot = provider(EnumSet.of(ModelCapability.CHAT), version);
         UserAiProviderService providers = mock(UserAiProviderService.class);
         when(providers.requireRuntimeConfiguration(any(), any())).thenReturn(snapshot);
@@ -220,7 +221,7 @@ class AiCapabilityDetectAndConfigureTest {
 
     @Test void writeBackSkipsCasWhenAllProbedCapabilitiesAlreadyDeclared() {
         // 探针通过的能力已全部声明时不推进配置版本：同轮 INCONCLUSIVE 结论不被误标 STALE
-        OffsetDateTime version = OffsetDateTime.now();
+        long version = 5;
         UserAiProvider snapshot = provider(EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING), version);
         UserAiProviderService providers = mock(UserAiProviderService.class);
         when(providers.requireRuntimeConfiguration(any(), any())).thenReturn(snapshot);
@@ -236,13 +237,13 @@ class AiCapabilityDetectAndConfigureTest {
                 assertThat(step.status()).isEqualTo(UserAiProviderProbeResultRepository.PASS));
         assertThat(result.writeBack().applied()).isTrue();
         verify(repository, org.mockito.Mockito.never())
-                .addCapabilitiesIfVersionMatches(any(), any(), anySet(), any());
-        verify(repository, org.mockito.Mockito.never()).rebaseProbeTestedVersion(any(), any(), any(), any());
+                .addCapabilitiesIfVersionMatches(any(), any(), anySet(), anyLong());
+        verify(repository, org.mockito.Mockito.never()).rebaseProbeTestedVersion(any(), anyLong(), anyLong(), any());
     }
 
     @Test void staleLockIsReleasedAfterFailure() {
         // 失败后锁必须释放：下一次检测可再次发起（无无限重试、无死锁）
-        OffsetDateTime version = OffsetDateTime.now();
+        long version = 5;
         UserAiProvider snapshot = provider(EnumSet.of(ModelCapability.CHAT), version);
         UserAiProviderService providers = mock(UserAiProviderService.class);
         when(providers.requireRuntimeConfiguration(any(), any())).thenReturn(snapshot);

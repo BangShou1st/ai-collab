@@ -124,17 +124,28 @@ public class UserAiProviderPresetService {
         boolean makeDefault = setDefault || first || existing.map(UserAiProvider::isDefault).orElse(false);
         if (makeDefault) repository.clearDefault(userId);
         var now = java.time.OffsetDateTime.now();
+        // 相同明文密钥复用既有密文：避免随机 IV 重加密被仓储误判为凭证变化而推进能力配置版本。
+        String storedEncrypted = existing.map(UserAiProvider::encryptedApiKey).orElse(null);
+        String storedPlain;
+        try {
+            storedPlain = secrets.decryptOptional(storedEncrypted);
+        } catch (RuntimeException unreadableStoredKey) {
+            // 旧密文不可解（如主密钥轮换）：按凭证已变化处理，走重加密。
+            storedPlain = null;
+        }
+        String encryptedKey = java.util.Objects.equals(effectiveKey, storedPlain)
+                ? storedEncrypted : secrets.encrypt(effectiveKey);
         UserAiProvider row;
         // Preset rows always snapshot current policy numbers (the preset API exposes no temp/token fields).
         if (existing.isEmpty()) {
             row = new UserAiProvider(UUID.randomUUID(), userId, pol.displayName(), pol.protocol(),
-                    pol.baseUrl(), pol.completionPath(), secrets.encrypt(effectiveKey), modelName.strip(),
+                    pol.baseUrl(), pol.completionPath(), encryptedKey, modelName.strip(),
                     enabled, pol.defaultTemperature(), pol.defaultMaxOutputTokens(), EnumSet.copyOf(pol.capabilities()),
                     makeDefault, now, now, PRESET);
         } else {
             var prev = existing.get();
             row = new UserAiProvider(prev.id(), userId, pol.displayName(), pol.protocol(),
-                    pol.baseUrl(), pol.completionPath(), secrets.encrypt(effectiveKey), modelName.strip(),
+                    pol.baseUrl(), pol.completionPath(), encryptedKey, modelName.strip(),
                     enabled, pol.defaultTemperature(), pol.defaultMaxOutputTokens(), EnumSet.copyOf(pol.capabilities()),
                     makeDefault, prev.createdAt(), now, PRESET);
         }

@@ -75,11 +75,28 @@ public class UserAiProviderService {
         UserAiProvider existing = require(userId, id);
         rejectPreset(existing);
         validateEndpoint(request.baseUrl(), request.apiPath());
-        String encrypted = request.apiKey() == null || request.apiKey().isBlank()
-                ? existing.encryptedApiKey() : secrets.encrypt(request.apiKey());
+        String encrypted = resolveEncryptedKey(existing.encryptedApiKey(), request.apiKey());
         return UserAiProviderView.from(repository.save(toProvider(
                 id, userId, request, encrypted, existing.isDefault(),
                 existing.createdAt(), OffsetDateTime.now())));
+    }
+
+    /**
+     * 相同明文密钥复用既有密文：AES-GCM 每次加密产生新密文，
+     * 重加密会让仓储把「未变化的凭证」误判为请求行为变化而推进能力配置版本。
+     */
+    private String resolveEncryptedKey(String existingEncrypted, String newApiKey) {
+        if (newApiKey == null || newApiKey.isBlank()) return existingEncrypted;
+        String normalized = newApiKey.strip();
+        String storedPlain;
+        try {
+            storedPlain = secrets.decryptOptional(existingEncrypted);
+        } catch (RuntimeException unreadableStoredKey) {
+            // 旧密文不可解（如主密钥轮换）：按凭证已变化处理，走重加密。
+            storedPlain = null;
+        }
+        if (normalized.equals(storedPlain)) return existingEncrypted;
+        return secrets.encrypt(normalized);
     }
 
     @Transactional

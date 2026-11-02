@@ -32,9 +32,18 @@ const options = reactive({ planning: false, nativeTools: false })
 const persisted = ref<Record<ProbeMode, ProbeResultState | null>>(probeResultsFromViews([]))
 const persistedLoading = ref(false)
 const confirming = ref(false)
+/** 面板默认折叠：真实请求只由显式展开后的按钮触发，检测结束自动展开展示结论。 */
+const expanded = ref(false)
 
 const runState = computed(() => suite.runs[props.provider.id] ?? null)
 const running = computed(() => runState.value?.running ?? false)
+const verifiedCount = computed(() =>
+  CAPABILITY_EVIDENCE_ROWS.filter((row) => capabilityEvidence(row, props.provider, persisted.value) === 'VERIFIED').length,
+)
+
+watch(running, (isRunning, wasRunning) => {
+  if (wasRunning && !isRunning) expanded.value = true
+})
 
 const isPreset = computed(() => Boolean(props.provider.presetCode))
 const isCustom = computed(() => !isPreset.value)
@@ -144,81 +153,87 @@ function evidenceStatus(key: (typeof CAPABILITY_EVIDENCE_ROWS)[number]['key']): 
   return capabilityEvidence(row, props.provider, persisted.value)
 }
 
-function testedAtText(state: ProbeResultState): string {
-  if (!state.testedAt) return ''
-  try {
-    return new Date(state.testedAt).toLocaleString()
-  } catch {
-    return ''
-  }
-}
 </script>
 
 <template>
   <div class="suite-panel">
-    <div class="suite-actions">
-      <el-button size="small" type="primary" :loading="running || confirming" data-test="detect-and-configure" @click="runSuite">
-        检测并配置
+    <div class="suite-head">
+      <el-button text type="primary" size="small" data-test="suite-toggle" @click="expanded = !expanded">
+        {{ expanded ? '收起能力检测' : '能力检测与配置' }}
       </el-button>
-      <span class="suite-presets">
-        <el-button size="small" text :disabled="running" @click="applyPreset('KNOWLEDGE_CHAT')">知识问答</el-button>
-        <el-button size="small" text :disabled="running" @click="applyPreset('PLANNING')">AI 规划</el-button>
-        <el-button size="small" text :disabled="running" @click="applyPreset('AGENT')">Agent</el-button>
-        <el-button size="small" text :disabled="running" @click="applyPreset('ALL')">全面检测</el-button>
+      <span v-if="!persistedLoading" class="suite-head__summary">
+        已验证 {{ verifiedCount }} / {{ CAPABILITY_EVIDENCE_ROWS.length }}
       </span>
-      <el-checkbox v-model="options.planning" size="small" :disabled="running">含规划测试</el-checkbox>
-      <el-checkbox v-model="options.nativeTools" size="small" :disabled="running">含原生工具测试</el-checkbox>
-      <span class="suite-hint">{{ budgetText }}</span>
     </div>
 
-    <ul v-if="runState" class="suite-steps" :aria-busy="running">
-      <li v-for="(state, key) in runState.steps" :key="key" class="suite-step" :data-status="state.status">
-        <span class="suite-step__label">{{ stepLabel(String(key)) }}</span>
-        <el-tag :type="statusType(state.status)" size="small" effect="light">
-          {{ statusText(state.status) }}
-        </el-tag>
-        <span v-if="state.status === 'PASS' && 'latencyMs' in state && state.latencyMs" class="suite-step__detail">
-          {{ state.latencyMs }}ms
+    <div v-show="expanded || running" class="suite-panel__body">
+      <div class="suite-actions">
+        <el-button size="small" type="primary" :loading="running || confirming" data-test="detect-and-configure" @click="runSuite">
+          检测并配置
+        </el-button>
+        <span class="suite-presets">
+          <el-button size="small" text :disabled="running" @click="applyPreset('KNOWLEDGE_CHAT')">知识问答</el-button>
+          <el-button size="small" text :disabled="running" @click="applyPreset('PLANNING')">AI 规划</el-button>
+          <el-button size="small" text :disabled="running" @click="applyPreset('AGENT')">Agent</el-button>
+          <el-button size="small" text :disabled="running" @click="applyPreset('ALL')">全面检测</el-button>
         </span>
-        <span v-if="'detail' in state && state.detail" class="suite-step__detail">{{ state.detail }}</span>
-      </li>
-    </ul>
+        <el-checkbox v-model="options.planning" size="small" :disabled="running">含规划测试</el-checkbox>
+        <el-checkbox v-model="options.nativeTools" size="small" :disabled="running">含原生工具测试</el-checkbox>
+        <span class="suite-hint">{{ budgetText }}</span>
+      </div>
 
-    <el-alert
-      v-if="runState?.writeBack && !runState.writeBack.applied && runState.writeBack.reason"
-      type="warning"
-      :title="runState.writeBack.reason"
-      :closable="false"
-      show-icon
-    />
-    <el-alert
-      v-if="runState?.writeBack?.applied && runState.writeBack.reason"
-      type="info"
-      :title="runState.writeBack.reason"
-      :closable="false"
-      show-icon
-    />
+      <ul v-if="runState" class="suite-steps" :aria-busy="running">
+        <li v-for="(state, key) in runState.steps" :key="key" class="suite-step" :data-status="state.status">
+          <span class="suite-step__label">{{ stepLabel(String(key)) }}</span>
+          <el-tag :type="statusType(state.status)" size="small" effect="light">
+            {{ statusText(state.status) }}
+          </el-tag>
+          <span v-if="state.status === 'PASS' && 'latencyMs' in state && state.latencyMs" class="suite-step__detail">
+            {{ state.latencyMs }}ms
+          </span>
+          <span v-if="'detail' in state && state.detail" class="suite-step__detail">{{ state.detail }}</span>
+        </li>
+      </ul>
 
-    <div v-if="!persistedLoading" class="suite-evidence">
-      <span class="suite-evidence__title">能力验证状态：</span>
-      <table class="evidence-table">
-        <thead>
-          <tr><th>能力</th><th>状态</th><th>说明</th></tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in CAPABILITY_EVIDENCE_ROWS" :key="row.key">
-            <td>{{ row.label }}</td>
-            <td><el-tag :type="statusType(evidenceStatus(row.key))" size="small">{{ statusText(evidenceStatus(row.key)) }}</el-tag></td>
-            <td class="evidence-table__desc">{{ row.description }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <el-alert
+        v-if="runState?.writeBack && !runState.writeBack.applied && runState.writeBack.reason"
+        type="warning"
+        :title="runState.writeBack.reason"
+        :closable="false"
+        show-icon
+      />
+      <el-alert
+        v-if="runState?.writeBack?.applied && runState.writeBack.reason"
+        type="info"
+        :title="runState.writeBack.reason"
+        :closable="false"
+        show-icon
+      />
+
+      <div v-if="!persistedLoading" class="suite-evidence">
+        <span class="suite-evidence__title">能力验证状态：</span>
+        <table class="evidence-table">
+          <thead>
+            <tr><th>能力</th><th>状态</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in CAPABILITY_EVIDENCE_ROWS" :key="row.key">
+              <td>{{ row.label }}</td>
+              <td><el-tag :type="statusType(evidenceStatus(row.key))" size="small">{{ statusText(evidenceStatus(row.key)) }}</el-tag></td>
+              <td class="evidence-table__desc">{{ row.description }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .suite-panel { display: flex; flex-direction: column; gap: 8px; }
+.suite-head { display: flex; align-items: center; gap: 8px; }
+.suite-head__summary { color: var(--color-text-secondary); font-size: 12px; }
+.suite-panel__body { display: flex; flex-direction: column; gap: 8px; }
 .suite-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .suite-presets { display: inline-flex; gap: 0; }
 .suite-hint { color: var(--color-text-secondary); font-size: 12px; }

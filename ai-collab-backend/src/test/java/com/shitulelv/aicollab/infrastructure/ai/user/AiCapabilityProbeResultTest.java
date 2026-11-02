@@ -30,18 +30,18 @@ import static org.mockito.Mockito.when;
 class AiCapabilityProbeResultTest {
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    private UserAiProvider provider(OffsetDateTime updatedAt) {
+    private UserAiProvider provider(long capabilityConfigVersion) {
         return new UserAiProvider(UUID.randomUUID(), UUID.randomUUID(), "c",
                 ModelProviderType.OPENAI_COMPATIBLE, "https://api.example.com", "/v1/chat/completions",
                 "enc", "m", true, 0.2, 1200,
                 EnumSet.of(ModelCapability.CHAT, ModelCapability.STREAMING), false,
-                OffsetDateTime.now(), updatedAt, null);
+                OffsetDateTime.now(), OffsetDateTime.now(), null, capabilityConfigVersion);
     }
 
     private AiCapabilityProbeService probe(UserAiProviderRepository providers,
             ChatModelGateway chat, UserAiProviderProbeResultRepository results) {
         var service = mock(UserAiProviderService.class);
-        when(service.requireRuntimeConfiguration(any(), any())).thenAnswer(i -> provider(OffsetDateTime.now()));
+        when(service.requireRuntimeConfiguration(any(), any())).thenAnswer(i -> provider(0));
         return new AiCapabilityProbeService(service, chat, mock(ModelTurnGateway.class), JSON, null, results, mock(UserAiProviderRepository.class));
     }
 
@@ -54,7 +54,7 @@ class AiCapabilityProbeResultTest {
         var chat = mock(ChatModelGateway.class);
         when(chat.complete(any())).thenReturn(completion());
         var results = mock(UserAiProviderProbeResultRepository.class);
-        var provider = provider(OffsetDateTime.now());
+        var provider = provider(0);
         var service = probeWithProvider(provider, chat, results);
         service.test(provider.userId(), provider.id(), AiCapabilityProbeService.Mode.CONNECTIVITY);
         verify(results).upsert(org.mockito.ArgumentMatchers.argThat(row ->
@@ -106,7 +106,7 @@ class AiCapabilityProbeResultTest {
         when(chat.complete(any())).thenThrow(
                 new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID, "模型 API Key 无效或无权访问 (HTTP 401)"));
         var results = mock(UserAiProviderProbeResultRepository.class);
-        var provider = provider(OffsetDateTime.now());
+        var provider = provider(0);
         var service = probeWithProvider(provider, chat, results);
         assertThatThrownBy(() -> service.test(provider.userId(), provider.id(),
                 AiCapabilityProbeService.Mode.CONNECTIVITY))
@@ -116,16 +116,16 @@ class AiCapabilityProbeResultTest {
                         && ErrorCode.AI_MODEL_CREDENTIAL_INVALID.name().equals(row.errorCode())));
     }
 
-    @Test void resultsAreStaleWhenConfigChangedAfterTest() {
+    @Test void resultsAreStaleWhenCapabilityConfigVersionAdvanced() {
         var testedAt = OffsetDateTime.now().minusMinutes(5);
-        var provider = provider(testedAt.plusMinutes(1)); // 配置在测试之后变更
+        var provider = provider(2); // 探针锚定版本 1，当前已推进到 2
         var service = mock(UserAiProviderService.class);
         when(service.requireRuntimeConfiguration(any(), any())).thenReturn(provider);
         var results = mock(UserAiProviderProbeResultRepository.class);
         when(results.findAllByProviderId(provider.id())).thenReturn(List.of(
                 new UserAiProviderProbeResultRepository.ProbeResultRow(provider.id(), "STREAMING",
                         UserAiProviderProbeResultRepository.PASS, "m", null, null, 120L,
-                        testedAt, testedAt)));
+                        testedAt, 1L, testedAt)));
         var views = new AiCapabilityProbeService(service, mock(ChatModelGateway.class),
                 mock(ModelTurnGateway.class), JSON, null, results, mock(UserAiProviderRepository.class))
                 .results(provider.userId(), provider.id());
@@ -134,20 +134,37 @@ class AiCapabilityProbeResultTest {
         assertThat(views.getFirst().stale()).isTrue();
     }
 
-    @Test void resultsAreCurrentWhenConfigUnchanged() {
+    @Test void resultsAreCurrentWhenCapabilityConfigVersionUnchanged() {
         var testedAt = OffsetDateTime.now().minusMinutes(5);
-        var provider = provider(testedAt);
+        var provider = provider(1);
         var service = mock(UserAiProviderService.class);
         when(service.requireRuntimeConfiguration(any(), any())).thenReturn(provider);
         var results = mock(UserAiProviderProbeResultRepository.class);
         when(results.findAllByProviderId(provider.id())).thenReturn(List.of(
                 new UserAiProviderProbeResultRepository.ProbeResultRow(provider.id(), "STREAMING",
                         UserAiProviderProbeResultRepository.PASS, "m", null, null, 120L,
-                        provider.updatedAt(), testedAt)));
+                        testedAt, 1L, testedAt)));
         var views = new AiCapabilityProbeService(service, mock(ChatModelGateway.class),
                 mock(ModelTurnGateway.class), JSON, null, results, mock(UserAiProviderRepository.class))
                 .results(provider.userId(), provider.id());
         assertThat(views.getFirst().stale()).isFalse();
+    }
+
+    @Test void legacyResultWithoutVersionAnchorIsStale() {
+        // V74 之前落库、且未能回填版本锚点的结论：无法证明仍描述当前配置，按 STALE 处理。
+        var testedAt = OffsetDateTime.now().minusMinutes(5);
+        var provider = provider(0);
+        var service = mock(UserAiProviderService.class);
+        when(service.requireRuntimeConfiguration(any(), any())).thenReturn(provider);
+        var results = mock(UserAiProviderProbeResultRepository.class);
+        when(results.findAllByProviderId(provider.id())).thenReturn(List.of(
+                new UserAiProviderProbeResultRepository.ProbeResultRow(provider.id(), "STREAMING",
+                        UserAiProviderProbeResultRepository.PASS, "m", null, null, 120L,
+                        testedAt, null, testedAt)));
+        var views = new AiCapabilityProbeService(service, mock(ChatModelGateway.class),
+                mock(ModelTurnGateway.class), JSON, null, results, mock(UserAiProviderRepository.class))
+                .results(provider.userId(), provider.id());
+        assertThat(views.getFirst().stale()).isTrue();
     }
 
     @Test void persistenceFailureDoesNotMaskProbeOutcome() {
@@ -157,7 +174,7 @@ class AiCapabilityProbeResultTest {
         var results = mock(UserAiProviderProbeResultRepository.class);
         org.mockito.Mockito.doThrow(new RuntimeException("db down"))
                 .when(results).upsert(any());
-        var provider = provider(OffsetDateTime.now());
+        var provider = provider(0);
         var service = probeWithProvider(provider, chat, results);
         var evidence = service.test(provider.userId(), provider.id(),
                 AiCapabilityProbeService.Mode.CONNECTIVITY);
