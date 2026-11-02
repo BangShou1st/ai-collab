@@ -18,8 +18,11 @@ const errorTitles: Record<string, string> = {
   AI_MODEL_CREDENTIAL_INVALID: '模型凭据无法解密，请在个人 AI 设置中重新填写 API Key',
   AI_PROVIDER_ERROR: '模型服务暂时不可用',
   AI_PROVIDER_INVALID_RESPONSE: '模型返回了无法识别的内容',
-  AI_PROVIDER_OUTPUT_TRUNCATED: '模型输出不完整',
+  AI_PROVIDER_OUTPUT_TRUNCATED: '模型单次输出达到上限被截断（建议提高单次输出上限或精简任务）',
   TOOL_EXECUTION_TIMEOUT: '工具执行超时，Agent 将继续尝试其他操作',
+  FORMAT_REPAIR_REQUESTED: '模型输出格式异常，正在自动修复中',
+  FORMAT_REPAIR_EXHAUSTED: '模型格式修复尝试耗尽，无法解析响应',
+  TOOL_OUTCOME_UNKNOWN: '工具执行状态未知',
 }
 
 export function agentRunPresentation(run: AgentRun): AgentRunPresentation {
@@ -72,10 +75,11 @@ export function agentRunPresentation(run: AgentRun): AgentRunPresentation {
     }
   }
   if (run.status === 'FAILED') {
+    const errorMsg = errorTitles[run.errorCode ?? ''] ?? (run.errorCode ? `Agent 运行失败（${run.errorCode}）` : 'Agent 无法完成这次操作')
     return {
       terminal: true,
       severity: 'error',
-      title: errorTitles[run.errorCode ?? ''] ?? 'Agent 无法完成这次操作',
+      title: errorMsg,
       canRetry: true,
     }
   }
