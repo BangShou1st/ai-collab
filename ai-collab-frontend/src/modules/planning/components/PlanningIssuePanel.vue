@@ -30,9 +30,9 @@ const severityLabel = (s: string) => {
 }
 
 const severityColor = (s: string) => {
-  if (s === 'HARD') return '#e53935'
-  if (s === 'BLOCKING_EDITABLE') return '#fb8c00'
-  return '#fdd835'
+  if (s === 'HARD') return 'var(--color-danger)'
+  if (s === 'BLOCKING_EDITABLE') return 'var(--color-warning)'
+  return 'var(--color-info)'
 }
 
 const formatIssue = (issue: StructuredValidationIssue) => {
@@ -120,27 +120,40 @@ const formatIssue = (issue: StructuredValidationIssue) => {
   margin-bottom: 12px;
 }
 .blocking-header {
-  color: #c62828;
+  color: var(--color-danger);
 }
 .warning-header {
-  color: #b26a00;
+  color: var(--color-warning);
 }
 .issue-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
 }
 .issue-item {
-  border: 1px solid var(--color-border);
-  padding: 8px 12px;
-  background: white;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-left: 3px solid transparent;
+  padding: 6px 8px;
+  background: transparent;
+  border-radius: 0;
+}
+.issue-item:last-child {
+  border-bottom: 0;
 }
 .issue-content {
   cursor: pointer;
   display: flex;
   gap: 8px;
   align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.issue-content:hover .issue-message {
+  color: var(--color-primary);
 }
 .issue-severity {
   font-size: 12px;
@@ -148,19 +161,20 @@ const formatIssue = (issue: StructuredValidationIssue) => {
   white-space: nowrap;
 }
 .issue-message {
-  font-size: 14px;
+  font-size: 13px;
+  min-width: 0;
 }
 .issue-actions {
-  margin-top: 8px;
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 .btn-sm {
   font-size: 12px;
   padding: 4px 8px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--color-border-strong);
   border-radius: 4px;
-  background: white;
+  background: var(--color-surface);
   cursor: pointer;
 }
 .btn-sm:hover {

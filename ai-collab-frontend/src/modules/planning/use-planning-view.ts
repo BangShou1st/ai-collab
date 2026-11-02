@@ -38,20 +38,50 @@ const plans = ref<TaskPlan[]>([]), selected = ref<TaskPlan | null>(null)
 const permissions = ref<PlanPermissions | null>(null), draft = ref<TaskPlanDraft | null>(null)
 const versions = ref<Array<{ id: string; versionNo: number; sourceType: string }>>([])
 const selectedVersionId = ref(''), snapshot = ref('')
-const expandedMilestones = ref<string[]>([])
+const expandedMilestone = ref<string | null>(null)
+const selectedTaskTempKey = ref<string | null>(null)
 
 // 检查里程碑是否有需要确认的内容（未分配负责人等）
 function hasPendingItems(milestoneTempKey: string): boolean {
   return getUnassignedCount(milestoneTempKey) > 0
 }
 
-// 自动展开有需要确认内容的里程碑
+// 自动展开第一个含待处理项的里程碑（单开模型，展开即收拢其他）
 function autoExpandPendingMilestones(): void {
   if (!draft.value) return
-  const pendingMilestones = draft.value.milestones
-    .filter(m => hasPendingItems(m.tempKey))
-    .map(m => m.tempKey)
-  expandedMilestones.value = [...new Set([...expandedMilestones.value, ...pendingMilestones])]
+  const firstPending = draft.value.milestones.find(m => hasPendingItems(m.tempKey))
+  if (firstPending) expandedMilestone.value = firstPending.tempKey
+}
+
+// 载入草案后的合理选中：展开第一个含待处理项的里程碑并选中其首个任务
+function resetSelection(): void {
+  const current = draft.value
+  if (!current || current.milestones.length === 0) {
+    expandedMilestone.value = null
+    selectedTaskTempKey.value = null
+    return
+  }
+  autoExpandPendingMilestones()
+  const active = current.milestones.find(m => m.tempKey === expandedMilestone.value) ?? current.milestones[0]
+  expandedMilestone.value = active.tempKey
+  selectedTaskTempKey.value = current.tasks.find(t => t.milestoneTempKey === active.tempKey)?.tempKey ?? null
+}
+
+// 轮询/局部修复后的选中保持：任务仍在则保持选中并跟随其里程碑；否则回落到合理选中
+function reconcileSelection(): void {
+  const current = draft.value
+  if (!current) {
+    expandedMilestone.value = null
+    selectedTaskTempKey.value = null
+    return
+  }
+  const task = current.tasks.find(t => t.tempKey === selectedTaskTempKey.value)
+  if (task) {
+    expandedMilestone.value = task.milestoneTempKey
+    return
+  }
+  if (expandedMilestone.value && current.milestones.some(m => m.tempKey === expandedMilestone.value)) return
+  resetSelection()
 }
 const createVisible = ref(false), checked = ref(false), saveDialogVisible = ref(false), saveComment = ref('')
 const aiConfigured = ref(true)
@@ -150,16 +180,23 @@ async function ensureDefaultSelection(): Promise<void> {
 }
 async function open(plan: TaskPlan): Promise<void> {
   if (dirty.value && !await discard()) return
+  const samePlan = selected.value?.id === plan.id
   const [detail, history] = await Promise.all([planningApi.detail(projectId.value, plan.id), planningApi.versions(projectId.value, plan.id)])
   selected.value = detail.data.data.plan; permissions.value = detail.data.data.permissions; versions.value = history.data.data
   structuredIssues.value = detail.data.data.structuredIssues || []
   repairDiagnostics.value = detail.data.data.repairDiagnostics || []
   if (selected.value.latestVersionId) {
+    if (!samePlan) {
+      expandedMilestone.value = null
+      selectedTaskTempKey.value = null
+    }
     await openVersion(selected.value.latestVersionId)
   } else {
     selectedVersionId.value = ''
     draft.value = null
     snapshot.value = ''
+    expandedMilestone.value = null
+    selectedTaskTempKey.value = null
   }
   // Load events if available
   try {
@@ -173,10 +210,20 @@ async function open(plan: TaskPlan): Promise<void> {
 async function openVersion(id: string): Promise<void> {
   if (!selected.value) return
   const result = await planningApi.version(projectId.value, selected.value.id, id)
-  selectedVersionId.value = id; draft.value = structuredClone(result.data.data.draft); snapshot.value = JSON.stringify(draft.value)
+  const next = structuredClone(result.data.data.draft)
+  const nextSnapshot = JSON.stringify(next)
+  // 轮询刷新时草案数据未变化则保留引用，避免整棵草案 DOM 重建与选中态丢失
+  if (draft.value === null || JSON.stringify(draft.value) !== nextSnapshot) {
+    draft.value = next
+    snapshot.value = nextSnapshot
+  }
+  selectedVersionId.value = id
+  reconcileSelection()
 }
 async function requestVersion(id: string): Promise<void> {
   if (dirty.value && !await discard()) return
+  expandedMilestone.value = null
+  selectedTaskTempKey.value = null
   await openVersion(id)
 }
 async function create(): Promise<void> {
@@ -260,10 +307,13 @@ async function manualEdit(issue: StructuredValidationIssue): Promise<void> {
   await locate(issue.targetTempKey || '', issue.field)
 }
 async function locate(target: string, field: string | null): Promise<void> {
-  const milestoneTempKey = draft.value?.tasks.find(task => task.tempKey === target)?.milestoneTempKey
+  const task = draft.value?.tasks.find(item => item.tempKey === target)
+  const milestoneTempKey = task?.milestoneTempKey
     ?? draft.value?.milestones.find(milestone => milestone.tempKey === target)?.tempKey
-  if (milestoneTempKey && !expandedMilestones.value.includes(milestoneTempKey)) {
-    expandedMilestones.value = [...expandedMilestones.value, milestoneTempKey]
+  // 定位五步：收拢其他里程碑（单开自动收拢）→ 展开目标 → 选中任务 → scrollIntoView → focus 字段
+  if (milestoneTempKey) {
+    expandedMilestone.value = milestoneTempKey
+    selectedTaskTempKey.value = task ? target : null
   }
   await nextTick()
   const exact = document.getElementById(`planning-${target}-${field ?? 'entity'}`)
@@ -306,31 +356,56 @@ function addMilestone(): void {
 function addTask(milestoneTempKey: string): void {
   if (!draft.value || !canEditCurrent.value
       || draft.value.tasks.length >= (selected.value?.maxTaskCount ?? 0)) return
-  draft.value.tasks.push({ tempKey: `t-${crypto.randomUUID()}`, milestoneTempKey, title: '新任务', objective: '填写目标', description: '填写描述',
+  const tempKey = `t-${crypto.randomUUID()}`
+  draft.value.tasks.push({ tempKey, milestoneTempKey, title: '新任务', objective: '填写目标', description: '填写描述',
     priority: 'MEDIUM', estimatedHours: null, startDate: null, dueDate: null, suggestedAssigneeId: null,
     assigneeId: null, dependencyTempKeys: [], sourceRefs: [], sortOrder: draft.value.tasks.length })
+  expandedMilestone.value = milestoneTempKey
+  selectedTaskTempKey.value = tempKey
 }
 async function removeTask(tempKey: string): Promise<void> {
   if (!draft.value || !canEditCurrent.value) return
   const affected = draft.value.tasks.filter(task => task.dependencyTempKeys.includes(tempKey)).length
   if (affected && !window.confirm(`删除将同步清除 ${affected} 条依赖，是否继续？`)) return
   draft.value = removeTaskAndDependencies(draft.value, tempKey)
+  if (selectedTaskTempKey.value === tempKey) {
+    selectedTaskTempKey.value = null
+    reconcileSelection()
+  }
 }
 function removeMilestone(tempKey: string): void {
   if (!draft.value || !canEditCurrent.value || draft.value.tasks.some(task => task.milestoneTempKey === tempKey)) return
   draft.value.milestones = draft.value.milestones.filter(item => item.tempKey !== tempKey)
+  if (expandedMilestone.value === tempKey) {
+    expandedMilestone.value = null
+    selectedTaskTempKey.value = null
+    reconcileSelection()
+  }
 }
 function addAssumption(): void { if (draft.value && canEditCurrent.value) draft.value.assumptions.push('') }
 function addRisk(): void { if (draft.value && canEditCurrent.value) draft.value.risks.push('') }
 const memberName = (id: string | null) => members.value.find(member => member.userId === id)?.displayName ?? '无'
 
 function toggleMilestone(tempKey: string): void {
-  const index = expandedMilestones.value.indexOf(tempKey)
-  if (index === -1) {
-    expandedMilestones.value = [...expandedMilestones.value, tempKey]
-  } else {
-    expandedMilestones.value = expandedMilestones.value.filter(key => key !== tempKey)
+  if (expandedMilestone.value === tempKey) {
+    expandedMilestone.value = null
+    selectedTaskTempKey.value = null
+    return
   }
+  expandedMilestone.value = tempKey
+  selectedTaskTempKey.value = null
+}
+
+function selectTask(tempKey: string): void {
+  const task = draft.value?.tasks.find(item => item.tempKey === tempKey)
+  if (!task) return
+  expandedMilestone.value = task.milestoneTempKey
+  selectedTaskTempKey.value = tempKey
+}
+
+function closeDetail(): void {
+  selectedTaskTempKey.value = null
+  expandedMilestone.value = null
 }
 
 function startPolling(): void {
@@ -418,7 +493,7 @@ watch(projectId, async () => {
 
   return {
     projectId, plans, selected, permissions, draft, versions, selectedVersionId,
-    expandedMilestones, createVisible, checked, saveDialogVisible, saveComment,
+    expandedMilestone, selectedTaskTempKey, createVisible, checked, saveDialogVisible, saveComment,
     aiConfigured, canCreate, pendingConfirmation, documents, members, project,
     structuredIssues, repairDiagnostics, adoptAssignee, events, form, dirty, editingLatest, canEditCurrent,
     confirmationSummary, targetNames, getTaskCount, getUnassignedCount,
@@ -428,7 +503,7 @@ watch(projectId, async () => {
     open, openVersion, requestVersion, create, action, restore, save, confirmSave,
     manualEdit, locate, removePlan, confirm, refresh, repairTask,
     addMilestone, addTask, removeTask, removeMilestone, addAssumption, addRisk,
-    memberName, toggleMilestone,
+    memberName, toggleMilestone, selectTask, closeDetail,
     historyReadOnlyMessage, dependencyWouldCycle,
   }
 }
