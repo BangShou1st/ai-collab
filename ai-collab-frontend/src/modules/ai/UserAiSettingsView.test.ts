@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from "@vue/test-utils"
 import UserAiSettingsView from "./UserAiSettingsView.vue"
+import CapabilitySuitePanel from "./CapabilitySuitePanel.vue"
+import { userAiApi } from "./user-ai-api"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { UserAiProvider } from "./user-ai-api"
 
@@ -81,7 +83,18 @@ const stubs = {
   ElButton: { inheritAttrs: false, template: '<button v-bind="$attrs"><slot /></button>' },
   ElCard: { template: '<section><slot name="header" /><slot /></section>' },
   ElInput: { template: "<textarea />" },
-  "el-select": { inheritAttrs: false, template: '<div v-bind="$attrs"><slot /></div>' },
+  "el-select": {
+    inheritAttrs: false,
+    props: { modelValue: { type: String, default: "" }, disabled: { type: Boolean, default: false } },
+    emits: ["update:modelValue", "change"],
+    methods: {
+      select(this: { $emit: (event: string, value: string) => void }, value: string) {
+        this.$emit("update:modelValue", value);
+        this.$emit("change", value);
+      },
+    },
+    template: '<div v-bind="$attrs"><slot /></div>',
+  },
   "el-option": { props: ["label", "value", "disabled"], template: '<span>{{ label }}</span>' },
   ElSkeleton: { template: "<div />" },
   "el-checkbox": { inheritAttrs: false, template: '<label v-bind="$attrs"><slot /></label>' },
@@ -98,6 +111,28 @@ function mountView() {
 
 function buttonByText(wrapper: ReturnType<typeof mountView>, text: string) {
   return wrapper.findAll("button").find((b) => b.text() === text);
+}
+
+type PurposeOverridesVm = {
+  overrides: Record<string, string>;
+  confirmedOverrides: Record<string, string>;
+  purposeSaving: Record<string, boolean>;
+};
+type SelectStub = {
+  vm: { select: (value: string) => void };
+  props: (name: string) => unknown;
+};
+
+function purposeView(wrapper: ReturnType<typeof mountView>): PurposeOverridesVm {
+  return wrapper.vm as unknown as PurposeOverridesVm;
+}
+
+function purposeSelect(wrapper: ReturnType<typeof mountView>, purpose: string) {
+  return wrapper.findComponent(`[data-test="purpose-select-${purpose}"]`) as unknown as SelectStub;
+}
+
+async function choosePurpose(wrapper: ReturnType<typeof mountView>, purpose: string, value: string) {
+  await purposeSelect(wrapper, purpose).vm.select(value);
 }
 
 beforeEach(() => {
@@ -324,3 +359,72 @@ describe("UserAiSettingsView state accuracy", () => {
     wrapper.unmount();
   });
 });
+
+describe("UserAiSettingsView purpose override saving", () => {
+  it("disables re-entry while saving and shows saved feedback on success", async () => {
+    mocks.list.mockResolvedValue(response([customProvider()]));
+    mocks.listPurposes.mockResolvedValue(response({}));
+    let releaseSave: (() => void) | undefined;
+    vi.mocked(userAiApi.assignPurpose).mockImplementation(
+      () => new Promise<void>((resolve) => { releaseSave = resolve; }),
+    );
+    const wrapper = mountView();
+    await flushPromises();
+
+    await choosePurpose(wrapper, "AGENT", "c-1");
+    const agent = purposeSelect(wrapper, "AGENT");
+    expect(purposeView(wrapper).purposeSaving.AGENT).toBe(true);
+    expect(agent.props("disabled")).toBe(true);
+
+    releaseSave?.();
+    await flushPromises();
+    expect(purposeView(wrapper).purposeSaving.AGENT).toBe(false);
+    expect(purposeView(wrapper).confirmedOverrides.AGENT).toBe("c-1");
+    expect(mocks.success).toHaveBeenCalledWith("用途覆盖已保存");
+    wrapper.unmount();
+  });
+
+  it("rolls back to the backend-confirmed value when saving fails", async () => {
+    mocks.list.mockResolvedValue(response([customProvider()]));
+    mocks.listPurposes.mockResolvedValue(response({ AGENT: "c-1" }));
+    vi.mocked(userAiApi.unassignPurpose).mockRejectedValueOnce(new Error("boom"));
+    const wrapper = mountView();
+    await flushPromises();
+    expect(purposeView(wrapper).overrides.AGENT).toBe("c-1");
+
+    await choosePurpose(wrapper, "AGENT", "");
+    await flushPromises();
+
+    expect(purposeView(wrapper).overrides.AGENT).toBe("c-1");
+    expect(purposeView(wrapper).confirmedOverrides.AGENT).toBe("c-1");
+    expect(purposeView(wrapper).purposeSaving.AGENT).toBe(false);
+    expect(mocks.success).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+});
+
+describe("UserAiSettingsView capability suite panel", () => {
+  it("keeps the capability suite collapsed until explicitly expanded", async () => {
+    mocks.list.mockResolvedValue(response([customProvider()]));
+    const wrapper = mountView();
+    await flushPromises();
+    const panel = wrapper.findComponent(CapabilitySuitePanel);
+    expect(panel.exists()).toBe(true);
+    // jsdom 的 getComputedStyle 在此环境不可靠，直接断言 v-show 写入的内联 display
+    const bodyDisplay = () => (wrapper.find(".suite-panel__body").element as HTMLElement).style.display;
+    expect(bodyDisplay()).toBe("none");
+    expect(panel.text()).toContain("已验证");
+    await wrapper.find('[data-test="suite-toggle"]').trigger("click");
+    expect(bodyDisplay()).toBe("");
+    await buttonByText(wrapper, "检测并配置")?.trigger("click");
+    await flushPromises();
+    expect(mocks.detectAndConfigure).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
+});
+
+
+
+
+
+

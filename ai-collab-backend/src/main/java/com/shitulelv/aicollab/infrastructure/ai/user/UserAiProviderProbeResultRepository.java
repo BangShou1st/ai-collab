@@ -14,8 +14,8 @@ import java.util.UUID;
 /**
  * 能力探针结果仓储：每个 (provider, probe_mode) 只保留最新一条。
  *
- * <p>{@code STALE} 不落库——读取时由服务层对比 {@code user_ai_provider.updated_at}
- * 与 {@code tested_config_updated_at} 动态判定，避免「配置改了但忘了作废旧结果」
+ * <p>{@code STALE} 不落库——读取时由服务层对比 {@code user_ai_provider.capability_config_version}
+ * 与 {@code tested_config_version} 动态判定，避免「配置改了但忘了作废旧结果」
  * 与「配置没改却定时过期」两类失真。</p>
  */
 @Repository
@@ -34,6 +34,7 @@ public class UserAiProviderProbeResultRepository {
             String errorCode,
             Long latencyMs,
             OffsetDateTime testedConfigUpdatedAt,
+            Long testedConfigVersion,
             OffsetDateTime testedAt) {
     }
 
@@ -49,6 +50,7 @@ public class UserAiProviderProbeResultRepository {
                     rs.getString("error_code"),
                     latency,
                     rs.getObject("tested_config_updated_at", OffsetDateTime.class),
+                    rs.getObject("tested_config_version") == null ? null : rs.getLong("tested_config_version"),
                     rs.getObject("tested_at", OffsetDateTime.class));
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to map probe result", exception);
@@ -65,8 +67,8 @@ public class UserAiProviderProbeResultRepository {
         jdbc.update("""
                 INSERT INTO user_ai_provider_probe_result (
                     provider_id, probe_mode, status, model_name, detail, error_code,
-                    latency_ms, tested_config_updated_at, tested_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    latency_ms, tested_config_updated_at, tested_config_version, tested_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT (provider_id, probe_mode) DO UPDATE SET
                     status = EXCLUDED.status,
                     model_name = EXCLUDED.model_name,
@@ -74,16 +76,17 @@ public class UserAiProviderProbeResultRepository {
                     error_code = EXCLUDED.error_code,
                     latency_ms = EXCLUDED.latency_ms,
                     tested_config_updated_at = EXCLUDED.tested_config_updated_at,
+                    tested_config_version = EXCLUDED.tested_config_version,
                     tested_at = EXCLUDED.tested_at
                 """,
                 row.providerId(), row.mode(), row.status(), row.modelName(), row.detail(),
-                row.errorCode(), row.latencyMs(), row.testedConfigUpdatedAt());
+                row.errorCode(), row.latencyMs(), row.testedConfigUpdatedAt(), row.testedConfigVersion());
     }
 
     public List<ProbeResultRow> findAllByProviderId(UUID providerId) {
         return jdbc.query(
                 "SELECT provider_id, probe_mode, status, model_name, detail, error_code, "
-                        + "latency_ms, tested_config_updated_at, tested_at "
+                        + "latency_ms, tested_config_updated_at, tested_config_version, tested_at "
                         + "FROM user_ai_provider_probe_result WHERE provider_id = ?",
                 MAPPER, providerId);
     }
@@ -91,7 +94,7 @@ public class UserAiProviderProbeResultRepository {
     public Optional<ProbeResultRow> find(UUID providerId, String mode) {
         return jdbc.query(
                 "SELECT provider_id, probe_mode, status, model_name, detail, error_code, "
-                        + "latency_ms, tested_config_updated_at, tested_at "
+                        + "latency_ms, tested_config_updated_at, tested_config_version, tested_at "
                         + "FROM user_ai_provider_probe_result WHERE provider_id = ? AND probe_mode = ?",
                 MAPPER, providerId, mode).stream().findFirst();
     }
