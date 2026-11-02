@@ -783,7 +783,8 @@ class AgentRuntimeBehaviorTest {
         assertThat(result.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
         assertThat(result.answer()).contains("已取得的结果").contains("list_tasks");
         // 本轮已终止：证据回退收尾同时消费本轮轮次（不再作为待恢复结果）
-        org.mockito.Mockito.verify(repository).recordBudgetPartialAnswer(eq(run), eq(result.answer()), anyBoolean());
+        org.mockito.Mockito.verify(repository).recordBudgetPartialAnswer(
+                eq(run), eq(result.answer()), anyBoolean(), any(), any(), any());
     }
 
     /**
