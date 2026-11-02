@@ -41,6 +41,7 @@ vi.mock('vue-router', () => ({
 
 vi.mock('element-plus', () => ({
   ElMessageBox: { confirm: vi.fn().mockResolvedValue(true) },
+  ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
 }))
 
 vi.mock('./planning-api', () => ({
@@ -248,6 +249,7 @@ async function mounted(): Promise<VueWrapper> {
       stubs: {
         PageHeader: { template: '<header><slot name="actions" /></header>' },
         ElAlert: { props: ['title'], template: '<div class="el-alert">{{ title }}</div>' },
+        ElTooltip: { template: '<div><slot /></div>' },
         ElButton: ButtonStub,
         ElInput: InputStub,
         ElInputNumber: NumberInputStub,
@@ -483,6 +485,22 @@ describe('PlanningView real component workflow', () => {
     await openFirst(wrapper)
     expect(wrapper.text()).toContain('规划已生成，仍有待处理问题')
     expect(wrapper.findAll('button').some(button => button.text() === '确认并创建任务')).toBe(false)
+    expect(wrapper.text()).toContain('存在 1 项阻断性问题')
+    expect(wrapper.text()).toContain('存在阻断性问题，请参考上方问题面板修复并保存新版本后即可确认创建任务')
+  })
+
+  it('warningsOnlyAllowConfirmationWithoutBlocking', async () => {
+    const readyPlan = plan({ status: 'READY' })
+    const warningIssue = issue({ code: 'UNASSIGNED_TASK', severity: 'WARNING' })
+    mocks.list.mockResolvedValue(response([readyPlan]))
+    mocks.detail.mockResolvedValue(response(detail(readyPlan, {
+      permissions: { ...permissions, canConfirm: true },
+      structuredIssues: [warningIssue],
+    })))
+    const wrapper = await mounted()
+    await openFirst(wrapper)
+    expect(wrapper.text()).toContain('存在 1 项提示与建议（非阻断，不影响直接确认创建任务）')
+    expect(wrapper.findAll('button').some(button => button.text() === '确认并创建任务')).toBe(true)
   })
 
   it('assumptionAndRiskCanBeAddedAndRemoved', async () => {

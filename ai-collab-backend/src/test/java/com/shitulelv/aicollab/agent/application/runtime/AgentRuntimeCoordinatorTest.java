@@ -381,6 +381,24 @@ class AgentRuntimeCoordinatorTest {
         verify(repository, never()).requeueRun(any());
     }
 
+    @Test
+    void whenModelTruncatesAfterSuccessfulToolCalls_fallsBackToCompleteFromEvidence() {
+        AgentRunView run = runAtUsage(5, 2);
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("检查项目", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(successfulToolStep()));
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any()))
+                .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        assertThat(outcome.answer()).contains("模型未能在本次运行预算内生成完整总结，先返回已取得的结果：");
+        assertThat(outcome.answer()).contains("mcp.github-readonly.get_file_contents");
+        verify(repository).recordBudgetPartialAnswer(eq(run), anyString(), eq(false));
+    }
+
     /**
      * 预算强制收尾且核心动作（start_task_plan）未发生：运行进入 BUDGET_EXCEEDED
      * 部分完成状态，不得仅凭模型返回文字记 SUCCEEDED（真实第 23 轮回归）。

@@ -250,6 +250,7 @@ async function confirmSave(): Promise<void> {
       selected.value.latestVersionNo, draft.value, saveComment.value || undefined)
     snapshot.value = JSON.stringify(draft.value)
     saveDialogVisible.value = false
+    ElMessage.success('规划新版本保存成功')
     await refresh()
   }
   catch (error) { showApiError(error, '规划草案保存') }

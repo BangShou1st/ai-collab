@@ -502,6 +502,11 @@ public class AgentRuntimeCoordinator {
                     repository.recordFailure(run,"FORMAT_REPAIR_REQUESTED",true);
                     return new AgentWorkerOutcome(AgentRunStatus.FAILED_RETRYABLE,null,null,"FORMAT_REPAIR_REQUESTED");
                 }
+                List<AgentStepView> freshSteps = currentSteps(run, steps);
+                if (summarizableEvidence(freshSteps)) {
+                    AgentWorkerOutcome fallback = completeFromEvidence(run, freshSteps, false);
+                    if (fallback != null) return fallback;
+                }
                 repository.recordFailure(run,"FORMAT_REPAIR_EXHAUSTED",false);
                 return new AgentWorkerOutcome(AgentRunStatus.FAILED,null,null,"FORMAT_REPAIR_EXHAUSTED");
             } catch (BusinessException failure) {
@@ -520,6 +525,15 @@ public class AgentRuntimeCoordinator {
                 }
                 boolean retryable = failure.getErrorCode() == ErrorCode.AI_MODEL_TIMEOUT
                         || failure.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR;
+                if (!retryable) {
+                    // 非可重试异常（如 AI_PROVIDER_OUTPUT_TRUNCATED、格式修复耗尽等）：
+                    // 如果已有成功执行的工具证据，优先兜底交付已有事实，不让前端丢答案
+                    List<AgentStepView> freshSteps = currentSteps(run, steps);
+                    if (summarizableEvidence(freshSteps)) {
+                        AgentWorkerOutcome fallback = completeFromEvidence(run, freshSteps, false);
+                        if (fallback != null) return fallback;
+                    }
+                }
                 repository.recordFailure(run, failure.getErrorCode().name(), retryable);
                 AgentRunView failedRun = repository.findRun(run.projectId(), run.id()).orElse(run);
                 emit(run, AgentEventType.RUN_FAILED,
