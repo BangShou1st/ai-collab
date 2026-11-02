@@ -188,6 +188,7 @@
 ### 6.3 验证结果
 - 新增真实原子事件测试 `atomicEventRecorder_persistsBudgetExceededWithOriginalErrorCodeAndSingleEvent` 与 `coordinatorUnderAtomicEvents_delegatesToRepositoryAndDoesNotEmitDuplicateEvent`，验证事件仅有 1 条且包含完整元数据；
 - 新增 `whenOnlyPendingWriteProposalAsToolSuccessPresent_doesNotTreatAsSummarizableEvidence_failsNormally` 与 `whenBothReadOnlyToolAndPendingWriteProposalPresent_fallsBackWithoutIncludingPendingProposalInAnswer`，验证待审批写提案严格隔离；
-- `AgentRuntimeCoordinatorTest` 增至 43 项测试，全量通过（0 failures, 0 errors）。
+- `AgentRuntimeCoordinatorTest` 增至 43 项测试全部通过；
+- 同步更新既有测试 `AgentRuntimeBehaviorTest` 匹配 6 参数重载，`AgentRuntimeBehaviorTest`（25 项）与 `AgentRuntimeCoordinatorTest`（43 项）共 68 项测试 100% 通过（0 failures, 0 errors）。
 
 
