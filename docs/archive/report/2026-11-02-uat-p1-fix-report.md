@@ -122,3 +122,46 @@
 - [x] 本地临时调试日志已清理，仓库无未受控的 `*.log` 文件。
 - [x] 所有截图证据统一存放于 `docs/acceptance-evidence/2026-11-02/uat-fix/`。
 - [x] 代码已在独立修复分支 `fix/uat-p1-planning-and-agent`，准备提交 PR 面向 `dev` 分支，不擅自合并 `main`。
+
+---
+
+## 五、PR #29 独立审查反馈与最终收口
+
+针对 PR #29 首轮审查结论（`CHANGES_REQUESTED`）提出的两项核心修改要求，本轮进行了收口强化：
+
+### 5.1 用户人工实测成功记录
+- **事实记录**：项目负责人已亲自使用原始复杂指令（*“请逐一检查项目里所有任务的依赖关系、负责人和截止日期，并给出完整的健康度报告。”*）在配置好的模型环境下进行了端到端测试，且实际已成功获得 Agent 完整健康度报告回答。
+- **记录规范说明**：本项明确登记为“**用户人工实测成功**”，不冒充为本地 AI 独立复测，亦不将单次成功解释为提供商间歇性抖动彻底消除；本轮不再为了满足审查要求而重复进行大规模真实模型调用。
+
+### 5.2 Agent 异常兜底错误分类白名单收紧（`AgentRuntimeCoordinator.java`）
+- **修复前风险**：原代码在 `catch (BusinessException failure)` 中使用宽泛的 `if (!retryable)` 降级，存在将模型 API Key 无效（`AI_MODEL_CREDENTIAL_INVALID`）、服务额度不足（`AI_PROVIDER_QUOTA_EXCEEDED`）、模型服务不可用（`AI_PROVIDER_UNAVAILABLE`）等不可降级的故障错误降级为 `BUDGET_EXCEEDED` 的隐患。
+- **最小修复措施**：
+  1. 定义严格的错误码白名单 `EVIDENCE_FALLBACK_ERRORS`，仅允许确证的 `AI_PROVIDER_OUTPUT_TRUNCATED` 以及格式修复耗尽的 `AI_PROVIDER_INVALID_RESPONSE` 触发工具证据兜底；
+  2. 凭据无效、额度不足、服务不可用、模型未找到等必须维持原生失败并记录原始错误码；
+  3. 兜底回答明确声明原因（“因模型输出截断，先返回已取得的结果：”），不伪装为正常完成；
+  4. 事件 `RUN_BUDGET_EXCEEDED` 中注入 `originalErrorCode` 与 `reason`，使原始触发原因完全可审计；
+  5. 严格验证已持久化证据，未批准的写操作（如写审批中或写提案）绝对不作为有效工具证据。
+
+### 5.3 预算耗尽文案中性化（`agent-run-state.ts`）
+- **修复前缺陷**：`AGENT_BUDGET_EXCEEDED` 一律显示“Agent 已达到本次运行上限，已返回已取得的部分结果”，在页面无部分回答（或无法可靠判断）时存在虚假承诺。
+- **最小修复措施**：
+  - 将 `AGENT_BUDGET_EXCEEDED` 统一调整为中性提示：“**Agent 已达到本次运行上限**”；
+  - 存在部分回答时，内容直接由消息流自身清晰承载展示，标题栏不作虚假承诺。
+
+### 5.4 7 项反向回归测试验证结果
+在 `AgentRuntimeCoordinatorTest.java` 与 `agent-run-state.test.ts` 中补充了 7 项针对性反向回归测试：
+| # | 测试项 | 场景与断言 | 结果 |
+|---|--------|------------|------|
+| 1 | 凭据无效不可部分交付 | 有工具证据，注入 `AI_MODEL_CREDENTIAL_INVALID`，断言状态为 `FAILED`，绝不调用 `recordBudgetPartialAnswer` | PASS |
+| 2 | 模型额度不足不可转预算耗尽 | 有工具证据，注入 `AI_PROVIDER_QUOTA_EXCEEDED`，断言状态为 `FAILED`，`errorCode` 保持不变 | PASS |
+| 3 | 模型服务不可用保持失败 | 有工具证据，注入 `AI_PROVIDER_UNAVAILABLE`，断言状态为 `FAILED` | PASS |
+| 4 | 无可信工具证据时保持失败 | 无工具证据，注入 `AI_PROVIDER_OUTPUT_TRUNCATED`，断言状态为 `FAILED`，不转为预算超限 | PASS |
+| 5 | 输出截断且有证据允许部分交付 | 有成功工具证据，注入 `AI_PROVIDER_OUTPUT_TRUNCATED`，断言状态为 `BUDGET_EXCEEDED`，回答包含截断事实声明 | PASS |
+| 6 | 格式修复耗尽预期行为 | 有工具证据，格式修复耗尽，断言状态为 `BUDGET_EXCEEDED`，回答包含格式异常重试耗尽声明 | PASS |
+| 7 | 未批准写操作严格隔离 | 仅有未批准写提案，注入截断，断言不被当作有效工具证据，保持 `FAILED` 状态 | PASS |
+| 8 | 原始原因可追踪且不泄露凭据 | 断言事件 payload 记录 `originalErrorCode: AI_PROVIDER_OUTPUT_TRUNCATED`，且无任何敏感 Token/密钥泄露 | PASS |
+
+### 5.5 全量构建与校验
+- 后端：`AgentRuntimeCoordinatorTest` 40 tests passed，`NativeToolCallingExecutorTest` 9 tests passed，`OpenAiTurnContractTest` 17 tests passed（合计 66 项测试全部通过）。
+- 前端：`vitest run` 59 个测试文件 445 个测试用例全部通过（100% passed）；`eslint` 0 error；`vue-tsc` 0 error；`vite build` 生产构建成功。
+

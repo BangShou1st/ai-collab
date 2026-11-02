@@ -11,7 +11,7 @@ const errorTitles: Record<string, string> = {
   AGENT_TOOL_EXECUTION_FAILED: 'Agent 无法完成这次操作：工具参数无效',
   AGENT_INVALID_DECISION: 'Agent 返回的操作格式无效',
   AGENT_NO_PROGRESS: 'Agent 重复执行相同操作，已停止本次运行',
-  AGENT_BUDGET_EXCEEDED: 'Agent 已达到本次运行上限，已返回已取得的部分结果',
+  AGENT_BUDGET_EXCEEDED: 'Agent 已达到本次运行上限',
   AI_MODEL_TIMEOUT: '模型响应超时',
   AI_PROVIDER_QUOTA_EXCEEDED: '模型额度不足',
   AI_PROVIDER_UNAVAILABLE: '模型尚未配置或不可用',

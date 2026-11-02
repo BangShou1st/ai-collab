@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.AgentApprovalService;
+import com.shitulelv.aicollab.agent.application.AgentMemoryService;
 import com.shitulelv.aicollab.agent.application.AgentProposalOutcome;
 import com.shitulelv.aicollab.agent.application.AgentWorkerOutcome;
 import com.shitulelv.aicollab.agent.application.view.AgentApprovalView;
@@ -394,9 +395,143 @@ class AgentRuntimeCoordinatorTest {
         AgentWorkerOutcome outcome = coordinator.advance(run);
 
         assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
-        assertThat(outcome.answer()).contains("模型未能在本次运行预算内生成完整总结，先返回已取得的结果：");
+        assertThat(outcome.answer()).contains("因模型输出截断，先返回已取得的结果：");
         assertThat(outcome.answer()).contains("mcp.github-readonly.get_file_contents");
         verify(repository).recordBudgetPartialAnswer(eq(run), anyString(), eq(false));
+    }
+
+    @Test
+    void whenCredentialInvalidAfterSuccessfulToolCalls_doesNotFallbackToBudgetExceeded_failsNormally() {
+        AgentRunView run = runAtUsage(5, 2);
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("检查项目", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(successfulToolStep()));
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any()))
+                .thenThrow(new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(outcome.errorCode()).isEqualTo(ErrorCode.AI_MODEL_CREDENTIAL_INVALID.name());
+        verify(repository, never()).recordBudgetPartialAnswer(any(), any(), anyBoolean());
+        verify(repository).recordFailure(eq(run), eq(ErrorCode.AI_MODEL_CREDENTIAL_INVALID.name()), eq(false));
+    }
+
+    @Test
+    void whenQuotaExceededAfterSuccessfulToolCalls_doesNotFallbackToBudgetExceeded_failsNormally() {
+        AgentRunView run = runAtUsage(5, 2);
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("检查项目", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(successfulToolStep()));
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any()))
+                .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(outcome.errorCode()).isEqualTo(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED.name());
+        verify(repository, never()).recordBudgetPartialAnswer(any(), any(), anyBoolean());
+        verify(repository).recordFailure(eq(run), eq(ErrorCode.AI_PROVIDER_QUOTA_EXCEEDED.name()), eq(false));
+    }
+
+    @Test
+    void whenProviderUnavailableAfterSuccessfulToolCalls_doesNotFallback_failsNormally() {
+        AgentRunView run = runAtUsage(5, 2);
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("检查项目", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(successfulToolStep()));
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any()))
+                .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(outcome.errorCode()).isEqualTo(ErrorCode.AI_PROVIDER_UNAVAILABLE.name());
+        verify(repository, never()).recordBudgetPartialAnswer(any(), any(), anyBoolean());
+    }
+
+    @Test
+    void whenOutputTruncatedWithoutToolEvidence_failsAsTruncatedWithoutFallback() {
+        AgentRunView run = runAtUsage(5, 2);
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("检查项目", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of()); // 无工具证据
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any()))
+                .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(outcome.errorCode()).isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED.name());
+        verify(repository, never()).recordBudgetPartialAnswer(any(), any(), anyBoolean());
+        verify(repository).recordFailure(eq(run), eq(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED.name()), eq(false));
+    }
+
+    @Test
+    void whenFormatRepairExhaustedWithToolEvidence_fallsBackToBudgetExceeded() {
+        AgentRunView run = runAtUsage(5, 2);
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("检查项目", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(successfulToolStep()));
+        when(repository.consumeRecovery(eq(run), eq("FORMAT_REPAIR"), eq(1))).thenReturn(false);
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any()))
+                .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_INVALID_RESPONSE));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        assertThat(outcome.answer()).contains("因模型响应格式异常且重试耗尽，先返回已取得的结果：");
+        verify(repository).recordBudgetPartialAnswer(eq(run), anyString(), eq(false));
+    }
+
+    @Test
+    void whenUnapprovedWriteOperationPending_doesNotTreatAsSuccessfulEvidence() {
+        AgentRunView run = runAtUsage(5, 2);
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("检查项目", List.of()));
+        // 只有未批准的写操作提案，没有成功的只读工具
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(pendingWriteProposalStep()));
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any()))
+                .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED));
+
+        AgentWorkerOutcome outcome = coordinator.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(outcome.errorCode()).isEqualTo(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED.name());
+        verify(repository, never()).recordBudgetPartialAnswer(any(), any(), anyBoolean());
+    }
+
+    @Test
+    void whenOutputTruncatedFallsBack_emitsBudgetExceededWithOriginalErrorCodeAndSanitizedData() {
+        AgentRunView run = runAtUsage(5, 2);
+        AgentEventService eventsMock = mock(AgentEventService.class);
+        AgentRuntimeCoordinator coordWithEvents = new AgentRuntimeCoordinator(
+                repository, contextAssembler, skillRegistry, planService,
+                tools, cancellation, loopGuard, approvals, modelExecutor, sanitizer,
+                new AgentConvergencePolicy(), json, eventsMock, mock(AgentMemoryService.class));
+
+        when(contextAssembler.assemble(eq(run), isNull(), any())).thenReturn(context());
+        when(planService.ensurePlan(eq(run), any())).thenReturn(plan("检查项目", List.of()));
+        when(repository.listSteps(run.projectId(), run.id()))
+                .thenReturn(List.of(successfulToolStep()));
+        when(modelExecutor.callModel(eq(run), any(), any(), eq(false), any()))
+                .thenThrow(new BusinessException(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED));
+
+        AgentWorkerOutcome outcome = coordWithEvents.advance(run);
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.BUDGET_EXCEEDED);
+        org.mockito.ArgumentCaptor<JsonNode> payloadCaptor = org.mockito.ArgumentCaptor.forClass(JsonNode.class);
+        verify(eventsMock).append(eq(run.projectId()), eq(run.id()), eq(AgentEventType.RUN_BUDGET_EXCEEDED), payloadCaptor.capture());
+        JsonNode payload = payloadCaptor.getValue();
+        assertThat(payload.path("originalErrorCode").asText()).isEqualTo("AI_PROVIDER_OUTPUT_TRUNCATED");
+        assertThat(payload.path("reason").asText()).isEqualTo("AI_PROVIDER_OUTPUT_TRUNCATED");
+        assertThat(payload.toString()).doesNotContain("sk-", "api_key", "secret", "password");
     }
 
     /**
@@ -1084,6 +1219,14 @@ class AgentRuntimeCoordinatorTest {
                 UUID.randomUUID(), 1, AgentStepType.TOOL_CALL_COMPLETED,
                 "mcp.github-readonly.get_file_contents", json.createObjectNode(),
                 json.createObjectNode().put("type", "dir"), "TOOL_SUCCESS",
+                null, null, false, null, null, OffsetDateTime.now());
+    }
+
+    private AgentStepView pendingWriteProposalStep() {
+        return new AgentStepView(
+                UUID.randomUUID(), 1, AgentStepType.APPROVAL_REQUESTED,
+                "task.create", json.createObjectNode().put("title", "新任务"),
+                null, "WAITING_APPROVAL",
                 null, null, false, null, null, OffsetDateTime.now());
     }
 
