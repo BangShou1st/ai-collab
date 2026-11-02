@@ -148,6 +148,22 @@ export function reduceAgentActivities(events: AgentRunEvent[]): AgentActivity[] 
   if (waiting && !terminal) {
     out.push({ key: 'waiting:input', tool: 'input', kind: 'waiting', status: 'waiting', title: '等待你的输入', detail: null, durationMs: null, count: null, raw: waiting })
   }
+  if (terminal && terminal.type === 'RUN_FAILED') {
+    const p = (terminal.payload ?? {}) as Record<string, unknown>
+    const code = typeof p.errorCode === 'string' ? p.errorCode : null
+    const title = agentErrorTitle(code) ?? (code ? `运行失败（${code}）` : '运行失败')
+    out.push({
+      key: `failure:${terminal.sequence}`,
+      tool: 'error',
+      kind: 'failure',
+      status: 'failed',
+      title,
+      detail: code ? `错误码: ${code}` : null,
+      durationMs: null,
+      count: null,
+      raw: [terminal],
+    })
+  }
   return out.sort((a, b) => minSequence(a.raw) - minSequence(b.raw))
 }
 
