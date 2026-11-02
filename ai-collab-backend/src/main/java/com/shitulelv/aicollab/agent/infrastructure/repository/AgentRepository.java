@@ -538,6 +538,10 @@ public class AgentRepository {
         recorder.recordBudgetExceeded(run);
     }
 
+    public void recordBudgetExceeded(AgentRunView run, String originalErrorCode, String reason, String fallback) {
+        recorder.recordBudgetExceeded(run, originalErrorCode, reason, fallback);
+    }
+
     public void recordBudgetPartialAnswer(AgentRunView run, String content) {
         recorder.recordBudgetPartialAnswer(run, content);
     }
@@ -546,6 +550,13 @@ public class AgentRepository {
     @Transactional
     public void recordBudgetPartialAnswer(AgentRunView run, String content, boolean consumePersistedTurn) {
         recorder.recordBudgetPartialAnswer(run, content, consumePersistedTurn);
+    }
+
+    @Transactional
+    public void recordBudgetPartialAnswer(
+            AgentRunView run, String content, boolean consumePersistedTurn,
+            String originalErrorCode, String reason, String fallback) {
+        recorder.recordBudgetPartialAnswer(run, content, consumePersistedTurn, originalErrorCode, reason, fallback);
     }
 
     public void recordBudgetExceeded(AgentRunView run, com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult completion) {

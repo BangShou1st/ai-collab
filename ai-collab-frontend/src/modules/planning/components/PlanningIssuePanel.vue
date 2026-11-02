@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { StructuredValidationIssue } from '../types'
 import { fieldLabel, issueLabel } from '../planning-labels'
 
@@ -14,10 +15,18 @@ const emit = defineEmits<{
   (e: 'regenerate', targetTempKey: string): void
 }>()
 
+const blockingIssues = computed(() =>
+  props.issues.filter(i => i.severity === 'BLOCKING_EDITABLE' || i.severity === 'HARD')
+)
+
+const warningIssues = computed(() =>
+  props.issues.filter(i => i.severity === 'WARNING')
+)
+
 const severityLabel = (s: string) => {
-  if (s === 'HARD') return '硬错误'
-  if (s === 'BLOCKING_EDITABLE') return '可修复'
-  return '警告'
+  if (s === 'HARD') return '阻断错误'
+  if (s === 'BLOCKING_EDITABLE') return '阻断项'
+  return '提示'
 }
 
 const severityColor = (s: string) => {
@@ -36,25 +45,53 @@ const formatIssue = (issue: StructuredValidationIssue) => {
 </script>
 
 <template>
-  <div class="issue-panel" v-if="issues.length > 0">
-    <div class="issue-header">
-      <span class="issue-count">规划已生成，但有 {{ issues.length }} 项需要确认</span>
-    </div>
-    <div class="issue-list">
-      <div
-        v-for="issue in issues"
-        :key="issue.id"
-        class="issue-item"
-        :style="{ borderLeftColor: severityColor(issue.severity) }"
-      >
-        <div class="issue-content" @click="emit('locate', issue.targetTempKey || '', issue.field)">
-          <span class="issue-severity" :style="{ color: severityColor(issue.severity) }">
-            {{ severityLabel(issue.severity) }}
-          </span>
-          <span class="issue-message">{{ formatIssue(issue) }}</span>
+  <div v-if="issues.length > 0" class="issue-panel">
+    <!-- 阻断项区域 -->
+    <div v-if="blockingIssues.length > 0" class="issue-section blocking-section">
+      <div class="issue-header blocking-header">
+        <span class="issue-count">⚠️ 存在 {{ blockingIssues.length }} 项阻断性问题（必须修复并保存新版本后方可确认创建任务）</span>
+      </div>
+      <div class="issue-list">
+        <div
+          v-for="issue in blockingIssues"
+          :key="issue.id"
+          class="issue-item blocking-item"
+          :style="{ borderLeftColor: severityColor(issue.severity) }"
+        >
+          <div class="issue-content" @click="emit('locate', issue.targetTempKey || '', issue.field)">
+            <span class="issue-severity" :style="{ color: severityColor(issue.severity) }">
+              {{ severityLabel(issue.severity) }}
+            </span>
+            <span class="issue-message">{{ formatIssue(issue) }}</span>
+          </div>
+          <div v-if="actionsEnabled && issue.targetTempKey" class="issue-actions">
+            <button class="btn-sm" @click="emit('edit', issue)">手动编辑</button>
+          </div>
         </div>
-        <div class="issue-actions" v-if="actionsEnabled && issue.targetTempKey">
-          <button class="btn-sm" @click="emit('edit', issue)">手动编辑</button>
+      </div>
+    </div>
+
+    <!-- 非阻断警告/提示区域 -->
+    <div v-if="warningIssues.length > 0" class="issue-section warning-section" :class="{ 'with-margin-top': blockingIssues.length > 0 }">
+      <div class="issue-header warning-header">
+        <span class="issue-count">ℹ️ 存在 {{ warningIssues.length }} 项提示与建议（非阻断，不影响直接确认创建任务）</span>
+      </div>
+      <div class="issue-list">
+        <div
+          v-for="issue in warningIssues"
+          :key="issue.id"
+          class="issue-item warning-item"
+          :style="{ borderLeftColor: severityColor(issue.severity) }"
+        >
+          <div class="issue-content" @click="emit('locate', issue.targetTempKey || '', issue.field)">
+            <span class="issue-severity" :style="{ color: severityColor(issue.severity) }">
+              {{ severityLabel(issue.severity) }}
+            </span>
+            <span class="issue-message">{{ formatIssue(issue) }}</span>
+          </div>
+          <div v-if="actionsEnabled && issue.targetTempKey" class="issue-actions">
+            <button class="btn-sm" @click="emit('edit', issue)">手动编辑</button>
+          </div>
         </div>
       </div>
     </div>
@@ -69,9 +106,24 @@ const formatIssue = (issue: StructuredValidationIssue) => {
   margin-bottom: 16px;
   background: var(--color-warning-soft);
 }
+.issue-section {
+  display: flex;
+  flex-direction: column;
+}
+.with-margin-top {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--color-border);
+}
 .issue-header {
   font-weight: 600;
   margin-bottom: 12px;
+}
+.blocking-header {
+  color: #c62828;
+}
+.warning-header {
+  color: #b26a00;
 }
 .issue-list {
   display: flex;
