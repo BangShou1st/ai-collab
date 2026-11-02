@@ -18,9 +18,13 @@ const taskStatus = (status: string) => ({ TODO: '待处理', IN_PROGRESS: '进�
   <section v-if="plan || status" class="timeline" aria-label="Agent 参考步骤与查询事实">
     <div v-if="taskFacts.length" aria-label="任务查询事实">
       <p class="plan-criteria">查询返回的任务事实</p>
-      <table><thead><tr><th>标题</th><th>状态</th><th>负责人</th></tr></thead>
-        <tbody><tr v-for="(fact, index) in taskFacts" :key="`${fact.id}-${index}`"><td>{{ fact.title }}</td><td>{{ taskStatus(fact.status) }}（{{ fact.status }}）</td><td>{{ fact.assigneeName ?? (fact.assigneeId ? '已分配（姓名不可用）' : '未分配') }}</td></tr></tbody>
-      </table>
+      <ul class="fact-list">
+        <li v-for="(fact, index) in taskFacts" :key="`${fact.id}-${index}`">
+          <span class="fact-title" :title="fact.title">{{ fact.title }}</span>
+          <span class="fact-status">{{ taskStatus(fact.status) }}（{{ fact.status }}）</span>
+          <span class="fact-assignee">{{ fact.assigneeName ?? (fact.assigneeId ? '已分配（姓名不可用）' : '未分配') }}</span>
+        </li>
+      </ul>
     </div>
     <p v-if="!taskFacts.length && plan?.steps?.length" class="plan-criteria">暂无工具执行记录</p>
     <p v-if="plan?.steps?.length" class="plan-criteria">参考步骤（Skill 模板，不代表已执行或承诺执行）</p>
@@ -37,4 +41,20 @@ const taskStatus = (status: string) => ({ TODO: '待处理', IN_PROGRESS: '进�
   </section>
 </template>
 
-<style scoped>.timeline ol{display:grid;gap:6px;margin:12px 0;padding:0;list-style:none}.timeline li{display:flex;gap:10px;padding:8px 10px;border:1px solid var(--color-border);border-radius:8px;background:var(--el-fill-color-lighter);font-size:13px}.timeline .mark{font-weight:700}.timeline .step-title{flex:1}.timeline .step-status,.timeline small{color:var(--el-text-color-secondary)}.plan-objective{font-size:13px;margin:0 0 4px}.plan-criteria{font-size:12px;color:var(--el-text-color-secondary)}</style>
+<style scoped>
+.timeline ol{display:grid;gap:6px;margin:12px 0;padding:0;list-style:none}
+.timeline li{display:flex;gap:10px;padding:8px 10px;border:1px solid var(--color-border);border-radius:8px;background:var(--el-fill-color-lighter);font-size:13px}
+.timeline .mark{font-weight:700}
+.timeline .step-title{flex:1;min-width:0}
+.timeline .step-status,.timeline small{color:var(--el-text-color-secondary)}
+.plan-objective{font-size:13px;margin:0 0 4px}
+.plan-criteria{font-size:12px;color:var(--el-text-color-secondary)}
+.fact-list{display:grid;gap:4px;margin:8px 0 12px;padding:0;list-style:none}
+.fact-list li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:baseline;padding:6px 10px;border:1px solid var(--color-border);border-radius:8px;background:var(--el-fill-color-lighter);font-size:12.5px}
+.fact-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:550}
+.fact-status,.fact-assignee{color:var(--el-text-color-secondary);white-space:nowrap}
+@media(max-width:760px){
+  .fact-list li{grid-template-columns:minmax(0,1fr) auto}
+  .fact-assignee{grid-column:1 / -1}
+}
+</style>
