@@ -165,3 +165,29 @@
 - 后端：`AgentRuntimeCoordinatorTest` 40 tests passed，`NativeToolCallingExecutorTest` 9 tests passed，`OpenAiTurnContractTest` 17 tests passed（合计 66 项测试全部通过）。
 - 前端：`vitest run` 59 个测试文件 445 个测试用例全部通过（100% passed）；`eslint` 0 error；`vue-tsc` 0 error；`vite build` 生产构建成功。
 
+---
+
+## 六、生产语义收口（原子事件持久化与待审批写提案隔离）
+
+针对最终复审指出的两处生产语义缺口实施最小收口：
+
+### 6.1 第一处：RUN_BUDGET_EXCEEDED 原始错误码纳入生产原子事件
+- **问题**：`AgentRunEventRecorder.ownsEvent()` 声明 `RUN_BUDGET_EXCEEDED` 属于持久化记录器，在生产环境 `atomicEventsEnabled=true` 时，协调器 `emit()` 会直接跳过，导致 `originalErrorCode` 未随原子事务落库；且内部恢复阶段 `FORMAT_REPAIR_EXHAUSTED` 与真实 provider `AI_PROVIDER_INVALID_RESPONSE` 存在混同。
+- **解决**：
+  1. 扩展 `AgentRunEventRecorder` 与 `AgentRepository` 的 `recordBudgetExceeded` / `recordBudgetPartialAnswer`，接收 `originalErrorCode`、`reason`、`fallback` 元数据；
+  2. 持久化记录器在同一事务内将元数据组装进 `RUN_BUDGET_EXCEEDED` 事件并提交，协调器不再通过二次 `emit()` 绕过；
+  3. 严格区分真实 provider `errorCode`（如 `AI_PROVIDER_INVALID_RESPONSE`）与内部恢复阶段 `reason`（`FORMAT_REPAIR_EXHAUSTED`）。
+
+### 6.2 第二处：严格隔离待审批写提案（effect=PROPOSAL_PENDING）
+- **问题**：`summarizableEvidence()` 与 `completeFromEvidence()` 原先仅依赖 `TOOL_SUCCESS`，未过滤 `effect=PROPOSAL_PENDING`，导致可能将待审批的写提案当成已完成的只读业务事实。
+- **解决**：
+  1. 在 `summarizableEvidence` 与 `completeFromEvidence` 中同时过滤排除 `effect=PROPOSAL_PENDING`；
+  2. 若运行仅有待审批写提案，模型截断时保持 `FAILED` 状态，不误转为预算兜底；
+  3. 若既有只读工具又有写提案，兜底回答仅包含已完成只读工具，绝不泄露待审批写提案。
+
+### 6.3 验证结果
+- 新增真实原子事件测试 `atomicEventRecorder_persistsBudgetExceededWithOriginalErrorCodeAndSingleEvent` 与 `coordinatorUnderAtomicEvents_delegatesToRepositoryAndDoesNotEmitDuplicateEvent`，验证事件仅有 1 条且包含完整元数据；
+- 新增 `whenOnlyPendingWriteProposalAsToolSuccessPresent_doesNotTreatAsSummarizableEvidence_failsNormally` 与 `whenBothReadOnlyToolAndPendingWriteProposalPresent_fallsBackWithoutIncludingPendingProposalInAnswer`，验证待审批写提案严格隔离；
+- `AgentRuntimeCoordinatorTest` 增至 43 项测试，全量通过（0 failures, 0 errors）。
+
+

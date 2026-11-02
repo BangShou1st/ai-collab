@@ -517,7 +517,7 @@ public class AgentRuntimeCoordinator {
                 }
                 List<AgentStepView> freshSteps = currentSteps(run, steps);
                 if (summarizableEvidence(freshSteps)) {
-                    AgentWorkerOutcome fallback = completeFromEvidence(run, freshSteps, false, "FORMAT_REPAIR_EXHAUSTED");
+                    AgentWorkerOutcome fallback = completeFromEvidence(run, freshSteps, false, null, "FORMAT_REPAIR_EXHAUSTED");
                     if (fallback != null) return fallback;
                 }
                 repository.recordFailure(run, "FORMAT_REPAIR_EXHAUSTED", false);
@@ -543,10 +543,11 @@ public class AgentRuntimeCoordinator {
                 if (!retryable && EVIDENCE_FALLBACK_ERRORS.contains(failure.getErrorCode())) {
                     List<AgentStepView> freshSteps = currentSteps(run, steps);
                     if (summarizableEvidence(freshSteps)) {
-                        String triggerReason = failure.getErrorCode() == ErrorCode.AI_PROVIDER_INVALID_RESPONSE
+                        String originalErrorCode = failure.getErrorCode().name();
+                        String reason = failure.getErrorCode() == ErrorCode.AI_PROVIDER_INVALID_RESPONSE
                                 ? "FORMAT_REPAIR_EXHAUSTED"
                                 : failure.getErrorCode().name();
-                        AgentWorkerOutcome fallback = completeFromEvidence(run, freshSteps, false, triggerReason);
+                        AgentWorkerOutcome fallback = completeFromEvidence(run, freshSteps, false, originalErrorCode, reason);
                         if (fallback != null) return fallback;
                     }
                 }
@@ -1283,23 +1284,25 @@ public class AgentRuntimeCoordinator {
 
     private AgentWorkerOutcome completeFromEvidence(
             AgentRunView run, List<AgentStepView> steps, boolean consumePersistedTurn) {
-        return completeFromEvidence(run, steps, consumePersistedTurn, null);
+        return completeFromEvidence(run, steps, consumePersistedTurn, null, null);
     }
 
     private AgentWorkerOutcome completeFromEvidence(
-            AgentRunView run, List<AgentStepView> steps, boolean consumePersistedTurn, String triggerReason) {
+            AgentRunView run, List<AgentStepView> steps, boolean consumePersistedTurn,
+            String originalErrorCode, String reason) {
         java.util.UUID projectId = run.projectId();
         List<AgentStepView> successful = (steps == null ? List.<AgentStepView>of() : steps).stream()
                 .filter(step -> step.type() == AgentStepType.TOOL_CALL_COMPLETED)
                 .filter(step -> "TOOL_SUCCESS".equals(step.reason()))
                 .filter(step -> step.output() != null)
+                .filter(step -> !"PROPOSAL_PENDING".equals(step.output().path("effect").asText()))
                 .filter(step -> !step.output().path("citations").isArray() || step.output().path("citations").isEmpty() || repository.citationsStillValid(projectId, step.output()))
                 .toList();
 
         String intro;
-        if ("AI_PROVIDER_OUTPUT_TRUNCATED".equals(triggerReason)) {
+        if ("AI_PROVIDER_OUTPUT_TRUNCATED".equals(originalErrorCode) || "AI_PROVIDER_OUTPUT_TRUNCATED".equals(reason)) {
             intro = "因模型输出截断，先返回已取得的结果：\n";
-        } else if ("FORMAT_REPAIR_EXHAUSTED".equals(triggerReason)) {
+        } else if ("FORMAT_REPAIR_EXHAUSTED".equals(reason) || "AI_PROVIDER_INVALID_RESPONSE".equals(originalErrorCode)) {
             intro = "因模型响应格式异常且重试耗尽，先返回已取得的结果：\n";
         } else {
             intro = "模型未能在本次运行预算内生成完整总结，先返回已取得的结果：\n";
@@ -1317,21 +1320,13 @@ public class AgentRuntimeCoordinator {
             // coverage 与渲染能力（同一提取器、同一文本），把已校验覆盖事实与 UNTRUSTED
             // 文字产出分开附上——不追加统计工具调用、不回传全部工具原文、不新增第二套兜底。
             String childCoverage = collectedChildCoverage(steps);
-            String childIntro = "AI_PROVIDER_OUTPUT_TRUNCATED".equals(triggerReason)
+            String childIntro = ("AI_PROVIDER_OUTPUT_TRUNCATED".equals(originalErrorCode) || "AI_PROVIDER_OUTPUT_TRUNCATED".equals(reason))
                     ? "因模型输出截断，先返回已回收子运行的研究产出（状态如实标注，覆盖范围以已校验的覆盖事实为准）：\n"
                     : "模型未能在本次运行预算内生成完整总结，先返回已回收子运行的研究产出（状态如实标注，覆盖范围以已校验的覆盖事实为准）：\n";
             String content = (childIntro + childFindings
                     + rejectedDelegationNotice(steps) + childCoverage).stripTrailing();
-            repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn);
-            var payload = json.createObjectNode()
-                    .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
-                    .put("errorCode", "AGENT_BUDGET_EXCEEDED")
-                    .put("fallback", "COLLECTED_CHILD_EVIDENCE");
-            if (triggerReason != null) {
-                payload.put("originalErrorCode", triggerReason);
-                payload.put("reason", triggerReason);
-            }
-            emit(run, AgentEventType.RUN_BUDGET_EXCEEDED, payload);
+            String fallback = "COLLECTED_CHILD_EVIDENCE";
+            repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn, originalErrorCode, reason, fallback);
             return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, content, null, "AGENT_BUDGET_EXCEEDED");
         }
 
@@ -1346,16 +1341,8 @@ public class AgentRuntimeCoordinator {
         // 已回收子运行的覆盖事实同样并入（与无自有证据分支保持同一覆盖语义）
         answer.append(rejectedDelegationNotice(steps)).append(collectedChildCoverage(steps));
         String content = answer.toString().stripTrailing();
-        repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn);
-        var payload = json.createObjectNode()
-                .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
-                .put("errorCode", "AGENT_BUDGET_EXCEEDED")
-                .put("fallback", "PERSISTED_TOOL_EVIDENCE");
-        if (triggerReason != null) {
-            payload.put("originalErrorCode", triggerReason);
-            payload.put("reason", triggerReason);
-        }
-        emit(run, AgentEventType.RUN_BUDGET_EXCEEDED, payload);
+        String fallback = "PERSISTED_TOOL_EVIDENCE";
+        repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn, originalErrorCode, reason, fallback);
         return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, content, null, "AGENT_BUDGET_EXCEEDED");
     }
 
@@ -1431,7 +1418,8 @@ public class AgentRuntimeCoordinator {
     private boolean summarizableEvidence(List<AgentStepView> steps) {
         boolean own = (steps == null ? List.<AgentStepView>of() : steps).stream()
                 .anyMatch(step -> step.type() == AgentStepType.TOOL_CALL_COMPLETED
-                        && "TOOL_SUCCESS".equals(step.reason()));
+                        && "TOOL_SUCCESS".equals(step.reason())
+                        && (step.output() == null || !"PROPOSAL_PENDING".equals(step.output().path("effect").asText())));
         return own || collectedChildFindings(steps) != null;
     }
 

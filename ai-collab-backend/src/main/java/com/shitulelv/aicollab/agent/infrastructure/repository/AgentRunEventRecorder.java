@@ -49,6 +49,7 @@ public class AgentRunEventRecorder {
     @org.springframework.context.annotation.Lazy
     private com.shitulelv.aicollab.agent.application.runtime.AgentEventService events;
     public boolean atomicEventsEnabled() { return events != null; }
+    public void setEvents(com.shitulelv.aicollab.agent.application.runtime.AgentEventService events) { this.events = events; }
     public static boolean ownsEvent(com.shitulelv.aicollab.agent.domain.model.AgentEventType type) {
         return java.util.Set.of("MODEL_COMPLETED","TOOL_CALL_COMPLETED","TOOL_CALL_FAILED","RUN_SUCCEEDED","RUN_FAILED","RUN_CANCELED","RUN_BUDGET_EXCEEDED","WAITING_FOR_USER_INPUT","APPROVAL_REQUESTED","APPROVAL_UPDATED","RUN_PAUSE_REQUESTED","RUN_PAUSED","RUN_RESUMED").contains(type.name());
     }
@@ -470,6 +471,11 @@ public class AgentRunEventRecorder {
 
     @Transactional
     public void recordBudgetExceeded(AgentRunView run) {
+        recordBudgetExceeded(run, null, null, null);
+    }
+
+    @Transactional
+    public void recordBudgetExceeded(AgentRunView run, String originalErrorCode, String reason, String fallback) {
         AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
         accountActiveTime(run.id());
         markBatchHandled(run.id());
@@ -481,12 +487,24 @@ public class AgentRunEventRecorder {
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, run.projectId(), run.id(), run.version()));
         resumeParent(run, "BUDGET_EXCEEDED", "AGENT_BUDGET_EXCEEDED");
-        event(run,"RUN_BUDGET_EXCEEDED",json.createObjectNode().put("status","BUDGET_EXCEEDED"));
+        var payload = json.createObjectNode()
+                .put("status", "BUDGET_EXCEEDED")
+                .put("errorCode", "AGENT_BUDGET_EXCEEDED");
+        if (originalErrorCode != null) {
+            payload.put("originalErrorCode", originalErrorCode);
+        }
+        if (reason != null) {
+            payload.put("reason", reason);
+        }
+        if (fallback != null) {
+            payload.put("fallback", fallback);
+        }
+        event(run, "RUN_BUDGET_EXCEEDED", payload);
     }
 
     @Transactional
     public void recordBudgetPartialAnswer(AgentRunView run, String content) {
-        recordBudgetPartialAnswer(run, content, false);
+        recordBudgetPartialAnswer(run, content, false, null, null, null);
     }
 
     /**
@@ -496,7 +514,14 @@ public class AgentRunEventRecorder {
      */
     @Transactional
     public void recordBudgetPartialAnswer(AgentRunView run, String content, boolean consumePersistedTurn) {
-        recordBudgetExceeded(run);
+        recordBudgetPartialAnswer(run, content, consumePersistedTurn, null, null, null);
+    }
+
+    @Transactional
+    public void recordBudgetPartialAnswer(
+            AgentRunView run, String content, boolean consumePersistedTurn,
+            String originalErrorCode, String reason, String fallback) {
+        recordBudgetExceeded(run, originalErrorCode, reason, fallback);
         if (consumePersistedTurn) markModelTurnConsumed(run.id());
         // 子研究运行不向共享会话写 ASSISTANT 消息（与 recordFinal 同一隔离边界）
         if (run.depth() == 0) {
