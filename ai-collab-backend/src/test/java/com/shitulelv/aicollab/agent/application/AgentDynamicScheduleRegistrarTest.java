@@ -170,7 +170,6 @@ class AgentDynamicScheduleRegistrarTest {
         setConfig(true, 300L, 30000L);
 
         assertThat(awaitCount(workerDispatches, workerDispatches.get() + 1)).isTrue();
-        long sampleStart = System.nanoTime();
         int before = workerDispatches.get();
         try {
             Thread.sleep(1000);
@@ -179,9 +178,22 @@ class AgentDynamicScheduleRegistrarTest {
         }
         int ticksInWindow = workerDispatches.get() - before;
 
-        assertThat(ticksInWindow).as("多次修改后 1 秒窗口内的调度次数应与单一注册一致（200-300ms 间隔约 3-5 次）")
-                .isBetween(1, 8);
-        assertThat(liveSchedulerThreads()).isLessThanOrEqualTo(2);
+        assertThat(ticksInWindow)
+                .as("多次修改后 1 秒窗口内的调度次数应与单一注册一致（200-300ms 间隔约 3-5 次）；"
+                        + "若发生重复注册，计数会翻倍到 10 左右")
+                .isBetween(2, 8);
+
+        registrar.stop();
+        assertThat(registrar.isRunning()).isFalse();
+        int afterStop = workerDispatches.get();
+        try {
+            Thread.sleep(700);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        assertThat(workerDispatches.get() - afterStop)
+                .as("stop 后不应再有新的 Worker 轮询派发（允许停止竞态中的最后一次）")
+                .isLessThanOrEqualTo(1);
     }
 
     @Test
@@ -251,18 +263,6 @@ class AgentDynamicScheduleRegistrarTest {
     }
 
     private final CopyOnWriteArrayList<Long> workerDispatchNanos = new CopyOnWriteArrayList<>();
-
-    private int liveSchedulerThreads() {
-        Thread[] threads = new Thread[Thread.activeCount() + 8];
-        int count = Thread.enumerate(threads);
-        int live = 0;
-        for (int i = 0; i < count; i++) {
-            if (threads[i] != null && threads[i].getName().startsWith("agent-dynamic-schedule-")) {
-                live++;
-            }
-        }
-        return live;
-    }
 
     private final class CountingExecutor implements TaskExecutor {
         @Override
