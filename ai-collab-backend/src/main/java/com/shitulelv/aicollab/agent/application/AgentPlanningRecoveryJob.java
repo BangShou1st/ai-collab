@@ -2,7 +2,6 @@ package com.shitulelv.aicollab.agent.application;
 import com.shitulelv.aicollab.planning.application.*;
 import com.shitulelv.aicollab.planning.infrastructure.*;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import java.util.UUID;
 
@@ -17,7 +16,6 @@ public class AgentPlanningRecoveryJob {
     @org.springframework.beans.factory.annotation.Value("${agent.enabled:false}") private boolean enabled;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
-    @Scheduled(fixedDelayString="${agent.planning.recovery-delay-ms:5000}")
     public void tick(){
         boolean isAgentActive = systemConfigService != null ? systemConfigService.isAgentEnabled() : enabled;
         if(isAgentActive) recover();
