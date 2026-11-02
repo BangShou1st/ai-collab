@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -21,6 +20,10 @@ import java.util.UUID;
  * <p>调度线程只做短事务：过期审批收口 + 把 Worker 派发到 {@code agentRunTaskExecutor}。
  * 数据库领取（Claim）与模型轮次/工具执行都在派发成功的 Worker Runnable 内进行，
  * 因此模型网络请求不会阻塞 Spring 定时线程。</p>
+ *
+ * <p>{@link #tick()} 不再使用 {@code @Scheduled} 静态间隔，改由
+ * {@link AgentDynamicScheduleRegistrar} 按系统动态配置 {@code workerDelayMs}
+ * 以 Trigger 方式注册，管理员修改间隔后无需重启即生效。</p>
  */
 @Component
 @ConditionalOnProperty(prefix = "agent", name = "runtime-allowed", havingValue = "true", matchIfMissing = true)
@@ -48,7 +51,6 @@ public class AgentRuntimeJob {
         this.agentRunTaskExecutor = agentRunTaskExecutor;
     }
 
-    @Scheduled(fixedDelayString = "${agent.worker-delay-ms:1000}")
     public void tick() {
         approvals.expirePending(OffsetDateTime.now(ZoneOffset.UTC));
         if (systemConfigService != null && !systemConfigService.isAgentEnabled()) {

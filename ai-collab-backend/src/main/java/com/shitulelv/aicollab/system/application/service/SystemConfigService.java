@@ -22,6 +22,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
@@ -215,8 +217,7 @@ public class SystemConfigService {
         );
         repository.saveAudit(audit);
 
-        applyToRuntime(updated);
-        broadcastConfigChange(nextVersion);
+        applyAndBroadcastAfterCommit(updated);
 
         return SystemConfigView.from(updated);
     }
@@ -299,8 +300,7 @@ public class SystemConfigService {
         );
         repository.saveAudit(restoreAudit);
 
-        applyToRuntime(restored);
-        broadcastConfigChange(nextVersion);
+        applyAndBroadcastAfterCommit(restored);
 
         return SystemConfigView.from(restored);
     }
@@ -401,12 +401,44 @@ public class SystemConfigService {
                     current.version(), newConfig.version());
             return;
         }
-        activeConfig.set(newConfig);
         if (concurrencyManager != null) {
             concurrencyManager.setConcurrency(newConfig.workerConcurrency());
         }
+        activeConfig.set(newConfig);
         log.info("系统运行时配置已更新: version={}, agentEnabled={}, chatEnabled={}, concurrency={}",
                 newConfig.version(), newConfig.agentEnabled(), newConfig.chatEnabled(), newConfig.workerConcurrency());
+    }
+
+    /**
+     * 数据库提交成功后才允许配置生效与广播：注册 AFTER_COMMIT 事务同步。
+     *
+     * <p>事务回滚时同步不会执行，内存配置与 Redis 广播均保持原状。
+     * 无事务上下文的直接调用（仅存在于单测或未代理路径）按原有语义立即生效。
+     * AFTER_COMMIT 阶段不做任何数据库写操作；本机应用失败不会伪装成回滚，
+     * 由周期性对账（{@link #scheduledSync()}）最终收敛。</p>
+     */
+    private void applyAndBroadcastAfterCommit(SystemConfig config) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    applyToRuntimeAndBroadcast(config);
+                }
+            });
+        } else {
+            applyToRuntimeAndBroadcast(config);
+        }
+    }
+
+    private void applyToRuntimeAndBroadcast(SystemConfig config) {
+        try {
+            applyToRuntime(config);
+        } catch (Exception e) {
+            log.error("配置提交后应用到本机运行时失败，等待周期性对账恢复: version={}, type={}",
+                    config.version(), e.getClass().getSimpleName());
+        } finally {
+            broadcastConfigChange(config.version());
+        }
     }
 
     private void broadcastConfigChange(long version) {
