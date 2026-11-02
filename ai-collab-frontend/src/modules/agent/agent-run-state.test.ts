@@ -47,6 +47,33 @@ describe('agent run presentation', () => {
     expect(agentRunPresentation(run('FAILED', 'AI_MODEL_CREDENTIAL_INVALID')).title)
       .toBe('模型凭据无法解密，请在个人 AI 设置中重新填写 API Key')
   })
+
+  it('maps output truncated and format repair exhausted properly', () => {
+    expect(agentRunPresentation(run('FAILED', 'AI_PROVIDER_OUTPUT_TRUNCATED')).title)
+      .toBe('模型单次输出达到上限被截断（建议提高单次输出上限或精简任务）')
+    expect(agentRunPresentation(run('FAILED', 'FORMAT_REPAIR_EXHAUSTED')).title)
+      .toBe('模型格式修复尝试耗尽，无法解析响应')
+    expect(agentRunPresentation(run('FAILED', 'UNKNOWN_CUSTOM_ERROR')).title)
+      .toBe('Agent 运行失败（UNKNOWN_CUSTOM_ERROR）')
+  })
+
+  it('presents budget exceeded with neutral title without falsely promising partial results', () => {
+    expect(agentRunPresentation(run('BUDGET_EXCEEDED', 'AGENT_BUDGET_EXCEEDED'))).toEqual({
+      terminal: true,
+      severity: 'error',
+      title: 'Agent 已达到本次运行上限',
+      canRetry: true,
+    })
+    expect(agentRunPresentation(run('BUDGET_EXCEEDED', null)).title)
+      .toBe('Agent 已达到本次运行上限')
+  })
+
+  it('keeps credential invalid and quota exceeded distinct from budget exceeded', () => {
+    expect(agentRunPresentation(run('FAILED', 'AI_MODEL_CREDENTIAL_INVALID')).title)
+      .toBe('模型凭据无法解密，请在个人 AI 设置中重新填写 API Key')
+    expect(agentRunPresentation(run('FAILED', 'AI_PROVIDER_QUOTA_EXCEEDED')).title)
+      .toBe('模型额度不足')
+  })
 })
 
 describe('auto-retry presentation', () => {

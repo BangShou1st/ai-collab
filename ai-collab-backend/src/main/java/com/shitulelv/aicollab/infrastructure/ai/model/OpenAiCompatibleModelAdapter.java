@@ -213,18 +213,18 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             String responseModel = response.path("model").asText(config.modelName());
             long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
 
-            // 既没有文本也没有 tool_calls 是协议错误
-            if ((content == null || content.isBlank()) && toolCalls.isEmpty()) {
-                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                        "模型既没有返回文本也没有返回工具调用",
+            // finish_reason=length 表示截断（优先判定，即便 content 为空也是截断而不是协议格式错误）
+            if (finishReason == ModelFinishReason.LENGTH) {
+                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
+                        "PROVIDER / OUTPUT_TRUNCATED",
                         usage == null ? null : usage.inputTokens(),
                         usage == null ? null : usage.outputTokens());
             }
 
-            // finish_reason=length 表示截断
-            if (finishReason == ModelFinishReason.LENGTH) {
-                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
-                        "PROVIDER / OUTPUT_TRUNCATED",
+            // 既没有文本也没有 tool_calls 是协议错误
+            if ((content == null || content.isBlank()) && toolCalls.isEmpty()) {
+                throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                        "模型既没有返回文本也没有返回工具调用",
                         usage == null ? null : usage.inputTokens(),
                         usage == null ? null : usage.outputTokens());
             }
@@ -304,12 +304,18 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
             body.putObject("stream_options").put("include_usage", true);
         }
 
-        // 构建多轮消息
+        // 构建多轮消息：系统提示与系统指令统一置于最前，避免在 tool 结果后出现 system 导致模型角色混淆
         ArrayNode messages = body.putArray("messages");
+        List<ModelMessage> nonSystemMessages = new ArrayList<>();
         for (ModelMessage message : command.messages()) {
+            if (message instanceof ModelMessage.System m) {
+                messages.addObject().put("role", "system").put("content", m.content());
+            } else {
+                nonSystemMessages.add(message);
+            }
+        }
+        for (ModelMessage message : nonSystemMessages) {
             switch (message) {
-                case ModelMessage.System m -> messages.addObject()
-                        .put("role", "system").put("content", m.content());
                 case ModelMessage.User m -> messages.addObject()
                         .put("role", "user").put("content", m.content());
                 case ModelMessage.Assistant m -> {
@@ -334,6 +340,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                         .put("tool_call_id", m.toolCallId())
                         .put("name", m.toolName())
                         .put("content", m.result().toString());
+                default -> {}
             }
         }
 
@@ -489,10 +496,16 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
         body.put("model", config.modelName());
         body.put("stream", stream);
         ArrayNode messages = body.putArray("messages");
+        List<ModelMessage> nonSystemMessages = new ArrayList<>();
         for (ModelMessage message : command.messages()) {
+            if (message instanceof ModelMessage.System m) {
+                messages.addObject().put("role", "system").put("content", m.content());
+            } else {
+                nonSystemMessages.add(message);
+            }
+        }
+        for (ModelMessage message : nonSystemMessages) {
             switch (message) {
-                case ModelMessage.System m -> messages.addObject()
-                        .put("role", "system").put("content", m.content());
                 case ModelMessage.User m -> messages.addObject()
                         .put("role", "user").put("content", m.content());
                 case ModelMessage.Assistant m -> {
@@ -517,6 +530,7 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                         .put("tool_call_id", m.toolCallId())
                         .put("name", m.toolName())
                         .put("content", m.result().toString());
+                default -> {}
             }
         }
         if (!command.tools().isEmpty()) {
@@ -648,15 +662,15 @@ public class OpenAiCompatibleModelAdapter extends AbstractModelProviderAdapter
                     "模型调用了 Zen 传输保留工具；该调用不会执行",
                     carriedPrompt(usage), carriedCompletion(usage));
         long latencyMs = Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
-        if (content.isEmpty() && toolCalls.isEmpty()) {
-            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
-                    "model returned neither text nor tool calls",
-                    carriedPrompt(usage), carriedCompletion(usage));
-        }
         if (finishReason.get() == ModelFinishReason.LENGTH) {
             // 提供商已上报用量随异常携带（流式 usage 在收尾块到达），结算时保留真实值
             throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
                     "PROVIDER_STREAM / OUTPUT_TRUNCATED", carriedPrompt(usage), carriedCompletion(usage));
+        }
+        if (content.isEmpty() && toolCalls.isEmpty()) {
+            throw new ProviderResponseFailure(ErrorCode.AI_PROVIDER_INVALID_RESPONSE,
+                    "model returned neither text nor tool calls",
+                    carriedPrompt(usage), carriedCompletion(usage));
         }
         return new ModelTurnResult(content.isEmpty() ? null : content.toString(), toolCalls, finishReason.get(),
                 usage.get(), providerType().name(), model.get(), latencyMs);

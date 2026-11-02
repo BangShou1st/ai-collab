@@ -23,7 +23,8 @@ sudo ./ai-collab-deploy/install.sh install --server \
     --domain aicollab.example.org \
     --tls-cert /srv/ai-collab/tls/fullchain.pem \
     --tls-key  /srv/ai-collab/tls/privkey.pem
-# 自定义端口（例如 8443）：追加 --port 8443
+# 生产模式强制 HTTPS_PORT=443（代理信任边界按 443 设计并经隔离演练验证）；
+# install.sh 会拒绝其他端口。非 443 的演练环境请改用 compose.staging.yml（见 staging-rollout 文档）。
 
 # 首位管理员（凭据只显示一次）
 sudo ./ai-collab-deploy/install.sh bootstrap-admin --server --domain aicollab.example.org

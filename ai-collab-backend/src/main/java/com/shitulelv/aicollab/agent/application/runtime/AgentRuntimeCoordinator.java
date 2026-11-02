@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -44,6 +45,18 @@ import java.util.UUID;
 @Service
 public class AgentRuntimeCoordinator {
     private static final Logger log = LoggerFactory.getLogger(AgentRuntimeCoordinator.class);
+
+    /**
+     * 允许触发持久化工具证据兜底的异常错误码白名单：
+     * 仅当确证模型输出因单次上限被截断（AI_PROVIDER_OUTPUT_TRUNCATED），或格式修复重试已耗尽（AI_PROVIDER_INVALID_RESPONSE）时，
+     * 若当前已有持久化的成功工具结果，才允许转换为预算上限部分交付；
+     * 严禁将凭据无效（AI_MODEL_CREDENTIAL_INVALID）、额度不足（AI_PROVIDER_QUOTA_EXCEEDED）、服务不可用（AI_PROVIDER_UNAVAILABLE）
+     * 等真正故障降级为预算超限。
+     */
+    private static final Set<ErrorCode> EVIDENCE_FALLBACK_ERRORS = Set.of(
+            ErrorCode.AI_PROVIDER_OUTPUT_TRUNCATED,
+            ErrorCode.AI_PROVIDER_INVALID_RESPONSE
+    );
 
     private final AgentRepository repository;
     private final AgentContextAssembler contextAssembler;
@@ -497,13 +510,18 @@ public class AgentRuntimeCoordinator {
                 // 身份行进入终态——不留"仍在调用中"的未结算行，失败调用的消耗也不丢失
                 repository.settleOrphanUsage(run.projectId(), run.id(), modelCallId, "MODEL_TURN",
                         failureSettlement(malformed));
-                boolean repair=repository.consumeRecovery(run,"FORMAT_REPAIR",1);
+                boolean repair = repository.consumeRecovery(run, "FORMAT_REPAIR", 1);
                 if (repair) {
-                    repository.recordFailure(run,"FORMAT_REPAIR_REQUESTED",true);
-                    return new AgentWorkerOutcome(AgentRunStatus.FAILED_RETRYABLE,null,null,"FORMAT_REPAIR_REQUESTED");
+                    repository.recordFailure(run, "FORMAT_REPAIR_REQUESTED", true);
+                    return new AgentWorkerOutcome(AgentRunStatus.FAILED_RETRYABLE, null, null, "FORMAT_REPAIR_REQUESTED");
                 }
-                repository.recordFailure(run,"FORMAT_REPAIR_EXHAUSTED",false);
-                return new AgentWorkerOutcome(AgentRunStatus.FAILED,null,null,"FORMAT_REPAIR_EXHAUSTED");
+                List<AgentStepView> freshSteps = currentSteps(run, steps);
+                if (summarizableEvidence(freshSteps)) {
+                    AgentWorkerOutcome fallback = completeFromEvidence(run, freshSteps, false, null, "FORMAT_REPAIR_EXHAUSTED");
+                    if (fallback != null) return fallback;
+                }
+                repository.recordFailure(run, "FORMAT_REPAIR_EXHAUSTED", false);
+                return new AgentWorkerOutcome(AgentRunStatus.FAILED, null, null, "FORMAT_REPAIR_EXHAUSTED");
             } catch (BusinessException failure) {
                 Thread.interrupted();
                 // 超时/提供商异常/请求中取消：请求已发出——先结算本次调用（异常携带的提供商
@@ -514,12 +532,25 @@ public class AgentRuntimeCoordinator {
                 if (failure.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
                     throw failure;
                 }
-                if (failure.getErrorCode()==ErrorCode.AI_PROVIDER_INVALID_RESPONSE && repository.consumeRecovery(run,"FORMAT_REPAIR",1)) {
-                    repository.recordFailure(run,"FORMAT_REPAIR_REQUESTED",true);
-                    return new AgentWorkerOutcome(AgentRunStatus.FAILED_RETRYABLE,null,null,"FORMAT_REPAIR_REQUESTED");
+                if (failure.getErrorCode() == ErrorCode.AI_PROVIDER_INVALID_RESPONSE && repository.consumeRecovery(run, "FORMAT_REPAIR", 1)) {
+                    repository.recordFailure(run, "FORMAT_REPAIR_REQUESTED", true);
+                    return new AgentWorkerOutcome(AgentRunStatus.FAILED_RETRYABLE, null, null, "FORMAT_REPAIR_REQUESTED");
                 }
                 boolean retryable = failure.getErrorCode() == ErrorCode.AI_MODEL_TIMEOUT
                         || failure.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR;
+                // 仅对白名单中的异常（如确证的 AI_PROVIDER_OUTPUT_TRUNCATED，以及格式修复耗尽的 AI_PROVIDER_INVALID_RESPONSE）
+                // 允许在存在可信工具证据时兜底交付部分产出；凭据无效、额度不足、服务不可用等绝对不降级
+                if (!retryable && EVIDENCE_FALLBACK_ERRORS.contains(failure.getErrorCode())) {
+                    List<AgentStepView> freshSteps = currentSteps(run, steps);
+                    if (summarizableEvidence(freshSteps)) {
+                        String originalErrorCode = failure.getErrorCode().name();
+                        String reason = failure.getErrorCode() == ErrorCode.AI_PROVIDER_INVALID_RESPONSE
+                                ? "FORMAT_REPAIR_EXHAUSTED"
+                                : failure.getErrorCode().name();
+                        AgentWorkerOutcome fallback = completeFromEvidence(run, freshSteps, false, originalErrorCode, reason);
+                        if (fallback != null) return fallback;
+                    }
+                }
                 repository.recordFailure(run, failure.getErrorCode().name(), retryable);
                 AgentRunView failedRun = repository.findRun(run.projectId(), run.id()).orElse(run);
                 emit(run, AgentEventType.RUN_FAILED,
@@ -1253,13 +1284,30 @@ public class AgentRuntimeCoordinator {
 
     private AgentWorkerOutcome completeFromEvidence(
             AgentRunView run, List<AgentStepView> steps, boolean consumePersistedTurn) {
-        java.util.UUID projectId=run.projectId();
+        return completeFromEvidence(run, steps, consumePersistedTurn, null, null);
+    }
+
+    private AgentWorkerOutcome completeFromEvidence(
+            AgentRunView run, List<AgentStepView> steps, boolean consumePersistedTurn,
+            String originalErrorCode, String reason) {
+        java.util.UUID projectId = run.projectId();
         List<AgentStepView> successful = (steps == null ? List.<AgentStepView>of() : steps).stream()
                 .filter(step -> step.type() == AgentStepType.TOOL_CALL_COMPLETED)
                 .filter(step -> "TOOL_SUCCESS".equals(step.reason()))
                 .filter(step -> step.output() != null)
-                .filter(step -> !step.output().path("citations").isArray() || step.output().path("citations").isEmpty() || repository.citationsStillValid(projectId,step.output()))
+                .filter(step -> !"PROPOSAL_PENDING".equals(step.output().path("effect").asText()))
+                .filter(step -> !step.output().path("citations").isArray() || step.output().path("citations").isEmpty() || repository.citationsStillValid(projectId, step.output()))
                 .toList();
+
+        String intro;
+        if ("AI_PROVIDER_OUTPUT_TRUNCATED".equals(originalErrorCode) || "AI_PROVIDER_OUTPUT_TRUNCATED".equals(reason)) {
+            intro = "因模型输出截断，先返回已取得的结果：\n";
+        } else if ("FORMAT_REPAIR_EXHAUSTED".equals(reason) || "AI_PROVIDER_INVALID_RESPONSE".equals(originalErrorCode)) {
+            intro = "因模型响应格式异常且重试耗尽，先返回已取得的结果：\n";
+        } else {
+            intro = "模型未能在本次运行预算内生成完整总结，先返回已取得的结果：\n";
+        }
+
         if (successful.isEmpty()) {
             // 本运行无自有工具证据时回退到已回收的子运行研究产出：委派型运行的工具消耗
             // 记在子运行名下、经回收并入父预算，父运行自己的步骤里没有 TOOL_CALL_COMPLETED。
@@ -1272,18 +1320,17 @@ public class AgentRuntimeCoordinator {
             // coverage 与渲染能力（同一提取器、同一文本），把已校验覆盖事实与 UNTRUSTED
             // 文字产出分开附上——不追加统计工具调用、不回传全部工具原文、不新增第二套兜底。
             String childCoverage = collectedChildCoverage(steps);
-            String content = ("模型未能在本次运行预算内生成完整总结，先返回已回收子运行的研究产出"
-                    + "（状态如实标注，覆盖范围以已校验的覆盖事实为准）：\n" + childFindings
+            String childIntro = ("AI_PROVIDER_OUTPUT_TRUNCATED".equals(originalErrorCode) || "AI_PROVIDER_OUTPUT_TRUNCATED".equals(reason))
+                    ? "因模型输出截断，先返回已回收子运行的研究产出（状态如实标注，覆盖范围以已校验的覆盖事实为准）：\n"
+                    : "模型未能在本次运行预算内生成完整总结，先返回已回收子运行的研究产出（状态如实标注，覆盖范围以已校验的覆盖事实为准）：\n";
+            String content = (childIntro + childFindings
                     + rejectedDelegationNotice(steps) + childCoverage).stripTrailing();
-            repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn);
-            emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
-                    json.createObjectNode()
-                            .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
-                            .put("fallback", "COLLECTED_CHILD_EVIDENCE"));
+            String fallback = "COLLECTED_CHILD_EVIDENCE";
+            repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn, originalErrorCode, reason, fallback);
             return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, content, null, "AGENT_BUDGET_EXCEEDED");
         }
 
-        StringBuilder answer = new StringBuilder("模型未能在本次运行预算内生成完整总结，先返回已取得的结果：\n");
+        StringBuilder answer = new StringBuilder(intro);
         successful.stream().skip(Math.max(0, successful.size() - 5L)).forEach(step -> {
             String output = step.output().toString();
             if (output.length() > 1200) output = output.substring(0, 1200) + "…";
@@ -1294,11 +1341,8 @@ public class AgentRuntimeCoordinator {
         // 已回收子运行的覆盖事实同样并入（与无自有证据分支保持同一覆盖语义）
         answer.append(rejectedDelegationNotice(steps)).append(collectedChildCoverage(steps));
         String content = answer.toString().stripTrailing();
-        repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn);
-        emit(run, AgentEventType.RUN_BUDGET_EXCEEDED,
-                json.createObjectNode()
-                        .put("status", AgentRunStatus.BUDGET_EXCEEDED.name())
-                        .put("fallback", "PERSISTED_TOOL_EVIDENCE"));
+        String fallback = "PERSISTED_TOOL_EVIDENCE";
+        repository.recordBudgetPartialAnswer(run, content, consumePersistedTurn, originalErrorCode, reason, fallback);
         return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, content, null, "AGENT_BUDGET_EXCEEDED");
     }
 
@@ -1374,7 +1418,8 @@ public class AgentRuntimeCoordinator {
     private boolean summarizableEvidence(List<AgentStepView> steps) {
         boolean own = (steps == null ? List.<AgentStepView>of() : steps).stream()
                 .anyMatch(step -> step.type() == AgentStepType.TOOL_CALL_COMPLETED
-                        && "TOOL_SUCCESS".equals(step.reason()));
+                        && "TOOL_SUCCESS".equals(step.reason())
+                        && (step.output() == null || !"PROPOSAL_PENDING".equals(step.output().path("effect").asText())));
         return own || collectedChildFindings(steps) != null;
     }
 
