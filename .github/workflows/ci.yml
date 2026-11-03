@@ -103,6 +103,15 @@ jobs:
           cache: maven
           cache-dependency-path: ai-collab-backend/pom.xml
 
+      # 验证 Maven Wrapper 启动与重试自愈契约（单次成功、短暂失败重试恢复、持续失败明确阻断）
+      - name: Verify Maven Wrapper bootstrap contract
+        run: bash scripts/bootstrap-maven-wrapper.test.sh
+
+      # 预热并验证 Maven Wrapper 发行包就绪。仅对发行包下载/启动准备阶段进行有限重试；
+      # 随后的 Build & verify 步骤单次执行，测试与编译失败绝不重试。
+      - name: Bootstrap Maven Wrapper
+        run: bash scripts/bootstrap-maven-wrapper.sh
+
       - name: Compute shard test includes
         run: bash scripts/shard-test-classes.sh "${{ matrix.shard }}" 3 target/shard
 
