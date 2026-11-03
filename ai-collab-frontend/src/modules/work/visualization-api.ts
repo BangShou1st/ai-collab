@@ -68,10 +68,20 @@ export interface MemberLoad {
   overdueTasks: number
   totalEstimateHours: number
   completedHours: number
+  /** 当前未完成任务数（TODO/IN_PROGRESS/BLOCKED，业务正确性专项新增） */
+  uncompletedTasks?: number
+  /** 未完成任务的估算工时合计（当前负担口径，NULL 估算不计入） */
+  uncompletedEstimateHours?: number
+  /** 已完成任务的累计估算工时（历史口径） */
+  completedEstimateHours?: number
+  /** 未完成且未填预计工时的任务数（估算缺失单独归类） */
+  missingEstimateTasks?: number
 }
 
 export interface MemberLoadView {
   members: MemberLoad[]
+  /** 未完成且未分配负责人的任务数（不归属任何成员，单独汇总） */
+  unassignedUncompletedTasks?: number
 }
 
 export const visualizationApi = {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
@@ -8,27 +8,47 @@ import type { Project } from '../project/types'
 import { visualizationApi, type MemberLoad } from './visualization-api'
 
 const route = useRoute()
-const projectId = route.params.projectId as string
+const projectId = computed(() => String(route.params.projectId ?? ''))
 
 const members = ref<MemberLoad[]>([])
 const loading = ref(false)
-
+const loadError = ref(false)
 const project = ref<Project | null>(null)
+const unassignedUncompleted = ref(0)
+
+// 请求令牌：快速切换项目时旧请求不得覆盖新项目的数据
+let requestSeq = 0
 
 async function load(): Promise<void> {
+  const token = ++requestSeq
+  const pid = projectId.value
+  if (!pid) return
   loading.value = true
+  loadError.value = false
   try {
     const [result, projectResult] = await Promise.all([
-      visualizationApi.memberLoad(projectId),
-      projectApi.get(projectId),
+      visualizationApi.memberLoad(pid),
+      projectApi.get(pid),
     ])
+    if (token !== requestSeq || pid !== projectId.value) return
     members.value = result.data.members
+    unassignedUncompleted.value = result.data.unassignedUncompletedTasks ?? 0
     project.value = projectResult.data
   } catch (error) {
+    if (token !== requestSeq) return
+    loadError.value = true
     showApiError(error, '成员负载加载')
   } finally {
-    loading.value = false
+    if (token === requestSeq) loading.value = false
   }
+}
+
+watch(projectId, () => { void load() })
+onMounted(() => { void load() })
+
+function formatHours(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  return `${value}h`
 }
 
 function getCompletionRate(member: MemberLoad): number {
@@ -45,8 +65,6 @@ function getCompletionColor(rate: number): string {
 function taskShare(member: MemberLoad, value: number): string {
   return `${member.totalTasks ? Math.round((value / member.totalTasks) * 100) : 0}%`
 }
-
-onMounted(load)
 </script>
 
 <template>
@@ -54,10 +72,36 @@ onMounted(load)
     <PageHeader
       eyebrow="项目执行"
       title="成员负载"
+      description="基于任务分配与估算工时的当前工作量概览，非实际投入工时"
       :context="project?.name"
-    />
+    >
+      <template #actions>
+        <el-button :loading="loading" @click="load">刷新</el-button>
+      </template>
+    </PageHeader>
     <section v-loading="loading" class="load-container">
-      <el-empty v-if="!loading && members.length === 0" description="暂无成员数据" :image-size="64" />
+      <el-alert
+        v-if="!loading && !loadError && unassignedUncompleted > 0"
+        type="info"
+        :closable="false"
+        class="unassigned-note"
+        :title="`另有 ${unassignedUncompleted} 个未完成任务尚未分配负责人，不计入下列任何成员`"
+      />
+      <el-result
+        v-if="!loading && loadError && members.length === 0"
+        icon="error"
+        title="成员负载加载失败"
+        sub-title="网络或服务异常，可能是临时问题"
+      >
+        <template #extra>
+          <el-button type="primary" @click="load">重试</el-button>
+        </template>
+      </el-result>
+      <el-empty
+        v-else-if="!loading && members.length === 0"
+        description="项目还没有成员，或成员数据暂时不可见"
+        :image-size="64"
+      />
       <div v-else class="load-grid">
         <el-card v-for="member in members" :key="member.userId" class="member-card">
           <template #header>
@@ -70,20 +114,28 @@ onMounted(load)
           </template>
           <div class="member-stats">
             <div class="stat-item">
-              <span class="stat-label">总任务</span>
-              <span class="stat-value">{{ member.totalTasks }}</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">已完成</span>
-              <span class="stat-value">{{ member.completedTasks }}</span>
+              <span class="stat-label">未完成任务</span>
+              <span class="stat-value">{{ member.uncompletedTasks ?? member.totalTasks - member.completedTasks }}</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">进行中</span>
               <span class="stat-value">{{ member.inProgressTasks }}</span>
             </div>
             <div class="stat-item">
-              <span class="stat-label">预计工时</span>
-              <span class="stat-value">{{ member.totalEstimateHours }}h</span>
+              <span class="stat-label">未完成估算工时</span>
+              <span class="stat-value">{{ formatHours(member.uncompletedEstimateHours) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">估算缺失</span>
+              <span class="stat-value">{{ member.missingEstimateTasks ?? 0 }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">已完成</span>
+              <span class="stat-value">{{ member.completedTasks }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">累计估算（含历史）</span>
+              <span class="stat-value">{{ formatHours(member.totalEstimateHours) }}</span>
             </div>
           </div>
           <div class="workload-visual" :aria-label="`${member.displayName} 的任务分布`">

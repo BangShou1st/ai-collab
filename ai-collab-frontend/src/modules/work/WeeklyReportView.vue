@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
@@ -8,55 +8,120 @@ import type { Project } from '../project/types'
 import { reportApi, type WeeklyReport } from './report-api'
 
 const route = useRoute()
-const projectId = route.params.projectId as string
+const projectId = computed(() => String(route.params.projectId ?? ''))
 
 const report = ref<WeeklyReport | null>(null)
 const loading = ref(false)
-
+const loadError = ref(false)
 const project = ref<Project | null>(null)
 
+// 请求令牌：快速切换项目时旧请求不得覆盖新项目的数据
+let requestSeq = 0
+
 async function load(): Promise<void> {
+  const token = ++requestSeq
+  const pid = projectId.value
+  if (!pid) return
   loading.value = true
+  loadError.value = false
   try {
     const [result, projectResult] = await Promise.all([
-      reportApi.weeklyReport(projectId),
-      projectApi.get(projectId),
+      reportApi.weeklyReport(pid),
+      projectApi.get(pid),
     ])
+    if (token !== requestSeq || pid !== projectId.value) return
     report.value = result.data
     project.value = projectResult.data
   } catch (error) {
+    if (token !== requestSeq) return
+    loadError.value = true
     showApiError(error, '项目周报加载')
   } finally {
-    loading.value = false
+    if (token === requestSeq) loading.value = false
   }
 }
 
 function formatRate(rate: number | null): string {
-  if (rate === null) return '0%'
+  if (rate === null) return '—'
   return (rate * 100).toFixed(1) + '%'
 }
 
-onMounted(load)
+function formatDateRange(start?: string, end?: string): string {
+  if (start && end) return `${start} ~ ${end}`
+  if (start) return `${start} 起`
+  if (end) return `截至 ${end}`
+  return ''
+}
+
+watch(projectId, () => { void load() })
+onMounted(() => { void load() })
 </script>
 
 <template>
   <main class="workspace-page">
     <PageHeader
       eyebrow="项目报告"
-      title="AI 周报"
+      title="项目周报"
+      description="确定性周度统计：数字来自数据库实时查询；AI 生成的周报文字请使用协作 Agent 的周报技能"
       :context="project?.name"
-    />
+    >
+      <template #actions>
+        <el-button :loading="loading" @click="load">刷新</el-button>
+      </template>
+    </PageHeader>
     <section v-loading="loading" class="report-container">
-      <el-empty v-if="!loading && !report" description="暂无报告数据" :image-size="64" />
+      <el-result
+        v-if="!loading && loadError && !report"
+        icon="error"
+        title="项目周报加载失败"
+        sub-title="网络或服务异常，可能是临时问题"
+      >
+        <template #extra>
+          <el-button type="primary" @click="load">重试</el-button>
+        </template>
+      </el-result>
+      <el-empty v-else-if="!loading && !report" description="暂无报告数据" :image-size="64" />
       <template v-else-if="report">
+        <div v-if="report.startDate || report.endDate" class="period-banner" role="status">
+          报告周期：{{ formatDateRange(report.startDate, report.endDate) }}
+          <span v-if="report.dataSource" class="period-source">{{ report.dataSource }}</span>
+        </div>
+
         <el-card class="stats-card">
           <template #header>
-            <h3>任务统计</h3>
+            <h3>本期变化</h3>
+          </template>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-value primary">{{ report.periodStats?.createdInPeriod ?? '—' }}</span>
+              <span class="stat-label">本期新建任务</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value success">{{ report.periodStats?.completedInPeriod ?? '—' }}</span>
+              <span class="stat-label">本期完成任务</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ report.periodStats?.milestoneCreatedInPeriod ?? '—' }}</span>
+              <span class="stat-label">本期新建里程碑</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ report.periodStats?.milestoneCompletedInPeriod ?? '—' }}</span>
+              <span class="stat-label">本期完成里程碑</span>
+            </div>
+          </div>
+          <p class="period-note">
+            本期变化基于任务创建/完成事件与里程碑审计记录还原；无法可靠还原的历史行为会如实标注在下方说明中。
+          </p>
+        </el-card>
+
+        <el-card class="stats-card">
+          <template #header>
+            <h3>累计状态快照（截至报告生成时刻）</h3>
           </template>
           <div class="stats-grid">
             <div class="stat-item">
               <span class="stat-value">{{ report.taskStats.totalTasks }}</span>
-              <span class="stat-label">总任务</span>
+              <span class="stat-label">任务总数（不含取消）</span>
             </div>
             <div class="stat-item">
               <span class="stat-value success">{{ report.taskStats.completedTasks }}</span>
@@ -70,16 +135,20 @@ onMounted(load)
               <span class="stat-value danger">{{ report.taskStats.overdueTasks }}</span>
               <span class="stat-label">逾期</span>
             </div>
+            <div v-if="report.taskStats.canceledTasks !== undefined" class="stat-item">
+              <span class="stat-value">{{ report.taskStats.canceledTasks }}</span>
+              <span class="stat-label">已取消（不计完成率）</span>
+            </div>
             <div class="stat-item">
               <span class="stat-value">{{ formatRate(report.taskStats.completionRate) }}</span>
-              <span class="stat-label">完成率</span>
+              <span class="stat-label">完成率（分母不含取消）</span>
             </div>
           </div>
         </el-card>
 
         <el-card class="stats-card">
           <template #header>
-            <h3>里程碑统计</h3>
+            <h3>里程碑状态</h3>
           </template>
           <div class="stats-grid">
             <div class="stat-item">
@@ -92,7 +161,7 @@ onMounted(load)
             </div>
             <div class="stat-item">
               <span class="stat-value primary">{{ report.milestoneStats.upcomingMilestones }}</span>
-              <span class="stat-label">即将到期</span>
+              <span class="stat-label">即将到期{{ report.milestoneStats.dueSoonWindowDays ? `（${report.milestoneStats.dueSoonWindowDays} 天内）` : '' }}</span>
             </div>
             <div class="stat-item">
               <span class="stat-value danger">{{ report.milestoneStats.overdueMilestones }}</span>
@@ -103,19 +172,19 @@ onMounted(load)
 
         <el-card v-if="report.topContributors.length > 0" class="stats-card">
           <template #header>
-            <h3>贡献者排行</h3>
+            <h3>贡献者（仅本期有活动者）</h3>
           </template>
           <div class="contributors-list">
             <div v-for="contributor in report.topContributors" :key="contributor.displayName" class="contributor-item">
               <span class="contributor-name">{{ contributor.displayName }}</span>
-              <span class="contributor-stats">{{ contributor.completedTasks }}/{{ contributor.totalTasks }} 完成</span>
+              <span class="contributor-stats">本期新建 {{ contributor.createdInPeriod ?? 0 }} · 本期完成 {{ contributor.completedInPeriod ?? 0 }}</span>
             </div>
           </div>
         </el-card>
 
         <el-card v-if="report.highlights.length > 0" class="stats-card">
           <template #header>
-            <h3>✅ 亮点</h3>
+            <h3>✅ 亮点（基于本期事实）</h3>
           </template>
           <ul class="list-items">
             <li v-for="(highlight, index) in report.highlights" :key="index" class="highlight-item">
@@ -134,6 +203,17 @@ onMounted(load)
             </li>
           </ul>
         </el-card>
+
+        <el-card v-if="report.notes && report.notes.length > 0" class="stats-card notes-card">
+          <template #header>
+            <h3>数据说明</h3>
+          </template>
+          <ul class="list-items notes-list">
+            <li v-for="(note, index) in report.notes" :key="index" class="note-item">
+              {{ note }}
+            </li>
+          </ul>
+        </el-card>
       </template>
     </section>
   </main>
@@ -142,6 +222,36 @@ onMounted(load)
 <style scoped>
 .report-container {
   padding: 0 24px;
+}
+
+.period-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.period-source {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.period-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.notes-card .notes-list .note-item {
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
 }
 
 .stats-card {
