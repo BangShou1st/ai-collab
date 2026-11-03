@@ -28,11 +28,14 @@ import org.springframework.core.task.TaskExecutor;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -55,6 +58,7 @@ class ConnectorSyncServiceTest {
     @Mock DocumentTaskDispatcher dispatcher;
     @Mock ConnectorOAuthTokenService userTokens;
     @Mock ConnectorVisibilityService visibility;
+    @Mock ConnectorSyncMetrics metrics;
 
     private final UUID projectId = UUID.randomUUID();
     private final UUID sourceId = UUID.randomUUID();
@@ -66,7 +70,9 @@ class ConnectorSyncServiceTest {
     void setUp() {
         TaskExecutor directExecutor = Runnable::run;
         service = new ConnectorSyncService(sources, connections, jobs, externalDocs, revisions,
-                feishu, secrets, documents, registration, storage, dispatcher, directExecutor, userTokens, visibility);
+                feishu, secrets, documents, registration, storage, dispatcher, directExecutor, userTokens,
+                visibility, metrics, 60000);
+        when(jobs.renewLease(any())).thenReturn(1);
         when(visibility.restoreSource(any(), any())).thenReturn(true);
         when(visibility.withActiveSource(any(), any(), any())).thenAnswer(invocation -> {
             invocation.<Runnable>getArgument(2).run();
@@ -127,6 +133,82 @@ class ConnectorSyncServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.CONNECTOR_SYNC_ALREADY_RUNNING);
+    }
+
+    @Test
+    void dispatchRejectionCompensatesRunningJobAsFailed() {
+        stubHappyPath();
+        TaskExecutor rejectingExecutor = task -> {
+            throw new org.springframework.core.task.TaskRejectedException("executor queue full");
+        };
+        ConnectorSyncService rejecting = new ConnectorSyncService(sources, connections, jobs, externalDocs,
+                revisions, feishu, secrets, documents, registration, storage, dispatcher, rejectingExecutor,
+                userTokens, visibility, metrics, 60000);
+
+        assertThatThrownBy(() -> rejecting.trigger(sourceId, "MANUAL"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.CONNECTOR_SYNC_DISPATCH_FAILED);
+        // 数据库不再残留无 Worker 的 RUNNING：立即收口为 FAILED + 派发失败摘要。
+        verify(jobs).finish(any(), eq("FAILED"), eq(0), eq(0), eq(0), eq(0), eq(0),
+                contains("派发失败"));
+        verify(metrics).dispatchRejected();
+        // 派发失败不等于执行失败，不得误标其余计数。
+        verify(sources, never()).markSynced(any());
+    }
+
+    @Test
+    void lostOwnershipAbortsScanWithoutFinishingOrMarkingSynced() throws Exception {
+        stubHappyPath();
+        when(feishu.listFolderDocx(anyString(), eq("fld123"))).thenReturn(List.of(
+                new FeishuFile("docToken1", "项目A", "docx", "https://feishu/docx/docToken1", 1000L)));
+        when(externalDocs.listBySource(sourceId)).thenReturn(List.of());
+        // 心跳判定失权（renewLease 返回 0）：写入前的所有权检查应中止扫描。
+        when(jobs.renewLease(any())).thenReturn(0);
+        // 异步执行器 + 阻塞点：让心跳在扫描进行期间真实触发。
+        CountDownLatch inScan = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        when(feishu.docxRawContent(anyString(), eq("docToken1"))).thenAnswer(invocation -> {
+            inScan.countDown();
+            release.await(10, java.util.concurrent.TimeUnit.SECONDS);
+            return "正文内容";
+        });
+        java.util.concurrent.ExecutorService async = java.util.concurrent.Executors.newSingleThreadExecutor();
+        ConnectorSyncService losing = new ConnectorSyncService(sources, connections, jobs, externalDocs,
+                revisions, feishu, secrets, documents, registration, storage, dispatcher, async::execute,
+                userTokens, visibility, metrics, 20);
+        try {
+            losing.trigger(sourceId, "MANUAL");
+            assertThat(inScan.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            // 等待心跳真实触发过至少一次（renewLease 返回 0 → 失权已置位）再放行，
+            // 保证写入前的所有权检查确定性中止。
+            verify(jobs, org.mockito.Mockito.timeout(5000).atLeastOnce()).renewLease(any());
+            release.countDown();
+            // 失权中止后再断言。
+            verify(metrics, org.mockito.Mockito.timeout(5000)).ownershipLost();
+        } finally {
+            async.shutdown();
+        }
+
+        verify(externalDocs, never()).insert(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(registration, never()).registerUploadedDocument(any());
+        verify(jobs, never()).finish(any(), anyString(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any());
+        verify(sources, never()).markSynced(any());
+    }
+
+    @Test
+    void onlyTheWorkerThatClosedTheRunningJobMarksSourceSynced() {
+        stubHappyPath();
+        UUID documentId = UUID.randomUUID();
+        when(feishu.listFolderDocx(anyString(), eq("fld123"))).thenReturn(List.of(
+                new FeishuFile("docToken1", "项目A", "docx", null, 1000L)));
+        when(externalDocs.listBySource(sourceId)).thenReturn(List.of(knownDoc("docToken1", 1000L, documentId)));
+        // finish 被数据库拒绝（0 行）：迟到收口不允许刷新 last_synced_at。
+        when(jobs.finish(any(), anyString(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any())).thenReturn(0);
+
+        service.trigger(sourceId, "MANUAL");
+
+        verify(sources, never()).markSynced(any());
     }
 
     @Test
