@@ -175,25 +175,62 @@ public class WorkVisualizationService {
         return new CalendarView(events);
     }
 
+    /**
+     * 成员负载：基于任务分配与估算工时的当前工作量概览（非实际投入工时，不含容量/超负荷评判）。
+     *
+     * <p>口径：</p>
+     * <ul>
+     *   <li>项目全体成员均出现在结果中（含未分配任何任务的成员，当前任务为 0）。</li>
+     *   <li>未完成 = TODO/IN_PROGRESS/BLOCKED；已完成（历史）= DONE；CANCELED 仅计入 totalTasks。</li>
+     *   <li>逾期单独标注：due_date 早于今天且状态属于未完成。</li>
+     *   <li>无预计工时的未完成任务计入 missingEstimateTasks 单独归类，不按 0 混入工时合计。</li>
+     *   <li>未分配负责人且未完成的任务不计入任何成员行，单独以 unassignedUncompletedTasks 汇总。</li>
+     * </ul>
+     */
     @Transactional(readOnly = true)
     public MemberLoadView getMemberLoad(UUID projectId, UUID userId) {
         access.requireMember(projectId, userId);
 
         List<MemberLoadView.MemberLoad> memberLoads = jdbc.query("""
                 SELECT
-                    t.assignee_id AS userId,
+                    pm.user_id AS userId,
                     u.display_name AS displayName,
-                    count(*) AS totalTasks,
-                    count(*) FILTER (WHERE t.status = 'DONE') AS completedTasks,
-                    count(*) FILTER (WHERE t.status = 'IN_PROGRESS') AS inProgressTasks,
-                    count(*) FILTER (WHERE t.due_date < CURRENT_DATE AND t.status NOT IN ('DONE','CANCELED')) AS overdueTasks,
-                    COALESCE(sum(t.estimate_hours), 0) AS totalEstimateHours,
-                    COALESCE(sum(CASE WHEN t.status = 'DONE' THEN t.estimate_hours ELSE 0 END), 0) AS completedHours
-                FROM project_task t
-                LEFT JOIN app_user u ON u.id = t.assignee_id
-                WHERE t.project_id = ? AND t.assignee_id IS NOT NULL
-                GROUP BY t.assignee_id, u.display_name
-                ORDER BY totalTasks DESC
+                    COALESCE(t.total_tasks, 0) AS totalTasks,
+                    COALESCE(t.completed_tasks, 0) AS completedTasks,
+                    COALESCE(t.in_progress_tasks, 0) AS inProgressTasks,
+                    COALESCE(t.uncompleted_tasks, 0) AS uncompletedTasks,
+                    COALESCE(t.overdue_tasks, 0) AS overdueTasks,
+                    COALESCE(t.total_estimate_hours, 0) AS totalEstimateHours,
+                    COALESCE(t.completed_estimate_hours, 0) AS completedHours,
+                    COALESCE(t.completed_estimate_hours, 0) AS completedEstimateHours,
+                    COALESCE(t.uncompleted_estimate_hours, 0) AS uncompletedEstimateHours,
+                    COALESCE(t.missing_estimate_tasks, 0) AS missingEstimateTasks
+                FROM project_member pm
+                JOIN app_user u ON u.id = pm.user_id
+                LEFT JOIN (
+                    SELECT
+                        assignee_id,
+                        count(*) AS total_tasks,
+                        count(*) FILTER (WHERE status = 'DONE') AS completed_tasks,
+                        count(*) FILTER (WHERE status = 'IN_PROGRESS') AS in_progress_tasks,
+                        count(*) FILTER (WHERE status IN ('TODO', 'IN_PROGRESS', 'BLOCKED')) AS uncompleted_tasks,
+                        count(*) FILTER (WHERE due_date < CURRENT_DATE
+                                           AND status IN ('TODO', 'IN_PROGRESS', 'BLOCKED')) AS overdue_tasks,
+                        COALESCE(sum(estimate_hours), 0) AS total_estimate_hours,
+                        COALESCE(sum(CASE WHEN status = 'DONE' THEN estimate_hours END), 0)
+                            AS completed_estimate_hours,
+                        COALESCE(sum(CASE WHEN status IN ('TODO', 'IN_PROGRESS', 'BLOCKED')
+                                          THEN estimate_hours END), 0) AS uncompleted_estimate_hours,
+                        count(*) FILTER (WHERE status IN ('TODO', 'IN_PROGRESS', 'BLOCKED')
+                                           AND estimate_hours IS NULL) AS missing_estimate_tasks
+                    FROM project_task
+                    WHERE project_id = ? AND assignee_id IS NOT NULL
+                    GROUP BY assignee_id
+                ) t ON t.assignee_id = pm.user_id
+                WHERE pm.project_id = ?
+                ORDER BY COALESCE(t.uncompleted_tasks, 0) DESC,
+                         COALESCE(t.total_tasks, 0) DESC,
+                         u.display_name
                 """,
                 (rs, rowNum) -> new MemberLoadView.MemberLoad(
                         UUID.fromString(rs.getString("userId")),
@@ -203,11 +240,22 @@ public class WorkVisualizationService {
                         rs.getInt("inProgressTasks"),
                         rs.getInt("overdueTasks"),
                         rs.getBigDecimal("totalEstimateHours"),
-                        rs.getBigDecimal("completedHours")
+                        rs.getBigDecimal("completedHours"),
+                        rs.getInt("uncompletedTasks"),
+                        rs.getBigDecimal("uncompletedEstimateHours"),
+                        rs.getBigDecimal("completedEstimateHours"),
+                        rs.getInt("missingEstimateTasks")
                 ),
-                projectId);
+                projectId, projectId);
 
-        return new MemberLoadView(memberLoads);
+        Integer unassignedUncompleted = jdbc.queryForObject("""
+                SELECT count(*)
+                FROM project_task
+                WHERE project_id = ? AND assignee_id IS NULL
+                  AND status IN ('TODO', 'IN_PROGRESS', 'BLOCKED')
+                """, Integer.class, projectId);
+
+        return new MemberLoadView(memberLoads, unassignedUncompleted == null ? 0 : unassignedUncompleted);
     }
 
     private Map<UUID, String> loadMemberNames(UUID projectId) {
