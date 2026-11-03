@@ -86,10 +86,10 @@ function collapseIssues(): void {
       </div>
       <div class="issue-panel-summary">
         <span v-if="blockingIssues.length > 0" class="issue-count blocking-header">
-          ⚠️ 存在 {{ blockingIssues.length }} 项阻断性问题（必须修复并保存新版本后方可确认创建任务）
+          ⚠️ {{ blockingIssues.length }} 项阻断问题，修复后才能确认创建任务
         </span>
         <span v-if="warningIssues.length > 0" class="issue-count warning-header" :class="{ 'with-margin-top': blockingIssues.length > 0 }">
-          ℹ️ 存在 {{ warningIssues.length }} 项提示与建议（非阻断，不影响直接确认创建任务）
+          ℹ️ {{ warningIssues.length }} 项提示与建议，不影响确认创建任务
         </span>
       </div>
     </div>

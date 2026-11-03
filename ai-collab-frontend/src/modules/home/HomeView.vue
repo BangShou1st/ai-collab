@@ -220,7 +220,7 @@ auth.$subscribe(() => {
           <div
             class="metric-pill"
             :class="{ 'has-urgent': overdueTaskCount > 0 }"
-            title="跨项目个人待办预览，最多展示 8 项；逾期按你本地时区的自然日计算"
+            title="展示最近的待办任务；逾期按本地时区的自然日计算"
           >
             <div class="metric-icon-wrap task-icon">
               <el-icon><CircleCheck /></el-icon>
@@ -281,7 +281,6 @@ auth.$subscribe(() => {
               <span class="metric-label">最近项目</span>
               <div class="metric-value-row">
                 <span class="metric-number">{{ home.recentProjects.length }}</span>
-                <span class="metric-badge quiet">最多展示 5 项</span>
               </div>
             </div>
           </router-link>
@@ -319,7 +318,6 @@ auth.$subscribe(() => {
             <h2>AI 配置已保存</h2>
             <p>
               已保存 {{ home.aiConfigSummary.providerCount }} 个模型配置<span v-if="home.aiConfigSummary.defaultModel"> · 默认模型 {{ home.aiConfigSummary.defaultModel }}</span>
-              · 可用性需在 AI 设置中测试确认，此处不表示已就绪
             </p>
           </div>
           <router-link to="/settings/ai"><el-button>管理 AI 设置</el-button></router-link>
@@ -331,7 +329,6 @@ auth.$subscribe(() => {
           <section class="home-side-tasks">
             <div class="section-header-row">
               <h2 class="section-title">我的待办</h2>
-              <span class="row-meta">最多展示 5 项</span>
             </div>
 
             <div class="home-activity tasks-card-wrap">

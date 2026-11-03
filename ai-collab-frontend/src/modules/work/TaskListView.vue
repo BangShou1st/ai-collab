@@ -160,7 +160,7 @@ function statusTagType(status: TaskStatus): 'info' | 'primary' | 'warning' | 'su
               <span>预估</span>
               <span v-if="sortField === 'estimateHours'" class="sort-indicator">{{ sortOrder === 'asc' ? '▲' : '▼' }}</span>
             </th>
-            <th class="col-actions" width="140">
+            <th class="col-actions" width="164">
               <span>操作</span>
             </th>
           </tr>
@@ -348,6 +348,8 @@ function statusTagType(status: TaskStatus): 'info' | 'primary' | 'warning' | 'su
   background: var(--color-surface);
   color: var(--color-text-secondary);
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s ease;
 }
 .tbl-btn:hover {
