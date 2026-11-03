@@ -110,6 +110,16 @@ jobs:
       - name: Build & verify (Testcontainers + Flyway)
         run: bash ./mvnw -B -ntp verify -Dsurefire.includesFile=target/shard/includes-${{ matrix.shard }}.txt
 
+      - name: Record shard completion marker
+        if: always()
+        run: |
+          mkdir -p target/surefire-reports
+          echo "shard=${{ matrix.shard }}" > target/surefire-reports/shard-${{ matrix.shard }}-marker.txt
+          echo "status=${{ job.status }}" >> target/surefire-reports/shard-${{ matrix.shard }}-marker.txt
+          if [ -f "target/shard/includes-${{ matrix.shard }}.txt" ]; then
+            echo "classes=$(wc -l < target/shard/includes-${{ matrix.shard }}.txt)" >> target/surefire-reports/shard-${{ matrix.shard }}-marker.txt
+          fi
+
       - name: Upload Surefire reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -133,7 +143,7 @@ jobs:
   backend:
     name: Backend (Maven verify)
     needs: backend-shard
-    if: ${{ !cancelled() && needs.backend-shard.result == 'success' }}
+    if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -141,6 +151,14 @@ jobs:
         working-directory: ai-collab-backend
     steps:
       - uses: actions/checkout@v4
+      - name: Verify shard execution results
+        run: |
+          shard_result="${{ needs.backend-shard.result }}"
+          echo "backend-shard aggregate result: $shard_result"
+          if [ "$shard_result" != "success" ]; then
+            echo "::error::One or more backend test shards did not succeed (backend-shard result: $shard_result)"
+            exit 1
+          fi
       - name: Download shard surefire reports
         uses: actions/download-artifact@v4
         with:
