@@ -40,8 +40,11 @@
 .side-details.is-parent-active .side-parent-link { color: var(--color-primary-hover); font-weight: 600; }
 .side-children { display: none; flex-direction: column; gap: 2px; padding: 2px 0 2px 10px; }
 .side-details.is-open .side-children { display: flex; }
+/* 折叠态窄栏不放子项：统一由下方 hover/focus 浮层接管 */
+.app-shell.collapsed .side-details.is-open .side-children { display: none; }
 .side-children a { padding-left: 26px; font-size: 13px; }
-.app-shell.collapsed .app-sidebar { align-items: stretch; overflow-x: hidden; }
+/* 折叠态侧栏不允许 overflow 裁剪：悬浮子菜单浮层渲染在栏外右侧，被裁剪即不可见 */
+.app-shell.collapsed .app-sidebar { align-items: stretch; }
 .app-shell.collapsed .brand { justify-content: center; padding: 4px 0; }
 .app-shell.collapsed .side-group a { justify-content: center; padding: 0; }
 .app-shell.collapsed .side-group a span { display: none; }
@@ -49,8 +52,9 @@
 .app-shell.collapsed .side-parent-link { justify-content: center; padding: 0; }
 .app-shell.collapsed .side-parent-link span { display: none; }
 .app-shell.collapsed .side-parent-arrow { display: none; }
-/* 折叠态悬浮子菜单：hover 或键盘 focus 进入分组时在右侧展开 */
-.app-shell.collapsed .side-details.is-open .side-children { display: flex; }
+/* 折叠态悬浮子菜单：hover 或键盘 focus 进入分组时在右侧展开。
+   注意：折叠态下 is-open 分组的子项不得内联展示（会把文字挤进窄栏竖排），
+   统一走 hover/focus 浮层。 */
 .app-shell.collapsed .side-details:hover .side-children,
 .app-shell.collapsed .side-details:focus-within .side-children {
   display: flex; position: absolute; left: calc(100% + 8px); top: 0; z-index: 60;
