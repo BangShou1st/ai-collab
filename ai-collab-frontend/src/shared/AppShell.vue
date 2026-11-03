@@ -3,9 +3,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import {
-  Bell, Cpu, DataBoard, Document, Expand, Fold, Folder, House, List,
+  Bell, CaretBottom, Cpu, DataBoard, Document, Expand, Fold, Folder, House, List,
   MagicStick, MoreFilled, Setting, Tickets, User,
 } from '@element-plus/icons-vue'
+import type { Component } from 'vue'
 import { showApiError } from '../api/api-result'
 import { useAuthStore } from '../stores/auth-store'
 import { useProjectContextStore } from '../stores/project-context-store'
@@ -75,14 +76,18 @@ const projectAccessReady = computed(() =>
   Boolean(projectId.value) && projectCtx.currentProjectId === projectId.value,
 )
 
-const isTaskViewActive = (type: 'board' | 'list' | 'gantt' | 'calendar' | 'dependency-graph'): boolean => {
+const isTaskViewActive = (type: 'board' | 'list' | 'gantt' | 'calendar' | 'dependency-graph' | 'milestones'): boolean => {
   const p = route.path || ''
   const q = route.query?.view as string | undefined
+  if (type === 'milestones') {
+    return p.endsWith('/milestones')
+  }
   if (type === 'board') {
-    return p.endsWith('/board') || (p.endsWith('/tasks') && (q === 'board' || (!q && route.meta?.initialView === 'board')))
+    // /tasks 无查询参数时任务中心实际渲染看板（TaskCenterView 默认），高亮必须与渲染一致。
+    return p.endsWith('/board') || (p.endsWith('/tasks') && (q === 'board' || (!q && route.meta?.initialView !== 'list' && route.meta?.initialView !== 'gantt' && route.meta?.initialView !== 'calendar' && route.meta?.initialView !== 'dependency-graph')))
   }
   if (type === 'list') {
-    return p.endsWith('/tasks') && (q === 'list' || (!q && !route.meta?.initialView))
+    return p.endsWith('/tasks') && q === 'list'
   }
   if (type === 'gantt') {
     return p.endsWith('/gantt') || (p.endsWith('/tasks') && q === 'gantt')
@@ -98,8 +103,121 @@ const isTaskViewActive = (type: 'board' | 'list' | 'gantt' | 'calendar' | 'depen
 
 const isAnyTaskActive = computed(() => {
   const p = route.path || ''
-  return p.includes('/tasks') || p.endsWith('/board') || p.endsWith('/gantt') || p.endsWith('/calendar') || p.endsWith('/dependency-graph')
+  return p.includes('/tasks') || p.endsWith('/board') || p.endsWith('/gantt')
+    || p.endsWith('/calendar') || p.endsWith('/dependency-graph') || p.endsWith('/milestones')
 })
+
+/* ===== 项目导航分组模型：父级可点击跳默认页，箭头独立负责展开/收起 ===== */
+interface SideChild {
+  key: string
+  label: string
+  to: string | { path: string; query?: Record<string, string> }
+  active: boolean
+  /** 任务中心子项需要覆盖 router-link-active 的路径级匹配 */
+  taskScoped?: boolean
+}
+interface SideNavGroup {
+  key: string
+  label: string
+  icon: Component
+  defaultTo: string | { path: string; query?: Record<string, string> }
+  children: SideChild[]
+}
+
+const endsWithSegment = (segment: string): boolean =>
+  (route.path || '').endsWith(`/${segment}`)
+
+const projectNavGroups = computed<SideNavGroup[]>(() => {
+  const pid = projectId.value
+  if (!pid || projectAccessDenied.value) return []
+  const link = (segment: string) => `/projects/${pid}/${segment}`
+  const taskLink = (view?: string) =>
+    view ? { path: link('tasks'), query: { view } } : link('tasks')
+  const groups: SideNavGroup[] = [
+    {
+      key: 'task',
+      label: '任务中心',
+      icon: Tickets,
+      defaultTo: taskLink('list'),
+      children: [
+        { key: 'board', label: '任务看板', to: link('board'), active: isTaskViewActive('board'), taskScoped: true },
+        { key: 'list', label: '任务列表', to: taskLink('list'), active: isTaskViewActive('list'), taskScoped: true },
+        { key: 'gantt', label: '甘特图', to: link('gantt'), active: isTaskViewActive('gantt'), taskScoped: true },
+        { key: 'calendar', label: '日历', to: link('calendar'), active: isTaskViewActive('calendar'), taskScoped: true },
+        { key: 'dependency', label: '任务依赖', to: link('dependency-graph'), active: isTaskViewActive('dependency-graph'), taskScoped: true },
+        { key: 'milestones', label: '里程碑管理', to: link('milestones'), active: isTaskViewActive('milestones'), taskScoped: true },
+      ],
+    },
+    {
+      key: 'ai',
+      label: 'AI 工作区',
+      icon: MagicStick,
+      defaultTo: link('ai-planning'),
+      children: [
+        { key: 'planning', label: 'AI 任务规划', to: link('ai-planning'), active: endsWithSegment('ai-planning') },
+        { key: 'agent', label: '协作 Agent', to: link('agent'), active: endsWithSegment('agent') },
+      ],
+    },
+    {
+      key: 'knowledge',
+      label: '知识中心',
+      icon: Document,
+      defaultTo: link('documents'),
+      children: [
+        { key: 'documents', label: '项目文档', to: link('documents'), active: endsWithSegment('documents') },
+        { key: 'knowledge', label: '知识问答', to: link('knowledge'), active: endsWithSegment('knowledge') },
+        { key: 'knowledge-source', label: '飞书知识源', to: link('knowledge-source'), active: endsWithSegment('knowledge-source') },
+      ],
+    },
+    {
+      key: 'insight',
+      label: '项目洞察',
+      icon: List,
+      defaultTo: link('member-load'),
+      children: [
+        { key: 'member-load', label: '成员负载', to: link('member-load'), active: endsWithSegment('member-load') },
+        { key: 'weekly-report', label: '项目周报', to: link('weekly-report'), active: endsWithSegment('weekly-report') },
+        { key: 'risk-analysis', label: '风险分析', to: link('risk-analysis'), active: endsWithSegment('risk-analysis') },
+        { key: 'plan-comparison', label: '规划对比', to: link('plan-comparison'), active: endsWithSegment('plan-comparison') },
+      ],
+    },
+    {
+      key: 'settings',
+      label: '项目设置',
+      icon: Setting,
+      defaultTo: link('members'),
+      children: [
+        { key: 'members', label: '成员管理', to: link('members'), active: endsWithSegment('members') },
+        { key: 'integrations', label: '集成与 MCP', to: link('integrations'), active: endsWithSegment('integrations') },
+      ],
+    },
+  ]
+  if (projectCtx.isAdminOrOwner) {
+    groups[4]!.children.push({
+      key: 'audit-logs', label: '操作日志', to: link('audit-logs'), active: endsWithSegment('audit-logs'),
+    })
+  }
+  return groups
+})
+
+const groupHasActiveChild = (group: SideNavGroup): boolean =>
+  group.children.some((child) => child.active)
+
+/** 分组展开状态：路由变化时自动展开当前激活分组，用户可手动收起其他分组。 */
+const expandedGroups = ref<Record<string, boolean>>({ 'task': true, 'ai': true })
+
+function toggleGroup(key: string): void {
+  expandedGroups.value[key] = !expandedGroups.value[key]
+}
+
+watch(
+  () => [route.fullPath, projectNavGroups.value.map((group) => group.key).join('|')],
+  () => {
+    const activeGroup = projectNavGroups.value.find((group) => groupHasActiveChild(group))
+    if (activeGroup) expandedGroups.value[activeGroup.key] = true
+  },
+  { immediate: true },
+)
 
 watch(
   projectId,
@@ -173,64 +291,45 @@ async function logout(): Promise<void> {
       <nav v-if="projectId && !projectAccessDenied" class="side-group" aria-label="项目导航">
         <p class="side-title">{{ projectCtx.project?.name ?? '当前项目' }}</p>
         <router-link :to="`/projects/${projectId}/dashboard`" title="项目概览" aria-label="项目概览"><el-icon><DataBoard /></el-icon><span>项目概览</span></router-link>
-        
-        <details class="side-details" open>
-          <summary title="任务中心"><el-icon><Tickets /></el-icon><span>任务中心</span></summary>
-          <router-link
-            :to="`/projects/${projectId}/board`"
-            title="任务看板"
-            :class="{ 'is-nav-active': isTaskViewActive('board'), 'is-nav-inactive': isAnyTaskActive && !isTaskViewActive('board') }"
-          >任务看板</router-link>
-          <router-link
-            :to="`/projects/${projectId}/tasks?view=list`"
-            title="任务列表"
-            :class="{ 'is-nav-active': isTaskViewActive('list'), 'is-nav-inactive': isAnyTaskActive && !isTaskViewActive('list') }"
-          >任务列表</router-link>
-          <router-link
-            :to="`/projects/${projectId}/gantt`"
-            title="甘特图"
-            :class="{ 'is-nav-active': isTaskViewActive('gantt'), 'is-nav-inactive': isAnyTaskActive && !isTaskViewActive('gantt') }"
-          >甘特图</router-link>
-          <router-link
-            :to="`/projects/${projectId}/calendar`"
-            title="日历"
-            :class="{ 'is-nav-active': isTaskViewActive('calendar'), 'is-nav-inactive': isAnyTaskActive && !isTaskViewActive('calendar') }"
-          >日历</router-link>
-          <router-link
-            :to="`/projects/${projectId}/dependency-graph`"
-            title="任务依赖"
-            :class="{ 'is-nav-active': isTaskViewActive('dependency-graph'), 'is-nav-inactive': isAnyTaskActive && !isTaskViewActive('dependency-graph') }"
-          >任务依赖</router-link>
-          <router-link :to="`/projects/${projectId}/milestones`" title="里程碑管理">里程碑管理</router-link>
-        </details>
 
-        <details class="side-details" open>
-          <summary title="AI 工作区"><el-icon><MagicStick /></el-icon><span>AI 工作区</span></summary>
-          <router-link :to="`/projects/${projectId}/ai-planning`" title="AI 任务规划">AI 任务规划</router-link>
-          <router-link :to="`/projects/${projectId}/agent`" title="协作 Agent">协作 Agent</router-link>
-        </details>
-
-        <details class="side-details">
-          <summary title="知识中心"><el-icon><Document /></el-icon><span>知识中心</span></summary>
-          <router-link :to="`/projects/${projectId}/documents`" title="项目文档">项目文档</router-link>
-          <router-link :to="`/projects/${projectId}/knowledge`" title="知识问答">知识问答</router-link>
-          <router-link :to="`/projects/${projectId}/knowledge-source`" title="飞书知识源">飞书知识源</router-link>
-        </details>
-
-        <details class="side-details">
-          <summary title="项目洞察"><el-icon><List /></el-icon><span>项目洞察</span></summary>
-          <router-link :to="`/projects/${projectId}/member-load`" title="成员负载">成员负载</router-link>
-          <router-link :to="`/projects/${projectId}/weekly-report`" title="项目周报">项目周报</router-link>
-          <router-link :to="`/projects/${projectId}/risk-analysis`" title="风险分析">风险分析</router-link>
-          <router-link :to="`/projects/${projectId}/plan-comparison`" title="规划对比">规划对比</router-link>
-        </details>
-
-        <details class="side-details">
-          <summary title="项目设置"><el-icon><Setting /></el-icon><span>项目设置</span></summary>
-          <router-link :to="`/projects/${projectId}/members`" title="成员管理">成员管理</router-link>
-          <router-link :to="`/projects/${projectId}/integrations`" title="集成与 MCP">集成与 MCP</router-link>
-          <router-link v-if="projectCtx.isAdminOrOwner" :to="`/projects/${projectId}/audit-logs`" title="操作日志">操作日志</router-link>
-        </details>
+        <div
+          v-for="group in projectNavGroups"
+          :key="group.key"
+          class="side-details"
+          :class="{ 'is-open': expandedGroups[group.key], 'is-parent-active': groupHasActiveChild(group) }"
+        >
+          <div class="side-parent-row">
+            <router-link
+              class="side-parent-link"
+              :to="group.defaultTo"
+              :title="group.label"
+              active-class="side-parent-active"
+            >
+              <el-icon><component :is="group.icon" /></el-icon>
+              <span>{{ group.label }}</span>
+            </router-link>
+            <button
+              class="side-parent-arrow"
+              type="button"
+              :aria-expanded="Boolean(expandedGroups[group.key])"
+              :aria-label="`${expandedGroups[group.key] ? '收起' : '展开'}${group.label}子菜单`"
+              @click.stop="toggleGroup(group.key)"
+            >
+              <el-icon class="side-arrow-icon"><CaretBottom /></el-icon>
+            </button>
+          </div>
+          <div class="side-children">
+            <router-link
+              v-for="child in group.children"
+              :key="child.key"
+              :to="child.to"
+              :title="child.label"
+              :class="child.taskScoped
+                ? { 'is-nav-active': child.active, 'is-nav-inactive': isAnyTaskActive && !child.active }
+                : undefined"
+            >{{ child.label }}</router-link>
+          </div>
+        </div>
 
         <router-link to="/projects" title="切换项目" aria-label="切换项目"><el-icon><Folder /></el-icon><span>切换项目</span></router-link>
       </nav>
