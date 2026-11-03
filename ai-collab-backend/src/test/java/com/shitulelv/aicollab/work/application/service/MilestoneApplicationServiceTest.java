@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.work.application.service;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.application.service.AuditService;
+import com.shitulelv.aicollab.project.application.service.DashboardCacheService;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.work.api.dto.CreateMilestoneRequest;
@@ -49,7 +50,8 @@ class MilestoneApplicationServiceTest {
         audit = mock(AuditService.class);
         projectDates = mock(ProjectDateRangePolicy.class);
         service = new MilestoneApplicationService(
-                access, permissions, milestones, audit, projectDates);
+                access, permissions, milestones, audit, projectDates,
+                mock(DashboardCacheService.class));
         when(access.requireMember(projectId, userId)).thenReturn(ProjectRole.ADMIN);
     }
 

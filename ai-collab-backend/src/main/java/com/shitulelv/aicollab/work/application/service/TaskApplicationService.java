@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.work.application.service;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.application.service.AuditService;
+import com.shitulelv.aicollab.project.application.service.DashboardCacheService;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.project.infrastructure.repository.ProjectMemberRepository;
@@ -45,13 +46,15 @@ public class TaskApplicationService {
     private final AuditService audit;
     private final NotificationApplicationService notifications;
     private final ProjectDateRangePolicy projectDates;
+    private final DashboardCacheService dashboardCache;
 
     public TaskApplicationService(
             ProjectAccessGuard access, ProjectMemberRepository members, MilestoneRepository milestones,
             TaskRepository tasks, WorkPermissionPolicy permissions, TaskStatusPolicy statuses,
             TaskDependencyPolicy dependencies, AuditService audit,
             NotificationApplicationService notifications,
-            ProjectDateRangePolicy projectDates) {
+            ProjectDateRangePolicy projectDates,
+            DashboardCacheService dashboardCache) {
         this.access = access;
         this.members = members;
         this.milestones = milestones;
@@ -62,6 +65,7 @@ public class TaskApplicationService {
         this.audit = audit;
         this.notifications = notifications;
         this.projectDates = projectDates;
+        this.dashboardCache = dashboardCache;
     }
 
     @Transactional(readOnly = true)
@@ -109,6 +113,7 @@ public class TaskApplicationService {
                     "任务「" + entity.getTitle() + "」已分配给你",
                     "TASK", entity.getId());
         }
+        dashboardCache.evictAfterCommit(projectId);
         return view(requireTask(projectId, entity.getId()));
     }
 
@@ -167,6 +172,7 @@ public class TaskApplicationService {
                     "任务「" + current.getTitle() + "」已分配给你",
                     "TASK", taskId);
         }
+        dashboardCache.evictAfterCommit(projectId);
         return view(requireTask(projectId, taskId));
     }
 
@@ -178,6 +184,7 @@ public class TaskApplicationService {
         }
         audit.write(projectId, userId, "TASK_DELETED", "TASK", taskId,
                 Map.of("title", "已删除"));
+        dashboardCache.evictAfterCommit(projectId);
     }
 
     @Transactional
@@ -208,6 +215,7 @@ public class TaskApplicationService {
         tasks.replaceDependencies(projectId, taskId, requested);
         TaskView refreshed = view(requireTask(projectId, taskId));
         audit.write(projectId, userId, "TASK_DEPENDENCIES_REPLACED", "TASK", taskId);
+        dashboardCache.evictAfterCommit(projectId);
         return refreshed;
     }
 
@@ -281,6 +289,7 @@ public class TaskApplicationService {
         }
         audit.write(projectId, userId, "TASKS_BATCH_UPDATED", "TASK", null,
                 Map.of("taskCount", request.items().size()));
+        dashboardCache.evictAfterCommit(projectId);
         return results;
     }
 }

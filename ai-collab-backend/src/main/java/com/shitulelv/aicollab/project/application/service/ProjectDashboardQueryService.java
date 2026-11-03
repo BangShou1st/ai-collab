@@ -15,14 +15,17 @@ public class ProjectDashboardQueryService {
     private final ProjectDashboardMapper dashboardMapper;
     private final AuditLogQueryService auditLogQuery;
     private final ProjectAccessGuard accessGuard;
+    private final DashboardCacheService dashboardCache;
 
     public ProjectDashboardQueryService(
             ProjectDashboardMapper dashboardMapper,
             AuditLogQueryService auditLogQuery,
-            ProjectAccessGuard accessGuard) {
+            ProjectAccessGuard accessGuard,
+            DashboardCacheService dashboardCache) {
         this.dashboardMapper = dashboardMapper;
         this.auditLogQuery = auditLogQuery;
         this.accessGuard = accessGuard;
+        this.dashboardCache = dashboardCache;
     }
 
     @Transactional(readOnly = true)
@@ -30,8 +33,17 @@ public class ProjectDashboardQueryService {
         accessGuard.requireMember(projectId, userId);
 
         var project = dashboardMapper.findProjectInfo(projectId, userId);
-        var taskStats = dashboardMapper.countTasksByStatus(projectId);
-        var milestones = dashboardMapper.listMilestoneProgress(projectId);
+        // 仅缓存与用户无关的项目级聚合；权限校验在缓存读取之前，不会被命中绕过
+        var taskStats = dashboardCache.loadStats(projectId);
+        if (taskStats == null) {
+            taskStats = dashboardMapper.countTasksByStatus(projectId);
+            dashboardCache.storeStats(projectId, taskStats);
+        }
+        var milestones = dashboardCache.loadMilestones(projectId);
+        if (milestones == null) {
+            milestones = dashboardMapper.listMilestoneProgress(projectId);
+            dashboardCache.storeMilestones(projectId, milestones);
+        }
         var recentTasks = dashboardMapper.listRecentTasks(projectId, 8);
         var recentDocuments = dashboardMapper.listRecentDocuments(projectId, 5);
         List<DashboardActivityView> recentActivities = auditLogQuery.recentDashboardActivities(projectId, userId, 10);
