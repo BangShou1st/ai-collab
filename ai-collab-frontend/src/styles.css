@@ -54,7 +54,17 @@
 }
 .side-group a span, .side-details summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-group a:hover, .side-menu:hover { background: var(--color-surface-raised); color: var(--color-text); }
-.side-group a.router-link-active { background: var(--color-primary-soft); color: var(--color-primary-hover); font-weight: 600; }
+.side-group a.router-link-active,
+.side-group a.is-nav-active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+  font-weight: 600;
+}
+.side-group a.is-nav-inactive {
+  background: transparent !important;
+  color: var(--color-text-secondary) !important;
+  font-weight: normal !important;
+}
 .side-footer { margin-top: auto; display: flex; align-items: center; gap: 6px; padding: 12px 6px 4px; border-top: 1px solid var(--color-border); }
 .side-collapse { border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-control); width: 32px; height: 32px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .user-row { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; padding: 6px 2px 6px 6px; }

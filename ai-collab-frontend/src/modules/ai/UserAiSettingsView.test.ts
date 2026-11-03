@@ -99,6 +99,8 @@ const stubs = {
   ElSkeleton: { template: "<div />" },
   "el-checkbox": { inheritAttrs: false, template: '<label v-bind="$attrs"><slot /></label>' },
   "el-checkbox-group": { template: "<div><slot /></div>" },
+  "el-radio-group": { template: "<div><slot /></div>" },
+  "el-radio-button": { template: "<label><slot /></label>" },
   ElTag: { props: ["type", "size"], template: '<span class="el-tag-stub"><slot /></span>' },
   ElAlert: { props: ["title", "description", "type"], template: '<div>{{ title }} {{ description }}<slot /></div>' },
   RouterLink: { props: ["to"], template: '<a :href="typeof to === \'string\' ? to : to?.path"><slot /></a>' },

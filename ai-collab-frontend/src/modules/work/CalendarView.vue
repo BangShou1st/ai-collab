@@ -10,6 +10,16 @@ import { visualizationApi, type CalendarEvent } from './visualization-api'
 const route = useRoute()
 const projectId = route.params.projectId as string
 
+const props = withDefaults(defineProps<{
+  embedded?: boolean
+}>(), {
+  embedded: false,
+})
+
+const emit = defineEmits<{
+  (e: 'select-task', taskId: string): void
+}>()
+
 const events = ref<CalendarEvent[]>([])
 const loading = ref(false)
 const currentDate = ref(new Date())
@@ -89,8 +99,9 @@ onMounted(load)
 </script>
 
 <template>
-  <main class="workspace-page">
+  <main class="workspace-page" :class="{ 'embedded-view': embedded }">
     <PageHeader
+      v-if="!embedded"
       eyebrow="项目执行"
       title="日历视图"
       :context="project?.name"
@@ -130,8 +141,9 @@ onMounted(load)
               v-for="event in day.events"
               :key="event.id"
               class="calendar-event"
-              :class="event.type.toLowerCase()"
+              :class="[event.type.toLowerCase(), { clickable: event.type === 'TASK' }]"
               :title="event.title"
+              @click="event.type === 'TASK' && emit('select-task', event.id)"
             >
               <span aria-hidden="true">{{ eventIcon(event.type) }}</span>
               <strong>{{ event.title }}</strong>
@@ -235,5 +247,18 @@ onMounted(load)
 @media (max-width: 760px) {
   .calendar-container { padding: 0; overflow-x: auto; }
   .calendar-grid { min-width: 840px; }
+}
+.calendar-event.clickable {
+  cursor: pointer;
+}
+.calendar-event.clickable:hover {
+  filter: brightness(0.95);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+.embedded-view {
+  padding: 0;
+}
+.embedded-view .calendar-container {
+  padding: 0;
 }
 </style>
