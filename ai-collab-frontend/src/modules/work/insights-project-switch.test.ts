@@ -203,20 +203,22 @@ describe('项目洞察四视图：项目切换与请求竞态契约', () => {
   it('PlanComparisonView 切换项目后清空旧规划选择与对比结果', async () => {
     mocks.planList.mockImplementation((pid: string) =>
       Promise.resolve({ data: { data: [{ id: `plan-${pid}`, title: `规划${pid}`, latestVersionNo: 1, status: 'READY' }] } }))
-    mocks.planComparison.mockResolvedValue({
-      data: { planId: 'plan-p1', planName: '规划p1', taskComparisons: [], summary: { totalPlanned: 0, matchedTasks: 0, modifiedTasks: 0, missingTasks: 0, extraTasks: 0 } },
-    })
+    mocks.planComparison.mockImplementation((_pid: string, planId: string) =>
+      Promise.resolve({
+        data: { planId, planName: `对比-${planId}`, taskComparisons: [], summary: { totalPlanned: 0, matchedTasks: 0, modifiedTasks: 0, missingTasks: 0, extraTasks: 0 } },
+      }))
 
     testRoute.query.planId = 'plan-p1'
     const wrapper = mount(PlanComparisonView, { global: globalStubs })
     await flushPromises()
     expect(mocks.planComparison).toHaveBeenCalledWith('p1', 'plan-p1')
-    expect(wrapper.text()).toContain('规划p1')
+    expect(wrapper.text()).toContain('对比-plan-p1')
 
     testRoute.params.projectId = 'p2'
     await flushPromises()
-    // 旧对比结果必须被清空，且不会用旧 planId 请求新项目
-    expect(wrapper.text()).not.toContain('规划p1')
-    expect(mocks.planComparison).not.toHaveBeenCalledWith('p2', 'plan-p1')
+    // 旧对比结果必须被清空：自动选中新项目首个规划并加载新结果
+    expect(mocks.planComparison).toHaveBeenLastCalledWith('p2', 'plan-p2')
+    expect(wrapper.text()).toContain('对比-plan-p2')
+    expect(wrapper.text()).not.toContain('对比-plan-p1')
   })
 })

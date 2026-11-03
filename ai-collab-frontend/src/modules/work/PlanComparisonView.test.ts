@@ -73,7 +73,7 @@ beforeEach(() => {
 })
 
 describe('PlanComparisonView', () => {
-  it('lets the user choose a plan without supplying an internal plan id', async () => {
+  it('auto-selects the first plan and loads its comparison without an internal plan id', async () => {
     const wrapper = mount(PlanComparisonView, {
       global: {
         directives: { loading: () => undefined },
@@ -92,9 +92,9 @@ describe('PlanComparisonView', () => {
     })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('请选择要对比的任务规划')
-    expect(wrapper.text()).not.toContain('请提供规划 ID')
-    expect(mocks.planComparison).not.toHaveBeenCalled()
+    // 唯一规划自动选中并加载对比；选择器仍可手动切换其他规划
+    expect(mocks.planComparison).toHaveBeenCalledWith('project-1', 'plan-1')
+    expect(wrapper.text()).toContain('浏览器验收规划')
 
     await wrapper.get('.plan-select').trigger('click')
     await flushPromises()
