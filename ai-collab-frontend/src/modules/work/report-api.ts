@@ -134,9 +134,11 @@ export interface ComparisonSummary {
 }
 
 export const reportApi = {
-  async weeklyReport(projectId: string): Promise<ApiResult<WeeklyReport>> {
+  async weeklyReport(projectId: string, startDate?: string, endDate?: string): Promise<ApiResult<WeeklyReport>> {
     return apiResultFromResponse(
-      await httpClient.get<ApiResponse<WeeklyReport>>(`/projects/${projectId}/reports/weekly`),
+      await httpClient.get<ApiResponse<WeeklyReport>>(`/projects/${projectId}/reports/weekly`, {
+        params: startDate && endDate ? { startDate, endDate } : undefined,
+      }),
     )
   },
   async riskAnalysis(projectId: string): Promise<ApiResult<RiskAnalysis>> {
