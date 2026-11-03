@@ -44,7 +44,6 @@ withDefaults(
       <div class="brand-titles">
         <div class="brand-name-row">
           <span class="brand-name">AI Collab</span>
-          <span class="brand-tag">竞赛版</span>
         </div>
         <p class="brand-eyebrow">高校竞赛与项目协作平台</p>
       </div>
@@ -132,17 +131,6 @@ withDefaults(
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #182033;
-}
-
-.brand-tag {
-  font-size: 11px;
-  font-weight: 700;
-  color: #5865d8;
-  background: #eef0ff;
-  border: 1px solid rgba(88, 101, 216, 0.18);
-  padding: 1px 8px;
-  border-radius: 999px;
-  line-height: 1.4;
 }
 
 .brand-eyebrow {
