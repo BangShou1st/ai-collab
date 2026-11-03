@@ -126,7 +126,7 @@ onMounted(load)
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">项目周期</span>
-              <span>{{ formatDate(dashboard.project.startDate) }} 至 {{ formatDate(dashboard.project.dueDate) }}</span>
+              <span>{{ formatDate(dashboard.project.startDate) || '未设置' }} 至 {{ formatDate(dashboard.project.dueDate) || '未设置' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">我的角色</span>

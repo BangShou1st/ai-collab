@@ -192,18 +192,18 @@ const hasActiveFilters = computed(() =>
       </div>
       <div v-if="currentView !== 'board' && currentView !== 'list' && hasActiveFilters" class="filter-hint-box">
         <span class="filter-chart-note">
-          当前图表展示全量项目时序与依赖关系。已选择的筛选条件将在切换至「看板」或「列表」时生效。
+          筛选条件将在「看板」与「列表」视图中生效。
         </span>
       </div>
     </section>
 
     <el-alert v-if="highlightedSourcePlanId" title="已高亮显示该 AI 规划创建的任务" type="success" show-icon />
 
-    <!-- 批量工具栏（看板与列表生效） -->
-    <section v-if="canManage && (currentView === 'board' || currentView === 'list')" class="batch-toolbar">
-      <el-button size="small" @click="selectAllTasks">全选</el-button>
-      <el-button size="small" @click="clearSelection">清除选择</el-button>
-      <span v-if="selectedTaskIds.size > 0" class="batch-count">已选择 {{ selectedTaskIds.size }} 个任务</span>
+    <!-- 批量工具栏：仅在已有选择时出现，避免空态占用空间 -->
+    <section v-if="canManage && (currentView === 'board' || currentView === 'list') && selectedTaskIds.size > 0" class="batch-toolbar">
+      <span class="batch-count">已选择 {{ selectedTaskIds.size }} 个任务</span>
+      <el-button size="small" text @click="selectAllTasks">全选</el-button>
+      <el-button size="small" text @click="clearSelection">清除选择</el-button>
     </section>
 
     <!-- 视图内容区域：按需条件加载，仅渲染当前视图 -->
@@ -559,12 +559,9 @@ const hasActiveFilters = computed(() =>
 .batch-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 24px;
-  background-color: var(--color-surface-raised);
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: 12px;
+  gap: 4px;
+  padding: 0 24px;
+  margin-bottom: 8px;
 }
 .batch-count {
   color: var(--color-text-secondary);

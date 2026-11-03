@@ -159,7 +159,6 @@ onMounted(load)
       <el-table-column label="目标日期" width="120">
         <template #default="{ row }">{{ formatDate(row.targetDate) }}</template>
       </el-table-column>
-      <el-table-column prop="sortOrder" label="排序" width="90" />
       <el-table-column v-if="canManage" label="操作" width="220">
         <template #default="{ row }">
           <el-button text :disabled="Boolean(deletingId)" @click="openEditor(row)">编辑</el-button>
