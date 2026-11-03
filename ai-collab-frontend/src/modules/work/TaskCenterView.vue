@@ -56,7 +56,7 @@ const {
   batchOperationVisible, batchStatus, batchPriority, batchAssigneeId, batchProcessing,
   form, editForm,
   createStartDateDisabled, createDueDateDisabled, editStartDateDisabled, editDueDateDisabled,
-  canManage, createValidationMessage, editValidationMessage, commentValidationMessage,
+  canManage, visibleTasks, createValidationMessage, editValidationMessage, commentValidationMessage,
   highlightedSourcePlanId,
   columnTasks, showMyTasks, onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
   toggleTaskSelection, selectAllTasks, clearSelection, openBatchDialog, executeBatchOperation,
@@ -109,14 +109,6 @@ async function handleSelectTaskId(taskId: string): Promise<void> {
 const hasActiveFilters = computed(() =>
   Boolean(filters.assigneeId || filters.priority || filters.milestoneId || listStatusFilter.value),
 )
-
-const visibleTasks = computed(() => {
-  const list = Array.isArray(tasks) ? tasks : (tasks?.value ?? [])
-  return list.filter(task => {
-    if (filters.priority && task.priority !== filters.priority) return false
-    return true
-  })
-})
 </script>
 
 <template>

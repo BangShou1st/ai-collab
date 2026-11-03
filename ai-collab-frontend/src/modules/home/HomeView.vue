@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { showApiError } from '../../api/api-result'
 import { useAuthStore } from '../../stores/auth-store'
 import {
@@ -28,6 +29,7 @@ import {
 } from '../../shared/display-labels'
 
 const auth = useAuthStore()
+const router = useRouter()
 const home = ref<HomeData | null>(null)
 const loading = ref(false)
 const failed = ref(false)
@@ -106,12 +108,14 @@ const aiState = computed<AiState | null>(() => {
   return summary.anyPurposeUsable ? 'saved' : 'unusable'
 })
 
-/** 检查任务是否已经逾期（真实时间对比） */
+/** 检查任务是否已经逾期（真实时间对比，使用用户本地日期，避免 UTC 边界误差） */
 function isTaskOverdue(dueDate: string | null): boolean {
   if (!dueDate) return false
-  // 简易日期比较 YYYY-MM-DD
-  const todayStr = new Date().toISOString().slice(0, 10)
-  return dueDate < todayStr
+  const now = new Date()
+  // 本地日期 YYYY-MM-DD：不用 toISOString（UTC），否则东八区凌晨会误判昨天为今天
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const dueDay = dueDate.slice(0, 10)
+  return dueDay < todayStr
 }
 
 /** 逾期待办任务计数 */
@@ -144,6 +148,11 @@ function greet(): string {
   const part = hour < 6 ? '夜深了' : hour < 12 ? '上午好' : hour < 18 ? '下午好' : '晚上好'
   const name = auth.currentUser?.displayName || auth.currentUser?.username || ''
   return `${part}${name ? `，${name}` : ''}`
+}
+
+/** 项目卡片快捷入口：外层是整卡 router-link，内部不允许再嵌套 <a>（HTML 不允许链接嵌套链接）。 */
+function goProjectShortcut(projectId: string, segment: string): void {
+  void router.push(`/projects/${projectId}/${segment}`)
 }
 
 onMounted(() => {
@@ -207,8 +216,12 @@ auth.$subscribe(() => {
 
         <!-- 顶部行动概览指标卡片栏（让用户优先把握待办与审批事项） -->
         <div class="metrics-strip">
-          <!-- 1. 待办任务指标 -->
-          <div class="metric-pill" :class="{ 'has-urgent': overdueTaskCount > 0 }">
+          <!-- 1. 待办任务指标（口径：跨项目个人待办预览，接口上限 8 项，不代表全部待办总数） -->
+          <div
+            class="metric-pill"
+            :class="{ 'has-urgent': overdueTaskCount > 0 }"
+            title="跨项目个人待办预览，最多展示 8 项；逾期按你本地时区的自然日计算"
+          >
             <div class="metric-icon-wrap task-icon">
               <el-icon><CircleCheck /></el-icon>
             </div>
@@ -414,8 +427,18 @@ auth.$subscribe(() => {
                 <div class="row-meta project-card-meta">
                   <span class="role-badge">{{ roleLabel(project.role) }}</span>
                   <div class="project-quick-shortcuts" @click.stop>
-                    <router-link :to="`/projects/${project.id}/board`" class="shortcut-tag">看板</router-link>
-                    <router-link :to="`/projects/${project.id}/documents`" class="shortcut-tag">知识库</router-link>
+                    <button
+                      type="button"
+                      class="shortcut-tag"
+                      :aria-label="`打开项目「${project.name}」任务看板`"
+                      @click="goProjectShortcut(project.id, 'board')"
+                    >看板</button>
+                    <button
+                      type="button"
+                      class="shortcut-tag"
+                      :aria-label="`打开项目「${project.name}」项目文档`"
+                      @click="goProjectShortcut(project.id, 'documents')"
+                    >知识库</button>
                   </div>
                 </div>
               </router-link>
@@ -819,12 +842,14 @@ auth.$subscribe(() => {
 
 .shortcut-tag {
   font-size: 11px;
+  font-family: inherit;
   color: #5865d8;
   background: #f5f6ff;
   border: 1px solid rgba(88, 101, 216, 0.15);
   border-radius: 4px;
   padding: 1px 6px;
   text-decoration: none;
+  cursor: pointer;
   transition: all 0.15s ease;
 }
 

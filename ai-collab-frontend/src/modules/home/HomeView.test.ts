@@ -268,4 +268,69 @@ describe('onboarding guide and workspace metrics', () => {
     expect(wrapper.text()).toContain('紧急')
     wrapper.unmount()
   })
+
+  it('does not silently pick a project when the user has multiple projects', async () => {
+    const multiProject = {
+      recentProjects: [
+        { id: 'p1', name: '项目甲', status: 'ACTIVE', role: 'OWNER' },
+        { id: 'p2', name: '项目乙', status: 'ACTIVE', role: 'MEMBER' },
+      ],
+      myTasks: [],
+      notificationsSummary: { unread: 0 },
+      pendingApprovals: 0,
+      aiConfigSummary: summary(),
+      recentActivity: [],
+    }
+    const wrapper = await render(multiProject)
+    // 有项目的用户引导默认收起，先手动展开再验证入口行为
+    const guideToggle = wrapper.findAll('button').find((b) => b.text().includes('新手引导'))
+    await guideToggle!.trigger('click')
+    await flushPromises()
+    // 多项目时跨项目入口必须先让用户选择项目，禁止静默跳到最近项目
+    const chooseLinks = wrapper.findAll('a').filter((a) => a.text().includes('选择项目'))
+    expect(chooseLinks.length).toBeGreaterThanOrEqual(3)
+    for (const link of chooseLinks) {
+      expect(link.attributes('href')).toBe('/projects')
+    }
+    wrapper.unmount()
+  })
+
+  it('does not count project membership alone as having created a project', async () => {
+    const memberOnly = {
+      recentProjects: [{ id: 'p1', name: '别人的项目', status: 'ACTIVE', role: 'MEMBER' }],
+      myTasks: [],
+      notificationsSummary: { unread: 0 },
+      pendingApprovals: 0,
+      aiConfigSummary: summary(),
+      recentActivity: [],
+    }
+    const wrapper = await render(memberOnly)
+    const guideToggle = wrapper.findAll('button').find((b) => b.text().includes('新手引导'))
+    await guideToggle!.trigger('click')
+    await flushPromises()
+    // 仅是成员身份不能把「创建首个项目」标记为已完成
+    expect(wrapper.text()).toContain('核心就绪 0/2 项')
+    expect(wrapper.text()).toContain('立即创建')
+    wrapper.unmount()
+  })
+
+  it('does not mark a task due today as overdue (local-date boundary)', async () => {
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const dueToday = {
+      recentProjects: [{ id: 'p1', name: '边界项目', status: 'ACTIVE', role: 'OWNER' }],
+      myTasks: [
+        { id: 't1', projectId: 'p1', projectName: '边界项目', title: '今天截止', status: 'TODO', priority: 'HIGH', dueDate: today },
+      ],
+      notificationsSummary: { unread: 0 },
+      pendingApprovals: 0,
+      aiConfigSummary: summary(),
+      recentActivity: [],
+    }
+    const wrapper = await render(dueToday)
+    // 今天截止不能标为已逾期（UTC 比较会在东八区凌晨误判）
+    expect(wrapper.text()).not.toContain('项逾期')
+    expect(wrapper.text()).not.toContain('已逾期')
+    wrapper.unmount()
+  })
 })
