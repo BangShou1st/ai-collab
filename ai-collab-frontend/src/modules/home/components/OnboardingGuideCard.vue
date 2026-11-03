@@ -31,17 +31,16 @@ const isAiConfigured = computed(() => props.aiConfig.configured)
 
 const firstProjectId = computed(() => (props.projects.length > 0 ? props.projects[0]!.id : ''))
 
-/** 真实可计算的核心完成步骤数（创建项目、创建任务、配置 AI） */
+/** 真实可客观判定的核心就绪项（创建项目、配置 AI） */
 const completedCoreCount = computed(() => {
   let count = 0
   if (hasProjects.value) count += 1
-  if (hasTasks.value) count += 1
   if (isAiConfigured.value) count += 1
   return count
 })
 
 const progressPercent = computed(() => {
-  return Math.round((completedCoreCount.value / 3) * 100)
+  return Math.round((completedCoreCount.value / 2) * 100)
 })
 
 interface GuideStep {
@@ -78,22 +77,30 @@ const steps = computed<GuideStep[]>(() => [
     status: hasProjects.value ? 'optional' : 'disabled',
     statusText: hasProjects.value ? '协同就绪' : '需先有项目',
     actionLabel: hasProjects.value ? '管理成员' : '待开启',
-    actionTo: hasProjects.value ? `/projects/${firstProjectId.value}/settings` : '/projects',
+    actionTo: hasProjects.value ? `/projects/${firstProjectId.value}/members` : '/projects',
     disabled: !hasProjects.value,
   },
   {
     id: 'task',
     num: 3,
-    title: '创建首项任务',
-    desc: '在看板或列表中细分子任务，设置截止日期并指派责任人。',
+    title: '体验任务看板',
+    desc: '在看板或列表中细分子任务，推进团队进度或指派任务给组员。',
     icon: DocumentAdd,
-    status: hasTasks.value ? 'completed' : hasProjects.value ? 'todo' : 'disabled',
-    statusText: hasTasks.value ? '已完成' : hasProjects.value ? '待创建' : '需先有项目',
-    actionLabel: hasTasks.value
-      ? '进入看板'
-      : hasProjects.value
-        ? '去新建任务'
-        : '待开启',
+    status: !hasProjects.value
+      ? 'disabled'
+      : hasTasks.value
+        ? 'completed'
+        : 'optional',
+    statusText: !hasProjects.value
+      ? '需先有项目'
+      : hasTasks.value
+        ? '正在推进'
+        : '看板协同',
+    actionLabel: !hasProjects.value
+      ? '待开启'
+      : hasTasks.value
+        ? '进入看板'
+        : '体验任务看板',
     actionTo: hasProjects.value ? `/projects/${firstProjectId.value}/board` : '/projects',
     disabled: !hasProjects.value,
   },
@@ -132,7 +139,7 @@ const steps = computed<GuideStep[]>(() => [
             <el-icon><Guide /></el-icon>
           </span>
           <h2 class="onboarding-title">开始你的协作之旅</h2>
-          <span class="progress-pill">已完成 {{ completedCoreCount }}/3 核心项</span>
+          <span class="progress-pill">核心就绪 {{ completedCoreCount }}/2 项</span>
         </div>
         <p class="onboarding-subtitle">
           从创建项目开始，让团队与 AI 一起推进任务。按需开启功能，无需按部就班。

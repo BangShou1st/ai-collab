@@ -170,40 +170,56 @@ describe('onboarding guide and workspace metrics', () => {
     localStorage.clear()
   })
 
-  it('renders onboarding guide with 0/3 progress for brand new user', async () => {
+  it('renders onboarding guide with 0/2 progress for brand new user', async () => {
     const wrapper = await render(payload({}, 0))
     expect(wrapper.text()).toContain('开始你的协作之旅')
-    expect(wrapper.text()).toContain('已完成 0/3 核心项')
+    expect(wrapper.text()).toContain('核心就绪 0/2 项')
     expect(wrapper.text()).toContain('创建首个项目')
     expect(wrapper.text()).toContain('立即创建')
+    expect(wrapper.text()).toContain('体验任务看板')
+    expect(wrapper.text()).toContain('待开启')
     expect(wrapper.text()).toContain('启用 AI 辅助')
     expect(wrapper.text()).toContain('立即配置')
     expect(wrapper.text()).toContain('全部清空')
     expect(wrapper.text()).toContain('还没有项目')
+    expect(wrapper.text()).toContain('最近项目')
+    expect(wrapper.text()).toContain('最多展示 5 项')
     wrapper.unmount()
   })
 
-  it('automatically hides onboarding guide for experienced users with projects, tasks and AI', async () => {
-    const experiencedData = {
+  it('automatically hides guide for experienced users, even when tasks are 0 or assigned to others', async () => {
+    // 关键场景：用户拥有成熟项目，但当前个人待办为 0（已完成所有任务或全部由其他成员负责）
+    const experiencedUserNoTasks = {
       recentProjects: [{ id: 'proj-1', name: '竞赛项目', status: 'ACTIVE', role: 'OWNER' }],
-      myTasks: [{ id: 'task-1', projectId: 'proj-1', projectName: '竞赛项目', title: '核心开发', status: 'IN_PROGRESS', priority: 'HIGH', dueDate: '2026-12-01' }],
+      myTasks: [], // 待办为 0
       notificationsSummary: { unread: 2 },
       pendingApprovals: 1,
       aiConfigSummary: summary({ configured: true, providerCount: 1, anyPurposeUsable: true }),
       recentActivity: [],
     }
-    const wrapper = await render(experiencedData)
-    // 老用户默认不展开引导卡片
+    const wrapper = await render(experiencedUserNoTasks)
+    // 老用户由于已有项目，默认不被新手引导打扰！
     expect(wrapper.find('.onboarding-card').exists()).toBe(false)
-    // 顶部操作栏提供展开引导按钮
+
+    // 顶部操作栏提供查看引导入口
     const guideToggle = wrapper.findAll('button').find((b) => b.text().includes('新手引导'))
     expect(guideToggle).toBeDefined()
 
-    // 点击后可以重新查看引导
+    // 主动点击后可以查看引导
     await guideToggle!.trigger('click')
     await flushPromises()
     expect(wrapper.find('.onboarding-card').exists()).toBe(true)
-    expect(wrapper.text()).toContain('已完成 3/3 核心项')
+    expect(wrapper.text()).toContain('核心就绪 2/2 项')
+
+    // 验证步骤 2 成员管理链接精准跳转到 /projects/:id/members
+    const memberLink = wrapper.findAll('a').find((a) => a.text().includes('管理成员'))
+    expect(memberLink?.attributes('href')).toBe('/projects/proj-1/members')
+
+    // 验证步骤 3 不会因待办为 0 而粗暴判定为“未完成”，而是呈现“看板协同 / 体验任务看板”
+    expect(wrapper.text()).toContain('看板协同')
+    expect(wrapper.text()).toContain('体验任务看板')
+    expect(wrapper.text()).not.toContain('待创建')
+
     wrapper.unmount()
   })
 
@@ -246,7 +262,8 @@ describe('onboarding guide and workspace metrics', () => {
     expect(wrapper.text()).toContain('1 项逾期')
     expect(wrapper.text()).toContain('需确认')
     expect(wrapper.text()).toContain('新消息')
-    expect(wrapper.text()).toContain('活跃空间')
+    expect(wrapper.text()).toContain('最近项目')
+    expect(wrapper.text()).toContain('最多展示 5 项')
     expect(wrapper.text()).toContain('已逾期')
     expect(wrapper.text()).toContain('紧急')
     wrapper.unmount()
