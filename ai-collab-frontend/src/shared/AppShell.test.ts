@@ -37,13 +37,15 @@ vi.mock("../stores/project-context-store", () => ({
 const stubs = {
   RouterLink: {
     props: ["to", "activeClass"],
-    setup(props: { to: string | { path: string; query?: Record<string, string> } }) {
+    setup(props: Record<string, unknown>) {
       const dataTo = computed(() => {
         const target = props.to;
         if (typeof target === "string") return target;
-        const query = target.query ?? {};
+        const record = (target ?? {}) as { path?: string; query?: Record<string, string> };
+        const query = record.query ?? {};
         const qs = Object.entries(query).map(([k, v]) => `${k}=${v}`).join("&");
-        return qs ? `${target.path}?${qs}` : target.path;
+        const path = record.path ?? "";
+        return qs ? `${path}?${qs}` : path;
       });
       return { dataTo };
     },
