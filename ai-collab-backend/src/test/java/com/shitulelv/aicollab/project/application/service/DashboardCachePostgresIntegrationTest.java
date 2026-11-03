@@ -69,7 +69,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "planning.enabled=false",
         "security.jwt.secret=test-only-secret-with-at-least-thirty-two-characters",
         "model.config.master-key=test-only-master-key-for-integration-tests",
-        "security.jwt.access-token-minutes=30"
+        "security.jwt.access-token-minutes=30",
+        // 停机降级场景的延迟上界依赖短命令超时；其余用例 Redis 在线，500ms 足够
+        "spring.data.redis.timeout=500ms",
+        // 熔断冷却窗口用短值（2s），保证恢复用例可在有界时间内完成半开试探
+        "dashboard.cache.failure-cooldown=2s"
 })
 @Testcontainers(disabledWithoutDocker = true)
 @ActiveProfiles("test")
@@ -111,6 +115,7 @@ class DashboardCachePostgresIntegrationTest {
     @Autowired TransactionTemplate transactionTemplate;
     @Autowired StringRedisTemplate redis;
     @Autowired JdbcTemplate jdbc;
+    @Autowired io.micrometer.core.instrument.MeterRegistry meterRegistry;
     @MockitoBean TaskPlanRecoveryJob taskPlanRecoveryJob;
 
     private final AtomicReference<UUID> seededTaskA = new AtomicReference<>();
@@ -381,7 +386,7 @@ class DashboardCachePostgresIntegrationTest {
                 },
                 new com.fasterxml.jackson.databind.ObjectMapper(),
                 new io.micrometer.core.instrument.simple.SimpleMeterRegistry(),
-                true, 90, 30);
+                true, 90, 30, java.time.Duration.ofSeconds(30));
         otherInstanceCache.evictNow(PROJECT_A);
 
         assertThat(redis.opsForValue().get(statsKey(PROJECT_A))).isNull();
@@ -390,7 +395,10 @@ class DashboardCachePostgresIntegrationTest {
         assertThat(dashboard.getDashboard(PROJECT_A, MEMBER).tasks().canceled()).isEqualTo(1);
     }
 
-    /** C-T14 / C-T15：Redis 停机时降级直读数据库；恢复后缓存自动继续工作。 */
+    /**
+     * C-T14 / C-T15：Redis 停机时熔断短路降级直读数据库（调用延迟有明确上界）；
+     * 恢复后熔断半开试探成功，缓存自动继续工作。
+     */
     @Test
     @Order(99)
     void redisOutageFallsBackToDatabaseAndRecovers() {
@@ -401,22 +409,75 @@ class DashboardCachePostgresIntegrationTest {
         dashboardCache.evictNow(PROJECT_A);
 
         REDIS.stop();
+        DashboardView duringOutage;
         try {
-            // Redis 不可用：读取必须仍然成功且数据新鲜（数据库回源）
-            DashboardView duringOutage = dashboard.getDashboard(PROJECT_A, MEMBER);
+            // 首次调用触发熔断：loadStats 按命令超时（500ms）失败后熔断打开，
+            // 同一请求内其余 Redis 操作全部短路；整体上界远小于修复前 4x60s
+            long firstStart = System.nanoTime();
+            duringOutage = dashboard.getDashboard(PROJECT_A, MEMBER);
+            long firstCallMillis = (System.nanoTime() - firstStart) / 1_000_000;
             assertThat(duringOutage.tasks().inProgress()).isEqualTo(1);
+            assertThat(firstCallMillis).as("停机期间首次调用（触发熔断）应 < 10s").isLessThan(10_000L);
+
+            // 熔断已打开：后续调用请求内短路 + 冷却期跳过，单次应在 1s 量级内
+            for (int i = 0; i < 3; i++) {
+                long quickStart = System.nanoTime();
+                DashboardView quick = dashboard.getDashboard(PROJECT_A, MEMBER);
+                long quickMillis = (System.nanoTime() - quickStart) / 1_000_000;
+                assertThat(quick.tasks().inProgress()).isEqualTo(1);
+                assertThat(quickMillis).as("熔断生效后第 %d 次调用应 < 1s", i + 1).isLessThan(1_000L);
+            }
         } finally {
             REDIS.start();
         }
 
-        // Redis 恢复后：等待 Lettuce 连接看门狗重连，随后读取成功且缓存自动回填并再次生效
+        // Redis 恢复后：等待 Lettuce 连接看门狗重连；熔断冷却（2s）到期后半开试探
+        // 成功即自动恢复缓存读写
         awaitRedisReconnected();
-        dashboardCache.evictNow(PROJECT_A);
-        DashboardView afterRecovery = dashboard.getDashboard(PROJECT_A, MEMBER);
+        DashboardView afterRecovery = awaitCacheAutoRecovered();
         assertThat(afterRecovery.tasks().inProgress()).isEqualTo(1);
-        assertThat(redis.opsForValue().get(statsKey(PROJECT_A))).isNotNull();
         String cachedJson = redis.opsForValue().get(statsKey(PROJECT_A));
-        assertThat(cachedJson).contains("\"inProgress\":1");
+        assertThat(cachedJson).isNotNull().contains("\"inProgress\":1");
+
+        // 可观测性：熔断状态机的 open / half_open / recover 与操作级 error / skip 均已落表
+        assertThat(counterValue("open")).as("熔断打开指标").isGreaterThanOrEqualTo(1);
+        assertThat(counterValue("half_open")).as("半开试探指标").isGreaterThanOrEqualTo(1);
+        assertThat(counterValue("recover")).as("熔断恢复指标").isGreaterThanOrEqualTo(1);
+        assertThat(counterValue("skip")).as("熔断跳过指标").isGreaterThanOrEqualTo(3);
+        assertThat(counterValue("error")).as("Redis 操作失败指标").isGreaterThanOrEqualTo(1);
+    }
+
+    /** 熔断冷却到期后半开试探成功、缓存自动回填；有界轮询等待（最长 20s）。 */
+    private DashboardView awaitCacheAutoRecovered() {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+        RuntimeException last = null;
+        while (System.nanoTime() < deadline) {
+            try {
+                dashboardCache.evictNow(PROJECT_A);
+                DashboardView view = dashboard.getDashboard(PROJECT_A, MEMBER);
+                if (redis.opsForValue().get(statsKey(PROJECT_A)) != null) {
+                    return view;
+                }
+            } catch (RuntimeException attempt) {
+                last = attempt;
+            }
+            try {
+                Thread.sleep(250);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        throw new IllegalStateException("缓存未在预期时间内自动恢复", last);
+    }
+
+    /** 读取 dashboard.cache.operations{result=...} 计数；未注册视为 0。 */
+    private double counterValue(String result) {
+        io.micrometer.core.instrument.Counter counter = meterRegistry
+                .find("dashboard.cache.operations")
+                .tag("result", result)
+                .counter();
+        return counter == null ? 0.0 : counter.count();
     }
 
     /** 容器重启后 Lettuce 共享连接需要经看门狗重连，做有界重试等待。 */
