@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from '@vue/test-utils'
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import TaskCenterView from './TaskCenterView.vue'
 import type { Task } from './types'
@@ -114,6 +114,7 @@ vi.mock('./use-task-board-view', () => ({
     editStartDateDisabled: () => false,
     editDueDateDisabled: () => false,
     canManage: mocks.canManage,
+    visibleTasks: computed(() => sampleTasks.filter(t => t.status !== 'CANCELED')),
     createValidationMessage: '',
     editValidationMessage: '',
     commentValidationMessage: '',

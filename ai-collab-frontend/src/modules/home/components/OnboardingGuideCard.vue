@@ -29,12 +29,21 @@ const hasProjects = computed(() => props.projects.length > 0)
 const hasTasks = computed(() => props.tasks.length > 0)
 const isAiConfigured = computed(() => props.aiConfig.configured)
 
-const firstProjectId = computed(() => (props.projects.length > 0 ? props.projects[0]!.id : ''))
+/** 「创建首个项目」必须以用户真正拥有（OWNER）的项目为准，仅是成员身份不算。 */
+const hasOwnedProject = computed(() => props.projects.some((project) => project.role === 'OWNER'))
+
+/** 跨项目入口的唯一可信目标：仅当用户恰好只有一个项目时才直达，否则进入项目列表让用户自己选择。 */
+function crossProjectTarget(projectPathSuffix: string): string {
+  if (props.projects.length === 1) {
+    return `/projects/${props.projects[0]!.id}/${projectPathSuffix}`
+  }
+  return '/projects'
+}
 
 /** 真实可客观判定的核心就绪项（创建项目、配置 AI） */
 const completedCoreCount = computed(() => {
   let count = 0
-  if (hasProjects.value) count += 1
+  if (hasOwnedProject.value) count += 1
   if (isAiConfigured.value) count += 1
   return count
 })
@@ -63,28 +72,32 @@ const steps = computed<GuideStep[]>(() => [
     title: '创建首个项目',
     desc: '设立团队项目空间，统筹任务看板、里程碑与甘特推进。',
     icon: FolderAdd,
-    status: hasProjects.value ? 'completed' : 'todo',
-    statusText: hasProjects.value ? '已完成' : '待开始',
-    actionLabel: hasProjects.value ? '查看项目' : '立即创建',
+    status: hasOwnedProject.value ? 'completed' : 'todo',
+    statusText: hasOwnedProject.value ? '已完成' : '待开始',
+    actionLabel: hasOwnedProject.value ? '查看项目' : '立即创建',
     actionTo: '/projects',
   },
   {
     id: 'member',
     num: 2,
     title: '邀请团队成员',
-    desc: '邀请同学或组员加入协作，无需等待全员到齐即可随时继续推进。',
+    desc: hasProjects.value
+      ? (props.projects.length > 1 ? '你参与了多个项目，请先选择要管理的项目，再邀请成员加入。' : '邀请同学或组员加入协作，无需等待全员到齐即可随时继续推进。')
+      : '邀请同学或组员加入协作，无需等待全员到齐即可随时继续推进。',
     icon: User,
     status: hasProjects.value ? 'optional' : 'disabled',
     statusText: hasProjects.value ? '协同就绪' : '需先有项目',
-    actionLabel: hasProjects.value ? '管理成员' : '待开启',
-    actionTo: hasProjects.value ? `/projects/${firstProjectId.value}/members` : '/projects',
+    actionLabel: hasProjects.value ? (props.projects.length > 1 ? '选择项目' : '管理成员') : '待开启',
+    actionTo: hasProjects.value ? crossProjectTarget('members') : '/projects',
     disabled: !hasProjects.value,
   },
   {
     id: 'task',
     num: 3,
     title: '体验任务看板',
-    desc: '在看板或列表中细分子任务，推进团队进度或指派任务给组员。',
+    desc: hasProjects.value
+      ? (props.projects.length > 1 ? '你参与了多个项目，请先选择项目，在看板或列表中细分子任务。' : '在看板或列表中细分子任务，推进团队进度或指派任务给组员。')
+      : '在看板或列表中细分子任务，推进团队进度或指派任务给组员。',
     icon: DocumentAdd,
     status: !hasProjects.value
       ? 'disabled'
@@ -94,26 +107,30 @@ const steps = computed<GuideStep[]>(() => [
     statusText: !hasProjects.value
       ? '需先有项目'
       : hasTasks.value
-        ? '正在推进'
+        ? '进行中'
         : '看板协同',
     actionLabel: !hasProjects.value
       ? '待开启'
-      : hasTasks.value
-        ? '进入看板'
-        : '体验任务看板',
-    actionTo: hasProjects.value ? `/projects/${firstProjectId.value}/board` : '/projects',
+      : props.projects.length > 1
+        ? '选择项目'
+        : hasTasks.value
+          ? '进入看板'
+          : '体验任务看板',
+    actionTo: hasProjects.value ? crossProjectTarget('board') : '/projects',
     disabled: !hasProjects.value,
   },
   {
     id: 'document',
     num: 4,
     title: '沉淀项目知识',
-    desc: '上传需求文档或技术规范，构建向量知识库以支持团队检索与问答。',
+    desc: hasProjects.value
+      ? (props.projects.length > 1 ? '你参与了多个项目，请先选择项目，再上传需求文档或技术规范。' : '上传需求文档或技术规范，构建向量知识库以支持团队检索与问答。')
+      : '上传需求文档或技术规范，构建向量知识库以支持团队检索与问答。',
     icon: Document,
     status: hasProjects.value ? 'optional' : 'disabled',
     statusText: hasProjects.value ? '随时探索' : '需先有项目',
-    actionLabel: hasProjects.value ? '管理文档' : '待开启',
-    actionTo: hasProjects.value ? `/projects/${firstProjectId.value}/documents` : '/projects',
+    actionLabel: hasProjects.value ? (props.projects.length > 1 ? '选择项目' : '管理文档') : '待开启',
+    actionTo: hasProjects.value ? crossProjectTarget('documents') : '/projects',
     disabled: !hasProjects.value,
   },
   {
