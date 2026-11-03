@@ -164,3 +164,91 @@ describe('home AI configuration status', () => {
     wrapper.unmount()
   })
 })
+
+describe('onboarding guide and workspace metrics', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('renders onboarding guide with 0/3 progress for brand new user', async () => {
+    const wrapper = await render(payload({}, 0))
+    expect(wrapper.text()).toContain('开始你的协作之旅')
+    expect(wrapper.text()).toContain('已完成 0/3 核心项')
+    expect(wrapper.text()).toContain('创建首个项目')
+    expect(wrapper.text()).toContain('立即创建')
+    expect(wrapper.text()).toContain('启用 AI 辅助')
+    expect(wrapper.text()).toContain('立即配置')
+    expect(wrapper.text()).toContain('全部清空')
+    expect(wrapper.text()).toContain('还没有项目')
+    wrapper.unmount()
+  })
+
+  it('automatically hides onboarding guide for experienced users with projects, tasks and AI', async () => {
+    const experiencedData = {
+      recentProjects: [{ id: 'proj-1', name: '竞赛项目', status: 'ACTIVE', role: 'OWNER' }],
+      myTasks: [{ id: 'task-1', projectId: 'proj-1', projectName: '竞赛项目', title: '核心开发', status: 'IN_PROGRESS', priority: 'HIGH', dueDate: '2026-12-01' }],
+      notificationsSummary: { unread: 2 },
+      pendingApprovals: 1,
+      aiConfigSummary: summary({ configured: true, providerCount: 1, anyPurposeUsable: true }),
+      recentActivity: [],
+    }
+    const wrapper = await render(experiencedData)
+    // 老用户默认不展开引导卡片
+    expect(wrapper.find('.onboarding-card').exists()).toBe(false)
+    // 顶部操作栏提供展开引导按钮
+    const guideToggle = wrapper.findAll('button').find((b) => b.text().includes('新手引导'))
+    expect(guideToggle).toBeDefined()
+
+    // 点击后可以重新查看引导
+    await guideToggle!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.onboarding-card').exists()).toBe(true)
+    expect(wrapper.text()).toContain('已完成 3/3 核心项')
+    wrapper.unmount()
+  })
+
+  it('allows user to dismiss guide and persist state in localStorage', async () => {
+    const wrapper = await render(payload({}, 0))
+    expect(wrapper.find('.onboarding-card').exists()).toBe(true)
+
+    // 点击收起引导
+    const dismissBtn = wrapper.find('button.dismiss-btn')
+    expect(dismissBtn.exists()).toBe(true)
+    await dismissBtn.trigger('click')
+    await flushPromises()
+
+    // 引导卡片收起
+    expect(wrapper.find('.onboarding-card').exists()).toBe(false)
+    // 恢复按钮出现
+    const restoreBtn = wrapper.findAll('button').find((b) => b.text().includes('新手引导'))
+    expect(restoreBtn).toBeDefined()
+
+    // 重新点击恢复展开
+    await restoreBtn!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.onboarding-card').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('renders metric badges and identifies overdue tasks', async () => {
+    const overdueData = {
+      recentProjects: [{ id: 'p1', name: '逾期测试项目', status: 'ACTIVE', role: 'MEMBER' }],
+      myTasks: [
+        { id: 't1', projectId: 'p1', projectName: '逾期测试项目', title: '延期工作', status: 'TODO', priority: 'URGENT', dueDate: '2026-01-01' },
+      ],
+      notificationsSummary: { unread: 3 },
+      pendingApprovals: 2,
+      aiConfigSummary: summary(),
+      recentActivity: [],
+    }
+    const wrapper = await render(overdueData)
+    expect(wrapper.text()).toContain('我的待办')
+    expect(wrapper.text()).toContain('1 项逾期')
+    expect(wrapper.text()).toContain('需确认')
+    expect(wrapper.text()).toContain('新消息')
+    expect(wrapper.text()).toContain('活跃空间')
+    expect(wrapper.text()).toContain('已逾期')
+    expect(wrapper.text()).toContain('紧急')
+    wrapper.unmount()
+  })
+})
