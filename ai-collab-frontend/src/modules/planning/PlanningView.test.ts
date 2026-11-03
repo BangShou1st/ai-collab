@@ -542,7 +542,7 @@ describe('PlanningView real component workflow', () => {
     await openFirst(wrapper)
     expect(wrapper.text()).toContain('规划已生成，仍有待处理问题')
     expect(wrapper.findAll('button').some(button => button.text() === '确认并创建任务')).toBe(false)
-    expect(wrapper.text()).toContain('存在 1 项阻断性问题')
+    expect(wrapper.text()).toContain('1 项阻断问题，修复后才能确认创建任务')
     expect(wrapper.text()).toContain('存在阻断性问题，请参考上方问题面板修复并保存新版本后即可确认创建任务')
   })
 
@@ -556,7 +556,7 @@ describe('PlanningView real component workflow', () => {
     })))
     const wrapper = await mounted()
     await openFirst(wrapper)
-    expect(wrapper.text()).toContain('存在 1 项提示与建议（非阻断，不影响直接确认创建任务）')
+    expect(wrapper.text()).toContain('1 项提示与建议，不影响确认创建任务')
     expect(wrapper.findAll('button').some(button => button.text() === '确认并创建任务')).toBe(true)
   })
 

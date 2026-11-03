@@ -70,7 +70,7 @@ const steps = computed<GuideStep[]>(() => [
     id: 'project',
     num: 1,
     title: '创建首个项目',
-    desc: '设立团队项目空间，统筹任务看板、里程碑与甘特推进。',
+    desc: '创建团队项目空间，统筹协作。',
     icon: FolderAdd,
     status: hasOwnedProject.value ? 'completed' : 'todo',
     statusText: hasOwnedProject.value ? '已完成' : '待开始',
@@ -81,9 +81,9 @@ const steps = computed<GuideStep[]>(() => [
     id: 'member',
     num: 2,
     title: '邀请团队成员',
-    desc: hasProjects.value
-      ? (props.projects.length > 1 ? '你参与了多个项目，请先选择要管理的项目，再邀请成员加入。' : '邀请同学或组员加入协作，无需等待全员到齐即可随时继续推进。')
-      : '邀请同学或组员加入协作，无需等待全员到齐即可随时继续推进。',
+    desc: hasProjects.value && props.projects.length > 1
+      ? '选择项目后邀请成员加入。'
+      : '邀请同学或组员加入协作。',
     icon: User,
     status: hasProjects.value ? 'optional' : 'disabled',
     statusText: hasProjects.value ? '协同就绪' : '需先有项目',
@@ -95,9 +95,9 @@ const steps = computed<GuideStep[]>(() => [
     id: 'task',
     num: 3,
     title: '体验任务看板',
-    desc: hasProjects.value
-      ? (props.projects.length > 1 ? '你参与了多个项目，请先选择项目，在看板或列表中细分子任务。' : '在看板或列表中细分子任务，推进团队进度或指派任务给组员。')
-      : '在看板或列表中细分子任务，推进团队进度或指派任务给组员。',
+    desc: hasProjects.value && props.projects.length > 1
+      ? '选择项目，在看板中拆分任务。'
+      : '在看板或列表中拆分子任务。',
     icon: DocumentAdd,
     status: !hasProjects.value
       ? 'disabled'
@@ -123,9 +123,9 @@ const steps = computed<GuideStep[]>(() => [
     id: 'document',
     num: 4,
     title: '沉淀项目知识',
-    desc: hasProjects.value
-      ? (props.projects.length > 1 ? '你参与了多个项目，请先选择项目，再上传需求文档或技术规范。' : '上传需求文档或技术规范，构建向量知识库以支持团队检索与问答。')
-      : '上传需求文档或技术规范，构建向量知识库以支持团队检索与问答。',
+    desc: hasProjects.value && props.projects.length > 1
+      ? '选择项目后上传文档建知识库。'
+      : '上传文档，支持检索与问答。',
     icon: Document,
     status: hasProjects.value ? 'optional' : 'disabled',
     statusText: hasProjects.value ? '随时探索' : '需先有项目',
@@ -137,7 +137,7 @@ const steps = computed<GuideStep[]>(() => [
     id: 'ai',
     num: 5,
     title: '启用 AI 辅助',
-    desc: '连接大模型配置，按需体验 AI 任务拆解规划与 Agent 协作（非必选）。',
+    desc: '连接模型，解锁 AI 规划与 Agent。',
     icon: Cpu,
     status: isAiConfigured.value ? 'completed' : 'todo',
     statusText: isAiConfigured.value ? '已配置' : '待配置',
@@ -159,7 +159,7 @@ const steps = computed<GuideStep[]>(() => [
           <span class="progress-pill">核心就绪 {{ completedCoreCount }}/2 项</span>
         </div>
         <p class="onboarding-subtitle">
-          从创建项目开始，让团队与 AI 一起推进任务。按需开启功能，无需按部就班。
+          从创建项目开始，按需开启功能，无需按部就班。
         </p>
       </div>
       <div class="header-actions">

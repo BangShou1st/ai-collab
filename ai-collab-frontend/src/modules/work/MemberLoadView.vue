@@ -72,7 +72,7 @@ function taskShare(member: MemberLoad, value: number): string {
     <PageHeader
       eyebrow="项目执行"
       title="成员负载"
-      description="基于任务分配与估算工时的当前工作量概览，非实际投入工时"
+      description="基于任务分配与估算工时的当前工作量"
       :context="project?.name"
     >
       <template #actions>

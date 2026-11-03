@@ -280,7 +280,7 @@ const dialogWidth = computed(() => 'min(620px, 94vw)')
               </el-checkbox>
             </el-checkbox-group>
             <span class="field-hint">
-              勾选 = 允许尝试调用该能力，不代表已验证；保存后点击「检测并配置」，通过真实探针的能力会自动启用
+              允许尝试调用该能力；保存后点击「检测并配置」，验证通过会自动启用
             </span>
           </el-form-item>
           <el-form-item label="Temperature"><el-input-number v-model="form.temperature" :min="0" :max="2" :step="0.1" /></el-form-item>
