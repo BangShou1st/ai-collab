@@ -93,7 +93,7 @@ onMounted(() => { void load() })
     <PageHeader
       eyebrow="项目报告"
       title="项目周报"
-      description="确定性周度统计：数字来自数据库实时查询；AI 生成的周报文字请使用协作 Agent 的周报技能"
+      description="本周任务与里程碑统计；AI 撰写周报请使用协作 Agent"
       :context="project?.name"
     >
       <template #actions>
@@ -119,7 +119,6 @@ onMounted(() => { void load() })
       <template v-else-if="report">
         <div v-if="report.startDate || report.endDate" class="period-banner" role="status">
           报告周期：{{ formatDateRange(report.startDate, report.endDate) }}
-          <span v-if="report.dataSource" class="period-source">{{ report.dataSource }}</span>
         </div>
 
         <el-card class="stats-card">
@@ -145,7 +144,7 @@ onMounted(() => { void load() })
             </div>
           </div>
           <p class="period-note">
-            本期变化基于任务创建/完成事件与里程碑审计记录还原；无法可靠还原的历史行为会如实标注在下方说明中。
+            本期变化按任务与里程碑事件记录还原，口径细节见下方数据说明。
           </p>
         </el-card>
 
@@ -176,7 +175,7 @@ onMounted(() => { void load() })
             </div>
             <div class="stat-item">
               <span class="stat-value">{{ formatRate(report.taskStats.completionRate) }}</span>
-              <span class="stat-label">完成率（分母不含取消）</span>
+              <span class="stat-label" title="分母不含已取消任务">完成率</span>
             </div>
           </div>
         </el-card>
@@ -207,7 +206,7 @@ onMounted(() => { void load() })
 
         <el-card v-if="report.topContributors.length > 0" class="stats-card">
           <template #header>
-            <h3>贡献者（仅本期有活动者）</h3>
+            <h3>贡献者</h3>
           </template>
           <div class="contributors-list">
             <div v-for="contributor in report.topContributors" :key="contributor.displayName" class="contributor-item">
@@ -219,7 +218,7 @@ onMounted(() => { void load() })
 
         <el-card v-if="report.highlights.length > 0" class="stats-card">
           <template #header>
-            <h3>✅ 亮点（基于本期事实）</h3>
+            <h3>✅ 亮点</h3>
           </template>
           <ul class="list-items">
             <li v-for="(highlight, index) in report.highlights" :key="index" class="highlight-item">
@@ -276,12 +275,6 @@ onMounted(() => { void load() })
   background: var(--color-surface);
   font-size: 14px;
   font-weight: 500;
-}
-
-.period-source {
-  color: var(--color-text-muted);
-  font-weight: 400;
-  font-size: 12px;
 }
 
 .period-note {

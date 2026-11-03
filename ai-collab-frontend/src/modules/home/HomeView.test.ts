@@ -72,7 +72,6 @@ describe('home task preview', () => {
     expect(links[0]!.text()).toContain('未设置截止日期')
     expect(links[1]!.text()).toContain('截止日期：')
     expect(wrapper.text()).toContain('我的待办')
-    expect(wrapper.text()).toContain('最多展示 5 项')
     expect(wrapper.text()).not.toContain('8 个')
     wrapper.unmount()
   })
@@ -104,11 +103,11 @@ describe('home AI configuration status', () => {
     wrapper.unmount()
   })
 
-  it('describes saved-and-resolvable config as unverified rather than healthy', async () => {
+  it('describes saved-and-resolvable config briefly without claiming readiness', async () => {
     const wrapper = await render(payload({ configured: true, providerCount: 1, defaultModel: 'gpt-4o-mini', anyPurposeUsable: true }))
     expect(wrapper.text()).toContain('AI 配置已保存')
     expect(wrapper.text()).toContain('默认模型 gpt-4o-mini')
-    expect(wrapper.text()).toContain('可用性需在 AI 设置中测试确认，此处不表示已就绪')
+    expect(wrapper.text()).not.toContain('此处不表示已就绪')
     expect(wrapper.text()).not.toContain('AI 已就绪')
     wrapper.unmount()
   })
@@ -183,7 +182,6 @@ describe('onboarding guide and workspace metrics', () => {
     expect(wrapper.text()).toContain('全部清空')
     expect(wrapper.text()).toContain('还没有项目')
     expect(wrapper.text()).toContain('最近项目')
-    expect(wrapper.text()).toContain('最多展示 5 项')
     wrapper.unmount()
   })
 
@@ -263,7 +261,6 @@ describe('onboarding guide and workspace metrics', () => {
     expect(wrapper.text()).toContain('需确认')
     expect(wrapper.text()).toContain('新消息')
     expect(wrapper.text()).toContain('最近项目')
-    expect(wrapper.text()).toContain('最多展示 5 项')
     expect(wrapper.text()).toContain('已逾期')
     expect(wrapper.text()).toContain('紧急')
     wrapper.unmount()

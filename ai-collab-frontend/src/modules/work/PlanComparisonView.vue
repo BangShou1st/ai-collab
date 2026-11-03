@@ -116,6 +116,12 @@ const baselineLabel = computed(() => {
   return '基准：未知（规划未确认应用，不做任务级对比）'
 })
 
+function formatDateTime(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', { hour12: false })
+}
+
 watch(projectId, () => { void load() })
 onMounted(() => { void load() })
 </script>
@@ -125,7 +131,7 @@ onMounted(() => { void load() })
     <PageHeader
       eyebrow="项目报告"
       title="规划对比"
-      description="对比所选规划版本与项目实际任务；无法可靠关联的任务会明确标注"
+      description="对比规划版本与项目实际任务"
       :context="project?.name"
     >
       <template #actions>
@@ -175,7 +181,7 @@ onMounted(() => { void load() })
       <template v-else-if="comparison">
         <div class="baseline-banner" role="status">
           <span>{{ baselineLabel }}</span>
-          <span v-if="comparison.appliedAt" class="baseline-applied">应用时间：{{ comparison.appliedAt }}</span>
+          <span v-if="comparison.appliedAt" class="baseline-applied">应用时间：{{ formatDateTime(comparison.appliedAt) }}</span>
         </div>
         <el-card class="summary-card">
           <template #header>

@@ -27,7 +27,7 @@ const taskStatus = (status: string) => ({ TODO: '待处理', IN_PROGRESS: '进�
       </ul>
     </div>
     <p v-if="!taskFacts.length && plan?.steps?.length" class="plan-criteria">暂无工具执行记录</p>
-    <p v-if="plan?.steps?.length" class="plan-criteria">参考步骤（Skill 模板，不代表已执行或承诺执行）</p>
+    <p v-if="plan?.steps?.length" class="plan-criteria">参考步骤（来自 Skill 模板，非执行记录）</p>
     <p v-if="plan?.objective" class="plan-objective">{{ plan.objective }}</p>
     <ol v-if="plan?.steps?.length" aria-label="参考步骤">
       <li v-for="step in plan.steps" :key="step.id" class="reference">

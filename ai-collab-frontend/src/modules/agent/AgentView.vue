@@ -298,7 +298,7 @@ watch(sessionId, () => {
             </div>
             <div class="composer">
               <details v-if="skills.length" class="capability">
-                <summary>场景：{{ skills.find((s) => s.code === selectedSkillCode)?.displayName ?? '自动识别' }}<span class="capability-hint">（可选偏好，不选也能使用全部基础工具）</span></summary>
+                <summary>场景：{{ skills.find((s) => s.code === selectedSkillCode)?.displayName ?? '自动识别' }}<span class="capability-hint">（可选）</span></summary>
                 <div class="capability-options">
                   <el-check-tag :checked="selectedSkillCode === null" @change="selectedSkillCode = null">自动识别</el-check-tag>
                   <el-check-tag v-for="skill in skills" :key="skill.code" :checked="selectedSkillCode === skill.code" @change="selectedSkillCode = selectedSkillCode === skill.code ? null : skill.code">{{ skill.displayName }}</el-check-tag>

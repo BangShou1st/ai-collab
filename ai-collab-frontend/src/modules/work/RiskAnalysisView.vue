@@ -83,7 +83,7 @@ onMounted(() => { void load() })
     <PageHeader
       eyebrow="项目报告"
       title="延期风险分析"
-      description="基于规则的当前风险检测（逾期 / 阻塞 / 未分配 / 即将到期），非 AI 预测；统计数为风险条目数，同一任务可能命中多类风险"
+      description="基于规则的当前风险检测（逾期 / 阻塞 / 未分配 / 即将到期），非 AI 预测"
       :context="project?.name"
     >
       <template #actions>
@@ -126,7 +126,7 @@ onMounted(() => { void load() })
           </div>
         </div>
         <div v-if="analysis.rules && analysis.rules.length > 0" class="rules-note" role="note">
-          检测规则：{{ analysis.rules.map(rule => rule.name).join('；') }}。以上为规则检测，不涉及 AI 预测。
+          检测规则：{{ analysis.rules.map(rule => rule.name).join('；') }}
         </div>
         <div class="inline-notice" role="status">
           <span class="status-dot" :class="analysis.summary.highRiskCount > 0 ? 'wait' : 'done'" />
@@ -182,6 +182,7 @@ onMounted(() => { void load() })
 
 <style scoped>
 .risk-stack { display: grid; gap: 16px; }
+.risk-metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .risk-list-section { display: grid; gap: 10px; }
 .summary-label { font-size: 13px; color: var(--color-text-secondary); }
 .risk-danger { color: var(--color-danger); }
@@ -190,4 +191,5 @@ onMounted(() => { void load() })
 .severity.high { color: var(--color-danger); }
 .severity.medium { color: var(--color-warning); }
 .severity.low { color: var(--color-text-secondary); }
+@media (max-width: 760px) { .risk-metrics { grid-template-columns: 1fr; } }
 </style>

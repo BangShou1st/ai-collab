@@ -350,7 +350,7 @@ auth.$subscribe(() => {
       </div>
 
       <p v-if="!loadFailed" class="ai-config-summary">
-        已保存 {{ providers.length }} 个模型配置（已启用 {{ enabledProviderCount }} 个）· 配置存在不代表可调用，可用性需按能力测试确认
+        已保存 {{ providers.length }} 个模型配置（已启用 {{ enabledProviderCount }} 个）
       </p>
 
       <el-card v-if="!loadFailed" shadow="never">
@@ -517,7 +517,7 @@ auth.$subscribe(() => {
         show-icon
         :closable="false"
         title="个人聊天模型与系统 Embedding 是两套配置"
-        description="此页只管理你个人用于知识问答、规划与 Agent 的聊天模型。知识库向量检索使用的 Embedding 属于系统级配置，由系统管理员单独管理，与本页的个人 Provider 状态无关。"
+        description="知识库向量检索使用系统级 Embedding，由系统管理员单独管理，与本页个人模型无关。"
       />
       <p v-if="auth.currentUser?.systemAdmin" class="admin-link">
         <router-link to="/admin/embedding">前往系统 Embedding 管理</router-link>
