@@ -61,9 +61,12 @@ async function load(): Promise<void> {
     if (token !== listRequestSeq || pid !== projectId.value) return
     project.value = projectResult.data
     plans.value = planResult.data.data
-    if (routePlanId.value && plans.value.some(plan => plan.id === routePlanId.value)) {
-      selectedPlanId.value = routePlanId.value
-      await loadComparison(routePlanId.value)
+    const requested = routePlanId.value && plans.value.some(plan => plan.id === routePlanId.value)
+      ? routePlanId.value
+      : (plans.value[0]?.id ?? '')
+    if (requested) {
+      selectedPlanId.value = requested
+      await loadComparison(requested)
     }
   } catch (error) {
     if (token !== listRequestSeq) return
@@ -259,8 +262,9 @@ onMounted(() => { void load() })
 
 .baseline-banner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 4px 12px;
   margin-bottom: 16px;
   padding: 10px 14px;
   border: 1px solid var(--color-border);

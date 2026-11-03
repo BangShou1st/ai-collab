@@ -15,6 +15,37 @@ const loading = ref(false)
 const loadError = ref(false)
 const project = ref<Project | null>(null)
 
+// 报告周期：默认本周（周一起始，含今天），支持上/下周切换
+const periodStart = ref('')
+const periodEnd = ref('')
+
+function toIsoDate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function setPeriodFor(anchor: Date): void {
+  const day = anchor.getDay()
+  const mondayOffset = day === 0 ? -6 : 1 - day
+  const monday = new Date(anchor)
+  monday.setDate(anchor.getDate() + mondayOffset)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  periodStart.value = toIsoDate(monday)
+  periodEnd.value = toIsoDate(sunday)
+}
+
+function shiftPeriod(weeks: number): void {
+  const anchor = new Date(`${periodStart.value}T00:00:00`)
+  anchor.setDate(anchor.getDate() + weeks * 7)
+  setPeriodFor(anchor)
+  void load()
+}
+
+setPeriodFor(new Date())
+
 // 请求令牌：快速切换项目时旧请求不得覆盖新项目的数据
 let requestSeq = 0
 
@@ -26,7 +57,7 @@ async function load(): Promise<void> {
   loadError.value = false
   try {
     const [result, projectResult] = await Promise.all([
-      reportApi.weeklyReport(pid),
+      reportApi.weeklyReport(pid, periodStart.value, periodEnd.value),
       projectApi.get(pid),
     ])
     if (token !== requestSeq || pid !== projectId.value) return
@@ -66,7 +97,11 @@ onMounted(() => { void load() })
       :context="project?.name"
     >
       <template #actions>
-        <el-button :loading="loading" @click="load">刷新</el-button>
+        <div class="period-controls">
+          <el-button :disabled="loading" @click="shiftPeriod(-1)">上一周</el-button>
+          <el-button :disabled="loading" @click="shiftPeriod(1)">下一周</el-button>
+          <el-button :loading="loading" @click="load">刷新</el-button>
+        </div>
       </template>
     </PageHeader>
     <section v-loading="loading" class="report-container">
@@ -224,10 +259,16 @@ onMounted(() => { void load() })
   padding: 0 24px;
 }
 
+.period-controls {
+  display: flex;
+  gap: 8px;
+}
+
 .period-banner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 4px 12px;
   margin-bottom: 16px;
   padding: 10px 14px;
   border: 1px solid var(--color-border);
