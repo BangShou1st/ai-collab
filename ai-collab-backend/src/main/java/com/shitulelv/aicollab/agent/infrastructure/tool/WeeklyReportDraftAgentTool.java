@@ -55,6 +55,9 @@ public class WeeklyReportDraftAgentTool implements AgentTool {
         var report = reports.getWeeklyReport(context.projectId(), context.userId(), days);
         ObjectNode data = json.createObjectNode();
         data.put("reportDate", report.reportDate().toString());
+        data.put("startDate", report.startDate().toString());
+        data.put("endDate", report.endDate().toString());
+        data.set("periodStatistics", json.valueToTree(report.periodStats()));
         data.set("taskStatistics", json.valueToTree(report.taskStats()));
         data.set("milestoneStatistics", json.valueToTree(report.milestoneStats()));
         data.set("topContributors", json.valueToTree(report.topContributors()));
