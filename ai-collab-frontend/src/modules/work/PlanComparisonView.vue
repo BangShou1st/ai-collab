@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { showApiError } from '../../api/api-result'
 import PageHeader from '../../shared/PageHeader.vue'
@@ -19,31 +19,46 @@ const comparison = ref<PlanComparison | null>(null)
 const plans = ref<TaskPlan[]>([])
 const selectedPlanId = ref('')
 const loading = ref(false)
-
+const loadError = ref(false)
 const project = ref<Project | null>(null)
+
+// 请求令牌：快速切换项目/规划时旧请求不得覆盖新结果
+let listRequestSeq = 0
+let comparisonRequestSeq = 0
 
 async function loadComparison(planId: string): Promise<void> {
   if (!projectId.value || !planId) return
+  const token = ++comparisonRequestSeq
+  const pid = projectId.value
   loading.value = true
   comparison.value = null
   try {
-    const result = await reportApi.planComparison(projectId.value, planId)
+    const result = await reportApi.planComparison(pid, planId)
+    if (token !== comparisonRequestSeq || pid !== projectId.value) return
     comparison.value = result.data
   } catch (error) {
+    if (token !== comparisonRequestSeq) return
     showApiError(error, '规划对比加载')
   } finally {
-    loading.value = false
+    if (token === comparisonRequestSeq) loading.value = false
   }
 }
 
 async function load(): Promise<void> {
   if (!projectId.value) return
+  const token = ++listRequestSeq
+  const pid = projectId.value
   loading.value = true
+  loadError.value = false
+  // 项目切换后清空旧项目的规划选择与对比结果
+  selectedPlanId.value = ''
+  comparison.value = null
   try {
     const [projectResult, planResult] = await Promise.all([
-      projectApi.get(projectId.value),
-      planningApi.list(projectId.value),
+      projectApi.get(pid),
+      planningApi.list(pid),
     ])
+    if (token !== listRequestSeq || pid !== projectId.value) return
     project.value = projectResult.data
     plans.value = planResult.data.data
     if (routePlanId.value && plans.value.some(plan => plan.id === routePlanId.value)) {
@@ -51,9 +66,11 @@ async function load(): Promise<void> {
       await loadComparison(routePlanId.value)
     }
   } catch (error) {
+    if (token !== listRequestSeq) return
+    loadError.value = true
     showApiError(error, '规划列表加载')
   } finally {
-    loading.value = false
+    if (token === listRequestSeq) loading.value = false
   }
 }
 
@@ -78,11 +95,26 @@ function getStatusLabel(status: string): string {
     case 'MODIFIED': return '已修改'
     case 'MISSING': return '缺失'
     case 'EXTRA': return '额外'
+    case 'UNLINKED': return '无法关联'
+    case 'OTHER_VERSION': return '其他版本'
+    case 'AMBIGUOUS': return '来源重复'
     default: return status
   }
 }
 
-onMounted(load)
+const planNotApplied = computed(() => comparison.value?.comparisonStatus === 'PLAN_NOT_APPLIED')
+
+const baselineLabel = computed(() => {
+  const current = comparison.value
+  if (!current) return ''
+  if (current.baselineSource === 'APPLIED_VERSION' && current.baselineVersionNo != null) {
+    return `基准：实际应用版本（版本 ${current.baselineVersionNo}）`
+  }
+  return '基准：未知（规划未确认应用，不做任务级对比）'
+})
+
+watch(projectId, () => { void load() })
+onMounted(() => { void load() })
 </script>
 
 <template>
@@ -90,10 +122,25 @@ onMounted(load)
     <PageHeader
       eyebrow="项目报告"
       title="规划对比"
+      description="对比所选规划版本与项目实际任务；无法可靠关联的任务会明确标注"
       :context="project?.name"
-    />
+    >
+      <template #actions>
+        <el-button :loading="loading" @click="load">刷新</el-button>
+      </template>
+    </PageHeader>
     <section v-loading="loading" class="comparison-container">
-      <div class="plan-picker">
+      <el-result
+        v-if="!loading && loadError && plans.length === 0"
+        icon="error"
+        title="规划列表加载失败"
+        sub-title="网络或服务异常，可能是临时问题"
+      >
+        <template #extra>
+          <el-button type="primary" @click="load">重试</el-button>
+        </template>
+      </el-result>
+      <div v-else class="plan-picker">
         <label for="comparison-plan">选择任务规划</label>
         <el-select
           id="comparison-plan"
@@ -115,7 +162,18 @@ onMounted(load)
         :description="plans.length ? '请选择要对比的任务规划' : '当前项目还没有可对比的任务规划'"
         :image-size="64"
       />
+      <el-alert
+        v-else-if="planNotApplied"
+        type="warning"
+        :closable="false"
+        :title="comparison?.message || '该规划尚未确认应用到任务中心，暂无可靠对比基准'"
+        show-icon
+      />
       <template v-else-if="comparison">
+        <div class="baseline-banner" role="status">
+          <span>{{ baselineLabel }}</span>
+          <span v-if="comparison.appliedAt" class="baseline-applied">应用时间：{{ comparison.appliedAt }}</span>
+        </div>
         <el-card class="summary-card">
           <template #header>
             <h3>{{ comparison.planName }} - 对比摘要</h3>
@@ -142,6 +200,11 @@ onMounted(load)
               <span class="summary-label">额外</span>
             </div>
           </div>
+          <p v-if="comparison.otherVersionTaskCount || comparison.unlinkedTaskCount || comparison.ambiguousTaskCount" class="baseline-note">
+            <template v-if="comparison.otherVersionTaskCount">其他规划版本任务 {{ comparison.otherVersionTaskCount }} 个（不计入额外）；</template>
+            <template v-if="comparison.unlinkedTaskCount">无法关联实际任务 {{ comparison.unlinkedTaskCount }} 个；</template>
+            <template v-if="comparison.ambiguousTaskCount">来源键重复任务 {{ comparison.ambiguousTaskCount }} 个（不做精确判定）。</template>
+          </p>
         </el-card>
 
         <el-card v-if="comparison.taskComparisons.length > 0" class="tasks-card">
@@ -192,6 +255,31 @@ onMounted(load)
 
 .plan-picker label {
   font-weight: 650;
+}
+
+.baseline-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.baseline-applied {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.baseline-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 .summary-card {
