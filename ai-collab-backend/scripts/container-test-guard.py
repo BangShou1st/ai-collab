@@ -4,6 +4,7 @@
 """
 
 import glob
+import os
 import sys
 import xml.etree.ElementTree as ET
 
@@ -14,6 +15,8 @@ import xml.etree.ElementTree as ET
 # AgentResearchQualityPostgresTest 是直接研究/委派同题对照（真实 PostgreSQL + 真实工具），
 # 两者都必须真实执行，不得整类跳过（真实 Ollama 门槛为 Opt-in，不在此列）。
 # KiloGatewayPresetIsolationIntegrationTest 验证 V65 迁移与双预设隔离：同样不得整类跳过。
+# SystemConfigTransactionPostgresIntegrationTest 验证真实 PostgreSQL + Redis 动态配置事务一致性：
+# 包含提交与回滚可见性，不得整类跳过。
 required = [
     "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentObservabilityPostgresTest",
     "com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetricsTest",
@@ -36,24 +39,70 @@ required = [
     "com.shitulelv.aicollab.agent.infrastructure.repository.AgentFinalCitationContractPostgresTest",
     "com.shitulelv.aicollab.infrastructure.ai.user.KiloGatewayPresetIsolationIntegrationTest",
     "com.shitulelv.aicollab.notification.NotificationNavigationPostgresTest",
+    "com.shitulelv.aicollab.system.application.service.SystemConfigTransactionPostgresIntegrationTest",
 ]
 
+problems = []
+
+# 1. 分片报告聚合完整性校验（若为分片环境，检查 3 个分片标记是否齐备且状态正常）
+marker_pattern = "target/surefire-reports/shard-*-marker.txt"
+found_markers = glob.glob(marker_pattern)
+expected_shard_count = int(os.environ.get("CI_SHARD_COUNT", "3"))
+
+# CI 聚合环境下应产生分片 marker；若已检测到 marker 或显式声明 CI_SHARD_COUNT 门禁，验证分片完整性
+if found_markers or "CI_SHARD_COUNT" in os.environ:
+    for shard in range(1, expected_shard_count + 1):
+        marker_file = f"target/surefire-reports/shard-{shard}-marker.txt"
+        if not os.path.exists(marker_file):
+            problems.append(f"Shard {shard} completion marker missing: {marker_file} (shard artifact was not aggregated)")
+        else:
+            try:
+                with open(marker_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+                if "status=failure" in content or "status=cancelled" in content:
+                    problems.append(f"Shard {shard} marker recorded failure: {content.strip()}")
+            except Exception as e:
+                problems.append(f"Shard {shard} marker unreadable: {e}")
+
+# 2. 读取 Surefire 报告统计
 stats = {}
-for path in glob.glob("target/surefire-reports/TEST-*.xml"):
-    root = ET.parse(path).getroot()
-    stats[root.get("name")] = {
-        key: int(root.get(key, 0))
-        for key in ("tests", "failures", "errors", "skipped")
-    }
+xml_files = glob.glob("target/surefire-reports/TEST-*.xml")
+if not xml_files:
+    problems.append("No Surefire XML reports found under target/surefire-reports/")
+
+for path in xml_files:
+    try:
+        root = ET.parse(path).getroot()
+        cls_name = root.get("name")
+        if not cls_name:
+            continue
+        stats[cls_name] = {
+            key: int(root.get(key, 0))
+            for key in ("tests", "failures", "errors", "skipped")
+        }
+    except Exception as e:
+        problems.append(f"Failed to parse Surefire report {path}: {e}")
 
 total = sum(item["tests"] for item in stats.values())
 skipped = sum(item["skipped"] for item in stats.values())
+failures = sum(item["failures"] for item in stats.values())
+errors = sum(item["errors"] for item in stats.values())
+
 print(
     f"Surefire: {total} tests, {skipped} skipped, "
+    f"{failures} failures, {errors} errors, "
     f"{len(stats)} test classes reported"
 )
 
-problems = []
+# 3. 全局测试失败与错误校验：聚合逻辑绝不能忽略任何失败或错误
+if failures > 0 or errors > 0:
+    for cls_name, item in sorted(stats.items()):
+        if item["failures"] > 0 or item["errors"] > 0:
+            problems.append(
+                f"{cls_name}: {item['failures']} failures, {item['errors']} errors"
+            )
+
+# 4. 必需集成测试真实执行校验
 for name in required:
     item = stats.get(name)
     if item is None:
@@ -66,6 +115,7 @@ for name in required:
             "container runtime unavailable?"
         )
 
+# 5. 本地 Ollama 等明确 Opt-in 测试的跳过策略验证
 # Local Ollama experiments must stay explicitly opt-in; a superclass
 # EnabledIfEnvironmentVariable does not gate a concrete subclass.
 for name in [
@@ -82,4 +132,5 @@ if problems:
     for problem in problems:
         print(f"  - {problem}", file=sys.stderr)
     sys.exit(1)
+
 print("Container test guard passed for all required classes.")
