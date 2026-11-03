@@ -84,18 +84,17 @@ function handleRestoreGuide() {
 /**
  * 判断引导卡片是否应该展开：
  * 1. 若用户在当前设备上有显式的手动偏好设置（展开/收起），优先尊重用户偏好；
- * 2. 否则按真实业务数据判断：老用户（项目>0、任务>0且AI已配置）默认收起不打扰；新用户默认展开引导。
+ * 2. 否则按真实业务数据判断：
+ *    - 纯新用户（未创建任何项目）：默认展开新手引导，帮助快速建立首个协作空间；
+ *    - 已有项目的用户（无论任务是否分配给他人或已完成）：默认收起引导不打扰，可随时通过顶部「新手引导」按钮恢复查看。
  */
 const showOnboardingGuide = computed(() => {
   if (!home.value) return false
   if (userGuideExpandedPreference.value !== null) {
     return userGuideExpandedPreference.value
   }
-  const isExperiencedUser =
-    home.value.recentProjects.length > 0 &&
-    home.value.myTasks.length > 0 &&
-    home.value.aiConfigSummary.configured
-  return !isExperiencedUser
+  const hasProjects = home.value.recentProjects.length > 0
+  return !hasProjects
 })
 
 /** 工作台 AI 状态：只区分“未保存配置 / 已保存但不可解析 / 已保存且至少一项用途可解析”，绝不宣称“已就绪”。 */
@@ -260,16 +259,16 @@ auth.$subscribe(() => {
             </div>
           </router-link>
 
-          <!-- 4. 参与项目总数 -->
-          <router-link to="/projects" class="metric-pill metric-link">
+          <!-- 4. 最近项目数（接口固定上限，不宣称全部项目总数） -->
+          <router-link to="/projects" class="metric-pill metric-link" title="查看全部项目">
             <div class="metric-icon-wrap project-icon">
               <el-icon><FolderAdd /></el-icon>
             </div>
             <div class="metric-info">
-              <span class="metric-label">协作项目</span>
+              <span class="metric-label">最近项目</span>
               <div class="metric-value-row">
                 <span class="metric-number">{{ home.recentProjects.length }}</span>
-                <span class="metric-badge quiet">活跃空间</span>
+                <span class="metric-badge quiet">最多展示 5 项</span>
               </div>
             </div>
           </router-link>
