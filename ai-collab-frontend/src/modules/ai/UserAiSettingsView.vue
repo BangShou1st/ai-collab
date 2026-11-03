@@ -59,11 +59,11 @@ const overrideTokens: Record<AiPurpose, number> = {
   PLANNING: 0,
   AGENT: 0,
 }
-/** 预设连接卡片折叠态：null 表示跟随连接状态（未连接自动展开）。 */
-const zenPanelOpen = ref<boolean | null>(null)
-const kiloPanelOpen = ref<boolean | null>(null)
-const zenExpanded = computed(() => zenPanelOpen.value ?? !(zen.value?.connected ?? false))
-const kiloExpanded = computed(() => kiloPanelOpen.value ?? !(kilo.value?.connected ?? false))
+/** 预设连接卡片折叠态：默认无论连接与否均收起，避免异步加载闪动。 */
+const zenPanelOpen = ref(false)
+const kiloPanelOpen = ref(false)
+const zenExpanded = computed(() => zenPanelOpen.value)
+const kiloExpanded = computed(() => kiloPanelOpen.value)
 /** 递增请求令牌：晚到的加载响应不得覆盖新状态或回填旧用户数据。 */
 let loadToken = 0
 /** 当前已加载数据的账号；变化时丢弃旧数据并重新加载。 */
@@ -220,7 +220,10 @@ const zenConnection = usePresetConnection({
   displayName: 'OpenCode Zen Free',
   supportsApiKey: true,
   disconnectWarning: '断开后将删除已保存的 Zen API Key，用途覆盖会回退到默认模型。确定断开吗？',
-  onSaved: load,
+  onSaved: async () => {
+    zenPanelOpen.value = false
+    await load()
+  },
 })
 
 const kiloConnection = usePresetConnection({
@@ -228,7 +231,10 @@ const kiloConnection = usePresetConnection({
   displayName: 'Kilo Gateway Free',
   supportsApiKey: false,
   disconnectWarning: '断开后将删除已保存的 Kilo Gateway 连接，用途覆盖会回退到默认模型。确定断开吗？',
-  onSaved: load,
+  onSaved: async () => {
+    kiloPanelOpen.value = false
+    await load()
+  },
 })
 
 function openCreate(): void {
@@ -407,7 +413,7 @@ auth.$subscribe(() => {
             {{ zen?.connected ? `已连接 · ${zen?.modelName}` : '未连接' }}
           </span>
           <el-button text type="primary" size="small" @click="zenPanelOpen = !zenExpanded">
-            {{ zenExpanded ? '收起' : '管理连接' }}
+            {{ zenExpanded ? '收起' : (zen?.connected ? '管理' : '连接') }}
           </el-button>
         </div>
         <p class="preset-card__desc">官方免费模型通道，连接后知识问答、AI 规划与 Agent 可直接使用。</p>
@@ -448,7 +454,7 @@ auth.$subscribe(() => {
             {{ kilo?.connected ? `已连接 · ${kilo?.modelName}` : '未连接' }}
           </span>
           <el-button text type="primary" size="small" @click="kiloPanelOpen = !kiloExpanded">
-            {{ kiloExpanded ? '收起' : '管理连接' }}
+            {{ kiloExpanded ? '收起' : (kilo?.connected ? '管理' : '连接') }}
           </el-button>
         </div>
         <p class="preset-card__desc">免费模型聚合网关，匿名可用，连接后知识问答、AI 规划与 Agent 可直接使用。</p>

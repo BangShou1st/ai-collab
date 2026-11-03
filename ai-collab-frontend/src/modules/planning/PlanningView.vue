@@ -131,7 +131,16 @@ function candidateDependencyDisabled(candidateTempKey: string): boolean {
           <div class="planning-structure" :class="{ 'detail-open': Boolean(detailTask || detailMilestone) }">
             <div class="planning-tree">
             <div v-for="m in draft.milestones" :key="m.tempKey" class="milestone-section" :class="{ 'milestone-pending': hasPendingItems(m.tempKey), 'is-open': expandedMilestone === m.tempKey }">
-              <div class="milestone-header" :id="`planning-${m.tempKey}-entity`" @click="toggleMilestone(m.tempKey)">
+              <div
+                class="milestone-header"
+                :id="`planning-${m.tempKey}-entity`"
+                role="button"
+                tabindex="0"
+                :aria-expanded="expandedMilestone === m.tempKey"
+                @click="toggleMilestone(m.tempKey)"
+                @keydown.enter.prevent="toggleMilestone(m.tempKey)"
+                @keydown.space.prevent="toggleMilestone(m.tempKey)"
+              >
                 <div class="milestone-expand-icon">
                   <span v-if="expandedMilestone === m.tempKey">▼</span>
                   <span v-else>▶</span>
@@ -365,6 +374,13 @@ function candidateDependencyDisabled(candidateTempKey: string): boolean {
   flex-wrap: wrap;
   cursor: pointer;
   user-select: none;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.milestone-header:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .milestone-pending .milestone-header {

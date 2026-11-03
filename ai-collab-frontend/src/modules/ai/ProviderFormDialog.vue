@@ -200,10 +200,12 @@ async function save(): Promise<void> {
 function close(): void {
   emit('update:visible', false)
 }
+
+const dialogWidth = computed(() => 'min(620px, 94vw)')
 </script>
 
 <template>
-  <el-dialog :model-value="visible" :title="dialogTitle" width="600px" @update:model-value="close">
+  <el-dialog :model-value="visible" :title="dialogTitle" :width="dialogWidth" class="provider-form-dialog" @update:model-value="close">
     <el-form label-position="top">
       <el-form-item label="名称"><el-input v-model="form.name" maxlength="80" /></el-form-item>
       <el-form-item label="服务商">
@@ -295,7 +297,45 @@ function close(): void {
 </template>
 
 <style scoped>
-.field-hint { display: block; color: var(--color-text-secondary); font-size: 12px; margin-top: 2px; }
-.model-field { display: flex; align-items: center; gap: 8px; width: 100%; }
-.fix-row { display: flex; gap: 8px; margin-top: 4px; }
+.field-hint {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  margin-top: 2px;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+.model-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.model-field :deep(.el-select),
+.model-field :deep(.el-input) {
+  flex: 1;
+  min-width: 0;
+}
+.model-field :deep(.el-button) {
+  flex-shrink: 0;
+}
+.fix-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.fix-row :deep(.el-button) {
+  white-space: normal;
+  height: auto;
+  padding: 5px 8px;
+  line-height: 1.35;
+  text-align: left;
+}
+@media (max-width: 480px) {
+  .model-field {
+    flex-wrap: nowrap;
+  }
+}
 </style>

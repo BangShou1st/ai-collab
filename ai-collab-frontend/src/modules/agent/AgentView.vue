@@ -512,10 +512,10 @@ watch(sessionId, () => {
 /* 中等桌面窗口：对话优先。会话栏并入可开合的详情抽屉逻辑——对话始终占满剩余宽度，
    详情作为右侧覆盖层（含可点击的关闭入口），不再出现 300px 窄列 + 400px 固定详情双层遮挡 */
 @media(max-width:1280px) and (min-width:761px){
-  .agent-workspace,.agent-workspace.hide-inspector{grid-template-columns:minmax(0,1fr)}
+  .agent-workspace{grid-template-columns:220px minmax(0,1fr)}
   .agent-workspace.hide-sessions{grid-template-columns:minmax(0,1fr)}
+  .agent-workspace.hide-inspector{grid-template-columns:220px minmax(0,1fr)}
   .agent-workspace.hide-sessions.hide-inspector{grid-template-columns:minmax(0,1fr)}
-  .agent-workspace:not(.hide-inspector) .agent-sessions{display:none}
   .agent-inspector{position:fixed;top:0;right:0;bottom:0;width:min(400px,92vw);z-index:60;background:var(--color-surface);border-left:1px solid var(--color-border);box-shadow:-12px 0 32px rgba(15,23,42,.12);padding:16px;overflow-y:auto;max-height:none}
   .inspector-close{position:absolute;top:10px;right:12px;width:32px;height:32px;display:grid;place-items:center;font-size:20px;line-height:1;color:var(--color-text-secondary);cursor:pointer;border-radius:8px;background:var(--color-surface-raised);border:1px solid var(--color-border)}
   .inspector-close:hover{color:var(--color-text);background:var(--el-fill-color)}

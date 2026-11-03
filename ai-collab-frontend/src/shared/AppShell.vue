@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import {
-  Bell, ChatDotRound, Connection, Cpu, DataBoard, Document, Expand, Fold, Folder, House, List,
+  Bell, Cpu, DataBoard, Document, Expand, Fold, Folder, House, List,
   MagicStick, MoreFilled, Setting, Tickets, User,
 } from '@element-plus/icons-vue'
 import { showApiError } from '../api/api-result'
@@ -74,6 +74,32 @@ const projectAccessDenied = computed(() =>
 const projectAccessReady = computed(() =>
   Boolean(projectId.value) && projectCtx.currentProjectId === projectId.value,
 )
+
+const isTaskViewActive = (type: 'board' | 'list' | 'gantt' | 'calendar' | 'dependency-graph'): boolean => {
+  const p = route.path || ''
+  const q = route.query?.view as string | undefined
+  if (type === 'board') {
+    return p.endsWith('/board') || (p.endsWith('/tasks') && (q === 'board' || (!q && route.meta?.initialView === 'board')))
+  }
+  if (type === 'list') {
+    return p.endsWith('/tasks') && (q === 'list' || (!q && !route.meta?.initialView))
+  }
+  if (type === 'gantt') {
+    return p.endsWith('/gantt') || (p.endsWith('/tasks') && q === 'gantt')
+  }
+  if (type === 'calendar') {
+    return p.endsWith('/calendar') || (p.endsWith('/tasks') && q === 'calendar')
+  }
+  if (type === 'dependency-graph') {
+    return p.endsWith('/dependency-graph') || (p.endsWith('/tasks') && q === 'dependency-graph')
+  }
+  return false
+}
+
+const isAnyTaskActive = computed(() => {
+  const p = route.path || ''
+  return p.includes('/tasks') || p.endsWith('/board') || p.endsWith('/gantt') || p.endsWith('/calendar') || p.endsWith('/dependency-graph')
+})
 
 watch(
   projectId,
@@ -147,29 +173,65 @@ async function logout(): Promise<void> {
       <nav v-if="projectId && !projectAccessDenied" class="side-group" aria-label="项目导航">
         <p class="side-title">{{ projectCtx.project?.name ?? '当前项目' }}</p>
         <router-link :to="`/projects/${projectId}/dashboard`" title="项目概览" aria-label="项目概览"><el-icon><DataBoard /></el-icon><span>项目概览</span></router-link>
-        <router-link :to="`/projects/${projectId}/board`" title="任务看板" aria-label="任务看板"><el-icon><Tickets /></el-icon><span>任务看板</span></router-link>
-        <router-link :to="`/projects/${projectId}/documents`" title="项目文档" aria-label="项目文档"><el-icon><Document /></el-icon><span>项目文档</span></router-link>
-        <router-link :to="`/projects/${projectId}/knowledge`" title="知识问答" aria-label="知识问答"><el-icon><ChatDotRound /></el-icon><span>知识问答</span></router-link>
-        <router-link :to="`/projects/${projectId}/knowledge-source`" title="飞书知识源" aria-label="飞书知识源"><el-icon><Connection /></el-icon><span>飞书知识源</span></router-link>
-        <router-link :to="`/projects/${projectId}/ai-planning`" title="任务规划" aria-label="任务规划"><el-icon><MagicStick /></el-icon><span>任务规划</span></router-link>
-        <router-link :to="`/projects/${projectId}/agent`" title="协作 Agent" aria-label="协作 Agent"><el-icon><Cpu /></el-icon><span>协作 Agent</span></router-link>
-        <details class="side-details">
-          <summary title="洞察分析"><el-icon><List /></el-icon><span>洞察分析</span></summary>
-          <router-link :to="`/projects/${projectId}/gantt`">甘特图</router-link>
-          <router-link :to="`/projects/${projectId}/calendar`">日历</router-link>
-          <router-link :to="`/projects/${projectId}/dependency-graph`">任务依赖</router-link>
-          <router-link :to="`/projects/${projectId}/member-load`">成员负载</router-link>
-          <router-link :to="`/projects/${projectId}/milestones`">里程碑</router-link>
-          <router-link :to="`/projects/${projectId}/weekly-report`">项目周报</router-link>
-          <router-link :to="`/projects/${projectId}/risk-analysis`">风险分析</router-link>
-          <router-link :to="`/projects/${projectId}/plan-comparison`">规划对比</router-link>
+        
+        <details class="side-details" open>
+          <summary title="任务中心"><el-icon><Tickets /></el-icon><span>任务中心</span></summary>
+          <router-link
+            :to="`/projects/${projectId}/board`"
+            title="任务看板"
+            :class="{ 'is-nav-active': isTaskViewActive('board'), 'is-nav-inactive': isAnyTaskActive && !isTaskViewActive('board') }"
+          >任务看板</router-link>
+          <router-link
+            :to="`/projects/${projectId}/tasks?view=list`"
+            title="任务列表"
+            :class="{ 'is-nav-active': isTaskViewActive('list'), 'is-nav-inactive': isAnyTaskActive && !isTaskViewActive('list') }"
+          >任务列表</router-link>
+          <router-link
+            :to="`/projects/${projectId}/gantt`"
+            title="甘特图"
+            :class="{ 'is-nav-active': isTaskViewActive('gantt'), 'is-nav-inactive': isAnyTaskActive && !isTaskViewActive('gantt') }"
+          >甘特图</router-link>
+          <router-link
+            :to="`/projects/${projectId}/calendar`"
+            title="日历"
+            :class="{ 'is-nav-active': isTaskViewActive('calendar'), 'is-nav-inactive': isAnyTaskActive && !isTaskViewActive('calendar') }"
+          >日历</router-link>
+          <router-link
+            :to="`/projects/${projectId}/dependency-graph`"
+            title="任务依赖"
+            :class="{ 'is-nav-active': isTaskViewActive('dependency-graph'), 'is-nav-inactive': isAnyTaskActive && !isTaskViewActive('dependency-graph') }"
+          >任务依赖</router-link>
+          <router-link :to="`/projects/${projectId}/milestones`" title="里程碑管理">里程碑管理</router-link>
         </details>
+
+        <details class="side-details" open>
+          <summary title="AI 工作区"><el-icon><MagicStick /></el-icon><span>AI 工作区</span></summary>
+          <router-link :to="`/projects/${projectId}/ai-planning`" title="AI 任务规划">AI 任务规划</router-link>
+          <router-link :to="`/projects/${projectId}/agent`" title="协作 Agent">协作 Agent</router-link>
+        </details>
+
+        <details class="side-details">
+          <summary title="知识中心"><el-icon><Document /></el-icon><span>知识中心</span></summary>
+          <router-link :to="`/projects/${projectId}/documents`" title="项目文档">项目文档</router-link>
+          <router-link :to="`/projects/${projectId}/knowledge`" title="知识问答">知识问答</router-link>
+          <router-link :to="`/projects/${projectId}/knowledge-source`" title="飞书知识源">飞书知识源</router-link>
+        </details>
+
+        <details class="side-details">
+          <summary title="项目洞察"><el-icon><List /></el-icon><span>项目洞察</span></summary>
+          <router-link :to="`/projects/${projectId}/member-load`" title="成员负载">成员负载</router-link>
+          <router-link :to="`/projects/${projectId}/weekly-report`" title="项目周报">项目周报</router-link>
+          <router-link :to="`/projects/${projectId}/risk-analysis`" title="风险分析">风险分析</router-link>
+          <router-link :to="`/projects/${projectId}/plan-comparison`" title="规划对比">规划对比</router-link>
+        </details>
+
         <details class="side-details">
           <summary title="项目设置"><el-icon><Setting /></el-icon><span>项目设置</span></summary>
-          <router-link :to="`/projects/${projectId}/members`">成员管理</router-link>
-          <router-link :to="`/projects/${projectId}/integrations`">集成与 MCP</router-link>
-          <router-link v-if="projectCtx.isAdminOrOwner" :to="`/projects/${projectId}/audit-logs`">操作日志</router-link>
+          <router-link :to="`/projects/${projectId}/members`" title="成员管理">成员管理</router-link>
+          <router-link :to="`/projects/${projectId}/integrations`" title="集成与 MCP">集成与 MCP</router-link>
+          <router-link v-if="projectCtx.isAdminOrOwner" :to="`/projects/${projectId}/audit-logs`" title="操作日志">操作日志</router-link>
         </details>
+
         <router-link to="/projects" title="切换项目" aria-label="切换项目"><el-icon><Folder /></el-icon><span>切换项目</span></router-link>
       </nav>
 
