@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import java.util.List;
 import java.util.UUID;
 
 @Mapper
@@ -35,4 +36,12 @@ public interface ExternalDocumentRevisionMapper {
             WHERE external_document_id=#{id}::uuid AND status='ACTIVE'
             """)
     int supersedeActive(@Param("id") UUID id);
+
+    @Select("""
+            SELECT DISTINCT r.object_key FROM external_document_revision r
+            JOIN external_document e ON e.id=r.external_document_id
+            WHERE e.source_id=#{sourceId}::uuid AND e.document_id=#{documentId}::uuid
+              AND r.object_key IS NOT NULL
+            """)
+    List<String> listObjectKeysByDocument(@Param("sourceId") UUID sourceId, @Param("documentId") UUID documentId);
 }

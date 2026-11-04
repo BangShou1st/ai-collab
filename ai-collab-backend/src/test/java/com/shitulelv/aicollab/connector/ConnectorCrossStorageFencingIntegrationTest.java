@@ -1,12 +1,15 @@
 package com.shitulelv.aicollab.connector;
 
 import com.shitulelv.aicollab.common.testing.MinioTestImage;
+import com.shitulelv.aicollab.connector.application.ConnectorCleanupService;
 import com.shitulelv.aicollab.connector.application.ConnectorSyncService;
+import com.shitulelv.aicollab.connector.application.ConnectorVisibilityService;
 import com.shitulelv.aicollab.connector.infrastructure.feishu.FeishuClient;
 import com.shitulelv.aicollab.connector.infrastructure.feishu.FeishuFile;
 import com.shitulelv.aicollab.connector.infrastructure.persistence.ConnectorSyncJobMapper;
 import com.shitulelv.aicollab.connector.infrastructure.persistence.ExternalDocumentMapper;
 import com.shitulelv.aicollab.connector.infrastructure.persistence.ExternalDocumentRevisionMapper;
+import com.shitulelv.aicollab.connector.infrastructure.repository.ConnectorCleanupRepository;
 import com.shitulelv.aicollab.document.application.service.DocumentTaskDispatcher;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.document.infrastructure.storage.DocumentStorageGateway;
@@ -125,6 +128,12 @@ public class ConnectorCrossStorageFencingIntegrationTest {
     private ExternalDocumentMapper externalDocs;
     @Autowired
     private ExternalDocumentRevisionMapper revisions;
+    @Autowired
+    private ConnectorVisibilityService visibility;
+    @Autowired
+    private ConnectorCleanupService cleanupService;
+    @Autowired
+    private ConnectorCleanupRepository cleanupRepo;
 
     @MockitoBean
     private FeishuClient feishu;
@@ -164,6 +173,14 @@ public class ConnectorCrossStorageFencingIntegrationTest {
     private String readObject(String objectKey) throws Exception {
         try (InputStream stream = storage.open(objectKey)) {
             return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private boolean objectExists(String objectKey) {
+        try (InputStream stream = storage.open(objectKey)) {
+            return stream != null;
+        } catch (Exception ex) {
+            return false;
         }
     }
 
@@ -449,5 +466,190 @@ public class ConnectorCrossStorageFencingIntegrationTest {
         // 此时 source 状态依然为 BLOCKED
         String status = jdbc.queryForObject("SELECT status FROM connector_source WHERE id=?", String.class, sourceId);
         assertThat(status).isEqualTo("BLOCKED");
+    }
+
+    /**
+     * D1.2 收尾补丁 P1: 确认删除必须物理清理该文档所有历史版本的 MinIO 对象
+     */
+    @Test
+    void confirmedDeletionMustCleanAllHistoricalVersionObjectsInMinio() throws Exception {
+        UUID sourceId = createSource();
+        String fileToken = "doc_token_cleanup_hist";
+
+        // 1. 同步生成 V1
+        doReturn(List.of(new FeishuFile(fileToken, "Hist Doc", "docx", "https://feishu/hist", 1000L)))
+                .when(feishu).listFolderDocx(anyString(), anyString());
+        doReturn("Content Version 1").when(feishu).docxRawContent(anyString(), eq(fileToken));
+        UUID job1 = syncService.trigger(sourceId, "MANUAL");
+        awaitJobFinish(job1);
+
+        var extDoc = externalDocs.listBySource(sourceId).getFirst();
+        UUID documentId = extDoc.documentId;
+        String keyV1 = jdbc.queryForObject("SELECT object_key FROM project_document WHERE id=?", String.class, documentId);
+        assertThat(objectExists(keyV1)).isTrue();
+
+        // 2. 更新生成 V2
+        jdbc.update("UPDATE project_document SET status='READY' WHERE id=?", documentId);
+        doReturn(List.of(new FeishuFile(fileToken, "Hist Doc", "docx", "https://feishu/hist", 2000L)))
+                .when(feishu).listFolderDocx(anyString(), anyString());
+        doReturn("Content Version 2").when(feishu).docxRawContent(anyString(), eq(fileToken));
+        UUID job2 = syncService.trigger(sourceId, "MANUAL");
+        awaitJobFinish(job2);
+
+        String keyV2 = jdbc.queryForObject("SELECT object_key FROM project_document WHERE id=?", String.class, documentId);
+        assertThat(objectExists(keyV2)).isTrue();
+        assertThat(keyV2).isNotEqualTo(keyV1);
+
+        // 3. 更新生成 V3
+        jdbc.update("UPDATE project_document SET status='READY' WHERE id=?", documentId);
+        doReturn(List.of(new FeishuFile(fileToken, "Hist Doc", "docx", "https://feishu/hist", 3000L)))
+                .when(feishu).listFolderDocx(anyString(), anyString());
+        doReturn("Content Version 3").when(feishu).docxRawContent(anyString(), eq(fileToken));
+        UUID job3 = syncService.trigger(sourceId, "MANUAL");
+        awaitJobFinish(job3);
+
+        String keyV3 = jdbc.queryForObject("SELECT object_key FROM project_document WHERE id=?", String.class, documentId);
+        assertThat(objectExists(keyV3)).isTrue();
+        assertThat(keyV3).isNotEqualTo(keyV2);
+
+        // 验证当前 MinIO 中 V1, V2, V3 三个对象实际全部存在
+        assertThat(objectExists(keyV1)).isTrue();
+        assertThat(objectExists(keyV2)).isTrue();
+        assertThat(objectExists(keyV3)).isTrue();
+
+        // 4. 触发确认删除（撤销授权并确认删除）
+        visibility.blockSource(projectId, sourceId, true);
+
+        // 5. 触发实际的清理任务 Worker
+        int cleaned = cleanupService.processDueBatch();
+        assertThat(cleaned).isGreaterThan(0);
+
+        // 6. 验证：所有历史版本对象在 MinIO 中均已物理删除！
+        // 在未修复前，现有逻辑仅删除当前 keyV3，keyV1 与 keyV2 依然留在 MinIO 中，此断言将确定性失败！
+        assertThat(objectExists(keyV1))
+                .as("历史版本 V1 对象必须被彻底清理")
+                .isFalse();
+        assertThat(objectExists(keyV2))
+                .as("历史版本 V2 对象必须被彻底清理")
+                .isFalse();
+        assertThat(objectExists(keyV3))
+                .as("当前版本 V3 对象必须被清理")
+                .isFalse();
+
+        // 7. 检查数据库清理结果
+        String cleanupStatus = jdbc.queryForObject("SELECT status FROM connector_cleanup_job", String.class);
+        assertThat(cleanupStatus).isEqualTo("COMPLETE");
+    }
+
+    /**
+     * D1.2-F03: 历史旧格式 source.txt 兼容器清理验证
+     */
+    @Test
+    void legacySourceTxtObjectIsAlsoCleanedOnConfirmedDeletion() throws Exception {
+        UUID sourceId = createSource();
+        String fileToken = "doc_token_legacy_test";
+
+        // 同步 V1
+        doReturn(List.of(new FeishuFile(fileToken, "Legacy Doc", "docx", "https://feishu/legacy", 1000L)))
+                .when(feishu).listFolderDocx(anyString(), anyString());
+        doReturn("Content Version 1").when(feishu).docxRawContent(anyString(), eq(fileToken));
+        UUID job1 = syncService.trigger(sourceId, "MANUAL");
+        awaitJobFinish(job1);
+
+        var extDoc = externalDocs.listBySource(sourceId).getFirst();
+        UUID documentId = extDoc.documentId;
+        String keyV1 = jdbc.queryForObject("SELECT object_key FROM project_document WHERE id=?", String.class, documentId);
+
+        // 模拟历史上遗留的旧格式 source.txt
+        String legacyKey = "projects/" + projectId + "/documents/" + documentId + "/source.txt";
+        storage.put(legacyKey, new java.io.ByteArrayInputStream("legacy text".getBytes(StandardCharsets.UTF_8)),
+                11, "text/plain");
+        assertThat(objectExists(legacyKey)).isTrue();
+        assertThat(objectExists(keyV1)).isTrue();
+
+        // 触发确认删除并执行批处理
+        visibility.blockSource(projectId, sourceId, true);
+        cleanupService.processDueBatch();
+
+        // 验证两者皆被清理
+        assertThat(objectExists(keyV1)).isFalse();
+        assertThat(objectExists(legacyKey)).isFalse();
+    }
+
+    /**
+     * D1.2-F08: 重新激活后的合法新对象绝不被清理任务误删
+     */
+    @Test
+    void cleanupNeverDeletesReactivatedDocumentObject() throws Exception {
+        UUID sourceId = createSource();
+        String fileToken = "doc_token_reactivate";
+
+        // 同步 V1
+        doReturn(List.of(new FeishuFile(fileToken, "Reactivate Doc", "docx", "https://feishu/reactivate", 1000L)))
+                .when(feishu).listFolderDocx(anyString(), anyString());
+        doReturn("Content Version 1").when(feishu).docxRawContent(anyString(), eq(fileToken));
+        UUID job1 = syncService.trigger(sourceId, "MANUAL");
+        awaitJobFinish(job1);
+
+        var extDoc = externalDocs.listBySource(sourceId).getFirst();
+        UUID documentId = extDoc.documentId;
+        String keyV1 = jdbc.queryForObject("SELECT object_key FROM project_document WHERE id=?", String.class, documentId);
+
+        // 用户确认撤权删除，入队清理
+        visibility.blockSource(projectId, sourceId, true);
+
+        // 重新授权并激活：恢复文档
+        jdbc.update("UPDATE connector_source SET status='ACTIVE' WHERE id=?", sourceId);
+        jdbc.update("UPDATE project_document SET access_blocked=FALSE WHERE id=?", documentId);
+        jdbc.update("UPDATE external_document SET status='ACTIVE' WHERE id=?", extDoc.id);
+
+        // 尝试执行原有的 cleanup 任务
+        cleanupService.processDueBatch();
+
+        // 验证：因为文档已被重新激活（access_blocked=FALSE），safeTarget 保护生效，V1 对象完好无损！
+        assertThat(objectExists(keyV1)).isTrue();
+    }
+
+    /**
+     * D1.2-F12: 知识源授权失效时，预上传到 MinIO 的对象被立即补偿清理，不残留孤儿文件
+     */
+    @Test
+    void sourceInactiveCleansPreUploadedOrphanObject() throws Exception {
+        UUID sourceId = createSource();
+        String fileToken = "doc_token_inactive_src";
+
+        // 同步 V1 成功
+        doReturn(List.of(new FeishuFile(fileToken, "Inactive Doc", "docx", "https://feishu/inactive", 1000L)))
+                .when(feishu).listFolderDocx(anyString(), anyString());
+        doReturn("Content Version 1").when(feishu).docxRawContent(anyString(), eq(fileToken));
+        UUID job1 = syncService.trigger(sourceId, "MANUAL");
+        awaitJobFinish(job1);
+
+        var extDoc = externalDocs.listBySource(sourceId).getFirst();
+        UUID documentId = extDoc.documentId;
+        String keyV1 = jdbc.queryForObject("SELECT object_key FROM project_document WHERE id=?", String.class, documentId);
+        assertThat(objectExists(keyV1)).isTrue();
+
+        // 此时授权被撤销（status='REVOKED'）导致源无法恢复激活
+        UUID authId = UUID.randomUUID();
+        jdbc.update("INSERT INTO connector_oauth_authorization(id, project_id, connection_id, user_id, status, token_issued_at) " +
+                "VALUES (?, ?, ?, ?, 'REVOKED', now())", authId, projectId, connectionId, userId);
+        jdbc.update("UPDATE connector_source SET user_authorization_id=?, status='BLOCKED' WHERE id=?", authId, sourceId);
+
+        // 再次触发同步 V2
+        jdbc.update("UPDATE project_document SET status='READY' WHERE id=?", documentId);
+        doReturn(List.of(new FeishuFile(fileToken, "Inactive Doc", "docx", "https://feishu/inactive", 2000L)))
+                .when(feishu).listFolderDocx(anyString(), anyString());
+        doReturn("Content Version 2").when(feishu).docxRawContent(anyString(), eq(fileToken));
+        UUID job2 = syncService.trigger(sourceId, "MANUAL");
+        awaitJobFinish(job2);
+
+        // 数据库指针依然是 keyV1
+        String currentDbKey = jdbc.queryForObject("SELECT object_key FROM project_document WHERE id=?", String.class, documentId);
+        assertThat(currentDbKey).isEqualTo(keyV1);
+
+        // 检查 MinIO 中前缀下的对象：应该只有合法被引用的 keyV1，预上传的 V2 对象已被清理，不存在任何孤儿
+        List<String> objects = storage.list("projects/" + projectId + "/documents/" + documentId + "/sources/", 10);
+        assertThat(objects).containsExactly(keyV1);
     }
 }

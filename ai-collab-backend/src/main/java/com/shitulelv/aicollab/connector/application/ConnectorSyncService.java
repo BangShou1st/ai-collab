@@ -266,6 +266,7 @@ public class ConnectorSyncService {
                 // 接管方必须等本事务提交才能回收任务。
                 boolean[] updated = { false };
                 boolean[] sourceActive = { true };
+                boolean committed = false;
                 try {
                     writeUnderOwnership(jobId, () -> {
                         sourceActive[0] = visibility.withActiveSource(source.projectId, source.id, () -> {
@@ -284,8 +285,9 @@ public class ConnectorSyncService {
                             }
                         });
                     });
+                    committed = true;
                 } catch (ConnectorSyncLeaseGuard.LeaseLostException exception) {
-                    if (!contentUnchanged) {
+                    if (!contentUnchanged && !committed) {
                         // 失权 Worker 未能落库：安全清理本 Worker 刚才上传的独立对象 Key，
                         // 避免孤儿文件积累。由于使用不可变 Key，清理绝不会误删其他 Worker 已经提交的合法版本。
                         try {
@@ -296,17 +298,25 @@ public class ConnectorSyncService {
                     }
                     throw exception;
                 } catch (RuntimeException exception) {
-                    if (!contentUnchanged) {
-                        // 数据库事务异常回滚：补偿删除未被落库引用的对象
+                    if (!contentUnchanged && !committed) {
+                        // 数据库事务未成功完成：补偿删除未被落库引用的对象
                         try {
                             storage.delete(targetObjectKey);
                         } catch (RuntimeException cleanupException) {
-                            log.warn("事务回滚后清理孤儿对象失败，objectKey={}", targetObjectKey, cleanupException);
+                            log.warn("事务未完成清理孤儿对象失败，objectKey={}", targetObjectKey, cleanupException);
                         }
                     }
                     throw exception;
                 }
                 if (!sourceActive[0]) {
+                    if (!contentUnchanged) {
+                        // 授权变化导致未写入数据库：安全清理未被引用的预上传对象
+                        try {
+                            storage.delete(targetObjectKey);
+                        } catch (RuntimeException cleanupException) {
+                            log.warn("源未激活清理预上传孤儿对象失败，objectKey={}", targetObjectKey, cleanupException);
+                        }
+                    }
                     recordFailure(counters, "知识源授权已变化，请重新同步");
                 } else if (updated[0]) {
                     counters.updated++;
@@ -393,12 +403,7 @@ public class ConnectorSyncService {
             entity.setStatus(DocumentStatus.UPLOADED);
             entity.setChunkCount(0);
             entity.setUploadedBy(source.authorizationDeclaredBy);
-            try {
-                registration.registerUploadedDocument(entity);
-            } catch (RuntimeException exception) {
-                storage.delete(targetObjectKey);
-                throw exception;
-            }
+            registration.registerUploadedDocument(entity);
             UUID externalId = UUID.randomUUID();
             if (reactivating) {
                 externalDocs.updateDocumentRef(existing.id, documentId, "ACTIVE", displayName, file.url());

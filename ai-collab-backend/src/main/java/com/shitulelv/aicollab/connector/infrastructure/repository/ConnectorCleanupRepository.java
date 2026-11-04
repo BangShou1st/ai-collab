@@ -50,6 +50,19 @@ public class ConnectorCleanupRepository {
         return Boolean.TRUE.equals(safe);
     }
 
+    public boolean safeTargetKey(Claim claim, String targetKey) {
+        if (targetKey == null) return false;
+        String prefix = "projects/" + claim.projectId() + "/documents/" + claim.documentId() + "/";
+        if (!targetKey.startsWith(prefix)) return false;
+        Boolean safe = jdbc.queryForObject("""
+                SELECT NOT EXISTS (
+                  SELECT 1 FROM project_document d
+                  WHERE d.project_id=? AND d.id=? AND d.object_key=? AND NOT d.access_blocked
+                )
+                """, Boolean.class, claim.projectId(), claim.documentId(), targetKey);
+        return Boolean.TRUE.equals(safe);
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean complete(Claim claim) {
         var current = jdbc.queryForList("SELECT id FROM connector_cleanup_job WHERE id=? AND status='RUNNING' AND claim_id=? FOR UPDATE",
@@ -64,7 +77,7 @@ public class ConnectorCleanupRepository {
                 DELETE FROM project_document WHERE project_id=? AND id=? AND object_key=? AND access_blocked
                 """, claim.projectId(), claim.documentId(), claim.objectKey());
         jdbc.update("""
-                UPDATE external_document_revision r SET content_hash=NULL,latest_modify_time=NULL
+                UPDATE external_document_revision r SET content_hash=NULL,latest_modify_time=NULL,object_key=NULL
                 WHERE EXISTS (SELECT 1 FROM external_document e WHERE e.id=r.external_document_id
                   AND e.source_id=? AND e.document_id=?)
                 """, claim.sourceId(), claim.documentId());
