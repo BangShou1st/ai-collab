@@ -21,13 +21,23 @@
   <b>融合项目管理 · RAG 知识库 · 两阶段 AI 任务规划 · 受控协作 Agent 的一体化研发协作中枢</b>
 </p>
 
+<p align="center">
+  <a href="https://ai-collab-web.pages.dev" target="_blank">
+    <img src="https://img.shields.io/badge/🚀%20在线演示%20Live%20Demo-https%3A%2F%2Fai--collab--web.pages.dev-0052FF?style=for-the-badge&logo=cloudflare-pages&logoColor=white" alt="Live Demo" />
+  </a>
+</p>
+
 ---
 
-[功能特性](#-核心功能) • [界面预览](#-界面预览) • [系统架构](#-系统架构) • [技术栈](#-技术栈) • [快速开始](#-快速开始) • [AI 模型接入](#-ai-模型接入) • [分支与开发规范](#-分支与开发规范)
+[🌐 在线演示 (Live Demo)](https://ai-collab-web.pages.dev) • [功能特性](#-核心功能) • [界面预览](#-界面预览) • [系统架构](#-系统架构) • [技术栈](#-技术栈) • [快速开始](#-快速开始) • [AI 模型接入](#-ai-模型接入) • [分支与开发规范](#-分支与开发规范)
 
 </div>
 
 <br />
+
+> [!TIP]
+> 🚀 **正式站在线演示已就绪**：**[https://ai-collab-web.pages.dev](https://ai-collab-web.pages.dev)**  
+> 现已开放全功能公开体验，包含：现代化协作工作台、敏捷任务看板、带段落溯源的 RAG 知识库、两阶段自省式 AI 规划与受控协作 Agent 审批流。
 
 ## 📖 项目简介
 
@@ -79,7 +89,7 @@ mindmap
       Apache Tika 多源文档解析
       智能分块与 pgvector 语义检索
       段落级溯源与 SSE 流式问答
-      飞书 (Feishu/Lark) 知识库生态连接
+      飞书云文档与知识库生态连接
       对象存储增量扫描与孤儿清理
     两阶段自省式 AI 任务规划
       骨架生成与细节填充管线
