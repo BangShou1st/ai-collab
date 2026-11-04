@@ -162,6 +162,7 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
             Iterable<Result<Item>> results = client.listObjects(ListObjectsArgs.builder()
                     .bucket(properties.bucket())
                     .prefix(prefix)
+                    .recursive(true)
                     .maxKeys(Math.min(maxKeys, 500))
                     .build());
             for (Result<Item> result : results) {

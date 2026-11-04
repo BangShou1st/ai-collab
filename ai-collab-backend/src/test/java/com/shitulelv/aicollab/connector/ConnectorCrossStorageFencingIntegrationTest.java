@@ -1,5 +1,7 @@
 package com.shitulelv.aicollab.connector;
 
+import com.shitulelv.aicollab.common.exception.BusinessException;
+import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.testing.MinioTestImage;
 import com.shitulelv.aicollab.connector.application.ConnectorCleanupService;
 import com.shitulelv.aicollab.connector.application.ConnectorSyncService;
@@ -11,6 +13,7 @@ import com.shitulelv.aicollab.connector.infrastructure.persistence.ExternalDocum
 import com.shitulelv.aicollab.connector.infrastructure.persistence.ExternalDocumentRevisionMapper;
 import com.shitulelv.aicollab.connector.infrastructure.repository.ConnectorCleanupRepository;
 import com.shitulelv.aicollab.document.application.service.DocumentTaskDispatcher;
+import com.shitulelv.aicollab.document.application.view.DownloadUrlView;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.document.infrastructure.storage.DocumentStorageGateway;
 import com.shitulelv.aicollab.infrastructure.ai.model.ModelSecretCipher;
@@ -36,8 +39,11 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -147,6 +153,8 @@ public class ConnectorCrossStorageFencingIntegrationTest {
     @BeforeEach
     void setUpFixtures() {
         reset(feishu, dispatcher);
+        jdbc.update("DELETE FROM connector_cleanup_job");
+        jdbc.update("DELETE FROM connector_deletion_journal");
         userId = UUID.randomUUID();
         projectId = UUID.randomUUID();
         connectionId = UUID.randomUUID();
@@ -182,6 +190,18 @@ public class ConnectorCrossStorageFencingIntegrationTest {
         } catch (Exception ex) {
             return false;
         }
+    }
+
+    private String getCleanupJobStatus(UUID documentId) {
+        return jdbc.queryForObject(
+                "SELECT j.status FROM connector_cleanup_job j JOIN connector_deletion_journal d ON j.journal_id = d.id WHERE d.document_id = ?",
+                String.class, documentId);
+    }
+
+    private void setCleanupJobReady(UUID documentId) {
+        jdbc.update(
+                "UPDATE connector_cleanup_job SET next_attempt_at=now() WHERE journal_id IN (SELECT id FROM connector_deletion_journal WHERE document_id=?)",
+                documentId);
     }
 
     private void awaitJobFinish(UUID jobId) throws Exception {
@@ -537,7 +557,7 @@ public class ConnectorCrossStorageFencingIntegrationTest {
                 .isFalse();
 
         // 7. 检查数据库清理结果
-        String cleanupStatus = jdbc.queryForObject("SELECT status FROM connector_cleanup_job", String.class);
+        String cleanupStatus = getCleanupJobStatus(documentId);
         assertThat(cleanupStatus).isEqualTo("COMPLETE");
     }
 
@@ -651,5 +671,159 @@ public class ConnectorCrossStorageFencingIntegrationTest {
         // 检查 MinIO 中前缀下的对象：应该只有合法被引用的 keyV1，预上传的 V2 对象已被清理，不存在任何孤儿
         List<String> objects = storage.list("projects/" + projectId + "/documents/" + documentId + "/sources/", 10);
         assertThat(objects).containsExactly(keyV1);
+    }
+
+    /**
+     * FINAL-T01 & FINAL-T02: MinIO 列表扫描失败时，任务绝不能被标记为 COMPLETE，且网络恢复后重试能够顺利清理并完成
+     */
+    @Test
+    void minioListFailureMustNotMarkCleanupCompleteAndCanRecover() throws Exception {
+        UUID sourceId = createSource();
+        String fileToken = "doc_token_scan_fail_test";
+
+        doReturn(List.of(new FeishuFile(fileToken, "Scan Fail Doc", "docx", "https://feishu/scan", 1000L)))
+                .when(feishu).listFolderDocx(anyString(), anyString());
+        doReturn("Content Version 1").when(feishu).docxRawContent(anyString(), eq(fileToken));
+        UUID job1 = syncService.trigger(sourceId, "MANUAL");
+        awaitJobFinish(job1);
+
+        var extDoc = externalDocs.listBySource(sourceId).getFirst();
+        UUID documentId = extDoc.documentId;
+        String keyV1 = jdbc.queryForObject("SELECT object_key FROM project_document WHERE id=?", String.class, documentId);
+        assertThat(objectExists(keyV1)).isTrue();
+
+        // 触发确认删除
+        visibility.blockSource(projectId, sourceId, true);
+
+        // 使用委托存储网关注入故障：模拟 storage.list 失败
+        AtomicBoolean injectFailure = new AtomicBoolean(true);
+        DocumentStorageGateway faultStorage = new DocumentStorageGateway() {
+            @Override
+            public List<String> list(String prefix, int maxKeys) {
+                if (injectFailure.get()) {
+                    throw new BusinessException(ErrorCode.DOCUMENT_STORAGE_UNAVAILABLE, "Simulated scan outage");
+                }
+                return storage.list(prefix, maxKeys);
+            }
+            @Override public void put(String k, InputStream in, long s, String t) { storage.put(k, in, s, t); }
+            @Override public InputStream open(String k) { return storage.open(k); }
+            @Override public DownloadUrlView presign(String k, String f, Duration d) { return storage.presign(k, f, d); }
+            @Override public void delete(String k) { storage.delete(k); }
+        };
+
+        ConnectorCleanupService testWorker = new ConnectorCleanupService(cleanupRepo, faultStorage, revisions, true);
+
+        // 1. 故障注入下执行清理：扫描失败
+        testWorker.processDueBatch();
+
+        // 断言：任务状态绝不能是 COMPLETE！必须处于未完成状态（PENDING 或由 retry 保护）
+        String statusAfterFailure = getCleanupJobStatus(documentId);
+        assertThat(statusAfterFailure).as("扫描失败时任务绝不能被标记为 COMPLETE").isNotEqualTo("COMPLETE");
+
+        // 2. 模拟网络恢复
+        injectFailure.set(false);
+        setCleanupJobReady(documentId);
+        testWorker.processDueBatch();
+
+        // 断言：恢复后重试执行成功，状态变为 COMPLETE，且对象彻底被物理清除
+        String statusAfterRecover = getCleanupJobStatus(documentId);
+        assertThat(statusAfterRecover).isEqualTo("COMPLETE");
+        assertThat(objectExists(keyV1)).isFalse();
+    }
+
+    /**
+     * FINAL-T03: 单文档专属前缀下存在超过 200 个对象时能够全量完整清理，无任何孤儿泄漏
+     */
+    @Test
+    void cleanupHandlesMoreThan200ObjectsWithoutLeaking() throws Exception {
+        UUID sourceId = createSource();
+        String fileToken = "doc_token_200_plus";
+
+        doReturn(List.of(new FeishuFile(fileToken, "Bulk Doc", "docx", "https://feishu/bulk", 1000L)))
+                .when(feishu).listFolderDocx(anyString(), anyString());
+        doReturn("Content Version 1").when(feishu).docxRawContent(anyString(), eq(fileToken));
+        UUID job1 = syncService.trigger(sourceId, "MANUAL");
+        awaitJobFinish(job1);
+
+        var extDoc = externalDocs.listBySource(sourceId).getFirst();
+        UUID documentId = extDoc.documentId;
+        String prefix = "projects/" + projectId + "/documents/" + documentId + "/sources/";
+
+        // 真实向 MinIO 写入 220 个额外对象，加上原始对象共有 221 个对象
+        int extraCount = 220;
+        for (int i = 0; i < extraCount; i++) {
+            String bulkKey = prefix + "bulk_" + i + ".txt";
+            byte[] bytes = ("bulk-" + i).getBytes(StandardCharsets.UTF_8);
+            storage.put(bulkKey, new ByteArrayInputStream(bytes), bytes.length, "text/plain");
+        }
+
+        // 验证当前前缀下确实存在超过 200 个对象
+        List<String> objectsBefore = storage.list(prefix, 300);
+        assertThat(objectsBefore.size()).isGreaterThanOrEqualTo(221);
+
+        // 触发确认删除
+        visibility.blockSource(projectId, sourceId, true);
+
+        // 循环执行 processDueBatch 直到任务收口完成
+        int rounds = 0;
+        while (rounds < 10) {
+            cleanupService.processDueBatch();
+            String currentStatus = getCleanupJobStatus(documentId);
+            if ("COMPLETE".equals(currentStatus)) {
+                break;
+            }
+            setCleanupJobReady(documentId);
+            rounds++;
+        }
+
+        // 断言：任务已标记为 COMPLETE
+        String finalStatus = getCleanupJobStatus(documentId);
+        assertThat(finalStatus).isEqualTo("COMPLETE");
+
+        // 断言：该前缀下的所有对象（包括全部 221 个）已被彻底清空，数量为 0！
+        List<String> objectsAfter = storage.list(prefix, 300);
+        assertThat(objectsAfter).as("前缀下全部对象必须被清理干净").isEmpty();
+    }
+
+    /**
+     * FINAL-T06: safeTargetKey 安全校验未通过时，任务绝不能被标记为 COMPLETE
+     */
+    @Test
+    void safeTargetKeyRejectionMustNotCompleteJob() throws Exception {
+        UUID sourceId = createSource();
+        String fileToken = "doc_token_safety_reject";
+
+        doReturn(List.of(new FeishuFile(fileToken, "Safety Doc", "docx", "https://feishu/safety", 1000L)))
+                .when(feishu).listFolderDocx(anyString(), anyString());
+        doReturn("Content Version 1").when(feishu).docxRawContent(anyString(), eq(fileToken));
+        UUID job1 = syncService.trigger(sourceId, "MANUAL");
+        awaitJobFinish(job1);
+
+        var extDoc = externalDocs.listBySource(sourceId).getFirst();
+        UUID documentId = extDoc.documentId;
+        String keyV1 = jdbc.queryForObject("SELECT object_key FROM project_document WHERE id=?", String.class, documentId);
+
+        // 触发确认删除入队
+        visibility.blockSource(projectId, sourceId, true);
+
+        // 构造一个安全拒绝场景：在 safeTarget 校验之后、执行 safeTargetKey 时，
+        // 模拟安全门禁判定目标受限或被重新激活
+        ConnectorCleanupRepository spyRepo = new ConnectorCleanupRepository(jdbc) {
+            @Override
+            public boolean safeTargetKey(Claim claim, String targetKey) {
+                if (targetKey.equals(keyV1)) {
+                    return false;
+                }
+                return super.safeTargetKey(claim, targetKey);
+            }
+        };
+
+        ConnectorCleanupService safetyWorker = new ConnectorCleanupService(spyRepo, storage, revisions, true);
+        safetyWorker.processDueBatch();
+
+        // 断言：由于关键对象被安全门禁拦截，任务绝不能误标记为 COMPLETE
+        String status = getCleanupJobStatus(documentId);
+        assertThat(status).as("关键对象安全门禁拒绝时绝不能标记 COMPLETE").isNotEqualTo("COMPLETE");
+        assertThat(objectExists(keyV1)).as("未通过安全校验的对象绝不能被删除").isTrue();
     }
 }

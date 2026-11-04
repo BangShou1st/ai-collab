@@ -18,6 +18,7 @@ import java.util.Set;
 @Service
 public class ConnectorCleanupService {
     private static final Logger log = LoggerFactory.getLogger(ConnectorCleanupService.class);
+    private static final int BATCH_SCAN_LIMIT = 100;
 
     private final ConnectorCleanupRepository jobs;
     private final DocumentStorageGateway storage;
@@ -59,13 +60,29 @@ public class ConnectorCleanupService {
                     continue;
                 }
                 Set<String> targets = collectTargetsToDelete(claim);
+                boolean safetyViolation = false;
                 for (String targetKey : targets) {
-                    if (jobs.safeTargetKey(claim, targetKey)) {
-                        storage.delete(targetKey);
-                    } else {
-                        log.warn("跳过不满足安全目标校验的对象删除: targetKey={}", targetKey);
+                    if (!jobs.safeTargetKey(claim, targetKey)) {
+                        log.warn("待清理对象未通过安全目标校验，阻断完成: targetKey={}", targetKey);
+                        jobs.retry(claim, "TARGET_SAFETY_VIOLATION");
+                        safetyViolation = true;
+                        break;
                     }
+                    storage.delete(targetKey);
                 }
+                if (safetyViolation) {
+                    continue;
+                }
+
+                // 后验校验：检查该文档专属前缀下是否仍有未清理对象（例如对象总数超过单批上限）
+                String safePrefix = "projects/" + claim.projectId() + "/documents/" + claim.documentId() + "/";
+                List<String> remaining = storage.list(safePrefix, 1);
+                if (remaining != null && !remaining.isEmpty()) {
+                    log.info("文档专属前缀下仍有剩余对象未清理完毕，排队继续下一批: prefix={}", safePrefix);
+                    jobs.requeue(claim);
+                    continue;
+                }
+
                 if (!jobs.complete(claim)) {
                     jobs.retry(claim, "CLAIM_OR_TARGET_CHANGED");
                 } else {
@@ -94,15 +111,11 @@ public class ConnectorCleanupService {
         }
         // 3. 历史旧格式固定 key 兼容
         targets.add("projects/" + claim.projectId() + "/documents/" + claim.documentId() + "/source.txt");
-        // 4. MinIO 前缀扫描兜底（发现未落库的孤儿对象），受限扫描最多 200 个 key
+        // 4. MinIO 前缀受限枚举：如果扫描抛出异常，不再静默吞掉，直接抛出由重试机制安全收敛！
         String safePrefix = "projects/" + claim.projectId() + "/documents/" + claim.documentId() + "/";
-        try {
-            List<String> scannedKeys = storage.list(safePrefix, 200);
-            if (scannedKeys != null) {
-                targets.addAll(scannedKeys);
-            }
-        } catch (Exception ex) {
-            log.warn("扫描文档对象前缀失败，将依据数据库审计清单继续清理: prefix={}", safePrefix, ex);
+        List<String> scannedKeys = storage.list(safePrefix, BATCH_SCAN_LIMIT);
+        if (scannedKeys != null) {
+            targets.addAll(scannedKeys);
         }
         return targets;
     }
