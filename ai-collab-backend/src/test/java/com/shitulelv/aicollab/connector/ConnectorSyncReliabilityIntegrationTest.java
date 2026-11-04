@@ -131,11 +131,14 @@ class ConnectorSyncReliabilityIntegrationTest {
     }
 
     private ConnectorSyncService service(TaskExecutor executor, long renewIntervalMs) {
+        org.springframework.transaction.PlatformTransactionManager txManager =
+                new org.springframework.jdbc.support.JdbcTransactionManager(dataSource);
         return new ConnectorSyncService(sources, connections, jobs, externalDocs, revisions,
                 feishu, new ModelSecretCipher("synthetic-test-master-key-only"), documents,
                 mock(DocumentRegistrationService.class), storage, dispatcher, executor,
                 mock(ConnectorOAuthTokenService.class),
                 new ConnectorVisibilityService(jdbc),
+                txManager,
                 new ConnectorSyncMetrics(new SimpleMeterRegistry()), renewIntervalMs);
     }
 
@@ -389,6 +392,92 @@ class ConnectorSyncReliabilityIntegrationTest {
         // 失败不产生删除与屏蔽副作用。
         assertThat(jdbc.queryForObject("SELECT status FROM external_document WHERE document_id=?", String.class, documentId))
                 .isEqualTo("ACTIVE");
+    }
+
+    /** 场景 A（D1.1-T01/T02/T03）：租约续期必须以数据库时间为准，过期租约不能复活。 */
+    @Test
+    void leaseRenewalRequiresUnexpiredLease() {
+        UUID source = newSource();
+        UUID job = UUID.randomUUID();
+        jobs.insertRunning(job, source, "MANUAL");
+        java.sql.Timestamp originalLease = leaseOf(job);
+        // T01：未过期租约正常续期。
+        assertThat(jobs.renewLease(job)).isEqualTo(1);
+        assertThat(leaseOf(job)).isAfter(originalLease);
+        // T02（D1.1-01 复现）：过期但尚未被回收的租约不能续期，租约值保持不变。
+        jdbc.update("UPDATE connector_sync_job SET lease_expires_at = now() - INTERVAL '1 second' WHERE id=?", job);
+        java.sql.Timestamp expired = leaseOf(job);
+        assertThat(jobs.renewLease(job)).isZero();
+        assertThat(leaseOf(job)).isEqualTo(expired);
+        // T03：已被回收（FAILED）的旧任务同样不能续期。
+        assertThat(jobs.expireStale(job)).isEqualTo(1);
+        assertThat(jobs.renewLease(job)).isZero();
+    }
+
+    private java.sql.Timestamp leaseOf(UUID job) {
+        return jdbc.queryForObject("SELECT lease_expires_at FROM connector_sync_job WHERE id=?",
+                java.sql.Timestamp.class, job);
+    }
+
+    /**
+     * 场景 B（D1.1-T04/T05/T07）：心跳间隙发生接管。
+     * A 的本地失权标志必然保持"持有"（心跳周期 60 秒内不触发），只有数据库 Fencing
+     * 门能阻止其在被接管后继续写入；B 的新任务状态不受 A 迟到收口影响。
+     */
+    @Test
+    void takeoverDuringHeartbeatGapIsBlockedByDatabaseFence() throws Exception {
+        stubHappyPath();
+        UUID source = newSource();
+        UUID documentId = UUID.randomUUID();
+        jdbc.update("INSERT INTO external_document(id,source_id,external_key,doc_type,title,source_url,latest_modify_time,content_hash,document_id,status) VALUES (?,?,?,'docx','文档C','https://feishu/docx/c',1000,NULL,?,'ACTIVE')",
+                UUID.randomUUID(), source, "docTok3", documentId);
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch started = new CountDownLatch(1);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            started.countDown();
+            try { release.await(30, TimeUnit.SECONDS); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            return "新正文";
+        }).when(feishu).docxRawContent(anyString(), eq("docTok3"));
+        org.mockito.Mockito.doReturn(List.of(new FeishuFile("docTok3", "文档C", "docx", null, 2000L)))
+                .when(feishu).listFolderDocx(anyString(), anyString());
+        org.mockito.Mockito.doReturn(true).when(documents).resetForReindex(projectId, documentId);
+        java.util.concurrent.ThreadPoolExecutor worker = new java.util.concurrent.ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.MILLISECONDS, new java.util.concurrent.LinkedBlockingQueue<>());
+        // 心跳 60 秒：整个测试期间 A 的本地标志不会更新，精确覆盖"心跳空窗"。
+        ConnectorSyncService victim = service(worker::execute, 60000);
+        UUID jobA = victim.trigger(source, "MANUAL");
+        UUID jobB = null;
+        try {
+            assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+            // Worker B 接管：回收 A（等价 expireStale）并创建新 RUNNING 任务。
+            jdbc.update("UPDATE connector_sync_job SET lease_expires_at = now() - INTERVAL '1 second' WHERE id=?", jobA);
+            assertThat(jobs.expireStale(jobA)).isEqualTo(1);
+            jobB = UUID.randomUUID();
+            jobs.insertRunning(jobB, source, "MANUAL");
+            release.countDown();
+        } finally {
+            worker.shutdownNow();
+        }
+        long deadline = System.currentTimeMillis() + 5000;
+        while (!worker.isTerminated() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20);
+        }
+        // T04：本地标志未更新，数据库 Fencing 门仍阻止了 A 的全部业务写入。
+        org.mockito.Mockito.verify(dispatcher, org.mockito.Mockito.after(300).never())
+                .dispatch(any(), any());
+        org.mockito.Mockito.verify(documents, org.mockito.Mockito.never())
+                .resetForReindex(projectId, documentId);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM external_document_revision WHERE external_document_id IN (SELECT id FROM external_document WHERE document_id=?)",
+                Integer.class, documentId)).isZero();
+        // T05：A 的迟到收口不能覆盖 B 的任务状态，B 仍可正常收口。
+        assertThat(jobRow(jobA).get("status")).isEqualTo("FAILED");
+        assertThat(jobB).isNotNull();
+        assertThat(jobRow(jobB).get("status")).isEqualTo("RUNNING");
+        assertThat(jobs.finish(jobB, "SUCCESS", 0, 0, 0, 0, 0, null)).isEqualTo(1);
+        // T07：失权 Worker 不刷新 last_synced_at。
+        assertThat(jdbc.queryForObject("SELECT last_synced_at IS NULL FROM connector_source WHERE id=?",
+                Boolean.class, source)).isTrue();
     }
 
     @Test

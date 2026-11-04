@@ -66,6 +66,7 @@ public class ConnectorSyncService {
     private final ConnectorVisibilityService visibility;
     private final ConnectorSyncMetrics metrics;
     private final Duration leaseRenewInterval;
+    private final org.springframework.transaction.support.TransactionTemplate transactions;
 
     public ConnectorSyncService(ConnectorSourceMapper sources, ConnectorConnectionMapper connections,
                                 ConnectorSyncJobMapper jobs, ExternalDocumentMapper externalDocs,
@@ -75,6 +76,7 @@ public class ConnectorSyncService {
                                 DocumentStorageGateway storage, DocumentTaskDispatcher dispatcher,
                                 @Qualifier("connectorSyncExecutor") TaskExecutor syncExecutor,
                                 ConnectorOAuthTokenService userTokens, ConnectorVisibilityService visibility,
+                                org.springframework.transaction.PlatformTransactionManager transactionManager,
                                 ConnectorSyncMetrics metrics,
                                 @Value("${connector.sync.lease-renew-interval-ms:180000}") long leaseRenewIntervalMs) {
         this.sources = sources;
@@ -93,6 +95,7 @@ public class ConnectorSyncService {
         this.visibility = visibility;
         this.metrics = metrics;
         this.leaseRenewInterval = Duration.ofMillis(leaseRenewIntervalMs);
+        this.transactions = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
     }
 
     /** Claims the run synchronously (fast conflict feedback) and executes the scan async. */
@@ -134,7 +137,7 @@ public class ConnectorSyncService {
         try (ConnectorSyncLeaseGuard guard = ConnectorSyncLeaseGuard.start(jobs, jobId, metrics, leaseRenewInterval)) {
             String error;
             try {
-                error = scan(source, counters, guard);
+                error = scan(jobId, source, counters, guard);
             } catch (ConnectorSyncLeaseGuard.LeaseLostException exception) {
                 // 所有权已回收（过期被接管或任务被删除）：迟到的 finish/markSynced
                 // 不会生效，也不应再产生新的业务写入，直接停止。
@@ -165,7 +168,7 @@ public class ConnectorSyncService {
     }
 
     /** Returns an error summary when the whole scan failed, null when it completed. */
-    private String scan(ConnectorRows.SourceRow source, Counters counters, ConnectorSyncLeaseGuard guard) {
+    private String scan(UUID jobId, ConnectorRows.SourceRow source, Counters counters, ConnectorSyncLeaseGuard guard) {
         ConnectorRows.ConnectionRow connection = connections.find(source.connectionId);
         if (connection == null || "INVALID".equals(connection.status)) {
             return "连接凭据不可用，请先在管理端重新验证连接";
@@ -236,26 +239,52 @@ public class ConnectorSyncService {
                     recordFailure(counters, "文档过大，超过 2MB 文本上限");
                     continue;
                 }
-                // 写入前的最后一道所有权检查：内容拉取可能耗时数十秒，期间租约可能已被回收。
+                // 写入前的快速路径检查：内容拉取可能耗时数十秒，期间租约可能已被回收。
                 ensureOwnership(guard);
                 String hash = sha256(content);
+                boolean contentUnchanged = existing != null && "ACTIVE".equals(existing.status)
+                        && hash.equals(existing.contentHash);
+                // 对象存储写入保持在 Fencing 事务之外：幂等覆盖同一 objectKey，
+                // 不持有数据库行锁跨外部 I/O。新文档的 documentId 在此先行确定。
+                byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+                boolean reactivating = existing != null
+                        && ("BLOCKED".equals(existing.status) || "REMOVED".equals(existing.status));
+                UUID preparedDocumentId = (existing == null || reactivating)
+                        ? UUID.randomUUID() : existing.documentId;
+                if (!contentUnchanged) {
+                    storage.put(objectKey(source.projectId, preparedDocumentId),
+                            new ByteArrayInputStream(bytes), bytes.length, "text/plain");
+                }
+                // 数据库 Fencing 短事务：锁定任务行校验所有权（RUNNING 且租约未过期）后，
+                // 同一事务内完成受保护的数据库写入；接管方必须等本事务提交才能回收任务。
                 boolean[] updated = { false };
-                boolean accepted = visibility.withActiveSource(source.projectId, source.id, () -> {
-                    if (existing != null && "BLOCKED".equals(existing.status) && existing.documentStatus != null) {
-                        if (!visibility.restoreDocument(source.projectId, source.id, existing.id)) {
-                            throw new BusinessException(ErrorCode.CONNECTOR_REAUTH_REQUIRED);
-                        }
-                        existing.status = "ACTIVE";
+                boolean[] sourceActive = { true };
+                try {
+                    writeUnderOwnership(jobId, () -> {
+                        sourceActive[0] = visibility.withActiveSource(source.projectId, source.id, () -> {
+                            if (existing != null && "BLOCKED".equals(existing.status) && existing.documentStatus != null) {
+                                if (!visibility.restoreDocument(source.projectId, source.id, existing.id)) {
+                                    throw new BusinessException(ErrorCode.CONNECTOR_REAUTH_REQUIRED);
+                                }
+                                existing.status = "ACTIVE";
+                            }
+                            if (contentUnchanged) {
+                                externalDocs.updateContent(existing.id, safeTitle(file), file.url(),
+                                        file.modifiedTime(), existing.contentHash);
+                            } else {
+                                upsertDocument(source, file, content, hash, existing, preparedDocumentId);
+                                updated[0] = true;
+                            }
+                        });
+                    });
+                } catch (ConnectorSyncLeaseGuard.LeaseLostException exception) {
+                    if (existing == null || reactivating) {
+                        // 新文档尚未落库：清掉刚写入的对象存储产物，避免孤儿文件。
+                        storage.delete(objectKey(source.projectId, preparedDocumentId));
                     }
-                    if (existing != null && "ACTIVE".equals(existing.status) && hash.equals(existing.contentHash)) {
-                        externalDocs.updateContent(existing.id, safeTitle(file), file.url(),
-                                file.modifiedTime(), existing.contentHash);
-                    } else {
-                        upsertDocument(source, file, content, hash, existing);
-                        updated[0] = true;
-                    }
-                });
-                if (!accepted) {
+                    throw exception;
+                }
+                if (!sourceActive[0]) {
                     recordFailure(counters, "知识源授权已变化，请重新同步");
                 } else if (updated[0]) {
                     counters.updated++;
@@ -283,9 +312,12 @@ public class ConnectorSyncService {
         ensureOwnership(guard);
         for (ConnectorRows.ExternalDocRow stale : toRemove) {
             try {
-                visibility.blockDocument(source.projectId, source.id, stale.id);
+                writeUnderOwnership(jobId, () ->
+                        visibility.blockDocument(source.projectId, source.id, stale.id));
                 counters.removed++;
                 counters.sawChange = true;
+            } catch (ConnectorSyncLeaseGuard.LeaseLostException exception) {
+                throw exception;
             } catch (RuntimeException exception) {
                 log.error("移除失效外部文档失败，externalDocumentId={}", stale.id, exception);
                 recordFailure(counters, "清理已移除文档失败");
@@ -303,24 +335,38 @@ public class ConnectorSyncService {
         }
     }
 
+    /**
+     * 数据库 Fencing 边界：短事务内先以行锁校验任务所有权（status=RUNNING 且租约未过期），
+     * 校验通过才在同一事务内执行受保护的数据库写入。接管方（expireStale/新触发）必须等待
+     * 本事务提交才能修改任务行，因此"校验通过后、写入前发生所有权转移"的窗口被数据库
+     * 事务串行化消除。禁止在事务内执行飞书 HTTP 等外部请求。
+     */
+    private void writeUnderOwnership(UUID jobId, Runnable protectedWrites) {
+        transactions.executeWithoutResult(tx -> {
+            if (jobs.lockIfOwned(jobId) == null) {
+                throw new ConnectorSyncLeaseGuard.LeaseLostException();
+            }
+            protectedWrites.run();
+        });
+    }
+
     private void upsertDocument(ConnectorRows.SourceRow source, FeishuFile file,
-                                String content, String hash, ConnectorRows.ExternalDocRow existing) {
+                                String content, String hash, ConnectorRows.ExternalDocRow existing,
+                                UUID preparedDocumentId) {
         String displayName = safeTitle(file);
         // A BLOCKED row means access was revoked earlier and its indexed document
         // was removed; on re-grant it must be re-registered and re-bound.
         boolean reactivating = existing != null && ("BLOCKED".equals(existing.status) || "REMOVED".equals(existing.status));
         if (existing == null || reactivating) {
-            UUID documentId = UUID.randomUUID();
+            UUID documentId = preparedDocumentId;
             String objectKey = objectKey(source.projectId, documentId);
-            byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-            storage.put(objectKey, new ByteArrayInputStream(bytes), bytes.length, "text/plain");
             DocumentEntity entity = new DocumentEntity();
             entity.setId(documentId);
             entity.setProjectId(source.projectId);
             entity.setDisplayName(displayName);
             entity.setOriginalFilename(displayName + ".txt");
             entity.setMimeType("text/plain");
-            entity.setSizeBytes((long) bytes.length);
+            entity.setSizeBytes((long) content.getBytes(StandardCharsets.UTF_8).length);
             entity.setObjectKey(objectKey);
             entity.setStatus(DocumentStatus.UPLOADED);
             entity.setChunkCount(0);
@@ -348,8 +394,6 @@ public class ConnectorSyncService {
             }
             UUID documentId = existing.documentId;
             String objectKey = objectKey(source.projectId, documentId);
-            byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-            storage.put(objectKey, new ByteArrayInputStream(bytes), bytes.length, "text/plain");
             if (!documents.resetForReindex(source.projectId, documentId)) {
                 throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT);
             }
