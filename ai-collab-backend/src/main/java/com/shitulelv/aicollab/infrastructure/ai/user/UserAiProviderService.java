@@ -154,7 +154,7 @@ public class UserAiProviderService {
             if (!provider.enabled()) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能分配已停用的模型配置");
             }
-            repository.assignPurpose(userId, purpose, providerId, false);
+            repository.assignPurpose(userId, purpose, providerId);
             return;
         }
 
