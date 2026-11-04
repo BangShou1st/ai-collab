@@ -1,0 +1,110 @@
+[
+ {
+  "h1count": 1,
+  "h1text": [
+   "晚上好，Local Owner"
+  ],
+  "rawEnums": [],
+  "page": "desktop-home"
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "我的项目"
+  ],
+  "rawEnums": [],
+  "page": "desktop-projects"
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "项目概览"
+  ],
+  "rawEnums": [],
+  "page": "desktop-overview"
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "任务看板"
+  ],
+  "rawEnums": [],
+  "page": "desktop-tasks"
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "AI 任务规划"
+  ],
+  "rawEnums": [],
+  "page": "desktop-planning"
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "项目协作 Agent"
+  ],
+  "rawEnums": [],
+  "page": "desktop-agent"
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "延期风险分析"
+  ],
+  "rawEnums": [],
+  "page": "desktop-riskanalysis"
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "AI 设置"
+  ],
+  "rawEnums": [],
+  "page": "desktop-ai-settings"
+ },
+ {
+  "page": "desktop-sidebar-expanded"
+ },
+ {
+  "page": "desktop-sidebar-collapsed",
+  "sidebarWidth": 72
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "晚上好，Local Owner"
+  ],
+  "rawEnums": [],
+  "page": "mobile-home"
+ },
+ {
+  "page": "mobile-nav-closed"
+ },
+ {
+  "page": "mobile-nav-open",
+  "sidebarWidth": 320
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "项目协作 Agent"
+  ],
+  "rawEnums": [],
+  "page": "mobile-agent"
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "AI 设置"
+  ],
+  "rawEnums": [],
+  "page": "mobile-ai-settings"
+ },
+ {
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "[m] Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ]
+ }
+]

@@ -1,0 +1,236 @@
+[
+ {
+  "page": "home",
+  "width": 1440,
+  "h1": 1,
+  "h2": [
+   "AI 已就绪",
+   "最近项目",
+   "我的任务",
+   "待处理",
+   "最近活动"
+  ],
+  "cards": 0,
+  "tags": 3,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "projects",
+  "width": 1440,
+  "h1": 1,
+  "h2": [
+   "Zen规划冒烟",
+   "截图评审项目",
+   "V2 Baseline Audit"
+  ],
+  "cards": 3,
+  "tags": 3,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "overview",
+  "width": 1440,
+  "h1": 1,
+  "h2": [],
+  "cards": 11,
+  "tags": 7,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "tasks",
+  "width": 1440,
+  "h1": 1,
+  "h2": [
+   "待处理 2",
+   "进行中 0",
+   "已阻塞 0",
+   "已完成 0",
+   "已取消 0"
+  ],
+  "cards": 2,
+  "tags": 7,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "planning",
+  "width": 1440,
+  "h1": 1,
+  "h2": [],
+  "cards": 2,
+  "tags": 4,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "agent",
+  "width": 1440,
+  "h1": 1,
+  "h2": [
+   "Run · 无运行",
+   "待审批（0）",
+   "Plan",
+   "页面上下文"
+  ],
+  "cards": 0,
+  "tags": 0,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "ai-settings",
+  "width": 1440,
+  "h1": 1,
+  "h2": [
+   "推荐连接",
+   "你的模型"
+  ],
+  "cards": 1,
+  "tags": 0,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "riskanalysis",
+  "width": 1440,
+  "h1": 1,
+  "h2": [],
+  "cards": 2,
+  "tags": 2,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "knowledge",
+  "width": 1440,
+  "h1": 1,
+  "h2": [],
+  "cards": 0,
+  "tags": 0,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "team",
+  "width": 1440,
+  "h1": 1,
+  "h2": [],
+  "cards": 0,
+  "tags": 1,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "account",
+  "width": 1440,
+  "h1": 1,
+  "h2": [
+   "基本资料",
+   "修改密码",
+   "登录会话"
+  ],
+  "cards": 3,
+  "tags": 0,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "sidebar-collapsed",
+  "collapsed": {
+   "width": 72,
+   "scrollW": 1440,
+   "clientW": 1440,
+   "hiddenSpans": 6,
+   "totalSpans": 6
+  }
+ },
+ {
+  "page": "m-home",
+  "width": 390,
+  "h1": 1,
+  "h2": [
+   "AI 已就绪",
+   "最近项目",
+   "我的任务",
+   "待处理",
+   "最近活动"
+  ],
+  "cards": 0,
+  "tags": 3,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "m-agent",
+  "width": 390,
+  "h1": 1,
+  "h2": [
+   "Run · 无运行",
+   "待审批（0）",
+   "Plan",
+   "页面上下文"
+  ],
+  "cards": 0,
+  "tags": 0,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ },
+ {
+  "page": "m-ai-settings",
+  "width": 390,
+  "h1": 1,
+  "h2": [
+   "推荐连接",
+   "你的模型"
+  ],
+  "cards": 1,
+  "tags": 0,
+  "alerts": 0,
+  "overflow": 0,
+  "rawEnums": [],
+  "lowContrast": [],
+  "consoleErrors": []
+ }
+]
