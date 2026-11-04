@@ -100,6 +100,28 @@ public class UserAiProviderRepository {
     }
 
     public Optional<UserAiProvider> findAssigned(UUID userId, ModelPurpose purpose) {
+        List<Map<String, Object>> assignments = jdbc.queryForList("""
+                SELECT provider_id, COALESCE(is_shared, false) AS is_shared
+                FROM user_model_purpose_assignment
+                WHERE user_id = ? AND purpose = ?
+                """, userId, purpose.name());
+        if (assignments.isEmpty()) return Optional.empty();
+
+        Map<String, Object> assignment = assignments.get(0);
+        UUID providerId = (UUID) assignment.get("provider_id");
+        boolean isShared = Boolean.TRUE.equals(assignment.get("is_shared"));
+
+        if (isShared) {
+            return jdbc.query("""
+                    SELECT id, publisher_user_id AS user_id, name, provider_type, base_url, api_path,
+                           encrypted_api_key, model_name, (enabled AND status = 'PUBLISHED') AS enabled,
+                           temperature, max_output_tokens, capabilities, false AS is_default,
+                           created_at, updated_at, 'SHARED' AS preset_code, capability_config_version
+                    FROM shared_ai_provider
+                    WHERE id = ? AND status = 'PUBLISHED' AND enabled = true
+                    """, MAPPER, providerId).stream().findFirst();
+        }
+
         return jdbc.query("""
                 SELECT p.id, p.user_id, p.name, p.provider_type, p.base_url, p.api_path,
                        p.encrypted_api_key, p.model_name, p.enabled, p.temperature,
@@ -169,13 +191,37 @@ public class UserAiProviderRepository {
     }
 
     public void assignPurpose(UUID userId, ModelPurpose purpose, UUID providerId) {
+        assignPurpose(userId, purpose, providerId, false);
+    }
+
+    public void assignPurpose(UUID userId, ModelPurpose purpose, UUID providerId, boolean isShared) {
         jdbc.update("""
-                INSERT INTO user_model_purpose_assignment (user_id, purpose, provider_id, updated_at)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                INSERT INTO user_model_purpose_assignment (user_id, purpose, provider_id, is_shared, updated_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT (user_id, purpose) DO UPDATE SET
                     provider_id = EXCLUDED.provider_id,
+                    is_shared = EXCLUDED.is_shared,
                     updated_at = CURRENT_TIMESTAMP
-                """, userId, purpose.name(), providerId);
+                """, userId, purpose.name(), providerId, isShared);
+    }
+
+    public record PurposeAssignmentDetail(UUID providerId, boolean isShared) {}
+
+    public java.util.Map<ModelPurpose, PurposeAssignmentDetail> listAssignmentDetails(UUID userId) {
+        java.util.Map<ModelPurpose, PurposeAssignmentDetail> out = new java.util.EnumMap<>(ModelPurpose.class);
+        jdbc.query("SELECT purpose, provider_id, COALESCE(is_shared, false) AS is_shared FROM user_model_purpose_assignment WHERE user_id = ?",
+                (rs, row) -> {
+                    try {
+                        out.put(ModelPurpose.valueOf(rs.getString("purpose")),
+                                new PurposeAssignmentDetail(
+                                        rs.getObject("provider_id", UUID.class),
+                                        rs.getBoolean("is_shared")));
+                    } catch (IllegalArgumentException failure) {
+                        log.warn("Skipping unmapped ModelPurpose value: {}", failure.getMessage());
+                    }
+                    return null;
+                }, userId);
+        return out;
     }
 
     public void unassignPurpose(UUID userId, ModelPurpose purpose) {
