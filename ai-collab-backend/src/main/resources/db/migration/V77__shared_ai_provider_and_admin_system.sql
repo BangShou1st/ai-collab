@@ -40,6 +40,37 @@ ALTER TABLE user_model_purpose_assignment
 ALTER TABLE user_model_purpose_assignment
     ADD COLUMN IF NOT EXISTS is_shared BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- 模拟外键级联删除：个人供应商删除时级联清除个人用途绑定，共享供应商删除时级联清除共享用途绑定
+CREATE OR REPLACE FUNCTION trg_cascade_user_ai_provider_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM user_model_purpose_assignment
+    WHERE provider_id = OLD.id AND is_shared = FALSE;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_cascade_user_ai_provider_delete ON user_ai_provider;
+CREATE TRIGGER trg_cascade_user_ai_provider_delete
+    AFTER DELETE ON user_ai_provider
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_cascade_user_ai_provider_delete();
+
+CREATE OR REPLACE FUNCTION trg_cascade_shared_ai_provider_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM user_model_purpose_assignment
+    WHERE provider_id = OLD.id AND is_shared = TRUE;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_cascade_shared_ai_provider_delete ON shared_ai_provider;
+CREATE TRIGGER trg_cascade_shared_ai_provider_delete
+    AFTER DELETE ON shared_ai_provider
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_cascade_shared_ai_provider_delete();
+
 -- 管理员专属系统通知表
 CREATE TABLE admin_notification (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
