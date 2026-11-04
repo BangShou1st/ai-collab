@@ -152,7 +152,8 @@ class PlanningMigrationIntegrationTest {
         var service = new TaskPlanConfirmationService(adminGuard(), repository, jdbc,
                 new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), issueRepo,
                 mock(AuditService.class), new TaskPlanActionPolicy(),
-                mock(com.shitulelv.aicollab.notification.application.service.NotificationApplicationService.class));
+                mock(com.shitulelv.aicollab.notification.application.service.NotificationApplicationService.class),
+                mock(com.shitulelv.aicollab.project.application.service.DashboardCacheService.class));
         UUID firstKey = UUID.randomUUID();
 
         Map<String, Object> first = service.confirm(project, plan, version, firstKey, user);
@@ -282,7 +283,8 @@ class PlanningMigrationIntegrationTest {
             var service = new TaskPlanConfirmationService(adminGuard(), repository, jdbc,
                     new DataSourceTransactionManager(dataSource), new TaskPlanDraftValidator(), issueRepo2,
                     failingAudit, new TaskPlanActionPolicy(),
-                    mock(com.shitulelv.aicollab.notification.application.service.NotificationApplicationService.class));
+                    mock(com.shitulelv.aicollab.notification.application.service.NotificationApplicationService.class),
+                    mock(com.shitulelv.aicollab.project.application.service.DashboardCacheService.class));
 
             assertThatThrownBy(() -> service.confirm(project, plan, version, UUID.randomUUID(), user))
                     .isInstanceOf(Exception.class);
@@ -352,7 +354,8 @@ class PlanningMigrationIntegrationTest {
                 adminGuard(), repository, jdbc, new DataSourceTransactionManager(dataSource),
                 new TaskPlanDraftValidator(), issueRepo, mock(AuditService.class),
                 new TaskPlanActionPolicy(),
-                mock(com.shitulelv.aicollab.notification.application.service.NotificationApplicationService.class));
+                mock(com.shitulelv.aicollab.notification.application.service.NotificationApplicationService.class),
+                mock(com.shitulelv.aicollab.project.application.service.DashboardCacheService.class));
         return new ConfirmationFixture(user, project, plan, firstVersion, latestVersion, service);
     }
 

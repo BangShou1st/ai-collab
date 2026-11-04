@@ -76,7 +76,8 @@ public class RoutingChatModelGateway implements ChatModelGateway {
         int effectiveBudget = budget != null && budget > 0 ? budget : snapshot.maxOutputTokens();
         UserAiProvider effective = new UserAiProvider(snapshot.id(), snapshot.userId(), snapshot.name(), snapshot.providerType(),
                 snapshot.baseUrl(), snapshot.apiPath(), snapshot.encryptedApiKey(), snapshot.modelName(), snapshot.enabled(),
-                snapshot.temperature(), effectiveBudget, snapshot.capabilities(), snapshot.isDefault(), snapshot.createdAt(), snapshot.updatedAt(), snapshot.presetCode());
+                snapshot.temperature(), effectiveBudget, snapshot.capabilities(), snapshot.isDefault(), snapshot.createdAt(), snapshot.updatedAt(), snapshot.presetCode(),
+                snapshot.capabilityConfigVersion());
         return executeResolved(command, metadata, effective);
     }
 

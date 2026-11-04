@@ -1,6 +1,12 @@
 spring:
     application:
         name: ai-collab-backend
+    data:
+        redis:
+            # Redis 命令超时：显式安全默认值（Lettuce 默认 60s 过长，Redis 停机时
+            # 每次操作都会挂起 60s）。与 application-local.yml 的 3s 保持一致；
+            # 各部署 compose 与测试可用 SPRING_DATA_REDIS_TIMEOUT 覆盖。
+            timeout: "${SPRING_DATA_REDIS_TIMEOUT:3s}"
     servlet:
         multipart:
             max-file-size: 20MB

@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.work.application.service;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.application.service.AuditService;
+import com.shitulelv.aicollab.project.application.service.DashboardCacheService;
 import com.shitulelv.aicollab.project.domain.model.ProjectRole;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
 import com.shitulelv.aicollab.work.api.dto.CreateMilestoneRequest;
@@ -26,16 +27,19 @@ public class MilestoneApplicationService {
     private final MilestoneRepository milestones;
     private final AuditService audit;
     private final ProjectDateRangePolicy projectDates;
+    private final DashboardCacheService dashboardCache;
 
     public MilestoneApplicationService(
             ProjectAccessGuard access, WorkPermissionPolicy permissions,
             MilestoneRepository milestones, AuditService audit,
-            ProjectDateRangePolicy projectDates) {
+            ProjectDateRangePolicy projectDates,
+            DashboardCacheService dashboardCache) {
         this.access = access;
         this.permissions = permissions;
         this.milestones = milestones;
         this.audit = audit;
         this.projectDates = projectDates;
+        this.dashboardCache = dashboardCache;
     }
 
     @Transactional(readOnly = true)
@@ -73,6 +77,7 @@ public class MilestoneApplicationService {
         milestones.create(entity);
         audit.write(projectId, userId, "MILESTONE_CREATED", "MILESTONE", entity.getId(),
                 Map.of("name", entity.getName(), "status", entity.getStatus().name()));
+        dashboardCache.evictAfterCommit(projectId);
         return MilestoneView.from(milestones.find(projectId, entity.getId()).orElseThrow());
     }
 
@@ -97,6 +102,7 @@ public class MilestoneApplicationService {
         }
         audit.write(projectId, userId, "MILESTONE_UPDATED", "MILESTONE", milestoneId,
                 Map.of("name", entity.getName(), "status", entity.getStatus().name()));
+        dashboardCache.evictAfterCommit(projectId);
         return MilestoneView.from(milestones.find(projectId, milestoneId).orElseThrow());
     }
 
@@ -113,5 +119,6 @@ public class MilestoneApplicationService {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
         audit.write(projectId, userId, "MILESTONE_DELETED", "MILESTONE", milestoneId);
+        dashboardCache.evictAfterCommit(projectId);
     }
 }

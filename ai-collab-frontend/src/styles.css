@@ -28,6 +28,9 @@
   background: var(--color-surface); border-right: 1px solid var(--color-border);
   padding: 16px 12px;
 }
+/* 展开态导航超出视口时整栏可滚动，避免矮屏下项目分组被裁掉不可达；
+   折叠态必须保持 overflow 可见，否则悬浮子菜单浮层会被侧栏裁剪 */
+.app-shell:not(.collapsed) .app-sidebar { overflow-y: auto; scrollbar-width: thin; }
 .app-shell.collapsed .app-sidebar { width: var(--sidebar-collapsed); }
 .app-shell.collapsed .brand-copy, .app-shell.collapsed .side-title,
 .app-shell.collapsed .side-menu { display: none; }
@@ -54,8 +57,18 @@
 }
 .side-group a span, .side-details summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-group a:hover, .side-menu:hover { background: var(--color-surface-raised); color: var(--color-text); }
-.side-group a.router-link-active { background: var(--color-primary-soft); color: var(--color-primary-hover); font-weight: 600; }
-.side-footer { margin-top: auto; display: flex; align-items: center; gap: 6px; padding: 12px 6px 4px; border-top: 1px solid var(--color-border); }
+.side-group a.router-link-active,
+.side-group a.is-nav-active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+  font-weight: 600;
+}
+.side-group a.is-nav-inactive {
+  background: transparent !important;
+  color: var(--color-text-secondary) !important;
+  font-weight: normal !important;
+}
+.side-footer { margin-top: auto; display: flex; align-items: center; gap: 6px; padding: 12px 6px 4px; border-top: 1px solid var(--color-border); position: sticky; bottom: -16px; background: var(--color-surface); }
 .side-collapse { border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-control); width: 32px; height: 32px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .user-row { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; padding: 6px 2px 6px 6px; }
 .user-row .user-copy { flex: 1; }
@@ -112,6 +125,7 @@
 .risk-tile { border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); padding: 16px; display: grid; gap: 4px; }
 .risk-tile strong { font-size: 24px; line-height: 1.1; }
 @media (max-width: 760px) { .risk-metrics { grid-template-columns: 1fr; } }
+.rules-note { padding: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); font-size: 12px; color: var(--color-text-secondary); }
 .overview-stack { display: grid; gap: 16px; }
 .stats-grid .stat-card .el-card__body, .stats-card .stat-item { display: grid; gap: 2px; justify-items: center; }
 .stat-value { font-size: 22px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }

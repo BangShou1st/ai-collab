@@ -1,0 +1,59 @@
+[
+ {
+  "h1count": 1,
+  "h1text": [
+   "AI 设置"
+  ],
+  "rawEnums": [],
+  "page": "desktop-ai-settings"
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "AI 任务规划"
+  ],
+  "rawEnums": [],
+  "page": "desktop-planning"
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "项目协作 Agent"
+  ],
+  "rawEnums": [],
+  "page": "desktop-agent"
+ },
+ {
+  "page": "desktop-sidebar-expanded"
+ },
+ {
+  "page": "desktop-sidebar-collapsed",
+  "sidebarWidth": 72
+ },
+ {
+  "page": "mobile-nav-open",
+  "sidebarWidth": 320
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "项目协作 Agent"
+  ],
+  "rawEnums": [],
+  "page": "mobile-agent"
+ },
+ {
+  "h1count": 1,
+  "h1text": [
+   "AI 设置"
+  ],
+  "rawEnums": [],
+  "page": "mobile-ai-settings"
+ },
+ {
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "[m] Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ]
+ }
+]

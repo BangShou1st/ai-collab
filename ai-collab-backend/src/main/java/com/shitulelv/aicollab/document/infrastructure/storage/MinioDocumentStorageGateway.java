@@ -10,12 +10,15 @@ import io.minio.DeleteBucketPolicyArgs;
 import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.Http.Method;
+import io.minio.ListObjectsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.Result;
 import io.minio.StatObjectArgs;
 import io.minio.errors.ErrorResponseException;
+import io.minio.messages.Item;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -28,6 +31,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -147,6 +152,29 @@ public class MinioDocumentStorageGateway implements DocumentStorageGateway {
                     .bucket(properties.bucket()).object(objectKey).build());
         } catch (Exception exception) {
             throw storageUnavailable("删除", objectKey, exception);
+        }
+    }
+
+    @Override
+    public List<String> list(String prefix, int maxKeys) {
+        try {
+            List<String> keys = new ArrayList<>();
+            Iterable<Result<Item>> results = client.listObjects(ListObjectsArgs.builder()
+                    .bucket(properties.bucket())
+                    .prefix(prefix)
+                    .recursive(true)
+                    .maxKeys(Math.min(maxKeys, 500))
+                    .build());
+            for (Result<Item> result : results) {
+                Item item = result.get();
+                if (!item.isDir()) {
+                    keys.add(item.objectName());
+                }
+                if (keys.size() >= maxKeys) break;
+            }
+            return keys;
+        } catch (Exception exception) {
+            throw storageUnavailable("列出", prefix, exception);
         }
     }
 

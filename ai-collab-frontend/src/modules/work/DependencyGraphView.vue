@@ -11,6 +11,16 @@ import { visualizationApi, type GraphNode, type GraphEdge } from './visualizatio
 const route = useRoute()
 const projectId = route.params.projectId as string
 
+const props = withDefaults(defineProps<{
+  embedded?: boolean
+}>(), {
+  embedded: false,
+})
+
+const emit = defineEmits<{
+  (e: 'select-task', taskId: string): void
+}>()
+
 const nodes = ref<GraphNode[]>([])
 const edges = ref<GraphEdge[]>([])
 const loading = ref(false)
@@ -116,8 +126,9 @@ onMounted(load)
 </script>
 
 <template>
-  <main class="workspace-page">
+  <main class="workspace-page" :class="{ 'embedded-view': embedded }">
     <PageHeader
+      v-if="!embedded"
       eyebrow="项目执行"
       title="依赖图"
       :context="project?.name"
@@ -184,7 +195,7 @@ onMounted(load)
             @mouseleave="onEdgeLeave"
           />
         </g>
-        <g v-for="node in graphNodes" :key="node.id">
+        <g v-for="node in graphNodes" :key="node.id" class="clickable-node" @click="emit('select-task', node.id)">
           <rect
             :x="node.x - 90"
             :y="node.y - 31"
@@ -262,5 +273,19 @@ onMounted(load)
 .edge-line {
   pointer-events: none;
   transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s;
+}
+.clickable-node {
+  cursor: pointer;
+}
+.clickable-node:hover rect {
+  opacity: 1;
+  stroke: var(--color-primary);
+  stroke-width: 2px;
+}
+.embedded-view {
+  padding: 0;
+}
+.embedded-view .graph-container {
+  padding: 0;
 }
 </style>

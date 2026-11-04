@@ -84,11 +84,15 @@ class AgentToolContractTest {
         when(reports.getWeeklyReport(any(), any(), org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(new com.shitulelv.aicollab.work.application.view.WeeklyReportView(
                         java.time.LocalDate.now(),
+                        java.time.LocalDate.now().minusDays(6),
+                        java.time.LocalDate.now(),
                         new com.shitulelv.aicollab.work.application.view.WeeklyReportView.TaskStatistics(
-                                0, 0, 0, 0, java.math.BigDecimal.ZERO),
+                                0, 0, 0, 0, java.math.BigDecimal.ZERO, 0, 0, 0),
                         new com.shitulelv.aicollab.work.application.view.WeeklyReportView.MilestoneStatistics(
+                                0, 0, 0, 0, 0, 7),
+                        new com.shitulelv.aicollab.work.application.view.WeeklyReportView.PeriodStatistics(
                                 0, 0, 0, 0),
-                        List.of(), List.of(), List.of()));
+                        List.of(), List.of(), List.of(), "test", List.of()));
         return new WeeklyReportDraftAgentTool(reports, JSON);
     }
 
@@ -250,7 +254,8 @@ class AgentToolContractTest {
                 new com.shitulelv.aicollab.work.application.view.RiskAnalysisView(
                         List.of(),
                         new com.shitulelv.aicollab.work.application.view.RiskAnalysisView.RiskSummary(
-                                0, 0, 0, "无风险")));
+                                0, 0, 0, "无风险", 0, 0, 0),
+                        List.of(), "规则检测"));
         for (AgentTool tool : List.of(
                 new ProjectOverviewAgentTool(mock(ProjectApplicationService.class), JSON),
                 new DashboardAgentTool(mock(ProjectDashboardQueryService.class), JSON),

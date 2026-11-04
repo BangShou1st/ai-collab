@@ -163,7 +163,9 @@ onMounted(load)
           <span>{{ projectTypeLabel(project.type) }}</span>
           <span>{{ roleLabel(project.role) }}</span>
         </p>
-        <p class="project-card-meta">项目周期：{{ formatDate(project.startDate) }} 至 {{ formatDate(project.dueDate) }}</p>
+        <p v-if="project.startDate || project.dueDate" class="project-card-meta">
+          项目周期：{{ formatDate(project.startDate) || '未设置' }} 至 {{ formatDate(project.dueDate) || '未设置' }}
+        </p>
         <div class="project-card-foot">
           <router-link class="el-button el-button--primary" :to="`/projects/${project.id}/dashboard`">
             进入项目

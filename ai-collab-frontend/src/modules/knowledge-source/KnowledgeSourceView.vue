@@ -396,7 +396,7 @@ defineExpose({ createForm, parsedFolder, submitCreate, startAuthorization, creat
     <PageHeader
       eyebrow="项目知识库"
       title="飞书知识源"
-      description="把已授权的飞书文件夹同步到项目知识库。飞书原文可在飞书中打开；平台保存和下载的是已索引文本副本，不提供原始二进制文件。"
+      description="把已授权的飞书文件夹同步到项目知识库；平台保存的是文本副本，原文请在飞书中打开。"
       :context="project?.name"
     >
       <template #actions>

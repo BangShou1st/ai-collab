@@ -72,7 +72,6 @@ describe('home task preview', () => {
     expect(links[0]!.text()).toContain('未设置截止日期')
     expect(links[1]!.text()).toContain('截止日期：')
     expect(wrapper.text()).toContain('我的待办')
-    expect(wrapper.text()).toContain('最多展示 5 项')
     expect(wrapper.text()).not.toContain('8 个')
     wrapper.unmount()
   })
@@ -104,11 +103,11 @@ describe('home AI configuration status', () => {
     wrapper.unmount()
   })
 
-  it('describes saved-and-resolvable config as unverified rather than healthy', async () => {
+  it('describes saved-and-resolvable config briefly without claiming readiness', async () => {
     const wrapper = await render(payload({ configured: true, providerCount: 1, defaultModel: 'gpt-4o-mini', anyPurposeUsable: true }))
     expect(wrapper.text()).toContain('AI 配置已保存')
     expect(wrapper.text()).toContain('默认模型 gpt-4o-mini')
-    expect(wrapper.text()).toContain('可用性需在 AI 设置中测试确认，此处不表示已就绪')
+    expect(wrapper.text()).not.toContain('此处不表示已就绪')
     expect(wrapper.text()).not.toContain('AI 已就绪')
     wrapper.unmount()
   })
@@ -161,6 +160,174 @@ describe('home AI configuration status', () => {
     resolveSecond({ data: payload({ configured: true, providerCount: 3, anyPurposeUsable: true }) })
     await flushPromises()
     expect(wrapper.text()).toContain('已保存 3 个模型配置')
+    wrapper.unmount()
+  })
+})
+
+describe('onboarding guide and workspace metrics', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('renders onboarding guide with 0/2 progress for brand new user', async () => {
+    const wrapper = await render(payload({}, 0))
+    expect(wrapper.text()).toContain('开始你的协作之旅')
+    expect(wrapper.text()).toContain('核心就绪 0/2 项')
+    expect(wrapper.text()).toContain('创建首个项目')
+    expect(wrapper.text()).toContain('立即创建')
+    expect(wrapper.text()).toContain('体验任务看板')
+    expect(wrapper.text()).toContain('待开启')
+    expect(wrapper.text()).toContain('启用 AI 辅助')
+    expect(wrapper.text()).toContain('立即配置')
+    expect(wrapper.text()).toContain('全部清空')
+    expect(wrapper.text()).toContain('还没有项目')
+    expect(wrapper.text()).toContain('最近项目')
+    wrapper.unmount()
+  })
+
+  it('automatically hides guide for experienced users, even when tasks are 0 or assigned to others', async () => {
+    // 关键场景：用户拥有成熟项目，但当前个人待办为 0（已完成所有任务或全部由其他成员负责）
+    const experiencedUserNoTasks = {
+      recentProjects: [{ id: 'proj-1', name: '竞赛项目', status: 'ACTIVE', role: 'OWNER' }],
+      myTasks: [], // 待办为 0
+      notificationsSummary: { unread: 2 },
+      pendingApprovals: 1,
+      aiConfigSummary: summary({ configured: true, providerCount: 1, anyPurposeUsable: true }),
+      recentActivity: [],
+    }
+    const wrapper = await render(experiencedUserNoTasks)
+    // 老用户由于已有项目，默认不被新手引导打扰！
+    expect(wrapper.find('.onboarding-card').exists()).toBe(false)
+
+    // 顶部操作栏提供查看引导入口
+    const guideToggle = wrapper.findAll('button').find((b) => b.text().includes('新手引导'))
+    expect(guideToggle).toBeDefined()
+
+    // 主动点击后可以查看引导
+    await guideToggle!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.onboarding-card').exists()).toBe(true)
+    expect(wrapper.text()).toContain('核心就绪 2/2 项')
+
+    // 验证步骤 2 成员管理链接精准跳转到 /projects/:id/members
+    const memberLink = wrapper.findAll('a').find((a) => a.text().includes('管理成员'))
+    expect(memberLink?.attributes('href')).toBe('/projects/proj-1/members')
+
+    // 验证步骤 3 不会因待办为 0 而粗暴判定为“未完成”，而是呈现“看板协同 / 体验任务看板”
+    expect(wrapper.text()).toContain('看板协同')
+    expect(wrapper.text()).toContain('体验任务看板')
+    expect(wrapper.text()).not.toContain('待创建')
+
+    wrapper.unmount()
+  })
+
+  it('allows user to dismiss guide and persist state in localStorage', async () => {
+    const wrapper = await render(payload({}, 0))
+    expect(wrapper.find('.onboarding-card').exists()).toBe(true)
+
+    // 点击收起引导
+    const dismissBtn = wrapper.find('button.dismiss-btn')
+    expect(dismissBtn.exists()).toBe(true)
+    await dismissBtn.trigger('click')
+    await flushPromises()
+
+    // 引导卡片收起
+    expect(wrapper.find('.onboarding-card').exists()).toBe(false)
+    // 恢复按钮出现
+    const restoreBtn = wrapper.findAll('button').find((b) => b.text().includes('新手引导'))
+    expect(restoreBtn).toBeDefined()
+
+    // 重新点击恢复展开
+    await restoreBtn!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.onboarding-card').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('renders metric badges and identifies overdue tasks', async () => {
+    const overdueData = {
+      recentProjects: [{ id: 'p1', name: '逾期测试项目', status: 'ACTIVE', role: 'MEMBER' }],
+      myTasks: [
+        { id: 't1', projectId: 'p1', projectName: '逾期测试项目', title: '延期工作', status: 'TODO', priority: 'URGENT', dueDate: '2026-01-01' },
+      ],
+      notificationsSummary: { unread: 3 },
+      pendingApprovals: 2,
+      aiConfigSummary: summary(),
+      recentActivity: [],
+    }
+    const wrapper = await render(overdueData)
+    expect(wrapper.text()).toContain('我的待办')
+    expect(wrapper.text()).toContain('1 项逾期')
+    expect(wrapper.text()).toContain('需确认')
+    expect(wrapper.text()).toContain('新消息')
+    expect(wrapper.text()).toContain('最近项目')
+    expect(wrapper.text()).toContain('已逾期')
+    expect(wrapper.text()).toContain('紧急')
+    wrapper.unmount()
+  })
+
+  it('does not silently pick a project when the user has multiple projects', async () => {
+    const multiProject = {
+      recentProjects: [
+        { id: 'p1', name: '项目甲', status: 'ACTIVE', role: 'OWNER' },
+        { id: 'p2', name: '项目乙', status: 'ACTIVE', role: 'MEMBER' },
+      ],
+      myTasks: [],
+      notificationsSummary: { unread: 0 },
+      pendingApprovals: 0,
+      aiConfigSummary: summary(),
+      recentActivity: [],
+    }
+    const wrapper = await render(multiProject)
+    // 有项目的用户引导默认收起，先手动展开再验证入口行为
+    const guideToggle = wrapper.findAll('button').find((b) => b.text().includes('新手引导'))
+    await guideToggle!.trigger('click')
+    await flushPromises()
+    // 多项目时跨项目入口必须先让用户选择项目，禁止静默跳到最近项目
+    const chooseLinks = wrapper.findAll('a').filter((a) => a.text().includes('选择项目'))
+    expect(chooseLinks.length).toBeGreaterThanOrEqual(3)
+    for (const link of chooseLinks) {
+      expect(link.attributes('href')).toBe('/projects')
+    }
+    wrapper.unmount()
+  })
+
+  it('does not count project membership alone as having created a project', async () => {
+    const memberOnly = {
+      recentProjects: [{ id: 'p1', name: '别人的项目', status: 'ACTIVE', role: 'MEMBER' }],
+      myTasks: [],
+      notificationsSummary: { unread: 0 },
+      pendingApprovals: 0,
+      aiConfigSummary: summary(),
+      recentActivity: [],
+    }
+    const wrapper = await render(memberOnly)
+    const guideToggle = wrapper.findAll('button').find((b) => b.text().includes('新手引导'))
+    await guideToggle!.trigger('click')
+    await flushPromises()
+    // 仅是成员身份不能把「创建首个项目」标记为已完成
+    expect(wrapper.text()).toContain('核心就绪 0/2 项')
+    expect(wrapper.text()).toContain('立即创建')
+    wrapper.unmount()
+  })
+
+  it('does not mark a task due today as overdue (local-date boundary)', async () => {
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const dueToday = {
+      recentProjects: [{ id: 'p1', name: '边界项目', status: 'ACTIVE', role: 'OWNER' }],
+      myTasks: [
+        { id: 't1', projectId: 'p1', projectName: '边界项目', title: '今天截止', status: 'TODO', priority: 'HIGH', dueDate: today },
+      ],
+      notificationsSummary: { unread: 0 },
+      pendingApprovals: 0,
+      aiConfigSummary: summary(),
+      recentActivity: [],
+    }
+    const wrapper = await render(dueToday)
+    // 今天截止不能标为已逾期（UTC 比较会在东八区凌晨误判）
+    expect(wrapper.text()).not.toContain('项逾期')
+    expect(wrapper.text()).not.toContain('已逾期')
     wrapper.unmount()
   })
 })

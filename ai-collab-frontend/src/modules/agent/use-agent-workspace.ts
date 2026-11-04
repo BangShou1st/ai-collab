@@ -315,6 +315,23 @@ export function useAgentWorkspace() {
       sessions.value.unshift(created); sessionId.value = created.id
     } catch (reason) { fail(reason, 'Agent 会话创建') }
   }
+  const AUTO_TITLE_PATTERN = /^项目协作 \d{4}\/\d{1,2}\/\d{1,2}$/
+  function autoTitleFromQuestion(content: string): string {
+    const normalized = content.replace(/\s+/g, ' ').trim()
+    const chars = Array.from(normalized)
+    return chars.length > 30 ? `${chars.slice(0, 30).join('')}…` : normalized
+  }
+  /** 首条问题自动命名：只改仍叫默认模板的会话（手动重命名过的不动），成功后标题不再匹配模板，天然只发生一次 */
+  async function maybeAutoNameSession(targetProjectId: string, targetSessionId: string, content: string): Promise<void> {
+    const session = sessions.value.find((item) => item.id === targetSessionId)
+    if (!session || !AUTO_TITLE_PATTERN.test(session.title)) return
+    const title = autoTitleFromQuestion(content)
+    if (!title) return
+    try {
+      const updated = (await agentApi.renameSession(targetProjectId, targetSessionId, title)).data
+      sessions.value = sessions.value.map((item) => item.id === targetSessionId ? { ...item, ...updated } : item)
+    } catch { /* 命名失败不打断对话：保留默认标题，下次发送时可再尝试 */ }
+  }
   async function renameSession(item: AgentSession) {
     try {
       const result = await ElMessageBox.prompt('请输入新的会话名称', '重命名会话', {
@@ -393,6 +410,7 @@ export function useAgentWorkspace() {
         pageContext: currentPageContext(),
         pausedRunId,
       })).data
+      void maybeAutoNameSession(requestedProjectId, requestedSessionId, sentContent)
       if (stale()) return
       if (pausedRunId && run.id === pausedRunId) {
         // 同一个运行被恢复：不重建时间线、不追加新任务消息。事件流已推进

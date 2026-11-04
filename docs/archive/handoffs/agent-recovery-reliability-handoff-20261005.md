@@ -21,7 +21,7 @@ M1–M4 已完成并收口，本轮不再重复做结构维护。当前方向是
 2. `E:\project\ai-collab\docs\agent-maintainability-and-course-review-20261005.md`：第 5 节恢复问题与范围。
 3. `E:\project\ai-collab\docs\agent-runtime-framework-decision-20261005.md`：只阅读相关恢复缺口的源码依据，框架选型不追加为本轮任务。
 
-M1–M4 后端全量历史证据为 `docs/acceptance-20261005/backend-full-maintenance-20261005.log`：1089 项、1078 通过、11 项显式门控跳过，零失败/错误。本轮结果必须单独统计。
+M1–M4 后端全量历史证据为 `docs/acceptance-evidence/2026-10-05/acceptance-20261005/` 归档记录：1089 项、1078 通过、11 项显式门控跳过，零失败/错误。本轮结果必须单独统计。
 
 ## 2. R1：修复崩溃恢复计时
 

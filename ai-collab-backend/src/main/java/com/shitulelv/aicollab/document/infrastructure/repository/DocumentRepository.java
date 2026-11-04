@@ -67,6 +67,11 @@ public class DocumentRepository {
         if (configs != null) configs.lockInfrastructure();
         return mapper.resetForReindex(projectId, documentId) == 1;
     }
+    @org.springframework.transaction.annotation.Transactional
+    public boolean resetForReindexWithSource(UUID projectId, UUID documentId, String objectKey, long sizeBytes) {
+        if (configs != null) configs.lockInfrastructure();
+        return mapper.resetForReindexWithSource(projectId, documentId, objectKey, sizeBytes) == 1;
+    }
     public boolean markDeleting(UUID projectId, UUID documentId) {
         return mapper.markDeleting(projectId, documentId) == 1;
     }
