@@ -34,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -252,7 +253,7 @@ class ConnectorSyncServiceTest {
         verify(registration).registerUploadedDocument(any());
         verify(externalDocs).insert(any(), eq(sourceId), eq("docToken1"), eq("docx"),
                 eq("项目A"), eq("https://feishu/docx/docToken1"), eq(1000L), anyString(), any());
-        verify(revisions).insert(any(), any(), eq(1), eq(1000L), anyString(), any(), eq("ACTIVE"));
+        verify(revisions).insert(any(), any(), eq(1), eq(1000L), anyString(), any(), anyString(), eq("ACTIVE"));
         verify(jobs).finish(eq(jobId), eq("SUCCESS"), eq(1), eq(1), eq(0), eq(0), eq(0), any());
     }
 
@@ -296,11 +297,11 @@ class ConnectorSyncServiceTest {
                 new FeishuFile("docToken1", "项目A", "docx", null, 2000L)));
         when(externalDocs.listBySource(sourceId)).thenReturn(List.of(knownDoc("docToken1", 1000L, documentId)));
         when(feishu.docxRawContent(anyString(), eq("docToken1"))).thenReturn("新正文");
-        when(documents.resetForReindex(projectId, documentId)).thenReturn(true);
+        when(documents.resetForReindexWithSource(eq(projectId), eq(documentId), anyString(), anyLong())).thenReturn(true);
 
         service.trigger(sourceId, "MANUAL");
 
-        verify(documents).resetForReindex(projectId, documentId);
+        verify(documents).resetForReindexWithSource(eq(projectId), eq(documentId), anyString(), anyLong());
         verify(dispatcher).dispatch(projectId, documentId);
         verify(revisions).supersedeActive(any());
     }
@@ -402,7 +403,7 @@ class ConnectorSyncServiceTest {
 
         verify(registration).registerUploadedDocument(any());
         verify(externalDocs).updateDocumentRef(eq(blocked.id), any(), eq("ACTIVE"), eq("项目A"), any());
-        verify(revisions).insert(any(), eq(blocked.id), eq(3), eq(3000L), anyString(), any(), eq("ACTIVE"));
+        verify(revisions).insert(any(), eq(blocked.id), eq(3), eq(3000L), anyString(), any(), anyString(), eq("ACTIVE"));
         verify(jobs).finish(any(), eq("SUCCESS"), eq(1), eq(1), eq(0), eq(0), eq(0), any());
     }
 

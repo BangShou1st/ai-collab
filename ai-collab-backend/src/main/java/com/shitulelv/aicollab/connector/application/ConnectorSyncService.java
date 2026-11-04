@@ -204,7 +204,12 @@ public class ConnectorSyncService {
         }
 
         // Listing completed in full: verification evidence is fresh.
-        if (!visibility.restoreSource(source.projectId, source.id)) {
+        ensureOwnership(guard);
+        boolean[] restored = { false };
+        writeUnderOwnership(jobId, () -> {
+            restored[0] = visibility.restoreSource(source.projectId, source.id);
+        });
+        if (!restored[0]) {
             return "知识源授权不可用或清理任务尚未完成";
         }
         feishu.folderPermissionMembers(token, source.folderToken);
@@ -244,19 +249,21 @@ public class ConnectorSyncService {
                 String hash = sha256(content);
                 boolean contentUnchanged = existing != null && "ACTIVE".equals(existing.status)
                         && hash.equals(existing.contentHash);
-                // 对象存储写入保持在 Fencing 事务之外：幂等覆盖同一 objectKey，
-                // 不持有数据库行锁跨外部 I/O。新文档的 documentId 在此先行确定。
+                // 跨存储隔离：每次内容更新分配独有的不可变对象 Key，避免失权 Worker
+                // 覆盖已由新 Worker 提交的权威文件。新文档与已有文档更新均在事务外写入独立 Key。
                 byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
                 boolean reactivating = existing != null
                         && ("BLOCKED".equals(existing.status) || "REMOVED".equals(existing.status));
                 UUID preparedDocumentId = (existing == null || reactivating)
                         ? UUID.randomUUID() : existing.documentId;
+                UUID versionToken = UUID.randomUUID();
+                String targetObjectKey = versionedObjectKey(source.projectId, preparedDocumentId, versionToken);
                 if (!contentUnchanged) {
-                    storage.put(objectKey(source.projectId, preparedDocumentId),
-                            new ByteArrayInputStream(bytes), bytes.length, "text/plain");
+                    storage.put(targetObjectKey, new ByteArrayInputStream(bytes), bytes.length, "text/plain");
                 }
                 // 数据库 Fencing 短事务：锁定任务行校验所有权（RUNNING 且租约未过期）后，
-                // 同一事务内完成受保护的数据库写入；接管方必须等本事务提交才能回收任务。
+                // 同一事务内完成受保护的数据库写入（包含 project_document.object_key 原子切换）；
+                // 接管方必须等本事务提交才能回收任务。
                 boolean[] updated = { false };
                 boolean[] sourceActive = { true };
                 try {
@@ -272,15 +279,30 @@ public class ConnectorSyncService {
                                 externalDocs.updateContent(existing.id, safeTitle(file), file.url(),
                                         file.modifiedTime(), existing.contentHash);
                             } else {
-                                upsertDocument(source, file, content, hash, existing, preparedDocumentId);
+                                upsertDocument(source, file, content, hash, existing, preparedDocumentId, targetObjectKey);
                                 updated[0] = true;
                             }
                         });
                     });
                 } catch (ConnectorSyncLeaseGuard.LeaseLostException exception) {
-                    if (existing == null || reactivating) {
-                        // 新文档尚未落库：清掉刚写入的对象存储产物，避免孤儿文件。
-                        storage.delete(objectKey(source.projectId, preparedDocumentId));
+                    if (!contentUnchanged) {
+                        // 失权 Worker 未能落库：安全清理本 Worker 刚才上传的独立对象 Key，
+                        // 避免孤儿文件积累。由于使用不可变 Key，清理绝不会误删其他 Worker 已经提交的合法版本。
+                        try {
+                            storage.delete(targetObjectKey);
+                        } catch (RuntimeException cleanupException) {
+                            log.warn("失权 Worker 清理孤儿对象失败，objectKey={}", targetObjectKey, cleanupException);
+                        }
+                    }
+                    throw exception;
+                } catch (RuntimeException exception) {
+                    if (!contentUnchanged) {
+                        // 数据库事务异常回滚：补偿删除未被落库引用的对象
+                        try {
+                            storage.delete(targetObjectKey);
+                        } catch (RuntimeException cleanupException) {
+                            log.warn("事务回滚后清理孤儿对象失败，objectKey={}", targetObjectKey, cleanupException);
+                        }
                     }
                     throw exception;
                 }
@@ -352,40 +374,40 @@ public class ConnectorSyncService {
 
     private void upsertDocument(ConnectorRows.SourceRow source, FeishuFile file,
                                 String content, String hash, ConnectorRows.ExternalDocRow existing,
-                                UUID preparedDocumentId) {
+                                UUID preparedDocumentId, String targetObjectKey) {
         String displayName = safeTitle(file);
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
         // A BLOCKED row means access was revoked earlier and its indexed document
         // was removed; on re-grant it must be re-registered and re-bound.
         boolean reactivating = existing != null && ("BLOCKED".equals(existing.status) || "REMOVED".equals(existing.status));
         if (existing == null || reactivating) {
             UUID documentId = preparedDocumentId;
-            String objectKey = objectKey(source.projectId, documentId);
             DocumentEntity entity = new DocumentEntity();
             entity.setId(documentId);
             entity.setProjectId(source.projectId);
             entity.setDisplayName(displayName);
             entity.setOriginalFilename(displayName + ".txt");
             entity.setMimeType("text/plain");
-            entity.setSizeBytes((long) content.getBytes(StandardCharsets.UTF_8).length);
-            entity.setObjectKey(objectKey);
+            entity.setSizeBytes((long) bytes.length);
+            entity.setObjectKey(targetObjectKey);
             entity.setStatus(DocumentStatus.UPLOADED);
             entity.setChunkCount(0);
             entity.setUploadedBy(source.authorizationDeclaredBy);
             try {
                 registration.registerUploadedDocument(entity);
             } catch (RuntimeException exception) {
-                storage.delete(objectKey);
+                storage.delete(targetObjectKey);
                 throw exception;
             }
             UUID externalId = UUID.randomUUID();
             if (reactivating) {
                 externalDocs.updateDocumentRef(existing.id, documentId, "ACTIVE", displayName, file.url());
                 revisions.insert(UUID.randomUUID(), existing.id,
-                        revisions.maxRevisionNo(existing.id) + 1, file.modifiedTime(), hash, documentId, "ACTIVE");
+                        revisions.maxRevisionNo(existing.id) + 1, file.modifiedTime(), hash, documentId, targetObjectKey, "ACTIVE");
             } else {
                 externalDocs.insert(externalId, source.id, file.token(), file.type(), displayName,
                         file.url(), file.modifiedTime(), hash, documentId);
-                revisions.insert(UUID.randomUUID(), externalId, 1, file.modifiedTime(), hash, documentId, "ACTIVE");
+                revisions.insert(UUID.randomUUID(), externalId, 1, file.modifiedTime(), hash, documentId, targetObjectKey, "ACTIVE");
             }
         } else {
             if (!"READY".equals(existing.documentStatus)) {
@@ -393,14 +415,14 @@ public class ConnectorSyncService {
                         "文档正在处理或索引失败，稍后同步会自动重试");
             }
             UUID documentId = existing.documentId;
-            String objectKey = objectKey(source.projectId, documentId);
-            if (!documents.resetForReindex(source.projectId, documentId)) {
+            // 原子切换 project_document 的 object_key 与 size_bytes，递增 version 并重置为 UPLOADED
+            if (!documents.resetForReindexWithSource(source.projectId, documentId, targetObjectKey, (long) bytes.length)) {
                 throw new BusinessException(ErrorCode.DOCUMENT_PROCESSING_CONFLICT);
             }
             externalDocs.updateContent(existing.id, displayName, file.url(), file.modifiedTime(), hash);
             revisions.supersedeActive(existing.id);
             revisions.insert(UUID.randomUUID(), existing.id,
-                    revisions.maxRevisionNo(existing.id) + 1, file.modifiedTime(), hash, documentId, "ACTIVE");
+                    revisions.maxRevisionNo(existing.id) + 1, file.modifiedTime(), hash, documentId, targetObjectKey, "ACTIVE");
             dispatcher.dispatch(source.projectId, documentId);
         }
     }
@@ -436,6 +458,10 @@ public class ConnectorSyncService {
     private static String safeTitle(FeishuFile file) {
         String name = file.name() == null || file.name().isBlank() ? "未命名文档" : file.name().strip();
         return name.length() > 180 ? name.substring(0, 180) : name;
+    }
+
+    private static String versionedObjectKey(UUID projectId, UUID documentId, UUID versionToken) {
+        return "projects/" + projectId + "/documents/" + documentId + "/sources/" + versionToken + ".txt";
     }
 
     private static String objectKey(UUID projectId, UUID documentId) {
