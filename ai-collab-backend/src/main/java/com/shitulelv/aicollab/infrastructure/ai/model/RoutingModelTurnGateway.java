@@ -70,7 +70,9 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
         if (command.callerUserId() != null) {
             UserAiProvider provider = AiConfigurationContext.current();
             if (provider != null) {
-                if (!provider.userId().equals(command.callerUserId())) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+                if (!isShared(provider) && !provider.userId().equals(command.callerUserId())) {
+                    throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+                }
                 userProviders.requireSnapshotAuthorized(provider);
             } else provider = userProviders.resolve(command.callerUserId(), command.purpose());
             if (zen.isZen(provider)) {
@@ -97,5 +99,10 @@ public class RoutingModelTurnGateway implements ModelTurnGateway {
         ModelTurnProviderAdapter adapter = adapters.get(config.providerType());
         if (adapter == null) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
         return adapter.turn(config, secrets.decrypt(config.encryptedApiKey()), command);
+    }
+
+    private static boolean isShared(UserAiProvider provider) {
+        return provider != null && provider.presetCode() != null
+                && provider.presetCode().startsWith(com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider.PRESET_CODE_SHARED);
     }
 }

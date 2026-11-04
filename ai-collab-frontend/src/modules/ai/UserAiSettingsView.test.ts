@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   disconnect: vi.fn(),
   confirm: vi.fn(),
   success: vi.fn(),
+  sharedProviders: vi.fn(),
 }));
 
 vi.mock("../../stores/auth-store", () => ({
@@ -47,6 +48,7 @@ vi.mock("./user-ai-api", () => ({
     testCapability: mocks.testCapability, detectAndConfigure: mocks.detectAndConfigure,
     probeResults: mocks.probeResults,
     models: mocks.providerModels, profiles: mocks.profiles,
+    sharedProviders: mocks.sharedProviders,
     create: vi.fn(), update: vi.fn(), remove: vi.fn(), setDefault: vi.fn(), test: vi.fn(),
     assignPurpose: vi.fn(), unassignPurpose: vi.fn(), discoverUnsavedModels: vi.fn(),
   },
@@ -101,6 +103,11 @@ const stubs = {
   "el-checkbox-group": { template: "<div><slot /></div>" },
   "el-radio-group": { template: "<div><slot /></div>" },
   "el-radio-button": { template: "<label><slot /></label>" },
+  "el-empty": { template: '<div class="el-empty-stub"><slot /></div>' },
+  "el-icon": { template: '<span><slot /></span>' },
+  "el-dropdown": { template: '<div><slot /><slot name="dropdown" /></div>' },
+  "el-dropdown-menu": { template: '<div><slot /></div>' },
+  "el-dropdown-item": { template: '<div><slot /></div>' },
   ElTag: { props: ["type", "size"], template: '<span class="el-tag-stub"><slot /></span>' },
   ElAlert: { props: ["title", "description", "type"], template: '<div>{{ title }} {{ description }}<slot /></div>' },
   RouterLink: { props: ["to"], template: '<a :href="typeof to === \'string\' ? to : to?.path"><slot /></a>' },
@@ -142,6 +149,7 @@ beforeEach(() => {
   authState.currentUser = { id: "u-1", systemAdmin: false };
   authState.listeners = [];
   mocks.list.mockResolvedValue(response([]));
+  mocks.sharedProviders.mockResolvedValue(response([]));
   mocks.listPurposes.mockResolvedValue(response({}));
   mocks.probeResults.mockResolvedValue(response([]));
   mocks.providerModels.mockResolvedValue(response(["my-model"]));
@@ -421,6 +429,55 @@ describe("UserAiSettingsView capability suite panel", () => {
     await buttonByText(wrapper, "检测并配置")?.trigger("click");
     await flushPromises();
     expect(mocks.detectAndConfigure).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
+  });
+});
+
+describe("UserAiSettingsView shared providers", () => {
+  const sharedItem = {
+    id: "sp-1",
+    name: "DeepSeek V3",
+    providerType: "OPENAI_COMPATIBLE" as const,
+    modelName: "deepseek-chat",
+    enabled: true,
+    status: "PUBLISHED",
+    capabilities: ["CHAT", "STREAMING"],
+    temperature: 0.7,
+    maxOutputTokens: 4096,
+    publishedAt: "2026-11-04T12:00:00Z",
+  };
+
+  it("displays shared providers with no test, probe or delete buttons", async () => {
+    mocks.sharedProviders.mockResolvedValue(response([sharedItem]));
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("DeepSeek V3");
+    expect(wrapper.text()).toContain("全站共享");
+    expect(wrapper.text()).toContain("deepseek-chat");
+
+    // 不出现测试、探测或删除按钮
+    const allButtons = wrapper.findAll("button").map((b) => b.text());
+    expect(allButtons).not.toContain("测试连接");
+    expect(allButtons).not.toContain("检测并配置");
+    expect(allButtons).not.toContain("流式测试");
+
+    wrapper.unmount();
+  });
+
+  it("allows selecting shared provider for purpose assignment", async () => {
+    mocks.sharedProviders.mockResolvedValue(response([sharedItem]));
+    const wrapper = mountView();
+    await flushPromises();
+
+    const applyAllBtn = buttonByText(wrapper, "一键应用到全部用途");
+    expect(applyAllBtn).toBeTruthy();
+    await applyAllBtn?.trigger("click");
+    await flushPromises();
+
+    expect(userAiApi.assignPurpose).toHaveBeenCalledWith("KNOWLEDGE_CHAT", "sp-1");
+    expect(userAiApi.assignPurpose).toHaveBeenCalledWith("PLANNING", "sp-1");
+    expect(userAiApi.assignPurpose).toHaveBeenCalledWith("AGENT", "sp-1");
     wrapper.unmount();
   });
 });

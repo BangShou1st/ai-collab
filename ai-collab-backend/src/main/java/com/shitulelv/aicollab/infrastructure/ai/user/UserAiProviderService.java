@@ -23,6 +23,7 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -36,17 +37,29 @@ public class UserAiProviderService {
     private final ModelSecretCipher secrets;
     private final OutboundEndpointPolicy endpoints;
     private final Map<ModelProviderType, ModelProviderAdapter> adapters;
+    private final com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProviderRepository sharedRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public UserAiProviderService(
+            UserAiProviderRepository repository,
+            ModelSecretCipher secrets,
+            OutboundEndpointPolicy endpoints,
+            List<ModelProviderAdapter> adapters,
+            com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProviderRepository sharedRepository) {
+        this.repository = repository;
+        this.secrets = secrets;
+        this.endpoints = endpoints;
+        this.adapters = new EnumMap<>(ModelProviderType.class);
+        adapters.forEach(adapter -> this.adapters.put(adapter.providerType(), adapter));
+        this.sharedRepository = sharedRepository;
+    }
 
     public UserAiProviderService(
             UserAiProviderRepository repository,
             ModelSecretCipher secrets,
             OutboundEndpointPolicy endpoints,
             List<ModelProviderAdapter> adapters) {
-        this.repository = repository;
-        this.secrets = secrets;
-        this.endpoints = endpoints;
-        this.adapters = new EnumMap<>(ModelProviderType.class);
-        adapters.forEach(adapter -> this.adapters.put(adapter.providerType(), adapter));
+        this(repository, secrets, endpoints, adapters, null);
     }
 
     public List<UserAiProviderView> list(UUID userId) {
@@ -116,11 +129,44 @@ public class UserAiProviderService {
 
     @Transactional
     public void assignPurpose(UUID userId, ModelPurpose purpose, UUID providerId) {
-        UserAiProvider provider = require(userId, providerId);
-        if (!provider.enabled()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能分配已停用的模型配置");
+        assignPurpose(userId, purpose, providerId, false);
+    }
+
+    @Transactional
+    public void assignPurpose(UUID userId, ModelPurpose purpose, UUID providerId, boolean isShared) {
+        if (isShared) {
+            if (sharedRepository == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "共享供应商不可用");
+            }
+            com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider shared = sharedRepository.findById(providerId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "共享模型配置不存在"));
+            if (!shared.isPublished()) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能分配已停用或已撤销的共享模型配置");
+            }
+            repository.assignPurpose(userId, purpose, providerId, true);
+            return;
         }
-        repository.assignPurpose(userId, purpose, providerId);
+
+        // 尝试作为个人配置分配；若个人配置不存在但存在已发布的共享配置，也允许优雅分配为共享
+        Optional<UserAiProvider> userProvider = repository.findByIdAndUserId(providerId, userId);
+        if (userProvider.isPresent()) {
+            UserAiProvider provider = userProvider.get();
+            if (!provider.enabled()) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不能分配已停用的模型配置");
+            }
+            repository.assignPurpose(userId, purpose, providerId, false);
+            return;
+        }
+
+        if (sharedRepository != null) {
+            Optional<com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider> shared = sharedRepository.findById(providerId);
+            if (shared.isPresent() && shared.get().isPublished()) {
+                repository.assignPurpose(userId, purpose, providerId, true);
+                return;
+            }
+        }
+
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型配置不存在");
     }
 
     @Transactional
@@ -132,6 +178,10 @@ public class UserAiProviderService {
         return repository.listAssignments(userId);
     }
 
+    public java.util.Map<ModelPurpose, UserAiProviderRepository.PurposeAssignmentDetail> listAssignmentDetails(UUID userId) {
+        return repository.listAssignmentDetails(userId);
+    }
+
     public UserAiProvider resolve(UUID userId, ModelPurpose purpose) {
         return repository.findAssigned(userId, purpose)
                 .or(() -> repository.findDefaultByUserId(userId))
@@ -139,11 +189,32 @@ public class UserAiProviderService {
     }
 
     public void requireSnapshotAuthorized(UserAiProvider snapshot) {
+        if (snapshot.presetCode() != null && snapshot.presetCode().startsWith(com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider.PRESET_CODE_SHARED)) {
+            if (sharedRepository == null) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+            com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider shared = sharedRepository.findById(snapshot.id())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE, "共享模型已被撤销"));
+            if (!shared.isPublished() || !java.util.Objects.equals(shared.encryptedApiKey(), snapshot.encryptedApiKey())) {
+                throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID, "共享模型配置已停用或凭据已轮换，请重新发起");
+            }
+            return;
+        }
+
         UserAiProvider current = require(snapshot.userId(), snapshot.id());
         if (!current.enabled() || !java.util.Objects.equals(current.encryptedApiKey(), snapshot.encryptedApiKey()))
             throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID, "模型配置已停用或凭据已轮换，请重新发起");
     }
-    public UserAiProvider requireRuntimeConfiguration(UUID userId, UUID id) { return require(userId, id); }
+
+    public UserAiProvider requireRuntimeConfiguration(UUID userId, UUID id) {
+        Optional<UserAiProvider> personal = repository.findByIdAndUserId(id, userId);
+        if (personal.isPresent()) return personal.get();
+        if (sharedRepository != null) {
+            Optional<com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider> shared = sharedRepository.findById(id);
+            if (shared.isPresent() && shared.get().isPublished()) {
+                return shared.get().toRuntimeUserAiProvider();
+            }
+        }
+        return require(userId, id);
+    }
 
     public ChatCompletionResult test(UUID userId, UUID id) {
         UserAiProvider provider = require(userId, id);

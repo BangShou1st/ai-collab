@@ -285,7 +285,6 @@ async function logout(): Promise<void> {
         <p class="side-title">智能与设置</p>
         <router-link to="/settings/ai" title="AI 设置" aria-label="AI 设置"><el-icon><Cpu /></el-icon><span>AI 设置</span></router-link>
         <router-link to="/account" title="账号设置" aria-label="账号设置"><el-icon><User /></el-icon><span>账号设置</span></router-link>
-        <router-link v-if="auth.currentUser?.systemAdmin" to="/admin" title="管理中心" aria-label="管理中心"><el-icon><Setting /></el-icon><span>管理中心</span></router-link>
       </nav>
 
       <nav v-if="projectId && !projectAccessDenied" class="side-group" aria-label="项目导航">

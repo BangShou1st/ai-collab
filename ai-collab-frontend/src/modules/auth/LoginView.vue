@@ -16,7 +16,8 @@ const form = reactive({ username: '', password: '' })
 async function submit(): Promise<void> {
   try {
     await auth.login(form.username, form.password)
-    const redirect = resolveSafeRedirect(router, route.query.redirect)
+    const defaultTarget = auth.currentUser?.systemAdmin ? '/admin' : '/home'
+    const redirect = resolveSafeRedirect(router, route.query.redirect, defaultTarget)
     await router.replace(redirect)
     ElMessage.success('登录成功')
   } catch (error: unknown) {
