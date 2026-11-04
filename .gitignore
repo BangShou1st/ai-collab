@@ -96,8 +96,6 @@ CLAUDE.md
 # ===========================
 # Local Learning Materials (NOT for GitHub)
 # ===========================
-docs/learning/
-docs/superpowers/
 docs/SESSION_HANDOFF.md
 docs/feature-matrix.md
 docs/database.md
@@ -106,6 +104,7 @@ docs/database.md
 docs/development/*
 !docs/development/branch-policy.md
 !docs/development/feishu-oauth-troubleshooting.md
+!docs/development/model-network-proxy.md
 docs/agent/
 
 # ===========================
@@ -132,11 +131,6 @@ start-frontend.bat
 *key*.txt
 *secret*.txt
 *credential*.txt
-
-# ===========================
-# Visual acceptance screenshots (local only, never commit)
-# ===========================
-docs/shots/
 
 # ===========================
 # Local AI tooling state (session plans, agent memory)

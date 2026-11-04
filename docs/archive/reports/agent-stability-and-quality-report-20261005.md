@@ -97,4 +97,4 @@
 - 本轮新增文件：`ListPageContract.java`、`AgentListPaginationChainTest`、`AgentModelMessageComposerRequestConsistencyTest`、`AgentRuntimeRequestSnapshotTest`、`ListFactsQuestionCoverageTest`、`AgentView.activities.test.ts`；测试侧新增 `SLOW_EACH` 验收模式（`ScriptedAcceptanceModel`）。
 - 原有未提交改动（精简、动态模型配置、过程可视化、V59、上一轮修复）全部保留。
 - 清理仅限本会话：bsk 会话已 `session stop rcvm`，前端 dev server 与验收宿主进程已停止，隔离容器 `ai-collab-agentexp-pg-20261005b` 已 `docker rm -f`；55432/18080/15173 已无监听。
-- 证据与日志：`docs/acceptance-20261005/`（`backend-full-final.log`、`frontend-vitest-final.log`、`host-d.log`，以及上一轮截图）。
+- 证据与截图：`docs/acceptance-evidence/2026-10-05/acceptance-20261005/`（历史验收截图）。

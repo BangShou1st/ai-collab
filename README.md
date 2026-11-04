@@ -53,10 +53,12 @@
 | <img src="docs/images/03-tasks-gantt.png" alt="甘特图排期与里程碑全景" width="100%" /> | <img src="docs/images/04-task-planning.png" alt="两阶段自省式 AI 任务规划" width="100%" /> |
 | **受控协作 Agent 运行时与审批流** | **项目深度洞察与 AI 智能周报** |
 | <img src="docs/images/05-agent-workspace.png" alt="受控协作 Agent 运行时与审批流" width="100%" /> | <img src="docs/images/06-weekly-report.png" alt="项目深度洞察与 AI 智能周报" width="100%" /> |
-| **RAG 知识库精准溯源问答** | **对象存储数据源 Connector** |
-| <img src="docs/images/07-knowledge-rag.png" alt="RAG 知识库精准溯源问答" width="100%" /> | <img src="docs/images/08-storage-connector.png" alt="对象存储数据源 Connector" width="100%" /> |
-| **统一 AI 模型网关与凭据安全** | **文档资产与向量切块管理** |
-| <img src="docs/images/09-ai-settings.png" alt="统一 AI 模型网关与凭据安全" width="100%" /> | <img src="docs/images/10-document-assets.png" alt="文档资产与向量切块管理" width="100%" /> |
+| **RAG 知识库精准溯源问答** | **飞书多维知识连接器与 OAuth 授权** |
+| <img src="docs/images/07-knowledge-rag.png" alt="RAG 知识库精准溯源问答" width="100%" /> | <img src="docs/images/08-feishu-connector.png" alt="飞书多维知识连接器与 OAuth 授权" width="100%" /> |
+| **对象存储数据源增量 Connector** | **统一 AI 模型网关与凭据安全** |
+| <img src="docs/images/09-storage-connector.png" alt="对象存储数据源增量 Connector" width="100%" /> | <img src="docs/images/10-ai-settings.png" alt="统一 AI 模型网关与凭据安全" width="100%" /> |
+| **项目延期与依赖风险多维预警** | **文档资产与向量切块管理** |
+| <img src="docs/images/11-risk-analysis.png" alt="项目延期与依赖风险多维预警" width="100%" /> | <img src="docs/images/12-document-assets.png" alt="文档资产与向量切块管理" width="100%" /> |
 
 </div>
 
@@ -73,12 +75,12 @@ mindmap
       DAG 依赖环检测与拓扑排序
       甘特图排期与日历视图
       中文操作审计追踪流水
-    企业级 RAG 知识库与连接器
+    企业级 RAG 知识库与数据连接
       Apache Tika 多源文档解析
       智能分块与 pgvector 语义检索
       段落级溯源与 SSE 流式问答
-      对象存储增量 Connector
-      孤儿文件巡检与清理
+      飞书 (Feishu/Lark) 知识库生态连接
+      对象存储增量扫描与孤儿清理
     两阶段自省式 AI 任务规划
       骨架生成与细节填充管线
       单里程碑自省式局部展开
@@ -106,11 +108,12 @@ mindmap
 * **甘特图与日历全景**：直观展示项目各里程碑节点与任务时间线，任务超期与临期自动预警高亮。
 * **完整操作审计流水**：记录关键业务变更流水，自动生成语义清晰的中文审计摘要与脱敏上下文。
 
-### 2. 📚 企业级 RAG 知识库与数据连接器 (Knowledge Base & Storage Connector)
+### 2. 📚 企业级 RAG 知识库与数据连接器 (Knowledge Base & Connectors)
 * **多源格式智能解析**：集成 Apache Tika 3.3.0，支持 PDF、DOCX、Markdown、TXT 等格式文档的高保真内容提取与结构化解析。
 * **精细化分块与 pgvector 向量检索**：按语义断句与段落边界自适应切块，基于 PostgreSQL 17 + pgvector 扩展实现余弦相似度匹配与高维语义索引。
 * **段落级流式溯源问答**：基于 Server-Sent Events (SSE) 实时打字机流式输出，每个论断精准关联原始文档切片与可点击跳转的溯源证据卡片。
-* **对象存储增量 Connector 与孤儿清理**：内置 S3/MinIO 对象存储数据源连接器，支持按存储桶增量扫描接入文档资产，并提供定时巡检与孤儿文件清理机制。
+* **飞书多维知识连接器 (Feishu / Lark Connector)**：支持通过标准 OAuth 2.0 PKCE 流程绑定飞书知识空间与文件夹，一键映射并同步飞书云文档；支持 Webhook 事件驱动的增量更新与细粒度撤权安全隔离，将团队在飞书沉淀的规格书、设计案与会议纪要等无缝汇入 RAG 检索体系。
+* **对象存储增量 Connector 与孤儿清理**：内置 S3/MinIO 对象存储数据源连接器，支持按存储桶增量扫描接入文档资产，并提供跨存储不可变对象 Key 隔离、租约心跳失权防护与定时孤儿文件安全收敛。
 
 ### 3. 🧠 两阶段自省式 AI 任务规划 (Two-Phase Task Planning)
 * **两阶段生成管线**：
@@ -445,6 +448,7 @@ ai-collab/
 │   │   ├── work/                    # 任务看板、里程碑、DAG 依赖环检测、甘特图数据
 │   │   ├── document/                # Tika 文档抽取、切块清洗、MinIO 存储
 │   │   ├── knowledge/               # RAG 向量检索、余弦相似度匹配、SSE 流式引用问答
+│   │   ├── connector/               # 外部数据连接器（飞书知识库 OAuth/事件流同步、对象存储增量扫描）
 │   │   ├── planning/                # 两阶段任务拆解、Schema 严格校验、幂等确认落库
 │   │   ├── agent/                   # 协作 Agent 运行时、6 大 Skill、审批拦截器、长期记忆
 │   │   ├── notification/            # 站内实时通知与未读计数

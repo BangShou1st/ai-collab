@@ -34,6 +34,7 @@
 - [Agent 最终来源与引用契约 (`design/agent-source-citation-contract.md`)](design/agent-source-citation-contract.md)：已读来源、显式引用与语义支持的边界，子来源收口时的身份与原摘录校验。
 - [Provider 接入自动化与能力发现 (`design/provider-onboarding-and-capability-detection.md`)](design/provider-onboarding-and-capability-detection.md)：服务商档案、URL/Path 组合规则、探针专用执行边界、检测并配置与 CAS 写回（P7-PROVIDER-ONBOARDING-01）。
 - [账号生命周期：忘记密码、邮箱验证与统一邮件服务 (`design/account-lifecycle.md`)](design/account-lifecycle.md)：统一可信公开地址 `APP_PUBLIC_URL`、一次性令牌（哈希存储/原子消费）、防枚举响应、AFTER_COMMIT 邮件投递与部署环境矩阵（P7.1-D/E）。
+- [飞书知识生命周期与恢复约束 (`design/feishu-knowledge-lifecycle.md`)](design/feishu-knowledge-lifecycle.md)：OAuth PKCE 用户授权流程、Token 单次使用与自动刷新轮换、文件夹差异扫描、Webhook 撤权事件验签与数据隔离安全。
 
 ---
 
@@ -100,5 +101,8 @@
 - **任务交接与过渡**：[`docs/archive/handoffs/`](archive/handoffs/)（历史阶段任务书与上下文交接文档）
 - **代码审查与评审**：[`docs/archive/reviews/`](archive/reviews/)（阶段性代码审查、复杂度评估与复核记录）
 - **阶段交付报告**：[`docs/archive/reports/`](archive/reports/)（历史任务验收交付报告与验证补充）
+- **技术笔记与调研备忘**：[`docs/archive/notes/`](archive/notes/)（历史技术笔记、数据库设计事实与 Cloudflare 部署可行性审计备忘）
 - **历史提示词与指令**：[`docs/archive/prompts/`](archive/prompts/)（过往大型任务使用的复合优化 Prompt）
 - **专项研究与技术决策**：[`docs/archive/research/`](archive/research/)（长上下文压缩阈值、Java 框架选型等历史调研）
+- **历史审计截图资产**：[`docs/archive/audits/shots/`](archive/audits/shots/)（各轮次 UI 与多端视觉审计快照、审计报告及对比资产）
+- **产品体验重构方案**：[`docs/archive/superpowers/`](archive/superpowers/)（早期的产品交互体验重构提案、规格说明与真实验收对比）
