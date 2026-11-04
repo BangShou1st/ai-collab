@@ -67,5 +67,62 @@
 | 前端 ESLint 语法规范 | `pnpm lint` | **0 errors (PASS)** |
 | 前端自动化测试套件 | `pnpm test` | **63 文件全绿，489 个用例 PASS** |
 | 前端生产构建打包 | `pnpm build` | **Vite 构建成功 (dist 就绪)** |
-| 后端专项安全与生命周期测试 | `.\mvnw.cmd test -Dtest="SharedAiProviderLifecycleTest,AdminAiProviderSecurityTest"` | **5 个测试用例全 PASS** |
-| 数据库迁移一致性 | PostgreSQL 容器 Flyway V77 执行校验 | **V77 迁移成功应用，外键解除与约束生效** |
+| 后端专项安全与生命周期测试 | `.\mvnw.cmd test -Dtest="SharedAiProviderLifecycleTest,AdminAiProviderSecurityTest,UserAiProviderPresetGuardTest,KiloGatewayPresetIsolationIntegrationTest,ZenDisconnectIntegrationTest"` | **16 个测试用例全 PASS (Testcontainers + Flyway V1~V77)** |
+| 数据库迁移一致性 | PostgreSQL 容器 Flyway V77 执行校验 | **V77 迁移成功应用，用途绑定级联删除触发器生效** |
+
+---
+
+## 五、全站共享供应商真实模型出站推理实测证据（RAG 知识库问答真实闭环）
+
+针对「普通用户使用全站共享供应商真实推理」能力，组织了挂载专属事实文档、命中真实向量索引、路由网关出站推理的全链路实测：
+
+### 1. 测试拓扑与执行主体
+- **全站共享模型**：`魔搭 ModelScope` (`deepseek-ai/DeepSeek-V4.1-Flash-1017`)，由系统管理员发布为全站共享（状态 `PUBLISHED`）
+- **普通用户主体**：`fefinal_member`（普通项目成员，无任何管理员特权）
+- **用途绑定**：用户将 `KNOWLEDGE_CHAT` 绑定至该全站共享供应商，系统自动记录 `is_shared=true`
+
+### 2. 知识库专属事实文档与索引就绪
+- **测试项目**：`RAG-Verify-1793796367128` (ID: `52c93200-af16-4c32-8423-e953697cb6a4`)
+- **上传文档**：`polestar_spec.md` (ID: `9c3e5dbd-dfe6-4268-851b-2fb43e0270ff`)
+- **注入特定事实**：
+  - 核心代号：`POLESTAR-ALPHA-99`
+  - 首席总工程师：`诺兰·瓦特博士 (Dr. Nolan Watt)`
+  - 核心引力波探测频率：`1420.40575 MHz`
+  - 首次深空精准对接日期：`2027年11月28日`
+- **索引状态**：Tika 文本提取 + 本机 Ollama (`qwen3-embedding:0.6b`) 向量计算 + pgvector 写入完成，状态跃迁至 `READY`，分块数 `chunkCount=1`。
+
+### 3. 普通用户提问与真实模型交互事实
+- **问答会话 ID**：`7f367d16-7354-4be3-8722-24a5a5717f07`
+- **提问内容**：`"请根据资料说明：极星深空探索计划的首席总工程师是谁？核心引力波探测频率是多少？首次深空对接日期是哪一天？"`
+- **HTTP 状态与总耗时**：`HTTP 200 OK`，往返延迟 `2242ms`
+- **真实模型响应内容**：
+  > 根据资料 [S1]（《极星深空探索计划技术规范》，polestar_spec.md）：  
+  > 1. **首席总工程师**：诺兰·瓦特博士（Dr. Nolan Watt）  
+  > 2. **核心引力波探测频率**：1420.40575 MHz  
+  > 3. **首次深空精准对接日期**：2027年11月28日  
+  > 此外，资料还显示该计划的核心代号为 POLESTAR-ALPHA-99 [S1]。  
+  > 来源：[S1]
+- **来源引用列表**：包含 `documentId: 9c3e5dbd-dfe6-4268-851b-2fb43e0270ff`，相似度 `0.70702467`，分块 ID `75591a98-e903-4d51-bc31-989e22ee4638`
+- **证据不足标记**：`insufficientEvidence: false`（确证未走入拒答逻辑，真实调用 ModelScope 产生推理结果）
+
+### 4. 服务端调用与数据库脱敏日志单一事实源
+- **后端执行日志 (`backend.stdout.log`)**：
+  ```text
+  2026-11-04T20:46:10.704+08:00 DEBUG [requestId=cddc05596ddd43f8] c.s.a.i.ai.model.JsonHttpModelClient - Model API request: model=deepseek-ai/DeepSeek-V4.1-Flash-1017, stream=false
+  2026-11-04T20:46:12.744+08:00 DEBUG [requestId=cddc05596ddd43f8] c.s.a.i.ai.model.JsonHttpModelClient - Model API response status: 200
+  2026-11-04T20:46:12.796+08:00 INFO  [requestId=cddc05596ddd43f8] c.s.a.k.a.s.KnowledgeQuestionApplicationService - Knowledge QA completed candidateCount=1 retainedSourceCount=1 highestSimilarity=0.7070246724181128 retrievalLatencyMs=89 chatLatencyMs=2040 totalLatencyMs=2212 requestId=547cf3c4-f29d-4005-9d31-1259e4abe9ae
+  ```
+- **数据库审计记录 (`ai_call_log`)**：
+  - 调用 ID：`da38942b-5424-435f-8e29-fc0e2fccfa53`
+  - 用户 ID：`366c7bd7-d9b2-4c42-af70-63ed573e6d71` (`fefinal_member`)
+  - 项目 ID：`52c93200-af16-4c32-8423-e953697cb6a4`
+  - 功能标识：`KNOWLEDGE_QA`
+  - 提供商类型：`OPENAI_COMPATIBLE`
+  - 模型：`deepseek-ai/DeepSeek-V4.1-Flash-1017`
+  - 状态：`SUCCESS`
+  - 耗时：`2040 ms`
+  - Prompt Tokens：`483`
+  - Completion Tokens：`204`
+  - 时间：`2026-11-04 12:46:12.77954+00`
+
+确证：普通用户在无持有 ModelScope API Key 的前提下，经由系统服务端全站共享安全路由，完成真实大模型 RAG 推理与事实生成闭环，能力状态正式达成 **PASS**。
