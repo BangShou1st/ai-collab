@@ -69,10 +69,13 @@ class ConnectorSyncServiceTest {
     @BeforeEach
     void setUp() {
         TaskExecutor directExecutor = Runnable::run;
+        org.springframework.transaction.PlatformTransactionManager txManager =
+                org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class);
         service = new ConnectorSyncService(sources, connections, jobs, externalDocs, revisions,
                 feishu, secrets, documents, registration, storage, dispatcher, directExecutor, userTokens,
-                visibility, metrics, 60000);
+                visibility, txManager, metrics, 60000);
         when(jobs.renewLease(any())).thenReturn(1);
+        when(jobs.lockIfOwned(any())).thenReturn(1);
         when(visibility.restoreSource(any(), any())).thenReturn(true);
         when(visibility.withActiveSource(any(), any(), any())).thenAnswer(invocation -> {
             invocation.<Runnable>getArgument(2).run();
@@ -143,7 +146,9 @@ class ConnectorSyncServiceTest {
         };
         ConnectorSyncService rejecting = new ConnectorSyncService(sources, connections, jobs, externalDocs,
                 revisions, feishu, secrets, documents, registration, storage, dispatcher, rejectingExecutor,
-                userTokens, visibility, metrics, 60000);
+                userTokens, visibility,
+                org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class),
+                metrics, 60000);
 
         assertThatThrownBy(() -> rejecting.trigger(sourceId, "MANUAL"))
                 .isInstanceOf(BusinessException.class)
@@ -176,7 +181,9 @@ class ConnectorSyncServiceTest {
         java.util.concurrent.ExecutorService async = java.util.concurrent.Executors.newSingleThreadExecutor();
         ConnectorSyncService losing = new ConnectorSyncService(sources, connections, jobs, externalDocs,
                 revisions, feishu, secrets, documents, registration, storage, dispatcher, async::execute,
-                userTokens, visibility, metrics, 20);
+                userTokens, visibility,
+                org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class),
+                metrics, 20);
         try {
             losing.trigger(sourceId, "MANUAL");
             assertThat(inScan.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
@@ -194,6 +201,27 @@ class ConnectorSyncServiceTest {
         verify(registration, never()).registerUploadedDocument(any());
         verify(jobs, never()).finish(any(), anyString(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any());
         verify(sources, never()).markSynced(any());
+    }
+
+    @Test
+    void staleLocalFlagCannotBypassDatabaseOwnershipGate() {
+        // D1.1-T04：本地失权标志尚未更新（心跳一切正常），但数据库已判失权
+        //（租约过期并被接管）——Fencing 门必须阻止写入，先查后写不再可信。
+        stubHappyPath();
+        when(feishu.listFolderDocx(anyString(), eq("fld123"))).thenReturn(List.of(
+                new FeishuFile("docToken1", "项目A", "docx", "https://feishu/docx/docToken1", 1000L)));
+        when(feishu.docxRawContent(anyString(), eq("docToken1"))).thenReturn("正文内容");
+        when(externalDocs.listBySource(sourceId)).thenReturn(List.of());
+        when(jobs.renewLease(any())).thenReturn(1);
+        when(jobs.lockIfOwned(any())).thenReturn(null);
+
+        service.trigger(sourceId, "MANUAL");
+
+        verify(registration, never()).registerUploadedDocument(any());
+        verify(externalDocs, never()).insert(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(jobs, never()).finish(any(), anyString(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any());
+        verify(sources, never()).markSynced(any());
+        verify(metrics).ownershipLost();
     }
 
     @Test
