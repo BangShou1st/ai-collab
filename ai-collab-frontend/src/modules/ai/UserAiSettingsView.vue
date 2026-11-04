@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import { useAuthStore } from '../../stores/auth-store'
 import PageHeader from '../../shared/PageHeader.vue'
@@ -42,6 +42,28 @@ const overrides = reactive<Record<AiPurpose, string>>({
   PLANNING: '',
   AGENT: '',
 })
+/** 后端已确认的用途覆盖；本地选择器（overrides）保存失败时回滚到这里。 */
+const confirmedOverrides = reactive<Record<AiPurpose, string>>({
+  KNOWLEDGE_CHAT: '',
+  PLANNING: '',
+  AGENT: '',
+})
+const purposeSaving = reactive<Record<AiPurpose, boolean>>({
+  KNOWLEDGE_CHAT: false,
+  PLANNING: false,
+  AGENT: false,
+})
+/** 每用途递增请求令牌：晚到的旧响应不得覆盖新状态或回滚新值。 */
+const overrideTokens: Record<AiPurpose, number> = {
+  KNOWLEDGE_CHAT: 0,
+  PLANNING: 0,
+  AGENT: 0,
+}
+/** 预设连接卡片折叠态：默认无论连接与否均收起，避免异步加载闪动。 */
+const zenPanelOpen = ref(false)
+const kiloPanelOpen = ref(false)
+const zenExpanded = computed(() => zenPanelOpen.value)
+const kiloExpanded = computed(() => kiloPanelOpen.value)
 /** 递增请求令牌：晚到的加载响应不得覆盖新状态或回填旧用户数据。 */
 let loadToken = 0
 /** 当前已加载数据的账号；变化时丢弃旧数据并重新加载。 */
@@ -128,6 +150,9 @@ async function loadPurposes(): Promise<void> {
     overrides.KNOWLEDGE_CHAT = saved.KNOWLEDGE_CHAT ?? ''
     overrides.PLANNING = saved.PLANNING ?? ''
     overrides.AGENT = saved.AGENT ?? ''
+    confirmedOverrides.KNOWLEDGE_CHAT = overrides.KNOWLEDGE_CHAT
+    confirmedOverrides.PLANNING = overrides.PLANNING
+    confirmedOverrides.AGENT = overrides.AGENT
     purposesFailed.value = false
   } catch (error) {
     // 失败不是“无覆盖”：保留旧值并禁用选择器，避免把失败伪装成“使用默认”。
@@ -195,7 +220,10 @@ const zenConnection = usePresetConnection({
   displayName: 'OpenCode Zen Free',
   supportsApiKey: true,
   disconnectWarning: '断开后将删除已保存的 Zen API Key，用途覆盖会回退到默认模型。确定断开吗？',
-  onSaved: load,
+  onSaved: async () => {
+    zenPanelOpen.value = false
+    await load()
+  },
 })
 
 const kiloConnection = usePresetConnection({
@@ -203,7 +231,10 @@ const kiloConnection = usePresetConnection({
   displayName: 'Kilo Gateway Free',
   supportsApiKey: false,
   disconnectWarning: '断开后将删除已保存的 Kilo Gateway 连接，用途覆盖会回退到默认模型。确定断开吗？',
-  onSaved: load,
+  onSaved: async () => {
+    kiloPanelOpen.value = false
+    await load()
+  },
 })
 
 function openCreate(): void {
@@ -249,16 +280,30 @@ async function setDefault(provider: UserAiProvider): Promise<void> {
 
 /**
  * 用途覆盖只改变解析目标，不触发模型探测；切换后立即按新目标重新展示解析状态。
+ * 保存中禁止再次修改（令牌 + 禁用双保险）；失败回滚到后端确认的旧值。
  */
 async function saveOverride(purpose: AiPurpose): Promise<void> {
-  const providerId = overrides[purpose]
+  if (purposeSaving[purpose]) return
+  const target = overrides[purpose]
+  if (target === confirmedOverrides[purpose]) return
+  const token = ++overrideTokens[purpose]
+  purposeSaving[purpose] = true
   try {
-    if (providerId) await userAiApi.assignPurpose(purpose, providerId)
+    if (target) await userAiApi.assignPurpose(purpose, target)
     else await userAiApi.unassignPurpose(purpose)
+    if (token !== overrideTokens[purpose]) return
+    confirmedOverrides[purpose] = target
+    ElMessage.success('用途覆盖已保存')
   } catch (error) {
+    if (token !== overrideTokens[purpose]) return
+    overrides[purpose] = confirmedOverrides[purpose]
     showApiError(error, '用途覆盖保存')
+  } finally {
+    if (token === overrideTokens[purpose]) purposeSaving[purpose] = false
   }
 }
+
+defineExpose({ overrides, confirmedOverrides, purposeSaving })
 
 onMounted(() => {
   ownerUserId = auth.currentUser?.id ?? null
@@ -277,6 +322,12 @@ auth.$subscribe(() => {
   overrides.KNOWLEDGE_CHAT = ''
   overrides.PLANNING = ''
   overrides.AGENT = ''
+  confirmedOverrides.KNOWLEDGE_CHAT = ''
+  confirmedOverrides.PLANNING = ''
+  confirmedOverrides.AGENT = ''
+  purposeSaving.KNOWLEDGE_CHAT = false
+  purposeSaving.PLANNING = false
+  purposeSaving.AGENT = false
   for (const key of Object.keys(persistedProbes)) delete persistedProbes[key]
   if (currentId) void load()
 })
@@ -299,13 +350,13 @@ auth.$subscribe(() => {
       </div>
 
       <p v-if="!loadFailed" class="ai-config-summary">
-        已保存 {{ providers.length }} 个模型配置（已启用 {{ enabledProviderCount }} 个）· 配置存在不代表可调用，可用性需按能力测试确认
+        已保存 {{ providers.length }} 个模型配置（已启用 {{ enabledProviderCount }} 个）
       </p>
 
       <el-card v-if="!loadFailed" shadow="never">
         <template #header>
           <div class="header-row">
-            <strong>按用途的解析与就绪状态</strong>
+            <strong>用途分配</strong>
             <el-button v-if="purposesFailed" text type="primary" size="small" @click="loadPurposes">重试</el-button>
           </div>
         </template>
@@ -314,10 +365,15 @@ auth.$subscribe(() => {
           <p v-if="!providers.length" class="purpose-empty">还没有保存任何模型配置，下列用途均不可用。</p>
           <div v-for="status in purposeStatuses" :key="status.purpose" class="purpose-row">
             <span class="override-label">{{ purposeLabel(status.purpose) }}</span>
-            <el-select v-model="overrides[status.purpose]" placeholder="使用默认" clearable @change="saveOverride(status.purpose)">
+            <el-select
+              v-model="overrides[status.purpose]" placeholder="使用默认" clearable
+              :data-test="`purpose-select-${status.purpose}`"
+              :disabled="purposesFailed || purposeSaving[status.purpose]"
+              @change="saveOverride(status.purpose)"
+            >
               <el-option
                 v-for="option in purposeOptions(status.purpose).extras"
-                :key="`extra-${option.value}`" :label="`${option.label}（已停用）`" :value="option.value" disabled
+                :key="`extra-${option.value}`" :label="option.label" :value="option.value" disabled
               />
               <el-option
                 v-for="option in purposeOptions(status.purpose).zen"
@@ -348,92 +404,94 @@ auth.$subscribe(() => {
       </el-card>
 
       <div v-if="!loadFailed" class="section-title"><h2>推荐连接</h2></div>
-      <div v-if="!loadFailed" class="provider-tile zen">
-        <div class="zen-two-col">
-          <div class="zen-brand">
-            <div><strong>OpenCode Zen</strong><span v-if="zen?.connected" class="status-dot done" /> <span v-if="zen?.isDefault">默认</span></div>
-            <p class="provider-tile__sub">官方免费模型通道，开箱即用。连接后知识问答、AI 规划与 Agent 可直接使用。</p>
-            <ul class="zen-points">
-              <li>免费模型 · 自动发现</li>
-              <li>OpenCode 官方接口</li>
-              <li>应用层 Direct</li>
-            </ul>
+      <div v-if="!loadFailed" class="preset-card preset-card--zen">
+        <div class="preset-card__head">
+          <strong>OpenCode Zen</strong>
+          <span v-if="zen?.connected" class="status-dot done" />
+          <el-tag v-if="zen?.isDefault" type="success" size="small">默认</el-tag>
+          <span class="preset-card__status" :class="{ 'preset-card__status--off': !zen?.connected }">
+            {{ zen?.connected ? `已连接 · ${zen?.modelName}` : '未连接' }}
+          </span>
+          <el-button text type="primary" size="small" @click="zenPanelOpen = !zenExpanded">
+            {{ zenExpanded ? '收起' : (zen?.connected ? '管理' : '连接') }}
+          </el-button>
+        </div>
+        <p class="preset-card__desc">官方免费模型通道，连接后知识问答、AI 规划与 Agent 可直接使用。</p>
+        <div v-show="zenExpanded" class="preset-card__body">
+          <div v-if="zen?.connected" class="provider-tile__current-row">
+            <span class="provider-tile__current">{{ zen?.modelName }}</span>
+            <el-button text type="danger" size="small" :loading="zenConnection.disconnecting.value" @click="zenConnection.disconnect()">断开连接</el-button>
           </div>
-          <div>
-            <div v-if="zen?.connected" class="provider-tile__current-row">
-              <span class="provider-tile__current">{{ zen?.modelName }}</span>
-              <el-button text type="danger" size="small" :loading="zenConnection.disconnecting.value" @click="zenConnection.disconnect()">断开连接</el-button>
+          <el-skeleton v-if="zenConnection.modelsLoading.value" :rows="2" animated />
+          <div v-else class="zen-form">
+            <el-input v-model="zenConnection.apiKey.value" type="password" show-password placeholder="API Key（免费模型可留空；留空则保留已保存 Key）" />
+            <div class="model-select-row">
+              <el-select v-model="zenConnection.model.value" placeholder="选择免费模型" filterable>
+                <el-option v-for="m in zenConnection.models.value" :key="m" :label="m" :value="m" />
+              </el-select>
+              <el-button text :icon="Refresh" aria-label="刷新模型" title="刷新模型" @click="zenConnection.loadModels(true)" />
             </div>
-            <el-skeleton v-if="zenConnection.modelsLoading.value" :rows="2" animated />
-            <div v-else class="zen-form">
-              <el-input v-model="zenConnection.apiKey.value" type="password" show-password placeholder="API Key（免费模型可留空；留空则保留已保存 Key）" />
-              <div class="model-select-row">
-                <el-select v-model="zenConnection.model.value" placeholder="选择免费模型" filterable>
-                  <el-option v-for="m in zenConnection.models.value" :key="m" :label="m" :value="m" />
-                </el-select>
-                <el-button text :icon="Refresh" aria-label="刷新模型" title="刷新模型" @click="zenConnection.loadModels(true)" />
-              </div>
-              <div class="zen-actions">
-                <el-checkbox v-model="zenConnection.setDefault.value">设为默认模型</el-checkbox>
-                <el-button type="primary" :loading="zenConnection.saving.value" :disabled="!zenConnection.model.value" @click="zenConnection.save()">保存连接</el-button>
-              </div>
-              <CapabilitySuitePanel
-                v-if="zenProvider && zen?.connected"
-                :provider="zenProvider"
-                :admitted-models="zenConnection.models.value"
-                @completed="onSuiteCompleted"
-              />
-              <p v-else class="preset-suite-hint">保存连接后可执行统一能力测试（真实生成 + 流式）</p>
+            <div class="zen-actions">
+              <el-checkbox v-model="zenConnection.setDefault.value">设为默认模型</el-checkbox>
+              <el-button type="primary" :loading="zenConnection.saving.value" :disabled="!zenConnection.model.value" @click="zenConnection.save()">保存连接</el-button>
             </div>
+            <CapabilitySuitePanel
+              v-if="zenProvider && zen?.connected"
+              :provider="zenProvider"
+              :admitted-models="zenConnection.models.value"
+              @completed="onSuiteCompleted"
+            />
+            <p v-else class="preset-suite-hint">保存连接后可执行统一能力测试（真实生成 + 流式）</p>
           </div>
         </div>
       </div>
-      <div v-if="!loadFailed" class="provider-tile kilo">
-        <div class="zen-two-col">
-          <div class="zen-brand">
-            <div><strong>Kilo Gateway</strong><span v-if="kilo?.connected" class="status-dot done" /> <span v-if="kilo?.isDefault">默认</span></div>
-            <p class="provider-tile__sub">免费模型聚合网关，匿名可用。连接后知识问答、AI 规划与 Agent 可直接使用。</p>
-            <ul class="zen-points">
-              <li>免费模型 · 自动发现</li>
-              <li>ai-gateway.kilo.ai 官方接口</li>
-              <li>匿名调用 · 无需 Key</li>
-            </ul>
+      <div v-if="!loadFailed" class="preset-card preset-card--kilo">
+        <div class="preset-card__head">
+          <strong>Kilo Gateway</strong>
+          <span v-if="kilo?.connected" class="status-dot done" />
+          <el-tag v-if="kilo?.isDefault" type="success" size="small">默认</el-tag>
+          <span class="preset-card__status" :class="{ 'preset-card__status--off': !kilo?.connected }">
+            {{ kilo?.connected ? `已连接 · ${kilo?.modelName}` : '未连接' }}
+          </span>
+          <el-button text type="primary" size="small" @click="kiloPanelOpen = !kiloExpanded">
+            {{ kiloExpanded ? '收起' : (kilo?.connected ? '管理' : '连接') }}
+          </el-button>
+        </div>
+        <p class="preset-card__desc">免费模型聚合网关，匿名可用，连接后知识问答、AI 规划与 Agent 可直接使用。</p>
+        <div v-show="kiloExpanded" class="preset-card__body">
+          <div v-if="kilo?.connected" class="provider-tile__current-row">
+            <span class="provider-tile__current">{{ kilo?.modelName }}</span>
+            <el-button text type="danger" size="small" :loading="kiloConnection.disconnecting.value" @click="kiloConnection.disconnect()">断开连接</el-button>
           </div>
-          <div>
-            <div v-if="kilo?.connected" class="provider-tile__current-row">
-              <span class="provider-tile__current">{{ kilo?.modelName }}</span>
-              <el-button text type="danger" size="small" :loading="kiloConnection.disconnecting.value" @click="kiloConnection.disconnect()">断开连接</el-button>
+          <el-skeleton v-if="kiloConnection.modelsLoading.value" :rows="2" animated />
+          <div v-else class="zen-form">
+            <div class="model-select-row">
+              <el-select v-model="kiloConnection.model.value" placeholder="选择免费模型" filterable>
+                <el-option v-for="m in kiloConnection.models.value" :key="m" :label="m" :value="m" />
+              </el-select>
+              <el-button text :icon="Refresh" aria-label="刷新模型" title="刷新模型" @click="kiloConnection.loadModels(true)" />
             </div>
-            <el-skeleton v-if="kiloConnection.modelsLoading.value" :rows="2" animated />
-            <div v-else class="zen-form">
-              <div class="model-select-row">
-                <el-select v-model="kiloConnection.model.value" placeholder="选择免费模型" filterable>
-                  <el-option v-for="m in kiloConnection.models.value" :key="m" :label="m" :value="m" />
-                </el-select>
-                <el-button text :icon="Refresh" aria-label="刷新模型" title="刷新模型" @click="kiloConnection.loadModels(true)" />
-              </div>
-              <div class="zen-actions">
-                <el-checkbox v-model="kiloConnection.setDefault.value">设为默认模型</el-checkbox>
-                <el-button type="primary" :loading="kiloConnection.saving.value" :disabled="!kiloConnection.model.value" @click="kiloConnection.save()">保存连接</el-button>
-              </div>
-              <CapabilitySuitePanel
-                v-if="kiloProvider && kilo?.connected"
-                :provider="kiloProvider"
-                :admitted-models="kiloConnection.models.value"
-                @completed="onSuiteCompleted"
-              />
-              <p v-else class="preset-suite-hint">保存连接后可执行统一能力测试（真实生成 + 流式）</p>
+            <div class="zen-actions">
+              <el-checkbox v-model="kiloConnection.setDefault.value">设为默认模型</el-checkbox>
+              <el-button type="primary" :loading="kiloConnection.saving.value" :disabled="!kiloConnection.model.value" @click="kiloConnection.save()">保存连接</el-button>
             </div>
+            <CapabilitySuitePanel
+              v-if="kiloProvider && kilo?.connected"
+              :provider="kiloProvider"
+              :admitted-models="kiloConnection.models.value"
+              @completed="onSuiteCompleted"
+            />
+            <p v-else class="preset-suite-hint">保存连接后可执行统一能力测试（真实生成 + 流式）</p>
           </div>
         </div>
       </div>
 
-      <div v-if="!loadFailed" class="section-title"><h2>你的模型</h2><el-button text type="primary" @click="openCreate">+ 自定义 Provider</el-button></div>
+      <div v-if="!loadFailed" class="section-title"><h2>你的模型</h2></div>
       <EmptyState
         v-if="!customProviders.length && !loadFailed"
         compact
         title="还没有自定义模型"
-        description="上面的预设连接已可直接使用，这里按需添加自己的网关"
+        description="点击右上角「添加 AI 配置」接入自己的网关"
       />
       <div v-if="customProviders.length" class="model-rows">
         <div v-for="provider in customProviders" :key="provider.id" class="model-row">
@@ -454,42 +512,12 @@ auth.$subscribe(() => {
         </div>
       </div>
 
-      <el-card v-if="!loadFailed && providers.length" shadow="never">
-        <template #header>
-          <div class="header-row">
-            <strong>按用途覆盖默认模型（可选）</strong>
-            <el-button v-if="purposesFailed" text type="primary" size="small" @click="loadPurposes">重试</el-button>
-          </div>
-        </template>
-        <div v-for="purpose in AI_PURPOSES" :key="purpose.value" class="override-row setting-row">
-          <span class="override-label">{{ purpose.label }}</span>
-          <el-select v-model="overrides[purpose.value]" placeholder="使用默认" clearable :disabled="purposesFailed" @change="saveOverride(purpose.value)">
-            <el-option
-              v-for="option in purposeOptions(purpose.value).extras"
-              :key="`extra-${option.value}`" :label="`${option.label}（已停用）`" :value="option.value" disabled
-            />
-            <el-option
-              v-for="option in purposeOptions(purpose.value).zen"
-              :key="`zen-${option.value}`" :label="option.label" :value="option.value"
-            />
-            <el-option
-              v-for="option in purposeOptions(purpose.value).kilo"
-              :key="`kilo-${option.value}`" :label="option.label" :value="option.value"
-            />
-            <el-option
-              v-for="option in purposeOptions(purpose.value).custom"
-              :key="option.value" :label="option.label" :value="option.value"
-            />
-          </el-select>
-        </div>
-      </el-card>
-
       <el-alert
         type="info"
         show-icon
         :closable="false"
         title="个人聊天模型与系统 Embedding 是两套配置"
-        description="此页只管理你个人用于知识问答、规划与 Agent 的聊天模型。知识库向量检索使用的 Embedding 属于系统级配置，由系统管理员单独管理，与本页的个人 Provider 状态无关。"
+        description="知识库向量检索使用系统级 Embedding，由系统管理员单独管理，与本页个人模型无关。"
       />
       <p v-if="auth.currentUser?.systemAdmin" class="admin-link">
         <router-link to="/admin/embedding">前往系统 Embedding 管理</router-link>
@@ -522,6 +550,16 @@ auth.$subscribe(() => {
 .purpose-failure { margin: 0 0 8px; color: var(--color-danger); font-size: 13px; }
 .purpose-empty { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
 .preset-suite-hint { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 12px; }
+.preset-card { border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); padding: 14px 16px; display: grid; gap: 8px; }
+.preset-card--zen { border-color: rgba(37, 99, 235, .28); }
+.preset-card--kilo { border-color: rgba(16, 185, 129, .28); }
+.preset-card__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.preset-card__head strong { font-size: 14px; }
+.preset-card__status { color: var(--color-text-secondary); font-size: 13px; }
+.preset-card__status--off { color: var(--color-text-secondary); opacity: .75; }
+.preset-card__head .el-button { margin-left: auto; }
+.preset-card__desc { margin: 0; color: var(--color-text-secondary); font-size: 12px; }
+.preset-card__body { display: grid; gap: 10px; border-top: 1px dashed var(--color-border); padding-top: 10px; }
 .admin-link { margin: 0; font-size: 13px; }
 @media (max-width: 760px) {
   .purpose-row { grid-template-columns: 1fr; }

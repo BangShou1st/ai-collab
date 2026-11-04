@@ -1,0 +1,650 @@
+{
+  "1000": {
+    "pre": {
+      "Q1_myTasks": {
+        "executionTime": 6.03,
+        "planningTime": 1.187,
+        "sharedHit": 4574,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Seq Scan on project",
+          "Seq Scan on project_member",
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_assignee)"
+        ],
+        "sortNodes": [
+          "Sort [top-N heapsort]"
+        ]
+      },
+      "Q2_listScoped": {
+        "executionTime": 10.107,
+        "planningTime": 1.447,
+        "sharedHit": 6207,
+        "sharedRead": 0,
+        "actualRows": 346,
+        "scanNodes": [
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_due)",
+          "Seq Scan on app_user",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": [
+          "Sort [quicksort]"
+        ]
+      },
+      "Q3_findProjectInfo": {
+        "executionTime": 0.122,
+        "planningTime": 0.55,
+        "sharedHit": 175,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Seq Scan on project_member",
+          "Seq Scan on project",
+          "Seq Scan on project_member"
+        ],
+        "sortNodes": []
+      },
+      "Q4_countTasksByStatus": {
+        "executionTime": 8.446,
+        "planningTime": 0.446,
+        "sharedHit": 4718,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_due)"
+        ],
+        "sortNodes": []
+      },
+      "Q5_listMilestoneProgress": {
+        "executionTime": 9.09,
+        "planningTime": 0.844,
+        "sharedHit": 4849,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Index Scan (idx_milestone_project)",
+          "Subquery Scan",
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_due)"
+        ],
+        "sortNodes": [
+          "Incremental Sort",
+          "Sort [quicksort]"
+        ]
+      },
+      "Q6_listRecentTasks": {
+        "executionTime": 10.024,
+        "planningTime": 1.764,
+        "sharedHit": 5082,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_due)",
+          "Index Scan (app_user_pkey)",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": [
+          "Sort [top-N heapsort]"
+        ]
+      },
+      "Q7_listRecentDocuments": {
+        "executionTime": 0.433,
+        "planningTime": 1.966,
+        "sharedHit": 694,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Seq Scan on project_document",
+          "Index Scan (project_document_pkey)",
+          "Index Scan (uk_connector_source_project_folder)",
+          "Index Scan (idx_external_document_source)",
+          "Index Scan (uk_connector_oauth_project_user)",
+          "Seq Scan on app_user"
+        ],
+        "sortNodes": [
+          "Sort [top-N heapsort]"
+        ]
+      }
+    },
+    "post": {
+      "Q1_myTasks": {
+        "executionTime": 0.178,
+        "planningTime": 1.644,
+        "sharedHit": 606,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Index Scan (idx_task_assignee_active_due)",
+          "Seq Scan on project_member",
+          "Seq Scan on project"
+        ],
+        "sortNodes": []
+      },
+      "Q2_listScoped": {
+        "executionTime": 2.173,
+        "planningTime": 1.761,
+        "sharedHit": 1822,
+        "sharedRead": 0,
+        "actualRows": 346,
+        "scanNodes": [
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_created)",
+          "Index Scan (app_user_pkey)",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": [
+          "Sort [quicksort]"
+        ]
+      },
+      "Q3_findProjectInfo": {
+        "executionTime": 0.117,
+        "planningTime": 0.519,
+        "sharedHit": 175,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Seq Scan on project_member",
+          "Seq Scan on project",
+          "Seq Scan on project_member"
+        ],
+        "sortNodes": []
+      },
+      "Q4_countTasksByStatus": {
+        "executionTime": 0.331,
+        "planningTime": 0.626,
+        "sharedHit": 301,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_created)"
+        ],
+        "sortNodes": []
+      },
+      "Q5_listMilestoneProgress": {
+        "executionTime": 0.377,
+        "planningTime": 1.1,
+        "sharedHit": 400,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_milestone)",
+          "Seq Scan on milestone"
+        ],
+        "sortNodes": [
+          "Sort [quicksort]"
+        ]
+      },
+      "Q6_listRecentTasks": {
+        "executionTime": 0.363,
+        "planningTime": 1.806,
+        "sharedHit": 643,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Index Scan (idx_task_project_updated)",
+          "Index Scan (app_user_pkey)",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": []
+      },
+      "Q7_listRecentDocuments": {
+        "executionTime": 0.164,
+        "planningTime": 1.734,
+        "sharedHit": 611,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Index Scan (idx_document_project_recent)",
+          "Index Scan (project_document_pkey)",
+          "Index Scan (uk_connector_source_project_folder)",
+          "Index Scan (idx_external_document_source)",
+          "Index Scan (uk_connector_oauth_project_user)",
+          "Seq Scan on app_user"
+        ],
+        "sortNodes": []
+      }
+    }
+  },
+  "10000": {
+    "pre": {
+      "Q1_myTasks": {
+        "executionTime": 1.167,
+        "planningTime": 1.362,
+        "sharedHit": 1068,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Seq Scan on project",
+          "Seq Scan on project_member",
+          "Index Scan (idx_task_project_assignee)"
+        ],
+        "sortNodes": [
+          "Sort [top-N heapsort]"
+        ]
+      },
+      "Q2_listScoped": {
+        "executionTime": 19.863,
+        "planningTime": 1.533,
+        "sharedHit": 15974,
+        "sharedRead": 0,
+        "actualRows": 3473,
+        "scanNodes": [
+          "Seq Scan on project_task",
+          "Seq Scan on app_user",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": [
+          "Sort [quicksort]"
+        ]
+      },
+      "Q3_findProjectInfo": {
+        "executionTime": 0.114,
+        "planningTime": 0.495,
+        "sharedHit": 175,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Seq Scan on project_member",
+          "Seq Scan on project",
+          "Seq Scan on project_member"
+        ],
+        "sortNodes": []
+      },
+      "Q4_countTasksByStatus": {
+        "executionTime": 6.877,
+        "planningTime": 0.435,
+        "sharedHit": 5096,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Seq Scan on project_task"
+        ],
+        "sortNodes": []
+      },
+      "Q5_listMilestoneProgress": {
+        "executionTime": 2.412,
+        "planningTime": 0.956,
+        "sharedHit": 1501,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Index Scan (idx_milestone_project)",
+          "Subquery Scan",
+          "Index Scan (idx_task_milestone)"
+        ],
+        "sortNodes": [
+          "Incremental Sort"
+        ]
+      },
+      "Q6_listRecentTasks": {
+        "executionTime": 3.894,
+        "planningTime": 1.343,
+        "sharedHit": 1028,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Seq Scan on project_task",
+          "Seq Scan on app_user",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": [
+          "Sort [top-N heapsort]"
+        ]
+      },
+      "Q7_listRecentDocuments": {
+        "executionTime": 0.368,
+        "planningTime": 1.781,
+        "sharedHit": 686,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Seq Scan on project_document",
+          "Index Scan (project_document_pkey)",
+          "Index Scan (uk_connector_source_project_folder)",
+          "Index Scan (idx_external_document_source)",
+          "Index Scan (uk_connector_oauth_project_user)",
+          "Seq Scan on app_user"
+        ],
+        "sortNodes": [
+          "Sort [top-N heapsort]"
+        ]
+      }
+    },
+    "post": {
+      "Q1_myTasks": {
+        "executionTime": 0.216,
+        "planningTime": 1.529,
+        "sharedHit": 620,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Index Scan (idx_task_assignee_active_due)",
+          "Index Only Scan (idx_project_member_user)",
+          "Index Scan (project_pkey)"
+        ],
+        "sortNodes": []
+      },
+      "Q2_listScoped": {
+        "executionTime": 14.84,
+        "planningTime": 1.837,
+        "sharedHit": 10948,
+        "sharedRead": 0,
+        "actualRows": 3473,
+        "scanNodes": [
+          "Seq Scan on project_task",
+          "Seq Scan on app_user",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": [
+          "Sort [quicksort]"
+        ]
+      },
+      "Q3_findProjectInfo": {
+        "executionTime": 0.123,
+        "planningTime": 0.54,
+        "sharedHit": 175,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Seq Scan on project_member",
+          "Seq Scan on project",
+          "Seq Scan on project_member"
+        ],
+        "sortNodes": []
+      },
+      "Q4_countTasksByStatus": {
+        "executionTime": 2.468,
+        "planningTime": 0.738,
+        "sharedHit": 745,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Seq Scan on project_task"
+        ],
+        "sortNodes": []
+      },
+      "Q5_listMilestoneProgress": {
+        "executionTime": 1.267,
+        "planningTime": 1.184,
+        "sharedHit": 454,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_milestone)",
+          "Seq Scan on milestone"
+        ],
+        "sortNodes": [
+          "Sort [quicksort]"
+        ]
+      },
+      "Q6_listRecentTasks": {
+        "executionTime": 0.402,
+        "planningTime": 1.943,
+        "sharedHit": 642,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Index Scan (idx_task_project_updated)",
+          "Index Scan (app_user_pkey)",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": []
+      },
+      "Q7_listRecentDocuments": {
+        "executionTime": 0.181,
+        "planningTime": 1.835,
+        "sharedHit": 603,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Index Scan (idx_document_project_recent)",
+          "Index Scan (project_document_pkey)",
+          "Index Scan (uk_connector_source_project_folder)",
+          "Index Scan (idx_external_document_source)",
+          "Index Scan (uk_connector_oauth_project_user)",
+          "Seq Scan on app_user"
+        ],
+        "sortNodes": []
+      }
+    }
+  },
+  "100000": {
+    "pre": {
+      "Q1_myTasks": {
+        "executionTime": 9.804,
+        "planningTime": 1.023,
+        "sharedHit": 6429,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Seq Scan on project",
+          "Seq Scan on project_member",
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_assignee)"
+        ],
+        "sortNodes": [
+          "Sort [top-N heapsort]"
+        ]
+      },
+      "Q2_listScoped": {
+        "executionTime": 346.944,
+        "planningTime": 1.366,
+        "sharedHit": 112534,
+        "sharedRead": 0,
+        "actualRows": 34852,
+        "scanNodes": [
+          "Seq Scan on project_task",
+          "Seq Scan on app_user",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": [
+          "Sort [quicksort]"
+        ]
+      },
+      "Q3_findProjectInfo": {
+        "executionTime": 0.117,
+        "planningTime": 0.523,
+        "sharedHit": 175,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Seq Scan on project_member",
+          "Seq Scan on project",
+          "Seq Scan on project_member"
+        ],
+        "sortNodes": []
+      },
+      "Q4_countTasksByStatus": {
+        "executionTime": 14.026,
+        "planningTime": 0.47,
+        "sharedHit": 4894,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Seq Scan on project_task"
+        ],
+        "sortNodes": []
+      },
+      "Q5_listMilestoneProgress": {
+        "executionTime": 18.851,
+        "planningTime": 0.881,
+        "sharedHit": 4982,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Index Scan (idx_milestone_project)",
+          "Subquery Scan",
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_due)"
+        ],
+        "sortNodes": [
+          "Incremental Sort"
+        ]
+      },
+      "Q6_listRecentTasks": {
+        "executionTime": 44.165,
+        "planningTime": 1.811,
+        "sharedHit": 5217,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_due)",
+          "Seq Scan on app_user",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": [
+          "Sort [top-N heapsort]"
+        ]
+      },
+      "Q7_listRecentDocuments": {
+        "executionTime": 0.293,
+        "planningTime": 1.397,
+        "sharedHit": 694,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Seq Scan on project_document",
+          "Index Scan (project_document_pkey)",
+          "Index Scan (uk_connector_source_project_folder)",
+          "Index Scan (idx_external_document_source)",
+          "Index Scan (uk_connector_oauth_project_user)",
+          "Seq Scan on app_user"
+        ],
+        "sortNodes": [
+          "Sort [top-N heapsort]"
+        ]
+      }
+    },
+    "post": {
+      "Q1_myTasks": {
+        "executionTime": 0.252,
+        "planningTime": 1.616,
+        "sharedHit": 621,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Index Scan (idx_task_assignee_active_due)",
+          "Index Only Scan (idx_project_member_user)",
+          "Index Scan (project_pkey)"
+        ],
+        "sortNodes": []
+      },
+      "Q2_listScoped": {
+        "executionTime": 405.204,
+        "planningTime": 1.809,
+        "sharedHit": 112628,
+        "sharedRead": 0,
+        "actualRows": 34852,
+        "scanNodes": [
+          "Seq Scan on project_task",
+          "Seq Scan on app_user",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": [
+          "Sort [quicksort]"
+        ]
+      },
+      "Q3_findProjectInfo": {
+        "executionTime": 0.11,
+        "planningTime": 0.622,
+        "sharedHit": 175,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Seq Scan on project_member",
+          "Seq Scan on project",
+          "Seq Scan on project_member"
+        ],
+        "sortNodes": []
+      },
+      "Q4_countTasksByStatus": {
+        "executionTime": 13.563,
+        "planningTime": 1.044,
+        "sharedHit": 4970,
+        "sharedRead": 0,
+        "actualRows": 1,
+        "scanNodes": [
+          "Seq Scan on project_task"
+        ],
+        "sortNodes": []
+      },
+      "Q5_listMilestoneProgress": {
+        "executionTime": 10.606,
+        "planningTime": 0.924,
+        "sharedHit": 2263,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Index Scan (idx_milestone_project)",
+          "Subquery Scan",
+          "Bitmap Heap Scan on project_task",
+          "Bitmap Index Scan (idx_task_project_milestone)"
+        ],
+        "sortNodes": [
+          "Incremental Sort"
+        ]
+      },
+      "Q6_listRecentTasks": {
+        "executionTime": 0.256,
+        "planningTime": 1.633,
+        "sharedHit": 652,
+        "sharedRead": 0,
+        "actualRows": 8,
+        "scanNodes": [
+          "Index Scan (idx_task_project_updated)",
+          "Index Scan (app_user_pkey)",
+          "Seq Scan on milestone",
+          "Index Only Scan (task_dependency_pkey)",
+          "Index Scan (project_task_pkey)"
+        ],
+        "sortNodes": []
+      },
+      "Q7_listRecentDocuments": {
+        "executionTime": 0.136,
+        "planningTime": 1.501,
+        "sharedHit": 611,
+        "sharedRead": 0,
+        "actualRows": 5,
+        "scanNodes": [
+          "Index Scan (idx_document_project_recent)",
+          "Index Scan (project_document_pkey)",
+          "Index Scan (uk_connector_source_project_folder)",
+          "Index Scan (idx_external_document_source)",
+          "Index Scan (uk_connector_oauth_project_user)",
+          "Seq Scan on app_user"
+        ],
+        "sortNodes": []
+      }
+    }
+  }
+}

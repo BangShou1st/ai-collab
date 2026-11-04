@@ -144,6 +144,7 @@ public enum ErrorCode {
     CONNECTOR_FOLDER_NOT_ACCESSIBLE(HttpStatus.FORBIDDEN, "飞书文件夹不可访问，请确认已把应用添加为协作者"),
     CONNECTOR_AUTH_DECLARATION_REQUIRED(HttpStatus.BAD_REQUEST, "必须确认该文件夹内容已授权项目全体成员访问"),
     CONNECTOR_SYNC_ALREADY_RUNNING(HttpStatus.CONFLICT, "该知识源已有同步任务在运行"),
+    CONNECTOR_SYNC_DISPATCH_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "同步任务派发失败，请稍后重试"),
     CONNECTOR_REAUTH_REQUIRED(HttpStatus.CONFLICT, "飞书授权已失效，请重新授权"),
     CONNECTOR_AUTHORIZATION_BUSY(HttpStatus.SERVICE_UNAVAILABLE, "飞书授权正在刷新，请稍后重试"),
     CONNECTOR_AUTHORIZATION_UNCERTAIN(HttpStatus.SERVICE_UNAVAILABLE, "飞书授权刷新结果未知，请重新授权"),

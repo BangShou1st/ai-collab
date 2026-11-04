@@ -11,6 +11,16 @@ import { visualizationApi, type GanttTask, type GanttMilestone, type GanttDepend
 const route = useRoute()
 const projectId = route.params.projectId as string
 
+const props = withDefaults(defineProps<{
+  embedded?: boolean
+}>(), {
+  embedded: false,
+})
+
+const emit = defineEmits<{
+  (e: 'select-task', taskId: string): void
+}>()
+
 const tasks = ref<GanttTask[]>([])
 const milestones = ref<GanttMilestone[]>([])
 const dependencies = ref<GanttDependency[]>([])
@@ -120,8 +130,9 @@ onMounted(load)
 </script>
 
 <template>
-  <main class="workspace-page">
+  <main class="workspace-page" :class="{ 'embedded-view': embedded }">
     <PageHeader
+      v-if="!embedded"
       eyebrow="项目执行"
       title="甘特图"
       :context="project?.name"
@@ -138,7 +149,13 @@ onMounted(load)
             :class="{ today: isToday(value), weekend: [0, 6].includes(value.getDay()) }"
           >{{ dayLabel(value) }}</span>
         </div>
-        <div v-for="task in sortedTasks" :key="task.id" class="gantt-grid gantt-row" :style="timelineStyle">
+        <div
+          v-for="task in sortedTasks"
+          :key="task.id"
+          class="gantt-grid gantt-row clickable-row"
+          :style="timelineStyle"
+          @click="emit('select-task', task.id)"
+        >
           <div class="gantt-label-col">
             <span class="task-title">{{ task.title }}</span>
             <span class="task-assignee">
@@ -154,7 +171,7 @@ onMounted(load)
           <div
             class="gantt-bar"
             :style="taskBarStyle(task)"
-            :title="`${task.title} · ${taskStatusLabel(task.status)}`"
+            :title="`${task.title} · ${taskStatusLabel(task.status)} (点击查看详情)`"
           >
             <span>{{ taskStatusLabel(task.status) }}</span>
           </div>
@@ -277,5 +294,18 @@ onMounted(load)
   color: var(--color-warning);
   font-size: 24px;
   filter: drop-shadow(0 2px 2px rgba(135, 89, 26, .18));
+}
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.clickable-row:hover {
+  background-color: var(--el-fill-color-light);
+}
+.embedded-view {
+  padding: 0;
+}
+.embedded-view .gantt-container {
+  padding: 0;
 }
 </style>

@@ -12,7 +12,7 @@ import EmbeddingAdminView from './modules/admin/EmbeddingAdminView.vue'
 import ProjectListView from './modules/project/ProjectListView.vue'
 import ProjectIntegrationsView from './modules/project/ProjectIntegrationsView.vue'
 import DashboardView from './modules/dashboard/DashboardView.vue'
-import TaskBoardView from './modules/work/TaskBoardView.vue'
+import TaskCenterView from './modules/work/TaskCenterView.vue'
 import MilestoneView from './modules/work/MilestoneView.vue'
 import ProjectMembersView from './modules/project/ProjectMembersView.vue'
 import InvitationAcceptView from './modules/project/InvitationAcceptView.vue'
@@ -22,9 +22,6 @@ import KnowledgeSourceView from './modules/knowledge-source/KnowledgeSourceView.
 import PlanningView from './modules/planning/PlanningView.vue'
 import AuditLogView from './modules/audit/AuditLogView.vue'
 import NotificationView from './modules/notification/NotificationView.vue'
-import GanttView from './modules/work/GanttView.vue'
-import DependencyGraphView from './modules/work/DependencyGraphView.vue'
-import CalendarView from './modules/work/CalendarView.vue'
 import MemberLoadView from './modules/work/MemberLoadView.vue'
 import WeeklyReportView from './modules/work/WeeklyReportView.vue'
 import RiskAnalysisView from './modules/work/RiskAnalysisView.vue'
@@ -49,10 +46,11 @@ export const router = createRouter({
     { path: '/projects', component: ProjectListView, meta: { title: '我的项目' } },
     { path: '/projects/:projectId', redirect: (to) => `/projects/${to.params.projectId}/dashboard` },
     { path: '/projects/:projectId/dashboard', component: DashboardView, meta: { title: '项目概览' } },
-    { path: '/projects/:projectId/board', component: TaskBoardView, meta: { title: '任务看板' } },
-    { path: '/projects/:projectId/gantt', component: GanttView, meta: { title: '甘特图' } },
-    { path: '/projects/:projectId/dependency-graph', component: DependencyGraphView, meta: { title: '依赖图' } },
-    { path: '/projects/:projectId/calendar', component: CalendarView, meta: { title: '日历视图' } },
+    { path: '/projects/:projectId/tasks', component: TaskCenterView, meta: { title: '任务中心' } },
+    { path: '/projects/:projectId/board', component: TaskCenterView, meta: { title: '任务看板', initialView: 'board' } },
+    { path: '/projects/:projectId/gantt', component: TaskCenterView, meta: { title: '甘特图', initialView: 'gantt' } },
+    { path: '/projects/:projectId/dependency-graph', component: TaskCenterView, meta: { title: '依赖图', initialView: 'dependency-graph' } },
+    { path: '/projects/:projectId/calendar', component: TaskCenterView, meta: { title: '日历视图', initialView: 'calendar' } },
     { path: '/projects/:projectId/member-load', component: MemberLoadView, meta: { title: '成员负载' } },
     { path: '/projects/:projectId/weekly-report', component: WeeklyReportView, meta: { title: 'AI 周报' } },
     { path: '/projects/:projectId/risk-analysis', component: RiskAnalysisView, meta: { title: '延期风险分析' } },

@@ -8,9 +8,11 @@ import EmptyState from '../../shared/EmptyState.vue'
 import AgentContextChips from './AgentContextChips.vue'
 import AgentRunTimeline from './AgentRunTimeline.vue'
 import AgentApprovalCard from './AgentApprovalCard.vue'
+import ActivitySummaryBar from './ActivitySummaryBar.vue'
+import ActivityGroupList from './ActivityGroupList.vue'
+import RunStatusCard from './RunStatusCard.vue'
 import SemanticDiff from '../../shared/SemanticDiff.vue'
 import { markdown } from '../knowledge/knowledge-render'
-import { groupAgentActivities, type AgentActivity, type ConversationActivity } from './agent-activity'
 import { parseAgentProse, agentQuestionLines } from './agent-prose'
 import { useAgentWorkspace } from './use-agent-workspace'
 
@@ -70,8 +72,6 @@ const previewHtml = computed(() => {
   }
 })
 
-const STATUS_GLYPH: Record<string, string> = { done: '✓', running: '●', failed: '✕', waiting: '…' }
-
 /**
  * 用量行：新策略（累计 token 只统计）下不展示"剩余额度/百分比"，只展示实际用量与估算来源；
  * 旧运行（累计上限非 null）保留 x/y 形式，但仍不推断百分比。
@@ -106,20 +106,36 @@ const sseStatusLine = computed(() => {
   if (d.state === 'RECOVERED') return `已恢复（${detail}）`
   return timeline.value.connected ? '已连接' : '未连接'
 })
-const grouped = (items: AgentActivity[]): ConversationActivity[] => groupAgentActivities(items)
-function activityTech(act: AgentActivity): string {
-  return act.raw.map((e) => {
-    const p = (e.payload ?? {}) as Record<string, unknown>
-    const parts = [String(e.type)]
-    if (typeof p.toolName === 'string' && p.toolName) parts.push(`tool=${p.toolName}`)
-    if (typeof p.errorCode === 'string' && p.errorCode) parts.push(`errorCode=${p.errorCode}`)
-    if (typeof p.durationMs === 'number' && p.durationMs > 0) parts.push(`${Math.round(p.durationMs)}ms`)
-    return parts.join(' · ')
-  }).join('\n')
-}
-// 过程活动默认折叠：已结束运行的过程区不与最终回答争抢注意力
-const activitiesOpen = ref(true)
-watch(activeRun, (run) => { if (run && (run.status === 'RUNNING' || run.status === 'QUEUED')) activitiesOpen.value = true })
+const currentSessionTitle = computed(() => sessions.value.find((item) => item.id === sessionId.value)?.title ?? '')
+
+/** 主区轻量状态行：只放摘要条覆盖不到、或审批入口在右栏可能被收起的状态；
+ *  失败详情、重试与诊断仍以右栏为准，这里不重复技术信息 */
+const mainStateLine = computed(() => {
+  const run = activeRun.value
+  if (!run) return null
+  switch (run.status) {
+    case 'QUEUED': return '已排队，等待 Agent 处理'
+    case 'RUNNING': return activities.value.length ? null : '正在处理…'
+    case 'FAILED_RETRYABLE':
+    case 'FAILED':
+    case 'BUDGET_EXCEEDED': return activeRunState.value?.title ?? null
+    case 'CANCELED': return '本次运行已取消'
+    case 'WAITING_FOR_APPROVAL': return showInspector.value ? '提案等待批准，可在右侧审批' : '提案等待批准，打开「详情」处理'
+    default: return null
+  }
+})
+const mainStateTone = computed(() => {
+  const severity = activeRunState.value?.severity
+  return severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'info'
+})
+
+/** SSE 异常态轻提示：断线重连在主区只给一行，诊断细节仍留在右栏 */
+const ssePill = computed(() => {
+  const state = sseDiagnostics.value.state
+  if (state === 'RECONNECTING') return '连接中断，重连中'
+  if (state === 'TRANSPORT_RECONNECTED') return '传输已重连，等待事件续接'
+  return null
+})
 
 // 滚动跟随：用户停在底部时自动跟随新内容；向上翻看历史时不打断，只提示新内容
 const messagesEl = ref<HTMLElement | null>(null)
@@ -174,8 +190,8 @@ watch(sessionId, () => {
     <div class="agent-layout agent-workspace" :class="{ 'hide-inspector': !showInspector, 'hide-sessions': !showSessions }" :data-view="mobileView">
       <aside v-if="showSessions" class="agent-rail agent-sessions" aria-label="会话历史" :data-view="mobileView">
             <el-button type="primary" plain class="new-session" @click="newSession">新建会话</el-button>
-            <div v-for="item in sessions" :key="item.id" class="session-row">
-              <button class="session" :class="{ active: item.id === sessionId }" @click="sessionId = item.id; mobileView = 'chat'">
+            <div v-for="item in sessions" :key="item.id" class="session-row" :class="{ active: item.id === sessionId }">
+              <button class="session" :class="{ active: item.id === sessionId }" :title="item.title" @click="sessionId = item.id; mobileView = 'chat'">
                 <span class="session-title">{{ item.title }}</span>
                 <span class="session-meta">
                   <i class="dot" :class="statusDot(summaryOf(item.id)?.latestRunStatus)" />
@@ -201,10 +217,16 @@ watch(sessionId, () => {
           </aside>
           <main class="agent-main conversation" :data-view="mobileView">
             <div class="conversation-head">
+              <span v-if="currentSessionTitle" class="conversation-title">{{ currentSessionTitle }}</span>
+              <span v-if="ssePill" class="sse-pill" data-test="agent-sse-status">{{ ssePill }}</span>
               <span v-if="activeModel" class="model-chip" :class="{ live: activeRun?.status === 'RUNNING' }" :title="activeModel.provider || activeModel.model">
                 <span class="model-dot" aria-hidden="true" />{{ activeModel.model }}
               </span>
               <span v-else-if="activeRun" class="model-chip">模型未读取</span>
+            </div>
+            <div v-if="mainStateLine" class="run-state-line" :class="mainStateTone" data-test="agent-main-state">
+              <i class="dot" :class="statusDot(activeRun?.status)" aria-hidden="true" />{{ mainStateLine }}
+              <el-button v-if="activeRun && activeRunState?.canRetry" size="small" text type="primary" class="state-retry" @click="retryActiveRun">重试</el-button>
             </div>
             <div class="messages-wrap">
               <div ref="messagesEl" class="messages" @scroll="onMessagesScroll">
@@ -243,53 +265,14 @@ watch(sessionId, () => {
                   </details>
                 </article>
                 <div v-else class="activity-group" aria-label="执行过程">
-                  <details class="activity-group-toggle" :open="activitiesOpen">
+                  <ActivitySummaryBar :items="block.items" :run-status="activeRun?.status ?? null" />
+                  <details class="activity-detail-toggle">
                     <summary>
-                      <span class="activity-glyph" aria-hidden="true">✓</span>
-                      <span class="activity-title">执行过程</span>
-                      <span class="activity-meta">{{ block.items.length }} 项</span>
+                      <span class="detail-toggle-label">执行详情</span>
+                      <span class="activity-meta">{{ block.items.length }} 项事件</span>
                     </summary>
                     <div class="group-items">
-                  <template v-for="entry in grouped(block.items)" :key="entry.key">
-                    <div v-if="entry.kind === 'narration'" class="narration" :data-test="entry.key">
-                      <p>{{ entry.detail }}</p>
-                    </div>
-                    <details v-else-if="entry.kind === 'group'" class="activity-card" :data-test="entry.key">
-                      <summary>
-                        <span class="activity-glyph" aria-hidden="true">✓</span>
-                        <span class="activity-title">{{ entry.title }}</span>
-                        <span class="activity-meta">{{ entry.count }} 项查询</span>
-                      </summary>
-                      <div class="group-items">
-                        <div v-for="act in entry.items" :key="act.key" class="activity" :class="[act.kind, act.status]">
-                          <div class="activity-body">
-                            <div class="activity-title">{{ act.title }}</div>
-                            <div v-if="act.detail" class="activity-detail">{{ act.detail }}</div>
-                            <div v-if="act.count != null || act.durationMs != null" class="activity-meta">
-                              <span v-if="act.count != null">{{ act.count }} 条</span>
-                              <span v-if="act.durationMs != null">{{ (act.durationMs / 1000).toFixed(1) }}s</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </details>
-                    <details v-else class="activity" :class="[entry.kind, entry.status]" :data-test="entry.key">
-                      <summary>
-                        <span class="activity-glyph" :aria-label="entry.status" aria-hidden="true">{{ STATUS_GLYPH[entry.status] ?? '·' }}</span>
-                        <span class="activity-body-inline">
-                          <span class="activity-title">{{ entry.title }}</span>
-                          <span v-if="entry.status === 'failed'" class="activity-badge failed">失败</span>
-                          <span v-else-if="entry.status === 'waiting'" class="activity-badge waiting">待处理</span>
-                        </span>
-                        <span v-if="entry.count != null || entry.durationMs != null" class="activity-meta">
-                          <span v-if="entry.count != null">{{ entry.count }} 条</span>
-                          <span v-if="entry.durationMs != null">{{ (entry.durationMs / 1000).toFixed(1) }}s</span>
-                        </span>
-                      </summary>
-                      <div class="activity-detail" v-if="entry.detail">{{ entry.detail }}</div>
-                      <details v-if="activityTech(entry)" class="tech-details"><summary>技术详情</summary><pre>{{ activityTech(entry) }}</pre></details>
-                    </details>
-                  </template>
+                      <ActivityGroupList :items="block.items" />
                     </div>
                   </details>
                 </div>
@@ -315,7 +298,7 @@ watch(sessionId, () => {
             </div>
             <div class="composer">
               <details v-if="skills.length" class="capability">
-                <summary>场景：{{ skills.find((s) => s.code === selectedSkillCode)?.displayName ?? '自动识别' }}<span class="capability-hint">（可选偏好，不选也能使用全部基础工具）</span></summary>
+                <summary>场景：{{ skills.find((s) => s.code === selectedSkillCode)?.displayName ?? '自动识别' }}<span class="capability-hint">（可选）</span></summary>
                 <div class="capability-options">
                   <el-check-tag :checked="selectedSkillCode === null" @change="selectedSkillCode = null">自动识别</el-check-tag>
                   <el-check-tag v-for="skill in skills" :key="skill.code" :checked="selectedSkillCode === skill.code" @change="selectedSkillCode = selectedSkillCode === skill.code ? null : skill.code">{{ skill.displayName }}</el-check-tag>
@@ -346,31 +329,16 @@ watch(sessionId, () => {
           <h2>待审批（{{ pendingApprovals.length }}）</h2>
           <AgentApprovalCard v-for="item in pendingApprovals" :key="item.id" :approval="item" :members="members" :busy-action="approvalBusy?.id === item.id ? approvalBusy.action : null" @approve="approve" @reject="reject" />
         </section>
-        <section v-if="activeRun" class="inspector-block">
-          <h2>运行 · {{ runStatusLabel(activeRun.status) }}</h2>
-          <el-alert
-            v-if="activeRunState && (activeRunState.severity === 'error' || activeRunState.severity === 'warning')"
-            :title="activeRunState.title"
-            :type="activeRunState.severity === 'error' ? 'error' : activeRunState.severity"
-            :closable="false"
-            show-icon
-          />
-          <div class="inspector-meta-lines">
-            <span v-if="activeModel" class="inspector-meta">模型 {{ activeModel.model }}</span>
-            <p class="inspector-meta">SSE {{ activeRun?.status === 'PAUSED' ? '已暂停（无需实时连接）' : sseStatusLine }}</p>
-            <p class="inspector-meta">Steps {{ activeRun.stepsUsed }}/{{ activeRun.maxSteps }} · Tools {{ activeRun.toolCallsUsed }}/{{ activeRun.maxToolCalls }}{{ activeRun.contextPolicyVersion === 2 ? ' · 本运行自身（子运行额度独立，不从此处扣减）' : '' }}</p>
-          </div>
-          <div v-if="activeRunState?.canRetry" class="inspector-actions">
-            <el-button
-              data-test="agent-retry"
-              size="small"
-              :loading="sending"
-              @click="retryActiveRun"
-            >
-              重试
-            </el-button>
-          </div>
-        </section>
+        <RunStatusCard
+          v-if="activeRun"
+          :run="activeRun"
+          :state="activeRunState"
+          :model="activeModel?.model ?? null"
+          :sse-line="sseStatusLine"
+          :sse-paused="activeRun.status === 'PAUSED'"
+          :sending="sending"
+          @retry="retryActiveRun"
+        />
         <section v-if="activeRun" class="inspector-block">
           <h2>参考步骤与查询事实</h2>
           <AgentRunTimeline :plan="timeline.plan" :status="activeRun?.status" :events="timeline.events" />
@@ -405,15 +373,16 @@ watch(sessionId, () => {
 
 <style scoped>
 .agent-page{display:flex;flex-direction:column;gap:12px;min-height:calc(100dvh - 116px);padding-top:0;padding-bottom:16px}
-/* 三栏工作区：会话栏可收起，中栏为阅读主区，右栏服务审批与状态 */
-.agent-workspace{display:grid;grid-template-columns:228px minmax(0,1fr) 316px;align-items:stretch;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-card);overflow:hidden;min-height:calc(100dvh - 240px)}
+/* 三栏工作区：会话栏可收起，中栏为阅读主区，右栏服务审批与状态。
+   固定工作区高度：滚动只发生在消息区/侧栏内部，页面级双滚动消失 */
+.agent-workspace{display:grid;grid-template-columns:228px minmax(0,1fr) 316px;align-items:stretch;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-card);overflow:hidden;height:calc(100dvh - 240px);min-height:520px}
 .agent-workspace.hide-sessions{grid-template-columns:minmax(0,1fr) 316px}
 .agent-workspace.hide-sessions.hide-inspector{grid-template-columns:minmax(0,1fr)}
 .agent-workspace.hide-inspector{grid-template-columns:228px minmax(0,1fr)}
 .agent-sessions,.agent-inspector{background:var(--color-surface);padding:14px 12px;display:flex;flex-direction:column;gap:6px;min-height:0;border:0;border-radius:0}
 .agent-rail{border-right:1px solid var(--color-border)}
 .agent-inspector{border-left:1px solid var(--color-border);background:var(--color-surface-raised)}
-.agent-sessions{max-height:calc(100dvh - 240px);overflow-y:auto}
+.agent-sessions{min-height:0;overflow-y:auto}
 .new-session{width:100%;margin-bottom:4px}
 .conversation-empty{display:grid;gap:8px;justify-items:center;text-align:center;padding:48px 20px}
 .conversation-empty h3{margin:0;font-size:16px}
@@ -428,11 +397,12 @@ watch(sessionId, () => {
 .inspector-empty-state h2{font-size:14px;margin:0}
 .inspector-empty-state p{font-size:13px;color:var(--color-text-secondary);margin:0}
 .session-row{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px;align-items:start;padding:4px;border-radius:10px}
-.overflow-trigger{display:none;align-items:center;justify-content:center;width:28px;height:28px;margin-top:6px;border:0;border-radius:8px;background:transparent;color:var(--color-text-secondary);cursor:pointer;flex:none}
+.overflow-trigger{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;margin-top:6px;border:0;border-radius:8px;background:transparent;color:var(--color-text-secondary);cursor:pointer;flex:none}
 .overflow-trigger:hover{background:var(--el-fill-color)}
-.session-row:hover .overflow-trigger,.session-row:focus-within .overflow-trigger,.session-row:has(.session.active) .overflow-trigger{display:inline-flex}
 .danger-item{color:var(--color-danger)}
 .session-row:hover{background:var(--el-fill-color)}
+.session-row.active{background:var(--el-color-primary-light-9)}
+.session-row.active .session{color:var(--el-color-primary)}
 .session{width:100%;height:40px;min-height:40px;border:0;border-radius:8px;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;background:transparent;cursor:pointer}
 .session.active{background:var(--el-color-primary-light-8);color:var(--el-color-primary)}
 /* 对话主区：稳定的阅读宽度，不随两侧栏开关跳动 */
@@ -445,7 +415,14 @@ watch(sessionId, () => {
 .model-chip.live{color:var(--color-primary);border-color:var(--color-primary-soft);background:var(--color-primary-soft)}
 .model-chip.live .model-dot{background:var(--color-primary);animation:pulse 1.2s infinite}
 .messages-wrap{position:relative;display:grid;min-height:0;grid-template-rows:minmax(0,1fr)}
-.messages{min-height:0;overflow:auto;max-height:calc(100dvh - 420px);scroll-behavior:smooth}
+.messages{min-height:0;overflow:auto;scroll-behavior:smooth}
+.conversation-title{font-size:13px;font-weight:600;color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:32ch}
+.sse-pill{display:inline-flex;align-items:center;font-size:12px;color:var(--color-warning);padding:2px 10px;border:1px solid rgba(173,118,40,.35);border-radius:999px;background:var(--color-warning-soft)}
+.run-state-line{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 12px;border-radius:8px}
+.run-state-line.info{color:var(--color-text-secondary);background:var(--el-fill-color-lighter)}
+.run-state-line.warning{color:var(--color-warning);background:var(--color-warning-soft)}
+.run-state-line.error{color:var(--color-danger);background:var(--color-danger-soft)}
+.state-retry{margin-left:auto}
 .new-content-pill{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text-secondary);font-size:12px;padding:4px 14px;border-radius:999px;cursor:pointer;box-shadow:var(--shadow-card);z-index:5}
 .new-content-pill:hover{color:var(--color-primary);border-color:var(--color-primary-soft)}
 /* 消息排版：助手回答为通栏阅读正文（稳定行宽），用户消息保持紧凑右对齐区分 */
@@ -468,7 +445,7 @@ watch(sessionId, () => {
 .answer-body :deep(strong){font-weight:650}
 .answer-body :deep(hr){border:0;border-top:1px solid var(--color-border);margin:18px 0}
 /* 追问块：与正文分开的独立确认区，选项从 1 开始独立编号 */
-.question-block{max-width:76ch;margin:12px 0;padding:12px 16px;border:1px solid var(--color-primary-soft);border-left:3px solid var(--color-primary);border-radius:0 10px 10px 0;background:var(--el-color-primary-light-9)}
+.question-block{max-width:76ch;margin:12px 0;padding:12px 16px;border:1px solid var(--color-primary-soft);border-radius:10px;background:var(--el-color-primary-light-9)}
 .question-label{margin:0 0 6px;font-size:12.5px;font-weight:650;color:var(--color-primary);letter-spacing:.02em}
 .question-options{margin:0;padding-left:24px}
 .question-options li{margin:5px 0;font-size:14.5px;line-height:1.7}
@@ -478,7 +455,7 @@ watch(sessionId, () => {
 .answer-body :deep(code){background:var(--el-fill-color-light);padding:1px 6px;border-radius:4px;font-size:13px}
 .answer-body :deep(pre){background:#0f172a;color:#e2e8f0;padding:14px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.6}
 .answer-body :deep(pre code){background:transparent;padding:0;color:inherit}
-.answer-body :deep(blockquote){margin:12px 0;padding:4px 14px;border-left:3px solid var(--color-primary-soft);background:var(--el-fill-color-lighter);color:var(--color-text-secondary);border-radius:0 8px 8px 0}
+.answer-body :deep(blockquote){margin:12px 0;padding:8px 14px;background:var(--el-fill-color-lighter);color:var(--color-text-secondary);border-radius:8px}
 .answer-body :deep(blockquote p){margin:4px 0}
 /* 来源与推断：可折叠、次级视觉，不与正文争抢 */
 .evidence{margin:8px 0;max-width:76ch}
@@ -491,7 +468,7 @@ watch(sessionId, () => {
 .empty{text-align:center;padding:80px;color:var(--el-text-color-secondary)}
 .waiting-for-input{margin:8px 0}
 .composer-actions{display:flex;gap:8px;flex-wrap:wrap}
-.agent-inspector{max-height:calc(100dvh - 220px);overflow-y:auto}
+.agent-inspector{min-height:0;overflow-y:auto}
 .inspector-block{display:grid;gap:8px;padding-bottom:12px;margin-bottom:4px;border-bottom:1px solid var(--color-border)}
 .inspector-block:last-child{border-bottom:0}
 .inspector-block h2{font-size:12.5px;color:var(--color-text-secondary);margin:0;font-weight:600;letter-spacing:.02em}
@@ -513,47 +490,21 @@ watch(sessionId, () => {
 .dot.done{background:#16a34a}
 .session-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .session-meta{display:flex;gap:8px;font-size:12px;color:var(--el-text-color-secondary);align-items:center}
-/* 过程活动：紧凑单列，弱化卡片感；默认整体可折叠 */
-.activity-group{margin:10px 0}
-.activity-group-toggle{border:0}
-.activity-group-toggle>summary{display:flex;gap:8px;align-items:center;padding:6px 10px;cursor:pointer;list-style:none;border-radius:8px;color:var(--color-text-secondary);font-size:13px}
-.activity-group-toggle>summary::-webkit-details-marker{display:none}
-.activity-group-toggle>summary:hover{background:var(--el-fill-color-lighter)}
-.activity-group-toggle[open]>summary{margin-bottom:4px}
+/* 过程区：摘要条常显 + 执行详情默认折叠；活动行渲染在 ActivityGroupList 内 */
+.activity-group{margin:10px 0;display:grid;gap:6px}
+.activity-detail-toggle{border:0}
+.activity-detail-toggle>summary{display:flex;gap:8px;align-items:center;padding:4px 10px;cursor:pointer;list-style:none;border-radius:8px;color:var(--color-text-secondary);font-size:12.5px}
+.activity-detail-toggle>summary::-webkit-details-marker{display:none}
+.activity-detail-toggle>summary:hover{background:var(--el-fill-color-lighter);color:var(--color-text)}
+.detail-toggle-label{font-weight:550}
 .group-items{display:grid;gap:4px}
-.narration{display:flex;gap:8px;align-items:flex-start;margin:8px 0;max-width:76ch}
-.narration p{margin:0;font-size:13.5px;line-height:1.65;color:var(--color-text-secondary)}
 /* 流式正文预览：与最终回答同一排版；渲染回退时安全文本插值 + 光标 */
 .streaming-preview p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .preview-html :deep(p){margin:0 0 8px}
 .preview-html :deep(p:last-child){margin-bottom:0}
 .preview-cursor{display:inline-block;margin-left:2px;color:var(--color-primary);animation:pulse 1.2s infinite}
 .preview-note{font-size:12px;color:var(--color-text-muted);margin-top:4px}
-/* 紧凑活动行：details/summary 原生支持键盘操作 */
-.activity,.activity-card{border-radius:8px;background:var(--el-fill-color-lighter)}
-.activity{padding:0}
-.activity>summary,.activity-card>summary{display:flex;gap:8px;align-items:center;padding:6px 10px;cursor:pointer;list-style:none;border-radius:8px;font-size:13px}
-.activity>summary::-webkit-details-marker,.activity-card>summary::-webkit-details-marker{display:none}
-.activity>summary:hover,.activity-card>summary:hover{background:var(--el-fill-color-light)}
-.activity-glyph{flex:none;width:15px;height:15px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--color-success)}
-.activity.running .activity-glyph{color:var(--color-primary);animation:pulse 1.2s infinite}
-.activity.failed .activity-glyph,.activity.failure .activity-glyph{color:var(--color-danger)}
-.activity.waiting .activity-glyph,.activity.approval .activity-glyph{color:var(--color-warning)}
-.activity-title{font-size:13px;font-weight:550;flex:1;min-width:0}
-.activity-body-inline{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
-.activity-badge{flex:none;font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid}
-.activity-badge.failed{color:var(--color-danger);border-color:rgba(199,79,89,.35);background:rgba(199,79,89,.06)}
-.activity-badge.waiting{color:var(--color-warning);border-color:rgba(173,118,40,.35);background:rgba(173,118,40,.06)}
-.activity-card{border:1px solid var(--color-border)}
-.activity-card>summary .activity-title{flex:1}
-.activity-card>summary::after{content:'▸';color:var(--color-text-muted);font-size:12px;transition:transform var(--transition-duration)}
-.activity-card[open]>summary::after{transform:rotate(90deg)}
-.group-items .group-items{padding:2px 0 6px}
-.activity-detail{font-size:12px;color:var(--el-text-color-secondary);padding:0 10px 8px 33px}
 .activity-meta{display:flex;gap:8px;font-size:12px;color:var(--el-text-color-secondary);flex:none}
-.activity.proposal{background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.18)}
-.activity.approval{background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.25)}
-.activity.failure,.activity.failed{background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2)}
 .tech-details pre{background:var(--el-fill-color-lighter);border:1px solid var(--color-border);color:var(--color-text-secondary);padding:10px;border-radius:8px;overflow-x:auto;font-size:12px;margin:6px 0}
 .tech-details summary{cursor:pointer;font-size:12px;color:var(--color-text-muted)}
 @keyframes pulse{0%{opacity:1}50%{opacity:.35}100%{opacity:1}}
@@ -561,10 +512,10 @@ watch(sessionId, () => {
 /* 中等桌面窗口：对话优先。会话栏并入可开合的详情抽屉逻辑——对话始终占满剩余宽度，
    详情作为右侧覆盖层（含可点击的关闭入口），不再出现 300px 窄列 + 400px 固定详情双层遮挡 */
 @media(max-width:1280px) and (min-width:761px){
-  .agent-workspace,.agent-workspace.hide-inspector{grid-template-columns:minmax(0,1fr)}
+  .agent-workspace{grid-template-columns:220px minmax(0,1fr)}
   .agent-workspace.hide-sessions{grid-template-columns:minmax(0,1fr)}
+  .agent-workspace.hide-inspector{grid-template-columns:220px minmax(0,1fr)}
   .agent-workspace.hide-sessions.hide-inspector{grid-template-columns:minmax(0,1fr)}
-  .agent-workspace:not(.hide-inspector) .agent-sessions{display:none}
   .agent-inspector{position:fixed;top:0;right:0;bottom:0;width:min(400px,92vw);z-index:60;background:var(--color-surface);border-left:1px solid var(--color-border);box-shadow:-12px 0 32px rgba(15,23,42,.12);padding:16px;overflow-y:auto;max-height:none}
   .inspector-close{position:absolute;top:10px;right:12px;width:32px;height:32px;display:grid;place-items:center;font-size:20px;line-height:1;color:var(--color-text-secondary);cursor:pointer;border-radius:8px;background:var(--color-surface-raised);border:1px solid var(--color-border)}
   .inspector-close:hover{color:var(--color-text);background:var(--el-fill-color)}
@@ -577,9 +528,6 @@ watch(sessionId, () => {
   .agent-workspace[data-view="sessions"] .conversation,.agent-workspace[data-view="sessions"] .agent-inspector{display:none}
   .agent-workspace[data-view="chat"] .agent-sessions,.agent-workspace[data-view="chat"] .agent-inspector{display:none}
   .agent-workspace[data-view="inspector"] .agent-sessions,.agent-workspace[data-view="inspector"] .conversation{display:none}
-  .agent-inspector{max-height:none}
-  .agent-sessions{max-height:180px}
-  .messages{max-height:none}
   .conversation{padding:10px 14px 14px}
   .answer-body{max-width:100%;font-size:14px}
   .msg.user .user-text{max-width:88%}

@@ -2,6 +2,8 @@
 import { reactive, ref } from 'vue'
 import { authApi } from '../../api/auth-api'
 import { showApiError } from '../../api/api-result'
+import AuthLayout from './components/AuthLayout.vue'
+import './auth-card.css'
 
 const form = reactive({ email: '' })
 const submitting = ref(false)
@@ -19,52 +21,102 @@ async function submit(): Promise<void> {
     submitting.value = false
   }
 }
-
 </script>
 
 <template>
-  <main class="auth-page">
-    <div class="auth-split">
-      <section class="auth-brand">
-        <p class="eyebrow">高校竞赛协作平台</p>
-        <h1>找回你的工作台</h1>
-        <ul class="auth-highlights">
-          <li>输入注册时绑定的邮箱</li>
-          <li>收到邮件后 30 分钟内完成重置</li>
-          <li>重置后所有设备的登录会话都会失效</li>
-        </ul>
-      </section>
-      <el-card class="auth-card">
-        <template #header>
-          <p class="eyebrow">高校竞赛协作平台</p>
-          <h1>忘记密码</h1>
-          <p class="subtitle">我们会向绑定邮箱发送一次性重置链接</p>
-        </template>
+  <AuthLayout
+    brand-title="找回你的工作台，快速重返团队协作"
+    brand-subtitle="安全验证机制将保护你的竞赛项目与知识库资产"
+    :show-illustration="true"
+  >
+    <el-card class="auth-card auth-form-card" shadow="always">
+      <template #header>
+        <div class="card-header-block">
+          <p class="eyebrow card-eyebrow">
+            <span>ACCOUNT RECOVERY</span>
+          </p>
+          <h1 class="card-title">找回密码</h1>
+          <p class="subtitle card-subtitle">输入账号绑定的邮箱，获取一次性安全重置链接</p>
+        </div>
+      </template>
+
+      <!-- 发送成功状态 -->
+      <div v-if="submitted" class="success-state-container">
         <el-alert
-          v-if="submitted"
-          title="如果该邮箱已绑定账号，重置邮件已发送。请查收邮件并在 30 分钟内完成重置。"
+          title="重置邮件已发送"
+          description="如果该邮箱已绑定账号，我们已发送重置链接。请前往邮箱查收并在 30 分钟内完成密码重置。"
           type="success"
           :closable="false"
           show-icon
         />
-        <el-form v-else label-position="top" @submit.prevent="submit">
-          <el-form-item label="绑定邮箱">
-            <el-input v-model="form.email" type="email" :maxlength="120" autocomplete="email" />
-          </el-form-item>
-          <el-button
-            class="submit-button"
-            type="primary"
-            native-type="submit"
-            :loading="submitting"
-            :disabled="!form.email.trim() || submitting"
-          >
-            发送重置邮件
-          </el-button>
-        </el-form>
-        <p class="auth-footer">
-          <router-link to="/login">返回登录</router-link>
+        <div class="auth-actions-group">
+          <router-link to="/login">
+            <el-button class="auth-submit-btn" type="primary">返回登录页</el-button>
+          </router-link>
+        </div>
+      </div>
+
+      <!-- 待输入状态 -->
+      <el-form v-else label-position="top" @submit.prevent="submit">
+        <div class="recovery-tip-box">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span>重置密码后，所有已登录设备的会话将自动失效以保障安全。</span>
+        </div>
+
+        <el-form-item label="账号绑定邮箱">
+          <el-input
+            v-model="form.email"
+            type="email"
+            placeholder="请输入注册时绑定的邮箱"
+            :maxlength="120"
+            autocomplete="email"
+            clearable
+          />
+        </el-form-item>
+
+        <el-button
+          class="submit-button auth-submit-btn"
+          type="primary"
+          native-type="submit"
+          :loading="submitting"
+          :disabled="!form.email.trim() || submitting"
+        >
+          {{ submitting ? '正在发送……' : '发送重置邮件' }}
+        </el-button>
+
+        <p class="auth-footer auth-footer-links">
+          记起密码了？<router-link to="/login" class="auth-link">返回登录</router-link>
         </p>
-      </el-card>
-    </div>
-  </main>
+      </el-form>
+    </el-card>
+  </AuthLayout>
 </template>
+
+<style scoped>
+.recovery-tip-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 9px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #166534;
+}
+
+.recovery-tip-box svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.success-state-container {
+  padding: 4px 0 12px;
+}
+</style>

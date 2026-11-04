@@ -130,6 +130,17 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
     int resetForReindex(@Param("projectId") UUID projectId, @Param("documentId") UUID documentId);
 
     @Update("""
+            UPDATE project_document SET status='UPLOADED', error_message=NULL, chunk_count=0,
+                parser_type=NULL, embedding_provider=NULL, embedding_model=NULL,
+                embedding_dimension=NULL, embedding_fingerprint=NULL, indexed_at=NULL, processing_token=NULL,
+                processing_heartbeat_at=NULL, object_key=#{objectKey}, size_bytes=#{sizeBytes},
+                version=version+1, updated_at=now()
+            WHERE project_id=#{projectId} AND id=#{documentId} AND status='READY'
+            """)
+    int resetForReindexWithSource(@Param("projectId") UUID projectId, @Param("documentId") UUID documentId,
+                                  @Param("objectKey") String objectKey, @Param("sizeBytes") long sizeBytes);
+
+    @Update("""
             UPDATE project_document SET status='DELETING', processing_token=NULL,
                 processing_heartbeat_at=NULL, updated_at=now()
             WHERE project_id=#{projectId} AND id=#{documentId} AND status<>'DELETING'

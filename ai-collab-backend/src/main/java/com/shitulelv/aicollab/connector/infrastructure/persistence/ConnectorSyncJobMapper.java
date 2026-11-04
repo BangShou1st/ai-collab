@@ -43,9 +43,22 @@ public interface ConnectorSyncJobMapper {
 
     @Update("""
             UPDATE connector_sync_job SET lease_expires_at = now() + INTERVAL '15 minutes'
-            WHERE id=#{id}::uuid AND status='RUNNING'
+            WHERE id=#{id}::uuid AND status='RUNNING' AND lease_expires_at > now()
             """)
     int renewLease(@Param("id") UUID id);
+
+    /**
+     * Fencing 门：以行锁锁定任务并校验所有权（RUNNING 且租约未过期）。
+     * 返回 1 表示锁已持有、所有权成立（锁保持到当前事务提交/回滚）；
+     * 返回 null 表示任务已不属于本 Worker——必须放弃受保护的数据库写入。
+     * 过期但尚未被回收的租约同样不能通过（lease_expires_at > now()），旧 Worker 无法复活任务。
+     */
+    @Select("""
+            SELECT 1 FROM connector_sync_job
+            WHERE id=#{id}::uuid AND status='RUNNING' AND lease_expires_at > now()
+            FOR UPDATE
+            """)
+    Integer lockIfOwned(@Param("id") UUID id);
 
     @Update("""
             UPDATE connector_sync_job SET status=#{status}, finished_at=now(),

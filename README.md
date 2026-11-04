@@ -46,13 +46,19 @@
 
 <div align="center">
 
-| 任务看板与依赖协同 | RAG 知识库问答与精准溯源 |
+| 现代 SaaS 协作工作台 | 敏捷任务看板与状态流转 |
 | :---: | :---: |
-| <img src="docs/images/01-task-board.png" alt="任务看板" width="100%" /> | <img src="docs/images/02-knowledge-rag.png" alt="知识问答" width="100%" /> |
-| **两阶段自省式 AI 任务规划** | **协作 Agent 与原生 Tool Calling 运行时** |
-| <img src="docs/images/03-task-planning.png" alt="任务规划" width="100%" /> | <img src="docs/images/04-agent-workspace.png" alt="协作 Agent" width="100%" /> |
-| **项目文档切块与知识资产管理** | **多模型提供商与免费聚合网关配置** |
-| <img src="docs/images/05-document-assets.png" alt="文档资产" width="100%" /> | <img src="docs/images/06-ai-settings.png" alt="AI 设置" width="100%" /> |
+| <img src="docs/images/01-workbench-home.png" alt="现代 SaaS 协作工作台" width="100%" /> | <img src="docs/images/02-task-board.png" alt="敏捷任务看板与状态流转" width="100%" /> |
+| **甘特图排期与里程碑全景** | **两阶段自省式 AI 任务规划** |
+| <img src="docs/images/03-tasks-gantt.png" alt="甘特图排期与里程碑全景" width="100%" /> | <img src="docs/images/04-task-planning.png" alt="两阶段自省式 AI 任务规划" width="100%" /> |
+| **受控协作 Agent 运行时与审批流** | **项目深度洞察与 AI 智能周报** |
+| <img src="docs/images/05-agent-workspace.png" alt="受控协作 Agent 运行时与审批流" width="100%" /> | <img src="docs/images/06-weekly-report.png" alt="项目深度洞察与 AI 智能周报" width="100%" /> |
+| **RAG 知识库精准溯源问答** | **飞书多维知识连接器与 OAuth 授权** |
+| <img src="docs/images/07-knowledge-rag.png" alt="RAG 知识库精准溯源问答" width="100%" /> | <img src="docs/images/08-feishu-connector.png" alt="飞书多维知识连接器与 OAuth 授权" width="100%" /> |
+| **对象存储数据源增量 Connector** | **统一 AI 模型网关与凭据安全** |
+| <img src="docs/images/09-storage-connector.png" alt="对象存储数据源增量 Connector" width="100%" /> | <img src="docs/images/10-ai-settings.png" alt="统一 AI 模型网关与凭据安全" width="100%" /> |
+| **项目延期与依赖风险多维预警** | **文档资产与向量切块管理** |
+| <img src="docs/images/11-risk-analysis.png" alt="项目延期与依赖风险多维预警" width="100%" /> | <img src="docs/images/12-document-assets.png" alt="文档资产与向量切块管理" width="100%" /> |
 
 </div>
 
@@ -63,55 +69,62 @@
 ```mermaid
 mindmap
   root((AI Collab))
-    项目全景协作
-      四态生命周期
-      三级 RBAC 权限
-      看板 / 甘特图 / 依赖图 / 日历
-      DAG 依赖环检测
-      中文审计追踪日志
-    RAG 文档知识库
-      Apache Tika 多格式解析
-      自动清洗与向量切块
-      pgvector 余弦语义检索
-      带引用溯源的流式问答
-      回答反馈采纳机制
-    两阶段 AI 任务规划
-      骨架生成与细节填充
-      Schema 结构化校验
-      人机交互审校与编辑
-      事务性幂等落库
+    全景项目协作
+      SaaS 工作台与生命周期
+      敏捷看板与 Redis 聚合缓存
+      DAG 依赖环检测与拓扑排序
+      甘特图排期与日历视图
+      中文操作审计追踪流水
+    企业级 RAG 知识库与数据连接
+      Apache Tika 多源文档解析
+      智能分块与 pgvector 语义检索
+      段落级溯源与 SSE 流式问答
+      飞书 (Feishu/Lark) 知识库生态连接
+      对象存储增量扫描与孤儿清理
+    两阶段自省式 AI 任务规划
+      骨架生成与细节填充管线
+      单里程碑自省式局部展开
+      主从交互编辑与结构审校
+      严格 Schema 校验防幻觉
+      全链路事务性幂等落库
     受控协作 Agent
       多模型原生 Tool Calling
-      6 大内置业务工作流 Skill
-      高风险写操作人工审批
+      6 大内置研发工作流 Skill
+      写操作审批流 Semantic Diff
       演进式项目长期记忆
-      SSE 实时流式与状态续传
+      执行链路追踪与状态可视化
       只读 MCP 工具安全接入
+    项目多维智能洞察
+      AI 智能周报自动归纳
+      延期与依赖风险多维预警
+      团队成员负载平衡分析
+      多项目视图隔离与权限约束
 ```
 
 ### 1. 🎯 全景项目协作 (Project & Work Collaboration)
-* **生命周期与权限**：支持 `ACTIVE`、`ARCHIVED`、`COMPLETED`、`DELETED` 四态管理；基于 `OWNER` / `ADMIN` / `MEMBER` 三级 RBAC 在服务端执行强权限约束。
-* **多维可视化看板**：具备任务状态拖拽流转、批量操作、成员负载统计。
-* **任务依赖与拓扑**：支持前置依赖关系配置，内置有向无环图（DAG）环检测算法，防范依赖死锁。
-* **甘特图与日历视图**：直观展示项目里程碑与工作排期，截止日期超期实时高亮预警。
-* **完整操作审计**：记录操作流水，生成易读的中文审计摘要与脱敏详情。
+* **现代 SaaS 工作台与生命周期**：支持 `ACTIVE`、`ARCHIVED`、`COMPLETED`、`DELETED` 四态生命周期管理；基于 `OWNER` / `ADMIN` / `MEMBER` 三级 RBAC 在服务端执行强权限校验。
+* **敏捷看板与 Redis 聚合缓存**：支持看板状态平滑拖拽流转、批量操作，利用 Redis 高性能聚合缓存热点任务数据，秒级刷新看板状态。
+* **统一任务中心与 DAG 依赖拓扑**：集中化跨里程碑管理任务项，严格内置有向无环图（DAG）环检测算法与拓扑排序，防范循环依赖死锁。
+* **甘特图与日历全景**：直观展示项目各里程碑节点与任务时间线，任务超期与临期自动预警高亮。
+* **完整操作审计流水**：记录关键业务变更流水，自动生成语义清晰的中文审计摘要与脱敏上下文。
 
-### 2. 📚 企业级 RAG 知识库 (Document Knowledge Base)
-* **多源格式解析**：集成 Apache Tika 3.3.0，支持 PDF、DOCX、Markdown、TXT 等格式文档提取，单文件上限 20MB。
-* **精准清洗与切块**：智能去除冗余格式字符，按语义边界切分，保留原始段落位置元数据。
-* **高性能向量检索**：基于 PostgreSQL 17 + pgvector 扩展，利用余弦相似度计算与混合检索定位最匹配切片。
-* **溯源式流式问答**：Server-Sent Events (SSE) 实时打字机输出，每个论点精准标注文档引用来源与可跳转证据块。
+### 2. 📚 企业级 RAG 知识库与数据连接器 (Knowledge Base & Connectors)
+* **多源格式智能解析**：集成 Apache Tika 3.3.0，支持 PDF、DOCX、Markdown、TXT 等格式文档的高保真内容提取与结构化解析。
+* **精细化分块与 pgvector 向量检索**：按语义断句与段落边界自适应切块，基于 PostgreSQL 17 + pgvector 扩展实现余弦相似度匹配与高维语义索引。
+* **段落级流式溯源问答**：基于 Server-Sent Events (SSE) 实时打字机流式输出，每个论断精准关联原始文档切片与可点击跳转的溯源证据卡片。
+* **飞书多维知识连接器 (Feishu / Lark Connector)**：支持通过标准 OAuth 2.0 PKCE 流程绑定飞书知识空间与文件夹，一键映射并同步飞书云文档；支持 Webhook 事件驱动的增量更新与细粒度撤权安全隔离，将团队在飞书沉淀的规格书、设计案与会议纪要等无缝汇入 RAG 检索体系。
+* **对象存储增量 Connector 与孤儿清理**：内置 S3/MinIO 对象存储数据源连接器，支持按存储桶增量扫描接入文档资产，并提供跨存储不可变对象 Key 隔离、租约心跳失权防护与定时孤儿文件安全收敛。
 
 ### 3. 🧠 两阶段自省式 AI 任务规划 (Two-Phase Task Planning)
 * **两阶段生成管线**：
-  * *阶段一（骨架生成）*：分析需求与知识库背景，提炼核心里程碑与顶层任务。
-  * *阶段二（细节填充）*：基于骨架细化任务属性、执行周期、优先级与前置依赖。
-* **严格 Schema 校验**：结构化 JSON 输出校验，自动防范模型幻觉导致的字段缺漏或类型错误。
-* **人机协同确认**：生成结果在前端以交互式面板展示，支持人工自由二次修改与增删。
-* **幂等落库保证**：确认落库操作走全链路事务保护，并发请求通过分布式锁实现幂等。
+  * *阶段一（骨架生成）*：结合项目背景与知识库资产，提炼项目核心里程碑与顶层交付物架构。
+  * *阶段二（细节填充）*：基于骨架逐级下钻，细化任务属性、执行周期、优先级与依赖拓扑。
+* **单里程碑局部展开与交互编辑**：支持针对特定里程碑发起局部自省式任务细化与多轮追加，提供主从联动交互编辑面板，支持自由拖拽与增删改。
+* **严格 Schema 校验**：强类型结构化 JSON 格式校验器，结合后置断言与修复重试，有效遏制模型幻觉导致的字段缺失或结构错乱。
+* **事务性幂等落库**：规划确认落库走全链路数据库事务保护，依托分布式锁与版本校验保障并发下的幂等落库。
 
 ### 4. 🤖 受控协作 Agent (Controlled Collaborative Agent)
-* **统一原生 Tool Calling**：对齐 OpenAI、Anthropic Claude、Google Gemini 等主流大模型 Function Calling 原生协议，并接入 OpenCode Zen & Kilo Gateway 共享库。
+* **统一原生 Tool Calling**：对齐 OpenAI、Anthropic Claude、Google Gemini 等主流大模型 Function Calling 原生协议，并接入 OpenCode Zen & Kilo Gateway 共享网关。
 * **6 大内置研发工作流 Skill**：
   1. `ProjectHealthSkill`：项目全生命周期健康度诊断与预警。
   2. `ProjectResearchSkill`：项目领域背景、竞品及前沿技术调研。
@@ -119,10 +132,16 @@ mindmap
   4. `DeliveryReadinessSkill`：发布交付就绪状态核验与缺漏检查。
   5. `IterationPlanningSkill`：迭代排期规划与工作量合理性建议。
   6. `MeetingToTasksSkill`：会议纪要一键结构化提取并转化为待办任务。
-* **受控审批写操作 (Human-in-the-Loop)**：**所有写操作（创建/修改任务、里程碑、项目记忆）必须由用户在前端交互弹窗中明确确认审批**，杜绝 Agent 擅自越权篡改业务数据。
-* **演进式项目记忆 (Project Memory)**：沉淀团队架构偏好、技术规范与决策约束，在跨会话中持续生效。
-* **健壮的流式通信**：SSE 全流程事件广播，具备 `Last-Event-ID` 断线续传与会话状态自愈能力。
-* **只读 MCP 扩展**：支持接入 Model Context Protocol 外部服务，服务端白名单与清洗管线过滤防注入。
+* **受控审批流与 Semantic Diff (Human-in-the-Loop)**：所有具有副作用的写操作（创建/修改/删除任务、变更里程碑、更新项目记忆）自动被审批守卫拦截，以 Semantic Diff 形式向用户呈现变更差异，用户在前端确认后方可落库。
+* **演进式项目长期记忆 (Project Memory)**：动态沉淀团队架构偏好、技术规范与重要决策约束，在跨会话中持续注入上下文。
+* **执行链路追踪与状态可视化**：全流程 SSE 事件推送，展示思考过程、工具调用链、审批等待态与断线重连（`Last-Event-ID`）自愈。
+* **安全只读 MCP 扩展**：支持接入外部 Model Context Protocol 服务的只读工具白名单，数据经安全清洗后注入模型。
+
+### 5. 📊 项目多维智能洞察 (Intelligent Project Insights)
+* **AI 智能周报自动归纳**：一键聚合周期内已完成、进行中任务与关键进展，自动提炼阶段性总结、遗留问题与下周规划。
+* **延期与依赖风险多维预警**：结合 DAG 依赖关系与任务工期实时计算关键路径阻塞点，提前发现延期瓶颈。
+* **团队成员负载平衡**：多维度统计成员待办数量、工时负荷与任务分布，辅助负责人合理分配开发精力。
+* **跨项目视图隔离与权限收敛**：严格受控于服务端的项目隔离机制，确保跨团队、跨空间数据边界安全。
 
 ---
 
@@ -207,7 +226,7 @@ sequenceDiagram
 | **后端运行环境** | Java | `21 (LTS)` | 虚拟线程、强封装、新语言特性 |
 | **后端框架** | Spring Boot | `4.1.0` | 核心服务容器、Spring Security、OAuth2 Resource Server |
 | **持久层** | MyBatis-Plus | `3.5.17` | 高性能 ORM、条件构造器、分页插件 |
-| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V73**，严禁篡改历史） |
+| **数据库版本迁移** | Flyway | - | 连续递增版本迁移脚本（**V1–V76**，共 76 个版本，严禁篡改历史） |
 | **文档解析引擎** | Apache Tika | `3.3.0` | 多源文档结构化内容与元数据提取 |
 | **前端框架** | Vue | `3.5.18` | Composition API、`<script setup>` 高性能渲染 |
 | **类型系统** | TypeScript | `5.8.3` | 全栈严格类型安全，消除隐式 `any` |
@@ -218,7 +237,7 @@ sequenceDiagram
 | **向量扩展** | pgvector | `0.8+` | 高维向量相似度检索（HNSW / IVFFlat 索引） |
 | **缓存/分布式锁** | Redis | `7-alpine` | 双维度接口限流、Agent 租约分布式锁 |
 | **对象存储** | MinIO | `RELEASE.2026-09` | 原始文档、附件与资产对象持久化 |
-| **测试框架** | Vitest / JUnit 5 | `3.2.4` / `5.x` | 前端 370+ 测试，后端 1600+ 测试 (含 Testcontainers) |
+| **测试框架** | Vitest / JUnit 5 | `3.2.4` / `5.x` | 前端 487+ 测试全绿，后端 1600+ 单元与集成测试 (含 Testcontainers) |
 | **AI 共享网关** | OpenCode Zen / Kilo | `v1.4.2` / `v0.2.3` | 公开 JitPack 解析的规范化模型网关层 |
 
 ---
@@ -421,7 +440,7 @@ EMBEDDING_DIMENSIONS=1024
 
 ```
 ai-collab/
-├── ai-collab-backend/               # Spring Boot 4.1.0 后端工程（637 主源文件 / 约 5.0 万行）
+├── ai-collab-backend/               # Spring Boot 4.1.0 后端工程（642 主源文件 / 约 5.1 万行）
 │   ├── src/main/java/com/shitulelv/aicollab/
 │   │   ├── auth/                    # 认证授权、JWT 签发、HttpOnly Cookie 轮换
 │   │   ├── user/                    # 用户体系、个人资料、管理员控制中心
@@ -429,16 +448,17 @@ ai-collab/
 │   │   ├── work/                    # 任务看板、里程碑、DAG 依赖环检测、甘特图数据
 │   │   ├── document/                # Tika 文档抽取、切块清洗、MinIO 存储
 │   │   ├── knowledge/               # RAG 向量检索、余弦相似度匹配、SSE 流式引用问答
+│   │   ├── connector/               # 外部数据连接器（飞书知识库 OAuth/事件流同步、对象存储增量扫描）
 │   │   ├── planning/                # 两阶段任务拆解、Schema 严格校验、幂等确认落库
 │   │   ├── agent/                   # 协作 Agent 运行时、6 大 Skill、审批拦截器、长期记忆
 │   │   ├── notification/            # 站内实时通知与未读计数
 │   │   ├── common/                  # 全局统一响应包装、业务异常体系、MyBatis 序列化
 │   │   └── infrastructure/          # 多厂商模型网关、向量适配器、安全清洗过滤网关
 │   ├── src/main/resources/
-│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V73，共 73 个版本）
+│   │   ├── db/migration/            # Flyway 迁移脚本（连续递增 V1–V76，共 76 个版本）
 │   │   └── application.yml          # 主配置模板与默认参数
-│   └── src/test/                    # 完整单元测试与 Testcontainers 集成测试套件（1600+ 测试）
-├── ai-collab-frontend/              # Vue 3.5 + TypeScript 5.8 前端工程（182 源文件 / 约 2.5 万行）
+│   └── src/test/                    # 完整单元测试与 Testcontainers 集成测试套件（1600+ 单元与集成测试）
+├── ai-collab-frontend/              # Vue 3.5 + TypeScript 5.8 前端工程（195 源文件 / 约 2.7 万行）
 │   ├── src/
 │   │   ├── api/                     # 严格类型定义的 Axios 请求客户端与错误规范化层
 │   │   ├── auth/                    # 内存态访问凭证、自动静默续期协调器
@@ -446,7 +466,7 @@ ai-collab/
 │   │   ├── stores/                  # Pinia 共享状态（authStore, projectContextStore 等）
 │   │   ├── router.ts                # 前端路由与导航守卫配置
 │   │   └── modules/                 # 按业务域划分的高内聚页面模块（Work, Agent, RAG 等）
-│   └── vitest.config.ts             # Vitest 单元与组件交互测试套件（370+ 测试）
+│   └── vitest.config.ts             # Vitest 单元与组件交互测试套件（487+ 测试全绿）
 ├── ai-collab-deploy/                # 生产与开发 Docker Compose 编排
 ├── docs/                            # 系统架构、模块设计、接口规范与历史归档（详见 docs/README.md）
 ├── tests/fixtures/documents/        # 知识库 RAG 评测与端到端测试的标准文档语料

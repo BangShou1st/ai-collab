@@ -103,7 +103,8 @@ public class AiCapabilityProbeService {
         return probeResults.findAllByProviderId(id).stream()
                 .map(row -> new ProbeResultView(row.mode(), row.status(), row.modelName(), row.detail(),
                         row.errorCode(), row.latencyMs(), row.testedAt(),
-                        !provider.updatedAt().equals(row.testedConfigUpdatedAt())))
+                        row.testedConfigVersion() == null
+                                || provider.capabilityConfigVersion() != row.testedConfigVersion()))
                 .toList();
     }
 
@@ -126,7 +127,7 @@ public class AiCapabilityProbeService {
      * 探针 PASS 后把对应能力 CAS 写回模型配置。
      *
      * <p>并发约束：同一 Provider 同时只允许一个检测任务（JVM 内互斥锁，前端
-     * 防重复点击之外的后端防线）；探针绑定检测开始时的配置版本（updated_at），
+     * 防重复点击之外的后端防线）；探针绑定检测开始时的能力配置版本，
      * 写回用条件更新做乐观并发——检测期间改了模型/Base URL/Key/能力声明或
      * 另一窗口并发修改时拒绝覆盖并明确报错。写回成功后把本次运行落库结论的
      * 版本锚点迁移到新版本，避免「刚通过就过期」。规划探针通过只记录规划契约
@@ -144,7 +145,7 @@ public class AiCapabilityProbeService {
         }
         try {
             UserAiProvider current = providers.requireRuntimeConfiguration(user, id);
-            OffsetDateTime configVersion = current.updatedAt();
+            long configVersion = current.capabilityConfigVersion();
             boolean preset = current.isPreset();
             List<Mode> planned = new ArrayList<>(List.of(Mode.CONNECTIVITY, Mode.STREAMING));
             if (planning) planned.add(Mode.PLANNING_JSON);
@@ -195,7 +196,7 @@ public class AiCapabilityProbeService {
      * 按真实探针结论 CAS 写回能力。只增不减：写回失败或部分失败不影响
      * 已保存的合法配置；探针结论照常落库展示（用户可据此手动调整）。
      */
-    private CapabilityWriteBack writeBack(UUID user, UUID id, OffsetDateTime configVersion, Set<Mode> passed) {
+    private CapabilityWriteBack writeBack(UUID user, UUID id, long configVersion, Set<Mode> passed) {
         Set<ModelCapability> toAdd = EnumSet.noneOf(ModelCapability.class);
         if (passed.contains(Mode.CONNECTIVITY)) toAdd.add(ModelCapability.CHAT);
         if (passed.contains(Mode.STREAMING)) toAdd.add(ModelCapability.STREAMING);
@@ -206,7 +207,7 @@ public class AiCapabilityProbeService {
             // 无新增能力时不推进配置版本：避免同轮落库的 INCONCLUSIVE 结论被误标 STALE。
             return new CapabilityWriteBack(true, null, current.capabilities());
         }
-        Optional<OffsetDateTime> newVersion =
+        Optional<Long> newVersion =
                 repository.addCapabilitiesIfVersionMatches(id, user, toAdd, configVersion);
         if (newVersion.isEmpty()) {
             return new CapabilityWriteBack(false,
@@ -224,7 +225,7 @@ public class AiCapabilityProbeService {
         try {
             probeResults.upsert(new UserAiProviderProbeResultRepository.ProbeResultRow(
                     provider.id(), mode.name(), status, model, detail, errorCode, latencyMs,
-                    provider.updatedAt(), null));
+                    provider.updatedAt(), provider.capabilityConfigVersion(), null));
         } catch (RuntimeException persistenceFailure) {
             // 结果落库失败不影响探针结论本身：调用方已拿到真实结果/错误。
             org.slf4j.LoggerFactory.getLogger(AiCapabilityProbeService.class)

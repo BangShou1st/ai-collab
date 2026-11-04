@@ -97,4 +97,4 @@ cd ai-collab-backend && ./mvnw -q test -Dtest=AgentModelConfigurationSwitchPostg
 
 - 后端：`AgentRuntimeCoordinator.java`（advance 主循环，预算/事件/结算在 196-320 行附近）、`RoutingAgentModelExecutor.java`（resolveRequest/ResolvedRequest）、`AgentToolCallExecutor.java`（executeCalls 78-100、validateToolCall 写工具校验 355-375 附近、executeCalls 批次分支 160-300）、`AgentRunEventRecorder.java`（recordModelTurn ~575、事件 payload ~620）、`AgentRepository.java`（knownInvocationResult/invocationSourceMode ~296）。
 - 前端：`agent-activity.ts`（reduceAgentActivities/groupAgentActivities/currentModelFromEvents）、`AgentView.vue`（对话区 conversationBlocks 循环、messagesEl 滚动逻辑）、`conversation-blocks.ts`、`use-agent-workspace.ts`。
-- 设计文档（优先级最高，冲突时以此为准）：`docs/agent-experience-design.md`；上轮验收截图存于 `docs/acceptance-20261005/`。
+- 设计文档（优先级最高，冲突时以此为准）：`docs/design/agent-experience-design.md`；上轮验收截图存于 `docs/acceptance-evidence/2026-10-05/acceptance-20261005/`。
