@@ -81,7 +81,23 @@ export interface DetectAndConfigureResult {
   generationRequests: number
 }
 
+export interface SharedAiProviderItem {
+  id: string
+  name: string
+  providerType: AiProviderType
+  modelName: string
+  enabled: boolean
+  status: string
+  capabilities: string[]
+  temperature: number
+  maxOutputTokens: number
+  publishedAt: string
+}
+
 export const userAiApi = {
+  async sharedProviders(): Promise<ApiResult<SharedAiProviderItem[]>> {
+    return apiResultFromResponse(await httpClient.get<ApiResponse<SharedAiProviderItem[]>>('/ai/shared-providers'))
+  },
   async profiles(): Promise<ApiResult<ProviderProfile[]>> {
     return apiResultFromResponse(await httpClient.get<ApiResponse<ProviderProfile[]>>('/user/ai-providers/profiles'))
   },
