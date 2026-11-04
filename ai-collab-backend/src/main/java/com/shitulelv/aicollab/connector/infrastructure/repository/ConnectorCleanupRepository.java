@@ -103,4 +103,13 @@ public class ConnectorCleanupRepository {
                 WHERE id=? AND status='RUNNING' AND claim_id=?
                 """, delaySeconds, errorCode, claim.jobId(), claim.claimId());
     }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void requeue(Claim claim) {
+        jdbc.update("""
+                UPDATE connector_cleanup_job SET status='PENDING',claim_id=NULL,lease_until=NULL,
+                  next_attempt_at=now(),last_error_code='MORE_OBJECTS_PENDING',updated_at=now()
+                WHERE id=? AND status='RUNNING' AND claim_id=?
+                """, claim.jobId(), claim.claimId());
+    }
 }
