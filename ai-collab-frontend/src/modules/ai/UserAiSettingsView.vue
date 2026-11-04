@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Refresh } from '@element-plus/icons-vue'
+import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { showApiError } from '../../api/api-result'
 import { useAuthStore } from '../../stores/auth-store'
 import PageHeader from '../../shared/PageHeader.vue'
 import EmptyState from '../../shared/EmptyState.vue'
-import { userAiApi, type AiPurpose, type ProviderProfile, type UserAiProvider } from './user-ai-api'
+import { userAiApi, type AiPurpose, type ProviderProfile, type SharedAiProviderItem, type UserAiProvider } from './user-ai-api'
 import { aiPresetApi, type PresetStatus } from './ai-preset-api'
 import { loadProviderProfiles } from './provider-profiles'
 import { usePresetConnection } from './use-preset-connection'
@@ -26,6 +26,7 @@ import {
 
 const auth = useAuthStore()
 const providers = ref<UserAiProvider[]>([])
+const sharedProviders = ref<SharedAiProviderItem[]>([])
 const loading = ref(false)
 /** 配置加载失败：状态未知，不得显示为“未配置”。 */
 const loadFailed = ref(false)
@@ -73,10 +74,13 @@ const customProviders = computed(() => providers.value.filter((p) => !p.presetCo
 const enabledProviderCount = computed(() => providers.value.filter((p) => p.enabled).length)
 const zenProvider = computed(() => providers.value.find((p) => p.presetCode === 'OPENCODE_ZEN_FREE') ?? null)
 const kiloProvider = computed(() => providers.value.find((p) => p.presetCode === 'KILO_GATEWAY_FREE') ?? null)
-const purposeStatuses = computed<PurposeStatus[]>(() => resolvePurposeStatuses(providers.value, overrides))
+const purposeStatuses = computed<PurposeStatus[]>(() => resolvePurposeStatuses(providers.value, overrides, sharedProviders.value))
 
-/** 用途就绪 = 配置解析 × 能力声明 × 探针证据；CONNECTIVITY 通过不外推到任何用途。 */
+/** 用途就绪 = 配置解析 × 能力声明 × 探针证据；共享模型由管理员保证能力。 */
 function readinessOf(status: PurposeStatus): PurposeReadiness | null {
+  if (status.provider?.presetCode === 'SHARED') {
+    return status.provider.enabled ? 'READY' : 'UNAVAILABLE'
+  }
   return purposeReadiness(status.purpose, status.provider, persistedProbes[status.provider?.id ?? ''] ?? probeResultsFromViews([]))
 }
 
@@ -117,6 +121,9 @@ function purposeOptions(purpose: AiPurpose) {
   const extra = overrideExtras.value[purpose]
   return {
     extras: extra ? [{ label: extra.label, value: extra.id }] : [],
+    shared: sharedProviders.value
+      .filter((s) => s.enabled && s.status === 'PUBLISHED')
+      .map((s) => ({ label: `${s.name} · 全站共享 (${s.modelName})`, value: s.id })),
     zen: zen.value?.connected && zenProvider.value
       ? [{ label: `OpenCode Zen Free · ${zen.value?.modelName ?? ''}`, value: zenProvider.value.id }]
       : [],
@@ -178,13 +185,15 @@ async function load(): Promise<void> {
   loading.value = true
   loadFailed.value = false
   try {
-    const [custom, presetList, profileList] = await Promise.all([
+    const [custom, presetList, profileList, sharedList] = await Promise.all([
       userAiApi.list(),
       aiPresetApi.presets(),
       loadProviderProfiles(),
+      userAiApi.sharedProviders().catch(() => ({ data: [] as SharedAiProviderItem[] })),
     ])
     if (token !== loadToken) return
     providers.value = custom.data
+    sharedProviders.value = sharedList.data ?? []
     zen.value = presetList.data.find((p) => p.code === 'OPENCODE_ZEN_FREE') ?? null
     kilo.value = presetList.data.find((p) => p.code === 'KILO_GATEWAY_FREE') ?? null
     profiles.value = profileList
@@ -278,6 +287,20 @@ async function setDefault(provider: UserAiProvider): Promise<void> {
   }
 }
 
+async function applySharedToPurpose(shared: SharedAiProviderItem, purpose: AiPurpose): Promise<void> {
+  overrides[purpose] = shared.id
+  await saveOverride(purpose)
+  ElMessage.success(`已将「${shared.name}」应用于 ${purposeLabel(purpose)}`)
+}
+
+async function applySharedToAll(shared: SharedAiProviderItem): Promise<void> {
+  for (const p of AI_PURPOSES) {
+    overrides[p.value] = shared.id
+    await saveOverride(p.value)
+  }
+  ElMessage.success(`已将「${shared.name}」应用于全部用途`)
+}
+
 /**
  * 用途覆盖只改变解析目标，不触发模型探测；切换后立即按新目标重新展示解析状态。
  * 保存中禁止再次修改（令牌 + 禁用双保险）；失败回滚到后端确认的旧值。
@@ -362,7 +385,7 @@ auth.$subscribe(() => {
         </template>
         <p v-if="purposesFailed" class="purpose-failure" role="alert">用途覆盖加载失败，暂无法确认各用途解析结果。请点击“重试”后再判断。</p>
         <template v-else>
-          <p v-if="!providers.length" class="purpose-empty">还没有保存任何模型配置，下列用途均不可用。</p>
+          <p v-if="!providers.length && !sharedProviders.length" class="purpose-empty">还没有保存任何模型配置，且暂无全站共享模型，下列用途均不可用。</p>
           <div v-for="status in purposeStatuses" :key="status.purpose" class="purpose-row">
             <span class="override-label">{{ purposeLabel(status.purpose) }}</span>
             <el-select
@@ -374,6 +397,10 @@ auth.$subscribe(() => {
               <el-option
                 v-for="option in purposeOptions(status.purpose).extras"
                 :key="`extra-${option.value}`" :label="option.label" :value="option.value" disabled
+              />
+              <el-option
+                v-for="option in purposeOptions(status.purpose).shared"
+                :key="`shared-${option.value}`" :label="option.label" :value="option.value"
               />
               <el-option
                 v-for="option in purposeOptions(status.purpose).zen"
@@ -402,6 +429,56 @@ auth.$subscribe(() => {
           </div>
         </template>
       </el-card>
+
+      <div v-if="!loadFailed" class="section-title"><h2>全站共享</h2></div>
+      <div v-if="!sharedProviders.length && !loadFailed" class="shared-empty">
+        <el-empty description="管理员暂未发布全站共享模型" :image-size="48" />
+      </div>
+      <div v-if="sharedProviders.length && !loadFailed" class="shared-provider-cards">
+        <div v-for="shared in sharedProviders" :key="shared.id" class="shared-card">
+          <div class="shared-card__head">
+            <div class="shared-title-row">
+              <strong>{{ shared.name }}</strong>
+              <el-tag size="small" effect="plain" type="primary">全站共享</el-tag>
+              <el-tag :type="shared.enabled && shared.status === 'PUBLISHED' ? 'success' : 'info'" size="small">
+                {{ shared.enabled && shared.status === 'PUBLISHED' ? '可用' : (shared.status === 'REVOKED' ? '已撤销' : '暂不可用') }}
+              </el-tag>
+            </div>
+            <span class="shared-meta">{{ shared.modelName }} · {{ shared.providerType }}</span>
+          </div>
+          <div class="shared-card__capabilities">
+            <span class="cap-label">已验证能力：</span>
+            <el-tag v-for="cap in shared.capabilities" :key="cap" size="small" type="info" class="cap-tag">
+              {{ cap }}
+            </el-tag>
+            <span v-if="!shared.capabilities?.length" class="cap-none">基础文本生成</span>
+          </div>
+          <div class="shared-card__actions">
+            <el-dropdown trigger="click" @command="(p: AiPurpose) => applySharedToPurpose(shared, p)">
+              <el-button size="small" :disabled="!shared.enabled || shared.status !== 'PUBLISHED'">
+                选用至指定用途
+                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-for="p in AI_PURPOSES" :key="p.value" :command="p.value">
+                    {{ p.label }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-button
+              size="small"
+              type="primary"
+              plain
+              :disabled="!shared.enabled || shared.status !== 'PUBLISHED'"
+              @click="applySharedToAll(shared)"
+            >
+              一键应用到全部用途
+            </el-button>
+          </div>
+        </div>
+      </div>
 
       <div v-if="!loadFailed" class="section-title"><h2>推荐连接</h2></div>
       <div v-if="!loadFailed" class="preset-card preset-card--zen">
@@ -549,6 +626,60 @@ auth.$subscribe(() => {
 .purpose-readiness { flex: none; }
 .purpose-failure { margin: 0 0 8px; color: var(--color-danger); font-size: 13px; }
 .purpose-empty { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
+.shared-empty {
+  padding: 12px 0;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-card);
+}
+.shared-provider-cards {
+  display: grid;
+  gap: 12px;
+}
+.shared-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+.shared-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.shared-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.shared-meta {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.shared-card__capabilities {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.cap-label {
+  color: var(--color-text-secondary);
+}
+.cap-none {
+  color: var(--color-text-tertiary);
+}
+.shared-card__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  border-top: 1px dashed var(--color-border);
+  padding-top: 8px;
+}
 .preset-suite-hint { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 12px; }
 .preset-card { border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); padding: 14px 16px; display: grid; gap: 8px; }
 .preset-card--zen { border-color: rgba(37, 99, 235, .28); }

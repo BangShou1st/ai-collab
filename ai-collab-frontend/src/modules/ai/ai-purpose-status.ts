@@ -217,8 +217,29 @@ export function purposeReadiness(
 export function resolvePurposeStatuses(
   providers: UserAiProvider[],
   overrides: Partial<Record<AiPurpose, string>>,
+  sharedProviders: { id: string; name: string; modelName: string; enabled: boolean; status: string; capabilities: string[] }[] = [],
 ): PurposeStatus[] {
   const byId = new Map(providers.map((item) => [item.id, item]))
+  for (const s of sharedProviders) {
+    if (!byId.has(s.id)) {
+      byId.set(s.id, {
+        id: s.id,
+        name: s.name,
+        presetCode: 'SHARED',
+        providerType: 'OPENAI_COMPATIBLE',
+        baseUrl: '',
+        apiPath: '',
+        hasApiKey: true,
+        modelName: s.modelName,
+        enabled: s.enabled && s.status === 'PUBLISHED',
+        isDefault: false,
+        temperature: 0.7,
+        maxOutputTokens: 4096,
+        capabilities: s.capabilities,
+        updatedAt: '',
+      })
+    }
+  }
   const defaultProvider = providers.find((item) => item.isDefault) ?? null
 
   return AI_PURPOSES.map(({ value }) => {

@@ -71,7 +71,9 @@ public class RoutingChatModelGateway implements ChatModelGateway {
 
     public ChatCompletionResult completeWithSnapshot(ChatCompletionCommand command, AiRequestMetadata metadata,
             UserAiProvider snapshot, Integer budget) {
-        if (!snapshot.userId().equals(command.callerUserId())) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+        if (!isShared(snapshot) && !snapshot.userId().equals(command.callerUserId())) {
+            throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+        }
         userProviders.requireSnapshotAuthorized(snapshot);
         int effectiveBudget = budget != null && budget > 0 ? budget : snapshot.maxOutputTokens();
         UserAiProvider effective = new UserAiProvider(snapshot.id(), snapshot.userId(), snapshot.name(), snapshot.providerType(),
@@ -171,11 +173,18 @@ public class RoutingChatModelGateway implements ChatModelGateway {
         AiInvocationContext context = new AiInvocationContext(command.callerUserId(), command.projectId(), command.purpose());
         UserAiProvider pinned = AiConfigurationContext.current();
         if (pinned != null) {
-            if (!pinned.userId().equals(context.userId())) throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+            if (!isShared(pinned) && !pinned.userId().equals(context.userId())) {
+                throw new BusinessException(ErrorCode.AI_PROVIDER_UNAVAILABLE);
+            }
             userProviders.requireSnapshotAuthorized(pinned);
             return pinned;
         }
         return userProviders.resolve(context.userId(), context.purpose());
+    }
+
+    private static boolean isShared(UserAiProvider provider) {
+        return provider != null && provider.presetCode() != null
+                && provider.presetCode().startsWith(com.shitulelv.aicollab.infrastructure.ai.shared.SharedAiProvider.PRESET_CODE_SHARED);
     }
 
     private void validateStructured(ChatCompletionCommand command, ChatCompletionResult result) {

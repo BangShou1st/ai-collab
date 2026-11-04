@@ -8,7 +8,6 @@ import VerifyEmailView from './modules/auth/VerifyEmailView.vue'
 import AccountView from './modules/account/AccountView.vue'
 import HomeView from './modules/home/HomeView.vue'
 import UserAiSettingsView from './modules/ai/UserAiSettingsView.vue'
-import EmbeddingAdminView from './modules/admin/EmbeddingAdminView.vue'
 import ProjectListView from './modules/project/ProjectListView.vue'
 import ProjectIntegrationsView from './modules/project/ProjectIntegrationsView.vue'
 import DashboardView from './modules/dashboard/DashboardView.vue'
@@ -27,13 +26,22 @@ import WeeklyReportView from './modules/work/WeeklyReportView.vue'
 import RiskAnalysisView from './modules/work/RiskAnalysisView.vue'
 import PlanComparisonView from './modules/work/PlanComparisonView.vue'
 import AgentView from './modules/agent/AgentView.vue'
-import AdminView from './modules/admin/AdminView.vue'
-import SystemConfigAdminView from './modules/admin/SystemConfigAdminView.vue'
+import AdminOverviewView from './modules/admin/AdminOverviewView.vue'
+import AdminUsersView from './modules/admin/AdminUsersView.vue'
+import AdminAiProvidersView from './modules/admin/AdminAiProvidersView.vue'
+import AdminNotificationsView from './modules/admin/AdminNotificationsView.vue'
+import AdminSettingsView from './modules/admin/AdminSettingsView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/home' },
+    {
+      path: '/',
+      redirect: () => {
+        const auth = useAuthStore()
+        return auth.currentUser?.systemAdmin ? '/admin' : '/home'
+      },
+    },
     { path: '/login', component: LoginView, meta: { public: true, title: '登录' } },
     { path: '/register', component: RegisterView, meta: { public: true, title: '注册账号' } },
     { path: '/forgot-password', component: ForgotPasswordView, meta: { public: true, title: '忘记密码' } },
@@ -65,9 +73,14 @@ export const router = createRouter({
     { path: '/projects/:projectId/integrations', component: ProjectIntegrationsView, meta: { title: '集成与 MCP' } },
     { path: '/projects/:projectId/audit-logs', component: AuditLogView, meta: { title: '操作日志' } },
     { path: '/notifications', component: NotificationView, meta: { title: '通知中心' } },
-    { path: '/admin', component: AdminView, meta: { title: '管理中心', systemAdmin: true } },
-    { path: '/admin/config', component: SystemConfigAdminView, meta: { title: '系统配置中心', systemAdmin: true } },
-    { path: '/admin/embedding', component: EmbeddingAdminView, meta: { title: 'AI Infrastructure', systemAdmin: true } },
+    { path: '/admin', component: AdminOverviewView, meta: { title: '平台概览', systemAdmin: true } },
+    { path: '/admin/overview', redirect: '/admin' },
+    { path: '/admin/users', component: AdminUsersView, meta: { title: '账号管理', systemAdmin: true } },
+    { path: '/admin/ai-providers', component: AdminAiProvidersView, meta: { title: 'AI 供应商', systemAdmin: true } },
+    { path: '/admin/notifications', component: AdminNotificationsView, meta: { title: '通知中心', systemAdmin: true } },
+    { path: '/admin/settings', component: AdminSettingsView, meta: { title: '系统设置', systemAdmin: true } },
+    { path: '/admin/config', redirect: '/admin/settings' },
+    { path: '/admin/embedding', redirect: () => ({ path: '/admin/ai-providers', query: { tab: 'embedding' } }) },
   ],
 })
 
@@ -87,10 +100,10 @@ router.beforeEach(async (to) => {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
   if ((to.path === '/login' || to.path === '/register') && auth.isAuthenticated) {
-    return '/home'
+    return auth.currentUser?.systemAdmin ? '/admin' : '/home'
   }
   if (to.meta.systemAdmin && !auth.currentUser?.systemAdmin) {
-    return '/projects'
+    return '/home'
   }
   return true
 })
