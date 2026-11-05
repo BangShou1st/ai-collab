@@ -92,6 +92,8 @@ paths:
         Uses the same mandatory Origin/Referer validation, Access Token issuer,
         Refresh session implementation and Cookie settings as login. The endpoint
         returns REGISTRATION_DISABLED with HTTP 403 when public registration is off.
+        Registration verification, account verification and password-reset emails
+        share a 60-second cooldown per account.
       requestBody:
         required: true
         content:
@@ -206,14 +208,56 @@ paths:
               $ref: '#/components/schemas/UpdateCurrentUserRequest'
       responses:
         '200':
-          description: Safe current-user view without passwordHash or tokenVersion
+          description: Updated profile, including email-change verification-mail status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserEnvelope'
+                $ref: '#/components/schemas/CurrentUserProfileUpdateEnvelope'
         '400':
           description: Profile validation failed
           content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Request a password-reset email
+      description: >
+        Existing and unknown addresses receive the same response. Password-reset
+        emails share the account's 60-second cooldown with registration and email
+        verification messages.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ForgotPasswordRequest' }
+      responses:
+        '200':
+          description: Request accepted without revealing whether an account exists
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoidResponseEnvelope' }
+        '400':
+          description: Invalid email request
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /auth/verify-email/request:
+    post:
+      tags: [Auth]
+      summary: Request or resend the current account's email-verification message
+      description: >
+        Shares a 60-second cooldown per account with registration and password-reset
+        emails. A cooldown response includes the remaining seconds and does not
+        invalidate the currently active verification link.
+      responses:
+        '200':
+          description: Message queued or suppressed by the account cooldown
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountEmailDispatchResultEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '409':
           $ref: '#/components/responses/Conflict'
   /auth/change-password:
@@ -2448,6 +2492,11 @@ components:
       properties:
         displayName: { type: string, minLength: 1, maxLength: 60 }
         email: { type: [string, 'null'], format: email, maxLength: 120 }
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 120 }
     ChangePasswordRequest:
       type: object
       required: [currentPassword, newPassword]
@@ -2520,7 +2569,7 @@ components:
             data: { $ref: '#/components/schemas/AuthResult' }
     UserView:
       type: object
-      required: [id, username, displayName, status, systemAdmin]
+      required: [id, username, displayName, status, systemAdmin, emailVerified]
       properties:
         id: { type: string, format: uuid }
         username: { type: string }
@@ -2528,6 +2577,20 @@ components:
         email: { type: [string, 'null'], format: email }
         status: { type: string, enum: [ACTIVE, DISABLED] }
         systemAdmin: { type: boolean }
+        emailVerified: { type: boolean }
+    AccountEmailDispatchResult:
+      type: object
+      required: [status, retryAfterSeconds]
+      properties:
+        status: { type: string, enum: [QUEUED, COOLDOWN, UNAVAILABLE, NOT_REQUESTED] }
+        retryAfterSeconds: { type: integer, minimum: 0 }
+    CurrentUserProfileUpdateView:
+      type: object
+      required: [user, emailChanged, emailDispatch]
+      properties:
+        user: { $ref: '#/components/schemas/UserView' }
+        emailChanged: { type: boolean }
+        emailDispatch: { $ref: '#/components/schemas/AccountEmailDispatchResult' }
     UserEnvelope:
       allOf:
         - $ref: '#/components/schemas/ApiMeta'
@@ -2535,6 +2598,20 @@ components:
           required: [data]
           properties:
             data: { $ref: '#/components/schemas/UserView' }
+    AccountEmailDispatchResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties:
+            data: { $ref: '#/components/schemas/AccountEmailDispatchResult' }
+    CurrentUserProfileUpdateEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/ApiMeta'
+        - type: object
+          required: [data]
+          properties:
+            data: { $ref: '#/components/schemas/CurrentUserProfileUpdateView' }
     ProjectRole:
       type: string
       enum: [OWNER, ADMIN, MEMBER]

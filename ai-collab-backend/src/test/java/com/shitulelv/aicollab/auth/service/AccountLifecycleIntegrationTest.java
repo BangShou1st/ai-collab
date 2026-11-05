@@ -54,6 +54,8 @@ import static org.mockito.Mockito.verify;
 @ActiveProfiles("test")
 class AccountLifecycleIntegrationTest {
     @Container static final PostgreSQLContainer<?> DB = new PostgreSQLContainer<>("pgvector/pgvector:pg17");
+    @Container static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+            .withExposedPorts(6379);
     @Container static final GenericContainer<?> MINIO = new GenericContainer<>(DockerImageName.parse(MinioTestImage.IMAGE))
             .withExposedPorts(9000).withEnv("MINIO_ROOT_USER", "synthetic-account-lifecycle")
             .withEnv("MINIO_ROOT_PASSWORD", "synthetic-invite-secret").withCommand("server", "/data")
@@ -64,6 +66,8 @@ class AccountLifecycleIntegrationTest {
         registry.add("spring.datasource.url", DB::getJdbcUrl);
         registry.add("spring.datasource.username", DB::getUsername);
         registry.add("spring.datasource.password", DB::getPassword);
+        registry.add("spring.data.redis.host", REDIS::getHost);
+        registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
         registry.add("storage.minio.endpoint", () -> "http://" + MINIO.getHost() + ":" + MINIO.getMappedPort(9000));
         registry.add("storage.minio.access-key", () -> "synthetic-account-lifecycle");
         registry.add("storage.minio.secret-key", () -> "synthetic-invite-secret");

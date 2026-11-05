@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { apiResultFromResponse } from './api-result'
 import type {
-  AccessTokenResult, ApiResponse, ApiResult, CurrentUser, LoginResult, RegistrationPolicy,
+  AccountEmailDispatchResult, AccessTokenResult, ApiResponse, ApiResult, CurrentUser, LoginResult,
+  RegistrationPolicy,
 } from './types'
 
 const authClient = axios.create({
@@ -87,8 +88,8 @@ export const authApi = {
     return apiResultFromResponse(response)
   },
 
-  async requestEmailVerification(accessToken: string): Promise<ApiResult<null>> {
-    const response = await authClient.post<ApiResponse<null>>(
+  async requestEmailVerification(accessToken: string): Promise<ApiResult<AccountEmailDispatchResult>> {
+    const response = await authClient.post<ApiResponse<AccountEmailDispatchResult>>(
       '/verify-email/request',
       {},
       { headers: { Authorization: `Bearer ${accessToken}` } },

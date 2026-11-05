@@ -1,10 +1,10 @@
 package com.shitulelv.aicollab.user.controller;
 
-import com.shitulelv.aicollab.auth.dto.CurrentUserResponse;
 import com.shitulelv.aicollab.common.api.ApiResponse;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.user.dto.UpdateCurrentUserRequest;
+import com.shitulelv.aicollab.user.application.view.CurrentUserProfileUpdateView;
 import com.shitulelv.aicollab.user.service.AccountService;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,7 +26,7 @@ public class UserController {
     }
 
     @PatchMapping("/me")
-    public ApiResponse<CurrentUserResponse> updateMe(
+    public ApiResponse<CurrentUserProfileUpdateView> updateMe(
             @Valid @RequestBody UpdateCurrentUserRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         return ApiResponse.success(accounts.updateProfile(userId(jwt), request));
