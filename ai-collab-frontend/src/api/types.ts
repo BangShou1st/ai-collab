@@ -21,6 +21,17 @@ export interface CurrentUser {
   emailVerified?: boolean
 }
 
+export interface AccountEmailDispatchResult {
+  status: 'QUEUED' | 'COOLDOWN' | 'UNAVAILABLE' | 'NOT_REQUESTED'
+  retryAfterSeconds: number
+}
+
+export interface CurrentUserProfileUpdateResult {
+  user: CurrentUser
+  emailChanged: boolean
+  emailDispatch: AccountEmailDispatchResult
+}
+
 export interface AccessTokenResult {
   accessToken: string
   tokenType: string

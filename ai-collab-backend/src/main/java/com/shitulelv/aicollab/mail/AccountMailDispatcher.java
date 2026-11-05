@@ -1,11 +1,14 @@
 package com.shitulelv.aicollab.mail;
 
+import com.shitulelv.aicollab.auth.ratelimit.AccountEmailCooldown;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+
+import java.util.UUID;
 
 /**
  * 账号邮件与数据库事务解耦：事务内只登记发送意图，提交成功后才真正投递；
@@ -17,23 +20,51 @@ public class AccountMailDispatcher {
 
     private final ApplicationEventPublisher events;
     private final MailService mailService;
+    private final AccountEmailCooldown cooldown;
 
-    public AccountMailDispatcher(ApplicationEventPublisher events, MailService mailService) {
+    public AccountMailDispatcher(
+            ApplicationEventPublisher events,
+            MailService mailService,
+            AccountEmailCooldown cooldown) {
         this.events = events;
         this.mailService = mailService;
+        this.cooldown = cooldown;
     }
 
-    public void publish(MailMessage message) {
-        events.publishEvent(message);
+    public AccountEmailCooldown.Decision reserve(UUID accountId) {
+        return cooldown.reserve(accountId);
+    }
+
+    public boolean enabled() {
+        return mailService.enabled();
+    }
+
+    public void publish(AccountEmailCooldown.Permit permit, MailMessage message) {
+        events.publishEvent(new AccountMailDispatchEvent(message, permit));
+    }
+
+    public void release(AccountEmailCooldown.Permit permit) {
+        cooldown.release(permit);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-    public void deliverAfterCommit(MailMessage message) {
+    public void deliverAfterCommit(AccountMailDispatchEvent event) {
         try {
-            mailService.send(message);
+            mailService.send(event.message());
+            if (mailService.enabled()) {
+                cooldown.markSent(event.permit());
+            } else {
+                cooldown.release(event.permit());
+            }
         } catch (RuntimeException exception) {
             log.error("账号邮件发送失败（业务事务已提交，不影响用户操作）: to={}, subject={}, error={}",
-                    message.to(), message.subject(), exception.getMessage());
+                    event.message().to(), event.message().subject(), exception.getMessage());
+            cooldown.release(event.permit());
         }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_ROLLBACK)
+    public void releaseAfterRollback(AccountMailDispatchEvent event) {
+        cooldown.release(event.permit());
     }
 }

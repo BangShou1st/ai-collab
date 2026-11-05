@@ -36,10 +36,19 @@
 
 - 注册填写邮箱 / 账号设置修改邮箱（邮箱变更会重置 `email_verified=false`）后自动发送验证邮件；
   `POST /api/v1/auth/verify-email/request`（登录态）支持手动重发。
+- 账号设置修改邮箱后，保存成功提示会说明验证邮件发送状态；资料未变化时不提示发信。
 - `POST /api/v1/auth/verify-email`（公开 + IP 限频）验证成功后置 `email_verified=true` 并审计。
 - `CurrentUserResponse` 新增 `emailVerified` 字段，前端「账号设置」展示验证状态与重发入口。
 
-## 5. 统一邮件服务
+## 5. 账号邮件统一冷却
+
+- 注册验证、邮箱变更/重发、密码重置共用每账号 60 秒冷却，使用 Redis `SET NX EX` 原子占位，冷却键只包含账号 UUID。
+- 邮箱变更保存时仍成功保存资料；若账号处于冷却期，不发送新邮件，前端显示剩余秒数并允许冷却结束后重发。
+- 冷却中的重发和密码重置不轮换已有令牌；邮箱地址变更会先作废指向旧邮箱的验证令牌。
+- SMTP 发送失败或业务事务回滚会释放本次占位；Redis 不可用时本次跳过邮件投递，但不回滚资料保存，页面显示邮件暂不可用。
+- 忘记密码接口在冷却期间仍对已存在与未知邮箱返回相同响应，防止账号枚举；前端提示同一账号的邮件共用 60 秒间隔。
+
+## 6. 统一邮件服务
 
 - `MailService` 接口 + 两个实现：`SmtpMailService`（`MAIL_ENABLED=true`，缺 `MAIL_HOST`/`MAIL_FROM` 拒绝启动）
   与 `LoggingMailService`（默认降级：只记录收件人与主题，正文/链接绝不写日志）。
@@ -48,7 +57,7 @@
 - 部署接入：`.env` 配置 `MAIL_ENABLED=true` + SMTP 参数即可，无需改代码；`docker-compose.yml` 已透传
   `APP_PUBLIC_URL` 与全部 `MAIL_*` 变量。
 
-## 6. 环境矩阵
+## 7. 环境矩阵
 
 | 环境 | APP_PUBLIC_URL | MAIL_ENABLED | 行为 |
 | --- | --- | --- | --- |
