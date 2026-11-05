@@ -43,8 +43,8 @@ async function submit(): Promise<void> {
       <!-- 发送成功状态 -->
       <div v-if="submitted" class="success-state-container">
         <el-alert
-          title="重置邮件已发送"
-          description="如果该邮箱已绑定账号，我们已发送重置链接。请前往邮箱查收并在 30 分钟内完成密码重置。"
+          title="申请已受理"
+          description="如果该邮箱已绑定账号，请查收重置链接，并在 30 分钟内完成密码重置。同一账号的验证邮件和重置邮件共用 60 秒发送间隔；如刚收到平台邮件，请稍后再申请。"
           type="success"
           :closable="false"
           show-icon

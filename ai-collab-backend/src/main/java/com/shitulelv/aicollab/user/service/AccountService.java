@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.user.service;
 
 import com.shitulelv.aicollab.auth.dto.ChangePasswordRequest;
+import com.shitulelv.aicollab.auth.dto.AccountEmailDispatchResult;
 import com.shitulelv.aicollab.auth.dto.CurrentUserResponse;
 import com.shitulelv.aicollab.auth.service.EmailVerificationService;
 import com.shitulelv.aicollab.auth.service.RefreshTokenService;
@@ -8,6 +9,7 @@ import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.project.application.service.AuditService;
 import com.shitulelv.aicollab.user.dto.UpdateCurrentUserRequest;
+import com.shitulelv.aicollab.user.application.view.CurrentUserProfileUpdateView;
 import com.shitulelv.aicollab.user.entity.UserEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,7 +41,7 @@ public class AccountService {
     }
 
     @Transactional
-    public CurrentUserResponse updateProfile(UUID userId, UpdateCurrentUserRequest request) {
+    public CurrentUserProfileUpdateView updateProfile(UUID userId, UpdateCurrentUserRequest request) {
         UserEntity user = requireUser(userId);
         String email = normalizeEmail(request.email());
         String previousEmail = normalizeEmail(user.getEmail());
@@ -51,14 +53,19 @@ public class AccountService {
         if (!users.updateProfile(userId, request.displayName().trim(), email)) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
-        if (!Objects.equals(email, previousEmail)) {
+        boolean emailChanged = !Objects.equals(email, previousEmail);
+        AccountEmailDispatchResult emailDispatch = AccountEmailDispatchResult.notRequested();
+        if (emailChanged) {
             users.markEmailUnverified(userId);
             if (email != null) {
-                emailVerifications.requestFor(userId);
+                emailDispatch = emailVerifications.requestForEmailChange(userId);
+            } else {
+                emailVerifications.invalidatePendingForEmailChange(userId);
             }
         }
         audit.write(null, userId, "USER_PROFILE_UPDATED", "USER", userId);
-        return CurrentUserResponse.from(requireUser(userId));
+        return new CurrentUserProfileUpdateView(
+                CurrentUserResponse.from(requireUser(userId)), emailChanged, emailDispatch);
     }
 
     @Transactional

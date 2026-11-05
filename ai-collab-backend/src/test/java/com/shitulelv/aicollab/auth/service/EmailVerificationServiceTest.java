@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.auth.lifecycle.entity.AccountActionTokenEntity;
 import com.shitulelv.aicollab.auth.lifecycle.service.AccountActionTokenService;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
+import com.shitulelv.aicollab.auth.ratelimit.AccountEmailCooldown;
 import com.shitulelv.aicollab.common.web.PublicAppUrlService;
 import com.shitulelv.aicollab.mail.AccountMailDispatcher;
 import com.shitulelv.aicollab.mail.MailMessage;
@@ -80,12 +81,14 @@ class EmailVerificationServiceTest {
         when(users.findById(user.getId())).thenReturn(Optional.of(user));
         when(publicAppUrls.publicUrl()).thenReturn(Optional.of("https://aicollab.example.edu"));
         when(tokens.create(eq(user.getId()), anyString(), anyString(), any())).thenReturn("raw-token");
+        AccountEmailCooldown.Permit permit = new AccountEmailCooldown.Permit("key", "reservation");
+        when(mails.reserve(user.getId())).thenReturn(AccountEmailCooldown.Decision.reserved(permit));
 
         service.requestFor(user.getId());
 
         verify(tokens).invalidateActive(user.getId(), AccountActionTokenService.TYPE_EMAIL_VERIFICATION);
         ArgumentCaptor<MailMessage> mail = ArgumentCaptor.forClass(MailMessage.class);
-        verify(mails).publish(mail.capture());
+        verify(mails).publish(eq(permit), mail.capture());
         assertThat(mail.getValue().textBody())
                 .contains("https://aicollab.example.edu/verify-email?token=raw-token");
     }
