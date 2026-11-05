@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.auth.controller;
 
 import com.shitulelv.aicollab.auth.ratelimit.AuthRateLimiter;
 import com.shitulelv.aicollab.auth.dto.CurrentUserResponse;
+import com.shitulelv.aicollab.auth.dto.AccountEmailDispatchResult;
 import com.shitulelv.aicollab.auth.dto.AccessTokenResponse;
 import com.shitulelv.aicollab.auth.dto.LoginRequest;
 import com.shitulelv.aicollab.auth.dto.LoginResponse;
@@ -196,9 +197,8 @@ public class AuthController {
     }
 
     @PostMapping("/verify-email/request")
-    public ApiResponse<Void> requestEmailVerification(@AuthenticationPrincipal Jwt jwt) {
-        emailVerifications.requestFor(userId(jwt));
-        return ApiResponse.success(null);
+    public ApiResponse<AccountEmailDispatchResult> requestEmailVerification(@AuthenticationPrincipal Jwt jwt) {
+        return ApiResponse.success(emailVerifications.requestFor(userId(jwt)));
     }
 
     private static UUID userId(Jwt jwt) {

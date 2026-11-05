@@ -58,6 +58,7 @@ onBeforeUnmount(clearPasswordFields)
 async function submit(): Promise<void> {
   if (!canSubmit.value) return
   try {
+    const registeredWithEmail = Boolean(form.email.trim())
     await auth.register({
       username: form.username,
       displayName: form.displayName.trim(),
@@ -66,7 +67,9 @@ async function submit(): Promise<void> {
     })
     clearPasswordFields()
     await router.replace('/home')
-    ElMessage.success('注册成功')
+    ElMessage.success(registeredWithEmail
+      ? '注册成功；如未收到验证邮件，请稍后在账号设置中重发。账号邮件共用 60 秒发送间隔。'
+      : '注册成功')
   } catch (error) {
     showApiError(error, '账号注册')
     clearPasswordFields()

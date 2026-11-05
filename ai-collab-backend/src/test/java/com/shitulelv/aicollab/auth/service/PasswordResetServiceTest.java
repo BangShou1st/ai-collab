@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.auth.service;
 
 import com.shitulelv.aicollab.auth.lifecycle.entity.AccountActionTokenEntity;
 import com.shitulelv.aicollab.auth.lifecycle.service.AccountActionTokenService;
+import com.shitulelv.aicollab.auth.ratelimit.AccountEmailCooldown;
 import com.shitulelv.aicollab.auth.ratelimit.AuthRateLimiter;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
@@ -67,12 +68,14 @@ class PasswordResetServiceTest {
         when(users.findByEmail("owner@example.invalid")).thenReturn(Optional.of(user));
         when(publicAppUrls.publicUrl()).thenReturn(Optional.of("https://aicollab.example.edu"));
         when(tokens.create(eq(user.getId()), anyString(), anyString(), any())).thenReturn("raw-token");
+        AccountEmailCooldown.Permit permit = new AccountEmailCooldown.Permit("key", "reservation");
+        when(mails.reserve(user.getId())).thenReturn(AccountEmailCooldown.Decision.reserved(permit));
 
         service.requestReset(request, "Owner@Example.invalid");
 
         verify(tokens).invalidateActive(user.getId(), AccountActionTokenService.TYPE_PASSWORD_RESET);
         ArgumentCaptor<MailMessage> mail = ArgumentCaptor.forClass(MailMessage.class);
-        verify(mails).publish(mail.capture());
+        verify(mails).publish(eq(permit), mail.capture());
         assertThat(mail.getValue().to()).isEqualTo("owner@example.invalid");
         assertThat(mail.getValue().textBody())
                 .contains("https://aicollab.example.edu/reset-password?token=raw-token");
@@ -86,7 +89,7 @@ class PasswordResetServiceTest {
         service.requestReset(request, "ghost@example.invalid");
 
         verify(tokens, never()).create(any(), anyString(), anyString(), any());
-        verify(mails, never()).publish(any());
+        verify(mails, never()).publish(any(AccountEmailCooldown.Permit.class), any(MailMessage.class));
     }
 
     @Test
@@ -97,7 +100,7 @@ class PasswordResetServiceTest {
 
         service.requestReset(request, "owner@example.invalid");
 
-        verify(mails, never()).publish(any());
+        verify(mails, never()).publish(any(AccountEmailCooldown.Permit.class), any(MailMessage.class));
     }
 
     @Test

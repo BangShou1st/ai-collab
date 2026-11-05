@@ -18,6 +18,7 @@ const password = reactive({ currentPassword: '', newPassword: '', confirmPasswor
 const savingProfile = ref(false)
 const changingPassword = ref(false)
 const sendingVerification = ref(false)
+const verificationCooldownSeconds = ref(0)
 const loggingOutCurrent = ref(false)
 const loggingOutAll = ref(false)
 const profileValidationMessage = computed(() => {
@@ -44,13 +45,40 @@ const canChangePassword = computed(() =>
   ),
 )
 const emailVerified = computed(() => auth.currentUser?.emailVerified === true)
+let verificationCooldownTimer: number | undefined
+
+function startVerificationCooldown(seconds: number): void {
+  if (verificationCooldownTimer !== undefined) {
+    window.clearInterval(verificationCooldownTimer)
+    verificationCooldownTimer = undefined
+  }
+  verificationCooldownSeconds.value = Math.max(0, Math.ceil(seconds))
+  if (verificationCooldownSeconds.value === 0) return
+  verificationCooldownTimer = window.setInterval(() => {
+    if (verificationCooldownSeconds.value <= 1) {
+      verificationCooldownSeconds.value = 0
+      if (verificationCooldownTimer !== undefined) window.clearInterval(verificationCooldownTimer)
+      verificationCooldownTimer = undefined
+      return
+    }
+    verificationCooldownSeconds.value -= 1
+  }, 1000)
+}
 
 async function sendVerification(): Promise<void> {
-  if (!auth.accessToken || sendingVerification.value) return
+  if (!auth.accessToken || sendingVerification.value || verificationCooldownSeconds.value > 0) return
   sendingVerification.value = true
   try {
-    await authApi.requestEmailVerification(auth.accessToken)
-    ElMessage.success('验证邮件已发送，请查收（24 小时内有效）')
+    const result = await authApi.requestEmailVerification(auth.accessToken)
+    if (result.data.status === 'QUEUED') {
+      startVerificationCooldown(result.data.retryAfterSeconds)
+      ElMessage.success('验证邮件已提交，请查收（24 小时内有效）')
+    } else if (result.data.status === 'COOLDOWN') {
+      startVerificationCooldown(result.data.retryAfterSeconds)
+      ElMessage.info(`该账号刚发送过平台邮件，请 ${result.data.retryAfterSeconds} 秒后重试`)
+    } else {
+      ElMessage.warning('邮件暂时无法发送，请稍后再试')
+    }
   } catch (error) {
     showApiError(error, '验证邮件发送')
   } finally {
@@ -64,6 +92,11 @@ function clearPasswordFields(): void {
   password.confirmPassword = ''
 }
 
+function cleanupAccountView(): void {
+  clearPasswordFields()
+  if (verificationCooldownTimer !== undefined) window.clearInterval(verificationCooldownTimer)
+}
+
 async function saveProfile(): Promise<void> {
   if (profileValidationMessage.value || savingProfile.value) return
   savingProfile.value = true
@@ -72,8 +105,20 @@ async function saveProfile(): Promise<void> {
       displayName: profile.displayName.trim(),
       email: profile.email.trim() || null,
     })
-    auth.currentUser = result.data
-    ElMessage.success('资料已更新')
+    auth.currentUser = result.data.user
+    if (!result.data.emailChanged) {
+      ElMessage.success('资料已更新')
+    } else if (result.data.emailDispatch.status === 'QUEUED') {
+      startVerificationCooldown(result.data.emailDispatch.retryAfterSeconds)
+      ElMessage.success('资料已更新，邮箱验证邮件已提交，请查收')
+    } else if (result.data.emailDispatch.status === 'COOLDOWN') {
+      startVerificationCooldown(result.data.emailDispatch.retryAfterSeconds)
+      ElMessage.info(`资料已更新；账号刚发送过平台邮件，请 ${result.data.emailDispatch.retryAfterSeconds} 秒后重发验证邮件`)
+    } else if (result.data.emailDispatch.status === 'UNAVAILABLE') {
+      ElMessage.warning('资料已更新，但验证邮件暂时无法发送，请稍后重发')
+    } else {
+      ElMessage.success('资料已更新')
+    }
   } catch (error) {
     showApiError(error, '个人资料保存')
   } finally {
@@ -143,7 +188,7 @@ async function logoutAll(): Promise<void> {
   }
 }
 
-onBeforeUnmount(clearPasswordFields)
+onBeforeUnmount(cleanupAccountView)
 </script>
 
 <template>
@@ -166,6 +211,7 @@ onBeforeUnmount(clearPasswordFields)
             <el-input v-model="profile.displayName" :maxlength="60" />
           </el-form-item>
           <el-form-item label="邮箱"><el-input v-model="profile.email" type="email" :maxlength="120" /></el-form-item>
+          <p class="readonly-note">更换邮箱并保存后会自动发送验证邮件；注册验证、邮箱重发和忘记密码邮件共用该账号的 60 秒发送间隔。</p>
           <el-alert
             v-if="profileValidationMessage"
             :title="profileValidationMessage"
@@ -209,10 +255,10 @@ onBeforeUnmount(clearPasswordFields)
               type="primary"
               plain
               :loading="sendingVerification"
-              :disabled="sendingVerification || emailVerified"
+              :disabled="sendingVerification || emailVerified || verificationCooldownSeconds > 0"
               @click="sendVerification"
             >
-              {{ emailVerified ? '已完成验证' : '发送验证邮件' }}
+              {{ emailVerified ? '已完成验证' : verificationCooldownSeconds > 0 ? `${verificationCooldownSeconds} 秒后可重发` : '发送验证邮件' }}
             </el-button>
           </div>
         </template>

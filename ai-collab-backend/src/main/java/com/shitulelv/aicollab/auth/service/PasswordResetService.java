@@ -3,6 +3,7 @@ package com.shitulelv.aicollab.auth.service;
 import com.shitulelv.aicollab.auth.lifecycle.entity.AccountActionTokenEntity;
 import com.shitulelv.aicollab.auth.lifecycle.service.AccountActionTokenService;
 import com.shitulelv.aicollab.auth.ratelimit.AuthRateLimiter;
+import com.shitulelv.aicollab.auth.ratelimit.AccountEmailCooldown;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.common.web.PublicAppUrlService;
@@ -72,22 +73,33 @@ public class PasswordResetService {
             return;
         }
         UserEntity user = candidate.get();
-        tokens.invalidateActive(user.getId(), AccountActionTokenService.TYPE_PASSWORD_RESET);
-        String rawToken = tokens.create(
-                user.getId(), AccountActionTokenService.TYPE_PASSWORD_RESET, normalized, TOKEN_TTL);
         String link = publicAppUrls.publicUrl()
-                .map(base -> base + "/reset-password?token=" + rawToken)
+                .map(base -> base + "/reset-password?token=")
                 .orElse(null);
         if (link == null) {
-            log.warn("APP_PUBLIC_URL 未配置，已生成密码重置令牌但跳过发送邮件（userId={}）", user.getId());
+            log.warn("APP_PUBLIC_URL 未配置，跳过密码重置邮件（userId={}）", user.getId());
             return;
         }
-        mails.publish(new MailMessage(
-                normalized,
-                "AI Collab 密码重置",
-                "您好，\n\n我们收到了您的密码重置请求。请在 30 分钟内通过以下链接重置密码：\n\n"
-                        + link + "\n\n如果您没有发起该请求，请忽略本邮件，您的密码不会发生变化。\n\nAI Collab 团队"));
-        audit.write(null, user.getId(), "USER_PASSWORD_RESET_REQUESTED", "USER", user.getId());
+
+        AccountEmailCooldown.Decision decision = mails.reserve(user.getId());
+        if (!decision.reserved()) {
+            // Known and unknown email paths keep the same public response to prevent enumeration.
+            return;
+        }
+        try {
+            tokens.invalidateActive(user.getId(), AccountActionTokenService.TYPE_PASSWORD_RESET);
+            String rawToken = tokens.create(
+                    user.getId(), AccountActionTokenService.TYPE_PASSWORD_RESET, normalized, TOKEN_TTL);
+            mails.publish(decision.permit(), new MailMessage(
+                    normalized,
+                    "AI Collab 密码重置",
+                    "您好，\n\n我们收到了您的密码重置请求。请在 30 分钟内通过以下链接重置密码：\n\n"
+                            + link + rawToken + "\n\n如果您没有发起该请求，请忽略本邮件，您的密码不会发生变化。\n\nAI Collab 团队"));
+            audit.write(null, user.getId(), "USER_PASSWORD_RESET_REQUESTED", "USER", user.getId());
+        } catch (RuntimeException exception) {
+            mails.release(decision.permit());
+            throw exception;
+        }
     }
 
     @Transactional
