@@ -113,8 +113,41 @@ public record RetrievalCandidate(
         return content;
     }
 
+    /**
+     * 准入分数（类型化评分契约，见 {@link com.shitulelv.aicollab.common.retrieval.RetrievalScores}）：
+     * 只在两类可信召回分数——Dense 余弦相似度与 Lexical 匹配强度——之间取最大值；
+     * 缺失的一路不贡献最大值（缺失 ≠ 0 分事实），RRF 融合分与重排分是排序语义，绝不冒充准入分数。
+     */
+    public double admissionScore() {
+        double dense = denseSimilarity != null ? denseSimilarity : Double.NEGATIVE_INFINITY;
+        double lexical = lexicalScore != null ? lexicalScore : Double.NEGATIVE_INFINITY;
+        if (dense == Double.NEGATIVE_INFINITY && lexical == Double.NEGATIVE_INFINITY) {
+            return 0.0;
+        }
+        return Math.max(dense, lexical);
+    }
+
+    private String admissionBasis() {
+        boolean hasDense = denseSimilarity != null;
+        boolean hasLexical = lexicalScore != null;
+        if (hasDense && hasLexical) {
+            return com.shitulelv.aicollab.common.retrieval.RetrievalScores.BASIS_DENSE_AND_LEXICAL;
+        }
+        if (hasDense) {
+            return com.shitulelv.aicollab.common.retrieval.RetrievalScores.BASIS_DENSE;
+        }
+        if (hasLexical) {
+            return com.shitulelv.aicollab.common.retrieval.RetrievalScores.BASIS_LEXICAL;
+        }
+        return com.shitulelv.aicollab.common.retrieval.RetrievalScores.BASIS_NONE;
+    }
+
     public DocumentSearchHit toDocumentSearchHit() {
-        double effectiveScore = rerankScore != null ? rerankScore : (rrfScore > 0 ? rrfScore : (denseSimilarity != null ? denseSimilarity : 0.0));
+        double admission = admissionScore();
+        Map<String, Object> typedMetadata = new LinkedHashMap<>(metadata);
+        typedMetadata.putAll(com.shitulelv.aicollab.common.retrieval.RetrievalScores.of(
+                denseSimilarity, lexicalScore, rrfScore, rerankScore, rerankerName,
+                admission, admissionBasis()));
         return new DocumentSearchHit(
                 id,
                 documentId,
@@ -122,8 +155,8 @@ public record RetrievalCandidate(
                 heading,
                 content,
                 contentHash,
-                effectiveScore,
-                metadata
+                admission,
+                Collections.unmodifiableMap(typedMetadata)
         );
     }
 }

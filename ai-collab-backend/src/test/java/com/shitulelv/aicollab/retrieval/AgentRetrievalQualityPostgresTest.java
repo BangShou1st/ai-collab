@@ -829,9 +829,24 @@ class AgentRetrievalQualityPostgresTest {
                             seed.heading(), seed.content(), sha256(seed.content()), 1));
                 } else {
                     List<DocumentChunk> baseline = new DocumentChunker().split(raw);
-                    // Guard the copied experiment algorithm against production drift on every raw input.
-                    assertThat(new RealChunkingRetrievalComparisonPostgresTest.ParametricChunker(1200, 150)
-                            .split(raw)).isEqualTo(baseline);
+                    // 评测夹具修正（LOW-1）：V2 生产 DocumentChunker 已升级为 PARENT/CHILD 层级分块，
+                    // 与 V1 时代平铺算法（ParametricChunker，A/B 计划的实验变量本身）不再结构一致，
+                    // 旧的整记录相等守卫必然失败（历史缺陷证据见 2026-11-07 终审报告 LOW-1）。
+                    // 守卫目的收窄为：两条分块路径各自的边界完整性（正文子串一致 + 坐标系 + 哈希）；
+                    // 生产分块一致性由 RagV2MetadataAndParentChildPostgresTest 覆盖。
+                    for (List<DocumentChunk> planChunks : List.of(baseline,
+                            new RealChunkingRetrievalComparisonPostgresTest.ParametricChunker(1200, 150).split(raw))) {
+                        assertThat(RealChunkingRetrievalComparisonPostgresTest.chunkingProjection(planChunks))
+                                .as("分块边界完整性（生产与参数化算法）")
+                                .allSatisfy(row -> {
+                                    String content = (String) row.get("content");
+                                    int from = (Integer) row.get("charFrom");
+                                    int through = (Integer) row.get("charThrough");
+                                    assertThat(raw.substring(from, through)).isEqualTo(content);
+                                    assertThat(row.get("contentHash")).isEqualTo(AgentRetrievalQualityPostgresTest.sha256(content));
+                                    assertThat(row.get("offsetCoordinate")).isEqualTo("CLEANED_TEXT_UTF16_V2");
+                                });
+                    }
                     chunks = plan.startsWith("A_") ? baseline
                             : new RealChunkingRetrievalComparisonPostgresTest.ParametricChunker(800, 120).split(raw);
                     for (DocumentChunk chunk : chunks) {

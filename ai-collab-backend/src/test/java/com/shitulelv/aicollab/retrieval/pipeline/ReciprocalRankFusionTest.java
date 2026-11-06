@@ -115,11 +115,13 @@ class ReciprocalRankFusionTest {
 
     @Test
     void testStableSortingAndTieBreaker() {
+        // 历史缺陷固化说明：旧比较器在 rrfScore 平分时按 max(denseSimilarity, lexicalScore) 降序
+        // 决定次序，把余弦相似度（0.90）与 Lexical 匹配强度（0.95）两套不可比分数放在同一标尺上
+        // ——与 KnowledgeContextBuilder 阈值混淆同源的跨分数类型语义错误，已按类型化评分契约移除。
         UUID docId = UUID.randomUUID();
         UUID chunk1 = UUID.fromString("00000000-0000-0000-0000-000000000001");
         UUID chunk2 = UUID.fromString("00000000-0000-0000-0000-000000000002");
 
-        // 两个 candidate 的 denseRank 相同（例如不同路分别以相同 rank 召回）
         // chunk1 在 dense rank 1，denseSimilarity = 0.90
         RetrievalCandidate d1 = new RetrievalCandidate(
                 chunk1, docId, "doc1.txt", "H", "C1", "h1",
@@ -131,13 +133,15 @@ class ReciprocalRankFusionTest {
                 Map.of(), null, null, 1, 0.95, 0.0, null, null
         );
 
-        // RRF 得分均为主常数 1/(60+1)
+        // RRF 得分均为 1/(60+1)
         List<RetrievalCandidate> fused = fusion.fuse(List.of(d1), List.of(l2), 10);
 
         assertThat(fused).hasSize(2);
-        // rrfScore 相同，次序依据最高相似度降序：0.95 > 0.90
-        assertThat(fused.get(0).id()).isEqualTo(chunk2);
-        assertThat(fused.get(1).id()).isEqualTo(chunk1);
+        // rrfScore 相同、单路召回路数相同、最优排名相同（均为 rank 1）：
+        // tie-break 只用排名空间证据，最终按 chunkId 升序稳定收敛；
+        // 严禁回退到比较 denseSimilarity 与 lexicalScore 的分数值。
+        assertThat(fused.get(0).id()).isEqualTo(chunk1);
+        assertThat(fused.get(1).id()).isEqualTo(chunk2);
     }
 
     @Test

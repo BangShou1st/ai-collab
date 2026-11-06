@@ -19,6 +19,15 @@ import java.util.UUID;
 
 @Component
 public class KnowledgeContextBuilder {
+    /**
+     * 准入阈值：作用于 {@code DocumentSearchHit.similarity} 的<b>准入分数</b>语义——
+     * Dense 余弦相似度或 Lexical 匹配强度（两类 [0,1] 可比分数的较大者，见
+     * {@code com.shitulelv.aicollab.common.retrieval.RetrievalScores} 契约）。
+     * RRF 融合分与重排分是排序语义，绝不进入该字段；因此本阈值不得用于拦截
+     * “分数类型被改写”的候选——类型化契约在管线输出层已保证字段语义正确。
+     * 全部装配入口（buildWithTokenBudget / buildBalancedWithDiagnostics / buildWithDiagnostics /
+     * buildDiverseWithDiagnostics / classifyCandidatesAfterBudgetStop）共享同一准入语义。
+     */
     public static final double MIN_SIMILARITY = 0.15d;
     /** Knowledge Q&A keeps its established default source limit. */
     public static final int DEFAULT_MAX_SOURCES = 5;

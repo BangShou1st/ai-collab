@@ -32,6 +32,8 @@ public final class CrossDocumentSourceSelector {
             if (hit == null) {
                 continue;
             }
+            // 准入判定使用 DocumentSearchHit.similarity（准入分数：max(Dense 余弦, Lexical 匹配强度)，
+            // 见 RetrievalScores 契约）；RRF/重排分不进入该字段，不会再被误当余弦过滤。
             if (hit.similarity() < KnowledgeContextBuilder.MIN_SIMILARITY) {
                 dropped.put(hit.id(), ContextDropReason.BELOW_SIMILARITY_THRESHOLD);
             } else if (hit.content() == null || hit.content().isBlank()) {
@@ -40,11 +42,19 @@ public final class CrossDocumentSourceSelector {
                 eligible.add(hit);
             }
         }
-        eligible.sort(Comparator
-                .comparingDouble(DocumentSearchHit::similarity).reversed()
-                .thenComparing(DocumentSearchHit::id));
+        // 排序语义分离：管线输出（携带 retrievalScores 类型化评分元数据）的候选顺序已经是
+        // RRF → Reranker 的最终排名，本选择器不得按准入分数重新排序覆盖它；
+        // 旧版 Dense 直连输入（无类型化评分元数据、天然按相似度降序）保持原有相似度排序行为不变。
+        boolean typedRankingInput = !eligible.isEmpty()
+                && com.shitulelv.aicollab.common.retrieval.RetrievalScores
+                        .carriesTypedRanking(eligible.getFirst().metadata());
+        if (!typedRankingInput) {
+            eligible.sort(Comparator
+                    .comparingDouble(DocumentSearchHit::similarity).reversed()
+                    .thenComparing(DocumentSearchHit::id));
+        }
 
-        // Sorted input ensures each document keeps its best chunk for each content hash.
+        // 排名序输入（管线排名或相似度降序）保证每文档的每个 content hash 保留排名最靠前的块。
         Map<UUID, List<DocumentSearchHit>> byDocument = new LinkedHashMap<>();
         Map<UUID, Set<String>> hashesByDocument = new HashMap<>();
         List<DocumentSearchHit> unique = new ArrayList<>(eligible.size());
@@ -73,7 +83,7 @@ public final class CrossDocumentSourceSelector {
             selectedIds.add(representative.id());
         }
 
-        // Stage two: fill remaining slots from all other chunks in global similarity order.
+        // Stage two: fill remaining slots from all other chunks in global ranking order.
         for (DocumentSearchHit hit : unique) {
             if (selected.size() == maxSources) {
                 break;

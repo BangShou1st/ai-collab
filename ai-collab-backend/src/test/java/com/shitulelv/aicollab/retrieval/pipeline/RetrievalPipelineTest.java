@@ -101,6 +101,47 @@ class RetrievalPipelineTest {
     }
 
     @Test
+    void testMultiQueryFusionRestoresGlobalRanking() {
+        UUID projectId = UUID.randomUUID();
+        UUID docId = UUID.randomUUID();
+
+        // 历史缺陷场景：主查询（原始查询）召回 8 个干扰块，目标事实块只在子查询中被召回。
+        // 旧合并方式（putIfAbsent 顺序拼接）把事实块挤到第 9 位之后被来源名额淘汰。
+        // 修复契约：主查询排名序保序置前，子查询独有候选按 RRF 之和追加进有界融合池（不丢失）。
+        List<RetrievalCandidate> distractors = new java.util.ArrayList<>();
+        for (int i = 1; i <= 8; i++) {
+            UUID id = new UUID(0, i);
+            distractors.add(new RetrievalCandidate(id, docId, "doc.md", "干扰标题" + i, "干扰正文 " + i, "h" + i,
+                    Map.of(), 1, 0.5, null, null, 1.0 / (60 + i), null, null));
+        }
+        UUID factId = new UUID(0, 99);
+        RetrievalCandidate fact = new RetrievalCandidate(factId, docId, "doc.md", "事实标题", "目标事实正文", "hfact",
+                Map.of(), 1, 0.7, null, null, 1.0 / 61, null, null);
+
+        Retriever denseRetriever = (proj, query, docIds, topK) -> query.contains("事实") ? List.of(fact) : distractors;
+        Retriever lexicalRetriever = (proj, query, docIds, topK) -> List.of();
+
+        RetrievalPipeline pipeline = new RetrievalPipeline(
+                denseRetriever, lexicalRetriever, new ReciprocalRankFusion(),
+                new SentenceWindowExpander(), new ParentChildExpander(),
+                new SemanticHeuristicReranker());
+
+        RetrievalResult result = pipeline.executeMultiQuery(
+                projectId, List.of("子查询一", "子查询二关于事实"), null, List.of(), 8);
+
+        List<UUID> ids = result.candidates().stream().map(RetrievalCandidate::id).toList();
+        // 契约 1：主查询的候选保持其原始排名序置前。
+        assertThat(ids.subList(0, 8)).containsExactlyElementsOf(
+                distractors.stream().map(RetrievalCandidate::id).toList());
+        // 契约 2：子查询独有的事实候选被追加进融合池，不因拼接顺序丢失。
+        assertThat(ids).contains(factId);
+        assertThat(ids.indexOf(factId)).isEqualTo(8);
+        // 契约 3：融合池随查询数有界扩展（8 + 3 = 11），全部 9 个候选保留。
+        assertThat(result.trace().fusedCount()).isEqualTo(9);
+        assertThat(result.candidates()).hasSize(9);
+    }
+
+    @Test
     void testGracefulDegradationWhenRerankerFails() {
         UUID projectId = UUID.randomUUID();
         UUID docId = UUID.randomUUID();
