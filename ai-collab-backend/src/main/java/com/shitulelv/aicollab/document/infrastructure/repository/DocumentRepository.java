@@ -145,25 +145,50 @@ public class DocumentRepository {
             entries.add(new ChunkEntry(chunkId, chunk, metadata, embeddings.get(i).toString()));
         }
 
-        // 先插入所有的 PARENT 节点，确保外键约束 100% 成立
-        for (ChunkEntry entry : entries) {
-            if (DocumentChunk.TYPE_PARENT.equalsIgnoreCase(entry.chunk.chunkType())) {
+        // 按照外键依赖拓扑顺序分层插入：先插无 parent 的根分块，再插子分块（支持 PARENT -> CHILD -> SENTENCE 等多层级）
+        java.util.Set<UUID> insertedIds = new java.util.HashSet<>();
+        List<ChunkEntry> remaining = new ArrayList<>(entries);
+
+        // 第 1 轮：无外键引用的根节点（例如 PARENT 块或独立的 STANDARD 块）
+        java.util.Iterator<ChunkEntry> iter = remaining.iterator();
+        while (iter.hasNext()) {
+            ChunkEntry entry = iter.next();
+            if (entry.chunk.parentChunkId() == null) {
                 if (mapper.insertChunk(entry.id, projectId, documentId, entry.chunk, entry.metadata,
                         provider, model, dimension,
                         fingerprint, entry.embedding, generationId) != 1) {
-                    throw new IllegalStateException("文档父分块写入失败");
+                    throw new IllegalStateException("文档根分块写入失败: " + entry.id);
                 }
+                insertedIds.add(entry.id);
+                iter.remove();
             }
         }
 
-        // 再插入 CHILD / STANDARD 节点
-        for (ChunkEntry entry : entries) {
-            if (!DocumentChunk.TYPE_PARENT.equalsIgnoreCase(entry.chunk.chunkType())) {
-                if (mapper.insertChunk(entry.id, projectId, documentId, entry.chunk, entry.metadata,
-                        provider, model, dimension,
-                        fingerprint, entry.embedding, generationId) != 1) {
-                    throw new IllegalStateException("文档分块写入失败");
+        // 第 2+ 轮：按外键拓扑依赖依次插入依赖项（例如 CHILD 块、SENTENCE 候选块）
+        while (!remaining.isEmpty()) {
+            boolean progress = false;
+            iter = remaining.iterator();
+            while (iter.hasNext()) {
+                ChunkEntry entry = iter.next();
+                if (entry.chunk.parentChunkId() == null || insertedIds.contains(entry.chunk.parentChunkId())) {
+                    if (mapper.insertChunk(entry.id, projectId, documentId, entry.chunk, entry.metadata,
+                            provider, model, dimension,
+                            fingerprint, entry.embedding, generationId) != 1) {
+                        throw new IllegalStateException("文档子分块写入失败: " + entry.id);
+                    }
+                    insertedIds.add(entry.id);
+                    iter.remove();
+                    progress = true;
                 }
+            }
+            if (!progress) {
+                // 若出现未知外部依赖或孤儿节点，兜底插入剩余节点
+                for (ChunkEntry entry : remaining) {
+                    mapper.insertChunk(entry.id, projectId, documentId, entry.chunk, entry.metadata,
+                            provider, model, dimension,
+                            fingerprint, entry.embedding, generationId);
+                }
+                break;
             }
         }
     }
