@@ -157,12 +157,14 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             INSERT INTO document_chunk(
               id, project_id, document_id, chunk_no, heading, content, content_hash,
               token_estimate, metadata, embedding_provider, embedding_model,
-              embedding_dimension, embedding_fingerprint, embedding, generation_id)
+              embedding_dimension, embedding_fingerprint, embedding, generation_id,
+              parent_chunk_id, chunk_type)
             VALUES(
               #{id}, #{projectId}, #{documentId}, #{chunk.chunkNo}, #{chunk.heading},
               #{chunk.content}, #{chunk.contentHash}, #{chunk.tokenEstimate},
               CAST(#{metadata} AS jsonb), #{provider}, #{model}, #{dimension}, #{fingerprint},
-              CAST(#{embedding} AS vector), #{generationId})
+              CAST(#{embedding} AS vector), #{generationId},
+              #{chunk.parentChunkId}, #{chunk.chunkType})
             """)
     int insertChunk(@Param("id") UUID id, @Param("projectId") UUID projectId,
                     @Param("documentId") UUID documentId, @Param("chunk") DocumentChunk chunk,
@@ -256,6 +258,87 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
                                    @Param("fingerprint") String fingerprint,
                                    @Param("documentIds") List<UUID> documentIds,
                                    @Param("topK") int topK, @Param("generationId") UUID generationId);
+
+    @Select("""
+            <script>
+            SELECT c.id, c.document_id AS "documentId",
+                   d.original_filename AS "originalFilename",
+                   c.heading, c.content, c.content_hash AS "contentHash",
+                   GREATEST(
+                       COALESCE(similarity(c.content, #{query}), 0),
+                       CASE WHEN c.heading IS NOT NULL AND c.heading ILIKE ('%' || #{query} || '%') THEN 0.8 ELSE 0 END,
+                       CASE WHEN c.content ILIKE ('%' || #{query} || '%') THEN 0.6 ELSE 0 END
+                   ) AS similarity,
+                   c.metadata
+            FROM document_chunk c
+            JOIN project_document d ON d.id=c.document_id AND d.project_id=c.project_id
+            WHERE c.project_id=#{projectId} AND d.status='READY' AND NOT d.access_blocked
+              AND NOT EXISTS (SELECT 1 FROM external_document e
+                JOIN connector_source s ON s.id=e.source_id AND s.project_id=d.project_id
+                LEFT JOIN connector_oauth_authorization a ON a.id=s.user_authorization_id AND a.project_id=s.project_id
+                WHERE e.document_id=d.id AND (e.status&lt;&gt;'ACTIVE' OR s.status&lt;&gt;'ACTIVE'
+                  OR (s.user_authorization_id IS NOT NULL AND (a.id IS NULL OR a.status&lt;&gt;'ACTIVE' OR a.access_expires_at&lt;=now()))))
+              AND c.generation_id IS NOT DISTINCT FROM #{generationId,jdbcType=OTHER}
+              <if test="documentIds != null and !documentIds.isEmpty()">
+                AND d.id IN
+                <foreach collection="documentIds" item="id" open="(" separator="," close=")">
+                  #{id}
+                </foreach>
+              </if>
+              AND (
+                  c.content % #{query}
+                  OR similarity(c.content, #{query}) &gt; 0.03
+                  OR c.content ILIKE ('%' || #{query} || '%')
+                  OR (c.heading IS NOT NULL AND (c.heading % #{query} OR c.heading ILIKE ('%' || #{query} || '%')))
+              )
+            ORDER BY similarity DESC, c.id ASC
+            LIMIT #{topK}
+            </script>
+            """)
+    @ConstructorArgs({
+        @Arg(column = "id", javaType = UUID.class, id = true),
+        @Arg(column = "documentId", javaType = UUID.class),
+        @Arg(column = "originalFilename", javaType = String.class),
+        @Arg(column = "heading", javaType = String.class),
+        @Arg(column = "content", javaType = String.class),
+        @Arg(column = "contentHash", javaType = String.class),
+        @Arg(column = "similarity", javaType = double.class),
+        @Arg(
+                column = "metadata",
+                javaType = Map.class,
+                typeHandler = PostgresJsonMapTypeHandler.class)
+    })
+    List<DocumentSearchHit> searchLexical(
+            @Param("projectId") UUID projectId,
+            @Param("query") String query,
+            @Param("documentIds") List<UUID> documentIds,
+            @Param("topK") int topK,
+            @Param("generationId") UUID generationId);
+
+    @Select("""
+            SELECT c.id, c.document_id AS "documentId",
+                   d.original_filename AS "originalFilename",
+                   c.heading, c.content, c.content_hash AS "contentHash",
+                   1.0 AS similarity,
+                   c.metadata
+            FROM document_chunk c
+            JOIN project_document d ON d.id=c.document_id AND d.project_id=c.project_id
+            WHERE c.project_id=#{projectId} AND c.id=#{chunkId}
+            """)
+    @ConstructorArgs({
+        @Arg(column = "id", javaType = UUID.class, id = true),
+        @Arg(column = "documentId", javaType = UUID.class),
+        @Arg(column = "originalFilename", javaType = String.class),
+        @Arg(column = "heading", javaType = String.class),
+        @Arg(column = "content", javaType = String.class),
+        @Arg(column = "contentHash", javaType = String.class),
+        @Arg(column = "similarity", javaType = double.class),
+        @Arg(
+                column = "metadata",
+                javaType = Map.class,
+                typeHandler = PostgresJsonMapTypeHandler.class)
+    })
+    Optional<DocumentSearchHit> findChunkById(@Param("projectId") UUID projectId, @Param("chunkId") UUID chunkId);
 
     @Select("SELECT count(*) FROM document_chunk WHERE embedding_fingerprint IS DISTINCT FROM #{fingerprint} AND generation_id IS NOT DISTINCT FROM (SELECT generation_id FROM system_embedding_config WHERE enabled)")
     long countChunksWithOtherFingerprint(@Param("fingerprint") String fingerprint);

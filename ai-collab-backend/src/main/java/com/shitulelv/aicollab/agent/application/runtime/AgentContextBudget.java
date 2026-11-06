@@ -30,8 +30,21 @@ public final class AgentContextBudget {
     public static final double TRIGGER_RATIO_OF_H = 0.85;
     /** 压缩后活跃上下文的软目标比例（不是硬约束，达不到不判失败）。 */
     public static final double POST_COMPACTION_TARGET_RATIO = 0.50;
-    /** 模型窗口未知时的保守回退单次上限（沿用既有兼容值）。 */
+    /**
+     * 模型窗口未知时的保守回退单次上限（沿用既有兼容值）。
+     */
     public static final int UNKNOWN_WINDOW_FALLBACK_TOKENS = 50_000;
+
+    /**
+     * 文本 Token 估算：优先使用注入的 TokenCounter，未提供时回退到兼容估算。
+     */
+    public static int estimateTokens(String text, com.shitulelv.aicollab.common.ai.token.TokenCounter counter, String provider, String model) {
+        if (text == null || text.isEmpty()) return 0;
+        if (counter != null) {
+            return counter.countText(text, provider, model).count();
+        }
+        return (text.length() + 2) / 3;
+    }
 
     /** 约束来源：单次请求被哪一项绑定，超限时用于区分原因。 */
     public static final String BINDING_RUN_INPUT_BUDGET = "RUN_INPUT_BUDGET";

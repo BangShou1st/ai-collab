@@ -141,6 +141,12 @@ public class DocumentRepository {
             String provider, String model, int dimension, String fingerprint, List<UUID> documentIds, int topK, UUID generationId) {
         return mapper.search(projectId, embedding.toString(), provider, model, dimension, fingerprint, documentIds, topK, generationId);
     }
+    public List<DocumentSearchHit> searchLexical(UUID projectId, String query, List<UUID> documentIds, int topK, UUID generationId) {
+        return mapper.searchLexical(projectId, query, documentIds, topK, generationId);
+    }
+    public Optional<DocumentSearchHit> findChunkById(UUID projectId, UUID chunkId) {
+        return mapper.findChunkById(projectId, chunkId);
+    }
     public boolean hasChunksWithOtherFingerprint(String fingerprint) {
         return mapper.countChunksWithOtherFingerprint(fingerprint) > 0;
     }
