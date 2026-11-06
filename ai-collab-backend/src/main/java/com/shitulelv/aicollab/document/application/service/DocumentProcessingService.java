@@ -37,6 +37,8 @@ public class DocumentProcessingService {
     private final NotificationApplicationService notifications;
     @org.springframework.beans.factory.annotation.Autowired
     private DocumentContentService readableContent;
+    @org.springframework.beans.factory.annotation.Value("${rag.indexing.enable-sentence-indexing:true}")
+    private boolean enableSentenceIndexing = true;
 
     public DocumentProcessingService(DocumentRepository documents, DocumentStorageGateway storage,
                                      DocumentParser parser, DocumentChunker chunker,
@@ -53,6 +55,10 @@ public class DocumentProcessingService {
         this.notifications = notifications;
     }
 
+    public void setEnableSentenceIndexing(boolean enableSentenceIndexing) {
+        this.enableSentenceIndexing = enableSentenceIndexing;
+    }
+
     public void process(UUID projectId, UUID documentId) {
         UUID processingToken = UUID.randomUUID();
         if (!documents.claim(projectId, documentId, processingToken)) return;
@@ -64,7 +70,7 @@ public class DocumentProcessingService {
             requireHeartbeat(projectId, documentId, processingToken, DocumentStatus.PARSING);
             ParsedDocument parsed = parser.parse(
                     source, document.getOriginalFilename(), document.getMimeType());
-            List<DocumentChunk> chunks = chunker.split(parsed.text(), parsed.pageBoundaries());
+            List<DocumentChunk> chunks = chunker.split(parsed.text(), parsed.pageBoundaries(), enableSentenceIndexing);
             if (chunks.isEmpty()) throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED);
             if (readableContent != null) readableContent.saveParsed(projectId,documentId,processingToken,source,chunks);
             if (!documents.markIndexing(projectId, documentId, processingToken, parsed.parserType())) {
