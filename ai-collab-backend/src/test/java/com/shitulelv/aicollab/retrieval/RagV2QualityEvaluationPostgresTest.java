@@ -115,6 +115,15 @@ class RagV2QualityEvaluationPostgresTest {
     private static final int QUOTE_CAP = 600;
     private static final String INJECTION_DOC = "F4-外部审计参考摘录-未审核来源.md";
     private static final Set<String> TEMP_INDEX_QUESTIONS = Set.of("H-G07-NONE", "H-G07-SIMILAR", "H-G07-INJECT");
+    // ---- 质量门禁阈值（独立评测报告与自动化门禁分离；阈值只识别严重回归，非历史答案硬编码）----
+    /** 历史冻结基线 QA 52/54 (96.3%)；门禁容忍少量波动，但必须拦住 6/54 量级的系统性回归。 */
+    private static final int GATE_QA_MIN_RETAINED = 48;
+    /** 历史冻结基线 Agent 51/54 (94.4%)。 */
+    private static final int GATE_AGENT_MIN_RETAINED = 46;
+    /** 历史基线空上下文 2/39；缺陷态为 33/39。 */
+    private static final int GATE_EMPTY_CONTEXT_MAX = 8;
+    /** P10 共 14 题（2 道拒答题 + 12 道有证据题），有证据题必须有 ≥10 题能进入真实生成。 */
+    private static final int GATE_P10_EVIDENCE_MIN_SOURCES = 10;
     private static final Path ROOT = Path.of("..").toAbsolutePath().normalize();
     private static final Path DIR = ROOT.resolve("tests/fixtures/documents/p9-rag-generalization-01");
     private static final Path OUTPUT = Path.of(System.getProperty("rag.v2.qual.eval.output",
@@ -217,9 +226,14 @@ class RagV2QualityEvaluationPostgresTest {
         evidence.put("ablationSummary", ablationSummary(questionRows));
         evidence.put("latencySummary", latencySummary(questionRows, generationRows));
 
+        // ---- 质量门禁：区分 PASS / REGRESSION / NOT_VERIFIED / BLOCKED，绝不因 JSON 成功生成而放行 ----
+        Map<String, Object> gate = qualityGate(questionRows, generationRows);
+        evidence.put("qualityGate", gate);
+
         Files.createDirectories(OUTPUT.getParent());
         JSON.writerWithDefaultPrettyPrinter().writeValue(OUTPUT.toFile(), evidence);
         System.out.println("RAG_V2_QUAL_EVAL_RESULTS=" + OUTPUT.toAbsolutePath());
+        System.out.println("RAG_V2_QUALITY_GATE=" + gate.get("verdict") + " violations=" + gate.get("violations"));
 
         // ---- 机械硬不变量 ----
         for (Map<String, Object> row : questionRows) {
@@ -239,6 +253,99 @@ class RagV2QualityEvaluationPostgresTest {
             assertThat(String.valueOf(row.get("finalAnswer"))).as("真实生成不得为空白答案").isNotBlank();
         }
         assertThat(questionRows).hasSize(39);
+
+        assertThat(gate.get("verdict"))
+                .as("RAG V2 质量门禁（违规项=%s）", gate.get("violations"))
+                .isEqualTo("PASS");
+    }
+
+    /**
+     * 自动化质量门禁：把独立评测报告中的关键质量指标固化为可复现断言（不依赖 Mock、不依赖生成模型）。
+     * <ul>
+     *   <li>PASS：检索与生成质量均达到门禁阈值。</li>
+     *   <li>REGRESSION：任一关键指标低于阈值（含消融变体再次全 0 的全局阻断特征）。</li>
+     *   <li>NOT_VERIFIED：生成模型环境不可用（检索门禁仍生效，生成侧单独标注，不掩盖失败）。</li>
+     *   <li>BLOCKED：环境变量 AI_RAG_V2_QUAL_EVAL 未开启或 Docker 不可用（整类不执行）。</li>
+     * </ul>
+     */
+    private static Map<String, Object> qualityGate(
+            List<Map<String, Object>> questionRows, List<Map<String, Object>> generationRows) {
+        Map<String, Object> summary = summarize(questionRows);
+        Map<String, Object> ablation = ablationSummary(questionRows);
+        int qaRetained = number(((Map<?, ?>) summary.get("v2QaStage")).get("retained"));
+        int qaTotal = number(((Map<?, ?>) summary.get("v2QaStage")).get("total"));
+        int agentRetained = number(((Map<?, ?>) summary.get("v2AgentToolStage")).get("retained"));
+        int agentTotal = number(((Map<?, ?>) summary.get("v2AgentToolStage")).get("total"));
+        int emptyContext = 0;
+        for (Map<String, Object> row : questionRows) {
+            if (number(row.get("v2QaSourceCount")) == 0) emptyContext++;
+        }
+
+        List<String> violations = new ArrayList<>();
+        if (qaRetained < GATE_QA_MIN_RETAINED) {
+            violations.add("QA 必要事实保留 " + qaRetained + "/" + qaTotal + " < 门禁 " + GATE_QA_MIN_RETAINED
+                    + "（历史基线 52/54）");
+        }
+        if (agentRetained < GATE_AGENT_MIN_RETAINED) {
+            violations.add("Agent 必要事实保留 " + agentRetained + "/" + agentTotal + " < 门禁 "
+                    + GATE_AGENT_MIN_RETAINED + "（历史基线 51/54）");
+        }
+        if (emptyContext > GATE_EMPTY_CONTEXT_MAX) {
+            violations.add("空上下文题数 " + emptyContext + "/39 > 门禁 " + GATE_EMPTY_CONTEXT_MAX
+                    + "（历史基线 2/39）");
+        }
+        List<String> zeroVariants = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : ablation.entrySet()) {
+            Map<?, ?> stats = (Map<?, ?>) entry.getValue();
+            if (number(stats.get("retained")) == 0) {
+                zeroVariants.add(entry.getKey());
+            }
+        }
+        if (!zeroVariants.isEmpty()) {
+            violations.add("消融变体事实保留全 0（全局阻断特征，分数类型错误复发）: " + zeroVariants);
+        }
+
+        // ---- P10 真实生成门禁：环境缺失与代码失败明确分开 ----
+        long chatExecuted = generationRows.stream().filter(r -> Boolean.TRUE.equals(r.get("chatExecuted"))).count();
+        long chatFailed = generationRows.stream().filter(r -> "CHAT_FAILED".equals(r.get("status"))).count();
+        long evidenceQuestions = generationRows.stream()
+                .filter(r -> !Boolean.TRUE.equals(r.get("abstainQuestion"))).count();
+        long evidenceWithSources = generationRows.stream()
+                .filter(r -> !Boolean.TRUE.equals(r.get("abstainQuestion")) && number(r.get("v2SourceCount")) > 0)
+                .count();
+        String generationVerdict;
+        if (chatExecuted == 0 && chatFailed > 0) {
+            // 全部题目的模型调用均失败：环境问题，检索门禁照常生效，生成侧如实标注 NOT_VERIFIED。
+            generationVerdict = "NOT_VERIFIED";
+        } else {
+            generationVerdict = "VERIFIED";
+            if (evidenceWithSources < GATE_P10_EVIDENCE_MIN_SOURCES) {
+                violations.add("P10 有证据题进入生成 " + evidenceWithSources + "/" + evidenceQuestions
+                        + " < 门禁 " + GATE_P10_EVIDENCE_MIN_SOURCES + "（不得因装配缺陷统一空上下文拒答）");
+            }
+            if (chatExecuted == 0) {
+                violations.add("P10 真实生成 0 次执行");
+            }
+        }
+
+        Map<String, Object> gate = new LinkedHashMap<>();
+        gate.put("verdict", violations.isEmpty() ? "PASS" : "REGRESSION");
+        gate.put("retrievalVerdict", violations.isEmpty() ? "PASS" : "REGRESSION");
+        gate.put("generationVerdict", generationVerdict);
+        gate.put("violations", violations);
+        gate.put("qaRetained", qaRetained + "/" + qaTotal);
+        gate.put("agentRetained", agentRetained + "/" + agentTotal);
+        gate.put("emptyContextQuestions", emptyContext);
+        gate.put("ablation", ablation);
+        gate.put("p10EvidenceQuestionsWithSources", evidenceWithSources + "/" + evidenceQuestions);
+        gate.put("p10ChatExecuted", chatExecuted);
+        gate.put("p10ChatFailed", chatFailed);
+        gate.put("thresholds", Map.of(
+                "qaMinRetained", GATE_QA_MIN_RETAINED,
+                "agentMinRetained", GATE_AGENT_MIN_RETAINED,
+                "emptyContextMax", GATE_EMPTY_CONTEXT_MAX,
+                "p10EvidenceMinSources", GATE_P10_EVIDENCE_MIN_SOURCES));
+        return gate;
     }
 
     // ==================== 语料装载（同 P9） ====================
@@ -519,12 +626,12 @@ class RagV2QualityEvaluationPostgresTest {
                 ? decision.structuredQuery().semanticQuery() : query;
         if (decision.complexity() == com.shitulelv.aicollab.retrieval.query.QueryComplexity.COMPLEX
                 && decision.subQueries().size() > 1) {
-            Map<UUID, DocumentSearchHit> merged = new LinkedHashMap<>();
-            for (String subQuery : decision.subQueries()) {
-                RetrievalResult subResult = retrievalPipeline.execute(project, subQuery, scope, filters, TOP_K);
-                for (DocumentSearchHit hit : subResult.toDocumentSearchHits()) merged.putIfAbsent(hit.id(), hit);
-            }
-            return new ArrayList<>(merged.values());
+            // 与生产 KnowledgeQuestionApplicationService/KnowledgeStreamQuestionService 一致：
+            // 原始查询 + 分解子查询共同参与标准 RRF 融合（保持原始查询召回 + 全局排名）。
+            List<String> fusionQueries = new ArrayList<>(decision.subQueries());
+            fusionQueries.add(0, effectiveQuery);
+            return retrievalPipeline.executeMultiQuery(project, fusionQueries, scope, filters, TOP_K)
+                    .toDocumentSearchHits();
         }
         RetrievalResult result = retrievalPipeline.execute(project, effectiveQuery, scope, filters, TOP_K);
         return result.toDocumentSearchHits();
@@ -744,11 +851,13 @@ class RagV2QualityEvaluationPostgresTest {
         String id = question.path("id").asText();
         String query = question.path("query").asText();
         boolean abstainQuestion = question.path("abstain").asBoolean();
-        List<UUID> scope = p9Question == null ? List.of() : resolveScope(p9Question.path("scope"));
-
         List<String> temporaryP9Refs = List.of("H-G07-NONE", "H-G07-SIMILAR", "H-G07-INJECT");
         String p9Ref = question.path("p9Ref").asText();
+        // 评测夹具顺序修正（LOW-3，AQ14-INJECTION）：必须先索引临时注入文档、再 resolveScope。
+        // 历史缺陷：scope 先于临时索引解析时取到上一题已置 FAILED 的旧文档 UUID，
+        // 导致该题 V1 对照缺失（SCOPE_ERROR）。
         if (temporaryP9Refs.contains(p9Ref)) indexDocument(DIR.resolve(INJECTION_DOC));
+        List<UUID> scope = p9Question == null ? List.of() : resolveScope(p9Question.path("scope"));
 
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", id);

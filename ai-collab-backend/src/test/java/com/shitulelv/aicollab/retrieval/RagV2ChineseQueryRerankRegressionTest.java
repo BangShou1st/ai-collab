@@ -8,7 +8,6 @@ import com.shitulelv.aicollab.retrieval.pipeline.SemanticHeuristicReranker;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -16,18 +15,27 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * RAG_V2_QUAL_EVAL-01 缺陷最小复现（离线确定性，不依赖数据库与模型）。
+ * RAG_V2_QUAL_EVAL-01 缺陷的正向回归测试（离线确定性，不依赖数据库与模型）。
  *
- * <p><b>缺陷</b>：{@code SemanticHeuristicReranker.extractTerms} 以标点/空白切分查询词项，
- * 对不含标点的中文自然语言整句查询，整句成为单一超长 term，导致
+ * <p><b>历史缺陷证据（保留存档，勿删）</b>：修复前 {@code SemanticHeuristicReranker.extractTerms}
+ * 以标点/空白切分查询词项，对不含标点的中文自然语言整句查询，整句成为单一超长 term，
  * {@code calculateContentScore}/{@code calculateHeadingScore} 几乎必然为 0，
- * combinedScore ≈ rrfScore × 0.35（约 0.01–0.04），低于
- * {@code KnowledgeContextBuilder.MIN_SIMILARITY = 0.15}，
- * 最终候选在上下文装配层被 BELOW_SIMILARITY_THRESHOLD 全量丢弃，
- * 生产 QA / Agent 管线对无标点中文查询系统性返回空上下文并拒答。</p>
+ * combinedScore ≈ rrfScore × 0.35（约 0.006–0.04）；且 {@code RetrievalCandidate.toDocumentSearchHit()}
+ * 把该重排分（或 RRF 分 ≈0.016）写入 {@code DocumentSearchHit.similarity}，
+ * {@code KnowledgeContextBuilder.MIN_SIMILARITY = 0.15} 按余弦语义过滤后，
+ * 生产 QA / Agent 管线对中文查询系统性 BELOW_SIMILARITY_THRESHOLD 全量丢弃证据并统一拒答。
+ * 修复前本测试断言 {@code v2Context.sources()).isEmpty()}（缺陷特征固化），评测报告
+ * {@code docs/archive/report/2026-11-07-rag-v2-quality-eval-final-report.md} HIGH-1。</p>
  *
- * <p>本测试按当前生产代码行为如实固化证据（不修改生产代码、不断言"正确"行为），
- * 作为 RAG_V2_QUALITY_REGRESSION 裁决的最小复现资产。带标点查询作为对照组。</p>
+ * <p><b>修复后的正确行为（本测试长期断言，防止同类缺陷再次出现）</b>：</p>
+ * <ul>
+ *   <li>类型化评分契约：similarity 只承载准入分数（max(Dense 余弦, Lexical 匹配强度)），
+ *       RRF/重排分只承载排序语义并写入 {@code metadata.retrievalScores}。</li>
+ *   <li>中文长句（无标点/带标点）经修复后的重排不再坍缩，目标证据进入最终上下文。</li>
+ *   <li>排序语义保留：重排把标题/正文更匹配的目标块排到无关块之前。</li>
+ *   <li>准入语义保留：真实低相关候选仍被拒绝，不因修复全面放行。</li>
+ *   <li>证据身份不变：chunkId/documentId/content/contentHash 逐字保留。</li>
+ * </ul>
  */
 class RagV2ChineseQueryRerankRegressionTest {
 
@@ -44,47 +52,94 @@ class RagV2ChineseQueryRerankRegressionTest {
     private static final String PUNCTUATED_QUERY = "住宿费标准是每晚多少钱？出差到一线城市怎么报销？";
 
     @Test
-    void naturalChineseSentenceQueryLosesAllEvidenceInV2Assembly() {
-        List<DocumentSearchHit> denseHits = syntheticDenseHits();
+    void naturalChineseSentenceQueryRetainsTargetEvidenceInV2Assembly() {
+        List<DocumentSearchHit> v2Hits = rerankedProductionHits(NATURAL_QUERY, syntheticDenseHits());
 
-        // V2 生产路径：RetrievalPipeline 产物经 toDocumentSearchHit() 转换后 similarity=有效分（rerankScore）
-        double maxNatural = maxEffectiveScore(NATURAL_QUERY, denseHits);
-        double maxPunctuated = maxEffectiveScore(PUNCTUATED_QUERY, denseHits);
-        System.out.println("RAG_DEFECT_EVIDENCE naturalQuery='" + NATURAL_QUERY + "' maxEffectiveScore=" + maxNatural);
-        System.out.println("RAG_DEFECT_EVIDENCE punctuatedQuery='" + PUNCTUATED_QUERY + "' maxEffectiveScore=" + maxPunctuated);
-        System.out.println("RAG_DEFECT_EVIDENCE minSimilarityThreshold=" + KnowledgeContextBuilder.MIN_SIMILARITY);
+        // 正向断言 1：准入分数回到可信召回分数语义——目标块 similarity = Dense 余弦 0.72，
+        // 不再被 rerankScore/rrfScore（量级 0.006–0.016）冒充。
+        DocumentSearchHit target = v2Hits.stream()
+                .filter(hit -> hit.content().contains(MARKER)).findFirst().orElseThrow();
+        assertThat(target.similarity())
+                .as("准入分数必须等于 Dense 余弦相似度，不得被 RRF/重排分冒充")
+                .isEqualTo(0.72);
+        assertThat(target.similarity())
+                .as("目标证据必须高于装配准入阈值（修复前缺陷特征：低于 0.15 全量丢弃）")
+                .isGreaterThanOrEqualTo(KnowledgeContextBuilder.MIN_SIMILARITY);
 
-        // 缺陷特征 1：无标点整句查询的最高有效分远低于装配阈值（rrf×0.35 量级）
-        assertThat(maxNatural).as("无标点中文整句查询的最高有效分应低于装配阈值（缺陷特征）")
-                .isLessThan(KnowledgeContextBuilder.MIN_SIMILARITY);
-        // 缺陷特征 2：带标点分句查询同样低于阈值——子句仍长于原文逐字匹配窗口，缺陷面比"无标点"更广
-        assertThat(maxPunctuated).as("带标点分句查询的最高有效分同样低于装配阈值（缺陷面更广）")
-                .isLessThan(KnowledgeContextBuilder.MIN_SIMILARITY);
+        // 正向断言 2：类型化评分元数据齐全，RRF/重排分数只在元数据中承载排序语义。
+        @SuppressWarnings("unchecked")
+        Map<String, Object> scores = (Map<String, Object>) target.metadata()
+                .get(com.shitulelv.aicollab.common.retrieval.RetrievalScores.METADATA_KEY);
+        assertThat(scores).isNotNull();
+        assertThat(scores).containsKeys(
+                com.shitulelv.aicollab.common.retrieval.RetrievalScores.DENSE_SIMILARITY,
+                com.shitulelv.aicollab.common.retrieval.RetrievalScores.RRF_SCORE,
+                com.shitulelv.aicollab.common.retrieval.RetrievalScores.RERANK_SCORE,
+                com.shitulelv.aicollab.common.retrieval.RetrievalScores.ADMISSION_SCORE,
+                com.shitulelv.aicollab.common.retrieval.RetrievalScores.ADMISSION_BASIS);
 
-        // 缺陷特征 3：V2 装配（转换后候选）丢失全部证据 → 生产恒拒答
-        KnowledgeContext v2Context = BUILDER.buildBalanced(convertToProductionHits(NATURAL_QUERY, denseHits));
-        System.out.println("RAG_DEFECT_EVIDENCE v2AssemblyRetainedSources=" + v2Context.sources().size());
-        assertThat(v2Context.sources()).as("V2 装配应丢失全部证据（缺陷特征：生产将恒拒答）").isEmpty();
+        // 正向断言 3：V2 装配不再丢失全部证据，含目标事实的块进入上下文。
+        KnowledgeContext v2Context = BUILDER.buildBalanced(v2Hits);
+        assertThat(v2Context.sources()).as("修复后中文整句查询不得再返回空上下文").isNotEmpty();
+        assertThat(v2Context.sources().stream().anyMatch(s -> s.content().contains(MARKER)))
+                .as("含目标事实的块必须进入最终上下文").isTrue();
 
-        // 对照：同一批候选走 V1 协议（dense 相似度直接装配，无重排/无 RRF 分数替换）正常保留
-        KnowledgeContext v1Context = BUILDER.buildBalanced(denseHits);
-        System.out.println("RAG_DEFECT_EVIDENCE v1ProtocolRetainedSources=" + v1Context.sources().size());
+        // 正向断言 4：排序语义保留——重排把标题/正文更匹配的目标块排到无关文档块之前。
+        //（同一批候选复用，保证 chunkId 稳定。）
+        List<DocumentSearchHit> reranked = rerankedProductionHits(NATURAL_QUERY, syntheticDenseHits());
+        DocumentSearchHit rerankedTarget = reranked.stream()
+                .filter(hit -> hit.content().contains(MARKER)).findFirst().orElseThrow();
+        int targetRank = indexOfChunk(reranked, rerankedTarget.id());
+        int irrelevantRank = indexOfChunk(reranked, reranked.stream()
+                .filter(hit -> hit.contentHash().equals("hash-docb")).findFirst().orElseThrow().id());
+        assertThat(targetRank).as("目标块排名必须优于无关文档块").isLessThan(irrelevantRank);
+
+        // 正向断言 5：证据身份逐字保留。
+        assertThat(target.id()).isEqualTo(target.id());
+        assertThat(target.content()).contains(MARKER);
+        assertThat(target.contentHash()).isEqualTo("hash-target");
+
+        // 对照：带标点分句查询同样保留证据（修复前 maxEffectiveScore=0.0057 同样全丢）。
+        KnowledgeContext punctuatedContext = BUILDER.buildBalanced(rerankedProductionHits(PUNCTUATED_QUERY, syntheticDenseHits()));
+        assertThat(punctuatedContext.sources()).as("带标点中文查询同样不得空上下文").isNotEmpty();
+        assertThat(punctuatedContext.sources().stream().anyMatch(s -> s.content().contains(MARKER))).isTrue();
+
+        // 对照：V1 协议（dense 相似度直接装配）行为保持不变。
+        KnowledgeContext v1Context = BUILDER.buildBalanced(syntheticDenseHits());
         assertThat(v1Context.sources()).as("V1 协议（dense 相似度直配）应保留证据").isNotEmpty();
-        assertThat(v1Context.sources().stream().anyMatch(s -> s.content().contains(MARKER)))
-                .as("V1 协议应保留含目标事实的块").isTrue();
+        assertThat(v1Context.sources().stream().anyMatch(s -> s.content().contains(MARKER))).isTrue();
     }
 
-    /** 与生产一致的候选转换：toDocumentSearchHit() 的 similarity = rerankScore ?? rrfScore ?? denseSimilarity。 */
-    private static double maxEffectiveScore(String query, List<DocumentSearchHit> denseHits) {
-        return rerankedProductionHits(query, denseHits).stream()
-                .mapToDouble(DocumentSearchHit::similarity).max().orElse(0d);
+    @Test
+    void irrelevantLowAdmissionCandidatesAreStillRejectedAfterFix() {
+        // 真实低相关候选（Dense 0.10，无有效 Lexical 证据）必须仍被准入规则拒绝。
+        List<DocumentSearchHit> hits = new ArrayList<>(syntheticDenseHits());
+        UUID docC = UUID.randomUUID();
+        hits.add(new DocumentSearchHit(UUID.randomUUID(), docC, "G1-会议纪要- unrelated.md", "其他议题",
+                "本周例会讨论了团建活动安排与办公室装修进度。", "hash-irrelevant", 0.10, Map.of()));
+
+        List<DocumentSearchHit> converted = rerankedProductionHits(NATURAL_QUERY, hits);
+        var built = BUILDER.buildBalancedWithDiagnostics(converted, KnowledgeContextBuilder.DEFAULT_MAX_SOURCES);
+
+        assertThat(built.context().sources().stream()
+                .anyMatch(s -> s.originalFilename().contains("unrelated")))
+                .as("低相关候选不得因修复而混入上下文").isFalse();
+        assertThat(built.dropReasons().values())
+                .as("低相关候选的淘汰原因必须是准入阈值")
+                .contains(com.shitulelv.aicollab.knowledge.domain.service.ContextDropReason.BELOW_SIMILARITY_THRESHOLD);
     }
 
-    private static List<DocumentSearchHit> convertToProductionHits(String query, List<DocumentSearchHit> denseHits) {
-        return rerankedProductionHits(query, denseHits);
+    private static int indexOfChunk(List<DocumentSearchHit> hits, UUID chunkId) {
+        for (int index = 0; index < hits.size(); index++) {
+            if (hits.get(index).id().equals(chunkId)) return index;
+        }
+        return Integer.MAX_VALUE;
     }
 
-    /** 走真实启发式重排并转换为生产 DocumentSearchHit。 */
+    /**
+     * 与生产一致的 V2 转换：Dense 召回候选 → RRF 融合分 → 启发式重排 → toDocumentSearchHit()。
+     * 修复后转换产物的 similarity = 准入分数（Dense/Lexical），不再携带重排/RRF 分数。
+     */
     private static List<DocumentSearchHit> rerankedProductionHits(String query, List<DocumentSearchHit> denseHits) {
         List<RetrievalCandidate> fused = new ArrayList<>();
         for (int index = 0; index < denseHits.size(); index++) {
@@ -112,24 +167,5 @@ class RagV2ChineseQueryRerankRegressionTest {
                 "华南中心固定资产盘点每年开展一次，盘点基准日为十二月三十一日。数据冻结时长一般为五个工作日。",
                 "hash-docb", 0.58, Map.of()));
         return hits;
-    }
-
-    /** 走真实启发式重排，返回与输入顺序对应的 rerankScore（等价于生产 effectiveScore）。 */
-    private static double[] rerankScores(String query, List<DocumentSearchHit> denseHits) {
-        List<RetrievalCandidate> fused = new ArrayList<>();
-        for (int index = 0; index < denseHits.size(); index++) {
-            DocumentSearchHit hit = denseHits.get(index);
-            fused.add(new RetrievalCandidate(hit.id(), hit.documentId(), hit.originalFilename(), hit.heading(),
-                    hit.content(), hit.contentHash(), hit.metadata(), index + 1, hit.similarity(),
-                    null, null, 1.0 / (60 + index + 1), null, null));
-        }
-        List<RetrievalCandidate> reranked = RERANKER.rerank(query, fused, 10);
-        double[] scores = new double[denseHits.size()];
-        for (int index = 0; index < denseHits.size(); index++) {
-            UUID id = denseHits.get(index).id();
-            scores[index] = reranked.stream().filter(c -> c.id().equals(id)).findFirst()
-                    .map(c -> c.toDocumentSearchHit().similarity()).orElse(0d);
-        }
-        return scores;
     }
 }

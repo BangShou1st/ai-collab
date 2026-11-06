@@ -143,17 +143,52 @@ public class SemanticHeuristicReranker implements Reranker {
         return Math.min(1.0, coverage + frequencyBonus);
     }
 
+    /** 词项总数上限：有界处理，防止极长查询产生过量词项拖垮匹配开销。 */
+    private static final int MAX_TERMS = 64;
+    /** 中文 bigram 采样上限：超过后按均匀步长采样，保证长句全程覆盖而非只取前缀。 */
+    private static final int MAX_CHINESE_BIGRAMS = 48;
+    /**
+     * 单个中文 token 直接作为词项的最大长度：超过后整串匹配窗口过宽、几乎必然无命中
+     * （历史缺陷：无标点中文整句成为单一超长 term，contentScore/headingScore≈0），
+     * 改为依赖 bigram 表达。短中文短语（如“住宿费标准”）仍保留整词项以获得精确匹配。
+     */
+    private static final int CJK_TOKEN_MAX_LENGTH = 10;
+    /** 常见虚词单字：出现在 bigram 两端时该 bigram 几乎不携带可匹配语义，过滤以降噪。 */
+    private static final Set<Character> CJK_FUNCTION_CHARS = Set.of(
+            '的', '了', '在', '是', '和', '与', '或', '及', '对', '为', '等', '把', '被', '向', '从', '到', '要', '会', '有', '都');
+
     private List<String> extractTerms(String query) {
-        String[] tokens = SPLIT_PATTERN.split(query.toLowerCase(Locale.ROOT));
+        String lowercased = query.toLowerCase(Locale.ROOT);
+        String[] tokens = SPLIT_PATTERN.split(lowercased);
         Set<String> terms = new LinkedHashSet<>();
+
+        // 1. 词级切分：英文/数字/类名/API 片段等非 CJK token 原样保留；短中文 token 保留整词项，
+        //    超长中文 token（无标点整句）不再整串入库，交由第 2 步的 bigram 表达。
         for (String token : tokens) {
             String trimmed = token.trim();
-            if (trimmed.length() >= 2 && !STOP_WORDS.contains(trimmed)) {
+            if (trimmed.isEmpty() || STOP_WORDS.contains(trimmed)) {
+                continue;
+            }
+            if (containsCjk(trimmed)) {
+                if (trimmed.codePointCount(0, trimmed.length()) <= CJK_TOKEN_MAX_LENGTH) {
+                    terms.add(trimmed);
+                }
+            } else if (trimmed.length() >= 2) {
                 terms.add(trimmed);
             }
         }
 
-        // 若分词过滤后为空，对纯中文或简短查询补充单字/字符片段
+        // 2. 中文 bigram：对每个含中文 token 的连续汉字段生成 2-gram，长度不再限制在 10 以内；
+        //    超出采样上限时按均匀步长采样，覆盖整个长句。每个 bigram 都过滤虚词端点噪声。
+        for (String token : tokens) {
+            if (!containsCjk(token)) {
+                continue;
+            }
+            String cleanChinese = token.replaceAll("[^\\u4e00-\\u9fa5]", "");
+            addChineseBigrams(cleanChinese, terms);
+        }
+
+        // 3. 兜底：过滤后为空时退回原始 token（含单字），保证重排器总能产出稳定、可复现的排序。
         if (terms.isEmpty()) {
             for (String token : tokens) {
                 String trimmed = token.trim();
@@ -163,18 +198,44 @@ public class SemanticHeuristicReranker implements Reranker {
             }
         }
 
-        // 中文连续短语补充 2-gram
-        String cleanChinese = query.replaceAll("[^\\u4e00-\\u9fa5]", "");
-        if (cleanChinese.length() >= 2 && cleanChinese.length() <= 10) {
-            for (int i = 0; i < cleanChinese.length() - 1; i++) {
-                String bi = cleanChinese.substring(i, i + 2);
-                if (!STOP_WORDS.contains(bi)) {
-                    terms.add(bi);
-                }
+        // 4. 有界截断：保持插入顺序（确定性），优先保留先出现的词项。
+        if (terms.size() > MAX_TERMS) {
+            List<String> bounded = new ArrayList<>(MAX_TERMS);
+            for (String term : terms) {
+                if (bounded.size() == MAX_TERMS) break;
+                bounded.add(term);
+            }
+            return bounded;
+        }
+        return new ArrayList<>(terms);
+    }
+
+    private void addChineseBigrams(String cleanChinese, Set<String> terms) {
+        int length = cleanChinese.length();
+        if (length < 2) {
+            return;
+        }
+        int bigramCount = length - 1;
+        int step = bigramCount <= MAX_CHINESE_BIGRAMS ? 1 : (bigramCount + MAX_CHINESE_BIGRAMS - 1) / MAX_CHINESE_BIGRAMS;
+        for (int i = 0; i < bigramCount; i += step) {
+            String bigram = cleanChinese.substring(i, i + 2);
+            if (STOP_WORDS.contains(bigram)
+                    || CJK_FUNCTION_CHARS.contains(bigram.charAt(0))
+                    || CJK_FUNCTION_CHARS.contains(bigram.charAt(1))) {
+                continue;
+            }
+            terms.add(bigram);
+        }
+    }
+
+    private static boolean containsCjk(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c >= '\u4e00' && c <= '\u9fa5') {
+                return true;
             }
         }
-
-        return new ArrayList<>(terms);
+        return false;
     }
 
     private List<RetrievalCandidate> degrade(List<RetrievalCandidate> candidates, int topN) {

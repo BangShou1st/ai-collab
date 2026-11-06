@@ -144,15 +144,11 @@ public class KnowledgeQuestionApplicationService {
                     : retrievalQuery;
 
             if (decision != null && decision.complexity() == QueryComplexity.COMPLEX && decision.subQueries().size() > 1) {
-                // 多查询分解并发/按序检索并去重合并
-                Map<UUID, DocumentSearchHit> mergedHits = new LinkedHashMap<>();
-                for (String subQuery : decision.subQueries()) {
-                    RetrievalResult subResult = retrievalPipeline.execute(projectId, subQuery, documentIds, filters, TOP_K);
-                    for (DocumentSearchHit hit : subResult.toDocumentSearchHits()) {
-                        mergedHits.putIfAbsent(hit.id(), hit);
-                    }
-                }
-                candidates = new ArrayList<>(mergedHits.values());
+                // 多查询分解：原始查询 + 子查询共同参与标准 RRF 融合（保持原始查询召回 + 恢复全局排名）
+                List<String> fusionQueries = new ArrayList<>(decision.subQueries());
+                fusionQueries.add(0, effectiveQuery);
+                candidates = retrievalPipeline.executeMultiQuery(projectId, fusionQueries, documentIds, filters, TOP_K)
+                        .toDocumentSearchHits();
             } else {
                 RetrievalResult result = retrievalPipeline.execute(projectId, effectiveQuery, documentIds, filters, TOP_K);
                 candidates = result.toDocumentSearchHits();

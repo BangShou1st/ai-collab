@@ -120,6 +120,119 @@ public class RetrievalPipeline {
         return execute(projectId, query, documentIds, List.of(), config);
     }
 
+    /**
+     * 多查询分解合并执行（COMPLEX 路由修复，RAG_V2_QUALITY_REGRESSION 复测直接阻断项）。
+     *
+     * <p>历史缺陷一：各子查询独立走完整管线后仅按 {@code putIfAbsent} 顺序拼接，
+     * 子查询切分会把原始查询下排名 1–5 的证据挤到合并列表第 9 位之后，最终被来源名额淘汰。
+     * 历史缺陷二：对全部查询做标准 RRF 求和时，跨子查询共现的候选会<b>扰动</b>原始查询本已
+     * 正确的排序（实测：G02-B-4DOCS 的两个 fullRank=1/4 事实被挤出 5 源名额，QA 51/54）；
+     * 而消融实验（fullDefault，原始查询单跑）证明原始查询过完整管线即达 52/54 基线。</p>
+     *
+     * <p>修复语义（主查询保序 + 子查询增召回）：列表<b>首个查询为主查询</b>（调用方传入原始查询）。
+     * 每个查询独立走完整管线（Dense/Lexical → RRF → 窗口/父子 → 重排）；合并顺序为主查询
+     * 结果的原始排名序置前，子查询独有候选（主查询未召回）按跨查询 RRF 之和降序追加——
+     * 子查询只增召回、不扰动主排名。融合池按查询数有界扩展（topK + 3×(n-1)，上限 24）。
+     * 主查询无召回时回退为按 RRF 之和的全局融合。准入语义不变：admissionScore 仍由
+     * 类型化评分契约在转换层生成。仅传一个查询时等价于单查询执行。</p>
+     */
+    public RetrievalResult executeMultiQuery(
+            UUID projectId, List<String> queries, List<UUID> documentIds,
+            List<MetadataFilter> filters, int topK) {
+        List<String> effectiveQueries = queries == null ? List.of()
+                : queries.stream().filter(q -> q != null && !q.isBlank()).distinct().toList();
+        if (effectiveQueries.isEmpty()) {
+            return execute(projectId, "", documentIds, filters, topK);
+        }
+        if (effectiveQueries.size() == 1) {
+            return execute(projectId, effectiveQueries.getFirst(), documentIds, filters, topK);
+        }
+
+        long startTotal = System.currentTimeMillis();
+        Map<UUID, Double> fusedScore = new LinkedHashMap<>();
+        Map<UUID, RetrievalCandidate> bestInstanceByRrf = new LinkedHashMap<>();
+        List<RetrievalCandidate> primaryCandidates = List.of();
+        long denseMs = 0, lexicalMs = 0, rerankMs = 0;
+        int denseCount = 0, lexicalCount = 0;
+        boolean rerankerDegraded = false;
+        boolean swExpanded = false, parentExpanded = false;
+        String rerankerName = null;
+        List<RetrievalTrace.DropRecord> dropReasons = new ArrayList<>();
+
+        for (int queryIndex = 0; queryIndex < effectiveQueries.size(); queryIndex++) {
+            String query = effectiveQueries.get(queryIndex);
+            RetrievalResult subResult = execute(projectId, query, documentIds, filters, topK);
+            var trace = subResult.trace();
+            denseMs += trace.denseDurationMs();
+            lexicalMs += trace.lexicalDurationMs();
+            rerankMs += trace.rerankDurationMs();
+            denseCount += trace.denseRecallCount();
+            lexicalCount += trace.lexicalRecallCount();
+            rerankerDegraded |= trace.rerankerDegraded();
+            swExpanded |= trace.sentenceWindowExpanded();
+            parentExpanded |= trace.parentExpanded();
+            if (rerankerName == null) {
+                rerankerName = trace.rerankerName();
+            }
+            if (queryIndex == 0) {
+                primaryCandidates = subResult.candidates();
+            }
+            for (RetrievalCandidate candidate : subResult.candidates()) {
+                double rrf = candidate.rrfScore() != null ? candidate.rrfScore() : 0.0;
+                fusedScore.merge(candidate.id(), rrf, Double::sum);
+                RetrievalCandidate best = bestInstanceByRrf.get(candidate.id());
+                double bestRrf = best != null && best.rrfScore() != null ? best.rrfScore() : 0.0;
+                if (best == null || rrf > bestRrf) {
+                    bestInstanceByRrf.put(candidate.id(), candidate);
+                }
+            }
+        }
+
+        // 合并：主查询排名序置前（保序），子查询独有候选按 RRF 之和降序追加，平分按 chunkId 稳定收敛。
+        // 主查询无召回时 consolidated 为空，全部候选按 RRF 之和的全局融合回退。
+        List<RetrievalCandidate> consolidated = new ArrayList<>();
+        Set<UUID> seen = new HashSet<>();
+        for (RetrievalCandidate candidate : primaryCandidates) {
+            if (seen.add(candidate.id())) {
+                consolidated.add(candidate);
+            }
+        }
+        List<RetrievalCandidate> extras = new ArrayList<>();
+        for (RetrievalCandidate candidate : bestInstanceByRrf.values()) {
+            if (seen.add(candidate.id())) {
+                extras.add(candidate);
+            }
+        }
+        extras.sort((a, b) -> {
+            int cmp = Double.compare(fusedScore.getOrDefault(b.id(), 0.0), fusedScore.getOrDefault(a.id(), 0.0));
+            return cmp != 0 ? cmp : a.id().compareTo(b.id());
+        });
+        consolidated.addAll(extras);
+
+        // 融合池随查询数有界扩展（子查询召回的增量候选必须能进入装配选择，但总量有绝对上限）。
+        int fusedTopN = Math.min(topK + (effectiveQueries.size() - 1) * 3, 24);
+        List<RetrievalCandidate> finalCandidates = consolidated;
+        if (fusedTopN > 0 && consolidated.size() > fusedTopN) {
+            finalCandidates = new ArrayList<>(consolidated.subList(0, fusedTopN));
+            for (int index = fusedTopN; index < consolidated.size(); index++) {
+                dropReasons.add(new RetrievalTrace.DropRecord(consolidated.get(index).id(), "MULTI_QUERY_FUSION_TRUNCATED"));
+            }
+        }
+
+        Map<UUID, Double> rrfScores = new LinkedHashMap<>();
+        for (RetrievalCandidate candidate : finalCandidates) {
+            rrfScores.put(candidate.id(), fusedScore.getOrDefault(candidate.id(), 0.0));
+        }
+
+        RetrievalTrace trace = new RetrievalTrace(
+                denseMs, lexicalMs, rerankMs, System.currentTimeMillis() - startTotal,
+                denseCount, lexicalCount, consolidated.size(), finalCandidates.size(),
+                rerankerDegraded, rerankerName != null ? rerankerName : "degraded",
+                swExpanded, parentExpanded,
+                Collections.unmodifiableMap(rrfScores), Collections.unmodifiableList(dropReasons));
+        return new RetrievalResult(Collections.unmodifiableList(finalCandidates), trace);
+    }
+
     public RetrievalResult execute(UUID projectId, String query, List<UUID> documentIds, List<MetadataFilter> filters, PipelineConfig config) {
         if (config == null) {
             config = PipelineConfig.defaultConfig();
