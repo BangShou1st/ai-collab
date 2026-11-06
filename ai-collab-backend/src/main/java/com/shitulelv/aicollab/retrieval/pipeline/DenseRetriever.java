@@ -5,6 +5,7 @@ import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingBatch;
 import com.shitulelv.aicollab.document.infrastructure.ai.EmbeddingProgressListener;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.ProjectEmbeddingGateway;
+import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -28,6 +29,11 @@ public class DenseRetriever implements Retriever {
 
     @Override
     public List<RetrievalCandidate> retrieve(UUID projectId, String query, List<UUID> documentIds, int topK) {
+        return retrieve(projectId, query, documentIds, topK, (DocumentFilterCriteria) null);
+    }
+
+    @Override
+    public List<RetrievalCandidate> retrieve(UUID projectId, String query, List<UUID> documentIds, int topK, DocumentFilterCriteria criteria) {
         if (query == null || query.isBlank() || topK <= 0) {
             return List.of();
         }
@@ -49,7 +55,8 @@ public class DenseRetriever implements Retriever {
                     batch.fingerprint(),
                     documentIds,
                     topK,
-                    batch.generationId()
+                    batch.generationId(),
+                    criteria
             );
         } else {
             hits = documentRepository.search(
@@ -60,7 +67,9 @@ public class DenseRetriever implements Retriever {
                     batch.dimension(),
                     batch.fingerprint(),
                     documentIds,
-                    topK
+                    topK,
+                    null,
+                    criteria
             );
         }
 

@@ -38,13 +38,24 @@ public class KnowledgeSearchAgentTool implements AgentTool {
     private final ObjectMapper json;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline retrievalPipeline;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.retrieval.query.QueryRouter queryRouter;
 
     public KnowledgeSearchAgentTool(
             ProjectAccessGuard access,
             DocumentSearchService search,
             KnowledgeContextBuilder contextBuilder,
             ObjectMapper json) {
-        this(access, search, contextBuilder, json, null);
+        this(access, search, contextBuilder, json, null, null);
+    }
+
+    public KnowledgeSearchAgentTool(
+            ProjectAccessGuard access,
+            DocumentSearchService search,
+            KnowledgeContextBuilder contextBuilder,
+            ObjectMapper json,
+            com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline retrievalPipeline) {
+        this(access, search, contextBuilder, json, retrievalPipeline, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -54,12 +65,15 @@ public class KnowledgeSearchAgentTool implements AgentTool {
             KnowledgeContextBuilder contextBuilder,
             ObjectMapper json,
             @org.springframework.beans.factory.annotation.Autowired(required = false)
-            com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline retrievalPipeline) {
+            com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline retrievalPipeline,
+            @org.springframework.beans.factory.annotation.Autowired(required = false)
+            com.shitulelv.aicollab.retrieval.query.QueryRouter queryRouter) {
         this.access = access;
         this.search = search;
         this.contextBuilder = contextBuilder;
         this.json = json;
         this.retrievalPipeline = retrievalPipeline;
+        this.queryRouter = queryRouter;
     }
 
     @Override public String name() { return "search_project_knowledge"; }
@@ -117,14 +131,26 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         List<UUID> searchDocumentIds = userScope.constrained()
                 ? (userScope.hasIncludeList() || modelSpecifiedScope ? effectiveDocumentIds : null)
                 : requestedDocumentIds;
+        List<com.shitulelv.aicollab.retrieval.query.MetadataFilter> filters = List.of();
+        String effectiveQuery = query;
+        if (queryRouter != null) {
+            var decision = queryRouter.route(query);
+            if (decision != null && decision.structuredQuery() != null) {
+                filters = decision.structuredQuery().filters();
+                if (!decision.structuredQuery().semanticQuery().isBlank()) {
+                    effectiveQuery = decision.structuredQuery().semanticQuery();
+                }
+            }
+        }
+
         List<com.shitulelv.aicollab.document.application.view.DocumentSearchHit> hits;
         if (scopeBlocksSearch) {
             hits = List.of();
         } else if (retrievalPipeline != null) {
-            hits = retrievalPipeline.execute(context.projectId(), query, searchDocumentIds, MAX_CANDIDATE_POOL)
+            hits = retrievalPipeline.execute(context.projectId(), effectiveQuery, searchDocumentIds, filters, MAX_CANDIDATE_POOL)
                     .toDocumentSearchHits();
         } else {
-            hits = search.search(context.projectId(), query, searchDocumentIds, MAX_CANDIDATE_POOL);
+            hits = search.search(context.projectId(), effectiveQuery, searchDocumentIds, MAX_CANDIDATE_POOL);
         }
         if (userScope.constrained()) hits = hits.stream().filter(hit -> userScope.allowsDocument(hit.documentId())).toList();
         var knowledge = contextBuilder.buildDiverse(hits, limit);

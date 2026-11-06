@@ -132,22 +132,29 @@ public class KnowledgeQuestionApplicationService {
         String retrievalQuery = conversation.retrievalQuery();
         String promptContext = conversation.prompt();
 
-        // 2. 检索路由与多查询分解
+        // 2. 检索路由与多查询分解（透传结构化 MetadataFilter 至检索管线）
         List<DocumentSearchHit> candidates;
         if (retrievalPipeline != null) {
             QueryRouteDecision decision = queryRouter != null ? queryRouter.route(retrievalQuery) : null;
+            List<com.shitulelv.aicollab.retrieval.query.MetadataFilter> filters = (decision != null && decision.structuredQuery() != null)
+                    ? decision.structuredQuery().filters()
+                    : List.of();
+            String effectiveQuery = (decision != null && decision.structuredQuery() != null && !decision.structuredQuery().semanticQuery().isBlank())
+                    ? decision.structuredQuery().semanticQuery()
+                    : retrievalQuery;
+
             if (decision != null && decision.complexity() == QueryComplexity.COMPLEX && decision.subQueries().size() > 1) {
                 // 多查询分解并发/按序检索并去重合并
                 Map<UUID, DocumentSearchHit> mergedHits = new LinkedHashMap<>();
                 for (String subQuery : decision.subQueries()) {
-                    RetrievalResult subResult = retrievalPipeline.execute(projectId, subQuery, documentIds, TOP_K);
+                    RetrievalResult subResult = retrievalPipeline.execute(projectId, subQuery, documentIds, filters, TOP_K);
                     for (DocumentSearchHit hit : subResult.toDocumentSearchHits()) {
                         mergedHits.putIfAbsent(hit.id(), hit);
                     }
                 }
                 candidates = new ArrayList<>(mergedHits.values());
             } else {
-                RetrievalResult result = retrievalPipeline.execute(projectId, retrievalQuery, documentIds, TOP_K);
+                RetrievalResult result = retrievalPipeline.execute(projectId, effectiveQuery, documentIds, filters, TOP_K);
                 candidates = result.toDocumentSearchHits();
             }
         } else {
