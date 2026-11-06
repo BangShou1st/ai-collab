@@ -17,8 +17,8 @@ import java.util.Map;
 
 @Component
 public class DocumentChunker {
-    private static final int TARGET = 1200;
-    private static final int OVERLAP = 150;
+    private static final int TARGET = 1000;
+    private static final int OVERLAP = 120;
     private static final int MAX_CHUNKS = 1000;
     private static final int MAX_HEADING_CODE_POINTS = 300;
 
@@ -27,46 +27,91 @@ public class DocumentChunker {
     }
 
     public List<DocumentChunk> split(String text, List<ParsedDocument.PageBoundary> pageBoundaries) {
-        List<Section> sections = sections(text);
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
+
+        List<Section> sections = parseSections(text);
         List<DocumentChunk> result = new ArrayList<>();
+
         for (Section section : sections) {
+            String sectionContent = section.content();
+            int sectionOffset = section.offset();
+            int len = sectionContent.length();
+
+            // 若整节偏小，直接作为单块
+            if (len <= TARGET + 200) {
+                addChunk(result, section.heading(), sectionContent, sectionOffset, sectionOffset + len, pageBoundaries, null, DocumentChunk.TYPE_STANDARD);
+                continue;
+            }
+
+            // 较长章节：生成带有父级上下文引用的子分块 (Child Chunks)
+            String parentSnippet = truncateParentSnippet(sectionContent, 500);
             int start = 0;
-            while (start < section.content().length()) {
-                int end = chooseEnd(section.content(), start);
-                String raw = section.content().substring(start, end);
+            while (start < len) {
+                int end = chooseStructuralEnd(sectionContent, start);
+                String raw = sectionContent.substring(start, end);
                 String content = raw.trim();
                 int leading = raw.indexOf(content);
-                int sourceStart = section.offset()+start+Math.max(0,leading);
-                int sourceEnd = sourceStart+content.length();
+                int sourceStart = sectionOffset + start + Math.max(0, leading);
+                int sourceEnd = sourceStart + content.length();
+
                 if (!content.isBlank()) {
-                    if (result.size() >= MAX_CHUNKS) {
-                        throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED,
-                                "文档内容过长，生成的分块数量超过上限");
-                    }
-                    Map<String, Object> metadata = new LinkedHashMap<>();
-                    metadata.put("charFrom",sourceStart);
-                    metadata.put("charThrough",sourceEnd);
-                    metadata.put("offsetCoordinate","CLEANED_TEXT_UTF16_V2");
-                    Integer pageNumber = resolvePageNumber(sourceStart, pageBoundaries);
-                    if (pageNumber != null) {
-                        metadata.put("pageNumber", pageNumber);
-                        metadata.put("pageThrough",resolvePageNumber(Math.max(sourceStart,sourceEnd-1),pageBoundaries));
-                    }
-                    result.add(new DocumentChunk(result.size(), truncateHeading(section.heading()), content,
-                            sha256(content), Math.max(1,
-                            (content.codePointCount(0, content.length()) + 3) / 4),
-                            metadata));
+                    Map<String, Object> extra = new LinkedHashMap<>();
+                    extra.put("parentHeading", section.heading());
+                    extra.put("parentSnippet", parentSnippet);
+                    extra.put("parentCharFrom", sectionOffset);
+                    extra.put("parentCharThrough", sectionOffset + len);
+
+                    addChunk(result, section.heading(), content, sourceStart, sourceEnd, pageBoundaries, extra, DocumentChunk.TYPE_CHILD);
                 }
-                if (end >= section.content().length()) break;
-                int next = safeBoundary(section.content(), Math.max(start + 1, end - OVERLAP));
-                start = next > start ? next : section.content().offsetByCodePoints(start, 1);
+
+                if (end >= len) break;
+                int next = safeBoundary(sectionContent, Math.max(start + 1, end - OVERLAP));
+                start = next > start ? next : sectionContent.offsetByCodePoints(start, 1);
             }
         }
+
         return result;
     }
 
+    private void addChunk(List<DocumentChunk> result, String heading, String content,
+                          int sourceStart, int sourceEnd,
+                          List<ParsedDocument.PageBoundary> pageBoundaries,
+                          Map<String, Object> extraMetadata, String chunkType) {
+        if (result.size() >= MAX_CHUNKS) {
+            throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED,
+                    "文档内容过长，生成的分块数量超过上限");
+        }
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("charFrom", sourceStart);
+        metadata.put("charThrough", sourceEnd);
+        metadata.put("offsetCoordinate", "CLEANED_TEXT_UTF16_V2");
+        Integer pageNumber = resolvePageNumber(sourceStart, pageBoundaries);
+        if (pageNumber != null) {
+            metadata.put("pageNumber", pageNumber);
+            metadata.put("pageThrough", resolvePageNumber(Math.max(sourceStart, sourceEnd - 1), pageBoundaries));
+        }
+        if (extraMetadata != null) {
+            metadata.putAll(extraMetadata);
+        }
+
+        int tokenEstimate = Math.max(1, (content.codePointCount(0, content.length()) + 3) / 4);
+        result.add(new DocumentChunk(
+                result.size(),
+                truncateHeading(heading),
+                content,
+                sha256(content),
+                tokenEstimate,
+                metadata,
+                null,
+                chunkType != null ? chunkType : DocumentChunk.TYPE_STANDARD
+        ));
+    }
+
     private static Integer resolvePageNumber(int charOffset, List<ParsedDocument.PageBoundary> boundaries) {
-        if (boundaries.isEmpty()) return null;
+        if (boundaries == null || boundaries.isEmpty()) return null;
         Integer pageNumber = null;
         for (ParsedDocument.PageBoundary boundary : boundaries) {
             if (boundary.charOffset() <= charOffset) {
@@ -78,41 +123,98 @@ public class DocumentChunker {
         return pageNumber;
     }
 
-    private static List<Section> sections(String text) {
+    private static List<Section> parseSections(String text) {
         List<Section> result = new ArrayList<>();
-        String heading = null;
-        int bodyStart=0;
-        int offset=0;
-        for (String line : text.split("\\n",-1)) {
+        String currentHeading = null;
+        int bodyStart = 0;
+        int offset = 0;
+
+        String[] lines = text.split("\\n", -1);
+        boolean inCodeBlock = false;
+
+        for (String line : lines) {
             String trimmed = line.trim();
-            boolean markdownHeading = trimmed.matches("^#{1,6}\\s+.+");
-            boolean inferredHeading = !trimmed.isBlank()
-                    && trimmed.codePointCount(0, trimmed.length()) <= 80
-                    && !trimmed.matches(".*[。！？.!?；;]$") && offset>bodyStart;
-            if (markdownHeading || inferredHeading && text.substring(bodyStart,Math.min(offset,text.length())).endsWith("\n\n")) {
-                flush(result, heading, text,bodyStart,Math.min(offset,text.length()));
-                heading = markdownHeading ? trimmed.replaceFirst("^#{1,6}\\s+", "") : trimmed;
-                bodyStart=Math.min(text.length(),offset+line.length()+1);
+
+            if (trimmed.startsWith("```")) {
+                inCodeBlock = !inCodeBlock;
             }
-            offset+=line.length()+1;
+
+            // 在代码块外部才识别标题
+            if (!inCodeBlock) {
+                boolean markdownHeading = trimmed.matches("^#{1,6}\\s+.+");
+                boolean legalClauseHeading = trimmed.matches("^(第[0-9一二三四五六七八九十百]+[条章节款]|条款\\s*[0-9]+).*");
+                boolean inferredHeading = !trimmed.isBlank()
+                        && trimmed.codePointCount(0, trimmed.length()) <= 80
+                        && !trimmed.matches(".*[。！？.!?；;]$")
+                        && offset > bodyStart;
+
+                if (markdownHeading || legalClauseHeading || (inferredHeading && text.substring(bodyStart, Math.min(offset, text.length())).endsWith("\n\n"))) {
+                    flush(result, currentHeading, text, bodyStart, Math.min(offset, text.length()));
+                    currentHeading = markdownHeading ? trimmed.replaceFirst("^#{1,6}\\s+", "") : trimmed;
+                    bodyStart = Math.min(text.length(), offset + line.length() + 1);
+                }
+            }
+            offset += line.length() + 1;
         }
-        flush(result, heading, text,bodyStart,text.length());
+
+        flush(result, currentHeading, text, bodyStart, text.length());
         return result;
     }
 
-    private static void flush(List<Section> result, String heading, String text,int start,int end) {
-        String raw=text.substring(start,end);
-        String content=raw.trim();
-        if(!content.isBlank()) result.add(new Section(heading,content,start+raw.indexOf(content)));
+    private static void flush(List<Section> result, String heading, String text, int start, int end) {
+        if (start >= end || start >= text.length()) return;
+        String raw = text.substring(start, end);
+        String content = raw.trim();
+        if (!content.isBlank()) {
+            result.add(new Section(heading, content, start + raw.indexOf(content)));
+        }
     }
 
-    private static int chooseEnd(String content, int start) {
+    private static int chooseStructuralEnd(String content, int start) {
         int proposed = safeBoundary(content, Math.min(content.length(), start + TARGET));
         if (proposed == content.length()) return proposed;
+
+        // 避免在代码块内切断
+        int codeBlockTicks = countOccurrences(content.substring(start, proposed), "```");
+        if (codeBlockTicks % 2 != 0) {
+            // 代码块未闭合，尝试找到下一个 ``` 闭合点
+            int closeTick = content.indexOf("```", proposed);
+            if (closeTick != -1 && closeTick - start <= TARGET * 1.5) {
+                int nextLine = content.indexOf('\n', closeTick + 3);
+                return nextLine != -1 ? nextLine : closeTick + 3;
+            }
+        }
+
+        // 段落优先
         int paragraph = content.lastIndexOf("\n\n", proposed);
-        int sentence = Math.max(content.lastIndexOf('。', proposed), content.lastIndexOf('.', proposed));
-        int boundary = Math.max(paragraph, sentence < 0 ? -1 : sentence + 1);
+        if (paragraph > start + TARGET / 2) {
+            return paragraph;
+        }
+
+        // 句子边界
+        int sentence = Math.max(
+                Math.max(content.lastIndexOf('。', proposed), content.lastIndexOf('.', proposed)),
+                Math.max(content.lastIndexOf('！', proposed), content.lastIndexOf('；', proposed))
+        );
+        int boundary = sentence < 0 ? -1 : sentence + 1;
         return boundary > start + TARGET / 2 ? boundary : proposed;
+    }
+
+    private static int countOccurrences(String text, String sub) {
+        int count = 0;
+        int idx = 0;
+        while ((idx = text.indexOf(sub, idx)) != -1) {
+            count++;
+            idx += sub.length();
+        }
+        return count;
+    }
+
+    private static String truncateParentSnippet(String content, int maxChars) {
+        if (content == null || content.isBlank()) return "";
+        String trimmed = content.strip();
+        if (trimmed.length() <= maxChars) return trimmed;
+        return trimmed.substring(0, safeBoundary(trimmed, maxChars)) + "...";
     }
 
     private static int safeBoundary(String value, int index) {
@@ -141,6 +243,6 @@ public class DocumentChunker {
         }
     }
 
-    private record Section(String heading, String content,int offset) {
+    private record Section(String heading, String content, int offset) {
     }
 }

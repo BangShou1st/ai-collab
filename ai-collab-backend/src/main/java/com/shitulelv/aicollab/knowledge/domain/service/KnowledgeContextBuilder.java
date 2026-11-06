@@ -58,6 +58,97 @@ public class KnowledgeContextBuilder {
     }
 
     /**
+     * 基于 TokenCounter 精确预算的证据装配入口：
+     * 结合每文档名额均衡、单来源正文与父级片段有界融入、精确 Token 预算防护及完整丢弃原因诊断。
+     */
+    public BuildResult buildWithTokenBudget(
+            List<DocumentSearchHit> hits,
+            int maxSources,
+            int tokenBudget,
+            com.shitulelv.aicollab.common.ai.token.TokenCounter tokenCounter,
+            String provider,
+            String model) {
+        validateMaxSources(maxSources);
+        List<DocumentSearchHit> ordered = reorderPerDocumentCap(hits, maxSources, PER_DOCUMENT_SOURCE_CAP);
+        List<KnowledgeSource> sources = new ArrayList<>();
+        Set<UUID> retainedChunkIds = new HashSet<>();
+        Map<UUID, Set<String>> hashesByDocument = new HashMap<>();
+        Map<UUID, ContextDropReason> dropped = new LinkedHashMap<>();
+        StringBuilder prompt = new StringBuilder();
+
+        int usedTokens = 0;
+        int maxTokens = tokenBudget > 0 ? tokenBudget : 2500; // 默认给证据预留 2500 tokens
+
+        for (int index = 0; index < ordered.size(); index++) {
+            DocumentSearchHit hit = ordered.get(index);
+            if (hit.similarity() < MIN_SIMILARITY) {
+                dropped.put(hit.id(), ContextDropReason.BELOW_SIMILARITY_THRESHOLD);
+                continue;
+            }
+            if (sources.size() >= maxSources) {
+                dropped.put(hit.id(), ContextDropReason.SOURCE_CAP);
+                continue;
+            }
+            String hash = hit.contentHash();
+            Set<String> documentHashes = hashesByDocument.get(hit.documentId());
+            if (retainedChunkIds.contains(hit.id())
+                    || (hash != null && documentHashes != null && documentHashes.contains(hash))) {
+                dropped.put(hit.id(), ContextDropReason.INTRA_DOCUMENT_DUPLICATE);
+                continue;
+            }
+            if (hit.content() == null || hit.content().isBlank()) {
+                dropped.put(hit.id(), ContextDropReason.EMPTY_BODY);
+                continue;
+            }
+
+            int rank = sources.size() + 1;
+            String separator = prompt.isEmpty() ? "" : "\n\n";
+            String filename = KnowledgePromptText.escapeXmlText(
+                    hit.originalFilename(), MAX_PROMPT_FILENAME_CODE_POINTS).escaped();
+            String heading = KnowledgePromptText.escapeXmlText(
+                    hit.heading(), MAX_PROMPT_HEADING_CODE_POINTS).escaped();
+
+            // 检查是否有父级结构摘要 (Parent-Child)
+            String parentContext = "";
+            if (hit.metadata() != null && hit.metadata().containsKey("parentSnippet")) {
+                Object pSnippet = hit.metadata().get("parentSnippet");
+                if (pSnippet instanceof String pStr && !pStr.isBlank() && !pStr.equals(hit.content())) {
+                    parentContext = "【章节背景】" + KnowledgePromptText.escapeXmlText(pStr, 200).escaped() + "\n";
+                }
+            }
+
+            String sourceBlock = separator
+                    + "[S" + rank + "]\n"
+                    + "文件：" + filename + "\n"
+                    + "标题：" + heading + "\n"
+                    + parentContext
+                    + "内容：" + KnowledgePromptText.escapeXmlText(hit.content(), 1500).escaped();
+
+            int blockTokens = tokenCounter != null
+                    ? tokenCounter.countText(sourceBlock, provider, model).count()
+                    : (codePointLength(sourceBlock) + 2) / 3;
+
+            if (usedTokens + blockTokens > maxTokens && !sources.isEmpty()) {
+                dropped.put(hit.id(), ContextDropReason.TOKEN_BUDGET_EXCEEDED);
+                continue;
+            }
+
+            prompt.append(sourceBlock);
+            usedTokens += blockTokens;
+            sources.add(new KnowledgeSource(
+                    hit.id(), hit.documentId(), hit.originalFilename(), hit.heading(),
+                    hit.content(), hit.contentHash(), hit.similarity(), rank,
+                    hit.metadata() != null ? hit.metadata() : Map.of()));
+            retainedChunkIds.add(hit.id());
+            if (hash != null) {
+                hashesByDocument.computeIfAbsent(hit.documentId(), ignored -> new HashSet<>()).add(hash);
+            }
+        }
+
+        return new BuildResult(new KnowledgeContext(List.copyOf(sources), prompt.toString()), dropped);
+    }
+
+    /**
      * 每文档名额均衡的两遍重排：第一遍按候选顺序为每文档至多取 cap 条；第二遍按候选顺序补齐剩余名额。
      * 返回全量候选的重排（均衡入选者在前、其余候选按原顺序在后），因此装配阶段的
      * 阈值/同文去重/预算淘汰仍保留后备候选回填语义。候选数不超过名额时恒等返回原顺序。

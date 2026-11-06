@@ -36,16 +36,30 @@ public class KnowledgeSearchAgentTool implements AgentTool {
     private final DocumentSearchService search;
     private final KnowledgeContextBuilder contextBuilder;
     private final ObjectMapper json;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline retrievalPipeline;
 
     public KnowledgeSearchAgentTool(
             ProjectAccessGuard access,
             DocumentSearchService search,
             KnowledgeContextBuilder contextBuilder,
             ObjectMapper json) {
+        this(access, search, contextBuilder, json, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public KnowledgeSearchAgentTool(
+            ProjectAccessGuard access,
+            DocumentSearchService search,
+            KnowledgeContextBuilder contextBuilder,
+            ObjectMapper json,
+            @org.springframework.beans.factory.annotation.Autowired(required = false)
+            com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline retrievalPipeline) {
         this.access = access;
         this.search = search;
         this.contextBuilder = contextBuilder;
         this.json = json;
+        this.retrievalPipeline = retrievalPipeline;
     }
 
     @Override public String name() { return "search_project_knowledge"; }
@@ -103,9 +117,15 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         List<UUID> searchDocumentIds = userScope.constrained()
                 ? (userScope.hasIncludeList() || modelSpecifiedScope ? effectiveDocumentIds : null)
                 : requestedDocumentIds;
-        List<com.shitulelv.aicollab.document.application.view.DocumentSearchHit> hits = scopeBlocksSearch
-                ? List.of()
-                : search.search(context.projectId(), query, searchDocumentIds, MAX_CANDIDATE_POOL);
+        List<com.shitulelv.aicollab.document.application.view.DocumentSearchHit> hits;
+        if (scopeBlocksSearch) {
+            hits = List.of();
+        } else if (retrievalPipeline != null) {
+            hits = retrievalPipeline.execute(context.projectId(), query, searchDocumentIds, MAX_CANDIDATE_POOL)
+                    .toDocumentSearchHits();
+        } else {
+            hits = search.search(context.projectId(), query, searchDocumentIds, MAX_CANDIDATE_POOL);
+        }
         if (userScope.constrained()) hits = hits.stream().filter(hit -> userScope.allowsDocument(hit.documentId())).toList();
         var knowledge = contextBuilder.buildDiverse(hits, limit);
         ArrayNode sources = json.createArrayNode();
@@ -125,6 +145,7 @@ public class KnowledgeSearchAgentTool implements AgentTool {
         data.set("sources", sources);
         data.put("coverage","RELEVANT_EXCERPTS_ONLY");
         data.put("fullDocumentRead",false);
+        data.put("retrievalCore", retrievalPipeline != null ? "RAG_V2_PIPELINE" : "LEGACY_DENSE");
         data.put("userScopeEnforced", userScope.constrained());
         data.set("documentScope", json.valueToTree(userScope.diagnostics()));
         if (userScope.hasIncludeList()) {

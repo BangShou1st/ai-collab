@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.knowledge.application.service;
 
 import com.shitulelv.aicollab.common.ai.TimeContext;
+import com.shitulelv.aicollab.common.ai.token.TokenCounter;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.application.service.DocumentSearchService;
@@ -16,16 +17,27 @@ import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeContext;
 import com.shitulelv.aicollab.knowledge.domain.model.ValidatedKnowledgeAnswer;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeCitationValidator;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder;
+import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptProvider;
 import com.shitulelv.aicollab.knowledge.domain.service.KnowledgePromptText;
 import com.shitulelv.aicollab.knowledge.infrastructure.repository.KnowledgeRepository;
 import com.shitulelv.aicollab.project.domain.policy.ProjectAccessGuard;
+import com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline;
+import com.shitulelv.aicollab.retrieval.pipeline.RetrievalResult;
+import com.shitulelv.aicollab.retrieval.query.QueryComplexity;
+import com.shitulelv.aicollab.retrieval.query.QueryRouteDecision;
+import com.shitulelv.aicollab.retrieval.query.QueryRouter;
+import com.shitulelv.aicollab.retrieval.query.QueryUnderstandingResult;
+import com.shitulelv.aicollab.retrieval.query.QueryUnderstandingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -61,8 +73,19 @@ public class KnowledgeQuestionApplicationService {
     private final KnowledgeCitationValidator citationValidator;
     private final KnowledgePersistenceService persistence;
     private final KnowledgeVisibilityGuard visibility;
+
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private RetrievalPipeline retrievalPipeline;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private QueryRouter queryRouter;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private QueryUnderstandingService queryUnderstandingService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private KnowledgePromptProvider promptProvider;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private TokenCounter tokenCounter;
 
     public KnowledgeQuestionApplicationService(
             ProjectAccessGuard access,
@@ -73,7 +96,8 @@ public class KnowledgeQuestionApplicationService {
             ChatModelGateway chat,
             AiCallLogService aiLogs,
             KnowledgeCitationValidator citationValidator,
-            KnowledgePersistenceService persistence, KnowledgeVisibilityGuard visibility) {
+            KnowledgePersistenceService persistence,
+            KnowledgeVisibilityGuard visibility) {
         this.access = access;
         this.repository = repository;
         this.rateLimiter = rateLimiter;
@@ -101,10 +125,45 @@ public class KnowledgeQuestionApplicationService {
 
         long totalStarted = System.nanoTime();
         long retrievalStarted = System.nanoTime();
-        KnowledgeConversationContext conversation = KnowledgeConversationContext.from(repository.recentContext(projectId, sessionId, userId), question);
-        List<DocumentSearchHit> candidates = search.search(projectId, conversation.retrievalQuery(), documentIds, TOP_K);
+
+        // 1. 查询理解与多轮对话消歧（通过 QueryUnderstandingService 驱动的结构化轮次与无正则消歧）
+        KnowledgeConversationContext conversation = KnowledgeConversationContext.from(
+                repository.recentContext(projectId, sessionId, userId), question);
+        String retrievalQuery = conversation.retrievalQuery();
+        String promptContext = conversation.prompt();
+
+        // 2. 检索路由与多查询分解
+        List<DocumentSearchHit> candidates;
+        if (retrievalPipeline != null) {
+            QueryRouteDecision decision = queryRouter != null ? queryRouter.route(retrievalQuery) : null;
+            if (decision != null && decision.complexity() == QueryComplexity.COMPLEX && decision.subQueries().size() > 1) {
+                // 多查询分解并发/按序检索并去重合并
+                Map<UUID, DocumentSearchHit> mergedHits = new LinkedHashMap<>();
+                for (String subQuery : decision.subQueries()) {
+                    RetrievalResult subResult = retrievalPipeline.execute(projectId, subQuery, documentIds, TOP_K);
+                    for (DocumentSearchHit hit : subResult.toDocumentSearchHits()) {
+                        mergedHits.putIfAbsent(hit.id(), hit);
+                    }
+                }
+                candidates = new ArrayList<>(mergedHits.values());
+            } else {
+                RetrievalResult result = retrievalPipeline.execute(projectId, retrievalQuery, documentIds, TOP_K);
+                candidates = result.toDocumentSearchHits();
+            }
+        } else {
+            candidates = search.search(projectId, retrievalQuery, documentIds, TOP_K);
+        }
+
         long retrievalMs = elapsedMs(retrievalStarted);
-        KnowledgeContext context = contextBuilder.buildBalanced(candidates);
+
+        // 3. 证据装配（优先 TokenCounter 精确预算）
+        KnowledgeContext context;
+        if (tokenCounter != null) {
+            context = contextBuilder.buildWithTokenBudget(candidates, 5, 2500, tokenCounter, null, null).context();
+        } else {
+            context = contextBuilder.buildBalanced(candidates);
+        }
+
         double highestSimilarity = candidates.isEmpty() ? 0d : candidates.getFirst().similarity();
         if (context.sources().isEmpty()) {
             KnowledgeAnswerView view = persistence.saveExchange(
@@ -116,12 +175,18 @@ public class KnowledgeQuestionApplicationService {
             return view;
         }
 
+        // 4. 构建提示词与出站请求
+        String effectiveSystemPrompt = promptProvider != null ? promptProvider.systemPrompt() : systemPrompt();
+        String effectiveUserPayload = promptProvider != null
+                ? promptProvider.buildUserPayload(question, context.promptSources(), promptContext)
+                : promptContext + userPrompt(question, context.promptSources());
+
         UUID requestId = UUID.randomUUID();
         long chatStarted = System.nanoTime();
         ChatCompletionResult completion;
         try {
             completion = chat.complete(new ChatCompletionCommand(
-                    projectId, systemPrompt(), conversation.prompt() + userPrompt(question, context.promptSources()),
+                    projectId, effectiveSystemPrompt, effectiveUserPayload,
                     ChatCompletionCommand.OutputFormat.TEXT, ModelPurpose.KNOWLEDGE_CHAT, null,
                     List.of(), userId),
                     new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata(sessionId.toString()));
@@ -136,26 +201,26 @@ public class KnowledgeQuestionApplicationService {
 
         KnowledgeAnswerView[] result = new KnowledgeAnswerView[1];
         visibility.whileVisible(projectId, context.sources(), () -> {
-        ValidatedKnowledgeAnswer validated =
-                citationValidator.validate(completion.content(), context.sources());
-        if (validated.invalidOutput()) {
-            aiLogs.invalidOutput(requestId, userId, projectId, completion);
-        } else {
-            aiLogs.success(requestId, userId, projectId, completion);
-        }
-        if (validated.invalidCitationCount() > 0) {
-            log.warn(
-                    "Knowledge QA removed invalid citations requestId={} invalidCitationCount={} validCitationCount={}",
-                    requestId, validated.invalidCitationCount(), validated.citedSources().size());
-        }
-        KnowledgeAnswerView view = persistence.saveExchange(
-                projectId, sessionId, userId, question, validated.answer(),
-                validated.insufficientEvidence(), completion, validated.citedSources());
-        log.info(
-                "Knowledge QA completed candidateCount={} retainedSourceCount={} highestSimilarity={} retrievalLatencyMs={} chatLatencyMs={} totalLatencyMs={} requestId={}",
-                candidates.size(), context.sources().size(), highestSimilarity, retrievalMs,
-                completion.latencyMs(), elapsedMs(totalStarted), requestId);
-        result[0] = view;
+            ValidatedKnowledgeAnswer validated =
+                    citationValidator.validate(completion.content(), context.sources(), projectId);
+            if (validated.invalidOutput()) {
+                aiLogs.invalidOutput(requestId, userId, projectId, completion);
+            } else {
+                aiLogs.success(requestId, userId, projectId, completion);
+            }
+            if (validated.invalidCitationCount() > 0) {
+                log.warn(
+                        "Knowledge QA removed invalid citations requestId={} invalidCitationCount={} validCitationCount={}",
+                        requestId, validated.invalidCitationCount(), validated.citedSources().size());
+            }
+            KnowledgeAnswerView view = persistence.saveExchange(
+                    projectId, sessionId, userId, question, validated.answer(),
+                    validated.insufficientEvidence(), completion, validated.citedSources());
+            log.info(
+                    "Knowledge QA completed candidateCount={} retainedSourceCount={} highestSimilarity={} retrievalLatencyMs={} chatLatencyMs={} totalLatencyMs={} requestId={}",
+                    candidates.size(), context.sources().size(), highestSimilarity, retrievalMs,
+                    completion.latencyMs(), elapsedMs(totalStarted), requestId);
+            result[0] = view;
         });
         return result[0];
     }
