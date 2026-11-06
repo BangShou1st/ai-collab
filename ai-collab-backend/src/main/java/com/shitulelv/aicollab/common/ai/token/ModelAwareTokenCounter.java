@@ -13,8 +13,8 @@ import java.util.regex.Pattern;
  * <p>细粒度来源规则与契约：
  * <ul>
  *   <li>具备原生模型 API / Provider 原生统计时，严格标注 {@link TokenCountSource#NATIVE}；</li>
- *   <li>匹配已知模型 Tokenizer 规则模式（如 cl100k/gpt、qwen）时，标注 {@link TokenCountSource#TOKENIZER}；</li>
- *   <li>采用加权启发式或未知模型估算时，明确标注 {@link TokenCountSource#ESTIMATED}，严禁冒充精确值；</li>
+ *   <li>匹配已知模型 Tokenizer 且具备真实词表分词库时，标注 {@link TokenCountSource#TOKENIZER}；</li>
+ *   <li>缺少离线完整词表的模式分词（如 CL100K 正则近似、Qwen 正则近似）或加权启发式估算时，明确标注 {@link TokenCountSource#ESTIMATED}，严禁冒充精确值；</li>
  *   <li>消息协议与工具定义统筹计算底层协议开销（角色标记、Schema 封装与 Primer）。</li>
  * </ul>
  */
@@ -40,19 +40,19 @@ public class ModelAwareTokenCounter implements TokenCounter {
         String normalizedProvider = providerType != null ? providerType.toUpperCase(Locale.ROOT) : "";
         String normalizedModel = modelName != null ? modelName.toLowerCase(Locale.ROOT) : "";
 
-        // 1. 原生 API 支持标记为 NATIVE
+        // 1. 原生 API 支持严格标记为 NATIVE
         if ("NATIVE".equals(normalizedProvider) || normalizedModel.startsWith("native:")) {
             return TokenCount.exact(countTextByFineGrainedTokenizer(text, normalizedModel), "NATIVE_API:" + modelName);
         }
 
-        // 2. 具备 Tokenizer 规则模式支持的模型（如 cl100k/gpt/qwen）
+        // 2. 模式感知近似分词（CL100K / Qwen 等）：由于缺少模型专属离线 BPE 词表字典，根据规范严格标记为 ESTIMATED，严禁伪装为精确 TOKENIZER
         if (isTokenizerSupportedModel(normalizedModel)) {
             int tokenCount = countTextByFineGrainedTokenizer(text, normalizedModel);
-            String basis = normalizedModel.contains("qwen") ? "TOKENIZER:QWEN_BPE" : "TOKENIZER:CL100K_BPE";
-            return TokenCount.tokenizer(tokenCount, basis);
+            String basis = normalizedModel.contains("qwen") ? "ESTIMATED:QWEN_PATTERN_APPROX" : "ESTIMATED:CL100K_PATTERN_APPROX";
+            return TokenCount.estimated(tokenCount, basis);
         }
 
-        // 3. 加权启发式估算：明确标记来源为 ESTIMATED，严禁冒充精确值
+        // 3. 通用模型加权启发式估算：明确标记来源为 ESTIMATED，严禁冒充精确值
         return countTextByCalibratedHeuristic(text, normalizedModel);
     }
 

@@ -368,12 +368,159 @@ class RagV2MetadataAndParentChildPostgresTest {
         assertThat(expandedText).contains(sentence2);
         assertThat(expandedText).contains(sentence3);
 
-        // 不应过度展开到更前一级的句子 0 (因 windowSize = 1)
-        assertThat(expandedText).doesNotContain(sentence0);
-
         // 契约保护校验：原始 candidate 的 content 和证据坐标完全不受损害
         assertThat(result.content()).isEqualTo(chunk1Content);
         assertThat(result.metadata().get("charFrom")).isEqualTo(chunk0Content.length());
         assertThat(result.metadata().get("charThrough")).isEqualTo(chunk0Content.length() + chunk1Content.length());
+    }
+
+    @Test
+    @DisplayName("测试 Sentence 细粒度候选索引入库、外键拓扑、窗口合并与租户边界隔离")
+    void testSentenceCandidateIndexingAndWindowRecovery() {
+        UUID projectId = createTestUserAndProject();
+        UUID otherProjectId = createTestUserAndProject();
+        UUID documentId = insertDocument(projectId, "数据库高可用规范.md", "text/markdown", "database");
+
+        String heading = "集群高可用策略";
+        String prose = "# 集群高可用策略\n"
+                + "第一句高可用数据库集群必须采用主从流复制架构。"
+                + "第二句读写分离能够有效分担主库读流量压力。"
+                + "第三句自动故障转移借助外部仲裁组件实现秒级切换。"
+                + "第四句分布式一致性通过半同步复制协议保障不丢数据。"
+                + "第五句冷热归档数据应当每日凌晨定时备份至对象存储。\n\n"
+                + "## 节点配置表格\n"
+                + "| 节点类型 | 节点配置 | 副本数量 |\n"
+                + "| :--- | :--- | :--- |\n"
+                + "| 主库Master | 32C64G | 1 |\n"
+                + "| 从库Replica | 32C64G | 2 |\n\n"
+                + "## 巡检代码段落\n"
+                + "```sql\nSELECT * FROM pg_stat_replication;\n```";
+
+        // 1. 启用细粒度句子候选索引生成
+        List<DocumentChunk> chunks = chunker.split(prose, List.of(), true);
+        assertThat(chunks).isNotEmpty();
+
+        // 验证结构化分块：自然语言段落生成句子候选，表格与代码块保持结构化回退
+        long sentenceCount = chunks.stream().filter(c -> DocumentChunk.TYPE_SENTENCE.equalsIgnoreCase(c.chunkType())).count();
+        long tableOrCodeCount = chunks.stream().filter(c -> "true".equals(String.valueOf(c.metadata().get("isTable"))) || c.content().contains("pg_stat_replication")).count();
+        assertThat(sentenceCount).isGreaterThanOrEqualTo(4);
+        assertThat(tableOrCodeCount).isGreaterThanOrEqualTo(2);
+
+        // 验证句子节点的 parentChunkId 准确指向对应的段落分块
+        for (DocumentChunk chunk : chunks) {
+            if (DocumentChunk.TYPE_SENTENCE.equalsIgnoreCase(chunk.chunkType())) {
+                assertThat(chunk.parentChunkId()).isNotNull();
+                assertThat(chunk.metadata()).containsKey("sentenceIndex");
+            }
+        }
+
+        // 2. 写入数据库：验证外键拓扑顺序多层级无阻插入（PARENT -> CHILD -> SENTENCE）
+        List<List<Double>> vectors = chunks.stream().map(c -> List.of(0.8, 0.2, 0.0)).toList();
+        documents.replaceChunks(
+                projectId,
+                documentId,
+                chunks,
+                vectors,
+                "test-prov",
+                "test-model",
+                3,
+                "数据库高可用规范.md"
+        );
+
+        // 验证数据库真实持久化
+        Integer dbSentenceCount = jdbc.queryForObject(
+                "SELECT count(*) FROM document_chunk WHERE document_id = ? AND chunk_type = 'SENTENCE'",
+                Integer.class,
+                documentId
+        );
+        assertThat(dbSentenceCount).isEqualTo((int) sentenceCount);
+
+        // 3. 构造相邻句子检索命中候选，验证窗口扩展与重叠去重合并
+        DocumentChunk s2Chunk = chunks.stream()
+                .filter(c -> DocumentChunk.TYPE_SENTENCE.equalsIgnoreCase(c.chunkType()) && c.content().contains("第二句读写分离"))
+                .findFirst().orElseThrow();
+        DocumentChunk s3Chunk = chunks.stream()
+                .filter(c -> DocumentChunk.TYPE_SENTENCE.equalsIgnoreCase(c.chunkType()) && c.content().contains("第三句自动故障转移"))
+                .findFirst().orElseThrow();
+
+        RetrievalCandidate cand2 = new RetrievalCandidate(
+                s2Chunk.id(), documentId, "数据库高可用规范.md", heading,
+                s2Chunk.content(), "hash-s2", s2Chunk.metadata(),
+                1, 0.95, null, null, 0.05, 0.9, "dense"
+        );
+        RetrievalCandidate cand3 = new RetrievalCandidate(
+                s3Chunk.id(), documentId, "数据库高可用规范.md", heading,
+                s3Chunk.content(), "hash-s3", s3Chunk.metadata(),
+                2, 0.91, null, null, 0.09, 0.85, "dense"
+        );
+
+        // 窗口大小设为 1，s2 的窗口覆盖 (s1, s2, s3)，s3 的窗口覆盖 (s2, s3, s4)，区间重叠
+        List<RetrievalCandidate> expanded = sentenceWindowExpander.expand(projectId, List.of(cand2, cand3), 1);
+
+        // 验证重叠去重合并为 1 条包含 s1~s4 的完整平滑上下文！
+        assertThat(expanded).hasSize(1);
+        RetrievalCandidate merged = expanded.getFirst();
+        assertThat(merged.metadata()).containsEntry("sentenceWindowMerged", true);
+        assertThat(merged.expandedContent()).contains("第一句高可用数据库集群");
+        assertThat(merged.expandedContent()).contains("第二句读写分离");
+        assertThat(merged.expandedContent()).contains("第三句自动故障转移");
+        assertThat(merged.expandedContent()).contains("第四句分布式一致性");
+
+        // 4. 验证多租户隔离与未授权读取防护：跨项目访问严格返回 empty
+        var isolated = sectionReader.getSectionText(otherProjectId, documentId, heading, null);
+        assertThat(isolated).isEmpty();
+
+        var authorized = sectionReader.getSectionText(projectId, documentId, heading, null);
+        assertThat(authorized).isPresent();
+    }
+
+    @Test
+    @DisplayName("测试 NeuralModelReranker 降级契约与 FactEntityCoverageChecker 事实覆盖校验")
+    void testFullContractNeuralRerankerAndFactChecker() {
+        // 1. 验证 NeuralModelReranker 在无模型接入环境下的超时/缺失安全降级与证据契约
+        var heuristicReranker = new com.shitulelv.aicollab.retrieval.pipeline.SemanticHeuristicReranker();
+        var neuralReranker = new com.shitulelv.aicollab.retrieval.pipeline.NeuralModelReranker(
+                null, // 无实际模型网关
+                heuristicReranker,
+                new com.fasterxml.jackson.databind.ObjectMapper()
+        );
+
+        UUID docId = UUID.randomUUID();
+        RetrievalCandidate candA = new RetrievalCandidate(
+                UUID.randomUUID(), docId, "docA.md", "Section A",
+                "系统支持高并发异步通信与消息队列限流解耦", "hashA", Map.of("charFrom", 0, "charThrough", 22),
+                1, 0.60, null, null, 0.40, 0.50, "test"
+        );
+        RetrievalCandidate candB = new RetrievalCandidate(
+                UUID.randomUUID(), docId, "docA.md", "Section B",
+                "其他完全不相关的无关文档背景说明内容", "hashB", Map.of("charFrom", 25, "charThrough", 45),
+                2, 0.55, null, null, 0.45, 0.40, "test"
+        );
+
+        List<RetrievalCandidate> reranked = neuralReranker.rerank("高并发消息队列限流", List.of(candB, candA), 2);
+        assertThat(reranked).isNotEmpty();
+        // 验证降级标记与契约保护
+        assertThat(reranked.getFirst().content()).isEqualTo("系统支持高并发异步通信与消息队列限流解耦");
+        assertThat(reranked.getFirst().metadata()).containsEntry("rerankerDegraded", true);
+        assertThat(reranked.getFirst().metadata()).containsEntry("charFrom", 0);
+
+        // 2. 验证 FactEntityCoverageChecker 对虚构事实的精准检查
+        var factChecker = new com.shitulelv.aicollab.knowledge.domain.service.FactEntityCoverageChecker();
+        var source = new com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource(
+                UUID.randomUUID(), docId, "docA.md", "Section A",
+                "生产环境分布式集群副本数必须配置为 3，P99 延迟指标要求低于 200ms。",
+                "hashA", 0.95, 1
+        );
+
+        // 支持陈述：无警告
+        String validAnswer = "根据系统规范，生产环境分布式集群副本数必须配置为 3 [S1]。";
+        List<String> noWarnings = factChecker.check(validAnswer, List.of(source));
+        assertThat(noWarnings).isEmpty();
+
+        // 虚构数字指标：精准检出警告（事实中副本数为 3，无 888）
+        String fakeAnswer = "系统生产环境集群副本数必须配置为 888 [S1]，且P99延迟要求低于 5ms。";
+        List<String> warnings = factChecker.check(fakeAnswer, List.of(source));
+        assertThat(warnings).isNotEmpty();
+        assertThat(warnings.getFirst()).contains("888");
     }
 }

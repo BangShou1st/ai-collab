@@ -25,28 +25,28 @@ class ModelAwareTokenCounterTest {
     }
 
     @Test
-    void fineGrainedTokenizerForCl100kAndGptMarkedAsTokenizer() {
-        // 对于 gpt-4 / cl100k 模型，细粒度分词器处理，必须标注为 TOKENIZER，且 estimated = false
+    void patternApproximationForCl100kAndGptMarkedAsEstimated() {
+        // 对于 gpt-4 / cl100k 模型，在未引入全量离线 BPE 词表字典前，模式分词算法必须诚实标注为 ESTIMATED，且 estimated = true
         TokenCount gptCount = counter.countText("Hello world! This is a test: 100 items.", "OPENAI", "gpt-4o");
-        assertThat(gptCount.source()).isEqualTo(TokenCountSource.TOKENIZER);
-        assertThat(gptCount.estimated()).isFalse();
-        assertThat(gptCount.basis()).contains("CL100K");
+        assertThat(gptCount.source()).isEqualTo(TokenCountSource.ESTIMATED);
+        assertThat(gptCount.estimated()).isTrue();
+        assertThat(gptCount.basis()).contains("CL100K_PATTERN_APPROX");
         assertThat(gptCount.count()).isPositive();
     }
 
     @Test
-    void fineGrainedTokenizerForQwenMarkedAsTokenizer() {
-        // 对于 Qwen 模型，支持大词表分词，标注为 TOKENIZER，且 estimated = false
+    void patternApproximationForQwenMarkedAsEstimated() {
+        // 对于 Qwen 模型，模式分词算法必须诚实标注为 ESTIMATED，且 estimated = true
         TokenCount qwenCount = counter.countText("通义千问模型测试混合检索", "DASHSCOPE", "qwen-max");
-        assertThat(qwenCount.source()).isEqualTo(TokenCountSource.TOKENIZER);
-        assertThat(qwenCount.estimated()).isFalse();
-        assertThat(qwenCount.basis()).contains("QWEN");
+        assertThat(qwenCount.source()).isEqualTo(TokenCountSource.ESTIMATED);
+        assertThat(qwenCount.estimated()).isTrue();
+        assertThat(qwenCount.basis()).contains("QWEN_PATTERN_APPROX");
         assertThat(qwenCount.count()).isPositive();
     }
 
     @Test
     void nativeApiProviderMarkedAsNative() {
-        // 原生 API 模式严格标注为 NATIVE
+        // 原生 API 模式严格标注为 NATIVE，且 estimated = false
         TokenCount nativeCount = counter.countText("原生统计接口测试", "NATIVE", "gpt-4o");
         assertThat(nativeCount.source()).isEqualTo(TokenCountSource.NATIVE);
         assertThat(nativeCount.estimated()).isFalse();
@@ -64,8 +64,13 @@ class ModelAwareTokenCounterTest {
 
         // 3 条消息每条包装 4 tokens (12) + primer 3 tokens = 15 tokens 基础协议开销
         assertThat(result.count()).isGreaterThanOrEqualTo(15);
-        assertThat(result.source()).isEqualTo(TokenCountSource.TOKENIZER);
-        assertThat(result.estimated()).isFalse();
+        assertThat(result.source()).isEqualTo(TokenCountSource.ESTIMATED);
+        assertThat(result.estimated()).isTrue();
+
+        // 当使用 NATIVE 提供方时，协议包装结果为 NATIVE
+        TokenCount nativeResult = counter.countMessages(messages, "NATIVE", "gpt-4o");
+        assertThat(nativeResult.source()).isEqualTo(TokenCountSource.NATIVE);
+        assertThat(nativeResult.estimated()).isFalse();
     }
 
     @Test
@@ -79,7 +84,11 @@ class ModelAwareTokenCounterTest {
 
         // 2 个工具每个基础封装 16 tokens = 32 tokens 开销
         assertThat(result.count()).isGreaterThanOrEqualTo(32);
-        assertThat(result.source()).isEqualTo(TokenCountSource.TOKENIZER);
+        assertThat(result.source()).isEqualTo(TokenCountSource.ESTIMATED);
+
+        TokenCount nativeResult = counter.countToolDefinitions(tools, "NATIVE", "gpt-4o");
+        assertThat(nativeResult.source()).isEqualTo(TokenCountSource.NATIVE);
+        assertThat(nativeResult.estimated()).isFalse();
     }
 
     @Test
@@ -100,7 +109,13 @@ class ModelAwareTokenCounterTest {
         assertThat(budget.grandTotalTokens()).isEqualTo(
                 budget.totalInputTokens() + outputReserve + safetyMargin
         );
-        assertThat(budget.source()).isEqualTo(TokenCountSource.TOKENIZER);
-        assertThat(budget.estimated()).isFalse();
+        assertThat(budget.source()).isEqualTo(TokenCountSource.ESTIMATED);
+        assertThat(budget.estimated()).isTrue();
+
+        AgentContextBudget.RequestTokenBudget nativeBudget = AgentContextBudget.calculateRequestTokens(
+                counter, messages, tools, outputReserve, safetyMargin, "NATIVE", "gpt-4o"
+        );
+        assertThat(nativeBudget.source()).isEqualTo(TokenCountSource.NATIVE);
+        assertThat(nativeBudget.estimated()).isFalse();
     }
 }

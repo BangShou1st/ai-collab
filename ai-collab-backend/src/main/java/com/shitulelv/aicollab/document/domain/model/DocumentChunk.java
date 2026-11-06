@@ -17,6 +17,7 @@ public record DocumentChunk(
     public static final String TYPE_STANDARD = "STANDARD";
     public static final String TYPE_PARENT = "PARENT";
     public static final String TYPE_CHILD = "CHILD";
+    public static final String TYPE_SENTENCE = "SENTENCE";
 
     public DocumentChunk(int chunkNo, String heading, String content, String contentHash, int tokenEstimate,
                          Map<String, Object> metadata, UUID parentChunkId, String chunkType) {

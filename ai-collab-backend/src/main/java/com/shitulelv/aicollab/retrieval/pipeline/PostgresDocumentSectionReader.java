@@ -49,18 +49,37 @@ public class PostgresDocumentSectionReader implements DocumentSectionReader {
             // 2. 优先从 document_chunk 中读取真实的 PARENT 块（长章节在分块时完整保存在 PARENT 块中）
             List<String> parentProse;
             if (heading != null && !heading.isBlank()) {
-                parentProse = jdbcTemplate.query(
-                        "SELECT content FROM document_chunk WHERE document_id = ? AND chunk_type = 'PARENT' AND heading = ? LIMIT 1",
-                        (rs, rowNum) -> rs.getString("content"),
-                        documentId,
-                        heading
-                );
+                if (projectId != null) {
+                    parentProse = jdbcTemplate.query(
+                            "SELECT content FROM document_chunk WHERE project_id = ? AND document_id = ? AND chunk_type = 'PARENT' AND heading = ? LIMIT 1",
+                            (rs, rowNum) -> rs.getString("content"),
+                            projectId,
+                            documentId,
+                            heading
+                    );
+                } else {
+                    parentProse = jdbcTemplate.query(
+                            "SELECT content FROM document_chunk WHERE document_id = ? AND chunk_type = 'PARENT' AND heading = ? LIMIT 1",
+                            (rs, rowNum) -> rs.getString("content"),
+                            documentId,
+                            heading
+                    );
+                }
             } else {
-                parentProse = jdbcTemplate.query(
-                        "SELECT content FROM document_chunk WHERE document_id = ? AND chunk_type = 'PARENT' AND (heading IS NULL OR heading = '') LIMIT 1",
-                        (rs, rowNum) -> rs.getString("content"),
-                        documentId
-                );
+                if (projectId != null) {
+                    parentProse = jdbcTemplate.query(
+                            "SELECT content FROM document_chunk WHERE project_id = ? AND document_id = ? AND chunk_type = 'PARENT' AND (heading IS NULL OR heading = '') LIMIT 1",
+                            (rs, rowNum) -> rs.getString("content"),
+                            projectId,
+                            documentId
+                    );
+                } else {
+                    parentProse = jdbcTemplate.query(
+                            "SELECT content FROM document_chunk WHERE document_id = ? AND chunk_type = 'PARENT' AND (heading IS NULL OR heading = '') LIMIT 1",
+                            (rs, rowNum) -> rs.getString("content"),
+                            documentId
+                    );
+                }
             }
 
             if (!parentProse.isEmpty() && parentProse.getFirst() != null && !parentProse.getFirst().isBlank()) {
@@ -112,29 +131,60 @@ public class PostgresDocumentSectionReader implements DocumentSectionReader {
                 }
             }
 
-            // 4. 回退从 document_chunk（非 PARENT 块）按 chunk_no ASC 拼接章节内容
+            // 4. 回退从 document_chunk（排除 PARENT 块和细粒度 SENTENCE 候选块，仅拼接段落块）按 chunk_no ASC 拼接章节内容
             List<String> docChunks;
             if (heading != null && !heading.isBlank()) {
-                docChunks = jdbcTemplate.query(
-                        """
-                        SELECT content FROM document_chunk
-                        WHERE document_id = ? AND heading = ? AND (chunk_type IS NULL OR chunk_type <> 'PARENT')
-                        ORDER BY chunk_no ASC
-                        """,
-                        (rs, rowNum) -> rs.getString("content"),
-                        documentId,
-                        heading
-                );
+                if (projectId != null) {
+                    docChunks = jdbcTemplate.query(
+                            """
+                            SELECT content FROM document_chunk
+                            WHERE project_id = ? AND document_id = ? AND heading = ?
+                              AND (chunk_type IS NULL OR (chunk_type <> 'PARENT' AND chunk_type <> 'SENTENCE'))
+                            ORDER BY chunk_no ASC
+                            """,
+                            (rs, rowNum) -> rs.getString("content"),
+                            projectId,
+                            documentId,
+                            heading
+                    );
+                } else {
+                    docChunks = jdbcTemplate.query(
+                            """
+                            SELECT content FROM document_chunk
+                            WHERE document_id = ? AND heading = ?
+                              AND (chunk_type IS NULL OR (chunk_type <> 'PARENT' AND chunk_type <> 'SENTENCE'))
+                            ORDER BY chunk_no ASC
+                            """,
+                            (rs, rowNum) -> rs.getString("content"),
+                            documentId,
+                            heading
+                    );
+                }
             } else {
-                docChunks = jdbcTemplate.query(
-                        """
-                        SELECT content FROM document_chunk
-                        WHERE document_id = ? AND (heading IS NULL OR heading = '') AND (chunk_type IS NULL OR chunk_type <> 'PARENT')
-                        ORDER BY chunk_no ASC
-                        """,
-                        (rs, rowNum) -> rs.getString("content"),
-                        documentId
-                );
+                if (projectId != null) {
+                    docChunks = jdbcTemplate.query(
+                            """
+                            SELECT content FROM document_chunk
+                            WHERE project_id = ? AND document_id = ? AND (heading IS NULL OR heading = '')
+                              AND (chunk_type IS NULL OR (chunk_type <> 'PARENT' AND chunk_type <> 'SENTENCE'))
+                            ORDER BY chunk_no ASC
+                            """,
+                            (rs, rowNum) -> rs.getString("content"),
+                            projectId,
+                            documentId
+                    );
+                } else {
+                    docChunks = jdbcTemplate.query(
+                            """
+                            SELECT content FROM document_chunk
+                            WHERE document_id = ? AND (heading IS NULL OR heading = '')
+                              AND (chunk_type IS NULL OR (chunk_type <> 'PARENT' AND chunk_type <> 'SENTENCE'))
+                            ORDER BY chunk_no ASC
+                            """,
+                            (rs, rowNum) -> rs.getString("content"),
+                            documentId
+                    );
+                }
             }
 
             if (!docChunks.isEmpty()) {

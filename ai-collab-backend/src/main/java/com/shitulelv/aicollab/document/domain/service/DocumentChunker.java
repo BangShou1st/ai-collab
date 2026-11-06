@@ -24,10 +24,18 @@ public class DocumentChunker {
     private static final int MAX_HEADING_CODE_POINTS = 300;
 
     public List<DocumentChunk> split(String text) {
-        return split(text, List.of());
+        return split(text, List.of(), false);
+    }
+
+    public List<DocumentChunk> split(String text, boolean enableSentenceIndexing) {
+        return split(text, List.of(), enableSentenceIndexing);
     }
 
     public List<DocumentChunk> split(String text, List<ParsedDocument.PageBoundary> pageBoundaries) {
+        return split(text, pageBoundaries, false);
+    }
+
+    public List<DocumentChunk> split(String text, List<ParsedDocument.PageBoundary> pageBoundaries, boolean enableSentenceIndexing) {
         if (text == null || text.isBlank()) {
             return List.of();
         }
@@ -39,11 +47,26 @@ public class DocumentChunker {
             String sectionContent = section.content();
             int sectionOffset = section.offset();
             int len = sectionContent.length();
+            int sentenceSeq = 0;
 
             // 若整节偏小，直接作为单块 (STANDARD)
             if (len <= TARGET + 200) {
-                addChunk(result, null, section.heading(), sectionContent, sectionOffset, sectionOffset + len,
-                        pageBoundaries, null, null, DocumentChunk.TYPE_STANDARD);
+                UUID stdId = UUID.randomUUID();
+                boolean table = isTable(sectionContent);
+                boolean code = isCode(sectionContent);
+                String cType = DocumentChunk.TYPE_STANDARD;
+
+                Map<String, Object> extra = new LinkedHashMap<>();
+                if (table) extra.put("isTable", true);
+                if (code) extra.put("isCode", true);
+
+                addChunk(result, stdId, section.heading(), sectionContent, sectionOffset, sectionOffset + len,
+                        pageBoundaries, extra, null, cType);
+
+                if (enableSentenceIndexing && !table && !code) {
+                    sentenceSeq = extractAndAddSentences(result, sectionContent, sectionOffset, section.heading(),
+                            pageBoundaries, stdId, sentenceSeq);
+                }
                 continue;
             }
 
@@ -68,6 +91,7 @@ public class DocumentChunker {
                 int sourceEnd = sourceStart + content.length();
 
                 if (!content.isBlank()) {
+                    UUID childId = UUID.randomUUID();
                     Map<String, Object> extra = new LinkedHashMap<>();
                     extra.put("parentHeading", section.heading());
                     extra.put("parentSnippet", parentSnippet);
@@ -75,8 +99,19 @@ public class DocumentChunker {
                     extra.put("parentCharThrough", sectionOffset + len);
                     extra.put("parentChunkId", parentId.toString());
 
-                    addChunk(result, null, section.heading(), content, sourceStart, sourceEnd,
-                            pageBoundaries, extra, parentId, DocumentChunk.TYPE_CHILD);
+                    boolean childTable = isTable(content);
+                    boolean childCode = isCode(content);
+                    String childType = DocumentChunk.TYPE_CHILD;
+                    if (childTable) extra.put("isTable", true);
+                    if (childCode) extra.put("isCode", true);
+
+                    addChunk(result, childId, section.heading(), content, sourceStart, sourceEnd,
+                            pageBoundaries, extra, parentId, childType);
+
+                    if (enableSentenceIndexing && !childTable && !childCode) {
+                        sentenceSeq = extractAndAddSentences(result, content, sourceStart, section.heading(),
+                                pageBoundaries, childId, sentenceSeq);
+                    }
                 }
 
                 if (end >= len) break;
@@ -86,6 +121,54 @@ public class DocumentChunker {
         }
 
         return result;
+    }
+
+    private static boolean isTable(String text) {
+        if (text == null) return false;
+        String trimmed = text.trim();
+        return (trimmed.contains("|") && trimmed.contains("\n|")) || (trimmed.startsWith("|") && trimmed.endsWith("|"));
+    }
+
+    private static boolean isCode(String text) {
+        if (text == null) return false;
+        String trimmed = text.trim();
+        return trimmed.startsWith("```") || trimmed.contains("\n```");
+    }
+
+    private static boolean isTableOrCodeBlock(String text) {
+        return isTable(text) || isCode(text);
+    }
+
+    private int extractAndAddSentences(List<DocumentChunk> result, String text, int baseOffset, String heading,
+                                      List<ParsedDocument.PageBoundary> pageBoundaries, UUID parentChunkId, int startSeq) {
+        int seq = startSeq;
+        int len = text.length();
+        int sentStart = 0;
+
+        for (int i = 0; i < len; i++) {
+            char c = text.charAt(i);
+            boolean isBoundary = (c == '。' || c == '！' || c == '？' || c == '!' || c == '?' || c == '；' || c == ';');
+            if (isBoundary || i == len - 1) {
+                int sentEnd = i + 1;
+                String sentence = text.substring(sentStart, sentEnd).trim();
+                if (sentence.length() >= 8) {
+                    int leading = text.substring(sentStart, sentEnd).indexOf(sentence);
+                    int globalStart = baseOffset + sentStart + Math.max(0, leading);
+                    int globalEnd = globalStart + sentence.length();
+
+                    Map<String, Object> sentMeta = new LinkedHashMap<>();
+                    sentMeta.put("sentenceIndex", seq++);
+                    sentMeta.put("parentChunkId", parentChunkId.toString());
+                    sentMeta.put("parentHeading", heading);
+                    sentMeta.put("chunkType", DocumentChunk.TYPE_SENTENCE);
+
+                    addChunk(result, UUID.randomUUID(), heading, sentence, globalStart, globalEnd,
+                            pageBoundaries, sentMeta, parentChunkId, DocumentChunk.TYPE_SENTENCE);
+                }
+                sentStart = sentEnd;
+            }
+        }
+        return seq;
     }
 
     private void addChunk(List<DocumentChunk> result, UUID id, String heading, String content,
