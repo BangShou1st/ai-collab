@@ -117,12 +117,15 @@ public class KnowledgeContextBuilder {
                 }
             }
 
+            // 优先检查并使用扩展后的句子窗口上下文 (Sentence Window Retrieval)，防止上下文丢失
+            String bodyContent = resolveEffectiveBodyContent(hit);
+
             String sourceBlock = separator
                     + "[S" + rank + "]\n"
                     + "文件：" + filename + "\n"
                     + "标题：" + heading + "\n"
                     + parentContext
-                    + "内容：" + KnowledgePromptText.escapeXmlText(hit.content(), 1500).escaped();
+                    + "内容：" + KnowledgePromptText.escapeXmlText(bodyContent, 1500).escaped();
 
             int blockTokens = tokenCounter != null
                     ? tokenCounter.countText(sourceBlock, provider, model).count()
@@ -245,7 +248,7 @@ public class KnowledgeContextBuilder {
             }
 
             KnowledgePromptText.EscapedText content = KnowledgePromptText.escapeXmlText(
-                    hit.content(), remaining - prefixLength);
+                    resolveEffectiveBodyContent(hit), remaining - prefixLength);
             if (content.original().isBlank()) {
                 dropped.put(hit.id(), ContextDropReason.BODY_BUDGET);
                 continue;
@@ -306,7 +309,7 @@ public class KnowledgeContextBuilder {
             }
 
             KnowledgePromptText.EscapedText content = KnowledgePromptText.escapeXmlText(
-                    hit.content(), allowance);
+                    resolveEffectiveBodyContent(hit), allowance);
             if (content.original().isBlank()) {
                 dropped.put(hit.id(), ContextDropReason.BODY_BUDGET);
                 continue;
@@ -368,6 +371,16 @@ public class KnowledgeContextBuilder {
             throw new IllegalArgumentException(
                     "maxSources 必须在 1 到 " + MAX_SOURCES_LIMIT + " 之间");
         }
+    }
+
+    private static String resolveEffectiveBodyContent(DocumentSearchHit hit) {
+        if (hit != null && hit.metadata() != null && hit.metadata().containsKey("expandedContent")) {
+            Object exp = hit.metadata().get("expandedContent");
+            if (exp instanceof String expStr && !expStr.isBlank()) {
+                return expStr;
+            }
+        }
+        return hit != null ? hit.content() : "";
     }
 
     private static int codePointLength(String value) {

@@ -2,6 +2,8 @@ package com.shitulelv.aicollab.retrieval.pipeline;
 
 import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
 import com.shitulelv.aicollab.retrieval.query.MetadataFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +24,8 @@ import java.util.*;
  */
 @Service
 public class RetrievalPipeline {
+
+    private static final Logger log = LoggerFactory.getLogger(RetrievalPipeline.class);
 
     private final Retriever denseRetriever;
     private final Retriever lexicalRetriever;
@@ -173,10 +177,15 @@ public class RetrievalPipeline {
         long startDense = System.currentTimeMillis();
         List<RetrievalCandidate> denseCandidates;
         if (denseRetriever != null) {
-            if (criteria != null) {
-                denseCandidates = denseRetriever.retrieve(projectId, query, documentIds, config.denseTopK(), criteria);
-            } else {
-                denseCandidates = denseRetriever.retrieve(projectId, query, documentIds, config.denseTopK());
+            try {
+                if (criteria != null) {
+                    denseCandidates = denseRetriever.retrieve(projectId, query, documentIds, config.denseTopK(), criteria);
+                } else {
+                    denseCandidates = denseRetriever.retrieve(projectId, query, documentIds, config.denseTopK());
+                }
+            } catch (Exception e) {
+                log.warn("Dense 检索异常或未配置嵌入模型，平滑降级为词项检索: project={}, query={}, err={}", projectId, query, e.getMessage());
+                denseCandidates = List.of();
             }
         } else {
             denseCandidates = List.of();
@@ -187,10 +196,15 @@ public class RetrievalPipeline {
         long startLexical = System.currentTimeMillis();
         List<RetrievalCandidate> lexicalCandidates;
         if (lexicalRetriever != null) {
-            if (criteria != null) {
-                lexicalCandidates = lexicalRetriever.retrieve(projectId, query, documentIds, config.lexicalTopK(), criteria);
-            } else {
-                lexicalCandidates = lexicalRetriever.retrieve(projectId, query, documentIds, config.lexicalTopK());
+            try {
+                if (criteria != null) {
+                    lexicalCandidates = lexicalRetriever.retrieve(projectId, query, documentIds, config.lexicalTopK(), criteria);
+                } else {
+                    lexicalCandidates = lexicalRetriever.retrieve(projectId, query, documentIds, config.lexicalTopK());
+                }
+            } catch (Exception e) {
+                log.warn("Lexical 检索异常，平滑降级: project={}, query={}, err={}", projectId, query, e.getMessage());
+                lexicalCandidates = List.of();
             }
         } else {
             lexicalCandidates = List.of();

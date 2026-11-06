@@ -75,6 +75,20 @@ class RagV2MetadataAndParentChildPostgresTest {
     @Autowired
     PostgresDocumentSectionReader sectionReader;
 
+    @Autowired(required = false)
+    com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline retrievalPipeline;
+
+    @Autowired(required = false)
+    com.shitulelv.aicollab.knowledge.domain.service.KnowledgeContextBuilder contextBuilder;
+
+    @Autowired(required = false)
+    com.shitulelv.aicollab.common.ai.token.ModelAwareTokenCounter tokenCounter;
+
+    @org.junit.jupiter.api.BeforeEach
+    void cleanState() {
+        jdbc.update("DELETE FROM system_embedding_config");
+    }
+
     private UUID createTestUserAndProject() {
         UUID userId = UUID.randomUUID();
         UUID projectId = UUID.randomUUID();
@@ -522,5 +536,153 @@ class RagV2MetadataAndParentChildPostgresTest {
         List<String> warnings = factChecker.check(fakeAnswer, List.of(source));
         assertThat(warnings).isNotEmpty();
         assertThat(warnings.getFirst()).contains("888");
+    }
+
+    @Test
+    @DisplayName("测试句子检索生产全链路端到端真实性：入库->Dense/Lexical召回->窗口恢复->重叠合并->Context装配->历史兼容")
+    void testSentenceRetrievalProductionEndToEndPipeline() {
+        UUID projectId = createTestUserAndProject();
+        UUID otherProjectId = createTestUserAndProject();
+
+        // 1. 真实构建包含自然语言多句、表格、代码块的目标文档
+        UUID docId = insertDocument(projectId, "分布式事务与幂等设计规范.md", "text/markdown", "finance");
+        String content = "# 分布式事务规范\n"
+                + "第一句分布式系统必须保证最终一致性原则。"
+                + "第二句核心结算业务推荐优先使用Saga事务编排模式。"
+                + "第三句在逆向冲正补偿阶段必须设计幂等防重保障。"
+                + "第四句各阶段事务状态必须持久化至事件溯源日志。"
+                + "第五句极端异常情形由人工运营后台干预兜底。\n\n"
+                + "## 交易网关配置\n"
+                + "| 节点名称 | 责任划分 | 容灾策略 |\n"
+                + "| :--- | :--- | :--- |\n"
+                + "| 支付网关 | 入账与前置校验 | 双活部署 |\n"
+                + "| 账务中心 | 分布式记账 | 本地多副本 |\n\n"
+                + "## 事务监控命令\n"
+                + "```sql\nSELECT * FROM tx_saga_log WHERE status = 'PENDING';\n```";
+
+        // 使用生产分块器生成全量块（含 SENTENCE、CHILD、PARENT、结构化 STANDARD）
+        List<DocumentChunk> chunks = chunker.split(content, List.of(), true);
+        assertThat(chunks).isNotEmpty();
+
+        // 验证句子候选生成：包含 SENTENCE 类型与指向父块的外键 ID
+        DocumentChunk s3Candidate = chunks.stream()
+                .filter(c -> DocumentChunk.TYPE_SENTENCE.equalsIgnoreCase(c.chunkType()) && c.content().contains("逆向冲正补偿阶段"))
+                .findFirst().orElseThrow();
+        assertThat(s3Candidate.parentChunkId()).isNotNull();
+
+        // 为每个分块分配向量并落库（s3Candidate 向量与查询高度对齐）
+        java.util.List<java.util.List<Double>> vectors = new java.util.ArrayList<>();
+        for (DocumentChunk c : chunks) {
+            if (c.id().equals(s3Candidate.id())) {
+                vectors.add(List.of(0.95, 0.05, 0.0)); // 高相似度命中
+            } else {
+                vectors.add(List.of(0.1, 0.9, 0.0));
+            }
+        }
+
+        documents.replaceChunks(
+                projectId,
+                docId,
+                chunks,
+                vectors,
+                "test-prov",
+                "test-model",
+                3,
+                "分布式事务与幂等设计规范.md"
+        );
+
+        // 2. 构造历史遗留文档（仅包含 STANDARD 块，无 parent_chunk_id 与句子索引），验证兼容性
+        UUID legacyDocId = insertDocument(projectId, "历史遗留旧文档.md", "text/markdown", "legacy");
+        DocumentChunk legacyChunk = new DocumentChunk(
+                0, "历史架构", "历史老旧系统采用简单的两阶段提交2PC协议，存在单点协调者阻塞风险。",
+                "legacy-hash", 30, Map.of("charFrom", 0, "charThrough", 40)
+        );
+        documents.replaceChunks(
+                projectId,
+                legacyDocId,
+                List.of(legacyChunk),
+                List.of(List.of(0.8, 0.2, 0.0)),
+                "test-prov",
+                "test-model",
+                3,
+                "历史遗留旧文档.md"
+        );
+
+        // 3. 验证数据库真实持久化
+        Integer dbSentenceCount = jdbc.queryForObject(
+                "SELECT count(*) FROM document_chunk WHERE document_id = ? AND chunk_type = 'SENTENCE'",
+                Integer.class,
+                docId
+        );
+        assertThat(dbSentenceCount).isPositive();
+
+        // 4. 通过生产真实检索入口发起检索：retrievalPipeline.execute
+        assertThat(retrievalPipeline).isNotNull();
+        var pipelineConfig = com.shitulelv.aicollab.retrieval.pipeline.RetrievalPipeline.PipelineConfig.defaultConfig();
+        var retrievalResult = retrievalPipeline.execute(
+                projectId,
+                "逆向冲正补偿阶段必须设计幂等",
+                List.of(docId),
+                pipelineConfig
+        );
+
+        // 5. 验证检索结果
+        assertThat(retrievalResult.candidates()).isNotEmpty();
+
+        // A. 候选列表中包含真实命中的 SENTENCE 节点或合并该句子的窗口代表
+        var sentenceCandidate = retrievalResult.candidates().stream()
+                .filter(c -> c.id().equals(s3Candidate.id())
+                        || (c.metadata().get("mergedChunkIds") instanceof List<?> list && list.contains(s3Candidate.id())))
+                .findFirst().orElseThrow(() -> new AssertionError("候选列表中未找到包含 SENTENCE 节点 " + s3Candidate.id() + " 的窗口"));
+
+        assertThat(sentenceCandidate.effectiveContent()).contains("逆向冲正补偿阶段必须设计幂等防重保障");
+
+        // B. 原始证据契约严格保持不可变：chunkId, documentId, content, charFrom/charThrough
+        assertThat(sentenceCandidate.documentId()).isEqualTo(docId);
+        assertThat(sentenceCandidate.metadata()).containsKey("charFrom");
+        assertThat(sentenceCandidate.metadata()).containsKey("charThrough");
+
+        // C. 句子窗口扩展验证：从数据库中恢复了前后句（包含第二句 Saga 模式与第四句持久化日志）
+        String expandedText = sentenceCandidate.expandedContent();
+        assertThat(expandedText).isNotNull();
+        assertThat(expandedText).contains("第二句核心结算业务推荐优先使用Saga事务编排模式");
+        assertThat(expandedText).contains("第三句在逆向冲正补偿阶段必须设计幂等防重保障");
+        assertThat(expandedText).contains("第四句各阶段事务状态必须持久化至事件溯源日志");
+
+        // D. 租户隔离验证：跨项目检索严格隔离
+        var isolatedResult = retrievalPipeline.execute(
+                otherProjectId,
+                "逆向冲正补偿阶段必须设计幂等",
+                null,
+                pipelineConfig
+        );
+        assertThat(isolatedResult.candidates()).isEmpty();
+
+        // 6. 验证 KnowledgeContextBuilder 证据装配是否采纳扩展后的上下文
+        assertThat(contextBuilder).isNotNull();
+        List<DocumentSearchHit> hits = retrievalResult.toDocumentSearchHits();
+        var contextResult = contextBuilder.buildWithTokenBudget(
+                hits, 5, 2500, tokenCounter, "OPENAI", "gpt-4o"
+        );
+
+        var promptSources = contextResult.context().promptSources();
+        assertThat(promptSources).isNotEmpty();
+        // 核心验证：最终注入 Prompt 的内容必须包含扩展后的句子窗口文本，而不是仅保留截断的孤立短句！
+        assertThat(promptSources).contains("第二句核心结算业务推荐优先使用Saga事务编排模式");
+        assertThat(promptSources).contains("第三句在逆向冲正补偿阶段必须设计幂等防重保障");
+        assertThat(promptSources).contains("第四句各阶段事务状态必须持久化至事件溯源日志");
+
+        // 7. 验证历史 STANDARD Chunk 的检索与装配无任何回归
+        var legacyResult = retrievalPipeline.execute(
+                projectId,
+                "历史老旧系统采用简单的两阶段提交",
+                List.of(legacyDocId),
+                pipelineConfig
+        );
+        assertThat(legacyResult.candidates()).isNotEmpty();
+        assertThat(legacyResult.candidates().getFirst().content()).contains("两阶段提交2PC协议");
+
+        var legacyContext = contextBuilder.buildBalanced(legacyResult.toDocumentSearchHits());
+        assertThat(legacyContext.promptSources()).contains("两阶段提交2PC协议");
     }
 }
