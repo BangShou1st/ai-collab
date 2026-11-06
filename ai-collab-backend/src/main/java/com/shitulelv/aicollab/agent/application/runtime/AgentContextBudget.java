@@ -46,6 +46,68 @@ public final class AgentContextBudget {
         return (text.length() + 2) / 3;
     }
 
+    /**
+     * 统筹计算消息列表与工具定义在协议开销、Schema、输出预留和安全余量下的总 Token 预算。
+     */
+    public static RequestTokenBudget calculateRequestTokens(
+            com.shitulelv.aicollab.common.ai.token.TokenCounter counter,
+            java.util.List<?> messages,
+            java.util.List<?> tools,
+            int outputReserve,
+            int safetyMargin,
+            String provider,
+            String model) {
+        com.shitulelv.aicollab.common.ai.token.TokenCount msgCount = counter != null
+                ? counter.countMessages(messages, provider, model)
+                : com.shitulelv.aicollab.common.ai.token.TokenCount.estimated(estimateFallback(messages), "FALLBACK_MESSAGES");
+        com.shitulelv.aicollab.common.ai.token.TokenCount toolCount = counter != null
+                ? counter.countToolDefinitions(tools, provider, model)
+                : com.shitulelv.aicollab.common.ai.token.TokenCount.estimated(estimateFallback(tools), "FALLBACK_TOOLS");
+
+        int inputTokens = msgCount.count() + toolCount.count();
+        int totalOccupied = inputTokens + outputReserve + safetyMargin;
+        boolean isEstimated = msgCount.estimated() || toolCount.estimated();
+        com.shitulelv.aicollab.common.ai.token.TokenCountSource source =
+                (msgCount.source() == com.shitulelv.aicollab.common.ai.token.TokenCountSource.NATIVE
+                        && toolCount.source() == com.shitulelv.aicollab.common.ai.token.TokenCountSource.NATIVE)
+                        ? com.shitulelv.aicollab.common.ai.token.TokenCountSource.NATIVE
+                        : (msgCount.source() == com.shitulelv.aicollab.common.ai.token.TokenCountSource.TOKENIZER
+                        && toolCount.source() == com.shitulelv.aicollab.common.ai.token.TokenCountSource.TOKENIZER)
+                        ? com.shitulelv.aicollab.common.ai.token.TokenCountSource.TOKENIZER
+                        : com.shitulelv.aicollab.common.ai.token.TokenCountSource.ESTIMATED;
+
+        return new RequestTokenBudget(
+                inputTokens,
+                msgCount.count(),
+                toolCount.count(),
+                outputReserve,
+                safetyMargin,
+                totalOccupied,
+                source,
+                isEstimated
+        );
+    }
+
+    private static int estimateFallback(java.util.List<?> items) {
+        if (items == null || items.isEmpty()) return 0;
+        int chars = 0;
+        for (Object it : items) {
+            if (it != null) chars += it.toString().length();
+        }
+        return Math.max(0, (chars + 2) / 3);
+    }
+
+    public record RequestTokenBudget(
+            int totalInputTokens,
+            int messageTokens,
+            int toolSchemaTokens,
+            int outputReserveTokens,
+            int safetyMarginTokens,
+            int grandTotalTokens,
+            com.shitulelv.aicollab.common.ai.token.TokenCountSource source,
+            boolean estimated) {
+    }
+
     /** 约束来源：单次请求被哪一项绑定，超限时用于区分原因。 */
     public static final String BINDING_RUN_INPUT_BUDGET = "RUN_INPUT_BUDGET";
     public static final String BINDING_PER_REQUEST_CAP = "PER_REQUEST_CAP";

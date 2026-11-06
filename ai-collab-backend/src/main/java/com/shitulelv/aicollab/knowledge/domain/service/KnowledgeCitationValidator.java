@@ -2,6 +2,7 @@ package com.shitulelv.aicollab.knowledge.domain.service;
 
 import com.shitulelv.aicollab.knowledge.domain.model.KnowledgeSource;
 import com.shitulelv.aicollab.knowledge.domain.model.ValidatedKnowledgeAnswer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -21,7 +22,19 @@ import java.util.stream.Collectors;
 @Component
 public class KnowledgeCitationValidator {
     public static final String INSUFFICIENT_ANSWER = "当前项目资料不足以回答该问题";
+    public static final int MIN_SOURCE_CONTENT_LENGTH = 20;
     private static final Pattern CITATION = Pattern.compile("\\[(S\\d+(?:\\s*,\\s*S\\d+)*)]");
+
+    private final FactEntityCoverageChecker factCoverageChecker;
+
+    public KnowledgeCitationValidator() {
+        this(new FactEntityCoverageChecker());
+    }
+
+    @Autowired
+    public KnowledgeCitationValidator(@Autowired(required = false) FactEntityCoverageChecker factCoverageChecker) {
+        this.factCoverageChecker = factCoverageChecker != null ? factCoverageChecker : new FactEntityCoverageChecker();
+    }
 
     public ValidatedKnowledgeAnswer validate(String answer, List<KnowledgeSource> sources) {
         return validate(answer, sources, null);
@@ -41,6 +54,7 @@ public class KnowledgeCitationValidator {
         Matcher matcher = CITATION.matcher(normalizedAnswer);
         StringBuffer cleaned = new StringBuffer();
         Set<Integer> validRanks = new LinkedHashSet<>();
+        List<String> unsupportedClaims = new ArrayList<>();
         int invalid = 0;
 
         while (matcher.find()) {
@@ -74,18 +88,35 @@ public class KnowledgeCitationValidator {
 
         List<KnowledgeSource> cited = new ArrayList<>(validRanks.size());
         for (Integer rank : validRanks) {
-            cited.add(byRank.get(rank));
+            KnowledgeSource src = byRank.get(rank);
+            cited.add(src);
+
+            // 证据有效性检测：检查引用所指向的 KnowledgeSource.content() 是否过短截断（如 < 20 字符）
+            if (src.content() == null || src.content().strip().length() < MIN_SOURCE_CONTENT_LENGTH) {
+                String shortText = src.content() == null ? "null" : src.content().strip();
+                unsupportedClaims.add(String.format("引用来源 [S%d] 正文内容过短截断 (%d 字符): '%s'",
+                        rank, shortText.length(), shortText));
+            }
         }
+
         String cleanedAnswer = cleaned.toString().replaceAll("[ \\t]+\\n", "\n").strip();
         if (cleanedAnswer.isBlank() || validRanks.isEmpty()) {
             return insufficient(invalid, true);
         }
+
+        // 轻量级事实实体覆盖率检测 (FactEntityCoverageChecker)
+        if (factCoverageChecker != null) {
+            List<String> claimWarnings = factCoverageChecker.check(cleanedAnswer, cited);
+            unsupportedClaims.addAll(claimWarnings);
+        }
+
         return new ValidatedKnowledgeAnswer(
                 cleanedAnswer,
                 false,
                 List.copyOf(cited),
                 invalid,
-                false);
+                false,
+                Collections.unmodifiableList(unsupportedClaims));
     }
 
     private static boolean isIdentityValid(KnowledgeSource source, UUID expectedProjectId) {
@@ -115,6 +146,6 @@ public class KnowledgeCitationValidator {
 
     private static ValidatedKnowledgeAnswer insufficient(int invalid, boolean invalidOutput) {
         return new ValidatedKnowledgeAnswer(
-                INSUFFICIENT_ANSWER, true, List.of(), invalid, invalidOutput);
+                INSUFFICIENT_ANSWER, true, List.of(), invalid, invalidOutput, List.of());
     }
 }

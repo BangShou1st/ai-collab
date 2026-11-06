@@ -14,6 +14,7 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 public class DocumentChunker {
@@ -39,14 +40,24 @@ public class DocumentChunker {
             int sectionOffset = section.offset();
             int len = sectionContent.length();
 
-            // 若整节偏小，直接作为单块
+            // 若整节偏小，直接作为单块 (STANDARD)
             if (len <= TARGET + 200) {
-                addChunk(result, section.heading(), sectionContent, sectionOffset, sectionOffset + len, pageBoundaries, null, DocumentChunk.TYPE_STANDARD);
+                addChunk(result, null, section.heading(), sectionContent, sectionOffset, sectionOffset + len,
+                        pageBoundaries, null, null, DocumentChunk.TYPE_STANDARD);
                 continue;
             }
 
-            // 较长章节：生成带有父级上下文引用的子分块 (Child Chunks)
+            // 较长章节：生成真实的 DocumentChunk.TYPE_PARENT 块（生成 UUID parentId），子分块为 DocumentChunk.TYPE_CHILD，并且 parentChunkId = parentId
+            UUID parentId = UUID.randomUUID();
             String parentSnippet = truncateParentSnippet(sectionContent, 500);
+
+            Map<String, Object> parentMeta = new LinkedHashMap<>();
+            parentMeta.put("isParent", true);
+
+            addChunk(result, parentId, section.heading(), sectionContent, sectionOffset, sectionOffset + len,
+                    pageBoundaries, parentMeta, null, DocumentChunk.TYPE_PARENT);
+
+            // 生成子分块 (Child Chunks)
             int start = 0;
             while (start < len) {
                 int end = chooseStructuralEnd(sectionContent, start);
@@ -62,8 +73,10 @@ public class DocumentChunker {
                     extra.put("parentSnippet", parentSnippet);
                     extra.put("parentCharFrom", sectionOffset);
                     extra.put("parentCharThrough", sectionOffset + len);
+                    extra.put("parentChunkId", parentId.toString());
 
-                    addChunk(result, section.heading(), content, sourceStart, sourceEnd, pageBoundaries, extra, DocumentChunk.TYPE_CHILD);
+                    addChunk(result, null, section.heading(), content, sourceStart, sourceEnd,
+                            pageBoundaries, extra, parentId, DocumentChunk.TYPE_CHILD);
                 }
 
                 if (end >= len) break;
@@ -75,10 +88,10 @@ public class DocumentChunker {
         return result;
     }
 
-    private void addChunk(List<DocumentChunk> result, String heading, String content,
+    private void addChunk(List<DocumentChunk> result, UUID id, String heading, String content,
                           int sourceStart, int sourceEnd,
                           List<ParsedDocument.PageBoundary> pageBoundaries,
-                          Map<String, Object> extraMetadata, String chunkType) {
+                          Map<String, Object> extraMetadata, UUID parentChunkId, String chunkType) {
         if (result.size() >= MAX_CHUNKS) {
             throw new BusinessException(ErrorCode.DOCUMENT_PARSE_FAILED,
                     "文档内容过长，生成的分块数量超过上限");
@@ -93,19 +106,26 @@ public class DocumentChunker {
             metadata.put("pageNumber", pageNumber);
             metadata.put("pageThrough", resolvePageNumber(Math.max(sourceStart, sourceEnd - 1), pageBoundaries));
         }
+        if (parentChunkId != null) {
+            metadata.put("parentChunkId", parentChunkId.toString());
+        }
+        if (chunkType != null) {
+            metadata.put("chunkType", chunkType);
+        }
         if (extraMetadata != null) {
             metadata.putAll(extraMetadata);
         }
 
         int tokenEstimate = Math.max(1, (content.codePointCount(0, content.length()) + 3) / 4);
         result.add(new DocumentChunk(
+                id,
                 result.size(),
                 truncateHeading(heading),
                 content,
                 sha256(content),
                 tokenEstimate,
                 metadata,
-                null,
+                parentChunkId,
                 chunkType != null ? chunkType : DocumentChunk.TYPE_STANDARD
         ));
     }

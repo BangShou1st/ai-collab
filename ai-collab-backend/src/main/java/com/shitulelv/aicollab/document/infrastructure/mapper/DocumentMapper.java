@@ -8,6 +8,7 @@ import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRecoveryCandidate;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentProcessingAttempt;
+import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Arg;
 import org.apache.ibatis.annotations.ConstructorArgs;
@@ -29,10 +30,22 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             String provider, String model, int dimension, String fingerprint, String embedding) {
         return insertChunk(id, projectId, documentId, chunk, metadata, provider, model, dimension, fingerprint, embedding, null);
     }
+
     default List<DocumentSearchHit> search(UUID projectId, String embedding, String provider, String model,
             int dimension, String fingerprint, List<UUID> documentIds, int topK) {
-        return search(projectId, embedding, provider, model, dimension, fingerprint, documentIds, topK, null);
+        return search(projectId, embedding, provider, model, dimension, fingerprint, documentIds, topK, null, null);
     }
+
+    default List<DocumentSearchHit> search(UUID projectId, String embedding, String provider, String model,
+            int dimension, String fingerprint, List<UUID> documentIds, int topK, UUID generationId) {
+        return search(projectId, embedding, provider, model, dimension, fingerprint, documentIds, topK, generationId, null);
+    }
+
+    default List<DocumentSearchHit> searchLexical(
+            UUID projectId, String query, List<UUID> documentIds, int topK, UUID generationId) {
+        return searchLexical(projectId, query, documentIds, topK, generationId, null);
+    }
+
     String VIEW = """
             SELECT d.*, u.display_name AS uploaded_by_display_name
             FROM project_document d
@@ -213,7 +226,7 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             SELECT c.id, c.document_id AS "documentId",
                    d.original_filename AS "originalFilename",
                    c.heading, c.content, c.content_hash AS "contentHash",
-                   1 - (c.embedding &lt;=> CAST(#{embedding} AS vector)) AS similarity,
+                   1 - (c.embedding &lt;=&gt; CAST(#{embedding} AS vector)) AS similarity,
                    c.metadata
             FROM document_chunk c
             JOIN project_document d ON d.id=c.document_id AND d.project_id=c.project_id
@@ -227,11 +240,65 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
               AND c.embedding_dimension=#{dimension}
               AND c.embedding_fingerprint=#{fingerprint}
               AND c.generation_id IS NOT DISTINCT FROM #{generationId,jdbcType=OTHER}
+              AND (c.chunk_type IS NULL OR c.chunk_type &lt;&gt; 'PARENT')
               <if test="documentIds != null and !documentIds.isEmpty()">
                 AND d.id IN
                 <foreach collection="documentIds" item="id" open="(" separator="," close=")">
                   #{id}
                 </foreach>
+              </if>
+              <if test="criteria != null">
+                <if test="criteria.exactFilename != null and criteria.exactFilename != ''">
+                  AND (d.original_filename = #{criteria.exactFilename} OR d.display_name = #{criteria.exactFilename})
+                </if>
+                <if test="criteria.filenameContains != null and criteria.filenameContains != ''">
+                  AND (d.original_filename ILIKE ('%' || #{criteria.filenameContains} || '%') OR d.display_name ILIKE ('%' || #{criteria.filenameContains} || '%'))
+                </if>
+                <if test="criteria.filenameIn != null and !criteria.filenameIn.isEmpty()">
+                  AND (d.original_filename IN
+                  <foreach collection="criteria.filenameIn" item="fn" open="(" separator="," close=")">
+                    #{fn}
+                  </foreach>
+                  OR d.display_name IN
+                  <foreach collection="criteria.filenameIn" item="fn" open="(" separator="," close=")">
+                    #{fn}
+                  </foreach>)
+                </if>
+                <if test="criteria.exactHeading != null and criteria.exactHeading != ''">
+                  AND c.heading = #{criteria.exactHeading}
+                </if>
+                <if test="criteria.headingContains != null and criteria.headingContains != ''">
+                  AND c.heading ILIKE ('%' || #{criteria.headingContains} || '%')
+                </if>
+                <if test="criteria.createdAfter != null">
+                  AND d.created_at &gt;= #{criteria.createdAfter}
+                </if>
+                <if test="criteria.createdBefore != null">
+                  AND d.created_at &lt;= #{criteria.createdBefore}
+                </if>
+                <if test="criteria.updatedAfter != null">
+                  AND d.updated_at &gt;= #{criteria.updatedAfter}
+                </if>
+                <if test="criteria.updatedBefore != null">
+                  AND d.updated_at &lt;= #{criteria.updatedBefore}
+                </if>
+                <if test="criteria.status != null and criteria.status != ''">
+                  AND d.status = #{criteria.status}
+                </if>
+                <if test="criteria.statusIn != null and !criteria.statusIn.isEmpty()">
+                  AND d.status IN
+                  <foreach collection="criteria.statusIn" item="st" open="(" separator="," close=")">
+                    #{st}
+                  </foreach>
+                </if>
+                <if test="criteria.mimeType != null and criteria.mimeType != ''">
+                  AND d.mime_type = #{criteria.mimeType}
+                </if>
+                <if test="criteria.tagContains != null and criteria.tagContains != ''">
+                  AND (c.metadata @&gt; jsonb_build_object('tags', jsonb_build_array(#{criteria.tagContains}))
+                       OR c.metadata-&gt;&gt;'tags' ILIKE ('%' || #{criteria.tagContains} || '%')
+                       OR c.metadata-&gt;&gt;'tag' ILIKE ('%' || #{criteria.tagContains} || '%'))
+                </if>
               </if>
             ORDER BY similarity DESC, c.id ASC
             LIMIT #{topK}
@@ -257,7 +324,9 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
                                    @Param("dimension") int dimension,
                                    @Param("fingerprint") String fingerprint,
                                    @Param("documentIds") List<UUID> documentIds,
-                                   @Param("topK") int topK, @Param("generationId") UUID generationId);
+                                   @Param("topK") int topK,
+                                   @Param("generationId") UUID generationId,
+                                   @Param("criteria") DocumentFilterCriteria criteria);
 
     @Select("""
             <script>
@@ -279,11 +348,65 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
                 WHERE e.document_id=d.id AND (e.status&lt;&gt;'ACTIVE' OR s.status&lt;&gt;'ACTIVE'
                   OR (s.user_authorization_id IS NOT NULL AND (a.id IS NULL OR a.status&lt;&gt;'ACTIVE' OR a.access_expires_at&lt;=now()))))
               AND c.generation_id IS NOT DISTINCT FROM #{generationId,jdbcType=OTHER}
+              AND (c.chunk_type IS NULL OR c.chunk_type &lt;&gt; 'PARENT')
               <if test="documentIds != null and !documentIds.isEmpty()">
                 AND d.id IN
                 <foreach collection="documentIds" item="id" open="(" separator="," close=")">
                   #{id}
                 </foreach>
+              </if>
+              <if test="criteria != null">
+                <if test="criteria.exactFilename != null and criteria.exactFilename != ''">
+                  AND (d.original_filename = #{criteria.exactFilename} OR d.display_name = #{criteria.exactFilename})
+                </if>
+                <if test="criteria.filenameContains != null and criteria.filenameContains != ''">
+                  AND (d.original_filename ILIKE ('%' || #{criteria.filenameContains} || '%') OR d.display_name ILIKE ('%' || #{criteria.filenameContains} || '%'))
+                </if>
+                <if test="criteria.filenameIn != null and !criteria.filenameIn.isEmpty()">
+                  AND (d.original_filename IN
+                  <foreach collection="criteria.filenameIn" item="fn" open="(" separator="," close=")">
+                    #{fn}
+                  </foreach>
+                  OR d.display_name IN
+                  <foreach collection="criteria.filenameIn" item="fn" open="(" separator="," close=")">
+                    #{fn}
+                  </foreach>)
+                </if>
+                <if test="criteria.exactHeading != null and criteria.exactHeading != ''">
+                  AND c.heading = #{criteria.exactHeading}
+                </if>
+                <if test="criteria.headingContains != null and criteria.headingContains != ''">
+                  AND c.heading ILIKE ('%' || #{criteria.headingContains} || '%')
+                </if>
+                <if test="criteria.createdAfter != null">
+                  AND d.created_at &gt;= #{criteria.createdAfter}
+                </if>
+                <if test="criteria.createdBefore != null">
+                  AND d.created_at &lt;= #{criteria.createdBefore}
+                </if>
+                <if test="criteria.updatedAfter != null">
+                  AND d.updated_at &gt;= #{criteria.updatedAfter}
+                </if>
+                <if test="criteria.updatedBefore != null">
+                  AND d.updated_at &lt;= #{criteria.updatedBefore}
+                </if>
+                <if test="criteria.status != null and criteria.status != ''">
+                  AND d.status = #{criteria.status}
+                </if>
+                <if test="criteria.statusIn != null and !criteria.statusIn.isEmpty()">
+                  AND d.status IN
+                  <foreach collection="criteria.statusIn" item="st" open="(" separator="," close=")">
+                    #{st}
+                  </foreach>
+                </if>
+                <if test="criteria.mimeType != null and criteria.mimeType != ''">
+                  AND d.mime_type = #{criteria.mimeType}
+                </if>
+                <if test="criteria.tagContains != null and criteria.tagContains != ''">
+                  AND (c.metadata @&gt; jsonb_build_object('tags', jsonb_build_array(#{criteria.tagContains}))
+                       OR c.metadata-&gt;&gt;'tags' ILIKE ('%' || #{criteria.tagContains} || '%')
+                       OR c.metadata-&gt;&gt;'tag' ILIKE ('%' || #{criteria.tagContains} || '%'))
+                </if>
               </if>
               AND (
                   c.content % #{query}
@@ -313,7 +436,8 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
             @Param("query") String query,
             @Param("documentIds") List<UUID> documentIds,
             @Param("topK") int topK,
-            @Param("generationId") UUID generationId);
+            @Param("generationId") UUID generationId,
+            @Param("criteria") DocumentFilterCriteria criteria);
 
     @Select("""
             SELECT c.id, c.document_id AS "documentId",

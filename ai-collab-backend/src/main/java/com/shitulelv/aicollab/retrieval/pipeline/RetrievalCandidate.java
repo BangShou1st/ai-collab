@@ -91,6 +91,10 @@ public record RetrievalCandidate(
         );
     }
 
+    public String rerankSource() {
+        return rerankerName;
+    }
+
     public String expandedContent() {
         Object val = metadata.get("expandedContent");
         return val instanceof String s ? s : null;

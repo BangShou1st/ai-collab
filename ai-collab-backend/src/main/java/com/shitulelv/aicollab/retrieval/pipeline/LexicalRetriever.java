@@ -4,6 +4,7 @@ import com.shitulelv.aicollab.document.application.view.DocumentSearchHit;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingConfig;
 import com.shitulelv.aicollab.infrastructure.ai.embedding.SystemEmbeddingConfigRepository;
+import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -33,6 +34,11 @@ public class LexicalRetriever implements Retriever {
 
     @Override
     public List<RetrievalCandidate> retrieve(UUID projectId, String query, List<UUID> documentIds, int topK) {
+        return retrieve(projectId, query, documentIds, topK, (DocumentFilterCriteria) null);
+    }
+
+    @Override
+    public List<RetrievalCandidate> retrieve(UUID projectId, String query, List<UUID> documentIds, int topK, DocumentFilterCriteria criteria) {
         if (query == null || query.isBlank() || topK <= 0) {
             return List.of();
         }
@@ -50,7 +56,8 @@ public class LexicalRetriever implements Retriever {
                 normalizedQuery,
                 documentIds,
                 topK,
-                generationId
+                generationId,
+                criteria
         );
 
         if (hits == null || hits.isEmpty()) {

@@ -1,5 +1,7 @@
 package com.shitulelv.aicollab.retrieval.pipeline;
 
+import com.shitulelv.aicollab.retrieval.query.DocumentFilterCriteria;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -18,4 +20,18 @@ public interface Retriever {
      * @return 检索候选列表，按各路原始得分降序排列
      */
     List<RetrievalCandidate> retrieve(UUID projectId, String query, List<UUID> documentIds, int topK);
+
+    /**
+     * 在指定项目与候选文档范围内执行带元数据硬过滤条件的检索。
+     *
+     * @param projectId   项目 ID
+     * @param query       检索查询文本
+     * @param documentIds 限定的文档 ID 列表，空列表或 null 表示不限定
+     * @param topK        最大召回数
+     * @param criteria    元数据硬过滤条件
+     * @return 检索候选列表，按各路原始得分降序排列
+     */
+    default List<RetrievalCandidate> retrieve(UUID projectId, String query, List<UUID> documentIds, int topK, DocumentFilterCriteria criteria) {
+        return retrieve(projectId, query, documentIds, topK);
+    }
 }
