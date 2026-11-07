@@ -693,6 +693,12 @@ class RetrievalCoveragePostgresTest {
             List<List<Double>> vectors = input.stream().map(queryVectors::get).toList();
             return new EmbeddingBatch(PROVIDER, model, dimension, vectors, fingerprint, generationId);
         });
+when(embeddings.embed(any(), anyList(), any(), any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<String> input = (List<String>) invocation.getArgument(1);
+            List<List<Double>> vectors = input.stream().map(queryVectors::get).toList();
+            return new EmbeddingBatch(PROVIDER, model, dimension, vectors, fingerprint, generationId);
+        });
 
         List<Map<String, Object>> measuredCases = new ArrayList<>();
         for (SemanticCase semanticCase : cases) {
@@ -860,6 +866,9 @@ class RetrievalCoveragePostgresTest {
     private List<DocumentSearchHit> runSearch(
             String query, UUID generationId, List<UUID> documentIds, int topK) {
         when(embeddings.embed(any(), anyList(), any())).thenReturn(new EmbeddingBatch(
+                PROVIDER, MODEL, DIMENSION, List.of(SyntheticEmbedder.embed(query)),
+                FINGERPRINT, generationId));
+when(embeddings.embed(any(), anyList(), any(), any())).thenReturn(new EmbeddingBatch(
                 PROVIDER, MODEL, DIMENSION, List.of(SyntheticEmbedder.embed(query)),
                 FINGERPRINT, generationId));
         return search.search(project, query, documentIds, topK);

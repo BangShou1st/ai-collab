@@ -273,6 +273,9 @@ class RetrievalQualityHardGatePostgresTest {
         when(embeddings.embed(any(), anyList(), any())).thenReturn(new EmbeddingBatch(
                 PROVIDER, MODEL, DIMENSION, List.of(SyntheticEmbedder.embed(query)),
                 FINGERPRINT, generationId));
+when(embeddings.embed(any(), anyList(), any(), any())).thenReturn(new EmbeddingBatch(
+                PROVIDER, MODEL, DIMENSION, List.of(SyntheticEmbedder.embed(query)),
+                FINGERPRINT, generationId));
         return search.search(project, query, documentIds, topK);
     }
 

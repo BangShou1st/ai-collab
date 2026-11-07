@@ -1,6 +1,15 @@
 spring:
     application:
         name: ai-collab-backend
+    datasource:
+        hikari:
+            # RAG_V2_GEMINI_ADAPTIVE_RETRIEVAL-01 阶段 4：词法检索 % 操作符的 trgm 阈值。
+            # 原默认 0.3 使 searchLexical 的 similarity()>0.03 谓词不可索引（GIN trgm 失效），
+            # 触发整表顺序扫描（10 万级语料实测 P50 3032ms）。设为 0.03 后 content % q 单谓词
+            # 即覆盖旧语义（% @0.03 ⊇ % @0.3 ∪ similarity>0.03），BitmapOr 走 GIN 索引
+            # （实测 602ms，6 倍）。语义等价性经 300 冻结查询候选集 diff=0 验证
+            # （docs/optimization/rag-v2-gemini-adaptive-retrieval/04-lexical-sql-performance.md）。
+            connection-init-sql: "SET pg_trgm.similarity_threshold = 0.03"
     data:
         redis:
             # Redis 命令超时：显式安全默认值（Lettuce 默认 60s 过长，Redis 停机时

@@ -408,9 +408,10 @@ public interface DocumentMapper extends BaseMapper<DocumentEntity> {
                        OR c.metadata-&gt;&gt;'tag' ILIKE ('%' || #{criteria.tagContains} || '%'))
                 </if>
               </if>
+              <!-- 阶段 4：similarity()>0.03 谓词已被 % @0.03（连接初始化 GUC）子集覆盖，
+                   移除该不可索引分支使 BitmapOr 走 GIN trgm 索引（语义等价 diff=0 验证） -->
               AND (
                   c.content % #{query}
-                  OR similarity(c.content, #{query}) &gt; 0.03
                   OR c.content ILIKE ('%' || #{query} || '%')
                   OR (c.heading IS NOT NULL AND (c.heading % #{query} OR c.heading ILIKE ('%' || #{query} || '%')))
               )
