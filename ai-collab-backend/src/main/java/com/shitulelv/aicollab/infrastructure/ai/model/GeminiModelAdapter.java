@@ -35,8 +35,7 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
     public ChatCompletionResult complete(
             ModelConfiguration config, String apiKey, ChatCompletionCommand command) {
         long started = System.nanoTime();
-        JsonNode response = http.post(modelEndpoint(config, false), headers(apiKey),
-                request(config, command));
+        JsonNode response = postWithThinkingFallback(config, apiKey, request(config, command));
         return parse(config, response, started);
     }
 
@@ -110,8 +109,7 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
     @Override
     public ModelTurnResult turn(ModelConfiguration config, String apiKey, ModelTurnCommand command) {
         long started = System.nanoTime();
-        JsonNode response = http.post(modelEndpoint(config, false), headers(apiKey),
-                turnRequest(config, command));
+        JsonNode response = postWithThinkingFallback(config, apiKey, turnRequest(config, command));
 
         // 解析 finishReason
         String finishReasonText = response.path("candidates").path(0).path("finishReason").asText("");
@@ -189,11 +187,43 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
 
     // ========== 请求构建（新接口） ==========
 
+    /** 未声明 THINKING 能力时显式关闭思考链：gemini-2.5/3.x 为思考型模型，
+     *  默认思考会以 thoughtsTokenCount 挤占 maxOutputTokens（实测 3.5/3.6 在 256 预算下直接 MAX_TOKENS 截断），
+     *  并破坏 temperature=0 的确定性契约。声明 THINKING 能力则保持模型默认思考行为。 */
+    static boolean disablesThinking(ModelConfiguration config) {
+        return config.capabilities() != null && !config.capabilities().contains(ModelCapability.THINKING);
+    }
+
+    private static void applyThinkingPolicy(ModelConfiguration config, ObjectNode generation) {
+        if (disablesThinking(config)) {
+            generation.putObject("thinkingConfig").put("thinkingBudget", 0);
+        }
+    }
+
+    /** 发送请求；若 400 可能由旧模型不支持 thinkingConfig 引起，则去除该字段后有界重试一次。 */
+    private JsonNode postWithThinkingFallback(ModelConfiguration config, String apiKey, ObjectNode body) {
+        try {
+            return http.post(modelEndpoint(config, false), headers(apiKey), body);
+        } catch (BusinessException rejected) {
+            if (!isBadRequest(rejected) || body.path("generationConfig").path("thinkingConfig").isMissingNode()) {
+                throw rejected;
+            }
+            ((ObjectNode) body.path("generationConfig")).remove("thinkingConfig");
+            return http.post(modelEndpoint(config, false), headers(apiKey), body);
+        }
+    }
+
+    private static boolean isBadRequest(BusinessException failure) {
+        return failure.getErrorCode() == ErrorCode.AI_PROVIDER_ERROR
+                && String.valueOf(failure.getMessage()).contains("HTTP 400");
+    }
+
     private ObjectNode turnRequest(ModelConfiguration config, ModelTurnCommand command) {
         ObjectNode body = mapper.createObjectNode();
         ObjectNode generation = body.putObject("generationConfig");
         generation.put("temperature", config.temperature());
         generation.put("maxOutputTokens", AiRequestOutputCap.effective(config.maxOutputTokens()));
+        applyThinkingPolicy(config, generation);
 
         // 提取 system 消息，放入 systemInstruction
         StringBuilder systemPrompt = new StringBuilder();
@@ -293,6 +323,7 @@ public class GeminiModelAdapter extends AbstractModelProviderAdapter
         ObjectNode generation = body.putObject("generationConfig");
         generation.put("temperature", config.temperature());
         generation.put("maxOutputTokens", AiRequestOutputCap.effective(config.maxOutputTokens()));
+        applyThinkingPolicy(config, generation);
         if (command.outputFormat() == ChatCompletionCommand.OutputFormat.JSON_OBJECT) {
             generation.put("responseMimeType", "application/json");
             if (command.outputSchema() != null) {

@@ -68,7 +68,9 @@ final class GeminiLiveTestSupport {
             if (methodSeparator >= 0) {
                 selectedClass = selectedClass.substring(0, methodSeparator);
             }
-            if (selectedClass.equals("GeminiLiveAcceptanceTest") || selectedClass.equals(LIVE_TEST_CLASS)) {
+            if (selectedClass.equals("GeminiLiveAcceptanceTest")
+                    || selectedClass.equals("Gemini35FlashLiveSmokeTest")
+                    || selectedClass.equals(LIVE_TEST_CLASS)) {
                 return true;
             }
         }

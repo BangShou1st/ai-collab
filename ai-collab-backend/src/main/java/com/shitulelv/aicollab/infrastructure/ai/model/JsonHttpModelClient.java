@@ -392,6 +392,13 @@ public class JsonHttpModelClient {
             throw new BusinessException(ErrorCode.AI_PROVIDER_NOT_FOUND);
         }
         if (status < 200 || status >= 300) {
+            // Google Gemini 对无效 Key 返回 400（error.code=400 / message 含 "API key not valid"），
+            // 识别后映射为凭据错误而非泛化 5xx 语义（阶段 1 真实验测确认的错误语义）。
+            if (status == 400 && responseBody != null && responseBody.contains("API key not valid")) {
+                log.warn("Model API rejected request: HTTP 400 API key not valid");
+                throw new BusinessException(ErrorCode.AI_MODEL_CREDENTIAL_INVALID,
+                        "模型 API Key 无效或无权访问 (HTTP 400 API_KEY_INVALID)");
+            }
             log.warn("Model API returned HTTP {}", status);
             throw new BusinessException(ErrorCode.AI_PROVIDER_ERROR,
                     "模型服务返回 HTTP " + status);
