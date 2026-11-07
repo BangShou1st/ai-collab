@@ -22,4 +22,17 @@ public final class EmbeddingFingerprints {
             throw new IllegalStateException("Unable to fingerprint embedding configuration", exception);
         }
     }
+
+    /**
+     * Gemini 原生协议指纹扩展：在 provider|model|baseUrl|apiPath|dimensions 基础上追加
+     * 任务类型配对（RETRIEVAL_DOCUMENT/RETRIEVAL_QUERY）与协议版本分量。
+     * 仅用于 provider=GEMINI 的新配置；旧 3 元指纹表达式与既有代次数据完全不受影响。
+     */
+    public static String geminiFingerprint(String model, String baseUrl, String apiPath,
+            int dimensions, String taskTypePair) {
+        return fingerprint("GEMINI",
+                model + "|" + baseUrl + "|" + apiPath + "|taskTypePair=" + taskTypePair
+                        + "|protocol=gemini-native-v1",
+                dimensions);
+    }
 }

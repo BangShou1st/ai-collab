@@ -354,6 +354,9 @@ class Gemini35FlashLiveSmokeTest {
     @Test
     @Order(99)
     void summary_writeMetrics() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                "true".equals(System.getenv("AI_GEMINI_LIVE_TESTS")),
+                "SKIPPED: live gate off（CI 中不执行冒烟汇总断言）");
         writeMetrics();
         int failed = 0;
         for (ObjectNode r : RECORDS) {
@@ -363,6 +366,9 @@ class Gemini35FlashLiveSmokeTest {
     }
 
     private void recordFailure(String scenario, RuntimeException e) {
+        if (e instanceof org.opentest4j.TestAbortedException aborted) {
+            throw aborted; // 门控跳过（Assumptions）不是失败，原样交还 JUnit
+        }
         ObjectNode r = mapper.createObjectNode();
         r.put("scenario", scenario).put("status", "FAILED_" + e.getClass().getSimpleName())
                 .put("errorCode", e instanceof BusinessException b ? b.getErrorCode().name() : "RUNTIME")
