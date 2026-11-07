@@ -86,6 +86,8 @@ public class KnowledgeQuestionApplicationService {
     private KnowledgePromptProvider promptProvider;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private TokenCounter tokenCounter;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.knowledge.domain.service.KnowledgeOutputSafetyGuard outputSafetyGuard;
 
     public KnowledgeQuestionApplicationService(
             ProjectAccessGuard access,
@@ -206,6 +208,18 @@ public class KnowledgeQuestionApplicationService {
         visibility.whileVisible(projectId, context.sources(), () -> {
             ValidatedKnowledgeAnswer validated =
                     citationValidator.validate(completion.content(), context.sources(), projectId);
+            // 有界输出校验：回答复述系统提示词片段属于注入攻击的典型目标行为，
+            // 用确定性 k-gram 检测兜底（不依赖提示词约束）。
+            String answerForUser = validated.answer();
+            if (outputSafetyGuard != null) {
+                var safety = outputSafetyGuard.inspect(effectiveSystemPrompt, answerForUser);
+                if (safety.leaked()) {
+                    log.warn(
+                            "Knowledge QA blocked system prompt leakage requestId={} matchedSampleLength={}",
+                            requestId, safety.matchedSample().codePointCount(0, safety.matchedSample().length()));
+                    answerForUser = com.shitulelv.aicollab.knowledge.domain.service.KnowledgeOutputSafetyGuard.BLOCKED_ANSWER;
+                }
+            }
             if (validated.invalidOutput()) {
                 aiLogs.invalidOutput(requestId, userId, projectId, completion);
             } else {
@@ -217,7 +231,7 @@ public class KnowledgeQuestionApplicationService {
                         requestId, validated.invalidCitationCount(), validated.citedSources().size());
             }
             KnowledgeAnswerView view = persistence.saveExchange(
-                    projectId, sessionId, userId, question, validated.answer(),
+                    projectId, sessionId, userId, question, answerForUser,
                     validated.insufficientEvidence(), completion, validated.citedSources());
             log.info(
                     "Knowledge QA completed candidateCount={} retainedSourceCount={} highestSimilarity={} retrievalLatencyMs={} chatLatencyMs={} totalLatencyMs={} requestId={}",

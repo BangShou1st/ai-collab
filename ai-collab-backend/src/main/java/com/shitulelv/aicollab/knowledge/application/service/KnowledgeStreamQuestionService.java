@@ -93,6 +93,8 @@ public class KnowledgeStreamQuestionService {
     private KnowledgePromptProvider promptProvider;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private TokenCounter tokenCounter;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.knowledge.domain.service.KnowledgeOutputSafetyGuard outputSafetyGuard;
 
     private final ExecutorService streamExecutor = new java.util.concurrent.ThreadPoolExecutor(2, 2, 0,
             java.util.concurrent.TimeUnit.SECONDS, new java.util.concurrent.ArrayBlockingQueue<>(32), r -> {
@@ -215,6 +217,15 @@ public class KnowledgeStreamQuestionService {
                     ? promptProvider.buildUserPayload(question, context.promptSources(), promptContext)
                     : promptContext + userPrompt(question, context.promptSources());
 
+            // 有界输出校验（流式）：SSE 已发送内容无法撤回，因此必须在<b>发送前</b>做系统提示词泄漏预检。
+            // 实现方式：维护未发送缓冲，仅发送留出 (K_GRAM-1) 尾码点后可确认安全的前缀；一旦命中指纹，
+            // 立即中止流并下发安全错误事件（不持久化未完成的交换）。尾部残余在完成回调中全量复检。
+            java.util.Set<String> promptFingerprints = outputSafetyGuard != null
+                    ? outputSafetyGuard.fingerprintSet(effectiveSystemPrompt) : java.util.Set.of();
+            int kGram = com.shitulelv.aicollab.knowledge.domain.service.KnowledgeOutputSafetyGuard.K_GRAM;
+            StringBuilder pendingTokens = new StringBuilder();
+            AtomicBoolean outputBlocked = new AtomicBoolean(false);
+
             chat.completeStream(
                     new ChatCompletionCommand(projectId, effectiveSystemPrompt,
                             effectiveUserPayload,
@@ -222,9 +233,27 @@ public class KnowledgeStreamQuestionService {
                             List.of(), userId),
                     new com.shitulelv.aicollab.infrastructure.ai.model.AiRequestMetadata(sessionId.toString()),
                     token -> {
-                        if (!disconnected.get()) {
+                        if (disconnected.get() || outputBlocked.get()) {
+                            return;
+                        }
+                        pendingTokens.append(token);
+                        int pendingCp = pendingTokens.codePointCount(0, pendingTokens.length());
+                        int safeCp = Math.max(0, pendingCp - (kGram - 1));
+                        String flushText = pendingTokens.substring(0, pendingTokens.offsetByCodePoints(0, safeCp));
+                        String tail = pendingTokens.substring(pendingTokens.offsetByCodePoints(0, safeCp));
+                        if (!flushText.isEmpty() && outputSafetyGuard != null
+                                && outputSafetyGuard.containsAnyFingerprint(flushText, promptFingerprints)) {
+                            outputBlocked.set(true);
+                            log.warn("Knowledge stream QA blocked system prompt leakage mid-stream");
+                            sendErrorAndComplete(emitter, terminal, ErrorCode.AI_PROVIDER_ERROR,
+                                    "回答包含不应披露的内部信息，已被安全策略拦截");
+                            return;
+                        }
+                        pendingTokens.setLength(0);
+                        pendingTokens.append(tail);
+                        if (!flushText.isEmpty()) {
                             visibility.whileVisible(projectId, context.sources(), () -> {
-                                if (!sendSse(emitter, KnowledgeStreamEvent.token(token))) {
+                                if (!sendSse(emitter, KnowledgeStreamEvent.token(flushText))) {
                                     disconnected.set(true);
                                     throw new BusinessException(ErrorCode.AI_MODEL_TIMEOUT);
                                 }
@@ -239,6 +268,19 @@ public class KnowledgeStreamQuestionService {
                             long chatLatencyMs = elapsedMs(chatStarted);
                             ValidatedKnowledgeAnswer validated =
                                     citationValidator.validate(completion.content(), context.sources(), projectId);
+                            String answerForUser = validated.answer();
+                            boolean leaked = false;
+                            if (outputSafetyGuard != null) {
+                                var safety = outputSafetyGuard.inspect(effectiveSystemPrompt, completion.content());
+                                if (safety.leaked()) {
+                                    leaked = true;
+                                    log.warn("Knowledge stream QA blocked system prompt leakage requestId={} "
+                                            + "matchedSampleLength={}", requestId,
+                                            safety.matchedSample().codePointCount(0, safety.matchedSample().length()));
+                                    answerForUser = com.shitulelv.aicollab.knowledge.domain.service
+                                            .KnowledgeOutputSafetyGuard.BLOCKED_ANSWER;
+                                }
+                            }
                             if (validated.invalidOutput()) {
                                 aiLogs.invalidOutput(requestId, userId, projectId, completion);
                             } else {
@@ -249,8 +291,15 @@ public class KnowledgeStreamQuestionService {
                                         requestId, validated.invalidCitationCount());
                             }
                             KnowledgeAnswerView view = persistence.saveExchange(
-                                    projectId, sessionId, userId, question, validated.answer(),
+                                    projectId, sessionId, userId, question, answerForUser,
                                     validated.insufficientEvidence(), completion, validated.citedSources());
+                            if (leaked) {
+                                // 流式边界限制：已发送的增量内容无法撤回；此处以安全错误事件明确告知客户端，
+                                // 持久化记录已替换为统一拦截文案，保证历史会话不残留泄漏内容。
+                                sendErrorAndComplete(emitter, terminal, ErrorCode.AI_PROVIDER_ERROR,
+                                        "回答包含不应披露的内部信息，已被安全策略拦截");
+                                return;
+                            }
                             if (terminal.get()) {
                                 return;
                             }
