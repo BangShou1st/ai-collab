@@ -132,6 +132,12 @@ public class P4RagQualityDiagnosticPostgresTest {
             List<List<Double>> vectors = texts.stream().map(SyntheticEmbedder::embed).toList();
             return new EmbeddingBatch(PROVIDER, MODEL, DIMENSION, vectors, FINGERPRINT);
         });
+when(embeddings.embed(any(), anyList(), any(), any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<String> texts = (List<String>) invocation.getArgument(1);
+            List<List<Double>> vectors = texts.stream().map(SyntheticEmbedder::embed).toList();
+            return new EmbeddingBatch(PROVIDER, MODEL, DIMENSION, vectors, FINGERPRINT);
+        });
     }
 
     private record SeedChunk(String heading, String content) {}

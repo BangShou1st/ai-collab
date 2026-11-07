@@ -399,6 +399,12 @@ class AgentRetrievalQualityPostgresTest {
             List<List<Double>> vectors = input.stream().map(queryVectors::get).toList();
             return new EmbeddingBatch(PROVIDER, model, dimension, vectors, fingerprint, generationId);
         });
+when(embeddings.embed(any(), anyList(), any(), any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<String> input = (List<String>) invocation.getArgument(1);
+            List<List<Double>> vectors = input.stream().map(queryVectors::get).toList();
+            return new EmbeddingBatch(PROVIDER, model, dimension, vectors, fingerprint, generationId);
+        });
 
         List<CaseMeasurement> measurements = new ArrayList<>();
         for (Case testCase : CASES) {
@@ -713,6 +719,9 @@ class AgentRetrievalQualityPostgresTest {
         when(embeddings.embed(any(), anyList(), any()))
                 .thenReturn(new EmbeddingBatch(PROVIDER, model, dimension,
                         List.of(batch.vectors().get(2)), fingerprint, generationId));
+when(embeddings.embed(any(), anyList(), any(), any()))
+                .thenReturn(new EmbeddingBatch(PROVIDER, model, dimension,
+                        List.of(batch.vectors().get(2)), fingerprint, generationId));
 
         List<DocumentSearchHit> candidates = search.search(project, query, null, TOP_20);
         var legacy = builder.buildWithDiagnostics(candidates, AGENT_LIMIT);
@@ -764,6 +773,9 @@ class AgentRetrievalQualityPostgresTest {
         when(embeddings.embed(any(), anyList(), any()))
                 .thenReturn(new EmbeddingBatch(PROVIDER, model, dimension,
                         List.of(batch.vectors().get(2)), fingerprint, activeGeneration));
+when(embeddings.embed(any(), anyList(), any(), any()))
+                .thenReturn(new EmbeddingBatch(PROVIDER, model, dimension,
+                        List.of(batch.vectors().get(2)), fingerprint, activeGeneration));
 
         List<DocumentSearchHit> hits = search.search(project, query, null, TOP_20);
         assertThat(hits).extracting(DocumentSearchHit::id).contains(activeChunk);
@@ -797,6 +809,11 @@ class AgentRetrievalQualityPostgresTest {
                 null, List.of(new Evidence(1, 3, "续发前提")), "回滚演练通过", false));
         for (Case c : cases) cacheVector(live, cache, c.query());
         when(embeddings.embed(any(), anyList(), any())).thenAnswer(invocation -> {
+            List<String> inputs = invocation.getArgument(1);
+            return new EmbeddingBatch(PROVIDER, model, dimension,
+                    inputs.stream().map(cache::get).toList(), fingerprint, generation);
+        });
+when(embeddings.embed(any(), anyList(), any(), any())).thenAnswer(invocation -> {
             List<String> inputs = invocation.getArgument(1);
             return new EmbeddingBatch(PROVIDER, model, dimension,
                     inputs.stream().map(cache::get).toList(), fingerprint, generation);

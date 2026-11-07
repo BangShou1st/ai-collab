@@ -393,6 +393,15 @@ class RealChunkingRetrievalComparisonPostgresTest {
             }
             return new EmbeddingBatch(PROVIDER, model, dimension, vectors, fingerprint, generationId);
         });
+when(embeddings.embed(any(), anyList(), any(), any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<String> inputs = (List<String>) invocation.getArgument(1);
+            List<List<Double>> vectors = new ArrayList<>();
+            for (String input : inputs) {
+                vectors.add(getOrFetchVector(liveGateway, input));
+            }
+            return new EmbeddingBatch(PROVIDER, model, dimension, vectors, fingerprint, generationId);
+        });
 
         Map<String, Object> plansOutput = new LinkedHashMap<>();
         int baselineTotalChunks = 0;
