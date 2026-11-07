@@ -1,0 +1,70 @@
+{
+  "model" : "gemini-3.5-flash-lite",
+  "requestedAt" : "2026-11-07T21:28:14.766453500+08:00",
+  "requestCount" : 7,
+  "failureCount" : 0,
+  "records" : [ {
+    "scenario" : "chat",
+    "modelVersion" : "gemini-3.5-flash-lite",
+    "requests" : 1,
+    "latencyMs" : 7572,
+    "promptTokens" : 33,
+    "completionTokens" : 3,
+    "tokensPerSecond" : 0.4,
+    "at" : "2026-11-07T21:25:55.615160500+08:00"
+  }, {
+    "scenario" : "chat",
+    "modelVersion" : "gemini-3.5-flash-lite",
+    "requests" : 1,
+    "latencyMs" : 1431,
+    "promptTokens" : 26,
+    "completionTokens" : 34,
+    "tokensPerSecond" : 23.8,
+    "at" : "2026-11-07T21:26:12.368975+08:00"
+  }, {
+    "scenario" : "scenario3_streaming_firstTokenMs=882",
+    "modelVersion" : "gemini-3.5-flash-lite",
+    "requests" : 1,
+    "latencyMs" : 1125,
+    "promptTokens" : 15,
+    "completionTokens" : 61,
+    "tokensPerSecond" : 54.2,
+    "at" : "2026-11-07T21:26:28.514995300+08:00"
+  }, {
+    "scenario" : "scenario4_json",
+    "modelVersion" : "gemini-3.5-flash-lite",
+    "requests" : 1,
+    "latencyMs" : 1211,
+    "promptTokens" : 44,
+    "completionTokens" : 20,
+    "tokensPerSecond" : 16.5,
+    "at" : "2026-11-07T21:26:44.744244600+08:00"
+  }, {
+    "scenario" : "chat",
+    "modelVersion" : "gemini-3.5-flash-lite",
+    "requests" : 1,
+    "latencyMs" : 2614,
+    "promptTokens" : 45,
+    "completionTokens" : 14,
+    "tokensPerSecond" : 5.4,
+    "at" : "2026-11-07T21:27:43.172004400+08:00"
+  }, {
+    "scenario" : "scenario8_maxTokens_classified",
+    "modelVersion" : "gemini-3.5-flash-lite",
+    "requests" : 1,
+    "latencyMs" : 0,
+    "promptTokens" : 0,
+    "completionTokens" : 0,
+    "tokensPerSecond" : 0.0,
+    "at" : "2026-11-07T21:27:59.104834500+08:00"
+  }, {
+    "scenario" : "scenario8_unauthorized_classified",
+    "modelVersion" : "gemini-3.5-flash-lite",
+    "requests" : 1,
+    "latencyMs" : 0,
+    "promptTokens" : 0,
+    "completionTokens" : 0,
+    "tokensPerSecond" : 0.0,
+    "at" : "2026-11-07T21:27:59.744074800+08:00"
+  } ]
+}
