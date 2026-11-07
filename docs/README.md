@@ -66,6 +66,7 @@
 包含按日期严格组织的交付证据目录（测试结果、BSK 浏览器截图、回归基准与脱敏元数据）：
 
 - 目录格式：`docs/acceptance-evidence/YYYY-MM-DD/<task-id>/`
+- [RAG V2 第三方公开 Benchmark 独立质量评测（`benchmark/2026-11-07-rag-v2-public-benchmark/`）](benchmark/2026-11-07-rag-v2-public-benchmark/benchmark-report.md)：C-MTEB/DuRetrieval 官方全量 10 万语料 + 300 冻结查询六变体对照（Dense Only 全面占优，混合 RRF 实测负收益）与 RGB 中文 B1 固定证据生成评测（噪声/拒答/整合/反事实四能力 270 次真实生成）；裁决 `PUBLIC_BENCHMARK_COMPLETED`，含数据许可核验、冻结抽样清单、逐题原始结果与失败分析，与内部 P9/P10 评测独立解释。
 - [FINAL-DEPLOY-ACCEPTANCE-01：最终部署验收与 GHCR 首次发布闭环（ACCEPTED）](acceptance-evidence/2026-11-01/FINAL-DEPLOY-ACCEPTANCE-01/acceptance-summary.md)：GitHub Actions 干净 ubuntu Runner 真实 Docker Engine 全生命周期验收 21/21 PASS（安装、防重复引导、业务冒烟、数据保留、备份恢复、升级回滚、server-check 正负向）；GHCR 首次正式发布与 Digest↔源码 SHA 全链一致；覆盖式恢复部署缺陷修复；InstaBox 环境结论与过程事故披露。
 - [one-click-deployment：本地与服务器双场景一键部署验收](acceptance-evidence/2026-11-01/one-click-deployment/acceptance-summary.md)：Windows 本地安装与生产拓扑隔离冒烟全量证据、资源占用实测、升级演练与三轮复审收口。
 - [P10-REAL-GENERATION-03：扩展真实生成质量与端到端验收](acceptance-evidence/2026-10-27/p10-real-generation-03/README.md)：14 题全量真实 QA（17 次 Chat 含 3 次重复测量，0 失败）+ 20 个冻结 Agent 逻辑场景经真实生产链路（17 成功、3 个 Kilo 免费模型截断如实标 FAILED）；回放评分 34 条回答高严重度 0、41 项保守转复核。裁判来源审计发现旧批次每路 34 条结果中仅 12 条 QA 带齐来源，修正后本地 Qwen2.5 7B 输出 22 条结构化复核；编码助手逐项复核，独立人类复核 0。评分器 v6 全程冻结；[研究](archive/research/p10-real-generation-03-research-20261027.md)与[交付](archive/reports/p10-real-generation-03-delivery-20261027.md)。

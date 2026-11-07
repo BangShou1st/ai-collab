@@ -1,0 +1,8 @@
+task,samples,executed,officialMetric,value
+noise0.2,60,60,allRateAccuracy,0.9666666666666667
+noise0.6,60,60,allRateAccuracy,0.95
+noise0.8,60,60,allRateAccuracy,0.95
+negativeRejection,30,30,allRateRejection,0.8
+informationIntegration,30,30,allRateAccuracy,0.8333333333333334
+counterfactual,30,30,factCheckRate,1.0
+counterfactual,30,30,correctRateAmongDetected,0.9
