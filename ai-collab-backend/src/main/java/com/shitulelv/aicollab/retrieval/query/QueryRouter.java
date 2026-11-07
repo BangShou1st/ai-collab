@@ -43,8 +43,20 @@ public class QueryRouter {
             ".*(?:为什么|怎么做|如何设计|实施步骤|工作原理|流程分析|详细阐述|优缺点|架构设计).*"
     );
 
+    // 精确标识符结构特征（语言无关）：错误码（ERR-404/HTTP_500）、语义版本号（1.2.3）、
+    // 文件名（application.yml、README.md）、全大写代号（JWT）。命中时词法精确匹配有真实收益。
+        private static final Pattern EXACT_IDENTIFIER_PATTERN = Pattern.compile(
+            "(?:\\b[A-Z]{2,}(?:[-_][A-Z0-9]+)+\\b)"          // 错误码/常量链 ERR-404, HTTP_500
+            + "|(?:\\b\\d+(?:\\.\\d+){1,3}\\b)"              // 语义版本号 1.2.3
+            + "|(?:\\b[\\w\\-]+\\.[A-Za-z]{1,6}\\b)"          // 文件名 application.yml
+            + "|(?:\\b[A-Z][A-Z0-9_]{2,}\\b)");               // 全大写代号 JWT
+
     private final MetadataFilterParser filterParser;
     private final MultiQueryDecomposer decomposer;
+
+    static boolean containsExactIdentifier(String query) {
+        return query != null && !query.isBlank() && EXACT_IDENTIFIER_PATTERN.matcher(query).find();
+    }
 
     public QueryRouter() {
         this(new MetadataFilterParser(), new MultiQueryDecomposer());
@@ -93,6 +105,12 @@ public class QueryRouter {
             }
 
             // 4. Default standard hybrid semantic question
+            if (containsExactIdentifier(semanticQuery)) {
+                return QueryRouteDecision.hybridWithStrategy(
+                        "Exact identifier structure detected (error code/version/file name); "
+                                + "lexical exact matching retained in HYBRID",
+                        structuredQuery, RetrievalStrategy.HYBRID);
+            }
             return QueryRouteDecision.hybrid(
                     "Standard semantic question requiring dense vector and lexical hybrid search",
                     structuredQuery
