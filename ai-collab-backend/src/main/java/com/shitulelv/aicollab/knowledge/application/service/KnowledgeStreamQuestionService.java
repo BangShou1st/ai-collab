@@ -84,6 +84,7 @@ public class KnowledgeStreamQuestionService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.shitulelv.aicollab.system.application.service.SystemConfigService systemConfigService;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.retrieval.query.StrategyAwareRetrievalExecutor strategyExecutor;
     private RetrievalPipeline retrievalPipeline;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private QueryRouter queryRouter;
@@ -173,16 +174,10 @@ public class KnowledgeStreamQuestionService {
                         ? decision.structuredQuery().semanticQuery()
                         : retrievalQuery;
 
-                if (decision != null && decision.complexity() == QueryComplexity.COMPLEX && decision.subQueries().size() > 1) {
-                    // 多查询分解：与普通问答一致，原始查询 + 子查询共同参与标准 RRF 融合
-                    List<String> fusionQueries = new ArrayList<>(decision.subQueries());
-                    fusionQueries.add(0, effectiveQuery);
-                    candidates = retrievalPipeline.executeMultiQuery(projectId, fusionQueries, documentIds, filters, TOP_K)
-                            .toDocumentSearchHits();
-                } else {
-                    RetrievalResult result = retrievalPipeline.execute(projectId, effectiveQuery, documentIds, filters, TOP_K);
-                    candidates = result.toDocumentSearchHits();
-                }
+            // 阶段 3：复杂度判断与执行策略分离——按路由策略分发（QA 与流式 QA 共享同一执行组件）
+            candidates = strategyExecutor != null
+                    ? strategyExecutor.execute(projectId, decision, effectiveQuery, documentIds, filters, TOP_K)
+                    : retrievalPipeline.execute(projectId, effectiveQuery, documentIds, filters, TOP_K).toDocumentSearchHits();
             } else {
                 candidates = search.search(projectId, retrievalQuery, documentIds, TOP_K);
             }

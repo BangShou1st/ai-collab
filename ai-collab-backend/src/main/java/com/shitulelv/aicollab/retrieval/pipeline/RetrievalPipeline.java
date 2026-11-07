@@ -305,10 +305,12 @@ public class RetrievalPipeline {
         }
         long denseDuration = System.currentTimeMillis() - startDense;
 
-        // 2. Lexical 检索（透传 criteria 元数据过滤）
+        // 2. Lexical 检索（透传 criteria 元数据过滤）；DENSE 策略下整体跳过（不执行词法 SQL）
         long startLexical = System.currentTimeMillis();
         List<RetrievalCandidate> lexicalCandidates;
-        if (lexicalRetriever != null) {
+        if (!config.lexicalEnabled()) {
+            lexicalCandidates = List.of();
+        } else if (lexicalRetriever != null) {
             try {
                 if (criteria != null) {
                     lexicalCandidates = lexicalRetriever.retrieve(projectId, query, documentIds, config.lexicalTopK(), criteria);
@@ -415,12 +417,25 @@ public class RetrievalPipeline {
             boolean enableSentenceWindow,
             int sentenceWindowSize,
             boolean enableParentChildExpansion,
+            boolean lexicalEnabled,
             RerankerType rerankerType,
             List<MetadataFilter> filters,
             DocumentFilterCriteria criteria
     ) {
+        /** 兼容旧 10 参形态：词法通道默认开启。 */
+        public PipelineConfig(int denseTopK, int lexicalTopK, int rrfTopK, int finalTopN,
+                boolean enableSentenceWindow, int sentenceWindowSize, boolean enableParentChildExpansion,
+                RerankerType rerankerType, List<MetadataFilter> filters, DocumentFilterCriteria criteria) {
+            this(denseTopK, lexicalTopK, rrfTopK, finalTopN, enableSentenceWindow, sentenceWindowSize,
+                    enableParentChildExpansion, true, rerankerType, filters, criteria);
+        }
         public static PipelineConfig defaultConfig() {
             return new PipelineConfig(20, 20, 20, 10, true, 1, true, RerankerType.LEXICAL_HEURISTIC, List.of(), null);
+        }
+
+        /** Dense-only 配置（阶段 3 策略路径）：跳过词法 SQL、关闭窗口/父子扩展、透传排序。 */
+        public static PipelineConfig denseOnlyConfig() {
+            return new PipelineConfig(20, 20, 20, 10, false, 1, false, false, RerankerType.PASS_THROUGH, List.of(), null);
         }
 
         public PipelineConfig(
@@ -436,15 +451,15 @@ public class RetrievalPipeline {
         }
 
         public PipelineConfig withRerankerType(RerankerType type) {
-            return new PipelineConfig(denseTopK, lexicalTopK, rrfTopK, finalTopN, enableSentenceWindow, sentenceWindowSize, enableParentChildExpansion, type, filters, criteria);
+            return new PipelineConfig(denseTopK, lexicalTopK, rrfTopK, finalTopN, enableSentenceWindow, sentenceWindowSize, enableParentChildExpansion, lexicalEnabled, type, filters, criteria);
         }
 
         public PipelineConfig withFilters(List<MetadataFilter> newFilters) {
-            return new PipelineConfig(denseTopK, lexicalTopK, rrfTopK, finalTopN, enableSentenceWindow, sentenceWindowSize, enableParentChildExpansion, rerankerType, newFilters, criteria);
+            return new PipelineConfig(denseTopK, lexicalTopK, rrfTopK, finalTopN, enableSentenceWindow, sentenceWindowSize, enableParentChildExpansion, lexicalEnabled, rerankerType, newFilters, criteria);
         }
 
         public PipelineConfig withCriteria(DocumentFilterCriteria newCriteria) {
-            return new PipelineConfig(denseTopK, lexicalTopK, rrfTopK, finalTopN, enableSentenceWindow, sentenceWindowSize, enableParentChildExpansion, rerankerType, filters, newCriteria);
+            return new PipelineConfig(denseTopK, lexicalTopK, rrfTopK, finalTopN, enableSentenceWindow, sentenceWindowSize, enableParentChildExpansion, lexicalEnabled, rerankerType, filters, newCriteria);
         }
     }
 }
