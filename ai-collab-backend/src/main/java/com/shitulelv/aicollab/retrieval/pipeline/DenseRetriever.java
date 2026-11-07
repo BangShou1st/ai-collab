@@ -39,7 +39,8 @@ public class DenseRetriever implements Retriever {
         }
 
         String normalizedQuery = query.trim();
-        EmbeddingBatch batch = embeddingGateway.embed(projectId, List.of(normalizedQuery), EmbeddingProgressListener.NONE);
+        EmbeddingBatch batch = embeddingGateway.embed(projectId, List.of(normalizedQuery), EmbeddingProgressListener.NONE,
+                com.shitulelv.aicollab.infrastructure.ai.embedding.EmbeddingTaskType.QUERY);
         if (batch == null || batch.vectors().isEmpty()) {
             return List.of();
         }
