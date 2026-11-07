@@ -1,0 +1,62 @@
+{
+  "chatModel" : "deepseek-v4.1-flash-1017",
+  "chatRoute" : "ENV_OVERRIDE_OPENAI_COMPATIBLE base=https://discovery-api.intern-ai.org.cn/v1 model=deepseek-v4.1-flash-1017（原 ModelScope 路由额度不足，经用户授权切换）",
+  "officialMetrics" : {
+    "noiseRobustness" : {
+      "noise0.2" : {
+        "samples" : 60,
+        "executed" : 60,
+        "allRateAccuracy" : 0.9666666666666667,
+        "rejected" : 0,
+        "wrongAnswers" : 2
+      },
+      "noise0.6" : {
+        "samples" : 60,
+        "executed" : 60,
+        "allRateAccuracy" : 0.95,
+        "rejected" : 1,
+        "wrongAnswers" : 2
+      },
+      "noise0.8" : {
+        "samples" : 60,
+        "executed" : 60,
+        "allRateAccuracy" : 0.95,
+        "rejected" : 1,
+        "wrongAnswers" : 2
+      }
+    },
+    "negativeRejection" : {
+      "samples" : 30,
+      "executed" : 30,
+      "allRateRejection" : 0.8,
+      "correctRejections" : 24,
+      "confidentWrongAnswers" : 6,
+      "confidentWrongRate" : 0.2
+    },
+    "informationIntegration" : {
+      "samples" : 30,
+      "executed" : 30,
+      "allRateAccuracy" : 0.8333333333333334,
+      "diagPartialCoverage" : 0.06666666666666667,
+      "diagMissedBoth" : 0.1
+    },
+    "counterfactualRobustness" : {
+      "samples" : 30,
+      "executed" : 30,
+      "factCheckRate" : 1.0,
+      "correctRateAmongDetected" : 0.9,
+      "detected" : 30,
+      "detectedAndCorrect" : 27,
+      "diagAcceptedFakeAnswer" : 0.0
+    }
+  },
+  "diagnostics" : {
+    "totalItems" : 270,
+    "chatFailed" : 0,
+    "latencyP50Ms" : 9113,
+    "totalPromptTokens" : 189058,
+    "totalCompletionTokens" : 57531,
+    "generationMode" : "B1_OFFICIAL_FIXED_EVIDENCE（不测量检索能力）",
+    "scoringDeviation" : "官方 reject_evalue/fact_evalue 需 GPT-3.5 判分器（未授权付费 API），以 evalue.py 确定性字符串判定为准；temperature=0（官方示例 0.2）"
+  }
+}
