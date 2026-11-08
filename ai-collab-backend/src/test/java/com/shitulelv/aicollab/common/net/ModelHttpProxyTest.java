@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.net.*;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -121,20 +122,27 @@ class ModelHttpProxyTest {
         try {
             String java = Path.of(System.getProperty("java.home"), "bin", System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java").toString();
             for (boolean explicitJvm : new boolean[]{true, false}) {
-                var command = new java.util.ArrayList<>(List.of(java, "-Djava.net.useSystemProxies=false"));
-                if (explicitJvm) command.addAll(List.of("-Dhttp.proxyHost=127.0.0.1", "-Dhttp.proxyPort=" + proxy.getAddress().getPort()));
-                command.addAll(List.of("-cp", System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")), PropertyProbe.class.getName()));
-                ProcessBuilder builder = new ProcessBuilder(command);
-                for (String variable : List.of("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy"))
-                    builder.environment().remove(variable);
-                builder.environment().put("HTTP_PROXY", "http://127.0.0.1:" + (explicitJvm ? 1 : proxy.getAddress().getPort()));
-                Process child = builder.start();
+                // classpath 随依赖增长已超 Windows CreateProcess 32K 命令行上限（error=206），
+                // 改用 @argfile 传递；路径统一正斜杠规避 argfile 引号内的反斜杠转义问题。
+                String classpath = System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")).replace('\\', '/');
+                Path argfile = Files.createTempFile("model-proxy-test", ".args");
+                Files.writeString(argfile, "-cp \"" + classpath + "\"\n" + PropertyProbe.class.getName() + "\n");
                 try {
-                    assertThat(child.waitFor(15, TimeUnit.SECONDS)).isTrue();
-                    String output = new String(child.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                    assertThat(child.exitValue()).isZero();
-                    assertThat(output).contains(explicitJvm ? "JVM_PROPERTIES" : "ENVIRONMENT_FALLBACK", "204");
-                } finally { if (child.isAlive()) child.destroyForcibly(); }
+                    var command = new java.util.ArrayList<>(List.of(java, "-Djava.net.useSystemProxies=false"));
+                    if (explicitJvm) command.addAll(List.of("-Dhttp.proxyHost=127.0.0.1", "-Dhttp.proxyPort=" + proxy.getAddress().getPort()));
+                    command.add("@" + argfile.toAbsolutePath());
+                    ProcessBuilder builder = new ProcessBuilder(command);
+                    for (String variable : List.of("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy"))
+                        builder.environment().remove(variable);
+                    builder.environment().put("HTTP_PROXY", "http://127.0.0.1:" + (explicitJvm ? 1 : proxy.getAddress().getPort()));
+                    Process child = builder.start();
+                    try {
+                        assertThat(child.waitFor(15, TimeUnit.SECONDS)).isTrue();
+                        String output = new String(child.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+                        assertThat(child.exitValue()).isZero();
+                        assertThat(output).contains(explicitJvm ? "JVM_PROPERTIES" : "ENVIRONMENT_FALLBACK", "204");
+                    } finally { if (child.isAlive()) child.destroyForcibly(); }
+                } finally { Files.deleteIfExists(argfile); }
             }
             assertThat(requests).hasValue(2);
         } finally { proxy.stop(0); }
