@@ -149,15 +149,30 @@ model:
   config:
     master-key: "${MODEL_CONFIG_MASTER_KEY:}"
 
-# 生产（默认 profile）可观测性基线：
-# - 仅暴露 health/info；metrics 等需运维时通过 MANAGEMENT_ENDPOINTS_EXPOSURE 显式打开，
-#   且即便暴露，除 health 外的所有 Actuator 端点都受 SecurityConfig 的 JWT 认证保护。
-# - show-details=never：/actuator/health 匿名可访问（容器 HEALTHCHECK 与负载探针用），
-#   但不向未授权方泄露组件明细；组件级状态经授权通道（如临时打开 details 或读日志）诊断。
-# - probes 开启 /actuator/health/liveness 与 /actuator/health/readiness：
+# 可观测性基线（O1/O2，双层边界模型）：
+#
+# 边界一：端口隔离。Actuator 全部端点运行在独立管理端口（默认 8081）上。
+#   Spring Boot 的独立管理端口运行在单独的子上下文中，应用的 SecurityConfig
+#   （JWT 过滤链）只注册在主上下文，不作用于管理端口——这正是选择端口隔离的
+#   原因：prometheus 等机器抓取方无法使用 JWT，而同端口方案要么放匿名（违背
+#   安全基线）要么改 SecurityConfig（复杂易错）。因此管理端口 8081 绝不能
+#   对外：compose 层不映射宿主机端口、nginx 不代理，仅限内网抓取方访问。
+#   业务 API（主端口 8080）上的 /actuator 语义不变：除 health 外仍受 JWT 保护。
+#
+# 边界二：暴露白名单。默认仅 health/info；metrics、prometheus 等由部署层通过
+#   MANAGEMENT_ENDPOINTS_EXPOSURE 显式打开（compose 三层固定 health,info,prometheus）。
+#   show-details=never：管理端口上的 health 也不向抓取方泄露组件明细。
+#   probes 开启 /actuator/health/liveness 与 /actuator/health/readiness：
 #   liveness 只反映进程存活，整体 health 聚合数据源、Redis、MinIO 等关键依赖；
 #   AI 模型（Chat/Planning/Embedding）是按需外部服务，刻意不纳入健康聚合，避免上游抖动误判应用死亡。
+#
+# 分布式 trace（O2）：全采样（单体阶段成本可控，经 env-var 可降采样）；
+#   OTLP gRPC 导出指向 compose 内 Tempo（OTEL_EXPORTER_OTLP_ENDPOINT 可覆盖）。
+#   本地裸跑（无 Tempo）时导出失败由 OTel BatchSpanProcessor 在后台线程静默
+#   重试/丢弃，不阻塞、不影响请求路径，日志仍携带 traceId/spanId。
 management:
+    server:
+        port: "${MANAGEMENT_SERVER_PORT:8081}"
     endpoints:
         web:
             exposure:
@@ -168,11 +183,20 @@ management:
             show-components: never
             probes:
                 enabled: true
+    tracing:
+        sampling:
+            probability: "${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}"
+    otlp:
+        tracing:
+            endpoint: "${OTEL_EXPORTER_OTLP_ENDPOINT:http://tempo:4317}"
+            transport: grpc
 
 logging:
     # 控制台单行输出（容器标准 stdout，由部署侧日志系统收集），并携带请求关联 ID。
+    # traceId/spanId 由 micrometer-tracing 自动注入 MDC（O2）；无 trace 时显示 none，
+    # 与既有 requestId/agentRunId 等业务关联 ID 并存。
     pattern:
-        console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [requestId=%X{requestId:-none}] [agentRunId=%X{agentRunId:-none} agentClaimVersion=%X{agentClaimVersion:-none} agentInvocationId=%X{agentInvocationId:-none}] %logger{40} - %msg%n"
+        console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [requestId=%X{requestId:-none}] [traceId=%X{traceId:-none} spanId=%X{spanId:-none}] [agentRunId=%X{agentRunId:-none} agentClaimVersion=%X{agentClaimVersion:-none} agentInvocationId=%X{agentInvocationId:-none}] %logger{40} - %msg%n"
     level:
         root: INFO
         # 与 local profile 相同的敏感参数防泄漏基线：以下 Mapper 的 DEBUG 输出可能包含

@@ -99,10 +99,79 @@ services:
       CHAT_ENABLED: "${CHAT_ENABLED:-false}"
       AGENT_ENABLED: "${AGENT_ENABLED:-false}"
       AGENT_MCP_ALLOWED_HOSTS: "${AGENT_MCP_ALLOWED_HOSTS:-}"
+      # 可观测性 O1/O2：管理端口暴露白名单（8081 仅 compose 内网，不映射宿主机）；
+      # OTLP gRPC 导出指向 compose 内 Tempo。
+      MANAGEMENT_ENDPOINTS_EXPOSURE: "health,info,prometheus"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
+    healthcheck:
+      # O1：健康探针走独立管理端口 8081（仅 compose 内网，不映射宿主机、不经 nginx）。
+      test: ["CMD-SHELL", "wget -T 5 -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     networks:
       edge:
         aliases: [app-edge]
       data: {}
+    logging: *logging
+
+  prometheus:
+    # O1 指标抓取：抓 app:8081/actuator/prometheus，仅 data 内网。
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget -T 5 -q --spider http://127.0.0.1:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks: [data]
+    logging: *logging
+
+  tempo:
+    # O2 trace 后端：接收 app 的 OTLP gRPC 导出，供 Grafana 查询。
+    image: grafana/tempo:2.7.0
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    user: root
+    volumes:
+      - ./observability/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+    healthcheck:
+      test: ["CMD-SHELL", "wget -T 5 -q --spider http://127.0.0.1:3200/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [data]
+    logging: *logging
+
+  grafana:
+    # O1/O2 面板（仅 local/staging，设计 §5）：staging 不发布宿主机端口，
+    # 面板经 SSH 隧道或运维通道访问；数据源与最小面板经 provisioning 自动装载。
+    image: grafana/grafana:11.6.0
+    restart: unless-stopped
+    depends_on:
+      prometheus: {condition: service_started}
+      tempo: {condition: service_started}
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD-SHELL", "wget -T 5 -q --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [data]
     logging: *logging
 
   proxy:
@@ -130,3 +199,8 @@ networks:
           gateway: 172.30.173.1
   data:
     internal: true
+
+volumes:
+  prometheus_data:
+  tempo_data:
+  grafana_data:

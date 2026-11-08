@@ -83,6 +83,13 @@ services:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
       minio: {condition: service_healthy}
+    healthcheck:
+      # O1：健康探针走独立管理端口 8081（仅 compose 内网，不映射宿主机、不经 nginx）。
+      test: ["CMD-SHELL", "wget -T 5 -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?required}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?required}
@@ -123,10 +130,74 @@ services:
       MAIL_FROM: "${MAIL_FROM:-AI Collab <no-reply@localhost>}"
       MAIL_STARTTLS: "${MAIL_STARTTLS:-true}"
       MAIL_SSL: "${MAIL_SSL:-false}"
+      # 可观测性 O1/O2：管理端口暴露白名单（8081 仅 compose 内网，不映射宿主机）；
+      # OTLP gRPC 导出指向 compose 内 Tempo。
+      MANAGEMENT_ENDPOINTS_EXPOSURE: "health,info,prometheus"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
     networks:
       edge:
         aliases: [app-edge]
       data: {}
+    logging: *logging
+
+  prometheus:
+    # O1 指标抓取：抓 app:8081/actuator/prometheus，仅 data 内网。
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget -T 5 -q --spider http://127.0.0.1:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks: [data]
+    logging: *logging
+
+  tempo:
+    # O2 trace 后端：接收 app 的 OTLP gRPC 导出，供 Grafana 查询。
+    image: grafana/tempo:2.7.0
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    user: root
+    volumes:
+      - ./observability/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+    healthcheck:
+      test: ["CMD-SHELL", "wget -T 5 -q --spider http://127.0.0.1:3200/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [data]
+    logging: *logging
+
+  grafana:
+    # O1/O2 面板（仅 local/staging）：数据源与最小面板经 provisioning 自动装载。
+    image: grafana/grafana:11.6.0
+    restart: unless-stopped
+    depends_on:
+      prometheus: {condition: service_started}
+      tempo: {condition: service_started}
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    ports:
+      # 面板 UI 仅绑本机回环；指标/trace 数据面（8081/9090/3200/4317）一律不发布。
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD-SHELL", "wget -T 5 -q --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [data]
     logging: *logging
 
   web:
@@ -168,3 +239,6 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
+  prometheus_data:
+  tempo_data:
+  grafana_data:

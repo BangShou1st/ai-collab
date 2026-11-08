@@ -1,0 +1,33 @@
+{
+  "title": "AI Collab 最小总览",
+  "uid": "ai-collab-overview",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "应用健康（UP=1）",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "up{job=\"ai-collab-app\"}" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "JVM 堆内存（MB）",
+      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 0 },
+      "targets": [{ "expr": "jvm_memory_used_bytes{area=\"heap\"} / 1048576" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent Worker 尝试（按结果）",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [{ "expr": "rate(agent_worker_attempt_total[5m])" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP 请求速率（每秒）",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [{ "expr": "rate(http_server_requests_seconds_count[5m])" }]
+    }
+  ]
+}

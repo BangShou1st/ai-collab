@@ -91,6 +91,20 @@ services:
       CHAT_ENABLED: "${CHAT_ENABLED:-false}"
       AGENT_ENABLED: "${AGENT_ENABLED:-false}"
       AGENT_MCP_ALLOWED_HOSTS: "${AGENT_MCP_ALLOWED_HOSTS:-}"
+      # 可观测性 O1：生产只开放 prometheus 指标端点，不加面板容器（设计 §5）。
+      # 管理端口 8081 仅 compose 内网（不映射宿主机、nginx 不代理），由运维侧
+      # 抓取方案（外部 Prometheus/云监控）经内网访问。
+      MANAGEMENT_ENDPOINTS_EXPOSURE: "health,info,prometheus"
+      # OTLP 导出目标：默认指向 compose 内 tempo（生产无该容器时导出在后台静默失败，
+      # 不影响请求）；运维可用环境变量改指自建 collector。
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}"
+    healthcheck:
+      # O1：健康探针走独立管理端口 8081（仅 compose 内网，不映射宿主机、不经 nginx）。
+      test: ["CMD-SHELL", "wget -T 5 -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     networks:
       edge:
         aliases: [app-edge]

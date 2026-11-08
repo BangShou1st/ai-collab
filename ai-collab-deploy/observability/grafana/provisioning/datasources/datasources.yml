@@ -1,0 +1,17 @@
+# Grafana 数据源 provisioning（最小配置）：Prometheus（指标）+ Tempo（trace），
+# 均走 compose 内网服务名，不发布宿主机端口。
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
