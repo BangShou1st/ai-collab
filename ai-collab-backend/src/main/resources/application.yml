@@ -76,6 +76,20 @@ planning:
         core-size: "${PLANNING_EXECUTOR_CORE_SIZE:2}"
         max-size: "${PLANNING_EXECUTOR_MAX_SIZE:4}"
         queue-capacity: "${PLANNING_EXECUTOR_QUEUE_CAPACITY:20}"
+    # M2 MQ 迁移（§3.1 第 2 行）：dispatch 消息化。总闸默认取全局 MQ_ENABLED
+    # （可经 PLANNING_MQ_ENABLED 单独覆盖）；false = 完全回落进程内 FutureTask 派发。
+    # 恢复 Job 退居对账兜底：60s → 300s（PLANNING_RECOVERY_DELAY_MS 可覆盖）。
+    recovery-delay-ms: "${PLANNING_RECOVERY_DELAY_MS:300s}"
+    mq:
+        enabled: "${PLANNING_MQ_ENABLED:${MQ_ENABLED:false}}"
+        namesrv-addr: "${ROCKETMQ_NAMESRV_ADDR:rocketmq-namesrv:9876}"
+        topic: "${ROCKETMQ_PLANNING_TOPIC:plan-generation}"
+        producer-group: "${ROCKETMQ_PLANNING_PRODUCER_GROUP:plan-generation-producer}"
+        consumer-group: "${ROCKETMQ_PLANNING_CONSUMER_GROUP:plan-generation-consumer}"
+        # 消费重试上限：耗尽后消息进入死信队列 %DLQ%<group>（topic 由 rocketmq-topic-init
+        # 预建），计划由恢复 Job 按 PROCESS_RESTARTED 收口
+        max-reconsume-times: "${ROCKETMQ_PLANNING_MAX_RECONSUME_TIMES:3}"
+        reconnect-interval: "${ROCKETMQ_RECONNECT_INTERVAL:60s}"
 
 document:
     # M1 MQ 迁移：文档处理链路配置。消息驱动为主，恢复轮询只承担对账兜底。
@@ -163,6 +177,19 @@ agent:
     #   "OPENAI_COMPATIBLE:gpt-4o": 128000
   mcp:
     allowed-hosts: "${AGENT_MCP_ALLOWED_HOSTS:}"
+  mq:
+    # M2 MQ 迁移（§3.1 第 3 行）：run 入队通知双轨。总闸默认取全局 MQ_ENABLED
+    # （可经 AGENT_MQ_ENABLED 单独覆盖）；false = 完全回落轮询兜底路径
+    # （AgentRuntimeJob tick + P1 进程内事件唤醒），不装配任何 MQ Bean。
+    enabled: "${AGENT_MQ_ENABLED:${MQ_ENABLED:false}}"
+    namesrv-addr: "${ROCKETMQ_NAMESRV_ADDR:rocketmq-namesrv:9876}"
+    topic: "${ROCKETMQ_AGENT_RUN_TOPIC:agent-run-queued}"
+    producer-group: "${ROCKETMQ_AGENT_RUN_PRODUCER_GROUP:agent-run-queued-producer}"
+    consumer-group: "${ROCKETMQ_AGENT_RUN_CONSUMER_GROUP:agent-run-queued-consumer}"
+    reconnect-interval: "${ROCKETMQ_RECONNECT_INTERVAL:60s}"
+    # MQ 触发为主时的兜底轮询下限（毫秒）：开启 MQ 后调度 tick 从 1s 降频到该值
+    # （env 可覆盖），秒级派发由 MQ 消费触发承担；P1 事件唤醒绕过 tick 不受影响
+    fallback-poll-ms: "${AGENT_MQ_FALLBACK_POLL_MS:5000}"
 
 model:
   config:

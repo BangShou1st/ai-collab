@@ -5,12 +5,20 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 规划链路恢复对账 Job。
+ *
+ * <p>M2 迁移（§3.1 第 2 行）后 dispatch 主通道是 MQ 消息（发送失败回落进程内派发），
+ * 本 Job 退居对账兜底：60s → 300s 降频（env {@code PLANNING_RECOVERY_DELAY_MS} 可
+ * 覆盖）。10 分钟 stale 窗口覆盖 dispatch 消息丢失/消费重试耗尽（DLQ）等场景，
+ * 按 PROCESS_RESTARTED 收口，用户可重试。</p>
+ */
 @Component
 public class TaskPlanRecoveryJob {
     private final JdbcTemplate jdbc;
     public TaskPlanRecoveryJob(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
-    @Scheduled(fixedDelayString = "${planning.recovery-delay-ms:60000}")
+    @Scheduled(fixedDelayString = "${planning.recovery-delay-ms:300000}")
     @Transactional
     public void recoverStaleWork() {
         jdbc.update("""

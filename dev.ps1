@@ -1,6 +1,6 @@
 # Windows PowerShell 5.1 / PowerShell 7. No secrets are copied into process arguments or state.
 [CmdletBinding()]
-param([ValidateSet('start', 'status', 'stop', 'stop-infra', 'doctor', 'diagnose-proxy')][string]$Action = 'status',
+param([ValidateSet('start', 'start-dual', 'status', 'stop', 'stop-infra', 'doctor', 'diagnose-proxy')][string]$Action = 'status',
       [ValidateRange(10, 600)][int]$TimeoutSeconds = 120)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -53,6 +53,10 @@ function Healthy($name) {
             # O1：actuator 健康探针走独立管理端口 8081（application.yml 默认值），业务 API 仍在 8080。
             return ((Local-Http 'http://127.0.0.1:8081/actuator/health') | ConvertFrom-Json).status -eq 'UP'
         }
+        if ($name -eq 'backend2') {
+            # M2 双实例验收：第二个实例走 dual profile（application-dual.yml：8082/8083）。
+            return ((Local-Http 'http://127.0.0.1:8083/actuator/health') | ConvertFrom-Json).status -eq 'UP'
+        }
         return (Local-Http 'http://localhost:5173') -match '/@vite/client'
     } catch { return $false }
 }
@@ -72,7 +76,7 @@ function Wait-App($name) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
         if (!(Matches $state.$name)) { throw "$name exited; see $runtime/$name.stderr.log and $name.stdout.log" }
-        $port = if ($name -eq 'backend') { 8080 } else { 5173 }
+        $port = switch ($name) { 'backend' { 8080 } 'backend2' { 8082 } default { 5173 } }
         $owners = Listeners $port
         if ($owners.Count -and $state.$name.pid -notin $owners) { Assert-Free $port }
         if ($state.$name.pid -in $owners -and (Healthy $name)) { return }
@@ -163,7 +167,7 @@ function Check-App($name, $port) {
     if (!$owners.Count) { return $false }
     if ($owners.Count -eq 1) {
         $p = Get-CimInstance Win32_Process -Filter "ProcessId=$($owners[0])"
-        $belongs = if ($name -eq 'backend') {
+        $belongs = if ($name -in @('backend', 'backend2')) {
             $p.Name -eq 'java.exe' -and $p.CommandLine.IndexOf($backend, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
                 $p.CommandLine.Contains('com.shitulelv.aicollab.AiCollabBackendApplication')
         } else { $p.Name -eq 'node.exe' -and $p.CommandLine.IndexOf((Join-Path $frontend 'node_modules/vite/bin/vite.js'), [StringComparison]::OrdinalIgnoreCase) -ge 0 }
@@ -179,7 +183,13 @@ function Check-App($name, $port) {
     Assert-Free $port
 }
 function Launch($name, $exe, $arguments, $directory) {
-    Assert-Free $(if ($name -eq 'backend') { 8080 } else { 5173 })
+    if ($name -eq 'backend') { Assert-Free 8080 }
+    elseif ($name -eq 'backend2') {
+        # M2 双实例验收：第二个实例占用业务端口 8082 与管理端口 8083（dual profile）
+        Assert-Free 8082
+        Assert-Free 8083
+    }
+    else { Assert-Free 5173 }
     # WMI creates an independent hidden console without inherited terminal pipe handles. cmd redirects
     # directly to files, so log capture survives PowerShell exiting and nested callers return.
     if (($root + $exe) -match '[%"\r\n]') { throw 'Repository/tool path contains characters unsafe for Windows command launching.' }
@@ -318,6 +328,72 @@ function Invoke-Doctor {
     Write-Host 'doctor: core local development prerequisites satisfied.'
 }
 
+function Invoke-Start([switch]$Dual) {
+    Write-Host 'Checking local configuration and dependencies'
+    Validate-Config
+    foreach ($tool in @('docker','java','node','pnpm')) {
+        if (!(Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Missing dependency $tool; see README environment requirements." }
+    }
+    $versionCheck = Start-Process -FilePath (Get-Command java).Source -ArgumentList '-version' -WindowStyle Hidden -Wait -PassThru `
+        -RedirectStandardOutput (Join-Path $runtime 'java-version.stdout.log') -RedirectStandardError (Join-Path $runtime 'java-version.stderr.log')
+    $javaVersion = Get-Content (Join-Path $runtime 'java-version.stderr.log') -Raw
+    if ($versionCheck.ExitCode -ne 0) { throw "java -version failed; see $runtime/java-version.stderr.log" }
+    if ($javaVersion -notmatch 'version "21\.') { throw 'JDK 21 required (java on PATH).' }
+    $nodeVersion = & node --version
+    if ([int]($nodeVersion.TrimStart('v').Split('.')[0]) -lt 22) { throw 'Node.js 22+ required.' }
+    if (!$Dual -and !(Test-Path (Join-Path $frontend 'node_modules/vite/bin/vite.js'))) {
+        throw 'Frontend dependencies missing. Run pnpm install --frozen-lockfile in ai-collab-frontend, then retry.'
+    }
+    # Preflight application ports before any infrastructure mutation.
+    $haveBackend = Check-App 'backend' 8080
+    $haveBackend2 = if ($Dual) { Check-App 'backend2' 8082 } else { $false }
+    $haveFrontend = if ($Dual) { $false } else { Check-App 'frontend' 5173 }
+    Write-Host 'Checking Docker infrastructure (existing containers are preserved)'
+    Infra
+    $compiled = $false
+    if (!$haveBackend) {
+        Write-Host "Compiling backend; log: $runtime/build.log"
+        Push-Location $backend
+        try {
+            $code = Run-Logged '.\mvnw.cmd' @('-B','-ntp','-DskipTests','compile','dependency:build-classpath',
+                '-Dmdep.outputFile=target/local-dev/classpath.txt') (Join-Path $runtime 'build.log')
+            if ($code -ne 0) { throw "Backend compile/dependency resolution failed; see $runtime/build.log" }
+        } finally { Pop-Location }
+        $compiled = $true
+        $classpath = (Join-Path $backend 'target/classes') + ';' + (Get-Content (Join-Path $runtime 'classpath.txt') -Raw).Trim()
+        $argFile = Join-Path $runtime 'java.args'
+        [IO.File]::WriteAllText($argFile, ('-cp "' + $classpath.Replace('\','/') + '"'), [Text.UTF8Encoding]::new($false))
+        Launch 'backend' (Get-Command java).Source ('-Djava.net.useSystemProxies=true "@' + $argFile + '" com.shitulelv.aicollab.AiCollabBackendApplication --spring.profiles.active=local --server.port=8080') $backend
+    }
+    if ($Dual -and !$haveBackend2) {
+        # M2 双实例验收：第二个实例复用同一份 classpath（刚编译过或 target 已就绪），
+        # dual profile 隔离端口（8082/8083）。若既未编译也缺 classpath 文件则补一次编译。
+        if (!$compiled -and !(Test-Path (Join-Path $runtime 'classpath.txt'))) {
+            Write-Host "Compiling backend (first dual run); log: $runtime/build.log"
+            Push-Location $backend
+            try {
+                $code = Run-Logged '.\mvnw.cmd' @('-B','-ntp','-DskipTests','compile','dependency:build-classpath',
+                    '-Dmdep.outputFile=target/local-dev/classpath.txt') (Join-Path $runtime 'build.log')
+                if ($code -ne 0) { throw "Backend compile/dependency resolution failed; see $runtime/build.log" }
+            } finally { Pop-Location }
+        }
+        $classpath = (Join-Path $backend 'target/classes') + ';' + (Get-Content (Join-Path $runtime 'classpath.txt') -Raw).Trim()
+        $argFile2 = Join-Path $runtime 'java2.args'
+        [IO.File]::WriteAllText($argFile2, ('-cp "' + $classpath.Replace('\','/') + '"'), [Text.UTF8Encoding]::new($false))
+        Launch 'backend2' (Get-Command java).Source ('-Djava.net.useSystemProxies=true "@' + $argFile2 + '" com.shitulelv.aicollab.AiCollabBackendApplication --spring.profiles.active=local,dual') $backend
+    }
+    if (!$Dual -and !$haveFrontend) {
+        Launch 'frontend' (Get-Command node).Source ('"' + (Join-Path $frontend 'node_modules/vite/bin/vite.js') + '" --port 5173 --strictPort') $frontend
+    }
+    if ($Dual) {
+        Write-Host "Ready (dual): API http://localhost:8080 + http://localhost:8082 (management 8081/8083, shared infra & MQ)"
+        Write-Host "backend PID=$($state.backend.pid); backend2 PID=$($state.backend2.pid); logs=$runtime"
+    } else {
+        Write-Host "Ready: http://localhost:5173 ; API http://localhost:8080 ; MinIO http://localhost:9001"
+        Write-Host "backend PID=$($state.backend.pid); frontend PID=$($state.frontend.pid); logs=$runtime"
+    }
+}
+
 $lock = $null
 try {
     try { $lock = [IO.File]::Open((Join-Path $runtime 'workflow.lock'), 'OpenOrCreate', 'ReadWrite', 'None') }
@@ -339,8 +415,8 @@ try {
             } finally { Pop-Location }
         }
         'status' {
-            foreach ($name in @('backend','frontend')) {
-                $port = if ($name -eq 'backend') { 8080 } else { 5173 }
+            foreach ($name in @('backend','backend2','frontend')) {
+                $port = switch ($name) { 'backend' { 8080 } 'backend2' { 8082 } default { 5173 } }
                 Write-Host "$name port=$port listeners=$((Listeners $port) -join ',') identityMatch=$(Matches $state.$name) managed=$($state.$name.managed) healthy=$(Healthy $name)"
             }
             if (Get-Command docker -ErrorAction SilentlyContinue) {
@@ -356,7 +432,7 @@ try {
             Invoke-Doctor
         }
         'stop' {
-            foreach ($name in @('frontend','backend')) {
+            foreach ($name in @('frontend','backend2','backend')) {
                 $record = $state.$name
                 if ($record -and $record.managed -and (Matches $record)) {
                     Stop-Process -Id $record.pid
@@ -375,44 +451,12 @@ try {
             if ($LASTEXITCODE -ne 0) { throw 'Infrastructure stop failed. No volumes removed.' }
         }
         'start' {
-            Write-Host 'Checking local configuration and dependencies'
-            Validate-Config
-            foreach ($tool in @('docker','java','node','pnpm')) {
-                if (!(Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Missing dependency $tool; see README environment requirements." }
-            }
-            $versionCheck = Start-Process -FilePath (Get-Command java).Source -ArgumentList '-version' -WindowStyle Hidden -Wait -PassThru `
-                -RedirectStandardOutput (Join-Path $runtime 'java-version.stdout.log') -RedirectStandardError (Join-Path $runtime 'java-version.stderr.log')
-            $javaVersion = Get-Content (Join-Path $runtime 'java-version.stderr.log') -Raw
-            if ($versionCheck.ExitCode -ne 0) { throw "java -version failed; see $runtime/java-version.stderr.log" }
-            if ($javaVersion -notmatch 'version "21\.') { throw 'JDK 21 required (java on PATH).' }
-            $nodeVersion = & node --version
-            if ([int]($nodeVersion.TrimStart('v').Split('.')[0]) -lt 22) { throw 'Node.js 22+ required.' }
-            if (!(Test-Path (Join-Path $frontend 'node_modules/vite/bin/vite.js'))) {
-                throw 'Frontend dependencies missing. Run pnpm install --frozen-lockfile in ai-collab-frontend, then retry.'
-            }
-            # Preflight both application ports before any infrastructure mutation.
-            $haveBackend = Check-App 'backend' 8080
-            $haveFrontend = Check-App 'frontend' 5173
-            Write-Host 'Checking Docker infrastructure (existing containers are preserved)'
-            Infra
-            if (!$haveBackend) {
-                Write-Host "Compiling backend; log: $runtime/build.log"
-                Push-Location $backend
-                try {
-                    $code = Run-Logged '.\mvnw.cmd' @('-B','-ntp','-DskipTests','compile','dependency:build-classpath',
-                        '-Dmdep.outputFile=target/local-dev/classpath.txt') (Join-Path $runtime 'build.log')
-                    if ($code -ne 0) { throw "Backend compile/dependency resolution failed; see $runtime/build.log" }
-                } finally { Pop-Location }
-                $classpath = (Join-Path $backend 'target/classes') + ';' + (Get-Content (Join-Path $runtime 'classpath.txt') -Raw).Trim()
-                $argFile = Join-Path $runtime 'java.args'
-                [IO.File]::WriteAllText($argFile, ('-cp "' + $classpath.Replace('\','/') + '"'), [Text.UTF8Encoding]::new($false))
-                Launch 'backend' (Get-Command java).Source ('-Djava.net.useSystemProxies=true "@' + $argFile + '" com.shitulelv.aicollab.AiCollabBackendApplication --spring.profiles.active=local --server.port=8080') $backend
-            }
-            if (!$haveFrontend) {
-                Launch 'frontend' (Get-Command node).Source ('"' + (Join-Path $frontend 'node_modules/vite/bin/vite.js') + '" --port 5173 --strictPort') $frontend
-            }
-            Write-Host "Ready: http://localhost:5173 ; API http://localhost:8080 ; MinIO http://localhost:9001"
-            Write-Host "backend PID=$($state.backend.pid); frontend PID=$($state.frontend.pid); logs=$runtime"
+            Invoke-Start
+        }
+        'start-dual' {
+            # M2 双实例验收（§3.3）：本地起两个后端实例（8080/8082，管理端口 8081/8083，
+            # 第二实例走 local+dual profile 配置隔离），共享同一套基础设施与 MQ 拓扑。
+            Invoke-Start -Dual
         }
     }
 } catch {

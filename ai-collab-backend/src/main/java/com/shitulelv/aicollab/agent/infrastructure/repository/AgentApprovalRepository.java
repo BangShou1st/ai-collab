@@ -27,6 +27,12 @@ public class AgentApprovalRepository {
     private static final Logger log = LoggerFactory.getLogger(AgentApprovalRepository.class);
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    /**
+     * run 入队通知发送器（M2 §3.1 双轨制）：MQ 装配时注入；审批过期把运行转回 QUEUED
+     * 后补发通知。未装配时为 null，静默跳过（tick 兜底）。
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.agent.application.runtime.AgentRunQueuedNotifier queuedNotifier;
 
     public AgentApprovalRepository(JdbcTemplate jdbc, ObjectMapper json) {
         this.jdbc = jdbc;
@@ -223,15 +229,27 @@ public class AgentApprovalRepository {
     }
 
     public int expirePending(OffsetDateTime now) {
-        return jdbc.update("""
+        // M2 双轨制：单条语句内完成"审批过期 → 运行转回 QUEUED"，并 RETURNING 取出
+        // 实际被重新排队的 runId 补发 MQ 入队通知（语句原子性保持既有语义不变）
+        List<UUID> requeued = jdbc.queryForList("""
                 WITH expired AS (
                   UPDATE agent_approval SET status='EXPIRED',resolved_at=?,version=version+1
                   WHERE status='PENDING' AND expires_at<=?
                   RETURNING run_id
+                ), requeued_run AS (
+                  UPDATE agent_run r SET status='QUEUED',updated_at=now(),version=version+1
+                  FROM expired e WHERE r.id=e.run_id AND r.status='WAITING_FOR_APPROVAL'
+                  RETURNING r.id
                 )
-                UPDATE agent_run r SET status='QUEUED',updated_at=now(),version=version+1
-                FROM expired e WHERE r.id=e.run_id AND r.status='WAITING_FOR_APPROVAL'
-                """, now, now);
+                SELECT id FROM requeued_run
+                """, UUID.class, now, now);
+        if (queuedNotifier != null) {
+            for (UUID runId : requeued) {
+                // 无事务上下文（tick 内自动提交）时直接发送；发送失败无害，tick 兜底
+                queuedNotifier.notifyQueuedAfterCommit(runId, "APPROVAL_EXPIRED_REQUEUED");
+            }
+        }
+        return requeued.size();
     }
 
     /**

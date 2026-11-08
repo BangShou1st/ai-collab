@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shitulelv.aicollab.document.application.service.DocumentPipelineMessenger;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
 import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
-import org.apache.rocketmq.client.producer.DefaultMQProducer;
+import com.shitulelv.aicollab.infrastructure.mq.RocketMqProducerLifecycle;
 import org.apache.rocketmq.client.producer.LocalTransactionState;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.client.producer.TransactionSendResult;
@@ -35,9 +35,11 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
     private final ObjectMapper objectMapper;
     private final DocumentRegistrationTransactionListener transactionListener;
 
-    /** 懒启动的生产者实例；null 表示当前不可用（启动失败，等待下次发送时重试）。 */
-    private volatile DefaultMQProducer producer;
-    private final Object producerLock = new Object();
+    /**
+     * 生产者生命周期（M2 提升到公共层 {@link RocketMqProducerLifecycle}）：懒启动、
+     * START_FAILED 后重建重试，本类只保留文档链路自己的消息体与发送语义。
+     */
+    private final RocketMqProducerLifecycle producerLifecycle;
 
     public RocketMqDocumentPipelineMessenger(DocumentMqProperties properties, DocumentRepository documents,
                                              DocumentMqMetrics metrics, ObjectMapper objectMapper) {
@@ -46,6 +48,8 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
         this.metrics = metrics;
         this.objectMapper = objectMapper;
         this.transactionListener = new DocumentRegistrationTransactionListener(documents, metrics);
+        this.producerLifecycle = new RocketMqProducerLifecycle(
+                properties.producerGroup(), properties.namesrvAddr(), "文档链路");
     }
 
     @Override
@@ -55,7 +59,7 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
 
     @Override
     public boolean trySendRegistrationTransaction(DocumentEntity document, Runnable localRegistration) {
-        DefaultMQProducer active = ensureStarted();
+        var active = producerLifecycle.acquire();
         if (active == null) {
             return false;
         }
@@ -94,7 +98,7 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
 
     @Override
     public void sendProcessingNotification(UUID projectId, UUID documentId) {
-        DefaultMQProducer active = ensureStarted();
+        var active = producerLifecycle.acquire();
         if (active == null) {
             metrics.sent("failed");
             return;
@@ -118,11 +122,7 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
 
     /** 销毁生产者（Spring 容器关闭时由配置类调用）。 */
     public void shutdown() {
-        DefaultMQProducer active = this.producer;
-        if (active != null) {
-            active.shutdown();
-            this.producer = null;
-        }
+        producerLifecycle.shutdown();
     }
 
     private Message toMessage(DocumentEntity document) throws Exception {
@@ -141,32 +141,5 @@ public class RocketMqDocumentPipelineMessenger implements DocumentPipelineMessen
         message.putUserProperty(DocumentProcessingMessage.PROP_DOCUMENT_ID,
                 payload.documentId().toString());
         message.putUserProperty(DocumentProcessingMessage.PROP_STAGE, payload.stage());
-    }
-
-    /** 懒启动生产者；失败时丢弃实例（START_FAILED 状态不可复用），下次调用重建重试。 */
-    private DefaultMQProducer ensureStarted() {
-        DefaultMQProducer active = this.producer;
-        if (active != null) {
-            return active;
-        }
-        synchronized (producerLock) {
-            if (this.producer != null) {
-                return this.producer;
-            }
-            DefaultMQProducer fresh = new DefaultMQProducer(properties.producerGroup());
-            fresh.setNamesrvAddr(properties.namesrvAddr());
-            try {
-                fresh.start();
-                this.producer = fresh;
-                log.info("RocketMQ 文档链路生产者已启动，topic={}，namesrv={}",
-                        properties.topic(), properties.namesrvAddr());
-                return fresh;
-            } catch (Exception exception) {
-                fresh.shutdown();
-                log.warn("RocketMQ 生产者启动失败，文档链路暂时回落进程内路径，namesrv={}，type={}",
-                        properties.namesrvAddr(), exception.getClass().getSimpleName());
-                return null;
-            }
-        }
     }
 }

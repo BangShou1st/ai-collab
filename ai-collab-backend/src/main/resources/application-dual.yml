@@ -1,0 +1,11 @@
+# M2 双实例验收专用 profile（§3.3 交付判据）：dev.ps1 start-dual 的第二个后端实例。
+#
+# 与默认实例（local profile，业务端口 8080 / 管理端口 8081）配置隔离：第二个实例
+# 以 `--spring.profiles.active=local,dual` 激活本文件，业务端口 8082、管理端口 8083。
+# 两个实例共享同一套基础设施（PostgreSQL/Redis/MinIO/RocketMQ）——这正是双轨制
+# （MQ 触发 + SKIP LOCKED 轮询兜底）多实例正确性的验收前提。
+server:
+    port: 8082
+management:
+    server:
+        port: 8083

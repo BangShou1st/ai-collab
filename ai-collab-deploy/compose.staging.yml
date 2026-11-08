@@ -111,6 +111,11 @@ services:
     environment:
       ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
       ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
+      # M2 MQ 迁移：agent run 入队通知与规划 dispatch 的业务 topic、死信 topic 与消费组
+      ROCKETMQ_AGENT_RUN_TOPIC: "${ROCKETMQ_AGENT_RUN_TOPIC:-agent-run-queued}"
+      ROCKETMQ_AGENT_RUN_CONSUMER_GROUP: "${ROCKETMQ_AGENT_RUN_CONSUMER_GROUP:-agent-run-queued-consumer}"
+      ROCKETMQ_PLANNING_TOPIC: "${ROCKETMQ_PLANNING_TOPIC:-plan-generation}"
+      ROCKETMQ_PLANNING_CONSUMER_GROUP: "${ROCKETMQ_PLANNING_CONSUMER_GROUP:-plan-generation-consumer}"
     command:
       - sh
       - -c
@@ -119,6 +124,12 @@ services:
         sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_DOCUMENT_TOPIC"
         sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_CONSUMER_GROUP"
         sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_CONSUMER_GROUP"
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_AGENT_RUN_TOPIC"
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_AGENT_RUN_CONSUMER_GROUP"
+        sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_AGENT_RUN_CONSUMER_GROUP"
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_PLANNING_TOPIC"
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_PLANNING_CONSUMER_GROUP"
+        sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_PLANNING_CONSUMER_GROUP"
     networks: [data]
     logging: *logging
 
@@ -176,6 +187,12 @@ services:
       ROCKETMQ_NAMESRV_ADDR: "rocketmq-namesrv:9876"
       ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
       ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
+      # M2 MQ 迁移：agent run 入队通知与规划 dispatch（总闸随 MQ_ENABLED，链路内
+      # topic/消费组可单独覆盖；agent.mq/planning.mq.enabled 默认取 MQ_ENABLED）
+      ROCKETMQ_AGENT_RUN_TOPIC: "${ROCKETMQ_AGENT_RUN_TOPIC:-agent-run-queued}"
+      ROCKETMQ_AGENT_RUN_CONSUMER_GROUP: "${ROCKETMQ_AGENT_RUN_CONSUMER_GROUP:-agent-run-queued-consumer}"
+      ROCKETMQ_PLANNING_TOPIC: "${ROCKETMQ_PLANNING_TOPIC:-plan-generation}"
+      ROCKETMQ_PLANNING_CONSUMER_GROUP: "${ROCKETMQ_PLANNING_CONSUMER_GROUP:-plan-generation-consumer}"
     healthcheck:
       # O1：健康探针走独立管理端口 8081（仅 compose 内网，不映射宿主机、不经 nginx）。
       test: ["CMD-SHELL", "wget -T 5 -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1 || exit 1"]

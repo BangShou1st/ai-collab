@@ -222,6 +222,14 @@ public class TaskPlanGenerationOrchestrator {
     private final TaskPlanVersionCommitService commitService;
     private final TaskPlanRepairPatchParser patchParser;
     private final TaskPlanRepairPatchApplier patchApplier;
+    /**
+     * dispatch 消息门面（M2 §3.1 第 2 行）：MQ 总闸开启时事务提交后发 dispatch 消息，
+     * 消费侧调用 {@link #executeDispatch}（与进程内路径共用）；发送失败回落进程内
+     * {@code dispatchNow}（M1 文档链路同款"消息丢失无害"模式）。未装配（总闸关闭）
+     * 时为 null，dispatch 行为与 M2 之前完全一致。
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.planning.application.service.PlanGenerationMessenger messenger;
 
     /** C3: Composite key (planId, generationSeq) prevents cross-plan collisions. */
     record GenerationRunKey(UUID planId, long generationSeq) {}
@@ -268,18 +276,46 @@ public class TaskPlanGenerationOrchestrator {
      * Uses (planId, generationSeq) composite key to prevent cross-plan collisions.
      * The FutureTask is placed in the registry BEFORE executor.execute(),
      * so cancel() always finds it. On queue reject, we clean up immediately.
+     *
+     * <p>M2 消息化：事务提交后优先发 dispatch 消息（消费侧经 {@link #executeDispatch}
+     * 进入同一条执行路径）；发送失败回落进程内 {@code dispatchNow} —— 消息丢失无害，
+     * 恢复 Job 对账兜底。MQ 总闸关闭（messenger 缺失/enabled=false）时行为不变。</p>
      */
     public void dispatch(TaskPlanRecord plan, UUID actor, boolean detailOnly) {
         if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization(){
                 @Override public void afterCommit(){
-                    try {dispatchNow(plan,actor,detailOnly);} catch(RuntimeException failure) { /* persisted attempt failure remains queryable */ }
+                    try {dispatchAfterCommit(plan,actor,detailOnly);} catch(RuntimeException failure) { /* persisted attempt failure remains queryable */ }
                 }
             });
             return;
         }
         dispatchNow(plan,actor,detailOnly);
     }
+
+    /**
+     * 事务提交后的 dispatch 入口（M2 消息化）：MQ 可用时发消息即返回（执行交给消费侧），
+     * 否则回落进程内 {@code dispatchNow}。计划状态行在 dispatch 前已落库，
+     * 消息丢失由恢复 Job（300s 对账）按既有语义收口。
+     */
+    private void dispatchAfterCommit(TaskPlanRecord plan, UUID actor, boolean detailOnly) {
+        if (messenger != null && messenger.enabled()
+                && messenger.trySendGeneration(plan, actor, detailOnly)) {
+            return;
+        }
+        dispatchNow(plan, actor, detailOnly);
+    }
+
+    /**
+     * 消费侧执行入口（M2 §3.1 第 2 行）：与进程内 {@code dispatchNow} 完全共用
+     * 运行注册表（cancelFuture 的取消语义）、幂等（{@code putIfAbsent}）与
+     * DB 状态机校验（{@code active()}/{@code markRunning()}）——
+     * 重复投递由注册表 + 状态机双保险丢弃，跨实例取消经 DB 状态轮询在阶段边界生效。
+     */
+    public void executeDispatch(TaskPlanRecord plan, UUID actor, boolean detailOnly) {
+        dispatchNow(plan, actor, detailOnly);
+    }
+
     private void dispatchNow(TaskPlanRecord plan,UUID actor,boolean detailOnly) {
         FutureTask<Object> futureTask = new FutureTask<Object>(() -> {
             runPlan(plan, actor, detailOnly);

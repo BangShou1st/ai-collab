@@ -242,6 +242,30 @@ class AgentDynamicScheduleRegistrarTest {
         assertThat(maxRecentGapMs(2)).isGreaterThanOrEqualTo(650L);
     }
 
+    /**
+     * M2 双轨制轮询降频：MQ 开启时兜底轮询下限抬到 fallbackPollMs（取大语义：
+     * 管理员配置更快则收敛到下限，更慢则保持原值）；MQ 关闭时行为与降频前完全一致。
+     */
+    @Test
+    void m2_mqEnabledFloorsFallbackPollInterval() {
+        setConfig(true, 1000L, 30000L);
+        startRegistrar();
+
+        // MQ 总闸关闭（agentMqProperties 未注入）：tick 间隔保持管理员配置（1s）
+        assertThat(registrar.workerDelayMillis()).isEqualTo(1000L);
+
+        // MQ 开启：兜底轮询抬到 fallbackPollMs=5000（MQ 触发为主、轮询为兜底）
+        ReflectionTestUtils.setField(registrar, "agentMqProperties",
+                new com.shitulelv.aicollab.agent.infrastructure.mq.AgentMqProperties(
+                        true, "127.0.0.1:1", "agent-run-queued", "p", "c",
+                        java.time.Duration.ofSeconds(10), 5000L));
+        assertThat(registrar.workerDelayMillis()).isEqualTo(5000L);
+
+        // 管理员配置更慢（30s）时保持原值（取大而非覆盖）
+        setConfig(true, 30000L, 30000L);
+        assertThat(registrar.workerDelayMillis()).isEqualTo(30000L);
+    }
+
     private long maxRecentGapMs(int window) {
         List<Long> dispatches = workerDispatchNanos;
         int size = dispatches.size();
