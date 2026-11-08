@@ -203,29 +203,49 @@ public class AgentToolCallExecutor {
                     && !(vtc.tool() instanceof com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool))
                 readOnlyBatch.add(vtc);
         }
-        // 委派调用在只读批次之前单独处理：recordDocumentResearchDelegation 会把运行转回
-        // QUEUED（等待子运行终态唤醒），之后不能再对 RUNNING 状态做结果落库——
-        // 委派结果与委派受理在同一事务内由受理路径持久化，工具层只回执。
-        var delegation = validated.stream().filter(v -> v.error() == null
-                && v.tool() instanceof com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool).findFirst();
-        if (delegation.isPresent()) {
-            if (validated.stream().filter(v -> v.error() == null).count() > 1) {
+        // 委派调用在只读批次之前单独处理（V82 并行 fan-out，设计文档 §3.1）：
+        // 同一批次允许包含多个委派调用（顺序受理，每个委派 children_pending/children_used
+        // 各 +1，父运行保持 RUNNING 并立即释放租约，等待语义由 children_pending>0 表达）。
+        //
+        // 混批（委派 + 非委派工具）仍拒绝：委派受理会立即释放父租约（lease_expires_at=now()），
+        // 同批其余工具的执行与结果落库依赖"父运行仍持有有效租约"（AgentLeaseScope.verify），
+        // 混批受理后其余工具会被误判为租约过期失败。因此委派调用必须独占批次，
+        // 但批内可以多个委派并行 fan-out。
+        var delegations = validated.stream().filter(v -> v.error() == null
+                && v.tool() instanceof com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool).toList();
+        if (!delegations.isEmpty()) {
+            boolean mixedBatch = validated.stream().anyMatch(v -> v.error() == null
+                    && !(v.tool() instanceof com.shitulelv.aicollab.agent.infrastructure.tool.DocumentResearchDelegateAgentTool));
+            if (mixedBatch) {
                 // 混合批次：委派明确拒绝。拒绝结果已落库，委派调用必须从后续普通执行中剔除——
                 // 否则它会随只读批次进入 DocumentResearchDelegateAgentTool.execute，
                 // 产生"没有创建子运行的成功 DELEGATED 回执"（伪成功覆盖前一次拒绝）。
-                run = repository.recordToolResult(run, delegation.get().toolCall().name(),
-                        input(delegation.get().toolCall()),
-                        createError("DELEGATION_BATCH_LIMIT", "委派调用必须单独成批提交"), true);
-                emit(run, AgentEventType.TOOL_CALL_FAILED, json.createObjectNode()
-                        .put("callId", delegation.get().toolCall().id())
-                        .put("toolName", delegation.get().toolCall().name())
-                        .put("status", "REJECTED").put("errorCode", "DELEGATION_BATCH_LIMIT"));
+                for (var delegation : delegations) {
+                    run = repository.recordToolResult(run, delegation.toolCall().name(),
+                            input(delegation.toolCall()),
+                            createError("DELEGATION_BATCH_LIMIT", "委派调用必须单独成批提交"), true);
+                    emit(run, AgentEventType.TOOL_CALL_FAILED, json.createObjectNode()
+                            .put("callId", delegation.toolCall().id())
+                            .put("toolName", delegation.toolCall().name())
+                            .put("status", "REJECTED").put("errorCode", "DELEGATION_BATCH_LIMIT"));
+                }
             } else {
                 // 暂停边界：意图先落库则不启动委派，调用保持 PENDING
                 if (repository.pauseIfRequested(run)) {
                     return new AgentWorkerOutcome(AgentRunStatus.PAUSED, null, null, "RUN_PAUSED");
                 }
-                return executeDelegation(run, delegation.get(), toolCtx);
+                AgentWorkerOutcome delegationOutcome = null;
+                for (var delegation : delegations) {
+                    // 刷新运行视图：上一次受理已在自身事务内推进 version（乐观锁），
+                    // 后续委派的校验与落库必须基于最新视图，否则 CAS 必然失配
+                    run = repository.findRun(run.projectId(), run.id()).orElse(run);
+                    delegationOutcome = executeDelegation(run, delegation, toolCtx);
+                    if (delegationOutcome.status() != AgentRunStatus.QUEUED) {
+                        // 暂停/失败等非排队结果：立即返回，不再受理同批剩余委派
+                        return delegationOutcome;
+                    }
+                }
+                return delegationOutcome;
             }
         }
         if (!readOnlyBatch.isEmpty()) {
@@ -388,8 +408,9 @@ public class AgentToolCallExecutor {
 
     /**
      * 受理 document_research 委派：子运行创建、DELEGATION_REQUESTED step 与委派工具
-     * 结果在同一持久化边界内完成（run 状态 RUNNING→QUEUED），随后父运行等待子运行
-     * 终态唤醒。崩溃恢复时同一 invocation 身份的重复执行走 recorder 幂等分支，
+     * 结果在同一持久化边界内完成（V82：父运行保持 RUNNING 并立即释放租约，
+     * children_pending+1 表达等待），随后父运行等待子运行终态回收唤醒。
+     * 崩溃恢复时同一 invocation 身份的重复执行走 recorder 幂等分支，
      * 不创建第二个子运行、不重复切预算。
      */
     private AgentWorkerOutcome executeDelegation(
@@ -466,7 +487,13 @@ public class AgentToolCallExecutor {
         // 重新排队：本模型轮次被正常消费（markBatchHandled），下一次准入由既有收敛策略判定——
         // 已有可信证据（父自有工具成功或已回收子产出）且收尾可负担 → 无工具总结；
         // 否则按既有权限与预算继续执行目标（不再暴露已不可能受理的委派工具）。
-        repository.requeueRun(run);
+        // V82 并行 fan-out 例外：同批可能有兄弟委派已受理（children_pending>0，父运行
+        // 处于等待态）——此时不得重新排队（QUEUED+pending>0 会被 claimNext 重新领取
+        // 造成空转），保持等待态由剩余子运行终态回收；仅当无任何在途子运行时维持
+        // 既有"拒绝后重新排队"语义。
+        if (repository.childrenPending(run.projectId(), run.id()) == 0) {
+            repository.requeueRun(run);
+        }
         return new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, toolCall.name(), rejected.reasonCode());
     }
 

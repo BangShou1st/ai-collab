@@ -180,15 +180,20 @@ public class AgentRepository {
         UUID runId = UUID.randomUUID();
         AgentRunView run = jdbc.queryForObject("""
                 INSERT INTO agent_run(
-                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,max_steps,max_tool_calls,budget_semantics,context_policy_version,max_input_tokens,max_output_tokens)
-                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb,?,?,'SEPARATED',2,NULL,NULL
+                  id,session_id,project_id,requester_id,goal,status,scheduled,skill_code,page_context_json,max_steps,max_tool_calls,max_children,budget_semantics,context_policy_version,max_input_tokens,max_output_tokens)
+                SELECT ?,s.id,s.project_id,?,?, 'QUEUED',?,?,?::jsonb,?,?,?,'SEPARATED',2,NULL,NULL
                 FROM agent_session s
                 WHERE s.project_id=? AND s.id=?
                 RETURNING *
                 """, AgentRunMappers.runMapper(), runId, requesterId, goal, scheduled,
                 skillCode, pageContextJson,
                 AgentResourcePolicy.V2_ROOT_MAX_STEPS,
-                AgentResourcePolicy.V2_ROOT_MAX_TOOL_CALLS, projectId, sessionId);
+                AgentResourcePolicy.V2_ROOT_MAX_TOOL_CALLS,
+                // 子运行数量默认 3（V82 把 DB CHECK 上限放宽到 8，支撑并行 fan-out）；
+                // TODO(P2): 按 run 配置更大 maxChildren 的干净路径（委派工具 schema 显式传
+                // maxChildren ≤ AgentResourcePolicy.MAX_CHILDREN_CEILING）见设计文档
+                // agent-fanout-budget-and-agentic-planning.md §3.1 第 5 点。
+                AgentResourcePolicy.V2_ROOT_MAX_CHILDREN, projectId, sessionId);
         if (run == null) {
             throw new IllegalArgumentException("Agent 会话不存在");
         }
@@ -456,6 +461,14 @@ public class AgentRepository {
      *
      * <p>领取顺序按 depth 降序再按 created_at：委派子运行（depth=1）先于等待它的父运行
      * 被处理，父运行在子运行完成后回收结果；正常深度 0 运行之间的顺序不变。</p>
+     *
+     * <p>等待子运行的父运行不领取（V82 并行 fan-out）：委派受理后父运行保持 RUNNING 且
+     * 租约立即释放，"等待"由 children_pending &gt; 0 表达——这类运行必须从候选中排除，
+     * 否则会在子运行完成前被误领。排除条件带"存在存活子运行"的 EXISTS 子查询：
+     * 若 children_pending 因计数漂移而大于 0 但实际已无存活子运行，运行仍可被领取，
+     * 接管时按存活子运行数重算 children_pending（崩溃恢复自愈路径，AgentRecoveryJob.claim）。
+     * PAUSED 子运行不视为存活（与协调器 hasDelegationAwaiting 同一口径：暂停的子运行
+     * 不阻塞父运行）。</p>
      */
     @Transactional
     public Optional<ClaimedAgentRun> claimNext(
@@ -465,8 +478,19 @@ public class AgentRepository {
                 WITH candidate AS (
                   SELECT id,status FROM agent_run
                   WHERE (
-                    status='QUEUED'
-                    OR (status='RUNNING' AND lease_expires_at < ?)
+                    (
+                      status='QUEUED'
+                      OR (status='RUNNING' AND lease_expires_at < ?)
+                    )
+                    AND NOT (
+                      children_pending > 0
+                      AND EXISTS (
+                        SELECT 1 FROM agent_run ch
+                        WHERE ch.parent_run_id = agent_run.id
+                          AND ch.status NOT IN ('SUCCEEDED','FAILED','CANCELED','BUDGET_EXCEEDED')
+                          AND ch.status <> 'PAUSED'
+                      )
+                    )
                     OR (status='FAILED_RETRYABLE' AND retry_after <= ?)
                   )
                   ORDER BY depth DESC,created_at,id
@@ -479,6 +503,12 @@ public class AgentRepository {
                         GREATEST(r.claim_started_at,COALESCE(r.last_progress_at,r.claim_started_at))
                         -r.claim_started_at))*1000)::bigint)
                     ELSE 0 END,
+                    children_pending=CASE WHEN c.status='RUNNING' THEN GREATEST(
+                        (SELECT count(*) FROM agent_run ch
+                         WHERE ch.parent_run_id=r.id
+                           AND ch.status NOT IN ('SUCCEEDED','FAILED','CANCELED','BUDGET_EXCEEDED')
+                           AND ch.status <> 'PAUSED'), 0)
+                      ELSE r.children_pending END,
                     status='RUNNING',lease_owner=?,lease_expires_at=?,claim_version=r.version+1,claim_started_at=now(),
                     last_progress_at=NULL,
                     started_at=COALESCE(started_at,?),updated_at=?,version=version+1
@@ -489,6 +519,17 @@ public class AgentRepository {
                   r.correction_attempted,r.version
                 """, AgentRunMappers.claimedMapper(), now, now, workerId, expires, now, now)
                 .stream().findFirst();
+    }
+
+    /**
+     * 读取运行的待决子运行计数（V82 并行 fan-out 等待语义；只读）。
+     * 供执行器在"部分委派被拒、兄弟委派已在途"时判断是否维持等待态。
+     */
+    public int childrenPending(UUID projectId, UUID runId) {
+        Integer pending = jdbc.queryForObject(
+                "SELECT children_pending FROM agent_run WHERE project_id=? AND id=?",
+                Integer.class, projectId, runId);
+        return pending == null ? 0 : pending;
     }
 
     /**
