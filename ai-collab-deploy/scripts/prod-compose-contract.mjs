@@ -54,4 +54,23 @@ assert.match(brokerConf, /brokerIP1\s*=\s*rocketmq-broker/, 'brokerIP1 必须使
 assert.equal(app.environment.MQ_ENABLED, 'false')
 // 客户端经 compose 内网服务名连 NameServer；app 不发布任何 MQ 端口（上面的通用断言已覆盖）。
 assert.equal(app.environment.ROCKETMQ_NAMESRV_ADDR, 'rocketmq-namesrv:9876')
+// ===== MQ 迁移 M2 契约：agent run 入队通知与规划 dispatch 的业务 topic / 消费组 =====
+// topic-init 必须声明两条新链路的 env；app 必须透传同名变量（总闸随 MQ_ENABLED 灰度）。
+for (const [key, defaultValue] of [
+  ['ROCKETMQ_AGENT_RUN_TOPIC', 'agent-run-queued'],
+  ['ROCKETMQ_AGENT_RUN_CONSUMER_GROUP', 'agent-run-queued-consumer'],
+  ['ROCKETMQ_PLANNING_TOPIC', 'plan-generation'],
+  ['ROCKETMQ_PLANNING_CONSUMER_GROUP', 'plan-generation-consumer'],
+]) {
+  const declared = topicInit.environment[key]
+  assert.ok(declared, `rocketmq-topic-init 必须声明 ${key}`)
+  assert.ok(String(declared).includes(defaultValue), `${key} 默认值契约`)
+  assert.ok(app.environment[key], `app 必须透传 ${key}`)
+}
+// topic-init 命令必须为两条新链路预建业务 topic、死信 topic（%DLQ%）与消费组。
+const topicInitCmd = JSON.stringify(topicInit.command)
+assert.ok(topicInitCmd.includes('ROCKETMQ_AGENT_RUN_TOPIC'), 'topic-init 必须预建 agent run topic')
+assert.ok(topicInitCmd.includes('%DLQ%$$ROCKETMQ_AGENT_RUN_CONSUMER_GROUP'), 'topic-init 必须预建 agent run 死信 topic')
+assert.ok(topicInitCmd.includes('ROCKETMQ_PLANNING_TOPIC'), 'topic-init 必须预建规划 dispatch topic')
+assert.ok(topicInitCmd.includes('%DLQ%$$ROCKETMQ_PLANNING_CONSUMER_GROUP'), 'topic-init 必须预建规划 dispatch 死信 topic')
 console.log('production compose network and configuration contract: OK')

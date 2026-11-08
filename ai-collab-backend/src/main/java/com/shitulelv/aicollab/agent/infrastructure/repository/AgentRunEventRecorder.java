@@ -59,6 +59,12 @@ public class AgentRunEventRecorder {
     /** 委派唤醒事件发布器（V82 §3.4）：事务提交后发布 AgentDelegationWakeEvent。 */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private org.springframework.context.ApplicationEventPublisher wakePublisher;
+    /**
+     * run 入队通知发送器（M2 §3.1 双轨制）：MQ 装配时注入，各"进入 QUEUED"落点经
+     * {@link #notifyRunQueued} 在事务提交后发消息；未装配时为 null，落点静默跳过。
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.agent.application.runtime.AgentRunQueuedNotifier queuedNotifier;
     @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
     private com.shitulelv.aicollab.agent.application.runtime.AgentEventService events;
@@ -120,6 +126,17 @@ public class AgentRunEventRecorder {
         } else {
             wakePublisher.publishEvent(wakeEvent);
         }
+    }
+
+    /**
+     * run "进入 QUEUED" 的入队通知（M2 §3.1 双轨制）：事务提交后经
+     * {@code AgentRunQueuedNotifier} 发 MQ 消息触发消费侧 claim 尝试。
+     * 发送器缺失（MQ 总闸关闭/单测手工构造）时静默跳过——通知是优化非正确性依赖，
+     * 调度 tick 轮询兜底永不删。委派子运行创建与父运行回收经本方法复用同一落点。
+     */
+    void notifyRunQueued(java.util.UUID runId, String source) {
+        if (queuedNotifier == null) return;
+        queuedNotifier.notifyQueuedAfterCommit(runId, source);
     }
 
     /**
@@ -1013,6 +1030,8 @@ public class AgentRunEventRecorder {
                     """, projectId, runId));
             event(projectId, runId, "RUN_RESUMED",
                     json.createObjectNode().put("status", AgentRunStatus.QUEUED.name()));
+            // M2 双轨制：暂停恢复转回 QUEUED，事务提交后发入队通知（tick 兜底）
+            notifyRunQueued(runId, "RUN_RESUMED");
             return findRun(projectId, runId).orElseThrow(() -> new BusinessException(ErrorCode.AGENT_RUN_NOT_FOUND));
         }
         if ((status == AgentRunStatus.QUEUED || status == AgentRunStatus.RUNNING) && !requested) {
@@ -1090,6 +1109,8 @@ public class AgentRunEventRecorder {
                 tokens(completion.completionTokens(), completion.content()),
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 retry, run.projectId(), run.id(), run.version()));
+        // M2 双轨制：无效决策的自动重试转回 QUEUED（finalFailure 时为 FAILED，不发通知）
+        if (retry) notifyRunQueued(run.id(), "RUN_RETRY_INVALID_DECISION");
     }
 
     @Transactional
@@ -1168,8 +1189,9 @@ public class AgentRunEventRecorder {
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 truncate(completion.provider(), 80), truncate(completion.model(), 120),
                 run.projectId(), run.id(), run.version()));
+        // M2 双轨制：工具结果落库后运行转回 QUEUED，事务提交后发入队通知
+        notifyRunQueued(run.id(), "TOOL_RESULT_REQUEUED");
     }
-
     /** 旧路径委派受理（V22 时代 DELEGATE 决策协议）：已拆出到 {@link AgentDelegationRecorder}。 */
     @Transactional
     public AgentRunView recordDelegation(
@@ -1227,6 +1249,8 @@ public class AgentRunEventRecorder {
                   updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, run.projectId(), run.id(), run.version()));
+        // M2 双轨制：显式重新排队转回 QUEUED，事务提交后发入队通知
+        notifyRunQueued(run.id(), "RUN_REQUEUED");
     }
 
     /**
@@ -1575,6 +1599,8 @@ public class AgentRunEventRecorder {
                 WHERE project_id=? AND id=? AND version=? AND status='WAITING_FOR_USER_INPUT'
                 """, run.projectId(), run.id(), run.version());
         requireRunUpdate(updated);
+        // M2 双轨制：用户补充输入后运行转回 QUEUED，事务提交后发入队通知
+        notifyRunQueued(run.id(), "USER_INPUT_CONTINUED");
 
         // 记录用户回复并取得真实消息 ID，同事务内关联到工作状态
         UUID messageId = jdbc.queryForObject("""

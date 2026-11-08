@@ -96,6 +96,12 @@ public class AgentRepository {
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
     private final AgentRunEventRecorder recorder;
+    /**
+     * run 入队通知发送器（M2 §3.1 双轨制）：MQ 装配时注入，事务提交后发消息触发消费侧
+     * claim；未装配（总闸关闭）时为 null，落点静默跳过 —— 调度 tick 轮询兜底。
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.agent.application.runtime.AgentRunQueuedNotifier queuedNotifier;
 
     public AgentRepository(JdbcTemplate jdbc, ObjectMapper json, AgentRunEventRecorder recorder) {
         this.jdbc = jdbc;
@@ -252,6 +258,8 @@ public class AgentRepository {
         jdbc.update("UPDATE agent_session SET updated_at=now(),version=version+1 WHERE project_id=? AND id=?",
                 projectId, sessionId);
         AgentWorkingState.appendUser(jdbc,json,sessionId,goal,messageId);
+        // M2 双轨制：新 run 进入 QUEUED，事务提交后发入队通知（发送失败无害，tick 兜底）
+        if (queuedNotifier != null) queuedNotifier.notifyQueuedAfterCommit(runId, "RUN_CREATED");
         return run;
     }
 
@@ -309,6 +317,8 @@ public class AgentRepository {
         jdbc.update("UPDATE agent_session SET updated_at=now(),version=version+1 WHERE project_id=? AND id=?",
                 projectId, sessionId);
         AgentWorkingState.appendUser(jdbc,json,sessionId,goal,messageId);
+        // M2 双轨制：重试派生的新 run 进入 QUEUED（幂等边界命中的既有派生不重发）
+        if (queuedNotifier != null) queuedNotifier.notifyQueuedAfterCommit(run.id(), "RUN_RETRY");
         return new RetryRunDerivation(run, true);
     }
 

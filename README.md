@@ -326,6 +326,10 @@ cd ..
 # 6. （可选）完全停止后台 Postgres/Redis/MinIO 容器
 .\dev.ps1 stop-infra
 
+# 6b. （可选）M2 双实例验收：本地起两个后端实例（8080/8082，管理端口 8081/8083，
+#     第二实例走 local+dual profile），共享同一套基础设施与 MQ 拓扑
+.\dev.ps1 start-dual
+
 # 7. （可选）检查实际 Java 代理选路与 CONNECT/TLS，不发送模型请求
 .\dev.ps1 diagnose-proxy
 ```

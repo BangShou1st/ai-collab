@@ -150,6 +150,8 @@ public class AgentDelegationRecorder {
         // 委派防重台账（V81）：与子运行创建同一事务登记 RUNNING 记录，
         // 子运行终态收口时经 resumeParent 同步台账状态
         delegationLedger.insertRunning(run.sessionId(), run.id(), child.id(), objectiveHash);
+        // M2 双轨制：委派子运行以 QUEUED 创建，事务提交后发入队通知（tick 兜底）
+        host.notifyRunQueued(child.id(), "DELEGATION_CHILD_CREATED");
         // V82 并行 fan-out：受理即登记待决子计数（+1 与 children_used 同一事务），
         // 父运行转 CREATED（本路径的历史语义：等子终态经 resumeParent 重新排队）
         AgentRunEventRecorder.requireRunUpdate(jdbc.update("""
@@ -285,6 +287,8 @@ public class AgentDelegationRecorder {
         // 委派防重台账（V81）：与子运行创建同一事务登记 RUNNING 记录，
         // 子运行终态收口时经 resumeParent 同步台账状态
         delegationLedger.insertRunning(run.sessionId(), run.id(), child.id(), objectiveHash);
+        // M2 双轨制：委派子运行以 QUEUED 创建，事务提交后发入队通知（tick 兜底）
+        host.notifyRunQueued(child.id(), "DELEGATION_CHILD_CREATED");
 
         ObjectNode result = json.createObjectNode();
         result.put("status", "DELEGATED");
@@ -421,14 +425,19 @@ public class AgentDelegationRecorder {
         }
         // V82：待决子计数 -1（CAS 防负）；归零时父运行重新排队（部分失败语义：
         // 只有最后一个终态的子运行触发恢复，此前父保持等待态）。
-        boolean recovered = decrementChildrenPendingAndRequeue(child.parentRunId());
+        String requeuedStatus = decrementChildrenPendingAndRequeue(child.parentRunId());
         // 父事件（P0 单点收口扩展）：成功子写 DELEGATION_COMPLETED、失败/取消/预算超限
         // 子写 DELEGATION_FAILED，载荷与 step 一致（含 childRunId/status/content）。
         emitParentEvent(child, status, completed);
-        if (recovered) {
+        if (requeuedStatus != null) {
             // 事件唤醒（§3.4）：事务提交后发布，监听器立即提交一次 claim 尝试；
             // 发布失败/事件丢失无害——调度 tick 兜底。
             host.publishDelegationWake(child.parentRunId());
+            // M2 双轨制：父运行转回 QUEUED 时补一条 MQ 入队通知（进程内事件只有本实例
+            // 收到，多实例下靠 MQ 让任一空闲实例承接）；PAUSED 不发。
+            if ("QUEUED".equals(requeuedStatus)) {
+                host.notifyRunQueued(child.parentRunId(), "DELEGATION_PARENT_RESUMED");
+            }
         }
     }
 
@@ -447,9 +456,10 @@ public class AgentDelegationRecorder {
      *   <li>仍持有活跃租约的 RUNNING 父运行不打断（正常推进中，无需唤醒）。</li>
      * </ul>
      *
-     * @return 是否发生了"归零重新排队"（决定是否发布事件唤醒）
+     * @return 重新排队后的父运行状态（"QUEUED"/"PAUSED"）；未发生重新排队时返回 null
+     *         （决定是否发布事件唤醒与 MQ 入队通知）
      */
-    private boolean decrementChildrenPendingAndRequeue(UUID parentRunId) {
+    private String decrementChildrenPendingAndRequeue(UUID parentRunId) {
         Integer pendingAfter = jdbc.queryForObject("""
                 UPDATE agent_run SET children_pending=GREATEST(children_pending-1,0),
                   updated_at=now(),version=version+1
@@ -457,9 +467,9 @@ public class AgentDelegationRecorder {
                 RETURNING children_pending
                 """, Integer.class, parentRunId);
         if (pendingAfter == null || pendingAfter > 0) {
-            return false;
+            return null;
         }
-        int requeued = jdbc.update("""
+        return jdbc.query("""
                 UPDATE agent_run SET
                   status=CASE WHEN pause_requested_at IS NOT NULL THEN 'PAUSED' ELSE 'QUEUED' END,
                   lease_owner=NULL,lease_expires_at=NULL,
@@ -467,8 +477,8 @@ public class AgentDelegationRecorder {
                 WHERE id=? AND children_pending=0
                   AND status IN ('CREATED','QUEUED','RUNNING')
                   AND (lease_expires_at IS NULL OR lease_expires_at <= now())
-                """, parentRunId);
-        return requeued == 1;
+                RETURNING status
+                """, (rs, rowNum) -> rs.getString(1), parentRunId).stream().findFirst().orElse(null);
     }
 
     /** 父事件类型：SUCCEEDED → DELEGATION_COMPLETED；其余终态 → DELEGATION_FAILED。 */
