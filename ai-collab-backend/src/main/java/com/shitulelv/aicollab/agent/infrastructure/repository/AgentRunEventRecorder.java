@@ -480,6 +480,56 @@ public class AgentRunEventRecorder {
     private void bookRunUsage(String sql, UsageSettlement usage, UUID attemptId) {
         jdbc.update(sql, usage.bookedInput(), usage.bookedOutput(),
                 usage.bookedInput(), usage.bookedOutput(), usage.estimated(), attemptId);
+        // 摘要/运行上下文调用的消耗同样计入会话聚合（预算治理 v3，设计文档 §4.1）：
+        // 与 run 级记账同一事务、同一取数（provider 上报优先，缺失侧估算）。
+        // runId 从步骤行反推（与上方 run 累计的 WHERE 子查询同一关联方式）。
+        bookSessionAggregateViaAttempt(attemptId, sessionDelta(usage.bookedInput(), usage.bookedOutput()));
+    }
+
+    // ========== 会话聚合记账（预算治理 v3，设计文档 §4.1） ==========
+
+    /**
+     * 会话聚合记账：父/子运行的所有模型轮与摘要调用都经本类落库，按 run 所属 session
+     * 归账到 {@code agent_session.aggregate_tokens_used}。取数与 run 级记账同一来源：
+     * provider 上报优先，缺失侧 CJK 感知估算（调用方传入的已结算值）。
+     *
+     * <p>DB 端单语句原子累计，复用 V64 的 bigint 版 {@code agent_capped_add}
+     * （cap 为 NULL 直加，否则 LEAST(cap, used+delta)）：并发父/子同时记账不超顶、
+     * 不丢单；准入检查后记账仍在同一事务（准入式取舍，最坏只超一个模型轮的量）。</p>
+     */
+    private void bookSessionAggregate(UUID sessionId, long deltaTokens) {
+        if (sessionId == null || deltaTokens <= 0) return; // 无会话归属或零消耗不记账
+        jdbc.update("""
+                UPDATE agent_session SET
+                  aggregate_tokens_used = agent_capped_add(aggregate_tokens_used, max_aggregate_tokens, ?)
+                WHERE id = ?
+                """, deltaTokens, sessionId);
+    }
+
+    /** runId 已知（run→session 关联在单语句内完成）的会话聚合记账，语义同上。 */
+    private void bookSessionAggregateViaRun(UUID runId, long deltaTokens) {
+        if (runId == null || deltaTokens <= 0) return;
+        jdbc.update("""
+                UPDATE agent_session SET
+                  aggregate_tokens_used = agent_capped_add(aggregate_tokens_used, max_aggregate_tokens, ?)
+                WHERE id = (SELECT session_id FROM agent_run WHERE id = ?)
+                """, deltaTokens, runId);
+    }
+
+    /** attemptId 反推 run→session（摘要/上下文调用路径）的会话聚合记账，语义同上。 */
+    private void bookSessionAggregateViaAttempt(UUID attemptId, long deltaTokens) {
+        if (attemptId == null || deltaTokens <= 0) return;
+        jdbc.update("""
+                UPDATE agent_session SET
+                  aggregate_tokens_used = agent_capped_add(aggregate_tokens_used, max_aggregate_tokens, ?)
+                WHERE id = (SELECT r.session_id FROM agent_run r
+                            WHERE r.id = (SELECT s.run_id FROM agent_step s WHERE s.id = ?))
+                """, deltaTokens, attemptId);
+    }
+
+    /** 会话聚合增量：与 run 级记账同一结算值，input + output 合计入账。 */
+    private static long sessionDelta(long inputTokens, long outputTokens) {
+        return inputTokens + outputTokens;
     }
 
     @Transactional
@@ -1170,6 +1220,11 @@ public class AgentRunEventRecorder {
                 """, inputTokens, outputTokens, inputTokens, outputTokens, estimated,
                 run.projectId(), run.id(), run.version()));
 
+        // 会话聚合记账（预算治理 v3，设计文档 §4.1）：父/子运行的模型轮都经本方法落库，
+        // 按 run 所属 session 归账；取数与上方 run 级累计完全同一组结算值
+        // （provider 上报优先，缺失侧 CJK 感知估算），DB 端单语句封顶累计。
+        bookSessionAggregate(run.sessionId(), sessionDelta(inputTokens, outputTokens));
+
         int sequence = nextSequence(run.id());
         jdbc.update("""
                 INSERT INTO agent_step(
@@ -1705,6 +1760,8 @@ public class AgentRunEventRecorder {
                 WHERE project_id=? AND id=?
                 """, usage.bookedInput(), usage.bookedOutput(),
                 usage.bookedInput(), usage.bookedOutput(), usage.estimated(), projectId, runId);
+        // 迟到的真实用量同样计入会话聚合（§4.1）：业务状态已终结不妨碍结算已发生费用
+        bookSessionAggregateViaRun(runId, sessionDelta(usage.bookedInput(), usage.bookedOutput()));
     }
 
     private static int boundedLatency(long value) {
