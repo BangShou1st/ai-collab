@@ -46,7 +46,7 @@ class DocumentRecoveryServiceTest {
     void recoveryDispatchDoesNotRunProcessingOnSchedulingThread() {
         DocumentProcessingService processing = mock(DocumentProcessingService.class);
         ControllableExecutor executor = new ControllableExecutor();
-        DocumentTaskDispatcher dispatcher = new DocumentTaskDispatcher(executor, processing);
+        DocumentTaskDispatcher dispatcher = new DocumentTaskDispatcher(executor, processing, noLockProvider());
         DocumentRecoveryService service = new DocumentRecoveryService(documents, dispatcher, failures);
         DocumentRecoveryCandidate uploaded = candidate(DocumentStatus.UPLOADED, UUID.randomUUID());
         when(documents.recoverable(any())).thenReturn(List.of(uploaded));
@@ -91,14 +91,15 @@ class DocumentRecoveryServiceTest {
     void repeatedScanRedispatchesAndReliesOnDownstreamCas() {
         DocumentProcessingService processing = mock(DocumentProcessingService.class);
         ControllableExecutor executor = new ControllableExecutor();
-        DocumentTaskDispatcher dispatcher = new DocumentTaskDispatcher(executor, processing);
+        DocumentTaskDispatcher dispatcher = new DocumentTaskDispatcher(executor, processing, noLockProvider());
         DocumentRecoveryService service = new DocumentRecoveryService(documents, dispatcher, failures);
         DocumentRecoveryCandidate uploaded = candidate(DocumentStatus.UPLOADED, UUID.randomUUID());
         when(documents.recoverable(any())).thenReturn(List.of(uploaded));
 
         // M1：进程内去重集合已删除，恢复 Job 重复扫描会重复派发（重复任务在执行器排队）；
         // 处理副作用恰好一次由 claim CAS（UPLOADED→PARSING 条件更新）兜底，
-        // 回落模式仅限单实例部署（MQ 模式另有消费幂等三重保障）。
+        // 回落模式另有 Redisson 跨实例互斥锁减少无效派发（Redis 深化 P2，
+        // 本测试用空 ObjectProvider 模拟锁不装配的直通路径）。
         service.dispatchRecoverableWork();
         service.dispatchRecoverableWork();
 
@@ -111,6 +112,16 @@ class DocumentRecoveryServiceTest {
     private static DocumentRecoveryCandidate candidate(DocumentStatus status, UUID processingToken) {
         return new DocumentRecoveryCandidate(
                 UUID.randomUUID(), UUID.randomUUID(), status, processingToken);
+    }
+
+    /** 空锁提供者：模拟 MQ 模式（总闸开）下锁 Bean 不装配的场景（getIfAvailable 无可用实现）。 */
+    private static org.springframework.beans.factory.ObjectProvider<DocumentDispatchLock> noLockProvider() {
+        return new org.springframework.beans.factory.ObjectProvider<>() {
+            @Override
+            public DocumentDispatchLock getIfAvailable() {
+                return null;
+            }
+        };
     }
 
     /** 可控执行器：只入队，由测试显式触发执行。 */
