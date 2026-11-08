@@ -3139,7 +3139,7 @@ components:
         constraints: { type: string, maxLength: 4000 }
     TaskPlanStatus:
       type: string
-      enum: [SKELETON_GENERATING, DETAIL_GENERATING, REPAIRING, DETAIL_GENERATION_FAILED, READY, READY_WITH_ISSUES, CONFIRMING, CONFIRMED, FAILED, CANCELED]
+      enum: [SKELETON_GENERATING, SKELETON_REVIEW, DETAIL_GENERATING, REFLECTING, REPAIRING, DETAIL_GENERATION_FAILED, READY, READY_WITH_ISSUES, CONFIRMING, CONFIRMED, FAILED, CANCELED]
     MilestoneDraft:
       type: object
       required: [tempKey, title, objective, sortOrder, sourceRefs]

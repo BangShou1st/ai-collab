@@ -242,12 +242,16 @@ SKELETON_GENERATING ──► SKELETON_REVIEW ──► DETAIL_GENERATING ──
 
 ## 6. 数据库迁移清单（V81 起，版本号以实施时 Flyway 现状顺延）
 
+> 实施时实际顺延结果（2026-11-08 P2 交付后回改）：V83 被 P1 的会话聚合预算占用，
+> planning agentic 化顺延为 V84，成本台账顺延为 V85。
+
 | 迁移 | 内容 |
 |---|---|
 | V81 | `agent_run` 加 `children_pending`；`ck_agent_run_budgets` 的 `max_children` 上限 3→8；`agent_session` 加 `max_aggregate_tokens / aggregate_tokens_used` |
 | V82 | `agent_delegation_ledger` 表 + 索引 |
-| V83 | planning：`ai_task_plan.status` CHECK 增 `SKELETON_REVIEW/REFLECTING`；`repair_count` CHECK 0..1 → 0..2；`ai_task_plan_attempt.stage` 增 `REFLECT` |
-| V84 | `model_config` 加价格两列；`agent_run_event` 加 `cost_amount` |
+| V83 | `agent_session` 聚合预算配套（P1 实际落地内容） |
+| V84 | planning：`ai_task_plan.status` CHECK 增 `SKELETON_REVIEW/REFLECTING`；`repair_count` CHECK 0..1 → 0..2；`ai_task_plan_attempt.stage` 增 `REFLECT`（P2） |
+| V85 | `model_config` 加价格两列；`agent_run_event` 加 `cost_amount`（成本台账，另行实施） |
 
 规则遵守：不改历史迁移，全部新文件；CHECK 兜底与应用层状态机校验同步。
 

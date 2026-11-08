@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.planning.domain.DetailModelOutput;
+import com.shitulelv.aicollab.planning.domain.ReflectIssue;
+import com.shitulelv.aicollab.planning.domain.ReflectModelOutput;
 import com.shitulelv.aicollab.planning.domain.SkeletonModelOutput;
 import com.shitulelv.aicollab.planning.domain.TaskPlanDraft;
 import org.slf4j.Logger;
@@ -28,6 +30,7 @@ public class TaskPlanOutputParser {
     private final ObjectMapper json;
     private final ObjectMapper strictSkeleton;
     private final ObjectMapper strictDetail;
+    private final ObjectMapper strictReflect;
 
     public TaskPlanOutputParser(ObjectMapper json) {
         this.json = json;
@@ -35,6 +38,48 @@ public class TaskPlanOutputParser {
                 .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
         this.strictDetail = json.copy()
                 .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+        this.strictReflect = json.copy()
+                .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+    }
+
+    /**
+     * 解析 REFLECT 反思输出（§5.3 独立 schema，严格契约：未知属性/尾随 token 都算畸形）。
+     * 畸形输出抛 {@link ModelOutputContractException}，由编排器降级处理（不失败整个计划）。
+     */
+    public ReflectModelOutput parseReflect(String output) {
+        String value = clean(output);
+        ReflectModelOutput result;
+        try {
+            result = strictReflect.readValue(value, ReflectModelOutput.class);
+        } catch (JsonProcessingException exception) {
+            throw toContractException(exception);
+        }
+        validateReflectOutput(result);
+        return result;
+    }
+
+    /** REFLECT 输出的领域校验：severity/targetType 枚举合法性、targetTempKey/field 存在性。 */
+    private static void validateReflectOutput(ReflectModelOutput output) {
+        if (output == null) throw new ModelOutputContractException("REFLECT_OUTPUT_NULL", null, List.of());
+        if (output.issues().size() > 20) {
+            throw new ModelOutputContractException("REFLECT_ISSUES_OVERFLOW", "issues",
+                    List.of("AT_MOST_20_ISSUES"));
+        }
+        for (int i = 0; i < output.issues().size(); i++) {
+            ReflectIssue issue = output.issues().get(i);
+            boolean valid = issue != null
+                    && issue.severity() != null
+                    && switch (issue.targetType() == null ? "" : issue.targetType()) {
+                        case "MILESTONE", "TASK", "PLAN" -> true;
+                        default -> false;
+                    }
+                    && (issue.targetTempKey() != null || "PLAN".equals(issue.targetType()))
+                    && issue.suggestion() != null && !issue.suggestion().isBlank();
+            if (!valid) {
+                throw new ModelOutputContractException("REFLECT_ISSUE_INVALID", "issues[" + i + "]",
+                        List.of("SEVERITY_TARGETTYPE_TARGETKEY_SUGGESTION_REQUIRED"));
+            }
+        }
     }
 
     /** Legacy parse — used only for repair prompt which expects full draft. */

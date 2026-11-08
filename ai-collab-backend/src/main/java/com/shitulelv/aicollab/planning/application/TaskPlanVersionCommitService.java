@@ -57,7 +57,7 @@ public class TaskPlanVersionCommitService {
             UUID actorId,
             UUID fromVersionId) {
         return commitWithIdentity(plan, plan.generationSeq(), plan.activeAttemptId(), plan.status(),
-                draft, source, assessment, finalStatus, eventType, actorId, fromVersionId);
+                draft, source, assessment, List.of(), finalStatus, eventType, actorId, fromVersionId);
     }
 
     /**
@@ -80,8 +80,30 @@ public class TaskPlanVersionCommitService {
             String eventType,
             UUID actorId,
             UUID fromVersionId) {
+        return commitGenerated(plan, generationSeq, attemptId, expectedStage, draft, source,
+                assessment, List.of(), finalStatus, eventType, actorId, fromVersionId);
+    }
+
+    /**
+     * 带反思 issues 的生成结果原子提交（§5.3）：issues 透传给版本 JSON 的顶层
+     * "issues" 字段，为前端展示预留。
+     */
+    @Transactional
+    public TaskPlanVersionRecord commitGenerated(
+            TaskPlanRecord plan,
+            long generationSeq,
+            UUID attemptId,
+            TaskPlanStatus expectedStage,
+            TaskPlanDraft draft,
+            TaskPlanVersionSource source,
+            ValidationAssessment assessment,
+            List<com.shitulelv.aicollab.planning.domain.ReflectIssue> reflectIssues,
+            TaskPlanStatus finalStatus,
+            String eventType,
+            UUID actorId,
+            UUID fromVersionId) {
         return commitWithIdentity(plan, generationSeq, attemptId, expectedStage,
-                draft, source, assessment, finalStatus, eventType, actorId, fromVersionId);
+                draft, source, assessment, reflectIssues, finalStatus, eventType, actorId, fromVersionId);
     }
 
     private TaskPlanVersionRecord commitWithIdentity(
@@ -92,6 +114,7 @@ public class TaskPlanVersionCommitService {
             TaskPlanDraft draft,
             TaskPlanVersionSource source,
             ValidationAssessment assessment,
+            List<com.shitulelv.aicollab.planning.domain.ReflectIssue> reflectIssues,
             TaskPlanStatus finalStatus,
             String eventType,
             UUID actorId,
@@ -103,7 +126,7 @@ public class TaskPlanVersionCommitService {
                 plan.projectId(), plan.id(), generationSeq,
                 attemptId, expectedStage,
                 source.name(), fromVersionId, draft, actorId,
-                assessment.toFlat(), finalStatus);
+                assessment.toFlat(), reflectIssues, finalStatus);
         if (versionId == null) return null;
 
         // 2. Replace issues for this version

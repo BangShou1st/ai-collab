@@ -55,7 +55,7 @@ class TaskPlanVersionCommitServiceTest {
                 eq(projectId), eq(planId), anyLong(),
                 any(UUID.class), any(TaskPlanStatus.class), anyString(),
                 any(), any(TaskPlanDraft.class), any(UUID.class), any(ValidationResult.class),
-                any(TaskPlanStatus.class)))
+                any(List.class), any(TaskPlanStatus.class)))
                 .thenReturn(versionId);
         when(repository.requireVersion(eq(projectId), eq(planId), eq(versionId))).thenReturn(versionRecord);
 
@@ -76,7 +76,7 @@ class TaskPlanVersionCommitServiceTest {
                 eq(projectId), eq(planId), anyLong(),
                 any(UUID.class), any(TaskPlanStatus.class), anyString(),
                 any(), any(TaskPlanDraft.class), any(UUID.class), any(ValidationResult.class),
-                any(TaskPlanStatus.class));
+                any(List.class), any(TaskPlanStatus.class));
         verify(issueRepo).replaceForVersion(eq(planId), eq(versionId), any());
         verify(eventRepo).append(argThat(event ->
                 event.planId().equals(planId)
@@ -103,7 +103,7 @@ class TaskPlanVersionCommitServiceTest {
                 any(UUID.class), any(UUID.class), anyLong(),
                 any(UUID.class), any(TaskPlanStatus.class), anyString(),
                 any(), any(TaskPlanDraft.class), any(UUID.class), any(ValidationResult.class),
-                any(TaskPlanStatus.class)))
+                any(List.class), any(TaskPlanStatus.class)))
                 .thenReturn(versionId);
         when(repository.requireVersion(any(UUID.class), any(UUID.class), any(UUID.class))).thenReturn(versionRecord);
 
@@ -130,7 +130,7 @@ class TaskPlanVersionCommitServiceTest {
                 any(UUID.class), any(UUID.class), anyLong(),
                 any(UUID.class), any(TaskPlanStatus.class), anyString(),
                 any(), any(TaskPlanDraft.class), any(UUID.class), any(ValidationResult.class),
-                any(TaskPlanStatus.class)))
+                any(List.class), any(TaskPlanStatus.class)))
                 .thenReturn(null);
 
         TaskPlanDraft draft = new TaskPlanDraft("summary", List.of(), List.of(),
