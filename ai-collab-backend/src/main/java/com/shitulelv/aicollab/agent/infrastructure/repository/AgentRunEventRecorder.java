@@ -7,11 +7,14 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentCitation;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
+import com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission;
+import com.shitulelv.aicollab.agent.domain.model.AgentDelegationGuard;
 import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.DelegatedResearchCoverage;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
+import com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -45,6 +48,8 @@ public class AgentRunEventRecorder {
 
     private final JdbcTemplate jdbc;
     private final ObjectMapper json;
+    /** 委派防重台账（V81）：受理判重与子运行终态收口共用同一仓储。 */
+    private final AgentDelegationLedgerRepository delegationLedger;
     @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
     private com.shitulelv.aicollab.agent.application.runtime.AgentEventService events;
@@ -61,8 +66,15 @@ public class AgentRunEventRecorder {
     }
 
     public AgentRunEventRecorder(JdbcTemplate jdbc, ObjectMapper json) {
+        this(jdbc, json, new AgentDelegationLedgerRepository(jdbc));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AgentRunEventRecorder(JdbcTemplate jdbc, ObjectMapper json,
+            AgentDelegationLedgerRepository delegationLedger) {
         this.jdbc = jdbc;
         this.json = json;
+        this.delegationLedger = delegationLedger;
     }
 
     /**
@@ -975,6 +987,15 @@ public class AgentRunEventRecorder {
         if (run.depth() != 0 || run.childrenUsed() >= run.maxChildren()) {
             throw new IllegalStateException("Agent 子运行预算已耗尽");
         }
+        // 委派防重台账（V81）：同一会话下同一 objective（归一化哈希）已存在非 CANCELED
+        // 记录时拒绝受理——不创建子运行、不落委派步骤，异常由调用方按可预期拒绝处理。
+        String objectiveHash = AgentDelegationGuard.objectiveHash(delegate.objective());
+        if (AgentDelegationGuard.isDuplicateObjective(
+                delegationLedger.countActiveByObjective(run.sessionId(), objectiveHash))) {
+            throw new AgentDelegationNotAdmittedException(
+                    AgentDelegationAdmission.RejectionReason.DUPLICATE_OBJECTIVE.code(),
+                    AgentDelegationAdmission.RejectionReason.DUPLICATE_OBJECTIVE.message());
+        }
         UUID childId = UUID.randomUUID();
         int sequence = nextSequence(run.id());
         jdbc.update("""
@@ -1016,6 +1037,9 @@ public class AgentRunEventRecorder {
                 """, AgentRunMappers.runMapper(), childId, run.sessionId(), run.projectId(), run.requesterId(),
                 run.id(), delegate.role(), delegate.objective(),
                 childSteps, childTools, childInputs, childOutputs, run.id(), run.id());
+        // 委派防重台账（V81）：与子运行创建同一事务登记 RUNNING 记录，
+        // 子运行终态收口时经 resumeParent 同步台账状态
+        delegationLedger.insertRunning(run.sessionId(), run.id(), child.id(), objectiveHash);
         requireRunUpdate(jdbc.update("""
                 UPDATE agent_run SET status='CREATED',children_used=children_used+1,
                   steps_used=steps_used+CASE WHEN budget_semantics='COMBINED' THEN 1 ELSE 0 END,
@@ -1721,6 +1745,10 @@ public class AgentRunEventRecorder {
                 WHERE run_id=? AND type='DELEGATION_COMPLETED' AND output_json->>'childRunId'=?
                 """, Integer.class, child.parentRunId(), child.id().toString()) > 0;
         if (alreadyCollected) return;
+        // 委派防重台账（V81）：子运行到达终态即收口台账，释放该 objective 的判重状态语义
+        // （终态记录与 RUNNING 记录一样阻止同哈希重复委派，只有用户取消放行再次委派）。
+        // 只更新仍为 RUNNING 的记录，重复收口 no-op。
+        delegationLedger.closeForChild(child.id(), ledgerTerminalStatus(status));
         AgentRunView usage = findRun(child.projectId(), child.id()).orElse(child);
         // 子研究运行的可验证来源身份：本运行成功工具结果中真实存在的 chunk/document 投影
         java.util.LinkedHashMap<UUID, AgentCitation> childCitations = collectEvidence(child.id(), child.projectId());
@@ -1788,6 +1816,20 @@ public class AgentRunEventRecorder {
                   updated_at=now(),version=version+1
                 WHERE id=? AND status IN ('CREATED','QUEUED')
                 """, child.parentRunId());
+    }
+
+    /**
+     * 子运行终态 → 台账终态的映射（台账 CHECK 允许 RUNNING/COMPLETED/FAILED/CANCELED）：
+     * SUCCEEDED→COMPLETED；FAILED/BUDGET_EXCEEDED 及未知兜底→FAILED（预算超限是失败的一种
+     * 收口形态）；CANCELED→CANCELED（用户取消的委派不阻止同 objective 再次委派）。
+     */
+    private static String ledgerTerminalStatus(String runStatus) {
+        return switch (runStatus == null ? "" : runStatus) {
+            case "SUCCEEDED" -> "COMPLETED";
+            case "CANCELED" -> "CANCELED";
+            // FAILED / BUDGET_EXCEEDED / 其他（RUNNING 不是终态，防御性兜底为 FAILED）
+            default -> "FAILED";
+        };
     }
 
     /**
@@ -1930,6 +1972,16 @@ public class AgentRunEventRecorder {
                     com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission
                             .RejectionReason.CHILDREN_EXHAUSTED.message());
         }
+        // 委派防重台账（V81）：同一会话下同一 objective（归一化哈希）已存在非 CANCELED
+        // 记录时拒绝受理——"换个说法"的重复委派（大小写/标点/空白变体）同样命中。
+        // 幂等重放已在上方按 invocation 身份提前返回，不会走到这里。
+        String objectiveHash = AgentDelegationGuard.objectiveHash(objective);
+        if (AgentDelegationGuard.isDuplicateObjective(
+                delegationLedger.countActiveByObjective(run.sessionId(), objectiveHash))) {
+            throw new AgentDelegationNotAdmittedException(
+                    AgentDelegationAdmission.RejectionReason.DUPLICATE_OBJECTIVE.code(),
+                    AgentDelegationAdmission.RejectionReason.DUPLICATE_OBJECTIVE.message());
+        }
 
         // 子运行预算：v1 从父运行剩余额度切出（硬上限保证委派不放大总资源）；
         // v2 使用子运行自己的独立有限执行额度（不从父剩余切分，累计 token 不设上限），
@@ -1976,6 +2028,9 @@ public class AgentRunEventRecorder {
                 """, AgentRunMappers.runMapper(), childId, run.sessionId(), run.projectId(), run.requesterId(),
                 run.id(), "KNOWLEDGE_RESEARCHER", truncate(objective, 3800),
                 childSteps, childToolCalls, childInput, childOutput, run.id(), run.id());
+        // 委派防重台账（V81）：与子运行创建同一事务登记 RUNNING 记录，
+        // 子运行终态收口时经 resumeParent 同步台账状态
+        delegationLedger.insertRunning(run.sessionId(), run.id(), child.id(), objectiveHash);
 
         ObjectNode result = json.createObjectNode();
         result.put("status", "DELEGATED");
