@@ -15,6 +15,7 @@ import com.shitulelv.aicollab.planning.domain.ValidationContext;
 import com.shitulelv.aicollab.planning.domain.ValidationIssueSeverity;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -127,6 +128,9 @@ class TaskPlanGenerationOrchestratorIntegrationTest {
         TaskPlanGenerationOrchestrator orchestrator = new TaskPlanGenerationOrchestrator(
                 executor, repository, modelClient, parser, validator, json, contexts,
                 promptPolicy, outcomeDecider, normalizer, commitService);
+        // 本测试针对两阶段生成与调用计数，不涉及 REFLECT——关闭反思开关（数据构造调整）
+        ReflectionTestUtils.setField(orchestrator, "runtimeProperties",
+                new com.shitulelv.aicollab.planning.infrastructure.ai.TaskPlanRuntimeProperties(false));
 
         // Create plan
         CreateTaskPlanRequest request = new CreateTaskPlanRequest(
@@ -419,11 +423,13 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(new GenerationResult(skeletonBatchJson(0), "test-provider", "test-model", 100, 50, 200))
                 .thenReturn(new GenerationResult(skeletonBatchJson(1), "test-provider", "test-model", 100, 50, 200));
+        // 动态批次下 8 个无依赖任务合并为单批：单次详情调用先截断 → 走分批路径 → 批内再截断 → 对半拆两半
+        when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED));
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenThrow(new BusinessException(ErrorCode.PLANNING_MODEL_OUTPUT_TRUNCATED))
-                .thenReturn(new GenerationResult(detailBatchJsonRange(0, 2, 0, 2), "test-provider", "test-model", 100, 50, 200))
-                .thenReturn(new GenerationResult(detailBatchJsonRange(2, 2, 2, 2), "test-provider", "test-model", 100, 50, 200))
-                .thenReturn(new GenerationResult(detailBatchJsonWithCrossBatchDependency(), "test-provider", "test-model", 100, 50, 200));
+                .thenReturn(new GenerationResult(detailBatchJsonRange(0, 2, 0, 4), "test-provider", "test-model", 100, 50, 200))
+                .thenReturn(new GenerationResult(detailBatchJsonRangeWithDependency(2, 2, 4, 4, "t5", "t1"), "test-provider", "test-model", 100, 50, 200));
 
         TaskPlanContextAssembler contexts = mock(TaskPlanContextAssembler.class);
         when(contexts.assemble(any())).thenReturn(new TaskPlanContextAssembler.PlanningContext(
@@ -456,7 +462,9 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
                 .containsExactly("m1", "m2", "m3", "m4");
 
         verify(modelClient, times(2)).generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
-        verify(modelClient, times(4)).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
+        // 单次详情截断 1 次 + 对半两半 = 3 次 DETAIL_BATCH
+        verify(modelClient, times(3)).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
+        verify(modelClient, times(1)).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
         verify(modelClient, never()).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH_REPAIR"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
         verify(modelClient, times(1)).generate(anyString(), anyString(), eq("TASK_PLAN_SKELETON"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
     }
@@ -532,9 +540,12 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
                 "Five task plan", "Validate batched repair failure", null,
                 LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), 5, List.of()));
 
+        // t5 依赖 t1：动态批次（依赖拓扑约束）把 5 个任务拆成 [t1..t4] 与 [t5] 两批，
+        // 保持"批间修复失败"的原测试意图（数据构造调整，断言不变）
         List<PlanTask> skeletonTasks = java.util.stream.IntStream.range(0, 5)
                 .mapToObj(i -> new PlanTask("t" + (i + 1), "m1", "Task " + (i + 1), "Objective " + (i + 1),
-                        null, null, null, null, null, null, null, List.of(), List.of(), i))
+                        null, null, null, null, null, null, null,
+                        i == 4 ? List.of("t1") : List.of(), List.of(), i))
                 .toList();
         TaskPlanDraft skeleton = new TaskPlanDraft("Five task plan", List.of(), List.of(),
                 List.of(new PlanMilestone("m1", "Phase 1", "Complete phase 1", null,
@@ -641,13 +652,9 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
                         repository.cancel(projectId, plan.id());
                         return new GenerationResult(detailBatchJsonRange(0, 4, 0, 4), "test", "test", 10, 10, 10);
                     }
-                    int batchIndex = call - 2;
-                    int taskStart = batchIndex * 4;
-                    int milestoneCount = batchIndex == 0 ? 4 : 0;
-                    String detailJson = batchIndex == 3
-                            ? detailBatchJsonRangeWithDependency(0, milestoneCount, taskStart, 4, "t13", "t1")
-                            : detailBatchJsonRange(0, milestoneCount, taskStart, 4);
-                    return new GenerationResult(detailJson, "test", "test", 10, 10, 10);
+                    // 动态批次按 prompt 里的 DETAIL_BATCH_SCOPE 应答；t13 带跨批依赖 t1
+                    return new GenerationResult(detailResponseFromScope(invocation.getArgument(1)),
+                            "test", "test", 10, 10, 10);
                 });
         when(modelClient.generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH_REPAIR"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenAnswer(invocation -> {
@@ -692,7 +699,44 @@ verify(modelClient, times(2)).generate(anyString(), anyString(), anyString(), an
         TaskPlanDraft finalDraft = repository.draft(versions.getFirst());
         assertThat(finalDraft.tasks()).hasSize(16);
         assertThat(finalDraft.tasks().get(12).dependencyTempKeys()).containsExactly("t1");
-        verify(modelClient, times(5)).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
+        // 取消轮 1 次 + 重试轮动态批次 2 次（16 任务 → 8+8 两批）
+        verify(modelClient, times(3)).generate(anyString(), anyString(), eq("TASK_PLAN_DETAIL_BATCH"), any(), any(), any(), any(), any(com.fasterxml.jackson.databind.JsonNode.class));
+    }
+
+    /** 从详情 prompt 的 DETAIL_BATCH_SCOPE 构造该批的详情输出；t13 带跨批依赖 t1（验证依赖保留意图）。 */
+    private static String detailResponseFromScope(String prompt) throws Exception {
+        int open = prompt.indexOf("<DETAIL_BATCH_SCOPE>");
+        int close = prompt.indexOf("</DETAIL_BATCH_SCOPE>");
+        var scope = json.readTree(prompt.substring(open + "<DETAIL_BATCH_SCOPE>".length(), close).trim());
+        var root = json.createObjectNode();
+        var milestones = root.putArray("milestones");
+        for (var key : scope.withArray("milestoneKeys")) {
+            var milestone = milestones.addObject();
+            milestone.put("tempKey", key.asText());
+            milestone.put("description", "Complete validation phase " + key.asText());
+            milestone.putArray("sourceRefs");
+        }
+        var tasks = root.putArray("tasks");
+        for (var key : scope.withArray("taskKeys")) {
+            var task = tasks.addObject();
+            String tempKey = key.asText();
+            task.put("tempKey", tempKey);
+            task.put("description", "Complete validation step " + tempKey + " and record the outcome.");
+            task.put("priority", "MEDIUM");
+            task.put("estimatedHours", 2);
+            if ("t13".equals(tempKey)) {
+                task.put("startDate", LocalDate.now().plusDays(11).toString());
+                task.put("dueDate", LocalDate.now().plusDays(15).toString());
+                task.putArray("dependencyTempKeys").add("t1");
+            } else {
+                task.put("startDate", LocalDate.now().plusDays(2).toString());
+                task.put("dueDate", LocalDate.now().plusDays(10).toString());
+                task.putArray("dependencyTempKeys");
+            }
+            task.putNull("suggestedAssigneeId");
+            task.putArray("sourceRefs");
+        }
+        return json.writeValueAsString(root);
     }
 
     private static TaskPlanDraft skeletonDraftForTaskCount(int taskCount) {

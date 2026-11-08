@@ -19,14 +19,17 @@ public class TaskPlanRecoveryJob {
                 WHERE status IN ('QUEUED','RUNNING') AND updated_at < now() - interval '10 minutes'
                 """);
         // C5: All terminal states must clear active_attempt_id in the same SQL
+        // REFLECTING：反思阶段被进程重启中断 → 回退到 DETAIL_GENERATION_FAILED（详情草稿尚未提交，
+        // 与 DETAIL_GENERATING 中断语义一致，用户可 detail-only 重试）。
         jdbc.update("""
                 UPDATE ai_task_plan SET status=CASE
                     WHEN status='SKELETON_GENERATING' THEN 'FAILED'
                     WHEN status='DETAIL_GENERATING' THEN 'DETAIL_GENERATION_FAILED'
+                    WHEN status='REFLECTING' THEN 'DETAIL_GENERATION_FAILED'
                     ELSE status END,
                   active_attempt_id=NULL,
                   last_error_code='PROCESS_RESTARTED',last_error_summary='进程重启中断处理',updated_at=now()
-                WHERE status IN ('SKELETON_GENERATING','DETAIL_GENERATING')
+                WHERE status IN ('SKELETON_GENERATING','DETAIL_GENERATING','REFLECTING')
                   AND updated_at < now() - interval '10 minutes'
                 """);
         jdbc.update("""

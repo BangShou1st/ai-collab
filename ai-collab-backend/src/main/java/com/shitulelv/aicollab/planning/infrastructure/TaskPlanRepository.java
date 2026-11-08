@@ -98,6 +98,20 @@ public class TaskPlanRepository {
     public UUID appendVersion(UUID projectId, UUID planId, UUID expectedBase, String type,
                               UUID basedOn, TaskPlanDraft draft, UUID actor, ValidationResult validation,
                               TaskPlanStatus finalStatus) {
+        return appendVersion(projectId, planId, expectedBase, type, basedOn, draft, actor,
+                validation, List.of(), finalStatus);
+    }
+
+    /**
+     * 带反思 issues 的版本追加（§5.3 软伤落 READY_WITH_ISSUES 时，issues 写进版本的
+     * validation_result_json，新增顶层 "issues" 字段，为前端展示预留；HARD 反思问题
+     * 若修复后仍存在也随版本持久化）。原有 9 参重载语义不变（issues 为空）。
+     */
+    @Transactional
+    public UUID appendVersion(UUID projectId, UUID planId, UUID expectedBase, String type,
+                              UUID basedOn, TaskPlanDraft draft, UUID actor, ValidationResult validation,
+                              List<com.shitulelv.aicollab.planning.domain.ReflectIssue> reflectIssues,
+                              TaskPlanStatus finalStatus) {
         TaskPlanRecord plan = lock(projectId, planId);
         // Interactive operations (MANUAL_EDIT, RESTORED, AI_PARTIAL_REPAIR) require READY or READY_WITH_ISSUES.
         // Async generation types (AI_*) are guarded by appendGeneratedVersion's attempt/seq checks.
@@ -108,9 +122,7 @@ public class TaskPlanRepository {
         }
         UUID id = UUID.randomUUID();
         int next = plan.latestVersionNo() + 1;
-        String validationJson = validation != null
-                ? write(Map.of("errors", validation.errorCodes(), "warnings", validation.warningCodes()))
-                : "{\"errors\":[],\"warnings\":[]}";
+        String validationJson = validationJson(validation, reflectIssues);
         jdbc.update("""
                 INSERT INTO ai_task_plan_version(id,plan_id,version_no,source_type,based_on_version_id,
                   generation_seq,summary,assumptions_json,risks_json,milestones_json,tasks_json,sources_json,
@@ -137,6 +149,17 @@ public class TaskPlanRepository {
                                        TaskPlanStatus expectedStatus, String type, UUID basedOn,
                                        TaskPlanDraft draft, UUID actor, ValidationResult validation,
                                        TaskPlanStatus finalStatus) {
+        return appendGeneratedVersion(projectId, planId, generationSeq, attemptId, expectedStatus, type,
+                basedOn, draft, actor, validation, List.of(), finalStatus);
+    }
+
+    /** 带反思 issues 的生成结果原子提交（透传给 {@link #appendVersion} 的 issues 重载）。 */
+    @Transactional
+    public UUID appendGeneratedVersion(UUID projectId, UUID planId, long generationSeq, UUID attemptId,
+                                       TaskPlanStatus expectedStatus, String type, UUID basedOn,
+                                       TaskPlanDraft draft, UUID actor, ValidationResult validation,
+                                       List<com.shitulelv.aicollab.planning.domain.ReflectIssue> reflectIssues,
+                                       TaskPlanStatus finalStatus) {
         TaskPlanRecord plan = lock(projectId, planId);
         if (plan.generationSeq() != generationSeq || !attemptId.equals(plan.activeAttemptId())
                 || plan.status() != expectedStatus) {
@@ -147,7 +170,8 @@ public class TaskPlanRepository {
             finishAttempt(attemptId, "DISCARDED", "PLAN_VERSION_CONFLICT");
             return null;
         }
-        return appendVersion(projectId, planId, basedOn, type, basedOn, draft, actor, validation, finalStatus);
+        return appendVersion(projectId, planId, basedOn, type, basedOn, draft, actor, validation,
+                reflectIssues, finalStatus);
     }
 
     /**
@@ -249,25 +273,96 @@ public class TaskPlanRepository {
         return updated == 1;
     }
 
+    /**
+     * 发起一次补丁修复 attempt（stage=REPAIR）。
+     * <p>repair_count 语义（V84 起）：沿父子链累加，父 attempt 的 repair_count + 1，
+     * 全局修复上限 2（CHECK {@code BETWEEN 0 AND 2} + 此处应用层兜底，超限返回 null）。
+     * 原实现硬编码 1，只支持"初次+修复1"；REFLECT 硬伤修复链（§5.3）需要修复2 可用。</p>
+     */
     @Transactional
     public UUID startRepair(UUID planId, long generationSeq, UUID parentAttemptId,
                             TaskPlanStatus expectedStatus, UUID actor) {
+        return startRepair(planId, generationSeq, parentAttemptId, expectedStatus, actor, true);
+    }
+
+    /**
+     * @param failParent REFLECT 修复链里父是已 SUCCESS 的反思 attempt（它完成了自己的职责），
+     *                   不应被标 FAILED；既有生成/分批修复路径保持 true（修复取代失败输出）。
+     */
+    @Transactional
+    public UUID startRepair(UUID planId, long generationSeq, UUID parentAttemptId,
+                            TaskPlanStatus expectedStatus, UUID actor, boolean failParent) {
         Map<String, Object> plan = jdbc.queryForMap(
                 "SELECT generation_seq,active_attempt_id,status FROM ai_task_plan WHERE id=? FOR UPDATE", planId);
         if (((Number) plan.get("generation_seq")).longValue() != generationSeq
                 || !parentAttemptId.equals(plan.get("active_attempt_id"))
                 || !expectedStatus.name().equals(plan.get("status"))) return null;
-        finishAttempt(parentAttemptId, "FAILED", "PLANNING_MODEL_INVALID_OUTPUT");
+        Integer parentRepairCount = jdbc.queryForObject(
+                "SELECT repair_count FROM ai_task_plan_attempt WHERE id=?", Integer.class, parentAttemptId);
+        int repairCount = (parentRepairCount == null ? 0 : parentRepairCount) + 1;
+        if (repairCount > 2) return null;
+        if (failParent) finishAttempt(parentAttemptId, "FAILED", "PLANNING_MODEL_INVALID_OUTPUT");
         UUID repair = UUID.randomUUID();
         Integer no = jdbc.queryForObject("SELECT coalesce(max(attempt_no),0)+1 FROM ai_task_plan_attempt WHERE plan_id=?",
                 Integer.class, planId);
         jdbc.update("""
                 INSERT INTO ai_task_plan_attempt(id,plan_id,parent_attempt_id,attempt_no,generation_seq,
                   stage,status,repair_count,created_by,started_at)
-                VALUES (?,?,?,?,?,'REPAIR','RUNNING',1,?,now())
-                """, repair, planId, parentAttemptId, no, generationSeq, actor);
+                VALUES (?,?,?,?,?,'REPAIR','RUNNING',?, ?,now())
+                """, repair, planId, parentAttemptId, no, generationSeq, repairCount, actor);
         jdbc.update("UPDATE ai_task_plan SET active_attempt_id=?,updated_at=now() WHERE id=?", repair, planId);
         return repair;
+    }
+
+    /**
+     * 发起 REFLECT 反思 attempt（stage=REFLECT，§5.3）：CAS 把计划推进到 REFLECTING
+     * （首轮从 DETAIL_GENERATING 进入；修复后的再验证轮从 REFLECTING 保持），并把
+     * active_attempt 切到新 attempt。repair_count 继承父 attempt（反思不是修复，
+     * 后续修复预算沿链计数）。
+     *
+     * @param expectedStatus 进入前的期望计划状态（首轮 DETAIL_GENERATING，再验证轮 REFLECTING）
+     * @return 新 reflect attemptId；身份不匹配（已取消/重开）返回 null
+     */
+    @Transactional
+    public UUID startReflect(UUID planId, long generationSeq, UUID parentAttemptId,
+                             TaskPlanStatus expectedStatus, UUID actor) {
+        Map<String, Object> plan = jdbc.queryForMap(
+                "SELECT generation_seq,active_attempt_id,status FROM ai_task_plan WHERE id=? FOR UPDATE", planId);
+        if (((Number) plan.get("generation_seq")).longValue() != generationSeq
+                || !parentAttemptId.equals(plan.get("active_attempt_id"))
+                || !expectedStatus.name().equals(plan.get("status"))) return null;
+        Integer parentRepairCount = jdbc.queryForObject(
+                "SELECT repair_count FROM ai_task_plan_attempt WHERE id=?", Integer.class, parentAttemptId);
+        UUID reflect = UUID.randomUUID();
+        Integer no = jdbc.queryForObject("SELECT coalesce(max(attempt_no),0)+1 FROM ai_task_plan_attempt WHERE plan_id=?",
+                Integer.class, planId);
+        jdbc.update("""
+                INSERT INTO ai_task_plan_attempt(id,plan_id,parent_attempt_id,attempt_no,generation_seq,
+                  stage,status,repair_count,created_by,started_at)
+                VALUES (?,?,?,?,?,'REFLECT','RUNNING',?, ?,now())
+                """, reflect, planId, parentAttemptId, no, generationSeq,
+                parentRepairCount == null ? 0 : parentRepairCount, actor);
+        jdbc.update("""
+                UPDATE ai_task_plan SET status='REFLECTING',active_attempt_id=?,updated_at=now()
+                WHERE id=? AND status=?
+                """, reflect, planId, expectedStatus.name());
+        return reflect;
+    }
+
+    /**
+     * 向 attempt 的 diagnostics_json（V53 已有列，CHECK 约束为 JSON <b>数组</b>）原子追加一条
+     * 诊断记录。元素带 kind 判别字段：{"kind":"TOOL_CALL",...}（§5.2 工具调用审计）、
+     * {"kind":"REFLECT_DEGRADE",...}（§5.3 反思降级原因）、{"kind":"REFLECT_FILTER",...}。
+     * partial repair 路径的 diagnostics（StructuredValidationIssue 数组）走 {@link #failPartialRepair}
+     * 且只作用于 REPAIR 阶段的交互式 attempt，与这里的 SKELETON/DETAIL/REFLECT attempt 互不重叠；
+     * {@link #repairDiagnostics} 也只在 latest failed attempt 为 REPAIR 阶段时被读取。
+     */
+    @Transactional
+    public void appendAttemptDiagnostic(UUID planId, UUID attemptId, Map<String, Object> entry) {
+        jdbc.update(
+                "UPDATE ai_task_plan_attempt SET diagnostics_json = diagnostics_json || ?::jsonb "
+                        + "WHERE id=? AND plan_id=?",
+                write(entry), attemptId, planId);
     }
 
     @Transactional
@@ -476,6 +571,21 @@ public class TaskPlanRepository {
                 r.getString("risks_json"), r.getString("milestones_json"), r.getString("tasks_json"),
                 r.getString("sources_json"), r.getString("validation_result_json"),
                 r.getObject("created_by", UUID.class), r.getObject("created_at", java.time.OffsetDateTime.class));
+    }
+
+    /** validation_result_json 序列化：{"errors":[],"warnings":[],"issues":[...]}，issues 为反思问题（可为空）。 */
+    private String validationJson(ValidationResult validation,
+                                  List<com.shitulelv.aicollab.planning.domain.ReflectIssue> reflectIssues) {
+        if (validation == null && (reflectIssues == null || reflectIssues.isEmpty())) {
+            return "{\"errors\":[],\"warnings\":[]}";
+        }
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("errors", validation == null ? List.of() : validation.errorCodes());
+        payload.put("warnings", validation == null ? List.of() : validation.warningCodes());
+        if (reflectIssues != null && !reflectIssues.isEmpty()) {
+            payload.put("issues", reflectIssues);
+        }
+        return write(payload);
     }
 
     private String write(Object value) {
