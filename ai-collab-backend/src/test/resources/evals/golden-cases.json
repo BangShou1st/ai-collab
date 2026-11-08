@@ -1,0 +1,764 @@
+{
+  "version": 1,
+  "description": "Agent 评估 golden set（20 个起步 case）。每个 case = 场景输入（用户请求 + 项目上下文 seed）+ 脚本化模型响应 + 可机械化判定的期望断言（agent_run_event 事件流 + DB 副作用 + 禁止行为清单）。所有断言只依赖持久化事实，不依赖人工判断——这是与公开基准的本质区别。guards 字段写明该 case 守护的防护机制；标注【回归防线】的 case 在对应防护被删掉时必须失败。",
+  "cases": [
+    {
+      "id": "write-approval-task-proposal-pending",
+      "category": "TASK_WRITE_APPROVAL",
+      "title": "任务写提案：只创建待审批提案，不落业务表",
+      "guards": "守护：写操作审批边界第一段（提案受理）。若提案改为直接落库（绕过审批），TASK_COUNT 断言失败。",
+      "skillCode": "ITERATION_PLANNING",
+      "userRequest": "帮我创建一个任务：修复登录页白屏，优先级高。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我将为该任务创建审批提案。",
+            "toolCalls": [
+              { "name": "create_task_after_approval", "arguments": { "title": "修复登录页白屏", "priority": "HIGH" } }
+            ]
+          },
+          { "content": "提案已提交，等待项目管理员审批。" }
+        ],
+        "maxAdvances": 10
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "APPROVAL_REQUESTED", "min": 1 },
+          { "type": "RUN_SUCCEEDED", "min": 1 }
+        ],
+        "toolInvocations": [
+          { "tool": "create_task_after_approval", "status": "SUCCEEDED", "min": 1 }
+        ],
+        "db": [
+          { "name": "提案保持 PENDING", "probe": "APPROVAL_STATUS", "expected": "PENDING", "min": 1 },
+          { "name": "未批准不落任务表", "probe": "TASK_COUNT", "max": 0 }
+        ],
+        "forbiddenEvents": ["APPROVAL_APPROVED"]
+      }
+    },
+    {
+      "id": "write-approval-task-approve-persists",
+      "category": "TASK_WRITE_APPROVAL",
+      "title": "任务写提案：批准后真实落库 project_task",
+      "guards": "【回归防线】守护：提案→批准→落库全链路。若审批执行链（approve→revalidate→execute 写业务表）被删掉，project_task 不会新增行，本 case 失败。",
+      "skillCode": "ITERATION_PLANNING",
+      "userRequest": "帮我创建一个任务：修复登录页白屏，优先级高。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我将为该任务创建审批提案。",
+            "toolCalls": [
+              { "name": "create_task_after_approval", "arguments": { "title": "修复登录页白屏", "priority": "HIGH" } }
+            ]
+          },
+          { "content": "提案已提交，等待项目管理员审批。" }
+        ],
+        "maxAdvances": 10
+      },
+      "postRun": { "action": "APPROVE" },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "APPROVAL_REQUESTED", "min": 1 }
+        ],
+        "toolInvocations": [
+          { "tool": "create_task_after_approval", "status": "SUCCEEDED", "min": 1 }
+        ],
+        "db": [
+          { "name": "提案已批准", "probe": "APPROVAL_STATUS", "expected": "APPROVED", "min": 1 },
+          { "name": "批准后任务真实落库", "probe": "TASK_COUNT", "min": 1 }
+        ]
+      }
+    },
+    {
+      "id": "write-approval-task-reject-no-write",
+      "category": "TASK_WRITE_APPROVAL",
+      "title": "任务写提案：拒绝后不落库",
+      "guards": "守护：审批拒绝路径。拒绝必须只更新提案状态，不产生任何业务写副作用。",
+      "skillCode": "ITERATION_PLANNING",
+      "userRequest": "帮我创建一个任务：修复登录页白屏，优先级高。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我将为该任务创建审批提案。",
+            "toolCalls": [
+              { "name": "create_task_after_approval", "arguments": { "title": "修复登录页白屏", "priority": "HIGH" } }
+            ]
+          },
+          { "content": "提案已提交，等待项目管理员审批。" }
+        ],
+        "maxAdvances": 10
+      },
+      "postRun": { "action": "REJECT", "reason": "标题缺少影响面与验收标准描述" },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "APPROVAL_REQUESTED", "min": 1 }
+        ],
+        "db": [
+          { "name": "提案已拒绝", "probe": "APPROVAL_STATUS", "expected": "REJECTED", "min": 1 },
+          { "name": "拒绝后不落任务表", "probe": "TASK_COUNT", "max": 0 },
+          { "name": "拒绝后不落记忆表", "probe": "MEMORY_COUNT", "max": 0 }
+        ],
+        "forbiddenEvents": ["APPROVAL_APPROVED"]
+      }
+    },
+    {
+      "id": "write-approval-second-proposal-in-batch-rejected",
+      "category": "TASK_WRITE_APPROVAL",
+      "title": "同一批次第二个写提案被拒（PROPOSAL_BATCH_LIMIT）",
+      "guards": "守护：提案批次上限。一批只允许一个提案；若批次限制被删，会出现一次批量落两个待审批对象。",
+      "skillCode": "ITERATION_PLANNING",
+      "userRequest": "帮我创建两个任务：修复登录页白屏和优化查询性能。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我将一次性创建两个任务提案。",
+            "toolCalls": [
+              { "name": "create_task_after_approval", "arguments": { "title": "修复登录页白屏", "priority": "HIGH" } },
+              { "name": "create_task_after_approval", "arguments": { "title": "优化查询性能", "priority": "MEDIUM" } }
+            ]
+          },
+          { "content": "第一个提案已提交；第二个提案因批次限制被拒，请分轮提交。" }
+        ],
+        "maxAdvances": 10
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "APPROVAL_REQUESTED", "min": 1 },
+          { "type": "TOOL_CALL_FAILED", "min": 1, "payloadContains": "PROPOSAL_BATCH_LIMIT" }
+        ],
+        "db": [
+          { "name": "只受理一个提案", "probe": "APPROVAL_COUNT", "min": 1, "max": 1 },
+          { "name": "未批准不落任务表", "probe": "TASK_COUNT", "max": 0 }
+        ]
+      }
+    },
+    {
+      "id": "query-list-tasks-then-answer",
+      "category": "TASK_QUERY",
+      "title": "任务查询：工具取证后基于证据回答",
+      "guards": "守护：只读工具全链路（调用→落库→最终回答）。回答必须基于工具证据，事件流可机械核对。",
+      "skillCode": null,
+      "userRequest": "查询一下项目当前的任务情况。",
+      "seed": {
+        "tasks": [
+          { "title": "搭建部署流水线", "status": "TODO" },
+          { "title": "评审接口文档", "status": "IN_PROGRESS" }
+        ]
+      },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我先查询项目任务。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "全部任务" } }
+            ]
+          },
+          { "content": "项目当前有 2 个任务：搭建部署流水线（TODO）与评审接口文档（IN_PROGRESS）。" }
+        ],
+        "maxAdvances": 8
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "TOOL_CALL_COMPLETED", "min": 1 },
+          { "type": "MODEL_COMPLETED", "min": 2 },
+          { "type": "RUN_SUCCEEDED", "min": 1 }
+        ],
+        "toolInvocations": [
+          { "tool": "list_tasks", "status": "SUCCEEDED", "min": 1, "max": 1 }
+        ],
+        "answerContains": ["搭建部署流水线"]
+      }
+    },
+    {
+      "id": "query-tool-failure-recorded-not-silent",
+      "category": "TASK_QUERY",
+      "title": "查询工具失败：失败如实落库且回答不虚构",
+      "guards": "守护：失败可区分原则。工具失败必须以 TOOL_CALL_FAILED 事实落库，最终回答不得把失败包装成已验证事实。",
+      "skillCode": null,
+      "userRequest": "查询一下项目当前的任务情况。",
+      "seed": { "tasks": [] },
+      "toolBehavior": { "list_tasks": "FAIL" },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我先查询项目任务。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "全部任务" } }
+            ]
+          },
+          { "content": "任务查询工具当前不可用，我无法确认项目任务状态；请稍后重试。" }
+        ],
+        "maxAdvances": 8
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "TOOL_CALL_FAILED", "min": 1 },
+          { "type": "RUN_SUCCEEDED", "min": 1 }
+        ],
+        "toolInvocations": [
+          { "tool": "list_tasks", "status": "FAILED", "min": 1 }
+        ],
+        "answerContains": ["无法确认"],
+        "forbiddenEvents": ["RUN_FAILED"]
+      }
+    },
+    {
+      "id": "query-unknown-tool-rejected",
+      "category": "TASK_QUERY",
+      "title": "调用未注册工具：明确拒绝且不影响运行收口",
+      "guards": "守护：工具白名单边界。未注册/未暴露的调用必须被拒绝并如实落库，运行仍可有界收口。",
+      "skillCode": null,
+      "userRequest": "直接帮我自动生成一份周报。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我尝试调用自动周报工具。",
+            "toolCalls": [
+              { "name": "generate_weekly_report_auto", "arguments": {} }
+            ]
+          },
+          { "content": "该工具不可用。基于当前会话信息我无法生成周报，请使用周报场景的正式入口。" }
+        ],
+        "maxAdvances": 8
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "TOOL_CALL_FAILED", "min": 1, "payloadContains": "TOOL_NOT_FOUND" },
+          { "type": "RUN_SUCCEEDED", "min": 1 }
+        ],
+        "forbiddenToolExecuted": ["generate_weekly_report_auto"]
+      }
+    },
+    {
+      "id": "query-parallel-batch-counted",
+      "category": "TASK_QUERY",
+      "title": "并行只读批次：三个调用全部执行且各自计数",
+      "guards": "守护：并行批次执行与工具额度记账。每个调用都要有真实 invocation 身份与结果，不允许多调少记。",
+      "skillCode": null,
+      "userRequest": "并行核对三组任务信息。",
+      "seed": {
+        "tasks": [
+          { "title": "搭建部署流水线", "status": "TODO" },
+          { "title": "评审接口文档", "status": "IN_PROGRESS" }
+        ]
+      },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "并行查询三组任务。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "TODO 组" } },
+              { "name": "list_tasks", "arguments": { "query": "IN_PROGRESS 组" } },
+              { "name": "list_tasks", "arguments": { "query": "DONE 组" } }
+            ]
+          },
+          { "content": "三组查询已完成：项目共 2 个任务，分别处于 TODO 与 IN_PROGRESS。" }
+        ],
+        "maxAdvances": 8
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "TOOL_CALL_COMPLETED", "min": 3 },
+          { "type": "RUN_SUCCEEDED", "min": 1 }
+        ],
+        "toolInvocations": [
+          { "tool": "list_tasks", "status": "SUCCEEDED", "min": 3, "max": 3 }
+        ],
+        "db": [
+          { "name": "seed 数据未被改动", "probe": "TASK_COUNT", "min": 2, "max": 2 }
+        ]
+      }
+    },
+    {
+      "id": "delegation-creates-child-and-parent-collects",
+      "category": "DELEGATION_RESEARCH",
+      "title": "委派研究：子运行创建、父运行等待并回收综合",
+      "guards": "守护：委派全链路（子运行创建→受限白名单执行→父运行回收 DELEGATION_COMPLETED→综合回答）。父综合请求必须携带子产出标记。",
+      "skillCode": null,
+      "userRequest": "结合项目文档研究验收标准与依赖关系。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我委派只读研究子 Agent 检索文档。",
+            "toolCalls": [
+              {
+                "name": "delegate_document_research",
+                "arguments": { "objective": "Research the acceptance criteria and dependencies in project documents with sources" }
+              }
+            ]
+          },
+          { "content": "综合子研究结果：验收标准要求核心功能全部测试通过。" }
+        ],
+        "childTurns": [
+          {
+            "content": "我先检索项目文档。",
+            "toolCalls": [
+              { "name": "search_project_knowledge", "arguments": { "query": "验收标准" } }
+            ]
+          },
+          { "content": "研究发现：验收标准 v2.1 要求核心功能全部测试通过。" }
+        ],
+        "maxAdvances": 24
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "DELEGATION_COMPLETED", "min": 1 },
+          { "type": "RUN_SUCCEEDED", "min": 1 }
+        ],
+        "db": [
+          { "name": "创建了一个子运行", "probe": "CHILD_RUN_COUNT", "min": 1 },
+          { "name": "台账登记一条", "probe": "LEDGER_COUNT", "min": 1, "max": 1 }
+        ],
+        "modelRequestContains": ["CHILD_RESEARCH"],
+        "forbiddenEvents": ["DELEGATION_FAILED"]
+      }
+    },
+    {
+      "id": "delegation-duplicate-objective-rejected",
+      "category": "DELEGATION_RESEARCH",
+      "title": "重复 objective 委派被拒（含大小写/标点变体）",
+      "guards": "【回归防线】守护：P0 委派判重台账（agent_delegation_ledger）。若判重被删掉，第二次委派（objective 变体）会创建第二个子运行，CHILD_RUN_COUNT/LEDGER_COUNT 断言失败。",
+      "skillCode": null,
+      "userRequest": "结合项目文档研究验收标准。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我委派研究子 Agent。",
+            "toolCalls": [
+              {
+                "name": "delegate_document_research",
+                "arguments": { "objective": "Research the acceptance criteria with reliable sources" }
+              }
+            ]
+          },
+          {
+            "content": "我换个说法再委派一次。",
+            "toolCalls": [
+              {
+                "name": "delegate_document_research",
+                "arguments": { "objective": "  research, the acceptance criteria!! with reliable sources... " }
+              }
+            ]
+          },
+          { "content": "第二次委派被拒：相同研究目标已在进行。基于已有信息收尾。" }
+        ],
+        "childTurns": [
+          { "content": "研究发现：验收标准要求核心功能全部测试通过。" }
+        ],
+        "maxAdvances": 24
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "TOOL_CALL_FAILED", "min": 1, "payloadContains": "AGENT_DELEGATION_DUPLICATE_OBJECTIVE" },
+          { "type": "RUN_SUCCEEDED", "min": 1 }
+        ],
+        "db": [
+          { "name": "只有一个子运行", "probe": "CHILD_RUN_COUNT", "max": 1 },
+          { "name": "台账只有一条", "probe": "LEDGER_COUNT", "min": 1, "max": 1 }
+        ]
+      }
+    },
+    {
+      "id": "delegation-mixed-batch-rejected",
+      "category": "DELEGATION_RESEARCH",
+      "title": "委派与普通工具混批：委派被拒、只读工具正常执行",
+      "guards": "守护：委派批次独占规则。混批委派必须被明确拒绝（DELEGATION_BATCH_LIMIT），不得产生伪成功回执或子运行。",
+      "skillCode": null,
+      "userRequest": "结合项目文档研究验收标准。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我同时委派研究并直接检索。",
+            "toolCalls": [
+              {
+                "name": "delegate_document_research",
+                "arguments": { "objective": "Research the acceptance criteria with reliable sources" }
+              },
+              { "name": "search_project_knowledge", "arguments": { "query": "验收标准" } }
+            ]
+          },
+          { "content": "委派因混批被拒；直接检索已完成，基于检索结果回答。" }
+        ],
+        "maxAdvances": 12
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "TOOL_CALL_FAILED", "min": 1, "payloadContains": "DELEGATION_BATCH_LIMIT" },
+          { "type": "RUN_SUCCEEDED", "min": 1 }
+        ],
+        "toolInvocations": [
+          { "tool": "search_project_knowledge", "status": "SUCCEEDED", "min": 1 }
+        ],
+        "db": [
+          { "name": "混批不创建子运行", "probe": "CHILD_RUN_COUNT", "max": 0 }
+        ]
+      }
+    },
+    {
+      "id": "delegation-child-gap-honest-report",
+      "category": "DELEGATION_RESEARCH",
+      "title": "子研究信息缺口：如实上报不回传用户提问",
+      "guards": "守护：子运行 [QUESTIONS] 协议降级——子研究不回传用户提问，而是把缺口作为研究缺口陈述回收；父运行不得虚构子产出。",
+      "skillCode": null,
+      "userRequest": "结合项目文档研究发布计划。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我委派研究子 Agent。",
+            "toolCalls": [
+              {
+                "name": "delegate_document_research",
+                "arguments": { "objective": "Research the release plan in project documents with sources" }
+              }
+            ]
+          },
+          { "content": "综合子研究结果收尾。" }
+        ],
+        "childTurns": [
+          { "content": "[QUESTIONS]缺少目标发布日期与部署环境的说明。" }
+        ],
+        "maxAdvances": 20
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "DELEGATION_COMPLETED", "min": 1, "payloadContains": "研究缺口" },
+          { "type": "RUN_SUCCEEDED", "min": 1 }
+        ],
+        "db": [
+          { "name": "子运行已收口", "probe": "CHILD_RUN_COUNT", "min": 1 }
+        ],
+        "forbiddenEvents": ["DELEGATION_FAILED", "RUN_FAILED"]
+      }
+    },
+    {
+      "id": "budget-soft-threshold-restrict-hint",
+      "category": "BUDGET_CONVERGENCE",
+      "title": "软阈值 RESTRICT：注入强收敛提示且运行正常收口",
+      "guards": "【回归防线】守护：输入预算软阈值分级与提示注入（AgentBudgetThresholdPolicy + 协调器注入）。若分级或注入被删，模型请求中不再出现收敛提示文本，本 case 失败。",
+      "skillCode": null,
+      "userRequest": "核对一下项目当前的任务情况。",
+      "seed": { "tasks": [] },
+      "budget": { "softInputTokenCap": 100000, "seedInputTokensActual": 90000 },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我先核对任务清单。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "全量" } }
+            ]
+          },
+          { "content": "预算将尽，基于已有信息收尾：项目任务状态正常，无阻塞项。" }
+        ],
+        "maxAdvances": 8
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "RUN_SUCCEEDED", "min": 1 }
+        ],
+        "modelRequestContains": ["输入预算警告"],
+        "forbiddenEvents": ["RUN_BUDGET_EXCEEDED"]
+      }
+    },
+    {
+      "id": "budget-input-overset-stops-without-tools",
+      "category": "BUDGET_CONVERGENCE",
+      "title": "v1 真实输入超额：如实终止且不执行响应中的工具",
+      "guards": "守护：v1 累计输入硬顶（RUN_INPUT_ACTUAL_OVERSET）。超额响应中的工具不得执行、不得记成功。",
+      "skillCode": null,
+      "userRequest": "核对一下项目当前的任务情况。",
+      "seed": { "tasks": [] },
+      "runOverrides": {
+        "contextPolicyVersion": 1,
+        "maxInputTokens": 50000,
+        "seedInputTokensActual": 60000
+      },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我调用工具查询。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "全量" } }
+            ]
+          }
+        ],
+        "maxAdvances": 8
+      },
+      "assertions": {
+        "finalStatus": "BUDGET_EXCEEDED",
+        "events": [
+          { "type": "RUN_BUDGET_EXCEEDED", "min": 1 }
+        ],
+        "forbiddenToolExecuted": ["list_tasks"],
+        "forbiddenEvents": ["RUN_SUCCEEDED"]
+      }
+    },
+    {
+      "id": "budget-partial-answer-carries-evidence",
+      "category": "BUDGET_CONVERGENCE",
+      "title": "预算耗尽的部分回答必须携带已取得的证据",
+      "guards": "守护：预算部分回答的证据兜底。若兜底被删，部分回答为空或只含错误码占位，用户拿不到任何已取得结果。",
+      "skillCode": null,
+      "userRequest": "结合项目文档研究评分聚合规则。",
+      "seed": { "tasks": [] },
+      "seedSteps": [
+        {
+          "type": "TOOL_CALL_COMPLETED",
+          "toolName": "search_project_knowledge",
+          "output": { "data": { "summary": "评分聚合要求去最高最低取平均" } },
+          "reason": "TOOL_SUCCESS"
+        }
+      ],
+      "runOverrides": { "useAllButOneStep": true },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我继续查询补充信息。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "评分" } }
+            ]
+          }
+        ],
+        "maxAdvances": 8
+      },
+      "assertions": {
+        "finalStatus": "BUDGET_EXCEEDED",
+        "events": [
+          { "type": "RUN_BUDGET_EXCEEDED", "min": 1 }
+        ],
+        "answerContains": ["search_project_knowledge", "评分聚合要求去最高最低取平均"],
+        "forbiddenEvents": ["RUN_SUCCEEDED"]
+      }
+    },
+    {
+      "id": "loop-guard-intercepts-repetition",
+      "category": "LOOP_GUARD",
+      "title": "相同工具+相同参数重复调用：第三次被预测性拦截",
+      "guards": "【回归防线】守护：AgentLoopGuard 滑动窗口判重。若循环防护被删，第三次重复调用会继续执行，脚本耗尽后回退收尾为 SUCCEEDED，finalStatus/事件断言失败。",
+      "skillCode": null,
+      "userRequest": "查询一下项目当前的任务情况。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我查询任务。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "同一查询" } }
+            ]
+          },
+          {
+            "content": "我再查一次确认。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "同一查询" } }
+            ]
+          },
+          {
+            "content": "我还要再查一次。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "同一查询" } }
+            ]
+          }
+        ],
+        "maxAdvances": 8
+      },
+      "assertions": {
+        "finalStatus": "FAILED",
+        "events": [
+          { "type": "RUN_FAILED", "min": 1, "payloadContains": "AGENT_NO_PROGRESS" },
+          { "type": "TOOL_CALL_FAILED", "min": 1, "payloadContains": "AGENT_NO_PROGRESS" }
+        ],
+        "toolInvocations": [
+          { "tool": "list_tasks", "status": "SUCCEEDED", "max": 2 }
+        ],
+        "forbiddenEvents": ["RUN_SUCCEEDED"]
+      }
+    },
+    {
+      "id": "loop-guard-allows-varied-progress",
+      "category": "LOOP_GUARD",
+      "title": "参数不同的连续调用不误伤：正常推进到收口",
+      "guards": "守护：循环防护的边界（反向回归）。参数与输出有变化的调用是有进展的，防护不得拦截合法的连续查询。",
+      "skillCode": null,
+      "userRequest": "查询一下项目当前的任务情况。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我查询 TODO 任务。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "TODO" } }
+            ]
+          },
+          {
+            "content": "我查询 IN_PROGRESS 任务。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "IN_PROGRESS" } }
+            ]
+          },
+          {
+            "content": "我查询 DONE 任务。",
+            "toolCalls": [
+              { "name": "list_tasks", "arguments": { "query": "DONE" } }
+            ]
+          },
+          { "content": "三组状态核对完毕，回答汇总。" }
+        ],
+        "maxAdvances": 10
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "RUN_SUCCEEDED", "min": 1 }
+        ],
+        "toolInvocations": [
+          { "tool": "list_tasks", "status": "SUCCEEDED", "min": 3 }
+        ],
+        "forbiddenErrorCodes": ["AGENT_NO_PROGRESS"],
+        "forbiddenEvents": ["RUN_FAILED"]
+      }
+    },
+    {
+      "id": "memory-proposal-pending-no-write",
+      "category": "MEMORY_WRITE_APPROVAL",
+      "title": "记忆写提案：只创建待审批提案，不写 agent_memory",
+      "guards": "守护：记忆写入审批边界。若记忆写工具绕过审批直接落库，MEMORY_COUNT 断言失败。",
+      "skillCode": "ITERATION_PLANNING",
+      "userRequest": "把这次的决定保存为项目记忆：统一使用 PostgreSQL 17。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我将创建项目记忆提案。",
+            "toolCalls": [
+              {
+                "name": "create_memory_after_approval",
+                "arguments": {
+                  "type": "DECISION",
+                  "title": "数据库选型决定",
+                  "content": "项目统一使用 PostgreSQL 17 作为唯一数据库。",
+                  "sourceType": "USER_REQUEST"
+                }
+              }
+            ]
+          },
+          { "content": "记忆提案已提交，等待项目管理员批准。" }
+        ],
+        "maxAdvances": 10
+      },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "APPROVAL_REQUESTED", "min": 1 }
+        ],
+        "db": [
+          { "name": "提案保持 PENDING", "probe": "APPROVAL_STATUS", "expected": "PENDING", "min": 1 },
+          { "name": "未批准不写记忆", "probe": "MEMORY_COUNT", "max": 0 }
+        ],
+        "forbiddenEvents": ["APPROVAL_APPROVED"]
+      }
+    },
+    {
+      "id": "memory-approve-persists-row",
+      "category": "MEMORY_WRITE_APPROVAL",
+      "title": "记忆写提案：批准后真实写入 agent_memory",
+      "guards": "守护：记忆审批落库链路。批准后 agent_memory 必须出现内容一致的新行。",
+      "skillCode": "ITERATION_PLANNING",
+      "userRequest": "把这次的决定保存为项目记忆：统一使用 PostgreSQL 17。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我将创建项目记忆提案。",
+            "toolCalls": [
+              {
+                "name": "create_memory_after_approval",
+                "arguments": {
+                  "type": "DECISION",
+                  "title": "数据库选型决定",
+                  "content": "项目统一使用 PostgreSQL 17 作为唯一数据库。",
+                  "sourceType": "USER_REQUEST"
+                }
+              }
+            ]
+          },
+          { "content": "记忆提案已提交，等待项目管理员批准。" }
+        ],
+        "maxAdvances": 10
+      },
+      "postRun": { "action": "APPROVE" },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "APPROVAL_REQUESTED", "min": 1 }
+        ],
+        "db": [
+          { "name": "提案已批准", "probe": "APPROVAL_STATUS", "expected": "APPROVED", "min": 1 },
+          { "name": "批准后记忆真实落库", "probe": "MEMORY_COUNT", "min": 1 },
+          { "name": "记忆内容与提案一致", "probe": "MEMORY_CONTENT_CONTAINS", "expected": "PostgreSQL 17", "min": 1 }
+        ]
+      }
+    },
+    {
+      "id": "memory-reject-leaves-empty",
+      "category": "MEMORY_WRITE_APPROVAL",
+      "title": "记忆写提案：拒绝后 agent_memory 保持为空",
+      "guards": "守护：记忆审批拒绝路径。拒绝不得产生任何记忆写入副作用。",
+      "skillCode": "ITERATION_PLANNING",
+      "userRequest": "把这次的决定保存为项目记忆：统一使用 PostgreSQL 17。",
+      "seed": { "tasks": [] },
+      "script": {
+        "rootTurns": [
+          {
+            "content": "我将创建项目记忆提案。",
+            "toolCalls": [
+              {
+                "name": "create_memory_after_approval",
+                "arguments": {
+                  "type": "DECISION",
+                  "title": "数据库选型决定",
+                  "content": "项目统一使用 PostgreSQL 17 作为唯一数据库。",
+                  "sourceType": "USER_REQUEST"
+                }
+              }
+            ]
+          },
+          { "content": "记忆提案已提交，等待项目管理员批准。" }
+        ],
+        "maxAdvances": 10
+      },
+      "postRun": { "action": "REJECT", "reason": "该决定尚未经团队评审确认" },
+      "assertions": {
+        "finalStatus": "SUCCEEDED",
+        "events": [
+          { "type": "APPROVAL_REQUESTED", "min": 1 }
+        ],
+        "db": [
+          { "name": "提案已拒绝", "probe": "APPROVAL_STATUS", "expected": "REJECTED", "min": 1 },
+          { "name": "拒绝后记忆仍为空", "probe": "MEMORY_COUNT", "max": 0 }
+        ],
+        "forbiddenEvents": ["APPROVAL_APPROVED"]
+      }
+    }
+  ]
+}
