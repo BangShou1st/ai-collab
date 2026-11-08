@@ -1,6 +1,7 @@
 package com.shitulelv.aicollab.document.application.service;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.task.TaskExecutor;
 
 import java.util.ArrayList;
@@ -21,14 +22,26 @@ import static org.mockito.Mockito.verify;
  *
  * <p>进程内 inFlight 去重集合已删除（多实例绑定点），同一文档重复派发会在执行器层面
  * 排队多次，由下游三重保障兜底：MQ 消费幂等 / claim CAS（UPLOADED→PARSING 条件更新，
- * 重复派发仅第一例成功，其余空返回）/ 处理代际心跳。回落模式仅限单实例（.env.example 声明）。</p>
+ * 重复派发仅第一例成功，其余空返回）/ 处理代际心跳。Redis 深化 P2 后回落模式另有
+ * Redisson 跨实例互斥锁（本测试用空 ObjectProvider 模拟 MQ 模式下锁 Bean 不装配的
+ * 直通路径；锁语义验证见 RedissonDocumentDispatchLockTest）。</p>
  */
 class DocumentTaskDispatcherTest {
 
     private final DocumentProcessingService processing = mock(DocumentProcessingService.class);
     private final ControllableExecutor executor = new ControllableExecutor();
     private final DocumentTaskDispatcher dispatcher =
-            new DocumentTaskDispatcher(executor, processing);
+            new DocumentTaskDispatcher(executor, processing, noLock());
+
+    /** 空锁提供者：模拟 MQ 模式（总闸开）下锁 Bean 不装配的场景（getIfAvailable 无可用实现）。 */
+    private static ObjectProvider<DocumentDispatchLock> noLock() {
+        return new ObjectProvider<>() {
+            @Override
+            public DocumentDispatchLock getIfAvailable() {
+                return null;
+            }
+        };
+    }
 
     @Test
     void everyDispatchSubmitsWorkWithoutInProcessDeduplication() {

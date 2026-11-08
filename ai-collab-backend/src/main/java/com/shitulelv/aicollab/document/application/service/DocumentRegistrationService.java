@@ -15,8 +15,9 @@ import org.springframework.stereotype.Service;
  * 这是"消息丢失无害"设计，状态行（project_document.status）本身就是事实源。</p>
  *
  * <p>回落模式（{@code MQ_ENABLED=false}）：与迁移前行为一致 —— 注册事务提交后
- * 经 AFTER_COMMIT 事件进程内派发。回落模式仅限单实例/本地部署（进程内去重集合
- * 已删除，多实例会重复派发，见 {@link DocumentTaskDispatcher} 与 .env.example 说明）。</p>
+ * 经 AFTER_COMMIT 事件进程内派发。Redis 深化 P2 后派发前经 Redisson 跨实例互斥锁
+ * 去重（多实例不再重复派发；正确性由 claim CAS 兜底，见 {@link DocumentTaskDispatcher}
+ * 与 .env.example 说明）。</p>
  */
 @Service
 public class DocumentRegistrationService {

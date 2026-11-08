@@ -39,6 +39,9 @@
         <tika.version>3.3.0</tika.version>
         <!-- RocketMQ 客户端版本：与 compose 的 apache/rocketmq:5.3.3 服务端同版本对齐。 -->
         <rocketmq-client.version>5.3.3</rocketmq-client.version>
+        <!-- Redisson 原生客户端版本：4.0.0 起适配 Spring Boot 4.0，4.6.0 起适配 Boot 4.1
+             （与本项目 spring-boot-starter-parent 4.1.0 对齐）。 -->
+        <redisson.version>4.8.0</redisson.version>
         <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
     <!-- Zen 与 Kilo 共享库均从公开 JitPack 仓库解析，无需 Token 或本地发布。 -->
@@ -187,6 +190,19 @@
             <groupId>org.apache.rocketmq</groupId>
             <artifactId>rocketmq-client</artifactId>
             <version>${rocketmq-client.version}</version>
+        </dependency>
+        <!-- Redis 深化 P2：文档回落模式跨实例互斥锁。选型结论：用原生 redisson 而非
+             redisson-spring-boot-starter —— starter 自 4.0.0 起已适配 Spring Boot 4
+             （4.6.0+ 适配 Boot 4.1），技术上可用；但其自动配置会无条件创建 RedissonClient
+             （MQ 总闸开启时也会创建、无 Redis 的测试环境会启动失败），与本项目
+             "仅回落模式（document.mq.enabled=false）且 Redis 可用才需要锁" 的条件装配
+             语义冲突（与 M1 不用 rocketmq-spring-boot-starter 是同一条边界：不用 starter
+             的全局自动配置，模块内做薄封装）。原生客户端在模块内惰性建连：客户端不可达
+             时降级放行（DB claim CAS 兜底），不阻断主流程。 -->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+            <version>${redisson.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.tika</groupId>

@@ -17,7 +17,8 @@ import org.springframework.context.annotation.Configuration;
  * <ul>
  *   <li>true —— 装配 RocketMQ 生产者门面与消费者，文档链路消息驱动；</li>
  *   <li>false（默认）—— 两个 MQ Bean 均不创建，仅注册 {@link DisabledDocumentPipelineMessenger}，
- *       上传/重试/批量重建索引完全回落进程内线程池路径。回落模式仅限单实例/本地部署。</li>
+ *       上传/重试/批量重建索引完全回落进程内线程池路径。Redis 深化 P2 后回落模式带
+ *       Redisson 跨实例互斥锁（见 document/infrastructure/lock，仅回落模式装配）。</li>
  * </ul>
  * 测试 profile 在 application.properties 中显式关闭总闸，避免单元/集成测试依赖 broker。
  */
