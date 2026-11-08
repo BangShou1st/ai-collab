@@ -137,6 +137,7 @@ public class KnowledgeQuestionApplicationService {
 
         // 2. 检索路由与多查询分解（透传结构化 MetadataFilter 至检索管线）
         List<DocumentSearchHit> candidates;
+        KnowledgeContext context;
         if (retrievalPipeline != null) {
             QueryRouteDecision decision = queryRouter != null ? queryRouter.route(retrievalQuery) : null;
             List<com.shitulelv.aicollab.retrieval.query.MetadataFilter> filters = (decision != null && decision.structuredQuery() != null)
@@ -146,23 +147,28 @@ public class KnowledgeQuestionApplicationService {
                     ? decision.structuredQuery().semanticQuery()
                     : retrievalQuery;
 
-            // 阶段 3：复杂度判断与执行策略分离——按路由策略分发（QA 与流式 QA 共享同一执行组件）
-            candidates = strategyExecutor != null
-                    ? strategyExecutor.execute(projectId, decision, effectiveQuery, documentIds, filters, TOP_K)
-                    : retrievalPipeline.execute(projectId, effectiveQuery, documentIds, filters, TOP_K).toDocumentSearchHits();
+            if (strategyExecutor != null) {
+                // RAG_V2_ROUTING_CLOSURE-01 任务二：回退判据升级为"装配后无有效证据"。
+                // 判定函数与下方证据装配共享同一实现（确定性装配，可复用最后一次装配结果），
+                // 回退算法本身单点持有于执行器，普通与流式 QA 不复制两套回退。
+                KnowledgeContext[] assembled = new KnowledgeContext[1];
+                candidates = strategyExecutor.execute(projectId, decision, effectiveQuery, documentIds, filters, TOP_K,
+                        hits -> {
+                            KnowledgeContext built = assembleEvidenceContext(hits);
+                            assembled[0] = built;
+                            return !built.sources().isEmpty();
+                        });
+                context = assembled[0] != null ? assembled[0] : assembleEvidenceContext(candidates);
+            } else {
+                candidates = retrievalPipeline.execute(projectId, effectiveQuery, documentIds, filters, TOP_K).toDocumentSearchHits();
+                context = assembleEvidenceContext(candidates);
+            }
         } else {
             candidates = search.search(projectId, retrievalQuery, documentIds, TOP_K);
+            context = assembleEvidenceContext(candidates);
         }
 
         long retrievalMs = elapsedMs(retrievalStarted);
-
-        // 3. 证据装配（优先 TokenCounter 精确预算）
-        KnowledgeContext context;
-        if (tokenCounter != null) {
-            context = contextBuilder.buildWithTokenBudget(candidates, 5, 2500, tokenCounter, null, null).context();
-        } else {
-            context = contextBuilder.buildBalanced(candidates);
-        }
 
         double highestSimilarity = candidates.isEmpty() ? 0d : candidates.getFirst().similarity();
         if (context.sources().isEmpty()) {
@@ -235,6 +241,17 @@ public class KnowledgeQuestionApplicationService {
             result[0] = view;
         });
         return result[0];
+    }
+
+    /**
+     * 证据装配共享入口（优先 TokenCounter 精确预算）：检索回退判定与最终装配使用同一实现，
+     * 保证"回退判定看到的证据"与"进入提示词的证据"完全一致。
+     */
+    private KnowledgeContext assembleEvidenceContext(List<DocumentSearchHit> candidates) {
+        if (tokenCounter != null) {
+            return contextBuilder.buildWithTokenBudget(candidates, 5, 2500, tokenCounter, null, null).context();
+        }
+        return contextBuilder.buildBalanced(candidates);
     }
 
     private static String validateQuestion(KnowledgeQuestionRequest request) {

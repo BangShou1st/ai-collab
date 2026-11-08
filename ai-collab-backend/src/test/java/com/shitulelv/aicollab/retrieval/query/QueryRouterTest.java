@@ -18,13 +18,11 @@ class QueryRouterTest {
     }
 
     @Test
-    @DisplayName("FAST 路由：简单直接短文本与术语定义")
+    @DisplayName("FAST 路由：简单直接短文本与术语定义（不含精确标识符特征）")
     void shouldRouteFastQuery() {
         List<String> fastQueries = List.of(
-                "什么是RRF",
                 "pgvector",
                 "MinIO默认端口",
-                "JWT的全称是什么",
                 "什么是向量检索"
         );
 
@@ -35,6 +33,19 @@ class QueryRouterTest {
                     .isEqualTo(QueryComplexity.FAST);
             assertThat(decision.reason()).isNotEmpty();
             assertThat(decision.subQueries()).containsExactly(decision.structuredQuery().semanticQuery());
+        }
+    }
+
+    @Test
+    @DisplayName("精确标识符优先于 FAST：短标识符及其定义问句保留词法通道（HYBRID）")
+    void shouldRouteExactIdentifierBeforeFast() {
+        // RAG_V2_ROUTING_CLOSURE-01 任务一：短精确标识符不被 FAST/Dense 快速路径截获
+        for (String q : List.of("JWT", "什么是RRF", "JWT的全称是什么")) {
+            QueryRouteDecision decision = router.route(q);
+            assertThat(decision.strategy())
+                    .as("Query '%s' should keep lexical channel via HYBRID", q)
+                    .isEqualTo(RetrievalStrategy.HYBRID);
+            assertThat(decision.reason()).contains("identifier");
         }
     }
 
@@ -90,13 +101,14 @@ class QueryRouterTest {
     }
 
     @Test
-    @DisplayName("HYBRID 路由：常规语义问答默认走向量+词项混合检索")
+    @DisplayName("HYBRID 复杂度默认 Dense 优先：常规语义问答走有界回退策略，跳过不必要词法")
     void shouldRouteHybridStandardQuery() {
         String standardQuery = "如何配置系统权限策略并在用户角色变更时动态刷新？";
         QueryRouteDecision decision = router.route(standardQuery);
 
         assertThat(decision.complexity()).isEqualTo(QueryComplexity.HYBRID);
         assertThat(decision.reason()).contains("Standard semantic question");
+        assertThat(decision.strategy()).isEqualTo(RetrievalStrategy.DENSE_WITH_BOUNDED_FALLBACK);
         assertThat(decision.subQueries()).hasSize(1);
     }
 
