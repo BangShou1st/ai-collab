@@ -12,6 +12,7 @@ import com.shitulelv.aicollab.agent.domain.model.AgentDelegationGuard;
 import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.DelegatedResearchCoverage;
+import com.shitulelv.aicollab.agent.domain.model.TokenEstimator;
 import com.shitulelv.aicollab.infrastructure.ai.ChatCompletionResult;
 import com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult;
 import com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException;
@@ -1538,10 +1539,14 @@ public class AgentRunEventRecorder {
         }
     }
 
+    /**
+     * token 结算 fallback：provider 上报优先；缺失侧改用 CJK 感知估算
+     * （预算治理 v3，设计文档 §4.3，替换原 codePoint/3——对中文系统性低估约 2 倍）。
+     * 只换估算公式，usageBasis 的 PROVIDER/ESTIMATED/UNKNOWN 分类与记账语义不变。
+     */
     private static int tokens(Integer reported, String text) {
         if (reported != null) return reported;
-        int codePoints = text == null ? 0 : text.codePointCount(0, text.length());
-        return Math.max(1, (codePoints + 2) / 3);
+        return Math.max(1, TokenEstimator.estimate(text));
     }
 
     /** usage 来源：提供商上报 / 按证据估算 / 无任何证据（不得把未知冒充上报或精确值）。 */
@@ -1919,7 +1924,10 @@ public class AgentRunEventRecorder {
         if (turn.usage() != null && turn.usage().inputTokens() != null) {
             return turn.usage().inputTokens();
         }
-        return com.shitulelv.aicollab.agent.application.runtime.AgentModelAccounting.estimatedInput(Math.max(1,(turn.content()==null ? 0 : turn.content().length())/3));
+        // CJK 感知 fallback 估算（预算治理 v3，设计文档 §4.3，替换原 chars/3）：
+        // provider 上报优先的既有语义不变，本估算只承担缺失侧的 fallback。
+        return com.shitulelv.aicollab.agent.application.runtime.AgentModelAccounting.estimatedInput(
+                Math.max(1, TokenEstimator.estimate(turn.content())));
     }
 
     // ========== document_research 只读委派（V62） ==========
