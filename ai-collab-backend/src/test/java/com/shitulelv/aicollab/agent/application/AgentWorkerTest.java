@@ -7,6 +7,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.application.view.ClaimedAgentRun;
 import com.shitulelv.aicollab.agent.domain.model.AgentEventType;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
+import com.shitulelv.aicollab.agent.domain.policy.AgentSessionBudgetPolicy;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
 import com.shitulelv.aicollab.common.exception.BusinessException;
 import com.shitulelv.aicollab.common.exception.ErrorCode;
@@ -129,6 +130,89 @@ class AgentWorkerTest {
         assertThatThrownBy(() -> new AgentWorker(repository, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("AgentRuntimeCoordinator");
+    }
+
+    // ========== 会话聚合预算准入（预算治理 v3，设计文档 §4.1） ==========
+
+    @Test
+    void sessionBudgetExhaustedIsPassedToCoordinatorAsLevel() {
+        AgentRunView run = runWithUsage(1, 0);
+        AgentRepository repository = mock(AgentRepository.class);
+        when(repository.findRun(run.projectId(), run.id())).thenReturn(Optional.of(run));
+        when(repository.sessionAggregateBudget(run.sessionId()))
+                .thenReturn(new AgentRepository.SessionAggregateBudget(5_000L, 5_000L));
+        AgentRuntimeCoordinator coordinator = mock(AgentRuntimeCoordinator.class);
+        when(coordinator.advance(run, AgentSessionBudgetPolicy.Level.EXHAUSTED)).thenReturn(
+                new AgentWorkerOutcome(AgentRunStatus.SUCCEEDED, "部分结果", null, null));
+        AgentWorker worker = new AgentWorker(repository, coordinator);
+
+        AgentWorkerOutcome outcome = worker.process(claimed(run));
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        // EXHAUSTED 走带分级的 advance 重载（强制无工具收尾由协调器消费），不走历史单参入口
+        verify(coordinator).advance(run, AgentSessionBudgetPolicy.Level.EXHAUSTED);
+        verify(coordinator, never()).advance(any());
+    }
+
+    @Test
+    void sessionBudgetFinalizeIsPassedToCoordinatorAsLevel() {
+        AgentRunView run = runWithUsage(1, 0);
+        AgentRepository repository = mock(AgentRepository.class);
+        when(repository.findRun(run.projectId(), run.id())).thenReturn(Optional.of(run));
+        when(repository.sessionAggregateBudget(run.sessionId()))
+                .thenReturn(new AgentRepository.SessionAggregateBudget(100_000L, 90_000L));
+        AgentRuntimeCoordinator coordinator = mock(AgentRuntimeCoordinator.class);
+        when(coordinator.advance(run, AgentSessionBudgetPolicy.Level.FINALIZE)).thenReturn(
+                new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, null, null));
+        AgentWorker worker = new AgentWorker(repository, coordinator);
+
+        worker.process(claimed(run));
+
+        verify(coordinator).advance(run, AgentSessionBudgetPolicy.Level.FINALIZE);
+        verify(coordinator, never()).advance(any());
+    }
+
+    @Test
+    void sessionBudgetNoneKeepsHistoricSingleArgAdvance() {
+        AgentRunView run = runWithUsage(0, 0);
+        AgentRepository repository = mock(AgentRepository.class);
+        when(repository.findRun(run.projectId(), run.id())).thenReturn(Optional.of(run));
+        when(repository.sessionAggregateBudget(run.sessionId()))
+                .thenReturn(new AgentRepository.SessionAggregateBudget(2_000_000L, 1_000L));
+        AgentRuntimeCoordinator coordinator = mock(AgentRuntimeCoordinator.class);
+        when(coordinator.advance(run)).thenReturn(
+                new AgentWorkerOutcome(AgentRunStatus.QUEUED, null, null, null));
+        AgentWorker worker = new AgentWorker(repository, coordinator);
+
+        worker.process(claimed(run));
+
+        verify(coordinator).advance(run);
+    }
+
+    @Test
+    void savedResultRunSkipsSessionBudgetAdmission() {
+        // 已保存结果（pendingModelTurn）的消费不消耗新一轮请求，不受会话准入影响——
+        // 与既有预算判据同款写法，接管不得把有效最终文本丢成 BUDGET_EXCEEDED
+        AgentRunView run = runWithUsage(1, 0);
+        AgentRepository repository = mock(AgentRepository.class);
+        when(repository.findRun(run.projectId(), run.id())).thenReturn(Optional.of(run));
+        when(repository.pendingModelTurn(run)).thenReturn(Optional.of(
+                new com.shitulelv.aicollab.infrastructure.ai.turn.ModelTurnResult(
+                        "已保存的回答", java.util.List.of(),
+                        com.shitulelv.aicollab.infrastructure.ai.turn.ModelFinishReason.STOP,
+                        null, "OPENAI_COMPATIBLE", "model-a", 10L)));
+        when(repository.sessionAggregateBudget(run.sessionId()))
+                .thenReturn(new AgentRepository.SessionAggregateBudget(1_000L, 1_000L));
+        AgentRuntimeCoordinator coordinator = mock(AgentRuntimeCoordinator.class);
+        when(coordinator.advance(run)).thenReturn(
+                new AgentWorkerOutcome(AgentRunStatus.SUCCEEDED, "已保存的回答", null, null));
+        AgentWorker worker = new AgentWorker(repository, coordinator);
+
+        AgentWorkerOutcome outcome = worker.process(claimed(run));
+
+        assertThat(outcome.status()).isEqualTo(AgentRunStatus.SUCCEEDED);
+        verify(coordinator).advance(run);
+        verify(repository, never()).sessionAggregateBudget(any());
     }
 
     // ========== 辅助方法 ==========

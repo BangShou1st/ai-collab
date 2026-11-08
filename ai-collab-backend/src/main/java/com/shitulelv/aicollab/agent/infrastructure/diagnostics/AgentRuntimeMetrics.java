@@ -43,6 +43,11 @@ public class AgentRuntimeMetrics {
         try { registry.counter("agent.budget.soft.warning","level",level).increment(); }
         catch (RuntimeException ignored) { }
     }
+    /** 会话聚合预算分级告警（预算治理 v3 §4.1）：level ∈ {FINALIZE, EXHAUSTED}，每模型轮至多计一次。 */
+    public void sessionBudgetWarning(String level) {
+        try { registry.counter("agent.budget.session.warning","level",level).increment(); }
+        catch (RuntimeException ignored) { }
+    }
     public <T> T model(String purpose,Supplier<T> call) {
         try (var observation = new com.shitulelv.aicollab.infrastructure.ai.model.AiOutboundObservation()) {
             String outcome = "success";
