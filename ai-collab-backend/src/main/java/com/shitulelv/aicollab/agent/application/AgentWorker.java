@@ -107,9 +107,33 @@ public class AgentWorker {
             return new AgentWorkerOutcome(AgentRunStatus.BUDGET_EXCEEDED, null, null, "AGENT_BUDGET_EXCEEDED");
         }
 
-        // 委托 Runtime Coordinator 处理
+        // 会话聚合预算准入（预算治理 v3，设计文档 §4.1）：父/子运行的所有模型轮都经本
+        // 准入点，在这里检查天然覆盖子运行，无需另建委派路径。
+        // 与上方既有预算判据同款写法：消费已保存结果（pendingModelTurn）不消耗新一轮
+        // 请求，不受会话准入影响——否则接管会把有效最终文本丢成 BUDGET_EXCEEDED。
+        // 分级只回答"本轮以何种强度收敛"（FINALIZE 注入收敛提示 / EXHAUSTED 强制无工具
+        // 收尾），不在此硬杀：EXHAUSTED 仍走一轮无工具收尾请求产出部分结果（准入式取舍，
+        // 最坏只超一个模型轮的量）。
+        //
+        // TODO(设计文档 §4.1 准入点两处)：委派受理（AgentDelegationAdmission）的会话预算
+        // 预检（预估子消耗超会话剩余即 SESSION_BUDGET_EXCEEDED 快速拒绝）是 fail-fast 的
+        // UX 优化，本阶段不实现，后续另行落地。
+        com.shitulelv.aicollab.agent.domain.policy.AgentSessionBudgetPolicy.Level sessionBudgetLevel =
+                com.shitulelv.aicollab.agent.domain.policy.AgentSessionBudgetPolicy.Level.NONE;
+        if (!hasSavedResult) {
+            var sessionBudget = repository.sessionAggregateBudget(run.sessionId());
+            if (sessionBudget != null) {
+                sessionBudgetLevel = com.shitulelv.aicollab.agent.domain.policy.AgentSessionBudgetPolicy.evaluate(
+                        sessionBudget.aggregateTokensUsed(), sessionBudget.maxAggregateTokens());
+            }
+        }
+
+        // 委托 Runtime Coordinator 处理（无会话分级保持历史单参调用形状）
         try {
-            return coordinator.advance(run);
+            if (sessionBudgetLevel == com.shitulelv.aicollab.agent.domain.policy.AgentSessionBudgetPolicy.Level.NONE) {
+                return coordinator.advance(run);
+            }
+            return coordinator.advance(run, sessionBudgetLevel);
         } catch (BusinessException e) {
             if (e.getErrorCode() == ErrorCode.AGENT_RUN_CANCELED) {
                 repository.recordCanceled(run);

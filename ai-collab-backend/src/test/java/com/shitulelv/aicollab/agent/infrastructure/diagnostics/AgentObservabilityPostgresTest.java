@@ -54,8 +54,13 @@ class AgentObservabilityPostgresTest {
         Flyway.configure().dataSource(ds).load().migrate();
     }
     static AgentRunView run() {
-        var session=repository.createSession(project,user,"Observe");
-        var run=repository.createRun(project,session.id(),user,"Observe",false,"ITERATION_PLANNING",null);
+        // 本测试的前提是"V67 存量数据跨迁移无损"：此时 agent_session 尚无
+        // max_aggregate_tokens 列（V83 才引入），故直插 legacy 形状的会话行，
+        // 不能走引用了新列的 repository.createSession
+        var sessionId=UUID.randomUUID();
+        jdbc.update("INSERT INTO agent_session(id,project_id,creator_id,title) VALUES (?,?,?,'Observe')",
+                sessionId,project,user);
+        var run=repository.createRun(project,sessionId,user,"Observe",false,"ITERATION_PLANNING",null);
         jdbc.update("UPDATE agent_run SET status='RUNNING',lease_expires_at=now()-interval '1 minute',claim_version=1 WHERE id=?",run.id());
         return repository.findRun(project,run.id()).orElseThrow();
     }
