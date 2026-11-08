@@ -37,6 +37,8 @@
         <minio.version>9.0.2</minio.version>
         <okhttp.version>5.3.2</okhttp.version>
         <tika.version>3.3.0</tika.version>
+        <!-- RocketMQ 客户端版本：与 compose 的 apache/rocketmq:5.3.3 服务端同版本对齐。 -->
+        <rocketmq-client.version>5.3.3</rocketmq-client.version>
         <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
     <!-- Zen 与 Kilo 共享库均从公开 JitPack 仓库解析，无需 Token 或本地发布。 -->
@@ -175,6 +177,16 @@
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-core</artifactId>
             <version>${tika.version}</version>
+        </dependency>
+        <!-- MQ 迁移 M1：RocketMQ 原生 Java 客户端（remoting 协议，与 apache/rocketmq:5.3.3
+             同版本）。不用 rocketmq-spring-boot-starter：其自动配置基于 spring.factories 机制，
+             截至 5.3.x 尚未适配 Spring Boot 4 的 AutoConfiguration.imports（RocketMQTemplate
+             无法注册，apache/rocketmq-spring#761），故在 document/infrastructure/mq 内做薄封装。
+             客户端不可达时应用可正常启动（懒启动 + 回落进程内路径），不阻断主流程。 -->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-client</artifactId>
+            <version>${rocketmq-client.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.tika</groupId>

@@ -1,47 +1,47 @@
 package com.shitulelv.aicollab.document.application.service;
 
-import com.shitulelv.aicollab.common.exception.BusinessException;
-import com.shitulelv.aicollab.common.exception.ErrorCode;
 import com.shitulelv.aicollab.document.infrastructure.entity.DocumentEntity;
-import com.shitulelv.aicollab.document.infrastructure.repository.DocumentRepository;
-import com.shitulelv.aicollab.project.application.service.AuditService;
-import com.shitulelv.aicollab.project.domain.model.ProjectStatus;
-import com.shitulelv.aicollab.project.domain.policy.ProjectWritePolicy;
-import com.shitulelv.aicollab.project.infrastructure.repository.ProjectRepository;
-import org.springframework.context.ApplicationEventPublisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
-
+/**
+ * 文档受理入口（M1 迁移后按 MQ 总闸分流）。
+ *
+ * <p>MQ 模式（{@code MQ_ENABLED=true}）：上传受理走 RocketMQ <b>事务消息</b> ——
+ * 半消息先发，注册事务在事务监听器内执行，提交后消息才对消费者可见；应用崩溃时
+ * 由 broker 回查以文档状态行为事实源裁决。半消息发送失败不阻塞上传主流程：
+ * 回落进程内注册 + 派发，即便派发也失败，恢复 Job（5 分钟对账）仍会兜底 ——
+ * 这是"消息丢失无害"设计，状态行（project_document.status）本身就是事实源。</p>
+ *
+ * <p>回落模式（{@code MQ_ENABLED=false}）：与迁移前行为一致 —— 注册事务提交后
+ * 经 AFTER_COMMIT 事件进程内派发。回落模式仅限单实例/本地部署（进程内去重集合
+ * 已删除，多实例会重复派发，见 {@link DocumentTaskDispatcher} 与 .env.example 说明）。</p>
+ */
 @Service
 public class DocumentRegistrationService {
-    private static final int MAX_DOCUMENTS = 100;
-    private final ProjectRepository projects;
-    private final DocumentRepository documents;
-    private final AuditService audit;
-    private final ApplicationEventPublisher events;
+    private static final Logger log = LoggerFactory.getLogger(DocumentRegistrationService.class);
 
-    public DocumentRegistrationService(ProjectRepository projects, DocumentRepository documents,
-                                       AuditService audit, ApplicationEventPublisher events) {
-        this.projects = projects;
-        this.documents = documents;
-        this.audit = audit;
-        this.events = events;
+    private final DocumentRegistrationTransaction registration;
+    private final DocumentPipelineMessenger messenger;
+
+    public DocumentRegistrationService(DocumentRegistrationTransaction registration,
+                                       DocumentPipelineMessenger messenger) {
+        this.registration = registration;
+        this.messenger = messenger;
     }
 
-    @Transactional
     public void registerUploadedDocument(DocumentEntity document) {
-        ProjectStatus status = projects.lockStatus(document.getProjectId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
-        ProjectWritePolicy.requireWritable(status);
-        if (documents.countActive(document.getProjectId()) >= MAX_DOCUMENTS) {
-            throw new BusinessException(ErrorCode.DOCUMENT_LIMIT_EXCEEDED);
+        if (messenger.enabled() && messenger.trySendRegistrationTransaction(document,
+                // 注册事务作为 MQ 本地事务执行；事务消息本身即派发通知，不再发布事件
+                () -> registration.register(document, false))) {
+            return;
         }
-        documents.create(document);
-        audit.write(document.getProjectId(), document.getUploadedBy(),
-                "DOCUMENT_UPLOADED", "PROJECT_DOCUMENT", document.getId(),
-                Map.of("originalFilename", document.getOriginalFilename()));
-        events.publishEvent(new DocumentUploadedEvent(document.getProjectId(), document.getId()));
+        // 回落路径：总闸关闭，或事务消息发送失败（broker 不可用）。
+        // 注册事务提交后由 AFTER_COMMIT 事件触发进程内派发（MQ 模式下监听器会转投 MQ）。
+        if (messenger.enabled()) {
+            log.info("文档事务消息发送失败，回落进程内注册与派发，documentId={}", document.getId());
+        }
+        registration.register(document, true);
     }
 }

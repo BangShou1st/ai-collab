@@ -56,6 +56,73 @@ services:
     networks: [data]
     logging: *logging
 
+  rocketmq-namesrv:
+    # M1 MQ 迁移：文档处理链路 RocketMQ NameServer（路由注册中心）。
+    # 数据面仅 internal 网络，不映射宿主机管理端口（契约脚本断言）。
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    restart: unless-stopped
+    command: ["sh", "mqnamesrv"]
+    environment:
+      # mqnamesrv/mqbroker 脚本读取 JAVA_OPT_EXT 追加 JVM 参数；按容器资源收敛堆大小
+      JAVA_OPT_EXT: "-Xms256m -Xmx256m"
+    volumes:
+      - rocketmq_namesrv_logs:/home/rocketmq/logs
+    healthcheck:
+      # mqadmin 失败路径也返回退出码 0（已实测），必须 grep 匹配输出做存活判定
+      test: ["CMD-SHELL", "sh mqadmin clusterList -n localhost:9876 | grep -q 'Cluster Name'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    networks: [data]
+    logging: *logging
+
+  rocketmq-broker:
+    # M1 MQ 迁移：文档处理链路 Broker。broker.conf 挂载自版本库（brokerIP1=服务名、
+    # 关闭自动建 topic）；store 目录持久化到独立卷。
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    restart: unless-stopped
+    depends_on:
+      rocketmq-namesrv: {condition: service_healthy}
+    command: ["sh", "mqbroker", "-n", "rocketmq-namesrv:9876", "-c", "/home/rocketmq/conf/broker.conf"]
+    volumes:
+      - ./rocketmq/broker.conf:/home/rocketmq/conf/broker.conf:ro
+      - rocketmq_store:/home/rocketmq/store
+      - rocketmq_broker_logs:/home/rocketmq/logs
+    environment:
+      JAVA_OPT_EXT: "-Xms512m -Xmx512m"
+    healthcheck:
+      # broker 存活判定 = 已在 NameServer 注册且可见（同集群名单内）
+      test: ["CMD-SHELL", "sh mqadmin clusterList -n rocketmq-namesrv:9876 | grep -q broker-a"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks: [data]
+    logging: *logging
+
+  rocketmq-topic-init:
+    # M1 MQ 迁移：autoCreateTopicEnable=false（topic 显式声明契约），由一次性任务按
+    # 环境变量声明业务 topic、死信 topic（autoCreateTopicEnable=false 下死信同样必须
+    # 预建，否则重试耗尽的消息会因无路由丢失）与消费组。
+    image: apache/rocketmq:5.3.3@sha256:455287638deddbbcd6cf48cdf988ed4d05bbac7265acc0c399d9d8228862a7d7
+    restart: "on-failure:10"
+    depends_on:
+      rocketmq-broker: {condition: service_healthy}
+    environment:
+      ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
+      ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "$$ROCKETMQ_DOCUMENT_TOPIC"
+        sh mqadmin updateTopic -n rocketmq-namesrv:9876 -c DefaultCluster -t "%DLQ%$$ROCKETMQ_CONSUMER_GROUP"
+        sh mqadmin updateSubGroup -n rocketmq-namesrv:9876 -c DefaultCluster -g "$$ROCKETMQ_CONSUMER_GROUP"
+    networks: [data]
+    logging: *logging
+
   app:
     image: ${APP_IMAGE:?required}
     restart: unless-stopped
@@ -98,6 +165,12 @@ services:
       # OTLP 导出目标：默认指向 compose 内 tempo（生产无该容器时导出在后台静默失败，
       # 不影响请求）；运维可用环境变量改指自建 collector。
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4317}"
+      # M1 MQ 迁移：文档链路消息总闸（灰度开关，生产默认 false = 完全回落进程内路径）。
+      # 回落模式依赖 JVM 内去重的时代已结束（去重集合已删除），多实例部署必须开启 MQ。
+      MQ_ENABLED: "${MQ_ENABLED:-false}"
+      ROCKETMQ_NAMESRV_ADDR: "rocketmq-namesrv:9876"
+      ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
+      ROCKETMQ_CONSUMER_GROUP: "${ROCKETMQ_CONSUMER_GROUP:-document-processing-consumer}"
     healthcheck:
       # O1：健康探针走独立管理端口 8081（仅 compose 内网，不映射宿主机、不经 nginx）。
       test: ["CMD-SHELL", "wget -T 5 -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1 || exit 1"]
@@ -146,3 +219,6 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
+  rocketmq_namesrv_logs:
+  rocketmq_broker_logs:
+  rocketmq_store:

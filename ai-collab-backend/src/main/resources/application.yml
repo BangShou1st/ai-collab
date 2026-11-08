@@ -77,6 +77,25 @@ planning:
         max-size: "${PLANNING_EXECUTOR_MAX_SIZE:4}"
         queue-capacity: "${PLANNING_EXECUTOR_QUEUE_CAPACITY:20}"
 
+document:
+    # M1 MQ 迁移：文档处理链路配置。消息驱动为主，恢复轮询只承担对账兜底。
+    # 恢复对账周期（原 30s 主派发通道 → 5 分钟对账兜底；MQ 丢失/重试耗尽时兜底重派发）
+    dispatch-interval: "${DOCUMENT_DISPATCH_INTERVAL:300s}"
+    dispatch-initial-delay: "${DOCUMENT_DISPATCH_INITIAL_DELAY:0s}"
+    mq:
+        # 总闸：false = 文档链路完全回落进程内线程池路径（回落模式仅限单实例/本地部署，
+        # 进程内去重集合已删除；多实例部署必须开启 MQ）。测试 profile 显式覆盖为 false。
+        enabled: "${MQ_ENABLED:false}"
+        namesrv-addr: "${ROCKETMQ_NAMESRV_ADDR:rocketmq-namesrv:9876}"
+        topic: "${ROCKETMQ_DOCUMENT_TOPIC:document-processing}"
+        producer-group: "${ROCKETMQ_PRODUCER_GROUP:document-processing-producer}"
+        consumer-group: "${ROCKETMQ_CONSUMER_GROUP:document-processing-consumer}"
+        # 消费重试上限：超过后消息进入死信队列 %DLQ%<group>（topic 由 rocketmq-topic-init 预建），
+        # 状态行 + 恢复 Job 兜底，死信仅计数告警（document.mq.deadletter）
+        max-reconsume-times: "${ROCKETMQ_MAX_RECONSUME_TIMES:5}"
+        # 消费者重连周期：broker 未就绪（慢启动/网络抖动）时应用正常启动，按此周期重试接入
+        reconnect-interval: "${ROCKETMQ_RECONNECT_INTERVAL:60s}"
+
 mybatis-plus:
     type-handlers-package: com.shitulelv.aicollab.common.persistence
 

@@ -88,7 +88,7 @@ class DocumentRecoveryServiceTest {
     }
 
     @Test
-    void repeatedScanDoesNotBypassDispatcherDeduplication() {
+    void repeatedScanRedispatchesAndReliesOnDownstreamCas() {
         DocumentProcessingService processing = mock(DocumentProcessingService.class);
         ControllableExecutor executor = new ControllableExecutor();
         DocumentTaskDispatcher dispatcher = new DocumentTaskDispatcher(executor, processing);
@@ -96,14 +96,16 @@ class DocumentRecoveryServiceTest {
         DocumentRecoveryCandidate uploaded = candidate(DocumentStatus.UPLOADED, UUID.randomUUID());
         when(documents.recoverable(any())).thenReturn(List.of(uploaded));
 
+        // M1：进程内去重集合已删除，恢复 Job 重复扫描会重复派发（重复任务在执行器排队）；
+        // 处理副作用恰好一次由 claim CAS（UPLOADED→PARSING 条件更新）兜底，
+        // 回落模式仅限单实例部署（MQ 模式另有消费幂等三重保障）。
         service.dispatchRecoverableWork();
         service.dispatchRecoverableWork();
 
-        assertThat(executor.queued()).isEqualTo(1);
-        verifyNoInteractions(processing);
+        assertThat(executor.queued()).isEqualTo(2);
 
         executor.runQueued();
-        verify(processing, times(1)).process(uploaded.projectId(), uploaded.documentId());
+        verify(processing, times(2)).process(uploaded.projectId(), uploaded.documentId());
     }
 
     private static DocumentRecoveryCandidate candidate(DocumentStatus status, UUID processingToken) {
