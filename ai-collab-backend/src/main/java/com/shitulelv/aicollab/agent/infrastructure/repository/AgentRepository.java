@@ -104,12 +104,42 @@ public class AgentRepository {
     }
 
     public AgentSessionView createSession(UUID projectId, UUID creatorId, String title) {
+        // 历史 3 参入口：不设会话聚合上限（NULL = 不限），存量调用与测试语义不变
+        return createSession(projectId, creatorId, title, null);
+    }
+
+    /**
+     * 新会话落库并写入会话聚合 token 硬顶（预算治理 v3，设计文档 §4.1）。
+     * maxAggregateTokens 来自 {@code agent.budget.session-aggregate-token-cap}
+     * （默认 2,000,000）；传 NULL 或 ≤ 0 时落 NULL（不限，与存量会话一致）。
+     */
+    public AgentSessionView createSession(UUID projectId, UUID creatorId, String title, Long maxAggregateTokens) {
         UUID id = UUID.randomUUID();
         return jdbc.queryForObject("""
-                INSERT INTO agent_session(id,project_id,creator_id,title)
-                VALUES (?,?,?,?)
+                INSERT INTO agent_session(id,project_id,creator_id,title,max_aggregate_tokens)
+                VALUES (?,?,?,?,?)
                 RETURNING id,project_id,creator_id,title,status,version,created_at,updated_at
-                """, sessionMapper(), id, projectId, creatorId, title);
+                """, sessionMapper(), id, projectId, creatorId, title,
+                maxAggregateTokens != null && maxAggregateTokens > 0 ? maxAggregateTokens : null);
+    }
+
+    /** 会话聚合预算准入视图（预算治理 v3，设计文档 §4.1）：cap NULL = 不限（存量会话）。 */
+    public record SessionAggregateBudget(Long maxAggregateTokens, long aggregateTokensUsed) {
+    }
+
+    /**
+     * 读取会话聚合预算（AgentWorker 模型轮准入用）。会话行不存在时返回 null，
+     * 调用方按"不限"处理（并发删除会话不应阻断运行中的收尾）。
+     */
+    public SessionAggregateBudget sessionAggregateBudget(UUID sessionId) {
+        var rows = jdbc.query("""
+                SELECT max_aggregate_tokens, aggregate_tokens_used
+                FROM agent_session WHERE id=?
+                """, (rs, row) -> new SessionAggregateBudget(
+                        rs.getObject("max_aggregate_tokens", Long.class),
+                        rs.getLong("aggregate_tokens_used")),
+                sessionId);
+        return rows.isEmpty() ? null : rows.getFirst();
     }
 
     public Optional<AgentSessionView> findSession(UUID projectId, UUID sessionId) {
