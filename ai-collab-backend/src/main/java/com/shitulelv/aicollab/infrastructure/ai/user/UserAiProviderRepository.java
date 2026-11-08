@@ -250,6 +250,45 @@ public class UserAiProviderRepository {
         jdbc.update("DELETE FROM user_ai_provider WHERE id = ? AND user_id = ?", id, userId);
     }
 
+    /** 单条配置的价格视图（成本台账，设计文档 §4.4）；价格不影响真实请求行为，独立于聚合读取。 */
+    public record ProviderPrices(java.math.BigDecimal pricePer1kInput, java.math.BigDecimal pricePer1kOutput) {}
+
+    /** 读取单个配置的价格；行不存在时为空。 */
+    public java.util.Optional<ProviderPrices> findPrices(UUID id, UUID userId) {
+        return jdbc.query("""
+                SELECT price_per_1k_input, price_per_1k_output
+                FROM user_ai_provider WHERE id = ? AND user_id = ?
+                """, (rs, row) -> new ProviderPrices(
+                        rs.getBigDecimal("price_per_1k_input"),
+                        rs.getBigDecimal("price_per_1k_output")), id, userId).stream().findFirst();
+    }
+
+    /** 读取用户全部配置的价格（列表视图一次取回，避免 N+1）。 */
+    public java.util.Map<UUID, ProviderPrices> findPricesByUserId(UUID userId) {
+        java.util.Map<UUID, ProviderPrices> out = new java.util.HashMap<>();
+        jdbc.queryForList("""
+                SELECT id, price_per_1k_input, price_per_1k_output
+                FROM user_ai_provider WHERE user_id = ?
+                """, userId).forEach(row -> out.put((UUID) row.get("id"), new ProviderPrices(
+                        (java.math.BigDecimal) row.get("price_per_1k_input"),
+                        (java.math.BigDecimal) row.get("price_per_1k_output"))));
+        return out;
+    }
+
+    /**
+     * 价格更新（成本台账，设计文档 §4.4）：走配置更新通道由服务层 require(userId, id)
+     * 守卫后调用；整体替换语义（null = 不计成本）。刻意不动 updated_at 与
+     * capability_config_version——价格不是影响真实模型请求行为的参数。
+     */
+    public void updatePrices(UUID id, UUID userId,
+            java.math.BigDecimal pricePer1kInput, java.math.BigDecimal pricePer1kOutput) {
+        jdbc.update("""
+                UPDATE user_ai_provider
+                SET price_per_1k_input = ?, price_per_1k_output = ?
+                WHERE id = ? AND user_id = ?
+                """, pricePer1kInput, pricePer1kOutput, id, userId);
+    }
+
     /**
      * 探针写回的乐观并发（CAS）更新：仅当配置仍停留在探针开始时的版本
      * （能力配置版本未变）时追加能力，返回新的能力配置版本。

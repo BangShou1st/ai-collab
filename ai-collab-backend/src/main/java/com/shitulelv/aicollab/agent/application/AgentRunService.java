@@ -318,7 +318,7 @@ public class AgentRunService {
                 .filter(value -> value.runId().equals(runId)).map(AgentApprovalView::id).findFirst().orElse(null);
         return new AgentRunDetailView(run, plan, repository.listSteps(projectId, runId),
                 eventRepository.lastSequence(projectId, runId), pendingApproval,repository.modelSnapshot(run),repository.recoveryCounters(run),
-                repository.pauseRequestedAt(projectId, runId));
+                repository.pauseRequestedAt(projectId, runId), repository.runTotalCost(projectId, runId));
     }
 
     /**
