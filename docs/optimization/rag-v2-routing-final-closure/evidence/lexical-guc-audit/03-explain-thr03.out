@@ -1,0 +1,54 @@
+SET
+Timing is on.
+                                                                                                                                                                                                                           QUERY PLAN                                                                                                                                                                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=3369.49..3369.52 rows=11 width=1469) (actual rows=0 loops=1)
+   Buffers: shared hit=358
+   ->  Sort  (cost=3369.49..3369.52 rows=11 width=1469) (actual rows=0 loops=1)
+         Sort Key: (GREATEST(COALESCE(similarity(c.content, '上线发布门禁'::text), '0'::real), (CASE WHEN ((c.heading IS NOT NULL) AND ((c.heading)::text ~~* '%上线发布门禁%'::text)) THEN 0.8 ELSE '0'::numeric END)::real, (CASE WHEN (c.content ~~* '%上线发布门禁%'::text) THEN 0.6 ELSE '0'::numeric END)::real)) DESC, c.id
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=358
+         ->  Nested Loop  (cost=2558.37..3369.30 rows=11 width=1469) (actual rows=0 loops=1)
+               Buffers: shared hit=352
+               ->  Bitmap Heap Scan on document_chunk c  (cost=2557.95..2644.07 rows=22 width=1452) (actual rows=0 loops=1)
+                     Recheck Cond: ((content % '上线发布门禁'::text) OR (content ~~* '%上线发布门禁%'::text) OR (((heading)::text % '上线发布门禁'::text) OR ((heading)::text ~~* '%上线发布门禁%'::text)))
+                     Filter: ((NOT (generation_id IS DISTINCT FROM '325b56cd-08c1-450b-bd99-06054bf49fd7'::uuid)) AND ((chunk_type IS NULL) OR ((chunk_type)::text <> 'PARENT'::text)) AND (project_id = 'a1277b36-2587-438e-8aee-2e371eece911'::uuid) AND ((content % '上线发布门禁'::text) OR (content ~~* '%上线发布门禁%'::text) OR ((heading IS NOT NULL) AND (((heading)::text % '上线发布门禁'::text) OR ((heading)::text ~~* '%上线发布门禁%'::text)))))
+                     Buffers: shared hit=352
+                     ->  BitmapOr  (cost=2557.95..2557.95 rows=22 width=0) (actual rows=0 loops=1)
+                           Buffers: shared hit=352
+                           ->  Bitmap Index Scan on idx_document_chunk_content_trgm  (cost=0.00..775.13 rows=11 width=0) (actual rows=0 loops=1)
+                                 Index Cond: (content % '上线发布门禁'::text)
+                                 Buffers: shared hit=174
+                           ->  Bitmap Index Scan on idx_document_chunk_content_trgm  (cost=0.00..710.65 rows=11 width=0) (actual rows=0 loops=1)
+                                 Index Cond: (content ~~* '%上线发布门禁%'::text)
+                                 Buffers: shared hit=159
+                           ->  BitmapOr  (cost=1071.91..1071.91 rows=1 width=0) (actual rows=0 loops=1)
+                                 Buffers: shared hit=19
+                                 ->  Bitmap Index Scan on idx_document_chunk_heading_trgm  (cost=0.00..678.64 rows=1 width=0) (actual rows=0 loops=1)
+                                       Index Cond: ((heading)::text % '上线发布门禁'::text)
+                                       Buffers: shared hit=11
+                                 ->  Bitmap Index Scan on idx_document_chunk_heading_trgm  (cost=0.00..393.26 rows=1 width=0) (actual rows=0 loops=1)
+                                       Index Cond: ((heading)::text ~~* '%上线发布门禁%'::text)
+                                       Buffers: shared hit=8
+               ->  Index Scan using project_document_pkey on project_document d  (cost=0.42..32.96 rows=1 width=77) (never executed)
+                     Index Cond: (id = c.document_id)
+                     Filter: ((NOT access_blocked) AND (project_id = 'a1277b36-2587-438e-8aee-2e371eece911'::uuid) AND ((status)::text = 'READY'::text) AND (NOT EXISTS(SubPlan 1)))
+                     SubPlan 1
+                       ->  Nested Loop Left Join  (cost=0.43..24.52 rows=1 width=0) (never executed)
+                             Join Filter: (a.id = s.user_authorization_id)
+                             Filter: (((e.status)::text <> 'ACTIVE'::text) OR ((s.status)::text <> 'ACTIVE'::text) OR ((s.user_authorization_id IS NOT NULL) AND ((a.id IS NULL) OR ((a.status)::text <> 'ACTIVE'::text) OR (a.access_expires_at <= now()))))
+                             ->  Nested Loop  (cost=0.28..16.33 rows=1 width=148) (never executed)
+                                   ->  Index Scan using uk_connector_source_project_folder on connector_source s  (cost=0.14..8.16 rows=1 width=106) (never executed)
+                                         Index Cond: (project_id = d.project_id)
+                                   ->  Index Scan using idx_external_document_source on external_document e  (cost=0.14..8.16 rows=1 width=74) (never executed)
+                                         Index Cond: (source_id = s.id)
+                                         Filter: (document_id = d.id)
+                             ->  Index Scan using uk_connector_oauth_project_user on connector_oauth_authorization a  (cost=0.14..8.16 rows=1 width=106) (never executed)
+                                   Index Cond: (project_id = d.project_id)
+ Planning:
+   Buffers: shared hit=776
+ Planning Time: 5.780 ms
+ Execution Time: 0.904 ms
+(47 rows)
+
+Time: 8.304 ms
