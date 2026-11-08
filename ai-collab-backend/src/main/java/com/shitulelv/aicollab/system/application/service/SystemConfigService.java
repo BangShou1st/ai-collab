@@ -19,6 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.connection.RedisStreamCommands;
+import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,7 +40,18 @@ import java.util.concurrent.atomic.AtomicReference;
 @Service
 public class SystemConfigService {
     private static final Logger log = LoggerFactory.getLogger(SystemConfigService.class);
-    private static final String REDIS_CHANNEL = "system:config:change";
+    /**
+     * 配置同步 Stream 键（Redis 深化 P2：由 Pub/Sub 广播升级为 Stream）。
+     * Stream 具备持久化与短历史回放能力：消费实例掉线期间产生的消息不会像 Pub/Sub
+     * 那样永久丢失，重连后可从消费者组未消费位置补读（受 MAXLEN 裁剪上限约束）。
+     */
+    public static final String CONFIG_SYNC_STREAM_KEY = "system:config:change:stream";
+    /**
+     * Stream 最大长度（近似裁剪 MAXLEN ~100）：流只是"短历史通知"，不是持久事件日志。
+     * 更早的条目被裁剪后，掉线实例追不上的部分由周期对账（{@link #scheduledSync()}）
+     * 最终收敛 —— 这是消费不 ACK 场景下的兜底语义分工（详见 SystemConfigSync）。
+     */
+    private static final long CONFIG_SYNC_STREAM_MAXLEN = 100;
 
     private final SystemConfigRepository repository;
     private final UserService userService;
@@ -373,7 +388,28 @@ public class SystemConfigService {
     }
 
     /**
-     * 周期性轻量对账同步：防止 Redis Pub/Sub 消息丢失或多实例网络分区恢复后持有旧配置。
+     * 广播版本单调防护：收到比自己本地的更旧（或相同）的版本通知时直接忽略。
+     *
+     * <p>幂等语义：相同版本通常是自己实例在广播前已应用后的"自回声"，或是同版本
+     * 重复投递（Stream 消费重试/对账补读），无需再次访问数据库；只有更低的版本
+     * 才是乱序/历史回放消息。配置本身以数据库为唯一事实源，本地版本只会经由
+     * {@link #applyToRuntime(SystemConfig)} 从数据库推进，因此"本地版本 >= 广播版本"
+     * 即可安全跳过。真正的兜底是 {@link #applyToRuntime(SystemConfig)} 内部的版本
+     * 校验（无论哪条路径进来，过期版本都无法覆盖新配置）。</p>
+     */
+    public void syncFromBroadcast(long version) {
+        SystemConfig local = activeConfig.get();
+        if (version <= local.version()) {
+            log.debug("忽略配置广播（本地版本 {} 已不低于广播版本 {}）", local.version(), version);
+            return;
+        }
+        reloadFromDatabase();
+    }
+
+    /**
+     * 周期性轻量对账同步：作为配置同步的最后兜底 —— Stream 消费（XADD + 消费者组）
+     * 只覆盖"短历史窗口内"的消息（MAXLEN ~100 裁剪 + 无 PEL 补偿重投），实例长时间
+     * 掉线、Redis 整体不可用、建组失败等场景下旧实例持有的配置由本对账最终收敛。
      */
     @org.springframework.scheduling.annotation.Scheduled(
             fixedDelayString = "${system.config.sync-interval-ms:30000}",
@@ -441,13 +477,34 @@ public class SystemConfigService {
         }
     }
 
+    /**
+     * 配置变更广播（Redis 深化 P2：Pub/Sub → Stream）。
+     *
+     * <p>选型决策：Stream 替代 Pub/Sub 的原因是 Pub/Sub 掉线即丢、多实例不一致窗口
+     * 只能靠对账兜底；Stream 条目持久化并保留短历史（MAXLEN ~100 近似裁剪），短暂
+     * 掉线的实例重连后可从消费者组未消费位置补读，显著缩小不一致窗口。消息体只携带
+     * 版本号，接收方一律回源数据库加载完整配置，广播通道不可信也不需要可信。</p>
+     *
+     * <p>降级决策（有意不做的兼容回落）：XADD 失败时<b>不回落 Pub/Sub</b>，仅告警。
+     * 理由：Pub/Sub 回落需要双通道消费并存，为极端场景堆机制；而"Stream 失败仅告警 +
+     * 周期对账兜底"的语义与原 Pub/Sub 失败时的兜底完全一致，正确性不劣化，只损失
+     * 一致的实时性窗口（由对账间隔收敛）。本机配置已先行应用，不受广播失败影响。</p>
+     */
     private void broadcastConfigChange(long version) {
-        if (redisTemplate != null) {
-            try {
-                redisTemplate.convertAndSend(REDIS_CHANNEL, String.valueOf(version));
-            } catch (Exception e) {
-                log.warn("Redis 广播配置变更通知失败（单机继续生效）: {}", e.getMessage());
-            }
+        if (redisTemplate == null) {
+            return;
+        }
+        try {
+            MapRecord<String, String, String> record = StreamRecords
+                    .newRecord()
+                    .in(CONFIG_SYNC_STREAM_KEY)
+                    .ofMap(Map.of("version", String.valueOf(version)));
+            // MAXLEN ~100 近似裁剪：流只保留最近约 100 条版本通知作为短历史，
+            // 供短暂掉线的实例补读；更久远的差距由周期对账兜底。
+            redisTemplate.opsForStream().add(record,
+                    RedisStreamCommands.XAddOptions.maxlen(CONFIG_SYNC_STREAM_MAXLEN).approximateTrimming(true));
+        } catch (Exception e) {
+            log.warn("Redis Stream 广播配置变更通知失败（由周期对账兜底收敛）: {}", e.getMessage());
         }
     }
 

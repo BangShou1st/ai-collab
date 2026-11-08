@@ -182,7 +182,7 @@ services:
       MANAGEMENT_ENDPOINTS_EXPOSURE: "health,info,prometheus"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo:4317"
       # M1 MQ 迁移：文档链路消息总闸。staging 默认开启以演练 MQ 路径；设为 false 可
-      # 完全回落进程内路径（回落模式仅限单实例部署，去重集合已删除）。
+      # 完全回落进程内路径（回落模式带 Redisson 跨实例互斥锁，Redis 深化 P2）。
       MQ_ENABLED: "${MQ_ENABLED:-true}"
       ROCKETMQ_NAMESRV_ADDR: "rocketmq-namesrv:9876"
       ROCKETMQ_DOCUMENT_TOPIC: "${ROCKETMQ_DOCUMENT_TOPIC:-document-processing}"
