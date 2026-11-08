@@ -25,7 +25,9 @@ import org.springframework.context.annotation.Configuration;
  * 由 {@link AgentRuntimeCoordinator} 显式接收，保证生产只有一条装配路径。
  */
 @Configuration
-@EnableConfigurationProperties(com.shitulelv.aicollab.agent.application.runtime.AgentContextProperties.class)
+@EnableConfigurationProperties({
+        com.shitulelv.aicollab.agent.application.runtime.AgentContextProperties.class,
+        com.shitulelv.aicollab.agent.application.runtime.AgentBudgetProperties.class})
 public class AgentRuntimeConfiguration {
     @Bean
     AgentDecisionParser agentDecisionParser(ObjectMapper json) {

@@ -647,11 +647,13 @@ class AgentContextReliabilityD1D8RegressionTest {
         var routing = controlledRouting(nativeExecutor, store);
         AgentRunView run = run(0);
         var repository = coordinatorRepository(run);
-        // 必要层（工作状态）真实超过 B 的安全可用输入
+        // 必要层（工作状态）真实超过 B 的安全可用输入；体积同时须在 CJK 感知估算器
+        // （预算治理 v3 §4.3，ASCII 按 1/4 折算）下越过 256k 软压缩触发线，
+        // 使 RUN_CONTEXT 辅助出站真实发生（1.1M ASCII ≈ 275k ≥ 256k；旧 chars/3 ≈ 367k 同样越线）
         var state = JSON.createObjectNode().put("schemaVersion", 2).put("stateRevision", 1)
                 .put("goalRevision", 0).put("activeGoal", run.goal()).put("latestRequest", run.goal());
         state.putArray("constraints").addObject().put("status", "active")
-                .put("value", "NECESSARY_LAYER_" + "c".repeat(800_000));
+                .put("value", "NECESSARY_LAYER_" + "c".repeat(1_100_000));
         when(repository.workingState(any(), any())).thenReturn(state);
         when(repository.listSteps(any(), any())).thenReturn(List.of(
                 toolStep(1, "read_document_section", "bounded evidence " + "e".repeat(3_000)),
