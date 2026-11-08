@@ -11,6 +11,7 @@ import com.shitulelv.aicollab.agent.application.view.AgentStepView;
 import com.shitulelv.aicollab.agent.domain.model.*;
 
 
+import com.shitulelv.aicollab.agent.domain.policy.AgentBudgetThresholdPolicy;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolDefinition;
 import com.shitulelv.aicollab.agent.domain.tool.AgentToolResultSanitizer;
 import com.shitulelv.aicollab.agent.infrastructure.repository.AgentRepository;
@@ -58,6 +59,23 @@ public class AgentRuntimeCoordinator {
             ErrorCode.AI_PROVIDER_INVALID_RESPONSE
     );
 
+    /**
+     * CONVERGE_HINT（≥软顶 60%）收敛提示文本（设计文档 §4.2 措辞打磨）：
+     * 只做引导，不放行或收紧任何权限。
+     */
+    private static final String CONVERGE_HINT_TEXT =
+            "输入预算提示：本次运行的累计输入已接近预算软顶。预算将尽，请收敛已有信息作答，"
+                    + "优先汇总与总结已取得的证据，禁止开启新的探索方向。";
+
+    /**
+     * RESTRICT（≥软顶 85%）强收敛提示文本：比 CONVERGE_HINT 更进一步要求立即收口。
+     * 注意 RESTRICT 仍不改变准入判定（软阈值只做"提示 + 指标"），措辞是引导性的。
+     */
+    private static final String RESTRICT_HINT_TEXT =
+            "输入预算警告：本次运行的累计输入已达到预算软顶的 85%。必须立即收敛："
+                    + "只基于已经取得的证据与信息直接作答，禁止开启新的探索方向，"
+                    + "不要发起新的查询、工具调用或委派；信息不足时如实说明缺失即可。";
+
     private final AgentRepository repository;
     private final AgentContextAssembler contextAssembler;
     private final AgentSkillRegistry skillRegistry;
@@ -72,6 +90,9 @@ public class AgentRuntimeCoordinator {
     private final AgentToolCallExecutor toolExecutor;
     private final AgentContextSummarizer summarizer;
     private final AgentContextProperties contextProperties;
+    private final AgentBudgetProperties budgetProperties;
+    /** 可为 null（部分测试便捷装配不关心指标）：指标失败/缺失不影响业务结果。 */
+    private final com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics;
 
     /**
      * 生产装配入口（见 {@code AgentRuntimeConfiguration}）：消息组装器、工具执行器与
@@ -91,6 +112,8 @@ public class AgentRuntimeCoordinator {
             ObjectMapper json,
             AgentEventService events,
             AgentContextProperties contextProperties,
+            AgentBudgetProperties budgetProperties,
+            com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentRuntimeMetrics metrics,
             AgentModelMessageComposer composer,
             AgentToolCallExecutor toolExecutor,
             AgentContextSummarizer summarizer) {
@@ -105,9 +128,32 @@ public class AgentRuntimeCoordinator {
         this.json = json;
         this.events = events;
         this.contextProperties = contextProperties == null ? AgentContextProperties.defaults() : contextProperties;
+        this.budgetProperties = budgetProperties == null ? AgentBudgetProperties.defaults() : budgetProperties;
+        this.metrics = metrics;
         this.composer = composer;
         this.toolExecutor = toolExecutor;
         this.summarizer = summarizer;
+    }
+
+    /** 兼容装配入口（历史 14 参形状）：软阈值配置取默认值，指标置空。 */
+    public AgentRuntimeCoordinator(
+            AgentRepository repository,
+            AgentContextAssembler contextAssembler,
+            AgentSkillRegistry skillRegistry,
+            AgentPlanService planService,
+            AgentToolRegistry tools,
+            AgentCancellationService cancellation,
+            RoutingAgentModelExecutor modelExecutor,
+            AgentConvergencePolicy convergencePolicy,
+            ObjectMapper json,
+            AgentEventService events,
+            AgentContextProperties contextProperties,
+            AgentModelMessageComposer composer,
+            AgentToolCallExecutor toolExecutor,
+            AgentContextSummarizer summarizer) {
+        this(repository, contextAssembler, skillRegistry, planService, tools, cancellation,
+                modelExecutor, convergencePolicy, json, events, contextProperties,
+                AgentBudgetProperties.defaults(), null, composer, toolExecutor, summarizer);
     }
 
     /** 测试便捷装配：用传入的受控依赖显式构造三个协作者（生产装配见 AgentRuntimeConfiguration）。 */
@@ -272,6 +318,16 @@ public class AgentRuntimeCoordinator {
                 exposed = withoutUnadmittableDelegation(run, exposed);
             }
 
+            // 6b. 输入预算软阈值分级（预算治理 v3，设计文档 §4.2）：依据持久化的真实累计
+            //     输入列（input_tokens_actual）每轮重算，天然幂等，无需额外标记。v2 下
+            //     累计上限为 NULL，软顶来自配置（引导性软顶，非硬准入）——只做"提示 + 指标"，
+            //     不改变准入与收敛判定（needsFinalRequest 语义不受影响）。指标每模型轮至多计一次。
+            var budgetLevel = AgentBudgetThresholdPolicy.evaluate(
+                    run.inputTokensActual(), budgetProperties.softInputTokenCap());
+            if (budgetLevel != AgentBudgetThresholdPolicy.Level.NONE && metrics != null) {
+                metrics.softBudgetWarning(budgetLevel.name());
+            }
+
             // 7. 单次请求输入预算。累计输入/输出上限只对 v1 生效；v2 为 null（无累计上限），
             //    此时 remainingRunInput 不再收紧请求——单次请求的真实硬边界是模型窗口 H。
             Integer effectiveInputCap = AgentResourcePolicy.effectiveInputCap(
@@ -315,7 +371,7 @@ public class AgentRuntimeCoordinator {
             {
                 var assembly = assembleMainRequest(run, ctx, skill, plan, steps, childEvidence,
                         finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending,
-                        exposed, resolved, requestBudget);
+                        exposed, resolved, requestBudget, budgetLevel);
                 if (assembly.failureReason() != null) {
                     // 必选层（含当前请求）无法完整放入预算：明确停止，不静默截断
                     return inputBudgetExceeded(run, requestBudget, assembly.failureReason());
@@ -336,7 +392,8 @@ public class AgentRuntimeCoordinator {
                 messages = assembleRequestMessages(
                         composition != null ? composition.messages()
                                 : composer.buildMessageHistory(run, ctx, skill, plan, steps, resolved.legacyMode()),
-                        childEvidence, steps, true, ctx.limits().maxToolCallsPerTurn(), coreActionPending);
+                        childEvidence, steps, true, ctx.limits().maxToolCallsPerTurn(), coreActionPending,
+                        budgetLevel);
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens())
                     return inputBudgetExceeded(run, requestBudget, "FINAL_REQUEST_OVER_BUDGET");
@@ -411,9 +468,13 @@ public class AgentRuntimeCoordinator {
                     // 却直接 BUDGET_EXCEEDED。这里复用统一组装入口与一次降级重组，
                     // 子研究产出、覆盖事实与收尾指令都按同一入口补齐。
                     // contextCommitted 时 steps/子证据已在上面刷新，重建同时消费新的摘要视图。
+                    // 运行已刷新（摘要消耗可能入账）：软阈值分级按最新累计列重算一次，
+                    // 保证重建视图里的收敛提示与当前用量一致（每模型轮仍然只注入一份提示）。
+                    budgetLevel = AgentBudgetThresholdPolicy.evaluate(
+                            run.inputTokensActual(), budgetProperties.softInputTokenCap());
                     var reassembly = assembleMainRequest(run, ctx, skill, plan, steps, childEvidence,
                             finalizing, ctx.limits().maxToolCallsPerTurn(), coreActionPending,
-                            exposed, resolved, requestBudget);
+                            exposed, resolved, requestBudget, budgetLevel);
                     if (reassembly.failureReason() != null) {
                         // 重建后必选层（含当前请求）放不下：明确停止，不静默截断当前请求。
                         // 这不是"为让用例通过放宽窗口"——必要时仍如实收口。
@@ -425,7 +486,7 @@ public class AgentRuntimeCoordinator {
                 } else {
                     // 未发起任何辅助出站：保持既有"每请求一次解析"语义，不改动已组装视图
                     messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
-                            ctx.limits().maxToolCallsPerTurn(), coreActionPending);
+                            ctx.limits().maxToolCallsPerTurn(), coreActionPending, budgetLevel);
                     estimatedInput = estimateInput(messages, exposed);
                 }
                 if (estimatedInput > requestBudget.availableInputTokens()) {
@@ -1138,20 +1199,23 @@ public class AgentRuntimeCoordinator {
      */
     private List<ModelMessage> assembleRequestMessages(
             List<ModelMessage> base, String childEvidence, List<AgentStepView> steps,
-            boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending) {
+            boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending,
+            AgentBudgetThresholdPolicy.Level budgetLevel) {
         List<ModelMessage> messages = new ArrayList<>(base);
         if (childEvidence != null && !childEvidence.isEmpty()) {
             messages.add(new ModelMessage.System(childEvidence));
         }
-        return appendTurnInstructions(messages, steps, finalizing, maxToolCallsPerTurn, coreActionPending);
+        return appendTurnInstructions(messages, steps, finalizing, maxToolCallsPerTurn, coreActionPending,
+                budgetLevel);
     }
 
     /** v2 兼容重载：无子证据时仍走同一入口。 */
     private List<ModelMessage> assembleRequestMessages(
             AgentModelMessageComposer.Composition composition, String childEvidence,
-            List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending) {
+            List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending,
+            AgentBudgetThresholdPolicy.Level budgetLevel) {
         return assembleRequestMessages(composition.messages(), childEvidence, steps, finalizing,
-                maxToolCallsPerTurn, coreActionPending);
+                maxToolCallsPerTurn, coreActionPending, budgetLevel);
     }
 
     /**
@@ -1176,7 +1240,8 @@ public class AgentRuntimeCoordinator {
             AgentRunView run, AgentExecutionContext ctx, AgentSkill skill, AgentPlan plan,
             List<AgentStepView> steps, String childEvidence, boolean finalizing, int maxToolCallsPerTurn,
             boolean coreActionPending, List<AgentToolDefinition> exposed,
-            RoutingAgentModelExecutor.ResolvedRequest resolved, AgentContextBudget.Budget requestBudget) {
+            RoutingAgentModelExecutor.ResolvedRequest resolved, AgentContextBudget.Budget requestBudget,
+            AgentBudgetThresholdPolicy.Level budgetLevel) {
         AgentModelMessageComposer.Composition composition = null;
         List<ModelMessage> messages;
         int estimatedInput;
@@ -1188,7 +1253,7 @@ public class AgentRuntimeCoordinator {
                 return new MainRequestAssembly(composition, List.of(), 0, composition.failureReason(), null);
             }
             messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
-                    maxToolCallsPerTurn, coreActionPending);
+                    maxToolCallsPerTurn, coreActionPending, budgetLevel);
             estimatedInput = estimateInput(messages, exposed);
             if (estimatedInput > requestBudget.availableInputTokens()) {
                 // 降级重组一次：收紧预算并重试；重组本身失败（必选层仍放不下）同样明确停止。
@@ -1200,7 +1265,7 @@ public class AgentRuntimeCoordinator {
                     return new MainRequestAssembly(composition, List.of(), 0, composition.failureReason(), null);
                 }
                 messages = assembleRequestMessages(composition, childEvidence, steps, finalizing,
-                        maxToolCallsPerTurn, coreActionPending);
+                        maxToolCallsPerTurn, coreActionPending, budgetLevel);
                 estimatedInput = estimateInput(messages, exposed);
                 if (estimatedInput > requestBudget.availableInputTokens()) {
                     overBudgetReason = "COMPOSITION_OVER_BUDGET";
@@ -1214,7 +1279,7 @@ public class AgentRuntimeCoordinator {
             List<ModelMessage> legacy = composer.buildMessageHistory(run, ctx, skill, plan, steps,
                     resolved.legacyMode());
             messages = assembleRequestMessages(legacy, childEvidence, steps, finalizing,
-                    maxToolCallsPerTurn, coreActionPending);
+                    maxToolCallsPerTurn, coreActionPending, budgetLevel);
             estimatedInput = estimateInput(messages, exposed);
             if (estimatedInput > requestBudget.availableInputTokens()) {
                 overBudgetReason = "COMPOSITION_OVER_BUDGET";
@@ -1248,7 +1313,7 @@ public class AgentRuntimeCoordinator {
     }
 
     /** 组装完成后追加本轮附加指令（格式修复、收尾要求），这些内容同样计入输入预算。 */
-    private List<ModelMessage> appendTurnInstructions(List<ModelMessage> base, List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending) {        List<ModelMessage> messages = new ArrayList<>(base);
+    private List<ModelMessage> appendTurnInstructions(List<ModelMessage> base, List<AgentStepView> steps, boolean finalizing, int maxToolCallsPerTurn, boolean coreActionPending, AgentBudgetThresholdPolicy.Level budgetLevel) {        List<ModelMessage> messages = new ArrayList<>(base);
         StringBuilder guidance = new StringBuilder(
                 "单轮工具调用最多 " + maxToolCallsPerTurn + " 项；只有直接必要且独立的查询才能并行，已有证据足够时直接回答。\n");
         if (coreActionPending && !finalizing) {
@@ -1258,6 +1323,14 @@ public class AgentRuntimeCoordinator {
                     .append("已取得的证据足够时立即调用 start_task_plan，不要把预算耗在重复背景查询上。\n");
         }
         messages.add(new ModelMessage.System(guidance.toString()));
+        // 输入预算软阈值提示（预算治理 v3，§4.2）：本方法只在每个模型轮最终消息视图
+        // 组装时执行一次（降级重组/重建是替代关系，只发送其中一份），因此注入天然
+        // "每模型轮恰好一次"；提示只做引导，不放行或收紧任何权限。
+        if (budgetLevel == AgentBudgetThresholdPolicy.Level.CONVERGE_HINT) {
+            messages.add(new ModelMessage.System(CONVERGE_HINT_TEXT));
+        } else if (budgetLevel == AgentBudgetThresholdPolicy.Level.RESTRICT) {
+            messages.add(new ModelMessage.System(RESTRICT_HINT_TEXT));
+        }
         messages.add(new ModelMessage.System("""
                 回答的核心结论和每一条信息缺失声明都必须符合实际证据范围。
                 仅有提纲、检索、部分章节、分页或投影时，只能说已读或已查询范围内未找到；不能先断言资料/全文不存在，再用末尾的范围限定抵消。
@@ -1276,10 +1349,16 @@ public class AgentRuntimeCoordinator {
         return messages;
     }
 
-    /** chars/3 兼容估算：同时计入消息与工具定义，不含 provider 侧协议包装。 */
+    /**
+     * CJK 感知的兼容 fallback 估算（预算治理 v3，设计文档 §4.3）：按序列化文本逐
+     * codepoint 折算（ascii/4 + cjk×0.75 + other×0.5），替换原 chars/3——后者对中文
+     * 系统性低估约 2 倍。同时计入消息与工具定义，不含 provider 侧协议包装；
+     * provider 上报（PROVIDER basis）优先的既有语义不变，本估算只承担 fallback。
+     */
     private int estimateInput(List<ModelMessage> messages, List<AgentToolDefinition> exposed) {
-        return Math.max(1, (json.valueToTree(messages).toString().length()
-                + json.valueToTree(exposed).toString().length() + 2) / 3);
+        String serialized = json.valueToTree(messages).toString()
+                + json.valueToTree(exposed).toString();
+        return Math.max(1, TokenEstimator.estimate(serialized));
     }
 
     private AgentWorkerOutcome completeFromEvidence(

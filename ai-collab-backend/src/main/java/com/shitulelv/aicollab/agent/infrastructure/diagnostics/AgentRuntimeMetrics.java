@@ -38,6 +38,11 @@ public class AgentRuntimeMetrics {
         try { registry.counter("agent.worker.dispatch.rejected","reason","executor_full").increment(); }
         catch (RuntimeException ignored) { }
     }
+    /** 输入预算软阈值分级告警（预算治理 v3）：level ∈ {CONVERGE_HINT, RESTRICT}，每模型轮至多计一次。 */
+    public void softBudgetWarning(String level) {
+        try { registry.counter("agent.budget.soft.warning","level",level).increment(); }
+        catch (RuntimeException ignored) { }
+    }
     public <T> T model(String purpose,Supplier<T> call) {
         try (var observation = new com.shitulelv.aicollab.infrastructure.ai.model.AiOutboundObservation()) {
             String outcome = "success";
