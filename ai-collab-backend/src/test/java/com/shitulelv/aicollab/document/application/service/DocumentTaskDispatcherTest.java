@@ -1,88 +1,46 @@
 package com.shitulelv.aicollab.document.application.service;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.task.TaskExecutor;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
- * 文档派发去重语义测试。使用可控 TaskExecutor，分别控制排队、执行、拒绝与完成，
- * 不依赖真实线程池时序，也不使用 Thread.sleep。
+ * 文档派发器语义测试（M1 迁移后）。
+ *
+ * <p>进程内 inFlight 去重集合已删除（多实例绑定点），同一文档重复派发会在执行器层面
+ * 排队多次，由下游三重保障兜底：MQ 消费幂等 / claim CAS（UPLOADED→PARSING 条件更新，
+ * 重复派发仅第一例成功，其余空返回）/ 处理代际心跳。回落模式仅限单实例（.env.example 声明）。</p>
  */
 class DocumentTaskDispatcherTest {
-    private static final long TIMEOUT_SECONDS = 5;
 
     private final DocumentProcessingService processing = mock(DocumentProcessingService.class);
     private final ControllableExecutor executor = new ControllableExecutor();
     private final DocumentTaskDispatcher dispatcher =
             new DocumentTaskDispatcher(executor, processing);
 
-    private ExecutorService background;
-
-    @AfterEach
-    void stopBackgroundThread() {
-        if (background != null) {
-            background.shutdownNow();
-        }
-    }
-
     @Test
-    void sameDocumentQueuedOnlyOnce() {
+    void everyDispatchSubmitsWorkWithoutInProcessDeduplication() {
         UUID projectId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
 
         dispatcher.dispatch(projectId, documentId);
         dispatcher.dispatch(projectId, documentId);
 
-        assertThat(executor.queued()).isEqualTo(1);
-        verifyNoInteractions(processing);
-    }
-
-    @Test
-    void sameDocumentRunningIsNotResubmitted() throws Exception {
-        UUID projectId = UUID.randomUUID();
-        UUID documentId = UUID.randomUUID();
-        CountDownLatch processingStarted = new CountDownLatch(1);
-        CountDownLatch releaseProcessing = new CountDownLatch(1);
-        doAnswer(invocation -> {
-            processingStarted.countDown();
-            releaseProcessing.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            return null;
-        }).when(processing).process(any(), any());
-
-        background = Executors.newSingleThreadExecutor();
-        try {
-            dispatcher.dispatch(projectId, documentId);
-            Runnable task = executor.take();
-            Future<?> running = background.submit(task);
-            assertThat(processingStarted.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
-
-            dispatcher.dispatch(projectId, documentId);
-
-            assertThat(executor.queued()).isZero();
-            verify(processing, times(1)).process(projectId, documentId);
-            assertThat(running.isDone()).isFalse();
-        } finally {
-            releaseProcessing.countDown();
-        }
+        // 去重集合删除后重复派发不再在 JVM 内拦截，处理副作用恰好一次由 claim CAS 保障
+        assertThat(executor.queued()).isEqualTo(2);
+        verifyNoProcessingYet();
     }
 
     @Test
@@ -98,49 +56,28 @@ class DocumentTaskDispatcherTest {
     }
 
     @Test
-    void differentProjectAndDocumentIdentityIsNotDeduplicated() {
-        UUID firstProject = UUID.randomUUID();
-        UUID secondProject = UUID.randomUUID();
-        UUID documentId = UUID.randomUUID();
-
-        dispatcher.dispatch(firstProject, documentId);
-        dispatcher.dispatch(secondProject, documentId);
-
-        assertThat(executor.queued()).isEqualTo(2);
-    }
-
-    @Test
-    void inFlightKeyClearedAfterNormalCompletion() {
+    void runOnceInvokesSharedProcessingPath() {
         UUID projectId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
 
-        dispatcher.dispatch(projectId, documentId);
-        executor.runQueued();
+        dispatcher.runOnce(projectId, documentId);
+
         verify(processing).process(projectId, documentId);
-
-        dispatcher.dispatch(projectId, documentId);
-
-        assertThat(executor.queued()).isEqualTo(1);
-        executor.runQueued();
-        verify(processing, times(2)).process(projectId, documentId);
     }
 
     @Test
-    void inFlightKeyClearedAfterFailure() {
+    void runOnceRethrowsUnexpectedFailureForMqRetryPath() {
         UUID projectId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
-        doThrow(new IllegalStateException("解析失败")).when(processing).process(any(), any());
+        doThrow(new IllegalStateException("数据库瞬时不可用")).when(processing).process(any(), any());
 
-        dispatcher.dispatch(projectId, documentId);
-        executor.runQueued();
-
-        dispatcher.dispatch(projectId, documentId);
-
-        assertThat(executor.queued()).isEqualTo(1);
+        // MQ 消费路径依赖异常透出以触发 RECONSUME_LATER；进程内 executor 线程有默认异常处理
+        assertThatThrownBy(() -> dispatcher.runOnce(projectId, documentId))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    void rejectedSubmissionReleasesDeduplicationKey() {
+    void rejectedSubmissionDoesNotThrowAndKeepsDocumentRecoverable() {
         UUID projectId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
         executor.rejectNextSubmission();
@@ -149,10 +86,14 @@ class DocumentTaskDispatcherTest {
 
         assertThat(executor.queued()).isZero();
 
+        // 拒绝不留下任何本地状态：恢复 Job（5 分钟对账）稍后重新派发即可
         executor.acceptSubmissions();
         dispatcher.dispatch(projectId, documentId);
-
         assertThat(executor.queued()).isEqualTo(1);
+    }
+
+    private void verifyNoProcessingYet() {
+        verify(processing, times(0)).process(any(), any());
     }
 
     /** 可控执行器：提交只入队，任务由测试显式触发；可切换为拒绝下一次提交。 */
@@ -179,16 +120,6 @@ class DocumentTaskDispatcherTest {
 
         int queued() {
             return tasks.size();
-        }
-
-        Runnable take() {
-            return tasks.remove(0);
-        }
-
-        void runQueued() {
-            List<Runnable> pending = new ArrayList<>(tasks);
-            tasks.clear();
-            pending.forEach(Runnable::run);
         }
     }
 }

@@ -2,12 +2,13 @@
 // 用法：docker compose --env-file <local.env> -f ai-collab-deploy/compose.local.yml config --format json | node local-compose-contract.mjs
 // 守卫目标：入口只绑 127.0.0.1、数据面零端口发布、HTTP Cookie 例外成对出现且不外溢、网络隔离。
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 const config = JSON.parse(readFileSync(0, 'utf8'))
-const { postgres, redis, minio, app, web, mailpit } = config.services
+const { postgres, redis, minio, app, web, mailpit, 'rocketmq-namesrv': namesrv, 'rocketmq-broker': broker, 'rocketmq-topic-init': topicInit } = config.services
 
 // 数据面与后端不发布任何宿主机端口。
-for (const [name, service] of Object.entries({ postgres, redis, minio, app })) {
+for (const [name, service] of Object.entries({ postgres, redis, minio, app, namesrv, broker, topicInit })) {
   assert.ok(!service.ports?.length, `${name} 不应发布端口`)
 }
 // 入口仅一个端口，且必须绑定本机回环地址。
@@ -45,4 +46,15 @@ if (mailpit) {
   assert.ok((mailpit.profiles || []).includes('maildev'))
   for (const p of mailpit.ports) assert.equal(p.host_ip, '127.0.0.1', 'mailpit 端口必须只绑定 127.0.0.1')
 }
+
+// ===== MQ 迁移 M1 契约：本地拓扑内建 RocketMQ，数据面零端口发布 =====
+for (const service of [namesrv, broker, topicInit]) {
+  assert.ok(service, '本地拓扑必须包含 RocketMQ 三容器（namesrv/broker/topic-init）')
+  assert.match(service.image, /@sha256:[a-f0-9]{64}$/, 'rocketmq 镜像必须 digest 固定')
+}
+const brokerConf = readFileSync(fileURLToPath(new URL('../rocketmq/broker.conf', import.meta.url)), 'utf8')
+assert.match(brokerConf, /autoCreateTopicEnable\s*=\s*false/, 'broker 必须关闭自动创建 topic')
+// 总闸默认开启（本地一键部署随拓扑起 MQ）；允许显式回落，但值必须非空。
+assert.match(app.environment.MQ_ENABLED, /^(true|false)$/, 'MQ_ENABLED 必须显式渲染为 true/false')
+assert.equal(app.environment.ROCKETMQ_NAMESRV_ADDR, 'rocketmq-namesrv:9876')
 console.log('local compose network and configuration contract: OK')
