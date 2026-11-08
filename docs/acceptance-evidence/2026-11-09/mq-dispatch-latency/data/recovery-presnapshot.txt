@@ -1,0 +1,4 @@
+UPLOADED|24
+READY|20
+INDEXING|4
+sh: 1: select: not found
