@@ -2,7 +2,9 @@ const fallback = '未知状态'
 
 export const planStatusLabels: Record<string, string> = {
   SKELETON_GENERATING: '正在生成规划骨架',
+  SKELETON_REVIEW: '等待骨架确认',
   DETAIL_GENERATING: '正在补充任务细节',
+  REFLECTING: 'AI 正在自评规划质量',
   REPAIRING: '正在修复规划问题',
   READY: '规划已就绪',
   READY_WITH_ISSUES: '规划已生成，仍有待处理问题',

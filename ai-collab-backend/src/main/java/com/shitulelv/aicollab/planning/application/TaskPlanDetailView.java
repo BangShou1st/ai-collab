@@ -19,11 +19,13 @@ public record TaskPlanDetailView(
         TaskPlanValidationView validation,
         TaskPlanPermissions permissions,
         List<TaskPlanValidationIssueView> structuredIssues,
-        List<com.shitulelv.aicollab.planning.domain.StructuredValidationIssue> repairDiagnostics
+        List<com.shitulelv.aicollab.planning.domain.StructuredValidationIssue> repairDiagnostics,
+        List<TaskPlanReflectIssueView> reflectIssues
 ) {
     public TaskPlanDetailView {
         structuredIssues = structuredIssues == null ? List.of() : List.copyOf(structuredIssues);
         repairDiagnostics = repairDiagnostics == null ? List.of() : List.copyOf(repairDiagnostics);
+        reflectIssues = reflectIssues == null ? List.of() : List.copyOf(reflectIssues);
     }
 }
 
