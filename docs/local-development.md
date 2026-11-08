@@ -26,7 +26,7 @@ Maven/Surefire 的 fork、IDE VM options、环境变量回退和本地服务排�
 | 服务 | 地址 / 健康检查 |
 | --- | --- |
 | 前端 | http://localhost:5173（Vite HMR，端口严格固定） |
-| 后端 | http://localhost:8080；`/actuator/health` 应为 `UP` |
+| 后端 | http://localhost:8080；`/actuator/health` 应为 `UP`（管理端口隔离：Actuator 在 http://localhost:8081，容器部署时仅 compose 内网可达） |
 | PostgreSQL / Redis | localhost:5432 / localhost:6379；容器 health 应为 healthy |
 | MinIO | http://localhost:9000/minio/health/ready；控制台 http://localhost:9001 |
 

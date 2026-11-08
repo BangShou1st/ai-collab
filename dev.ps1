@@ -50,7 +50,8 @@ function Listeners($port) {
 function Healthy($name) {
     try {
         if ($name -eq 'backend') {
-            return ((Local-Http 'http://127.0.0.1:8080/actuator/health') | ConvertFrom-Json).status -eq 'UP'
+            # O1：actuator 健康探针走独立管理端口 8081（application.yml 默认值），业务 API 仍在 8080。
+            return ((Local-Http 'http://127.0.0.1:8081/actuator/health') | ConvertFrom-Json).status -eq 'UP'
         }
         return (Local-Http 'http://localhost:5173') -match '/@vite/client'
     } catch { return $false }

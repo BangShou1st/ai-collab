@@ -102,7 +102,8 @@ compose up -d app proxy >/dev/null
 app=$(compose ps -q app)
 proxy=$(compose ps -q proxy)
 for i in $(seq 1 180); do
-  if docker exec "$app" wget -qO- http://127.0.0.1:8080/actuator/health >/dev/null 2>&1; then break; fi
+  # O1：健康检查走独立管理端口 8081（业务主端口 8080 上的 /actuator 已随管理上下文迁移）。
+  if docker exec "$app" wget -qO- http://127.0.0.1:8081/actuator/health >/dev/null 2>&1; then break; fi
   [ "$i" -lt 180 ] || { echo '应用启动或健康检查超时' >&2; exit 1; }
   sleep 1
 done

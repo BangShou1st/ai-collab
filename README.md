@@ -376,7 +376,7 @@ pnpm dev --port 5173 --strictPort
 |---|---|---|
 | **前端应用界面** | [http://localhost:5173](http://localhost:5173) | 登录或注册新账号 |
 | **后端 API 服务** | [http://localhost:8080](http://localhost:8080) | RESTful API 根路径 |
-| **健康检查探针** | [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) | 监控各组件健康状态 |
+| **健康检查探针** | [http://localhost:8081/actuator/health](http://localhost:8081/actuator/health) | 监控各组件健康状态；Actuator 运行在独立管理端口 8081（本地开发直跑后端时宿主机可达；容器部署时仅 compose 内网，不映射宿主机） |
 | **MinIO 控制台** | [http://localhost:9001](http://localhost:9001) | 用户名/密码见 `.env` 中的 `MINIO_ROOT_USER` |
 | **系统管理员账号** | - | 用户名：`owner`，密码见 `.env` 中的 `DEMO_OWNER_PASSWORD` |
 

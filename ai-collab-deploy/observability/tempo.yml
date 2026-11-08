@@ -1,0 +1,23 @@
+# Tempo 最小配置（O2）：接收 app 的 OTLP gRPC（4317）导出，本地盘存储。
+# 面板链路：app → Tempo（trace）→ Grafana；仅存在于 local/staging 拓扑。
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal
+
+compactor:
+  compaction:
+    block_retention: 24h

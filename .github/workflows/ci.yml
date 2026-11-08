@@ -282,17 +282,19 @@ jobs:
             -e REFRESH_COOKIE_SECURE=true \
             ai-collab-backend:rc-${GITHUB_SHA::12} >/dev/null
 
-          # 就绪等待（Flyway 迁移 + Spring 启动，上限 120s）
+          # 就绪等待（Flyway 迁移 + Spring 启动，上限 120s）。
+          # O1：actuator 运行在独立管理端口 8081（容器内可达，不发布宿主机端口），健康探针经 docker exec 访问。
           for i in $(seq 1 60); do
-            status=$(docker exec smoke-app wget -qO- http://127.0.0.1:8080/actuator/health 2>/dev/null || true)
+            status=$(docker exec smoke-app wget -qO- http://127.0.0.1:8081/actuator/health 2>/dev/null || true)
             echo "$status" | grep -q '"UP"' && break
             [ "$i" = 60 ] && { docker logs --tail 80 smoke-app; exit 1; }
             sleep 2
           done
 
-          # 健康与存活探针必须 UP；敏感与非暴露端点必须拒绝匿名访问。
-          curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '"UP"'
-          curl -fsS http://127.0.0.1:8080/actuator/health/liveness | grep -q '"UP"'
+          # 健康与存活探针必须 UP（经容器内管理端口 8081）；主端口 8080 上的
+          # 敏感与非暴露端点必须不可达（管理上下文迁移后为 404，对外 404 由 nginx 层另行阻断）。
+          docker exec smoke-app wget -qO- http://127.0.0.1:8081/actuator/health | grep -q '"UP"'
+          docker exec smoke-app wget -qO- http://127.0.0.1:8081/actuator/health/liveness | grep -q '"UP"'
           code_env=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/actuator/env)
           code_metrics=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/actuator/metrics)
           code_info=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/actuator/info)

@@ -67,6 +67,26 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- 可观测性 O1：Prometheus 抓取端点能力（runtime）。仅引入端点实现，
+             不改变默认暴露（application.yml 默认 health,info，compose 层经 env-var 打开 prometheus）。
+             版本由 Spring Boot parent BOM 管理。 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- 可观测性 O2：分布式 trace。micrometer-tracing-bridge-otel 把 Observation API
+             桥接到 OpenTelemetry SDK，opentelemetry-exporter-otlp 负责向 compose 内 Tempo
+             做 OTLP gRPC 导出；导出失败由 BatchSpanProcessor 异步吞掉，不影响请求路径。
+             版本由 Spring Boot parent BOM 管理。 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>

@@ -55,6 +55,8 @@ public class AgentToolCallExecutor {
     private final ObjectMapper json;
     private final AgentEventService events;
     private final AgentToolScheduler scheduler;
+    /** 可为 null（兼容装配/部分测试便捷构造不关心观测）：span 缺失不影响业务结果。 */
+    private final AgentTracing tracing;
 
     public AgentToolCallExecutor(
             AgentRepository repository,
@@ -67,6 +69,23 @@ public class AgentToolCallExecutor {
             ObjectMapper json,
             AgentEventService events,
             AgentToolScheduler scheduler) {
+        this(repository, tools, cancellation, loopGuard, approvals, modelExecutor,
+                sanitizer, json, events, scheduler, null);
+    }
+
+    /** 生产装配入口（见 {@code AgentRuntimeConfiguration}）：比兼容构造多收一个可观测性封装。 */
+    public AgentToolCallExecutor(
+            AgentRepository repository,
+            AgentToolRegistry tools,
+            AgentCancellationService cancellation,
+            AgentLoopGuard loopGuard,
+            AgentApprovalService approvals,
+            RoutingAgentModelExecutor modelExecutor,
+            AgentToolResultSanitizer sanitizer,
+            ObjectMapper json,
+            AgentEventService events,
+            AgentToolScheduler scheduler,
+            AgentTracing tracing) {
         this.repository = repository;
         this.tools = tools;
         this.cancellation = cancellation;
@@ -77,6 +96,7 @@ public class AgentToolCallExecutor {
         this.json = json;
         this.events = events;
         this.scheduler = scheduler;
+        this.tracing = tracing;
     }
 
     AgentWorkerOutcome executeCalls(
@@ -420,9 +440,18 @@ public class AgentToolCallExecutor {
                 .put("callId", toolCall.id()).put("toolName", toolCall.name())
                 .put("invocationId", java.util.Objects.toString(repository.invocationId(run, toolCall), "")));
         try {
-            repository.documentResearchDelegationResult(
-                    run, repository.invocationId(run, toolCall).toString(),
-                    toolCall.arguments().path("objective").asText());
+            String objective = toolCall.arguments().path("objective").asText();
+            // 可观测性 O2：委派受理是父子运行串联的关键节点，受理事务整体包进一个 span
+            // （agent.delegation.admit，tag: agent.parentRunId / agent.objectiveHash），
+            // 只加观测不改变受理语义；tracing 缺失时行为与原逻辑完全一致。
+            if (tracing == null) {
+                repository.documentResearchDelegationResult(
+                        run, repository.invocationId(run, toolCall).toString(), objective);
+            } else {
+                tracing.delegationAccept(run, objective,
+                        () -> repository.documentResearchDelegationResult(
+                                run, repository.invocationId(run, toolCall).toString(), objective));
+            }
             // 委派受理（子运行创建、结果落库、父运行转 QUEUED）已在一个事务内完成
             emit(repository.findRun(run.projectId(), run.id()).orElse(run),
                     AgentEventType.TOOL_CALL_COMPLETED, json.createObjectNode()
@@ -609,6 +638,20 @@ public class AgentToolCallExecutor {
      * 已获准入（通过复核）的调用允许完成并落结果；未获准入的调用以哨兵返回，
      * 保持 invocation PENDING、不误标 SKIPPED/失败，随后运行转入 PAUSED。</p>
      */
+    /**
+     * 单个工具执行的可观测性包装（O2）：tracing 缺失时直接执行，行为不变。
+     * span 在工具线程内创建（agent.tool.execute，tag: agent.runId / agent.toolName），
+     * 与外层模型轮 span 经 OpenTelemetry 上下文串联。
+     */
+    private AgentToolResult executeTraced(
+            AgentRunView run, ModelToolCall toolCall, AgentTool tool, AgentToolContext toolCtx) {
+        if (tracing == null) {
+            return tool.execute(toolCtx.withInvocationId(repository.invocationId(run, toolCall)), toolCall.arguments());
+        }
+        return tracing.toolExecution(run, toolCall.name(),
+                () -> tool.execute(toolCtx.withInvocationId(repository.invocationId(run, toolCall)), toolCall.arguments()));
+    }
+
     private BatchOutcome executeToolBatch(
             AgentRunView run,
             List<ValidatedToolCall> batch,
@@ -642,7 +685,7 @@ public class AgentToolCallExecutor {
                     emit(executingRun, AgentEventType.TOOL_CALL_STARTED, json.createObjectNode()
                             .put("callId", toolCall.id()).put("toolName", toolCall.name())
                             .put("invocationId",java.util.Objects.toString(repository.invocationId(executingRun,toolCall),"")));
-                    AgentToolResult result = tool.execute(toolCtx.withInvocationId(repository.invocationId(executingRun,toolCall)), toolCall.arguments());
+                    AgentToolResult result = executeTraced(executingRun, toolCall, tool, toolCtx);
                     return new ToolExecutionResult(toolCall, result, null);
                 } catch (BusinessException e) {
                     return new ToolExecutionResult(toolCall, null, e);

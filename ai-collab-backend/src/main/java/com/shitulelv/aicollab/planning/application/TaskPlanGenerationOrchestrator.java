@@ -244,6 +244,10 @@ public class TaskPlanGenerationOrchestrator {
     /** C3: Maps (planId, generationSeq) → run handle. Empty at terminal states. */
     private final ConcurrentHashMap<GenerationRunKey, GenerationRunHandle> runRegistry = new ConcurrentHashMap<>();
 
+    /** 可观测性 O2：与 AgentRuntimeMetrics 同款可选注入，观测缺失不影响规划管线。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.shitulelv.aicollab.agent.application.runtime.AgentTracing tracing;
+
     public TaskPlanGenerationOrchestrator(
             @Qualifier("planningTaskExecutor") Executor executor, TaskPlanRepository repository,
             TaskPlanModelClient model, TaskPlanOutputParser parser,
@@ -296,6 +300,17 @@ public class TaskPlanGenerationOrchestrator {
     }
 
     private void runPlan(TaskPlanRecord plan, UUID actor, boolean detailOnly) {
+        // 可观测性 O2：整条生成管线包一个 span（planning.generate，tag: plan.id / plan.stage），
+        // 与 MQ 迁移前的"QUEUED→RUNNING→终态"派发延迟基线观测对应；只加观测不改语义。
+        if (tracing == null) {
+            doRunPlan(plan, actor, detailOnly);
+        } else {
+            tracing.planningGeneration(plan.id(), detailOnly ? "DETAIL" : "SKELETON",
+                    () -> { doRunPlan(plan, actor, detailOnly); return null; });
+        }
+    }
+
+    private void doRunPlan(TaskPlanRecord plan, UUID actor, boolean detailOnly) {
         try (TaskPlanModelClient.ConfigurationScope scope = model.openSnapshot()) {
             if (detailOnly) runDetail(plan, plan.activeAttemptId(), actor, latestDraft(plan));
             else runSkeleton(plan, actor);
