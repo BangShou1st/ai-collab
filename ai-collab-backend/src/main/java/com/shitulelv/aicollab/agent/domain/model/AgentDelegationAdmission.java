@@ -53,10 +53,14 @@ public final class AgentDelegationAdmission {
          * 判重键由 {@link AgentDelegationGuard#objectiveHash(String)} 计算。
          */
         DUPLICATE_OBJECTIVE("AGENT_DELEGATION_DUPLICATE_OBJECTIVE",
-                "同一研究目标已存在委派记录（进行中或已完成），已拒绝重复受理");
-        // TODO(P1): DELEGATION_IN_FLIGHT_LIMIT（同父运行并行进行中的委派上限）
-        // 依赖子运行的 children_pending 字段（P1 引入），本次不实现；
-        // 方案见 docs/design/agent-fanout-budget-and-agentic-planning.md §3.2。
+                "同一研究目标已存在委派记录（进行中或已完成），已拒绝重复受理"),
+        /**
+         * 并行在途上限（V82）：同父运行的待决子运行数（children_pending）已达
+         * max_children——children_used 是累计上限，children_pending 是在途上限，
+         * 两者独立校验（设计文档 §3.1 / §3.2 的并行 fan-out 语义）。
+         */
+        IN_FLIGHT_LIMIT("AGENT_DELEGATION_IN_FLIGHT_LIMIT",
+                "并行委派数已达上限，等待进行中的子运行完成后再委派");
 
         private final String code;
         private final String message;

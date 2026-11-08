@@ -7,9 +7,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.shitulelv.aicollab.agent.application.view.AgentRunView;
 import com.shitulelv.aicollab.agent.domain.model.AgentCitation;
 import com.shitulelv.aicollab.agent.domain.model.AgentDecision;
-import com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission;
-import com.shitulelv.aicollab.agent.domain.model.AgentDelegationGuard;
-import com.shitulelv.aicollab.agent.domain.model.AgentResourcePolicy;
 import com.shitulelv.aicollab.agent.domain.model.AgentRunStatus;
 import com.shitulelv.aicollab.agent.domain.model.DelegatedResearchCoverage;
 import com.shitulelv.aicollab.agent.domain.model.TokenEstimator;
@@ -21,6 +18,8 @@ import com.shitulelv.aicollab.common.exception.ErrorCode;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -51,18 +50,29 @@ public class AgentRunEventRecorder {
     private final ObjectMapper json;
     /** 委派防重台账（V81）：受理判重与子运行终态收口共用同一仓储。 */
     private final AgentDelegationLedgerRepository delegationLedger;
+    /**
+     * 委派受理与子终态回收（P1 从本类拆出，纯搬移 + 注入重组）：两条委派受理路径、
+     * resumeParent、台账写入/收口与 V82 children_pending 等待语义集中在该协作类，
+     * 共享的低层助手仍由本类以包内可见性提供，避免两份实现漂移。
+     */
+    private final AgentDelegationRecorder delegation;
+    /** 委派唤醒事件发布器（V82 §3.4）：事务提交后发布 AgentDelegationWakeEvent。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.context.ApplicationEventPublisher wakePublisher;
     @org.springframework.beans.factory.annotation.Autowired
     @org.springframework.context.annotation.Lazy
     private com.shitulelv.aicollab.agent.application.runtime.AgentEventService events;
     public boolean atomicEventsEnabled() { return events != null; }
     public void setEvents(com.shitulelv.aicollab.agent.application.runtime.AgentEventService events) { this.events = events; }
+    /** 测试装配入口：注入事件发布器（生产由 Spring 完成字段的 @Autowired 注入）。 */
+    public void setWakePublisher(org.springframework.context.ApplicationEventPublisher wakePublisher) { this.wakePublisher = wakePublisher; }
     public static boolean ownsEvent(com.shitulelv.aicollab.agent.domain.model.AgentEventType type) {
         return java.util.Set.of("MODEL_COMPLETED","TOOL_CALL_COMPLETED","TOOL_CALL_FAILED","RUN_SUCCEEDED","RUN_FAILED","RUN_CANCELED","RUN_BUDGET_EXCEEDED","WAITING_FOR_USER_INPUT","APPROVAL_REQUESTED","APPROVAL_UPDATED","RUN_PAUSE_REQUESTED","RUN_PAUSED","RUN_RESUMED").contains(type.name());
     }
     private void event(AgentRunView run, String type, JsonNode payload) {
         event(run.projectId(), run.id(), type, payload);
     }
-    private void event(java.util.UUID projectId, java.util.UUID runId, String type, JsonNode payload) {
+    void event(java.util.UUID projectId, java.util.UUID runId, String type, JsonNode payload) {
         if (events != null) events.append(projectId, runId, com.shitulelv.aicollab.agent.domain.model.AgentEventType.valueOf(type), payload);
     }
 
@@ -76,6 +86,28 @@ public class AgentRunEventRecorder {
         this.jdbc = jdbc;
         this.json = json;
         this.delegationLedger = delegationLedger;
+        this.delegation = new AgentDelegationRecorder(this, jdbc, json, delegationLedger);
+    }
+
+    /**
+     * 子终态事务提交后发布委派唤醒事件（设计文档 §3.4）：事务活跃时注册 afterCommit
+     * 同步（项目惯例，与 AgentEventService 同款），无事务时直接发布（测试路径）。
+     * 发布器缺失（单测手工构造）时静默跳过——唤醒是优化非正确性依赖，tick 兜底。
+     */
+    void publishDelegationWake(java.util.UUID parentRunId) {
+        if (wakePublisher == null) return;
+        var wakeEvent = new com.shitulelv.aicollab.agent.application.runtime.AgentDelegationWakeEvent(parentRunId);
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    wakePublisher.publishEvent(wakeEvent);
+                }
+            });
+        } else {
+            wakePublisher.publishEvent(wakeEvent);
+        }
     }
 
     /**
@@ -499,7 +531,7 @@ public class AgentRunEventRecorder {
                   lease_owner=NULL,lease_expires_at=NULL,updated_at=now(),version=version+1
                 WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
                 """, run.projectId(), run.id(), run.version()));
-        resumeParent(run, "BUDGET_EXCEEDED", "AGENT_BUDGET_EXCEEDED");
+        delegation.resumeParent(run, "BUDGET_EXCEEDED", "AGENT_BUDGET_EXCEEDED");
         var payload = json.createObjectNode()
                 .put("status", "BUDGET_EXCEEDED")
                 .put("errorCode", "AGENT_BUDGET_EXCEEDED");
@@ -618,7 +650,7 @@ public class AgentRunEventRecorder {
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 run.projectId(), run.id(), run.version()));
         // 回收：已有部分正文时把正文一并移交父运行（而不是只回传 AGENT_BUDGET_EXCEEDED 占位符）
-        resumeParent(run, "BUDGET_EXCEEDED", hasReturnedText ? truncate(returned, MAX_PARTIAL_ANSWER_CHARS) : "AGENT_BUDGET_EXCEEDED");
+        delegation.resumeParent(run, "BUDGET_EXCEEDED", hasReturnedText ? truncate(returned, MAX_PARTIAL_ANSWER_CHARS) : "AGENT_BUDGET_EXCEEDED");
         event(run,"RUN_BUDGET_EXCEEDED",json.createObjectNode().put("status","BUDGET_EXCEEDED")
                 .put("partialAnswerSaved", hasReturnedText));
     }
@@ -681,7 +713,7 @@ public class AgentRunEventRecorder {
                 tokens(completion.completionTokens(), completion.content()),
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 errorCode, run.projectId(), run.id(), run.version()));
-        resumeParent(run, "FAILED", errorCode);
+        delegation.resumeParent(run, "FAILED", errorCode);
     }
 
     @Transactional
@@ -720,7 +752,7 @@ public class AgentRunEventRecorder {
                 """, finalFailure ? "FAILED" : "FAILED_RETRYABLE", errorCode,
                 modelRetry, retryable, finalFailure, finalFailure,
                 run.projectId(), run.id(), run.version()));
-        if (finalFailure) resumeParent(run, "FAILED", errorCode);
+        if (finalFailure) delegation.resumeParent(run, "FAILED", errorCode);
         event(run,"RUN_FAILED",json.createObjectNode().put("status",finalFailure ? "FAILED" : "FAILED_RETRYABLE").put("errorCode",errorCode).put("retryable",!finalFailure));
     }
 
@@ -750,7 +782,7 @@ public class AgentRunEventRecorder {
             throw new IllegalStateException("Agent 运行已进入不可取消状态: " + status);
         }
         appendErrorStep(run, "RUN_CANCELLED");
-        resumeParent(run, "CANCELED", "AGENT_RUN_CANCELED");
+        delegation.resumeParent(run, "CANCELED", "AGENT_RUN_CANCELED");
         event(run,"RUN_CANCELED",json.createObjectNode().put("status","CANCELED"));
     }
 
@@ -941,7 +973,7 @@ public class AgentRunEventRecorder {
                 completion.promptTokens() == null || completion.completionTokens() == null,
                 truncate(completion.provider(), 80), truncate(completion.model(), 120),
                 run.projectId(), run.id(), run.version()));
-        resumeParent(run, "SUCCEEDED", answer.answer());
+        delegation.resumeParent(run, "SUCCEEDED", answer.answer());
     }
 
     @Transactional
@@ -982,78 +1014,11 @@ public class AgentRunEventRecorder {
                 run.projectId(), run.id(), run.version()));
     }
 
+    /** 旧路径委派受理（V22 时代 DELEGATE 决策协议）：已拆出到 {@link AgentDelegationRecorder}。 */
     @Transactional
     public AgentRunView recordDelegation(
             AgentRunView run, ChatCompletionResult completion, AgentDecision.Delegate delegate) {
-        if (run.depth() != 0 || run.childrenUsed() >= run.maxChildren()) {
-            throw new IllegalStateException("Agent 子运行预算已耗尽");
-        }
-        // 委派防重台账（V81）：同一会话下同一 objective（归一化哈希）已存在非 CANCELED
-        // 记录时拒绝受理——不创建子运行、不落委派步骤，异常由调用方按可预期拒绝处理。
-        String objectiveHash = AgentDelegationGuard.objectiveHash(delegate.objective());
-        if (AgentDelegationGuard.isDuplicateObjective(
-                delegationLedger.countActiveByObjective(run.sessionId(), objectiveHash))) {
-            throw new AgentDelegationNotAdmittedException(
-                    AgentDelegationAdmission.RejectionReason.DUPLICATE_OBJECTIVE.code(),
-                    AgentDelegationAdmission.RejectionReason.DUPLICATE_OBJECTIVE.message());
-        }
-        UUID childId = UUID.randomUUID();
-        int sequence = nextSequence(run.id());
-        jdbc.update("""
-                INSERT INTO agent_step(
-                  run_id,sequence_no,type,input_json,reason,prompt_tokens,completion_tokens,
-                  token_usage_estimated,latency_ms)
-                VALUES (?,?,'DELEGATION_REQUESTED',
-                  jsonb_build_object('role',?,'objective',?),?,?,?,?,?)
-                """, run.id(), sequence, delegate.role(), delegate.objective(),
-                delegate.objective(), completion.promptTokens(), completion.completionTokens(),
-                completion.promptTokens() == null || completion.completionTokens() == null,
-                boundedLatency(completion.latencyMs()));
-        int promptTokens = tokens(completion.promptTokens(), "");
-        int outputTokens = tokens(completion.completionTokens(), completion.content());
-        // v1 兼容：从父剩余额度切出（旧 DELEGATE 决策协议路径）。
-        // v2：子运行使用自身独立执行额度，累计输入/输出为 NULL（不限额），
-        // 不出现"父剩余多少、子只能多少"的切分，也不因父累计 token 用得多而拒绝。
-        boolean independentChildBudget = !run.enforcesCumulativeTokenLimits();
-        int childSteps = independentChildBudget
-                ? AgentResourcePolicy.V2_CHILD_MAX_STEPS
-                : run.maxSteps() - run.stepsUsed() - 1;
-        int childTools = independentChildBudget
-                ? AgentResourcePolicy.V2_CHILD_MAX_TOOL_CALLS
-                : run.maxToolCalls() - run.toolCallsUsed();
-        Integer childInputs = independentChildBudget
-                ? null : run.maxInputTokens() - run.inputTokensUsed() - promptTokens;
-        Integer childOutputs = independentChildBudget
-                ? null : run.maxOutputTokens() - run.outputTokensUsed() - outputTokens;
-        if (childSteps < 1 || (childInputs != null && childInputs < 1) || (childOutputs != null && childOutputs < 1)) {
-            throw new IllegalStateException("Agent 没有可分配给子运行的剩余预算");
-        }
-        AgentRunView child = jdbc.queryForObject("""
-                INSERT INTO agent_run(
-                  id,session_id,project_id,requester_id,parent_run_id,role,depth,goal,status,
-                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens,budget_semantics,context_policy_version)
-                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?,(SELECT budget_semantics FROM agent_run WHERE id=?),
-                  (SELECT context_policy_version FROM agent_run WHERE id=?))
-                RETURNING *
-                """, AgentRunMappers.runMapper(), childId, run.sessionId(), run.projectId(), run.requesterId(),
-                run.id(), delegate.role(), delegate.objective(),
-                childSteps, childTools, childInputs, childOutputs, run.id(), run.id());
-        // 委派防重台账（V81）：与子运行创建同一事务登记 RUNNING 记录，
-        // 子运行终态收口时经 resumeParent 同步台账状态
-        delegationLedger.insertRunning(run.sessionId(), run.id(), child.id(), objectiveHash);
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status='CREATED',children_used=children_used+1,
-                  steps_used=steps_used+CASE WHEN budget_semantics='COMBINED' THEN 1 ELSE 0 END,
-                  input_tokens_used=LEAST(max_input_tokens,input_tokens_used+?),
-                  output_tokens_used=LEAST(max_output_tokens,output_tokens_used+?),
-                  input_tokens_actual=input_tokens_actual+?,
-                  output_tokens_actual=output_tokens_actual+?,
-                  lease_owner=NULL,lease_expires_at=NULL,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, promptTokens, outputTokens, promptTokens, outputTokens,
-                run.projectId(), run.id(), run.version()));
-        return child;
+        return delegation.recordDelegation(run, completion, delegate);
     }
 
     public boolean updateStatus(
@@ -1070,7 +1035,7 @@ public class AgentRunEventRecorder {
                 projectId, runId, version, expected.name()) == 1;
         if (changed && target == AgentRunStatus.CANCELED) {
             findRun(projectId, runId).ifPresent(
-                    run -> resumeParent(run, "CANCELED", "AGENT_RUN_CANCELED"));
+                    run -> delegation.resumeParent(run, "CANCELED", "AGENT_RUN_CANCELED"));
         }
         return changed;
     }
@@ -1380,7 +1345,7 @@ public class AgentRunEventRecorder {
                     """, run.sessionId(), run.id(), content, json.valueToTree(availableCitations).toString());
         }
         // 委派子运行成功收口：唤醒等待中的父运行（非父运行 no-op）
-        resumeParent(run, "SUCCEEDED", content);
+        delegation.resumeParent(run, "SUCCEEDED", content);
         event(run,"RUN_SUCCEEDED",json.createObjectNode().put("status","SUCCEEDED"));
 
         return findRun(run.projectId(), run.id()).orElse(run);
@@ -1459,12 +1424,12 @@ public class AgentRunEventRecorder {
         return findRun(run.projectId(), run.id()).orElse(run);
     }
 
-    private Optional<AgentRunView> findRun(UUID projectId, UUID runId) {
+    Optional<AgentRunView> findRun(UUID projectId, UUID runId) {
         return jdbc.query("SELECT * FROM agent_run WHERE project_id=? AND id=?",
                 AgentRunMappers.runMapper(), projectId, runId).stream().findFirst();
     }
 
-    private void invocationMetrics(java.util.List<java.util.Map<String,Object>> rows) {
+    void invocationMetrics(java.util.List<java.util.Map<String,Object>> rows) {
         if (metrics == null) return;
         for (var row : rows) metrics.invocation(
                 java.util.Objects.toString(row.get("execution_safety"), "UNCONFIRMABLE_SIDE_EFFECT"),
@@ -1472,7 +1437,7 @@ public class AgentRunEventRecorder {
                 com.shitulelv.aicollab.agent.infrastructure.diagnostics.AgentDiagnosticScope.elapsed(row.get("tool_call_id").toString()));
     }
 
-    private void markBatchHandled(UUID runId) {
+    void markBatchHandled(UUID runId) {
         preserveUnconfirmedDispatches(runId);
         jdbc.update("UPDATE agent_step SET output_json=jsonb_set(output_json,'{batchHandled}','true'::jsonb) WHERE run_id=? AND type='MODEL_TURN' AND output_json IS NOT NULL", runId);
         invocationMetrics(jdbc.queryForList("UPDATE agent_tool_invocation SET status='SKIPPED',result_json='{\"status\":\"SKIPPED\",\"error\":\"BATCH_ENDED\"}'::jsonb,updated_at=now() WHERE run_id=? AND status='PENDING' RETURNING invocation_id,tool_call_id,execution_safety,status", runId));
@@ -1524,14 +1489,14 @@ public class AgentRunEventRecorder {
                 """, run.id(), nextSequence(run.id()), errorCode);
     }
 
-    private int nextSequence(UUID runId) {
+    int nextSequence(UUID runId) {
         Integer value = jdbc.queryForObject("""
                 SELECT COALESCE(max(sequence_no),0)+1 FROM agent_step WHERE run_id=?
                 """, Integer.class, runId);
         return value == null ? 1 : value;
     }
 
-    private String jsonString(Object value) {
+    String jsonString(Object value) {
         try {
             return json.writeValueAsString(value);
         } catch (JsonProcessingException exception) {
@@ -1544,7 +1509,7 @@ public class AgentRunEventRecorder {
      * （预算治理 v3，设计文档 §4.3，替换原 codePoint/3——对中文系统性低估约 2 倍）。
      * 只换估算公式，usageBasis 的 PROVIDER/ESTIMATED/UNKNOWN 分类与记账语义不变。
      */
-    private static int tokens(Integer reported, String text) {
+    static int tokens(Integer reported, String text) {
         if (reported != null) return reported;
         return Math.max(1, TokenEstimator.estimate(text));
     }
@@ -1707,142 +1672,31 @@ public class AgentRunEventRecorder {
                 usage.bookedInput(), usage.bookedOutput(), usage.estimated(), projectId, runId);
     }
 
-    private static int boundedLatency(long value) {
+    static int boundedLatency(long value) {
         return (int) Math.min(Integer.MAX_VALUE, Math.max(0, value));
     }
 
-    private static String truncate(String value, int maximum) {
+    static String truncate(String value, int maximum) {
         if (value == null) return null;
         int count = value.codePointCount(0, value.length());
         return count <= maximum ? value : value.substring(0, value.offsetByCodePoints(0, maximum));
     }
 
-    private static void requireRunUpdate(int updated) {
+    static void requireRunUpdate(int updated) {
         if (updated != 1) {
             throw new IllegalStateException("Agent 运行已被其他 worker 修改");
         }
     }
 
-    /**
-     * 子运行终态回收：唤醒等待中的父运行，回收已发生的消耗并移交结构化结果。
-     *
-     * <p>消息隔离（R1）：子运行自身不向会话写 ASSISTANT 消息——它的产出只以
-     * DELEGATION_COMPLETED step（本方法）持久化，由父运行综合后以父身份落一份最终回答。</p>
-     *
-     * <p>用量回收（R5）：已发生消耗的回收独立于能否唤醒父运行——父处于 RUNNING/PAUSED
-     * 等任何状态时用量照样累加（幂等键 DELEGATION_COMPLETED step 防重复回收），
-     * 只是把父运行唤醒为 QUEUED 的部分仍要求 CREATED/QUEUED；父保持 PAUSED 不被自动解除。</p>
-     *
-     * <p>来源身份（R7）：回收本运行成功工具结果中的有效 citations，随 DELEGATION_COMPLETED
-     * 持久化，父运行综合时能把这些来源投影到自己的最终回答，不依赖模型重新编造引用 ID。</p>
-     *
-     * <p>覆盖事实：同时从子运行持久化工具结果推导最小结构化覆盖（文档/版本身份、提纲取得状态与
-     * 可信度、已读章节、分页/截断限制、已知缺口、结束原因），由
-     * {@link DelegatedResearchCoverage} 提取——不由模型填写、不追加统计用工具调用、
-     * 不回传工具原文。父运行据此如实说明范围，不再只凭子运行的文字转述
-     * （真实 B-narrow2 实验：父综合误称"未取得提纲"）。</p>
-     */
-    private void resumeParent(AgentRunView child, String status, String content) {
-        if (child.parentRunId() == null) return;
-        // 幂等：同一子运行只回收一次。恢复/重复收口重放时直接返回，不重复写 step、不重复累计用量。
-        boolean alreadyCollected = jdbc.queryForObject("""
-                SELECT count(*) FROM agent_step
-                WHERE run_id=? AND type='DELEGATION_COMPLETED' AND output_json->>'childRunId'=?
-                """, Integer.class, child.parentRunId(), child.id().toString()) > 0;
-        if (alreadyCollected) return;
-        // 委派防重台账（V81）：子运行到达终态即收口台账，释放该 objective 的判重状态语义
-        // （终态记录与 RUNNING 记录一样阻止同哈希重复委派，只有用户取消放行再次委派）。
-        // 只更新仍为 RUNNING 的记录，重复收口 no-op。
-        delegationLedger.closeForChild(child.id(), ledgerTerminalStatus(status));
-        AgentRunView usage = findRun(child.projectId(), child.id()).orElse(child);
-        // 子研究运行的可验证来源身份：本运行成功工具结果中真实存在的 chunk/document 投影
-        java.util.LinkedHashMap<UUID, AgentCitation> childCitations = collectEvidence(child.id(), child.projectId());
-        int sequence = nextSequence(child.parentRunId());
-        var completed = json.createObjectNode()
-                .put("childRunId", child.id().toString())
-                .put("status", status)
-                .put("content", content);
-        completed.set("citations", json.valueToTree(childCitations.values().stream().limit(50).toList()));
-        completed.set("coverage", DelegatedResearchCoverage.extract(json, persistedToolResults(child.id()), status));
-        completed.put("usage", json.createObjectNode()
-                .put("inputTokensUsed", usage.inputTokensUsed())
-                .put("outputTokensUsed", usage.outputTokensUsed())
-                .put("inputTokensActual", usage.inputTokensActual())
-                .put("outputTokensActual", usage.outputTokensActual()));
-        jdbc.update("""
-                INSERT INTO agent_step(run_id,sequence_no,type,output_json,reason)
-                VALUES (?,?,'DELEGATION_COMPLETED',?::jsonb,?)
-                """, child.parentRunId(), sequence, jsonString(completed),
-                "Specialist child run completed");
-        // 已发生消耗的回收独立于唤醒。v1 沿用"并入父运行共享额度"的既有语义；
-        // v2 父子执行额度独立：子消耗只做<b>真实统计</b>（actual 与 used 如实累计一次），
-        // <b>不扣减父自身的步骤/工具执行额度</b>——否则子研究会把父综合的额度吃掉
-        // （设计要求：子消耗回收只用于真实统计，不扣减父自身步骤/工具额度）。
-        AgentRunView parentView = findRun(child.projectId(), child.parentRunId()).orElse(null);
-        boolean independentChildBudget = parentView != null && !parentView.enforcesCumulativeTokenLimits();
-        if (independentChildBudget) {
-            // v2：只累计 token 用量事实，不动父自身的 steps_used / tool_calls_used。
-            // token 仍走 NULL 安全的封顶函数：v2 正常情况下 max_* 为 NULL（不封顶、只统计），
-            // 但若该行仍带非 NULL 上限（兼容场景），必须继续保持 used <= max 的行约束，
-            // 不能因放宽执行额度而写出违反 ck_agent_run_budgets 的行。
-            jdbc.update("""
-                    UPDATE agent_run SET
-                      input_tokens_used=agent_capped_add(input_tokens_used, max_input_tokens, ?),
-                      output_tokens_used=agent_capped_add(output_tokens_used, max_output_tokens, ?),
-                      input_tokens_actual=input_tokens_actual+?,
-                      output_tokens_actual=output_tokens_actual+?,
-                      token_usage_estimated=token_usage_estimated OR ?,
-                      updated_at=now()
-                    WHERE id=?
-                    """, usage.inputTokensUsed(), usage.outputTokensUsed(),
-                    usage.inputTokensActual(), usage.outputTokensActual(),
-                    usage.tokenUsageEstimated(), child.parentRunId());
-        } else {
-            jdbc.update("""
-                    UPDATE agent_run SET
-                      steps_used=LEAST(max_steps,steps_used+?),
-                      tool_calls_used=LEAST(max_tool_calls,tool_calls_used+?),
-                      input_tokens_used=agent_capped_add(input_tokens_used, max_input_tokens, ?),
-                      output_tokens_used=agent_capped_add(output_tokens_used, max_output_tokens, ?),
-                      input_tokens_actual=input_tokens_actual+?,
-                      output_tokens_actual=output_tokens_actual+?,
-                      token_usage_estimated=token_usage_estimated OR ?,
-                      updated_at=now()
-                    WHERE id=?
-                    """, usage.stepsUsed(), usage.toolCallsUsed(), usage.inputTokensUsed(),
-                    usage.outputTokensUsed(), usage.inputTokensActual(), usage.outputTokensActual(),
-                    usage.tokenUsageEstimated(), child.parentRunId());
-        }
-        // 唤醒部分单独执行：只有 CREATED/QUEUED 的等待父运行被转回 QUEUED（再次确认时
-        // no-op 不报错）；RUNNING（竞争窗口）保持运行，PAUSED 不被自动解除暂停。
-        jdbc.update("""
-                UPDATE agent_run SET status='QUEUED',
-                  lease_owner=NULL,lease_expires_at=NULL,
-                  updated_at=now(),version=version+1
-                WHERE id=? AND status IN ('CREATED','QUEUED')
-                """, child.parentRunId());
-    }
-
-    /**
-     * 子运行终态 → 台账终态的映射（台账 CHECK 允许 RUNNING/COMPLETED/FAILED/CANCELED）：
-     * SUCCEEDED→COMPLETED；FAILED/BUDGET_EXCEEDED 及未知兜底→FAILED（预算超限是失败的一种
-     * 收口形态）；CANCELED→CANCELED（用户取消的委派不阻止同 objective 再次委派）。
-     */
-    private static String ledgerTerminalStatus(String runStatus) {
-        return switch (runStatus == null ? "" : runStatus) {
-            case "SUCCEEDED" -> "COMPLETED";
-            case "CANCELED" -> "CANCELED";
-            // FAILED / BUDGET_EXCEEDED / 其他（RUNNING 不是终态，防御性兜底为 FAILED）
-            default -> "FAILED";
-        };
-    }
+    // 子运行终态回收（resumeParent）已拆出到 {@link AgentDelegationRecorder}：
+    // 结构化回传、children_pending 计数与父事件收口集中在该协作类。
 
     /**
      * 子运行持久化的全部工具结果（成功与失败），按执行顺序返回给覆盖提取器：
      * tool_name / reason（TOOL_SUCCESS|TOOL_ERROR）/ input_json / output_json。
      * 只读取持久化事实，不调用工具、不让模型参与。
      */
-    private List<DelegatedResearchCoverage.PersistedToolResult> persistedToolResults(UUID runId) {
+    List<DelegatedResearchCoverage.PersistedToolResult> persistedToolResults(UUID runId) {
         return jdbc.query("""
                 SELECT tool_name, reason, input_json::text AS input_json, output_json::text AS output_json
                 FROM agent_step
@@ -1856,7 +1710,7 @@ public class AgentRunEventRecorder {
                 runId);
     }
 
-    private JsonNode parseJsonOrNull(String value) {
+    JsonNode parseJsonOrNull(String value) {
         if (value == null || value.isBlank()) return null;
         try {
             return json.readTree(value);
@@ -1867,7 +1721,7 @@ public class AgentRunEventRecorder {
     }
 
     /** 本运行成功工具结果中的有效来源身份投影（{@link #recordFinal} 的证据查询共用逻辑）。 */
-    private java.util.LinkedHashMap<UUID, AgentCitation> collectEvidence(UUID runId, UUID projectId) {
+    java.util.LinkedHashMap<UUID, AgentCitation> collectEvidence(UUID runId, UUID projectId) {
         var evidence = new java.util.LinkedHashMap<UUID, AgentCitation>();
         for (String value : jdbc.queryForList("""
                 SELECT c.value::text FROM agent_step s
@@ -1933,140 +1787,13 @@ public class AgentRunEventRecorder {
     // ========== document_research 只读委派（V62） ==========
 
     /**
-     * 受理一次只读文档研究委派：创建 depth=1 的子运行、落 DELEGATION_REQUESTED step、
-     * 委派工具结果落库并把父运行转回 QUEUED——全部在同一事务内完成。
-     * 与旧 {@link #recordDelegation} 的差异：本方法不绑定一次模型轮次 completion
-     * （委派发生在工具执行阶段），预算从父运行剩余额度切出。
-     *
-     * <p>幂等：同一 invocation（run + invocationId）重复执行返回既有结果，
-     * 不再切预算、不再创建第二个子运行——崩溃恢复与重复接管安全。</p>
-     *
-     * <p>暂停/取消：父运行暂停意图先落库时拒绝受理（AGENT_RUN_PAUSED），由调用方按控制结果处理。</p>
+     * 受理一次只读文档研究委派（V82 起已拆出到 {@link AgentDelegationRecorder}，
+     * 含并行 fan-out 的 children_pending 等待语义与结构化回传）；本方法保留为兼容入口。
      */
     @Transactional
     public JsonNode documentResearchDelegationResult(
             AgentRunView run, String invocationId, String objective) {
-        AgentLeaseScope.verify(jdbc, run.projectId(), run.id(), false);
-        if (run.depth() != 0) {
-            throw new BusinessException(ErrorCode.AGENT_TOOL_NOT_ALLOWED, "子运行不能再委派（最多一层）");
-        }
-        // 幂等：同调用身份已有委派结果直接返回（恢复路径的重复执行）；
-        // 或该运行已有同一 objective 的待决委派（父运行已转 QUEUED）时返回既有子运行
-        var existing = jdbc.query("""
-                SELECT i.result_json::text FROM agent_tool_invocation i
-                WHERE i.run_id=? AND i.invocation_id::text=? AND i.status='SUCCEEDED'
-                """, (rs, row) -> rs.getString(1), run.id(), invocationId).stream().findFirst();
-        if (existing.isEmpty()) {
-            existing = jdbc.query("""
-                    SELECT jsonb_build_object('status','DELEGATED','childRunId',c.id::text)::text
-                    FROM agent_step s
-                    JOIN agent_run c ON c.parent_run_id=s.run_id AND c.role='KNOWLEDGE_RESEARCHER'
-                    WHERE s.run_id=? AND s.type='DELEGATION_REQUESTED'
-                      AND s.input_json->>'invocationId'=?
-                    """, (rs, row) -> rs.getString(1), run.id(), invocationId).stream().findFirst();
-        }
-        if (existing.isPresent()) {
-            try { return json.readTree(existing.get()); }
-            catch (JsonProcessingException failure) { throw new IllegalStateException(failure); }
-        }
-        if (Boolean.TRUE.equals(jdbc.queryForObject(
-                "SELECT pause_requested_at IS NOT NULL FROM agent_run WHERE id=?", Boolean.class, run.id()))) {
-            throw new BusinessException(ErrorCode.AGENT_RUN_PAUSED, "Agent 运行已请求暂停，不启动委派");
-        }
-        if (run.childrenUsed() >= run.maxChildren()) {
-            throw new com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException(
-                    com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission
-                            .RejectionReason.CHILDREN_EXHAUSTED.code(),
-                    com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission
-                            .RejectionReason.CHILDREN_EXHAUSTED.message());
-        }
-        // 委派防重台账（V81）：同一会话下同一 objective（归一化哈希）已存在非 CANCELED
-        // 记录时拒绝受理——"换个说法"的重复委派（大小写/标点/空白变体）同样命中。
-        // 幂等重放已在上方按 invocation 身份提前返回，不会走到这里。
-        String objectiveHash = AgentDelegationGuard.objectiveHash(objective);
-        if (AgentDelegationGuard.isDuplicateObjective(
-                delegationLedger.countActiveByObjective(run.sessionId(), objectiveHash))) {
-            throw new AgentDelegationNotAdmittedException(
-                    AgentDelegationAdmission.RejectionReason.DUPLICATE_OBJECTIVE.code(),
-                    AgentDelegationAdmission.RejectionReason.DUPLICATE_OBJECTIVE.message());
-        }
-
-        // 子运行预算：v1 从父运行剩余额度切出（硬上限保证委派不放大总资源）；
-        // v2 使用子运行自己的独立有限执行额度（不从父剩余切分，累计 token 不设上限），
-        // 父仍须能发起委派并完成自身综合收尾——这一检查不能变成"父还剩几次工具，子只能读几页"。
-        String parentSemantics = jdbc.queryForObject(
-                "SELECT budget_semantics FROM agent_run WHERE id=?", String.class, run.id());
-        boolean combined = "COMBINED".equals(parentSemantics);
-        var facts = new com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.Facts(
-                run.maxSteps(), run.stepsUsed(), run.maxToolCalls(), run.toolCallsUsed(),
-                run.maxInputTokens(), run.inputTokensUsed(), run.maxOutputTokens(), run.outputTokensUsed(),
-                run.childrenUsed(), run.maxChildren(), combined, run.contextPolicyVersion());
-        // 剩余执行额度连"发起委派 + 父综合收尾"都容纳不了：明确拒绝受理
-        // （可预期拒绝类型的异常，不先启动再注定失败），由调用方有边界地保留父运行、
-        // 不把它判成失败。
-        var rejection = com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.reject(facts);
-        if (rejection != null) {
-            throw new com.shitulelv.aicollab.common.exception.AgentDelegationNotAdmittedException(
-                    rejection.code(), rejection.message());
-        }
-        var childBudget = com.shitulelv.aicollab.agent.domain.model.AgentDelegationAdmission.split(facts);
-        int childSteps = childBudget.steps();
-        int childToolCalls = childBudget.toolCalls();
-        Integer childInput = childBudget.inputTokens();
-        Integer childOutput = childBudget.outputTokens();
-
-        int sequence = nextSequence(run.id());
-        jdbc.update("""
-                INSERT INTO agent_step(run_id,sequence_no,type,input_json,reason)
-                VALUES (?,?,'DELEGATION_REQUESTED',?::jsonb,'DOCUMENT_RESEARCH_DELEGATED')
-                """, run.id(), sequence,
-                jsonString(Map.of("invocationId", invocationId, "role", "KNOWLEDGE_RESEARCHER",
-                        "objective", truncate(objective, 3800))));
-
-        UUID childId = UUID.randomUUID();
-        // 子运行继承父运行的预算语义（V63）与资源策略版本（V64）：v2 父下子运行同样是
-        // v2，累计输入/输出写 NULL（只统计、不限额），执行额度用自己的独立上界。
-        AgentRunView child = jdbc.queryForObject("""
-                INSERT INTO agent_run(
-                  id,session_id,project_id,requester_id,parent_run_id,role,depth,goal,status,
-                  max_steps,max_tool_calls,max_children,max_input_tokens,max_output_tokens,budget_semantics,context_policy_version)
-                VALUES (?,?,?,?,?,?,1,?,'QUEUED',?,?,0,?,?,(SELECT budget_semantics FROM agent_run WHERE id=?),
-                  (SELECT context_policy_version FROM agent_run WHERE id=?))
-                RETURNING *
-                """, AgentRunMappers.runMapper(), childId, run.sessionId(), run.projectId(), run.requesterId(),
-                run.id(), "KNOWLEDGE_RESEARCHER", truncate(objective, 3800),
-                childSteps, childToolCalls, childInput, childOutput, run.id(), run.id());
-        // 委派防重台账（V81）：与子运行创建同一事务登记 RUNNING 记录，
-        // 子运行终态收口时经 resumeParent 同步台账状态
-        delegationLedger.insertRunning(run.sessionId(), run.id(), child.id(), objectiveHash);
-
-        ObjectNode result = json.createObjectNode();
-        result.put("status", "DELEGATED");
-        result.put("childRunId", child.id().toString());
-        result.put("message", "研究任务已受理。子 Agent 完成后本运行自动继续，届时综合其发现回答用户；本轮不要重复委派。");
-
-        // 父运行：登记 children_used 与委派自身的工具消耗（委派是一次真实的工具
-        // 受理，与普通 recordToolResult 同一配额语义，不出现免费调用；推进步按
-        // 预算语义分支），转回 QUEUED 等待子运行终态唤醒；不预扣子运行将要消耗的
-        // 额度（子消耗在回收时并入）。
-        // 委派工具结果在执行层身份行（invocation）上落 SUCCEEDED，恢复路径据此幂等复用。
-        requireRunUpdate(jdbc.update("""
-                UPDATE agent_run SET status='QUEUED',children_used=children_used+1,
-                  tool_calls_used=LEAST(max_tool_calls,tool_calls_used+1),
-                  steps_used=steps_used+CASE WHEN budget_semantics='COMBINED' THEN 1 ELSE 0 END,
-                  lease_owner=NULL,lease_expires_at=NULL,
-                  updated_at=now(),version=version+1
-                WHERE project_id=? AND id=? AND version=? AND status='RUNNING'
-                """, run.projectId(), run.id(), run.version()));
-        invocationMetrics(jdbc.queryForList("""
-                UPDATE agent_tool_invocation SET status='SUCCEEDED',
-                  result_json=?::jsonb,updated_at=now()
-                WHERE run_id=? AND invocation_id=? AND status='PENDING'
-                RETURNING invocation_id,tool_call_id,execution_safety,status
-                """, jsonString(result), run.id(), UUID.fromString(invocationId)));
-        // 委派批次全部完成：标记本运行最近模型轮次已消费，恢复路径不再重放委派调用
-        markBatchHandled(run.id());
-        return result;
+        return delegation.documentResearchDelegationResult(run, invocationId, objective);
     }
 
     /** 读取子运行的最终回答与状态（父运行综合时的证据来源；只读）。 */
