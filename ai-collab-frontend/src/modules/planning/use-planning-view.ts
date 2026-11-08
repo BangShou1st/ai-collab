@@ -14,6 +14,7 @@ import { PlanningPoller } from './planning-poller'
 import type {
   PartialRepairMode,
   PlanPermissions,
+  ReflectIssue,
   TaskPlan,
   TaskPlanDraft,
   StructuredValidationIssue,
@@ -89,6 +90,7 @@ const canCreate = ref(false), pendingConfirmation = ref<{ versionId: string; key
 const documents = ref<ProjectDocument[]>([]), members = ref<ProjectMember[]>([])
 const project = ref<Project | null>(null)
 const structuredIssues = ref<StructuredValidationIssue[]>([]), events = ref<TaskPlanEvent[]>([])
+const reflectIssues = ref<ReflectIssue[]>([])
 const repairDiagnostics = ref<Omit<StructuredValidationIssue, 'id'>[]>([])
 function adoptAssignee(task: TaskPlanDraft['tasks'][number]) {
   if (!canEditCurrent.value || !task.suggestedAssigneeId || !members.value.some(member => member.userId === task.suggestedAssigneeId)) return
@@ -184,6 +186,7 @@ async function open(plan: TaskPlan): Promise<void> {
   const [detail, history] = await Promise.all([planningApi.detail(projectId.value, plan.id), planningApi.versions(projectId.value, plan.id)])
   selected.value = detail.data.data.plan; permissions.value = detail.data.data.permissions; versions.value = history.data.data
   structuredIssues.value = detail.data.data.structuredIssues || []
+  reflectIssues.value = detail.data.data.reflectIssues || []
   repairDiagnostics.value = detail.data.data.repairDiagnostics || []
   if (selected.value.latestVersionId) {
     if (!samePlan) {
@@ -326,7 +329,7 @@ async function removePlan(): Promise<void> {
   if (!selected.value || !await window.confirm('删除后无法恢复，确定删除该规划吗？')) return
   try {
     await planningApi.remove(projectId.value, selected.value.id)
-    selected.value = null; draft.value = null; structuredIssues.value = []; events.value = []
+    selected.value = null; draft.value = null; structuredIssues.value = []; reflectIssues.value = []; events.value = []
     await list()
     await ensureDefaultSelection()
   } catch (error) { showApiError(error, '任务规划删除') }
@@ -495,7 +498,7 @@ watch(projectId, async () => {
     projectId, plans, selected, permissions, draft, versions, selectedVersionId,
     expandedMilestone, selectedTaskTempKey, createVisible, checked, saveDialogVisible, saveComment,
     aiConfigured, canCreate, pendingConfirmation, documents, members, project,
-    structuredIssues, repairDiagnostics, adoptAssignee, events, form, dirty, editingLatest, canEditCurrent,
+    structuredIssues, reflectIssues, repairDiagnostics, adoptAssignee, events, form, dirty, editingLatest, canEditCurrent,
     confirmationSummary, targetNames, getTaskCount, getUnassignedCount,
     failureMessage, hasPendingItems, autoExpandPendingMilestones,
     formStartDisabled, formDueDisabled, milestoneDateDisabled,
