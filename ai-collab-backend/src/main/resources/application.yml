@@ -97,8 +97,9 @@ document:
     dispatch-interval: "${DOCUMENT_DISPATCH_INTERVAL:300s}"
     dispatch-initial-delay: "${DOCUMENT_DISPATCH_INITIAL_DELAY:0s}"
     mq:
-        # 总闸：false = 文档链路完全回落进程内线程池路径（回落模式仅限单实例/本地部署，
-        # 进程内去重集合已删除；多实例部署必须开启 MQ）。测试 profile 显式覆盖为 false。
+        # 总闸：false = 文档链路完全回落进程内线程池路径（Redis 深化 P2 后回落模式带
+        # Redisson 跨实例互斥锁，多实例部署不再重复派发；锁不可用时降级放行，正确性
+        # 由 claim CAS 兜底）。测试 profile 显式覆盖为 false。
         enabled: "${MQ_ENABLED:false}"
         namesrv-addr: "${ROCKETMQ_NAMESRV_ADDR:rocketmq-namesrv:9876}"
         topic: "${ROCKETMQ_DOCUMENT_TOPIC:document-processing}"
