@@ -173,7 +173,10 @@ public class AgentRepository {
                        s.title, s.status, s.version, s.created_at, s.updated_at,
                        (SELECT r.id FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_id,
                        (SELECT r.status FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_run_status,
-                       (SELECT r.updated_at FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_activity_at
+                       (SELECT r.updated_at FROM agent_run r WHERE r.project_id=s.project_id AND r.session_id=s.id AND r.depth=0 ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS latest_activity_at,
+                       (SELECT sum(e.cost_amount) FROM agent_run_event e
+                        JOIN agent_run r ON r.id = e.run_id
+                        WHERE r.session_id = s.id) AS total_cost
                 FROM agent_session s LEFT JOIN app_user u ON u.id=s.creator_id
                 WHERE s.project_id=? ORDER BY s.updated_at DESC, s.id DESC LIMIT ?
                 """, (rs, row) -> new AgentSessionSummaryView(
@@ -182,7 +185,20 @@ public class AgentRepository {
                         rs.getString("title"), rs.getString("status"), rs.getInt("version"),
                         rs.getObject("created_at", OffsetDateTime.class), rs.getObject("updated_at", OffsetDateTime.class),
                         rs.getObject("latest_run_id", UUID.class), rs.getString("latest_run_status"),
-                        rs.getObject("latest_activity_at", OffsetDateTime.class)), projectId, limit);
+                        rs.getObject("latest_activity_at", OffsetDateTime.class),
+                        rs.getObject("total_cost", java.math.BigDecimal.class)), projectId, limit);
+    }
+
+    /**
+     * 运行成本聚合（成本台账，设计文档 §4.4，非计费）：对该运行事件行的 cost_amount 求和，
+     * NULL 不计（价格未配置的事件不贡献）。无任何已计成本事件时返回 null
+     * （语义为"无成本数据"，区别于免费模型合计 0）。
+     */
+    public java.math.BigDecimal runTotalCost(UUID projectId, UUID runId) {
+        return jdbc.queryForObject("""
+                SELECT sum(cost_amount) FROM agent_run_event
+                WHERE project_id=? AND run_id=?
+                """, java.math.BigDecimal.class, projectId, runId);
     }
 
     public Optional<AgentSessionView> renameSession(

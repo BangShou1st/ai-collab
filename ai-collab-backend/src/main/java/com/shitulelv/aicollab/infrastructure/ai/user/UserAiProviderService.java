@@ -63,11 +63,14 @@ public class UserAiProviderService {
     }
 
     public List<UserAiProviderView> list(UUID userId) {
-        return repository.findAllByUserId(userId).stream().map(UserAiProviderView::from).toList();
+        var prices = repository.findPricesByUserId(userId);
+        return repository.findAllByUserId(userId).stream()
+                .map(provider -> UserAiProviderView.from(provider, prices.get(provider.id())))
+                .toList();
     }
 
     public UserAiProviderView get(UUID userId, UUID id) {
-        return UserAiProviderView.from(require(userId, id));
+        return UserAiProviderView.from(require(userId, id), repository.findPrices(id, userId).orElse(null));
     }
 
     @Transactional
@@ -78,9 +81,13 @@ public class UserAiProviderService {
         }
         boolean first = repository.countByUserId(userId) == 0;
         OffsetDateTime now = OffsetDateTime.now();
-        return UserAiProviderView.from(repository.save(toProvider(
+        UserAiProvider saved = repository.save(toProvider(
                 UUID.randomUUID(), userId, request, secrets.encrypt(request.apiKey()),
-                first, now, now)));
+                first, now, now));
+        // 价格与配置同一更新通道落库（成本台账 §4.4）；save 的 upsert 不触碰价格列，
+        // 价格整体替换由 updatePrices 完成
+        repository.updatePrices(saved.id(), userId, request.pricePer1kInput(), request.pricePer1kOutput());
+        return UserAiProviderView.from(saved, repository.findPrices(saved.id(), userId).orElse(null));
     }
 
     @Transactional
@@ -89,9 +96,13 @@ public class UserAiProviderService {
         rejectPreset(existing);
         validateEndpoint(request.baseUrl(), request.apiPath());
         String encrypted = resolveEncryptedKey(existing.encryptedApiKey(), request.apiKey());
-        return UserAiProviderView.from(repository.save(toProvider(
+        UserAiProvider saved = repository.save(toProvider(
                 id, userId, request, encrypted, existing.isDefault(),
-                existing.createdAt(), OffsetDateTime.now())));
+                existing.createdAt(), OffsetDateTime.now()));
+        // 价格走同一更新通道与同一守卫：require(userId, id) 已保证用户级配置只能本人改，
+        // 预置/共享连接已在 rejectPreset 拦截（其不填价格，成本恒为 NULL）
+        repository.updatePrices(id, userId, request.pricePer1kInput(), request.pricePer1kOutput());
+        return UserAiProviderView.from(saved, repository.findPrices(id, userId).orElse(null));
     }
 
     /**

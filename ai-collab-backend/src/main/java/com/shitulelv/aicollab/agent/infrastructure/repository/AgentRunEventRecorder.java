@@ -75,6 +75,18 @@ public class AgentRunEventRecorder {
     void event(java.util.UUID projectId, java.util.UUID runId, String type, JsonNode payload) {
         if (events != null) events.append(projectId, runId, com.shitulelv.aicollab.agent.domain.model.AgentEventType.valueOf(type), payload);
     }
+    /**
+     * 发布事件并返回其持久化序号：调用方据此把同批记账的成本精确挂到该事件行
+     * （成本台账 §4.4）。无事件服务的装配路径（部分单测）不落事件，返回 null，
+     * 成本随主记账照常结算，只是无处挂载。
+     */
+    private Long eventSequence(AgentRunView run, String type, JsonNode payload) {
+        if (events == null) return null;
+        var appended = events.append(run.projectId(), run.id(),
+                com.shitulelv.aicollab.agent.domain.model.AgentEventType.valueOf(type), payload);
+        // mock 装配（append 未打桩返回 null）与无事件服务的路径一致：无处挂成本，主记账不受影响
+        return appended == null ? null : appended.sequence();
+    }
 
     public AgentRunEventRecorder(JdbcTemplate jdbc, ObjectMapper json) {
         this(jdbc, json, new AgentDelegationLedgerRepository(jdbc));
@@ -516,6 +528,16 @@ public class AgentRunEventRecorder {
         // 与 run 级记账同一事务、同一取数（provider 上报优先，缺失侧估算）。
         // runId 从步骤行反推（与上方 run 累计的 WHERE 子查询同一关联方式）。
         bookSessionAggregateViaAttempt(attemptId, sessionDelta(usage.bookedInput(), usage.bookedOutput()));
+        // 成本台账（§4.4，非计费）：摘要调用没有独立事件行，成本累加到该运行
+        // 最近一次 MODEL_COMPLETED 事件（runId 从步骤行反推；附属数据失败不阻断主记账）。
+        try {
+            var attemptRows = jdbc.queryForList("SELECT run_id FROM agent_step WHERE id=?", attemptId);
+            if (!attemptRows.isEmpty()) {
+                bookUsageCost((UUID) attemptRows.getFirst().get("run_id"), usage);
+            }
+        } catch (RuntimeException failure) {
+            COST_LOG.warn("摘要记账成本写入失败（不影响主记账）: attempt={}", attemptId, failure);
+        }
     }
 
     // ========== 会话聚合记账（预算治理 v3，设计文档 §4.1） ==========
@@ -563,6 +585,90 @@ public class AgentRunEventRecorder {
     private static long sessionDelta(long inputTokens, long outputTokens) {
         return inputTokens + outputTokens;
     }
+
+    // ========== 成本台账（非计费，设计文档 agent-fanout-budget-and-agentic-planning.md §4.4） ==========
+
+    private static final org.slf4j.Logger COST_LOG =
+            org.slf4j.LoggerFactory.getLogger(AgentRunEventRecorder.class);
+    /** 单价口径：每 1000 token（V85 列注释同口径）。 */
+    private static final java.math.BigDecimal COST_TOKEN_UNIT = java.math.BigDecimal.valueOf(1000);
+    /** agent_run_event.cost_amount 的 NUMERIC(12,6) 上界：极端单价 × 大用量时钳制，不让附属记账失败。 */
+    private static final java.math.BigDecimal COST_AMOUNT_CEILING = new java.math.BigDecimal("999999.999999");
+
+    /**
+     * 模型轮成本的挂载点：把本轮 booked tokens 的成本写到刚发布的 MODEL_COMPLETED 事件行
+     * （事件序号来自 {@link #eventSequence}，同事务内精确归属本轮）。
+     * 成本是附属统计数据：价格查询、计算或写列的任何失败只记 warn，
+     * 不抛出、不回滚主记账事务（§4.4 非计费，不得影响 agent 主链路）。
+     */
+    private void attachEventCost(UUID projectId, UUID runId, Long eventSequence,
+            long bookedInput, long bookedOutput) {
+        if (eventSequence == null) return; // 无事件服务的装配路径没有事件行可挂成本
+        try {
+            java.math.BigDecimal cost = turnCost(runId, bookedInput, bookedOutput);
+            if (cost == null) return; // 价格未配置 / 配置缺失 → cost_amount 保持 NULL
+            jdbc.update("""
+                    UPDATE agent_run_event SET cost_amount=?
+                    WHERE project_id=? AND run_id=? AND sequence_no=?
+                    """, cost, projectId, runId, eventSequence);
+        } catch (RuntimeException failure) {
+            COST_LOG.warn("模型轮成本记账失败（不影响主记账）: run={}", runId, failure);
+        }
+    }
+
+    /**
+     * 摘要/迟到结算路径的成本挂载点：这些记账批次没有独立事件行，成本按累加语义
+     * （COALESCE 累加）并入该运行最近一次 MODEL_COMPLETED 事件行，
+     * 会话/运行级成本求和不受挂载点影响。usage 来源为 UNKNOWN（无任何可结算证据）时
+     * 不计成本——不把默认 0 解释成真实零费用（与 {@link UsageSettlement} 的语义一致）。
+     */
+    private void bookUsageCost(UUID runId, UsageSettlement usage) {
+        if (runId == null || UsageSettlement.UNKNOWN.equals(usage.combinedBasis())) return;
+        try {
+            java.math.BigDecimal cost = turnCost(runId, usage.bookedInput(), usage.bookedOutput());
+            if (cost == null) return;
+            jdbc.update("""
+                    UPDATE agent_run_event SET cost_amount=COALESCE(cost_amount,0)+?
+                    WHERE run_id=? AND type='MODEL_COMPLETED'
+                      AND sequence_no=(SELECT max(sequence_no) FROM agent_run_event
+                                       WHERE run_id=? AND type='MODEL_COMPLETED')
+                    """, cost, runId, runId);
+        } catch (RuntimeException failure) {
+            COST_LOG.warn("附属记账成本写入失败（不影响主记账）: run={}", runId, failure);
+        }
+    }
+
+    /**
+     * 按运行当前解析的模型配置查单价并计算成本。run→配置关联为
+     * {@code agent_run.model_configuration_id → user_ai_provider.id}
+     * （{@link com.shitulelv.aicollab.agent.application.runtime.AgentModelConfigurationStore}
+     * 每轮请求前刷新；快照字段仅诊断）。口径：
+     * {@code cost = input/1000 × price_per_1k_input + output/1000 × price_per_1k_output}
+     * （HALF_UP，6 位小数，与列精度一致）。任一侧价格 NULL 或运行未关联配置 → NULL
+     * （不计成本）；共享/预置配置不填价格，同样 NULL。
+     */
+    private java.math.BigDecimal turnCost(UUID runId, long bookedInput, long bookedOutput) {
+        var rows = jdbc.queryForList("""
+                SELECT p.price_per_1k_input, p.price_per_1k_output
+                FROM agent_run r LEFT JOIN user_ai_provider p ON p.id = r.model_configuration_id
+                WHERE r.id = ?
+                """, runId);
+        if (rows.isEmpty()) return null;
+        var priceInput = (java.math.BigDecimal) rows.getFirst().get("price_per_1k_input");
+        var priceOutput = (java.math.BigDecimal) rows.getFirst().get("price_per_1k_output");
+        if (priceInput == null && priceOutput == null) return null;
+        java.math.BigDecimal cost = java.math.BigDecimal.ZERO;
+        if (priceInput != null) {
+            cost = cost.add(priceInput.multiply(java.math.BigDecimal.valueOf(bookedInput))
+                    .divide(COST_TOKEN_UNIT, 6, java.math.RoundingMode.HALF_UP));
+        }
+        if (priceOutput != null) {
+            cost = cost.add(priceOutput.multiply(java.math.BigDecimal.valueOf(bookedOutput))
+                    .divide(COST_TOKEN_UNIT, 6, java.math.RoundingMode.HALF_UP));
+        }
+        return cost.min(COST_AMOUNT_CEILING).setScale(6, java.math.RoundingMode.HALF_UP);
+    }
+
 
     @Transactional
     public void recordBudgetExceeded(AgentRunView run) {
@@ -1225,7 +1331,10 @@ public class AgentRunEventRecorder {
                 .put("provider",truncate(turn.provider(),80))
                 .put("model",truncate(turn.model(),120));
         if (modelCallId != null) completedPayload.put("modelCallId", modelCallId);
-        event(run,"MODEL_COMPLETED",completedPayload);
+        Long completedEventSequence = eventSequence(run,"MODEL_COMPLETED",completedPayload);
+        // 成本台账（设计文档 §4.4，非计费）：本轮 booked tokens 的成本挂在刚发布的
+        // MODEL_COMPLETED 事件行上，与上方 run/会话记账同一组结算值、同一事务
+        attachEventCost(run.projectId(), run.id(), completedEventSequence, inputTokens, outputTokens);
         // 返回更新后的 Run
         return findRun(run.projectId(), run.id()).orElse(run);
     }
@@ -1727,6 +1836,9 @@ public class AgentRunEventRecorder {
                 usage.bookedInput(), usage.bookedOutput(), usage.estimated(), projectId, runId);
         // 迟到的真实用量同样计入会话聚合（§4.1）：业务状态已终结不妨碍结算已发生费用
         bookSessionAggregateViaRun(runId, sessionDelta(usage.bookedInput(), usage.bookedOutput()));
+        // 成本台账（§4.4，非计费）：迟到结算没有独立事件行，成本累加到最近一次
+        // MODEL_COMPLETED 事件（附属数据，失败不阻断主记账）
+        bookUsageCost(runId, usage);
     }
 
     static int boundedLatency(long value) {
