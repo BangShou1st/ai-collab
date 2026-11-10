@@ -1,6 +1,5 @@
 package com.shitulelv.aicollab.common.ai.token;
 
-import com.shitulelv.aicollab.agent.application.runtime.AgentContextBudget;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -91,31 +90,8 @@ class ModelAwareTokenCounterTest {
         assertThat(nativeResult.estimated()).isFalse();
     }
 
-    @Test
-    void agentContextBudgetCalculatesTotalUnifiedBudget() {
-        List<String> messages = List.of("User message");
-        List<String> tools = List.of("{\"name\":\"tool1\"}");
-        int outputReserve = 4000;
-        int safetyMargin = 1000;
-
-        AgentContextBudget.RequestTokenBudget budget = AgentContextBudget.calculateRequestTokens(
-                counter, messages, tools, outputReserve, safetyMargin, "OPENAI", "gpt-4o"
-        );
-
-        assertThat(budget.messageTokens()).isPositive();
-        assertThat(budget.toolSchemaTokens()).isPositive();
-        assertThat(budget.outputReserveTokens()).isEqualTo(4000);
-        assertThat(budget.safetyMarginTokens()).isEqualTo(1000);
-        assertThat(budget.grandTotalTokens()).isEqualTo(
-                budget.totalInputTokens() + outputReserve + safetyMargin
-        );
-        assertThat(budget.source()).isEqualTo(TokenCountSource.ESTIMATED);
-        assertThat(budget.estimated()).isTrue();
-
-        AgentContextBudget.RequestTokenBudget nativeBudget = AgentContextBudget.calculateRequestTokens(
-                counter, messages, tools, outputReserve, safetyMargin, "NATIVE", "gpt-4o"
-        );
-        assertThat(nativeBudget.source()).isEqualTo(TokenCountSource.NATIVE);
-        assertThat(nativeBudget.estimated()).isFalse();
-    }
+    // 原 agentContextBudgetCalculatesTotalUnifiedBudget 用例已随 AgentContextBudget 的死 API
+    // （calculateRequestTokens / RequestTokenBudget）删除：其断言精神（消息/工具协议开销聚合、
+    // ESTIMATED 与 NATIVE 来源标记）已由上方 countMessagesIntegratesProtocolOverhead 与
+    // countToolDefinitionsIntegratesSchemaOverhead 两个用例完整覆盖。
 }
