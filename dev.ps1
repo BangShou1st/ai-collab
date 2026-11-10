@@ -11,6 +11,27 @@ $stateFile = Join-Path $runtime 'processes.json'
 $compose = @('compose', '--env-file', (Join-Path $root '.env'), '-f',
              (Join-Path $root 'ai-collab-deploy/docker-compose.yml'))
 $services = @('postgres', 'redis', 'minio')
+# 本地栈端口参数化(默认值与历史行为一致):与 CostOps 等其他本地栈共存时,
+# 在根 .env 覆盖以下变量即可,无需改代码。见 .env.example 注释。
+$L = @{ backend = '8080'; mgmt = '8081'; pg = '5432'; redis = '6379'; minio = '9000'; minioConsole = '9001';
+       pgVolume = 'ai-collab-deploy_ai_collab_postgres_data' }
+$devEnvFile = Join-Path $root '.env'
+if (Test-Path $devEnvFile) {
+    foreach ($line in Get-Content $devEnvFile) {
+        if ($line -match '^\s*([A-Z][A-Z0-9_]*)\s*=(.*)$') {
+            $v = $matches[2].Trim()
+            switch ($matches[1]) {
+                'SERVER_PORT' { $L.backend = $v }
+                'MANAGEMENT_SERVER_PORT' { $L.mgmt = $v }
+                'AI_COLLAB_PG_HOST_PORT' { $L.pg = $v }
+                'AI_COLLAB_REDIS_HOST_PORT' { $L.redis = $v }
+                'AI_COLLAB_MINIO_HOST_PORT' { $L.minio = $v }
+                'AI_COLLAB_MINIO_CONSOLE_HOST_PORT' { $L.minioConsole = $v }
+                'AI_COLLAB_PG_DATA_VOLUME' { $L.pgVolume = $v }
+            }
+        }
+    }
+}
 New-Item -ItemType Directory -Force $runtime | Out-Null
 
 function Read-State {
@@ -50,8 +71,8 @@ function Listeners($port) {
 function Healthy($name) {
     try {
         if ($name -eq 'backend') {
-            # O1：actuator 健康探针走独立管理端口 8081（application.yml 默认值），业务 API 仍在 8080。
-            return ((Local-Http 'http://127.0.0.1:8081/actuator/health') | ConvertFrom-Json).status -eq 'UP'
+            # O1：actuator 健康探针走独立管理端口（application.yml 默认 8081，.env 可覆盖），业务 API 在 SERVER_PORT。
+            return ((Local-Http "http://127.0.0.1:$($L.mgmt)/actuator/health") | ConvertFrom-Json).status -eq 'UP'
         }
         if ($name -eq 'backend2') {
             # M2 双实例验收：第二个实例走 dual profile（application-dual.yml：8082/8083）。
@@ -76,7 +97,7 @@ function Wait-App($name) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
         if (!(Matches $state.$name)) { throw "$name exited; see $runtime/$name.stderr.log and $name.stdout.log" }
-        $port = switch ($name) { 'backend' { 8080 } 'backend2' { 8082 } default { 5173 } }
+        $port = switch ($name) { 'backend' { [int]$L.backend } 'backend2' { 8082 } default { 5173 } }
         $owners = Listeners $port
         if ($owners.Count -and $state.$name.pid -notin $owners) { Assert-Free $port }
         if ($state.$name.pid -in $owners -and (Healthy $name)) { return }
@@ -113,11 +134,12 @@ function Infra {
                 }
             }
         } else {
-            $ports = @{ postgres = @(5432); redis = @(6379); minio = @(9000,9001) }
+            $ports = @{ postgres = @([int]$L.pg); redis = @([int]$L.redis); minio = @([int]$L.minio, [int]$L.minioConsole) }
             foreach ($port in $ports[$service]) { Assert-Free $port }
             # A missing container with a surviving volume is recovery, not a fresh install.
             $previous = $ErrorActionPreference
-            try { $ErrorActionPreference = 'Continue'; & docker volume inspect "ai-collab-deploy_ai_collab_${service}_data" *> $null }
+            $volumeName = if ($service -eq 'postgres') { $L.pgVolume } else { "ai-collab-deploy_ai_collab_${service}_data" }
+            try { $ErrorActionPreference = 'Continue'; & docker volume inspect $volumeName *> $null }
             finally { $ErrorActionPreference = $previous }
             if ($LASTEXITCODE -eq 0) {
                 throw "$service has an existing data volume but no container. Restore its original image/container first; no automatic upgrade."
@@ -139,8 +161,8 @@ function Infra {
             }
         }
         try {
-            $null = Local-Http 'http://127.0.0.1:9000/minio/health/ready'
-        } catch { $ready = $false; $failures += 'minio readiness HTTP request failed (127.0.0.1:9000)' }
+            $null = Local-Http "http://127.0.0.1:$($L.minio)/minio/health/ready"
+        } catch { $ready = $false; $failures += "minio readiness HTTP request failed (127.0.0.1:$($L.minio))" }
         if ($ready) { return }
         Start-Sleep -Seconds 2
     } while ((Get-Date) -lt $deadline)
@@ -183,7 +205,7 @@ function Check-App($name, $port) {
     Assert-Free $port
 }
 function Launch($name, $exe, $arguments, $directory) {
-    if ($name -eq 'backend') { Assert-Free 8080 }
+    if ($name -eq 'backend') { Assert-Free ([int]$L.backend) }
     elseif ($name -eq 'backend2') {
         # M2 双实例验收：第二个实例占用业务端口 8082 与管理端口 8083（dual profile）
         Assert-Free 8082
@@ -235,15 +257,15 @@ function Validate-Config {
         throw 'AUTH_ALLOWED_ORIGINS must include http://localhost:5173; do not use a wildcard.'
     }
     if ($values['AUTH_ALLOWED_ORIGINS'] -match '\*') { throw 'AUTH_ALLOWED_ORIGINS must use exact origins, not wildcards.' }
-    if ($values['MINIO_ENDPOINT'] -and $values['MINIO_ENDPOINT'] -ne 'http://localhost:9000') {
-        throw 'This workflow requires local MinIO at http://localhost:9000; check root .env.'
+    if ($values['MINIO_ENDPOINT'] -and $values['MINIO_ENDPOINT'] -ne "http://localhost:$($L.minio)") {
+        throw "MINIO_ENDPOINT must match the local MinIO host port (http://localhost:$($L.minio)); check root .env."
     }
     foreach ($file in @('.env','.env.local','.env.development','.env.development.local')) {
         $path = Join-Path $frontend $file
         if (Test-Path $path) {
             foreach ($line in Get-Content $path) {
-                if ($line -match '^\s*VITE_BACKEND_ORIGIN\s*=(.+)$' -and $matches[1].Trim(' ', '"', "'") -ne 'http://localhost:8080') {
-                    throw "Frontend $file proxy differs from http://localhost:8080. Resolve the configuration manually."
+                if ($line -match '^\s*VITE_BACKEND_ORIGIN\s*=(.+)$' -and $matches[1].Trim(' ', '"', "'") -ne "http://localhost:$($L.backend)") {
+                    throw "Frontend $file proxy differs from http://localhost:$($L.backend). Resolve the configuration manually."
                 }
                 if ($line -match '^\s*VITE_API_BASE_URL\s*=(.+)$' -and $matches[1].Trim(' ', '"', "'") -ne '/api/v1') {
                     throw "Frontend $file API prefix differs from /api/v1. Resolve the configuration manually."
@@ -307,7 +329,7 @@ function Invoke-Doctor {
             Write-Host 'OK feishu: FEISHU_OAUTH_REDIRECT_URI format valid; verify it is registered in the Feishu app console'
         }
     }
-    foreach ($port in @(5432, 6379, 9000, 8080, 5173)) {
+    foreach ($port in @([int]$L.pg, [int]$L.redis, [int]$L.minio, [int]$L.backend, 5173)) {
         $owners = Listeners $port
         if ($owners.Count) { Write-Host "INFO port: $port in use by PID $($owners -join ',')" }
         else { Write-Host "OK port: $port free" }
@@ -345,7 +367,7 @@ function Invoke-Start([switch]$Dual) {
         throw 'Frontend dependencies missing. Run pnpm install --frozen-lockfile in ai-collab-frontend, then retry.'
     }
     # Preflight application ports before any infrastructure mutation.
-    $haveBackend = Check-App 'backend' 8080
+    $haveBackend = Check-App 'backend' ([int]$L.backend)
     $haveBackend2 = if ($Dual) { Check-App 'backend2' 8082 } else { $false }
     $haveFrontend = if ($Dual) { $false } else { Check-App 'frontend' 5173 }
     Write-Host 'Checking Docker infrastructure (existing containers are preserved)'
@@ -363,7 +385,7 @@ function Invoke-Start([switch]$Dual) {
         $classpath = (Join-Path $backend 'target/classes') + ';' + (Get-Content (Join-Path $runtime 'classpath.txt') -Raw).Trim()
         $argFile = Join-Path $runtime 'java.args'
         [IO.File]::WriteAllText($argFile, ('-cp "' + $classpath.Replace('\','/') + '"'), [Text.UTF8Encoding]::new($false))
-        Launch 'backend' (Get-Command java).Source ('-Djava.net.useSystemProxies=true "@' + $argFile + '" com.shitulelv.aicollab.AiCollabBackendApplication --spring.profiles.active=local --server.port=8080') $backend
+        Launch 'backend' (Get-Command java).Source ('-Djava.net.useSystemProxies=true "@' + $argFile + '" com.shitulelv.aicollab.AiCollabBackendApplication --spring.profiles.active=local --server.port=' + $L.backend) $backend
     }
     if ($Dual -and !$haveBackend2) {
         # M2 双实例验收：第二个实例复用同一份 classpath（刚编译过或 target 已就绪），
@@ -389,7 +411,7 @@ function Invoke-Start([switch]$Dual) {
         Write-Host "Ready (dual): API http://localhost:8080 + http://localhost:8082 (management 8081/8083, shared infra & MQ)"
         Write-Host "backend PID=$($state.backend.pid); backend2 PID=$($state.backend2.pid); logs=$runtime"
     } else {
-        Write-Host "Ready: http://localhost:5173 ; API http://localhost:8080 ; MinIO http://localhost:9001"
+        Write-Host "Ready: http://localhost:5173 ; API http://localhost:$($L.backend) ; MinIO http://localhost:$($L.minioConsole) (management $($L.mgmt))"
         Write-Host "backend PID=$($state.backend.pid); frontend PID=$($state.frontend.pid); logs=$runtime"
     }
 }
@@ -416,7 +438,7 @@ try {
         }
         'status' {
             foreach ($name in @('backend','backend2','frontend')) {
-                $port = switch ($name) { 'backend' { 8080 } 'backend2' { 8082 } default { 5173 } }
+                $port = switch ($name) { 'backend' { [int]$L.backend } 'backend2' { 8082 } default { 5173 } }
                 Write-Host "$name port=$port listeners=$((Listeners $port) -join ',') identityMatch=$(Matches $state.$name) managed=$($state.$name.managed) healthy=$(Healthy $name)"
             }
             if (Get-Command docker -ErrorAction SilentlyContinue) {
